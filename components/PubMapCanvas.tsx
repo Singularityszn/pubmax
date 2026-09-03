@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./map/mapColor.css";
+import "./map/mapCameraControls.css";
 
 import Link from "next/link";
 import * as maplibregl from "maplibre-gl";
@@ -53,20 +54,17 @@ import {
   mapCameraFocusMoves,
   type MapCameraFocus,
 } from "@/lib/mapCameraFocus";
-import { resolveCompassAction } from "@/lib/mapCompass";
+import {
+  COMPASS_RESET_DURATION_MS,
+  compassResetLabel,
+  compassResetTarget,
+  mapIsOffHouseAttitude,
+} from "@/lib/mapCompass";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
 import {
-  createIdleOrbit,
-  orbitBearingStep,
-  ORBIT_DEG_PER_SEC,
-  ORBIT_FIRST_DELAY_MS,
-  ORBIT_FRAME_INTERVAL_MS,
-  ORBIT_INTERACTION_DELAY_MS,
-  ORBIT_MAX_BEARING_STEP_DEG,
-  ORBIT_VIEWPORT_PUBLISH_INTERVAL_MS,
-  shouldPublishOrbitViewport,
-  type IdleOrbit,
-} from "@/lib/mapOrbit";
+  idleGestureCameraState,
+  type GestureCameraState,
+} from "@/lib/mapGestureGuard";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { opportunitiesToGeoJSON } from "@/lib/thingsToDoMap";
 import { formatPrice, type Venue } from "@/lib/venues";
@@ -133,6 +131,7 @@ import { MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
 import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
 } from "@/components/map/canvas/interactions";
+import { installMapCameraProbe } from "@/components/map/canvas/cameraProbe";
 import { installPaintedPinProbe } from "@/components/map/canvas/paintedPinProbe";
 import { useMapCamera } from "@/components/map/canvas/useMapCamera";
 import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
@@ -581,8 +580,10 @@ export default function PubMapCanvas({
   const userCameraInteractionRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
   const [mapBearing, setMapBearing] = useState(() => mapView.bearing ?? 0);
-  const orbitRef = useRef<IdleOrbit | null>(null);
-  const lastOrbitViewportPublishAtRef = useRef(0);
+  const [mapPitch, setMapPitch] = useState(() => mapView.pitch ?? 0);
+  // Who owns the camera right now. lib/mapGestureGuard.ts holds the rule; this
+  // ref is the live reading of it, written from MapLibre's own gesture events.
+  const gestureCameraRef = useRef<GestureCameraState>(idleGestureCameraState());
   const publishCurrentViewportRef = useRef<(() => void) | null>(null);
   // Keep the latest parent callback without reading/writing refs during render
   // (react-hooks/refs). Build/event handlers + error paths read this when ready flips.
@@ -1054,6 +1055,7 @@ export default function PubMapCanvas({
     cityBoundsRef,
     routeRef,
     venuesRef,
+    gestureCameraRef,
   })
 
   const selectLandmark = useCallback((landmark: Landmark | null) => {
@@ -1176,7 +1178,6 @@ export default function PubMapCanvas({
     performance.clearMarks("pubmax:pin-entrance-settled");
     const onReducedChange = () => {
       reducedRef.current = reducedQuery.matches;
-      orbitRef.current?.refreshGate();
     };
     reducedQuery.addEventListener("change", onReducedChange);
 
@@ -1356,8 +1357,13 @@ export default function PubMapCanvas({
       );
       return;
     }
+    // Zoom only. The compass is the app's own control (mapCompassBtn below),
+    // because MapLibre's flattens pitch to nothing and this map's resting
+    // attitude is a tilted, slightly turned view of the city: its reset would
+    // hand back a view the map never opens on. Two compasses answering the same
+    // question differently is worse than either.
     map.addControl(
-      new maplibregl.NavigationControl({ visualizePitch: true, showCompass: true }),
+      new maplibregl.NavigationControl({ showCompass: false }),
       "top-right",
     );
     mapRef.current = map;
@@ -1449,29 +1455,43 @@ export default function PubMapCanvas({
       userCameraInteractionRef.current = true;
       onUserCameraMoveRef.current?.();
     };
-    map.on("dragstart", emitUserCameraMove);
-    map.on("zoomstart", emitUserCameraMove);
-    map.on("rotatestart", emitUserCameraMove);
-    map.on("pitchstart", emitUserCameraMove);
+    // One pinch raises drag, zoom, rotate and pitch together, and each ends on
+    // its own. Counting the live ones by name is why a finger still on the
+    // glass after a rotate settles cannot read as "the reader has let go".
+    const liveGestures = new Set<string>();
+    const beginGesture = (name: string) => (event: { originalEvent?: unknown }) => {
+      emitUserCameraMove(event);
+      if (!event.originalEvent) return;
+      liveGestures.add(name);
+      gestureCameraRef.current = { active: true, endedAt: null };
+    };
+    const endGesture = (name: string) => () => {
+      if (!liveGestures.delete(name)) return;
+      if (liveGestures.size > 0) return;
+      gestureCameraRef.current = { active: false, endedAt: performance.now() };
+    };
+    for (const name of ["drag", "zoom", "rotate", "pitch"] as const) {
+      map.on(`${name}start`, beginGesture(name));
+      map.on(`${name}end`, endGesture(name));
+    }
     map.on("moveend", () => {
       // Audit F5: every camera move (programmatic flys included) ends on a
       // fresh present. A repaint moves no camera, so this cannot re-fire
       // moveend; deliberately NOT hooked on `idle` (that would loop).
       map.triggerRepaint();
       setMapBearing(map.getBearing());
-      const orbiting = orbitRef.current?.state() === "orbiting";
-      const now = performance.now();
-      if (!shouldPublishOrbitViewport(
-        orbiting,
-        lastOrbitViewportPublishAtRef.current,
-        now,
-        ORBIT_VIEWPORT_PUBLISH_INTERVAL_MS,
-      )) return;
-      lastOrbitViewportPublishAtRef.current = orbiting ? now : 0;
+      setMapPitch(map.getPitch());
+      // A start whose end never came would hold the camera for the rest of the
+      // session, so a settled map is the safety net that clears the set.
+      if (liveGestures.size > 0 && !map.isMoving()) {
+        liveGestures.clear();
+        gestureCameraRef.current = { active: false, endedAt: performance.now() };
+      }
       publishCurrentViewport();
     });
-    // Pure rotation can finish without a moveend on touch devices.
+    // Pure rotation or tilt can finish without a moveend on touch devices.
     map.on("rotateend", () => setMapBearing(map.getBearing()));
+    map.on("pitchend", () => setMapPitch(map.getPitch()));
     // Kick the initial viewport's shards (a restored session may open on an
     // Outer-London borough that core doesn't cover).
     map.once("idle", emitBounds);
@@ -2705,6 +2725,9 @@ export default function PubMapCanvas({
     // The browser suite's counterpart to that hit test: it publishes where the
     // painted pins are so a tap can land on one (paintedPinProbe.ts).
     const removePaintedPinProbe = installPaintedPinProbe(map);
+    // Camera side of the same answer: what a gesture left behind, and where a
+    // geographic point is being painted (cameraProbe.ts).
+    const removeMapCameraProbe = installMapCameraProbe(map);
     wireHoverPrefetch(map, { onVenuePrefetchRef });
     wirePubHover(map, { hoverCapableRef, setHoveredVenue });
     wireCursor(map);
@@ -2844,6 +2867,7 @@ export default function PubMapCanvas({
       window.removeEventListener("focus", onFocus);
       donutSync.destroy();
       removePaintedPinProbe();
+      removeMapCameraProbe();
       if (publishCurrentViewportRef.current === publishCurrentViewport) {
         publishCurrentViewportRef.current = null;
       }
@@ -3319,77 +3343,12 @@ export default function PubMapCanvas({
     Boolean(selectedVenueId) &&
     (venues.some((item) => item.id === selectedVenueId) || isUkBaseId(selectedVenueId));
 
-  // Ambient orbit starts only after first pin reveal. Camera updates are fixed
-  // at four per second with a 0.15 degree maximum. This removes continuous
-  // rotateTo rendering that caused tile churn during phone QA.
-  useEffect(() => {
-    const map = mapRef.current;
-    const container = containerRef.current;
-    if (!map || !mapReady || !container) return;
-
-    let onScreen = true;
-    const step = orbitBearingStep(
-      ORBIT_DEG_PER_SEC,
-      ORBIT_FRAME_INTERVAL_MS,
-      ORBIT_MAX_BEARING_STEP_DEG,
-    );
-    const orbit = createIdleOrbit({
-      firstDelayMs: ORBIT_FIRST_DELAY_MS,
-      interactionDelayMs: ORBIT_INTERACTION_DELAY_MS,
-      frameIntervalMs: ORBIT_FRAME_INTERVAL_MS,
-      isReduced: () => reducedRef.current,
-      startStep: () => {
-        const live = mapRef.current;
-        if (!live) return;
-        live.jumpTo({ bearing: live.getBearing() - step });
-      },
-      stop: () => {
-        const live = mapRef.current;
-        if (!live) return;
-        live.stop();
-        lastOrbitViewportPublishAtRef.current = 0;
-        setMapBearing(live.getBearing());
-        publishCurrentViewportRef.current?.();
-      },
-      setTimer: (callback, ms) => window.setTimeout(callback, ms),
-      clearTimer: (id) => window.clearTimeout(id),
-    });
-    orbitRef.current = orbit;
-
-    const interact = () => orbit.noteInteraction();
-    const enable = () => orbit.setEnabled(true);
-    const syncSuspended = () => {
-      orbit.setSuspended(document.hidden || !onScreen);
-    };
-    const listenerOptions = { capture: true, passive: true } as const;
-    container.addEventListener("pointerdown", interact, listenerOptions);
-    container.addEventListener("wheel", interact, listenerOptions);
-    container.addEventListener("touchstart", interact, listenerOptions);
-    container.addEventListener("keydown", interact, listenerOptions);
-    window.addEventListener("pubmax:camera-intent", interact);
-    window.addEventListener(MAP_PIN_REVEAL_EVENT, enable);
-    document.addEventListener("visibilitychange", syncSuspended);
-
-    const observer = new IntersectionObserver((entries) => {
-      onScreen = entries[0]?.isIntersecting ?? true;
-      syncSuspended();
-    });
-    observer.observe(container);
-    syncSuspended();
-
-    return () => {
-      container.removeEventListener("pointerdown", interact, listenerOptions);
-      container.removeEventListener("wheel", interact, listenerOptions);
-      container.removeEventListener("touchstart", interact, listenerOptions);
-      container.removeEventListener("keydown", interact, listenerOptions);
-      window.removeEventListener("pubmax:camera-intent", interact);
-      window.removeEventListener(MAP_PIN_REVEAL_EVENT, enable);
-      document.removeEventListener("visibilitychange", syncSuspended);
-      observer.disconnect();
-      orbit.dispose();
-      if (orbitRef.current === orbit) orbitRef.current = null;
-    };
-  }, [mapReady]);
+  // There is no ambient camera here, and that is a decision (captain, 3 Sep
+  // 2026). An idle orbit used to turn the map at 0.6 degrees a second once the
+  // reader stopped touching it, so a bearing somebody had chosen decayed on its
+  // own and the pins crawled with it. Nothing writes this camera now except a
+  // reader's own gesture and a move a reader asked for, and lib/mapGestureGuard
+  // keeps the second class off the glass while the first is in hand.
 
   useEffect(() => {
     if (!selectedVenueId) return;
@@ -3710,40 +3669,42 @@ export default function PubMapCanvas({
             Recenter
           </button>
         ) : null}
-        {(() => {
-          const action = resolveCompassAction(mapBearing, getCity(cityId).mapView);
-          // MapLibre owns the reset-to-north action. Keep this app control only
-          // for the complementary city-attitude action, so the two controls do
-          // not duplicate one another when the opening camera is rotated.
-          if (action.kind !== "adopt-attitude") return null;
-          return (
-            <button
-              type="button"
-              className="mapCompassBtn"
-              onClick={() => {
-                const map = mapRef.current;
-                if (!map) return;
-                orbitRef.current?.noteInteraction();
-                map.easeTo(
-                  {
-                    bearing: action.bearing,
-                    pitch: action.pitch,
-                    duration: reducedRef.current ? 0 : 450,
-                  },
-                );
-              }}
-              aria-label="Tilt the city view"
-              title="Tilt the city view"
-            >
-              <Navigation2
-                size={14}
-                aria-hidden
-                style={{ transform: `rotate(${-mapBearing}deg)` }}
-              />
-              N
-            </button>
-          );
-        })()}
+        {/* The one compass. Always here, because a compass that comes and goes
+            is not a compass, and it hands back the attitude the city opens on
+            rather than flat north (lib/mapCompass.ts). */}
+        <button
+          type="button"
+          className="mapCompassBtn"
+          onClick={() => {
+            const map = mapRef.current;
+            if (!map) return;
+            const designed = getCity(cityId).mapView;
+            if (!mapIsOffHouseAttitude(map.getBearing(), map.getPitch(), designed)) return;
+            const target = compassResetTarget(designed);
+            map.easeTo({
+              bearing: target.bearing,
+              pitch: target.pitch,
+              duration: reducedRef.current ? 0 : COMPASS_RESET_DURATION_MS,
+              easing: easeOutCubic,
+            });
+          }}
+          aria-label={compassResetLabel(cityDisplayName)}
+          title={compassResetLabel(cityDisplayName)}
+        >
+          {/* Needle carries BOTH axes, because the control resets both: a
+              rotateX squash is how MapLibre's own compass shows tilt, and a
+              needle that only turned would say nothing about the pitch it is
+              about to give back. */}
+          <Navigation2
+            size={14}
+            aria-hidden
+            style={{ transform: `rotateX(${mapPitch}deg) rotate(${-mapBearing}deg)` }}
+          />
+          {/* The word is for the desktop stack, where its two siblings are
+              worded controls. On a phone this is a 44px circle in the map-edge
+              lane, so the word comes off and the accessible name carries it. */}
+          <span className="mapCompassBtnLabel">Reset view</span>
+        </button>
       </div>
       {activeLandmark ? (
         <aside className="landmarkCard" aria-label={`${activeLandmark.name} history`}>

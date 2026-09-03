@@ -29,6 +29,10 @@ export type PaintedMapTapPoint = {
   id: string;
   x: number;
   y: number;
+  /** Where the mark IS, as against where it is being drawn. A gesture moves
+   *  the second and must never move the first. */
+  lng: number;
+  lat: number;
 };
 
 type ProbeWindow = Window & {
@@ -99,7 +103,7 @@ export function paintedMapTapPoints(map: maplibregl.Map): PaintedMapTapPoint[] {
         if (!hits.some((hit) => markId(hit, kind) === id)) continue;
       }
 
-      points.push({ kind, id, x, y });
+      points.push({ kind, id, x, y, lng, lat });
       if (firstOnly) return;
     }
   };

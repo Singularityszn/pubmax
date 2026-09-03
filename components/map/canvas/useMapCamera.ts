@@ -4,6 +4,7 @@ import * as maplibregl from "maplibre-gl";
 import type { Venue } from "@/lib/venues";
 import { LONG_JUMP_CURVE, easeOutCubic } from "./easing";
 import { createCameraIntentCoordinator, type CameraIntentKind } from "@/lib/cameraIntent";
+import { cameraIntentBlocked, type GestureCameraState } from "@/lib/mapGestureGuard";
 import { mapVisibleBand, nearMeCameraFrame, nearestVenueKm } from "@/lib/nearMeMapFrame";
 
 type MapView = { center: [number, number]; zoom: number; pitch: number; bearing: number };
@@ -165,6 +166,8 @@ type CameraRefs = {
   cityBoundsRef: MutableRefObject<[[number, number], [number, number]]>;
   routeRef: MutableRefObject<Venue[]>;
   venuesRef: MutableRefObject<Venue[]>;
+  /** Live gesture ownership. See lib/mapGestureGuard.ts for the rule. */
+  gestureCameraRef: MutableRefObject<GestureCameraState>;
 };
 
 // The four camera helpers, extracted verbatim from PubMapCanvas. Each reads live
@@ -172,7 +175,15 @@ type CameraRefs = {
 // helpers must always act on the latest map/route/venues without being recreated
 // (recreating them would re-fire the arrival/refit effects that consume them).
 export function useMapCamera(refs: CameraRefs) {
-  const { mapRef, reducedRef, mapViewRef, cityBoundsRef, routeRef, venuesRef } = refs;
+  const {
+    mapRef,
+    reducedRef,
+    mapViewRef,
+    cityBoundsRef,
+    routeRef,
+    venuesRef,
+    gestureCameraRef,
+  } = refs;
   const coordinator = useMemo(() => createCameraIntentCoordinator({
     requestFrame: (callback) => requestAnimationFrame(callback),
     cancelFrame: (id) => cancelAnimationFrame(id),
@@ -189,14 +200,21 @@ export function useMapCamera(refs: CameraRefs) {
   // animation before it begins, so route, nearby, cluster, and venue moves
   // cannot fight each other on screen.
   const scheduleCamera = useCallback((kind: CameraIntentKind, key: string, move: (map: maplibregl.Map) => void) => {
+    // Asked twice on purpose. The first check keeps a move that is already
+    // refused from occupying the lane; the second is the one that matters,
+    // because the lane defers by a frame and a reader can put a finger down
+    // inside it. `map.stop()` is behind the guard too: an intent that must
+    // stand down may not interrupt the reader's own momentum either.
+    if (cameraIntentBlocked(kind, gestureCameraRef.current, performance.now())) return;
     const run = () => {
       const map = mapRef.current;
       if (!map) return;
+      if (cameraIntentBlocked(kind, gestureCameraRef.current, performance.now())) return;
       map.stop();
       move(map);
     };
     coordinator.schedule(kind, key, run);
-  }, [coordinator, mapRef]);
+  }, [coordinator, gestureCameraRef, mapRef]);
 
   useEffect(() => () => coordinator.dispose(), [coordinator]);
 

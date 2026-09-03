@@ -1,0 +1,24 @@
+/* Where the map's camera chips sit on a wide screen.
+ *
+ * The stack's base geometry is in app/globals.css: `--map-overlay-top` is 108px
+ * on desktop and `--map-top-clearance` is 159px, so there is room for exactly
+ * ONE 44px chip above the search toolbar. Everything below that first row falls
+ * inside the toolbar's own band, and at 1024 and 1280 the toolbar's right end -
+ * the city switcher - is painted over it and takes its taps.
+ *
+ * That was survivable while the second row was "Recenter", which only exists
+ * once a route does. It is not survivable now the compass is always there
+ * (lib/mapCompass.ts): a control nobody can press is worse than the one that
+ * used to disappear.
+ *
+ * So on a wide screen the chips share the one clear band as a ROW rather than
+ * stacking down into the toolbar. Below 901px the toolbar's own stylesheet
+ * already moves the whole stack underneath itself, so that width keeps the
+ * column it was designed with.
+ */
+@media (min-width: 901px) {
+  .mapCameraControls {
+    grid-auto-flow: column;
+    align-items: center;
+  }
+}

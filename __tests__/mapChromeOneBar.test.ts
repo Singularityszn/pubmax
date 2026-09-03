@@ -161,8 +161,14 @@ describe("finding 2.15 — the banners dock under the bar and step off the map",
     expect(canvas).toMatch(
       /if \(!event\.originalEvent\) return;/,
     );
-    expect(canvas).toMatch(/map\.on\("dragstart", emitUserCameraMove\)/);
-    expect(canvas).toMatch(/map\.on\("zoomstart", emitUserCameraMove\)/);
+    // The four gesture starts register through one loop now, because the same
+    // events also hand the camera to the reader (lib/mapGestureGuard.ts), and
+    // `beginGesture` calls this one through before it does anything else.
+    expect(canvas).toMatch(
+      /for \(const name of \["drag", "zoom", "rotate", "pitch"\] as const\)/,
+    );
+    expect(canvas).toMatch(/map\.on\(`\$\{name\}start`, beginGesture\(name\)\)/);
+    expect(canvas).toMatch(/const beginGesture = [\s\S]{0,200}?emitUserCameraMove\(event\);/);
     expect(pubMap).toMatch(/onUserCameraMove=\{dismissAmbientBanners\}/);
     expect(pubMap).toMatch(
       /const ambientBannerLane = !mobileViewport && !mapCameraTouched/,

@@ -67,15 +67,16 @@
   .appShell .mapStage .mapLayersControl,
   /* The camera stack's city-fit + recenter chips are re-homed into the mobile
      top bar, so hide those two — but NOT the whole stack: the compass is the
-     only "back to north" recovery once the map is rotated (#367), and the
+     only recovery once the map is rotated or tilted (#367), and the
      coordinator provides no replacement for it. */
   .appShell .mapStage .mapCameraControls .mapFitLondonBtn,
   .appShell .mapStage .mapCameraControls .mapRecenterBtn {
     display: none !important;
   }
 
-  /* Keep one compass. App compass owns the city-attitude toggle; native zoom
-     stays hidden on phone. */
+  /* Keep one compass. The app compass IS the compass now (lib/mapCompass.ts):
+     it resets bearing AND pitch to the attitude the city opens on, which
+     MapLibre's own reset could not do. Native zoom stays hidden on phone. */
   .appShell .mapStage .mapCameraControls {
     display: grid;
     top: calc(var(--mobile-map-chrome-h) + 66px);
@@ -91,10 +92,17 @@
     border-radius: 50%;
   }
 
-  /* Native zoom group remains in same right lane when MapLibre creates it. */
+  /* A word cannot fit a 44px circle: it wrapped out of the button and off the
+     right edge of the screen. The accessible name still says what this does. */
+  .appShell .mapStage .mapCameraControls .mapCompassBtn .mapCompassBtnLabel {
+    display: none;
+  }
+
+  /* Nothing left in that group on a phone: its compass is gone from MapLibre
+     entirely and its zoom buttons are hidden here, so the group itself would
+     paint as an empty round box in the map-edge lane. */
   .appShell .mapStage .maplibregl-ctrl-top-right {
-    top: calc(var(--mobile-map-chrome-h) + 66px);
-    right: 10px;
+    display: none;
   }
 
   .appShell .mapStage .maplibregl-ctrl-bottom-right {
@@ -181,38 +189,11 @@
 
   /* Portal sheets sit outside .appShell. Hide map-owned controls while one is
      open so the compass cannot paint over or intercept sheet content. */
-  body:has(.mobileSheetPortal) .appShell .mapStage .maplibregl-ctrl-top-right {
+  body:has(.mobileSheetPortal) .appShell .mapStage .mapCameraControls {
     visibility: hidden;
     pointer-events: none;
   }
 
-  /* MapLibre's own square group read as a bare dark box parked under the round
-     TfL chip, and it sat over cluster pins looking like debris rather than a
-     control. Every other floater in this lane is a 44px circle, so the compass
-     takes the same shape and the same surface. */
-  .appShell .mapStage .maplibregl-ctrl-top-right .maplibregl-ctrl-group {
-    margin: 0;
-    width: 44px;
-    height: 44px;
-    overflow: hidden;
-    border: 1px solid var(--ink-soft);
-    border-radius: 50%;
-    background: var(--color-surface-raised);
-    box-shadow: var(--map-overlay-shadow-tight);
-  }
-
-  .appShell .mapStage .maplibregl-ctrl-zoom-in,
-  .appShell .mapStage .maplibregl-ctrl-zoom-out {
-    display: none;
-  }
-
-  .appShell .mapStage .maplibregl-ctrl-compass {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: transparent;
-    color: var(--ink-soft);
-  }
 
   .mobileMapTopbar {
     width: 100%;

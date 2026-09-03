@@ -124,10 +124,12 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
   // the initial load would already have thrown by now.
   await page.waitForTimeout(2_000);
 
-  const builtInCompass = page.locator(".maplibregl-ctrl-compass");
-  await expect(builtInCompass).toHaveCount(1);
-  await expect(page.locator(".mapCompassBtn")).toHaveCount(0);
-  const compassNeedle = builtInCompass.locator(".maplibregl-ctrl-icon");
+  // One compass, and it is the app's own: MapLibre's reset flattened the pitch
+  // to nothing, which is not a view this map ever opens on (lib/mapCompass.ts).
+  const compass = page.locator(".mapCompassBtn");
+  await expect(compass).toHaveCount(1);
+  await expect(page.locator(".maplibregl-ctrl-compass")).toHaveCount(0);
+  const compassNeedle = compass.locator("svg");
   const bearingBeforeIdle = await compassNeedle.evaluate(
     (element) => getComputedStyle(element).transform,
   );
@@ -151,7 +153,7 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
     await page.waitForTimeout(2_000);
   }
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(builtInCompass).toBeVisible();
+  await expect(compass).toBeVisible();
   await expect(page.locator(".maplibregl-ctrl-zoom-in")).toBeHidden();
   await expect(page.locator(".maplibregl-ctrl-zoom-out")).toBeHidden();
 

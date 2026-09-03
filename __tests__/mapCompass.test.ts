@@ -1,44 +1,67 @@
 import { describe, expect, it } from "vitest";
-import { COMPASS_ROTATED_EPSILON, resolveCompassAction } from "@/lib/mapCompass";
+import {
+  COMPASS_RESET_DURATION_MS,
+  COMPASS_SETTLED_EPSILON,
+  compassResetLabel,
+  compassResetTarget,
+  mapIsOffHouseAttitude,
+} from "@/lib/mapCompass";
 
-const LONDON = { pitch: 38, bearing: -8 };
+const LONDON = { pitch: 42, bearing: -12 };
 
-describe("resolveCompassAction", () => {
-  it("resets to north whenever map is rotated in either direction", () => {
-    expect(resolveCompassAction(-8, LONDON)).toEqual({ kind: "reset-north" });
-    expect(resolveCompassAction(12.25, LONDON)).toEqual({ kind: "reset-north" });
-    expect(resolveCompassAction(359, LONDON)).toEqual({ kind: "reset-north" });
+describe("compassResetTarget", () => {
+  it("hands back the city's own attitude, both axes", () => {
+    expect(compassResetTarget(LONDON)).toEqual({ bearing: -12, pitch: 42 });
   });
 
-  it("adopts city attitude when already at north", () => {
-    expect(resolveCompassAction(0, LONDON)).toEqual({
-      kind: "adopt-attitude",
-      bearing: -8,
-      pitch: 38,
-    });
+  it("rests an absent axis at zero rather than inventing one", () => {
+    expect(compassResetTarget({ pitch: 30 })).toEqual({ bearing: 0, pitch: 30 });
+    expect(compassResetTarget({ bearing: -6 })).toEqual({ bearing: -6, pitch: 0 });
+    expect(compassResetTarget({})).toEqual({ bearing: 0, pitch: 0 });
+  });
+});
+
+describe("mapIsOffHouseAttitude", () => {
+  it("is false at the designed attitude", () => {
+    expect(mapIsOffHouseAttitude(-12, 42, LONDON)).toBe(false);
   });
 
-  it("treats sub-epsilon bearings as north", () => {
-    expect(resolveCompassAction(COMPASS_ROTATED_EPSILON, LONDON).kind).toBe("adopt-attitude");
-    expect(resolveCompassAction(-0.4, LONDON).kind).toBe("adopt-attitude");
-    expect(resolveCompassAction(COMPASS_ROTATED_EPSILON + 0.01, LONDON).kind).toBe("reset-north");
+  // The old control appeared only at north, so the moment somebody turned the
+  // map it went away. A turned map is exactly when a reset is wanted.
+  it("is true once the map is turned, in either direction", () => {
+    expect(mapIsOffHouseAttitude(0, 42, LONDON)).toBe(true);
+    expect(mapIsOffHouseAttitude(-90, 42, LONDON)).toBe(true);
+    expect(mapIsOffHouseAttitude(75, 42, LONDON)).toBe(true);
   });
 
-  it("does nothing at north without designed attitude", () => {
-    expect(resolveCompassAction(0, {})).toEqual({ kind: "none" });
-    expect(resolveCompassAction(0, { pitch: 0, bearing: 0 })).toEqual({ kind: "none" });
+  // MapLibre's compass flattened pitch to nothing. A view that lost the tilt
+  // is not the view the city opens on, so pitch is half the question.
+  it("is true once the map is tilted off the designed pitch", () => {
+    expect(mapIsOffHouseAttitude(-12, 0, LONDON)).toBe(true);
+    expect(mapIsOffHouseAttitude(-12, 60, LONDON)).toBe(true);
   });
 
-  it("adopts an attitude when only one axis is set", () => {
-    expect(resolveCompassAction(0, { pitch: 30 })).toEqual({
-      kind: "adopt-attitude",
-      bearing: 0,
-      pitch: 30,
-    });
-    expect(resolveCompassAction(0, { bearing: -6 })).toEqual({
-      kind: "adopt-attitude",
-      bearing: -6,
-      pitch: 0,
-    });
+  it("treats a sub-epsilon nudge on either axis as settled", () => {
+    expect(mapIsOffHouseAttitude(-12 + COMPASS_SETTLED_EPSILON, 42, LONDON)).toBe(false);
+    expect(mapIsOffHouseAttitude(-12, 42 - COMPASS_SETTLED_EPSILON, LONDON)).toBe(false);
+    expect(mapIsOffHouseAttitude(-12 + COMPASS_SETTLED_EPSILON + 0.01, 42, LONDON)).toBe(true);
+    expect(mapIsOffHouseAttitude(-12, 42 + COMPASS_SETTLED_EPSILON + 0.01, LONDON)).toBe(true);
+  });
+
+  it("has nothing to reset on a city with no designed attitude", () => {
+    expect(mapIsOffHouseAttitude(0, 0, {})).toBe(false);
+    expect(mapIsOffHouseAttitude(30, 0, {})).toBe(true);
+  });
+});
+
+describe("compass copy and timing", () => {
+  it("names the city it resets, in the house voice", () => {
+    expect(compassResetLabel("London")).toBe("Reset the map view of London");
+    expect(compassResetLabel("Manchester")).toBe("Reset the map view of Manchester");
+  });
+
+  it("eases rather than jumping", () => {
+    expect(COMPASS_RESET_DURATION_MS).toBeGreaterThan(0);
+    expect(COMPASS_RESET_DURATION_MS).toBeLessThanOrEqual(700);
   });
 });
