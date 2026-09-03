@@ -8,9 +8,9 @@ import {
   EDITORIAL_DEGRADED_LINE,
   EDITORIAL_EMPTY_LINE,
   EDITORIAL_RAIL_TITLE,
-  EDITORIAL_STALE_LINE,
   editorialOglAttributionForSource,
   editorialSnapshotIsStale,
+  editorialStaleLine,
   editorialThisWeekItems,
   editorialViaChip,
   type EditorialSnapshot,
@@ -30,8 +30,10 @@ export function EditorialRailView({
   now?: number;
   onRetry: () => void;
 }) {
-  const stale = editorialSnapshotIsStale(snapshot, now);
-  const items = stale ? [] : editorialThisWeekItems(snapshot, now);
+  const [mountedAt] = useState(() => Date.now());
+  const resolvedNow = now ?? mountedAt;
+  const stale = editorialSnapshotIsStale(snapshot, resolvedNow);
+  const items = stale ? [] : editorialThisWeekItems(snapshot, resolvedNow);
   const empty = items.length === 0;
   const statusLine =
     snapshot.status === "degraded"
@@ -39,7 +41,7 @@ export function EditorialRailView({
         ? EDITORIAL_DEGRADED_EMPTY_LINE
         : EDITORIAL_DEGRADED_LINE
       : stale
-        ? EDITORIAL_STALE_LINE
+        ? editorialStaleLine(snapshot, resolvedNow)
       : empty
         ? EDITORIAL_EMPTY_LINE
         : null;

@@ -15,10 +15,23 @@ export const EDITORIAL_RAIL_TITLE = "Also picked this week";
 export const EDITORIAL_EMPTY_LINE = "No picks this week.";
 export const EDITORIAL_DEGRADED_LINE = "Some picks could not be checked.";
 export const EDITORIAL_DEGRADED_EMPTY_LINE = "Picks could not be checked.";
-// A snapshot past EDITORIAL_SNAPSHOT_MAX_AGE_MS withholds its rows, so the
-// reader has nothing to show AND nothing we can vouch for. "Picks need a fresh
-// check" described our own maintenance to a drinker; this says what they get
-// without claiming the week is empty, which we do not know.
+// A withheld week says TWO things, and the ruled line says both (captain,
+// 2026-09-01, composing two branches that had each fixed one half).
+//
+// What the reader GETS is the first sentence. "Picks need a fresh check"
+// described our own maintenance to a drinker, and "No picks this week" would
+// claim the week is empty, which a withheld snapshot cannot know: it did not
+// look. This sentence claims neither.
+//
+// HOW STALE the check is is the second. The undated version admitted staleness
+// without dating it, so a reader met the same words on a snapshot two days old
+// and on one two months old, and the rail read as a permanent apology rather
+// than a fact. Naming the day is the house provenance pattern, the same shape
+// as "Checked 6 minutes ago" on drink weather.
+//
+// A snapshot we cannot date keeps the first sentence alone. That is already
+// honest, and inventing a day, or apologising a second time in different words,
+// would both be worse than saying less.
 export const EDITORIAL_STALE_LINE = "No fresh picks to show just now.";
 export const EDITORIAL_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 // A generated overlay is a build artifact, not a live feed. Once it is two
@@ -40,6 +53,39 @@ export type EditorialSnapshot = {
   status: "ready" | "degraded";
   items: EditorialItem[];
 };
+
+/** The day an editorial snapshot was generated, in the house short form. */
+export function editorialCheckedDay(
+  generatedAt: string,
+  now: number = Date.now(),
+): string | null {
+  const ms = Date.parse(generatedAt);
+  if (!Number.isFinite(ms) || ms > now) return null;
+  try {
+    return new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/London",
+      day: "numeric",
+      month: "short",
+    })
+      .format(new Date(ms))
+      .replace(/,/gu, "");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What the rail says while a stale snapshot's rows are withheld: what the
+ * reader gets, then when the check was. Falls back to the first sentence alone
+ * when the snapshot carries no day we can print.
+ */
+export function editorialStaleLine(
+  snapshot: EditorialSnapshot,
+  now: number = Date.now(),
+): string {
+  const day = editorialCheckedDay(snapshot.generatedAt, now);
+  return day ? `${EDITORIAL_STALE_LINE} Last checked ${day}.` : EDITORIAL_STALE_LINE;
+}
 
 export function editorialViaChip(label: string): string {
   return `via ${label}`;

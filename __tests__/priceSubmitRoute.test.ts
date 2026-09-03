@@ -421,6 +421,7 @@ describe("POST /api/price-submit", () => {
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({
       code: "PAIRING_REPAIR_REQUIRED",
+      error: "Could not finish that price log. Try again.",
       retryable: true,
     });
     expect(await readCommunityPrices(venueId)).toMatchObject([{ priceGbp: 4.2 }]);

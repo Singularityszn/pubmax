@@ -949,3 +949,126 @@ these are not covered by that test's em-dash scan. This is a pre-existing gap
 in test coverage, not a copy violation, and is noted here for awareness rather
 than fixed in this pass. No code changed; this is a clean-audit closeout for
 one surface, not a widened sweep.
+
+## Pass 2026-08-30: the remaining surfaces
+
+The passes above were per file, and their inventories name what each one read.
+This pass records focused fences for named surfaces and mechanical classes. It
+does not claim complete tree coverage. The per-file inventories above still
+record what the earlier passes read and are unchanged.
+
+What the earlier inventories could never do is stay true. A file list is a
+snapshot, and every surface shipped since (Social, Wanted, Desk mode, /out,
+occupancy, cover rotation, message attachments, account switching) landed
+outside it. Each class below therefore states its own tested coverage.
+
+### Classes swept, and how
+
+Source sweeps in this pass read the AST rather than raw bytes. Rendered fences
+execute the named components and inspect their visible text. Comments, import
+specifiers and regex literals are not reader-facing output.
+
+| Class | How it is held | Result |
+| --- | --- | --- |
+| Em dash, em-dash entity, spaced en dash | `__tests__/emDashLaw.test.ts`, widened here to `components/**/*.ts` (68 files, no exception needed) | Clean |
+| Begging and door-slam copy | Rendered `TonightListingsNotice` error, partial-read and empty states plus `SocialAccessBoundary` sign-in and unavailable states in `__tests__/frictionVoice.test.ts`; API fallback and price-submit response are asserted in `__tests__/apiErrorMessage.test.ts` and `__tests__/priceSubmitRoute.test.ts` | Named set clean; other reader-facing states are not covered by this fence |
+| Brand spelling (`Pubmax` for `PUBMAXX`) | Swept; every hit is a storage key, an env name, an identifier or a comment | Clean |
+| American spelling | Swept over reader copy; every hit is a CSS token, a search alias or a flag document | Clean |
+| Exclamation marks | Swept over reader copy | Clean |
+| Banned marketing words (`docs/VOICE.md`) | Swept over reader copy | Clean |
+| Plumbing words on a reader surface | Swept over JSX text plus the reader-copy attributes | 4 found, all fixed |
+| Pressure copy (the `lib/stepOutNudge.ts` banned-copy spirit) | Swept over the push, nudge and prompt lanes | Clean |
+| Dishonest states | Swept for a failed read that answers as an empty one | 1 found, deferred (below) |
+
+NOT covered by this fence: browser-only failure transitions in `app/crawls/CrawlsPageClient.tsx`, `app/rounds/[code]/RoundPageClient.tsx`, `app/social/SocialComposer.tsx`, `app/we-are-out/WeAreOutClient.tsx` and `app/admin/AdminClient.tsx`; `components/share/ShareBar.tsx` and `components/social/FindYourLot.tsx`; and other reader-facing surfaces or API routes not named above. These need separate rendered or protocol-level assertions before broader coverage is claimed.
+
+### Violations found and fixed
+
+| Surface | Was | Now | Class |
+| --- | --- | --- | --- |
+| `lib/apiErrorMessage.ts` | "Something went wrong. Please try again." | "Something went wrong. Try again." | Begging |
+| `app/api/price-submit/route.ts` | "Could not finish that price log. Try again later." | "Could not finish that price log. Try again." | Door-slam |
+| `components/wanted/WantedList.tsx` lede | "We store the link as provenance and never fetch Instagram or TikTok." | "We keep the link so you know where it came from, and we never fetch Instagram or TikTok." | Plumbing word |
+| `components/wanted/WantedCapture.tsx` | same sentence, same fix | | Plumbing word |
+| `components/wanted/WantedList.tsx` row meta | "UK pub · mark only, no invented pint price" | "UK pub · no listed price" | Plumbing, and it matches the map list's own words |
+| `components/wanted/WantedList.tsx` row meta | "· link saved as provenance" | "· link saved" | Plumbing word |
+| `app/social/SocialPageClient.tsx` | "Find your lot - search a handle or send an invite - and nights from mutuals land here." | "Find your lot: search a handle or send an invite. Nights from mutuals land here." | Dash swap |
+| `components/social/FindYourLot.tsx` | "A lot is mutual - they follow back and you share nights." | "A lot is mutual: they follow back, and you share nights." | Dash swap |
+| `lib/ask/tools.ts` | "Open in Plan to carry this ask over - nothing is saved until you do." | "Open in Plan to carry this ask over. Nothing is saved until you do." | Dash swap |
+| `lib/authedFetch.ts` | "Still waking your session - try again." | "Still waking your session. Try again." | Dash swap |
+| `lib/nearDesk.ts` | "No desks logged near here yet - add a spot" | "No desks logged near here yet. Add a spot." | Dash swap |
+
+On the dash swaps: `docs/VOICE.md` says the fix for a banned dash "is never a
+mechanical swap", and a spaced hyphen holding two clauses apart is that swap. A
+LABEL is a different shape and keeps its hyphen, which is why
+`Barnes - not crawl-ready yet` and the Social composer's `Venue - Friends only`
+are untouched: a name plus a qualifier is not a sentence that wanted a dash.
+`lib/inviteShare.ts` and `lib/addLink.ts` already wrote "A lot is mutual." with
+a full stop, so the fixed line joins the sentence the product already owned
+rather than inventing a second one.
+
+### Found and deferred: the moderation queues read an empty queue off a failed read
+
+`app/admin/AdminClient.tsx` loads the comment, Visit Report, pub-photo, avatar,
+cover and operator-claim queues in best-effort passes. Each `catch` sets its
+list to `[]`, and the surface then prints "No reported visit reports", "No
+reported profile pictures" and their siblings. A moderator reads a queue that
+could not be checked as a queue that is clear, which is the exact merge
+`docs/VOICE.md` and the freshness spine forbid: stale and cannot-tell are two
+findings. The Social posts lane on the same page already answers correctly
+(`socialPostsState === "unavailable"`), so the shape to copy is in the file.
+
+This is not fixed here because the honest fix is a read state per queue and a
+"could not check" line keyed off it, which is a behaviour change, and this pass
+is copy only. It belongs to the admin lane.
+
+### Folded in: the GrokBot live audit, 30 August 2026
+
+Three findings from a logged-out click-through of production
+(`PubMaxxing live battle-test, Sun 30 Aug 2026`) were folded into this pass
+because all three are copy. Each is fixed and fenced.
+
+**1. One brand on a screen.** The audit read PUBMAXX on most pages and
+PUBMAXXING on the `/login` header, the analytics banner and `/you`. The
+captain's split (`lib/brandNaming.ts`) was never wrong and is unchanged: TITLES
+and METADATA keep `appPageTitle` and the app name. What drifted is CHROME, the
+words painted beside a wordmark that spells the brand. Those three surfaces now
+read `BRAND_NAME` rather than a typed literal, and
+`__tests__/brandNaming.test.ts` holds them to it by judging PAINTED text alone,
+so a share title or an install invitation in the same file still belongs to the
+split above.
+
+| Surface | Was | Now |
+| --- | --- | --- |
+| `components/auth/LoginPage.tsx` head eyebrow | `PUBMAXXING` | `{BRAND_NAME}` |
+| `components/AnalyticsConsentPrompt.tsx` body | "PUBMAXXING uses optional analytics ..." | "PUBMAXX uses optional analytics ..." |
+| `components/profile/PintPassport.tsx` seal (`/you`) | `PUBMAXXING` | `{BRAND_NAME}` |
+
+**2. The eight-quid line, said once and then not at all.** The home hero said
+"London pints can cost eight quid." and the footer said it again. Two problems
+in one line: a figure nothing in the dataset produced, printed as the first
+claim on the site, and then repeated four screens down. The locked cut is to
+drop it. The hero is now "What a pint costs, pub by pub.", which is the
+sentence the page's own `<title>` already owned, so the claim has one source
+and no invented number. The footer pitch keeps its rhythm and loses the repeat:
+"Nobody tells you which pub pours it cheaper. We show prices on record, get
+your mates in one place, and put you all on one route." `lib/homeOgCard.tsx`
+moves with it, because `__tests__/homeOgCard.test.ts` requires the share card's
+hero to be the landing page's own h1: a preview may not promise what the page
+it opens does not say. `/about` keeps its own line, which is prose in a story
+about why the product exists rather than a hero claim.
+
+**3. A stale week names its day.** "Picks need a fresh check." admitted
+staleness without dating it, so a snapshot two days old and one two months old
+met the reader with the same sentence and the rail read as a permanent apology.
+`editorialStaleLine` (`lib/editorial.ts`) now composes "No fresh picks to show
+just now. Last checked 15 Aug." from the snapshot's own `generatedAt`. A
+snapshot with no printable day keeps the first sentence alone, because a date
+we cannot read is never a date we invent and a second apology in different
+words says less than saying less. A future timestamp follows the same path.
+`public/data/editorial/README.md` owns the current freshness wording; the proof
+note points to it.
+
+The audit's other findings (the desktop header Map destination, the `/out`
+source links and venue badge, the Pal avatar 404, the Clerk CSP entry, the
+`pint_prices` freshness label) are not copy and are not touched here.

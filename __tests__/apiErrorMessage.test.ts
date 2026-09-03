@@ -29,6 +29,12 @@ describe("errorMessageFrom", () => {
     expect(errorMessageFrom(null, "fallback")).toBe("fallback");
   });
 
+  it("uses the generic fallback when the fallback is empty", () => {
+    expect(errorMessageFrom(null, "")).toBe(
+      "Something went wrong. Try again.",
+    );
+  });
+
   it("uses fallback for an empty string error", () => {
     expect(errorMessageFrom({ error: "" }, "fallback")).toBe("fallback");
   });

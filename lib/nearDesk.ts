@@ -344,7 +344,7 @@ export function deskCollapsedChainsAttributes(
 }
 
 export function deskEmptyLine(): string {
-  return "No desks logged near here yet - add a spot";
+  return "No desks logged near here yet. Add a spot.";
 }
 
 export function deskLoadFailedLine(): string {

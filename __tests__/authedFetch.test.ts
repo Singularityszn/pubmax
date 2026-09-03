@@ -575,7 +575,7 @@ describe("authedFetch (Wave I2)", () => {
     await rejection;
     await expect(request).rejects.toMatchObject({
       code: "AUTH_SESSION_WAKING",
-      message: "Still waking your session - try again.",
+      message: "Still waking your session. Try again.",
     });
     expect(fetchSpy).not.toHaveBeenCalled();
   });

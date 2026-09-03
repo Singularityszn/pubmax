@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 
 import ShareBar from "@/components/share/ShareBar";
+import { BRAND_NAME } from "@/lib/brandNaming";
 import type { PassportData } from "@/lib/passport";
 import { formatCheapestPint, formatStatCount } from "@/lib/profiles";
 import { buildPassportShareText } from "@/lib/shareArtifacts";
@@ -89,7 +90,7 @@ export default function PintPassport({
         {/* Straight seal — keep the ink-stamp border, skip the tilt so the
             wordmark reads level next to the passport title. */}
         <span className="passportSeal ink-stamp" aria-hidden="true">
-          PUBMAXXING
+          {BRAND_NAME}
         </span>
       </header>
 

@@ -1,8 +1,18 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/social",
+  useRouter: () => ({ prefetch: () => undefined }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+import TonightListingsNotice from "@/app/tonight/TonightListingsNotice";
+import { SocialAccessBoundary } from "@/app/social/SocialPageClient";
 import { tonightEmptyLead } from "@/lib/tonightOutListings";
 
 // Friction-state voice fence (2026-07-19 taste sweep). Empty, denied, and
@@ -281,3 +291,107 @@ describe("friction-state voice fence", () => {
     }
   });
 });
+
+const RENDERED_FRICTION_SURFACES: ReadonlyArray<[string, () => string]> = [
+  [
+    "Tonight listings error",
+    () =>
+      renderToStaticMarkup(
+        createElement(TonightListingsNotice, {
+          status: "error",
+          note: null,
+          noteOffersRetry: true,
+          emptyLead: "Nothing listed for tonight.",
+          onRetry: () => undefined,
+        }),
+      ),
+  ],
+  [
+    "Tonight listings partial read",
+    () =>
+      renderToStaticMarkup(
+        createElement(TonightListingsNotice, {
+          status: "ready",
+          note: "Couldn't confirm tonight's venues right now.",
+          noteOffersRetry: true,
+          emptyLead: "Nothing listed for tonight.",
+          onRetry: () => undefined,
+        }),
+      ),
+  ],
+  [
+    "Tonight listings empty state",
+    () =>
+      renderToStaticMarkup(
+        createElement(TonightListingsNotice, {
+          status: "empty",
+          note: null,
+          noteOffersRetry: false,
+          emptyLead: "Nothing listed for tonight.",
+          onRetry: () => undefined,
+        }),
+      ),
+  ],
+  [
+    "Social sign-in boundary",
+    () =>
+      renderToStaticMarkup(
+        createElement(SocialAccessBoundary, {
+          state: "sign_in_required",
+          friendsLaunchEnabled: true,
+        }),
+      ),
+  ],
+  [
+    "Social unavailable boundary",
+    () =>
+      renderToStaticMarkup(
+        createElement(SocialAccessBoundary, {
+          state: "unavailable",
+          friendsLaunchEnabled: true,
+          onRetry: () => undefined,
+        }),
+      ),
+  ],
+];
+
+const BEGGING_PHRASES = [
+  /please\s+try\s+again/iu,
+  /check\s+back\s+later/iu,
+  /try\s+again\s+later/iu,
+  /come\s+back\s+later/iu,
+  /don['’]t\s+miss\s+out/iu,
+] as const;
+
+function renderedText(markup: string): string {
+  return markup
+    .replace(/<[^>]*>/gu, " ")
+    .replace(/&amp;/gu, "&")
+    .replace(/&#x27;/gu, "'")
+    .replace(/&quot;/gu, '"')
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+function beggingPhrasesIn(text: string): string[] {
+  return BEGGING_PHRASES.filter((phrase) => phrase.test(text)).map((phrase) => phrase.source);
+}
+
+describe(
+  "rendered friction voice fence: TonightListingsNotice error, partial-read, empty; SocialAccessBoundary sign-in, unavailable",
+  () => {
+    it.each(RENDERED_FRICTION_SURFACES)("%s contains no begging copy", (_surface, render) => {
+      expect(beggingPhrasesIn(renderedText(render()))).toEqual([]);
+    });
+
+    it("catches a phrase split across rendered nodes", () => {
+      const interpolatedVerb = "try";
+      const markup = renderToStaticMarkup(
+        createElement("p", null, ["Please ", `${interpolatedVerb} `].join(""), "again later"),
+      );
+      const text = renderedText(markup);
+      expect(text).toContain("Please try again later");
+      expect(beggingPhrasesIn(text)).toContain("try\\s+again\\s+later");
+    });
+  },
+);

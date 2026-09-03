@@ -16,6 +16,7 @@ import {
   editorialOglMark,
   editorialOglAttributionForSource,
   editorialSnapshotIsStale,
+  editorialStaleLine,
   editorialThisWeekItems,
   editorialViaChip,
   parseEditorialSnapshot,
@@ -321,7 +322,29 @@ describe("editorial overlay: degraded reads are not empty", () => {
     });
     expect(editorialSnapshotIsStale(fresh, now)).toBe(false);
     expect(editorialSnapshotIsStale(old, now)).toBe(true);
-    expect(EDITORIAL_STALE_LINE).toBe("No fresh picks to show just now.");
+    // The ruled composed line (captain, 2026-09-01): what the reader gets, then
+    // when the check was. Neither half alone was enough - the first claims
+    // nothing about the week, and the second stops one sentence covering both a
+    // two-day-old snapshot and a two-month-old one.
+    expect(editorialStaleLine(old)).toBe(
+      "No fresh picks to show just now. Last checked 15 Aug.",
+    );
+    expect(editorialStaleLine(old)).toContain(EDITORIAL_STALE_LINE);
+    // It may never claim the week is empty: a withheld snapshot did not look.
+    expect(EDITORIAL_STALE_LINE).not.toBe(EDITORIAL_EMPTY_LINE);
+    expect(EDITORIAL_STALE_LINE).not.toMatch(/needs? a fresh|refresh|stale|snapshot/i);
+    // A snapshot carrying no day we can print keeps the first sentence alone.
+    // A date we cannot read is never a date we invent, and a second apology in
+    // different words would say less than saying less.
+    expect(
+      editorialStaleLine({ version: 1, generatedAt: "not a date", status: "ready", items: [] }),
+    ).toBe(EDITORIAL_STALE_LINE);
+    expect(
+      editorialStaleLine(
+        { version: 1, generatedAt: "2026-09-04T00:00:00.000Z", status: "ready", items: [] },
+        Date.parse("2026-09-03T12:00:00.000Z"),
+      ),
+    ).toBe(EDITORIAL_STALE_LINE);
   });
 
   it("a shipped overlay file never stores a body or extra keys", () => {

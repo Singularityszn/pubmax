@@ -257,7 +257,7 @@ export async function POST(request: Request): Promise<Response> {
       drinkCategory: submission.drinkCategory,
     });
     return publicApiError(
-      "Could not finish that price log. Try again later.",
+      "Could not finish that price log. Try again.",
       "PAIRING_REPAIR_REQUIRED",
       503,
       { retryable: true },

@@ -45,7 +45,7 @@ export default function FindYourLot({
   compact?: boolean;
 }) {
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
-  const { accountRevision, user } = useAuth();
+  const { accountRevision } = useAuth();
   // A sign-in door is a claim about the viewer, so it waits for the live
   // session. While that is unresolved this lane offers the claim-a-handle
   // route to nobody and the sign-in route to nobody.
@@ -233,8 +233,8 @@ export default function FindYourLot({
         Find your lot
       </h2>
       <p className="findLot__body">
-        Search a mate&rsquo;s handle, or send an invite link. A lot is mutual -
-        they follow back and you share nights.
+        Search a mate&rsquo;s handle, or send an invite link. A lot is mutual:
+        they follow back, and you share nights.
       </p>
 
       <label className="findLot__field">

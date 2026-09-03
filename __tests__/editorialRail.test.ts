@@ -83,9 +83,9 @@ describe("editorial rail", () => {
       }),
     );
     expect(markup).toContain(EDITORIAL_STALE_LINE);
-    // Reader-facing, never our maintenance: it says what they get without
-    // claiming the week is empty, which a withheld snapshot cannot know.
-    expect(EDITORIAL_STALE_LINE).not.toMatch(/check|refresh|stale|snapshot/i);
+    expect(markup).toContain(
+      "No fresh picks to show just now. Last checked 13 Aug.",
+    );
     expect(markup).not.toContain("Point Taproom opens");
   });
 

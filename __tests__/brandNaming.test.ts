@@ -1,3 +1,5 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import type { Metadata } from "next";
 
 import { describe, expect, it, vi } from "vitest";
@@ -8,6 +10,10 @@ import {
   appPageTitle,
   metadataSiteName,
 } from "@/lib/brandNaming";
+import { AnalyticsConsentPromptContent } from "@/components/AnalyticsConsentPrompt";
+import { PageHead } from "@/components/auth/LoginPage";
+import PintPassport from "@/components/profile/PintPassport";
+import { buildPassport } from "@/lib/passport";
 
 // /pubs derives its own title from the row count, and the count is the only
 // reason its metadata touches the dataset. The share-card name is what is under
@@ -124,5 +130,44 @@ describe("page metadata names the brand, never the app", () => {
 
     const social = await (await import("@/app/social/page")).generateMetadata();
     expect((social.openGraph as { title?: string }).title).toContain(APP_NAME);
+  });
+});
+
+const PRODUCT_UI_BRAND_RENDERERS: ReadonlyArray<[string, () => string]> = [
+  [
+    "login header",
+    () =>
+      renderToStaticMarkup(
+        createElement(PageHead, {
+          title: "Sign in or create your account",
+          lead: "Use your email, or pick a handle after the link lands.",
+        }),
+      ),
+  ],
+  [
+    "analytics prompt",
+    () =>
+      renderToStaticMarkup(
+        createElement(AnalyticsConsentPromptContent, { onDecision: () => undefined }),
+      ),
+  ],
+  [
+    "pint passport seal",
+    () =>
+      renderToStaticMarkup(
+        createElement(PintPassport, {
+          handle: "alice",
+          displayName: "Alice Fennimore",
+          data: buildPassport([]),
+        }),
+      ),
+  ],
+];
+
+describe("product chrome names the brand, never the app", () => {
+  it.each(PRODUCT_UI_BRAND_RENDERERS)("%s", (_surface, render) => {
+    const markup = render();
+    expect(markup).toContain(BRAND_NAME);
+    expect(markup).not.toContain(APP_NAME);
   });
 });

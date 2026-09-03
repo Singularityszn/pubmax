@@ -34,7 +34,7 @@ GLA rows (`gla-80117`) carry this linked attribution in the rail, not as a store
 
 ## Snapshot freshness
 
-`generatedAt` records the poll time. A `ready` snapshot older than 48 hours, or one stamped in the future, is stale at read time. The rail withholds its rows and says `Picks need a fresh check.` A valid ready snapshot with no current-week rows says `No picks this week.` A degraded snapshot says that picks could not be checked. These states must not be merged.
+`generatedAt` records the poll time. A `ready` snapshot older than 48 hours, or one stamped in the future, is stale at read time. The rail withholds its rows and says `No fresh picks to show just now. Last checked 15 Aug.` when its day is printable. A snapshot with no printable day keeps `No fresh picks to show just now.`, because a date we cannot read is never a date we invent. A valid ready snapshot with no current-week rows says `No picks this week.` A degraded snapshot says that picks could not be checked. These states must not be merged.
 
 ## Refresh
 
