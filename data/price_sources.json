@@ -28,7 +28,7 @@
       "note": "PLACEHOLDER. Replace with a real open-licensed dataset (e.g. a council/OS/ONS open feed). Must carry an open licence permitting reuse."
     }
   ],
-  "$drinkSourcesComment": "Allowlist of PERMISSIBLE first-party / open DRINK-menu price sources for scripts/refresh_drink_prices.mjs (E2 of docs/PRD_ALL_DRINKS.md). Same hard rule as `sources` above: a chain publishing ITS OWN pub menus (e.g. Wetherspoons' own site/app for its own pubs) is first-party and permissible. Competitor price aggregators, review sites (Vivino, Untappd, etc.) or any site whose ToS/robots.txt forbids automated access are NEVER permissible, no exceptions. `kind` must be one of first-party-chain | first-party-venue | open-data. Every entry must be `permissible: true` AND documented with a `licence` string; the refresh script refuses any source that is missing either.",
+  "$drinkSourcesComment": "Allowlist of PERMISSIBLE first-party / open DRINK-menu price sources for scripts/refresh_drink_prices.mjs (E2 of docs/PRD_ALL_DRINKS.md). Same hard rule as `sources` above: a chain publishing ITS OWN pub menus (e.g. Wetherspoons' own site/app for its own pubs) is first-party and permissible. Competitor price aggregators, review sites (Vivino, Untappd, etc.) or any site whose ToS/robots.txt forbids automated access are NEVER permissible, no exceptions. `kind` must be one of first-party-chain | first-party-venue | open-data. Every entry must be `permissible: true` AND documented with a `licence` string; the refresh script refuses any source that is missing either. GOVERNANCE PRECEDENCE, settled 2026-09-03: this table and lib/harvest/sourcePolicy.ts are read together and the NARROWER answer binds. A source is usable only when it is permissible HERE and not refused THERE on permission. The two disagreed about Nicholson's while 1,914 Nicholson's rows shipped, so `permissible` here is false for any host sourcePolicy refuses on permission, and __tests__/priceSourceGovernance.test.ts fails the build if they drift apart again.",
   "drinkSources": [
     {
       "id": "greene-king-official",
@@ -45,8 +45,8 @@
       "url": "https://www.nicholsonspubs.co.uk/restaurants/london",
       "kind": "first-party-chain",
       "licence": "All rights reserved — first-party publisher of its own pub menus/prices; read-only, attributed use only.",
-      "permissible": true,
-      "notes": "REAL FETCHER (Firecrawl) — scripts/firecrawl_mbplc_prices.mjs scrapes https://www.nicholsonspubs.co.uk/restaurants/london/{slug}/drinks via Firecrawl CLI (JS-rendered). Parses beer/spirits/cocktails/wine with bare-decimal prices. Merges into drink_price_updates alongside Greene King. URL list: data/nicholsons_london_drink_urls.txt (~43 London pubs). Cask ale pint prices often absent (ask at bar)."
+      "permissible": false,
+      "notes": "REFUSED 2026-09-03. lib/harvest/sourcePolicy.ts is the NARROWER rule and it binds: https://www.nicholsonspubs.co.uk/robots.txt answers HTTP 403 with a Cloudflare challenge page rather than a rules file, so no permission can be read and the estate is not harvested. Kept in this table as a recorded decision rather than deleted, because a source that vanishes is a gap nobody notices. Revisit only if Mitchells & Butlers publishes a readable robots.txt or offers a feed."
     },
     {
       "id": "wetherspoons-official",
@@ -72,8 +72,8 @@
       "url": "https://www.nicholsonspubs.co.uk/restaurants/london",
       "kind": "first-party-chain",
       "licence": "All rights reserved — first-party publisher of its own pub menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists.",
-      "permissible": true,
-      "notes": "Scrape targets: nicholsonspubs.co.uk/restaurants/london/{slug}/foodmenu (+ /drinks, /bookings). URL list in data/london_chains/nicholsons/london_pub_urls.json. Merge via scripts/merge_london_chain_scrapes.mjs. PROBE: current foodmenu scrapes are image hubs without extractable £ text — enrichment links only until a reliable priced payload appears. Never invent prices."
+      "permissible": false,
+      "notes": "REFUSED 2026-09-03. lib/harvest/sourcePolicy.ts is the NARROWER rule and it binds: https://www.nicholsonspubs.co.uk/robots.txt answers HTTP 403 with a Cloudflare challenge page rather than a rules file, so no permission can be read and the estate is not harvested. Kept in this table as a recorded decision rather than deleted, because a source that vanishes is a gap nobody notices. Revisit only if Mitchells & Butlers publishes a readable robots.txt or offers a feed."
     }
   ]
 }
