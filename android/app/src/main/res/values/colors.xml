@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The accent Android paints behind a notification's small icon and uses
+         for its app name line. It is the brand coral, and it is stated here
+         because AndroidManifest.xml can only name a resource. Kept equal to
+         BRAND_COLORS.coral in lib/brandMark.mjs by
+         __tests__/androidNotificationIcon.test.ts, so the two halves of one
+         colour cannot drift a file apart. -->
+    <color name="pubmaxx_notification_accent">#FF5A5F</color>
+</resources>

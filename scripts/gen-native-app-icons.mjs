@@ -9,11 +9,26 @@
 //   icon-only.png        1024  full-bleed white tile + coral X (iOS icon)
 //   icon-foreground.png  1024  transparent, coral X only (Android adaptive fg)
 //   icon-background.png  1024  solid white (Android adaptive bg)
-//   splash.png           2732  coral field, centred ink mark (light splash)
-//   splash-dark.png      2732  ink-deep field, coral mark (dark splash)
+//   splash.png           2732  ink-deep field, coral mark (light splash)
+//   splash-dark.png      2732  the SAME bytes (dark splash)
+//
+// It ALSO writes one file the @capacitor/assets tool knows nothing about:
+//   android/app/src/main/res/drawable/ic_stat_pubmaxx.xml
+// the Android status-bar notification icon. Android paints a notification icon
+// from its ALPHA CHANNEL alone, so without this FCM falls back to the launcher
+// icon and every push wears a white blob. A VectorDrawable covers every density
+// by construction. Its manifest declaration and its accent colour are the other
+// two thirds of that promise, and __tests__/androidNotificationIcon.test.ts
+// holds all three to each other.
 //
 // Then run:  npx @capacitor/assets@3 generate
-// to stamp every platform-specific size into ios/ and android/. The tool is
+// to stamp every platform-specific size into ios/ and android/.
+//
+// THAT TOOL WRITES MORE THAN THE ICONS AND SPLASHES. It also rewrites
+// public/manifest.webmanifest to point at an `icons/` directory of its own and
+// reformats android/app/src/main/AndroidManifest.xml. Neither is wanted here:
+// the web icon set is owned by scripts/gen-brand-assets.mjs and its own fence.
+// Revert both, and the untracked icons/ directory, after every run. The tool is
 // intentionally NOT a pinned devDependency — its transitive tree carries high
 // npm-audit advisories that would fail `npm run ci`, and the generated output
 // is committed anyway, so it is fetched ephemerally via npx only when the mark
@@ -25,16 +40,35 @@
 //
 // Usage:  node scripts/gen-native-app-icons.mjs
 
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
-import { BRAND_COLORS, MARK_VIEWBOX, markPolygonsSvg } from "../lib/brandMark.mjs";
+import {
+  BRAND_COLORS,
+  MARK_VIEWBOX,
+  markPolygonsSvg,
+  notificationIconVectorDrawable,
+} from "../lib/brandMark.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "assets");
 mkdirSync(OUT, { recursive: true });
+
+// THE SPLASH HAS ONE MASTER, AND BOTH NATIVE VARIANTS ARE CUT FROM IT.
+//
+// public/store-assets/splash.svg is the master gen-store-assets.mjs renders to
+// public/store-assets/png/splash/splash-2732.png, and its own comment records
+// the owner lock (#523): a splash is NOT an icon, it keeps the ink-deep field,
+// and ONE splash serves light and dark. This script used to restate that
+// treatment in its own markup and got the light variant wrong - a full-bleed
+// coral field, the retired treatment - which reached every phone in light mode
+// and every App Store reviewer's default device. Reading the master is what
+// stops a second opinion about the splash existing at all. The icons below
+// still cut their own tiles, because an icon IS a white tile and a splash is
+// not.
+const SPLASH_MASTER = readFileSync(join(ROOT, "public", "store-assets", "splash.svg"));
 
 // Tokens and geometry come from lib/brandMark.mjs, the one master the in-app
 // mark, the OG cards and the web icon set also read. `paper` is the Wave C
@@ -56,8 +90,11 @@ function svg(body) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${MARK_VIEWBOX}">${body}</svg>`;
 }
 
-async function png(markup, size, file) {
-  await sharp(Buffer.from(markup)).resize(size, size).png().toFile(join(OUT, file));
+// `source` is either SVG markup this script cut, or the splash master's own
+// bytes. Both are handed to sharp as a buffer.
+async function png(source, size, file) {
+  const svgBytes = Buffer.isBuffer(source) ? source : Buffer.from(source);
+  await sharp(svgBytes).resize(size, size).png().toFile(join(OUT, file));
   process.stdout.write(`  assets/${file}\n`);
 }
 
@@ -74,14 +111,26 @@ const jobs = [
   // mark's ~60% span comfortably inside the 66/108 adaptive safe zone. Coral so
   // it reads on the white background layer.
   ["icon-foreground.png", 1024, svg(`${clink(C.coral, 0.8)}`)],
-  // Light splash: centred mark on the coral field, small (scale 0.28).
-  ["splash.png", 2732, svg(`<rect width="64" height="64" fill="${C.coral}"/>${clink(C.inkDeep, 0.28)}`)],
-  // Dark splash: coral mark on the ink-deep field.
-  ["splash-dark.png", 2732, svg(`<rect width="64" height="64" fill="${C.inkDeep}"/>${clink(C.coral, 0.28)}`)],
+  // Both splashes: the master, unaltered. Same bytes for light and dark,
+  // because the field IS the dark theme's deepest well and a bright launch
+  // flash is exactly what a night-out app should not do.
+  ["splash.png", 2732, SPLASH_MASTER],
+  ["splash-dark.png", 2732, SPLASH_MASTER],
 ];
 
 process.stdout.write("Generating native icon/splash source assets:\n");
 for (const [file, size, markup] of jobs) {
   await png(markup, size, file);
 }
+
+// The notification icon is a FINAL artifact rather than a source: it is a
+// VectorDrawable, so there is no per-density stamping for the assets tool to
+// do, and it is written straight into the Android resource tree.
+const NOTIFICATION_ICON = join(
+  ROOT,
+  "android/app/src/main/res/drawable/ic_stat_pubmaxx.xml",
+);
+writeFileSync(NOTIFICATION_ICON, notificationIconVectorDrawable());
+process.stdout.write("  android/app/src/main/res/drawable/ic_stat_pubmaxx.xml\n");
+
 process.stdout.write("Done. Next: npx capacitor-assets generate\n");
