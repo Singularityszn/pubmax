@@ -23,6 +23,8 @@ import {
   type LandingRailRow,
 } from "@/lib/landingHero";
 import {
+  formatObservedDay,
+  formatObservedMonth,
   groupPriceHistoryByVenue,
   parsePriceHistory,
   venuePriceArc,
@@ -167,6 +169,8 @@ export function buildLandingArchiveIndex(
     index[venue.id] = {
       priceGbp: arc.then.priceGbp,
       observedOn: arc.then.observedOn,
+      observedMonth: formatObservedMonth(arc.then.observedOn),
+      observedDay: formatObservedDay(arc.then.observedOn),
       source: { label: arc.then.source.label, url: arc.then.source.url },
     };
   }

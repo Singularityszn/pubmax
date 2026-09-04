@@ -32,7 +32,6 @@ import type { LandingPubCardData } from "@/lib/landingPubCard";
 import { NEAR_ME_LOCATION_OPTIONS } from "@/lib/nearMeLocation";
 import { rankNearMe, type NearMeCard } from "@/lib/nearMeAnswer";
 import { startNearPriceTrustRequest } from "@/components/nearme/useNearPriceTrust";
-import { formatObservedDay, formatObservedMonth } from "@/lib/priceHistory";
 import { priceMovementLine } from "@/lib/priceMovementLine";
 import { PRICE_STANDING_TONE, priceStandingLabel, priceStandingNote, type PriceStanding } from "@/lib/priceTier";
 import { formatPrice } from "@/lib/venues";
@@ -94,7 +93,14 @@ function yearsBetween(observedOn: string, collectedOn: string): number {
   return Math.max(0, Math.floor((b - a) / (365.2425 * 24 * 60 * 60 * 1000)));
 }
 
-function anchorAnswer(card: LandingPubCardData, rail: LandingRailRow[]): Answer {
+function anchorAnswer(
+  card: LandingPubCardData,
+  rail: LandingRailRow[],
+  archive: LandingArchiveIndex,
+): Answer {
+  // The archive index holds the anchor's own then row with its printed labels;
+  // the card's copy is the same row and stays for the share card.
+  const then = archive[card.id] ?? null;
   return {
     id: card.id,
     name: card.name,
@@ -105,8 +111,8 @@ function anchorAnswer(card: LandingPubCardData, rail: LandingRailRow[]): Answer 
     standing: card.standing,
     publisher: card.publisher,
     collectedOn: card.collectedOn,
-    then: card.then,
-    thenYears: yearsBetween(card.then.observedOn, card.collectedOn),
+    then,
+    thenYears: then ? yearsBetween(then.observedOn, card.collectedOn) : 0,
     rail,
   };
 }
@@ -154,7 +160,7 @@ export default function LandingHero({
   archive: LandingArchiveIndex;
   rail: LandingRailRow[];
 }) {
-  const [answer, setAnswer] = useState<Answer>(() => anchorAnswer(card, rail));
+  const [answer, setAnswer] = useState<Answer>(() => anchorAnswer(card, rail, archive));
   const [near, setNear] = useState<NearState>({ kind: "idle" });
   const generation = useRef(0);
 
@@ -345,8 +351,7 @@ function AnswerCard({
       {answer.then ? (
         <>
           <p className="lpPubThen">
-            <strong>{formatPrice(answer.then.priceGbp)}</strong> in{" "}
-            {formatObservedMonth(answer.then.observedOn)}.{" "}
+            <strong>{formatPrice(answer.then.priceGbp)}</strong> in {answer.then.observedMonth}.{" "}
             {priceMovementLine(
               Math.round((answer.priceGbp - answer.then.priceGbp) * 100) / 100,
               answer.thenYears,
@@ -356,7 +361,7 @@ function AnswerCard({
             <a href={answer.then.source.url} target="_blank" rel="noopener noreferrer">
               {answer.then.source.label}
             </a>
-            , {formatObservedDay(answer.then.observedOn)}
+            , {answer.then.observedDay}
           </p>
         </>
       ) : null}

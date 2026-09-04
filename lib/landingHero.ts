@@ -40,6 +40,10 @@ export type LandingArchiveThen = {
   priceGbp: number;
   /** `YYYY-MM-DD` as the archive states it. */
   observedOn: string;
+  /** "July 2013", the granularity the card prints the claim at. */
+  observedMonth: string;
+  /** "14 July 2013", for the source line. */
+  observedDay: string;
   source: { label: string; url: string };
 };
 
