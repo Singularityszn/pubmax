@@ -41,6 +41,49 @@ async function pointOwner(
   );
 }
 
+// The first-run surface is native-only and every one of its blocks is sized to
+// the viewport, so the ordinary body foot padding cannot lift it out of a fixed
+// bottom card's way. prepareUndecidedConsent below dismisses onboarding on
+// purpose; this route is the one place that marker may not be set, so it gets
+// its own preparation: a Capacitor bridge (the ONE probe lib/nativePlatform.ts
+// reads) plus the one-time eligibility handoff the native root issues before
+// it replaces `/` with /onboarding. The handoff is written here rather than
+// earned by booting `/` because the ROOT decision is another spec's subject
+// (e2e/mobile-first-run-onboarding.spec.ts) and a redirect that has not landed
+// yet would fail this one for a reason it does not own. The surface the gate
+// then mounts is the same surface either way.
+async function prepareFirstRunOnboarding(
+  page: import("@playwright/test").Page,
+  viewport: { width: number; height: number },
+) {
+  await page.setViewportSize(viewport);
+  await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "Capacitor", {
+      configurable: true,
+      value: { isNativePlatform: () => true, getPlatform: () => "ios" },
+    });
+    window.sessionStorage.setItem(
+      "pubmax:nativeFirstRun:handoff:v1",
+      String(Date.now()),
+    );
+    window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
+    window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
+  });
+}
+
+type Box = { x: number; y: number; width: number; height: number };
+
+/** Do two rendered rectangles share any area at all. */
+function boxesOverlap(a: Box, b: Box): boolean {
+  return (
+    a.x < b.x + b.width
+    && b.x < a.x + a.width
+    && a.y < b.y + b.height
+    && b.y < a.y + a.height
+  );
+}
+
 async function prepareUndecidedConsent(
   page: import("@playwright/test").Page,
   viewport: { width: number; height: number } = VIEWPORT,
@@ -228,5 +271,79 @@ for (const width of PHONE_WIDTHS) {
     const fit = await consentFit(prompt);
     expect(fit.boxHeight).toBeLessThanOrEqual(120);
     expect(fit.scrollHeight).toBeLessThanOrEqual(120);
+  });
+}
+
+// Every phone width the first-run surface is reviewed at. 430x932 is the
+// iPhone 17 Pro the simulator proof was shot on, which is where the card was
+// found lying across the reviewed-area rows and the "Use London" button.
+const ONBOARDING_VIEWPORTS = [
+  { width: 320, height: 844 },
+  { width: 360, height: 844 },
+  { width: 390, height: 844 },
+  { width: 430, height: 932 },
+] as const;
+
+for (const viewport of ONBOARDING_VIEWPORTS) {
+  test(`consent never covers first-run onboarding @${viewport.width}`, async ({ page }) => {
+    test.setTimeout(60_000);
+    await prepareFirstRunOnboarding(page, viewport);
+    await page.goto("/onboarding", { waitUntil: "domcontentloaded" });
+
+    const prompt = page.getByLabel("Anonymous analytics choice");
+    await expect(prompt).toBeVisible({ timeout: 30_000 });
+
+    const rows = page.locator(".firstRunAreaList article");
+    await expect(rows.first()).toBeVisible();
+    const primary = page.getByRole("button", { name: "Use London" });
+    await expect(primary).toBeVisible();
+
+    const promptBox = await prompt.boundingBox();
+    expect(promptBox).not.toBeNull();
+
+    // The card may share no area with a reviewed row or with the ONE primary
+    // action. Geometry rather than a tap probe, because a row is a passive
+    // block: a probe that only asked who owns a point would pass over a row
+    // half-hidden behind the card.
+    const rowBoxes = await rows.evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const rect = node.getBoundingClientRect();
+        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      }),
+    );
+    expect(rowBoxes.length).toBeGreaterThan(0);
+    for (const rowBox of rowBoxes) {
+      expect(boxesOverlap(promptBox!, rowBox)).toBe(false);
+    }
+    const primaryBox = await primary.boundingBox();
+    expect(primaryBox).not.toBeNull();
+    expect(boxesOverlap(promptBox!, primaryBox!)).toBe(false);
+
+    // Not-covered is not the whole promise. The surface holds its own scroller
+    // while the card is up, so an action laid out past its end is off screen
+    // with nothing saying so: on a 390pt phone the button sat at 768px inside
+    // a 704px surface and no reviewer would ever have found it.
+    await expect(primary).toBeInViewport({ ratio: 1 });
+    for (const row of await rows.all()) {
+      await expect(row).toBeInViewport({ ratio: 1 });
+    }
+
+    // The tap at the button's own centre reaches the button.
+    expect(await pointOwner(page, primaryBox!, ".firstRunPrimary")).toBe("control");
+    // ...and the probe is one this card can lose: its own centre is its own.
+    expect(await pointOwner(page, promptBox!, ".firstRunPrimary")).toBe("prompt");
+
+    // Answering the card gives the surface its full height back, so the lane
+    // stops being reserved and the designed photograph band returns. At the
+    // narrowest widths that pushes the action below the fold again, which is
+    // the surface's own composition rather than anything this card does: what
+    // is owed here is that the action is still REACHABLE once the card is
+    // gone, on a surface that scrolls to it.
+    await prompt.getByRole("button", { name: "No thanks" }).click();
+    await expect(prompt).toBeHidden();
+    // scrollIntoViewIfNeeded settles on a fractional offset, so the last half
+    // pixel is the scroller's rounding rather than a covered control.
+    await primary.scrollIntoViewIfNeeded();
+    await expect(primary).toBeInViewport({ ratio: 0.99 });
   });
 }
