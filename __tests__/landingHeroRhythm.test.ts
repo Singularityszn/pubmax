@@ -100,7 +100,7 @@ describe("landing hero rhythm", () => {
   it("prints every rail row as its own Pint Drop door, with a price stamp and no borough the heading already names", () => {
     expect(html).toMatch(/<h2 class="lpRailTitle" id="lp-rail-title">Cheapest listed in City of London<\/h2>/);
     expect(html.match(/class="lpRailRow"/g)).toHaveLength(3);
-    expect(html).toContain('href="/map?sel=venue-1&amp;log=1"');
+    expect(html).toContain('href="/map?sel=venue-1&amp;log=1&amp;price=2.99"');
     expect(html).not.toMatch(/lpRailMeta">City of London/);
   });
 

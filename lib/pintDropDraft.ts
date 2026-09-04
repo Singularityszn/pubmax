@@ -56,6 +56,30 @@ export function emptyPintDropDraftForm(): PintDropDraftForm {
   return { ...EMPTY_FORM };
 }
 
+/**
+ * #1462 — what a venue's price field holds when the composer opens, given the
+ * draft (if any) that venue has saved and the figure the log intent arrived
+ * carrying. THE ONE RULE, in three parts. A saved draft is the drinker's own
+ * unfinished work, so a price already in it always wins. A draft with no price
+ * still takes the seed, because a half-typed note is not a decision about the
+ * figure. And the seed is only ever a starting VALUE: nothing here submits, and
+ * the field the reader lands on is theirs to change.
+ *
+ * It lives here, beside the draft shape, because the composer's own hydration
+ * is where a venue's fields are decided; a seed written from anywhere else is
+ * blanked by the `resetComposer()` that runs on that venue's mount.
+ */
+export function seededPintDropDraftForm(
+  draftForm: PintDropDraftForm | null,
+  priceSeed: string | null,
+): PintDropDraftForm | null {
+  if (!draftForm) {
+    return priceSeed ? { ...emptyPintDropDraftForm(), price: priceSeed } : null;
+  }
+  if (draftForm.price || !priceSeed) return draftForm;
+  return { ...draftForm, price: priceSeed };
+}
+
 export function pintDropDraftStorageKey(venueId: string): string {
   return `${DRAFT_KEY_PREFIX}${encodeURIComponent(venueId)}`;
 }

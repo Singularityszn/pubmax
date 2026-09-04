@@ -345,6 +345,7 @@ import {
   buildLogNearbyCandidates,
   clearMapLogIntentSearch,
   hasMapLogIntent,
+  mapLogIntentPrice,
   resolveLogNearbyOrigin,
   LOG_NEARBY_MAX_KM,
 } from "@/lib/mapLogIntent";
@@ -1481,6 +1482,15 @@ export default function PubMap({
     setLogIntentCleared(true);
     dropLogParamFromUrl();
   }, []);
+
+  // #1462 — the figure the SAME intent carries, or null. Stood down by exactly
+  // the thing that stands the flag down, because `clearMapLogIntentSearch`
+  // takes the price off the URL with the flag, so a cleared intent can never
+  // leave a figure armed. Declared here because the composer's own draft
+  // hydration owns the field, so the seed rides into `usePintDrops` below.
+  const logIntentPrice = reactiveLogIntentActive(hasMapLogIntent(searchParams), logIntentCleared)
+    ? mapLogIntentPrice(searchParams)
+    : null;
   // Closing the sheet pops the Map surface entry, and the clean entry
   // underneath still carries `log=1` - it is an owned
   // passthrough there too, written before the reader left the flow. So one
@@ -1530,7 +1540,7 @@ export default function PubMap({
   // Community Pint Drops: fetch/submit/report state lives in the hook.
   // City-scoped so Manchester demo seeds colour Manchester pins without
   // leaking into the London feed/landing.
-  const pintDrops = usePintDrops(cityId, baseVenues);
+  const pintDrops = usePintDrops(cityId, baseVenues, logIntentPrice);
   const {
     dropsByVenueId,
     venueSignals: dropSignals,

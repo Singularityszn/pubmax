@@ -6,6 +6,7 @@ import {
   pintDropDraftForPersistence,
   pintDropDraftStorageKey,
   readPintDropDraft,
+  seededPintDropDraftForm,
   writePintDropDraft,
   type PintDropDraft,
 } from "@/lib/pintDropDraft";
@@ -125,5 +126,39 @@ describe("pint drop drafts", () => {
 
     expect(readPintDropDraft(brokenStorage, "venue-a")).toBeNull();
     expect(() => writePintDropDraft(brokenStorage, "venue-a", DRAFT)).not.toThrow();
+  });
+});
+
+describe("seededPintDropDraftForm", () => {
+  // #1462 — the landing's "Still £6.50?" promises the composer already holds
+  // £6.50. The composer's own hydration is the only place that can keep that
+  // promise, because it blanks the fields on every venue mount.
+  it("seeds the price when the venue has no saved draft", () => {
+    expect(seededPintDropDraftForm(null, "6.50")).toEqual({
+      price: "6.50",
+      drink: "",
+      note: "",
+      era: "",
+      withWho: "",
+    });
+  });
+
+  it("leaves a venue with no draft and no seed exactly as it was", () => {
+    expect(seededPintDropDraftForm(null, null)).toBe(null);
+  });
+
+  it("never overwrites a price the drinker already put in their own draft", () => {
+    const own = { price: "5.80", drink: "Guinness", note: "", era: "", withWho: "" };
+    expect(seededPintDropDraftForm(own, "6.50")).toBe(own);
+  });
+
+  it("still seeds a draft that holds a note but no figure", () => {
+    const noPrice = { price: "", drink: "", note: "Quiet corner", era: "", withWho: "" };
+    expect(seededPintDropDraftForm(noPrice, "6.50")).toEqual({ ...noPrice, price: "6.50" });
+  });
+
+  it("hands a draft straight back when the intent carried no figure", () => {
+    const draft = { price: "", drink: "", note: "Quiet corner", era: "", withWho: "" };
+    expect(seededPintDropDraftForm(draft, null)).toBe(draft);
   });
 });

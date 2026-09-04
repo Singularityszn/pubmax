@@ -93,6 +93,6 @@ describe("landing answer card copy", () => {
   });
 
   it("asks Still £X? of the pub on the card, and opens that pub's Pint Drop door", () => {
-    expect(html).toMatch(/data-primary-action=""><a[^>]*href="\/map\?sel=venue-test&amp;log=1"[^>]*>Still £6\.50\?<\/a>/);
+    expect(html).toMatch(/data-primary-action=""><a[^>]*href="\/map\?sel=venue-test&amp;log=1&amp;price=6\.50"[^>]*>Still £6\.50\?<\/a>/);
   });
 });

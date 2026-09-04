@@ -258,7 +258,7 @@ export default function LandingHero({
   const primary = answer ? (
     <Link
       prefetch={false}
-      href={pintDropDoorHref(answer.id)}
+      href={pintDropDoorHref(answer.id, answer.priceGbp)}
       onClick={() => trackLandingCta("receipt")}
       aria-describedby="lp-answer-name"
     >
@@ -399,7 +399,7 @@ function AnswerRail({ answer }: { answer: Answer }) {
       <ol className="lpRailList">
         {answer.rail.map((row) => (
           <li key={row.id} className="lpRailRow">
-            <Link prefetch={false} href={pintDropDoorHref(row.id)} className="lpRailLink">
+            <Link prefetch={false} href={pintDropDoorHref(row.id, row.priceGbp)} className="lpRailLink">
               <span className="lpRailMain">
                 <span className="lpRailName">{row.name}</span>
                 {row.walkMinutes != null ? (
