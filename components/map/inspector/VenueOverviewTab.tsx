@@ -20,7 +20,12 @@ import {
   quietHoursLabel,
 } from "@/lib/venueAccessibility";
 import { isPubVenue } from "@/lib/venueKindFilters";
-import { venueBundlePrices, venuePriceLane } from "@/lib/venuePriceLane";
+import {
+  PROVISIONAL_PRICE_LINE,
+  venueBundlePrices,
+  venuePriceLane,
+  type ProvisionalPriceInput,
+} from "@/lib/venuePriceLane";
 import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import SaveForNightButton from "@/components/wanted/SaveForNightButton";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
@@ -62,6 +67,7 @@ function VenuePriceSummary({
   venue,
   latestContributorPrice,
   confirmedPrice,
+  provisionalPrice,
   sourcedPrice,
   sourcedObserved,
   anchorStamp,
@@ -72,6 +78,7 @@ function VenuePriceSummary({
   venue: Venue;
   latestContributorPrice: number | null | undefined;
   confirmedPrice?: ConfirmedPriceInput | null;
+  provisionalPrice?: ProvisionalPriceInput | null;
   sourcedPrice: PricedVenue["sourcedPrice"];
   sourcedObserved: string;
   anchorStamp: string | null;
@@ -95,7 +102,13 @@ function VenuePriceSummary({
   });
   // ONE precedence, shared with the first-drop gate (lib/venuePriceLane.ts),
   // so a reordered or added lane cannot leave the nudge behind.
-  const lane = venuePriceLane(venue, latestContributorPrice, sourcedPrice, bundle);
+  const lane = venuePriceLane(
+    venue,
+    latestContributorPrice,
+    sourcedPrice,
+    bundle,
+    provisionalPrice,
+  );
   const baselinePriceRow = venue.prices.find(
     (price) => price.price_gbp === venue.cheapestPrice,
   );
@@ -212,6 +225,29 @@ function VenuePriceSummary({
     );
   }
 
+  // ONE report, printed as one report. The figure is rendered directly rather
+  // than through TrustPill: `listed` in lib/priceTier.ts means a price the pub
+  // or its chain PUBLISHED, carrying a URL a reader can open, and this carries
+  // one drinker instead. The date and the one line are the whole claim, and
+  // `priceStanding` is deliberately not consulted here.
+  if (lane?.lane === "provisional") {
+    const loggedAt = formatFreshness(lane.observedAt);
+    return (
+      <div className="contributorPrice">
+        <span className={chromeRevealClass}>
+          <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
+        </span>
+        <PriceBadge variant="current">
+          {formatPrice(lane.provisionalPrice)}
+        </PriceBadge>
+        {loggedAt ? <small className={chromeRevealClass}>{loggedAt}</small> : null}
+        <small className={`communityPriceStanding ${priceRevealMotionClass}`.trim()}>
+          {PROVISIONAL_PRICE_LINE}
+        </small>
+      </div>
+    );
+  }
+
   if (lane?.lane === "baseline") {
     return (
       <div className="contributorPrice">
@@ -276,6 +312,7 @@ export default function VenueOverviewTab({
   latestContributorPrice,
   latestPintDropAt,
   confirmedPrice,
+  provisionalPrice,
   communityPrices,
   experienceLens,
   drinkLensCategory = null,
@@ -315,6 +352,9 @@ export default function VenueOverviewTab({
    *  confirmation is minted on the server (lib/pintDropConfirm.server.ts) and
    *  never derived in a render. */
   confirmedPrice?: ConfirmedPriceInput | null;
+  /** An in-window pint report that has NOT earned the map, for the price area
+   *  alone. It reaches no band, no bucket and no pin figure. */
+  provisionalPrice?: ProvisionalPriceInput | null;
   /** Community price layer - the dated submission row plus the submit card. */
   communityPrices: CommunityPricesState;
   experienceLens: MapExperienceLens;
@@ -592,6 +632,7 @@ export default function VenueOverviewTab({
           venue={venue}
           latestContributorPrice={latestContributorPrice}
           confirmedPrice={confirmedPrice}
+          provisionalPrice={provisionalPrice}
           sourcedPrice={sourcedPrice}
           sourcedObserved={sourcedObserved}
           anchorStamp={anchorStamp}

@@ -19,6 +19,7 @@ import type { JourneyPoint } from "@/lib/venueJourney";
 import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 import type { ConfirmedPriceInput } from "@/lib/priceTier";
+import type { ProvisionalPriceInput } from "@/lib/venuePriceLane";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { ZonePintIndex } from "@/lib/zones";
 import {
@@ -61,6 +62,8 @@ type VenueInspectorProps = {
   latestPintDropAt?: number | null;
   /** The venue's live Pint Drop confirmation, as priceStandingFor takes it. */
   confirmedPrice?: ConfirmedPriceInput | null;
+  /** An in-window pint report that has NOT earned the map, for the price area. */
+  provisionalPrice?: ProvisionalPriceInput | null;
   /**
    * Map-authority people-logged pint for share copy: the merged signal the
    * pins already paint (corroborated community candidate and/or contributor
@@ -138,6 +141,7 @@ export default function VenueInspector({
   latestContributorPrice,
   latestPintDropAt,
   confirmedPrice,
+  provisionalPrice,
   shareLoggedPintGbp = null,
   shareLoggedAt = null,
   onToggleStop,
@@ -409,6 +413,7 @@ export default function VenueInspector({
         latestContributorPrice={latestContributorPrice}
         latestPintDropAt={latestPintDropAt}
         confirmedPrice={confirmedPrice}
+        provisionalPrice={provisionalPrice}
         communityPrices={communityPrices}
         experienceLens={experienceLens}
         drinkLensCategory={drinkLensCategory}

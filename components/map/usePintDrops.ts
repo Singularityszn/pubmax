@@ -50,7 +50,7 @@ import {
 } from "@/lib/spill";
 import type { LastPintDecision } from "@/lib/tfl";
 import { venueMapUrl } from "@/lib/venueMapUrl";
-import { corroboratedPriceDrop } from "@/lib/venues";
+import { corroboratedPriceDrop, provisionalPriceDrop } from "@/lib/venues";
 
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base
 // shape, so we augment it here at the client boundary rather than editing lib/*.
@@ -707,6 +707,10 @@ export function usePintDrops(
         latestDemoPrice: number | null;
         /** The venue's live confirmation as priceStandingFor takes it, or null. */
         confirmedPrice: ConfirmedPriceInput | null;
+        /** An in-window report that has NOT earned the map, for the sheet alone. */
+        provisionalContributorPrice: number | null;
+        /** Epoch ms that provisional report was logged, or null. */
+        provisionalContributorAt: number | null;
       }
     >();
     for (const [venueId, venueDrops] of mapDropsByVenueId) {
@@ -738,6 +742,14 @@ export function usePintDrops(
       // here, so the pub falls through to a weaker standing with nothing
       // deleted.
       const confirmedPrice = confirmedPriceInputFor(venueDrops);
+      // The second, weaker read beside the gate above (issue #1426). It answers
+      // null the moment the corroborated lane speaks, so the two can never
+      // offer a sheet two figures for one pub, and it reaches no band, bucket
+      // or pin figure — only the price area's provisional lane.
+      const provisionalDrop = provisionalPriceDrop(venueDrops);
+      const provisionalAtMs = provisionalDrop
+        ? Date.parse(provisionalDrop.createdAt)
+        : NaN;
       signals.set(venueId, {
         hasPintDrops: venueDrops.length > 0,
         dropCount: venueDrops.length,
@@ -745,6 +757,10 @@ export function usePintDrops(
         latestContributorAt,
         latestDemoPrice,
         confirmedPrice,
+        provisionalContributorPrice: provisionalDrop?.priceGbp ?? null,
+        provisionalContributorAt: Number.isFinite(provisionalAtMs)
+          ? provisionalAtMs
+          : null,
       });
     }
     return signals;

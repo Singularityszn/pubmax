@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { isVenueUnpriced } from "@/lib/firstDropNudge";
 import {
+  PROVISIONAL_PRICE_LINE,
   venueBundlePrices,
   venuePriceLane,
   venueSourcedPrice,
@@ -251,6 +252,103 @@ describe("the bundle lanes", () => {
   });
 });
 
+// The lane one drinker's report earns (issue #1426). Its whole job is to sit
+// between the listed row and the baseline, and to be reachable by a drop the
+// corroboration gate refuses.
+describe("the provisional lane", () => {
+  const REPORT = { priceGbp: 4.5, observedAt: "2026-09-03T20:00:00.000Z" };
+  const LISTED = {
+    priceGbp: 5.4,
+    sourceUrl: "https://thecrown.co.uk/drinks",
+    observedAt: new Date(Date.now() - 86_400_000).toISOString(),
+  };
+
+  it("prices a pub the dataset left unpriced", () => {
+    expect(venuePriceLane(makeVenue(), null, null, {}, REPORT)).toEqual({
+      lane: "provisional",
+      provisionalPrice: 4.5,
+      observedAt: "2026-09-03T20:00:00.000Z",
+    });
+  });
+
+  it("sits above the baseline and below the listed row", () => {
+    expect(
+      venuePriceLane(makeVenue({ cheapestPrice: 6.2 }), null, null, {}, REPORT)?.lane,
+    ).toBe("provisional");
+    expect(
+      venuePriceLane(makeVenue(), null, null, { listed: LISTED }, REPORT)?.lane,
+    ).toBe("listed");
+  });
+
+  it("keeps the corroborated contributor price and a sourced price above it", () => {
+    expect(venuePriceLane(makeVenue(), 5.9, null, {}, REPORT)?.lane).toBe("contributor");
+    const sourcedVenue = withSourced(makeVenue());
+    expect(
+      venuePriceLane(sourcedVenue, null, venueSourcedPrice(sourcedVenue), {}, REPORT)?.lane,
+    ).toBe("sourced");
+  });
+
+  it("takes an epoch observedAt as readily as an ISO one", () => {
+    const epoch = venuePriceLane(makeVenue(), null, null, {}, {
+      priceGbp: 4.5,
+      observedAt: 1_757_000_000_000,
+    });
+    expect(epoch?.lane).toBe("provisional");
+  });
+
+  it("refuses a report with no usable figure", () => {
+    expect(
+      venuePriceLane(makeVenue(), null, null, {}, {
+        priceGbp: Number.NaN,
+        observedAt: null,
+      }),
+    ).toBeNull();
+  });
+
+  it("takes the pub off the first-drop nudge", () => {
+    expect(isVenueUnpriced(makeVenue(), null)).toBe(true);
+    expect(isVenueUnpriced(makeVenue(), null, {}, REPORT)).toBe(false);
+  });
+
+  it("owns the one line, and nothing else writes those words", () => {
+    expect(PROVISIONAL_PRICE_LINE).toBe("Logged once, needs a second drinker");
+  });
+});
+
+// The other two surfaces that word a pub's missing price. Issue #1426: three
+// places said "No price" over the same pub from three different tests, so the
+// venue sheet could stop saying it while the others carried on.
+describe("every surface that words an absent price asks the same module", () => {
+  const borough = readFileSync(join(ROOT, "app/borough/[slug]/page.tsx"), "utf8");
+
+  it("the borough list asks the lane instead of testing cheapestPrice itself", () => {
+    expect(borough).toContain('from "@/lib/venuePriceLane"');
+    // The wording lives in ONE cell, and that cell asks the lane. It used to
+    // test `cheapestPrice` itself, so a pub priced by any other lane still
+    // printed "No price" here. The borough's own cheapest-pint summary figure
+    // reads `cheapestPrice` for its own reasons and is a different question.
+    const cellStart = borough.indexOf("function BoroughPubPrice(");
+    expect(cellStart).toBeGreaterThan(-1);
+    const cell = borough.slice(cellStart, borough.indexOf("\n}", cellStart));
+    expect(cell).toContain("venuePriceLane(");
+    expect(borough.split('className="boroughNoPrice"').length - 1).toBe(1);
+    expect(cell).toContain('className="boroughNoPrice"');
+  });
+
+  it("the unverified-pub sheet already shows an uncorroborated report, and keeps doing so", () => {
+    // That sheet takes a UK base pub and a community price rather than a Venue
+    // and a drop, so it cannot call this module. What it must never do is word
+    // an absence over a price it is showing, which is pinned where it renders:
+    // __tests__/unverifiedPubSheet.test.ts.
+    const sheet = readFileSync(join(ROOT, "components/map/UnverifiedPubSheet.tsx"), "utf8");
+    expect(sheet).toContain('? "Community price"');
+    expect(sheet).toContain('? "No price yet"');
+    expect(sheet.indexOf('? "Community price"')).toBeLessThan(
+      sheet.indexOf('? "No price yet"'),
+    );
+  });
+});
+
 describe("VenueOverviewTab renders from the shared lane", () => {
   const overview = readFileSync(
     join(ROOT, "components/map/inspector/VenueOverviewTab.tsx"),
@@ -259,13 +357,32 @@ describe("VenueOverviewTab renders from the shared lane", () => {
 
   it("branches on venuePriceLane rather than restating the precedence", () => {
     expect(overview).toContain('from "@/lib/venuePriceLane"');
-    expect(overview).toContain(
-      "const lane = venuePriceLane(venue, latestContributorPrice, sourcedPrice, bundle);",
-    );
-    // The two bundle lanes are here for the same reason the other four are: the
+    // Matched on the call's ARGUMENTS rather than one formatted line, because
+    // the argument list has outgrown a single line and a reflow is not a policy
+    // change. What is pinned is that the component decides nothing itself.
+    const call = overview.slice(overview.indexOf("const lane = venuePriceLane("));
+    const args = call.slice(0, call.indexOf(");") + 2);
+    for (const argument of [
+      "venue",
+      "latestContributorPrice",
+      "sourcedPrice",
+      "bundle",
+      "provisionalPrice",
+    ]) {
+      expect(args, `the lane call must be given ${argument}`).toContain(argument);
+    }
+    // The two bundle lanes are here for the same reason the other five are: the
     // price area renders EVERY lane the precedence can answer with, so a lane
     // added in the module and missed in the component would show a pub nothing.
-    for (const lane of ["anchor", "contributor", "sourced", "listed", "baseline", "estimate"]) {
+    for (const lane of [
+      "anchor",
+      "contributor",
+      "sourced",
+      "listed",
+      "provisional",
+      "baseline",
+      "estimate",
+    ]) {
       expect(overview, `price area must branch on the ${lane} lane`).toContain(
         `if (lane?.lane === "${lane}") {`,
       );

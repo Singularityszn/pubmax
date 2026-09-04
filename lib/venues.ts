@@ -589,27 +589,58 @@ export function corroboratedPriceDrop<D extends SummaryDrop>(
   return bestBackers >= COMMUNITY_PRICE_CORROBORATION_THRESHOLD ? best : null;
 }
 
+// The in-window pint report a venue holds that has NOT earned the map, or null.
+//
+// The corroboration gate above is unchanged and stays the ONLY door onto pin
+// colour, cheapest buckets and the Pint Index. This is the second, weaker read
+// beside it: what one drinker logged, so a surface can SHOW that figure, dated
+// and worded as one report, instead of telling the reader the pub has no price
+// (issue #1426). It answers null the moment a corroborated figure exists,
+// because that lane is already speaking and two figures for one pub is two
+// answers to one question.
+//
+// Deliberately NOT keyed on `authorityKey`. That key is what proves two reports
+// came from two people, which is a question about CORROBORATION; a lone report
+// is not claiming independence from anybody. The production row this was found
+// over carries a null key, because it came through the unlinked-handle door.
+//
+// Ties keep the earlier (newest-first) drop, matching the store's ordering.
+export function provisionalPriceDrop<D extends SummaryDrop>(
+  drops: readonly D[],
+  now: number = Date.now(),
+): D | null {
+  // A corroborated lane is painting already — nothing here is provisional.
+  if (corroboratedPriceDrop(drops, now)) return null;
+  let best: D | null = null;
+  let bestAt = Number.NEGATIVE_INFINITY;
+  for (const drop of drops) {
+    if (drop.provenance === "demo") continue;
+    if (typeof drop.priceGbp !== "number" || !Number.isFinite(drop.priceGbp)) continue;
+    const at = Date.parse(drop.createdAt);
+    if (!isWithinMaxAge({ submittedAt: at }, now)) continue;
+    if (!Number.isFinite(at) || at <= bestAt) continue;
+    best = drop;
+    bestAt = at;
+  }
+  return best;
+}
+
 // The venues whose drop lane holds an in-window pint report that has NOT
 // earned the map — the drop-side feeder for the provisional mark
 // (provisionalCommunityPriceVenueIds seam). VISIBILITY without AUTHORITY: a
 // first drop marks the pin as "someone reported here" while the colour band
 // and printed figure wait for a second independent drinker.
+//
+// Derived from `provisionalPriceDrop` rather than restating its predicates, so
+// the pin's mark and the sheet's figure can never disagree about which pubs
+// hold a pending report.
 export function provisionalPintDropVenueIds<D extends SummaryDrop>(
   dropsByVenueId: ReadonlyMap<string, readonly D[]>,
   now: number = Date.now(),
 ): Set<string> {
   const pending = new Set<string>();
   for (const [venueId, drops] of dropsByVenueId) {
-    const inWindow = drops.some(
-      (drop) =>
-        drop.provenance !== "demo" &&
-        typeof drop.priceGbp === "number" &&
-        isWithinMaxAge({ submittedAt: Date.parse(drop.createdAt) }, now),
-    );
-    if (!inWindow) continue;
-    // A corroborated lane is painting the pin already — nothing is pending.
-    if (corroboratedPriceDrop(drops, now)) continue;
-    pending.add(venueId);
+    if (provisionalPriceDrop(drops, now)) pending.add(venueId);
   }
   return pending;
 }
