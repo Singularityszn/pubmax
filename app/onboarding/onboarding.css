@@ -469,6 +469,44 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
     );
   }
 
+  /* THE PHOTOGRAPH IS WHAT YIELDS.
+     Containment alone only promises that nothing passes UNDER the card. It
+     does not promise the reader can still SEE the rows and the one action,
+     and on a 390pt phone it did not: the surface ended at 704px with the
+     "Use London" button laid out at 768px, inside a scroller a phone draws no
+     bar for. So the stage stops giving the picture a share of the viewport
+     and gives it the space the panel does not need, floored at nothing. The
+     panel keeps its own height at every width, which is what puts the
+     reviewed areas and the primary action back on screen at rest. Take the
+     card away and this stops matching, so the designed 31dvh band returns. */
+  body:has(.analyticsConsentPrompt) .firstRunStage,
+  body:has(.analyticsConsentPrompt)
+    .firstRunOnboarding[data-stage="companion"] .firstRunStage {
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  /* The narrowest phones stack each reviewed row onto three lines, so the
+     panel alone is within about 50px of the whole lane-reduced stage and the
+     picture would be a sliver. These four are the panel's own rhythm, trimmed
+     only while the card is up, so the band stays a photograph rather than a
+     stripe. Nothing here changes a designed length once consent is answered. */
+  body:has(.analyticsConsentPrompt) .firstRunPanel {
+    padding-top: 18px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
+  }
+
+  body:has(.analyticsConsentPrompt) .firstRunLead {
+    margin-top: 10px;
+  }
+
+  body:has(.analyticsConsentPrompt) .firstRunAreaList {
+    margin-top: 14px;
+  }
+
+  body:has(.analyticsConsentPrompt) .firstRunActions {
+    margin-top: 14px;
+  }
+
   .firstRunTopbar {
     min-height: calc(62px + env(safe-area-inset-top, 0px));
     padding-inline: 16px;
