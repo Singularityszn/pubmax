@@ -39,6 +39,10 @@ vi.mock("@/lib/venueMapUrl", () => ({
 vi.mock("@/components/wanted/WantedPromotionControl", () => ({
   default: () => null,
 }));
+vi.mock("next/dynamic", async () => {
+  const { default: Body } = await import("@/components/wanted/WantedListBody");
+  return { default: () => Body };
+});
 
 import WantedList from "@/components/wanted/WantedList";
 import { setProviderIdentity } from "@/lib/authProviderRevision";

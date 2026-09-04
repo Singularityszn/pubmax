@@ -41,6 +41,10 @@ vi.mock("@/components/auth/useViewerSession", () => ({
   },
 }));
 vi.mock("@/lib/authedFetch", () => ({ authedFetch }));
+vi.mock("next/dynamic", async () => {
+  const { default: Body } = await import("@/components/wanted/WantedListBody");
+  return { default: () => Body };
+});
 
 import WantedList from "@/components/wanted/WantedList";
 

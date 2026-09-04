@@ -468,10 +468,26 @@ painting the copy from the HTML, and the win is large:
 
 `/u/you` did not. The same change made it **heavier**: 1375 KB over 71 requests,
 against ceilings of 1290 and 66. Its LCP ceiling stands at 900 and it passes
-there, but the byte and request ceilings are left exactly where they are and the
-sweep reports the route over budget. Moving them to fit the measurement is the
-one move this file forbids, and a payload that grew by 85 KB and five requests is
-worth somebody deciding about rather than absorbing.
+there, but the byte and request ceilings were left exactly where they are and the
+sweep reported the route over budget. Moving them to fit the measurement is the
+one move this file forbids.
+
+The route was brought back under them instead. The head of the Wanted panel is
+what has to be in the HTML, not the body: the title and the lede name nobody, so
+they paint before the session answers, while the capture form, the sign-in line
+and the `lib/wanted` graph behind them need an account and can load after paint.
+The account hub, the crews panel and the timeline are not the paint either. Five
+samples of one build each, same box, same throttle:
+
+| metric | before | after | ceiling |
+| --- | --- | --- | --- |
+| JS decoded (KB) | 1376 | **1199** | 1290 |
+| requests | 70 | **59** | 66 |
+| LCP (ms) | 764 | **612** | 900 |
+
+The chunk that went is the 147 KB one carrying the timeline and the account hub,
+plus the 44 KB `ukBasePubs` graph the Wanted resolver reaches for and four
+smaller ones behind the crews panel and the password policy.
 
 ## Changing a number
 

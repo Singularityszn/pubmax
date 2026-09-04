@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -18,10 +19,7 @@ import ProfileEditor from "@/components/profile/ProfileEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import SocialLinksEditor from "@/components/profile/SocialLinksEditor";
 import type { PublicSocialLink } from "@/lib/socialConnections";
-import ProfileTimeline from "@/components/profile/ProfileTimeline";
-import PubmaxxAccountHub from "@/components/profile/PubmaxxAccountHub";
 import SavedPubList from "@/components/profile/SavedPubList";
-import CrewsPanel from "@/components/social/CrewsPanel";
 import WantedList from "@/components/wanted/WantedList";
 import YourContributionsCard from "@/components/profile/YourContributionsCard";
 import SiteNav from "@/components/nav/SiteNav";
@@ -76,6 +74,23 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 import { currentMode, modeEnablesLegacy } from "@/lib/viewMode";
 
 import "./profile.css";
+
+// Account settings, crews and the timeline are not the identity-loading
+// paint. Static imports pulled their CSS and JS into /u/you's first document
+// after #1411 mounted Wanted across that paint. Load them after the document
+// is complete so they miss the interactive count.
+const PubmaxxAccountHub = dynamic(
+  () => import("@/components/profile/PubmaxxAccountHub"),
+  { ssr: false },
+);
+const CrewsPanel = dynamic(
+  () => import("@/components/social/CrewsPanel"),
+  { ssr: false },
+);
+const ProfileTimeline = dynamic(
+  () => import("@/components/profile/ProfileTimeline"),
+  { ssr: false },
+);
 
 // Public profile route /u/[handle]. Client/dynamic on purpose: no
 // generateStaticParams, so the build never pre-renders every handle. It fetches
@@ -347,11 +362,27 @@ function isNightMemoriesHash(hash: string): boolean {
   return hash.replace(/^#/, "").toLowerCase() === "night-memories";
 }
 
+function subscribeDocumentComplete(onStoreChange: () => void): () => void {
+  if (document.readyState === "complete") return () => {};
+  window.addEventListener("load", onStoreChange);
+  return () => window.removeEventListener("load", onStoreChange);
+}
+
+/** True only after `window` `load`, so post-paint chunks start after the count. */
+function useDocumentComplete(): boolean {
+  return useSyncExternalStore(
+    subscribeDocumentComplete,
+    () => document.readyState === "complete",
+    () => false,
+  );
+}
+
 export default function ProfilePageClient({ params }: { params: Promise<{ handle: string }> }) {
   // Route params are a promise in the App Router; unwrap with `use`.
   const routeHandle = normalizeHandle(use(params)?.handle);
   const isYouRoute = routeHandle === YOU_SENTINEL;
   const router = useRouter();
+  const documentComplete = useDocumentComplete();
   const { accountRevision, user, identityResolved, signOut } = useAuth();
   const viewerSession = useViewerSession();
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
@@ -1401,9 +1432,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           </>
         )}
         {surface === "identity-loading" || surface === "you-invitation" ? (
-          <WantedList key="you-wanted-panel" body={surface === "you-invitation"} />
+          <WantedList
+            key="you-wanted-panel"
+            body={surface === "you-invitation" && documentComplete}
+          />
         ) : null}
-        {surface === "you-invitation" ? (
+        {surface === "you-invitation" && documentComplete ? (
           <div id="account-settings">
             <PubmaxxAccountHub />
           </div>
