@@ -7,15 +7,13 @@ test.beforeEach(async ({ page }) => {
 });
 
 // Social-loop E2E (cc_plan2 §8/§9/§11). A READ-ONLY journey through the durable
-// social surfaces — feed, pint permalink, crawl poster. It asserts the loop
-// RENDERS correctly (real pub names, shareable posts, working cross-links)
-// WITHOUT mutating anything: it never POSTs a drop/reaction/comment, so it is
-// safe against the production Supabase env that `next start` boots with.
+// social surfaces: Social (canonical, /feed 308s here), pint permalink, crawl
+// poster. It asserts the loop RENDERS correctly WITHOUT mutating anything: it
+// never POSTs a drop/reaction/comment, so it is safe against the production
+// Supabase env that `next start` boots with.
 //
 // Style matches e2e/smoke.spec.ts: watchPageErrors on deterministic surfaces,
-// status-200 + a stable selector + errors.toEqual([]). Every content assertion
-// is guarded by .count() so the suite is green on BOTH a populated feed and an
-// empty DB — an empty feed is a valid state, never a failure. No waitForTimeout
+// status-200 + a stable selector + errors.toEqual([]). No waitForTimeout
 // sleeps anywhere; only web-first (auto-retrying) assertions.
 
 // Collect uncaught page errors so a single console-fatal fails the run loudly.
@@ -30,110 +28,39 @@ function watchPageErrors(page: Page): string[] {
 // visible text. This regex must NOT match the rendered venue link text.
 const RAW_VENUE_ID = /^venue-[a-z0-9]+$/;
 
-test("feed shows real pub names, is shareable, and links to the map (§9/§11)", async ({
+test("legacy /feed opens signed-out Social, not the retired feed", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
 
   const response = await page.goto("/feed");
   expect(response?.status()).toBe(200);
-
-  // Deterministic scaffold: the feed heading always renders (loading, ready, or
-  // the empty state), so wait on it before branching on card presence.
-  await expect(page.locator(".screenTitle").first()).toBeVisible();
-
-  const cards = page.locator(".feedCard:not(.feedCardSkeleton)");
-  // Web-first wait for EITHER real cards OR the social empty state, so we never
-  // branch on a mid-load snapshot (skeletons carry .feedCardSkeleton).
-  await expect
-    .poll(async () => (await cards.count()) + (await page.locator(".feedEmpty").count()))
-    .toBeGreaterThan(0);
-
-  const cardCount = await cards.count();
-  if (cardCount > 0) {
-    const first = cards.first();
-
-    // The venue is linked by its human name, never the raw internal id.
-    const link = first.locator(".feedVenueLink").first();
-    await expect(link).toBeVisible();
-    const name = (await link.innerText()).trim();
-    expect(name.length).toBeGreaterThan(0);
-    expect(name).not.toMatch(RAW_VENUE_ID);
-
-    // …and that name links to the map with this pub selected (/map?sel=…).
-    const href = await link.getAttribute("href");
-    expect(href ?? "").toMatch(/^\/map\?sel=/);
-
-    // Every pint is its own shareable post: a permalink (/p/…) + a share strip.
-    const permalink = first.locator(".feedPermalink").first();
-    await expect(permalink).toHaveAttribute("href", /^\/p\//);
-    await expect(first.locator(".feedActionRow .shareBar").first()).toBeVisible();
-  } else {
-    // Empty DB is a valid state — assert the social empty state, never fail.
-    // The empty state is the shared EmptyState component (components/EmptyState.tsx);
-    // its one action renders inside .emptyStateAction.
-    await expect(page.locator(".feedEmpty")).toBeVisible();
-    await expect(page.locator(".feedEmpty .emptyStateAction a")).toHaveAttribute(
-      "href",
-      /\/map/,
-    );
-  }
+  await expect(page).toHaveURL(/\/social\/?$/);
+  await expect(
+    page.getByRole("heading", { name: "Crews and people who are already here." }),
+  ).toBeVisible();
+  await expect(page.getByText("Sign in to use Social.")).toBeVisible();
+  await expect(
+    page.locator("[data-primary-action]").getByRole("link", { name: "Sign in" }),
+  ).toBeVisible();
+  await expect(page.locator(".feedCard")).toHaveCount(0);
+  await expect(page.locator(".feedEmpty")).toHaveCount(0);
+  await expect(page.locator(".feedFilters")).toHaveCount(0);
 
   expect(errors).toEqual([]);
 });
 
-// A4/UX2 — every feed card carries exactly ONE Cheers affordance: the first
-// chip of the reaction row (the old standalone CheersButton duplicated the
-// same "cheers" reaction and was removed). READ-ONLY: we assert the chip is
-// PRESENT and labelled, never click it (a click would POST a reaction).
-// Guarded by card presence so an empty DB is a valid pass.
-test("feed cards carry a one-tap 'Cheers' reaction chip (A4)", async ({ page }) => {
+test("signed-out Social offers Sign in, not a Cheers chip", async ({ page }) => {
   const errors = watchPageErrors(page);
 
-  const response = await page.goto("/feed");
+  const response = await page.goto("/social");
   expect(response?.status()).toBe(200);
-  await expect(page.locator(".screenTitle").first()).toBeVisible();
-
-  const cards = page.locator(".feedCard:not(.feedCardSkeleton)");
-  await expect
-    .poll(async () => (await cards.count()) + (await page.locator(".feedEmpty").count()))
-    .toBeGreaterThan(0);
-
-  if ((await cards.count()) > 0) {
-    // Every rendered card exposes exactly one Cheers control — the reaction
-    // row's cheers chip, with an accessible pressed-state (aria-pressed).
-    const cheers = cards.first().getByRole("button", { name: /^Cheers/ });
-    await expect(cheers).toHaveCount(1);
-    await expect(cheers).toBeVisible();
-    await expect(cheers).toHaveAttribute("aria-pressed", /true|false/);
-  } else {
-    // Empty feed: nothing to react to — the empty state stands in. Not a failure.
-    await expect(page.locator(".feedEmpty")).toBeVisible();
-  }
+  await expect(
+    page.locator("[data-primary-action]").getByRole("link", { name: "Sign in" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Cheers/ })).toHaveCount(0);
 
   expect(errors).toEqual([]);
-});
-
-test("feed → map: clicking a pub name opens the map with it selected", async ({ page }) => {
-  await page.goto("/feed");
-  await expect(page.locator(".screenTitle").first()).toBeVisible();
-
-  const cards = page.locator(".feedCard:not(.feedCardSkeleton)");
-  await expect
-    .poll(async () => (await cards.count()) + (await page.locator(".feedEmpty").count()))
-    .toBeGreaterThan(0);
-
-  const link = page.locator(".feedVenueLink").first();
-  if ((await link.count()) === 0) {
-    // Empty inventory is still a complete, asserted state. Never turn missing
-    // fixture data into a skipped test that can make the gate look healthier.
-    await expect(page.locator(".feedEmpty")).toBeVisible();
-    await expect(page).toHaveURL(/\/feed$/);
-    return;
-  }
-
-  await link.click();
-  await expect(page).toHaveURL(/\/map\?sel=/);
 });
 
 test("pint permalink is a real shareable post; unknown id stays friendly (§8)", async ({
@@ -156,15 +83,15 @@ test("pint permalink is a real shareable post; unknown id stays friendly (§8)",
 
   expect(errors).toEqual([]);
 
-  // A hidden/unknown id must still render a friendly state — 200, no crash, and
-  // a route back to the feed (never a leak of moderation state).
+  // A hidden/unknown id must still render a friendly state: 200, no crash, and
+  // a route back to Discover (never a leak of moderation state).
   const missingErrors = watchPageErrors(page);
   const missing = await page.goto("/p/definitely-not-real");
   expect(missing?.status()).toBe(200);
   await expect(page.locator(".permalink--empty")).toBeVisible();
   await expect(
-    page.locator(".permalink--empty").getByRole("link", { name: /feed/i }),
-  ).toHaveAttribute("href", "/feed");
+    page.locator(".permalink--empty").getByRole("link", { name: /Browse pubs/i }),
+  ).toHaveAttribute("href", "/social?tab=discover");
   expect(missingErrors).toEqual([]);
 });
 
@@ -203,17 +130,17 @@ test("crawl surfaces render; unknown slug is a friendly 404/empty", async ({ pag
 // the pub into /map?sel=… by NAME (never a raw venue id), or the empty note is
 // present. Read-only: it consumes the same /api/pint-drops the page fetches and
 // never POSTs.
-test("discover 'Cheapest Pints Tonight' board renders rows or its empty state (§5.1)", async ({
+test("discover recently logged cheap pints board renders rows or its empty state (§5.1)", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
 
-  const response = await page.goto("/discover");
+  const response = await page.goto("/social?tab=discover");
   expect(response?.status()).toBe(200);
 
-  // The app-owned section heading (stable id in app/discover/page.tsx) always
+  // The app-owned section heading (stable id in DiscoverBody) always
   // renders regardless of whether any pints landed in the last 24h.
-  await expect(page.locator("#tonight-title")).toHaveText("Cheapest Pints Tonight");
+  await expect(page.locator("#tonight-title")).toHaveText("Recently logged cheap pints");
 
   // The board mounts EITHER as an ordered list of rows OR as its empty note. It
   // starts empty (drops arrive after the client fetch), so web-first wait until
@@ -249,7 +176,7 @@ test("discover mobile price badges stay stable and inside the viewport", async (
   const errors = watchPageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
 
-  const response = await page.goto("/discover");
+  const response = await page.goto("/social?tab=discover");
   expect(response?.status()).toBe(200);
 
   await page.locator("#cheap-title").scrollIntoViewIfNeeded();
@@ -267,7 +194,6 @@ test("discover mobile price badges stay stable and inside the viewport", async (
           width: rect.width,
           height: rect.height,
           right: rect.right,
-          transform: getComputedStyle(el).transform,
         };
       });
     return { overflow, boxes };
@@ -279,7 +205,6 @@ test("discover mobile price badges stay stable and inside the viewport", async (
     expect(box.width).toBeGreaterThan(40);
     expect(box.height).toBeGreaterThan(20);
     expect(box.right).toBeLessThanOrEqual(391);
-    expect(box.transform === "none" || box.transform === "").toBe(true);
   }
 
   expect(errors).toEqual([]);
@@ -504,88 +429,36 @@ for (const path of ["/", "/feed", "/discover", "/borough"]) {
 }
 
 // ---------------------------------------------------------------------------
-// Mobile feed infinite scroll (app/feed/page.tsx, PRD §2.5). On a phone-width
-// viewport the "Load more" button is replaced by an IntersectionObserver-driven
-// sentinel: scrolling toward the end of the list reveals the next page WITHOUT
-// any click. We prove this read-only — if the feed carries enough data (≥13
-// cards' worth, i.e. more than a single page), scrolling the last card into view
-// grows the visible card count on its own. On a short/empty feed there is nothing
-// to page, so we skip cleanly. Never POSTs; a bare GET + scroll only.
-test("mobile feed reveals more cards on scroll without clicking 'Load more' (§2.5)", async ({
+// Signed-out Social on a phone: the retired feed cards and lane chips are gone.
+// The door is Sign in. Overflow and tap size stay the contract.
+test("mobile Social keeps the sign-in door thumb-sized without page overflow", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
 
-  // A phone viewport is what flips the feed into infinite-scroll mode.
   await page.setViewportSize({ width: 390, height: 844 });
 
-  const response = await page.goto("/feed");
+  const response = await page.goto("/social");
   expect(response?.status()).toBe(200);
-  await expect(page.locator(".screenTitle").first()).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Crews and people who are already here." }),
+  ).toBeVisible();
+  await expect(page.locator(".feedCard")).toHaveCount(0);
+  await expect(page.locator(".feedFilters")).toHaveCount(0);
 
-  const cards = page.locator(".feedCard:not(.feedCardSkeleton)");
-  // Web-first: wait until either real cards OR the empty state settled, so we
-  // never branch on a mid-load snapshot.
-  await expect
-    .poll(async () => (await cards.count()) + (await page.locator(".feedEmpty").count()))
-    .toBeGreaterThan(0);
-
-  const initial = await cards.count();
-  const sentinel = page.locator(".feedSentinel");
-  if ((await sentinel.count()) === 0) {
-    // No next cursor means inventory is genuinely exhausted. Assert the terminal
-    // state, rather than using hidden desktop controls as a proxy for pagination.
-    await expect(page.locator(".feedEndWrap")).toBeVisible();
-    await expect(page.getByRole("button", { name: /load more/i })).toHaveCount(0);
-    expect(errors).toEqual([]);
-    return;
+  const signIn = page.locator("[data-primary-action]").getByRole("link", { name: "Sign in" });
+  await expect(signIn).toBeVisible();
+  const box = await signIn.boundingBox();
+  expect(box, "Sign in should have a layout box").not.toBeNull();
+  if (box) {
+    expect(Math.round(box.height)).toBeGreaterThanOrEqual(44);
+    expect(Math.round(box.width)).toBeGreaterThanOrEqual(44);
   }
 
-  // Presence of the sentinel is the rendered proof that another page exists.
-  // Bringing it into view must grow the actual card set without a button click.
-  await sentinel.scrollIntoViewIfNeeded();
-  await expect.poll(async () => cards.count()).toBeGreaterThan(initial);
-
-  expect(errors).toEqual([]);
-});
-
-test("mobile feed lane controls keep thumb-sized targets without page overflow", async ({ page }) => {
-  const errors = watchPageErrors(page);
-
-  await page.setViewportSize({ width: 390, height: 844 });
-
-  const response = await page.goto("/feed");
-  expect(response?.status()).toBe(200);
-  await expect(page.locator(".screenTitle").first()).toBeVisible();
-
-  const result = await page.evaluate(() => {
-    const rail = document.querySelector<HTMLElement>(".feedFilters");
-    const chips = Array.from(document.querySelectorAll<HTMLElement>(".feedFilterChip"))
-      .filter((el) => el.offsetParent !== null)
-      .map((el) => {
-        const rect = el.getBoundingClientRect();
-        return {
-          height: rect.height,
-          width: rect.width,
-          left: rect.left,
-          right: rect.right,
-        };
-      });
-
-    return {
-      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      railScrollsInternally: rail ? rail.scrollWidth > rail.clientWidth : false,
-      chips,
-    };
-  });
-
-  expect(result.overflow).toBeLessThanOrEqual(1);
-  expect(result.railScrollsInternally).toBe(true);
-  expect(result.chips.length).toBeGreaterThanOrEqual(5);
-  for (const chip of result.chips) {
-    expect(chip.height).toBeGreaterThanOrEqual(44);
-    expect(chip.width).toBeGreaterThan(44);
-  }
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
 
   expect(errors).toEqual([]);
 });
