@@ -13,6 +13,7 @@ import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { buildQuietPint } from "@/lib/quietPint";
 import { formatConditionDate } from "@/lib/tonightConditions";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
+import type { Venue } from "@/lib/venues";
 import { loadFreshWeatherSnapshot } from "@/lib/weatherFreshness.server";
 import {
   loadTodayOutAnswer,
@@ -24,7 +25,7 @@ import {
 import heritageCache from "@/public/data/heritage_cache.json";
 
 import TodayClient from "./TodayClient";
-import { buildTodayPintsIndex } from "./todayPints";
+import { buildTodayPintsIndex, type TodayPintsIndex } from "./todayPints";
 
 // The morning brief: one composed home surface for "before you go", a stack of
 // cards all from data the app already sources. Per PRD Lane A
@@ -52,6 +53,39 @@ export const metadata: Metadata = {
 // layout's nonce read is ever removed, restore force-dynamic to keep /today
 // from being statically cached with stale weather.)
 export const runtime = "nodejs";
+
+// Two derivations over the bundled price dataset that are the SAME for every
+// reader and every request: the per-patch cheapest-pint index, and the venue-id
+// to price map the quiet-pint ranking joins on. `getPricedVenues()` memoises the
+// 6.7 MB parse and hands back the very same array for the life of the process,
+// so both are keyed on that array's IDENTITY. A WeakMap rather than a plain
+// module variable is the point: nothing has to remember to invalidate, because a
+// dataset that was re-read is a different array and derives afresh, which is
+// also what `resetVenuePriceIndexForTests` gives a test for free.
+//
+// Neither derivation reads the clock, the request, or anything about a viewer,
+// so this can never hold one reader's answer in front of another.
+const pintsIndexByVenues = new WeakMap<Venue[], TodayPintsIndex>();
+const priceByIdByVenues = new WeakMap<Venue[], Map<string, number>>();
+
+function todayPintsIndexFor(venues: Venue[]): TodayPintsIndex {
+  const held = pintsIndexByVenues.get(venues);
+  if (held) return held;
+  const built = buildTodayPintsIndex(venues);
+  pintsIndexByVenues.set(venues, built);
+  return built;
+}
+
+function pricedVenuePriceById(venues: Venue[]): Map<string, number> {
+  const held = priceByIdByVenues.get(venues);
+  if (held) return held;
+  const built = new Map<string, number>();
+  for (const venue of venues) {
+    if (typeof venue.cheapestPrice === "number") built.set(venue.id, venue.cheapestPrice);
+  }
+  priceByIdByVenues.set(venues, built);
+  return built;
+}
 
 export default async function TodayPage() {
   const now = new Date();
@@ -119,16 +153,13 @@ export default async function TodayPage() {
 
   const fact = pickPubOfTheDayFact(heritageCache, now);
 
-  const pintsIndex = buildTodayPintsIndex(pricedVenues);
+  const pintsIndex = todayPintsIndexFor(pricedVenues);
 
   // "A quiet pint" — heritage-cited pubs that also read as quiet at this hour,
   // for the calmer 45-60 cohort. Ranked server-side from the cited historic-pub
   // set, joined to verified pint prices by venue id. Fail-soft to null (a busy
   // hour, or no cited candidates), and the card then renders nothing.
-  const priceById = new Map<string, number>();
-  for (const venue of pricedVenues) {
-    if (typeof venue.cheapestPrice === "number") priceById.set(venue.id, venue.cheapestPrice);
-  }
+  const priceById = pricedVenuePriceById(pricedVenues);
   const quietPint = buildQuietPint({
     candidates: historicPubs.flatMap((pub) =>
       pub.venueId

@@ -49,13 +49,22 @@ export const WEATHER_READTHROUGH_MAX_AGE_MS = 90 * 60_000;
 // cached reading instead. The top-up is a fan-out across every night area to a
 // third party we do not control, on the render path of a route that is dynamic
 // per request, so an unbounded wait made a slow Open-Meteo into a slow /today
-// for everyone. Waiting is still worth a moment: the fetch usually beats this
-// and the reader gets a current sky. Past it, the reader gets the cached
-// snapshot with its honest "last checked" line, the top-up keeps running on the
-// single-flight latch, and the next request serves what it brought back.
-// Nothing is fabricated either way. docs/PERFORMANCE_BUDGETS.md owns the budget
-// this protects.
-export const WEATHER_TOP_UP_RENDER_DEADLINE_MS = 700;
+// for everyone. Past it, the reader gets the cached snapshot with its honest
+// "last checked" line, the top-up keeps running on the single-flight latch, and
+// the next request serves what it brought back. Nothing is fabricated either
+// way. docs/PERFORMANCE_BUDGETS.md owns the budget this protects.
+//
+// It was 700 ms, and 700 ms cannot protect a 150 ms budget: it was more than
+// four times the whole ceiling for the route it guards, so a cold render simply
+// paid whatever Open-Meteo asked. Measured on the rig, the fan-out costs 223 ms
+// on a cold process, and it was the single longest read left on /today once the
+// live What's-On lane was bounded. This is now the route ceiling itself, the
+// same value and the same rule as WHATS_ON_LIVE_RENDER_DEADLINE_MS: a third
+// party may not be the reason /today misses its budget. The cost is that a
+// reader arriving on a cold process sees the cached sky under its own staleness
+// line rather than a live one; the reader behind them sees the live one, because
+// the top-up is never cancelled.
+export const WEATHER_TOP_UP_RENDER_DEADLINE_MS = 150;
 
 /**
  * Pure freshness predicate: is this snapshot recent enough to serve without a
