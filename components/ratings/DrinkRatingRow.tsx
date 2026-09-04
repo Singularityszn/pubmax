@@ -1,124 +1,56 @@
-"use client";
-
-// Drink rating row (PRD E3): the compact star line under a drink in the venue
-// Menu. Reads its summary through the batched fetch (a whole menu = one GET),
-// shows the community score only past the vote floor, and lets the viewer cast
-// or re-cast their own half-star vote inline. Identity is the app's
-// self-asserted handle (localStorage `pubmax_handle`); with none stored, a
-// small inline input appears on the first rating attempt.
+// The drink's community score on the price line (PRD E3): a READ-ONLY star row
+// and its vote count, beside the figure.
 //
-// A ROW WITH NO RATING IN IT RENDERS NOTHING (captain, 4 Sept 2026). Five empty
-// stars beside a price read as a rating the drink does not have, and the Menu
-// is a trust surface where every other mark - the figure, the PINT DROP chip,
-// the observation date - is a claim somebody can stand behind. So the stars
-// appear once there is a rating to show: a community score past the vote floor
-// (`summary.shown`), or the viewer's own vote in this session. `ratingShown`
-// is the one predicate, so the display and the picker cannot disagree.
+// A ROW WITH NO COMMUNITY SCORE IN IT RENDERS NOTHING (captain, 4 Sept 2026).
+// Five empty stars beside a price read as a rating the drink does not have,
+// and the Menu is a trust surface where every other mark - the figure, the
+// PINT DROP chip, the observation date - is a claim somebody can stand behind.
+// So the stars appear here only past the vote floor (MIN_VOTES_TO_SHOW), which
+// `useDrinkRating` decides once as `shownAverage`.
+//
+// THE PICKER IS NOT HERE. Casting a vote is one quiet action inside the
+// drink's own detail (`DrinkRatingAction`), so the price line carries a
+// finished claim and never a widget asking to be filled in, and a drinker's
+// own vote is shown where they cast it rather than on a line about everybody
+// else. Nothing interactive is announced on this line.
 //
 // Colour: inherits `--rating-accent` from the surrounding category section
 // when the caller passes the category accent (wine burgundy, whisky amber, …),
 // defaulting to brass.
 
-import { useEffect, useState } from "react";
-
-import type { RatingSummary, RatingValue } from "@/lib/ratings";
+import type { RatingSummary } from "@/lib/ratings";
 
 import StarRating from "./StarRating";
-import { fetchRatingSummary, postRating, rememberHandle, storedHandle } from "./ratingsClient";
 
 export type DrinkRatingRowProps = {
-  /** Stable drink key (the drink id — see migration 0020's drink_ref note). */
-  drinkRef: string;
   drinkName: string;
-  venueId?: string;
+  /** The batched community summary, or null while it is unread. */
+  summary: RatingSummary | null;
+  /** The community average past the vote floor; null means say nothing. */
+  shownAverage: number | null;
   /** Category accent colour for the stars (defaults to brass). */
   accent?: string;
 };
 
 export default function DrinkRatingRow({
-  drinkRef,
   drinkName,
-  venueId,
+  summary,
+  shownAverage,
   accent,
 }: DrinkRatingRowProps) {
-  const [summary, setSummary] = useState<RatingSummary | null>(null);
-  const [myRating, setMyRating] = useState<RatingValue | null>(null);
-  const [handle, setHandle] = useState("");
-  const [needsHandle, setNeedsHandle] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void Promise.resolve().then(async () => {
-      const nextHandle = storedHandle();
-      const result = await fetchRatingSummary("drink", drinkRef);
-      if (cancelled) return;
-      setHandle(nextHandle);
-      if (result) setSummary(result);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [drinkRef]);
-
-  const rate = async (value: RatingValue) => {
-    const clean = handle.trim();
-    if (!clean) {
-      setNeedsHandle(true);
-      setError("Add a handle to rate.");
-      return;
-    }
-    setMyRating(value);
-    setError(null);
-    try {
-      const fresh = await postRating({ kind: "drink", ref: drinkRef, venueId, handle: clean, rating: value });
-      rememberHandle(clean);
-      setNeedsHandle(false);
-      setSummary(fresh);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't save your rating just now.");
-    }
-  };
-
-  // The community score, but only where the vote floor lets it be shown.
-  const shownAverage =
-    summary && summary.shown && summary.average !== null ? summary.average : null;
-  // Nothing to say about this drink yet: no score past the floor and no vote
-  // from this viewer. Say nothing, rather than paint an empty widget.
-  if (shownAverage === null && myRating === null && !needsHandle && !error) {
-    return null;
-  }
+  if (shownAverage === null || summary === null) return null;
 
   return (
     <span className="drinkRatingRow">
       <StarRating
-        value={myRating ?? shownAverage}
-        label={`Rate ${drinkName}`}
-        interactive
+        value={shownAverage}
+        label={`${drinkName} rating`}
         size="sm"
         accent={accent}
-        onRate={(value) => void rate(value)}
       />
-      {shownAverage !== null && summary ? (
-        <span className="ratingCount">
-          {shownAverage.toFixed(1)} · {summary.count}
-        </span>
-      ) : null}
-      {needsHandle ? (
-        <input
-          className="ratingHandleInput"
-          type="text"
-          value={handle}
-          onChange={(event) => setHandle(event.target.value)}
-          placeholder="your handle"
-          aria-label={`Handle to rate ${drinkName} as`}
-        />
-      ) : null}
-      {error ? (
-        <span className="ratingError" role="status">
-          {error}
-        </span>
-      ) : null}
+      <span className="ratingCount">
+        {shownAverage.toFixed(1)} · {summary.count}
+      </span>
     </span>
   );
 }

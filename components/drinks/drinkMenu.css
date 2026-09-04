@@ -114,8 +114,9 @@ html[data-legacy="1"] .drinkCategoryTitle {
 }
 
 /* A quiet ledger rhythm — hairline between rows instead of a bare stack, the
-   same "cheap pint leaderboard" density language as Discover's tables. Not a
-   hover target: nothing here is clickable, so no hover/press affordance. */
+   same "cheap pint leaderboard" density language as Discover's tables. The
+   drink itself is the only control on the row (.drinkDisclosure), so the row
+   keeps no hover or press affordance of its own. */
 .drinkRow {
   display: flex;
   align-items: flex-start;
@@ -139,6 +140,40 @@ html[data-legacy="1"] .drinkCategoryTitle {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+}
+
+/* Tapping the drink opens its detail. The control carries the drink's own
+   words and nothing else — no chevron, no added label — so the trust surface
+   gains a door without gaining decoration. It keeps the 44px tap floor every
+   phone control on the venue sheet keeps. */
+.drinkDisclosure {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 44px;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.drinkDisclosure:focus-visible {
+  outline: 2px solid var(--cat-accent, var(--brass));
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .drinkDisclosure:hover .drinkName {
+    color: var(--cat-accent, var(--brass));
+  }
 }
 
 .drinkName {
@@ -173,6 +208,59 @@ html[data-legacy="1"] .drinkCategoryTitle {
   letter-spacing: 0.04em;
   line-height: 1.1;
   text-transform: uppercase;
+}
+
+/* The opened detail: the one place a drinker casts a first vote. It sits under
+   the drink's own words, indented off the row so it reads as part of that
+   drink and not as a new row. Closed, it is not in the document at all. */
+.drinkRowDetail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 6px;
+  padding-left: 2px;
+}
+
+.drinkRowDetail[hidden] {
+  display: none;
+}
+
+/* One quiet action, in the app's text-button idiom (the Menus back control
+   above it), never a painted CTA: this is a trust surface and the accent is
+   spoken for by the price. */
+.drinkRateAction {
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cat-accent, var(--brass));
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 650;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.drinkRateAction:focus-visible {
+  outline: 2px solid var(--cat-accent, var(--brass));
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .drinkRateAction:hover {
+    color: var(--ink);
+  }
+}
+
+.drinkRatePicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
 }
 
 .drinkRowSide {

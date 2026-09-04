@@ -1,7 +1,6 @@
 import { categoryColor } from "@/lib/categoryColors";
 import { DAY_MS } from "@/lib/dayMs";
 import { formatPrice } from "@/lib/venues";
-import DrinkRatingRow from "@/components/ratings/DrinkRatingRow";
 import PriceBadge from "@/components/PriceBadge";
 import {
   formatAbv,
@@ -17,6 +16,7 @@ import {
   PINT_DATASET_PRESENTATION_BUDGET_DAYS,
 } from "@/lib/dataFreshness";
 import { DrinkGlyph } from "./DrinkGlyph";
+import DrinkRowMain from "./DrinkRowMain";
 
 import "./drinkMenu.css";
 
@@ -115,27 +115,10 @@ function DrinkRow({ drink, venueId }: { drink: Drink; venueId?: string }) {
       );
   return (
     <li className="drinkRow">
-      <div className="drinkRowMain">
-        <span className="drinkName">{drink.name}</span>
-        {meta ? <span className="drinkMeta">{meta}</span> : null}
-        {drink.servingSize ? (
-          <span className="drinkServing">{drink.servingSize}</span>
-        ) : null}
-        {drink.alcoholType === "low-no" ? (
-          <span className="drinkLowNoChip">Low/no</span>
-        ) : null}
-        {/* Star rating (E3): the viewer's half-star vote + the community score
-            once past the 10-vote floor. Keyed by the stable drink id (see
-            migration 0020's drink_ref note); the whole menu's summaries arrive
-            in ONE batched GET. Stars inherit the section's category accent via
-            var(--cat-accent). */}
-        <DrinkRatingRow
-          drinkRef={drink.id}
-          drinkName={drink.name}
-          venueId={venueId}
-          accent="var(--cat-accent)"
-        />
-      </div>
+      {/* The drink itself, its community score and the detail a drinker opens
+          by tapping it (E3). Stateful, so it is the menu's one client island
+          and this file stays server-composable. */}
+      <DrinkRowMain drink={drink} meta={meta} venueId={venueId} />
       <div className="drinkRowSide">
         <PriceBadge variant="neutral" className="drinkPrice">
           {formatPrice(drink.priceGbp)}
