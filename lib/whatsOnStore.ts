@@ -203,6 +203,14 @@ export type LoadWhatsOnDeps = {
   baselineSourceObservedAt?: string | null;
   baselineProviderObservedAt?: string | null;
   fetchLive?: FetchLive;
+  /**
+   * How long a render may wait for the DEFAULT live lane before serving the
+   * bundled spine. Defaults to WHATS_ON_LIVE_RENDER_DEADLINE_MS; pass 0 to wait
+   * for as long as the provider takes, which is what a cron or a refresh script
+   * wants and never what a page render wants. Ignored when `fetchLive` is
+   * injected, which keeps its own unbounded wait.
+   */
+  liveDeadlineMs?: number;
   /** PUBMAX_TONIGHT_GROUPING (DAG L14). When true, tonight grouping uses the
    *  canonical V2 model (schedule-aware key, deterministic locality tie-break,
    *  first-ten family diversity). Off keeps the shipped chain-duplicate collapse.
@@ -226,6 +234,101 @@ export const defaultFetchLive: FetchLive = async ({ now, area }) => {
   };
 };
 
+/**
+ * How long a PAGE RENDER may wait for the live What's-On top-up before it
+ * serves the bundled spine instead.
+ *
+ * `defaultFetchLive` is a JSON-RPC POST to CityMCP, a third party we do not
+ * control, with its own 10s timeout and one retry. It sat unbounded on the
+ * server render of `/today`, which is dynamic per request, so a cold provider
+ * call WAS the route's response time: measured at 465 ms on a cold process and
+ * 179 ms warm, against a 150 ms budget, while every other read on that render
+ * finished inside 140 ms.
+ *
+ * This is the same deal `WEATHER_TOP_UP_RENDER_DEADLINE_MS` already strikes for
+ * the sibling third-party lane on the same route, and for the same reason. Past
+ * the deadline the reader gets the bundled baseline, which is the spine anyway,
+ * and the top-up KEEPS RUNNING on the single-flight latch below and fills the
+ * provider's own 5 minute cache, so the next reader serves what it brought back.
+ * Nothing is fabricated either way, and a lane that did not answer is still
+ * reported honestly through `revalidation`.
+ *
+ * The value is the route ceiling itself (docs/PERFORMANCE_BUDGETS.md): the live
+ * lane may never be the reason `/today` misses its budget.
+ */
+export const WHATS_ON_LIVE_RENDER_DEADLINE_MS = 150;
+
+/**
+ * What the live lane did. THREE outcomes, never two: a provider that answered,
+ * a provider that FAILED, and a provider we stopped waiting for. The last is a
+ * fact about our budget rather than about the provider, so it is never reported
+ * as an outage.
+ */
+type LiveTopUpOutcome =
+  | { kind: "answered"; value: FetchLiveResult }
+  | { kind: "failed" }
+  | { kind: "lapsed" };
+
+/**
+ * Single-flight latch for the live top-up, keyed by the args the lane is asked
+ * for. While one render is waiting on a call, a concurrent render shares it
+ * rather than opening a second POST; a render that gives up at the deadline
+ * leaves the call running so it still warms the provider's own cache for the
+ * next one.
+ */
+const inFlightLive = new Map<string, Promise<LiveTopUpOutcome>>();
+
+/**
+ * Run the live lane on the shared latch and wait at most `deadlineMs` for it.
+ * A deadline of 0 waits for as long as the provider takes, which is what a cron
+ * or a refresh script wants and never what a page render wants. The top-up
+ * itself is never cancelled.
+ */
+async function liveTopUpWithinDeadline(
+  fetchLive: FetchLive,
+  args: FetchLiveArgs,
+  deadlineMs: number,
+): Promise<LiveTopUpOutcome> {
+  const key = JSON.stringify([args.area ?? null]);
+  let pending = inFlightLive.get(key);
+  if (!pending) {
+    pending = Promise.resolve()
+      .then(() => fetchLive(args))
+      .then(
+        (result): LiveTopUpOutcome => ({
+          kind: "answered",
+          value: normaliseLiveResult(result, args.now),
+        }),
+      )
+      // A throw here is the provider failing, and it is reported as that. The
+      // catch also keeps it from surfacing as an unhandled rejection once a
+      // render has stopped waiting.
+      .catch((): LiveTopUpOutcome => ({ kind: "failed" }))
+      .finally(() => {
+        inFlightLive.delete(key);
+      });
+    inFlightLive.set(key, pending);
+  }
+  if (deadlineMs <= 0) return pending;
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const lapsed = new Promise<LiveTopUpOutcome>((resolve) => {
+    timer = setTimeout(() => resolve({ kind: "lapsed" }), deadlineMs);
+    // Do not hold a Node process open for a deadline nobody is waiting on.
+    timer.unref?.();
+  });
+  try {
+    return await Promise.race([pending, lapsed]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Test-only: clear the live single-flight latch between hermetic cases. */
+export function __resetWhatsOnLiveTopUp(): void {
+  inFlightLive.clear();
+}
+
 export type WhatsOnReadStatus = "ready" | "degraded";
 
 export type LoadWhatsOnResult = {
@@ -235,7 +338,21 @@ export type LoadWhatsOnResult = {
   servedAt: string;
   revalidation:
     | { status: "measured" }
-    | { status: "unmeasured"; reason: "live-provider-failed" | "baseline-read-failed" };
+    | {
+        status: "unmeasured";
+        /**
+         * Three findings, three names. A provider that FAILED is not a provider
+         * we chose not to WAIT for, and neither is a bundled read that could not
+         * run. The freshness cron refuses to stamp on all three, but merging
+         * them would hide a slow third party behind an outage that never
+         * happened (docs/agents freshness rule: an unmeasurable feed may never
+         * read as fresh, and it may never read as a failure either).
+         */
+        reason:
+          | "live-provider-failed"
+          | "live-provider-deadline"
+          | "baseline-read-failed";
+      };
   sourceObservedAt: string | null;
   sourceFreshnessKind: WhatsOnSourceFreshnessKind;
   kindObservedAt: WhatsOnKindObservedAt;
@@ -328,6 +445,63 @@ function filterRowsForRequest(
     : filtered;
 }
 
+/**
+ * The live lane, and what we are entitled to SAY about how it went.
+ *
+ * Lifted out of `loadWhatsOn` so the deadline, the latch and the three outcomes
+ * are read in one place rather than as three more branches in a function that
+ * was already at the complexity ceiling.
+ */
+async function resolveLiveLane(
+  deps: LoadWhatsOnDeps,
+  now: number,
+): Promise<{ live: FetchLiveResult; revalidation: LoadWhatsOnResult["revalidation"] }> {
+  const empty: FetchLiveResult = { rows: [], sourceObservedAt: null };
+  const providerFailed: LoadWhatsOnResult["revalidation"] = {
+    status: "unmeasured",
+    reason: "live-provider-failed",
+  };
+  const settle = (live: FetchLiveResult) => ({
+    live,
+    // A provider serving its own last-known-good copy is reporting an upstream
+    // failure it survived, which is the existing rule and is unchanged.
+    revalidation: live.stale ? providerFailed : ({ status: "measured" } as const),
+  });
+
+  // Do not pass params.limit. Grouping needs the provider's full inventory.
+  // An INJECTED lane is a test double or a caller that owns its own budget, so
+  // it keeps the unbounded wait it always had. Only the DEFAULT lane, the live
+  // CityMCP POST, is held to a render deadline and shared on the latch.
+  if (deps.fetchLive) {
+    try {
+      const live = normaliseLiveResult(await deps.fetchLive({ now }), now);
+      markVerifiedLondonRows(live.rows, false);
+      return settle(live);
+    } catch {
+      return { live: empty, revalidation: providerFailed };
+    }
+  }
+
+  const outcome = await liveTopUpWithinDeadline(
+    defaultFetchLive,
+    { now, area: "London" },
+    deps.liveDeadlineMs ?? WHATS_ON_LIVE_RENDER_DEADLINE_MS,
+  );
+  // Every outcome leaves the bundled spine standing; what differs is what we
+  // are entitled to say about it.
+  if (outcome.kind === "failed") return { live: empty, revalidation: providerFailed };
+  if (outcome.kind === "lapsed") {
+    // Not an outage: the lane is still running on the latch and will fill the
+    // provider's own cache for the next reader. Say exactly that.
+    return {
+      live: empty,
+      revalidation: { status: "unmeasured", reason: "live-provider-deadline" },
+    };
+  }
+  markVerifiedLondonRows(outcome.value.rows, true);
+  return settle(outcome.value);
+}
+
 // Orchestrator: baseline union live (fail-soft), remove ended rows, apply the
 // service window and locality ordering, group exact offer families, then apply
 // the final card limit. Reads never present servedAt as source freshness.
@@ -393,25 +567,14 @@ export async function loadWhatsOn(
         : baselineSourceObservedAt(now)
       : canonicalPastIso(deps.baselineSourceObservedAt, now);
 
-  let live: FetchLiveResult = { rows: [], sourceObservedAt: null };
-  let revalidation: LoadWhatsOnResult["revalidation"] = { status: "measured" };
-  try {
-    // Do not pass params.limit. Grouping needs the provider's full inventory.
-    const fetchLive = deps.fetchLive ?? defaultFetchLive;
-    const fetchArgs = deps.fetchLive ? { now } : { now, area: "London" };
-    live = normaliseLiveResult(await fetchLive(fetchArgs), now);
-    markVerifiedLondonRows(live.rows, !deps.fetchLive);
-    if (live.stale) {
-      revalidation = { status: "unmeasured", reason: "live-provider-failed" };
-    }
-  } catch {
-    revalidation = { status: "unmeasured", reason: "live-provider-failed" };
-  }
+  const lane = await resolveLiveLane(deps, now);
+  const live = lane.live;
   // The baseline is the spine. A read that could not run leaves nothing to
   // measure, whatever the live layer managed, so it wins the report.
-  if (readStatus === "degraded") {
-    revalidation = { status: "unmeasured", reason: "baseline-read-failed" };
-  }
+  const revalidation: LoadWhatsOnResult["revalidation"] =
+    readStatus === "degraded"
+      ? { status: "unmeasured", reason: "baseline-read-failed" }
+      : lane.revalidation;
 
   // Bundled rows were matched by the refresh pipeline, with its stronger
   // address/postcode evidence. An unresolved bundled row must stay unresolved
