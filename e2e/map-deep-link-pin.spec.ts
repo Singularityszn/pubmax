@@ -126,10 +126,18 @@ test("a deep-linked pin lands in the map strip above the phone sheet", async ({
     .poll(async () => (await readCamera(page)).moving, { timeout: ARRIVAL_TIMEOUT_MS })
     .toBe(false);
 
+  // The sheet springs open from below the fold, so its first frames report an
+  // edge at the bottom of the screen. Wait for the edge it settles at - that
+  // is the one the reader is left looking past.
+  await expect
+    .poll(async () => (await sheet.boundingBox())?.y ?? PHONE.height, {
+      timeout: ARRIVAL_TIMEOUT_MS,
+    })
+    .toBeLessThan(PHONE.height);
+
   const sheetBox = await sheet.boundingBox();
   expect(sheetBox, "the phone venue sheet has a rendered box").not.toBeNull();
   const sheetTop = sheetBox!.y;
-  expect(sheetTop, "the sheet covers part of the map").toBeLessThan(PHONE.height);
 
   const pin = await projectOnMap(page, [ARNOS_ARMS.lng, ARNOS_ARMS.lat]);
 
