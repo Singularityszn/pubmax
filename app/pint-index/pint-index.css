@@ -4,46 +4,15 @@
    the league table scrolls horizontally inside its own container rather than
    pushing the page body sideways. Mirrors the borough/discover aesthetic. */
 
+/* The head (kicker, heading, the one primary action) is the Screen primitive
+   (components/ui/screen.tsx) via PintIndexScreen.tsx, which owns the page
+   gutter, so the page itself carries none: an inline padding here would double
+   it. */
 .pintIndexPage {
   max-width: 960px;
   margin: 0 auto;
-  padding: 28px var(--page-gutter) 80px;
+  padding: 28px 0 80px;
   color: var(--ink);
-}
-
-.pintIndexHead {
-  margin: 32px 0 24px;
-}
-
-.pintIndexEyebrow {
-  margin: 0 0 10px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--ink-soft);
-}
-
-.pintIndexTitle {
-  margin: 0 0 14px;
-  font-family: var(--font-garamond, var(--serif));
-  font-size: clamp(30px, 5vw, 46px);
-  line-height: 1.05;
-  font-weight: 700;
-  color: var(--ink);
-}
-
-.pintIndexDek {
-  margin: 0;
-  max-width: 64ch;
-  color: var(--ink-soft);
-  line-height: 1.6;
-  font-size: 17px;
-}
-
-.pintIndexStamp {
-  margin: 12px 0 0;
-  font-size: 13px;
-  color: var(--muted);
 }
 
 /* --- headline stat tiles -------------------------------------------------- */
@@ -52,7 +21,7 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
-  margin: 20px 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
@@ -250,12 +219,6 @@
   line-height: 1.5;
 }
 
-.pintIndexEmptyAction {
-  color: var(--brass);
-  font-weight: 700;
-  text-underline-offset: 2px;
-}
-
 /* --- borough index links -------------------------------------------------- */
 
 .pintIndexBoroughLinks {
@@ -337,7 +300,7 @@
 
 @media (max-width: 640px) {
   .pintIndexPage {
-    padding: 20px var(--page-gutter)
+    padding: 20px 0
       calc(
         var(--mobile-tab-clearance, 72px) + 48px + env(safe-area-inset-bottom, 0px)
       );

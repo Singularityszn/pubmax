@@ -161,9 +161,10 @@ export default function TodayGetThereStrip() {
           </span>
         </div>
       )}
-      {/* The route's one primary action (docs/design/LAUNCH_SCREENS.md):
-          /today sends a first-time visitor to their pint. */}
-      <p className="todayCardFootRow todayNearEntry" data-primary-action="">
+      {/* A quiet way to the pubs from inside the getting-home card. The route's
+          one primary action is Find my pint in the Screen head
+          (docs/design/LAUNCH_SCREENS.md), so this stays a text link. */}
+      <p className="todayCardFootRow todayNearEntry">
         <Link href="/near" className="todayCardFootLink">
           <LocateFixed size={14} aria-hidden="true" />
           Find pubs near you

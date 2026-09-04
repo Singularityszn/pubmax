@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { LocateFixed, RotateCw } from "lucide-react";
 
+import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
 import {
   deskAnswerHeadline,
@@ -276,11 +277,20 @@ export default function NearDeskNow({
       {...deskCollapsedChainsAttributes(answer?.collapsedChains)}
     >
       {state === "idle" ? (
-        <div className="nmnIntro">
-          <h1 className="nmnLede">{deskIntroLede()}</h1>
-          <button type="button" className="nmnLocate" onClick={locate}>
-            <LocateFixed size={18} aria-hidden="true" /> Find a desk
-          </button>
+        /* The /near head in Desk mode: the same Screen primitive as Pint
+           (docs/design/LAUNCH_SCREENS.md), with Find a desk as its one primary. */
+        <Screen
+          as="div"
+          className="nmnScreen"
+          kicker="Near you"
+          title={deskIntroLede()}
+          titleId="near-title"
+          primary={
+            <button type="button" onClick={locate}>
+              <LocateFixed size={18} aria-hidden="true" /> Find a desk
+            </button>
+          }
+        >
           <p className="nmnHint">We only use your location to rank desks nearby. Nothing is stored.</p>
           <div className="nmnQuickPatches">
             <p className="nmnQuickPatchesLabel">Or pick a patch</p>
@@ -298,7 +308,7 @@ export default function NearDeskNow({
               ))}
             </ul>
           </div>
-        </div>
+        </Screen>
       ) : null}
 
       {state === "requesting" ? (

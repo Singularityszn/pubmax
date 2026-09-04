@@ -55,7 +55,7 @@ import {
   type NearPriceTrustView,
 } from "@/components/nearme/useNearPriceTrust";
 import NearPriceEvidenceMission from "@/components/nearme/NearPriceEvidenceMission";
-import Kicker from "@/components/ui/kicker";
+import Screen from "@/components/ui/screen";
 
 import "./nearMeNow.css";
 
@@ -123,6 +123,9 @@ function AnswerHeadline({
 
 const GEO_OPTS: PositionOptions = { enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 };
 
+// The /near heading. It names only what the listed prices guarantee (listed,
+// near you, cheapest first), which __tests__/localityTruthCopy.test.ts pins,
+// so the launch table's shorter line is not swapped in.
 function nearIntroLede(): string {
   return "Compare listed pint prices near you, cheapest first.";
 }
@@ -665,36 +668,67 @@ function NearMeIdleIntro({
   /** The map's near-me sheet names itself in its chrome, so no kicker there. */
   titledByHost: boolean;
 }) {
-  return (
-    <div className="nmnIntro">
-      {titledByHost ? null : <Kicker>Near you</Kicker>}
-      <h1 className="nmnLede">{nearIntroLede()}</h1>
-      <button
-        type="button"
-        className="nmnLocate"
-        data-primary-action=""
-        onClick={onLocate}
-      >
-        <LocateFixed size={18} aria-hidden="true" /> Find my pint
-      </button>
-      <p className="nmnHint">We only use your location to rank pubs nearby. Nothing is stored.</p>
-      <div className="nmnQuickPatches">
-        <p className="nmnQuickPatchesLabel">Or pick a patch</p>
-        <ul className="nmnAreaChips" aria-label="Pick an area">
-          {NIGHT_PATCHES.map((entry) => (
-            <li key={entry.id}>
-              <button
-                type="button"
-                className="nmnBoroughChip"
-                onClick={() => onPickPatch(entry)}
-              >
-                {entry.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
+  const hint = (
+    <p className="nmnHint">We only use your location to rank pubs nearby. Nothing is stored.</p>
+  );
+  const patches = (
+    <div className="nmnQuickPatches">
+      <p className="nmnQuickPatchesLabel">Or pick a patch</p>
+      <ul className="nmnAreaChips" aria-label="Pick an area">
+        {NIGHT_PATCHES.map((entry) => (
+          <li key={entry.id}>
+            <button
+              type="button"
+              className="nmnBoroughChip"
+              onClick={() => onPickPatch(entry)}
+            >
+              {entry.label}
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
+  );
+
+  // Hosted in the map's near-me sheet: the sheet chrome carries the title, so
+  // the intro keeps its own compact head and button.
+  if (titledByHost) {
+    return (
+      <div className="nmnIntro">
+        <h1 className="nmnLede">{nearIntroLede()}</h1>
+        <button
+          type="button"
+          className="nmnLocate"
+          data-primary-action=""
+          onClick={onLocate}
+        >
+          <LocateFixed size={18} aria-hidden="true" /> Find my pint
+        </button>
+        {hint}
+        {patches}
+      </div>
+    );
+  }
+
+  // The /near route: the head is the Screen primitive
+  // (docs/design/LAUNCH_SCREENS.md), and Find my pint is its one primary. The
+  // patch chips underneath are the way onward without granting location.
+  return (
+    <Screen
+      as="div"
+      className="nmnScreen"
+      kicker="Near you"
+      title={nearIntroLede()}
+      titleId="near-title"
+      primary={
+        <button type="button" onClick={onLocate}>
+          <LocateFixed size={18} aria-hidden="true" /> Find my pint
+        </button>
+      }
+    >
+      {hint}
+      {patches}
+    </Screen>
   );
 }
 

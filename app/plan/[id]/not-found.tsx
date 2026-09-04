@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import EmptyState from "@/components/EmptyState";
+import EmptyState from "@/components/ui/empty-state";
 import SiteNav from "@/components/nav/SiteNav";
 
 import "../plan.css";
@@ -30,15 +30,12 @@ export default function PlanNotFound(): React.JSX.Element {
       </header>
 
       <EmptyState
-        eyebrow="Plan"
         title="This plan has closed"
-        body="The link's expired, or the plan was never here. Ask whoever sent it for a fresh link, or put your own night in order and send one back."
-        action={
-          <Link href="/plan" className="planPage__cta">
-            Start your own plan
-          </Link>
-        }
-      />
+        action={<Link href="/plan">Start your own plan</Link>}
+      >
+        The link&rsquo;s expired, or the plan was never here. Ask whoever sent it
+        for a fresh link, or put your own night in order and send one back.
+      </EmptyState>
     </main>
   );
 }

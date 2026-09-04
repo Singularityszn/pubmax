@@ -4,6 +4,7 @@ import PricedLandingRows, {
   PricedLandingPublisher,
   formatPricedLandingCollectedDate,
 } from "@/components/drinks/PricedLandingRows";
+import Screen from "@/components/ui/screen";
 import type { DrinkBrandLanding } from "@/lib/drinkBrandLanding";
 import {
   pricedLandingCountLabel,
@@ -42,70 +43,66 @@ export default function DrinkBrandLandingContent({
     surface: "hero",
   });
 
+  // docs/design/LAUNCH_SCREENS.md: the drink is the kicker, the map is the one
+  // primary action, and the quiet way onward stays this landing's own
+  // contribution door, because a governed price page exists to be corrected by
+  // the people drinking there. The immediate answer (the lowest listed figure
+  // and who published it) is the lede, so it sits above the actions.
   return (
     <div className="drinkBrandDirectory">
-      <header className="drinkBrandDirectory__head">
-        <p className="drinkBrandDirectory__eyebrow">
-          <Link href="/map">London map</Link> <span aria-hidden="true">·</span>{" "}
-          {landing.brandLabel}
-        </p>
-        <h1>Cheapest {landing.brandLabel} pints in London</h1>
-        <p className="drinkBrandDirectory__from">
-          <strong>From {lowestPrice}</strong>
-          <PricedLandingPublisher
-            className="drinkBrandDirectory__fromPublisher"
-            row={firstRow}
-            variant="hero"
-          />
-        </p>
+      <Screen
+        as="section"
+        className="drinkBrandDirectory__screen"
+        kicker={landing.brandLabel}
+        title={`Cheapest ${landing.brandLabel} pints in London`}
+        titleId="drink-brand-heading"
+        lede={
+          <span className="drinkBrandDirectory__from">
+            <strong>From {lowestPrice}</strong>
+            <PricedLandingPublisher
+              className="drinkBrandDirectory__fromPublisher"
+              row={firstRow}
+              variant="hero"
+            />
+          </span>
+        }
+        primary={<Link href={mapHref}>Open the map</Link>}
+        secondary={<Link href={contribution.href}>{contribution.label}</Link>}
+      >
         <p className="drinkBrandDirectory__summary">
           {landing.totalPricedVenues} pubs with listed {landing.brandLabel} pints. Collected{" "}
           {formatPricedLandingCollectedDate(landing.collectedAt)}.
         </p>
-        <nav
-          className="drinkBrandDirectory__actions"
-          aria-label={`${landing.brandLabel} pint actions`}
+
+        <section
+          className="drinkBrandDirectory__prices"
+          aria-labelledby="drink-brand-price-heading"
         >
-          <Link className="drinkBrandDirectory__primary" href={mapHref}>
-            Find {landing.brandLabel} on the map
-          </Link>
-          <Link
-            className="drinkBrandDirectory__secondary"
-            href={contribution.href}
+          <div className="drinkBrandDirectory__sectionHead">
+            <h2 id="drink-brand-price-heading">The pubs</h2>
+            <span className="drinkBrandDirectory__sectionCount">
+              {pricedLandingCountLabel(landing.totalPricedVenues, landing.rows.length)}
+            </span>
+          </div>
+          <PricedLandingRows rows={landing.rows} />
+        </section>
+
+        {areaPages.length > 0 ? (
+          <nav
+            className="drinkBrandDirectory__areas"
+            aria-label={`${landing.brandLabel} in other areas`}
           >
-            {contribution.label}
-          </Link>
-        </nav>
-      </header>
-
-      <section
-        className="drinkBrandDirectory__prices"
-        aria-labelledby="drink-brand-price-heading"
-      >
-        <div className="drinkBrandDirectory__sectionHead">
-          <h2 id="drink-brand-price-heading">The pubs</h2>
-          <span className="drinkBrandDirectory__sectionCount">
-            {pricedLandingCountLabel(landing.totalPricedVenues, landing.rows.length)}
-          </span>
-        </div>
-        <PricedLandingRows rows={landing.rows} />
-      </section>
-
-      {areaPages.length > 0 ? (
-        <nav
-          className="drinkBrandDirectory__areas"
-          aria-label={`${landing.brandLabel} in other areas`}
-        >
-          <h2>By area</h2>
-          <ul>
-            {areaPages.map((page) => (
-              <li key={page.href}>
-                <Link href={page.href}>{page.label}</Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      ) : null}
+            <h2>By area</h2>
+            <ul>
+              {areaPages.map((page) => (
+                <li key={page.href}>
+                  <Link href={page.href}>{page.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ) : null}
+      </Screen>
     </div>
   );
 }

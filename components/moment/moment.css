@@ -42,31 +42,28 @@
   height: 48px;
 }
 
-.momentMain {
+/* The head is the shared Screen primitive (components/ui/screen.css) and the
+   main is the Screen itself. The column keeps its width and its top padding,
+   so the head pays none of its own. */
+.momentPage .momentMain {
   width: min(760px, calc(100% - 32px));
   margin: 0 auto;
   padding: clamp(48px, 8vw, 96px) 0 120px;
 }
 
-.momentIntro { max-width: var(--content-max); }
-.momentIntroRail { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.momentPage .momentMain .screenHead {
+  padding-top: 0;
+}
+
 .momentPrivacy {
   min-height: 32px;
+  margin: 0;
   display: inline-flex;
   align-items: center;
   gap: 7px;
   color: var(--ink-soft);
   font: 700 12px/1 var(--font-body);
 }
-.momentCancel { min-height: 44px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 999px; color: var(--ink-soft); font-size: 13px; font-weight: 750; text-decoration: none; }
-.momentCancel:hover, .momentCancel:focus-visible { color: var(--ink); background: color-mix(in srgb, var(--brass) 8%, transparent); }
-.momentIntro h1 {
-  max-width: 9ch;
-  margin: 14px 0 0;
-  font: 700 clamp(44px, 8vw, 76px)/.96 var(--font-display);
-  letter-spacing: -.055em;
-}
-.momentIntro p { max-width: 580px; margin: 18px 0 0; color: var(--ink-soft); font-size: 17px; line-height: 1.55; }
 
 .momentIntent {
   margin-top: 34px;
@@ -259,17 +256,20 @@
 
 .momentStatus { min-height: 44px; margin-top: 18px; display: flex; align-items: center; gap: 9px; color: var(--ink-soft); font-size: 13px; }
 .momentStatus svg { flex: 0 0 auto; color: var(--brass); }
+/* The head's Save is the one filled control on this page; this one, beside
+   the fields it saves, is a bordered secondary. */
 .momentSave {
   width: 100%;
   min-height: 52px;
   margin-top: 6px;
-  border: 0;
+  border: 1px solid var(--line);
   border-radius: 14px;
-  background: var(--brass);
-  color: var(--color-on-accent);
+  background: var(--panel);
+  color: var(--ink);
   font-size: 15px;
   font-weight: 800;
 }
+.momentSave:not(:disabled):hover { border-color: var(--brass); }
 .momentSave:disabled { cursor: not-allowed; opacity: .48; }
 .momentSave:not(:disabled):active { transform: scale(.985); --shared-press-scale: 1; }
 .momentSignIn { margin-top: 10px; padding-top: 18px; border-top: 1px solid var(--line-soft); }
@@ -283,9 +283,7 @@
 .momentSaved a:first-child { border-color: var(--brass); background: var(--brass); color: var(--color-on-accent); }
 
 @media (max-width: 640px) {
-  .momentMain { width: min(100% - 24px, 760px); padding-top: 32px; }
-  .momentIntro h1 { font-size: 48px; line-height: .96; }
-  .momentIntro p { font-size: 16px; }
+  .momentPage .momentMain { width: min(100% - 24px, 760px); padding-top: 32px; }
   .momentIntent { grid-template-columns: 1fr; }
   .momentComposer { padding: 12px; border-radius: 18px; }
   .momentMediaGrid { grid-template-columns: 1fr 1fr; }

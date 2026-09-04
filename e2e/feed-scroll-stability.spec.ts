@@ -21,7 +21,7 @@ test.describe("canonical Social route", () => {
     const response = await page.goto("/feed");
     expect(response?.status()).toBe(200);
     await expect(page).toHaveURL(/\/social$/);
-    await expect(page.locator(".socialTitle")).toBeVisible();
+    await expect(page.locator("h1.screenTitle")).toBeVisible();
     await expect(page.locator(".feedTitle")).toHaveCount(0);
     await expect(page.locator(".feedCard")).toHaveCount(0);
   });
@@ -32,7 +32,7 @@ test.describe("canonical Social route", () => {
     await page.setViewportSize(MOBILE);
     const response = await page.goto("/social");
     expect(response?.status()).toBe(200);
-    await expect(page.locator(".socialTitle")).toBeVisible();
+    await expect(page.locator("h1.screenTitle")).toBeVisible();
     await expect(page.locator(".socialBoundary")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Find your lot" })).toBeVisible();
     await expectNoHorizontalOverflow(page);

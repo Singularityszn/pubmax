@@ -9,31 +9,12 @@
   --fit-book: var(--plan-accent-strong);
   min-height: 100dvh;
   padding: clamp(18px, 4vw, 48px) max(var(--page-gutter), clamp(16px, 5vw, 72px)) 96px;
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--plan-accent) 6%, transparent) 1px, transparent 1px) 0 0 / 28px 28px,
-    var(--paper);
+  /* Paper, and only paper. The pinstripes that used to sit behind the page
+     are on the template-pattern ban list (docs/VOICE.md). */
+  background: var(--paper);
   color: var(--ink);
 }
 
-.planPage__masthead {
-  max-width: 1160px;
-  margin: 0 auto;
-  padding-bottom: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  border-bottom: 1px solid var(--line);
-  color: var(--muted);
-  font-size: var(--text-2xs);
-  letter-spacing: 0.01em;
-}
-
-.planPage__masthead a { color: inherit; text-decoration: none; }
-.planPage__masthead a:hover { color: var(--plan-accent-strong); }
-.planPage__brand { color: var(--ink) !important; font-weight: 850; letter-spacing: 0.01em; }
-
-.planPage__intro,
 .planPage__hero {
   max-width: 920px;
   margin: clamp(50px, 9vw, 112px) auto clamp(34px, 6vw, 72px);
@@ -53,7 +34,6 @@
   text-wrap: balance;
 }
 
-.planPage__intro h1,
 .planPage__hero h1 {
   max-width: 760px;
   margin: 0;
@@ -62,7 +42,6 @@
   letter-spacing: -0.065em;
 }
 
-.planPage__intro > p:last-child,
 .planPage__hero > p:last-child {
   max-width: 610px;
   margin: 24px 0 0;
@@ -83,12 +62,10 @@
 .planPage__side { display: grid; gap: 20px; }
 
 @media (min-width: 761px) {
-  .planPage__intro,
   .planPage__hero {
     margin: clamp(36px, 4vw, 56px) auto clamp(28px, 3vw, 40px);
   }
 
-  .planPage__intro h1,
   .planPage__hero h1 {
     max-width: 920px;
     font-size: clamp(3rem, 9vw, 6rem);
@@ -100,8 +77,7 @@
 .planSummary,
 .planCrew,
 .planVibe,
-.planShare,
-.planComposer {
+.planShare {
   position: relative;
   border: 1px solid var(--line);
   border-radius: clamp(18px, 3vw, 28px);
@@ -540,7 +516,11 @@
 .planVibe__tally { margin: 16px 0 0; color: var(--ink-soft); font-style: italic; line-height: 1.5; }
 .planVibe__note { margin: 10px 0 0; color: var(--muted); font-size: 0.8rem; line-height: 1.5; }
 
-.planComposer { max-width: 920px; margin: 0 auto; padding: clamp(22px, 5vw, 46px); display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+/* The composer is the page, not a card on it. De-box rule: the page's own
+   head with a form under it is already the surface, and a bordered panel
+   around it, with a second tinted panel for the describe-first entry inside
+   that, was the card-in-card the template ban names. */
+.planComposer { max-width: 920px; margin: 0 auto; padding: 0 0 clamp(22px, 5vw, 46px); display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
 
 .planComposer__accepted {
   grid-column: 1 / -1;
@@ -589,33 +569,37 @@
   line-height: 1.45;
 }
 
-/* Describe-first entry: the default open for /plan. One question, one input,
-   a handful of real example chips. The five-step wizard (.planIntake below)
-   sits one quiet link away rather than gating the free-text path. */
-.planDescribeFirst {
+/* Describe-first entry: the default open for /plan and the route's head
+   (components/ui/screen.tsx): kicker, the h1, the ask, one painted action.
+   The five-step wizard (.planIntake below) sits behind the quiet "Guide me
+   instead" link rather than gating the free-text path.
+
+   The Screen paints its head as kicker, heading, actions, and the field is a
+   child of the section. A form reads heading, field, action, so the head is
+   flattened into the section's own grid and each row takes its seat by
+   `order`. Nothing here is a box: the page is the surface. */
+.planComposer .planDescribeFirst {
   grid-column: 1 / -1;
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
   min-width: 0;
-  padding: clamp(18px, 4vw, 30px);
-  border: 1px solid color-mix(in srgb, var(--plan-accent) 34%, var(--line));
-  border-radius: 20px;
-  background:
-    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--plan-accent) 9%, transparent), transparent 38%),
-    color-mix(in srgb, var(--panel) 92%, var(--paper));
-  text-align: center;
+  padding: var(--space-4) 0 0;
 }
-.planDescribeFirst h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3rem); line-height: 0.98; letter-spacing: -0.035em; }
-.planDescribeFirst__form { margin: 20px auto 0; max-width: 560px; display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.planDescribeFirst > .screenHead { display: contents; }
+.planDescribeFirst > .screenHead > .kicker { order: -3; }
+.planDescribeFirst > .screenHead > .screenTitle { order: -2; max-width: 40rem; }
+.planDescribeFirst__form { order: -1; }
+.planDescribeFirst > .screenHead > .screenActions { margin-top: var(--space-1); }
+.planDescribeFirst__form { display: grid; max-width: 34rem; }
 .planDescribeFirst__form input { min-height: 48px; border: 1px solid var(--line); border-radius: 11px; padding: 0 16px; font: inherit; background: var(--panel-raised); color: var(--ink); }
-.planDescribeFirst__form button { min-height: 48px; border: 0; border-radius: 11px; padding: 0 20px; background: var(--accent-action); color: var(--color-on-accent); font: inherit; font-weight: 800; cursor: pointer; }
-.planDescribeFirst__form button:hover:not(:disabled) { background: var(--accent-action-strong); }
-.planDescribeFirst__form button:disabled { opacity: 0.5; cursor: not-allowed; }
-.planStopCount { margin: 14px auto 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.planStopCount { margin: var(--space-2) 0 0; display: flex; align-items: center; gap: 10px; }
 .planStopCount__label { color: var(--muted); font-size: 0.78rem; font-weight: 800; }
 .planStopCount__choices { display: flex; gap: 6px; }
 .planStopCount__choices button { min-width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); font: inherit; font-size: 0.8rem; font-weight: 800; cursor: pointer; }
 .planStopCount__choices button[aria-pressed="true"] { border-color: var(--plan-accent); background: color-mix(in srgb, var(--plan-accent) 13%, var(--panel)); color: var(--plan-accent-strong); }
 .planStopCount__choices button:focus-visible { outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent); outline-offset: 2px; }
-.planDescribeFirst__chips { margin: 16px auto 0; max-width: 640px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.planDescribeFirst__chips { margin: var(--space-2) 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .planDescribeFirst__chip {
   min-height: 44px;
   border: 1px solid var(--line);
@@ -633,7 +617,7 @@
 /* Culture Crawl lane. It reads as its own offer above the plain examples, so
    the group carries a lead line and a warmer chip edge without becoming a
    second primary action. */
-.planDescribeFirst__culture { margin: 22px auto 0; max-width: 640px; }
+.planDescribeFirst__culture { margin: var(--space-3) 0 0; }
 .planDescribeFirst__cultureLead {
   margin: 0 0 10px;
   color: var(--muted);
@@ -641,43 +625,20 @@
   font-weight: 700;
   line-height: 1.45;
 }
-.planDescribeFirst__cultureChips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.planDescribeFirst__cultureChips { display: flex; flex-wrap: wrap; gap: 8px; }
 .planDescribeFirst__chip--culture {
   border-color: color-mix(in srgb, var(--plan-accent) 40%, var(--line));
   background: color-mix(in srgb, var(--plan-accent) 7%, var(--panel));
 }
-.planDescribeFirst__guide {
-  margin: 20px auto 0;
-  display: block;
-  min-height: 44px;
-  border: 1px solid var(--line);
-  border-radius: var(--control-radius, 14px);
-  padding: 8px 14px;
-  background: var(--panel-raised);
-  color: var(--ink-soft);
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 800;
-  cursor: pointer;
-}
-.planDescribeFirst__guide:hover,
-.planDescribeFirst__guide:focus-visible { border-color: var(--plan-accent); color: var(--plan-accent-strong); outline: none; }
-@media (max-width: 640px) {
-  .planDescribeFirst__form { grid-template-columns: 1fr; }
-}
 
 /* Progressive Plan intake. This is inline, resumable planning context rather
    than an interruptive prompt, so it never competes for the shared prompt
-   budget or changes entry routing. One question is visible at a time. */
+   budget or changes entry routing. One question is visible at a time. Like
+   the describe-first entry it sits on the page itself, not in a card. */
 .planIntake {
   grid-column: 1 / -1;
   min-width: 0;
-  padding: clamp(18px, 4vw, 30px);
-  border: 1px solid color-mix(in srgb, var(--plan-accent) 34%, var(--line));
-  border-radius: 20px;
-  background:
-    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--plan-accent) 9%, transparent), transparent 38%),
-    color-mix(in srgb, var(--panel) 92%, var(--paper));
+  padding: var(--space-4) 0 0;
 }
 .planIntake__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .planIntake__palEntry { margin: 10px 0 0; color: var(--muted); font-size: 0.78rem; line-height: 1.45; }
@@ -975,15 +936,12 @@ html[data-theme="dark"] .planPage {
   --plan-accent-strong: #ffc45e;
   /* Verdict ramp inherits the dark values of the semantic roles via theme.css. */
   --fit-book: var(--plan-accent-strong);
-  background:
-    radial-gradient(circle at 80% 12%, color-mix(in srgb, var(--plan-accent) 9%, transparent), transparent 30%),
-    var(--paper);
+  background: var(--paper);
 }
 html[data-theme="dark"] .planSummary,
 html[data-theme="dark"] .planCrew,
 html[data-theme="dark"] .planVibe,
-html[data-theme="dark"] .planShare,
-html[data-theme="dark"] .planComposer { border-radius: 12px; }
+html[data-theme="dark"] .planShare { border-radius: 12px; }
 /* Dark ink on amber fills only — primary CTAs use coral + --color-on-accent. */
 html[data-theme="dark"] .planSummary__marker,
 html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
@@ -992,18 +950,13 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   .planPage {
     padding-top: max(10px, env(safe-area-inset-top, 0px));
   }
-  .planPage__masthead {
-    padding-bottom: 10px;
-  }
   .planPage__grid { grid-template-columns: 1fr; }
   .planPage__side { order: -1; }
   .planPage__hero { margin-top: 50px; }
   .planPage__intro { margin: 10px auto 10px; }
-  .planPage__intro h1 { font-size: clamp(2.45rem, 11vw, 3.1rem); }
-  .planPage__intro > p:last-child { margin-top: 8px; font-size: 0.9rem; line-height: 1.35; }
   .planPage__hero h1 { font-size: clamp(3rem, 16vw, 5rem); }
-  .planComposer { grid-template-columns: 1fr; padding: 14px; gap: 16px; }
-  .planIntake { grid-column: 1; padding: 18px; }
+  .planComposer { grid-template-columns: 1fr; padding: 0 0 14px; gap: 16px; }
+  .planIntake { grid-column: 1; padding: var(--space-3) 0 0; }
   .planIntake__progress { grid-template-columns: repeat(5, 38px); justify-content: space-between; margin-top: 14px; overflow: hidden; }
   .planIntake__stage { padding-top: 14px; }
   .planIntake__progress li { display: block; }

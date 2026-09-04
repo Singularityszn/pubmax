@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 
 import { DiscoverBody } from "@/app/discover/DiscoverPageClient";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -16,9 +16,12 @@ import FindYourLot from "@/components/social/FindYourLot";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
 import StarterPacks from "@/components/social/StarterPacks";
 import {
+  SOCIAL_SIGN_IN_HREF,
   SocialViewerState,
   type SocialViewerPhase,
 } from "@/components/social/SocialViewerState";
+import EmptyState from "@/components/ui/empty-state";
+import Screen from "@/components/ui/screen";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
@@ -178,9 +181,16 @@ export function SocialAccessBoundary({
   assertBusy = false,
   assertError = null,
   friendsLaunchEnabled = true,
+  doorAbove = false,
 }: {
   state: SocialBoundaryState;
   onRetry?: () => void;
+  /**
+   * The Screen above already carries the sign-in door as its one painted
+   * action, so the line prints alone rather than a second way to the same
+   * page.
+   */
+  doorAbove?: boolean;
   /** The one tap is this account's way through (see `needsAdultSelfAssertion`). */
   adultPrompt?: boolean;
   onAssertAdult?: () => void;
@@ -189,50 +199,31 @@ export function SocialAccessBoundary({
   friendsLaunchEnabled?: boolean;
 }) {
   const boundaryCopy = socialBoundaryCopy(state, friendsLaunchEnabled);
-  const loadingLabel = socialLoadingLabel(friendsLaunchEnabled);
   const assertionLine = adultSelfAssertionLine(friendsLaunchEnabled);
-  // One line and one button in the same empty-state idiom as every other
-  // boundary here. Never a dialog: arrival is not an admin form.
+  // One line and at most one quiet way onward, in the EmptyState idiom every
+  // other boundary here shares. Never a dialog: arrival is not an admin form.
+  // The Screen above owns the one painted action, so nothing here is filled.
   const asking = state === "age_verification_required" && adultPrompt;
-  // A stranger's one way in is the Sign in link inside SocialViewerState, a
-  // component other surfaces share, so the mark rides the wrapper that is ours
-  // (docs/design/LAUNCH_SCREENS.md: one primary action per route).
+  const action =
+    state === "sign_in_required" ? (
+      doorAbove ? undefined : <Link href={SOCIAL_SIGN_IN_HREF}>Sign in</Link>
+    ) : asking && onAssertAdult ? (
+      <button type="button" onClick={onAssertAdult} disabled={assertBusy}>
+        {ADULT_SELF_ASSERTION_ACTION}
+      </button>
+    ) : state === "unavailable" && onRetry ? (
+      <button type="button" onClick={onRetry}>
+        Retry
+      </button>
+    ) : undefined;
   return (
     <section
       className="socialBoundary"
       role={state === "unavailable" ? "alert" : "status"}
-      data-primary-action={state === "sign_in_required" ? "" : undefined}
     >
-      {state === "sign_in_required" ? (
-        <SocialViewerState
-          phase="signed-out"
-          loadingLabel={loadingLabel}
-          inviteMessage={boundaryCopy}
-        />
-      ) : (
-        <h2>{asking ? assertionLine : boundaryCopy}</h2>
-      )}
-      {asking && onAssertAdult ? (
-        <button
-          className="socialButton"
-          type="button"
-          data-primary-action=""
-          onClick={onAssertAdult}
-          disabled={assertBusy}
-        >
-          {ADULT_SELF_ASSERTION_ACTION}
-        </button>
-      ) : null}
-      {asking && assertError ? (
-        <p className="socialBoundaryNote" role="alert">
-          {assertError}
-        </p>
-      ) : null}
-      {state === "unavailable" && onRetry ? (
-        <button className="socialButton" type="button" onClick={onRetry}>
-          Retry
-        </button>
-      ) : null}
+      <EmptyState title={asking ? assertionLine : boundaryCopy} action={action}>
+        {asking && assertError ? <span role="alert">{assertError}</span> : undefined}
+      </EmptyState>
     </section>
   );
 }
@@ -707,16 +698,54 @@ function SocialPageAccountState({
   const packsBesideTheDoor =
     friendsLaunchEnabled && isPosts && viewerPhase === "signed-out";
 
+  // The route's one primary action is Post (docs/design/LAUNCH_SCREENS.md).
+  // For a verified account it IS the composer: the trigger sits in the Screen's
+  // primary slot and the sheet it opens is fixed, so nothing else on the page
+  // wears the fill. A stranger's first kept action is signing in, so their
+  // primary is the door and says so, and the boundary below prints its line
+  // without a second link to the same page (`doorAbove`). While the session or
+  // the access answer is still open the control waits, because a surface that
+  // routes the viewer may not guess who they are.
+  const composeReady = showPostsControls && draftScope !== null;
+  const primary: ReactElement = composeReady ? (
+    <SocialComposer
+      key={draftScope}
+      draftScope={draftScope}
+      triggerLabel="Post"
+      onSaved={(saved) => {
+        if (saved) setSubmittedPost(saved);
+        setFeedAttempt((value) => value + 1);
+      }}
+    />
+  ) : viewerPhase === "signed-out" ? (
+    <Link href={SOCIAL_SIGN_IN_HREF}>Sign in</Link>
+  ) : !isPosts && viewerPhase === "resolved" ? (
+    <Link href="/social">Post</Link>
+  ) : (
+    <button type="button" disabled>
+      Post
+    </button>
+  );
+  // The quiet way onward names the search-and-invite surface in the rail,
+  // which mounts under the same condition.
+  const secondary =
+    friendsLaunchEnabled && isPosts ? (
+      <a href="#find-lot-title">Find your lot</a>
+    ) : undefined;
+
   return (
     <>
       <main className="socialPage" id="main-content">
-        <h1 className="socialTitle">{surfaceName}</h1>
+        <Screen
+          as="section"
+          kicker={surfaceName}
+          title="Crews and people who are already here."
+          titleId="social-title"
+          primary={primary}
+          secondary={secondary}
+        >
         <div className="socialLayout">
           <aside className="socialControlRail" aria-label={`${surfaceName} views`}>
-            {showPostsControls && draftScope ? <SocialComposer key={draftScope} draftScope={draftScope} onSaved={(saved) => {
-              if (saved) setSubmittedPost(saved);
-              setFeedAttempt((value) => value + 1);
-            }} /> : null}
             {showViewerCards ? <SocialTagInbox /> : null}
             {showViewerCards ? <SocialOutbox draftScope={draftScope} submittedPost={submittedPost} onPostChanged={(updated) => {
               if (updated) setSubmittedPost(updated);
@@ -793,6 +822,7 @@ function SocialPageAccountState({
               <SocialAccessBoundary
                 state="sign_in_required"
                 friendsLaunchEnabled={friendsLaunchEnabled}
+                doorAbove
               />
               {/* The packs are public and already listed, so a stranger meeting
                   the door can see who is already here rather than one sentence
@@ -829,7 +859,7 @@ function SocialPageAccountState({
             </>
           ) : !feedHref ? (
             <section className="socialFeed" role="status">
-              <h2>Choose a nearby area.</h2>
+              <EmptyState title="Choose a nearby area." />
             </section>
           ) : (
             <section
@@ -859,22 +889,24 @@ function SocialPageAccountState({
                 </div>
               ) : feedStatus === "error" ? (
                 <div className="socialFeedError" role="alert">
-                  <h2>{surfaceName} posts are unavailable right now.</h2>
-                  <button
-                    type="button"
-                    className="socialButton"
-                    onClick={() => setFeedAttempt((value) => value + 1)}
-                  >
-                    Retry
-                  </button>
+                  <EmptyState
+                    title={`${surfaceName} posts are unavailable right now.`}
+                    action={
+                      <button
+                        type="button"
+                        onClick={() => setFeedAttempt((value) => value + 1)}
+                      >
+                        Retry
+                      </button>
+                    }
+                  />
                 </div>
               ) : posts.length === 0 ? (
                 <div className="socialFeedEmpty" role="status">
-                  <h2>No posts here yet.</h2>
-                  <p>
+                  <EmptyState title="No posts here yet.">
                     Find your lot: search a handle or send an invite. Nights from
                     mutuals land here.
-                  </p>
+                  </EmptyState>
                   {/* The search-and-invite surface is the rail's, once. */}
                   <PeopleDirectory myHandle={viewerHandle} />
                 </div>
@@ -905,6 +937,7 @@ function SocialPageAccountState({
             <SocialContextRail status={visibleActivityStatus} items={visibleActivityItems} />
           ) : null}
         </div>
+        </Screen>
       </main>
     </>
   );

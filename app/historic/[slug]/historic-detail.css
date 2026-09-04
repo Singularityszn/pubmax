@@ -7,15 +7,19 @@
    + theme.css); no hardcoded hex. Mobile-first (390px), 44px tap targets, both
    themes, reduced-motion safe. Bottom padding clears the mobile tab bar. */
 
+/* The head (kicker, the pub's own name, the one primary action) is the Screen
+   primitive (components/ui/screen.tsx), which owns the page gutter, so the page
+   itself carries none and the back link above the head pays the same gutter. */
 .hdPage {
   max-width: 720px;
   margin: 0 auto;
-  padding: 16px 16px calc(96px + env(safe-area-inset-bottom, 0px));
+  padding: 16px 0 calc(96px + env(safe-area-inset-bottom, 0px));
   color: var(--ink);
 }
 
 .hdBack {
-  margin: 8px 0 12px;
+  margin: 8px 0 0;
+  padding-inline: var(--page-gutter);
 }
 
 .hdBackLink {
@@ -38,17 +42,13 @@
   border-radius: 3px;
 }
 
-/* Header */
-.hdHead {
-  margin: 0 0 22px;
-}
-
+/* The facts strip under the head: era, grade, status, borough. */
 .hdMeta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  margin: 0 0 10px;
+  gap: 6px 10px;
+  margin: 0 0 22px;
 }
 
 .hdEra {
@@ -76,18 +76,7 @@
   color: var(--river);
 }
 
-.hdTitle {
-  margin: 0 0 8px;
-  font-family: var(--font-display, var(--serif));
-  font-size: clamp(1.8rem, 6vw, 2.6rem);
-  font-weight: 800;
-  line-height: 1.08;
-  color: var(--ink);
-  text-wrap: balance;
-}
-
 .hdBorough {
-  margin: 0 0 14px;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--muted);
@@ -108,15 +97,6 @@
   border-radius: 3px;
 }
 
-.hdHook {
-  margin: 0;
-  max-width: 56ch;
-  font-size: 1.02rem;
-  line-height: 1.5;
-  color: var(--ink-soft);
-  text-wrap: pretty;
-}
-
 /* The cited story */
 .hdStory {
   margin: 0 0 26px;
@@ -129,18 +109,6 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--brass);
-}
-
-.hdEmpty {
-  margin: 0;
-  padding: 16px 18px;
-  border: 1px solid color-mix(in srgb, var(--river) 26%, var(--line));
-  border-radius: var(--radius-lg, 18px);
-  background: var(--panel-raised);
-  box-shadow: var(--shadow-sm);
-  font-size: 0.88rem;
-  line-height: 1.5;
-  color: var(--ink-soft);
 }
 
 .hdFacts {
@@ -250,18 +218,9 @@
   transition: border-color 0.16s ease, background 0.16s ease;
 }
 
-.hdActionPrimary {
-  border-color: color-mix(in srgb, var(--brass) 45%, var(--line));
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
-}
-
 @media (hover: hover) and (pointer: fine) {
   .hdAction:hover {
     border-color: color-mix(in srgb, var(--brass) 45%, var(--line));
-  }
-  .hdActionPrimary:hover {
-    border-color: var(--brass);
-    background: color-mix(in srgb, var(--brass) 20%, var(--panel-raised));
   }
 }
 
@@ -280,7 +239,6 @@
 
 /* Entrance — a quiet settle, suppressed under reduced-motion. */
 @media (prefers-reduced-motion: no-preference) {
-  .hdHead,
   .hdStory,
   .hdActions {
     animation: hdFadeIn var(--duration-base, 0.24s) var(--ease-out, ease) both;

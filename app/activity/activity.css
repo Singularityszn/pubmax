@@ -9,22 +9,13 @@
   padding: 20px 16px 96px;
 }
 
+/* The head is the shared Screen primitive (components/ui/screen.css). The
+   shell above already pays the page gutters, so the column drops its own. */
 .activity {
+  width: 100%;
   max-width: 640px;
   margin: 0 auto;
-}
-
-.activityHead {
-  margin: 24px 0 16px;
-}
-.activityHead h1 {
-  margin: 0;
-  font-size: 28px;
-}
-.activitySub {
-  margin: 6px 0 0;
-  color: var(--ink-soft);
-  font-size: 14px;
+  padding-inline: 0;
 }
 
 /* Loading skeleton — reuses the ready-state grid classes (.activityGrid /
@@ -154,17 +145,6 @@
 }
 .activityLink:hover {
   text-decoration: underline;
-}
-
-.activityCta {
-  display: inline-block;
-  padding: 8px 14px;
-  border-radius: 8px;
-  background: var(--brass);
-  color: var(--panel-raised);
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 14px;
 }
 
 /* ── Desktop density (≥1024) ──────────────────────────────────────────────

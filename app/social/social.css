@@ -8,12 +8,18 @@
   overflow-x: clip;
 }
 
-.socialTitle {
-  margin: 26px 0 18px;
-  font-family: var(--font-display, var(--serif));
-  font-size: clamp(2rem, 4vw, 3.25rem);
-  line-height: 1;
-  text-wrap: balance;
+/* The head is the launch Screen (components/ui/screen.tsx). The page already
+   pads its own gutter and keeps its own width, so the Screen takes neither. */
+.socialPage > .screen {
+  width: 100%;
+  padding-inline: 0;
+}
+
+/* The Screen paints the one primary; while the session or the access answer
+   is still open that control waits rather than routing anybody anywhere. */
+.socialPage .screenPrimary > button:disabled {
+  opacity: 0.58;
+  cursor: default;
 }
 
 .socialLayout {
@@ -122,36 +128,21 @@
   margin-top: 20px;
 }
 
+/* An empty, denied or failed answer is the EmptyState primitive
+   (components/ui/empty-state.tsx): a title, one line, one quiet way onward,
+   and no card around it. The min-height is the one thing kept, so the column
+   does not collapse while the answer changes under a reader. */
 .socialBoundary,
 .socialFeedError,
 .socialFeedEmpty {
-  display: grid;
   min-height: 200px;
-  place-content: center;
-  justify-items: center;
-  gap: 18px;
-  padding: 28px;
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: var(--panel-raised);
-  text-align: center;
 }
 
-.socialBoundary h2,
-.socialFeedError h2,
-.socialFeedEmpty h2 {
+.socialBoundary h2 {
   margin: 0;
   font-family: var(--font-display, var(--serif));
   font-size: 1.25rem;
   text-wrap: balance;
-}
-
-/* The refusal that rides under the age button, in the boundary's own grid. */
-.socialBoundaryNote {
-  margin: 0;
-  max-width: 34ch;
-  color: var(--ink-soft);
-  font-size: 0.875rem;
 }
 
 .socialFeed {
@@ -907,11 +898,6 @@
     );
   }
 
-  .socialTitle {
-    margin: 18px 0 14px;
-    font-size: 2rem;
-  }
-
   .socialLayout {
     gap: 14px;
   }
@@ -976,16 +962,8 @@
   padding-top: var(--space-3);
 }
 
-.findLot__eyebrow {
-  margin: 0;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--ink-soft);
-}
-
 .findLot__title {
-  margin: var(--space-1) 0 0;
+  margin: 0;
   font-size: var(--text-lg, 1.15rem);
   font-weight: 750;
 }
@@ -1181,8 +1159,21 @@
   cursor: pointer;
 }
 
-/* The founders wall link sits in the same column as the packs above it. */
+/* The founders wall link sits in the same column as the packs above it. It is
+   a way onward, not a control: no edge and no fill, or under the head it read
+   as a second primary. The 44px tap floor stays. */
 .socialFoundersLink {
   margin-top: 12px;
-  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.socialFoundersLink:hover,
+.socialFoundersLink:focus-visible {
+  color: var(--ink);
 }

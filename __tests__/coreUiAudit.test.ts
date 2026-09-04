@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -272,5 +272,37 @@ describe("launch routes carry one primary action", () => {
   it.each(LAUNCH_SURFACES)("%s marks exactly one primary action", (_route, render) => {
     const rendered = render();
     expect(rendered.match(/data-primary-action/g)).toHaveLength(1);
+  });
+});
+
+// Every route in docs/design/LAUNCH_SCREENS.md is rendered by a launch-route
+// audit somewhere: here, or in one of the __tests__/launchRoutes.*.test.tsx
+// files, whose test names open with the route path. A route may be excused
+// only by name and reason below, so the table and the audits cannot drift
+// apart in silence.
+const NOT_RENDERED: ReadonlyArray<{ route: string; reason: string }> = [
+  { route: "/map", reason: "the map canvas is another track's surface and has no heading" },
+  { route: "/map/[city]", reason: "the map canvas is another track's surface and has no heading" },
+  { route: "/u/you", reason: "an alias of /u/[handle], rendered under that row" },
+];
+
+describe("every launch route is rendered by an audit", () => {
+  it("names each table route in a launch-route audit or excuses it by name", () => {
+    const table = readFileSync(join(root, "docs/design/LAUNCH_SCREENS.md"), "utf8");
+    const routes = [...table.matchAll(/^\| (`[^|]+)/gm)]
+      .flatMap((m) => [...m[1].matchAll(/`(\/[^`]*)`/g)].map((r) => r[1]));
+    expect(routes.length).toBeGreaterThan(30);
+    const audits = readdirSync(join(root, "__tests__"))
+      .filter((name) => /^launchRoutes\.[a-z]+\.test\.tsx$/.test(name))
+      .map((name) => readFileSync(join(root, "__tests__", name), "utf8"))
+      .join("\n");
+    const here = LAUNCH_SURFACES.map(([route]) => route);
+    const excused = new Set(NOT_RENDERED.map((row) => row.route));
+    const missing = routes.filter((route) => {
+      if (excused.has(route) || route === "/" || here.includes(route)) return false;
+      const escaped = route.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return !new RegExp(`it(?:\\.skip)?\\(\\s*["'\`]${escaped}\\s`).test(audits);
+    });
+    expect(missing, "table routes with no launch-route audit").toEqual([]);
   });
 });

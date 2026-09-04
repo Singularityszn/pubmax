@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import EmptyState from "@/components/EmptyState";
+import EmptyState from "@/components/ui/empty-state";
 import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
 import {
@@ -339,15 +339,12 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
       <main id="main" className="roundShell">
         <SiteNav active="crawls" />
         <EmptyState
-          eyebrow="The Round"
           title="No Round here"
-          body="This Round doesn't exist, or it's already been called and cleared. Ask your mate for the code, or start a fresh one."
-          action={
-            <Link href="/crawls" className="roundPrimaryBtn">
-              Back to crawls
-            </Link>
-          }
-        />
+          action={<Link href="/crawls">Back to crawls</Link>}
+        >
+          This Round doesn&rsquo;t exist, or it&rsquo;s already been called and
+          cleared. Ask your mate for the code, or start a fresh one.
+        </EmptyState>
       </main>
     );
   }
@@ -1276,11 +1273,10 @@ function RouteList({ stops }: { stops: RoundState["stops"] }): React.JSX.Element
 
   if (stops.length === 0) {
     return (
-      <EmptyState
-        eyebrow="The route"
-        title="No stops yet"
-        body="The route builds itself as people drop pints. There's always one person who has to name the first pub. Tonight that's you."
-      />
+      <EmptyState title="No stops yet">
+        The route builds itself as people drop pints. There&rsquo;s always one
+        person who has to name the first pub. Tonight that&rsquo;s you.
+      </EmptyState>
     );
   }
 

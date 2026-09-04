@@ -166,9 +166,9 @@ async function assertLandingContract(page: Page): Promise<void> {
   await expect(summary).toHaveText(SUMMARY);
   await expect(page.getByText("3 July 2026", { exact: false })).toHaveCount(1);
 
-  const actions = page.locator(".drinkBrandDirectory__actions");
+  const actions = page.locator(".screenActions");
   await expectAboveFold(page, actions, "brand actions");
-  const primaryAction = actions.getByRole("link", { name: `Find ${BRAND} on the map`, exact: true });
+  const primaryAction = actions.getByRole("link", { name: "Open the map", exact: true });
   const secondaryAction = actions.getByRole("link", {
     name: `Log a ${BRAND} pint price`,
     exact: true,
@@ -308,7 +308,7 @@ test.describe("Guinness landing cross-surface journey", () => {
     await setLandingState(page);
     await assertLandingContract(page);
 
-    await page.getByRole("link", { name: `Find ${BRAND} on the map`, exact: true }).click();
+    await page.getByRole("link", { name: "Open the map", exact: true }).click();
     await expect(page).toHaveURL(/\/map\?brand=guinness$/);
     const mapFilters = page.locator(".mobileMapFiltersButton");
     await expect(mapFilters).toBeVisible({ timeout: 45_000 });
@@ -365,7 +365,7 @@ test.describe("Guinness landing desktop proof", () => {
     await setLandingState(page);
     await assertLandingContract(page);
     await expectVisibleFocus(
-      page.getByRole("link", { name: `Find ${BRAND} on the map`, exact: true }),
+      page.getByRole("link", { name: "Open the map", exact: true }),
       "desktop Find on the map action",
     );
     await expectNoHorizontalOverflow(page);

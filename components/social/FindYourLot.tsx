@@ -21,6 +21,7 @@ import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
+import Kicker from "@/components/ui/kicker";
 
 import "./findYourLot.css";
 
@@ -228,7 +229,7 @@ export default function FindYourLot({
       className={compact ? "findLot findLot--compact" : "findLot"}
       aria-labelledby="find-lot-title"
     >
-      <p className="findLot__eyebrow">Your lot</p>
+      <Kicker tone="muted">Your lot</Kicker>
       <h2 id="find-lot-title" className="findLot__title">
         Find your lot
       </h2>

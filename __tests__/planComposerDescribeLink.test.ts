@@ -320,7 +320,7 @@ describe("PlanComposer describe prefill", () => {
 
     await act(async () => {
       typeInto("#plan-describe-first-query", "Hackney crawl tonight");
-      clickButton("Make a plan");
+      clickButton("Sort it");
       await Promise.resolve();
       await Promise.resolve();
     });

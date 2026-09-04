@@ -245,7 +245,7 @@ export function profileClaimOfferVisible({
 
 export function ProfileClaimOffer({ onClaim }: { onClaim: () => void }) {
   return (
-    <button type="button" className="profileClaimBtn" onClick={onClaim}>
+    <button type="button" className="profileClaimBtn" data-primary-action="" onClick={onClaim}>
       Claim this handle
     </button>
   );
@@ -273,6 +273,7 @@ export function ProfileFollowBoundary({
     return (
       <Link
         className="profileFollowSignIn"
+        data-primary-action=""
         href={`/login?mode=signin&from=${encodeURIComponent(`/u/${routeHandle}`)}`}
       >
         Sign in to follow
@@ -281,7 +282,7 @@ export function ProfileFollowBoundary({
   }
   if (!viewerHandle) {
     return (
-      <Link className="profileFollowSignIn" href="/u/you#account-settings">
+      <Link className="profileFollowSignIn" data-primary-action="" href="/u/you#account-settings">
         Claim a handle to follow
       </Link>
     );
@@ -333,8 +334,10 @@ export function YouSignedOutSurface({
             </p>
           ) : null}
         </div>
+        {/* ONE primary on the page (docs/design/LAUNCH_SCREENS.md): the claim.
+            The hero keeps its own composition, so the mark rides the control. */}
         <div className="youIdentityActions">
-          <a href="#account-settings">Claim your @handle</a>
+          <a href="#account-settings" data-primary-action="">Claim your @handle</a>
           <Link href="/pal">Meet your Pub Pal</Link>
         </div>
       </section>
@@ -921,7 +924,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     setSavedNotice(true);
   }
 
-  // Header action slot. Three mutually-exclusive states:
+  // Header action slot. Three mutually-exclusive states, and in each ONE control
+  // carries `data-primary-action` (docs/design/LAUNCH_SCREENS.md: Edit profile
+  // for the owner, Follow for a visitor). The profile hero keeps its own
+  // composition (the face over the band's edge, the name beside it), which the
+  // Screen primitive's fixed order cannot hold, so the mark rides the control.
   //  • own profile  → Edit (toggles the inline editor)
   //  • anonymous, on a handle NOBODY owns → Claim this handle (adopt, then edit)
   //  • other viewer → Follow
@@ -946,6 +953,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       <button
         type="button"
         className="profileEditToggle"
+        data-primary-action=""
         aria-expanded={editing}
         onClick={() => {
           if (editing) {
@@ -1051,7 +1059,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               there is no live profile here any more.
             </p>
             <p className="profileEmpty">
-              <Link href="/map">Back to the map</Link>
+              <Link href="/map" data-primary-action="">Back to the map</Link>
             </p>
           </section>
         ) : surface === "error" ? (

@@ -9,10 +9,28 @@
   overflow-x: hidden;
 }
 
+/* The brand landing's head is the Screen primitive (components/ui/screen.tsx),
+   which owns the page gutter, so the brand page carries none of its own. The
+   area landing keeps the shared padding above until it adopts the Screen. */
+.drinkBrandLanding {
+  padding-inline: 0;
+}
+
 .drinkBrandDirectory {
   width: min(100%, 920px);
   min-width: 0;
   margin: 0 auto;
+}
+
+/* Inside the Screen's lede the immediate answer keeps its size and drops the
+   margin the standalone paragraph carried. */
+.drinkBrandDirectory__screen .drinkBrandDirectory__from {
+  display: block;
+  margin: 0;
+}
+
+.drinkBrandDirectory__screen .drinkBrandDirectory__summary {
+  margin: 0 0 24px;
 }
 
 .drinkBrandDirectory__head {
@@ -36,7 +54,7 @@
   text-decoration: underline;
 }
 
-.drinkBrandDirectory h1 {
+.drinkBrandDirectory__head h1 {
   max-width: 16ch;
   margin: 0;
   font-family: var(--font-display);
@@ -341,11 +359,15 @@
     padding: 16px 12px calc(96px + env(safe-area-inset-bottom));
   }
 
+  .drinkBrandLanding {
+    padding-inline: 0;
+  }
+
   .drinkBrandDirectory__head {
     margin: 22px 4px 28px;
   }
 
-  .drinkBrandDirectory h1 {
+  .drinkBrandDirectory__head h1 {
     font-size: clamp(2.25rem, 13vw, 3.45rem);
   }
 

@@ -36,53 +36,38 @@
 
 /* --- poster --------------------------------------------------------------- */
 
+/* The poster holds a bordered receipt and a bordered Chaos Score, so it takes
+   no border of its own: card-in-card is on the template-pattern ban list
+   (docs/VOICE.md). The shell's paper is the ground. */
 .storyPoster {
   width: 100%;
   max-width: 640px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius, 16px);
-  padding: 32px 28px;
-  box-shadow: var(--shadow, 0 18px 48px rgba(0, 0, 0, 0.22));
 }
 
-.storyHead {
+/* The head is the Screen primitive (components/ui/screen.tsx): kicker, the
+   story's own name, one primary action. The shell already pays the page
+   gutter, so the Screen's own gutter is switched off inside the poster, and
+   the rule under the head sits on the head alone, not under the whole poster. */
+.storyPoster .storyHead {
+  width: 100%;
+  padding-inline: 0;
+}
+
+.storyHead > .screenHead {
   border-bottom: 2px solid var(--line);
   padding-bottom: 20px;
 }
 
-.storyEyebrow {
-  margin: 0 0 8px;
-  font-size: 13px;
-  letter-spacing: 0.01em;
-  color: var(--brass);
-  font-weight: 700;
+.storyMissing {
+  width: 100%;
+  max-width: 640px;
 }
 
-.storyTitle {
-  margin: 0;
-  font-family: var(--font-garamond, var(--serif));
-  font-size: 34px;
-  line-height: 1.12;
-}
-
-.storyCaption {
-  margin: 12px 0 0;
-  color: var(--ink-soft);
-  font-size: 16px;
-  line-height: 1.5;
-}
-
-/* Author attribution — a quiet by-line under the title (story 35). */
-.storyAuthor {
-  margin: 8px 0 0;
-  color: var(--ink-soft);
-  font-size: 14px;
-}
+/* Author attribution, inside the kicker (story 35). */
 .storyAuthorLink {
-  color: var(--brass);
+  color: inherit;
   text-decoration: none;
-  font-weight: 600;
+  font-weight: inherit;
 }
 .storyAuthorLink:hover {
   text-decoration: underline;
@@ -165,7 +150,7 @@
   font-family: var(--font-garamond, var(--serif));
   font-weight: 700;
   font-size: 14px;
-  box-shadow: 0 0 0 4px var(--panel); /* punch the stamp out of the spine */
+  box-shadow: 0 0 0 4px var(--paper); /* punch the stamp out of the spine */
 }
 
 .storyStopBody {
@@ -246,7 +231,8 @@
   margin-top: 22px;
 }
 
-.storyPrimaryBtn,
+/* Every action under the stops is a bordered secondary: the Screen head owns
+   the one filled control on the page. */
 .storySecondaryBtn {
   display: inline-flex;
   align-items: center;
@@ -260,30 +246,16 @@
   cursor: pointer;
   text-decoration: none;
   font-family: inherit;
-  transition: border-color 0.15s ease, filter 0.15s ease, background 0.15s ease;
-}
-
-.storyPrimaryBtn {
-  background: var(--brass);
-  color: var(--panel-raised);
-  border: 1px solid var(--brass);
-}
-
-.storyPrimaryBtn:hover {
-  filter: brightness(1.05);
-}
-
-.storySecondaryBtn {
   background: var(--panel-raised);
   color: var(--ink);
   border: 1px solid var(--line);
+  transition: border-color 0.15s ease;
 }
 
 .storySecondaryBtn:hover {
   border-color: var(--brass);
 }
 
-.storyPrimaryBtn:focus-visible,
 .storySecondaryBtn:focus-visible,
 .storyStopName:focus-visible,
 .storyNav a:focus-visible {
@@ -363,18 +335,10 @@
   .storyShell {
     padding: 18px 12px 40px;
   }
-  .storyPoster {
-    padding: 24px 18px;
-  }
-  .storyTitle {
-    font-size: clamp(24px, 8vw, 27px);
-  }
   .storyStops::before {
     left: 14px;
   }
-  /* Full-width stacked actions so both are comfortable thumb targets and the
-     "start this crawl" primary never wraps awkwardly beside the secondary. */
-  .storyPrimaryBtn,
+  /* Full-width stacked actions so each is a comfortable thumb target. */
   .storySecondaryBtn {
     flex: 1 1 100%;
   }
@@ -383,7 +347,6 @@
 /* Respect reduced-motion: the copy-link button is the only motion; keep the
    transition instant so nothing eases for users who asked it not to. */
 @media (prefers-reduced-motion: reduce) {
-  .storyPrimaryBtn,
   .storySecondaryBtn {
     transition: none;
   }

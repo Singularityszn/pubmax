@@ -8,6 +8,8 @@ import { allBoroughHeritageCounts } from "@/lib/boroughHeritage";
 import { loadHistoricPubs } from "@/lib/historic";
 import PriceBadge from "@/components/PriceBadge";
 import SiteNav from "@/components/nav/SiteNav";
+import EmptyState from "@/components/ui/empty-state";
+import BoroughScreen from "./BoroughScreen";
 
 import "./[slug]/borough.css";
 
@@ -64,52 +66,58 @@ export default async function BoroughIndexPage() {
     <main id="main" className="boroughPage">
       <SiteNav active="borough" />
 
-      <header className="boroughHead">
-        <p className="boroughEyebrow">Boroughs</p>
-        <h1 className="boroughTitle">London, by the area you drink in</h1>
-        <p className="boroughDek">
-          Nobody says &ldquo;let&rsquo;s go to the pub in Greater London.&rdquo;
-          They say Camden, or Soho, or Hackney. Pick a borough and see its pubs
-          ranked by the cheapest pint on the map.
-        </p>
-      </header>
-
-      {boroughs.length === 0 ? (
-        <p className="boroughEmpty" role="status">
-          We couldn&rsquo;t load the boroughs just now.{" "}
-          <Link href="/map">Open the map</Link> instead.
-        </p>
-      ) : (
-        <ul className="boroughGrid" aria-label="London boroughs">
-          {boroughs.map((borough) => (
-            <li key={borough.slug}>
-              <Link className="boroughCard" href={`/borough/${borough.slug}`}>
-                <span className="boroughCardName">{borough.name}</span>
-                <span className="boroughCardMeta">
-                  {borough.pubCount} {borough.pubCount === 1 ? "pub" : "pubs"}
-                </span>
-                {heritageCounts.get(borough.slug) ? (
-                  <span className="boroughCardHistoric">
-                    {heritageCounts.get(borough.slug)} historic
+      <BoroughScreen
+        kicker="London"
+        title="London, by the area you drink in."
+        titleId="boroughHeading"
+        lede={
+          <>
+            Nobody says &ldquo;let&rsquo;s go to the pub in Greater London.&rdquo;
+            They say Camden, or Soho, or Hackney. Pick a borough and see its pubs
+            ranked by the cheapest pint on the map.
+          </>
+        }
+        mapHref="/map"
+        mapLabel="Open the map"
+      >
+        {boroughs.length === 0 ? (
+          <EmptyState
+            className="boroughEmpty"
+            title="We couldn’t load the boroughs just now."
+            action={<Link href="/map">Open the map instead</Link>}
+          />
+        ) : (
+          <ul className="boroughGrid" aria-label="London boroughs">
+            {boroughs.map((borough) => (
+              <li key={borough.slug}>
+                <Link className="boroughCard" href={`/borough/${borough.slug}`}>
+                  <span className="boroughCardName">{borough.name}</span>
+                  <span className="boroughCardMeta">
+                    {borough.pubCount} {borough.pubCount === 1 ? "pub" : "pubs"}
                   </span>
-                ) : null}
-                <span className="boroughCardPrice">
-                  {borough.cheapestGbp === null ? (
-                    <span className="boroughNoPrice">No price yet</span>
-                  ) : (
-                    <>
-                      from{" "}
-                      <PriceBadge variant="current">
-                        {formatPrice(borough.cheapestGbp)}
-                      </PriceBadge>
-                    </>
-                  )}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+                  {heritageCounts.get(borough.slug) ? (
+                    <span className="boroughCardHistoric">
+                      {heritageCounts.get(borough.slug)} historic
+                    </span>
+                  ) : null}
+                  <span className="boroughCardPrice">
+                    {borough.cheapestGbp === null ? (
+                      <span className="boroughNoPrice">No price yet</span>
+                    ) : (
+                      <>
+                        from{" "}
+                        <PriceBadge variant="current">
+                          {formatPrice(borough.cheapestGbp)}
+                        </PriceBadge>
+                      </>
+                    )}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </BoroughScreen>
     </main>
   );
 }

@@ -2,6 +2,7 @@
 
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 
+import Screen from "@/components/ui/screen";
 import WantedPlanChips from "@/components/wanted/WantedPlanChips";
 import { CULTURE_CRAWL_CHIPS, CULTURE_CRAWL_MISSION } from "@/lib/cultureCrawl";
 import { DESCRIBE_FIRST_CHIPS } from "@/lib/describeFirstChips";
@@ -37,6 +38,7 @@ export default function PlanDescribeFirst({
   const [stopCountTouched, setStopCountTouched] = useState(false);
   const appliedPrefill = useRef(initialQuery);
   const reportedPrefill = useRef<string | null>(null);
+  const queryInput = useRef<HTMLInputElement>(null);
   const onQueryChangeRef = useRef(onQueryChange);
   const onPrefillQueryChangeRef = useRef(onPrefillQueryChange);
   useEffect(() => {
@@ -101,14 +103,40 @@ export default function PlanDescribeFirst({
   }
 
   return (
-    <section className="planDescribeFirst" aria-labelledby="plan-describe-first-title">
-      <h2 id="plan-describe-first-title">What&rsquo;s the plan?</h2>
+    /* The route's head (docs/design/LAUNCH_SCREENS.md): kicker, the h1, the
+       ask, and ONE painted action, the submit control of this form. The
+       Screen owns the heading, so app/plan/page.tsx prints none of its own.
+       A route-owned rule in app/plan/plan.css seats the field between the
+       heading and the actions, the order a form reads in. */
+    <Screen
+      as="section"
+      className="planDescribeFirst planPage__intro"
+      kicker="Sort the outing"
+      title={<>Describe the outing. We&rsquo;ll put it in order.</>}
+      titleId="plan-describe-first-title"
+      primary={
+        // Never disabled: with nothing typed, the tap puts the caret in the
+        // field, which is the one thing left to do.
+        <button
+          type="button"
+          onClick={() => query.trim() ? submit() : queryInput.current?.focus()}
+        >
+          Sort it
+        </button>
+      }
+      secondary={
+        <button type="button" onClick={onGuideMeInstead}>
+          Guide me instead
+        </button>
+      }
+    >
       {/* Plain markup, not a form: this whole surface already sits inside
           PlanComposerForm's own <form>, and a nested <form> is invalid HTML
           that browsers silently reparent, breaking native submission. */}
       <div className="planDescribeFirst__form">
         <label className="planComposer__srOnly" htmlFor="plan-describe-first-query">Describe the outing</label>
         <input
+          ref={queryInput}
           id="plan-describe-first-query"
           type="text"
           value={query}
@@ -125,16 +153,6 @@ export default function PlanDescribeFirst({
           placeholder="Quiet in Clapham for 4"
           maxLength={500}
         />
-        {/* The route's one primary action (docs/design/LAUNCH_SCREENS.md): the
-            submit control of the describe-first form. The wrapping div also
-            holds the field, so the mark rides the control itself. */}
-        <button
-          type="button"
-          data-primary-action=""
-          onClick={() => query.trim() ? submit() : onGuideMeInstead()}
-        >
-          {query.trim() ? "Make a plan" : "Guide me"}
-        </button>
       </div>
       <PlanStopCountPicker
         value={stopCount}
@@ -171,9 +189,6 @@ export default function PlanDescribeFirst({
           </button>
         ))}
       </div>
-      <button type="button" className="planDescribeFirst__guide" onClick={onGuideMeInstead}>
-        Guide me instead
-      </button>
-    </section>
+    </Screen>
   );
 }

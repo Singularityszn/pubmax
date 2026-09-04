@@ -17,7 +17,7 @@ import {
 } from "@/lib/editorial";
 import { loadEditorialSnapshot } from "@/lib/editorialLoader";
 import { OUT_MAP_WAY, OUT_RETRY_LABEL } from "@/lib/out/outStatus";
-import EmptyState from "@/components/EmptyState";
+import EmptyState from "@/components/ui/empty-state";
 
 import "./editorialRail.css";
 
@@ -54,22 +54,22 @@ export function EditorialRailView({
       {statusLine && empty ? (
         // Nothing to read this week is still a night out, and the pubs are
         // always there. A bare sentence under the heading was a dead end.
-        <EmptyState
-          className="emptyState--flush"
-          title={statusLine}
-          actionTone="accent"
-          action={
-            snapshot.status === "degraded" ? (
-              <button type="button" onClick={onRetry}>
-                {OUT_RETRY_LABEL}
-              </button>
-            ) : (
-              <Link prefetch={false} href={OUT_MAP_WAY.href}>
-                {OUT_MAP_WAY.label}
-              </Link>
-            )
-          }
-        />
+        <div role={snapshot.status === "degraded" ? "alert" : "status"}>
+          <EmptyState
+            title={statusLine}
+            action={
+              snapshot.status === "degraded" ? (
+                <button type="button" onClick={onRetry}>
+                  {OUT_RETRY_LABEL}
+                </button>
+              ) : (
+                <Link prefetch={false} href={OUT_MAP_WAY.href}>
+                  {OUT_MAP_WAY.label}
+                </Link>
+              )
+            }
+          />
+        </div>
       ) : statusLine ? (
         <p className="editorialRailStatus">{statusLine}</p>
       ) : null}

@@ -52,50 +52,40 @@
 }
 
 /* — Header — */
-.palChatHead {
+/* The head is the shared Screen primitive (components/ui/screen.css). The
+   main is the Screen itself so the flex column below it is unchanged: head,
+   scroll region, composer. The transcript and the composer pay their own
+   gutters, so the main pays none. */
+.palChat.screen {
+  width: 100%;
+  padding-inline: 0;
+}
+
+.palChat .screenHead {
   flex: 0 0 auto;
   width: min(46rem, 100%);
+  max-width: none;
   margin: 0 auto;
   padding: clamp(1rem, 4vw, 1.75rem) clamp(1rem, 4vw, 1.5rem) 0.85rem;
 }
 
-.palChatEyebrow {
+.palChat .kicker {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  margin: 0 0 0.55rem;
-  color: var(--brass);
-  font: 650 var(--text-2xs)/1 var(--font-data);
-  letter-spacing: 0.01em;
 }
 
-.palChatEyebrow picture {
+.palChat .kicker picture {
   display: block;
   line-height: 0;
   flex: 0 0 auto;
 }
 
-.palChatEyebrow img {
+.palChat .kicker img {
   width: 18px;
   height: 18px;
   display: block;
   border-radius: 50%;
-}
-
-.palChatTitle {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(1.9rem, 7vw, 2.6rem);
-  line-height: 0.98;
-  letter-spacing: -0.03em;
-}
-
-.palChatIntro {
-  max-width: 40ch;
-  margin: 0.6rem 0 0;
-  color: var(--ink-soft);
-  font-size: 0.86rem;
-  line-height: 1.5;
 }
 
 /* — Scroll region (transcript + example chips) — */
@@ -431,16 +421,18 @@
   color: var(--muted);
 }
 
+/* The head's Send is the one filled control on this page, so the inline
+   arrow beside the field is a bordered secondary. */
 .palChatSend {
   flex: 0 0 auto;
   width: 3rem;
   height: 3rem;
   display: grid;
   place-items: center;
-  border: 1px solid color-mix(in srgb, var(--brass) 70%, var(--line));
+  border: 1px solid var(--line);
   border-radius: 50%;
-  background: var(--brass);
-  color: var(--color-on-accent);
+  background: var(--panel);
+  color: var(--ink);
   cursor: pointer;
   transition:
     background var(--duration-base, 0.18s) var(--ease-out, ease-out),
@@ -448,7 +440,8 @@
 }
 
 .palChatSend:hover:not(:disabled) {
-  background: var(--brass-bright);
+  border-color: var(--brass);
+  color: var(--brass);
 }
 
 .palChatSend:active:not(:disabled) {
@@ -497,17 +490,6 @@
 
 /* Trusted Handoff L16: gazetteer-grounded locality line, explicit acceptance
    handoff, and Pal-local back path. All render only when palHandoff is on. */
-.palChatBack {
-  align-self: flex-start;
-  color: var(--ink-soft);
-  font: 500 0.85rem/1 var(--font-body);
-  text-decoration: none;
-  margin-bottom: 0.25rem;
-}
-
-.palChatBack:hover {
-  color: var(--ink);
-}
 
 .palChatLocality {
   margin: 0.25rem 0 0.5rem;

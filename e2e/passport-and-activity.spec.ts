@@ -147,8 +147,9 @@ test.describe("notifications — bell + activity feed", () => {
     const empty = page.locator(".emptyState");
     await expect(empty).toBeVisible();
     await expect(empty.locator(".emptyStateTitle")).toContainText(/this corner is yours\. claim it\./i);
-    await expect(empty.locator(".emptyStateBody")).toContainText(/sign in and choose a handle/i);
-    await expect(empty.locator(".emptyStateAction :is(a, button)")).toHaveCount(0);
+    await expect(empty.locator(".emptyStateLine")).toContainText(/sign in and choose a handle/i);
+    // One quiet way onward, the sign-in door, so the corner is not a dead end.
+    await expect(empty.locator(".emptyStateAction :is(a, button)")).toHaveCount(1);
 
     expect(errors).toEqual([]);
   });

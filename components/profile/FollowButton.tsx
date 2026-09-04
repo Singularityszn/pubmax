@@ -105,6 +105,7 @@ export default function FollowButton({
       <button
         type="button"
         className={`followBtn${following ? " isFollowing" : ""}${relation === "mates" ? " isMates" : ""}`}
+        data-primary-action=""
         aria-pressed={following}
         aria-label={followActionDescription(relation, targetHandle)}
         disabled={busy}

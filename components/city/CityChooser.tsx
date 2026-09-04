@@ -11,11 +11,9 @@ import {
   useState,
   useTransition,
 } from "react";
-import { Beer, LocateFixed, MapPin, Search } from "lucide-react";
-import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
+import { LocateFixed, MapPin, Search } from "lucide-react";
 
 import { listEnabledCities, type CityId } from "@/lib/cities";
-import { MAIN_LANDMARK_ID } from "@/lib/a11yLandmarks";
 import { getCityCapabilityProfile } from "@/lib/cityCapabilities";
 import {
   buildCityChooserSearchResults,
@@ -39,7 +37,13 @@ import {
 import "./cityChooser.css";
 
 export type CityChooserProps = {
-  variant?: "page" | "section";
+  /**
+   * `section`: a titled section of a longer page (the landing), with its own
+   * h2. `body`: the search, the locate control and the city list alone, for a
+   * route whose head is a launch Screen (/choose-city) and prints the heading
+   * and the way onward itself.
+   */
+  variant?: "section" | "body";
   onSelect?: (cityId: CityId) => void;
   /** When true, focus the town search field on mount (national browse entry). */
   focusSearch?: boolean;
@@ -52,11 +56,11 @@ type PlaceIndexState =
   | { status: "error"; places: UkPlace[] };
 
 /**
- * Full-bleed city picker: enabled cities as map links, optional geolocation,
- * and preferred-city persistence for Map nav / landing CTAs.
+ * City picker: enabled cities as map links, optional geolocation, and
+ * preferred-city persistence for Map nav / landing CTAs.
  */
 export default function CityChooser({
-  variant = "page",
+  variant = "section",
   onSelect,
   focusSearch = false,
 }: CityChooserProps) {
@@ -183,51 +187,36 @@ export default function CityChooser({
     input.focus();
   }, [focusSearch]);
 
+  // The body variant borrows the section's light-ground styling and drops the
+  // section's own padding and ground; the route around it owns both.
   const rootClass =
     variant === "section"
       ? "cityChooser cityChooser--section"
-      : "cityChooser cityChooser--page";
+      : "cityChooser cityChooser--section cityChooser--body";
 
-  const Root = variant === "page" ? "main" : "section";
+  const Root = variant === "section" ? "section" : "div";
 
   return (
     <Root
-      id={variant === "page" ? MAIN_LANDMARK_ID : undefined}
       className={rootClass}
-      aria-labelledby={listId + "-title"}
+      aria-labelledby={variant === "section" ? listId + "-title" : undefined}
     >
       <div className="cityChooserInner">
-        <header className="cityChooserHead">
-          {variant === "page" ? (
-            <Link href="/" className="cityChooserBrand" aria-label="PUBMAXXING home">
-              <span className="cityChooserBrandMark" aria-hidden="true">
-                <Beer size={18} strokeWidth={1.5} />
-              </span>
-              <PubmaxxWordmark className="cityChooserBrandText" />
-            </Link>
-          ) : (
+        {variant === "section" ? (
+          <header className="cityChooserHead">
             <p className="cityChooserEyebrow">Cities</p>
-          )}
-          {variant === "page" ? (
-            <h1
-              id={listId + "-title"}
-              className="cityChooserTitle cityChooserSerif"
-            >
-              Choose your city
-            </h1>
-          ) : (
             <h2
               id={listId + "-title"}
               className="cityChooserTitle cityChooserSerif"
             >
               Choose your city
             </h2>
-          )}
-          <p className="cityChooserLede">
-            Open a price-aware pub map. Crawls and drink-shaped pins for the
-            night you want.
-          </p>
-        </header>
+            <p className="cityChooserLede">
+              Open a price-aware pub map. Crawls and drink-shaped pins for the
+              night you want.
+            </p>
+          </header>
+        ) : null}
 
         <div className="cityChooserSearch">
           <label htmlFor={`${listId}-search`} className="cityChooserSearchLabel">
@@ -278,11 +267,15 @@ export default function CityChooser({
           ) : null}
         </div>
 
-        <p className="cityChooserNational">
-          <Link href={UK_NATIONAL_MAP_HREF} className="cityChooserNationalLink">
-            {UK_NATIONAL_ENTRY_LABEL}
-          </Link>
-        </p>
+        {/* The route head already offers the national map as its way onward,
+            so only the section prints the link here. */}
+        {variant === "section" ? (
+          <p className="cityChooserNational">
+            <Link href={UK_NATIONAL_MAP_HREF} className="cityChooserNationalLink">
+              {UK_NATIONAL_ENTRY_LABEL}
+            </Link>
+          </p>
+        ) : null}
 
         {normalizedQuery.length >= 2 ? (
           <section

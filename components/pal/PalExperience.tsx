@@ -44,7 +44,7 @@ import {
 import PalPortrait from "./PalPortrait";
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
 import { Button } from "@/components/ui/button";
-import Kicker from "@/components/ui/kicker";
+import Screen from "@/components/ui/screen";
 import { setActivePlanPalContext } from "@/lib/activePlan";
 import { readFirstRunCompanion } from "@/lib/firstRunTour";
 
@@ -201,12 +201,14 @@ function RangeControl({
 }
 
 /**
- * The signed-out welcome: kicker, heading, one primary action.
+ * The signed-out welcome, the /pal launch screen (docs/design/LAUNCH_SCREENS.md):
+ * kicker, heading, one primary action, and the map as the quiet way back.
  *
  * Extracted from PalExperience so the launch-screen audit can render it on its
  * own. The experience holds every other mode behind a ready flag an effect
  * sets, so a static render of the whole would only ever meet "Waking your Pub
- * Pal". The markup is the block PalExperience rendered before, unchanged.
+ * Pal". The portrait rides beside the head on a desktop and under it on a
+ * phone, the way the landing sets its pub card.
  */
 export function PalMeetingScreen({
   appearance,
@@ -217,28 +219,25 @@ export function PalMeetingScreen({
 }) {
   return (
     <main id="main" className="palExperience palMeeting">
-      <div className="palTopbar">
-        <Link href="/map"><ArrowLeft size={17} /> Map</Link>
-        <span><LockKeyhole size={14} /> Private by default</span>
-      </div>
-      <section className="palMeetingStage" aria-labelledby="pal-meeting-title">
+      <Screen
+        as="section"
+        className="palMeetingStage"
+        kicker="Your Pub Pal"
+        title="A little signal that becomes yours."
+        titleId="pal-meeting-title"
+        lede="Choose its form, voice and boundaries. It can help plan the night. You choose what it may do."
+        primary={
+          <button type="button" onClick={onMeet}>
+            Meet your Pub Pal
+          </button>
+        }
+        secondary={<Link href="/map">Back to the map</Link>}
+      >
         <div className="palMeetingPortrait">
           <PalPortrait appearance={appearance} name="Unclaimed Pub Pal" state="noticing" />
           <p className="palSpeech" aria-live="polite">There you are. What kind of night are we making?</p>
         </div>
-        <div className="palMeetingCopy">
-          <Kicker className="palEyebrow">Meet your companion</Kicker>
-          <h1 id="pal-meeting-title">A little signal that becomes yours.</h1>
-          <p>Choose its form, voice and boundaries. It can help plan the night. You choose what it may do.</p>
-          <div className="palMeetingActions">
-            {/* The route's one primary action (docs/design/LAUNCH_SCREENS.md).
-                The actions row also holds the quiet way out, so the mark rides
-                the control itself. */}
-            <Button className="palPrimary" size="large" type="button" data-primary-action="" onClick={onMeet}>Meet your Pub Pal<ArrowRight size={18} /></Button>
-            <Link href="/map">Use PUBMAXX without a Pal</Link>
-          </div>
-        </div>
-      </section>
+      </Screen>
     </main>
   );
 }

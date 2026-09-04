@@ -25,14 +25,11 @@
      feed jump. `svh` is the SMALL (stable) viewport, so the shell never resizes
      as the toolbar animates. The stable small viewport is intentional here. */
   min-height: 100svh;
-  background:
-    linear-gradient(105deg, transparent 0 16%, color-mix(in srgb, var(--river) 7%, transparent) 16% 17%, transparent 17% 100%),
-    linear-gradient(150deg, transparent 0 72%, color-mix(in srgb, var(--amber) 8%, transparent) 72% 73%, transparent 73% 100%),
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--paper) 86%, var(--panel-raised) 14%) 0,
-      var(--paper) 430px
-    );
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--paper) 86%, var(--panel-raised) 14%) 0,
+    var(--paper) 430px
+  );
   color: var(--ink);
   padding: 22px var(--page-gutter) 82px;
   display: flex;
@@ -48,6 +45,22 @@
 }
 
 /* ── Header ───────────────────────────────────────────────────────────── */
+/* The launch head is the shared Screen primitive (components/ui/screen.css).
+   The shell already pays the page gutters, so the head drops its own and
+   takes the stream's column; the desktop grid below widens it to match. */
+.feedScreen {
+  width: 100%;
+  max-width: var(--feed-max);
+  padding-inline: 0;
+}
+
+.feedScreen .screenHead {
+  padding-block: var(--space-2) var(--space-3);
+}
+
+/* .feedHeader / .feedTitle below are retired from the /feed head (the Screen
+   owns it) but are still used by the We're-out surface, which imports this
+   stylesheet, so the rules stay. */
 .feedHeader {
   width: 100%;
   max-width: var(--feed-max);
@@ -93,12 +106,28 @@
 
 .feedComposeActions {
   display: flex;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 12px;
+  flex-wrap: wrap;
+  gap: 4px 20px;
 }
 
-.feedMomentCta,
+/* The two quiet ways to create. The Screen head owns the one filled control
+   on this page, so these read as links, never as a second button. */
+.feedMomentCta {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.feedMomentCta:hover {
+  color: var(--color-accent);
+}
+
+/* The We're-out surface's Pint Drop door, which imports this stylesheet. */
 .feedDropCta {
   display: inline-flex;
   min-height: 44px;
@@ -114,13 +143,6 @@
   text-decoration: none;
 }
 
-.feedMomentCta {
-  border-color: color-mix(in srgb, var(--brass) 45%, var(--line));
-  background: var(--brass);
-  color: #fff;
-}
-
-.feedMomentCta:hover,
 .feedDropCta:hover {
   transform: translateY(-1px);
 }
@@ -620,10 +642,7 @@
   gap: 6px;
   aspect-ratio: 1.9;
   padding: 20px 20px;
-  background:
-    linear-gradient(112deg, transparent 0 18%, color-mix(in srgb, var(--river) 9%, transparent) 18% 19%, transparent 19%),
-    linear-gradient(154deg, transparent 0 74%, color-mix(in srgb, var(--amber) 10%, transparent) 74% 75%, transparent 75%),
-    linear-gradient(160deg, var(--feed-coral-wash) 0%, var(--feed-glass-solid) 68%);
+  background: linear-gradient(160deg, var(--feed-coral-wash) 0%, var(--feed-glass-solid) 68%);
   text-align: center;
 }
 
@@ -1265,43 +1284,13 @@
 }
 
 /* ── Empty state ──────────────────────────────────────────────────────── */
-/* The visual pattern (dashed panel, eyebrow, serif title, muted body, one
-   action) now lives in the shared components/EmptyState.tsx + emptyState.css;
-   this class only widens it slightly for the feed's column layout. */
+/* The pattern (title, one line, one quiet action, no card) is the shared
+   components/ui/empty-state.tsx; this class only sizes it to the stream's
+   column. The Screen head keeps the one filled control, so the empty state's
+   way onward stays quiet by construction. */
 .feedEmpty {
-  max-width: 500px;
-}
-
-/* Empty-feed CTA contract: one primary (44px) + at most one quiet secondary
-   link. Header compose is hidden on empty/error, so this pair is the whole
-   next-step surface, never a four-button stack. */
-.feedEmptyActions {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.feedEmpty .emptyStateAction a.feedEmptyPrimary {
-  min-height: 44px;
-}
-
-.feedEmpty .emptyStateAction a.feedEmptySecondary {
-  min-height: 44px;
-  padding: 0 12px;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  color: var(--ink-soft);
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  filter: none;
-}
-
-.feedEmpty .emptyStateAction a.feedEmptySecondary:hover {
-  filter: none;
-  color: var(--ink);
+  width: 100%;
+  max-width: var(--feed-max);
 }
 
 /* ── Skeleton ─────────────────────────────────────────────────────────── */
@@ -1359,7 +1348,6 @@
      the same reasoning — the tab bar's raised centre button IS "Capture a
      Moment" on phones, so the header copy of it is pure duplication. Only
      "We're out" (no tab of its own) keeps a header seat. */
-  .feedDropCta,
   .feedMomentCta[href="/moment"] {
     display: none;
   }
@@ -1393,7 +1381,6 @@
   }
 
   .feedComposeActions {
-    margin-top: 0;
     flex: 0 0 auto;
   }
 
@@ -2051,20 +2038,11 @@ html:not([data-theme="dark"]) .feedSpillCat svg {
   }
 
   .feedMain > .feedEmpty {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    min-height: 420px;
     max-width: none;
-    margin: 0;
-    padding: 56px 64px;
-    text-align: left;
   }
 
-  .feedMain > .feedEmpty .emptyStateBody {
+  .feedMain > .feedEmpty .emptyStateLine {
     max-width: 52ch;
-    margin-inline: 0;
   }
 }
 

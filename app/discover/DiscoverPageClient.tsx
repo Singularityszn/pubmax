@@ -23,6 +23,7 @@ import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import GardenTonightCard from "@/components/discovery/GardenTonightCard";
 import ThenVsNowCard from "@/components/discovery/ThenVsNowCard";
 import SiteNav from "@/components/nav/SiteNav";
+import Screen from "@/components/ui/screen";
 import { CategoryShowcase } from "@/components/drinks/CategoryShowcase";
 import { brandsForCategory } from "@/lib/drinkBrands";
 import {
@@ -438,25 +439,36 @@ export function DiscoverBody({
     >
       {!embedded ? <SiteNav active="discover" /> : null}
 
-      {!embedded ? <header className="discoverHead">
-        <p className="discoverEyebrow">Pint stories</p>
-        <h1 className="discoverTitle">Pint prices, pub stories and routes worth walking.</h1>
-        <p className="discoverLede">{discoverDrinkBrowseLede()}</p>
-        {/* Hub rule (docs/MOBILE_FLOW_SPEC.md §1): Tonight, Feed, and Crawls have no tab
-            of their own on mobile, so this page is their hub — every surface
-            reachable in ≤2 taps from a tab. */}
-        <nav className="discoverHubRow" aria-label="More stories">
-          <Link href="/tonight" className="discoverHubLink">
-            What&rsquo;s on tonight →
-          </Link>
-          <Link href="/social" className="discoverHubLink">
-            Social →
-          </Link>
-          <Link href="/crawls" className="discoverHubLink">
-            Crawl stories →
-          </Link>
-        </nav>
-      </header> : null}
+      {/* The route's head is the launch Screen (docs/design/LAUNCH_SCREENS.md):
+          kicker, the h1, one painted action onto the map, and the nearest pint
+          as the quiet way onward. */}
+      {!embedded ? (
+        <Screen
+          as="section"
+          className="discoverHead"
+          kicker="Discover"
+          title="Pint prices, pub stories and routes worth walking."
+          titleId="discover-title"
+          lede={discoverDrinkBrowseLede()}
+          primary={<Link href={openMapHref}>Open the map</Link>}
+          secondary={<Link href="/near">Find my pint</Link>}
+        >
+          {/* Hub rule (docs/MOBILE_FLOW_SPEC.md, section 1): Tonight, Feed and
+              Crawls have no tab of their own on mobile, so this page is their
+              hub: every surface reachable in two taps from a tab. */}
+          <nav className="discoverHubRow" aria-label="More stories">
+            <Link href="/tonight" className="discoverHubLink">
+              What&rsquo;s on tonight
+            </Link>
+            <Link href="/social" className="discoverHubLink">
+              Social
+            </Link>
+            <Link href="/crawls" className="discoverHubLink">
+              Crawl stories
+            </Link>
+          </nav>
+        </Screen>
+      ) : null}
 
       <NightAreaCoverage />
 

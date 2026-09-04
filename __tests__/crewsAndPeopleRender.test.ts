@@ -64,8 +64,12 @@ describe("crews stay behind the Social gate", () => {
     expect(socialPageClient).toMatch(
       /showViewerCards \? \(\s*<CrewsPanel/,
     );
+    // The head's own signed-out branch (the Post link in the Screen) sits
+    // earlier in the file, so the match is tempered to the branch that ends
+    // at the access check rather than spanning from the first signed-out
+    // ternary through everything between.
     const signedOut = socialPageClient.match(
-      /viewerPhase === "signed-out" \? \([\s\S]*?\) : access === "checking"/,
+      /viewerPhase === "signed-out" \? \((?:(?!viewerPhase === "signed-out")[\s\S])*?\) : access === "checking"/,
     )?.[0];
     expect(signedOut, "signed-out boundary present").toBeTruthy();
     expect(signedOut).toContain("SocialAccessBoundary");

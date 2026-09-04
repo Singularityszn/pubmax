@@ -45,7 +45,7 @@ test("mobile historic index and detail stay provenance-honest and map-linked", a
     )
     .toBeLessThanOrEqual(1);
 
-  await page.getByRole("link", { name: /See on map/i }).click();
+  await page.getByRole("link", { name: /Open on the map/i }).click();
   await expect(page).toHaveURL(/\/map\?sel=venue-/);
   await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".mapDrawer.right")).toHaveClass(/open/);

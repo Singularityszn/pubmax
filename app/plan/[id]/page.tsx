@@ -11,6 +11,7 @@ import CompletedPlanUsualLot from "@/components/plan/CompletedPlanUsualLot";
 import LastCrewInvite from "@/components/plan/LastCrewInvite";
 import SiteNav from "@/components/nav/SiteNav";
 import PlanSummary from "@/components/plan/PlanSummary";
+import Screen from "@/components/ui/screen";
 import PlanVibe from "@/components/plan/PlanVibe";
 import type { PlanState } from "@/lib/plan";
 import { buildPlanPrivacyPreview, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
@@ -21,6 +22,7 @@ import { shareVibeSlug, VIBE_SLUGS } from "@/lib/vibeChips";
 import type { VibeTally } from "@/lib/vibeTally";
 
 import "../plan.css";
+import "./planDetail.css";
 
 /** A safe, non-leaking headline for anonymous surfaces — never the user title. */
 function safePlanTitle(preview: PlanPrivacyPreviewDTO): string {
@@ -135,26 +137,38 @@ export default async function PlanPage({ params }: Props) {
           screen; it must route onward, not dead-end on a wordmark. SiteNav
           carries the brand, so the masthead keeps just the plan actions. */}
       <SiteNav />
-      <header className="planPage__masthead">
-        <span>Your plan</span>
-        <Link href="/plan">Make another plan</Link>
-      </header>
-      <section className="planPage__hero">
-        <p className="planPage__eyebrow">{completed ? "That was the night" : "Your night is sorted"}</p>
-        <h1>{safeTitle}</h1>
-        {completed ? (
-          <p>
-            {preview.stopCount} {preview.stopCount === 1 ? "pub" : "pubs"}
-            {endingLabel ? `, and you ${endingLabel}` : ""}. Your private recap lives in{" "}
-            <Link href="/u/you#night-memories">your Memories</Link>. Nothing is shared until you approve it.
-          </p>
-        ) : (
-          <p>
-            {preview.stopCount} {preview.stopCount === 1 ? "pub" : "pubs"}, one link, zero account walls.{" "}
-            <a href="#share">Next: send this to the group</a>.
-          </p>
-        )}
-      </section>
+      {/* The launch head (docs/design/LAUNCH_SCREENS.md): kicker, the plan's
+          own safe name, one lede and ONE primary. Sending the invite is the
+          primary while the night is ahead; the morning after, the recap is. */}
+      <Screen
+        as="section"
+        className="planDetailScreen"
+        kicker={completed ? "That was the night" : "Your plan"}
+        title={safeTitle}
+        titleId="plan-title"
+        lede={
+          completed ? (
+            <>
+              {preview.stopCount} {preview.stopCount === 1 ? "pub" : "pubs"}
+              {endingLabel ? `, and you ${endingLabel}` : ""}. Your private recap
+              is in your Memories. Nothing is shared until you approve it.
+            </>
+          ) : (
+            <>
+              {preview.stopCount} {preview.stopCount === 1 ? "pub" : "pubs"}, one
+              link, zero account walls.
+            </>
+          )
+        }
+        primary={
+          completed ? (
+            <Link href="/u/you#night-memories">Open your Memories</Link>
+          ) : (
+            <a href="#share">Send to the crew</a>
+          )
+        }
+        secondary={<Link href="/plan">Make another plan</Link>}
+      />
       {/* Night-crawl mode (U7): while this plan's night is on, it becomes the
           default full-screen surface on mobile and offers an inline entry
           otherwise. Client-only gating, no new route. */}

@@ -6,48 +6,15 @@
    Mobile-first (390px), 44px tap targets, both themes, reduced-motion safe.
    Bottom padding clears the mobile tab bar + safe-area (cf. tonight.css). */
 
+/* The head (kicker, heading, the one primary action) is the Screen primitive
+   (components/ui/screen.tsx), which owns the page gutter, so the page itself
+   carries none: an inline padding here would double it. The failed and the
+   empty states are the shared EmptyState (components/ui/empty-state.tsx). */
 .historicPage {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 16px 16px calc(96px + env(safe-area-inset-bottom, 0px));
+  padding: 16px 0 calc(96px + env(safe-area-inset-bottom, 0px));
   color: var(--ink);
-}
-
-.historicHead {
-  margin: 8px 0 18px;
-}
-
-.historicEyebrow {
-  margin: 0 0 6px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--ink-soft);
-}
-
-.historicTitle {
-  margin: 0 0 8px;
-  font-family: var(--font-display, var(--serif));
-  font-size: clamp(1.6rem, 5vw, 2.4rem);
-  font-weight: 800;
-  line-height: 1.1;
-  color: var(--ink);
-}
-
-.historicLede {
-  margin: 0;
-  max-width: 58ch;
-  font-size: 0.95rem;
-  line-height: 1.5;
-  color: var(--ink-soft);
-  text-wrap: pretty;
-}
-
-.historicStatus {
-  margin: 24px 0;
-  font-size: 0.9rem;
-  line-height: 1.45;
-  color: var(--ink-soft);
 }
 
 /* Filter + sort controls */
@@ -153,46 +120,6 @@
   margin: 0 0 16px;
   font-size: 0.78rem;
   color: var(--muted);
-}
-
-/* Empty / thin state */
-.historicEmpty {
-  margin: 8px 0;
-  padding: 20px;
-  border: 1px solid color-mix(in srgb, var(--river) 26%, var(--line));
-  border-radius: var(--radius-lg, 18px);
-  background: var(--panel-raised);
-  box-shadow: var(--shadow-sm);
-}
-
-.historicEmptyTitle {
-  margin: 0 0 6px;
-  font-size: 0.98rem;
-  font-weight: 700;
-  color: var(--ink);
-}
-
-.historicEmptyBody {
-  margin: 0;
-  font-size: 0.86rem;
-  line-height: 1.5;
-  color: var(--ink-soft);
-}
-
-.historicInlineReset {
-  border: 0;
-  background: none;
-  padding: 0;
-  font: inherit;
-  font-weight: 700;
-  color: var(--brass);
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-.historicInlineReset:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
 }
 
 .historicPagination {
