@@ -56,9 +56,10 @@ export interface FreshnessRegistry {
  *  - live      — served per request; there is no disk artifact to age.
  *  - fresh     — within its staleness budget and recent enough to speak for now.
  *  - snapshot  — inside its budget, but old enough that it describes the day it
- *    was collected rather than today. Not a breach and not an alarm: an episodic
- *    feed ageing is what an episodic feed does. It exists so nothing calls a
- *    hand-collected bundle "fresh" months after its collection day.
+ *    was collected rather than today. Not a breach and not an alarm: a
+ *    point-in-time feed ageing is what a point-in-time feed does. It exists so
+ *    nothing calls a hand-collected bundle, or one that grows only as drinkers
+ *    arrive, "fresh" months after the last observation in it.
  *  - stale     — a budget breach (owner-visible; never a build break).
  *  - untracked — intentionally not budgeted (static / episodic / user-cadence).
  *  - unknown   — expected a stamp but couldn't resolve one (missing/broken file).
@@ -72,7 +73,7 @@ export type FreshnessStatus =
   | "unknown";
 
 /**
- * How old an EPISODIC dataset may be before the spine names it a snapshot
+ * How old a POINT-IN-TIME dataset may be before the spine names it a snapshot
  * instead of calling it fresh. A pub's prices move on roughly a month, so past
  * 30 days a hand-collected bundle is a record of its collection day, not a
  * reading of tonight.
@@ -95,13 +96,24 @@ export const SNAPSHOT_AFTER_DAYS = 30;
 export const SNAPSHOT_AFTER_HOURS = SNAPSHOT_AFTER_DAYS * 24;
 
 /**
- * Whether this class of feed is collected episodically, so an ageing artifact
- * is ordinary rather than a defect and is named a snapshot past the threshold.
- * A cron or live feed is not: those are meant to be refreshed for us, so an old
- * one is a budget question and never a change of vocabulary.
+ * Whether this class of feed is a POINT-IN-TIME COLLECTION rather than a live
+ * feed, so an ageing artifact is ordinary rather than a defect and is named a
+ * snapshot past the threshold.
+ *
+ * Two classes qualify and for one reason. An `episodic` feed is collected by
+ * hand on a day somebody chose. A `user-cadence` feed grows only as drinkers
+ * arrive, so a quiet stretch leaves it dated exactly the same way, and the
+ * artifact still describes the last night anybody logged rather than tonight:
+ * `pint_index_snapshot` sat 1,211 hours old inside its 2,160h budget and read
+ * "fresh". A cron or live feed is neither, because those are meant to be
+ * refreshed FOR us, so an old one is a budget question and never a change of
+ * vocabulary.
+ *
+ * This renames only what would otherwise have read "fresh". No budget moves and
+ * `hasBreach` stays false for a snapshot, so the release gate is untouched.
  */
 export function classNamesSnapshots(datasetClass: FreshnessClass): boolean {
-  return datasetClass === "episodic";
+  return datasetClass === "episodic" || datasetClass === "user-cadence";
 }
 
 export interface FreshnessResult {
@@ -394,9 +406,10 @@ export function evaluateDataset(
     };
   }
 
-  // Inside the budget, so this is a naming question, not an alarm: an episodic
-  // feed past the snapshot threshold is named for the day it was collected
-  // rather than reported as a current reading. The budget is untouched.
+  // Inside the budget, so this is a naming question, not an alarm: a
+  // point-in-time feed past the snapshot threshold is named for the day it was
+  // collected rather than reported as a current reading. The budget is
+  // untouched.
   if (classNamesSnapshots(dataset.class) && ageHours > SNAPSHOT_AFTER_HOURS) {
     return {
       ...base,
@@ -450,7 +463,7 @@ export function unresolvedFeeds(results: readonly FreshnessResult[]): FreshnessR
 /**
  * True when any result is a hard breach (stale) or a broken artifact (unknown).
  * A `snapshot` is neither: it is a feed inside its budget, named honestly. It
- * must never turn the release gate red, or an episodic feed would alarm for
+ * must never turn the release gate red, or a point-in-time feed would alarm for
  * ageing exactly as designed.
  */
 export function hasBreach(results: readonly FreshnessResult[]): boolean {

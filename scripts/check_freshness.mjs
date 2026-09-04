@@ -22,11 +22,19 @@ import { dirname, join } from "node:path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = join(__dirname, "..");
 
-// Mirror of lib/freshness.ts SNAPSHOT_AFTER_DAYS: past this an EPISODIC feed is
-// named for the day it was collected instead of being called fresh. It renames
-// only what would otherwise read "fresh", so no budget and no gate moves.
+// Mirror of lib/freshness.ts SNAPSHOT_AFTER_DAYS: past this a POINT-IN-TIME
+// feed is named for the day it was collected instead of being called fresh. It
+// renames only what would otherwise read "fresh", so no budget and no gate
+// moves.
 const SNAPSHOT_AFTER_DAYS = 30;
 const SNAPSHOT_AFTER_HOURS = SNAPSHOT_AFTER_DAYS * 24;
+
+// Mirror of lib/freshness.ts classNamesSnapshots: an `episodic` feed is
+// collected by hand on a chosen day and a `user-cadence` feed grows only as
+// drinkers arrive, so both describe the last observation in them rather than
+// tonight. A cron or live feed is refreshed FOR us, so an old one is a budget
+// question and never a change of vocabulary.
+const SNAPSHOT_NAMED_CLASSES = new Set(["episodic", "user-cadence"]);
 
 function isParseableDate(value) {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
@@ -191,10 +199,10 @@ function evaluateDataset(dataset, observedAt, now, unresolvedReason = null) {
       detail: `Aged ${ageHours}h, over the ${base.stalenessBudgetHours}h budget.`,
     };
   }
-  // Mirror of lib/freshness.ts: inside the budget, an episodic feed past the
-  // snapshot threshold is NAMED for its collection day rather than reported as
-  // a current reading. Never a breach, so the gate below is untouched.
-  if (base.class === "episodic" && ageHours > SNAPSHOT_AFTER_HOURS) {
+  // Mirror of lib/freshness.ts: inside the budget, a point-in-time feed past
+  // the snapshot threshold is NAMED for its collection day rather than reported
+  // as a current reading. Never a breach, so the gate below is untouched.
+  if (SNAPSHOT_NAMED_CLASSES.has(base.class) && ageHours > SNAPSHOT_AFTER_HOURS) {
     return {
       ...base,
       ageHours,
