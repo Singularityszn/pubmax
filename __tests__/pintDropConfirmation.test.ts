@@ -80,6 +80,51 @@ describe("second independent reporter", () => {
     ).toBeNull();
   });
 
+  it("does not confirm two anonymous reports from one account", () => {
+    // #1436: an anonymous drop now carries the account's own authority key, so
+    // the anonymous lane buys a drinker no second voice. One account is one
+    // key, whichever lane each drop was posted in.
+    expect(
+      findSecondReporterConfirmation(
+        candidates(
+          drop({
+            id: "a",
+            visibility: "anonymous",
+            authorityKey: "key-one",
+            priceGbp: 4.2,
+          }),
+          drop({
+            id: "b",
+            visibility: "anonymous",
+            authorityKey: "key-one",
+            priceGbp: 4.2,
+            createdAt: new Date(NOW - 2 * DAY_MS).toISOString(),
+          }),
+        ),
+        NOW,
+      ),
+    ).toBeNull();
+  });
+
+  it("confirms an anonymous report against another account's public one", () => {
+    const pair = findSecondReporterConfirmation(
+      candidates(
+        drop({
+          id: "a",
+          visibility: "anonymous",
+          authorityKey: "key-one",
+          priceGbp: 4.2,
+        }),
+        drop({ id: "b", authorityKey: "key-two", priceGbp: 4.2 }),
+      ),
+      NOW,
+    );
+    expect(pair).not.toBeNull();
+    expect(new Set([pair?.dropId, pair?.confirmingDropId])).toEqual(
+      new Set(["a", "b"]),
+    );
+  });
+
   it("does not confirm two unattributed reports", () => {
     // No authority key is no voice at all in this lane (migration 0117), which
     // is stricter than ADR 0010's single shared anonymous bucket and stays on
