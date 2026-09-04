@@ -49,8 +49,13 @@ describe("UK place map arrival", () => {
     expect(
       parseUkPlaceMapArrival("?place=Didsbury&lat=53.4181794&lng=-2.23144"),
     ).toBeNull();
+    // Headingley is inside Leeds, which is curated now, so the near-miss case
+    // is a place that no curated city box holds.
     expect(
       parseUkPlaceMapArrival("?place=Headingley&lat=53.8209584&lng=-1.5788089"),
+    ).toBeNull();
+    expect(
+      parseUkPlaceMapArrival("?place=Sheffield&lat=53.3800941&lng=-1.4789213"),
     ).not.toBeNull();
   });
 

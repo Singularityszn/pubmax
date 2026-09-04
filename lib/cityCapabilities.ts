@@ -96,7 +96,7 @@ function editorialCoreCity(
  * editorialCoreCity so the two answers cannot drift into one vague middle.
  */
 function mapOnlyCity(
-  cityId: Extract<CityId, "bath" | "llandudno">,
+  cityId: Extract<CityId, "bath" | "birmingham" | "leeds" | "llandudno">,
   releaseTier: Extract<CityReleaseTier, "core" | "preview">,
 ): CityCapabilityProfile {
   return {
@@ -135,6 +135,8 @@ export const CITY_CAPABILITY_PROFILES = {
     heritage: HERITAGE_AVAILABLE,
   },
   manchester: editorialCoreCity("manchester", TRANSPORT_LIMITED),
+  birmingham: mapOnlyCity("birmingham", "core"),
+  leeds: mapOnlyCity("leeds", "core"),
   liverpool: editorialCoreCity("liverpool", TRANSPORT_LIMITED),
   oxford: editorialCoreCity("oxford"),
   durham: editorialCoreCity("durham"),

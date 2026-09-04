@@ -54,7 +54,7 @@ describe("Night Area catalogue", () => {
     expect(publicNightAreaCoverage(invalidReadyArea).routeReady).toBe(false);
   });
 
-  it("rejects duplicate aliases, missing anchors, and invalid coordinates", () => {
+  it("rejects duplicate aliases, blank anchors, and invalid coordinates", () => {
     expect(() => validateNightAreaCatalogue([
       {
         slug: "one", cityId: "london", name: "One", aliases: ["Shared"],
@@ -62,9 +62,21 @@ describe("Night Area catalogue", () => {
       },
       {
         slug: "one", cityId: "london", name: "Two", aliases: ["shared"],
-        centre: { lat: 91, lng: -0.2 }, radiusKm: 1, transportAnchors: [],
+        centre: { lat: 91, lng: -0.2 }, radiusKm: 1, transportAnchors: ["  "],
       },
     ])).toThrow(/slug|alias|anchor|coordinate/i);
+  });
+
+  it("admits an area that names NO transport anchor", () => {
+    // A derived area reads no station out of the base layer, and naming one it
+    // has not read would be the invention the whole lane refuses. It carries
+    // `transport_anchor` in its own missingEvidence instead.
+    expect(() => validateNightAreaCatalogue([
+      {
+        slug: "nowhere-yet", cityId: "manchester", name: "Nowhere yet", aliases: [],
+        centre: { lat: 53.48, lng: -2.24 }, radiusKm: 1, transportAnchors: [],
+      },
+    ])).not.toThrow();
   });
 
   it("answers null rather than throwing for a stale or unknown area slug", () => {

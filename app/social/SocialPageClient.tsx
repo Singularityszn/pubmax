@@ -27,7 +27,8 @@ import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
 import { discardBody } from "@/lib/responseBody";
-import { getNightArea, NIGHT_AREAS } from "@/lib/nightAreas";
+import { getCity } from "@/lib/cities";
+import { getNightArea, nightAreasByCity } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import { relativeTime } from "@/lib/relativeTime";
 import type { SocialAccessState } from "@/lib/socialAccess";
@@ -332,10 +333,14 @@ function PostsControls({
             }}
           >
             <option value="">Choose area</option>
-            {NIGHT_AREAS.map((area) => (
-              <option key={area.slug} value={area.slug}>
-                {area.name}
-              </option>
+            {nightAreasByCity().map((group) => (
+              <optgroup key={group.cityId} label={getCity(group.cityId).displayName}>
+                {group.areas.map((area) => (
+                  <option key={area.slug} value={area.slug}>
+                    {area.name}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </label>

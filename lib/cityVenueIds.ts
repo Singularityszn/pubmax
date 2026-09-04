@@ -2,6 +2,8 @@ import type { CityId } from "@/lib/cities";
 
 export const CITY_VENUE_ID_PREFIX: Partial<Record<CityId, string>> = {
   manchester: "mcr",
+  birmingham: "bhm",
+  leeds: "lds",
   liverpool: "liv",
   oxford: "oxf",
   durham: "dur",

@@ -1,0 +1,48 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`derived city Night Areas > birmingham > pins the area list the base layer supports 1`] = `
+[
+  "birmingham-city-centre Birmingham city centre 1.6 88",
+  "birmingham-vauxhall Vauxhall 1.7 27",
+  "birmingham-moseley Moseley 1.8 25",
+  "birmingham-hockley-port Hockley Port 1.4 17",
+  "birmingham-harborne Harborne 1.6 16",
+  "birmingham-aston Aston 1.4 15",
+]
+`;
+
+exports[`derived city Night Areas > bristol > pins the area list the base layer supports 1`] = `
+[
+  "bristol-city-centre Bristol city centre 1.5 79",
+  "bristol-montpelier Montpelier 1.6 38",
+  "bristol-hotwells Hotwells 1.8 32",
+  "bristol-bedminster Bedminster 1.8 24",
+  "bristol-barton-hill Barton Hill 1.5 22",
+  "bristol-westbury-park Westbury Park 1.8 17",
+  "bristol-eastville Eastville 1.5 11",
+  "bristol-totterdown Totterdown 1.4 11",
+]
+`;
+
+exports[`derived city Night Areas > leeds > pins the area list the base layer supports 1`] = `
+[
+  "leeds-city-centre Leeds city centre 1.2 77",
+  "leeds-hyde-park Hyde Park 1.7 24",
+  "leeds-armley Armley 1.6 23",
+  "leeds-bruntcliffe Bruntcliffe 1.5 21",
+  "leeds-hunslet Hunslet 1.4 19",
+  "leeds-holbeck Holbeck 1.5 15",
+  "leeds-burmantofts Burmantofts 1.2 14",
+]
+`;
+
+exports[`derived city Night Areas > manchester > pins the area list the base layer supports 1`] = `
+[
+  "manchester-city-centre Manchester city centre 1.8 110",
+  "manchester-shaw-heath Shaw Heath 1.8 27",
+  "manchester-werneth Werneth 1.8 27",
+  "manchester-portwood Portwood 1.7 25",
+  "manchester-chorlton-on-medlock Chorlton-on-Medlock 1.6 18",
+  "manchester-heaton-norris Heaton Norris 1.8 11",
+]
+`;

@@ -12,16 +12,18 @@
 // (validateWeatherObservation) before it leaves this module, so a malformed or
 // out-of-range provider payload is DROPPED, never persisted as fake data.
 
-import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
+import { LONDON_NIGHT_AREA_SLUGS, type LondonNightAreaSlug } from "@/lib/nightAreas";
 import {
   validateWeatherObservation,
   type NightAreaWeatherObservation,
 } from "@/lib/weatherSnapshots";
 
-// [lat, lng] centroids per night area — the established set the scheduled
+// [lat, lng] centroids per LONDON night area — the established set the scheduled
 // refresh has always polled (kept in lockstep with
-// scripts/refresh_weather_snapshots.mjs).
-export const NIGHT_AREA_COORDS: Record<NightAreaSlug, readonly [number, number]> = {
+// scripts/refresh_weather_snapshots.mjs). The snapshot this feeds is London's,
+// so the table is keyed on London's own patches: an area in another city has no
+// row here and reads as no weather rather than as somebody else's.
+export const NIGHT_AREA_COORDS: Record<LondonNightAreaSlug, readonly [number, number]> = {
   clapham: [51.462, -0.138],
   victoria: [51.496, -0.143],
   "piccadilly-soho": [51.511, -0.134],
@@ -83,7 +85,7 @@ function openMeteoUrl(lat: number, lng: number): string {
 }
 
 async function observationFor(
-  nightArea: NightAreaSlug,
+  nightArea: LondonNightAreaSlug,
   doFetch: WeatherFetch,
 ): Promise<NightAreaWeatherObservation | null> {
   const url = openMeteoUrl(...NIGHT_AREA_COORDS[nightArea]);
@@ -121,7 +123,7 @@ async function observationFor(
 export type FetchObservationsResult = {
   observations: NightAreaWeatherObservation[];
   /** Areas whose provider call failed or whose payload was dropped. */
-  skipped: NightAreaSlug[];
+  skipped: LondonNightAreaSlug[];
 };
 
 /**
@@ -134,12 +136,12 @@ export async function fetchNightAreaObservations(
   doFetch: WeatherFetch = defaultFetch,
 ): Promise<FetchObservationsResult> {
   const settled = await Promise.allSettled(
-    NIGHT_AREA_SLUGS.map((slug) => observationFor(slug, doFetch)),
+    LONDON_NIGHT_AREA_SLUGS.map((slug) => observationFor(slug, doFetch)),
   );
   const observations: NightAreaWeatherObservation[] = [];
-  const skipped: NightAreaSlug[] = [];
+  const skipped: LondonNightAreaSlug[] = [];
   settled.forEach((outcome, index) => {
-    const slug = NIGHT_AREA_SLUGS[index];
+    const slug = LONDON_NIGHT_AREA_SLUGS[index];
     if (outcome.status === "fulfilled" && outcome.value) {
       observations.push(outcome.value);
     } else {

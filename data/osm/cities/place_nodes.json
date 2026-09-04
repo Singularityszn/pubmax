@@ -1,0 +1,3133 @@
+{
+  "source": "OpenStreetMap Overpass",
+  "license": "ODbL 1.0",
+  "attribution": "© OpenStreetMap contributors, data licensed under the Open Database Licence (ODbL) 1.0, https://www.openstreetmap.org/copyright",
+  "basis": "OSM nodes tagged place=suburb|neighbourhood|quarter|city inside each city's own box (lib/cityBounds.mjs)",
+  "generator": "scripts/fetch_city_place_nodes.mjs",
+  "observedAt": "2026-09-04T20:26:20Z",
+  "cities": [
+    "manchester",
+    "birmingham",
+    "leeds",
+    "bristol"
+  ],
+  "droppedElements": 6,
+  "count": 445,
+  "places": [
+    {
+      "cityId": "manchester",
+      "name": "Abbey Hey",
+      "kind": "neighbourhood",
+      "lat": 53.468342,
+      "lng": -2.159118
+    },
+    {
+      "cityId": "manchester",
+      "name": "Adswood",
+      "kind": "suburb",
+      "lat": 53.391978,
+      "lng": -2.170031
+    },
+    {
+      "cityId": "manchester",
+      "name": "Alkrington",
+      "kind": "suburb",
+      "lat": 53.537365,
+      "lng": -2.193588
+    },
+    {
+      "cityId": "manchester",
+      "name": "Ancoats",
+      "kind": "suburb",
+      "lat": 53.484998,
+      "lng": -2.227603
+    },
+    {
+      "cityId": "manchester",
+      "name": "Ardwick",
+      "kind": "suburb",
+      "lat": 53.467675,
+      "lng": -2.21601
+    },
+    {
+      "cityId": "manchester",
+      "name": "Ashton upon Mersey",
+      "kind": "suburb",
+      "lat": 53.429835,
+      "lng": -2.343177
+    },
+    {
+      "cityId": "manchester",
+      "name": "Baguley",
+      "kind": "suburb",
+      "lat": 53.406263,
+      "lng": -2.304887
+    },
+    {
+      "cityId": "manchester",
+      "name": "Belle Vue",
+      "kind": "suburb",
+      "lat": 53.461881,
+      "lng": -2.191689
+    },
+    {
+      "cityId": "manchester",
+      "name": "Benchill",
+      "kind": "suburb",
+      "lat": 53.389687,
+      "lng": -2.264391
+    },
+    {
+      "cityId": "manchester",
+      "name": "Besses o' th' Barn",
+      "kind": "suburb",
+      "lat": 53.545018,
+      "lng": -2.284349
+    },
+    {
+      "cityId": "manchester",
+      "name": "Beswick",
+      "kind": "suburb",
+      "lat": 53.477277,
+      "lng": -2.205214
+    },
+    {
+      "cityId": "manchester",
+      "name": "Blackfriars",
+      "kind": "quarter",
+      "lat": 53.487856,
+      "lng": -2.260334
+    },
+    {
+      "cityId": "manchester",
+      "name": "Blackley",
+      "kind": "suburb",
+      "lat": 53.524214,
+      "lng": -2.228127
+    },
+    {
+      "cityId": "manchester",
+      "name": "Boothroyden",
+      "kind": "suburb",
+      "lat": 53.539507,
+      "lng": -2.225619
+    },
+    {
+      "cityId": "manchester",
+      "name": "Bradford",
+      "kind": "suburb",
+      "lat": 53.483755,
+      "lng": -2.205455
+    },
+    {
+      "cityId": "manchester",
+      "name": "Bredbury",
+      "kind": "suburb",
+      "lat": 53.420519,
+      "lng": -2.115302
+    },
+    {
+      "cityId": "manchester",
+      "name": "Bridgehall",
+      "kind": "neighbourhood",
+      "lat": 53.393515,
+      "lng": -2.173926
+    },
+    {
+      "cityId": "manchester",
+      "name": "Brinnington",
+      "kind": "suburb",
+      "lat": 53.429407,
+      "lng": -2.136366
+    },
+    {
+      "cityId": "manchester",
+      "name": "Brooklands",
+      "kind": "suburb",
+      "lat": 53.413908,
+      "lng": -2.32137
+    },
+    {
+      "cityId": "manchester",
+      "name": "Broughton Park",
+      "kind": "suburb",
+      "lat": 53.514313,
+      "lng": -2.259305
+    },
+    {
+      "cityId": "manchester",
+      "name": "Brunswick",
+      "kind": "quarter",
+      "lat": 53.469848,
+      "lng": -2.227289
+    },
+    {
+      "cityId": "manchester",
+      "name": "Burnage",
+      "kind": "suburb",
+      "lat": 53.429584,
+      "lng": -2.205891
+    },
+    {
+      "cityId": "manchester",
+      "name": "Burnage Garden Village",
+      "kind": "neighbourhood",
+      "lat": 53.435096,
+      "lng": -2.202378
+    },
+    {
+      "cityId": "manchester",
+      "name": "Busk",
+      "kind": "suburb",
+      "lat": 53.548996,
+      "lng": -2.13329
+    },
+    {
+      "cityId": "manchester",
+      "name": "Butler Green",
+      "kind": "suburb",
+      "lat": 53.53177,
+      "lng": -2.143983
+    },
+    {
+      "cityId": "manchester",
+      "name": "Cale Green",
+      "kind": "suburb",
+      "lat": 53.395981,
+      "lng": -2.157124
+    },
+    {
+      "cityId": "manchester",
+      "name": "Castle Hill",
+      "kind": "neighbourhood",
+      "lat": 53.435619,
+      "lng": -2.116762
+    },
+    {
+      "cityId": "manchester",
+      "name": "Castlefield",
+      "kind": "neighbourhood",
+      "lat": 53.475822,
+      "lng": -2.2557
+    },
+    {
+      "cityId": "manchester",
+      "name": "Central Retail District",
+      "kind": "neighbourhood",
+      "lat": 53.482465,
+      "lng": -2.245143
+    },
+    {
+      "cityId": "manchester",
+      "name": "Charlestown",
+      "kind": "suburb",
+      "lat": 53.526582,
+      "lng": -2.195393
+    },
+    {
+      "cityId": "manchester",
+      "name": "Cheadle Heath",
+      "kind": "suburb",
+      "lat": 53.400734,
+      "lng": -2.193773
+    },
+    {
+      "cityId": "manchester",
+      "name": "Cheetham Hill",
+      "kind": "suburb",
+      "lat": 53.503287,
+      "lng": -2.234476
+    },
+    {
+      "cityId": "manchester",
+      "name": "Chinatown",
+      "kind": "neighbourhood",
+      "lat": 53.47845,
+      "lng": -2.240255
+    },
+    {
+      "cityId": "manchester",
+      "name": "Chorlton-cum-Hardy",
+      "kind": "suburb",
+      "lat": 53.442508,
+      "lng": -2.277211
+    },
+    {
+      "cityId": "manchester",
+      "name": "Chorlton-on-Medlock",
+      "kind": "suburb",
+      "lat": 53.465428,
+      "lng": -2.227277
+    },
+    {
+      "cityId": "manchester",
+      "name": "Chorltonville",
+      "kind": "neighbourhood",
+      "lat": 53.43428,
+      "lng": -2.27935
+    },
+    {
+      "cityId": "manchester",
+      "name": "Circle Square",
+      "kind": "neighbourhood",
+      "lat": 53.472941,
+      "lng": -2.237868
+    },
+    {
+      "cityId": "manchester",
+      "name": "Circular Road Estate",
+      "kind": "neighbourhood",
+      "lat": 53.447334,
+      "lng": -2.114502
+    },
+    {
+      "cityId": "manchester",
+      "name": "City Centre",
+      "kind": "suburb",
+      "lat": 53.481522,
+      "lng": -2.241775
+    },
+    {
+      "cityId": "manchester",
+      "name": "Civic Quarter",
+      "kind": "neighbourhood",
+      "lat": 53.479246,
+      "lng": -2.245135
+    },
+    {
+      "cityId": "manchester",
+      "name": "Clayton",
+      "kind": "suburb",
+      "lat": 53.483312,
+      "lng": -2.174173
+    },
+    {
+      "cityId": "manchester",
+      "name": "Clifton Green",
+      "kind": "suburb",
+      "lat": 53.522847,
+      "lng": -2.32103
+    },
+    {
+      "cityId": "manchester",
+      "name": "Coldhurst",
+      "kind": "suburb",
+      "lat": 53.548608,
+      "lng": -2.118658
+    },
+    {
+      "cityId": "manchester",
+      "name": "Collyhurst",
+      "kind": "suburb",
+      "lat": 53.496005,
+      "lng": -2.219933
+    },
+    {
+      "cityId": "manchester",
+      "name": "Coppice",
+      "kind": "suburb",
+      "lat": 53.531297,
+      "lng": -2.120117
+    },
+    {
+      "cityId": "manchester",
+      "name": "Copster Hill",
+      "kind": "suburb",
+      "lat": 53.524707,
+      "lng": -2.119304
+    },
+    {
+      "cityId": "manchester",
+      "name": "Cowhill",
+      "kind": "quarter",
+      "lat": 53.538622,
+      "lng": -2.140468
+    },
+    {
+      "cityId": "manchester",
+      "name": "Crown Point",
+      "kind": "neighbourhood",
+      "lat": 53.456086,
+      "lng": -2.113755
+    },
+    {
+      "cityId": "manchester",
+      "name": "Crumpsall",
+      "kind": "suburb",
+      "lat": 53.520912,
+      "lng": -2.241695
+    },
+    {
+      "cityId": "manchester",
+      "name": "Curry Mile",
+      "kind": "neighbourhood",
+      "lat": 53.454529,
+      "lng": -2.224793
+    },
+    {
+      "cityId": "manchester",
+      "name": "Dales Brow",
+      "kind": "neighbourhood",
+      "lat": 53.49955,
+      "lng": -2.349494
+    },
+    {
+      "cityId": "manchester",
+      "name": "Davenport",
+      "kind": "suburb",
+      "lat": 53.391396,
+      "lng": -2.152748
+    },
+    {
+      "cityId": "manchester",
+      "name": "Didsbury",
+      "kind": "suburb",
+      "lat": 53.416813,
+      "lng": -2.232138
+    },
+    {
+      "cityId": "manchester",
+      "name": "Edgeley",
+      "kind": "suburb",
+      "lat": 53.402404,
+      "lng": -2.174384
+    },
+    {
+      "cityId": "manchester",
+      "name": "Ellesmere Park",
+      "kind": "suburb",
+      "lat": 53.491884,
+      "lng": -2.342106
+    },
+    {
+      "cityId": "manchester",
+      "name": "Fairfield",
+      "kind": "suburb",
+      "lat": 53.473909,
+      "lng": -2.149582
+    },
+    {
+      "cityId": "manchester",
+      "name": "Fallowfield",
+      "kind": "suburb",
+      "lat": 53.444804,
+      "lng": -2.221465
+    },
+    {
+      "cityId": "manchester",
+      "name": "Fallowfield Triangle",
+      "kind": "neighbourhood",
+      "lat": 53.447403,
+      "lng": -2.238399
+    },
+    {
+      "cityId": "manchester",
+      "name": "First Street",
+      "kind": "neighbourhood",
+      "lat": 53.472365,
+      "lng": -2.246418
+    },
+    {
+      "cityId": "manchester",
+      "name": "Garden Suburb",
+      "kind": "neighbourhood",
+      "lat": 53.521672,
+      "lng": -2.120111
+    },
+    {
+      "cityId": "manchester",
+      "name": "Gay Village",
+      "kind": "neighbourhood",
+      "lat": 53.477163,
+      "lng": -2.237091
+    },
+    {
+      "cityId": "manchester",
+      "name": "Gorse Hill",
+      "kind": "suburb",
+      "lat": 53.456834,
+      "lng": -2.297038
+    },
+    {
+      "cityId": "manchester",
+      "name": "Gorton",
+      "kind": "suburb",
+      "lat": 53.463612,
+      "lng": -2.175036
+    },
+    {
+      "cityId": "manchester",
+      "name": "Great Moor",
+      "kind": "neighbourhood",
+      "lat": 53.39074,
+      "lng": -2.129613
+    },
+    {
+      "cityId": "manchester",
+      "name": "Green Quarter",
+      "kind": "neighbourhood",
+      "lat": 53.490547,
+      "lng": -2.240026
+    },
+    {
+      "cityId": "manchester",
+      "name": "Guide Bridge",
+      "kind": "suburb",
+      "lat": 53.47244,
+      "lng": -2.117774
+    },
+    {
+      "cityId": "manchester",
+      "name": "Harpurhey",
+      "kind": "suburb",
+      "lat": 53.511907,
+      "lng": -2.208449
+    },
+    {
+      "cityId": "manchester",
+      "name": "Hathershaw",
+      "kind": "suburb",
+      "lat": 53.524379,
+      "lng": -2.108557
+    },
+    {
+      "cityId": "manchester",
+      "name": "Heaton Chapel",
+      "kind": "suburb",
+      "lat": 53.428201,
+      "lng": -2.175809
+    },
+    {
+      "cityId": "manchester",
+      "name": "Heaton Mersey",
+      "kind": "suburb",
+      "lat": 53.413642,
+      "lng": -2.199045
+    },
+    {
+      "cityId": "manchester",
+      "name": "Heaton Moor",
+      "kind": "suburb",
+      "lat": 53.422491,
+      "lng": -2.184994
+    },
+    {
+      "cityId": "manchester",
+      "name": "Heaton Norris",
+      "kind": "suburb",
+      "lat": 53.415787,
+      "lng": -2.178888
+    },
+    {
+      "cityId": "manchester",
+      "name": "Heaton Park",
+      "kind": "suburb",
+      "lat": 53.532528,
+      "lng": -2.271517
+    },
+    {
+      "cityId": "manchester",
+      "name": "Heaviley",
+      "kind": "quarter",
+      "lat": 53.395433,
+      "lng": -2.146966
+    },
+    {
+      "cityId": "manchester",
+      "name": "Higher Blackley",
+      "kind": "suburb",
+      "lat": 53.530952,
+      "lng": -2.230683
+    },
+    {
+      "cityId": "manchester",
+      "name": "Higher Broughton",
+      "kind": "suburb",
+      "lat": 53.503737,
+      "lng": -2.264251
+    },
+    {
+      "cityId": "manchester",
+      "name": "Hollins",
+      "kind": "suburb",
+      "lat": 53.522407,
+      "lng": -2.130133
+    },
+    {
+      "cityId": "manchester",
+      "name": "Hollinwood",
+      "kind": "suburb",
+      "lat": 53.518236,
+      "lng": -2.141837
+    },
+    {
+      "cityId": "manchester",
+      "name": "Holt Lane End",
+      "kind": "neighbourhood",
+      "lat": 53.507926,
+      "lng": -2.148283
+    },
+    {
+      "cityId": "manchester",
+      "name": "Hulme",
+      "kind": "suburb",
+      "lat": 53.466031,
+      "lng": -2.248166
+    },
+    {
+      "cityId": "manchester",
+      "name": "Irlams o' th' Height",
+      "kind": "suburb",
+      "lat": 53.498344,
+      "lng": -2.310032
+    },
+    {
+      "cityId": "manchester",
+      "name": "Kersal",
+      "kind": "suburb",
+      "lat": 53.510314,
+      "lng": -2.281331
+    },
+    {
+      "cityId": "manchester",
+      "name": "Kilcoby",
+      "kind": "suburb",
+      "lat": 53.534897,
+      "lng": -2.337919
+    },
+    {
+      "cityId": "manchester",
+      "name": "Kirkhams",
+      "kind": "suburb",
+      "lat": 53.540926,
+      "lng": -2.278967
+    },
+    {
+      "cityId": "manchester",
+      "name": "Ladybarn",
+      "kind": "neighbourhood",
+      "lat": 53.434986,
+      "lng": -2.213164
+    },
+    {
+      "cityId": "manchester",
+      "name": "Levenshulme",
+      "kind": "suburb",
+      "lat": 53.444337,
+      "lng": -2.193153
+    },
+    {
+      "cityId": "manchester",
+      "name": "Lime Gate",
+      "kind": "suburb",
+      "lat": 53.518177,
+      "lng": -2.134126
+    },
+    {
+      "cityId": "manchester",
+      "name": "Limehurst",
+      "kind": "suburb",
+      "lat": 53.504432,
+      "lng": -2.107999
+    },
+    {
+      "cityId": "manchester",
+      "name": "Limeside",
+      "kind": "suburb",
+      "lat": 53.51697,
+      "lng": -2.127042
+    },
+    {
+      "cityId": "manchester",
+      "name": "Little Bolton",
+      "kind": "suburb",
+      "lat": 53.488896,
+      "lng": -2.318181
+    },
+    {
+      "cityId": "manchester",
+      "name": "Little Moor",
+      "kind": "neighbourhood",
+      "lat": 53.404977,
+      "lng": -2.130629
+    },
+    {
+      "cityId": "manchester",
+      "name": "Longsight",
+      "kind": "suburb",
+      "lat": 53.457059,
+      "lng": -2.205363
+    },
+    {
+      "cityId": "manchester",
+      "name": "Lower Broughton",
+      "kind": "suburb",
+      "lat": 53.494321,
+      "lng": -2.259432
+    },
+    {
+      "cityId": "manchester",
+      "name": "Manchester",
+      "kind": "city",
+      "lat": 53.479489,
+      "lng": -2.245115
+    },
+    {
+      "cityId": "manchester",
+      "name": "MediaCityUK",
+      "kind": "neighbourhood",
+      "lat": 53.473146,
+      "lng": -2.298547
+    },
+    {
+      "cityId": "manchester",
+      "name": "Medieval Quarter",
+      "kind": "neighbourhood",
+      "lat": 53.485553,
+      "lng": -2.243552
+    },
+    {
+      "cityId": "manchester",
+      "name": "Middleton Junction",
+      "kind": "suburb",
+      "lat": 53.540774,
+      "lng": -2.167509
+    },
+    {
+      "cityId": "manchester",
+      "name": "Mile End",
+      "kind": "neighbourhood",
+      "lat": 53.394103,
+      "lng": -2.13856
+    },
+    {
+      "cityId": "manchester",
+      "name": "Miles Platting",
+      "kind": "suburb",
+      "lat": 53.491184,
+      "lng": -2.213507
+    },
+    {
+      "cityId": "manchester",
+      "name": "Mosley",
+      "kind": "suburb",
+      "lat": 53.463226,
+      "lng": -2.316419
+    },
+    {
+      "cityId": "manchester",
+      "name": "Moss Side",
+      "kind": "suburb",
+      "lat": 53.454763,
+      "lng": -2.244253
+    },
+    {
+      "cityId": "manchester",
+      "name": "Moston",
+      "kind": "suburb",
+      "lat": 53.509115,
+      "lng": -2.188111
+    },
+    {
+      "cityId": "manchester",
+      "name": "Mumps",
+      "kind": "suburb",
+      "lat": 53.542959,
+      "lng": -2.103241
+    },
+    {
+      "cityId": "manchester",
+      "name": "New Cross",
+      "kind": "neighbourhood",
+      "lat": 53.48631,
+      "lng": -2.232989
+    },
+    {
+      "cityId": "manchester",
+      "name": "New Islington",
+      "kind": "neighbourhood",
+      "lat": 53.48212,
+      "lng": -2.221699
+    },
+    {
+      "cityId": "manchester",
+      "name": "New Jackson",
+      "kind": "neighbourhood",
+      "lat": 53.472058,
+      "lng": -2.253057
+    },
+    {
+      "cityId": "manchester",
+      "name": "New Moston",
+      "kind": "suburb",
+      "lat": 53.517296,
+      "lng": -2.168059
+    },
+    {
+      "cityId": "manchester",
+      "name": "Newall Green",
+      "kind": "suburb",
+      "lat": 53.385791,
+      "lng": -2.283082
+    },
+    {
+      "cityId": "manchester",
+      "name": "Newton Heath",
+      "kind": "suburb",
+      "lat": 53.500255,
+      "lng": -2.185206
+    },
+    {
+      "cityId": "manchester",
+      "name": "Newtown",
+      "kind": "suburb",
+      "lat": 53.517529,
+      "lng": -2.339822
+    },
+    {
+      "cityId": "manchester",
+      "name": "Nimble Nook",
+      "kind": "suburb",
+      "lat": 53.534561,
+      "lng": -2.150824
+    },
+    {
+      "cityId": "manchester",
+      "name": "NOMA",
+      "kind": "neighbourhood",
+      "lat": 53.487139,
+      "lng": -2.238135
+    },
+    {
+      "cityId": "manchester",
+      "name": "North Reddish",
+      "kind": "neighbourhood",
+      "lat": 53.444747,
+      "lng": -2.157659
+    },
+    {
+      "cityId": "manchester",
+      "name": "Northenden",
+      "kind": "suburb",
+      "lat": 53.406191,
+      "lng": -2.258881
+    },
+    {
+      "cityId": "manchester",
+      "name": "Northern Moor",
+      "kind": "suburb",
+      "lat": 53.411013,
+      "lng": -2.286198
+    },
+    {
+      "cityId": "manchester",
+      "name": "Northern Quarter",
+      "kind": "neighbourhood",
+      "lat": 53.483544,
+      "lng": -2.235114
+    },
+    {
+      "cityId": "manchester",
+      "name": "Offerton",
+      "kind": "suburb",
+      "lat": 53.395838,
+      "lng": -2.125071
+    },
+    {
+      "cityId": "manchester",
+      "name": "Old Trafford",
+      "kind": "suburb",
+      "lat": 53.460816,
+      "lng": -2.275505
+    },
+    {
+      "cityId": "manchester",
+      "name": "Oldham Edge",
+      "kind": "neighbourhood",
+      "lat": 53.549388,
+      "lng": -2.114298
+    },
+    {
+      "cityId": "manchester",
+      "name": "Openshaw",
+      "kind": "suburb",
+      "lat": 53.475173,
+      "lng": -2.178061
+    },
+    {
+      "cityId": "manchester",
+      "name": "Ordsall",
+      "kind": "suburb",
+      "lat": 53.473911,
+      "lng": -2.278097
+    },
+    {
+      "cityId": "manchester",
+      "name": "Outwood Gate",
+      "kind": "suburb",
+      "lat": 53.549939,
+      "lng": -2.325453
+    },
+    {
+      "cityId": "manchester",
+      "name": "Park Lane",
+      "kind": "suburb",
+      "lat": 53.541428,
+      "lng": -2.305663
+    },
+    {
+      "cityId": "manchester",
+      "name": "Parrs Wood",
+      "kind": "quarter",
+      "lat": 53.410355,
+      "lng": -2.22021
+    },
+    {
+      "cityId": "manchester",
+      "name": "Pendleton",
+      "kind": "suburb",
+      "lat": 53.489233,
+      "lng": -2.284158
+    },
+    {
+      "cityId": "manchester",
+      "name": "Petersfield",
+      "kind": "neighbourhood",
+      "lat": 53.475843,
+      "lng": -2.245847
+    },
+    {
+      "cityId": "manchester",
+      "name": "Piccadilly",
+      "kind": "neighbourhood",
+      "lat": 53.479396,
+      "lng": -2.231743
+    },
+    {
+      "cityId": "manchester",
+      "name": "Portwood",
+      "kind": "suburb",
+      "lat": 53.415455,
+      "lng": -2.148362
+    },
+    {
+      "cityId": "manchester",
+      "name": "Primrose Bank",
+      "kind": "suburb",
+      "lat": 53.53546,
+      "lng": -2.113831
+    },
+    {
+      "cityId": "manchester",
+      "name": "Rainsough",
+      "kind": "quarter",
+      "lat": 53.516344,
+      "lng": -2.286966
+    },
+    {
+      "cityId": "manchester",
+      "name": "Reddish",
+      "kind": "suburb",
+      "lat": 53.437267,
+      "lng": -2.159912
+    },
+    {
+      "cityId": "manchester",
+      "name": "Reddish Bridge",
+      "kind": "neighbourhood",
+      "lat": 53.458013,
+      "lng": -2.16026
+    },
+    {
+      "cityId": "manchester",
+      "name": "Rhodes",
+      "kind": "suburb",
+      "lat": 53.544686,
+      "lng": -2.226926
+    },
+    {
+      "cityId": "manchester",
+      "name": "Rusholme",
+      "kind": "suburb",
+      "lat": 53.452459,
+      "lng": -2.218891
+    },
+    {
+      "cityId": "manchester",
+      "name": "Sale Moor",
+      "kind": "suburb",
+      "lat": 53.420011,
+      "lng": -2.304407
+    },
+    {
+      "cityId": "manchester",
+      "name": "Salford Quays",
+      "kind": "suburb",
+      "lat": 53.472674,
+      "lng": -2.292689
+    },
+    {
+      "cityId": "manchester",
+      "name": "Sedgley Park",
+      "kind": "suburb",
+      "lat": 53.522664,
+      "lng": -2.26636
+    },
+    {
+      "cityId": "manchester",
+      "name": "Seedley",
+      "kind": "suburb",
+      "lat": 53.487863,
+      "lng": -2.300862
+    },
+    {
+      "cityId": "manchester",
+      "name": "Sharston",
+      "kind": "suburb",
+      "lat": 53.393214,
+      "lng": -2.251875
+    },
+    {
+      "cityId": "manchester",
+      "name": "Shaw Heath",
+      "kind": "suburb",
+      "lat": 53.399023,
+      "lng": -2.160237
+    },
+    {
+      "cityId": "manchester",
+      "name": "South Reddish",
+      "kind": "neighbourhood",
+      "lat": 53.428052,
+      "lng": -2.154486
+    },
+    {
+      "cityId": "manchester",
+      "name": "Spinningfields",
+      "kind": "neighbourhood",
+      "lat": 53.480015,
+      "lng": -2.251799
+    },
+    {
+      "cityId": "manchester",
+      "name": "St. Johns",
+      "kind": "neighbourhood",
+      "lat": 53.477881,
+      "lng": -2.254226
+    },
+    {
+      "cityId": "manchester",
+      "name": "Stepping Hill",
+      "kind": "neighbourhood",
+      "lat": 53.383636,
+      "lng": -2.128555
+    },
+    {
+      "cityId": "manchester",
+      "name": "Stock Brook",
+      "kind": "quarter",
+      "lat": 53.543915,
+      "lng": -2.144594
+    },
+    {
+      "cityId": "manchester",
+      "name": "Strangeways",
+      "kind": "suburb",
+      "lat": 53.492406,
+      "lng": -2.244333
+    },
+    {
+      "cityId": "manchester",
+      "name": "Swinton Park",
+      "kind": "suburb",
+      "lat": 53.504181,
+      "lng": -2.325883
+    },
+    {
+      "cityId": "manchester",
+      "name": "Taunton",
+      "kind": "suburb",
+      "lat": 53.497837,
+      "lng": -2.106524
+    },
+    {
+      "cityId": "manchester",
+      "name": "Thatch Leach",
+      "kind": "suburb",
+      "lat": 53.536739,
+      "lng": -2.156377
+    },
+    {
+      "cityId": "manchester",
+      "name": "The Four Heatons",
+      "kind": "suburb",
+      "lat": 53.419667,
+      "lng": -2.181462
+    },
+    {
+      "cityId": "manchester",
+      "name": "Timperley",
+      "kind": "suburb",
+      "lat": 53.396161,
+      "lng": -2.32026
+    },
+    {
+      "cityId": "manchester",
+      "name": "Trafford Park",
+      "kind": "suburb",
+      "lat": 53.471752,
+      "lng": -2.320928
+    },
+    {
+      "cityId": "manchester",
+      "name": "Trinity",
+      "kind": "neighbourhood",
+      "lat": 53.486524,
+      "lng": -2.249337
+    },
+    {
+      "cityId": "manchester",
+      "name": "Victoria Park",
+      "kind": "quarter",
+      "lat": 53.457003,
+      "lng": -2.217188
+    },
+    {
+      "cityId": "manchester",
+      "name": "Waterloo",
+      "kind": "suburb",
+      "lat": 53.50031,
+      "lng": -2.109259
+    },
+    {
+      "cityId": "manchester",
+      "name": "Weaste",
+      "kind": "suburb",
+      "lat": 53.480269,
+      "lng": -2.299551
+    },
+    {
+      "cityId": "manchester",
+      "name": "Werneth",
+      "kind": "suburb",
+      "lat": 53.535641,
+      "lng": -2.12974
+    },
+    {
+      "cityId": "manchester",
+      "name": "West Didsbury",
+      "kind": "suburb",
+      "lat": 53.42722,
+      "lng": -2.242088
+    },
+    {
+      "cityId": "manchester",
+      "name": "Whalley Range",
+      "kind": "suburb",
+      "lat": 53.449363,
+      "lng": -2.257469
+    },
+    {
+      "cityId": "manchester",
+      "name": "Wharfside",
+      "kind": "suburb",
+      "lat": 53.466213,
+      "lng": -2.296379
+    },
+    {
+      "cityId": "manchester",
+      "name": "White Gate",
+      "kind": "suburb",
+      "lat": 53.526516,
+      "lng": -2.154009
+    },
+    {
+      "cityId": "manchester",
+      "name": "Withington",
+      "kind": "suburb",
+      "lat": 53.433582,
+      "lng": -2.229308
+    },
+    {
+      "cityId": "manchester",
+      "name": "Woodbank Estate",
+      "kind": "neighbourhood",
+      "lat": 53.408693,
+      "lng": -2.142607
+    },
+    {
+      "cityId": "manchester",
+      "name": "Woodsmoor",
+      "kind": "suburb",
+      "lat": 53.385531,
+      "lng": -2.145998
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Acocks Green",
+      "kind": "suburb",
+      "lat": 52.447843,
+      "lng": -1.822763
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Alum Rock",
+      "kind": "suburb",
+      "lat": 52.487071,
+      "lng": -1.83153
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Aston",
+      "kind": "suburb",
+      "lat": 52.506636,
+      "lng": -1.881269
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Attwood Green",
+      "kind": "neighbourhood",
+      "lat": 52.470879,
+      "lng": -1.903238
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Bearwood",
+      "kind": "suburb",
+      "lat": 52.47649,
+      "lng": -1.969757
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Billesley",
+      "kind": "suburb",
+      "lat": 52.42647,
+      "lng": -1.864762
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Birchfield",
+      "kind": "suburb",
+      "lat": 52.513662,
+      "lng": -1.907016
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Birmingham",
+      "kind": "city",
+      "lat": 52.479699,
+      "lng": -1.902691
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Boldmere",
+      "kind": "suburb",
+      "lat": 52.547692,
+      "lng": -1.840447
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Bordesley",
+      "kind": "suburb",
+      "lat": 52.477868,
+      "lng": -1.874262
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Bordesley Green",
+      "kind": "suburb",
+      "lat": 52.475887,
+      "lng": -1.851207
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Bournbrook",
+      "kind": "suburb",
+      "lat": 52.445334,
+      "lng": -1.931602
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Bournville",
+      "kind": "suburb",
+      "lat": 52.427179,
+      "lng": -1.936459
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Brookvale Village",
+      "kind": "neighbourhood",
+      "lat": 52.520667,
+      "lng": -1.871849
+    },
+    {
+      "cityId": "birmingham",
+      "name": "California",
+      "kind": "suburb",
+      "lat": 52.442273,
+      "lng": -1.979688
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Chad Valley",
+      "kind": "neighbourhood",
+      "lat": 52.466882,
+      "lng": -1.935234
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Chinese Quarter",
+      "kind": "neighbourhood",
+      "lat": 52.474852,
+      "lng": -1.897469
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Digbeth",
+      "kind": "suburb",
+      "lat": 52.475854,
+      "lng": -1.88546
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Edgbaston",
+      "kind": "suburb",
+      "lat": 52.470994,
+      "lng": -1.922586
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Erdington",
+      "kind": "suburb",
+      "lat": 52.523251,
+      "lng": -1.839511
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Hamstead",
+      "kind": "suburb",
+      "lat": 52.5318,
+      "lng": -1.924853
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Handsworth",
+      "kind": "suburb",
+      "lat": 52.513597,
+      "lng": -1.939438
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Handsworth Wood",
+      "kind": "neighbourhood",
+      "lat": 52.518239,
+      "lng": -1.919279
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Harborne",
+      "kind": "suburb",
+      "lat": 52.459115,
+      "lng": -1.948076
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Hockley Port",
+      "kind": "suburb",
+      "lat": 52.491818,
+      "lng": -1.925477
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Hodge Hill",
+      "kind": "suburb",
+      "lat": 52.498179,
+      "lng": -1.81128
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Jewellery Quarter",
+      "kind": "suburb",
+      "lat": 52.487916,
+      "lng": -1.91161
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Kings Heath",
+      "kind": "suburb",
+      "lat": 52.4342,
+      "lng": -1.891562
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Ladywood",
+      "kind": "suburb",
+      "lat": 52.477493,
+      "lng": -1.923365
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Lozells",
+      "kind": "suburb",
+      "lat": 52.502632,
+      "lng": -1.909591
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Moseley",
+      "kind": "suburb",
+      "lat": 52.44732,
+      "lng": -1.888785
+    },
+    {
+      "cityId": "birmingham",
+      "name": "New Oscott",
+      "kind": "suburb",
+      "lat": 52.546734,
+      "lng": -1.864231
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Newtown",
+      "kind": "neighbourhood",
+      "lat": 52.497851,
+      "lng": -1.896373
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Perry Barr",
+      "kind": "suburb",
+      "lat": 52.516903,
+      "lng": -1.90124
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Perry Beeches",
+      "kind": "suburb",
+      "lat": 52.538162,
+      "lng": -1.916304
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Pitts Farm",
+      "kind": "neighbourhood",
+      "lat": 52.530935,
+      "lng": -1.816832
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Rea Valley",
+      "kind": "quarter",
+      "lat": 52.471918,
+      "lng": -1.888183
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Selly Oak",
+      "kind": "suburb",
+      "lat": 52.440222,
+      "lng": -1.938269
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Selly Park",
+      "kind": "suburb",
+      "lat": 52.444046,
+      "lng": -1.920433
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Shenley Fields",
+      "kind": "suburb",
+      "lat": 52.427749,
+      "lng": -1.976383
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Short Heath",
+      "kind": "suburb",
+      "lat": 52.53659,
+      "lng": -1.858275
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Small Heath",
+      "kind": "suburb",
+      "lat": 52.468126,
+      "lng": -1.851387
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Sparkhill",
+      "kind": "suburb",
+      "lat": 52.45331,
+      "lng": -1.867507
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Springfield",
+      "kind": "suburb",
+      "lat": 52.444686,
+      "lng": -1.860276
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Stechford",
+      "kind": "suburb",
+      "lat": 52.484208,
+      "lng": -1.809401
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Stockland Green",
+      "kind": "suburb",
+      "lat": 52.523865,
+      "lng": -1.859097
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Tower Hill",
+      "kind": "neighbourhood",
+      "lat": 52.533554,
+      "lng": -1.91861
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Upper Witton",
+      "kind": "neighbourhood",
+      "lat": 52.526478,
+      "lng": -1.866314
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Vauxhall",
+      "kind": "suburb",
+      "lat": 52.485467,
+      "lng": -1.875952
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Ward End",
+      "kind": "suburb",
+      "lat": 52.492066,
+      "lng": -1.826817
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Weoley Castle",
+      "kind": "suburb",
+      "lat": 52.439363,
+      "lng": -1.974657
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Winson Green",
+      "kind": "suburb",
+      "lat": 52.496877,
+      "lng": -1.938031
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Wylde Green",
+      "kind": "suburb",
+      "lat": 52.539476,
+      "lng": -1.821738
+    },
+    {
+      "cityId": "birmingham",
+      "name": "Yardley",
+      "kind": "suburb",
+      "lat": 52.470956,
+      "lng": -1.815944
+    },
+    {
+      "cityId": "leeds",
+      "name": "Adel",
+      "kind": "suburb",
+      "lat": 53.855889,
+      "lng": -1.590901
+    },
+    {
+      "cityId": "leeds",
+      "name": "Adel East Moor",
+      "kind": "neighbourhood",
+      "lat": 53.853549,
+      "lng": -1.575082
+    },
+    {
+      "cityId": "leeds",
+      "name": "Alwoodley",
+      "kind": "suburb",
+      "lat": 53.851693,
+      "lng": -1.544245
+    },
+    {
+      "cityId": "leeds",
+      "name": "Arena Quarter",
+      "kind": "quarter",
+      "lat": 53.802727,
+      "lng": -1.5423
+    },
+    {
+      "cityId": "leeds",
+      "name": "Armley",
+      "kind": "suburb",
+      "lat": 53.797691,
+      "lng": -1.588387
+    },
+    {
+      "cityId": "leeds",
+      "name": "Atkinson Hill",
+      "kind": "neighbourhood",
+      "lat": 53.779845,
+      "lng": -1.523906
+    },
+    {
+      "cityId": "leeds",
+      "name": "Bagby Fields",
+      "kind": "neighbourhood",
+      "lat": 53.80881,
+      "lng": -1.549076
+    },
+    {
+      "cityId": "leeds",
+      "name": "Bank",
+      "kind": "neighbourhood",
+      "lat": 53.796381,
+      "lng": -1.524778
+    },
+    {
+      "cityId": "leeds",
+      "name": "Bantam Grove",
+      "kind": "quarter",
+      "lat": 53.745422,
+      "lng": -1.57957
+    },
+    {
+      "cityId": "leeds",
+      "name": "Beckett Park",
+      "kind": "neighbourhood",
+      "lat": 53.823419,
+      "lng": -1.584313
+    },
+    {
+      "cityId": "leeds",
+      "name": "Beechwood",
+      "kind": "neighbourhood",
+      "lat": 53.826445,
+      "lng": -1.47155
+    },
+    {
+      "cityId": "leeds",
+      "name": "Beeston",
+      "kind": "suburb",
+      "lat": 53.769057,
+      "lng": -1.569957
+    },
+    {
+      "cityId": "leeds",
+      "name": "Beeston Hill",
+      "kind": "neighbourhood",
+      "lat": 53.776883,
+      "lng": -1.550946
+    },
+    {
+      "cityId": "leeds",
+      "name": "Beeston Park Side",
+      "kind": "neighbourhood",
+      "lat": 53.762301,
+      "lng": -1.555791
+    },
+    {
+      "cityId": "leeds",
+      "name": "Belle Isle",
+      "kind": "suburb",
+      "lat": 53.764502,
+      "lng": -1.528332
+    },
+    {
+      "cityId": "leeds",
+      "name": "Black Moor",
+      "kind": "neighbourhood",
+      "lat": 53.854691,
+      "lng": -1.561257
+    },
+    {
+      "cityId": "leeds",
+      "name": "Bramley",
+      "kind": "suburb",
+      "lat": 53.811876,
+      "lng": -1.62519
+    },
+    {
+      "cityId": "leeds",
+      "name": "Brianside",
+      "kind": "neighbourhood",
+      "lat": 53.811539,
+      "lng": -1.460916
+    },
+    {
+      "cityId": "leeds",
+      "name": "Brooklands",
+      "kind": "neighbourhood",
+      "lat": 53.81847,
+      "lng": -1.478264
+    },
+    {
+      "cityId": "leeds",
+      "name": "Bruntcliffe",
+      "kind": "suburb",
+      "lat": 53.741788,
+      "lng": -1.619749
+    },
+    {
+      "cityId": "leeds",
+      "name": "Burley",
+      "kind": "suburb",
+      "lat": 53.810831,
+      "lng": -1.58392
+    },
+    {
+      "cityId": "leeds",
+      "name": "Burmantofts",
+      "kind": "suburb",
+      "lat": 53.801803,
+      "lng": -1.519672
+    },
+    {
+      "cityId": "leeds",
+      "name": "Burn Knolls",
+      "kind": "quarter",
+      "lat": 53.741883,
+      "lng": -1.586324
+    },
+    {
+      "cityId": "leeds",
+      "name": "Buslingthorpe",
+      "kind": "neighbourhood",
+      "lat": 53.814348,
+      "lng": -1.545028
+    },
+    {
+      "cityId": "leeds",
+      "name": "Camp Field",
+      "kind": "neighbourhood",
+      "lat": 53.791813,
+      "lng": -1.548925
+    },
+    {
+      "cityId": "leeds",
+      "name": "Camp Town",
+      "kind": "neighbourhood",
+      "lat": 53.851802,
+      "lng": -1.554976
+    },
+    {
+      "cityId": "leeds",
+      "name": "Carr Crofts",
+      "kind": "neighbourhood",
+      "lat": 53.795057,
+      "lng": -1.593041
+    },
+    {
+      "cityId": "leeds",
+      "name": "Carr Manor",
+      "kind": "neighbourhood",
+      "lat": 53.836546,
+      "lng": -1.549353
+    },
+    {
+      "cityId": "leeds",
+      "name": "Cavalier Hill",
+      "kind": "neighbourhood",
+      "lat": 53.790059,
+      "lng": -1.521607
+    },
+    {
+      "cityId": "leeds",
+      "name": "Chapel Allerton",
+      "kind": "suburb",
+      "lat": 53.829035,
+      "lng": -1.538322
+    },
+    {
+      "cityId": "leeds",
+      "name": "Chapeltown",
+      "kind": "suburb",
+      "lat": 53.816667,
+      "lng": -1.531175
+    },
+    {
+      "cityId": "leeds",
+      "name": "Charing Cross",
+      "kind": "neighbourhood",
+      "lat": 53.812659,
+      "lng": -1.551003
+    },
+    {
+      "cityId": "leeds",
+      "name": "City",
+      "kind": "neighbourhood",
+      "lat": 53.747341,
+      "lng": -1.598748
+    },
+    {
+      "cityId": "leeds",
+      "name": "Cookridge",
+      "kind": "suburb",
+      "lat": 53.854422,
+      "lng": -1.618655
+    },
+    {
+      "cityId": "leeds",
+      "name": "Cottingley",
+      "kind": "neighbourhood",
+      "lat": 53.768718,
+      "lng": -1.583871
+    },
+    {
+      "cityId": "leeds",
+      "name": "Cross Gates",
+      "kind": "suburb",
+      "lat": 53.807558,
+      "lng": -1.454076
+    },
+    {
+      "cityId": "leeds",
+      "name": "Cross Green",
+      "kind": "suburb",
+      "lat": 53.789407,
+      "lng": -1.517575
+    },
+    {
+      "cityId": "leeds",
+      "name": "Crown Point",
+      "kind": "neighbourhood",
+      "lat": 53.790574,
+      "lng": -1.538821
+    },
+    {
+      "cityId": "leeds",
+      "name": "Daisy Hill",
+      "kind": "quarter",
+      "lat": 53.752217,
+      "lng": -1.590984
+    },
+    {
+      "cityId": "leeds",
+      "name": "East End Park",
+      "kind": "suburb",
+      "lat": 53.793941,
+      "lng": -1.514391
+    },
+    {
+      "cityId": "leeds",
+      "name": "Far Fold",
+      "kind": "neighbourhood",
+      "lat": 53.798817,
+      "lng": -1.593742
+    },
+    {
+      "cityId": "leeds",
+      "name": "Far Headingley",
+      "kind": "neighbourhood",
+      "lat": 53.82899,
+      "lng": -1.583399
+    },
+    {
+      "cityId": "leeds",
+      "name": "Far Royds",
+      "kind": "neighbourhood",
+      "lat": 53.780181,
+      "lng": -1.590781
+    },
+    {
+      "cityId": "leeds",
+      "name": "Farnley",
+      "kind": "suburb",
+      "lat": 53.786978,
+      "lng": -1.615634
+    },
+    {
+      "cityId": "leeds",
+      "name": "Fearnville",
+      "kind": "neighbourhood",
+      "lat": 53.81857,
+      "lng": -1.484399
+    },
+    {
+      "cityId": "leeds",
+      "name": "Gamble Hill",
+      "kind": "neighbourhood",
+      "lat": 53.799036,
+      "lng": -1.623382
+    },
+    {
+      "cityId": "leeds",
+      "name": "Gillroyd",
+      "kind": "neighbourhood",
+      "lat": 53.746406,
+      "lng": -1.584989
+    },
+    {
+      "cityId": "leeds",
+      "name": "Gipton",
+      "kind": "suburb",
+      "lat": 53.812326,
+      "lng": -1.497997
+    },
+    {
+      "cityId": "leeds",
+      "name": "Gipton Wood",
+      "kind": "neighbourhood",
+      "lat": 53.817937,
+      "lng": -1.5053
+    },
+    {
+      "cityId": "leeds",
+      "name": "Gledhow",
+      "kind": "suburb",
+      "lat": 53.829192,
+      "lng": -1.517898
+    },
+    {
+      "cityId": "leeds",
+      "name": "Gledhow Park",
+      "kind": "quarter",
+      "lat": 53.826972,
+      "lng": -1.525855
+    },
+    {
+      "cityId": "leeds",
+      "name": "Graveleythorpe",
+      "kind": "suburb",
+      "lat": 53.800713,
+      "lng": -1.46059
+    },
+    {
+      "cityId": "leeds",
+      "name": "Green Hill",
+      "kind": "neighbourhood",
+      "lat": 53.788693,
+      "lng": -1.590399
+    },
+    {
+      "cityId": "leeds",
+      "name": "Green Side",
+      "kind": "neighbourhood",
+      "lat": 53.785689,
+      "lng": -1.590152
+    },
+    {
+      "cityId": "leeds",
+      "name": "Halton",
+      "kind": "suburb",
+      "lat": 53.798605,
+      "lng": -1.462026
+    },
+    {
+      "cityId": "leeds",
+      "name": "Halton Moor",
+      "kind": "suburb",
+      "lat": 53.795393,
+      "lng": -1.4823
+    },
+    {
+      "cityId": "leeds",
+      "name": "Harehills",
+      "kind": "suburb",
+      "lat": 53.812625,
+      "lng": -1.516527
+    },
+    {
+      "cityId": "leeds",
+      "name": "Harehills Corner",
+      "kind": "neighbourhood",
+      "lat": 53.818333,
+      "lng": -1.517856
+    },
+    {
+      "cityId": "leeds",
+      "name": "Hawksworth",
+      "kind": "suburb",
+      "lat": 53.827513,
+      "lng": -1.613712
+    },
+    {
+      "cityId": "leeds",
+      "name": "Headingley",
+      "kind": "suburb",
+      "lat": 53.821008,
+      "lng": -1.577774
+    },
+    {
+      "cityId": "leeds",
+      "name": "Headingley Hill",
+      "kind": "neighbourhood",
+      "lat": 53.81811,
+      "lng": -1.573377
+    },
+    {
+      "cityId": "leeds",
+      "name": "Hill End",
+      "kind": "neighbourhood",
+      "lat": 53.798496,
+      "lng": -1.612796
+    },
+    {
+      "cityId": "leeds",
+      "name": "Hill Top",
+      "kind": "neighbourhood",
+      "lat": 53.799053,
+      "lng": -1.605801
+    },
+    {
+      "cityId": "leeds",
+      "name": "Holbeck",
+      "kind": "suburb",
+      "lat": 53.785378,
+      "lng": -1.560019
+    },
+    {
+      "cityId": "leeds",
+      "name": "Holbeck Urban Village",
+      "kind": "neighbourhood",
+      "lat": 53.791251,
+      "lng": -1.551113
+    },
+    {
+      "cityId": "leeds",
+      "name": "Hollin Park",
+      "kind": "neighbourhood",
+      "lat": 53.821021,
+      "lng": -1.495162
+    },
+    {
+      "cityId": "leeds",
+      "name": "Holt Park",
+      "kind": "suburb",
+      "lat": 53.858538,
+      "lng": -1.600583
+    },
+    {
+      "cityId": "leeds",
+      "name": "Horsforth Woodside",
+      "kind": "neighbourhood",
+      "lat": 53.837924,
+      "lng": -1.622251
+    },
+    {
+      "cityId": "leeds",
+      "name": "Hunslet",
+      "kind": "suburb",
+      "lat": 53.778619,
+      "lng": -1.528249
+    },
+    {
+      "cityId": "leeds",
+      "name": "Hunslet Carr",
+      "kind": "neighbourhood",
+      "lat": 53.772255,
+      "lng": -1.531045
+    },
+    {
+      "cityId": "leeds",
+      "name": "Hyde Park",
+      "kind": "suburb",
+      "lat": 53.812431,
+      "lng": -1.567857
+    },
+    {
+      "cityId": "leeds",
+      "name": "Ireland Wood",
+      "kind": "suburb",
+      "lat": 53.844564,
+      "lng": -1.605901
+    },
+    {
+      "cityId": "leeds",
+      "name": "Islington",
+      "kind": "neighbourhood",
+      "lat": 53.781458,
+      "lng": -1.567124
+    },
+    {
+      "cityId": "leeds",
+      "name": "John o' Gaunts",
+      "kind": "neighbourhood",
+      "lat": 53.758655,
+      "lng": -1.470748
+    },
+    {
+      "cityId": "leeds",
+      "name": "Killingbeck",
+      "kind": "suburb",
+      "lat": 53.808823,
+      "lng": -1.478916
+    },
+    {
+      "cityId": "leeds",
+      "name": "Kirkstall",
+      "kind": "suburb",
+      "lat": 53.815555,
+      "lng": -1.600191
+    },
+    {
+      "cityId": "leeds",
+      "name": "Lady Wood",
+      "kind": "neighbourhood",
+      "lat": 53.828723,
+      "lng": -1.497357
+    },
+    {
+      "cityId": "leeds",
+      "name": "Lawnswood",
+      "kind": "neighbourhood",
+      "lat": 53.847334,
+      "lng": -1.597112
+    },
+    {
+      "cityId": "leeds",
+      "name": "Leeds",
+      "kind": "city",
+      "lat": 53.797418,
+      "lng": -1.543794
+    },
+    {
+      "cityId": "leeds",
+      "name": "Leylands",
+      "kind": "neighbourhood",
+      "lat": 53.801798,
+      "lng": -1.53568
+    },
+    {
+      "cityId": "leeds",
+      "name": "Lidgett Park",
+      "kind": "neighbourhood",
+      "lat": 53.837622,
+      "lng": -1.517128
+    },
+    {
+      "cityId": "leeds",
+      "name": "Little London",
+      "kind": "suburb",
+      "lat": 53.808725,
+      "lng": -1.540924
+    },
+    {
+      "cityId": "leeds",
+      "name": "Little Woodhouse",
+      "kind": "neighbourhood",
+      "lat": 53.80265,
+      "lng": -1.556819
+    },
+    {
+      "cityId": "leeds",
+      "name": "Lovell Park",
+      "kind": "suburb",
+      "lat": 53.804422,
+      "lng": -1.538352
+    },
+    {
+      "cityId": "leeds",
+      "name": "Low Farm",
+      "kind": "neighbourhood",
+      "lat": 53.850383,
+      "lng": -1.608341
+    },
+    {
+      "cityId": "leeds",
+      "name": "Low Town End",
+      "kind": "neighbourhood",
+      "lat": 53.742327,
+      "lng": -1.594146
+    },
+    {
+      "cityId": "leeds",
+      "name": "Lower Wortley",
+      "kind": "neighbourhood",
+      "lat": 53.783785,
+      "lng": -1.601422
+    },
+    {
+      "cityId": "leeds",
+      "name": "Mabgate",
+      "kind": "neighbourhood",
+      "lat": 53.80223,
+      "lng": -1.530816
+    },
+    {
+      "cityId": "leeds",
+      "name": "Meanwood",
+      "kind": "suburb",
+      "lat": 53.828168,
+      "lng": -1.568247
+    },
+    {
+      "cityId": "leeds",
+      "name": "Middleton",
+      "kind": "suburb",
+      "lat": 53.743137,
+      "lng": -1.550318
+    },
+    {
+      "cityId": "leeds",
+      "name": "Miles Hill",
+      "kind": "neighbourhood",
+      "lat": 53.826651,
+      "lng": -1.551125
+    },
+    {
+      "cityId": "leeds",
+      "name": "Mill Green",
+      "kind": "neighbourhood",
+      "lat": 53.822442,
+      "lng": -1.453895
+    },
+    {
+      "cityId": "leeds",
+      "name": "Mill Shaw",
+      "kind": "neighbourhood",
+      "lat": 53.765547,
+      "lng": -1.57604
+    },
+    {
+      "cityId": "leeds",
+      "name": "Monkswood",
+      "kind": "suburb",
+      "lat": 53.830188,
+      "lng": -1.46993
+    },
+    {
+      "cityId": "leeds",
+      "name": "Moor Allerton",
+      "kind": "suburb",
+      "lat": 53.844229,
+      "lng": -1.553848
+    },
+    {
+      "cityId": "leeds",
+      "name": "Moor End",
+      "kind": "neighbourhood",
+      "lat": 53.796181,
+      "lng": -1.60058
+    },
+    {
+      "cityId": "leeds",
+      "name": "Moor Top",
+      "kind": "neighbourhood",
+      "lat": 53.796958,
+      "lng": -1.5942
+    },
+    {
+      "cityId": "leeds",
+      "name": "Moorside",
+      "kind": "neighbourhood",
+      "lat": 53.818875,
+      "lng": -1.627958
+    },
+    {
+      "cityId": "leeds",
+      "name": "Moortown",
+      "kind": "suburb",
+      "lat": 53.842358,
+      "lng": -1.53308
+    },
+    {
+      "cityId": "leeds",
+      "name": "Morley Hole",
+      "kind": "neighbourhood",
+      "lat": 53.749617,
+      "lng": -1.60716
+    },
+    {
+      "cityId": "leeds",
+      "name": "New Blackpool",
+      "kind": "neighbourhood",
+      "lat": 53.782109,
+      "lng": -1.604532
+    },
+    {
+      "cityId": "leeds",
+      "name": "New Brighton",
+      "kind": "neighbourhood",
+      "lat": 53.746932,
+      "lng": -1.608156
+    },
+    {
+      "cityId": "leeds",
+      "name": "New Farnley",
+      "kind": "suburb",
+      "lat": 53.777087,
+      "lng": -1.623654
+    },
+    {
+      "cityId": "leeds",
+      "name": "New Scarbro'",
+      "kind": "neighbourhood",
+      "lat": 53.806995,
+      "lng": -1.624297
+    },
+    {
+      "cityId": "leeds",
+      "name": "New Town",
+      "kind": "neighbourhood",
+      "lat": 53.806164,
+      "lng": -1.525025
+    },
+    {
+      "cityId": "leeds",
+      "name": "New Wortley",
+      "kind": "neighbourhood",
+      "lat": 53.793958,
+      "lng": -1.577097
+    },
+    {
+      "cityId": "leeds",
+      "name": "Oakwood",
+      "kind": "suburb",
+      "lat": 53.827048,
+      "lng": -1.505697
+    },
+    {
+      "cityId": "leeds",
+      "name": "Osmondthorpe",
+      "kind": "suburb",
+      "lat": 53.798067,
+      "lng": -1.497851
+    },
+    {
+      "cityId": "leeds",
+      "name": "Park Villas",
+      "kind": "neighbourhood",
+      "lat": 53.841273,
+      "lng": -1.508201
+    },
+    {
+      "cityId": "leeds",
+      "name": "Parklands",
+      "kind": "neighbourhood",
+      "lat": 53.813816,
+      "lng": -1.468582
+    },
+    {
+      "cityId": "leeds",
+      "name": "Potternewton",
+      "kind": "neighbourhood",
+      "lat": 53.82427,
+      "lng": -1.541891
+    },
+    {
+      "cityId": "leeds",
+      "name": "Primley Park",
+      "kind": "neighbourhood",
+      "lat": 53.853314,
+      "lng": -1.535972
+    },
+    {
+      "cityId": "leeds",
+      "name": "Red Hall",
+      "kind": "neighbourhood",
+      "lat": 53.841032,
+      "lng": -1.474603
+    },
+    {
+      "cityId": "leeds",
+      "name": "Richmond Hill",
+      "kind": "suburb",
+      "lat": 53.793118,
+      "lng": -1.522554
+    },
+    {
+      "cityId": "leeds",
+      "name": "Rothwell Haigh",
+      "kind": "neighbourhood",
+      "lat": 53.755291,
+      "lng": -1.486905
+    },
+    {
+      "cityId": "leeds",
+      "name": "Roundhay",
+      "kind": "suburb",
+      "lat": 53.843995,
+      "lng": -1.507852
+    },
+    {
+      "cityId": "leeds",
+      "name": "Sandford",
+      "kind": "suburb",
+      "lat": 53.818352,
+      "lng": -1.616673
+    },
+    {
+      "cityId": "leeds",
+      "name": "Scott Hall",
+      "kind": "neighbourhood",
+      "lat": 53.819728,
+      "lng": -1.541156
+    },
+    {
+      "cityId": "leeds",
+      "name": "Seacroft",
+      "kind": "suburb",
+      "lat": 53.822119,
+      "lng": -1.457986
+    },
+    {
+      "cityId": "leeds",
+      "name": "Sheepscar",
+      "kind": "suburb",
+      "lat": 53.80746,
+      "lng": -1.530762
+    },
+    {
+      "cityId": "leeds",
+      "name": "Silver Royd Hill",
+      "kind": "neighbourhood",
+      "lat": 53.790775,
+      "lng": -1.609076
+    },
+    {
+      "cityId": "leeds",
+      "name": "Slaid Hill",
+      "kind": "neighbourhood",
+      "lat": 53.857837,
+      "lng": -1.499309
+    },
+    {
+      "cityId": "leeds",
+      "name": "Snittles Farm",
+      "kind": "neighbourhood",
+      "lat": 53.767671,
+      "lng": -1.590855
+    },
+    {
+      "cityId": "leeds",
+      "name": "Steander",
+      "kind": "neighbourhood",
+      "lat": 53.793707,
+      "lng": -1.531644
+    },
+    {
+      "cityId": "leeds",
+      "name": "Stourton",
+      "kind": "suburb",
+      "lat": 53.771547,
+      "lng": -1.507842
+    },
+    {
+      "cityId": "leeds",
+      "name": "Swallow Hill",
+      "kind": "neighbourhood",
+      "lat": 53.794423,
+      "lng": -1.607446
+    },
+    {
+      "cityId": "leeds",
+      "name": "The Green",
+      "kind": "neighbourhood",
+      "lat": 53.818876,
+      "lng": -1.458818
+    },
+    {
+      "cityId": "leeds",
+      "name": "The Oval",
+      "kind": "neighbourhood",
+      "lat": 53.808701,
+      "lng": -1.470884
+    },
+    {
+      "cityId": "leeds",
+      "name": "Thwaite Gate",
+      "kind": "neighbourhood",
+      "lat": 53.778192,
+      "lng": -1.51951
+    },
+    {
+      "cityId": "leeds",
+      "name": "Tinshill",
+      "kind": "suburb",
+      "lat": 53.84546,
+      "lng": -1.618913
+    },
+    {
+      "cityId": "leeds",
+      "name": "Tinshill Moor",
+      "kind": "neighbourhood",
+      "lat": 53.856409,
+      "lng": -1.617087
+    },
+    {
+      "cityId": "leeds",
+      "name": "Town End",
+      "kind": "neighbourhood",
+      "lat": 53.784824,
+      "lng": -1.597617
+    },
+    {
+      "cityId": "leeds",
+      "name": "Troy Hill",
+      "kind": "neighbourhood",
+      "lat": 53.748526,
+      "lng": -1.599822
+    },
+    {
+      "cityId": "leeds",
+      "name": "Tunnel How Hill",
+      "kind": "neighbourhood",
+      "lat": 53.83943,
+      "lng": -1.555385
+    },
+    {
+      "cityId": "leeds",
+      "name": "Upper Armley",
+      "kind": "neighbourhood",
+      "lat": 53.802661,
+      "lng": -1.601438
+    },
+    {
+      "cityId": "leeds",
+      "name": "Upper Wortley",
+      "kind": "neighbourhood",
+      "lat": 53.791027,
+      "lng": -1.592445
+    },
+    {
+      "cityId": "leeds",
+      "name": "Warehouse Hill",
+      "kind": "neighbourhood",
+      "lat": 53.794566,
+      "lng": -1.540733
+    },
+    {
+      "cityId": "leeds",
+      "name": "Weetwood",
+      "kind": "suburb",
+      "lat": 53.838124,
+      "lng": -1.588839
+    },
+    {
+      "cityId": "leeds",
+      "name": "Well Hill",
+      "kind": "neighbourhood",
+      "lat": 53.744967,
+      "lng": -1.590529
+    },
+    {
+      "cityId": "leeds",
+      "name": "Wellington Hill",
+      "kind": "neighbourhood",
+      "lat": 53.839424,
+      "lng": -1.468067
+    },
+    {
+      "cityId": "leeds",
+      "name": "West Park",
+      "kind": "suburb",
+      "lat": 53.833064,
+      "lng": -1.603543
+    },
+    {
+      "cityId": "leeds",
+      "name": "Whinmoor",
+      "kind": "suburb",
+      "lat": 53.836052,
+      "lng": -1.45605
+    },
+    {
+      "cityId": "leeds",
+      "name": "Whitkirk",
+      "kind": "suburb",
+      "lat": 53.800598,
+      "lng": -1.450004
+    },
+    {
+      "cityId": "leeds",
+      "name": "Wigton Moor",
+      "kind": "neighbourhood",
+      "lat": 53.857771,
+      "lng": -1.513059
+    },
+    {
+      "cityId": "leeds",
+      "name": "Wiring Field",
+      "kind": "neighbourhood",
+      "lat": 53.794196,
+      "lng": -1.588698
+    },
+    {
+      "cityId": "leeds",
+      "name": "Woodhouse",
+      "kind": "suburb",
+      "lat": 53.809926,
+      "lng": -1.548821
+    },
+    {
+      "cityId": "leeds",
+      "name": "Woodhouse Carr",
+      "kind": "neighbourhood",
+      "lat": 53.812534,
+      "lng": -1.548988
+    },
+    {
+      "cityId": "leeds",
+      "name": "Woodhouse Cliff",
+      "kind": "neighbourhood",
+      "lat": 53.81792,
+      "lng": -1.559768
+    },
+    {
+      "cityId": "leeds",
+      "name": "Woodhouse Hill",
+      "kind": "quarter",
+      "lat": 53.770073,
+      "lng": -1.523539
+    },
+    {
+      "cityId": "leeds",
+      "name": "Wortley",
+      "kind": "suburb",
+      "lat": 53.789018,
+      "lng": -1.583772
+    },
+    {
+      "cityId": "bristol",
+      "name": "Ashley Down",
+      "kind": "suburb",
+      "lat": 51.478287,
+      "lng": -2.585152
+    },
+    {
+      "cityId": "bristol",
+      "name": "Ashton Gate",
+      "kind": "suburb",
+      "lat": 51.439932,
+      "lng": -2.618653
+    },
+    {
+      "cityId": "bristol",
+      "name": "Ashton Vale",
+      "kind": "suburb",
+      "lat": 51.435047,
+      "lng": -2.62385
+    },
+    {
+      "cityId": "bristol",
+      "name": "Baptist Mills",
+      "kind": "neighbourhood",
+      "lat": 51.466039,
+      "lng": -2.573581
+    },
+    {
+      "cityId": "bristol",
+      "name": "Barton Hill",
+      "kind": "suburb",
+      "lat": 51.455059,
+      "lng": -2.563893
+    },
+    {
+      "cityId": "bristol",
+      "name": "Bedminster",
+      "kind": "suburb",
+      "lat": 51.436739,
+      "lng": -2.60422
+    },
+    {
+      "cityId": "bristol",
+      "name": "Bedminster Down",
+      "kind": "suburb",
+      "lat": 51.424272,
+      "lng": -2.617447
+    },
+    {
+      "cityId": "bristol",
+      "name": "Bishopston",
+      "kind": "suburb",
+      "lat": 51.478305,
+      "lng": -2.595453
+    },
+    {
+      "cityId": "bristol",
+      "name": "Bower Ashton",
+      "kind": "neighbourhood",
+      "lat": 51.441582,
+      "lng": -2.628838
+    },
+    {
+      "cityId": "bristol",
+      "name": "Brislington",
+      "kind": "suburb",
+      "lat": 51.437796,
+      "lng": -2.544538
+    },
+    {
+      "cityId": "bristol",
+      "name": "Bristol",
+      "kind": "city",
+      "lat": 51.453802,
+      "lng": -2.597298
+    },
+    {
+      "cityId": "bristol",
+      "name": "Broadmead",
+      "kind": "suburb",
+      "lat": 51.457707,
+      "lng": -2.589117
+    },
+    {
+      "cityId": "bristol",
+      "name": "Broomhill",
+      "kind": "neighbourhood",
+      "lat": 51.441766,
+      "lng": -2.538218
+    },
+    {
+      "cityId": "bristol",
+      "name": "Canon's Marsh",
+      "kind": "neighbourhood",
+      "lat": 51.44907,
+      "lng": -2.602201
+    },
+    {
+      "cityId": "bristol",
+      "name": "Cheswick",
+      "kind": "neighbourhood",
+      "lat": 51.497469,
+      "lng": -2.558656
+    },
+    {
+      "cityId": "bristol",
+      "name": "City Centre",
+      "kind": "suburb",
+      "lat": 51.453955,
+      "lng": -2.597286
+    },
+    {
+      "cityId": "bristol",
+      "name": "Clifton",
+      "kind": "suburb",
+      "lat": 51.461588,
+      "lng": -2.620285
+    },
+    {
+      "cityId": "bristol",
+      "name": "Clifton Village",
+      "kind": "neighbourhood",
+      "lat": 51.45528,
+      "lng": -2.619339
+    },
+    {
+      "cityId": "bristol",
+      "name": "Cliftonwood",
+      "kind": "neighbourhood",
+      "lat": 51.450931,
+      "lng": -2.613979
+    },
+    {
+      "cityId": "bristol",
+      "name": "Conham",
+      "kind": "neighbourhood",
+      "lat": 51.447897,
+      "lng": -2.529059
+    },
+    {
+      "cityId": "bristol",
+      "name": "Coombe Dingle",
+      "kind": "suburb",
+      "lat": 51.492189,
+      "lng": -2.640055
+    },
+    {
+      "cityId": "bristol",
+      "name": "Cotham",
+      "kind": "suburb",
+      "lat": 51.46497,
+      "lng": -2.598604
+    },
+    {
+      "cityId": "bristol",
+      "name": "Crew's Hole",
+      "kind": "neighbourhood",
+      "lat": 51.45631,
+      "lng": -2.5396
+    },
+    {
+      "cityId": "bristol",
+      "name": "Cumberland Basin",
+      "kind": "neighbourhood",
+      "lat": 51.449584,
+      "lng": -2.619148
+    },
+    {
+      "cityId": "bristol",
+      "name": "Easton",
+      "kind": "suburb",
+      "lat": 51.464703,
+      "lng": -2.567684
+    },
+    {
+      "cityId": "bristol",
+      "name": "Eastville",
+      "kind": "suburb",
+      "lat": 51.473305,
+      "lng": -2.559857
+    },
+    {
+      "cityId": "bristol",
+      "name": "Finzels Reach",
+      "kind": "neighbourhood",
+      "lat": 51.453775,
+      "lng": -2.589292
+    },
+    {
+      "cityId": "bristol",
+      "name": "Fishponds",
+      "kind": "suburb",
+      "lat": 51.48158,
+      "lng": -2.528941
+    },
+    {
+      "cityId": "bristol",
+      "name": "Golden Hill",
+      "kind": "neighbourhood",
+      "lat": 51.484454,
+      "lng": -2.599976
+    },
+    {
+      "cityId": "bristol",
+      "name": "Greenbank",
+      "kind": "neighbourhood",
+      "lat": 51.46803,
+      "lng": -2.557442
+    },
+    {
+      "cityId": "bristol",
+      "name": "Henleaze",
+      "kind": "suburb",
+      "lat": 51.48459,
+      "lng": -2.611205
+    },
+    {
+      "cityId": "bristol",
+      "name": "Horfield",
+      "kind": "suburb",
+      "lat": 51.491856,
+      "lng": -2.580096
+    },
+    {
+      "cityId": "bristol",
+      "name": "Hotwells",
+      "kind": "suburb",
+      "lat": 51.450534,
+      "lng": -2.621621
+    },
+    {
+      "cityId": "bristol",
+      "name": "Kingsdown",
+      "kind": "suburb",
+      "lat": 51.462525,
+      "lng": -2.595457
+    },
+    {
+      "cityId": "bristol",
+      "name": "Knowle",
+      "kind": "suburb",
+      "lat": 51.428578,
+      "lng": -2.577999
+    },
+    {
+      "cityId": "bristol",
+      "name": "Knowle Park",
+      "kind": "neighbourhood",
+      "lat": 51.430904,
+      "lng": -2.57068
+    },
+    {
+      "cityId": "bristol",
+      "name": "Knowle West",
+      "kind": "neighbourhood",
+      "lat": 51.428241,
+      "lng": -2.586375
+    },
+    {
+      "cityId": "bristol",
+      "name": "Lawrence Hill",
+      "kind": "neighbourhood",
+      "lat": 51.458305,
+      "lng": -2.567985
+    },
+    {
+      "cityId": "bristol",
+      "name": "Lockleaze",
+      "kind": "suburb",
+      "lat": 51.490701,
+      "lng": -2.565131
+    },
+    {
+      "cityId": "bristol",
+      "name": "Manor Farm",
+      "kind": "neighbourhood",
+      "lat": 51.491574,
+      "lng": -2.591859
+    },
+    {
+      "cityId": "bristol",
+      "name": "Montpelier",
+      "kind": "suburb",
+      "lat": 51.467398,
+      "lng": -2.584641
+    },
+    {
+      "cityId": "bristol",
+      "name": "Newtown",
+      "kind": "neighbourhood",
+      "lat": 51.457324,
+      "lng": -2.573804
+    },
+    {
+      "cityId": "bristol",
+      "name": "Old City",
+      "kind": "neighbourhood",
+      "lat": 51.454353,
+      "lng": -2.594555
+    },
+    {
+      "cityId": "bristol",
+      "name": "Old Market",
+      "kind": "neighbourhood",
+      "lat": 51.456474,
+      "lng": -2.579931
+    },
+    {
+      "cityId": "bristol",
+      "name": "Paintworks",
+      "kind": "neighbourhood",
+      "lat": 51.444116,
+      "lng": -2.564742
+    },
+    {
+      "cityId": "bristol",
+      "name": "Pigsty Hill",
+      "kind": "neighbourhood",
+      "lat": 51.477021,
+      "lng": -2.590232
+    },
+    {
+      "cityId": "bristol",
+      "name": "Redcliffe",
+      "kind": "suburb",
+      "lat": 51.45016,
+      "lng": -2.587601
+    },
+    {
+      "cityId": "bristol",
+      "name": "Redfield",
+      "kind": "suburb",
+      "lat": 51.458539,
+      "lng": -2.558395
+    },
+    {
+      "cityId": "bristol",
+      "name": "Redland",
+      "kind": "suburb",
+      "lat": 51.472796,
+      "lng": -2.600312
+    },
+    {
+      "cityId": "bristol",
+      "name": "Sea Mills",
+      "kind": "suburb",
+      "lat": 51.488385,
+      "lng": -2.647856
+    },
+    {
+      "cityId": "bristol",
+      "name": "Sneyd Park",
+      "kind": "suburb",
+      "lat": 51.47355,
+      "lng": -2.637764
+    },
+    {
+      "cityId": "bristol",
+      "name": "Southville",
+      "kind": "suburb",
+      "lat": 51.443329,
+      "lng": -2.601188
+    },
+    {
+      "cityId": "bristol",
+      "name": "Speedwell",
+      "kind": "suburb",
+      "lat": 51.466553,
+      "lng": -2.53305
+    },
+    {
+      "cityId": "bristol",
+      "name": "Spike Island",
+      "kind": "suburb",
+      "lat": 51.447757,
+      "lng": -2.610481
+    },
+    {
+      "cityId": "bristol",
+      "name": "St Agnes",
+      "kind": "neighbourhood",
+      "lat": 51.465067,
+      "lng": -2.579004
+    },
+    {
+      "cityId": "bristol",
+      "name": "St Andrew's",
+      "kind": "suburb",
+      "lat": 51.472083,
+      "lng": -2.584476
+    },
+    {
+      "cityId": "bristol",
+      "name": "St Anne's",
+      "kind": "suburb",
+      "lat": 51.451075,
+      "lng": -2.543521
+    },
+    {
+      "cityId": "bristol",
+      "name": "St George",
+      "kind": "suburb",
+      "lat": 51.458894,
+      "lng": -2.534168
+    },
+    {
+      "cityId": "bristol",
+      "name": "St Jude's",
+      "kind": "neighbourhood",
+      "lat": 51.460633,
+      "lng": -2.576857
+    },
+    {
+      "cityId": "bristol",
+      "name": "St Paul's",
+      "kind": "suburb",
+      "lat": 51.462916,
+      "lng": -2.584021
+    },
+    {
+      "cityId": "bristol",
+      "name": "St Philip's",
+      "kind": "suburb",
+      "lat": 51.453065,
+      "lng": -2.575015
+    },
+    {
+      "cityId": "bristol",
+      "name": "St Philip's Marsh",
+      "kind": "suburb",
+      "lat": 51.446927,
+      "lng": -2.569472
+    },
+    {
+      "cityId": "bristol",
+      "name": "St Werburgh's",
+      "kind": "suburb",
+      "lat": 51.469824,
+      "lng": -2.575938
+    },
+    {
+      "cityId": "bristol",
+      "name": "Stapleton",
+      "kind": "suburb",
+      "lat": 51.481358,
+      "lng": -2.555438
+    },
+    {
+      "cityId": "bristol",
+      "name": "Stoke Bishop",
+      "kind": "suburb",
+      "lat": 51.480413,
+      "lng": -2.635691
+    },
+    {
+      "cityId": "bristol",
+      "name": "Stoke Park",
+      "kind": "suburb",
+      "lat": 51.495857,
+      "lng": -2.545676
+    },
+    {
+      "cityId": "bristol",
+      "name": "Stokes Croft",
+      "kind": "neighbourhood",
+      "lat": 51.462854,
+      "lng": -2.589946
+    },
+    {
+      "cityId": "bristol",
+      "name": "Temple Quarter",
+      "kind": "neighbourhood",
+      "lat": 51.451479,
+      "lng": -2.584484
+    },
+    {
+      "cityId": "bristol",
+      "name": "The Dings",
+      "kind": "neighbourhood",
+      "lat": 51.4524,
+      "lng": -2.577005
+    },
+    {
+      "cityId": "bristol",
+      "name": "Totterdown",
+      "kind": "suburb",
+      "lat": 51.440942,
+      "lng": -2.575649
+    },
+    {
+      "cityId": "bristol",
+      "name": "Tyndall's Park",
+      "kind": "neighbourhood",
+      "lat": 51.459606,
+      "lng": -2.60419
+    },
+    {
+      "cityId": "bristol",
+      "name": "Upper Knowle",
+      "kind": "neighbourhood",
+      "lat": 51.437153,
+      "lng": -2.566843
+    },
+    {
+      "cityId": "bristol",
+      "name": "Wapping Wharf",
+      "kind": "neighbourhood",
+      "lat": 51.446659,
+      "lng": -2.599233
+    },
+    {
+      "cityId": "bristol",
+      "name": "Westbury on Trym",
+      "kind": "suburb",
+      "lat": 51.493635,
+      "lng": -2.617945
+    },
+    {
+      "cityId": "bristol",
+      "name": "Westbury Park",
+      "kind": "suburb",
+      "lat": 51.476859,
+      "lng": -2.615761
+    },
+    {
+      "cityId": "bristol",
+      "name": "Whitehall",
+      "kind": "suburb",
+      "lat": 51.463368,
+      "lng": -2.55228
+    },
+    {
+      "cityId": "bristol",
+      "name": "Windmill Hill",
+      "kind": "neighbourhood",
+      "lat": 51.439745,
+      "lng": -2.588314
+    }
+  ]
+}

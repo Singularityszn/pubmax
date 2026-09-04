@@ -2,7 +2,8 @@
 
 import { type RefObject, useEffect, useId, useRef, useState } from "react";
 
-import { NIGHT_AREAS } from "@/lib/nightAreas";
+import { nightAreasByCity } from "@/lib/nightAreas";
+import { getCity } from "@/lib/cities";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { authedActionJson } from "@/lib/authedFetch";
 import { readSocialDraftPhoto, saveSocialDraftPhoto } from "@/lib/socialComposerDrafts";
@@ -652,10 +653,14 @@ export default function SocialComposer({
                 }
               >
                 <option value="">None</option>
-                {NIGHT_AREAS.map((area) => (
-                  <option key={area.slug} value={area.slug}>
-                    {area.name}
-                  </option>
+                {nightAreasByCity().map((group) => (
+                  <optgroup key={group.cityId} label={getCity(group.cityId).displayName}>
+                    {group.areas.map((area) => (
+                      <option key={area.slug} value={area.slug}>
+                        {area.name}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </label>

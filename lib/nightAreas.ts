@@ -1,10 +1,58 @@
 import type { CityId } from "@/lib/cities";
 import type { Daypart } from "@/lib/nightPlanning";
+import derivedAreaData from "@/public/data/night_areas/uk_cities.json";
 
-export const NIGHT_AREA_SLUGS = [
+/** London's hand-curated patches. Every other city's areas are derived below. */
+export const LONDON_NIGHT_AREA_SLUGS = [
   "clapham", "victoria", "piccadilly-soho", "canary-wharf", "barnes", "chiswick",
   "shoreditch", "camden", "brixton", "bermondsey-london-bridge", "kings-cross", "islington",
   "dalston", "peckham", "greenwich", "hammersmith", "balham", "marylebone", "richmond", "putney",
+] as const;
+/** A London patch, for the London-only tables (weather points, late food). */
+export type LondonNightAreaSlug = (typeof LONDON_NIGHT_AREA_SLUGS)[number];
+
+/**
+ * The areas DERIVED for the other cities out of the OpenStreetMap base layer.
+ *
+ * Written out here rather than read off the JSON because `NightAreaSlug` is a
+ * closed union the whole tree narrows against, and a JSON import widens to
+ * `string`. `__tests__/cityNightAreas.test.ts` fails when this list and
+ * `public/data/night_areas/uk_cities.json` stop naming the same areas, so the
+ * builder cannot add one without it landing here too.
+ */
+export const DERIVED_NIGHT_AREA_SLUGS = [
+  "manchester-city-centre",
+  "manchester-shaw-heath",
+  "manchester-werneth",
+  "manchester-portwood",
+  "manchester-chorlton-on-medlock",
+  "manchester-heaton-norris",
+  "birmingham-city-centre",
+  "birmingham-vauxhall",
+  "birmingham-moseley",
+  "birmingham-hockley-port",
+  "birmingham-harborne",
+  "birmingham-aston",
+  "leeds-city-centre",
+  "leeds-hyde-park",
+  "leeds-armley",
+  "leeds-bruntcliffe",
+  "leeds-hunslet",
+  "leeds-holbeck",
+  "leeds-burmantofts",
+  "bristol-city-centre",
+  "bristol-montpelier",
+  "bristol-hotwells",
+  "bristol-bedminster",
+  "bristol-barton-hill",
+  "bristol-westbury-park",
+  "bristol-eastville",
+  "bristol-totterdown",
+] as const;
+
+export const NIGHT_AREA_SLUGS = [
+  ...LONDON_NIGHT_AREA_SLUGS,
+  ...DERIVED_NIGHT_AREA_SLUGS,
 ] as const;
 export type NightAreaSlug = (typeof NIGHT_AREA_SLUGS)[number];
 
@@ -133,12 +181,42 @@ const AREA_SEEDS: readonly AreaSeed[] = [
   { slug: "putney", cityId: "london", name: "Putney", aliases: ["Putney Bridge", "East Putney"], centre: { lat: 51.461, lng: -0.216 }, radiusKm: 1.5, transportAnchors: ["Putney", "East Putney", "Putney Bridge"], demandWave: 2, description: "A riverside patch we have not checked yet.", afterWork: "Have a browse while we check prices and route details.", lateNight: "Crawl planning opens after those checks.", coverage: discovered() },
 ];
 
-export const NIGHT_AREAS: readonly NightArea[] = AREA_SEEDS.map(({ afterWork, lateNight, coverage: snapshot, ...area }) => ({
-  ...area,
-  daypartGuidance: guidance(afterWork, lateNight),
-  recentSignals: [],
-  ...snapshot,
+/**
+ * The areas DERIVED for the cities outside London, out of the OpenStreetMap base
+ * layer (`scripts/build_city_night_areas.mjs`).
+ *
+ * They arrive `discovered`: the base layer states a name, a place and the pubs
+ * around it, and nothing else. It holds no price, no opening hour and no
+ * station, so every one of those stays in `missingEvidence` and
+ * `transportAnchors` is EMPTY rather than carrying a station nobody read. That
+ * is the same answer London's own unchecked patches give, and it is what keeps
+ * these areas out of route readiness, priced landings and the sitemap.
+ */
+const derivedSeeds: readonly AreaSeed[] = derivedAreaData.areas.map((area) => ({
+  slug: area.slug as NightAreaSlug,
+  cityId: area.cityId as CityId,
+  name: area.name,
+  aliases: [],
+  centre: { lat: area.centre.lat, lng: area.centre.lng },
+  radiusKm: area.radiusKm,
+  transportAnchors: [],
+  demandWave: 3,
+  // The count, not a restatement of the name above it: how many pubs the base
+  // layer puts inside this circle is the one thing the row can honestly add.
+  description: `${area.pubCount} pubs on the map. Prices and route details are not checked yet.`,
+  afterWork: "Have a browse while we check prices and route details.",
+  lateNight: "Crawl planning opens after those checks.",
+  coverage: discovered(),
 }));
+
+export const NIGHT_AREAS: readonly NightArea[] = [...AREA_SEEDS, ...derivedSeeds].map(
+  ({ afterWork, lateNight, coverage: snapshot, ...area }) => ({
+    ...area,
+    daypartGuidance: guidance(afterWork, lateNight),
+    recentSignals: [],
+    ...snapshot,
+  }),
+);
 
 export function validateNightAreaCatalogue(areas: readonly unknown[]): void {
   const errors: string[] = [];
@@ -156,7 +234,13 @@ export function validateNightAreaCatalogue(areas: readonly unknown[]): void {
     else slugs.add(slug);
     const centre = value.centre as { lat?: unknown; lng?: unknown } | undefined;
     if (!centre || typeof centre.lat !== "number" || typeof centre.lng !== "number" || !Number.isFinite(centre.lat) || !Number.isFinite(centre.lng) || centre.lat < -90 || centre.lat > 90 || centre.lng < -180 || centre.lng > 180) errors.push(`Invalid coordinates for Night Area ${slug || "(unknown)"}.`);
-    if (!Array.isArray(value.transportAnchors) || value.transportAnchors.length === 0 || value.transportAnchors.some((anchor) => typeof anchor !== "string" || !anchor.trim())) errors.push(`Night Area ${slug || "(unknown)"} needs at least one transport anchor.`);
+    // An anchor list may be EMPTY, and for a derived area it has to be: the
+    // base layer states no station, and naming one we have not read is the
+    // invention this whole lane exists to avoid. An area with no anchor carries
+    // `transport_anchor` in its own missingEvidence and can never be route
+    // ready, so nothing plans a night out of one. What is still refused is a
+    // list holding something that is not a station name.
+    if (!Array.isArray(value.transportAnchors) || value.transportAnchors.some((anchor) => typeof anchor !== "string" || !anchor.trim())) errors.push(`Night Area ${slug || "(unknown)"} has an invalid transport anchor.`);
     if (!Array.isArray(value.aliases)) errors.push(`Night Area ${slug || "(unknown)"} aliases must be an array.`);
     else for (const alias of value.aliases) {
       const normalized = typeof alias === "string" ? alias.trim().toLocaleLowerCase() : "";
@@ -182,6 +266,24 @@ export function getNightArea(slug: NightAreaSlug): NightArea {
 export function tryGetNightArea(slug: string | null | undefined): NightArea | null {
   if (!slug) return null;
   return NIGHT_AREAS.find((area) => area.slug === slug) ?? null;
+}
+
+/**
+ * Every area grouped under the city it is in, in catalogue order.
+ *
+ * The one shape a PICKER needs. A flat list of every area was fine while every
+ * area was London's; with four more cities in the catalogue two of them can
+ * print the same name, and a reader choosing between two rows reading
+ * "City centre" is choosing blind.
+ */
+export function nightAreasByCity(): Array<{ cityId: CityId; areas: NightArea[] }> {
+  const grouped = new Map<CityId, NightArea[]>();
+  for (const area of NIGHT_AREAS) {
+    const held = grouped.get(area.cityId);
+    if (held) held.push(area);
+    else grouped.set(area.cityId, [area]);
+  }
+  return [...grouped].map(([cityId, areas]) => ({ cityId, areas }));
 }
 
 export function getNightAreasForCity(cityId: CityId): NightArea[] {

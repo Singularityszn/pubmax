@@ -1,7 +1,7 @@
 import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { cityAwareMapPath } from "@/lib/curatedCrawls";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
-import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
+import { LONDON_NIGHT_AREA_SLUGS, type LondonNightAreaSlug } from "@/lib/nightAreas";
 import { haversineKm } from "@/lib/haversine";
 import { WALK_KMH } from "@/lib/routeLegs";
 import {
@@ -12,8 +12,11 @@ import evidenceSnapshot from "@/public/data/late_food_evidence.json";
 // Food endings are deliberately separate from the Venue Dataset: their hours,
 // locations and provenance must pass their own evidence gate and never become
 // pint-price or crawl-stop facts.
-export const LATE_FOOD_AREAS = NIGHT_AREA_SLUGS;
-export type LateFoodArea = NightAreaSlug;
+// London's patches alone: public/data/late_food_evidence.json holds evidenced
+// food endings for those and nothing else, and an area in another city with no
+// row must read as no evidence rather than as an empty London one.
+export const LATE_FOOD_AREAS = LONDON_NIGHT_AREA_SLUGS;
+export type LateFoodArea = LondonNightAreaSlug;
 
 export const LATE_FOOD_AREA_ALIASES = {
   soho: "piccadilly-soho",
@@ -169,7 +172,7 @@ function rawOptions(): RawOption[] {
     LateFoodArea,
     { options: RawOption[] }
   >;
-  return NIGHT_AREA_SLUGS.flatMap((area) => areas[area]?.options ?? []);
+  return LONDON_NIGHT_AREA_SLUGS.flatMap((area) => areas[area]?.options ?? []);
 }
 
 function clockMinutes(value: string): number {
@@ -314,7 +317,7 @@ export const LATE_FOOD_TERMINALS: readonly LateFoodTerminal[] = rawOptions()
   .filter((terminal): terminal is LateFoodTerminal => terminal !== null);
 
 export function isLateFoodArea(value: string): value is LateFoodArea {
-  return (NIGHT_AREA_SLUGS as readonly string[]).includes(value);
+  return (LONDON_NIGHT_AREA_SLUGS as readonly string[]).includes(value);
 }
 
 export function normalizeLateFoodArea(

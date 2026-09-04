@@ -62,10 +62,12 @@ describe("listEnabledCities", () => {
     const enabled = listEnabledCities();
     expect(enabled.map((c) => c.id).sort()).toEqual([
       "bath",
+      "birmingham",
       "bristol",
       "cambridge",
       "durham",
       "glasgow",
+      "leeds",
       "liverpool",
       "llandudno",
       "london",

@@ -182,19 +182,27 @@ describe("Places capability copy", () => {
   });
 
   it("says areas are coming for a city with none, and names the gap", () => {
-    // Every mapped area is London's today, so the other nine are the empty case.
+    // London's patches are hand-curated and four more cities have areas derived
+    // from the base layer. Every OTHER city is the empty case, and it must be
+    // worded as a missing map rather than as a city with nothing in it.
     expect(placesAreasForCity("london").length).toBe(
       getNightAreasForCity("london").length,
     );
     expect(placesAreasForCity("london").length).toBeGreaterThan(0);
+    let empty = 0;
     for (const city of listEnabledCities()) {
-      if (city.id === "london") continue;
+      if (getNightAreasForCity(city.id).length > 0) {
+        expect(placesAreasForCity(city.id)).toEqual(getNightAreasForCity(city.id));
+        continue;
+      }
+      empty += 1;
       expect(placesAreasForCity(city.id)).toEqual([]);
       const line = placesAreasEmptyLine(city.id);
       expect(line).toContain(city.displayName);
       // The gap is named AND the thing that is there is handed over.
       expect(line).toMatch(/map/i);
     }
+    expect(empty).toBeGreaterThan(0);
     expect(PLACES_AREAS_COMING_PILL).toBe("Areas coming");
   });
 

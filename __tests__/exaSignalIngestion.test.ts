@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NIGHT_AREA_SLUGS } from "@/lib/nightAreas";
+import { LONDON_NIGHT_AREA_SLUGS } from "@/lib/nightAreas";
 import { validateNightSignalClaim } from "@/lib/nightSignalClaims";
 // The Exa ingestion is JavaScript by design (it mirrors the scheduled refresh
 // importer). Its pure normalisers are exercised here against fixture payloads;
@@ -19,7 +19,8 @@ const goodResult = {
 describe("Exa night-signal candidate ingestion", () => {
   it("keeps the area matchers in lockstep with lib/nightAreas.ts", () => {
     const matcherSlugs = NIGHT_AREA_MATCHERS.map((area: { slug: string }) => area.slug).sort();
-    expect(matcherSlugs).toEqual([...NIGHT_AREA_SLUGS].sort());
+    // London's patches alone: the Exa queries are London publications.
+    expect(matcherSlugs).toEqual([...LONDON_NIGHT_AREA_SLUGS].sort());
     for (const area of NIGHT_AREA_MATCHERS) {
       expect(area.terms.length).toBeGreaterThan(0);
     }
