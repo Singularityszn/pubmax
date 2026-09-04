@@ -56,3 +56,14 @@ export function iconMarkOnlySvg(options?: {
   widthFraction?: number;
   px?: number | null;
 }): string;
+
+export const NOTIFICATION_ICON_MARK_WIDTH: number;
+
+export const NOTIFICATION_ICON_DP: number;
+
+export function polygonPathData(points: string): string;
+
+export function notificationIconVectorDrawable(options?: {
+  widthFraction?: number;
+  dp?: number;
+}): string;
