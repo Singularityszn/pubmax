@@ -32,10 +32,10 @@ test.describe("mobile Moment journey", () => {
     await expect(page.getByText("Your unfinished Moment is back.")).toBeVisible();
   });
 
-  test("gated Social stays out of Moment primary navigation", async ({ page }) => {
+  test("Social sits in Moment primary navigation", async ({ page }) => {
     await page.goto("/moment");
     await expect(
       page.getByRole("navigation", { name: "Primary" }).locator('a[href="/social"]'),
-    ).toHaveCount(0);
+    ).toHaveCount(1);
   });
 });
