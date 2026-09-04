@@ -20,6 +20,7 @@
 //     don't. No em dashes in any copy this module builds.
 
 import { estimateBusyness } from "@/lib/busyness";
+import { formatGbp } from "@/lib/formatGbp";
 import { isFeaturedHeritageSource, type HeritageFact } from "@/lib/heritageFacts";
 import { eraStartYear, heritageSourceLabel, listedBadge } from "@/lib/historicFilter";
 import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
@@ -124,7 +125,7 @@ function londonWeekdayName(now: Date): string {
 }
 
 function priceLabel(price: number | null | undefined): string | null {
-  return typeof price === "number" && Number.isFinite(price) ? `£${price.toFixed(2)}` : null;
+  return typeof price === "number" && Number.isFinite(price) ? formatGbp(price) : null;
 }
 
 /**

@@ -1,3 +1,4 @@
+import { formatGbp } from "@/lib/formatGbp";
 import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 
 // WhatsApp-native share artifacts — one pure text builder per shareable night
@@ -37,7 +38,7 @@ import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 // becomes a price string — anything else is treated as "price unknown".
 function gbp(value: number | null | undefined): string | null {
   return typeof value === "number" && Number.isFinite(value) && value > 0
-    ? `£${value.toFixed(2)}`
+    ? formatGbp(value)
     : null;
 }
 
@@ -68,7 +69,7 @@ export function planInviteSpendBandFromListedPrices(
 
 /** "£4.50–£6.00 per person", collapsing when min and max match. */
 export function formatPlanInviteSpendBand(band: PlanInviteSpendBand): string {
-  const label = (value: number) => `£${value.toFixed(2)}`;
+  const label = formatGbp;
   const range =
     band.minGbp === band.maxGbp
       ? label(band.minGbp)

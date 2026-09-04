@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { CityId } from "@/lib/cities";
+import { formatGbp } from "@/lib/formatGbp";
 import { venueIdMatchesCity } from "@/lib/cityVenueIds";
 import {
   nearestNightAreaForViewport,
@@ -99,7 +100,7 @@ function venueInAcceptedArea(venue: Venue, acceptedArea: PlanningIntentArea): bo
 }
 
 function gbpLabel(price: number): string {
-  return `£${price.toFixed(2)}`;
+  return formatGbp(price);
 }
 
 function priceEvidenceFor(venue: Venue): PlanningAnchorPriceEvidence | null {

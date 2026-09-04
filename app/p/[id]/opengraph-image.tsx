@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { getPintDropById } from "@/lib/pintDropLookup";
-import { CrossingMark, OG_CACHE_HEADERS } from "@/lib/ogBrand";
+import { CrossingMark, OG_CACHE_HEADERS, priceStamp } from "@/lib/ogBrand";
 import { clampOgText } from "@/lib/ogCardText";
 
 // Per-drop OG share card (Next `opengraph-image` convention). Renders the Pint
@@ -25,11 +25,6 @@ const RIVER = "#3f5566"; // muted Thames blue
 
 const serif = 'Georgia, "Times New Roman", serif';
 const sans = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
-
-function priceStamp(value: number | null): string | null {
-  if (value === null || !Number.isFinite(value) || value <= 0) return null;
-  return `£${value.toFixed(2)}`;
-}
 
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

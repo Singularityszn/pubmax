@@ -2,6 +2,7 @@ import { haversineKm } from "@/lib/haversine";
 import { WALK_KMH } from "@/lib/routeLegs";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
+import { walkMinutesFromKm } from "@/lib/walkMinutes";
 
 // Pure ranking core for the "Near me now" instant answer (Cycle 3, Lane 1).
 //
@@ -56,10 +57,7 @@ export function nearMeAnswerHeadline(input: {
 }
 
 /** Whole walking minutes for a distance, floored at 1 so nothing reads "0 min". */
-export function walkMinutesFromKm(km: number): number {
-  if (!Number.isFinite(km) || km <= 0) return 1;
-  return Math.max(1, Math.round((km * 1000) / WALK_METRES_PER_MIN));
-}
+export { walkMinutesFromKm };
 
 /** Under this, a rounded kilometre figure stops being a measurement. */
 export const RIGHT_HERE_MAX_KM = 0.1;
