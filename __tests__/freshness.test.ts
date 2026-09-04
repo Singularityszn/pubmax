@@ -526,7 +526,7 @@ describe("evaluateDataset — status + budget math", () => {
   });
 });
 
-describe("evaluateDataset — an episodic feed is named a snapshot, not called fresh", () => {
+describe("evaluateDataset — a point-in-time feed is named a snapshot, not called fresh", () => {
   // A budget wide enough that none of these ages is a breach: the whole point
   // is that this is a NAMING rule inside the budget, never a second gate.
   const episodic = (overrides: Partial<FreshnessDataset> = {}) =>
@@ -604,12 +604,80 @@ describe("evaluateDataset — an episodic feed is named a snapshot, not called f
   });
 
   it("agrees with classNamesSnapshots about which classes are renamed", () => {
-    expect(classNamesSnapshots("episodic")).toBe(true);
-    for (const other of ["cron", "live", "static", "user-cadence", "snapshot"] as const) {
+    for (const named of ["episodic", "user-cadence"] as const) {
+      expect(classNamesSnapshots(named)).toBe(true);
+    }
+    // A cron or live feed is refreshed FOR us, so an old one is a budget
+    // question. `static` carries no stamp to age, and `snapshot` already says
+    // what it is.
+    for (const other of ["cron", "live", "static", "snapshot"] as const) {
       expect(classNamesSnapshots(other)).toBe(false);
     }
   });
 });
+
+describe("evaluateDataset - a user-cadence feed ages the same way", () => {
+  // pint_index_snapshot grows only as confirmed Pint Drops arrive, so a quiet
+  // stretch leaves it describing the last night anybody logged. It sat 1,211
+  // hours old inside this same 2,160h budget and read "fresh".
+  const userCadence = (overrides: Partial<FreshnessDataset> = {}) =>
+    dataset({ class: "user-cadence", stalenessBudgetHours: 2160, ...overrides });
+
+  const daysBefore = (days: number) =>
+    new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
+
+  it("still calls a user-cadence feed fresh at 29 days", () => {
+    const r = evaluateDataset(userCadence(), daysBefore(29), NOW);
+    expect(r.status).toBe("fresh");
+    expect(r.ageHours).toBe(696);
+  });
+
+  it("still calls it fresh at exactly 30 days (the flip is strictly over)", () => {
+    const r = evaluateDataset(userCadence(), daysBefore(SNAPSHOT_AFTER_DAYS), NOW);
+    expect(r.ageHours).toBe(SNAPSHOT_AFTER_HOURS);
+    expect(r.status).toBe("fresh");
+  });
+
+  it("names it a snapshot at 31 days, inside the same budget", () => {
+    const r = evaluateDataset(userCadence(), daysBefore(31), NOW);
+    expect(r.status).toBe("snapshot");
+    expect(r.ageHours).toBe(744);
+    expect(r.detail).toContain("snapshot of its collection day");
+    // The whole point of the rename: a naming change, never a second gate.
+    expect(hasBreach([r])).toBe(false);
+    expect(staleFeeds([r])).toEqual([]);
+    expect(unresolvedFeeds([r])).toEqual([]);
+  });
+
+  it("keeps the observed date on the snapshot answer", () => {
+    // A surface that says "snapshot" has to be able to say WHICH day, or it has
+    // traded one dishonest word for a vaguer one.
+    const observedAt = daysBefore(50);
+    const r = evaluateDataset(userCadence(), observedAt, NOW);
+    expect(r.status).toBe("snapshot");
+    expect(r.observedAt).toBe(observedAt);
+  });
+
+  it("keeps stale ahead of snapshot once the budget is breached", () => {
+    const r = evaluateDataset(
+      userCadence({ stalenessBudgetHours: 48 }),
+      daysBefore(31),
+      NOW,
+    );
+    expect(r.status).toBe("stale");
+    expect(hasBreach([r])).toBe(true);
+  });
+
+  it("keeps an unbudgeted user-cadence feed untracked rather than renaming it", () => {
+    const r = evaluateDataset(
+      userCadence({ stalenessBudgetHours: null }),
+      daysBefore(31),
+      NOW,
+    );
+    expect(r.status).toBe("untracked");
+  });
+});
+
 
 describe("evaluateRegistry + hasBreach", () => {
   const registry: FreshnessRegistry = {
@@ -666,6 +734,28 @@ describe("data/freshness_registry.json integrity", () => {
     expect(registry.datasets.length).toBeGreaterThan(0);
     const ids = registry.datasets.map((d) => d.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("names no live feed a snapshot", () => {
+    // The rename is only honest if every class it covers is really a
+    // point-in-time collection. A live feed is served per request, so it must
+    // stay outside the rule however its entry is later edited.
+    for (const entry of registry.datasets) {
+      if (entry.class === "live") {
+        expect(classNamesSnapshots(entry.class)).toBe(false);
+      }
+    }
+  });
+
+  it("carries pint_index_snapshot as a budgeted user-cadence feed", () => {
+    // The feed that prompted the rule: it grows only as confirmed Pint Drops
+    // arrive, so a quiet stretch leaves it dated. An unbudgeted entry would
+    // read "untracked" instead and the rename would never reach it.
+    const entry = registry.datasets.find((row) => row.id === "pint_index_snapshot");
+    expect(entry?.class).toBe("user-cadence");
+    expect(classNamesSnapshots("user-cadence")).toBe(true);
+    expect(typeof entry?.stalenessBudgetHours).toBe("number");
+    expect(entry?.artifact).toBe("public/data/pint_index_snapshot.json");
   });
 
   it("does not classify manually published feeds as cron schedules", () => {
