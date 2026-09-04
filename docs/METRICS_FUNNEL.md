@@ -526,6 +526,39 @@ closed rather than landing partial.
   `invite_rsvp_submitted`, and `invite_reaction_toggled` fail closed when
   their required prop is missing.
 
+## 9. Release metric: first meaningful action within 60 seconds
+
+Captain's release metric (4 September 2026, issue #1361). Full definition, the
+exact HogQL, the weekly dashboard and the per-number owner actions live in
+[`docs/analytics/TRACKING_PLAN.md`](analytics/TRACKING_PLAN.md). Two registry
+events were added for it and are documented here for the same reason the rest
+of this file exists.
+
+- `venue_sheet_opened` - `{ layer }`. A pub sheet opened on the Map. `layer` is
+  the two-value pub-layer enum (`curated`, `uk_base`) from AGENTS.md's "Two pub
+  layers", validated by `isAllowedVenueSheetProp` and failing closed without it.
+  `components/map/useVenueSheetOpened.ts` is the ONE emitter, shared by
+  `VenueInspector` and `UnverifiedPubSheet` so the two sheets cannot drift, and
+  it fires once per venue. It is the third step of the landing-to-Map-to-pub
+  funnel, which had no step of its own: `price_submit_viewed` is scoped to pubs
+  on the Overview tab and is a price denominator, never a sheet-open one.
+- `price_submit_outcome` - `{ category, outcome }`. What a confirmed submission
+  turned out to be worth, read back through the existing
+  `missionReceiptFromReadback`. `outcome` reuses the mission vocabulary
+  (`trusted`, `needs_check`, `logged`) on purpose, so there is one definition
+  rather than two. It fires for EVERY confirmed `price_submitted`, because
+  `mission_submitted` can only give the corroboration rate a denominator of
+  missions rather than of submissions.
+
+A server-minted `PintDropConfirmation` stays out of the rail. It is written by
+`lib/pintDropConfirm.server.ts` for a second reporter or a moderator, and
+neither has a consenting browser we may speak for, so it may not become a
+PostHog event under ADR 0009. The durable count stays in `GET /api/freshness`
+(`communityPrices.corroboratedCategories`) and the Pint Index snapshot.
+
+Pin: `__tests__/analyticsTrackingPlan.test.ts`, which also fails the build when
+the registry grows an event the tracking plan does not name.
+
 ## Wave 0.5 loop metrics
 
 The closed registry also carries the complete Plan to Memory to Story loop.
