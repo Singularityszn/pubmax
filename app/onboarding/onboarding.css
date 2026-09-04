@@ -9,6 +9,43 @@
   min-height: 100dvh;
 }
 
+/* THE CONSENT LANE.
+   ---------------------------------------------------------------------------
+   The analytics choice outranks every other prompt (analyticsChoiceHasPriority,
+   lib/promptBudget.ts), so on a first launch its card is on screen over this
+   surface. That priority is right and is not what changes here. The geometry
+   was wrong: .firstRunStage is sized to the viewport, so its last rows sit
+   exactly where a fixed bottom card lands, and the foot padding globals.css
+   reserves on an ordinary page cannot lift a block that is explicitly
+   viewport-height. On the iPhone 17 Pro simulator that put the card across the
+   reviewed-area rows and the "Use London" button.
+
+   The fix is containment, not a nudge: while the card is mounted this surface
+   becomes its own scroller, ending where the card's lane begins. Nothing can
+   pass under the card at any scroll position, which a nudge alone cannot
+   promise. The lane is the length globals.css publishes plus the same bottom
+   berth the card itself takes, so the two cannot drift; nothing here restates
+   either number. Take the card away and every declaration below stops
+   matching, so the surface is byte-identical to before. */
+:root {
+  --first-run-consent-lane: calc(
+    var(--analytics-consent-clearance) + max(12px, env(safe-area-inset-bottom, 0px))
+  );
+}
+
+body:has(.analyticsConsentPrompt) .firstRunOnboarding {
+  height: calc(100dvh - var(--first-run-consent-lane));
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+body:has(.analyticsConsentPrompt) .firstRunStage {
+  min-height: calc(
+    100dvh - 68px - env(safe-area-inset-top, 0px) - var(--first-run-consent-lane)
+  );
+}
+
 .firstRunOnboarding,
 .firstRunOnboarding *,
 .firstRunOnboarding *::before,
@@ -406,6 +443,30 @@
 
   body:has(.firstRunOnboarding) .mobileTabBar {
     display: none;
+  }
+
+  /* The surface is its own scroller now, so the foot padding globals.css adds
+     for the card would be dead space below a page that no longer scrolls. It
+     needs the second :has() to outrank that rule, which carries one of its
+     own. */
+  body:has(.firstRunOnboarding):has(.analyticsConsentPrompt) {
+    padding-bottom: 0;
+  }
+
+  /* The card is taller on a phone, where the sentence wraps and the two
+     buttons stack, so the lane is the phone length globals.css publishes.
+     Only the token is restated; every rule above reads it. */
+  :root {
+    --first-run-consent-lane: calc(
+      var(--analytics-consent-mobile-clearance)
+        + max(12px, env(safe-area-inset-bottom, 0px))
+    );
+  }
+
+  body:has(.analyticsConsentPrompt) .firstRunStage {
+    min-height: calc(
+      100dvh - 62px - env(safe-area-inset-top, 0px) - var(--first-run-consent-lane)
+    );
   }
 
   .firstRunTopbar {

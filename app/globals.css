@@ -4457,6 +4457,17 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   line-height: 1.45;
 }
 
+/* The consent card's reserved lane, published once so a surface that has to
+   make room for it reads the number rather than restating it. The values are
+   the ones the clearance rules below already carried as fallbacks, and those
+   fallbacks stay, so nothing here changes a computed length. The second reader
+   is app/onboarding/onboarding.css, which owns a viewport-height surface the
+   body's foot padding cannot lift out of the card's way. */
+:root {
+  --analytics-consent-clearance: 72px;
+  --analytics-consent-mobile-clearance: 128px;
+}
+
 .analyticsConsentPrompt {
   position: fixed;
   z-index: 1000;
@@ -4567,6 +4578,15 @@ body:has(.chooseAreaDesktopScrim) .analyticsConsentPrompt {
   }
 
   body:not(:has(.mobileTabBar, .mobileTabBarClearance)) .analyticsConsentPrompt {
+    bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
+  /* The first-run surface hides the tab bar (app/onboarding/onboarding.css)
+     without taking it out of the document, so the :not(:has()) rule above
+     still sees a dock and parks the card 72px up over a bar nobody can see.
+     On that surface the safe area IS the dock, and the surface reserves the
+     lane the card then sits in. */
+  body:has(.firstRunOnboarding) .analyticsConsentPrompt {
     bottom: max(12px, env(safe-area-inset-bottom));
   }
 
