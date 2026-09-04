@@ -20,6 +20,18 @@ import type { MapOverlay, MapSheetKind, MapViewportSnapshot } from "@/lib/mobile
 import { seedCrawlState } from "@/lib/crawlUrl";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
 import {
+  priceStandingFigure,
+  priceStandingFor,
+  priceStandingLabel,
+} from "@/lib/priceTier";
+import {
+  PROVISIONAL_PRICE_LINE,
+  venuePriceLaneObservedGbp,
+  type VenueBundlePrices,
+  type VenuePriceLane,
+} from "@/lib/venuePriceLane";
+import { formatPrice } from "@/lib/venues";
+import {
   eagerCuratedCrawlAltStyle,
   eagerCuratedCrawlAltStyleForBuiltIds,
 } from "@/lib/curatedCrawlHints";
@@ -713,4 +725,40 @@ export function searchParamsQuery(
   params: { toString: () => string } | null | undefined,
 ): string {
   return params?.toString() ?? "";
+}
+
+/**
+ * The one price the phone peek prints, or null when the pub genuinely has no
+ * price on record and the chip may invite the first drop.
+ *
+ * The lane is decided by `venuePriceLane` alone; this only says how the winning
+ * lane reads inside a chip that holds ONE figure and ONE short caption. An
+ * estimate answers `observed: false`, because nobody watched a modelled figure
+ * being paid, and its string comes from `priceStandingFigure`, which is what
+ * keeps the "est." on it.
+ */
+export function peekPriceChip(
+  lane: VenuePriceLane | null,
+  bundle: VenueBundlePrices,
+): { figure: string; caption: string; observed: boolean } | null {
+  if (!lane) return null;
+  if (lane.lane === "estimate") {
+    const figure = priceStandingFigure(
+      priceStandingFor({ estimate: bundle.estimate ?? null }),
+    );
+    return figure
+      ? { figure, caption: priceStandingLabel("estimate"), observed: false }
+      : null;
+  }
+  const observedGbp = venuePriceLaneObservedGbp(lane);
+  if (observedGbp === null) return null;
+  return {
+    figure: formatPrice(observedGbp),
+    // A lone report says what it still lacks, in the one wording the lane owns.
+    caption:
+      lane.lane === "provisional"
+        ? PROVISIONAL_PRICE_LINE
+        : "current recorded price",
+    observed: true,
+  };
 }

@@ -65,7 +65,14 @@ export type VenueBundlePrices = {
 export type VenuePriceLane =
   | { lane: "anchor"; anchorLabel: string; cheapestPrice: number }
   | { lane: "contributor"; contributorPrice: number }
-  | { lane: "sourced"; sourcedPrice: NonNullable<PricedVenue["sourcedPrice"]> }
+  | {
+      lane: "sourced";
+      sourcedPrice: NonNullable<PricedVenue["sourcedPrice"]>;
+      /** The figure itself. A sourced observation overwrites `cheapestPrice`
+       *  in `mergePriceUpdates`, so the attribution row carries no price of its
+       *  own and a surface printing one number needs it here. */
+      cheapestPrice: number | null;
+    }
   | { lane: "listed"; listed: ListedPriceInput }
   | {
       lane: "provisional";
@@ -104,7 +111,7 @@ export function venuePriceLane(
   if (latestContributorPrice !== null && latestContributorPrice !== undefined) {
     return { lane: "contributor", contributorPrice: latestContributorPrice };
   }
-  if (sourcedPrice) return { lane: "sourced", sourcedPrice };
+  if (sourcedPrice) return { lane: "sourced", sourcedPrice, cheapestPrice };
   // A LISTED BUNDLE ROW OUTRANKS THE BASELINE, because it carries the page it
   // was published at and the day it was read, and the baseline carries a
   // hand-maintained stamp and often no publisher at all.
@@ -149,4 +156,43 @@ export function venueBundlePrices(venue: Venue): VenueBundlePrices {
 /** The sourced-price lane input both callers derive the same way. */
 export function venueSourcedPrice(venue: Venue): PricedVenue["sourcedPrice"] {
   return (venue as PricedVenue).sourcedPrice ?? null;
+}
+
+/**
+ * The figure a lane prints, for a compact surface that shows one number.
+ *
+ * `estimate` answers null on purpose: nobody observed a modelled figure, and
+ * `priceStandingFigure` (lib/priceTier.ts) is the ONE place it may become a
+ * string, so a caller that wants it has to go through the module that keeps the
+ * "est." on it.
+ */
+export function venuePriceLaneObservedGbp(lane: VenuePriceLane): number | null {
+  switch (lane.lane) {
+    case "anchor":
+      return lane.cheapestPrice;
+    case "contributor":
+      return lane.contributorPrice;
+    case "sourced":
+      return lane.cheapestPrice;
+    case "listed":
+      return lane.listed.priceGbp;
+    case "provisional":
+      return lane.provisionalPrice;
+    case "baseline":
+      return lane.cheapestPrice;
+    case "estimate":
+      return null;
+  }
+}
+
+/**
+ * Whether this lane's figure is a DRINKER'S OWN LOG.
+ *
+ * The prices-by-drink block words its absence as "no beer price logged here
+ * yet", and a Pint Drop IS a log, so that line may not stand over one (#1426 follow-up).
+ * A sourced, listed, baseline or modelled figure was not logged by a drinker,
+ * so the line stays true beside those, and an anchor is not a pint at all.
+ */
+export function venuePriceLaneIsDrinkerLog(lane: VenuePriceLane): boolean {
+  return lane.lane === "contributor" || lane.lane === "provisional";
 }

@@ -41,6 +41,11 @@ import {
   type Venue,
 } from "@/lib/venues";
 import {
+  venueBundlePrices,
+  venuePriceLane,
+  venueSourcedPrice,
+} from "@/lib/venuePriceLane";
+import {
   isMapSearchField,
   typedSearchCameraMove,
   TYPED_SEARCH_MIN_QUERY,
@@ -494,6 +499,7 @@ import {
   nightAreaSlugOf,
   searchParamsQuery,
   searchParamValue,
+  peekPriceChip,
   settledBoundsFor,
   shouldResolveOpeningLocation as shouldResolveOpeningLocationFor,
   suggestedRouteWanted,
@@ -4688,6 +4694,26 @@ export default function PubMap({
      one accepted pub, so the peek carries three columns. */
   function renderVenuePeekSummary(selectedVenue: Venue) {
     const selectedLensPrice = activeLensPrices?.get(selectedVenue.id) ?? null;
+    // THE PEEK ASKS THE ONE PRECEDENCE. It used to test `cheapestPrice` itself
+    // and word every other answer as "No price yet", so a pub carrying one
+    // drinker's report read as unpriced on a phone while the sheet a short
+    // scroll below printed the figure (#1426 follow-up). A null lane is the only thing
+    // this chip may word as an absence (lib/venuePriceLane.ts).
+    const peekDropSignal = dropSignals.get(selectedVenue.id);
+    const peekBundle = venueBundlePrices(selectedVenue);
+    const peekLane = venuePriceLane(
+      selectedVenue,
+      peekDropSignal?.latestContributorPrice,
+      venueSourcedPrice(selectedVenue),
+      peekBundle,
+      peekDropSignal?.provisionalContributorPrice != null
+        ? {
+            priceGbp: peekDropSignal.provisionalContributorPrice,
+            observedAt: peekDropSignal.provisionalContributorAt ?? null,
+          }
+        : null,
+    );
+    const peekPrice = peekPriceChip(peekLane, peekBundle);
     return (
       <div className="mobileVenuePeekSummary" aria-label={selectedVenueLabels.summaryLabel}>
         {activeLensPrices !== null ? (
@@ -4705,10 +4731,16 @@ export default function PubMap({
                 )}
             </small>
           </span>
-        ) : typeof selectedVenue.cheapestPrice === "number" ? (
+        ) : peekPrice ? (
           <span>
-            <PriceBadge>{formatPrice(selectedVenue.cheapestPrice)}</PriceBadge>
-            <small>current recorded price</small>
+            {peekPrice.observed ? (
+              <PriceBadge>{peekPrice.figure}</PriceBadge>
+            ) : (
+              /* NO PRICE BADGE. Nobody observed a modelled figure, so it may
+                 not wear the mark an observed price wears. */
+              <strong>{peekPrice.figure}</strong>
+            )}
+            <small>{peekPrice.caption}</small>
           </span>
         ) : selectedVenueIsPub ? (
           <button
