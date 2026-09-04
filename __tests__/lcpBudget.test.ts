@@ -81,8 +81,12 @@ describe("the seeded ceilings say what they mean", () => {
   );
 
   it("holds the front door and its primary action to the programme target", () => {
-    expect(byPath.get("/")?.lcpMs).toBe(FRONT_DOOR_CEILING_MS);
-    expect(byPath.get("/pal")?.lcpMs).toBe(FRONT_DOOR_CEILING_MS);
+    // At or BELOW, not exactly at. The target is a ceiling the two most
+    // important routes may never be worse than; pinning the literal 1500
+    // forbade the ratchet this file exists to encourage, and / now sits at 800
+    // because it was measured there.
+    expect(byPath.get("/")?.lcpMs).toBeLessThanOrEqual(FRONT_DOOR_CEILING_MS);
+    expect(byPath.get("/pal")?.lcpMs).toBeLessThanOrEqual(FRONT_DOOR_CEILING_MS);
   });
 
   it("lets no route be worse than the good boundary", () => {
@@ -97,8 +101,10 @@ describe("the seeded ceilings say what they mean", () => {
     // note has to say when the figures were taken so the next reader knows how
     // old they are, and a re-seed is the healthy case.
     expect(PERFORMANCE_BUDGETS.note).toMatch(/\b20\d{2}-\d{2}-\d{2}\b/);
-    expect(PERFORMANCE_BUDGETS.note).toContain("4x CPU throttle");
     expect(PERFORMANCE_BUDGETS.note).toMatch(/down is free, up is a decision/);
+    // The throttle is a fact about the METHOD and it is asserted where it
+    // lives, so restating it in the prose is not what keeps it true.
+    expect(PERFORMANCE_BUDGETS.method.cpuThrottleRate).toBe(4);
   });
 });
 
