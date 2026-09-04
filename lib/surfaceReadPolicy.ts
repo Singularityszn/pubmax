@@ -20,6 +20,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "app/social/SocialComposer.tsx", fetchCount: 1, reason: "Social composer venue search is no-store; mutations use the shared auth transport" },
   { path: "app/social/crews/[crewId]/CrewDetailClient.tsx", fetchCount: 3, reason: "Social crew access and actions are no-store by policy" },
   { path: "app/u/[handle]/ProfilePageClient.tsx", fetchCount: 1, reason: "handle alias resolution is an identity read and must never be cached" },
+  { path: "components/ClientErrorReporter.tsx", fetchCount: 1, reason: "the client error report is fire-and-forget telemetry behind sendBeacon, never painted data" },
   { path: "components/LandlordPanel.tsx", fetchCount: 1, reason: "heritage question is a user-submitted request, not a painted reload surface" },
   { path: "components/PubMap.tsx", fetchCount: 3, reason: "map data packs and viewport streams have map-owned cache policy" },
   { path: "components/PubMapCanvas.tsx", fetchCount: 2, reason: "venue selection and route interaction are map-owned reads" },
