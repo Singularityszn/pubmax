@@ -40,16 +40,10 @@ describe("landing chrome CSS audit", () => {
   });
 
   it("floors every mobile micro-label to at least 12px", () => {
-    const floor = landingCss.match(/@media \(max-width: 700px\) {[\s\S]*?\.lpReadoutStat dt\s*{\s*font-size:\s*12px/);
-    expect(floor, "readout label floored to 12px on mobile").not.toBeNull();
     expect(landingCss).toMatch(/\.dropStripWho, \.dropStripHint, \.dropStripEra, \.provChip\s*{\s*font-size:\s*12px/);
-  });
-
-  it("stacks the readout on a phone with a rule above, not a staircase", () => {
-    const stacked = landingCss.match(/@media \(max-width: 700px\) {[\s\S]*?\.lpReadoutStat \+ \.lpReadoutStat\s*{([^}]*)}/)?.[1] ?? "";
-    expect(stacked).toMatch(/border-left:\s*0/);
-    expect(stacked).toMatch(/padding-left:\s*0/);
-    expect(stacked).toMatch(/border-top:\s*1px solid/);
+    // The counts readout is retired (#1357): the hero holds the answer, and no
+    // rule for it may linger in the stylesheet.
+    expect(landingCss).not.toMatch(/lpReadoutStat|lpLiveReadout/);
   });
 
   it("kills every animation and transition under reduced motion", () => {

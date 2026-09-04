@@ -7,7 +7,7 @@ const entrySurfaces = [
   "components/nav/SiteNav.tsx",
   "components/nav/NowSegment.tsx",
   "components/landing/LandingPage.tsx",
-  "components/landing/LandingPubCard.tsx",
+  "components/landing/LandingHero.tsx",
   "app/today/TodayClient.tsx",
   "app/tonight/TonightClient.tsx",
   "app/out/OutClient.tsx",
