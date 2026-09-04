@@ -112,7 +112,7 @@ describe("home card copy", () => {
     // The card fronts the landing page, so its hero is that page's h1 and its
     // support line is that page's lede. A drift here is a share preview
     // promising something the page it opens does not say.
-    const landing = readSource("components/landing/LandingPage.tsx");
+    const landing = readSource("components/landing/LandingHero.tsx");
     const hero = `${HOME_CARD_HERO_LEAD} ${HOME_CARD_HERO_TAIL} ${HOME_CARD_HERO_ACCENT}`;
     expect(hero).toBe("What a pint costs, pub by pub.");
     expect(landing).toContain("What a pint costs, pub by pub.");

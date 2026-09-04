@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 
 import LandingPage from "@/components/landing/LandingPage";
 import AppEntryRoute from "@/components/native/AppEntryRoute";
-import { loadAboutStats } from "@/lib/aboutStats";
-import { loadLandingPubCard } from "@/lib/landingPubCard.server";
+import { loadLandingHeroData } from "@/lib/landingPubCard.server";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 
 // The words a forwarded link shows beside the card. They say the same thing the
@@ -71,23 +70,19 @@ export const metadata: Metadata = {
 // redirects it before this route is reached. lib/posterLanding.ts still owns
 // where it lands.
 export const dynamic = "force-static";
-// Every input here (the shipped price dataset loadAboutStats counts, the flag
+// Every input here (the shipped price dataset, the price archive, the flag
 // env) changes only on deploy, so an hour is a quiet ceiling rather than a
 // refresh the page needs: it bounds how long a stale copy can outlive a change
 // nobody redeployed for.
 export const revalidate = 3600;
 
 export default async function Home() {
-  // Real coverage numbers, derived at build/request time from the same bundled
-  // pint-price dataset + enabled-city config the rest of the app reads (via the
-  // provenance-honest lib/aboutStats). No invented counts — loadAboutStats
-  // degrades to zeroed figures on any read failure, and the landing hero falls
-  // back to plain copy when a figure is missing. Passed as a plain serialisable
-  // prop into the client LandingPage.
-  const stats = await loadAboutStats();
-  // The one real pub above the fold, built at prerender from the same priced
-  // index plus the price archive. Null renders no card, never an invented one.
-  const card = await loadLandingPubCard();
+  // The one real pub above the fold, the archive's then rows and the three
+  // next-cheapest rows, built at prerender from the same priced index plus the
+  // price archive. A null card renders no card and the plain receipt door,
+  // never an invented pub. Passed as plain serialisable props into the client
+  // LandingPage.
+  const { card, archive, rail } = await loadLandingHeroData();
   // Soft launch keeps friends-launch unset/off. Thread the same gate the Social
   // APIs use so Memory CTAs never promise "Open Social" while /social still
   // answers "not open yet."
@@ -101,8 +96,9 @@ export default async function Home() {
           stay here. Deep links never mount this. No-op on web/SSR. */}
       <AppEntryRoute />
       <LandingPage
-        stats={stats}
         card={card}
+        archive={archive}
+        rail={rail}
         socialFriendsLaunchEnabled={socialFriendsLaunchEnabled}
       />
     </>

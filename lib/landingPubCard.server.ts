@@ -3,8 +3,21 @@ import "server-only";
 import history from "@/public/data/price_history/london.json";
 
 import { isoDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
-import { buildLandingPubCard, type LandingPubCardData } from "@/lib/landingPubCard";
+import type { LandingArchiveIndex, LandingRailRow } from "@/lib/landingHero";
+import {
+  buildLandingAnchorRail,
+  buildLandingArchiveIndex,
+  buildLandingPubCard,
+  type LandingPubCardData,
+} from "@/lib/landingPubCard";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
+
+/** What the landing hero ships: the anchor card, the archive index, the rail. */
+export type LandingHeroData = {
+  card: LandingPubCardData | null;
+  archive: LandingArchiveIndex;
+  rail: LandingRailRow[];
+};
 
 // The landing document is prerendered (app/page.tsx, force-static), so this
 // runs at build and the answer cannot change between two requests. The
@@ -12,18 +25,27 @@ import { getPricedVenues } from "@/lib/venuePriceIndex";
 // registry in lib/dataFreshness.ts, so no route assembles a path at runtime
 // and nothing needs tracing. Hold the promise, not the value, so concurrent
 // first renders share one venue-index read.
-let cached: Promise<LandingPubCardData | null> | null = null;
+let cached: Promise<LandingHeroData> | null = null;
 
-export function loadLandingPubCard(): Promise<LandingPubCardData | null> {
+export function loadLandingHeroData(): Promise<LandingHeroData> {
   cached ??= getPricedVenues()
-    .then((venues) =>
-      buildLandingPubCard(venues, history, { collectedOn: isoDate(PINT_DATASET_OBSERVED_AT) }),
-    )
+    .then((venues) => {
+      const collectedOn = isoDate(PINT_DATASET_OBSERVED_AT);
+      const card = buildLandingPubCard(venues, history, { collectedOn });
+      const archive = buildLandingArchiveIndex(venues, history);
+      const rail = card ? buildLandingAnchorRail(venues, card, archive) : [];
+      return { card, archive, rail };
+    })
     .catch(() => {
       // A failed read renders no card rather than an invented one, and the
       // next build gets a fresh attempt.
       cached = null;
-      return null;
+      return { card: null, archive: {}, rail: [] };
     });
   return cached;
+}
+
+/** The anchor card alone, for the share card and any surface that wants one pub. */
+export function loadLandingPubCard(): Promise<LandingPubCardData | null> {
+  return loadLandingHeroData().then((hero) => hero.card);
 }

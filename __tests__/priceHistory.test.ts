@@ -238,7 +238,6 @@ describe("price archaeology: the import fence", () => {
     // history (issue #1354). Its current price is passed in from the priced
     // venue index; the builder never derives one from this lane.
     "lib/landingPubCard.ts",
-    "components/landing/LandingPubCard.tsx",
   ]);
 
   it("is reached by the venue-sheet block and nothing else", () => {
