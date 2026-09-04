@@ -1,5 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Two answers share this file.
+
+  The FIRST three are the colour names android/app/src/main/res/values/styles.xml
+  has always referenced. Without them they resolve to the ones Capacitor's own
+  library ships: Material indigo #3F51B5 / #303F9F and pink #FF4081. Those are
+  not decoration - they paint the recents-screen task card and the text
+  selection handles inside the WebView, so a reviewer swiping the task switcher
+  saw indigo chrome around an ink-and-coral app.
+
+  Their values are the brand tokens named in docs/BRAND_MARK.md and held in
+  lib/brandMark.mjs BRAND_COLORS, which is the master every icon and share card
+  is cut from. __tests__/nativeWrap.test.ts reads them out of that module and
+  compares, so the two cannot drift apart in silence.
+
+  The token names below are written without their CSS prefix on purpose: XML
+  forbids a double hyphen inside a comment and aapt fails the whole build for
+  one, which is how this file first turned the Android build red.
+-->
 <resources>
+    <!-- ink-deep: the dark field the app's own chrome sits on. -->
+    <color name="colorPrimary">#060607</color>
+    <color name="colorPrimaryDark">#060607</color>
+    <!-- brass: the coral accent. -->
+    <color name="colorAccent">#ff5a5f</color>
     <!-- The accent Android paints behind a notification's small icon and uses
          for its app name line. It is the brand coral, and it is stated here
          because AndroidManifest.xml can only name a resource. Kept equal to

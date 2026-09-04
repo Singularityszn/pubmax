@@ -1,15 +1,27 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import capacitorConfig from "../capacitor.config";
 import { APP_NAME } from "@/lib/brandNaming";
+import { BRAND_COLORS } from "@/lib/brandMark.mjs";
 import {
   NATIVE_DEEP_LINK_EXACT_PATHS,
   NATIVE_DEEP_LINK_PATH_PREFIXES,
 } from "@/lib/nativeDeepLinks";
 
 const rootFile = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
+
+const ANDROID_RES = join(process.cwd(), "android/app/src/main/res");
+
+/** Every XML resource under android/app/src/main/res, path relative to it. */
+function androidResourceXml(dir = ANDROID_RES, prefix = ""): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const name = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) return androidResourceXml(join(dir, entry.name), name);
+    return entry.name.endsWith(".xml") ? [name] : [];
+  });
+}
 
 describe("Capacitor wrapped-build contract", () => {
   it("uses the canonical app name on both native install surfaces", () => {
@@ -255,6 +267,55 @@ describe("Capacitor wrapped-build contract", () => {
       const rule = config.slice(from, config.indexOf("],", from));
       expect(rule, manifest).toContain("SHORT_EDGE_PUBLIC_ASSET_CACHE_CONTROL");
       expect(rule, manifest).toContain('value: "application/json"');
+    }
+  });
+
+  it("paints Android chrome in the brand rather than Capacitor's Material defaults", () => {
+    // styles.xml has always referenced these three names, and the app shipped
+    // no colors.xml, so they resolved to the ones Capacitor's own library
+    // ships: Material indigo and pink. They paint the recents-screen task card
+    // and the WebView's text-selection handles, which is the first and last
+    // chrome a reviewer swiping the task switcher sees.
+    //
+    // The values are READ from lib/brandMark.mjs, the master the icons and the
+    // share cards are cut from, rather than restated here: a fence that typed
+    // the hex out would only ever prove itself right.
+    const styles = rootFile("android/app/src/main/res/values/styles.xml");
+    for (const name of ["colorPrimary", "colorPrimaryDark", "colorAccent"]) {
+      expect(styles, name).toContain(`<item name="${name}">@color/${name}</item>`);
+    }
+
+    const colors = rootFile("android/app/src/main/res/values/colors.xml");
+    expect(colors).toContain(
+      `<color name="colorPrimary">${BRAND_COLORS.inkDeep}</color>`,
+    );
+    expect(colors).toContain(
+      `<color name="colorPrimaryDark">${BRAND_COLORS.inkDeep}</color>`,
+    );
+    expect(colors).toContain(
+      `<color name="colorAccent">${BRAND_COLORS.coral}</color>`,
+    );
+  });
+
+  it("keeps every Android resource comment legal, because aapt fails the build", () => {
+    // XML forbids a double hyphen inside a comment, and aapt refuses the WHOLE
+    // build for one: `mergeDebugResources` fails with "The string "--" is not
+    // permitted within comments" and names one line. Nothing in the TypeScript
+    // suite reads these files as XML, so the first thing that ever said so was
+    // a Gradle run - which is exactly the Android-half asymmetry this project
+    // already knows about. Writing a CSS custom property by name is the easy
+    // way in, and it is how values/colors.xml first turned the build red.
+    const files = androidResourceXml();
+    expect(files.length).toBeGreaterThan(0);
+    for (const name of files) {
+      const bodies = [
+        ...readFileSync(join(ANDROID_RES, name), "utf8").matchAll(/<!--([\s\S]*?)-->/g),
+      ].map((match) => match[1] ?? "");
+      for (const body of bodies) {
+        expect(`${name}: ${body.includes("--") ? "illegal -- in comment" : "ok"}`).toBe(
+          `${name}: ok`,
+        );
+      }
     }
   });
 
