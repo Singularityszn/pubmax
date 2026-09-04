@@ -88,3 +88,8 @@ data-harvest/*
 # this entry states the rule where a reader looks for it. Run flags are pinned
 # in .gitnexusrc, which IS committed.
 .gitnexus/
+
+# Xcode derived data from `npm run ios:build` / `ios:run`. Build output, several
+# hundred MB, and rebuilt by the script; ios/App and ios/App/CapApp-SPM ARE
+# committed.
+ios/build/

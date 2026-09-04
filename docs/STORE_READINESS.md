@@ -534,6 +534,39 @@ Coral `#ff5a5f` on a white `#ffffff` tile measures ~3.7:1 contrast, comfortably 
 
 ---
 
+## Local verification (no Apple account)
+
+Everything in section 8 needs an account. This does not, and it is the check to
+run before touching any of it: it proves the shell compiles and boots.
+
+```sh
+npm ci
+npm run ios:build     # cap sync ios, then build the App scheme for the simulator SDK
+npm run ios:run       # the same build, then boot a simulator, install and launch
+```
+
+Both are `scripts/ios-simulator.mjs`. `ios:run` picks the newest available
+iPhone simulator, or takes one by name (`PUBMAX_IOS_SIMULATOR="iPhone 17"`), and
+finishes by printing the `xcrun simctl io <udid> screenshot shot.png` line for
+the device it used. This section is deliberately unnumbered so section 8 keeps
+the number every other document cites it by.
+
+*Done when:* `** BUILD SUCCEEDED **`, and the launched app lands on the native
+first-run onboarding, which only the shell shows. That screen is the proof the
+WKWebView reached `https://pubmaxxing.com` and that `isNativeApp()` answers true
+inside it. With no network the shell serves the bundled `offline.html` instead,
+which is the wrap working rather than a build fault.
+
+Three things this check cannot prove, each of them a device step in section 8:
+the entitlements (a team-less build signs to run locally and writes an EMPTY
+entitlements file, so the built app carries neither push nor associated domains
+however correct `App.entitlements` is), the camera sheet, and push delivery.
+
+Evidence from the runs that landed these scripts is in
+`docs/proof/ios-shell-build/`.
+
+---
+
 ## 8. Owner-only remaining steps
 
 Everything above is done or ready to paste. The steps below need a real account, real money, or a physical signing step, and only the owner can do them. Nothing here is blocked by the codebase.
