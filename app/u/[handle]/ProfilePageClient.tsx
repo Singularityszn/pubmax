@@ -321,33 +321,25 @@ export function YouSignedOutSurface({
   nightMemoriesInvite: boolean;
 }) {
   return (
-    <>
-      <section className="youIdentityIntro" aria-labelledby="you-title">
-        <div className="youIdentityAvatar" aria-hidden="true">PXX</div>
-        <div>
-          <p className="profileSectionKicker">Your PUBMAXX identity</p>
-          <h1 id="you-title">Make the night yours.</h1>
-          <p>Claim a unique @handle, meet your Pub Pal, and keep every moment in one place.</p>
-          {nightMemoriesInvite ? (
-            <p className="youMemoriesInvite" role="status">
-              Private Memories need a claimed @handle on your account. Claim yours below to keep nights in one place.
-            </p>
-          ) : null}
-        </div>
-        {/* ONE primary on the page (docs/design/LAUNCH_SCREENS.md): the claim.
-            The hero keeps its own composition, so the mark rides the control. */}
-        <div className="youIdentityActions">
-          <a href="#account-settings" data-primary-action="">Claim your @handle</a>
-          <Link href="/pal">Meet your Pub Pal</Link>
-        </div>
-      </section>
-
-      <WantedList />
-
-      <div id="account-settings">
-        <PubmaxxAccountHub />
+    <section className="youIdentityIntro" aria-labelledby="you-title">
+      <div className="youIdentityAvatar" aria-hidden="true">PXX</div>
+      <div>
+        <p className="profileSectionKicker">Your PUBMAXX identity</p>
+        <h1 id="you-title">Make the night yours.</h1>
+        <p>Claim a unique @handle, meet your Pub Pal, and keep every moment in one place.</p>
+        {nightMemoriesInvite ? (
+          <p className="youMemoriesInvite" role="status">
+            Private Memories need a claimed @handle on your account. Claim yours below to keep nights in one place.
+          </p>
+        ) : null}
       </div>
-    </>
+      {/* ONE primary on the page (docs/design/LAUNCH_SCREENS.md): the claim.
+          The hero keeps its own composition, so the mark rides the control. */}
+      <div className="youIdentityActions">
+        <a href="#account-settings" data-primary-action="">Claim your @handle</a>
+        <Link href="/pal">Meet your Pub Pal</Link>
+      </div>
+    </section>
   );
 }
 
@@ -1408,6 +1400,14 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
             </footer>
           </>
         )}
+        {surface === "identity-loading" || surface === "you-invitation" ? (
+          <WantedList key="you-wanted-panel" body={surface === "you-invitation"} />
+        ) : null}
+        {surface === "you-invitation" ? (
+          <div id="account-settings">
+            <PubmaxxAccountHub />
+          </div>
+        ) : null}
       </main>
     </div>
   );

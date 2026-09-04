@@ -44,7 +44,27 @@ type WantedAccountState = {
   fulfilNote: string | null;
 };
 
-export default function WantedList(): React.JSX.Element {
+/** Title and lede. They name nobody, so /u/you can paint them before identity answers. */
+export function WantedPanelIntro(): React.JSX.Element {
+  return (
+    <>
+      <h2 id="wanted-heading" className="wantedPanel__title">
+        Wanted
+      </h2>
+      <p className="wantedPanel__lede">
+        Paste a pub name or a link you saved elsewhere. It becomes a place you can plan
+        around. We keep the link so you know where it came from, and we never fetch Instagram or TikTok.
+      </p>
+    </>
+  );
+}
+
+export default function WantedList({
+  body = true,
+}: {
+  /** False holds the identity-neutral head while the session is still answering. */
+  body?: boolean;
+} = {}): React.JSX.Element {
   // Wanted is owner-only, so asking for it without a session is a question we
   // already know the answer to. A cold /you fired GET /api/wanted anyway and
   // took a 401 to learn what the browser could have told it, which is console
@@ -232,58 +252,56 @@ export default function WantedList(): React.JSX.Element {
 
   return (
     <section className="wantedPanel" id="wanted" aria-labelledby="wanted-heading">
-      <h2 id="wanted-heading" className="wantedPanel__title">
-        Wanted
-      </h2>
-      <p className="wantedPanel__lede">
-        Paste a pub name or a link you saved elsewhere. It becomes a place you can plan
-        around. We keep the link so you know where it came from, and we never fetch Instagram or TikTok.
-      </p>
+      <WantedPanelIntro />
 
-      {loadStatus === "sign_in" ? (
-        <p className="wantedPanel__empty">Sign in to keep a Wanted list.</p>
-      ) : (
-        <WantedCapture
-          key={userId ?? "no-account"}
-          anonymous={userId === null && (supabaseAuthState === "unresolved" || supabaseAuthState === "unavailable")}
-          onSaved={handleSaved}
-        />
-      )}
+      {body ? (
+        <>
+          {loadStatus === "sign_in" ? (
+            <p className="wantedPanel__empty">Sign in to keep a Wanted list.</p>
+          ) : (
+            <WantedCapture
+              key={userId ?? "no-account"}
+              anonymous={userId === null && (supabaseAuthState === "unresolved" || supabaseAuthState === "unavailable")}
+              onSaved={handleSaved}
+            />
+          )}
 
-      {fulfilNote ? (
-        <p className="wantedFulfilNote" role="status">
-          {fulfilNote}
-        </p>
+          {fulfilNote ? (
+            <p className="wantedFulfilNote" role="status">
+              {fulfilNote}
+            </p>
+          ) : null}
+
+          {loadStatus === "loading" ? (
+            <p className="wantedPanel__empty">Loading your Wanted list…</p>
+          ) : null}
+          {loadStatus === "error" ? (
+            <p className="wantedPanel__empty">Could not load Wanted places right now.</p>
+          ) : null}
+
+          {loadStatus === "ready" && open.length === 0 && anonymousOpen.length === 0 ? (
+            <p className="wantedPanel__empty">No open Wanted places yet.</p>
+          ) : null}
+
+          {open.length > 0 ? <WantedOpenList wanteds={open} /> : null}
+          {anonymousOpen.length > 0 ? <WantedOpenList anonymous wanteds={anonymousOpen} /> : null}
+
+          {fulfilled.length > 0 ? (
+            <ul className="wantedList" aria-label="Fulfilled Wanted places">
+              {fulfilled.slice(0, 5).map((wanted) => (
+                <li key={wanted.id} className="wantedRow">
+                  <div>
+                    <p className="wantedRow__name">{wanted.venueName || wantedPendingLabel(wanted.rawPaste)}</p>
+                    <p className="wantedRow__meta">Done</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          <WantedFulfilListener onNote={handleFulfilNote} onRefresh={handleFulfilRefresh} />
+        </>
       ) : null}
-
-      {loadStatus === "loading" ? (
-        <p className="wantedPanel__empty">Loading your Wanted list…</p>
-      ) : null}
-      {loadStatus === "error" ? (
-        <p className="wantedPanel__empty">Could not load Wanted places right now.</p>
-      ) : null}
-
-      {loadStatus === "ready" && open.length === 0 && anonymousOpen.length === 0 ? (
-        <p className="wantedPanel__empty">No open Wanted places yet.</p>
-      ) : null}
-
-      {open.length > 0 ? <WantedOpenList wanteds={open} /> : null}
-      {anonymousOpen.length > 0 ? <WantedOpenList anonymous wanteds={anonymousOpen} /> : null}
-
-      {fulfilled.length > 0 ? (
-        <ul className="wantedList" aria-label="Fulfilled Wanted places">
-          {fulfilled.slice(0, 5).map((wanted) => (
-            <li key={wanted.id} className="wantedRow">
-              <div>
-                <p className="wantedRow__name">{wanted.venueName || wantedPendingLabel(wanted.rawPaste)}</p>
-                <p className="wantedRow__meta">Done</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
-      <WantedFulfilListener onNote={handleFulfilNote} onRefresh={handleFulfilRefresh} />
     </section>
   );
 }

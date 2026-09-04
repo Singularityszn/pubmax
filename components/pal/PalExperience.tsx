@@ -205,10 +205,11 @@ function RangeControl({
  * kicker, heading, one primary action, and the map as the quiet way back.
  *
  * Extracted from PalExperience so the launch-screen audit can render it on its
- * own. The experience holds every other mode behind a ready flag an effect
- * sets, so a static render of the whole would only ever meet "Waking your Pub
- * Pal". The portrait rides beside the head on a desktop and under it on a
- * phone, the way the landing sets its pub card.
+ * own. The meeting copy names nobody, so the experience paints this screen on
+ * the server rather than holding it behind the ready flag. Home and onboarding
+ * still wait for that flag, because they name the Pal or the viewer. The
+ * portrait rides beside the head on a desktop and under it on a phone, the
+ * way the landing sets its pub card.
  */
 export function PalMeetingScreen({
   appearance,
@@ -680,7 +681,12 @@ export default function PalExperience() {
     draftOwner !== (user?.id ?? anonymousOwner)
   );
   if (loading || !ready || ownerTransitioning) {
-    return <main id="main" className="palExperience"><div className="palLoading" role="status">Waking your Pub Pal</div></main>;
+    return (
+      <PalMeetingScreen
+        appearance={draft.appearance}
+        onMeet={() => setMode("onboarding")}
+      />
+    );
   }
 
   if (mode === "home" && pal && user && pal.ownerId === user.id) {
