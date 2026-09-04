@@ -5,6 +5,7 @@ import { join } from "path";
 import type { ReactNode } from "react";
 
 import { MARK_EMBER, MARK_POLYGONS, MARK_VIEWBOX } from "@/lib/brandMark.mjs";
+import { formatGbp } from "@/lib/formatGbp";
 
 // Shared brand kit for the dynamic `next/og` share cards (Wave S2). These cards
 // render OUTSIDE the app's CSS — satori/@vercel/og only understands inline
@@ -117,7 +118,7 @@ export const OG_FONT_FAMILY = "Space Grotesk";
 // GBP price stamp, or null when there is no honest, positive number to show.
 export function priceStamp(value: number | null | undefined): string | null {
   if (value == null || !Number.isFinite(value) || value <= 0) return null;
-  return `£${value.toFixed(2)}`;
+  return formatGbp(value);
 }
 
 // ── Shared marks ─────────────────────────────────────────────────────────────

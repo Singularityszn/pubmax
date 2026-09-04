@@ -17,6 +17,7 @@
 // (app/feed/feedSightings.server.ts) injects the venue resolver and the parsed
 // updates.
 
+import { formatGbp } from "@/lib/formatGbp";
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 import type { FeedFilter } from "@/lib/feed";
 
@@ -84,9 +85,7 @@ export function sourceDomain(url: string): string {
 }
 
 /** "£5.29" from a numeric price. */
-export function formatSightingPrice(price: number): string {
-  return `£${price.toFixed(2)}`;
-}
+export const formatSightingPrice = formatGbp;
 
 /**
  * "11 Jul" from an observation timestamp, on London calendar days — the DAY the

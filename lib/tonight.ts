@@ -6,7 +6,7 @@
 import type { TonightLocalityBasis } from "@/lib/analyticsEvents";
 import { haversineKm } from "@/lib/haversine";
 import { resolveNightPatch, type RememberedArea } from "@/lib/nightPatches";
-import { WALK_KMH } from "@/lib/routeLegs";
+import { walkMinutesFromKm } from "@/lib/walkMinutes";
 import { labelForKind, opportunityMapHref } from "@/lib/thingsToDoMap";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 
@@ -99,10 +99,6 @@ function isFiniteCoord(c: Coord | null | undefined): c is Coord {
   );
 }
 
-// Average walking pace, derived from the same shared pace routeLegs uses
-// everywhere else, so a change to the pace can't drift between surfaces.
-const WALK_KM_PER_MIN = WALK_KMH / 60;
-
 /**
  * Straight-line walk estimate in minutes between two points, or null when
  * either coordinate is missing / non-finite. Deliberately a haversine estimate
@@ -116,7 +112,7 @@ export function walkMinutes(
 ): number | null {
   if (!isFiniteCoord(from) || !isFiniteCoord(to)) return null;
   const km = haversineKm([from.lng, from.lat], [to.lng, to.lat]);
-  return Math.max(1, Math.round(km / WALK_KM_PER_MIN));
+  return walkMinutesFromKm(km);
 }
 
 /** "~12 min walk" label, or null when minutes are unknown. */

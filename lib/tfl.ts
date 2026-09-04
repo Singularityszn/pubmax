@@ -1,5 +1,5 @@
-import { WALK_KMH } from "@/lib/routeLegs";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
+import { walkMinutesFromKm } from "@/lib/walkMinutes";
 
 // TfL "last drink / last train home" helpers — pure, unit-tested, no network.
 //
@@ -206,10 +206,9 @@ export type LastPintDecision = {
 export const BUFFER_MINUTES = 5;
 
 export function walkMinutesForKm(distanceKm: number): number {
-  if (!Number.isFinite(distanceKm) || distanceKm <= 0) return 0;
-  // Floored at 1 so a short-but-real distance never reads "0 min walk" - a
-  // drinker still needs a moment to get up and out of the pub.
-  return Math.max(1, Math.round((distanceKm / WALK_KMH) * 60));
+  // Last-train leave-by must not invent a walk when distance is missing.
+  // A short-but-real distance still floors at 1 inside walkMinutesFromKm.
+  return walkMinutesFromKm(distanceKm, 0);
 }
 
 // Minutes from now until a last train departs, off ACTUAL clock time rather than

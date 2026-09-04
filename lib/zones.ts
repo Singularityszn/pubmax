@@ -7,6 +7,7 @@
 // per-zone median "pint index", and the low-observation honesty gate. It never
 // invents a number — a zone with too few priced venues is reported as such.
 
+import { formatGbp } from "@/lib/formatGbp";
 import type { VenueKind } from "@/lib/venues";
 
 /** Filterable fare zones offered by the picker: 1–6 plus "all". */
@@ -184,5 +185,5 @@ export function zoneOrderSurpriseLine(index: ZonePintIndex): string | null {
 
 /** "£6.40" style GBP for the index; null → en dash placeholder. */
 export function formatZoneGbp(value: number | null): string {
-  return typeof value === "number" ? `£${value.toFixed(2)}` : "–";
+  return typeof value === "number" ? formatGbp(value) : "–";
 }

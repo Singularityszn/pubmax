@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { HandCoins } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
+import { formatGbp } from "@/lib/formatGbp";
 
 // Live community Pint Drops strip for the landing page. Fetches the PUBLIC
 // GET /api/pint-drops (no venueId → all visible drops), takes the newest few,
@@ -45,7 +46,7 @@ const PROVENANCE_LABEL: Record<PublicDrop["provenance"], string> = {
 
 function formatPrice(price: number | null): string {
   if (typeof price !== "number" || !Number.isFinite(price)) return "–";
-  return `£${price.toFixed(2)}`;
+  return formatGbp(price);
 }
 
 function excerpt(note: string): string {
