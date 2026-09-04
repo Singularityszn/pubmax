@@ -20,6 +20,8 @@ import { publicApiError } from "@/lib/apiError";
 import { canGroupGetIn, estimateBusyness, resolveBookingOption } from "@/lib/busyness";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
+import { BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceBundle";
+import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 
 export async function GET(
@@ -44,6 +46,17 @@ export async function GET(
   }
   const { venue } = lookup;
 
+  // WHAT THE BUNDLE HOLDS ABOUT THIS PUB, carried on the venue so the sheet
+  // reads it off the detail it already fetches rather than opening a second
+  // request. A read that FAILED contributes nothing here and is not an empty
+  // answer either: the sheet falls through to the lanes it always had, which is
+  // what it did before this field existed.
+  const bundle = await ukPriceBundleRowsFor(venue.id);
+  const bundlePrices =
+    bundle.status === "unavailable"
+      ? null
+      : bundlePricesForCategory(bundle.rows, BUNDLE_DEFAULT_CATEGORY);
+
   const requestedGroupSize = Number(new URL(request.url).searchParams.get("groupSize") ?? 2);
   const groupSize = Number.isFinite(requestedGroupSize)
     ? Math.max(1, Math.min(30, Math.round(requestedGroupSize)))
@@ -61,7 +74,7 @@ export async function GET(
   };
 
   return NextResponse.json(
-    { venue, busyness, getIn, booking },
+    { venue: { ...venue, bundlePrices }, busyness, getIn, booking },
     {
       status: 200,
       headers: {

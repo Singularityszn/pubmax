@@ -9,13 +9,14 @@
 // thin presentational shell and the logic is unit-testable without a DOM.
 
 import type { Venue } from "@/lib/venues";
-import { venuePriceLane, venueSourcedPrice } from "@/lib/venuePriceLane";
+import { venuePriceLane, venueSourcedPrice, type VenueBundlePrices } from "@/lib/venuePriceLane";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 
 /**
- * A venue is "unpriced" — and so a first-drop candidate — when the overview
+ * A venue is "unpriced" - and so a first-drop candidate - when the overview
  * price area has no lane to render: no live community contributor price, no
- * sourced first-party price, no baseline dataset price and no anchor claim.
+ * sourced first-party price, no listed bundle price, no baseline dataset price,
+ * no modelled estimate and no anchor claim.
  *
  * The ordering itself lives in `lib/venuePriceLane.ts`, which the overview tab
  * renders from, so the gate cannot drift away from the branch it is meant to
@@ -26,9 +27,10 @@ import type { TabKey } from "@/lib/venueInspectorTabs";
 export function isVenueUnpriced(
   venue: Venue,
   latestContributorPrice: number | null | undefined,
+  bundle: VenueBundlePrices = {},
 ): boolean {
   return (
-    venuePriceLane(venue, latestContributorPrice, venueSourcedPrice(venue)) === null
+    venuePriceLane(venue, latestContributorPrice, venueSourcedPrice(venue), bundle) === null
   );
 }
 

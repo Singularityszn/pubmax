@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { isVenueUnpriced } from "@/lib/firstDropNudge";
 import {
+  venueBundlePrices,
   venuePriceLane,
   venueSourcedPrice,
   type VenuePriceLaneName,
@@ -193,6 +194,63 @@ describe("venuePriceLane — one precedence for the overview price area", () => 
   });
 });
 
+// The two lanes the UK price bundle feeds. Their whole job is to sit in the
+// right places in one order: a published figure carrying its page and its day
+// beats a baseline stamp that often names no publisher, and a modelled figure
+// sits below everything anybody observed.
+describe("the bundle lanes", () => {
+  const LISTED = {
+    priceGbp: 5.4,
+    sourceUrl: "https://thecrown.co.uk/drinks",
+    observedAt: new Date(Date.now() - 86_400_000).toISOString(),
+  };
+  const ESTIMATE = {
+    priceGbp: 6.1,
+    basis: "regional_baseline:camden",
+    sampleSize: 42,
+    computedAt: new Date(Date.now() - 86_400_000).toISOString(),
+  };
+
+  it("puts a listed price above the baseline", () => {
+    expect(
+      venuePriceLane(makeVenue({ cheapestPrice: 6.2 }), null, null, { listed: LISTED }),
+    ).toEqual({ lane: "listed", listed: LISTED });
+  });
+
+  it("keeps a live contributor price and a sourced price above it", () => {
+    expect(venuePriceLane(makeVenue(), 5.9, null, { listed: LISTED })?.lane).toBe("contributor");
+    const sourcedVenue = withSourced(makeVenue());
+    expect(
+      venuePriceLane(sourcedVenue, null, venueSourcedPrice(sourcedVenue), { listed: LISTED })?.lane,
+    ).toBe("sourced");
+  });
+
+  it("puts a modelled figure below everything anybody observed", () => {
+    expect(venuePriceLane(makeVenue(), null, null, { estimate: ESTIMATE })).toEqual({
+      lane: "estimate",
+      estimate: ESTIMATE,
+    });
+    expect(
+      venuePriceLane(makeVenue({ cheapestPrice: 6.2 }), null, null, { estimate: ESTIMATE })?.lane,
+    ).toBe("baseline");
+    expect(
+      venuePriceLane(makeVenue(), null, null, { listed: LISTED, estimate: ESTIMATE })?.lane,
+    ).toBe("listed");
+  });
+
+  it("leaves a venue with nothing unpriced, and takes it off the nudge once the bundle answers", () => {
+    expect(isVenueUnpriced(makeVenue(), null)).toBe(true);
+    expect(isVenueUnpriced(makeVenue(), null, { estimate: ESTIMATE })).toBe(false);
+  });
+
+  it("reads an absent bundle as an empty answer rather than as no price", () => {
+    // A surface that has not asked the bundle passes nothing, and the lane it
+    // gets back is the one it always had.
+    expect(venueBundlePrices(makeVenue())).toEqual({});
+    expect(venuePriceLane(makeVenue({ cheapestPrice: 6.2 }), null, null)?.lane).toBe("baseline");
+  });
+});
+
 describe("VenueOverviewTab renders from the shared lane", () => {
   const overview = readFileSync(
     join(ROOT, "components/map/inspector/VenueOverviewTab.tsx"),
@@ -202,9 +260,12 @@ describe("VenueOverviewTab renders from the shared lane", () => {
   it("branches on venuePriceLane rather than restating the precedence", () => {
     expect(overview).toContain('from "@/lib/venuePriceLane"');
     expect(overview).toContain(
-      "const lane = venuePriceLane(venue, latestContributorPrice, sourcedPrice);",
+      "const lane = venuePriceLane(venue, latestContributorPrice, sourcedPrice, bundle);",
     );
-    for (const lane of ["anchor", "contributor", "sourced", "baseline"]) {
+    // The two bundle lanes are here for the same reason the other four are: the
+    // price area renders EVERY lane the precedence can answer with, so a lane
+    // added in the module and missed in the component would show a pub nothing.
+    for (const lane of ["anchor", "contributor", "sourced", "listed", "baseline", "estimate"]) {
       expect(overview, `price area must branch on the ${lane} lane`).toContain(
         `if (lane?.lane === "${lane}") {`,
       );
