@@ -1,0 +1,116 @@
+// The two capabilities the shell cannot work without, and the manifest Apple
+// reads before it accepts a build.
+//
+// Both are FILES, not code, and both fail silently when they are missing: with
+// no `aps-environment` the device never gets an APNs token and no error is
+// raised anywhere a person or a log would see it, and with no associated
+// domain a shared pubmaxxing.com link opens Safari beside the installed app.
+// Neither is reproducible without a signed device, so the fence is the project.
+//
+// Everything here is checked in and needs no Apple account. The one thing that
+// still waits for enrolment is the Team ID, and it waits in exactly one place:
+// the TEAMID placeholder in the association file.
+
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
+
+const ENTITLEMENTS = "ios/App/App/App.entitlements";
+const PROJECT = "ios/App/App.xcodeproj/project.pbxproj";
+const MANIFEST = "ios/App/App/PrivacyInfo.xcprivacy";
+
+describe("the iOS project declares its capabilities", () => {
+  const entitlements = read(ENTITLEMENTS);
+  const project = read(PROJECT);
+
+  it("asks for push, and for the environment a device build registers against", () => {
+    expect(entitlements).toContain("<key>aps-environment</key>");
+    // `development` is what a development-signed build needs; Xcode rewrites
+    // it to production when the archive is distributed. A file that says
+    // production would leave a TestFlight device unable to register at all.
+    expect(entitlements).toContain("<string>development</string>");
+  });
+
+  it("asks for the one associated domain the app routes", () => {
+    expect(entitlements).toContain("com.apple.developer.associated-domains");
+    expect(entitlements).toContain("applinks:pubmaxxing.com");
+    // A webcredentials entry would ask for password autofill this app does not
+    // use, and every entitlement is a thing review can ask about.
+    expect(entitlements).not.toContain("webcredentials:");
+  });
+
+  it("points both build configurations at the entitlements file", () => {
+    const settings = [...project.matchAll(/CODE_SIGN_ENTITLEMENTS = ([^;]+);/g)].map(
+      (match) => match[1],
+    );
+    // Debug and Release. One alone means the capability silently disappears in
+    // whichever configuration was missed, which is usually the archive.
+    expect(settings).toEqual(["App/App.entitlements", "App/App.entitlements"]);
+  });
+
+  it("keeps the file visible in the project, not only in a build setting", () => {
+    expect(project).toContain("/* App.entitlements */ = {isa = PBXFileReference;");
+  });
+
+  it("leaves the Team ID as the one placeholder enrolment fills in", () => {
+    const association = read("public/.well-known/apple-app-site-association");
+    expect(association).toContain("TEAMID.com.pubmaxx.app");
+    // The entitlement side carries no team id at all: Xcode derives it from
+    // the signing team, so there is nothing here to forget to update.
+    expect(entitlements).not.toContain("TEAMID");
+  });
+});
+
+describe("the privacy manifest agrees with the answers we publish", () => {
+  const manifest = read(MANIFEST);
+  const readiness = read("docs/STORE_READINESS.md");
+
+  /** The five things section 5 says the app collects. */
+  const DECLARED = [
+    "NSPrivacyCollectedDataTypeEmailAddress",
+    "NSPrivacyCollectedDataTypePhotosorVideos",
+    "NSPrivacyCollectedDataTypeDeviceID",
+    "NSPrivacyCollectedDataTypeProductInteraction",
+    "NSPrivacyCollectedDataTypePreciseLocation",
+  ] as const;
+
+  it("declares each collected type once and nothing else", () => {
+    for (const type of DECLARED) {
+      expect(manifest, type).toContain(`<string>${type}</string>`);
+    }
+    const found = [...manifest.matchAll(/<string>(NSPrivacyCollectedDataType\w+)<\/string>/g)]
+      .map((match) => match[1])
+      .filter((type) => !type.startsWith("NSPrivacyCollectedDataTypePurpose"));
+    expect(found).toEqual([...DECLARED]);
+  });
+
+  it("says the app tracks nobody, in both places that can say it", () => {
+    expect(manifest).toContain("<key>NSPrivacyTracking</key>\n\t<false/>");
+    expect(manifest).toContain("<key>NSPrivacyTrackingDomains</key>\n\t<array/>");
+    expect(manifest).not.toContain("NSPrivacyCollectedDataTypeTracking</key>\n\t\t\t<true/>");
+    // The doc has to be able to say the same thing.
+    expect(readiness).toContain("**Data Used to Track You:** None.");
+  });
+
+  it("keeps analytics the only thing collected for analytics", () => {
+    const analytics = [
+      ...manifest.matchAll(/NSPrivacyCollectedDataTypePurposeAnalytics/g),
+    ];
+    expect(analytics).toHaveLength(1);
+  });
+
+  it("speaks only for the app target's own code", () => {
+    // The AppDelegate and two storyboards call no required-reason API.
+    // Capacitor declares its own in its own package, and a manifest may only
+    // speak for the code it ships with.
+    expect(manifest).toContain("<key>NSPrivacyAccessedAPITypes</key>\n\t<array/>");
+  });
+
+  it("is copied into the bundle, not just present in the tree", () => {
+    // A manifest Xcode never copies is a manifest Apple never sees, and the
+    // upload check reports it as absent.
+    expect(read(PROJECT)).toContain("/* PrivacyInfo.xcprivacy in Resources */");
+  });
+});

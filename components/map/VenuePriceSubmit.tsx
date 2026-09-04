@@ -25,6 +25,8 @@ import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { useContributionGate } from "@/components/identity/ContributionGateDialog";
 import { trackEvent } from "@/lib/analytics";
 import { haptic } from "@/lib/nativeHaptics";
+import { captureNativePhoto } from "@/lib/nativeCamera";
+import { isNativeApp } from "@/lib/nativePlatform";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import PriceContributionImpact from "@/components/map/PriceContributionImpact";
 import type { MissionSurface } from "@/lib/analyticsEvents";
@@ -249,6 +251,20 @@ export default function VenuePriceSubmit({
     if (pintPhotoInputRef.current) pintPhotoInputRef.current.value = "";
   }
 
+  // Inside the Capacitor shell the button opens the native sheet (camera or
+  // library, the person's choice) through lib/nativeCamera.ts rather than the
+  // file input, because WKWebView's own chooser is the thin-wrapper tell. The
+  // chosen file lands in the SAME validator the input feeds, so the size and
+  // type rules cannot drift between the two doors.
+  async function choosePintPhoto() {
+    if (isNativeApp()) {
+      const file = await captureNativePhoto("pint");
+      if (file) onPintPhotoChosen(file);
+      return;
+    }
+    pintPhotoInputRef.current?.click();
+  }
+
   function onPintPhotoChosen(file: File | undefined) {
     if (!file) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
@@ -465,7 +481,7 @@ export default function VenuePriceSubmit({
         <button
           type="button"
           className="vpsubPhotoBtn"
-          onClick={() => pintPhotoInputRef.current?.click()}
+          onClick={() => void choosePintPhoto()}
           disabled={submitting || missionPending}
         >
           <Camera size={15} aria-hidden="true" />

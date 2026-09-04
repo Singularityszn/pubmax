@@ -25,11 +25,11 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>PUBMAXXING uses the camera so you can take photos of your night and save them as private Moments.</string>
+	<string>PUBMAXXING uses the camera so you can photograph a price board, a pub, or your own night.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>PUBMAXXING uses your location while the app is open to find nearby pubs and calculate walk times.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>PUBMAXXING opens your photo library so you can add existing photos to your private Moments.</string>
+	<string>PUBMAXXING opens your photo library so you can choose a photo you have already taken.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

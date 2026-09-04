@@ -246,7 +246,7 @@ export default function MomentCapture(): React.JSX.Element {
   async function chooseNativeMedia(event: ReactMouseEvent<HTMLLabelElement>) {
     if (!isNativeApp()) return;
     event.preventDefault();
-    const file = await captureNativePhoto();
+    const file = await captureNativePhoto("moment");
     if (file) addFiles([file]);
   }
 

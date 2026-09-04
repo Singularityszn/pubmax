@@ -20,6 +20,8 @@
 import { useRef, useState } from "react";
 
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
+import { captureNativePhoto } from "@/lib/nativeCamera";
+import { isNativeApp } from "@/lib/nativePlatform";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { SUBMITTABLE_DRINK_CATEGORIES } from "@/lib/communityPrice";
@@ -97,6 +99,24 @@ export default function VenuePhotoComposer({
     }
   }
 
+  // BEAT ONE INSIDE THE SHELL. WKWebView's own file chooser is the bare
+  // thin-wrapper sheet, so the button routes through lib/nativeCamera.ts,
+  // whose `CameraSource.Prompt` offers Camera and Photo Library together -
+  // the native reading of the same law this file's header states, not an
+  // exception to it. Beat two is unchanged: whatever is chosen still goes to
+  // the cropper, which is what makes an iPhone's HEIC uploadable.
+  async function choosePhoto() {
+    if (isNativeApp()) {
+      const file = await captureNativePhoto("venue");
+      if (file) {
+        setChosen(file);
+        setError(null);
+      }
+      return;
+    }
+    inputRef.current?.click();
+  }
+
   return (
     <div className="venuePhotoComposer">
       <input
@@ -127,7 +147,7 @@ export default function VenuePhotoComposer({
         <button
           type="button"
           className="venuePhotoWallButton"
-          onClick={() => inputRef.current?.click()}
+          onClick={() => void choosePhoto()}
         >
           Choose a photo
         </button>
