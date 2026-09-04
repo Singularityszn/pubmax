@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import {
   UK_PRICE_BUNDLE_LANES,
   authoritativeBundleRows,
+  bundlePricesForCategory,
   bundleRowSupersedes,
   bundleRowsByVenue,
   isUkPriceBundleLane,
@@ -140,5 +141,68 @@ describe("which of two readings of the same pub and drink the bundle keeps", () 
     const held = reading("2026-09-04T00:00:00.000Z", 6.2);
     expect(bundleRowSupersedes(reading("2026-09-04T00:00:00.000Z", 5.4), held)).toBe(true);
     expect(bundleRowSupersedes(reading("2026-09-04T00:00:00.000Z", 7.1), held)).toBe(false);
+  });
+});
+// THE READ SIDE PICKS WHAT THE BUILD SIDE KEEPS. While the bundle holds one row
+// per pub, drink and lane, cheapest-wins on the way out reaches the same figure
+// the builder stored. The day a SECOND listed lane lands for one pub, it stops
+// doing that: a stale harvest that happens to be cheaper is quoted over the
+// reviewed publish that superseded it, and dated to the night it was cheap.
+describe("which price a reader is handed for one pub and one drink", () => {
+  const listedRow = (observedAt: string, priceGbp: number): UkPriceBundleRow => ({
+    ...listed,
+    observedAt,
+    priceGbp,
+  });
+
+  it("hands the reader the freshest listing, not the cheapest of two dates", () => {
+    const stale = listedRow("2026-06-01T00:00:00.000Z", 4.8);
+    const fresh = { ...listedRow("2026-09-01T00:00:00.000Z", 6.2), lane: "drink-price-update" as const };
+    const picked = bundlePricesForCategory([stale, fresh], "beer");
+    expect(picked.listed?.priceGbp).toBe(6.2);
+    expect(picked.listed?.observedAt).toBe("2026-09-01T00:00:00.000Z");
+  });
+
+  it("still takes the cheapest line WITHIN one reading, because a page states many", () => {
+    const dear = listedRow("2026-09-01T00:00:00.000Z", 6.2);
+    const cheap = listedRow("2026-09-01T00:00:00.000Z", 5.4);
+    expect(bundlePricesForCategory([dear, cheap], "beer").listed?.priceGbp).toBe(5.4);
+    expect(bundlePricesForCategory([cheap, dear], "beer").listed?.priceGbp).toBe(5.4);
+  });
+
+  it("agrees with the build side row for row", () => {
+    const rows = [
+      listedRow("2026-06-01T00:00:00.000Z", 4.8),
+      listedRow("2026-09-01T00:00:00.000Z", 6.2),
+      listedRow("2026-09-01T00:00:00.000Z", 5.9),
+    ];
+    const kept = rows.reduce<UkPriceBundleRow | undefined>(
+      (held, row) => (bundleRowSupersedes(row, held) ? row : held),
+      undefined,
+    );
+    expect(bundlePricesForCategory(rows, "beer").listed?.priceGbp).toBe(kept?.priceGbp);
+  });
+
+  it("gathers a listing and an estimate apart, and re-decides neither", () => {
+    const picked = bundlePricesForCategory([estimate, listed], "beer");
+    expect(picked.listed?.priceGbp).toBe(5.4);
+    expect(picked.estimate?.priceGbp).toBe(6.1);
+    expect(picked.estimate?.basis).toBe("regional_baseline:camden");
+    expect(strongestBundleRow([estimate, listed], NOW).standing).toBe("listed");
+  });
+
+  it("keeps the freshest estimate beside a listing, never the cheaper stale one", () => {
+    const stale = { ...estimate, observedAt: "2026-01-01T00:00:00.000Z", priceGbp: 4.2 };
+    const picked = bundlePricesForCategory([stale, estimate, listed], "beer");
+    expect(picked.estimate?.priceGbp).toBe(6.1);
+    expect(picked.estimate?.computedAt).toBe("2026-09-03T00:00:00.000Z");
+    expect(picked.listed?.priceGbp).toBe(5.4);
+  });
+
+  it("reads only the drink it was asked about", () => {
+    const wine = { ...listedRow("2026-09-02T00:00:00.000Z", 9.5), category: "wine" };
+    const picked = bundlePricesForCategory([wine, listed], "beer");
+    expect(picked.listed?.priceGbp).toBe(5.4);
+    expect(bundlePricesForCategory([wine], "beer").listed).toBeNull();
   });
 });
