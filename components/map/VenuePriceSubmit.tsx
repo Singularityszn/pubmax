@@ -251,22 +251,24 @@ export default function VenuePriceSubmit({
     if (pintPhotoInputRef.current) pintPhotoInputRef.current.value = "";
   }
 
-  // Inside the Capacitor shell the WebView's own chooser is the unreliable
-  // half: it drops its camera entry silently, and a pint in front of you is
-  // exactly the photo somebody wants to take rather than find. The native seam
-  // opens a sheet carrying BOTH the camera and the library, so the picker is
-  // still first. On the web this falls through to the file input unchanged.
-  async function openPintPhotoPicker() {
-    if (!isNativeApp()) {
-      pintPhotoInputRef.current?.click();
+  // Inside the Capacitor shell the button opens the native sheet (camera or
+  // library, the person's choice) through lib/nativeCamera.ts rather than the
+  // file input, because WKWebView's own chooser is the thin-wrapper tell, and
+  // the Android chooser drops its camera entry outright. The chosen file lands
+  // in the SAME validator the input feeds, so the size and type rules cannot
+  // drift between the two doors.
+  //
+  // The seam's answer is three-way, and this surface has somewhere to put the
+  // third: a person whose camera the OS is holding shut is told so, where a
+  // person who simply changed their mind is shown nothing.
+  async function choosePintPhoto() {
+    if (isNativeApp()) {
+      const pick = await pickNativePhoto("pint");
+      if (pick.outcome === "chosen") onPintPhotoChosen(pick.file);
+      else if (pick.outcome === "blocked") setError(pick.message);
       return;
     }
-    const pick = await pickNativePhoto();
-    if (pick.outcome === "chosen") {
-      onPintPhotoChosen(pick.file);
-      return;
-    }
-    if (pick.outcome === "blocked") setError(pick.message);
+    pintPhotoInputRef.current?.click();
   }
 
   function onPintPhotoChosen(file: File | undefined) {
@@ -485,7 +487,7 @@ export default function VenuePriceSubmit({
         <button
           type="button"
           className="vpsubPhotoBtn"
-          onClick={() => void openPintPhotoPicker()}
+          onClick={() => void choosePintPhoto()}
           disabled={submitting || missionPending}
         >
           <Camera size={15} aria-hidden="true" />

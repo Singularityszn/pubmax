@@ -29,7 +29,7 @@ describe("contextDev key configuration", () => {
     expect(contextDevApiKey({} as unknown as NodeJS.ProcessEnv)).toBeNull();
     expect(isContextDevConfigured({ CONTEXT_DEV_API_KEY: "  " } as unknown as NodeJS.ProcessEnv)).toBe(false);
     await expect(
-      scrapeMarkdown("https://example.com", { env: {} as unknown as NodeJS.ProcessEnv }),
+      scrapeMarkdown("https://www.fullers.co.uk", { env: {} as unknown as NodeJS.ProcessEnv }),
     ).resolves.toEqual({ status: "not-configured" });
   });
 });
@@ -37,16 +37,16 @@ describe("contextDev key configuration", () => {
 describe("scrapeMarkdown", () => {
   it("returns markdown on success", async () => {
     const fetchImpl = vi.fn(async () =>
-      jsonResponse({ success: true, url: "https://example.com/page", markdown: "# Hello" }),
+      jsonResponse({ success: true, url: "https://www.fullers.co.uk/event-finder", markdown: "# Hello" }),
     );
-    const result = await scrapeMarkdown("https://example.com/page", {
+    const result = await scrapeMarkdown("https://www.fullers.co.uk/event-finder", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
     });
     expect(result).toEqual({
       status: "ok",
-      url: "https://example.com/page",
+      url: "https://www.fullers.co.uk/event-finder",
       markdown: "# Hello",
     });
   });
@@ -60,9 +60,9 @@ describe("scrapeMarkdown", () => {
       .mockResolvedValueOnce(
         jsonResponse({ error: "slow down" }, 429, { "retry-after": "7" }),
       )
-      .mockResolvedValueOnce(jsonResponse({ success: true, url: "https://example.com", markdown: "ok" }));
+      .mockResolvedValueOnce(jsonResponse({ success: true, url: "https://www.fullers.co.uk", markdown: "ok" }));
     const sleeps: number[] = [];
-    const result = await scrapeMarkdown("https://example.com", {
+    const result = await scrapeMarkdown("https://www.fullers.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: async (ms) => {
@@ -84,9 +84,9 @@ describe("scrapeMarkdown", () => {
           headers: { "content-type": "text/html", "retry-after": "7" },
         }),
       )
-      .mockResolvedValueOnce(jsonResponse({ success: true, url: "https://example.com", markdown: "ok" }));
+      .mockResolvedValueOnce(jsonResponse({ success: true, url: "https://www.fullers.co.uk", markdown: "ok" }));
     const sleeps: number[] = [];
-    const result = await scrapeMarkdown("https://example.com", {
+    const result = await scrapeMarkdown("https://www.fullers.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: async (ms) => {
@@ -106,7 +106,7 @@ describe("scrapeMarkdown", () => {
           headers: { "content-type": "text/html" },
         }),
     );
-    const result = await scrapeMarkdown("https://example.com", {
+    const result = await scrapeMarkdown("https://www.fullers.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -126,7 +126,7 @@ describe("scrapeMarkdown", () => {
       jsonResponse({ error: "slow down" }, 429, { "retry-after": String(askedSeconds) }),
     );
     const sleeps: number[] = [];
-    const result = await scrapeMarkdown("https://example.com", {
+    const result = await scrapeMarkdown("https://www.fullers.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: async (ms) => {
@@ -153,9 +153,9 @@ describe("scrapeMarkdown", () => {
           "retry-after": String(Math.round(CONTEXT_DEV_MAX_RETRY_AFTER_MS / 1000)),
         }),
       )
-      .mockResolvedValueOnce(jsonResponse({ success: true, url: "https://example.com", markdown: "ok" }));
+      .mockResolvedValueOnce(jsonResponse({ success: true, url: "https://www.fullers.co.uk", markdown: "ok" }));
     const sleeps: number[] = [];
-    const result = await scrapeMarkdown("https://example.com", {
+    const result = await scrapeMarkdown("https://www.fullers.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: async (ms) => {
@@ -171,7 +171,7 @@ describe("scrapeMarkdown", () => {
   it("retries 5xx with bounded backoff then fails", async () => {
     const fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
     const sleeps: number[] = [];
-    const result = await scrapeMarkdown("https://example.com", {
+    const result = await scrapeMarkdown("https://www.fullers.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: async (ms) => {
@@ -188,7 +188,7 @@ describe("scrapeMarkdown", () => {
 
   it("does not retry validation errors", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({ error: "bad schema" }, 400));
-    const result = await scrapeMarkdown("https://example.com", {
+    const result = await scrapeMarkdown("https://www.fullers.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -205,7 +205,7 @@ describe("run request budget", () => {
   it("counts retries against the budget and stops sending once it is spent", async () => {
     const fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
     const budget = createContextDevBudget(2);
-    const result = await scrapeMarkdown("https://example.com", {
+    const result = await scrapeMarkdown("https://www.fullers.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -226,7 +226,7 @@ describe("run request budget", () => {
   it("names the budget alone when the ceiling stopped the FIRST attempt", async () => {
     const fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
     const budget = createContextDevBudget(1);
-    await scrapeMarkdown("https://example.com/first", {
+    await scrapeMarkdown("https://www.fullers.co.uk/first", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -235,7 +235,7 @@ describe("run request budget", () => {
     });
     fetchImpl.mockClear();
 
-    const result = await scrapeMarkdown("https://example.com/second", {
+    const result = await scrapeMarkdown("https://www.fullers.co.uk/second", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -252,7 +252,7 @@ describe("run request budget", () => {
   it("sends nothing at all once a shared budget is spent", async () => {
     const fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
     const budget = createContextDevBudget(1);
-    await scrapeMarkdown("https://example.com/one", {
+    await scrapeMarkdown("https://www.fullers.co.uk/one", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -260,7 +260,7 @@ describe("run request budget", () => {
     });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
 
-    const second = await extract("https://example.com/two", { type: "object" }, {
+    const second = await extract("https://www.fullers.co.uk/two", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -274,7 +274,7 @@ describe("run request budget", () => {
 
   it("spends nothing when the key is absent, because nothing is sent", async () => {
     const budget = createContextDevBudget(2);
-    const result = await scrapeMarkdown("https://example.com", {
+    const result = await scrapeMarkdown("https://www.fullers.co.uk", {
       env: {} as unknown as NodeJS.ProcessEnv,
       budget,
     });
@@ -288,7 +288,7 @@ describe("extract", () => {
     const fetchImpl = vi.fn(async () =>
       jsonResponse({
         status: "ok",
-        url: "https://example.com/events",
+        url: "https://www.fullers.co.uk/events",
         data: {
           events: [
             {
@@ -299,10 +299,10 @@ describe("extract", () => {
             },
           ],
         },
-        urls_analyzed: ["https://example.com/events"],
+        urls_analyzed: ["https://www.fullers.co.uk/events"],
       }),
     );
-    const result = await extract("https://example.com/events", { type: "object" }, {
+    const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,

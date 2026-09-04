@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Push Notifications. `development` is what a device build registers
+	     against; Xcode rewrites it to `production` when the archive is
+	     distributed, which is why the server's APNS_ENV is set per build
+	     rather than read from here (docs/CAPACITOR_WRAP.md). -->
+	<key>aps-environment</key>
+	<string>development</string>
+	<!-- Associated Domains. This is the app's half of the universal-link
+	     agreement; the other half is the appIDs in
+	     public/.well-known/apple-app-site-association, which still carry their
+	     placeholder team until enrolment. Nothing here does: Xcode derives the
+	     team from the signing identity. Without this entitlement a shared link
+	     opens Safari and nothing anywhere says why. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:pubmaxxing.com</string>
+	</array>
+</dict>
+</plist>

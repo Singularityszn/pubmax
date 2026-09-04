@@ -124,13 +124,13 @@ describe("Capacitor wrapped-build contract", () => {
   it("uses the canonical app name in iOS permission explanations", () => {
     const info = rootFile("ios/App/App/Info.plist");
     expect(info).toContain(
-      `<string>${APP_NAME} uses the camera so you can take photos of your night and save them as private Moments.</string>`,
+      `<string>${APP_NAME} uses the camera so you can photograph a price board, a pub, or your own night.</string>`,
     );
     expect(info).toContain(
       `<string>${APP_NAME} uses your location while the app is open to find nearby pubs and calculate walk times.</string>`,
     );
     expect(info).toContain(
-      `<string>${APP_NAME} opens your photo library so you can add existing photos to your private Moments.</string>`,
+      `<string>${APP_NAME} opens your photo library so you can choose a photo you have already taken.</string>`,
     );
   });
 

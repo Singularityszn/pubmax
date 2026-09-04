@@ -20,13 +20,13 @@
 import { useRef, useState } from "react";
 
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
+import { pickNativePhoto } from "@/lib/nativeCamera";
+import { isNativeApp } from "@/lib/nativePlatform";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { SUBMITTABLE_DRINK_CATEGORIES } from "@/lib/communityPrice";
 import { categoryLabel, type DrinkCategory } from "@/lib/drinks";
 import { PROFILE_IMAGE_PICKER_ACCEPT } from "@/lib/profileImagePicker";
-import { pickNativePhoto } from "@/lib/nativeCamera";
-import { isNativeApp } from "@/lib/nativePlatform";
 import {
   VENUE_PHOTO_CAPTION_MAX,
   VENUE_PHOTO_CROSSPOST_LABEL,
@@ -63,24 +63,6 @@ export default function VenuePhotoComposer({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // The native shell opens its own sheet rather than the WebView chooser,
-  // because that chooser drops its camera entry on Android and a wall photo is
-  // the pub somebody is standing in. `CameraSource.Prompt` keeps the photo
-  // library on the sheet, so BEAT ONE IS STILL A PICKER and the header rule
-  // above holds; lib/nativeCamera.ts is fenced so it cannot become camera-only.
-  async function openPicker() {
-    if (!isNativeApp()) {
-      inputRef.current?.click();
-      return;
-    }
-    const pick = await pickNativePhoto();
-    if (pick.outcome === "chosen") {
-      setChosen(pick.file);
-      setError(null);
-      return;
-    }
-    if (pick.outcome === "blocked") setError(pick.message);
-  }
 
   async function upload(file: File) {
     setBusy(true);
@@ -118,6 +100,29 @@ export default function VenuePhotoComposer({
     }
   }
 
+  // BEAT ONE INSIDE THE SHELL. WKWebView's own file chooser is the bare
+  // thin-wrapper sheet, so the button routes through lib/nativeCamera.ts,
+  // whose `CameraSource.Prompt` offers Camera and Photo Library together -
+  // the native reading of the same law this file's header states, not an
+  // exception to it. Beat two is unchanged: whatever is chosen still goes to
+  // the cropper, which is what makes an iPhone's HEIC uploadable.
+  // The seam's answer is three-way, and this surface has somewhere to put the
+  // third: a person whose camera the OS is holding shut is told so, where a
+  // person who simply changed their mind is shown nothing at all.
+  async function choosePhoto() {
+    if (isNativeApp()) {
+      const pick = await pickNativePhoto("venue");
+      if (pick.outcome === "chosen") {
+        setChosen(pick.file);
+        setError(null);
+      } else if (pick.outcome === "blocked") {
+        setError(pick.message);
+      }
+      return;
+    }
+    inputRef.current?.click();
+  }
+
   return (
     <div className="venuePhotoComposer">
       <input
@@ -148,7 +153,7 @@ export default function VenuePhotoComposer({
         <button
           type="button"
           className="venuePhotoWallButton"
-          onClick={() => void openPicker()}
+          onClick={() => void choosePhoto()}
         >
           Choose a photo
         </button>

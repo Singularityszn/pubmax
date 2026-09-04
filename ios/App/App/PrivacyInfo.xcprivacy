@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The machine-readable half of docs/STORE_READINESS.md section 5. Apple
+	     reads this file and the App Privacy answers typed into App Store
+	     Connect, and a disagreement between the two is a review finding, so
+	     the five entries below are the same five the doc declares, in the
+	     same order, with the same linked/tracking answers.
+	     __tests__/iosPrivacyManifest.test.ts holds them to each other. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<!-- No advertising SDK, no ad identifier, no cross-app tracking, so there
+	     is no tracking domain to name. -->
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+		<dict>
+			<!-- Sign-in address, and the optional area-demand contact. -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeEmailAddress</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<!-- A photo a person publishes: a Moment, a pub wall photo, a
+			     price board beside a Pint Drop. A draft never leaves the
+			     phone, so nothing is collected until publish. -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePhotosorVideos</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<!-- The APNs device token, stored with no identity column
+			     (lib/pushTokenStore.ts, migrations 0039 + 0046). -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeDeviceID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<!-- Opt-in only. lib/analytics.ts is consent-gated and default
+			     off, and lib/analyticsEvents.ts closes the property set. -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeProductInteraction</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+			</array>
+		</dict>
+		<dict>
+			<!-- Declared precise because three decimal places is about 70 to
+			     110 metres. Full GPS precision stays on the device; lib/geo.ts
+			     is the one egress seam, and the rounded point is used
+			     ephemerally to answer the request that asked for it. -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePreciseLocation</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
+	<!-- Required-reason APIs. The app target is an AppDelegate and two
+	     storyboards: it calls none of them itself. Capacitor's own frameworks
+	     declare their use in their own manifests, which ship inside those
+	     packages (node_modules/@capacitor/ios/Capacitor/Capacitor/PrivacyInfo.xcprivacy),
+	     and a manifest may only speak for the code it belongs to. -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array/>
+</dict>
+</plist>
