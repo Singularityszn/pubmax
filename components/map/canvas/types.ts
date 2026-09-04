@@ -15,6 +15,16 @@ export type VenueSignal = {
    * this to lib/priceTier.ts rather than deciding what confirmed means.
    */
   confirmedPrice?: ConfirmedPriceInput | null;
+  /**
+   * The venue's in-window pint report that has NOT earned the map
+   * (`provisionalPriceDrop`, lib/venues.ts), or null. Kept strictly apart from
+   * `latestContributorPrice`: nothing reads this into a band, a bucket or a pin
+   * figure. It exists so a sheet can show the drinker's figure, dated, instead
+   * of telling the reader the pub has no price.
+   */
+  provisionalContributorPrice?: number | null;
+  /** Epoch ms that provisional report was logged, or null. */
+  provisionalContributorAt?: number | null;
 };
 export type HoveredVenue = { id: string; name: string; x: number; y: number };
 export type VenueDetailResponse = { venue?: Venue | null };

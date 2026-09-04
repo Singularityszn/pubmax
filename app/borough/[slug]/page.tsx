@@ -7,6 +7,11 @@ import JsonLd from "@/components/seo/JsonLd";
 import FactBlock from "@/components/seo/FactBlock";
 import FaqBlock from "@/components/seo/FaqBlock";
 import PriceBadge from "@/components/PriceBadge";
+import {
+  venueBundlePrices,
+  venuePriceLane,
+  venueSourcedPrice,
+} from "@/lib/venuePriceLane";
 import { venueMapUrl } from "@/lib/venueIndex";
 import { pintFactStats, faqItems, faqPageJsonLd } from "@/lib/pintFacts";
 import {
@@ -147,6 +152,42 @@ const SITE_URL = "https://pubmaxxing.com";
 // pub table. Each pub links to its canonical, crawlable venue permalink
 // (/ledger/{id}) — nothing invented; a pub with no price still lists, priced or
 // not, exactly as the table shows it.
+// One pub's price cell. It asks `venuePriceLane` rather than testing
+// `cheapestPrice` itself, so "No price" here means the ONE thing it means
+// everywhere else: no lane answered (issue #1426). This page is server-rendered
+// from bundled data and holds no Pint Drops, so its provisional argument is
+// absent by construction; routing it through the precedence is what stops the
+// borough list wording an absence the venue sheet has stopped wording.
+function BoroughPubPrice({ pub }: { pub: Venue }) {
+  const lane = venuePriceLane(
+    pub,
+    pub.latestContributorPrice,
+    venueSourcedPrice(pub),
+    venueBundlePrices(pub),
+  );
+  if (lane === null) return <span className="boroughNoPrice">No price</span>;
+  // The figure comes off the lane that won, never off `cheapestPrice` again:
+  // a lane whose figure lives somewhere else would otherwise print a blank
+  // badge here the day it starts answering on this page.
+  const figure =
+    lane.lane === "contributor"
+      ? lane.contributorPrice
+      : lane.lane === "listed"
+        ? lane.listed.priceGbp
+        : lane.lane === "provisional"
+          ? lane.provisionalPrice
+          : lane.lane === "estimate"
+            ? lane.estimate.priceGbp
+            : // anchor, sourced and baseline all print the venue's own figure;
+              // the sourced lane carries provenance, not a price.
+              pub.cheapestPrice;
+  return (
+    <PriceBadge variant={lane.lane === "baseline" ? "baseline" : "current"}>
+      {formatPrice(figure)}
+    </PriceBadge>
+  );
+}
+
 function boroughJsonLd(name: string, slug: string, pubs: Venue[]) {
   const breadcrumb = {
     "@context": "https://schema.org",
@@ -308,13 +349,7 @@ export default async function BoroughPage({ params }: PageProps) {
                     </Link>
                   </td>
                   <td className="boroughPriceCell">
-                    {typeof pub.cheapestPrice === "number" ? (
-                      <PriceBadge variant="current">
-                        {formatPrice(pub.cheapestPrice)}
-                      </PriceBadge>
-                    ) : (
-                      <span className="boroughNoPrice">No price</span>
-                    )}
+                    <BoroughPubPrice pub={pub} />
                   </td>
                 </tr>
               ))}
