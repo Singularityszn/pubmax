@@ -317,6 +317,36 @@ describe("the bundle lanes", () => {
     ).toBe("listed");
   });
 
+  // ONE DRINKER'S REPORT SUPERSEDES A MODELLED FIGURE FOR THE SAME PUB AND DRINK.
+  // Issue #1362 asked which cities may show an estimate and what corroborates
+  // one, and the answer is that nothing new corroborates it: the existing Pint
+  // Drop does. A lone in-window report is somebody who was actually there, so
+  // it takes the area off the estimate and says what it still needs in the ONE
+  // wording the lane owns. It stays below every corroborated lane, so this is a
+  // swap of one unauthoritative claim for a better one, never a promotion.
+  it("lets one drinker's report supersede a modelled figure, and says what it still needs", () => {
+    const PROVISIONAL = { priceGbp: 4.5, observedAt: Date.now() - 86_400_000 };
+
+    expect(
+      venuePriceLane(makeVenue(), null, null, { estimate: ESTIMATE }, PROVISIONAL),
+    ).toEqual({
+      lane: "provisional",
+      provisionalPrice: 4.5,
+      observedAt: PROVISIONAL.observedAt,
+    });
+    expect(PROVISIONAL_PRICE_LINE).toBe("Logged once, needs a second drinker");
+
+    // And the report has not become authoritative by displacing it: a published
+    // page and a live contributor price both still outrank it.
+    expect(
+      venuePriceLane(makeVenue(), null, null, { listed: LISTED, estimate: ESTIMATE }, PROVISIONAL)
+        ?.lane,
+    ).toBe("listed");
+    expect(
+      venuePriceLane(makeVenue(), 5.9, null, { estimate: ESTIMATE }, PROVISIONAL)?.lane,
+    ).toBe("contributor");
+  });
+
   it("leaves a venue with nothing unpriced, and takes it off the nudge once the bundle answers", () => {
     expect(isVenueUnpriced(makeVenue(), null)).toBe(true);
     expect(isVenueUnpriced(makeVenue(), null, { estimate: ESTIMATE })).toBe(false);
