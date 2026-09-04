@@ -161,60 +161,60 @@ export function strongestBundleRow(
   rows: readonly UkPriceBundleRow[],
   now: number = Date.now(),
 ): PriceStandingDecision {
-  const listed = rows.find((row) => row.standing === "listed" && row.sourceUrl);
-  const estimate = rows.find((row) => row.standing === "estimate");
-  return priceStandingFor(
-    {
-      listed: listed
-        ? { priceGbp: listed.priceGbp, sourceUrl: listed.sourceUrl as string, observedAt: listed.observedAt }
-        : null,
-      estimate: estimate
-        ? {
-            priceGbp: estimate.priceGbp,
-            basis: estimate.basis as string,
-            sampleSize: estimate.sampleSize as number,
-            computedAt: estimate.observedAt,
-          }
-        : null,
-    },
-    now,
-  );
+  return priceStandingFor(bundlePriceInputs(rows), now);
 }
 
 /**
- * The two inputs `priceStandingFor` takes, narrowed to one pub and one drink.
+ * The two inputs `priceStandingFor` takes, over rows already narrowed to one
+ * pub and one drink.
  *
- * THE CHEAPEST OF EACH STANDING, because a lane may hold several rows for one
- * drink and the figure a drinker can walk in and pay is the lowest of them.
- * This picks the inputs; it does not decide which of them speaks, and the
- * decision stays with the one decider.
+ * WITHIN ONE STANDING, THE READ SIDE PICKS WHAT THE BUILD SIDE KEEPS: the
+ * freshest reading, and the cheapest within that reading. Both sides ask
+ * `bundleRowSupersedes`, so a second listed lane landing for one pub cannot
+ * make the sheet quote a figure the builder itself would have superseded. The
+ * two standings are gathered apart because choosing BETWEEN them is the one
+ * decider's job, never this function's.
  */
+function bundlePriceInputs(rows: readonly UkPriceBundleRow[]): {
+  listed: ListedPriceInput | null;
+  estimate: EstimatedPriceInput | null;
+} {
+  let listed: UkPriceBundleRow | undefined;
+  let estimate: UkPriceBundleRow | undefined;
+  for (const row of rows) {
+    if (row.standing === "listed" && row.sourceUrl) {
+      if (bundleRowSupersedes(row, listed)) listed = row;
+      continue;
+    }
+    if (row.standing === "estimate" && row.basis && row.sampleSize) {
+      if (bundleRowSupersedes(row, estimate)) estimate = row;
+    }
+  }
+  return {
+    listed: listed
+      ? {
+          priceGbp: listed.priceGbp,
+          sourceUrl: listed.sourceUrl as string,
+          observedAt: listed.observedAt,
+        }
+      : null,
+    estimate: estimate
+      ? {
+          priceGbp: estimate.priceGbp,
+          basis: estimate.basis as string,
+          sampleSize: estimate.sampleSize as number,
+          computedAt: estimate.observedAt,
+        }
+      : null,
+  };
+}
+
+/** Those same two inputs, for the rows of one drink out of a whole pub's set. */
 export function bundlePricesForCategory(
   rows: readonly UkPriceBundleRow[],
   category: string,
 ): { listed: ListedPriceInput | null; estimate: EstimatedPriceInput | null } {
-  let listed: ListedPriceInput | null = null;
-  let estimate: EstimatedPriceInput | null = null;
-  for (const row of rows) {
-    if (row.category !== category) continue;
-    if (row.standing === "listed" && row.sourceUrl) {
-      if (!listed || row.priceGbp < listed.priceGbp) {
-        listed = { priceGbp: row.priceGbp, sourceUrl: row.sourceUrl, observedAt: row.observedAt };
-      }
-      continue;
-    }
-    if (row.standing === "estimate" && row.basis && row.sampleSize) {
-      if (!estimate || row.priceGbp < estimate.priceGbp) {
-        estimate = {
-          priceGbp: row.priceGbp,
-          basis: row.basis,
-          sampleSize: row.sampleSize,
-          computedAt: row.observedAt,
-        };
-      }
-    }
-  }
-  return { listed, estimate };
+  return bundlePriceInputs(rows.filter((row) => row.category === category));
 }
 
 /**
@@ -225,7 +225,11 @@ export function bundlePricesForCategory(
 export const BUNDLE_DEFAULT_CATEGORY = "beer";
 
 /**
- * Which of two rows for the SAME pub, drink and lane the bundle keeps.
+ * Which of two rows for one pub and one drink the bundle keeps, and the ONE
+ * ordering both sides of the bundle spend: the builder folding a lane's rows
+ * down to what it stores, and `bundlePriceInputs` picking what a sheet reads
+ * back out. A rule stated twice is a rule that drifts, and this one drifted
+ * once already.
  *
  * TWO QUESTIONS, ANSWERED IN ORDER, because they are about different things.
  *

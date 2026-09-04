@@ -123,6 +123,7 @@ const NOT_REPO_PATHS = new Set([
   // Structured log event names, not paths.
   "out.provider_failed",
   "out.supply",
+  "pint_drops.daily_cap_conflict",
   "profile_image.serve_refused",
   "uploaded_image.object_unreadable",
   // Database objects, not repository paths.
