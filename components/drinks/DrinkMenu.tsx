@@ -257,11 +257,15 @@ export default function DrinkMenu({
           venueId={venueId}
         />
       ))}
+      {/* The footnote is about ATTRIBUTION and nothing else. It once trailed a
+          demo disclaimer on every menu, so a real Pint Drop wore a sentence
+          about seeded examples (#1427); demo rows are opt-in now
+          (demoDrinksEnabled, lib/demoContent.ts) and each one still carries its
+          own Demo chip, which is where that claim belongs. */}
       <p className="drinkMenuFootnote">
         {hasUnattributedPrice
           ? "“Publisher not recorded” means the price is on record but its publisher was not captured."
-          : "Publisher links open where the price record names one."}{" "}
-        · Demo items are seeded examples, not live prices.
+          : "Publisher links open where the price record names one."}
       </p>
     </div>
   );

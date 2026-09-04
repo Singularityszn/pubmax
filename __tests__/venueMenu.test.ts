@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -34,6 +34,17 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 });
+
+// Seeded menus and the overlay's demo lane are opt-in (#1427). The cases that
+// exercise a demo row ask for one by name; everything else reads the
+// production default.
+afterEach(() => {
+  delete process.env.NEXT_PUBLIC_DEMO_DRINKS;
+});
+
+function withDemoDrinks(): void {
+  process.env.NEXT_PUBLIC_DEMO_DRINKS = "on";
+}
 
 // A seeded heritage venue id (Prospect of Whitby) — see __tests__/drinkSeeds.test.ts.
 const SEEDED_VENUE_ID = "venue-16pnwmm";
@@ -126,7 +137,21 @@ function prospectPrice(
 }
 
 describe("venueMenuForInspector", () => {
+  it("returns only the venue's own beer for a seeded venue by default", () => {
+    const prices = [
+      fabricatedPrice("p1", "London Pride", 6.4),
+      fabricatedPrice("p2", "Guinness", 6.1),
+    ];
+    const menu = venueMenuForInspector({ id: SEEDED_VENUE_ID, prices });
+
+    expect(menu).toHaveLength(prices.length);
+    expect(menu.every((d) => d.category === "beer")).toBe(true);
+    expect(menu.some((d) => d.provenance.source === "seed")).toBe(false);
+    expect(hasMenuBeyondPints(menu)).toBe(false);
+  });
+
   it("returns beer first then seeded non-beer drinks for a seeded venue", () => {
+    withDemoDrinks();
     const prices = [
       fabricatedPrice("p1", "London Pride", 6.4),
       fabricatedPrice("p2", "Guinness", 6.1),
@@ -169,6 +194,7 @@ describe("venueMenuForInspector", () => {
   });
 
   it("applies demo drink-price overlays to the real Prospect menu", () => {
+    withDemoDrinks();
     const menu = venueMenuForInspector(
       {
         id: SEEDED_VENUE_ID,

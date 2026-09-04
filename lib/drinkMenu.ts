@@ -3,7 +3,7 @@ import {
   type Drink,
   type LegacyPintPrice,
 } from "@/lib/drinks";
-import { demoContentEnabled } from "@/lib/demoContent";
+import { demoDrinksEnabled } from "@/lib/demoContent";
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { demoDrinksFor } from "@/lib/drinkSeeds";
 
@@ -13,7 +13,9 @@ import { demoDrinksFor } from "@/lib/drinkSeeds";
 //   1. the venue's existing legacy pint prices (VenuePrice[]) viewed as beer
 //      Drinks — this is how today's beer shows in the menu unchanged;
 //   2. the seeded demo menu for the curated heritage pubs (a wine, a whisky, a
-//      gin, a cocktail), provenance-tagged {source:"seed"}.
+//      gin, a cocktail), provenance-tagged {source:"seed"} — OPT-IN only, so a
+//      production menu carries the venue's own prices and nothing else
+//      (demoDrinksEnabled, lib/demoContent.ts).
 //
 // Provenance never flattens: each drink keeps its own {source, licence,
 // observedAt}, so a seeded demo pour can never masquerade as a first-party
@@ -36,7 +38,7 @@ export function venueDrinkMenu(
     legacyPrices,
     PINT_DATASET_OBSERVED_AT.toISOString(),
   );
-  const seeded = demoContentEnabled() ? seeds(venueId) : [];
+  const seeded = demoDrinksEnabled() ? seeds(venueId) : [];
   // Beer (legacy pints) first, then the seeded non-beer menu. Dedupe by id so a
   // re-run or an overlapping source never doubles a row.
   const seen = new Set<string>();
