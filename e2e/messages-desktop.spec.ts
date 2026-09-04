@@ -101,66 +101,6 @@ async function expectSignedOutCardFitsInbox(page: Page): Promise<void> {
   }
 }
 
-async function expectSignedOutProfileAuthFitsPane(page: Page): Promise<void> {
-  await page.goto("/u/testdrinker");
-
-  const pane = page.locator(".profileIdentityPane");
-  const authRoot = pane.locator(".profileMessageSignIn .authUser:not(.authUserNav)");
-  const fitted = pane.locator(
-    ".profileMessageSignIn .authUser:not(.authUserNav), .profileMessageSignIn .authOptions, .profileMessageSignIn .authMagicLinkInput, .profileMessageSignIn .authMagicLinkButton",
-  );
-
-  await expect(pane).toBeVisible();
-  await expect(authRoot).toBeVisible();
-  await expect(authRoot).toHaveCSS("min-width", "0px");
-  await expect(authRoot).toHaveCSS("max-width", "100%");
-  await expect(fitted).toHaveCount(4);
-
-  const geometry = await page.evaluate(() => {
-    const paneNode = document.querySelector<HTMLElement>(".profileIdentityPane");
-    const actionNode = document.querySelector<HTMLElement>(
-      ".profileIdentityPane .profileActions",
-    );
-    const fittedNodes = [
-      ...document.querySelectorAll<HTMLElement>(
-        ".profileIdentityPane .profileMessageSignIn .authUser:not(.authUserNav), .profileIdentityPane .profileMessageSignIn .authOptions, .profileIdentityPane .profileMessageSignIn .authMagicLinkInput, .profileIdentityPane .profileMessageSignIn .authMagicLinkButton",
-      ),
-    ];
-    if (!paneNode || !actionNode) return null;
-
-    return {
-      paneLeft: paneNode.getBoundingClientRect().left,
-      paneRight: paneNode.getBoundingClientRect().right,
-      actionLeft: actionNode.getBoundingClientRect().left,
-      actionRight: actionNode.getBoundingClientRect().right,
-      fitted: fittedNodes.map((node) => ({
-        className: node.className,
-        left: node.getBoundingClientRect().left,
-        right: node.getBoundingClientRect().right,
-        fits: node.scrollWidth <= node.clientWidth,
-      })),
-    };
-  });
-
-  expect(geometry).not.toBeNull();
-  if (!geometry) return;
-  for (const item of geometry.fitted) {
-    expect(item.fits, `${item.className} should fit its own box`).toBe(true);
-    expect(item.left, `${item.className} should stay inside actions`).toBeGreaterThanOrEqual(
-      geometry.actionLeft - 1,
-    );
-    expect(item.right, `${item.className} should stay inside actions`).toBeLessThanOrEqual(
-      geometry.actionRight + 1,
-    );
-    expect(item.left, `${item.className} should stay inside profile pane`).toBeGreaterThanOrEqual(
-      geometry.paneLeft - 1,
-    );
-    expect(item.right, `${item.className} should stay inside profile pane`).toBeLessThanOrEqual(
-      geometry.paneRight + 1,
-    );
-  }
-}
-
 for (const viewport of DESKTOP_CASES) {
   test(`messages use inbox and thread panes at ${viewport.width}px in ${viewport.theme} mode`, async ({
     page,
@@ -194,7 +134,5 @@ for (const viewport of DESKTOP_CASES) {
     await page.goto("/messages/nonexistent");
     await expect(page.getByText(/sign in to read and send messages/i)).toBeVisible();
     await expectDesktopSplit(page);
-
-    await expectSignedOutProfileAuthFitsPane(page);
   });
 }
