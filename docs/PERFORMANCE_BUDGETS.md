@@ -66,18 +66,28 @@ profile rather than loopback. Measured figure first, ceiling second:
 | `/terms` | 6 / 150 | 788 / 910 | 32 / 37 | 184 / 2500 |
 | `/places` | 6 / 150 | 861 / 1000 | 40 / 46 | 188 / 2500 |
 
-One headroom rule, applied to every route the same way: 15% for bytes and
-requests, 20% for LCP, and a 150 ms or 450 ms family floor for server render.
+The margin is not one number, because the four metrics do not behave alike.
 
-Two exceptions, both in the tightening direction. Where the measurement already
-met a **tighter** existing ceiling, the tighter one stands. Where the measurement
-is **over** an existing ceiling, the ceiling still stands and the sweep reports
-the breach. Nothing here was loosened to fit a measurement.
+| metric | seeded from | margin | why |
+| --- | --- | --- | --- |
+| `jsDecodedKB` | p75 of five samples | +15% | Identical across every sample of every route. A build ships what it ships. |
+| `requests` | p75 of five samples | +15% | Same: stable to the request within a run. |
+| `serverRenderMs` | p75 of five samples | +50%, floor 150 ms | Single-digit milliseconds on most routes, so a percentage alone is meaningless and the floor does the work. |
+| `lcpMs` | the WORST sample any sweep has produced | +25% | See below. It is the noisy one, and it is not close. |
 
-`/` and `/map` take the speed programme's own 1500 ms LCP target because they are
-the front door and the product. Every other route takes 2500 ms, the Core Web
-Vitals good boundary, so no route may be worse than good. Every route now meets
-its LCP ceiling.
+**Why LCP is seeded from the worst figure rather than a p75.** Within one run LCP
+is tight - five samples of `/rounds` came back 176, 196, 172, 176, 180. The spread
+is BETWEEN runs, and it is wide: measured across three full sweeps, `/tonight`
+produced 660 ms and 192 ms, `/discover` 272 ms and 776 ms, `/out` 1064 ms and
+532 ms. The worst between-sweep figure reached **3.17x** the same route's
+within-run p75.
+
+A ceiling seeded from one run's p75 would therefore rebuild the gate this whole
+programme started by fixing: red on unchanged code, and an author pushed toward
+the one move the law forbids. So every LCP ceiling covers the worst figure any
+sweep has actually produced, plus a quarter. Every route has at least 25% headroom
+against its own worst observation, except `/pal`, which simply keeps its existing
+1500 ms - tighter than the rule would give it, and not raised to suit it.
 
 Production RUM corroborates the lab figure independently: `onLCP` already
 reports through `lib/webVitals.ts` and the consent-gated `web_vital` event
@@ -306,6 +316,32 @@ harness figure survives only as a NAMED fallback: a sample that had to use it is
 reported in the run's method warnings, so a drifting run is visible in the log
 instead of quietly reading as a heavier route.
 
+### What the sweep does NOT reset, and why route order matters
+
+`resetPerfState` clears cookies, `localStorage` and `sessionStorage` before every
+route, because one sweep shares one page and a route was otherwise measured with
+whatever the last one stored. It does **not** clear the HTTP cache.
+
+That is deliberate and it matches what the method claims to describe - a
+returning visitor, not a first-ever one - but it has a consequence worth stating
+plainly rather than leaving for the next reader to rediscover: **a chunk fetched
+by an earlier route is warm for every later one, so route order is a hidden
+variable in the sweep.**
+
+It is not a small effect. `/pal` measured 1200 ms LCP in second position and
+540 ms in seventh, on identical code, because by the seventh route the auth chunk
+it waits for was already in the cache. Two rules follow:
+
+- A figure is only comparable to another taken **in the same position** in the
+  same route order. The order is the order of `routes` in
+  `perf/route-budgets.json`, so inserting a route changes what every route after
+  it measures.
+- A before-and-after comparison must run both sides with the same order and the
+  same base commit, and is worth more samples than the enforced three. One sweep
+  per side is not enough to tell a real change from between-run variance: on one
+  such pair `/discover` appeared 504 ms worse and `/out` 532 ms better, and a
+  seven-sample pass on the same two builds put both within 20 ms.
+
 ### What a run prints
 
 Three tables, in this order:
@@ -363,6 +399,79 @@ PUBMAX_PERF_BUDGET=1 npx playwright test e2e/performance-budget.spec.ts --projec
 
 A failing run prints one row per breach: route, metric, measured, budget, and
 how far past the ceiling it went.
+
+### One thing already tried, so nobody tries it blind again
+
+Warming the auth chunk at module-execution time - so the browser asks for it
+before hydration rather than from an effect after it - was built, tested and
+measured, and it was **dropped**. The record is worth keeping because the idea is
+an obvious one to have twice.
+
+It works: `/pal` is the one route whose readiness really waits for the session to
+answer, and its auth chunk started at 1183 ms against about 112 ms for every
+other chunk. Moving that earlier is a genuine saving. It is just a small one, and
+it is not free.
+
+Measured on one base, seven samples a route, identical order:
+
+| route | before | after |
+| --- | --- | --- |
+| `/discover` | 752 | 736 |
+| `/social` | 600 | 584 |
+| `/feed` | 692 | 672 |
+| `/pal` | 556 | 540 |
+| `/out` | 544 | 540 |
+| `/tonight` | 208 | 204 |
+| **`/map`** | **632** | **728** |
+
+Four to twenty milliseconds better on six routes, and 96 ms worse on `/map`,
+whose before and after distributions do not overlap (minimum 528 against 700).
+The cause is bandwidth rather than scheduling: on a throttled wire the 220 KB
+chunk competes with the map's own shard reads during its paint window. `/pal`'s
+own gain stays small because that route waits on hydration as well as on the
+chunk, so an earlier download saves tens of milliseconds rather than the hundreds
+the 1183 ms figure suggests.
+
+`/map` is the product. Captain's ruling, 2026-09-04: a 96 ms loss there outweighs
+4 to 20 ms elsewhere, so the module-scope warm is not taken. An idle-scheduled
+variant was deliberately NOT tried, on the same reasoning: warming after first
+paint lands close to where the effect already runs, so it would buy back the
+`/map` cost by giving up the gain.
+
+### Known and not fixed
+
+`/borough` renders on the server in about 54 ms, against 4 to 14 ms almost
+everywhere else in the tree. Its client side is fine. It is the slowest server
+render in the file and it is left alone here deliberately, because this change is
+about the ceilings rather than the routes; it is also the best edge-caching
+candidate on the list, since it reads nothing per request but the nonce.
+
+### The image audit that found nothing, and what the copy fix cost
+
+An earlier note implied `/u/you` had a late image paint worth fixing. It does
+not: that route renders **no images at all** - `document.images.length` is 0 and
+there are no image resource entries. `/pal` has exactly one, 22 KB, already
+carrying width, height and sizes, and it starts after that route's own LCP
+element has painted.
+
+Both routes' LCP elements were TEXT (`/u/you` a `<p class="wantedPanel__lede">`,
+`/pal` an `<h1>`), gated on hydration rather than on bytes. #1411 fixed that by
+painting the copy from the HTML, and the win is large:
+
+| route | LCP before | LCP after | ceiling |
+| --- | --- | --- | --- |
+| `/pal` | 1384 | **512** | 700 |
+| `/u/you` | 1556 | **772** | 900 |
+
+`/pal` improved on every metric and its ceilings ratchet with it: 1300 KB to
+1050, 51 requests to 45, 1500 ms to 700.
+
+`/u/you` did not. The same change made it **heavier**: 1375 KB over 71 requests,
+against ceilings of 1290 and 66. Its LCP ceiling stands at 900 and it passes
+there, but the byte and request ceilings are left exactly where they are and the
+sweep reports the route over budget. Moving them to fit the measurement is the
+one move this file forbids, and a payload that grew by 85 KB and five requests is
+worth somebody deciding about rather than absorbing.
 
 ## Changing a number
 

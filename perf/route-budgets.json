@@ -1,5 +1,5 @@
 {
-  "note": "Per-route performance ceilings for every route the site serves a stranger, all 35 of them. Read docs/PERFORMANCE_BUDGETS.md before changing a number: down is free, up is a decision, and scripts/check-budget-ratchet.mjs refuses an undocumented raise against the base branch. Seeded 2026-09-04 from one sweep on a production build of main at 4f36f2547, under the method block below, which is the same method CI enforces: Desktop Chrome at 390x844, a 4x CPU throttle, the tracked Fast 4G network profile, third parties refused, storage and cookies cleared between routes, one warm-up load discarded and the median of three measured ones, with counting cut on the PAGE's own clock. Every ceiling is the measured figure plus one uniform headroom rule - 15% for bytes and requests, 20% for LCP, and a 150 ms or 450 ms family floor for server render - EXCEPT where the measurement already met a tighter ceiling, in which case the tighter one stands, and except where the measurement is OVER the ceiling, in which case the ceiling stands and the sweep reports the breach. NOTHING here was loosened to fit a measurement. The rig caught one regression on its first full sweep: /map asked for 331 requests before it was interactive against a ceiling of 160, where the same rig measured 148 before the map camera work landed. The cause is fixed rather than the ceiling raised, and /map now measures 125. See lib/slimShards.ts boundsNameNowhere. CI's own sweep is the oracle and the ratchet check banks the slack.",
+  "note": "Per-route performance ceilings for every route the site serves a stranger, all 35 of them. Read docs/PERFORMANCE_BUDGETS.md before changing a number: down is free, up is a decision, and scripts/check-budget-ratchet.mjs refuses an undocumented raise against the base branch. Re-seeded 2026-09-04 from a five-sample sweep on a production build of main at 0eaa7c6f5, under the method block below. The margin is PER METRIC, because the four do not behave alike: bytes and requests take the p75 plus 15%, being identical across every sample of every route; server render takes the p75 plus 50% over a 150 ms floor, because single-digit milliseconds make a percentage meaningless; and LCP takes the WORST sample any sweep has produced plus 25%, because its spread is BETWEEN runs rather than within them and reached 3.17x one route's own p75. Seeding LCP from a single run's p75 would rebuild the gate this programme began by fixing. Every ceiling here is the same or lower than the one before it; nothing was raised, and no route's ceiling sits below a figure we have measured. CI's own sweep is the oracle and the ratchet check banks the slack.",
   "method": {
     "browser": "Desktop Chrome",
     "deviceScaleFactor": 1,
@@ -38,7 +38,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1010,
       "requests": 46,
-      "lcpMs": 1500
+      "lcpMs": 800
     },
     {
       "path": "/pal",
@@ -46,9 +46,9 @@
       "settledSelectorHidden": ".palLoading",
       "why": "The front door's one primary action, so it is measured beside the landing that sends people to it. The 2026-09-01 seed sweep measured 1745 KB decoded, of which a single 603 KB chunk was the ElevenLabs conversation SDK, parsed before first paint for a control the reader may never reach and the deployment may not even have switched on. That chunk now loads when the availability probe says voice is on (components/pubpal/PubPalVoiceSession.tsx), so this ceiling ratchets to 1300 KB against an expected ~1142 KB. CI's sweep is the oracle; U8's ratchet check banks whatever slack is left.",
       "serverRenderMs": 150,
-      "jsDecodedKB": 1300,
-      "requests": 51,
-      "lcpMs": 1500
+      "jsDecodedKB": 1050,
+      "requests": 45,
+      "lcpMs": 700
     },
     {
       "path": "/map",
@@ -58,7 +58,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 3400,
       "requests": 160,
-      "lcpMs": 1500,
+      "lcpMs": 900,
       "pinReady": {
         "path": "/map/london",
         "targetMs": 2500,
@@ -75,7 +75,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1060,
       "requests": 52,
-      "lcpMs": 2500
+      "lcpMs": 300
     },
     {
       "path": "/tonight",
@@ -84,7 +84,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1080,
       "requests": 56,
-      "lcpMs": 2500
+      "lcpMs": 900
     },
     {
       "path": "/out",
@@ -93,7 +93,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1010,
       "requests": 49,
-      "lcpMs": 2500
+      "lcpMs": 1400
     },
     {
       "path": "/about",
@@ -102,7 +102,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 960,
       "requests": 43,
-      "lcpMs": 2500
+      "lcpMs": 500
     },
     {
       "path": "/pubs",
@@ -111,7 +111,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1200,
       "requests": 68,
-      "lcpMs": 2500
+      "lcpMs": 600
     },
     {
       "path": "/webmcp",
@@ -120,7 +120,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1000,
       "requests": 44,
-      "lcpMs": 2500
+      "lcpMs": 400
     },
     {
       "path": "/near",
@@ -129,7 +129,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1130,
       "requests": 52,
-      "lcpMs": 2500
+      "lcpMs": 400
     },
     {
       "path": "/login",
@@ -138,7 +138,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 950,
       "requests": 40,
-      "lcpMs": 2500
+      "lcpMs": 400
     },
     {
       "path": "/signin",
@@ -147,7 +147,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 950,
       "requests": 40,
-      "lcpMs": 2500
+      "lcpMs": 400
     },
     {
       "path": "/plan",
@@ -156,7 +156,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1170,
       "requests": 48,
-      "lcpMs": 2500
+      "lcpMs": 400
     },
     {
       "path": "/pal/chat",
@@ -165,7 +165,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1040,
       "requests": 46,
-      "lcpMs": 2500
+      "lcpMs": 400
     },
     {
       "path": "/social",
@@ -174,7 +174,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1130,
       "requests": 56,
-      "lcpMs": 2500
+      "lcpMs": 400
     },
     {
       "path": "/feed",
@@ -183,7 +183,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1130,
       "requests": 56,
-      "lcpMs": 2500
+      "lcpMs": 400
     },
     {
       "path": "/discover",
@@ -192,7 +192,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1130,
       "requests": 56,
-      "lcpMs": 2500
+      "lcpMs": 1000
     },
     {
       "path": "/drinks",
@@ -201,7 +201,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1130,
       "requests": 56,
-      "lcpMs": 2500
+      "lcpMs": 400
     },
     {
       "path": "/messages",
@@ -210,7 +210,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 970,
       "requests": 44,
-      "lcpMs": 2500
+      "lcpMs": 800
     },
     {
       "path": "/activity",
@@ -219,16 +219,16 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 980,
       "requests": 45,
-      "lcpMs": 2500
+      "lcpMs": 300
     },
     {
       "path": "/u/you",
       "readySelector": "main.profileMain",
-      "why": "The signed-in account hub, and the document /profile actually serves: /profile is a server redirect, so budgeting that path measured a redirect rather than a route. The page clock said so by falling back to the harness clock, which is the fallback earning its place.",
+      "why": "The signed-in account hub, and the document /profile actually serves. #1411 painted its copy from the HTML and its LCP fell to about 770 ms, comfortably inside this ceiling. The same change made the route HEAVIER: 1375 KB over 71 requests against ceilings of 1290 and 66, so the sweep reports it over budget. The ceilings are left where they are rather than moved to fit the measurement, which is the whole rule of this file.",
       "serverRenderMs": 150,
       "jsDecodedKB": 1290,
       "requests": 66,
-      "lcpMs": 2500
+      "lcpMs": 900
     },
     {
       "path": "/onboarding",
@@ -237,16 +237,16 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 960,
       "requests": 41,
-      "lcpMs": 2500
+      "lcpMs": 900
     },
     {
       "path": "/choose-city",
-      "readySelector": "main.cityChooser",
-      "why": "The city question, on the path to every non-London night.",
+      "readySelector": ".cityChooserList",
+      "why": "The city question, on the path to every non-London night. Its gate is the chooser's own LIST rather than its <main>: #1402 moved every launch route onto the Screen primitive and this route lost its own class in the swap, so main.screen would prove a Screen mounted rather than that the chooser did.",
       "serverRenderMs": 150,
       "jsDecodedKB": 950,
       "requests": 38,
-      "lcpMs": 2500
+      "lcpMs": 300
     },
     {
       "path": "/moment",
@@ -255,7 +255,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 980,
       "requests": 43,
-      "lcpMs": 2500
+      "lcpMs": 300
     },
     {
       "path": "/rounds",
@@ -264,7 +264,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 960,
       "requests": 44,
-      "lcpMs": 2500
+      "lcpMs": 300
     },
     {
       "path": "/crawls",
@@ -273,7 +273,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1020,
       "requests": 45,
-      "lcpMs": 2500
+      "lcpMs": 300
     },
     {
       "path": "/borough",
@@ -282,7 +282,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 960,
       "requests": 44,
-      "lcpMs": 2500
+      "lcpMs": 400
     },
     {
       "path": "/historic",
@@ -291,7 +291,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 970,
       "requests": 44,
-      "lcpMs": 2500
+      "lcpMs": 400
     },
     {
       "path": "/pint-index",
@@ -300,7 +300,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 990,
       "requests": 45,
-      "lcpMs": 2500
+      "lcpMs": 400
     },
     {
       "path": "/founders",
@@ -309,7 +309,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 960,
       "requests": 44,
-      "lcpMs": 2500
+      "lcpMs": 400
     },
     {
       "path": "/contributors",
@@ -318,7 +318,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 960,
       "requests": 43,
-      "lcpMs": 2500
+      "lcpMs": 400
     },
     {
       "path": "/we-are-out",
@@ -327,7 +327,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 970,
       "requests": 44,
-      "lcpMs": 2500
+      "lcpMs": 400
     },
     {
       "path": "/privacy",
@@ -336,7 +336,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 910,
       "requests": 37,
-      "lcpMs": 2500
+      "lcpMs": 500
     },
     {
       "path": "/terms",
@@ -345,7 +345,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 910,
       "requests": 37,
-      "lcpMs": 2500
+      "lcpMs": 300
     },
     {
       "path": "/places",
@@ -354,7 +354,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1000,
       "requests": 46,
-      "lcpMs": 2500
+      "lcpMs": 300
     }
   ]
 }
