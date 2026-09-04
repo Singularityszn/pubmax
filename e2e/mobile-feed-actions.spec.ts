@@ -25,123 +25,32 @@ async function expectTappable(locator: Locator, label: string): Promise<void> {
   expect(Math.round(box.width), `${label} should be wide enough to tap`).toBeGreaterThanOrEqual(44);
 }
 
-async function waitForFeedOutcome(page: Page): Promise<"cards" | "empty"> {
-  const cards = page.locator(".feedCard:not(.feedCardSkeleton)");
-  const empty = page.locator(".feedEmpty");
-  await expect
-    .poll(async () => (await cards.count()) + (await empty.count()), {
-      message: "feed should settle to cards or an empty state",
-      timeout: 15_000,
-    })
-    .toBeGreaterThan(0);
-  return (await cards.count()) > 0 ? "cards" : "empty";
-}
-
-test.describe("mobile feed actions", () => {
+test.describe("mobile Social actions", () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize(MOBILE);
     await page.addInitScript(() => {
       window.localStorage.setItem("pubmax-tour-v1-done", "1");
       window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     });
-    await page.route("**/api/pint-drops", async (route) => {
-      await route.fulfill({
-        contentType: "application/json",
-        body: JSON.stringify({
-          drops: [
-            {
-              id: "mobile-feed-drop-1",
-              handle: "old_ken",
-              priceGbp: 4.8,
-              drink: "Guinness",
-              passedDownNote: "Proper corner table, good chatter, easy route home.",
-              era: "2020s",
-              provenance: "contributor",
-              venueId: "venue-mobile-feed",
-              venueName: "The Mobile Arms",
-              venueMapUrl: "/map?sel=venue-mobile-feed",
-              createdAt: "2026-07-13T19:00:00.000Z",
-              vibeTags: ["cheap", "after work"],
-              pintPhotoUrl: null,
-              venuePhotoUrl: null,
-            },
-          ],
-        }),
-      });
-    });
-    await page.route("**/api/pint-drops/reactions?**", async (route) => {
-      await route.fulfill({
-        contentType: "application/json",
-        body: JSON.stringify({
-          summaries: {
-            "mobile-feed-drop-1": {
-              counts: { cheers: 2, bargain: 1 },
-              mine: [],
-            },
-          },
-        }),
-      });
-    });
-    await page.route("**/api/profiles/*/following", async (route) => {
-      await route.fulfill({
-        contentType: "application/json",
-        body: JSON.stringify({ following: [] }),
-      });
-    });
   });
 
-  test("lanes and card actions stay thumb-safe without overflow", async ({ page }) => {
+  test("signed-out Social door stays thumb-safe without overflow", async ({ page }) => {
     const errors = watchPageErrors(page);
 
     const response = await page.goto("/feed");
     expect(response?.status()).toBe(200);
-    await expect(page.locator(".feedTitle")).toHaveText("Stories");
+    await expect(page).toHaveURL(/\/social\/?$/);
+    await expect(
+      page.getByRole("heading", { name: "Crews and people who are already here." }),
+    ).toBeVisible();
+    await expect(page.locator(".feedTitle")).toHaveCount(0);
+    await expect(page.locator(".feedFilterChip")).toHaveCount(0);
+    await expect(page.locator(".feedCard")).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
 
-    const chips = page.locator(".feedFilterChip");
-    await expect(chips.first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "Latest", exact: true })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await expect(page.getByRole("button", { name: "Top picks", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Yours", exact: true })).toHaveCount(0);
-    const visibleChipCount = await chips.count();
-    for (let index = 0; index < Math.min(visibleChipCount, 6); index += 1) {
-      const chip = chips.nth(index);
-      if (await chip.isVisible()) await expectTappable(chip, `feed lane chip ${index + 1}`);
-    }
-
-    const outcome = await waitForFeedOutcome(page);
-    if (outcome === "empty") {
-      await expect(page.locator(".feedEmpty")).toBeVisible();
-      await expectNoHorizontalOverflow(page);
-      expect(errors).toEqual([]);
-      return;
-    }
-
-    const firstCard = page.locator(".feedCard:not(.feedCardSkeleton)").first();
-    await expect(firstCard).toBeVisible();
-
-    const reactions = firstCard.locator(".feedReactBtn");
-    const reactionCount = await reactions.count();
-    for (let index = 0; index < Math.min(reactionCount, 5); index += 1) {
-      await expectTappable(reactions.nth(index), `feed reaction ${index + 1}`);
-    }
-
-    const actions = firstCard.locator(".feedCardAction");
-    const actionCount = await actions.count();
-    for (let index = 0; index < actionCount; index += 1) {
-      await expectTappable(actions.nth(index), `feed card action ${index + 1}`);
-    }
-
-    await expectTappable(firstCard.locator(".feedPermalink"), "feed permalink");
-
-    const shareButtons = firstCard.locator(".shareBar__btn");
-    const shareCount = await shareButtons.count();
-    for (let index = 0; index < Math.min(shareCount, 4); index += 1) {
-      await expectTappable(shareButtons.nth(index), `feed share button ${index + 1}`);
-    }
+    const signIn = page.locator("[data-primary-action]").getByRole("link", { name: "Sign in" });
+    await expectTappable(signIn, "Social Sign in");
+    await expect(page.getByText("Sign in to use Social.")).toBeVisible();
 
     await expectNoHorizontalOverflow(page);
     expect(errors).toEqual([]);
