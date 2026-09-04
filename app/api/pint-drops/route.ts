@@ -35,7 +35,7 @@ import {
   confirmPintDropByModerator,
   confirmVenueBySecondReporter,
 } from "@/lib/pintDropConfirm.server";
-import { gateHandleAction } from "@/lib/profileOwnership";
+import { gateHandleAction, gateHasVerifiedActor } from "@/lib/profileOwnership";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -401,6 +401,21 @@ export async function POST(request: Request): Promise<Response> {
   const ownership = await gateHandleAction(request, actorHandle, verifiedUserId);
   if (!ownership.allowed) {
     return publicApiErrorFromStatus(ownership.error, ownership.status);
+  }
+  // A PRICE NEEDS A VERIFIED ACTOR. The unlinked demo handle path (profile
+  // ownership's `unlinked` lane) allows a write with no signed-in caller, and a
+  // priced drop stored through it carries no authority key, so it can never
+  // corroborate another drinker's figure at any age however many arrive - a
+  // price that cannot earn its standing. Drafting stays open and the invitation
+  // is the one the price door already makes; only POSTING the figure is gated.
+  // An unpriced note or memory keeps the demo path, because no price lane reads
+  // it: every lane in lib/venues.ts filters on a numeric `priceGbp` first.
+  if (canonicalDrop.priceGbp !== null && !gateHasVerifiedActor(ownership)) {
+    return publicApiError(
+      "Sign in to post a price under your name.",
+      "UNAUTHENTICATED",
+      401,
+    );
   }
   const dropPayload = {
     ...canonicalDrop,

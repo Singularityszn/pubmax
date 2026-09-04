@@ -11,7 +11,10 @@
 // Rules:
 //   • An existing unlinked legacy profile is frozen against account ownership.
 //     It keeps the anonymous demo path, but an authenticated write cannot claim
-//     it. A genuinely new handle can still be created and linked.
+//     it. A genuinely new handle can still be created and linked. That demo path
+//     grants no VERIFIED ACTOR, so a write whose record has to be attributable
+//     asks gateHasVerifiedActor and refuses rather than storing an unattributable
+//     row.
 //   • Linked handle (rowUserId set): allowed ONLY when the caller is
 //     authenticated AND their uid matches. A non-owner — anonymous OR a different
 //     signed-in user — is rejected. This is the security win: once a handle is
@@ -63,6 +66,20 @@ export function decideProfileWrite(
   if (caller && caller === linkedTo) return { allowed: true, reason: "owner" };
 
   return { allowed: false, reason: "not-owner", status: 403 };
+}
+
+/**
+ * Whether an allowed gate stands behind a VERIFIED ACTOR.
+ *
+ * The unlinked demo path allows a write with no signed-in caller, so an allowed
+ * gate is not by itself an attributable one. A record that has to name who made
+ * it - a priced Pint Drop, which can only corroborate through its authority key
+ * - asks this instead of re-deriving the answer from the gate's fields. It
+ * applies the same trim as the actor keys built from that id, so the gate and
+ * the key can never disagree about whether an actor is there.
+ */
+export function gateHasVerifiedActor(gate: HandleActionGate): boolean {
+  return gate.allowed && Boolean(gate.callerUserId?.trim());
 }
 
 /**
