@@ -16,7 +16,7 @@ After images use the committed application styles. Before images recreate the au
 Rendered checks also confirm:
 
 - Landing H1 computes to 64px and two lines in both themes.
-- Today price text resolves to `--accent-price-ink`.
+- Today price text resolves to `--ink`. Standing lives on the TrustPill.
 - Live music kickers resolve to neutral `--ink-soft`, leaving coral for actions and the price palette for figures.
 - Seven Discover action chips have no background image and use seven distinct labels.
 - Plain-text eyebrows use `text-transform: none`.
