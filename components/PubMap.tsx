@@ -284,6 +284,7 @@ import { getSaved } from "@/lib/savedPubs";
 import { venuesInNearbyMembership } from "@/lib/mapNearbyMembership";
 import {
   createSlimShardLoader,
+  boundsNameNowhere,
   NEIGHBOUR_SHARD_RING,
   openingLoadViewportFor,
   openingLocationCancellationAfterAttempt,
@@ -2224,6 +2225,15 @@ export default function PubMap({
         !openingLocationResolved &&
         !openingLocationCancelledRef.current
       ) return;
+      // MapLibre reports its own maxBounds as the visible bounds until the
+      // camera settles on the city, so a cold open briefly says it is looking
+      // at the whole United Kingdom. Those bounds name no place, and a shard
+      // read taken from them asked for all 244 London cells before the map was
+      // interactive (lib/slimShards.ts boundsNameNowhere). The bar's own place
+      // claim is measured from this camera too, so it is dropped here, at the
+      // one door both the ring lane and the first load come through, rather
+      // than in each of them.
+      if (boundsNameNowhere(bounds)) return;
       latestMapBoundsRef.current = bounds;
       latestMapBoundsCityRef.current = cityId;
       setSettledMapBoundsCityId(cityId);
