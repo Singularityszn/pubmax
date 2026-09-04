@@ -496,7 +496,7 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     expect(composer).toMatch(/You&rsquo;ve changed the night since we sorted it/u);
     expect(pal).not.toContain("Optional by design");
     expect(pal).not.toContain("Route before character");
-    expect(pal).toContain("Meet your companion");
+    expect(pal).toContain("Your Pub Pal");
     expect(pal).toContain("A little signal that becomes yours.");
   });
 });
@@ -507,7 +507,6 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
 describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
   const EYEBROW_RULES: ReadonlyArray<readonly [string, readonly string[]]> = [
     ["app/plan/plan.css", [
-      ".planPage__masthead",
       ".planPage__eyebrow",
       ".matchGroupPrefs__eyebrow",
       ".planIntake__eyebrow",
@@ -515,14 +514,12 @@ describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
       ".planComposer__stops legend",
       ".invitePreview__detail dt",
     ]],
-    ["app/tonight/tonight.css", [
-      ".tonightEyebrow",
-      ".tonightRowKind",
-    ]],
+    // Tonight's kicker is the shared Kicker primitive inside its Screen head.
+    ["app/tonight/tonight.css", [".tonightRowKind"]],
     ["components/vibe/vibeChips.css", [".vibeChipsLede"]],
     ["app/pal/pal.css", [".palEyebrow", ".palMemoryList__meta span"]],
-    ["components/pal/palChat.css", [".palChatEyebrow", ".palGlanceLabel"]],
-    ["components/emptyState.css", [".emptyStateEyebrow"]],
+    // Pub Pal chat's kicker is the shared Kicker primitive inside its Screen head.
+    ["components/pal/palChat.css", [".palGlanceLabel"]],
     ["app/messages/messages.css", [".messagesThreadEyebrow"]],
     // The landing's labels are the shared Kicker primitive (components/ui/kicker.css).
     ["components/ui/kicker.css", [".kicker"]],

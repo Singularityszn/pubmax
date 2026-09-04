@@ -43,7 +43,8 @@ vi.mock("@/components/social/StarterPacks", () => ({
   default: () => createElement("div", null, "Starter packs"),
 }));
 
-vi.mock("@/components/social/SocialViewerState", () => ({
+vi.mock("@/components/social/SocialViewerState", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/social/SocialViewerState")>()),
   SocialViewerState: () => createElement("div", null, "Viewer state"),
 }));
 

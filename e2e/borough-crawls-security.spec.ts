@@ -26,7 +26,7 @@ test.describe("borough page", () => {
     const response = await page.goto("/borough/westminster");
     expect(response?.status()).toBe(200);
 
-    await expect(page.locator("h1.boroughTitle")).toContainText("Pubs in");
+    await expect(page.locator("h1.screenTitle")).toContainText("Pubs in");
 
     const pubs = page.locator(".boroughTable .boroughPub");
     const empty = page.locator(".boroughEmpty");
@@ -62,7 +62,7 @@ test.describe("crawls page — curated crawls", () => {
     await expect(featured).toBeVisible();
     await expect(featured.locator(".curatedName")).toBeVisible();
     await expect(featured.locator(".curatedBlurb")).toBeVisible();
-    await expect(featured.locator(".curatedLink")).toHaveAttribute("href", /\/map/);
+    await expect(featured.locator('a[href*="/map"]').first()).toHaveAttribute("href", /\/map/);
 
     // Every remaining curated crawl is a compact, one-line row grouped by
     // theme — still reachable, just not a repeated full card.

@@ -23,33 +23,11 @@
   gap: 18px;
 }
 
-.pubsHead {
-  display: grid;
-  gap: 8px;
-  max-width: 40rem;
-}
-
-.pubsEyebrow {
-  margin: 0;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--ink-soft);
-}
-
-.pubsHead h1 {
-  margin: 0;
-  font-family: var(--font-display), var(--serif), sans-serif;
-  font-size: clamp(1.75rem, 4vw, 2.45rem);
-  line-height: 1.12;
-  font-weight: 700;
-}
-
-.pubsDek {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 1rem;
-  line-height: 1.5;
+/* The head is the launch Screen (components/ui/screen.tsx). The shell already
+   pads the gutter and .pubsPage keeps the width, so the Screen takes neither. */
+.pubsPage > .screen {
+  width: 100%;
+  padding-inline: 0;
 }
 
 .pubsGallery {

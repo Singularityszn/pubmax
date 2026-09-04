@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 
 import SiteNav from "@/components/nav/SiteNav";
+import Screen from "@/components/ui/screen";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import { loadAboutStats, type AboutStats } from "@/lib/aboutStats";
 import { buildLeagueTable, indexSummary } from "@/lib/pintIndex";
@@ -160,24 +161,33 @@ export default async function AboutPage() {
       {/* Wordmark + way out: same SiteNav shell as /pint-index and /plan. */}
       <SiteNav />
 
-      {/* ── Brand-first story lede (one composition, not a card grid) ── */}
-      <header className="aboutHero">
-        <p className="aboutBrand">PUBMAXX</p>
-        <span className="aboutBrassRule" aria-hidden="true" />
-        <h1 className="aboutTitle">
-          A pint in London can cost eight quid. Nobody tells you where it
-          doesn&rsquo;t.
-        </h1>
-        <p className="aboutLede">
-          You finish work, you want somewhere nearby that will not mug you:
-          a good pint, a coffee and a seat, food before the last train, or a
-          quiet room with mates who are not drinking. So you open Google Maps,
-          then another map, then reviews, then you&rsquo;re asking ChatGPT, and
-          an hour later you&rsquo;re back at the same place as last time. We
-          built PUBMAXX so you don&rsquo;t have to do that. One map. Real
-          prices with honest source status. The outing in one place.
-        </p>
-      </header>
+      {/* The launch head (docs/design/LAUNCH_SCREENS.md): kicker, the founder
+          line, one lede and ONE primary. The story sections ride under it. */}
+      <Screen
+        as="section"
+        className="aboutHero"
+        kicker="Our story"
+        title={
+          <>
+            A pint in London can cost eight quid. Nobody tells you where it
+            doesn&rsquo;t.
+          </>
+        }
+        titleId="about-title"
+        lede={
+          <>
+            You finish work, you want somewhere nearby that will not mug you:
+            a good pint, a coffee and a seat, food before the last train, or a
+            quiet room with mates who are not drinking. So you open Google Maps,
+            then another map, then reviews, then you&rsquo;re asking ChatGPT, and
+            an hour later you&rsquo;re back at the same place as last time. We
+            built PUBMAXX so you don&rsquo;t have to do that. One map. Real
+            prices with honest source status. The outing in one place.
+          </>
+        }
+        primary={<Link href="/map">Open the map</Link>}
+        secondary={<a href={`mailto:${CONTACT_EMAIL}`}>Contact</a>}
+      >
 
       <section className="aboutSection" aria-labelledby="why">
         <h2 id="why" className="aboutH2">Why we built it</h2>
@@ -498,14 +508,17 @@ export default async function AboutPage() {
           quieter afternoon: you&rsquo;re all welcome. Start on the map, or say
           hello.
         </p>
-        <div className="aboutCtaRow">
-          <Link href="/map" className="aboutBtn aboutBtnPrimary">
+        {/* The head owns the one filled control, so the closing row is two
+            text links, never a second button pair. */}
+        <p className="aboutBody aboutCtaRow">
+          <Link href="/map" className="aboutLink">
             Open the map
           </Link>
-          <a href={`mailto:${CONTACT_EMAIL}`} className="aboutBtn aboutBtnGhost">
+          {" · "}
+          <a href={`mailto:${CONTACT_EMAIL}`} className="aboutLink">
             Get in touch
           </a>
-        </div>
+        </p>
       </section>
 
       <section className="aboutSection aboutCredits" aria-labelledby="credits">
@@ -528,6 +541,7 @@ export default async function AboutPage() {
           <li>Mapping data is &copy; OpenStreetMap contributors.</li>
         </ul>
       </section>
+      </Screen>
     </main>
   );
 }

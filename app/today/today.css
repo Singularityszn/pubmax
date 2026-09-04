@@ -18,37 +18,17 @@
 }
 
 /* ── The greeting ─────────────────────────────────────────────────────────
-   One personal line, one hero, one supporting fact. Display face and negative
-   tracking at hero size (letters read too far apart as they grow); the
-   salutation and the lede stay on the body face near zero tracking. */
-.todayHead {
-  margin: 4px 0 22px;
+   The head is the Screen primitive (components/ui/screen.css): kicker,
+   weather-aware headline, the personal line, one primary. The page shell
+   already keeps the gutter, so the screen does not pad it a second time, and
+   the Now segment above it already sets the head off from the nav, so the
+   head's own top inset is trimmed to keep the rhythm the tabs share. */
+.todayPage > .todayScreen {
+  padding-inline: 0;
 }
 
-.todayEyebrow {
-  /* Spacing only. The type is the Kicker primitive's (components/ui/kicker.css):
-     one size, one weight and one colour for every kicker in the app. */
-  margin: 0 0 5px;
-}
-
-.todayTitle {
-  margin: 0 0 8px;
-  font-family: var(--font-display);
-  font-size: clamp(1.6rem, 6.4vw, 2.1rem);
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -0.022em;
-  font-optical-sizing: auto;
-  text-wrap: balance;
-  color: var(--ink);
-}
-
-.todayLede {
-  margin: 0;
-  max-width: 52ch;
-  font-size: 0.9rem;
-  line-height: var(--leading-normal, 1.5);
-  color: var(--ink-soft);
+.todayPage > .todayScreen > .screenHead {
+  padding-top: var(--space-3);
 }
 
 /* Card stack */
@@ -130,12 +110,13 @@
   color: var(--ink-soft);
 }
 
+/* A notice inside a card takes a tint and no edge: the card already has one
+   (docs/DESIGN_SYSTEM.md "Edges: the de-box rule"). */
 .todayStale {
   display: flex;
   margin: 0;
   padding: 8px 10px;
   border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--brass) 30%, var(--line));
   background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
   font-size: 0.8rem;
   line-height: 1.45;
@@ -283,27 +264,19 @@
   font-weight: 650;
 }
 
-/* Tonight picks */
+/* Tonight picks. Rows inside a card are a list, not a second card each: a
+   hairline between rows does the grouping (docs/DESIGN_SYSTEM.md "Edges: the
+   de-box rule"), and the row's text lines up with the card's own heading. */
 .todayPicks {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
 }
 
-.todayPick {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--panel-raised) 60%, transparent);
-  transition: border-color 0.18s ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .todayPick:hover {
-    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
-  }
+.todayPick + .todayPick {
+  border-top: 1px solid var(--line);
 }
 
 .todayPickLink {
@@ -313,15 +286,22 @@
   justify-content: center;
   gap: 5px;
   min-height: 44px;
-  padding: 12px 14px;
+  padding: 12px 0;
   color: inherit;
   text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .todayPickLink:hover .todayPickTitle {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 }
 
 .todayPickArrow {
   position: absolute;
   top: 12px;
-  right: 12px;
+  right: 0;
   color: var(--brass);
   opacity: 0.85;
 }
@@ -409,27 +389,18 @@
   color: var(--state-active-ink);
 }
 
-/* Cheapest pints near you today */
+/* Cheapest pints near you today. Same list idiom as the picks: a hairline
+   between rows, no card inside the card. */
 .todayPintList {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
 
-.todayPintRow {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--panel-raised) 60%, transparent);
-  transition: border-color 0.18s ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .todayPintRow:hover {
-    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
-  }
+.todayPintRow + .todayPintRow {
+  border-top: 1px solid var(--line);
 }
 
 .todayPintLink {
@@ -438,9 +409,16 @@
   justify-content: space-between;
   gap: 12px;
   min-height: 44px;
-  padding: 8px 14px;
+  padding: 8px 0;
   color: inherit;
   text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .todayPintLink:hover .todayPintName {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 }
 
 .todayPintName {
@@ -487,18 +465,13 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.todayPick,
-.todayPintRow,
-.quietPintRow {
-  transition:
-    border-color var(--duration-base, 0.15s) var(--ease-out),
-    background var(--duration-base, 0.15s) var(--ease-out);
+.todayPickLink,
+.todayPintLink {
+  transition: background var(--duration-base, 0.15s) var(--ease-out);
 }
 
-.todayPick:has(:active),
-.todayPintRow:has(:active),
-.quietPintRow:has(:active) {
-  border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
+.todayPickLink:active,
+.todayPintLink:active {
   background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
 }
 
@@ -524,7 +497,7 @@
   }
 
   /* The greeting leads the stack in, one beat ahead of the first card. */
-  .todayHead {
+  .todayScreen > .screenHead {
     animation: todayHeadIn var(--duration-slow, 0.28s) var(--ease-out-strong) both;
   }
 
@@ -538,21 +511,6 @@
   .todayPage {
     max-width: var(--content-max-wide, 1240px);
     padding-inline: var(--page-gutter);
-  }
-
-  .todayHead {
-    max-width: 760px;
-    margin-top: 16px;
-    margin-bottom: 32px;
-  }
-
-  .todayTitle {
-    font-size: clamp(2.15rem, 3.2vw, 3.25rem);
-    max-width: 16ch;
-  }
-
-  .todayLede {
-    font-size: 1rem;
   }
 
   .todayStack {

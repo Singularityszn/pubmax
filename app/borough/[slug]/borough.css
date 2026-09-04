@@ -5,52 +5,17 @@
    route-scoped stylesheet. Mirrors the discover/leaderboard aesthetic: price
    stamps, hairline borders, Garamond/serif headings. Responsive to 375px. */
 
+/* The head (kicker, heading, the one primary action) is the Screen primitive
+   (components/ui/screen.tsx), which owns the page gutter, so the page itself
+   carries none: an inline padding here would double it. */
 .boroughPage {
   max-width: 880px;
   margin: 0 auto;
-  padding: 28px 20px 80px;
+  padding: 28px 0 80px;
   color: var(--ink);
 }
 
-/* --- header --------------------------------------------------------------- */
-
-.boroughHead {
-  margin: 32px 0 28px;
-}
-
-.boroughEyebrow {
-  margin: 0 0 10px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--ink-soft);
-}
-
-.boroughEyebrow a {
-  color: inherit;
-  text-decoration: none;
-}
-
-.boroughEyebrow a:hover {
-  text-decoration: underline;
-}
-
-.boroughTitle {
-  margin: 0 0 14px;
-  font-family: var(--font-garamond, var(--serif));
-  font-size: clamp(30px, 5vw, 44px);
-  line-height: 1.05;
-  font-weight: 700;
-  color: var(--ink);
-}
-
-.boroughDek {
-  margin: 0;
-  max-width: 62ch;
-  color: var(--ink-soft);
-  line-height: 1.6;
-  font-size: 17px;
-}
+/* --- under the head ------------------------------------------------------- */
 
 .boroughThinBanner {
   margin: 12px 0 0;
@@ -90,20 +55,8 @@
   text-decoration: underline;
 }
 
-.boroughEmpty {
-  margin: 0;
-  padding: 20px;
-  border: 1px dashed var(--line);
-  border-radius: var(--radius);
-  color: var(--ink-soft);
-  background: var(--panel);
-  font-size: 15px;
-}
-
-.boroughEmpty a {
-  color: var(--brass);
-  text-decoration: underline;
-}
+/* .boroughEmpty is a hook on the shared EmptyState (components/ui/empty-state.tsx)
+   and carries no chrome of its own: the de-box rule. */
 
 .boroughNoPrice {
   color: var(--ink-soft);
@@ -528,8 +481,6 @@
 .boroughCrawlLink:focus-visible,
 .boroughChip:focus-visible,
 .boroughCrawlPlanLink:focus-visible,
-.boroughEmpty a:focus-visible,
-.boroughEyebrow a:focus-visible,
 .boroughFootnote a:focus-visible,
 .boroughHeritageMapLink:focus-visible,
 .boroughHeritageFoot a:focus-visible,
@@ -640,11 +591,7 @@
 
 @media (max-width: 560px) {
   .boroughPage {
-    padding: 20px 14px 72px;
-  }
-
-  .boroughHead {
-    margin: 24px 0 22px;
+    padding: 20px 0 72px;
   }
 
   .boroughTable td,

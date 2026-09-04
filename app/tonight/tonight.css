@@ -29,20 +29,25 @@
   }
 }
 
-.tonightHead {
-  margin: 8px 0 20px;
+/* The head is the Screen primitive (components/ui/screen.css): kicker,
+   heading, the listing lede, one primary. The page shell already keeps the
+   gutter, so the screen does not pad it a second time, and the Now segment
+   above it already sets the head off from the nav, so the head's own top
+   inset is trimmed to keep the rhythm the tabs share. */
+.tonightPage > .tonightDesktopGrid {
+  padding-inline: 0;
 }
 
-.tonightEyebrowRow {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+.tonightPage > .tonightDesktopGrid > .screenHead {
+  padding-top: var(--space-3);
 }
 
-.tonightEyebrow {
-  /* Spacing only. The type is the Kicker primitive's (components/ui/kicker.css). */
-  margin: 0 0 6px;
+/* The credit lines and the share control, directly under the head. */
+.tonightHeadCredits {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  margin: 0 0 20px;
 }
 
 .tonightShare {
@@ -68,13 +73,13 @@
   min-width: 0;
   max-width: 100%;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 6px;
 }
 
 .tonightShareAction {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   min-width: 0;
 }
 
@@ -84,7 +89,6 @@
   color: color-mix(in srgb, var(--ink) 70%, crimson 30%);
   font-size: 0.72rem;
   line-height: 1.35;
-  text-align: right;
   overflow-wrap: anywhere;
 }
 
@@ -93,22 +97,6 @@
     border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
     color: var(--state-active-ink);
   }
-}
-
-.tonightTitle {
-  margin: 0 0 8px;
-  font-size: clamp(1.5rem, 4vw, 2rem);
-  font-weight: 800;
-  line-height: 1.15;
-  color: var(--ink);
-}
-
-.tonightLede {
-  margin: 0 0 10px;
-  max-width: 52ch;
-  font-size: 0.9rem;
-  line-height: 1.45;
-  color: var(--ink-soft);
 }
 
 .tonightProvenance {
@@ -441,29 +429,6 @@
   line-height: 1.35;
   color: var(--ink-soft);
   overflow-wrap: break-word;
-}
-
-.tonightFoot {
-  margin: 28px 0 0;
-  text-align: center;
-}
-
-.tonightFootLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 44px;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--state-active-ink);
-  text-decoration: none;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .tonightFootLink:hover {
-    color: var(--ink);
-    text-decoration: underline;
-  }
 }
 
 .tonightRowCta {
@@ -811,42 +776,37 @@
   .tonightDesktopGrid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
-    grid-template-rows: auto auto;
     column-gap: 32px;
     align-items: start;
   }
 
-  .tonightDesktopGrid > .tonightHead {
+  .tonightDesktopGrid > .screenHead {
     grid-column: 1;
     grid-row: 1;
   }
 
-  .tonightDesktopGrid > .tonightPrimary {
-    display: block;
+  .tonightDesktopGrid > .tonightHeadCredits {
     grid-column: 1;
     grid-row: 2;
-    min-width: 0;
   }
 
-  .tonightDesktopGrid > .tonightAfterPrimary {
+  .tonightDesktopGrid > .tonightPrimary {
     display: block;
     grid-column: 1;
     grid-row: 3;
     min-width: 0;
   }
 
-  .tonightTitle {
-    max-width: 18ch;
-    font-size: clamp(2.15rem, 3.2vw, 3.25rem);
-  }
-
-  .tonightLede {
-    font-size: 1rem;
+  .tonightDesktopGrid > .tonightAfterPrimary {
+    display: block;
+    grid-column: 1;
+    grid-row: 4;
+    min-width: 0;
   }
 
   .tonightDesktopGrid > .tonightContext {
     grid-column: 2;
-    grid-row: 1 / span 2;
+    grid-row: 1 / span 3;
     display: flex;
     flex-direction: column;
     gap: 16px;

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import EmptyState from "@/components/EmptyState";
+import EmptyState from "@/components/ui/empty-state";
 import { normalizeHandle } from "@/lib/profiles";
 import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 import { BUILT_IN_LIST_TYPES } from "@/lib/savedListPolicy";
@@ -52,11 +52,12 @@ export default function SavedPubList({
             Saved venues
           </h2>
           <EmptyState
-            eyebrow="Your lists"
             title="No saved venues yet."
-            body="Save a venue from the map to start a list. Favourites, want-to-try, whatever you call it."
             action={<Link href="/map">Open the map</Link>}
-          />
+          >
+            Save a venue from the map to start a list. Favourites, want-to-try,
+            whatever you call it.
+          </EmptyState>
         </section>
         <FollowedLists lists={followedLists} />
       </>

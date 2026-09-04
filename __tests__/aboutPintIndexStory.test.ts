@@ -201,20 +201,24 @@ describe("About outings story (Wave S1)", () => {
     expect(html).toContain('"founder":{"@type":"Person","name":"Karan Manoharan"');
   });
 
-  it("leads the first viewport with PUBMAXX brand + one lede composition", async () => {
+  // The head is the launch Screen (docs/design/LAUNCH_SCREENS.md): kicker,
+  // the founder line, one lede, one primary. The brand wordmark and the brass
+  // rule that used to open the page are gone with the card they sat in.
+  it("leads the first viewport with the launch head and one lede composition", async () => {
     const html = await renderAbout();
 
     expect(html).toContain('data-testid="site-nav"');
-    expect(html).toContain('class="aboutHero"');
-    expect(html).toContain('class="aboutBrand"');
-    expect(html).toContain('class="aboutBrassRule"');
-    expect(html).toContain('class="aboutLede"');
-    // Brand signal sits ahead of the story title (nav is mocked above both).
-    const brandAt = html.indexOf('class="aboutBrand"');
-    const titleAt = html.indexOf('class="aboutTitle"');
-    expect(brandAt).toBeGreaterThan(-1);
-    expect(titleAt).toBeGreaterThan(brandAt);
-    expect(html.slice(brandAt, brandAt + 80)).toContain("PUBMAXX");
+    expect(html).toContain('class="screen aboutHero"');
+    expect(html).not.toContain("aboutBrand");
+    expect(html).not.toContain("aboutBrassRule");
+    expect(html).toContain('class="screenLede"');
+    // The kicker sits ahead of the story title (nav is mocked above both).
+    const kickerAt = html.indexOf('class="kicker"');
+    const titleAt = html.indexOf('class="screenTitle"');
+    expect(kickerAt).toBeGreaterThan(-1);
+    expect(titleAt).toBeGreaterThan(kickerAt);
+    expect(html.slice(kickerAt, kickerAt + 40)).toContain("Our story");
+    expect(html.match(/data-primary-action/g)).toHaveLength(1);
     // No invented biography / vanity theatre in the hero.
     expect(html).not.toMatch(/team scars|Discord|thousands of/iu);
   });

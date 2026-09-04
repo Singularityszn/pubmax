@@ -61,13 +61,15 @@
   letter-spacing: 0.01em;
 }
 
-.messagesHeading {
-  /* U6a — the app's display face (Space Grotesk). --font-serif was never
-     defined, so this fell back to Georgia — the only serif in the app. */
-  font-family: var(--font-display, var(--serif));
-  font-size: 1.5rem;
-  color: var(--ink);
-  margin: 0 0 1rem;
+/* The inbox head is the shared Screen primitive (components/ui/screen.css).
+   .messagesMain already pays the page gutters, so the head drops its own. */
+.messagesScreen {
+  width: 100%;
+  padding-inline: 0;
+}
+
+.messagesScreen .screenHead {
+  padding-block: 0 var(--space-3);
 }
 
 .messagesCourtesyNote {

@@ -14,18 +14,11 @@
   color: var(--ink);
 }
 
-.outHead {
-  margin: 4px 0 22px;
-}
-
-.outTitle {
-  margin: 0 0 14px;
-  font-family: var(--font-display);
-  font-size: clamp(1.6rem, 6.4vw, 2.1rem);
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -0.022em;
-  color: var(--ink);
+/* The head is the Screen primitive (components/ui/screen.css): kicker,
+   heading, one primary. The page shell already keeps the gutter, so the
+   screen does not pad it a second time. */
+.outPage > .outScreen {
+  padding-inline: 0;
 }
 
 .outDayChips {
@@ -34,6 +27,7 @@
   gap: 2px;
   width: 100%;
   min-height: 44px;
+  margin: 0 0 22px;
   padding: 2px;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill, 999px);

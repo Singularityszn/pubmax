@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import EmptyState from "@/components/EmptyState";
+import EmptyState from "@/components/ui/empty-state";
+import Screen from "@/components/ui/screen";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
-import SignInButton from "@/components/auth/SignInButton";
 import { authedActionFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
 import { discardBody } from "@/lib/responseBody";
@@ -190,8 +190,15 @@ export default function MessagesInboxClient({
   const accountDataReady = loadedRevision === accountRevision;
 
   return (
-    <>
-      <h1 className="messagesHeading">Messages</h1>
+    <Screen
+      as="section"
+      className="messagesScreen"
+      kicker="Messages"
+      title="Messages"
+      titleId="messages-title"
+      // A new message starts from a person, and the people are on Social.
+      primary={<Link href="/social">New message</Link>}
+    >
       <p className="messagesCourtesyNote">
         Messages need a signed-in account. Keep it low-key, and report anything off.
       </p>
@@ -203,21 +210,23 @@ export default function MessagesInboxClient({
       ) : viewerSession.signedOut && (needsSignIn || !user) ? (
         <EmptyState
           title="Sign in to message"
-          body="Private messages need a signed-in account, so each message is tied to the right handle."
-          action={<SignInButton />}
-        />
+          action={<Link href="/login?mode=signin&from=%2Fmessages">Sign in</Link>}
+        >
+          Private messages need a signed-in account, so each message is tied to
+          the right handle.
+        </EmptyState>
       ) : failed && conversations.length === 0 ? (
-        <EmptyState
-          title="Couldn&rsquo;t load your conversations."
-          role="alert"
-          action={retryButton}
-        />
+        <div role="alert">
+          <EmptyState title="Couldn&rsquo;t load your conversations." action={retryButton} />
+        </div>
       ) : conversations.length === 0 ? (
         <EmptyState
           title="Nobody in here yet."
-          body="Find someone worth a pint on the feed, open their profile, and tap Message. That's how a round starts."
           action={<Link href="/social">Find someone to message</Link>}
-        />
+        >
+          Find someone worth a pint on the feed, open their profile, and tap
+          Message. That&rsquo;s how a round starts.
+        </EmptyState>
       ) : (
         <>
           {failed ? (
@@ -261,6 +270,6 @@ export default function MessagesInboxClient({
           </ul>
         </>
       )}
-    </>
+    </Screen>
   );
 }

@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import HandleAvatar from "@/components/profile/HandleAvatar";
+import EmptyState from "@/components/ui/empty-state";
+import Screen from "@/components/ui/screen";
 import type { ContributorLeaderboard } from "@/lib/contributorLeaderboard";
 
 function countLabel(total: number): string {
@@ -18,37 +20,42 @@ export default function ContributorRecord({
     board.entries.length < 4;
 
   return (
-    <section className="contributorRecord" aria-labelledby="contributor-title">
-      <header className="contributorHead">
-        <p className="contributorEyebrow">Public record</p>
-        <h1 id="contributor-title">Contributor record</h1>
-        <p className="contributorLede">
+    // The launch head (docs/design/LAUNCH_SCREENS.md): kicker, heading, the
+    // record's own terms as the lede, and ONE primary. The window label rides
+    // under it as the first line of the record itself.
+    <Screen
+      as="section"
+      className="contributorRecord"
+      kicker="Contributors"
+      title="Contributor record"
+      titleId="contributor-title"
+      lede={
+        <>
           Price logs, Visit Reports and weather Recommendations, added together.
           Only identity-backed contributions are ranked. Named posts without an
           existing public profile can stay visible elsewhere but sit outside
           this record. Hidden contributions come off the count. Legacy price
           logs without a handle are not ranked. Equal totals share a place.
-        </p>
-        <p className="contributorWindow">{board.window.label}</p>
-      </header>
+        </>
+      }
+      primary={<Link href="/map?log=1">Drop a pint</Link>}
+      secondary={<Link href="/map">Open the map</Link>}
+    >
+      <p className="contributorWindow">{board.window.label}</p>
 
       {board.status === "degraded" ? (
-        <div className="contributorState" role="status">
-          <h2>Record unavailable</h2>
-          <p>
+        <div role="status">
+          <EmptyState title="Record unavailable">
             We couldn&apos;t check the full identity-backed record right now, so
             no partial totals are shown.
-          </p>
+          </EmptyState>
         </div>
       ) : board.entries.length === 0 ? (
-        <div className="contributorState">
-          <h2>No identity-backed totals yet</h2>
-          <p>
-            Visible named posts can still sit outside this identity-backed
-            record when their handle has no existing public profile. Anonymous
-            price logs stay off it too.
-          </p>
-        </div>
+        <EmptyState title="No identity-backed totals yet">
+          Visible named posts can still sit outside this identity-backed
+          record when their handle has no existing public profile. Anonymous
+          price logs stay off it too.
+        </EmptyState>
       ) : (
         <>
           {thin ? (
@@ -98,6 +105,6 @@ export default function ContributorRecord({
           </ol>
         </>
       )}
-    </section>
+    </Screen>
   );
 }

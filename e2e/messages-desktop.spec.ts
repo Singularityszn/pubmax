@@ -12,7 +12,7 @@ const DESKTOP_CASES = [
 ] as const;
 
 const SIGNED_OUT_FITTED_SELECTOR =
-  ".messagesInboxPane .emptyStateTitle, .messagesInboxPane .emptyStateBody, .messagesInboxPane .authUser:not(.authUserNav), .messagesInboxPane .authOptions, .messagesInboxPane .authMagicLinkInput, .messagesInboxPane .authMagicLinkButton";
+  ".messagesInboxPane .emptyStateTitle, .messagesInboxPane .emptyStateLine, .messagesInboxPane .emptyStateAction a";
 
 async function expectDesktopSplit(page: Page): Promise<void> {
   const split = page.locator(".messagesSplit");
@@ -47,11 +47,21 @@ async function expectDesktopSplit(page: Page): Promise<void> {
 }
 
 async function expectSignedOutCardFitsInbox(page: Page): Promise<void> {
-  const heading = page.getByRole("heading", { name: "Sign in to message" });
+  // The signed-out card is the EmptyState idiom: its title is a line, not a
+  // heading, so the pane's one heading stays the route's own.
+  const heading = page.locator(".messagesInboxPane .emptyStateTitle", {
+    hasText: "Sign in to message",
+  });
   const fitted = page.locator(SIGNED_OUT_FITTED_SELECTOR);
 
   await expect(heading).toBeVisible();
-  await expect(fitted).toHaveCount(6);
+  // Title, one line, one quiet door to /login: the email-link flow lives on
+  // that page, so the inbox never carries a second painted form.
+  await expect(fitted).toHaveCount(3);
+  await expect(page.locator(".messagesInboxPane .emptyStateAction a")).toHaveAttribute(
+    "href",
+    "/login?mode=signin&from=%2Fmessages",
+  );
   const geometry = await page.evaluate((fittedSelector) => {
     const inboxNode = document.querySelector<HTMLElement>(".messagesInboxPane");
     const cardNode = document.querySelector<HTMLElement>(".messagesInboxPane .emptyState");
@@ -77,7 +87,9 @@ async function expectSignedOutCardFitsInbox(page: Page): Promise<void> {
   expect(geometry).not.toBeNull();
   if (!geometry) return;
   expect(geometry.cardFits).toBe(true);
-  const cardCenter = (geometry.cardLeft + geometry.cardRight) / 2;
+  // The EmptyState idiom is start-aligned under its heading (de-box rule in
+  // docs/DESIGN_SYSTEM.md), so the check is that every line fits inside the
+  // card and the inbox, never that it sits on a centre line.
   for (const item of geometry.fitted) {
     expect(item.fits, `${item.className} should fit its own box`).toBe(true);
     expect(item.right, `${item.className} should stay inside card`).toBeLessThanOrEqual(
@@ -86,10 +98,6 @@ async function expectSignedOutCardFitsInbox(page: Page): Promise<void> {
     expect(item.right, `${item.className} should stay inside inbox`).toBeLessThanOrEqual(
       geometry.inboxRight + 1,
     );
-    expect(
-      Math.abs((item.left + item.right) / 2 - cardCenter),
-      `${item.className} should share card centre line`,
-    ).toBeLessThanOrEqual(1);
   }
 }
 

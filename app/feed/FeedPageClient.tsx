@@ -11,7 +11,8 @@ import PresenceStrip from "@/components/feed/PresenceStrip";
 import SocialTabs, { type SocialTab } from "@/components/feed/SocialTabs";
 import SiteNav from "@/components/nav/SiteNav";
 import TonightConditionsStrip from "@/app/tonight/TonightConditionsStrip";
-import EmptyState from "@/components/EmptyState";
+import EmptyState from "@/components/ui/empty-state";
+import Screen from "@/components/ui/screen";
 import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { getAnonId } from "@/lib/anonId";
@@ -767,19 +768,27 @@ export default function FeedPageClient({
     <main id="main" className="feedShell">
       <SiteNav active="feed" />
 
-      {/* One compact intro line only (spec #395): the title carries the whole
-          pre-content header so the feed starts within a single viewport — the
-          old eyebrow + lede stack pushed real content below the fold. */}
-      <header className="feedHeader">
-        <h1 className="feedTitle">Stories</h1>
+      {/* The launch head (docs/design/LAUNCH_SCREENS.md): kicker, one heading,
+          ONE primary. The Pint Drop door is the primary, so it no longer sits
+          in the compose row; the two quiet ways to create ride under it and
+          stand down on empty and error, where the empty state owns the next
+          step. Keeping the header to one viewport is still the rule (spec #395). */}
+      <Screen
+        as="section"
+        className="feedScreen"
+        kicker="Stories"
+        title="Stories"
+        titleId="feed-title"
+        primary={<Link href="/map?log=1">Drop a pint</Link>}
+        secondary={<Link href="/map">Open the map</Link>}
+      >
         {showComposeActions ? (
           <div className="feedComposeActions" aria-label="Create">
             <Link href="/moment" className="feedMomentCta">Share a Moment</Link>
-            <Link href="/map?log=1" className="feedDropCta">Log a Pint Drop</Link>
             <Link href="/we-are-out" className="feedMomentCta">I&rsquo;m here</Link>
           </div>
         ) : null}
-      </header>
+      </Screen>
 
       {/* N4: two wrapper divs only — display:contents below 1024px means they
           contribute ZERO box on mobile (byte-identical layout); at >=1024px
@@ -833,54 +842,49 @@ export default function FeedPageClient({
           ))}
         </div>
       ) : isError ? (
-        <EmptyState
-          className="feedEmpty"
-          actionTone="accent"
-          title="Couldn't load Stories."
-          body="Check your connection, then try again."
-          role="alert"
-          action={
-            <button
-              type="button"
-              className="feedRetryBtn"
-              onClick={() => setFetchTick((n) => n + 1)}
-            >
-              Try again
-            </button>
-          }
-        />
+        <div role="alert">
+          <EmptyState
+            className="feedEmpty"
+            title="Couldn't load Stories."
+            action={
+              <button
+                type="button"
+                className="feedRetryBtn"
+                onClick={() => setFetchTick((n) => n + 1)}
+              >
+                Try again
+              </button>
+            }
+          >
+            Check your connection, then try again.
+          </EmptyState>
+        </div>
       ) : lotEmpty ? (
         <EmptyState
           className="feedEmpty"
-          actionTone="accent"
-          eyebrow="Your lot"
           title="Your lot is quiet."
-          body="Your lot is the people you both follow. Find your lot to search a handle or send an invite, and their nights, drops and check-ins land here."
           action={<Link href="/social">Find your lot</Link>}
-        />
+        >
+          Your lot is the people you both follow. Find your lot to search a
+          handle or send an invite, and their nights, drops and check-ins land
+          here.
+        </EmptyState>
       ) : sightingSpot === "primary" ? (
         // London cold start: no drinker has logged yet, so the honestly-sourced
         // sightings ARE the surface instead of a dead empty state. Kept as its
         // own branch above the empty state so it never touches that component.
         <FeedSightings variant="primary" sightings={sightings} />
       ) : isEmpty ? (
+        // The head already carries the Pint Drop door as the one primary, so
+        // the empty state offers the other way in and nothing filled.
         <EmptyState
           className="feedEmpty"
-          actionTone="accent"
-          eyebrow="Quiet at the bar"
           title="No pints logged yet tonight."
-          body="Be the first to drop one. Snap your pint, log the price, pass down a story. The feed fills up as London drinks."
-          action={
-            <div className="feedEmptyActions">
-              <Link href="/map?log=1" className="feedEmptyPrimary">
-                Find a pub and drop a pint
-              </Link>
-              <Link href="/moment" className="feedEmptySecondary">
-                Share a Moment instead
-              </Link>
-            </div>
-          }
-        />
+          action={<Link href="/moment">Share a Moment instead</Link>}
+        >
+          Be the first to drop one. Snap your pint, log the price, pass down a
+          story. The feed fills up as London drinks.
+        </EmptyState>
       ) : (
         <>
           <div className="feedList">

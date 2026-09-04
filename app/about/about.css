@@ -29,51 +29,21 @@
     var(--paper);
 }
 
-/* ── Brand-first hero ───────────────────────────────────────── */
-.aboutHero {
-  position: relative;
-  margin: 12px 0 36px;
-  padding: 8px 0 4px;
+/* ── Head ───────────────────────────────────────────────────── */
+/* The head is the shared Screen primitive (components/ui/screen.css). The
+   page already pays the reading column and its gutters, so the head drops
+   its own. The story lede is long on purpose, so it takes the column. */
+.aboutPage .aboutHero {
+  width: 100%;
+  padding-inline: 0;
 }
 
-.aboutBrand {
-  margin: 0 0 14px;
-  font-family: var(--font-display, var(--serif));
-  font-size: clamp(2.4rem, 9vw, 3.6rem);
-  font-weight: 750;
-  line-height: 0.95;
-  letter-spacing: -0.04em;
-  color: var(--ink);
-  text-wrap: balance;
+.aboutPage .aboutHero .screenHead {
+  max-width: none;
 }
 
-.aboutBrassRule {
-  display: block;
-  width: 3.25rem;
-  height: 2px;
-  margin: 0 0 18px;
-  background: var(--brass);
-  border-radius: 1px;
-}
-
-.aboutTitle {
-  margin: 0 0 16px;
-  font-family: var(--font-display, var(--serif));
-  font-size: clamp(1.55rem, 5.2vw, 2.15rem);
-  font-weight: 650;
-  line-height: 1.12;
-  letter-spacing: -0.015em;
-  color: var(--ink);
-  text-wrap: balance;
-}
-
-.aboutLede {
-  margin: 0;
+.aboutPage .aboutHero .screenLede {
   max-width: 56ch;
-  font-size: 1.05rem;
-  line-height: 1.55;
-  color: var(--ink-soft);
-  text-wrap: pretty;
 }
 
 /* ── Sections ───────────────────────────────────────────────── */
@@ -160,13 +130,9 @@
 }
 
 /* ── Traction band ──────────────────────────────────────────── */
-.aboutTraction {
-  padding: 22px 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg, 18px);
-  background: var(--panel-raised);
-  box-shadow: var(--shadow-sm);
-}
+/* No band around the tiles: a heading with a grid under it is already a
+   section, and a bordered card holding bordered cards is on the
+   template-pattern ban list (docs/VOICE.md). */
 
 .aboutTractionIntro {
   margin-bottom: 18px;
@@ -305,99 +271,37 @@
   border-bottom-color: currentcolor;
 }
 
-/* ── Closing CTA ────────────────────────────────────────────── */
+/* ── Closing row ────────────────────────────────────────────── */
+/* Two text links. The head owns the one filled control on this page. */
 .aboutCta {
-  text-align: center;
   padding: 8px 0 0;
 }
 
 .aboutCtaRow {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
   margin-top: 14px;
 }
 
-.aboutBtn {
+.aboutCtaRow .aboutLink {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   min-height: 44px;
-  padding: 0 20px;
-  border-radius: var(--radius-pill, 999px);
-  font-size: 0.95rem;
-  font-weight: 600;
-  text-decoration: none;
-  transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease;
 }
 
-.aboutBtnPrimary {
-  background: var(--brass);
-  color: var(--color-on-accent);
-  border: 1px solid var(--brass);
-}
-
-.aboutBtnPrimary:hover,
-.aboutBtnPrimary:focus-visible {
-  background: var(--brass-bright, var(--brass));
-  border-color: var(--brass-bright, var(--brass));
-}
-
-.aboutBtnGhost {
-  background: transparent;
-  color: var(--ink);
-  border: 1px solid var(--line);
-}
-
-.aboutBtnGhost:hover,
-.aboutBtnGhost:focus-visible {
-  border-color: var(--brass);
-  color: var(--brass);
-}
-
-/* Wider viewports: give press-kit rows a label/value split and roomier lede. */
+/* Wider viewports: give press-kit rows a label/value split. */
 @media (min-width: 560px) {
   .aboutPressRow {
     grid-template-columns: 130px 1fr;
     gap: 12px;
     align-items: baseline;
   }
-
-  .aboutHero {
-    margin-top: 20px;
-    padding-top: 12px;
-  }
-}
-
-/* Optional lede presence — gated so reduced-motion users get the settled page. */
-@media (prefers-reduced-motion: no-preference) {
-  .aboutLede {
-    animation: aboutLedeFade 0.65s ease both;
-  }
-}
-
-@keyframes aboutLedeFade {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .aboutLink,
-  .aboutBtn {
+  .aboutLink {
     transition: none;
   }
   .aboutPriceStamp {
     transform: none;
-  }
-  .aboutLede {
-    animation: none;
   }
 }
 

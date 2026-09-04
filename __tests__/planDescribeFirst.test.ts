@@ -53,8 +53,8 @@ describe("PlanDescribeFirst occasion chips", () => {
       expect(chip).not.toMatch(/!/);
     }
     expect(source).toContain("Describe the outing");
-    expect(source).toContain("Make a plan");
-    expect(source).toContain("What&rsquo;s the plan?");
+    expect(source).toContain("Sort it");
+    expect(source).toContain("Describe the outing. We&rsquo;ll put it in order.");
   });
 
   it("keeps the arrival action useful before the visitor types", () => {
@@ -63,8 +63,11 @@ describe("PlanDescribeFirst occasion chips", () => {
       "utf8",
     );
 
+    // Never disabled: with nothing typed, the one primary action puts the
+    // caret in the field, and the wizard stays one quiet link away.
     expect(source).not.toContain("disabled={!query.trim()}");
-    expect(source).toContain("query.trim() ? submit() : onGuideMeInstead()");
-    expect(source).toContain('{query.trim() ? "Make a plan" : "Guide me"}');
+    expect(source).toContain("query.trim() ? submit() : queryInput.current?.focus()");
+    expect(source).toContain('secondary={');
+    expect(source).toContain("Guide me instead");
   });
 });

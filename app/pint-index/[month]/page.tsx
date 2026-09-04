@@ -19,6 +19,7 @@ import {
   loadPintIndexArchive,
 } from "@/lib/pintIndexSnapshot.server";
 import { formatPrice } from "@/lib/venues";
+import PintIndexScreen from "../PintIndexScreen";
 
 import "../pint-index.css";
 
@@ -103,13 +104,11 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
       <JsonLd data={jsonLd} nonce={nonce} />
       <SiteNav />
 
-      <header className="pintIndexHead">
-        <p className="pintIndexEyebrow">The London Pint Index</p>
-        <h1 className="pintIndexTitle">London pint prices, {label}</h1>
-        <p className="pintIndexStamp">
-          {`Frozen on ${formatPintIndexDate(publishedAt)}. These figures stay put whatever the live index says next month.`}
-        </p>
-
+      <PintIndexScreen
+        title={`London pint prices, ${label}`}
+        lede={`Frozen on ${formatPintIndexDate(publishedAt)}. These figures stay put whatever the live index says next month.`}
+        csvHref={`/pint-index/${month}/data.csv`}
+      >
         {summary.averageGbp !== null ? (
           <dl className="pintIndexStats">
             <div className="pintIndexStat"><dt>Average pint</dt><dd>{formatPrice(summary.averageGbp)}</dd></div>
@@ -118,84 +117,84 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
             <div className="pintIndexStat"><dt>Eligible pubs</dt><dd>{summary.pubCount}<small>across {summary.boroughCount} boroughs</small></dd></div>
           </dl>
         ) : null}
-      </header>
 
-      {corrections.length > 0 ? (
-        <section className="pintIndexSection" aria-labelledby="correctionsHeading">
-          <h2 id="correctionsHeading" className="pintIndexSectionTitle">Corrections</h2>
-          <p className="pintIndexSectionDek">
-            This edition has been corrected {corrections.length === 1 ? "once" : `${corrections.length} times`}.
-            You are reading revision {revision}. Nothing was quietly swapped: each
-            change is dated and named here.
-          </p>
-          <ol className="pintIndexProse">
-            {corrections.map((correction) => (
-              <li key={correction.previousObservationsSha256}>
-                <p>
-                  <strong>{formatPintIndexDate(correction.issuedAt)}.</strong>{" "}
-                  {correction.note}
-                </p>
-              </li>
-            ))}
-          </ol>
+        {corrections.length > 0 ? (
+          <section className="pintIndexSection" aria-labelledby="correctionsHeading">
+            <h2 id="correctionsHeading" className="pintIndexSectionTitle">Corrections</h2>
+            <p className="pintIndexSectionDek">
+              This edition has been corrected {corrections.length === 1 ? "once" : `${corrections.length} times`}.
+              You are reading revision {revision}. Nothing was quietly swapped: each
+              change is dated and named here.
+            </p>
+            <ol className="pintIndexProse">
+              {corrections.map((correction) => (
+                <li key={correction.previousObservationsSha256}>
+                  <p>
+                    <strong>{formatPintIndexDate(correction.issuedAt)}.</strong>{" "}
+                    {correction.note}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ) : null}
+
+        <section className="pintIndexSection" aria-labelledby="leagueHeading">
+          <h2 id="leagueHeading" className="pintIndexSectionTitle">Borough league table</h2>
+          {rows.length === 0 ? (
+            <p className="pintIndexNote">
+              <strong>No eligible prices in {label}.</strong> A price only
+              gets into this league if it names a public source and the day it was
+              seen. None did in this window, so this edition publishes none rather
+              than fill the gap with the legacy prices the map still carries. It
+              stays that way: an edition is written once, and a later price
+              belongs to a later month.
+            </p>
+          ) : (
+            <PintIndexLeagueTable
+              rows={rows}
+              caption={`London boroughs ranked by average published pint price, ${label}`}
+            />
+          )}
+          <a className="pintIndexDownload" href={`/pint-index/${month}/data.csv`} download>
+            Download {label} (CSV) ↓
+          </a>
         </section>
-      ) : null}
 
-      <section className="pintIndexSection" aria-labelledby="leagueHeading">
-        <h2 id="leagueHeading" className="pintIndexSectionTitle">Borough league table</h2>
-        {rows.length === 0 ? (
-          <p className="pintIndexNote">
-            <strong>No eligible prices in {label}.</strong> A price only
-            gets into this league if it names a public source and the day it was
-            seen. None did in this window, so this edition publishes none rather
-            than fill the gap with the legacy prices the map still carries. It
-            stays that way: an edition is written once, and a later price
-            belongs to a later month.
-          </p>
-        ) : (
-          <PintIndexLeagueTable
-            rows={rows}
-            caption={`London boroughs ranked by average published pint price, ${label}`}
-          />
-        )}
-        <a className="pintIndexDownload" href={`/pint-index/${month}/data.csv`} download>
-          Download {label} (CSV) ↓
-        </a>
-      </section>
+        {/* The expensive end of this month, frozen with the rest of it. The live
+            index's national block deliberately does NOT appear here: those
+            figures move, and an edition that promises its numbers stay put may
+            not carry one that does not. */}
+        {summary.dearestPint ? (
+          <section className="pintIndexSection" id="dearest" aria-labelledby="dearestHeading">
+            <h2 id="dearestHeading" className="pintIndexSectionTitle">The dearest end</h2>
+            <p className="pintIndexSectionDek">
+              The same table the other way up, ranked on the priciest pint each
+              borough had on record in {label}. Top of it:{" "}
+              {formatPrice(summary.dearestPint.maxGbp)} at{" "}
+              {summary.dearestPint.maxPubName}, {summary.dearestPint.name}.
+            </p>
+            <PintIndexLeagueTable
+              rows={dearestFirst(rows)}
+              caption={`London boroughs ranked by their dearest published pint price, ${label}`}
+              highlight="dearest"
+            />
+          </section>
+        ) : null}
 
-      {/* The expensive end of this month, frozen with the rest of it. The live
-          index's national block deliberately does NOT appear here: those
-          figures move, and an edition that promises its numbers stay put may
-          not carry one that does not. */}
-      {summary.dearestPint ? (
-        <section className="pintIndexSection" id="dearest" aria-labelledby="dearestHeading">
-          <h2 id="dearestHeading" className="pintIndexSectionTitle">The dearest end</h2>
+        <section className="pintIndexSection" aria-labelledby="editionsHeading">
+          <h2 id="editionsHeading" className="pintIndexSectionTitle">Every dated edition</h2>
           <p className="pintIndexSectionDek">
-            The same table the other way up, ranked on the priciest pint each
-            borough had on record in {label}. Top of it:{" "}
-            {formatPrice(summary.dearestPint.maxGbp)} at{" "}
-            {summary.dearestPint.maxPubName}, {summary.dearestPint.name}.
+            Each closed month keeps its own page. Cite one and it still says the
+            same thing a year later.
           </p>
-          <PintIndexLeagueTable
-            rows={dearestFirst(rows)}
-            caption={`London boroughs ranked by their dearest published pint price, ${label}`}
-            highlight="dearest"
-          />
+          <PintIndexEditions editions={editions} current={month} />
         </section>
-      ) : null}
 
-      <section className="pintIndexSection" aria-labelledby="editionsHeading">
-        <h2 id="editionsHeading" className="pintIndexSectionTitle">Every dated edition</h2>
-        <p className="pintIndexSectionDek">
-          Each closed month keeps its own page. Cite one and it still says the
-          same thing a year later.
+        <p className="pintIndexFootnote">
+          <Link href="/pint-index">See the live index →</Link> · <Link href="/map">Open the map →</Link>
         </p>
-        <PintIndexEditions editions={editions} current={month} />
-      </section>
-
-      <p className="pintIndexFootnote">
-        <Link href="/pint-index">See the live index →</Link> · <Link href="/map">Open the map →</Link>
-      </p>
+      </PintIndexScreen>
     </main>
   );
 }

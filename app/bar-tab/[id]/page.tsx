@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
-import EmptyState from "@/components/EmptyState";
+import EmptyState from "@/components/ui/empty-state";
 import SiteNav from "@/components/nav/SiteNav";
 import ShareBar from "@/components/share/ShareBar";
 import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
@@ -167,11 +167,11 @@ export default async function BarTabPage({ params }: PageProps) {
       {barTab.tileCount === 0 ? (
         <EmptyState
           className="barTabEmpty"
-          eyebrow="Quiet at the bar"
           title="No pints on the tab yet."
-          body="Be the first to drop one here. Snap your pint, log the price, pass down a story."
           action={<Link href={`${venueMapUrl(canonicalId)}&log=1`}>Drop a pint here</Link>}
-        />
+        >
+          Be the first to drop one here. Snap your pint, log the price, pass down a story.
+        </EmptyState>
       ) : (
         <ul className="barTabGrid" aria-label={`Recent pints at ${venue.name}`}>
           {barTab.tiles.map((tile) => (

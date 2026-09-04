@@ -10,7 +10,8 @@ import { OutOpenPlanCard } from "@/components/out/OutOpenPlanCard";
 import ListingsSkeleton from "@/components/out/ListingsSkeleton";
 import EditorialRail from "@/components/out/EditorialRail";
 import { useOutListings } from "@/components/out/useOutListings";
-import Kicker from "@/components/ui/kicker";
+import EmptyState from "@/components/ui/empty-state";
+import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
 import { CITIES, DEFAULT_CITY_ID } from "@/lib/cities";
 import { readPreferredCity, subscribePreferredCity } from "@/lib/cityPreference";
@@ -33,7 +34,6 @@ import {
   outEmptyLane,
   outStatusLines,
 } from "@/lib/out/outStatus";
-import EmptyState from "@/components/EmptyState";
 import { handleSegmentLinkKeyDown } from "@/lib/segmentLinkKeys";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
@@ -94,30 +94,47 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
     <main id="main" className="outPage" data-testid="out-screen">
       <SiteNav active="out" />
 
-      <header className="outHead">
-        {/* The kicker names the city the listings follow (docs/design/LAUNCH_SCREENS.md):
-            London on the server and on first paint, then the city Places set. */}
-        <Kicker>Out in {CITIES[cityId].displayName}</Kicker>
-        <h1 className="outTitle">Out</h1>
-        <nav className="outDayChips" aria-label="When">
-          {OUT_DAY_WINDOWS.map((windowKey) => {
-            const selected = windowKey === day;
-            const href = windowKey === "tonight" ? "/out" : `/out?day=${windowKey}`;
-            return (
-              <Link prefetch={false}
-                key={windowKey}
-                href={href}
-                className="outDayChip"
-                aria-current={selected ? "page" : undefined}
-                onKeyDown={handleSegmentLinkKeyDown}
-                onClick={() => trackEvent("out_filter_select", { kind: windowKey })}
-              >
-                {DAY_LABEL[windowKey]}
-              </Link>
-            );
-          })}
-        </nav>
-      </header>
+      {/* The head is the Screen primitive (docs/design/LAUNCH_SCREENS.md). The
+          kicker names the city the listings follow: London on the server and
+          on first paint, then the city Places set. The map is the one primary
+          on every day, listed or quiet, because whatever is on tonight the
+          pubs are always there; the empty lane's own map link further down
+          stays unmarked so the page counts one. */}
+      <Screen
+        as="div"
+        className="outScreen"
+        kicker={`Out in ${CITIES[cityId].displayName}`}
+        title="What’s on, sourced."
+        titleId="out-title"
+        primary={
+          <Link prefetch={false} href={OUT_MAP_WAY.href}>
+            {OUT_MAP_WAY.label}
+          </Link>
+        }
+        secondary={
+          <Link prefetch={false} href="/plan">
+            Plan a night
+          </Link>
+        }
+      >
+      <nav className="outDayChips" aria-label="When">
+        {OUT_DAY_WINDOWS.map((windowKey) => {
+          const selected = windowKey === day;
+          const href = windowKey === "tonight" ? "/out" : `/out?day=${windowKey}`;
+          return (
+            <Link prefetch={false}
+              key={windowKey}
+              href={href}
+              className="outDayChip"
+              aria-current={selected ? "page" : undefined}
+              onKeyDown={handleSegmentLinkKeyDown}
+              onClick={() => trackEvent("out_filter_select", { kind: windowKey })}
+            >
+              {DAY_LABEL[windowKey]}
+            </Link>
+          );
+        })}
+      </nav>
 
       <section className="outListings" aria-labelledby="out-listings-heading">
         <h2 id="out-listings-heading" className="outSectionTitle">
@@ -126,24 +143,21 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
         {pending ? <ListingsSkeleton /> : null}
         {emptyLane ? (
           <EmptyState
-            className="emptyState--flush"
             title={emptyLane.lines[0]}
-            body={emptyLane.lines.slice(1).join(" ") || undefined}
-            actionTone="accent"
             action={
               emptyLane.way === "retry" ? (
                 <button type="button" onClick={retry}>
                   {OUT_RETRY_LABEL}
                 </button>
               ) : (
-                /* The route's one primary action (docs/design/LAUNCH_SCREENS.md):
-                   the map is the way onward from a lane with nothing in it. */
-                <Link prefetch={false} href={OUT_MAP_WAY.href} data-primary-action="">
+                <Link prefetch={false} href={OUT_MAP_WAY.href}>
                   {OUT_MAP_WAY.label}
                 </Link>
               )
             }
-          />
+          >
+            {emptyLane.lines.slice(1).join(" ") || null}
+          </EmptyState>
         ) : (
           outStatusLines({ body, failed }).map((line) => (
             <p className="outStatus" key={line}>
@@ -220,17 +234,16 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
           <h2 id="out-plans-heading" className="outSectionTitle outPlansSectionTitle">
             Open plans
           </h2>
-          <EmptyState
-            className="emptyState--flush"
-            title="Open plans could not be checked."
-            role="alert"
-            actionTone="accent"
-            action={
-              <button type="button" onClick={retry}>
-                {OUT_RETRY_LABEL}
-              </button>
-            }
-          />
+          <div role="alert">
+            <EmptyState
+              title="Open plans could not be checked."
+              action={
+                <button type="button" onClick={retry}>
+                  {OUT_RETRY_LABEL}
+                </button>
+              }
+            />
+          </div>
         </section>
       ) : showOpenPlans ? (
         <section className="outPlans" aria-labelledby="out-plans-heading">
@@ -249,6 +262,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
           </p>
         </section>
       ) : null}
+      </Screen>
     </main>
   );
 }

@@ -19,8 +19,9 @@ import { boroughFromSlug, pubsInBorough, slugifyBorough } from "@/lib/boroughs";
 import { loadBoroughHeritage, NOTABLE_CAP } from "@/lib/boroughHeritage";
 import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import SiteNav from "@/components/nav/SiteNav";
-import EmptyState from "@/components/EmptyState";
+import EmptyState from "@/components/ui/empty-state";
 import { ProseDisclosure } from "@/components/Disclosure";
+import BoroughScreen from "../BoroughScreen";
 import BoroughPassportSlice from "@/components/borough/BoroughPassportSlice";
 import BoroughPintPriceCard from "@/components/borough/BoroughPintPriceCard";
 import AreaNewsList from "@/components/areanews/AreaNewsList";
@@ -239,21 +240,21 @@ export default async function BoroughPage({ params }: PageProps) {
       <JsonLd data={jsonLdGraph} nonce={nonce} />
       <SiteNav active="borough" />
 
-      <header className="boroughHead">
-        <p className="boroughEyebrow">
-          <Link href="/borough">Boroughs</Link> · London
-        </p>
-        <h1 className="boroughTitle">Pubs in {name}</h1>
-        <p className="boroughDek">
-          {pubs.length === 0 ? (
-            <>No pubs mapped in {name} just yet. The rest of London is on the map.</>
-          ) : (
+      <BoroughScreen
+        kicker={name}
+        title={`Pubs in ${name}.`}
+        titleId="boroughHeading"
+        lede={
+          pubs.length > 0 ? (
             <>
               {pubs.length} {pubs.length === 1 ? "pub" : "pubs"} in {name}, ranked
               cheapest pint first.
             </>
-          )}
-        </p>
+          ) : undefined
+        }
+        mapHref={pubs.length > 0 ? boroughBrowseMapUrl(name) : "/map"}
+        mapLabel={pubs.length > 0 ? "Open the map here" : "Open the map"}
+      >
         <BoroughPintPriceCard boroughName={name} ourCheapestPrice={ourCheapestPrice} />
         {pubs.length > 0 && pubs.length < BOROUGH_COVERAGE_FLOOR ? (
           <p className="boroughThinBanner" role="status">
@@ -261,227 +262,226 @@ export default async function BoroughPage({ params }: PageProps) {
             pub. We just haven&rsquo;t covered every street yet.
           </p>
         ) : null}
-        <div className="boroughMapLinks">
-          <Link className="boroughCrawlLink" href={boroughBrowseMapUrl(name)}>
-            {pubs.length > 0 ? `View ${name} on the map →` : "Open the map →"}
-          </Link>
-          {pubs.length > 0 ? (
+        {pubs.length > 0 ? (
+          <div className="boroughMapLinks">
             <Link className="boroughCrawlLink boroughCrawlLinkSecondary" href={boroughMapUrl(pubs)}>
               Start a crawl from cheapest pubs →
             </Link>
-          ) : null}
-        </div>
-      </header>
+          </div>
+        ) : null}
 
-      <AreaNewsList
-        areaLabel={name}
-        entries={areaNews}
-        status={areaNewsRead.status}
-        headingId="boroughAreaNewsHeading"
-      />
-
-      {pubs.length === 0 ? (
-        <EmptyState
-          eyebrow="Nothing pinned here yet"
-          title={`No pubs mapped in ${name} yet.`}
-          body="The rest of London is on the map already. This corner just hasn't been walked yet."
-          action={<Link href="/borough">Browse other boroughs</Link>}
+        <AreaNewsList
+          areaLabel={name}
+          entries={areaNews}
+          status={areaNewsRead.status}
+          headingId="boroughAreaNewsHeading"
         />
-      ) : (
-        <table className="boroughTable">
-          <caption className="srOnly">
-            Pubs in {name}, ordered by cheapest pint price
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col" className="boroughRankHead">
-                #
-              </th>
-              <th scope="col" className="boroughNameHead">
-                Pub
-              </th>
-              <th scope="col" className="boroughPriceHead">
-                Cheapest pint
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {pubs.map((pub, index) => (
-              <tr key={pub.id}>
-                <th scope="row" className="boroughRank">
-                  <span className="boroughRankNum">{index + 1}</span>
+
+        {pubs.length === 0 ? (
+          <EmptyState
+            className="boroughEmpty"
+            title={`No pubs mapped in ${name} yet.`}
+            action={<Link href="/borough">Browse other boroughs</Link>}
+          >
+            The rest of London is on the map already. This corner just hasn&rsquo;t
+            been walked yet.
+          </EmptyState>
+        ) : (
+          <table className="boroughTable">
+            <caption className="srOnly">
+              Pubs in {name}, ordered by cheapest pint price
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col" className="boroughRankHead">
+                  #
                 </th>
-                <td className="boroughName">
-                  <Link href={venueMapUrl(pub.id)} className="boroughPub">
+                <th scope="col" className="boroughNameHead">
+                  Pub
+                </th>
+                <th scope="col" className="boroughPriceHead">
+                  Cheapest pint
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {pubs.map((pub, index) => (
+                <tr key={pub.id}>
+                  <th scope="row" className="boroughRank">
+                    <span className="boroughRankNum">{index + 1}</span>
+                  </th>
+                  <td className="boroughName">
+                    <Link href={venueMapUrl(pub.id)} className="boroughPub">
+                      {pub.name}
+                    </Link>
+                    {pub.cheapestPint ? (
+                      <span className="boroughPint">{pub.cheapestPint}</span>
+                    ) : null}
+                    <Link href={`/ledger/${pub.id}`} className="boroughLedgerLink">
+                      Price history →
+                    </Link>
+                  </td>
+                  <td className="boroughPriceCell">
+                    {typeof pub.cheapestPrice === "number" ? (
+                      <PriceBadge variant="current">
+                        {formatPrice(pub.cheapestPrice)}
+                      </PriceBadge>
+                    ) : (
+                      <span className="boroughNoPrice">No price</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {storyPubs.length > 0 ? (
+          <section className="boroughSection" aria-labelledby="boroughStoryHeading">
+            <h2 id="boroughStoryHeading" className="boroughSectionTitle">
+              Story pubs in {name}
+            </h2>
+            <p className="boroughSectionDek">
+              {storyPubs.length} {storyPubs.length === 1 ? "pub" : "pubs"} here carry a heritage
+              note or a passed-down story. Each offers a reason to detour beyond price.
+            </p>
+            <ul className="boroughChipList" aria-label={`Story pubs in ${name}`}>
+              {storyPubs.map((pub) => (
+                <li key={pub.id}>
+                  <Link href={venueMapUrl(pub.id)} className="boroughChip">
                     {pub.name}
                   </Link>
-                  {pub.cheapestPint ? (
-                    <span className="boroughPint">{pub.cheapestPint}</span>
-                  ) : null}
-                  <Link href={`/ledger/${pub.id}`} className="boroughLedgerLink">
-                    Price history →
-                  </Link>
-                </td>
-                <td className="boroughPriceCell">
-                  {typeof pub.cheapestPrice === "number" ? (
-                    <PriceBadge variant="current">
-                      {formatPrice(pub.cheapestPrice)}
-                    </PriceBadge>
-                  ) : (
-                    <span className="boroughNoPrice">No price</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
-      {storyPubs.length > 0 ? (
-        <section className="boroughSection" aria-labelledby="boroughStoryHeading">
-          <h2 id="boroughStoryHeading" className="boroughSectionTitle">
-            Story pubs in {name}
-          </h2>
-          <p className="boroughSectionDek">
-            {storyPubs.length} {storyPubs.length === 1 ? "pub" : "pubs"} here carry a heritage
-            note or a passed-down story. Each offers a reason to detour beyond price.
-          </p>
-          <ul className="boroughChipList" aria-label={`Story pubs in ${name}`}>
-            {storyPubs.map((pub) => (
-              <li key={pub.id}>
-                <Link href={venueMapUrl(pub.id)} className="boroughChip">
-                  {pub.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {touchingCrawls.length > 0 ? (
-        <section className="boroughSection" aria-labelledby="boroughCrawlsHeading">
-          <h2 id="boroughCrawlsHeading" className="boroughSectionTitle">
-            Crawls through {name}
-          </h2>
-          <p className="boroughSectionDek">
-            A listed route with at least one stop here. Plan it from its first stop to its last.
-          </p>
-          <ul className="boroughCrawlList" aria-label={`Crawls through ${name}`}>
-            {touchingCrawls.map((crawl) => (
-              <li key={crawl.id} className="boroughCrawlCard">
-                <div>
-                  <strong>{crawl.name}</strong>
-                  <p>{crawl.blurb}</p>
-                </div>
-                <Link
-                  href={curatedCrawlMapHref(crawl)}
-                  className="boroughCrawlPlanLink"
-                  aria-label={`Plan the ${crawl.name} crawl on the map`}
-                >
-                  Plan this crawl →
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      <BoroughPassportSlice boroughName={name} venueIds={pubs.map((pub) => pub.id)} />
-
-      {heritage ? (
-        <section className="boroughSection" aria-labelledby="boroughHeritageHeading">
-          <h2 id="boroughHeritageHeading" className="boroughSectionTitle">
-            Historic pubs in {name}
-          </h2>
-          <p className="boroughSectionDek">
-            {heritage.count} notable {heritage.count === 1 ? "pub" : "pubs"} on record
-            {heritage.oldest ? (
-              <>
-                {". The oldest is "}
-                {heritage.oldest.name}
-                {heritage.oldest.era ? <> ({heritage.oldest.era})</> : null}
-              </>
-            ) : null}
-            {heritage.listedCount > 0 ? <> &middot; {heritage.listedCount} listed</> : null}.
-          </p>
-          <p className="boroughHeritageProvenance">Cited from Wikipedia.</p>
-          <ul className="boroughHeritageList" aria-label={`Historic pubs in ${name}`}>
-            {heritage.notable.slice(0, NOTABLE_CAP).map((pub) => (
-              <li key={pub.slug} className="boroughHeritageCard">
-                {pub.era || pub.listed ? (
-                  <div className="boroughHeritageMeta">
-                    {pub.era ? <span className="boroughHeritageEra">{pub.era}</span> : null}
-                    {pub.listed ? (
-                      <span className="boroughHeritageGrade">Grade {pub.listed}</span>
-                    ) : null}
+        {touchingCrawls.length > 0 ? (
+          <section className="boroughSection" aria-labelledby="boroughCrawlsHeading">
+            <h2 id="boroughCrawlsHeading" className="boroughSectionTitle">
+              Crawls through {name}
+            </h2>
+            <p className="boroughSectionDek">
+              A listed route with at least one stop here. Plan it from its first stop to its last.
+            </p>
+            <ul className="boroughCrawlList" aria-label={`Crawls through ${name}`}>
+              {touchingCrawls.map((crawl) => (
+                <li key={crawl.id} className="boroughCrawlCard">
+                  <div>
+                    <strong>{crawl.name}</strong>
+                    <p>{crawl.blurb}</p>
                   </div>
-                ) : null}
-                <h3 className="boroughHeritageName">{pub.name}</h3>
-                {pub.hook ? (
-                  <div className="boroughHeritageHook">
-                    <ProseDisclosure text={pub.hook} />
-                  </div>
-                ) : null}
-                {pub.venueId ? (
                   <Link
-                    className="boroughHeritageMapLink"
-                    href={`/map?sel=${pub.venueId}`}
-                    aria-label={`See ${pub.name} on the map`}
+                    href={curatedCrawlMapHref(crawl)}
+                    className="boroughCrawlPlanLink"
+                    aria-label={`Plan the ${crawl.name} crawl on the map`}
                   >
-                    See on map &rarr;
+                    Plan this crawl →
                   </Link>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-          <p className="boroughHeritageFoot">
-            <Link href="/historic">See all historic pubs &rarr;</Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        <BoroughPassportSlice boroughName={name} venueIds={pubs.map((pub) => pub.id)} />
+
+        {heritage ? (
+          <section className="boroughSection" aria-labelledby="boroughHeritageHeading">
+            <h2 id="boroughHeritageHeading" className="boroughSectionTitle">
+              Historic pubs in {name}
+            </h2>
+            <p className="boroughSectionDek">
+              {heritage.count} notable {heritage.count === 1 ? "pub" : "pubs"} on record
+              {heritage.oldest ? (
+                <>
+                  {". The oldest is "}
+                  {heritage.oldest.name}
+                  {heritage.oldest.era ? <> ({heritage.oldest.era})</> : null}
+                </>
+              ) : null}
+              {heritage.listedCount > 0 ? <> &middot; {heritage.listedCount} listed</> : null}.
+            </p>
+            <p className="boroughHeritageProvenance">Cited from Wikipedia.</p>
+            <ul className="boroughHeritageList" aria-label={`Historic pubs in ${name}`}>
+              {heritage.notable.slice(0, NOTABLE_CAP).map((pub) => (
+                <li key={pub.slug} className="boroughHeritageCard">
+                  {pub.era || pub.listed ? (
+                    <div className="boroughHeritageMeta">
+                      {pub.era ? <span className="boroughHeritageEra">{pub.era}</span> : null}
+                      {pub.listed ? (
+                        <span className="boroughHeritageGrade">Grade {pub.listed}</span>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <h3 className="boroughHeritageName">{pub.name}</h3>
+                  {pub.hook ? (
+                    <div className="boroughHeritageHook">
+                      <ProseDisclosure text={pub.hook} />
+                    </div>
+                  ) : null}
+                  {pub.venueId ? (
+                    <Link
+                      className="boroughHeritageMapLink"
+                      href={`/map?sel=${pub.venueId}`}
+                      aria-label={`See ${pub.name} on the map`}
+                    >
+                      See on map &rarr;
+                    </Link>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            <p className="boroughHeritageFoot">
+              <Link href="/historic">See all historic pubs &rarr;</Link>
+            </p>
+          </section>
+        ) : null}
+
+        <FactBlock
+          stats={factStats}
+          monthYear={formatMonthYear(observedAt)}
+          observedDate={formatObservedDate(observedAt)}
+          headingId="boroughFactHeading"
+          title={`Pint prices in ${name}, by the numbers`}
+        />
+
+        <FaqBlock
+          items={faq}
+          headingId="boroughFaqHeading"
+          title={`Pint prices in ${name}: questions`}
+        />
+
+        {/* Internal cross-links (Wave S3.5): let crawlers walk borough → map →
+            Pint Index → historic via plain hrefs. Individual /ledger permalinks
+            already sit in the pubs table above. */}
+        <nav className="factLinks" aria-labelledby="boroughLinksHeading">
+          <p className="factLinksTitle" id="boroughLinksHeading">
+            Explore more
           </p>
-        </section>
-      ) : null}
-
-      <FactBlock
-        stats={factStats}
-        monthYear={formatMonthYear(observedAt)}
-        observedDate={formatObservedDate(observedAt)}
-        headingId="boroughFactHeading"
-        title={`Pint prices in ${name}, by the numbers`}
-      />
-
-      <FaqBlock
-        items={faq}
-        headingId="boroughFaqHeading"
-        title={`Pint prices in ${name}: questions`}
-      />
-
-      {/* Internal cross-links (Wave S3.5): let crawlers walk borough → map →
-          Pint Index → historic via plain hrefs. Individual /ledger permalinks
-          already sit in the pubs table above. */}
-      <nav className="factLinks" aria-labelledby="boroughLinksHeading">
-        <p className="factLinksTitle" id="boroughLinksHeading">
-          Explore more
-        </p>
-        <ul className="factLinksList">
-          <li>
-            <Link href={boroughBrowseMapUrl(name)}>{name} on the map</Link>
-          </li>
-          <li>
-            <Link href="/pint-index">London Pint Index</Link>
-          </li>
-          {heritage ? (
+          <ul className="factLinksList">
             <li>
-              <Link href="/historic">Historic pubs</Link>
+              <Link href={boroughBrowseMapUrl(name)}>{name} on the map</Link>
             </li>
-          ) : null}
-          <li>
-            <Link href="/borough">All boroughs</Link>
-          </li>
-        </ul>
-      </nav>
+            <li>
+              <Link href="/pint-index">London Pint Index</Link>
+            </li>
+            {heritage ? (
+              <li>
+                <Link href="/historic">Historic pubs</Link>
+              </li>
+            ) : null}
+            <li>
+              <Link href="/borough">All boroughs</Link>
+            </li>
+          </ul>
+        </nav>
 
-      <p className="boroughFootnote">
-        Pubs, prices and stories by area. <Link href="/borough">See every borough →</Link>
-      </p>
+        <p className="boroughFootnote">
+          Pubs, prices and stories by area. <Link href="/borough">See every borough →</Link>
+        </p>
+      </BoroughScreen>
     </main>
   );
 }

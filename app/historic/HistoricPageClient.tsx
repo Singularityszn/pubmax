@@ -6,13 +6,18 @@
 // Honest by construction: every card renders only what the record carries — an
 // era chip only when era is present, a grade badge only when listed, the hook
 // verbatim, and a citation link derived strictly from the data's own sourceRef.
-// Nothing is fabricated; the subtitle names the sources and the count out loud.
+// Nothing is fabricated; the lede names the sources and the count out loud.
+//
+// The head is the Screen primitive (docs/design/LAUNCH_SCREENS.md): the map is
+// the one primary action and a crawl is the quiet way onward.
 
 import Link from "next/link";
 import { ArrowUpRight, ExternalLink } from "lucide-react";
 
 import { ProseDisclosure } from "@/components/Disclosure";
 import SiteNav from "@/components/nav/SiteNav";
+import EmptyState from "@/components/ui/empty-state";
+import Screen from "@/components/ui/screen";
 import type { HistoricPub } from "@/lib/historic";
 import {
   citationHref,
@@ -55,130 +60,129 @@ export default function HistoricPageClient({
     <main id="main" className="historicPage">
       <SiteNav active="historic" />
 
-      <header className="historicHead">
-        <p className="historicEyebrow">Historic pubs</p>
-        <h1 className="historicTitle">London&rsquo;s Historic Pubs</h1>
-        <p className="historicLede">
-          {totalPubs} notable pubs, cited from Wikipedia and Wikidata. Never
-          invented.
-        </p>
-      </header>
+      <Screen
+        as="section"
+        className="historicScreen"
+        kicker="Historic pubs"
+        title={<>London&rsquo;s Historic Pubs</>}
+        titleId="historicHeading"
+        lede={
+          <>
+            {totalPubs} notable pubs, cited from Wikipedia and Wikidata. Never
+            invented.
+          </>
+        }
+        primary={<Link href="/map">Open the map</Link>}
+        secondary={<Link href="/crawls">Start a crawl</Link>}
+      >
+        {totalPubs === 0 ? (
+          <EmptyState title="The historic index isn’t loading just now.">
+            The <Link href="/map">map</Link> is still up, and it still knows where
+            the cheap pints are.
+          </EmptyState>
+        ) : (
+          <>
+            <HistoricFilters boroughs={boroughs} filters={filters} />
 
-      {totalPubs === 0 ? (
-        <p className="historicStatus" role="status">
-          The historic index isn&rsquo;t loading just now. The{" "}
-          <Link href="/map">map</Link> is still up, and it still knows where the
-          cheap pints are.
-        </p>
-      ) : (
-        <>
-          <HistoricFilters boroughs={boroughs} filters={filters} />
+            <p className="historicCount" role="status" aria-live="polite">
+              {matchingPubs === totalPubs
+                ? `Showing ${firstShown}-${lastShown} of ${totalPubs} pubs`
+                : `Showing ${firstShown}-${lastShown} of ${matchingPubs} matches`}
+            </p>
 
-          <p className="historicCount" role="status" aria-live="polite">
-            {matchingPubs === totalPubs
-              ? `Showing ${firstShown}-${lastShown} of ${totalPubs} pubs`
-              : `Showing ${firstShown}-${lastShown} of ${matchingPubs} matches`}
-          </p>
+            {pubs.length === 0 ? (
+              <EmptyState
+                title="Nothing matches those filters."
+                action={
+                  filtersActive ? <Link href="/historic">Clear filters</Link> : undefined
+                }
+              >
+                We only show pubs we can cite. Nothing is invented to fill the gap.
+              </EmptyState>
+            ) : (
+              <ul className="historicGrid">
+                {pubs.map((pub) => {
+                  const href = citationHref(pub);
+                  const grade = listedBadge(pub.listed);
+                  const status = venueStatusBadge(pub.venueStatus);
+                  return (
+                    <li key={pub.slug} className="historicCard">
+                      <div className="historicCardMeta">
+                        {pub.era ? (
+                          <span className="historicEra">{pub.era}</span>
+                        ) : null}
+                        {grade ? (
+                          <span className="historicGrade">{grade}</span>
+                        ) : null}
+                        {status ? (
+                          <span className="historicGrade">{status}</span>
+                        ) : null}
+                      </div>
 
-          {pubs.length === 0 ? (
-            <div className="historicEmpty" role="status">
-              <p className="historicEmptyTitle">Nothing matches those filters.</p>
-              <p className="historicEmptyBody">
-                We only show pubs we can cite. Nothing is invented to fill the
-                gap.{" "}
-                {filtersActive ? (
-                  <Link
-                    className="historicInlineReset"
-                    href="/historic"
-                  >
-                    Clear filters
-                  </Link>
-                ) : null}
-              </p>
-            </div>
-          ) : (
-            <ul className="historicGrid">
-              {pubs.map((pub) => {
-                const href = citationHref(pub);
-                const grade = listedBadge(pub.listed);
-                const status = venueStatusBadge(pub.venueStatus);
-                return (
-                  <li key={pub.slug} className="historicCard">
-                    <div className="historicCardMeta">
-                      {pub.era ? (
-                        <span className="historicEra">{pub.era}</span>
+                      <h2 className="historicCardName">{pub.name}</h2>
+
+                      {pub.borough ? (
+                        <p className="historicBorough">{pub.borough}</p>
                       ) : null}
-                      {grade ? (
-                        <span className="historicGrade">{grade}</span>
-                      ) : null}
-                      {status ? (
-                        <span className="historicGrade">{status}</span>
-                      ) : null}
-                    </div>
 
-                    <h2 className="historicCardName">{pub.name}</h2>
+                      <div className="historicHook">
+                        <ProseDisclosure text={pub.hook} />
+                      </div>
 
-                    {pub.borough ? (
-                      <p className="historicBorough">{pub.borough}</p>
-                    ) : null}
+                      <div className="historicProvenance">
+                        <span className="historicFactCount">
+                          {pub.facts.length} on record
+                        </span>
+                        {href ? (
+                          <a
+                            className="historicCite"
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {citationLabel(href)}
+                            <ExternalLink size={12} aria-hidden="true" />
+                          </a>
+                        ) : null}
+                      </div>
 
-                    <div className="historicHook">
-                      <ProseDisclosure text={pub.hook} />
-                    </div>
-
-                    <div className="historicProvenance">
-                      <span className="historicFactCount">
-                        {pub.facts.length} on record
-                      </span>
-                      {href ? (
-                        <a
-                          className="historicCite"
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {citationLabel(href)}
-                          <ExternalLink size={12} aria-hidden="true" />
-                        </a>
-                      ) : null}
-                    </div>
-
-                    <div className="historicActions">
-                      <Link
-                        className="historicMapLink pressable"
-                        href={`/historic/${pub.slug}`}
-                      >
-                        Read the story
-                        <ArrowUpRight size={14} aria-hidden="true" />
-                      </Link>
-                      {pub.venueId ? (
+                      <div className="historicActions">
                         <Link
                           className="historicMapLink pressable"
-                          href={`/map?sel=${pub.venueId}`}
+                          href={`/historic/${pub.slug}`}
                         >
-                          See on map
+                          Read the story
                           <ArrowUpRight size={14} aria-hidden="true" />
                         </Link>
-                      ) : null}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          {totalPages > 1 ? (
-            <nav className="historicPagination" aria-label="Historic pub pages">
-              {page > 1 ? (
-                <Link href={historicIndexHref(filters, page - 1)}>Previous</Link>
-              ) : <span />}
-              <span>Page {page} of {totalPages}</span>
-              {page < totalPages ? (
-                <Link href={historicIndexHref(filters, page + 1)}>Next</Link>
-              ) : <span />}
-            </nav>
-          ) : null}
-        </>
-      )}
+                        {pub.venueId ? (
+                          <Link
+                            className="historicMapLink pressable"
+                            href={`/map?sel=${pub.venueId}`}
+                          >
+                            See on map
+                            <ArrowUpRight size={14} aria-hidden="true" />
+                          </Link>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {totalPages > 1 ? (
+              <nav className="historicPagination" aria-label="Historic pub pages">
+                {page > 1 ? (
+                  <Link href={historicIndexHref(filters, page - 1)}>Previous</Link>
+                ) : <span />}
+                <span>Page {page} of {totalPages}</span>
+                {page < totalPages ? (
+                  <Link href={historicIndexHref(filters, page + 1)}>Next</Link>
+                ) : <span />}
+              </nav>
+            ) : null}
+          </>
+        )}
+      </Screen>
     </main>
   );
 }

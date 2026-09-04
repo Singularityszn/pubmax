@@ -25,6 +25,21 @@
   color: var(--ink);
 }
 
+/* /near's idle head is the Screen primitive (components/ui/screen.css). The
+   page shell keeps the gutter, so the screen does not pad it a second time;
+   the mode switch above already sets the head off, so its top inset is
+   trimmed; and the hint and patch chips stack under it as the intro did. */
+.nmn > .nmnScreen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-inline: 0;
+}
+
+.nmn > .nmnScreen > .screenHead {
+  padding-top: var(--space-2);
+}
+
 .nmnHint {
   margin: 0;
   font-size: 0.78rem;

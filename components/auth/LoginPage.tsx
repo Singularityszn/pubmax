@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+} from "react";
 import { LogIn } from "lucide-react";
 
 import AccountDeviceControls from "@/components/auth/AccountDeviceControls";
@@ -11,6 +18,8 @@ import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import HandlePasswordSignIn from "@/components/auth/HandlePasswordSignIn";
 import type { MagicLinkResult } from "@/lib/passwordlessAuth";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
+import Kicker from "@/components/ui/kicker";
+import Screen from "@/components/ui/screen";
 import { BRAND_NAME } from "@/lib/brandNaming";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
@@ -147,13 +156,9 @@ function SignedInCard({
           {user.email ? <p className="loginPageEmail">{user.email}</p> : null}
         </div>
       </div>
+      {/* The map and the profile are the head's primary and secondary; the
+          card keeps the device controls the nav card would carry. */}
       <div className="loginPageActions">
-        <Link href="/map" className="loginPagePrimary">
-          Continue to the map
-        </Link>
-        <Link href="/u/you" className="loginPageSecondary">
-          Your profile
-        </Link>
         <AccountDeviceControls
           handle={handle}
           activeUserId={activeUserId}
@@ -170,47 +175,27 @@ function SignedInCard({
 }
 
 /**
- * The device held a session whose durable resume cookie has expired. One tap
- * re-sends the link to the saved address, so the return is not a cold form.
+ * The device held a session whose durable resume cookie has expired. The one
+ * tap that re-sends the link to the saved address is the head's primary, so
+ * this card carries the sentence and the outcome line alone.
  */
 function WelcomeBackCard({
   maskedEmail,
   status,
   message,
-  onResume,
-  onUseDifferentAccount,
 }: {
   maskedEmail: string | null;
   status: "idle" | "sending" | MagicLinkResult["status"];
   message: string;
-  onResume: () => void;
-  onUseDifferentAccount: () => void;
 }): React.JSX.Element {
-  const settled = status === "sending" || status === "sent";
-  const continueLabel = maskedEmail
-    ? `Continue as ${maskedEmail}`
-    : "Email me a sign-in link";
   return (
     <section className="loginPageWelcomeBack" aria-label="Continue signed in">
-      <h2 className="loginPageWelcomeBackTitle">Welcome back</h2>
       <p className="loginPageWelcomeBackLead">
         Your session on this device ended.
         {maskedEmail
           ? ` Continue as ${maskedEmail}.`
           : " Continue with your saved sign-in."}
       </p>
-      <button
-        type="button"
-        className="loginPagePrimary loginPageWelcomeBackContinue"
-        onClick={onResume}
-        disabled={settled}
-      >
-        {status === "sending"
-          ? "Sending…"
-          : status === "sent"
-            ? "Link sent"
-            : continueLabel}
-      </button>
       {message ? (
         <p
           className={
@@ -222,13 +207,6 @@ function WelcomeBackCard({
           {message}
         </p>
       ) : null}
-      <button
-        type="button"
-        className="loginPageQuietLink loginPageWelcomeBackSwitch"
-        onClick={onUseDifferentAccount}
-      >
-        Use a different account
-      </button>
     </section>
   );
 }
@@ -273,17 +251,42 @@ function SignInSkeleton(): React.JSX.Element {
   );
 }
 
-/** What the page says, which is the first thing a door differs in. */
+/**
+ * What the page says, which is the first thing a door differs in.
+ *
+ * With a primary it is the launch head (docs/design/LAUNCH_SCREENS.md): the
+ * Screen primitive paints the ONE filled control. The kicker stays the brand,
+ * because words painted beside the wordmark name the BRAND
+ * (__tests__/brandNaming.test.ts renders this head on its own).
+ */
 export function PageHead({
   title,
   lead,
+  primary,
+  secondary,
 }: {
   title: string;
   lead: string;
+  primary?: ReactElement;
+  secondary?: ReactElement;
 }): React.JSX.Element {
+  if (primary) {
+    return (
+      <Screen
+        as="div"
+        className="loginPageHead"
+        kicker={BRAND_NAME}
+        title={title}
+        titleId="login-title"
+        lede={lead}
+        primary={primary}
+        secondary={secondary}
+      />
+    );
+  }
   return (
     <header className="loginPageHead">
-      <p className="loginPageEyebrow">{BRAND_NAME}</p>
+      <Kicker>{BRAND_NAME}</Kicker>
       <h1 className="loginPageTitle">{title}</h1>
       <p className="loginPageLead">{lead}</p>
     </header>
@@ -374,6 +377,10 @@ export default function LoginPage({
   // Seeded from the URL on the server (app/login/page.tsx), so the right door
   // is open on first paint and switching is a local, instant thing.
   const [intent, setIntent] = useState<ArrivalIntent>(initialIntent);
+  // The head's Send reaches the email form below it. MagicLinkForm is shared
+  // with the nav popover and owns its own submit, so the head finds the field
+  // through this wrapper rather than the form growing a second doorway.
+  const formRegion = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const onPageShow = (event: PageTransitionEvent) => {
@@ -508,11 +515,67 @@ export default function LoginPage({
     intent,
     door,
   });
+  const showWelcomeBack =
+    !loading && !showSignedIn && hasAuthSurface && Boolean(welcomeBack) && !useDifferentAccount;
+  const showForm =
+    !loading && !showSignedIn && hasAuthSurface && (!welcomeBack || useDifferentAccount);
+
+  /**
+   * The head's Send is the email form's own submit, reached from above it the
+   * way /plan's Sort it is: with nothing typed, the tap puts the caret in the
+   * field, which is the one thing left to do.
+   */
+  const sendFromHead = useCallback(() => {
+    const input = formRegion.current?.querySelector<HTMLInputElement>(
+      'input[type="email"]',
+    );
+    if (!input) return;
+    if (input.value.trim()) input.form?.requestSubmit();
+    else input.focus();
+  }, []);
+
+  // ONE primary for the page, decided by the same state the body is. A signed-in
+  // reader's is the map; a returning device's is the one-tap resume; everybody
+  // else's is the link.
+  const resumeSettled = resumeStatus === "sending" || resumeStatus === "sent";
+  const headPrimary: ReactElement = showSignedIn && !loading ? (
+    <Link href="/map">Continue to the map</Link>
+  ) : showWelcomeBack ? (
+    <button type="button" onClick={() => void onResume()} disabled={resumeSettled}>
+      {resumeStatus === "sending"
+        ? "Sending…"
+        : resumeStatus === "sent"
+          ? "Link sent"
+          : welcomeBack?.maskedEmail
+            ? `Continue as ${welcomeBack.maskedEmail}`
+            : "Email me a sign-in link"}
+    </button>
+  ) : (
+    <button
+      type="button"
+      onClick={sendFromHead}
+      disabled={loading || !showForm || !configured}
+    >
+      Send the link
+    </button>
+  );
+  const headSecondary: ReactElement | undefined = showSignedIn && !loading ? (
+    <Link href="/u/you">Your profile</Link>
+  ) : showWelcomeBack ? (
+    <button type="button" onClick={() => setUseDifferentAccount(true)}>
+      Use a different account
+    </button>
+  ) : undefined;
 
   return (
     <main className="loginPage">
       <div className="loginPageInner">
-        <PageHead title={head.title} lead={head.lead} />
+        <PageHead
+          title={head.title}
+          lead={head.lead}
+          primary={headPrimary}
+          secondary={headSecondary}
+        />
 
         {!hasAuthSurface && !loading ? (
           <p className="loginPageNotice" role="status">
@@ -538,18 +601,16 @@ export default function LoginPage({
           />
         ) : null}
 
-        {!loading && !showSignedIn && hasAuthSurface && welcomeBack && !useDifferentAccount ? (
+        {showWelcomeBack && welcomeBack ? (
           <WelcomeBackCard
             maskedEmail={welcomeBack.maskedEmail}
             status={resumeStatus}
             message={resumeMessage}
-            onResume={onResume}
-            onUseDifferentAccount={() => setUseDifferentAccount(true)}
           />
         ) : null}
 
-        {!loading && !showSignedIn && hasAuthSurface && (!welcomeBack || useDifferentAccount) ? (
-          <section className="loginPageForm" aria-label="Sign-in options">
+        {showForm ? (
+          <section ref={formRegion} className="loginPageForm" aria-label="Sign-in options">
             <DoorSwitch intent={intent} onChoose={chooseDoor} />
             <div className="authOptions">
               {configured || clerkSessionAvailable ? (

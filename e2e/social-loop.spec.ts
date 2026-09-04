@@ -40,7 +40,7 @@ test("feed shows real pub names, is shareable, and links to the map (§9/§11)",
 
   // Deterministic scaffold: the feed heading always renders (loading, ready, or
   // the empty state), so wait on it before branching on card presence.
-  await expect(page.locator(".feedTitle")).toBeVisible();
+  await expect(page.locator(".screenTitle").first()).toBeVisible();
 
   const cards = page.locator(".feedCard:not(.feedCardSkeleton)");
   // Web-first wait for EITHER real cards OR the social empty state, so we never
@@ -92,7 +92,7 @@ test("feed cards carry a one-tap 'Cheers' reaction chip (A4)", async ({ page }) 
 
   const response = await page.goto("/feed");
   expect(response?.status()).toBe(200);
-  await expect(page.locator(".feedTitle")).toBeVisible();
+  await expect(page.locator(".screenTitle").first()).toBeVisible();
 
   const cards = page.locator(".feedCard:not(.feedCardSkeleton)");
   await expect
@@ -116,7 +116,7 @@ test("feed cards carry a one-tap 'Cheers' reaction chip (A4)", async ({ page }) 
 
 test("feed → map: clicking a pub name opens the map with it selected", async ({ page }) => {
   await page.goto("/feed");
-  await expect(page.locator(".feedTitle")).toBeVisible();
+  await expect(page.locator(".screenTitle").first()).toBeVisible();
 
   const cards = page.locator(".feedCard:not(.feedCardSkeleton)");
   await expect
@@ -300,7 +300,7 @@ test("borough index lists boroughs, each linking to its own page (§14/§25)", a
   // The page heading always renders. The dataset ships with the app, so the grid
   // is populated in practice — but guard for [] so an empty dataset shows its
   // friendly note rather than failing the run.
-  await expect(page.locator(".boroughTitle")).toBeVisible();
+  await expect(page.locator(".screenTitle").first()).toBeVisible();
   const cards = page.locator(".boroughGrid .boroughCard");
   await expect
     .poll(async () => (await cards.count()) + (await page.locator(".boroughEmpty").count()))
@@ -325,7 +325,7 @@ test("a real borough page ranks pubs that link onto the map (§14/§25)", async 
   const response = await page.goto("/borough/westminster");
   expect(response?.status()).toBe(200);
 
-  await expect(page.locator("h1.boroughTitle")).toContainText("Pubs in");
+  await expect(page.locator("h1.screenTitle")).toContainText("Pubs in");
 
   // The ranked table renders (guard for the empty state in case the dataset ever
   // stops carrying this borough — the page must still not fail).
@@ -521,7 +521,7 @@ test("mobile feed reveals more cards on scroll without clicking 'Load more' (§2
 
   const response = await page.goto("/feed");
   expect(response?.status()).toBe(200);
-  await expect(page.locator(".feedTitle")).toBeVisible();
+  await expect(page.locator(".screenTitle").first()).toBeVisible();
 
   const cards = page.locator(".feedCard:not(.feedCardSkeleton)");
   // Web-first: wait until either real cards OR the empty state settled, so we
@@ -556,7 +556,7 @@ test("mobile feed lane controls keep thumb-sized targets without page overflow",
 
   const response = await page.goto("/feed");
   expect(response?.status()).toBe(200);
-  await expect(page.locator(".feedTitle")).toBeVisible();
+  await expect(page.locator(".screenTitle").first()).toBeVisible();
 
   const result = await page.evaluate(() => {
     const rail = document.querySelector<HTMLElement>(".feedFilters");

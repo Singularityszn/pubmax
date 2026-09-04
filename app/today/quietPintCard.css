@@ -109,35 +109,24 @@
   color: var(--state-active-ink);
 }
 
+/* Rows inside the card are a list, not a second card each: a hairline between
+   rows does the grouping (docs/DESIGN_SYSTEM.md "Edges: the de-box rule") and
+   the row's text lines up with the card's own heading. */
 .quietPintList {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
 }
 
 .quietPintRow {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--panel-raised) 60%, transparent);
-  transition:
-    border-color var(--duration-base, 0.15s) var(--ease-out),
-    background var(--duration-base, 0.15s) var(--ease-out);
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .quietPintRow:hover {
-    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
-  }
-}
-
-.quietPintRow:has(:active) {
-  border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
-  background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
+.quietPintRow + .quietPintRow {
+  border-top: 1px solid var(--line);
 }
 
 .quietPintLink {
@@ -146,11 +135,23 @@
   justify-content: center;
   gap: 6px;
   min-height: 44px;
-  padding: 12px 14px 8px;
+  padding: 12px 0 8px;
   color: inherit;
   text-decoration: none;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  transition: background var(--duration-base, 0.15s) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .quietPintLink:hover .quietPintName {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+.quietPintLink:active {
+  background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
 }
 
 .quietPintTop {
@@ -176,7 +177,7 @@
 }
 
 .quietPintHeritage {
-  padding: 0 14px 8px;
+  padding: 0 0 8px;
   font-size: 0.85rem;
   line-height: 1.5;
   color: var(--ink-soft);
@@ -188,7 +189,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 10px;
-  padding: 0 14px 12px;
+  padding: 0 0 12px;
 }
 
 .quietPintGrade,

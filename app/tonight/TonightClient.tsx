@@ -28,7 +28,7 @@ import {
 
 import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
-import Kicker from "@/components/ui/kicker";
+import Screen from "@/components/ui/screen";
 import { useWhatsOnTonight, type TonightFreshnessKind } from "@/components/map/useWhatsOnTonight";
 import { useOutListings } from "@/components/out/useOutListings";
 import EditorialRail from "@/components/out/EditorialRail";
@@ -105,11 +105,6 @@ import "./tonightOnTonightSummary.css";
 
 type Origin = { lat: number; lng: number };
 type LocationStatus = "idle" | "requesting" | "unavailable";
-
-function TonightListingLede({ lede }: { lede: string | null }) {
-  if (!lede) return null;
-  return <p className="tonightLede">{lede}</p>;
-}
 
 // Honest source-freshness label (L13 contract): an unknown source is stated as
 // such, never the request instant dressed as a check. An undatable source drops
@@ -477,23 +472,41 @@ export default function TonightClient({
       data-listings-status={listingsStatus}
     >
       <SiteNav active="tonight" />
+      <NowSegment current="tonight" />
 
-      <div className="tonightDesktopGrid">
-      <header className="tonightHead">
-        <NowSegment current="tonight" />
-        <div className="tonightEyebrowRow">
-          <Kicker className="tonightEyebrow">Tonight in London</Kicker>
-          <TonightShareButton />
-        </div>
-        <h1 className="tonightTitle">{tonightHeading(localityBasis)}</h1>
-        <TonightListingLede lede={listingLede} />
+      {/* The head is the Screen primitive (docs/design/LAUNCH_SCREENS.md), and
+          the Screen is the desktop grid: its head takes the first cell, the
+          credits and the listing spine follow it down the primary column, and
+          the context rail sits beside them. The map is the one primary,
+          because that is where tonight's listings become a pint; Find my
+          pint is the quieter way onward. */}
+      <Screen
+        as="div"
+        className="tonightDesktopGrid"
+        kicker="Tonight in London"
+        title={tonightHeading(localityBasis)}
+        titleId="tonight-title"
+        lede={listingLede}
+        primary={
+          <Link prefetch={false} href="/map">
+            See them on the map
+          </Link>
+        }
+        secondary={
+          <Link prefetch={false} href="/near?locate=1">
+            Find my pint
+          </Link>
+        }
+      >
+      <div className="tonightHeadCredits">
         {ready || empty ? (
           <TonightProvenanceLines
             provenance={provenance}
             nearestSuffix={nearestPatchSuffix}
           />
         ) : null}
-      </header>
+        <TonightShareButton />
+      </div>
 
       <aside className="tonightContext" aria-label="Tonight at a glance">
         <TonightConditionsStrip origin={origin} />
@@ -836,15 +849,6 @@ export default function TonightClient({
               </button>
             </p>
           ) : null}
-
-          {/* The route's one primary action (docs/design/LAUNCH_SCREENS.md):
-              the map is where tonight's listings become a pint. */}
-          <p className="tonightFoot" data-primary-action="">
-            <Link prefetch={false} href="/map" className="tonightFootLink">
-              See them on the map
-              <ArrowRight size={14} aria-hidden="true" />
-            </Link>
-          </p>
         </>
       ) : null}
 
@@ -963,7 +967,7 @@ export default function TonightClient({
         </section>
       ) : null}
       </div>
-      </div>
+      </Screen>
     </main>
   );
 }

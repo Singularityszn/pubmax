@@ -27,20 +27,19 @@
   width: min(26rem, 100%);
 }
 
-.loginPageHead {
-  display: grid;
-  gap: 0.4rem;
+/* The head is the shared Screen primitive (components/ui/screen.css). The
+   inner column already sets the measure, so the head drops the Screen's page
+   gutters and its top padding. */
+.loginPageInner .loginPageHead {
+  width: 100%;
+  padding-inline: 0;
 }
 
-.loginPageEyebrow {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.01em;
+.loginPageInner .loginPageHead .screenHead {
+  padding-top: 0;
 }
 
-.loginPageTitle {
+.loginPageHead .loginPageTitle {
   margin: 0;
   font-size: clamp(1.75rem, 6vw, 2.15rem);
   line-height: 1.08;
@@ -209,34 +208,12 @@
   box-shadow: 0 16px 40px color-mix(in srgb, var(--ink-deep) 12%, transparent);
 }
 
-.loginPageWelcomeBackTitle {
-  margin: 0;
-  font-size: 1.05rem;
-  line-height: 1.25;
-}
-
 .loginPageWelcomeBackLead {
   margin: 0;
   color: var(--ink-soft);
   font-size: 0.9rem;
   line-height: 1.45;
   overflow-wrap: anywhere;
-}
-
-.loginPageWelcomeBackContinue {
-  max-width: 100%;
-  overflow-wrap: anywhere;
-}
-
-.loginPageWelcomeBackSwitch {
-  min-height: 44px;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.86rem;
-  font-weight: 650;
 }
 
 .loginPageSignedIn {
@@ -291,42 +268,18 @@
   gap: 0.5rem;
 }
 
-.loginPagePrimary,
-.loginPageSecondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 46px;
-  padding: 0.55rem 0.9rem;
-  border-radius: var(--control-radius, 14px);
-  font: inherit;
-  font-weight: 700;
-  font-size: 0.92rem;
-  text-decoration: none;
-  transition:
-    border-color 0.18s ease,
-    background-color 0.18s ease;
-}
-
-.loginPagePrimary {
-  border: 1px solid var(--brass-accessible);
-  background: var(--brass-accessible);
-  color: var(--color-on-photo);
-}
-
-.loginPageSecondary {
-  border: 1px solid var(--line);
+/* The head's Screen paints the one filled control on this page, so the email
+   form's own submit, shared with the nav popover, is a bordered secondary here. */
+.loginPageForm .authSignIn.authMagicLinkButton {
+  border-color: var(--line);
   background: var(--panel);
   color: var(--ink);
 }
 
-.loginPagePrimary:hover {
-  border-color: color-mix(in srgb, var(--brass-accessible) 88%, var(--ink-deep) 12%);
-  background: color-mix(in srgb, var(--brass-accessible) 88%, var(--ink-deep) 12%);
-}
-
-.loginPageSecondary:hover {
+.loginPageForm .authSignIn.authMagicLinkButton:hover:not(:disabled) {
   border-color: var(--brass);
+  background: var(--panel);
+  color: var(--brass);
 }
 
 .loginPageSignOut {
@@ -394,7 +347,7 @@
    square, no border - so on a page of pills and 14px cards it read as a
    section title that happened to be tappable. The primary above it is the
    accent-filled "Email me a sign-in link"; this takes the SECONDARY shape
-   (`.loginPageSecondary`'s border, radius and panel fill), which is what makes
+   (a border, a radius and the panel fill), which is what makes
    the pair a hierarchy rather than two things of equal weight. */
 .loginPageHandlePasswordToggle {
   justify-content: center;
@@ -464,8 +417,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .loginPagePrimary,
-  .loginPageSecondary,
   .loginPageSignOut,
   .loginPageDoor {
     transition: none;

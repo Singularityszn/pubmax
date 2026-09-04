@@ -20,6 +20,7 @@ import {
 } from "react";
 
 import SignInButton from "@/components/auth/SignInButton";
+import Screen from "@/components/ui/screen";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import SiteNav from "@/components/nav/SiteNav";
@@ -135,6 +136,8 @@ export default function MomentCapture(): React.JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = safeMomentReturnTo(searchParams?.get("returnTo"));
+  const composerForm = useRef<HTMLFormElement | null>(null);
+  const captionField = useRef<HTMLTextAreaElement | null>(null);
   const { user, loading: authLoading } = useAuth();
   const viewerSession = useViewerSession();
   const ownerKey = user?.id ?? GUEST_OWNER;
@@ -484,19 +487,39 @@ export default function MomentCapture(): React.JSX.Element {
   return (
     <div className="momentPage">
       <SiteNav />
-      <main id="main" className="momentMain">
-        <header className="momentIntro">
-          <div className="momentIntroRail">
-            <span className="momentPrivacy"><LockKeyhole size={14} aria-hidden="true" /> Private first</span>
-            <Link href={returnTo} className="momentCancel">Cancel</Link>
-          </div>
-          <h1>Keep this one.</h1>
-          <p>
-            {isPhone
-              ? "Take the photo now. Decide what it means, and who sees it, when the night slows down."
-              : "Add a photo from this computer. Decide what it means, and who sees it, when the night slows down."}
-          </p>
-        </header>
+      {/* The launch head (docs/design/LAUNCH_SCREENS.md): kicker, heading,
+          ONE primary. Save is the composer's own submit, reached from the head
+          the way /plan's Sort it is: with nothing to save yet the tap puts the
+          caret in the caption, which is the one thing left to do. */}
+      <Screen
+        as="main"
+        id="main"
+        className="momentMain"
+        kicker="Moment"
+        title="Keep this one."
+        titleId="moment-title"
+        lede={
+          isPhone
+            ? "Take the photo now. Decide what it means, and who sees it, when the night slows down."
+            : "Add a photo from this computer. Decide what it means, and who sees it, when the night slows down."
+        }
+        primary={
+          <button
+            type="button"
+            disabled={saveState === "saving"}
+            onClick={() => {
+              if (canSave) composerForm.current?.requestSubmit();
+              else captionField.current?.focus();
+            }}
+          >
+            Save this Moment
+          </button>
+        }
+        secondary={<Link href={returnTo}>Back</Link>}
+      >
+        <p className="momentPrivacy">
+          <LockKeyhole size={14} aria-hidden="true" /> Private first
+        </p>
 
         <section className="momentIntent" aria-label="Choose what to save">
           <div className="momentIntentCurrent">
@@ -517,7 +540,12 @@ export default function MomentCapture(): React.JSX.Element {
           </Link>
         </section>
 
-        <form className="momentComposer" onSubmit={saveMoment} aria-label="Private Moment composer">
+        <form
+          ref={composerForm}
+          className="momentComposer"
+          onSubmit={saveMoment}
+          aria-label="Private Moment composer"
+        >
           <div className={`momentMediaGrid momentMediaGrid${draft.media.length || 1}`}>
             {draft.media.map((item) => (
               <figure className="momentMedia" key={item.id}>
@@ -600,6 +628,7 @@ export default function MomentCapture(): React.JSX.Element {
             <label>
               <span>What happened?</span>
               <textarea
+                ref={captionField}
                 value={draft.caption}
                 onChange={(event) => update({ caption: event.target.value })}
                 maxLength={500}
@@ -624,6 +653,9 @@ export default function MomentCapture(): React.JSX.Element {
             <span>{message}</span>
           </div>
 
+          {/* The head owns the one filled control. This is the same save, a
+              bordered secondary beside the fields it saves, because a phone
+              has the keyboard up and the head scrolled away by now. */}
           {user ? (
             <button className="momentSave" type="submit" disabled={!canSave}>
               {saveState === "saving" ? "Saving privately..." : "Save private Moment"}
@@ -662,7 +694,7 @@ export default function MomentCapture(): React.JSX.Element {
             </div>
           </section>
         ) : null}
-      </main>
+      </Screen>
     </div>
   );
 }

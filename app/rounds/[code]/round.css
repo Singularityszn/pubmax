@@ -18,6 +18,15 @@
   max-width: 640px;
 }
 
+/* /rounds (no code): the head is the shared Screen primitive
+   (components/ui/screen.css). The shell already pays the gutters, so the
+   column drops its own and keeps the board's width. */
+.roundShell .roundsIndexScreen {
+  width: 100%;
+  max-width: 640px;
+  padding-inline: 0;
+}
+
 .roundLoading {
   color: var(--muted);
   margin-top: 48px;

@@ -16,6 +16,8 @@ import Link from "next/link";
 import FoundingMemberMark from "@/components/founding/FoundingMemberMark";
 import SiteNav from "@/components/nav/SiteNav";
 import HandleAvatar from "@/components/profile/HandleAvatar";
+import EmptyState from "@/components/ui/empty-state";
+import Screen from "@/components/ui/screen";
 import {
   FOUNDERS_WALL_EMPTY,
   FOUNDERS_WALL_LEDE,
@@ -90,24 +92,31 @@ export default async function FoundersPage(): Promise<React.JSX.Element> {
   return (
     <div className="foundersPage">
       <SiteNav active="profile" />
-      <main id="main" className="foundersMain">
-        <header className="foundersHead">
-          <p className="foundersKicker">PUBMAXX</p>
-          <h1 className="foundersTitle">{FOUNDERS_WALL_TITLE}</h1>
-          <p className="foundersLede">{FOUNDERS_WALL_LEDE}</p>
-          {wall.status === "ready" && wall.members.length ? (
-            <p className="foundersCount">
-              {foundingSlotsRemainingLine(wall.members.length)}
-            </p>
-          ) : null}
-        </header>
+      {/* The launch head (docs/design/LAUNCH_SCREENS.md). The one primary is
+          the map, which is not a way onto the wall: the rule above holds. */}
+      <Screen
+        as="main"
+        id="main"
+        className="foundersMain"
+        kicker="Founding members"
+        title={FOUNDERS_WALL_TITLE}
+        titleId="founders-title"
+        lede={FOUNDERS_WALL_LEDE}
+        primary={<Link href="/map">Open the map</Link>}
+        secondary={<Link href="/social">Find your lot</Link>}
+      >
+        {wall.status === "ready" && wall.members.length ? (
+          <p className="foundersCount">
+            {foundingSlotsRemainingLine(wall.members.length)}
+          </p>
+        ) : null}
 
         {wall.status === "unavailable" ? (
-          <p className="foundersNotice" role="status">
-            {FOUNDERS_WALL_UNAVAILABLE}
-          </p>
+          <div role="status">
+            <EmptyState title={FOUNDERS_WALL_UNAVAILABLE} />
+          </div>
         ) : wall.members.length === 0 ? (
-          <p className="foundersNotice">{FOUNDERS_WALL_EMPTY}</p>
+          <EmptyState title={FOUNDERS_WALL_EMPTY} />
         ) : (
           <ol className="foundersList" aria-label="Founding members by number">
             {wall.members.map((member) => (
@@ -144,7 +153,7 @@ export default async function FoundersPage(): Promise<React.JSX.Element> {
             ))}
           </ol>
         )}
-      </main>
+      </Screen>
     </div>
   );
 }

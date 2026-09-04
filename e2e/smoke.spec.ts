@@ -114,7 +114,7 @@ test("/feed redirects to Social and renders its reachable boundary state (issue 
   // Default Chromium has no signed-in account. The exact launch copy can move,
   // but the reachable boundary must remain honest and actionable.
   await expect(
-    page.getByRole("heading", { name: "Social", exact: true }),
+    page.getByRole("heading", { name: "Crews and people who are already here." }),
   ).toBeVisible();
   await expect(page.getByText("Sign in to use Social.")).toBeVisible();
   expect(errors).toEqual([]);

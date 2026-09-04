@@ -16,38 +16,38 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import EmptyState from "@/components/EmptyState";
+import EmptyState from "@/components/ui/empty-state";
 
 // ── 1. Feed error/empty semantic distinction ───────────────────────────────
 
 describe("Feed error vs empty state", () => {
-  it("an error result renders role=alert (not a passive empty result)", () => {
+  // The primitive prints the title and one line and carries no live-region
+  // role of its own: the CALLER says whether the result is a failure or a
+  // passive empty answer, so the two can never share a role by accident.
+  it("renders the title and the one line, and leaves the role to the caller", () => {
     const html = renderToStaticMarkup(
-      createElement(EmptyState, {
-        title: "Couldn't load Stories.",
-        body: "Check your connection, then try again.",
-        role: "alert",
-      }),
+      createElement(
+        EmptyState,
+        { title: "Couldn't load Stories." },
+        "Check your connection, then try again.",
+      ),
     );
-    expect(html).toContain('role="alert"');
-    expect(html).not.toContain('role="status"');
     expect(html).toContain("load Stories.");
-    // renderToStaticMarkup HTML-encodes the apostrophe; match the encoded form.
     expect(html).toContain("Check your connection");
+    expect(html).not.toContain("role=");
   });
 
-  it("an empty-feed result renders role=status (a passive, honest result)", () => {
-    const html = renderToStaticMarkup(
-      createElement(EmptyState, {
-        eyebrow: "Quiet at the bar",
-        title: "No pints logged yet tonight.",
-        body: "Be the first to drop one.",
-        role: "status",
-      }),
+  it("the feed wraps its error branch in role=alert and never its empty branch", () => {
+    const source = readFileSync(
+      join(process.cwd(), "app/feed/FeedPageClient.tsx"),
+      "utf8",
     );
-    expect(html).toContain('role="status"');
-    expect(html).not.toContain('role="alert"');
-    expect(html).toContain("No pints logged yet tonight.");
+    const errorBlock =
+      source.match(/<div role="alert">\s*<EmptyState[\s\S]*?title="Couldn't load Stories\."/)?.[0] ?? "";
+    expect(errorBlock.length).toBeGreaterThan(0);
+    const emptyIndex = source.indexOf('title="No pints logged yet tonight."');
+    expect(emptyIndex).toBeGreaterThan(0);
+    expect(source.slice(Math.max(0, emptyIndex - 200), emptyIndex)).not.toContain('role="alert"');
   });
 
   // The core fix: 'error' status must never produce isEmpty=true.
@@ -138,29 +138,30 @@ describe("Feed empty-state CTA collapse", () => {
     expect(feedClientSource).toContain('aria-label="Create"');
   });
 
-  it("empty branch ships one primary CTA and at most one secondary link", () => {
-    // Isolate the isEmpty EmptyState props block (self-closing JSX).
+  // The launch head (docs/design/LAUNCH_SCREENS.md) owns the Pint Drop door
+  // as the page's ONE primary, so the empty state offers the other way in and
+  // nothing filled: one quiet action, never the old four-way stack.
+  it("empty branch ships one quiet action and leaves the primary to the head", () => {
     const emptyBlock =
       feedClientSource.match(
-        /eyebrow="Quiet at the bar"[\s\S]*?\/>/,
+        /title="No pints logged yet tonight\."[\s\S]*?<\/EmptyState>/,
       )?.[0] ?? "";
     expect(emptyBlock.length).toBeGreaterThan(0);
-    expect(emptyBlock).toContain('className="feedEmptyPrimary"');
-    expect(emptyBlock).toContain('className="feedEmptySecondary"');
-    expect(emptyBlock).toContain('href="/map?log=1"');
     expect(emptyBlock).toContain('href="/moment"');
-    // Exactly two action links in the empty action cluster, not the old
-    // four-way stack (header Capture + Log + We're out + Find a pub).
     const actionHrefs = emptyBlock.match(/href="[^"]+"/g) ?? [];
-    expect(actionHrefs).toHaveLength(2);
-    // We're out is not a third empty-state CTA.
+    expect(actionHrefs).toHaveLength(1);
+    // Neither the head's own door nor We're out is a second empty-state CTA.
+    expect(emptyBlock).not.toContain("/map?log=1");
     expect(emptyBlock).not.toContain("/we-are-out");
+    expect(feedClientSource).toMatch(
+      /primary=\{<Link href="\/map\?log=1">Drop a pint<\/Link>\}/,
+    );
   });
 
   it("error branch keeps a single retry action (no compose pile-on)", () => {
     const errorBlock =
       feedClientSource.match(
-        /title="Couldn't load Stories\."[\s\S]*?\/>/,
+        /title="Couldn't load Stories\."[\s\S]*?<\/EmptyState>/,
       )?.[0] ?? "";
     expect(errorBlock.length).toBeGreaterThan(0);
     expect(errorBlock).toContain("feedRetryBtn");
@@ -171,18 +172,22 @@ describe("Feed empty-state CTA collapse", () => {
     expect(errorBlock).not.toContain("/we-are-out");
   });
 
-  it("feedEmptyPrimary keeps a 44px primary touch target in CSS", () => {
-    expect(feedCss).toMatch(
-      /\.feedEmpty\s+\.emptyStateAction\s+a\.feedEmptyPrimary\s*\{[\s\S]*?min-height:\s*44px/,
+  // The way onward is the shared empty-state idiom (components/ui/emptyState.css):
+  // a bordered secondary at 44px, never a second filled primary. The feed's own
+  // stylesheet only sizes it to the column.
+  it("feedEmpty leaves the action's shape to the shared empty-state idiom", () => {
+    expect(feedCss).toMatch(/\.feedEmpty\s*\{[\s\S]*?max-width:\s*var\(--feed-max\)/);
+    expect(feedCss).not.toContain("feedEmptyPrimary");
+    expect(feedCss).not.toContain("feedEmptySecondary");
+    const emptyStateCss = readFileSync(
+      join(process.cwd(), "components/ui/emptyState.css"),
+      "utf8",
     );
-  });
-
-  it("feedEmptySecondary is a quiet text link, not a second primary button", () => {
-    expect(feedCss).toMatch(
-      /\.feedEmpty\s+\.emptyStateAction\s+a\.feedEmptySecondary\s*\{[\s\S]*?background:\s*transparent/,
+    expect(emptyStateCss).toMatch(
+      /\.emptyStateAction > :is\(a, button\)\s*\{[\s\S]*?min-height:\s*44px/,
     );
-    expect(feedCss).toMatch(
-      /\.feedEmpty\s+\.emptyStateAction\s+a\.feedEmptySecondary\s*\{[\s\S]*?text-decoration:\s*underline/,
+    expect(emptyStateCss).not.toMatch(
+      /\.emptyStateAction > :is\(a, button\)\s*\{[^}]*background:\s*var\(--accent-action\)/,
     );
   });
 });

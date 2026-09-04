@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import PubsGallery from "@/components/pubs/PubsGallery";
 import SiteNav from "@/components/nav/SiteNav";
+import Screen from "@/components/ui/screen";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import {
   countScrapedPubsBySource,
@@ -70,30 +71,31 @@ export default async function PubsPage({
     <main id="main" className="pubsShell">
       <SiteNav active="pubs" />
       <div className="pubsPage">
-        <header className="pubsHead">
-          <p className="pubsEyebrow">On the map</p>
-          <h1>{chainsHeading(count)}</h1>
-          <p className="pubsDek">
-            Young&apos;s gardens, Nicholson&apos;s historic rooms, and Greene King
-            menus we&apos;ve pulled onto the London map. Open a pub, check the
-            menu, or jump straight onto the pin.
-          </p>
-          <p className="pubsDek">
-            <Link href="/map">Browse every listed pub on the map</Link> for the
-            full priced set.
-          </p>
-        </header>
-        <PubsGallery
-          pubs={pageResult.rows}
-          matchingPubs={matchingPubs.length}
-          filter={filters.source as "all" | ScrapedPubSourceId}
-          zone={filters.zone ?? "all"}
-          counts={counts}
-          zonesPresent={zonesPresent}
-          page={pageResult.page}
-          totalPages={pageResult.totalPages}
-          complete={complete}
-        />
+        {/* The route's head is the launch Screen (docs/design/LAUNCH_SCREENS.md).
+            The heading stays the Chains count the page title prints, because
+            this page lists the chain pubs we have checked, not every pub. The
+            lede names the three chains so "Chains" cannot be misread. */}
+        <Screen
+          as="section"
+          kicker="Pubs"
+          title={chainsHeading(count)}
+          titleId="pubs-title"
+          lede="Young's gardens, Nicholson's historic rooms, and Greene King menus we have pulled onto the London map."
+          primary={<Link href="/map">Open the map</Link>}
+          secondary={<Link href="/near">Find my pint</Link>}
+        >
+          <PubsGallery
+            pubs={pageResult.rows}
+            matchingPubs={matchingPubs.length}
+            filter={filters.source as "all" | ScrapedPubSourceId}
+            zone={filters.zone ?? "all"}
+            counts={counts}
+            zonesPresent={zonesPresent}
+            page={pageResult.page}
+            totalPages={pageResult.totalPages}
+            complete={complete}
+          />
+        </Screen>
       </div>
     </main>
   );

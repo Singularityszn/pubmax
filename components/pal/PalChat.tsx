@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
+import Screen from "@/components/ui/screen";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import IntentLink from "@/components/nav/IntentLink";
@@ -219,6 +220,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
   const [knownVenueIds, setKnownVenueIds] = useState<ReadonlySet<string> | null>(null);
   const inputId = useId();
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const composerInput = useRef<HTMLInputElement | null>(null);
   const sessionRef = useRef<ReturnType<typeof createPalChatSession> | null>(null);
   const counterRef = useRef(0);
   // Every ask this thread has carried, oldest first. In-thread only.
@@ -460,23 +462,45 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
   return (
     <>
       <SiteNav />
-      <main id="main" className="palChat">
-      <header className="palChatHead">
-        {palHandoff ? (
-          <Link className="palChatBack" href="/pal">
-            ← Pub Pal
-          </Link>
-        ) : null}
-        <p className="palChatEyebrow">
-          <PubPalMascot size={18} circular />
-          Ask your Pub Pal
-        </p>
-        <h1 className="palChatTitle">{"What's the night?"}</h1>
-        <p className="palChatIntro">
-          Straight answers from what we have actually seen. Every card keeps its
-          source. No made-up venues, prices, or events.
-        </p>
-      </header>
+      {/* The launch head (docs/design/LAUNCH_SCREENS.md): kicker, heading,
+          ONE primary. Send is the composer's own submit, reached from the head
+          the way /plan's Sort it is: with nothing typed it puts the caret in
+          the field, which is the one thing left to do. */}
+      <Screen
+        as="main"
+        id="main"
+        className="palChat"
+        kicker={
+          <>
+            <PubPalMascot size={18} circular />
+            Your Pub Pal
+          </>
+        }
+        title={"What's the night?"}
+        titleId="pal-chat-title"
+        lede="Straight answers from what we have actually seen. Every card keeps its source. No made-up venues, prices, or events."
+        primary={
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              const input = composerInput.current;
+              if (!input) return;
+              if (input.value.trim()) input.form?.requestSubmit();
+              else input.focus();
+            }}
+          >
+            Send
+          </button>
+        }
+        secondary={
+          palHandoff ? (
+            <Link href="/pal">Back to your Pub Pal</Link>
+          ) : (
+            <Link href="/plan">Plan with the Pal</Link>
+          )
+        }
+      >
 
       <div className="palChatScroll" ref={scrollRef}>
         <div className="palChatTranscript" aria-live="polite">
@@ -660,6 +684,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
         </label>
         <input
           id={inputId}
+          ref={composerInput}
           className="palChatInput"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -677,7 +702,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
           <ArrowUp size={18} aria-hidden="true" />
         </button>
       </form>
-      </main>
+      </Screen>
     </>
   );
 }

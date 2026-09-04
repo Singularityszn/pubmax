@@ -133,7 +133,7 @@ test.describe("desktop taste wave 1", () => {
       expect(musicStyle.colour).toBe(musicStyle.expected);
 
       await page.goto("/pint-index");
-      await expectSentenceCase(page.locator(".pintIndexEyebrow").first());
+      await expectSentenceCase(page.locator(".kicker").first());
     });
 
     test(`Stories and Discover keep coral for actions in ${theme} mode`, async ({ page }) => {
@@ -141,15 +141,16 @@ test.describe("desktop taste wave 1", () => {
       await page.setViewportSize({ width: 1440, height: 900 });
 
       // /feed and /discover 308 to Social. Signed-out Stories owns one
-      // primary (the Sign in door). Coral fill is the composer, not a
-      // retired feed empty.
+      // primary (the Sign in door, in the Screen head). The boundary under
+      // it prints its line alone: no second link to the same page. Coral fill
+      // is the composer, not a retired feed empty.
       await page.goto("/social");
       await expect(page).toHaveURL(/\/social\/?$/);
       const storiesPrimary = page.locator("[data-primary-action]");
       await expect(storiesPrimary).toHaveCount(1);
-      await expect(
-        page.getByRole("status").getByRole("link", { name: "Sign in" }),
-      ).toBeVisible();
+      await expect(storiesPrimary.getByRole("link", { name: "Sign in" })).toBeVisible();
+      await expect(page.getByRole("status").getByText("Sign in to use Social.")).toBeVisible();
+      await expect(page.getByRole("status").getByRole("link", { name: "Sign in" })).toHaveCount(0);
       const boundaryStyle = await storiesPrimary.evaluate(
         (element) => getComputedStyle(element).borderStyle,
       );

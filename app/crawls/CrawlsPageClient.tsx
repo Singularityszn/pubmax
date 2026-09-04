@@ -15,6 +15,7 @@ import { formatGbp } from "@/lib/formatGbp";
 import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
 import SiteNav from "@/components/nav/SiteNav";
 import RoundStarter from "@/components/round/RoundStarter";
+import Screen from "@/components/ui/screen";
 import RouteThumbnail from "./RouteThumbnail";
 import {
   buildCrawlRouteSummary,
@@ -52,6 +53,32 @@ const GROUP_HEAD: Record<string, string> = {
 
 function groupHead(label: string): string {
   return GROUP_HEAD[label] ?? label;
+}
+
+// Every crawl after the featured one, grouped by crawlStyle theme. The heritage
+// rail leads; everything else keeps its first-seen order (stable). Nothing is
+// dropped, every crawl stays reachable. Pure, so the component derives it in
+// render and the React Compiler memoises what it sees fit.
+function groupCompactCrawls(crawls: CuratedCrawl[]): [string, CuratedCrawl[]][] {
+  const order: string[] = [];
+  const byLabel = new Map<string, CuratedCrawl[]>();
+  for (const crawl of crawls) {
+    const label = styleLabel(crawl.crawlStyle);
+    if (!byLabel.has(label)) {
+      byLabel.set(label, []);
+      order.push(label);
+    }
+    byLabel.get(label)!.push(crawl);
+  }
+  const ordered = order
+    .map((label, index) => ({ label, index }))
+    .sort((a, b) => {
+      const aHeritage = a.label === HERITAGE_GROUP_LABEL ? 0 : 1;
+      const bHeritage = b.label === HERITAGE_GROUP_LABEL ? 0 : 1;
+      return aHeritage - bHeritage || a.index - b.index;
+    })
+    .map((entry) => entry.label);
+  return ordered.map((label) => [label, byLabel.get(label)!]);
 }
 
 // Reproduce a crawl on the map from a story's stop ids, matching the existing
@@ -118,30 +145,7 @@ function CrawlsPageInner() {
   // reachable (featured + every group row), nothing is dropped, no repeated
   // full-card layout.
   const featuredCrawl = visibleCrawls[0];
-  const remainingCrawls = visibleCrawls.slice(1);
-  const compactGroups = useMemo<[string, CuratedCrawl[]][]>(() => {
-    const order: string[] = [];
-    const byLabel = new Map<string, CuratedCrawl[]>();
-    for (const crawl of remainingCrawls) {
-      const label = styleLabel(crawl.crawlStyle);
-      if (!byLabel.has(label)) {
-        byLabel.set(label, []);
-        order.push(label);
-      }
-      byLabel.get(label)!.push(crawl);
-    }
-    // Lift the heritage rail to the top; everything else keeps its first-seen
-    // order (stable). Nothing is dropped, every crawl stays reachable.
-    const ordered = order
-      .map((label, index) => ({ label, index }))
-      .sort((a, b) => {
-        const aHeritage = a.label === HERITAGE_GROUP_LABEL ? 0 : 1;
-        const bHeritage = b.label === HERITAGE_GROUP_LABEL ? 0 : 1;
-        return aHeritage - bHeritage || a.index - b.index;
-      })
-      .map((entry) => entry.label);
-    return ordered.map((label) => [label, byLabel.get(label)!]);
-  }, [remainingCrawls]);
+  const compactGroups = groupCompactCrawls(visibleCrawls.slice(1));
 
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState("");
@@ -170,15 +174,24 @@ function CrawlsPageInner() {
       {story ? (
         <CrawlPoster story={story} copied={copied} copyError={copyError} onCopy={copyShareLink} />
       ) : (
-        <section className="crawlEmpty" aria-labelledby="crawlsHeading">
-          <p className="crawlEyebrow">Crawls worth walking</p>
-          <h1 id="crawlsHeading">Pub stories mapped into walks.</h1>
-          <p className="crawlEmptyBody">
-            A Crawl Story is a shareable poster of a London pub crawl, the stops, the prices,
-            the vibe. Here are a few listed routes worth the walk. Pick one, or start your own
-            on the map.
-          </p>
-
+        // docs/design/LAUNCH_SCREENS.md: the one primary starts the featured
+        // crawl on the map; the quiet way onward is the bare map, where the
+        // reader builds their own. With nothing featured the primary falls
+        // back to the map rather than promising a route the page cannot name.
+        <Screen
+          as="section"
+          className="crawlEmpty"
+          kicker="Crawls"
+          title="Pub stories mapped into walks."
+          titleId="crawlsHeading"
+          lede="A Crawl Story is a shareable poster of a London pub crawl, the stops, the prices, the vibe. Here are a few listed routes worth the walk. Pick one, or start your own on the map."
+          primary={
+            <Link href={featuredCrawl ? curatedCrawlMapHref(featuredCrawl) : "/map"}>
+              Start a crawl
+            </Link>
+          }
+          secondary={<Link href="/map">Open the map</Link>}
+        >
           <nav className="routePackNav" aria-labelledby="routePacksHeading">
             <p className="crawlEyebrow" id="routePacksHeading">
               Jump to a route pack
@@ -244,10 +257,10 @@ function CrawlsPageInner() {
           <p className="crawlEmptyBody crawlOwnLead">
             Or build your own. Pick the pubs, pass the round on.
           </p>
-          <Link href="/map" className="crawlPrimaryBtn">
+          <Link href="/map" className="crawlSecondaryBtn">
             <MapPin size={16} aria-hidden="true" /> Build your own crawl on the map
           </Link>
-        </section>
+        </Screen>
       )}
     </main>
   );
@@ -299,7 +312,7 @@ function FeaturedCrawlCard({
         </p>
         <Link
           href={curatedCrawlMapHref(crawl)}
-          className="curatedLink curatedPlanBtn"
+          className="curatedPlanBtn"
           aria-label={`Plan the ${crawl.name} crawl on the map`}
         >
           Plan this crawl →
@@ -361,12 +374,21 @@ function CrawlPoster({
   const total = totalGbp(story);
   const pricedStops = story.stops.filter((stop) => typeof stop.priceGbp === "number").length;
 
+  // The same head the durable poster (/crawls/[slug]) wears: the kicker names
+  // the surface, the heading is the story's own name, the one primary starts
+  // the crawl on the map and the quiet way onward is the bare map.
   return (
     <article className="crawlPoster">
-      <header className="crawlPosterHead">
-        <p className="crawlEyebrow">A London crawl</p>
-        <h1>{story.title || "An untitled crawl"}</h1>
-        {story.caption ? <p className="crawlCaption">{story.caption}</p> : null}
+      <Screen
+        as="section"
+        className="crawlPosterHead"
+        kicker="Crawl"
+        title={story.title || "An untitled crawl"}
+        titleId="crawlPosterHeading"
+        lede={story.caption || undefined}
+        primary={<Link href={planCrawlHref(story)}>Start this crawl</Link>}
+        secondary={<Link href="/map">Open the map</Link>}
+      >
         {story.vibeTags.length ? (
           <ul className="crawlTags" aria-label="Crawl vibe tags">
             {story.vibeTags.map((tag) => (
@@ -376,50 +398,47 @@ function CrawlPoster({
             ))}
           </ul>
         ) : null}
-      </header>
 
-      <ol className="crawlStops">
-        {story.stops.map((stop, index) => (
-          <li key={`${stop.venueId || stop.name}-${index}`} className="crawlStop">
-            <span className="crawlStopNumber" aria-hidden="true">
-              {index + 1}
-            </span>
-            <div className="crawlStopBody">
-              <strong>{stop.name}</strong>
-              {stop.note ? <p className="crawlStopNote">{stop.note}</p> : null}
-            </div>
-            <span className="crawlStopPrice">
-              {typeof stop.priceGbp === "number" ? formatGbp(stop.priceGbp) : "–"}
-            </span>
-          </li>
-        ))}
-      </ol>
+        <ol className="crawlStops">
+          {story.stops.map((stop, index) => (
+            <li key={`${stop.venueId || stop.name}-${index}`} className="crawlStop">
+              <span className="crawlStopNumber" aria-hidden="true">
+                {index + 1}
+              </span>
+              <div className="crawlStopBody">
+                <strong>{stop.name}</strong>
+                {stop.note ? <p className="crawlStopNote">{stop.note}</p> : null}
+              </div>
+              <span className="crawlStopPrice">
+                {typeof stop.priceGbp === "number" ? formatGbp(stop.priceGbp) : "–"}
+              </span>
+            </li>
+          ))}
+        </ol>
 
-      <div className="crawlReceipt" role="group" aria-label="Crawl total">
-        <span>
-          Round total
-          <small>
-            {pricedStops} of {story.stops.length} stop{story.stops.length === 1 ? "" : "s"} priced
-          </small>
-        </span>
-        <strong>{formatGbp(total)}</strong>
-      </div>
+        <div className="crawlReceipt" role="group" aria-label="Crawl total">
+          <span>
+            Round total
+            <small>
+              {pricedStops} of {story.stops.length} stop{story.stops.length === 1 ? "" : "s"} priced
+            </small>
+          </span>
+          <strong>{formatGbp(total)}</strong>
+        </div>
 
-      <div className="crawlActions">
-        <Link href={planCrawlHref(story)} className="crawlPrimaryBtn">
-          <MapPin size={16} aria-hidden="true" /> Plan this crawl
-        </Link>
-        <button type="button" className="crawlSecondaryBtn" onClick={onCopy}>
-          {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
-          {/* aria-live announces the "Copied" confirmation to screen readers
-              without needing a separate status region — the button's own
-              accessible name updates and is polite (non-interrupting). */}
-          <span aria-live="polite">{copied ? "Copied" : "Copy share link"}</span>
-        </button>
-        {copyError ? <p role="status">{copyError}</p> : null}
-      </div>
+        <div className="crawlActions">
+          <button type="button" className="crawlSecondaryBtn" onClick={onCopy}>
+            {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+            {/* aria-live announces the "Copied" confirmation to screen readers
+                without needing a separate status region — the button's own
+                accessible name updates and is polite (non-interrupting). */}
+            <span aria-live="polite">{copied ? "Copied" : "Copy share link"}</span>
+          </button>
+          {copyError ? <p role="status">{copyError}</p> : null}
+        </div>
 
-      <p className="crawlFootnote">Pubs, prices and the route between them.</p>
+        <p className="crawlFootnote">Pubs, prices and the route between them.</p>
+      </Screen>
     </article>
   );
 }

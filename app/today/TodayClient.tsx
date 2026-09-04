@@ -35,7 +35,7 @@ import { useEffect, useState } from "react";
 
 import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
-import Kicker from "@/components/ui/kicker";
+import Screen from "@/components/ui/screen";
 import {
   buildDayGreeting,
   picksCardStatus,
@@ -426,16 +426,35 @@ export default function TodayClient({
   return (
     <main id="main" className="todayPage" data-testid="today-screen">
       <SiteNav active="today" />
+      <NowSegment current="day" />
 
-      <header className="todayHead" data-testid="today-greeting">
-        <NowSegment current="day" />
-        <Kicker className="todayEyebrow">{shownGreeting.salutation}</Kicker>
-        <h1 className="todayTitle" data-weather-aware={shownGreeting.weatherAware}>
-          {shownGreeting.headline}
-        </h1>
-        <p className="todayLede">{shownGreeting.support}</p>
-      </header>
-
+      {/* The head is the Screen primitive (docs/design/LAUNCH_SCREENS.md). The
+          kicker names the surface; the headline keeps its weather-aware
+          verdict, and the personal line (the salutation, the date, the sky) is
+          the one line under it. Find my pint is the one primary and the map
+          the quieter way onward. */}
+      <Screen
+        as="div"
+        className="todayScreen"
+        kicker="Today in London"
+        title={shownGreeting.headline}
+        titleId="today-title"
+        lede={
+          <span data-testid="today-greeting">
+            {shownGreeting.salutation}. {shownGreeting.support}
+          </span>
+        }
+        primary={
+          <Link prefetch={false} href="/near?locate=1">
+            Find my pint
+          </Link>
+        }
+        secondary={
+          <Link prefetch={false} href="/map">
+            Open the map
+          </Link>
+        }
+      >
       <div className="todayStack">
         <div className="todayBriefColumn">
           <WeatherCard weather={brief.weather} />
@@ -471,6 +490,7 @@ export default function TodayClient({
           Open the map
         </Link>
       </p>
+      </Screen>
     </main>
   );
 }

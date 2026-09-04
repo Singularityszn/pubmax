@@ -1,27 +1,15 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowUpRight, ExternalLink } from "lucide-react";
-
-import { PubPalMascot } from "@/components/pal/PubPalMascot";
 
 import JsonLd from "@/components/seo/JsonLd";
 import SiteNav from "@/components/nav/SiteNav";
-import ShareBar from "@/components/share/ShareBar";
-import { slugifyBorough } from "@/lib/boroughs";
-import { buildHistoricPubShareText } from "@/lib/shareArtifacts";
 import {
   getHistoricPubBySlug,
   loadHistoricPubs,
   type HistoricPub,
 } from "@/lib/historic";
-import {
-  citationLabel,
-  heritageSourceLabel,
-  listedBadge,
-  venueStatusBadge,
-} from "@/lib/historicFilter";
+import HistoricPubDetail from "./HistoricPubDetail";
 
 import "./historic-detail.css";
 
@@ -30,9 +18,10 @@ import "./historic-detail.css";
 //
 // Provenance-honest by construction: every fact is rendered verbatim with its
 // source named and a citation link derived strictly from the record's own
-// sourceRef. Nothing is invented; the metadata description is the pub's own hook,
-// not a fabricated claim. A parallel agent owns the colocated opengraph-image, so
-// this file only writes honest metadata — it never references the OG asset.
+// sourceRef (HistoricPubDetail.tsx). Nothing is invented; the metadata
+// description is the pub's own hook, not a fabricated claim. A parallel agent
+// owns the colocated opengraph-image, so this file only writes honest metadata
+// — it never references the OG asset.
 //
 // Next 15/16 dynamic route params are async: `params` is a Promise we await.
 // generateStaticParams pre-renders one static page per slug for clean SEO.
@@ -132,105 +121,12 @@ export default async function HistoricDetailPage({ params }: PageProps) {
   // Per-request CSP nonce (proxy.ts) for the JSON-LD block.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
-  const grade = listedBadge(pub.listed);
-  const status = venueStatusBadge(pub.venueStatus);
-  const boroughSlug = pub.borough ? slugifyBorough(pub.borough) : null;
-  const mapHref = pub.venueId ? `/map?sel=${pub.venueId}` : null;
-  const canonical = `/historic/${pub.slug}`;
-  const shareText = buildHistoricPubShareText({ name: pub.name, hook: pub.hook });
-
   return (
     <main id="main" className="hdPage">
       <JsonLd data={historicPubJsonLd(pub)} nonce={nonce} />
       <SiteNav active="historic" />
 
-      <p className="hdBack">
-        <Link href="/historic" className="hdBackLink">
-          &larr; All historic pubs
-        </Link>
-      </p>
-
-      <header className="hdHead">
-        {pub.era || grade || status ? (
-          <div className="hdMeta">
-            {pub.era ? <span className="hdEra">{pub.era}</span> : null}
-            {grade ? <span className="hdGrade">{grade}</span> : null}
-            {status ? <span className="hdGrade">{status}</span> : null}
-          </div>
-        ) : null}
-
-        <h1 className="hdTitle">{pub.name}</h1>
-
-        {pub.borough ? (
-          <p className="hdBorough">
-            {boroughSlug ? (
-              <Link href={`/borough/${boroughSlug}`} className="hdBoroughLink">
-                {pub.borough}
-              </Link>
-            ) : (
-              pub.borough
-            )}
-          </p>
-        ) : null}
-
-        {pub.hook ? <p className="hdHook">{pub.hook}</p> : null}
-      </header>
-
-      <section className="hdStory" aria-labelledby="hdStoryHeading">
-        <h2 id="hdStoryHeading" className="hdStoryHeading">
-          The record
-        </h2>
-
-        {pub.facts.length === 0 ? (
-          <p className="hdEmpty" role="status">
-            No fuller story on record. Every claim here is cited, and we
-            won&rsquo;t invent one to fill the gap.
-          </p>
-        ) : (
-          <ol className="hdFacts">
-            {pub.facts.map((fact, i) => (
-              <li key={`${fact.source}-${i}`} className="hdFact">
-                <p className="hdFactText">{fact.fact}</p>
-                <div className="hdFactProvenance">
-                  <span className="hdSource">{heritageSourceLabel(fact.source)}</span>
-                  {fact.sourceRef ? (
-                    <a
-                      className="hdCite"
-                      href={fact.sourceRef}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {citationLabel(fact.sourceRef)}
-                      <ExternalLink size={12} aria-hidden="true" />
-                    </a>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
-
-      <section className="hdActions" aria-label="Explore this pub">
-        {mapHref ? (
-          <div className="hdActionRow">
-            <Link className="hdAction hdActionPrimary pressable" href={mapHref}>
-              See on map
-              <ArrowUpRight size={15} aria-hidden="true" />
-            </Link>
-            <Link className="hdAction pressable" href={mapHref}>
-              <PubPalMascot size={14} circular lazy />
-              Ask your Pub Pal
-            </Link>
-          </div>
-        ) : null}
-
-        <ShareBar url={canonical} title={pub.name} text={shareText} />
-      </section>
-
-      <footer className="hdProvenance">
-        Cited from Wikipedia and Wikidata. Never invented.
-      </footer>
+      <HistoricPubDetail pub={pub} />
     </main>
   );
 }

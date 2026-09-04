@@ -60,7 +60,7 @@ test.describe("mobile Crawls surfaces", () => {
     const response = await page.goto("/crawls");
     expect(response?.status()).toBe(200);
 
-    await expect(page.getByRole("heading", { name: "Every pint has a story." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Pub stories mapped into walks." })).toBeVisible();
 
     // List-discipline pass: the old repeated full-card grid is now ONE
     // featured card (with the route thumb + plan CTA) plus compact,
@@ -125,7 +125,7 @@ test.describe("mobile Crawls surfaces", () => {
     const response = await page.goto("/crawls/not-a-real-crawl-story");
     expect(response?.status()).toBe(404);
 
-    await expect(page.getByRole("heading", { name: "No crawl here" })).toBeVisible();
+    await expect(page.locator(".emptyStateTitle", { hasText: "No crawl here" })).toBeVisible();
 
     const backToCrawls = page.getByRole("link", { name: "Back to crawls" });
     await expect(backToCrawls).toHaveAttribute("href", "/crawls");

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import Kicker from "@/components/ui/kicker";
 import { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/siteContact";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 
@@ -43,8 +44,10 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <main id="main" className="legalPage">
+      {/* A legal page has no primary action (docs/design/LAUNCH_SCREENS.md),
+          so the head is a kicker and the heading, never a Screen. */}
       <header className="legalHead">
-        <p className="legalEyebrow">Privacy</p>
+        <Kicker>Small print</Kicker>
         <h1 className="legalTitle">How PUBMAXX handles your data</h1>
         <p className="legalLede">
           You can browse the whole map, every price and every historic pub,

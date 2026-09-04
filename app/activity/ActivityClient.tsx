@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import EmptyState from "@/components/EmptyState";
+import EmptyState from "@/components/ui/empty-state";
+import Screen from "@/components/ui/screen";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import SignInButton from "@/components/auth/SignInButton";
@@ -203,22 +204,24 @@ export default function ActivityClient(): React.JSX.Element {
     <div className="activityShell">
       <SiteNav />
 
-      <main id="main" className="activity">
-        <header className="activityHead">
-          <h1>Activity</h1>
-          <p className="activitySub">Who followed you, cheered a pint, left a comment, or saved your crawl.</p>
-          {/* Quest chips (IDEAS B2-lite): "next badge" progress for the claimed
-              handle. Renders nothing without a handle, so the signed-out empty
-              state below stays exactly as it is. */}
-          {handleReady && visibleHandle.trim() ? <NextBadgeChips handle={visibleHandle} /> : null}
-        </header>
+      <Screen
+        as="main"
+        id="main"
+        className="activity"
+        kicker="Activity"
+        title="Activity"
+        titleId="activity-title"
+        lede="Who followed you, cheered a pint, left a comment, or saved your crawl."
+        primary={<Link href="/map">Open the map</Link>}
+        secondary={<Link href="/social">Find your lot</Link>}
+      >
+        {/* Quest chips (IDEAS B2-lite): "next badge" progress for the claimed
+            handle. Renders nothing without a handle, so the signed-out empty
+            state below stays exactly as it is. */}
+        {handleReady && visibleHandle.trim() ? <NextBadgeChips handle={visibleHandle} /> : null}
 
         {!socialFriendsLaunchEnabled ? (
-          <EmptyState
-            eyebrow="Activity"
-            title="Social preview"
-            body={socialBoundaryCopy("preview", false)}
-          />
+          <EmptyState title="Social preview">{socialBoundaryCopy("preview", false)}</EmptyState>
         ) : viewerSession.unresolved || !handleReady || loading ? (
           // Skeleton mirrors the ready-state grid so first paint already carries
           // the page's shape — a plain list on phones, rail + two-up timeline at
@@ -247,29 +250,27 @@ export default function ActivityClient(): React.JSX.Element {
             </ul>
           </div>
         ) : !visibleHandle.trim() ? (
-          <EmptyState
-            eyebrow="Activity"
-            title="This corner is yours. Claim it."
-            body="Sign in and choose a handle to see follows, cheers, comments and crawl saves here."
-            action={<SignInButton />}
-          />
+          <EmptyState title="This corner is yours. Claim it." action={<SignInButton />}>
+            Sign in and choose a handle to see follows, cheers, comments and
+            crawl saves here.
+          </EmptyState>
         ) : failed ? (
-          <EmptyState
-            title="Couldn't load your activity."
-            body="Couldn't load your activity. Try again."
-            role="alert"
-          />
+          <div role="alert">
+            <EmptyState
+              title="Couldn't load your activity."
+              action={
+                <button type="button" onClick={() => void load()}>
+                  Try again
+                </button>
+              }
+            />
+          </div>
         ) : items.length === 0 ? (
-          <EmptyState
-            eyebrow="Activity"
-            title="Nothing's landed yet."
-            body="When someone follows you, cheers a Pint Drop, leaves a comment or saves one of your crawls, it turns up here. Go give them a reason to."
-            action={
-              <Link href="/social" className="activityCta">
-                Open Social
-              </Link>
-            }
-          />
+          <EmptyState title="Nothing's landed yet." action={<Link href="/social">Open Social</Link>}>
+            When someone follows you, cheers a Pint Drop, leaves a comment or
+            saves one of your crawls, it turns up here. Go give them a reason
+            to.
+          </EmptyState>
         ) : (
           <div className="activityGrid">
             {/* Desktop rail: kind filters + a quick tally. Hidden below 1024px,
@@ -332,7 +333,7 @@ export default function ActivityClient(): React.JSX.Element {
             </ul>
           </div>
         )}
-      </main>
+      </Screen>
     </div>
   );
 }

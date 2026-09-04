@@ -78,7 +78,7 @@ for (const width of WIDTHS) {
       await expect(out).toBeVisible();
       await expect(out).toHaveAttribute("aria-current", "page");
       await expect(page.getByTestId("out-screen")).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Out", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "What’s on, sourced." })).toBeVisible();
       // The day chips are LINKS, not radios: each is a destination, so they keep
       // the link role and say where they are with aria-current.
       const when = page.getByRole("navigation", { name: "When" });

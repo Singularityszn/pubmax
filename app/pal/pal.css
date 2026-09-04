@@ -25,7 +25,7 @@
 .palExperience button, .palExperience a { -webkit-tap-highlight-color: transparent; }
 .palExperience button:active, .palExperience a:active { transform: scale(.98); --shared-press-scale: 1; }
 .palExperience button:focus-visible, .palExperience a:focus-visible, .palExperience input:focus-visible { outline: 3px solid var(--pal-mist); outline-offset: 3px; }
-.palExperience h1, .palExperience h2 { margin: 0; font-family: var(--font-display); letter-spacing: -.052em; }
+.palExperience h1:not(.screenTitle), .palExperience h2 { margin: 0; font-family: var(--font-display); letter-spacing: -.052em; }
 .palExperience p { margin: 0; }
 
 .palTopbar {
@@ -52,7 +52,7 @@
   letter-spacing: .01em;
 }
 
-.palMeetingStage, .palHomeHero {
+.palHomeHero {
   width: min(84rem, 100%);
   min-height: calc(100dvh - 10rem);
   margin: 0 auto;
@@ -60,6 +60,27 @@
   grid-template-columns: minmax(0, 1.04fr) minmax(20rem, .96fr);
   align-items: center;
   gap: clamp(2rem, 7vw, 8rem);
+}
+/* The first meeting is a launch Screen (components/ui/screen.tsx): head first,
+   then the portrait. A desktop sets the portrait beside the head, the way the
+   landing sets its pub card; the DOM order is the phone order. */
+.palMeeting .palMeetingStage {
+  width: min(84rem, 100%);
+  min-height: calc(100dvh - 10rem);
+  padding-inline: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  gap: clamp(1.5rem, 4vw, 3rem);
+}
+.palMeeting .screenHead { max-width: 35rem; padding-block: 0; }
+.palMeeting .screenTitle { max-width: 11ch; }
+@media (min-width: 960px) {
+  .palMeeting .palMeetingStage {
+    grid-template-columns: minmax(0, 1.04fr) minmax(20rem, .96fr);
+    align-items: center;
+    gap: clamp(2rem, 7vw, 8rem);
+  }
 }
 .palMeetingPortrait, .palHomePortrait, .palOnboardingPreview { position: relative; display: grid; place-items: center; }
 .palMeetingPortrait::before, .palHomePortrait::before, .palOnboardingPreview::before {
@@ -71,12 +92,9 @@
   background: color-mix(in srgb, var(--pal-accent) 12%, transparent);
   filter: blur(4rem);
 }
-.palMeetingCopy, .palHomeCopy { position: relative; z-index: 1; max-width: 35rem; }
-.palMeetingCopy h1 { max-width: 11ch; font-size: clamp(3.2rem, 6vw, 6.7rem); line-height: .91; }
+.palHomeCopy { position: relative; z-index: 1; max-width: 35rem; }
 .palHomeCopy h1 { font-size: clamp(4rem, 8vw, 8rem); line-height: .86; }
-.palMeetingCopy > p:not(.palEyebrow), .palHomeCopy > p:not(.palEyebrow) { max-width: 33rem; margin-top: 1.5rem; color: var(--pal-soft); font-size: clamp(1rem, 1.5vw, 1.18rem); line-height: 1.65; }
-.palMeetingActions { margin-top: 2rem; display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
-.palMeetingActions > a:not(.palPrimary) { min-height: 2.75rem; display: inline-flex; align-items: center; color: var(--pal-mist); text-underline-offset: .3rem; }
+.palHomeCopy > p:not(.palEyebrow) { max-width: 33rem; margin-top: 1.5rem; color: var(--pal-soft); font-size: clamp(1rem, 1.5vw, 1.18rem); line-height: 1.65; }
 
 .palPrimary {
   width: fit-content;
@@ -150,7 +168,9 @@
 .palPortraitScan { position: absolute; inset: 0; background: repeating-linear-gradient(180deg, transparent 0 .42rem, color-mix(in srgb, var(--signal) 12%, transparent) .45rem .49rem); mix-blend-mode: screen; }
 .palPortraitAccessory { position: absolute; z-index: 3; bottom: 22%; left: 50%; transform: translateX(-50%); padding: .35rem .65rem; border: 1px solid color-mix(in srgb, var(--signal) 40%, transparent); border-radius: 2rem; background: color-mix(in srgb, var(--ink-deep) 82%, transparent); color: color-mix(in srgb, var(--signal) 70%, white); font: 650 .59rem/1 var(--font-data); letter-spacing: .08em; text-transform: uppercase; }
 .palPortrait-chrome .palPortraitCore { background: linear-gradient(135deg, rgba(251, 251, 254, .25), color-mix(in srgb, var(--signal) 10%, transparent) 46%, rgba(251, 251, 254, .06)); }
-.palPortrait-glass .palPortraitCore { background: linear-gradient(155deg, rgba(251, 251, 254, .12), transparent 42%, color-mix(in srgb, var(--signal) 18%, transparent)); backdrop-filter: blur(.35rem); }
+/* Glass is a tint, not a blur: backdrop blur outside the sheet material is on
+   the template-pattern ban list (docs/VOICE.md). */
+.palPortrait-glass .palPortraitCore { background: linear-gradient(155deg, rgba(251, 251, 254, .16), color-mix(in srgb, var(--panel-raised) 30%, transparent) 42%, color-mix(in srgb, var(--signal) 18%, transparent)); }
 
 /* Original layered SVG rigs: silhouette, face, material, and signature prop
    remain separate groups so emotional state motion never deforms the whole
@@ -336,18 +356,11 @@
   .palExperience { padding: calc(1rem + env(safe-area-inset-top)) 1rem calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 3.25rem + var(--night-pill-clearance, 0px)); }
   .palTopbar { grid-template-columns: 1fr auto; }
   .palOnboarding .palTopbar { grid-template-columns: 1fr auto 1fr; }
-  .palMeetingStage, .palHomeHero, .palOnboardingLayout, .palControls { grid-template-columns: 1fr; }
-  .palMeetingStage { min-height: auto; align-content: start; gap: .5rem; }
+  .palHomeHero, .palOnboardingLayout, .palControls { grid-template-columns: 1fr; }
+  .palMeeting .palMeetingStage { min-height: auto; align-content: start; gap: 1rem; }
   .palMeetingPortrait, .palHomePortrait { min-height: 14rem; }
   .palMeetingPortrait .palPortrait, .palHomePortrait .palPortrait { width: min(18rem, 72vw); }
   .palMeetingPortrait .palSpeech, .palHomePortrait .palSpeech { right: 0; bottom: 1%; }
-  .palMeetingCopy { padding-bottom: 1.2rem; }
-  .palMeetingCopy h1 { font-size: clamp(2.8rem, 12.5vw, 4rem); }
-  .palMeetingCopy > p:not(.palEyebrow) { margin-top: 1rem; line-height: 1.5; }
-  .palMeetingActions { margin-top: 1.25rem; }
-  .palMeetingActions { display: grid; align-items: stretch; }
-  .palMeetingActions .palPrimary { width: 100%; }
-  .palMeetingActions > a:not(.palPrimary) { justify-content: center; }
   .palOnboardingLayout { min-height: auto; display: block; }
   .palOnboardingPreview { position: relative; top: auto; height: auto; min-height: 12rem; margin-top: .4rem; padding-bottom: .25rem; }
   .palOnboardingPreview .palPortrait { width: min(16rem, 68vw); }

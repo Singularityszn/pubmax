@@ -5,6 +5,9 @@ import "./socialViewerState.css";
 
 export type SocialViewerPhase = "unresolved" | "signed-out" | "resolved";
 
+/** The one door a stranger is offered on Social, and where it lands them back. */
+export const SOCIAL_SIGN_IN_HREF = "/login?mode=signin&from=%2Fsocial";
+
 export function SocialViewerState({
   phase,
   loadingLabel,
@@ -33,7 +36,7 @@ export function SocialViewerState({
   if (phase === "signed-out") {
     return (
       <p className="socialIdentityInvite">
-        {inviteMessage} <Link href="/login?mode=signin&from=%2Fsocial">Sign in</Link>
+        {inviteMessage} <Link href={SOCIAL_SIGN_IN_HREF}>Sign in</Link>
       </p>
     );
   }
