@@ -13,6 +13,7 @@
 // docs/PERFORMANCE_BUDGETS.md says no route but `/` and `/map` may lose. So the
 // list is fenced from both sides here.
 
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -20,7 +21,9 @@ import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { describe, expect, it } from "vitest";
 
 import {
+  BUILD_WRITTEN_STATIC_ASSET_PREFIXES,
   STATIC_ASSET_PREFIXES,
+  isBuildWrittenStaticAssetPrefix,
   isStaticAssetPath,
   staticAssetHeaderSources,
   staticAssetMatcherAlternatives,
@@ -28,6 +31,39 @@ import {
 import { config } from "@/proxy";
 
 const ROOT = process.cwd();
+
+/**
+ * The paths this repository actually HOLDS, read from the commit rather than
+ * from the working tree. A fresh `npm ci` checkout is what CI runs the unit
+ * suite on, so the working tree is the wrong witness: it also carries every
+ * build artifact and every ignored file a developer happens to have lying
+ * about, which is how `public/vendor/` passed here for weeks while being
+ * absent everywhere the check mattered.
+ */
+function committedPathsAtHead(): Set<string> {
+  return new Set(
+    execFileSync("git", ["ls-tree", "-r", "--name-only", "HEAD"], {
+      cwd: ROOT,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+    })
+      .split("\n")
+      .filter(Boolean),
+  );
+}
+
+const COMMITTED_PATHS = committedPathsAtHead();
+
+function hasCommittedBytes(prefix: string): boolean {
+  for (const path of COMMITTED_PATHS) {
+    if (path.startsWith(`public/${prefix}/`)) return true;
+  }
+  return false;
+}
+
+const PACKAGE_SCRIPTS: Record<string, string> = JSON.parse(
+  readFileSync(join(ROOT, "package.json"), "utf8"),
+).scripts;
 
 /** The general rule: the one matcher entry that claims ordinary paths. */
 function generalMatcherSource(): string {
@@ -44,9 +80,54 @@ function generalMatcherSource(): string {
 }
 
 describe("static asset prefixes", () => {
-  it("names only directories that exist under public/", () => {
+  // A prefix earns its place by BYTES THIS REPOSITORY HOLDS, and the witness is
+  // the commit. `existsSync` alone was the bug: `public/vendor/` is gitignored
+  // build output that `prebuild` writes, so it was there on every machine that
+  // had ever run the app and absent in the CI unit job, which checks out clean
+  // and runs `npx vitest run` with no build in front of it.
+  it("names only directories a clean checkout really holds", () => {
     for (const prefix of STATIC_ASSET_PREFIXES) {
+      if (isBuildWrittenStaticAssetPrefix(prefix)) continue;
+      expect(hasCommittedBytes(prefix), `public/${prefix}/ is committed`).toBe(
+        true,
+      );
       expect(existsSync(join(ROOT, "public", prefix))).toBe(true);
+    }
+  });
+
+  // The other half, and the assertion that would have caught this the day the
+  // prefix landed: a prefix with no committed bytes has to SAY it is written by
+  // the build, and its generator has to be a real script the build really runs.
+  it("proves every build-written prefix by its generator, not its bytes", () => {
+    for (const prefix of STATIC_ASSET_PREFIXES) {
+      expect(
+        hasCommittedBytes(prefix) || isBuildWrittenStaticAssetPrefix(prefix),
+        `${prefix} is committed or declared build-written`,
+      ).toBe(true);
+    }
+
+    for (const [prefix, generator] of Object.entries(
+      BUILD_WRITTEN_STATIC_ASSET_PREFIXES,
+    )) {
+      expect(STATIC_ASSET_PREFIXES, prefix).toContain(prefix);
+      expect(hasCommittedBytes(prefix), `${prefix} is not committed`).toBe(
+        false,
+      );
+      expect(generator.reason.length).toBeGreaterThan(0);
+
+      // The generator exists, and it writes where it claims to.
+      expect(existsSync(join(ROOT, generator.script))).toBe(true);
+      const generatorSource = readFileSync(
+        join(ROOT, generator.script),
+        "utf8",
+      );
+      expect(generatorSource).toContain('"public"');
+      expect(generatorSource).toContain(`"${prefix}"`);
+
+      // And the build really runs it, which is the whole reason a directory
+      // absent from the commit is still there for `next build` to serve.
+      expect(PACKAGE_SCRIPTS[generator.npmScript]).toContain(generator.script);
+      expect(PACKAGE_SCRIPTS.prebuild).toContain(generator.npmScript);
     }
   });
 
