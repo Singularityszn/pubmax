@@ -224,7 +224,7 @@
     {
       "path": "/u/you",
       "readySelector": "main.profileMain",
-      "why": "The signed-in account hub, and the document /profile actually serves. #1411 painted its copy from the HTML and its LCP fell to about 770 ms, comfortably inside this ceiling. The same change made the route HEAVIER: 1375 KB over 71 requests against ceilings of 1290 and 66, so the sweep reports it over budget. The ceilings are left where they are rather than moved to fit the measurement, which is the whole rule of this file.",
+      "why": "The signed-in account hub, and the document /profile actually serves. #1411 painted its copy from the HTML and its LCP fell to about 770 ms, comfortably inside this ceiling, but it also mounted the whole Wanted panel across the identity-loading paint and took the route to 1375 KB over 71 requests against ceilings of 1290 and 66. The ceilings were left where they are rather than moved to fit the measurement, which is the whole rule of this file, and the route came back under them instead: the head of the panel stays in the HTML and the body, the account hub, the crews panel and the timeline load after paint, for 1199 KB over 59 requests at 612 ms.",
       "serverRenderMs": 150,
       "jsDecodedKB": 1290,
       "requests": 66,
