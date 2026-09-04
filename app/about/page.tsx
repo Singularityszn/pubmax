@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 
+import JsonLd from "@/components/seo/JsonLd";
 import SiteNav from "@/components/nav/SiteNav";
 import Screen from "@/components/ui/screen";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
@@ -150,13 +151,11 @@ export default async function AboutPage() {
 
   return (
     <main id="main" className="aboutPage">
-      <script
-        type="application/ld+json"
-        nonce={nonce}
-        // JSON-LD is inert data, not executable script; serialised once on the
-        // server. XSS-safe: JSON.stringify of a fixed object, no user input.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      {/* JSON-LD is inert data, not executable script. It goes through the ONE
+          hardened injector (components/seo/JsonLd), which escapes every
+          HTML-significant character before the body is inlined, so a future
+          dynamic field here can never break out of the script element. */}
+      <JsonLd data={jsonLd} nonce={nonce} />
 
       {/* Wordmark + way out: same SiteNav shell as /pint-index and /plan. */}
       <SiteNav />
