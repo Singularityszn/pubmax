@@ -21,6 +21,14 @@ the branded launcher icon resolved, the splash handed over cleanly, the remote
 origin (`https://pubmaxxing.com`) rendering inside the WebView, and the system
 bars sitting outside the app's own content rather than over it.
 
+## `02-venue-sheet.png`
+
+The shell three taps in: onboarding taken, the map painted with real pins and
+real prices, a pub sheet open on the Duke of St. Albans. It is also where the
+in-emulator camera proof stops and the owner's device proof starts, and the
+screenshot says why: logging a price needs an account, and an account needs a
+magic link to an inbox. Section 8 step 12 owns that half.
+
 ## `02-permissions.txt`
 
 `adb shell dumpsys package com.pubmaxx.app`, trimmed to the permission block.
@@ -34,13 +42,23 @@ manifest and merges in on top; the app does not declare it.
 
 ## `03-app-links.txt`
 
-`adb shell pm get-app-links com.pubmaxx.app`. The verifier has picked the host
-up from the intent filters and reports a state for it, which is the half this
-branch can prove. The state is a FAILURE and is expected to be one: verification
-reads `https://pubmaxxing.com/.well-known/assetlinks.json`, and the fingerprint
-in that file is still the named placeholder because the signing certificate does
-not exist until the Play account does. `docs/STORE_READINESS.md` section 8 owns
-the weekend step that turns this green.
+The intent filters answering for themselves, through
+`adb shell pm query-activities`. All eight route families in
+`lib/nativeDeepLinks.ts` are claimed by the binary; `/tonight` and another host
+are not, which is the two halves of that three-way agreement agreeing.
 
-The `Signatures:` line is the DEBUG keystore's fingerprint, which is generated
-on this machine and is not the app's identity. Do not paste it anywhere.
+What this does NOT show is a VERIFIED App Link. Verification reads
+`https://pubmaxxing.com/.well-known/assetlinks.json`, and the fingerprint in
+that file is still the named placeholder because the signing certificate does
+not exist until the Play account does. Section 8 step 13 turns it green.
+
+## `04-bundle-release.txt`
+
+Both `./gradlew bundleRelease` lanes: with no upload key, and with a throwaway
+one. See the file for the sizes and the `jarsigner` result.
+
+## `05-camera-permission.txt`
+
+The camera permission moving from `granted=false` to `granted=true` on this
+binary. This is the narrow thing the manifest change fixes: the OS now has a
+runtime permission to grant. Before it, there was nothing to ask for.
