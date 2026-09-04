@@ -1,0 +1,9 @@
+[mcp_servers.browser]
+command = "node"
+args = ["scripts/run-browser-mcp.mjs"]
+
+[mcp_servers.citymcp-london]
+url = "https://citymcp.com/london/mcp"
+
+[mcp_servers.supabase]
+url = "https://mcp.supabase.com/mcp?project_ref=iankajxliutqogqkmvdg"

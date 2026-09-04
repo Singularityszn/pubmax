@@ -370,6 +370,9 @@ unsigned, and that `google-services.json` is absent and push will not register.
 Both are true and both are fixed below. A `BUILD SUCCESSFUL` here means the only
 things left are account-shaped.
 
+Nothing needs changing to clear Play's target-API requirement: `compileSdk` and
+`targetSdk` are already 36 in `android/variables.gradle`.
+
 **4. Firebase, for push.** console.firebase.google.com, create or reuse a
 project, add an Android app with package name **`com.pubmaxx.app`**, download the
 `google-services.json` it gives you and save it as `android/app/google-services.json`.
@@ -412,6 +415,13 @@ jarsigner -verify android/app/build/outputs/bundle/release/app-release.aab   # "
 ```
 
 The uploadable file is `android/app/build/outputs/bundle/release/app-release.aab`.
+
+**Every upload after the first needs a higher `versionCode`.** It is `1` in
+`android/app/build.gradle` and Play rejects a bundle whose code it has already
+seen, which is the rejection you will hit during the closed test rather than on
+the first upload. Raise it by one and rebuild each time; `versionName` is the
+string people read and can stay put or move as you like, but the CODE must
+climb.
 
 **6. Create the app in the Play Console: name PUBMAXXING**, default language
 English (United Kingdom), app not game, free. Category **Food & Drink**.
