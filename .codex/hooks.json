@@ -1,0 +1,34 @@
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'/Users/karanmanoharan/karan-agent-workspace/bin/fm-busy-event.sh' apply '/Users/karanmanoharan/karan-agent-workspace/state' 'speed-rig' idle --gen 'g1788470334.4311.3563' --source claude-hook --event session-end 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'/Users/karanmanoharan/karan-agent-workspace/bin/fm-busy-event.sh' apply '/Users/karanmanoharan/karan-agent-workspace/state' 'speed-rig' busy --gen 'g1788470334.4311.3563' --source claude-hook --event user-prompt-submit 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "touch '/Users/karanmanoharan/karan-agent-workspace/state/speed-rig.turn-ended'; '/Users/karanmanoharan/karan-agent-workspace/bin/fm-busy-event.sh' apply '/Users/karanmanoharan/karan-agent-workspace/state' 'speed-rig' idle --gen 'g1788470334.4311.3563' --source claude-hook --event stop 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}
