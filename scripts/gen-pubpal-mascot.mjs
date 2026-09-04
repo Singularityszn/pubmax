@@ -78,7 +78,7 @@ async function main() {
   }
   const slug = palMascotSlug(species);
   if (!slug) {
-    console.error(`${species} has no row in lib/palMascotAssets.mjs, so it falls back to its layered-SVG rig.`);
+    console.error(`${species} has no row in lib/palMascotAssets.mjs, so surfaces draw it as a legacy icon.`);
     console.error(`Add the row and name the same slug as its format in lib/pubPal.ts first.`);
     console.error(`Species with a master: ${palMascotSpeciesList().join(", ")}`);
     exit(1);

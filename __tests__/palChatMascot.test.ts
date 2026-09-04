@@ -23,6 +23,7 @@ vi.mock("@/lib/analytics", () => ({
 import {
   PAL_MASCOT_SIZES,
   PAL_MASCOT_SLUGS,
+  PAL_MASCOT_STAND_INS,
   PAL_MASCOT_WEBP_512_BUDGET,
   palMascotSlug,
 } from "@/lib/palMascotAssets.mjs";
@@ -104,13 +105,24 @@ describe("public mascot renditions", () => {
 
   // The manifest is what a surface reads and the slug table is what the generator
   // writes, so a species named in one and not the other would render a broken
-  // image or leave a shipped master unreachable.
+  // image or leave a shipped master unreachable. Every onboarding species has a
+  // master now, so the two tables must be the same set.
   it("agrees with the visual manifest about which species are rendered", () => {
     for (const [species, entry] of Object.entries(PAL_VISUAL_MANIFEST)) {
-      expect(entry.format).toBe(palMascotSlug(species) ?? "layered-svg");
+      expect(entry.format).toBe(palMascotSlug(species));
     }
     for (const species of Object.keys(PAL_MASCOT_SLUGS)) {
       expect(Object.keys(PAL_VISUAL_MANIFEST)).toContain(species);
     }
+  });
+
+  // A stand-in names a rendered species, never a slug of its own, so a legacy
+  // value can only ever borrow a master that really ships.
+  it("resolves a legacy stand-in to a rendered species' own master", () => {
+    for (const [legacy, target] of Object.entries(PAL_MASCOT_STAND_INS)) {
+      expect(Object.keys(PAL_MASCOT_SLUGS)).toContain(target);
+      expect(palMascotSlug(legacy)).toBe(PAL_MASCOT_SLUGS[target as keyof typeof PAL_MASCOT_SLUGS]);
+    }
+    expect(palMascotSlug("raven")).toBeNull();
   });
 });

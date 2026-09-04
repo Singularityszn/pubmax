@@ -17,9 +17,10 @@ export type PubPalMascotKind = "square" | "avatar";
 export const DEFAULT_MASCOT_SPECIES: PubPalSpecies = "robin";
 
 /**
- * The slug for a species that ships a master, or null when it has none and the
- * surface owes it a layered-SVG rig instead. This is the ONE question a surface
- * asks: nothing may compare a species name to decide which artwork to draw.
+ * The slug for a species that ships a master (or stands in for one), or null
+ * when it has none and the surface owes it a legacy icon instead. This is the
+ * ONE question a surface asks: nothing may compare a species name to decide
+ * which artwork to draw.
  */
 export function pubPalMascotSlugFor(species: PubPalSpecies): PalMascotSlug | null {
   return palMascotSlug(species);

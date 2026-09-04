@@ -70,6 +70,5 @@ describe("first-run companion choice", () => {
     // rather than keeping the robin's.
     const greyhoundImg = container.querySelector('img[alt="Pub Pal"]');
     expect(greyhoundImg?.getAttribute("src")).toContain("circuit-greyhound");
-    expect(container.querySelector(".palRigGreyhound")).toBeNull();
   });
 });
