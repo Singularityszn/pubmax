@@ -293,20 +293,153 @@ Everything above is done or ready to paste. The steps below need a real account,
 
 ### Apple App Store
 
-- [ ] **Enrol** in the Apple Developer Program, 99 USD per year, at developer.apple.com. Individual or Organization. Note the **Team ID** once issued.
-- [ ] **Activate Sign in with Apple when wanted:** create the App ID, Services ID, return URL, and provider key, then enable Apple in Supabase. [`DEPLOYMENT.md`](./DEPLOYMENT.md#apple) owns the detailed provider setup.
-- [ ] **Verify native auth return:** replace the `TEAMID` placeholder, add the Associated Domains capability, deploy the updated association file, then prove email, Google, and Apple callback URLs return to the signed-in app on a physical iPhone. Code accepts exact `/auth/callback`; association and device proof remain owner gates.
-- [ ] **Install full Xcode** from the Mac App Store (not just Command Line Tools). Confirm `xcode-select -p` points at `…/Xcode.app`.
-- [ ] `npm ci` then `npx cap sync ios`, then `npx cap open ios` to open the project in Xcode.
-- [ ] **Signing:** App target > Signing & Capabilities, select the team, confirm bundle id `com.pubmaxx.app`. Let Xcode manage signing.
-- [ ] **Certificates and profiles** are auto-managed by Xcode once the team is set. No manual keychain work needed for a first upload.
-- [ ] **Push (only when you want notifications live):** add the Push Notifications capability, create an APNs Auth Key in the developer portal, and set `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`, and `APNS_ENV` on the server. Use `APNS_ENV=production` for TestFlight and App Store production tokens. Use `APNS_ENV=sandbox` only for development-signed sandbox tokens. Missing or invalid `APNS_ENV` fails closed when credentials are configured. Never commit the `.p8` key. Verify delivery on the matching signed device. The APNs HTTP/2 transport exists in `lib/pushProvider.ts`; credentials, entitlement, signing, and device proof remain owner-only. See `docs/CAPACITOR_WRAP.md`.
-- [ ] **Universal links:** add the Associated Domains capability `applinks:pubmaxxing.com`, and replace the `TEAMID` placeholder in `public/.well-known/apple-app-site-association` with the real Team ID. Sign-in return depends on this gate.
-- [ ] **Create the app record in App Store Connect: name PUBMAXXING**, bundle id `com.pubmaxx.app`, primary language English (UK), category Food & Drink.
-- [ ] **Paste metadata** from sections 1 to 5 of this doc. Upload screenshots from section 6.
-- [ ] **Archive and upload** the first build: Xcode > Product > Archive > Distribute App > App Store Connect.
-- [ ] **TestFlight** internal test on your own device before submitting for review.
-- [ ] **Submit for review.** Do not submit until the three native superpowers are demonstrably live (real camera, push delivery, universal links), or expect a thin-wrapper rejection. See `docs/IOS_APP_PRD.md` section 4 step 9.
+Do the steps in this order. Each one names the command to run and what "done"
+looks like. Steps 1 to 3 are account work. Steps 4 to 9 are one Xcode session.
+Steps 10 to 15 are App Store Connect.
+
+Nothing in the repository blocks any of this. The Team ID is the only value the
+code still waits for, and it goes in exactly one file (step 3).
+
+**1. Enrol in the Apple Developer Program.**
+Go to <https://developer.apple.com/programs/enroll/>. Pay 99 USD per year.
+Choose Individual or Organization.
+*Done when:* Apple shows your **Team ID**, ten characters, at
+<https://developer.apple.com/account> under Membership details. Copy it.
+
+**2. Install full Xcode.**
+Install Xcode from the Mac App Store. Command Line Tools alone cannot build the
+app. Then point the toolchain at it:
+
+```sh
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+xcode-select -p
+```
+
+*Done when:* the second command prints a path inside `Xcode.app`.
+
+**3. Put the Team ID in the association file.**
+Replace `TEAMID` in `public/.well-known/apple-app-site-association` with the
+Team ID from step 1. There is one occurrence.
+
+```sh
+sed -i '' 's/TEAMID\.com\.pubmaxx\.app/<YOUR_TEAM_ID>.com.pubmaxx.app/' \
+  public/.well-known/apple-app-site-association
+grep appIDs public/.well-known/apple-app-site-association
+```
+
+*Done when:* the file reads `"appIDs": ["<YOUR_TEAM_ID>.com.pubmaxx.app"]`.
+Commit and deploy this before step 14, or universal links stay unverified.
+Note that `__tests__/iosCapabilities.test.ts` expects the placeholder, so update
+that test in the same commit.
+
+**4. Open the project.**
+
+```sh
+npm ci
+npx cap sync ios
+npx cap open ios
+```
+
+*Done when:* Xcode opens `ios/App/App.xcodeproj` and indexing finishes.
+
+**5. Set the signing team.**
+Select the **App** target, then Signing & Capabilities. Tick *Automatically
+manage signing*. Choose your team. The bundle id is already `com.pubmaxx.app`.
+*Done when:* Xcode shows a provisioning profile and no signing error.
+Certificates and profiles need no manual keychain work.
+
+**6. Confirm the two capabilities appeared.**
+`ios/App/App/App.entitlements` is in the repository and both build
+configurations point at it, so Xcode reads it rather than asking you to add
+anything.
+*Done when:* Signing & Capabilities lists **Push Notifications** and
+**Associated Domains** with `applinks:pubmaxxing.com`. If either is missing,
+the team in step 5 did not apply. Do not add them by hand: that writes a second
+entitlements file and the two then disagree.
+
+**7. Create the APNs Auth Key.**
+Go to <https://developer.apple.com/account/resources/authkeys/list>. Create a
+key. Tick *Apple Push Notifications service (APNs)*. Download the `.p8` file
+once, because Apple does not offer it twice. Keep it out of the repository.
+*Done when:* you hold the `.p8` file, its **Key ID**, and your Team ID.
+
+**8. Set the four APNs values on the server.**
+Set all four together in the Vercel project, Production and Preview:
+
+| Variable | Value |
+| --- | --- |
+| `APNS_KEY_ID` | the Key ID from step 7 |
+| `APNS_TEAM_ID` | the Team ID from step 1 |
+| `APNS_PRIVATE_KEY` | the whole `.p8` file contents, newlines included |
+| `APNS_ENV` | `sandbox` for a build you run from Xcode, `production` for TestFlight and the App Store |
+
+*Done when:* a redeployed server has all four. A partial set fails closed and
+sends nothing, which is deliberate. `lib/pushProvider.ts` speaks HTTP/2 to APNs
+and needs no other change.
+
+**9. Build to a simulator, then to your iPhone.**
+
+```sh
+xcodebuild -project ios/App/App.xcodeproj -scheme App \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' build
+```
+
+*Done when:* the build succeeds, and the app opens pubmaxxing.com. Then run it
+on your own iPhone from Xcode, because the simulator has no camera and receives
+no push.
+
+**10. Prove the three superpowers on the iPhone.**
+This is the gate that decides whether the app reads as a wrapped website.
+
+- **Camera.** Open a pub, tap Add photo on the price panel and on the photo
+  wall. The iOS sheet must offer Camera and Photo Library. Take one photo and
+  post it.
+- **Push.** Log a price, accept the notification explainer, then grant the
+  system permission. Check `push_tokens` holds a new `ios` row. Send one push
+  and tap it.
+- **Universal links.** Message yourself `https://pubmaxxing.com/tonight` and
+  `https://pubmaxxing.com/map?sel=<a venue id>`. Tap each from Messages.
+
+*Done when:* all three work on the device, not the simulator. Section 8 of this
+document and `docs/IOS_APP_PRD.md` section 4 step 9 both hold the app to this
+before submission.
+
+**11. Create the app record in App Store Connect: name PUBMAXXING.**
+Go to <https://appstoreconnect.apple.com/apps>, then the plus button, then New
+App. Bundle id `com.pubmaxx.app`. Primary language English (UK). Category Food
+& Drink. SKU `pubmaxxing-ios`.
+*Done when:* the app appears with status *Prepare for Submission*.
+
+**12. Paste the metadata and upload the screenshots.**
+Sections 1 to 3 of this document hold the name, subtitle, keywords, and both
+descriptions. Section 5 holds every App Privacy answer. Section 4 holds the age
+rating answers. The screenshots are already rendered at both required sizes in
+`public/store-assets/screenshots/ios-6.7/` and
+`public/store-assets/screenshots/ios-6.5/`, and each folder's
+`manifest.json` carries the caption for each shot.
+*Done when:* App Privacy shows no outstanding questions and both screenshot
+sizes are uploaded.
+
+**13. Activate Sign in with Apple, only if you want it at launch.**
+Create the App ID, Services ID, return URL, and provider key, then enable Apple
+in Supabase. [`DEPLOYMENT.md`](./DEPLOYMENT.md#apple) owns the detailed steps.
+*Done when:* an Apple sign-in returns to the signed-in app. Email and Google
+sign-in already work without this step.
+
+**14. Archive and upload the first build.**
+In Xcode choose a Generic iOS Device, then Product > Archive, then Distribute
+App > App Store Connect > Upload.
+*Done when:* the build appears in App Store Connect, usually within an hour.
+Apple emails about any missing privacy declaration; the repository ships
+`ios/App/App/PrivacyInfo.xcprivacy`, which answers the required-reason and
+data-collection questions.
+
+**15. TestFlight, then submit.**
+Install the build on your own iPhone through TestFlight. Repeat step 10 on the
+TestFlight build, because the entitlement environment changes between a build
+run from Xcode and a distributed one. Then submit for review.
+*Done when:* the app is *Waiting for Review*. Do not submit before step 10
+passes on TestFlight, or expect a thin-wrapper rejection.
 
 ### Google Play
 

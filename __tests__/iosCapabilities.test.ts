@@ -114,3 +114,43 @@ describe("the privacy manifest agrees with the answers we publish", () => {
     expect(read(PROJECT)).toContain("/* PrivacyInfo.xcprivacy in Resources */");
   });
 });
+
+describe("the weekend checklist matches the repository it describes", () => {
+  const readiness = read("docs/STORE_READINESS.md");
+
+  it("names all four APNs values, because a partial set sends nothing", () => {
+    for (const key of ["APNS_KEY_ID", "APNS_TEAM_ID", "APNS_PRIVATE_KEY", "APNS_ENV"]) {
+      expect(readiness, key).toContain(key);
+    }
+  });
+
+  it("tells the owner the capabilities are already declared", () => {
+    // Adding one by hand in Xcode writes a second entitlements file, and the
+    // two then disagree about what the app asks for.
+    expect(readiness).toContain("App.entitlements");
+    expect(readiness).toContain("Do not add them by hand");
+  });
+
+  it("keeps the submission gate on the three superpowers", () => {
+    expect(readiness).toContain("thin-wrapper rejection");
+    for (const proof of ["**Camera.**", "**Push.**", "**Universal links.**"]) {
+      expect(readiness, proof).toContain(proof);
+    }
+  });
+
+  it("points at screenshot folders that exist", () => {
+    for (const size of ["ios-6.7", "ios-6.5"]) {
+      expect(readiness, size).toContain(`public/store-assets/screenshots/${size}`);
+      expect(() =>
+        read(`public/store-assets/screenshots/${size}/manifest.json`),
+      ).not.toThrow();
+    }
+  });
+
+  it("warns that the Team ID edit breaks this file's own placeholder test", () => {
+    // Step 3 changes the value __tests__/iosCapabilities.test.ts asserts. A
+    // checklist that leaves the owner with a red suite on Saturday morning is
+    // a checklist that gets abandoned halfway.
+    expect(readiness).toContain("__tests__/iosCapabilities.test.ts");
+  });
+});
