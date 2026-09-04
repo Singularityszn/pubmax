@@ -25,6 +25,8 @@ import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { useContributionGate } from "@/components/identity/ContributionGateDialog";
 import { trackEvent } from "@/lib/analytics";
 import { haptic } from "@/lib/nativeHaptics";
+import { pickNativePhoto } from "@/lib/nativeCamera";
+import { isNativeApp } from "@/lib/nativePlatform";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import PriceContributionImpact from "@/components/map/PriceContributionImpact";
 import type { MissionSurface } from "@/lib/analyticsEvents";
@@ -249,6 +251,24 @@ export default function VenuePriceSubmit({
     if (pintPhotoInputRef.current) pintPhotoInputRef.current.value = "";
   }
 
+  // Inside the Capacitor shell the WebView's own chooser is the unreliable
+  // half: it drops its camera entry silently, and a pint in front of you is
+  // exactly the photo somebody wants to take rather than find. The native seam
+  // opens a sheet carrying BOTH the camera and the library, so the picker is
+  // still first. On the web this falls through to the file input unchanged.
+  async function openPintPhotoPicker() {
+    if (!isNativeApp()) {
+      pintPhotoInputRef.current?.click();
+      return;
+    }
+    const pick = await pickNativePhoto();
+    if (pick.outcome === "chosen") {
+      onPintPhotoChosen(pick.file);
+      return;
+    }
+    if (pick.outcome === "blocked") setError(pick.message);
+  }
+
   function onPintPhotoChosen(file: File | undefined) {
     if (!file) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
@@ -465,7 +485,7 @@ export default function VenuePriceSubmit({
         <button
           type="button"
           className="vpsubPhotoBtn"
-          onClick={() => pintPhotoInputRef.current?.click()}
+          onClick={() => void openPintPhotoPicker()}
           disabled={submitting || missionPending}
         >
           <Camera size={15} aria-hidden="true" />

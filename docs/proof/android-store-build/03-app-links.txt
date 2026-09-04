@@ -1,0 +1,5 @@
+  com.pubmaxx.app:
+    ID: 6ba7c25b-0836-422b-b4ad-532a5f0ac4ea
+    Signatures: [3B:91:6D:AC:7F:42:AD:CF:61:0B:D2:79:2C:5A:42:12:C3:DF:0C:D3:36:E0:91:F9:55:E0:54:71:65:D3:4D:A3]
+    Domain verification state:
+      pubmaxxing.com: 1024

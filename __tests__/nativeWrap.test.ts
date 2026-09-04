@@ -63,6 +63,47 @@ describe("Capacitor wrapped-build contract", () => {
     );
   });
 
+  it("declares the camera on BOTH platforms, not just the one that says it in words", () => {
+    // iOS states the camera in a sentence a person reads; Android states it in
+    // a manifest line the operating system reads. They are ONE promise kept in
+    // two files, and for a while only one of them was written down: an Android
+    // build with no CAMERA line answers every capture with a silent refusal -
+    // the Capacitor seam (lib/nativeCamera.ts), the `capture` inputs the
+    // WebView chooser opens, and the media read a chosen photo needs, all at
+    // once, with nothing on screen saying why.
+    const info = rootFile("ios/App/App/Info.plist");
+    expect(info).toContain("NSCameraUsageDescription");
+
+    const manifest = rootFile("android/app/src/main/AndroidManifest.xml");
+    expect(manifest).toContain("android.permission.CAMERA");
+    // Android 13 split the old storage permission per medium, so reading the
+    // photo somebody picked takes BOTH lines across the supported range.
+    expect(manifest).toContain("android.permission.READ_MEDIA_IMAGES");
+    expect(manifest).toContain("android.permission.READ_EXTERNAL_STORAGE");
+    expect(manifest).toContain('android:maxSdkVersion="32"');
+    // Nothing here asks to write to the library, on either platform.
+    expect(manifest).not.toContain("android.permission.WRITE_EXTERNAL_STORAGE");
+    expect(info).not.toContain("NSPhotoLibraryAddUsageDescription");
+  });
+
+  it("keeps a camera-less device inside the listing", () => {
+    // Declaring the CAMERA permission implicitly declares that the hardware is
+    // REQUIRED, and Play then hides the listing from every device without one.
+    // A pub map is worth having on a tablet with no camera, and the seam
+    // already treats a refused capture as "nothing chosen".
+    const manifest = rootFile("android/app/src/main/AndroidManifest.xml");
+    const features = [
+      ...manifest.matchAll(/<uses-feature([^>]*)\/>/g),
+    ].map((match) => match[1] ?? "");
+    expect(features.length).toBeGreaterThan(0);
+    for (const feature of features) {
+      expect(feature, feature).toContain('android:required="false"');
+    }
+    expect(
+      features.some((feature) => feature.includes("android.hardware.camera")),
+    ).toBe(true);
+  });
+
   it("declares foreground location access for native nearby and walk-time flows", () => {
     const info = rootFile("ios/App/App/Info.plist");
     expect(info).toContain("NSLocationWhenInUseUsageDescription");
@@ -146,6 +187,61 @@ describe("Capacitor wrapped-build contract", () => {
       expect(filter).toContain('android:host="pubmaxxing.com"');
     }
     expect(manifest).toContain('android:launchMode="singleTask"');
+  });
+
+  it("publishes an Android App Links statement naming this exact binary", () => {
+    // The AASA above is what iOS reads; this is what Android's verifier reads,
+    // and it is the ONLY thing standing between a verified App Link and a link
+    // that quietly keeps opening the browser. It is not path-scoped - the
+    // relation hands the whole host to the app - so the paths stay the intent
+    // filters' business and what this file has to get right is the IDENTITY.
+    const statements = JSON.parse(
+      rootFile("public/.well-known/assetlinks.json"),
+    ) as Array<{
+      relation: string[];
+      target: {
+        namespace: string;
+        package_name: string;
+        sha256_cert_fingerprints: string[];
+      };
+    }>;
+    expect(statements).toHaveLength(1);
+    const statement = statements[0];
+    expect(statement?.relation).toEqual(["delegate_permission/common.handle_all_urls"]);
+    expect(statement?.target.namespace).toBe("android_app");
+
+    // One binary, named the same way in all three places it is named.
+    expect(statement?.target.package_name).toBe(capacitorConfig.appId);
+    expect(rootFile("android/app/build.gradle")).toContain(
+      `applicationId "${capacitorConfig.appId}"`,
+    );
+
+    // The fingerprint is Google's app-signing certificate, which does not exist
+    // until the account does. It stays an obvious placeholder rather than a
+    // plausible-looking hex string somebody could mistake for live.
+    const fingerprints = statement?.target.sha256_cert_fingerprints ?? [];
+    expect(fingerprints).toHaveLength(1);
+    expect(fingerprints[0]).toBe("REPLACE_WITH_PLAY_APP_SIGNING_SHA256");
+    expect(fingerprints[0]).not.toMatch(/^[0-9A-F]{2}(:[0-9A-F]{2})+$/);
+  });
+
+  it("serves both link manifests on the short edge window a fingerprint needs", () => {
+    // A statement file the edge holds for a year is a statement file the
+    // weekend's real fingerprint cannot reach. Both manifests take the same
+    // short window, and both are declared as JSON.
+    const config = rootFile("next.config.mjs");
+    for (const manifest of [
+      "/.well-known/apple-app-site-association",
+      "/.well-known/assetlinks.json",
+    ]) {
+      // The rule is the source line and its own headers array, up to the
+      // closing bracket of that array — `split("},")` cuts inside it.
+      const from = config.indexOf(`source: "${manifest}"`);
+      expect(from, manifest).toBeGreaterThan(-1);
+      const rule = config.slice(from, config.indexOf("],", from));
+      expect(rule, manifest).toContain("SHORT_EDGE_PUBLIC_ASSET_CACHE_CONTROL");
+      expect(rule, manifest).toContain('value: "application/json"');
+    }
   });
 
   it("declares the runtime notification permission Android 13 made mandatory", () => {

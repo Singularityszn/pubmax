@@ -25,6 +25,8 @@ import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { SUBMITTABLE_DRINK_CATEGORIES } from "@/lib/communityPrice";
 import { categoryLabel, type DrinkCategory } from "@/lib/drinks";
 import { PROFILE_IMAGE_PICKER_ACCEPT } from "@/lib/profileImagePicker";
+import { pickNativePhoto } from "@/lib/nativeCamera";
+import { isNativeApp } from "@/lib/nativePlatform";
 import {
   VENUE_PHOTO_CAPTION_MAX,
   VENUE_PHOTO_CROSSPOST_LABEL,
@@ -60,6 +62,25 @@ export default function VenuePhotoComposer({
   const [shareToFeed, setShareToFeed] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // The native shell opens its own sheet rather than the WebView chooser,
+  // because that chooser drops its camera entry on Android and a wall photo is
+  // the pub somebody is standing in. `CameraSource.Prompt` keeps the photo
+  // library on the sheet, so BEAT ONE IS STILL A PICKER and the header rule
+  // above holds; lib/nativeCamera.ts is fenced so it cannot become camera-only.
+  async function openPicker() {
+    if (!isNativeApp()) {
+      inputRef.current?.click();
+      return;
+    }
+    const pick = await pickNativePhoto();
+    if (pick.outcome === "chosen") {
+      setChosen(pick.file);
+      setError(null);
+      return;
+    }
+    if (pick.outcome === "blocked") setError(pick.message);
+  }
 
   async function upload(file: File) {
     setBusy(true);
@@ -127,7 +148,7 @@ export default function VenuePhotoComposer({
         <button
           type="button"
           className="venuePhotoWallButton"
-          onClick={() => inputRef.current?.click()}
+          onClick={() => void openPicker()}
         >
           Choose a photo
         </button>
