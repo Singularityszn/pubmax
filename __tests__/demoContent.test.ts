@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { ambientPresenceCurve } from "@/lib/ambientPresence";
-import { demoContentEnabled } from "@/lib/demoContent";
+import { demoContentEnabled, demoDrinksEnabled } from "@/lib/demoContent";
 import {
   parseDrinkPriceUpdates,
   type DrinkPriceUpdate,
@@ -14,7 +14,9 @@ import type { VenuePrice } from "@/lib/venues";
 import { venueMenuForInspector } from "@/lib/venueMenu";
 
 const FLAG = "NEXT_PUBLIC_DEMO_CONTENT";
+const DRINKS_FLAG = "NEXT_PUBLIC_DEMO_DRINKS";
 const original = process.env[FLAG];
+const originalDrinks = process.env[DRINKS_FLAG];
 const SEEDED_VENUE_ID = "venue-16pnwmm";
 const PROSPECT_KEY =
   "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113";
@@ -114,6 +116,8 @@ function inspectorMenu() {
 afterEach(() => {
   if (original === undefined) delete process.env[FLAG];
   else process.env[FLAG] = original;
+  if (originalDrinks === undefined) delete process.env[DRINKS_FLAG];
+  else process.env[DRINKS_FLAG] = originalDrinks;
 });
 
 describe("demo content kill switch", () => {
@@ -154,6 +158,7 @@ describe("demo content kill switch", () => {
 
   it("off removes menu seeds", () => {
     process.env[FLAG] = "off";
+    process.env[DRINKS_FLAG] = "on";
 
     const menu = inspectorMenu();
 
@@ -162,6 +167,7 @@ describe("demo content kill switch", () => {
 
   it("off removes demo overlays while keeping publisher rows", () => {
     process.env[FLAG] = "off";
+    process.env[DRINKS_FLAG] = "on";
 
     const menu = inspectorMenu();
 
@@ -173,6 +179,7 @@ describe("demo content kill switch", () => {
 
   it("off removes demo rows from the shipped drink-price artifact", () => {
     process.env[FLAG] = "off";
+    process.env[DRINKS_FLAG] = "on";
 
     const menu = venueMenuForInspector(
       { id: SEEDED_VENUE_ID, prices: [prospectPrice()] },
@@ -185,6 +192,7 @@ describe("demo content kill switch", () => {
 
   it("on preserves seeded menu drinks and demo overlays", () => {
     delete process.env[FLAG];
+    process.env[DRINKS_FLAG] = "on";
 
     const menu = inspectorMenu();
 
@@ -195,5 +203,32 @@ describe("demo content kill switch", () => {
   it("only the literal 'off' disables — anything else stays on", () => {
     process.env[FLAG] = "false";
     expect(demoContentEnabled()).toBe(true);
+  });
+
+  // The demo DRINK gate is the same switch read from the other side (#1427):
+  // a seeded pour beside a real Pint Drop is the failure the kill switch was
+  // one forgotten deployment setting away from, so drinks are opt-in and the
+  // kill switch still overrides the opt-in.
+  it("demo drinks are off unless asked for by name", () => {
+    delete process.env[FLAG];
+    delete process.env[DRINKS_FLAG];
+    expect(demoDrinksEnabled()).toBe(false);
+
+    process.env[DRINKS_FLAG] = "true";
+    expect(demoDrinksEnabled()).toBe(false);
+
+    process.env[DRINKS_FLAG] = "on";
+    expect(demoDrinksEnabled()).toBe(true);
+  });
+
+  it("the kill switch still overrides the demo-drink opt-in", () => {
+    process.env[FLAG] = "off";
+    process.env[DRINKS_FLAG] = "on";
+    expect(demoDrinksEnabled()).toBe(false);
+  });
+
+  it("documents the demo-drink opt-in", () => {
+    const example = readFileSync(join(process.cwd(), ".env.example"), "utf8");
+    expect(example).toContain("NEXT_PUBLIC_DEMO_DRINKS=");
   });
 });

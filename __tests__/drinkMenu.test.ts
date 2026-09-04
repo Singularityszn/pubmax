@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { Drink, LegacyPintPrice } from "@/lib/drinks";
 import { hasMenuBeyondPints, venueDrinkMenu } from "@/lib/drinkMenu";
@@ -7,6 +7,17 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 });
+
+// Seeded demo rows are opt-in (#1427): the composed order, the per-row
+// provenance and the dedupe are all still worth pinning, so the tests that
+// need a seed ask for one by name the way a developer or an e2e fixture does.
+afterEach(() => {
+  delete process.env.NEXT_PUBLIC_DEMO_DRINKS;
+});
+
+function withDemoDrinks(): void {
+  process.env.NEXT_PUBLIC_DEMO_DRINKS = "on";
+}
 
 const OBSERVED = "2026-07-01T12:00:00.000Z";
 
@@ -26,13 +37,21 @@ const PRICES: LegacyPintPrice[] = [
 ];
 
 describe("venueDrinkMenu", () => {
+  it("drops the seeded menu by default, so a production menu is the venue's own prices", () => {
+    const menu = venueDrinkMenu("v1", PRICES, () => [seedDrink("s1", "wine")]);
+    expect(menu.map((d) => d.id)).toEqual(["beer-p1", "beer-p2"]);
+    expect(menu.some((d) => d.provenance.source === "seed")).toBe(false);
+  });
+
   it("composes legacy beer first, then the seeded non-beer menu", () => {
+    withDemoDrinks();
     const menu = venueDrinkMenu("v1", PRICES, () => [seedDrink("s1", "wine")]);
     expect(menu.map((d) => d.category)).toEqual(["beer", "beer", "wine"]);
     expect(menu.map((d) => d.id)).toEqual(["beer-p1", "beer-p2", "s1"]);
   });
 
   it("keeps each drink's own provenance (never flattens)", () => {
+    withDemoDrinks();
     const menu = venueDrinkMenu("v1", PRICES, () => [seedDrink("s1")]);
     expect(menu.find((d) => d.id === "beer-p1")!.provenance.source).toBe("app-dataset");
     expect(menu.find((d) => d.id === "s1")!.provenance.source).toBe("seed");
@@ -58,6 +77,7 @@ describe("venueDrinkMenu", () => {
   });
 
   it("dedupes by id so an overlapping source never doubles a row", () => {
+    withDemoDrinks();
     const menu = venueDrinkMenu(
       "v1",
       PRICES,
@@ -67,6 +87,7 @@ describe("venueDrinkMenu", () => {
   });
 
   it("defaults legacyPrices to empty", () => {
+    withDemoDrinks();
     const menu = venueDrinkMenu("v1", undefined, () => [seedDrink("s1")]);
     expect(menu.map((d) => d.id)).toEqual(["s1"]);
   });

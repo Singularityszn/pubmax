@@ -63,6 +63,11 @@ delete process.env.CLERK_SECRET_KEY;
 // (see __tests__/demoContent.test.ts) and are unaffected.
 delete process.env.NEXT_PUBLIC_DEMO_CONTENT;
 
+// The demo DRINK gate is the opposite default (opt-in, #1427), so the same
+// hermetic rule applies from the other side: a developer's local
+// NEXT_PUBLIC_DEMO_DRINKS=on must not make the production-default tests pass.
+delete process.env.NEXT_PUBLIC_DEMO_DRINKS;
+
 // Same trap again for the cron freshness plane (#485): the Vercel build env
 // carries real provider keys (EXA_API_KEY on Production), and the cron route
 // tests assert the documented keyless default (skip + warn). Letting ambient

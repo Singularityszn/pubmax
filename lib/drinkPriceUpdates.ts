@@ -19,7 +19,7 @@
 // instead of poisoning the drinks layer.
 
 import type { Provenance } from "@/lib/curation";
-import { demoContentEnabled } from "@/lib/demoContent";
+import { demoDrinksEnabled } from "@/lib/demoContent";
 import {
   alcoholTypeForDrink,
   isDemoDrinkSource,
@@ -174,10 +174,13 @@ function stableDrinkId(update: DrinkPriceUpdate): string {
   return `drink-${(hash >>> 0).toString(36)}`;
 }
 
+// The demo lane of the overlay is the same class of row as a seeded menu, so
+// it answers to the same opt-in gate (#1427): a production menu shows only
+// rows a publisher or a drinker put on record.
 export function visibleDrinkPriceUpdates(
   updates: readonly DrinkPriceUpdate[],
 ): DrinkPriceUpdate[] {
-  if (demoContentEnabled()) return [...updates];
+  if (demoDrinksEnabled()) return [...updates];
   return updates.filter((update) => update.lane !== "demo");
 }
 
