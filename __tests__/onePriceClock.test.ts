@@ -73,4 +73,36 @@ describe("public pint-price clock", () => {
     expect(todayHtml).not.toContain("Last collected");
     expect(pintIndexHtml).not.toContain("Last collected");
   });
+
+  // The card carried the claim TWICE: the dated caption at the top, then a
+  // near-identical undated sentence at the foot naming a different geography.
+  // A reader met the same claim twice and only one copy said which day it came
+  // from, so the dated one is the only one that stays.
+  it("says what these prices are exactly once, and dates it", () => {
+    const html = renderToStaticMarkup(
+      createElement(TodayPintsCard, {
+        index: {
+          [CENTRAL_PATCH.id]: {
+            patchId: CENTRAL_PATCH.id,
+            areaName: "Piccadilly & Soho",
+            rows: [{
+              id: "test-pub",
+              name: "The Test Arms",
+              price: 4.8,
+              priceLabel: "£4.80",
+              mapHref: "/map?venue=test-pub",
+            }],
+          },
+        },
+      }),
+    );
+
+    expect(html.split("Lowest listed prices")).toHaveLength(2);
+    expect(html).toContain(
+      `Lowest listed prices in central London. ${formatPintDatasetSnapshot()}.`,
+    );
+    expect(html).not.toContain("Lowest listed prices in Piccadilly &amp; Soho.");
+    // The way onward out of the card is untouched.
+    expect(html).toContain("Change area");
+  });
 });

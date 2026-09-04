@@ -7,6 +7,14 @@
 // self-asserted handle (localStorage `pubmax_handle`); with none stored, a
 // small inline input appears on the first rating attempt.
 //
+// A ROW WITH NO RATING IN IT RENDERS NOTHING (captain, 4 Sept 2026). Five empty
+// stars beside a price read as a rating the drink does not have, and the Menu
+// is a trust surface where every other mark - the figure, the PINT DROP chip,
+// the observation date - is a claim somebody can stand behind. So the stars
+// appear once there is a rating to show: a community score past the vote floor
+// (`summary.shown`), or the viewer's own vote in this session. `ratingShown`
+// is the one predicate, so the display and the picker cannot disagree.
+//
 // Colour: inherits `--rating-accent` from the surrounding category section
 // when the caller passes the category accent (wine burgundy, whisky amber, …),
 // defaulting to brass.
@@ -72,19 +80,28 @@ export default function DrinkRatingRow({
     }
   };
 
+  // The community score, but only where the vote floor lets it be shown.
+  const shownAverage =
+    summary && summary.shown && summary.average !== null ? summary.average : null;
+  // Nothing to say about this drink yet: no score past the floor and no vote
+  // from this viewer. Say nothing, rather than paint an empty widget.
+  if (shownAverage === null && myRating === null && !needsHandle && !error) {
+    return null;
+  }
+
   return (
     <span className="drinkRatingRow">
       <StarRating
-        value={myRating}
+        value={myRating ?? shownAverage}
         label={`Rate ${drinkName}`}
         interactive
         size="sm"
         accent={accent}
         onRate={(value) => void rate(value)}
       />
-      {summary?.shown && summary.average !== null ? (
+      {shownAverage !== null && summary ? (
         <span className="ratingCount">
-          {summary.average.toFixed(1)} · {summary.count}
+          {shownAverage.toFixed(1)} · {summary.count}
         </span>
       ) : null}
       {needsHandle ? (

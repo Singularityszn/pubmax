@@ -27,21 +27,45 @@ export const SHEET_SNAP_ORDER: SheetSnap[] = ["peek", "half", "full"];
 
 /**
  * MapLibre easeTo `offset` (px) so a selected pub sits in the visible map band
- * above the mobile bottom sheet — not under it. Positive Y moves the camera
- * center down, so the target appears higher on screen.
+ * above the mobile bottom sheet — not under it.
+ *
+ * THE SIGN IS THE WHOLE POINT. MapLibre puts the requested centre at the
+ * container centre PLUS this offset, and screen Y grows downward, so a
+ * POSITIVE Y pushes the pin DOWN — under the sheet, which is the defect this
+ * function existed to prevent (measured on a 390x844 phone: a deep-linked pin
+ * projected to y 654 with the sheet's top edge at 316). The target sits above
+ * the sheet, so the offset is NEGATIVE.
+ *
+ * `sheetTopPx` is the sheet's measured top edge in the same viewport. It may
+ * only ever move the pin HIGHER than the snap fraction implies, never lower:
+ * the venue sheet is content-height and springs open, so a reading taken
+ * mid-spring reports an edge near the bottom of the screen, and trusting that
+ * one would park the pin exactly where the settled sheet lands. Taking the
+ * higher of the two answers means an unmeasurable sheet, a growing sheet and a
+ * taller-than-half sheet all leave the pin in map the reader can see.
  *
  * Default assumes the sheet opens at `half` (selectVenue always does).
  */
 export function mobileSelectCameraOffset(
   viewportHeight: number,
   snap: SheetSnap = "half",
+  sheetTopPx?: number | null,
 ): [number, number] {
   const h = Number.isFinite(viewportHeight) && viewportHeight > 0 ? viewportHeight : 0;
   if (h <= 0) return [0, 0];
-  // Midpoint of the uncovered band (0 … 1 - sheetFraction).
-  const visibleMid = (1 - SHEET_SNAP_FRACTIONS[snap]) / 2;
-  const y = Math.round((0.5 - visibleMid) * h);
-  return [0, Math.max(0, y)];
+  // Where the uncovered band's midpoint sits, measured down from the top.
+  const snapMidPx = ((1 - SHEET_SNAP_FRACTIONS[snap]) / 2) * h;
+  const measuredMidPx =
+    typeof sheetTopPx === "number" && Number.isFinite(sheetTopPx) && sheetTopPx > 0
+      ? Math.min(sheetTopPx, h) / 2
+      : null;
+  const visibleMidPx =
+    measuredMidPx === null ? snapMidPx : Math.min(measuredMidPx, snapMidPx);
+  // Carry the pin from the container centre up to that midpoint. Never
+  // downward: a sheet taller than the viewport leaves no band, and the centre
+  // is still better than under the sheet.
+  const y = Math.round(visibleMidPx - h / 2);
+  return [0, Math.min(0, y)];
 }
 
 /**

@@ -117,44 +117,59 @@ export default function VenuePriceEntryPanel({
     />
   ) : null;
 
+  const missionSlot =
+    mission && canSubmitPrice ? (
+      <div className="pemSlot pemSlotSheet">
+        <div className="pemHead">
+          <h3 className="pemHeading">
+            {missionHeading({
+              reason: mission.reason,
+              venueName,
+              drinkCategory: mission.drinkCategory,
+            })}
+          </h3>
+          {onDismissMission ? (
+            <div className="pemActions">
+              <button
+                type="button"
+                className="pemSkip"
+                onClick={() => onDismissMission(mission)}
+              >
+                Not now
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    ) : null;
+
+  const signals = includeSignals ? (
+    <VenueCommunitySignals
+      venueId={venueId}
+      venueName={venueName}
+      signals={communityPrices.signalsByVenueId.get(venueId) ?? []}
+      readStatus={communityPrices.venuePriceStatus.get(venueId) ?? "idle"}
+      submitting={communityPrices.submitting}
+      onSubmit={communityPrices.submitVenueSignal}
+      canSubmit={canSubmitPrice}
+    />
+  ) : null;
+
+  // The panel is a BORDERED BOX, so an empty one is a bordered strip with
+  // nothing in it. On the Overview it mounts with includeSignals false, and a
+  // signed-out reader who has not asked to contribute gets no mission, no
+  // composer and no gate either - three nulls inside a frame. The frame is
+  // decoration on a trust surface, so the panel renders nothing at all rather
+  // than an empty one. The effects above still run: this reads the venue's
+  // community prices for the Overview's own read-first signals block, and that
+  // read may not depend on whether anything is drawn here.
+  if (!missionSlot && !priceEntry && !signals) return null;
+
   return (
     <div className="venuePriceEntryPanel">
-      {mission && canSubmitPrice ? (
-        <div className="pemSlot pemSlotSheet">
-          <div className="pemHead">
-            <h3 className="pemHeading">
-              {missionHeading({
-                reason: mission.reason,
-                venueName,
-                drinkCategory: mission.drinkCategory,
-              })}
-            </h3>
-            {onDismissMission ? (
-              <div className="pemActions">
-                <button
-                  type="button"
-                  className="pemSkip"
-                  onClick={() => onDismissMission(mission)}
-                >
-                  Not now
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+      {missionSlot}
       {priceEntry}
-      {includeSignals ? (
-        <VenueCommunitySignals
-          venueId={venueId}
-          venueName={venueName}
-          signals={communityPrices.signalsByVenueId.get(venueId) ?? []}
-          readStatus={communityPrices.venuePriceStatus.get(venueId) ?? "idle"}
-          submitting={communityPrices.submitting}
-          onSubmit={communityPrices.submitVenueSignal}
-          canSubmit={canSubmitPrice}
-        />
-      ) : null}
+      {signals}
     </div>
   );
 }

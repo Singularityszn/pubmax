@@ -86,46 +86,76 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+async function openDrinksMenu(summaries: Record<string, unknown>): Promise<HTMLDivElement> {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      new Response(JSON.stringify({ summaries }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    ),
+  );
+
+  const venue = groupVenuePrices([price()])[0];
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  container = host;
+
+  await act(async () => {
+    root = createRoot(host);
+    root.render(createElement(VenueMenuTab, { venue, tab: "menu" }));
+  });
+
+  const drinksButton = Array.from(host.querySelectorAll("button")).find(
+    (button) => button.textContent?.includes("Drinks"),
+  );
+  expect(drinksButton).toBeDefined();
+
+  await act(async () => {
+    drinksButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+  await act(async () => {
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  });
+
+  expect(host.querySelector(".drinkMenu")).not.toBeNull();
+  return host;
+}
+
 describe("drink rating surface fence", () => {
-  it("renders the drink rating row through VenueMenuTab -> DrinkMenu", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        new Response(JSON.stringify({ summaries: {} }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      ),
-    );
+  // Captain, 4 Sept 2026: five empty stars beside a price read as a rating the
+  // drink does not have. The Menu is a trust surface - the figure, the source
+  // chip and the observation date are all claims somebody stands behind - so an
+  // unrated drink says nothing rather than painting a widget with no rating in
+  // it. The accessibility tree used to read "★★★★★ ★★★★★" under every drink.
+  it("draws no star row under a drink nobody has rated", async () => {
+    const host = await openDrinksMenu({});
 
-    const venue = groupVenuePrices([price()])[0];
-    container = document.createElement("div");
-    document.body.appendChild(container);
+    expect(host.querySelector(".drinkRatingRow")).toBeNull();
+    expect(host.querySelector('[role="slider"]')).toBeNull();
+    expect(host.querySelector(".starRatingGlyphs")).toBeNull();
+    expect(host.textContent).not.toContain("★");
+    // The price and its provenance are untouched: this hides a rating, never a
+    // figure.
+    expect(host.textContent).toContain("£5.50");
+  });
 
-    await act(async () => {
-      root = createRoot(container!);
-      root.render(createElement(VenueMenuTab, { venue, tab: "menu" }));
+  it("renders the drink rating row through VenueMenuTab -> DrinkMenu once a rating exists", async () => {
+    const host = await openDrinksMenu({
+      // The stable drink id the menu batches its one GET on.
+      "beer-price-1": { shown: true, average: 4.5, count: 12, bayesian: 4.1 },
     });
 
-    const drinksButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent?.includes("Drinks"),
-    );
-    expect(drinksButton).toBeDefined();
-
-    await act(async () => {
-      drinksButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-    await act(async () => {
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    });
-
-    expect(container.querySelector(".drinkMenu")).not.toBeNull();
-    expect(container.querySelector(".drinkRatingRow")).not.toBeNull();
-    expect(container.querySelector('[role="slider"]')?.getAttribute("aria-label")).toBe(
+    const ratingRow = host.querySelector(".drinkRatingRow");
+    expect(ratingRow).not.toBeNull();
+    expect(host.querySelector('[role="slider"]')?.getAttribute("aria-label")).toBe(
       "Rate London Pride",
     );
-    expect(container.querySelector(".venueRatingPanel")).toBeNull();
-    expect(container.querySelector(".topRatedList")).toBeNull();
+    expect(ratingRow?.textContent).toContain("4.5");
+    expect(ratingRow?.textContent).toContain("12");
+    expect(host.querySelector(".venueRatingPanel")).toBeNull();
+    expect(host.querySelector(".topRatedList")).toBeNull();
   });
 
   it("does not expose the retired top-rated API response", async () => {
