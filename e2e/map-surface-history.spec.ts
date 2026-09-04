@@ -127,6 +127,51 @@ test.describe("one Map surface history owner", () => {
     await expectSoleDrawer(page, "venue");
   });
 
+  test("clearing a restored query after closing its Venue does not reopen it", async ({
+    page,
+  }) => {
+    await prepareMap(page);
+    // First visit loads the core slim shard only. The French House is unique
+    // in that shard, so arrival restore can select it without waiting for
+    // later spatial rings. Ice Wharf sits outside core and never matches.
+    await openMap(page, "/map?q=The+French+House");
+
+    const toolbar = page.locator(".mapToolbar");
+    const search = toolbar.getByRole("combobox", { name: "Search pubs" });
+    await expect(search).toHaveValue("The French House");
+    await expect(venue(page)).toHaveAttribute("aria-hidden", "false", {
+      timeout: 30_000,
+    });
+    await expectSoleDrawer(page, "venue");
+
+    await venue(page).getByRole("button", { name: /Close/ }).click();
+    await expect(venue(page)).toHaveAttribute("aria-hidden", "true");
+    // Old restore replayed after Close while ?q= still matched one pub, which
+    // put detail-open back on #main. That class makes the toolbar ignore
+    // pointer events, so Clear search never received the click. Wait past the
+    // restore timeout (0ms) and the typed-search debounce (320ms), then require
+    // the overlay gone before clearing.
+    await page.waitForTimeout(500);
+    await expect(page.locator("#main")).not.toHaveClass(/detail-open/);
+    await expect(venue(page)).toHaveAttribute("aria-hidden", "true");
+
+    await toolbar.getByRole("button", { name: "Clear search" }).click();
+    await expect(search).toHaveValue("");
+    // The old arrival effect replayed on the next filter render. Observe past
+    // both that render and the typed-search debounce before accepting success.
+    await page.waitForTimeout(500);
+
+    await expect(venue(page)).toHaveAttribute("aria-hidden", "true");
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const params = new URL(window.location.href).searchParams;
+          return { query: params.get("q"), selectedVenueId: params.get("sel") };
+        }),
+      )
+      .toEqual({ query: null, selectedVenueId: null });
+  });
+
   test("loaded crawl browser Back restores populated planner", async ({ page }) => {
     await page.setViewportSize(DESKTOP);
     await page.addInitScript(() => {

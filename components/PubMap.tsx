@@ -404,9 +404,9 @@ import {
   subscribePromptBudget,
 } from "@/lib/promptBudget";
 import {
+  resolveArrivalQueryRestore,
   shouldOpenPlanningInitially,
   shouldFitQueryVenuesOnArrival,
-  resolveQueryRestoreFit,
 } from "@/lib/mapArrival";
 import {
   mapChosenAreaFlyTarget,
@@ -3481,30 +3481,53 @@ export default function PubMap({
   // A zero-result query never moves the camera and never claims pins.
   const didRestoreQueryFlyRef = useRef(false);
   useEffect(() => {
-    if (didRestoreQueryFlyRef.current) return;
-    if (!mapCanvasReady) return;
-    if (!shouldFitQueryVenuesOnArrival(arrivalSearch)) return;
-    // A restored selection (?sel=) owns the camera; don't fight its fly-to.
-    if (seed.selectedVenueId) return;
     const matches = filteredVenues;
-    const fit = resolveQueryRestoreFit(matches.length);
-    // "none" means still loading (no match yet) or an honest zero-result query;
-    // either way, leave the camera alone and don't latch the once-guard.
-    if (fit === "none") return;
+    const restore = resolveArrivalQueryRestore({
+      arrivalSearch,
+      currentQuery: trimmedMapQuery,
+      mapReady: mapCanvasReady,
+      selectedVenueId,
+      didRestore: didRestoreQueryFlyRef.current,
+      matchCount: matches.length,
+    });
+    // A reader-owned query change or Venue selection permanently retires this
+    // mount's frozen arrival. Otherwise clearing a restored query can expand
+    // the filtered set and replay the old select/fit after its sheet closes.
+    if (restore === "retire") {
+      didRestoreQueryFlyRef.current = true;
+      // A live Venue for this query already owns the camera. Mark the query
+      // the same way an explicit search pick does, so typed-search cannot
+      // reopen the sheet after Close.
+      if (selectedVenueId && trimmedMapQuery) {
+        searchQueryCameraOwnedRef.current = trimmedMapQuery;
+      }
+      return;
+    }
+    // No matches can also mean the slim pins are still loading. Keep waiting
+    // without consuming the one-shot restore.
+    if (restore === "wait") return;
     const firstMatchId = matches[0]?.id;
     // Defer the state write out of the effect body (matches the typed-search
     // effect above) and latch on the actual fire, so re-renders while the pins
     // are still settling reschedule cleanly instead of losing the fly-to.
     const handle = window.setTimeout(() => {
       didRestoreQueryFlyRef.current = true;
-      if (fit === "select-single" && firstMatchId) {
+      searchQueryCameraOwnedRef.current = trimmedMapQuery;
+      if (restore === "select-single" && firstMatchId) {
         selectVenue(firstMatchId);
-      } else if (fit === "fit-many") {
+      } else if (restore === "fit-many") {
         setSearchFitToken((token) => token + 1);
       }
     }, 0);
     return () => window.clearTimeout(handle);
-  }, [mapCanvasReady, filteredVenues, arrivalSearch, seed.selectedVenueId, selectVenue]);
+  }, [
+    mapCanvasReady,
+    filteredVenues,
+    arrivalSearch,
+    trimmedMapQuery,
+    selectedVenueId,
+    selectVenue,
+  ]);
 
   const focusMapSearch = useCallback(() => {
     const search = (document.getElementById("mobileMapSearchInput") ?? document.getElementById("mapSearchInput")) as HTMLInputElement | null;
