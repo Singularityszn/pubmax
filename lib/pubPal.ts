@@ -3,8 +3,10 @@ import { PAL_MASCOT_SLUGS, type PalMascotSlug } from "@/lib/palMascotAssets.mjs"
 import { cleanText } from "@/lib/textClean";
 
 /**
- * Eight original Pub Pal forms. The breadth mirrors the useful part of the
- * Codex pet picker (a small, memorable cast) without copying its artwork.
+ * Seven original Pub Pal forms, every one a rendered master cut from the same
+ * family (docs/PUB_PAL_CHARACTER_SHEETS_2026-09-04.md). The breadth mirrors the
+ * useful part of the Codex pet picker (a small, memorable cast) without copying
+ * its artwork.
  */
 export const PAL_ONBOARDING_SPECIES = [
   "robin",
@@ -45,11 +47,11 @@ export type PalAnimationState = (typeof PAL_ANIMATION_STATES)[number];
 export type PalVisualManifest = {
   species: PubPalSpecies;
   /**
-   * A rendered species names its own asset slug, which is the SAME string
-   * lib/palMascotAssets.mjs holds for it; `layered-svg` means no master exists
-   * and every surface falls back to that species' rig.
+   * A species names its own asset slug, which is the SAME string
+   * lib/palMascotAssets.mjs holds for it. Every onboarding species ships a
+   * master; the layered-SVG rigs are gone (captain decision 2026-09-04).
    */
-  format: "layered-svg" | PalMascotSlug;
+  format: PalMascotSlug;
   silhouette: string;
   face: string;
   signatureProp: string;
@@ -59,13 +61,13 @@ export type PalVisualManifest = {
 };
 
 export const PAL_VISUAL_MANIFEST: Record<(typeof PAL_ONBOARDING_SPECIES)[number], PalVisualManifest> = {
-  robin: { species: "robin", format: PAL_MASCOT_SLUGS.robin, silhouette: "circuit robin with a warm amber signal chest", face: "bright eyes and a grounded companion gaze", signatureProp: "signal seam", material: "smoked chrome with an amber signal seam", idlePose: "upright and ready beside the route", supportedStates: PAL_ANIMATION_STATES },
-  greyhound: { species: "greyhound", format: PAL_MASCOT_SLUGS.greyhound, silhouette: "long-nosed, swept-ear greyhound", face: "loyal bright eyes and a narrow muzzle", signatureProp: "signal collar", material: "smoked chrome with an amber signal seam", idlePose: "upright and gently leaning into the route", supportedStates: PAL_ANIMATION_STATES },
-  cat: { species: "cat", format: PAL_MASCOT_SLUGS.cat, silhouette: "compact black cat with a hooked signal tail", face: "half-lidded luminous eyes and a dry smile", signatureProp: "brass bell", material: "black glass with a soft edge glow", idlePose: "seated with one paw lifted", supportedStates: PAL_ANIMATION_STATES },
-  fox: { species: "fox", format: "layered-svg", silhouette: "sharp-eared quick fox", face: "curious eyes and an alert tapered muzzle", signatureProp: "route compass", material: "copper hologram with glass highlights", idlePose: "forward on its toes with its tail curled", supportedStates: PAL_ANIMATION_STATES },
-  pigeon: { species: "pigeon", format: "layered-svg", silhouette: "round city pigeon with a proud chest", face: "side-eye with a tiny knowing brow", signatureProp: "transit tag", material: "oil-slick chrome with teal and violet signal bands", idlePose: "one foot forward, head tilted toward the street", supportedStates: PAL_ANIMATION_STATES },
-  badger: { species: "badger", format: "layered-svg", silhouette: "low, broad badger with strong mask stripes", face: "steady eyes and a reassuring blunt muzzle", signatureProp: "night-key lantern", material: "brushed graphite and frosted signal glass", idlePose: "planted firmly with the lantern held close", supportedStates: PAL_ANIMATION_STATES },
-  corgi: { species: "corgi", format: "layered-svg", silhouette: "short, bright corgi with oversized ears", face: "open grin and eager round eyes", signatureProp: "crew band", material: "warm chrome with cream glass panels", idlePose: "front paws wide and ready to celebrate", supportedStates: PAL_ANIMATION_STATES },
+  robin: { species: "robin", format: PAL_MASCOT_SLUGS.robin, silhouette: "circuit robin with a warm amber signal chest", face: "bright eyes and a grounded companion gaze", signatureProp: "signal seam", material: "soft black plush with a coral signal chest and amber traces", idlePose: "upright and ready beside the route", supportedStates: PAL_ANIMATION_STATES },
+  greyhound: { species: "greyhound", format: PAL_MASCOT_SLUGS.greyhound, silhouette: "long-nosed, swept-ear greyhound", face: "loyal bright eyes and a narrow muzzle", signatureProp: "signal collar", material: "soft black plush with a coral signal chest and amber traces", idlePose: "upright and gently leaning into the route", supportedStates: PAL_ANIMATION_STATES },
+  cat: { species: "cat", format: PAL_MASCOT_SLUGS.cat, silhouette: "compact black cat with a hooked signal tail", face: "half-lidded luminous eyes and a dry smile", signatureProp: "brass bell", material: "soft black plush with a coral signal chest and amber traces", idlePose: "seated with one paw lifted", supportedStates: PAL_ANIMATION_STATES },
+  fox: { species: "fox", format: PAL_MASCOT_SLUGS.fox, silhouette: "sharp-eared quick fox with a curled brush tail", face: "curious eyes and an alert tapered muzzle", signatureProp: "route compass", material: "soft black plush with a coral signal chest and amber traces", idlePose: "forward on its toes with its tail curled", supportedStates: PAL_ANIMATION_STATES },
+  pigeon: { species: "pigeon", format: PAL_MASCOT_SLUGS.pigeon, silhouette: "round city pigeon with a proud chest", face: "side-eye with a tiny knowing brow", signatureProp: "transit tag", material: "soft black plush with a coral signal chest and amber traces", idlePose: "one foot forward, head tilted toward the street", supportedStates: PAL_ANIMATION_STATES },
+  badger: { species: "badger", format: PAL_MASCOT_SLUGS.badger, silhouette: "low, broad badger with strong mask stripes", face: "steady eyes and a reassuring blunt muzzle", signatureProp: "night lantern", material: "soft black plush with a coral signal chest and amber traces", idlePose: "planted firmly with the lantern held close", supportedStates: PAL_ANIMATION_STATES },
+  corgi: { species: "corgi", format: PAL_MASCOT_SLUGS.corgi, silhouette: "short, bright corgi with oversized ears", face: "open grin and eager round eyes", signatureProp: "crew band", material: "soft black plush with a coral signal chest and amber traces", idlePose: "front paws wide and ready to celebrate", supportedStates: PAL_ANIMATION_STATES },
 };
 
 export const PAL_SPECIES_COMPATIBILITY = {

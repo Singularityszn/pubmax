@@ -1,6 +1,6 @@
 # PUBMAXX Pub Pal launch character sheets
 
-Status: implementation contract for Fable visual review. Launch has seven companion forms: Circuit Robin, Greyhound, and Black Cat use approved mascot bitmaps, and four alternates are original layered SVGs. No third-party character artwork is embedded or traced.
+Status: superseded for artwork by `docs/PUB_PAL_CHARACTER_SHEETS_2026-09-04.md`. Launch has seven companion forms, and since 4 September 2026 every one is a rendered master cut from the Circuit Robin family; the layered-SVG rigs described below are deleted. The species table, the state vocabulary and the legacy aliases here still hold. No third-party character artwork is embedded or traced.
 
 All companions share the same capability and the same eight state vocabulary: idle, noticing, listening, thinking, speaking, celebrating, sleeping, and error. Motion communicates state only. Reduced-motion mode freezes each rig into the corresponding static pose.
 
@@ -19,7 +19,7 @@ Legacy compatibility remains explicit. Stored `hound`, `raven`, `rabbit`, `turtl
 ## Review checklist
 
 - The seven forms remain distinguishable at 36px and full portrait size.
-- Every legacy SVG rig has face, prop, back, body, head, signal, and shadow layers; Circuit Robin, Greyhound, and Black Cat use the approved mascot asset pipeline.
+- Every form uses the mascot asset pipeline (`scripts/gen-pubpal-mascot.mjs`); the legacy SVG rigs are gone.
 - Hologram, chrome, and glass treatments preserve the same geometry.
 - Listening, thinking, speaking, celebrating, sleeping, and error states do not imply an unconfirmed action.
 - No alcohol quantity, ranking, or reward behavior is encoded in the character system.

@@ -126,7 +126,6 @@ describe("Pub Pal first meeting and onboarding", () => {
     expect(greyhound.getAttribute("aria-pressed")).toBe("true");
     // The greyhound ships a master of its own, so the portrait becomes that
     // photograph rather than the robin's.
-    expect(container.querySelector(".palRigGreyhound")).toBeNull();
     expect(container.querySelector('img[alt="Pub Pal"]')?.getAttribute("src")).toContain("circuit-greyhound");
   });
 });
