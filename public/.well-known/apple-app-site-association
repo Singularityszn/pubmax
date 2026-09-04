@@ -11,6 +11,9 @@
           { "/": "/map/*", "comment": "A shared city map opens in the app" },
           { "/": "/venue/*", "comment": "Venue permalinks open on the map" },
           { "/": "/pub/*", "comment": "Pub permalinks open on the map" },
+          { "/": "/add/*", "comment": "An add link opens on the person it names" },
+          { "/": "/r/*", "comment": "A referral link opens the app that was shared" },
+          { "/": "/tonight", "comment": "A shared night opens where the push lands" },
           { "/": "/auth/callback", "comment": "Sign-in returns to the app" }
         ]
       }

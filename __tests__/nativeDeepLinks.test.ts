@@ -35,8 +35,30 @@ describe("nativeDeepLinkPath", () => {
       "https://pubmaxxing.com/auth/callback?next=%2Fmap#access_token=token",
       "/auth/callback?next=%2Fmap#access_token=token",
     ],
+    // The pin a person actually shares: the pub rides the query.
+    ["https://pubmaxxing.com/map?sel=venue-1", "/map?sel=venue-1"],
+    // The night a push already opens.
+    ["https://pubmaxxing.com/tonight", "/tonight"],
+    // The two invites. An invite that opens Safari asks the one person most
+    // likely to install to sign in twice.
+    ["https://pubmaxxing.com/add/somebody?auto=1", "/add/somebody?auto=1"],
+    ["https://pubmaxxing.com/r/CODE1", "/r/CODE1"],
   ])("accepts an allow-listed production link", (url, expected) => {
     expect(nativeDeepLinkPath(url)).toBe(expected);
+  });
+
+  it("keeps the exact paths exact", () => {
+    // /tonight is a page, not a family: /tonight/anything is a different route
+    // and the app would have nothing to show for it.
+    expect(nativeDeepLinkPath("https://pubmaxxing.com/tonight/extra")).toBeNull();
+    expect(nativeDeepLinkPath("https://pubmaxxing.com/tonightly")).toBeNull();
+  });
+
+  it("does not take the whole site with the invite families", () => {
+    // /r/ and /add/ are prefixes, so the bare parent must still be refused:
+    // neither is a page, and admitting one would open the app on a 404.
+    expect(nativeDeepLinkPath("https://pubmaxxing.com/r")).toBeNull();
+    expect(nativeDeepLinkPath("https://pubmaxxing.com/add")).toBeNull();
   });
 
   it.each([
