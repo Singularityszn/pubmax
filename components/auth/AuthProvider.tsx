@@ -41,7 +41,11 @@ import {
   clearLegacyPkceVerifiers,
   establishAuthCallbackSession,
 } from "@/lib/authCallbackClient";
-import { ensureSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import {
+  ensureSupabaseBrowser,
+  isAuthConfigured,
+  warmAuthClientModule,
+} from "@/lib/authClient";
 import { loadAuthClientWithRetry } from "@/lib/authClientLoad";
 import { requestDeploymentSkewCheck } from "@/lib/deploymentSkewRecovery";
 import {
@@ -253,6 +257,13 @@ const NOBODY_IDENTITY: CanonicalIdentityState = {
   status: "resolved",
   identity: null,
 };
+
+// Asked for at MODULE-EXECUTION time, which is before hydration; the effect
+// below that actually needs the client runs after it. Only the chunk is
+// downloaded - no client is built and no session is touched here - so the
+// tri-state the provider publishes is decided by exactly the same code as
+// before, just without waiting on a download nobody had started yet.
+warmAuthClientModule();
 
 export function AuthProvider({
   children,
