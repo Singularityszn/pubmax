@@ -27,6 +27,51 @@ let modulePromise: Promise<typeof import("@supabase/supabase-js")> | undefined;
 let clientPromise: Promise<SupabaseClient | null> | undefined;
 let cached: SupabaseClient | null | undefined;
 
+/**
+ * Start DOWNLOADING the auth chunk, without building a client.
+ *
+ * The chunk is code-split off the critical path on purpose, and it should stay
+ * that way. The cost is not its size but WHEN the browser learns about it: a
+ * dynamic import inside a React effect cannot be discovered until the tree has
+ * hydrated, and on a throttled phone that is most of a second after every other
+ * chunk has already arrived. Measured on /pal, the one route whose readiness
+ * really waits for the session to answer: every other chunk started at about
+ * 112 ms and this one at 1183 ms, so the route sat on its loading line waiting
+ * for a download that had not been asked for yet.
+ *
+ * So the chunk is asked for at module-execution time instead, which is before
+ * hydration rather than after it. Two things this deliberately does NOT do:
+ *
+ * It does not build the client. `createClient` starts session persistence and
+ * background refresh, and moving those earlier would be a behaviour change
+ * rather than a download. Only the module is fetched; `ensureSupabaseBrowser`
+ * still constructs on first real call and still memoizes.
+ *
+ * It does not fetch anything a deployment cannot use. The config is resolved
+ * first, exactly as `buildBrowserClient` does, so a keyless build downloads
+ * nothing at all.
+ */
+export function warmAuthClientModule(): void {
+  if (typeof window === "undefined") return;
+  if (modulePromise) return;
+  const config = resolveSupabaseConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    {
+      expectedKeyRole: "publishable",
+      allowUnknownKeyRole: process.env.NODE_ENV !== "production",
+    },
+  );
+  if (!config) return;
+  // A failed warm is not an answer about the viewer and must never look like
+  // one: it is dropped here, and ensureSupabaseBrowser retries the import on
+  // its own terms (lib/authClientLoad.ts owns that retry and its tri-state).
+  modulePromise = import("@supabase/supabase-js");
+  void modulePromise.catch(() => {
+    modulePromise = undefined;
+  });
+}
+
 function buildBrowserClient(): Promise<SupabaseClient | null> {
   return (async () => {
     const config = resolveSupabaseConfig(
