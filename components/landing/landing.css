@@ -471,3 +471,19 @@
 @media (max-width: 700px) {
   .lpAnswerCard { width: 100%; }
 }
+
+/* Phone: the answer sits between the heading and the tap, so the heading
+   gives up one size step and the card its outer padding, and the whole
+   screen still reads kicker, claim, answer, action inside 844px. */
+@media (max-width: 700px) {
+  .lpHeroProto { padding-top: 80px; gap: var(--space-4); }
+  .lpHeroProto .screenHead { gap: var(--space-3); }
+  .lpHeroProto .screenTitle { font-size: clamp(2.125rem, 10vw, 2.75rem); line-height: .94; }
+  .lpHeroProto .screenAnswer { margin-top: var(--space-2); }
+  .lpHeroProto .lpAnswerCard { gap: var(--space-1); padding: var(--space-4); }
+  .lpHeroProto .lpPubName { font-size: var(--text-lg); }
+  .lpHeroProto .lpPubPrice .priceBadge { font-size: var(--text-base); min-block-size: 2.1rem; }
+  .lpHeroProto .lpPubThen { margin-top: var(--space-1); padding-top: var(--space-2); font-size: var(--text-sm); }
+  .lpHeroProto .lpRailLink { min-height: 52px; }
+  .lpHeroProto .screenActions { margin-top: 0; }
+}

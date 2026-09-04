@@ -75,8 +75,6 @@ type Answer = {
   publisher: { label: string; url: string | null } | null;
   collectedOn: string;
   then: LandingArchiveThen | null;
-  /** Whole years from the then row to the collection day. */
-  thenYears: number;
   rail: LandingRailRow[];
 };
 
@@ -85,13 +83,6 @@ type NearState =
   | { kind: "requesting" }
   | { kind: "answered" }
   | { kind: "failed"; line: string };
-
-function yearsBetween(observedOn: string, collectedOn: string): number {
-  const a = Date.parse(`${observedOn}T00:00:00.000Z`);
-  const b = Date.parse(`${collectedOn}T00:00:00.000Z`);
-  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
-  return Math.max(0, Math.floor((b - a) / (365.2425 * 24 * 60 * 60 * 1000)));
-}
 
 function anchorAnswer(
   card: LandingPubCardData,
@@ -112,7 +103,6 @@ function anchorAnswer(
     publisher: card.publisher,
     collectedOn: card.collectedOn,
     then,
-    thenYears: then ? yearsBetween(then.observedOn, card.collectedOn) : 0,
     rail,
   };
 }
@@ -137,7 +127,6 @@ function nearAnswer(
     publisher: null,
     collectedOn,
     then,
-    thenYears: then ? yearsBetween(then.observedOn, collectedOn) : 0,
     rail: rest.slice(0, HERO_RAIL_SIZE).map((card) => ({
       id: card.id,
       name: card.name,
@@ -354,7 +343,7 @@ function AnswerCard({
             <strong>{formatPrice(answer.then.priceGbp)}</strong> in {answer.then.observedMonth}.{" "}
             {priceMovementLine(
               Math.round((answer.priceGbp - answer.then.priceGbp) * 100) / 100,
-              answer.thenYears,
+              answer.then.years,
             )}
           </p>
           <p className="lpPubThenSource">

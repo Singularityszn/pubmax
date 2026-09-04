@@ -44,6 +44,8 @@ export type LandingArchiveThen = {
   observedMonth: string;
   /** "14 July 2013", for the source line. */
   observedDay: string;
+  /** Whole years from the then row to the build, the same count the card prints. */
+  years: number;
   source: { label: string; url: string };
 };
 

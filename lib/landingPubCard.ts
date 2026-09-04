@@ -171,6 +171,7 @@ export function buildLandingArchiveIndex(
       observedOn: arc.then.observedOn,
       observedMonth: formatObservedMonth(arc.then.observedOn),
       observedDay: formatObservedDay(arc.then.observedOn),
+      years: arc.years,
       source: { label: arc.then.source.label, url: arc.then.source.url },
     };
   }
