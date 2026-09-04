@@ -113,6 +113,18 @@ describe("dispatchDismissKey", () => {
   });
 });
 
+const capacitorApp = {
+  exitApp: vi.fn(async () => {}),
+  minimizeApp: vi.fn(async () => {}),
+  addListener: vi.fn(async (_event: string, handler: (payload: { canGoBack?: boolean }) => void) => {
+    capacitorApp.handler = handler;
+    return { remove: async () => {} };
+  }),
+  handler: null as null | ((payload: { canGoBack?: boolean }) => void),
+};
+
+vi.mock("@capacitor/app", () => ({ App: capacitorApp }));
+
 describe("activateNativeBackGesture", () => {
   it("registers nothing on the web and returns a safe cleanup", async () => {
     // No window at all: the server render path.
@@ -128,5 +140,35 @@ describe("activateNativeBackGesture", () => {
     cleanup();
     // The gate is read before the plugin import, so nothing was even asked.
     expect(dismiss).not.toHaveBeenCalled();
+  });
+
+  it("BACKGROUNDS the app on the last Back, and never destroys it", async () => {
+    // exitApp() calls finish() and takes the activity down with it, which costs
+    // the predictive-back animation (SDK 36 has it on by default) and makes
+    // every re-entry a full cold start: this shell is remote-URL mode over a
+    // two-file stub, so a cold start refetches the production document, the JS
+    // and the map shards. minimizeApp() leaves the activity alive, so the same
+    // gesture animates and the next launch is warm.
+    //
+    // No platform branch guards it, and none is needed: iOS has no Back, so
+    // the listener registered there simply never fires.
+    g.window = {
+      Capacitor: { isNativePlatform: () => true },
+      history: { back: vi.fn() },
+    };
+    const cleanup = await activateNativeBackGesture({ dismiss: () => false });
+    expect(capacitorApp.handler).toBeTypeOf("function");
+
+    capacitorApp.handler?.({ canGoBack: false });
+    expect(capacitorApp.minimizeApp).toHaveBeenCalledTimes(1);
+    expect(capacitorApp.exitApp).not.toHaveBeenCalled();
+
+    // And a Back with history behind it still pops the trail rather than
+    // leaving at all, so the new lane cannot swallow step 2.
+    capacitorApp.handler?.({ canGoBack: true });
+    expect(capacitorApp.minimizeApp).toHaveBeenCalledTimes(1);
+    expect(capacitorApp.exitApp).not.toHaveBeenCalled();
+
+    cleanup();
   });
 });

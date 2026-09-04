@@ -25,7 +25,18 @@
 //      module never reaches into that hook, never calls history.go(), and
 //      never needs to know a surface exists.
 //   3. THEN LEAVE. With no panel and no history there is genuinely nothing to
-//      undo, and holding the person inside a dead Back is worse than closing.
+//      undo, and holding the person inside a dead Back is worse than leaving.
+//      LEAVING IS BACKGROUNDING, NEVER EXITING. App.exitApp() calls finish()
+//      and destroys the activity, which costs two things: no predictive-back
+//      animation ever plays (this app targets SDK 36, where predictive back is
+//      on by default), and the next launch is a full COLD start. The shell is
+//      remote-URL mode over a two-file stub (capacitor.config.ts), so a cold
+//      start is a complete network fetch of the production document plus the
+//      JS plus the map shards - perf/route-budgets.json puts /map pins on
+//      screen at 2713 ms AFTER the document arrives. Destroying the process on
+//      the most common exit gesture turns every re-entry into that. minimize
+//      leaves the activity alive, so Back is one animation and re-entry is
+//      warm.
 //
 // The decision is a pure function of a snapshot so it unit tests in the node
 // vitest env, mirroring lib/entryDecision.ts. Web and SSR never register the
@@ -106,7 +117,10 @@ export type BackGestureDeps = {
   dismiss: () => boolean;
   /** Pop one surface off the trail. */
   goBack: () => void;
-  /** Leave the app. */
+  /**
+   * Leave the app: background it, never destroy it. See step 3 above for what
+   * exiting costs.
+   */
   exit: () => Promise<void> | void;
 };
 
@@ -123,7 +137,8 @@ export function performBackAction(canGoBack: boolean, deps: BackGestureDeps): Ba
  * and plugin failure are safe no-ops, exactly like activateNativeDeepLinks().
  *
  * iOS registers it too and simply never fires it, so there is no platform
- * branch here to drift.
+ * branch here to drift. That is also why `exit` may be `minimizeApp` with no
+ * platform check: iOS has no Back, so the call is unreachable there.
  */
 export async function activateNativeBackGesture(
   overrides: Partial<BackGestureDeps> = {},
@@ -136,7 +151,7 @@ export async function activateNativeBackGesture(
     const deps: BackGestureDeps = {
       dismiss: () => dispatchDismissKey(),
       goBack: () => window.history.back(),
-      exit: () => App.exitApp(),
+      exit: () => App.minimizeApp(),
       ...overrides,
     };
 
