@@ -17,7 +17,9 @@ test("mobile historic index and detail stay provenance-honest and map-linked", a
     page.getByRole("heading", { name: "London’s Historic Pubs" }),
   ).toBeVisible();
   await expect(page.getByText(/cited from Wikipedia and Wikidata/i)).toBeVisible();
-  await expect(page.getByRole("status").filter({ hasText: /Showing all/i })).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: /Showing \d+-\d+ of \d+ pubs/i }),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: "Listed only" })).toBeVisible();
 
   await expect
@@ -31,7 +33,9 @@ test("mobile historic index and detail stay provenance-honest and map-linked", a
     "aria-pressed",
     "true",
   );
-  await expect(page.getByRole("status").filter({ hasText: /pubs/i })).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: /Showing \d+-\d+ of \d+ matches/i }),
+  ).toBeVisible();
 
   await page.getByRole("link", { name: /Read the story/i }).first().click();
   await expect(page).toHaveURL(/\/historic\/[a-z0-9-]+$/);
