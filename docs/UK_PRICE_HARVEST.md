@@ -93,10 +93,26 @@ Every rejection is counted under its own reason and printed. A skip is a
 finding: "we crawled 7,000 sites and found 900 prices" is only honest beside the
 reasons the other 6,100 gave.
 
+## PDF menus
+
+A pub that keeps its drinks list in a PDF has published a price as plainly as
+one that keeps it in a table. The first crawl reached 839 PDFs across 400 hosts
+and read none of them.
+
+`lib/harvest/pdfText.ts` reads the text layer with `pdfjs-dist`, pinned and
+harvest-only, and hands the words to the SAME rules a served page gets. It is a
+leaf module because `run.mjs` ends in a `main()` call, so a reader living inside
+it could not be tested without running a crawl.
+
+It never renders and never guesses. A scanned menu carries no text layer, so it
+yields nothing and is counted as `unreadable` rather than passed to an image
+model that would invent a price. The run report counts PDFs three ways: seen,
+read, and reached but unreadable.
+
 ## What comes out
 
 `data/uk_prices/harvest_report.json` and `data/uk_prices/rendered_report.json`
-carry the counts. `data/uk_prices/site_harvest.jsonl` is the published copy of
+carry the counts, including the `pdfs` tally of seen, read and unreadable. `data/uk_prices/site_harvest.jsonl` is the published copy of
 the accepted rows, so the bundle rebuilds from the tree rather than from a
 working directory nobody commits. `public/data/uk_prices/README.md` owns the
 bundle itself.

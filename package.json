@@ -139,12 +139,14 @@
     "eslint-config-next": "^16.3.3",
     "jsdom": "^30.0.1",
     "knip": "^6.33.0",
+    "pdfjs-dist": "6.3.289",
     "tailwindcss": "^4.3.2",
     "tsx": "^4.23.13",
     "typescript": "^5.7.2",
     "vitest": "^4.1.9"
   },
   "overrides": {
+    "browserslist": "^4.28.7",
     "postcss": "^8.5.23",
     "sharp": "$sharp",
     "eslint-plugin-react": {
