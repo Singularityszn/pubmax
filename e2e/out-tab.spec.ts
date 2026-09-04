@@ -21,6 +21,27 @@ function isOutListingsRequest(url: URL): boolean {
   return url.pathname === "/api/out";
 }
 
+const READY_EMPTY_OUT = {
+  status: "ready",
+  events: [],
+  openPlans: [],
+  openPlansStatus: "ready",
+  attribution: [],
+  observedAt: {},
+  providers: [{ name: "ticketmaster", configured: true, rows: 0, status: "ready" }],
+  venueMatch: "ready",
+} as const;
+
+async function mockReadyEmptyOut(page: Page) {
+  await page.route(isOutListingsRequest, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(READY_EMPTY_OUT),
+    }),
+  );
+}
+
 // Three ordinary links behind a disclosure, so they are found as links. Scoped
 // to the sheet itself: /out prints its own "Start a plan" way out under Open
 // plans, and a page-wide role query matches both.
@@ -46,6 +67,12 @@ for (const width of WIDTHS) {
       page,
     }) => {
       test.setTimeout(90_000);
+      // This test is phone chrome and the create sheet, not the Open plans
+      // lane. A live keyless /api/out answers openPlansStatus: degraded, and
+      // the product must paint that honesty region rather than an empty market.
+      // Hold the lane to a ready-empty body so the chrome assertions do not
+      // race the store, the same isolation the listings tests already use.
+      await mockReadyEmptyOut(page);
       await page.goto("/out");
       const out = primaryNav(page).getByRole("link", { name: "Out", exact: true });
       await expect(out).toBeVisible();
