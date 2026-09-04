@@ -1236,12 +1236,17 @@ function PlanComposerForm({
   }, [user]);
   useEffect(() => {
     if (!canPersist) return;
-    if (!shouldAutoGeneratePalHandoffPlan(urlPrefill.handoffAsk)) return;
     if (palHandoffAutoGenerateStartedRef.current) return;
+    // A client-side Pal Open in Plan still sees the previous route during the
+    // mount render, so urlPrefill.handoffAsk can be empty. Re-read the live
+    // address the same way the prefill layout effect does after the router
+    // commits it; gating on the stale snapshot skipped the deferred generate.
+    const liveHandoff = describeAskFromLocation().handoffAsk ?? urlPrefill.handoffAsk;
+    if (!shouldAutoGeneratePalHandoffPlan(liveHandoff)) return;
     palHandoffAutoGenerateStartedRef.current = true;
     // Defer until the URL ask prefill lands in describe-first or the concierge field.
     void Promise.resolve().then(() => {
-      const handoffAsk = describeAskFromLocation().handoffAsk ?? urlPrefill.handoffAsk;
+      const handoffAsk = describeAskFromLocation().handoffAsk ?? liveHandoff;
       if (!handoffAsk?.trim()) return;
       submitFromEntry(
         handoffAsk.trim(),

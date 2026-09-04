@@ -545,8 +545,20 @@ describe("PlanComposer never drops a URL ask", () => {
     stageClientNavigation("", `?query=${encodeURIComponent(URL_ASK)}`);
 
     await mountComposer();
+    await settleComposerEffects();
 
-    expect(describeFieldValue()).toBe(URL_ASK);
+    // Pal `?query=` auto-generates, so describe-first is replaced by the
+    // route. The URL ask still beat the draft: generate spent that line,
+    // never the held session ask.
+    const fetchMock = vi.mocked(fetch);
+    const generateCall = fetchMock.mock.calls.find(([input]) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      return url.includes("/api/plans/generate");
+    });
+    expect(generateCall).toBeTruthy();
+    const generateInit = generateCall?.[1] as RequestInit | undefined;
+    expect(String(generateInit?.body ?? "")).toContain(URL_ASK);
+    expect(String(generateInit?.body ?? "")).not.toContain(DRAFT_ASK);
     expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBeNull();
   });
 
@@ -638,6 +650,19 @@ describe("Pal handoff auto-generates once on /plan?query=", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
+    const fetchMock = vi.mocked(fetch);
+    const generateCall = fetchMock.mock.calls.find(([input]) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      return url.includes("/api/plans/generate");
+    });
+    expect(generateCall).toBeTruthy();
+    expect(document.body.textContent).toContain("Route refreshed");
+  });
+
+  it("auto-generates on a client navigation, where the mount render saw the old route", async () => {
+    stageClientNavigation("", `?query=${encodeURIComponent(URL_ASK)}`);
+    await mountComposer();
+    await settleComposerEffects();
     const fetchMock = vi.mocked(fetch);
     const generateCall = fetchMock.mock.calls.find(([input]) => {
       const url = typeof input === "string" ? input : (input as Request).url;
