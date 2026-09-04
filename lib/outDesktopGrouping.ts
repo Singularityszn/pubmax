@@ -207,15 +207,20 @@ export function outUnmatchedListingsNotice(
   // "at the weekend" reads as a phrase; "tonight" and "tomorrow" stand alone.
   const when = window === "weekend" ? `at ${noun}` : noun;
 
+  // "more" already tells a reader with a matched card above this is the
+  // rest, not the story. With no matched card (shown === 0) that word was
+  // absent, so the sentence stood alone and read as the night's lede (#1430).
+  // "Also" carries the same subordinating job when there is nothing above it
+  // to say "more" than.
   let line: string;
   if (venueMatch !== "ready") {
     line = `We couldn't check which of ${noun === "the weekend" ? "the weekend's" : `${noun}'s`} ${count} ${
       count === 1 ? "listing is" : "listings are"
     } at a pub we list.`;
   } else if (count === 1) {
-    line = `1 ${shown > 0 ? "more " : ""}listing ${when} is at a place we don't list yet.`;
+    line = `${shown > 0 ? "1 more" : "Also, 1"} listing ${when} is at a place we don't list yet.`;
   } else {
-    line = `${count} ${shown > 0 ? "more " : ""}listings ${when} are at places we don't list yet.`;
+    line = `${shown > 0 ? `${count} more` : `Also, ${count}`} listings ${when} are at places we don't list yet.`;
   }
 
   const names = options.unmatchedPlaces ? [...options.unmatchedPlaces] : (() => {
