@@ -2,6 +2,8 @@
 // Same paper/ink tokens as the real pages — no design change, just a skeleton
 // so cold tab taps paint something within the transition budget.
 
+import SiteNav from "@/components/nav/SiteNav";
+
 import "./mobileNav.css";
 
 type RouteLoadingShellProps = {
@@ -17,6 +19,7 @@ export default function RouteLoadingShell({ label }: RouteLoadingShellProps) {
       aria-live="polite"
       aria-label={`Loading ${label}`}
     >
+      <SiteNav />
       <div className="routeLoadingShellInner">
         <span className="routeLoadingShellBar" aria-hidden="true" />
         <span className="routeLoadingShellBar routeLoadingShellBar--short" aria-hidden="true" />
