@@ -371,6 +371,41 @@ export function viewportNamesNowhere(viewport: {
 }
 
 /**
+ * The widest a shard read's bounds may be before they name no place either.
+ *
+ * A phone viewport of a city is small: the London opening view at 390x844 spans
+ * about 0.07 degrees of longitude. This ceiling is an order of magnitude wider
+ * than that, so every legitimate city view passes and only country-scale bounds
+ * are refused.
+ */
+export const SHARD_READ_MAX_SPAN_DEGREES = 2;
+
+/**
+ * Bounds that name no place, the counterpart to {@link viewportNamesNowhere}.
+ *
+ * That guard catches the PLACEHOLDER the map holds while the location question
+ * is open: centre [0, 0] at zoom 0. It cannot catch the other way a read ends
+ * up about nowhere, and #1354's sweep found it: MapLibre reports its own
+ * `maxBounds` as the visible bounds before the camera has settled on the city,
+ * so a cold /map briefly says it is looking at the whole United Kingdom
+ * (-7.99 to 1.19, 49.8 to 61.0). That is a real centre at a real zoom, so the
+ * placeholder guard passes it, and a read taken from it asked for all 244
+ * London cells - the entire city, twice, before the map was interactive.
+ *
+ * The rule is the same one, applied to the bounds rather than the viewport: a
+ * read is about a place, and a view spanning a country has none.
+ */
+export function boundsNameNowhere(
+  bounds: MapBounds,
+  maxSpanDegrees: number = SHARD_READ_MAX_SPAN_DEGREES,
+): boolean {
+  const lngSpan = Math.abs(bounds.east - bounds.west);
+  const latSpan = Math.abs(bounds.north - bounds.south);
+  if (!Number.isFinite(lngSpan) || !Number.isFinite(latSpan)) return true;
+  return lngSpan > maxSpanDegrees || latSpan > maxSpanDegrees;
+}
+
+/**
  * The viewport the OPENING shard read may use.
  *
  * A placeholder is answered with the city's own default view, which is where
