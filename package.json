@@ -56,6 +56,8 @@
     "pubpal:agent": "node scripts/pubpal/create-elevenlabs-agent.mjs",
     "gen:brand-assets": "node scripts/gen-brand-assets.mjs",
     "gen:store-screenshots": "node scripts/gen-store-screenshots.mjs",
+    "ios:build": "node scripts/ios-simulator.mjs",
+    "ios:run": "node scripts/ios-simulator.mjs --run",
     "refresh:prices": "node scripts/refresh_prices.mjs",
     "refresh:drink-prices": "node scripts/refresh_drink_prices.mjs",
     "enrich:city": "node scripts/enrich_city_pubs_tavily.mjs",

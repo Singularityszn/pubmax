@@ -55,12 +55,26 @@ scope.
 npm install                 # installs the core/platform + app/camera/push plugins
 npx cap sync                # refresh both checked-in native projects
 npx cap open ios            # open ios/App in Xcode (requires full Xcode, not just CLT)
+
+npm run ios:build           # cap sync ios, then build the App scheme, unsigned
+npm run ios:run             # the same build, then boot a simulator and launch it
 ```
 
+Both npm scripts are `scripts/ios-simulator.mjs`, the local verification path:
+no Apple account, no team, no signing. `ios:run` picks the newest available
+iPhone simulator, or takes one by name through `PUBMAX_IOS_SIMULATOR`, and
+prints the `xcrun simctl io ... screenshot` line for the device it used.
+Derived data lands in gitignored `ios/build/`.
+
 `ios/` was generated with Capacitor 8, which uses **Swift Package Manager**
-(`ios/App/CapApp-SPM`) — CocoaPods is not required. Building/running does
-require full Xcode (`xcode-select` must point at an Xcode.app, not
-CommandLineTools).
+(`ios/App/CapApp-SPM`), so CocoaPods is not required. Two consequences matter
+before hand-running a build. There is no `App.xcworkspace` and no Podfile, so
+`xcodebuild` takes `-project ios/App/App.xcodeproj`, and a `-workspace`
+invocation fails on a healthy checkout. And `Package.swift` names each plugin by
+a relative path into `node_modules`, so `npx cap sync ios` has to run before the
+build or the previous plugin list is what compiles. The script does both.
+Building or running does require full Xcode (`xcode-select` must point at an
+Xcode.app, not CommandLineTools).
 
 Two things a fresh Xcode needs before it can build, both one-off and both
 easy to mistake for a project fault. Its licence must be accepted
@@ -107,8 +121,10 @@ is the ordered checklist to work through, with one command per step.
      `didFailToRegisterForRemoteNotificationsWithError` to Capacitor's
      `.capacitorDidRegisterForRemoteNotifications` /
      `.capacitorDidFailToRegisterForRemoteNotifications` notifications
-     (canonical Capacitor 8 push setup). Not yet compiled locally — no Xcode
-     on this machine; first `xcodebuild` will confirm.
+     (canonical Capacitor 8 push setup). It compiles: `npm run ios:build` is
+     green on Xcode 26.6. Compiling is not delivery, and a simulator can
+     receive no push at all, so the token round trip is still step 10 on a
+     device.
    - Create an APNs Auth Key in the Apple Developer portal. The server-side
      **sending pipeline and HTTP/2 transport are built** behind a provider seam
      (`lib/pushProvider.ts` + `lib/pushSender.ts`); it runs the `noopPushProvider`

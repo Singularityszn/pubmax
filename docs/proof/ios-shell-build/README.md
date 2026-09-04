@@ -3,6 +3,14 @@
 2026-09-04. Xcode 26.6, iOS 26.5 simulator runtime, iPhone 17 Pro, no
 developer team set.
 
+`simulator-scripted-run.png` is the same screen reached the same day from a
+clean `npm ci`, through `npm run ios:build` and `npm run ios:run`
+(`scripts/ios-simulator.mjs`) rather than by hand. It is what makes the check
+repeatable: the scripts take `-project ios/App/App.xcodeproj`, because this is a
+Swift Package Manager project with no `App.xcworkspace` and no Podfile, and they
+run `npx cap sync ios` first, because `CapApp-SPM/Package.swift` names each
+plugin by a relative path into `node_modules`.
+
 `simulator-first-run.png` is the shell running: it has loaded
 `https://pubmaxxing.com` in the WKWebView and landed on the native first-run
 onboarding, which only the shell shows. That screen is the proof that
