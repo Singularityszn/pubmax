@@ -399,14 +399,39 @@ and needs no other change.
 
 **9. Build to a simulator, then to your iPhone.**
 
+A fresh Xcode carries no iOS runtime, so install one first. It is several GB
+and only needed once.
+
 ```sh
-xcodebuild -project ios/App/App.xcodeproj -scheme App \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' build
+xcrun simctl list runtimes                 # empty means download it
+xcodebuild -downloadPlatform iOS
+xcrun simctl list devices available | grep iPhone
 ```
 
-*Done when:* the build succeeds, and the app opens pubmaxxing.com. Then run it
-on your own iPhone from Xcode, because the simulator has no camera and receives
-no push.
+Then build against a device name that run actually printed:
+
+```sh
+xcodebuild -project ios/App/App.xcodeproj -scheme App \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+```
+
+*Done when:* `** BUILD SUCCEEDED **`, and the app opens pubmaxxing.com after
+`xcrun simctl install booted <path>/App.app` and
+`xcrun simctl launch booted com.pubmaxx.app`. It opens on the native first-run
+onboarding, which only the shell shows, so seeing it proves `isNativeApp()` is
+true inside the WebView.
+
+**A GREEN SIMULATOR BUILD DOES NOT PROVE THE ENTITLEMENTS.** With no team set,
+Xcode signs to run locally and writes an EMPTY entitlements file, so the built
+app carries neither push nor associated domains however correct
+`App.entitlements` is. `CODE_SIGN_ENTITLEMENTS` is still resolving; confirm
+that with `xcodebuild -showBuildSettings | grep CODE_SIGN_ENTITLEMENTS` rather
+than by inspecting the built binary. Step 6 after the team is set, and step 10
+on a device, are what actually prove them.
+
+The simulator also has no camera and cannot receive push. `xcrun simctl push`
+delivers nothing visible until notification permission has been granted inside
+the app, which needs a real tap. Both belong to step 10.
 
 **10. Prove the three superpowers on the iPhone.**
 This is the gate that decides whether the app reads as a wrapped website.

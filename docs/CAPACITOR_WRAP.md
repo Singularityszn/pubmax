@@ -58,6 +58,14 @@ npx cap open ios            # open ios/App in Xcode (requires full Xcode, not ju
 require full Xcode (`xcode-select` must point at an Xcode.app, not
 CommandLineTools).
 
+Two things a fresh Xcode needs before it can build, both one-off and both
+easy to mistake for a project fault. Its licence must be accepted
+(`sudo xcodebuild -license accept`); until it is, EVERY `xcrun`-backed command
+fails, including plain `git`, because macOS ships git as an xcrun shim. And it
+carries no iOS simulator runtime (`xcrun simctl list runtimes` is empty), so
+`xcodebuild -downloadPlatform iOS` has to run once. First verified build on
+this project: Xcode 26.6, iOS 26.5 runtime, iPhone 17 Pro simulator, 2026-09-04.
+
 Before sync, hash or copy intentional native files (`AppDelegate.swift`,
 `Info.plist`, `AndroidManifest.xml`, and `MainActivity.java`), then compare them
 afterward. The 2026-07-20 Gate Z refresh did this and sync preserved all four;
