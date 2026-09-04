@@ -28,6 +28,8 @@
 // that needs to read the bundle does not pull the venue index in behind it.
 
 import {
+  type EstimatedPriceInput,
+  type ListedPriceInput,
   type PriceStanding,
   type PriceStandingDecision,
   priceStandingFor,
@@ -178,6 +180,49 @@ export function strongestBundleRow(
     now,
   );
 }
+
+/**
+ * The two inputs `priceStandingFor` takes, narrowed to one pub and one drink.
+ *
+ * THE CHEAPEST OF EACH STANDING, because a lane may hold several rows for one
+ * drink and the figure a drinker can walk in and pay is the lowest of them.
+ * This picks the inputs; it does not decide which of them speaks, and the
+ * decision stays with the one decider.
+ */
+export function bundlePricesForCategory(
+  rows: readonly UkPriceBundleRow[],
+  category: string,
+): { listed: ListedPriceInput | null; estimate: EstimatedPriceInput | null } {
+  let listed: ListedPriceInput | null = null;
+  let estimate: EstimatedPriceInput | null = null;
+  for (const row of rows) {
+    if (row.category !== category) continue;
+    if (row.standing === "listed" && row.sourceUrl) {
+      if (!listed || row.priceGbp < listed.priceGbp) {
+        listed = { priceGbp: row.priceGbp, sourceUrl: row.sourceUrl, observedAt: row.observedAt };
+      }
+      continue;
+    }
+    if (row.standing === "estimate" && row.basis && row.sampleSize) {
+      if (!estimate || row.priceGbp < estimate.priceGbp) {
+        estimate = {
+          priceGbp: row.priceGbp,
+          basis: row.basis,
+          sampleSize: row.sampleSize,
+          computedAt: row.observedAt,
+        };
+      }
+    }
+  }
+  return { listed, estimate };
+}
+
+/**
+ * The drink a pub's own price area is about. Beer is the lane the map rests in
+ * (lib/drinkLanes.ts), so the sheet's price claim is a beer claim, and naming
+ * it once here stops a surface reaching for a different drink's figure.
+ */
+export const BUNDLE_DEFAULT_CATEGORY = "beer";
 
 /** Rows grouped by the venue they are about, in the order the bundle states them. */
 export function bundleRowsByVenue(

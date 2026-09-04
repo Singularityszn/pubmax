@@ -20,7 +20,7 @@ import {
   quietHoursLabel,
 } from "@/lib/venueAccessibility";
 import { isPubVenue } from "@/lib/venueKindFilters";
-import { venuePriceLane } from "@/lib/venuePriceLane";
+import { venueBundlePrices, venuePriceLane } from "@/lib/venuePriceLane";
 import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import SaveForNightButton from "@/components/wanted/SaveForNightButton";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
@@ -83,10 +83,19 @@ function VenuePriceSummary({
   // ONE decider. This surface hands over the confirmation lane it owns and
   // reads back a standing; the listed and modelled lanes reach the same call
   // through their own owner rather than through a second judgement here.
-  const priceStanding = priceStandingFor({ confirmed: confirmedPrice ?? null });
+  // ONE decider, and it is now handed all three lanes it knows about. The
+  // confirmation is this surface's own; the listed and the modelled figure ride
+  // in on the venue from the UK price bundle, and `priceStandingFor` decides
+  // which of them speaks rather than this component choosing.
+  const bundle = venueBundlePrices(venue);
+  const priceStanding = priceStandingFor({
+    confirmed: confirmedPrice ?? null,
+    listed: bundle.listed ?? null,
+    estimate: bundle.estimate ?? null,
+  });
   // ONE precedence, shared with the first-drop gate (lib/venuePriceLane.ts),
   // so a reordered or added lane cannot leave the nudge behind.
-  const lane = venuePriceLane(venue, latestContributorPrice, sourcedPrice);
+  const lane = venuePriceLane(venue, latestContributorPrice, sourcedPrice, bundle);
   const baselinePriceRow = venue.prices.find(
     (price) => price.price_gbp === venue.cheapestPrice,
   );
@@ -179,6 +188,30 @@ function VenuePriceSummary({
     );
   }
 
+  if (lane?.lane === "listed") {
+    return (
+      <div className="contributorPrice">
+        <span className={chromeRevealClass}>
+          <ClaimBadge kind="sourced" /> Published price
+        </span>
+        {/* The pill says the figure and how far to trust it in ONE mark, and
+            the words are the standing module's own. */}
+        <TrustPill decision={priceStanding} />
+        <small className={chromeRevealClass}>
+          {formatFreshness(lane.listed.observedAt)} ·{" "}
+          <a
+            className="priceSourceLink"
+            href={lane.listed.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            source
+          </a>
+        </small>
+      </div>
+    );
+  }
+
   if (lane?.lane === "baseline") {
     return (
       <div className="contributorPrice">
@@ -208,6 +241,18 @@ function VenuePriceSummary({
             </>
           )}
         </small>
+      </div>
+    );
+  }
+
+  if (lane?.lane === "estimate") {
+    return (
+      <div className="contributorPrice">
+        {/* NO CLAIM BADGE. Nobody published this figure, so nothing here may
+            wear the mark that says somebody did. The pill prints "est. £X" and
+            carries the method link beside it, and the basis line is left to
+            /how-we-estimate rather than restated here in a second vocabulary. */}
+        <TrustPill decision={priceStanding} />
       </div>
     );
   }
