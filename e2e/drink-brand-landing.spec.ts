@@ -338,7 +338,20 @@ test.describe("Guinness landing cross-surface journey", () => {
     expect(namedVenueId).not.toBeNull();
 
     await logLink.click();
-    await expect(page).toHaveURL(/\/map\?sel=[^&]+&brand=guinness&log=1$/);
+    // The landing href order is sel, brand, log. The map rewrites its own
+    // address on arrival (it may add drink=beer as the rest lane). Hold the
+    // three owned params, never the landing's query order.
+    await expect
+      .poll(() => {
+        const url = new URL(page.url());
+        if (url.pathname !== "/map") return "";
+        return [
+          url.searchParams.get("sel"),
+          url.searchParams.get("brand"),
+          url.searchParams.get("log"),
+        ].join("|");
+      })
+      .toBe(`${namedVenueId}|guinness|1`);
     const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
     await expect(venueSheet.locator(".mobileSharedSheet")).toHaveClass(/open/, {
       timeout: 45_000,
