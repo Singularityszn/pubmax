@@ -7,14 +7,15 @@ import JsonLd from "@/components/seo/JsonLd";
 import FactBlock from "@/components/seo/FactBlock";
 import FaqBlock from "@/components/seo/FaqBlock";
 import PriceBadge from "@/components/PriceBadge";
-import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
+import { venueMapUrl } from "@/lib/venueIndex";
 import { pintFactStats, faqItems, faqPageJsonLd } from "@/lib/pintFacts";
 import {
   formatMonthYear,
   formatObservedDate,
   PINT_DATASET_OBSERVED_AT,
 } from "@/lib/dataFreshness";
-import { groupVenuePrices, formatPrice, type Venue, type VenuePrice } from "@/lib/venues";
+import { formatPrice, type Venue } from "@/lib/venues";
+import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
 import { boroughFromSlug, pubsInBorough, slugifyBorough } from "@/lib/boroughs";
 import { loadBoroughHeritage, NOTABLE_CAP } from "@/lib/boroughHeritage";
 import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
@@ -32,9 +33,9 @@ import "./borough.css";
 import "@/components/seo/factLayer.css";
 
 // Borough discovery / "night-out chapter" page: /borough/[slug]. A SERVER
-// component (cc_plan2 §14/§25, story 28) — it reads the bundled dataset via
-// getVenueIndex's underlying loader (venueIndex is server-only, which is fine
-// here), groups it, resolves the borough from the slug, and renders a
+// component (cc_plan2 §14/§25, story 28) — it reads the bundled dataset through
+// lib/pintPriceLandingDataset.server, the ONE governed seam every priced surface
+// shares, resolves the borough from the slug, and renders a
 // shareable page: a dek, cheapest-first pubs (each linking onto the map), the
 // borough's story pubs, any curated/themed crawl that touches the borough, and
 // a transport hint that links the map pre-filtered to the area. generateMetadata
@@ -95,28 +96,13 @@ function boroughMapUrl(pubs: Venue[]): string {
   return `/map?${params.toString()}`;
 }
 
-// Load the grouped venue set from disk. We reuse the same dataset getVenueIndex
-// reads (via its build path) but need full Venue[] here, not the id→ref map, so
-// we group the rows ourselves. Never throws: a read/parse failure yields [] so
-// the page degrades to a friendly empty state rather than 500-ing. getVenueIndex
-// is awaited first purely to keep the server-only import wired and the dataset
-// warm in the same memoized path the rest of the app uses.
+// The grouped venue set, through the ONE governed seam every priced surface
+// reads. A loader of its own re-parsed and re-grouped 6.7 MB per render, and
+// this route pays that twice (generateMetadata, then the page body). Never
+// throws: a read failure yields [] so the page degrades to a friendly empty
+// state rather than 500-ing.
 async function loadVenues() {
-  try {
-    await getVenueIndex();
-    const { promises: fs } = await import("fs");
-    const path = await import("path");
-    const file = path.join(
-      process.cwd(),
-      "public",
-      "data",
-      "pint_prices_app_dataset.json",
-    );
-    const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
-    return groupVenuePrices(Array.isArray(rows) ? rows : []);
-  } catch {
-    return [];
-  }
+  return loadPintPriceLandingVenues();
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
