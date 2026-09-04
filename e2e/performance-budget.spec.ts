@@ -72,6 +72,7 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
         requests: sample.requests,
         lcpMs: Math.round(sample.lcpMs),
         boundarySource: sample.boundarySource,
+        stillOpen: sample.stillOpen,
       })),
     );
   }

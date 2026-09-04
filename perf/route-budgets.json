@@ -1,5 +1,5 @@
 {
-  "note": "Per-route performance ceilings. Read docs/PERFORMANCE_BUDGETS.md before changing a number: down is free, up is a decision. lcpMs is seeded from three production runs on 2026-09-01 over the real network rather than loopback. Those seed runs used 390x844 at DPR 3, while the enforced sweep uses Desktop Chrome at device pixel ratio 1 with the same CSS viewport, 4x CPU throttle, and third-party requests blocked, so a seed figure is indicative rather than a reproduction of CI's method. Medians measured: / 296, /pal 792, /map 1196, /today 720, /tonight 784, /out 900, /about 320, /pubs 372. The seeded ceilings are deliberately looser than those figures: / and /pal take the programme's 1500 ms target, and every other route takes 2500 ms, the Core Web Vitals good boundary, so no route may be worse than good. CI's own sweep is the oracle and the ratchet check banks the slack.",
+  "note": "Per-route performance ceilings for every route the site serves a stranger, all 35 of them. Read docs/PERFORMANCE_BUDGETS.md before changing a number: down is free, up is a decision, and scripts/check-budget-ratchet.mjs refuses an undocumented raise against the base branch. Seeded 2026-09-04 from one sweep on a production build of main at 4f36f2547, under the method block below, which is the same method CI enforces: Desktop Chrome at 390x844, a 4x CPU throttle, the tracked Fast 4G network profile, third parties refused, storage and cookies cleared between routes, one warm-up load discarded and the median of three measured ones, with counting cut on the PAGE's own clock. Every ceiling is the measured figure plus one uniform headroom rule - 15% for bytes and requests, 20% for LCP, and a 150 ms or 450 ms family floor for server render - EXCEPT where the measurement already met a tighter ceiling, in which case the tighter one stands, and except where the measurement is OVER the ceiling, in which case the ceiling stands and the sweep reports the breach. NOTHING here was loosened to fit a measurement. One route is over its ceiling on purpose: /map asks for 331 requests before it is interactive against a ceiling of 160, and the same rig measured 148 on the commit before the map camera work landed. That is a regression this rig was added to catch, so the ceiling is left where it is. CI's own sweep is the oracle and the ratchet check banks the slack.",
   "method": {
     "browser": "Desktop Chrome",
     "deviceScaleFactor": 1,
@@ -7,6 +7,16 @@
     "measuredRuns": 3,
     "aggregate": "median",
     "cpuThrottleRate": 4,
+    "network": {
+      "profile": "chrome-fast-4g",
+      "latencyMs": 75,
+      "downloadBytesPerSecond": 1012500,
+      "uploadBytesPerSecond": 168750,
+      "quietMs": 2500,
+      "drainCeilingMs": 90000,
+      "streamAfterMs": 12000,
+      "why": "Chrome DevTools' own Fast 4G preset, written out in its own units: 9 Mbit/s down and 1.5 Mbit/s up at 90% of nominal, with a 20 ms base round trip scaled by 3.75. Loopback has no round trip at all, so it cannot see a waterfall, and a waterfall is what the requests ceiling exists to catch. The numbers are here rather than in code because two runs are only comparable when the wire under them was the same."
+    },
     "viewport": { "width": 390, "height": 844 },
     "thirdPartyBlocked": true,
     "futureDeviceMigration": "A later DPR-3 migration is possible, but it must re-seed every ceiling in one commit. playwright.config.ts already has iPhone 14 wiring; the cost is re-measurement, not plumbing.",
@@ -26,8 +36,8 @@
       "readySelector": "main",
       "why": "The landing every shared link and every search result opens.",
       "serverRenderMs": 150,
-      "jsDecodedKB": 1250,
-      "requests": 50,
+      "jsDecodedKB": 1010,
+      "requests": 46,
       "lcpMs": 1500
     },
     {
@@ -35,9 +45,9 @@
       "readySelector": ".palExperience",
       "settledSelectorHidden": ".palLoading",
       "why": "The front door's one primary action, so it is measured beside the landing that sends people to it. The 2026-09-01 seed sweep measured 1745 KB decoded, of which a single 603 KB chunk was the ElevenLabs conversation SDK, parsed before first paint for a control the reader may never reach and the deployment may not even have switched on. That chunk now loads when the availability probe says voice is on (components/pubpal/PubPalVoiceSession.tsx), so this ceiling ratchets to 1300 KB against an expected ~1142 KB. CI's sweep is the oracle; U8's ratchet check banks whatever slack is left.",
-      "serverRenderMs": 450,
+      "serverRenderMs": 150,
       "jsDecodedKB": 1300,
-      "requests": 60,
+      "requests": 51,
       "lcpMs": 1500
     },
     {
@@ -48,22 +58,22 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 3400,
       "requests": 160,
-      "lcpMs": 2500,
+      "lcpMs": 1500,
       "pinReady": {
         "path": "/map/london",
-        "targetMs": 4000,
-        "measuredMs": 3336,
+        "targetMs": 2500,
+        "measuredMs": 2713,
         "signal": "window.__pubmaxPaintedMapTapPoints().length > 0",
         "viewport": { "width": 390, "height": 844 },
-        "note": "Cold first visit on phone; pinReadyMs from e2e/mobile-map-chrome-fit.spec.ts on a production build with one Chromium worker and the pin SLA enforced. Final run: 3336 ms. Local pub pins reveal from their painted source without waiting for remote basemap tiles; the basemap retains its independent recovery lane."
+        "note": "Cold first visit on phone; pinReadyMs from e2e/mobile-map-chrome-fit.spec.ts on a production build with one Chromium worker and the pin SLA enforced. The target comes DOWN from 4000 to 2500 here. The measured figure is 2713, the median of five runs on the map lane's own box after #1378, so 2500 is a baseline to beat rather than a ceiling that has been met: the gap is 213 ms and it is debt, not a licence to raise the number back. (A single run on this box measured 1822 ms before #1378 landed; five runs after it is the figure to trust.) Local pub pins reveal from their painted source without waiting for remote basemap tiles; the basemap retains its independent recovery lane. The SPEC reads targetMs from here, so there is one owner of the number, and scripts/check-budget-ratchet.mjs refuses a commit that takes it back up. It is enforced only where a real renderer is available (PUBMAX_PIN_SLA_ENFORCE=1): a GPU-less runner measures SwiftShader rather than the map."
       }
     },
     {
       "path": "/today",
       "readySelector": "main",
       "why": "The morning brief, composed on the server from bundled data. Its server figure is the loosest here because it is the one route that really composes something.",
-      "serverRenderMs": 450,
-      "jsDecodedKB": 1300,
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1060,
       "requests": 52,
       "lcpMs": 2500
     },
@@ -72,7 +82,7 @@
       "readySelector": "main",
       "why": "The fastest route we have. It is the shape every other route is held against.",
       "serverRenderMs": 150,
-      "jsDecodedKB": 1280,
+      "jsDecodedKB": 1080,
       "requests": 56,
       "lcpMs": 2500
     },
@@ -81,8 +91,8 @@
       "readySelector": "main",
       "why": "The Out tab shell. Composed from existing what's-on rows; no new API.",
       "serverRenderMs": 150,
-      "jsDecodedKB": 1300,
-      "requests": 56,
+      "jsDecodedKB": 1010,
+      "requests": 49,
       "lcpMs": 2500
     },
     {
@@ -90,8 +100,8 @@
       "readySelector": "main",
       "why": "The page that states what the figures mean and where they come from, linked from every trust claim on the site. It composes nothing per request, so it is the floor a server-rendered page here should sit on. The 1900 KB ceiling was stale by 800 KB: the 2026-09-01 sweep measured 1081 KB decoded over 24 chunks with no MapLibre, no Convex, no voice SDK and no image cropper in any of them, so there was no accidental import to split, only slack to bank. The REQUEST ceiling is left where it is: a seed run counts requests against its own interactive moment on a different box and network, and this one counted 62 on / where CI is green at 50, so a request figure measured here is not comparable to the sweep's. Decoded bytes are.",
       "serverRenderMs": 150,
-      "jsDecodedKB": 1200,
-      "requests": 70,
+      "jsDecodedKB": 960,
+      "requests": 43,
       "lcpMs": 2500
     },
     {
@@ -100,7 +110,7 @@
       "why": "The one launch surface whose server render was not a shell: it re-parsed the 6.7 MB price dataset per request until the shared priced-venue index was reused. The ceiling is here so that read cannot come back unnoticed. Its JS ceiling was stale by 850 KB: the 2026-09-01 sweep measured 1092 KB decoded over 25 chunks, the same shared baseline /about carries, with none of the heavy libraries in any of them. Its request ceiling is left alone for the reason /about's is.",
       "serverRenderMs": 150,
       "jsDecodedKB": 1200,
-      "requests": 75,
+      "requests": 68,
       "lcpMs": 2500
     },
     {
@@ -108,8 +118,242 @@
       "readySelector": ".webmcpShell",
       "why": "The Agent Night Board. It is unlinked and noindex, so nobody arrives here by browsing, but it is a route a judge and an agent both open and it must not become the place heavy work hides. Seeded from the 2026-09-03 sweep on this branch: 13 ms server render, 863 KB decoded, 37 requests, 184 ms LCP. The board fetches nothing on mount, so those figures are the shell; every read here answers a person or agent action afterwards. Ceilings are set in family with /about and /pubs, which measure about 830 KB against 1200 KB, rather than at the measured figure, because a request count measured on one box is not comparable to CI's. CI is the oracle: take these DOWN at the next sweep, never up.",
       "serverRenderMs": 150,
-      "jsDecodedKB": 1200,
+      "jsDecodedKB": 1000,
+      "requests": 44,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/near",
+      "readySelector": "main.nmnPageBody",
+      "why": "The instant answer: the cheapest good pints within a walk. It is the one arrival that is measured in the UX lane report and budgeted nowhere, so nothing could regress it.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1130,
+      "requests": 52,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/login",
+      "readySelector": "main.loginPage",
+      "why": "The door. Every account this product ever gets comes through it, and it is the one surface where a slow paint costs a person rather than a page view.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 950,
+      "requests": 40,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/signin",
+      "readySelector": "main.loginPage",
+      "why": "The live alias of /login, budgeted separately because an alias that quietly diverges from what it aliases is worse than two pages.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 950,
+      "requests": 40,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/plan",
+      "readySelector": "main.planPage",
+      "why": "Describe-first: the composer a night is actually built in.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1170,
+      "requests": 48,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/pal/chat",
+      "readySelector": "main.palChat",
+      "why": "Where the front door's one primary action lands. /pal is budgeted; the surface it opens was not.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1040,
+      "requests": 46,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/social",
+      "readySelector": "main.socialPage",
+      "why": "The Social tab, one of the five phone destinations.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1130,
       "requests": 56,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/feed",
+      "readySelector": "main.socialPage",
+      "why": "Social Posts, and the heaviest of the shared social shells.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1130,
+      "requests": 56,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/discover",
+      "readySelector": "main.socialPage",
+      "why": "Discovery, on the same shell, budgeted apart so a change to one cannot hide inside the other.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1130,
+      "requests": 56,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/drinks",
+      "readySelector": "main.socialPage",
+      "why": "The drink lanes surface, same shell again.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1130,
+      "requests": 56,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/messages",
+      "readySelector": "main.messagesMain",
+      "why": "Private threads. It carries the photo pipeline, so it is the social surface most able to grow.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 970,
+      "requests": 44,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/activity",
+      "readySelector": "main.activity",
+      "why": "The per-viewer notification feed.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 980,
+      "requests": 45,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/u/you",
+      "readySelector": "main.profileMain",
+      "why": "The signed-in account hub, and the document /profile actually serves: /profile is a server redirect, so budgeting that path measured a redirect rather than a route. The page clock said so by falling back to the harness clock, which is the fallback earning its place.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1290,
+      "requests": 66,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/onboarding",
+      "readySelector": "main",
+      "why": "Arrival for a brand new account, and the one route where a slow paint is the first thing anybody sees.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 960,
+      "requests": 41,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/choose-city",
+      "readySelector": "main.cityChooser",
+      "why": "The city question, on the path to every non-London night.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 950,
+      "requests": 38,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/moment",
+      "readySelector": "main.momentMain",
+      "why": "The Moment capture surface.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 980,
+      "requests": 43,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/rounds",
+      "readySelector": "main.roundShell",
+      "why": "The Round diary, where a night's spend is recorded. It is the one social surface that writes money figures, so it is budgeted rather than assumed light.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 960,
+      "requests": 44,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/crawls",
+      "readySelector": "main.crawlsShell",
+      "why": "The crawl index, a crawlable family.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1020,
+      "requests": 45,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/borough",
+      "readySelector": "main.boroughPage",
+      "why": "The borough index above the crawlable price family, so the family's own entrance is measured.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 960,
+      "requests": 44,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/historic",
+      "readySelector": "main.historicPage",
+      "why": "The historic pubs index.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 970,
+      "requests": 44,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/pint-index",
+      "readySelector": "main.pintIndexPage",
+      "why": "The live Pint Index: the page every trust claim and every citation points at.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 990,
+      "requests": 45,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/founders",
+      "readySelector": "main.foundersMain",
+      "why": "The founding members wall.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 960,
+      "requests": 44,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/contributors",
+      "readySelector": "main.contributorMain",
+      "why": "The contributor leaderboard.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 960,
+      "requests": 43,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/we-are-out",
+      "readySelector": "main.weAreOut",
+      "why": "The we-are-out feed, on the shared feed shell. Budgeted apart from /feed so a change to one cannot hide inside the other.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 970,
+      "requests": 44,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/privacy",
+      "readySelector": "main.legalPage",
+      "why": "A legal page composes nothing per request, so it and /terms are the floor every server-rendered route here is judged against.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 910,
+      "requests": 37,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/terms",
+      "readySelector": "main.legalPage",
+      "why": "The other half of that floor. Two pages on one shell: if they ever disagree, something composed.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 910,
+      "requests": 37,
+      "lcpMs": 2500
+    },
+    {
+      "path": "/places",
+      "readySelector": "main.placesBody",
+      "why": "The Places tab, which sets the one city Map, Out and Near follow. It shipped in #1368 after this sweep's route list was drawn, and an unbudgeted route is one nothing can regress.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1000,
+      "requests": 46,
       "lcpMs": 2500
     }
   ]

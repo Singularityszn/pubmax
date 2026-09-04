@@ -61,6 +61,8 @@ export type PerfSample = {
   cls: number;
   /** Which clock cut the count. `harness-ready` means the in-page gate never held. */
   boundarySource: PerfBoundarySource;
+  /** Connections still open when the wait ended, if any. Reported, never failed on. */
+  stillOpen: string[];
 };
 
 /** One route's samples, kept so a run can print the spread beside the median. */
@@ -76,21 +78,50 @@ type PerfGate = {
   cls: number;
 };
 
-export const ROUTE_READY_TIMEOUT_MS = 45_000;
+/**
+ * How long the harness WAITS for a route to say it is ready. It is not a
+ * ceiling and it never fails a budget: the ceilings are the four figures in
+ * perf/route-budgets.json, and this only decides when to give up on a route
+ * that is never going to answer. It is generous because the sweep runs under a
+ * 4x CPU throttle AND a throttled wire, where /map's own loading chrome clears
+ * well after a minute on a busy box - and a route that times out here is
+ * reported as unmeasured, which findBudgetBreaches already treats as a breach
+ * of every metric.
+ */
+export const ROUTE_READY_TIMEOUT_MS = 120_000;
 
 export function aggregatePerfMetric(values: readonly number[]): number {
   if (values.some((value) => !Number.isFinite(value))) return Number.NaN;
   return median(values);
 }
 
-/** No new resource entry for this long counts as the network having gone quiet. */
-const NETWORK_QUIET_MS = 1_500;
-const NETWORK_QUIET_CEILING_MS = 20_000;
+/**
+ * How long counts as quiet, and how long a run waits before giving up, both off
+ * the tracked network profile. They are NOT constants here because they are not
+ * constant: over a throttled wire an ordinary gap between two requests is
+ * longer than a whole loopback load, so a window sized for loopback would call
+ * a route finished in the middle of its own waterfall, and a drain ceiling
+ * sized for loopback fails the heaviest route on a wire it was never measured
+ * against.
+ */
+function quietWindow(
+  method: BudgetMethod,
+): { quietMs: number; ceilingMs: number; streamAfterMs: number } {
+  return {
+    quietMs: method.network?.quietMs ?? 1_500,
+    ceilingMs: method.network?.drainCeilingMs ?? 20_000,
+    streamAfterMs: method.network?.streamAfterMs ?? 20_000,
+  };
+}
 
 type NetworkTracker = {
-  active: Set<Request>;
+  /** Each in-flight request against the moment it started, so a stream can be told from a resource. */
+  active: Map<Request, number>;
   revision: number;
 };
+
+/** What stayed open past the drain ceiling on the last wait, if anything. */
+export type QuietOutcome = { drained: true } | { drained: false; stillOpen: string[] };
 
 const networkTrackers = new WeakMap<Page, NetworkTracker>();
 
@@ -98,9 +129,9 @@ function ensureNetworkTracker(page: Page): NetworkTracker {
   const existing = networkTrackers.get(page);
   if (existing) return existing;
 
-  const tracker: NetworkTracker = { active: new Set(), revision: 0 };
+  const tracker: NetworkTracker = { active: new Map(), revision: 0 };
   const start = (request: Request) => {
-    tracker.active.add(request);
+    tracker.active.set(request, Date.now());
     tracker.revision += 1;
   };
   const finish = (request: Request) => {
@@ -209,9 +240,55 @@ export async function preparePerfPage(
   }
 
   const rate = method.cpuThrottleRate;
-  if (rate && rate > 1) {
+  const network = method.network;
+  const throttlesNetwork = network && network.profile !== "loopback";
+  if ((rate && rate > 1) || throttlesNetwork) {
     const session = await page.context().newCDPSession(page);
-    await session.send("Emulation.setCPUThrottlingRate", { rate });
+    if (rate && rate > 1) {
+      await session.send("Emulation.setCPUThrottlingRate", { rate });
+    }
+    if (throttlesNetwork) {
+      // Loopback is not a network. A route can hold every byte ceiling and
+      // still lose the night to a waterfall, and a waterfall only costs
+      // anything where a round trip does - so the rig pins one named profile
+      // with its own numbers rather than measuring over a wire nobody has.
+      await session.send("Network.enable");
+      await session.send("Network.emulateNetworkConditions", {
+        offline: false,
+        latency: network.latencyMs,
+        downloadThroughput: network.downloadBytesPerSecond,
+        uploadThroughput: network.uploadBytesPerSecond,
+      });
+    }
+  }
+}
+
+/**
+ * Every route starts from the same state, because one sweep shares one page.
+ *
+ * Without this the sweep measures whatever the PREVIOUS route left behind. It
+ * showed up as a bimodal `/map`: 144 requests on one sweep and 324 on the next,
+ * with a 0% spread WITHIN each - so not noise, but two different starting
+ * states. The map remembers a location and a viewport
+ * (`lib/mapWarmup.ts` and the cached location-first opening), and how much it
+ * remembers decides how many shards it streams before its own loading chrome
+ * clears. A budget that swings 2x on what an earlier route happened to store is
+ * not a budget.
+ *
+ * Clearing puts the route back on the tracked footing: cold on the warm-up load
+ * the method already discards, warm on the three it measures, and identical for
+ * every route in the sweep.
+ */
+async function resetPerfState(page: Page): Promise<void> {
+  await page.context().clearCookies();
+  try {
+    await page.evaluate(() => {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+    });
+  } catch {
+    // The first route in a sweep is still on about:blank, which has no storage
+    // to clear and no state to leak.
   }
 }
 
@@ -230,32 +307,64 @@ export async function loadPerfRoute(page: Page, route: PerfRoute): Promise<numbe
 }
 
 /** Waits until nothing new has been requested for a while, so sizes are final. */
-export async function waitForQuietNetwork(page: Page): Promise<void> {
+export async function waitForQuietNetwork(
+  page: Page,
+  method: BudgetMethod = PERFORMANCE_BUDGETS.method,
+): Promise<QuietOutcome> {
+  const { quietMs, ceilingMs, streamAfterMs } = quietWindow(method);
   const tracker = ensureNetworkTracker(page);
   let seenRevision = tracker.revision;
   let quietSince = Date.now();
-  const deadline = Date.now() + NETWORK_QUIET_CEILING_MS;
+  const deadline = Date.now() + ceilingMs;
 
   while (true) {
     await new Promise((resolve) => setTimeout(resolve, 200));
-    if (Date.now() >= deadline && tracker.active.size > 0) {
-      throw new Error(
-        `Network did not drain within ${NETWORK_QUIET_CEILING_MS}ms (${tracker.active.size} request(s) still active).`,
-      );
+    const now = Date.now();
+
+    // A connection open this long is a STREAM, not a resource still arriving.
+    // /today holds one for the life of the page, and treating it as activity
+    // meant the run sat out the whole drain ceiling on every single load: 90
+    // seconds a load, four loads a route, which is most of a CI wall spent
+    // waiting for something that is not in the figures anyway.
+    const streaming: Request[] = [];
+    let settling = 0;
+    for (const [request, startedAt] of tracker.active) {
+      if (now - startedAt >= streamAfterMs) streaming.push(request);
+      else settling += 1;
     }
-    if (tracker.revision !== seenRevision || tracker.active.size > 0) {
+
+    // Quiet means nothing NEW started and nothing is still arriving. A stream
+    // is neither, so it does not hold the window open.
+    if (tracker.revision !== seenRevision || settling > 0) {
       seenRevision = tracker.revision;
-      quietSince = Date.now();
-      continue;
+      quietSince = now;
     }
-    if (Date.now() - quietSince >= NETWORK_QUIET_MS) return;
+
+    if (now >= deadline && tracker.active.size > 0) {
+      // The hard stop: something is still arriving and has been for the whole
+      // ceiling. End the wait and name it rather than hanging the sweep.
+      return {
+        drained: false,
+        stillOpen: [...tracker.active.keys()].map((request) => request.url()),
+      };
+    }
+
+    if (now - quietSince < quietMs) continue;
+    if (streaming.length > 0) {
+      return { drained: false, stillOpen: streaming.map((request) => request.url()) };
+    }
+    return { drained: true };
   }
 }
 
 /** One load, measured. */
-export async function samplePerfRoute(page: Page, route: PerfRoute): Promise<PerfSample> {
+export async function samplePerfRoute(
+  page: Page,
+  route: PerfRoute,
+  method: BudgetMethod = PERFORMANCE_BUDGETS.method,
+): Promise<PerfSample> {
   const harnessReadyAtMs = await loadPerfRoute(page, route);
-  await waitForQuietNetwork(page);
+  const quiet = await waitForQuietNetwork(page, method);
   const { gate, loadEventEndMs } = await page.evaluate(() => {
     const gateWindow = window as typeof window & {
       __pubmaxPerfPaint?: { readyAt: number; lcpMs: number; cls: number };
@@ -314,6 +423,7 @@ export async function samplePerfRoute(page: Page, route: PerfRoute): Promise<Per
     lcpMs: (gate as PerfGate).lcpMs,
     cls: (gate as PerfGate).cls,
     boundarySource: source,
+    stillOpen: quiet.drained ? [] : quiet.stillOpen,
   };
 }
 
@@ -342,13 +452,14 @@ export async function runPerfRoute(
   route: PerfRoute,
   method: BudgetMethod = PERFORMANCE_BUDGETS.method,
 ): Promise<PerfRouteRun> {
+  await resetPerfState(page);
   for (let run = 0; run < method.warmupRuns; run += 1) {
     await loadPerfRoute(page, route);
-    await waitForQuietNetwork(page);
+    await waitForQuietNetwork(page, method);
   }
   const samples: PerfSample[] = [];
   for (let run = 0; run < method.measuredRuns; run += 1) {
-    samples.push(await samplePerfRoute(page, route));
+    samples.push(await samplePerfRoute(page, route, method));
   }
   return {
     samples,
@@ -363,6 +474,7 @@ export async function runPerfRoute(
       boundarySource: samples.every((sample) => sample.boundarySource === "page-ready")
         ? "page-ready"
         : "harness-ready",
+      stillOpen: [...new Set(samples.flatMap((sample) => sample.stillOpen))],
     },
   };
 }

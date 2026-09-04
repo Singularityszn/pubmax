@@ -212,20 +212,28 @@ jobs:
   # Speed is the product's claim, so a pull request that slows a budgeted route
   # fails here rather than being noticed on a phone weeks later. The ceilings
   # live in perf/route-budgets.json and docs/PERFORMANCE_BUDGETS.md owns the rule
-  # for changing one. Every route in that file is measured, two runs each after a
-  # thrown-away warm-up, under a 4x CPU throttle. The UX lane report is its OWN
-  # job below rather than a second sweep in this step: both build and serve the
-  # app themselves, and one 15-minute wall cannot hold two full sweeps of a
-  # route set whose map load alone runs 10 to 25 seconds cold.
+  # for changing one. Every route the site serves a stranger is measured - all 34
+  # of them - three runs each after a thrown-away warm-up, under a 4x CPU throttle
+  # AND the tracked Fast 4G network profile. The UX lane report is its OWN job
+  # below rather than a second sweep in this step: both build and serve the app
+  # themselves, and one wall cannot hold two full sweeps of a route set whose map
+  # load alone runs about two minutes over the throttled wire.
+  #
+  # The wall is 35 minutes because the sweep itself measured 11m45s locally over
+  # that wire, on top of a production build. It was 15 with nine routes on
+  # loopback.
   performance-budget:
     name: Performance budget
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+          # The ratchet check compares this branch's ceilings against the base
+          # branch's, so it needs the base branch to compare against.
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -243,6 +251,22 @@ jobs:
       - name: Install dependencies
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm ci
+
+      # A budget is a ratchet, and this is the pawl. When the gate fails, the
+      # fastest way to make the red go away is to raise the ceiling, and #1314 is
+      # the record of a gate failing on unchanged code and pushing an author
+      # toward exactly that move. A raise is not forbidden - it needs a
+      # ceilingRaises record naming the metric, the figure it came from, the
+      # measured figure and why, checked against the base branch's own ceiling so
+      # it cannot be written from memory. Removing a route is refused outright: an
+      # unmeasured route reads as a pass and never fails again.
+      #
+      # It runs BEFORE the sweep because it needs no browser and no build, so a
+      # raised ceiling is reported in seconds rather than after half an hour.
+      - name: Refuse a ceiling taken up without a record
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref || 'main' }}"
+          node scripts/check-budget-ratchet.mjs FETCH_HEAD
 
       # Chromium only: the budget is measured in one engine on purpose, so a run
       # is comparable to the one before it.
