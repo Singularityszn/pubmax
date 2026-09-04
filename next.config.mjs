@@ -7,6 +7,7 @@ import {
   freshnessArtifactIncludes,
 } from "./lib/freshnessTracing.mjs";
 import { PAL_MASCOT_SIZES, PAL_MASCOT_SLUGS } from "./lib/palMascotAssets.mjs";
+import { staticAssetHeaderSources } from "./lib/staticAssetPrefixes.mjs";
 import { runtimeDataPackRouteIncludes } from "./lib/venueIndexTracing.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -23,6 +24,15 @@ const ukBaseManifest = JSON.parse(
 );
 const ukBaseGeneration =
   /^\/data\/uk_base\/packs\/([a-f0-9]{16})\/$/.exec(ukBaseManifest.urlPrefix)?.[1] ?? "";
+
+// The generation a browser may still hold a manifest for. Llandudno's pack was
+// rebuilt under a new content-addressed generation and the old shard URLs went
+// with it (#1015), so a stale manifest asked for files that no longer exist.
+// The compatibility rewrite USED to live in proxy.ts, which meant every one of
+// those requests - and every other /data request behind it - paid a Node
+// function. It is a routing rule with no per-request input, so it belongs here:
+// Vercel applies it at the edge and the CDN keeps serving the packs.
+const LEGACY_UK_BASE_GENERATION = "e229e760f3e7a2fd";
 
 // The freshness spine reads each dataset's artifact by a path taken from
 // data/freshness_registry.json AT RUNTIME (join(process.cwd(), dataset.artifact)).
@@ -237,11 +247,27 @@ const nextConfig = {
   env: {
     // See swVersion above — SW cache-busting build id.
     NEXT_PUBLIC_SW_VERSION: swVersion,
-    // proxy.ts uses this build-time value to keep stale UK base manifests
-    // readable after a content-addressed pack generation changes.
-    NEXT_PUBLIC_UK_BASE_GENERATION: ukBaseGeneration,
   },
   skipTrailingSlashRedirect: true,
+  async rewrites() {
+    // beforeFiles, so the compatibility path is answered by the rule rather
+    // than by whether a file happens to be absent. Both the source and the
+    // destination sit under /data, so the `/data/:path*` cache-control rule in
+    // headers() below still applies: headers match the address the reader
+    // asked for.
+    return {
+      beforeFiles: ukBaseGeneration
+        ? [
+            {
+              source: `/data/uk_base/packs/${LEGACY_UK_BASE_GENERATION}/:shard(\\d+\\.\\d+_-?\\d+\\.\\d+\\.json)`,
+              destination: `/data/uk_base/packs/${ukBaseGeneration}/:shard`,
+            },
+          ]
+        : [],
+      afterFiles: [],
+      fallback: [],
+    };
+  },
   async redirects() {
     // Social owns posts and public pub discovery. Retired route families go
     // straight to their canonical Social surface with no redirect chain.
@@ -286,6 +312,18 @@ const nextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
+      // Preview and development deploys must never be indexed, and the static
+      // asset prefixes no longer pass through proxy.ts, which is where
+      // applyNonProductionRobotsTag used to stamp them. Keep the header by a
+      // static rule instead of a function: VERCEL_ENV is known at build, so a
+      // production build emits no rule at all and app/robots.ts still stands
+      // alone. lib/staticAssetPrefixes.mjs owns which prefixes those are.
+      ...(process.env.VERCEL_ENV === "production"
+        ? []
+        : staticAssetHeaderSources().map((source) => ({
+            source,
+            headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+          }))),
       {
         // Easter egg, deliberately kept out of `securityHeaders` so that list
         // stays purely load-bearing. Nothing reads this header and nothing
