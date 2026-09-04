@@ -45,11 +45,17 @@
 	<array>
 		<string>armv7</string>
 	</array>
+	<!-- iPhone is PORTRAIT ONLY, and public/manifest.webmanifest already said
+	     so ("orientation": "portrait-primary"). The two halves disagreed, and
+	     the plist was the half a reviewer acts on. Rotated to 844x390 the app
+	     crosses into the DESKTOP layout: the desktop nav bar and the desktop map
+	     toolbar take roughly 55% of the height, and the phone sheet shell does
+	     not mount at all (sheetsEnabled, components/mobile/MobileMapShell.tsx),
+	     so tapping a pin behaves differently from portrait. Deleting a whole
+	     untested layout class is the honest fix. ~ipad below is untouched. -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>

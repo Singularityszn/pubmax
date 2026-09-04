@@ -89,6 +89,33 @@ describe("Capacitor wrapped-build contract", () => {
     );
   });
 
+  it("offers iPhone one orientation, and the same one the web manifest offers", () => {
+    // Landscape was opted into and hands the reader a layout nobody tests: at
+    // 844x390 the app crosses into the DESKTOP layout, where the desktop nav
+    // bar and map toolbar take roughly 55% of the height and the phone sheet
+    // shell does not mount at all, so a pin tap behaves differently from
+    // portrait. The manifest already declared portrait-primary, so the two
+    // halves of one answer disagreed and the plist was the half a reviewer
+    // acts on. iPad is a separate key and is deliberately untouched.
+    const info = rootFile("ios/App/App/Info.plist");
+    const iphone = info.slice(
+      info.indexOf("<key>UISupportedInterfaceOrientations</key>"),
+      info.indexOf("<key>UISupportedInterfaceOrientations~ipad</key>"),
+    );
+    expect(iphone).toContain("<string>UIInterfaceOrientationPortrait</string>");
+    expect(iphone).not.toContain("Landscape");
+    expect(iphone).not.toContain("PortraitUpsideDown");
+    const manifest = JSON.parse(rootFile("public/manifest.webmanifest")) as {
+      orientation?: string;
+    };
+    expect(manifest.orientation).toBe("portrait-primary");
+
+    // The iPad key still exists and still offers the full set: that surface is
+    // a separate decision (availability may be iPhone only) and this change is
+    // not it.
+    expect(info).toContain("<key>UISupportedInterfaceOrientations~ipad</key>");
+  });
+
   it("declares the camera on BOTH platforms, not just the one that says it in words", () => {
     // iOS states the camera in a sentence a person reads; Android states it in
     // a manifest line the operating system reads. They are ONE promise kept in
