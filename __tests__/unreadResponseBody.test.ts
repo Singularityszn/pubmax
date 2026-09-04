@@ -226,6 +226,7 @@ describe("a response nobody reads is let go of", () => {
     expect(modules.length).toBeGreaterThan(200);
     expect(modules).toContain(join(ROOT, "components", "wanted", "WantedPlanChips.tsx"));
     expect(modules).toContain(join(ROOT, "components", "wanted", "WantedList.tsx"));
+    expect(modules).toContain(join(ROOT, "components", "wanted", "WantedListBody.tsx"));
   });
 
   it("still recognises the original defect", () => {
