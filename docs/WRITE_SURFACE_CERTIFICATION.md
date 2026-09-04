@@ -68,7 +68,6 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/cheap-pint-ping`
 - `POST app/api/check-ins`
 - `POST app/api/citymcp/journey`
-- `POST app/api/concierge`
 - `POST app/api/crawls`
 - `POST app/api/events`
 - `POST app/api/heritage`

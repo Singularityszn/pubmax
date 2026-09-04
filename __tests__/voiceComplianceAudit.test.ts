@@ -266,7 +266,6 @@ describe("VOICE.md compliance audit", () => {
     const crawlPage = read("app/crawls/[slug]/page.tsx");
     const crawlMissing = read("app/crawls/[slug]/not-found.tsx");
     const priceRoute = read("app/api/price-submit/route.ts");
-    const conciergeRoute = read("app/api/concierge/route.ts");
     const weatherRoute = read("app/api/weather-recommendations/route.ts");
     const planRoute = read("app/api/plans/[id]/route.ts");
     const planComplete = read("app/api/plans/[id]/complete/route.ts");
@@ -308,8 +307,6 @@ describe("VOICE.md compliance audit", () => {
 
     expect(priceRoute).not.toContain('"Missing observation id."');
     expect(priceRoute).not.toContain('"We cannot find that observation."');
-    expect(conciergeRoute).not.toContain('"cityId is invalid."');
-    expect(conciergeRoute).toContain('"Choose a listed city."');
     expect(weatherRoute).not.toContain("contributor provenance");
     expect(planRoute).not.toContain("Crawl Route");
     expect(planComplete).not.toContain("Crawl Route");
