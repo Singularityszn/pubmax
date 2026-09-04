@@ -28,6 +28,8 @@ import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { emitIdentityHandleChanged, syncDeviceHandle } from "@/lib/identityClient";
 import PrivateIdentityEditor from "@/components/identity/PrivateIdentityEditor";
 import SetAccountPassword from "@/components/auth/SetAccountPassword";
+import AccountLegalRow from "@/components/profile/AccountLegalRow";
+import DeleteAccountCard from "@/components/profile/DeleteAccountCard";
 import NightMemoryStudio from "@/components/profile/NightMemoryStudio";
 import StepOutNudgePref from "@/components/profile/StepOutNudgePref";
 import FindYourLot from "@/components/social/FindYourLot";
@@ -759,19 +761,24 @@ export default function PubmaxxAccountHub() {
   }
 
   if (loading || viewerSession.unresolved) return <section className="accountHub" aria-busy="true"><p>Loading your account…</p></section>;
+  // SIGNED OUT, and the whole point of this branch is that it does NOT ask
+  // again. `/u/you` used to say "Sign in" three times over and hand the reader
+  // nothing to tap: the passport's own CTA is the one sign-in action on this
+  // page, and it is a real link to /login. This block is therefore about what
+  // this DEVICE holds, plus the settings a signed-out reader may still change.
   if (viewerSession.signedOut) return (
     <section className="accountHub">
       <p className="profileSectionKicker">Your PUBMAXX</p>
-      <h2>Sign in to save your nights</h2>
+      <h2>On this device</h2>
       <div className="accountHubSignIn">
-        <p>Sign in to claim a handle, connect profiles, and keep private Night Memories. Your device profile is only brought to an account after you review it.</p>
-        <SignInButton />
+        <p>An account claims a handle, connects profiles, and keeps private Night Memories. What is saved on this device is only brought to an account after you review it.</p>
       </div>
       {deviceNightProfile ? <DeviceNightProfileReadout profile={deviceNightProfile} /> : null}
       <div className="accountHubGrid">
         <StepOutNudgePref />
         {analyticsControls}
       </div>
+      <AccountLegalRow />
       {message ? <p role="status" className="accountHubMessage">{message}</p> : null}
     </section>
   );
@@ -902,6 +909,12 @@ export default function PubmaxxAccountHub() {
           <StepOutNudgePref />
           {analyticsControls}
         </div>
+        {/* The store-required pair, last in the settings block because both are
+            things a reader goes looking for rather than meets on the way past:
+            the in-app deletion door (App Store 5.1.1(v), Play 2024) and the
+            legal row the native shell can otherwise never reach. */}
+        <DeleteAccountCard />
+        <AccountLegalRow />
       </section>
       <NightMemoryStudio key={user.id} userId={user.id} />
       {message ? <p role="status" className="accountHubMessage">{message}</p> : null}

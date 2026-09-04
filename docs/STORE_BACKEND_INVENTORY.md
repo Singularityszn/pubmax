@@ -125,6 +125,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
 {
   "inlineBackendReferences": [
     "app/add/[handle]/page.tsx",
+    "app/api/account/route.ts",
     "app/api/ask/route.ts",
     "app/api/auth/handle-password/route.ts",
     "app/api/check-ins/route.ts",

@@ -37,10 +37,16 @@ test.describe("/u/you — signed-out identity invitation (fresh context, no loca
     await expect(invite).toBeVisible();
     await expect(invite.getByRole("heading", { name: "Make the night yours." })).toBeVisible();
 
-    // One primary CTA (start identity) + one quiet secondary — no more.
+    // One primary CTA (start identity) + one quiet secondary — no more. The
+    // primary is a real door to /login: as an in-page anchor it scrolled the
+    // reader down to a restatement of the same invitation, and the phone nav's
+    // own Sign in is hidden at 640px, so the You tab had nothing to tap.
     const actions = invite.locator(".youIdentityActions a");
     await expect(actions).toHaveCount(2);
-    await expect(actions.nth(0)).toHaveAttribute("href", "#account-settings");
+    await expect(actions.nth(0)).toHaveAttribute(
+      "href",
+      "/login?mode=signin&from=%2Fu%2Fyou",
+    );
     await expect(actions.nth(1)).toHaveAttribute("href", "/pal");
 
     // No pseudo-profile scaffolding: the "@you" passport header, timeline and

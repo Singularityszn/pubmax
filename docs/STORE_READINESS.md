@@ -332,6 +332,10 @@ Declare the following. Everything else: Not Collected.
 
 **Privacy policy URL:** required by both stores. Use `https://pubmaxxing.com/privacy`. The site publishes it (with `/terms`) from `app/privacy` / `app/terms`; see the AGENTS.md privacy-notice entry for the keep-it-honest rule.
 
+**Account deletion URL:** required by Play's Data safety form, which asks for a page anybody can open WITHOUT signing in. Use `https://pubmaxxing.com/account/delete` (`app/account/delete/page.tsx`). It describes the in-app path and does not offer a second delete door: a deletion control a stranger can reach is an account-takeover surface however it is worded.
+
+**Where the in-app door is:** You tab, Account settings, **Delete account**, then **Delete my account**. It is `components/profile/DeleteAccountCard.tsx` calling `DELETE /api/account`, which deletes the caller's own `auth.users` row and lets migration `0078`'s trigger do the rest. The words on the confirm step and on the public page are the same constants (`lib/accountDeletion.ts`), so the two cannot promise different things. A reviewer probing the account flow finds it in three taps from the tab bar.
+
 ---
 
 ## 6. Screenshot shot list

@@ -862,7 +862,15 @@ export default function PrivacyPage() {
           consent whenever you like, in the app, without asking us.
         </p>
         <p className="legalBody">
-          Email{" "}
+          Deletion you can do yourself, without asking us: open the You tab, go
+          to Account settings and choose Delete account. It happens immediately.{" "}
+          <Link href="/account/delete" className="legalLink">
+            What deletion removes and what it keeps
+          </Link>{" "}
+          is written out in full.
+        </p>
+        <p className="legalBody">
+          For anything else, email{" "}
           <a href={CONTACT_MAILTO} className="legalLink">{CONTACT_EMAIL}</a>{" "}
           and say what you want. We&rsquo;ll reply within 30 days, and it
           doesn&rsquo;t cost anything. If we can&rsquo;t confirm that the account

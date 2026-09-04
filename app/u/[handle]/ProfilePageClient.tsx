@@ -200,6 +200,13 @@ function localSavedDTOs(): Partial<Record<ListType, SavedPubDTO[]>> {
 // real profile; without either, /u/you renders the first-run passport (story 30).
 const YOU_SENTINEL = "you";
 
+/**
+ * The You tab's one sign-in door, in the shape /social and /messages already
+ * use. `from` returns the reader here once the session lands, so signing in
+ * from the account tab does not park them on the front page.
+ */
+export const YOU_SIGN_IN_HREF = "/login?mode=signin&from=%2Fu%2Fyou";
+
 export type ProfileSurface =
   | "missing"
   | "identity-loading"
@@ -349,9 +356,16 @@ export function YouSignedOutSurface({
         ) : null}
       </div>
       {/* ONE primary on the page (docs/design/LAUNCH_SCREENS.md): the claim.
-          The hero keeps its own composition, so the mark rides the control. */}
+          The hero keeps its own composition, so the mark rides the control.
+
+          It is a LINK TO /login, not an in-page anchor. The anchor scrolled the
+          reader down to the account block, which signed out is a restatement of
+          the same invitation, so the You tab's only call to action landed on
+          itself, and the phone nav's own Sign in is hidden at 640px
+          (`.siteNavBar .authUser`). This is the door /social and /messages
+          already open. */}
       <div className="youIdentityActions">
-        <a href="#account-settings" data-primary-action="">Claim your @handle</a>
+        <Link href={YOU_SIGN_IN_HREF} data-primary-action="">Claim your @handle</Link>
         <Link href="/pal">Meet your Pub Pal</Link>
       </div>
     </section>
@@ -719,8 +733,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     if (!target) return;
     window.history.replaceState(null, "", "#account-settings");
     target.scrollIntoView({ block: "start" });
+    // The claim is selected by its PRIMARY mark rather than by its href: the
+    // href is now the /login door, and a selector restating it would silently
+    // stop focusing anything the next time that destination moves.
     const claimLink = document.querySelector<HTMLAnchorElement>(
-      '.youIdentityActions a[href="#account-settings"]',
+      ".youIdentityActions a[data-primary-action]",
     );
     claimLink?.focus({ preventScroll: true });
   }, [isYouRoute, viewerHandle]);
