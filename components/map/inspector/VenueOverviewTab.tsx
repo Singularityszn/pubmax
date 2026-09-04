@@ -20,6 +20,7 @@ import {
   quietHoursLabel,
 } from "@/lib/venueAccessibility";
 import { isPubVenue } from "@/lib/venueKindFilters";
+import { venuePriceLane } from "@/lib/venuePriceLane";
 import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import SaveForNightButton from "@/components/wanted/SaveForNightButton";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
@@ -83,6 +84,9 @@ function VenuePriceSummary({
   // reads back a standing; the listed and modelled lanes reach the same call
   // through their own owner rather than through a second judgement here.
   const priceStanding = priceStandingFor({ confirmed: confirmedPrice ?? null });
+  // ONE precedence, shared with the first-drop gate (lib/venuePriceLane.ts),
+  // so a reordered or added lane cannot leave the nudge behind.
+  const lane = venuePriceLane(venue, latestContributorPrice, sourcedPrice);
   const baselinePriceRow = venue.prices.find(
     (price) => price.price_gbp === venue.cheapestPrice,
   );
@@ -90,12 +94,7 @@ function VenuePriceSummary({
     ? namedLegacyPintPriceSource(baselinePriceRow)
     : null;
 
-  if (
-    !isPubVenue(venue) &&
-    venue.anchorLabel &&
-    venue.cheapestPrice !== null &&
-    venue.cheapestPrice !== undefined
-  ) {
+  if (lane?.lane === "anchor") {
     return (
       <div className="contributorPrice">
         <span className={chromeRevealClass}>
@@ -128,7 +127,7 @@ function VenuePriceSummary({
     );
   }
 
-  if (latestContributorPrice !== null && latestContributorPrice !== undefined) {
+  if (lane?.lane === "contributor") {
     return (
       <div className="contributorPrice">
         <span className={chromeRevealClass}>
@@ -143,7 +142,7 @@ function VenuePriceSummary({
           <TrustPill decision={priceStanding} />
         ) : (
           <PriceBadge variant="current">
-            {formatPrice(latestContributorPrice)}
+            {formatPrice(lane.contributorPrice)}
           </PriceBadge>
         )}
         {venue.latestContributorAt ? (
@@ -156,7 +155,7 @@ function VenuePriceSummary({
     );
   }
 
-  if (sourcedPrice) {
+  if (lane?.lane === "sourced") {
     return (
       <div className="contributorPrice">
         <span className={chromeRevealClass}>
@@ -169,18 +168,18 @@ function VenuePriceSummary({
           {sourcedObserved ? `${sourcedObserved} · ` : ""}
           <a
             className="priceSourceLink"
-            href={sourcedPrice.sourceUrl}
+            href={lane.sourcedPrice.sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
           >
-            {sourcedPrice.sourceLabel}
+            {lane.sourcedPrice.sourceLabel}
           </a>
         </small>
       </div>
     );
   }
 
-  if (venue.cheapestPrice !== null && venue.cheapestPrice !== undefined) {
+  if (lane?.lane === "baseline") {
     return (
       <div className="contributorPrice">
         <span className={chromeRevealClass}>
