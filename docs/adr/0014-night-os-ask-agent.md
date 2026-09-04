@@ -46,8 +46,13 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
 6. **In-thread memory only** — the client may resend recent turns for
    refinement. Durable Pal memory stays confirm-gated (ADR 0006).
 
-`POST /api/concierge` remains for plan Sort-it and any legacy callers. Map Ask
-and Pal chat use `/api/ask`.
+`POST /api/concierge` is **withdrawn** (#1414). It named plan Sort-it and
+legacy callers, but plan Sort-it posts to `/api/plans/generate`, Map Ask and Pal
+chat post to `/api/ask`, and no caller of the route was ever found in `app`,
+`components` or `lib`. The reusable engine stays: `lib/concierge/rank.ts`,
+`lib/concierge/whatsOn.ts`, `lib/concierge/intent.ts` and
+`lib/concierge/venues.server.ts` are imported by `/api/ask` and
+`/api/plans/generate`. Only the orphaned HTTP wrapper was removed.
 
 ## Consequences
 

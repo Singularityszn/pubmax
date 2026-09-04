@@ -52,7 +52,7 @@ export function stopsFromConcierge(
 }
 
 // C3 — the concierge "Sort it" button posts a free-text query that can land on
-// either /api/concierge response shape: ranked venues (mood queries) or
+// either concierge-engine response shape: ranked venues (mood queries) or
 // grounded What's-On listings (occasion templates whose text names a kind —
 // "pub quiz tonight", "screening live sport" — see lib/concierge/whatsOn.ts's
 // detectWhatsOnIntent). lib/conciergeAskClient's answerFromBody already

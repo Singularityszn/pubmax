@@ -1,5 +1,6 @@
 // Pub Pal chat — pure answer shaping over the EXISTING grounded concierge
-// engine (`app/api/concierge`). The /pal/chat surface is a chat SKIN: the user
+// engine (`lib/concierge/*`, served by `/api/ask`). The /pal/chat surface is a
+// chat SKIN: the user
 // asks in natural language, the engine runs its deterministic intent parse +
 // deterministic rank over our own rows (or a grounded What's-On lookup), and
 // the ANSWER CARDS ARE THE FACTS — each keeping its provenance label.

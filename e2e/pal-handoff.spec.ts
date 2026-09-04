@@ -8,7 +8,7 @@ import { test, expect } from "@playwright/test";
 //
 // The flag-ON acceptance assertion (a "Use this Venue" link →
 // /map?sel=&accept=1&src=pal on a real answer card) needs a deterministic
-// /api/concierge result, which the keyless e2e env does not guarantee (concierge
+// /api/ask result, which the keyless e2e env does not guarantee (concierge
 // is LLM-backed). That path is covered by L16 render/unit tests and is
 // documented as deferred for L20 rather than shipped as a flaky spec.
 

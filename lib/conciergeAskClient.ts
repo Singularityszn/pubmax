@@ -133,7 +133,7 @@ function asProposals(raw: unknown): AskProposal[] {
 }
 
 /**
- * Normalise `/api/ask` (and legacy `/api/concierge`) bodies into map cards.
+ * Normalise `/api/ask` bodies into map cards.
  */
 export function answerFromBody(body: unknown): AskResult {
   const record =
