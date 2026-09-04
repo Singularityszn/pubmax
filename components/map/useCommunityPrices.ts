@@ -3,11 +3,15 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import {
+  freshestCommunityPrice,
+  freshestPintPrice,
   validateCommunityPrice,
   type CommunityPrice,
   type CommunityPriceAttribution,
   type CommunityPriceMapCandidate,
 } from "@/lib/communityPrice";
+
+export { freshestCommunityPrice, freshestPintPrice };
 import {
   isCommunityVenueSignalKey,
   isCommunityVenueSignalValueFor,
@@ -531,28 +535,6 @@ export function rollbackOptimisticVenueSignal(
   );
   if (restored.length > 0) return restored;
   return loadedIsKnown ? [] : undefined;
-}
-
-/** The freshest observation in a venue's per-category list, any drink. */
-export function freshestCommunityPrice(
-  rows: readonly CommunityPrice[] | undefined,
-): CommunityPrice | null {
-  if (!rows) return null;
-  return rows.reduce<CommunityPrice | null>(
-    (best, row) => (best === null || row.submittedAt > best.submittedAt ? row : best),
-    null,
-  );
-}
-
-/**
- * The freshest BEER observation - the only category allowed to restamp a pin.
- * Pin colours (priceBucket) and the hover price line are pint-oriented, so a
- * £18 cocktail must never recolour a pin or read as the pub's pint price.
- */
-export function freshestPintPrice(
-  rows: readonly CommunityPrice[] | undefined,
-): CommunityPrice | null {
-  return freshestCommunityPrice(rows?.filter((row) => row.drinkCategory === "beer"));
 }
 
 export function useCommunityPrices(): CommunityPricesState {

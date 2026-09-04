@@ -42,10 +42,6 @@ vi.mock("@/lib/mapWarmup", () => ({
   warmNavRoute: () => undefined,
 }));
 vi.mock("@/lib/mobileShell", () => ({ requestMobileSheetDismiss: () => undefined }));
-vi.mock("@/lib/motionVocabulary", () => ({
-  onReducedMotionChange: () => () => {},
-  prefersReducedMotion: () => false,
-}));
 vi.mock("@/lib/softKeyboard", () => ({
   readSoftKeyboardOpen: () => false,
   serverSoftKeyboardOpen: () => false,

@@ -935,6 +935,11 @@ describe("GET /api/price-submit", () => {
     expect(prices.find((row) => row.drinkCategory === "coffee")?.priceGbp).toBe(
       2.5,
     );
+
+    // Pint Drops are a pint-only surface (pin colour, cheapest-pint buckets,
+    // the Confirmed standing, the Pint Index). None of these non-beer
+    // submissions may pair into it.
+    expect(listVisiblePintDrops(venueId)).toHaveLength(0);
   });
 
   it("returns the no-alcohol category index without beer rows", async () => {

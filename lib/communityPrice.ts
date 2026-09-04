@@ -425,6 +425,28 @@ export function mapCandidateDrivesMap(
   return drivesMap(price.mapCandidate ?? price, now);
 }
 
+/** The freshest observation in a venue's per-category list, any drink. */
+export function freshestCommunityPrice(
+  rows: readonly CommunityPrice[] | undefined,
+): CommunityPrice | null {
+  if (!rows) return null;
+  return rows.reduce<CommunityPrice | null>(
+    (best, row) => (best === null || row.submittedAt > best.submittedAt ? row : best),
+    null,
+  );
+}
+
+/**
+ * The freshest BEER observation in a venue's per-category list.
+ * Pin colours (priceBucket) and the hover price line are pint-oriented, so a
+ * £18 cocktail must never recolour a pin or read as the pub's pint price.
+ */
+export function freshestPintPrice(
+  rows: readonly CommunityPrice[] | undefined,
+): CommunityPrice | null {
+  return freshestCommunityPrice(rows?.filter((row) => row.drinkCategory === "beer"));
+}
+
 /**
  * The pin/pin-band bucket a pint price falls into: 0 = cheap (<=£5.50),
  * 1 = mid (<=£7), 2 = dear, 3 = unknown (no price). Lives here (not in the

@@ -52,6 +52,18 @@ describe("writeOneTapPintDrop", () => {
     expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(1);
   });
 
+  it("refuses to pair a non-beer category into the pint-only drop lane", async () => {
+    await expect(
+      writeOneTapPintDrop({
+        venueId: "venue-xjf3n0",
+        handle: "karan",
+        drinkCategory: "coffee",
+        priceGbp: 2.5,
+      }),
+    ).rejects.toThrow(/only pairs beer/);
+    expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(0);
+  });
+
   it("binds one-tap price authority to the verified account, not the handle", async () => {
     const outcome = await writeOneTapPintDrop({
       venueId: "venue-xjf3n0",
