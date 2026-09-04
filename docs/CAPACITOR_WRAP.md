@@ -58,13 +58,24 @@ npx cap open ios            # open ios/App in Xcode (requires full Xcode, not ju
 
 npm run ios:build           # cap sync ios, then build the App scheme, unsigned
 npm run ios:run             # the same build, then boot a simulator and launch it
+
+npm run android:build       # cap sync android, then assembleDebug
+npm run android:run         # the same APK, on a headless emulator, with a screenshot
 ```
 
-Both npm scripts are `scripts/ios-simulator.mjs`, the local verification path:
-no Apple account, no team, no signing. `ios:run` picks the newest available
+The iOS pair is `scripts/ios-simulator.mjs`, the local verification path: no
+Apple account, no team, no signing. `ios:run` picks the newest available
 iPhone simulator, or takes one by name through `PUBMAX_IOS_SIMULATOR`, and
 prints the `xcrun simctl io ... screenshot` line for the device it used.
 Derived data lands in gitignored `ios/build/`.
+
+The Android pair is `scripts/android/`, on the same terms: no Play account, no
+upload key, no Firebase project. `android:run` creates the `pubmaxx` AVD if it
+is not there (`PUBMAX_ANDROID_AVD` names another), boots it headless, installs,
+launches, and writes the shot to gitignored `android/build/emulator/`.
+`scripts/android/toolchain.mjs` resolves JAVA_HOME and ANDROID_HOME and refuses
+by name when one is missing. STORE_READINESS's Local verification section has
+the SDK packages and the two emulator traps the script already handles.
 
 `ios/` was generated with Capacitor 8, which uses **Swift Package Manager**
 (`ios/App/CapApp-SPM`), so CocoaPods is not required. Two consequences matter
