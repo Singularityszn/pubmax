@@ -447,3 +447,45 @@ export function isHarvestableOperatorUrl(value: unknown): value is string {
   if (url.protocol !== "http:" && url.protocol !== "https:") return false;
   return !REFUSED_HOSTS.has(url.hostname.replace(/^www\./, ""));
 }
+
+/**
+ * Hosts this table has ALREADY recorded a permission for, with evidence and a
+ * day it was checked.
+ *
+ * This is what lets the Context.dev wrapper tell a page we have argued about
+ * from an arbitrary URL. A host in here answered yes on a recorded date, so a
+ * read of it needs no second question; every other host has to be asked live
+ * before a credit is spent. The set is deliberately narrow: only rows whose
+ * `access.allowed` is true, so a row refused on permission and a row refused
+ * for `publishes-no-web-price` alike fall to the live check rather than
+ * inheriting a permission the table never granted them.
+ */
+const PERMITTED_SOURCE_HOSTS: ReadonlySet<string> = new Set(
+  HARVEST_SOURCES.filter(isHarvestSourceAllowed).flatMap((source) => {
+    try {
+      return [new URL(source.url).hostname.replace(/^www\./, "")];
+    } catch {
+      return [];
+    }
+  }),
+);
+
+/**
+ * True when this table already holds a recorded permission for the URL's host.
+ *
+ * False is not a refusal. It means "nobody has written this host's answer
+ * down", which is a reason to ask robots live, and `isHarvestableOperatorUrl`
+ * stays the separate question of whether the host is one we may not read at
+ * all.
+ */
+export function hasRecordedHarvestPermission(value: unknown): boolean {
+  if (typeof value !== "string" || value.trim().length === 0) return false;
+  let url: URL;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  return PERMITTED_SOURCE_HOSTS.has(url.hostname.replace(/^www\./, ""));
+}
