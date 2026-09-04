@@ -68,6 +68,29 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="pubmaxxing.com" android:pathPrefix="/pub/" />
             </intent-filter>
+            <!-- The two links a person hands to somebody else, and the night
+                 a push already opens. All three mirror lib/nativeDeepLinks.ts.
+                 /r/ is a redirect onto the home page's referral fragment, and
+                 the app is handed the link that was shared rather than the
+                 redirect's target, so the family is declared as shared. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="pubmaxxing.com" android:pathPrefix="/add/" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="pubmaxxing.com" android:pathPrefix="/r/" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="pubmaxxing.com" android:path="/tonight" />
+            </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

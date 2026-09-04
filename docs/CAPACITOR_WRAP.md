@@ -24,7 +24,9 @@ later-session fallback after at least one healthy remote load.
 | Honest first-load outage fallback | `native/web-stub/offline.html`, `server.errorPath` |
 | Native projects | `ios/` (SPM, no CocoaPods) and `android/` |
 | Platform detection seam | `lib/nativePlatform.ts` (`isNativeApp()` / `nativePlatform()`) |
-| Native camera seam | `lib/nativeCamera.ts`, wired into `components/moment/MomentCapture.tsx` |
+| Native photo seam | `lib/nativeCamera.ts`, wired into `components/moment/MomentCapture.tsx`, `components/map/VenuePriceSubmit.tsx` (price board) and `components/venue/VenuePhotoComposer.tsx` (pub wall) |
+| iOS capabilities (push, associated domains) | `ios/App/App/App.entitlements`, referenced by both build configurations |
+| iOS privacy manifest | `ios/App/App/PrivacyInfo.xcprivacy` (mirrors STORE_READINESS section 5) |
 | Foreground location declarations | `ios/App/App/Info.plist`, `android/app/src/main/AndroidManifest.xml` |
 | Native system-bar seam | `lib/nativeSystemBars.ts`, mounted by `components/native/NativeSystemBars.tsx` |
 | Universal/app-link route seam | `lib/nativeDeepLinks.ts`, mounted by `components/native/NativeDeepLinks.tsx` |
@@ -56,6 +58,14 @@ npx cap open ios            # open ios/App in Xcode (requires full Xcode, not ju
 require full Xcode (`xcode-select` must point at an Xcode.app, not
 CommandLineTools).
 
+Two things a fresh Xcode needs before it can build, both one-off and both
+easy to mistake for a project fault. Its licence must be accepted
+(`sudo xcodebuild -license accept`); until it is, EVERY `xcrun`-backed command
+fails, including plain `git`, because macOS ships git as an xcrun shim. And it
+carries no iOS simulator runtime (`xcrun simctl list runtimes` is empty), so
+`xcodebuild -downloadPlatform iOS` has to run once. First verified build on
+this project: Xcode 26.6, iOS 26.5 runtime, iPhone 17 Pro simulator, 2026-09-04.
+
 Before sync, hash or copy intentional native files (`AppDelegate.swift`,
 `Info.plist`, `AndroidManifest.xml`, and `MainActivity.java`), then compare them
 afterward. The 2026-07-20 Gate Z refresh did this and sync preserved all four;
@@ -63,8 +73,17 @@ see `docs/screenshots/WRAPPED_BUILD_GATE_Z_2026-07-20.md`.
 
 ## Remaining manual steps (need Apple developer access)
 
+This section says WHY each step exists and what the code already does.
+[`STORE_READINESS.md` section 8](./STORE_READINESS.md#8-owner-only-remaining-steps)
+is the ordered checklist to work through, with one command per step.
+
 1. **Signing** — in Xcode, select the `App` target → Signing & Capabilities,
-   set the team and confirm bundle id `com.pubmaxx.app`.
+   set the team and confirm bundle id `com.pubmaxx.app`. The two capabilities
+   are already declared: `ios/App/App/App.entitlements` is checked in and both
+   build configurations set `CODE_SIGN_ENTITLEMENTS`, so Xcode reads Push
+   Notifications and Associated Domains from the file rather than asking you to
+   add them. Adding one by hand writes a second entitlements file, and the two
+   then disagree about what the app asks for.
 2. ~~Camera permission strings~~ — **done in repo**: `ios/App/App/Info.plist`
    carries `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription`.
    `NSPhotoLibraryAddUsageDescription` is deliberately omitted: the capture
@@ -75,7 +94,10 @@ see `docs/screenshots/WRAPPED_BUILD_GATE_Z_2026-07-20.md`.
    `NSLocationWhenInUseUsageDescription`; Android carries coarse and fine
    location together. Neither platform requests background location.
 3. **iOS push (APNs)**
-   - Add the *Push Notifications* capability to the App target.
+   - ~~Push Notifications capability~~ — **declared in repo**:
+     `aps-environment` is `development` in `ios/App/App/App.entitlements`.
+     Xcode rewrites it to `production` when it distributes an archive, which is
+     why `APNS_ENV` is set per deployment rather than read from that file.
    - ~~AppDelegate forwarding~~ — **done in repo**: `ios/App/App/AppDelegate.swift`
      forwards `didRegisterForRemoteNotificationsWithDeviceToken` /
      `didFailToRegisterForRemoteNotificationsWithError` to Capacitor's
@@ -137,12 +159,15 @@ user/plan identity**. Consequences, enforced in code:
   **To activate:** once a token row can be linked to a member/plan, wire
    `resolvePlanTokens()` to that lookup; the rest of the pipeline is unchanged.
 5. **Universal links**
-   - Add the *Associated Domains* capability with
-     `applinks:pubmaxxing.com`.
+   - ~~Associated Domains capability~~ — **declared in repo**:
+     `applinks:pubmaxxing.com` in `ios/App/App/App.entitlements`.
    - Replace the `TEAMID` placeholder in
      `public/.well-known/apple-app-site-association` with the real Apple Team
-     ID (final appID string: `TEAMID.com.pubmaxx.app`). Covered paths:
-     `/plan/*`, `/rounds/*`, `/p/*`, and the exact `/auth/callback` path.
+     ID (final appID string: `TEAMID.com.pubmaxx.app`). This is the ONE value
+     in the repository that waits for enrolment. Covered families are whatever
+     `lib/nativeDeepLinks.ts` declares, and `__tests__/nativeWrap.test.ts`
+     holds the app fence, this file and the Android manifest to each other, so
+     read the list there rather than from a copy that can rot.
    - Deploy, then verify `https://pubmaxxing.com/.well-known/apple-app-site-association`
      returns `Content-Type: application/json` (header rule in `next.config.mjs`).
    - Android already declares unverified HTTPS filters for the same four paths.
