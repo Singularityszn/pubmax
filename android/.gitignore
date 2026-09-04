@@ -99,3 +99,10 @@ app/src/main/assets/public
 app/src/main/assets/capacitor.config.json
 app/src/main/assets/capacitor.plugins.json
 app/src/main/res/xml/config.xml
+
+# The upload key. It signs every release of this app for the rest of its life
+# and Google cannot simply reissue it, so neither the keystore nor the file
+# holding its passwords may ever be committed. See android/app/build.gradle.
+keystore.properties
+*.jks
+*.keystore
