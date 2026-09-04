@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "generatedAt": "2026-09-04T11:30:06.095Z",
+  "snapshot": {
+    "pubs": 38215,
+    "statedWebsite": 11696,
+    "refusedByPolicy": 458
+  },
+  "hostsKnown": 7573,
+  "hostsCrawledThisRun": 7573,
+  "hostsInLedger": 7573,
+  "pagesRead": 17019,
+  "pageBudget": 80000,
+  "outcomes": {
+    "priced": 173,
+    "robots-disallowed": 203,
+    "robots-unreadable": 2181,
+    "policy-refused-host": 0,
+    "unreachable": 343,
+    "no-menu-page-found": 1459,
+    "menu-states-no-price": 3209,
+    "estate-page-names-no-pub": 5
+  },
+  "pubsOnPricedHosts": 173,
+  "drops": {
+    "no-category-word-nearby": 26476,
+    "offer-not-a-menu-price": 9219,
+    "no-price-on-page": 7813,
+    "outside-category-band": 4794,
+    "food-word-nearby": 3279,
+    "bottled-measure-not-a-pint": 189,
+    "page-is-not-a-drinks-list": 604,
+    "half-measure-not-a-pint": 71
+  },
+  "sourcesRefusedByPolicy": [
+    {
+      "id": "wetherspoon-menu-prices",
+      "reason": "publishes-no-web-price",
+      "checkedOn": "2026-09-03"
+    },
+    {
+      "id": "mitchells-butlers-menu-prices",
+      "reason": "robots-unreadable",
+      "checkedOn": "2026-09-03"
+    }
+  ],
+  "elapsedSeconds": 1574
+}

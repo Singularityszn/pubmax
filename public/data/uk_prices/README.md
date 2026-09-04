@@ -1,0 +1,66 @@
+# UK price bundle
+
+Every UK drink price this tree holds, in one file, each row saying what it is
+worth. Built by `npm run build:uk-price-bundle`. The JSON here is generated;
+this README is hand-written and survives rebuilds.
+
+```
+manifest.json   # { version, generatedAt, rowsPath, counts, notes[] }
+rows.json       # the rows themselves, sorted by venue, drink, then lane
+```
+
+## What a row is
+
+```
+{
+  "venueId":    "venue-uk-w68394027",   // or a curated venue id where one owns the pub
+  "name":       "The Witch Ball",
+  "category":   "beer",                  // a lib/drinks.ts category
+  "priceGbp":   5.4,
+  "lane":       "site-harvest",          // who produced it
+  "standing":   "listed",                // what it is worth, per lib/priceTier.ts
+  "sourceUrl":  "https://…/drinks",      // the page it was published at
+  "publisher":  "thewitchball.co.uk",
+  "observedAt": "2026-09-04T10:06:14.812Z",
+  "basis":      null,                    // estimate rows only
+  "sampleSize": null                     // estimate rows only
+}
+```
+
+`lib/ukPriceBundle.ts` owns the shape, the parser and the one rule about who may
+read what. `scripts/validate-data.mjs` refuses the file over a row with no
+observation day, a published row with no source URL, or an estimate with no
+basis and sample behind it.
+
+## The three lanes
+
+| lane | standing | produced by |
+| --- | --- | --- |
+| `site-harvest` | `listed` | `npm run harvest:uk-prices` (document) and `npm run harvest:uk-prices-rendered` (browser) |
+| `drink-price-update` | `listed` | the reviewed publish in `public/data/drink_price_updates` |
+| `estimate` | `estimate` | `lib/priceEstimate.ts` over `public/data/price_estimates/baselines.json` |
+
+## The rules that keep it honest
+
+**An estimate is in the file and may never be painted as a fact.** A coverage
+answer that omits the modelled figures is not a coverage answer, so they are
+here. `authoritativeBundleRows` is what an authority lane reads, and it hands
+back only what `standingCarriesAuthority` admits, so pin colour, the
+cheapest-pint buckets, the price bands and the Pint Index cannot take one.
+
+**The narrower governance table binds.** A row whose source host is refused on
+permission by `lib/harvest/sourcePolicy.ts` is dropped and counted, whatever
+`data/price_sources.json` says about it. That is what keeps the 1,914
+Nicholson's rows in `drink_price_updates` out of this file.
+
+**A demo fixture is not a price.** `isDemoDrinkProvenance` spots one and it is
+never carried into a dataset that claims to say what a pint costs.
+
+**One row per pub, drink and lane, and it is the cheapest the lane stated.** A
+lane states many lines for one pub's beer; the figure a drinker can walk in and
+pay is the lowest of them.
+
+The crawl's own findings, including everything it read and found nothing on,
+are in `data/uk_prices/harvest_report.json` and
+`data/uk_prices/rendered_report.json`. The rows the crawl accepted are published
+to `data/uk_prices/site_harvest.jsonl`, so the bundle rebuilds from the tree.

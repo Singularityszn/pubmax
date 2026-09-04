@@ -69,9 +69,17 @@ describe("the estimate engine's authority fence", () => {
       "lib/priceEstimateBaselines.ts",
       "app/how-we-estimate/page.tsx",
       "scripts/build_price_estimate_baselines.mjs",
+      // The UK price bundle carries an estimate LABELLED an estimate, beside
+      // the published rows, so a coverage answer can name what is modelled and
+      // what is observed. That is the exception this list exists for.
+      "scripts/build_uk_price_bundle.mjs",
     ]);
+    // A RELATIVE import reaches the same module. The fence read the `@/` form
+    // alone, so a script importing `../lib/priceEstimate` walked past it, which
+    // is exactly the shape a plain-node CLI in scripts/ would have used.
+    const REACHES_THE_ENGINE = /from\s+["'](?:@\/|(?:\.\.?\/)+)lib\/priceEstimate(Baselines)?(?:\.[a-z]+)?["']/;
     const importers = sourceFiles
-      .filter((file) => /from\s+["']@\/lib\/priceEstimate(Baselines)?["']/.test(readFileSync(file, "utf8")))
+      .filter((file) => REACHES_THE_ENGINE.test(readFileSync(file, "utf8")))
       .map((file) => relative(ROOT, file));
     for (const importer of importers) {
       expect(ALLOWED.has(importer), `${importer} reads the estimate engine and is not on the list`).toBe(true);

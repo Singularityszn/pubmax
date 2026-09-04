@@ -1,0 +1,519 @@
+// What a pub's OWN website is allowed to yield, and how a drink price gets off
+// it.
+//
+// PURE ON PURPOSE, exactly as lib/harvest/chainMenuPrices.ts is pure: the CLI
+// in scripts/harvest/uk-prices/run.mjs does the fetching, and everything that
+// decides what counts as a price lives here where it can be tested without a
+// network. This module imports one TYPE and no values, so the CLI can load it
+// under tsx with nothing to resolve at runtime.
+//
+// THIS IS THE SAME LANE AS THE CHAIN EXTRACTOR, WIDENED IN TWO PLACES AND
+// NARROWED IN ONE.
+//
+//   Widened first by DRINK: a chain page was read for a pint alone, because a
+//   pint is what the chain lane was built to price. A pub's own drinks list
+//   states a wine, a gin and a soft drink beside the ale, and dropping those
+//   would throw away evidence a reader asked for. Every kept row therefore
+//   names its own `lib/drinks.ts` category, and the band it is checked against
+//   is that category's own, because £14 is a fair cocktail and an impossible
+//   pint.
+//
+//   Widened second by PAGE: a chain source names the one page it publishes. A
+//   pub site does not, so this module also decides which of a page's own links
+//   look like a drinks list, and the crawler follows only those.
+//
+//   Narrowed by the thing that matters: the verbatim rule is unchanged and
+//   absolute. A figure is kept only when it appears LITERALLY in the text of
+//   the page that was read, with a drink word beside it and no food word. An
+//   extractor that returns a price the page never stated has invented it, and
+//   an invented price is worse than no price at all.
+//
+// PERMISSION IS SOMEBODY ELSE'S QUESTION. Whether a host may be read at all is
+// lib/harvest/sourcePolicy.ts and lib/harvest/robots.ts, asked live, before
+// anything here runs.
+
+import type { DrinkCategory } from "@/lib/drinks";
+
+/** Why a candidate figure on a permitted page did not become a row. */
+export const UK_PRICE_DROP_REASONS = [
+  "not-verbatim-on-page",
+  "outside-category-band",
+  "no-drink-word-nearby",
+  "food-word-nearby",
+  "no-price-on-page",
+  // The page states a figure with a drink word beside it that names no category
+  // we publish. Counted rather than filed under `other`, because `other` names
+  // no drink and a row nobody can label is a row nobody can read.
+  "no-category-word-nearby",
+  // The figure is the HALF, and a half is not a pint. A draught list states
+  // "Peroni Half £3.55 £7.10", and taking the cheapest figure on the line puts
+  // a half-pint price on a pub's card as the price of a pint.
+  "half-measure-not-a-pint",
+  // The figure is a BOTTLE or a CAN, and a bottled beer beside a draught list
+  // is a different drink at a different price. Publishing the cheaper of the
+  // two as the pub's beer price undercuts the pint nobody can buy at it.
+  "bottled-measure-not-a-pint",
+  // The figure is an OFFER, not a price. "2 for £9", "meals for only £5.99" and
+  // "wines from £5.50" are all marketing copy that states a number a drinker
+  // cannot walk in and pay for one named drink. The first run of this crawler
+  // put a Brewers Fayre happy-hour "2 for £9" onto 27 pubs as the price of a
+  // pint, which is the whole reason this reason exists.
+  "offer-not-a-menu-price",
+  // The page states a price or two beside a drink word and is not a drinks
+  // list: a homepage promo shelf, a blog post, an events page. A real list
+  // states many.
+  "page-is-not-a-drinks-list",
+  // A host serving many pubs stated a price on a page that names none of them.
+  // An estate-wide figure is not this pub's price, and attributing it to every
+  // pub on the host is how one number becomes hundreds of wrong ones.
+  "page-names-no-pub",
+] as const;
+export type UkPriceDropReason = (typeof UK_PRICE_DROP_REASONS)[number];
+
+/**
+ * The plausible band per drink, in pounds. A figure outside its own category's
+ * band is a bottle, a carafe, a tab total or a plate, and it is dropped rather
+ * than squeezed in.
+ *
+ * The pint band (2 to 12) is the chain lane's own, restated here for the one
+ * category it covered. The rest are set at the same bar: wide enough that a
+ * genuinely dear London pour survives, narrow enough that a food line does not.
+ * Categories absent from this table are not extracted at all, which is why
+ * `other` has no row: it names no drink, so no band could be honest about it.
+ */
+export const CATEGORY_PRICE_BANDS: Readonly<
+  Partial<Record<DrinkCategory, { minGbp: number; maxGbp: number }>>
+> = {
+  beer: { minGbp: 2, maxGbp: 12 },
+  wine: { minGbp: 3, maxGbp: 18 },
+  cocktail: { minGbp: 5, maxGbp: 22 },
+  whisky: { minGbp: 2.5, maxGbp: 25 },
+  gin: { minGbp: 2.5, maxGbp: 18 },
+  vodka: { minGbp: 2.5, maxGbp: 18 },
+  rum: { minGbp: 2.5, maxGbp: 18 },
+  shot: { minGbp: 1.5, maxGbp: 12 },
+  "alcohol-free": { minGbp: 1, maxGbp: 9 },
+  "soft-drink": { minGbp: 0.8, maxGbp: 7 },
+  coffee: { minGbp: 1, maxGbp: 7 },
+};
+
+/** How much page text either side of a figure is read for its drink word. */
+export const PRICE_CONTEXT_CHARS = 80;
+
+/**
+ * The vocabulary that names a category, strongest signal first. The order is
+ * the order these are TESTED in, so a phrase that belongs to two lanes lands in
+ * the narrower one: "alcohol-free lager" is alcohol-free before it is beer, and
+ * "espresso martini" is a cocktail before it is a coffee.
+ */
+const CATEGORY_WORDS: ReadonlyArray<{ category: DrinkCategory; pattern: RegExp }> = [
+  {
+    category: "alcohol-free",
+    pattern:
+      /\b(alcohol[- ]free|non[- ]alcoholic|no[- ]and[- ]low|0\.0%|0%\s*abv|lucky saint|erdinger alkoholfrei|guinness 0|heineken 0|becks blue)\b/i,
+  },
+  {
+    category: "cocktail",
+    pattern:
+      /\b(cocktail|martini|negroni|margarita|mojito|daiquiri|old fashioned|aperol spritz|spritz|bloody mary|cosmopolitan|pornstar|espresso martini|highball|sour)\b/i,
+  },
+  {
+    // A SOFT DRINK WEARING A BEER WORD. "Ginger ale" and "ginger beer" sit on
+    // every pub's soft-drink list, and reading the second word alone filed them
+    // as beer at £2.55, which then became the pub's cheapest pint.
+    category: "soft-drink",
+    pattern: /\b(ginger\s+(ale|beer)|root\s+beer|dandelion\s*(and|&)\s*burdock)\b/i,
+  },
+  {
+    category: "beer",
+    pattern:
+      /\b(beer|pilsner|pils|draught|draft|on tap|cask|keg|lager|real ale|ale|cider|stout|guinness|ipa|pale ale|bitter|porter|session|neck oil|madri|camden|amstel|carling|fosters|foster's|peroni|heineken|cruzcampo|kronenbourg|beavertown|estrella|moretti|birra|san miguel|stella|carlsberg|thatchers|aspall|inches|doom bar|landlord|hophead)\b/i,
+  },
+  {
+    category: "wine",
+    pattern:
+      /\b(wine|red wine|white wine|ros[eé]|prosecco|champagne|sauvignon|chardonnay|merlot|malbec|pinot|shiraz|rioja|tempranillo|175ml|250ml|glass of wine)\b/i,
+  },
+  { category: "whisky", pattern: /\b(whisky|whiskey|bourbon|scotch|single malt|rye)\b/i },
+  { category: "gin", pattern: /\b(gin|gordon's|bombay|tanqueray|hendrick's|beefeater gin)\b/i },
+  { category: "vodka", pattern: /\b(vodka|smirnoff|absolut|grey goose)\b/i },
+  { category: "rum", pattern: /\b(rum|bacardi|captain morgan|kraken|havana club)\b/i },
+  { category: "shot", pattern: /\b(shot|shots|tequila|sambuca|jagerbomb|j[aä]germeister)\b/i },
+  {
+    category: "soft-drink",
+    pattern: /\b(soft drink|coke|coca[- ]cola|pepsi|lemonade|j2o|fruit shoot|orange juice|squash|still water|sparkling water)\b/i,
+  },
+  { category: "coffee", pattern: /\b(coffee|espresso|americano|cappuccino|latte|flat white|mocha)\b/i },
+];
+
+/**
+ * Words that mean the figure belongs to a plate rather than a glass. Checked
+ * AFTER the category word, because "steak and a pint for £16.99" is a meal deal
+ * and not the price of the pint. This is the chain lane's own list, which is
+ * why it reads the same: one rule, two callers.
+ */
+const FOOD_WORDS =
+  /\b(burger|steak|pizza|meal|roast|breakfast|brunch|lunch|dinner|supper|sandwich|wrap|curry|fish and chips|dessert|sundae|platter|sharer|combo|bundle|two courses|three courses|with a|per person|deposit|room rate|per night|bed and breakfast|starter|main course|mains|side|sides|salad|bread|butter|batter|fishcake|soup|mayonnaise|squid|calamari|scampi|prawn|crab|lobster|oyster|chicken|beef|pork|lamb|duck|sausage|chips|fries|parfait|p[aâ]t[eé]|terrine|risotto|pasta|gnocchi|pie\b|cheese|ploughman|sunday|nachos|wings|halloumi|garnish|served with|vegan|vegetarian|gluten)\b/i;
+
+/**
+ * A food dish that borrows a drink's word. "Crab cocktail" and "prawn cocktail"
+ * are the two that turn a starter into a cocktail price on a pub's card, and
+ * they appear on more food menus than any actual cocktail list.
+ */
+const FOOD_WEARING_A_DRINK_WORD = /\b(crab|prawn|shrimp|seafood|fruit)\s+cocktail\b/i;
+
+/**
+ * Words that mean the figure is an OFFER rather than the price of one drink.
+ * Checked before anything else a figure could be, because an offer that names a
+ * drink passes every other test this module applies.
+ *
+ * `from` and `only` are in here deliberately. "Wines from £5.50" states the
+ * floor of a range and names no drink at that price, and "only £5.99" is a
+ * promotion. Both would read on a pub's card as a price a drinker could pay.
+ */
+const OFFER_WORDS =
+  /(\b\d+\s+for\b|\btwo for\b|\bhappy hour\b|\boffer|\bsave\b|\bwas\b|\bonly\b|\bfrom\b|\bdeal\b|\bpromo|\bdiscount|\bfree\b|\bbottomless\b|\bunlimited\b|\bper person\b|\bvoucher|\bgift\b|\bwhen you\b|\bterms\b)/i;
+
+/**
+ * How many priced drink lines a page has to state before it counts as a drinks
+ * LIST. A menu states many; a homepage promo shelf states one or two. Four is
+ * the floor because three is the smallest number that could still be a banner
+ * carrying a headline, a sub-line and a footnote.
+ */
+export const MIN_PRICED_LINES_FOR_LIST = 4;
+
+/**
+ * Whether a figure is the HALF price on a draught line.
+ *
+ * A draught list states the measure once and then both figures:
+ * "Peroni Half £3.55 £7.10". The half is the first figure after the word, so a
+ * figure with `half` behind it and no other figure in between is the half
+ * price. Cheapest-wins would otherwise put £3.55 on the pub's card as the price
+ * of a pint, which is a real price for a drink nobody asked about.
+ */
+/**
+ * Whether a beer figure is a BOTTLE or a CAN rather than a draught pour.
+ *
+ * A drinks list states its bottled beers beside its draught ones, and a 330ml
+ * Corona at £3.85 is cheaper than every pint on the same page. Cheapest-wins
+ * would publish it as the pub's beer price, which is a real figure for a drink
+ * that is not the one the price is being read as.
+ */
+function isBottledMeasure(before: string): boolean {
+  return /(\d{2,3}\s?ml|\bbottle[ds]?\b|\bcans?\b)/i.test(before);
+}
+
+/**
+ * A draught line that states its pair as `£2.30/£4.60` names no measure at all,
+ * and the first figure is still the half. Reading the pair left to right is the
+ * only thing that separates them, and cheapest-wins would take the half every
+ * time.
+ */
+function isFirstOfAMeasurePair(after: string): boolean {
+  return /^\s*\/\s*£/.test(after);
+}
+
+function isHalfMeasure(before: string): boolean {
+  const at = before.toLowerCase().lastIndexOf("half");
+  if (at < 0) return false;
+  const between = before.slice(at + 4);
+  if (/[½]|\b1\/2\b/.test(before.slice(-14))) return true;
+  return !between.includes("£");
+}
+
+const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{2})?)\b/g;
+
+export type UkPriceCandidate = {
+  priceGbp: number;
+  category: DrinkCategory;
+  /** The exact substring the page carried, kept for the verbatim check. */
+  verbatim: string;
+  /** The text either side, which is what the category and food words are read from. */
+  context: string;
+};
+
+export type UkPriceReading = {
+  kept: UkPriceCandidate[];
+  drops: UkPriceDropReason[];
+};
+
+/**
+ * Strip a page to the text a reader sees. Scripts and styles go first, because
+ * a price inside a JSON blob or a CSS rule is not something the page states.
+ */
+export function pageText(html: string): string {
+  return html
+    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&pound;/gi, "£")
+    .replace(/&#163;/g, "£")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * The category a figure's own surrounding text names, or null.
+ *
+ * THE NEAREST WORD WINS, not the first pattern in the table. A drinks list puts
+ * its lines next to each other, so the window around "House red wine £7.50"
+ * also carries the "pint" from the line above it; testing the table in order
+ * would file every wine on the page as a beer. Distance decides, and the table
+ * order only breaks a tie.
+ *
+ * `at` is where the figure sits inside `context`. A caller that does not know
+ * measures from the middle, which is where `readVenueDrinkPrices` puts it.
+ */
+export function categoryFor(context: string, at = Math.floor(context.length / 2)): DrinkCategory | null {
+  let best: { category: DrinkCategory; distance: number } | null = null;
+  for (const row of CATEGORY_WORDS) {
+    const pattern = new RegExp(row.pattern.source, `${row.pattern.flags.replace("g", "")}g`);
+    for (const match of context.matchAll(pattern)) {
+      const index = match.index ?? 0;
+      // A drinks line names the drink and THEN the price, so a word before the
+      // figure is measured from its end and a word after it from its start.
+      const distance = index >= at ? index - at : at - (index + match[0].length);
+      if (!best || distance < best.distance) best = { category: row.category, distance };
+    }
+  }
+  return best ? best.category : null;
+}
+
+/**
+ * Every drink price a page STATES, with each rejection counted.
+ *
+ * A page with no figure at all answers one `no-price-on-page` drop rather than
+ * an empty result, because "we read it and it says nothing" is a finding and an
+ * empty list is not.
+ */
+export function readVenueDrinkPrices(html: string): UkPriceReading {
+  const text = pageText(html);
+  const kept: UkPriceCandidate[] = [];
+  const drops: UkPriceDropReason[] = [];
+
+  const matches = [...text.matchAll(PRICE_PATTERN)];
+  if (matches.length === 0) return { kept, drops: ["no-price-on-page"] };
+
+  for (const match of matches) {
+    const priceGbp = Number(match[1]);
+    const verbatim = match[0];
+    const at = match.index ?? 0;
+    const context = text.slice(
+      Math.max(0, at - PRICE_CONTEXT_CHARS),
+      at + verbatim.length + PRICE_CONTEXT_CHARS,
+    );
+
+    // The verbatim rule, applied to our own extraction as well.
+    if (!text.includes(verbatim)) {
+      drops.push("not-verbatim-on-page");
+      continue;
+    }
+    if (OFFER_WORDS.test(context)) {
+      drops.push("offer-not-a-menu-price");
+      continue;
+    }
+    const category = categoryFor(context, at - Math.max(0, at - PRICE_CONTEXT_CHARS));
+    if (!category) {
+      drops.push(Number.isFinite(priceGbp) ? "no-category-word-nearby" : "no-drink-word-nearby");
+      continue;
+    }
+    const band = CATEGORY_PRICE_BANDS[category];
+    if (!band) {
+      drops.push("no-category-word-nearby");
+      continue;
+    }
+    if (!Number.isFinite(priceGbp) || priceGbp < band.minGbp || priceGbp > band.maxGbp) {
+      drops.push("outside-category-band");
+      continue;
+    }
+    if (FOOD_WORDS.test(context) || FOOD_WEARING_A_DRINK_WORD.test(context)) {
+      drops.push("food-word-nearby");
+      continue;
+    }
+    const before = text.slice(Math.max(0, at - 30), at);
+    const after = text.slice(at + verbatim.length, at + verbatim.length + 6);
+    if (category === "beer" && (isHalfMeasure(before) || isFirstOfAMeasurePair(after))) {
+      drops.push("half-measure-not-a-pint");
+      continue;
+    }
+    if (category === "beer" && isBottledMeasure(before)) {
+      drops.push("bottled-measure-not-a-pint");
+      continue;
+    }
+    kept.push({ priceGbp, category, verbatim, context });
+  }
+
+  return { kept, drops };
+}
+
+/**
+ * Whether the page is a drinks LIST rather than a page that happens to mention
+ * a price.
+ *
+ * TWO TESTS, and the second is the one that was missing. A list states many
+ * priced lines, so a page under the floor is a promo shelf and not a menu. And a
+ * page whose figures are MOSTLY food is a food menu: a pub's lunch card states
+ * forty dishes and, somewhere among them, a crab cocktail and a beef and ale
+ * pie, which is exactly how "£9.50" for a lunch sandwich became the price of a
+ * beer on the first run of this crawler. Where the food figures outnumber the
+ * drink ones the page is a food menu and nothing on it is taken.
+ */
+export function pageStatesADrinksList(reading: UkPriceReading): boolean {
+  if (reading.kept.length < MIN_PRICED_LINES_FOR_LIST) return false;
+  const foodLines = reading.drops.filter((reason) => reason === "food-word-nearby").length;
+  return reading.kept.length > foodLines;
+}
+
+/** The slug a pub's own name would wear in a URL. */
+export function pubNameSlug(name: string): string {
+  return name
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/['\u2019.]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
+ * Whether a page on a MULTI-PUB host may speak for one named pub.
+ *
+ * A host serving one pub is that pub's own site, and every page on it is about
+ * that pub. A host serving an estate is not: its homepage price is an estate
+ * banner, and attributing it to each pub on the host turns one figure into
+ * hundreds of wrong ones. So an estate page has to NAME the pub in its own URL
+ * before its price may be that pub's.
+ */
+export function pageMayPriceThisPub(
+  pageUrl: string,
+  pub: { name?: string | null },
+  pubsOnHost: number,
+): boolean {
+  if (pubsOnHost <= 1) return true;
+  const name = typeof pub.name === "string" ? pubNameSlug(pub.name) : "";
+  if (name.length < 4) return false;
+  let path: string;
+  try {
+    path = pubNameSlug(decodeURIComponent(new URL(pageUrl).pathname));
+  } catch {
+    return false;
+  }
+  // The distinctive half of a pub's name is what a slug carries: "the-crown"
+  // appears in a path as "crown". A leading article is dropped before matching
+  // so "The Ship" is not held to a path that says "ship".
+  const distinctive = name.replace(/^(the|ye-olde|ye)-/, "");
+  return distinctive.length >= 4 && path.includes(distinctive);
+}
+
+/**
+ * The cheapest figure the page states per category. A pub's own row carries one
+ * price per drink, and the cheapest is the one a drinker can actually pay.
+ */
+export function cheapestPerCategory(
+  reading: UkPriceReading,
+): ReadonlyArray<{ category: DrinkCategory; priceGbp: number }> {
+  const low = new Map<DrinkCategory, number>();
+  for (const row of reading.kept) {
+    const seen = low.get(row.category);
+    if (seen === undefined || row.priceGbp < seen) low.set(row.category, row.priceGbp);
+  }
+  return [...low.entries()]
+    .map(([category, priceGbp]) => ({ category, priceGbp }))
+    .sort((a, b) => a.category.localeCompare(b.category));
+}
+
+// --- page discovery -------------------------------------------------------
+//
+// A chain source names its one page. A pub site does not, so the crawler has to
+// decide which of a site's own links might carry a drinks list. It decides from
+// the LINK, never from the page behind it, because opening a page to find out
+// whether it was worth opening is the crawl this budget exists to prevent.
+
+/** Path or link words that name a drinks list. */
+const MENU_LINK_WORDS =
+  /(drinks?|menus?|bar|beer|wine|cocktail|tap[- ]?list|whats[- ]?on[- ]?tap|on[- ]?tap|cellar|price[- ]?list|tariff)/i;
+
+/** Path words that mean the link is a page nobody prices a pint on. */
+const MENU_LINK_EXCLUSIONS =
+  /(privacy|cookie|terms|careers|jobs|vacanc|gift[- ]?card|voucher|contact|accessib|sitemap|login|account|basket|checkout|book(ing)?[- ]?a[- ]?table|wedding|funeral|christening|conference|newsletter|blog|news\/|\/tag\/|\/author\/|feed|\/shop\/|\/store\/|product[- ]?page|\/products?\/|add[- ]to[- ]cart|lunch|dinner|breakfast|brunch|sunday[- ]?roast|christmas|kids|festive|sample[- ]?menu)/i;
+
+/** File endings a crawler may open. A drinks list is often a PDF. */
+const READABLE_ENDINGS = /(\.pdf|\.html?|\/)$/i;
+
+export function isLikelyMenuUrl(candidate: string, siteOrigin: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(candidate, siteOrigin);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+  let origin: URL;
+  try {
+    origin = new URL(siteOrigin);
+  } catch {
+    return false;
+  }
+  // SAME SITE ONLY. A pub's own site is first-party by definition; the third
+  // party it links to is a source in its own right and has its own permission
+  // question, which this crawl has not asked.
+  const host = url.hostname.replace(/^www\./, "");
+  const known = origin.hostname.replace(/^www\./, "");
+  if (host !== known && !host.endsWith(`.${known}`)) return false;
+
+  const path = `${url.pathname}${url.search}`;
+  if (MENU_LINK_EXCLUSIONS.test(path)) return false;
+  if (!MENU_LINK_WORDS.test(path)) return false;
+  if (!READABLE_ENDINGS.test(url.pathname) && /\.[a-z0-9]{2,5}$/i.test(url.pathname)) return false;
+  return true;
+}
+
+/**
+ * The links on a page that look like a drinks list, deduplicated and in the
+ * order the page states them, capped so one navigation-heavy site cannot spend
+ * a whole host budget on itself.
+ */
+export function menuLinkCandidates(html: string, siteOrigin: string, max = 8): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const match of html.matchAll(/<a\b[^>]*\shref\s*=\s*["']([^"']+)["']/gi)) {
+    const raw = match[1].trim();
+    if (raw.startsWith("#") || raw.startsWith("mailto:") || raw.startsWith("tel:")) continue;
+    if (!isLikelyMenuUrl(raw, siteOrigin)) continue;
+    let resolved: string;
+    try {
+      resolved = new URL(raw, siteOrigin).toString();
+    } catch {
+      continue;
+    }
+    const key = resolved.replace(/#.*$/, "");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(key);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+/** The sitemap URLs a robots.txt body names, in the order it names them. */
+export function sitemapsIn(robotsBody: string): string[] {
+  return [...robotsBody.matchAll(/^\s*sitemap:\s*(\S+)\s*$/gim)].map((match) => match[1].trim());
+}
+
+/** Every `<loc>` a sitemap or sitemap index states. */
+export function sitemapLocations(xml: string): string[] {
+  return [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((match) => match[1].trim());
+}
+
+/**
+ * What a run may spend on one host. A pub site is a handful of pages; a chain
+ * estate behind one host is thousands, and a crawler with no per-host ceiling
+ * would spend a whole national budget inside the first one it opened.
+ */
+export const DEFAULT_PAGES_PER_HOST = 6;
+
+/** The polite gap between two requests to the same host, when it asks for none. */
+export const DEFAULT_HOST_DELAY_MS = 1_500;

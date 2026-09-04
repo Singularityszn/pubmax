@@ -88,6 +88,7 @@ const POSTCODE_COORDINATE_DECISION_INPUTS = [
 ];
 const DRINK_PRICE_UPDATES_DIR = join(DATA_DIR, "drink_price_updates");
 const PRICE_ESTIMATE_BASELINES_PATH = join(DATA_DIR, "price_estimates", "baselines.json");
+const UK_PRICE_BUNDLE_DIR = join(DATA_DIR, "uk_prices");
 const WHATS_ON_DIR = join(DATA_DIR, "whats_on");
 const DRINK_CATEGORIES = new Set([
   "beer",
@@ -129,6 +130,7 @@ const ARTIFACT_CLASSIFICATION = [
   { id: "pubmaxxing_seed", required: true, reason: "seeds the curated venue anchors the index is built from" },
   { id: "drink_price_updates", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the directory or files are absent; a file that IS present with bad data is a genuine defect and stays a hard gate" },
   { id: "price_estimate_baselines", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the artifact is absent; a basis that IS present without its source pages, provenance or sample floor would put an unanswerable estimate on a pub and stays a hard gate" },
+  { id: "uk_price_bundle", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the bundle is absent; a bundle that IS present carrying a row with no source URL or no observation day is a price nobody can check or correct, and stays a hard gate" },
   { id: "whats_on", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the directory or files are absent; a file that IS present with bad data is a genuine defect and stays a hard gate" },
   { id: "pint_index_editions", required: true, reason: "the validator itself passes cleanly (ok: true) when no dated editions exist yet; a published edition that fails its hash/shape checks is a genuine defect and stays a hard gate" },
   { id: "night_signals", required: false, reason: "advisory tonight signal; map and app work without it. Unlike the three above, a missing/unreadable file here is not internally self-guarded to ok: true, so this flag is what keeps that case a WARN instead of a build failure" },
@@ -2594,6 +2596,100 @@ function validateDrinkPriceUpdates() {
   return { ok, count };
 }
 
+// uk_prices/{manifest,rows}.json — every UK price we hold, in one file, each
+// row saying what it is worth (scripts/build_uk_price_bundle.mjs).
+//
+// ONE FENCE, AND IT IS THE WHOLE POINT OF THE FILE: A ROW MUST BE CHECKABLE.
+// Every row owes a day, and every row that claims a pub or a chain PUBLISHED
+// the figure owes the URL it was published at. A `listed` row with no source is
+// an unattributed claim; a row with no day is a claim about no particular
+// night. Both would be figures nobody can correct, which is exactly what the
+// standing vocabulary exists to prevent, so the file is refused over one.
+//
+// An `estimate` row owes its basis and its sample size instead, for the same
+// reason the baselines artifact does: a median with no sample behind it is a
+// number with no argument. It owes no URL, because nobody published it, and
+// demanding one would push the builder into inventing a citation.
+function validateUkPriceBundle() {
+  const name = "public/data/uk_prices/";
+  const manifestPath = join(UK_PRICE_BUNDLE_DIR, "manifest.json");
+  const rowsPath = join(UK_PRICE_BUNDLE_DIR, "rows.json");
+  if (!existsSync(manifestPath) || !existsSync(rowsPath)) {
+    console.log(`SKIP ${name}: bundle does not exist`);
+    return { ok: true, count: 0 };
+  }
+  const errs = makeCollector();
+  const isIso = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
+  let manifest;
+  let rows;
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+    rows = JSON.parse(readFileSync(rowsPath, "utf8"));
+  } catch (error) {
+    console.log(`FAIL ${name}: not valid JSON (${error.message})`);
+    return { ok: false, count: 0 };
+  }
+  if (typeof manifest !== "object" || manifest === null || Array.isArray(manifest)) {
+    console.log(`FAIL ${name}manifest.json: must be an object`);
+    return { ok: false, count: 0 };
+  }
+  if (manifest.version !== 1) errs.add("manifest.json: version must be 1");
+  if (!isIso(manifest.generatedAt)) errs.add("manifest.json: generatedAt must be an ISO timestamp");
+  else if (Date.parse(manifest.generatedAt) > Date.now()) {
+    errs.add("manifest.json: generatedAt is in the future");
+  }
+  if (!Array.isArray(rows)) {
+    console.log(`FAIL ${name}rows.json: must be an array`);
+    return { ok: false, count: 0 };
+  }
+  if (manifest?.counts?.rows !== rows.length) {
+    errs.add(
+      `manifest.json: counts.rows says ${JSON.stringify(manifest?.counts?.rows)} and rows.json holds ${rows.length}`,
+    );
+  }
+
+  const STANDINGS = new Set(["confirmed", "listed", "estimate"]);
+  const LANES = new Set(["site-harvest", "drink-price-update", "estimate"]);
+  rows.forEach((row, i) => {
+    const where = `rows.json[${i}]`;
+    if (typeof row !== "object" || row === null) { errs.add(`${where}: not an object`); return; }
+    if (typeof row.venueId !== "string" || !row.venueId.trim()) errs.add(`${where}: missing venueId`);
+    if (typeof row.category !== "string" || !row.category.trim()) errs.add(`${where}: missing category`);
+    if (!isFiniteNumber(row.priceGbp) || row.priceGbp <= 0) {
+      errs.add(`${where}: priceGbp ${JSON.stringify(row.priceGbp)} is not a price`);
+    }
+    if (!LANES.has(row.lane)) errs.add(`${where}: lane ${JSON.stringify(row.lane)} is not a bundle lane`);
+    if (!STANDINGS.has(row.standing)) {
+      errs.add(`${where}: standing ${JSON.stringify(row.standing)} is not a publishable standing`);
+    }
+    // THE DAY, owed by every row without exception.
+    if (!isIso(row.observedAt)) errs.add(`${where}: observedAt must be an ISO timestamp`);
+    else if (Date.parse(row.observedAt) > Date.now() + 60_000) {
+      errs.add(`${where}: observedAt is in the future`);
+    }
+    // THE SOURCE, owed by every row that says somebody published the figure.
+    if (row.standing === "listed" || row.standing === "confirmed") {
+      if (!isHttpUrlLocal(row.sourceUrl)) {
+        errs.add(`${where}: a ${row.standing} row must carry an absolute http(s) sourceUrl`);
+      }
+    }
+    // THE ARGUMENT, owed by every row nobody published.
+    if (row.standing === "estimate") {
+      if (typeof row.basis !== "string" || !row.basis.trim()) {
+        errs.add(`${where}: an estimate must name the basis it was modelled from`);
+      }
+      if (!Number.isInteger(row.sampleSize) || row.sampleSize < ESTIMATE_MIN_SAMPLE) {
+        errs.add(`${where}: an estimate needs a sample of at least ${ESTIMATE_MIN_SAMPLE}`);
+      }
+    }
+  });
+
+  const ok = errs.count === 0;
+  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${rows.length} rows, ${errs.count} error(s)`);
+  if (!ok) errs.report();
+  return { ok, count: rows.length };
+}
+
 // price_estimates/baselines.json — the basis the estimate engine models from
 // (lib/priceEstimate.ts). TWO FENCES, and they are the reason this file exists.
 //
@@ -3621,6 +3717,7 @@ const DATASET_RUNS = [
   { id: "venue_details", run: validateVenueDetails },
   { id: "drink_price_updates", run: validateDrinkPriceUpdates },
   { id: "price_estimate_baselines", run: validatePriceEstimateBaselines },
+  { id: "uk_price_bundle", run: validateUkPriceBundle },
   { id: "whats_on", run: validateWhatsOnUpdates },
   { id: "night_signals", run: validateNightSignalSnapshot },
   { id: "weather_snapshot", run: validateWeatherSnapshotData },
