@@ -10,6 +10,24 @@ import { useEffect } from "react";
 // as NEXT_PUBLIC_SW_VERSION). A new deploy changes the registration URL, the
 // browser treats it as a new worker, and its `activate` step preserves usable
 // offline entries while retiring superseded cache versions only when safe.
+//
+// REGISTRATION IS OWED TO EVERY ROUTE, NOT ONLY THE MAP. The first-pins gate
+// below exists so installing the worker cannot tax the map's cold path, and it
+// is kept for exactly that. What it may not be is the ONLY key: the native
+// shell cold-starts on /tonight (lib/entryDecision.ts), so a reader whose
+// sessions are Tonight, Out, Social or You never opened /map, never fired
+// `pubmax:first-pins`, and got no offline shell at all — in an app whose
+// worker header says pub cellars have terrible signal. So there are TWO
+// triggers now and the EARLIER one wins: first pins where they happen, and a
+// deferred idle pass on any route otherwise. The deferred pass is held back by
+// a delay rather than armed at the first idle moment, because on /map the
+// first idle moment IS the cold path this gate was written to protect.
+
+/** Idle deadline once a trigger has fired. Unchanged from the first-pins path. */
+export const OFFLINE_REGISTER_IDLE_TIMEOUT_MS = 2_000;
+/** How long a loaded route waits before registering without a first-pins event. */
+export const OFFLINE_REGISTER_FALLBACK_DELAY_MS = 4_000;
+
 export default function OfflineReady() {
   useEffect(() => {
     // Dev builds churn assets constantly; a SW there only causes confusion.
@@ -19,6 +37,7 @@ export default function OfflineReady() {
     let registered = false;
     let pageLoaded = document.readyState === "complete";
     let firstPinsReady = Boolean(window.__pubmaxFirstPinsReady);
+    let fallbackTimer: number | undefined;
     try {
       firstPinsReady =
         firstPinsReady ||
@@ -49,32 +68,53 @@ export default function OfflineReady() {
         });
     };
 
-    const scheduleRegister = () => {
-      if (!pageLoaded || !firstPinsReady || registered) return;
+    const registerWhenIdle = () => {
+      if (registered) return;
       const run = () => register();
       if (typeof window.requestIdleCallback === "function") {
-        window.requestIdleCallback(run, { timeout: 2_000 });
+        window.requestIdleCallback(run, { timeout: OFFLINE_REGISTER_IDLE_TIMEOUT_MS });
       } else {
         window.setTimeout(run, 0);
       }
     };
+
+    // The map's trigger: pins are up, the cold path is done, register now.
+    const scheduleRegister = () => {
+      if (!pageLoaded || !firstPinsReady || registered) return;
+      registerWhenIdle();
+    };
+
+    // The every-route trigger: the document loaded and stayed quiet for the
+    // fallback delay, so whatever this route was doing has settled.
+    const scheduleFallbackRegister = () => {
+      if (registered || fallbackTimer !== undefined) return;
+      fallbackTimer = window.setTimeout(
+        registerWhenIdle,
+        OFFLINE_REGISTER_FALLBACK_DELAY_MS,
+      );
+    };
+
     const onLoad = () => {
       pageLoaded = true;
       scheduleRegister();
+      scheduleFallbackRegister();
     };
     const onFirstPins = () => {
       firstPinsReady = true;
       scheduleRegister();
     };
 
-    // A loaded document is not enough: registration must wait until the map
-    // has shown its first pins, so install work cannot tax the cold path.
     window.addEventListener("pubmax:first-pins", onFirstPins, { once: true });
-    if (pageLoaded) scheduleRegister();
-    else window.addEventListener("load", onLoad, { once: true });
+    if (pageLoaded) {
+      scheduleRegister();
+      scheduleFallbackRegister();
+    } else {
+      window.addEventListener("load", onLoad, { once: true });
+    }
     return () => {
       window.removeEventListener("pubmax:first-pins", onFirstPins);
       window.removeEventListener("load", onLoad);
+      if (fallbackTimer !== undefined) window.clearTimeout(fallbackTimer);
     };
   }, []);
 
