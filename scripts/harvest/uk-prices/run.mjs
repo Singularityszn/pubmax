@@ -7,6 +7,7 @@
 //   npm run harvest:uk-prices -- --pages 4000      # global page ceiling
 //   npm run harvest:uk-prices -- --reset           # forget the ledger and start over
 //   npm run harvest:uk-prices -- --only greeneking.co.uk
+//   npm run harvest:uk-prices -- --recheck robots-unreadable   # ask one finding again
 //
 // FIVE RULES, and they are the whole design.
 //
@@ -111,6 +112,20 @@ const HOST_LIMIT = Number(option("--hosts", Number.POSITIVE_INFINITY));
 const PAGE_BUDGET = Number(option("--pages", DEFAULT_PAGE_BUDGET));
 const CONCURRENCY = Math.max(1, Number(option("--concurrency", DEFAULT_CONCURRENCY)));
 const ONLY = option("--only", null);
+/**
+ * Ask a set of hosts AGAIN, naming the outcome they were recorded under.
+ *
+ *   npm run harvest:uk-prices -- --recheck robots-unreadable
+ *
+ * A full `--reset` throws away seven thousand answers to re-ask a few hundred.
+ * A finding is a fact about the moment it was taken, so when the rule that
+ * produced it changes, or when the ask itself failed, the hosts under that one
+ * finding are the ones worth asking again and nothing else is.
+ */
+const RECHECK = (option("--recheck", "") || "")
+  .split(",")
+  .map((name) => name.trim())
+  .filter((name) => name.length > 0);
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -264,8 +279,17 @@ async function discoverPages(entry, statedSitemaps, spend) {
 async function crawlHost(entry, robots, spend, delayMs) {
   const decision = await robots(entry.origin);
   if (!decision.allowed) {
+    // THREE FINDINGS, THREE NAMES. A host that turned us away, a host whose
+    // rules file could not be read, and a host that was not there at all are
+    // different facts, and only the first two are about permission.
+    const outcome =
+      decision.reason === "robots-disallowed"
+        ? "robots-disallowed"
+        : decision.reason === "robots-unreachable"
+          ? "unreachable"
+          : "robots-unreadable";
     return {
-      outcome: decision.reason === "robots-disallowed" ? "robots-disallowed" : "robots-unreadable",
+      outcome,
       evidence: decision.evidence.slice(0, 240),
       pagesRead: 0,
       rows: [],
@@ -389,6 +413,16 @@ async function main() {
     const host = hostOf(source.url);
     if (!host || hosts.some((entry) => entry.host === host)) continue;
     hosts.push({ host, origin: new URL(source.url).origin, pubs: [], sourceId: source.id });
+  }
+
+  if (RECHECK.length > 0) {
+    let dropped = 0;
+    for (const [host, entry] of Object.entries(ledger.hosts)) {
+      if (!RECHECK.includes(entry.outcome)) continue;
+      delete ledger.hosts[host];
+      dropped += 1;
+    }
+    console.log(`re-asking ${dropped} host(s) recorded as ${RECHECK.join(", ")}`);
   }
 
   const pending = hosts

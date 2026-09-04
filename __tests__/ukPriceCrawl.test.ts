@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import { DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import {
   CATEGORY_PRICE_BANDS,
+  EMPTY_RENDER_MAX_CHARS,
   MIN_PRICED_LINES_FOR_LIST,
   UK_PRICE_DROP_REASONS,
   categoryFor,
@@ -21,6 +22,7 @@ import {
   pageText,
   pubNameSlug,
   readVenueDrinkPrices,
+  renderLooksEmpty,
   sitemapLocations,
 } from "@/lib/harvest/ukPriceCrawl";
 
@@ -150,6 +152,36 @@ describe("whether a page is a drinks list at all", () => {
   });
 });
 
+// An empty render is a fact about US, and the lane asks such a page again. A
+// page that rendered and simply states no price is a fact about the PUB, and
+// asking it twice does not change its answer.
+describe("whether a rendered page came back with nothing on it", () => {
+  it("calls a shell empty", () => {
+    expect(renderLooksEmpty("")).toBe(true);
+    expect(renderLooksEmpty("## Menus at The Ship\n\nContent has loaded")).toBe(true);
+  });
+
+  it("does not call a page that rendered and states no price empty", () => {
+    const menu = `## Menus at The Ship\n\n${"### Small Plates\n\nA plate of things to share, served warm.\n\n".repeat(8)}`;
+    expect(menu.length).toBeGreaterThan(EMPTY_RENDER_MAX_CHARS);
+    expect(renderLooksEmpty(menu)).toBe(false);
+  });
+
+  // A SHELL CAN BE CHATTY. This is the Chef & Brewer menu page as it came back
+  // three times out of three on 2026-09-04: past the length floor, and stating
+  // in its own words that it has nothing on it yet.
+  it("takes a page that says it is still loading at its word", () => {
+    const shell = `## Menu at Fox & Hounds, Wimborne\n\nContent is loading...\n\n## Spotted something you like?\n\n${"Tuck into your favourites, book a table and enjoy the evening with us. ".repeat(6)}`;
+    expect(shell.length).toBeGreaterThan(EMPTY_RENDER_MAX_CHARS);
+    expect(renderLooksEmpty(shell)).toBe(true);
+  });
+
+  it("does not call a page that finished loading empty", () => {
+    const menu = `## Menus at The Ship\n\nContent has loaded\n\n${"### Wine\n\nHouse red, a generous glass poured at the bar.\n\n".repeat(8)}`;
+    expect(renderLooksEmpty(menu)).toBe(false);
+  });
+});
+
 describe("whether an estate page may speak for one pub", () => {
   it("lets a single-pub site price its own pub from any of its pages", () => {
     expect(pageMayPriceThisPub("https://thecrown.co.uk/", { name: "The Crown" }, 1)).toBe(true);
@@ -221,5 +253,40 @@ describe("which links a crawler may follow", () => {
     expect(sitemapLocations("<url><loc>https://a.co/drinks</loc></url>")).toEqual([
       "https://a.co/drinks",
     ]);
+  });
+});
+
+// A SPIRITS LIST STATES THE SERVE, not the spirit, and one figure over two
+// drinks belongs to neither. These are the two lines a Staffordshire pub's own
+// drinks menu published on 2026-09-04, which reached the bundle as a £7.00
+// Pepsi and a £7.25 pint before this rule existed.
+describe("a figure priced over a spirit and its mixer", () => {
+  const read = (text: string) => readVenueDrinkPrices(`<p>${text}</p>`);
+
+  it("drops a serve whose nearest drink word is the mixer", () => {
+    const line =
+      "Dead Man's Fingers Coconut With Pepsi Max Tropical flavours and a smooth twist of coconut. £7.00 Sailor Jerry With Britvic Ginger Ale The original spiced rum.";
+    expect(read(line).kept).toEqual([]);
+    expect(read(line).drops).toContain("mixer-serve-not-one-drink");
+  });
+
+  it("does not read a bitter lemon mixer as a pint", () => {
+    const line = "Bosford Rose Pink, soft and sweet. Try with Britvic Bitter Lemon. £7.25";
+    const reading = read(line);
+    expect(reading.kept.filter((row) => row.category === "beer")).toEqual([]);
+  });
+
+  it("leaves a line that names ONE drink alone", () => {
+    const reading = read("Neck Oil Session IPA £6.20");
+    expect(reading.kept).toHaveLength(1);
+    expect(reading.kept[0]).toMatchObject({ category: "beer", priceGbp: 6.2 });
+  });
+});
+
+// A NUMERIC REFERENCE IS THE CHARACTER IT NAMES. A drink word wearing one is
+// invisible to every pattern here, so the line is read as if it named no drink.
+describe("a page that writes its drink names as character references", () => {
+  it("reads an accented wine name", () => {
+    expect(categoryFor("Bosford Ros&#233; Pink 175ml &#163;7.00")).toBe("wine");
   });
 });

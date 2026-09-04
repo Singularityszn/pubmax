@@ -15,6 +15,10 @@
 //
 // WHAT THIS DOES NOT CHANGE.
 //
+//   * CONDUCT. Rendering is FORCED (`--render-js=always`) and that is not
+//     stealth: it tells the renderer to do the thing this lane exists to do,
+//     while stealth, TLS shaping and challenge waiting all stay off. A blocked
+//     page is still counted and left alone.
 //   * PERMISSION. RESPECT_ROBOTS_TXT is passed to the renderer and
 //     lib/harvest/robots.ts is asked here as well, so a host is refused twice
 //     over rather than once. A page behind a challenge is a REFUSAL to record:
@@ -43,6 +47,7 @@ import {
   cheapestPerCategory,
   pageStatesADrinksList,
   readVenueDrinkPrices,
+  renderLooksEmpty,
 } from "../../../lib/harvest/ukPriceCrawl.ts";
 
 const ROOT = process.cwd();
@@ -54,7 +59,47 @@ const REPORT_PATH = path.join(ROOT, "data/uk_prices/rendered_report.json");
 
 const USER_AGENT = "PUBMAXXHarvest/1.0 (+https://pubmaxxing.com; hello@pubmaxxing.com)";
 const RENDER_TIMEOUT_MS = 90_000;
-const DEFAULT_CONCURRENCY = 4;
+/**
+ * How many pages are in flight at once.
+ *
+ * What this lane spends is not bandwidth, it is BROWSER TIME: a forced render of
+ * one Greene King menu page takes about five seconds whatever else is running,
+ * so three workers read about one page every two seconds and a 1,121-page estate
+ * takes most of a working day. Six workers behind the per-page gap below hold
+ * the sustained rate near one page a second, which is a gentler load on a chain
+ * estate than the rate a single-threaded reader of a fast site would make.
+ */
+const DEFAULT_CONCURRENCY = 6;
+/**
+ * The polite gap between two pages on the SAME chain host. A chain's estate is
+ * a thousand pages behind one hostname, so this lane is the one place a per-host
+ * budget matters more than throughput does.
+ */
+const CHAIN_HOST_DELAY_MS = 500;
+/**
+ * How many times a page that renders EMPTY is asked again.
+ *
+ * An empty render is a fact about US and not about the pub: the app did not
+ * finish assembling itself before the renderer read it. Measured on 2026-09-04
+ * over ten Greene King menus the first run called no-price, three of which state
+ * a full drinks list on a second read and four of which render nothing at all.
+ * A page that renders and simply STATES no price is never retried, because
+ * asking a pub the same question twice does not change its answer.
+ */
+const RENDER_RETRIES_ON_EMPTY = 2;
+/**
+ * WHY THE RENDERER IS TOLD TO RENDER.
+ *
+ * Its default routes a page over plain HTTP first and decides for itself whether
+ * to open a browser. That decision is wrong for this lane by construction: every
+ * page here is one whose prices exist only after its own script has run, which is
+ * the whole reason the lane exists. Left on the default, a Chef & Brewer menu
+ * page came back three times out of three as 538 characters saying `Content is
+ * loading...`, and the same URL with rendering forced states 58 prices. Measured
+ * over six Greene King pages the first run recorded as stating no price, forcing
+ * it turned one of them into a Wine and Cocktails list.
+ */
+const RENDER_JS = "--render-js=always";
 
 /**
  * The environment the renderer is given, and every entry is a promise about
@@ -69,6 +114,8 @@ const RENDER_ENV = {
   WIGOLO_CHALLENGE_COMPLETION_MS: "0",
   WIGOLO_USER_AGENT: USER_AGENT,
 };
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const flag = (name) => process.argv.includes(name);
 function option(name, fallback) {
@@ -103,9 +150,9 @@ function hostOf(url) {
 }
 
 /** Run the renderer once and hand back the markdown it read, or a refusal. */
-function render(url) {
+function renderOnce(url) {
   return new Promise((resolve) => {
-    const child = spawn(RENDERER, [...RENDERER_ARGS, "fetch", url, "--json"], {
+    const child = spawn(RENDERER, [...RENDERER_ARGS, "fetch", url, "--json", "--force-refresh", RENDER_JS], {
       env: { ...process.env, ...RENDER_ENV },
       stdio: ["ignore", "pipe", "ignore"],
     });
@@ -144,6 +191,24 @@ function render(url) {
       }
     });
   });
+}
+
+/**
+ * Read one page, asking again only when it came back EMPTY.
+ *
+ * The retry is bounded and it is spent on one question: did the app finish
+ * assembling itself. A page that answered with words keeps its answer, whatever
+ * that answer was.
+ */
+async function render(url) {
+  let last = await renderOnce(url);
+  for (let attempt = 0; attempt < RENDER_RETRIES_ON_EMPTY; attempt += 1) {
+    if (!last.ok || !renderLooksEmpty(last.markdown)) return last;
+    await sleep(CHAIN_HOST_DELAY_MS);
+    const again = await renderOnce(url);
+    last = { ...again, retried: true };
+  }
+  return last;
 }
 
 /** The per-pub menu pages of every chain the source table allows. */
@@ -224,6 +289,7 @@ async function main() {
 
   const robots = createRobotsChecker();
   const outcomes = {};
+  let retries = 0;
   const started = Date.now();
   let index = 0;
   let done = 0;
@@ -244,7 +310,9 @@ async function main() {
         continue;
       }
 
+      await sleep(CHAIN_HOST_DELAY_MS);
       const rendered = await render(target.menuUrl);
+      if (rendered.retried) retries += 1;
       let outcome;
       if (!rendered.ok) {
         outcome = rendered.reason;
@@ -303,6 +371,7 @@ async function main() {
     generatedAt: new Date().toISOString(),
     renderer: "wigolo",
     hostsPermitted: [...allowedHosts.keys()],
+    pagesAskedAgainAfterAnEmptyRender: retries,
     menuPagesKnown: targets.length,
     menuPagesReadThisRun: done,
     menuPagesInLedger: Object.keys(ledger.pages).length,
