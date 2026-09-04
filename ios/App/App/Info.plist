@@ -41,9 +41,12 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<!-- Capacitor template leftover: `armv7` is a 32-bit capability, and iOS
+	     has been 64-bit only since iOS 11. It named a device class this app
+	     cannot ship to. arm64 is the platform it actually requires. -->
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<!-- iPhone is PORTRAIT ONLY, and public/manifest.webmanifest already said
 	     so ("orientation": "portrait-primary"). The two halves disagreed, and

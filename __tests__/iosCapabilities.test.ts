@@ -33,12 +33,23 @@ describe("the iOS project declares its capabilities", () => {
     expect(entitlements).toContain("<string>development</string>");
   });
 
-  it("asks for the one associated domain the app routes", () => {
+  it("asks for both services on the one associated domain the app routes", () => {
     expect(entitlements).toContain("com.apple.developer.associated-domains");
     expect(entitlements).toContain("applinks:pubmaxxing.com");
-    // A webcredentials entry would ask for password autofill this app does not
-    // use, and every entitlement is a thing review can ask about.
-    expect(entitlements).not.toContain("webcredentials:");
+    // This used to refuse `webcredentials` on the grounds that the app had no
+    // password to autofill. It has one now (components/auth/SetAccountPassword.tsx
+    // and /api/auth/handle-password), so refusing it means the keychain never
+    // learns the password exists and a person who set one types it every time.
+    // Both services ride one domain and one agreement; the site's half is the
+    // `webcredentials` block in the AASA, held to this one in
+    // __tests__/nativeWrap.test.ts.
+    expect(entitlements).toContain("webcredentials:pubmaxxing.com");
+    // Still one domain. An entitlement for a host this app does not serve is a
+    // thing review can ask about and nothing can answer.
+    const domains = [...entitlements.matchAll(/<string>(applinks|webcredentials):([^<]+)<\/string>/g)];
+    expect(new Set(domains.map((match) => match[2]))).toEqual(
+      new Set(["pubmaxxing.com"]),
+    );
   });
 
   it("points both build configurations at the entitlements file", () => {

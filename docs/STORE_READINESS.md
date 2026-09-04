@@ -524,7 +524,7 @@ Coral `#ff5a5f` on a white `#ffffff` tile measures ~3.7:1 contrast, comfortably 
 
 ### Wiring into the native shells (when syncing)
 
-- **iOS:** `ios/App/App/Assets.xcassets/AppIcon.appiconset/` uses a single universal 1024 (`AppIcon-512@2x.png`); replace its contents with `png/ios/AppIcon-1024.png` at the next native pass. The full classic slot set exists for older Xcode setups and App Store Connect uploads.
+- **iOS:** `ios/App/App/Assets.xcassets/AppIcon.appiconset/` uses a single universal 1024 (`AppIcon-512@2x.png`), and it already IS `png/ios/AppIcon-1024.png` byte for byte. The full classic slot set exists for older Xcode setups and App Store Connect uploads.
 - **Android / Play:** upload `play-store-512.png` in the Play Console; the adaptive layers feed `@capacitor/assets` (or hand-placed `mipmap` resources) at sync time.
 - **Capacitor splash:** feed `splash/splash-2732.png` as both `splash` and `splash-dark` sources, the ink-dark art is the same for both (the splash keeps the ink field even though the icon is now a white tile), then `npx @capacitor/assets@3 generate` (fetched ephemerally, see the header of `scripts/gen-native-app-icons.mjs` for the npm-audit rationale).
 

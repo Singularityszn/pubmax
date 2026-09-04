@@ -21,6 +21,15 @@
 // two thirds of that promise, and __tests__/androidNotificationIcon.test.ts
 // holds all three to each other.
 //
+// It ALSO writes the legacy Android launcher PNGs straight into
+// android/app/src/main/res/mipmap-*/, because @capacitor/assets stamped those
+// from the adaptive FOREGROUND and shipped a coral mark on a transparent
+// field: on API 24 and 25, which draw these rather than the adaptive icon and
+// which this app still supports, that left the mark floating on the wallpaper
+// with no tile behind it. The table is lib/brandIconAssets.mjs, the same module
+// __tests__/brandIconAssets.test.ts regenerates from, so a committed launcher
+// icon cannot drift off the master.
+//
 // Then run:  npx @capacitor/assets@3 generate
 // to stamp every platform-specific size into ios/ and android/.
 //
@@ -51,6 +60,7 @@ import {
   markPolygonsSvg,
   notificationIconVectorDrawable,
 } from "../lib/brandMark.mjs";
+import { buildAndroidLauncherFiles } from "../lib/brandIconAssets.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "assets");
@@ -132,5 +142,18 @@ const NOTIFICATION_ICON = join(
 );
 writeFileSync(NOTIFICATION_ICON, notificationIconVectorDrawable());
 process.stdout.write("  android/app/src/main/res/drawable/ic_stat_pubmaxx.xml\n");
+
+// The legacy Android launcher set, written where Android reads it. This one is
+// NOT a @capacitor/assets input: that tool is what stamped the transparent
+// foreground into these slots in the first place, so the fix has to land on the
+// committed files directly.
+const ANDROID_RES = join(ROOT, "android/app/src/main/res");
+process.stdout.write("Writing the legacy Android launcher icons:\n");
+for (const [name, data] of await buildAndroidLauncherFiles()) {
+  const out = join(ANDROID_RES, name);
+  mkdirSync(dirname(out), { recursive: true });
+  writeFileSync(out, data);
+  process.stdout.write(`  android/app/src/main/res/${name}\n`);
+}
 
 process.stdout.write("Done. Next: npx capacitor-assets generate\n");

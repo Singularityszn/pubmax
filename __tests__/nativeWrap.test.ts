@@ -242,6 +242,45 @@ describe("Capacitor wrapped-build contract", () => {
     expect(manifest).toContain('android:launchMode="singleTask"');
   });
 
+  it("requires the architecture the platform actually has", () => {
+    // `armv7` was a Capacitor template leftover: a 32-bit capability on a
+    // platform that has been 64-bit only since iOS 11, naming a device class
+    // this app cannot ship to.
+    // Read the ARRAY, not the file: the plist comment beside it names the
+    // retired value on purpose, so a whole-file search would fail on the
+    // explanation rather than on a capability.
+    const info = rootFile("ios/App/App/Info.plist");
+    const capabilities = info.slice(
+      info.indexOf("<key>UIRequiredDeviceCapabilities</key>"),
+      info.indexOf("<key>UISupportedInterfaceOrientations</key>"),
+    );
+    expect(capabilities).toContain("<string>arm64</string>");
+    expect(capabilities).not.toContain("armv7");
+  });
+
+  it("lets iOS save and fill the password this app now offers", () => {
+    // The handle + password sign-in exists (components/auth/SetAccountPassword.tsx,
+    // /api/auth/handle-password) and the associated-domains agreement carried
+    // only `applinks`, so the keychain never learned the password existed and
+    // a person who set one had to type it every time. `webcredentials` is the
+    // second service on that agreement, and like `applinks` it is TWO halves:
+    // the entitlement the app carries and the block the site publishes. One
+    // half alone does nothing and says nothing.
+    const entitlements = rootFile("ios/App/App/App.entitlements");
+    expect(entitlements).toContain("<string>applinks:pubmaxxing.com</string>");
+    expect(entitlements).toContain("<string>webcredentials:pubmaxxing.com</string>");
+
+    const aasa = JSON.parse(
+      rootFile("public/.well-known/apple-app-site-association"),
+    ) as {
+      applinks: { details: Array<{ appIDs: string[] }> };
+      webcredentials?: { apps?: string[] };
+    };
+    // One app, named the same way in both blocks: a webcredentials entry for a
+    // different appID would publish the password domain to nothing.
+    expect(aasa.webcredentials?.apps).toEqual(aasa.applinks.details[0]?.appIDs);
+  });
+
   it("publishes an Android App Links statement naming this exact binary", () => {
     // The AASA above is what iOS reads; this is what Android's verifier reads,
     // and it is the ONLY thing standing between a verified App Link and a link
@@ -384,5 +423,9 @@ describe("Capacitor wrapped-build contract", () => {
     expect(readiness).not.toContain("Location is never transmitted to the server");
     expect(readiness).not.toContain("Coordinates are never sent to our servers");
     expect(readiness).not.toContain("Location: Not collected (processed on-device only)");
+    // The iOS app icon already IS the store master, byte for byte, and section 7
+    // used to send the next reader off to redo that. A readiness pack that asks
+    // for finished work costs a step somebody will spend looking for it.
+    expect(readiness).not.toContain("at the next native pass");
   });
 });

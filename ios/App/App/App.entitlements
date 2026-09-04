@@ -15,8 +15,17 @@
 	     team from the signing identity. Without this entitlement a shared link
 	     opens Safari and nothing anywhere says why. -->
 	<key>com.apple.developer.associated-domains</key>
+	<!-- `webcredentials` is the second service on the same agreement, and it
+	     is what lets iOS Password AutoFill offer to SAVE and then FILL the
+	     handle + password sign-in this app now has
+	     (components/auth/SetAccountPassword.tsx, /api/auth/handle-password).
+	     Without it the keychain never learns the password exists, and a person
+	     who set one has to type it every time. Its own half lives in the
+	     `webcredentials` block of
+	     public/.well-known/apple-app-site-association. -->
 	<array>
 		<string>applinks:pubmaxxing.com</string>
+		<string>webcredentials:pubmaxxing.com</string>
 	</array>
 </dict>
 </plist>

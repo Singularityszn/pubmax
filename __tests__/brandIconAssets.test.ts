@@ -13,7 +13,9 @@ import {
   markScaleForWidth,
 } from "@/lib/brandMark.mjs";
 import {
+  ANDROID_LAUNCHER_DENSITIES,
   brandMirrorFiles,
+  buildAndroidLauncherFiles,
   buildBrandIconFiles,
   readIcoMembers,
 } from "@/lib/brandIconAssets.mjs";
@@ -55,6 +57,8 @@ async function expectSamePixels(committed: Buffer, regenerated: Buffer, name: st
 }
 
 const built = await buildBrandIconFiles();
+const androidLaunchers = await buildAndroidLauncherFiles();
+const ANDROID_RES = join(REPO_ROOT, "android/app/src/main/res");
 
 describe("the icon set is cut from the master mark", () => {
   it("holds every copy of the geometry to one source", () => {
@@ -318,6 +322,50 @@ describe("what the head and the manifest point at exists", () => {
         `${url[1]} is ${built.has(name) ? "generated" : "MISSING"}`,
       );
     }
+  });
+
+  it("gives API 24-25 a real tile, not the adaptive foreground", async () => {
+    // Android 8 and up draw mipmap-anydpi-v26, which is correct. API 24 and 25
+    // ignore it and draw these PNGs, and this app's minSdkVersion is 24. They
+    // shipped as the adaptive FOREGROUND: a coral mark on a transparent field,
+    // so on those launchers the mark floated on the wallpaper with no tile
+    // behind it and the round variant was not round.
+    //
+    // Regenerated from the same module the generator writes from, then compared
+    // as decoded PIXELS, exactly as the web set above is.
+    for (const [name, regenerated] of androidLaunchers) {
+      const committed = readFileSync(join(ANDROID_RES, name));
+      await expectSamePixels(committed, regenerated, name);
+    }
+    // Android's own density ladder, at Android's own sizes.
+    expect(Object.keys(ANDROID_LAUNCHER_DENSITIES)).toEqual([
+      "ldpi",
+      "mdpi",
+      "hdpi",
+      "xhdpi",
+      "xxhdpi",
+      "xxxhdpi",
+    ]);
+  });
+
+  it("gives the square launcher an opaque tile and the round one its own mask", async () => {
+    // The two answer different questions and a fence that only compared bytes
+    // would not say which is which. The square icon fills its box, because a
+    // launcher that rounds it draws over a field rather than through a hole.
+    // The round icon supplies its OWN circle, because nothing masks it.
+    const at = async (name: string, x: number, y: number) => {
+      const { data, width, channels } = await rawPixels(
+        readFileSync(join(ANDROID_RES, name)),
+      );
+      const i = (y * width + x) * channels;
+      return [data[i], data[i + 1], data[i + 2], channels === 4 ? data[i + 3] : 255];
+    };
+    const size = ANDROID_LAUNCHER_DENSITIES.xxxhdpi;
+    expect(await at("mipmap-xxxhdpi/ic_launcher.png", 1, 1)).toEqual([255, 255, 255, 255]);
+    expect((await at("mipmap-xxxhdpi/ic_launcher_round.png", 1, 1))[3]).toBe(0);
+    expect(await at("mipmap-xxxhdpi/ic_launcher_round.png", size >> 1, 1)).toEqual([
+      255, 255, 255, 255,
+    ]);
   });
 
   it("selects the dark favicon by media, and never the apple-touch icon", () => {
