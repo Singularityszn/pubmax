@@ -44,6 +44,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } fr
 import path from "node:path";
 import process from "node:process";
 
+import { pdfIsWorthReading, readPdfText } from "../../../lib/harvest/pdfText.ts";
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
 import {
   allowedHarvestSources,
@@ -176,12 +177,19 @@ async function fetchText(url) {
     });
     if (!response.ok) return { ok: false, status: response.status, body: "", finalUrl: url };
     const type = response.headers.get("content-type") ?? "";
-    // A PDF is bytes, not markup. This lane reads what a page STATES as text, so
-    // a PDF is recorded as reached and left for the PDF reader that does not
-    // exist yet, rather than being run through an HTML stripper that would
-    // invent words out of a binary.
+    // A PDF IS BYTES, NOT MARKUP, so it never goes through the HTML stripper,
+    // which would invent words out of a binary. The bytes are handed back for
+    // readPdfText to turn into the page's own words.
     if (/application\/pdf/i.test(type)) {
-      return { ok: true, status: response.status, body: "", pdf: true, finalUrl: response.url || url };
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      return {
+        ok: true,
+        status: response.status,
+        body: "",
+        pdf: true,
+        bytes: pdfIsWorthReading(bytes.byteLength) ? bytes : null,
+        finalUrl: response.url || url,
+      };
     }
     const body = await response.text();
     return {
@@ -335,6 +343,8 @@ async function crawlHost(entry, robots, spend, delayMs) {
 
   const readings = [{ url: entry.origin, reading: readVenueDrinkPrices(home.body) }];
   let pdfSeen = 0;
+  let pdfRead = 0;
+  let pdfUnread = 0;
 
   for (const url of queue) {
     if (!spend()) break;
@@ -344,6 +354,15 @@ async function crawlHost(entry, robots, spend, delayMs) {
     if (!page.ok) continue;
     if (page.pdf) {
       pdfSeen += 1;
+      const text = await readPdfText(page.bytes);
+      if (text === null) {
+        pdfUnread += 1;
+        continue;
+      }
+      pdfRead += 1;
+      // The PDF's words are fed in as TEXT, so the HTML stripper is not asked to
+      // strip markup that was never there.
+      readings.push({ url, reading: readVenueDrinkPrices(text) });
       continue;
     }
     readings.push({ url, reading: readVenueDrinkPrices(page.body) });
@@ -374,8 +393,11 @@ async function crawlHost(entry, robots, spend, delayMs) {
   if (rows.length === 0) {
     return {
       outcome: readings.length > 1 || pdfSeen > 0 ? "menu-states-no-price" : "no-menu-page-found",
-      evidence: `${readings.length} page(s) read, ${pdfSeen} PDF(s) seen, no stated drink price`,
+      evidence: `${readings.length} page(s) read, ${pdfSeen} PDF(s) seen (${pdfRead} read, ${pdfUnread} unreadable), no stated drink price`,
       pagesRead,
+      pdfSeen,
+      pdfRead,
+      pdfUnread,
       drops,
       rows: [],
     };
@@ -403,6 +425,9 @@ async function crawlHost(entry, robots, spend, delayMs) {
       outcome: "estate-page-names-no-pub",
       evidence: `${priced.length} stated price(s) across ${entry.pubs.length} pub(s), no page naming one`,
       pagesRead,
+      pdfSeen,
+      pdfRead,
+      pdfUnread,
       drops,
       rows: [],
     };
@@ -410,8 +435,11 @@ async function crawlHost(entry, robots, spend, delayMs) {
 
   return {
     outcome: "priced",
-    evidence: `${readings.length} page(s) read`,
+    evidence: `${readings.length} page(s) read, ${pdfRead} of ${pdfSeen} PDF(s) read`,
     pagesRead,
+    pdfSeen,
+    pdfRead,
+    pdfUnread,
     drops,
     rows: priced,
   };
@@ -473,6 +501,10 @@ async function main() {
     let dropped = 0;
     for (const [host, entry] of Object.entries(ledger.hosts)) {
       if (!RECHECK.includes(entry.outcome)) continue;
+      // `--only` NARROWS THE RECHECK, it does not narrow a crawl of everything
+      // the recheck already forgot. Dropping a host the run then filters out
+      // loses its finding silently and leaves it looking never-crawled.
+      if (ONLY && !host.includes(ONLY)) continue;
       delete ledger.hosts[host];
       dropped += 1;
     }
@@ -487,6 +519,9 @@ async function main() {
 
   const robots = createRobotsChecker();
   let spent = 0;
+  let pdfsSeen = 0;
+  let pdfsRead = 0;
+  let pdfsUnread = 0;
   const spend = () => (spent < PAGE_BUDGET ? ((spent += 1), true) : false);
 
   if (!DRY_RUN) mkdirSync(OUT_DIR, { recursive: true });
@@ -507,6 +542,9 @@ async function main() {
       } catch (error) {
         result = { outcome: "unreachable", evidence: String(error).slice(0, 160), pagesRead: 0, rows: [] };
       }
+      pdfsSeen += result.pdfSeen ?? 0;
+      pdfsRead += result.pdfRead ?? 0;
+      pdfsUnread += result.pdfUnread ?? 0;
       ledger.hosts[entry.host] = {
         outcome: result.outcome,
         evidence: result.evidence,
@@ -593,6 +631,10 @@ async function main() {
     hostsCrawledThisRun: done,
     hostsInLedger: Object.keys(ledger.hosts).length,
     pagesRead: spent,
+    // A PDF MENU IS A MENU. The first crawl reached 839 of them and read none,
+    // which is why these three are counted apart: seen, read, and reached but
+    // carrying no text layer we could take words from.
+    pdfs: { seen: pdfsSeen, read: pdfsRead, unreadable: pdfsUnread },
     pageBudget: PAGE_BUDGET,
     outcomes,
     pubsOnPricedHosts,
