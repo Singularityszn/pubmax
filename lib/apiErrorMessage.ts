@@ -1,3 +1,5 @@
+import { serializeInlineScriptJson } from "@/lib/inlineScriptJson";
+
 const SAFE_FALLBACK_MESSAGE = "Something went wrong. Try again.";
 
 export const OFFLINE_RETRY_MESSAGE = "You look offline. Reconnect, then try again.";
@@ -12,9 +14,17 @@ export function offlineOrMessage(onlineMessage: string): string {
   return isBrowserOffline() ? OFFLINE_RETRY_MESSAGE : onlineMessage;
 }
 
+/**
+ * A JavaScript expression for a server-rendered INLINE <script> body, so both
+ * string literals are built by the one hardened inline-script serializer rather
+ * than a bare JSON.stringify: a "</script>" in the copy would otherwise close
+ * the element. The \uXXXX escapes are valid inside a JavaScript string literal
+ * and decode to the same characters at runtime, so the rendered copy is
+ * unchanged.
+ */
 export function inlineOfflineOrMessageJs(onlineMessage: string): string {
-  const offlineLiteral = JSON.stringify(OFFLINE_RETRY_MESSAGE);
-  const onlineLiteral = JSON.stringify(onlineMessage);
+  const offlineLiteral = serializeInlineScriptJson(OFFLINE_RETRY_MESSAGE);
+  const onlineLiteral = serializeInlineScriptJson(onlineMessage);
   return `navigator.onLine===false?${offlineLiteral}:${onlineLiteral}`;
 }
 

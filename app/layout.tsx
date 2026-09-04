@@ -21,6 +21,7 @@ import CommandPaletteProvider from "@/components/command/CommandPaletteProvider"
 import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 import PerformanceVitals from "@/components/PerformanceVitals";
 import JsonLd from "@/components/seo/JsonLd";
+import { serializeInlineScriptJson } from "@/lib/inlineScriptJson";
 import DailyActivityPulse from "@/components/DailyActivityPulse";
 import EntryBootStamp from "@/components/native/EntryBootStamp";
 import A2HSTracking from "@/components/A2HSTracking";
@@ -64,6 +65,27 @@ const SITE_JSON_LD = [
     logo: "https://pubmaxxing.com/icon-512.png",
   },
 ];
+
+// Speculation rules for the prerender candidates documented at the <script>
+// below. Hoisted to module scope so the block is a rendered constant rather
+// than an object literal built inside JSX, and so the emitted body goes through
+// the one hardened inline-script serializer with every other <script> we write.
+const SPECULATION_RULES = {
+  prerender: [
+    {
+      source: "list",
+      /* Social owns the chronological and public discovery surfaces. */
+      urls: ["/crawls", "/social", "/social?tab=discover"],
+      eagerness: "moderate",
+    },
+    {
+      where: {
+        href_matches: "/borough/*",
+      },
+      eagerness: "moderate",
+    },
+  ],
+};
 
 // Type trio for the PUBMAXXING identity (see docs/DESIGN_SYSTEM.md):
 //  - display: Space Grotesk — a Gen-Z-native geometric grotesque with a very
@@ -309,22 +331,7 @@ export default async function RootLayout({
           nonce={nonce}
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              prerender: [
-                {
-                  source: "list",
-                  /* Social owns the chronological and public discovery surfaces. */
-                  urls: ["/crawls", "/social", "/social?tab=discover"],
-                  eagerness: "moderate",
-                },
-                {
-                  where: {
-                    href_matches: "/borough/*",
-                  },
-                  eagerness: "moderate",
-                },
-              ],
-            }),
+            __html: serializeInlineScriptJson(SPECULATION_RULES),
           }}
         />
         {/* Site-wide JSON-LD (WebSite + Organization). Carries the nonce like
