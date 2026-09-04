@@ -5,6 +5,7 @@ import {
   getCityCapabilityProfile,
 } from "@/lib/cityCapabilities";
 import { listEnabledCities } from "@/lib/cities";
+import { isoDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 
 describe("city capability profiles", () => {
   it("covers every enabled city exactly once", () => {
@@ -19,7 +20,7 @@ describe("city capability profiles", () => {
 
     expect(london.releaseTier).toBe("flagship");
     expect(london.prices.availability).toBe("available");
-    expect(london.prices.asOf).toBe("2026-07-03");
+    expect(london.prices.asOf).toBe(isoDate(PINT_DATASET_OBSERVED_AT));
     expect(london.events.availability).toBe("available");
     expect(london.transport.availability).toBe("available");
   });

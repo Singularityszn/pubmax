@@ -2,15 +2,41 @@
 
 Source: https://www.pint-prices.com/
 
-Scrape timestamp: `2026-07-03T23:10:47+00:00`
+First full extract: `2026-07-03T23:10:47+00:00`
+
+Last price re-collection: `2026-09-04T22:16:47+00:00`
 
 The machine-readable collection stamp the app renders lives in
 `data/freshness_registry.json` (the `pint_prices` entry) — the single source of
-truth, anchored at noon UTC on the scrape's UTC day (`2026-07-03T12:00:00Z`).
+truth, anchored at noon UTC on the collection's UTC day (`2026-09-04T12:00:00Z`).
 `lib/dataFreshness.ts` `PINT_DATASET_OBSERVED_AT` is derived from it at build
 time (a drift test pins them together); the export pipeline rewrites it via
-`scripts/export_app_dataset_json.py --collected-at <ISO>`. This timestamp above
-is documentation of the raw scrape, not an independently-authored source.
+`scripts/export_app_dataset_json.py --collected-at <ISO>`. Both timestamps above
+are documentation of the raw reads, not independently-authored sources.
+
+## Re-collecting the prices
+
+`node scripts/refresh_pint_price_observations.mjs` re-reads the same 32 borough
+pages and 932 pub pages the first extract read, and rewrites the PRICE of a row
+the source still states. It can neither add a row nor remove one, so the layered
+artifact below keeps every row it holds. Then stamp the registry:
+
+    python3 scripts/export_app_dataset_json.py --collected-at <ISO> --stamp-only
+
+The registry names `export:data -> canonicalize:venues -> build:slim` as the
+refresh workflow, and that workflow re-collects nothing: `export:data` re-exports
+this same CSV. It is also NOT a safe way to regenerate the bundle on its own,
+because `public/data/pint_prices_app_dataset.json` is LAYERED - the outer-London
+OSM merge, the Wikipedia London list and the two gazetteer seeds add rows the CSV
+does not carry. A plain re-export publishes 2,719 rows over the 3,761 committed
+ones, so the export now refuses that loss unless `--allow-row-loss` says it is
+intended.
+
+The 2026-09-04 re-collection read 964 pages with no errors and re-observed 2,624
+of the 2,788 priced rows (94.1%); 55 prices had moved. The other 164 priced rows
+keep the figures they held: 67 of them (the outer-London gazetteer and OSM rows)
+never came from this publisher at all, and the rest are pubs or pints the source
+no longer states.
 
 ## Files
 

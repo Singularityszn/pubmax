@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import {
   NEAR_PRICE_TRUST_COLLECTED_AT,
   nearPriceTrustLabel,
@@ -109,7 +110,7 @@ describe("near price trust", () => {
 
   it("uses the shared pint dataset collection stamp", () => {
     expect(NEAR_PRICE_TRUST_COLLECTED_AT).toBe(
-      "Prices last collected 3 July 2026.",
+      `Prices last collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}.`,
     );
   });
 });

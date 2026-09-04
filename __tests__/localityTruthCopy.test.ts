@@ -20,6 +20,10 @@ vi.mock("next/navigation", async (importOriginal) => {
 
 import TodayPintsCard from "@/app/today/TodayPintsCard";
 import NearMeNow from "@/components/nearme/NearMeNow";
+import {
+  formatPintDatasetAsOf,
+  formatPintDatasetSnapshot,
+} from "@/lib/dataFreshness";
 import { CENTRAL_PATCH } from "@/lib/nightPatches";
 import { tonightHeading } from "@/lib/tonight";
 import { nearMeAnswerHeadline } from "@/lib/nearMeAnswer";
@@ -44,8 +48,8 @@ describe("locality and recency claims", () => {
       }),
     );
 
-    expect(html).toContain("Lowest listed prices in central London. Snapshot from 3 July 2026.");
-    expect(html).not.toContain("a snapshot from 3 July 2026");
+    expect(html).toContain(`Lowest listed prices in central London. ${formatPintDatasetSnapshot()}.`);
+    expect(html).not.toContain(formatPintDatasetAsOf());
     expect(html).not.toContain("Lowest listed prices near you today");
   });
 
@@ -68,8 +72,8 @@ describe("locality and recency claims", () => {
       }),
     );
 
-    expect(html).toContain("Lowest listed prices in central London. Snapshot from 3 July 2026.");
-    expect(html).not.toContain("a snapshot from 3 July 2026");
+    expect(html).toContain(`Lowest listed prices in central London. ${formatPintDatasetSnapshot()}.`);
+    expect(html).not.toContain(formatPintDatasetAsOf());
   });
 
   it("names London's scope when Tonight has no locality", () => {

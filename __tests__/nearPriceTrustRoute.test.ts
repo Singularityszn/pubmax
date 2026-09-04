@@ -8,6 +8,7 @@ vi.mock("@/lib/venueDetailIndex", () => ({
 }));
 
 import { GET } from "@/app/api/near-price-trust/route";
+import { isoDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 
 function request(query: string): Request {
   return new Request(`http://localhost/api/near-price-trust?${query}`);
@@ -51,7 +52,7 @@ describe("GET /api/near-price-trust", () => {
     expect(response.headers.get("cache-control")).toBe("private, max-age=0, no-store");
     expect(await response.json()).toEqual({
       status: "ready",
-      collectedAt: "2026-07-03",
+      collectedAt: isoDate(PINT_DATASET_OBSERVED_AT),
       results: [
         { venueId: "venue-a", price: 4.5, publisher: "Pint Prices" },
         { venueId: "venue-b", price: 4.5, publisher: "Pint Prices" },
@@ -70,7 +71,7 @@ describe("GET /api/near-price-trust", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       status: "degraded",
-      collectedAt: "2026-07-03",
+      collectedAt: isoDate(PINT_DATASET_OBSERVED_AT),
       results: [{ venueId: "venue-a", price: 4.5, publisher: "Pint Prices" }],
     });
   });
@@ -83,7 +84,7 @@ describe("GET /api/near-price-trust", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       status: "ready",
-      collectedAt: "2026-07-03",
+      collectedAt: isoDate(PINT_DATASET_OBSERVED_AT),
       results: [],
     });
   });

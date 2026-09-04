@@ -51,6 +51,7 @@ import {
   loadDrinkBrandLandings,
 } from "@/lib/drinkBrandLanding.server";
 import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
+import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { DRINK_BRANDS } from "@/lib/drinkBrands";
 import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
 import type { DrinkBrandLanding } from "@/lib/drinkBrandLanding";
@@ -103,7 +104,10 @@ describe("governed drink brand landing page", () => {
     const selectable = await loadMapSelectableVenueIds();
     expect(selectable?.has(decodeURIComponent(logHref![1]))).toBe(true);
     expect(html).not.toContain("drink=beer");
-    expect(html.match(/Collected 3 July 2026\./g)).toHaveLength(1);
+    // Derived from the bundle's own collection stamp, so a re-collection moves
+    // one value rather than every page test that prints the date.
+    const collectedLine = `Collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}.`;
+    expect(html.split(collectedLine)).toHaveLength(2);
     expect(html.match(/<ol class="drinkBrandDirectory__list" role="list"/g)).toHaveLength(1);
     expect(
       html.match(/<li class="[^"]*\bdrinkBrandDirectory__row\b[^"]*"/g),

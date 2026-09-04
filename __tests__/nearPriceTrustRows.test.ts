@@ -3,6 +3,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { NearMeCardList } from "@/components/nearme/NearMeNow";
+import {
+  formatObservedDate,
+  isoDate,
+  PINT_DATASET_OBSERVED_AT,
+} from "@/lib/dataFreshness";
 import type { NearMeCard } from "@/lib/nearMeAnswer";
 import type { NearPriceTrustResponse } from "@/lib/nearPriceTrust";
 
@@ -51,7 +56,7 @@ describe("/near price trust rows", () => {
   it("shows named and honestly unrecorded publishers", () => {
     const markup = render({
       status: "ready",
-      collectedAt: "2026-07-03",
+      collectedAt: isoDate(PINT_DATASET_OBSERVED_AT),
       results: [
         { venueId: "venue-a", price: 3.25, publisher: "Pint Prices" },
         { venueId: "venue-b", price: 4.5, publisher: null },
@@ -60,13 +65,13 @@ describe("/near price trust rows", () => {
 
     expect(markup).toContain("On record · Pint Prices");
     expect(markup).toContain("On record · Publisher not recorded");
-    expect(occurrences(markup, "Prices last collected 3 July 2026.")).toBe(1);
+    expect(occurrences(markup, `Prices last collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}.`)).toBe(1);
   });
 
   it("does not attach evidence to a card when its price has changed", () => {
     const markup = render({
       status: "ready",
-      collectedAt: "2026-07-03",
+      collectedAt: isoDate(PINT_DATASET_OBSERVED_AT),
       results: [
         { venueId: "venue-a", price: 9.99, publisher: "Wrong price publisher" },
         { venueId: "venue-b", price: 4.5, publisher: null },
@@ -81,7 +86,7 @@ describe("/near price trust rows", () => {
   it("keeps a failed read distinct from an unrecorded publisher", () => {
     const markup = render({
       status: "degraded",
-      collectedAt: "2026-07-03",
+      collectedAt: isoDate(PINT_DATASET_OBSERVED_AT),
       results: [],
     });
 
@@ -92,7 +97,7 @@ describe("/near price trust rows", () => {
   it("keeps matching publisher evidence in a mixed degraded response", () => {
     const markup = render({
       status: "degraded",
-      collectedAt: "2026-07-03",
+      collectedAt: isoDate(PINT_DATASET_OBSERVED_AT),
       results: [
         { venueId: "venue-a", price: 3.25, publisher: "Pint Prices" },
       ],
@@ -109,7 +114,11 @@ describe("/near price trust rows", () => {
       results: [{ venueId: "venue-a", price: 3.25, publisher: "Pint Prices" }],
     });
 
-    expect(markup).toContain("Prices last collected 3 July 2026.");
-    expect(markup).not.toContain("Prices last collected 4 July 2026.");
+    expect(markup).toContain(`Prices last collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}.`);
+    // The day after the collection day may never appear: the stamp is anchored
+    // at noon UTC so no timezone conversion can roll it forward.
+    expect(markup).not.toContain(
+      `Prices last collected ${formatObservedDate(new Date(PINT_DATASET_OBSERVED_AT.getTime() + 24 * 60 * 60 * 1000))}.`,
+    );
   });
 });

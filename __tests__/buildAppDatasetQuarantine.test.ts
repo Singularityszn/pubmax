@@ -229,8 +229,19 @@ describe("build_app_dataset.py postcode-coordinate decisions", () => {
           "PO20 3YA,,,,AUTO_ADDED_PINT,,,,N/A,,,,,,50.8379",
         );
       expect(mutated).not.toBe(original);
-      writeFileSync(embeddedPath, mutated, "utf8");
 
+      // Compare two BUILDS of the same evidence, one mutated, rather than a
+      // build against the committed CSV. The committed file is the builder's
+      // output plus the price refresh that re-reads the source in place
+      // (scripts/refresh_pint_price_observations.mjs), so holding a fresh build
+      // to it byte for byte would fail on every honest re-collection while
+      // proving nothing about identity stability. Building twice keeps the
+      // whole assertion, price serialization included.
+      const cleanRoot = setupScratch();
+      const cleanResult = runBuilder(cleanRoot);
+      expect(cleanResult.status, cleanResult.stderr).toBe(0);
+
+      writeFileSync(embeddedPath, mutated, "utf8");
       const result = runBuilder(scratchRoot);
 
       expect(result.status, result.stderr).toBe(0);
@@ -241,7 +252,7 @@ describe("build_app_dataset.py postcode-coordinate decisions", () => {
         ),
       ).toBe(
         readFileSync(
-          join(ROOT, "data", "pint_prices_app_dataset.csv"),
+          join(cleanRoot, "data", "pint_prices_app_dataset.csv"),
           "utf8",
         ),
       );

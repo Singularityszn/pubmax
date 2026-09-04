@@ -10,19 +10,53 @@ import {
   PINT_DATASET_OBSERVED_AT,
 } from "@/lib/dataFreshness";
 
+type FreshnessRegistryFile = {
+  datasets: { id: string; stamp: { kind: string; value?: string } | null }[];
+};
+
+/**
+ * The registry stamp read straight off disk, an independent path from the
+ * module's build-time import, so a hand-authored regression cannot satisfy
+ * both sides at once.
+ */
+function readRegistry(): FreshnessRegistryFile {
+  return JSON.parse(
+    readFileSync(join(process.cwd(), "data", "freshness_registry.json"), "utf8"),
+  ) as FreshnessRegistryFile;
+}
+
+function registryStampValue(): string {
+  const value = readRegistry().datasets.find((d) => d.id === "pint_prices")?.stamp?.value;
+  if (typeof value !== "string") {
+    throw new Error("data/freshness_registry.json: pint_prices has no literal stamp value");
+  }
+  return value;
+}
+
 // SEO integrity regression: the visible "collected" stamp (en-GB,
 // Europe/London) and the JSON-LD ISO date must name the SAME calendar day.
-// The raw scrape instant (2026-07-03T23:10:47Z) is already 4 July in London,
-// which is exactly the bug this pins against — the constant is anchored at
-// noon UTC so no timezone conversion can move the day.
+// The first extract's raw instant (2026-07-03T23:10:47Z) is already 4 July in
+// London, which is exactly the bug this pins against: the constant is anchored
+// at noon UTC so no timezone conversion can move the day.
+//
+// The expected day is DERIVED from the registry stamp rather than typed, so a
+// re-collection updates one value (the registry) and this still holds the two
+// representations to the same day. A hardcoded day here would turn every
+// honest refresh into a test edit, which is how a stamp stops being refreshed.
 describe("PINT_DATASET_OBSERVED_AT", () => {
+  const registryDay = new Date(registryStampValue());
+
   it("renders the same day to users and to JSON-LD", () => {
-    expect(formatObservedDate(PINT_DATASET_OBSERVED_AT)).toBe("3 July 2026");
-    expect(isoDate(PINT_DATASET_OBSERVED_AT)).toBe("2026-07-03");
+    expect(formatObservedDate(PINT_DATASET_OBSERVED_AT)).toBe(
+      formatObservedDate(registryDay),
+    );
+    expect(isoDate(PINT_DATASET_OBSERVED_AT)).toBe(isoDate(registryDay));
   });
 
   it("keeps the month stamp on the collection month", () => {
-    expect(formatMonthYear(PINT_DATASET_OBSERVED_AT)).toBe("July 2026");
+    expect(formatMonthYear(PINT_DATASET_OBSERVED_AT)).toBe(
+      formatMonthYear(registryDay),
+    );
   });
 
   it("is anchored mid-day so London/UTC agree in both BST and GMT", () => {
@@ -37,12 +71,7 @@ describe("PINT_DATASET_OBSERVED_AT", () => {
 // or editing the registry without the pipeline) fails loudly instead of leaving
 // two silently-diverging copies. This kills the mirror class for good.
 describe("PINT_DATASET_OBSERVED_AT ↔ freshness registry (single source of truth)", () => {
-  const registry = JSON.parse(
-    readFileSync(join(process.cwd(), "data", "freshness_registry.json"), "utf8"),
-  ) as {
-    datasets: { id: string; stamp: { kind: string; value?: string } | null }[];
-  };
-  const pintEntry = registry.datasets.find((d) => d.id === "pint_prices");
+  const pintEntry = readRegistry().datasets.find((d) => d.id === "pint_prices");
 
   it("has a literal registry stamp for the pint dataset", () => {
     expect(pintEntry).toBeDefined();
