@@ -1,9 +1,23 @@
 // The ONE Context.dev wrapper for server-side web reads.
 //
-// Key is read at call time, never logged. Without CONTEXT_DEV_API_KEY every call
-// answers { status: "not-configured" } and sends nothing. Retries honour
+// EVERY call this codebase makes to Context.dev goes through here. The official
+// SDK (`context.dev`, pinned) is the transport, so endpoint paths, parameter
+// names and response shapes come from the vendor rather than from a hand-rolled
+// copy of them; what this module owns is the part the SDK cannot know about:
+// the key, the retry policy, the per-run credit budget, and the PERMISSION
+// GATE.
+//
+// THE GATE IS THE POINT. Context.dev is a FETCH LAYER, NEVER A PERMISSION. A
+// URL reaches the network only when `lib/harvest/sourcePolicy.ts` does not
+// refuse its host AND either that table already records a permission for the
+// host or the caller hands in the live robots check from
+// `lib/harvest/robots.ts`. A refusal costs no credit, because the guard runs
+// before anything is sent.
+//
+// Key is read at call time, never logged. Without CONTEXT_DEV_API_KEY every
+// call answers { status: "not-configured" } and sends nothing. Retries honour
 // Retry-After on 429 and bounded backoff on 408/5xx; validation answers (4xx
-// except 429) are returned immediately.
+// except 408/429) are returned immediately and never retried.
 //
 // This module carries NO `server-only` marker, for the same reason
 // lib/harvest/firecrawl.ts carries none: a plain-node CLI
@@ -11,6 +25,13 @@
 // of it, and `server-only` resolves to a module that THROWS on import outside a
 // React Server Component. `lib/contextDev.server.ts` re-exports this surface
 // behind that marker for app code.
+//
+// Docs: https://docs.context.dev (append .md to any page for Markdown).
+
+import ContextDev, { APIError } from "context.dev";
+
+import type { RobotsChecker } from "./harvest/robots.ts";
+import { hasRecordedHarvestPermission, isHarvestableOperatorUrl } from "./harvest/sourcePolicy.ts";
 
 export const CONTEXT_DEV_API_BASE = "https://api.context.dev/v1";
 
@@ -34,11 +55,32 @@ export const CONTEXT_DEV_MAX_RETRY_AFTER_MS = 30_000;
 /**
  * Requests ONE run may send, counting retries, so a retry storm spends the run
  * rather than the account - the ceiling lib/harvest/firecrawl.ts puts on its own
- * lane, for the same reason. A request is the unit here because the two
- * endpoints do not cost the same: a markdown scrape is 1 credit and an extract
- * is 10, so twelve requests is at most 120 credits a run.
+ * lane, for the same reason. A request is the unit here because the endpoints do
+ * not cost the same: a markdown scrape, a sitemap read and a crawled page are 1
+ * credit each, a search is 1 per 10 results, and an extract or a brand read is
+ * 10, so twelve requests is at most 120 credits a run.
  */
 export const CONTEXT_DEV_RUN_REQUEST_BUDGET = 12;
+
+/**
+ * What each endpoint this wrapper exposes costs, from the published catalog.
+ *
+ * Written down beside the calls so a lane's ceiling can be argued in credits
+ * rather than in requests. Nothing branches on it; it is documentation the type
+ * checker keeps honest.
+ */
+export const CONTEXT_DEV_CREDIT_COST = {
+  scrapeMarkdown: 1,
+  scrapeHtml: 1,
+  sitemapUrls: 1,
+  crawlMarkdown: 1,
+  searchWeb: 1,
+  extract: 10,
+  brandRetrieve: 10,
+} as const;
+
+/** Most URLs one batch submission may carry, from the published catalog. */
+export const CONTEXT_DEV_BATCH_MAX_URLS = 25_000;
 
 export type ContextDevBudget = {
   /** Requests this run may send in total. */
@@ -86,6 +128,67 @@ export type ContextDevScrapeOk = {
 
 export type ContextDevScrapeResult = ContextDevNotConfigured | ContextDevScrapeOk | ContextDevError;
 
+export type ContextDevHtmlOk = {
+  status: "ok";
+  url: string;
+  html: string;
+};
+
+export type ContextDevHtmlResult = ContextDevNotConfigured | ContextDevHtmlOk | ContextDevError;
+
+export type ContextDevSitemapOk = {
+  status: "ok";
+  domain: string;
+  urls: string[];
+};
+
+export type ContextDevSitemapResult = ContextDevNotConfigured | ContextDevSitemapOk | ContextDevError;
+
+export type ContextDevCrawlPage = {
+  url: string;
+  markdown: string;
+};
+
+export type ContextDevCrawlOk = {
+  status: "ok";
+  url: string;
+  pages: ContextDevCrawlPage[];
+};
+
+export type ContextDevCrawlResult = ContextDevNotConfigured | ContextDevCrawlOk | ContextDevError;
+
+export type ContextDevSearchHit = {
+  url: string;
+  title: string;
+  description: string;
+  markdown: string | null;
+};
+
+export type ContextDevSearchOk = {
+  status: "ok";
+  query: string;
+  results: ContextDevSearchHit[];
+};
+
+export type ContextDevSearchResult = ContextDevNotConfigured | ContextDevSearchOk | ContextDevError;
+
+export type ContextDevBrandOk = {
+  status: "ok";
+  domain: string;
+  brand: Record<string, unknown> | null;
+};
+
+export type ContextDevBrandResult = ContextDevNotConfigured | ContextDevBrandOk | ContextDevError;
+
+export type ContextDevBatchOk = {
+  status: "ok";
+  batchId: string;
+  submitted: number;
+  invalidUrls: number;
+};
+
+export type ContextDevBatchResult = ContextDevNotConfigured | ContextDevBatchOk | ContextDevError;
+
 export type ContextDevExtractOk<T> = {
   status: "ok";
   url: string;
@@ -99,6 +202,11 @@ export type ContextDevExtractResult<T = Record<string, unknown>> =
   | ContextDevError;
 
 export type ContextDevCallOptions = {
+  /**
+   * How old a cached answer may be before Context.dev refetches the page. Pass
+   * it whenever freshness is part of the claim the answer will carry; 0 forces a
+   * live read.
+   */
   maxAgeMs?: number;
   env?: NodeJS.ProcessEnv;
   fetchImpl?: typeof fetch;
@@ -107,6 +215,12 @@ export type ContextDevCallOptions = {
   timeoutMs?: number;
   /** Shared per-run request ceiling. Absent means this call is uncapped. */
   budget?: ContextDevBudget;
+  /**
+   * The live robots check for a host this repository has not already recorded a
+   * permission for. Required for such a host: without it the call is refused
+   * unread, because a fetch layer may not stand in for a permission.
+   */
+  robots?: RobotsChecker;
 };
 
 export function contextDevApiKey(env: NodeJS.ProcessEnv = process.env): string | null {
@@ -126,7 +240,7 @@ function isRetryableStatus(status: number): boolean {
   return status === 408 || status === 429 || status >= 500;
 }
 
-function parseRetryAfterMs(header: string | null): number | null {
+function parseRetryAfterMs(header: string | null | undefined): number | null {
   if (!header) return null;
   const trimmed = header.trim();
   const asSeconds = Number(trimmed);
@@ -136,20 +250,29 @@ function parseRetryAfterMs(header: string | null): number | null {
   return null;
 }
 
-function failureFromResponse(status: number, body: unknown): ContextDevFailure {
-  const envelope = body as { error?: unknown; error_code?: unknown; message?: unknown } | null;
+function failureFromApiError(error: APIError): ContextDevFailure {
+  const status = typeof error.status === "number" ? error.status : undefined;
+  const envelope = error.error as { error?: unknown; error_code?: unknown; message?: unknown } | undefined;
   const message =
     (typeof envelope?.error === "string" && envelope.error) ||
     (typeof envelope?.message === "string" && envelope.message) ||
-    `Context.dev returned ${status}.`;
+    (status === undefined ? error.message : `Context.dev returned ${status}.`);
   const code =
     (typeof envelope?.error_code === "string" && envelope.error_code) ||
-    (status === 429 ? "RATE_LIMITED" : status >= 500 ? "PROVIDER_UNAVAILABLE" : "INVALID_REQUEST");
+    (status === undefined
+      ? "NETWORK"
+      : status === 429
+        ? "RATE_LIMITED"
+        : status >= 500
+          ? "PROVIDER_UNAVAILABLE"
+          : "INVALID_REQUEST");
   return {
     code,
     message,
-    retryable: isRetryableStatus(status),
-    statusCode: status,
+    // A status we could not read is a transport fault, which is retryable for
+    // the same reason a 5xx is: it says nothing about the request.
+    retryable: status === undefined ? true : isRetryableStatus(status),
+    ...(status === undefined ? {} : { statusCode: status }),
   };
 }
 
@@ -162,7 +285,7 @@ type AttemptFail = {
 };
 type Attempt<T> = AttemptOk<T> | AttemptFail;
 
-async function withRetries<T extends ContextDevScrapeOk | ContextDevExtractOk<unknown>>(
+async function withRetries<T>(
   attemptOnce: () => Promise<Attempt<T>>,
   options: ContextDevCallOptions,
 ): Promise<T | ContextDevError> {
@@ -221,209 +344,427 @@ async function withRetries<T extends ContextDevScrapeOk | ContextDevExtractOk<un
   };
 }
 
-// The body is read ONCE, as text. `response.json()` consumes the body even when
-// it throws, so a second read of the same response rejects with "Body is
-// unusable" - which escaped this helper and made every non-JSON 4xx look like a
-// network fault, so it was retried and its Retry-After header never read.
-async function readJson(response: Response): Promise<unknown> {
-  let text: string;
-  try {
-    text = await response.text();
-  } catch {
-    return null;
-  }
-  if (text.trim().length === 0) return null;
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    return null;
-  }
+function contextDevClient(apiKey: string, options: ContextDevCallOptions): ContextDev {
+  return new ContextDev({
+    apiKey,
+    baseURL: CONTEXT_DEV_API_BASE,
+    timeout: options.timeoutMs ?? CONTEXT_DEV_REQUEST_TIMEOUT_MS,
+    // OUR retry policy is the only one. The SDK's own retries would spend
+    // budget this module never counted and would wait on a schedule that
+    // ignores the Retry-After ceiling above.
+    maxRetries: 0,
+    ...(options.fetchImpl ? { fetch: options.fetchImpl } : {}),
+  });
 }
 
-async function sendGet(
-  path: string,
-  params: URLSearchParams,
-  apiKey: string,
-  options: ContextDevCallOptions,
-): Promise<Attempt<ContextDevScrapeOk>> {
-  const fetchImpl = options.fetchImpl ?? fetch;
-  const timeoutMs = options.timeoutMs ?? CONTEXT_DEV_REQUEST_TIMEOUT_MS;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  const url = `${CONTEXT_DEV_API_BASE}${path}?${params.toString()}`;
-
+/**
+ * Send one SDK call and classify its outcome the way `withRetries` expects.
+ *
+ * `emptyBody` is what a 2xx that carried nothing useful is called. It is never
+ * retried: the page answered, and asking it the same question again does not
+ * change what it states.
+ */
+async function attempt<Raw, Value>(
+  send: () => Promise<Raw>,
+  read: (raw: Raw) => Value | null,
+  emptyBody: string,
+): Promise<Attempt<Value>> {
   try {
-    const response = await fetchImpl(url, {
-      method: "GET",
-      headers: {
-        authorization: `Bearer ${apiKey}`,
-        accept: "application/json",
-      },
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      const body = await readJson(response);
-      const failure = failureFromResponse(response.status, body);
+    const raw = await send();
+    const value = read(raw);
+    if (value === null) {
+      return {
+        kind: "fail",
+        failure: { code: "EMPTY_BODY", message: emptyBody, retryable: false },
+        retry: false,
+      };
+    }
+    return { kind: "value", value };
+  } catch (error) {
+    if (error instanceof APIError) {
+      const failure = failureFromApiError(error);
       return {
         kind: "fail",
         failure,
         retry: failure.retryable,
-        retryAfter: response.headers.get("retry-after"),
+        retryAfter: error.headers?.get("retry-after") ?? null,
       };
     }
-    const body = (await readJson(response)) as {
-      success?: boolean;
-      markdown?: unknown;
-      url?: unknown;
-    } | null;
-    if (body?.success !== true || typeof body.markdown !== "string") {
-      return {
-        kind: "fail",
-        failure: {
-          code: "EMPTY_BODY",
-          message: "Scrape returned no markdown.",
-          retryable: false,
-        },
-        retry: false,
-      };
-    }
-    const pageUrl =
-      typeof body?.url === "string" && body.url.length > 0 ? body.url : params.get("url") ?? "";
-    return {
-      kind: "value",
-      value: {
-        status: "ok",
-        url: pageUrl,
-        markdown: body.markdown,
-      },
-    };
-  } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const aborted = error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
     return {
       kind: "fail",
-      failure: {
-        code: aborted ? "TIMEOUT" : "NETWORK",
-        message,
-        retryable: true,
-      },
+      failure: { code: aborted ? "TIMEOUT" : "NETWORK", message, retryable: true },
       retry: true,
     };
-  } finally {
-    clearTimeout(timer);
   }
 }
 
-async function sendPost<T>(
-  path: string,
-  payload: Record<string, unknown>,
-  apiKey: string,
+/**
+ * Why a URL may not be read, or null when it may.
+ *
+ * PURE and network-free, so a refusal costs nothing. This is the half of the
+ * gate that can never be turned off: a host `lib/harvest/sourcePolicy.ts`
+ * refuses is refused here whatever else a caller passes.
+ */
+export function contextDevUrlRefusal(url: string, options: ContextDevCallOptions = {}): ContextDevFailure | null {
+  if (!isHarvestableOperatorUrl(url)) {
+    return {
+      code: "SOURCE_REFUSED",
+      message:
+        `lib/harvest/sourcePolicy.ts refuses ${url}. Context.dev is a fetch layer, ` +
+        "never a permission, so nothing was sent.",
+      retryable: false,
+    };
+  }
+  if (!hasRecordedHarvestPermission(url) && !options.robots) {
+    return {
+      code: "ROBOTS_UNCHECKED",
+      message:
+        `No recorded permission covers ${url} and no live robots check was supplied, ` +
+        "so nothing was sent. Pass `robots: createRobotsChecker()`.",
+      retryable: false,
+    };
+  }
+  return null;
+}
+
+/**
+ * Run the whole gate for one URL: the pure refusal above, then the live robots
+ * answer when the caller brought one.
+ *
+ * Both halves run BEFORE a credit is spent, and a host we could not read a
+ * rules file for is a refusal rather than a silent yes - the rule
+ * `lib/harvest/robots.ts` already owns, asked here rather than restated.
+ */
+async function gate(url: string, options: ContextDevCallOptions): Promise<ContextDevError | null> {
+  const refusal = contextDevUrlRefusal(url, options);
+  if (refusal) return { status: "error", error: refusal };
+  if (!options.robots) return null;
+  const decision = await options.robots(url);
+  if (decision.allowed) return null;
+  return {
+    status: "error",
+    error: {
+      code: "ROBOTS_REFUSED",
+      message: `${decision.reason}: ${decision.evidence}`,
+      retryable: false,
+    },
+  };
+}
+
+/** The shape every URL-taking call shares: key, gate, then the retried send. */
+async function guardedCall<T>(
+  url: string,
   options: ContextDevCallOptions,
-): Promise<Attempt<ContextDevExtractOk<T>>> {
-  const fetchImpl = options.fetchImpl ?? fetch;
-  const timeoutMs = options.timeoutMs ?? CONTEXT_DEV_REQUEST_TIMEOUT_MS;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const response = await fetchImpl(`${CONTEXT_DEV_API_BASE}${path}`, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${apiKey}`,
-        accept: "application/json",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      const body = await readJson(response);
-      const failure = failureFromResponse(response.status, body);
-      return {
-        kind: "fail",
-        failure,
-        retry: failure.retryable,
-        retryAfter: response.headers.get("retry-after"),
-      };
-    }
-    const body = (await readJson(response)) as {
-      status?: unknown;
-      url?: unknown;
-      data?: unknown;
-      urls_analyzed?: unknown;
-    } | null;
-    if (body?.status !== "ok" || typeof body.data !== "object" || body.data === null) {
-      return {
-        kind: "fail",
-        failure: {
-          code: "EMPTY_BODY",
-          message: "Extract returned no data.",
-          retryable: false,
-        },
-        retry: false,
-      };
-    }
-    const urlsAnalyzed = Array.isArray(body?.urls_analyzed)
-      ? body.urls_analyzed.filter((entry): entry is string => typeof entry === "string")
-      : [];
-    const pageUrl = typeof body?.url === "string" ? body.url : String(payload.url ?? "");
-    return {
-      kind: "value",
-      value: {
-        status: "ok",
-        url: pageUrl,
-        data: body.data as T,
-        urlsAnalyzed,
-      },
-    };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    const aborted = error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
-    return {
-      kind: "fail",
-      failure: {
-        code: aborted ? "TIMEOUT" : "NETWORK",
-        message,
-        retryable: true,
-      },
-      retry: true,
-    };
-  } finally {
-    clearTimeout(timer);
-  }
+  run: (client: ContextDev) => Promise<Attempt<T>>,
+): Promise<ContextDevNotConfigured | ContextDevError | T> {
+  const apiKey = contextDevApiKey(options.env ?? process.env);
+  if (!apiKey) return { status: "not-configured" };
+  const refused = await gate(url, options);
+  if (refused) return refused;
+  const client = contextDevClient(apiKey, options);
+  return withRetries(() => run(client), options);
 }
 
+function positiveMaxAge(options: ContextDevCallOptions): number | undefined {
+  return options.maxAgeMs === undefined ? undefined : Math.max(0, options.maxAgeMs);
+}
+
+/** Scrape one page to Markdown. 1 credit. */
 export async function scrapeMarkdown(
   url: string,
   options: ContextDevCallOptions = {},
 ): Promise<ContextDevScrapeResult> {
-  const apiKey = contextDevApiKey(options.env ?? process.env);
-  if (!apiKey) return { status: "not-configured" };
-
-  const params = new URLSearchParams({ url });
-  if (options.maxAgeMs !== undefined) params.set("maxAgeMs", String(Math.max(0, options.maxAgeMs)));
-
-  return withRetries(() => sendGet("/web/scrape/markdown", params, apiKey, options), options);
+  return guardedCall<ContextDevScrapeOk>(url, options, (client) =>
+    attempt(
+      () => client.web.webScrapeMd({ url, maxAgeMs: positiveMaxAge(options) }),
+      (body) =>
+        typeof body?.markdown === "string"
+          ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, markdown: body.markdown }
+          : null,
+      "Scrape returned no markdown.",
+    ),
+  );
 }
 
+/** Scrape one page to HTML. 1 credit. */
+export async function scrapeHtml(
+  url: string,
+  options: ContextDevCallOptions = {},
+): Promise<ContextDevHtmlResult> {
+  return guardedCall<ContextDevHtmlOk>(url, options, (client) =>
+    attempt(
+      () => client.web.webScrapeHTML({ url, maxAgeMs: positiveMaxAge(options) }),
+      (body) =>
+        typeof body?.html === "string"
+          ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, html: body.html }
+          : null,
+      "Scrape returned no html.",
+    ),
+  );
+}
+
+/**
+ * The URLs a domain's own sitemap names. 1 credit.
+ *
+ * Takes a URL rather than a bare domain so the gate above can be asked the same
+ * question it is asked everywhere else; the domain handed to the API is that
+ * URL's host.
+ */
+export async function sitemapUrls(
+  url: string,
+  options: ContextDevCallOptions & { maxLinks?: number; urlRegex?: string } = {},
+): Promise<ContextDevSitemapResult> {
+  let domain: string;
+  try {
+    domain = new URL(url).hostname;
+  } catch {
+    return {
+      status: "error",
+      error: { code: "SOURCE_REFUSED", message: `${url} is not a URL.`, retryable: false },
+    };
+  }
+  return guardedCall<ContextDevSitemapOk>(url, options, (client) =>
+    attempt(
+      () =>
+        client.web.webScrapeSitemap({
+          domain,
+          ...(options.maxLinks === undefined ? {} : { maxLinks: options.maxLinks }),
+          ...(options.urlRegex === undefined ? {} : { urlRegex: options.urlRegex }),
+        }),
+      (body) =>
+        Array.isArray(body?.urls)
+          ? {
+              status: "ok" as const,
+              domain: typeof body.domain === "string" && body.domain ? body.domain : domain,
+              urls: body.urls.filter((entry): entry is string => typeof entry === "string"),
+            }
+          : null,
+      "Sitemap read returned no urls.",
+    ),
+  );
+}
+
+/** Crawl a site to Markdown, one page per credit. */
+export async function crawlMarkdown(
+  url: string,
+  options: ContextDevCallOptions & { maxPages?: number; maxDepth?: number; urlRegex?: string } = {},
+): Promise<ContextDevCrawlResult> {
+  return guardedCall<ContextDevCrawlOk>(url, options, (client) =>
+    attempt(
+      () =>
+        client.web.webCrawlMd({
+          url,
+          maxAgeMs: positiveMaxAge(options),
+          ...(options.maxPages === undefined ? {} : { maxPages: options.maxPages }),
+          ...(options.maxDepth === undefined ? {} : { maxDepth: options.maxDepth }),
+          ...(options.urlRegex === undefined ? {} : { urlRegex: options.urlRegex }),
+        }),
+      (body) =>
+        Array.isArray(body?.results)
+          ? {
+              status: "ok" as const,
+              url,
+              pages: body.results.map((page) => ({
+                url: page?.metadata?.finalUrl ?? page?.metadata?.sourceUrl ?? url,
+                markdown: typeof page?.markdown === "string" ? page.markdown : "",
+              })),
+            }
+          : null,
+      "Crawl returned no pages.",
+    ),
+  );
+}
+
+/**
+ * Extract one page into a JSON schema. 10 credits.
+ *
+ * `factCheck` defaults on, because an extraction that is not checked against
+ * the page is a model's account of it rather than an observation.
+ */
 export async function extract<T extends Record<string, unknown> = Record<string, unknown>>(
   url: string,
   schema: Record<string, unknown>,
   options: ContextDevCallOptions & { instructions?: string; factCheck?: boolean; maxPages?: number } = {},
 ): Promise<ContextDevExtractResult<T>> {
+  const instructions =
+    typeof options.instructions === "string" && options.instructions.trim().length > 0
+      ? options.instructions.trim()
+      : undefined;
+  return guardedCall<ContextDevExtractOk<T>>(url, options, (client) =>
+    attempt(
+      () =>
+        client.web.extract({
+          url,
+          schema: schema as Record<string, unknown> & { [key: string]: unknown },
+          factCheck: options.factCheck ?? true,
+          maxPages: options.maxPages ?? 1,
+          maxAgeMs: positiveMaxAge(options),
+          ...(instructions === undefined ? {} : { instructions }),
+        }),
+      (body) =>
+        typeof body?.data === "object" && body.data !== null
+          ? {
+              status: "ok" as const,
+              url: typeof body.url === "string" ? body.url : url,
+              data: body.data as T,
+              urlsAnalyzed: Array.isArray(body.urls_analyzed)
+                ? body.urls_analyzed.filter((entry): entry is string => typeof entry === "string")
+                : [],
+            }
+          : null,
+      "Extract returned no data.",
+    ),
+  );
+}
+
+/**
+ * Search the web. 1 credit per 10 results.
+ *
+ * A search has no URL to gate, so the gate is applied to what comes BACK: every
+ * hit whose host `lib/harvest/sourcePolicy.ts` refuses is dropped before the
+ * caller sees it, and a hit is never fetched from here.
+ */
+export async function searchWeb(
+  query: string,
+  options: ContextDevCallOptions & { numResults?: number; includeDomains?: string[]; excludeDomains?: string[] } = {},
+): Promise<ContextDevSearchResult> {
   const apiKey = contextDevApiKey(options.env ?? process.env);
   if (!apiKey) return { status: "not-configured" };
+  const client = contextDevClient(apiKey, options);
+  return withRetries<ContextDevSearchOk>(
+    () =>
+      attempt(
+        () =>
+          client.web.search({
+            query,
+            ...(options.numResults === undefined ? {} : { numResults: options.numResults }),
+            ...(options.includeDomains === undefined ? {} : { includeDomains: options.includeDomains }),
+            ...(options.excludeDomains === undefined ? {} : { excludeDomains: options.excludeDomains }),
+          }),
+        (body) =>
+          Array.isArray(body?.results)
+            ? {
+                status: "ok" as const,
+                query: typeof body.query === "string" ? body.query : query,
+                results: body.results
+                  .filter((hit) => isHarvestableOperatorUrl(hit?.url))
+                  .map((hit) => ({
+                    url: hit.url,
+                    title: typeof hit.title === "string" ? hit.title : "",
+                    description: typeof hit.description === "string" ? hit.description : "",
+                    markdown: typeof hit.markdown?.markdown === "string" ? hit.markdown.markdown : null,
+                  })),
+              }
+            : null,
+        "Search returned no results field.",
+      ),
+    options,
+  );
+}
 
-  const payload: Record<string, unknown> = {
-    url,
-    schema,
-    factCheck: options.factCheck ?? true,
-    maxPages: options.maxPages ?? 1,
-  };
-  if (typeof options.instructions === "string" && options.instructions.trim().length > 0) {
-    payload.instructions = options.instructions.trim();
+/** Everything the brand record holds for one domain. 10 credits. */
+export async function brandRetrieve(
+  url: string,
+  options: ContextDevCallOptions = {},
+): Promise<ContextDevBrandResult> {
+  let domain: string;
+  try {
+    domain = new URL(url).hostname;
+  } catch {
+    return {
+      status: "error",
+      error: { code: "SOURCE_REFUSED", message: `${url} is not a URL.`, retryable: false },
+    };
   }
-  if (options.maxAgeMs !== undefined) payload.maxAgeMs = Math.max(0, options.maxAgeMs);
+  return guardedCall<ContextDevBrandOk>(url, options, (client) =>
+    attempt(
+      () =>
+        client.brand.retrieve({
+          type: "by_domain",
+          domain,
+          ...(positiveMaxAge(options) === undefined ? {} : { maxAgeMs: positiveMaxAge(options) as number }),
+        }),
+      (body) =>
+        body
+          ? {
+              status: "ok" as const,
+              domain,
+              brand: (body.brand as Record<string, unknown> | undefined) ?? null,
+            }
+          : null,
+      "Brand read returned no body.",
+    ),
+  );
+}
 
-  return withRetries(() => sendPost<T>("/web/extract", payload, apiKey, options), options);
+/**
+ * Queue up to CONTEXT_DEV_BATCH_MAX_URLS pages for asynchronous scraping.
+ *
+ * EVERY url is gated first and the whole submission is refused when one of them
+ * is: a batch is one job, so dropping the refused pages quietly would leave the
+ * caller believing it submitted the list it handed in.
+ */
+export async function batchSubmit(
+  urls: readonly string[],
+  options: ContextDevCallOptions & { webhookUrl?: string; tags?: string[] } = {},
+): Promise<ContextDevBatchResult> {
+  const apiKey = contextDevApiKey(options.env ?? process.env);
+  if (!apiKey) return { status: "not-configured" };
+  if (urls.length === 0 || urls.length > CONTEXT_DEV_BATCH_MAX_URLS) {
+    return {
+      status: "error",
+      error: {
+        code: "INVALID_REQUEST",
+        message: `A batch carries 1 to ${CONTEXT_DEV_BATCH_MAX_URLS} urls; this one carried ${urls.length}.`,
+        retryable: false,
+      },
+    };
+  }
+  for (const url of urls) {
+    const refusal = contextDevUrlRefusal(url, options);
+    if (refusal) return { status: "error", error: refusal };
+  }
+  if (options.robots) {
+    for (const url of urls) {
+      const decision = await options.robots(url);
+      if (!decision.allowed) {
+        return {
+          status: "error",
+          error: {
+            code: "ROBOTS_REFUSED",
+            message: `${decision.reason}: ${decision.evidence}`,
+            retryable: false,
+          },
+        };
+      }
+    }
+  }
+  const client = contextDevClient(apiKey, options);
+  return withRetries<ContextDevBatchOk>(
+    () =>
+      attempt(
+        () =>
+          client.batch.submit({
+            input: {
+              mode: "scrape",
+              data: { format: "markdown", urls: urls.map((url) => ({ url })) },
+            },
+            ...(options.webhookUrl === undefined ? {} : { webhookUrl: options.webhookUrl }),
+            ...(options.tags === undefined ? {} : { tags: options.tags }),
+          }),
+        (body) =>
+          typeof body?.id === "string"
+            ? {
+                status: "ok" as const,
+                batchId: body.id,
+                submitted: urls.length - (Array.isArray(body.invalid_urls) ? body.invalid_urls.length : 0),
+                invalidUrls: Array.isArray(body.invalid_urls) ? body.invalid_urls.length : 0,
+              }
+            : null,
+        "Batch submission returned no id.",
+      ),
+    options,
+  );
 }
