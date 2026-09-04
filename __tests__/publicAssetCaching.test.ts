@@ -97,7 +97,14 @@ const EDITED_IN_PLACE_ASSETS = filesOutsideData.filter(
     ].includes(file),
 );
 
-const REVALIDATING_METADATA = ["/llms.txt", "/.well-known/apple-app-site-association"];
+const REVALIDATING_METADATA = [
+  "/llms.txt",
+  // Both native link manifests, for the same reason: a store account's real
+  // Team ID or signing fingerprint has to reach the verifier in minutes
+  // rather than after a year of edge cache.
+  "/.well-known/apple-app-site-association",
+  "/.well-known/assetlinks.json",
+];
 const WORKERS = ["/sw.js", "/sw-plan-cache.js", "/offline.html"];
 
 const BUILD_WRITTEN_FIXED_URLS = [

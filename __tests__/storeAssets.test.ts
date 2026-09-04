@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { OG } from "@/lib/ogBrand";
@@ -284,5 +284,66 @@ describe("store screenshots", () => {
       expect(shot.caption, shot.file).not.toContain("!");
       expect(shot.caption, shot.file).not.toContain("—");
     }
+  });
+});
+
+describe("the Play feature graphic, the one store asset that carries words", () => {
+  const FEATURE = join(DIR, "png", "play", "feature-graphic-1024x500.png");
+  const generator = readFileSync(
+    join(process.cwd(), "scripts", "gen-store-assets.mjs"),
+    "utf8",
+  );
+
+  it("is the exact canvas Play measures on upload", () => {
+    // A listing without one cannot be published at all, and Play rejects
+    // anything but this size outright.
+    expect(pngSize(FEATURE)).toEqual({ width: 1024, height: 500 });
+  });
+
+  it("ships opaque, because Play refuses an alpha channel here", () => {
+    // IHDR byte 25 is the colour type: 2 is truecolour, 6 is truecolour+alpha.
+    const header = readFileSync(FEATURE).subarray(0, 33);
+    expect(header.readUInt8(25)).toBe(2);
+  });
+
+  it("is not drawn by the renderer that cannot be told which font it used", () => {
+    // librsvg resolves font-family through the machine's own font stack, and on
+    // the machine this was authored on a master asking for Space Grotesk, for
+    // Bungee and for a family that does not exist all rendered the IDENTICAL
+    // fallback face with nothing saying so. The banner therefore goes through
+    // the OG cards' renderer, which is handed the font FILE.
+    expect(generator).toContain("ImageResponse");
+    expect(generator).toContain("SpaceGrotesk-Bold.ttf");
+    expect(generator).toContain("SpaceGrotesk-Medium.ttf");
+    // And there is no SVG master for it to drift from.
+    expect(existsSync(join(DIR, "play-feature-graphic.svg"))).toBe(false);
+  });
+
+  it("draws the same mark every other master draws", () => {
+    // Read from the one geometry master rather than restated, so the banner
+    // cannot end up carrying a mark the icon has moved on from.
+    expect(generator).toContain("MARK_POLYGONS.thick");
+    expect(generator).toContain("MARK_POLYGONS.thinA");
+    expect(generator).toContain("MARK_POLYGONS.thinB");
+    expect(generator).toContain("BRAND_COLORS.inkDeep");
+    expect(generator).toContain("BRAND_COLORS.coral");
+  });
+
+  it("keeps what has to be read out of the middle of the canvas", () => {
+    // Play centres a play button over this graphic whenever the listing carries
+    // a promo video, so the lockup is left-weighted rather than centred.
+    expect(generator).toContain('padding: "0 96px"');
+    expect(generator).not.toContain('justifyContent: "center"');
+  });
+
+  it("says the one thing the listing promises, in the house voice", () => {
+    // The COPY, not the file around it: `!alpha` is a negation and not an
+    // exclamation, the same distinction the em-dash fence draws.
+    const tagline = generator.match(/const FEATURE_TAGLINE = "(.*)";/)?.[1];
+    expect(tagline).toBe("Cheap pints near you.");
+    expect(tagline).not.toContain("—");
+    expect(tagline).not.toContain("!");
+    // The wordmark is the BRAND, which is the name painted beside a mark.
+    expect(generator).toContain('"PUBMAXX"');
   });
 });

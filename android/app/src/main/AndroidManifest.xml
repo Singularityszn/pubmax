@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Declaring the CAMERA permission implicitly declares that the device
+         MUST have a camera, and Play then hides the listing from every device
+         without one. A pub map is worth having on a tablet with no camera, so
+         the requirement is stated as optional and the seam already treats a
+         refused capture as "nothing chosen". -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -113,6 +121,22 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- The camera. iOS asks for this in words (NSCameraUsageDescription) and
+         Android asks for it here, so the two halves of ONE promise were a file
+         apart and only one of them was written down: an Android build with no
+         CAMERA line answers every capture attempt with a silent refusal. That
+         covers all three paths at once - the Capacitor seam
+         (lib/nativeCamera.ts), the `capture` inputs the WebView chooser opens,
+         and the media read a chosen photo needs. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Reading the photo a person picked. Android 13 split the old storage
+         permission per medium, so BOTH lines are needed to cover the range the
+         app supports (minSdk 24): the scoped one from 33 up, the legacy one
+         capped below it. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
     <!-- Android 13 made notifications a runtime permission. Undeclared, the
          request lib/nativePush.ts makes cannot be granted and registration
          fails silently on every modern device: no dialog, no token, no error a

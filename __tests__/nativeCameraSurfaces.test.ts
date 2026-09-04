@@ -7,7 +7,7 @@
 // belongs to the operating system. So this fence reads the source, the way
 // __tests__/profilePhotoPicker.test.ts reads it for the picker law.
 
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -37,7 +37,15 @@ describe("a photo surface asks the shell first and the web input second", () => 
     it(`${surface} routes through the seam under its own name`, () => {
       const source = read(file);
       expect(source).toContain('from "@/lib/nativeCamera"');
-      expect(source).toContain(`captureNativePhoto("${surface}")`);
+      // Either entry point, but the surface NAME has to reach the seam: that
+      // name becomes the file name the phone hands over. `pickNativePhoto` is
+      // the three-way form, for a surface with somewhere to show a refusal;
+      // `captureNativePhoto` is the two-way wrapper over it.
+      expect(
+        source.includes(`pickNativePhoto("${surface}")`) ||
+          source.includes(`captureNativePhoto("${surface}")`),
+        `${file} does not hand "${surface}" to the seam`,
+      ).toBe(true);
       // The shell branch is what makes the file input the fallback rather than
       // the only door, so the gate has to be in the same file.
       expect(source).toContain("isNativeApp()");
@@ -97,5 +105,84 @@ describe("the permission a person reads before they grant it", () => {
     // for a price board and a pub wall. iOS shows this sentence once.
     expect(info).toContain("photograph a price board, a pub, or your own night");
     expect(info).not.toContain("save them as private Moments");
+  });
+});
+
+describe("a refusal reaches a person, and a cancel does not", () => {
+  const seam = read("lib/nativeCamera.ts");
+
+  it("tells a denied permission apart from a changed mind", () => {
+    // `getPhoto` throws identically for both, so the permission is read back
+    // rather than guessed at. Collapsing them means somebody whose camera the
+    // OS is holding shut taps a button that does nothing, for ever.
+    expect(seam).toContain("checkPermissions");
+    expect(seam).toContain('outcome: "blocked"');
+    expect(seam).toContain('outcome: "cancelled"');
+  });
+
+  it("only calls it blocked when BOTH doors on the sheet are shut", () => {
+    // The sheet offers camera and library. Somebody who refused the camera can
+    // still pick a photo they already have, and telling them the camera is off
+    // would be true and useless.
+    expect(seam).toContain('permissions.camera === "denied" && permissions.photos === "denied"');
+  });
+
+  it("costs nobody anything when the permission read itself fails", () => {
+    // A read we could not run is not evidence of a refusal.
+    expect(seam).toMatch(/catch \{\s*return false;/);
+  });
+
+  it("says where to go, since nothing in the app can grant it", () => {
+    expect(seam).toContain("Turn it on in Settings");
+  });
+
+  it("shows the refusal on the two surfaces that have a line for it", () => {
+    for (const file of [
+      "components/map/VenuePriceSubmit.tsx",
+      "components/venue/VenuePhotoComposer.tsx",
+    ]) {
+      expect(read(file), file).toContain('pick.outcome === "blocked"');
+    }
+  });
+});
+
+describe("nothing outside the three surfaces opens a camera", () => {
+  /** Every browser-reachable source file, so a new caller cannot appear in a
+   * directory this fence never thought to look in. */
+  function sweptFiles(): string[] {
+    const out: string[] = [];
+    const walk = (current: string) => {
+      for (const entry of readdirSync(current)) {
+        if (entry === "node_modules" || entry.startsWith(".")) continue;
+        const path = join(current, entry);
+        if (statSync(path).isDirectory()) walk(path);
+        else if (/\.tsx?$/.test(entry)) out.push(path.slice(process.cwd().length + 1));
+      }
+    };
+    for (const dir of ["app", "components", "lib"]) walk(join(process.cwd(), dir));
+    return out;
+  }
+
+  const callers = sweptFiles().filter(
+    (file) =>
+      file !== "lib/nativeCamera.ts" &&
+      /\b(pickNativePhoto|captureNativePhoto)\b/.test(read(file)),
+  );
+
+  it("finds the callers, so the sweep is not passing on an empty list", () => {
+    expect(callers.length).toBeGreaterThan(0);
+  });
+
+  it("holds every caller to the surface table above", () => {
+    expect([...callers].sort()).toEqual(SURFACES.map((entry) => entry.file).sort());
+  });
+
+  it("leaves the profile photo journey on the plain library picker", () => {
+    // A face or a backdrop is almost always a photo somebody already has, and
+    // that journey is the library picker plus the crop step.
+    for (const { file } of SURFACES) {
+      expect(file.startsWith("components/profile/"), file).toBe(false);
+      expect(file.startsWith("app/u/"), file).toBe(false);
+    }
   });
 });

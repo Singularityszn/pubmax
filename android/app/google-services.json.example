@@ -1,0 +1,52 @@
+{
+  "_comment": [
+    "PLACEHOLDER. This is not a working Firebase config and the build does not",
+    "read it: Gradle looks for `google-services.json` in this same directory,",
+    "which is gitignored because the real file names a real Firebase project.",
+    "",
+    "TO MAKE ANDROID PUSH LIVE (weekend step, needs the Play/Firebase account):",
+    "  1. console.firebase.google.com, create a project (or reuse one).",
+    "  2. Add an Android app to it with package name com.pubmaxx.app.",
+    "  3. Download the google-services.json it hands back.",
+    "  4. Save it as android/app/google-services.json. Do not commit it.",
+    "  5. In the same Firebase project: Project settings, Service accounts,",
+    "     Generate new private key. That JSON is the SERVER half and is a real",
+    "     secret. Never put it in the repository or in the app.",
+    "  6. Set FCM_PROJECT_ID, FCM_CLIENT_EMAIL, FCM_PRIVATE_KEY_ID and",
+    "     FCM_PRIVATE_KEY on the server from that service-account JSON.",
+    "     All four, or lib/fcmPushProvider.ts refuses rather than half-sending.",
+    "  7. Rebuild and prove a real delivery on a device: registration token",
+    "     posted to /api/push-tokens, notification received, tap lands on the",
+    "     path the payload named.",
+    "",
+    "The shape below is the shape the real file has, with every value replaced.",
+    "It exists so a reader can tell at a glance which fields are account-owned."
+  ],
+  "project_info": {
+    "project_number": "REPLACE_WITH_FIREBASE_PROJECT_NUMBER",
+    "project_id": "REPLACE_WITH_FIREBASE_PROJECT_ID",
+    "storage_bucket": "REPLACE_WITH_FIREBASE_STORAGE_BUCKET"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "REPLACE_WITH_FIREBASE_MOBILESDK_APP_ID",
+        "android_client_info": {
+          "package_name": "com.pubmaxx.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "REPLACE_WITH_FIREBASE_ANDROID_API_KEY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

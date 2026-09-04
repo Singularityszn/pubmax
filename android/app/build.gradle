@@ -1,5 +1,36 @@
 apply plugin: 'com.android.application'
 
+// THE UPLOAD KEY, AND WHY IT IS NOT IN THIS FILE.
+//
+// The upload keystore signs every release of this app for the rest of its life
+// and cannot be replaced without Google's help, so it is the one artefact here
+// that must never reach the repository. Gradle reads it from
+// `android/keystore.properties`, which is gitignored along with every keystore
+// extension, and the whole block is skipped when that file is absent.
+//
+// A build with no properties file still SUCCEEDS and produces an UNSIGNED
+// bundle. That is deliberate and it is also useless for uploading, so it says
+// which of the two it made rather than leaving somebody to discover it at the
+// Play Console. docs/STORE_READINESS.md section 8 owns the generation step.
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+def hasUploadKey = keystorePropertiesFile.exists()
+if (hasUploadKey) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+    def missing = ["storeFile", "storePassword", "keyAlias", "keyPassword"].findAll {
+        !keystoreProperties.getProperty(it)
+    }
+    if (!missing.isEmpty()) {
+        // Half a signing config is worse than none: it fails deep inside the
+        // signing task with a message about the keystore rather than about the
+        // four values somebody was meant to write down.
+        throw new GradleException(
+            "[pubmaxx] android/keystore.properties is missing " + missing.join(", ")
+                + ". It needs storeFile, storePassword, keyAlias and keyPassword."
+        )
+    }
+}
+
 android {
     namespace = "com.pubmaxx.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +47,29 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (hasUploadKey) {
+                storeFile rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword keystoreProperties.getProperty("storePassword")
+                keyAlias keystoreProperties.getProperty("keyAlias")
+                keyPassword keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
     buildTypes {
         release {
+            // R8 is off on purpose. This binary is a WebView shell: there is
+            // almost nothing of ours to shrink, and Capacitor resolves its
+            // plugins reflectively by class name, which is exactly what a
+            // shrinker removes. The download saving would be a few hundred
+            // kilobytes against a class of failure that only shows up in a
+            // release build on a real device.
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hasUploadKey) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
@@ -44,11 +94,35 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 
-try {
-    def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
-        apply plugin: 'com.google.gms.google-services'
-    }
-} catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+// Firebase, and the one thing this block must not do is disappear.
+//
+// Capacitor generates this as a try/catch that reports the missing file at
+// `info`, a level nothing prints by default. So a build with no
+// google-services.json produced a binary that looks complete, installs, runs,
+// and then answers every push registration with `registrationError` - and the
+// only record of why was a line nobody was ever shown. The build still SUCCEEDS
+// without it, deliberately: push is one feature and refusing to compile the
+// whole app over it would be worse. It just says so, once, out loud.
+//
+// The file itself is gitignored and `google-services.json.example` beside it
+// carries the exact steps that produce the real one.
+if (hasUploadKey) {
+    logger.lifecycle("[pubmaxx] Release builds sign with the upload key in android/keystore.properties.")
+} else {
+    logger.lifecycle(
+        "[pubmaxx] android/keystore.properties is absent, so a release build "
+            + "produces an UNSIGNED bundle that the Play Console will refuse. "
+            + "See docs/STORE_READINESS.md section 8 to generate the upload key."
+    )
+}
+
+def googleServices = file('google-services.json')
+if (googleServices.exists() && googleServices.length() > 0) {
+    apply plugin: 'com.google.gms.google-services'
+} else {
+    logger.lifecycle(
+        "[pubmaxx] android/app/google-services.json is absent, so Firebase is "
+            + "not configured and push notifications will not register on this "
+            + "build. Everything else works. See google-services.json.example."
+    )
 }

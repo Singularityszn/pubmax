@@ -19,6 +19,7 @@
 //   play/adaptive-foreground-432.png                                 432 = 108dp @ xxxhdpi
 //   play/adaptive-background-432.png
 //   splash/splash-2732.png
+//   play/feature-graphic-1024x500.png                                Play listing banner
 //
 // Exports at or under 64px come from icon-square-small.svg; everything larger
 // from icon-square.svg. Every render is a downscale from the master's native
@@ -31,8 +32,16 @@
 // Usage:  node scripts/gen-store-assets.mjs
 
 import { mkdirSync, readFileSync } from "node:fs";
+import { createElement as h } from "react";
+import { ImageResponse } from "next/dist/compiled/@vercel/og/index.node.js";
+
+import { BRAND_COLORS, MARK_POLYGONS, MARK_VIEWBOX } from "../lib/brandMark.mjs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const SRC = join(ROOT, "public", "store-assets");
+const OUT = join(SRC, "png");
 
 let sharp;
 try {
@@ -46,10 +55,6 @@ try {
   );
   process.exit(1);
 }
-
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SRC = join(ROOT, "public", "store-assets");
-const OUT = join(SRC, "png");
 
 const master = (name) => readFileSync(join(SRC, name));
 
@@ -85,5 +90,102 @@ await render(master("play-adaptive-background.svg"), 432, "play/adaptive-backgro
   alpha: false,
 });
 await render(master("splash.svg"), 2732, "splash/splash-2732.png", { alpha: false });
+
+
+// THE ONE STORE ASSET THAT CARRIES WORDS, AND THE ONE THAT IS NOT DRAWN BY SHARP.
+//
+// The no-text rule in docs/STORE_READINESS.md section 7 is about the icon and
+// the splash, which are masked and shown at 20px. This is a banner shown at
+// full width beside the listing, and a banner with no name on it is a coloured
+// rectangle.
+//
+// It cannot be an SVG master like its neighbours, because librsvg resolves
+// `font-family` through the machine's own font stack: on this Mac a master
+// asking for Space Grotesk, for Bungee and for a family that does not exist all
+// rendered the IDENTICAL fallback face, and nothing said so. So the banner goes
+// through the same renderer the OG cards use (lib/ogBrand.tsx), which is handed
+// the repo's own font FILE and cannot fall back to anything.
+//
+// The mark is the same MARK_POLYGONS every other master carries, read from the
+// one geometry master rather than restated here; satori renders <polygon> from
+// the SVG subset directly, which is how the OG cards draw it too.
+//
+// The lockup is LEFT-WEIGHTED on purpose: Play centres a play button over this
+// graphic whenever the listing has a promo video, so nothing that has to be
+// read sits in the middle of the canvas.
+const FEATURE_GRAPHIC = { width: 1024, height: 500 };
+const FEATURE_TAGLINE = "Cheap pints near you.";
+
+function featureGraphicMark(size) {
+  return h(
+    "svg",
+    { width: size, height: size, viewBox: MARK_VIEWBOX, fill: "none" },
+    h("polygon", { key: "a", points: MARK_POLYGONS.thinA, fill: BRAND_COLORS.coral }),
+    h("polygon", { key: "b", points: MARK_POLYGONS.thinB, fill: BRAND_COLORS.coral }),
+    h("polygon", { key: "c", points: MARK_POLYGONS.thick, fill: BRAND_COLORS.coral }),
+  );
+}
+
+async function renderFeatureGraphic() {
+  const fonts = join(ROOT, "public", "fonts");
+  const response = new ImageResponse(
+    h(
+      "div",
+      {
+        style: {
+          display: "flex",
+          width: "100%",
+          height: "100%",
+          alignItems: "center",
+          gap: 64,
+          padding: "0 96px",
+          background: BRAND_COLORS.inkDeep,
+          fontFamily: "Space Grotesk",
+        },
+      },
+      featureGraphicMark(210),
+      h(
+        "div",
+        { style: { display: "flex", flexDirection: "column", gap: 14 } },
+        h(
+          "div",
+          { style: { fontSize: 96, fontWeight: 700, color: "#ffffff", letterSpacing: 1 } },
+          "PUBMAXX",
+        ),
+        h(
+          "div",
+          { style: { fontSize: 40, fontWeight: 500, color: BRAND_COLORS.coral } },
+          FEATURE_TAGLINE,
+        ),
+      ),
+    ),
+    {
+      ...FEATURE_GRAPHIC,
+      fonts: [
+        {
+          name: "Space Grotesk",
+          data: readFileSync(join(fonts, "SpaceGrotesk-Medium.ttf")),
+          weight: 500,
+          style: "normal",
+        },
+        {
+          name: "Space Grotesk",
+          data: readFileSync(join(fonts, "SpaceGrotesk-Bold.ttf")),
+          weight: 700,
+          style: "normal",
+        },
+      ],
+    },
+  );
+  const file = "play/feature-graphic-1024x500.png";
+  const dest = join(OUT, file);
+  mkdirSync(dirname(dest), { recursive: true });
+  // Play rejects an alpha channel on the feature graphic, and the field is
+  // opaque anyway, so the channel is stripped rather than shipped empty.
+  await sharp(Buffer.from(await response.arrayBuffer())).removeAlpha().png().toFile(dest);
+  process.stdout.write(`  public/store-assets/png/${file}\n`);
+}
+
+await renderFeatureGraphic();
 
 process.stdout.write("Done. Inventory + wiring notes: docs/STORE_READINESS.md.\n");

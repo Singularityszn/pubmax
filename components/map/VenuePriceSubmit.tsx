@@ -25,7 +25,7 @@ import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { useContributionGate } from "@/components/identity/ContributionGateDialog";
 import { trackEvent } from "@/lib/analytics";
 import { haptic } from "@/lib/nativeHaptics";
-import { captureNativePhoto } from "@/lib/nativeCamera";
+import { pickNativePhoto } from "@/lib/nativeCamera";
 import { isNativeApp } from "@/lib/nativePlatform";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import PriceContributionImpact from "@/components/map/PriceContributionImpact";
@@ -253,13 +253,19 @@ export default function VenuePriceSubmit({
 
   // Inside the Capacitor shell the button opens the native sheet (camera or
   // library, the person's choice) through lib/nativeCamera.ts rather than the
-  // file input, because WKWebView's own chooser is the thin-wrapper tell. The
-  // chosen file lands in the SAME validator the input feeds, so the size and
-  // type rules cannot drift between the two doors.
+  // file input, because WKWebView's own chooser is the thin-wrapper tell, and
+  // the Android chooser drops its camera entry outright. The chosen file lands
+  // in the SAME validator the input feeds, so the size and type rules cannot
+  // drift between the two doors.
+  //
+  // The seam's answer is three-way, and this surface has somewhere to put the
+  // third: a person whose camera the OS is holding shut is told so, where a
+  // person who simply changed their mind is shown nothing.
   async function choosePintPhoto() {
     if (isNativeApp()) {
-      const file = await captureNativePhoto("pint");
-      if (file) onPintPhotoChosen(file);
+      const pick = await pickNativePhoto("pint");
+      if (pick.outcome === "chosen") onPintPhotoChosen(pick.file);
+      else if (pick.outcome === "blocked") setError(pick.message);
       return;
     }
     pintPhotoInputRef.current?.click();

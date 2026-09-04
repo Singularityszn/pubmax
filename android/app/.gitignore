@@ -1,2 +1,9 @@
 /build/*
 !/build/.npmkeep
+
+# The Firebase Android config. It is not a secret in the way the service-account
+# private key is, but it names a real project and it is generated per account,
+# so the one in a working tree belongs to whoever generated it and never to the
+# repository. `google-services.json.example` beside it is the committed
+# placeholder and says exactly how to produce the real thing.
+google-services.json

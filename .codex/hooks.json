@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "'/Users/karanmanoharan/karan-agent-workspace/bin/fm-busy-event.sh' apply '/Users/karanmanoharan/karan-agent-workspace/state' 'ios-store-build' idle --gen 'g1788543504.97746.32580' --source claude-hook --event session-end 2>/dev/null || true"
+            "command": "'/Users/karanmanoharan/karan-agent-workspace/bin/fm-busy-event.sh' apply '/Users/karanmanoharan/karan-agent-workspace/state' 'android-store-build' idle --gen 'g1788543515.3214.26384' --source claude-hook --event session-end 2>/dev/null || true"
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "'/Users/karanmanoharan/karan-agent-workspace/bin/fm-busy-event.sh' apply '/Users/karanmanoharan/karan-agent-workspace/state' 'ios-store-build' busy --gen 'g1788543504.97746.32580' --source claude-hook --event user-prompt-submit 2>/dev/null || true"
+            "command": "'/Users/karanmanoharan/karan-agent-workspace/bin/fm-busy-event.sh' apply '/Users/karanmanoharan/karan-agent-workspace/state' 'android-store-build' busy --gen 'g1788543515.3214.26384' --source claude-hook --event user-prompt-submit 2>/dev/null || true"
           }
         ]
       }
@@ -25,7 +25,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "touch '/Users/karanmanoharan/karan-agent-workspace/state/ios-store-build.turn-ended'; '/Users/karanmanoharan/karan-agent-workspace/bin/fm-busy-event.sh' apply '/Users/karanmanoharan/karan-agent-workspace/state' 'ios-store-build' idle --gen 'g1788543504.97746.32580' --source claude-hook --event stop 2>/dev/null || true"
+            "command": "touch '/Users/karanmanoharan/karan-agent-workspace/state/android-store-build.turn-ended'; '/Users/karanmanoharan/karan-agent-workspace/bin/fm-busy-event.sh' apply '/Users/karanmanoharan/karan-agent-workspace/state' 'android-store-build' idle --gen 'g1788543515.3214.26384' --source claude-hook --event stop 2>/dev/null || true"
           }
         ]
       }

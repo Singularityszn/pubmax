@@ -1,0 +1,38 @@
+`./gradlew bundleRelease`, both lanes, on this branch.
+
+Toolchain: Temurin JDK 21.0.12.1, Android SDK command-line tools, compileSdk 36,
+targetSdk 36 (clears the current Play target-API requirement).
+
+-------------------------------------------------------------------------------
+1. WITH NO UPLOAD KEY  (the state a fresh clone is in)
+-------------------------------------------------------------------------------
+[pubmaxx] android/keystore.properties is absent, so a release build produces an
+UNSIGNED bundle that the Play Console will refuse. See docs/STORE_READINESS.md
+section 8 to generate the upload key.
+[pubmaxx] android/app/google-services.json is absent, so Firebase is not
+configured and push notifications will not register on this build. Everything
+else works. See google-services.json.example.
+
+BUILD SUCCESSFUL in 1m
+app/build/outputs/bundle/release/app-release.aab   6,913,213 bytes
+
+The build succeeds on purpose. What it will not do is let somebody find out at
+the Play Console that the bundle they carried up there cannot be uploaded.
+
+-------------------------------------------------------------------------------
+2. WITH AN UPLOAD KEY  (a THROWAWAY one, generated outside the repository)
+-------------------------------------------------------------------------------
+[pubmaxx] Release builds sign with the upload key in android/keystore.properties.
+
+BUILD SUCCESSFUL in 10s
+app/build/outputs/bundle/release/app-release.aab   6,976,326 bytes
+
+$ jarsigner -verify app-release.aab
+jar verified.
+
+The keystore for lane 2 was generated in a scratch directory outside this
+repository, used once, and left there. It proves the WIRING and nothing else:
+it is not the app's identity and it is not the upload key. The real one is
+generated on the weekend and never comes near a working tree - `keystore.properties`,
+`*.jks` and `*.keystore` are all gitignored, and `git status` stayed clean
+through both lanes above.

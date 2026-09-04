@@ -348,6 +348,20 @@ const nextConfig = {
         ],
       },
       {
+        // Android's App Links verifier reads this file to decide whether the
+        // binary may open pubmaxxing.com links, and it re-reads it on install
+        // and on update. The extension already earns application/json, so the
+        // only thing owed here is the same SHORT edge window its Apple twin
+        // takes: a fingerprint added on the weekend must reach the verifier in
+        // minutes rather than sitting behind a year of edge cache.
+        // Content + fingerprint placeholder: docs/CAPACITOR_WRAP.md.
+        source: "/.well-known/assetlinks.json",
+        headers: [
+          { key: "Content-Type", value: "application/json" },
+          { key: "Cache-Control", value: SHORT_EDGE_PUBLIC_ASSET_CACHE_CONTROL },
+        ],
+      },
+      {
         // The pub-price dataset is ~6 MB and effectively static between deploys.
         // These files live in public/ so their URLs are fixed and UNHASHED, and
         // several fetch sites (PubMapCanvas tfl_lines, PubMap price_updates) live

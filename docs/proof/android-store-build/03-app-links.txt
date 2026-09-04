@@ -1,0 +1,20 @@
+adb shell pm query-activities -a android.intent.action.VIEW -d <url>, counting com.pubmaxx.app matches.
+This is the intent filters answering for themselves: which shared links the
+binary claims, and which it correctly does not.
+
+https://pubmaxxing.com/map                    CLAIMED
+https://pubmaxxing.com/map/london             CLAIMED
+https://pubmaxxing.com/p/abc                  CLAIMED
+https://pubmaxxing.com/plan/xyz               CLAIMED
+https://pubmaxxing.com/rounds/xyz             CLAIMED
+https://pubmaxxing.com/venue/a                CLAIMED
+https://pubmaxxing.com/pub/a                  CLAIMED
+https://pubmaxxing.com/auth/callback          CLAIMED
+https://pubmaxxing.com/tonight                not claimed
+https://example.com/map                       not claimed
+
+/tonight is not claimed on purpose: it is SHELL_START_PATH in
+lib/entryDecision.ts, the surface a cold start LANDS on, which is a
+different question from which shared link may open the binary.
+Another host is not claimed at all, which is the fence in lib/nativeDeepLinks.ts
+agreeing with the manifest.
