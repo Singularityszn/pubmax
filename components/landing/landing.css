@@ -81,9 +81,11 @@
 
 /* ── Hero: the whole first screen ────────────────────────────────────────── */
 
-/* The Screen primitive owns the head (kicker, h1, one primary, one secondary).
-   The landing only sets the frame: full viewport height, the copy and the
-   proof side by side once there is room, stacked in DOM order below that. */
+/* The Screen primitive owns the head (kicker, h1, the answer, one primary, one
+   secondary) and the rail rides as its children. The head is its own grid, so
+   the phone reads the DOM top to bottom, kicker, claim, answer, action, second
+   door, rail, and the desktop only seats the answer beside the copy and the
+   rail under the answer. Full viewport height at every width. */
 .lpHero {
   min-height: 100dvh;
   padding-top: clamp(96px, 12vh, 132px);
@@ -91,12 +93,13 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-content: center;
-  gap: clamp(28px, 4vw, 56px);
+  gap: var(--space-5);
 }
 
 .lpHero .screenHead {
-  max-width: 34rem;
+  max-width: none;
   padding-block: 0;
+  gap: var(--space-3);
 }
 
 /* 56px to 64px on a desktop (e2e/design-taste-wave-1.spec.ts), two lines. */
@@ -107,24 +110,41 @@
   letter-spacing: -.04em;
 }
 
-.lpHeroProof {
-  display: grid;
-  gap: var(--space-6);
-  align-content: start;
-  min-width: 0;
-}
+.lpHero .screenAnswer { min-width: 0; margin-top: var(--space-2); }
 
-/* On a desktop the headline and the pub card share the first screen from the
-   top: the grid starts under the nav rather than floating at the vertical
-   centre, so nothing sits low with a screen of air above it. Still 100dvh,
-   still full-bleed; only the vertical seat changes. */
+/* On a desktop the copy and the answer share the first screen from the top:
+   the grid starts under the nav rather than floating at the vertical centre.
+   Both grids share one column template, so the rail lines up under the
+   answer. The head's third row is the flexible one, so the answer's height
+   never opens the gap between the kicker and the heading. */
 @media (min-width: 960px) {
   .lpHero {
     grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+    grid-template-areas:
+      "head head"
+      ". rail";
+    column-gap: clamp(28px, 4vw, 56px);
+    row-gap: var(--space-4);
     align-content: start;
     align-items: start;
     padding-top: clamp(128px, 17vh, 168px);
   }
+  .lpHero .screenHead {
+    grid-area: head;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+    grid-template-areas:
+      "kicker answer"
+      "title answer"
+      "actions answer";
+    grid-template-rows: auto auto 1fr;
+    column-gap: clamp(28px, 4vw, 56px);
+    align-items: start;
+  }
+  .lpHero .screenHead > .kicker { grid-area: kicker; }
+  .lpHero .screenTitle { grid-area: title; }
+  .lpHero .screenActions { grid-area: actions; align-self: start; }
+  .lpHero .screenAnswer { grid-area: answer; margin-top: 0; }
+  .lpHero .lpRail { grid-area: rail; }
 }
 
 /* ── The one real pub ────────────────────────────────────────────────────── */
@@ -210,23 +230,6 @@
   font-size: var(--text-xs);
   line-height: var(--leading-normal);
 }
-
-/* ── Counts: the honest readout, one figure over its label ──────────────── */
-
-.lpLiveReadout {
-  margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  gap: 0 var(--space-5);
-  color: var(--ink-soft);
-  font: 600 11px/1.2 var(--font-data);
-}
-.lpReadoutStat { display: flex; flex-direction: column; gap: 3px; }
-.lpReadoutStat + .lpReadoutStat { padding-left: var(--space-5); border-left: 1px solid var(--line); }
-.lpReadoutStat dt { order: 2; margin: 0; display: inline-flex; align-items: center; gap: 6px; color: var(--ink-soft); font: 600 11px/1.2 var(--font-data); }
-.lpReadoutStat dt svg { color: var(--river); }
-.lpReadoutStat dd { order: 1; margin: 0; color: var(--ink); font: 750 26px/1 var(--font-data); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 
 /* ── Text links (the quiet door below the hero) ─────────────────────────── */
 
@@ -329,14 +332,7 @@
      bars so landing to app never jumps. The top offset keeps its max() literal
      (locked by landingChromeCss.test). */
   .lpNav { top: max(10px, env(safe-area-inset-top)); width: calc(100vw - 20px); min-height: var(--topbar-h, 52px); padding: 3px var(--topbar-pad-x, 10px); gap: 8px; border-radius: var(--topbar-radius, 14px); box-shadow: var(--topbar-shadow, var(--shadow-sm)); }.lpWordmark { font-size: 12px; }
-  .lpHero { padding-top: 88px; gap: var(--space-6); }
-  .lpHero .screenTitle { font-size: clamp(2.5rem, 12vw, 3.5rem); line-height: .94; }
   .lpPubCard { width: 100%; padding: var(--space-4) var(--space-5); }
-  /* Column on a phone: the divider between two stats side by side is a LEFT
-     rule; stacked, the separator is a rule ABOVE and every value shares one
-     left edge. */
-  .lpLiveReadout { align-items: stretch; flex-direction: column; gap: 0; }
-  .lpReadoutStat + .lpReadoutStat { margin-top: 10px; padding-top: 10px; padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
   .lpWhy { padding: 48px 0 12px; }
   .lpWhy h2 { font-size: clamp(1.9rem, 9vw, 2.75rem); }
   .lpWhy p { font-size: 16px; }
@@ -350,8 +346,6 @@
 /* Mobile legibility floor: every visible micro-label rides at least 12px on a
    phone. Desktop keeps the tighter display sizes. */
 @media (max-width: 700px) {
-  .lpLiveReadout, .lpLiveReadout span { font-size: 12px; }
-  .lpReadoutStat dt { font-size: 12px; }
   .dropStripWho, .dropStripHint, .dropStripEra, .provChip { font-size: 12px; }
   .lpFooterInner { grid-template-columns: 1fr; gap: 36px; }
 }
@@ -371,3 +365,89 @@
 /* CAP Code section 18 responsible floor (docs/CAP_COPY_AUDIT_2026-07-21.md,
    owner ruling #3). One quiet, permanent line: over-18s + Drinkaware. No
    banner, no nag; it just sits at the base of the marketing page. */
+
+/* ── The answer, the Near me control and the rail ───────────────────────── */
+
+.lpAnswerCard { width: 100%; }
+@media (min-width: 960px) { .lpAnswerCard, .lpRail { width: min(100%, 32rem); } }
+
+.lpAnswerHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.lpAnswerHead .kicker { min-width: 0; overflow-wrap: anywhere; }
+.lpAnswerWalk { color: var(--muted); font-weight: 600; }
+
+/* The one quiet control that asks for a location. A text control with a
+   hairline, never the coral: the Screen paints exactly one filled action. */
+.lpNearMe {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
+}
+.lpNearMe:hover { border-color: var(--ink); background: var(--panel); }
+.lpNearMe:disabled { color: var(--ink-soft); cursor: progress; }
+.lpNearMe svg { color: var(--river); }
+
+.lpNearLine { margin: 0; color: var(--ink-soft); font-size: var(--text-sm); line-height: var(--leading-normal); }
+.lpNearLine:empty { display: none; }
+
+/* Variant B: three rows under the answer, one column at every width. Rows,
+   not cards: a hairline between each, and the price stamp on the right. */
+.lpRail { display: grid; gap: var(--space-2); }
+.lpRailTitle {
+  margin: 0;
+  color: var(--ink-soft);
+  font: 700 var(--text-sm)/1.3 var(--font-body);
+}
+.lpRailList { margin: 0; padding: 0; list-style: none; display: grid; }
+.lpRailRow + .lpRailRow { border-top: 1px solid var(--line-soft); }
+.lpRailLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: 56px;
+  padding: var(--space-2) 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+.lpRailLink:hover .lpRailName { color: var(--brass); text-decoration: underline; text-underline-offset: 4px; }
+.lpRailMain { display: grid; gap: 2px; min-width: 0; }
+.lpRailName { font-family: var(--font-display); font-size: var(--text-base); font-weight: 700; letter-spacing: var(--tracking-tight); }
+.lpRailMeta { color: var(--ink-soft); font-size: var(--text-sm); }
+.lpRailPrice { flex: none; }
+.lpRailPrice .priceBadge { font-size: var(--text-sm); }
+
+@media (max-width: 700px) {
+  .lpAnswerCard { width: 100%; }
+}
+
+/* Phone: the answer sits between the heading and the tap, so the heading
+   gives up one size step and the card its outer padding, and the whole
+   screen still reads kicker, claim, answer, action inside 844px. */
+@media (max-width: 700px) {
+  .lpHero { padding-top: 80px; gap: var(--space-5); }
+  .lpHero .screenTitle { font-size: clamp(2.125rem, 10vw, 2.75rem); line-height: .94; }
+  .lpHero .lpAnswerCard { gap: var(--space-1); padding: var(--space-4); }
+  .lpHero .lpPubName { font-size: var(--text-lg); }
+  .lpHero .lpPubPrice .priceBadge { font-size: var(--text-base); min-block-size: 2.1rem; }
+  .lpHero .lpPubThen { margin-top: var(--space-1); padding-top: var(--space-2); font-size: var(--text-sm); }
+  .lpHero .lpRailLink { min-height: 52px; }
+  .lpHero .screenActions { margin-top: 0; }
+}

@@ -1,9 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// Permanent one-action hierarchy (captain 2026-09-03, issue #1354). No build
-// flag changes this contract: the price receipt door is the one primary, the
-// Pal is the quiet second door, the hero fills the viewport at every width and
-// the phone order is the desktop order.
+import { LANDING_PRIMARY_HREF, LANDING_PRIMARY_NAME } from "./helpers/landingHero";
+
+// Permanent one-action hierarchy (captain 2026-09-03, issue #1354; 2026-09-04,
+// issue #1357). No build flag changes this contract: the price receipt door is
+// the one primary ("Still £X?" into the pub's own Pint Drop composer, or the
+// plain door when no card backs the document), the Pal is the quiet second
+// door, the hero fills the viewport at every width and the phone order is the
+// desktop order.
 
 async function openLanding(page: Page, viewport: { width: number; height: number }) {
   await page.setViewportSize(viewport);
@@ -47,8 +51,8 @@ test.describe("landing hierarchy", () => {
 
     const primaries = hero.locator("[data-primary-action] a");
     await expect(primaries).toHaveCount(1);
-    await expect(primaries.first()).toHaveAttribute("href", "/near?locate=1");
-    await expect(primaries.first()).toContainText("Log what you paid");
+    await expect(primaries.first()).toHaveAttribute("href", LANDING_PRIMARY_HREF);
+    await expect(primaries.first()).toHaveText(LANDING_PRIMARY_NAME);
 
     const secondary = hero.locator(".screenSecondary a");
     await expect(secondary).toHaveCount(1);
@@ -64,16 +68,44 @@ test.describe("landing hierarchy", () => {
     await expect(mapLink).toHaveAttribute("href", "/map");
   });
 
-  test("shows one real pub with its price, publisher, day and archive line", async ({ page }) => {
+  test("shows one real pub with its price, publisher, day and archive line, and asks Still £X? of it", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });
     const card = page.locator(".lpHero .lpPubCard");
     await expect(card).toBeVisible();
     await expect(card.locator(".lpPubName a")).toHaveAttribute("href", /\/map\?sel=/);
-    await expect(card.locator(".priceBadge")).toContainText(/£\d+\.\d\d/);
+    await expect(card.locator(".priceBadge").first()).toContainText(/£\d+\.\d\d/);
     await expect(card.locator(".lpPubSource")).toContainText(/collected \d+ \w+ \d{4}\./);
     await expect(card.locator(".lpStanding")).toContainText("Listed");
     await expect(card.locator(".lpPubThen")).toContainText(/£\d+\.\d\d in \w+ \d{4}\./);
     await expect(card.locator(".lpPubThenSource a")).toHaveAttribute("href", /^https?:\/\//);
+
+    // The one filled action names the price on the card and opens THAT pub's
+    // Pint Drop door: the map, that pub selected, the composer open.
+    const price = (await card.locator(".priceBadge").first().textContent())?.trim();
+    const pubHref = await card.locator(".lpPubName a").getAttribute("href");
+    const primary = page.locator(".lpHero [data-primary-action] a");
+    await expect(primary).toHaveText(`Still ${price}?`);
+    await expect(primary).toHaveAttribute("href", `${pubHref}&log=1`);
+
+    // Three next-cheapest rows under it, each a Pint Drop door of its own.
+    const rows = page.locator(".lpHero .lpRailRow");
+    await expect(rows).toHaveCount(3);
+    for (const row of await rows.all()) {
+      await expect(row.locator("a")).toHaveAttribute("href", /\/map\?sel=[^&]+&log=1$/);
+      await expect(row.locator(".priceBadge")).toContainText(/£\d+\.\d\d/);
+    }
+    // The one quiet location control, and no location ask on arrival.
+    await expect(card.getByRole("button", { name: "Near me" })).toBeVisible();
+    await expect(page.locator(".lpHero a[href*='locate=1']")).toHaveCount(0);
+  });
+
+  test("Still £X? lands on that pub with the Pint Drop composer open", async ({ page }) => {
+    await openLanding(page, { width: 390, height: 844 });
+    const primary = page.locator(".lpHero [data-primary-action] a");
+    await expect(primary).toHaveText(/^Still £/);
+    await primary.click();
+    await expect(page).toHaveURL(/\/map\?sel=[^&]+&log=1$/);
+    await expect(page.getByText("Set the price now. Sign in to post it under your name.")).toBeVisible({ timeout: 20_000 });
   });
 
   // Both viewports, because a mobile-only check cannot see a hero that shrinks
@@ -101,10 +133,10 @@ test.describe("landing hierarchy", () => {
     });
   }
 
-  test("reads the same order on a phone as on a desktop: kicker, heading, primary, second door, pub, counts", async ({ page }) => {
+  test("reads the same order on a phone as on a desktop: kicker, heading, pub, primary, second door, rail", async ({ page }) => {
     await openLanding(page, { width: 390, height: 844 });
     const tops = await page.evaluate(() =>
-      [".lpHero .kicker", "#hero-title", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpPubCard", ".lpHero .lpLiveReadout"].map(
+      [".lpHero > .kicker, .lpHero .screenHead > .kicker", "#hero-title", ".lpHero .lpPubCard", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpRail"].map(
         (selector) => document.querySelector(selector)?.getBoundingClientRect().top ?? Number.NaN,
       ),
     );

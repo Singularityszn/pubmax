@@ -16,15 +16,23 @@
 // carry both a listed price and a history row. Deterministic, so the
 // prerendered document and its share card agree.
 
-import { namedLegacyPintPriceSource } from "@/lib/drinks";
 import {
+  answerEvidenceFor,
+  HERO_RAIL_SIZE,
+  type LandingArchiveIndex,
+  type LandingRailRow,
+} from "@/lib/landingHero";
+import {
+  formatObservedDay,
+  formatObservedMonth,
   groupPriceHistoryByVenue,
   parsePriceHistory,
   venuePriceArc,
   type PriceHistoryObservation,
 } from "@/lib/priceHistory";
 import { priceMovementLine } from "@/lib/priceMovementLine";
-import { priceStandingFor, type PriceStanding } from "@/lib/priceTier";
+import type { PriceStanding } from "@/lib/priceTier";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import type { Venue } from "@/lib/venues";
 
@@ -74,14 +82,6 @@ function pintLabel(venue: Venue): string {
   return `a pint of ${cased}`;
 }
 
-function publisherFor(venue: Venue): { label: string; url: string } | null {
-  for (const row of venue.prices) {
-    const named = namedLegacyPintPriceSource(row);
-    if (named) return { label: named.label, url: named.url };
-  }
-  return null;
-}
-
 /**
  * Build the card from the priced venue index and the raw history file. Null
  * when no venue carries both a listed price and a dated archive row, and the
@@ -107,13 +107,8 @@ export function buildLandingPubCard(
   const arc = venuePriceArc(history.get(chosen.id) ?? [], chosen.cheapestPrice, now);
   if (!arc || arc.nowGbp === null || arc.deltaGbp === null) return null;
 
-  const publisher = publisherFor(chosen);
-  const { standing } = priceStandingFor(
-    {
-      listed: publisher
-        ? { priceGbp: arc.nowGbp, sourceUrl: publisher.url, observedAt: `${opts.collectedOn}T12:00:00.000Z` }
-        : null,
-    },
+  const { publisher, standing } = answerEvidenceFor(
+    { priceGbp: arc.nowGbp, prices: chosen.prices, collectedOn: opts.collectedOn },
     now,
   );
 
@@ -139,4 +134,63 @@ export function buildLandingPubCard(
 function spanYears(rows: PriceHistoryObservation[] | undefined, venue: Venue, now: number): number {
   const arc = venuePriceArc(rows ?? [], venue.cheapestPrice, now);
   return arc ? arc.years : -1;
+}
+
+// ── The hero (issue #1357): the archive index and the anchor rail ────────────
+// Built at prerender beside the card, from the same two reads. The archive
+// index is the whole "then" lane the browser may ever print: one dated row per
+// priced pub, keyed by venue id, so a near-you answer can carry its then line
+// without the browser importing the history lane.
+
+export function buildLandingArchiveIndex(
+  venues: readonly Venue[],
+  rawHistory: unknown,
+  now: number = Date.now(),
+): LandingArchiveIndex {
+  const history = groupPriceHistoryByVenue(parsePriceHistory(rawHistory, now));
+  const index: LandingArchiveIndex = {};
+  for (const venue of venues) {
+    if (typeof venue.cheapestPrice !== "number" || venue.cheapestPrice <= 0) continue;
+    const arc = venuePriceArc(history.get(venue.id) ?? [], venue.cheapestPrice, now);
+    if (!arc) continue;
+    index[venue.id] = {
+      priceGbp: arc.then.priceGbp,
+      observedOn: arc.then.observedOn,
+      observedMonth: formatObservedMonth(arc.then.observedOn),
+      observedDay: formatObservedDay(arc.then.observedOn),
+      years: arc.years,
+      source: { label: arc.then.source.label, url: arc.then.source.url },
+    };
+  }
+  return index;
+}
+
+/**
+ * The rows under the anchor card when the browser has no fix: the cheapest
+ * listed pints in the anchor's own borough, cheapest first, the anchor itself
+ * left out. An empty answer hides the rail rather than padding it.
+ */
+export function buildLandingAnchorRail(
+  venues: readonly Venue[],
+  anchor: { id: string; area: string },
+  archive: LandingArchiveIndex,
+): LandingRailRow[] {
+  return venues
+    .filter(
+      (venue) =>
+        venue.id !== anchor.id &&
+        isPubVenueKind(venue.kind) &&
+        venue.primaryBorough === anchor.area &&
+        typeof venue.cheapestPrice === "number" &&
+        venue.cheapestPrice > 0,
+    )
+    .sort((a, b) => (a.cheapestPrice as number) - (b.cheapestPrice as number) || a.name.localeCompare(b.name))
+    .slice(0, HERO_RAIL_SIZE)
+    .map((venue) => ({
+      id: venue.id,
+      name: venue.name,
+      area: venue.primaryBorough,
+      priceGbp: venue.cheapestPrice as number,
+      hasThen: venue.id in archive,
+    }));
 }

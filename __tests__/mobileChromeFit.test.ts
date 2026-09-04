@@ -378,16 +378,13 @@ describe("mobile chrome fit at 390px", () => {
     );
   });
 
-  it("stacks the landing hero readout without the side-by-side divider indent", () => {
-    // In a column the left rule + 20px pad stepped each stat further right, so
-    // three honest counts read as a broken staircase.
-    const stacked = landingCss.match(
-      /@media \(max-width: 700px\)[\s\S]*?\.lpReadoutStat \+ \.lpReadoutStat\s*{([^}]*)}/,
-    )?.[1];
-    expect(stacked, "phone override for the stacked readout").toBeTruthy();
-    expect(stacked).toMatch(/border-left:\s*0/);
-    expect(stacked).toMatch(/padding-left:\s*0/);
-    expect(stacked).toMatch(/border-top:\s*1px solid/);
+  it("keeps the landing's phone tap inside the first screen: the head gives up one size step", () => {
+    // The answer sits between the heading and the tap (#1357), so on a phone
+    // the heading drops a step and the card its outer padding; the rendered
+    // fold is measured in e2e/landing-find-my-pint.spec.ts.
+    const phone = landingCss.match(/@media \(max-width: 700px\) {[\s\S]*?\.lpHero \.screenTitle\s*{([^}]*)}/)?.[1] ?? "";
+    expect(phone, "phone override for the hero heading").toMatch(/font-size:\s*clamp\(2\.125rem/);
+    expect(landingCss).toMatch(/@media \(max-width: 700px\) {[\s\S]*?\.lpHero \.lpAnswerCard\s*{[^}]*padding:\s*var\(--space-4\)/);
   });
 });
 

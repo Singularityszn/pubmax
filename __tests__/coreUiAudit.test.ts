@@ -142,6 +142,8 @@ const vercelIgnore = readFileSync(join(root, ".vercelignore"), "utf8");
 
 describe("core UI audit fixes", () => {
   it("makes the price receipt door the landing hero's one primary action", () => {
+    // No card behind the document here, so the door is the plain receipt
+    // door; __tests__/landingFindMyPintHierarchy.test.ts pins the card case.
     const rendered = renderToStaticMarkup(createElement(LandingPage));
     const hero = rendered.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0];
     expect(hero, "landing hero present").toBeTruthy();

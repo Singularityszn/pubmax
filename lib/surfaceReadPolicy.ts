@@ -30,6 +30,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "components/coverage/UnsupportedAreaPreview.tsx", fetchCount: 1, reason: "coverage preview is an optional area-demand probe" },
   { path: "components/desktop/AreaNewsRail.tsx", fetchCount: 1, reason: "area news rail has a separate additive freshness contract" },
   { path: "components/feed/PresenceStrip.tsx", fetchCount: 1, reason: "Social presence is live and no-store" },
+  { path: "components/landing/LandingHero.tsx", fetchCount: 1, reason: "the near-you answer reads one venue detail after a location grant or tap; a per-tap evidence read, never a painted reload surface" },
   { path: "components/landing/PintDropStrip.tsx", fetchCount: 1, reason: "landing contribution strip has anonymous demo fallback semantics" },
   { path: "components/map/ActiveRoundChip.tsx", fetchCount: 1, reason: "active round is a live plan interaction" },
   { path: "components/map/CityPlaceStrip.tsx", fetchCount: 2, reason: "map place search and enrichment are interactive map reads" },

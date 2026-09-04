@@ -24,6 +24,7 @@ export default function Screen({
   kicker,
   title,
   lede,
+  answer,
   primary,
   secondary,
   children,
@@ -37,6 +38,11 @@ export default function Screen({
   title: ReactNode;
   /** One line under the heading, or nothing. */
   lede?: ReactNode;
+  /**
+   * The answer the actions act on, between the heading and the actions, so a
+   * phone reads the pub before it reads "Still £6.50?". Hero prototype #1357.
+   */
+  answer?: ReactNode;
   /** Exactly one link or button. The Screen paints it as the filled primary. */
   primary: ReactElement;
   /** At most one quieter way onward. */
@@ -59,6 +65,7 @@ export default function Screen({
           {title}
         </Heading>
         {lede ? <p className="screenLede">{lede}</p> : null}
+        {answer ? <div className="screenAnswer">{answer}</div> : null}
         <div className="screenActions">
           <div className="screenPrimary" data-primary-action="">
             {primary}

@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
+
 const CONSENT_KEY = "pubmaxx:analytics-consent:v1";
 const VIEWPORT = { width: 390, height: 844 };
 // Every phone width this repo sweeps. The text column is the viewport minus the
@@ -104,13 +106,13 @@ test("mobile consent never covers the landing CTA, before or after dismiss", asy
   expect(fit.boxHeight).toBeLessThanOrEqual(120);
   expect(fit.scrollHeight).toBeLessThanOrEqual(120);
 
-  const planTonight = page.locator(".lpHero .screenActions").getByRole("link", { name: "Log what you paid" });
+  const planTonight = page.locator(".lpHero .screenActions").getByRole("link", { name: LANDING_PRIMARY_NAME });
   await expect(planTonight).toBeVisible();
 
   // Landing mounts the same phone tab bar as every other route, so the consent
-  // card sits above the bar rather than on the safe-area floor. Log what you
-  // paid is the ONE primary action on this page, and it is checked while
-  // the banner is still up.
+  // card sits above the bar rather than on the safe-area floor. The receipt
+  // door is the ONE primary action on this page, and it is checked while the
+  // banner is still up.
   const coveredBox = await planTonight.boundingBox();
   expect(coveredBox).not.toBeNull();
   expect(await pointOwner(page, coveredBox!, ".lpHero .screenActions")).toBe("control");

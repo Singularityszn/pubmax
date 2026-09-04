@@ -14,7 +14,7 @@ const landingSource = readFileSync(
   "utf8",
 );
 const cardSource = readFileSync(
-  join(process.cwd(), "components/landing/LandingPubCard.tsx"),
+  join(process.cwd(), "components/landing/LandingHero.tsx"),
   "utf8",
 );
 
@@ -53,7 +53,6 @@ describe("landing price honesty", () => {
     expect(copy).toContain("When no publisher is recorded, the price says so.");
     expect(lower).toContain("the ones drinkers log come with the day they were seen");
     expect(copy.match(/we name and link it/g)).toHaveLength(1);
-    expect(copy).toContain('label: "prices on record"');
   });
 
   it("keeps the why beat as one column of plain words", () => {
@@ -79,6 +78,8 @@ describe("landing price honesty", () => {
     expect(cardSource).not.toMatch(/£\d/);
     expect(cardSource).toContain("No publisher recorded");
     expect(cardSource).toMatch(/Listed by/);
-    expect(cardSource).not.toMatch(/cheapestPrice|priceBand|latestDemoPrice/);
+    // A near-you answer reads the slim index's listed cheapest figure, the
+    // same one /near prints; a band or a demo seed may never reach the card.
+    expect(cardSource).not.toMatch(/priceBand|latestDemoPrice|data-band/);
   });
 });

@@ -3,7 +3,6 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Building2, MapPin, Receipt } from "lucide-react";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
 import SignInButton from "@/components/auth/SignInButton";
@@ -13,12 +12,11 @@ import MessagesLink from "@/components/nav/MessagesLink";
 import NotificationBell from "@/components/nav/NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
 import Kicker from "@/components/ui/kicker";
-import Screen from "@/components/ui/screen";
 // Shared nav atoms (bell/messages island) carry their styling in siteNav.css.
 // The landing bar isn't the SiteNav component, but it flies the same wordmark
 // and action cluster, so it pulls in those shared styles directly.
 import "@/components/nav/siteNav.css";
-import type { AboutStats } from "@/lib/aboutStats";
+import type { LandingArchiveIndex, LandingRailRow } from "@/lib/landingHero";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
 import {
   preferredCityMapHref,
@@ -31,7 +29,7 @@ import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 import { socialSurfaceName } from "@/lib/socialLaunch";
 
-import LandingPubCard from "./LandingPubCard";
+import LandingHero from "./LandingHero";
 import PintDropStripLoading from "./PintDropStripLoading";
 import "./landing.css";
 
@@ -44,49 +42,19 @@ const PintDropStrip = dynamic(() => import("./PintDropStrip"), {
   loading: PintDropStripLoading,
 });
 
-/** The price receipt door: log what you paid, and the map restamps. */
-export const LANDING_PRIMARY_HREF = "/near?locate=1";
-export const LANDING_PRIMARY_LABEL = "Log what you paid";
-
-// Locale integer with grouping (2800 -> "2,800"). British thousands separators
-// match the receipt-numeral voice used everywhere prices are shown.
-function fmtInt(n: number): string {
-  return n.toLocaleString("en-GB");
-}
-
-// The honest, build-time coverage stats as the hero's proof row. Only counts
-// that survived the real dataset (> 0) become figures; a missing or zeroed
-// figure is dropped rather than shown as a hollow "0 pubs". Every number here
-// is derived in lib/aboutStats; nothing is typed in.
-function heroReadout(
-  stats: AboutStats | undefined,
-): Array<{ icon: typeof MapPin; value: string; label: string }> {
-  if (!stats) return [];
-  const chips: Array<{ icon: typeof MapPin; value: string; label: string }> = [];
-  if (stats.pubsTracked > 0) {
-    chips.push({ icon: MapPin, value: fmtInt(stats.pubsTracked), label: "pubs tracked" });
-  }
-  if (stats.pintPricesObserved > 0) {
-    // The CURATED index's priced rows. Some legacy rows do not name a
-    // publisher, and only community and first-party update rows carry a
-    // genuine per-row date.
-    chips.push({ icon: Receipt, value: fmtInt(stats.pintPricesObserved), label: "prices on record" });
-  }
-  if (stats.boroughsCovered > 0) {
-    chips.push({ icon: Building2, value: fmtInt(stats.boroughsCovered), label: "London boroughs" });
-  }
-  return chips;
-}
-
 export default function LandingPage({
-  stats,
   card = null,
+  archive = {},
+  rail = [],
   // Server-threaded friends-launch flag. Explicit 0 is the rollback state.
   socialFriendsLaunchEnabled = true,
 }: {
-  stats?: AboutStats;
   /** The one real pub above the fold, or null when the data cannot back one. */
   card?: LandingPubCardData | null;
+  /** The archive's then rows, keyed by venue id, built beside the card. */
+  archive?: LandingArchiveIndex;
+  /** The three next-cheapest rows under the anchor. */
+  rail?: LandingRailRow[];
   socialFriendsLaunchEnabled?: boolean;
 }) {
   const router = useRouter();
@@ -107,7 +75,6 @@ export default function LandingPage({
       }
     : {};
 
-  const readout = heroReadout(stats);
   const socialLabel = socialSurfaceName(socialFriendsLaunchEnabled);
 
   useEffect(() => {
@@ -144,47 +111,12 @@ export default function LandingPage({
       </header>
 
       <main id="main">
-        {/* The whole first screen, at every width: brand kicker, the claim, one
-            primary action (the price receipt door), the Pal as the quiet second
-            door, then one real pub that proves the claim, then the counts. The
-            DOM order is the phone order; the desktop only sets the pub card
-            beside the copy. */}
-        <Screen
-          className="lpHero"
-          kicker="PUBMAXX"
-          title="What a pint costs, pub by pub."
-          titleId="hero-title"
-          primary={
-            <Link
-              prefetch={false}
-              href={LANDING_PRIMARY_HREF}
-              onClick={() => trackLandingCta("receipt")}
-            >
-              {LANDING_PRIMARY_LABEL}
-            </Link>
-          }
-          secondary={
-            <Link prefetch={false} href="/pal" onClick={() => trackLandingCta("pal")}>
-              Meet your Pub Pal
-            </Link>
-          }
-        >
-          <div className="lpHeroProof">
-            {card ? <LandingPubCard card={card} /> : null}
-            {readout.length > 0 ? (
-              <dl className="lpLiveReadout" aria-label="What PUBMAXX tracks right now">
-                {readout.map(({ icon: Icon, value, label }) => (
-                  <div className="lpReadoutStat" key={label}>
-                    <dt>
-                      <Icon size={15} aria-hidden="true" /> {label}
-                    </dt>
-                    <dd>{value}</dd>
-                  </div>
-                ))}
-              </dl>
-            ) : null}
-          </div>
-        </Screen>
+        {/* The whole first screen, at every width: brand kicker, the claim, the
+            answer (one real pub), one primary action (Still £X?, the Pint Drop
+            door for that pub), the Pal as the quiet second door, then three
+            next-cheapest rows. The DOM order is the phone order; the desktop
+            only seats the answer and the rows beside the copy. */}
+        <LandingHero card={card} archive={archive} rail={rail} />
 
         <section className="lpWhy" id="why" aria-labelledby="why-title">
           <Kicker>Why PUBMAXX</Kicker>

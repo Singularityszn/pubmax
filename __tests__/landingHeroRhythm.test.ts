@@ -26,9 +26,10 @@ import LandingPage from "@/components/landing/LandingPage";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
 
 // The hero's rhythm is the Screen primitive's order and nothing else: kicker,
-// heading, the one primary, the second door, then the proof (the pub card and
-// the counts). That order is the DOM order, so it is the phone order, and the
-// desktop grid may only set the proof beside the copy, never reorder it.
+// heading, the answer (the one real pub), the one primary that acts on it,
+// the second door, then the three next-cheapest rows. That order is the DOM
+// order, so it is the phone order, and the desktop grid may only seat the
+// answer and the rows beside the copy, never reorder them.
 
 const card: LandingPubCardData = {
   id: "venue-test",
@@ -60,27 +61,32 @@ describe("landing hero rhythm", () => {
   const html = renderToStaticMarkup(
     createElement(LandingPage, {
       card,
-      stats: {
-        pubsTracked: 953,
-        pintPricesObserved: 2788,
-        boroughsCovered: 33,
-        cheapestPint: 2.89,
-        dearestPint: 8,
-        averagePint: 5.5,
-        historicPubsCited: 0,
-        citiesCovered: 10,
+      archive: {
+        "venue-test": {
+          priceGbp: 3.6,
+          observedOn: "2013-07-14",
+          observedMonth: "July 2013",
+          observedDay: "14 July 2013",
+          years: 13,
+          source: { label: "beerintheevening.com", url: "https://www.beerintheevening.com/pubs/x" },
+        },
       },
+      rail: [
+        { id: "venue-1", name: "The Crosse Keys", area: "City of London", priceGbp: 2.99, hasThen: false },
+        { id: "venue-2", name: "The Liberty Bounds", area: "City of London", priceGbp: 2.99, hasThen: false },
+        { id: "venue-3", name: "The Sir John Hawkshaw", area: "City of London", priceGbp: 3.49, hasThen: false },
+      ],
     }),
   );
 
-  it("reads kicker, heading, primary, second door, pub card, counts, in that order", () => {
+  it("reads kicker, heading, pub card, primary, second door, rail, in that order", () => {
     const order = positions(html, [
       '<p class="kicker">PUBMAXX</p>',
       '<h1 class="screenTitle" id="hero-title">What a pint costs, pub by pub.</h1>',
+      'class="lpPubCard lpAnswerCard"',
       'data-primary-action=""',
       'class="screenSecondary"',
-      'class="lpPubCard"',
-      'class="lpLiveReadout"',
+      'class="lpRail"',
     ]);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
@@ -91,10 +97,17 @@ describe("landing hero rhythm", () => {
     expect(hero.match(/<p class="kicker">/g)).toHaveLength(1);
   });
 
-  it("renders no card and no counts when the data cannot back them", () => {
+  it("prints every rail row as its own Pint Drop door, with a price stamp and no borough the heading already names", () => {
+    expect(html).toMatch(/<h2 class="lpRailTitle" id="lp-rail-title">Cheapest listed in City of London<\/h2>/);
+    expect(html.match(/class="lpRailRow"/g)).toHaveLength(3);
+    expect(html).toContain('href="/map?sel=venue-1&amp;log=1"');
+    expect(html).not.toMatch(/lpRailMeta">City of London/);
+  });
+
+  it("renders no card and no rail when the data cannot back them", () => {
     const bare = renderToStaticMarkup(createElement(LandingPage));
     expect(bare).not.toContain("lpPubCard");
-    expect(bare).not.toContain("lpLiveReadout");
+    expect(bare).not.toContain("lpRail");
     expect(bare).toContain('<h1 class="screenTitle" id="hero-title">What a pint costs, pub by pub.</h1>');
   });
 });

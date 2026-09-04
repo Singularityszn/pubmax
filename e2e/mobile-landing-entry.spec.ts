@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
+
 const MOBILE = { width: 390, height: 844 };
 
 function pageErrors(page: Page): string[] {
@@ -79,14 +81,14 @@ test.describe("mobile landing entry", () => {
     // to the answer.
     await page
       .locator(".lpHero [data-primary-action]")
-      .getByRole("link", { name: "Log what you paid", exact: true })
+      .getByRole("link", { name: LANDING_PRIMARY_NAME })
       .click();
 
-    await expect(page).toHaveURL(/\/near\?locate=1$/);
+    // The door is the pub's own: the map, that pub selected, the composer open.
+    await expect(page).toHaveURL(/\/map\?sel=[^&]+&log=1$/);
     await expect(
-      page.getByRole("heading", { name: "Cheapest listed near you", exact: true }),
-    ).toBeVisible();
-    await expect(page.locator(".nmnCard")).toHaveCount(5);
+      page.getByText("Set the price now. Sign in to post it under your name."),
+    ).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
     await expect(page.locator(".mobileTabBar")).toBeVisible();
   });
@@ -165,7 +167,7 @@ test.describe("mobile landing entry", () => {
     await expectAppTabClearance(page, "root landing");
     await expectWordmarkLettersOnOneLine(page, "root landing wordmark");
 
-    const planTonight = page.locator(".lpHero").getByRole("link", { name: "Log what you paid" });
+    const planTonight = page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME });
     await expectTappable(
       planTonight,
       "hero Log what you paid CTA",
@@ -198,7 +200,7 @@ test.describe("mobile landing entry", () => {
       await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
       await expectAppTabClearance(page, `root landing at ${width}px`);
       await expectWordmarkLettersOnOneLine(page, `root landing wordmark at ${width}px`);
-      const planTonight = page.locator(".lpHero").getByRole("link", { name: "Log what you paid" });
+      const planTonight = page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME });
       await expectTappable(
         planTonight,
         `hero Log what you paid CTA at ${width}px`,
@@ -220,7 +222,7 @@ test.describe("mobile landing entry", () => {
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
     await expectAppTabClearance(page, "dark root landing");
     await expectWordmarkLettersOnOneLine(page, "dark root landing wordmark");
-    const planTonight = page.locator(".lpHero").getByRole("link", { name: "Log what you paid" });
+    const planTonight = page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME });
     await expectTappable(
       planTonight,
       "dark hero Log what you paid CTA",
@@ -236,9 +238,9 @@ test.describe("mobile landing entry", () => {
   test("routes the primary, the second door and the map link where they say", async ({ page }) => {
     await page.goto("/");
 
-    await page.locator(".lpHero").getByRole("link", { name: "Log what you paid" }).click();
-    // No geolocation grant here, so Near lands honestly on the central patch.
-    await expect(page).toHaveURL(/\/near\?locate=1(?:&|$)/);
+    await page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME }).click();
+    // The pub's own Pint Drop door: the map with that pub selected.
+    await expect(page).toHaveURL(/\/map\?sel=[^&]+&log=1$/);
     await page.goto("/");
 
     await page.locator(".lpHero").getByRole("link", { name: "Meet your Pub Pal" }).click();
@@ -276,7 +278,7 @@ test("keeps desktop root free of mobile navigation", async ({ page }) => {
 
   await expect(page.locator(".mobileTabBar")).toBeHidden();
   await expectTappable(
-    page.locator(".lpHero").getByRole("link", { name: "Log what you paid" }),
+    page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME }),
     "desktop hero Log what you paid CTA",
   );
   await expectNoHorizontalOverflow(page, 1440);

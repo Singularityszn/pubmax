@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
+
 const DEVICES = [
   { width: 390, height: 844 },
   { width: 430, height: 932 },
@@ -29,7 +31,7 @@ for (const viewport of DEVICES) {
 
       const heroActions = page.locator(".lpHero .screenActions a");
       await expect(heroActions).toHaveCount(2);
-      await expect(page.getByRole("link", { name: "Log what you paid" }).first()).toBeVisible();
+      await expect(page.getByRole("link", { name: LANDING_PRIMARY_NAME }).first()).toBeVisible();
 
       const actionGeometry = await heroActions.evaluateAll((elements) =>
         elements.map((element) => {
