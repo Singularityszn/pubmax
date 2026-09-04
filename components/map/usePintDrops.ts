@@ -50,7 +50,7 @@ import {
 } from "@/lib/spill";
 import type { LastPintDecision } from "@/lib/tfl";
 import { venueMapUrl } from "@/lib/venueMapUrl";
-import { corroboratedPriceDrop, provisionalPriceDrop } from "@/lib/venues";
+import { authoritativePriceDrop, provisionalPriceDrop } from "@/lib/venues";
 
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base
 // shape, so we augment it here at the client boundary rather than editing lib/*.
@@ -717,11 +717,17 @@ export function usePintDrops(
       // Demo seeds never feed the "latest contributor price" signal — a seeded
       // price must not read as a community log. And a lone organic drop never
       // feeds it either: AGENTS.md pin law, "an uncorroborated report cannot
-      // reach either lane" (band or printed figure). corroboratedPriceDrop
-      // (lib/venues.ts) is the drop lane's trust gate — same predicates as
-      // community submissions. The ungated drop still shows on the venue sheet
-      // (dropsByVenueId) and earns the provisional mark through its own seam.
-      const latestContributorDrop = corroboratedPriceDrop(venueDrops);
+      // reach either lane" (band or printed figure). The ungated drop still
+      // shows on the venue sheet (dropsByVenueId) and earns the provisional
+      // mark through its own seam.
+      //
+      // `authoritativePriceDrop` (lib/venues.ts) is the ONE reading of what has
+      // earned the map: the server's minted confirmation first, then the
+      // corroboration this browser can still prove from the keys it was given.
+      // The confirmation has to come first because the browser is not shown an
+      // anonymous drop's authority key (#1440), so the client re-derivation
+      // alone left the pin greyer than the venue sheet over the same pub.
+      const latestContributorDrop = authoritativePriceDrop(venueDrops);
       const latestContributorPrice = latestContributorDrop?.priceGbp ?? null;
       const createdAtMs = latestContributorDrop
         ? Date.parse(latestContributorDrop.createdAt)

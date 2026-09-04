@@ -20,6 +20,10 @@ import {
   parseDrinkSubtypeParam,
 } from "@/lib/drinkSubtypes";
 import type { FoodCategory } from "@/lib/food";
+import {
+  confirmationIsLive,
+  type PintDropConfirmation,
+} from "@/lib/pintDropConfirmationRecord";
 import { hasNonAlcoholic } from "@/lib/nonAlcoholicDrinks";
 import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
 import {
@@ -480,7 +484,17 @@ export type SummaryDrop = {
   // Stable, server-derived, per-venue authority key for a verified PUBMAXX User
   // ID. Missing keys are provisional observations: visible on the venue sheet
   // and eligible for the provisional pin mark, but never price authority.
+  //
+  // A key is not published on an ANONYMOUS drop, because it is a per-venue
+  // pseudonym and the same account's public drop at that pub carries the same
+  // key beside its real handle (#1440). So a browser cannot always re-derive
+  // the corroboration the server saw - which is why `confirmation` below, not
+  // this key, is the first thing the price-authority lane reads.
   authorityKey?: string;
+  // The confirmation the SERVER minted over this drop, or absent. Read, never
+  // re-derived: lib/pintDropConfirm.server.ts is the one writer and it works
+  // over the stored rows, where every authority key is present.
+  confirmation?: PintDropConfirmation | null;
 };
 
 // Honesty note the venue detail can render alongside a community-updated price,
@@ -589,6 +603,55 @@ export function corroboratedPriceDrop<D extends SummaryDrop>(
   return bestBackers >= COMMUNITY_PRICE_CORROBORATION_THRESHOLD ? best : null;
 }
 
+// The priced drop the SERVER confirmed, or null.
+//
+// A confirmation is a stored record (`lib/pintDropConfirm.server.ts` is its one
+// writer), so this is a READ. That matters because the two questions had grown
+// two answers: the server mints a confirmation over rows where every authority
+// key is present, while the browser only ever sees the keys the public DTO
+// publishes, and an anonymous drop publishes none (#1440). The pin was then
+// more conservative than the venue sheet - safe, but two readings of one fact.
+//
+// The window is the confirmation's own (lib/priceTier.ts, through
+// confirmationIsLive): a confirmation is never deleted for being old, it simply
+// stops answering, and the pub falls through to a weaker standing.
+//
+// Ties keep the earlier (newest-first) drop, matching the store's ordering.
+export function confirmedPriceDrop<D extends SummaryDrop>(
+  drops: readonly D[],
+  now: number = Date.now(),
+): D | null {
+  let best: D | null = null;
+  let bestAt = Number.NEGATIVE_INFINITY;
+  for (const drop of drops) {
+    if (drop.provenance === "demo") continue;
+    if (typeof drop.priceGbp !== "number" || !Number.isFinite(drop.priceGbp)) continue;
+    if (!confirmationIsLive(drop.confirmation, now)) continue;
+    const at = Date.parse((drop.confirmation as PintDropConfirmation).confirmedAt);
+    if (!Number.isFinite(at) || at <= bestAt) continue;
+    best = drop;
+    bestAt = at;
+  }
+  return best;
+}
+
+// THE ONE READING of what a venue's Pint Drop lane may claim: the drop a server
+// confirmation stands over, else the drop this browser can still prove
+// corroborated from the keys it was given.
+//
+// The client re-derivation is KEPT, as a fallback and not as a second
+// authority. It is what dates every drop written before confirmations existed
+// (migration 0140) and every pair the create-path pass has not yet run over, so
+// removing it would un-paint pins that are correctly painted today. It can only
+// ever ADD a pub the confirmation lane is silent about; it can never overturn
+// one, because it is asked second.
+export function authoritativePriceDrop<D extends SummaryDrop>(
+  drops: readonly D[],
+  now: number = Date.now(),
+): D | null {
+  return confirmedPriceDrop(drops, now) ?? corroboratedPriceDrop(drops, now);
+}
+
 // The in-window pint report a venue holds that has NOT earned the map, or null.
 //
 // The corroboration gate above is unchanged and stays the ONLY door onto pin
@@ -609,8 +672,10 @@ export function provisionalPriceDrop<D extends SummaryDrop>(
   drops: readonly D[],
   now: number = Date.now(),
 ): D | null {
-  // A corroborated lane is painting already — nothing here is provisional.
-  if (corroboratedPriceDrop(drops, now)) return null;
+  // An authoritative lane is painting already — nothing here is provisional.
+  // Asked through authoritativePriceDrop so a server-confirmed pub can never
+  // offer a sheet a green standing AND a provisional figure for one pint.
+  if (authoritativePriceDrop(drops, now)) return null;
   let best: D | null = null;
   let bestAt = Number.NEGATIVE_INFINITY;
   for (const drop of drops) {
@@ -648,8 +713,10 @@ export function provisionalPintDropVenueIds<D extends SummaryDrop>(
 // Fold Pint Drops into the venue's DERIVED SUMMARY SIGNALS only — never into
 // the editorial curation note. Rules:
 // - an organic contributor price can update cheapestPrice/cheapestPint, but
-//   ONLY once corroborated (corroboratedPriceDrop above) — a lone drop stays
-//   on the venue sheet, dated, and never moves the map's price surfaces;
+//   ONLY once it has earned the map (authoritativePriceDrop above: a server
+//   confirmation, else a corroboration this browser can still prove) — a lone
+//   drop stays on the venue sheet, dated, and never moves the map's price
+//   surfaces;
 // - hasStory lights ONLY from a drop carrying a passed-down note — a bare
 //   price log is not a story and must not boost heritage scoring;
 // - "demo" seeds are display-only: they never move prices or story signals,
@@ -666,7 +733,7 @@ export function mergeVenueDrops<D extends SummaryDrop>(
     );
     if (organic.length === 0) return venue;
 
-    const latestPriceDrop = corroboratedPriceDrop(organic, now);
+    const latestPriceDrop = authoritativePriceDrop(organic, now);
     const contributorPrice = latestPriceDrop?.priceGbp ?? null;
     const cheapestPrice =
       contributorPrice === null

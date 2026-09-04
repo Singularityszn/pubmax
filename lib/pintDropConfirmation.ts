@@ -9,9 +9,15 @@
 // producer's policy half; the write lives in `lib/pintDropConfirm.server.ts`.
 //
 // ONE definition of a second independent reporter, never two. The finder below
-// is built on `corroboratedPriceDrop` (`lib/venues.ts`), the same predicate the
-// map already paints a pin with, so a pill can never read Confirmed over a pin
-// the map refuses to colour, and a change to the tolerance moves both together.
+// is built on `corroboratedPriceDrop` (`lib/venues.ts`), and it runs SERVER-SIDE
+// over stored rows, where every authority key is present.
+//
+// The reading half is one call too: `authoritativePriceDrop` (`lib/venues.ts`)
+// asks THIS confirmation first and only then falls back to a corroboration the
+// browser can still prove, so a pill can never read Confirmed over a pin the
+// map refuses to colour. It used to be able to: a browser sees no authority key
+// on an anonymous drop (#1440), so the client re-derivation went quiet over a
+// pub the server had confirmed.
 //
 // Independence follows ADR 0010, read through the drop lane's own key. ADR
 // 0010's `submitterBucket` puts every unattributed Community Price row in ONE
@@ -24,43 +30,37 @@
 // nothing, which is exactly the rule this module has to keep.
 //
 // The WINDOW is not decided here either. `lib/priceTier.ts` is the one module
-// that says how long a confirmation stands, so this reads CONFIRMED_MAX_AGE_DAYS
-// off it rather than restating 30 days a third time. What this module produces
-// is the `ConfirmedPriceInput` that decider takes.
+// that says how long a confirmation stands. What this module produces is the
+// `ConfirmedPriceInput` that decider takes.
+//
+// The RECORD itself - what a confirmation is, and `confirmationIsLive` - lives
+// in the leaf `lib/pintDropConfirmationRecord.ts`, so `lib/venues.ts` can read
+// a confirmation in its price-authority lane without an import cycle. This
+// module re-exports every one of those names, so it stays the one a reader
+// reaches for and no importer had to move.
 
 import type { Provenance } from "@/lib/curation";
 import { agreesWithinTolerance, isWithinMaxAge } from "@/lib/communityPrice";
-import { DAY_MS } from "@/lib/dayMs";
-import { CONFIRMED_MAX_AGE_DAYS, type ConfirmedPriceInput } from "@/lib/priceTier";
-import { corroboratedPriceDrop, type SummaryDrop } from "@/lib/venues";
+import {
+  confirmationIsLive,
+  type PintDropConfirmation,
+} from "@/lib/pintDropConfirmationRecord";
+import { type ConfirmedPriceInput } from "@/lib/priceTier";
+import {
+  confirmedPriceDrop,
+  corroboratedPriceDrop,
+  type SummaryDrop,
+} from "@/lib/venues";
 
-/** How a confirmation came about. Closed: nothing else may mint one. */
-export const PINT_DROP_CONFIRMATION_BASES = ["second_reporter", "moderator"] as const;
-export type PintDropConfirmationBasis = (typeof PINT_DROP_CONFIRMATION_BASES)[number];
-
-const BASIS_SET: ReadonlySet<string> = new Set(PINT_DROP_CONFIRMATION_BASES);
-
-export function isPintDropConfirmationBasis(
-  value: unknown,
-): value is PintDropConfirmationBasis {
-  return typeof value === "string" && BASIS_SET.has(value);
-}
-
-/**
- * The minted record. `confirmationId` is the handle the Pint Index cites, so it
- * is stored rather than derived: a citation nobody can look up is not evidence.
- */
-export type PintDropConfirmation = {
-  confirmationId: string;
-  /** ISO instant the confirmation was minted (server clock, never a client's). */
-  confirmedAt: string;
-  basis: PintDropConfirmationBasis;
-  /**
-   * The peer drop that agreed. Present on `second_reporter` only - a moderator
-   * confirmation is one person's decision and names no second reporter.
-   */
-  confirmingDropId?: string;
-};
+export {
+  confirmationIsLive,
+  isPintDropConfirmationBasis,
+  PINT_DROP_CONFIRMATION_BASES,
+} from "@/lib/pintDropConfirmationRecord";
+export type {
+  PintDropConfirmation,
+  PintDropConfirmationBasis,
+} from "@/lib/pintDropConfirmationRecord";
 
 /** The minimum a row needs before this module can ask whether it is confirmed. */
 export type ConfirmableDrop = SummaryDrop & {
@@ -75,22 +75,6 @@ function isPricedObservation(drop: ConfirmableDrop): boolean {
     typeof drop.priceGbp === "number" &&
     Number.isFinite(drop.priceGbp)
   );
-}
-
-/**
- * Is this confirmation still inside the window that keeps a standing green?
- * The window belongs to lib/priceTier.ts; a confirmation dated in the future is
- * a bad row rather than a fresh one, exactly as that module reads it.
- */
-export function confirmationIsLive(
-  confirmation: PintDropConfirmation | null | undefined,
-  now: number = Date.now(),
-): boolean {
-  if (!confirmation) return false;
-  const at = Date.parse(confirmation.confirmedAt);
-  if (!Number.isFinite(at)) return false;
-  const ageDays = (now - at) / DAY_MS;
-  return ageDays >= 0 && ageDays <= CONFIRMED_MAX_AGE_DAYS;
 }
 
 /**
@@ -123,6 +107,10 @@ export function liveConfirmationFor(
  * once the confirmation ages out, so the pub falls through to whatever weaker
  * standing its own evidence supports rather than reading as an empty pub.
  *
+ * It is a PROJECTION of `confirmedPriceDrop` (`lib/venues.ts`) and finds
+ * nothing of its own, so the pub a standing calls Confirmed and the pub the map
+ * paints from a confirmation are one pub by construction.
+ *
  * Deliberately NOT a second decider: it reports evidence, and lib/priceTier.ts
  * decides what may be claimed from it.
  */
@@ -130,19 +118,11 @@ export function confirmedPriceInputFor(
   drops: readonly ConfirmableDrop[],
   now: number = Date.now(),
 ): ConfirmedPriceInput | null {
-  let best: { row: ConfirmableDrop; confirmedAtMs: number } | null = null;
-  for (const drop of drops) {
-    if (typeof drop.priceGbp !== "number" || !Number.isFinite(drop.priceGbp)) continue;
-    if (!confirmationIsLive(drop.confirmation, now)) continue;
-    const confirmedAtMs = Date.parse(
-      (drop.confirmation as PintDropConfirmation).confirmedAt,
-    );
-    if (!best || confirmedAtMs > best.confirmedAtMs) best = { row: drop, confirmedAtMs };
-  }
-  if (!best) return null;
+  const row = confirmedPriceDrop(drops, now);
+  if (!row) return null;
   return {
-    priceGbp: best.row.priceGbp as number,
-    observedAt: (best.row.confirmation as PintDropConfirmation).confirmedAt,
+    priceGbp: row.priceGbp as number,
+    observedAt: (row.confirmation as PintDropConfirmation).confirmedAt,
   };
 }
 
