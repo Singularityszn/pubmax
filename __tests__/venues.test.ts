@@ -8,6 +8,7 @@ import {
   crawlSummary,
   mergeVenueDrops,
   provisionalPintDropVenueIds,
+  provisionalPriceDrop,
   formatFreshness,
   formatObservedAt,
   stableVenueIdFromKey,
@@ -978,6 +979,59 @@ describe("mergeVenueDrops", () => {
 
     it("returns null for a single drop, however fresh", () => {
       expect(corroboratedPriceDrop([makeSummaryDrop({ priceGbp: 4.5 })], NOW)).toBeNull();
+    });
+  });
+
+  // The second, weaker read beside the corroboration gate (issue #1426). It is
+  // what lets a sheet show one drinker's figure; it never reaches a band, a
+  // bucket or a pin figure.
+  describe("provisionalPriceDrop", () => {
+    it("answers a lone in-window drop", () => {
+      const lone = makeSummaryDrop({ priceGbp: 4.5 });
+      expect(provisionalPriceDrop([lone], NOW)).toBe(lone);
+    });
+
+    it("does not need an authority key, which is what the production row lacked", () => {
+      const keyless = makeSummaryDrop({ priceGbp: 4.5, authorityKey: undefined });
+      expect(corroboratedPriceDrop([keyless], NOW)).toBeNull();
+      expect(provisionalPriceDrop([keyless], NOW)).toBe(keyless);
+    });
+
+    it("goes quiet the moment a corroborated figure exists", () => {
+      expect(provisionalPriceDrop(corroboratedPair(4.5), NOW)).toBeNull();
+    });
+
+    it("takes the freshest of several reports", () => {
+      const older = makeSummaryDrop({ priceGbp: 4.5, createdAt: "2026-05-30T10:00:00.000Z" });
+      const newer = makeSummaryDrop({ priceGbp: 5.2, createdAt: "2026-06-01T10:00:00.000Z" });
+      expect(provisionalPriceDrop([older, newer], NOW)?.priceGbp).toBe(5.2);
+    });
+
+    it("refuses demo seeds, note-only drops and aged-out reports", () => {
+      expect(
+        provisionalPriceDrop([makeSummaryDrop({ provenance: "demo", priceGbp: 4.5 })], NOW),
+      ).toBeNull();
+      expect(
+        provisionalPriceDrop([makeSummaryDrop({ passedDownNote: "Grandad's local." })], NOW),
+      ).toBeNull();
+      expect(
+        provisionalPriceDrop(
+          [makeSummaryDrop({ priceGbp: 4.5, createdAt: "2026-01-01T00:00:00.000Z" })],
+          NOW,
+        ),
+      ).toBeNull();
+    });
+
+    it("moves nothing in the venue projection, whatever it answers", () => {
+      const venue = plainVenue();
+      const [merged] = mergeVenueDrops(
+        [venue],
+        new Map([[venue.id, [makeSummaryDrop({ priceGbp: 4.5 })]]]),
+        NOW,
+      );
+      expect(merged.cheapestPrice).toBe(venue.cheapestPrice);
+      expect(merged.latestContributorPrice).toBeNull();
+      expect(merged.latestContributorAt).toBeNull();
     });
   });
 

@@ -9,14 +9,21 @@
 // thin presentational shell and the logic is unit-testable without a DOM.
 
 import type { Venue } from "@/lib/venues";
-import { venuePriceLane, venueSourcedPrice, type VenueBundlePrices } from "@/lib/venuePriceLane";
+import {
+  venuePriceLane,
+  venueSourcedPrice,
+  type ProvisionalPriceInput,
+  type VenueBundlePrices,
+} from "@/lib/venuePriceLane";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 
 /**
  * A venue is "unpriced" - and so a first-drop candidate - when the overview
  * price area has no lane to render: no live community contributor price, no
- * sourced first-party price, no listed bundle price, no baseline dataset price,
- * no modelled estimate and no anchor claim.
+ * sourced first-party price, no listed bundle price, no in-window pint report,
+ * no baseline dataset price, no modelled estimate and no anchor claim. One
+ * drinker's report is a price, so a pub holding one is never invited to log its
+ * first.
  *
  * The ordering itself lives in `lib/venuePriceLane.ts`, which the overview tab
  * renders from, so the gate cannot drift away from the branch it is meant to
@@ -28,9 +35,16 @@ export function isVenueUnpriced(
   venue: Venue,
   latestContributorPrice: number | null | undefined,
   bundle: VenueBundlePrices = {},
+  provisional?: ProvisionalPriceInput | null,
 ): boolean {
   return (
-    venuePriceLane(venue, latestContributorPrice, venueSourcedPrice(venue), bundle) === null
+    venuePriceLane(
+      venue,
+      latestContributorPrice,
+      venueSourcedPrice(venue),
+      bundle,
+      provisional,
+    ) === null
   );
 }
 

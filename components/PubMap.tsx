@@ -4801,6 +4801,16 @@ export default function PubMap({
           // The venue's own minted confirmation, unmerged like the drop price
           // beside it: the standing reports what a drinker confirmed HERE.
           confirmedPrice={dropSignals.get(selectedVenue.id)?.confirmedPrice}
+          provisionalPrice={
+            dropSignals.get(selectedVenue.id)?.provisionalContributorPrice != null
+              ? {
+                  priceGbp: dropSignals.get(selectedVenue.id)!
+                    .provisionalContributorPrice as number,
+                  observedAt:
+                    dropSignals.get(selectedVenue.id)?.provisionalContributorAt ?? null,
+                }
+              : null
+          }
           // Share copy prefers the MERGED map-authority figure (same seam as
           // pins), dated — never a sheet-only uncorroborated report.
           shareLoggedPintGbp={venueSignals.get(selectedVenue.id)?.latestContributorPrice}
