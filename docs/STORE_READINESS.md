@@ -534,10 +534,14 @@ Coral `#ff5a5f` on a white `#ffffff` tile measures ~3.7:1 contrast, comfortably 
 
 ---
 
-## Local verification (no Apple account)
+## Local verification (no store account)
 
-Everything in section 8 needs an account. This does not, and it is the check to
-run before touching any of it: it proves the shell compiles and boots.
+Everything in section 8 needs an account. Neither shell below does, and they are
+the check to run before touching any of it: they prove each shell compiles and
+boots. This section is deliberately unnumbered so section 8 keeps the number
+every other document cites it by.
+
+### iOS (no Apple account)
 
 ```sh
 npm ci
@@ -548,8 +552,7 @@ npm run ios:run       # the same build, then boot a simulator, install and launc
 Both are `scripts/ios-simulator.mjs`. `ios:run` picks the newest available
 iPhone simulator, or takes one by name (`PUBMAX_IOS_SIMULATOR="iPhone 17"`), and
 finishes by printing the `xcrun simctl io <udid> screenshot shot.png` line for
-the device it used. This section is deliberately unnumbered so section 8 keeps
-the number every other document cites it by.
+the device it used.
 
 *Done when:* `** BUILD SUCCEEDED **`, and the launched app lands on the native
 first-run onboarding, which only the shell shows. That screen is the proof the
@@ -564,6 +567,66 @@ however correct `App.entitlements` is), the camera sheet, and push delivery.
 
 Evidence from the runs that landed these scripts is in
 `docs/proof/ios-shell-build/`.
+
+### Android (no Play account)
+
+```sh
+npm ci
+npm run android:build   # cap sync android, then assembleDebug
+npm run android:run     # boot a headless emulator, install, launch, screenshot
+```
+
+`npm ci` stays a separate step because `android:build` runs FROM npm, so
+reinstalling would delete `node_modules` under the process running it. The APK
+lands at `android/app/build/outputs/apk/debug/app-debug.apk`.
+
+Both scripts resolve the toolchain themselves (`scripts/android/toolchain.mjs`)
+and refuse BY NAME when a piece is missing, rather than letting Gradle fail deep
+inside a task about a path:
+
+| Value | Default it looks for | Override |
+| --- | --- | --- |
+| `JAVA_HOME` | `/opt/homebrew/opt/openjdk@21`, either the `libexec/openjdk.jdk/Contents/Home` layout or whatever that keg's own `java` reports as `java.home` | export `JAVA_HOME` |
+| `ANDROID_HOME` | `/opt/homebrew/share/android-commandlinetools` | export `ANDROID_HOME` or `ANDROID_SDK_ROOT` |
+| AVD | `pubmaxx`, created from the system image matching `compileSdkVersion` in `android/variables.gradle` if it is not there | `PUBMAX_ANDROID_AVD` |
+
+JDK 21 is the floor, because Android Gradle Plugin 8.13 needs it. The SDK
+packages are the ones section 8 step 2 installs, plus the emulator and one
+system image:
+
+```sh
+sdkmanager --install "platform-tools" "emulator" \
+  "platforms;android-36" "build-tools;36.0.0" \
+  "system-images;android-36;google_apis;arm64-v8a"
+```
+
+*Done when:* `BUILD SUCCESSFUL`, and the launched app lands on a page of the
+live site. The shell is remote-URL mode, so a healthy first screen IS
+`https://pubmaxxing.com` rendered in the WebView rather than a bundled page;
+`native/web-stub/offline.html` is what appears instead when the main frame
+cannot reach production. `android:run` writes the shot to
+`android/build/emulator/first-screen.png`, and `--out <path>` moves it.
+
+Two lifecycle lines print on every build and both are true and expected on a
+machine with no owner secrets: `keystore.properties` is absent, so a release
+build would be unsigned, and `google-services.json` is absent, so push will not
+register. Neither stops a debug build, and section 8 fixes both.
+
+Two traps `android:run` already handles, both of them ways a screenshot can be
+filed as evidence about the app while showing something else. Under
+`swiftshader_indirect` SystemUI is slow enough to hit its own ANR, and that
+dialog takes the focused window over a perfectly healthy app, so the script
+waits for the window manager to name OUR activity and relaunches if something
+else holds the window. Holding the window is still not a settled screen: a shot
+taken ten seconds after focus caught white status-bar icons over the light page
+and read as a contrast bug, and the same device painted them correctly a minute
+later with nothing touched.
+
+Not provable on an emulator, and therefore device steps in section 8: push
+delivery, App Links verification, and the camera sheet.
+
+Evidence from the run that landed these scripts is in
+`docs/proof/android-shell-build/`.
 
 ---
 
@@ -960,86 +1023,3 @@ audience.
 ### Shared, not account-blocked
 
 - [x] **Publish a privacy policy page**. Done: `https://pubmaxxing.com/privacy` (and `/terms`) ship from `app/privacy` / `app/terms`, linked in the site footer. Use that URL in both listings.
-
----
-
-## 9. Local verification (Android)
-
-Section 8 is the owner's account work. This section is the part any machine can
-do today, with no Play account, no upload key and no Firebase project: build the
-Android shell and watch it run.
-
-Proved on 4 September 2026 from a clean `npm ci` on Apple silicon: `BUILD
-SUCCESSFUL in 29s`, then installed and launched on a headless API 36 emulator.
-The evidence shot is `docs/proof/android-emulator/`.
-
-### What the two commands expect
-
-Both scripts resolve the toolchain themselves (`scripts/android/toolchain.mjs`)
-and refuse BY NAME when a piece is missing, rather than letting Gradle fail
-deep inside a task about a path.
-
-| Value | Default it looks for | Override |
-| --- | --- | --- |
-| `JAVA_HOME` | `/opt/homebrew/opt/openjdk@21`, either the `libexec/openjdk.jdk/Contents/Home` layout or whatever that keg's own `java` reports as `java.home` | export `JAVA_HOME` |
-| `ANDROID_HOME` | `/opt/homebrew/share/android-commandlinetools` | export `ANDROID_HOME` or `ANDROID_SDK_ROOT` |
-| AVD name | `pubmaxx`, created from the system image matching `compileSdkVersion` in `android/variables.gradle` if it is not there | `PUBMAXX_AVD` |
-
-JDK 21 is the floor because Android Gradle Plugin 8.13 needs it. The SDK
-packages are the ones section 8 step 2 installs, plus the emulator and one
-system image:
-
-```
-sdkmanager --install "platform-tools" "emulator" \
-  "platforms;android-36" "build-tools;36.0.0" \
-  "system-images;android-36;google_apis;arm64-v8a"
-```
-
-### Build
-
-```
-npm ci
-npm run android:build
-```
-
-`npm ci` stays a separate step on purpose: `android:build` runs FROM npm, so
-reinstalling would delete `node_modules` under the process running it. The
-script then does `npx cap sync android` and `./gradlew assembleDebug --no-daemon`, and writes
-`android/app/build/outputs/apk/debug/app-debug.apk`.
-
-Two lifecycle lines print on every build and both are true and expected on a
-machine with no owner secrets: `keystore.properties` is absent, so a release
-build would be unsigned, and `google-services.json` is absent, so push will not
-register. Neither stops a debug build. Section 8 fixes both.
-
-### Run
-
-```
-npm run android:run
-```
-
-It creates the AVD if it is not there, boots it headless, installs the APK,
-launches it and captures the first screen to
-`android/build/emulator/first-screen.png` (`--out <path>` moves it). An
-emulator already running is reused rather than a second one booted.
-
-The shell is remote-URL mode, so a healthy first screen IS `https://pubmaxxing.com`
-rendered in the WebView, not a bundled page. `native/web-stub/offline.html` is
-what appears instead when the main frame cannot reach production.
-
-**Two traps this script already handles**, both of them ways a screenshot can
-be filed as evidence about the app while showing something else.
-
-Under `swiftshader_indirect` SystemUI is slow enough to hit its own ANR, and
-that dialog takes the focused window over a perfectly healthy app. So the
-script waits for the window manager to report OUR activity before it captures,
-and backgrounds and relaunches if something else holds the window.
-
-Holding the window is still not a settled screen, so it then waits again. The
-WebView is fetching production over the network, and SystemUI has not finished
-applying the status-bar icon appearance the SystemBars plugin asked for: a shot
-taken ten seconds after focus caught white status-bar icons over the light page
-and read as a contrast bug, and the same device painted them correctly a minute
-later with nothing touched.
-
-Stop the emulator with `adb -s emulator-5554 emu kill`.

@@ -32,7 +32,7 @@ const APPLICATION_ID = "com.pubmaxx.app";
 const LAUNCH_COMPONENT = `${APPLICATION_ID}/.MainActivity`;
 const FOCUSED_WINDOW_MARKER = `${APPLICATION_ID}/${APPLICATION_ID}.MainActivity`;
 
-const AVD_NAME = process.env.PUBMAXX_AVD ?? "pubmaxx";
+const AVD_NAME = process.env.PUBMAX_ANDROID_AVD ?? "pubmaxx";
 const BOOT_TIMEOUT_MS = 8 * 60 * 1000;
 const FOCUS_TIMEOUT_MS = 3 * 60 * 1000;
 const MAX_RELAUNCHES = 6;
