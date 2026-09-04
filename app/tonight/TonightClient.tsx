@@ -75,20 +75,17 @@ import {
 } from "@/lib/dealsHonesty";
 import { groupTonightListings } from "@/lib/tonightListGrouping";
 import {
-  mergeTonightListingRows,
   tonightAcceptedVenueId,
+  tonightLedeComposition,
   tonightListingLede,
-  tonightOutEventsForStatus,
   tonightListingLanes,
   tonightEmptyLead,
   tonightListingsNoteLine,
-  tonightListingsStatus,
   tonightNoteOffersRetry,
   tonightRetryLanes,
   tonightRowLinks,
   tonightProvenanceCredits,
 } from "@/lib/tonightOutListings";
-import { tonightPrimaryRows } from "@/lib/tonightPrimary";
 import type { QuietPintModule } from "@/lib/quietPint";
 import type { TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
 import { whatsOnBarePriceGbp, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
@@ -247,52 +244,8 @@ export default function TonightClient({
     // when one of the two reads answers, so both halves keep the same instant.
     // eslint-disable-next-line react-hooks/purity -- deliberate clock read
     const now = Date.now();
-    const eligibleOutEvents = tonightOutEventsForStatus(
-      status,
-      outBody?.events ?? [],
-      now,
-      selectableVenueIds,
-      true,
-    );
-    const primaryWhatsOnRows = tonightPrimaryRows(rows);
-    const primaryOutEvents = tonightPrimaryRows(outBody?.events ?? []);
-    const primaryOutAnswer = outBody
-      ? {
-          ...outAnswer,
-          body: {
-            ...outBody,
-            events: primaryOutEvents,
-          },
-        }
-      : outAnswer;
-    return {
-      listingRows: mergeTonightListingRows(
-        rows,
-        outBody?.events ?? [],
-        now,
-        status,
-        selectableVenueIds,
-        true,
-      ),
-      primaryListingRows: mergeTonightListingRows(
-        primaryWhatsOnRows,
-        primaryOutEvents,
-        now,
-        status,
-        selectableVenueIds,
-        true,
-      ),
-      listingsStatus: tonightListingsStatus(
-        status,
-        primaryOutAnswer,
-        now,
-        primaryWhatsOnRows,
-        selectableVenueIds,
-        true,
-      ),
-      outEvents: tonightPrimaryRows(eligibleOutEvents),
-    };
-  }, [rows, outBody, status, outAnswer, selectableVenueIds]);
+    return tonightLedeComposition(rows, outAnswer, status, now, selectableVenueIds);
+  }, [rows, status, outAnswer, selectableVenueIds]);
   const retryLanes = tonightRetryLanes(status, outAnswer);
   const retryWhatsOnLane = retryLanes.whatsOn;
   const retryOutLane = retryLanes.out;

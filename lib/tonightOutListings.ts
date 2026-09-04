@@ -13,6 +13,7 @@ import type { OutResponse } from "@/lib/out/types";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
 import type { MapSelectableVenueIds } from "@/lib/pricedLanding";
 import type { TonightGroupedRow } from "@/lib/tonightListGrouping";
+import { tonightPrimaryRows } from "@/lib/tonightPrimary";
 import {
   WHATS_ON_KINDS,
   dedupeRows,
@@ -172,6 +173,77 @@ export function mergeTonightListingRows(
     ...pubWhatsOn,
     ...tonightOutEventsForStatus(whatsOnStatus, outEvents, now, selectable, pubOnly),
   ]);
+}
+
+export type TonightLedeComposition = {
+  /** Every eligible row, including the lanes that may not lead. */
+  listingRows: WhatsOnRow[];
+  /** The rows the first screen is built from: head sentence and card spine. */
+  primaryListingRows: WhatsOnRow[];
+  /** Status read off the primary rows, so an all-excluded night reads empty. */
+  listingsStatus: TonightListingsStatus;
+  /** Eligible Out rows, already narrowed to the ones that may lead. */
+  outEvents: WhatsOnRow[];
+};
+
+/**
+ * What the Tonight first screen leads with.
+ *
+ * The lede is the head sentence plus the first card, and BOTH are composed
+ * from the primary rows alone: a JD Wetherspoon deal and a Ticketmaster
+ * kind:event row are never what a reader meets first. So `tonightPrimaryRows`
+ * runs BEFORE the merge, the status and the lede sentence, never after, and an
+ * answer carrying nothing else is honestly empty rather than led by one of
+ * them. The secondary Deals and Music lanes keep the unfiltered list, which is
+ * why both come back from one call.
+ */
+export function tonightLedeComposition(
+  rows: readonly WhatsOnRow[],
+  outAnswer: TonightOutAnswer,
+  whatsOnStatus: TonightWhatsOnStatus,
+  now: number = Date.now(),
+  selectable: TonightSelectableVenueIds = undefined,
+): TonightLedeComposition {
+  const outBody = outAnswer.body;
+  const eligibleOutEvents = tonightOutEventsForStatus(
+    whatsOnStatus,
+    outBody?.events ?? [],
+    now,
+    selectable,
+    true,
+  );
+  const primaryWhatsOnRows = tonightPrimaryRows(rows);
+  const primaryOutEvents = tonightPrimaryRows(outBody?.events ?? []);
+  const primaryOutAnswer: TonightOutAnswer = outBody
+    ? { ...outAnswer, body: { ...outBody, events: primaryOutEvents } }
+    : outAnswer;
+  return {
+    listingRows: mergeTonightListingRows(
+      rows,
+      outBody?.events ?? [],
+      now,
+      whatsOnStatus,
+      selectable,
+      true,
+    ),
+    primaryListingRows: mergeTonightListingRows(
+      primaryWhatsOnRows,
+      primaryOutEvents,
+      now,
+      whatsOnStatus,
+      selectable,
+      true,
+    ),
+    listingsStatus: tonightListingsStatus(
+      whatsOnStatus,
+      primaryOutAnswer,
+      now,
+      primaryWhatsOnRows,
+      selectable,
+      true,
+    ),
+    outEvents: tonightPrimaryRows(eligibleOutEvents),
+  };
 }
 
 /**
