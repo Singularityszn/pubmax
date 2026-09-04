@@ -166,7 +166,7 @@ These are derived from the actual code, not aspirations. File references are inl
 | Product interaction / usage data | **Yes, only after the user opts in.** A closed set of named UI events with allow-listed fixed-schema props, plus browser, operating system, device type, screen and viewport size, referrer, campaign parameters, and Web Vitals. | No (pseudonymous device profile only) | No | Analytics | `lib/analytics.ts`: consent-gated (default off), honours Do Not Track, forwards to PostHog EU ingest only when consent is granted; `lib/analyticsEvents.ts` owns closed property schemas with no coordinates or free text. |
 | Pseudonymous analytics id | Yes, only after opt-in | No (contains no account or contact data) | No | Analytics | `lib/analytics.ts` `anonymousAnalyticsId()`: an `anon_` UUID created only once consent is `granted`, stored in localStorage and used as PostHog's persistent device identity across page loads and sessions. |
 | Device/web push delivery material | Yes, when the user enables notifications | No (stored with no user or plan link) | No | App functionality (public night-signal and installed-web daily-brief pushes) | `lib/nativePush.ts` or explicitly-invoked `lib/webPush.ts` posts to `POST /api/push-tokens`; `lib/pushTokenStore.ts` stores it with no identity column (migrations 0039 + 0046). |
-| Photos (Moments) | Only when the user chooses to share a Moment. Drafts stay on the phone. | Tied to that content only, not to a real-world identity | No | User content | `lib/momentDraft.ts` keeps drafts in IndexedDB/localStorage on the device; `lib/nightMomentMedia.ts` uploads to Supabase storage only on publish. Camera access is via `lib/nativeCamera.ts` with the usage strings in `ios/App/App/Info.plist`. |
+| Photos | Only when the user chooses to publish one. Moment drafts stay on the phone. THREE surfaces take a photo: a Moment, a pub photo wall, and an optional photo on a logged price. | Tied to that content only, not to a real-world identity | No | User content | `lib/momentDraft.ts` keeps Moment drafts in IndexedDB/localStorage on the device; `lib/nightMomentMedia.ts` uploads on publish. Camera access is `lib/nativeCamera.ts`, declared as usage strings in `ios/App/App/Info.plist` and as `CAMERA` plus `READ_MEDIA_IMAGES` in `android/app/src/main/AndroidManifest.xml`. |
 | Email address | Only if the user signs in, or asks us to cover an area they name | Yes (it is the contact) | No | Account sign-in, and telling one person we reached the area they asked for | Sign-in is a Supabase magic link (`components/auth/AuthProvider.tsx`); the optional area-demand contact is `app/api/area-demand/route.ts` (most rows carry no address at all). There is no marketing list and no digest capture (`docs/EMAIL_CAPTURE.md`). |
 
 ### What the app does not do
@@ -181,7 +181,7 @@ These are derived from the actual code, not aspirations. File references are inl
 Declare the following. Everything else: Not Collected.
 
 - **Data Used to Track You:** None.
-- **Data Linked to You:** Contact Info > Email Address (account sign-in or optional area-demand contact), purpose App Functionality. User Content > Photos or Videos (Moments, on publish), purpose App Functionality.
+- **Data Linked to You:** Contact Info > Email Address (account sign-in or optional area-demand contact), purpose App Functionality. User Content > Photos or Videos (a published Moment, a pub wall photo, or a photo on a logged price), purpose App Functionality.
 - **Data Not Linked to You:** Identifiers > Device ID (push token), purpose App Functionality. Usage Data > Product Interaction (opt-in analytics), purpose Analytics. Precise Location, purpose App Functionality, only when the user starts a location feature.
 - **Location processing:** declare Precise Location because three decimal places is about 70 to 110 metres. Mark it optional, not linked, not used for tracking, and used for App Functionality. The app processes the rounded point ephemerally. Confirm current processor retention terms in App Store Connect before submission.
 
@@ -190,7 +190,7 @@ Declare the following. Everything else: Not Collected.
 - **Does your app collect or share any of the required user data types?** Yes.
 - **Precise location:** Collected, optional, processed ephemerally, purpose App functionality, not used for tracking. Full GPS precision stays on the device; only the three-decimal point leaves it. In the Data safety flow, identify the ephemeral processing and current service-provider or user-initiated transfers exactly as the form asks.
 - **Personal info > Email address:** Collected, not shared, optional, purpose App functionality. Encrypted in transit. Account deletion removes the sign-in address; other erasure requests use the public contact in `lib/siteContact.ts`.
-- **Photos and videos:** Collected (on Moment publish), not shared publicly by default, purpose App functionality.
+- **Photos and videos:** Collected, purpose App functionality. Answer **shared: yes** for the pub photo wall. A wall photo is PUBLIC by design: it appears on that pub's page to anyone who opens it, and the composer offers a crosspost to the public feed. Saying "not shared publicly by default" would be a wrong answer on the form, not a cautious one. Moment drafts stay on the device and are collected only on publish.
 - **App activity > Product interaction:** Collected, not shared, optional (opt-in), purpose Analytics. Encrypted in transit.
 - **Device or other IDs:** Collected (push token), not shared, purpose App functionality.
 - **Is all data encrypted in transit?** Yes (HTTPS only, the shell loads `https://pubmaxxing.com`).
@@ -235,7 +235,9 @@ photographed website.
 - Apple: 6.7" (1290x2796) and 6.5" (1242x2688) satisfy the current iPhone requirement. Both are rendered, so no manual resize is needed at upload. iPad screenshots are only needed if the app is offered on iPad; otherwise set availability to iPhone only.
 - Google Play: minimum two, up to eight phone screenshots at 9:16, min 320px, max 3840px. The generated `play-phone` set is 1080x1920. A feature graphic (1024x500) is also required.
 
-**Feature graphic (Google Play, 1024x500):** ink-deep field (`#060607`) with the coral double-struck X mark, per the identity lock in section 7, plus wordmark "PUBMAXX" and tagline "Cheap pints near you." (text is fine on the feature graphic, the no-text rule applies to the icon and splash). Start from the `public/store-assets/splash.svg` composition (which keeps the ink field).
+**Feature graphic (Google Play, 1024x500):** DONE and committed at `public/store-assets/png/play/feature-graphic-1024x500.png`. Ink-deep field (`#060607`), the coral double-struck X read from the one geometry master, wordmark "PUBMAXX" and tagline "Cheap pints near you." Text is fine here; the no-text rule applies to the icon and the splash, which are masked and shown at 20px.
+
+It is the one store asset NOT drawn from an SVG master, and that is deliberate. librsvg resolves `font-family` through the machine's own font stack, so an SVG master asking for Space Grotesk renders in whatever face happens to be installed and says nothing about having done so. The banner is rendered by the same satori path the OG cards use (`scripts/gen-store-assets.mjs`), which is handed the repo's own font file. Do not reintroduce an SVG master for it; `__tests__/storeAssets.test.ts` fails if one appears.
 
 ---
 
@@ -270,6 +272,7 @@ node scripts/gen-store-assets.mjs
 | `play/adaptive-foreground-432.png` | 432 | 108dp at xxxhdpi, keeps transparency. |
 | `play/adaptive-background-432.png` | 432 | Flat white. |
 | `splash/splash-2732.png` | 2732 | Capacitor splash source, covers the largest iPad requirement. |
+| `play/feature-graphic-1024x500.png` | 1024x500 | Play listing banner. The one export with words on it, and the one rendered through satori rather than from an SVG master (see section 6). |
 
 ### Legibility at small sizes (checked)
 
@@ -310,19 +313,198 @@ Everything above is done or ready to paste. The steps below need a real account,
 
 ### Google Play
 
-- [ ] **Enrol** in the Google Play Console, 25 USD one-time, at play.google.com/console. Complete identity verification (can take a few days for individual accounts, start this early, it is the long pole).
-- [ ] **Install Android Studio** for signing and bundle work, plus **JDK 21**. Confirm `java -version` reports 21 before `./gradlew` runs in `android/`; generated Capacitor Gradle compiles with Java 21.
-- [ ] `npm ci` then `npx cap sync android`, then `npx cap open android` to open the project in Android Studio.
-- [ ] **Upload key / signing:** opt into Play App Signing (recommended). Generate an upload keystore once (`keytool` or Android Studio > Generate Signed Bundle), keep it safe, it signs every future update. This is the one irreversible owner step, do not lose the keystore.
-- [ ] **Build the release bundle:** Android Studio > Build > Generate Signed App Bundle (.aab), or `./gradlew bundleRelease`. Target SDK is already 36, which clears the Play target-API requirement.
-- [ ] **Push:** source delivery is implemented through platform-routed FCM HTTP v1. Create a Firebase project, add Android package `com.pubmaxx.app`, and place its real `google-services.json` in `android/app/`. Set all four server values `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY_ID`, and `FCM_PRIVATE_KEY`. Then prove token registration, notification receipt, and safe tap navigation on a physical configured build. Never commit the service-account JSON or private key.
-- [ ] **Publish verified App Links:** add the release signing fingerprint to `/.well-known/assetlinks.json`, deploy it, then prove email, Google, and Apple callback URLs return to the signed-in app on a physical Android device.
-- [ ] **Create the app in the Play Console: name PUBMAXXING**, category Food & Drink, free.
-- [ ] **Complete the Data safety form** and **content rating (IARC) questionnaire** from sections 4 and 5.
-- [ ] **Set target audience** to 18 and over. Do not opt into Designed for Families.
-- [ ] **Paste metadata** from sections 1 to 3. Upload screenshots and the 1024x500 feature graphic from section 6.
-- [ ] **Upload the .aab** to the Internal testing track first, install on your own device, then promote to Production.
-- [ ] **Roll out.** New personal Play accounts created after Nov 2023 also need a closed test with 12+ testers for 14 days before production, budget for that.
+Ordered. Each step is meant to be done in the order written and most of them are
+a command to paste. Everything the codebase could do is done; what is left needs
+the account, a payment, or a signing step only the owner can take.
+
+Nothing below invents a value. Where a real one is needed the file carries an
+obvious placeholder, and the step says which screen hands you the real one.
+
+**1. Enrol, first, because it is the long pole.** play.google.com/console, 25 USD
+once. Complete identity verification. For a personal account this can take
+several days, and nothing after step 9 can happen until it clears. Start it
+before touching anything else.
+
+**2. Install the toolchain.** JDK 21 and the Android SDK command-line tools.
+
+```
+brew install --cask android-commandlinetools
+export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
+export ANDROID_SDK_ROOT=$ANDROID_HOME
+export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+yes | sdkmanager --licenses
+sdkmanager --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+```
+
+For the JDK, `brew install --cask temurin@21` runs Apple's system installer and
+therefore asks for a sudo password. If you would rather not give it one, or you
+are on the nix-managed Homebrew where formula post-install steps fail, unpack
+the same JDK into your home directory instead. Nothing needs it on the PATH
+globally:
+
+```
+curl -L -o /tmp/temurin21.tar.gz \
+  "https://api.adoptium.net/v3/binary/latest/21/ga/mac/aarch64/jdk/hotspot/normal/eclipse"
+mkdir -p ~/.local/jdk && tar -xzf /tmp/temurin21.tar.gz -C ~/.local/jdk
+export JAVA_HOME=$(ls -d ~/.local/jdk/jdk-21*/Contents/Home)
+export PATH="$JAVA_HOME/bin:$PATH"
+java -version   # must report 21
+```
+
+Then point Gradle at the SDK. `android/local.properties` is gitignored:
+
+```
+echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+```
+
+**3. Prove the build before touching the account.**
+
+```
+npm ci
+npx cap sync android
+(cd android && ./gradlew bundleRelease)
+```
+
+It will print that `keystore.properties` is absent and that the bundle is
+unsigned, and that `google-services.json` is absent and push will not register.
+Both are true and both are fixed below. A `BUILD SUCCESSFUL` here means the only
+things left are account-shaped.
+
+**4. Firebase, for push.** console.firebase.google.com, create or reuse a
+project, add an Android app with package name **`com.pubmaxx.app`**, download the
+`google-services.json` it gives you and save it as `android/app/google-services.json`.
+It is gitignored; do not commit it. `android/app/google-services.json.example`
+carries the same steps beside the file.
+
+Then, in the same project: Project settings, Service accounts, Generate new
+private key. That JSON is the SERVER half and is a real secret. From it set all
+four of `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY_ID` and
+`FCM_PRIVATE_KEY` on the deployment. All four or none: `lib/fcmPushProvider.ts`
+refuses rather than half-sending.
+
+**5. Generate the upload key. This is the one irreversible step.** It signs every
+future update and Google cannot simply reissue it. Keep the file and the
+password somewhere you will still have them in three years.
+
+```
+keytool -genkeypair -v \
+  -keystore ~/pubmaxx-upload.jks \
+  -alias pubmaxx-upload \
+  -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Then write `android/keystore.properties`, which is gitignored along with every
+`*.jks` and `*.keystore`:
+
+```
+storeFile=/Users/<you>/pubmaxx-upload.jks
+storePassword=<the store password you just set>
+keyAlias=pubmaxx-upload
+keyPassword=<the key password you just set>
+```
+
+Keep the keystore OUTSIDE the repository. Rebuild and confirm the first line
+changes to "Release builds sign with the upload key":
+
+```
+(cd android && ./gradlew bundleRelease)
+jarsigner -verify android/app/build/outputs/bundle/release/app-release.aab   # "jar verified"
+```
+
+The uploadable file is `android/app/build/outputs/bundle/release/app-release.aab`.
+
+**6. Create the app in the Play Console: name PUBMAXXING**, default language
+English (United Kingdom), app not game, free. Category **Food & Drink**.
+
+**7. Opt into Play App Signing** when the console offers it on the first upload
+(Setup, App integrity). Recommended: Google holds the app signing key, your
+upload key stays replaceable if it is ever lost. Accept it.
+
+**8. Content rating (IARC questionnaire).** Answers are section 4 of this
+document. The short version: category Utility or Reference; **yes, references to
+alcohol** (finding and pricing alcoholic drinks is the whole app); **no** to
+promoting or facilitating the purchase of alcohol, because nothing is sold or
+ordered here; no to gambling, violence, sexual content and language; **no** to
+sharing the user's location with other users; **yes** to users interacting and
+sharing content. Do not undersell the alcohol answer, an under-rating is a
+takedown risk.
+
+**9. Target audience and content.** Set target age to **18 and over** only. Do
+not tick any band under 18 and do not opt into Designed for Families.
+
+**10. Data safety form.** Answers are section 5. In the order the form asks:
+
+- Does your app collect or share any of the required user data types? **Yes.**
+- Is all of the user data collected by your app encrypted in transit? **Yes.**
+- Do you provide a way for users to request that their data is deleted? **Yes.**
+- **Location > Approximate location:** not collected.
+- **Location > Precise location:** collected, not shared. Optional. Purpose: App
+  functionality. Processed ephemerally. Full GPS precision stays on the device;
+  the app rounds to three decimal places before anything leaves it, which is
+  still precise location by Play's definition.
+- **Personal info > Email address:** collected, not shared. Optional. Purpose:
+  App functionality (sign-in, and the optional area-demand contact).
+- **Photos and videos > Photos:** collected AND **shared**. Purpose: App
+  functionality. A pub wall photo is public by design, so "shared" is the honest
+  answer here and "not shared" would be a wrong one.
+- **App activity > App interactions:** collected, not shared. Optional, because
+  analytics are opt-in and default off. Purpose: Analytics.
+- **Device or other IDs:** collected, not shared. Purpose: App functionality
+  (the push token, stored with no identity column).
+- Everything else on the form: **not collected**.
+- Privacy policy URL: `https://pubmaxxing.com/privacy`
+
+**11. Store listing.** App name, short description and full description are
+section 2. Upload from this repository:
+
+- Icon (512x512): `public/store-assets/png/play/play-store-512.png`
+- Feature graphic (1024x500): `public/store-assets/png/play/feature-graphic-1024x500.png`
+- Phone screenshots (1080x1920, at least two): the six PNGs in
+  `public/store-assets/screenshots/play-phone/`, in filename order. That folder's
+  `manifest.json` carries the caption for each one.
+
+**12. Upload to Internal testing first.** Install on your own device from the
+internal link and prove the three native superpowers actually work, because a
+wrapper that does none of them is the rejection this whole exercise exists to
+avoid:
+
+- **Camera:** log a price with a photo, and post a photo to a pub wall. The OS
+  permission dialog must appear the first time, and the sheet must offer the
+  photo library as well as the camera.
+- **Push:** confirm a registration token reaches `POST /api/push-tokens` with
+  platform `android`, send one, and confirm the tap lands on the path the
+  payload named.
+- **App links:** step 13, which needs the fingerprint this upload just created.
+
+**13. Publish the App Links fingerprint.** In the Play Console: Setup, App
+integrity, App signing. Copy the **SHA-256 certificate fingerprint of the app
+signing key** (Google's, not your upload key). Paste it into
+`public/.well-known/assetlinks.json` in place of
+`REPLACE_WITH_PLAY_APP_SIGNING_SHA256`, keeping the colon-separated uppercase hex
+form, and deploy the site. Then on the device:
+
+```
+adb shell pm verify-app-links --re-verify com.pubmaxx.app
+adb shell pm get-app-links com.pubmaxx.app     # pubmaxxing.com: verified
+```
+
+Until this is done the state reads as a failure and shared links keep opening
+the browser. Finally, prove the email, Google and Apple sign-in callbacks return
+into the signed-in app rather than a browser tab.
+
+**14. Closed test, if this is a personal account created after November 2023.**
+Play requires a closed test with at least **12 testers who stay opted in for 14
+continuous days** before you may apply for production access. Budget for it
+rather than discovering it at the end.
+
+Recommended order, because it costs no extra waiting: start the closed test the
+moment step 12 passes, and submit the iOS build for review while those 14 days
+run. Apple's review is usually days rather than weeks, so the two clocks overlap
+and Play's 14 days becomes the only real wait.
+
+**15. Apply for production access, then roll out.** Start at a staged
+percentage rather than 100% so the first crash reports arrive from a small
+audience.
 
 ### Shared, not account-blocked
 

@@ -34,6 +34,10 @@ later-session fallback after at least one healthy remote load.
 | Push **sending** fan-out | `lib/pushSender.ts` (resolves tokens, dispatches, prunes invalid) |
 | Universal links manifest | `public/.well-known/apple-app-site-association` (+ Content-Type header rule in `next.config.mjs`) |
 | Android HTTPS deep-link filters | `android/app/src/main/AndroidManifest.xml` |
+| Android App Links statement | `public/.well-known/assetlinks.json` (+ Content-Type and short-edge header rule in `next.config.mjs`) |
+| Android camera + media declarations | `android/app/src/main/AndroidManifest.xml` (`CAMERA`, `READ_MEDIA_IMAGES`, and the legacy read capped at API 32) |
+| Android release signing | `android/app/build.gradle`, reading the gitignored `android/keystore.properties` |
+| Firebase config placeholder | `android/app/google-services.json.example` (the real file is gitignored) |
 
 **Seam rule:** no file imports `@capacitor/*` except the `lib/native*.ts` seam
 modules. Everything else branches on `isNativeApp()`.
@@ -145,11 +149,18 @@ user/plan identity**. Consequences, enforced in code:
      `/plan/*`, `/rounds/*`, `/p/*`, and the exact `/auth/callback` path.
    - Deploy, then verify `https://pubmaxxing.com/.well-known/apple-app-site-association`
      returns `Content-Type: application/json` (header rule in `next.config.mjs`).
-   - Android already declares unverified HTTPS filters for the same four paths.
+   - Android declares `autoVerify` HTTPS filters for the same families, and
      `@capacitor/app` forwards cold and warm opens through the allow-listed
      `lib/nativeDeepLinks.ts` route seam.
-     Publish `/.well-known/assetlinks.json` with the release signing fingerprint
-     before claiming verified Android App Links.
+     `public/.well-known/assetlinks.json` now ships beside the Apple manifest,
+     carrying `REPLACE_WITH_PLAY_APP_SIGNING_SHA256`. The real value is the
+     SHA-256 of GOOGLE'S app signing key (Play Console, Setup, App integrity),
+     not the upload key you generated, and Android re-reads the file on install
+     and on update. Until it is replaced, `pm get-app-links` reports a failure
+     state for the host and shared links keep opening the browser. Both link
+     manifests take a SHORT edge cache window for exactly this reason: the
+     fingerprint has to reach the verifier in minutes, not after a year of CDN.
+     `docs/STORE_READINESS.md` section 8 step 13 is the copy-paste version.
    - Email, Google, and Apple sign-in return through `/auth/callback`. The code
      path is ready, but it is not release proof until the Team ID or Android
      signing fingerprint is published and a physical-device sign-in returns to
