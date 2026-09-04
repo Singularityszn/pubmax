@@ -116,10 +116,27 @@ export type ModeratorDrop = PintDrop & {
 
 export type PintDropPhotos = { pint: File | null; venue: File | null };
 
+/**
+ * What a create says about the rule it is written under. Only the lane that
+ * STATES the daily price cap opts in, because a drop paired with a community
+ * price is written under a different rule entirely (see dailyCapDay).
+ */
+export type PintDropCreateOptions = {
+  readonly underDailyPriceCap?: boolean;
+};
+
 /** The one seam the API route talks to. Both implementations below. */
 export type PintDropStore = {
-  /** Persist a validated drop (photos where supported); returns the public DTO. Throws on storage failure. */
-  create(drop: PintDrop, photos: PintDropPhotos): Promise<PintDropDTO>;
+  /**
+   * Persist a validated drop (photos where supported); returns the public DTO.
+   * Throws on storage failure, and throws PintDropDailyCapError when the write
+   * opted into the daily cap and the cap refuses it.
+   */
+  create(
+    drop: PintDrop,
+    photos: PintDropPhotos,
+    options?: PintDropCreateOptions,
+  ): Promise<PintDropDTO>;
   /**
    * Public read: visible drops + demo seeds, newest-first, capped at
    * MAX_PUBLIC_DROPS, with per-drop VISIBILITY applied server-side (issue #29).
@@ -271,7 +288,7 @@ async function recordAnonymousReport(
 
 // pint_drops (snake_case) <-> PintDrop (camelCase). Kept in one place so a
 // column rename is a one-line change on each side.
-function toRow(drop: PersistableDrop) {
+function toRow(drop: PersistableDrop, capDay: string | null = null) {
   return {
     id: drop.id,
     venue_id: drop.venueId,
@@ -294,6 +311,11 @@ function toRow(drop: PersistableDrop) {
     status: drop.status,
     created_at: drop.createdAt,
     authority_key: drop.authorityKey ?? null,
+    // The London day this drop CLAIMS under the daily price cap (migration
+    // 0141), or null when it claims none. Passed in rather than derived here,
+    // because the cap is a WRITE PATH's rule and not a property of the drop:
+    // see dailyCapDay() for which writes claim a day and why.
+    price_day: capDay,
     // Confirmation is minted by the server AFTER a drop lands (a drop cannot
     // confirm itself), so a create always writes the empty shape. Kept in this
     // one mapper so a column rename stays a one-line change on each side.
@@ -575,7 +597,18 @@ function withVerifiedReportCount(drop: PersistableDrop): PersistableDrop {
 // Wraps the process-memory primitives in lib/pintDrops.ts. Resets on restart —
 // right for dev/demo; production refuses it at the route.
 export const memoryPintDropStore: PintDropStore = {
-  async create(drop) {
+  async create(drop, _photos, options) {
+    // The same hard guard the Supabase backend gets from
+    // pint_drops_priced_day_unique_idx (0141), over the same writes: the route's
+    // pre-check and this create sit either side of an await, so two in-flight
+    // requests can both read "no price yet" here exactly as they could against
+    // Postgres. Asked against the drop's OWN day, so the row and the rule agree.
+    if (
+      dailyCapDay(drop, options) !== null &&
+      hasPricedDropTodayMemory(drop.venueId, drop.handle, new Date(drop.createdAt))
+    ) {
+      throw new PintDropDailyCapError();
+    }
     addPintDrop(drop); // photos ignored: there is no Storage without Supabase
     return toDTO(drop);
   },
@@ -727,6 +760,83 @@ function isMissingConfirmationColumnError(error: {
   return (code === "42703" || code === "PGRST204") && mentions;
 }
 
+// Additive-rollout guard for the daily-cap day stamp (migration 0141). The code
+// ships before the owner applies the migration, so a create must keep the drop
+// and simply carry no stamp: on that server the cap is the pre-check alone,
+// exactly as it was before this change.
+function isMissingPriceDayColumnError(error: {
+  code?: string;
+  message?: string;
+} | null): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const message = (error.message ?? "").toLowerCase();
+  return (code === "42703" || code === "PGRST204") && message.includes("price_day");
+}
+
+/**
+ * WHICH WRITES THE DAILY CAP GOVERNS, in one function (migration 0141).
+ *
+ * The cap is stated by POST /api/pint-drops and enforced there: one PRICED drop
+ * per venue + identity + London day. It is NOT a rule about the table, because
+ * POST /api/price-submit pairs a Pint Drop with every community price a drinker
+ * sends, and that lane deliberately takes several from one account at one pub in
+ * one day (its own rate limiter is the only thing that stops it). A guard over
+ * every row would refuse the second of those, so the caller says whether its
+ * write is under the cap and only those writes claim a day.
+ *
+ * The day itself is londonDayKey() of the drop's own createdAt, the same
+ * function hasPricedDropToday() compares against, so the soft pre-check and the
+ * hard index behind it cannot read one day differently. A note-only memory
+ * claims nothing: it is not a price observation.
+ */
+function dailyCapDay(
+  drop: PersistableDrop,
+  options: PintDropCreateOptions | undefined,
+): string | null {
+  if (!options?.underDailyPriceCap) return null;
+  if (drop.priceGbp === null) return null;
+  return londonDayKey(drop.createdAt) || null;
+}
+
+/**
+ * The daily cap, refused by the DATABASE rather than by the pre-check in front
+ * of it (migration 0141, pentest F-1). A concurrent burst is exactly the case
+ * the pre-check cannot see: every request reads "no price yet" before any row
+ * lands. `pint_drops_priced_day_unique_idx` is what actually holds the rule, so
+ * one of those inserts wins and the rest arrive here.
+ *
+ * It is a REFUSAL, not a fault: the route answers it with the same 409 and the
+ * same sentence the pre-check gives, so a drinker cannot tell which enforcer
+ * turned them away.
+ */
+export class PintDropDailyCapError extends Error {
+  readonly code = "PINT_DROP_DAILY_PRICE_CAP";
+  constructor() {
+    super("A priced Pint Drop for this venue, handle and London day already exists.");
+    this.name = "PintDropDailyCapError";
+  }
+}
+
+/** The one question a caller asks about that refusal. */
+export function isPintDropDailyCapError(error: unknown): error is PintDropDailyCapError {
+  return error instanceof PintDropDailyCapError;
+}
+
+// 23505 on the daily-cap index alone. Named, because pint_drops carries other
+// unique indexes (the primary key) and a bare 23505 would answer 409 for a
+// collision that is not this rule at all.
+function isDailyPriceCapViolation(error: {
+  code?: string;
+  message?: string;
+  details?: string;
+} | null): boolean {
+  if (!error) return false;
+  if ((error.code ?? "") !== "23505") return false;
+  const said = `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
+  return said.includes("pint_drops_priced_day_unique_idx");
+}
+
 // Additive-rollout guard for Wave G1 Last Train columns (migration 0021).
 function isMissingLastTrainColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
@@ -740,7 +850,7 @@ function isMissingLastTrainColumnError(error: { code?: string; message?: string 
 
 // ── Supabase implementation ──────────────────────────────────────────────────
 export const supabasePintDropStore: PintDropStore = {
-  async create(drop, photos) {
+  async create(drop, photos, options) {
     const persistable: PersistableDrop = { ...drop };
     const uploaded: string[] = [];
     try {
@@ -754,10 +864,29 @@ export const supabasePintDropStore: PintDropStore = {
         persistable.venuePhotoKey = await uploadPhoto("venue", drop.venueId, drop.id, photos.venue);
         uploaded.push(persistable.venuePhotoKey);
       }
-      let row = toRow(persistable);
+      let row = toRow(persistable, dailyCapDay(drop, options));
+      // EVERY insert attempt goes through here, because the daily cap is now a
+      // unique index (0141) and a retry can hit it just as the first attempt
+      // can. A cap violation leaves the try immediately: it is the rule working,
+      // not a storage fault, and the catch below tells the two apart.
+      const insert = async (candidate: typeof row) => {
+        const { error: insertError } = await admin().from(TABLE).insert(candidate);
+        if (isDailyPriceCapViolation(insertError)) throw new PintDropDailyCapError();
+        return insertError;
+      };
       // First attempt includes vibe_tags + Last Train columns. Once migrations
       // 0005 / 0021 are applied this is the only path that ever runs.
-      let { error } = await admin().from(TABLE).insert(row);
+      let error = await insert(row);
+      if (error && isMissingPriceDayColumnError(error)) {
+        console.warn(
+          "[pint-drops] price_day missing - the daily cap is the pre-check alone until migration 0141 is applied:",
+          error.message,
+        );
+        const { price_day: _omitPriceDay, ...rowWithoutPriceDay } = row;
+        void _omitPriceDay;
+        row = rowWithoutPriceDay as typeof row;
+        error = await insert(row);
+      }
       if (error && isMissingAuthorityKeyColumnError(error)) {
         console.warn(
           "[pint-drops] authority_key missing - saving this drop as provisional (apply migration 0117):",
@@ -767,7 +896,7 @@ export const supabasePintDropStore: PintDropStore = {
         void _omitAuthority;
         delete persistable.authorityKey;
         row = rowWithoutAuthority as typeof row;
-        ({ error } = await admin().from(TABLE).insert(row));
+        error = await insert(row);
       }
       if (error && isMissingConfirmationColumnError(error)) {
         console.warn(
@@ -787,7 +916,7 @@ export const supabasePintDropStore: PintDropStore = {
         void _omitConfirmingDrop;
         delete persistable.confirmation;
         row = rowWithoutConfirmation as typeof row;
-        ({ error } = await admin().from(TABLE).insert(row));
+        error = await insert(row);
       }
       if (error && isMissingLastTrainColumnError(error)) {
         console.warn(
@@ -802,7 +931,7 @@ export const supabasePintDropStore: PintDropStore = {
         void _omitLeave;
         void _omitDecision;
         row = rowWithoutLastTrain as typeof row;
-        ({ error } = await admin().from(TABLE).insert(row));
+        error = await insert(row);
       }
       if (error) {
         if (!isMissingVibeTagsColumnError(error)) throw new Error(error.message);
@@ -817,10 +946,23 @@ export const supabasePintDropStore: PintDropStore = {
         );
         const { vibe_tags: _omit, ...rowWithoutVibeTags } = row;
         void _omit;
-        const { error: retryError } = await admin().from(TABLE).insert(rowWithoutVibeTags);
+        const retryError = await insert(rowWithoutVibeTags as typeof row);
         if (retryError) throw new Error(retryError.message);
       }
     } catch (err) {
+      // A cap refusal is the rule holding, not an outage, so it may not be
+      // logged as one: an error line per refused duplicate would read as a
+      // storage failure in every dashboard. It still cleans up its photos and
+      // still rethrows, and the route answers the ordinary 409.
+      if (isPintDropDailyCapError(err)) {
+        log("warn", "pint_drops.daily_cap_conflict", {
+          dropId: drop.id,
+          venueId: drop.venueId,
+          uploadedCount: uploaded.length,
+        });
+        await deletePhotos(uploaded);
+        throw err;
+      }
       // Log the storage/insert failure (safe fields only — no buffers, no keys)
       // before cleaning up and re-throwing. The route still maps this to the
       // same 503/400 for the user; logging is purely additive observability.
