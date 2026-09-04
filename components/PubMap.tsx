@@ -3495,6 +3495,12 @@ export default function PubMap({
     // the filtered set and replay the old select/fit after its sheet closes.
     if (restore === "retire") {
       didRestoreQueryFlyRef.current = true;
+      // A live Venue for this query already owns the camera. Mark the query
+      // the same way an explicit search pick does, so typed-search cannot
+      // reopen the sheet after Close.
+      if (selectedVenueId && trimmedMapQuery) {
+        searchQueryCameraOwnedRef.current = trimmedMapQuery;
+      }
       return;
     }
     // No matches can also mean the slim pins are still loading. Keep waiting
@@ -3506,6 +3512,7 @@ export default function PubMap({
     // are still settling reschedule cleanly instead of losing the fly-to.
     const handle = window.setTimeout(() => {
       didRestoreQueryFlyRef.current = true;
+      searchQueryCameraOwnedRef.current = trimmedMapQuery;
       if (restore === "select-single" && firstMatchId) {
         selectVenue(firstMatchId);
       } else if (restore === "fit-many") {

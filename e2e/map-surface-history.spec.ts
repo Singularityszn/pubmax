@@ -131,14 +131,28 @@ test.describe("one Map surface history owner", () => {
     page,
   }) => {
     await prepareMap(page);
-    await openMap(page, "/map?q=The+Ice+Wharf");
+    // First visit loads the core slim shard only. The French House is unique
+    // in that shard, so arrival restore can select it without waiting for
+    // later spatial rings. Ice Wharf sits outside core and never matches.
+    await openMap(page, "/map?q=The+French+House");
 
     const toolbar = page.locator(".mapToolbar");
     const search = toolbar.getByRole("combobox", { name: "Search pubs" });
-    await expect(search).toHaveValue("The Ice Wharf");
+    await expect(search).toHaveValue("The French House");
+    await expect(venue(page)).toHaveAttribute("aria-hidden", "false", {
+      timeout: 30_000,
+    });
     await expectSoleDrawer(page, "venue");
 
     await venue(page).getByRole("button", { name: /Close/ }).click();
+    await expect(venue(page)).toHaveAttribute("aria-hidden", "true");
+    // Old restore replayed after Close while ?q= still matched one pub, which
+    // put detail-open back on #main. That class makes the toolbar ignore
+    // pointer events, so Clear search never received the click. Wait past the
+    // restore timeout (0ms) and the typed-search debounce (320ms), then require
+    // the overlay gone before clearing.
+    await page.waitForTimeout(500);
+    await expect(page.locator("#main")).not.toHaveClass(/detail-open/);
     await expect(venue(page)).toHaveAttribute("aria-hidden", "true");
 
     await toolbar.getByRole("button", { name: "Clear search" }).click();
