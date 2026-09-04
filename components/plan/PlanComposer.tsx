@@ -1240,7 +1240,7 @@ function PlanComposerForm({
     // A client-side Pal Open in Plan still sees the previous route during the
     // mount render, so urlPrefill.handoffAsk can be empty. Re-read the live
     // address the same way the prefill layout effect does after the router
-    // commits it; gating on the stale snapshot skipped the deferred generate.
+    // commits it; gating on the stale read skipped the deferred generate.
     const liveHandoff = describeAskFromLocation().handoffAsk ?? urlPrefill.handoffAsk;
     if (!shouldAutoGeneratePalHandoffPlan(liveHandoff)) return;
     palHandoffAutoGenerateStartedRef.current = true;
