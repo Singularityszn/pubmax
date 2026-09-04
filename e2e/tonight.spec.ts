@@ -11,6 +11,27 @@ function watchPageErrors(page: Page): string[] {
   return errors;
 }
 
+function futureListingStart(now = Date.now()) {
+  return new Date(now + 2 * 60 * 60_000).toISOString();
+}
+
+async function mockReadyEmptyOut(page: Page) {
+  await page.route("**/api/out?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "ready",
+        events: [],
+        openPlans: [],
+        attribution: [],
+        observedAt: {},
+        providers: [],
+      }),
+    }),
+  );
+}
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -47,6 +68,10 @@ test("the /tonight screen mounts with an honest header and provenance", async ({
 });
 
 test("unknown source freshness never displays request time as checked", async ({ page }) => {
+  // Tonight waits on both lanes. A live Out body would own the provenance
+  // line, and a July startsAt is past tonight so the What's-On quiz never
+  // lands. This test is the undated What's-On stamp, not the Out merge.
+  await mockReadyEmptyOut(page);
   await page.route("**/api/whats-on?**", (route) =>
     route.fulfill({
       status: 200,
@@ -63,7 +88,7 @@ test("unknown source freshness never displays request time as checked", async ({
             venueId: "venue-xjf3n0",
             placeName: "The Test Arms",
             kind: "quiz",
-            startsAt: "2026-07-15T20:00:00.000Z",
+            startsAt: futureListingStart(),
             title: "Quiz night",
             source: { label: "Pub listing", url: "https://example.com/quiz" },
             observedAt: "2026-07-15T21:59:59.000Z",
@@ -154,6 +179,7 @@ test("location is opt-in, removable, and only used for local walk times", async 
       },
     });
   });
+  await mockReadyEmptyOut(page);
   await page.route("**/api/whats-on?**", (route) =>
     route.fulfill({
       status: 200,
@@ -166,7 +192,7 @@ test("location is opt-in, removable, and only used for local walk times", async 
             venueId: "venue-xjf3n0",
             placeName: "The Test Arms",
             kind: "quiz",
-            startsAt: "2026-07-15T20:00:00.000Z",
+            startsAt: futureListingStart(),
             title: "Quiz night",
             source: { label: "Pub listing", url: "https://example.com/quiz" },
             observedAt: "2026-07-14T18:00:00.000Z",
@@ -379,9 +405,14 @@ test("a degraded Out lane still names itself beside the cards it did return", as
   );
 
   await page.goto("/tonight");
+  // Ticketmaster theatre stays off the primary pub list (tonightPrimaryRows).
+  // The What's-On quiz is the card; the Out lane still names the short read.
+  await expect(page.getByRole("heading", { name: "Quiz night" })).toBeVisible({
+    timeout: 10_000,
+  });
   await expect(
     page.getByRole("heading", { name: "A Night at the Playhouse" }),
-  ).toBeVisible({ timeout: 10_000 });
+  ).toHaveCount(0);
   // Cards show, so the error block never renders. Without this note the short
   // list reads as a quiet city rather than a lane we could not check.
   await expect(page.locator('[data-tonight-listings-note="partial"]')).toHaveText(
