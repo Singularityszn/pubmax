@@ -12,7 +12,7 @@ import {
   type FreshnessRegistry,
 } from "@/lib/freshness";
 import {
-  formatObservedDate,
+  formatPintDatasetAsOf,
   PINT_DATASET_OBSERVED_AT,
   PINT_DATASET_PRESENTATION_BUDGET_DAYS,
   PINT_DATASET_STALENESS_BUDGET_DAYS,
@@ -21,7 +21,7 @@ import { COMMUNITY_PRICE_MAX_AGE_MS } from "@/lib/communityPrice";
 import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
 
 const ROOT = join(__dirname, "..");
-const AS_OF_LABEL = `as of ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
+const AS_OF_LABEL = formatPintDatasetAsOf();
 
 describe("price freshness honesty (Grok W5.7)", () => {
   const registry = JSON.parse(
@@ -111,8 +111,13 @@ describe("price freshness honesty (Grok W5.7)", () => {
       justPastPriceAuthority,
     );
 
-    expect(results.find((row) => row.id === "pint_prices")?.status).toBe(
-      "fresh",
+    // Past the price-authority window it is named a SNAPSHOT, never "fresh":
+    // the bundle describes its collection day. That is a naming change and not
+    // a breach, so the release gate stays quiet.
+    const justPast = results.find((row) => row.id === "pint_prices");
+    expect(justPast?.status).toBe("snapshot");
+    expect(hasBreach(results.filter((row) => row.id === "pint_prices"))).toBe(
+      false,
     );
 
     const pastNeglectCeiling = new Date(

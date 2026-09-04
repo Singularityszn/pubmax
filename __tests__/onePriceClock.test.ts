@@ -7,7 +7,11 @@ import { describe, expect, it } from "vitest";
 
 import TodayPintsCard from "@/app/today/TodayPintsCard";
 import PintIndexArrival from "@/components/pintindex/PintIndexArrival";
-import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+import {
+  formatPintDatasetAsOf,
+  formatPintDatasetSnapshot,
+  PINT_DATASET_OBSERVED_AT,
+} from "@/lib/dataFreshness";
 import { CENTRAL_PATCH } from "@/lib/nightPatches";
 
 const ROOT = join(__dirname, "..");
@@ -24,8 +28,11 @@ describe("public pint-price clock", () => {
       PINT_DATASET_OBSERVED_AT.getTime(),
     );
 
-    const asOf = `as of ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
-    const lastCollected = `Last collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
+    // Both surfaces name the same bundle as a SNAPSHOT, in the sentence each
+    // one needs: Today's caption stands alone, the Pint Index clause sits
+    // inside a sentence. Neither may borrow the other's wording.
+    const asOf = formatPintDatasetAsOf();
+    const snapshotCaption = formatPintDatasetSnapshot();
     const todayHtml = renderToStaticMarkup(
       createElement(TodayPintsCard, {
         index: {
@@ -56,9 +63,14 @@ describe("public pint-price clock", () => {
       }),
     );
 
-    expect(todayHtml).toContain(lastCollected);
+    expect(todayHtml).toContain(snapshotCaption);
     expect(todayHtml).not.toContain(asOf);
     expect(pintIndexHtml).toContain(asOf);
-    expect(pintIndexHtml).not.toContain(lastCollected);
+    expect(pintIndexHtml).not.toContain(snapshotCaption);
+
+    // Neither surface may call a months-old bundle a collection that just
+    // happened, which is what "Last collected" read as.
+    expect(todayHtml).not.toContain("Last collected");
+    expect(pintIndexHtml).not.toContain("Last collected");
   });
 });

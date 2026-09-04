@@ -25,7 +25,14 @@ describe("GET /api/freshness", () => {
     expect(body.datasets.length).toBeGreaterThan(0);
 
     // Every entry carries a known status and its human cadence label.
-    const known = new Set(["live", "fresh", "stale", "untracked", "unknown"]);
+    const known = new Set([
+      "live",
+      "fresh",
+      "snapshot",
+      "stale",
+      "untracked",
+      "unknown",
+    ]);
     for (const d of body.datasets) {
       expect(known.has(d.status)).toBe(true);
       expect(typeof d.cadence).toBe("string");
@@ -35,6 +42,27 @@ describe("GET /api/freshness", () => {
     // The summary counts sum to the dataset count.
     const summed = Object.values(body.summary).reduce((a, b) => a + b, 0);
     expect(summed).toBe(body.datasets.length);
+  });
+
+  it("names the hand-collected pint bundle a snapshot, with its observed date", async () => {
+    // The bundle sits months inside its 2160h neglect ceiling, so the budget
+    // alone would report it "fresh". An episodic feed past 30 days is named for
+    // the day it was collected instead, and the date rides with the name.
+    //
+    // The route ages against the real clock, so the assertion is what the route
+    // may NEVER say (fresh) plus the two honest answers: snapshot today, and
+    // stale once nobody has re-collected the bundle inside its budget. The
+    // clock-independent proof that this exact registry entry reads "snapshot"
+    // is in __tests__/priceFreshnessHonesty.test.ts, on fixed dates.
+    const res = await GET();
+    const body = (await res.json()) as {
+      datasets: Array<{ id: string; status: string; observedAt: string | null }>;
+    };
+    const pint = body.datasets.find((d) => d.id === "pint_prices");
+
+    expect(pint?.status).not.toBe("fresh");
+    expect(["snapshot", "stale"]).toContain(pint?.status);
+    expect(pint?.observedAt).toBe("2026-07-03T12:00:00Z");
   });
 
   it("never surfaces a broken bundled artifact as an unresolved stamp", async () => {

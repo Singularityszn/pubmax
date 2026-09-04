@@ -44,8 +44,8 @@ describe("locality and recency claims", () => {
       }),
     );
 
-    expect(html).toContain("Lowest listed prices in central London. Last collected 3 July 2026.");
-    expect(html).not.toContain("as of 3 July 2026");
+    expect(html).toContain("Lowest listed prices in central London. Snapshot from 3 July 2026.");
+    expect(html).not.toContain("a snapshot from 3 July 2026");
     expect(html).not.toContain("Lowest listed prices near you today");
   });
 
@@ -68,8 +68,8 @@ describe("locality and recency claims", () => {
       }),
     );
 
-    expect(html).toContain("Lowest listed prices in central London. Last collected 3 July 2026.");
-    expect(html).not.toContain("as of 3 July 2026");
+    expect(html).toContain("Lowest listed prices in central London. Snapshot from 3 July 2026.");
+    expect(html).not.toContain("a snapshot from 3 July 2026");
   });
 
   it("names London's scope when Tonight has no locality", () => {

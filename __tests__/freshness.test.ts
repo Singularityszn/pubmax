@@ -5,9 +5,12 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
+  classNamesSnapshots,
   evaluateDataset,
   evaluateRegistry,
   hasBreach,
+  SNAPSHOT_AFTER_DAYS,
+  SNAPSHOT_AFTER_HOURS,
   resolveObservedAt,
   resolveStamp,
   resolveStoreStamp,
@@ -520,6 +523,91 @@ describe("evaluateDataset — status + budget math", () => {
     );
     expect(r.status).toBe("untracked");
     expect(r.ageHours).toBeGreaterThan(0);
+  });
+});
+
+describe("evaluateDataset — an episodic feed is named a snapshot, not called fresh", () => {
+  // A budget wide enough that none of these ages is a breach: the whole point
+  // is that this is a NAMING rule inside the budget, never a second gate.
+  const episodic = (overrides: Partial<FreshnessDataset> = {}) =>
+    dataset({ class: "episodic", stalenessBudgetHours: 2160, ...overrides });
+
+  const daysBefore = (days: number) =>
+    new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
+
+  it("still calls an episodic feed fresh at 29 days", () => {
+    const r = evaluateDataset(episodic(), daysBefore(29), NOW);
+    expect(r.status).toBe("fresh");
+    expect(r.ageHours).toBe(696);
+  });
+
+  it("still calls it fresh at exactly 30 days (the flip is strictly over)", () => {
+    const r = evaluateDataset(episodic(), daysBefore(SNAPSHOT_AFTER_DAYS), NOW);
+    expect(r.ageHours).toBe(SNAPSHOT_AFTER_HOURS);
+    expect(r.status).toBe("fresh");
+  });
+
+  it("names it a snapshot at 31 days, inside the same budget", () => {
+    const r = evaluateDataset(episodic(), daysBefore(31), NOW);
+    expect(r.status).toBe("snapshot");
+    expect(r.ageHours).toBe(744);
+    expect(r.detail).toContain("snapshot of its collection day");
+    expect(hasBreach([r])).toBe(false);
+    expect(staleFeeds([r])).toEqual([]);
+    expect(unresolvedFeeds([r])).toEqual([]);
+  });
+
+  it("keeps stale ahead of snapshot once the budget is breached", () => {
+    // 31 days old against a 48h budget: the neglect finding wins, because a
+    // renamed feed must never hide a feed nobody has refreshed.
+    const r = evaluateDataset(
+      episodic({ stalenessBudgetHours: 48 }),
+      daysBefore(31),
+      NOW,
+    );
+    expect(r.status).toBe("stale");
+    expect(hasBreach([r])).toBe(true);
+  });
+
+  it("leaves a live feed alone at 29, 30 and 31 days", () => {
+    // A live feed is served per request and has no artifact to age, so the rule
+    // must not reach it: budgets and wording for live feeds stay untouched.
+    for (const days of [29, SNAPSHOT_AFTER_DAYS, 31]) {
+      const r = evaluateDataset(
+        dataset({ class: "live", artifact: null, stamp: null }),
+        daysBefore(days),
+        NOW,
+      );
+      expect(r.status).toBe("live");
+      expect(r.ageHours).toBeNull();
+    }
+  });
+
+  it("leaves a cron feed on the budget answer at 31 days", () => {
+    // Snapshot naming is for feeds we collect episodically. A cron feed is
+    // meant to be refreshed for us, so an old one is a budget question.
+    const r = evaluateDataset(
+      dataset({ class: "cron", stalenessBudgetHours: 2160 }),
+      daysBefore(31),
+      NOW,
+    );
+    expect(r.status).toBe("fresh");
+  });
+
+  it("keeps an unbudgeted episodic feed untracked rather than renaming it", () => {
+    const r = evaluateDataset(
+      episodic({ stalenessBudgetHours: null }),
+      daysBefore(31),
+      NOW,
+    );
+    expect(r.status).toBe("untracked");
+  });
+
+  it("agrees with classNamesSnapshots about which classes are renamed", () => {
+    expect(classNamesSnapshots("episodic")).toBe(true);
+    for (const other of ["cron", "live", "static", "user-cadence", "snapshot"] as const) {
+      expect(classNamesSnapshots(other)).toBe(false);
+    }
   });
 });
 

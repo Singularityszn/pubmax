@@ -181,12 +181,22 @@ site can render honest freshness anywhere from this one endpoint, feeding the
 `communityPrices` block (the corroborated community-price stock) — that metric
 is owned by [`docs/METRICS_FUNNEL.md`](METRICS_FUNNEL.md) §5.
 
-**Status vocabulary:** `live` (served per request), `fresh` (within budget),
-`stale` (breach — owner-visible), `untracked` (intentionally not budgeted —
-static/episodic/user-cadence), `unknown` (expected a stamp, none could be
+**Status vocabulary:** `live` (served per request), `fresh` (within budget and
+recent enough to speak for now), `snapshot` (within budget, but an episodic feed
+over `SNAPSHOT_AFTER_DAYS` old, so it describes its collection day rather than
+today), `stale` (breach — owner-visible), `untracked` (intentionally not budgeted
+— static/episodic/user-cadence), `unknown` (expected a stamp, none could be
 resolved). An `unknown` never counts as fresh and never counts as stale: its
 `detail` names the artifact and the way the read failed (absent from the
 deployment, present but unparseable, present but carrying no stamp field).
+
+**A `snapshot` is a name, not an alarm.** It only ever renames what the budget
+would otherwise have reported `fresh`, so no gate moves and `hasBreach` stays
+false: an episodic feed ageing is what an episodic feed does. `stale` still wins
+when the budget is breached, or a renamed feed would hide one nobody has
+re-collected. The threshold is its own number in `lib/freshness.ts`, deliberately
+neither the price-authority window (which decides what a drinker is told about
+one figure) nor a registry budget (which is the neglect ceiling).
 
 ### How to read what the spine reports
 Current staleness is not written down here - run `node scripts/check_freshness.mjs`
