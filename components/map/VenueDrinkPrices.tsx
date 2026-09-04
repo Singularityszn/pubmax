@@ -49,6 +49,7 @@ export default function VenueDrinkPrices({
   activeLane,
   laneNoun,
   readStatus,
+  laneLoggedPriceShown = false,
   communityPrices,
   onLogPrice,
   canLog,
@@ -66,6 +67,15 @@ export default function VenueDrinkPrices({
   laneNoun: string;
   /** Still reading, could not read, or read and found none: three findings. */
   readStatus: VenuePriceReadStatus;
+  /**
+   * True when the price area below already prints a DRINKER'S OWN log for this
+   * lane, as `venuePriceLaneIsDrinkerLog` decides it (lib/venuePriceLane.ts).
+   *
+   * A Pint Drop is a log, so "No beer price logged here yet" over one is untrue
+   * (#1426 follow-up). The block holds that line rather than printing the figure a second
+   * time, because one pub may never offer the same price twice.
+   */
+  laneLoggedPriceShown?: boolean;
   communityPrices: CommunityPricesState;
   /** Bring the composer under the reader's thumb, already on this drink. */
   onLogPrice: () => void;
@@ -80,11 +90,12 @@ export default function VenueDrinkPrices({
   const laneRow = ordered.find((row) => row.inActiveLane) ?? null;
   // The empty statement is the shared helper's, so a read that failed or one
   // still running can never settle as "nobody has logged this here".
-  const laneEmptyNote = laneRow
-    ? null
-    : drinkLensEmptyVenueNote(laneNoun, readStatus);
+  const laneEmptyNote =
+    laneRow || laneLoggedPriceShown
+      ? null
+      : drinkLensEmptyVenueNote(laneNoun, readStatus);
   const invite =
-    laneRow || !canLog
+    laneRow || laneLoggedPriceShown || !canLog
       ? null
       : drinkLaneLogInvite(
           laneNoun,

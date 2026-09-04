@@ -13,6 +13,9 @@
 // These cases run the pipeline in the order PubMap runs it: drops fold into the
 // signal through `provisionalPriceDrop`, and the overview tab renders the lane.
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -20,7 +23,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import VenueOverviewTab from "@/components/map/inspector/VenueOverviewTab";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { firstDropNudgeCopy } from "@/lib/firstDropNudge";
-import { PROVISIONAL_PRICE_LINE } from "@/lib/venuePriceLane";
+import { drinkLensEmptyVenueNote } from "@/lib/mapExperienceLens";
+import { drinkLaneLogActionLabel, drinkLaneLogInvite } from "@/lib/drinkLanes";
+import type { DrinkCategory } from "@/lib/drinks";
+import { peekPriceChip } from "@/lib/pubMap";
+import {
+  PROVISIONAL_PRICE_LINE,
+  venuePriceLane,
+  venueBundlePrices,
+  venueSourcedPrice,
+} from "@/lib/venuePriceLane";
 import {
   corroboratedPriceDrop,
   mergeVenueDrops,
@@ -127,7 +139,11 @@ function communityPrices(venueId: string): CommunityPricesState {
 }
 
 /** The whole path a selected venue takes, exactly as PubMap wires it. */
-function renderSelectedVenue(drops: SummaryDrop[], base: Venue = venue()): string {
+function renderSelectedVenue(
+  drops: SummaryDrop[],
+  base: Venue = venue(),
+  drinkLensCategory: DrinkCategory | null = null,
+): string {
   const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
   const corroborated = corroboratedPriceDrop(drops, NOW);
   const provisional = provisionalPriceDrop(drops, NOW);
@@ -147,6 +163,7 @@ function renderSelectedVenue(drops: SummaryDrop[], base: Venue = venue()): strin
         : null,
       communityPrices: communityPrices(VENUE_ID),
       experienceLens: "all",
+      drinkLensCategory,
       onToggleStop: noop,
       presenceState: "idle",
       markPresenceHere: noop,
@@ -237,5 +254,120 @@ describe("a lone public Pint Drop on the venue Overview", () => {
     expect(merged.cheapestPrice).toBeNull();
     expect(merged.latestContributorPrice).toBeNull();
     expect(corroboratedPriceDrop([drop()], NOW)).toBeNull();
+  });
+});
+
+// The two surfaces the first cut of this lane missed (#1426 follow-up). The cases above
+// render the Overview's price AREA; the reds were the block ABOVE it and the
+// chip a phone shows over the sheet, and neither was rendered here.
+//
+// Both now ask the same `venuePriceLane`, so what a reader may be told is
+// absent is decided in one place for the whole pub.
+
+/** The exact absence wording the prices-by-drink block owns, in beer. */
+const BEER_ABSENCE_NOTE = drinkLensEmptyVenueNote("beer", "ready");
+const BEER_LOG_INVITE = drinkLaneLogInvite("beer", "ready") as string;
+
+describe("the prices-by-drink block over a lone Pint Drop", () => {
+  it("says nothing is logged here only when nothing is", () => {
+    expect(renderSelectedVenue([])).toContain(BEER_ABSENCE_NOTE);
+  });
+
+  it("holds that line over a drinker's own report, which IS a log", () => {
+    const html = renderSelectedVenue([drop()]);
+    expect(html).not.toContain(BEER_ABSENCE_NOTE);
+    expect(html).not.toContain(BEER_LOG_INVITE);
+    expect(html).not.toContain(drinkLaneLogActionLabel("beer"));
+  });
+
+  it("prints the figure ONCE: the block above never repeats the lane's own", () => {
+    expect(renderSelectedVenue([drop()]).split("£4.50").length - 1).toBe(1);
+  });
+
+  it("words no absence anywhere in the sheet while the lane answers", () => {
+    const html = renderSelectedVenue([drop()]);
+    for (const absence of [
+      BEER_ABSENCE_NOTE,
+      "No price yet",
+      "no beer price logged",
+      firstDropNudgeCopy(VENUE_ID).line,
+    ]) {
+      expect(html, absence).not.toContain(absence);
+    }
+  });
+
+  it("returns the wording when the drop is gone", () => {
+    const html = renderSelectedVenue([
+      drop({ createdAt: new Date(NOW - 90 * DAY_MS).toISOString() }),
+    ]);
+    expect(html).toContain(BEER_ABSENCE_NOTE);
+    expect(html).toContain(firstDropNudgeCopy(VENUE_ID).line);
+  });
+
+  it("still says so for a drink the report is not about", () => {
+    // A pint report answers nothing about coffee, so the coffee lane keeps its
+    // own honest absence.
+    const html = renderSelectedVenue([drop()], venue(), "coffee");
+    expect(html).toContain(drinkLensEmptyVenueNote("coffee", "ready"));
+  });
+});
+
+/** The peek's own lane input, exactly as PubMap builds it from the drop signal. */
+function peekChipFor(drops: SummaryDrop[], base: Venue = venue()) {
+  const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
+  const provisional = provisionalPriceDrop(drops, NOW);
+  const bundle = venueBundlePrices(merged);
+  return peekPriceChip(
+    venuePriceLane(
+      merged,
+      corroboratedPriceDrop(drops, NOW)?.priceGbp ?? null,
+      venueSourcedPrice(merged),
+      bundle,
+      provisional
+        ? {
+            priceGbp: provisional.priceGbp as number,
+            observedAt: Date.parse(provisional.createdAt),
+          }
+        : null,
+    ),
+    bundle,
+  );
+}
+
+describe("the phone peek chip over a lone Pint Drop", () => {
+  it("prints the drinker's figure rather than an absence", () => {
+    expect(peekChipFor([drop()])).toEqual({
+      figure: "£4.50",
+      caption: PROVISIONAL_PRICE_LINE,
+      observed: true,
+    });
+  });
+
+  it("answers null only when the pub has no price at all, which is the ONE branch that may say so", () => {
+    expect(peekChipFor([])).toBeNull();
+    expect(
+      peekChipFor([drop({ createdAt: new Date(NOW - 90 * DAY_MS).toISOString() })]),
+    ).toBeNull();
+  });
+
+  it("keeps the baseline chip it always printed", () => {
+    expect(peekChipFor([], venue({ cheapestPrice: 6.2 }))).toEqual({
+      figure: "£6.20",
+      caption: "current recorded price",
+      observed: true,
+    });
+  });
+
+  it("is the ONLY thing the peek words as an absence", () => {
+    const source = readFileSync(
+      join(process.cwd(), "components/PubMap.tsx"),
+      "utf8",
+    );
+    // The chip decides first, and the "No price yet" button is reachable only
+    // where it answered null.
+    expect(source).toContain("const peekPrice = peekPriceChip(peekLane, peekBundle);");
+    expect(source).toMatch(
+      /\) : peekPrice \? \([\s\S]*?\) : selectedVenueIsPub \? \([\s\S]*?No price yet\./,
+    );
   });
 });

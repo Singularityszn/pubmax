@@ -22,7 +22,10 @@ import { describe, expect, it } from "vitest";
 
 import { pubsToGeoJSON } from "@/components/map/canvas/geojson";
 import type { VenueSignal } from "@/components/map/canvas/types";
-import { confirmedPriceInputFor } from "@/lib/pintDropConfirmation";
+import {
+  confirmedPriceInputFor,
+  type ConfirmableDrop,
+} from "@/lib/pintDropConfirmation";
 import { priceStandingFor } from "@/lib/priceTier";
 import {
   authoritativePriceDrop,
@@ -30,7 +33,6 @@ import {
   corroboratedPriceDrop,
   mergeVenueDrops,
   provisionalPriceDrop,
-  type SummaryDrop,
   type Venue,
 } from "@/lib/venues";
 
@@ -80,8 +82,9 @@ function venue(overrides: Partial<Venue> = {}): Venue {
   } as Venue;
 }
 
-function drop(overrides: Partial<SummaryDrop> = {}): SummaryDrop {
+function drop(overrides: Partial<ConfirmableDrop> = {}): ConfirmableDrop {
   return {
+    id: "drop-1",
     drink: "Lager",
     priceGbp: 4.5,
     passedDownNote: "",
@@ -103,7 +106,7 @@ function confirmation(ageDays = 1, confirmingDropId = "drop-2") {
 }
 
 /** The pair the server confirmed: one anonymous drop that publishes no key. */
-function confirmedPair(): SummaryDrop[] {
+function confirmedPair(): ConfirmableDrop[] {
   return [
     drop({
       handle: "Anonymous",
@@ -112,6 +115,7 @@ function confirmedPair(): SummaryDrop[] {
       confirmation: confirmation(),
     }),
     drop({
+      id: "drop-2",
       handle: "second_drinker",
       authorityKey: "account-second",
       createdAt: new Date(NOW - 2 * DAY_MS).toISOString(),

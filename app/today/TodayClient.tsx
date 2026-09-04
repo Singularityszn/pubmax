@@ -59,11 +59,7 @@ import TodayGetThereStrip from "./TodayGetThereStrip";
 import TodayPintsCard from "./TodayPintsCard";
 import TodayQuietPintCard from "./TodayQuietPintCard";
 import TodayTubeCard from "./TodayTubeCard";
-import {
-  resolveTodayPintsPatchId,
-  type TodayPintRow,
-  type TodayPintsIndex,
-} from "./todayPints";
+import type { TodayPintsIndex } from "./todayPints";
 import type { QuietPintModule } from "@/lib/quietPint";
 import "./today.css";
 
@@ -145,34 +141,22 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
   );
 }
 
+// ONE FIGURE, ONE PLACE, DATED. This card used to lead with the cheapest listed
+// pint as well, off `rows[0]` of the very module `TodayPintsCard` prints below
+// it, so the page showed one pub's price twice and dated it once: only the
+// pints card carries `formatPintDatasetSnapshot()`. The dated copy is the one
+// that stayed (#1426 follow-up).
 function PicksCard({
   picks,
   filteredPickCount,
   slot,
   picksStatus,
-  cheapPint,
-  cheapPintScope,
 }: {
   picks: TonightPickDto[];
   filteredPickCount: number;
   slot: DaySlot;
   picksStatus: PicksListReadStatus;
-  cheapPint: TodayPintRow | null;
-  cheapPintScope: string | null;
 }) {
-  const cheapPintBlock =
-    cheapPint && cheapPintScope ? (
-      <div className="todayPickCheapPint" data-testid="today-picks-cheap-pint">
-        <p className="todayPickCheapPintEyebrow">Cheapest listed pint {cheapPintScope}</p>
-        <div className="todayPintRow">
-          <Link prefetch={false} className="todayPintLink pressable" href={cheapPint.mapHref}>
-            <span className="todayPintName">{cheapPint.name}</span>
-            <span className="todayPintPrice">{cheapPint.priceLabel}</span>
-          </Link>
-        </div>
-      </div>
-    ) : null;
-
   return (
     <section
       className="todayCard"
@@ -243,7 +227,6 @@ function PicksCard({
               );
             })}
           </ul>
-          {cheapPintBlock}
           <p className="todayCardFootRow">
             <Link prefetch={false} href="/tonight" className="todayCardFootLink">
               See everything on tonight
@@ -258,7 +241,6 @@ function PicksCard({
               ? "Tonight has listings, but none match your current preferences."
               : picksListLine(picksStatus, slot)}
           </p>
-          {cheapPintBlock}
           <p className="todayCardFootRow">
             <Link prefetch={false} href="/map" className="todayCardFootLink">
               Meanwhile, the map knows the cheap pints
@@ -326,19 +308,6 @@ function FactCard({ fact }: { fact: TodayFact | null }) {
   );
 }
 
-function initialPintsView(index: TodayPintsIndex): {
-  cheapPint: TodayPintRow | null;
-  cheapPintScope: string | null;
-} {
-  const id = resolveTodayPintsPatchId(null, index);
-  const pintsModule = id ? index[id] : null;
-  if (!pintsModule?.rows[0]) return { cheapPint: null, cheapPintScope: null };
-  return {
-    cheapPint: pintsModule.rows[0],
-    cheapPintScope: `in ${pintsModule.areaName}`,
-  };
-}
-
 export default function TodayClient({
   dateLabel,
   nowIso,
@@ -352,7 +321,6 @@ export default function TodayClient({
   quietPint,
 }: Props) {
   const [brief, setBrief] = useState({ weather, picks: picks.slice(0, 3), filteredPickCount: 0 });
-  const [pintsView, setPintsView] = useState(() => initialPintsView(pintsIndex));
 
   // Who the salutation may name. SSR and hydration both see nobody, then the
   // live session answers. Nothing about the layout depends on it, so its
@@ -384,18 +352,6 @@ export default function TodayClient({
     void Promise.resolve().then(() => {
       if (cancelled) return;
       const remembered = readRememberedArea();
-      const rememberedPatchId = resolveTodayPintsPatchId(remembered, pintsIndex);
-      const pintsModule = rememberedPatchId ? pintsIndex[rememberedPatchId] : null;
-      const hasRememberedLocality =
-        remembered?.kind === "patch" && rememberedPatchId === remembered.id;
-      setPintsView({
-        cheapPint: pintsModule?.rows[0] ?? null,
-        cheapPintScope: pintsModule
-          ? hasRememberedLocality
-            ? "near you"
-            : `in ${pintsModule.areaName}`
-          : null,
-      });
       const rememberedPatch = remembered?.kind === "patch"
         ? NIGHT_PATCHES.find((patch) => patch.id === remembered.id)?.id ?? null
         : null;
@@ -464,8 +420,6 @@ export default function TodayClient({
             filteredPickCount={brief.filteredPickCount}
             slot={shownGreeting.slot}
             picksStatus={picksStatus}
-            cheapPint={pintsView.cheapPint}
-            cheapPintScope={pintsView.cheapPintScope}
           />
           <TodayGetThereStrip />
         </div>

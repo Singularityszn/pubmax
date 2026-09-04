@@ -24,7 +24,9 @@ import {
   PROVISIONAL_PRICE_LINE,
   venueBundlePrices,
   venuePriceLane,
+  venuePriceLaneIsDrinkerLog,
   type ProvisionalPriceInput,
+  type VenuePriceLane,
 } from "@/lib/venuePriceLane";
 import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import SaveForNightButton from "@/components/wanted/SaveForNightButton";
@@ -63,12 +65,42 @@ import { namedLegacyPintPriceSource, type DrinkCategory } from "@/lib/drinks";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import type { ZonePintIndex } from "@/lib/zones";
 
+/**
+ * What the price area below the drink rows does on this pub, and whether the
+ * block above it may still word an absence.
+ *
+ * A module-scope helper on purpose: the tab is already at the complexity
+ * ceiling, and these are two readings of one decided lane rather than render
+ * work. `showsPriceSummary` restates no policy - it is the condition that
+ * surface has always rendered under - and `laneLoggedPriceShown` asks
+ * `venuePriceLaneIsDrinkerLog` rather than naming lanes itself.
+ */
+function overviewPriceAreaReach(
+  venue: Venue,
+  experienceLens: MapExperienceLens,
+  drinkLensCategory: DrinkCategory | null | undefined,
+  lane: VenuePriceLane | null,
+): { showsPriceSummary: boolean; laneLoggedPriceShown: boolean } {
+  const showsPriceSummary =
+    !drinkLensCategory &&
+    (experienceLens !== "no-alcohol" ||
+      venue.kind === "food" ||
+      venue.kind === "restaurant");
+  // "No beer price logged here yet" may not stand over a drinker's own log
+  // (#1426 follow-up). Only a lane a DRINKER logged silences it: a sourced, listed,
+  // baseline or modelled figure was logged by nobody, so the line stays true
+  // beside those.
+  return {
+    showsPriceSummary,
+    laneLoggedPriceShown:
+      showsPriceSummary && lane !== null && venuePriceLaneIsDrinkerLog(lane),
+  };
+}
+
 function VenuePriceSummary({
   venue,
-  latestContributorPrice,
+  lane,
   confirmedPrice,
-  provisionalPrice,
-  sourcedPrice,
   sourcedObserved,
   anchorStamp,
   onLogTonightPrice,
@@ -76,10 +108,10 @@ function VenuePriceSummary({
   priceRevealMotionClass = "",
 }: {
   venue: Venue;
-  latestContributorPrice: number | null | undefined;
+  /** The decided lane, taken once by the tab and never re-decided here, so the
+   *  block above and this row cannot answer from two readings of one pub. */
+  lane: VenuePriceLane | null;
   confirmedPrice?: ConfirmedPriceInput | null;
-  provisionalPrice?: ProvisionalPriceInput | null;
-  sourcedPrice: PricedVenue["sourcedPrice"];
   sourcedObserved: string;
   anchorStamp: string | null;
   onLogTonightPrice: () => void;
@@ -100,15 +132,6 @@ function VenuePriceSummary({
     listed: bundle.listed ?? null,
     estimate: bundle.estimate ?? null,
   });
-  // ONE precedence, shared with the first-drop gate (lib/venuePriceLane.ts),
-  // so a reordered or added lane cannot leave the nudge behind.
-  const lane = venuePriceLane(
-    venue,
-    latestContributorPrice,
-    sourcedPrice,
-    bundle,
-    provisionalPrice,
-  );
   const baselinePriceRow = venue.prices.find(
     (price) => price.price_gbp === venue.cheapestPrice,
   );
@@ -448,6 +471,23 @@ export default function VenueOverviewTab({
   // Sourced attribution from mergePriceUpdates (optional field on the runtime
   // venue object). Absent when community is fresher or no refresh exists.
   const sourcedPrice = (venue as PricedVenue).sourcedPrice ?? null;
+
+  // ONE precedence, taken ONCE for this tab and shared with the first-drop gate
+  // (lib/venuePriceLane.ts), so a reordered or added lane cannot leave the nudge
+  // behind and the two blocks below cannot read one pub two ways.
+  const priceLane = venuePriceLane(
+    venue,
+    latestContributorPrice,
+    sourcedPrice,
+    venueBundlePrices(venue),
+    provisionalPrice,
+  );
+  const { showsPriceSummary, laneLoggedPriceShown } = overviewPriceAreaReach(
+    venue,
+    experienceLens,
+    drinkLensCategory,
+    priceLane,
+  );
   const sourcedObserved =
     sourcedPrice?.observedAt != null ? formatObservedAt(sourcedPrice.observedAt) : "";
 
@@ -610,6 +650,7 @@ export default function VenueOverviewTab({
           activeLane={leadLane}
           laneNoun={leadLaneNoun}
           readStatus={venueReadStatus}
+          laneLoggedPriceShown={laneLoggedPriceShown}
           communityPrices={communityPrices}
           onLogPrice={onLogTonightPrice}
           canLog={isPubVenue(venue)}
@@ -624,16 +665,11 @@ export default function VenueOverviewTab({
           it renders under its own label with date and source, never as a
           pint figure. A selected-drink lens already answered above, so a beer
           baseline must not stand in for coffee (or wine, or soft drink). */}
-      {!drinkLensCategory &&
-      (experienceLens !== "no-alcohol" ||
-        venue.kind === "food" ||
-        venue.kind === "restaurant") ? (
+      {showsPriceSummary ? (
         <VenuePriceSummary
           venue={venue}
-          latestContributorPrice={latestContributorPrice}
+          lane={priceLane}
           confirmedPrice={confirmedPrice}
-          provisionalPrice={provisionalPrice}
-          sourcedPrice={sourcedPrice}
           sourcedObserved={sourcedObserved}
           anchorStamp={anchorStamp}
           onLogTonightPrice={onLogTonightPrice}

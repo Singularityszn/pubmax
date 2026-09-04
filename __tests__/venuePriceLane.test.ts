@@ -8,7 +8,10 @@ import {
   PROVISIONAL_PRICE_LINE,
   venueBundlePrices,
   venuePriceLane,
+  venuePriceLaneIsDrinkerLog,
+  venuePriceLaneObservedGbp,
   venueSourcedPrice,
+  type VenuePriceLane,
   type VenuePriceLaneName,
 } from "@/lib/venuePriceLane";
 import type { PricedVenue } from "@/lib/priceUpdates";
@@ -166,10 +169,14 @@ describe("venuePriceLane — one precedence for the overview price area", () => 
     const contributor = venuePriceLane(makeVenue(), 5.4, null);
     expect(contributor).toEqual({ lane: "contributor", contributorPrice: 5.4 });
 
-    const sourcedVenue = withSourced(makeVenue());
+    // The sourced row carries the attribution AND the figure, because a sourced
+    // observation overwrites `cheapestPrice` in `mergePriceUpdates` and the
+    // attribution itself holds no price a compact surface could print.
+    const sourcedVenue = withSourced(makeVenue({ cheapestPrice: 5.9 }));
     expect(venuePriceLane(sourcedVenue, null, venueSourcedPrice(sourcedVenue))).toEqual({
       lane: "sourced",
       sourcedPrice: SOURCED,
+      cheapestPrice: 5.9,
     });
 
     expect(venuePriceLane(makeVenue({ cheapestPrice: 6.2 }), null, null)).toEqual({
@@ -192,6 +199,77 @@ describe("venuePriceLane — one precedence for the overview price area", () => 
   it("covers every lane plus the empty case", () => {
     const covered = new Set(FIXTURES.map((fixture) => fixture.lane));
     expect(covered).toEqual(new Set(["anchor", "contributor", "sourced", "baseline", null]));
+  });
+});
+
+// The two questions a compact surface asks about a decided lane. Both were
+// added for #1426, where a phone chip and the prices-by-drink block each worded
+// an absence over a drinker's own report.
+describe("what a decided lane answers about itself", () => {
+  const LISTED_ROW = {
+    priceGbp: 5.4,
+    sourceUrl: "https://thecrown.co.uk/drinks",
+    observedAt: new Date(Date.now() - 86_400_000).toISOString(),
+  };
+  const ESTIMATE_ROW = {
+    priceGbp: 6.1,
+    basis: "regional_baseline:camden",
+    sampleSize: 42,
+    computedAt: new Date(Date.now() - 86_400_000).toISOString(),
+  };
+  const PROVISIONAL_ROW = { priceGbp: 4.5, observedAt: Date.now() - 86_400_000 };
+
+  it("hands back the figure its own branch prints, for every observed lane", () => {
+    const sourced = withSourced(makeVenue({ cheapestPrice: 5.9 }));
+    const cases: ReadonlyArray<[VenuePriceLane, number]> = [
+      [venuePriceLane(makeVenue(), 5.4, null)!, 5.4],
+      [venuePriceLane(sourced, null, venueSourcedPrice(sourced))!, 5.9],
+      [venuePriceLane(makeVenue(), null, null, { listed: LISTED_ROW })!, 5.4],
+      [venuePriceLane(makeVenue(), null, null, {}, PROVISIONAL_ROW)!, 4.5],
+      [venuePriceLane(makeVenue({ cheapestPrice: 6.2 }), null, null)!, 6.2],
+      [
+        venuePriceLane(
+          makeVenue({ kind: "restaurant", anchorLabel: "Cheapest beer", cheapestPrice: 6.2 }),
+          null,
+          null,
+        )!,
+        6.2,
+      ],
+    ];
+    for (const [lane, figure] of cases) {
+      expect(venuePriceLaneObservedGbp(lane), lane.lane).toBe(figure);
+    }
+  });
+
+  it("refuses to hand back a modelled figure, which may only print through priceStandingFigure", () => {
+    const estimate = venuePriceLane(makeVenue(), null, null, { estimate: ESTIMATE_ROW })!;
+    expect(estimate.lane).toBe("estimate");
+    expect(venuePriceLaneObservedGbp(estimate)).toBeNull();
+  });
+
+  it("calls a lane a drinker's log only where a drinker logged it", () => {
+    const sourced = withSourced(makeVenue({ cheapestPrice: 5.9 }));
+    const logged: ReadonlyArray<VenuePriceLane> = [
+      venuePriceLane(makeVenue(), 5.4, null)!,
+      venuePriceLane(makeVenue(), null, null, {}, PROVISIONAL_ROW)!,
+    ];
+    const notLogged: ReadonlyArray<VenuePriceLane> = [
+      venuePriceLane(sourced, null, venueSourcedPrice(sourced))!,
+      venuePriceLane(makeVenue(), null, null, { listed: LISTED_ROW })!,
+      venuePriceLane(makeVenue({ cheapestPrice: 6.2 }), null, null)!,
+      venuePriceLane(makeVenue(), null, null, { estimate: ESTIMATE_ROW })!,
+      venuePriceLane(
+        makeVenue({ kind: "restaurant", anchorLabel: "Cheapest beer", cheapestPrice: 6.2 }),
+        null,
+        null,
+      )!,
+    ];
+    for (const lane of logged) {
+      expect(venuePriceLaneIsDrinkerLog(lane), lane.lane).toBe(true);
+    }
+    for (const lane of notLogged) {
+      expect(venuePriceLaneIsDrinkerLog(lane), lane.lane).toBe(false);
+    }
   });
 });
 
@@ -360,13 +438,16 @@ describe("VenueOverviewTab renders from the shared lane", () => {
     // Matched on the call's ARGUMENTS rather than one formatted line, because
     // the argument list has outgrown a single line and a reflow is not a policy
     // change. What is pinned is that the component decides nothing itself.
-    const call = overview.slice(overview.indexOf("const lane = venuePriceLane("));
+    // The tab takes the lane ONCE and hands it down, because the block above the
+    // price area has to know whether its own absence line would stand beside a
+    // figure (#1426 follow-up), and two readings of one pub could disagree.
+    const call = overview.slice(overview.indexOf("const priceLane = venuePriceLane("));
     const args = call.slice(0, call.indexOf(");") + 2);
     for (const argument of [
       "venue",
       "latestContributorPrice",
       "sourcedPrice",
-      "bundle",
+      "venueBundlePrices(venue)",
       "provisionalPrice",
     ]) {
       expect(args, `the lane call must be given ${argument}`).toContain(argument);
