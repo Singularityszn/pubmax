@@ -69,10 +69,14 @@ const NOT_REPO_PATHS = new Set([
   "profiles.cover_*",
   // Analytics event name, not a repository path.
   "uploaded_image.scan_skipped",
+  // Log line name, not a repository path.
+  "pint_drops.daily_cap_conflict",
   // Database column name, not a repository path.
   "plan_crew_members.token_hash",
   // Database column name, not a repository path.
   "community_prices.actor",
+  // Database column name, not a repository path.
+  "harvest_venue_overlays.menu_url",
   // Database column name, not a repository path.
   "venue_occupancy_flags.actor_hash",
   // External host policy endpoint, not a repository path.

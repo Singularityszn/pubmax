@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "readAt": "2026-09-04T00:00:00.000Z",
+  "source": "public.harvest_venue_overlays (migration 0123)",
+  "readVia": "supabase-mcp-session",
+  "counts": {
+    "overlayRows": 0,
+    "usable": 0,
+    "no-menu-url": 0,
+    "policy-refused-host": 0,
+    "unparseable-url": 0,
+    "distinctHosts": 0
+  },
+  "refusedHosts": {},
+  "urls": []
+}

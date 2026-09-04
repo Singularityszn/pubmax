@@ -52,6 +52,11 @@ import {
   isHarvestableOperatorUrl,
 } from "../../../lib/harvest/sourcePolicy.ts";
 import {
+  OVERLAY_MENU_URL_INPUT_PATH,
+  crawlableOverlayMenuUrls,
+  readOverlayMenuUrlInput,
+} from "./menu-urls.mjs";
+import {
   DEFAULT_HOST_DELAY_MS,
   DEFAULT_PAGES_PER_HOST,
   cheapestPerCategory,
@@ -122,6 +127,12 @@ const ONLY = option("--only", null);
  * produced it changes, or when the ask itself failed, the hosts under that one
  * finding are the ones worth asking again and nothing else is.
  */
+/**
+ * The committed overlay menu-url input, cut from `harvest_venue_overlays.menu_url`
+ * by scripts/harvest/uk-prices/menu-urls.mjs. `--menu-urls none` leaves the lane
+ * reading the snapshot's own websites alone.
+ */
+const MENU_URL_INPUT = option("--menu-urls", OVERLAY_MENU_URL_INPUT_PATH);
 const RECHECK = (option("--recheck", "") || "")
   .split(",")
   .map((name) => name.trim())
@@ -251,6 +262,11 @@ async function discoverPages(entry, statedSitemaps, spend) {
     if (!pages.includes(url)) pages.push(url);
   };
 
+  // 0. A page the fold already recorded as this pub's menu. It is the cheapest
+  // signal there is: somebody's own site said this URL is the drinks list, so it
+  // is opened before anything has to be guessed at from a sitemap or a link.
+  for (const seed of entry.seedPages ?? []) push(seed);
+
   // 1. The pub's own stated page. Many small sites put the drinks list on it.
   push(entry.origin);
 
@@ -310,7 +326,12 @@ async function crawlHost(entry, robots, spend, delayMs) {
 
   const discovered = await discoverPages(entry, decision.sitemaps ?? [], spend);
   const fromHome = menuLinkCandidates(home.body, entry.origin, DEFAULT_PAGES_PER_HOST);
-  const queue = [...new Set([...discovered.slice(1), ...fromHome])].slice(0, DEFAULT_PAGES_PER_HOST - 1);
+  // The home page has already been read, so it is dropped from the queue by
+  // VALUE rather than by position: a seeded menu page sits ahead of it now, and
+  // slicing the first entry off would silently discard that seed instead.
+  const queue = [...new Set([...discovered, ...fromHome])]
+    .filter((url) => url !== entry.origin)
+    .slice(0, DEFAULT_PAGES_PER_HOST - 1);
 
   const readings = [{ url: entry.origin, reading: readVenueDrinkPrices(home.body) }];
   let pdfSeen = 0;
@@ -414,6 +435,39 @@ async function main() {
     if (!host || hosts.some((entry) => entry.host === host)) continue;
     hosts.push({ host, origin: new URL(source.url).origin, pubs: [], sourceId: source.id });
   }
+
+  // THE OVERLAY'S OWN MENU PAGES. A `harvest_venue_overlays.menu_url` is a page
+  // one pub's own site published, recorded against that pub's OSM id, so it is
+  // first-party by the same argument rule 1 makes about a pub's `website`: it is
+  // not a typed host, it is a page a pub we can name stated about itself. It is
+  // SEEDED onto that pub's host rather than crawled apart from it, so one host
+  // still answers once, under one ledger row, behind one live robots ask.
+  const overlayInput = readOverlayMenuUrlInput(MENU_URL_INPUT);
+  const overlayCrawlable = crawlableOverlayMenuUrls(overlayInput);
+  let overlaySeeded = 0;
+  let overlayOnUnknownHost = 0;
+  for (const target of overlayCrawlable) {
+    const host = target.host ?? hostOf(target.menuUrl);
+    if (!host) continue;
+    const entry = hosts.find((known) => known.host === host);
+    if (!entry) {
+      // The overlay names a host the pub snapshot states no website for. The
+      // page is real, but this lane's unit is a host with pubs attached, so the
+      // finding is counted rather than a bare host being invented for it.
+      overlayOnUnknownHost += 1;
+      continue;
+    }
+    entry.seedPages = entry.seedPages ?? [];
+    if (!entry.seedPages.includes(target.menuUrl)) {
+      entry.seedPages.push(target.menuUrl);
+      overlaySeeded += 1;
+    }
+  }
+  console.log(
+    overlayInput
+      ? `  overlay menu urls: ${overlayInput.urls.length} in ${path.relative(ROOT, MENU_URL_INPUT)}, ${overlaySeeded} seeded, ${overlayOnUnknownHost} on a host with no snapshot pub`
+      : `  overlay menu urls: no input at ${path.relative(ROOT, MENU_URL_INPUT)}; run npm run harvest:uk-menu-urls`,
+  );
 
   if (RECHECK.length > 0) {
     let dropped = 0;
@@ -529,6 +583,13 @@ async function main() {
     generatedAt: new Date().toISOString(),
     snapshot: { pubs: totalPubs, statedWebsite, refusedByPolicy },
     hostsKnown: hosts.length,
+    overlayMenuUrls: {
+      inputRead: Boolean(overlayInput),
+      held: overlayInput?.urls.length ?? 0,
+      crawlable: overlayCrawlable.length,
+      seeded: overlaySeeded,
+      onHostWithNoSnapshotPub: overlayOnUnknownHost,
+    },
     hostsCrawledThisRun: done,
     hostsInLedger: Object.keys(ledger.hosts).length,
     pagesRead: spent,

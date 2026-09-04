@@ -44,6 +44,11 @@ import process from "node:process";
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
 import { harvestSourcesOfKind, isHarvestSourceAllowed } from "../../../lib/harvest/sourcePolicy.ts";
 import {
+  OVERLAY_MENU_URL_INPUT_PATH,
+  crawlableOverlayMenuUrls,
+  readOverlayMenuUrlInput,
+} from "./menu-urls.mjs";
+import {
   cheapestPerCategory,
   pageStatesADrinksList,
   readVenueDrinkPrices,
@@ -131,6 +136,12 @@ const LIMIT = Number(option("--limit", Number.POSITIVE_INFINITY));
 const ONLY = option("--only", null);
 const CONCURRENCY = Math.max(1, Number(option("--concurrency", DEFAULT_CONCURRENCY)));
 const RENDERER = option("--renderer", "npx");
+/**
+ * The committed overlay menu-url input, read by scripts/harvest/uk-prices/menu-urls.mjs
+ * out of `harvest_venue_overlays.menu_url`. `--menu-urls none` leaves the lane
+ * reading permitted chain estates alone.
+ */
+const MENU_URL_INPUT = option("--menu-urls", OVERLAY_MENU_URL_INPUT_PATH);
 const RENDERER_ARGS = RENDERER === "npx" ? ["--yes", "wigolo@latest"] : [];
 
 function ukBaseVenueId(osmId) {
@@ -264,6 +275,37 @@ function chainMenuTargets() {
   return { targets, allowedHosts };
 }
 
+/**
+ * The menu pages the fold recorded per pub, joined back to the pub the snapshot
+ * knows. Overlay identity IS the OSM id, so the join is exact and a row the
+ * snapshot does not carry is dropped rather than rendered under a guessed name.
+ *
+ * These are per-pub pages on a pub's OWN site, so like the chain lane's targets
+ * they name exactly one pub and have no attribution question to answer.
+ */
+function overlayMenuTargets(pubsByOsmId) {
+  const input = readOverlayMenuUrlInput(MENU_URL_INPUT);
+  if (!input) return { targets: [], read: false, held: 0 };
+  const targets = [];
+  for (const target of crawlableOverlayMenuUrls(input)) {
+    const venueId = target.venueId ?? ukBaseVenueId(target.osmId);
+    if (!venueId) continue;
+    const pub = pubsByOsmId.get(target.osmId) ?? null;
+    targets.push({
+      venueId,
+      osmId: target.osmId ?? null,
+      name: pub?.name ?? null,
+      postcode: pub?.postcode ?? null,
+      lat: pub?.lat ?? null,
+      lng: pub?.lng ?? null,
+      host: target.host ?? hostOf(target.menuUrl),
+      sourceId: "harvest-overlay-menu",
+      menuUrl: target.menuUrl,
+    });
+  }
+  return { targets, read: true, held: input.urls.length };
+}
+
 async function main() {
   if (!existsSync(OSM_PUBS)) {
     console.error(`missing ${path.relative(ROOT, OSM_PUBS)}; run npm run fetch:uk-pubs first`);
@@ -271,9 +313,37 @@ async function main() {
     return;
   }
 
-  const { targets, allowedHosts } = chainMenuTargets();
+  const { targets: chainTargets, allowedHosts } = chainMenuTargets();
+
+  const snapshot = JSON.parse(readFileSync(OSM_PUBS, "utf8"));
+  const pubsByOsmId = new Map(
+    (Array.isArray(snapshot) ? snapshot : (snapshot.pubs ?? []))
+      .filter((pub) => typeof pub?.osmId === "string")
+      .map((pub) => [pub.osmId, pub]),
+  );
+  const overlay = overlayMenuTargets(pubsByOsmId);
+
+  // A page named by BOTH lanes is read once. The chain lane derives its URL from
+  // the source table's own suffix; the overlay states the page the pub's site
+  // published. Where those agree there is one page, not two.
+  const seenUrls = new Set(chainTargets.map((target) => target.menuUrl));
+  const targets = [...chainTargets];
+  for (const target of overlay.targets) {
+    if (seenUrls.has(target.menuUrl)) continue;
+    seenUrls.add(target.menuUrl);
+    targets.push(target);
+  }
+
+  // A SKIP IS A FINDING, and the two absences are different ones: an input file
+  // nobody has cut yet, and one cut from a table that held nothing.
+  console.log(
+    overlay.read
+      ? `  overlay menu urls: ${overlay.held} in ${path.relative(ROOT, MENU_URL_INPUT)}, ${overlay.targets.length} crawlable`
+      : `  overlay menu urls: no input at ${path.relative(ROOT, MENU_URL_INPUT)}; run npm run harvest:uk-menu-urls`,
+  );
+
   if (targets.length === 0) {
-    console.log("rendered chain menu harvest: no permitted chain publishes a rendered menu today");
+    console.log("rendered menu harvest: no permitted chain or overlay page publishes a rendered menu today");
     return;
   }
 
@@ -373,6 +443,7 @@ async function main() {
     hostsPermitted: [...allowedHosts.keys()],
     pagesAskedAgainAfterAnEmptyRender: retries,
     menuPagesKnown: targets.length,
+    overlayMenuPages: { inputRead: overlay.read, held: overlay.held, crawlable: overlay.targets.length },
     menuPagesReadThisRun: done,
     menuPagesInLedger: Object.keys(ledger.pages).length,
     outcomes,
@@ -383,7 +454,7 @@ async function main() {
     writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`);
   }
 
-  console.log(`rendered chain menu harvest: ${done} page(s) read`);
+  console.log(`rendered menu harvest: ${done} page(s) read`);
   for (const [name, count] of Object.entries(outcomes)) console.log(`  ${name}: ${count}`);
   if (!DRY_RUN) console.log(`  report → ${path.relative(ROOT, REPORT_PATH)}`);
 }
