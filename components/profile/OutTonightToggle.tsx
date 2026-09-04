@@ -16,7 +16,8 @@ import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { trackEvent } from "@/lib/analytics";
 import { haptic } from "@/lib/nativeHaptics";
-import { getNightArea, tryGetNightArea, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
+import { tryGetNightArea, nightAreasByCity, type NightAreaSlug } from "@/lib/nightAreas";
+import { getCity } from "@/lib/cities";
 import { normalizeHandle } from "@/lib/profiles";
 import OutTonightPlanCta from "@/components/profile/OutTonightPlanCta";
 import "./outTonightBeacon.css";
@@ -34,7 +35,13 @@ type State =
   | { kind: "on"; areaSlug: NightAreaSlug | null }
   | { kind: "error" };
 
-const AREA_OPTIONS = NIGHT_AREA_SLUGS.map((slug) => ({ slug, name: getNightArea(slug).name }));
+// Grouped under the city, because two cities can name a patch the same thing
+// and a flat list would offer the reader two identical rows.
+const AREA_GROUPS = nightAreasByCity().map((group) => ({
+  cityId: group.cityId,
+  cityName: getCity(group.cityId).displayName,
+  areas: group.areas.map((area) => ({ slug: area.slug, name: area.name })),
+}));
 
 type CheckInDto = { handle?: string; areaSlug?: string | null };
 
@@ -175,8 +182,12 @@ export default function OutTonightToggle({ handle }: Props) {
           onChange={(e) => setAreaChoice(e.target.value)}
         >
           <option value="">No area named</option>
-          {AREA_OPTIONS.map((area) => (
-            <option key={area.slug} value={area.slug}>{area.name}</option>
+          {AREA_GROUPS.map((group) => (
+            <optgroup key={group.cityId} label={group.cityName}>
+              {group.areas.map((area) => (
+                <option key={area.slug} value={area.slug}>{area.name}</option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </label>

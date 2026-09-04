@@ -41,8 +41,13 @@ describe("GET /api/night-areas", () => {
     }
   });
 
-  it("rejects cities without a reviewed Night Area catalogue", async () => {
+  it("answers the areas of a city that has them", async () => {
     const response = await LIST(new Request("http://localhost/api/night-areas?city=manchester"));
+    expect(response.status).toBe(200);
+  });
+
+  it("rejects a city with no mapped Night Areas", async () => {
+    const response = await LIST(new Request("http://localhost/api/night-areas?city=oxford"));
     expect(response.status).toBe(404);
   });
 

@@ -1,0 +1,306 @@
+{
+  "source": "OpenStreetMap via the committed UK base layer",
+  "license": "ODbL 1.0",
+  "attribution": "© OpenStreetMap contributors, data licensed under the Open Database Licence (ODbL) 1.0, https://www.openstreetmap.org/copyright",
+  "basis": "Pub positions and locality names stated by OpenStreetMap. No price, hour or transport claim.",
+  "generator": "scripts/build_city_night_areas.mjs",
+  "areas": [
+    {
+      "slug": "manchester-city-centre",
+      "cityId": "manchester",
+      "name": "Manchester city centre",
+      "centre": {
+        "lat": 53.48064,
+        "lng": -2.24131
+      },
+      "radiusKm": 1.8,
+      "pubCount": 110
+    },
+    {
+      "slug": "manchester-shaw-heath",
+      "cityId": "manchester",
+      "name": "Shaw Heath",
+      "centre": {
+        "lat": 53.40095,
+        "lng": -2.1585
+      },
+      "radiusKm": 1.8,
+      "pubCount": 27
+    },
+    {
+      "slug": "manchester-werneth",
+      "cityId": "manchester",
+      "name": "Werneth",
+      "centre": {
+        "lat": 53.5367,
+        "lng": -2.12266
+      },
+      "radiusKm": 1.8,
+      "pubCount": 27
+    },
+    {
+      "slug": "manchester-portwood",
+      "cityId": "manchester",
+      "name": "Portwood",
+      "centre": {
+        "lat": 53.41205,
+        "lng": -2.15453
+      },
+      "radiusKm": 1.7,
+      "pubCount": 25
+    },
+    {
+      "slug": "manchester-chorlton-on-medlock",
+      "cityId": "manchester",
+      "name": "Chorlton-on-Medlock",
+      "centre": {
+        "lat": 53.4645,
+        "lng": -2.22901
+      },
+      "radiusKm": 1.6,
+      "pubCount": 18
+    },
+    {
+      "slug": "manchester-heaton-norris",
+      "cityId": "manchester",
+      "name": "Heaton Norris",
+      "centre": {
+        "lat": 53.4184,
+        "lng": -2.17851
+      },
+      "radiusKm": 1.8,
+      "pubCount": 11
+    },
+    {
+      "slug": "birmingham-city-centre",
+      "cityId": "birmingham",
+      "name": "Birmingham city centre",
+      "centre": {
+        "lat": 52.47901,
+        "lng": -1.90084
+      },
+      "radiusKm": 1.6,
+      "pubCount": 88
+    },
+    {
+      "slug": "birmingham-vauxhall",
+      "cityId": "birmingham",
+      "name": "Vauxhall",
+      "centre": {
+        "lat": 52.47959,
+        "lng": -1.8749
+      },
+      "radiusKm": 1.7,
+      "pubCount": 27
+    },
+    {
+      "slug": "birmingham-moseley",
+      "cityId": "birmingham",
+      "name": "Moseley",
+      "centre": {
+        "lat": 52.44614,
+        "lng": -1.88982
+      },
+      "radiusKm": 1.8,
+      "pubCount": 25
+    },
+    {
+      "slug": "birmingham-hockley-port",
+      "cityId": "birmingham",
+      "name": "Hockley Port",
+      "centre": {
+        "lat": 52.49267,
+        "lng": -1.92802
+      },
+      "radiusKm": 1.4,
+      "pubCount": 17
+    },
+    {
+      "slug": "birmingham-harborne",
+      "cityId": "birmingham",
+      "name": "Harborne",
+      "centre": {
+        "lat": 52.45619,
+        "lng": -1.94718
+      },
+      "radiusKm": 1.6,
+      "pubCount": 16
+    },
+    {
+      "slug": "birmingham-aston",
+      "cityId": "birmingham",
+      "name": "Aston",
+      "centre": {
+        "lat": 52.50416,
+        "lng": -1.87667
+      },
+      "radiusKm": 1.4,
+      "pubCount": 15
+    },
+    {
+      "slug": "leeds-city-centre",
+      "cityId": "leeds",
+      "name": "Leeds city centre",
+      "centre": {
+        "lat": 53.79758,
+        "lng": -1.54417
+      },
+      "radiusKm": 1.2,
+      "pubCount": 77
+    },
+    {
+      "slug": "leeds-hyde-park",
+      "cityId": "leeds",
+      "name": "Hyde Park",
+      "centre": {
+        "lat": 53.81478,
+        "lng": -1.56685
+      },
+      "radiusKm": 1.7,
+      "pubCount": 24
+    },
+    {
+      "slug": "leeds-armley",
+      "cityId": "leeds",
+      "name": "Armley",
+      "centre": {
+        "lat": 53.79463,
+        "lng": -1.59413
+      },
+      "radiusKm": 1.6,
+      "pubCount": 23
+    },
+    {
+      "slug": "leeds-bruntcliffe",
+      "cityId": "leeds",
+      "name": "Bruntcliffe",
+      "centre": {
+        "lat": 53.74629,
+        "lng": -1.60485
+      },
+      "radiusKm": 1.5,
+      "pubCount": 21
+    },
+    {
+      "slug": "leeds-hunslet",
+      "cityId": "leeds",
+      "name": "Hunslet",
+      "centre": {
+        "lat": 53.77688,
+        "lng": -1.53336
+      },
+      "radiusKm": 1.4,
+      "pubCount": 19
+    },
+    {
+      "slug": "leeds-holbeck",
+      "cityId": "leeds",
+      "name": "Holbeck",
+      "centre": {
+        "lat": 53.7809,
+        "lng": -1.56358
+      },
+      "radiusKm": 1.5,
+      "pubCount": 15
+    },
+    {
+      "slug": "leeds-burmantofts",
+      "cityId": "leeds",
+      "name": "Burmantofts",
+      "centre": {
+        "lat": 53.80092,
+        "lng": -1.51265
+      },
+      "radiusKm": 1.2,
+      "pubCount": 14
+    },
+    {
+      "slug": "bristol-city-centre",
+      "cityId": "bristol",
+      "name": "Bristol city centre",
+      "centre": {
+        "lat": 51.45412,
+        "lng": -2.59607
+      },
+      "radiusKm": 1.5,
+      "pubCount": 79
+    },
+    {
+      "slug": "bristol-montpelier",
+      "cityId": "bristol",
+      "name": "Montpelier",
+      "centre": {
+        "lat": 51.46984,
+        "lng": -2.58728
+      },
+      "radiusKm": 1.6,
+      "pubCount": 38
+    },
+    {
+      "slug": "bristol-hotwells",
+      "cityId": "bristol",
+      "name": "Hotwells",
+      "centre": {
+        "lat": 51.4511,
+        "lng": -2.61793
+      },
+      "radiusKm": 1.8,
+      "pubCount": 32
+    },
+    {
+      "slug": "bristol-bedminster",
+      "cityId": "bristol",
+      "name": "Bedminster",
+      "centre": {
+        "lat": 51.4393,
+        "lng": -2.60178
+      },
+      "radiusKm": 1.8,
+      "pubCount": 24
+    },
+    {
+      "slug": "bristol-barton-hill",
+      "cityId": "bristol",
+      "name": "Barton Hill",
+      "centre": {
+        "lat": 51.45864,
+        "lng": -2.56422
+      },
+      "radiusKm": 1.5,
+      "pubCount": 22
+    },
+    {
+      "slug": "bristol-westbury-park",
+      "cityId": "bristol",
+      "name": "Westbury Park",
+      "centre": {
+        "lat": 51.47659,
+        "lng": -2.61236
+      },
+      "radiusKm": 1.8,
+      "pubCount": 17
+    },
+    {
+      "slug": "bristol-eastville",
+      "cityId": "bristol",
+      "name": "Eastville",
+      "centre": {
+        "lat": 51.47238,
+        "lng": -2.55219
+      },
+      "radiusKm": 1.5,
+      "pubCount": 11
+    },
+    {
+      "slug": "bristol-totterdown",
+      "cityId": "bristol",
+      "name": "Totterdown",
+      "centre": {
+        "lat": 51.44094,
+        "lng": -2.57398
+      },
+      "radiusKm": 1.4,
+      "pubCount": 11
+    }
+  ]
+}

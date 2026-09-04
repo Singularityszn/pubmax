@@ -50,6 +50,23 @@ const CITY_DEFINITIONS = {
     shortPrefix: "mcr",
     enabled: true,
   },
+  // Birmingham and Leeds join the curated layer by PROMOTION out of the committed
+  // UK base snapshot rather than a second Overpass observation, so the curated pin
+  // and the base row it suppresses are provably the same OSM object.
+  birmingham: {
+    id: "birmingham",
+    displayName: "Birmingham",
+    shortPrefix: "bhm",
+    enabled: true,
+    promoteFromUkBase: true,
+  },
+  leeds: {
+    id: "leeds",
+    displayName: "Leeds",
+    shortPrefix: "lds",
+    enabled: true,
+    promoteFromUkBase: true,
+  },
   liverpool: {
     id: "liverpool",
     displayName: "Liverpool",

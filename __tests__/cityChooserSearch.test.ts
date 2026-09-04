@@ -220,9 +220,9 @@ describe("city guide count copy", () => {
     const count = cities.length;
     const word = cityGuideCountWord(count);
 
-    expect(count).toBe(10);
+    expect(count).toBe(12);
     expect(cityGuidesCoverageLine(cities)).toBe(
-      "Ten city maps, including one preview. London has pint prices; eight cities have crawls.",
+      "Twelve city maps, including one preview. London has pint prices; eight cities have crawls.",
     );
     expect(cityGuidesSearchUnavailableLine(count)).toContain(`${word} city maps`);
   });

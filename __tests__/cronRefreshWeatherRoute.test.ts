@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/cron/refresh-weather/route";
 import { memoryWeatherSnapshotStore, __resetWeatherSnapshotStore } from "@/lib/weatherSnapshotStore";
-import { NIGHT_AREA_SLUGS } from "@/lib/nightAreas";
+import { LONDON_NIGHT_AREA_SLUGS } from "@/lib/nightAreas";
 
 // A time ~1h in the past, in Open-Meteo's "YYYY-MM-DDTHH:MM" shape (the provider
 // appends "Z"); guarantees observedAt < generatedAt for the contract.
@@ -54,9 +54,9 @@ describe("GET /api/cron/refresh-weather", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.ok).toBe(true);
-    expect(body.written).toBe(NIGHT_AREA_SLUGS.length);
+    expect(body.written).toBe(LONDON_NIGHT_AREA_SLUGS.length);
     const snap = await memoryWeatherSnapshotStore.readSnapshot();
-    expect(snap?.observations).toHaveLength(NIGHT_AREA_SLUGS.length);
+    expect(snap?.observations).toHaveLength(LONDON_NIGHT_AREA_SLUGS.length);
   });
 
   it("502s and writes nothing when the provider is down (never fakes data)", async () => {

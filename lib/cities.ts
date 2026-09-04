@@ -14,6 +14,8 @@ import { CITY_VENUE_PACKS } from "@/lib/cityVenuePacks.mjs";
 export type CityId =
   | "london"
   | "manchester"
+  | "birmingham"
+  | "leeds"
   | "liverpool"
   | "oxford"
   | "durham"
@@ -103,6 +105,26 @@ export const CITIES: Record<CityId, CityConfig> = {
     poisPath: "/data/cities/manchester/pois.json",
     transitLinesPath: null,
     lastRideLabel: "Last Tram",
+  }),
+  birmingham: city({
+    id: "birmingham",
+    displayName: "Birmingham",
+    tagline: "City-centre rounds and canal-side pubs",
+    country: "england",
+    mapView: { center: [-1.9, 52.48], zoom: 11.6 },
+    poisPath: null,
+    transitLinesPath: null,
+    lastRideLabel: "Last Train",
+  }),
+  leeds: city({
+    id: "leeds",
+    displayName: "Leeds",
+    tagline: "Arcade bars and Headingley terraces",
+    country: "england",
+    mapView: { center: [-1.55, 53.8], zoom: 11.6 },
+    poisPath: null,
+    transitLinesPath: null,
+    lastRideLabel: "Last Train",
   }),
   liverpool: city({
     id: "liverpool",

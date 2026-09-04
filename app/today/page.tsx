@@ -9,7 +9,7 @@ import {
   type WeatherBrief,
 } from "@/lib/todayBrief";
 import { loadHistoricPubs } from "@/lib/historic";
-import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
+import { LONDON_NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { buildQuietPint } from "@/lib/quietPint";
 import { formatConditionDate } from "@/lib/tonightConditions";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
@@ -112,8 +112,10 @@ export default async function TodayPage() {
   ]);
 
   const weather = buildWeatherBrief(weatherSnapshot, now);
+  // The snapshot is London's, so only London's patches are asked. An area in
+  // another city has no observation and belongs in no entry here.
   const weatherByArea = Object.fromEntries(
-    NIGHT_AREA_SLUGS.map((area) => [
+    LONDON_NIGHT_AREA_SLUGS.map((area) => [
       area,
       buildWeatherBrief(weatherSnapshot, now, area, { fallbackToFirst: false }),
     ]),

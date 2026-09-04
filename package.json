@@ -36,6 +36,8 @@
     "prebuild:slim": "npm run canonicalize:venues",
     "build:slim": "node scripts/build_slim_index.mjs",
     "fetch:city-pubs": "node scripts/fetch_city_osm_pubs.mjs",
+    "fetch:city-places": "node scripts/fetch_city_place_nodes.mjs",
+    "build:city-night-areas": "node scripts/build_city_night_areas.mjs",
     "fetch:uk-pubs": "node scripts/fetch_uk_osm_pubs.mjs",
     "fetch:uk-venues": "node scripts/fetch_uk_osm_venues.mjs",
     "build:london-venues": "node scripts/build_london_venue_shards.mjs",
