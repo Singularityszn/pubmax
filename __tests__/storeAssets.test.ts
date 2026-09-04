@@ -208,7 +208,7 @@ describe("store listing copy", () => {
 
   it("spends no keyword character on a term the name already earns", () => {
     // Apple indexes the name and subtitle for free, so a repeat buys nothing
-    // and the field is only 100 characters wide.
+    // and the field is only 100 bytes wide.
     const keywords = STORE_LISTING_FIELDS.keywords.split(",");
     expect(new Set(keywords).size, "duplicate keyword").toBe(keywords.length);
     for (const keyword of keywords) {
@@ -218,6 +218,38 @@ describe("store listing copy", () => {
         `subtitle already carries "${keyword}"`,
       ).not.toContain(keyword.toLowerCase());
     }
+  });
+
+  it("spends each keyword WORD once, because Apple builds the phrases itself", () => {
+    // The check above compares whole entries, so it passed a field carrying
+    // both "pub crawl" and "pub finder": two entries, one wasted "pub". Apple
+    // indexes each WORD once across the name, the subtitle and this field, and
+    // combines them itself, so a repeated word is a spent character that buys
+    // no term at all. Entries are therefore single words.
+    const words = (value: string): string[] =>
+      value.toLowerCase().match(/[a-z]+/g) ?? [];
+    const free = new Set([
+      ...words(STORE_LISTING_FIELDS.name),
+      ...words(STORE_LISTING_FIELDS.subtitle),
+    ]);
+
+    const seen = new Set<string>();
+    for (const keyword of STORE_LISTING_FIELDS.keywords.split(",")) {
+      expect(keyword, `"${keyword}" is a phrase; Apple builds those itself`).not.toContain(" ");
+      for (const word of words(keyword)) {
+        expect(free.has(word), `the name or subtitle already earns "${word}"`).toBe(false);
+        expect(seen.has(word), `"${word}" is spent twice`).toBe(false);
+        seen.add(word);
+      }
+    }
+  });
+
+  it("measures the keyword field in bytes, which is what Apple counts", () => {
+    // Characters and bytes are the same number for this English field and
+    // would silently stop being the same in a localisation.
+    expect(Buffer.byteLength(STORE_LISTING_FIELDS.keywords, "utf8")).toBeLessThanOrEqual(
+      STORE_LISTING_LIMITS.keywords,
+    );
   });
 
   it("obeys the house voice: no exclamation marks, no em dashes", () => {
@@ -231,6 +263,26 @@ describe("store listing copy", () => {
     // The whole product is built on not making a price claim it cannot keep,
     // and a listing is the loudest place that claim could be made.
     expect(STORE_LISTING_FIELDS.description).toContain("Treat it as a steer, not a promise.");
+  });
+
+  it("claims no feature the app does not hold", () => {
+    // "Opening hours, last orders, and what is on tonight" shipped in this
+    // copy for a month. The app has never held a last-orders time for any
+    // pub: the only "last orders" string in the tree is the 404 joke. A
+    // listing is read by a reviewer with the app open.
+    for (const value of Object.values(STORE_LISTING_FIELDS)) {
+      expect(value.toLowerCase(), "no pub in the app has a last-orders time").not.toContain(
+        "last orders",
+      );
+    }
+  });
+
+  it("does not call a public surface private", () => {
+    // Section 5 of docs/STORE_READINESS.md answers Google Play's data safety
+    // form with photos SHARED, because a pub wall photo is public by design.
+    // The description used to call the night log "not a feed for strangers"
+    // in the same breath, so the two halves of one submission disagreed.
+    expect(STORE_LISTING_FIELDS.description).not.toContain("not a feed for strangers");
   });
 });
 

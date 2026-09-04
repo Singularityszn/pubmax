@@ -36,7 +36,12 @@ export const STORE_LISTING_LIMITS = {
   subtitle: 30,
   /** Google Play short description. */
   shortDescription: 80,
-  /** Apple keyword field, comma-separated. Spaces count. */
+  /**
+   * Apple keyword field, comma-separated. The ceiling is 100 BYTES rather
+   * than characters, so a non-ASCII localisation spends two or three bytes
+   * on a character this English field spends one on. Spaces count, which is
+   * why nothing here has a space after its comma.
+   */
   keywords: 100,
   /** Apple description and Google Play full description. */
   description: 4000,
@@ -55,50 +60,129 @@ export const STORE_LISTING_NAME: string = APP_NAME;
  */
 export const STORE_LISTING_SUBTITLE = "Cheap pints near you, tonight";
 
-/** Google Play's short description, shown above the fold in search. */
+/**
+ * Google Play's short description, shown above the fold in search and INDEXED,
+ * unlike Apple's subtitle-plus-keywords arrangement. So it is written to carry
+ * the terms rather than to sound like a strapline, and it still has to read as
+ * one sentence a person would say.
+ */
 export const STORE_LISTING_SHORT_DESCRIPTION =
-  "The nearest London pubs, what a pint costs, and a crawl route home.";
+  "London pub prices, the cheapest pint near you, and a crawl route home.";
 
 /**
- * Apple's keyword field. Comma-separated with no space after each comma,
- * because the spaces count against the 100 and buy nothing. Nothing here
- * repeats the name or the subtitle: Apple indexes both already, so a repeat
- * spends characters on a term that is free.
+ * Apple's keyword field. Three rules, in the order they cost characters.
+ *
+ * SINGLE TOKENS, NOT PHRASES. Apple builds the combinations itself across the
+ * name, the subtitle and this field, so "pub crawl" and "pub finder" spent the
+ * word "pub" twice and Apple indexed it once. Fifteen words now buy the
+ * phrases the eleven entries used to name, and several the old field could not
+ * reach: beer garden, local pub, pub guide, London nightlife.
+ *
+ * NOTHING THE SUBTITLE ALREADY EARNS. Apple indexes the name and the subtitle
+ * for free, so cheap, pint, near, you and tonight are deliberately absent.
+ * "near me" used to sit here and spent five of its seven characters on a word
+ * "near you" had already bought.
+ *
+ * NO THIRD-PARTY MARKS. A brewery's name is somebody else's trademark, and
+ * Apple rejects a keyword field that trades on one.
+ *
+ * "taproom" left with the phrases: it is an American word for a room a British
+ * drinker calls the pub, and "local", "ale" and "lager" are what the same
+ * person types.
  */
 export const STORE_LISTING_KEYWORDS =
-  "london pubs,pub crawl,pint prices,near me,nightlife,beer,happy hour,bars,pub finder,drinks,taproom";
+  "london,uk,pub,bar,crawl,beer,ale,lager,garden,price,drink,nightlife,happy,hour,finder,local,guide";
 
 /**
  * Apple's promotional text. It sits above the description and can be changed
- * without a review, so it carries what is true this month.
+ * without a review, so it carries what is true this month. Apple has confirmed
+ * it is NOT indexed for search, so it is written for the reader alone and
+ * spends none of its 170 characters chasing a term.
  */
 export const STORE_LISTING_PROMOTIONAL_TEXT =
-  `Leaving the office and want a good cheap pint near you? ${BRAND_NAME} shows the nearest pubs, ` +
-  "what a pint costs, and a crawl route home. London only, for now.";
+  "Paid for a pint? Log what you paid, and the next drinker sees it. Nearest pubs, " +
+  "what a pint costs, what is on tonight, and a crawl route home. London prices, UK pubs.";
 
-/** The description both stores take. */
+/**
+ * The description both stores take. ONE body, not two.
+ *
+ * It used to be a short version and a long version, which is two originals and
+ * therefore two things to keep true. Apple does not index the description at
+ * all, so length costs it nothing; Google Play indexes it heavily, so length
+ * is the only place several target terms can honestly live. One longer body
+ * serves both, and a reader on either store sees the same first three lines
+ * before the fold.
+ *
+ * Every line here is a claim a reviewer can open the app and check, so each one
+ * names something that ships:
+ *  - the price a drinker logs, and the second drinker who confirms it
+ *    (lib/pintDropConfirmation.ts, the corroboration threshold in
+ *    lib/communityPrice.ts)
+ *  - the Pint Index (app/pint-index)
+ *  - Pub Pal and its seven forms (lib/pubPal.ts)
+ *  - the last train badge (lib/lastTrainBadge.ts)
+ *  - prices London, pubs UK-wide (lib/cityCapabilities.ts)
+ *
+ * What is NOT here matters as much. "Last orders" was in this copy for a month
+ * and the app has never held a last-orders time for any pub. And the old line
+ * calling the night log "not a feed for strangers" contradicted section 5 of
+ * docs/STORE_READINESS.md, which declares a pub wall photo SHARED on Google
+ * Play's data safety form, because it is.
+ */
 export const STORE_LISTING_DESCRIPTION = [
-  `${BRAND_NAME} finds you a good cheap pint near where you are, then gets you home.`,
+  `${BRAND_NAME} tells you what a pint costs before you walk in.`,
   "",
   "You have left work. You want a decent pint that does not cost a fortune, somewhere close, " +
-    `without reading forty reviews first. ${BRAND_NAME} opens straight on the map, shows the ` +
-    "nearest pubs, tells you roughly what a pint costs, and lays out a short crawl you can " +
-    "actually walk.",
+    `without reading forty reviews first. ${BRAND_NAME} opens on the map, works out where you ` +
+    "are, and puts the nearest pubs in front of you with the price we hold for each one. " +
+    "Ask for more than one and it lays out a crawl you can actually walk.",
   "",
-  "What you get:",
+  "Find a pint",
   "",
-  "- Nearest pubs, ranked by distance, with pint prices where we have them.",
-  "- A one-tap crawl route that keeps the walking sensible and ends near a way home.",
-  "- Opening hours, last orders, and what is on tonight.",
-  "- A private log of your nights out, with photos if you want them. Yours, on your phone, " +
-    "not a feed for strangers.",
+  "- The nearest London pubs, ranked by how far you actually have to walk.",
+  "- Pint prices with the day we last saw them, so you know how fresh the number is.",
+  "- Beer, wine, spirits, cocktails and no alcohol, each priced on its own.",
+  "- Opening hours, so you do not arrive at a locked door.",
   "",
-  "London only for now. More cities later.",
+  "Log what you paid",
   "",
-  "A note on prices: pubs change them and we do not. We show the best figure we have and when " +
-    "we last saw it. Treat it as a steer, not a promise.",
+  "- Paid for a pint? Log the price. That is where these numbers come from, and it is " +
+    "how the cheap ones get found.",
+  "- A price only moves the map once a second drinker confirms it, so one wrong figure " +
+    "cannot drag a pub up or down on its own.",
+  "- The Pint Index publishes what London is charging, month by month, with the day each " +
+    "price was seen.",
   "",
-  `${BRAND_NAME} is free. No account needed to find a pint.`,
+  "Plan the night",
+  "",
+  "- Describe the outing and get a crawl route back in order, with the walking kept honest.",
+  "- What is on tonight, from named sources, with the date we read them.",
+  "- The last train, so the night has an ending you chose.",
+  "",
+  "Meet your Pub Pal",
+  "",
+  "- A companion who helps you find a pub, sort a plan and keep the night. Pick its form " +
+    "and give it a name. It is yours and it stays on your account.",
+  "",
+  "Straight answers on prices",
+  "",
+  "Pubs change their prices and we are not standing at the bar. We show the best figure we " +
+    "have and when we last saw it. Treat it as a steer, not a promise.",
+  "",
+  "Privacy",
+  "",
+  "Full GPS precision stays on your phone. Ask for something nearby and the app sends a " +
+    "rounded point for that one request. Analytics stay off until you turn them on. There " +
+    "are no adverts, and nothing is sold on. A photo is public only where you post it: a " +
+    "pub wall and the feed are public by design, and a Moment stays on your phone until " +
+    "you publish it.",
+  "",
+  "Where it works",
+  "",
+  "Pubs across the UK are on the map. Pint prices are London for now, because a price is " +
+    "only worth showing once drinkers here have checked it. Other cities follow the same way.",
+  "",
+  `${BRAND_NAME} is free. You do not need an account to find a pint.`,
 ].join("\n");
 
 /** Every field with the limit it must fit, so a test can walk the whole form. */

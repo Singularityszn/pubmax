@@ -1,8 +1,8 @@
 # PUBMAXX Store Readiness Pack
 
-**Status:** Everything on this page is pre-writable now, without an Apple or Google developer account. It is the copy, metadata, and answer sheet the owner pastes into App Store Connect and the Google Play Console once enrolment clears. Paid-account work includes enrolment, certificates, Sign in with Apple activation, and the first binary upload, listed as the owner checklist in the last section.
+**Status:** Everything on this page is pre-writable now, without an Apple or Google developer account. Sections 1 to 6 were audited on 4 September 2026 against the product on `main` and against the current App Store and Play rules; section 1 records what each store indexes, section 4 carries Apple's 2025 age-rating tiers rather than the retired 17+ one, and section 6 is the screenshot spec the iOS and Android workers render from. It is the copy, metadata, and answer sheet the owner pastes into App Store Connect and the Google Play Console once enrolment clears. Paid-account work includes enrolment, certificates, Sign in with Apple activation, and the first binary upload, listed as the owner checklist in the last section.
 
-**App:** PUBMAXXING. London pub finder, crawl planner, and night log, wrapped in a Capacitor shell over `https://pubmaxxing.com` (see `docs/IOS_APP_PRD.md`, `docs/CAPACITOR_WRAP.md`).
+**App:** PUBMAXXING. Pint-price finder, crawl planner and night log, with the Pub Pal companion, wrapped in a Capacitor shell over `https://pubmaxxing.com` (see `docs/IOS_APP_PRD.md`, `docs/CAPACITOR_WRAP.md`).
 
 **Identity (already fixed in the repo, do not change):**
 
@@ -21,88 +21,194 @@
 
 ## 1. App Store Optimisation (ASO)
 
-The copy below lives in `lib/storeListing.ts` with each store's character limit beside it, and `__tests__/storeAssets.test.ts` holds every field to its own limit. Edit it there; this section is the paste sheet.
+The copy lives in `lib/storeListing.ts` with each store's character limit beside
+it, and `__tests__/storeAssets.test.ts` holds every field to its limit and to
+the rules below. Edit it there; this section is the paste sheet and the
+reasoning.
 
-Keep the name clean and let the subtitle and keyword field carry the search terms. Do not stuff keywords into the name or subtitle, both stores penalise it and Apple bins duplicates between the name, subtitle, and keyword field.
+**What each store actually indexes.** The two are not the same shape, and copy
+written for one is wasted on the other.
+
+| Field | Apple indexes it? | Google indexes it? |
+| --- | --- | --- |
+| App name / title | Yes | Yes, the strongest signal |
+| Subtitle (Apple) | Yes | No such field |
+| Short description (Google) | No such field | Yes |
+| Keyword field (Apple, hidden) | Yes | No such field |
+| Full description | **No** | **Yes, heavily** |
+| Promotional text | No (Apple has said so) | No such field |
+| Screenshot captions | **Yes, since June 2025** | No |
+
+Three consequences the copy is built on. Apple's description is a CONVERSION
+surface and buys no search term, so it is written for a reader. Google's full
+description is the only indexed body it has, so the same text carries the terms
+naturally rather than being kept short. And Apple reads the screenshot captions
+now, which is why section 6 treats a caption as a keyword field with a picture
+attached rather than as a slogan.
+
+Keep the name clean and let the subtitle and keyword field carry the search
+terms. Both stores penalise stuffing, and Apple bins duplicates between the
+name, subtitle and keyword field.
 
 **App name (30 char max, Apple / 30 char, Google):**
 > PUBMAXXING
 
+Ten of thirty characters, and deliberately no keyword bolted on. Google Play's
+metadata policy says to avoid ALL CAPS "unless it is part of your brand name",
+which this is (`lib/brandNaming.ts`), so the capitals are defensible if a
+reviewer asks. Note what the name does NOT buy: Apple tokenises "pubmaxxing" as
+one word, so "pub" and "pubs" are not free from it and the keyword field pays
+for them.
+
 **Subtitle (Apple, 30 char max):**
 > Cheap pints near you, tonight
 
-(29 characters. Alternatives if that reads wrong: "London pubs and pint prices" (27), "Find the cheap pint near you" (28).)
+29 characters, and kept after this pass rather than churned. It is the only
+visible indexed field the app has besides a brand name that carries no search
+term, and it buys four things at once: the price posture (cheap), the drink
+(pints), proximity (near you) and the occasion (tonight). Swapping "tonight"
+for "london" was measured and rejected: London costs six characters in the
+keyword field, tonight would cost seven.
 
 **Promotional text (Apple, 170 char, editable without review):**
-> Leaving the office and want a good cheap pint near you? PUBMAXX shows the nearest pubs, what a pint costs, and a crawl route home. London only, for now.
+> Paid for a pint? Log what you paid, and the next drinker sees it. Nearest pubs, what a pint costs, what is on tonight, and a crawl route home. London prices, UK pubs.
 
-**Keyword field (Apple, 100 char, comma-separated, no spaces after commas to save characters):**
-> london pubs,pub crawl,pint prices,near me,nightlife,beer,happy hour,bars,pub finder,drinks,taproom
+166 characters. Apple has confirmed this field does not affect search, so it
+spends nothing chasing a term and leads with the loop instead. It can be
+changed without a review, so it is the right place to put whatever is true this
+month.
 
-(98 characters. Do not repeat words already in the app name or subtitle, Apple indexes those for free. "cheap pint" used to sit here and was cut for exactly that reason: the subtitle already carries it, so it was spending eleven characters on a term Apple gives us. The old string was also 101 characters, one over the field, which nothing caught until `__tests__/storeAssets.test.ts` measured it.)
+**Keyword field (Apple, 100 BYTES, comma-separated, no space after the comma):**
+> london,uk,pub,bar,crawl,beer,ale,lager,garden,price,drink,nightlife,happy,hour,finder,local,guide
+
+97 bytes, seventeen words. The ceiling is bytes rather than characters, which
+matters the day this is localised: a Japanese or Arabic keyword spends two or
+three bytes on a character this English field spends one on.
+
+Three rules produced that string, and `__tests__/storeAssets.test.ts` now holds
+all three.
+
+1. **Single words, not phrases.** Apple builds the combinations itself across
+   the name, the subtitle and this field. The old string carried "pub crawl"
+   and "pub finder", which spent the word "pub" twice for one indexed word.
+   Seventeen words now reach every phrase the old eleven entries named, plus
+   several they could not: beer garden, local pub, pub guide, London
+   nightlife, UK pub crawl, happy hour prices.
+2. **Nothing the name or the subtitle already earns.** Apple indexes both for
+   free. "near me" used to sit here and spent five of its seven characters on a
+   word "near you" had already bought. cheap, pint, near, you and tonight are
+   deliberately absent for the same reason.
+3. **No third-party marks.** A brewery or a chain is somebody else's trademark
+   and Apple rejects a keyword field trading on one.
+
+"taproom" left with the phrases. It is an American word for a room a British
+drinker calls the pub; "local", "ale" and "lager" are what the same person
+types.
 
 **Google Play short description (80 char max):**
-> The nearest London pubs, what a pint costs, and a crawl route home.
+> London pub prices, the cheapest pint near you, and a crawl route home.
+
+70 characters. Play indexes this one, so it is written to carry terms and still
+read as a sentence a person would say.
 
 **Primary ASO targets (the searches this listing is built to win):**
-- london pubs
-- pub crawl
-- pint prices / cheap pint
+- london pubs / london pub guide
+- pub crawl / uk pub crawl
+- pint prices / pub prices / cheap pint
 - pubs near me
+- beer garden london
 - happy hour london
+
+**Levers this listing does not use yet**, listed so they are a decision rather
+than an oversight. Apple custom product pages (up to 70, in organic search
+since July 2025) and in-app events both feed search; Google Play custom store
+listings and store listing experiments do the same. All four need a live
+listing and install traffic, so they belong after the first release, not in the
+submission pack.
 
 ---
 
-## 2. Description drafts
+## 2. Description
 
-Same body works for both stores. Google Play allows 4000 characters and renders line breaks. Apple allows 4000 in the description field. Dry, plain, no exclamation marks, no "unleash" or "seamless" filler.
+ONE body, taken by both stores. It used to be a short version and a long
+version, which is two originals and therefore two things to keep true. Apple
+does not index the description, so length costs nothing there; Google Play
+indexes it heavily, so length is the only place several target terms can
+honestly live. Both stores allow 4000 characters and this uses 2238.
 
-### Short version (safe for both)
+It lives in `lib/storeListing.ts`. The text below is a copy for pasting, and
+the module is what the test measures.
 
-> PUBMAXX finds you a good cheap pint near where you are, then gets you home.
+> PUBMAXX tells you what a pint costs before you walk in.
 >
-> You have left work. You want a decent pint that does not cost a fortune, somewhere close, without reading forty reviews first. PUBMAXX opens straight on the map, shows the nearest pubs, tells you roughly what a pint costs, and lays out a short crawl you can actually walk.
->
-> What you get:
->
-> - Nearest pubs, ranked by distance, with pint prices where we have them.
-> - A one-tap crawl route that keeps the walking sensible and ends near a way home.
-> - Opening hours, last orders, and what is on tonight.
-> - A private log of your nights out, with photos if you want them. Yours, on your phone, not a feed for strangers.
->
-> London only for now. More cities later.
->
-> A note on prices: pubs change them and we do not. We show the best figure we have and when we last saw it. Treat it as a steer, not a promise.
->
-> PUBMAXX is free. No account needed to find a pint.
-
-### Long version (Google Play, room to breathe)
-
-> PUBMAXX finds you a good cheap pint near where you are, then gets you home.
->
-> Most nights out start the same way. You have left the office, you are somewhere in London, and you want a decent pint that does not cost eight pounds fifty, somewhere you can walk to, without wading through star ratings. PUBMAXX is built for exactly that moment. It opens on the map, works out where you are, and shows you the nearest pubs first.
+> You have left work. You want a decent pint that does not cost a fortune, somewhere close, without reading forty reviews first. PUBMAXX opens on the map, works out where you are, and puts the nearest pubs in front of you with the price we hold for each one. Ask for more than one and it lays out a crawl you can actually walk.
 >
 > Find a pint
-> - The nearest pubs, ranked by how far you actually have to walk.
-> - Pint prices where we have them, with the date we last checked, so you know how fresh the number is.
-> - Opening hours and last orders, so you do not arrive to a locked door.
+>
+> - The nearest London pubs, ranked by how far you actually have to walk.
+> - Pint prices with the day we last saw them, so you know how fresh the number is.
+> - Beer, wine, spirits, cocktails and no alcohol, each priced on its own.
+> - Opening hours, so you do not arrive at a locked door.
+>
+> Log what you paid
+>
+> - Paid for a pint? Log the price. That is where these numbers come from, and it is how the cheap ones get found.
+> - A price only moves the map once a second drinker confirms it, so one wrong figure cannot drag a pub up or down on its own.
+> - The Pint Index publishes what London is charging, month by month, with the day each price was seen.
 >
 > Plan the night
-> - Tap once for a crawl route that keeps the walking honest and finishes near a bus, tube, or night route home.
-> - See what is on tonight near you.
 >
-> Keep the night
-> - A private log of where you went, kept on your phone. Add a photo from the night if you like. It is yours. It is not posted anywhere and it is not a feed.
+> - Describe the outing and get a crawl route back in order, with the walking kept honest.
+> - What is on tonight, from named sources, with the date we read them.
+> - The last train, so the night has an ending you chose.
+>
+> Meet your Pub Pal
+>
+> - A companion who helps you find a pub, sort a plan and keep the night. Pick its form and give it a name. It is yours and it stays on your account.
 >
 > Straight answers on prices
-> Pubs change their prices and we are not standing at the bar. We show the best figure we hold and when we last saw it. Use it as a rough steer, check at the bar, and do not hold us to the penny.
+>
+> Pubs change their prices and we are not standing at the bar. We show the best figure we have and when we last saw it. Treat it as a steer, not a promise.
 >
 > Privacy
-> Full GPS precision stays on your phone. If you ask for nearby events, transport or a journey, the app sends a rounded point for that request. It is not tied to your public profile. Usage analytics are off until you turn them on. There are no adverts and nothing is sold on.
 >
-> London only for now. More cities are coming.
+> Full GPS precision stays on your phone. Ask for something nearby and the app sends a rounded point for that one request. Analytics stay off until you turn them on. There are no adverts, and nothing is sold on. A photo is public only where you post it: a pub wall and the feed are public by design, and a Moment stays on your phone until you publish it.
 >
-> Free to use. You do not need an account to find a pint.
+> Where it works
+>
+> Pubs across the UK are on the map. Pint prices are London for now, because a price is only worth showing once drinkers here have checked it. Other cities follow the same way.
+>
+> PUBMAXX is free. You do not need an account to find a pint.
+
+### What this pass changed, and why
+
+Every line is a claim a reviewer can open the app and check, so the audit was
+run against the product on `main` rather than against the previous draft.
+
+- **"Last orders" is gone.** It sat in both old versions for a month and the
+  app has never held a last-orders time for any pub. The only "last orders"
+  string in the tree is the 404 joke. `__tests__/storeAssets.test.ts` now fails
+  if it comes back. What the app does hold is the last train
+  (`lib/lastTrainBadge.ts`), and that is what the copy says.
+- **The price loop is in it.** The landing page's one primary action is "Log
+  what you paid" (`docs/design/LAUNCH_SCREENS.md`), and the old copy never
+  mentioned that a drinker logs the prices or that a second drinker confirms
+  them before the map moves. That is the differentiator against every general
+  map app, and it was missing from the listing entirely.
+- **Pub Pal is in it.** It is a first-class surface (`/pal`, `/pal/chat`), the
+  landing page's secondary action, and seven rendered forms as of #1449. The
+  old copy did not mention it.
+- **"London only for now" became precise.** Ten cities browse
+  (`lib/cities.ts`) and the UK base pub layer covers the country, while pint
+  prices really are London only (`lib/cityCapabilities.ts` answers
+  `PRICES_NOT_YET_COLLECTED` for every other city). Saying so exactly is both
+  more honest and worth the UK search terms.
+- **"Not a feed for strangers" is gone.** Section 5 of this document answers
+  Google Play's data safety form with photos SHARED, because a pub wall photo
+  is public by design. The description denied that in the same submission. The
+  new privacy paragraph says which surfaces are public and which are not.
+- **No metric, no user count, no award.** There is nothing to count yet, and a
+  number in a listing rots the day after it is pasted.
 
 ---
 
@@ -110,34 +216,57 @@ Same body works for both stores. Google Play allows 4000 characters and renders 
 
 - **Primary category:** Food & Drink (both stores).
 - **Secondary category (Apple, optional):** Travel or Lifestyle. Travel fits the "near me while out" use better.
-- **Google Play tags:** Food & Drink; optionally "Maps & Navigation" as a secondary.
+- **Google Play category:** Food & Drink.
+- **Google Play tags:** a separate field from the category, up to five, chosen from Google's own closed list rather than typed. Pick the ones that exist for Food & Drink and, where the list offers them, the map or nightlife adjacent ones. Tags feed browse and recommendation, not text search, so nothing in section 1 depends on them.
 - **Contains ads:** No.
 - **In-app purchases:** No.
-- **Price:** Free.
+- **Price:** Free. Note that "free" belongs in the description, never the title: Google Play's metadata policy bars pricing and promotional claims from the title.
 
 ---
 
 ## 4. Age rating
 
-The app is about pubs, beer, and pint prices. Alcohol is the subject, not an incidental mention, so answer the alcohol questions as frequent and central. Do not undersell this, an under-rating is a takedown risk.
+The app is about pubs, beer and pint prices. Alcohol is the subject, not an
+incidental mention, so answer the alcohol questions as frequent and central. Do
+not undersell this: an under-rating is a takedown risk.
 
 ### Apple App Store (App Store Connect questionnaire)
 
-Answer the ratings questionnaire as follows. Everything not listed is None / No.
+**Apple replaced its tiers in 2025, and 17+ no longer exists.** The bands are
+now 4+, 9+, 13+, 16+ and 18+; 12+ and 17+ were removed and every existing app
+was reassigned. The questionnaire also grew a set of mandatory capability and
+in-app control questions that the old draft of this section predates. Expect
+the form to look nothing like the 2024 one.
+
+Answer as follows. Everything not listed is None / No.
 
 | Question | Answer |
 | --- | --- |
-| Alcohol, Tobacco, or Drug Use or References | **Frequent/Intense** |
+| Alcohol, Tobacco, or Drug Use or References | **Frequent** |
 | Contests | None |
 | Gambling | No (no real or simulated gambling) |
 | Horror/Fear, Violence (all kinds) | None |
 | Sexual Content or Nudity, Profanity, Crude Humor | None |
 | Mature/Suggestive Themes | None |
-| Medical/Treatment Information | None |
-| Unrestricted Web Access | **Yes** (the shell loads a live website in a web view) |
-| Age Verification / Made for Kids | Not made for kids |
+| Medical or Wellness content | None |
+| **Capability: Unrestricted Web Access** | **Yes** (the shell loads a live website in a web view) |
+| **Capability: User-Generated Content** | **Yes** (Social, Visit Reports, community prices, pub photo walls, Moments) |
+| **Capability: Social Media** | **Yes** (`/social`, follows, public feed) |
+| **Capability: Messaging and Chat** | **Yes** (`/messages`, a one-to-one thread with photo and pub attachments) |
+| **Capability: Advertising** | No |
+| In-app control: Parental Controls | None |
+| In-app control: Age Assurance | The app takes every account to be an adult on one recorded tap (`accountIsAdult`, `lib/socialLaunch.ts`). Declare it as the self-assertion it is, not as verification. |
+| Made for Kids | No |
 
-Expected result: **17+** (Apple's new 17+ tier for frequent alcohol references, formerly reported as the same band). The "Unrestricted Web Access" yes on its own forces 17+ anyway, which is consistent.
+**Expected result: 18+.** Frequent alcohol references alone produce 18+.
+Unrestricted Web Access produces 16+ on its own, so it is not what drives the
+band here, but it is a true answer and must be given.
+
+Declaring user-generated content, social media and messaging is not optional
+and it carries a duty: the submitted build must ship working reporting,
+moderation, blocking, account deletion and a public support contact. All five
+exist (`lib/siteContact.ts` owns the address); make sure a reviewer can reach
+each one without an account where the surface allows it.
 
 ### Google Play (IARC questionnaire)
 
@@ -148,9 +277,14 @@ Expected result: **17+** (Apple's new 17+ tier for frequent alcohol references, 
 | Promotes or facilitates the purchase of alcohol? | No (we do not sell or take orders) |
 | Gambling, violence, sexual content, language | No / None |
 | Does the app share the user's location with other users? | No |
-| Users interact / share content? | **Yes.** Social, Messages, Visit Reports, community prices, venue reports, recommendations, and public Moments can carry user content. Reporting, moderation, blocking, account deletion, and the public support contact must work in the submitted build. |
+| Users interact / share content? | **Yes.** Social, Messages, Visit Reports, community prices, venue reports, recommendations and public Moments can carry user content. Reporting, moderation, blocking, account deletion and the public support contact must work in the submitted build. |
 
-Expected result: **PEGI 18 / ESRB Mature 17+ / "Parental guidance"** band driven by the alcohol reference. Target audience in the Play Console: **18 and over**. Do not select any age band under 18 and do not opt into the Designed for Families / Teacher Approved programmes.
+The IARC questionnaire produces its own bands per region and this pack does not
+predict them: it is a certificate issued by the rating bodies, not a value we
+choose, and guessing it here would be a claim we cannot keep. What IS ours to
+set is **target audience in the Play Console: 18 and over**. Do not select any
+age band under 18 and do not opt into the Designed for Families or Teacher
+Approved programmes.
 
 ---
 
@@ -196,11 +330,25 @@ Declare the following. Everything else: Not Collected.
 - **Is all data encrypted in transit?** Yes (HTTPS only, the shell loads `https://pubmaxxing.com`).
 - **Can users request data deletion?** Yes. Account deletion covers account-linked data; the public contact in `lib/siteContact.ts` handles other requests, including an optional area-demand address and Moments.
 
-**Privacy policy URL:** required by both stores. Use `https://pubmaxxing.com/privacy` — the site publishes it (with `/terms`) from `app/privacy` / `app/terms`; see the AGENTS.md privacy-notice entry for the keep-it-honest rule.
+**Privacy policy URL:** required by both stores. Use `https://pubmaxxing.com/privacy`. The site publishes it (with `/terms`) from `app/privacy` / `app/terms`; see the AGENTS.md privacy-notice entry for the keep-it-honest rule.
 
 ---
 
 ## 6. Screenshot shot list
+
+This section is the SPEC. The executable half is the `SHOTS` array in
+`scripts/gen-store-screenshots.mjs`, and the shipped half is
+`public/store-assets/screenshots/<size>/manifest.json`. The iOS and Android
+workers own the generator and the render; this section is what they render.
+
+**The two halves had drifted.** Before this pass the doc named `/near`, `/feed`
+and `/u/you` as shots 2, 5 and 6, and the generator has been shipping
+`/borough/hackney`, `/pint-index` and `/plan` in those slots. The table below is
+the generator's truth. Any row marked **change requested** is a spec delta for
+the owning worker to apply to `SHOTS`; nothing else in this section is a
+request.
+
+### How the set is made
 
 The set is GENERATED from the real screens, not cropped from an old QA run.
 **Shoot the production site**, because the shell is a remote-URL wrap of it: a
@@ -222,11 +370,10 @@ NEXT_DIST_DIR=.next-prod DEPLOYMENT_VERSION=$(git rev-parse HEAD) PORT=3100 npm 
 BASE=http://localhost:3100 npm run gen:store-screenshots
 ```
 
-Output is `public/store-assets/screenshots/<size>/`, one folder per required
-store size, each with its shots and a `manifest.json` carrying the caption to
-paste beside each one. `__tests__/storeAssets.test.ts` reads the PNG headers, so
-a shot at the wrong pixel size fails rather than being discovered in the upload
-form.
+Output is `public/store-assets/screenshots/<size>/`, one folder per store size,
+each with its shots and a `manifest.json` carrying the caption to paste beside
+each one. `__tests__/storeAssets.test.ts` reads the PNG headers, so a shot at
+the wrong pixel size fails rather than being discovered in the upload form.
 
 Two things the generator refuses on purpose. It will not shoot a `next dev`
 server, because the dev overlay badge paints straight onto the phone tab bar.
@@ -242,22 +389,99 @@ Both are right in the app and neither is the app. The analytics answer is
 either storage key is renamed, the run fails loudly rather than shipping the
 card.
 
-**Order (first three carry the listing, most installs decide on those):**
+### A caption is an indexed field now
 
-1. **Map, nearest pubs** (`/map`). Caption: "London pubs on the map." The core promise, lead with it.
-2. **Pint prices near you** (`/near`). Caption: "What a pint actually costs."
-3. **Crawl route** (`/crawls`). Caption: "A crawl you can actually walk."
-4. **Tonight** (`/tonight`). Caption: "What is on across London tonight."
-5. **Feed** (`/feed`). Caption: "Your night, logged."
-6. **Profile** (`/u/you`). Caption: "Private. Yours. Not a feed."
+Apple began extracting screenshot caption text for search in June 2025. A
+caption is therefore a keyword field with a picture attached, not a slogan, and
+the rules are the ones a keyword field has: carry a term a person types, do not
+repeat a word the subtitle already earns for free, and stay readable at store
+size. Google does not index captions, so the same caption serves both and is
+written for Apple.
 
-**Required device sizes** (all three are generated):
-- Apple: 6.7" (1290x2796) and 6.5" (1242x2688) satisfy the current iPhone requirement. Both are rendered, so no manual resize is needed at upload. iPad screenshots are only needed if the app is offered on iPad; otherwise set availability to iPhone only.
-- Google Play: minimum two, up to eight phone screenshots at 9:16, min 320px, max 3840px. The generated `play-phone` set is 1080x1920. A feature graphic (1024x500) is also required.
+Captions stay in the manifest rather than being painted into the PNG. A baked
+caption cannot be corrected or localised without a re-render, and a term Apple
+reads off a picture is worth less than one it reads off a field.
 
-**Feature graphic (Google Play, 1024x500):** DONE and committed at `public/store-assets/png/play/feature-graphic-1024x500.png`. Ink-deep field (`#060607`), the coral double-struck X read from the one geometry master, wordmark "PUBMAXX" and tagline "Cheap pints near you." Text is fine here; the no-text rule applies to the icon and the splash, which are masked and shown at 20px.
+### The shot list
 
-It is the one store asset NOT drawn from an SVG master, and that is deliberate. librsvg resolves `font-family` through the machine's own font stack, so an SVG master asking for Space Grotesk renders in whatever face happens to be installed and says nothing about having done so. The banner is rendered by the same satori path the OG cards use (`scripts/gen-store-assets.mjs`), which is handed the repo's own font file. Do not reintroduce an SVG master for it; `__tests__/storeAssets.test.ts` fails if one appears.
+Order matters more than count. Roughly 90% of App Store impressions never
+scroll past the third shot, so the first three carry the listing.
+
+| # | Route | Caption | Job |
+| --- | --- | --- | --- |
+| 1 | `/map` | London pubs on the map. | Hero. The core promise, and the one screen that says at a glance what the app is. |
+| 2 | `/borough/hackney` | What a pint actually costs. | The proof. A borough rather than `/near`, because the caption promises prices and `/near` before a location grant has none to show. |
+| 3 | `/crawls` | A crawl you can walk. | The differentiator, and the reason someone keeps the app. |
+| 4 | `/tonight` | What is on across London tonight. | Recurring use. |
+| 5 | `/pint-index` | Pint prices, month by month. | The receipt. Nobody else publishes this. |
+| 6 | `/plan` | Describe the outing. Get it in order. | The planner, in the words the screen itself uses. |
+
+**Change requested, for the worker who owns `SHOTS`:**
+
+- Shot 3 caption: "A crawl you can actually walk." to "A crawl you can walk."
+  Shot 2 already says "actually" and two captions in a row leaning on the same
+  word reads as one voice tic rather than two claims.
+- Shot 6 caption: "Describe the night. Get it in order." to "Describe the
+  outing. Get it in order." The screen's own heading is "Describe the outing.
+  We'll put it in order." (`docs/design/LAUNCH_SCREENS.md`), and a caption that
+  paraphrases the screen it sits beside is a small lie a reviewer can see.
+- **Add a seventh shot: `/pal`, caption "Your Pub Pal knows the round."** Pub
+  Pal is the landing page's secondary action and seven rendered forms as of
+  #1449, and the listing currently shows none of it. Play takes eight
+  screenshots, so seven fits both stores. Put it at position 7 rather than
+  higher: the price argument has to land first.
+
+Any caption change must also be made in the description or the promotional text
+if it contradicts them, and `__tests__/storeAssets.test.ts` holds every size to
+the same shot list, so the three manifests cannot disagree.
+
+### Required device sizes
+
+**Apple.** The requirement changed and this pack predated it. There is now ONE
+required iPhone class, and App Store Connect scales it down for the rest:
+
+- **6.9" is the required class.** It accepts 1320x2868, 1290x2796 and
+  1260x2736. The generated `ios-6.7` set is 1290x2796, which is inside that
+  class and is accepted as it stands, so nothing is blocking. The folder name
+  is stale, not the pixels.
+- **6.5" is a fallback, not a requirement.** It accepts 1284x2778 and
+  1242x2688. The generated `ios-6.5` set is 1242x2688 and is fine to upload,
+  but supplying it is now optional.
+- iPad screenshots are needed only if the app is offered on iPad. Otherwise set
+  availability to iPhone only.
+- Up to 10 per size. No alpha channel.
+
+*Worth doing, not blocking:* rendering the 6.9" set natively at 1320x2868 would
+be sharper than letting Apple scale 1290x2796 up on a 17 Pro Max. That is a
+generator change (`REQUIRED_SIZES` in `__tests__/storeAssets.test.ts` pins the
+current pair) and belongs to the iOS worker, not to this pass.
+
+**Google Play.** Minimum two, maximum **eight** phone screenshots, 16:9 or 9:16,
+minimum 320px and maximum 3840px on any side, PNG or JPEG with no alpha. The
+generated `play-phone` set is 1080x1920. A feature graphic at exactly 1024x500
+is also required.
+
+**Preview video: neither store has one, and that is a deliberate deferral.** An
+App Store preview autoplays muted in search and is the single largest
+conversion lever left on this listing. A Play video does not autoplay and only
+about 6% of visitors tap it, so Play's is worth far less. Neither is a
+submission blocker. Do the iOS one after the first release, when there is a
+build to record rather than a website to film.
+
+**Feature graphic (Google Play, 1024x500):** DONE and committed at
+`public/store-assets/png/play/feature-graphic-1024x500.png`. Ink-deep field
+(`#060607`), the coral double-struck X read from the one geometry master,
+wordmark "PUBMAXX" and tagline "Cheap pints near you." Text is fine here; the
+no-text rule applies to the icon and the splash, which are masked and shown at
+20px.
+
+It is the one store asset NOT drawn from an SVG master, and that is deliberate.
+librsvg resolves `font-family` through the machine's own font stack, so an SVG
+master asking for Space Grotesk renders in whatever face happens to be
+installed and says nothing about having done so. The banner is rendered by the
+same satori path the OG cards use (`scripts/gen-store-assets.mjs`), which is
+handed the repo's own font file. Do not reintroduce an SVG master for it;
+`__tests__/storeAssets.test.ts` fails if one appears.
 
 ---
 
@@ -296,7 +520,7 @@ node scripts/gen-store-assets.mjs
 
 ### Legibility at small sizes (checked)
 
-Coral `#ff5a5f` on a white `#ffffff` tile measures ~3.7:1 contrast — comfortably above the 3:1 large-graphic threshold and crisper on a home screen than the retired coral-on-ink treatment. The full double-struck X holds at 40px+, but its two thin ascending strokes (~4u channel) merge below ~24px, so the ≤64px small-optics master takes the single-slash `slashSimple` + thick descending stroke instead — one clean forward slash that stays legible at the 20px slot. No ember at any tier (the crossing is already the event). Verified by sampling rendered pixels on the 29px, 512px and 1024px exports (white field, coral stroke).
+Coral `#ff5a5f` on a white `#ffffff` tile measures ~3.7:1 contrast, comfortably above the 3:1 large-graphic threshold and crisper on a home screen than the retired coral-on-ink treatment. The full double-struck X holds at 40px+, but its two thin ascending strokes (~4u channel) merge below ~24px, so the ≤64px small-optics master takes the single-slash `slashSimple` + thick descending stroke instead: one clean forward slash that stays legible at the 20px slot. No ember at any tier (the crossing is already the event). Verified by sampling rendered pixels on the 29px, 512px and 1024px exports (white field, coral stroke).
 
 ### Wiring into the native shells (when syncing)
 
@@ -459,14 +683,20 @@ App. Bundle id `com.pubmaxx.app`. Primary language English (UK). Category Food
 *Done when:* the app appears with status *Prepare for Submission*.
 
 **12. Paste the metadata and upload the screenshots.**
-Sections 1 to 3 of this document hold the name, subtitle, keywords, and both
-descriptions. Section 5 holds every App Privacy answer. Section 4 holds the age
-rating answers. The screenshots are already rendered at both required sizes in
-`public/store-assets/screenshots/ios-6.7/` and
-`public/store-assets/screenshots/ios-6.5/`, and each folder's
-`manifest.json` carries the caption for each shot.
-*Done when:* App Privacy shows no outstanding questions and both screenshot
-sizes are uploaded.
+Sections 1 to 3 hold the name, subtitle, keywords and the one description both
+stores take. Section 4 holds the age rating answers, which are the 2025
+questionnaire rather than the one this pack was first written against. Section
+5 holds every App Privacy answer.
+
+The screenshots are already rendered in
+`public/store-assets/screenshots/ios-6.7/` (1290x2796, inside Apple's required
+6.9" class) and `public/store-assets/screenshots/ios-6.5/` (1242x2688, the
+optional fallback class). Each folder's `manifest.json` carries the caption for
+each shot, and the caption is now an indexed field, so paste it rather than
+leaving the slot blank. Only the first set is required; upload the second only
+if you want native pixels on an older device.
+*Done when:* App Privacy and the age rating show no outstanding questions, and
+the 6.9" set is uploaded with a caption on every shot.
 
 **13. Activate Sign in with Apple, only if you want it at launch.**
 Create the App ID, Services ID, return URL, and provider key, then enable Apple
@@ -642,8 +872,8 @@ not tick any band under 18 and do not opt into Designed for Families.
 - Everything else on the form: **not collected**.
 - Privacy policy URL: `https://pubmaxxing.com/privacy`
 
-**11. Store listing.** App name, short description and full description are
-section 2. Upload from this repository:
+**11. Store listing.** The app name and short description are section 1; the
+full description is section 2. Upload from this repository:
 
 - Icon (512x512): `public/store-assets/png/play/play-store-512.png`
 - Feature graphic (1024x500): `public/store-assets/png/play/feature-graphic-1024x500.png`
@@ -696,4 +926,4 @@ audience.
 
 ### Shared, not account-blocked
 
-- [x] **Publish a privacy policy page** — done: `https://pubmaxxing.com/privacy` (and `/terms`) ship from `app/privacy` / `app/terms`, linked in the site footer. Use that URL in both listings.
+- [x] **Publish a privacy policy page**. Done: `https://pubmaxxing.com/privacy` (and `/terms`) ship from `app/privacy` / `app/terms`, linked in the site footer. Use that URL in both listings.
