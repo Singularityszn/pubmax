@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/test";
 
+// 23:50 Europe/London (BST). /today is the one case whose nav reads the wall
+// clock: past 17:00 the Now href is /tonight, and the document it hydrates
+// against always says /today. That half of the day used to be walked only by a
+// run that happened to start in the evening, and it is the half where the nav
+// corrected the href mid-hydration and took the whole route - wordmark included
+// - back to its loading shell. Pinned so the case is the same case at any hour.
+const LONDON_EVENING = new Date("2026-08-16T22:50:00.000Z");
+
 const CASES = [
   {
     label: "mobile landing",
@@ -14,6 +22,7 @@ const CASES = [
     path: "/today",
     selector: ".siteNavBrand .pubmaxxWordmark",
     hostSelector: ".siteNavBrand",
+    clock: LONDON_EVENING,
   },
   {
     label: "desktop navigation",
@@ -26,6 +35,7 @@ const CASES = [
 
 for (const view of CASES) {
   test(`${view.label} shows an uncut PUBMAXX wordmark`, async ({ page }) => {
+    if ("clock" in view) await page.clock.setFixedTime(view.clock);
     await page.setViewportSize(view.viewport);
     await page.addInitScript(() => {
       window.localStorage.setItem("pubmax-tour-v1-done", "1");

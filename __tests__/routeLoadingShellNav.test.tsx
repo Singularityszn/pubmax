@@ -1,0 +1,50 @@
+// The held frame a primary tab paints while its route arrives.
+//
+// It is the SAME frame the route itself paints, so the top bar is part of it.
+// Without the bar the shell was a page with no chrome, and the moment it stood
+// in for a route the site nav left the screen: /today, /tonight, /out, /social,
+// /feed and /u all own a `loading.tsx`, so their whole page - the nav and the
+// PUBMAXX wordmark inside it - sits in a Suspense boundary. React hands a
+// boundary back to its fallback whenever a sync update lands before that
+// boundary has hydrated, and the root of this app settles several on every
+// load, so a route that had already painted could drop back to a bar-less
+// skeleton and take the wordmark with it. Measured on /today at 390px on the
+// evening clock: one load in four. With the bar in the shell, none.
+//
+// The bar therefore stays put whichever half is on screen, and a cold tab tap
+// paints chrome straight away instead of a page that grows a header.
+//
+// The tree is read rather than rendered: SiteNav is a client component that
+// asks the app's auth and command-palette contexts for its own children, and a
+// stub of those would only prove the stub.
+
+import { isValidElement, type ReactElement, type ReactNode } from "react";
+import { describe, expect, it } from "vitest";
+
+import RouteLoadingShell from "@/components/nav/RouteLoadingShell";
+import SiteNav from "@/components/nav/SiteNav";
+
+function flatten(node: ReactNode): ReactElement[] {
+  if (Array.isArray(node)) return node.flatMap(flatten);
+  if (!isValidElement(node)) return [];
+  const element = node as ReactElement<{ children?: ReactNode }>;
+  return [element, ...flatten(element.props.children)];
+}
+
+function shellTree(label = "Today"): ReactElement[] {
+  return flatten(RouteLoadingShell({ label }));
+}
+
+describe("RouteLoadingShell", () => {
+  it("carries the site nav, so a loading route never loses its top bar", () => {
+    expect(shellTree().some((element) => element.type === SiteNav)).toBe(true);
+  });
+
+  it("still says which route is loading, and says it politely", () => {
+    const main = shellTree("Tonight")[0] as ReactElement<Record<string, unknown>>;
+    expect(main.props["aria-busy"]).toBe("true");
+    expect(main.props["aria-live"]).toBe("polite");
+    expect(main.props["aria-label"]).toBe("Loading Tonight");
+    expect(main.props.className).toBe("routeLoadingShell");
+  });
+});
