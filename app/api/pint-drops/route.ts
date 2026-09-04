@@ -66,15 +66,6 @@ async function ensureProfileForHandle(handle: string): Promise<void> {
   }
 }
 
-function priceAuthorityKeyForDrop(
-  venueId: string,
-  visibility: string | undefined,
-  verifiedAccountId: string | null,
-): string | undefined {
-  if (visibility === "anonymous") return undefined;
-  return pintDropAuthorityKey(venueId, verifiedAccountId);
-}
-
 // The friendly label a card shows when an id has no resolvable pub name — kept
 // in step with lib/feed.ts VENUE_FALLBACK_LABEL so server and client agree.
 const VENUE_FALLBACK_LABEL = "A London pub";
@@ -420,9 +411,13 @@ export async function POST(request: Request): Promise<Response> {
   const dropPayload = {
     ...canonicalDrop,
     handle: ownership.handle,
-    authorityKey: priceAuthorityKeyForDrop(
+    // ANONYMITY IS DISPLAY, NOT ATTRIBUTION (#1436). The key is derived from
+    // the signed-in account whatever lane the drinker chose to post in, so an
+    // anonymous price can corroborate and be corroborated like any other. Two
+    // anonymous drops from ONE account still carry ONE key and count once.
+    // Hiding the drinker is the public DTO's job (toDTO), not the key's.
+    authorityKey: pintDropAuthorityKey(
       canonicalDrop.venueId,
-      canonicalDrop.visibility,
       ownership.callerUserId,
     ),
   };

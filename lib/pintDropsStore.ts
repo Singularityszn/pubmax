@@ -100,7 +100,10 @@ export type PintDropDTO = Omit<
 
 // The label a public DTO carries for an `anonymous` drop. A safe, public string
 // (issue #29): the real handle is swapped for this in EVERY DTO — it never
-// leaves the server for an anonymous drop.
+// leaves the server for an anonymous drop. Since #1436 an anonymous row also
+// CARRIES an authority key, and `toDTO` withholds that too: a per-venue key
+// published beside the same account's public drop would name the drinker as
+// surely as the handle would.
 export { ANON_HANDLE_LABEL };
 
 // Moderator read shape. Same photo-URL swap, but a moderator must see the
@@ -515,7 +518,14 @@ export function toDTO(
     pintPhotoUrl: visible ? (photoUrls?.pint ?? null) : null,
     venuePhotoUrl: visible ? (photoUrls?.venue ?? null) : null,
   };
-  if (drop.authorityKey) dto.authorityKey = drop.authorityKey;
+  // The authority key is a per-venue pseudonym for one verified account, so on
+  // an ANONYMOUS drop it would name the drinker: the same account's public drop
+  // at that pub carries the same key beside its real handle. The key rides the
+  // public DTO only in the `public` lane; the anonymous row keeps its key
+  // server-side, where the confirmation producer reads it (#1436).
+  if (drop.authorityKey && visibility !== "anonymous") {
+    dto.authorityKey = drop.authorityKey;
+  }
   // A confirmation is public: it is the whole point of the green pill, and the
   // record names two drop ids, never two people.
   if (drop.confirmation) dto.confirmation = drop.confirmation;

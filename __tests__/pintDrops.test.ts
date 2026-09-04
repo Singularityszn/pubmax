@@ -162,7 +162,7 @@ import {
   type PintDropReportIdentity,
   validatePintDrop,
 } from "@/lib/pintDrops";
-import { supabasePintDropStore } from "@/lib/pintDropsStore";
+import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
 import { memoryProfileStore } from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/pint-drops";
@@ -400,7 +400,14 @@ describe("POST /api/pint-drops (create)", () => {
     expect(drop.authorityKey).toBeUndefined();
   });
 
-  it("keeps a verified anonymous Pint Drop provisional", async () => {
+  // #1436 changed this design. An anonymous drop used to store NO authority
+  // key, so a signed-in drinker who chose the anonymous lane posted a price
+  // that could never corroborate and could never be corroborated, at any age
+  // and however many other drinkers arrived. Anonymity is about DISPLAY, not
+  // attribution: the key is now derived from the account exactly as it is for a
+  // public drop, and what the anonymous lane buys is that neither the handle
+  // nor the key rides a public read.
+  it("stores authority for an anonymous drop and publishes neither handle nor key", async () => {
     reportAuth.userId = "account-anon";
     await memoryProfileStore.createOwned("verified_anon", reportAuth.userId);
 
@@ -414,7 +421,50 @@ describe("POST /api/pint-drops (create)", () => {
     expect(response.status).toBe(201);
     const { drop } = await response.json();
     expect(drop.visibility).toBe("anonymous");
+    // The public DTO the drinker's own write answers with.
+    expect(drop.handle).not.toBe("verified_anon");
     expect(drop.authorityKey).toBeUndefined();
+
+    // Every other public read agrees.
+    const listed = await get(VENUE);
+    const [publicRow] = (await listed.json()).drops;
+    expect(publicRow.id).toBe(drop.id);
+    expect(publicRow.handle).not.toBe("verified_anon");
+    expect(publicRow.authorityKey).toBeUndefined();
+
+    // The row itself carries the key, which is what lets this price
+    // corroborate: the confirmation producer reads it server-side.
+    const [stored] = await memoryPintDropStore.listConfirmationCandidates(VENUE);
+    expect(stored.id).toBe(drop.id);
+    expect(stored.authorityKey).toMatch(/^[a-f0-9]{64}$/);
+    expect(stored.authorityKey).not.toContain("account-anon");
+  });
+
+  it("confirms an anonymous price against a second account's public one", async () => {
+    reportAuth.userId = "account-anon-payer";
+    await memoryProfileStore.createOwned("quiet_drinker", reportAuth.userId);
+    const anonymous = await post({
+      venueId: VENUE,
+      handle: "quiet_drinker",
+      priceGbp: 4.2,
+      visibility: "anonymous",
+    });
+    expect(anonymous.status).toBe(201);
+
+    reportAuth.userId = "account-second-payer";
+    await memoryProfileStore.createOwned("loud_drinker", reportAuth.userId);
+    const named = await post({
+      venueId: VENUE,
+      handle: "loud_drinker",
+      priceGbp: 4.2,
+    });
+    expect(named.status).toBe(201);
+
+    // Two accounts, two authority keys, one agreement: the second reporter
+    // completes the pair even though the first drinker stayed anonymous.
+    expect(await named.json()).toMatchObject({
+      confirmation: { basis: "second_reporter" },
+    });
   });
 
   it("accepts a note-only drop as an anecdote", async () => {
