@@ -10,6 +10,7 @@ import MobileTabBar, {
   MobileTabBarClearanceFallback,
 } from "@/components/nav/MobileTabBar";
 import DeferredShellExtras from "@/components/DeferredShellExtras";
+import ClientErrorReporter from "@/components/ClientErrorReporter";
 import OfflineReady from "@/components/OfflineReady";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { clerkAppearance } from "@/lib/clerkAppearance";
@@ -390,6 +391,7 @@ export default async function RootLayout({
                 {/* Silent offline SW registration (issue #32) — renders nothing,
                     production-only, registers after load. */}
                 <OfflineReady />
+                <ClientErrorReporter />
                 <PerformanceVitals />
                 {/* Metrics funnel (Wave M) — consent-gated, render-nothing
                     signals: daily return-rate pulse and the A2HS install funnel. */}
@@ -412,6 +414,7 @@ export default async function RootLayout({
               <CreateFab />
               <DeferredShellExtras />
               <OfflineReady />
+              <ClientErrorReporter />
               <PerformanceVitals />
               <DailyActivityPulse />
               <A2HSTracking />
