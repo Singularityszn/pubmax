@@ -107,6 +107,14 @@ it, so `npm install` neither pulls it nor needs it.
 uv tool install --python 3.12 'olmocr==0.4.27'
 ```
 
+olmOCR also needs poppler's `pdftoppm` on the PATH and REFUSES TO START without
+it, which is a hard check at startup rather than a missing fallback. On a Mac
+whose Homebrew is declarative, nix is the way in:
+
+```
+nix profile install nixpkgs#poppler-utils
+```
+
 Its own default engine is vLLM on an NVIDIA GPU. `olmocr --server` points the
 same pipeline at any OpenAI-compatible endpoint, so on Apple Silicon the model is
 served locally against Metal:
@@ -123,6 +131,31 @@ here calls a paid API and no document leaves the machine.
 
 `--dry-run` does the whole discovery and reports what it would read without
 starting the model, which is the cheap way to check the hosts still publish.
+
+### What it costs, measured on 2026-09-04
+
+Measured on an Apple M5 Pro with 24 GB of memory, olmOCR-2-7B-1025 at Q8_0 served
+by llama.cpp against Metal.
+
+| | Measured |
+| --- | ---: |
+| One page, end to end | 88.7 s |
+| Input tokens for that page | 1,602 |
+| Output tokens for that page | 962 |
+| Output rate | 10.9 tokens/s |
+| Weights to download, once | 9.0 GB |
+| Memory resident while serving | about 8 GB |
+| Marginal cost per page | none, the model is local |
+
+The supply this lane faces, measured the same day: 12 hosts, 43 documents
+discovered, **14 of them scans with no text layer** and 29 carrying one, for
+**28 pages**. At the rate above that is about **41 minutes of model time** for
+the whole national backlog, one page at a time.
+
+**The memory, not the time, is what makes this a scheduled job rather than a
+background one.** Eight resident gigabytes is a third of this machine, so the
+lane is run deliberately, on its own, and the server is stopped afterwards. It is
+never left running beside other work.
 
 ## What counts as a price
 

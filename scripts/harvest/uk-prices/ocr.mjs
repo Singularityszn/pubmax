@@ -61,6 +61,11 @@
 // with no Python at all still builds, tests and deploys.
 //
 //   uv tool install --python 3.12 'olmocr==0.4.27'
+//   nix profile install nixpkgs#poppler-utils
+//
+// The second line is not optional: olmOCR checks for poppler's `pdftoppm` at
+// STARTUP and exits when it is absent, so a missing poppler reads as the whole
+// lane being broken rather than as one page failing.
 //
 // Its default engine is vLLM on an NVIDIA GPU, which this tree has no access to.
 // `olmocr --server` points the same pipeline at any OpenAI-compatible endpoint,
@@ -74,6 +79,13 @@
 // and a price misread in the last decimal place is worse than no price at all.
 // Point this script at that server with --server, which defaults to the URL
 // above. Nothing here calls a paid API and no document leaves the machine.
+//
+// WHAT IT COSTS, measured on an Apple M5 Pro with 24 GB on 2026-09-04: 88.7
+// seconds for one page, 1,602 input and 962 output tokens, 9.0 GB of weights to
+// download once and about 8 GB resident while the server runs. THE MEMORY, NOT
+// THE TIME, is what makes this a job somebody schedules: eight gigabytes is a
+// third of that machine, so the lane is run on its own and the server is stopped
+// afterwards rather than left up beside other work.
 //
 // Nothing in this file writes to a price surface. Rows land in the harvest
 // output beside every other lane's, and `npm run build:uk-price-bundle` remains
