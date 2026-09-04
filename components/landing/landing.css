@@ -403,7 +403,7 @@
 .lpAnswer { display: grid; gap: var(--space-5); align-content: start; }
 
 .lpAnswerCard { width: 100%; }
-@media (min-width: 960px) { .lpAnswerCard { width: min(100%, 32rem); } }
+@media (min-width: 960px) { .lpAnswerCard, .lpRail { width: min(100%, 32rem); } }
 
 .lpAnswerHead {
   display: flex;

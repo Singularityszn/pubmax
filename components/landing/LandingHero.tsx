@@ -373,9 +373,11 @@ function AnswerRail({ answer }: { answer: Answer }) {
             <Link prefetch={false} href={pintDropDoorHref(row.id)} className="lpRailLink">
               <span className="lpRailMain">
                 <span className="lpRailName">{row.name}</span>
-                <span className="lpRailMeta">
-                  {row.walkMinutes != null ? `${row.walkMinutes} min walk` : row.area}
-                </span>
+                {row.walkMinutes != null ? (
+                  <span className="lpRailMeta">{row.walkMinutes} min walk</span>
+                ) : row.area !== answer.area ? (
+                  <span className="lpRailMeta">{row.area}</span>
+                ) : null}
               </span>
               <span className="lpRailPrice">
                 <PriceBadge variant="neutral">{formatPrice(row.priceGbp)}</PriceBadge>
