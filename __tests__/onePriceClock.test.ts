@@ -24,7 +24,12 @@ describe("public pint-price clock", () => {
         "utf8",
       ),
     ) as { generatedAt: string };
-    expect(Date.parse(drinkOverlay.generatedAt)).toBeGreaterThan(
+    // TWO CLOCKS, and the point is that they are separate rather than ordered.
+    // The reviewed drink overlay and the hand-collected bundle move on their
+    // own cadences, so which one is fresher flips with every re-collection; an
+    // ordering assertion here would fail on an honest bundle refresh while
+    // saying nothing about the claim under test.
+    expect(Date.parse(drinkOverlay.generatedAt)).not.toBe(
       PINT_DATASET_OBSERVED_AT.getTime(),
     );
 

@@ -1,6 +1,22 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { GET } from "@/app/api/freshness/route";
+import { SNAPSHOT_AFTER_DAYS } from "@/lib/freshness";
+
+/** The pint bundle's collection stamp, read from its single source of truth. */
+function registryPintStamp(): string {
+  const registry = JSON.parse(
+    readFileSync(join(process.cwd(), "data", "freshness_registry.json"), "utf8"),
+  ) as { datasets: { id: string; stamp: { value?: string } | null }[] };
+  const value = registry.datasets.find((d) => d.id === "pint_prices")?.stamp?.value;
+  if (typeof value !== "string") {
+    throw new Error("data/freshness_registry.json: pint_prices has no literal stamp value");
+  }
+  return value;
+}
 
 // The route reads the real registry (data/freshness_registry.json) and the real
 // bundled artifacts from process.cwd(), so it exercises the whole spine end to
@@ -44,25 +60,32 @@ describe("GET /api/freshness", () => {
     expect(summed).toBe(body.datasets.length);
   });
 
-  it("names the hand-collected pint bundle a snapshot, with its observed date", async () => {
-    // The bundle sits months inside its 2160h neglect ceiling, so the budget
-    // alone would report it "fresh". An episodic feed past 30 days is named for
-    // the day it was collected instead, and the date rides with the name.
+  it("dates the hand-collected pint bundle, and names it a snapshot once it ages", async () => {
+    // The bundle is EPISODIC, so past SNAPSHOT_AFTER_DAYS it is named for the
+    // day it was collected rather than called fresh, and past its 2160h neglect
+    // ceiling it is stale. Inside that first window a genuinely re-collected
+    // bundle IS fresh, and saying otherwise would punish a real refresh.
     //
-    // The route ages against the real clock, so the assertion is what the route
-    // may NEVER say (fresh) plus the two honest answers: snapshot today, and
-    // stale once nobody has re-collected the bundle inside its budget. The
-    // clock-independent proof that this exact registry entry reads "snapshot"
-    // is in __tests__/priceFreshnessHonesty.test.ts, on fixed dates.
+    // The route ages against the real clock, so the expected status is DERIVED
+    // from the registry stamp's own age rather than typed. The
+    // clock-independent proof of each naming is in
+    // __tests__/priceFreshnessHonesty.test.ts, on fixed dates.
     const res = await GET();
     const body = (await res.json()) as {
       datasets: Array<{ id: string; status: string; observedAt: string | null }>;
     };
     const pint = body.datasets.find((d) => d.id === "pint_prices");
 
-    expect(pint?.status).not.toBe("fresh");
-    expect(["snapshot", "stale"]).toContain(pint?.status);
-    expect(pint?.observedAt).toBe("2026-07-03T12:00:00Z");
+    expect(pint?.observedAt).toBe(registryPintStamp());
+
+    const ageDays =
+      (Date.now() - Date.parse(registryPintStamp())) / (24 * 60 * 60 * 1000);
+    if (ageDays <= SNAPSHOT_AFTER_DAYS) {
+      expect(pint?.status).toBe("fresh");
+    } else {
+      expect(pint?.status).not.toBe("fresh");
+      expect(["snapshot", "stale"]).toContain(pint?.status);
+    }
   });
 
   it("never surfaces a broken bundled artifact as an unresolved stamp", async () => {

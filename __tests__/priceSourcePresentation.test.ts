@@ -270,6 +270,16 @@ describe("baseline price-source presentation", () => {
   it("labels the dataset lane against the price-authority window", () => {
     const budgetMs = PINT_DATASET_PRESENTATION_BUDGET_DAYS * 24 * 60 * 60 * 1000;
     const observedAtMs = PINT_DATASET_OBSERVED_AT.getTime();
+    // Derived, never typed: a re-collection moves the stamp, and a hardcoded
+    // day here would turn an honest refresh into a test edit.
+    const observedTimeTag =
+      `<time dateTime="${PINT_DATASET_OBSERVED_AT.toISOString()}">` +
+      `${new Intl.DateTimeFormat("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "Europe/London",
+      }).format(PINT_DATASET_OBSERVED_AT)}</time>`;
     const render = () =>
       renderToStaticMarkup(
         createElement(DrinkMenu, {
@@ -284,17 +294,13 @@ describe("baseline price-source presentation", () => {
 
     expect(withinBudget).toContain("Seen");
     expect(withinBudget).not.toContain("Last seen");
-    expect(withinBudget).toContain(
-      '<time dateTime="2026-07-03T12:00:00.000Z">3 Jul 2026</time>',
-    );
+    expect(withinBudget).toContain(observedTimeTag);
 
     vi.setSystemTime(new Date(observedAtMs + budgetMs + 60 * 60 * 1000));
     const pastBudget = render();
 
     expect(pastBudget).toContain("Last seen");
-    expect(pastBudget).toContain(
-      '<time dateTime="2026-07-03T12:00:00.000Z">3 Jul 2026</time>',
-    );
+    expect(pastBudget).toContain(observedTimeTag);
   });
 
   it("formats a late UTC observation on its Europe/London calendar day", () => {

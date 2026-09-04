@@ -8,10 +8,10 @@
       "label": "London pint-price dataset",
       "class": "episodic",
       "artifact": "public/data/pint_prices_app_dataset.json",
-      "stamp": { "kind": "literal", "value": "2026-07-03T12:00:00Z", "consumedBy": "lib/dataFreshness.ts PINT_DATASET_OBSERVED_AT (build-time import; this stamp is the single source of truth for the pint dataset's collection date — the TS constant is derived from it, never hand-authored)" },
+      "stamp": { "kind": "literal", "value": "2026-09-04T12:00:00Z", "consumedBy": "lib/dataFreshness.ts PINT_DATASET_OBSERVED_AT (build-time import; this stamp is the single source of truth for the pint dataset's collection date — the TS constant is derived from it, never hand-authored)" },
       "cadence": "episodic — re-collected by hand, then re-exported",
       "stalenessBudgetHours": 2160,
-      "refreshWorkflow": "manual (npm run export:data → canonicalize:venues → build:slim)",
+      "refreshWorkflow": "manual (node scripts/refresh_pint_price_observations.mjs → python3 scripts/export_app_dataset_json.py --collected-at <ISO> --stamp-only → npm run canonicalize:venues → npm run build:slim). npm run export:data re-exports the committed CSV and re-collects nothing, and the bundled artifact carries layered rows the CSV does not hold, so it is not the collection step. See data/README.md.",
       "gate": "none (bundled static; keyless)"
     },
     {

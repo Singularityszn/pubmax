@@ -199,7 +199,42 @@ def main() -> None:
             "reads. Pass whenever the prices are re-collected."
         ),
     )
+    parser.add_argument(
+        "--stamp-only",
+        action="store_true",
+        help=(
+            "Update the freshness registry's pint_prices stamp and write NO dataset. "
+            "For a re-collection that updated the bundled artifact in place "
+            "(scripts/refresh_pint_price_observations.mjs), so the registry keeps ONE "
+            "writer rather than growing a second copy of the noon-UTC anchoring rule."
+        ),
+    )
+    parser.add_argument(
+        "--allow-row-loss",
+        action="store_true",
+        help=(
+            "Permit an export that publishes fewer rows than the committed artifact "
+            "already holds. Required because the committed dataset is LAYERED: rows "
+            "merged in after export (outer-London OSM, the Wikipedia list, the "
+            "gazetteer seeds) are not in the CSV, so a plain re-export silently drops "
+            "them. Pass this only when losing those rows is the intended change."
+        ),
+    )
     args = parser.parse_args()
+
+    if args.stamp_only:
+        if not args.collected_at:
+            raise SystemExit("--stamp-only needs --collected-at <ISO instant>")
+        normalized = normalize_collected_at(args.collected_at)
+        current = read_registry_pint_stamp()
+        if update_registry_pint_stamp(normalized):
+            print(
+                f"Updated {REGISTRY} pint_prices stamp: {current} -> {normalized} "
+                "(single source of truth; lib/dataFreshness.ts derives from it)"
+            )
+        else:
+            print(f"Registry pint_prices stamp already {normalized}; no change")
+        return
 
     DESTINATION.parent.mkdir(parents=True, exist_ok=True)
     previous_output = (
@@ -233,6 +268,23 @@ def main() -> None:
         if resolved != record["primary_borough"]:
             reassigned += 1
             record["primary_borough"] = resolved
+
+    # The committed artifact is LAYERED: later merge steps (outer-London OSM, the
+    # Wikipedia London list, the outer-London and chain gazetteer seeds) add rows
+    # the CSV does not carry. A plain re-export publishes the CSV alone, so it
+    # DROPS every one of them - measured at 3,761 rows down to 2,719 on
+    # 2026-09-04. That loss used to be silent, which is how a "refresh" could
+    # regress the product. Refuse by default and name the number.
+    if previous_output is not None:
+        held = json.loads(previous_output)
+        if isinstance(held, list) and len(rows) < len(held) and not args.allow_row_loss:
+            raise SystemExit(
+                f"Refusing to write {DESTINATION}: this export publishes {len(rows)} rows "
+                f"but the committed artifact holds {len(held)} - {len(held) - len(rows)} "
+                "row(s) would be lost. Those rows were merged in after export and are not "
+                "in the CSV. Re-apply the merge steps, or pass --allow-row-loss when the "
+                "loss is intended."
+            )
 
     new_output = json.dumps(rows, ensure_ascii=False)
     DESTINATION.write_text(new_output, encoding="utf-8")
