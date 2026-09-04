@@ -28,6 +28,7 @@ import {
   type PintDropStatus,
 } from "@/lib/pintDrops";
 import {
+  isPintDropDailyCapError,
   pintDropsStore,
   type PintDropPhotos,
 } from "@/lib/pintDropsStore";
@@ -69,6 +70,13 @@ async function ensureProfileForHandle(handle: string): Promise<void> {
 // The friendly label a card shows when an id has no resolvable pub name — kept
 // in step with lib/feed.ts VENUE_FALLBACK_LABEL so server and client agree.
 const VENUE_FALLBACK_LABEL = "A London pub";
+
+// The daily cap has TWO enforcers and may say ONE thing. The soft pre-check
+// reads the rule before the insert; the unique index behind it (migration 0141)
+// catches the burst the pre-check cannot see. A drinker turned away by either
+// did the same thing, so the sentence lives here once and both sites spend it.
+const DAILY_PRICE_CAP_REFUSAL =
+  "You've already logged a price here today. You can log one price per pub each day.";
 
 // PRD §9: enrich each public drop with a human `venueName` + a "/map?sel=…"
 // `venueMapUrl`, resolved server-side from the bundled venue index, so no public
@@ -433,13 +441,18 @@ export async function POST(request: Request): Promise<Response> {
   // venue+identity+London-day. A second priced drop at the same pub the same day
   // is a 409, not a silent overwrite — the first observation is kept, and one
   // actor can't stack rows to skew a venue's median. Note-only anecdotes are
-  // exempt (a passed-down memory isn't a price observation). A store hiccup here
-  // must not block an otherwise-good drop, so a lookup failure fails OPEN and the
-  // create proceeds (the create path still has its own error handling below).
+  // exempt (a passed-down memory isn't a price observation).
+  //
+  // This is the SOFT pre-check, and it is deliberately fail-open: a store hiccup
+  // here must not block an otherwise-good drop. It cannot be the whole rule,
+  // because it cannot see a burst: concurrent requests all read "no price yet"
+  // before any row lands, which is exactly how the cap was walked through. The
+  // HARD guard is the store's own (pint_drops_priced_day_unique_idx, migration
+  // 0141), and its refusal lands in the catch below wearing this same sentence.
   if (dropPayload.priceGbp !== null) {
     try {
       if (await pintDropsStore().hasPricedDropToday(dropPayload.venueId, ownership.handle)) {
-        return publicApiError("You've already logged a price here today. You can log one price per pub each day.", "CONFLICT", 409);
+        return publicApiError(DAILY_PRICE_CAP_REFUSAL, "CONFLICT", 409);
       }
     } catch (err) {
       log("warn", "pint_drops.dedupe_check_failed", {
@@ -450,7 +463,14 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const drop = await pintDropsStore().create(dropPayload, photos);
+    // This lane is the one that STATES the daily cap, so it is the one that
+    // opts into it: the store then claims the London day for this drop and the
+    // unique index behind it (0141) refuses the burst the pre-check above
+    // cannot see. The community-price pairing lane writes without this and
+    // keeps its own rule.
+    const drop = await pintDropsStore().create(dropPayload, photos, {
+      underDailyPriceCap: true,
+    });
     // The second-reporter pass, awaited so the drinker's own answer carries the
     // standing their report just earned. It never throws and never fails the
     // drop: when it cannot read or write, the pill stays grey and the drop
@@ -471,6 +491,13 @@ export async function POST(request: Request): Promise<Response> {
       { status: 201 },
     );
   } catch (err) {
+    // The daily cap, refused by the database (migration 0141). A drinker who
+    // hits the hard guard and one who hits the pre-check above did the same
+    // thing, so they are told the same thing: one sentence, one status, no way
+    // to tell which enforcer answered.
+    if (isPintDropDailyCapError(err)) {
+      return publicApiError(DAILY_PRICE_CAP_REFUSAL, "CONFLICT", 409);
+    }
     // An invalid photo is the user's fault — surface as 400. The store has
     // already cleaned up anything it uploaded (no orphans). We don't log this
     // as an error: it's expected client input, and the store already logged
