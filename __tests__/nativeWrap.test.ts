@@ -319,6 +319,25 @@ describe("Capacitor wrapped-build contract", () => {
     }
   });
 
+  it("keeps the WebView's auth storage out of the person's Google Drive", () => {
+    // Android Auto Backup is ON by default and copies WebView localStorage to
+    // Drive. This app keeps the browser session there (lib/authSessionResume.ts)
+    // and a refresh token per account beside it (lib/deviceAccountSessions.ts),
+    // so the Capacitor default backed up live credentials to a third-party
+    // cloud that neither app/privacy/page.tsx nor the Play Data safety form
+    // describes. The same attribute governs Android 12+ device-to-device
+    // transfer, which is why no extraction-rules file is needed: refusing is
+    // one line and it closes both doors.
+    const manifest = rootFile("android/app/src/main/AndroidManifest.xml");
+    expect(manifest).toContain('android:allowBackup="false"');
+    expect(manifest).not.toContain('android:allowBackup="true"');
+    // A rules file would mean backup was KEPT in some form, and then the
+    // privacy notice and the Data safety answers would have to say so in the
+    // same commit. Neither exists, and neither should appear without that.
+    expect(manifest).not.toContain("android:dataExtractionRules");
+    expect(manifest).not.toContain("android:fullBackupContent");
+  });
+
   it("declares the runtime notification permission Android 13 made mandatory", () => {
     // Undeclared, the request lib/nativePush.ts makes cannot be granted: no
     // dialog, no token, no error anybody would ever see. Declaring it asks for
