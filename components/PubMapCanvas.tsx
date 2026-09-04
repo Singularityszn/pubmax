@@ -150,6 +150,14 @@ import {
   shouldRecoverPaint,
 } from "@/lib/mapPaintWatchdog";
 import {
+  DATA_PACK_RETRY_DELAY_MS,
+  INITIAL_DATA_PACK_SPEND,
+  appDataPackSourceId,
+  dataPackDegraded,
+  spendDataPackFailure,
+  type AppDataPackSourceId,
+} from "@/lib/mapDataPackFailure";
+import {
   INITIAL_TILE_FAILURE_SPEND,
   areBasemapTilesLoaded as readBasemapTilesLoaded,
   basemapFailureSurface,
@@ -419,6 +427,16 @@ const FIRST_FRAME_TIMEOUT_MS = 10_000;
 // How many venues the no-map fallback lists so the venue content stays
 // reachable without a single WebGL frame.
 const FALLBACK_VENUE_COUNT = 6;
+
+/**
+ * What a degraded app data pack holds: nothing. Its layers then draw nothing
+ * and the rest of the map is untouched, which is the honest end state for a
+ * `/data` file the server will not serve (lib/mapDataPackFailure.ts).
+ */
+const EMPTY_DATA_PACK: GeoJSON.FeatureCollection = {
+  type: "FeatureCollection",
+  features: [],
+};
 // Every pub-source layer, gated together through the basemap gate on desktop
 // and the stricter source-aware visible-frame handoff on phone.
 const PUB_PIN_LAYERS = [
@@ -2286,6 +2304,45 @@ export default function PubMapCanvas({
     // classifier here and the paint watchdog below), so the two can never
     // compound into more than PAINT_WATCHDOG_MAX_RETRIES total actions.
     let recoverySpent = 0;
+    // The app data pack lane, which spends NONE of that budget. `tube-lines` is
+    // the one scene source MapLibre fetches for itself, and its bytes are our
+    // own `/data` file rather than a basemap tile: a 500 there says nothing
+    // about the tile source, and a style reload cannot fix it while re-asking
+    // for the same file. So a pack failure never reaches the tile classifier
+    // and never lands a stamp in its burst window. lib/mapDataPackFailure.ts is
+    // the whole policy: one retry of that pack, then empty it and carry on.
+    let dataPackSpend = INITIAL_DATA_PACK_SPEND;
+    const dataPackUrls: Partial<Record<AppDataPackSourceId, string>> =
+      transitLinesPath ? { "tube-lines": transitLinesPath } : {};
+    const recoverDataPack = (
+      sourceId: AppDataPackSourceId,
+      detail: string,
+    ) => {
+      const spent = spendDataPackFailure(dataPackSpend, sourceId);
+      dataPackSpend = spent.state;
+      if (spent.effect === "none") return;
+      // setData on a source that already exists needs no style gate (see the
+      // applyToMap note above), and the source can only be missing mid-reload,
+      // where the optional call is the right no-op.
+      const packSource = () =>
+        mapRef.current === map
+          ? (map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined)
+          : undefined;
+      if (spent.effect === "retry") {
+        const url = dataPackUrls[sourceId];
+        if (!url) return;
+        setTimeout(() => {
+          if (dataPackDegraded(dataPackSpend, sourceId)) return;
+          packSource()?.setData(url);
+        }, DATA_PACK_RETRY_DELAY_MS);
+        return;
+      }
+      console.warn("[pubmap] data pack failed twice, leaving it out", {
+        sourceId,
+        detail: detail || undefined,
+      });
+      packSource()?.setData(EMPTY_DATA_PACK);
+    };
     // An error before the first style loads means the style URL itself failed.
     // AFTER load, errors are classified (lib/mapTileFailure): the paint
     // watchdog below only sees a parked frame loop, so a source that fails
@@ -2383,9 +2440,6 @@ export default function PubMapCanvas({
         return;
       }
       if (tileSpend.surfaced || mapRef.current !== map) return;
-      const now = performance.now();
-      tileFailureStamps = pruneTileFailures(tileFailureStamps, now);
-      tileFailureStamps.push(now);
       const mapError = event as {
         error?: { message?: unknown };
         sourceId?: unknown;
@@ -2393,6 +2447,18 @@ export default function PubMapCanvas({
         tile?: { tileID?: { key?: unknown } };
       };
       const message = String(mapError.error?.message ?? "");
+      // An app data pack answers to its own lane and leaves the tile-failure
+      // window untouched, stamp included. Ordered ahead of every basemap read
+      // below so one failing `/data` file can never reach the burst threshold
+      // that spends the mount's shared style reload.
+      const dataPackSourceId = appDataPackSourceId(mapError.sourceId);
+      if (dataPackSourceId) {
+        recoverDataPack(dataPackSourceId, message);
+        return;
+      }
+      const now = performance.now();
+      tileFailureStamps = pruneTileFailures(tileFailureStamps, now);
+      tileFailureStamps.push(now);
       const documentVisible = document.visibilityState !== "hidden";
       const cameraInFlight = map.isMoving();
       const critical = isCriticalBasemapFailure({

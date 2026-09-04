@@ -10,11 +10,11 @@ import {
   MAP_DOCUMENT_TWIN_PATH,
   mapRequestNeedsDocumentTwin,
 } from "@/lib/mapDocumentTwin";
+import { isStaticAssetPath } from "@/lib/staticAssetPrefixes.mjs";
 
 assertE2ELoginSafe();
 
 const CANONICAL_HOST = "pubmaxxing.com";
-const LEGACY_UK_BASE_GENERATION = "e229e760f3e7a2fd";
 
 // THE ONE CSP EXCEPTION, AND ITS WHOLE LIST.
 //
@@ -83,29 +83,6 @@ function servesApiCaller(pathname: string): boolean {
   return pathname === "/api" || pathname.startsWith("/api/");
 }
 
-function legacyUkBaseRewrite(request: NextRequest): URL | null {
-  const prefix = `/data/uk_base/packs/${LEGACY_UK_BASE_GENERATION}/`;
-  const pathname = request.nextUrl.pathname;
-  if (!pathname.startsWith(prefix)) return null;
-
-  const activeGeneration = process.env.NEXT_PUBLIC_UK_BASE_GENERATION?.trim();
-  if (!activeGeneration || !/^[a-f0-9]{16}$/.test(activeGeneration)) return null;
-
-  const suffix = pathname.slice(prefix.length);
-  if (
-    !suffix ||
-    suffix.includes("/") ||
-    suffix.includes("..") ||
-    !suffix.endsWith(".json")
-  ) {
-    return null;
-  }
-
-  const target = new URL(request.url);
-  target.pathname = `/data/uk_base/packs/${activeGeneration}/${suffix}`;
-  return target;
-}
-
 // AN API REQUEST IS A CALLER, NOT A READER, SO IT IS NEVER SENT ELSEWHERE.
 //
 // A 308 tells the client to ask again at another address, and a client that is
@@ -143,6 +120,12 @@ function shouldSkipContentSecurityPolicy(request: NextRequest): boolean {
   const { pathname } = request.nextUrl;
   const excludedPath =
     servesApiCaller(pathname) ||
+    // A static asset under one of the public prefixes. The matcher below
+    // already keeps these out of the function on the canonical host; this is
+    // the second line, because the `*.vercel.app` matcher claims every path on
+    // a preview artifact host and a font file has no more use for a nonce there
+    // than in production. See lib/staticAssetPrefixes.mjs for the whole rule.
+    isStaticAssetPath(pathname) ||
     pathname === "/_next/static" ||
     pathname.startsWith("/_next/static/") ||
     pathname === "/_next/image" ||
@@ -216,10 +199,6 @@ export function securityProxy(request: NextRequest) {
     const target = new URL(request.url);
     target.pathname = "/login";
     return applyNonProductionRobotsTag(NextResponse.redirect(target, 308));
-  }
-  const legacyUkBaseTarget = legacyUkBaseRewrite(request);
-  if (legacyUkBaseTarget) {
-    return applyNonProductionRobotsTag(NextResponse.rewrite(legacyUkBaseTarget));
   }
   // Physical QR path (PLG Wave 2): printed codes use /?src=poster (+ optional
   // utm_*), and the scan opens nearby prices rather than the marketing landing.
@@ -436,8 +415,20 @@ export const config = {
     // listed ahead of the general rule below because that rule's `missing`
     // prefetch clause must never be able to exclude a Clerk request.
     { source: "/__clerk/:path*" },
+    // The general rule, and the ONE place a request is kept out of this
+    // function entirely. Beside the framework's own static prefixes it now
+    // excludes every public asset directory: `/data`, the map's packs included,
+    // plus brand, fonts, landing, night-signals, store-assets and vendor. Those
+    // are pure bytes the CDN already holds, and running a Node function in
+    // front of them bought nothing while putting a function failure in front of
+    // a healthy file. Next only reads a matcher it can analyse STATICALLY, so
+    // the alternation is written out here as a literal;
+    // `__tests__/staticAssetPrefixes.test.ts` derives it from
+    // lib/staticAssetPrefixes.mjs and fails when the two drift, and the same
+    // fence refuses a prefix that collides with an app route.
     {
-      source: "/((?!api|ingest|_next/static|_next/image|favicon.ico).*)",
+      source:
+        "/((?!api|ingest|_next/static|_next/image|favicon.ico|data/|brand/|fonts/|landing/|night-signals/|store-assets/|vendor/).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

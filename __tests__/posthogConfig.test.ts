@@ -12,8 +12,24 @@ import nextConfigModule from "@/next.config.mjs";
 const nextConfig = nextConfigModule as NextConfig;
 
 describe("PostHog EU reverse proxy", () => {
-  it("does not bypass the owned ingest boundary with framework rewrites", () => {
-    expect(nextConfig.rewrites).toBeUndefined();
+  // The boundary is what matters, not the absence of the feature. This read
+  // "there are no rewrites at all" while that happened to be true; #1425 added
+  // one so a legacy /data pack path is answered by the routing layer instead of
+  // by a Node function. So the assertion is now the rule it always meant: no
+  // framework rewrite may reach /ingest, whichever phase it is declared in.
+  it("does not bypass the owned ingest boundary with framework rewrites", async () => {
+    const declared = await nextConfig.rewrites?.();
+    const rules = Array.isArray(declared)
+      ? declared
+      : [
+          ...(declared?.beforeFiles ?? []),
+          ...(declared?.afterFiles ?? []),
+          ...(declared?.fallback ?? []),
+        ];
+    for (const rule of rules) {
+      expect(rule.source.startsWith("/ingest")).toBe(false);
+      expect(rule.destination.startsWith("/ingest")).toBe(false);
+    }
     expect(nextConfig.skipTrailingSlashRedirect).toBe(true);
   });
 
