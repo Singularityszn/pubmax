@@ -52,7 +52,7 @@ test.describe("mobile profile social actions", () => {
 
     const actions = profile.locator(".profileActions");
     await expect(actions).toBeVisible();
-    await expect(actions.getByRole("button", { name: /follow/i })).toBeVisible();
+    await expect(actions.getByRole("button", { name: /Claim this handle/i })).toBeVisible();
     await expectTapTargetsAtLeast44(
       actions.locator("a, button").and(page.locator(":visible")),
       "profile action",
