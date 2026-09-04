@@ -1,37 +1,42 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-04T14:18:45.329Z",
+  "generatedAt": "2026-09-04T17:48:11.537Z",
   "snapshot": {
     "pubs": 38215,
     "statedWebsite": 11696,
     "refusedByPolicy": 458
   },
   "hostsKnown": 7573,
-  "hostsCrawledThisRun": 7573,
+  "hostsCrawledThisRun": 3272,
   "hostsInLedger": 7573,
-  "pagesRead": 17523,
+  "pagesRead": 13026,
+  "pdfs": {
+    "seen": 836,
+    "read": 820,
+    "unreadable": 16
+  },
   "pageBudget": 20000,
   "outcomes": {
-    "priced": 175,
+    "priced": 257,
     "robots-disallowed": 202,
-    "robots-unreadable": 703,
+    "robots-unreadable": 711,
     "policy-refused-host": 0,
-    "unreachable": 1684,
-    "no-menu-page-found": 1533,
-    "menu-states-no-price": 3272,
+    "unreachable": 1693,
+    "no-menu-page-found": 1538,
+    "menu-states-no-price": 3168,
     "estate-page-names-no-pub": 4
   },
-  "pubsOnPricedHosts": 175,
+  "pubsOnPricedHosts": 257,
   "drops": {
-    "no-category-word-nearby": 26895,
-    "offer-not-a-menu-price": 9433,
-    "no-price-on-page": 8043,
-    "outside-category-band": 4813,
-    "food-word-nearby": 3215,
-    "bottled-measure-not-a-pint": 189,
-    "page-is-not-a-drinks-list": 632,
-    "mixer-serve-not-one-drink": 412,
-    "half-measure-not-a-pint": 68
+    "no-price-on-page": 8294,
+    "offer-not-a-menu-price": 10968,
+    "food-word-nearby": 4267,
+    "outside-category-band": 6555,
+    "no-category-word-nearby": 36930,
+    "bottled-measure-not-a-pint": 304,
+    "mixer-serve-not-one-drink": 608,
+    "half-measure-not-a-pint": 119,
+    "page-is-not-a-drinks-list": 751
   },
   "sourcesRefusedByPolicy": [
     {
@@ -45,5 +50,5 @@
       "checkedOn": "2026-09-03"
     }
   ],
-  "elapsedSeconds": 3212
+  "elapsedSeconds": 2175
 }
