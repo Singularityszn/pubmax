@@ -168,6 +168,15 @@ export const ANALYTICS_EVENTS = {
   price_submit_viewed: ["category"],
   price_submitted: ["category"],
   price_submit_failed: ["category", "reason"],
+  // What the drinker's own confirmed submission turned out to be worth, read
+  // back off the same response the receipt is drawn from. `outcome` is the
+  // existing three-value mission vocabulary: `trusted` (this tap corroborated
+  // the figure, so the map may paint it), `needs_check` (in window, still one
+  // voice), `logged` (kept on the pub's page, no map reach claimed). It fires
+  // beside every confirmed price_submitted, not only inside a mission, because
+  // the corroboration rate is a ratio and mission_submitted gives it a
+  // denominator of missions rather than of submissions.
+  price_submit_outcome: ["category", "outcome"],
   price_impact_opened: [],
   contribution_gate: ["step"],
   // Price evidence missions. Surface, reason, optional category, and
@@ -220,6 +229,13 @@ export const ANALYTICS_EVENTS = {
   friend_edge_via_crew: ["source"],
   // Landing Wave 0 acquisition CTAs. Closed target enum only — never free text.
   landing_cta_clicked: ["target"],
+  // Release metric denominator's middle step (docs/analytics/TRACKING_PLAN.md).
+  // A venue sheet opened on the Map. `layer` is the two-value pub-layer enum
+  // from AGENTS.md's "Two pub layers": the curated venue index, or the UK base
+  // OpenStreetMap layer. It is the whole payload on purpose - a venue id, a
+  // name, a kind or a coordinate would name the PLACE a stranger opened, and
+  // the funnel only ever asks whether a sheet was reached at all.
+  venue_sheet_opened: ["layer"],
   // Wanted Wave A — paste → save → fulfil. Closed enums only; never venue
   // names, raw paste text, or source URLs.
   wanted_created: ["venueKind", "hasSourceUrl"],
@@ -405,6 +421,16 @@ export type PintIndexSurface = (typeof PINT_INDEX_SURFACES)[number];
 export const LANDING_CTA_TARGETS = ["map", "near", "plan", "pal", "tonight", "receipt"] as const;
 export type LandingCtaTarget = (typeof LANDING_CTA_TARGETS)[number];
 
+/**
+ * Which of the two pub layers a Map venue sheet was about (AGENTS.md, "Two pub
+ * layers, and only one of them is the product"): the curated venue index, or
+ * the UK-wide OpenStreetMap base layer. Both values already sit in the shared
+ * string allow-list below, because the Wanted lane names its venue kinds the
+ * same way.
+ */
+export const VENUE_SHEET_LAYERS = ["curated", "uk_base"] as const;
+export type VenueSheetLayer = (typeof VENUE_SHEET_LAYERS)[number];
+
 /** First time this browser has opened a Pint Index page, or a return. */
 export const PINT_INDEX_VISITS = ["first", "repeat"] as const;
 export type PintIndexVisit = (typeof PINT_INDEX_VISITS)[number];
@@ -564,6 +590,11 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   invite_rsvp_submitted: ["status", "isUpdate"],
   invite_reaction_toggled: ["reaction", "active"],
   landing_cta_clicked: ["target"],
+  // A sheet open with no layer cannot be told apart from a sheet open on the
+  // other layer, and a submission outcome with no drink or no verdict is an
+  // uncountable step in a ratio - both fail closed like the rest.
+  venue_sheet_opened: ["layer"],
+  price_submit_outcome: ["category", "outcome"],
 } as const satisfies Partial<Record<AnalyticsEventName, readonly string[]>>;
 
 function includesValue(values: readonly string[], value: string | number | boolean): boolean {
@@ -724,7 +755,24 @@ function isAllowedPriceFunnelProp(
   if (!name.startsWith("price_submit")) return true;
   if (key === "category") return includesValue(PRICE_SUBMIT_CATEGORIES, value);
   if (key === "reason") return includesValue(PRICE_SUBMIT_FAILURE_REASONS, value);
+  // The read-back verdict shares the mission vocabulary deliberately: one
+  // definition of what a submission turned out to be worth, not two.
+  if (key === "outcome") return includesValue(MISSION_OUTCOMES, value);
   return true;
+}
+
+/**
+ * A Map venue sheet may name its pub LAYER and nothing else. The key is its
+ * own, so the check is scoped to the event rather than shared with a `source`
+ * or `venueKind` elsewhere in the registry.
+ */
+function isAllowedVenueSheetProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (name !== "venue_sheet_opened" || key !== "layer") return true;
+  return includesValue(VENUE_SHEET_LAYERS, value);
 }
 
 function isAllowedMissionProp(
@@ -875,6 +923,7 @@ export function sanitizeEvent(
               && isAllowedInviteLoopProp(name, key, value)
               && isAllowedMessageAttachProp(name, key, value)
               && isAllowedLandingCtaProp(name, key, value)
+              && isAllowedVenueSheetProp(name, key, value)
               && isAllowedOpenPlanProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }

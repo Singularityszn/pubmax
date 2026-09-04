@@ -1,0 +1,166 @@
+{
+  "$schema_note": "PostHog dashboard definition for issue #1361. Not consumed by the app. docs/analytics/TRACKING_PLAN.md section 3.1 has the exact API calls the captain runs once with a personal API key. The Vercel project holds only the write-only ingest token, which cannot create a dashboard.",
+  "dashboard": {
+    "name": "PUBMAXX weekly",
+    "description": "The release loop, once a week. Owner actions per number: docs/analytics/TRACKING_PLAN.md section 4. Every figure is a figure about consented visitors."
+  },
+  "prerequisite_action": {
+    "name": "First meaningful action",
+    "description": "A landing CTA tap or a logged price. docs/analytics/TRACKING_PLAN.md section 2.",
+    "steps": [
+      { "event": "landing_cta_clicked" },
+      { "event": "price_submitted" }
+    ]
+  },
+  "insights": [
+    {
+      "name": "1. Weekly active visitors",
+      "description": "Distinct consented pseudonymous identities with at least one event in the week. Never a person: no account identity joins this id.",
+      "query": {
+        "kind": "InsightVizNode",
+        "source": {
+          "kind": "TrendsQuery",
+          "dateRange": { "date_from": "-12w" },
+          "interval": "week",
+          "series": [
+            { "kind": "EventsNode", "event": null, "name": "All events", "math": "dau" }
+          ],
+          "trendsFilter": { "display": "ActionsLineGraph" }
+        }
+      }
+    },
+    {
+      "name": "2. First meaningful action within 60 seconds",
+      "description": "The release metric. Landings are discovery_viewed with surface=landing. The action is the earliest landing_cta_clicked or price_submitted after it. This tile is the authoritative figure; tile 2b shows the shape.",
+      "query": {
+        "kind": "DataTableNode",
+        "source": {
+          "kind": "HogQLQuery",
+          "query": "WITH landings AS (\n    SELECT distinct_id, timestamp AS landed_at\n    FROM events\n    WHERE event = 'discovery_viewed'\n      AND properties.surface = 'landing'\n      AND timestamp >= now() - INTERVAL 7 DAY\n),\nactions AS (\n    SELECT distinct_id, timestamp AS acted_at\n    FROM events\n    WHERE event IN ('landing_cta_clicked', 'price_submitted')\n      AND timestamp >= now() - INTERVAL 7 DAY\n),\npaired AS (\n    SELECT\n        landings.distinct_id AS distinct_id,\n        landings.landed_at AS landed_at,\n        min(if(actions.acted_at > landings.landed_at,\n               dateDiff('second', landings.landed_at, actions.acted_at),\n               NULL)) AS first_action_seconds\n    FROM landings\n    LEFT JOIN actions ON actions.distinct_id = landings.distinct_id\n    GROUP BY landings.distinct_id, landings.landed_at\n)\nSELECT\n    count() AS landings,\n    countIf(first_action_seconds <= 60) AS acted_within_60s,\n    round(100.0 * countIf(first_action_seconds <= 60) / count(), 1) AS rate_pct,\n    median(first_action_seconds) AS median_seconds_to_first_action\nFROM paired"
+        }
+      }
+    },
+    {
+      "name": "2b. First meaningful action funnel (60s window)",
+      "description": "Replace __action_id_placeholder with the id returned by the prerequisite_action call before creating this tile. A PostHog funnel step is one event, so the two action names need one action.",
+      "query": {
+        "kind": "InsightVizNode",
+        "source": {
+          "kind": "FunnelsQuery",
+          "dateRange": { "date_from": "-7d" },
+          "series": [
+            {
+              "kind": "EventsNode",
+              "event": "discovery_viewed",
+              "name": "Landed",
+              "properties": [
+                { "key": "surface", "value": ["landing"], "operator": "exact", "type": "event" }
+              ]
+            },
+            {
+              "kind": "ActionsNode",
+              "id": "__action_id_placeholder",
+              "name": "First meaningful action"
+            }
+          ],
+          "funnelsFilter": {
+            "funnelWindowInterval": 60,
+            "funnelWindowIntervalUnit": "second",
+            "funnelVizType": "steps"
+          }
+        }
+      }
+    },
+    {
+      "name": "3. Landing to Map to venue sheet",
+      "description": "Step 2 is a browser SDK pageview and steps 1 and 3 are named events, so a blocked SDK drops a visitor at step 2 while still reaching step 3. Read step 1 to step 3 as the reliable pair.",
+      "query": {
+        "kind": "InsightVizNode",
+        "source": {
+          "kind": "FunnelsQuery",
+          "dateRange": { "date_from": "-7d" },
+          "series": [
+            {
+              "kind": "EventsNode",
+              "event": "discovery_viewed",
+              "name": "Landed",
+              "properties": [
+                { "key": "surface", "value": ["landing"], "operator": "exact", "type": "event" }
+              ]
+            },
+            {
+              "kind": "EventsNode",
+              "event": "$pageview",
+              "name": "Reached the Map",
+              "properties": [
+                { "key": "$pathname", "value": ["/map"], "operator": "exact", "type": "event" }
+              ]
+            },
+            {
+              "kind": "EventsNode",
+              "event": "venue_sheet_opened",
+              "name": "Opened a pub"
+            }
+          ],
+          "funnelsFilter": {
+            "funnelWindowInterval": 1,
+            "funnelWindowIntervalUnit": "day",
+            "funnelVizType": "steps"
+          }
+        }
+      }
+    },
+    {
+      "name": "4. Pint Drop submissions and corroboration",
+      "description": "Submissions, the share that corroborated so the map may paint them, and refusals. A server-minted PintDropConfirmation is not a PostHog event: see TRACKING_PLAN.md section 3, tile 4.",
+      "query": {
+        "kind": "InsightVizNode",
+        "source": {
+          "kind": "TrendsQuery",
+          "dateRange": { "date_from": "-12w" },
+          "interval": "week",
+          "series": [
+            { "kind": "EventsNode", "event": "price_submitted", "name": "Submitted", "math": "total" },
+            {
+              "kind": "EventsNode",
+              "event": "price_submit_outcome",
+              "name": "Corroborated on submit",
+              "math": "total",
+              "properties": [
+                { "key": "outcome", "value": ["trusted"], "operator": "exact", "type": "event" }
+              ]
+            },
+            { "kind": "EventsNode", "event": "price_submit_failed", "name": "Refused", "math": "total" }
+          ],
+          "trendsFilter": { "display": "ActionsLineGraph" }
+        }
+      }
+    },
+    {
+      "name": "5. Top routes by LCP (p75)",
+      "description": "Field LCP from the named web_vital event, p75 of value, broken down by the closed route template. A route over its ceiling in perf/route-budgets.json is a budget question, not a dashboard one.",
+      "query": {
+        "kind": "InsightVizNode",
+        "source": {
+          "kind": "TrendsQuery",
+          "dateRange": { "date_from": "-7d" },
+          "interval": "week",
+          "series": [
+            {
+              "kind": "EventsNode",
+              "event": "web_vital",
+              "name": "LCP",
+              "math": "p75",
+              "math_property": "value",
+              "properties": [
+                { "key": "metric", "value": ["LCP"], "operator": "exact", "type": "event" }
+              ]
+            }
+          ],
+          "breakdownFilter": { "breakdown": "route", "breakdown_type": "event" },
+          "trendsFilter": { "display": "ActionsBarValue" }
+        }
+      }
+    }
+  ]
+}

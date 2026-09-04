@@ -312,9 +312,13 @@ export default function VenuePriceSubmit({
       // decides whether to show (lib/nativePushPrompt.ts); this only says an
       // action worth being offered one happened.
       recordPlanHighIntentAction();
-      const missionReceipt = mission
-        ? missionReceiptFromReadback({ price: result.price })
-        : undefined;
+      // Read back what this tap turned out to be worth. It is derived for
+      // EVERY confirmed submission, not only inside a mission: the corroboration
+      // rate is submissions that reached the map over submissions made, and
+      // mission_submitted can only ever give it a denominator of missions.
+      const readback = missionReceiptFromReadback({ price: result.price });
+      trackEvent("price_submit_outcome", { category, outcome: readback.outcome });
+      const missionReceipt = mission ? readback : undefined;
       if (mission && missionReceipt) {
         const analytics = missionAnalyticsProps(mission.surface, {
           reason: mission.reason,

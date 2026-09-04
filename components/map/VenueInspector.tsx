@@ -27,6 +27,7 @@ import {
   type VenueRevealRequest,
 } from "@/lib/venueReveal";
 import { useVenueReveal } from "@/components/map/useVenueReveal";
+import { useVenueSheetOpened } from "@/components/map/useVenueSheetOpened";
 import { prefetchLastRide } from "@/lib/lastRideClient";
 import {
   runPriceContributionRequest,
@@ -180,6 +181,10 @@ export default function VenueInspector({
     revealRootRef,
     revealStyle,
   } = useVenueReveal(revealInterrupted);
+
+  // The curated half of the release funnel's third step. The base-layer sheet
+  // answers the same question through the same hook.
+  useVenueSheetOpened(venue.id, "curated");
 
   useEffect(() => {
     if (!revealRequest || revealRequest.venueId !== venue.id) return;

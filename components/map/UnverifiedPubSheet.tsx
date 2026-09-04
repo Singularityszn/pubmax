@@ -7,6 +7,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import PriceBadge from "@/components/PriceBadge";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
 import VenueSheetPriceEntry from "@/components/map/inspector/VenueSheetPriceEntry";
+import { useVenueSheetOpened } from "@/components/map/useVenueSheetOpened";
 import {
   freshestCommunityPrice,
   type CommunityPricesState,
@@ -93,6 +94,9 @@ export default function UnverifiedPubSheet({
   drinkLensCategory = null,
 }: UnverifiedPubSheetProps) {
   const { user, loading: authLoading, configured: authConfigured } = useAuth();
+  // The base-layer half of the release funnel's third step, through the one
+  // hook the curated sheet uses.
+  useVenueSheetOpened(pub.id, "uk_base");
   const [overlay, setOverlay] = useState<PublicHarvestOverlay | null>(null);
   const readStatus = communityPrices.venuePriceStatus.get(pub.id) ?? "idle";
   const pricesKnown = readStatus === "ready";
