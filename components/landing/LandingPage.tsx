@@ -19,6 +19,7 @@ import Screen from "@/components/ui/screen";
 // and action cluster, so it pulls in those shared styles directly.
 import "@/components/nav/siteNav.css";
 import type { AboutStats } from "@/lib/aboutStats";
+import type { HeroVariant, LandingArchiveIndex, LandingRailRow } from "@/lib/landingHero";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
 import {
   preferredCityMapHref,
@@ -31,6 +32,7 @@ import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 import { socialSurfaceName } from "@/lib/socialLaunch";
 
+import LandingHero from "./LandingHero";
 import LandingPubCard from "./LandingPubCard";
 import PintDropStripLoading from "./PintDropStripLoading";
 import "./landing.css";
@@ -83,11 +85,18 @@ export default function LandingPage({
   card = null,
   // Server-threaded friends-launch flag. Explicit 0 is the rollback state.
   socialFriendsLaunchEnabled = true,
+  heroVariant = null,
+  heroArchive = {},
+  heroRail = [],
 }: {
   stats?: AboutStats;
   /** The one real pub above the fold, or null when the data cannot back one. */
   card?: LandingPubCardData | null;
   socialFriendsLaunchEnabled?: boolean;
+  /** Hero prototype (issue #1357): `/?hero=a|b|c`. Absent renders the shipped hero. */
+  heroVariant?: HeroVariant | null;
+  heroArchive?: LandingArchiveIndex;
+  heroRail?: LandingRailRow[];
 }) {
   const router = useRouter();
   const preferredCity = useSyncExternalStore(
@@ -149,42 +158,46 @@ export default function LandingPage({
             door, then one real pub that proves the claim, then the counts. The
             DOM order is the phone order; the desktop only sets the pub card
             beside the copy. */}
-        <Screen
-          className="lpHero"
-          kicker="PUBMAXX"
-          title="What a pint costs, pub by pub."
-          titleId="hero-title"
-          primary={
-            <Link
-              prefetch={false}
-              href={LANDING_PRIMARY_HREF}
-              onClick={() => trackLandingCta("receipt")}
-            >
-              {LANDING_PRIMARY_LABEL}
-            </Link>
-          }
-          secondary={
-            <Link prefetch={false} href="/pal" onClick={() => trackLandingCta("pal")}>
-              Meet your Pub Pal
-            </Link>
-          }
-        >
-          <div className="lpHeroProof">
-            {card ? <LandingPubCard card={card} /> : null}
-            {readout.length > 0 ? (
-              <dl className="lpLiveReadout" aria-label="What PUBMAXX tracks right now">
-                {readout.map(({ icon: Icon, value, label }) => (
-                  <div className="lpReadoutStat" key={label}>
-                    <dt>
-                      <Icon size={15} aria-hidden="true" /> {label}
-                    </dt>
-                    <dd>{value}</dd>
-                  </div>
-                ))}
-              </dl>
-            ) : null}
-          </div>
-        </Screen>
+        {heroVariant && card ? (
+          <LandingHero variant={heroVariant} card={card} archive={heroArchive} rail={heroRail} />
+        ) : (
+          <Screen
+            className="lpHero"
+            kicker="PUBMAXX"
+            title="What a pint costs, pub by pub."
+            titleId="hero-title"
+            primary={
+              <Link
+                prefetch={false}
+                href={LANDING_PRIMARY_HREF}
+                onClick={() => trackLandingCta("receipt")}
+              >
+                {LANDING_PRIMARY_LABEL}
+              </Link>
+            }
+            secondary={
+              <Link prefetch={false} href="/pal" onClick={() => trackLandingCta("pal")}>
+                Meet your Pub Pal
+              </Link>
+            }
+          >
+            <div className="lpHeroProof">
+              {card ? <LandingPubCard card={card} /> : null}
+              {readout.length > 0 ? (
+                <dl className="lpLiveReadout" aria-label="What PUBMAXX tracks right now">
+                  {readout.map(({ icon: Icon, value, label }) => (
+                    <div className="lpReadoutStat" key={label}>
+                      <dt>
+                        <Icon size={15} aria-hidden="true" /> {label}
+                      </dt>
+                      <dd>{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : null}
+            </div>
+          </Screen>
+        )}
 
         <section className="lpWhy" id="why" aria-labelledby="why-title">
           <Kicker>Why PUBMAXX</Kicker>

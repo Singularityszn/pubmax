@@ -264,7 +264,15 @@ const nextConfig = {
             },
           ]
         : [],
-      afterFiles: [],
+      afterFiles: [
+        // Landing hero prototype (issue #1357): `/?hero=a|b|c` renders the
+        // variant route so the flag never reaches the CDN-held root document.
+        {
+          source: "/",
+          has: [{ type: "query", key: "hero", value: "(?<hero>a|b|c)" }],
+          destination: "/hero/:hero",
+        },
+      ],
       fallback: [],
     };
   },
