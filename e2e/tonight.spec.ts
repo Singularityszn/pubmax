@@ -447,3 +447,132 @@ test("a hung Out read settles instead of pinning the loading skeleton", async ({
   await expect(screen).not.toHaveAttribute("data-listings-status", "idle");
   await expect(page.getByRole("button", { name: "Retry listings" })).toBeVisible();
 });
+
+// The Tonight lede contract (issue #1429). An earlier build led the first
+// screen with a JD Wetherspoon Curry Club deal. What a reader meets first is a
+// pub, or the honest quiet-night sentence, and never a `deal-jdw-` row, a JD
+// Wetherspoon source host, or a Ticketmaster kind:event row.
+function jdwCurryClub(now = Date.now()) {
+  return {
+    id: "deal-jdw-curry-club",
+    venueId: "venue-jdw",
+    placeName: "The Moon Under Water",
+    kind: "deal",
+    startsAt: new Date(now + 60 * 60_000).toISOString(),
+    title: "Curry Club",
+    source: {
+      label: "J D Wetherspoon deals",
+      url: "https://www.jdwetherspoon.com/food-and-drink",
+    },
+    observedAt: new Date(now - 60_000).toISOString(),
+    confidence: "listed",
+  };
+}
+
+function independentQuiz(now = Date.now()) {
+  return {
+    id: "quiz-independent-lede",
+    venueId: "venue-primary",
+    placeName: "The Test Arms",
+    // Two hours out, so the JDW deal is the EARLIER row: only the primary rule
+    // can put the pub first.
+    startsAt: new Date(now + 2 * 60 * 60_000).toISOString(),
+    kind: "quiz",
+    title: "Quiz night",
+    source: { label: "Pub listing", url: "https://example.com/quiz" },
+    observedAt: new Date(now - 60_000).toISOString(),
+    confidence: "listed",
+  };
+}
+
+async function mockTonightSpine(page: Page, rows: unknown[]) {
+  await page.route("**/api/whats-on?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        rows,
+        asOf: "2026-08-16T12:00:00.000Z",
+        sourceObservedAt: "2026-08-16T12:00:00.000Z",
+        sourceFreshnessKind: "dataset-generated",
+      }),
+    }),
+  );
+}
+
+test("the first screen leads with the pub, not a JDW deal or a Ticketmaster event", async ({
+  page,
+}) => {
+  const now = Date.now();
+  await mockTonightSpine(page, [jdwCurryClub(now), independentQuiz(now)]);
+  await page.route("**/api/out?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "ready",
+        events: [playhouseEvent(now)],
+        openPlans: [],
+        attribution: [],
+        observedAt: {},
+        providers: [{ name: "ticketmaster", configured: true, rows: 1, status: "ready" }],
+      }),
+    }),
+  );
+
+  await page.goto("/tonight");
+  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.getByTestId("tonight-screen")).toHaveAttribute(
+    "data-listings-status",
+    "ready",
+  );
+
+  // The head sentence claims the pub's category and neither excluded lane.
+  const lede = page.locator(".screenLede");
+  await expect(lede).toHaveText(/pub quizzes/i);
+  await expect(lede).not.toHaveText(/deals/i);
+  await expect(lede).not.toHaveText(/events/i);
+
+  // The first card is the pub. Both excluded rows are off the list entirely.
+  const cards = page.getByTestId("tonight-list").locator("li .tonightRowTitle");
+  await expect(cards.first()).toHaveText("Quiz night");
+  await expect(page.getByTestId("tonight-list")).not.toContainText("Curry Club");
+  await expect(page.getByTestId("tonight-list")).not.toContainText(
+    "A Night at the Playhouse",
+  );
+});
+
+test("a night of only excluded rows reads as the honest quiet night", async ({ page }) => {
+  const now = Date.now();
+  await mockTonightSpine(page, [jdwCurryClub(now)]);
+  await page.route("**/api/out?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "ready",
+        events: [playhouseEvent(now)],
+        openPlans: [],
+        attribution: [],
+        observedAt: {},
+        providers: [{ name: "ticketmaster", configured: true, rows: 1, status: "ready" }],
+      }),
+    }),
+  );
+
+  await page.goto("/tonight");
+  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.getByTestId("tonight-screen")).toHaveAttribute(
+    "data-listings-status",
+    "empty",
+  );
+  await expect(page.getByText(/having a quiet one tonight/i)).toBeVisible();
+  // Scoped to the first-screen spine on purpose. The secondary Deals lane
+  // below it still carries the JDW row, and taking it off the page would drop
+  // a real deal; what the contract forbids is leading with one.
+  await expect(page.locator(".tonightPrimary")).not.toContainText("Curry Club");
+  await expect(page.locator(".tonightPrimary")).not.toContainText(
+    "A Night at the Playhouse",
+  );
+  await expect(page.getByTestId("tonight-list")).toHaveCount(0);
+});
