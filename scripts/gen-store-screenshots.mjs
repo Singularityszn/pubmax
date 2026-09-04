@@ -74,9 +74,28 @@ const SHOTS = [
  * is imported from nowhere on purpose: this is a plain node CLI and
  * lib/analyticsIdentity.ts is TypeScript, so the value is restated and the
  * assertion below is what keeps the two together. A wrong key fails the run.
+ *
+ * The answer is `denied`, which hides the card exactly as `granted` does. A
+ * screenshot run against production would otherwise put eighteen robot page
+ * views into the real numbers, and this is the one lane where a browser here
+ * can write to a live product metric.
  */
 const ANALYTICS_CONSENT_STORAGE_KEY = "pubmaxx:analytics-consent:v1";
 const CONSENT_SELECTOR = ".analyticsConsentPrompt";
+
+/**
+ * The map's first-visit location card is the same case and gets the same
+ * treatment. It is the right card in the app and it is the wrong thing in the
+ * listing's lead shot: it covers the bottom third of the frame, so the one
+ * screenshot most installs are decided on shows a permission ask rather than
+ * London full of pubs. Answering it before the page loads leaves the map a
+ * returning visitor's map, which is what the caption claims.
+ * Key restated for the same reason as the consent key above: this is a plain
+ * node CLI and lib/mapFirstVisitArrival.ts is TypeScript. The assertion in the
+ * shot loop is what keeps the two together.
+ */
+const MAP_FIRST_VISIT_ARRIVAL_KEY = "pubmax:map-first-visit-arrival:v1";
+const MAP_ARRIVAL_SELECTOR = ".mapArrivalCard";
 
 async function assertProductionServer(page) {
   const servingDev = await page.evaluate(
@@ -113,13 +132,17 @@ try {
       // Reduced motion so an entrance animation cannot be caught half-played.
       reducedMotion: "reduce",
     });
-    await context.addInitScript((key) => {
+    await context.addInitScript((keys) => {
       try {
-        window.localStorage.setItem(key, "granted");
+        window.localStorage.setItem(keys.consent, "denied");
+        window.localStorage.setItem(keys.mapArrival, "dismissed");
       } catch {
-        // Private mode in a throwaway context. The assertion below catches it.
+        // Private mode in a throwaway context. The assertions below catch it.
       }
-    }, ANALYTICS_CONSENT_STORAGE_KEY);
+    }, {
+      consent: ANALYTICS_CONSENT_STORAGE_KEY,
+      mapArrival: MAP_FIRST_VISIT_ARRIVAL_KEY,
+    });
 
     const page = await context.newPage();
     const manifest = [];
@@ -141,6 +164,13 @@ try {
           `The analytics disclosure is still on ${shot.route}. ` +
             `ANALYTICS_CONSENT_STORAGE_KEY here (${ANALYTICS_CONSENT_STORAGE_KEY}) no longer ` +
             "matches lib/analyticsIdentity.ts.",
+        );
+      }
+      if (await page.locator(MAP_ARRIVAL_SELECTOR).count()) {
+        throw new Error(
+          `The first-visit location card is still on ${shot.route}. ` +
+            `MAP_FIRST_VISIT_ARRIVAL_KEY here (${MAP_FIRST_VISIT_ARRIVAL_KEY}) no longer ` +
+            "matches lib/mapFirstVisitArrival.ts.",
         );
       }
 

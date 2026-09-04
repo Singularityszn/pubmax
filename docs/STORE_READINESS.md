@@ -202,7 +202,19 @@ Declare the following. Everything else: Not Collected.
 
 ## 6. Screenshot shot list
 
-The set is GENERATED from the real screens, not cropped from an old QA run:
+The set is GENERATED from the real screens, not cropped from an old QA run.
+**Shoot the production site**, because the shell is a remote-URL wrap of it: a
+person who installs the app sees pubmaxxing.com, so that is the app the listing
+has to show.
+
+```
+BASE=https://pubmaxxing.com npm run gen:store-screenshots
+```
+
+A local build works too, and is the right target when a screen is changing and
+has not shipped yet. It is not the right target for the upload: a keyless local
+server has no listings provider, so the Tonight shot comes out carrying "Could
+not reach tonight's listings" and a Retry button.
 
 ```
 NEXT_DIST_DIR=.next-prod DEPLOYMENT_VERSION=$(git rev-parse HEAD) npm run build
@@ -221,6 +233,14 @@ server, because the dev overlay badge paints straight onto the phone tab bar.
 And it renders each size at its own device viewport rather than upscaling one
 frame, because an upscaled 430-wide shot is what makes a listing look like a
 photographed website.
+
+Two first-run cards are ANSWERED before each page loads rather than hidden
+afterwards: the analytics disclosure, and the map's first-visit location card,
+which otherwise covers the bottom third of the lead shot with a permission ask.
+Both are right in the app and neither is the app. The analytics answer is
+`denied`, so a production run adds no robot page views to the real numbers. If
+either storage key is renamed, the run fails loudly rather than shipping the
+card.
 
 **Order (first three carry the listing, most installs decide on those):**
 
