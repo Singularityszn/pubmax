@@ -1,3 +1,4 @@
+import { shareViaNativeSheet, type NativeShareOutcome } from "@/lib/nativeShare";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
 import { isUserCancelledShare } from "@/lib/venueShare";
 
@@ -11,6 +12,13 @@ import { isUserCancelledShare } from "@/lib/venueShare";
 // Deliberate exception: ShareWithFamilyButton keeps its mailto: fallback —
 // that flow is explicitly email-shaped (The Family Table) and documented as
 // such in the component.
+//
+// INSIDE THE NATIVE SHELL THE OS PICKER IS ASKED FIRST. The Web Share API is
+// not implemented in the Android System WebView, so `navigator.share` is
+// simply absent there and every share in the app became "open WhatsApp".
+// lib/nativeShare.ts is the seam that fixes it, and it answers "unavailable"
+// off the shell and on every failure, so the web path below - navigator.share,
+// then wa.me - is unchanged for every browser.
 
 export type ShareOutcome =
   // navigator.share resolved — the user picked an app from the sheet.
@@ -36,6 +44,8 @@ export type ShareNightObjectInput = {
 export type ShareSheetDeps = {
   nav?: { share?: (data: { title: string; text: string; url: string }) => Promise<void> };
   openWindow?: (href: string) => unknown;
+  /** The native-shell sheet. Defaults to the real seam, which no-ops on web. */
+  shareNatively?: (input: ShareNightObjectInput) => Promise<NativeShareOutcome>;
 };
 
 export async function shareNightObject(
@@ -47,6 +57,13 @@ export async function shareNightObject(
     deps.openWindow ??
     ((href: string) =>
       typeof window === "undefined" ? null : window.open(href, "_blank", "noopener,noreferrer"));
+
+  const shareNatively = deps.shareNatively ?? ((value: ShareNightObjectInput) => shareViaNativeSheet(value));
+  const native = await shareNatively(input);
+  if (native === "shared") return "shared";
+  // A dismissed OS sheet is the person saying no. Opening a WhatsApp tab
+  // behind it would be the opposite of what they just asked for.
+  if (native === "cancelled") return "cancelled";
 
   if (typeof nav?.share === "function") {
     try {
