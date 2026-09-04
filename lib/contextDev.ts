@@ -546,7 +546,18 @@ export async function sitemapUrls(
   );
 }
 
-/** Crawl a site to Markdown, one page per credit. */
+/**
+ * Crawl a site to Markdown, one page per credit.
+ *
+ * PERMISSION HERE IS A HOST-LEVEL QUESTION, and that is a weaker promise than
+ * the one the other calls make. The gate asks about the START url, but a crawl
+ * WANDERS: `lib/harvest/robots.ts` answers per PATH, so a crawl that begins on
+ * a permitted page can still reach a path that host's own rules disallow, and
+ * nothing here re-asks on the way. Point this only at a host whose permission
+ * covers the whole site, and prefer `sitemapUrls` plus a gated `scrapeMarkdown`
+ * per page where a page-level answer is what you actually need. No lane in this
+ * repository uses it today; it exists so one can, deliberately.
+ */
 export async function crawlMarkdown(
   url: string,
   options: ContextDevCallOptions & { maxPages?: number; maxDepth?: number; urlRegex?: string } = {},
