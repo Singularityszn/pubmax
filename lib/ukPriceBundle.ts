@@ -224,6 +224,31 @@ export function bundlePricesForCategory(
  */
 export const BUNDLE_DEFAULT_CATEGORY = "beer";
 
+/**
+ * Which of two rows for the SAME pub, drink and lane the bundle keeps.
+ *
+ * TWO QUESTIONS, ANSWERED IN ORDER, because they are about different things.
+ *
+ * 1. THE FRESHEST READING WINS. A page read twice is one page answering twice,
+ *    and the later answer is the one that is true now. Keeping the cheaper of
+ *    two readings publishes last year's figure the moment a pub puts its prices
+ *    up, and dates it to the day it was cheap.
+ * 2. WITHIN ONE READING, THE CHEAPEST WINS. A menu states many lines for one
+ *    pub's beer, and the figure a drinker can walk in and pay is the lowest of
+ *    them. A reading is stamped once per page, so the rows of one page share an
+ *    instant and land here as a tie.
+ *
+ * Returns true when `candidate` should replace `held`.
+ */
+export function bundleRowSupersedes(
+  candidate: UkPriceBundleRow,
+  held: UkPriceBundleRow | undefined,
+): boolean {
+  if (!held) return true;
+  if (candidate.observedAt !== held.observedAt) return candidate.observedAt > held.observedAt;
+  return candidate.priceGbp < held.priceGbp;
+}
+
 /** Rows grouped by the venue they are about, in the order the bundle states them. */
 export function bundleRowsByVenue(
   rows: readonly UkPriceBundleRow[],

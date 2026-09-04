@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import {
   UK_PRICE_BUNDLE_LANES,
   authoritativeBundleRows,
+  bundleRowSupersedes,
   bundleRowsByVenue,
   isUkPriceBundleLane,
   isValidUkPriceBundleRow,
@@ -108,5 +109,36 @@ describe("which rows a surface may treat as a fact", () => {
       "venue-uk-w1",
       "venue-uk-w2",
     ]);
+  });
+});
+
+// A CRAWL RUNS AGAIN, and the second answer is about tonight while the first is
+// about the night it was taken. Cheapest-wins across two readings publishes the
+// stale figure and dates it to the day it was cheap.
+describe("which of two readings of the same pub and drink the bundle keeps", () => {
+  const reading = (observedAt: string, priceGbp: number): UkPriceBundleRow => ({
+    ...listed,
+    observedAt,
+    priceGbp,
+  });
+
+  it("takes the first row it is offered", () => {
+    expect(bundleRowSupersedes(reading("2026-09-01T00:00:00.000Z", 5.4), undefined)).toBe(true);
+  });
+
+  it("lets a later reading raise the price", () => {
+    const held = reading("2026-09-01T00:00:00.000Z", 5.4);
+    expect(bundleRowSupersedes(reading("2026-09-04T00:00:00.000Z", 6.2), held)).toBe(true);
+  });
+
+  it("keeps the later reading when an earlier one is offered again", () => {
+    const held = reading("2026-09-04T00:00:00.000Z", 6.2);
+    expect(bundleRowSupersedes(reading("2026-09-01T00:00:00.000Z", 5.4), held)).toBe(false);
+  });
+
+  it("takes the cheapest line of ONE reading, because a page states many", () => {
+    const held = reading("2026-09-04T00:00:00.000Z", 6.2);
+    expect(bundleRowSupersedes(reading("2026-09-04T00:00:00.000Z", 5.4), held)).toBe(true);
+    expect(bundleRowSupersedes(reading("2026-09-04T00:00:00.000Z", 7.1), held)).toBe(false);
   });
 });

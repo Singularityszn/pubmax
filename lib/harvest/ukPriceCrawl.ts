@@ -53,6 +53,14 @@ export const UK_PRICE_DROP_REASONS = [
   // is a different drink at a different price. Publishing the cheaper of the
   // two as the pub's beer price undercuts the pint nobody can buy at it.
   "bottled-measure-not-a-pint",
+  // The figure prices a SPIRIT AND MIXER, and the taxonomy names no such drink.
+  // "Dead Man's Fingers Coffee With Pepsi Max £7.00" is one figure over two
+  // drinks, and every reading of it is wrong: the nearest word files it as a
+  // £7 Pepsi, demoting the mixer files it as a £7 coffee, and it is neither.
+  // "Bosford Rose, try with Britvic Bitter Lemon £7.25" is the same shape and
+  // filed as a £7.25 PINT, on `bitter`. A figure nobody can label honestly is
+  // dropped and counted.
+  "mixer-serve-not-one-drink",
   // The figure is an OFFER, not a price. "2 for £9", "meals for only £5.99" and
   // "wines from £5.50" are all marketing copy that states a number a drinker
   // cannot walk in and pay for one named drink. The first run of this crawler
@@ -120,9 +128,11 @@ const CATEGORY_WORDS: ReadonlyArray<{ category: DrinkCategory; pattern: RegExp }
   {
     // A SOFT DRINK WEARING A BEER WORD. "Ginger ale" and "ginger beer" sit on
     // every pub's soft-drink list, and reading the second word alone filed them
-    // as beer at £2.55, which then became the pub's cheapest pint.
+    // as beer at £2.55, which then became the pub's cheapest pint. "Bitter
+    // lemon" is the same trick on `bitter`, and it put £7.25 on a pub's card as
+    // the price of a pint. These sit AHEAD of beer so the tie goes the narrow way.
     category: "soft-drink",
-    pattern: /\b(ginger\s+(ale|beer)|root\s+beer|dandelion\s*(and|&)\s*burdock)\b/i,
+    pattern: /\b(ginger\s+(ale|beer)|bitter\s+lemon|root\s+beer|dandelion\s*(and|&)\s*burdock)\b/i,
   },
   {
     category: "beer",
@@ -250,9 +260,38 @@ export function pageText(html: string): string {
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
     .replace(/&pound;/gi, "£")
-    .replace(/&#163;/g, "£")
+    // A NUMERIC REFERENCE IS THE CHARACTER IT NAMES, and leaving it undecoded
+    // hides drink words: a spirits list states `Bosford Ros&#233;`, which is not
+    // a wine to any pattern here, and `&#163;` is not a price to any of them.
+    .replace(/&#(\d{1,7});/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]{1,6});/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)))
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/**
+ * How far after a `with` a MIXER's own name may sit. "With Britvic Ginger Ale"
+ * is the longest shape a pub's spirits list writes, and a span this tight keeps
+ * the next line's drink out of it.
+ */
+const MIXER_NAME_SPAN = 24;
+
+/**
+ * Whether the drink word at `index` is the MIXER in a spirit-and-mixer serve.
+ *
+ * A spirits list states the serve rather than the spirit: "Sailor Jerry With
+ * Britvic Ginger Ale £7.00". Two drinks, one figure, and this taxonomy names no
+ * such drink, so EVERY reading of that line is a wrong one. Left alone the
+ * nearest-word rule published it as a £7 ginger ale, and the same list's "Try
+ * with Britvic Bitter Lemon £7.25" as a £7.25 PINT.
+ *
+ * What is asked is narrow on purpose: does a `with` sit immediately in front of
+ * this word. The meal wording that also reads "served with" is already gone by
+ * the time this is asked, because the food words are checked first.
+ */
+function isMixerName(context: string, index: number): boolean {
+  const run = context.slice(Math.max(0, index - MIXER_NAME_SPAN), index);
+  return /\bwith\b[^.;£]*$/i.test(run);
 }
 
 /**
@@ -267,8 +306,11 @@ export function pageText(html: string): string {
  * `at` is where the figure sits inside `context`. A caller that does not know
  * measures from the middle, which is where `readVenueDrinkPrices` puts it.
  */
-export function categoryFor(context: string, at = Math.floor(context.length / 2)): DrinkCategory | null {
-  let best: { category: DrinkCategory; distance: number } | null = null;
+export function categoryDecisionFor(
+  context: string,
+  at = Math.floor(context.length / 2),
+): { category: DrinkCategory; fromMixer: boolean } | null {
+  let best: { category: DrinkCategory; distance: number; fromMixer: boolean } | null = null;
   for (const row of CATEGORY_WORDS) {
     const pattern = new RegExp(row.pattern.source, `${row.pattern.flags.replace("g", "")}g`);
     for (const match of context.matchAll(pattern)) {
@@ -276,10 +318,16 @@ export function categoryFor(context: string, at = Math.floor(context.length / 2)
       // A drinks line names the drink and THEN the price, so a word before the
       // figure is measured from its end and a word after it from its start.
       const distance = index >= at ? index - at : at - (index + match[0].length);
-      if (!best || distance < best.distance) best = { category: row.category, distance };
+      if (!best || distance < best.distance) {
+        best = { category: row.category, distance, fromMixer: isMixerName(context, index) };
+      }
     }
   }
-  return best ? best.category : null;
+  return best ? { category: best.category, fromMixer: best.fromMixer } : null;
+}
+
+export function categoryFor(context: string, at = Math.floor(context.length / 2)): DrinkCategory | null {
+  return categoryDecisionFor(context, at)?.category ?? null;
 }
 
 /**
@@ -315,11 +363,18 @@ export function readVenueDrinkPrices(html: string): UkPriceReading {
       drops.push("offer-not-a-menu-price");
       continue;
     }
-    const category = categoryFor(context, at - Math.max(0, at - PRICE_CONTEXT_CHARS));
-    if (!category) {
+    const decision = categoryDecisionFor(context, at - Math.max(0, at - PRICE_CONTEXT_CHARS));
+    if (!decision) {
       drops.push(Number.isFinite(priceGbp) ? "no-category-word-nearby" : "no-drink-word-nearby");
       continue;
     }
+    // The word that decided the category is the MIXER of a serve, so the figure
+    // is over two drinks and belongs to neither.
+    if (decision.fromMixer) {
+      drops.push("mixer-serve-not-one-drink");
+      continue;
+    }
+    const category = decision.category;
     const band = CATEGORY_PRICE_BANDS[category];
     if (!band) {
       drops.push("no-category-word-nearby");
@@ -506,6 +561,35 @@ export function sitemapsIn(robotsBody: string): string[] {
 /** Every `<loc>` a sitemap or sitemap index states. */
 export function sitemapLocations(xml: string): string[] {
   return [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((match) => match[1].trim());
+}
+
+/**
+ * Whether a rendered page had not finished assembling itself when it was read.
+ *
+ * AN UNFINISHED RENDER IS A FACT ABOUT US, not about the pub. A browser-built
+ * menu read too early carries no menu, which is a different answer from a page
+ * that finished and states no price, and only the first is worth asking again.
+ *
+ * TWO TELLS, because one of them is not enough. The floor catches a bare shell,
+ * and it sits well under a real menu page (a Greene King one runs to about eight
+ * thousand characters) and well over a shell. But a shell can also be chatty: a
+ * Chef & Brewer menu page stalls at 538 characters of heading, booking copy and
+ * the words `Content is loading...`, which clears the floor and states nothing.
+ * A page that SAYS it is still loading is taken at its word.
+ *
+ * Getting this wrong in either direction costs one request and never a wrong
+ * price: the answer only decides whether to ask again, never what a figure means.
+ */
+export const EMPTY_RENDER_MAX_CHARS = 400;
+
+/** What a page that has not finished assembling itself says about itself. */
+const STILL_LOADING_MARKERS = ["content is loading", "loading..."] as const;
+
+export function renderLooksEmpty(markdown: string): boolean {
+  const text = pageText(markdown);
+  if (text.length < EMPTY_RENDER_MAX_CHARS) return true;
+  const lower = text.toLowerCase();
+  return STILL_LOADING_MARKERS.some((marker) => lower.includes(marker));
 }
 
 /**

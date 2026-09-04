@@ -25,6 +25,22 @@ missing one: a challenge page or a 403 means no permission can be read, and a
 page we cannot ask about is a page we do not take. A genuine 404 publishes no
 restriction and is honoured.
 
+Three findings live under that one word, and they are separated because only two
+of them are about permission.
+
+* **A rules file with no rules is still a rules file.** What decides is whether
+  the body PARSES as `robots.txt`, not whether it holds a `User-agent` line. An
+  empty file, one that names only its Sitemap, and one that is comments to the
+  last line each publish no restriction, which is the permission a 404 gives.
+* **An HTML page served where a rules file should be is unreadable,** and stays
+  refused. It cannot be told apart from a challenge page.
+* **A network failure is not a refusal,** it is `robots-unreachable`, asked once
+  more before it is believed. Reporting a host nobody was home at as a refusal
+  says a pub turned us away when it has no site left.
+
+`npm run harvest:uk-prices -- --recheck <outcome>` asks one finding again after
+a rule changes, rather than throwing seven thousand answers away with `--reset`.
+
 Neither lane bypasses anything. The rendered lane runs its browser with stealth
 off, TLS shaping off and no challenge wait, identifying as PUBMAXX. A page
 behind a challenge is counted as `blocked-by-challenge` and left alone.

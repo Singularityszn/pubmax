@@ -53,6 +53,7 @@ import { isHarvestableOperatorUrl } from "@/lib/harvest/sourcePolicy";
 import { estimateForPub } from "@/lib/priceEstimate";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
 import {
+  bundleRowSupersedes,
   isValidUkPriceBundleRow,
   UK_PRICE_BUNDLE_VERSION,
 } from "@/lib/ukPriceBundle";
@@ -147,18 +148,24 @@ function collectRows(report) {
   const notes = [];
   const held = new Map();
 
-  // ONE ROW PER PUB, DRINK AND LANE, and the row kept is the CHEAPEST the lane
-  // stated. A lane states many lines for one pub's beer, and the figure a
-  // drinker can walk in and pay is the lowest of them; keeping whichever
-  // happened to be read first would publish an arbitrary one.
+  // ONE ROW PER PUB, DRINK AND LANE. What decides is the FRESHEST READING
+  // first, and the cheapest figure within it second.
+  //
+  // Each half answers a different question. A lane states many lines for one
+  // pub's beer in ONE reading, and the figure a drinker can walk in and pay is
+  // the lowest of them, so the cheapest wins there; keeping whichever happened
+  // to be read first would publish an arbitrary one. Across two readings of the
+  // same page, though, cheapest-wins publishes LAST YEAR'S price the moment a
+  // pub puts a figure up, and dates it to the day it was cheap. A reading is
+  // stamped once per page, so the rows of one page share an instant and tie
+  // into the cheapest rule, and a later reading supersedes an earlier one whole.
   const push = (row) => {
     if (!isValidUkPriceBundleRow(row)) {
       report.droppedInvalidRow += 1;
       return;
     }
     const key = `${row.venueId} ${row.category} ${row.lane}`;
-    const seen = held.get(key);
-    if (seen && seen.priceGbp <= row.priceGbp) return;
+    if (!bundleRowSupersedes(row, held.get(key))) return;
     held.set(key, row);
   };
 

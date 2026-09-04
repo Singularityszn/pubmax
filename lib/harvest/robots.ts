@@ -20,6 +20,21 @@
 //     or a 403 means no permission can be read, and a page we cannot ask about
 //     is a page we do not take. A genuine 404 is different: publishing no rules
 //     is the long-standing way of permitting everything, and it is honoured.
+//   * A RULES FILE WITH NO RULES IS STILL A RULES FILE. What decides is whether
+//     the body PARSES as robots.txt, not whether it happens to contain a
+//     `User-agent` line. An empty file, a file that names only its Sitemap and a
+//     file that is comments to the last line each publish no restriction, which
+//     is the same permission a 404 gives. Measured on 2026-09-04 over the 420
+//     UK pub hosts the crawl had recorded as unreadable on a 200: 77 answer with
+//     an empty file, 36 name only their Sitemap, 45 serve the Cloudflare content
+//     signals preamble as comments with no signal line under it, and 254 serve an
+//     HTML page where a rules file should be. Only the last of those is
+//     unreadable, and it stays refused.
+//   * A NETWORK FAILURE IS NOT A REFUSAL, and merging the two makes a report say
+//     hosts turned us away when nobody was home. A host we could not reach is
+//     `robots-unreachable`, asked once more before that is believed. Of the 1,320
+//     hosts the same crawl recorded as unreadable on a fetch failure, 874 no
+//     longer resolve at all and 72 answered a rules file on the second ask.
 //   * The check itself is a plain fetch, not a Firecrawl request, so it costs
 //     the run's budget nothing and cannot be the thing that exhausts it.
 
@@ -28,6 +43,8 @@ export const HARVEST_ROBOTS_AGENTS = ["cloudflarebrowserrenderingcrawler", "fire
 /** robots.txt is small; anything larger is not a rules file we should trust. */
 const MAX_ROBOTS_BYTES = 512 * 1024;
 const ROBOTS_TIMEOUT_MS = 15_000;
+/** The pause before a host that could not be reached at all is asked once more. */
+const ROBOTS_RETRY_DELAY_MS = 750;
 
 export type RobotsRules = {
   /** Disallowed path prefixes, per lower-cased user-agent token. */
@@ -43,7 +60,12 @@ export type RobotsRules = {
   sitemaps: string[];
 };
 
-export type RobotsDecisionReason = "allowed" | "no-rules-published" | "robots-disallowed" | "robots-unreadable";
+export type RobotsDecisionReason =
+  | "allowed"
+  | "no-rules-published"
+  | "robots-disallowed"
+  | "robots-unreadable"
+  | "robots-unreachable";
 
 export type RobotsDecision = {
   allowed: boolean;
@@ -52,6 +74,30 @@ export type RobotsDecision = {
   /** The sitemaps the host's own robots.txt named, when one could be read. */
   sitemaps?: string[];
 };
+
+/**
+ * Whether a body is a rules file at all.
+ *
+ * The question is the SHAPE, not the contents. Every non-comment line of a
+ * robots.txt is `field: value` with a bare word for the field, so a body whose
+ * every such line reads that way is a rules file however few rules it holds, and
+ * an HTML page is not one however long it runs. A body with no non-comment line
+ * left is the emptiest rules file there is, and it restricts nothing.
+ *
+ * This replaced a test for a `User-agent` line, which refused three kinds of
+ * file that grant permission: an empty one, one that names only its Sitemap, and
+ * one that is comments to the last line.
+ */
+export function looksLikeRulesFile(body: string): boolean {
+  for (const raw of body.split(/\r?\n/)) {
+    const line = raw.split("#")[0].trim();
+    if (line.length === 0) continue;
+    const separator = line.indexOf(":");
+    if (separator < 1) return false;
+    if (!/^[a-z][a-z-]*$/.test(line.slice(0, separator).trim().toLowerCase())) return false;
+  }
+  return true;
+}
 
 /**
  * Read a robots.txt body into per-agent rules. A group may name several agents
@@ -156,7 +202,7 @@ export function createRobotsChecker(options: { fetchImpl?: typeof fetch } = {}):
   const fetchImpl = options.fetchImpl ?? fetch;
   const cache = new Map<string, Promise<RobotsDecision | RobotsRules>>();
 
-  async function load(origin: string): Promise<RobotsDecision | RobotsRules> {
+  async function ask(origin: string): Promise<RobotsDecision | RobotsRules> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ROBOTS_TIMEOUT_MS);
     try {
@@ -180,23 +226,39 @@ export function createRobotsChecker(options: { fetchImpl?: typeof fetch } = {}):
         };
       }
       const body = (await response.text()).slice(0, MAX_ROBOTS_BYTES);
-      if (!/^\s*user-agent\s*:/im.test(body)) {
+      if (!looksLikeRulesFile(body)) {
         return {
           allowed: false,
           reason: "robots-unreadable",
           evidence: `${origin}/robots.txt returned something that is not a rules file, so no permission can be read.`,
         };
       }
+      // A file that parses to no group at all is a file that restricts nothing,
+      // and it is still asked, so a Sitemap line in it is carried out.
       return parseRobotsTxt(body);
     } catch (error) {
       return {
         allowed: false,
-        reason: "robots-unreadable",
+        reason: "robots-unreachable",
         evidence: `${origin}/robots.txt could not be fetched (${error instanceof Error ? error.message : String(error)}).`,
       };
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  /**
+   * Ask a host, and ask ONCE more when the ask itself failed.
+   *
+   * The retry is spent on one question and only that one: did the request get
+   * through. A host that ANSWERED keeps its answer, whatever the answer was, so
+   * a refusal is never asked again in the hope of a different verdict.
+   */
+  async function load(origin: string): Promise<RobotsDecision | RobotsRules> {
+    const first = await ask(origin);
+    if (!("reason" in first) || first.reason !== "robots-unreachable") return first;
+    await new Promise((resolve) => setTimeout(resolve, ROBOTS_RETRY_DELAY_MS));
+    return ask(origin);
   }
 
   return async (url: string): Promise<RobotsDecision> => {
