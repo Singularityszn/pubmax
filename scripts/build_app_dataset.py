@@ -32,6 +32,7 @@ DECISION_INPUT_FILES = [
     DATA / "postcode_coordinate_exceptions.json",
 ]
 DECISION_REPORT = DATA / "postcode_coordinate_build_report.json"
+PRICED_INDEX_EXCLUSIONS_FILE = DATA / "priced_index_excluded_venues.json"
 EXPECTED_COLUMNS = [
     "borough",
     "rank",
@@ -406,6 +407,37 @@ def in_london_bounds(row: dict[str, object]) -> bool:
     )
 
 
+def _priced_index_exclusion_key(name: object, address: object) -> tuple[str, str]:
+    return (
+        str(name if name is not None else "").strip().lower(),
+        str(address if address is not None else "").strip().lower(),
+    )
+
+
+def drop_priced_index_exclusions(
+    app: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Drop rows a proven non-drinking venue (see #1463): a hand-curated,
+    name+address denylist a scraped price source cannot tell apart from a
+    real pub. scripts/lib/pricedIndexExclusions.mjs is the JS mirror of the
+    same rule over the same file, applied to the already-built dataset by
+    scripts/validate-data.mjs.
+    """
+    if not PRICED_INDEX_EXCLUSIONS_FILE.exists():
+        return app
+    exclusions = json.loads(PRICED_INDEX_EXCLUSIONS_FILE.read_text(encoding="utf-8"))
+    excluded_keys = {
+        _priced_index_exclusion_key(entry.get("name"), entry.get("address"))
+        for entry in exclusions
+    }
+    return [
+        row
+        for row in app
+        if _priced_index_exclusion_key(row.get("pub_name"), row.get("address"))
+        not in excluded_keys
+    ]
+
+
 def apply_postcode_coordinate_decisions(
     app: list[dict[str, object]],
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
@@ -517,6 +549,12 @@ def main() -> None:
     app = sorted(assemble_records(all_rows), key=record_sort_key)
     for index, row in enumerate(app, start=1):
         row["app_price_id"] = f"app_price_{index:06d}"
+
+    # Applied AFTER ids are assigned, mirroring the postcode-coordinate
+    # quarantine below: dropping a row here never renumbers any other row, so
+    # the id-keyed decision registries (quarantine/correction/exception) stay
+    # untouched by an exclusion decided independently of them.
+    app = drop_priced_index_exclusions(app)
 
     app, decision_report = apply_postcode_coordinate_decisions(app)
     output_path = DATA / "pint_prices_app_dataset.csv"

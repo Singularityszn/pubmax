@@ -496,14 +496,14 @@
   "pint_prices_builder_master_rows": 17673,
   "pub_locations_map_rows": 1197,
   "canonical_enriched_rows_missing_coordinates": 0,
-  "pint_prices_app_dataset_rows": 3085,
+  "pint_prices_app_dataset_rows": 3084,
   "pint_prices_app_dataset_columns": 51,
-  "app_dataset_rows_with_coordinates": 3085,
-  "app_dataset_clean_canonical_rows": 2088,
-  "app_dataset_rows_with_visible_borough": 2088,
-  "app_dataset_rows_with_pub_page": 2223,
+  "app_dataset_rows_with_coordinates": 3084,
+  "app_dataset_clean_canonical_rows": 2087,
+  "app_dataset_rows_with_visible_borough": 2087,
+  "app_dataset_rows_with_pub_page": 2222,
   "app_dataset_rows_raw_only": 318,
-  "app_dataset_visible_borough_source_rows_represented": 3005,
-  "app_dataset_raw_embedded_source_rows_represented": 12335,
-  "app_dataset_individual_pub_page_source_rows_represented": 2255
+  "app_dataset_visible_borough_source_rows_represented": 3003,
+  "app_dataset_raw_embedded_source_rows_represented": 12330,
+  "app_dataset_individual_pub_page_source_rows_represented": 2254
 }
