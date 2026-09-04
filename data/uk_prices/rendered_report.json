@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "generatedAt": "2026-09-04T11:19:25.693Z",
+  "renderer": "wigolo",
+  "hostsPermitted": [
+    "greeneking.co.uk",
+    "greeneking-pubs.co.uk",
+    "hungryhorse.co.uk",
+    "chefandbrewer.com",
+    "farmhouseinns.co.uk",
+    "flaminggrill.co.uk"
+  ],
+  "menuPagesKnown": 1121,
+  "menuPagesReadThisRun": 1121,
+  "menuPagesInLedger": 1121,
+  "outcomes": {
+    "menu-states-no-price": 1006,
+    "priced": 115
+  },
+  "elapsedSeconds": 934
+}

@@ -74,6 +74,20 @@ export type HarvestSource = {
    * publishes a Crawl-delay. Absent means the host asked for none.
    */
   crawlDelaySeconds?: number;
+  /**
+   * The other hosts this chain publishes the SAME rendered menu on.
+   *
+   * A source row carries one url, and a chain publishes its estate across
+   * several brand domains. Naming them here is what lets the rendered lane read
+   * a Hungry Horse menu under the Greene King permission that actually covers
+   * it, instead of treating each brand as an unargued host.
+   */
+  renderedMenuHosts?: readonly string[];
+  /**
+   * What a chain appends to a pub's own page to reach that pub's menu. Absent
+   * means `/menu`, which is what every chain in this table uses today.
+   */
+  menuPathSuffix?: string;
   /** What this source is expected to yield, and what it plainly will not. */
   notes: string;
 };
@@ -82,6 +96,17 @@ const CHECKED_ON = "2026-08-09";
 
 /** The day the chain menu-price sources below were re-read, live. */
 const PRICE_CHECKED_ON = "2026-09-03";
+
+/**
+ * The day a chain's menu was re-read WITH A BROWSER.
+ *
+ * Kept apart from PRICE_CHECKED_ON because the two answer different questions.
+ * A document read says what the served HTML states; a rendered read says what
+ * the page states to a reader. Greene King answered "nothing" to the first and
+ * "102 prices" to the second on consecutive days, so a verdict has to carry
+ * which question it answered.
+ */
+const RENDER_CHECKED_ON = "2026-09-04";
 
 export const HARVEST_SOURCES: readonly HarvestSource[] = [
   // --- chain deals: first-party operator offers pages ----------------------
@@ -180,14 +205,20 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     kind: "chain-menu-prices",
     firstParty: true,
     access: {
-      allowed: false,
-      reason: "publishes-no-web-price",
+      allowed: true,
       evidence:
-        "robots.txt re-read 2026-09-03: HTTP 200, `User-agent: *` disallowing infrastructure paths only (/bin/, /media/, /sitecore/, /js/, /css/ and the booking query strings), with the single blanket Disallow aimed at Screaming Frog. The pub and menu paths are permitted. The refusal is NOT about permission: a per-pub menu page (/pubs/greater-london/sherlock-holmes/menu) answered 200 with 150 KB and NOT ONE price in the document. It is a Sitecore JSS app that renders its menu in the browser, and the served HTML carries no embedded price JSON either.",
-      checkedOn: PRICE_CHECKED_ON,
+        "robots.txt re-read 2026-09-03 and again 2026-09-04: HTTP 200, `User-agent: *` disallowing infrastructure paths only (/bin/, /media/, /sitecore/, /js/, /css/ and the booking query strings), with the single blanket Disallow aimed at Screaming Frog. The pub and menu paths are permitted. The 2026-09-03 refusal was `publishes-no-web-price`, on the served document alone: /pubs/greater-london/sherlock-holmes/menu answered 200 with 150 KB and not one figure. That finding was about the DOCUMENT and not about the SITE. Read the same permitted URL with a browser on 2026-09-04 and it states 102 prices, so the refusal is withdrawn and the rendered lane reads it.",
+      checkedOn: RENDER_CHECKED_ON,
     },
+    renderedMenuHosts: [
+      "greeneking-pubs.co.uk",
+      "hungryhorse.co.uk",
+      "chefandbrewer.com",
+      "farmhouseinns.co.uk",
+      "flaminggrill.co.uk",
+    ],
     notes:
-      "Revisit when Greene King server-renders its menu or publishes a feed. Permission is already in hand, so the only thing missing is a price in the document. The 1,538 Greene King rows already in public/data/drink_price_updates are 863 wines and 675 cocktails with no beer among them, which is the same finding from the other direction.",
+      "Permitted, and it publishes prices in the browser rather than in the document, which is why scripts/harvest/uk-prices/render.mjs exists. The DEFAULT menu view is wine, spirits and cocktails; the draught tab is behind an interaction this lane does not perform, so a Greene King pub earns a wine and a cocktail row and no beer row. That matches the 1,538 Greene King rows already in public/data/drink_price_updates, which are 863 wines and 675 cocktails with no beer among them. Reading the draught tab is the named follow-up.",
   },
   {
     id: "wetherspoon-menu-prices",
@@ -362,19 +393,48 @@ export function isRefusedOnPermission(source: HarvestSource): boolean {
 }
 
 /**
+ * The BRAND hosts of an estate this table refuses, named one by one.
+ *
+ * A source row carries ONE url, so the Mitchells & Butlers rows above put
+ * `mbplc.com` and `nicholsonspubs.co.uk` beyond reach and said nothing about
+ * `vintageinn.co.uk`. That gap is not theoretical: the UK-wide crawl found 160
+ * pubs pointing at Vintage Inns, 144 at Ember Inns, 47 at Sizzling Pubs and 14
+ * at O'Neill's, and every one of those hosts would have been asked as though it
+ * were an independent pub's own site. Each answers /robots.txt with a 403
+ * challenge, so each was refused live and nothing was taken - but a refusal we
+ * happen to re-derive on every run is not the same as a refusal we recorded.
+ *
+ * Re-read live on 2026-09-04 through the UK price crawl: vintageinn.co.uk,
+ * emberinns.co.uk, sizzlingpubs.co.uk and oneills.co.uk each answered
+ * /robots.txt with HTTP 403, unchanged from the 2026-08-09 estate verdict.
+ */
+export const REFUSED_ESTATE_HOSTS: readonly string[] = [
+  "allbarone.co.uk",
+  "browns-restaurants.co.uk",
+  "emberinns.co.uk",
+  "harvester.co.uk",
+  "millerandcarter.co.uk",
+  "oneills.co.uk",
+  "sizzlingpubs.co.uk",
+  "tobycarvery.co.uk",
+  "vintageinn.co.uk",
+];
+
+/**
  * A venue's own site is first-party by definition, so it needs no table row -
  * but it still has to be a real http(s) origin we can attribute, and it may
  * never be one of the hosts we may not read, wearing a venue's name.
  */
-const REFUSED_HOSTS = new Set(
-  HARVEST_SOURCES.filter(isRefusedOnPermission).map((source) => {
+const REFUSED_HOSTS = new Set([
+  ...HARVEST_SOURCES.filter(isRefusedOnPermission).map((source) => {
     try {
       return new URL(source.url).hostname.replace(/^www\./, "");
     } catch {
       return source.url;
     }
   }),
-);
+  ...REFUSED_ESTATE_HOSTS,
+]);
 
 export function isHarvestableOperatorUrl(value: unknown): value is string {
   if (typeof value !== "string" || value.trim().length === 0) return false;

@@ -32,6 +32,15 @@ const ROBOTS_TIMEOUT_MS = 15_000;
 export type RobotsRules = {
   /** Disallowed path prefixes, per lower-cased user-agent token. */
   groups: Map<string, { disallow: string[]; allow: string[] }>;
+  /**
+   * The sitemaps the file NAMES, in the order it names them.
+   *
+   * A sitemap line belongs to no user-agent group: it is the host telling every
+   * reader where its own index of itself is. Carrying it out of the parser is
+   * how a crawler discovers a site's pages by asking the site, rather than by
+   * guessing paths at it, and guessing is what a crawl budget is spent on.
+   */
+  sitemaps: string[];
 };
 
 export type RobotsDecisionReason = "allowed" | "no-rules-published" | "robots-disallowed" | "robots-unreadable";
@@ -40,6 +49,8 @@ export type RobotsDecision = {
   allowed: boolean;
   reason: RobotsDecisionReason;
   evidence: string;
+  /** The sitemaps the host's own robots.txt named, when one could be read. */
+  sitemaps?: string[];
 };
 
 /**
@@ -49,6 +60,7 @@ export type RobotsDecision = {
  */
 export function parseRobotsTxt(body: string): RobotsRules {
   const groups = new Map<string, { disallow: string[]; allow: string[] }>();
+  const sitemaps: string[] = [];
   let currentAgents: string[] = [];
   let sawRuleForGroup = false;
 
@@ -70,6 +82,12 @@ export function parseRobotsTxt(body: string): RobotsRules {
       if (!groups.has(value.toLowerCase())) groups.set(value.toLowerCase(), { disallow: [], allow: [] });
       continue;
     }
+    // A Sitemap line is group-independent, so it is taken wherever it appears
+    // and never starts or ends a user-agent group.
+    if (field === "sitemap") {
+      if (value.length > 0 && !sitemaps.includes(value)) sitemaps.push(value);
+      continue;
+    }
     if (field !== "disallow" && field !== "allow") continue;
     sawRuleForGroup = true;
     for (const agent of currentAgents) {
@@ -84,7 +102,7 @@ export function parseRobotsTxt(body: string): RobotsRules {
     }
   }
 
-  return { groups };
+  return { groups, sitemaps };
 }
 
 function matchLength(pattern: string, path: string): number {
@@ -200,7 +218,12 @@ export function createRobotsChecker(options: { fetchImpl?: typeof fetch } = {}):
     const path = `${parsed.pathname}${parsed.search}`;
     const verdict = robotsAllows(loaded, path);
     if (verdict.allowed) {
-      return { allowed: true, reason: "allowed", evidence: `${origin}/robots.txt permits ${path}.` };
+      return {
+        allowed: true,
+        reason: "allowed",
+        evidence: `${origin}/robots.txt permits ${path}.`,
+        sitemaps: loaded.sitemaps,
+      };
     }
     return {
       allowed: false,

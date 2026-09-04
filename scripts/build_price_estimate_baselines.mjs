@@ -50,7 +50,7 @@ const MAX_GBP = 12;
 
 // Hosts whose estate lib/harvest/sourcePolicy.ts refuses. Kept as a literal
 // list rather than imported because this is a plain-node CLI and that module is
-// TypeScript; the test fence holds the two in step.
+// TypeScript; __tests__/refusedEstateHosts.test.ts holds the two in step.
 const REFUSED_HOSTS = [
   "nicholsonspubs.co.uk",
   "emberinns.co.uk",
