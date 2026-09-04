@@ -42,7 +42,14 @@ test.describe("the You tab's store doors", () => {
     // A signed-out reader is never offered the delete door.
     await expect(page.locator("#delete-account")).toHaveCount(0);
 
-    await legal.scrollIntoViewIfNeeded();
+    // A full-page shot paints every `position: fixed` element at the CURRENT
+    // scroll offset, so the skip link lands in the middle of the image if the
+    // page is scrolled. Shoot from the top; the capture covers the whole
+    // document either way.
+    await page.evaluate(() => {
+      (document.activeElement as HTMLElement | null)?.blur();
+      window.scrollTo(0, 0);
+    });
     await page.screenshot({
       path: `${PROOF}/after-you-signed-out-390.png`,
       fullPage: true,
@@ -74,10 +81,17 @@ test.describe("the You tab's store doors", () => {
     await expect(card.getByRole("button", { name: "Delete my account" })).toBeVisible();
     await expect(card.getByRole("button", { name: "Keep my account" })).toBeVisible();
 
-    await card.scrollIntoViewIfNeeded();
-    await page.screenshot({
-      path: `${PROOF}/after-delete-confirm-390.png`,
-      fullPage: true,
-    });
+    // The CARD, not the page: a signed-in profile is nearly ten thousand pixels
+    // tall, so a full-page shot of it renders the confirm too small to read,
+    // which is the one thing this proof exists to show. Scroll the LAST control
+    // clear first, or the fixed tab bar paints over the way back out.
+    await card.getByRole("button", { name: "Keep my account" }).scrollIntoViewIfNeeded();
+    // The arrival welcome is ambient chrome that floats over whatever is under
+    // it. It is not what this proof is about, so it is dismissed rather than
+    // photographed across the copy.
+    const welcome = page.locator(".arrivalWelcome .arrivalWelcomeDismiss");
+    if (await welcome.count()) await welcome.first().click();
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await card.screenshot({ path: `${PROOF}/after-delete-confirm-390.png` });
   });
 });
