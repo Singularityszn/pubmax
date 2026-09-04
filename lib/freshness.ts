@@ -54,12 +54,55 @@ export interface FreshnessRegistry {
 /**
  * A dataset's health, kept deliberately coarse so the UI can label it directly:
  *  - live      — served per request; there is no disk artifact to age.
- *  - fresh     — within its staleness budget.
+ *  - fresh     — within its staleness budget and recent enough to speak for now.
+ *  - snapshot  — inside its budget, but old enough that it describes the day it
+ *    was collected rather than today. Not a breach and not an alarm: an episodic
+ *    feed ageing is what an episodic feed does. It exists so nothing calls a
+ *    hand-collected bundle "fresh" months after its collection day.
  *  - stale     — a budget breach (owner-visible; never a build break).
  *  - untracked — intentionally not budgeted (static / episodic / user-cadence).
  *  - unknown   — expected a stamp but couldn't resolve one (missing/broken file).
  */
-export type FreshnessStatus = "live" | "fresh" | "stale" | "untracked" | "unknown";
+export type FreshnessStatus =
+  | "live"
+  | "fresh"
+  | "snapshot"
+  | "stale"
+  | "untracked"
+  | "unknown";
+
+/**
+ * How old an EPISODIC dataset may be before the spine names it a snapshot
+ * instead of calling it fresh. A pub's prices move on roughly a month, so past
+ * 30 days a hand-collected bundle is a record of its collection day, not a
+ * reading of tonight.
+ *
+ * It is deliberately its OWN number, neither the price-authority window
+ * (lib/priceAuthorityWindow.ts) nor a registry budget:
+ *   • The price-authority window decides what a DRINKER is told about one
+ *     figure. This decides what the AUDIT calls a whole dataset, and the spine
+ *     dates feeds that carry no prices at all.
+ *   • `stalenessBudgetHours` is the outer NEGLECT ceiling that alarms the
+ *     release gate. Naming a snapshot must never move that gate, so this rule
+ *     only ever renames what would otherwise have been reported "fresh".
+ *
+ * Mirrored dependency-free in scripts/check_freshness.mjs, like every other
+ * rule in this module.
+ */
+export const SNAPSHOT_AFTER_DAYS = 30;
+
+/** The same threshold in hours, the unit `evaluateDataset` ages in. */
+export const SNAPSHOT_AFTER_HOURS = SNAPSHOT_AFTER_DAYS * 24;
+
+/**
+ * Whether this class of feed is collected episodically, so an ageing artifact
+ * is ordinary rather than a defect and is named a snapshot past the threshold.
+ * A cron or live feed is not: those are meant to be refreshed for us, so an old
+ * one is a budget question and never a change of vocabulary.
+ */
+export function classNamesSnapshots(datasetClass: FreshnessClass): boolean {
+  return datasetClass === "episodic";
+}
 
 export interface FreshnessResult {
   readonly id: string;
@@ -342,14 +385,34 @@ export function evaluateDataset(
     };
   }
 
-  const stale = ageHours > dataset.stalenessBudgetHours;
+  if (ageHours > dataset.stalenessBudgetHours) {
+    return {
+      ...base,
+      ageHours,
+      status: "stale",
+      detail: `Aged ${ageHours}h, over the ${dataset.stalenessBudgetHours}h budget.`,
+    };
+  }
+
+  // Inside the budget, so this is a naming question, not an alarm: an episodic
+  // feed past the snapshot threshold is named for the day it was collected
+  // rather than reported as a current reading. The budget is untouched.
+  if (classNamesSnapshots(dataset.class) && ageHours > SNAPSHOT_AFTER_HOURS) {
+    return {
+      ...base,
+      ageHours,
+      status: "snapshot",
+      detail:
+        `Aged ${ageHours}h, within the ${dataset.stalenessBudgetHours}h budget but over ` +
+        `${SNAPSHOT_AFTER_DAYS} days old: a snapshot of its collection day, not a current reading.`,
+    };
+  }
+
   return {
     ...base,
     ageHours,
-    status: stale ? "stale" : "fresh",
-    detail: stale
-      ? `Aged ${ageHours}h, over the ${dataset.stalenessBudgetHours}h budget.`
-      : `Aged ${ageHours}h, within the ${dataset.stalenessBudgetHours}h budget.`,
+    status: "fresh",
+    detail: `Aged ${ageHours}h, within the ${dataset.stalenessBudgetHours}h budget.`,
   };
 }
 
@@ -384,7 +447,12 @@ export function unresolvedFeeds(results: readonly FreshnessResult[]): FreshnessR
   return results.filter((r) => r.status === "unknown");
 }
 
-/** True when any result is a hard breach (stale) or a broken artifact (unknown). */
+/**
+ * True when any result is a hard breach (stale) or a broken artifact (unknown).
+ * A `snapshot` is neither: it is a feed inside its budget, named honestly. It
+ * must never turn the release gate red, or an episodic feed would alarm for
+ * ageing exactly as designed.
+ */
 export function hasBreach(results: readonly FreshnessResult[]): boolean {
   return results.some((r) => r.status === "stale" || r.status === "unknown");
 }

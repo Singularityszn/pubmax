@@ -15,10 +15,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight, Beer } from "lucide-react";
 
-import {
-  formatObservedDate,
-  PINT_DATASET_OBSERVED_AT,
-} from "@/lib/dataFreshness";
+import { formatPintDatasetSnapshot } from "@/lib/dataFreshness";
 import { readRememberedArea } from "@/lib/nightPatches";
 
 import {
@@ -52,7 +49,9 @@ function eyebrow(hasRememberedLocality: boolean): string {
   const scope = hasRememberedLocality
     ? "Lowest listed prices near you"
     : "Lowest listed prices in central London";
-  return `${scope}. Last collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}.`;
+  // The bundle is named as a snapshot, never dressed up as tonight's reading:
+  // "Last collected" invited a reader to take a months-old figure as current.
+  return `${scope}. ${formatPintDatasetSnapshot()}.`;
 }
 
 export default function TodayPintsCard({ index }: Props) {

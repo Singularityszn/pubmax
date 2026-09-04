@@ -133,9 +133,28 @@ export function formatObservedDate(date: Date): string {
   return FULL_DATE.format(date);
 }
 
-/** "as of 16 July 2026" — the bundled pint-price baseline's as-of label. */
+/**
+ * "Snapshot from 16 July 2026" — the bundled pint-price baseline named as what
+ * it is, for a caption that stands on its own.
+ *
+ * The bundle is collected episodically by hand, so months after its collection
+ * day it is a record of that day rather than a reading of this one. The word
+ * SNAPSHOT is the one the freshness spine uses for the same fact
+ * (lib/freshness.ts SNAPSHOT_AFTER_DAYS), so what a drinker reads and what the
+ * audit reports cannot drift into two vocabularies. It claims nothing about
+ * currency: the date is the whole claim.
+ */
+export function formatPintDatasetSnapshot(): string {
+  return `Snapshot from ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
+}
+
+/**
+ * "a snapshot from 16 July 2026" — the same fact inside a sentence, kept apart
+ * from the caption above so a surface never has to lowercase somebody else's
+ * sentence to use it.
+ */
 export function formatPintDatasetAsOf(): string {
-  return `as of ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
+  return `a snapshot from ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
 }
 
 /** ISO date (YYYY-MM-DD) for JSON-LD dateModified / temporalCoverage. */

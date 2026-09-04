@@ -3772,7 +3772,7 @@ async function main() {
       );
     } else {
       console.log(
-        `  OK: ${fresh.length} datasets within budget (or live/untracked).`,
+        `  OK: ${fresh.length} datasets within budget (or live/untracked/snapshot).`,
       );
     }
   } catch (e) {

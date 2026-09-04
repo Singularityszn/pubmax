@@ -22,6 +22,12 @@ import { dirname, join } from "node:path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = join(__dirname, "..");
 
+// Mirror of lib/freshness.ts SNAPSHOT_AFTER_DAYS: past this an EPISODIC feed is
+// named for the day it was collected instead of being called fresh. It renames
+// only what would otherwise read "fresh", so no budget and no gate moves.
+const SNAPSHOT_AFTER_DAYS = 30;
+const SNAPSHOT_AFTER_HOURS = SNAPSHOT_AFTER_DAYS * 24;
+
 function isParseableDate(value) {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
@@ -177,14 +183,32 @@ function evaluateDataset(dataset, observedAt, now, unresolvedReason = null) {
   if (base.stalenessBudgetHours === null) {
     return { ...base, ageHours, status: "untracked", detail: "Intentionally not budgeted (episodic / user-cadence)." };
   }
-  const stale = ageHours > base.stalenessBudgetHours;
+  if (ageHours > base.stalenessBudgetHours) {
+    return {
+      ...base,
+      ageHours,
+      status: "stale",
+      detail: `Aged ${ageHours}h, over the ${base.stalenessBudgetHours}h budget.`,
+    };
+  }
+  // Mirror of lib/freshness.ts: inside the budget, an episodic feed past the
+  // snapshot threshold is NAMED for its collection day rather than reported as
+  // a current reading. Never a breach, so the gate below is untouched.
+  if (base.class === "episodic" && ageHours > SNAPSHOT_AFTER_HOURS) {
+    return {
+      ...base,
+      ageHours,
+      status: "snapshot",
+      detail:
+        `Aged ${ageHours}h, within the ${base.stalenessBudgetHours}h budget but over ` +
+        `${SNAPSHOT_AFTER_DAYS} days old: a snapshot of its collection day, not a current reading.`,
+    };
+  }
   return {
     ...base,
     ageHours,
-    status: stale ? "stale" : "fresh",
-    detail: stale
-      ? `Aged ${ageHours}h, over the ${base.stalenessBudgetHours}h budget.`
-      : `Aged ${ageHours}h, within the ${base.stalenessBudgetHours}h budget.`,
+    status: "fresh",
+    detail: `Aged ${ageHours}h, within the ${base.stalenessBudgetHours}h budget.`,
   };
 }
 
@@ -314,7 +338,7 @@ async function main() {
     console.log(`\nFRESHNESS CHECK FAILED: ${stale.length} stale, ${unknown.length} unresolved of ${results.length} datasets.`);
     process.exit(1);
   }
-  console.log(`FRESHNESS CHECK PASSED: ${results.length} datasets within budget (or live/untracked).`);
+  console.log(`FRESHNESS CHECK PASSED: ${results.length} datasets within budget (or live/untracked/snapshot).`);
 }
 
 // Run as a CLI only when invoked directly, not when imported by validate-data.

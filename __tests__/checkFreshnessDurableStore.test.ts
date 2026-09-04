@@ -257,4 +257,30 @@ describe("evaluateFreshness — a declared row pack", () => {
     expect(results[0].observedAt).toBe("2026-07-18T00:00:00Z");
     expect(results[0].status).toBe("fresh");
   });
+
+  // Parity with lib/freshness.ts evaluateDataset: the snapshot naming rule is a
+  // rule of the spine, so the CLI gate and the app must never disagree about
+  // what an ageing episodic feed is CALLED. Both boundaries are pinned in
+  // __tests__/freshness.test.ts; this pins that the mirror moved with them.
+  it("names an episodic feed inside its budget a snapshot past 30 days, and never a breach", async () => {
+    const days = (n: number) =>
+      new Date(NOW.getTime() - n * 24 * 60 * 60 * 1000).toISOString();
+
+    const at = async (iso: string) =>
+      evaluateFreshness({
+        now: NOW,
+        rootDir: rootHolding("[]"),
+        registry: packRegistry({
+          pack: undefined,
+          stamp: { kind: "literal", value: iso },
+        }),
+      });
+
+    expect((await at(days(30))).results[0].status).toBe("fresh");
+
+    const past = await at(days(31));
+    expect(past.results[0].status).toBe("snapshot");
+    expect(past.results[0].detail).toContain("snapshot of its collection day");
+    expect(past.breached).toBe(false);
+  });
 });
