@@ -41,16 +41,35 @@ const HISTORIC_PUBS_PATH = path.join(
   "historic_pubs.json",
 );
 
+// The parsed file, kept for the life of the process. The bundled artifact is
+// build-time constant and carries nothing about a viewer, so re-reading and
+// re-parsing it per request bought nothing: the same memo rule lib/venuePriceIndex
+// already applies to the price dataset. A read that FAILED is never cached, so a
+// transient problem costs one render rather than the whole process.
+let cached: HistoricPub[] | null = null;
+
 // Defensive read: the file is generated (subagent/build owns it) and may be
 // missing or malformed. Any problem → [] rather than throwing.
 export async function loadHistoricPubs(): Promise<HistoricPub[]> {
+  if (cached) return cached;
   try {
     const raw = await readFile(HISTORIC_PUBS_PATH, "utf8");
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed as HistoricPub[];
+    cached = parsed as HistoricPub[];
   } catch {
     return [];
+  }
+  return cached;
+}
+
+export function resetHistoricPubsForTests(): void {
+  if (
+    process.env.NODE_ENV === "test" ||
+    Boolean(process.env.VITEST) ||
+    Boolean(process.env.VITEST_WORKER_ID)
+  ) {
+    cached = null;
   }
 }
 

@@ -1,7 +1,6 @@
 import { ImageResponse } from "next/og";
 
-import { getVenueIndex } from "@/lib/venueIndex";
-import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
+import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
 import { boroughFromSlug, pubsInBorough } from "@/lib/boroughs";
 import {
   CardShell,
@@ -31,25 +30,11 @@ export const alt = "The cheapest pints and best pubs in this London borough. PUB
 export const size = OG_SIZE;
 export const contentType = "image/png";
 
-// Same loader shape the borough page uses: warm the memoized index, then read
-// the full price rows and group them into Venue[]. Never throws — a read/parse
+// The same governed seam the borough page reads, so a card and the page it
+// previews cannot disagree and neither re-parses 6.7 MB. Never throws — a read
 // failure yields [] so the card still renders (generic poster).
 async function loadVenues() {
-  try {
-    await getVenueIndex();
-    const { promises: fs } = await import("fs");
-    const path = await import("path");
-    const file = path.join(
-      process.cwd(),
-      "public",
-      "data",
-      "pint_prices_app_dataset.json",
-    );
-    const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
-    return groupVenuePrices(Array.isArray(rows) ? rows : []);
-  } catch {
-    return [];
-  }
+  return loadPintPriceLandingVenues();
 }
 
 // A raised stat tile: a value over a muted label, on a panel step above the

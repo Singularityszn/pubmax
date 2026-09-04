@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { getVenueIndex } from "@/lib/venueIndex";
-import { groupVenuePrices, formatPrice, type VenuePrice } from "@/lib/venues";
-import { listBoroughs } from "@/lib/boroughs";
-import { allBoroughHeritageCounts } from "@/lib/boroughHeritage";
-import { loadHistoricPubs } from "@/lib/historic";
+import { formatPrice } from "@/lib/venues";
+import {
+  getBoroughHeritageCounts,
+  getBoroughSummaries,
+} from "@/lib/boroughIndex.server";
 import PriceBadge from "@/components/PriceBadge";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
@@ -31,36 +31,16 @@ export const metadata: Metadata = {
   },
 };
 
-// Load the grouped venue set from disk (server-only). getVenueIndex is awaited
-// first to keep the server-only import wired and the dataset warm on the same
-// memoized path the app uses. Never throws: a failure yields [] so the index
-// renders an empty state rather than 500-ing.
-async function loadVenues() {
-  try {
-    await getVenueIndex();
-    const { promises: fs } = await import("fs");
-    const path = await import("path");
-    const file = path.join(
-      process.cwd(),
-      "public",
-      "data",
-      "pint_prices_app_dataset.json",
-    );
-    const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
-    return groupVenuePrices(Array.isArray(rows) ? rows : []);
-  } catch {
-    return [];
-  }
-}
-
+// Both reads are memoized per process by lib/boroughIndex.server: this page
+// prints two derivations of bundled, build-time-constant data, so re-reading and
+// re-grouping 6.7 MB of price rows on every request bought nothing. Neither
+// loader throws — a failed read yields an empty table and the index renders its
+// empty state rather than 500-ing.
 export default async function BoroughIndexPage() {
-  const venues = await loadVenues();
-  const boroughs = listBoroughs(venues);
+  const boroughs = await getBoroughSummaries();
   // Cited historic-pub count per borough (borough-heritage rollup, Wave H).
   // Additive: shown as a subtle badge only where a borough has any on record.
-  const heritageCounts = new Map(
-    allBoroughHeritageCounts(await loadHistoricPubs()).map((h) => [h.slug, h.count]),
-  );
+  const heritageCounts = await getBoroughHeritageCounts();
 
   return (
     <main id="main" className="boroughPage">
