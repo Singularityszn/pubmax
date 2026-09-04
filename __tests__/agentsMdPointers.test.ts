@@ -112,6 +112,8 @@ const NOT_REPO_PATHS = new Set([
   "Logged.",
   // Member and property names, not repository paths.
   "auth.refreshSession",
+  // Browser API on the global navigator, not a repository path.
+  "navigator.share",
   "auth.users.encrypted_password",
   "CATEGORY_META.order",
   "ComposerHydration.heldVenueId",
