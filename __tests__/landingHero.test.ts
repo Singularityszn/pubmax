@@ -25,7 +25,7 @@ function venue(id: string, name: string, cheapestPrice: number | null, extra: Pa
     lng: -0.1,
     cheapestPrice,
     cheapestPint: "PRAVHA",
-    prices: [{ pint: "PRAVHA", price_gbp: cheapestPrice, pub_url: "https://www.pint-prices.com/pub/x" }],
+    prices: [{ app_price_id: `${id}-1`, pint_name: "PRAVHA", price_gbp: cheapestPrice, pub_url: "https://www.pint-prices.com/pub/x" }],
     ...extra,
   } as Venue;
 }
@@ -71,8 +71,8 @@ describe("landing hero policy", () => {
       {
         priceGbp: 6.5,
         prices: [
-          { pint: "X", price_gbp: 6.5 },
-          { pint: "PRAVHA", price_gbp: 6.5, pub_url: "https://www.pint-prices.com/pub/x" },
+          { app_price_id: "p1", pint_name: "X", price_gbp: 6.5 },
+          { app_price_id: "p2", pint_name: "PRAVHA", price_gbp: 6.5, pub_url: "https://www.pint-prices.com/pub/x" },
         ],
         collectedOn: "2026-07-03",
       },
@@ -83,13 +83,13 @@ describe("landing hero policy", () => {
       standing: "listed",
     });
     const unnamed = answerEvidenceFor(
-      { priceGbp: 6.5, prices: [{ pint: "X", price_gbp: 6.5 }], collectedOn: "2026-07-03" },
+      { priceGbp: 6.5, prices: [{ app_price_id: "p1", pint_name: "X", price_gbp: 6.5 }], collectedOn: "2026-07-03" },
       NOW,
     );
     expect(unnamed).toEqual({ publisher: null, standing: "none" });
     // A listing past its window falls to none, however good its page.
     const stale = answerEvidenceFor(
-      { priceGbp: 6.5, prices: [{ pint: "X", price_gbp: 6.5, pub_url: "https://www.pint-prices.com/pub/x" }], collectedOn: "2024-07-03" },
+      { priceGbp: 6.5, prices: [{ app_price_id: "p1", pint_name: "X", price_gbp: 6.5, pub_url: "https://www.pint-prices.com/pub/x" }], collectedOn: "2024-07-03" },
       NOW,
     );
     expect(stale.standing).toBe("none");
