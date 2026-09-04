@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { PRIMARY_NAV_ITEMS } from "../components/nav/navigationModel";
+import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
 
 // Rendered geometry for the phone map chrome at 320, 390 and 430.
 //
@@ -53,6 +54,17 @@ type ShellLayout = {
 };
 
 const PIN_SLA_ENFORCED = process.env.PUBMAX_PIN_SLA_ENFORCE === "1";
+
+/**
+ * The enforced ceiling, read from the tracked file rather than typed here.
+ *
+ * It used to be a literal beside a figure recorded in perf/route-budgets.json,
+ * which is two owners for one number: ratcheting the recorded target down did
+ * nothing to what the spec actually enforced. Now there is one owner, and
+ * scripts/check-budget-ratchet.mjs refuses a commit that takes it up.
+ */
+const PIN_READY_TARGET_MS =
+  PERFORMANCE_BUDGETS.routes.find((route) => route.path === "/map")?.pinReady?.targetMs ?? 4_000;
 
 test.use({
   launchOptions: {
@@ -111,7 +123,12 @@ test("cold /map/london paints tappable pins within the pin-ready SLA", async ({
   // this whole file as well as arming the ceiling, so the enforced run really
   // is the machine's own renderer.
   if (PIN_SLA_ENFORCED) {
-    expect(pinReadyMs).toBeLessThanOrEqual(4_000);
+    expect(
+      pinReadyMs,
+      `Cold /map/london took ${pinReadyMs}ms to paint a tappable pin, past the ` +
+        `${PIN_READY_TARGET_MS}ms target in perf/route-budgets.json. That target comes ` +
+        `down at each sweep and never up.`,
+    ).toBeLessThanOrEqual(PIN_READY_TARGET_MS);
   }
 });
 

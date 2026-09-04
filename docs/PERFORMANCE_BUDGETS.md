@@ -4,7 +4,8 @@ Speed is the promise this product makes. A promise nobody counts is a wish, so
 every budgeted route has a number, the number is tracked in the repository, and
 CI refuses a change that goes past it.
 
-- The ceilings: [`perf/route-budgets.json`](../perf/route-budgets.json)
+- The ceilings: [`perf/route-budgets.json`](../perf/route-budgets.json). Every route the site serves a stranger, all 34
+- The pawl on the ratchet: [`scripts/check-budget-ratchet.mjs`](../scripts/check-budget-ratchet.mjs), which refuses a ceiling taken up against the base branch without a record
 - The rules and the failure table: [`lib/performanceBudgets.ts`](../lib/performanceBudgets.ts)
 - The measuring: [`e2e/performance-budget.spec.ts`](../e2e/performance-budget.spec.ts)
 - The method both perf specs share: [`e2e/helpers/perfMeasurement.ts`](../e2e/helpers/perfMeasurement.ts)
@@ -21,41 +22,87 @@ CI refuses a change that goes past it.
 | `requests` | Same-origin requests to the same point, the document included | A route can hold its bytes and still lose the night to a waterfall. |
 | `lcpMs` | The largest contentful paint the SAME run observed, from a buffered `PerformanceObserver` | The three above are levers; this is the one a drinker feels, and a route can hold every lever and still paint late. |
 
-## Where the LCP ceilings came from
+## Where the ceilings came from
 
-Seeded on 2026-09-01 from three production runs per route over the real network
-rather than loopback. Those seed runs used 390x844 at DPR 3. The enforced sweep
-uses Desktop Chrome at device pixel ratio 1 with the same CSS viewport, 4x CPU
-throttle, and cross-origin requests refused, so seed figures are indicative of
-their origin rather than reproductions of CI's method. Medians:
+Seeded on 2026-09-04 from one sweep on a production build of `main` at `4f36f2547`,
+under the method above: the same method CI enforces, over the tracked Fast 4G
+profile rather than loopback. Measured figure first, ceiling second:
 
-| route | measured LCP | seeded ceiling |
-| --- | --- | --- |
-| `/` | 296 ms | 1500 ms |
-| `/pal` | 792 ms | 1500 ms |
-| `/map` | 1196 ms | 2500 ms |
-| `/today` | 720 ms | 2500 ms |
-| `/tonight` | 784 ms | 2500 ms |
-| `/out` | 900 ms | 2500 ms |
-| `/about` | 320 ms | 2500 ms |
-| `/pubs` | 372 ms | 2500 ms |
+| route | server render | JS decoded (KB) | requests | LCP (ms) |
+| --- | --- | --- | --- | --- |
+| `/` | 4 / 150 | 875 / 1010 | 40 / 46 | 576 / 1500 |
+| `/pal` | 7 / 150 | 1163 / 1300 | 44 / 51 | 1256 / 1500 |
+| `/map` **over** | 6 / 150 | 2985 / 3400 | 331 / 160 | 980 / 1500 |
+| `/today` | 11 / 150 | 919 / 1060 | 45 / 52 | 208 / 2500 |
+| `/tonight` | 8 / 150 | 931 / 1080 | 52 / 56 | 196 / 2500 |
+| `/out` | 7 / 150 | 871 / 1010 | 42 / 49 | 528 / 2500 |
+| `/about` | 8 / 150 | 833 / 960 | 37 / 43 | 256 / 2500 |
+| `/pubs` | 14 / 150 | 1091 / 1200 | 59 / 68 | 296 / 2500 |
+| `/webmcp` | 6 / 150 | 869 / 1000 | 38 / 44 | 172 / 2500 |
+| `/near` | 7 / 150 | 976 / 1130 | 45 / 52 | 164 / 2500 |
+| `/login` | 7 / 150 | 826 / 950 | 34 / 40 | 168 / 2500 |
+| `/signin` | 6 / 150 | 826 / 950 | 34 / 40 | 184 / 2500 |
+| `/plan` | 7 / 150 | 1013 / 1170 | 41 / 48 | 180 / 2500 |
+| `/pal/chat` | 6 / 150 | 896 / 1040 | 40 / 46 | 176 / 2500 |
+| `/social` | 11 / 150 | 978 / 1130 | 48 / 56 | 220 / 2500 |
+| `/feed` | 7 / 150 | 978 / 1130 | 48 / 56 | 184 / 2500 |
+| `/discover` | 12 / 150 | 978 / 1130 | 48 / 56 | 268 / 2500 |
+| `/drinks` | 12 / 150 | 978 / 1130 | 48 / 56 | 268 / 2500 |
+| `/messages` | 6 / 150 | 838 / 970 | 38 / 44 | 576 / 2500 |
+| `/activity` | 7 / 150 | 847 / 980 | 39 / 45 | 176 / 2500 |
+| `/u/you` | 7 / 150 | 1120 / 1290 | 57 / 66 | 668 / 2500 |
+| `/onboarding` | 6 / 150 | 831 / 960 | 35 / 41 | 640 / 2500 |
+| `/choose-city` | 7 / 150 | 822 / 950 | 33 / 38 | 204 / 2500 |
+| `/moment` | 10 / 150 | 852 / 980 | 37 / 43 | 232 / 2500 |
+| `/rounds` | 7 / 150 | 833 / 960 | 38 / 44 | 184 / 2500 |
+| `/crawls` | 9 / 150 | 885 / 1020 | 39 / 45 | 220 / 2500 |
+| `/borough` | 54 / 150 | 833 / 960 | 38 / 44 | 244 / 2500 |
+| `/historic` | 31 / 150 | 835 / 970 | 38 / 44 | 260 / 2500 |
+| `/pint-index` | 34 / 150 | 856 / 990 | 39 / 45 | 296 / 2500 |
+| `/founders` | 9 / 150 | 833 / 960 | 38 / 44 | 188 / 2500 |
+| `/contributors` | 6 / 150 | 833 / 960 | 37 / 43 | 176 / 2500 |
+| `/we-are-out` | 6 / 150 | 837 / 970 | 38 / 44 | 176 / 2500 |
+| `/privacy` | 7 / 150 | 788 / 910 | 32 / 37 | 212 / 2500 |
+| `/terms` | 6 / 150 | 788 / 910 | 32 / 37 | 184 / 2500 |
+| `/places` | 6 / 150 | 861 / 1000 | 40 / 46 | 188 / 2500 |
 
-The ceilings are deliberately looser than the measurements. A seed taken on one
-box against production is not the sweep, and a first ceiling that fails CI on
-the day it lands teaches nothing. `/` and `/pal` take the speed programme's own
-1500 ms target because they are the front door and its one primary action;
-every other route takes 2500 ms, the Core Web Vitals good boundary, so no route
-may be worse than good. Ratcheting them to CI's measured numbers is the same
-down-only move every other ceiling here makes.
+One headroom rule, applied to every route the same way: 15% for bytes and
+requests, 20% for LCP, and a 150 ms or 450 ms family floor for server render.
 
-`/pal` joins the file with them. It was the heaviest unbudgeted route in the
-seed sweep at 1745 KB decoded, and an unbudgeted route is one nothing can
-regress.
+Two exceptions, both in the tightening direction. Where the measurement already
+met a **tighter** existing ceiling, the tighter one stands. Where the measurement
+is **over** an existing ceiling, the ceiling still stands and the sweep reports
+the breach. Nothing here was loosened to fit a measurement.
+
+`/` and `/map` take the speed programme's own 1500 ms LCP target because they are
+the front door and the product. Every other route takes 2500 ms, the Core Web
+Vitals good boundary, so no route may be worse than good. Every route now meets
+its LCP ceiling.
 
 Production RUM corroborates the lab figure independently: `onLCP` already
 reports through `lib/webVitals.ts` and the consent-gated `web_vital` event
 (`components/PerformanceVitals.tsx`), rounded and route-patterned, carrying no
 identifier.
+
+## The one route over its ceiling, and why the number stays
+
+`/map` asks for **331 requests** before it is interactive, against a ceiling of
+**160**. The ceiling is not raised.
+
+The same rig measured **148 and 149** on the commit before the map camera work
+landed, and **327 and 331** on two independently configured servers after it. The
+figure is stable inside a run (0% spread across three samples) and moved between
+those two commits, so it is a step rather than noise. Nothing else about the
+measurement changed across that pair.
+
+That is a regression, and catching it is what the throttled rig was added for. A
+ceiling raised to make it green would be the exact move `docs/PERFORMANCE_BUDGETS.md`
+forbids and `scripts/check-budget-ratchet.mjs` now refuses, so the number stays at
+160 and the sweep reports `/map` over budget until the route comes back under it.
+
+The map's pin-ready figure moved the same way: 2713 ms as the median of five runs
+after that change, against a 2500 ms target that came down from 4000 ms here. The
+target stays 2500 and the 213 ms is debt.
 
 ## What each route actually parses
 
@@ -197,6 +244,7 @@ another:
 | `browser` | Desktop Chrome | One engine, so a run is comparable to the one before it. |
 | `viewport` | 390x844 at DPR 1 | A phone's CSS viewport, fixed, because a wider one loads different images and a different number of cards. |
 | `cpuThrottleRate` | 4 | A mid-range phone against a CI runner's core. |
+| `network` | `chrome-fast-4g` | Loopback is not a network: it has no round trip, so it cannot see a waterfall, and a waterfall is what the `requests` ceiling exists to catch. The profile carries its own numbers because "4G" means different things in different tools. Its `quietMs` and `drainCeilingMs` scale with it, because over a throttled wire an ordinary gap between two requests is longer than a whole loopback load. |
 | `thirdPartyBlocked` | true | A run measures what we ship, never a tile server's morning. |
 | `warmupRuns` | 1 | Discarded, and its request lifecycle must fully drain, so a cold module load is not charged to the route. |
 | `measuredRuns` | 3 | Stated here rather than implied, because "the median" means nothing without an N. |
@@ -306,25 +354,77 @@ A budget is a ratchet. Take one DOWN whenever the measured figure has been
 comfortably below it for a while: that is the point of the exercise.
 
 Take one UP only deliberately, in the same commit as the change that needs it,
-with the reason in the commit message and the new figure measured rather than
-guessed. A budget raised to make a red build green is not a budget.
+with the reason and the new figure measured rather than guessed. A budget raised
+to make a red build green is not a budget.
+
+That half of the law used to be enforced by whoever happened to read the diff.
+`scripts/check-budget-ratchet.mjs` is the pawl, and it runs in the
+`performance-budget` job BEFORE the sweep, because it needs no browser and no
+build. The trap it closes is specific: when the gate fails, the fastest way to
+make the red go away is to raise the ceiling, and #1314 is the record of a gate
+failing on unchanged code and pushing an author toward exactly that move.
+
+So a raise is not forbidden - forbidding it would make the law a lie the first
+time a route legitimately needs room - it is made impossible to do QUIETLY. A
+raise needs a `ceilingRaises` entry on the route:
+
+```json
+"ceilingRaises": [
+  { "metric": "requests", "from": 50, "to": 60, "measured": 52, "why": "..." }
+]
+```
+
+The `from` is checked against the base branch's actual ceiling, so it cannot be
+written from memory. A raise with a record still prints in the job log under
+"ceiling(s) went UP with a record", because allowed is not the same as
+unremarked. The record stays in the file afterwards, which is what makes the
+next reader able to ask whether the debt was ever paid.
+
+No ceiling carries one today, and that is the point: the sweep that added a
+network profile to the rig found one route over its ceiling, and the answer was
+to report the route rather than to move the number. See "The one route over its
+ceiling" above.
 
 Adding a route is cheap: one entry with a `readySelector` the route really
-renders and one sentence of `why`. Removing one needs a reason, because an
-unmeasured route reads as a pass and never fails again.
+renders and one sentence of `why`. Removing one is refused by the check, because
+an unmeasured route reads as a pass and never fails again.
+
+## Which routes are budgeted
+
+All 35 that the site serves a stranger, which is every `page.tsx` with no
+dynamic segment, less two:
+
+- `/admin`, which answers 401 to an anonymous request and renders a token form
+  rather than a route.
+- `/map/arrival`, which is not navigable: the proxy rewrites a `/map` request to
+  it when the document really differs (`lib/mapDocumentTwin.ts`), so it is
+  measured as `/map`.
+
+`/profile` is budgeted as `/u/you`, the document it actually serves. Budgeting
+`/profile` measured a server redirect rather than a route, and the page clock
+said so by falling back to the harness clock - which is the fallback earning its
+place on its first sweep.
 
 ## The pin-ready record on /map
 
-`/map` carries one extra tracked block, `pinReady`. It is NOT one of the four
-budgeted metrics: `lib/performanceBudgets.ts` never reads it, so nothing here
-fails a build. It is the RECORD of the map's own arrival promise - a cold phone
-visit must reach tappable pins - kept beside the route it describes so the
-figure and the ceiling live in one place.
+`/map` carries one extra tracked block, `pinReady`. It is not one of the four
+budgeted metrics, because it is not a page cost: it is the moment the product
+becomes usable. It is kept beside the route it describes so the figure and the
+ceiling live in one place, and `e2e/mobile-map-chrome-fit.spec.ts` now READS
+`targetMs` from here rather than restating it. That was two owners for one
+number, and ratcheting the recorded target down did nothing to what the spec
+actually enforced.
+
+The target came down from 4000 ms to **2500 ms** on 2026-09-03, against a
+measured 1822 ms. The previous record said 3336 ms; the bounded opening viewport
+(the city's own view rather than world bounds, with the surrounding ring waiting
+for idle) is what closed that gap, and nothing had banked it. 2500 leaves 37%
+headroom, so it can come down again.
 
 | Field | What it is |
 | --- | --- |
 | `path` | The document measured. `/map/london` is the per-request city route, not the CDN-cached `/map`. |
-| `targetMs` | The CEILING. A cold visit must reach painted, tappable pins inside it. |
+| `targetMs` | The CEILING, and its ONE owner. The spec reads this field rather than restating it, and `scripts/check-budget-ratchet.mjs` refuses a commit that takes it up. |
 | `measuredMs` | The last RECORDED figure, not a second ceiling. It is a note of where we stood. |
 | `signal` | What was waited for: painted pins the collision index kept, off `components/map/canvas/paintedPinProbe.ts`. |
 | `viewport` | The phone the promise is made to. |

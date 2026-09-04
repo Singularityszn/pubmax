@@ -92,7 +92,11 @@ describe("the seeded ceilings say what they mean", () => {
   });
 
   it("records where the seed came from, so the next reader can ratchet it", () => {
-    expect(PERFORMANCE_BUDGETS.note).toContain("2026-09-01");
+    // A DATE, not one particular date. Pinning the literal day made this fail on
+    // every legitimate re-seed, which is the opposite of what it is for: the
+    // note has to say when the figures were taken so the next reader knows how
+    // old they are, and a re-seed is the healthy case.
+    expect(PERFORMANCE_BUDGETS.note).toMatch(/\b20\d{2}-\d{2}-\d{2}\b/);
     expect(PERFORMANCE_BUDGETS.note).toContain("4x CPU throttle");
     expect(PERFORMANCE_BUDGETS.note).toMatch(/down is free, up is a decision/);
   });

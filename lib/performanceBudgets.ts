@@ -47,6 +47,35 @@ export type RouteBudget = {
   settledSelectorHidden?: string;
   /** Why this route is on the list, in one sentence. */
   why: string;
+  /**
+   * The /map pin-ready record: how long a cold phone visit takes to paint a
+   * tappable pin. It is not one of the four budgeted metrics, because it is not
+   * a page cost - it is the moment the product becomes usable. The spec that
+   * enforces it reads `targetMs` from here, so there is ONE owner of the number.
+   */
+  pinReady?: {
+    path: string;
+    targetMs: number;
+    measuredMs: number;
+    signal: string;
+    viewport: { width: number; height: number };
+    note: string;
+  };
+  /**
+   * Every ceiling on this route that has ever been taken UP, and why.
+   *
+   * The law allows a raise in the commit that needs one, with the reason and a
+   * measured figure. This is where that record lives, so the raise cannot be
+   * made quietly: scripts/check-budget-ratchet.mjs refuses a raise with no
+   * record, and refuses a record whose `from` disagrees with the base branch.
+   */
+  ceilingRaises?: Array<{
+    metric: BudgetMetric;
+    from: number;
+    to: number;
+    measured: number;
+    why: string;
+  }>;
 } & Record<BudgetMetric, number>;
 
 export type BudgetMethod = {
@@ -59,6 +88,47 @@ export type BudgetMethod = {
   aggregate: "median";
   /** CDP CPU throttle applied to every measured run. */
   cpuThrottleRate: number;
+  /**
+   * The network every measured run is taken over.
+   *
+   * Loopback is not a network: it has no round trip, so a route can hold every
+   * byte ceiling and still lose the night to a waterfall nothing here would
+   * see. The profile is NAMED and carries its own numbers, because "4G" means
+   * different things in different tools and two figures are only comparable
+   * when the wire under them was the same.
+   */
+  network: {
+    profile: string;
+    latencyMs: number;
+    downloadBytesPerSecond: number;
+    uploadBytesPerSecond: number;
+    /**
+     * No new request for this long counts as the network having gone quiet, so
+     * every counted entry carries its final size. It is scaled to the PROFILE:
+     * over a throttled wire an ordinary gap between two requests is longer than
+     * a whole loopback load, and a window sized for loopback would call a route
+     * finished in the middle of its own waterfall.
+     */
+    quietMs: number;
+    /**
+     * And how long a run waits for the last request to land before giving up.
+     * A safety valve rather than a budget. Sized against the heaviest route on
+     * this wire, which is /map.
+     */
+    drainCeilingMs: number;
+    /**
+     * A connection open longer than this is taken to be a STREAM rather than a
+     * resource still arriving, so the wait stops rather than sitting out the
+     * whole drain ceiling. /today holds one open for as long as the page lives,
+     * and paying the ceiling for it cost 90 seconds on every single load.
+     *
+     * It is generous on purpose: any single resource that really takes this long
+     * on this wire is itself the finding, and it will still be counted, because
+     * the wait ends by NAMING what stayed open rather than by ignoring it.
+     */
+    streamAfterMs: number;
+    why: string;
+  };
   viewport: { width: number; height: number };
   /** Cross-origin requests are refused, so a run measures only what we ship. */
   thirdPartyBlocked: boolean;
@@ -369,7 +439,11 @@ export function perfSampleSpread(values: readonly number[]): SampleSpread {
   return { min, max, spreadPct: Math.round(((max - min) / middle) * 100) };
 }
 
-export type SampleRow = Record<BudgetMetric, number> & { boundarySource?: PerfBoundarySource };
+export type SampleRow = Record<BudgetMetric, number> & {
+  boundarySource?: PerfBoundarySource;
+  /** Connections still open when the run stopped waiting. Reported, never failed on. */
+  stillOpen?: readonly string[];
+};
 
 /**
  * Every sample of every route, printed beside the aggregate.
@@ -421,6 +495,14 @@ export function findMethodWarnings(
 ): string[] {
   const warnings: string[] = [];
   for (const [path, samples] of samplesByPath) {
+    const open = [...new Set(samples.flatMap((sample) => sample.stillOpen ?? []))];
+    if (open.length > 0) {
+      warnings.push(
+        `${path}: ${open.length} connection(s) were still open when the run stopped waiting, so ` +
+          `they are streams rather than resources. They started well past the counting boundary ` +
+          `and are not in the figures: ${open.join(", ")}`,
+      );
+    }
     const fallback = samples.filter((sample) => sample.boundarySource === "harness-ready").length;
     if (fallback > 0) {
       warnings.push(
