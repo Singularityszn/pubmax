@@ -9,7 +9,7 @@ import OfflineReady, {
 } from "@/components/OfflineReady";
 
 // GAP 8: the service worker is the whole offline story, and it used to be
-// armed by `pubmax:first-pins` alone — an event only components/PubMap.tsx
+// armed by `pubmax:first-pins` alone - an event only components/PubMap.tsx
 // emits. The native shell cold-starts on /tonight, so a reader who never
 // opened the Map registered nothing and had no offline shell at all.
 //
@@ -64,7 +64,7 @@ afterEach(() => {
 describe("OfflineReady registration", () => {
   it("registers on a fresh session on / with no map visit and no first-pins event", async () => {
     // A fresh session: nothing in storage, no in-memory pin signal, and the
-    // document already complete — jsdom's default readyState.
+    // document already complete - jsdom's default readyState.
     expect(window.localStorage.getItem("pubmax:first-pins-seen:v1")).toBeNull();
 
     mount();
