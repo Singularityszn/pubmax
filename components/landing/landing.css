@@ -82,11 +82,10 @@
 /* ── Hero: the whole first screen ────────────────────────────────────────── */
 
 /* The Screen primitive owns the head (kicker, h1, the answer, one primary, one
-   secondary) and the rail rides as its children. The landing lays the head's
-   own children out on the hero grid (`display: contents` on the head), so the
-   phone reads the DOM top to bottom, kicker, claim, answer, action, second
-   door, rail, and the desktop only seats the answer and the rail beside the
-   copy. Full viewport height at every width. */
+   secondary) and the rail rides as its children. The head is its own grid, so
+   the phone reads the DOM top to bottom, kicker, claim, answer, action, second
+   door, rail, and the desktop only seats the answer beside the copy and the
+   rail under the answer. Full viewport height at every width. */
 .lpHero {
   min-height: 100dvh;
   padding-top: clamp(96px, 12vh, 132px);
@@ -94,12 +93,14 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-content: center;
-  gap: var(--space-3);
+  gap: var(--space-5);
 }
 
-.lpHero .screenHead { display: contents; }
-
-.lpHero .screenHead > .kicker { max-width: 34rem; }
+.lpHero .screenHead {
+  max-width: none;
+  padding-block: 0;
+  gap: var(--space-3);
+}
 
 /* 56px to 64px on a desktop (e2e/design-taste-wave-1.spec.ts), two lines. */
 .lpHero .screenTitle {
@@ -109,32 +110,41 @@
   letter-spacing: -.04em;
 }
 
-.lpHero .screenAnswer { min-width: 0; margin-top: var(--space-3); }
-.lpHero .screenActions { margin-top: var(--space-3); }
-.lpHero .lpRail { margin-top: var(--space-5); }
+.lpHero .screenAnswer { min-width: 0; margin-top: var(--space-2); }
 
 /* On a desktop the copy and the answer share the first screen from the top:
    the grid starts under the nav rather than floating at the vertical centre.
-   The rail seats under the answer in the same column. */
+   Both grids share one column template, so the rail lines up under the
+   answer. The head's third row is the flexible one, so the answer's height
+   never opens the gap between the kicker and the heading. */
 @media (min-width: 960px) {
   .lpHero {
     grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
     grid-template-areas:
-      "kicker answer"
-      "title answer"
-      "actions answer"
+      "head head"
       ". rail";
-    grid-template-rows: auto auto auto 1fr;
     column-gap: clamp(28px, 4vw, 56px);
+    row-gap: var(--space-4);
     align-content: start;
     align-items: start;
     padding-top: clamp(128px, 17vh, 168px);
+  }
+  .lpHero .screenHead {
+    grid-area: head;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+    grid-template-areas:
+      "kicker answer"
+      "title answer"
+      "actions answer";
+    grid-template-rows: auto auto 1fr;
+    column-gap: clamp(28px, 4vw, 56px);
+    align-items: start;
   }
   .lpHero .screenHead > .kicker { grid-area: kicker; }
   .lpHero .screenTitle { grid-area: title; }
   .lpHero .screenActions { grid-area: actions; align-self: start; }
   .lpHero .screenAnswer { grid-area: answer; margin-top: 0; }
-  .lpHero .lpRail { grid-area: rail; margin-top: 0; }
+  .lpHero .lpRail { grid-area: rail; }
 }
 
 /* ── The one real pub ────────────────────────────────────────────────────── */
@@ -432,7 +442,7 @@
    gives up one size step and the card its outer padding, and the whole
    screen still reads kicker, claim, answer, action inside 844px. */
 @media (max-width: 700px) {
-  .lpHero { padding-top: 80px; gap: var(--space-3); }
+  .lpHero { padding-top: 80px; gap: var(--space-5); }
   .lpHero .screenTitle { font-size: clamp(2.125rem, 10vw, 2.75rem); line-height: .94; }
   .lpHero .lpAnswerCard { gap: var(--space-1); padding: var(--space-4); }
   .lpHero .lpPubName { font-size: var(--text-lg); }
