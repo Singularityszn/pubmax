@@ -9,34 +9,27 @@
 // thin presentational shell and the logic is unit-testable without a DOM.
 
 import type { Venue } from "@/lib/venues";
-import type { PricedVenue } from "@/lib/priceUpdates";
+import { venuePriceLane, venueSourcedPrice } from "@/lib/venuePriceLane";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 
 /**
- * A venue is "unpriced" — and so a first-drop candidate — when NONE of the
- * three honest price sources the overview tab renders exist:
- *   1. a live community contributor price (latestContributorPrice), then
- *   2. a sourced first-party price (PricedVenue.sourcedPrice), then
- *   3. a baseline dataset price (venue.cheapestPrice).
+ * A venue is "unpriced" — and so a first-drop candidate — when the overview
+ * price area has no lane to render: no live community contributor price, no
+ * sourced first-party price, no baseline dataset price and no anchor claim.
  *
- * This mirrors the precedence in VenueOverviewTab exactly, so the nudge shows
- * in — and only in — the branch that would otherwise render nothing. It has no
- * dependency on the unpriced-pin work (#315): it gates purely on the venue's
- * own price fields, so it works wherever an unpriced venue renders.
+ * The ordering itself lives in `lib/venuePriceLane.ts`, which the overview tab
+ * renders from, so the gate cannot drift away from the branch it is meant to
+ * fill (#1413). It has no dependency on the unpriced-pin work (#315): it gates
+ * purely on the venue's own price fields, so it works wherever an unpriced
+ * venue renders.
  */
 export function isVenueUnpriced(
   venue: Venue,
   latestContributorPrice: number | null | undefined,
 ): boolean {
-  if (latestContributorPrice !== null && latestContributorPrice !== undefined) {
-    return false;
-  }
-  const sourcedPrice = (venue as PricedVenue).sourcedPrice ?? null;
-  if (sourcedPrice) return false;
-  if (venue.cheapestPrice !== null && venue.cheapestPrice !== undefined) {
-    return false;
-  }
-  return true;
+  return (
+    venuePriceLane(venue, latestContributorPrice, venueSourcedPrice(venue)) === null
+  );
 }
 
 export type FirstDropCopy = {
