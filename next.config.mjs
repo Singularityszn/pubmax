@@ -256,23 +256,25 @@ const nextConfig = {
     // headers() below still applies: headers match the address the reader
     // asked for.
     return {
-      beforeFiles: ukBaseGeneration
-        ? [
-            {
-              source: `/data/uk_base/packs/${LEGACY_UK_BASE_GENERATION}/:shard(\\d+\\.\\d+_-?\\d+\\.\\d+\\.json)`,
-              destination: `/data/uk_base/packs/${ukBaseGeneration}/:shard`,
-            },
-          ]
-        : [],
-      afterFiles: [
+      beforeFiles: [
         // Landing hero prototype (issue #1357): `/?hero=a|b|c` renders the
         // variant route so the flag never reaches the CDN-held root document.
+        // beforeFiles, because the prerendered `/` page wins any later phase.
         {
           source: "/",
           has: [{ type: "query", key: "hero", value: "(?<hero>a|b|c)" }],
           destination: "/hero/:hero",
         },
+        ...(ukBaseGeneration
+          ? [
+              {
+                source: `/data/uk_base/packs/${LEGACY_UK_BASE_GENERATION}/:shard(\\d+\\.\\d+_-?\\d+\\.\\d+\\.json)`,
+                destination: `/data/uk_base/packs/${ukBaseGeneration}/:shard`,
+              },
+            ]
+          : []),
       ],
+      afterFiles: [],
       fallback: [],
     };
   },
