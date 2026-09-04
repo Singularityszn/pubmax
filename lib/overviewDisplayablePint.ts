@@ -12,22 +12,10 @@
 
 import {
   drivesMap,
+  freshestPintPrice,
   mapCandidateOf,
   type CommunityPrice,
 } from "@/lib/communityPrice";
-
-function freshestBeerPrice(
-  rows: readonly CommunityPrice[] | undefined | null,
-): CommunityPrice | null {
-  if (!rows) return null;
-  return rows.reduce<CommunityPrice | null>(
-    (best, row) => {
-      if (row.drinkCategory !== "beer") return best;
-      return best === null || row.submittedAt > best.submittedAt ? row : best;
-    },
-    null,
-  );
-}
 
 export function overviewDisplayablePintGbp({
   cheapestPrice,
@@ -47,7 +35,7 @@ export function overviewDisplayablePintGbp({
       ? latestContributorPrice
       : null;
 
-  const beer = freshestBeerPrice(communityRows);
+  const beer = freshestPintPrice(communityRows ?? undefined);
   if (beer) {
     const candidate = mapCandidateOf(beer);
     if (drivesMap(candidate, now)) {

@@ -234,43 +234,52 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Could not log that price right now.", "UNAVAILABLE", 503, { retryable: true });
   }
 
-  const pintDrop = await writeOneTapPintDrop(
-    {
-      venueId: submission.venueId,
-      handle: contributor.handle,
-      drinkCategory: submission.drinkCategory,
-      priceGbp: submission.priceGbp,
-      verifiedAccountId: contributor.accountId,
-    },
-    pintDropPhotos,
-  );
-  if (!pintDrop.ok) {
-    const reverted = await revertOneTapCommunityPricePairing(price.id);
-    if (reverted) {
-      if (pintDrop.kind === "invalid_photo") {
-        return publicApiError(pintDrop.message, "INVALID_REQUEST", 400);
-      }
-      return publicApiError(pintDrop.message, "UNAVAILABLE", 503, { retryable: true });
-    }
-    log("error", "one_tap_pint_drop.pairing_repair_required", {
-      priceId: price.id,
-      venueId: submission.venueId,
-      drinkCategory: submission.drinkCategory,
-    });
-    return publicApiError(
-      "Could not finish that price log. Try again.",
-      "PAIRING_REPAIR_REQUIRED",
-      503,
-      { retryable: true },
+  // Pint Drops are a pint-priced surface: pin colour, cheapest-pint buckets,
+  // the Confirmed standing and the Pint Index all read this lane on the
+  // assumption every row in it is a beer price. Pairing a non-beer submission
+  // into it would hand those pint-only surfaces a coffee or wine figure with
+  // full pint authority, which is exactly what AGENTS.md's drink-lane rule
+  // forbids. Only a beer submission pairs; every other category still writes
+  // its community price above and stops there.
+  if (submission.drinkCategory === "beer") {
+    const pintDrop = await writeOneTapPintDrop(
+      {
+        venueId: submission.venueId,
+        handle: contributor.handle,
+        drinkCategory: submission.drinkCategory,
+        priceGbp: submission.priceGbp,
+        verifiedAccountId: contributor.accountId,
+      },
+      pintDropPhotos,
     );
-  } else {
-    void qualifyCheapPintForOwnerActor(contributor.actor);
-    // The paired drop is a real priced observation, so it can complete a
-    // confirmation exactly as a Pint Drop posted through /api/pint-drops can.
-    // Running the pass here too is what stops the two write lanes disagreeing
-    // about whether a pub is confirmed. It never throws and never fails the
-    // price that has already landed.
-    await confirmVenueBySecondReporter(submission.venueId);
+    if (!pintDrop.ok) {
+      const reverted = await revertOneTapCommunityPricePairing(price.id);
+      if (reverted) {
+        if (pintDrop.kind === "invalid_photo") {
+          return publicApiError(pintDrop.message, "INVALID_REQUEST", 400);
+        }
+        return publicApiError(pintDrop.message, "UNAVAILABLE", 503, { retryable: true });
+      }
+      log("error", "one_tap_pint_drop.pairing_repair_required", {
+        priceId: price.id,
+        venueId: submission.venueId,
+        drinkCategory: submission.drinkCategory,
+      });
+      return publicApiError(
+        "Could not finish that price log. Try again.",
+        "PAIRING_REPAIR_REQUIRED",
+        503,
+        { retryable: true },
+      );
+    } else {
+      void qualifyCheapPintForOwnerActor(contributor.actor);
+      // The paired drop is a real priced observation, so it can complete a
+      // confirmation exactly as a Pint Drop posted through /api/pint-drops can.
+      // Running the pass here too is what stops the two write lanes disagreeing
+      // about whether a pub is confirmed. It never throws and never fails the
+      // price that has already landed.
+      await confirmVenueBySecondReporter(submission.venueId);
+    }
   }
 
   const trust = await syncTrustAfterPriceWrite(

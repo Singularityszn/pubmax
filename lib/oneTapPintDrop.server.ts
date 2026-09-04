@@ -93,6 +93,12 @@ export async function writeOneTapPintDrop(
   input: OneTapPintDropInput,
   photos: PintDropPhotos = { pint: null, venue: null },
 ): Promise<OneTapPintDropOutcome> {
+  // Pint Drops feed pint-only surfaces (pin colour, cheapest-pint buckets,
+  // the Confirmed standing, the Pint Index). A non-beer price paired in here
+  // would hand those surfaces a coffee or wine figure with pint authority.
+  if (input.drinkCategory !== "beer") {
+    throw new Error("writeOneTapPintDrop only pairs beer submissions.");
+  }
   const handle = normalizeViewerHandle(input.handle);
   if (!handle) {
     return {

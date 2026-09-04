@@ -1,3 +1,4 @@
+import { londonHour } from "@/lib/londonHour";
 import { NIGHT_AREAS, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { cleanText } from "@/lib/textClean";
 import { inferPlanStopCount, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
@@ -38,10 +39,6 @@ export type InferredNightContext = { context: NightContext; confidence: number; 
 const AREA_LABELS = NIGHT_AREAS
   .flatMap((area) => [area.name, ...area.aliases].map((label) => ({ slug: area.slug, label })))
   .sort((a, b) => b.label.length - a.label.length);
-
-function londonHour(now: Date): number {
-  return Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", hourCycle: "h23" }).format(now));
-}
 
 function defaultDaypart(now: Date): Daypart {
   const hour = londonHour(now);
