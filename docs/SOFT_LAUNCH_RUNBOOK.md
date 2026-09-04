@@ -1,6 +1,8 @@
 # Soft-launch runbook
 
-_An operator's checklist for the PubMaxx v1 soft launch. Follow it in order. It tracks issue [#392](https://github.com/Singularityszn/pubmax/issues/392)._
+_The MECHANISM of the PubMaxx v1 soft launch: how the deploy, the migrations, the flags, the smoke, the rollback and the monitoring work. It tracks issue [#392](https://github.com/Singularityszn/pubmax/issues/392)._
+
+**The ORDER lives next door.** [`docs/SOFT_LAUNCH_CHECKLIST.md`](SOFT_LAUNCH_CHECKLIST.md) is the ordered runbook for the first hundred users: pre-launch proof, launch day, the first week and rollback, each step naming its owner and its proof. Work down that file, and read this one for the detail it points at.
 
 ---
 
