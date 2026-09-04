@@ -1,12 +1,13 @@
 # The UK price harvest
 
 How a real, dated, attributed drink price gets from a pub's own website into
-`public/data/uk_prices/`. Two lanes read pages, one builder bundles what they
+`public/data/uk_prices/`. Three lanes read pages, one builder bundles what they
 found beside everything else this tree holds.
 
 ```
 npm run harvest:uk-prices            # document lane: read what a page SERVES
 npm run harvest:uk-prices-rendered   # rendered lane: read what a page SHOWS
+npm run harvest:uk-prices-ocr        # scan lane:     read what a pub PHOTOGRAPHED
 npm run build:uk-price-bundle        # bundle every lane into one dataset
 npm run validate-data                # refuse a row nobody could check
 ```
@@ -41,7 +42,7 @@ of them are about permission.
 `npm run harvest:uk-prices -- --recheck <outcome>` asks one finding again after
 a rule changes, rather than throwing seven thousand answers away with `--reset`.
 
-Neither lane bypasses anything. The rendered lane runs its browser with stealth
+No lane bypasses anything. The rendered lane runs its browser with stealth
 off, TLS shaping off and no challenge wait, identifying as PUBMAXX. A page
 behind a challenge is counted as `blocked-by-challenge` and left alone.
 
@@ -67,9 +68,65 @@ The lane reads the per-pub menu page of every chain the source table allows,
 one page per pub, and the source row names the brand hosts that chain publishes
 the same menu on.
 
+## Lane three: the scan
+
+`scripts/harvest/uk-prices/ocr.mjs`. A pub that photographed its drinks list
+published a price as plainly as one that typed it, and the document lane cannot
+read a photograph: a scan carries no text layer, so it yields nothing and is
+counted `unreadable` rather than guessed at. The first national crawl found 16
+such documents across 12 hosts, which is the narrowest, most attributable supply
+gap it reported.
+
+This lane is deliberately the narrowest of the three.
+
+* **It cannot widen the crawl.** Its hosts are derived from the crawl's own
+  ledger, taken off the evidence sentence that records how many of a host's PDFs
+  carried no text. There is no `--url` flag.
+* **It asks the text layer first, every time.** A document that has one is
+  counted `has-text-layer` and left to the document lane. Without that rule a
+  rerun would quietly re-read the whole estate through a model.
+* **Its byte ceiling is not the document lane's.** That lane stops at 12 MB
+  because a document far past it "is a brochure or a scan". A scan is this
+  lane's whole subject and is large for the ordinary reason, and every menu this
+  lane was built for sits above that ceiling. What bounds the cost is PAGES, not
+  bytes, and those are capped.
+* **The model is a reader, not an author.** It is asked to transcribe and
+  nothing else, and what it returns goes through the same three calls the other
+  lanes make. That is what stops an invented figure becoming a price: a number a
+  model hallucinates still has to sit beside a drink word, inside that drink's
+  band, on a document stating at least four such lines, on a page that names the
+  pub.
+
+### Running it
+
+olmOCR (Ai2, Apache-2.0) is **not a dependency of this repository and must never
+become one.** It is a pinned Python tool under `uv`, and the script shells out to
+it, so `npm install` neither pulls it nor needs it.
+
+```
+uv tool install --python 3.12 'olmocr==0.4.27'
+```
+
+Its own default engine is vLLM on an NVIDIA GPU. `olmocr --server` points the
+same pipeline at any OpenAI-compatible endpoint, so on Apple Silicon the model is
+served locally against Metal:
+
+```
+brew install llama.cpp
+llama-server -hf lmstudio-community/olmOCR-2-7B-1025-GGUF:Q8_0 \
+  --host 127.0.0.1 --port 8099 -c 16384 -ngl 99 --jinja
+```
+
+Q8_0 rather than a smaller quantisation deliberately: this lane reads DIGITS, and
+a price misread in the last decimal place is worse than no price at all. Nothing
+here calls a paid API and no document leaves the machine.
+
+`--dry-run` does the whole discovery and reports what it would read without
+starting the model, which is the cheap way to check the hosts still publish.
+
 ## What counts as a price
 
-`lib/harvest/ukPriceCrawl.ts`, and both lanes go through it unchanged.
+`lib/harvest/ukPriceCrawl.ts`, and all three lanes go through it unchanged.
 
 * **Verbatim.** A figure is kept only if it appears literally in the text of the
   page that was read.
@@ -109,10 +166,15 @@ yields nothing and is counted as `unreadable` rather than passed to an image
 model that would invent a price. The run report counts PDFs three ways: seen,
 read, and reached but unreadable.
 
+The documents it counts `unreadable` are exactly what lane three reads, and the
+model there is held to the same rule this one keeps: it transcribes, and the
+price rules above still decide what a transcription is worth.
+
 ## What comes out
 
-`data/uk_prices/harvest_report.json` and `data/uk_prices/rendered_report.json`
-carry the counts, including the `pdfs` tally of seen, read and unreadable. `data/uk_prices/site_harvest.jsonl` is the published copy of
+`data/uk_prices/harvest_report.json`, `data/uk_prices/rendered_report.json` and
+`data/uk_prices/ocr_report.json` carry the counts, the first including the `pdfs`
+tally of seen, read and unreadable. `data/uk_prices/site_harvest.jsonl` is the published copy of
 the accepted rows, so the bundle rebuilds from the tree rather than from a
 working directory nobody commits. `public/data/uk_prices/README.md` owns the
 bundle itself.
