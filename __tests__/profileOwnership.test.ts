@@ -7,7 +7,11 @@ vi.mock("@/lib/authServer", () => ({
 }));
 
 import { callerUserId } from "@/lib/authServer";
-import { decideProfileWrite, gateHandleAction } from "@/lib/profileOwnership";
+import {
+  decideProfileWrite,
+  gateHandleAction,
+  gateHasVerifiedActor,
+} from "@/lib/profileOwnership";
 import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
 
 // Pure ownership decisions (user story 31). These are the gate the API seam
@@ -52,6 +56,29 @@ describe("decideProfileWrite — linked handle (owner-only)", () => {
     const d = decideProfileWrite(OWNER, OTHER);
     expect(d.allowed).toBe(false);
     expect(!d.allowed && d.status).toBe(403);
+  });
+});
+
+describe("gateHasVerifiedActor", () => {
+  it("answers false for the unlinked demo door, which names nobody", () => {
+    expect(
+      gateHasVerifiedActor({ allowed: true, callerUserId: null, handle: "ale" }),
+    ).toBe(false);
+    expect(
+      gateHasVerifiedActor({ allowed: true, callerUserId: "  ", handle: "ale" }),
+    ).toBe(false);
+  });
+
+  it("answers true only for an allowed gate carrying a verified actor", () => {
+    expect(
+      gateHasVerifiedActor({ allowed: true, callerUserId: OWNER, handle: "ale" }),
+    ).toBe(true);
+  });
+
+  it("answers false for a refused gate", () => {
+    expect(
+      gateHasVerifiedActor({ allowed: false, status: 403, error: "no" }),
+    ).toBe(false);
   });
 });
 

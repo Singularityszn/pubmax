@@ -136,13 +136,19 @@ vi.mock("@/lib/venueIndex", async (importOriginal) => {
 // Ownership gate is covered elsewhere; these route tests focus on storage /
 // rate-limit contracts and use unlinked demo handles. Keep the gate open so a
 // configured-Supabase profile lookup cannot 503/403 the write path under test.
+// The gate answers with the request's own verified actor and falls back to a
+// stand-in signed-in account, because a priced drop now needs an attributable
+// one. Setting `gateActor.userId = null` puts a test on the unlinked demo door
+// deliberately.
+const gateActor: { userId: string | null } = { userId: "demo-account" };
+
 vi.mock("@/lib/profileOwnership", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/profileOwnership")>();
   return {
     ...actual,
     gateHandleAction: async (_request: Request, handle: string) => ({
       allowed: true as const,
-      callerUserId: reportAuth.userId,
+      callerUserId: reportAuth.userId ?? gateActor.userId,
       handle,
     }),
   };
@@ -261,6 +267,7 @@ beforeEach(() => {
   checkRateLimitDurableDetailed.mockResolvedValue({ verdict: null, reason: "error" });
   adminRef.client = null;
   reportAuth.userId = null;
+  gateActor.userId = "demo-account";
   delete process.env.RATE_LIMIT_STRICT;
 });
 
@@ -343,7 +350,7 @@ describe("POST /api/pint-drops (create)", () => {
     expect(await memoryProfileStore.getHandleByUserId(accountId)).toBeNull();
   });
 
-  it("adds server-derived price authority only for a verified account", async () => {
+  it("adds server-derived price authority for a verified account", async () => {
     reportAuth.userId = "account-a";
     await memoryProfileStore.createOwned("authority_ale", reportAuth.userId);
 
@@ -353,15 +360,44 @@ describe("POST /api/pint-drops (create)", () => {
     expect(verifiedDrop.authorityKey).toMatch(/^[a-f0-9]{64}$/);
     expect(verifiedDrop.authorityKey).not.toContain("account-a");
 
+  });
+
+  it("refuses a priced drop through the unlinked handle door", async () => {
     reportAuth.userId = null;
-    const provisional = await post({
+    gateActor.userId = null;
+
+    const refused = await post({
       venueId: "canonical-pub",
       handle: "another_ale",
       priceGbp: 4.2,
     });
-    expect(provisional.status).toBe(201);
-    const { drop: provisionalDrop } = await provisional.json();
-    expect(provisionalDrop.authorityKey).toBeUndefined();
+
+    expect(refused.status).toBe(401);
+    expect(await refused.json()).toEqual({
+      error: "Sign in to post a price under your name.",
+      code: "UNAUTHENTICATED",
+      retryable: false,
+    });
+    // Nothing reaches the store, so no unattributable price is ever kept.
+    const listed = await get("canonical-pub");
+    expect((await listed.json()).drops).toEqual([]);
+  });
+
+  it("keeps the unlinked handle door open for an unpriced memory", async () => {
+    reportAuth.userId = null;
+    gateActor.userId = null;
+
+    const accepted = await post({
+      venueId: VENUE,
+      handle: "another_ale",
+      passedDownNote: "cheapest in town, 1998",
+    });
+
+    expect(accepted.status).toBe(201);
+    const { drop } = await accepted.json();
+    expect(drop.provenance).toBe("anecdote");
+    expect(drop.priceGbp).toBeNull();
+    expect(drop.authorityKey).toBeUndefined();
   });
 
   it("keeps a verified anonymous Pint Drop provisional", async () => {
