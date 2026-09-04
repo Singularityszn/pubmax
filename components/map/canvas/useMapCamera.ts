@@ -92,8 +92,12 @@ const SHEET_UNGROWN_COVER_PX = 64;
  * sheet covers the map. Measured because a contextual sheet is content-height:
  * its snap cap is a maximum, not the height it settles at, so no constant can
  * stand in for it.
+ *
+ * Exported because the venue-select camera answers the same question this
+ * module already answers for near-me: how much map is left above the sheet.
+ * One selector, one measurement, so the two moves cannot drift apart.
  */
-function measureBottomSheetTop(containerTop: number): number | null {
+export function measureBottomSheetTop(containerTop: number): number | null {
   if (typeof document === "undefined") return null;
   const sheet = document.querySelector(BOTTOM_SHEET_SELECTOR);
   if (!sheet) return null;

@@ -138,6 +138,7 @@ export default defineConfig({
         "**/spill-composer-keyless.spec.ts",
         "**/map-gl.spec.ts",
         "**/map-gestures.spec.ts",
+        "**/map-deep-link-pin.spec.ts",
         "**/map-fallback.spec.ts",
         "**/map-service-worker.spec.ts",
         "**/map-uk-base-layer.spec.ts",
@@ -231,6 +232,9 @@ export default defineConfig({
         "**/map-gl.spec.ts",
         // Two-finger rotate and tilt against a real MapLibre canvas.
         "**/map-gestures.spec.ts",
+        // A deep-linked pin's painted position against the phone sheet's own
+        // rendered edge: both need a real MapLibre camera to project from.
+        "**/map-deep-link-pin.spec.ts",
         "**/map-console-health.spec.ts",
         // Synthetic webglcontextlost recovery — needs a real GL canvas.
         "**/map-webgl-recovery.spec.ts",

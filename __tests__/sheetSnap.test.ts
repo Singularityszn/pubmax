@@ -79,12 +79,46 @@ describe("sheetEntranceStartHeight", () => {
 });
 
 describe("mobileSelectCameraOffset", () => {
-  it("offsets downward so the pin sits in the visible band above a half sheet", () => {
+  // MapLibre draws the requested centre at the container centre PLUS the
+  // offset, and screen Y grows downward. A positive Y therefore pushed the pin
+  // DOWN, under the sheet - the exact defect this function exists to prevent,
+  // measured live on a 390x844 phone as a deep-linked pin at y 654 with the
+  // sheet's top edge at 316.
+  it("offsets UPWARD so the pin sits in the visible band above a half sheet", () => {
     const [x, y] = mobileSelectCameraOffset(VH, "half");
     expect(x).toBe(0);
-    // Visible mid ≈ (1 - 0.55) / 2 = 0.225 from top → offset ≈ 0.275 * VH
-    expect(y).toBe(Math.round((0.5 - (1 - SHEET_SNAP_FRACTIONS.half) / 2) * VH));
-    expect(y).toBeGreaterThan(0);
+    // Visible mid ≈ (1 - 0.55) / 2 = 0.225 from top → offset ≈ -0.275 * VH
+    expect(y).toBe(Math.round(((1 - SHEET_SNAP_FRACTIONS.half) / 2 - 0.5) * VH));
+    expect(y).toBeLessThan(0);
+  });
+
+  it("lands the pin in the band above the sheet, not under it", () => {
+    const height = 844;
+    const sheetTop = 316;
+    const [, y] = mobileSelectCameraOffset(height, "half", sheetTop);
+    // Where the pin is painted: the container centre, moved by the offset.
+    const pinY = height / 2 + y;
+    expect(pinY).toBeGreaterThan(0);
+    expect(pinY).toBeLessThan(sheetTop);
+  });
+
+  it("takes a measured sheet edge only when it raises the pin", () => {
+    const height = 844;
+    const fallback = mobileSelectCameraOffset(height, "half")[1];
+    // A taller sheet than the snap fraction implies: trust the measurement.
+    const taller = mobileSelectCameraOffset(height, "half", 300)[1];
+    expect(taller).toBeLessThan(fallback);
+    // A sheet still springing open reports an edge near the bottom of the
+    // screen. Trusting it would park the pin where the settled sheet lands, so
+    // the snap fraction stands instead.
+    const midSpring = mobileSelectCameraOffset(height, "half", 800)[1];
+    expect(midSpring).toBe(fallback);
+  });
+
+  it("never offsets downward, whatever it is handed", () => {
+    for (const sheetTop of [1, 40, 844, 5000]) {
+      expect(mobileSelectCameraOffset(844, "half", sheetTop)[1]).toBeLessThanOrEqual(0);
+    }
   });
 
   it("returns [0,0] for invalid heights", () => {

@@ -101,8 +101,11 @@ export default function TodayPintsCard({ index }: Props) {
         ))}
       </ul>
 
+      {/* ONE sentence about what these prices are, and it is the dated one in
+          the eyebrow above. The footer used to repeat it undated over a
+          different geography, so a reader met the same claim twice and only
+          one copy said which day it was collected. */}
       <p className="todayCardFootRow">
-        <span className="todayProvenance">Lowest listed prices in {pints.areaName}.</span>
         <Link href="/map" className="todayTextButton">
           Change area
           <ArrowRight size={14} aria-hidden="true" />

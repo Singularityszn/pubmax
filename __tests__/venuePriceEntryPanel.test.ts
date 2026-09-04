@@ -44,9 +44,11 @@ const communityPrices = {
 function renderEntry({
   canSubmitPrice,
   showSignInGate,
+  includeSignals,
 }: {
   canSubmitPrice: boolean;
   showSignInGate: boolean;
+  includeSignals?: boolean;
 }): string {
   return renderToStaticMarkup(
     createElement(VenuePriceEntryPanel, {
@@ -57,6 +59,7 @@ function renderEntry({
       showSignInGate,
       authLoading: false,
       focusRequest: 1,
+      ...(includeSignals === undefined ? {} : { includeSignals }),
     }),
   );
 }
@@ -133,5 +136,40 @@ describe("price contribution auth destination", () => {
     expect(html).not.toContain("venuePriceSubmit");
     expect(html).not.toContain("Sign in to add a price");
     expect(html).not.toContain("Add what you noticed");
+  });
+
+  // The panel is a bordered box. The Overview mounts it with includeSignals
+  // false because it renders its own read-first signals block, so a signed-out
+  // reader who has not asked to contribute left three nulls inside a frame: a
+  // 592x30 empty bordered strip above "Save ... to a list", live on the venue
+  // sheet. A frame around nothing is decoration on a trust surface.
+  it("renders nothing at all rather than an empty bordered strip", () => {
+    const html = renderEntry({
+      canSubmitPrice: false,
+      showSignInGate: false,
+      includeSignals: false,
+    });
+
+    expect(html).toBe("");
+    expect(html).not.toContain("venuePriceEntryPanel");
+  });
+
+  it("still draws the frame once it has something to put in it", () => {
+    authState.current = {
+      user: { id: "signed-in-drinker" },
+      loading: false,
+      configured: true,
+    };
+
+    const html = renderEntry({
+      canSubmitPrice: true,
+      showSignInGate: false,
+      includeSignals: false,
+    });
+
+    expect(html).toContain("venuePriceEntryPanel");
+    expect(html).toContain("venuePriceSubmit");
+    // The Overview owns its own signals copy; this instance must not add one.
+    expect(html).not.toContain("What drinkers noticed");
   });
 });
