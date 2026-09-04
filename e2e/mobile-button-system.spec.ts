@@ -46,8 +46,17 @@ for (const viewport of DEVICES) {
       await expect(wordmark.locator(".pubmaxxWordmarkAccent")).toHaveCount(1);
 
       await page.goto("/pal");
-      await page.getByRole("button", { name: /Meet your Pub Pal/i }).click();
-      await expect(page.getByRole("heading", { name: "The grown-up bit first." })).toBeVisible();
+      // The meeting screen is painted on the SERVER, so its one primary action
+      // is tappable in the document before React attaches, and a tap that lands
+      // first is dropped with nothing on screen saying so. A lone click is
+      // therefore not a wait for hydration: retry the tap itself until the
+      // first onboarding step opens (same idiom as e2e/plan-invite.spec.ts).
+      const meetPal = page.getByRole("button", { name: /Meet your Pub Pal/i });
+      const eligibility = page.getByRole("heading", { name: "The grown-up bit first." });
+      await expect(async () => {
+        await meetPal.click();
+        await expect(eligibility).toBeVisible({ timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
 
       const palGeometry = await page.evaluate(() => {
         const actions = document.querySelector(".palOnboardingActions")?.getBoundingClientRect();

@@ -157,11 +157,18 @@ test("mobile consent never covers Plan primary action while visible", async ({ p
   const prompt = page.getByLabel("Anonymous analytics choice");
   await expect(prompt).toBeVisible({ timeout: 30_000 });
 
-  const makePlan = page.getByRole("button", { name: "Make a plan", exact: true });
-  await expect(makePlan).toBeVisible();
-  await makePlan.scrollIntoViewIfNeeded();
+  // /plan opens on describe-first, whose ONE painted action is "Sort it".
+  // The rule this test owns is about the ROUTE's primary action, so it is read
+  // off the Screen's own [data-primary-action] marker rather than named copy
+  // alone: the marker is what makes exactly one control the primary, and a
+  // later rename of the label cannot quietly leave the rule untested.
+  const planPrimary = page
+    .locator("[data-primary-action]")
+    .getByRole("button", { name: "Sort it", exact: true });
+  await expect(planPrimary).toBeVisible();
+  await planPrimary.scrollIntoViewIfNeeded();
 
-  const coveredBox = await makePlan.boundingBox();
+  const coveredBox = await planPrimary.boundingBox();
   expect(coveredBox).not.toBeNull();
   expect(await pointOwner(page, coveredBox!, "button")).toBe("control");
 });
@@ -196,9 +203,12 @@ for (const width of PHONE_WIDTHS) {
     // part of it may be dropped to make the card fit. Whether the WHOLE card
     // stayed inside its ceiling is consentFit's scrollHeight above; what this
     // one owns is that the sentence itself is still all there.
+    // Painted product chrome names the BRAND, never the app (lib/brandNaming.ts),
+    // so this banner reads PUBMAXX beside a wordmark that reads the same.
+    // __tests__/analyticsConsentPrompt.test.ts owns that wording.
     const copy = prompt.locator("p");
     await expect(copy).toContainText(
-      "PUBMAXXING uses optional analytics to see what people use. Never sold, no ads.",
+      "PUBMAXX uses optional analytics to see what people use. Never sold, no ads.",
     );
 
     // The banner is the one consent surface, so its route to /privacy may never
