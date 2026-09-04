@@ -79,3 +79,9 @@ data/osm/uk/raw_venues/
 # seed rows are the committed sample; the rest rebuild from the harvest CLI.
 data-harvest/*
 !data-harvest/uk_pubs_seed.sample.jsonl
+
+# GitNexus code-graph index. Machine-local, ~1 GB, and rebuilt by
+# `gitnexus analyze`. The tool self-ignores with its own .gitnexus/.gitignore;
+# this entry states the rule where a reader looks for it. Run flags are pinned
+# in .gitnexusrc, which IS committed.
+.gitnexus/
