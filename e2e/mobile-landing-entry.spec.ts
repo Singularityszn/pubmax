@@ -85,7 +85,7 @@ test.describe("mobile landing entry", () => {
       .click();
 
     // The door is the pub's own: the map, that pub selected, the composer open.
-    await expect(page).toHaveURL(/\/map\?sel=[^&]+&log=1$/);
+    await expect(page).toHaveURL(/\/map\?sel=[^&]+&log=1&price=\d+\.\d\d$/);
     await expect(
       page.getByText("Set the price now. Sign in to post it under your name."),
     ).toBeVisible({ timeout: 20_000 });
@@ -240,7 +240,7 @@ test.describe("mobile landing entry", () => {
 
     await page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME }).click();
     // The pub's own Pint Drop door: the map with that pub selected.
-    await expect(page).toHaveURL(/\/map\?sel=[^&]+&log=1$/);
+    await expect(page).toHaveURL(/\/map\?sel=[^&]+&log=1&price=\d+\.\d\d$/);
     await page.goto("/");
 
     await page.locator(".lpHero").getByRole("link", { name: "Meet your Pub Pal" }).click();

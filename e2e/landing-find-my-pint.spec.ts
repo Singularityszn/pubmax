@@ -85,27 +85,46 @@ test.describe("landing hierarchy", () => {
     const pubHref = await card.locator(".lpPubName a").getAttribute("href");
     const primary = page.locator(".lpHero [data-primary-action] a");
     await expect(primary).toHaveText(`Still ${price}?`);
-    await expect(primary).toHaveAttribute("href", `${pubHref}&log=1`);
+    // #1462 — the figure rides with the intent, so the composer the tap opens
+    // holds the price the tap named.
+    const figure = price!.replace("£", "");
+    await expect(primary).toHaveAttribute("href", `${pubHref}&log=1&price=${figure}`);
 
-    // Three next-cheapest rows under it, each a Pint Drop door of its own.
+    // Three next-cheapest rows under it, each a Pint Drop door of its own,
+    // each carrying the figure its own row prints.
     const rows = page.locator(".lpHero .lpRailRow");
     await expect(rows).toHaveCount(3);
     for (const row of await rows.all()) {
-      await expect(row.locator("a")).toHaveAttribute("href", /\/map\?sel=[^&]+&log=1$/);
-      await expect(row.locator(".priceBadge")).toContainText(/£\d+\.\d\d/);
+      const rowPrice = (await row.locator(".priceBadge").textContent())?.trim();
+      expect(rowPrice).toMatch(/£\d+\.\d\d/);
+      await expect(row.locator("a")).toHaveAttribute(
+        "href",
+        `/map?sel=${(await row.locator("a").getAttribute("href"))!.match(/sel=([^&]+)/)![1]}&log=1&price=${rowPrice!.replace("£", "")}`,
+      );
     }
     // The one quiet location control, and no location ask on arrival.
     await expect(card.getByRole("button", { name: "Near me" })).toBeVisible();
     await expect(page.locator(".lpHero a[href*='locate=1']")).toHaveCount(0);
   });
 
-  test("Still £X? lands on that pub with the Pint Drop composer open", async ({ page }) => {
+  test("Still £X? lands on that pub with the Pint Drop composer already holding £X", async ({ page }) => {
     await openLanding(page, { width: 390, height: 844 });
     const primary = page.locator(".lpHero [data-primary-action] a");
     await expect(primary).toHaveText(/^Still £/);
+    const label = (await primary.textContent())!.trim();
+    const figure = label.replace(/^Still £/, "").replace(/\?$/, "");
+    expect(figure).toMatch(/^\d+\.\d\d$/);
+
     await primary.click();
-    await expect(page).toHaveURL(/\/map\?sel=[^&]+&log=1$/);
+    await expect(page).toHaveURL(/\/map\?sel=[^&]+&log=1&price=\d+\.\d\d$/);
     await expect(page.getByText("Set the price now. Sign in to post it under your name.")).toBeVisible({ timeout: 20_000 });
+
+    // #1462 — the receipt the tap promised: the figure is already in the field,
+    // and it is the same figure the label asked about.
+    const priceInput = page.locator(".spillPriceStep .priceStepper input");
+    await expect(priceInput).toHaveValue(figure, { timeout: 20_000 });
+    // It is a seed, not a submission: the field is still the drinker's to edit.
+    await expect(priceInput).toBeEditable();
   });
 
   // Both viewports, because a mobile-only check cannot see a hero that shrinks

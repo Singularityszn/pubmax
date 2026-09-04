@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 
-import { pintDropDraftForPersistence, readPintDropDraft, writePintDropDraft } from "@/lib/pintDropDraft";
+import {
+  pintDropDraftForPersistence,
+  readPintDropDraft,
+  seededPintDropDraftForm,
+  writePintDropDraft,
+} from "@/lib/pintDropDraft";
 import { trackEvent } from "@/lib/analytics";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import type { PintDropsState } from "@/components/map/usePintDrops";
@@ -15,6 +20,14 @@ type UseVenueDraftArgs = {
   visibility: PintDropsState["visibility"];
   vibeTags: PintDropsState["vibeTags"];
   transientVoiceNoteBaseline: string | null;
+  /**
+   * #1462 — the figure the log intent carried, or null. Applied INSIDE the
+   * hydration below, because that is where a venue's fields are decided: a seed
+   * written from outside is blanked by the `resetComposer()` on this venue's
+   * own mount. A saved draft wins, and a draft with no price of its own still
+   * takes the seed, so the door's promise survives a half-typed note.
+   */
+  priceSeed?: string | null;
 };
 
 /**
@@ -32,6 +45,7 @@ export function useVenueDraft({
   visibility,
   vibeTags,
   transientVoiceNoteBaseline,
+  priceSeed = null,
 }: UseVenueDraftArgs): boolean {
   const [draftReadyVenueId, setDraftReadyVenueId] = useState<string | null>(null);
   if (draftReadyVenueId !== null && draftReadyVenueId !== venueId) {
@@ -51,12 +65,15 @@ export function useVenueDraft({
       );
       if (!active) return;
       resetComposer();
+      const seeded = seededPintDropDraftForm(draft?.form ?? null, priceSeed);
       if (draft) {
         writePintDropDraft(window.sessionStorage, venueId, draft);
-        setDropForm(draft.form);
+        if (seeded) setDropForm(seeded);
         setVisibility(draft.visibility);
         setVibeTags(draft.vibeTags);
         trackEvent("draft_recovered", { kind: "pint-drop", surface: "map" });
+      } else if (seeded) {
+        setDropForm(seeded);
       }
       setDraftReadyVenueId(venueId);
     }
@@ -64,7 +81,7 @@ export function useVenueDraft({
     return () => {
       active = false;
     };
-  }, [venueId, resetComposer, setDropForm, setVisibility, setVibeTags]);
+  }, [venueId, priceSeed, resetComposer, setDropForm, setVisibility, setVibeTags]);
 
   useEffect(() => {
     if (draftReadyVenueId !== venueId) return;

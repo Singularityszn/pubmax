@@ -91,7 +91,7 @@ describe("landing hierarchy: the price receipt door", () => {
   it("uses the pub's own Pint Drop door as the only primary action, the Pal as the second door", () => {
     const h = hero(render());
     expect(h).toMatch(
-      /data-primary-action=""><a[^>]*href="\/map\?sel=venue-test&amp;log=1"[^>]*>Still £6\.50\?<\/a>/,
+      /data-primary-action=""><a[^>]*href="\/map\?sel=venue-test&amp;log=1&amp;price=6\.50"[^>]*>Still £6\.50\?<\/a>/,
     );
     expect(h.match(/data-primary-action/g)).toHaveLength(1);
     expect(h).toMatch(/class="screenSecondary"><a[^>]*href="\/pal"[^>]*>Meet your Pub Pal<\/a>/);

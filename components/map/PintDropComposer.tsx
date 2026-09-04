@@ -77,6 +77,7 @@ export default function PintDropComposer({
     dropMsg,
     submitDrop,
     venueSignals,
+    priceSeed,
   } = state;
   const author = pintDropAuthorValue({
     accountHandle,
@@ -104,6 +105,7 @@ export default function PintDropComposer({
     visibility,
     vibeTags,
     transientVoiceNoteBaseline,
+    priceSeed,
   });
 
   const mobile = useIsMobileComposer();

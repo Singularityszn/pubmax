@@ -170,6 +170,15 @@ function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhoto
 export function usePintDrops(
   cityId: CityId = "london",
   mapVenues?: readonly MapPintDropVenue[],
+  /**
+   * #1462 — the figure the log intent arrived carrying, or null. It is a SEED
+   * for the price field and nothing more: `useVenueDraft` is the ONE owner of
+   * what a venue's composer holds, so the seed is handed to that hydration
+   * rather than written over it. A saved draft outranks it, because a draft is
+   * the drinker's own unfinished work and the seed is only a door's opening
+   * offer.
+   */
+  priceSeed: string | null = null,
 ) {
   const {
     user,
@@ -786,6 +795,7 @@ export function usePintDrops(
     composerOpen,
     setComposerOpen,
     closeComposer,
+    priceSeed,
     dropForm,
     setDropForm,
     vibeTags,

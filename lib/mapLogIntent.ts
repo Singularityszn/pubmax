@@ -159,6 +159,40 @@ export function hasMapLogIntent(query: QueryLike): boolean {
 }
 
 /**
+ * The param the log intent carries the figure on. `#1462`: the landing's one
+ * filled action says "Still £6.50?", so the composer it opens has to hold
+ * £6.50 already, or the receipt the tap promised is a blank form.
+ */
+export const MAP_LOG_INTENT_PRICE_PARAM = "price";
+
+// A price is a positive GBP figure with at most two decimals. Anything else is
+// not a refusal of the whole intent: the composer still opens, just empty.
+const LOG_INTENT_PRICE_PATTERN = /^\d{1,4}(?:\.\d{1,2})?$/;
+
+/**
+ * The figure the log intent carries, as the composer's own price field spells
+ * it, or null. A crafted or malformed `price=` is IGNORED rather than refused,
+ * because the door it rides is the pub's composer and a reader who tapped
+ * "Still £6.50?" is owed that composer whatever the query says. Nothing here
+ * reaches the submit path: the drinker still presses Log it, and the figure
+ * they send is whatever the field holds at that moment.
+ */
+export function mapLogIntentPrice(query: QueryLike): string | null {
+  const raw =
+    typeof query === "string"
+      ? new URLSearchParams(query.startsWith("?") ? query.slice(1) : query).get(
+          MAP_LOG_INTENT_PRICE_PARAM,
+        )
+      : query.get(MAP_LOG_INTENT_PRICE_PARAM);
+  if (raw === null) return null;
+  const trimmed = raw.trim();
+  if (!LOG_INTENT_PRICE_PATTERN.test(trimmed)) return null;
+  const value = Number(trimmed);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return value.toFixed(2);
+}
+
+/**
  * D4 — leaving the Drop flow must take `log=1` with it. The param survived
  * every close (useCrawlUrl keeps it as an owned passthrough), so closing the
  * venue sheet reopened the pub picker and closing the picker left the flag
@@ -169,6 +203,9 @@ export function clearMapLogIntentSearch(search: string): string {
   const normalized = search.startsWith("?") ? search.slice(1) : search;
   const params = new URLSearchParams(normalized);
   params.delete("log");
+  // The figure is part of the intent, so it leaves with it: a `price=` left
+  // armed would seed the NEXT pub's composer with a price nobody asked about.
+  params.delete(MAP_LOG_INTENT_PRICE_PARAM);
   return params.toString();
 }
 

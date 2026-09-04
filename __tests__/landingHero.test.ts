@@ -10,6 +10,7 @@ import {
   railHeading,
   stillPriceLabel,
 } from "@/lib/landingHero";
+import { mapLogIntentPrice } from "@/lib/mapLogIntent";
 import { buildLandingAnchorRail, buildLandingArchiveIndex } from "@/lib/landingPubCard";
 import type { Venue } from "@/lib/venues";
 
@@ -51,6 +52,31 @@ describe("landing hero policy", () => {
 
   it("opens the Pint Drop door of that pub: the map, that pub selected, the composer open", () => {
     expect(pintDropDoorHref("venue-eltcmh")).toBe("/map?sel=venue-eltcmh&log=1");
+  });
+
+  it("carries the figure the tap printed, so the composer opens holding it", () => {
+    // #1462 — "Still £6.50?" landing on an empty field asks the reader to type
+    // back the number it just showed them.
+    expect(pintDropDoorHref("venue-eltcmh", 6.5)).toBe(
+      "/map?sel=venue-eltcmh&log=1&price=6.50",
+    );
+    expect(pintDropDoorHref("venue-eltcmh", 4.2)).toBe(
+      "/map?sel=venue-eltcmh&log=1&price=4.20",
+    );
+    expect(mapLogIntentPrice(pintDropDoorHref("venue-eltcmh", 6.5).split("?")[1])).toBe("6.50");
+  });
+
+  it("says the same figure in the label and in the door", () => {
+    for (const priceGbp of [2.99, 4.2, 6.5, 12]) {
+      const seeded = mapLogIntentPrice(pintDropDoorHref("venue-x", priceGbp).split("?")[1]);
+      expect(stillPriceLabel(priceGbp)).toBe(`Still £${seeded}?`);
+    }
+  });
+
+  it("leaves the door plain when there is no figure to carry", () => {
+    expect(pintDropDoorHref("venue-eltcmh", Number.NaN)).toBe("/map?sel=venue-eltcmh&log=1");
+    expect(pintDropDoorHref("venue-eltcmh", 0)).toBe("/map?sel=venue-eltcmh&log=1");
+    expect(pintDropDoorHref("venue-eltcmh", -6.5)).toBe("/map?sel=venue-eltcmh&log=1");
   });
 
   it("keeps the plain receipt door for a document with no card behind it", () => {

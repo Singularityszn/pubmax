@@ -5,6 +5,7 @@ import {
   clearMapLogIntentSearch,
   formatLogNearbyDistance,
   hasMapLogIntent,
+  mapLogIntentPrice,
   resolveLogNearbyOrigin,
   resolveMapLogIntent,
   shouldRunMapLogIntent,
@@ -159,6 +160,40 @@ describe("hasMapLogIntent", () => {
 
 // D4 — closing either surface must leave no `log` param, so the picker cannot
 // rearm on the next close.
+describe("mapLogIntentPrice", () => {
+  it("carries the figure the door printed, spelled as the price field spells it", () => {
+    expect(mapLogIntentPrice("?sel=venue-eltcmh&log=1&price=6.50")).toBe("6.50");
+    expect(mapLogIntentPrice("?log=1&price=4")).toBe("4.00");
+    expect(mapLogIntentPrice("?log=1&price=4.2")).toBe("4.20");
+    expect(mapLogIntentPrice(new URLSearchParams("log=1&price=6.50"))).toBe("6.50");
+  });
+
+  it("answers null for an intent that carries no figure", () => {
+    expect(mapLogIntentPrice("?sel=venue-eltcmh&log=1")).toBe(null);
+    expect(mapLogIntentPrice("")).toBe(null);
+  });
+
+  it("ignores anything that is not a positive GBP figure rather than refusing the door", () => {
+    // A crafted or malformed price seeds nothing; the composer still opens.
+    for (const raw of [
+      "0",
+      "-6.50",
+      "6.501",
+      "6,50",
+      "£6.50",
+      "abc",
+      "NaN",
+      "Infinity",
+      "1e3",
+      "99999",
+      "",
+      " ",
+    ]) {
+      expect(mapLogIntentPrice(`?log=1&price=${encodeURIComponent(raw)}`)).toBe(null);
+    }
+  });
+});
+
 describe("clearMapLogIntentSearch", () => {
   it("leaves no log param behind", () => {
     expect(clearMapLogIntentSearch("?log=1")).toBe("");
@@ -169,6 +204,11 @@ describe("clearMapLogIntentSearch", () => {
   it("keeps every other param the map owns", () => {
     expect(clearMapLogIntentSearch("?sel=pub-1&log=1&q=camden")).toBe("sel=pub-1&q=camden");
     expect(clearMapLogIntentSearch("?plan=1&log=1")).toBe("plan=1");
+  });
+
+  it("takes the figure with the flag, so no price stays armed for the next pub", () => {
+    expect(clearMapLogIntentSearch("?sel=pub-1&log=1&price=6.50")).toBe("sel=pub-1");
+    expect(mapLogIntentPrice(clearMapLogIntentSearch("?log=1&price=6.50"))).toBe(null);
   });
 
   it("is a no-op on a URL that never carried the flag", () => {

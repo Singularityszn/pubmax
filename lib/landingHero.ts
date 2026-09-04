@@ -77,9 +77,19 @@ export const LANDING_FALLBACK_PRIMARY_LABEL = "Log what you paid";
 /**
  * The Pint Drop door for one pub: the map opens on that pub with the composer
  * open (`log=1` is the owned log intent `components/PubMap.tsx` honours).
+ *
+ * #1462 — the figure rides with the intent. A tap that says "Still £6.50?" and
+ * lands on an empty field is asking the reader to type back the number it just
+ * showed them, so the door carries the price the card printed and the composer
+ * opens holding it. It is a SEED and not a submission: `lib/mapLogIntent.ts`
+ * ignores anything that is not a positive GBP figure, the field stays editable,
+ * and nothing is written until the drinker presses Log it.
  */
-export function pintDropDoorHref(venueId: string): string {
-  return `${venueMapUrl(venueId)}&log=1`;
+export function pintDropDoorHref(venueId: string, priceGbp?: number): string {
+  const door = `${venueMapUrl(venueId)}&log=1`;
+  return typeof priceGbp === "number" && Number.isFinite(priceGbp) && priceGbp > 0
+    ? `${door}&price=${priceGbp.toFixed(2)}`
+    : door;
 }
 
 /** The line above the answer card. */
