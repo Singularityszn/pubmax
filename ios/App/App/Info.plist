@@ -22,6 +22,13 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- Export compliance. The app ships no encryption of its own: every
+	     byte it sends goes over HTTPS, which is the exempt case Apple
+	     names. Without this key App Store Connect marks EVERY uploaded
+	     build "Missing Compliance" and holds it out of TestFlight and
+	     review until somebody answers the question by hand, per upload. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>

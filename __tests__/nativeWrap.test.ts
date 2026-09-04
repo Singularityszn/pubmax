@@ -63,6 +63,20 @@ describe("Capacitor wrapped-build contract", () => {
     );
   });
 
+  it("answers export compliance in the build, not by hand on every upload", () => {
+    // Absent this key App Store Connect marks EVERY uploaded build "Missing
+    // Compliance" and holds it out of TestFlight and review until somebody
+    // answers the question by hand, once per upload. The honest answer is
+    // false: the app carries no encryption of its own and only ever talks
+    // HTTPS, which is the exempt case. A `<true/>` here would be a different
+    // claim entirely and would pull in the export paperwork, so the fence
+    // reads the VALUE rather than the key's presence.
+    const info = rootFile("ios/App/App/Info.plist");
+    expect(info).toContain(
+      "<key>ITSAppUsesNonExemptEncryption</key>\n\t<false/>",
+    );
+  });
+
   it("declares the camera on BOTH platforms, not just the one that says it in words", () => {
     // iOS states the camera in a sentence a person reads; Android states it in
     // a manifest line the operating system reads. They are ONE promise kept in
