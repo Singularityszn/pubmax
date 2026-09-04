@@ -84,25 +84,41 @@ reports through `lib/webVitals.ts` and the consent-gated `web_vital` event
 (`components/PerformanceVitals.tsx`), rounded and route-patterned, carrying no
 identifier.
 
-## The one route over its ceiling, and why the number stays
+## The regression the rig caught on its first sweep
 
-`/map` asks for **331 requests** before it is interactive, against a ceiling of
-**160**. The ceiling is not raised.
+`/map` asked for **331 requests** before it was interactive, against a ceiling of
+**160**. The ceiling was not raised. The cause was found and fixed, and the route
+now measures **125**.
 
-The same rig measured **148 and 149** on the commit before the map camera work
-landed, and **327 and 331** on two independently configured servers after it. The
-figure is stable inside a run (0% spread across three samples) and moved between
-those two commits, so it is a step rather than noise. Nothing else about the
-measurement changed across that pair.
+| | requests | LCP |
+| --- | --- | --- |
+| before the map camera work | 148, 149 | - |
+| after it | 327, 331 | 980 ms |
+| after the fix | **125** (samples 147 / 125 / 125) | **576 ms** |
 
-That is a regression, and catching it is what the throttled rig was added for. A
-ceiling raised to make it green would be the exact move `docs/PERFORMANCE_BUDGETS.md`
-forbids and `scripts/check-budget-ratchet.mjs` now refuses, so the number stays at
-160 and the sweep reports `/map` over budget until the route comes back under it.
+**What it was.** 243 of the 245 shard requests arrived inside one 250 ms burst,
+while the settled camera was an ordinary zoom 12 city view - so it was one read
+asking for the whole grid, not a camera wandering. Instrumenting `shardsForBounds`
+named it exactly: `inBounds` was being called twice, at ring 0 and ring 1, with
+bounds spanning **-7.99 to 1.19 and 49.8 to 61.0**. That is the United Kingdom,
+and it is `UK_BOUNDS`, the canvas's own `maxBounds`. MapLibre reports `maxBounds`
+as the visible bounds until the camera settles on the city, so a cold `/map`
+briefly says it is looking at the whole country, and the shard ring took it
+literally: all 244 London cells, twice, before the map was interactive.
 
-The map's pin-ready figure moved the same way: 2713 ms as the median of five runs
-after that change, against a 2500 ms target that came down from 4000 ms here. The
-target stays 2500 and the 213 ms is debt.
+**Why the existing guard did not catch it.** `viewportNamesNowhere` guards the
+PLACEHOLDER the map holds while the location question is open - centre `[0, 0]`
+at zoom 0. UK-wide bounds are a real centre at a real zoom, so they pass it.
+
+**The fix is that same rule applied to the bounds.** `boundsNameNowhere`
+(`lib/slimShards.ts`) refuses a shard read from bounds wider than
+`SHARD_READ_MAX_SPAN_DEGREES`, an order of magnitude above any real city view, and
+`components/PubMap.tsx` drops such a report at `handleMapBoundsChange` - the one
+door both the ring lane and the first load come through. A read is about a place,
+and a view spanning a country has none.
+
+The ceiling stays at **160** rather than ratcheting to the 125 median, because the
+widest sample in that run was 147. A later sweep can bank the rest.
 
 ## What each route actually parses
 
