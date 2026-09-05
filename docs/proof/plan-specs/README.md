@@ -5,7 +5,7 @@ Measured while making the red plan e2e specs green (branch
 
 ## The defect
 
-`.nightPill` — the way back into a plan that is on tonight — is a fixed
+`.nightPill` - the way back into a plan that is on tonight - is a fixed
 right-edge control that parks on the same band as the floating create action.
 It was the one member of the right-edge floating stack that published its
 geometry in its OWN stylesheet (`components/night/nightMode.css`) instead of
@@ -22,9 +22,9 @@ intercepts pointer events`.
 Two production builds of the same commit range, served on private ports and
 driven by a headless Chromium at `deviceScaleFactor: 2`:
 
-- **before** — `origin/main` at `2a5350cd5`, built in a throwaway worktree,
+- **before** - `origin/main` at `2a5350cd5`, built in a throwaway worktree,
   served on `:3182`.
-- **after** — this branch, served on `:3181`.
+- **after** - this branch, served on `:3181`.
 
 Each frame is `/tonight` with an active-plan pointer seeded, so both controls
 are on screen. The numbers are the two elements' own
@@ -34,8 +34,8 @@ are on screen. The numbers are the two elements' own
 
 | width | before | after |
 | --- | --- | --- |
-| 320 | pill top 726, create bottom 768 — **overlapping** | pill top 724, create bottom 712 — 12px clear |
-| 390 | pill top 726, create bottom 768 — **overlapping** | pill top 724, create bottom 712 — 12px clear |
+| 320 | pill top 726, create bottom 768 - **overlapping** | pill top 724, create bottom 712 - 12px clear |
+| 390 | pill top 726, create bottom 768 - **overlapping** | pill top 724, create bottom 712 - 12px clear |
 | 768 | pill top 842, no create action | pill top 842, no create action |
 | 1440 | pill top 842, no create action | pill top 842, no create action |
 

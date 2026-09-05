@@ -55,7 +55,7 @@ test("completed Plan recap stays inside 320px viewport and explicit discard surv
   await page.addInitScript(({ id, start, token }) => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     // The Night Mode card rides the deferred shell, which holds its whole tree
-    // for 30 s unless this documented E2E key releases it — longer than the
+    // for 30 s unless this documented E2E key releases it - longer than the
     // spec's own budget, so the pill this test taps was never drawn in time.
     window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
     window.localStorage.setItem("pubmax_active_plan", JSON.stringify({ id, startTime: start, stopIndex: 2 }));
