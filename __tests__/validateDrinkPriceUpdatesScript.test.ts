@@ -3,9 +3,20 @@
 // script as a subprocess against a temp copy of public/data/ so we exercise
 // real file I/O + real exit-code behaviour, not just a re-implementation of
 // its logic.
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterAll, beforeAll } from "vitest";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, writeFileSync, cpSync, rmSync, readFileSync, readdirSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  cpSync,
+  linkSync,
+  symlinkSync,
+  rmSync,
+  readFileSync,
+  readdirSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
@@ -25,15 +36,21 @@ const DETAIL_INDEX = join(ROOT, "data", "generated", "venue_detail_index.json");
 
 const tempDirs: string[] = [];
 
-// Build a scratch copy of the repo's public/data/ (the real bundled datasets
-// are needed too, since the script validates all of them in one run) plus a
-// drink_price_updates/ directory containing exactly the given file bodies.
-function setupScratch(files: Record<string, unknown>): string {
+// The 37 MB of bundled datasets the validator reads are the SAME bytes for every
+// case; only the small drink_price_updates/ bodies and a handful of mutated files
+// differ. So the copy happens ONCE (`beforeAll`) and each case gets a hard-linked
+// tree over it, which costs inodes rather than megabytes. A case that mutates a
+// file must break its link first, which is what `writeScratchFile` is for: writing
+// through a hard link would edit the shared base and leak into every later case.
+let baseScratchRoot = "";
+
+// Build the pristine scratch copy of the repo's public/data/ (the real bundled
+// datasets are needed too, since the script validates all of them in one run).
+function buildBaseScratch(): string {
   if (!existsSync(DETAIL_INDEX)) {
     execFileSync("node", [BUILD_SLIM_SCRIPT], { cwd: ROOT });
   }
-  const scratchRoot = mkdtempSync(join(tmpdir(), "validate-data-test-"));
-  tempDirs.push(scratchRoot);
+  const scratchRoot = mkdtempSync(join(tmpdir(), "validate-data-base-"));
   const scratchScripts = join(scratchRoot, "scripts");
   const scratchData = join(scratchRoot, "public", "data");
   const scratchGeneratedData = join(scratchRoot, "data", "generated");
@@ -215,12 +232,57 @@ function setupScratch(files: Record<string, unknown>): string {
   for (const f of ["venue_detail_index.json", "venue_details.jsonl"]) {
     cpSync(join(ROOT, "data", "generated", f), join(scratchGeneratedData, f));
   }
-  const drinkDir = join(scratchData, "drink_price_updates");
+  mkdirSync(join(scratchData, "drink_price_updates"), { recursive: true });
+  return scratchRoot;
+}
+
+/**
+ * Directories no case ever writes inside, symlinked whole rather than walked. The
+ * UK base layer alone is 652 shards, and linking them one by one per case costs
+ * more system time than the validation the case is there to run.
+ */
+const SHARED_SCRATCH_DIRECTORIES = new Set(["uk_base", "cities"]);
+
+/** Recreate `from` under `to` as directories plus hard links to the same bytes. */
+function linkTree(from: string, to: string): void {
+  mkdirSync(to, { recursive: true });
+  for (const entry of readdirSync(from, { withFileTypes: true })) {
+    const source = join(from, entry.name);
+    const target = join(to, entry.name);
+    if (entry.isDirectory()) {
+      if (SHARED_SCRATCH_DIRECTORIES.has(entry.name)) symlinkSync(source, target);
+      else linkTree(source, target);
+    } else linkSync(source, target);
+  }
+}
+
+/**
+ * A per-case scratch tree: the base datasets hard-linked in, plus exactly the
+ * given drink_price_updates/ bodies.
+ */
+function setupScratch(files: Record<string, unknown>): string {
+  const scratchRoot = mkdtempSync(join(tmpdir(), "validate-data-test-"));
+  tempDirs.push(scratchRoot);
+  linkTree(baseScratchRoot, scratchRoot);
+  const drinkDir = join(scratchRoot, "public", "data", "drink_price_updates");
   mkdirSync(drinkDir, { recursive: true });
   for (const [name, body] of Object.entries(files)) {
     writeFileSync(join(drinkDir, name), JSON.stringify(body), "utf8");
   }
-  return scratchScripts;
+  return join(scratchRoot, "scripts");
+}
+
+/**
+ * Replace a file in a case's scratch tree. The hard link is removed first, so the
+ * write lands on a new inode and the shared base is untouched.
+ */
+function writeScratchFile(
+  path: string,
+  body: string,
+  encoding: BufferEncoding = "utf8",
+): void {
+  rmSync(path, { force: true });
+  writeFileSync(path, body, encoding);
 }
 
 function runValidate(scriptsDir: string): { code: number; stdout: string } {
@@ -252,7 +314,7 @@ function injectLincolnArmsContradiction(scriptsDir: string) {
     latitude: 51.5332,
     longitude: -0.1222,
   };
-  writeFileSync(datasetPath, JSON.stringify(rows), "utf8");
+  writeScratchFile(datasetPath, JSON.stringify(rows), "utf8");
   return rows[0] as {
     app_price_id: string;
     pub_name: string;
@@ -294,14 +356,14 @@ function injectReassignedLincolnQuarantineLeak(scriptsDir: string) {
     latitude: lincoln.latitude + 0.00000005,
     longitude: lincoln.longitude - 0.00000005,
   });
-  writeFileSync(datasetPath, JSON.stringify(rows), "utf8");
+  writeScratchFile(datasetPath, JSON.stringify(rows), "utf8");
 }
 
 function writePostcodeCoordinateExceptions(
   scriptsDir: string,
   exceptions: unknown[],
 ) {
-  writeFileSync(
+  writeScratchFile(
     join(
       scriptsDir,
       "..",
@@ -354,14 +416,23 @@ function writePubmaxxingSnapshotWithAlcoholBuckets(
       ].filter(Boolean),
     ).size,
   };
-  writeFileSync(snapshotPath, JSON.stringify(snapshot), "utf8");
+  writeScratchFile(snapshotPath, JSON.stringify(snapshot), "utf8");
 }
 
-afterEach(() => {
+beforeAll(() => {
+  baseScratchRoot = buildBaseScratch();
+}, 300_000);
+
+afterAll(() => {
+  // Cases run concurrently, so each one's scratch tree is torn down at the END of
+  // the file rather than after each case: an afterEach purge would delete a tree a
+  // sibling case is still validating. A tree is hard links plus the few files a
+  // case rewrote, so 36 of them cost inodes, not 36 copies of the datasets.
   while (tempDirs.length > 0) {
     const dir = tempDirs.pop();
     if (dir) rmSync(dir, { recursive: true, force: true });
   }
+  if (baseScratchRoot) rmSync(baseScratchRoot, { recursive: true, force: true });
 });
 
 const GOOD_ROW = {
@@ -412,7 +483,7 @@ describe("validate-data.mjs drink-price-update extension", () => {
       observedAt: "2026-07-10T12:00:00.000Z",
       sourceId: "official-pub-1",
     }];
-    writeFileSync(snapshotPath, JSON.stringify(snapshot), "utf8");
+    writeScratchFile(snapshotPath, JSON.stringify(snapshot), "utf8");
     const { code, stdout } = runValidate(scriptsDir);
     expect(code).toBe(0);
     expect(stdout).toContain("PASS public/data/pint_index_snapshot.json: 1 public observations");
@@ -519,7 +590,7 @@ describe("validate-data.mjs drink-price-update extension", () => {
   it("FAILS when the file is not valid JSON", () => {
     const scriptsDir = setupScratch({});
     // Overwrite with malformed JSON directly (setupScratch only writes valid JSON).
-    writeFileSync(join(scriptsDir, "..", "public", "data", "drink_price_updates", "prices_broken.json"), "{not json", "utf8");
+    writeScratchFile(join(scriptsDir, "..", "public", "data", "drink_price_updates", "prices_broken.json"), "{not json", "utf8");
     const { code, stdout } = runValidate(scriptsDir);
     expect(code).toBe(1);
     expect(stdout).toContain("could not read/parse");
@@ -542,7 +613,7 @@ describe("validate-data.mjs slim venue index validation", () => {
       rows: Array<Record<string, unknown>>;
     };
     payload.rows[0] = { ...payload.rows[0], id: "venue-not-real" };
-    writeFileSync(
+    writeScratchFile(
       slimPath,
       JSON.stringify(payload),
       "utf8",
@@ -592,8 +663,8 @@ describe("validate-data.mjs slim venue index validation", () => {
     const secondPath = join(scriptsDir, "..", "public", "data", pair[1].url.replace(/^\/data\//, ""));
     const first = readFileSync(firstPath, "utf8");
     const second = readFileSync(secondPath, "utf8");
-    writeFileSync(firstPath, second, "utf8");
-    writeFileSync(secondPath, first, "utf8");
+    writeScratchFile(firstPath, second, "utf8");
+    writeScratchFile(secondPath, first, "utf8");
 
     const { code, stdout } = runValidate(scriptsDir);
 
@@ -615,7 +686,7 @@ describe("validate-data.mjs slim venue index validation", () => {
       rows: Array<Record<string, unknown>>;
     };
     payload.rows[0] = { ...payload.rows[0], name: "Wrong Arms" };
-    writeFileSync(shardPath, JSON.stringify(payload), "utf8");
+    writeScratchFile(shardPath, JSON.stringify(payload), "utf8");
 
     const { code, stdout } = runValidate(scriptsDir);
 
@@ -690,7 +761,7 @@ describe("validate-data.mjs postcode-coordinate validation", () => {
     );
     const registry = JSON.parse(readFileSync(registryPath, "utf8"));
     registry.rows[0].appPriceId = "app_price_999999";
-    writeFileSync(registryPath, JSON.stringify(registry), "utf8");
+    writeScratchFile(registryPath, JSON.stringify(registry), "utf8");
 
     const { code, stdout } = runValidate(scriptsDir);
 
@@ -727,7 +798,7 @@ describe("validate-data.mjs postcode-coordinate validation", () => {
     );
     lincoln.latitude = 51.6415276;
     lincoln.longitude = -0.0687715;
-    writeFileSync(registryPath, JSON.stringify(registry), "utf8");
+    writeScratchFile(registryPath, JSON.stringify(registry), "utf8");
 
     const { code, stdout } = runValidate(scriptsDir);
 
@@ -750,7 +821,7 @@ describe("validate-data.mjs postcode-coordinate validation", () => {
     registry.rows[0].reason = "";
     delete registry.rows[1].longitude;
     registry.rows.push({ ...registry.rows[2] });
-    writeFileSync(registryPath, JSON.stringify(registry), "utf8");
+    writeScratchFile(registryPath, JSON.stringify(registry), "utf8");
 
     const { code, stdout } = runValidate(scriptsDir);
 
@@ -769,7 +840,7 @@ describe("validate-data.mjs pubmaxxing seed validation", () => {
     const snapshotPath = join(scriptsDir, "..", "public", "data", "pubmaxxing_seed_snapshot.json");
     const snapshot = JSON.parse(readFileSync(snapshotPath, "utf8"));
     snapshot.beverages[0] = { ...snapshot.beverages[0], isAlcoholic: "maybe" };
-    writeFileSync(snapshotPath, JSON.stringify(snapshot), "utf8");
+    writeScratchFile(snapshotPath, JSON.stringify(snapshot), "utf8");
 
     const { code, stdout } = runValidate(scriptsDir);
 
@@ -810,7 +881,7 @@ describe("validate-data.mjs pubmaxxing seed validation", () => {
     const snapshotPath = join(scriptsDir, "..", "public", "data", "pubmaxxing_seed_snapshot.json");
     const snapshot = JSON.parse(readFileSync(snapshotPath, "utf8"));
     snapshot.summary = { ...snapshot.summary, beverageRows: snapshot.beverages.length + 1 };
-    writeFileSync(snapshotPath, JSON.stringify(snapshot), "utf8");
+    writeScratchFile(snapshotPath, JSON.stringify(snapshot), "utf8");
 
     const { code, stdout } = runValidate(scriptsDir);
 
@@ -897,7 +968,7 @@ describe("validate-data.mjs artifact resilience (required vs optional)", () => {
     const snapshotPath = join(scriptsDir, "..", "public", "data", "pubmaxxing_seed_snapshot.json");
     const snapshot = JSON.parse(readFileSync(snapshotPath, "utf8"));
     snapshot.pubs[0] = { ...snapshot.pubs[0], pubId: "" };
-    writeFileSync(snapshotPath, JSON.stringify(snapshot), "utf8");
+    writeScratchFile(snapshotPath, JSON.stringify(snapshot), "utf8");
 
     const { code, stdout } = runValidate(scriptsDir);
 
@@ -921,7 +992,7 @@ describe("validate-data.mjs venue detail row validation", () => {
 
   it("FAILS when a detail row id does not match its grouped price rows", () => {
     const scriptsDir = setupScratch({});
-    writeFileSync(
+    writeScratchFile(
       join(scriptsDir, "..", "data", "generated", "venue_detail_index.json"),
       JSON.stringify({
         version: 1,
@@ -937,7 +1008,7 @@ describe("validate-data.mjs venue detail row validation", () => {
       }),
       "utf8",
     );
-    writeFileSync(
+    writeScratchFile(
       join(scriptsDir, "..", "data", "generated", "venue_details.jsonl"),
       `${JSON.stringify({ id: "venue-not-real", rows: [] })}\n`,
       "utf8",
