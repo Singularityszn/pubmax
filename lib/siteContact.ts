@@ -1,12 +1,7 @@
-// The one public contact address for PUBMAXXING — press, privacy requests,
-// data-rights requests, and anything else a reader needs to reach a human on.
+// The app's door onto the one public contact address.
 //
-// ONE constant on purpose: /privacy, /terms and /about (including the
-// Organization JSON-LD) all read it, so moving to a company inbox later is a
-// single-line change with no page left quoting a dead address. Only put an
-// address here that is actually monitored — a privacy notice that names an
-// inbox nobody reads is worse than no address at all.
-export const CONTACT_EMAIL = "karanszdy@gmail.com";
-
-/** `mailto:` href for the same address, so callers never rebuild the string. */
-export const CONTACT_MAILTO = `mailto:${CONTACT_EMAIL}`;
+// The address itself lives in lib/siteContact.mjs, which the plain-node scripts
+// under scripts/ read for their crawler user-agent headers. This file exists so
+// every app surface keeps importing "@/lib/siteContact" unchanged, and so there
+// is still exactly ONE place the address is written down.
+export { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/siteContact.mjs";

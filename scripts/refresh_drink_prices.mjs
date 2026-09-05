@@ -53,6 +53,8 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
+import { CONTACT_EMAIL } from "../lib/siteContact.mjs";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const ALLOWLIST_PATH = join(ROOT, "data", "price_sources.json");
@@ -138,7 +140,7 @@ function loadAllowlist() {
 // --- Wetherspoons first-party fetcher (Wave 3) --------------------------------
 
 const UA =
-  "PubMaxxingBot/1.0 (+https://pubmaxxing.app; drink-price research; contact karanszdy@gmail.com)";
+  `PubMaxxingBot/1.0 (+https://pubmaxxing.app; drink-price research; contact ${CONTACT_EMAIL})`;
 const WETHERSPOONS_HOST = "https://www.jdwetherspoon.com";
 const SITEMAP_URL = `${WETHERSPOONS_HOST}/pub-menus-sitemap.xml`;
 // Politeness: site's robots.txt asks Crawl-delay: 10. Honour it (>= our own 1s

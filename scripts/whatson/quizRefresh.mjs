@@ -44,6 +44,7 @@ import {
   buildQuestionOneRows,
 } from "./quizParsers.mjs";
 import { loadCanonicalVenueIndex } from "./resolveVenueId.mjs";
+import { CONTACT_EMAIL } from "../../lib/siteContact.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT_PATH = join(ROOT, "public", "data", "whats_on", "quiz_london.json");
@@ -51,7 +52,7 @@ const OUT_PATH = join(ROOT, "public", "data", "whats_on", "quiz_london.json");
 const QO_VENUES_URL = "https://questionone.com/venues/";
 const SQ_FIND_URL = "https://www.speedquizzing.com/find/";
 const USER_AGENT =
-  "PubmaxxingBot/0.1 (+https://pubmaxxing.com; what's-on data curation; contact karanszdy@gmail.com)";
+  `PubmaxxingBot/0.1 (+https://pubmaxxing.com; what's-on data curation; contact ${CONTACT_EMAIL})`;
 const FETCH_DELAY_MS = 1500;
 const MAX_ARCHIVE_PAGES = 30;
 

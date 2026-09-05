@@ -244,7 +244,7 @@ Migrations before `0065` have no rollback files at all. Treat any rollback need 
 
 ### 5.1 Where users report problems
 
-The site's one public contact address is `CONTACT_EMAIL` in `lib/siteContact.ts`. Read it from that file rather than copying the address into a message; the file is the single place the app itself uses, and it can change without this runbook going stale.
+The site's one public contact address is `CONTACT_EMAIL` in `lib/siteContact.mjs` (`lib/siteContact.ts` is the app's door onto it). Read it from that file rather than copying the address into a message; the file is the single place the app and the crawler scripts both use, and it can change without this runbook going stale. It is a mailbox the captain owns; docs/STORE_READINESS.md section 8 carries the step that makes it answer.
 
 ### 5.2 Social moderation rota
 

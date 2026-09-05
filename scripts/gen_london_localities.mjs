@@ -43,6 +43,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 import { haversineKmLngLat } from "./lib/geo.mjs";
+import { CONTACT_EMAIL } from "../lib/siteContact.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, "..");
@@ -53,7 +54,7 @@ const OUT_PATH = join(ROOT_DIR, "public", "data", "london_localities.json");
 // the recorded bbox the validator checks every row against.
 const BBOX = { latMin: 51.26, lonMin: -0.55, latMax: 51.72, lonMax: 0.3 };
 
-const USER_AGENT = "pubmax-london-localities/1.0 (https://pubmaxxing.com; karanszdy@gmail.com)";
+const USER_AGENT = `pubmax-london-localities/1.0 (https://pubmaxxing.com; ${CONTACT_EMAIL})`;
 
 // Public Overpass endpoints, tried in order. The generator is resilient to a
 // single busy mirror; the data is identical whichever one answers.

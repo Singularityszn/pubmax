@@ -20,6 +20,7 @@ import {
   refreshCommonEvents,
   toCommonEventRow,
 } from "../scripts/whatson/commonRefresh.mjs";
+import { CONTACT_EMAIL } from "@/lib/siteContact";
 import { isValidWhatsOnRow, parseWhatsOnRows } from "@/lib/whatsOn";
 
 const TODAY = "2026-08-16";
@@ -343,7 +344,7 @@ describe("sitemap + UA", () => {
 
   it("names PUBMAXX and the public contact in the UA string", () => {
     expect(COMMON_USER_AGENT).toMatch(/PUBMAXX/);
-    expect(COMMON_USER_AGENT).toMatch(/karanszdy@gmail\.com/);
+    expect(COMMON_USER_AGENT).toContain(CONTACT_EMAIL);
     expect(COMMON_SOURCE.label).toBe("common");
   });
 });
