@@ -110,8 +110,16 @@ test("the picker is readable before the action it changes", async ({ page }) => 
   await expect(picker).toBeVisible();
   await expect(primary).toBeVisible();
 
-  const pickerBox = await picker.boundingBox();
-  const primaryBox = await primary.boundingBox();
-  if (!pickerBox || !primaryBox) throw new Error("expected both controls to be laid out");
-  expect(pickerBox.y + pickerBox.height).toBeLessThanOrEqual(primaryBox.y);
+  // Measure both boxes together and retry the pair. `toBeVisible` passing does
+  // not promise the node survives to the next call: describe-first adopts its
+  // prefill in a deferred effect, so a re-render can detach the element between
+  // the assertion and the measurement, and boundingBox then answers null. That
+  // is a measuring artefact, not a layout the reader ever sees, and under load
+  // it is what turned this into a flake. The claim is unchanged.
+  await expect(async () => {
+    const pickerBox = await picker.boundingBox();
+    const primaryBox = await primary.boundingBox();
+    if (!pickerBox || !primaryBox) throw new Error("expected both controls to be laid out");
+    expect(pickerBox.y + pickerBox.height).toBeLessThanOrEqual(primaryBox.y);
+  }).toPass({ timeout: 15_000 });
 });
