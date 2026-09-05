@@ -20,6 +20,7 @@ import {
   type StoryContributor,
   type StoryContributorRole,
 } from "@/lib/nightMemory";
+import { selectStore } from "@/lib/storeBackend";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { profileStore } from "@/lib/profileStore";
 import type { PendingPlanRecap } from "@/lib/planRecap";
@@ -396,7 +397,17 @@ export async function removeNightMoment(
   momentId: string,
 ): Promise<NightRemovalResult> {
   if (!ownerId || !momentId) return refusal("not_found");
-  if (!isSupabaseConfigured()) {
+  // The backend is chosen through the ONE seam (lib/storeBackend.ts) rather
+  // than a twenty-fifth hand-rolled branch in this module: the inventory row
+  // for this store (`__tests__/storeInventory.test.ts`) may only ever shrink.
+  return selectStore(removeMomentFromMemory, removeMomentFromDatabase)(ownerId, momentId);
+}
+
+async function removeMomentFromMemory(
+  ownerId: string,
+  momentId: string,
+): Promise<NightRemovalResult> {
+  {
     const moment = moments.get(momentId);
     if (!moment || moment.ownerId !== ownerId) return refusal("not_found");
     const published = [...stories.values()].some(
@@ -409,6 +420,12 @@ export async function removeNightMoment(
     }
     return { ok: true, mediaObjectKeys: moment.mediaObjectKey ? [moment.mediaObjectKey] : [] };
   }
+}
+
+async function removeMomentFromDatabase(
+  ownerId: string,
+  momentId: string,
+): Promise<NightRemovalResult> {
   const admin = requireSupabaseAdmin();
   const read = await admin
     .from("night_moments")
@@ -464,7 +481,14 @@ export async function removeNightMemory(
   memoryId: string,
 ): Promise<NightRemovalResult> {
   if (!ownerId || !memoryId) return refusal("not_found");
-  if (!isSupabaseConfigured()) {
+  return selectStore(removeMemoryFromMemory, removeMemoryFromDatabase)(ownerId, memoryId);
+}
+
+async function removeMemoryFromMemory(
+  ownerId: string,
+  memoryId: string,
+): Promise<NightRemovalResult> {
+  {
     const memory = memories.get(memoryId);
     if (!memory || memory.ownerId !== ownerId) return refusal("not_found");
     const memoryStories = [...stories.values()].filter((story) => story.memoryId === memoryId);
@@ -485,6 +509,12 @@ export async function removeNightMemory(
         .filter((key): key is string => Boolean(key)),
     };
   }
+}
+
+async function removeMemoryFromDatabase(
+  ownerId: string,
+  memoryId: string,
+): Promise<NightRemovalResult> {
   const admin = requireSupabaseAdmin();
   const storyRead = await admin
     .from("night_stories")
