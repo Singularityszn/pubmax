@@ -58,16 +58,22 @@ if (stampedSha) {
   );
 }
 
-const args = [
+const deployArgs = [
   "deploy",
   ...Object.entries(buildEnv).flatMap(([key, value]) => ["--build-env", `${key}=${value}`]),
   ...process.argv.slice(2),
 ];
 
-const result = spawnSync("vercel", args, { cwd: projectRoot, stdio: "inherit" });
+// No Vercel CLI is a dependency of this repo and none is assumed to be on the
+// PATH, so npx fetches one unless an operator names the binary they want.
+const cliBinary = process.env.PUBMAX_VERCEL_BIN;
+const command = cliBinary ?? "npx";
+const args = cliBinary ? deployArgs : ["-y", "vercel@latest", ...deployArgs];
+
+const result = spawnSync(command, args, { cwd: projectRoot, stdio: "inherit" });
 
 if (result.error) {
-  console.error(`Could not run vercel: ${result.error.message}`);
+  console.error(`Could not run ${command}: ${result.error.message}`);
   process.exit(1);
 }
 
