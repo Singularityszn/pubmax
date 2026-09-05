@@ -27,6 +27,7 @@ import {
 } from "@/lib/pintDropConfirmation";
 import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
 import { pintDropsStore } from "@/lib/pintDropsStore";
+import { pintTrustFor, type PintTrustState } from "@/lib/pintTrust";
 
 function mint(
   basis: PintDropConfirmation["basis"],
@@ -118,6 +119,41 @@ export async function confirmPintDropByModerator(
     confirmationId: confirmation.confirmationId,
   });
   return confirmation;
+}
+
+/**
+ * The venue's whole pint TRUST STATE, or null when the reading could not be
+ * taken. Battle test D07.
+ *
+ * The mission receipt used to word itself from `community_prices`
+ * corroborations while the sheet's head, chip and drop row wore the Pint Drop
+ * lane's own state, and over one pub the two disagreed: the receipt printed
+ * "Price is trusted now." above a head reading "Logged once, needs a second
+ * drinker", because a seeded community row from a second actor is not a second
+ * PINT DROP carrying an authority key. Two lanes, two readings, and the receipt
+ * took the stronger word.
+ *
+ * There is one reading of that story and it is `pintTrustFor`. This is the
+ * server seam onto it, so a browser holding no drops - `/near`'s mission slot
+ * holds none at all - can still be told what the pub's trust state became.
+ *
+ * Null is honest and is NOT "no trust": a caller that cannot read the state
+ * must decline to claim one rather than fall back to a weaker lane's word.
+ * Never throws, for the reason the pass does not: this rides a create path.
+ */
+export async function readVenuePintTrust(
+  venueId: string,
+  now: number = Date.now(),
+): Promise<PintTrustState | null> {
+  try {
+    const candidates = await pintDropsStore().listConfirmationCandidates(venueId);
+    return pintTrustFor(candidates, now).state;
+  } catch (err) {
+    log("warn", "pint_drop.trust_read_failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
 }
 
 /** The venue's live confirmation, or null. Read seam for a server surface that

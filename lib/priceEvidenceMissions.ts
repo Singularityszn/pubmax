@@ -12,6 +12,8 @@ import {
   type CommunityPrice,
 } from "@/lib/communityPrice";
 import { isMapLensDrinkCategory, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
+// Type-only, so this browser-safe module pulls no drop-lane runtime behind it.
+import type { PintTrustState } from "@/lib/pintTrust";
 import { drinkLensPriceNoun } from "@/lib/mapExperienceLens";
 import type { MissionSurface } from "@/lib/analyticsEvents";
 
@@ -198,14 +200,60 @@ export function toPriceEvidenceMissionDto(
   return dto;
 }
 
+/**
+ * What the receipt may say about a BEER write, read off the pint trust story
+ * rather than off community corroborations (battle test D07).
+ *
+ * The two lanes are different questions. `isCorroborated` counts independent
+ * COMMUNITY PRICE submitters; `pintTrustFor` reads the PINT DROP lane, where
+ * independence is an authority key derived from a verified account. Over one
+ * pub they disagreed - a seeded community row from a second actor is not a
+ * second Pint Drop - and the receipt printed "Price is trusted now." above a
+ * head reading "Logged once, needs a second drinker".
+ *
+ * So for beer the drop lane's state decides, and nothing else does. A state we
+ * could not read answers null, and the caller then declines to claim trust
+ * instead of falling back to the lane that was wrong.
+ */
+function beerReceiptFromTrust(trust: PintTrustState): MissionReceipt {
+  switch (trust) {
+    case "confirmed":
+    case "corroborated":
+      return { outcome: "trusted", line: "Price is trusted now." };
+    case "logged-once":
+      return {
+        outcome: "needs_check",
+        line: "Another independent check is still needed.",
+      };
+    default:
+      // `aged-out` and `none` are both "nothing here speaks for tonight yet",
+      // and neither may be worded as a check that is nearly done.
+      return { outcome: "logged", line: "Logged." };
+  }
+}
+
 export function missionReceiptFromReadback(input: {
   price: CommunityPrice | null;
+  /**
+   * The venue's pint trust state as the SERVER read it after this write
+   * (`readVenuePintTrust`). Present on a beer write, absent on every other
+   * category, and null when the read could not be taken.
+   */
+  pintTrust?: PintTrustState | null;
   now?: number;
 }): MissionReceipt {
   const now = input.now ?? Date.now();
   const price = input.price;
   if (!price) {
     return { outcome: "logged", line: "Logged." };
+  }
+  // BEER IS THE PINT LANE'S QUESTION, and it is asked of the pint lane. A read
+  // we could not take says "Logged." rather than borrowing the other lane's
+  // stronger word, which is the whole of what D07 was.
+  if (price.drinkCategory === "beer") {
+    return input.pintTrust
+      ? beerReceiptFromTrust(input.pintTrust)
+      : { outcome: "logged", line: "Logged." };
   }
   if (isWithinMaxAge(price, now) && isCorroborated(price)) {
     if (!isMapLensDrinkCategory(price.drinkCategory)) {

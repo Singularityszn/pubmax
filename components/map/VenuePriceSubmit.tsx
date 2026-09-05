@@ -343,7 +343,10 @@ export default function VenuePriceSubmit({
       // EVERY confirmed submission, not only inside a mission: the corroboration
       // rate is submissions that reached the map over submissions made, and
       // mission_submitted can only ever give it a denominator of missions.
-      const readback = missionReceiptFromReadback({ price: result.price });
+      const readback = missionReceiptFromReadback({
+        price: result.price,
+        pintTrust: result.pintTrust,
+      });
       trackEvent("price_submit_outcome", { category, outcome: readback.outcome });
       const missionReceipt = mission ? readback : undefined;
       if (mission && missionReceipt) {

@@ -120,9 +120,12 @@ describe("price_submit_outcome (what a logged price turned out to be worth)", ()
 
   it("fires for every confirmed submission, not only inside a mission", () => {
     const source = read("components/map/VenuePriceSubmit.tsx");
-    // The read-back is derived unconditionally, then the mission branch reuses it.
+    // The read-back is derived unconditionally, then the mission branch reuses
+    // it. The `pintTrust` argument is pinned too (battle test D07): dropping it
+    // would put the beer receipt back on community corroborations, which is the
+    // reading that disagreed with the sheet's own head.
     expect(source).toMatch(
-      /const readback = missionReceiptFromReadback\(\{ price: result\.price \}\);\s*\n\s*trackEvent\("price_submit_outcome", \{ category, outcome: readback\.outcome \}\);/,
+      /const readback = missionReceiptFromReadback\(\{[\s\S]{0,160}?pintTrust: result\.pintTrust,[\s\S]{0,40}?\}\);\s*\n\s*trackEvent\("price_submit_outcome", \{ category, outcome: readback\.outcome \}\);/,
     );
     expect(source).toContain("const missionReceipt = mission ? readback : undefined;");
   });
