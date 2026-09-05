@@ -868,6 +868,12 @@
   .mobileVenuePeekSummary strong { white-space: nowrap; font-family: var(--font-data); font-size: var(--text-md); }
   /* "Near me" is one phrase. A narrow peek column must not break it mid-word. */
   .mobileVenuePeekSummary .mobileVenuePeekNearMe { white-space: nowrap; }
+  /* --font-data is the figures face, and this cell prints a figure only when
+     the reader has shared a location. Without one it prints the words
+     "Near me", which in the figures face read as a machine label beside a
+     display-face pub name. The phrase takes the body face; the walk time it is
+     replaced by keeps the figures face, because that is what it is. */
+  .mobileVenuePeekSummary .mobileVenuePeekNearMe.isPhrase { font-family: var(--font-body); }
   /* Never ellipsis the caption. This line is what the number above it MEANS
      ("current recorded price"), and at 390px the nowrap+ellipsis cut it to
      "current recorded pri…" - a price with its own label truncated reads as a
