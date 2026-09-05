@@ -135,22 +135,48 @@ jobs:
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm ci
 
-      # Postgres/PostgREST proofs live in rls-session.yml. Hosted images can
-      # expose partial postgres client/server tools, which makes the RLS harness
-      # fail hard instead of skip; force the loud-skip path and omit the
-      # migration/RLS suites that need a real cluster.
+      # Postgres/PostgREST proofs live in rls-session.yml, the one job that
+      # installs a cluster. This job excludes exactly the suites named in
+      # scripts/rls/postgresSuites.mjs, and __tests__/postgresSuiteInventory.
+      # test.ts holds the two lists to each other, so a new proof cannot land
+      # in a job with no PostgreSQL and report itself skipped while the job
+      # stays green. PUBMAX_RLS_NO_PG=1 stays set because a hosted image can
+      # expose partial client tools; with the suites excluded it changes
+      # nothing here and keeps a stray probe on the loud-skip path.
       - name: Unit tests
         env:
           PUBMAX_RLS_NO_PG: "1"
         run: >-
           npx vitest run
           --shard=${{ matrix.shard }}/4
+          --exclude '__tests__/accountRemovalMigrationEffective.test.ts'
+          --exclude '__tests__/foundingMembersMigration.test.ts'
+          --exclude '__tests__/handleClaimNoInheritanceMigration.test.ts'
+          --exclude '__tests__/harvestOverlayMigration.test.ts'
+          --exclude '__tests__/nightSignalCheckpointMigrationEffective.test.ts'
+          --exclude '__tests__/occupancyMigration0109.test.ts'
+          --exclude '__tests__/occupancyMigrationEffective.test.ts'
+          --exclude '__tests__/oneTapPricePairRemovalEffective.test.ts'
+          --exclude '__tests__/openSocialCrewsMigration.test.ts'
+          --exclude '__tests__/permissionMatrixEffective.test.ts'
+          --exclude '__tests__/pintDropConfirmationsMigrationEffective.test.ts'
+          --exclude '__tests__/pintDropDailyCapAtomicEffective.test.ts'
+          --exclude '__tests__/pintDropMeasureMigrationEffective.test.ts'
+          --exclude '__tests__/pintDropVerifiedReportsMigrationEffective.test.ts'
+          --exclude '__tests__/planAccountTransitionMigrationEffective.test.ts'
+          --exclude '__tests__/planJoinRevokedPrecheckEffective.test.ts'
+          --exclude '__tests__/planLegacyReplayCapabilityEffective.test.ts'
+          --exclude '__tests__/priceTrustEventsMigrationEffective.test.ts'
+          --exclude '__tests__/rateLimitExpiryMigration.test.ts'
           --exclude '__tests__/rlsWave2Session.test.ts'
+          --exclude '__tests__/socialComposerMigration.test.ts'
           --exclude '__tests__/socialCrewLegacyRoutesRls.test.ts'
           --exclude '__tests__/socialCrewMigration.test.ts'
-          --exclude '__tests__/pintDropVerifiedReportsMigrationEffective.test.ts'
+          --exclude '__tests__/socialIdentityMigration.test.ts'
+          --exclude '__tests__/socialInteractionsMigration.test.ts'
+          --exclude '__tests__/socialPostsMigration.test.ts'
           --exclude '__tests__/wantedPromotionMigrationEffective.test.ts'
-          --exclude '__tests__/**/*Migration.test.ts'
+          --exclude '__tests__/whatsOnListingsMigration.test.ts'
 
   coverage:
     name: Coverage
@@ -181,12 +207,34 @@ jobs:
           PUBMAX_RLS_NO_PG: "1"
         run: >-
           npm run coverage --
+          --exclude '__tests__/accountRemovalMigrationEffective.test.ts'
+          --exclude '__tests__/foundingMembersMigration.test.ts'
+          --exclude '__tests__/handleClaimNoInheritanceMigration.test.ts'
+          --exclude '__tests__/harvestOverlayMigration.test.ts'
+          --exclude '__tests__/nightSignalCheckpointMigrationEffective.test.ts'
+          --exclude '__tests__/occupancyMigration0109.test.ts'
+          --exclude '__tests__/occupancyMigrationEffective.test.ts'
+          --exclude '__tests__/oneTapPricePairRemovalEffective.test.ts'
+          --exclude '__tests__/openSocialCrewsMigration.test.ts'
+          --exclude '__tests__/permissionMatrixEffective.test.ts'
+          --exclude '__tests__/pintDropConfirmationsMigrationEffective.test.ts'
+          --exclude '__tests__/pintDropDailyCapAtomicEffective.test.ts'
+          --exclude '__tests__/pintDropMeasureMigrationEffective.test.ts'
+          --exclude '__tests__/pintDropVerifiedReportsMigrationEffective.test.ts'
+          --exclude '__tests__/planAccountTransitionMigrationEffective.test.ts'
+          --exclude '__tests__/planJoinRevokedPrecheckEffective.test.ts'
+          --exclude '__tests__/planLegacyReplayCapabilityEffective.test.ts'
+          --exclude '__tests__/priceTrustEventsMigrationEffective.test.ts'
+          --exclude '__tests__/rateLimitExpiryMigration.test.ts'
           --exclude '__tests__/rlsWave2Session.test.ts'
+          --exclude '__tests__/socialComposerMigration.test.ts'
           --exclude '__tests__/socialCrewLegacyRoutesRls.test.ts'
           --exclude '__tests__/socialCrewMigration.test.ts'
-          --exclude '__tests__/pintDropVerifiedReportsMigrationEffective.test.ts'
+          --exclude '__tests__/socialIdentityMigration.test.ts'
+          --exclude '__tests__/socialInteractionsMigration.test.ts'
+          --exclude '__tests__/socialPostsMigration.test.ts'
           --exclude '__tests__/wantedPromotionMigrationEffective.test.ts'
-          --exclude '__tests__/**/*Migration.test.ts'
+          --exclude '__tests__/whatsOnListingsMigration.test.ts'
 
   freshness:
     name: Freshness release gate

@@ -4,13 +4,18 @@
 // then to recovered capability R. An old K request must conflict while R is
 // current; rolling back must deliberately restore the old replay behaviour.
 
-import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import {
+  postgresSkipReason,
+  startPostgres,
+  type PostgresSession,
+} from "./helpers/postgres";
+
+const skipReason = postgresSkipReason();
 
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
@@ -44,196 +49,15 @@ const INVITE_ID = "00000000-0000-4000-8000-0000000000d1";
 const REVOKED_INVITE_ID = "00000000-0000-4000-8000-0000000000d2";
 const WHEN = "2026-09-03 12:00:00+00";
 
-type Session = {
-  sql: (statement: string) => string;
-  applyFile: (path: string) => void;
-  stop: () => Promise<void>;
-};
+let database: PostgresSession | null = null;
 
-async function waitForExit(processHandle: ReturnType<typeof spawn>, timeoutMs: number): Promise<void> {
-  if (processHandle.exitCode !== null || processHandle.signalCode !== null) return;
-  await new Promise<void>((resolve) => {
-    const timer = setTimeout(resolve, timeoutMs);
-    processHandle.once("exit", () => {
-      clearTimeout(timer);
-      resolve();
-    });
-  });
-}
-
-function findPostgresBinary(name: "initdb" | "postgres" | "psql"): string | null {
-  const candidates = [
-    `/opt/homebrew/opt/postgresql@16/bin/${name}`,
-    `/usr/local/opt/postgresql@16/bin/${name}`,
-    `/usr/lib/postgresql/16/bin/${name}`,
-    `/opt/homebrew/bin/${name}`,
-    `/usr/bin/${name}`,
-  ];
-  const isPostgres16 = (candidate: string): boolean => {
-    try {
-      const version = execFileSync(candidate, ["--version"], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-      return /\bPostgreSQL\)?\s+16(?:\.|\s|$)/i.test(version);
-    } catch {
-      return false;
-    }
-  };
-  for (const candidate of candidates) {
-    if (existsSync(candidate) && isPostgres16(candidate)) return candidate;
-  }
-  try {
-    const candidate = execFileSync("which", [name], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    }).trim();
-    return candidate !== "" && isPostgres16(candidate) ? candidate : null;
-  } catch {
-    return null;
-  }
-}
-
-function missingPostgresReason(): string | null {
-  if (process.env.PUBMAX_PLAN_LEGACY_REPLAY_NO_PG === "1") {
-    return "PostgreSQL binaries were deliberately hidden by PUBMAX_PLAN_LEGACY_REPLAY_NO_PG=1.";
-  }
-  const missing = (["initdb", "postgres", "psql"] as const).filter(
-    (name) => findPostgresBinary(name) === null,
-  );
-  return missing.length > 0
-    ? `PostgreSQL 16 binaries unavailable for: ${missing.join(", ")}. Each binary must report major version 16 to run the 0137 replay proof.`
-    : null;
-}
-
-async function pickPort(): Promise<number> {
-  const { createServer } = await import("node:net");
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : 0;
-      server.close(() => resolve(port));
-    });
-    server.on("error", reject);
-  });
-}
-
-async function startPostgres(): Promise<Session> {
-  const initdb = findPostgresBinary("initdb");
-  const postgres = findPostgresBinary("postgres");
-  const psql = findPostgresBinary("psql");
-  if (!initdb || !postgres || !psql) {
-    throw new Error(missingPostgresReason() ?? "PostgreSQL binaries unavailable.");
-  }
-
-  const dataDir = mkdtempSync(join(tmpdir(), "pubmax-plan-legacy-replay-0137-"));
-  let handle: ReturnType<typeof spawn> | null = null;
-  try {
-    const port = await pickPort();
-    execFileSync(
-      initdb,
-      ["-D", dataDir, "--locale=C", "-E", "UTF8", "--username=postgres", "--auth=trust"],
-      { stdio: "pipe" },
-    );
-    writeFileSync(
-      join(dataDir, "postgresql.auto.conf"),
-      [
-        "listen_addresses = '127.0.0.1'",
-        `port = ${port}`,
-        "max_connections = 12",
-        "shared_buffers = 16MB",
-        "fsync = off",
-        "full_page_writes = off",
-        "synchronous_commit = off",
-      ].join("\n") + "\n",
-    );
-
-    const processHandle = spawn(
-      postgres,
-      ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"],
-      { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, LC_ALL: "C" } },
-    );
-    handle = processHandle;
-    const logs: string[] = [];
-    processHandle.stdout?.on("data", (chunk) => logs.push(chunk.toString()));
-    processHandle.stderr?.on("data", (chunk) => logs.push(chunk.toString()));
-
-    const connectionArgs = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
-    let ready = false;
-    for (let attempt = 0; attempt < 60; attempt += 1) {
-      try {
-        execFileSync(psql, [...connectionArgs, "-d", "postgres", "-c", "select 1"], {
-          stdio: "pipe",
-        });
-        ready = true;
-        break;
-      } catch {
-        await sleep(100);
-      }
-    }
-    if (!ready) throw new Error(`PostgreSQL failed to start:\n${logs.join("")}`);
-
-    const database = "pubmax_plan_legacy_replay_0137";
-    execFileSync(
-      psql,
-      [...connectionArgs, "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c", `create database ${database}`],
-      { stdio: "pipe" },
-    );
-    const databaseArgs = [...connectionArgs, "-d", database, "-v", "ON_ERROR_STOP=1"];
-
-    const sql = (statement: string): string =>
-      execFileSync(psql, [...databaseArgs, "-t", "-A", "-c", statement], {
-        encoding: "utf8",
-        stdio: ["pipe", "pipe", "pipe"],
-      })
-        .trim()
-        .split("\n")
-        .filter((line) => line.trim() !== "SET")
-        .join("\n")
-        .trim();
-
-    const applyFile = (path: string): void => {
-      execFileSync(psql, [...databaseArgs, "-f", path], { stdio: "pipe" });
-    };
-
-    const stop = async (): Promise<void> => {
-      if (processHandle.exitCode === null && processHandle.signalCode === null) {
-        processHandle.kill("SIGINT");
-        await waitForExit(processHandle, 5_000);
-      }
-      if (processHandle.exitCode === null && processHandle.signalCode === null) {
-        processHandle.kill("SIGTERM");
-        await waitForExit(processHandle, 2_000);
-      }
-      if (processHandle.exitCode === null && processHandle.signalCode === null) {
-        processHandle.kill("SIGKILL");
-        await waitForExit(processHandle, 5_000);
-      }
-      rmSync(dataDir, { recursive: true, force: true });
-    };
-
-    return { sql, applyFile, stop };
-  } catch (error) {
-    if (handle && handle.exitCode === null && handle.signalCode === null) {
-      handle.kill("SIGKILL");
-      await waitForExit(handle, 5_000);
-    }
-    rmSync(dataDir, { recursive: true, force: true });
-    throw error;
-  }
-}
-
-let database: Session | null = null;
-let skipReason: string | null = null;
-
-function requireDatabase(): Session {
+function requireDatabase(): PostgresSession {
   if (!database) throw new Error("PostgreSQL session unavailable.");
   return database;
 }
 
 function joinPlan(
-  db: Session,
+  db: PostgresSession,
   planId: string,
   memberId: string,
   token: string,
@@ -253,7 +77,7 @@ function joinPlan(
 }
 
 function redeem(
-  db: Session,
+  db: PostgresSession,
   planId: string,
   memberId: string,
   inviteToken: string,
@@ -273,7 +97,7 @@ function redeem(
   )`);
 }
 
-function seed(db: Session): void {
+function seed(db: PostgresSession): void {
   db.sql(`
     insert into public.plans (id, title, start_time, owner_user_id, status)
     values
@@ -301,21 +125,9 @@ function seed(db: Session): void {
 }
 
 beforeAll(async () => {
-  skipReason = missingPostgresReason();
-  if (skipReason) {
-    console.error(
-      [
-        "",
-        "0137 PLAN LEGACY REPLAY CAPABILITY EFFECTIVE TESTS SKIPPED - THIS IS NOT A PASS",
-        `Reason: ${skipReason}`,
-        "No public-wrapper replay, token rotation, invite, reactivation, or rollback behaviour was exercised.",
-        "",
-      ].join("\n"),
-    );
-    return;
-  }
+  if (skipReason) return;
   try {
-    database = await startPostgres();
+    database = await startPostgres({ label: "plan-replay", database: "pubmax_plan_replay" });
     database.applyFile(SESSION_FIXTURE);
     for (const path of PREREQUISITES) database.applyFile(path);
     database.sql(`insert into auth.users(id) values ('${HOST_USER}'), ('${ACCOUNT_USER}')`);
@@ -332,7 +144,7 @@ afterAll(async () => {
   database = null;
 });
 
-describe("0137 applied to PostgreSQL", () => {
+describe.skipIf(skipReason !== null)("0137 applied to PostgreSQL", () => {
   it("fences stale K after U recovery to R without changing invite redemption", (context) => {
     if (skipReason) context.skip(true, skipReason);
     const db = requireDatabase();
@@ -401,7 +213,7 @@ describe("0137 applied to PostgreSQL", () => {
         `select membership_revoked_at is null and token_hash = repeat('f', 64) from public.plan_crew_members where id = '${REVOKED_INVITE_MEMBER}'::uuid`,
       ),
     ).toBe("t");
-  }, 120_000);
+  }, 180_000);
 
   it("keeps service-only wrappers and makes rollback restore stale replay", (context) => {
     if (skipReason) context.skip(true, skipReason);
@@ -434,5 +246,5 @@ describe("0137 applied to PostgreSQL", () => {
     expect(
       db.sql(`select redeemed_at::text from public.plan_invites where id = '${INVITE_ID}'::uuid`),
     ).toBe(redeemedAt);
-  }, 120_000);
+  }, 180_000);
 });

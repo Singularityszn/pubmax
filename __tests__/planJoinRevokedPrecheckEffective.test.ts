@@ -12,13 +12,18 @@
 // (occupancyMigrationEffective, openSocialCrewsMigration): a host with no
 // PostgreSQL binaries skips loudly rather than passing quietly.
 
-import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import {
+  postgresSkipReason,
+  startPostgres,
+  type PostgresSession,
+} from "./helpers/postgres";
+
+const skipReason = postgresSkipReason();
 
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
@@ -43,153 +48,8 @@ const PLAN = "00000000-0000-4000-8000-0000000000b1";
 const REVOKED_SEAT = "00000000-0000-4000-8000-0000000000c1";
 const HOST_SEAT = "00000000-0000-4000-8000-0000000000c2";
 
-type Session = {
-  sql: (statement: string) => string;
-  applyFile: (path: string) => void;
-  stop: () => Promise<void>;
-};
-
-function findPostgresBinary(name: "initdb" | "postgres" | "psql"): string | null {
-  const candidates = [
-    `/opt/homebrew/opt/postgresql@16/bin/${name}`,
-    `/opt/homebrew/opt/postgresql@17/bin/${name}`,
-    `/usr/local/opt/postgresql@16/bin/${name}`,
-    `/usr/lib/postgresql/16/bin/${name}`,
-    `/usr/lib/postgresql/17/bin/${name}`,
-    `/opt/homebrew/bin/${name}`,
-    `/usr/bin/${name}`,
-  ];
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) return candidate;
-  }
-  try {
-    execFileSync("which", [name], { stdio: "pipe" });
-    return name;
-  } catch {
-    return null;
-  }
-}
-
-function missingPostgresReason(): string | null {
-  if (process.env.PUBMAX_PLAN_JOIN_MIGRATION_NO_PG === "1") {
-    return "PostgreSQL binaries were deliberately hidden by PUBMAX_PLAN_JOIN_MIGRATION_NO_PG=1.";
-  }
-  const missing = (["initdb", "postgres", "psql"] as const).filter(
-    (name) => findPostgresBinary(name) === null,
-  );
-  return missing.length > 0
-    ? `Missing PostgreSQL binaries: ${missing.join(", ")}. Install PostgreSQL 16 to run the 0136 join proof.`
-    : null;
-}
-
-async function pickPort(): Promise<number> {
-  const { createServer } = await import("node:net");
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : 0;
-      server.close(() => resolve(port));
-    });
-    server.on("error", reject);
-  });
-}
-
-async function startPostgres(): Promise<Session> {
-  const initdb = findPostgresBinary("initdb");
-  const postgres = findPostgresBinary("postgres");
-  const psql = findPostgresBinary("psql");
-  if (!initdb || !postgres || !psql) {
-    throw new Error(missingPostgresReason() ?? "PostgreSQL binaries unavailable.");
-  }
-
-  const dataDir = mkdtempSync(join(tmpdir(), "pubmax-plan-join-0136-"));
-  let handle: ReturnType<typeof spawn> | null = null;
-  try {
-    const port = await pickPort();
-    execFileSync(
-      initdb,
-      ["-D", dataDir, "--locale=C", "-E", "UTF8", "--username=postgres", "--auth=trust"],
-      { stdio: "pipe" },
-    );
-    writeFileSync(
-      join(dataDir, "postgresql.auto.conf"),
-      [
-        "listen_addresses = '127.0.0.1'",
-        `port = ${port}`,
-        "max_connections = 12",
-        "shared_buffers = 16MB",
-        "fsync = off",
-        "full_page_writes = off",
-        "synchronous_commit = off",
-      ].join("\n") + "\n",
-    );
-
-    const processHandle = spawn(
-      postgres,
-      ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"],
-      { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, LC_ALL: "C" } },
-    );
-    handle = processHandle;
-    const logs: string[] = [];
-    processHandle.stdout?.on("data", (chunk) => logs.push(chunk.toString()));
-    processHandle.stderr?.on("data", (chunk) => logs.push(chunk.toString()));
-
-    const connectionArgs = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
-    let ready = false;
-    for (let attempt = 0; attempt < 60; attempt += 1) {
-      try {
-        execFileSync(psql, [...connectionArgs, "-d", "postgres", "-c", "select 1"], {
-          stdio: "pipe",
-        });
-        ready = true;
-        break;
-      } catch {
-        await sleep(100);
-      }
-    }
-    if (!ready) throw new Error(`PostgreSQL failed to start:\n${logs.join("")}`);
-
-    const database = "pubmax_plan_join_0136";
-    execFileSync(
-      psql,
-      [...connectionArgs, "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c", `create database ${database}`],
-      { stdio: "pipe" },
-    );
-    const databaseArgs = [...connectionArgs, "-d", database, "-v", "ON_ERROR_STOP=1"];
-
-    const sql = (statement: string): string =>
-      execFileSync(psql, [...databaseArgs, "-t", "-A", "-c", statement], {
-        encoding: "utf8",
-        stdio: ["pipe", "pipe", "pipe"],
-      })
-        .trim()
-        .split("\n")
-        .filter((line) => line.trim() !== "SET")
-        .join("\n")
-        .trim();
-
-    const applyFile = (path: string): void => {
-      execFileSync(psql, [...databaseArgs, "-f", path], { stdio: "pipe" });
-    };
-
-    const stop = async (): Promise<void> => {
-      processHandle.kill("SIGINT");
-      await sleep(300);
-      processHandle.kill("SIGKILL");
-      rmSync(dataDir, { recursive: true, force: true });
-    };
-
-    return { sql, applyFile, stop };
-  } catch (error) {
-    handle?.kill("SIGKILL");
-    rmSync(dataDir, { recursive: true, force: true });
-    throw error;
-  }
-}
-
 /** Ask the join boundary for a seat, as the returning account. */
-function joinAs(db: Session, memberId: string, key: string): string {
+function joinAs(db: PostgresSession, memberId: string, key: string): string {
   return db.sql(`select public.join_plan_account_idempotent_atomic(
     '${PLAN}'::uuid,
     '${memberId}'::uuid,
@@ -204,7 +64,7 @@ function joinAs(db: Session, memberId: string, key: string): string {
 }
 
 /** Ask the invite-redeem boundary for a seat, as the returning account. */
-function redeemAs(db: Session, memberId: string, key: string): string {
+function redeemAs(db: PostgresSession, memberId: string, key: string): string {
   return db.sql(`select public.redeem_plan_invite_account_idempotent_atomic(
     '${PLAN}'::uuid,
     md5('${key}-invite')||md5('${key}-invite-2'),
@@ -218,16 +78,15 @@ function redeemAs(db: Session, memberId: string, key: string): string {
   )`);
 }
 
-let database: Session | null = null;
-let skipReason: string | null = null;
+let database: PostgresSession | null = null;
 
-function requireDatabase(): Session {
+function requireDatabase(): PostgresSession {
   if (!database) throw new Error("PostgreSQL session unavailable.");
   return database;
 }
 
 /** A Plan whose only seat for the returning account has been REVOKED. */
-function seedRevokedSeat(db: Session): void {
+function seedRevokedSeat(db: PostgresSession): void {
   db.sql(`delete from public.plan_crew_members where plan_id = '${PLAN}';
     delete from public.plan_stops where plan_id = '${PLAN}';
     delete from public.plan_invites where plan_id = '${PLAN}';
@@ -254,20 +113,8 @@ function seedRevokedSeat(db: Session): void {
 }
 
 beforeAll(async () => {
-  skipReason = missingPostgresReason();
-  if (skipReason) {
-    console.error(
-      [
-        "",
-        "0136 PLAN JOIN REVOKED-PRECHECK EFFECTIVE TESTS SKIPPED - THIS IS NOT A PASS",
-        `Reason: ${skipReason}`,
-        "No join, redeem, active-seat refusal or rollback was exercised on this host.",
-        "",
-      ].join("\n"),
-    );
-    return;
-  }
-  database = await startPostgres();
+  if (skipReason) return;
+  database = await startPostgres({ label: "plan-join-0135", database: "pubmax_plan_join_0135" });
   database.applyFile(SESSION_FIXTURE);
   for (const path of PREREQUISITES) database.applyFile(path);
   database.applyFile(FORWARD);
@@ -282,7 +129,7 @@ afterAll(async () => {
   database = null;
 });
 
-describe("0136 applied to PostgreSQL", () => {
+describe.skipIf(skipReason !== null)("0136 applied to PostgreSQL", () => {
   it("lets an account whose only prior seat was revoked JOIN again", (context) => {
     if (skipReason) context.skip(true, skipReason);
     const db = requireDatabase();
@@ -294,7 +141,7 @@ describe("0136 applied to PostgreSQL", () => {
     // refusal it used to give, and the one thing that must not come back.
     expect(outcome).not.toBe("account_conflict");
     expect(outcome).toBe("joined");
-  }, 120_000);
+  }, 180_000);
 
   it("lets that same account REDEEM an invite again", (context) => {
     if (skipReason) context.skip(true, skipReason);
@@ -323,7 +170,7 @@ describe("0136 applied to PostgreSQL", () => {
       db.sql(`select user_id::text || '|' || case when membership_revoked_at is null then 'active' else 'revoked' end
         from public.plan_crew_members where id = '00000000-0000-4000-8000-0000000000d2';`),
     ).toBe(`${RETURNING_USER}|active`);
-  }, 120_000);
+  }, 180_000);
 
   it("still refuses an account holding an ACTIVE seat, which 0136 must not loosen", (context) => {
     if (skipReason) context.skip(true, skipReason);
@@ -336,7 +183,7 @@ describe("0136 applied to PostgreSQL", () => {
     const outcome = joinAs(db, "00000000-0000-4000-8000-0000000000d3", "join-with-active");
 
     expect(outcome).toBe("account_conflict");
-  }, 120_000);
+  }, 180_000);
 
   it("refuses again once the migration is rolled back, so 0136 is what changed it", (context) => {
     if (skipReason) context.skip(true, skipReason);
@@ -353,5 +200,5 @@ describe("0136 applied to PostgreSQL", () => {
     } finally {
       db.applyFile(FORWARD);
     }
-  }, 120_000);
+  }, 180_000);
 });

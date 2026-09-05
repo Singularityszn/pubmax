@@ -78,7 +78,7 @@
     "push:step-out": "node --conditions=react-server --import tsx scripts/push/sendStepOutNudge.mjs",
     "refresh:events": "node scripts/whatson/eventsRefresh.mjs",
     "check:realtime": "node scripts/check-realtime.mjs",
-    "verify": "npm run validate-data && npm run lint && npm run typecheck && npm run coverage && node scripts/resilient-audit.mjs",
+    "verify": "npm run validate-data && npm run lint && npm run typecheck && npm run coverage && npm run test:rls && npm run gate:e2e-skips && npm run check:freshness && node scripts/resilient-audit.mjs",
     "ci": "npm run verify && npm run build",
     "ci:isolated": "node scripts/run-with-restored-next-env.mjs npm run ci",
     "setup": "git config core.hooksPath .githooks && echo 'git hooks enabled (pre-push runs npm run verify)'",

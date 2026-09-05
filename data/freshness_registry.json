@@ -74,10 +74,11 @@
       "label": "Night-area weather cache",
       "class": "cron",
       "artifact": "public/data/weather/latest.json",
-      "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "every 6h via Vercel cron (0 */6 * * * UTC); observedAt is store-backed when migration 0047 is applied, else the committed file",
+      "artifactRole": "degraded-fallback",
+      "stamp": { "kind": "store", "feedKey": "weather" },
+      "cadence": "every 6h via Vercel cron (0 */6 * * * UTC); the durable weather_snapshots store is what the site reads and what this budget measures",
       "stalenessBudgetHours": 48,
-      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-weather → durable weather_snapshots store (read store-first via lib/weatherSnapshots.server); committed file is the pre-migration/degraded fallback. GitHub Actions retired.",
+      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-weather → durable weather_snapshots store (read store-first via lib/weatherSnapshots.server). THE STORE IS WHAT IS MEASURED: a Vercel filesystem is read-only, so public/data/weather/latest.json can only age and a budget over it went red however healthy the cron was. That committed file stays as the degraded fallback and is dated by nothing. A runtime with no store credentials reports this feed unmeasurable: never fresh, never stale. GitHub Actions retired.",
       "gate": "none (Open-Meteo is keyless — the weather feed always runs)"
     },
     {

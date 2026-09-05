@@ -79,8 +79,9 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
   "lib/freshnessStoreOverlay.ts": {
     class: "cache-backed",
     selector: "inline",
-    inlineBranches: 2,
-    reason: "Answers an explicit `unconfigured` kind so the freshness spine can name the absence.",
+    inlineBranches: 3,
+    reason:
+      "One per store-stamped feed (feed_freshness, What's-On listings, weather snapshots): each answers an explicit `unconfigured` kind so the freshness spine can name the absence rather than read an unmeasured feed as fresh.",
   },
   "lib/harvestOverlayStore.ts": {
     class: "policy-heavy",

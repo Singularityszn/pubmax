@@ -921,7 +921,14 @@ describe("data/freshness_registry.json integrity", () => {
       if (d.stalenessBudgetHours !== null) {
         expect(d.stamp).not.toBeNull();
         if (d.stamp?.kind === "store") {
-          expect(d.artifact).toBeNull();
+          // A store-stamped feed may name a committed file only where the file
+          // is DECLARED to be the degraded fallback and dated by nothing (the
+          // weather cache: a Vercel filesystem is read-only, so that copy can
+          // only age). Without that declaration an artifact beside a store
+          // stamp is two promises about one feed.
+          if (d.artifact !== null) {
+            expect(d.artifactRole).toBe("degraded-fallback");
+          }
         } else {
           expect(d.artifact).not.toBeNull();
         }

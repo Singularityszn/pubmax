@@ -72,6 +72,7 @@ vi.mock("@/lib/supabase", () => ({
 
 import {
   NIGHT_SIGNAL_CANDIDATES_DATASET_ID,
+  WEATHER_DATASET_ID,
   WHATS_ON_FEED_KEY,
   resolveDurableFeedStoreReads,
   resolveStoreObservedAt,
@@ -139,13 +140,31 @@ describe("resolveDurableFeedStoreReads — the real four-way read, never guessed
     expect(read.kind === "unreachable" && read.error).toContain("ENOTFOUND");
   });
 
-  it("resolves only the candidate-ingestion feed", async () => {
+  it("resolves every store-stamped feed and nothing else", async () => {
     db.row = { observed_at: "2026-07-16T00:00:00Z" };
     const reads = await resolveDurableFeedStoreReads();
     expect(Object.keys(reads)).toEqual([
       NIGHT_SIGNAL_CANDIDATES_DATASET_ID,
       WHATS_ON_FEED_KEY,
+      WEATHER_DATASET_ID,
     ]);
+  });
+
+  it("reads the weather stamp from the store the cron writes", async () => {
+    // The registry used to date this feed by public/data/weather/latest.json,
+    // which a read-only serverless filesystem can never advance, so a healthy
+    // 6-hourly cron reported stale for ever.
+    const reads = await resolveDurableFeedStoreReads();
+    expect(reads[WEATHER_DATASET_ID]).toEqual({
+      kind: "ok",
+      observedAt: "2026-07-15T00:00:00Z",
+    });
+  });
+
+  it("says an unconfigured weather store is unmeasurable, never fresh", async () => {
+    db.configured = false;
+    const reads = await resolveDurableFeedStoreReads();
+    expect(reads[WEATHER_DATASET_ID]).toEqual({ kind: "unconfigured" });
   });
 
   it("reports the durable What's-On generation stamp", async () => {

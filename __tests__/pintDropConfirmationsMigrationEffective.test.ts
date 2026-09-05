@@ -6,13 +6,18 @@
 // than stored as evidence nobody can look up, and that the rollback takes the
 // columns while leaving every drinker's Pint Drop where it was.
 
-import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import {
+  postgresSkipReason,
+  startPostgres,
+  type PostgresSession,
+} from "./helpers/postgres";
+
+const skipReason = postgresSkipReason();
 
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
@@ -28,201 +33,9 @@ const PREREQUISITES = readdirSync(MIGRATIONS)
   .sort()
   .map((name) => join(MIGRATIONS, name));
 
-type Session = {
-  sql: (statement: string) => string;
-  applyFile: (path: string) => void;
-  stop: () => Promise<void>;
-};
+let database: PostgresSession | null = null;
 
-async function waitForExit(
-  processHandle: ReturnType<typeof spawn>,
-  timeoutMs: number,
-): Promise<void> {
-  if (processHandle.exitCode !== null || processHandle.signalCode !== null) return;
-  await new Promise<void>((resolve) => {
-    const timer = setTimeout(resolve, timeoutMs);
-    processHandle.once("exit", () => {
-      clearTimeout(timer);
-      resolve();
-    });
-  });
-}
-
-function findPostgresBinary(name: "initdb" | "postgres" | "psql"): string | null {
-  const candidates = [
-    `/opt/homebrew/opt/postgresql@16/bin/${name}`,
-    `/usr/local/opt/postgresql@16/bin/${name}`,
-    `/usr/lib/postgresql/16/bin/${name}`,
-    `/opt/homebrew/bin/${name}`,
-    `/usr/bin/${name}`,
-  ];
-  const isPostgres16 = (candidate: string): boolean => {
-    try {
-      const version = execFileSync(candidate, ["--version"], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-      return /\bPostgreSQL\)?\s+16(?:\.|\s|$)/i.test(version);
-    } catch {
-      return false;
-    }
-  };
-  for (const candidate of candidates) {
-    if (existsSync(candidate) && isPostgres16(candidate)) return candidate;
-  }
-  try {
-    const candidate = execFileSync("which", [name], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    }).trim();
-    return candidate !== "" && isPostgres16(candidate) ? candidate : null;
-  } catch {
-    return null;
-  }
-}
-
-function missingPostgresReason(): string | null {
-  if (process.env.PUBMAX_PINT_DROP_CONFIRMATION_NO_PG === "1") {
-    return "PostgreSQL binaries were deliberately hidden by PUBMAX_PINT_DROP_CONFIRMATION_NO_PG=1.";
-  }
-  const missing = (["initdb", "postgres", "psql"] as const).filter(
-    (name) => findPostgresBinary(name) === null,
-  );
-  return missing.length > 0
-    ? `PostgreSQL 16 binaries unavailable for: ${missing.join(", ")}. Each binary must report major version 16 to run the 0140 confirmation proof.`
-    : null;
-}
-
-async function pickPort(): Promise<number> {
-  const { createServer } = await import("node:net");
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : 0;
-      server.close(() => resolve(port));
-    });
-    server.on("error", reject);
-  });
-}
-
-async function startPostgres(): Promise<Session> {
-  const initdb = findPostgresBinary("initdb");
-  const postgres = findPostgresBinary("postgres");
-  const psql = findPostgresBinary("psql");
-  if (!initdb || !postgres || !psql) {
-    throw new Error(missingPostgresReason() ?? "PostgreSQL binaries unavailable.");
-  }
-
-  const dataDir = mkdtempSync(join(tmpdir(), "pubmax-confirm-0140-"));
-  let handle: ReturnType<typeof spawn> | null = null;
-  try {
-    const port = await pickPort();
-    execFileSync(
-      initdb,
-      ["-D", dataDir, "--locale=C", "-E", "UTF8", "--username=postgres", "--auth=trust"],
-      { stdio: "pipe" },
-    );
-    writeFileSync(
-      join(dataDir, "postgresql.auto.conf"),
-      [
-        "listen_addresses = '127.0.0.1'",
-        `port = ${port}`,
-        "max_connections = 12",
-        "shared_buffers = 16MB",
-        "fsync = off",
-        "full_page_writes = off",
-        "synchronous_commit = off",
-      ].join("\n") + "\n",
-    );
-
-    const processHandle = spawn(
-      postgres,
-      ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"],
-      { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, LC_ALL: "C" } },
-    );
-    handle = processHandle;
-    const logs: string[] = [];
-    processHandle.stdout?.on("data", (chunk) => logs.push(chunk.toString()));
-    processHandle.stderr?.on("data", (chunk) => logs.push(chunk.toString()));
-
-    const connectionArgs = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
-    let ready = false;
-    for (let attempt = 0; attempt < 60; attempt += 1) {
-      try {
-        execFileSync(psql, [...connectionArgs, "-d", "postgres", "-c", "select 1"], {
-          stdio: "pipe",
-        });
-        ready = true;
-        break;
-      } catch {
-        await sleep(100);
-      }
-    }
-    if (!ready) throw new Error(`PostgreSQL failed to start:\n${logs.join("")}`);
-
-    const database = "pubmax_pint_drop_confirmation_0140";
-    execFileSync(
-      psql,
-      [
-        ...connectionArgs,
-        "-d",
-        "postgres",
-        "-v",
-        "ON_ERROR_STOP=1",
-        "-c",
-        `create database ${database}`,
-      ],
-      { stdio: "pipe" },
-    );
-    const databaseArgs = [...connectionArgs, "-d", database, "-v", "ON_ERROR_STOP=1"];
-
-    const sql = (statement: string): string =>
-      execFileSync(psql, [...databaseArgs, "-t", "-A", "-c", statement], {
-        encoding: "utf8",
-        stdio: ["pipe", "pipe", "pipe"],
-      })
-        .trim()
-        .split("\n")
-        .filter((line) => line.trim() !== "SET")
-        .join("\n")
-        .trim();
-
-    const applyFile = (path: string): void => {
-      execFileSync(psql, [...databaseArgs, "-f", path], { stdio: "pipe" });
-    };
-
-    const stop = async (): Promise<void> => {
-      if (processHandle.exitCode === null && processHandle.signalCode === null) {
-        processHandle.kill("SIGINT");
-        await waitForExit(processHandle, 5_000);
-      }
-      if (processHandle.exitCode === null && processHandle.signalCode === null) {
-        processHandle.kill("SIGTERM");
-        await waitForExit(processHandle, 2_000);
-      }
-      if (processHandle.exitCode === null && processHandle.signalCode === null) {
-        processHandle.kill("SIGKILL");
-        await waitForExit(processHandle, 5_000);
-      }
-      rmSync(dataDir, { recursive: true, force: true });
-    };
-
-    return { sql, applyFile, stop };
-  } catch (error) {
-    if (handle && handle.exitCode === null && handle.signalCode === null) {
-      handle.kill("SIGKILL");
-      await waitForExit(handle, 5_000);
-    }
-    rmSync(dataDir, { recursive: true, force: true });
-    throw error;
-  }
-}
-
-let database: Session | null = null;
-let skipReason: string | null = null;
-
-function requireDatabase(): Session {
+function requireDatabase(): PostgresSession {
   if (!database) throw new Error("PostgreSQL session unavailable.");
   return database;
 }
@@ -232,7 +45,7 @@ const DROP_A = "00000000-0000-4000-8000-0000000000c1";
 const DROP_B = "00000000-0000-4000-8000-0000000000c2";
 const CONFIRMATION = "00000000-0000-4000-8000-0000000000cf";
 
-function seedPair(db: Session): void {
+function seedPair(db: PostgresSession): void {
   db.sql(`
     delete from public.pint_drops where venue_id = '${VENUE}';
     insert into public.pint_drops
@@ -243,7 +56,7 @@ function seedPair(db: Session): void {
   `);
 }
 
-function confirmPair(db: Session, basis: string, peer: string | null): void {
+function confirmPair(db: PostgresSession, basis: string, peer: string | null): void {
   db.sql(`
     update public.pint_drops
        set confirmation_id = '${CONFIRMATION}'::uuid,
@@ -255,21 +68,9 @@ function confirmPair(db: Session, basis: string, peer: string | null): void {
 }
 
 beforeAll(async () => {
-  skipReason = missingPostgresReason();
-  if (skipReason) {
-    console.error(
-      [
-        "",
-        "0140 PINT DROP CONFIRMATION EFFECTIVE TESTS SKIPPED - THIS IS NOT A PASS",
-        `Reason: ${skipReason}`,
-        "Nothing proved that a confirmation is recordable, that a half-written one is refused, or that the rollback keeps the drops.",
-        "",
-      ].join("\n"),
-    );
-    return;
-  }
+  if (skipReason) return;
   try {
-    database = await startPostgres();
+    database = await startPostgres({ label: "pint-confirm", database: "pubmax_pint_confirm_0140" });
     database.applyFile(SESSION_FIXTURE);
     for (const path of PREREQUISITES) database.applyFile(path);
   } catch (error) {
@@ -284,7 +85,7 @@ afterAll(async () => {
   database = null;
 });
 
-describe("0140 on PostgreSQL", () => {
+describe.skipIf(skipReason !== null)("0140 on PostgreSQL", () => {
   it("cannot record a confirmation before the migration, and can after it", (context) => {
     if (skipReason) context.skip(true, skipReason);
     const db = requireDatabase();

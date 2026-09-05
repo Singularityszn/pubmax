@@ -86,10 +86,30 @@ export async function resolveStoreObservedAt(): Promise<Record<string, string>> 
 export async function resolveDurableFeedStoreReads(): Promise<Record<string, StoreRead>> {
   const nightSignalCandidates = await readDurableFeedStamp(NIGHT_SIGNAL_CANDIDATES_FEED_KEY);
   const whatsOn = await readDurableWhatsOnStamp();
+  const weather = await readDurableWeatherStamp();
   return {
     [NIGHT_SIGNAL_CANDIDATES_DATASET_ID]: nightSignalCandidates,
     [WHATS_ON_FEED_KEY]: whatsOn,
+    [WEATHER_DATASET_ID]: weather,
   };
+}
+
+/**
+ * The weather feed's stamp lives in the table it serves, not in feed_freshness,
+ * and the committed public/data/weather/latest.json is a read-only fallback on
+ * Vercel that can only ever age. So the store is what the registry measures,
+ * and a runtime with no store is unmeasurable rather than stale.
+ */
+async function readDurableWeatherStamp(): Promise<StoreRead> {
+  if (!isSupabaseConfigured()) return { kind: "unconfigured" };
+
+  try {
+    const snapshot = await weatherSnapshotStore().readSnapshot();
+    if (!snapshot?.generatedAt) return { kind: "empty" };
+    return { kind: "ok", observedAt: snapshot.generatedAt };
+  } catch (err) {
+    return { kind: "unreachable", error: errorMessage(err) };
+  }
 }
 
 async function readDurableWhatsOnStamp(): Promise<StoreRead> {

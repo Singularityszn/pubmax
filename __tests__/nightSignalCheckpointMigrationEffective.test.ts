@@ -7,13 +7,18 @@
 // Same host contract as the other effective migration proofs: a host with no
 // PostgreSQL binaries skips LOUDLY rather than passing quietly.
 
-import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+
+import {
+  postgresSkipReason,
+  startPostgres,
+  type PostgresSession,
+} from "./helpers/postgres";
+
+const skipReason = postgresSkipReason();
 
 const CLAIMS_MIGRATION = join(
   process.cwd(),
@@ -36,50 +41,6 @@ const ROLLBACK_PATH = join(
   "supabase/migrations/rollback/20260905160000_0146_night_signal_ingest_checkpoint_rollback.sql",
 );
 
-type PostgresSession = {
-  sql: (statement: string) => string;
-  expectRefusal: (statement: string) => string;
-  applyFile: (path: string) => void;
-  stop: () => Promise<void>;
-};
-
-function findPostgresBinary(name: "initdb" | "postgres" | "psql"): string | null {
-  const candidates = [
-    `/opt/homebrew/opt/postgresql@16/bin/${name}`,
-    `/opt/homebrew/opt/postgresql@17/bin/${name}`,
-    `/usr/local/opt/postgresql@16/bin/${name}`,
-    `/usr/lib/postgresql/16/bin/${name}`,
-    `/usr/lib/postgresql/17/bin/${name}`,
-    `/opt/homebrew/bin/${name}`,
-    `/usr/bin/${name}`,
-    name,
-  ];
-  for (const candidate of candidates) {
-    try {
-      if (candidate === name) {
-        execFileSync("which", [name], { stdio: "pipe" });
-        return name;
-      }
-      if (existsSync(candidate)) return candidate;
-    } catch {
-      // Try the next known PostgreSQL installation path.
-    }
-  }
-  return null;
-}
-
-function missingPostgresReason(): string | null {
-  if (process.env.PUBMAX_NIGHT_SIGNAL_MIGRATION_NO_PG === "1") {
-    return "PostgreSQL binaries were deliberately hidden by PUBMAX_NIGHT_SIGNAL_MIGRATION_NO_PG=1.";
-  }
-  const missing = (["initdb", "postgres", "psql"] as const).filter(
-    (name) => findPostgresBinary(name) === null,
-  );
-  return missing.length > 0
-    ? `Missing PostgreSQL binaries: ${missing.join(", ")}. Install PostgreSQL 16 to run Night Signal migration proofs.`
-    : null;
-}
-
 /** The night_signal_claims statements of 0068, exactly as that migration ships them. */
 function nightSignalBlockOf(wave2: string): string {
   const start = wave2.indexOf("-- night_signal_claims:");
@@ -91,197 +52,38 @@ function nightSignalBlockOf(wave2: string): string {
   return block;
 }
 
-async function pickPort(): Promise<number> {
-  const { createServer } = await import("node:net");
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : 0;
-      server.close(() => resolve(port));
-    });
-    server.on("error", reject);
-  });
-}
-
-async function startPostgresSession(): Promise<PostgresSession> {
-  const initdb = findPostgresBinary("initdb");
-  const postgres = findPostgresBinary("postgres");
-  const psql = findPostgresBinary("psql");
-  if (!initdb || !postgres || !psql) {
-    throw new Error(missingPostgresReason() ?? "PostgreSQL binaries unavailable.");
-  }
-
-  const dataDir = mkdtempSync(join(tmpdir(), "pubmax-night-signal-0146-"));
-  const port = await pickPort();
-  execFileSync(
-    initdb,
-    ["-D", dataDir, "--locale=C", "-E", "UTF8", "--username=postgres", "--auth=trust"],
-    { stdio: "pipe" },
-  );
-  writeFileSync(
-    join(dataDir, "postgresql.auto.conf"),
-    [
-      "listen_addresses = '127.0.0.1'",
-      `port = ${port}`,
-      "max_connections = 12",
-      "shared_buffers = 16MB",
-      "fsync = off",
-      "full_page_writes = off",
-      "synchronous_commit = off",
-    ].join("\n") + "\n",
-  );
-
-  const processHandle = spawn(
-    postgres,
-    ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"],
-    { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, LC_ALL: "C" } },
-  );
-  const logs: string[] = [];
-  processHandle.stdout?.on("data", (chunk) => logs.push(chunk.toString()));
-  processHandle.stderr?.on("data", (chunk) => logs.push(chunk.toString()));
-
-  const connectionArgs = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
-  let ready = false;
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    try {
-      execFileSync(psql, [...connectionArgs, "-d", "postgres", "-c", "select 1"], {
-        stdio: "pipe",
-      });
-      ready = true;
-      break;
-    } catch {
-      await sleep(100);
-    }
-  }
-  if (!ready) {
-    processHandle.kill("SIGKILL");
-    rmSync(dataDir, { recursive: true, force: true });
-    throw new Error(`PostgreSQL failed to start:\n${logs.join("")}`);
-  }
-
-  const database = "pubmax_night_signal_0146";
-  execFileSync(
-    psql,
-    [
-      ...connectionArgs,
-      "-d",
-      "postgres",
-      "-v",
-      "ON_ERROR_STOP=1",
-      "-c",
-      `create database ${database}`,
-    ],
-    { stdio: "pipe" },
-  );
-  const databaseArgs = [...connectionArgs, "-d", database, "-v", "ON_ERROR_STOP=1"];
-
-  // psql prints a command tag for every statement, so `set role x; update …`
-  // answers "SET\n<rows>\nUPDATE 1". The rows are the answer; the tags are
-  // noise, and a returned value in this file is never one of these words.
-  const COMMAND_TAG =
-    /^(SET|BEGIN|COMMIT|INSERT \d|UPDATE \d|DELETE \d|TRUNCATE TABLE|CREATE |DROP |ALTER |GRANT|REVOKE)/;
-  const stripCommandTags = (output: string): string =>
-    output
-      .trim()
-      .split("\n")
-      .filter((line) => !COMMAND_TAG.test(line.trim()))
-      .join("\n")
-      .trim();
-
-  const sql = (statement: string): string =>
-    stripCommandTags(
-      execFileSync(psql, [...databaseArgs, "-t", "-A", "-c", statement], {
-        encoding: "utf8",
-        stdio: ["pipe", "pipe", "pipe"],
-      }),
-    );
-
-  const expectRefusal = (statement: string): string => {
-    try {
-      execFileSync(psql, [...databaseArgs, "-t", "-A", "-c", statement], {
-        encoding: "utf8",
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-    } catch (error) {
-      const shell = error as { stderr?: Buffer | string };
-      return String(shell.stderr ?? "");
-    }
-    throw new Error(`PostgreSQL accepted a statement it had to refuse: ${statement}`);
-  };
-
-  const applyFile = (path: string): void => {
-    execFileSync(psql, [...databaseArgs, "-f", path], { stdio: "pipe" });
-  };
-
-  try {
-    // The Supabase roles these tables are governed by. service_role carries
-    // BYPASSRLS in a Supabase project, so the local cluster mirrors that or
-    // "the write path still works" would not be the thing under test.
-    sql(`
-      create role anon nologin noinherit;
-      create role authenticated nologin noinherit;
-      create role service_role nologin noinherit bypassrls;
-      grant usage on schema public to anon, authenticated, service_role;
-      -- A Supabase project ships default privileges that grant EXECUTE on new
-      -- public functions to these roles. 0034 revokes its validation helpers
-      -- from PUBLIC and relies on that grant surviving, so the local cluster
-      -- mirrors it or the write path would fail here for a reason no deployed
-      -- database has.
-      alter default privileges in schema public
-        grant execute on functions to anon, authenticated, service_role;
-    `);
-    applyFile(CLAIMS_MIGRATION);
-    applyFile(SEARCH_PATH_MIGRATION);
-    // 0034 creates the table; the grants the write path needs ship in 0068,
-    // which also touches tables this cluster has no reason to hold. So the
-    // night_signal_claims block of that migration is applied VERBATIM rather
-    // than restated, or this proof would be about a grant nobody deployed.
-    sql(nightSignalBlockOf(readFileSync(RLS_WAVE2, "utf8")));
-    applyFile(MIGRATION_PATH);
-  } catch (error) {
-    processHandle.kill("SIGKILL");
-    rmSync(dataDir, { recursive: true, force: true });
-    throw error;
-  }
-
-  const stop = async (): Promise<void> => {
-    if (processHandle.exitCode === null) {
-      processHandle.kill("SIGTERM");
-      await Promise.race([
-        new Promise<void>((resolve) => processHandle.once("exit", () => resolve())),
-        sleep(1_000).then(() => undefined),
-      ]);
-    }
-    if (processHandle.exitCode === null) processHandle.kill("SIGKILL");
-    rmSync(dataDir, { recursive: true, force: true });
-  };
-
-  return { sql, expectRefusal, applyFile, stop };
-}
-
 let session: PostgresSession | null = null;
-let skipReason: string | null = null;
 
 beforeAll(async () => {
-  skipReason = missingPostgresReason();
-  if (skipReason) {
-    console.error(
-      [
-        "",
-        "NIGHT SIGNAL 0146 EFFECTIVE TESTS SKIPPED - THIS IS NOT A PASS",
-        `Reason: ${skipReason}`,
-        "No checkpoint row or candidate row was written or refused on this host.",
-        "",
-      ].join("\n"),
-    );
-    return;
-  }
-  session = await startPostgresSession();
-}, 90_000);
+  if (skipReason) return;
+  session = await startPostgres({ label: "night-signal-checkpoint-0146", database: "pubmax_night_signal_0146" });
+  // The Supabase roles these tables are governed by. service_role carries
+  // BYPASSRLS in a Supabase project, so the local cluster mirrors that or
+  // "the write path still works" would not be the thing under test.
+  session.sql(`
+    create role anon nologin noinherit;
+    create role authenticated nologin noinherit;
+    create role service_role nologin noinherit bypassrls;
+    grant usage on schema public to anon, authenticated, service_role;
+    -- A Supabase project ships default privileges that grant EXECUTE on new
+    -- public functions to these roles. 0034 revokes its validation helpers
+    -- from PUBLIC and relies on that grant surviving, so the local cluster
+    -- mirrors it or the write path would fail here for a reason no deployed
+    -- database has.
+    alter default privileges in schema public
+      grant execute on functions to anon, authenticated, service_role;
+  `);
+  session.applyFile(CLAIMS_MIGRATION);
+  session.applyFile(SEARCH_PATH_MIGRATION);
+  // 0034 creates the table; the grants the write path needs ship in 0068,
+  // which also touches tables this cluster has no reason to hold. So the
+  // night_signal_claims block of that migration is applied VERBATIM rather
+  // than restated, or this proof would be about a grant nobody deployed.
+  session.sql(nightSignalBlockOf(readFileSync(RLS_WAVE2, "utf8")));
+  session.applyFile(MIGRATION_PATH);
+}, 180_000);
 
-beforeEach((context) => {
-  if (skipReason) context.skip(true, skipReason);
+beforeEach(() => {
   session?.sql(
     "truncate public.night_signal_ingest_checkpoint; truncate public.night_signal_claims;",
   );
@@ -315,7 +117,7 @@ function insertCandidate(reviewState: string, reviewer: string | null): string {
   `;
 }
 
-describe("0146 applied to PostgreSQL", () => {
+describe.skipIf(skipReason !== null)("0146 applied to PostgreSQL", () => {
   it("takes one checkpoint per scope from the service role", () => {
     const db = requireSession();
     db.sql(`
@@ -406,7 +208,7 @@ describe("0146 applied to PostgreSQL", () => {
   });
 });
 
-describe("the candidate queue 0146 exists to feed", () => {
+describe.skipIf(skipReason !== null)("the candidate queue 0146 exists to feed", () => {
   it("stores a pending candidate that no reader may see", () => {
     const db = requireSession();
     db.sql(`set role service_role; ${insertCandidate("pending", null)};`);
@@ -440,7 +242,7 @@ describe("the candidate queue 0146 exists to feed", () => {
   });
 });
 
-describe("the 0146 rollback", () => {
+describe.skipIf(skipReason !== null)("the 0146 rollback", () => {
   it("drops the checkpoint and leaves the candidates alone", () => {
     const db = requireSession();
     db.sql(`set role service_role; ${insertCandidate("pending", null)};`);

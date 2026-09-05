@@ -1,10 +1,14 @@
-import { execFileSync, spawn, type ChildProcess } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import {
+  postgresSkipReason,
+  startPostgres,
+  type PostgresSession,
+} from "./helpers/postgres";
+
+const skipReason = postgresSkipReason();
 
 const ROOT = process.cwd();
 const migration = (name: string) => join(ROOT, "supabase/migrations", name);
@@ -12,46 +16,6 @@ const ROLLBACK_PATH = join(
   ROOT,
   "supabase/migrations/rollback/20260901100000_0134_plan_join_account_transition_rollback.sql",
 );
-
-function binary(name: "initdb" | "postgres" | "psql"): string | null {
-  const candidates = [
-    `/opt/homebrew/opt/postgresql@16/bin/${name}`,
-    `/opt/homebrew/opt/postgresql@17/bin/${name}`,
-    `/opt/homebrew/bin/${name}`,
-    `/usr/local/opt/postgresql@16/bin/${name}`,
-    `/usr/lib/postgresql/16/bin/${name}`,
-    name,
-  ];
-  for (const candidate of candidates) {
-    try {
-      if (candidate === name) execFileSync("which", [name], { stdio: "pipe" });
-      else if (!existsSync(candidate)) continue;
-      return candidate;
-    } catch {
-      // Try next known installation.
-    }
-  }
-  return null;
-}
-
-async function freePort(): Promise<number> {
-  const { createServer } = await import("node:net");
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : 0;
-      server.close(() => resolve(port));
-    });
-    server.on("error", reject);
-  });
-}
-
-type Session = {
-  sql: (statement: string) => string;
-  apply: (path: string) => void;
-  stop: () => Promise<void>;
-};
 
 const BOOTSTRAP = `
   create schema extensions;
@@ -102,108 +66,40 @@ const BOOTSTRAP = `
   );
 `;
 
-async function startSession(): Promise<Session> {
-  const initdb = binary("initdb");
-  const postgres = binary("postgres");
-  const psql = binary("psql");
-  if (!initdb || !postgres || !psql) throw new Error("PostgreSQL is required.");
-
-  const dataDir = mkdtempSync(join(tmpdir(), "pubmax-plan-account-transition-"));
-  const port = await freePort();
-  let processHandle: ChildProcess | null = null;
-  const args = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres", "-d", "postgres"];
-  const stop = async (): Promise<void> => {
-    if (processHandle && processHandle.exitCode === null) {
-      processHandle.kill("SIGTERM");
-      await Promise.race([
-        new Promise<void>((resolve) => processHandle?.once("exit", () => resolve())),
-        sleep(1_000).then(() => undefined),
-      ]);
-    }
-    if (processHandle && processHandle.exitCode === null) processHandle.kill("SIGKILL");
-    rmSync(dataDir, { recursive: true, force: true });
-  };
-
-  try {
-    execFileSync(initdb, ["-D", dataDir, "--locale=C", "-E", "UTF8", "--username=postgres", "--auth=trust"], { stdio: "pipe" });
-    writeFileSync(join(dataDir, "postgresql.auto.conf"), [
-      "listen_addresses = '127.0.0.1'",
-      `port = ${port}`,
-      "max_connections = 30",
-      "shared_buffers = 16MB",
-      "fsync = off",
-      "full_page_writes = off",
-      "synchronous_commit = off",
-    ].join("\n") + "\n");
-    processHandle = spawn(postgres, ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"], { stdio: "ignore" });
-    let ready = false;
-    for (let attempt = 0; attempt < 50; attempt += 1) {
-      try {
-        execFileSync(psql, [...args, "-c", "select 1"], { stdio: "pipe" });
-        ready = true;
-        break;
-      } catch {
-        await sleep(100);
-      }
-    }
-    if (!ready) throw new Error("PostgreSQL did not start.");
-
-    const sql = (statement: string): string => execFileSync(
-      psql,
-      [...args, "-v", "ON_ERROR_STOP=1", "-t", "-A", "-c", statement],
-      { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] },
-    ).trim();
-    sql(BOOTSTRAP);
-
-    const apply = (path: string): void => {
-      execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-f", path], { stdio: "pipe" });
-    };
-    apply(migration("20260830170000_0124_plan_invite_canonical_membership.sql"));
-    sql(`
-      create function public.join_plan_idempotent_atomic(
-        uuid, uuid, text, text, timestamptz, boolean, text, text
-      ) returns text language sql security definer set search_path = ''
-      as $$ select public._0075_join_plan_idempotent_atomic($1,$2,$3,$4,$5,$6,$7,$8) $$;
-      create function public.redeem_plan_invite_idempotent_atomic(
-        uuid, text, uuid, text, text, timestamptz, text, text
-      ) returns text language sql security definer set search_path = ''
-      as $$ select public._0075_redeem_plan_invite_idempotent_atomic($1,$2,$3,$4,$5,$6,$7,$8) $$;
-    `);
-    apply(migration("20260831140000_0127_plan_membership_account_claim.sql"));
-    apply(migration("20260831140500_0128_plan_membership_account_uniqueness.sql"));
-    apply(migration("20260831141000_0129_plan_join_account_atomicity.sql"));
-    apply(migration("20260901090000_0133_plan_account_recovery_idempotency.sql"));
-    apply(migration("20260901100000_0134_plan_join_account_transition.sql"));
-
-    return { sql, apply, stop };
-  } catch (error) {
-    await stop();
-    throw error;
-  }
-}
-
-let session: Session | null = null;
-let skipReason: string | null = null;
+let session: PostgresSession | null = null;
 
 beforeAll(async () => {
-  const missing = (["initdb", "postgres", "psql"] as const).filter((name) => !binary(name));
-  if (missing.length > 0) {
-    skipReason = `Missing PostgreSQL binaries: ${missing.join(", ")}.`;
-    console.error(`PLAN ACCOUNT TRANSITION EFFECTIVE TESTS SKIPPED - THIS IS NOT A PASS: ${skipReason}`);
-    return;
+  if (skipReason) return;
+  session = await startPostgres({ label: "plan-account", database: "pubmax_plan_account" });
+  session.sql(BOOTSTRAP);
+  session.applyFile(migration("20260830170000_0124_plan_invite_canonical_membership.sql"));
+  // 0127 onward replace these two, so the pre-account shape has to exist first.
+  session.sql(`
+    create function public.join_plan_idempotent_atomic(
+      uuid, uuid, text, text, timestamptz, boolean, text, text
+    ) returns text language sql security definer set search_path = ''
+    as $$ select public._0075_join_plan_idempotent_atomic($1,$2,$3,$4,$5,$6,$7,$8) $$;
+    create function public.redeem_plan_invite_idempotent_atomic(
+      uuid, text, uuid, text, text, timestamptz, text, text
+    ) returns text language sql security definer set search_path = ''
+    as $$ select public._0075_redeem_plan_invite_idempotent_atomic($1,$2,$3,$4,$5,$6,$7,$8) $$;
+  `);
+  for (const name of [
+    "20260831140000_0127_plan_membership_account_claim.sql",
+    "20260831140500_0128_plan_membership_account_uniqueness.sql",
+    "20260831141000_0129_plan_join_account_atomicity.sql",
+    "20260901090000_0133_plan_account_recovery_idempotency.sql",
+    "20260901100000_0134_plan_join_account_transition.sql",
+  ]) {
+    session.applyFile(migration(name));
   }
-  session = await startSession();
-}, 60_000);
-
-beforeEach((context) => {
-  if (skipReason) context.skip(true, skipReason);
-});
+}, 180_000);
 
 afterAll(async () => {
   await session?.stop();
 });
 
-describe("Plan account transition migrations", () => {
+describe.skipIf(skipReason !== null)("Plan account transition migrations", () => {
   it("binds anonymous join and redeem retries, then recovers stale RSVP tokens", () => {
     const planJoin = "10000000-0000-4000-8000-000000000001";
     const planRedeem = "10000000-0000-4000-8000-000000000002";
@@ -321,7 +217,7 @@ describe("Plan account transition migrations", () => {
       select public.recover_plan_account_membership_atomic('${planRedeem}', '${userRedeem}', repeat('5', 64), repeat('5', 64), repeat('6', 64), '${when}'::timestamptz + interval '4 minutes')
     `)).toBe("recovered");
 
-    session!.apply(ROLLBACK_PATH);
+    session!.applyFile(ROLLBACK_PATH);
     expect(session!.sql(`
       select count(*)::text
       from pg_proc

@@ -16,10 +16,11 @@ function tempDirectory() {
   return directory;
 }
 
-function run(script: string, args: string[]) {
+function run(script: string, args: string[], env: Record<string, string> = {}) {
   return spawnSync(process.execPath, [path.join(ROOT, "scripts", script), ...args], {
     cwd: ROOT,
     encoding: "utf8",
+    env: { ...process.env, ...env },
   });
 }
 
@@ -242,6 +243,67 @@ describe("assert-no-conditional-e2e-skips", () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("count === 0 || process.env.PUBMAX_ALLOW_EMPTY");
+  });
+
+  it("admits a skip the allowlist argues for, and nothing else", () => {
+    const directory = tempDirectory();
+    writeFileSync(
+      path.join(directory, "listed.spec.ts"),
+      'import { test } from "@playwright/test";\ntest("x", () => { test.skip(true, "argued"); });\n',
+    );
+    const allowlist = path.join(directory, "allowlist.json");
+    writeFileSync(
+      allowlist,
+      JSON.stringify({
+        allowed: [
+          {
+            file: path.relative(ROOT, path.join(directory, "listed.spec.ts")),
+            condition: "true",
+            reason: "argued in the fixture",
+            ends: "when the lane it names exists",
+          },
+        ],
+      }),
+    );
+
+    const admitted = run("assert-no-conditional-e2e-skips.mjs", [directory], {
+      PUBMAX_E2E_SKIP_ALLOWLIST: allowlist,
+    });
+    expect(admitted.status).toBe(0);
+
+    // The same spec with no allowlist row is still refused.
+    const refused = run("assert-no-conditional-e2e-skips.mjs", [directory]);
+    expect(refused.status).toBe(1);
+    expect(refused.stderr).toContain("depends on true");
+  });
+
+  it("refuses an allowlist row that matches no live skip", () => {
+    const directory = tempDirectory();
+    writeFileSync(
+      path.join(directory, "clean.spec.ts"),
+      'import { test } from "@playwright/test";\ntest("x", () => {});\n',
+    );
+    const allowlist = path.join(directory, "allowlist.json");
+    writeFileSync(
+      allowlist,
+      JSON.stringify({
+        allowed: [
+          {
+            file: path.relative(ROOT, path.join(directory, "clean.spec.ts")),
+            condition: "true",
+            reason: "the skip this argued for is gone",
+            ends: "already",
+          },
+        ],
+      }),
+    );
+
+    const result = run("assert-no-conditional-e2e-skips.mjs", [directory], {
+      PUBMAX_E2E_SKIP_ALLOWLIST: allowlist,
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("matches no live skip");
   });
 
   it("rejects an empty spec directory", () => {

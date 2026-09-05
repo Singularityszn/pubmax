@@ -14,19 +14,19 @@
 // itself. 2026-09-04 is inside BST (UTC+1), which is also what makes the
 // boundary case below worth writing down.
 
-import { execFile, execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
-import { promisify } from "node:util";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-const execFileAsync = promisify(execFile);
+import {
+  postgresSkipReason,
+  startPostgres,
+  type PostgresAttempt,
+  type PostgresSession,
+} from "./helpers/postgres";
 
-/** psql prints the five-character SQLSTATE only under verbose error reporting. */
-const VERBOSE = ["-v", "VERBOSITY=verbose"] as const;
+const skipReason = postgresSkipReason();
 
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
@@ -42,225 +42,9 @@ const PREREQUISITES = readdirSync(MIGRATIONS)
   .sort()
   .map((name) => join(MIGRATIONS, name));
 
-type Attempt = { ok: boolean; said: string };
+let database: PostgresSession | null = null;
 
-type Session = {
-  sql: (statement: string) => string;
-  attempt: (statement: string) => Promise<Attempt>;
-  applyFile: (path: string) => void;
-  stop: () => Promise<void>;
-};
-
-async function waitForExit(
-  processHandle: ReturnType<typeof spawn>,
-  timeoutMs: number,
-): Promise<void> {
-  if (processHandle.exitCode !== null || processHandle.signalCode !== null) return;
-  await new Promise<void>((resolve) => {
-    const timer = setTimeout(resolve, timeoutMs);
-    processHandle.once("exit", () => {
-      clearTimeout(timer);
-      resolve();
-    });
-  });
-}
-
-function findPostgresBinary(name: "initdb" | "postgres" | "psql"): string | null {
-  const candidates = [
-    `/opt/homebrew/opt/postgresql@16/bin/${name}`,
-    `/usr/local/opt/postgresql@16/bin/${name}`,
-    `/usr/lib/postgresql/16/bin/${name}`,
-    `/opt/homebrew/bin/${name}`,
-    `/usr/bin/${name}`,
-  ];
-  const isPostgres16 = (candidate: string): boolean => {
-    try {
-      const version = execFileSync(candidate, ["--version"], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-      return /\bPostgreSQL\)?\s+16(?:\.|\s|$)/i.test(version);
-    } catch {
-      return false;
-    }
-  };
-  for (const candidate of candidates) {
-    if (existsSync(candidate) && isPostgres16(candidate)) return candidate;
-  }
-  try {
-    const candidate = execFileSync("which", [name], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    }).trim();
-    return candidate !== "" && isPostgres16(candidate) ? candidate : null;
-  } catch {
-    return null;
-  }
-}
-
-function missingPostgresReason(): string | null {
-  if (process.env.PUBMAX_PINT_DROP_DAILY_CAP_NO_PG === "1") {
-    return "PostgreSQL binaries were deliberately hidden by PUBMAX_PINT_DROP_DAILY_CAP_NO_PG=1.";
-  }
-  const missing = (["initdb", "postgres", "psql"] as const).filter(
-    (name) => findPostgresBinary(name) === null,
-  );
-  return missing.length > 0
-    ? `PostgreSQL 16 binaries unavailable for: ${missing.join(", ")}. Each binary must report major version 16 to run the 0141 daily-cap proof.`
-    : null;
-}
-
-async function pickPort(): Promise<number> {
-  const { createServer } = await import("node:net");
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : 0;
-      server.close(() => resolve(port));
-    });
-    server.on("error", reject);
-  });
-}
-
-async function startPostgres(): Promise<Session> {
-  const initdb = findPostgresBinary("initdb");
-  const postgres = findPostgresBinary("postgres");
-  const psql = findPostgresBinary("psql");
-  if (!initdb || !postgres || !psql) {
-    throw new Error(missingPostgresReason() ?? "PostgreSQL binaries unavailable.");
-  }
-
-  const dataDir = mkdtempSync(join(tmpdir(), "pubmax-daily-cap-0141-"));
-  let handle: ReturnType<typeof spawn> | null = null;
-  try {
-    const port = await pickPort();
-    execFileSync(
-      initdb,
-      ["-D", dataDir, "--locale=C", "-E", "UTF8", "--username=postgres", "--auth=trust"],
-      { stdio: "pipe" },
-    );
-    writeFileSync(
-      join(dataDir, "postgresql.auto.conf"),
-      [
-        "listen_addresses = '127.0.0.1'",
-        `port = ${port}`,
-        // The burst below opens one connection per racing writer, so this has
-        // to clear BURST_SIZE with room for the synchronous session beside it.
-        "max_connections = 24",
-        "shared_buffers = 16MB",
-        "fsync = off",
-        "full_page_writes = off",
-        "synchronous_commit = off",
-      ].join("\n") + "\n",
-    );
-
-    const processHandle = spawn(
-      postgres,
-      ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"],
-      { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, LC_ALL: "C" } },
-    );
-    handle = processHandle;
-    const logs: string[] = [];
-    processHandle.stdout?.on("data", (chunk) => logs.push(chunk.toString()));
-    processHandle.stderr?.on("data", (chunk) => logs.push(chunk.toString()));
-
-    const connectionArgs = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
-    let ready = false;
-    for (let attempt = 0; attempt < 60; attempt += 1) {
-      try {
-        execFileSync(psql, [...connectionArgs, "-d", "postgres", "-c", "select 1"], {
-          stdio: "pipe",
-        });
-        ready = true;
-        break;
-      } catch {
-        await sleep(100);
-      }
-    }
-    if (!ready) throw new Error(`PostgreSQL failed to start:\n${logs.join("")}`);
-
-    const database = "pubmax_pint_drop_daily_cap_0141";
-    execFileSync(
-      psql,
-      [
-        ...connectionArgs,
-        "-d",
-        "postgres",
-        "-v",
-        "ON_ERROR_STOP=1",
-        "-c",
-        `create database ${database}`,
-      ],
-      { stdio: "pipe" },
-    );
-    const databaseArgs = [...connectionArgs, "-d", database, "-v", "ON_ERROR_STOP=1"];
-
-    const sql = (statement: string): string =>
-      execFileSync(psql, [...databaseArgs, "-t", "-A", "-c", statement], {
-        encoding: "utf8",
-        stdio: ["pipe", "pipe", "pipe"],
-      })
-        .trim()
-        .split("\n")
-        .filter((line) => line.trim() !== "SET")
-        .join("\n")
-        .trim();
-
-    // One statement, its OWN connection, and an outcome instead of a throw:
-    // this is what lets several writers be in flight at once. Verbose, because
-    // psql prints the SQLSTATE only when asked, and a refusal that cannot be
-    // named by code is a refusal this test cannot tell from any other.
-    const attempt = async (statement: string): Promise<Attempt> => {
-      try {
-        await execFileAsync(psql, [...databaseArgs, ...VERBOSE, "-c", statement], {
-          encoding: "utf8",
-        });
-        return { ok: true, said: "" };
-      } catch (error) {
-        const said =
-          typeof error === "object" && error !== null && "stderr" in error
-            ? String((error as { stderr?: unknown }).stderr ?? "")
-            : String(error);
-        return { ok: false, said };
-      }
-    };
-
-    const applyFile = (path: string): void => {
-      execFileSync(psql, [...databaseArgs, "-f", path], { stdio: "pipe" });
-    };
-
-    const stop = async (): Promise<void> => {
-      if (processHandle.exitCode === null && processHandle.signalCode === null) {
-        processHandle.kill("SIGINT");
-        await waitForExit(processHandle, 5_000);
-      }
-      if (processHandle.exitCode === null && processHandle.signalCode === null) {
-        processHandle.kill("SIGTERM");
-        await waitForExit(processHandle, 2_000);
-      }
-      if (processHandle.exitCode === null && processHandle.signalCode === null) {
-        processHandle.kill("SIGKILL");
-        await waitForExit(processHandle, 5_000);
-      }
-      rmSync(dataDir, { recursive: true, force: true });
-    };
-
-    return { sql, attempt, applyFile, stop };
-  } catch (error) {
-    if (handle && handle.exitCode === null && handle.signalCode === null) {
-      handle.kill("SIGKILL");
-      await waitForExit(handle, 5_000);
-    }
-    rmSync(dataDir, { recursive: true, force: true });
-    throw error;
-  }
-}
-
-let database: Session | null = null;
-let skipReason: string | null = null;
-
-function requireDatabase(): Session {
+function requireDatabase(): PostgresSession {
   if (!database) throw new Error("PostgreSQL session unavailable.");
   return database;
 }
@@ -332,7 +116,7 @@ function insertPriced(options: {
  * before any of them reaches the insert: this is the concurrent window the
  * check-then-insert could not see, not a loop dressed up as one.
  */
-async function burst(db: Session, statements: readonly string[]): Promise<Attempt[]> {
+async function burst(db: PostgresSession, statements: readonly string[]): Promise<PostgresAttempt[]> {
   const fireAt = new Date(Date.now() + 3_000).toISOString();
   return Promise.all(
     statements.map((statement) =>
@@ -360,21 +144,9 @@ function pricedBurst(venueId: string, tag: string, withPriceDay: boolean): strin
 }
 
 beforeAll(async () => {
-  skipReason = missingPostgresReason();
-  if (skipReason) {
-    console.error(
-      [
-        "",
-        "0141 DAILY PRICE CAP EFFECTIVE TESTS SKIPPED - THIS IS NOT A PASS",
-        `Reason: ${skipReason}`,
-        "Nothing proved that the concurrent burst is refused, that the migration applies over the rows the finding left, or that the rollback keeps the drops.",
-        "",
-      ].join("\n"),
-    );
-    return;
-  }
+  if (skipReason) return;
   try {
-    database = await startPostgres();
+    database = await startPostgres({ label: "pint-cap-0141", database: "pubmax_pint_drop_cap_0141" });
     database.applyFile(SESSION_FIXTURE);
     for (const path of PREREQUISITES) database.applyFile(path);
   } catch (error) {
@@ -389,7 +161,7 @@ afterAll(async () => {
   database = null;
 });
 
-describe("0141 on PostgreSQL", () => {
+describe.skipIf(skipReason !== null)("0141 on PostgreSQL", () => {
   it("lets a concurrent burst walk through the daily cap before the migration", async (context) => {
     if (skipReason) context.skip(true, skipReason);
     const db = requireDatabase();

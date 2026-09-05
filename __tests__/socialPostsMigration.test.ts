@@ -1,104 +1,21 @@
-import { execFile, execFileSync, spawn, type ChildProcess } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
-import { promisify } from "node:util";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import {
+  postgresSkipReason,
+  startPostgres,
+  type PostgresSession,
+} from "./helpers/postgres";
 
 const FORWARD = join(process.cwd(), "supabase/migrations/20260806145914_0072_social_posts.sql");
 const ROLLBACK = join(process.cwd(), "supabase/migrations/rollback/20260806145914_0072_social_posts_rollback.sql");
 
-function binary(name: "initdb" | "postgres" | "psql"): string | null {
-  for (const path of [
-    `/opt/homebrew/opt/postgresql@16/bin/${name}`,
-    `/opt/homebrew/opt/postgresql@17/bin/${name}`,
-    `/opt/homebrew/bin/${name}`,
-    name,
-  ]) {
-    try {
-      if (path === name) execFileSync("which", [name], { stdio: "pipe" });
-      else if (!existsSync(path)) continue;
-      return path;
-    } catch {}
-  }
-  return null;
-}
-
-const execFileAsync = promisify(execFile);
-
-type Database = {
-  sql(statement: string): string;
-  sqlAsync(statement: string): Promise<string>;
-  apply(path: string): void;
-  stop(): Promise<void>;
-};
-let database: Database | null = null;
-
-async function freePort(): Promise<number> {
-  const { createServer } = await import("node:net");
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      server.close(() => resolve(typeof address === "object" && address ? address.port : 0));
-    });
-    server.on("error", reject);
-  });
-}
-
-async function startDatabase(): Promise<Database> {
-  const initdb = binary("initdb");
-  const postgres = binary("postgres");
-  const psql = binary("psql");
-  if (!initdb || !postgres || !psql) throw new Error("PostgreSQL is unavailable.");
-  const directory = mkdtempSync(join(tmpdir(), "pubmax-social-posts-"));
-  const port = await freePort();
-  execFileSync(initdb, [
-    "-D", directory,
-    "--auth=trust",
-    "--username=postgres",
-    "-c", "shared_memory_type=mmap",
-    "-c", "dynamic_shared_memory_type=mmap",
-  ], { stdio: "pipe" });
-  writeFileSync(join(directory, "postgresql.auto.conf"), `listen_addresses='127.0.0.1'\nport=${port}\nfsync=off\n`);
-  const server: ChildProcess = spawn(postgres, ["-D", directory, "-h", "127.0.0.1", "-p", String(port)], { stdio: "ignore" });
-  const connection = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    try {
-      execFileSync(psql, [...connection, "-c", "select 1"], { stdio: "pipe" });
-      break;
-    } catch {
-      if (attempt === 49) throw new Error("PostgreSQL did not start.");
-      await sleep(100);
-    }
-  }
-  const run = (args: string[]) => execFileSync(psql, [...connection, "-v", "ON_ERROR_STOP=1", ...args], {
-    encoding: "utf8",
-    stdio: ["pipe", "pipe", "pipe"],
-  }).trim();
-  return {
-    sql: (statement) => run(["-q", "-t", "-A", "-c", statement]),
-    async sqlAsync(statement) {
-      const { stdout } = await execFileAsync(psql, [
-        ...connection, "-v", "ON_ERROR_STOP=1", "-q", "-t", "-A", "-c", statement,
-      ], { encoding: "utf8" });
-      return stdout.trim();
-    },
-    apply: (path) => run(["-f", path]),
-    async stop() {
-      if (server.exitCode === null) {
-        server.kill("SIGTERM");
-        await Promise.race([new Promise<void>((resolve) => server.once("exit", () => resolve())), sleep(1_000)]);
-      }
-      rmSync(directory, { recursive: true, force: true });
-    },
-  };
-}
+let database: PostgresSession | null = null;
+const skipReason = postgresSkipReason();
 
 beforeAll(async () => {
-  database = await startDatabase();
+  database = await startPostgres({ label: "social-posts-0072" });
   database.sql(`
     create role anon noinherit;
     create role authenticated noinherit;
@@ -111,14 +28,14 @@ beforeAll(async () => {
       unique(follower_id, followee_id)
     );
   `);
-}, 60_000);
+}, 180_000);
 
 afterAll(async () => database?.stop());
 
-describe("Social posts migration forward and rollback", () => {
+describe.skipIf(skipReason !== null)("Social posts migration forward and rollback", () => {
   it("applies service-only schema with database content constraints and a durable pending job", () => {
     const db = database!;
-    db.apply(FORWARD);
+    db.applyFile(FORWARD);
     db.sql(`insert into public.profiles(id,handle) values
       ('11111111-1111-4111-8111-111111111111','alice'),
       ('22222222-2222-4222-8222-222222222222','bob'),
@@ -272,7 +189,7 @@ describe("Social posts migration forward and rollback", () => {
 
   it("rolls back Task 3 state without touching the profile graph", () => {
     const db = database!;
-    db.apply(ROLLBACK);
+    db.applyFile(ROLLBACK);
     expect(db.sql("select to_regclass('public.social_posts') is null")).toBe("t");
     expect(db.sql("select to_regclass('public.social_post_moderation_jobs') is null")).toBe("t");
     expect(db.sql("select count(*) from public.profiles")).toBe("3");
