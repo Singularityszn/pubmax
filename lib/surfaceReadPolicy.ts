@@ -67,7 +67,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "components/plan/PlanInviteRsvp.tsx", fetchCount: 3, reason: "invite RSVP reads and actions are mutation-sensitive" },
   { path: "components/plan/PlanRoute.tsx", fetchCount: 2, reason: "plan route and Tonight listings have no-store route semantics" },
   { path: "components/plan/PlanRouteMiniMap.tsx", fetchCount: 2, reason: "plan map detail is interactive venue data" },
-  { path: "components/plan/PlanSummary.tsx", fetchCount: 3, reason: "plan summary reads and actions are no-store" },
+  { path: "components/plan/PlanSummary.tsx", fetchCount: 4, reason: "plan summary reads and actions are no-store; the fourth re-reads the stored route after a stale save" },
   { path: "components/plan/PlanVibe.tsx", fetchCount: 3, reason: "plan votes are live and mutation-sensitive" },
   { path: "components/plan/RecapDetail.tsx", fetchCount: 1, reason: "recap detail is a private mutable surface" },
   { path: "components/profile/OutTonightBoard.tsx", fetchCount: 1, reason: "presence is live and account-scoped" },
