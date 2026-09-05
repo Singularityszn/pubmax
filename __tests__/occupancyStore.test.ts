@@ -18,6 +18,9 @@ const supabaseState = vi.hoisted(() => ({ configured: false }));
 
 vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: () => supabaseState.configured,
+  // The store seam refuses a process-memory fallback where a durable store is
+  // required, so a double for @/lib/supabase has to answer that question too.
+  requiresSupabaseStore: () => false,
   requireSupabaseAdmin: () => {
     throw new Error(
       "Could not find the table 'public.venue_occupancy_reports' in the schema cache",

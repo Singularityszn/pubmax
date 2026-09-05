@@ -14,6 +14,9 @@ import {
 
 vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: () => false,
+  // The store seam refuses a process-memory fallback where a durable store is
+  // required, so a double for @/lib/supabase has to answer that question too.
+  requiresSupabaseStore: () => false,
   requireSupabaseAdmin: () => {
     throw new Error(
       "Could not find the table 'public.price_trust_events' in the schema cache",
