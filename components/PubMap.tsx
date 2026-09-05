@@ -4904,6 +4904,7 @@ export default function PubMap({
           onClearLocation={clearVenueLocation}
           zoneIndex={zoneIndex}
           onLogged={refreshVenueDrops}
+          onOpenComposerForLog={openComposerForLog}
         />
       </>
     );

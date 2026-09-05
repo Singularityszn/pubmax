@@ -467,6 +467,62 @@ describe("POST /api/pint-drops (create)", () => {
     });
   });
 
+  it("tells the same account its repeat confirms nothing, and stamps nothing", async () => {
+    reportAuth.userId = "account-repeat";
+    await memoryProfileStore.createOwned("repeat_drinker", reportAuth.userId);
+    // One account, two London days, one figure. The daily cap refuses a
+    // same-day repeat at the route, so the earlier day's row is placed in the
+    // store and the pass is asked directly: it reads the two as one reporter.
+    const first = await post({ venueId: VENUE, handle: "repeat_drinker", priceGbp: 4.5 });
+    expect(first.status).toBe(201);
+    expect(await first.json()).toMatchObject({
+      confirmationOutcome: { status: "awaiting_second_drinker" },
+    });
+    const { addPintDrop } = await import("@/lib/pintDrops");
+    const { pintDropAuthorityKey } = await import("@/lib/pintDropAuthority.server");
+    addPintDrop({
+      id: "repeat-earlier",
+      venueId: VENUE,
+      handle: "repeat_drinker",
+      drink: "Lager",
+      priceGbp: 4.5,
+      passedDownNote: "",
+      era: "",
+      provenance: "contributor",
+      status: "visible",
+      visibility: "public",
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      authorityKey: pintDropAuthorityKey(VENUE, reportAuth.userId),
+    });
+    const { runSecondReporterPass } = await import("@/lib/pintDropConfirm.server");
+    expect(await runSecondReporterPass(VENUE)).toEqual({ status: "same_reporter" });
+    const listed = (await (await get(VENUE)).json()) as { drops: Array<{ confirmation?: unknown }> };
+    expect(listed.drops.every((drop) => !drop.confirmation)).toBe(true);
+  });
+
+  it("mints for a second account and hands the confirming drop its record", async () => {
+    reportAuth.userId = "account-door-one";
+    await memoryProfileStore.createOwned("door_one", reportAuth.userId);
+    expect((await post({ venueId: VENUE, handle: "door_one", priceGbp: 4.5 })).status).toBe(201);
+
+    reportAuth.userId = "account-door-two";
+    await memoryProfileStore.createOwned("door_two", reportAuth.userId);
+    const res = await post({ venueId: VENUE, handle: "door_two", priceGbp: 4.5 });
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as {
+      drop: { id: string; confirmation?: { confirmationId: string } };
+      confirmation?: { confirmationId: string; basis: string; confirmingDropId?: string };
+      confirmationOutcome?: { status: string; dropIds?: string[] };
+    };
+    expect(body.confirmationOutcome?.status).toBe("confirmed");
+    expect(body.confirmation).toMatchObject({ basis: "second_reporter" });
+    expect(body.confirmation?.confirmingDropId).toBeTruthy();
+    // The row the drinker gets back already wears the record it just earned,
+    // so the sheet can read Confirmed before the lane is re-read.
+    expect(body.drop.confirmation?.confirmationId).toBe(body.confirmation?.confirmationId);
+    expect(body.confirmationOutcome?.dropIds).toContain(body.drop.id);
+  });
+
   it("accepts a note-only drop as an anecdote", async () => {
     const res = await post({ venueId: VENUE, handle: "ale", passedDownNote: "cheapest in town, 1998" });
     expect(res.status).toBe(201);

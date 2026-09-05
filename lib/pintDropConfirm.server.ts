@@ -20,10 +20,12 @@ import { randomUUID } from "crypto";
 
 import { log } from "@/lib/log";
 import {
-  findSecondReporterConfirmation,
   liveConfirmationFor,
+  outcomeForUnmintedReading,
+  readSecondReporter,
   type PintDropConfirmation,
 } from "@/lib/pintDropConfirmation";
+import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
 import { pintDropsStore } from "@/lib/pintDropsStore";
 
 function mint(
@@ -40,44 +42,62 @@ function mint(
 }
 
 /**
- * Run the second-reporter pass over one venue's drop lane.
+ * Run the second-reporter pass over one venue's drop lane and NAME what it
+ * found (`lib/pintDropSecondDrinker.ts` owns the vocabulary).
  *
- * Returns the confirmation when this call minted one, and null when the venue
- * has nothing to confirm, already holds a live confirmation, or the write found
- * nothing to change. NEVER throws: the caller is a create path, and a
- * confirmation that could not be taken is a fact about us, not about the price.
+ * The write is the same one it always was: a pair completed by a second
+ * independent authority key is minted once, both rows carrying the SAME
+ * confirmation id, because one agreement between two reporters is one event.
+ * What is new is the answer for every pass that mints nothing, so a drinker
+ * who has just repeated their own report is told so rather than shown a line
+ * asking for a second drinker they cannot be.
+ *
+ * Idempotent by construction: a retry after a mint reads the live confirmation
+ * and answers `already_confirmed` with the record on file, never a second id.
+ * NEVER throws: the caller is a create path, and a confirmation that could not
+ * be taken is a fact about us, not about the price, so the answer is
+ * `unavailable` and the drop stands.
  */
-export async function confirmVenueBySecondReporter(
+export async function runSecondReporterPass(
   venueId: string,
   now: number = Date.now(),
-): Promise<PintDropConfirmation | null> {
+): Promise<PintDropConfirmationOutcome> {
   try {
     const store = pintDropsStore();
     const candidates = await store.listConfirmationCandidates(venueId);
-    const pair = findSecondReporterConfirmation(candidates, now);
-    if (!pair) return null;
-    const confirmation = mint("second_reporter", now, pair.confirmingDropId);
+    const reading = readSecondReporter(candidates, now);
+    if (reading.kind !== "pair") return outcomeForUnmintedReading(reading);
+    const confirmation = mint("second_reporter", now, reading.confirmingDropId);
     // Both drops carry the SAME confirmation id on purpose: one agreement
     // between two reporters is one event, and either row can answer a citation
     // of it. The store writes them together or not at all.
-    const wrote = await store.confirm(
-      [pair.dropId, pair.confirmingDropId],
-      confirmation,
-      now,
-    );
-    if (!wrote) return null;
+    const dropIds = [reading.dropId, reading.confirmingDropId];
+    const wrote = await store.confirm(dropIds, confirmation, now);
+    if (!wrote) return { status: "unavailable" };
     log("info", "pint_drop.confirmed", {
       basis: confirmation.basis,
       confirmationId: confirmation.confirmationId,
     });
-    return confirmation;
+    return { status: "confirmed", confirmation, dropIds };
   } catch (err) {
     log("warn", "pint_drop.confirm_failed", {
       basis: "second_reporter",
       error: err instanceof Error ? err.message : String(err),
     });
-    return null;
+    return { status: "unavailable" };
   }
+}
+
+/**
+ * The pass as a producer alone: the confirmation when THIS call minted one,
+ * and null otherwise. Kept for the callers that only need the record.
+ */
+export async function confirmVenueBySecondReporter(
+  venueId: string,
+  now: number = Date.now(),
+): Promise<PintDropConfirmation | null> {
+  const outcome = await runSecondReporterPass(venueId, now);
+  return outcome.status === "confirmed" ? outcome.confirmation : null;
 }
 
 /**

@@ -65,6 +65,10 @@ import {
 import { drinkLaneNoun, venueDrinkPriceView } from "@/lib/drinkLanes";
 import { namedLegacyPintPriceSource, type DrinkCategory } from "@/lib/drinks";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
+import {
+  confirmPintActionLabel,
+  confirmPintActionName,
+} from "@/lib/pintDropSecondDrinker";
 import type { ZonePintIndex } from "@/lib/zones";
 
 /**
@@ -107,6 +111,7 @@ function VenuePriceSummary({
   anchorStamp,
   onLogTonightPrice,
   onStartFirstDrop,
+  onConfirmPrice,
   priceRevealMotionClass = "",
 }: {
   venue: Venue;
@@ -118,6 +123,9 @@ function VenuePriceSummary({
   anchorStamp: string | null;
   onLogTonightPrice: () => void;
   onStartFirstDrop?: () => void;
+  /** The second drinker's door: opens the Pint Drop composer seeded with the
+   *  logged-once figure (lib/pintDropSecondDrinker.ts). */
+  onConfirmPrice?: (priceGbp: number) => void;
   priceRevealMotionClass?: string;
 }) {
   const chromeRevealClass = priceRevealMotionClass || undefined;
@@ -277,6 +285,21 @@ function VenuePriceSummary({
         <small className={`communityPriceStanding ${priceRevealMotionClass}`.trim()}>
           {PROVISIONAL_PRICE_LINE}
         </small>
+        {/* The second drinker's door. ONE action, the figure it names is the
+            one printed above, and it seeds the composer rather than sending
+            anything: the drinker still presses Log it, and independence is
+            decided on the server from the authority key, never here. */}
+        {onConfirmPrice && isPubVenue(venue) ? (
+          <button
+            type="button"
+            className="confirmPintCta"
+            data-testid="confirm-pint-cta"
+            aria-label={confirmPintActionName(lane.provisionalPrice, venue.name)}
+            onClick={() => onConfirmPrice(lane.provisionalPrice)}
+          >
+            {confirmPintActionLabel(lane.provisionalPrice)}
+          </button>
+        ) : null}
       </div>
     );
   }
@@ -382,6 +405,7 @@ export default function VenueOverviewTab({
   onClearLocation,
   onLogTonightPrice,
   onStartFirstDrop,
+  onConfirmPrice,
   onOpenVisitReports,
   priceEntryAllowed,
   priceSignInRequested,
@@ -432,6 +456,9 @@ export default function VenueOverviewTab({
   /** Opens the existing Pint Drop composer prefilled for this venue (Pints
    *  tab + composer open). Fired by the first-drop nudge on unpriced venues. */
   onStartFirstDrop: () => void;
+  /** Opens the Pint Drop composer seeded with a logged-once figure, so a
+   *  second drinker can confirm it (lib/pintDropSecondDrinker.ts). */
+  onConfirmPrice?: (priceGbp: number) => void;
   /** Opens Lore, where the full Visit Report composer and list live. */
   onOpenVisitReports: () => void;
   priceEntryAllowed: boolean;
@@ -712,6 +739,7 @@ export default function VenueOverviewTab({
           anchorStamp={anchorStamp}
           onLogTonightPrice={onLogTonightPrice}
           onStartFirstDrop={onStartFirstDrop}
+          onConfirmPrice={onConfirmPrice}
           priceRevealMotionClass={
             drinkPriceRows?.length ? "" : priceRevealMotionClass
           }

@@ -3566,7 +3566,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   cursor: pointer;
 }
 
-.firstDropNudgeCta {
+/* `.confirmPintCta` is the second drinker's door on a logged-once price
+   (lib/pintDropSecondDrinker.ts): the same painted action as the first-drop
+   nudge, because both ask a drinker for one kept action at this pub. */
+.firstDropNudgeCta,
+.confirmPintCta {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -3589,12 +3593,14 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
     box-shadow var(--duration-base) var(--ease-out);
 }
 
-.firstDropNudgeCta:hover {
+.firstDropNudgeCta,
+.confirmPintCta:hover {
   border-color: var(--brass-bright);
   box-shadow: 0 10px 22px color-mix(in srgb, var(--brass) 28%, transparent);
 }
 
-.firstDropNudgeCta:focus-visible {
+.firstDropNudgeCta,
+.confirmPintCta:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
