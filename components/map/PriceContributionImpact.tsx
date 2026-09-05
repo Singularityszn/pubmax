@@ -24,7 +24,7 @@ export default function PriceContributionImpact({ attribution }: Props) {
           MapLibre instance away. It was tried, twice: with IntentLink and with
           a bare next/link. Both landed on /u/<handle> with the FRAGMENT GONE,
           measured in e2e/price-submission (Chromium, production build). /map is
-          one of the two CDN-cached documents with no nonce and /u/[handle] is
+          one of the CDN-cached documents with no nonce and /u/[handle] is
           nonce'd and dynamic, so this crossing is a hard navigation either way
           — and Next's own hard navigation drops the hash on the way.
 

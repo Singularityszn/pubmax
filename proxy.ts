@@ -20,23 +20,41 @@ const CANONICAL_HOST = "pubmaxxing.com";
 //
 // Captain decision, 2026-08-09, answering the open question PR #974 left: the
 // per-request nonce rules out static generation, ISR and PPR, so every page
-// view was a function invocation with no CDN copy to serve instead. These two
-// documents - and ONLY these two - drop the nonce and take
+// view was a function invocation with no CDN copy to serve instead. The
+// documents named here - and ONLY these - drop the nonce and take
 // `script-src 'unsafe-inline'` in exchange for being prerendered and served
-// from the Vercel CDN. Both are public, both are anonymous: neither document
-// carries a name, a handle, a session or any other personal figure, and the
-// client fetches every personalised thing after load (a cached document that
-// carried one would be handed to the next stranger).
+// from the Vercel CDN. Every one is public and anonymous: no document carries
+// a name, a handle, a session or any other personal figure, and the client
+// fetches every personalised thing after load (a cached document that carried
+// one would be handed to the next stranger).
+//
+// The list opened with `/` and `/map`. Captain 2026-09-05 ("Widen") extended
+// the same trade to the other logged-out pages, `/tonight`, `/today` and
+// `/near`, on the same terms: each page declares `force-static`, reads no
+// cookie, no header and no search param in its document, and takes an ISR
+// window sized to the clock it reads (a page that composes off the London hour
+// is regenerated every few minutes; a page that reads only bundled data takes
+// an hour). Scout #1356 found no way to keep a nonce on a cached document, so
+// the inline slot is the price, and it is the ONLY thing that differs.
 //
 // Every other route - identity, social, profile, admin and every API - keeps
-// the strict per-request nonce exactly as before.
+// the strict per-request nonce exactly as before. A route that resolves a
+// session in its document (`/u/you`, `/messages`, `/admin`) may never join
+// this list, whatever it would buy.
 //
 // This list is a tracked constant so that adding a route to it is a deliberate
 // diff a reviewer sees, never a side effect of a refactor.
-// `__tests__/clerkProxyCsp.test.ts` pins both halves: these two paths carry
+// `__tests__/clerkProxyCsp.test.ts` pins both halves: these paths carry
 // 'unsafe-inline' and no nonce, and the identity/social/admin routes carry a
-// fresh nonce and no 'unsafe-inline'.
-const CDN_CACHED_DOCUMENT_PATHS: ReadonlySet<string> = new Set(["/", "/map"]);
+// fresh nonce and no 'unsafe-inline'. `__tests__/cdnCachedDocuments.test.ts`
+// holds every listed path to a page file that declares `force-static`.
+export const CDN_CACHED_DOCUMENT_PATHS: ReadonlySet<string> = new Set([
+  "/",
+  "/map",
+  "/tonight",
+  "/today",
+  "/near",
+]);
 
 function servesCdnCachedDocument(pathname: string): boolean {
   return CDN_CACHED_DOCUMENT_PATHS.has(pathname);
@@ -157,8 +175,8 @@ function shouldSkipContentSecurityPolicy(request: NextRequest): boolean {
 // TRADE-OFF (acknowledged): a per-request nonce forces DYNAMIC rendering —
 // static generation / ISR / PPR are incompatible with nonce CSP because a
 // prebuilt shell can't know the request's nonce. That cost was paid on every
-// route until 2026-08-09; it is now paid on every route EXCEPT the two named in
-// CDN_CACHED_DOCUMENT_PATHS above, which is where the reasoning for the
+// route until 2026-08-09; it is now paid on every route EXCEPT the ones named
+// in CDN_CACHED_DOCUMENT_PATHS above, which is where the reasoning for the
 // exception lives.
 //
 // This file is `proxy.ts` (not `middleware.ts`): Next.js 16 renamed the
@@ -235,7 +253,7 @@ export function securityProxy(request: NextRequest) {
 
   // The nonce exception, and the ONLY place it is decided. A prerendered
   // document cannot carry a per-request nonce - every visitor would be handed
-  // the same one, which is the one thing a nonce may not be - so the two
+  // the same one, which is the one thing a nonce may not be - so the
   // allow-listed paths take `script-src 'unsafe-inline'` instead. A /map
   // request rewritten to the twin above gets no CDN copy, so it has nothing to
   // buy with the nonce and keeps it.

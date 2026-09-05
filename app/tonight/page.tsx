@@ -20,6 +20,26 @@ export const metadata: Metadata = {
 
 export const runtime = "nodejs";
 
+// THIS DOCUMENT IS PRERENDERED (captain 2026-09-05, "Widen", recorded in
+// proxy.ts beside CDN_CACHED_DOCUMENT_PATHS): it drops the per-request CSP
+// nonce so the Vercel CDN can hold it. Two rules follow, both enforced by
+// `__tests__/cdnCachedDocuments.test.ts`:
+//
+//   1. Nothing per-request may be read here. `force-static` makes that a build
+//      error rather than a silent per-request render, and it is also what stops
+//      the root layout's nonce read (`headers()`) from pulling this route back
+//      into dynamic rendering. The remembered area and every query parameter
+//      are read by the client after load.
+//   2. Nothing personal may reach this document. One prerendered copy is handed
+//      to every stranger; the trusted-handoff flags are deployment env, not a
+//      viewer, and the What's-On spine is fetched by the client.
+export const dynamic = "force-static";
+// The one input that moves between deploys is the London clock: the quiet-pint
+// window and the soft-plans window both read the hour. Five minutes bounds how
+// far a held copy can lag a window boundary, and the CDN regenerates in the
+// background so no reader waits for it.
+export const revalidate = 300;
+
 export default async function TonightPage() {
   // Server reads the trusted-handoff flags once; the client receives an immutable
   // DTO and never interprets env itself (contract 4.1). All-off keeps today's

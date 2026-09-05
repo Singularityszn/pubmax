@@ -23,7 +23,7 @@ import {
   isClerkMiddlewareConfigured,
 } from "@/lib/clerkIdentity";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
-import { config, securityProxy } from "@/proxy";
+import { CDN_CACHED_DOCUMENT_PATHS, config, securityProxy } from "@/proxy";
 
 /**
  * The captain's development instance key. It is a PUBLISHABLE key, so it is
@@ -34,9 +34,10 @@ const PUBLISHABLE_KEY = "pk_test_cmFyZS10cm91dC0yOS5jbGVyay5hY2NvdW50cy5kZXYk";
 const FRONTEND_API = "https://rare-trout-29.clerk.accounts.dev";
 
 /**
- * The default path is a NONCE route on purpose. `/` and `/map` are the two
- * prerendered documents that drop the nonce (captain decision 2026-08-09), so
- * asserting the strict policy through either of them would assert nothing.
+ * The default path is a NONCE route on purpose. `/`, `/map`, `/tonight`,
+ * `/today` and `/near` are the prerendered documents that drop the nonce
+ * (captain decisions 2026-08-09 and 2026-09-05), so asserting the strict policy
+ * through any of them would assert nothing.
  * `/login` is the identity door: if the nonce ever leaks away from it, sign-in
  * is running under `script-src 'unsafe-inline'`.
  */
@@ -250,14 +251,17 @@ describe("the CSP the proxy actually ships", () => {
   });
 });
 
-// The CDN exception, both halves. It is worth stating what it is: two public,
-// anonymous documents may be prerendered and held by the CDN, which a
-// per-request nonce makes impossible, so they take `script-src 'unsafe-inline'`
-// instead. The list is closed and it is exactly `/` and `/map`. What must never
-// happen is the exception spreading to a route where a session is resolved, a
-// handle is printed, or a moderator acts.
-describe("the two prerendered documents drop the nonce, and only they do", () => {
-  const CDN_CACHED = ["/", "/map"];
+// The CDN exception, both halves. It is worth stating what it is: a closed set
+// of public, anonymous documents may be prerendered and held by the CDN, which
+// a per-request nonce makes impossible, so they take `script-src
+// 'unsafe-inline'` instead. The list opened as `/` and `/map` (2026-08-09) and
+// widened to the other logged-out pages, `/tonight`, `/today` and `/near`
+// (captain 2026-09-05, "Widen"). What must never happen is the exception
+// spreading to a route where a session is resolved, a handle is printed, or a
+// moderator acts. `__tests__/cdnCachedDocuments.test.ts` holds the page files
+// behind the list to `force-static`; this file holds the policy each answers.
+describe("the prerendered documents drop the nonce, and only they do", () => {
+  const CDN_CACHED = ["/", "/map", "/tonight", "/today", "/near"];
   // One from each family the decision explicitly keeps strict.
   const NONCED = [
     "/login",
@@ -269,12 +273,33 @@ describe("the two prerendered documents drop the nonce, and only they do", () =>
     "/admin",
     "/admin/community-prices",
     "/plan",
-    "/today",
-    "/tonight",
-    "/near",
+    "/out",
+    "/places",
+    "/pal",
     "/map/london",
     "/map/arrival",
   ];
+  // The signed-in surfaces, named apart from the family list above: a route
+  // that resolves a session in its document is the one thing the widening may
+  // never reach, whatever it would buy.
+  const SIGNED_IN = ["/u/you", "/messages", "/admin"];
+
+  it.each(SIGNED_IN)("%s is never a cached document", (path) => {
+    expect(CDN_CACHED_DOCUMENT_PATHS.has(path)).toBe(false);
+    const scriptSrc = directive(policyFor(path), "script-src") ?? "";
+    expect(scriptSrc).toMatch(/'nonce-[A-Za-z0-9+/=]+'/);
+    expect(scriptSrc).not.toContain("'unsafe-inline'");
+    const response = securityProxy(
+      new NextRequest(`https://pubmaxxing.com${path}`, {
+        headers: { host: "pubmaxxing.com" },
+      }),
+    );
+    expect(response.headers.get("x-middleware-request-x-nonce")).not.toBeNull();
+  });
+
+  it("ships exactly the paths this file names, so a widening is a diff here too", () => {
+    expect([...CDN_CACHED_DOCUMENT_PATHS].sort()).toEqual([...CDN_CACHED].sort());
+  });
 
   it.each(CDN_CACHED)(
     "%s takes 'unsafe-inline' and carries no nonce anywhere",
@@ -299,14 +324,16 @@ describe("the two prerendered documents drop the nonce, and only they do", () =>
     expect(scriptSrc).not.toContain("'unsafe-inline'");
   });
 
-  it("buys nothing beyond the inline slot", () => {
+  it.each(CDN_CACHED)("%s buys nothing beyond the inline slot", (path) => {
     // Same directives, same origins, same order — only the nonce slot differs.
-    // Anything else changing here is a widening nobody asked for.
+    // Anything else changing here is a widening nobody asked for, and the
+    // three paths added on 2026-09-05 take exactly the shape `/map` already had.
     const strict = policyFor("/login");
-    const cached = policyFor("/");
+    const cached = policyFor(path);
     expect(cached.replace("'unsafe-inline'", "NONCE_SLOT")).toBe(
       strict.replace(/'nonce-[A-Za-z0-9+/=]+'/, "NONCE_SLOT"),
     );
+    expect(cached).toBe(policyFor("/map"));
   });
 
   it("hands a /map share link back to the nonce, because it gets no CDN copy", () => {
@@ -332,21 +359,22 @@ describe("the two prerendered documents drop the nonce, and only they do", () =>
     }
   });
 
-  it("keeps the rest of the policy locked down on a prerendered document", () => {
-    const policy = policyFor("/");
+  it.each(CDN_CACHED)("keeps the rest of the policy locked down on %s", (path) => {
+    const policy = policyFor(path);
     expect(directive(policy, "object-src")).toBe("object-src 'none'");
     expect(directive(policy, "base-uri")).toBe("base-uri 'self'");
     expect(directive(policy, "frame-ancestors")).toBe("frame-ancestors 'none'");
     expect(directive(policy, "default-src")).toBe("default-src 'self'");
   });
 
-  it("names the exception in the proxy source, with the decision and its date", () => {
+  it("names the exception in the proxy source, with both decisions and their dates", () => {
     // The list is only a deliberate diff if a reader can see WHY it exists.
     const proxySource = readFileSync(join(process.cwd(), "proxy.ts"), "utf8");
     expect(proxySource).toContain("const CDN_CACHED_DOCUMENT_PATHS");
     expect(proxySource).toContain("2026-08-09");
+    expect(proxySource).toContain("2026-09-05");
     expect(proxySource).toMatch(
-      /const CDN_CACHED_DOCUMENT_PATHS[^=]*=\s*new Set\(\["\/", "\/map"\]\)/,
+      /const CDN_CACHED_DOCUMENT_PATHS[^=]*=\s*new Set\(\[\s*"\/",\s*"\/map",\s*"\/tonight",\s*"\/today",\s*"\/near",?\s*\]\)/,
     );
   });
 });
