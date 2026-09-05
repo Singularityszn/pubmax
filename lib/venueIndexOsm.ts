@@ -21,10 +21,26 @@ async function attachCityOsmIds(
   index: Map<string, IndexedVenue>,
 ): Promise<boolean> {
   try {
+    // Both packs are DECLARED in lib/venueIndexTracing.mjs (pack
+    // `venue-osm-index`), so the deployed function ships them whatever the
+    // bundler can see. The marker is what stops the bundler ALSO widening the
+    // trace to the whole repository: a path assembled from process.cwd() is
+    // dynamic filesystem access, and Turbopack answers that by tracing every
+    // source file and the public folder into the route. Measured 5 September
+    // 2026 on a prebuilt preview upload: three functions (`/recap/[storyId]`,
+    // `/invite/[token]` and its OG image) traced 10,061 files each, including
+    // `docs/**`, and the upload then died with ENOENT on a document
+    // `.vercelignore` keeps out of it.
     const sourcePath =
       cityId === "london"
-        ? path.join(process.cwd(), UK_OSM_PUBS_FILE)
-        : path.join(process.cwd(), "data", "cities", cityId, "osm_pubs.json");
+        ? path.join(/* turbopackIgnore: true */ process.cwd(), UK_OSM_PUBS_FILE)
+        : path.join(
+            /* turbopackIgnore: true */ process.cwd(),
+            "data",
+            "cities",
+            cityId,
+            "osm_pubs.json",
+          );
     const raw = await fs.readFile(/* turbopackIgnore: true */ sourcePath, "utf8");
     const pubs = JSON.parse(raw)?.pubs;
     if (!Array.isArray(pubs)) return false;

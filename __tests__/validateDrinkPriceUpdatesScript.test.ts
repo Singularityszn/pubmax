@@ -56,6 +56,12 @@ function setupScratch(files: Record<string, unknown>): string {
     join(ROOT, "scripts", "lib", "slimShards.mjs"),
     join(scratchScripts, "lib", "slimShards.mjs"),
   );
+  // The shard plan stamps its payloads with the revision rule the whole build
+  // shares, so the scratch copy needs that leaf or it dies at module resolution.
+  cpSync(
+    join(ROOT, "lib", "dataRevision.mjs"),
+    join(scratchLib, "dataRevision.mjs"),
+  );
   if (existsSync(POSTCODE_CONSISTENCY_MODULE)) {
     cpSync(
       POSTCODE_CONSISTENCY_MODULE,

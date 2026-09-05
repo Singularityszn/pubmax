@@ -31,6 +31,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { deployStampBuildEnv } from "../lib/buildInfo.mjs";
+import { vercelCommand } from "./lib/vercelCli.mjs";
 
 const projectRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
@@ -98,11 +99,9 @@ const deployArgs = [
   ...process.argv.slice(2),
 ];
 
-// No Vercel CLI is a dependency of this repo and none is assumed to be on the
-// PATH, so npx fetches one unless an operator names the binary they want.
-const cliBinary = process.env.PUBMAX_VERCEL_BIN;
-const command = cliBinary ?? "npx";
-const args = cliBinary ? deployArgs : ["-y", "vercel@latest", ...deployArgs];
+// scripts/lib/vercelCli.mjs owns how the CLI is run, so this command and
+// `npm run deploy:preview:prod-env` cannot disagree about it.
+const { command, args } = vercelCommand(deployArgs);
 
 const result = spawnSync(command, args, { cwd: projectRoot, stdio: "inherit" });
 

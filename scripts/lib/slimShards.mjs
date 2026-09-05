@@ -1,4 +1,5 @@
-// Shared, dependency-free shard-plan logic for the SLIM venue index.
+// Shared shard-plan logic for the SLIM venue index. It carries no npm
+// dependency and one leaf import: the revision rule the whole build shares.
 //
 // #315 (`data/outer-london-osm`) grew venues_slim.json to ~805 KB by adding
 // ~650 sourced Outer-London OSM venue-PRESENCE pins across the ten "hollow"
@@ -21,6 +22,8 @@
 // and total budgets. Data drift that blows a budget fails CI rather than
 // silently regressing first paint.
 
+import { readWorkingTreeCommitSha, requireDataRevision } from "../../lib/dataRevision.mjs";
+
 // A borough is a LAZY outer shard when it is dominated by unpriced presence
 // pins (low priced ratio) AND carries enough of them to be worth deferring.
 // The original ten #315 boroughs sit at 4–17% priced, below this threshold.
@@ -33,23 +36,15 @@ export const MANIFEST_FILE = "venues_slim.manifest.json";
 export const CORE_FILE = "venues_slim.core.json";
 export const SHARD_VERSION = 1;
 export const SPATIAL_SHARD_VERSION = 2;
-const nonEmptyRevision = (...values) =>
-  values.find((value) => typeof value === "string" && value.trim())?.trim();
-
-const configuredDataRevision = nonEmptyRevision(
-  process.env.NEXT_PUBLIC_SW_VERSION,
-  process.env.DEPLOYMENT_VERSION,
-  process.env.VERCEL_DEPLOYMENT_ID,
-  process.env.VERCEL_GIT_COMMIT_SHA,
-  process.env.GITHUB_SHA,
-);
-
-export const DATA_REVISION = configuredDataRevision ??
-  (process.env.NODE_ENV === "production"
-    ? (() => {
-        throw new Error("A deploy revision is required for production data builds");
-      })()
-    : "local");
+// WHICH deploy these shard payloads belong to. lib/dataRevision.mjs owns the
+// order and the refusal, and next.config.mjs stamps the service worker from the
+// same rule, so a build and its data cannot disagree. Where no release
+// environment names a revision the tree the build runs over names it, which is
+// what lets a production data build run from a clean worktree; the refusal is
+// kept for the one build that can name nothing at all.
+export const DATA_REVISION = requireDataRevision(process.env, {
+  workingTreeSha: readWorkingTreeCommitSha(),
+});
 
 // The map opens on a viewport, not on a borough. A fixed grid keeps the first
 // request proportional to what the reader can see and makes a pan predictable.
