@@ -17,9 +17,15 @@ const workerCopy = readFileSync(
 
 describe("maplibre cold-open code split", () => {
   it("loads PubMapCanvas via next/dynamic (ssr:false), not a static value import", () => {
+    // The loader is behind a factory because React caches a REJECTED lazy for
+    // ever: a retry after a blocked chunk has to build a fresh one or it
+    // replays the rejection without touching the network
+    // (lib/mapCanvasAvailability.ts). The import stays dynamic either way,
+    // which is the whole of what keeps MapLibre out of this shell chunk.
     expect(pubMap).toMatch(
-      /const PubMapCanvas = dynamic\(\(\) => import\(["']@\/components\/PubMapCanvas["']\)/,
+      /function loadPubMapCanvas\(\) \{\s*\n?\s*return dynamic\(\(\) => import\(["']@\/components\/PubMapCanvas["']\)/,
     );
+    expect(pubMap).toMatch(/pubMapCanvasForAttempt/);
     expect(pubMap).toMatch(/ssr:\s*false/);
     // No static default import of the canvas module.
     expect(pubMap).not.toMatch(/^import PubMapCanvas from/m);

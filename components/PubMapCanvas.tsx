@@ -41,6 +41,7 @@ import {
 const MapLayersControl = dynamic(() => import("@/components/map/MapLayersControl"), {
   ssr: false,
 });
+import MapFallbackCard from "@/components/map/MapFallbackCard";
 import MapHeroCard from "@/components/map/MapHeroCard";
 import type { CityId } from "@/lib/cities";
 import { cityMaxBounds, DEFAULT_CITY_ID, getCity } from "@/lib/cities";
@@ -630,14 +631,6 @@ export default function PubMapCanvas({
     // Retry would be pointless — this is the sole case that hides the button.
     noWebgl?: boolean;
   } | null>(null);
-  // Whether the collapsed technical-diagnostic disclosure is expanded. A plain
-  // React-controlled toggle rather than native <details>/<summary>: this mount
-  // effect's RAF loop (pin entrance / dash / pulse) never tears down just
-  // because mapError is set, and that continuous rendering activity raced
-  // native <details> click-activation in headless/CDP-driven clicks often
-  // enough to be a real flake (native toggle occasionally missed the click
-  // entirely). A controlled button+conditional-render has no such race.
-  const [detailOpen, setDetailOpen] = useState(false);
   const reportMapError = useCallback(
     (error: NonNullable<typeof mapError>) => {
       // Lift the parent's loading chrome so this honest error card is visible
@@ -3631,71 +3624,29 @@ export default function PubMapCanvas({
     return (
       <div className="mapCanvasWrap">
         {/* Force a fresh node: MapLibre's imperative light-theme background
-            would otherwise survive React's div-for-div fallback swap. */}
-        <div key="map-fallback" className="mapFallback" role="alert">
-          <strong>{heading}</strong>
-          <p>
-            {mapError.message}
-            {" "}
-            The pub list and crawl planner beside it still work as ever.
-          </p>
-          {mapError.detail ? (
-            <div className="mapFallbackDisclosure">
-              <button
-                type="button"
-                className="mapFallbackDisclosureToggle"
-                aria-expanded={detailOpen}
-                onClick={() => setDetailOpen((open) => !open)}
-              >
-                Technical details
-              </button>
-              {detailOpen ? (
-                <small className="mapFallbackDetail">{mapError.detail}</small>
-              ) : null}
-            </div>
-          ) : null}
-          {fallbackVenues.length > 0 ? (
-            <ul className="mapFallbackVenues" aria-label="Pubs you can still browse">
-              {fallbackVenues.map((venue) => (
-                <li key={venue.id}>
-                  <button
-                    type="button"
-                    className="mapFallbackVenue"
-                    onClick={() => onVenueClick(venue.id)}
-                  >
-                    <span className="mapFallbackVenueName">{venue.name}</span>
-                    <span className="mapFallbackVenueMeta">
-                      {venue.primaryBorough}
-                      {venue.cheapestPrice != null
-                        ? ` · ${formatPrice(venue.cheapestPrice)}`
-                        : ""}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <Link className="mapFallbackBrowse" href="/pubs">
-            Browse all pubs
-          </Link>
-          {mapError.noWebgl ? null : (
-            <button
-              type="button"
-              className="mapFallbackRetry"
-              onClick={() => {
-                setMapError(null);
-                setSoftRetry(null);
-                setDetailOpen(false);
-                publishMapErrored(false);
-                publishMapReady(false);
-                contextAutoReinitSpentRef.current = false;
-                setInitAttempt((a) => a + 1);
-              }}
-            >
-              Retry
-            </button>
-          )}
-        </div>
+            would otherwise survive React's div-for-div fallback swap. The card
+            itself is shared with the shell's own no-canvas states
+            (components/map/MapFallbackCard.tsx), so the map has ONE venue view. */}
+        <MapFallbackCard
+          key="map-fallback"
+          heading={heading}
+          message={`${mapError.message} The pub list and crawl planner beside it still work as ever.`}
+          detail={mapError.detail}
+          venues={fallbackVenues}
+          onSelectVenue={onVenueClick}
+          onRetry={
+            mapError.noWebgl
+              ? null
+              : () => {
+                  setMapError(null);
+                  setSoftRetry(null);
+                  publishMapErrored(false);
+                  publishMapReady(false);
+                  contextAutoReinitSpentRef.current = false;
+                  setInitAttempt((a) => a + 1);
+                }
+          }
+        />
       </div>
     );
   }
@@ -3743,7 +3694,6 @@ export default function PubMapCanvas({
               }
               setSoftRetry(null);
               setMapError(null);
-              setDetailOpen(false);
               publishMapErrored(false);
               publishMapReady(false);
               contextAutoReinitSpentRef.current = false;
