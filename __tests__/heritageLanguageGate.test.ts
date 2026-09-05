@@ -9,11 +9,10 @@ import {
   internalLanguageFinding,
   internalLanguageFindings,
   isPublishableDescription,
-  // @ts-expect-error -- untyped at the import site; the .d.mts sidecar types it
 } from "../lib/heritageLanguageGate.mjs";
 
 // F05. The Queens Arms card told every reader it was "a useful Victorian
-// reference stop for the seeded heritage route" — a note we wrote to ourselves,
+// reference stop for the seeded heritage route", a note we wrote to ourselves
 // published as a fact about a pub. This pins the gate that refuses that class
 // of sentence, and then pins the shipped artifacts against the whole class, so
 // the next one is a failing test rather than a live card.
@@ -30,7 +29,7 @@ describe("internal language is refused", () => {
       "Pimlico pub from 1846; a useful Victorian reference stop for the seeded heritage route.",
     );
     expect(finding).not.toBeNull();
-    expect(finding.ruleId).toBe("seed-language");
+    expect(finding?.ruleId).toBe("seed-language");
     expect(describeInternalLanguage(finding)).toContain("seeded");
   });
 
@@ -45,7 +44,7 @@ describe("internal language is refused", () => {
     ["test-fixture-language", "Sample data for the historic index."],
   ])("refuses %s", (ruleId, text) => {
     const findings = internalLanguageFindings(text);
-    expect(findings.map((f: { ruleId: string }) => f.ruleId)).toContain(ruleId);
+    expect(findings.map((f) => f.ruleId)).toContain(ruleId);
     expect(isPublishableDescription(text)).toBe(false);
   });
 
@@ -54,9 +53,7 @@ describe("internal language is refused", () => {
       "Bethnal Green pub, useful for a writer-inspired crawl seed.",
     );
     expect(findings.length).toBeGreaterThan(1);
-    expect(new Set(findings.map((f: { ruleId: string }) => f.ruleId)).size).toBe(
-      findings.length,
-    );
+    expect(new Set(findings.map((f) => f.ruleId)).size).toBe(findings.length);
   });
 
   it("every rule states the class it catches, so a refusal is actionable", () => {

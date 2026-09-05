@@ -47,8 +47,17 @@ export type QuietPintCandidate = {
   hook: string;
   /** Retrieved heritage facts; the best non-seed one carries the attribution. */
   facts: readonly HeritageFact[];
-  /** Extracted era string ("1667", "17th century") or null. Ranks age. */
+  /**
+   * The stated date, ONLY when its type is evidence of the pub's age
+   * (lib/heritageDate.mjs). Ranks age, and nothing else may.
+   */
   era: string | null;
+  /**
+   * The public label for the stated date, which names what the date is OF
+   * ("Built 1667", "Named for 1701"). Present even where `era` is null, so a
+   * date that is not age evidence is still shown, worded as what it is.
+   */
+  dateLabel?: string | null;
   /** Statutory listed grade ("I" | "II*" | "II") or null. Ranks heritage weight. */
   listed: string | null;
 };
@@ -206,7 +215,7 @@ export function buildQuietPint(input: BuildQuietPintInput): QuietPintModule | nu
     id: candidate.venueId,
     name: candidate.name,
     heritageLine: candidate.hook.trim(),
-    eraLabel: candidate.era,
+    eraLabel: candidate.dateLabel ?? candidate.era,
     gradeLabel: listedBadge(candidate.listed),
     provenanceLabel: PROVENANCE_LABEL.sourced,
     sourceLabel: heritageSourceLabel(best.source),

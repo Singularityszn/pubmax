@@ -103,13 +103,16 @@ export default function HistoricPageClient({
               <ul className="historicGrid">
                 {pubs.map((pub) => {
                   const href = citationHref(pub);
+                  // The date chip states what the date is OF, never a bare
+                  // year (lib/heritageDate.mjs).
+                  const dateLabel = pub.dateLabel ?? pub.era;
                   const grade = listedBadge(pub.listed);
                   const status = venueStatusBadge(pub.venueStatus);
                   return (
                     <li key={pub.slug} className="historicCard">
                       <div className="historicCardMeta">
-                        {pub.era ? (
-                          <span className="historicEra">{pub.era}</span>
+                        {dateLabel ? (
+                          <span className="historicEra">{dateLabel}</span>
                         ) : null}
                         {grade ? (
                           <span className="historicGrade">{grade}</span>

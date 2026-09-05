@@ -423,7 +423,9 @@ export default async function BoroughPage({ params }: PageProps) {
                 <>
                   {". The oldest is "}
                   {heritage.oldest.name}
-                  {heritage.oldest.era ? <> ({heritage.oldest.era})</> : null}
+                  {(heritage.oldest.dateLabel ?? heritage.oldest.era) ? (
+                    <> ({heritage.oldest.dateLabel ?? heritage.oldest.era})</>
+                  ) : null}
                 </>
               ) : null}
               {heritage.listedCount > 0 ? <> &middot; {heritage.listedCount} listed</> : null}.
@@ -432,9 +434,13 @@ export default async function BoroughPage({ params }: PageProps) {
             <ul className="boroughHeritageList" aria-label={`Historic pubs in ${name}`}>
               {heritage.notable.slice(0, NOTABLE_CAP).map((pub) => (
                 <li key={pub.slug} className="boroughHeritageCard">
-                  {pub.era || pub.listed ? (
+                  {pub.dateLabel || pub.era || pub.listed ? (
                     <div className="boroughHeritageMeta">
-                      {pub.era ? <span className="boroughHeritageEra">{pub.era}</span> : null}
+                      {(pub.dateLabel ?? pub.era) ? (
+                        <span className="boroughHeritageEra">
+                          {pub.dateLabel ?? pub.era}
+                        </span>
+                      ) : null}
                       {pub.listed ? (
                         <span className="boroughHeritageGrade">Grade {pub.listed}</span>
                       ) : null}

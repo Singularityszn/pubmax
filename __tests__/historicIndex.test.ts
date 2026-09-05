@@ -68,6 +68,10 @@ const EXPECTED_KEYS = [
   "hook",
   "facts",
   "era",
+  "dateValue",
+  "datePrecision",
+  "dateType",
+  "dateLabel",
   "listed",
   "sourced",
 ];
@@ -442,7 +446,7 @@ describe("buildHistoricPublication — internal language is quarantined", () => 
   });
 
   it("withholds a record whose every fact was refused", () => {
-    expect(records.find((r) => r.name === "The New Inn")).toBeUndefined();
+    expect(records.find((r: HistoricPub) => r.name === "The New Inn")).toBeUndefined();
     expect(
       quarantined.some(
         (q: { cacheKey: string; reason: string }) =>
@@ -501,7 +505,7 @@ describe("buildHistoricPublication — a fact about another borough is quarantin
   });
 
   it("withholds a record left with nothing that is about it", () => {
-    expect(records.find((r) => r.name === "The New Inn")).toBeUndefined();
+    expect(records.find((r: HistoricPub) => r.name === "The New Inn")).toBeUndefined();
   });
 
   it("says which borough disagreed with which, so the key can be split", () => {
@@ -511,5 +515,48 @@ describe("buildHistoricPublication — a fact about another borough is quarantin
     expect(conflicts).toHaveLength(2);
     expect(conflicts[0].detail).toContain("Hackney");
     expect(conflicts[0].detail).toContain("Camden");
+  });
+});
+
+// F07: a year in a cited sentence is not automatically the pub's own date. The
+// index publishes the value, its precision, the TYPE of event it dates and a
+// label naming that type; `era`, the field every "oldest first" ordering reads,
+// carries the value only where the type is evidence of age.
+describe("buildHistoricPublication — a date says what it is a date of", () => {
+  const CACHE = {
+    "the old bell": [
+      {
+        source: "wikipedia",
+        fact: "The Old Bell is a Grade II* listed pub named after the highwayman John Bell, who was hanged nearby in 1701.",
+      },
+    ],
+    "the new inn": [
+      { source: "wikipedia", fact: "The New Inn is a coaching inn built in 1670." },
+    ],
+  };
+
+  const records: HistoricPub[] = buildHistoricIndex({
+    heritageCache: CACHE,
+    dataset: FIXTURE_DATASET,
+  });
+
+  it("publishes the event year, labelled, and orders nothing by it", () => {
+    const bell = byName(records, "The Old Bell");
+    expect(bell.dateValue).toBe("1701");
+    expect(bell.datePrecision).toBe("year");
+    expect(bell.dateType).toBe("associated_event");
+    expect(bell.dateLabel).toBe("Linked to 1701");
+    expect(bell.era).toBeNull();
+  });
+
+  it("publishes a real age in era as well as in the typed fields", () => {
+    const inn = byName(records, "The New Inn");
+    expect(inn.dateType).toBe("construction");
+    expect(inn.dateLabel).toBe("Built 1670");
+    expect(inn.era).toBe("1670");
+  });
+
+  it("sorts the dated pub above the one whose only date is an event", () => {
+    expect(records.map((r) => r.name)).toEqual(["The New Inn", "The Old Bell"]);
   });
 });

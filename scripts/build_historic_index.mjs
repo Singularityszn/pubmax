@@ -11,8 +11,15 @@
 // It writes public/data/historic_pubs.json: one record per heritage_cache entry.
 //
 // Provenance contract: we NEVER invent facts. `hook`/`facts` are copied verbatim
-// from the cache. `era` and `listed` are EXTRACTED from the cited fact text by
+// from the cache. `date*` and `listed` are EXTRACTED from the cited fact text by
 // regex only — if the text doesn't say it, the field is null.
+//
+// Date contract: a year in a cited sentence is not automatically the pub's own
+// date, so lib/heritageDate.mjs types it (dateValue + datePrecision +
+// dateType + dateLabel) and only an age-evidence type reaches `era`, the field
+// every "oldest first" ordering and age filter reads. The Captain Kidd was
+// sorted among the oldest pubs in London on 1701, the year the pirate it is
+// named after was hanged.
 //
 // Publication contract: a fact copied verbatim is still checked before it is
 // published, by two gates that both QUARANTINE and never rewrite. A withheld
@@ -42,6 +49,7 @@ import {
   internalLanguageFinding,
 } from "../lib/heritageLanguageGate.mjs";
 import { heritagePlaceConflict } from "../lib/heritagePlaceConflict.mjs";
+import { classifyHeritageDate } from "../lib/heritageDate.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -361,9 +369,14 @@ export function buildHistoricPublication({
       continue;
     }
 
-    // era/listed are scanned across ALL fact text for this venue.
+    // The date and the listing grade are scanned across ALL published fact text
+    // for this venue. `era` is deliberately NARROWER than `date`: it carries the
+    // value only when the type is evidence of age, so an event year reaches the
+    // card as a labelled event and reaches no ordering at all.
     const allText = facts.map((f) => f.fact).join("  ");
-    const { era, eraSort } = extractEra(allText);
+    const date = classifyHeritageDate(allText);
+    const era = date && date.ageSortYear != null ? date.value : null;
+    const eraSort = date ? date.ageSortYear : null;
     const listed = extractListed(allText);
 
     records.push({
@@ -375,6 +388,10 @@ export function buildHistoricPublication({
       hook: pickHook(facts),
       facts,
       era,
+      dateValue: date ? date.value : null,
+      datePrecision: date ? date.precision : null,
+      dateType: date ? date.type : null,
+      dateLabel: date ? date.label : null,
       listed,
       sourced: true,
       venueStatus: VENUE_STATUS_BY_CACHE_KEY[cacheKey] ?? null,
@@ -410,6 +427,10 @@ export function buildHistoricPublication({
       hook: rest.hook,
       facts: rest.facts,
       era: rest.era,
+      dateValue: rest.dateValue,
+      datePrecision: rest.datePrecision,
+      dateType: rest.dateType,
+      dateLabel: rest.dateLabel,
       listed: rest.listed,
       sourced: rest.sourced,
       ...(rest.venueStatus ? { venueStatus: rest.venueStatus } : {}),
@@ -460,6 +481,7 @@ export async function generate({
 
   const matched = records.filter((r) => r.venueId != null).length;
   const withEra = records.filter((r) => r.era != null).length;
+  const withDate = records.filter((r) => r.dateValue != null).length;
   const withListed = records.filter((r) => r.listed != null).length;
   return {
     records,
@@ -467,6 +489,7 @@ export async function generate({
     total: records.length,
     matched,
     withEra,
+    withDate,
     withListed,
     outPath,
   };
@@ -476,7 +499,8 @@ async function main() {
   const summary = await generate();
   console.log(`historic pubs: ${summary.total} records`);
   console.log(`  matched to a venue id: ${summary.matched}`);
-  console.log(`  with an extracted era: ${summary.withEra}`);
+  console.log(`  with a stated date:    ${summary.withDate}`);
+  console.log(`  dated by age evidence: ${summary.withEra}`);
   console.log(`  with a listing grade:  ${summary.withListed}`);
   // A withheld fact is a FINDING, not a silent drop: it is named here so the
   // cache entry behind it can be corrected rather than quietly disappearing.

@@ -51,6 +51,7 @@ export default async function TonightPage() {
               hook: pub.hook,
               facts: pub.facts,
               era: pub.era,
+              dateLabel: pub.dateLabel,
               listed: pub.listed,
             },
           ]

@@ -8,10 +8,8 @@ import {
   partitionFactsByPlace,
   referenceDisambiguator,
   statedBoroughs,
-  // @ts-expect-error -- untyped at the import site; the .d.mts sidecar types it
 } from "../lib/heritagePlaceConflict.mjs";
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
-// @ts-expect-error -- untyped at the import site; the .d.mts sidecar types it
 import { LONDON_BOROUGH_NAMES } from "../lib/londonBoroughNames.mjs";
 
 // F06. Heritage facts are keyed by pub NAME, and London has several of nearly
@@ -127,7 +125,7 @@ describe("similarly named pubs in different areas", () => {
 
   it("keeps the fact about this pub and quarantines the one about the other", () => {
     const { published, quarantined } = partitionFactsByPlace(FACTS, "Tower Hamlets");
-    expect(published.map((f: { fact: string }) => f.fact)).toEqual(["pub in Limehouse, London"]);
+    expect(published.map((f) => f.fact)).toEqual(["pub in Limehouse, London"]);
     expect(quarantined).toHaveLength(1);
     expect(quarantined[0].conflict.stated).toBe("Wandsworth");
   });

@@ -72,7 +72,10 @@ export default async function Image({
 
   // Chips: only present, cited facts. Omit anything the pub doesn't have.
   const chips: string[] = [];
-  const era = clampOgText(pub?.era, 20, "", {
+  // The date chip carries its TYPE, never a bare year: 1701 on The Captain
+  // Kidd is the year the pirate it is named after was hanged, and a bare 1701
+  // reads as the year the pub opened (lib/heritageDate.mjs).
+  const era = clampOgText(pub?.dateLabel ?? pub?.era, 28, "", {
     collapseWhitespace: true,
     collapseBeforeFilter: true,
   });
