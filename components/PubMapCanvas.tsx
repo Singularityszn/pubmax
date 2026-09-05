@@ -5,7 +5,6 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "./map/mapColor.css";
 import "./map/mapCameraControls.css";
 
-import Link from "next/link";
 import * as maplibregl from "maplibre-gl";
 import {
   Crosshair,

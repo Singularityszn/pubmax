@@ -96,7 +96,14 @@ async function blockMapLibrary(page: Page, chunk: string): Promise<() => number>
 const fallback = (page: Page) => page.locator(".mapFallback");
 const spilled = (page: Page) => page.getByText("Spilled.", { exact: true });
 
+/**
+ * Proof shots are for the design pass, not for every run: capturing one is a
+ * CDP call that can fail under parallel load, and a spec that fails on a
+ * screenshot is reporting on the harness rather than on the product. The
+ * assertions above each call are what hold the behaviour.
+ */
 async function shot(page: Page, name: string): Promise<void> {
+  if (!process.env.PUBMAX_MAP_BLOCKED_SHOTS) return;
   await mkdir(PROOF, { recursive: true });
   await page.screenshot({ path: `${PROOF}/${name}.png` });
 }
