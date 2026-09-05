@@ -9,13 +9,27 @@ import { offlineOrMessage } from "@/lib/apiErrorMessage";
 // WhatsApp / ShareBar must carry #invite={classicToken} so guests can tap
 // "I'm in" on PlanCrew after invite-only join. Copy invite stays /invite/{token}
 // for the RSVP page (e2e/plan-invite.spec.ts, soft-launch runbook).
+//
+// The token comes from lib/planInviteTokenClient.ts, never from a copy this
+// component fetched at mount (battle test M04): "New link" in the rotate
+// control below used to leave this href pointing at the retired token.
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
-import PlanHostInviteLink from "@/components/plan/PlanHostInviteLink";
+import PlanHostInviteLink, {
+  INVITE_TOKEN_MISSING_LINE,
+  INVITE_TOKEN_UNAVAILABLE_LINE,
+} from "@/components/plan/PlanHostInviteLink";
 import { PlanInviteShareBar } from "@/components/plan/PlanVibe";
 import { trackEvent } from "@/lib/analytics";
 import { planCrewSharePath } from "@/lib/planCrewInviteUrl";
+import {
+  clearPlanInviteToken,
+  ensurePlanInviteToken,
+  parsePlanInviteTokenSnapshot,
+  planInviteTokenEvent,
+  readPlanInviteTokenSnapshot,
+} from "@/lib/planInviteTokenClient";
 import {
   parsePlanCapabilitySnapshot,
   planCapabilityEvent,
@@ -48,11 +62,19 @@ export default function PlanInviteNextStep({
 }: PlanInviteNextStepProps) {
   const [slug, setSlug] = useState(initialVibeSlug);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [inviteToken, setInviteToken] = useState<string | null>(null);
-  const [inviteReady, setInviteReady] = useState(false);
-  const [inviteError, setInviteError] = useState("");
   const [shareError, setShareError] = useState("");
   const [sessionCheckedPlanId, setSessionCheckedPlanId] = useState<string | null>(null);
+  const inviteEvent = planInviteTokenEvent(planId);
+  const { state: inviteState, token: inviteToken } = parsePlanInviteTokenSnapshot(
+    useSyncExternalStore(
+      (onChange) => {
+        window.addEventListener(inviteEvent, onChange);
+        return () => window.removeEventListener(inviteEvent, onChange);
+      },
+      () => readPlanInviteTokenSnapshot(planId),
+      () => "unknown|",
+    ),
+  );
 
   const tokenEvent = planCapabilityEvent(planId);
   const capabilitySnapshot = useSyncExternalStore(
@@ -79,44 +101,13 @@ export default function PlanInviteNextStep({
   }, [memberToken, planId]);
 
   useEffect(() => {
+    // A capability that goes away takes the token with it, so no surface can
+    // go on holding a link the reader is no longer a member for.
     if (!memberToken) {
-      queueMicrotask(() => {
-        setInviteToken(null);
-        setInviteReady(false);
-        setInviteError("");
-      });
+      clearPlanInviteToken(planId);
       return;
     }
-    let active = true;
-    queueMicrotask(() => {
-      if (active) setInviteError("");
-    });
-    fetch(`/api/plans/${planId}`, { cache: "no-store" })
-      .then((response) => {
-        if (!response.ok) throw new Error("Invite tools unavailable");
-        return response.json();
-      })
-      .then((body: { inviteToken?: string | null } | null) => {
-        if (!active) return;
-        if (typeof body?.inviteToken === "string" && body.inviteToken) {
-          setInviteToken(body.inviteToken);
-        } else {
-          setInviteToken(null);
-        }
-        setInviteReady(true);
-      })
-      .catch(() => {
-        if (active) {
-          setInviteToken(null);
-          setInviteReady(true);
-          setInviteError(
-            offlineOrMessage("Invite tools are unavailable. Try again in a moment.")
-          );
-        }
-      });
-    return () => {
-      active = false;
-    };
+    void ensurePlanInviteToken(planId);
   }, [memberToken, planId]);
 
   useEffect(() => {
@@ -174,7 +165,7 @@ export default function PlanInviteNextStep({
 
   return (
     <div className="planInviteNext" id="share">
-      {inviteReady && inviteToken ? (
+      {inviteToken ? (
         <a
           className="planInviteNext__whatsapp"
           href={whatsappShareHref(text, relativeUrl)}
@@ -189,11 +180,13 @@ export default function PlanInviteNextStep({
         </a>
       ) : (
         <p className="planInviteNext__whatsapp planInviteNext__whatsapp--pending" role="status">
-          {inviteError || (memberToken
-            ? "Preparing your WhatsApp invite…"
-            : sessionCheckedPlanId === planId
-              ? "Invite tools need a crew session. Join the plan, then try again."
-              : "Restoring your invite tools…")}
+          {!memberToken
+            ? "Restoring your invite tools…"
+            : inviteState === "unavailable"
+              ? INVITE_TOKEN_UNAVAILABLE_LINE
+              : inviteState === "missing"
+                ? INVITE_TOKEN_MISSING_LINE
+                : "Preparing your WhatsApp invite…"}
         </p>
       )}
       {shareError ? (

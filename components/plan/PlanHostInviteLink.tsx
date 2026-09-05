@@ -7,6 +7,13 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { discardBody } from "@/lib/responseBody";
 import { trackEvent } from "@/lib/analytics";
 import {
+  ensurePlanInviteToken,
+  parsePlanInviteTokenSnapshot,
+  planInviteTokenEvent,
+  readPlanInviteTokenSnapshot,
+  writePlanInviteToken,
+} from "@/lib/planInviteTokenClient";
+import {
   parsePlanCapabilitySnapshot,
   planCapabilityEvent,
   readPlanCapabilitySnapshot,
@@ -25,6 +32,17 @@ import {
 // capability snapshot PlanInviteRsvp.tsx already uses for its host-only
 // Remove button. Confirm idiom (window.confirm) mirrors
 // CrawlStoryOwnerControls.tsx's delete confirmation.
+//
+// The token itself is NOT this component's to keep (battle test M04): a rotate
+// here retired the token the Send on WhatsApp href beside it was still
+// carrying. lib/planInviteTokenClient.ts holds the one live token, this
+// control writes the rotated one into it, and every share surface follows.
+
+/** An answer: the projection carried no invite token for this reader. */
+export const INVITE_TOKEN_MISSING_LINE = "Invite link not ready yet. Try refreshing in a moment.";
+/** Not an answer: the read did not run, which is a different thing to say. */
+export const INVITE_TOKEN_UNAVAILABLE_LINE = "Couldn't read your invite link. Try again in a moment.";
+
 export default function PlanHostInviteLink({ planId }: { planId: string }) {
   const tokenEvent = planCapabilityEvent(planId);
   const capabilitySnapshot = useSyncExternalStore(
@@ -38,8 +56,17 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
   const { token: memberToken, role } = parsePlanCapabilitySnapshot(capabilitySnapshot);
   const isHost = Boolean(memberToken && role === "host");
 
-  const [inviteToken, setInviteToken] = useState<string | null>(null);
-  const [inviteLoad, setInviteLoad] = useState<"idle" | "loading" | "ready" | "missing">("idle");
+  const inviteEvent = planInviteTokenEvent(planId);
+  const { state: inviteLoad, token: inviteToken } = parsePlanInviteTokenSnapshot(
+    useSyncExternalStore(
+      (onChange) => {
+        window.addEventListener(inviteEvent, onChange);
+        return () => window.removeEventListener(inviteEvent, onChange);
+      },
+      () => readPlanInviteTokenSnapshot(planId),
+      () => "unknown|",
+    ),
+  );
   const [status, setStatus] = useState("");
   const [rotating, setRotating] = useState(false);
   const [sessionCheckedPlanId, setSessionCheckedPlanId] = useState<string | null>(null);
@@ -58,29 +85,8 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
   }, [memberToken, planId]);
 
   useEffect(() => {
-    if (!memberToken) {
-      queueMicrotask(() => setInviteLoad("idle"));
-      return;
-    }
-    let active = true;
-    queueMicrotask(() => setInviteLoad("loading"));
-    fetch(`/api/plans/${planId}`, { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body: { inviteToken?: string | null } | null) => {
-        if (!active) return;
-        if (typeof body?.inviteToken === "string" && body.inviteToken) {
-          setInviteToken(body.inviteToken);
-          setInviteLoad("ready");
-          return;
-        }
-        setInviteLoad("missing");
-      })
-      .catch(() => {
-        if (active) setInviteLoad("missing");
-      });
-    return () => {
-      active = false;
-    };
+    if (!memberToken) return;
+    void ensurePlanInviteToken(planId);
   }, [memberToken, planId]);
 
   if (!memberToken) {
@@ -96,7 +102,7 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
     );
   }
 
-  if (inviteLoad === "loading" || inviteLoad === "idle") {
+  if (inviteLoad === "unknown") {
     return (
       <div className="planHostInviteLink" aria-busy="true">
         <p className="planHostInviteLink__status" role="status">
@@ -106,11 +112,13 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
     );
   }
 
-  if (!inviteToken || inviteLoad === "missing") {
+  if (!inviteToken) {
     return (
       <div className="planHostInviteLink">
         <p className="planHostInviteLink__status" role="status">
-          Invite link not ready yet. Try refreshing in a moment.
+          {inviteLoad === "unavailable"
+            ? INVITE_TOKEN_UNAVAILABLE_LINE
+            : INVITE_TOKEN_MISSING_LINE}
         </p>
       </div>
     );
@@ -156,7 +164,8 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
       }
       const data = (await res.json()) as { inviteToken?: string };
       if (data.inviteToken) {
-        setInviteToken(data.inviteToken);
+        // The one write every share href on this page is watching.
+        writePlanInviteToken(planId, data.inviteToken);
         setStatus("New link ready. The old one stopped working.");
         trackEvent("plan_invite_link_rotated");
       }

@@ -13,6 +13,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PlanIntake from "@/components/plan/PlanIntake";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
@@ -25,7 +26,7 @@ import {
   shouldAutoGeneratePalHandoffPlan,
 } from "@/lib/planOccasion";
 import { recordPlanNudgeTrigger } from "@/lib/identityNudge";
-import { CREW_NAME_MAX, creatorNameFromAuthUser } from "@/lib/crew";
+import { CREW_NAME_MAX, creatorNameFromAccount } from "@/lib/crew";
 import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { getNightArea, isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
@@ -1107,7 +1108,8 @@ function PlanComposerForm({
   canPersist: boolean;
 }) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, identityResolved } = useAuth();
+  const viewerHandle = useViewerHandle();
   const areaGroups = nightAreaSelectorGroups();
   const readyAreas = areaGroups[0]?.areas ?? [];
   const areasInProgress = areaGroups[1]?.areas ?? [];
@@ -1237,16 +1239,20 @@ function PlanComposerForm({
     revealPlanRouteStatus();
   }, [routeRevealTick]);
 
+  // The host name is public (the plan, the share card, the unfurler), so it
+  // waits for the live session rather than taking whatever is to hand: until
+  // identity has answered, the handle in front of us may be the previous
+  // account's. See creatorNameFromAccount for what may fill it, and what may not.
   const signedInCreatorNameSeededRef = useRef(false);
   useEffect(() => {
-    if (!user || signedInCreatorNameSeededRef.current) return;
+    if (!user || !identityResolved || signedInCreatorNameSeededRef.current) return;
     signedInCreatorNameSeededRef.current = true;
     setCreatorName((current) => {
       if (current.trim()) return current;
-      const seeded = creatorNameFromAuthUser(user);
+      const seeded = creatorNameFromAccount({ handle: viewerHandle, user });
       return seeded || current;
     });
-  }, [user]);
+  }, [identityResolved, user, viewerHandle]);
   useEffect(() => {
     if (!canPersist) return;
     if (palHandoffAutoGenerateStartedRef.current) return;
