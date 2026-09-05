@@ -104,6 +104,11 @@
    under it, and a Remove control that arms an inline confirm rather than
    opening a dialog. The confirm is the second beat; nothing leaves on one tap. */
 .memoryKeepShelf {
+  /* A row's title is one nowrap line with an ellipsis, so every box around it
+     has to be allowed to be narrower than that line: a grid or flex child
+     floors on its content by default, and at 390 that floor pushed the page
+     64px wide. */
+  min-width: 0;
   margin-top: 1rem;
   padding-top: .85rem;
   border-top: 1px solid var(--line-soft, var(--line));
@@ -117,6 +122,7 @@
 }
 
 .memoryKeepList {
+  min-width: 0;
   display: grid;
   gap: .2rem;
   margin: 0;
@@ -131,6 +137,7 @@
 }
 
 .memoryKeepList li {
+  min-width: 0;
   border-bottom: 1px solid var(--line-soft, var(--line));
 }
 
@@ -143,6 +150,7 @@
 }
 
 .memoryKeepRow {
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
