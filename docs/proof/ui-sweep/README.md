@@ -52,7 +52,10 @@ fixed, each with its own commit and each measured on the rendered page:
 | /map?sel= | every width | "No photo yet" was a warm gradient band that read as a failed image | `components/media/venueImage.css`, `components/map/venueSheet.css`: a flat surface with a hairline and an icon |
 | /tonight, /near, /map?sel=, /u/you, /pal | every width | one secondary wore five radii, four type sizes and three weights; the sheet primary wore a gradient and a glow; the Pal primary had lost its weight to a `font` shorthand; a booking link was dashed; the Lore door was an outlined coral box | `app/globals.css` control tokens, read by every one of those classes |
 
-The fences for all seven are in `e2e/mobile-button-system.spec.ts`.
+| /map | 768 | the MapLibre zoom pair sat under Show all and Reset view (stack 229 to 323, pair 248 to 336) | `components/map/mapToolbar.css`: the pair starts under the camera stack, whose height is published beside it |
+| /map | 768 | the closure banner was squeezed into a 160px lane beside the location prompt, "dangerous" broken mid-word | `components/map/mapBannerStaging.css`: the left lane applies from 1024px up |
+
+The fences for all of them are in `e2e/mobile-button-system.spec.ts`.
 
 `map-story` is the landmark chapter sheet (`/map?landmark=covent-garden`). It
 belongs to the story-sheet worker and is captured here only so the set is
