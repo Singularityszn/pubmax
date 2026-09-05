@@ -274,50 +274,10 @@
   color: var(--brass-ink);
 }
 
-/* ── Measure row (battle test D04) ──────────────────────────────────────────
-   The closed question the composer asks BEFORE the free drink field, so a half
-   is stored as a half instead of arriving as words nothing downstream reads.
-   Same chip shape as the price quick-adds above, because two rows of chips in
-   one composer are one control system. */
-
-.measureField {
-  display: grid;
-  gap: 6px;
-}
-
-.measureChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.measureChip {
-  min-height: 44px;
-  padding: 6px 14px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--panel-raised);
-  color: var(--ink-soft);
-  font-size: 0.76rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.measureChip:hover {
-  border-color: var(--brass);
-  color: var(--brass-ink);
-}
-
-.measureChip.selected {
-  border-color: var(--brass);
-  background: rgba(176, 129, 58, 0.14);
-  color: var(--brass-ink);
-}
-
-.measureChip:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 1px;
-}
+/* The measure row's own rules live in components/map/measureChips.css, beside
+   the shared control that renders them (MeasureChips). They used to sit here,
+   and this sheet is imported by the map alone, so the same row mounted on the
+   venue sheet's price door and on /near stood unstyled. */
 
 .priceChip:focus-visible {
   outline: 2px solid var(--brass);

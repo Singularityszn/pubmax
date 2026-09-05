@@ -96,6 +96,16 @@ function isPricedObservation(drop: ConfirmableDrop): boolean {
  * confirmation ages out, which is what drops the standing back to grey without
  * deleting anything: the drop keeps its dated record, it just stops speaking
  * for tonight.
+ *
+ * IT ASKS THE MEASURE, like every other function in this module (review finding
+ * F-7). The 0147 backfill writes the `measure` column ALONE, so a row flagged
+ * back out of the pint lane keeps the `confirmation_id` it was minted with. An
+ * unfiltered read of that row was answering two questions wrongly at once: it
+ * blocked `findSecondReporterConfirmation` from minting for two real pint
+ * drinkers agreeing on £5.50, and it answered `readSecondReporter` with
+ * `already_confirmed` carrying the half's figure - over a pub `pintTrustFor`,
+ * which IS measure-filtered, was calling `logged-once`. Two readings of one
+ * fact is what #1495 exists to forbid.
  */
 export function liveConfirmationFor(
   drops: readonly ConfirmableDrop[],
@@ -103,6 +113,7 @@ export function liveConfirmationFor(
 ): { confirmationId: string; confirmedAtMs: number } | null {
   let best: { confirmationId: string; confirmedAtMs: number } | null = null;
   for (const drop of drops) {
+    if (!isPricedObservation(drop)) continue;
     const confirmation = drop.confirmation;
     if (!confirmation || !confirmationIsLive(confirmation, now)) continue;
     const confirmedAtMs = Date.parse(confirmation.confirmedAt);

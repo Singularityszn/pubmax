@@ -759,6 +759,106 @@ describe("POST /api/price-submit", () => {
   });
 });
 
+describe("POST /api/price-submit measures the serving (F-2)", () => {
+  it("stamps the paired Pint Drop with the measure the drinker picked", async () => {
+    const res = await POST(
+      post({
+        venueId: "venue-xjf3n0",
+        drinkCategory: "beer",
+        priceGbp: 5.5,
+        measure: "pint",
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(listVisiblePintDrops("venue-xjf3n0")).toMatchObject([
+      { priceGbp: 5.5, measure: "pint" },
+    ]);
+  });
+
+  it("reads an absent measure as a pint, so an older client is unchanged", async () => {
+    const res = await POST(
+      post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
+    );
+    expect(res.status).toBe(201);
+    expect(listVisiblePintDrops("venue-xjf3n0")).toMatchObject([
+      { priceGbp: 4.2, measure: "pint" },
+    ]);
+  });
+
+  it("keeps a half OUT of the community price lane and stores it as a half", async () => {
+    const res = await POST(
+      post({
+        venueId: "venue-xjf3n0",
+        drinkCategory: "beer",
+        priceGbp: 2.6,
+        measure: "half",
+      }),
+    );
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as PriceBody & { measure?: string };
+    expect(data.ok).toBe(true);
+    // No community price exists for a half: `community_prices` carries no
+    // measure column, so its beer chip may only ever mean a pint.
+    expect(data.price).toBeNull();
+    expect(data.measure).toBe("half");
+    expect(await readCommunityPrices("venue-xjf3n0")).toEqual([]);
+    // The figure is kept, dated, on the pub's own drop list with its serving.
+    expect(listVisiblePintDrops("venue-xjf3n0")).toMatchObject([
+      { priceGbp: 2.6, measure: "half" },
+    ]);
+  });
+
+  it("carries the free label an `other` measure was given", async () => {
+    const res = await POST(
+      post({
+        venueId: "venue-xjf3n0",
+        drinkCategory: "beer",
+        priceGbp: 3.1,
+        measure: "other",
+        measureLabel: "Schooner",
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(listVisiblePintDrops("venue-xjf3n0")).toMatchObject([
+      { priceGbp: 3.1, measure: "other", measureLabel: "Schooner" },
+    ]);
+  });
+
+  it("refuses a half whose write failed, and writes no price behind it", async () => {
+    oneTapState.forcedOutcome = {
+      ok: false,
+      kind: "storage",
+      message: "Could not save your pint drop right now.",
+    };
+    const res = await POST(
+      post({
+        venueId: "venue-xjf3n0",
+        drinkCategory: "beer",
+        priceGbp: 2.6,
+        measure: "half",
+      }),
+    );
+    expect(res.status).toBe(503);
+    expect(await readCommunityPrices("venue-xjf3n0")).toEqual([]);
+    expect(listVisiblePintDrops("venue-xjf3n0")).toEqual([]);
+  });
+
+  it("asks nothing about a measure on a lane that pairs no Pint Drop", async () => {
+    const res = await POST(
+      post({
+        venueId: "venue-xjf3n0",
+        drinkCategory: "cocktail",
+        priceGbp: 12,
+        measure: "half",
+      }),
+    );
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as PriceBody;
+    expect(data.price?.priceGbp).toBe(12);
+    expect(listVisiblePintDrops("venue-xjf3n0")).toEqual([]);
+  });
+});
+
 describe("POST /api/price-submit venue signals", () => {
   function postSignal(
     body: Record<string, unknown>,

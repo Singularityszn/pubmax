@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { MapPin, PlusCircle } from "lucide-react";
 
 import Disclosure from "@/components/Disclosure";
@@ -40,6 +40,11 @@ import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import SaveForNightButton from "@/components/wanted/SaveForNightButton";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
+import {
+  DROP_READ_UNAVAILABLE_LINE,
+  firstDropNudgeMayClaimAbsence,
+} from "@/lib/firstDropNudge";
+import type { VenueDropReadStatus } from "@/components/map/usePintDrops";
 import VenueDrinkPrices from "@/components/map/VenueDrinkPrices";
 import VenuePriceEntryPanel from "./VenuePriceEntryPanel";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -230,6 +235,34 @@ function PriceDoor({
   );
 }
 
+/**
+ * What the price area says over a pub with no lane to render.
+ *
+ * A READ WE COULD NOT RUN IS NOT AN EMPTY PUB (review finding F-8). Every
+ * first-drop line claims nobody has logged a price here, and that claim needs
+ * an answered read behind it. The one door still rides either way, so a reader
+ * who came to log a price still can.
+ */
+function UnpricedPubBlock({
+  venue,
+  dropReadStatus,
+  door,
+}: {
+  venue: Venue;
+  dropReadStatus?: VenueDropReadStatus;
+  door: ReactNode;
+}) {
+  if (firstDropNudgeMayClaimAbsence(dropReadStatus)) {
+    return <FirstDropNudge venueId={venue.id}>{door}</FirstDropNudge>;
+  }
+  return (
+    <div className="firstDropNudge" role="note">
+      <p className="firstDropNudgeLine">{DROP_READ_UNAVAILABLE_LINE}</p>
+      {door}
+    </div>
+  );
+}
+
 function VenuePriceSummary({
   venue,
   lane,
@@ -237,6 +270,7 @@ function VenuePriceSummary({
   sourcedObserved,
   anchorStamp,
   composerOpen,
+  dropReadStatus,
   onLogTonightPrice,
   onConfirmPrice,
   priceRevealMotionClass = "",
@@ -251,6 +285,9 @@ function VenuePriceSummary({
   /** True while the pub's own composer is on screen below, so the log door
    *  folds away rather than standing beside the form it opens. */
   composerOpen: boolean;
+  /** Where this pub's own Pint Drop read got to. A failed read may not be
+   *  worded as a pub with no price on it (review finding F-8). */
+  dropReadStatus?: VenueDropReadStatus;
   onLogTonightPrice: () => void;
   /** The second drinker's door: opens the Pint Drop composer seeded with the
    *  logged-once figure (lib/pintDropSecondDrinker.ts). */
@@ -510,7 +547,7 @@ function VenuePriceSummary({
   }
 
   return isPubVenue(venue) ? (
-    <FirstDropNudge venueId={venue.id}>{door}</FirstDropNudge>
+    <UnpricedPubBlock venue={venue} dropReadStatus={dropReadStatus} door={door} />
   ) : null;
 }
 
@@ -525,6 +562,7 @@ export default function VenueOverviewTab({
   confirmedPrice,
   provisionalPrice,
   agedPrice,
+  dropReadStatus,
   communityPrices,
   experienceLens,
   drinkLensCategory = null,
@@ -570,6 +608,8 @@ export default function VenueOverviewTab({
   /** A public pint report PAST the window, for the price area alone, so the
    *  area never words an absence over a drop the list below still prints. */
   agedPrice?: ProvisionalPriceInput | null;
+  /** Where this pub's Pint Drop read got to (review finding F-8). */
+  dropReadStatus?: VenueDropReadStatus;
   /** Community price layer - the dated submission row plus the submit card. */
   communityPrices: CommunityPricesState;
   experienceLens: MapExperienceLens;
@@ -891,6 +931,7 @@ export default function VenueOverviewTab({
           sourcedObserved={sourcedObserved}
           anchorStamp={anchorStamp}
           composerOpen={composerOpen}
+          dropReadStatus={dropReadStatus}
           onLogTonightPrice={onLogTonightPrice}
           onConfirmPrice={onConfirmPrice}
           priceRevealMotionClass={

@@ -4,6 +4,7 @@ import {
   type AccountBoundRequest,
 } from "@/lib/accountBoundFetch";
 import type { DrinkCategory } from "@/lib/drinks";
+import type { DrinkMeasure } from "@/lib/drinkMeasure";
 import type {
   CommunityVenueSignalKey,
   CommunityVenueSignalValue,
@@ -14,6 +15,13 @@ type CommunityContributionPayload =
       venueId: string;
       drinkCategory: DrinkCategory;
       priceGbp: number;
+      /**
+       * WHAT SERVING THE FIGURE IS ABOUT (review finding F-2). Sent on the beer
+       * lane, where the composer asks it; absent everywhere else, and an absent
+       * measure reads as `pint` server-side exactly as it always did.
+       */
+      measure?: DrinkMeasure;
+      measureLabel?: string;
     }>
   | Readonly<{
       kind: "venue-signal";
@@ -39,6 +47,8 @@ export function postCommunityContribution(
       form.set("venueId", payload.venueId);
       form.set("drinkCategory", payload.drinkCategory);
       form.set("priceGbp", String(payload.priceGbp));
+      if (payload.measure) form.set("measure", payload.measure);
+      if (payload.measureLabel) form.set("measureLabel", payload.measureLabel);
     }
     form.set("pint_photo", options.pintPhoto);
     return accountBoundFetch(

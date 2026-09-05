@@ -17,6 +17,13 @@ import {
   type CommunityPriceMapReach,
 } from "@/lib/communityPrice";
 import { drinkLaneNoun, submitCategoriesForLane } from "@/lib/drinkLanes";
+import {
+  DEFAULT_DRINK_MEASURE,
+  drinkMeasureName,
+  measureIsPint,
+  NON_PINT_PRICE_REACH_LINE,
+  type DrinkMeasure,
+} from "@/lib/drinkMeasure";
 import { formatPriceGbp, QUICK_ADD_PRICES_GBP } from "@/lib/spill";
 import { mergePriceChips } from "@/lib/spillPreview";
 import type { DrinkCategory } from "@/lib/drinks";
@@ -29,6 +36,7 @@ import { pickNativePhoto } from "@/lib/nativeCamera";
 import { isNativeApp } from "@/lib/nativePlatform";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import { recordKeptAction } from "@/lib/nativeReviewPrompt";
+import MeasureChips from "@/components/map/composer/MeasureChips";
 import PriceContributionImpact from "@/components/map/PriceContributionImpact";
 import type { MissionSurface } from "@/lib/analyticsEvents";
 import {
@@ -115,6 +123,66 @@ type VenuePriceSubmitProps = {
 };
 
 /**
+ * Which lane asks the measure, and what travels with a submission from it.
+ *
+ * The beer lane alone, because the pint lane is the only lane a serving changes
+ * the meaning of: a £12 cocktail is not a half of anything. Every other
+ * category submits exactly as it did before F-2.
+ */
+function submittedMeasureFor(
+  category: DrinkCategory,
+  measure: DrinkMeasure,
+): { asksMeasure: boolean; submittedMeasure: DrinkMeasure } {
+  const asksMeasure = category === "beer";
+  return {
+    asksMeasure,
+    submittedMeasure: asksMeasure ? measure : DEFAULT_DRINK_MEASURE,
+  };
+}
+
+/**
+ * THE REACH SENTENCE FOLLOWS THE MEASURE.
+ *
+ * `communityReachNote` says a second drinker moves the map, and for a half that
+ * is not true at any count: nothing but a pint sets a pint price. Promising the
+ * map here would be the D04 defect worded rather than stored.
+ */
+function submittedReachNote(
+  category: DrinkCategory,
+  mapReach: CommunityPriceMapReach,
+  measure: DrinkMeasure,
+): string {
+  return measureIsPint(measure)
+    ? communityReachNote(category, mapReach)
+    : NON_PINT_PRICE_REACH_LINE;
+}
+
+/**
+ * What a NON-PINT log reads back (review finding F-2).
+ *
+ * A half writes the dated Pint Drop and no community price, so there is no
+ * stamped record to read back. The receipt names the figure, the serving it was
+ * about, and the one place it reaches: this pub's own page. Claiming the map
+ * for it would be the D04 defect worded rather than stored.
+ */
+function NonPintReceipt({
+  priceGbp,
+  measureName,
+}: {
+  priceGbp: number;
+  measureName: string;
+}) {
+  return (
+    <>
+      <strong className="vpsubStampPrice">{formatPrice(priceGbp)}</strong>
+      <span className="vpsubStampMeta">
+        {measureName} · On this pub&rsquo;s page
+      </span>
+    </>
+  );
+}
+
+/**
  * The freshest community price for the chosen category, or null. Read from the
  * shared layer so the confirmation and the pin can never disagree.
  */
@@ -169,6 +237,16 @@ export default function VenuePriceSubmit({
   const [error, setError] = useState<string | null>(null);
   const [pintPhoto, setPintPhoto] = useState<File | null>(null);
   const pintPhotoInputRef = useRef<HTMLInputElement>(null);
+  // WHAT SERVING THE FIGURE IS ABOUT (review finding F-2, battle test D04).
+  // Asked on the beer lane alone, because the pint lane is the only lane a
+  // measure changes the meaning of: a £12 cocktail is not a half of anything.
+  // Every other category writes its community price exactly as before.
+  const [measure, setMeasure] = useState<DrinkMeasure>(DEFAULT_DRINK_MEASURE);
+  const [measureLabel, setMeasureLabel] = useState("");
+  // A measure only travels with the lane that asked it. Leaving beer with a
+  // half still selected would send a serving nobody was asked about.
+  const { asksMeasure, submittedMeasure } = submittedMeasureFor(category, measure);
+  const reachNote = submittedReachNote(category, mapReach, submittedMeasure);
   // Claimed synchronously before the first await, so two taps in one tick
   // cannot both run the write (battle test D10).
   const logInFlight = useRef(false);
@@ -188,6 +266,12 @@ export default function VenuePriceSubmit({
     category: DrinkCategory;
     attribution: CommunityPriceAttribution;
     missionReceipt?: MissionReceipt;
+    /**
+     * A non-pint log has no community price to read back (the route writes the
+     * dated Pint Drop alone), so the receipt carries the figure and the serving
+     * this tap sent. Absent on every pint log, which reads the stamped record.
+     */
+    nonPint?: { priceGbp: number; measureName: string };
   } | null>(null);
   const { requestContribution, contributionGateDialog } =
     useContributionGate();
@@ -323,6 +407,8 @@ export default function VenuePriceSubmit({
           venueId,
           drinkCategory: category,
           priceGbp: price,
+          measure: submittedMeasure,
+          measureLabel: submittedMeasure === "other" ? measureLabel : "",
           pintPhoto,
         }, auth);
         if (!result.ok) {
@@ -375,9 +461,22 @@ export default function VenuePriceSubmit({
           category,
           attribution: result.attribution,
           missionReceipt,
+          ...(measureIsPint(submittedMeasure)
+            ? {}
+            : {
+                nonPint: {
+                  priceGbp: Number(price.replace(",", ".")),
+                  measureName: drinkMeasureName(submittedMeasure, measureLabel),
+                },
+              }),
         });
         setPrice("");
         setHeldCategory(null);
+        // The next figure starts from the default rather than inheriting the
+        // serving of the last one. A latched half is exactly the state this
+        // control exists to make impossible.
+        setMeasure(DEFAULT_DRINK_MEASURE);
+        setMeasureLabel("");
         clearPintPhoto();
         onLogged?.(venueId);
       });
@@ -386,6 +485,60 @@ export default function VenuePriceSubmit({
       // the drinker able to try again.
       logInFlight.current = false;
     }
+  }
+
+  // THE RECEIPT, as its own function. Same figure and day label the venue card
+  // carries - one vocabulary, one moment. What it must NOT do is overclaim: a
+  // lone report does not set the pin's price, and saying "on the map" for it
+  // would be the exact dishonesty the trust gate exists to fix.
+  //
+  // Four honest standings, in descending reach:
+  //   painting  - this figure IS the pin's price ("On the map");
+  //   marked    - the pin now wears the provisional dot, price unchanged;
+  //   page only - an aged-out figure or a non-pint drink: no map at all.
+  // A mission receipt is the write-back standing, never the client reason.
+  //
+  // Nested rather than extracted, on the AGENTS.md rule for decomposing a
+  // component in place: ESLint scores complexity per function, and a nested
+  // call leaves the element tree identical where a component would add a fibre.
+  function stampBlock() {
+    if (!logged || logged.category !== category) return null;
+    if (!logged.missionReceipt && !logged.nonPint && !stamped) return null;
+    return (
+      <div className="vpsubStampBlock">
+        <p className="vpsubStamp" role="status">
+          <Check size={14} aria-hidden="true" className="vpsubStampTick" />
+          {logged.missionReceipt ? (
+            <strong className="vpsubStampPrice">{logged.missionReceipt.line}</strong>
+          ) : logged.nonPint ? (
+            <NonPintReceipt {...logged.nonPint} />
+          ) : stamped ? (
+            <>
+              <strong className="vpsubStampPrice">{formatPrice(stamped.priceGbp)}</strong>
+              <span className="vpsubStampMeta">
+                {stampStanding} · {formatPriceDay(stamped.submittedAt)}
+              </span>
+            </>
+          ) : null}
+        </p>
+        <PriceContributionImpact attribution={logged.attribution} />
+        {/* Close the loop in-session: the mark the map just gained, named and
+            coloured exactly as the map draws it, so the submitter can look up
+            and find their own dot rather than take our word for it. */}
+        {logged.nonPint ? (
+          <p className="vpsubStampHint">{NON_PINT_PRICE_REACH_LINE}</p>
+        ) : null}
+        {!logged.missionReceipt && !logged.nonPint && markedProvisionally ? (
+          <p className="vpsubStampHint">
+            <i className="vpsubStampDot" aria-hidden="true" />
+            Its pin now carries this dot.{" "}
+            {mapReach === "paint"
+              ? "A second independent drinker reporting a similar price can set the pin’s colour."
+              : "A second independent drinker reporting a similar price can confirm the figure here."}
+          </p>
+        ) : null}
+      </div>
+    );
   }
 
   return (
@@ -428,6 +581,10 @@ export default function VenuePriceSubmit({
                 // switching categories shows that category's own record.
                 setCategory(option);
                 setHeldCategory((held) => (held === null ? null : option));
+                // The measure belongs to the drink it was picked under, so a
+                // half of lager cannot follow the reader onto wine.
+                setMeasure(DEFAULT_DRINK_MEASURE);
+                setMeasureLabel("");
                 setError(null);
               }}
             >
@@ -436,6 +593,24 @@ export default function VenuePriceSubmit({
           ))}
         </div>
       )}
+
+      {asksMeasure ? (
+        // ABOVE the price field, in the composer's own order: the closed
+        // question before the figure, so the answer is never inferred from
+        // what somebody typed afterwards. Same control as the Pint Drop
+        // composer (components/map/composer/MeasureChips.tsx), so the two
+        // price doors cannot ask one question two ways.
+        <MeasureChips
+          measure={measure}
+          measureLabel={measureLabel}
+          onChange={(next) => {
+            setMeasure(next.measure);
+            setMeasureLabel(next.measureLabel);
+            setError(null);
+          }}
+          disabled={submitting || missionPending}
+        />
+      ) : null}
 
       <div className="vpsubEntry">
         <div className="vpsubField">
@@ -536,52 +711,13 @@ export default function VenuePriceSubmit({
         </p>
       ) : null}
 
-      {logged?.category === category && (logged.missionReceipt || stamped) ? (
-        // The receipt. Same figure and day label the venue card now carries -
-        // one vocabulary, one moment. What it must NOT do is overclaim: a lone
-        // report does not set the pin's price, and saying "on the map" for it
-        // would be the exact dishonesty the trust gate exists to fix.
-        //
-        // Three honest standings, in descending reach:
-        //   painting  - this figure IS the pin's price ("On the map");
-        //   marked    - the pin now wears the provisional dot, price unchanged;
-        //   page only - a non-pint drink, or an aged-out figure: no map at all.
-        // A mission receipt is the write-back standing, never the client reason.
-        <div className="vpsubStampBlock">
-          <p className="vpsubStamp" role="status">
-            <Check size={14} aria-hidden="true" className="vpsubStampTick" />
-            {logged.missionReceipt ? (
-              <strong className="vpsubStampPrice">{logged.missionReceipt.line}</strong>
-            ) : stamped ? (
-              <>
-                <strong className="vpsubStampPrice">{formatPrice(stamped.priceGbp)}</strong>
-                <span className="vpsubStampMeta">
-                  {stampStanding} · {formatPriceDay(stamped.submittedAt)}
-                </span>
-              </>
-            ) : null}
-          </p>
-          <PriceContributionImpact attribution={logged.attribution} />
-          {/* Close the loop in-session: the mark the map just gained, named and
-              coloured exactly as the map draws it, so the submitter can look up
-              and find their own dot rather than take our word for it. */}
-          {!logged.missionReceipt && markedProvisionally ? (
-            <p className="vpsubStampHint">
-              <i className="vpsubStampDot" aria-hidden="true" />
-              Its pin now carries this dot.{" "}
-              {mapReach === "paint"
-                ? "A second independent drinker reporting a similar price can set the pin’s colour."
-                : "A second independent drinker reporting a similar price can confirm the figure here."}
-            </p>
-          ) : null}
-        </div>
-      ) : (
+      {stampBlock() ?? (
         <p className="vpsubNote">
           Your price shows on this pub&rsquo;s page straight away, dated and
           badged as community. It never replaces the price on record.{" "}
-          {communityReachNote(category, mapReach)} Up to £
-          {COMMUNITY_PRICE_MAX_GBP} a drink. It counts under your public handle
-          on the contributor record.
+          {reachNote}{" "}
+          Up to £{COMMUNITY_PRICE_MAX_GBP} a drink. It counts under your public
+          handle on the contributor record.
         </p>
       )}
       {contributionGateDialog}
