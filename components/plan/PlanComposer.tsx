@@ -42,7 +42,15 @@ import {
 } from "@/lib/planVenueOptions";
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
-import { isPlanStopCount, normalizePlanStopCount, PLAN_STOP_COUNTS, type PlanStopCount } from "@/lib/planStopCount";
+import {
+  isPlanStopCount,
+  MAX_PLAN_STOP_COUNT,
+  normalizePlanStopCount,
+  planOutingNoun,
+  planStopCountPhrase,
+  PLAN_STOP_COUNTS,
+  type PlanStopCount,
+} from "@/lib/planStopCount";
 import { planHasRoute, type PlanState } from "@/lib/plan";
 import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { readPlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
@@ -747,9 +755,14 @@ export function planLockValidationError({
   const missingTime = !startTime;
   const missingStops = completeStopCount === 0;
   if (!missingName && !missingTime && !missingStops) {
-    const generatedOneStop = Boolean(groundingProof) && completeStopCount === 1;
+    // The guard is about the ANCHOR-ONLY DRAFT, never about the count. One Stop
+    // is an ordinary requested size now (lib/planStopCount.ts), so refusing
+    // every proof-carrying one-Stop composer would refuse the meetup the
+    // drinker deliberately asked for. What may not be locked is an anchor-only
+    // draft standing over some pub other than the one it was minted for.
+    const anchorOnlyDraft = Boolean(groundingProof) && planAnchor?.outcome === "anchor-only";
     if (
-      generatedOneStop
+      anchorOnlyDraft
       && !isMatchingAnchorOnlyPlan({
         groundingProof,
         completeStopCount,
@@ -1584,6 +1597,15 @@ function PlanComposerForm({
     setCreateOperationKey(mutation.createOperationKey);
     setPlanAnchor(mutation.planAnchor);
     setRouteStale(mutation.routeStale);
+    // Removing or adding a Stop IS a request for a shorter or longer night, so
+    // the asked-for count follows the route the drinker now has. Without this
+    // the count stayed at what was generated, Lock it in went quietly dead on
+    // the mismatch, and the next Sort put the removed Stop straight back.
+    if (isPlanStopCount(mutation.stops.length)) {
+      const reconciled = applyPlanStopCount(planIntake, nightContext, mutation.stops.length);
+      setPlanIntake(reconciled.draft);
+      setNightContext(reconciled.context);
+    }
     if (mutation.routeStale) setRouteStatus(status);
     return true;
   }
@@ -1758,7 +1780,7 @@ function PlanComposerForm({
       setPlanAnchor(generatedPlanAnchorFromResponse(body));
       markPalRouteActivation();
       trackEvent("plan_generated", { stops: suggested.length, grounded });
-      setConciergeNote(`${suggested.length} stops we can stand behind, shaped by the outing you set below.`);
+      setConciergeNote(`${planStopCountPhrase(suggested.length)} we can stand behind, shaped by the outing you set below.`);
       setRouteStatus("Route refreshed. Review the preview, then lock it in when it feels right.");
       setRouteRevealTick((tick) => tick + 1);
       if (body.inferredContext) {
@@ -1804,7 +1826,7 @@ function PlanComposerForm({
       && !matchingAnchorOnlyPlan
       && completeStops.length !== normalizePlanStopCount(nightContext.stopCount)
     ) {
-      setError(`A generated crawl needs exactly ${normalizePlanStopCount(nightContext.stopCount)} stops we can stand behind before you lock it in.`);
+      setError(`A generated ${planOutingNoun(nightContext.stopCount)} needs exactly ${planStopCountPhrase(nightContext.stopCount)} we can stand behind before you lock it in.`);
       return;
     }
     if (routeStale) {
@@ -2127,7 +2149,7 @@ function PlanComposerForm({
       </div>
 
       <fieldset className="planComposer__stops">
-        <legend>The crawl <span className="planComposer__previewLabel">{routeRevision === null ? "Preview" : `Preview · revision ${routeRevision}`}</span></legend>
+        <legend>The {planOutingNoun(stops.length)} <span className="planComposer__previewLabel">{routeRevision === null ? "Preview" : `Preview · revision ${routeRevision}`}</span></legend>
         <p id="plan-route-status" className="planComposer__routeStatus" role="status" aria-live="polite" tabIndex={-1}>
           {routeStatus || (routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in.")}
         </p>
@@ -2180,9 +2202,9 @@ function PlanComposerForm({
         <button
           className="planComposer__add"
           type="button"
-          disabled={stops.length >= 6}
+          disabled={stops.length >= MAX_PLAN_STOP_COUNT}
           onClick={() => {
-            if (stops.length >= 6) return;
+            if (stops.length >= MAX_PLAN_STOP_COUNT) return;
             applyStopIdentityMutation(
               [...stops, { key: Math.max(0, ...stops.map((stop) => stop.key)) + 1, venueId: "", venueName: "", alternatives: [] }],
               "Stop added. Refresh the route before locking.",

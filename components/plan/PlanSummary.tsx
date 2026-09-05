@@ -14,7 +14,11 @@ import { setActivePlanRole } from "@/lib/activePlan";
 import type { PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 import type { InvitePrivacyPreviewDTO } from "@/lib/invitePrivacyPreview";
 import type { VibeTally } from "@/lib/vibeTally";
-import { isPlanStopCount, normalizePlanStopCount } from "@/lib/planStopCount";
+import {
+  isPlanStopCount,
+  normalizePlanStopCount,
+  PLAN_STOP_COUNT_RANGE_SENTENCE,
+} from "@/lib/planStopCount";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { tryGetNightArea } from "@/lib/nightAreas";
 
@@ -500,7 +504,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
       return;
     }
     if (!validRouteDraft(draftStops) || !hasRouteChanged) {
-      setError("Choose three to six different stops and make a route change before saving.");
+      setError(`Choose ${PLAN_STOP_COUNT_RANGE_SENTENCE} different stops and make a route change before saving.`);
       return;
     }
     if (routeRevision === null) {
@@ -565,7 +569,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
       {canBeginEditing && (editing || pending) ? (
         <div className="planSummary__editor" aria-labelledby="plan-route-editor-title">
           <h3 id="plan-route-editor-title">Route preview</h3>
-          <p>{anchoredPlan ? "Review the fresh route with Stop 1 kept." : "Swap a stop to make a private draft."} {isHost ? "Save only when it differs and still has three to six distinct stops." : "The route stays unchanged until the host accepts your proposal."}</p>
+          <p>{anchoredPlan ? "Review the fresh route with Stop 1 kept." : "Swap a stop to make a private draft."} {isHost ? "Save only when it differs and still has {PLAN_STOP_COUNT_RANGE_SENTENCE} distinct stops." : "The route stays unchanged until the host accepts your proposal."}</p>
           <ol className="planSummary__editStops">
             {draftStops.map((stop, index) => (
               <li key={`${stop.position}-${stop.venueId}`}>

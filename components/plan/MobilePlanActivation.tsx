@@ -18,7 +18,14 @@ import type { PlanBudgetSummary, PlanEndingRecommendation, PlanningConfidence, P
 import { shouldWarmMapIntent } from "@/lib/mapWarmup";
 import { writeDeviceNightContext } from "@/lib/nightProfileClient";
 import { planRouteTotalsFallbackLabel, resolvePlanRouteTotalLabel } from "@/lib/planRouteTotalsClient";
-import { isPlanStopCount, normalizePlanStopCount, PLAN_STOP_COUNTS, type PlanStopCount } from "@/lib/planStopCount";
+import {
+  isPlanStopCount,
+  normalizePlanStopCount,
+  DEFAULT_PLAN_STOP_COUNT,
+  PLAN_STOP_COUNT_RANGE_SENTENCE,
+  PLAN_STOP_COUNTS,
+  type PlanStopCount,
+} from "@/lib/planStopCount";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import { recordKeptAction } from "@/lib/nativeReviewPrompt";
 import type { Venue } from "@/lib/venues";
@@ -69,7 +76,7 @@ export function MobilePlanActivation({
   const [paceTouched, setPaceTouched] = useState(false);
   const [budgetLimit, setBudgetLimit] = useState("");
   const [groupSize, setGroupSize] = useState(4);
-  const [stopCount, setStopCount] = useState<PlanStopCount>(3);
+  const [stopCount, setStopCount] = useState<PlanStopCount>(DEFAULT_PLAN_STOP_COUNT);
   const [groupSizeTouched, setGroupSizeTouched] = useState(false);
   const [stepFree, setStepFree] = useState(false);
   const [zeroProof, setZeroProof] = useState(false);
@@ -214,7 +221,7 @@ export function MobilePlanActivation({
         <Sparkles size={20} aria-hidden="true" />
         <div>
           <h3 id="mobile-plan-intent-title">Describe the outing</h3>
-          <p>Choose three to six stops, all straight off the map.</p>
+          <p>Choose {PLAN_STOP_COUNT_RANGE_SENTENCE} stops, all straight off the map.</p>
         </div>
       </div>
       <div className="mobilePlannerIntentInput">

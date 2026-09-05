@@ -589,13 +589,21 @@
 .planDescribeFirst > .screenHead { display: contents; }
 .planDescribeFirst > .screenHead > .kicker { order: -3; }
 .planDescribeFirst > .screenHead > .screenTitle { order: -2; max-width: 40rem; }
+/* The stop-count picker decides what "Sort it" produces, so it is read BEFORE
+   the tap, seated with the field rather than left below both actions where a
+   reader met it only after committing. The Screen primitive paints its actions
+   inside .screenHead, so the two rows that answer the question take negative
+   order alongside the kicker and the title. */
 .planDescribeFirst__form { order: -1; }
+.planDescribeFirst > .planStopCount { order: -1; }
 .planDescribeFirst > .screenHead > .screenActions { margin-top: var(--space-1); }
 .planDescribeFirst__form { display: grid; max-width: 34rem; }
 .planDescribeFirst__form input { min-height: 48px; border: 1px solid var(--line); border-radius: 11px; padding: 0 16px; font: inherit; background: var(--panel-raised); color: var(--ink); }
-.planStopCount { margin: var(--space-2) 0 0; display: flex; align-items: center; gap: 10px; }
+/* Six 44px targets plus the label do not fit one 390px line, so the row wraps
+   rather than shrinking a tap target or scrolling sideways. */
+.planStopCount { margin: var(--space-2) 0 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
 .planStopCount__label { color: var(--muted); font-size: 0.78rem; font-weight: 800; }
-.planStopCount__choices { display: flex; gap: 6px; }
+.planStopCount__choices { display: flex; flex-wrap: wrap; gap: 6px; }
 .planStopCount__choices button { min-width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); font: inherit; font-size: 0.8rem; font-weight: 800; cursor: pointer; }
 .planStopCount__choices button[aria-pressed="true"] { border-color: var(--plan-accent); background: color-mix(in srgb, var(--plan-accent) 13%, var(--panel)); color: var(--plan-accent-strong); }
 .planStopCount__choices button:focus-visible { outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent); outline-offset: 2px; }
@@ -672,6 +680,17 @@
 .planIntake__summaryChips button { border: 1px solid var(--line); background: var(--panel-raised); color: var(--ink-soft); }
 .planIntake__continue { border: 1px solid var(--accent-action); background: var(--accent-action); color: var(--color-on-accent); padding-inline: 20px; }
 .planIntake__continue:hover:not(:disabled) { border-color: var(--accent-action-strong); background: var(--accent-action-strong); }
+/* The floating create action owns a lane at the right edge, and Continue sits
+   in it: MEASURED at 390px, the button spanned x 199-368 while the control
+   held x 322-378, so its right 46px was not tappable. The row reserves that
+   lane the way a scrolling answer list does (components/nearme/nearMeNow.css),
+   reading the control's OWN published berth rather than a second copy of it. */
+@media (max-width: 640px) {
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .planIntake > footer {
+    padding-right: max(0px, calc(var(--create-fab-lane) - var(--page-gutter, 0px)));
+  }
+}
+
 /* Quiet secondary intake buttons when disabled. */
 .planIntake button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* M3: Continue primary — coral fill @ 0.58 (beats `button:disabled` specificity). */
@@ -684,6 +703,15 @@
   filter: none;
 }
 
+/* In the wizard this row is pinned above the step progress rail AND, on the
+   group step, above "How many people?" and its own row of small numbers.
+   Three number rows in a column is how a group of two was read as a two-pub
+   night, so the picker keeps a rule under it and its own breathing room. */
+.planIntake > .planStopCount {
+  margin: 12px 0 0;
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--line-soft, var(--line));
+}
 .planIntake__progress { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 20px 0 0; padding: 0; list-style: none; }
 .planIntake__progress li { min-width: 0; display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: 7px; color: var(--muted); font-size: 0.67rem; font-weight: 740; }
 .planIntake__progress li::after { content: ""; grid-column: 1 / -1; height: 3px; border-radius: 999px; background: var(--line); }

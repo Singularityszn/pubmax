@@ -490,7 +490,7 @@ function routeEligibleCandidates<T>(
     : eligible;
 }
 
-/** Select the strongest feasible 3-6-stop route with deterministic tie-breaks. */
+/** Select the strongest feasible route of the requested size, with deterministic tie-breaks. */
 export function selectGroundedPlanRoute<T>(
   candidates: readonly GroundedPlanRouteCandidate<T>[],
   constraints: GroundedPlanRouteConstraints,

@@ -7,7 +7,7 @@ import {
   type PlanningIntentSource,
 } from "@/lib/planningIntent";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
-import { isPlanStopCount } from "@/lib/planStopCount";
+import { isPlanStopCount, PLAN_STOP_COUNT_RANGE_SENTENCE } from "@/lib/planStopCount";
 
 const PROOF_VERSION = 1;
 const PROOF_V2_VERSION = 2;
@@ -64,7 +64,7 @@ export function mintPlanGroundingProof(
   return `${encoded}.${signature(encoded, key).toString("base64url")}`;
 }
 
-/** Verify that three to six accepted stops were covered by a server-minted proof. */
+/** Verify that the accepted stops were covered by a server-minted proof. */
 export function readPlanGroundingClaims(
   proof: unknown,
   acceptedVenueIds: readonly string[],
@@ -193,7 +193,7 @@ function operationDigestV2(operationKey: string, key: Buffer): string {
 }
 
 function orderedVenueIds(values: readonly string[]): string[] | null {
-  if (values.length !== 1 && !isPlanStopCount(values.length)) return null;
+  if (!isPlanStopCount(values.length)) return null;
   const ids = values.map((value) => (typeof value === "string" ? value.trim() : ""));
   if (ids.some((value) => !value || value.length > VENUE_ID_MAX)) return null;
   if (new Set(ids).size !== ids.length) return null;
@@ -242,7 +242,7 @@ export function mintPlanGroundingProofV2(
 ): string {
   const routeVenueIds = orderedVenueIds(input.routeVenueIds);
   if (!routeVenueIds || !input.operationKey.trim()) {
-    throw new Error("A V2 grounding proof needs one or three to six ordered venues and a create operation.");
+    throw new Error(`A V2 grounding proof needs ${PLAN_STOP_COUNT_RANGE_SENTENCE} ordered venues and a create operation.`);
   }
   const allowedVenueIds = sortedAllowedVenueIds(
     input.allowedVenueIds ?? routeVenueIds,

@@ -12,7 +12,12 @@ import type {
 } from "@/lib/nightPlanning";
 import type { CityId } from "@/lib/cities";
 import type { PlanGenerationAnchor as PlanGenerationWireAnchor } from "@/lib/planGenerationRequest";
-import { isPlanStopCount, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
+import {
+  DEFAULT_PLAN_STOP_COUNT,
+  isPlanStopCount,
+  normalizePlanStopCount,
+  type PlanStopCount,
+} from "@/lib/planStopCount";
 import { DAY_MS } from "@/lib/dayMs";
 import { safeLocalStorage } from "@/lib/safeStorage";
 
@@ -618,7 +623,7 @@ export function planIntakeHandoff(draft: PlanIntakeDraft): PlanIntakeHandoff {
         }
       : null,
     groupSize: draft.answers.groupSize,
-    ...(stopCount !== 3 ? { stopCount } : {}),
+    ...(stopCount !== DEFAULT_PLAN_STOP_COUNT ? { stopCount } : {}),
     budget: draft.answers.budget
       ? { tier: draft.answers.budget, limitPence: draft.answers.budgetLimitPence }
       : null,
@@ -638,7 +643,7 @@ export function planIntakeNightContextPatch(draft: PlanIntakeDraft): Partial<Nig
     ...(nightArea ? { nightArea } : {}),
     ...(timeWindow ? { daypart: timeWindow.daypart } : {}),
     ...(draft.answers.groupSize !== null ? { groupSize: draft.answers.groupSize } : {}),
-    ...(normalizePlanStopCount(draft.answers.stopCount) !== 3
+    ...(normalizePlanStopCount(draft.answers.stopCount) !== DEFAULT_PLAN_STOP_COUNT
       ? { stopCount: normalizePlanStopCount(draft.answers.stopCount) }
       : {}),
     ...(draft.answers.budget ? { budget: draft.answers.budget } : {}),
