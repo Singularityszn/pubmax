@@ -30,10 +30,14 @@ const OBSERVATION_DAY = new Intl.DateTimeFormat("en-GB", {
 });
 
 // The caption beside a row's price, and WHICH question it answers depends on
-// the lane the row came from.
+// the lane the row came from. The lane is read EXPLICITLY, never as the else of
+// a dataset check: everything that is not the bundled dataset is not therefore
+// a closed snapshot, and a fall-through put "Snapshot from" on a drinker's live
+// Pint Drop, which is the opposite claim.
 //
-// A dataset row is re-collected, so its caption is a currency claim measured
-// against the price-authority window: "Seen" inside it, "Last seen" past it.
+// A dataset row and a Pint Drop row are both re-collectable observations, so
+// their caption is a currency claim measured against the price-authority
+// window: "Seen" inside it, "Last seen" past it.
 //
 // A drink-price-update row is not. That lane is a STATIC SNAPSHOT (captain
 // ruling 2026-09-05: its only permitted source publishes no per-drink web
@@ -43,6 +47,19 @@ const OBSERVATION_DAY = new Intl.DateTimeFormat("en-GB", {
 // freshness spine and the pint bundle's own caption use (SNAPSHOT_CAPTION_PREFIX,
 // lib/dataFreshness.ts), so a drinker, a page caption and the audit cannot drift
 // into three vocabularies. The date is the whole claim either way.
+const SNAPSHOT_CAPTION_LANES: ReadonlySet<string> = new Set(["drink-price-update"]);
+
+/**
+ * The window a row's caption is measured against, or null where the row is a
+ * declared snapshot lane and there is no window to measure.
+ */
+function drinkMenuObservationBudgetDays(
+  provenance: DrinkProvenance,
+): number | null {
+  if (provenance.lane && SNAPSHOT_CAPTION_LANES.has(provenance.lane)) return null;
+  return PINT_DATASET_PRESENTATION_BUDGET_DAYS;
+}
+
 function drinkMenuObservationMeta(
   observedAt: string,
   freshnessBudgetDays: number | null,
@@ -127,9 +144,7 @@ function DrinkRow({ drink, venueId }: { drink: Drink; venueId?: string }) {
     ? null
     : drinkMenuObservationMeta(
         drink.provenance.observedAt,
-        drink.provenance.lane === "dataset" || drink.provenance.source === "app-dataset"
-          ? PINT_DATASET_PRESENTATION_BUDGET_DAYS
-          : null,
+        drinkMenuObservationBudgetDays(drink.provenance),
       );
   return (
     <li className="drinkRow">
