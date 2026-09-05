@@ -296,7 +296,7 @@ export function isPlanPreviewProjection(value: unknown): boolean {
  * §4.10 boundary: the server never embeds the route in this component's props.
  * The page passes only the privacy-safe preview; a member's full state is
  * fetched from the capability-gated /api/plans/[id] (which returns the raw
- * PlanState only for a valid host/guest with the flag on, else the preview).
+ * PlanState only for a valid host/guest, else the preview).
  * Until — or unless — that member state arrives, only the redacted preview renders.
  *
  * The read follows the capability rather than the mount (battle test M01, M02);

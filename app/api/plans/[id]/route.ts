@@ -139,8 +139,9 @@ export async function GET(request: Request, context: Context): Promise<Response>
   const lookup = await planStateResult(id);
   if (!lookup.ok) return publicApiError("Plan data is temporarily unavailable.", "PLAN_STORE_UNAVAILABLE", 503, { retryable: true });
   if (!lookup.plan) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
-  // §4.10: a valid host/guest capability (with member rehydration enabled) gets
-  // the raw PlanState it always did; everyone else gets the redacted preview.
+  // §4.10: a valid host/guest capability gets the raw PlanState it always did;
+  // everyone else gets the redacted preview. The capability is the WHOLE
+  // question and there is no second one.
   const projection = await resolvePlanProjection({
     request,
     planId: id,
