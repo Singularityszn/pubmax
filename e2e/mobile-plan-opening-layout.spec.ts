@@ -25,21 +25,33 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await expect(page.locator(".mobileTabBar")).toBeVisible();
 
     if (viewport.width === 390) {
+      // The head is the Screen primitive's since #1402, so it wears the launch
+      // typography tokens rather than the bespoke display treatment this used
+      // to pin (line-height .88, tracking -.065em, a 10px margin). The tokens
+      // are read off the document rather than typed here, so a governed token
+      // change moves this assertion with it instead of rotting it: the claim
+      // is that the head takes the launch scale, not that the scale is 1.12.
       const phoneStyles = await page.locator(".planPage__intro h1").evaluate((heading) => {
         const style = getComputedStyle(heading);
+        const root = getComputedStyle(document.documentElement);
         const fontSize = Number.parseFloat(style.fontSize);
         return {
           fontSize,
           lineHeight: Number.parseFloat(style.lineHeight),
           letterSpacing: Number.parseFloat(style.letterSpacing),
-          marginBottom: Number.parseFloat(
-            getComputedStyle(heading.parentElement!).marginBottom,
-          ),
+          leadingTight: Number.parseFloat(root.getPropertyValue("--leading-tight")),
+          trackingTightEm: Number.parseFloat(root.getPropertyValue("--tracking-tight")),
         };
       });
-      expect(phoneStyles.lineHeight).toBeCloseTo(phoneStyles.fontSize * 0.88, 1);
-      expect(phoneStyles.letterSpacing).toBeCloseTo(phoneStyles.fontSize * -0.065, 1);
-      expect(phoneStyles.marginBottom).toBe(10);
+      expect(phoneStyles.leadingTight).toBeGreaterThan(0);
+      expect(phoneStyles.lineHeight).toBeCloseTo(
+        phoneStyles.fontSize * phoneStyles.leadingTight,
+        1,
+      );
+      expect(phoneStyles.letterSpacing).toBeCloseTo(
+        phoneStyles.fontSize * phoneStyles.trackingTightEm,
+        1,
+      );
     }
 
     // /plan opens on the describe-first question; the wizard this test

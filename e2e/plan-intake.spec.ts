@@ -1,5 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
+// #1402 seated /plan's opening question on the Screen primitive, which
+// renders the head this asserts. The old "What’s the plan?" h2 went with it.
+const DESCRIBE_FIRST_HEADING = "Describe the outing. We’ll put it in order.";
+
 async function continueIntake(page: Page): Promise<void> {
   const continueButton = page.getByRole("button", { name: "Continue" });
   await expect(continueButton).toBeEnabled();
@@ -38,7 +42,7 @@ test("blank Plan opens on describe-first, with the wizard reachable behind Guide
 }) => {
   await page.goto("/plan");
 
-  await expect(page.getByRole("heading", { name: /What.s the plan\?/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: DESCRIBE_FIRST_HEADING })).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Where should the night happen?" }),
   ).toHaveCount(0);
@@ -51,7 +55,7 @@ test("blank Plan opens on describe-first, with the wizard reachable behind Guide
   await expect(
     page.getByRole("heading", { name: "Where should the night happen?" }),
   ).toBeVisible();
-  await expect(page.getByRole("heading", { name: /What.s the plan\?/ })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: DESCRIBE_FIRST_HEADING })).toHaveCount(0);
   await expect(page.getByLabel("Venue name")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Lock it in" })).toHaveCount(0);
 });

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-test("mobile planner maps and hides a curated route from the bottom sheet", async ({ page }) => {
-  // Full mobile route lifecycle: map, hide, remap, close to map, reopen, hide.
+test("mobile planner maps and hides its route from the bottom sheet", async ({ page }) => {
+  // Full mobile route lifecycle: map the line, close to the map, reopen, hide.
   // It legitimately crosses hydration + route recomputation on headless CI, and
   // runs beside other mobile specs, so keep the timeout roomy while still
   // relying on web-first assertions instead of sleeps.
@@ -26,11 +26,19 @@ test("mobile planner maps and hides a curated route from the bottom sheet", asyn
   await expect(planner).toHaveClass(/sheet-half/);
   await expect(planner.getByRole("heading", { name: "Describe the outing" })).toBeVisible();
 
-  await planner.getByRole("button", { name: /Map the .* crawl with \d+ stops/ }).first().click();
-  await planner.getByRole("button", { name: "Hide line" }).click();
-  await expect(planner.getByRole("button", { name: "Map route" })).toBeVisible();
-  await planner.getByRole("button", { name: "Map route" }).click();
-  await expect(planner).toHaveCount(0);
+  // The route the planner opens on is the one the drawer already holds: on a
+  // phone the featured-routes list is deliberately absent, because ControlRail
+  // is the DESKTOP planner and mounting it here stacked a second planner under
+  // the first inside one bottom sheet (#700, and the comment that says so still
+  // sits over its `!mobileViewport` guard in components/PubMap.tsx).
+  const mapRoute = planner.getByRole("button", { name: "Map route" });
+  await expect(mapRoute).toBeVisible();
+  // Mapping the line hands the reader back to the map, so the sheet closes.
+  // Retry the tap rather than assert harder on what it produces (AGENTS.md).
+  await expect(async () => {
+    await mapRoute.click();
+    await expect(planner).toHaveCount(0, { timeout: 2_000 });
+  }).toPass({ timeout: 30_000 });
 
   await page.getByRole("button", { name: /Edit active \d+-stop plan/ }).click();
   await expect(planner).toHaveClass(/open/);

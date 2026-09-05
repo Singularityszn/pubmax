@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { describeFirstSubmit } from "./helpers/planDescribeFirst";
+
 const SCENARIOS = [
   { stopCount: 5, width: 390, height: 844 },
   { stopCount: 6, width: 390, height: 844 },
@@ -48,7 +50,7 @@ for (const scenario of SCENARIOS) {
       response.request().method() === "POST"
       && response.url().endsWith("/api/plans/generate")
     ));
-    await page.getByRole("button", { name: "Make a plan", exact: true }).click();
+    await describeFirstSubmit(page).click();
     const generatedResponse = await generation;
     expect(generatedResponse.status()).toBe(200);
     const generated = await generatedResponse.json() as {

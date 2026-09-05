@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
 
+import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
+import { setFirstPintIn } from "./helpers/planFirstPint";
+
+
 test("concierge picks become a public Plan that a mate joins with only a name", async ({
   browser,
   page,
@@ -15,6 +19,11 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // The identity nudge (lib/identityNudge.ts) fires after the first
+    // qualifying plan action and lays a backdrop over the night surface this
+    // test taps. It is real signed-out UX and has its own coverage; pre-
+    // dismissing it here is what a returning visitor already carries.
+    window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
   await page.goto("/plan");
   await expect(page.getByRole("heading", { name: "Describe the outing. We’ll put it in order." })).toBeVisible();
@@ -24,8 +33,8 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
     )
     .toBeLessThanOrEqual(1);
 
-  await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
-  await page.getByRole("button", { name: "Make a plan" }).click();
+  await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
+  await describeFirstSubmit(page).click();
   await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
   await expect(page.getByRole("spinbutton", { name: /People/i })).toHaveValue("4");
@@ -65,6 +74,11 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // The identity nudge (lib/identityNudge.ts) fires after the first
+    // qualifying plan action and lays a backdrop over the night surface this
+    // test taps. It is real signed-out UX and has its own coverage; pre-
+    // dismissing it here is what a returning visitor already carries.
+    window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
   const matePage = await mate.newPage();
   matePage.on("request", (request) => {
@@ -73,7 +87,16 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
     }
   });
   await matePage.setViewportSize({ width: 390, height: 844 });
-  await matePage.goto(publicUrl);
+  // The mate opens the link the host actually shares, not the host's own
+  // post-lock URL. A bare /plan/<uuid> offers no join form on purpose: the
+  // classic invite token is the capability, and PlanCrew reads it from
+  // #invite= (lib/planCrewInviteUrl.ts) rather than reopening the bare-UUID
+  // IDOR. Taking it off the host's own WhatsApp CTA keeps this end to end.
+  const shareHref = await page.getByRole("link", { name: "Send on WhatsApp" }).getAttribute("href");
+  const sharedPath = decodeURIComponent(new URL(shareHref ?? "").searchParams.get("text") ?? "")
+    .match(/\/plan\/[0-9a-f-]{36}#invite=[0-9a-f]{32}/)?.[0];
+  expect(sharedPath).toBeTruthy();
+  await matePage.goto(new URL(sharedPath as string, publicUrl).toString());
   // Night mode (components/plan/NightCrawlMode.tsx) auto-opens on mobile
   // whenever the plan is "on tonight" (lib/activePlan.ts's active window).
   // ActivePlanMarker only marks a plan active for a viewer who holds plan
@@ -110,19 +133,35 @@ test("host still gets night mode ambushed at their own plan's start time", async
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // The identity nudge (lib/identityNudge.ts) fires after the first
+    // qualifying plan action and lays a backdrop over the night surface this
+    // test taps. It is real signed-out UX and has its own coverage; pre-
+    // dismissing it here is what a returning visitor already carries.
+    window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
   await page.goto("/plan");
-  await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
-  await page.getByRole("button", { name: "Make a plan" }).click();
+  await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
+  await describeFirstSubmit(page).click();
   await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
+  // The night has to actually BE on, and an inferred start is not: the
+  // generator answers an evening daypart with an 18:00 London start whatever
+  // the wall clock says, while lib/activePlan.ts opens the active window only
+  // ACTIVE_PLAN_PRE_MS (3h) before it. Left inferred, this test passed after
+  // 15:00 London and failed every hour before it. Naming a start half an hour
+  // out puts the plan inside the window whenever the suite runs. Editing the
+  // start marks the route stale, so refresh it before locking in.
+  await setFirstPintIn(page, 30);
+  await page.getByRole("button", { name: "Regenerate route" }).click();
+  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
   await page.getByRole("button", { name: "Lock it in" }).click();
   await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}(?:#share)?$/);
   await expect(page.getByRole("heading", { name: /Who.s in/ })).toBeVisible();
 
   // The host holds capability from the moment the plan is created
-  // (PlanComposer's writePlanCapability call, role "host"), and this plan's
-  // inferred start time is now - so Night Mode should ambush them.
+  // (PlanComposer's writePlanCapability call, role "host"), and the plan is on
+  // now - so Night Mode should ambush them.
   const nightMode = page.getByRole("dialog", { name: "Night mode" });
   await expect(nightMode).toBeVisible();
 });

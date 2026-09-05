@@ -2,6 +2,15 @@ import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 
+// The Night Mode card reads the FULL PlanState to know a night is complete and
+// to seed its recap, so this journey only exists for a caller carrying the
+// plan's own capability. resolvePlanProjection (lib/planPrivacyBoundary.
+// server.ts) answers the anonymous preview to everyone else, and a preview
+// carries no stops and no ending, so the card would sit on "Loading tonight's
+// route…" for ever. The capability arrives the way a real host's does: the
+// legacy member token seeded below is exchanged for the path-scoped HttpOnly
+// session by restorePlanCapability on mount.
+
 test("completed Plan recap stays inside 320px viewport and explicit discard survives remount", async ({ page, request }) => {
   const startTime = new Date().toISOString();
   const venueResponse = await request.get("/data/venues_slim.json");
@@ -19,6 +28,15 @@ test("completed Plan recap stays inside 320px viewport and explicit discard surv
   expect(createdResponse.ok()).toBe(true);
   const created = await createdResponse.json() as { plan: { plan: { id: string } }; memberToken: string };
   const planId = created.plan.plan.id;
+  // A Plan is completable only once somebody arrived somewhere: planStore's
+  // completion path answers PLAN_ARRIVAL_REQUIRED with no qualifying `arrived`
+  // action on a real route stop. This test drove straight to /complete and had
+  // answered 400 ever since that rule landed.
+  const arrivalResponse = await request.post(`/api/plans/${planId}/actions`, {
+    headers: { "idempotency-key": randomUUID() },
+    data: { memberToken: created.memberToken, type: "arrived", stopPosition: 2 },
+  });
+  expect(arrivalResponse.ok()).toBe(true);
   const completionResponse = await request.post(`/api/plans/${planId}/complete`, {
     data: {
       memberToken: created.memberToken,
@@ -36,6 +54,10 @@ test("completed Plan recap stays inside 320px viewport and explicit discard surv
   await page.setViewportSize({ width: 320, height: 568 });
   await page.addInitScript(({ id, start, token }) => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    // The Night Mode card rides the deferred shell, which holds its whole tree
+    // for 30 s unless this documented E2E key releases it - longer than the
+    // spec's own budget, so the pill this test taps was never drawn in time.
+    window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
     window.localStorage.setItem("pubmax_active_plan", JSON.stringify({ id, startTime: start, stopIndex: 2 }));
     window.sessionStorage.setItem(`pubmax-plan-member:${id}`, token);
   }, { id: planId, start: startTime, token: created.memberToken });

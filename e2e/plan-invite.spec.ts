@@ -1,6 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
+import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
+import { setFirstPintIn } from "./helpers/planFirstPint";
+
 // Task: plan-invite-page. Proves the whole public invite feature end to end on
 // the production build: a real Plan's member-only invite token (exposed via
 // GET /api/plans/[id]'s member branch), the public /invite/[token] render, and
@@ -91,21 +94,6 @@ test("an unknown invite token renders the honest not-found state", async ({ page
 // plan creation), so the host must be driven through the actual composer UI —
 // a Plan created via a bare API call, as the other test in this file does,
 // never populates that memory.
-async function futureLondonFirstPint(): Promise<string> {
-  // datetime-local value in Europe/London, at least an hour ahead so lock stays enabled.
-  const when = new Date(Date.now() + 3 * 60 * 60 * 1000);
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(when);
-  const lookup = (type: string) => parts.find((part) => part.type === type)?.value ?? "00";
-  return `${lookup("year")}-${lookup("month")}-${lookup("day")}T${lookup("hour")}:${lookup("minute")}`;
-}
 
 async function openHydratedPlanComposer(page: Page): Promise<void> {
   await page.goto("/plan");
@@ -138,15 +126,15 @@ test("Copy invite link shows for the host's own session and never for an anonymo
     window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
   await openHydratedPlanComposer(page);
-  await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
-  await page.getByRole("button", { name: "Make a plan" }).click();
+  await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
+  await describeFirstSubmit(page).click();
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
   // Evening defaults can land in the past after ~19:00 London; a past First
   // pint keeps Lock disabled. Setting a future time marks the route stale, so
   // regenerate before locking.
-  await page.getByLabel("First pint").fill(await futureLondonFirstPint());
+  await setFirstPintIn(page, 3 * 60);
   await page.getByRole("button", { name: "Regenerate route" }).click();
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
@@ -185,12 +173,12 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
     window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
   await openHydratedPlanComposer(page);
-  await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
-  await page.getByRole("button", { name: "Make a plan" }).click();
+  await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
+  await describeFirstSubmit(page).click();
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
-  await page.getByLabel("First pint").fill(await futureLondonFirstPint());
+  await setFirstPintIn(page, 3 * 60);
   await page.getByRole("button", { name: "Regenerate route" }).click();
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
@@ -288,7 +276,7 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
   expect(removedSession.active).toBe(false);
 
   await guestPage.goBack();
-  await expect(guestPage).toHaveURL(new RegExp(`/invite/${inviteToken}$`));
+  await expect(guestPage).toHaveURL(new RegExp(`/invite/${token}$`));
   await guestPage.getByRole("button", { name: "Going", exact: true }).click();
   await guestPage.getByRole("button", { name: "RSVP", exact: true }).click();
   await expect(guestPage.locator(".inviteRsvp__guest", { hasText: "Priya" })).toBeVisible();
