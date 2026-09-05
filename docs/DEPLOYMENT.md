@@ -323,13 +323,74 @@ The workflow supports `workflow_dispatch`, so it can be rerun manually from GitH
 This project does not auto-assign the production domain to every deploy. After a Vercel deploy, promote it explicitly:
 
 ```sh
-vercel deploy
+npm run deploy:preview
 vercel promote <deployment-url>
 ```
+
+`npm run deploy:preview` is `vercel deploy` plus the commit of the tree it is
+uploading, so `GET /api/version` on the preview names it (see below). It
+forwards every argument.
 
 Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pass `--prebuilt` from a Mac: the locally built sharp binary is darwin-arm64 and crashes the linux runtime.
 
 `docs/SOFT_LAUNCH_RUNBOOK.md` section 1.2 is the operator source for this command pair and the promotion mechanics behind it.
+
+### Which commit is this deploy serving
+
+`GET /api/version` names the running code. It is public, uncached and cheap: the
+answer is decided during the build and inlined, so the route runs no git and
+reads no platform variable per request.
+
+```sh
+curl -s https://<deployment-url>/api/version
+```
+
+```json
+{
+  "deploymentId": "dpl_...",
+  "gitCommitSha": "182aa88212fc58cd2d146a5c3a4a91efe4c6a1fb",
+  "gitCommitShaSource": "working-tree",
+  "builtAt": "2026-09-05T07:30:00.000Z"
+}
+```
+
+| Field | What it says |
+|---|---|
+| `deploymentId` | WHICH deploy answered. It does not name what is in it. |
+| `gitCommitSha` | The commit the running code was built from, or `null` when the build could name no commit. |
+| `gitCommitShaSource` | `vercel-git` when Vercel's Git integration stamped the build, `working-tree` when the build read the commit of the tree it built, `null` with no sha. |
+| `builtAt` | When the build ran, as an ISO instant. |
+
+The two sources are separate on purpose. `vercel-git` is a commit Vercel checked
+out, so it names something that was pushed. `working-tree` is the commit of the
+tree the build ran over: on a `vercel deploy` from a CLI that tree is the one on
+the machine that ran the command, so it can carry uncommitted work, and matching
+it against local `git rev-parse HEAD` is what proves the preview serves the code
+you meant to send.
+
+A CLI deploy has to carry its own commit, and `npm run deploy:preview` is how it
+does. Measured 2026-09-05 against preview `dpl_CgDWoXWduiQJyFBwJPEYSHTsdcB8`: a
+bare `vercel deploy` uploads no `.git` directory and Vercel stamps no
+`VERCEL_GIT_COMMIT_SHA` on either the build or the runtime of such a deploy, so
+the builder has nothing to ask and the marker answered `null` on exactly the
+previews that needed identifying. The script reads `HEAD` on the machine running
+the command and passes it as a build variable; every argument is forwarded, so
+the target stays the operator's call, and `PUBMAX_VERCEL_BIN` names a CLI binary
+for anyone who has their own. A deploy through Vercel's Git integration needs
+none of this and answers `vercel-git`.
+
+**A dirty tree stamps nothing.** A CLI deploy uploads the working tree, so over a
+dirty tree the commit would name code that was not sent; the script warns, the
+deploy proceeds, and `gitCommitSha` is `null`. Commit the tree to get an
+identifiable deploy.
+
+Earlier, the route read `VERCEL_GIT_COMMIT_SHA` at request time, which is absent
+from the runtime of every CLI deploy. `lib/buildInfo.mjs` now owns the rule,
+`next.config.mjs` asks it once during the build, and the values ride in `env` as
+`PUBMAX_BUILD_COMMIT_SHA`, `PUBMAX_BUILD_COMMIT_SHA_SOURCE` and
+`PUBMAX_BUILD_TIME`. Next replaces a static `process.env.NAME` member expression
+with the build-time literal, so the route must read each name directly and never
+through a variable key. Pin: `__tests__/deploymentVersionRoute.test.ts`.
 
 ### Known GitHub check sources
 

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { readBuildStamp } from "@/lib/buildInfo.mjs";
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -11,21 +13,33 @@ function currentDeploymentId(): string | null {
   return typeof deploymentId === "string" && deploymentId ? deploymentId : null;
 }
 
-// The commit the running code was built from. A deployment id names WHICH
-// deploy answered; it does not name WHAT is in it, so proving "this preview
-// serves the SHA I pushed" needed a second trip through the Vercel API. Vercel
-// sets VERCEL_GIT_COMMIT_SHA on every build it owns; a local or self-hosted
-// run sets nothing, and null is the honest answer there rather than a guess.
-function currentGitCommitSha(): string | null {
-  const sha = process.env.VERCEL_GIT_COMMIT_SHA;
-  return typeof sha === "string" && sha ? sha : null;
+// The commit the running code was built from, plus WHERE that answer came from
+// and WHEN the build ran. The values are decided in next.config.mjs and inlined
+// there (lib/buildInfo.mjs owns the rule), so this route runs no git and reads
+// no request-time platform variable: VERCEL_GIT_COMMIT_SHA is absent from the
+// runtime of a CLI deploy, which is what made this marker answer null on every
+// preview it was needed for. Each name is read as a STATIC member expression
+// because that is the form Next replaces with the build-time literal.
+function currentBuildStamp() {
+  return readBuildStamp({
+    PUBMAX_BUILD_COMMIT_SHA: process.env.PUBMAX_BUILD_COMMIT_SHA,
+    PUBMAX_BUILD_COMMIT_SHA_SOURCE: process.env.PUBMAX_BUILD_COMMIT_SHA_SOURCE,
+    PUBMAX_BUILD_TIME: process.env.PUBMAX_BUILD_TIME,
+  });
 }
 
 export function GET(): NextResponse {
+  const build = currentBuildStamp();
+
   return NextResponse.json(
     {
       deploymentId: currentDeploymentId(),
-      gitCommitSha: currentGitCommitSha(),
+      gitCommitSha: build.commitSha,
+      // "vercel-git" is a commit Vercel checked out; "working-tree" is the
+      // commit of the tree the build ran over. A verifier that wants a pushed
+      // commit needs to be able to tell those apart.
+      gitCommitShaSource: build.commitShaSource,
+      builtAt: build.builtAt,
     },
     {
       headers: {
