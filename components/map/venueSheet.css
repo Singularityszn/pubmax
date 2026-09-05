@@ -1232,8 +1232,26 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     display: none;
   }
 
+  /* The docked drawer's own inset. The inspector used to sit flush against
+     the drawer's left edge (measured: drawer 800px, kicker, name, photo and
+     tab strip all at 801px) while the tab panel below padded its body text
+     to 819px, so the venue name hung 18px outside the column its address sat
+     in. The inspector now carries the 18px and the panel pads only its
+     vertical rhythm, which keeps the address exactly where it was. The
+     head's own top band is trimmed to match: a 20px margin plus an 18px
+     padding above the kicker was a 38px empty strip under the close button. */
+  .mapDrawer.right .venueInspector {
+    margin-top: 0;
+    padding: 6px 18px 0;
+    border-top: 0;
+  }
+
+  .mapDrawer.right .mapDrawerHead {
+    padding-inline: 18px;
+  }
+
   .venueInspector .venueTabPanel {
-    padding: 18px;
+    padding: 18px 0;
   }
 
   /* Golden Thread (or the composer, when open) beside the Pint Drops list
