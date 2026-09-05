@@ -159,13 +159,18 @@ describe("what a refused Moment write does to the Memory it was for", () => {
 });
 
 describe("the composer's own words carry the real number", () => {
-  it("under the picker at both widths", () => {
-    expect(momentPickerHint(true)).toContain(UPLOAD_PHOTO_MAX_LABEL);
-    expect(momentPickerHint(false)).toContain(UPLOAD_PHOTO_MAX_LABEL);
-    expect(momentPickerHint(true)).toContain("Camera or library");
-    expect(momentPickerHint(false)).toContain("HEIC");
-    for (const line of [momentPickerHint(true), momentPickerHint(false)]) {
+  it("under the picker at both widths, one sentence per line", () => {
+    const phone = momentPickerHint(true);
+    const desk = momentPickerHint(false);
+    expect(phone.join(" ")).toContain(UPLOAD_PHOTO_MAX_LABEL);
+    expect(desk.join(" ")).toContain(UPLOAD_PHOTO_MAX_LABEL);
+    expect(phone[0]).toBe("Camera or library.");
+    expect(desk[0]).toContain("HEIC");
+    for (const line of [...phone, ...desk]) {
       expect(line).not.toMatch(/10 ?MB/);
+      // A line is one sentence, short enough to stand unwrapped on a phone.
+      expect(line.length).toBeLessThanOrEqual(30);
+      expect(line.endsWith(".")).toBe(true);
     }
   });
 

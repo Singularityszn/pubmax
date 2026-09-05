@@ -110,11 +110,19 @@ function positive(value: number): boolean {
   return Number.isFinite(value) && value > 0;
 }
 
-/** What the composer says under the picker, at each width. */
-export function momentPickerHint(isPhone: boolean): string {
+/** The one line that says what leaves the phone, and the real number in it. */
+export const MOMENT_PICKER_RESIZE_LINE = `Photos over ${UPLOAD_PHOTO_MAX_LABEL} are resized.`;
+
+/**
+ * What the composer says under the picker, at each width: one sentence per
+ * line, so a figure is never split from its unit at a wrap and the last line
+ * is never an orphaned clause. The phone names the sheet; the desk names the
+ * types and the other way in.
+ */
+export function momentPickerHint(isPhone: boolean): readonly string[] {
   return isPhone
-    ? `Camera or library. Over ${UPLOAD_PHOTO_MAX_LABEL} is resized.`
-    : `${MOMENT_PHOTO_TYPES_LINE}. Over ${UPLOAD_PHOTO_MAX_LABEL} is resized.`;
+    ? ["Camera or library.", MOMENT_PICKER_RESIZE_LINE]
+    : [`${MOMENT_PHOTO_TYPES_LINE}.`, MOMENT_PICKER_RESIZE_LINE, "Drag and drop or browse."];
 }
 
 export function momentPhotoTooLargeLine(): string {

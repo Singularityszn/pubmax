@@ -663,7 +663,14 @@ export default function MomentCapture(): React.JSX.Element {
                   <Upload size={28} aria-hidden="true" />
                 )}
                 <strong>{pickerPrimary}</strong>
-                <span>{pickerSecondary}</span>
+                <span>
+                  {pickerSecondary.map((line, index) => (
+                    <span className="momentMediaPickerLine" key={line}>
+                      {index > 0 ? <br /> : null}
+                      {line}
+                    </span>
+                  ))}
+                </span>
                 {/* A PICKER, never a camera: `capture` tells iOS to open the
                     camera and leave Photo Library off the sheet, and the accept
                     list names HEIC because iOS matches a library photo's own
