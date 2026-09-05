@@ -80,6 +80,16 @@
   --shared-press-scale: 1;
 }
 
+/* The quiet row under the primary. One door on nearly every screen, two on the
+   landing (#1488), so it is stated as a row with a gap rather than left a bare
+   wrapper: with a single child it is the same box it has always been. */
+.screenSecondary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+}
+
 /* The quieter way onward reads as a link, not as a second button. */
 .screenSecondary > :is(a, button) {
   display: inline-flex;

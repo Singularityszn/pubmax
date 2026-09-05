@@ -109,6 +109,19 @@ export function railHeading(scope: LandingAnswerScope, area: string): string {
   return scope === "anchor" ? `Cheapest listed in ${area}` : "Next cheapest";
 }
 
+/**
+ * The second quiet door on the hero's own row (#1488).
+ *
+ * Tonight had no tap at all on the phone's home screen: the landing bar hides
+ * its link list under 960px, the six-tab dock carries Now rather than Tonight,
+ * and the only rendered `/tonight` link sat in the footer about 3,500px down.
+ * It rides the Pal door's row because the phone's first screen ends at the
+ * consent bar a couple of dozen pixels under that row, so a row of its own
+ * would be a door nobody sees.
+ */
+export const TONIGHT_DOOR_HREF = "/tonight";
+export const TONIGHT_DOOR_LABEL = "Tonight";
+
 /** The one quiet control that asks for a location. */
 export const NEAR_ME_CONTROL_LABEL = "Near me";
 export const NEAR_ME_CONTROL_BUSY_LABEL = "Finding you…";

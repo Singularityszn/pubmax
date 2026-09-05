@@ -119,12 +119,37 @@ describe("landing hierarchy: the price receipt door", () => {
     expect(render()).not.toMatch(/locate=1/);
   });
 
-  it("counts the landing's own calls to action: one primary, one second door, one text link", () => {
+  it("counts the landing's own calls to action: one primary, one quiet row, one text link", () => {
     const rendered = render();
     expect(rendered.match(/data-primary-action/g)).toHaveLength(1);
+    // ONE quiet row, and #1488 gave it a second door: the Pal, then Tonight.
+    // Two is that row's cap (components/ui/screen.tsx, `secondary`), so a third
+    // way onward fails here rather than in a browser nobody opens.
     expect(rendered.match(/class="screenSecondary"/g)).toHaveLength(1);
+    const secondary = rendered.match(/<div class="screenSecondary">([\s\S]*?)<\/div>/)?.[1] ?? "";
+    const quietDoors = [...secondary.matchAll(/<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map(
+      (match) => [match[1], match[2]],
+    );
+    expect(quietDoors).toEqual([
+      ["/pal", "Meet your Pub Pal"],
+      ["/tonight", "Tonight"],
+    ]);
     const textLinks = [...rendered.matchAll(/<a[^>]*class="lpTextLink"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => m[1]);
     expect(textLinks).toEqual(["Open the map"]);
+  });
+
+  it("gives Tonight a tap on the phone's home screen that the dead nav never had", () => {
+    // The landing bar hides its link list under 960px and the six-tab dock
+    // carries Now rather than Tonight, so before #1488 the only rendered
+    // /tonight link on `/` sat in the footer, thousands of pixels down.
+    const hero = render().match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
+    expect(hero).toMatch(/href="\/tonight"/);
+    expect(hero).toMatch(/class="lpTonightDoor"/);
+    // The width half of the tap floor is stated here, because the shared
+    // quiet-link rule floors the height alone.
+    expect(landingCss).toMatch(/\.lpTonightDoor\s*{[^}]*min-width:\s*44px/);
+    // And the fix does not lean on the nav that is still hidden on a phone.
+    expect(landingCss).toMatch(/\.lpPrimaryNav\s*{\s*display:\s*none/);
   });
 
   it("opens the Map directly for a stranger and keeps city choice explicit", () => {

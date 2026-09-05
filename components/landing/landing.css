@@ -407,6 +407,13 @@
 .lpNearLine { margin: 0; color: var(--ink-soft); font-size: var(--text-sm); line-height: var(--leading-normal); }
 .lpNearLine:empty { display: none; }
 
+/* The second quiet door on the hero row (#1488). It takes the shared quiet-link
+   weight from .screenSecondary; all it states here is the width half of the
+   44px tap floor, because "Tonight" is one short word and a 44px height alone
+   is not a tap target. e2e/mobile-landing-entry.spec.ts measures the rendered
+   box at 320, 360, 390 and 430. */
+.lpTonightDoor { min-width: 44px; justify-content: center; }
+
 /* Variant B: three rows under the answer, one column at every width. Rows,
    not cards: a hairline between each, and the price stamp on the right. */
 .lpRail { display: grid; gap: var(--space-2); }
