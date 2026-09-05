@@ -50,6 +50,26 @@ _Avoid_: Place, location, pub when the concept includes non-pub venues
 The observed price of a named pint at a venue.
 _Avoid_: Drink cost, beer price
 
+**Drink Measure**:
+What a price is a price OF: a pint, a half, or another measure carrying its own label. A half is never scaled into a pint figure, because half a pint of lager is not half the price of a pint of it. A non-pint report keeps its own figure, prints its measure beside it, and is held out of every pint lane. `lib/drinkMeasure.ts` owns the closed set.
+_Avoid_: Serving size scaled to a pint, drink name read as a measure, half counted as a pint
+
+**Price Band**:
+Which third of a city's priced pints a figure falls into: cheap, average, or expensive. The thresholds are terciles of that city's own priced pubs, derived by `npm run build:price-bands` and never typed. Colour on a price carries the band and nothing else, and only a pint figure wears one. `lib/priceBand.ts` is the one rule.
+_Avoid_: Traffic light for trust, borough band, colour derived from a Price Standing
+
+**Price Standing**:
+How far a pint figure may be trusted, said in words rather than colour: Confirmed (a drinker checked it inside 30 days), Listed (the pub or its chain published it, with a public source and the day it was read), Estimate (modelled by PUBMAXX and published by nobody), or none. `lib/priceTier.ts` decides, and takes the strongest claim the evidence supports and never a stronger one. An Estimate never prints bare and never carries authority.
+_Avoid_: Price Band, confidence score, an Estimate presented as a published price
+
+**Price Lane**:
+Which of a pub's competing price sources wins the line a surface prints, in one fixed precedence: anchor, contributor, sourced, listed, provisional, baseline, aged, then estimate. A null answer is the only thing any surface may word as "no price yet". `lib/venuePriceLane.ts` owns the order.
+_Avoid_: Cheapest price, Price Standing, an empty list read as an absent price
+
+**Drink Lane**:
+The drink the map is under. Beer is the lane the map rests in, so it is never a selected lens and the pint bands, the pint label and the cheapest-pint buckets are untouched by it. Choosing another lane relabels the figures and reorders the venues; it merges no two drinks into one number. `lib/drinkLanes.ts` owns the table and the one filter write.
+_Avoid_: Filter, Drink Measure, a drink category read as a Price Lane
+
 **Crawl Route**:
 An ordered plan of venues for a user to visit in one outing.
 _Avoid_: Itinerary, trip, journey
@@ -118,6 +138,18 @@ _Avoid_: Recommendation, user tip
 A single community Night Moment attached to a Venue. It must carry an observed Pint Price or a Passed-Down Note and can add a pint or venue photo. It is separate from a Visit Report and is never the generic name for a Social Post.
 _Avoid_: Social Post, check-in, upload
 
+**Second Drinker**:
+The independent account whose matching report about the same pint completes a Pint Drop Confirmation. Independence is decided on the server over stored rows: one account reporting twice is one report, and an unattributed row is no reporter at all. `lib/pintDropSecondDrinker.ts` owns the door and the words it answers with.
+_Avoid_: Repeat report from the same account, anonymous confirm, a tally of taps
+
+**Pint Drop Confirmation**:
+The record minted when a Second Drinker agrees with a priced Pint Drop, or when a moderator confirms one from the queue. Both drops carry the same confirmation id, because one agreement is one event. It is what earns a Confirmed Price Standing and what lets a price colour a pin. `lib/pintDropConfirmation.ts` is the policy.
+_Avoid_: Like, upvote, IP-counted confirm, self-confirmation
+
+**Pint Trust**:
+What a pub's own Pint Drops add up to right now: confirmed, corroborated, logged-once, aged-out, or none. Every state is a reading at the current moment rather than a stored flag, so a confirmation that has aged out reads aged-out and nothing is rewritten. `lib/pintTrust.ts` composes it and says what each state may paint and print.
+_Avoid_: Stored trust status, a colour, Price Standing
+
 **Passed-Down Note**:
 A short piece of personal or inherited knowledge about a venue — a memory from childhood, a story handed down from family, or local lore — tagged with the era it belongs to. The generational-bridge content, distinct from a rating.
 _Avoid_: Review, comment, caption
@@ -130,9 +162,21 @@ _Avoid_: Source (bare), reliability, trust score
 The public PUBMAXX Handle attached to an authenticated account and its immutable PUBMAXX User ID. Contributions use account ownership as their identity boundary; a handle is never accepted as authorship merely because a client typed it.
 _Avoid_: Self-declared name, email address, session token presented as contributor identity
 
+**Founding Member**:
+One of the first hundred claimed Handles, carrying a number that buys BELONGING and nothing else. Nothing in the product may branch on it: a Founding Member sees the same map, the same prices and the same planner as somebody arriving tomorrow. A number is never recycled, so the live wall has gaps. `lib/foundingMembers.ts` owns the whole policy.
+_Avoid_: Tier, early-access capability, recycled number, founding-only feature
+
+**Referral Mark**:
+The recognition an account earns for bringing people in, printed on its owner's own account card alone. It is the Founding Member law applied to a second status: no capability, no tier and no gate may read a referral count. `lib/referrals.ts` owns it.
+_Avoid_: Reward, unlock, public referral count, referral-gated feature
+
 **Private Account Identity**:
-The required date of birth and optional full name and sex attached to an authenticated account at signup. PUBMAXX stores all three privately for product analytics and social features, does not derive contribution eligibility from them, and does not block accounts or contributions by age. The Handle remains the only public identity. Visit Reports and Recommendations remain identity follow-up work.
-_Avoid_: Public age, public date of birth, age eligibility
+The optional date of birth, full name and sex attached to an authenticated account. None of them is asked for at signup: claiming a Handle stores no date of birth, and a person who types one does so later, in profile editing. PUBMAXX stores all three privately and the Handle remains the only public identity.
+_Avoid_: Required date of birth, date of birth at signup, public age
+
+**Adult Self-Assertion**:
+The one recorded tap by which an account says it is 18 or over, and the answer PUBMAXX takes where no date of birth is stored. A stored date of birth still decides where there is one, in both directions, so an assertion may answer the age question but never overturn an answer the account already gave. `lib/adultGate.ts` is the one gate; Social, the pub photo walls and every contribution route ask it through that module.
+_Avoid_: Age verification, identity document check, capability, Social feature flag
 
 **Superseded Round Line**:
 An earlier Round price line whose community-price ownership was successfully replaced by a later line from the same account for the same venue and drink category. It stays in the Round diary but no longer claims current status; a failed replacement leaves the existing owner unchanged.
@@ -175,8 +219,8 @@ The deliberately published social expression of a Night Memory and the primary s
 _Avoid_: Night Memory, automatic activity feed, unreviewed archive
 
 **Social Post**:
-A verified-adult Social message with text, an optional private Photo, an optional Night Area, and an optional exact Venue. It stays held until moderation approves its current revision. Exact Venue is visible only to its author and current Mutuals.
-_Avoid_: Night Story, public venue fact, unmoderated draft
+A verified-adult-authored Social item with text, an optional private Photo, an optional Night Area, an optional exact Venue, and author-selected visibility and comment policy. It stays out of reads until moderation approves its current revision. Exact Venue is visible only to its author and current Mutuals, and a Social Post never carries venue or price authority.
+_Avoid_: Night Story, Pint Drop, Night Moment, public venue fact, price observation, unmoderated draft
 
 **Photo Tag Proposal**:
 A request to show another Pubmaxxer&rsquo;s current handle on one Social Post photo. It becomes visible only after that person approves it, and they can withdraw approval later.
@@ -186,13 +230,22 @@ _Avoid_: Face recognition, automatic tag, permanent consent
 An unfinished Social Post stored only on the author&rsquo;s device. It is not a Social Post and is not sent for moderation until submission.
 _Avoid_: Published post, server outbox, shared draft
 
+**Starter Pack**:
+A bundle of real accounts a new Pubmaxxer can follow in one tap, so their feed is alive on the first night. Every member is an existing account that placed itself there through its own public profile; there is no seeded member and no inference. A pack under the member floor does not show at all. `lib/starterPacks.ts`.
+_Avoid_: Seeded member, house account, suggested-for-you inference
+
+**Wanted**:
+A private place its owner means to try, captured by pasting a link or naming a venue. The source URL is provenance only and is never fetched server-side. A Wanted is owner-read only, and it is quietly fulfilled when the owner turns up at the venue. `lib/wanted.ts`.
+_Avoid_: Public list, scraped saves, server-fetched social post, Visited Venue
+
+**Open Crew**:
+A Planned Night whose crew strangers may ask to join. The host accepts, the meeting point is a listed venue or a named public place rather than typed words, and the host may close it. Membership is still the gate, so a left, removed or pending person stays out of the plan. `lib/openSocialCrew.ts`.
+_Avoid_: Free-text meetup, public plan without a host, typed meeting point
+
 **Night Moment**:
 A single shareable part of a Night Story, such as a photo, drink, event, venue, quote, person, or Side Quest. Night Moments belong to the wider story even when shared independently.
 _Avoid_: Generic post, unrelated content, complete Night Memory
 
-**Social Post**:
-A verified-adult-authored item in Social with author-selected visibility and comment policy. It stays out of reads until moderation approves it and never carries venue or price authority.
-_Avoid_: Pint Drop, Night Moment, venue fact, price observation
 
 **Connected Social Account**:
 An optional X, Instagram, or TikTok profile a Pubmaxxer links through a compliant provider flow or explicit public link. Provider-approved capabilities may include display, consented discovery, and user-confirmed publishing. Connection proves control of that external account at connection time, not the person's identity, age, or trustworthiness.
