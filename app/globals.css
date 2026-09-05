@@ -283,6 +283,21 @@
        var(--control-radius, 14px) so routes that don't load this sheet still land
        on the same value. */
   --control-radius: 14px;
+  /* — The rest of the text-button family, so a control is one row of tokens
+       rather than a per-surface restatement. Measured across the routes on
+       2026-09-05 the same secondary wore five geometries (a 999px pill on
+       /tonight, an 18px card on /near, an 8px box in the venue sheet, 12px on
+       /u/you, 14px in the sheet's own bar) and four type sizes; every one now
+       reads these. A circular icon control and a tab-group segment keep the
+       pill, per the ruling above. */
+  --control-height: 44px;
+  --control-pad-x: 16px;
+  --control-font-size: 0.86rem;
+  --control-font-weight: 700;
+  --control-secondary-surface: var(--panel-raised);
+  --control-secondary-border: var(--line);
+  --control-tint-surface: var(--state-active-surface);
+  --control-tint-border: var(--state-active-border);
 
   /* — Shadow: --shadow kept as the default (paper-lift in light, overridden to
        a deeper candle-glow in theme.css dark). --shadow-inset-* power the

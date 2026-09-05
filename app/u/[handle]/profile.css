@@ -136,34 +136,34 @@
 .profilePage .youIdentityActions { display: grid; gap: 8px; }
 .profilePage .youIdentityActions a,
 .profilePage .profilePalLink {
-  min-height: 44px;
-  padding: 10px 15px;
+  min-height: var(--control-height, 44px);
+  padding: 10px var(--control-pad-x, 16px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  border: 1px solid var(--control-secondary-border, var(--line));
+  border-radius: var(--control-radius, 14px);
   color: var(--ink);
-  font-size: .86rem;
-  font-weight: 700;
+  font-size: var(--control-font-size, .86rem);
+  font-weight: var(--control-font-weight, 700);
   text-decoration: none;
 }
 .profilePage .youIdentityActions a:first-child { border-color: var(--brass); background: var(--brass); color: var(--color-on-accent); }
 /* "Claim your @handle" is the primary here (brass, above); "Meet your Pub Pal"
    steps back to a quiet secondary so the two don't compete at equal weight. */
-.profilePage .youIdentityActions a:last-child { border-color: transparent; background: transparent; color: var(--ink-soft); font-weight: 600; }
+.profilePage .youIdentityActions a:last-child { border-color: transparent; background: transparent; color: var(--ink-soft); }
 .profilePage .youIdentityActions a:last-child:hover { color: var(--ink); }
 
 /* Invite-your-lot is the crew loop's primary action, so it wears the brass fill
    the pub-pal / edit pills leave quiet. Shares the pill geometry above. */
 .profilePage .profileInviteLink {
-  min-height: 44px;
-  padding: 10px 15px;
+  min-height: var(--control-height, 44px);
+  padding: 10px var(--control-pad-x, 16px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--brass);
-  border-radius: 12px;
+  border-radius: var(--control-radius, 14px);
   background: var(--brass);
   color: var(--color-on-accent);
   font-size: .86rem;

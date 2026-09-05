@@ -12,15 +12,15 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 44px;
-  padding: 8px 12px;
-  border-radius: var(--radius-sm, 8px);
-  border: 1px solid var(--line);
-  background: var(--panel-raised, var(--panel));
+  min-height: var(--control-height, 44px);
+  padding: 8px var(--control-pad-x, 16px);
+  border-radius: var(--control-radius, 14px);
+  border: 1px solid var(--control-secondary-border, var(--line));
+  background: var(--control-secondary-surface, var(--panel-raised));
   color: var(--ink);
   font-family: var(--font-body);
-  font-size: 0.86rem;
-  font-weight: 650;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   text-decoration: none;
   /* These are <a> anchors, so the global button press-feedback doesn't reach
      them, and adding [data-pressable]/.pressable would clobber this transition
@@ -48,8 +48,8 @@
 }
 
 .venueActionStrip__btn--book {
-  border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel));
+  border-color: var(--control-tint-border);
+  background: var(--control-tint-surface);
 }
 
 .venueActionStrip__btn--menu {
@@ -61,9 +61,9 @@
   margin-left: 2px;
 }
 
-.venueActionStrip__btn--book[data-tier="search"] {
-  border-style: dashed;
-}
+/* A search-tier booking link used to wear a dashed edge. The dash was the
+   only dashed control in the app and read as a disabled or placeholder box
+   beside solid neighbours; the external-link mark already says it leaves. */
 
 @media (max-width: 640px) {
   .venueActionStrip__btn {

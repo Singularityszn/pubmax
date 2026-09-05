@@ -437,29 +437,36 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  min-height: 44px;
+  min-height: var(--control-height, 44px);
   padding: 8px 10px;
   border-radius: var(--control-radius, 14px);
   font: inherit;
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   letter-spacing: -0.01em;
   cursor: pointer;
   white-space: nowrap;
 }
 
+/* The same flat accent every other primary wears (components/ui/screen.css).
+   A gradient plus a coloured drop shadow made this the one glowing primary
+   on a screen whose landing, plan and tonight primaries are all flat. */
 .venueSheetStickyPrimary {
   flex: 1.2 1 0;
-  border: 1px solid var(--brass);
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  border: 1px solid var(--accent-action);
+  background: var(--accent-action);
+  color: var(--color-on-accent);
+}
+
+.venueSheetStickyPrimary:hover {
+  background: var(--accent-action-strong);
   color: var(--color-on-accent-strong);
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
 }
 
 .venueSheetStickyGhost {
   flex: 1 1 0;
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+  border: 1px solid var(--control-tint-border, var(--line));
+  background: var(--control-tint-surface, var(--panel-raised));
   color: var(--ink);
 }
 
