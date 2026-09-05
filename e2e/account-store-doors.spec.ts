@@ -18,6 +18,13 @@ import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 const PHONE = { width: 390, height: 844 };
 const PROOF = "docs/proof/account-deletion";
+/** The export door beside the deletion door (contribution battle test L04). */
+const DATA_DOORS_PROOF = "docs/proof/account-deletion-real";
+const DATA_DOOR_WIDTHS = [
+  { name: "390", width: 390, height: 844 },
+  { name: "768", width: 768, height: 1024 },
+  { name: "1440", width: 1440, height: 900 },
+] as const;
 
 test.use({ viewport: PHONE });
 
@@ -94,4 +101,94 @@ test.describe("the You tab's store doors", () => {
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await card.screenshot({ path: `${PROOF}/after-delete-confirm-390.png` });
   });
+});
+
+test.describe("the account's own data doors", () => {
+  test("Download your data sits beside Delete account and hands the browser a file", async ({ page }) => {
+    await installAuthDoubles(page);
+    await seedSignedIn(page, "A");
+
+    // The keyless e2e server verifies no bearer, so the route is answered in
+    // the page, in the shape the route test pins. What is rehearsed here is
+    // the door: the signed request, and the file the browser is handed.
+    const requests: string[] = [];
+    await page.route("**/api/account/export", async (route) => {
+      requests.push(route.request().headers().authorization ?? "");
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: { "content-disposition": 'attachment; filename="pubmaxx-karan-2026-09-05.json"' },
+        body: JSON.stringify({
+          version: 1,
+          exportedAt: "2026-09-05T18:00:00.000Z",
+          account: { userId: "00000000-0000-4000-8000-0000000000a1", handle: "karan", displayName: null },
+          memories: { status: "complete", truncated: false, items: [] },
+          prices: { status: "complete", truncated: false, items: [] },
+          pintDrops: { status: "complete", truncated: false, items: [] },
+          messages: { status: "complete", truncated: false, items: [] },
+        }),
+      });
+    });
+
+    await page.goto("/u/you", { waitUntil: "domcontentloaded" });
+
+    const doors = page.locator(".accountHubDataDoors");
+    await expect(doors).toBeAttached({ timeout: 30_000 });
+    const exportCard = doors.locator("#export-account");
+    const deleteCard = doors.locator("#delete-account");
+    await expect(exportCard).toBeVisible();
+    await expect(deleteCard).toBeVisible();
+    // Beside, in DOM order: the copy before the goodbye.
+    await expect(doors.locator("> div").nth(0)).toHaveAttribute("id", "export-account");
+    await expect(doors.locator("> div").nth(1)).toHaveAttribute("id", "delete-account");
+
+    const downloadPromise = page.waitForEvent("download", { timeout: 20_000 });
+    await expect(async () => {
+      await exportCard.getByRole("button", { name: "Download JSON" }).click();
+      await expect(exportCard.getByRole("status")).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe("pubmaxx-karan-2026-09-05.json");
+    await expect(exportCard.getByRole("status")).toHaveText("Your file is ready.");
+    // The request carried the caller's own bearer and nothing else named an account.
+    expect(requests.length).toBeGreaterThan(0);
+    expect(requests.every((value) => value.startsWith("Bearer "))).toBe(true);
+  });
+
+  for (const size of DATA_DOOR_WIDTHS) {
+    test(`the pair at ${size.name}`, async ({ page }) => {
+      await page.setViewportSize({ width: size.width, height: size.height });
+      await installAuthDoubles(page);
+      await seedSignedIn(page, "A");
+      await page.goto("/u/you", { waitUntil: "domcontentloaded" });
+
+      const doors = page.locator(".accountHubDataDoors");
+      await expect(doors).toBeAttached({ timeout: 30_000 });
+      await expect(doors.locator("#export-account")).toBeVisible();
+      await expect(doors.locator("#delete-account")).toBeVisible();
+      // Two panels side by side above 760px, stacked on a phone.
+      const [exportBox, deleteBox] = await Promise.all([
+        doors.locator("#export-account").boundingBox(),
+        doors.locator("#delete-account").boundingBox(),
+      ]);
+      expect(exportBox && deleteBox).toBeTruthy();
+      if (size.width > 760) {
+        expect(Math.round(exportBox!.y)).toBe(Math.round(deleteBox!.y));
+        expect(exportBox!.x + exportBox!.width).toBeLessThanOrEqual(deleteBox!.x + 1);
+      } else {
+        expect(exportBox!.y + exportBox!.height).toBeLessThanOrEqual(deleteBox!.y + 1);
+        expect(Math.round(exportBox!.x)).toBe(Math.round(deleteBox!.x));
+      }
+
+      const settings = page.locator(".accountHubSettings");
+      await doors.locator("#delete-account").scrollIntoViewIfNeeded();
+      // The arrival welcome is ambient chrome; dismiss it when it is there to
+      // be dismissed, and never wait on it, because at 1440 it can have left
+      // on its own before the click lands.
+      const welcome = page.locator(".arrivalWelcome .arrivalWelcomeDismiss");
+      if (await welcome.count()) await welcome.first().click({ timeout: 2_000 }).catch(() => undefined);
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+      await settings.screenshot({ path: `${DATA_DOORS_PROOF}/after-data-doors-${size.name}.png` });
+    });
+  }
 });

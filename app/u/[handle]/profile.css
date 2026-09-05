@@ -2005,10 +2005,20 @@
 .accountHubSettings > h3 { margin: 0; font-size: 1.05rem; }
 .accountHubSettingsGrid { margin: 0; }
 
-/* Account deletion. Quiet by default and only ever loud once opened: the panel
-   carries the account of what happens, so the control that opens it does not
-   need to shout. Every tap target keeps the 44px floor the phone chrome fence
-   holds the rest of this surface to. */
+/* The account's own data doors: the portable copy beside the deletion door.
+   Two panels of one idiom, side by side where there is room and stacked on a
+   phone, so the two promises read as a pair. Both quiet by default: the
+   deletion panel is only ever loud once opened, and the download is one
+   control with a status line under it. Every tap target keeps the 44px floor
+   the phone chrome fence holds the rest of this surface to. */
+.accountHubDataDoors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; align-items: start; }
+@media (max-width: 760px) { .accountHubDataDoors { grid-template-columns: 1fr; } }
+.accountHubExport { display: grid; gap: .5rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
+.accountHubExport h3 { margin: 0; font-size: 1.05rem; }
+.accountHubExport > p { margin: 0; color: var(--ink-muted); }
+.accountHubExportButton { min-height: 44px; justify-self: start; padding: .65rem .9rem; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); font: inherit; font-weight: 700; }
+.accountHubExportButton[disabled] { opacity: .6; }
+.accountHubExportNotice { margin: 0; color: var(--ink-muted); }
 .accountHubDelete { display: grid; gap: .5rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
 .accountHubDelete h3 { margin: 0; font-size: 1.05rem; }
 .accountHubDelete > p { margin: 0; color: var(--ink-muted); }

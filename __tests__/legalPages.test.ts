@@ -80,6 +80,9 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/remembers\s+that choice/i);
     expect(privacy).toMatch(/page visits/i);
     expect(privacy).toMatch(/account settings/i);
+    // The self-serve portable copy (GET /api/account/export) is part of the
+    // data path, so the notice names it beside the self-serve deletion.
+    expect(privacy).toMatch(/choose Download your data/);
     expect(privacy).toMatch(/Do Not Track/);
     expect(privacy).toMatch(/persistent\s+device\s+identifier/i);
     expect(privacy).toMatch(/browser\s+and\s+version/i);
