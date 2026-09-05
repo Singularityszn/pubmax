@@ -19,7 +19,9 @@
 //
 // 2. PERMISSION IS ASKED LIVE, PER HOST, AND AN UNREADABLE ANSWER IS A REFUSAL.
 //    lib/harvest/robots.ts does the asking, so a challenge page or a 403 stops
-//    the host rather than being shrugged off. A host sourcePolicy refuses on
+//    the host rather than being shrugged off. An ordinary HTML page on a 200 is
+//    an ABSENT rules file (captain, 2026-09-05) and the ledger row says so as
+//    `robots: "html-page"`. A host sourcePolicy refuses on
 //    permission is never asked at all: `isHarvestableOperatorUrl` drops it,
 //    which is what stops a refused estate arriving wearing one pub's own domain.
 //
@@ -314,17 +316,23 @@ async function crawlHost(entry, robots, spend, delayMs) {
           : "robots-unreadable";
     return {
       outcome,
+      robots: decision.robots,
       evidence: decision.evidence.slice(0, 240),
       pagesRead: 0,
       rows: [],
     };
   }
 
-  if (!spend()) return { outcome: "no-menu-page-found", evidence: "page budget spent", pagesRead: 0, rows: [] };
+  // What the host served at /robots.txt rides on every result from here, so a
+  // host admitted on an HTML page (`html-page`) can be told from one that
+  // published rules, whatever the crawl then found.
+  const robotsFile = decision.robots;
+  if (!spend()) return { outcome: "no-menu-page-found", robots: robotsFile, evidence: "page budget spent", pagesRead: 0, rows: [] };
   const home = await fetchText(entry.origin);
   let pagesRead = 1;
   if (!home.ok) {
     return {
+      robots: robotsFile,
       outcome: "unreachable",
       evidence: home.error ? home.error : `HTTP ${home.status}`,
       pagesRead,
@@ -392,6 +400,7 @@ async function crawlHost(entry, robots, spend, delayMs) {
 
   if (rows.length === 0) {
     return {
+      robots: robotsFile,
       outcome: readings.length > 1 || pdfSeen > 0 ? "menu-states-no-price" : "no-menu-page-found",
       evidence: `${readings.length} page(s) read, ${pdfSeen} PDF(s) seen (${pdfRead} read, ${pdfUnread} unreadable), no stated drink price`,
       pagesRead,
@@ -422,6 +431,7 @@ async function crawlHost(entry, robots, spend, delayMs) {
     entry.pubs.some((pub) => priced.some((row) => pageMayPriceThisPub(row.url, pub, entry.pubs.length)));
   if (!attributable) {
     return {
+      robots: robotsFile,
       outcome: "estate-page-names-no-pub",
       evidence: `${priced.length} stated price(s) across ${entry.pubs.length} pub(s), no page naming one`,
       pagesRead,
@@ -434,6 +444,7 @@ async function crawlHost(entry, robots, spend, delayMs) {
   }
 
   return {
+    robots: robotsFile,
     outcome: "priced",
     evidence: `${readings.length} page(s) read, ${pdfRead} of ${pdfSeen} PDF(s) read`,
     pagesRead,
@@ -443,6 +454,29 @@ async function crawlHost(entry, robots, spend, delayMs) {
     drops,
     rows: priced,
   };
+}
+
+/**
+ * Count the ledger four ways for the report: outcome, what each host served at
+ * /robots.txt, drop reasons, and the pubs sitting on a priced host.
+ */
+function tallyLedger(ledger) {
+  const outcomes = Object.fromEntries(HOST_OUTCOMES.map((name) => [name, 0]));
+  const robotsFiles = {};
+  const drops = {};
+  let pubsOnPricedHosts = 0;
+  for (const row of Object.values(ledger.hosts)) {
+    outcomes[row.outcome] = (outcomes[row.outcome] ?? 0) + 1;
+    // A row written before the classification existed carries none and is
+    // counted as such, never guessed at from its outcome.
+    const robotsFile = row.robots ?? "unrecorded";
+    robotsFiles[robotsFile] = (robotsFiles[robotsFile] ?? 0) + 1;
+    if (row.outcome === "priced") pubsOnPricedHosts += row.pubs;
+    for (const [reason, count] of Object.entries(row.drops ?? {})) {
+      drops[reason] = (drops[reason] ?? 0) + count;
+    }
+  }
+  return { outcomes, robotsFiles, drops, pubsOnPricedHosts };
 }
 
 async function main() {
@@ -547,6 +581,10 @@ async function main() {
       pdfsUnread += result.pdfUnread ?? 0;
       ledger.hosts[entry.host] = {
         outcome: result.outcome,
+        // `html-page` here is the captain's 2026-09-05 admission: the host
+        // served its site where a rules file should be and was read as
+        // publishing no rules. Kept per host so the admission is auditable.
+        robots: result.robots ?? null,
         evidence: result.evidence,
         pagesRead: result.pagesRead,
         pubs: entry.pubs.length,
@@ -604,17 +642,7 @@ async function main() {
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
   if (!DRY_RUN) writeFileSync(LEDGER_PATH, `${JSON.stringify(ledger, null, 0)}\n`);
 
-  const outcomes = Object.fromEntries(HOST_OUTCOMES.map((name) => [name, 0]));
-  const drops = {};
-  let pubsOnPricedHosts = 0;
-  for (const [host, row] of Object.entries(ledger.hosts)) {
-    outcomes[row.outcome] = (outcomes[row.outcome] ?? 0) + 1;
-    if (row.outcome === "priced") pubsOnPricedHosts += row.pubs;
-    for (const [reason, count] of Object.entries(row.drops ?? {})) {
-      drops[reason] = (drops[reason] ?? 0) + count;
-    }
-    void host;
-  }
+  const { outcomes, robotsFiles, drops, pubsOnPricedHosts } = tallyLedger(ledger);
 
   const report = {
     version: 1,
@@ -637,6 +665,9 @@ async function main() {
     pdfs: { seen: pdfsSeen, read: pdfsRead, unreadable: pdfsUnread },
     pageBudget: PAGE_BUDGET,
     outcomes,
+    // What each host served at /robots.txt, counted apart from the outcome, so
+    // the hosts admitted on an ordinary HTML page are a figure in the report.
+    robotsFiles,
     pubsOnPricedHosts,
     drops,
     // A SKIP IS A FINDING: the sources the policy refuses print their reason and
