@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 
 const css = readFileSync(join(process.cwd(), "components/plan/nightCrawl.css"), "utf8");
 const tsx = readFileSync(join(process.cwd(), "components/plan/NightCrawlMode.tsx"), "utf8");
+const navCss = readFileSync(join(process.cwd(), "components/nav/mobileNav.css"), "utf8");
+const globalCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
 
 describe("Night-crawl surface conformance (U7)", () => {
   it("is an OLED-dark surface (ink-dark paper), not the light paper token", () => {
@@ -45,5 +47,21 @@ describe("Night-crawl surface conformance (U7)", () => {
   it("keeps thumb-sized touch targets on the exit control (44px+)", () => {
     const exit = css.match(/\.nightCrawl__exit\s*{([\s\S]*?)}/)?.[1] ?? "";
     expect(Number(exit.match(/min-height:\s*(\d+)px/)?.[1] ?? "0")).toBeGreaterThanOrEqual(44);
+  });
+
+  it("takes the tab bar and the consent card off its foot while it is engaged", () => {
+    // verify-preview-4 RED 2 (5 Sep 2026): at 320x568 the phone tab bar owned
+    // the centre of the lower "Get me home" slab, and the consent card owned
+    // "We are here". The surface is fixed and full-screen, so both step aside
+    // for it the way they do for a venue sheet. e2e/night-mode-chrome.spec.ts
+    // proves the rendered taps.
+    const barRule = navCss.match(/body:has\(\.nightCrawl\) \.mobileTabBar\s*{([^}]*)}/)?.[1]
+      ?? navCss.match(/[^}]*body:has\(\.nightCrawl\) \.mobileTabBar[^{]*{([^}]*)}/)?.[1]
+      ?? "";
+    expect(barRule).toMatch(/pointer-events:\s*none/);
+    expect(barRule).toMatch(/transform:\s*translateY\(110%\)/);
+    const cardRule = globalCss.match(/[^}]*body:has\(\.nightCrawl\) \.analyticsConsentPrompt[^{]*{([^}]*)}/)?.[1] ?? "";
+    expect(cardRule).toMatch(/visibility:\s*hidden/);
+    expect(cardRule).toMatch(/pointer-events:\s*none/);
   });
 });

@@ -125,6 +125,24 @@ async function expectStoryBodyHonest(page: Page, scope: string): Promise<void> {
   expect(p.justify).toBe("center");
   expect(s.justify).toBe("center");
 
+  // ONE ROW OF TOKENS. The two actions wear the --control-* type the venue
+  // sheet's text buttons wear, read off the same root, rather than the 16px
+  // weight 400 the unlayered `button { font: inherit }` reset left them at
+  // (verify-preview-4, section 6).
+  const controlType = await page.evaluate(() => {
+    const root = getComputedStyle(document.documentElement);
+    const probe = document.createElement("span");
+    probe.style.fontSize = root.getPropertyValue("--control-font-size");
+    document.body.append(probe);
+    const fontSize = getComputedStyle(probe).fontSize;
+    probe.remove();
+    return { fontSize, fontWeight: root.getPropertyValue("--control-font-weight").trim() };
+  });
+  for (const control of [primary, secondary]) {
+    await expect(control).toHaveCSS("font-size", controlType.fontSize);
+    await expect(control).toHaveCSS("font-weight", controlType.fontWeight);
+  }
+
   // Name and distance share one baseline, the distance right-aligned.
   const rowGeometry = await rows.first().evaluate((el) => {
     const name = el.querySelector(".landmarkStoryPubName") as HTMLElement;
@@ -203,6 +221,11 @@ for (const width of PHONE_WIDTHS) {
     const tabBar = await boxOf(page, ".mobileTabBar");
     expect(lastBox.bottom).toBeLessThanOrEqual(tabBar.top + 0.5);
 
+    // The story is a surface the reader is ON, so the planning pill is not
+    // painted under it (verify-preview-4, section 6: the pill's box lay inside
+    // the sheet's band, beneath the opaque sheet).
+    await expect(page.locator(".mobilePlanActivation")).toHaveCount(0);
+
     // Home leaves the story for the map, and the URL drops the landmark.
     await page.getByRole("button", { name: "Close the story" }).click();
     await expect(portal).toHaveCount(0);
@@ -211,6 +234,58 @@ for (const width of PHONE_WIDTHS) {
     expect(errors).toEqual([]);
   });
 }
+
+test("phone 390: a pub opened from the story has the story as its Back", async ({ page }) => {
+  // verify-preview-4, J02: The White Lion, opened from the Covent Garden
+  // story, landed on /map?sel=… and browser Back then landed on a bare /map
+  // with nothing open. The story is a trail surface now
+  // (components/map/pubmap/useMapSurfaceNavigation.ts), so the venue sheet
+  // offers "Back to Covent Garden" and the browser's Back is the same journey.
+  test.slow();
+  const errors = watchPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await preparePage(page);
+  await page.goto(LANDMARK_URL);
+
+  const storyPortal = page.locator('.mobileSheetPortal[data-sheet-kind="landmark"]');
+  await expect(storyPortal).toBeVisible({ timeout: 30_000 });
+  const rows = storyPortal.locator(".landmarkStoryPubs button");
+  await expect(rows.first()).toBeVisible({ timeout: 45_000 });
+  // The nearby rows re-rank as venue shards land, so the pub is addressed by
+  // the NAME read off the list rather than by "first", or the row that was
+  // tapped and the row that was read can be two different pubs.
+  const pubName = (await rows.first().locator(".landmarkStoryPubName").innerText()).trim();
+  const namedPub = rows.filter({ hasText: pubName }).first();
+
+  await expect(async () => {
+    await namedPub.click();
+    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue"]')).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+  const venuePortal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(venuePortal.locator(".mobileSharedSheetHeader h2")).toHaveText(pubName);
+  await expect(venuePortal).toHaveAttribute("data-surface-back", `Back to ${LANDMARK_NAME}`);
+  await expect.poll(() => new URL(page.url()).searchParams.get("sel")).not.toBeNull();
+  // The venue pick retires the story on screen; one sheet at a time.
+  await expect(storyPortal).toHaveCount(0);
+
+  // The sheet's own Back is the story, with its name in the chrome.
+  await page.getByRole("button", { name: `Back to ${LANDMARK_NAME}` }).click();
+  await expect(storyPortal).toBeVisible({ timeout: 30_000 });
+  await expect(storyPortal.locator(".mobileSharedSheetHeader h2")).toHaveText(LANDMARK_NAME);
+  await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBeNull();
+  await expect.poll(() => new URL(page.url()).searchParams.get("landmark")).toBe("covent-garden");
+
+  // And so is the browser's Back, from the pub opened a second time.
+  await expect(async () => {
+    await storyPortal.locator(".landmarkStoryPubs button").filter({ hasText: pubName }).first().click();
+    await expect(venuePortal).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+  await page.goBack();
+  await expect(storyPortal).toBeVisible({ timeout: 30_000 });
+  await expect(storyPortal.locator(".mobileSharedSheetHeader h2")).toHaveText(LANDMARK_NAME);
+
+  expect(errors).toEqual([]);
+});
 
 test("desktop 1440: the story takes the left drawer and the chrome leaves its lane", async ({ page }) => {
   // A 1440 map under SwiftShader owns the main thread for whole seconds at a

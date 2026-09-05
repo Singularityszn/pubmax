@@ -277,15 +277,21 @@ for (const width of PHONE_WIDTHS) {
 // Every phone width the first-run surface is reviewed at. 430x932 is the
 // iPhone 17 Pro the simulator proof was shot on, which is where the card was
 // found lying across the reviewed-area rows and the "Use London" button.
+// 320x568 is the first-generation SE, and 360x640 the entry Android tier:
+// verify-preview-4 (5 Sep 2026) found the card over "Use London" at both,
+// because the lane-reduced surface was 428 and 500px tall against a panel laid
+// out at 553px and this sweep ran one height only.
 const ONBOARDING_VIEWPORTS = [
+  { width: 320, height: 568 },
   { width: 320, height: 844 },
+  { width: 360, height: 640 },
   { width: 360, height: 844 },
   { width: 390, height: 844 },
   { width: 430, height: 932 },
 ] as const;
 
 for (const viewport of ONBOARDING_VIEWPORTS) {
-  test(`consent never covers first-run onboarding @${viewport.width}`, async ({ page }) => {
+  test(`consent never covers first-run onboarding @${viewport.width}x${viewport.height}`, async ({ page }) => {
     test.setTimeout(60_000);
     await prepareFirstRunOnboarding(page, viewport);
     await page.goto("/onboarding", { waitUntil: "domcontentloaded" });
@@ -324,9 +330,19 @@ for (const viewport of ONBOARDING_VIEWPORTS) {
     // with nothing saying so: on a 390pt phone the button sat at 768px inside
     // a 704px surface and no reviewer would ever have found it.
     await expect(primary).toBeInViewport({ ratio: 1 });
+    // On a short phone the action row is sticky to the surface's foot and the
+    // rows scroll up behind it (app/onboarding/onboarding.css, the short
+    // phone), so a row is owed reachability by scroll and a box clear of the
+    // card, never a place under the action at rest.
     for (const row of await rows.all()) {
+      await row.scrollIntoViewIfNeeded();
       await expect(row).toBeInViewport({ ratio: 1 });
+      const rowBox = await row.boundingBox();
+      expect(rowBox).not.toBeNull();
+      expect(boxesOverlap(promptBox!, rowBox!)).toBe(false);
+      expect(boxesOverlap(primaryBox!, rowBox!)).toBe(false);
     }
+    await expect(primary).toBeInViewport({ ratio: 1 });
 
     // The tap at the button's own centre reaches the button.
     expect(await pointOwner(page, primaryBox!, ".firstRunPrimary")).toBe("control");

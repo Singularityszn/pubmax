@@ -16,6 +16,7 @@ import {
   activeLensLabelFor,
   activeLensPricesFor,
   ambientBannerLaneOpen,
+  builtStopCountFor,
   coordinatedMapOverlay,
   crawlJourneysWanted,
   drinkFiltersActiveFor,
@@ -30,6 +31,7 @@ import {
   mapSurfaceTitleFor,
   nightAreaSlugOf,
   openingViewportFrom,
+  phonePlannerOrder,
   priceLegendInput,
   reactiveLogIntentActive,
   restoredSessionFrame,
@@ -558,6 +560,16 @@ describe("coordinatedMapOverlay and mapSurfaceIdFor", () => {
     ).toBe("moment");
   });
 
+  it("lets the landmark story own the screen under the venue and the planner", () => {
+    // verify-preview-4, J02 and section 6 (5 Sep 2026): the story was not a
+    // surface, so the "Describe the outing" pill painted under its sheet and
+    // Back from a pub opened out of it landed on a bare map.
+    expect(coordinatedMapOverlay({ ...base, storyOpen: true })).toBe("landmark");
+    expect(coordinatedMapOverlay({ ...base, storyOpen: true, detailOpen: true })).toBe("venue");
+    expect(coordinatedMapOverlay({ ...base, storyOpen: true, planningOpen: true })).toBe("planner");
+    expect(mapSurfaceIdFor("landmark", false)).toBe("landmark");
+  });
+
   it("counts List view as a surface a reader can be on", () => {
     expect(mapSurfaceIdFor("none", true)).toBe("venue-list");
     expect(mapSurfaceIdFor("none", false)).toBe("none");
@@ -595,6 +607,13 @@ describe("mapSurfaceTitleFor", () => {
     expect(
       mapSurfaceTitleFor({ ...base, mapSurfaceId: "venue", basePubOpen: true, basePub: null }),
     ).toBe("Pub detail");
+  });
+
+  it("names the story by its landmark, which is the Back label from a pub opened out of it", () => {
+    expect(
+      mapSurfaceTitleFor({ ...base, mapSurfaceId: "landmark", landmarkName: "Covent Garden" }),
+    ).toBe("Covent Garden");
+    expect(mapSurfaceTitleFor({ ...base, mapSurfaceId: "landmark" })).toBe("Landmark");
   });
 
   it("gives search a name of its own, because it is in no sheet-title table", () => {
@@ -928,5 +947,22 @@ describe("small PubMap reads", () => {
     expect(nightAreaSlugOf({ slug: "camden" })).toBe("camden");
     expect(nightAreaSlugOf(null)).toBeNull();
     expect(nightAreaSlugOf(undefined)).toBeNull();
+  });
+});
+
+describe("the phone planner and the pill read the crawl being built", () => {
+  // verify-preview-4, J04: one "Plan stop" read "6-stop plan" and the planner
+  // sheet opened on the describe form with the picked pub a form below.
+  it("counts built stops only in build mode and only while nothing is mapped", () => {
+    expect(builtStopCountFor({ mode: "build", routeMappedActive: false, builtCount: 1 })).toBe(1);
+    expect(builtStopCountFor({ mode: "suggest", routeMappedActive: false, builtCount: 1 })).toBe(0);
+    expect(builtStopCountFor({ mode: "build", routeMappedActive: true, builtCount: 3 })).toBe(0);
+  });
+
+  it("leads the phone planner with the built crawl, and the desktop never", () => {
+    expect(phonePlannerOrder({ mobileViewport: true, mode: "build", builtCount: 1 })).toBe("build-first");
+    expect(phonePlannerOrder({ mobileViewport: true, mode: "build", builtCount: 0 })).toBe("describe-first");
+    expect(phonePlannerOrder({ mobileViewport: true, mode: "suggest", builtCount: 2 })).toBe("describe-first");
+    expect(phonePlannerOrder({ mobileViewport: false, mode: "build", builtCount: 2 })).toBe("describe-first");
   });
 });

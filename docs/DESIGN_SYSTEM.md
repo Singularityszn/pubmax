@@ -116,6 +116,15 @@ sizes: `--text-2xs`, `--text-xs`, `--text-sm`, `--text-base`, `--text-md`,
 and `--control-radius` for buttons and control chips. `--shadow`,
 `--shadow-sm`. No other shadow, no glow.
 
+**Text buttons.** `components/ui/button.tsx` is the primitive and
+`components/ui/button.css` paints it from the `--control-*` row (height, side
+padding, type size and weight, radius, the two secondary surfaces). That sheet
+sits outside every cascade layer on purpose: `app/globals.css` resets
+`button { font: inherit }` unlayered, and an unlayered declaration outranks a
+layered utility whatever the order, which is how a Tailwind `text-sm font-bold`
+on the primitive rendered as 16px at weight 400. A bespoke text button reads
+the same tokens rather than restating a figure.
+
 **Motion.** `--duration-fast`, `--duration-base`, `--duration-slow`;
 `--ease-out` for colour, `--ease-out-strong` for entrances; `--press-scale` on
 press. Every animation sits behind the reduced-motion contract.

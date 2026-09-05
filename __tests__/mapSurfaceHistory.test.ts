@@ -124,6 +124,20 @@ describe("Map surface open decision", () => {
     });
   });
 
+  it("keeps the landmark story as the parent of a pub opened out of it", () => {
+    // verify-preview-4, J02: Back from The White Lion, opened from the Covent
+    // Garden story, landed on a bare map. The story is a trail surface now.
+    const story = {
+      id: "landmark",
+      title: "Covent Garden",
+      state: { venueId: "", tab: "", landmarkId: "covent-garden" },
+    };
+    expect(mapSurfaceOpenTransition([story], venue)).toEqual({
+      kind: "push",
+      stack: [story, venue],
+    });
+  });
+
   it("writes a fresh entry when reopening a known parent", () => {
     expect(mapSurfaceOpenTransition([planner, venue], planner)).toEqual({
       kind: "push",

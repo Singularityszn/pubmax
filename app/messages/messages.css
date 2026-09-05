@@ -340,6 +340,19 @@ a.threadWith:hover {
   gap: 2px;
 }
 
+/* A SHORT THREAD HUGS THE COMPOSER. The list is the thread's tall flex child,
+   and its rows used to sit at the TOP of it, so a one-message thread on a
+   phone laid its bubble under the head and 600px of nothing over the
+   composer; with the analytics consent card mounted (every new account) the
+   body reserves the card's lane, the page gains that much scroll, opening
+   scrolls to the foot, and the bubble left the screen entirely (bubble y -26
+   to 34 at 390, verify-preview-4 RED 1). An auto top margin on the first row
+   pushes the rows to the foot while the list still scrolls when it overflows,
+   which `justify-content: flex-end` on a scroller does not. */
+.threadMessages > :first-child {
+  margin-top: auto;
+}
+
 /* A day line between two days. Quiet: it is a landmark, not a message. */
 .threadDay {
   display: flex;
@@ -1311,6 +1324,18 @@ html[data-theme="dark"] .messageBubbleTheirs {
     box-shadow: var(--shadow-card);
   }
 
+  /* The consent card's desktop lane (app/globals.css reserves it as body foot
+     padding) comes off the panel's fixed height, or the panel keeps its
+     viewport-sized box and the card lands on the composer row at its foot
+     (verify-preview-4, 7.2 at 1440). */
+  body:has(.analyticsConsentPrompt) .messagesSplit {
+    height: calc(
+      100dvh - 9rem
+        - var(--analytics-consent-clearance, 72px)
+        - max(12px, env(safe-area-inset-bottom, 0px))
+    );
+  }
+
   .messagesMainInbox .messagesThreadPane,
   .messagesMainThread .messagesInboxPane {
     display: block;
@@ -1400,6 +1425,26 @@ html[data-theme="dark"] .messageBubbleTheirs {
 
   .messageThreadShell[data-keyboard-open] {
     --composer-clearance: 0px;
+  }
+
+  /* The analytics consent card parks in the lane above the tab bar
+     (app/globals.css, --analytics-consent-mobile-clearance), so while it is
+     mounted the composer clears the card as well as the bar: the newest
+     message and the field are on screen whatever overlays are up, and the
+     card never covers the field. With the keyboard up the card steps aside
+     instead, because a person typing has answered nothing yet and the field
+     comes first. */
+  body:has(.analyticsConsentPrompt) .messageThreadShell:not([data-keyboard-open]) {
+    --composer-clearance: calc(
+      var(--tabbar-h, 64px)
+        + env(safe-area-inset-bottom, 0px)
+        + var(--analytics-consent-mobile-clearance, 128px)
+    );
+  }
+
+  body:has(.messageThreadShell[data-keyboard-open]) .analyticsConsentPrompt {
+    visibility: hidden;
+    pointer-events: none;
   }
 
   .composerPhotoDesktop {

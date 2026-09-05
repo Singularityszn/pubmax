@@ -16,7 +16,7 @@ export function SearchField({ className, value, onChange, label = "Search pubs",
           globals.css: a utility class loses to the global :focus-visible and
           UA rules it has to beat. See .houseSearchField there. */}
       <input className="min-w-0 flex-1 border-0 bg-transparent text-base text-[var(--color-text)] outline-none" type="search" aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} {...props} />
-      {value ? <IconButton className="-mr-2 size-11 border-0 bg-transparent" aria-label="Clear search" onClick={() => onChange("")}><X size={17} /></IconButton> : null}
+      {value ? <IconButton variant="ghost" className="-mr-2" aria-label="Clear search" onClick={() => onChange("")}><X size={17} /></IconButton> : null}
     </label>
   );
 }

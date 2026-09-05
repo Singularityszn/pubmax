@@ -651,15 +651,24 @@
    user's font size instead of clipping. */
 @media (max-width: 640px) {
   .venueTabs {
-    flex-wrap: nowrap;
+    /* EVERY SECTION IS ON SCREEN. The strip used to scroll sideways under a
+       fade, and on a 390px phone the seventh tab (Train) sat at x 368 to 412,
+       past the viewport edge, while a 320px phone hid Lore, Ask and Train
+       (measured 5 Sep 2026: scrollWidth 379 against a clientWidth of 318 and
+       248). A hidden tab is a section a reader cannot find. Seven word-tabs
+       cannot share one 248px row, so the strip WRAPS: two rows of the same
+       pills, no overflow, no fade, and large text wraps to a third rather than
+       clipping. The trailing-edge fade and its hook stay for the widths that
+       still scroll. */
+    flex-wrap: wrap;
     max-height: none;
-    scroll-snap-type: x proximity;
+    overflow-x: visible;
+    overflow-y: visible;
   }
 
   .venueTab {
     min-height: 2.75rem;
     height: auto;
-    scroll-snap-align: start;
   }
 }
 

@@ -6,7 +6,7 @@
 // @/components/map/useCrawlUrl re-export) so this module never pulls a client
 // boundary in.
 
-import { venueGroupingKey, type Filters, type Venue } from "@/lib/venues";
+import { venueGroupingKey, type CrawlMode, type Filters, type Venue } from "@/lib/venues";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
 import {
   pointInCityBounds,
@@ -385,6 +385,14 @@ export function coordinatedMapOverlay(input: {
   logIntentFallbackVisible: boolean;
   detailOpen: boolean;
   planningOpen: boolean;
+  /**
+   * The landmark story is a surface the reader is ON, so it answers here like
+   * the venue and the planner do: it hides the phone's "Describe the outing"
+   * pill (which used to paint under the opaque story sheet) and it enters the
+   * Back trail, so a pub opened from the story has the story as its parent.
+   * A venue pick still retires the story on screen; the trail keeps it.
+   */
+  storyOpen?: boolean;
   mapOverlay: MapOverlay;
 }): MapOverlay {
   return input.logIntentFallbackVisible
@@ -393,7 +401,9 @@ export function coordinatedMapOverlay(input: {
       ? "venue"
       : input.planningOpen
         ? "planner"
-        : input.mapOverlay;
+        : input.storyOpen
+          ? "landmark"
+          : input.mapOverlay;
 }
 
 /** Where the reader IS, for the Back/Home trail. List view is a surface too. */
@@ -421,6 +431,8 @@ export function mapSurfaceTitleFor(input: {
   basePub: { name: string } | null | undefined;
   selectedVenue: { name: string } | null | undefined;
   detailLabel: string;
+  /** The open landmark's name: the story's one heading, and the Back label. */
+  landmarkName?: string | null;
   sheetTitles: Partial<Record<MapSheetKind, string>>;
 }): string {
   const { mapSurfaceId, basePubOpen, basePub, selectedVenue, detailLabel } = input;
@@ -428,6 +440,7 @@ export function mapSurfaceTitleFor(input: {
     return basePubOpen ? basePub?.name ?? "Pub detail" : selectedVenue?.name ?? detailLabel;
   }
   if (mapSurfaceId === "planner") return "Plan an outing";
+  if (mapSurfaceId === "landmark") return input.landmarkName ?? "Landmark";
   if (mapSurfaceId === "venue-list") return "List view";
   if (mapSurfaceId === "search") return "Search";
   return input.sheetTitles[mapSurfaceId as MapSheetKind] ?? "Map controls";
@@ -809,3 +822,33 @@ export const PEEK_LANE_CAPTION: Record<VenuePriceLane["lane"], string> = {
   aged: AGED_PRICE_LINE,
   estimate: "estimate",
 };
+
+/**
+ * Stops the reader has picked by hand on this map while nothing is mapped.
+ *
+ * The built list is only ever read in build mode, so a suggest-mode leftover
+ * counts for nothing; and once a route of two or more stops is mapped the pill
+ * speaks about that route instead (lib/planActivationPill.ts).
+ */
+export function builtStopCountFor(input: {
+  mode: CrawlMode;
+  routeMappedActive: boolean;
+  builtCount: number;
+}): number {
+  return input.mode === "build" && !input.routeMappedActive ? input.builtCount : 0;
+}
+
+/**
+ * Which block leads the phone planner sheet. A crawl being built leads, so a
+ * pub the reader just picked is named on the sheet's first screen rather than
+ * a whole "Describe the outing" form below it (verify-preview-4, J04).
+ */
+export function phonePlannerOrder(input: {
+  mobileViewport: boolean;
+  mode: CrawlMode;
+  builtCount: number;
+}): "build-first" | "describe-first" {
+  return input.mobileViewport && input.mode === "build" && input.builtCount > 0
+    ? "build-first"
+    : "describe-first";
+}

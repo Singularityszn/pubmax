@@ -56,6 +56,13 @@ type RoutePanelProps = {
   crawlName?: string;
   crawlId?: string;
   routeMapped: boolean;
+  /**
+   * Print the stops straight under the head, ahead of the metrics and the
+   * actions. The phone planner sets this while a crawl is being BUILT, so the
+   * pub the reader just picked is named on the sheet's first screen rather
+   * than under a form and three metric cards (verify-preview-4, J04).
+   */
+  stopsFirst?: boolean;
   originDistanceKm?: number | null;
   onMapRoute: () => void;
   onHideRoute: () => void;
@@ -92,6 +99,7 @@ export default function RoutePanel({
   crawlName,
   crawlId,
   routeMapped,
+  stopsFirst = false,
   originDistanceKm,
   onMapRoute,
   onHideRoute,
@@ -176,6 +184,18 @@ export default function RoutePanel({
     downloadIcs(icsFilename(crawl), buildCrawlIcs(crawl));
   }
 
+  const stopsList = (
+    <RouteList
+      route={route}
+      activeVenueId={activeVenueId}
+      venueSignals={venueSignals}
+      legSummary={legSummary}
+      onTheWayByLeg={onTheWayByLeg}
+      journeyByToIndex={journeyByToIndex}
+      onSelectVenue={onSelectVenue}
+    />
+  );
+
   return (
     <aside className="routePanel">
       <RouteHeader
@@ -186,6 +206,8 @@ export default function RoutePanel({
         altStyle={altStyle}
         onAltStyleChange={onAltStyleChange}
       />
+
+      {stopsFirst ? stopsList : null}
 
       <RouteMetrics
         summaryTotal={summary.total}
@@ -251,15 +273,7 @@ export default function RoutePanel({
         />
       ) : null}
 
-      <RouteList
-        route={route}
-        activeVenueId={activeVenueId}
-        venueSignals={venueSignals}
-        legSummary={legSummary}
-        onTheWayByLeg={onTheWayByLeg}
-        journeyByToIndex={journeyByToIndex}
-        onSelectVenue={onSelectVenue}
-      />
+      {stopsFirst ? null : stopsList}
 
       {mode === "build" ? (
         <VenuePicker
