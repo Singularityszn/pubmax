@@ -353,3 +353,37 @@ test("390px: /u/you stacks the identity card", async ({ page }) => {
   expect(geometry.sameEdge).toBeLessThanOrEqual(1);
   expect(geometry.share).toBeGreaterThanOrEqual(0.8);
 });
+
+// (6) The tablet map. The MapLibre zoom pair sat under Show all and Reset
+// view (stack 229-323, pair 248-336 at 768px), and the closure banner was
+// squeezed into a 160px lane beside the location prompt. Both are read
+// off the page: the zoom buttons own their own centre points, and the
+// banner's copy has a sentence's width.
+test("768px: the map zoom pair is pressable and the status banner keeps its width", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await setTheme(page, "light");
+  await page.goto("/map");
+  const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
+  await expect(zoomIn).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator(".mapFitLondonBtn")).toBeVisible();
+  const findings = await page.evaluate(() => {
+    const owns = (selector: string) => {
+      const element = document.querySelector(selector);
+      if (!element) return false;
+      const box = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return Boolean(hit && element.contains(hit));
+    };
+    const banner = document.querySelector(".cityStatusBanner");
+    return {
+      zoomIn: owns(".maplibregl-ctrl-zoom-in"),
+      zoomOut: owns(".maplibregl-ctrl-zoom-out"),
+      bannerWidth: banner ? banner.getBoundingClientRect().width : null,
+    };
+  });
+  expect(findings.zoomIn).toBe(true);
+  expect(findings.zoomOut).toBe(true);
+  if (findings.bannerWidth !== null) expect(findings.bannerWidth).toBeGreaterThanOrEqual(300);
+});
