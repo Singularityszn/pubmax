@@ -42,6 +42,7 @@ import {
   type ActivePlanRef,
 } from "@/lib/activePlan";
 import { useLoopMoment } from "@/components/loop/useLoopMoment";
+import { usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 import { trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import {
   LATE_FOOD_CONFIDENCES,
@@ -50,6 +51,7 @@ import {
 } from "@/lib/analyticsEvents";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { discardBody } from "@/lib/responseBody";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
 import type {
   CrawlEnding,
@@ -479,25 +481,46 @@ function NightModeSheet({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onCollapse]);
 
-  // Plan state + get-in report — the two feeds the plan screen already uses.
-  useEffect(() => {
-    let active = true;
-    fetch(`/api/plans/${id}`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
+  // Plan state + get-in report - the two feeds the plan screen already uses.
+  //
+  // BOTH FOLLOW THE CAPABILITY, NOT THE MOUNT (battle test M01/M02, the rule
+  // usePlanMemberRead owns). Each is capability-gated through
+  // resolvePlanProjection, and this card read them once at mount keyed on the
+  // plan id alone, so a capability that landed a moment later - which is the
+  // ordinary case, because restorePlanCapability has to exchange the member
+  // token first - left the card on "Loading tonight's route..." for ever, with
+  // no ending, no stops and no recap invitation. #1521 gave PlanSummary and
+  // PlanCrew this rule and this card was missed.
+  //
+  // A body nobody reads is a request that never finishes (lib/responseBody.ts),
+  // so every non-ok exit drains.
+  const readPlanState = useCallback((isActive: () => boolean) => {
+    void fetch(`/api/plans/${id}`, { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) {
+          discardBody(response);
+          return null;
+        }
+        return response.json();
+      })
       .then((body: PlanState | null) => {
-        if (active && body && Array.isArray(body.stops)) setPlan(body);
+        if (isActive() && body && Array.isArray(body.stops)) setPlan(body);
       })
       .catch(() => undefined);
-    fetch(`/api/plans/${id}/getin`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
+    void fetch(`/api/plans/${id}/getin`, { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) {
+          discardBody(response);
+          return null;
+        }
+        return response.json();
+      })
       .then((body: PlanGetInReportDTO | null) => {
-        if (active && body && Array.isArray(body.stops)) setReport(body);
+        if (isActive() && body && Array.isArray(body.stops)) setReport(body);
       })
       .catch(() => undefined);
-    return () => {
-      active = false;
-    };
   }, [id]);
+  usePlanMemberRead(id, readPlanState);
 
   useEffect(
     () =>
