@@ -64,7 +64,8 @@ import {
   revertOneTapCommunityPricePairing,
   writeOneTapPintDrop,
 } from "@/lib/oneTapPintDrop.server";
-import { confirmVenueBySecondReporter } from "@/lib/pintDropConfirm.server";
+import { runSecondReporterPass } from "@/lib/pintDropConfirm.server";
+import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
 import { qualifyCheapPintForOwnerActor } from "@/lib/cheapPintPingQualify.server";
 import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
 import { syncTrustAfterPriceWrite } from "@/lib/priceTrustImpact.server";
@@ -241,6 +242,10 @@ export async function POST(request: Request): Promise<Response> {
   // full pint authority, which is exactly what AGENTS.md's drink-lane rule
   // forbids. Only a beer submission pairs; every other category still writes
   // its community price above and stops there.
+  // What the second-reporter pass answered for this figure, when a paired
+  // Pint Drop ran it. Absent when no drop was paired, because then nothing
+  // about a confirmation was asked.
+  let confirmationOutcome: PintDropConfirmationOutcome | null = null;
   if (submission.drinkCategory === "beer") {
     const pintDrop = await writeOneTapPintDrop(
       {
@@ -278,7 +283,7 @@ export async function POST(request: Request): Promise<Response> {
       // Running the pass here too is what stops the two write lanes disagreeing
       // about whether a pub is confirmed. It never throws and never fails the
       // price that has already landed.
-      await confirmVenueBySecondReporter(submission.venueId);
+      confirmationOutcome = await runSecondReporterPass(submission.venueId);
     }
   }
 
@@ -317,6 +322,7 @@ export async function POST(request: Request): Promise<Response> {
       },
       trustReconciliation:
         trust.status === "synced" ? "synced" : "pending",
+      ...(confirmationOutcome ? { confirmationOutcome } : {}),
       price:
         record ??
         {

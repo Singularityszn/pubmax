@@ -15,6 +15,7 @@ import { type CuratedCrawl } from "@/lib/curatedCrawls";
 import { type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { DEFAULT_TAB, tabsForVenue, type TabKey } from "@/lib/venueInspectorTabs";
 import { isPubVenue } from "@/lib/venueKindFilters";
+import { confirmPintPriceSeed } from "@/lib/pintDropSecondDrinker";
 import type { JourneyPoint } from "@/lib/venueJourney";
 import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
@@ -115,6 +116,9 @@ type VenueInspectorProps = {
   zoneIndex?: ZonePintIndex | null;
   /** Refresh this venue's Pint Drops after a successful Log it. */
   onLogged?: (venueId: string) => void;
+  /** The map's log-intent opener (`openComposerForLog` in PubMap), so the
+   *  second drinker's door lands on the price step the way `?log=1` does. */
+  onOpenComposerForLog?: () => void;
   revealRequest?: VenueRevealRequest | null;
   onInterruptReveal?: () => void;
 };
@@ -171,6 +175,7 @@ export default function VenueInspector({
   drinkLensCategory = null,
   zoneIndex = null,
   onLogged,
+  onOpenComposerForLog,
   revealRequest = null,
   onInterruptReveal,
 }: VenueInspectorProps) {
@@ -245,7 +250,7 @@ export default function VenueInspector({
           interrupted: false,
         })
       : "";
-  const { dropsByVenueId, setComposerOpen } = pintDrops;
+  const { dropsByVenueId, setComposerOpen, seedComposerPrice } = pintDrops;
   const { user, handle, loading: authLoading, configured: authConfigured } = useAuth();
   const [priceSignInVenueId, setPriceSignInVenueId] = useState<string | null>(
     null,
@@ -288,6 +293,20 @@ export default function VenueInspector({
     if (!pubVenue) return;
     selectTab("pints");
     setComposerOpen(true);
+  }
+
+  // The second drinker's door: the same composer, seeded with the figure the
+  // Overview printed. Soft-gated by the composer itself, which keeps its
+  // fields open signed out and puts the sign-in link where Log it would be.
+  // The open goes through the map's own log-intent opener where there is one,
+  // because that is the ONE caller of the price-step reveal
+  // (lib/logIntentReveal.ts) and this door owes the reader the same field.
+  function confirmProvisionalPrice(priceGbp: number) {
+    if (!pubVenue) return;
+    seedComposerPrice(confirmPintPriceSeed(priceGbp));
+    selectTab("pints");
+    if (onOpenComposerForLog) onOpenComposerForLog();
+    else setComposerOpen(true);
   }
 
   const openPriceForm = useCallback((): void => {
@@ -435,6 +454,7 @@ export default function VenueInspector({
         onClearLocation={onClearLocation}
         onLogTonightPrice={requestPriceEntry}
         onStartFirstDrop={startPintDrop}
+        onConfirmPrice={confirmProvisionalPrice}
         onOpenVisitReports={() => selectTab("story")}
         priceEntryAllowed={!authConfigured || Boolean(user && handle)}
         priceSignInRequested={priceSignInVenueId === venue.id}

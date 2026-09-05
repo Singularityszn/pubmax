@@ -28,6 +28,11 @@ import {
   filterMapPintDropEntries,
   type MapPintDropVenue,
 } from "@/lib/mapPintDropPolicy";
+import {
+  confirmationOutcomeLine,
+  parseConfirmationOutcome,
+  type PintDropConfirmationOutcome,
+} from "@/lib/pintDropSecondDrinker";
 import type { ConfirmedPriceInput } from "@/lib/priceTier";
 import { clearPintDropDraft } from "@/lib/pintDropDraft";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
@@ -166,6 +171,35 @@ function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhoto
 // submit (multipart), report, composer form + photo slot state. API contract unchanged.
 // `cityId` scopes the unscoped map-layer fetch so Manchester demo seeds colour
 // Manchester pins without leaking into the London feed.
+/**
+ * The receipt under a landed drop: the line it always printed, plus the one
+ * sentence the second-reporter pass earned it (lib/pintDropSecondDrinker.ts),
+ * so a drinker who just repeated their own report is told so here rather than
+ * left reading "needs a second drinker" over the figure they sent.
+ */
+function rereadLaneOnMint(
+  outcome: PintDropConfirmationOutcome | null,
+  reread: () => void,
+): void {
+  if (outcome?.status === "confirmed") reread();
+}
+
+function dropReceiptText(
+  addedToNight: boolean,
+  outcome: PintDropConfirmationOutcome | null,
+  submittedPrice: string,
+): string {
+  const receipt = addedToNight
+    ? "Cheers. Added to your night."
+    : "Cheers. Your Pint Drop is live.";
+  const submittedGbp = Number(submittedPrice);
+  const outcomeLine = confirmationOutcomeLine(
+    outcome,
+    Number.isFinite(submittedGbp) ? submittedGbp : null,
+  );
+  return outcomeLine ? `${receipt} ${outcomeLine}` : receipt;
+}
+
 export function usePintDrops(
   cityId: CityId = "london",
   mapVenues?: readonly MapPintDropVenue[],
@@ -204,6 +238,16 @@ export function usePintDrops(
     () => new Map(),
   );
   const [composerOpen, setComposerOpen] = useState(false);
+  // The second drinker's door (lib/pintDropSecondDrinker.ts). "Still £4.50?"
+  // on the venue sheet seeds the composer with the figure the pub's lane
+  // already prints, through the SAME hydration the log intent's `price=`
+  // rides, so a saved draft still outranks it and nothing here submits. The
+  // URL seed wins when both are present, because a door the reader arrived
+  // through is the older promise.
+  const [confirmSeed, setConfirmSeed] = useState<string | null>(null);
+  const seedComposerPrice = useCallback((price: string | null) => {
+    setConfirmSeed(price);
+  }, []);
   const [dropForm, setDropForm] = useState({ price: "", drink: "", note: "", era: "", withWho: "" });
   // Visibility (issue #29 backbone; this composer is the first writer of it).
   // Additive field — defaults to `public`, matching the server default exactly.
@@ -609,11 +653,14 @@ export function usePintDrops(
           links.push({ href: `/u/${encodeURIComponent(cleanHandle)}`, label: "Your profile" });
         }
       }
+      // What the second-reporter pass answered. A mint changes the standing of
+      // BOTH rows of the pair, and the row this browser holds for the earlier
+      // report predates it, so the lane is re-read rather than patched by hand.
+      const outcome = parseConfirmationOutcome(data.confirmationOutcome);
+      rereadLaneOnMint(outcome, () => refreshVenueDrops(venueId));
       setDropMsg({
         ok: true,
-        text: addedToNight
-          ? "Cheers. Added to your night."
-          : "Cheers. Your Pint Drop is live.",
+        text: dropReceiptText(addedToNight, outcome, submittedPrice),
         links,
       });
     } catch {
@@ -688,6 +735,7 @@ export function usePintDrops(
   const closeComposer = useCallback(() => {
     setDropMsg(null);
     setComposerOpen(false);
+    setConfirmSeed(null);
   }, []);
 
   const mapDropsByVenueId = useMemo(
@@ -773,7 +821,8 @@ export function usePintDrops(
     composerOpen,
     setComposerOpen,
     closeComposer,
-    priceSeed,
+    priceSeed: priceSeed ?? confirmSeed,
+    seedComposerPrice,
     dropForm,
     setDropForm,
     vibeTags,

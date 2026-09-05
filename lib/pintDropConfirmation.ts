@@ -45,6 +45,7 @@ import {
   confirmationIsLive,
   type PintDropConfirmation,
 } from "@/lib/pintDropConfirmationRecord";
+import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
 import { type ConfirmedPriceInput } from "@/lib/priceTier";
 import {
   confirmedPriceDrop,
@@ -164,4 +165,76 @@ export function findSecondReporterConfirmation(
   }
 
   return peer ? { dropId: confirmed.id, confirmingDropId: peer.id } : null;
+}
+
+/**
+ * What the second-reporter pass found, as a READING rather than a write. This
+ * is `findSecondReporterConfirmation` plus the honest name for each null.
+ *
+ * `same_reporter` is the case the door on the venue sheet exists to explain: a
+ * figure that agrees with an earlier in-window report where every agreeing
+ * report carries ONE authority key. Nothing is confirmed, because one account
+ * saying the same thing twice is one report however many nights it spans, and
+ * the drinker is told exactly that instead of reading "needs a second drinker"
+ * over the price they just sent. An unattributed row never counts on either
+ * side: a report with no key cannot be the same reporter, because it is no
+ * reporter at all.
+ */
+export type SecondReporterReading =
+  | { kind: "pair"; dropId: string; confirmingDropId: string }
+  | { kind: "already_confirmed"; confirmation: PintDropConfirmation }
+  | { kind: "same_reporter" }
+  | { kind: "awaiting" };
+
+export function readSecondReporter(
+  drops: readonly ConfirmableDrop[],
+  now: number = Date.now(),
+): SecondReporterReading {
+  const live = liveConfirmationFor(drops, now);
+  if (live) {
+    const row = drops.find(
+      (drop) => drop.confirmation?.confirmationId === live.confirmationId,
+    );
+    if (row?.confirmation) {
+      return { kind: "already_confirmed", confirmation: row.confirmation };
+    }
+  }
+
+  const pair = findSecondReporterConfirmation(drops, now);
+  if (pair) return { kind: "pair", ...pair };
+
+  const keyed = drops.filter(
+    (drop) =>
+      isPricedObservation(drop) &&
+      isWithinMaxAge({ submittedAt: Date.parse(drop.createdAt) }, now) &&
+      Boolean(drop.authorityKey?.trim()),
+  );
+  for (let i = 0; i < keyed.length; i += 1) {
+    for (let j = i + 1; j < keyed.length; j += 1) {
+      const a = keyed[i];
+      const b = keyed[j];
+      if (a.authorityKey?.trim() !== b.authorityKey?.trim()) continue;
+      if (!agreesWithinTolerance(a.priceGbp as number, b.priceGbp as number)) continue;
+      return { kind: "same_reporter" };
+    }
+  }
+  return { kind: "awaiting" };
+}
+
+/**
+ * The reading as the write path answers it, for a pass that minted nothing.
+ * A minted pair is answered by the producer itself, which alone holds the
+ * record it wrote.
+ */
+export function outcomeForUnmintedReading(
+  reading: Exclude<SecondReporterReading, { kind: "pair" }>,
+): PintDropConfirmationOutcome {
+  switch (reading.kind) {
+    case "already_confirmed":
+      return { status: "already_confirmed", confirmation: reading.confirmation };
+    case "same_reporter":
+      return { status: "same_reporter" };
+    default:
+      return { status: "awaiting_second_drinker" };
+  }
 }

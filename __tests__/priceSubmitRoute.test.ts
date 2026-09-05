@@ -1286,6 +1286,91 @@ describe("POST /api/price-submit corroboration", () => {
   });
 });
 
+describe("POST /api/price-submit second-drinker confirmation", () => {
+  // The write lane the venue sheet's "Still £4.50?" door feeds. What the body
+  // says about a confirmation comes from lib/pintDropSecondDrinker.ts and is
+  // pinned here for the three cases the door turns on: the same account
+  // repeating itself, a different account agreeing, and a retry after a mint.
+  async function submitAs(account: string, body: unknown): Promise<Response> {
+    await authorizeContributor(`user-${account}`, `handle_${account}`);
+    return POST(post(body));
+  }
+
+  async function realVenueId(offset: number): Promise<string> {
+    const ids = [...(await getVenueIndex()).values()]
+      .filter((venue) => isPubVenueKind(venue.kind))
+      .map((venue) => venue.id);
+    expect(ids.length).toBeGreaterThan(31 + offset);
+    return ids[ids.length - 1 - offset];
+  }
+
+  type ConfirmationBody = PriceBody & {
+    confirmationOutcome?: {
+      status: string;
+      confirmation?: { confirmationId: string; basis: string; confirmingDropId?: string };
+      dropIds?: string[];
+    };
+  };
+
+  it("tells the same account its repeat confirms nothing", async () => {
+    const venueId = await realVenueId(20);
+    await submitAs("solo", { venueId, drinkCategory: "beer", priceGbp: 4.5 });
+    const res = await submitAs("solo", { venueId, drinkCategory: "beer", priceGbp: 4.5 });
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as ConfirmationBody;
+    expect(body.confirmationOutcome).toEqual({ status: "same_reporter" });
+    expect(listVisiblePintDrops(venueId).every((row) => !row.confirmation)).toBe(true);
+  });
+
+  it("mints for a different account, naming the confirming drop, on both rows", async () => {
+    const venueId = await realVenueId(21);
+    await submitAs("first", { venueId, drinkCategory: "beer", priceGbp: 4.5 });
+    const res = await submitAs("second", { venueId, drinkCategory: "beer", priceGbp: 4.5 });
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as ConfirmationBody;
+    expect(body.confirmationOutcome?.status).toBe("confirmed");
+    expect(body.confirmationOutcome?.confirmation).toMatchObject({
+      basis: "second_reporter",
+    });
+    const rows = listVisiblePintDrops(venueId);
+    expect(rows).toHaveLength(2);
+    const ids = new Set(rows.map((row) => row.confirmation?.confirmationId));
+    expect(ids).toEqual(new Set([body.confirmationOutcome?.confirmation?.confirmationId]));
+    const confirming = body.confirmationOutcome?.confirmation?.confirmingDropId;
+    expect(rows.map((row) => row.id)).toContain(confirming);
+    expect(body.confirmationOutcome?.dropIds).toHaveLength(2);
+  });
+
+  it("answers a retry with the confirmation on file, and mints no second", async () => {
+    const venueId = await realVenueId(22);
+    await submitAs("first", { venueId, drinkCategory: "beer", priceGbp: 4.5 });
+    const minted = (await (
+      await submitAs("second", { venueId, drinkCategory: "beer", priceGbp: 4.5 })
+    ).json()) as ConfirmationBody;
+    const retry = await submitAs("second", { venueId, drinkCategory: "beer", priceGbp: 4.5 });
+    expect(retry.status).toBe(201);
+    const body = (await retry.json()) as ConfirmationBody;
+    expect(body.confirmationOutcome?.status).toBe("already_confirmed");
+    expect(body.confirmationOutcome?.confirmation?.confirmationId).toBe(
+      minted.confirmationOutcome?.confirmation?.confirmationId,
+    );
+    const ids = new Set(
+      listVisiblePintDrops(venueId)
+        .map((row) => row.confirmation?.confirmationId)
+        .filter(Boolean),
+    );
+    expect(ids.size).toBe(1);
+  });
+
+  it("carries no outcome when no Pint Drop was paired", async () => {
+    const venueId = await realVenueId(23);
+    const res = await submitAs("coffee", { venueId, drinkCategory: "coffee", priceGbp: 3.2 });
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as ConfirmationBody;
+    expect(body.confirmationOutcome).toBeUndefined();
+  });
+});
+
 describe("POST /api/price-submit report", () => {
   function reportAs(ip: string, body: unknown): Request {
     return new Request("http://localhost/api/price-submit", {

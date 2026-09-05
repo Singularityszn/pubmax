@@ -1,0 +1,79 @@
+{
+  "trust": "aged-out",
+  "block": {
+    "x": 21,
+    "y": 795,
+    "w": 727,
+    "h": 126
+  },
+  "kids": [
+    {
+      "tag": "span",
+      "cls": "",
+      "text": "Contributor Logged by a Pubmaxxer",
+      "rect": {
+        "x": 21,
+        "y": 809,
+        "w": 277,
+        "h": 21
+      }
+    },
+    {
+      "tag": "span",
+      "cls": "priceBadge priceBadge--current price-plaque ink-stamp ink-stamp--tilt PriceBadge-module__E2sksq__badge",
+      "text": "£4.50",
+      "rect": {
+        "x": 676,
+        "y": 805,
+        "w": 72,
+        "h": 30
+      }
+    },
+    {
+      "tag": "small",
+      "cls": "",
+      "text": "logged 90 days ago",
+      "rect": {
+        "x": 21,
+        "y": 842,
+        "w": 727,
+        "h": 16
+      }
+    },
+    {
+      "tag": "small",
+      "cls": "communityPriceStanding",
+      "text": "Over 30 days old, needs a fresh drinker",
+      "rect": {
+        "x": 21,
+        "y": 880,
+        "w": 612,
+        "h": 16
+      }
+    },
+    {
+      "tag": "button",
+      "cls": "confirmPintCta",
+      "text": "Still £4.50?",
+      "rect": {
+        "x": 645,
+        "y": 865,
+        "w": 103,
+        "h": 44
+      }
+    }
+  ],
+  "door": {
+    "rect": {
+      "x": 645,
+      "y": 865,
+      "w": 103,
+      "h": 44
+    },
+    "font": "700 13.12px/normal Inter",
+    "padding": "0px 14px",
+    "radius": "6px",
+    "background": "linear-gradient(135deg, rgb(255, 90, 95), rgb(255, 122, 85))",
+    "color": "rgb(22, 18, 42)"
+  }
+}

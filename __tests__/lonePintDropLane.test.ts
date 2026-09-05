@@ -26,6 +26,10 @@ import { firstDropNudgeCopy } from "@/lib/firstDropNudge";
 import { drinkLensEmptyVenueNote } from "@/lib/mapExperienceLens";
 import { drinkLaneLogActionLabel, drinkLaneLogInvite } from "@/lib/drinkLanes";
 import type { DrinkCategory } from "@/lib/drinks";
+import {
+  confirmPintActionLabel,
+  confirmPintActionName,
+} from "@/lib/pintDropSecondDrinker";
 import { peekPriceChip } from "@/lib/pubMap";
 import {
   AGED_PRICE_LINE,
@@ -146,6 +150,7 @@ function renderSelectedVenue(
   drops: SummaryDrop[],
   base: Venue = venue(),
   drinkLensCategory: DrinkCategory | null = null,
+  onConfirmPrice?: (priceGbp: number) => void,
 ): string {
   const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
   const corroborated = corroboratedPriceDrop(drops, NOW);
@@ -180,6 +185,7 @@ function renderSelectedVenue(
       onClearLocation: noop,
       onLogTonightPrice: noop,
       onStartFirstDrop: noop,
+      onConfirmPrice,
       onOpenVisitReports: noop,
       priceEntryAllowed: false,
       priceSignInRequested: false,
@@ -188,6 +194,45 @@ function renderSelectedVenue(
     }),
   );
 }
+
+describe("the second drinker's door on a logged-once price", () => {
+  it("offers the one action, worded over the figure the lane prints", () => {
+    const html = renderSelectedVenue([drop()], venue(), null, noop);
+    expect(html).toContain('data-testid="confirm-pint-cta"');
+    expect(html).toContain(confirmPintActionLabel(4.5));
+    expect(html).toContain(
+      confirmPintActionName(4.5, "The Sir Christopher Hatton"),
+    );
+  });
+
+  it("is offered on an aged-out report too, over the aged figure", () => {
+    // AGED_PRICE_LINE asks for a fresh drinker, and the door is how one
+    // arrives. Read off the same trust state the chip carries.
+    const html = renderSelectedVenue(
+      [drop({ createdAt: new Date(NOW - 90 * DAY_MS).toISOString() })],
+      venue(),
+      null,
+      noop,
+    );
+    expect(html).toContain('data-pint-trust="aged-out"');
+    expect(html).toContain('data-testid="confirm-pint-cta"');
+    expect(html).toContain(confirmPintActionLabel(4.5));
+  });
+
+  it("is absent where the map already holds the pub's price", () => {
+    const html = renderSelectedVenue(
+      [drop({ authorityKey: "key-a" }), drop({ authorityKey: "key-b" })],
+      venue(),
+      null,
+      noop,
+    );
+    expect(html).not.toContain('data-testid="confirm-pint-cta"');
+  });
+
+  it("is absent when the sheet was handed no door", () => {
+    expect(renderSelectedVenue([drop()])).not.toContain('data-testid="confirm-pint-cta"');
+  });
+});
 
 describe("a lone public Pint Drop on the venue Overview", () => {
   it("prints the drinker's figure instead of the first-drop nudge", () => {

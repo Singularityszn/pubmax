@@ -1,0 +1,55 @@
+{
+  "block": {
+    "x": 21,
+    "y": 843,
+    "w": 727,
+    "h": 97
+  },
+  "kids": [
+    {
+      "tag": "span",
+      "cls": "",
+      "text": "Contributor Logged by a Pubmaxxer",
+      "rect": {
+        "x": 21,
+        "y": 857,
+        "w": 277,
+        "h": 21
+      }
+    },
+    {
+      "tag": "span",
+      "cls": "priceBadge priceBadge--current price-plaque ink-stamp ink-stamp--tilt PriceBadge-module__E2sksq__badge",
+      "text": "£4.50",
+      "rect": {
+        "x": 676,
+        "y": 853,
+        "w": 72,
+        "h": 30
+      }
+    },
+    {
+      "tag": "small",
+      "cls": "",
+      "text": "logged 3 days ago",
+      "rect": {
+        "x": 21,
+        "y": 890,
+        "w": 727,
+        "h": 16
+      }
+    },
+    {
+      "tag": "small",
+      "cls": "communityPriceStanding",
+      "text": "Logged once, needs a second drinker",
+      "rect": {
+        "x": 21,
+        "y": 913,
+        "w": 727,
+        "h": 16
+      }
+    }
+  ],
+  "door": null
+}

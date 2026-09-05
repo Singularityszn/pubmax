@@ -18,6 +18,8 @@ import { enrichItemsWithAvatarUrls } from "@/lib/avatarResolve";
 import { parseCityId } from "@/lib/cities";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { log } from "@/lib/log";
+import type { PintDropConfirmation } from "@/lib/pintDropConfirmationRecord";
+import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { pintDropReportIdentity } from "@/lib/pintDropReportActor.server";
@@ -30,11 +32,12 @@ import {
 import {
   isPintDropDailyCapError,
   pintDropsStore,
+  type PintDropDTO,
   type PintDropPhotos,
 } from "@/lib/pintDropsStore";
 import {
   confirmPintDropByModerator,
-  confirmVenueBySecondReporter,
+  runSecondReporterPass,
 } from "@/lib/pintDropConfirm.server";
 import { gateHandleAction, gateHasVerifiedActor } from "@/lib/profileOwnership";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
@@ -316,6 +319,34 @@ async function handleModeratorAction(
   }
 }
 
+/**
+ * The second-reporter pass after a drop lands, awaited so the drinker's own
+ * answer carries the standing their report just earned. It never throws and
+ * never fails the drop. The answer NAMES what the pass found
+ * (lib/pintDropSecondDrinker.ts), so a drinker repeating their own report is
+ * told so, and a retry after a mint reads the confirmation on file rather than
+ * minting a second. Only a priced drop can complete a pair. The row was read
+ * back before the pass ran, so when this drop is one of the pair its own
+ * answer is stamped with the record it just earned.
+ */
+async function settleConfirmation(
+  drop: PintDropDTO,
+  priceGbp: number | null,
+): Promise<{
+  confirmation: PintDropConfirmation | null;
+  confirmationOutcome: PintDropConfirmationOutcome | null;
+}> {
+  if (priceGbp === null) return { confirmation: null, confirmationOutcome: null };
+  const confirmationOutcome = await runSecondReporterPass(drop.venueId);
+  if (confirmationOutcome.status !== "confirmed") {
+    return { confirmation: null, confirmationOutcome };
+  }
+  if (confirmationOutcome.dropIds.includes(drop.id)) {
+    drop.confirmation = confirmationOutcome.confirmation;
+  }
+  return { confirmation: confirmationOutcome.confirmation, confirmationOutcome };
+}
+
 export async function POST(request: Request): Promise<Response> {
   const parsed = await parseBody(request);
   if (!parsed) {
@@ -475,10 +506,10 @@ export async function POST(request: Request): Promise<Response> {
     // standing their report just earned. It never throws and never fails the
     // drop: when it cannot read or write, the pill stays grey and the drop
     // stands. Only a priced drop can complete a pair.
-    const confirmation =
-      dropPayload.priceGbp !== null
-        ? await confirmVenueBySecondReporter(dropPayload.venueId)
-        : null;
+    const { confirmation, confirmationOutcome } = await settleConfirmation(
+      drop,
+      dropPayload.priceGbp,
+    );
     // Fire-and-forget: the profile bootstrap must never delay or fail the drop
     // response (an awaited Supabase upsert here blocks every submission and hangs
     // unmocked tests). It never rejects — the inner try/catch swallows failures.
@@ -487,7 +518,11 @@ export async function POST(request: Request): Promise<Response> {
       void qualifyCheapPintForAccountId(ownership.callerUserId);
     }
     return jsonNoStore(
-      { drop, ...(confirmation ? { confirmation } : {}) },
+      {
+        drop,
+        ...(confirmation ? { confirmation } : {}),
+        ...(confirmationOutcome ? { confirmationOutcome } : {}),
+      },
       { status: 201 },
     );
   } catch (err) {

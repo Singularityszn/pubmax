@@ -32,7 +32,7 @@ import { useIsMobileComposer } from "@/components/map/composer/useIsMobileCompos
 import { useSpeechDictation } from "@/components/map/composer/useSpeechDictation";
 import { useVenueDraft } from "@/components/map/composer/useVenueDraft";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
-import { venueMapUrl } from "@/lib/venueMapUrl";
+import { pintDropDoorHref } from "@/lib/landingHero";
 import "./spillComposer.css";
 
 type PintDropComposerProps = {
@@ -212,6 +212,16 @@ export default function PintDropComposer({
   }
 
   const signedOutGate = authConfigured && !signedIn;
+  // Account at the first kept action: the sign-in returns the reader to THIS
+  // composer with the figure they set, through the same `log=1&price=` door
+  // the landing opens (#1462), rather than to the top of the pub's sheet.
+  const signedOutReturnDoor = pintDropDoorHref(
+    venueId,
+    (() => {
+      const typed = Number(dropForm.price);
+      return Number.isFinite(typed) && typed > 0 ? typed : undefined;
+    })(),
+  );
 
   return (
     <form
@@ -264,7 +274,7 @@ export default function PintDropComposer({
       <div className="composerActions">
         {signedOutGate ? (
           <Link
-            href={`/login?mode=signin&from=${encodeURIComponent(venueMapUrl(venueId))}`}
+            href={`/login?mode=signin&from=${encodeURIComponent(signedOutReturnDoor)}`}
             className="spillSubmitLink"
           >
             Sign in to post
