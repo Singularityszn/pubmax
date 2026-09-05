@@ -191,8 +191,10 @@
 .lpPubSource a, .lpPubThenSource a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .lpPubSource a:hover, .lpPubThenSource a:hover { color: var(--ink); }
 
-/* The standing chip: the word lib/priceTier.ts gives the row, in the tone it
-   names. The word carries the meaning; the dot only echoes it. */
+/* The standing chip: the word lib/priceTier.ts gives the row, and the word
+   alone. It wears no tone, because colour on this card is the price BAND's
+   (lib/priceBand.ts) and a green "Confirmed" beside a red figure told the
+   reader two things with one hue. */
 .lpStanding {
   justify-self: start;
   display: inline-flex;
@@ -209,10 +211,6 @@
   white-space: nowrap;
 }
 .lpStandingDot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--color-text-muted); }
-.lpStanding-green { background: color-mix(in srgb, var(--color-positive) 14%, var(--color-surface-raised)); color: color-mix(in srgb, var(--color-positive) 60%, var(--color-text)); }
-.lpStanding-green .lpStandingDot { background: var(--color-positive); }
-.lpStanding-amber { background: color-mix(in srgb, var(--color-caution) 18%, var(--color-surface-raised)); color: color-mix(in srgb, var(--color-caution) 45%, var(--color-text)); }
-.lpStanding-amber .lpStandingDot { background: var(--color-caution); }
 
 .lpPubThen {
   margin: var(--space-2) 0 0;

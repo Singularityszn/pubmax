@@ -112,6 +112,12 @@ html[data-theme="dark"] {
   --price-plaque-surface: color-mix(in srgb, var(--amber) 16%, var(--panel-raised));
   --price-plaque-border: color-mix(in srgb, var(--amber) 42%, var(--line));
   --price-plaque-shine: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  /* Price band inks on near-black: the hues are already muted for dark, so a
+     lighter mix keeps each one at 4.5:1 or better on the page and the card
+     (measured in __tests__/priceBand.test.ts). */
+  --price-band-cheap-ink: color-mix(in srgb, var(--pint) 85%, var(--ink));
+  --price-band-average-ink: color-mix(in srgb, var(--amber) 85%, var(--ink));
+  --price-band-expensive-ink: color-mix(in srgb, var(--brick) 85%, var(--ink));
   /* Structural edge (section / toolbar boundaries) — one clear step brighter
      than --hairline, anchored on it so the two track together. */
   --hairline-strong: color-mix(in srgb, var(--hairline) 58%, var(--ink-soft) 42%);

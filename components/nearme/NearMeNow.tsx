@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import PriceBadge from "@/components/PriceBadge";
+import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, Footprints, LocateFixed, MapPin, RotateCw } from "lucide-react";
 
@@ -985,7 +987,15 @@ function NearMeCardBody({
         {trustLabel ? <span className="nmnCardTrust">{trustLabel}</span> : null}
       </span>
       <span className="nmnCardPrice">
-        <span className="nmnCardPriceValue">{formatPrice(card.cheapestPrice)}</span>
+        {/* The figure is a plaque wearing its price BAND (lib/priceBand.ts):
+            red expensive, yellow average, green cheap. It used to be green
+            text on every row, which told a reader every pint here was cheap. */}
+        <PriceBadge
+          className="nmnCardPriceValue"
+          band={priceBand(card.cheapestPrice, priceBandAreaForVenue(card.id))}
+        >
+          {formatPrice(card.cheapestPrice)}
+        </PriceBadge>
       </span>
     </>
   );

@@ -79,7 +79,10 @@ describe("landing price honesty", () => {
     expect(cardSource).toContain("No publisher recorded");
     expect(cardSource).toMatch(/Listed by/);
     // A near-you answer reads the slim index's listed cheapest figure, the
-    // same one /near prints; a band or a demo seed may never reach the card.
-    expect(cardSource).not.toMatch(/priceBand|latestDemoPrice|data-band/);
+    // same one /near prints; the slim index's build-time `priceBand` field and
+    // a demo seed may never reach the card. The colour the card paints is
+    // lib/priceBand.ts's own call over the listed figure, which is the law.
+    expect(cardSource).not.toMatch(/\.priceBand\b|latestDemoPrice|data-band/);
+    expect(cardSource).toMatch(/priceBand\(answer\.priceGbp/);
   });
 });

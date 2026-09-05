@@ -8,6 +8,7 @@ import {
   type CategoryPriceIndexStatus,
   type MapLensPrice,
 } from "@/lib/mapExperienceLens";
+import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { compactVenueAnchor } from "@/lib/venueAnchorPresentation";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
@@ -190,9 +191,14 @@ export function buildMapVenueListModel(
     lensPrices === null
       ? baseRows.map((row) => {
           const item = venueById.get(row.id);
-          return item
-            ? { ...row, priceLabel: mapVenueListPintPriceLabel(item, venueSignals) }
-            : row;
+          if (!item) return row;
+          // A pub's figure wears its band; an anchor is not a pint and wears none.
+          const pint = isPubVenueKind(item.kind) ? mapVenueListPintPrice(item, venueSignals) : null;
+          return {
+            ...row,
+            priceLabel: mapVenueListPintPriceLabel(item, venueSignals),
+            priceBand: priceBand(pint, priceBandAreaForVenue(item.id)),
+          };
         })
       : baseRows.map((row) => {
           const lensPrice = lensPrices.get(row.id);
@@ -201,6 +207,10 @@ export function buildMapVenueListModel(
             priceLabel: lensPrice
               ? `${lensPrice.categoryLabel} · £${lensPrice.priceGbp.toFixed(2)}`
               : unknownLabel,
+            priceBand:
+              lensPrice && lensPrice.category === "beer"
+                ? priceBand(lensPrice.priceGbp, priceBandAreaForVenue(row.id))
+                : null,
           };
         });
   const rows =

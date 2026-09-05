@@ -1,4 +1,5 @@
 import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
+import { priceBandLegendLabel } from "@/lib/priceBand";
 import type {
   MapRenderedPriceBand,
   MapRenderedPriceBucket,
@@ -138,11 +139,13 @@ const ROUTE_MARKS: MapKeyEntry[] = [
 const NO_ALCOHOL_NOTE =
   "The no-alcohol view has no separate pin shape. It uses alcohol-free and soft drink prices. Missing prices stay grey.";
 
+// The band rows print the thresholds lib/priceBand.ts cut, never a typed
+// figure, so the legend and the pin cannot name two different £s.
 function priceRows(noun: string): MapPriceLegendRow[] {
   return [
-    { label: "£5.50 or less", symbol: "£", tone: "green" },
-    { label: "Over £5.50, up to £7", symbol: "££", tone: "amber" },
-    { label: "Over £7", symbol: "£££", tone: "red" },
+    { label: priceBandLegendLabel("cheap"), symbol: "£", tone: "green" },
+    { label: priceBandLegendLabel("average"), symbol: "££", tone: "amber" },
+    { label: priceBandLegendLabel("expensive"), symbol: "£££", tone: "red" },
     {
       label: `No ${noun} price on the map`,
       symbol: "?",
@@ -181,17 +184,17 @@ function renderedRows(
 function mixedPriceRows(): MapPriceLegendRow[] {
   return [
     {
-      label: "£5.50 or less; low for its venue type",
+      label: `${priceBandLegendLabel("cheap")}; low for its venue type`,
       symbol: "£",
       tone: "green",
     },
     {
-      label: "Over £5.50, up to £7; middle for its venue type",
+      label: `${priceBandLegendLabel("average")}; middle for its venue type`,
       symbol: "££",
       tone: "amber",
     },
     {
-      label: "Over £7; high for its venue type",
+      label: `${priceBandLegendLabel("expensive")}; high for its venue type`,
       symbol: "£££",
       tone: "red",
     },

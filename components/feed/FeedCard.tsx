@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -246,6 +247,10 @@ export default function FeedCard({
   // and the Cheers active state all read from one source.
   const { category, resolved: categoryResolved } = resolveCategory(item.drink);
   const catStyle = { ["--feed-cat" as string]: categoryColor(category) };
+  // A beer figure wears its price BAND (lib/priceBand.ts); a wine or a
+  // cocktail is not measured against pint terciles and stays in ink.
+  const priceBandFor = (priceGbp: number) =>
+    category === "beer" ? priceBand(priceGbp, priceBandAreaForVenue(item.venueId)) : null;
   const catLabel = categoryLabel(category);
 
   // Honest Last Train stamp (Wave F0 / IDEAS A5): only when the drop carries
@@ -319,6 +324,7 @@ export default function FeedCard({
             <PriceBadge
               variant="current"
               className="feedSpillPrice"
+              band={priceBandFor(item.priceGbp)}
               style={{ viewTransitionName: `feed-price-${item.id}` }}
             >
               {formatGbp(item.priceGbp)}
@@ -427,7 +433,7 @@ export default function FeedCard({
             </span>
             <span className="feedReceiptEyebrow">Pint Drop</span>
             {typeof item.priceGbp === "number" ? (
-              <PriceBadge variant="current" className="feedReceiptPrice">
+              <PriceBadge variant="current" className="feedReceiptPrice" band={priceBandFor(item.priceGbp)}>
                 {formatGbp(item.priceGbp)}
               </PriceBadge>
             ) : (

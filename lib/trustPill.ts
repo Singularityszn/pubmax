@@ -8,9 +8,9 @@
 // London was re-collected) and the two drifted apart within a day of each other
 // shipping. The hold is over and the vocabulary is one.
 //
-// Colour never carries the meaning on its own: every standing prints a word,
-// the confirmed standing prints the day too, so a reader who cannot see green
-// still reads "Confirmed 3 Sept".
+// Colour never carries the standing at all: every standing prints a word, the
+// confirmed standing prints the day too, and the only colour the pill wears is
+// the price band of its figure (captain's law 2026-09-05, lib/priceBand.ts).
 
 import {
   priceStandingLabel,
@@ -29,13 +29,8 @@ export function formatTrustDay(atMs: number): string {
   return LONDON_DAY.format(new Date(atMs)).replace(/\bSep\b/, "Sept");
 }
 
-/**
- * The CSS tone a standing wears. Read from `PRICE_STANDING_TONE` rather than
- * restated, so the pill and every other surface colour a standing the same way.
- * `modelled` is its own tone on purpose: an estimate that looked as confident
- * as a published price is the one failure this component exists to prevent.
- */
-export { PRICE_STANDING_TONE as TRUST_PILL_TONE } from "@/lib/priceTier";
+// No tone lives here. Colour on the pill is the price BAND of the figure it
+// prints (lib/priceBand.ts), and the standing is carried by the word alone.
 
 /**
  * The whole label for a standing: the word, plus the day on a confirmed price.

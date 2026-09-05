@@ -4,22 +4,23 @@ import {
   CONFIRMED_MAX_AGE_DAYS,
   LISTED_MAX_AGE_DAYS,
   PRICE_STANDINGS,
-  PRICE_STANDING_TONE,
   priceStandingFigure,
   priceStandingFor,
   priceStandingLabel,
   priceStandingNote,
   standingCarriesAuthority,
 } from "@/lib/priceTier";
+import * as priceTierModule from "@/lib/priceTier";
 
 const NOW = Date.parse("2026-09-03T12:00:00.000Z");
 const daysAgo = (days: number) => new Date(NOW - days * 24 * 60 * 60 * 1000).toISOString();
 
 describe("price standings", () => {
-  it("names four standings and gives every one a tone, a label and a note", () => {
+  it("names four standings and gives every one a label and a note, and no tone", () => {
     expect(PRICE_STANDINGS).toEqual(["confirmed", "listed", "estimate", "none"]);
+    // Colour on a price is its BAND (lib/priceBand.ts), never its standing.
+    expect("PRICE_STANDING_TONE" in priceTierModule).toBe(false);
     for (const standing of PRICE_STANDINGS) {
-      expect(PRICE_STANDING_TONE[standing]).toBeTruthy();
       expect(priceStandingLabel(standing).length).toBeGreaterThan(0);
       expect(priceStandingNote(standing).length).toBeGreaterThan(0);
     }

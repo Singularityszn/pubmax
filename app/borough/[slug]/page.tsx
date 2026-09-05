@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -181,8 +182,11 @@ function BoroughPubPrice({ pub }: { pub: Venue }) {
             : // anchor, sourced and baseline all print the venue's own figure;
               // the sourced lane carries provenance, not a price.
               pub.cheapestPrice;
+  // The figure wears its price BAND (lib/priceBand.ts). An anchor is not a
+  // pint, so it wears none.
+  const band = lane.lane === "anchor" ? null : priceBand(figure, priceBandAreaForVenue(pub.id));
   return (
-    <PriceBadge variant={lane.lane === "baseline" ? "baseline" : "current"}>
+    <PriceBadge variant={lane.lane === "baseline" ? "baseline" : "current"} band={band}>
       {formatPrice(figure)}
     </PriceBadge>
   );

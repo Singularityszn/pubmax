@@ -16,6 +16,7 @@ import {
 } from "@/lib/zones";
 
 import "./zonePintIndex.css";
+import { priceBand, priceBandClass } from "@/lib/priceBand";
 
 type ZonePintIndexStripProps = {
   index: ZonePintIndex;
@@ -64,6 +65,8 @@ export default function ZonePintIndexStrip({
           const cellClass = [
             "zonePintCell",
             priced ? "isPriced" : "isThin",
+            // A zone's median is a pint figure, so the cell wears its band.
+            priced ? priceBandClass(priceBand(row.medianGbp, { city: "london" })) : "",
             isActive ? "isActive" : "",
           ]
             .filter(Boolean)

@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarClock, List, MapPinned, ShieldCheck, X } from "lucide-react";
+import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -4746,7 +4747,15 @@ export default function PubMap({
         {activeLensPrices !== null ? (
           <span>
             {selectedLensPrice ? (
-              <PriceBadge>{formatPrice(selectedLensPrice.priceGbp)}</PriceBadge>
+              <PriceBadge
+                band={
+                  selectedLensPrice.category === "beer"
+                    ? priceBand(selectedLensPrice.priceGbp, priceBandAreaForVenue(selectedVenue.id))
+                    : null
+                }
+              >
+                {formatPrice(selectedLensPrice.priceGbp)}
+              </PriceBadge>
             ) : (
               <strong>Unknown</strong>
             )}
@@ -4763,12 +4772,19 @@ export default function PubMap({
             data-pint-trust={peekPrice.trust ?? undefined}
             data-venue-id={peekPrice.trust ? selectedVenue.id : undefined}
           >
+            {/* The chip's colour is the figure's price BAND (lib/priceBand.ts),
+                whether observed or modelled; the trust state rides the data
+                attribute and the caption, never a hue. */}
             {peekPrice.observed ? (
-              <PriceBadge>{peekPrice.figure}</PriceBadge>
+              <PriceBadge band={priceBand(peekPrice.priceGbp, priceBandAreaForVenue(selectedVenue.id))}>
+                {peekPrice.figure}
+              </PriceBadge>
             ) : (
               /* NO PRICE BADGE. Nobody observed a modelled figure, so it may
                  not wear the mark an observed price wears. */
-              <strong>{peekPrice.figure}</strong>
+              <strong className={priceBandClass(priceBand(peekPrice.priceGbp, priceBandAreaForVenue(selectedVenue.id))) || undefined}>
+                {peekPrice.figure}
+              </strong>
             )}
             <small>{peekPrice.caption}</small>
           </span>

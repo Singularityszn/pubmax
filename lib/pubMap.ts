@@ -742,14 +742,27 @@ export function peekPriceChip(
   bundle: VenueBundlePrices,
   /** The drop lane's trust state (lib/pintTrust.ts), so the chip can carry it. */
   pintTrust: PintTrustState | null = null,
-): { figure: string; caption: string; observed: boolean; trust: PintTrustState | null } | null {
+): {
+  figure: string;
+  /** The figure as a number, so the chip can wear its price band (lib/priceBand.ts). */
+  priceGbp: number | null;
+  caption: string;
+  observed: boolean;
+  trust: PintTrustState | null;
+} | null {
   if (!lane) return null;
   if (lane.lane === "estimate") {
     const figure = priceStandingFigure(
       priceStandingFor({ estimate: bundle.estimate ?? null }),
     );
     return figure
-      ? { figure, caption: priceStandingLabel("estimate"), observed: false, trust: null }
+      ? {
+          figure,
+          priceGbp: bundle.estimate?.priceGbp ?? null,
+          caption: priceStandingLabel("estimate"),
+          observed: false,
+          trust: null,
+        }
       : null;
   }
   const observedGbp = venuePriceLaneObservedGbp(lane);
@@ -759,6 +772,7 @@ export function peekPriceChip(
   const trust = trustChipStateFor(lane, pintTrust === "confirmed" ? "confirmed" : "none");
   return {
     figure: formatPrice(observedGbp),
+    priceGbp: observedGbp,
     // A report says what it still lacks, in the one wording its state owns.
     caption: (trust && PINT_TRUST_LINE[trust]) || "current recorded price",
     observed: true,

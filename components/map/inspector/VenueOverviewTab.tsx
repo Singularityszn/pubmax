@@ -7,6 +7,7 @@ import PriceBadge from "@/components/PriceBadge";
 import TrustPill from "@/components/ui/trust-pill";
 import { trustChipStateFor, type PintTrustState } from "@/lib/pintTrust";
 import { priceStandingFor, type ConfirmedPriceInput } from "@/lib/priceTier";
+import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { Amenity, ClaimBadge } from "@/components/map/venueInspectorBits";
 import {
   COMMUNITY_PRICE_NOTE,
@@ -189,6 +190,9 @@ function VenuePriceSummary({
   const trustChipAttrs = trustChipState
     ? { "data-pint-trust": trustChipState, "data-venue-id": venue.id }
     : {};
+  // Every figure below wears its price BAND (lib/priceBand.ts) and no other
+  // colour; the standing and the lane are said in the badge and the words.
+  const bandArea = priceBandAreaForVenue(venue.id);
   const baselinePriceRow = venue.prices.find(
     (price) => price.price_gbp === venue.cheapestPrice,
   );
@@ -210,6 +214,8 @@ function VenuePriceSummary({
         <span className={chromeRevealClass}>
           <ClaimBadge kind="sourced" /> {venue.anchorLabel}
         </span>
+        {/* NO BAND. An anchor is a cocktail or a course, not a pint, and the
+            pint terciles say nothing about it. */}
         <PriceBadge variant="current">
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
@@ -249,9 +255,9 @@ function VenuePriceSummary({
             a lone report waiting for a second drinker is still a price, and
             hanging "No price yet" beside it would be untrue. */}
         {priceStanding.standing === "confirmed" ? (
-          <TrustPill decision={priceStanding} />
+          <TrustPill decision={priceStanding} area={bandArea} />
         ) : (
-          <PriceBadge variant="current">
+          <PriceBadge variant="current" band={priceBand(lane.contributorPrice, bandArea)}>
             {formatPrice(lane.contributorPrice)}
           </PriceBadge>
         )}
@@ -271,7 +277,7 @@ function VenuePriceSummary({
         <span className={chromeRevealClass}>
           <ClaimBadge kind="sourced" /> Sourced price
         </span>
-        <PriceBadge variant="current">
+        <PriceBadge variant="current" band={priceBand(venue.cheapestPrice, bandArea)}>
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
         <small className={chromeRevealClass}>
@@ -297,7 +303,7 @@ function VenuePriceSummary({
         </span>
         {/* The pill says the figure and how far to trust it in ONE mark, and
             the words are the standing module's own. */}
-        <TrustPill decision={priceStanding} />
+        <TrustPill decision={priceStanding} area={bandArea} />
         <small className={chromeRevealClass}>
           {formatFreshness(lane.listed.observedAt)} ·{" "}
           <a
@@ -325,7 +331,7 @@ function VenuePriceSummary({
         <span className={chromeRevealClass}>
           <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
         </span>
-        <PriceBadge variant="current">
+        <PriceBadge variant="current" band={priceBand(lane.provisionalPrice, bandArea)}>
           {formatPrice(lane.provisionalPrice)}
         </PriceBadge>
         {loggedAt ? <small className={chromeRevealClass}>{loggedAt}</small> : null}
@@ -343,7 +349,7 @@ function VenuePriceSummary({
         <span className={chromeRevealClass}>
           <ClaimBadge kind="baseline" /> Baseline on record
         </span>
-        <PriceBadge variant="baseline">
+        <PriceBadge variant="baseline" band={priceBand(venue.cheapestPrice, bandArea)}>
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
         <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
@@ -382,7 +388,7 @@ function VenuePriceSummary({
         <span className={chromeRevealClass}>
           <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
         </span>
-        <PriceBadge variant="current">
+        <PriceBadge variant="current" band={priceBand(lane.agedPrice, bandArea)}>
           {formatPrice(lane.agedPrice)}
         </PriceBadge>
         {loggedAt ? <small className={chromeRevealClass}>{loggedAt}</small> : null}
@@ -401,7 +407,7 @@ function VenuePriceSummary({
             wear the mark that says somebody did. The pill prints "est. £X" and
             carries the method link beside it, and the basis line is left to
             /how-we-estimate rather than restated here in a second vocabulary. */}
-        <TrustPill decision={priceStanding} />
+        <TrustPill decision={priceStanding} area={bandArea} />
       </div>
     );
   }

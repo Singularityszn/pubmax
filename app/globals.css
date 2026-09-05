@@ -142,6 +142,18 @@
   --price-plaque-border: color-mix(in srgb, var(--amber) 46%, var(--line));
   --price-plaque-shine: inset 0 1px 0 color-mix(in srgb, #ffffff 42%, transparent);
 
+  /* Price BAND (lib/priceBand.ts, captain's law 2026-09-05): red is expensive,
+     yellow is average, green is cheap, and a price wears no other colour. The
+     hue paints a fill (a pin, a dot, a plaque tint); the ink is the same hue
+     deepened until it reads as text on the page and the raised card at 4.5:1
+     or better. Dark tuning is in theme.css. */
+  --price-band-cheap: var(--pint);
+  --price-band-average: var(--amber);
+  --price-band-expensive: var(--brick);
+  --price-band-cheap-ink: color-mix(in srgb, var(--pint) 60%, var(--ink));
+  --price-band-average-ink: color-mix(in srgb, var(--amber) 45%, var(--ink));
+  --price-band-expensive-ink: color-mix(in srgb, var(--brick) 85%, var(--ink));
+
   /* Active / selected — a low-chroma accent tint + accent hairline. "You are
      here" should whisper; only the CTA fill shouts. */
   --state-active-surface: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
@@ -468,11 +480,40 @@ html:not([data-theme="dark"]) body {
   font-feature-settings: "tnum";
   font-weight: 700;
   letter-spacing: 0.01em;
-  color: var(--accent-price-ink);
-  background: var(--price-plaque-surface);
-  border: 1px solid var(--price-plaque-border);
+  /* A plaque is NEUTRAL until a band paints it. The brass tint it used to
+     carry read as the yellow band on a price nobody had banded (a cocktail, a
+     course, a history row), and under the law a colour on a price is a claim
+     about the band and nothing else. */
+  color: var(--price-band-ink, var(--badge-ink));
+  background: var(--price-band-surface, var(--badge-surface));
+  border: 1px solid var(--price-band-border, var(--badge-border));
   border-radius: var(--ink-stamp-radius);
   box-shadow: var(--price-plaque-shine), var(--ink-stamp-shadow);
+}
+
+/* THE ONE CLASS FAMILY a band paints with (`priceBandClass` in
+   lib/priceBand.ts). Each class sets the element's own hue and ink, and the
+   plaque tint under it, so PriceBadge, a bare figure and the trust pill all
+   take the band from these declarations and a surface never restates a hue.
+   No band, no class, and the figure stays in ink. */
+.priceBand-cheap {
+  --price-band-hue: var(--price-band-cheap);
+  --price-band-ink: var(--price-band-cheap-ink);
+}
+.priceBand-average {
+  --price-band-hue: var(--price-band-average);
+  --price-band-ink: var(--price-band-average-ink);
+}
+.priceBand-expensive {
+  --price-band-hue: var(--price-band-expensive);
+  --price-band-ink: var(--price-band-expensive-ink);
+}
+.priceBand-cheap,
+.priceBand-average,
+.priceBand-expensive {
+  --price-band-surface: color-mix(in srgb, var(--price-band-hue) 14%, var(--panel-raised));
+  --price-band-border: color-mix(in srgb, var(--price-band-hue) 50%, var(--line));
+  color: var(--price-band-ink);
 }
 
 /* ── Typographic hierarchy (3 levels) ──────────────────────────────────────
@@ -3464,7 +3505,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   background: rgba(47, 143, 91, 0.08);
 }
 
-.contributorPrice span:not(.priceBadge) {
+/* The trust pill and its own spans are excluded: the pill's colour is the
+   price BAND of its figure (lib/priceBand.ts), and this muted rule used to
+   win over it by specificity and grey out the figure. */
+.contributorPrice span:not(.priceBadge, .trustPill, .trustPill *) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -3474,7 +3518,8 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 }
 
 .contributorPrice strong {
-  color: var(--pint);
+  /* The figure's colour is its band (lib/priceBand.ts), never a standing green. */
+  color: var(--price-band-ink, var(--ink));
   font-variant-numeric: tabular-nums;
 }
 

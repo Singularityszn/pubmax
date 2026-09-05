@@ -12,6 +12,8 @@
 // empty box.
 
 import Link from "next/link";
+import PriceBadge from "@/components/PriceBadge";
+import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { useEffect, useState } from "react";
 import { ArrowRight, Beer } from "lucide-react";
 
@@ -95,7 +97,12 @@ export default function TodayPintsCard({ index }: Props) {
           <li key={row.id} className="todayPintRow">
             <Link className="todayPintLink pressable" href={row.mapHref}>
               <span className="todayPintName">{row.name}</span>
-              <span className="todayPintPrice">{row.priceLabel}</span>
+              <PriceBadge
+                className="todayPintPrice"
+                band={priceBand(row.price, priceBandAreaForVenue(row.id))}
+              >
+                {row.priceLabel}
+              </PriceBadge>
             </Link>
           </li>
         ))}

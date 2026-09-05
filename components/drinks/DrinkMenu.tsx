@@ -1,4 +1,5 @@
 import { categoryColor } from "@/lib/categoryColors";
+import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { DAY_MS } from "@/lib/dayMs";
 import { formatPrice } from "@/lib/venues";
 import PriceBadge from "@/components/PriceBadge";
@@ -120,7 +121,11 @@ function DrinkRow({ drink, venueId }: { drink: Drink; venueId?: string }) {
           and this file stays server-composable. */}
       <DrinkRowMain drink={drink} meta={meta} venueId={venueId} />
       <div className="drinkRowSide">
-        <PriceBadge variant="neutral" className="drinkPrice">
+        <PriceBadge
+          variant="neutral"
+          className="drinkPrice"
+          band={drink.category === "beer" ? priceBand(drink.priceGbp, priceBandAreaForVenue(venueId)) : null}
+        >
           {formatPrice(drink.priceGbp)}
         </PriceBadge>
         <ProvChip prov={drink.provenance} />

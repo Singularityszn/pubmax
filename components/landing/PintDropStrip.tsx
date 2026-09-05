@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { HandCoins } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
@@ -172,7 +173,11 @@ export default function PintDropStrip() {
             <li className="dropStripCard" key={d.id}>
               <div className="dropStripTop">
                 <span className="dropStripWho">{d.handle}</span>
-                <PriceBadge variant="current" className="dropStripPrice">
+                <PriceBadge
+                  variant="current"
+                  className="dropStripPrice"
+                  band={priceBand(d.priceGbp, priceBandAreaForVenue(d.venueId))}
+                >
                   {formatPrice(d.priceGbp)}
                 </PriceBadge>
               </div>

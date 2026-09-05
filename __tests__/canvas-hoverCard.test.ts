@@ -87,6 +87,8 @@ describe("hoverCardCopy", () => {
     expect(copy).toEqual({
       venueTypeLabel: "Bar",
       price: 25,
+      // An anchor is not a pint, so it wears no price band (lib/priceBand.ts).
+      priceBand: null,
       priceSuffix: "Welcome to The Savoy",
       provenance: "Anchor · Jul · thesavoylondon.com",
       detailLabel: "venue detail",

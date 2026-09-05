@@ -35,7 +35,8 @@ import type { LandingPubCardData } from "@/lib/landingPubCard";
 import { NEAR_ME_LOCATION_OPTIONS } from "@/lib/nearMeLocation";
 import type { NearMeCard } from "@/lib/nearMeAnswer";
 import { priceMovementLine } from "@/lib/priceMovementLine";
-import { PRICE_STANDING_TONE, priceStandingLabel, priceStandingNote, type PriceStanding } from "@/lib/priceTier";
+import { priceStandingLabel, priceStandingNote, type PriceStanding } from "@/lib/priceTier";
+import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { discardBody } from "@/lib/responseBody";
 import { formatPrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
@@ -355,7 +356,10 @@ function AnswerCard({
         </Link>
       </h2>
       <p className="lpPubPrice">
-        <PriceBadge variant="current">{formatPrice(answer.priceGbp)}</PriceBadge>
+        {/* The figure wears its BAND (lib/priceBand.ts) and nothing else. */}
+        <PriceBadge variant="current" band={priceBand(answer.priceGbp, priceBandAreaForVenue(answer.id))}>
+          {formatPrice(answer.priceGbp)}
+        </PriceBadge>
         <span className="lpPubPint">{answer.pintName ?? "cheapest pint"}</span>
       </p>
       <p className="lpPubSource">
@@ -372,11 +376,7 @@ function AnswerCard({
         , collected {collectedDay(answer.collectedOn)}.
       </p>
       {standing ? (
-        <span
-          className={`lpStanding lpStanding-${PRICE_STANDING_TONE[standing]}`}
-          data-standing={standing}
-          title={priceStandingNote(standing)}
-        >
+        <span className="lpStanding" data-standing={standing} title={priceStandingNote(standing)}>
           <span className="lpStandingDot" aria-hidden="true" />
           {priceStandingLabel(standing)}
         </span>
@@ -424,7 +424,9 @@ function AnswerRail({ answer }: { answer: Answer }) {
                 ) : null}
               </span>
               <span className="lpRailPrice">
-                <PriceBadge variant="neutral">{formatPrice(row.priceGbp)}</PriceBadge>
+                <PriceBadge variant="neutral" band={priceBand(row.priceGbp, priceBandAreaForVenue(row.id))}>
+                  {formatPrice(row.priceGbp)}
+                </PriceBadge>
               </span>
             </Link>
           </li>

@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { priceBandLegendLabel } from "../lib/priceBand";
+
 async function expectTappable(locator: Locator, label: string): Promise<void> {
   await expect(locator, `${label} should be visible`).toBeVisible();
   const box = await locator.boundingBox();
@@ -35,7 +37,7 @@ test.describe("mobile first-run tour", () => {
 
     const tour = page.getByRole("dialog", { name: "Pint price colours" });
     await expect(tour).toBeVisible();
-    await expect(tour.getByText("£5.50 or less")).toBeVisible();
+    await expect(tour.getByText(priceBandLegendLabel("cheap"))).toBeVisible();
     await expect(tour.getByText("Over £7")).toBeVisible();
     await expectTappable(tour.getByRole("button", { name: "Skip the tour" }), "tour close");
     await expectTappable(tour.getByRole("button", { name: "Skip", exact: true }), "tour skip");

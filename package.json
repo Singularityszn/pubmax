@@ -90,7 +90,8 @@
     "build:uk-price-bundle": "tsx scripts/build_uk_price_bundle.mjs",
     "harvest:uk-menu-urls": "tsx scripts/harvest/uk-prices/menu-urls.mjs",
     "harvest:uk-prices-rendered": "tsx scripts/harvest/uk-prices/render.mjs",
-    "harvest:uk-prices-ocr": "tsx scripts/harvest/uk-prices/ocr.mjs"
+    "harvest:uk-prices-ocr": "tsx scripts/harvest/uk-prices/ocr.mjs",
+    "build:price-bands": "tsx scripts/build_price_bands.mjs"
   },
   "dependencies": {
     "@capacitor-community/in-app-review": "^8.0.0",

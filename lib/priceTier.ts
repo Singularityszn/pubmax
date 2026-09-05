@@ -209,17 +209,11 @@ export function priceStandingFor(
   return fallbackReason ? { ...NOTHING, reason: fallbackReason } : NOTHING;
 }
 
-/**
- * The visual tone each standing wears, named once. A surface reads the TONE and
- * never matches on the standing to pick a colour, so the green/amber/grey the
- * brief named cannot drift apart between the pill and the pin.
- */
-export const PRICE_STANDING_TONE: Record<PriceStanding, "green" | "amber" | "modelled" | "grey"> = {
-  confirmed: "green",
-  listed: "amber",
-  estimate: "modelled",
-  none: "grey",
-};
+// A standing has NO TONE. It used to (green confirmed, amber listed, blue
+// modelled, grey none) and the captain saw a green "Confirmed" over a dear
+// pint. Captain's law 2026-09-05: colour on a price is its BAND
+// (lib/priceBand.ts) and nothing else, and a standing says what it is in the
+// word, the note and the figure's own "est." prefix.
 
 /** The short word a pill wears. */
 export function priceStandingLabel(standing: PriceStanding): string {

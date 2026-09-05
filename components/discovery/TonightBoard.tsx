@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 
 import PriceBadge from "@/components/PriceBadge";
 import HandleAvatar from "@/components/profile/HandleAvatar";
@@ -87,7 +88,11 @@ export default function TonightBoard({
               </span>
             </span>
 
-            <PriceBadge variant="cheap" className="tonightPrice">
+            <PriceBadge
+              variant="cheap"
+              className="tonightPrice"
+              band={priceBand(entry.priceGbp, priceBandAreaForVenue(entry.venueId))}
+            >
               {formatPrice(entry.priceGbp)}
             </PriceBadge>
           </li>
