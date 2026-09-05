@@ -28,10 +28,10 @@ machine.
 | Before | After |
 |---|---|
 | 16 hand-copied `missingPostgresReason`, 16 binary searches, different `initdb` flags | `scripts/rls/postgresHost.mjs` owns the search, the skip predicate and the cluster budget |
-| 26 hand-rolled cluster boots in test files | `__tests__/helpers/postgres.ts` boots the one cluster; 30 suites read it |
+| 27 hand-rolled cluster boots in test files | `__tests__/helpers/postgres.ts` boots the one cluster; 31 suites read it |
 | Unbounded file parallelism | `vitest.config.ts` `maxWorkers: 4`, plus a host-wide slot budget (`PUBMAX_PG_MAX_CLUSTERS`, default 6) |
 | `npm run test:rls` exited 0 on a skip | exits 1 unless `PUBMAX_RLS_ALLOW_SKIP=1` admits it |
-| 6 suites in `RLS_SUITES`, 3 new proofs in a job with no PostgreSQL | `scripts/rls/postgresSuites.mjs` is the closed list of 30, read by the runner, the CI exclusions and a fence |
+| 6 suites in `RLS_SUITES`, 3 new proofs in a job with no PostgreSQL | `scripts/rls/postgresSuites.mjs` is the closed list of 31, read by the runner, the CI exclusions and a fence |
 | `gate:e2e-skips`, `gate:playwright`, `check:freshness` invoked by nothing | static gates in `verify`; the report gate beside the browser suite in `e2e.yml` |
 | `weather` dated by a file a serverless filesystem cannot write | store-stamped; the committed file is a declared `degraded-fallback` |
 

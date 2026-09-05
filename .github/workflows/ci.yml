@@ -150,6 +150,7 @@ jobs:
           npx vitest run
           --shard=${{ matrix.shard }}/4
           --exclude '__tests__/accountRemovalMigrationEffective.test.ts'
+          --exclude '__tests__/accountRetentionLedgerMigrationEffective.test.ts'
           --exclude '__tests__/foundingMembersMigration.test.ts'
           --exclude '__tests__/handleClaimNoInheritanceMigration.test.ts'
           --exclude '__tests__/harvestOverlayMigration.test.ts'
@@ -210,6 +211,7 @@ jobs:
         run: >-
           npm run coverage --
           --exclude '__tests__/accountRemovalMigrationEffective.test.ts'
+          --exclude '__tests__/accountRetentionLedgerMigrationEffective.test.ts'
           --exclude '__tests__/foundingMembersMigration.test.ts'
           --exclude '__tests__/handleClaimNoInheritanceMigration.test.ts'
           --exclude '__tests__/harvestOverlayMigration.test.ts'
