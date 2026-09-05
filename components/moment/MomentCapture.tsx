@@ -32,10 +32,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { captureNativePhoto } from "@/lib/nativeCamera";
 import { isNativeApp } from "@/lib/nativePlatform";
-import {
-  MOMENT_PHOTO_TYPES,
-  replaceMomentMediaWithEditedBlob,
-} from "@/lib/momentPhotoEditor";
+import { replaceMomentMediaWithEditedBlob } from "@/lib/momentPhotoEditor";
 import { fitMomentPhoto } from "@/lib/momentPhotoFit";
 import {
   MOMENT_PHOTO_FIT_FAILED_LINE,
@@ -43,7 +40,11 @@ import {
   momentPhotoStillTooLargeLine,
   momentPickerHint,
 } from "@/lib/momentPhotoIntake";
-import { unreadableImageMessageFor } from "@/lib/profileImagePicker";
+import {
+  isLikelyHeic,
+  PROFILE_IMAGE_PICKER_ACCEPT,
+  unreadableImageMessageFor,
+} from "@/lib/profileImagePicker";
 import { photoFitsUploadBody } from "@/lib/uploadBodyLimit";
 import {
   createMomentDraft,
@@ -297,24 +298,22 @@ export default function MomentCapture(): React.JSX.Element {
   // opened, may it go up as it is, or must it be fitted under the wire limit
   // first. A phone photo is routinely 8 MB and the function refuses 4.5 MB
   // before any handler runs, so the fit is what makes the phone's own photos
-  // saveable; nothing over the limit is ever handed to the request.
+  // saveable; nothing over the limit is ever handed to the request. An
+  // iPhone's HEIC takes the same fit whatever it weighs, and a browser that
+  // cannot decode one says where to go rather than uploading nothing.
   async function admitFile(file: File): Promise<File | null> {
-    if (!MOMENT_PHOTO_TYPES.has(file.type)) {
-      setMessage("Choose JPEG, PNG or WebP photos.");
-      return null;
-    }
-    const decision = momentPhotoIntakeDecision(file.size);
+    const decision = momentPhotoIntakeDecision(file);
     if (decision.outcome === "refuse") {
       setMessage(decision.message);
       return null;
     }
     if (decision.outcome === "keep") return file;
-    setMessage("Resizing photo...");
+    setMessage(decision.reason === "heic" ? "Converting photo..." : "Resizing photo...");
     const fitted = await fitMomentPhoto(file);
     if (fitted.outcome === "fitted") return fitted.file;
     setMessage(
       fitted.outcome === "unreadable"
-        ? unreadableImageMessageFor("moment photo", false)
+        ? unreadableImageMessageFor("moment photo", isLikelyHeic(file))
         : MOMENT_PHOTO_FIT_FAILED_LINE,
     );
     return null;
@@ -343,7 +342,7 @@ export default function MomentCapture(): React.JSX.Element {
   const pickerPrimary = draft.media.length
     ? "Add another"
     : isPhone
-      ? "Take a photo"
+      ? "Add a photo"
       : "Upload a photo";
   const pickerSecondary = momentPickerHint(isPhone);
 
@@ -634,11 +633,15 @@ export default function MomentCapture(): React.JSX.Element {
                 )}
                 <strong>{pickerPrimary}</strong>
                 <span>{pickerSecondary}</span>
+                {/* A PICKER, never a camera: `capture` tells iOS to open the
+                    camera and leave Photo Library off the sheet, and the accept
+                    list names HEIC because iOS matches a library photo's own
+                    type before converting anything. The fence is
+                    __tests__/profilePhotoPicker.test.ts. */}
                 <input
+                  id="moment-photo-file"
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  // Rear camera only on phone / native. Desktop is file pick.
-                  {...(isPhone ? { capture: "environment" as const } : {})}
+                  accept={PROFILE_IMAGE_PICKER_ACCEPT}
                   multiple
                   onChange={chooseMedia}
                 />

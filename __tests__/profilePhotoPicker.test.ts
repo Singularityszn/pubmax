@@ -27,14 +27,18 @@ import { profileImageSlotSpec, PROFILE_IMAGE_SLOTS } from "@/lib/profileImageSlo
 
 /**
  * Every surface a person chooses a photo from. The rule is about pickers, not
- * about profiles, so a pub photo wall's composer and a message composer are
- * swept by the same fence. Library and file targets must keep iOS library
- * access; only the message camera target may ask for capture.
+ * about profiles, so a pub photo wall's composer, a message composer and the
+ * Moment composer are swept by the same fence. Library and file targets must
+ * keep iOS library access; only the message camera target may ask for capture.
+ * The Moment picker sat outside this list and shipped `capture="environment"`
+ * plus an accept list without HEIC, so an iPhone could reach neither its
+ * library nor its library's photos (contribution battle test D03).
  */
 const PHOTO_SURFACE_DIRS = [
   "components/profile",
   "components/venue",
   "components/messages",
+  "components/moment",
   "app/u",
 ] as const;
 
@@ -106,6 +110,7 @@ describe("a profile photo input asks for a photo, never for a camera", () => {
     expect(ids).toContain("pe-cover-file");
     expect(ids).toContain("venue-photo-file");
     expect(ids).toContain("message-photo-file");
+    expect(ids).toContain("moment-photo-file");
   });
 
   it("keeps capture on camera-only target and off every library/file picker", () => {

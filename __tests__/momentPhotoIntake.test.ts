@@ -7,6 +7,7 @@ import {
   MOMENT_FIT_LONG_EDGES,
   MOMENT_FIT_QUALITIES,
   MOMENT_PHOTO_FIT_FAILED_LINE,
+  MOMENT_PHOTO_WRONG_TYPE_LINE,
   MOMENT_PICK_MAX_BYTES,
   momentFitBox,
   momentFitFileName,
@@ -20,25 +21,45 @@ import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBody
 
 const MB = 1024 * 1024;
 
+const jpeg = (size: number, name = "night.jpg") => ({ type: "image/jpeg", name, size });
+
 describe("the intake decision", () => {
   it("keeps a photo already under the wire limit byte for byte", () => {
-    expect(momentPhotoIntakeDecision(UPLOAD_PHOTO_MAX_BYTES)).toEqual({ outcome: "keep" });
-    expect(momentPhotoIntakeDecision(31 * 1024)).toEqual({ outcome: "keep" });
+    expect(momentPhotoIntakeDecision(jpeg(UPLOAD_PHOTO_MAX_BYTES))).toEqual({ outcome: "keep" });
+    expect(momentPhotoIntakeDecision({ type: "image/png", name: "n.png", size: 31 * 1024 })).toEqual({ outcome: "keep" });
+    expect(momentPhotoIntakeDecision({ type: "image/webp", name: "n.webp", size: 31 * 1024 })).toEqual({ outcome: "keep" });
   });
 
   it("fits the phone's own photo rather than refusing the phone", () => {
     // The battle test's fixture: 8,060,438 bytes, 413 on both routes.
-    expect(momentPhotoIntakeDecision(8_060_438)).toEqual({ outcome: "fit", reason: "size" });
-    expect(momentPhotoIntakeDecision(UPLOAD_PHOTO_MAX_BYTES + 1)).toEqual({ outcome: "fit", reason: "size" });
+    expect(momentPhotoIntakeDecision(jpeg(8_060_438, "mid.jpg"))).toEqual({ outcome: "fit", reason: "size" });
+    expect(momentPhotoIntakeDecision(jpeg(UPLOAD_PHOTO_MAX_BYTES + 1))).toEqual({ outcome: "fit", reason: "size" });
+  });
+
+  it("fits an iPhone's HEIC whatever it weighs, by type or by name", () => {
+    // Safari reports the library's own type; some browsers report none and
+    // leave only the extension. Either way the fit is what makes it a JPEG.
+    expect(momentPhotoIntakeDecision({ type: "image/heic", name: "IMG_0042.HEIC", size: 2 * MB })).toEqual({ outcome: "fit", reason: "heic" });
+    expect(momentPhotoIntakeDecision({ type: "image/heif", name: "IMG_0042.heif", size: 2 * MB })).toEqual({ outcome: "fit", reason: "heic" });
+    expect(momentPhotoIntakeDecision({ type: "", name: "IMG_0042.HEIC", size: 2 * MB })).toEqual({ outcome: "fit", reason: "heic" });
+  });
+
+  it("refuses a file that is none of the four photo types", () => {
+    for (const type of ["image/gif", "image/svg+xml", "application/pdf", ""]) {
+      expect(momentPhotoIntakeDecision({ type, name: "thing.bin", size: MB })).toEqual({
+        outcome: "refuse",
+        message: MOMENT_PHOTO_WRONG_TYPE_LINE,
+      });
+    }
   });
 
   it("refuses what no phone produces, and an empty file", () => {
     expect(MOMENT_PICK_MAX_BYTES).toBeGreaterThan(UPLOAD_PHOTO_MAX_BYTES);
-    expect(momentPhotoIntakeDecision(MOMENT_PICK_MAX_BYTES + 1)).toEqual({
+    expect(momentPhotoIntakeDecision(jpeg(MOMENT_PICK_MAX_BYTES + 1))).toEqual({
       outcome: "refuse",
       message: momentPhotoTooLargeLine(),
     });
-    expect(momentPhotoIntakeDecision(0).outcome).toBe("refuse");
+    expect(momentPhotoIntakeDecision(jpeg(0)).outcome).toBe("refuse");
   });
 });
 
@@ -79,6 +100,7 @@ describe("the composer's own words carry the real number", () => {
     expect(momentPickerHint(true)).toContain(UPLOAD_PHOTO_MAX_LABEL);
     expect(momentPickerHint(false)).toContain(UPLOAD_PHOTO_MAX_LABEL);
     expect(momentPickerHint(true)).toContain("Camera or library");
+    expect(momentPickerHint(false)).toContain("HEIC");
     for (const line of [momentPickerHint(true), momentPickerHint(false)]) {
       expect(line).not.toMatch(/10 ?MB/);
     }
