@@ -101,7 +101,6 @@ import "@/app/messages/messages.css";
 // card is resolved live on the read path.
 
 const HANDLE_KEY = "pubmax_handle";
-const POLL_MS = 10_000;
 /** The counter shows only once a message is close to the cap. */
 const COUNTER_FROM = MAX_MESSAGE_BODY - 100;
 
@@ -403,26 +402,28 @@ export default function MessageThread({
     [accountRevision, conversationId, user, authHandle, viewerSession.unresolved],
   );
 
+  // ONE OWNER OF THE POLL. subscribeToMessages owns every timer: the fallback
+  // cadence when the socket is not live, a slow safety poll when it is, and no
+  // poll at all while the tab is hidden. A second interval here used to poll
+  // every ten seconds whatever the socket was doing and whether anyone was
+  // looking. `handle` is deliberately not a dependency: the read derives the
+  // handle itself, and re-keying on the state copy fetched the thread twice.
   useEffect(() => {
     const controller = new AbortController();
     void Promise.resolve().then(() => refresh(controller.signal));
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
-    // Realtime signal-only nudge with a mandatory 10s polling fallback. The nudge
-    // never carries content — it just triggers the same gated refetch.
+    // Realtime signal-only nudge with a mandatory polling fallback. The nudge
+    // never carries content - it just triggers the same gated refetch.
     const unsub = subscribeToMessages(conversationId, () => void refresh(), {
       poll: () => void refresh(),
     });
-    // A belt-and-braces interval in case realtime AND its internal fallback are
-    // both unavailable early (the page must stay live regardless).
-    const interval = window.setInterval(() => void refresh(), POLL_MS);
     return () => {
       controller.abort();
       window.removeEventListener("focus", onFocus);
-      window.clearInterval(interval);
       unsub();
     };
-  }, [conversationId, refresh, handle]);
+  }, [conversationId, refresh]);
 
   // An EMPTY thread has no row to read the other participant off, so the head
   // would say "Conversation" to somebody who opened a named person. The inbox
@@ -604,8 +605,16 @@ export default function MessageThread({
         );
         return;
       }
-      discardBody(res);
-      await refresh();
+      // A SEND IS ONE REQUEST. The POST's own answer is the stored row, so the
+      // outbox bubble is replaced by it in place; nothing is refetched to show
+      // your own message. A body with no row falls back to the gated refetch.
+      const body = (await res.json().catch(() => null)) as { message?: MessageDTO } | null;
+      const stored = body?.message;
+      if (stored && typeof stored.id === "string") {
+        setMessages((rows) => (rows.some((row) => row.id === stored.id) ? rows : [...rows, stored]));
+      } else {
+        await refresh();
+      }
       setOutbox((rows) => rows.filter((row) => row.id !== optimistic.id));
     } catch {
       takeBack();

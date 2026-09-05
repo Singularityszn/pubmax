@@ -1,137 +1,277 @@
-// Signal-only realtime for a message thread (PRD E4). Kept OUT of lib/realtime.ts
-// (owned elsewhere; import-only) but follows the exact same privacy + resilience
-// contract as its subscribeInsert helper.
+// Signal-only realtime for the messaging surfaces (PRD E4). Kept OUT of
+// lib/realtime.ts (owned elsewhere; import-only) but under the same privacy and
+// resilience contract.
 //
 // ─────────────────────────────────────────────────────────────────────────────
-// PRIVACY CONTRACT — events are SIGNALS, never CONTENT. A postgres_changes payload
-// carries the RAW inserted message row (body + sender handle). Rendering straight
-// from it would BYPASS the courtesy participant check the server route enforces.
-// So `onMessage` is a ZERO-ARGUMENT nudge: on each signal the caller must REFETCH
-// through GET /api/messages/[id]?handle=… so the participant gating re-applies to
-// every rendered row. The raw payload never leaves here.
+// PRIVACY CONTRACT - events are SIGNALS, never CONTENT. `onSignal` is a
+// ZERO-ARGUMENT nudge: on each one the caller REFETCHES through the
+// participant-gated route (GET /api/messages/[id]?handle=…, GET /api/messages)
+// so the courtesy check re-applies to every rendered row. No payload is read.
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// RESILIENCE — degrades to polling. No public Supabase env, or the channel can't
-// join within ~5s, or it errors/closes mid-session → we fall back to the caller's
-// `poll` on a gentle interval. Polling is the MANDATORY fallback; realtime is the
-// optimisation. Nothing here ever throws into the caller.
+// WHY BROADCAST. The thread used to subscribe to `postgres_changes` on the
+// `messages` table. That table is RLS deny-all and is not in the realtime
+// publication (migration 0019), so the channel joined and then heard nothing,
+// and every conversation lived on the poll fallback: the other side saw a
+// message up to ten seconds late. The server now sends a payload-free
+// Broadcast on the same topic the moment a row lands
+// (lib/messagesBroadcast.server.ts), which needs no table read at all.
 //
-// Only the BROWSER client (anon key, RLS-scoped) may open a socket. But messages
-// are RLS deny-all (migration 0019) — the anon key can't read the row — so realtime
-// here is opportunistic: if the publication/policy ever allows the INSERT signal
-// through it speeds up the thread; if not, the poll fallback keeps it live. Either
-// way no content is read from the socket. The server route stays the only reader.
+// RESILIENCE - polling is MANDATORY, realtime is the optimisation. No public
+// Supabase env, a channel that cannot join in ~5s, or one that errors mid
+// session → the caller's `poll` runs on the fallback cadence. A channel that IS
+// live still gets a slow safety poll, because a socket can stay connected
+// through a missed frame. A HIDDEN tab polls not at all and refetches once the
+// moment it is shown again, because a phone in a pocket is the common case and
+// each poll is a server round trip with several reads behind it.
+//
+// supabase-js loads lazily. The old helper read the client synchronously and
+// polled for ever when the chunk had not landed yet; this one AWAITS the client
+// so a cold open still upgrades to realtime.
 
-import { getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import { ensureSupabaseBrowser, getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import { messagesInboxTopic, messagesThreadTopic } from "@/lib/messagesTopics";
 
 /** A zero-argument nudge — deliberately carries NO payload (see header). */
 export type LiveSignal = () => void;
 /** Tear down the subscription (and any fallback poll). Always safe to call. */
 export type Unsubscribe = () => void;
 
+/** Where delivery is coming from right now. `live` means the socket answers. */
+export type MessagesLiveStatus = "connecting" | "live" | "polling";
+
+export type MessagesSubscribeOptions = Readonly<{
+  /** Refetch on the fallback cadence when realtime is unavailable or broken. */
+  poll?: LiveSignal;
+  /** Told each time the delivery lane changes. */
+  onStatus?: (status: MessagesLiveStatus) => void;
+}>;
+
 const JOIN_TIMEOUT_MS = 5_000;
-// Threads are more active than the ambient feed — poll a touch faster (10s) so the
-// fallback path still feels like a conversation. Matches the page's own cadence.
-const POLL_INTERVAL_MS = 10_000;
+/** Without a socket a conversation still has to feel like one. */
+export const MESSAGES_POLL_FALLBACK_MS = 5_000;
+/** With a live socket a poll is a safety net, not the delivery lane. */
+export const MESSAGES_POLL_LIVE_MS = 30_000;
+/** The inbox is a list, not a conversation; it can wait a little longer. */
+export const INBOX_POLL_FALLBACK_MS = 15_000;
+export const INBOX_POLL_LIVE_MS = 60_000;
+
+type Cadence = Readonly<{ fallbackMs: number; liveMs: number }>;
+
+const THREAD_CADENCE: Cadence = {
+  fallbackMs: MESSAGES_POLL_FALLBACK_MS,
+  liveMs: MESSAGES_POLL_LIVE_MS,
+};
+const INBOX_CADENCE: Cadence = {
+  fallbackMs: INBOX_POLL_FALLBACK_MS,
+  liveMs: INBOX_POLL_LIVE_MS,
+};
+
+function documentHidden(): boolean {
+  return typeof document !== "undefined" && document.visibilityState === "hidden";
+}
 
 /**
- * Subscribe to NEW messages in ONE conversation. `onMessage` is a bare nudge; the
- * caller refetches through the participant-gated API on each signal. Falls back to
- * `poll` on a 10s interval if realtime is unavailable or drops. A falsy
- * conversationId yields a pure no-op. Returns a safe Unsubscribe.
- *
- * NOTE: `messages` must be in the `supabase_realtime` publication for INSERT
- * events to fire; if it isn't (deny-all RLS may keep it out), the poll fallback
- * carries the thread — that's by design.
+ * The poll timer, owned in one place so the two lanes cannot disagree about
+ * what a hidden tab does. `setCadence(null)` stops polling; a cadence starts
+ * it, unless the document is hidden, in which case the timer waits for the
+ * tab to come back and then polls at once.
  */
-export function subscribeToMessages(
-  conversationId: string,
-  onMessage: LiveSignal,
-  options?: { poll?: LiveSignal },
-): Unsubscribe {
-  if (!conversationId) return () => {};
-  const poll = options?.poll;
+function pollTimer(poll: LiveSignal | undefined) {
+  let cadenceMs: number | null = null;
+  let timer: ReturnType<typeof setInterval> | null = null;
+  let hiddenSince: number | null = null;
 
-  // supabase-js loads lazily (dynamic import): a cold-cache subscribe sees null
-  // here and polls until the client warms (AuthProvider primes it per route
-  // mount), then a resubscribe upgrades to realtime — same graceful poll fallback.
-  const supabase = getSupabaseBrowser();
-  if (!supabase || !isAuthConfigured()) {
-    if (!poll) return () => {};
-    const id = setInterval(poll, POLL_INTERVAL_MS);
-    return () => clearInterval(id);
+  function stop(): void {
+    if (timer) clearInterval(timer);
+    timer = null;
   }
 
-  let disposed = false;
-  let pollTimer: ReturnType<typeof setInterval> | null = null;
-  let joinTimer: ReturnType<typeof setTimeout> | null = null;
-  let channel: ReturnType<typeof supabase.channel> | null = null;
+  function start(): void {
+    stop();
+    if (!poll || cadenceMs === null || documentHidden()) return;
+    timer = setInterval(poll, cadenceMs);
+  }
 
-  // Switch to polling exactly once. Idempotent; guards settle BEFORE removeChannel
-  // because unsubscribe fires a synchronous "CLOSED" back into this fn (mirrors the
-  // re-entrancy note in lib/realtime.ts).
-  function fallBackToPolling() {
-    if (disposed || pollTimer) return;
+  function onVisibility(): void {
+    if (documentHidden()) {
+      hiddenSince = Date.now();
+      stop();
+      return;
+    }
+    // Shown again: whatever the lane, the reader wants what they missed NOW,
+    // not at the next tick.
+    if (hiddenSince !== null && poll && cadenceMs !== null) poll();
+    hiddenSince = null;
+    start();
+  }
+
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", onVisibility);
+  }
+
+  return {
+    setCadence(next: number | null): void {
+      cadenceMs = next;
+      start();
+    },
+    dispose(): void {
+      stop();
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisibility);
+      }
+    },
+  };
+}
+
+function subscribeBroadcast(
+  topic: string,
+  events: readonly string[],
+  onSignal: LiveSignal,
+  cadence: Cadence,
+  options: MessagesSubscribeOptions | undefined,
+): Unsubscribe {
+  const poll = options?.poll;
+  const onStatus = options?.onStatus;
+  let disposed = false;
+  let status: MessagesLiveStatus | null = null;
+  const timer = pollTimer(poll);
+
+  function setStatus(next: MessagesLiveStatus): void {
+    if (disposed || status === next) return;
+    status = next;
+    timer.setCadence(next === "live" ? cadence.liveMs : cadence.fallbackMs);
+    onStatus?.(next);
+  }
+
+  // No public env: realtime is impossible here, poll and say so.
+  if (!isAuthConfigured()) {
+    setStatus("polling");
+    return () => {
+      disposed = true;
+      timer.dispose();
+    };
+  }
+
+  setStatus("connecting");
+
+  let joinTimer: ReturnType<typeof setTimeout> | null = null;
+  let channel: { unsubscribe?: () => unknown } | null = null;
+  let removeChannel: ((channel: unknown) => unknown) | null = null;
+
+  function dropChannel(): void {
     if (joinTimer) {
       clearTimeout(joinTimer);
       joinTimer = null;
     }
+    // Guards settle BEFORE removeChannel: unsubscribe fires a synchronous
+    // "CLOSED" back into the status callback (see the re-entrancy note in
+    // lib/realtime.ts), and that callback must find nothing left to drop.
     const dead = channel;
     channel = null;
-    if (poll) pollTimer = setInterval(poll, POLL_INTERVAL_MS);
-    if (dead) {
+    if (dead && removeChannel) {
       try {
-        void supabase!.removeChannel(dead);
+        void removeChannel(dead);
       } catch {
         /* already gone */
       }
     }
   }
 
-  try {
-    channel = supabase.channel(`live:messages:${conversationId}`);
-    channel.on(
-      "postgres_changes" as never,
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "messages",
-        filter: `conversation_id=eq.${conversationId}`,
-      },
-      () => {
-        // SIGNAL ONLY — ignore the payload row (see header).
-        if (!disposed) onMessage();
-      },
-    );
+  function fallBackToPolling(): void {
+    if (disposed) return;
+    dropChannel();
+    setStatus("polling");
+  }
 
-    joinTimer = setTimeout(fallBackToPolling, JOIN_TIMEOUT_MS);
-
-    channel.subscribe((status: string) => {
-      if (disposed) return;
-      if (status === "SUBSCRIBED") {
-        if (joinTimer) {
-          clearTimeout(joinTimer);
-          joinTimer = null;
-        }
-      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-        fallBackToPolling();
+  function attach(client: NonNullable<ReturnType<typeof getSupabaseBrowser>>): void {
+    if (disposed) return;
+    try {
+      removeChannel = (dead) => client.removeChannel(dead as never);
+      const next = client.channel(topic);
+      channel = next;
+      for (const event of events) {
+        next.on("broadcast" as never, { event } as never, () => {
+          // SIGNAL ONLY - the payload is ignored by construction (see header).
+          if (!disposed) onSignal();
+        });
       }
-    });
-  } catch {
-    fallBackToPolling();
+      joinTimer = setTimeout(fallBackToPolling, JOIN_TIMEOUT_MS);
+      next.subscribe((state: string) => {
+        if (disposed) return;
+        if (state === "SUBSCRIBED") {
+          if (joinTimer) {
+            clearTimeout(joinTimer);
+            joinTimer = null;
+          }
+          setStatus("live");
+        } else if (state === "CHANNEL_ERROR" || state === "TIMED_OUT" || state === "CLOSED") {
+          fallBackToPolling();
+        }
+      });
+    } catch {
+      fallBackToPolling();
+    }
+  }
+
+  const ready = getSupabaseBrowser();
+  if (ready) {
+    attach(ready);
+  } else {
+    // The chunk is still loading. Poll meanwhile, and upgrade when it lands
+    // rather than polling for the life of the page.
+    timer.setCadence(cadence.fallbackMs);
+    void ensureSupabaseBrowser()
+      .then((client) => {
+        if (disposed) return;
+        if (client) attach(client);
+        else fallBackToPolling();
+      })
+      .catch(() => fallBackToPolling());
   }
 
   return () => {
     disposed = true;
-    if (joinTimer) clearTimeout(joinTimer);
-    if (pollTimer) clearInterval(pollTimer);
-    if (channel) {
-      try {
-        void supabase.removeChannel(channel);
-      } catch {
-        /* already gone */
-      }
-      channel = null;
-    }
+    timer.dispose();
+    dropChannel();
   };
+}
+
+/**
+ * Subscribe to ONE conversation: a `message` signal when a row lands, a `read`
+ * signal when the other side reads what was waiting. Both are the same nudge to
+ * the caller. A falsy conversationId yields a pure no-op.
+ */
+export function subscribeToMessages(
+  conversationId: string,
+  onSignal: LiveSignal,
+  options?: MessagesSubscribeOptions,
+): Unsubscribe {
+  if (!conversationId) return () => {};
+  return subscribeBroadcast(
+    messagesThreadTopic(conversationId),
+    ["message", "read"],
+    onSignal,
+    THREAD_CADENCE,
+    options,
+  );
+}
+
+/**
+ * Subscribe to ONE handle's inbox: a signal whenever a message lands in any of
+ * their conversations. A falsy handle yields a pure no-op.
+ */
+export function subscribeToInbox(
+  handle: string,
+  onSignal: LiveSignal,
+  options?: MessagesSubscribeOptions,
+): Unsubscribe {
+  if (!handle) return () => {};
+  return subscribeBroadcast(
+    messagesInboxTopic(handle),
+    ["message"],
+    onSignal,
+    INBOX_CADENCE,
+    options,
+  );
 }

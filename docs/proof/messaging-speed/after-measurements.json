@@ -1,0 +1,142 @@
+{
+  "label": "after",
+  "base": "http://127.0.0.1:3100",
+  "conversationId": "eae0ae27-b1e0-48f6-8d87-18ce91f6a11f",
+  "open": {
+    "medianMs": 204,
+    "samples": [
+      {
+        "ms": 172,
+        "requests": 3,
+        "apiBytes": 4638,
+        "apiCalls": [
+          "GET /api/messages?handle=msgqa_a 200 186B 119ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 4421B 128ms",
+          "GET /api/notifications?handle=msgqa_a 200 31B 156ms"
+        ]
+      },
+      {
+        "ms": 204,
+        "requests": 3,
+        "apiBytes": 4638,
+        "apiCalls": [
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 4421B 142ms",
+          "GET /api/messages?handle=msgqa_a 200 186B 151ms",
+          "GET /api/notifications?handle=msgqa_a 200 31B 196ms"
+        ]
+      },
+      {
+        "ms": 241,
+        "requests": 3,
+        "apiBytes": 4638,
+        "apiCalls": [
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 4421B 175ms",
+          "GET /api/messages?handle=msgqa_a 200 186B 185ms",
+          "GET /api/notifications?handle=msgqa_a 200 31B 303ms"
+        ]
+      },
+      {
+        "ms": 172,
+        "requests": 3,
+        "apiBytes": 4638,
+        "apiCalls": [
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 4421B 126ms",
+          "GET /api/messages?handle=msgqa_a 200 186B 135ms",
+          "GET /api/notifications?handle=msgqa_a 200 31B 163ms"
+        ]
+      },
+      {
+        "ms": 234,
+        "requests": 3,
+        "apiBytes": 4638,
+        "apiCalls": [
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 4421B 175ms",
+          "GET /api/messages?handle=msgqa_a 200 186B 196ms",
+          "GET /api/notifications?handle=msgqa_a 200 31B 271ms"
+        ]
+      }
+    ]
+  },
+  "send": {
+    "ownMedianMs": 3,
+    "otherMedianMs": 1069,
+    "otherMaxMs": 1437,
+    "readMedianMs": 1116,
+    "samples": [
+      {
+        "ownMs": 13,
+        "otherMs": 1129,
+        "readMs": 1152,
+        "senderRequests": [
+          "POST /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f 201 250B 559ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 4658B 307ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 4657B 192ms"
+        ]
+      },
+      {
+        "ownMs": 3,
+        "otherMs": 863,
+        "readMs": 887,
+        "senderRequests": [
+          "POST /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f 201 250B 413ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 0B 304ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 4895B 190ms"
+        ]
+      },
+      {
+        "ownMs": 2,
+        "otherMs": 1437,
+        "readMs": 1439,
+        "senderRequests": [
+          "POST /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f 201 250B 329ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 5134B 488ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 5133B 299ms"
+        ]
+      },
+      {
+        "ownMs": 3,
+        "otherMs": 1069,
+        "readMs": 1116,
+        "senderRequests": [
+          "POST /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f 201 250B 251ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 5372B 328ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 5371B 402ms"
+        ]
+      },
+      {
+        "ownMs": 5,
+        "otherMs": 655,
+        "readMs": 803,
+        "senderRequests": [
+          "POST /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f 201 250B 263ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 5610B 216ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 5609B 152ms"
+        ]
+      }
+    ]
+  },
+  "idle30s": {
+    "aRequests": 3,
+    "aBytes": 5789,
+    "aCalls": [
+      "GET /api/cheap-pint-ping",
+      "GET /api/identity/handle/current",
+      "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a"
+    ],
+    "bRequests": 3,
+    "bBytes": 5789
+  },
+  "inbox": {
+    "calls": [
+      "GET /api/auth/session 200 44B 28ms",
+      "GET /api/identity/handle/current 200 67B 426ms",
+      "GET /api/identity/handle/current 200 67B 642ms",
+      "GET /api/identity/handle/current 200 67B 1056ms",
+      "GET /api/identity/onboarding 200 37B 487ms",
+      "GET /api/identity/handle/current 200 67B 676ms",
+      "GET /api/messages?handle=msgqa_a 200 199B 702ms",
+      "GET /api/notifications?handle=msgqa_a 200 31B 771ms",
+      "GET /api/messages?handle=msgqa_a 200 199B 884ms"
+    ]
+  }
+}

@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { isDeployedProduction } from "@/lib/deploymentEnv";
-import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
+import { resolveSupabaseConfig, type SupabaseConfig } from "@/lib/supabaseConfig";
 
 // Server-only Supabase admin client. Returns null when env is absent so every
 // caller degrades to the in-memory store / static cache instead of crashing.
@@ -22,6 +22,15 @@ function resolveServerSupabaseConfig() {
       allowUnknownKeyRole: !isVercelProduction,
     },
   );
+}
+
+/**
+ * The server's own Supabase URL and secret key, for the ONE lane that speaks to
+ * a Supabase HTTP API supabase-js does not wrap for a server (the Realtime
+ * broadcast endpoint, `lib/messagesBroadcast.server.ts`). Null when keyless.
+ */
+export function supabaseServerConfig(): SupabaseConfig | null {
+  return resolveServerSupabaseConfig();
 }
 
 export function getSupabaseAdmin(): SupabaseClient | null {

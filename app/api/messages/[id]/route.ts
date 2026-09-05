@@ -27,6 +27,7 @@ import {
   type MessageAttachmentWrite,
 } from "@/lib/messageAttachments";
 import { requireLinkedActor } from "@/lib/messageAuth";
+import { broadcastMessageSent, broadcastMessagesRead } from "@/lib/messagesBroadcast.server";
 import {
   discardStagedMessagePhoto,
   MESSAGE_PHOTO_MAX_BYTES,
@@ -92,7 +93,17 @@ async function parsePhotoUpload(
   }
 }
 
+/**
+ * `Server-Timing` for the thread read, so a slow open can be read off the
+ * network panel as auth, gate or store rather than guessed at. Durations only;
+ * no identity rides in a header.
+ */
+function serverTiming(marks: Array<[string, number]>): string {
+  return marks.map(([name, ms]) => `${name};dur=${Math.max(0, Math.round(ms))}`).join(", ");
+}
+
 export async function GET(request: Request, { params }: Ctx): Promise<Response> {
+  const started = performance.now();
   const { id } = await params;
   const asserted = new URL(request.url).searchParams.get("handle") ?? "";
   const actor = await requireLinkedActor(request, asserted);
@@ -101,20 +112,46 @@ export async function GET(request: Request, { params }: Ctx): Promise<Response> 
   }
   const handle = actor.handle;
   if (!handle) return publicApiError("Add your handle.", "INVALID_REQUEST", 400);
+  const authDone = performance.now();
 
-  const ownership = await gateHandleAction(request, handle);
+  // The bearer was verified once above; the gate takes that answer rather than
+  // asking the auth server a second time on the same request.
+  const ownership = await gateHandleAction(request, handle, actor.userId);
   if (!ownership.allowed) {
     if (ownership.status === 403) {
       return publicApiError("Conversation not found.", "NOT_FOUND", 404);
     }
     return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
+  const gateDone = performance.now();
 
-  const messages = await messagesStore().listMessages(id, handle);
+  const store = messagesStore();
+  const messages = await store.listMessages(id, handle);
   if (messages === null) {
     return publicApiError("Conversation not found.", "NOT_FOUND", 404);
   }
-  return jsonNoStore({ messages: await attachMessageVenueCards(messages) }, { status: 200 });
+  // Reading the thread is what marks what was waiting as read, and only when
+  // something WAS waiting: the ordinary poll of a quiet thread writes nothing.
+  // The sender's thread is then nudged so its "Sent" becomes "Read" now.
+  const unreadReceived = messages.some((m) => !m.read && m.senderHandle !== handle);
+  if (unreadReceived) {
+    const marked = await store.markRead(id, handle);
+    if (marked > 0) await broadcastMessagesRead(id);
+  }
+  const readDone = performance.now();
+  return jsonNoStore(
+    { messages: await attachMessageVenueCards(messages) },
+    {
+      status: 200,
+      headers: {
+        "Server-Timing": serverTiming([
+          ["auth", authDone - started],
+          ["gate", gateDone - authDone],
+          ["read", readDone - gateDone],
+        ]),
+      },
+    },
+  );
 }
 
 export async function POST(request: Request, { params }: Ctx): Promise<Response> {
@@ -147,7 +184,7 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
   const handle = actor.handle;
   if (!handle) return publicApiError("Add your handle.", "INVALID_REQUEST", 400);
 
-  const ownership = await gateHandleAction(request, handle);
+  const ownership = await gateHandleAction(request, handle, actor.userId);
   if (!ownership.allowed) {
     if (ownership.status === 403) {
       return publicApiError("Conversation not found.", "NOT_FOUND", 404);
@@ -209,10 +246,20 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
   if (!message) {
     return publicApiError("Conversation not found.", "NOT_FOUND", 404);
   }
+  await signalSent(store, id);
   return jsonNoStore(
     { message: (await attachMessageVenueCards([message]))[0] },
     { status: 201 },
   );
+}
+
+/**
+ * The row is stored; tell the two open surfaces. Never a reason to fail the
+ * send: a nudge that could not go out leaves the poll fallback to carry it.
+ */
+async function signalSent(store: ReturnType<typeof messagesStore>, conversationId: string): Promise<void> {
+  const pair = await store.participants(conversationId);
+  await broadcastMessageSent(conversationId, pair ? [pair.handleA, pair.handleB] : []);
 }
 
 async function sendPhoto(
@@ -281,6 +328,7 @@ async function sendPhoto(
     if (!message) {
       return publicApiError("Conversation not found.", "NOT_FOUND", 404);
     }
+    await signalSent(store, conversationId);
     return jsonNoStore({ message }, { status: 201 });
   } catch (error) {
     if (staged) {

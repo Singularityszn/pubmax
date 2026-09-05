@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
@@ -9,7 +16,9 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import MessageAvatar from "@/components/messages/MessageAvatar";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 import type { ConversationDTO } from "@/lib/messages";
+import { subscribeToInbox } from "@/lib/messagesRealtime";
 import { inboxTimeLabel } from "@/lib/messageTimeline";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
@@ -18,9 +27,32 @@ import "./messages.css";
 
 // The messaging inbox (PRD E4 / Wave I2): conversations for the signed-in
 // linked actor. Bearer via authedActionFetch; unsigned viewers get a sign-in prompt.
+//
+// LIVE THROUGH THE SAME SIGNAL LANE AS THE THREAD (lib/messagesRealtime.ts):
+// the server nudges `live:inbox:<handle>` when a message lands in any of this
+// handle's conversations, and the subscription owns the poll fallback and the
+// hidden-tab backoff. Every signal is a refetch of the gated list; no content
+// arrives on the socket.
+//
+// A PANE NOBODY CAN SEE FETCHES NOTHING. On a phone the thread route hides
+// this pane (`.messagesInboxPane` at MOBILE_MEDIA_QUERY), yet it used to load
+// the inbox on every thread open and poll it every 20s underneath the
+// conversation. When the pane is hidden by the thread it reads nothing and
+// subscribes to nothing; the list loads when the reader comes back to it.
 
 const HANDLE_KEY = "pubmax_handle";
-const POLL_MS = 20_000;
+
+function subscribeMobileViewport(onStoreChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const query = window.matchMedia(MOBILE_MEDIA_QUERY);
+  query.addEventListener("change", onStoreChange);
+  return () => query.removeEventListener("change", onStoreChange);
+}
+
+function getMobileViewportSnapshot(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia(MOBILE_MEDIA_QUERY).matches;
+}
 
 function readHandle(): string {
   if (typeof window === "undefined") return "";
@@ -68,6 +100,13 @@ export default function MessagesInboxClient({
 }): React.JSX.Element {
   const { accountRevision, user, handle: authHandle } = useAuth();
   const viewerSession = useViewerSession();
+  const isMobileViewport = useSyncExternalStore(
+    subscribeMobileViewport,
+    getMobileViewportSnapshot,
+    () => false,
+  );
+  // The thread route hides this pane on a phone; a hidden list owes no read.
+  const paneHidden = Boolean(activeConversationId) && isMobileViewport;
   const [handle, setHandle] = useState("");
   const [conversations, setConversations] = useState<ConversationDTO[]>([]);
   const [loadedRevision, setLoadedRevision] = useState<number | null>(null);
@@ -106,7 +145,6 @@ export default function MessagesInboxClient({
         return;
       }
       const h = normalizeHandle(authHandle ?? "") || readHandle();
-      if (h !== handle && stillCurrent()) setHandle(h);
       if (!h) {
         if (!stillCurrent()) return;
         setConversations([]);
@@ -152,7 +190,10 @@ export default function MessagesInboxClient({
         if (stillCurrent()) setLoadedRevision(requestRevision);
       }
     },
-    [accountRevision, handle, user, authHandle],
+    // `handle` is deliberately NOT a dependency: the read derives the handle
+    // itself, and re-keying on the state copy made every mount fetch the inbox
+    // twice, once before the handle settled and once after.
+    [accountRevision, user, authHandle],
   );
 
   const retry = useCallback(() => {
@@ -176,18 +217,27 @@ export default function MessagesInboxClient({
     </button>
   );
 
+  // ONE read on mount. The subscription below is keyed on the handle, which
+  // settles a tick after mount; keeping the two in one effect made that tick
+  // refetch the whole inbox a second time.
   useEffect(() => {
+    if (paneHidden) return;
     const controller = new AbortController();
     void Promise.resolve().then(() => refresh(controller.signal));
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
-    const interval = window.setInterval(() => void refresh(), POLL_MS);
     return () => {
       controller.abort();
       window.removeEventListener("focus", onFocus);
-      window.clearInterval(interval);
     };
-  }, [refresh, handle]);
+  }, [refresh, paneHidden]);
+
+  // The subscription owns the poll: fallback cadence without a socket, a slow
+  // safety poll with one, nothing while the tab is hidden.
+  useEffect(() => {
+    if (paneHidden || !handle) return;
+    return subscribeToInbox(handle, () => void refresh(), { poll: () => void refresh() });
+  }, [refresh, handle, paneHidden]);
 
   const accountDataReady = loadedRevision === accountRevision;
   // One clock for the whole list per render, so every row's time is measured

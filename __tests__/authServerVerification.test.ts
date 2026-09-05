@@ -32,6 +32,57 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+describe("verifyCallerAuth — local claims lane", () => {
+  // `auth.getUser` is a network round trip to GoTrue on EVERY request. When the
+  // client can verify the token against the project's JWKS (`getClaims`), the
+  // id lane takes that answer and asks the auth server nothing.
+  function adminWithClaims(getClaims: ReturnType<typeof vi.fn>) {
+    return { auth: { getUser: vi.fn(), getClaims } };
+  }
+
+  it("verifies the bearer locally and never calls getUser for an id", async () => {
+    const getClaims = vi.fn().mockResolvedValue({
+      data: { claims: { sub: "user-1", email: "k@example.com" } },
+      error: null,
+    });
+    const admin = adminWithClaims(getClaims);
+    authState.admin = admin as never;
+
+    await expect(verifyCallerAuth(request("es256-token"))).resolves.toEqual({
+      status: "verified",
+      identity: { id: "user-1", email: "k@example.com", createdAt: null },
+    });
+    expect(getClaims).toHaveBeenCalledWith("es256-token");
+    expect(admin.auth.getUser).not.toHaveBeenCalled();
+  });
+
+  it("reads an expired or forged token as invalid through the same code table", async () => {
+    const admin = adminWithClaims(
+      vi.fn().mockResolvedValue({ data: null, error: { name: "AuthInvalidJwtError", status: 401 } }),
+    );
+    authState.admin = admin as never;
+    await expect(verifyCallerAuth(request("bad"))).resolves.toEqual({ status: "invalid" });
+  });
+
+  it("asks the auth server only when the caller needs account metadata", async () => {
+    const getClaims = vi.fn();
+    const admin = adminWithClaims(getClaims);
+    admin.auth.getUser.mockResolvedValue({
+      data: { user: { id: "user-1", email: "k@example.com", created_at: "2026-01-01T00:00:00Z" } },
+      error: null,
+    });
+    authState.admin = admin as never;
+
+    await expect(
+      verifyCallerAuth(request("token"), { accountMetadata: true }),
+    ).resolves.toEqual({
+      status: "verified",
+      identity: { id: "user-1", email: "k@example.com", createdAt: "2026-01-01T00:00:00Z" },
+    });
+    expect(getClaims).not.toHaveBeenCalled();
+  });
+});
+
 describe("verifyCallerAuth", () => {
   it("distinguishes an absent token", async () => {
     await expect(verifyCallerAuth(request())).resolves.toEqual({

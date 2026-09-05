@@ -19,6 +19,7 @@
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { requireLinkedActor } from "@/lib/messageAuth";
+import { broadcastMessageSent } from "@/lib/messagesBroadcast.server";
 import { messagesStore } from "@/lib/messagesStore";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
@@ -51,7 +52,7 @@ export async function GET(request: Request): Promise<Response> {
   const handle = actor.handle;
   if (!handle) return jsonNoStore({ conversations: [] }, { status: 200 });
 
-  const ownership = await gateHandleAction(request, handle);
+  const ownership = await gateHandleAction(request, handle, actor.userId);
   if (!ownership.allowed) {
     // Fail-soft on store outage: empty inbox keeps the page rendering.
     // Keep 401/403 as hard errors so ownership denials stay visible.
@@ -101,7 +102,7 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Too many messages, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
-  const ownership = await gateHandleAction(request, handle);
+  const ownership = await gateHandleAction(request, handle, actor.userId);
   if (!ownership.allowed) {
     return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
@@ -144,6 +145,7 @@ export async function POST(request: Request): Promise<Response> {
       // Store miss / write failure after validation — degraded dependency, not 400.
       return publicApiError("Couldn't send that message.", "UNAVAILABLE", 503, { retryable: true });
     }
+    await broadcastMessageSent(conversationId, [handle, other]);
     return jsonNoStore({ message, conversationId }, { status: 201 });
   }
 

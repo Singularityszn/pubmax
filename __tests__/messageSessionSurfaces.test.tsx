@@ -55,6 +55,7 @@ vi.mock("@/lib/authedFetch", () => ({
 }));
 vi.mock("@/lib/messagesRealtime", () => ({
   subscribeToMessages: () => () => {},
+  subscribeToInbox: () => () => {},
 }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/useDismissOnEscape", () => ({ useDismissOnEscape: vi.fn() }));
