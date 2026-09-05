@@ -238,10 +238,14 @@ export default function MomentCapture(): React.JSX.Element {
     [authLoading, draft.caption, draft.media.length, saveState],
   );
 
-  function update(patch: Partial<MomentDraftV1>) {
+  // A patch may be a function of the CURRENT draft. Two removals in one tick
+  // each read `draft.media` off their own closure and the second overwrote
+  // the first (battle test M01), so anything that edits the media list
+  // derives the next list inside the updater rather than outside it.
+  function update(patch: Partial<MomentDraftV1> | ((current: MomentDraftV1) => Partial<MomentDraftV1>)) {
     setDraft((current) => ({
       ...current,
-      ...patch,
+      ...(typeof patch === "function" ? patch(current) : patch),
       revision: current.revision + 1,
       updatedAt: new Date().toISOString(),
     }));
@@ -372,7 +376,9 @@ export default function MomentCapture(): React.JSX.Element {
   // provider could compute a suggestion and pass it as a prefill for this field
   // to edit, but it must never auto-fill or auto-confirm (see the field below).
   function updateMediaAlt(id: string, value: string) {
-    update({ media: draft.media.map((item) => (item.id === id ? { ...item, alt: value } : item)) });
+    update((current) => ({
+      media: current.media.map((item) => (item.id === id ? { ...item, alt: value } : item)),
+    }));
   }
 
   function removeMedia(id: string) {
@@ -385,7 +391,7 @@ export default function MomentCapture(): React.JSX.Element {
       URL.revokeObjectURL(target.objectUrl);
       previewUrls.current.delete(target.objectUrl);
     }
-    update({ media: draft.media.filter((item) => item.id !== id) });
+    update((current) => ({ media: current.media.filter((item) => item.id !== id) }));
   }
 
   function openPhotoEditor(mediaId: string, opener: HTMLElement) {
@@ -428,7 +434,9 @@ export default function MomentCapture(): React.JSX.Element {
       previewUrls.current.delete(current.objectUrl);
     }
     if (replacement.media.objectUrl) previewUrls.current.add(replacement.media.objectUrl);
-    update({ media: draft.media.map((item) => (item.id === current.id ? replacement.media : item)) });
+    update((latest) => ({
+      media: latest.media.map((item) => (item.id === current.id ? replacement.media : item)),
+    }));
     closePhotoEditor();
     setMessage("Edited photo ready.");
   }

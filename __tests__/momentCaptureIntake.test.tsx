@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
 
-// The Moment composer at the seam the contribution battle test found open
-// (5 Sep 2026, D05), rendered with the chrome another track owns stubbed to
-// nothing and the network answered by a double in the route's own envelope.
+// The Moment composer at the two seams the contribution battle test found
+// open (5 Sep 2026, D05 and M01), rendered with the chrome another track owns
+// stubbed to nothing and the network answered by a double in the route's own
+// envelope.
 //
 // D05: a text file named night.jpg is refused by its BYTES before it touches
 // the draft, and a photo the server refuses no longer mints a second Memory,
 // because the composer keeps its Memory id across a refusal about the photo.
+// M01: removing two photos in one tick removes both, because the removal
+// reads the current draft rather than the closure's copy of it.
 
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -237,5 +240,21 @@ describe("a refused photo does not mint a second Memory", () => {
     await save();
     expect(memoriesMinted).toBe(2);
     expect(status()).toBe("Moment saved privately. You decide if it becomes a Story.");
+  });
+});
+
+describe("removing photos", () => {
+  it("removes two photos in one tick, not just the last one", async () => {
+    await mount();
+    await choose(jpegFile("one.jpg"), jpegFile("two.jpg"), jpegFile("three.jpg"));
+    expect(previews()).toBe(3);
+    const removes = Array.from(container.querySelectorAll<HTMLButtonElement>('button[aria-label^="Remove"]'));
+    await act(async () => {
+      removes[0].click();
+      removes[1].click();
+    });
+    await settle();
+    expect(previews()).toBe(1);
+    expect(container.querySelector('button[aria-label="Remove three.jpg"]')).not.toBeNull();
   });
 });
