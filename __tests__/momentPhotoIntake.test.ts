@@ -6,9 +6,15 @@ import { describe, expect, it } from "vitest";
 import {
   MOMENT_FIT_LONG_EDGES,
   MOMENT_FIT_QUALITIES,
+  keepServerMemoryAfterRefusal,
   MOMENT_PHOTO_FIT_FAILED_LINE,
+  MOMENT_PHOTO_NOT_A_PHOTO_LINE,
   MOMENT_PHOTO_WRONG_TYPE_LINE,
   MOMENT_PICK_MAX_BYTES,
+  NIGHT_MEMORY_REFUSED_CODE,
+  PHOTO_SNIFF_BYTES,
+  sniffPhotoKind,
+  type MomentPhotoKind,
   momentFitBox,
   momentFitFileName,
   momentPhotoIntakeDecision,
@@ -21,13 +27,56 @@ import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBody
 
 const MB = 1024 * 1024;
 
-const jpeg = (size: number, name = "night.jpg") => ({ type: "image/jpeg", name, size });
+const jpeg = (size: number, name = "night.jpg") => ({ type: "image/jpeg", name, size, kind: "jpeg" as const });
+const of = (type: string, name: string, size: number, kind: MomentPhotoKind | null) => ({ type, name, size, kind });
+
+const JPEG_HEAD = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x48]);
+const PNG_HEAD = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52]);
+const WEBP_HEAD = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x20]);
+const heicHead = (brand: string) => new Uint8Array([0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, ...brand.split("").map((c) => c.charCodeAt(0)), 0x00, 0x00, 0x00, 0x00]);
+const TEXT_HEAD = new TextEncoder().encode("hello, this is not a photo at all");
+
+describe("the byte sniff", () => {
+  it("names each of the four containers off the bytes the server reads", () => {
+    expect(sniffPhotoKind(JPEG_HEAD)).toBe("jpeg");
+    expect(sniffPhotoKind(PNG_HEAD)).toBe("png");
+    expect(sniffPhotoKind(WEBP_HEAD)).toBe("webp");
+    for (const brand of ["heic", "heix", "mif1", "msf1", "HEIC"]) {
+      expect(sniffPhotoKind(heicHead(brand))).toBe("heic");
+    }
+  });
+
+  it("names nothing for text, an MP4 and a truncated head", () => {
+    expect(sniffPhotoKind(TEXT_HEAD)).toBeNull();
+    expect(sniffPhotoKind(heicHead("isom"))).toBeNull();
+    expect(sniffPhotoKind(new Uint8Array([0xff, 0xd8]))).toBeNull();
+    expect(sniffPhotoKind(new Uint8Array())).toBeNull();
+  });
+
+  it("needs no more than the leading bytes the composer reads", () => {
+    for (const head of [JPEG_HEAD, PNG_HEAD, WEBP_HEAD, heicHead("heic")]) {
+      expect(sniffPhotoKind(head.slice(0, PHOTO_SNIFF_BYTES))).toBe(sniffPhotoKind(head));
+    }
+  });
+});
 
 describe("the intake decision", () => {
+  it("refuses a file whose bytes are not a photo, whatever its name says", () => {
+    // A text file called night.jpg arrives typed image/jpeg by its extension.
+    expect(momentPhotoIntakeDecision(of("image/jpeg", "night.jpg", 40, null))).toEqual({
+      outcome: "refuse",
+      message: MOMENT_PHOTO_NOT_A_PHOTO_LINE,
+    });
+  });
+
+  it("declares what the bytes are, not what the name said", () => {
+    expect(momentPhotoIntakeDecision(of("image/png", "photo.png", MB, "jpeg"))).toEqual({ outcome: "keep", type: "image/jpeg" });
+  });
+
   it("keeps a photo already under the wire limit byte for byte", () => {
-    expect(momentPhotoIntakeDecision(jpeg(UPLOAD_PHOTO_MAX_BYTES))).toEqual({ outcome: "keep" });
-    expect(momentPhotoIntakeDecision({ type: "image/png", name: "n.png", size: 31 * 1024 })).toEqual({ outcome: "keep" });
-    expect(momentPhotoIntakeDecision({ type: "image/webp", name: "n.webp", size: 31 * 1024 })).toEqual({ outcome: "keep" });
+    expect(momentPhotoIntakeDecision(jpeg(UPLOAD_PHOTO_MAX_BYTES))).toEqual({ outcome: "keep", type: "image/jpeg" });
+    expect(momentPhotoIntakeDecision(of("image/png", "n.png", 31 * 1024, "png"))).toEqual({ outcome: "keep", type: "image/png" });
+    expect(momentPhotoIntakeDecision(of("image/webp", "n.webp", 31 * 1024, "webp"))).toEqual({ outcome: "keep", type: "image/webp" });
   });
 
   it("fits the phone's own photo rather than refusing the phone", () => {
@@ -39,14 +88,14 @@ describe("the intake decision", () => {
   it("fits an iPhone's HEIC whatever it weighs, by type or by name", () => {
     // Safari reports the library's own type; some browsers report none and
     // leave only the extension. Either way the fit is what makes it a JPEG.
-    expect(momentPhotoIntakeDecision({ type: "image/heic", name: "IMG_0042.HEIC", size: 2 * MB })).toEqual({ outcome: "fit", reason: "heic" });
-    expect(momentPhotoIntakeDecision({ type: "image/heif", name: "IMG_0042.heif", size: 2 * MB })).toEqual({ outcome: "fit", reason: "heic" });
-    expect(momentPhotoIntakeDecision({ type: "", name: "IMG_0042.HEIC", size: 2 * MB })).toEqual({ outcome: "fit", reason: "heic" });
+    expect(momentPhotoIntakeDecision(of("image/heic", "IMG_0042.HEIC", 2 * MB, "heic"))).toEqual({ outcome: "fit", reason: "heic" });
+    expect(momentPhotoIntakeDecision(of("image/heif", "IMG_0042.heif", 2 * MB, "heic"))).toEqual({ outcome: "fit", reason: "heic" });
+    expect(momentPhotoIntakeDecision(of("", "IMG_0042.HEIC", 2 * MB, "heic"))).toEqual({ outcome: "fit", reason: "heic" });
   });
 
   it("refuses a file that is none of the four photo types", () => {
     for (const type of ["image/gif", "image/svg+xml", "application/pdf", ""]) {
-      expect(momentPhotoIntakeDecision({ type, name: "thing.bin", size: MB })).toEqual({
+      expect(momentPhotoIntakeDecision(of(type, "thing.bin", MB, null))).toEqual({
         outcome: "refuse",
         message: MOMENT_PHOTO_WRONG_TYPE_LINE,
       });
@@ -92,6 +141,20 @@ describe("the fit ladder", () => {
     expect(momentFitFileName("IMG_0042.HEIC")).toBe("IMG_0042.jpg");
     expect(momentFitFileName("night.png")).toBe("night.jpg");
     expect(momentFitFileName("")).toBe("moment-photo.jpg");
+  });
+});
+
+describe("what a refused Moment write does to the Memory it was for", () => {
+  it("keeps the Memory across a refusal about the photo", () => {
+    expect(keepServerMemoryAfterRefusal(400, "INVALID_REQUEST")).toBe(true);
+    expect(keepServerMemoryAfterRefusal(413, "TOO_LARGE")).toBe(true);
+    expect(keepServerMemoryAfterRefusal(503, "UNAVAILABLE")).toBe(true);
+    expect(keepServerMemoryAfterRefusal(null, undefined)).toBe(true);
+  });
+
+  it("drops it only for a refusal about the Memory, or a Memory that is gone", () => {
+    expect(keepServerMemoryAfterRefusal(400, NIGHT_MEMORY_REFUSED_CODE)).toBe(false);
+    expect(keepServerMemoryAfterRefusal(404, "NOT_FOUND")).toBe(false);
   });
 });
 

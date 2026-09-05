@@ -35,10 +35,13 @@ import { isNativeApp } from "@/lib/nativePlatform";
 import { replaceMomentMediaWithEditedBlob } from "@/lib/momentPhotoEditor";
 import { fitMomentPhoto } from "@/lib/momentPhotoFit";
 import {
+  keepServerMemoryAfterRefusal,
   MOMENT_PHOTO_FIT_FAILED_LINE,
   momentPhotoIntakeDecision,
   momentPhotoStillTooLargeLine,
   momentPickerHint,
+  PHOTO_SNIFF_BYTES,
+  sniffPhotoKind,
 } from "@/lib/momentPhotoIntake";
 import {
   isLikelyHeic,
@@ -302,12 +305,22 @@ export default function MomentCapture(): React.JSX.Element {
   // iPhone's HEIC takes the same fit whatever it weighs, and a browser that
   // cannot decode one says where to go rather than uploading nothing.
   async function admitFile(file: File): Promise<File | null> {
-    const decision = momentPhotoIntakeDecision(file);
+    const decision = momentPhotoIntakeDecision({
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      kind: await sniffFile(file),
+    });
     if (decision.outcome === "refuse") {
       setMessage(decision.message);
       return null;
     }
-    if (decision.outcome === "keep") return file;
+    if (decision.outcome === "keep") {
+      // The request declares what the bytes are, not what the name said.
+      return file.type === decision.type
+        ? file
+        : new File([file], file.name, { type: decision.type, lastModified: file.lastModified });
+    }
     setMessage(decision.reason === "heic" ? "Converting photo..." : "Resizing photo...");
     const fitted = await fitMomentPhoto(file);
     if (fitted.outcome === "fitted") return fitted.file;
@@ -317,6 +330,14 @@ export default function MomentCapture(): React.JSX.Element {
         : MOMENT_PHOTO_FIT_FAILED_LINE,
     );
     return null;
+  }
+
+  async function sniffFile(file: File): Promise<ReturnType<typeof sniffPhotoKind>> {
+    try {
+      return sniffPhotoKind(new Uint8Array(await file.slice(0, PHOTO_SNIFF_BYTES).arrayBuffer()));
+    } catch {
+      return null;
+    }
   }
 
   async function addFiles(files: File[]) {
@@ -500,14 +521,16 @@ export default function MomentCapture(): React.JSX.Element {
         }, { requiresIdentity: true },
       ).catch(() => null);
       const responseBody = response
-        ? await response.json().catch(() => ({})) as { error?: string }
+        ? await response.json().catch(() => ({})) as { error?: string; code?: string }
         : {};
       if (!response?.ok) {
         const remaining = draft.media.slice(index);
+        // A refusal about the photo keeps the Memory, so the re-save after
+        // removing the bad file goes back into it rather than minting another.
         update({
           media: remaining,
           caption: index > 0 ? "" : draft.caption,
-          serverMemoryId: response?.status === 400 ? null : memoryId,
+          serverMemoryId: keepServerMemoryAfterRefusal(response?.status, responseBody.code) ? memoryId : null,
         });
         setSaveState("idle");
         setMessage(errorMessageFrom(responseBody, "Some photos could not be saved. The remaining draft is safe."));

@@ -18,7 +18,17 @@
 //    weighs, because the server stores three types and HEIC is not one: the
 //    picker names HEIC (`PROFILE_IMAGE_PICKER_ACCEPT`) so the library is on
 //    the sheet, and the fit is what makes the library's photos uploadable.
+//
+// The FIRST question is answered by the bytes, never by the name. A browser
+// types a file off its extension, so a text file called night.jpg arrived as
+// image/jpeg, passed the composer, and was refused by the server's own sniff
+// after a Memory row had already been minted for it (battle test D05).
+// `sniffPhotoKind` reads the same signatures the server reads
+// (`lib/imageSafety.ts`) plus the ISO container an iPhone writes, and a file
+// whose leading bytes match none of them is refused before it touches the
+// draft.
 
+import { detectImageKind } from "@/lib/imageSafety";
 import { MOMENT_PHOTO_TYPES } from "@/lib/momentPhotoEditor";
 import { isLikelyHeic } from "@/lib/profileImagePicker";
 import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
@@ -27,9 +37,49 @@ import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBody
 export const MOMENT_PICK_MAX_BYTES = 30 * 1024 * 1024;
 
 export type MomentPhotoIntakeDecision =
-  | { outcome: "keep" }
+  /** `type` is what the bytes are, which is what the request declares. */
+  | { outcome: "keep"; type: string }
   | { outcome: "fit"; reason: "size" | "heic" }
   | { outcome: "refuse"; message: string };
+
+export type MomentPhotoKind = "jpeg" | "png" | "webp" | "heic";
+
+/** Enough leading bytes to name any of the four containers. */
+export const PHOTO_SNIFF_BYTES = 16;
+
+export const MOMENT_PHOTO_NOT_A_PHOTO_LINE = "That file is not a photo. Choose a JPEG, PNG, WebP or HEIC.";
+
+const MIME_BY_KIND: Record<MomentPhotoKind, string> = {
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  heic: "image/heic",
+};
+
+/**
+ * ISO base media brands an iPhone writes. The box is `ftyp` at byte 4, then
+ * the major brand; `mif1` and `msf1` are the still and sequence brands HEIF
+ * files name themselves by when no codec brand comes first.
+ */
+const HEIC_BRANDS = new Set(["heic", "heix", "hevc", "hevx", "heim", "heis", "mif1", "msf1"]);
+
+function ascii(bytes: Uint8Array, start: number, length: number): string {
+  let out = "";
+  for (let index = start; index < start + length; index += 1) {
+    const value = bytes[index];
+    if (value === undefined) return "";
+    out += String.fromCharCode(value);
+  }
+  return out;
+}
+
+/** What the leading bytes say the file is, or null when they say nothing we take. */
+export function sniffPhotoKind(bytes: Uint8Array): MomentPhotoKind | null {
+  const kind = detectImageKind(bytes);
+  if (kind) return kind;
+  if (ascii(bytes, 4, 4) === "ftyp" && HEIC_BRANDS.has(ascii(bytes, 8, 4).toLowerCase())) return "heic";
+  return null;
+}
 
 /** What the picker offers, as words: the four types a phone or a desk holds. */
 export const MOMENT_PHOTO_TYPES_LINE = "JPEG, PNG, WebP or HEIC";
@@ -83,18 +133,40 @@ export type MomentPhotoCandidate = {
   readonly type: string;
   readonly name: string;
   readonly size: number;
+  /** What `sniffPhotoKind` read off the leading bytes; null when nothing matched. */
+  readonly kind: MomentPhotoKind | null;
 };
 
 export function momentPhotoIntakeDecision(file: MomentPhotoCandidate): MomentPhotoIntakeDecision {
-  const heic = isLikelyHeic(file);
-  if (!heic && !MOMENT_PHOTO_TYPES.has(file.type.toLowerCase())) {
+  const declaredHeic = isLikelyHeic(file);
+  if (!declaredHeic && !MOMENT_PHOTO_TYPES.has(file.type.toLowerCase())) {
     return { outcome: "refuse", message: MOMENT_PHOTO_WRONG_TYPE_LINE };
   }
   if (!positive(file.size)) return { outcome: "refuse", message: "That file is empty. Choose another one." };
+  if (!file.kind) return { outcome: "refuse", message: MOMENT_PHOTO_NOT_A_PHOTO_LINE };
   if (file.size > MOMENT_PICK_MAX_BYTES) return { outcome: "refuse", message: momentPhotoTooLargeLine() };
-  if (heic) return { outcome: "fit", reason: "heic" };
+  if (file.kind === "heic") return { outcome: "fit", reason: "heic" };
   if (file.size > UPLOAD_PHOTO_MAX_BYTES) return { outcome: "fit", reason: "size" };
-  return { outcome: "keep" };
+  return { outcome: "keep", type: MIME_BY_KIND[file.kind] };
+}
+
+/**
+ * Whether a refused Moment write leaves the Memory it was written into worth
+ * keeping. A refusal ABOUT THE PHOTO (bad bytes, too heavy, a storage fault)
+ * says nothing about the Memory, so the next save goes back into it rather
+ * than minting a second one; only a refusal about the MEMORY, or a Memory
+ * that is not there, drops the id. Every 400 used to drop it, and a corrupt
+ * JPEG then left one empty Memory in the studio per attempt (battle test D05).
+ */
+export const NIGHT_MEMORY_REFUSED_CODE = "NIGHT_MEMORY_REFUSED";
+
+export function keepServerMemoryAfterRefusal(
+  status: number | null | undefined,
+  code: string | null | undefined,
+): boolean {
+  if (status === 404) return false;
+  if (code === NIGHT_MEMORY_REFUSED_CODE) return false;
+  return true;
 }
 
 /** The box a photo is drawn into for one attempt. Never upscales. */

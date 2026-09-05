@@ -8,6 +8,7 @@ import {
   signedNightMomentPhotoUrl,
   uploadNightMomentPhoto,
 } from "@/lib/nightMomentMedia";
+import { NIGHT_MEMORY_REFUSED_CODE } from "@/lib/momentPhotoIntake";
 import { addNightMoment, listNightMoments } from "@/lib/nightMemoryStore";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 
@@ -88,5 +89,7 @@ export async function POST(request: Request, context: Context): Promise<Response
       }, { status: 201 })
     : writeFailed
       ? publicApiError("That Moment could not be saved. Your draft is safe.", "UNAVAILABLE", 503, { retryable: true })
-      : publicApiError("That Memory cannot accept this Moment.", "INVALID_REQUEST", 400);
+      // Its own code, because the composer keeps its Memory id across a refusal
+      // about the PHOTO and drops it only for a refusal about the MEMORY.
+      : publicApiError("That Memory cannot accept this Moment.", NIGHT_MEMORY_REFUSED_CODE, 400);
 }
