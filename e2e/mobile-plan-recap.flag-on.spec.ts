@@ -2,6 +2,16 @@ import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 
+// Renamed to *.flag-on so it runs only in the chromium-flag-on project against
+// a server built with friendMemberRehydrationV2 ON (no runtime test.skip —
+// L20 zero-skip contract). The Night Mode card reads the FULL PlanState to
+// know a night is complete and to seed its recap, and resolvePlanProjection
+// (lib/planPrivacyBoundary.server.ts) fails closed on that flag: with it off,
+// GET /api/plans/[id] answers the anonymous preview, which carries no stops
+// and no ending, so the card sits on "Loading tonight's route…" for ever and
+// the recap invitation this test taps is never rendered. Reading the full
+// state as its own member IS member rehydration, so this is the lane.
+
 test("completed Plan recap stays inside 320px viewport and explicit discard survives remount", async ({ page, request }) => {
   const startTime = new Date().toISOString();
   const venueResponse = await request.get("/data/venues_slim.json");
@@ -19,6 +29,15 @@ test("completed Plan recap stays inside 320px viewport and explicit discard surv
   expect(createdResponse.ok()).toBe(true);
   const created = await createdResponse.json() as { plan: { plan: { id: string } }; memberToken: string };
   const planId = created.plan.plan.id;
+  // A Plan is completable only once somebody arrived somewhere: planStore's
+  // completion path answers PLAN_ARRIVAL_REQUIRED with no qualifying `arrived`
+  // action on a real route stop. This test drove straight to /complete and had
+  // answered 400 ever since that rule landed.
+  const arrivalResponse = await request.post(`/api/plans/${planId}/actions`, {
+    headers: { "idempotency-key": randomUUID() },
+    data: { memberToken: created.memberToken, type: "arrived", stopPosition: 2 },
+  });
+  expect(arrivalResponse.ok()).toBe(true);
   const completionResponse = await request.post(`/api/plans/${planId}/complete`, {
     data: {
       memberToken: created.memberToken,
@@ -36,6 +55,10 @@ test("completed Plan recap stays inside 320px viewport and explicit discard surv
   await page.setViewportSize({ width: 320, height: 568 });
   await page.addInitScript(({ id, start, token }) => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    // The Night Mode card rides the deferred shell, which holds its whole tree
+    // for 30 s unless this documented E2E key releases it — longer than the
+    // spec's own budget, so the pill this test taps was never drawn in time.
+    window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
     window.localStorage.setItem("pubmax_active_plan", JSON.stringify({ id, startTime: start, stopIndex: 2 }));
     window.sessionStorage.setItem(`pubmax-plan-member:${id}`, token);
   }, { id: planId, start: startTime, token: created.memberToken });
