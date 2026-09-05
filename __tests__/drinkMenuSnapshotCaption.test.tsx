@@ -9,7 +9,10 @@
 // freshness audit cannot drift into three vocabularies.
 //
 // The bundled pint dataset IS re-collected, so its rows keep the currency claim
-// they always had, measured against the price-authority window.
+// they always had, measured against the price-authority window. So does a Pint
+// Drop: a drinker's live contribution carries its own seen date and is never a
+// snapshot of anything, so the snapshot caption is keyed on the DECLARED
+// snapshot lane and never on "not the dataset".
 
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -58,6 +61,21 @@ function datasetDrink(observedAt: string): Drink {
   };
 }
 
+function pintDropDrink(observedAt: string): Drink {
+  // The shape lib/pintDropDrinks.ts mints: a community contribution, no lane.
+  return {
+    id: "pint-drop-abc",
+    category: "beer",
+    name: "Lager",
+    priceGbp: 4.5,
+    provenance: {
+      source: "Pint Drop",
+      licence: "community contribution",
+      observedAt,
+    },
+  };
+}
+
 function render(drinks: Drink[]): string {
   return renderToStaticMarkup(
     createElement(DrinkMenu, { drinks, venueName: "The Test Arms" }),
@@ -77,6 +95,32 @@ describe("venue Drinks captions", () => {
     // No staleness warning, at any age: this lane has no budget to breach.
     expect(html).not.toContain("Last seen");
     expect(html).not.toContain(">Seen");
+  });
+
+  it("gives a live Pint Drop its own seen date, beside a snapshot row", () => {
+    // Both lanes render in one menu, which is the point: two lanes, two claims.
+    const seenAt = new Date(
+      Date.now() - (PINT_DATASET_PRESENTATION_BUDGET_DAYS - 1) * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const html = render([overlayDrink(), pintDropDrink(seenAt)]);
+
+    // The snapshot row keeps its date and its words.
+    expect(html).toContain(`${SNAPSHOT_CAPTION_PREFIX} <time`);
+    expect(html).toContain("21 Aug 2026");
+    // The Pint Drop row is captioned "Seen", never "Snapshot from".
+    expect(html).toContain("Seen <time");
+    expect(html.toLowerCase()).toContain(`datetime="${seenAt.toLowerCase()}"`);
+    expect(html.match(new RegExp(SNAPSHOT_CAPTION_PREFIX, "g"))).toHaveLength(1);
+  });
+
+  it("warns on a Pint Drop past the price-authority window, and never dates it as a snapshot", () => {
+    const pastWindow = new Date(
+      Date.now() - (PINT_DATASET_PRESENTATION_BUDGET_DAYS + 1) * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const html = render([pintDropDrink(pastWindow)]);
+
+    expect(html).toContain("Last seen");
+    expect(html).not.toContain(SNAPSHOT_CAPTION_PREFIX);
   });
 
   it("says the same words as the bundled bundle's own snapshot caption", () => {

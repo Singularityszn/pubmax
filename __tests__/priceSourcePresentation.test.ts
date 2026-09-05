@@ -21,7 +21,15 @@ vi.mock("@/components/visits/VisitReportPanel", () => ({
 const noop = () => {};
 const OBSERVED = "2026-07-01T12:00:00.000Z";
 
-function drink(source: string, sourceUrl?: string, observedAt = OBSERVED): Drink {
+function drink(
+  source: string,
+  sourceUrl?: string,
+  observedAt = OBSERVED,
+  // The caption is keyed on the DECLARED lane, so a fixture standing for a
+  // sourced menu row says which lane it came out of rather than relying on
+  // everything-that-is-not-the-dataset falling through to the snapshot words.
+  lane?: Drink["provenance"]["lane"],
+): Drink {
   return {
     id: `beer-${source}`,
     category: "beer",
@@ -32,6 +40,7 @@ function drink(source: string, sourceUrl?: string, observedAt = OBSERVED): Drink
       sourceUrl,
       licence: "first-party",
       observedAt,
+      ...(lane ? { lane } : {}),
     },
   };
 }
@@ -226,7 +235,7 @@ describe("baseline price-source presentation", () => {
     const observedAt = "2026-08-01T12:00:00.000Z";
     const html = renderToStaticMarkup(
       createElement(DrinkMenu, {
-        drinks: [drink("Pint Prices", sourceUrl, observedAt)],
+        drinks: [drink("Pint Prices", sourceUrl, observedAt, "drink-price-update")],
         venueName: "The Test Arms",
       }),
     );
@@ -258,6 +267,7 @@ describe("baseline price-source presentation", () => {
             "Pint Prices",
             "https://www.pint-prices.com/pub/the-test-arms",
             observedAt,
+            "drink-price-update",
           ),
         ],
         venueName: "The Test Arms",
@@ -324,6 +334,7 @@ describe("baseline price-source presentation", () => {
             "Pint Prices",
             "https://www.pint-prices.com/pub/the-test-arms",
             observedAt,
+            "drink-price-update",
           ),
         ],
         venueName: "The Test Arms",
