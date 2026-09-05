@@ -102,6 +102,12 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     reason: "Every operation branches inline over several tables and maps; the largest hand-rolled exception.",
   },
   "lib/nightProfileStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
+  "lib/nightSignalStore.server.ts": {
+    class: "policy-heavy",
+    selector: "selectStore",
+    inlineBranches: 1,
+    reason: "nightSignalStoreIsDurable() tells the sweep whether a candidate outlives one invocation.",
+  },
   "lib/notificationsStore.ts": {
     class: "policy-heavy",
     selector: "selectStore",
