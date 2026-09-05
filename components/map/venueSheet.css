@@ -468,7 +468,9 @@
   flex: 1.2 1 0;
   border: 1px solid var(--accent-action);
   background: var(--accent-action);
-  color: var(--color-on-accent);
+  /* The locked coral pair: e2e/map-accessibility.spec.ts holds this ink to
+     the on-accent-strong token in both themes. */
+  color: var(--color-on-accent-strong);
 }
 
 .venueSheetStickyPrimary:hover {
