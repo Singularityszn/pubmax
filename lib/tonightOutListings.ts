@@ -21,6 +21,7 @@ import {
   type WhatsOnKind,
   type WhatsOnRow,
 } from "@/lib/whatsOn";
+import { picksState, type PicksState } from "@/lib/picksState";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 
 type TonightSelectableVenueIds = MapSelectableVenueIds | undefined;
@@ -306,21 +307,67 @@ export function tonightListingsStatus(
 /**
  * The What's-On status the PAINT reads while a re-read is in flight.
  *
- * `useWhatsOnTonight.retry()` puts the spine back to `idle` and KEEPS the rows
- * it already holds, and the merge then drops every one of them, because only a
- * `ready` spine may contribute. So pressing Retry replaced a full list with a
- * skeleton, which is the `refreshing` case in lib/picksState.ts wearing the
- * first-load shape. This says the held rows may stay on screen; the STATE
- * beside them still says a read is running and dates what they came from.
+ * `useWhatsOnTonight.retry()` puts the spine back to `idle`, and an `idle` spine
+ * contributes nothing AND holds the Out lane's rows back too, so the merge
+ * empties. Pressing Retry therefore replaced a full list with a skeleton, which
+ * is the `refreshing` case in lib/picksState.ts wearing the first-load shape.
+ * This says the rows already on screen may stay there; the STATE beside them
+ * still says a read is running and dates what they came from.
+ *
+ * `heldRowCount` counts BOTH lanes, and it has to. This page's retry control is
+ * only offered when the SPINE reported (`tonightNoteOffersRetry`), and a spine
+ * that reported carries no rows of its own, so the list under that button is
+ * the Out lane's. Counting the spine alone would leave exactly the case this
+ * exists for unfixed.
  *
  * A first load holds nothing, so `idle` passes straight through and the
  * skeleton is still what an arriving reader meets.
  */
+/** Rows the surface is holding right now, from BOTH lanes. */
+export function tonightHeldRowCount(
+  rows: readonly WhatsOnRow[],
+  out: TonightOutAnswer,
+): number {
+  return rows.length + (out.body?.events.length ?? 0);
+}
+
 export function tonightPaintStatus(
   whatsOn: TonightWhatsOnStatus,
   heldRowCount: number,
 ): TonightWhatsOnStatus {
   return whatsOn === "idle" && heldRowCount > 0 ? "ready" : whatsOn;
+}
+
+/**
+ * Tonight's whole picks state, composed where the other Tonight rules live.
+ *
+ * `picksState` owns the four words; this owns what THIS page means by each of
+ * its inputs, so the component reads one call rather than five branches, and a
+ * reader looking for how Tonight decides finds it beside the lane reports it is
+ * built from.
+ *
+ * `unreadable` is deliberately wider than `listingsStatus === "error"`: a lane
+ * NOBODY ASKED reports a note while the status stays `empty`, and to a reader
+ * that is the same absence as a lane that failed (battle test M07). The note is
+ * present for both; `retryable` says which of the two it was.
+ */
+export function tonightPicksState(input: {
+  visibleCount: number;
+  whatsOn: TonightWhatsOnStatus;
+  out: TonightOutAnswer;
+  listingsStatus: TonightListingsStatus;
+  note: string | null;
+  retryLanes: { whatsOn: boolean; out: boolean };
+  checkedAt: string | null;
+}): PicksState {
+  return picksState({
+    visibleCount: input.visibleCount,
+    inFlight: input.whatsOn === "idle" || input.out.pending,
+    unreadable: input.listingsStatus === "error" || input.note !== null,
+    reason: input.note,
+    retryable: input.retryLanes.whatsOn || input.retryLanes.out,
+    checkedAt: input.checkedAt,
+  });
 }
 
 export const TONIGHT_WHATS_ON_FAILED_LINE =

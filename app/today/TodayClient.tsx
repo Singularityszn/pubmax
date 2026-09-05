@@ -47,7 +47,11 @@ import {
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PicksAlternatives from "@/components/picks/PicksAlternatives";
 import type { NightAreaSlug } from "@/lib/nightAreas";
-import { NIGHT_PATCHES, readRememberedArea } from "@/lib/nightPatches";
+import {
+  NIGHT_PATCHES,
+  readRememberedArea,
+  rememberedPatchId,
+} from "@/lib/nightPatches";
 import {
   PICKS_REFRESHING_LINE,
   picksCheckedLabel,
@@ -426,9 +430,9 @@ export default function TodayClient({
     void Promise.resolve().then(() => {
       if (cancelled) return;
       const remembered = readRememberedArea();
-      const rememberedPatch = remembered?.kind === "patch"
-        ? NIGHT_PATCHES.find((patch) => patch.id === remembered.id)?.id ?? null
-        : null;
+      const rememberedPatch = NIGHT_PATCHES.find(
+        (patch) => patch.id === rememberedPatchId(remembered),
+      )?.id ?? null;
       setPicksContext({
         patchId: rememberedPatch,
         occasion: parsePlanOccasionIdFromSearch(window.location.search),

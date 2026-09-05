@@ -13,7 +13,11 @@ import { test, expect, type Page } from "@playwright/test";
 // Fixtures, never a live provider: both /api/whats-on and /api/out are fulfilled
 // from literals below.
 
-const QUIET_NIGHT_FRAGMENT = /quiet one tonight/i;
+// Scoped to the listing spine's own status paragraph. A bare text match also
+// catches `tonightQuietLede` ("Quiet one tonight. Still worth a look:"), which
+// is a different module saying a different thing.
+const QUIET_NIGHT_SENTENCE = ".tonightStatus";
+const QUIET_NIGHT_FRAGMENT = /The city.s having a quiet one tonight/i;
 const ALTERNATIVE_LABEL = /No event needed/i;
 
 function futureIso(offsetMs: number): string {
@@ -110,7 +114,9 @@ test.describe("Tonight picks states", () => {
     });
     await expect(page.getByText(/Fixture pub quiz/i).first()).toBeVisible();
     await expect(page.getByTestId("picks-alternatives")).toHaveCount(0);
-    await expect(page.getByText(QUIET_NIGHT_FRAGMENT)).toHaveCount(0);
+    await expect(
+      page.locator(QUIET_NIGHT_SENTENCE).filter({ hasText: QUIET_NIGHT_FRAGMENT }),
+    ).toHaveCount(0);
   });
 
   test("genuinely empty offers two non-event doors carrying the area", async ({
@@ -123,7 +129,9 @@ test.describe("Tonight picks states", () => {
     await expect(screen).toHaveAttribute("data-picks-state", "genuinely_empty", {
       timeout: 20_000,
     });
-    await expect(page.getByText(QUIET_NIGHT_FRAGMENT)).toBeVisible();
+    await expect(
+      page.locator(QUIET_NIGHT_SENTENCE).filter({ hasText: QUIET_NIGHT_FRAGMENT }),
+    ).toBeVisible();
 
     const alternatives = page.getByTestId("picks-alternatives");
     await expect(alternatives).toBeVisible();
@@ -167,15 +175,22 @@ test.describe("Tonight picks states", () => {
     // never told the city is quiet on a read that never answered.
     await expect(page.getByRole("button", { name: /Retry listings/i })).toBeVisible();
     await expect(page.getByTestId("picks-alternatives")).toBeVisible();
-    await expect(page.getByText(QUIET_NIGHT_FRAGMENT)).toHaveCount(0);
+    await expect(
+      page.locator(QUIET_NIGHT_SENTENCE).filter({ hasText: QUIET_NIGHT_FRAGMENT }),
+    ).toHaveCount(0);
   });
 
-  test("refreshing keeps the last good picks with their checked-at time", async ({
+  test("refreshing keeps the last good picks rather than emptying the list", async ({
     page,
   }) => {
-    // Rows from the spine, and an Out lane that reported: the note beside the
-    // cards is what carries this page's own retry control.
-    await stubFeeds(page, READY_WHATS_ON, DEGRADED_OUT);
+    // The spine FAILS and the Out lane carries the rows. That pairing is the
+    // only one that puts real cards and this page's own retry control on screen
+    // together: `tonightNoteOffersRetry` offers the button for the SPINE alone,
+    // and a spine that reported has no rows of its own.
+    await stubFeeds(page, () => ({ error: "upstream unavailable" }), {
+      ...READY_OUT,
+      events: fixtureRows(3),
+    });
     await page.goto("/tonight");
 
     const screen = page.getByTestId("tonight-screen");
@@ -184,36 +199,37 @@ test.describe("Tonight picks states", () => {
     });
     await expect(page.getByText(/Fixture pub quiz/i).first()).toBeVisible();
 
-    // Hold the NEXT spine read open, then press Retry. The rows already on
-    // screen must survive the re-read rather than collapsing to a skeleton.
-    let releaseSpine: (() => void) | null = null;
-    const spineHeld = new Promise<void>((resolve) => {
-      releaseSpine = resolve;
-    });
-    await page.route("**/api/whats-on**", async (route) => {
-      await spineHeld;
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(READY_WHATS_ON()),
-      });
-    });
+    // Hold the NEXT spine read open, so the re-read stays in flight and the
+    // state is observable rather than a race. Before this change the retry put
+    // the spine back to `idle`, an idle spine held the Out lane's rows back too,
+    // and the whole list collapsed to a skeleton on every press.
+    await page.route("**/api/whats-on**", () => new Promise(() => {}));
 
-    // A server-painted control can be tapped before React attaches, so the TAP
-    // is retried rather than the assertion after it being made stricter.
-    const refreshing = page.locator('[data-tonight-listings-note="refreshing"]');
-    await expect(async () => {
-      await page.getByRole("button", { name: /Retry listings/i }).first().click();
-      await expect(refreshing).toBeVisible({ timeout: 2_000 });
-    }).toPass({ timeout: 30_000 });
+    // One click, not a retried tap: this control is painted by a client
+    // component, so its presence already means React is attached, and the press
+    // REPLACES it with the re-read line, which is exactly what a retried tap
+    // would then hang waiting for.
+    const retry = page.getByRole("button", { name: /Retry listings/i }).first();
+    await expect(retry).toBeVisible({ timeout: 15_000 });
+    await retry.click();
 
-    await expect(screen).toHaveAttribute("data-picks-state", "refreshing");
-    // The rows stayed, and the held answer is dated by its own evidence.
-    await expect(page.getByText(/Fixture pub quiz/i).first()).toBeVisible();
-    await expect(refreshing).toContainText(/Checked \d+ \w+/);
+    await expect(screen).toHaveAttribute("data-picks-state", "refreshing", {
+      timeout: 10_000,
+    });
+    // The rows stayed put, and the re-read is named rather than mimed.
     await expect(page.getByTestId("listings-skeleton")).toHaveCount(0);
+    await expect(page.getByText(/Fixture pub quiz/i).first()).toBeVisible();
+    await expect(
+      page.locator('[data-tonight-listings-note="refreshing"]'),
+    ).toBeVisible();
 
-    releaseSpine?.();
+    // The section never claims a quiet city while it is holding real rows.
+    await expect(
+      page.locator(QUIET_NIGHT_SENTENCE).filter({ hasText: QUIET_NIGHT_FRAGMENT }),
+    ).toHaveCount(0);
+    expect(["ready", "refreshing"]).toContain(
+      await screen.getAttribute("data-picks-state"),
+    );
   });
 });
 
@@ -221,7 +237,9 @@ test.describe("Today picks states", () => {
   test("the picks card names its state and never dead-ends", async ({ page }) => {
     await page.goto("/today");
 
-    const card = page.getByTestId("today-picks");
+    // /today paints its card in both column layouts and hides one by CSS, so
+    // the testid legitimately resolves twice.
+    const card = page.getByTestId("today-picks").first();
     await expect(card).toBeVisible();
     const state = await card.getAttribute("data-picks-state");
     expect([

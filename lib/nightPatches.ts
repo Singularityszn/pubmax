@@ -85,6 +85,17 @@ function parseRemembered(raw: string | null): RememberedArea | null {
 }
 
 /** Last chosen area, or null on SSR / unset / unreadable / stale shape. */
+/**
+ * The patch id a remembered area names, or null.
+ *
+ * A remembered BOROUGH carries no patch of its own, so it answers null rather
+ * than being guessed at, and every caller that has to hand a patch onward (a
+ * `/near?patch=` link, a personalization default) asks this one question.
+ */
+export function rememberedPatchId(area: RememberedArea | null): string | null {
+  return area?.kind === "patch" ? area.id : null;
+}
+
 export function readRememberedArea(): RememberedArea | null {
   if (!hasStorage()) return null;
   try {

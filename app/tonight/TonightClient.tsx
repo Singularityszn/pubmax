@@ -62,7 +62,11 @@ import {
   type TonightRowEvidence,
 } from "@/app/tonight/TonightRowAccept";
 import { VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
-import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
+import {
+  readRememberedArea,
+  rememberedPatchId,
+  type RememberedArea,
+} from "@/lib/nightPatches";
 import { VibeChipButton, VibeChipLink, VibeChips } from "@/components/vibe/VibeChips";
 import { planOccasionHref, TONIGHT_SOFT_PLAN_CHIPS } from "@/lib/planOccasion";
 import { palChatHref, visibleTonightVibeChips } from "@/lib/vibeChips";
@@ -80,14 +84,16 @@ import {
   tonightListingLede,
   tonightListingLanes,
   tonightEmptyLead,
+  tonightHeldRowCount,
   tonightListingsNoteLine,
   tonightNoteOffersRetry,
   tonightPaintStatus,
+  tonightPicksState,
   tonightRetryLanes,
   tonightRowLinks,
   tonightProvenanceCredits,
 } from "@/lib/tonightOutListings";
-import { picksState, type PicksContext } from "@/lib/picksState";
+import type { PicksContext } from "@/lib/picksState";
 import { parsePlanOccasionIdFromSearch } from "@/lib/planOccasion";
 import type { QuietPintModule } from "@/lib/quietPint";
 import type { TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
@@ -250,10 +256,12 @@ export default function TonightClient({
   // One instant answers both questions. Reading the clock twice lets the merge
   // drop the night's last row while the status still calls the page ready, and
   // a ready page over no rows shows neither cards nor the quiet-night sentence.
-  // A retry puts the spine back to `idle` while KEEPING its rows, so the paint
-  // reads the held answer and only the state below says a read is running.
-  // Without this the merge empties a full list to a skeleton on every retry.
-  const paintStatus = tonightPaintStatus(status, rows.length);
+  // A retry puts the spine back to `idle`, which empties the merge of BOTH
+  // lanes, so the paint reads the answer already on screen and only the state
+  // below says a read is running. Counted across both lanes on purpose: the
+  // retry control is offered when the SPINE reported, and a spine that reported
+  // holds no rows, so the list under that button is the Out lane's.
+  const paintStatus = tonightPaintStatus(status, tonightHeldRowCount(rows, outAnswer));
   const { listingRows, primaryListingRows, listingsStatus, outEvents } = useMemo(() => {
     // The past guard needs the real clock, and this memo reads it again only
     // when one of the two reads answers, so both halves keep the same instant.
@@ -372,7 +380,7 @@ export default function TonightClient({
   // off rather than guessed at.
   const picksContext = useMemo<PicksContext>(
     () => ({
-      patchId: remembered?.kind === "patch" ? remembered.id : null,
+      patchId: rememberedPatchId(remembered),
       occasion,
     }),
     [remembered, occasion],
@@ -409,26 +417,22 @@ export default function TonightClient({
   // answer is dated by its own evidence rather than by the instant we re-asked.
   const listingsState = useMemo(
     () =>
-      picksState({
+      tonightPicksState({
         visibleCount: primaryListingRows.length,
-        inFlight: status === "idle" || outPending,
-        // A lane that FAILED and a lane NOBODY ASKED are one absence to a
-        // reader, and neither is a quiet city (battle test M07). The note is
-        // present for both; only a lane somebody could re-ask is offered a
-        // button.
-        unreadable: listingsStatus === "error" || listingsNote !== null,
-        reason: listingsNote,
-        retryable: retryLanes.whatsOn || retryLanes.out,
+        whatsOn: status,
+        out: outAnswer,
+        listingsStatus,
+        note: listingsNote,
+        retryLanes,
         checkedAt: asOf,
       }),
     [
       primaryListingRows.length,
       status,
-      outPending,
+      outAnswer,
       listingsStatus,
       listingsNote,
-      retryLanes.whatsOn,
-      retryLanes.out,
+      retryLanes,
       asOf,
     ],
   );
