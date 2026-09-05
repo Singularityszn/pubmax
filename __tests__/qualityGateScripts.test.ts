@@ -245,6 +245,40 @@ describe("assert-no-conditional-e2e-skips", () => {
     expect(result.stderr).toContain("count === 0 || process.env.PUBMAX_ALLOW_EMPTY");
   });
 
+  it("reads a skip on a module-scope environment const as the env gate it is", () => {
+    const directory = tempDirectory();
+    writeFileSync(
+      path.join(directory, "shots.spec.ts"),
+      [
+        'import { test } from "@playwright/test";',
+        'const SHOOTING = process.env.PW_PROOF_SHOTS === "1";',
+        'test("x", () => { test.skip(!SHOOTING, "Proof shots only."); });',
+        "",
+      ].join("\n"),
+    );
+
+    expect(run("assert-no-conditional-e2e-skips.mjs", [directory]).status).toBe(0);
+  });
+
+  it("still refuses a skip on a const derived from the page", () => {
+    const directory = tempDirectory();
+    writeFileSync(
+      path.join(directory, "quiet.spec.ts"),
+      [
+        'import { test } from "@playwright/test";',
+        'test("x", async ({ page }) => {',
+        '  const HAS_ROWS = (await page.locator("li").count()) > 0;',
+        '  test.skip(!HAS_ROWS, "quiet inventory");',
+        "});",
+        "",
+      ].join("\n"),
+    );
+
+    const result = run("assert-no-conditional-e2e-skips.mjs", [directory]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("depends on !HAS_ROWS");
+  });
+
   it("admits a skip the allowlist argues for, and nothing else", () => {
     const directory = tempDirectory();
     writeFileSync(

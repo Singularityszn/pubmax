@@ -96,9 +96,32 @@ function skipCallKind(expression) {
   return null;
 }
 
-function isIntentionalProjectGate(file, expression) {
+/**
+ * Module-scope `const NAME = process.env.X ...` declarations, so a skip written
+ * as `!SHOOTING` is judged as the environment gate it is rather than as a
+ * data-dependent condition. The initialiser must read process.env and NOTHING
+ * else: a const derived from a page read is exactly what this scan refuses.
+ */
+function environmentConstants(sourceFile) {
+  const names = new Set();
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
+      const text = declaration.initializer.getText(sourceFile);
+      if (/process\.env\.[A-Z0-9_]+/.test(text) && !/\b(await|page|request)\b/.test(text)) {
+        names.add(declaration.name.text);
+      }
+    }
+  }
+  return names;
+}
+
+function isIntentionalProjectGate(file, expression, envConstants = new Set()) {
   const compact = expression.replace(/\s+/g, " ").trim();
   if (/^\(*!process\.env\.[A-Z0-9_]+\)*$/.test(compact)) return true;
+  const negatedConstant = /^\(*!([A-Za-z_$][\w$]*)\)*$/.exec(compact);
+  if (negatedConstant && envConstants.has(negatedConstant[1])) return true;
   if (
     path.basename(file) === "screenshots.spec.ts" &&
     /^(?:!?isDesktop|isDesktop \|\| viewportName !== ["']390["'])$/.test(compact)
@@ -134,6 +157,8 @@ for (const file of files) {
     scriptKind(file),
   );
 
+  const envConstants = environmentConstants(sourceFile);
+
   function visit(node) {
     if (ts.isCallExpression(node)) {
       const kind = skipCallKind(node.expression);
@@ -157,7 +182,7 @@ for (const file of files) {
 
         const excused =
           isAllowed(file, expression) ||
-          (!staticDeclaration && isIntentionalProjectGate(file, expression));
+          (!staticDeclaration && isIntentionalProjectGate(file, expression, envConstants));
         if (!excused) {
           findings.push({
             file: path.relative(process.cwd(), file),
