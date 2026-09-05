@@ -144,11 +144,37 @@ export default defineConfig({
         "**/map-uk-base-layer.spec.ts",
         "**/ui-ux-battle-test.spec.ts",
         "**/signed-in-review.spec.ts",
+        // The Core Web Vitals sweep owns its own project: it needs a real GL
+        // context for the map routes, and it re-emulates device, CPU and
+        // network per run, which this project's fixed device would fight.
+        "**/cwv-baseline.spec.ts",
         // Flag-ON specs run only in the chromium-flag-on project against a
         // flag-on build (L20 zero-skip contract) — never in the default
         // flag-off suite, where their assertions would false-fail.
         "**/*.flag-on.spec.ts",
       ],
+    },
+    {
+      // The Core Web Vitals baseline and its regression fence
+      // (e2e/cwv-baseline.spec.ts). Two of its six routes are the map, and the
+      // product timing it exists to record is the first pin a thumb can land
+      // on, so it needs the same SwiftShader context chromium-gl uses: without
+      // one the canvas never gets a context, the map takes its honest fallback,
+      // and the sweep would record the fallback's speed as the product's.
+      //
+      // It sets its own viewport, CPU throttle and network profile per device
+      // (e2e/helpers/webVitals.ts), so the project supplies no device of its
+      // own. Service workers are blocked because a cold run has to mean an
+      // empty HTTP cache, and a stale-while-revalidate worker would answer from
+      // its own store past the cache clear.
+      name: "chromium-cwv",
+      testMatch: ["**/cwv-baseline.spec.ts"],
+      timeout: 3 * 60 * 60_000,
+      use: {
+        ...devices["Desktop Chrome"],
+        ...UI_UX_BROWSER_USE,
+        serviceWorkers: "block",
+      },
     },
     ...(FIREFOX_DESKTOP_MAP_CHROME_FIT
       ? [{

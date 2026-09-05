@@ -1,0 +1,151 @@
+{
+  "note": "The product's recorded Core Web Vitals, per route, per emulated device, per cache temperature, plus the four product timings the 2026-09-05 audit's R2 named. perf/route-budgets.json holds what a route COSTS; this holds what a person FEELS. Read docs/perf/baseline-2026-09-05.md before changing a number: down is free, and up needs a sentence in `debt` saying what got slower and why. lib/webVitalsBaseline.ts owns the rules; e2e/cwv-baseline.spec.ts is the only writer, under PUBMAX_CWV_RECORD=1, and the same spec under PUBMAX_CWV_SWEEP=1 is the fence. A figure over its R2 target (LCP 2500 ms, INP 200 ms, CLS 0.1) is DEBT and must carry its reason: __tests__/webVitalsBaseline.test.ts fails on an unowned one.",
+  "method": {
+    "recordedOn": "2026-09-05",
+    "commit": "9b6dbcd8c",
+    "runs": 3,
+    "aggregate": "median",
+    "build": "local production build (NEXT_DIST_DIR=.next-prod), keyless, served by next start; Playwright Chromium with SwiftShader so the map gets a real WebGL2 context and the sweep measures the map rather than its fallback. Taken on a shared box at load average ~52 on 18 cores, so these are pessimistic ceilings rather than clean figures.",
+    "devices": {
+      "mobile": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "cpuThrottleRate": 4,
+        "network": "chrome-slow-4g"
+      }
+    },
+    "inpNote": "INP is the worst interaction the run produced, read off Event Timing entries carrying an interactionId. The API's durationThreshold floors at 16 ms, so a route whose interaction finished inside one frame reports no entry and is recorded at 16 rather than at 0: we did not see it, which is not the same as it taking no time.",
+    "coverage": "Mobile only, 3 runs per cell, median, from ONE sweep of the shipped tree (docs/proof/perf-baseline-fix/sweep-after-arm.log). Desktop is NOT recorded: the desktop /map cell has never completed a run on this harness, and a bounded re-measurement on 5 Sep was taken at load average 70 and produced no painted pin in two of three mobile samples, so it is reported in the doc and deliberately not used as a ceiling. plan-acknowledged-save is absent because its run timed out on a dropped tap before the retry idiom landed. Every figure here was printed by a run; none was typed."
+  },
+  "routes": [
+    {
+      "path": "/",
+      "device": "mobile",
+      "temperature": "cold",
+      "lcpMs": 2032,
+      "inpMs": 104,
+      "cls": 0.004
+    },
+    {
+      "path": "/",
+      "device": "mobile",
+      "temperature": "warm",
+      "lcpMs": 2072,
+      "inpMs": 152,
+      "cls": 0.004
+    },
+    {
+      "path": "/map",
+      "device": "mobile",
+      "temperature": "cold",
+      "lcpMs": 8132,
+      "inpMs": 280,
+      "cls": 0.006,
+      "debt": "The map streams its venue shards and the UK base layer after paint on a throttled phone; docs/perf/baseline-2026-09-05.md names the remaining gate. Measured on a shared box at load average ~52; the interaction is real but the figure carries that contention. Recorded so it cannot regress unnoticed."
+    },
+    {
+      "path": "/map",
+      "device": "mobile",
+      "temperature": "warm",
+      "lcpMs": 7576,
+      "inpMs": 272,
+      "cls": 0,
+      "debt": "The map streams its venue shards and the UK base layer after paint on a throttled phone; docs/perf/baseline-2026-09-05.md names the remaining gate. Measured on a shared box at load average ~52; the interaction is real but the figure carries that contention. Recorded so it cannot regress unnoticed."
+    },
+    {
+      "path": "/map?sel=venue-1vle947",
+      "device": "mobile",
+      "temperature": "cold",
+      "lcpMs": 7924,
+      "inpMs": 1480,
+      "cls": 0.009,
+      "debt": "The map streams its venue shards and the UK base layer after paint on a throttled phone; docs/perf/baseline-2026-09-05.md names the remaining gate. Measured on a shared box at load average ~52; the interaction is real but the figure carries that contention. Recorded so it cannot regress unnoticed."
+    },
+    {
+      "path": "/map?sel=venue-1vle947",
+      "device": "mobile",
+      "temperature": "warm",
+      "lcpMs": 8464,
+      "inpMs": 584,
+      "cls": 0.006,
+      "debt": "The map streams its venue shards and the UK base layer after paint on a throttled phone; docs/perf/baseline-2026-09-05.md names the remaining gate. Measured on a shared box at load average ~52; the interaction is real but the figure carries that contention. Recorded so it cannot regress unnoticed."
+    },
+    {
+      "path": "/tonight",
+      "device": "mobile",
+      "temperature": "cold",
+      "lcpMs": 2208,
+      "inpMs": 472,
+      "cls": 0.009,
+      "debt": "Measured on a shared box at load average ~52; the interaction is real but the figure carries that contention. Recorded so it cannot regress unnoticed."
+    },
+    {
+      "path": "/tonight",
+      "device": "mobile",
+      "temperature": "warm",
+      "lcpMs": 2524,
+      "inpMs": 296,
+      "cls": 0.009,
+      "debt": "The map streams its venue shards and the UK base layer after paint on a throttled phone; docs/perf/baseline-2026-09-05.md names the remaining gate. Measured on a shared box at load average ~52; the interaction is real but the figure carries that contention. Recorded so it cannot regress unnoticed."
+    },
+    {
+      "path": "/today",
+      "device": "mobile",
+      "temperature": "cold",
+      "lcpMs": 4120,
+      "inpMs": 56,
+      "cls": 0,
+      "debt": "The map streams its venue shards and the UK base layer after paint on a throttled phone; docs/perf/baseline-2026-09-05.md names the remaining gate."
+    },
+    {
+      "path": "/today",
+      "device": "mobile",
+      "temperature": "warm",
+      "lcpMs": 3892,
+      "inpMs": 48,
+      "cls": 0,
+      "debt": "The map streams its venue shards and the UK base layer after paint on a throttled phone; docs/perf/baseline-2026-09-05.md names the remaining gate."
+    },
+    {
+      "path": "/plan",
+      "device": "mobile",
+      "temperature": "cold",
+      "lcpMs": 1620,
+      "inpMs": 96,
+      "cls": 0
+    },
+    {
+      "path": "/plan",
+      "device": "mobile",
+      "temperature": "warm",
+      "lcpMs": 1688,
+      "inpMs": 40,
+      "cls": 0
+    }
+  ],
+  "productTimings": [
+    {
+      "key": "map-usable-venues",
+      "label": "usable venue results on /map (first painted pin)",
+      "device": "mobile",
+      "startedAt": "navigation start",
+      "ms": 13330
+    },
+    {
+      "key": "map-venue-sheet",
+      "label": "a selected venue sheet (/map?sel=)",
+      "device": "mobile",
+      "startedAt": "navigation start",
+      "ms": 16221
+    },
+    {
+      "key": "plan-editable",
+      "label": "an editable plan on /plan",
+      "device": "mobile",
+      "startedAt": "navigation start",
+      "ms": 1960
+    }
+  ]
+}

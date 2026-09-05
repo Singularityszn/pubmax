@@ -1,0 +1,30 @@
+Cold /map, 390x844, 4x CPU throttle, Slow 4G (150 ms RTT, 1474.56 kbit/s down),
+SwiftShader WebGL2, empty HTTP cache, local production build at 2a5350cd5.
+
+first painted, tappable pin   16,484 ms
+
+navigation   responseStart 6   responseEnd 221   DOMContentLoaded 1,393   load 3,099
+marks        pubmax:map-chunk-ready 5,405
+             pubmax:first-pins      5,995      <- venue rows merged
+             pubmax:slim-venues-ready 5,997
+             pubmax:camera-intent:area 13,398
+             pubmax:pin-entrance-settled 14,086
+totals       2,534 KB decoded JS over 760 KB transferred, 162 requests
+
+The chain that decides the first pin (start -> end, decoded / transferred):
+
+  3,268 ->  6,800   1024 KB / 273 KB   chunks/3dwserew14ew1.js        (MapLibre)
+                                       ...1,585 ms with nothing on the wire:
+                                       the CPU is parsing and executing it...
+  8,385 -> 10,155    478 KB / 133 KB   /vendor/maplibre/maplibre-gl-shared.mjs
+ 11,259 -> 12,070      ~ 20 requests   /data/venues_slim.cell.*.json  (ring)
+ 13,673 -> 14,136     44 KB /   6 KB   /data/uk_base/manifest.json
+ 14,161 -> 16,099     80 KB /  28 KB   /data/uk_base/packs/<rev>/51.25_-0.25.json
+ 15,120 -> 15,821       3 CSS chunks   (route CSS for a prefetched destination)
+ 15,147 -> 16,075       3 RSC fetches  /?_rsc=...
+
+Reading: the venue data was ready at 5,995 ms and the reader waited another
+10,489 ms. The engine, not the data, is what they were waiting for. The
+worker's shared module is not even REQUESTED until 8,385 ms, 1,585 ms after
+the chunk that eventually asks for it finished downloading, because nothing
+in the document mentions its URL.
