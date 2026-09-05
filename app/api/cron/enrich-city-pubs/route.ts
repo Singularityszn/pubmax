@@ -4,20 +4,48 @@
 // cannot commit static files, so cron rotates one bounded batch through same
 // tested enrichment core and emits structured observations to function logs.
 // SEARCH_PROVIDER selects Exa or Tavily. CRON_SECRET protects invocation.
+//
+// SAFE TO FAIL, SAFE TO RETRY (2026-09-05). The run holds a durable checkpoint
+// (`lib/cityEnrichmentCheckpoint.ts`, migration 0142) rather than deriving its
+// start index from the calendar day. A venue whose search fails is recorded
+// and owed a bounded retry, so the night's remaining budget still reaches the
+// pubs behind it; a second scheduler finds the lease held and spends nothing;
+// and a run that dies mid-batch still commits what it learned. The route
+// publishes NOTHING: every price and page it reports goes to the function log,
+// and the reviewed price lanes are untouched, so no repeat run can duplicate a
+// published record.
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { assertCronRequest } from "@/lib/cronAuth";
 import { createSearchProvider } from "@/lib/searchProvider.server";
 import {
+  MAX_VENUE_ATTEMPTS,
+  RETRY_QUERY_BUDGET,
   runScheduledCityEnrichment,
   SEARCH_CRON_QUERY_CAP,
+  type ScheduledCityRunOutcome,
   type ScheduledEnrichmentProgress,
 } from "@/lib/tavilyPubEnrichment.server";
+import type { CityEnrichmentHealth } from "@/lib/cityEnrichmentCheckpoint";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
+
+/** The documented way back for a venue the attempt cap has refused. */
+const TERMINAL_RETRY_PATH = 'POST /api/admin/city-enrichment { action: "requeue", city }';
+
+function checkpointSummary(checkpoints: CityEnrichmentHealth[] | undefined) {
+  return (checkpoints ?? []).map((health) => ({
+    city: health.city,
+    nextIndex: health.nextIndex,
+    totalPubs: health.totalPubs,
+    passes: health.passes,
+    deferred: health.deferred,
+    terminal: health.terminal,
+  }));
+}
 
 export async function GET(request: Request): Promise<Response> {
   const denied = assertCronRequest(request);
@@ -80,6 +108,8 @@ export async function GET(request: Request): Promise<Response> {
         estimatedTokens: providerStats.estimatedTokens,
         tavilyCalls: providerStats.tavilyCalls,
         matchedPubs: result.matchedPubs,
+        checkpointDurable: result.checkpointDurable ?? false,
+        checkpoints: checkpointSummary(result.checkpoints),
         prices: result.prices,
         pages: result.pages,
         delegatedChains: result.delegatedChains.map(({ pub, chain, harvester }) => ({
@@ -90,6 +120,21 @@ export async function GET(request: Request): Promise<Response> {
         })),
       }),
     );
+
+    // A venue the attempt cap has refused is an operator's decision to make,
+    // so it says so once, by name, with the way back beside it.
+    for (const health of (result.checkpoints ?? []).filter((entry) => entry.terminal > 0)) {
+      console.error(
+        "[cron:enrich-city-pubs][city-enrichment][terminal]",
+        JSON.stringify({
+          city: health.city,
+          venuesRefused: health.venuesRefused,
+          maxVenueAttempts: MAX_VENUE_ATTEMPTS,
+          retryPath: TERMINAL_RETRY_PATH,
+        }),
+      );
+    }
+
     return jsonNoStore({
       ok: true,
       city: result.city,
@@ -98,6 +143,8 @@ export async function GET(request: Request): Promise<Response> {
       startIndex: result.startIndex,
       nextIndex: result.nextIndex,
       queryCap: SEARCH_CRON_QUERY_CAP,
+      retryQueryBudget: RETRY_QUERY_BUDGET,
+      maxVenueAttempts: MAX_VENUE_ATTEMPTS,
       provider: providerStats.selectedProvider,
       queriesSpent: result.queriesSpent,
       creditsSpent: result.creditsSpent,
@@ -109,6 +156,12 @@ export async function GET(request: Request): Promise<Response> {
       matchedPubs: result.matchedPubs,
       pricesExtracted: result.prices.length,
       chainPubsDelegated: result.delegatedChains.length,
+      checkpointDurable: result.checkpointDurable ?? false,
+      checkpoints: checkpointSummary(result.checkpoints),
+      // This route publishes nothing. The figure is stated so a reader never
+      // has to infer it from an absence.
+      published: 0,
+      terminalRetryPath: TERMINAL_RETRY_PATH,
     });
   } catch (error) {
     const providerStats = searchProvider.stats();
@@ -127,6 +180,10 @@ export async function GET(request: Request): Promise<Response> {
         tavilyCalls: providerStats.tavilyCalls,
       }),
     );
+    const failure = error as Error & {
+      cityRuns?: ScheduledCityRunOutcome[];
+      checkpoints?: CityEnrichmentHealth[];
+    };
     const partial = lastProgress as ScheduledEnrichmentProgress | null;
     if (partial) {
       console.error(
@@ -141,6 +198,16 @@ export async function GET(request: Request): Promise<Response> {
         }),
       );
     }
+    // The checkpoint is committed before the refusal reaches here, so a failed
+    // run still says where it got to and what it left owed.
+    console.error(
+      "[cron:enrich-city-pubs][city-enrichment][checkpoint]",
+      JSON.stringify({
+        cityRuns: failure.cityRuns ?? [],
+        checkpoints: checkpointSummary(failure.checkpoints),
+        retryPath: TERMINAL_RETRY_PATH,
+      }),
+    );
     return publicApiError("City enrichment provider unavailable.", "PROVIDER_UNAVAILABLE", 502, {
       retryable: true,
     });

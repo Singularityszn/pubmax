@@ -152,6 +152,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/analyticsReceiptStore.ts",
     "lib/areaDemandStore.ts",
     "lib/checkInStore.ts",
+    "lib/cityEnrichmentCheckpointStore.server.ts",
     "lib/commentsStore.ts",
     "lib/communityPriceStore.ts",
     "lib/contributorLeaderboardStore.ts",

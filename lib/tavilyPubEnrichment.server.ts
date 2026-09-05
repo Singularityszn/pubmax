@@ -2,6 +2,7 @@ import "server-only";
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 
 import {
   classifyChainPub,
@@ -12,6 +13,28 @@ import {
 } from "@/scripts/lib/tavilyPubEnrichment.mjs";
 import { DAY_MS } from "@/lib/dayMs";
 import type { SearchProvider } from "@/lib/searchProvider.server";
+import {
+  CONSECUTIVE_VENUE_FAILURE_LIMIT,
+  MAX_VENUE_ATTEMPTS,
+  RETRY_QUERY_BUDGET,
+  advanceCursor,
+  cityEnrichmentHealth,
+  emptyCityEnrichmentCheckpoint,
+  planCityEnrichment,
+  recordVenueFailure,
+  recordVenueSuccess,
+  releaseEnrichmentLease,
+  requeueTerminalVenues,
+  runLevelFailure,
+  type CityEnrichmentCheckpoint,
+  type CityEnrichmentHealth,
+  type CityEnrichmentRunRecord,
+} from "@/lib/cityEnrichmentCheckpoint";
+import {
+  cityEnrichmentCheckpointIsDurable,
+  cityEnrichmentCheckpointStore,
+  type CityEnrichmentCheckpointStore,
+} from "@/lib/cityEnrichmentCheckpointStore.server";
 
 // London leads the rotation. It was absent from it entirely until 2026-08-16,
 // so no London pub had ever reached this seam, while the site's whole price
@@ -26,8 +49,8 @@ const CITY_ROTATION = [
   "bristol",
 ] as const;
 // Provider requests run sequentially. Ten requests keep the daily function
-// below Vercel's 120-second ceiling while the rotating start index preserves
-// eventual coverage across scheduled runs.
+// below Vercel's 120-second ceiling while the durable cursor preserves
+// coverage across scheduled runs.
 export const SEARCH_CRON_QUERY_CAP = 10;
 /** Bristol nights 504 at the full cron cap; keep the city inside a smaller slice. */
 export const BRISTOL_CRON_QUERY_CAP = 8;
@@ -48,6 +71,15 @@ export type ScheduledCityEnrichment = TavilyEnrichmentResult & {
   startIndex: number;
   primaryCity: string;
   cityRuns?: ScheduledCityRunOutcome[];
+  checkpoints?: CityEnrichmentHealth[];
+  checkpointDurable?: boolean;
+};
+
+export type VenueOutcome = {
+  index: number;
+  osmId: string;
+  status: "matched" | "empty" | "delegated" | "no-website" | "failed";
+  error?: string;
 };
 
 export type ScheduledEnrichmentProgress = {
@@ -58,6 +90,7 @@ export type ScheduledEnrichmentProgress = {
   prices: TavilyEnrichmentResult["prices"];
   pages: TavilyEnrichmentResult["pages"];
   delegatedChains: TavilyEnrichmentResult["delegatedChains"];
+  outcomes?: VenueOutcome[];
 };
 
 export type ScheduledCityRunOutcome = {
@@ -70,6 +103,12 @@ export type ScheduledCityRunOutcome = {
   matchedPubs?: number;
   pricesExtracted?: number;
   error?: string;
+  /** Why this city did no work, when it did none. */
+  skipped?: "lease-held" | "checkpoint-unavailable" | "no-eligible-pubs" | "out-of-time";
+  retriesAttempted?: number;
+  venuesDeferred?: number;
+  venuesTerminal?: number;
+  checkpointCommitted?: boolean;
 };
 
 type RunScheduledOptions = {
@@ -87,15 +126,6 @@ function eligibleCityPubs(city: string, allPubs: OsmPub[]): OsmPub[] {
   return selectCityPubs(city, allPubs).filter(
     (pub) => Boolean(pub.website) && !classifyChainPub(pub),
   );
-}
-
-function startIndexForCity(
-  city: string,
-  pubs: OsmPub[],
-  epochDay: number,
-  rotationStride: number,
-): number {
-  return pubs.length > 0 ? (Math.floor(epochDay / CITY_ROTATION.length) * rotationStride) % pubs.length : 0;
 }
 
 function withWallClock<T>(
@@ -120,113 +150,69 @@ function withWallClock<T>(
   });
 }
 
-function outcomeFromResult(city: string, result: CityBatchResult): ScheduledCityRunOutcome {
-  return {
-    city,
-    ok: true,
-    queriesSpent: result.queriesSpent,
-    creditsSpent: result.creditsSpent,
-    startIndex: result.startIndex,
-    nextIndex: result.nextIndex,
-    matchedPubs: result.matchedPubs,
-    pricesExtracted: result.prices.length,
-  };
-}
+/**
+ * One pass of the core over a set of venues.
+ *
+ * `onVenueError` returning "continue" is what turns a venue's failure into a
+ * fact about that venue instead of the end of the night. It refuses to do that
+ * for a failure about us, and it stops the run once a provider has refused
+ * `CONSECUTIVE_VENUE_FAILURE_LIMIT` venues in a row, which is an outage rather
+ * than a run of bad pubs.
+ */
+type CoreRunInput = {
+  city: string;
+  pubs: OsmPub[];
+  options: RunScheduledOptions;
+  observedAt: string;
+  maxQueries: number;
+  startIndex?: number;
+  indices?: number[];
+  signal?: AbortSignal;
+  onOutcomes: (outcomes: VenueOutcome[]) => void;
+  onPartial: (progress: ScheduledEnrichmentProgress) => void;
+  onProgress?: (progress: ScheduledEnrichmentProgress) => void | Promise<void>;
+};
 
-function resultFromPartial(
-  partial: ScheduledEnrichmentProgress,
-  city: string,
-  allPubs: OsmPub[],
-  epochDay: number,
-  rotationStride: number,
-): CityBatchResult {
-  const pubs = eligibleCityPubs(city, allPubs);
-  const startIndex = startIndexForCity(city, pubs, epochDay, rotationStride);
-  return {
-    city,
-    primaryCity: city,
-    totalPubs: pubs.length,
-    startIndex,
-    nextIndex: partial.nextIndex,
-    queriesSpent: partial.queriesSpent,
-    creditsSpent: partial.creditsSpent,
-    matchedPubs: partial.pages.length,
-    prices: partial.prices,
-    pages: partial.pages,
-    delegatedChains: partial.delegatedChains,
-    complete: false,
-  };
-}
-
-function outcomeFromPartial(
-  city: string,
-  partial: ScheduledEnrichmentProgress | null,
-  error: unknown,
-): ScheduledCityRunOutcome {
-  return {
-    city,
-    ok: false,
-    queriesSpent: partial?.queriesSpent ?? 0,
-    creditsSpent: partial?.creditsSpent ?? 0,
-    startIndex: partial ? partial.nextIndex - (partial.queriesSpent > 0 ? 1 : 0) : undefined,
-    nextIndex: partial?.nextIndex,
-    matchedPubs: partial?.pages.length,
-    pricesExtracted: partial?.prices.length,
-    error: error instanceof Error ? error.message : String(error),
-  };
-}
-
-async function runCityBatch(
-  city: string,
-  options: RunScheduledOptions,
-  allPubs: OsmPub[],
-  epochDay: number,
-  rotationStride: number,
-  maxQueries: number,
-  wallMs?: number,
-): Promise<CityBatchResult> {
-  const pubs = eligibleCityPubs(city, allPubs);
-  const startIndex = startIndexForCity(city, pubs, epochDay, rotationStride);
-  let lastPartial: ScheduledEnrichmentProgress | null = null;
-  const abortController = wallMs !== undefined ? new AbortController() : undefined;
-  const enrichment = runCityEnrichment({
-    city,
-    pubs,
-    apiKey: options.apiKey,
-    searchProvider: options.searchProvider,
-    fetchImpl: options.fetchImpl,
-    maxQueries,
-    startIndex,
-    observedAt: new Date(options.now ?? Date.now()).toISOString(),
-    signal: abortController?.signal,
-    onProgress: async (state) => {
-      if (abortController?.signal.aborted) return;
-      const progress = {
-        city,
-        ...(state as Omit<ScheduledEnrichmentProgress, "city">),
-      };
-      if (abortController?.signal.aborted) return;
-      lastPartial = progress;
-      if (abortController?.signal.aborted) return;
-      await options.onProgress?.(progress);
+function runCore(input: CoreRunInput): Promise<TavilyEnrichmentResult> {
+  let seenOutcomes = 0;
+  let consecutiveFailures = 0;
+  return runCityEnrichment({
+    city: input.city,
+    pubs: input.pubs,
+    apiKey: input.options.apiKey,
+    searchProvider: input.options.searchProvider,
+    fetchImpl: input.options.fetchImpl,
+    maxQueries: input.maxQueries,
+    ...(input.indices ? { indices: input.indices } : { startIndex: input.startIndex ?? 0 }),
+    observedAt: input.observedAt,
+    signal: input.signal,
+    onVenueError: ({ error }: { error: unknown }) => {
+      if (runLevelFailure(error)) return "abort";
+      consecutiveFailures += 1;
+      return consecutiveFailures >= CONSECUTIVE_VENUE_FAILURE_LIMIT ? "abort" : "continue";
     },
-  });
-  try {
-    const result = wallMs
-      ? await withWallClock(enrichment, wallMs, () => abortController!.abort())
-      : await enrichment;
-    return { ...result, startIndex, primaryCity: city };
-  } catch (error) {
-    if (wallMs) {
-      // A provider may ignore AbortSignal. Do not drain its promise here,
-      // because that would turn our wall-clock bound into an unbounded wait.
-      void enrichment.catch(() => {});
-    }
-    if (lastPartial) {
-      (error as Error & { partial?: ScheduledEnrichmentProgress }).partial = lastPartial;
-    }
-    throw error;
-  }
+    onProgress: async (state: Record<string, unknown>) => {
+      // Past the wall clock this lane is finished with. A provider that keeps
+      // going may not publish late progress into a run that has moved on.
+      if (input.signal?.aborted) return;
+      const outcomes = (state.outcomes as VenueOutcome[] | undefined) ?? [];
+      if (outcomes.length > seenOutcomes) {
+        const fresh = outcomes.slice(seenOutcomes);
+        seenOutcomes = outcomes.length;
+        if (fresh.some((outcome) => outcome.status !== "failed")) consecutiveFailures = 0;
+        input.onOutcomes(fresh);
+      }
+      // Spend is recorded as it happens, so a lane that throws still reports
+      // what it cost. Reading it off the return value alone would answer zero
+      // for exactly the runs the spend question is asked about.
+      input.onPartial(state as unknown as ScheduledEnrichmentProgress);
+      if (input.signal?.aborted) return;
+      await input.onProgress?.({
+        city: input.city,
+        ...(state as Omit<ScheduledEnrichmentProgress, "city">),
+      });
+    },
+  }) as Promise<TavilyEnrichmentResult>;
 }
 
 function mergeCityResults(primaryCity: string, runs: CityBatchResult[]): ScheduledCityEnrichment {
@@ -262,7 +248,9 @@ export async function runScheduledCityEnrichment(
   const allPubs = loadUkPubs();
   const cityRuns: ScheduledCityRunOutcome[] = [];
   const mergeableRuns: CityBatchResult[] = [];
+  const checkpoints: CityEnrichmentHealth[] = [];
   const runDeadline = Date.now() + SEARCH_CRON_WALL_MS;
+  const store = cityEnrichmentCheckpointStore();
 
   const runTrackedCity = async (
     city: string,
@@ -276,37 +264,29 @@ export async function runScheduledCityEnrichment(
         ok: false,
         queriesSpent: 0,
         creditsSpent: 0,
+        skipped: "out-of-time",
         error: `City enrichment run timed out after ${SEARCH_CRON_WALL_MS}ms.`,
       });
       return null;
     }
-    try {
-      const result = await runCityBatch(
-        city,
-        options,
-        allPubs,
-        epochDay,
-        maxQueries,
-        queryCap,
-        Math.min(cityWallMs, remainingWallMs),
-      );
-      cityRuns.push(outcomeFromResult(city, result));
-      mergeableRuns.push(result);
-      return result;
-    } catch (error) {
-      const partial = (error as Error & { partial?: ScheduledEnrichmentProgress }).partial ?? null;
-      cityRuns.push(outcomeFromPartial(city, partial, error));
-      if (partial) {
-        mergeableRuns.push(resultFromPartial(partial, city, allPubs, epochDay, maxQueries));
-      }
-      return null;
-    }
+    const outcome = await runCityWithCheckpoint({
+      city,
+      queryCap,
+      wallMs: Math.min(cityWallMs, remainingWallMs),
+      options,
+      allPubs,
+      now,
+      store,
+    });
+    cityRuns.push(outcome.runOutcome);
+    if (outcome.health) checkpoints.push(outcome.health);
+    if (outcome.batch) mergeableRuns.push(outcome.batch);
+    return outcome.runOutcome.ok ? outcome.batch : null;
   };
 
   const primaryCap =
     primaryCity === "bristol" ? Math.min(BRISTOL_CRON_QUERY_CAP, maxQueries) : maxQueries;
-  const primaryWallMs =
-    primaryCity === "bristol" ? BRISTOL_CRON_WALL_MS : SEARCH_CRON_WALL_MS;
+  const primaryWallMs = primaryCity === "bristol" ? BRISTOL_CRON_WALL_MS : SEARCH_CRON_WALL_MS;
   const primaryResult = await runTrackedCity(primaryCity, primaryCap, primaryWallMs);
 
   if (primaryCity === "bristol") {
@@ -328,21 +308,31 @@ export async function runScheduledCityEnrichment(
     }
   }
 
-  if (!primaryResult && primaryCity !== "bristol") {
-    const failed = cityRuns.find((run) => run.city === primaryCity);
-    const message = failed?.error ?? "City enrichment provider unavailable.";
-    const error = new Error(message);
-    if (failed) {
-      (error as Error & { partial?: ScheduledEnrichmentProgress }).partial = {
+  // A city that did no work because another run holds the lease, or because
+  // the checkpoint could not be read, is not a failed night: it is a night
+  // that correctly declined to spend. Only a real refusal alerts.
+  const primaryOutcome = cityRuns.find((run) => run.city === primaryCity);
+  const primaryDeclined = Boolean(primaryOutcome?.skipped);
+  if (!primaryResult && primaryCity !== "bristol" && !primaryDeclined) {
+    const message = primaryOutcome?.error ?? "City enrichment provider unavailable.";
+    const error = new Error(message) as Error & {
+      partial?: ScheduledEnrichmentProgress;
+      cityRuns?: ScheduledCityRunOutcome[];
+      checkpoints?: CityEnrichmentHealth[];
+    };
+    if (primaryOutcome) {
+      error.partial = {
         city: primaryCity,
-        nextIndex: failed.nextIndex ?? failed.startIndex ?? 0,
-        queriesSpent: failed.queriesSpent,
-        creditsSpent: failed.creditsSpent,
+        nextIndex: primaryOutcome.nextIndex ?? primaryOutcome.startIndex ?? 0,
+        queriesSpent: primaryOutcome.queriesSpent,
+        creditsSpent: primaryOutcome.creditsSpent,
         prices: [],
         pages: [],
         delegatedChains: [],
       };
     }
+    error.cityRuns = cityRuns;
+    error.checkpoints = checkpoints;
     throw error;
   }
 
@@ -367,5 +357,303 @@ export async function runScheduledCityEnrichment(
   return {
     ...merged,
     cityRuns,
+    checkpoints,
+    checkpointDurable: cityEnrichmentCheckpointIsDurable(),
   };
 }
+
+type CityRunInput = {
+  city: string;
+  queryCap: number;
+  wallMs: number;
+  options: RunScheduledOptions;
+  allPubs: OsmPub[];
+  now: number;
+  store: CityEnrichmentCheckpointStore;
+};
+
+type CityRunResult = {
+  runOutcome: ScheduledCityRunOutcome;
+  batch: CityBatchResult | null;
+  health: CityEnrichmentHealth | null;
+};
+
+/**
+ * One city, from claiming its lease to committing what the run learned.
+ *
+ * The order matters. The lease is claimed BEFORE a query is spent, the cursor
+ * advances only past venues whose outcome was recorded, and the commit happens
+ * on every exit including a throw, so a run that dies mid-batch still leaves
+ * the city further along than it found it.
+ */
+async function runCityWithCheckpoint(input: CityRunInput): Promise<CityRunResult> {
+  const { city, options, allPubs, now, store } = input;
+  const pubs = eligibleCityPubs(city, allPubs);
+  const runId = `${city}-${randomUUID()}`;
+  const startedAt = new Date(now).toISOString();
+
+  if (pubs.length === 0) {
+    return {
+      runOutcome: { city, ok: true, queriesSpent: 0, creditsSpent: 0, skipped: "no-eligible-pubs" },
+      batch: null,
+      health: null,
+    };
+  }
+
+  const claim = await store.claim({ city, totalPubs: pubs.length, owner: runId, now });
+  if (claim.status === "lease-held") {
+    return {
+      runOutcome: {
+        city,
+        ok: true,
+        queriesSpent: 0,
+        creditsSpent: 0,
+        skipped: "lease-held",
+        error: `Lease held by ${claim.heldBy} until ${claim.expiresAt}.`,
+      },
+      batch: null,
+      health: null,
+    };
+  }
+  if (claim.status === "unavailable") {
+    return {
+      runOutcome: {
+        city,
+        ok: true,
+        queriesSpent: 0,
+        creditsSpent: 0,
+        skipped: "checkpoint-unavailable",
+        error: claim.reason,
+      },
+      batch: null,
+      health: null,
+    };
+  }
+
+  const claimedPasses = claim.checkpoint.passes;
+  let checkpoint: CityEnrichmentCheckpoint = claim.checkpoint;
+  const plan = planCityEnrichment(checkpoint, {
+    now,
+    queryBudget: input.queryCap,
+    retryBudget: RETRY_QUERY_BUDGET,
+  });
+
+  const indexByOsmId = new Map<string, number>();
+  pubs.forEach((pub, index) => indexByOsmId.set(String(pub.osmId), index));
+  const retryIndices = plan.retryOsmIds
+    .map((osmId) => indexByOsmId.get(osmId))
+    .filter((index): index is number => typeof index === "number");
+  // A deferred venue the pack no longer holds is not owed a retry. Drop it now
+  // rather than carrying an id nothing can resolve for ever.
+  for (const osmId of plan.retryOsmIds.filter((id) => !indexByOsmId.has(id))) {
+    checkpoint = recordVenueSuccess(checkpoint, { osmId, now });
+  }
+
+  const observedAt = new Date(now).toISOString();
+  const prices: TavilyEnrichmentResult["prices"] = [];
+  const pages: TavilyEnrichmentResult["pages"] = [];
+  const delegatedChains: TavilyEnrichmentResult["delegatedChains"] = [];
+  let queriesSpent = 0;
+  let creditsSpent = 0;
+  let cursor = plan.startIndex;
+  let runError: string | undefined;
+
+  // Venues we actually READ this run. A run that read none of the venues it
+  // asked about is a provider outage and still alerts, however many queries it
+  // spent finding that out.
+  let venuesRead = 0;
+  // The cursor is DERIVED from the outcomes of the fresh lane, never from the
+  // lane's return value alone: a lane that threw still recorded outcomes, and
+  // every venue whose outcome is recorded is a venue the cursor may pass.
+  const applyOutcomes = (outcomes: VenueOutcome[], lane: "retry" | "fresh") => {
+    for (const outcome of outcomes) {
+      const osmId = String(outcome.osmId);
+      if (outcome.status === "matched" || outcome.status === "empty") venuesRead += 1;
+      if (lane === "fresh") cursor = Math.max(cursor, outcome.index + 1);
+      checkpoint =
+        outcome.status === "failed"
+          ? recordVenueFailure(checkpoint, { osmId, error: outcome.error ?? "unknown", now })
+              .checkpoint
+          : recordVenueSuccess(checkpoint, { osmId, now });
+    }
+  };
+
+  const controller = new AbortController();
+  const laneDeadline = Date.now() + input.wallMs;
+
+  // One lane, whether it returns or throws. Its spend and its rows are taken
+  // from the last progress it reported, so a lane killed by the wall clock is
+  // accounted for exactly like one that finished.
+  const runLane = async (lane: {
+    indices?: number[];
+    startIndex?: number;
+    budget: number;
+  }): Promise<TavilyEnrichmentResult | null> => {
+    let partial: ScheduledEnrichmentProgress | null = null;
+    let settled: TavilyEnrichmentResult | null = null;
+    try {
+      settled = await withWallClock(
+        runCore({
+          city,
+          pubs,
+          options,
+          observedAt,
+          maxQueries: lane.budget,
+          ...(lane.indices ? { indices: lane.indices } : { startIndex: lane.startIndex ?? 0 }),
+          signal: controller.signal,
+          onOutcomes: (outcomes) => applyOutcomes(outcomes, lane.indices ? "retry" : "fresh"),
+          onPartial: (state) => {
+            partial = state;
+          },
+          onProgress: options.onProgress,
+        }),
+        Math.max(1, laneDeadline - Date.now()),
+        // The provider may ignore the abort. The lane is never drained here,
+        // or the wall-clock bound becomes an unbounded wait.
+        () => controller.abort(),
+      );
+      return settled;
+    } finally {
+      // A lane that returned reports itself. A lane that threw is accounted
+      // for from the last progress it published, which is the same running
+      // total the return value would have carried.
+      const spent: TavilyEnrichmentResult | ScheduledEnrichmentProgress | null =
+        settled ?? partial;
+      if (spent) {
+        prices.push(...spent.prices);
+        pages.push(...spent.pages);
+        delegatedChains.push(...spent.delegatedChains);
+        queriesSpent += spent.queriesSpent;
+        creditsSpent += spent.creditsSpent;
+      }
+    }
+  };
+
+  try {
+    // Retries first. A venue the last run could not read is owed its answer
+    // before a venue nobody has looked at yet.
+    if (retryIndices.length > 0) {
+      await runLane({ indices: retryIndices, budget: retryIndices.length });
+    }
+    const freshBudget = Math.max(0, input.queryCap - queriesSpent);
+    if (freshBudget > 0) {
+      const result = await runLane({ startIndex: plan.startIndex, budget: freshBudget });
+      if (result) cursor = Math.max(cursor, result.nextIndex);
+    }
+  } catch (error) {
+    runError = error instanceof Error ? error.message : String(error);
+  }
+
+  checkpoint = advanceCursor(checkpoint, { nextIndex: cursor, totalPubs: pubs.length, now });
+
+  const runRecord: CityEnrichmentRunRecord = {
+    runId,
+    startedAt,
+    endedAt: new Date(now).toISOString(),
+    // "partial" means some venues were READ and others were not. A run that
+    // read none of them failed, whatever it spent finding that out.
+    outcome: runError ? (venuesRead > 0 ? "partial" : "failed") : "ok",
+    attempted: queriesSpent,
+    succeeded: venuesRead,
+    failed: checkpoint.deferred.length,
+    deferredNow: checkpoint.deferred.length,
+    terminalNow: checkpoint.terminal.length,
+    queriesSpent,
+    creditsSpent,
+    matchedPubs: pages.length,
+    pricesExtracted: prices.length,
+    ...(runError ? { error: runError } : {}),
+  };
+  const released = releaseEnrichmentLease(checkpoint, { now, runRecord });
+  const commit = await store.commit(released, runId);
+
+  return {
+    batch: {
+      city,
+      primaryCity: city,
+      totalPubs: pubs.length,
+      startIndex: plan.startIndex,
+      nextIndex: released.nextIndex,
+      queriesSpent,
+      creditsSpent,
+      matchedPubs: pages.length,
+      prices,
+      pages,
+      delegatedChains,
+      complete: !runError && released.passes > claimedPasses,
+    },
+    health: cityEnrichmentHealth(released, now),
+    runOutcome: {
+      city,
+      // A run that READ some venues is not a failed night, even when another
+      // refused: that refusal is recorded and owed a bounded retry. A run that
+      // read none of them is the provider being down, and it still alerts.
+      ok: !runError || venuesRead > 0,
+      queriesSpent,
+      creditsSpent,
+      startIndex: plan.startIndex,
+      nextIndex: released.nextIndex,
+      matchedPubs: pages.length,
+      pricesExtracted: prices.length,
+      retriesAttempted: retryIndices.length,
+      venuesDeferred: released.deferred.length,
+      venuesTerminal: released.terminal.length,
+      checkpointCommitted: commit.status === "committed",
+      ...(runError ? { error: runError } : {}),
+    },
+  };
+}
+
+/** The cities this cron rotates through. The moderator surface reads them all. */
+export const ENRICHMENT_CITIES: readonly string[] = CITY_ROTATION;
+
+/**
+ * What the moderator surface prints: every city's checkpoint as it stands.
+ * A city with no checkpoint yet answers its empty shape rather than being
+ * absent, so "nobody has run this city" and "we could not read it" stay apart.
+ */
+export async function readCityEnrichmentHealth(
+  now = Date.now(),
+): Promise<{ durable: boolean; cities: CityEnrichmentHealth[] }> {
+  const allPubs = loadUkPubs();
+  const store = cityEnrichmentCheckpointStore();
+  const cities: CityEnrichmentHealth[] = [];
+  for (const city of CITY_ROTATION) {
+    const totalPubs = eligibleCityPubs(city, allPubs).length;
+    const checkpoint = await store.read(city, totalPubs, now);
+    cities.push(
+      cityEnrichmentHealth(
+        checkpoint ?? emptyCityEnrichmentCheckpoint(city, totalPubs, now),
+        now,
+      ),
+    );
+  }
+  return { durable: cityEnrichmentCheckpointIsDurable(), cities };
+}
+
+/**
+ * The retry path a terminal failure is recorded with. Named venues, or every
+ * refused venue in the city, return to the deferred list due immediately.
+ */
+export async function requeueCityEnrichmentTerminals(
+  city: string,
+  options: { osmIds?: string[]; now?: number } = {},
+): Promise<{ ok: boolean; requeued: string[]; reason?: string }> {
+  if (!ENRICHMENT_CITIES.includes(city)) {
+    return { ok: false, requeued: [], reason: "unknown-city" };
+  }
+  const now = options.now ?? Date.now();
+  const totalPubs = eligibleCityPubs(city, loadUkPubs()).length;
+  const store = cityEnrichmentCheckpointStore();
+  const checkpoint = await store.read(city, totalPubs, now);
+  if (!checkpoint) return { ok: true, requeued: [] };
+  const moved = requeueTerminalVenues(checkpoint, { now, osmIds: options.osmIds });
+  if (moved.requeued.length === 0) return { ok: true, requeued: [] };
+  const saved = await store.save(moved.checkpoint);
+  if (saved.status !== "committed") {
+    return { ok: false, requeued: [], reason: saved.status };
+  }
+  return { ok: true, requeued: moved.requeued };
+}
+
+export { CONSECUTIVE_VENUE_FAILURE_LIMIT, MAX_VENUE_ATTEMPTS, RETRY_QUERY_BUDGET };
