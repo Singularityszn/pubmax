@@ -272,7 +272,11 @@ body:has(.mobileMapUtilityCorner) {
   }
 
   body:has(.appShell.detail-open) .mobileTabBar,
-  body:has(.appShell.planning-open) .mobileTabBar {
+  body:has(.appShell.planning-open) .mobileTabBar,
+  /* Night mode (components/plan/NightCrawlMode.tsx) is a fixed, full-screen
+     surface with its own way out; the bar under it owned the centre of its
+     lowest button, "Get me home", at 320x568 (verify-preview-4 RED 2). */
+  body:has(.nightCrawl) .mobileTabBar {
     opacity: 0;
     pointer-events: none;
     transform: translateY(110%);

@@ -43,6 +43,8 @@ const NATIVE_VIEWPORTS: Viewport[] = [
   // The narrow floor the phone chrome is held to elsewhere; no inset on the
   // devices that small, which is the case a safe-area-only berth must survive.
   { name: "320x568", width: 320, height: 568, safeAreaBottom: 0, safeAreaTop: 20 },
+  // The entry Android tier verify-preview-4 found the card over "Use London" on.
+  { name: "360x640", width: 360, height: 640, safeAreaBottom: 0, safeAreaTop: 24 },
 ];
 
 const strip = (css: string): string => css.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -354,5 +356,27 @@ describe("native first-run consent placement", () => {
         `"${name}" reads the consent lane without checking the card is mounted`,
       ).toBe(true);
     }
+  });
+
+  it("keeps the one action on screen on a short phone, and only while the card is up", () => {
+    // 320x568 and 360x640 (verify-preview-4, check 7): the lane-reduced
+    // surface was 428 and 500px tall against a 553px panel, so "Use London"
+    // sat past the surface's end inside a scroller no phone draws a bar for.
+    // The short-phone block compresses the panel's rhythm and pins the action
+    // row to the surface's foot. Every rule in it is gated on the card.
+    const block = mediaBodies(strip(onboardingCss), "(max-width: 760px) and (max-height: 700px)");
+    expect(block.length).toBe(1);
+    const rules = [...block[0]!.matchAll(/([^{}]+){([^{}]*)}/g)];
+    expect(rules.length).toBeGreaterThan(3);
+    for (const [, selector] of rules) {
+      expect(selector!.trim(), `"${selector!.trim()}" is gated on the card`).toContain(
+        "body:has(.analyticsConsentPrompt)",
+      );
+    }
+    const actions = parseDeclarations(
+      rules.find(([, selector]) => selector!.trim().endsWith(".firstRunActions"))?.[2] ?? "",
+    );
+    expect(actions.get("position")).toBe("sticky");
+    expect(actions.get("bottom")).toBe("0");
   });
 });

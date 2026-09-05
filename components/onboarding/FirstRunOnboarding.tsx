@@ -203,11 +203,14 @@ export default function FirstRunOnboarding({
                   {reviewedAreas.map((area) => (
                     <article key={area.name}>
                       <MapPinned size={19} aria-hidden="true" />
+                      {/* The stamp rides INSIDE the text block, so a short
+                          phone can fold it onto the way-home line
+                          (app/onboarding/onboarding.css, the short phone). */}
                       <div>
                         <strong>{area.name}</strong>
                         <span>Home via {area.transportAnchor}</span>
+                        <small>PUBMAXX reviewed</small>
                       </div>
-                      <small>PUBMAXX reviewed</small>
                     </article>
                   ))}
                 </div>

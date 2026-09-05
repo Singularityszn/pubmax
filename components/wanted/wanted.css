@@ -64,15 +64,17 @@
 .wantedSaveBtn,
 .wantedCandidate,
 .wantedRow__map {
-  min-height: 44px;
+  min-height: var(--control-height, 44px);
   min-width: 44px;
-  padding: 0.55rem 0.9rem;
-  border-radius: 8px;
+  padding: 0 var(--control-pad-x, 16px);
+  border-radius: var(--control-radius, 14px);
   border: 1px solid var(--line, rgba(0, 0, 0, 0.14));
   background: var(--brass, #b08d57);
   color: var(--paper, #fff);
   font: inherit;
-  font-weight: 650;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
+  line-height: 1.15;
   cursor: pointer;
 }
 
@@ -81,6 +83,19 @@
 .wantedRow__map {
   background: transparent;
   color: var(--ink);
+}
+
+/* On the venue Overview the one painted control is the price door
+   (lib/pintTrust.ts, overviewPriceDoor), so this save wears the plain
+   secondary surface beside "Save to a list" rather than a second brass fill. */
+.wantedSaveWrap .wantedSaveBtn {
+  border-color: var(--control-secondary-border, var(--line));
+  background: var(--control-secondary-surface, var(--panel-raised));
+  color: var(--ink);
+}
+
+.wantedSaveWrap .wantedSaveBtn:hover:not(:disabled) {
+  border-color: var(--brass);
 }
 
 .wantedCapture__submit:disabled,

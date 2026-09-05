@@ -10,6 +10,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { Sheet } from "@/components/ui/sheet";
 import { buildFiltersChip, buildNearMeChip, buildTflCorner, buildTonightChip, type CornerUtilityModel, type PrimaryChipModel, type TonightChipModel } from "@/lib/mapChromeTiers";
 import { MAP_SHEET_TITLES, type MapOverlay, type MapSheetKind } from "@/lib/mobileShell";
+import { planActivationPill } from "@/lib/planActivationPill";
 import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 
 import "./mobileMapShell.css";
@@ -183,7 +184,7 @@ function MapChipRow({
   );
 }
 
-export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, interactionLocked = false, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, sheetsEnabled = true }: {
+export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, interactionLocked = false, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, builtStopCount = 0, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, sheetsEnabled = true }: {
   cityId?: CityId;
   cityLabel: string;
   /** Base-pub-only arrival: omit city-guide controls that cannot answer here. */
@@ -241,6 +242,8 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   planOpen: boolean;
   planActive: boolean;
   planStopCount: number;
+  /** Stops picked by hand on this map while no route is mapped yet. */
+  builtStopCount?: number;
   planInteractive: boolean;
   venueListOpen: boolean;
   bandNoticeOpen: boolean;
@@ -329,6 +332,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   });
   const tflCorner = buildTflCorner(tflStatus, tflCount);
   const tonightChip = buildTonightChip(tonightCount, tonightNearReader);
+  const planPill = planActivationPill({ planActive, planStopCount, builtStopCount });
   const sheetKind = contextualSheetKind(overlay, sheetsEnabled);
   const sheetContent = sheetBodyFor(sheetKind, {
     filters: filtersContent,
@@ -467,15 +471,15 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
       {overlay === "none" && !planOpen && !venueListOpen && !bandNoticeOpen ? (
         <button
           type="button"
-          className={`mobilePlanActivation${planActive ? " isActive" : ""}`}
-          aria-label={planActive ? `Edit active ${planStopCount}-stop plan` : "Describe the outing"}
+          className={`mobilePlanActivation${planPill.active ? " isActive" : ""}`}
+          aria-label={planPill.label}
           disabled={!planInteractive}
           onClick={onPlan}
         >
           <Route size={19} aria-hidden="true" />
           <span>
-            <strong>{planActive ? `${planStopCount}-stop plan` : "Describe the outing"}</strong>
-            {planActive ? <small>Edit route</small> : null}
+            <strong>{planPill.strong}</strong>
+            {planPill.small ? <small>{planPill.small}</small> : null}
           </span>
         </button>
       ) : null}

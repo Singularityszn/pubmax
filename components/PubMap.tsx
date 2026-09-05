@@ -591,6 +591,8 @@ import {
   type MapSeed,
   type MapSelectionNotice,
   type VenueDetailStatus,
+  builtStopCountFor,
+  phonePlannerOrder,
 } from "@/lib/pubMap";
 import { explicitMapIntent } from "@/lib/explicitMapIntent";
 import {
@@ -3847,9 +3849,14 @@ export default function PubMap({
       if (venue && !isPubVenue(venue)) return current;
       return [...current, id];
     });
+    // A picked pub is a stop in the crawl the reader is BUILDING. The mode
+    // used to stay "suggest", so the route the tap mapped was the suggested
+    // six-stop crawl and the pill read "6-stop plan" over one picked pub
+    // (verify-preview-4, J04); the built route is only read in build mode.
+    setMode("build");
     setRouteMapped(true);
     setActiveCrawl(null); // a manual stop change is no longer "the curated crawl"
-  }, [setBuiltIds, setRouteMapped, venueById]);
+  }, [setBuiltIds, setMode, setRouteMapped, venueById]);
 
   // Reverse the hand-built route: start from the opposite end. Event handler, so
   // setState is fine; URL-sync picks up the new builtIds order automatically.
@@ -4316,10 +4323,23 @@ export default function PubMap({
       });
     }
   }, [activateGeneratedPlan, setActiveCrawl]);
+  // The landmark whose story is open, resolved against the city's own catalog.
+  // Resolved HERE, ahead of the overlay coordination below, because the story
+  // is a surface the reader is on: it hides the planning pill and it enters
+  // the Back trail like the venue sheet and the planner do.
+  const activeLandmark = useMemo(
+    () =>
+      activeLandmarkId
+        ? cityLandmarks.find((landmark) => landmark.id === activeLandmarkId) ?? null
+        : null,
+    [activeLandmarkId, cityLandmarks],
+  );
+  const storyOpen = activeLandmark !== null;
   const coordinatedMobileOverlay: MapOverlay = coordinatedMapOverlay({
     logIntentFallbackVisible,
     detailOpen,
     planningOpen,
+    storyOpen,
     mapOverlay,
   });
   const activeNightAreaSlug = nightAreaSlugOf(activeNightArea);
@@ -4492,9 +4512,11 @@ export default function PubMap({
         basePub: selectedBasePub,
         selectedVenue,
         detailLabel: selectedVenueLabels.detailLabel,
+        landmarkName: activeLandmark?.name ?? null,
         sheetTitles: MAP_SHEET_TITLES,
       }),
     [
+      activeLandmark,
       basePubOpen,
       mapSurfaceId,
       selectedBasePub,
@@ -4513,8 +4535,9 @@ export default function PubMap({
         : "",
       areaTarget: searchAreaTarget,
       layersTab: mobileLayersTab,
+      landmarkId: activeLandmarkId,
     }),
-    [mobileLayersTab, searchAreaTarget, selectedVenueId, venueInitialTab],
+    [activeLandmarkId, mobileLayersTab, searchAreaTarget, selectedVenueId, venueInitialTab],
   );
   const closeEverySurface = useCallback(() => {
     clearAreaSheetTimer();
@@ -4525,6 +4548,7 @@ export default function PubMap({
     setSelectedVenueId("");
     setPlanningOpen(false);
     setMapListOpen(false);
+    setActiveLandmarkId("");
   }, [clearAreaSheetTimer, clearLogIntent, closeComposer, setPlanningOpen, setSelectedVenueId]);
 
   useEffect(() => {
@@ -4549,6 +4573,11 @@ export default function PubMap({
       }
       if (entry.id === "venue-list") {
         setMapListOpen(true);
+        return;
+      }
+      if (entry.id === "landmark") {
+        // Back from a pub opened out of a story puts the story back.
+        setActiveLandmarkId(held.landmarkId ?? "");
         return;
       }
       // A sheet. Its searched area target is part of what the reader had, so it
@@ -4591,14 +4620,9 @@ export default function PubMap({
   // already owns: the phone's shared bottom sheet, the desktop's left drawer.
   // The canvas used to pin its own card over the map, which on a phone sat
   // under the chip row, let pins bleed through its edges and hid its last
-  // rows under the planning pill. The id is PubMap's, synced to ?landmark=.
-  const activeLandmark = useMemo(
-    () =>
-      activeLandmarkId
-        ? cityLandmarks.find((landmark) => landmark.id === activeLandmarkId) ?? null
-        : null,
-    [activeLandmarkId, cityLandmarks],
-  );
+  // rows under the planning pill. The id is PubMap's, synced to ?landmark=;
+  // the landmark itself is resolved above the overlay coordination, because
+  // the story is a trail surface.
   const storyPubsNearby = useMemo(
     () => (activeLandmark ? nearestStoryPubs(activeLandmark, canvasVenues) : []),
     [activeLandmark, canvasVenues],
@@ -4610,10 +4634,10 @@ export default function PubMap({
         : null,
     [activeLandmark, cityId],
   );
-  const storyOpen = activeLandmark !== null;
   // A landmark pick is a reader's own tap on the map, so it takes the surface
   // the way a pin tap does: any open sheet leaves for it, and a venue pick in
-  // turn retires the story (PubMapCanvas retires it on selection).
+  // turn retires the story on screen (PubMapCanvas retires it on selection)
+  // while the trail keeps it, so Back from that pub is the story again.
   const closeEverySurfaceRef = useRef(closeEverySurface);
   useEffect(() => {
     closeEverySurfaceRef.current = closeEverySurface;
@@ -4883,17 +4907,28 @@ export default function PubMap({
     activeCrawl ?? EMPTY_CRAWL_FIELDS;
   const selectedVenueIdOrUndefined = selectedVenue ? selectedVenue.id : undefined;
 
+  // The phone planner opens on what the reader has IN HAND. With a pub picked
+  // as a stop, the sheet used to open on the "Describe the outing" form and
+  // the picked pub sat a whole form below the fold, unnamed on the first
+  // screen (verify-preview-4, J04); a crawl being built now leads the sheet.
+  const phoneDescribeForm =
+    mobileViewport && isLondon && suggestedPlanArea ? (
+      <MobilePlanActivation
+        cityId={cityId}
+        initialNightArea={suggestedPlanArea.slug}
+        venuesById={venuesById}
+        onGenerated={applyGeneratedMobilePlan}
+        mapRouteTransfer={flags.mapRouteTransfer}
+      />
+    ) : null;
+  const plannerOrder = phonePlannerOrder({ mobileViewport, mode, builtCount: builtIds.length });
+  const builtCrawlLeads = plannerOrder === "build-first";
+  const [plannerHead, plannerFoot] = builtCrawlLeads
+    ? [null, phoneDescribeForm]
+    : [phoneDescribeForm, null];
   const plannerPanel = planningOpen ? (
     <>
-      {mobileViewport && isLondon && suggestedPlanArea ? (
-        <MobilePlanActivation
-          cityId={cityId}
-          initialNightArea={suggestedPlanArea.slug}
-          venuesById={venuesById}
-          onGenerated={applyGeneratedMobilePlan}
-          mapRouteTransfer={flags.mapRouteTransfer}
-        />
-      ) : null}
+      {plannerHead}
       {renderPlannerMapButton()}
       {/* One planner per surface. The rail is the DESKTOP planner: brand block,
           mode toggle, search box, featured routes and the full filter stack. The
@@ -4935,6 +4970,7 @@ export default function PubMap({
         crawlName={activeCrawlName}
         crawlId={activeCrawlId}
         routeMapped={routeMappedActive}
+        stopsFirst={builtCrawlLeads}
         originDistanceKm={distanceFromUserKm}
         onMapRoute={mapCurrentRoute}
         onHideRoute={hideMappedRoute}
@@ -4952,6 +4988,7 @@ export default function PubMap({
       >
         {renderPlannerEmptyState()}
       </RoutePanel>
+      {plannerFoot}
     </>
   ) : null;
 
@@ -5219,7 +5256,7 @@ export default function PubMap({
         </TabsContent>
         <TabsContent value="layers" className="mobileLayersPanel">
           <div className="mobileLayerShortcuts">
-            <Button className="mobilePlannerLaunch w-full justify-start" onClick={openPlanning}>
+            <Button className="mobilePlannerLaunch w-full uiButton--start" onClick={openPlanning}>
               <MapPinned size={18} aria-hidden="true" />
               Plan an outing
             </Button>
@@ -5227,7 +5264,7 @@ export default function PubMap({
               <Button
                 type="button"
                 variant="secondary"
-                className="w-full justify-start"
+                className="w-full uiButton--start"
                 aria-label="On tonight near you"
                 onClick={() => changeMapOverlay("tonight")}
               >
@@ -5238,7 +5275,7 @@ export default function PubMap({
             <Button
               type="button"
               variant="secondary"
-              className="w-full justify-start"
+              className="w-full uiButton--start"
               aria-label="List view of venues on the map"
               aria-pressed={mapListOpen}
               onClick={() => {
@@ -5255,7 +5292,7 @@ export default function PubMap({
             <Button
               asChild
               variant="secondary"
-              className="w-full justify-start"
+              className="w-full uiButton--start"
             >
               <Link href="/pal">
                 <PubPalMascot size={18} circular />
@@ -5498,6 +5535,7 @@ export default function PubMap({
         planOpen={planningOpen}
         planActive={routeMappedActive || activePlanRoute.length >= 2}
         planStopCount={routeMappedActive ? route.length : activePlanRoute.length}
+        builtStopCount={builtStopCountFor({ mode, routeMappedActive, builtCount: builtIds.length })}
         planInteractive={mobileViewport && !ukPlaceArrival}
         venueListOpen={mapListOpen}
         bandNoticeOpen={showBandChip}
@@ -6039,13 +6077,11 @@ export default function PubMap({
             }
             initialSnap="half"
             requestedSnap={detailOpen ? sheetSnap : plannerSheetSnap}
-            onClose={storyOnlyOpen ? closeStory : mapSurfaceTrail.home}
+            onClose={mapSurfaceTrail.home}
             onDismiss={
-              storyOnlyOpen
-                ? closeStory
-                : mapSurfaceTrail.backLabel
-                  ? mapSurfaceTrail.back
-                  : mapSurfaceTrail.home
+              mapSurfaceTrail.backLabel
+                ? mapSurfaceTrail.back
+                : mapSurfaceTrail.home
             }
             closeLabel={
               detailOpen
@@ -6054,7 +6090,7 @@ export default function PubMap({
                   ? "Close the story"
                   : undefined
             }
-            backLabel={storyOnlyOpen ? null : mapSurfaceTrail.backLabel}
+            backLabel={mapSurfaceTrail.backLabel}
             onBack={mapSurfaceTrail.back}
             entranceOvershoot={detailOpen && venueEntranceOvershoot}
             onInterruptReveal={interruptVenueReveal}
@@ -6074,7 +6110,8 @@ export default function PubMap({
         nearby={storyPubsNearby}
         showChapterLink={mobileViewport}
         onOpenVenue={(venueId) => {
-          closeStory();
+          // Not closeStory(): the story stays in the trail under the pub, so
+          // Back is the story. The canvas retires it on screen on selection.
           handleVenueClick(venueId);
         }}
         onStartCrawl={(pubIds) => {
@@ -6106,7 +6143,12 @@ export default function PubMap({
       >
         <div className="mapDrawerHead storyDrawerHead">
           <LandmarkStoryHead landmark={activeLandmark} />
-          <SurfaceNav backLabel={null} homeLabel="Close the story" onHome={closeStory} />
+          <SurfaceNav
+            backLabel={mapSurfaceTrail.backLabel}
+            onBack={mapSurfaceTrail.back}
+            homeLabel="Close the story"
+            onHome={mapSurfaceTrail.home}
+          />
         </div>
         <div className="storyDrawerBody">{storyPanel}</div>
       </SpringDrawer>

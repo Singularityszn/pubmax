@@ -252,6 +252,46 @@ test.describe("the message thread on a phone", () => {
     await expect(page.locator(".messageReadState")).toHaveText("Sent");
   });
 
+  // verify-preview-4 RED 1 (5 Sep 2026): a first-time reader's first thread,
+  // with the analytics consent card unset (every new account), opened with the
+  // newest bubble under the head (y -26 to 34) and the composer floating at
+  // y 532 over 268px of nothing. The body reserves the card's lane, the page
+  // gains that much scroll, opening scrolls to the foot, and the rows sat at
+  // the TOP of the thread's tall flex child. The rows hug the composer now and
+  // the composer clears the card as well as the bar.
+  for (const viewport of [PHONE, NARROW]) {
+    test(`a first-run reader's one-message thread opens on the message and the composer, above the consent card @${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
+      await page.setViewportSize(viewport);
+      await installThread(page, [fixture()[6]!]);
+      await page.addInitScript(() => {
+        window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
+        window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
+      });
+      await page.goto("/messages/c1");
+      await expect(page.locator(".threadMessages .messageBubble")).toHaveCount(1);
+      const card = page.getByLabel("Anonymous analytics choice");
+      await expect(card).toBeVisible({ timeout: 30_000 });
+      await page.screenshot({ path: testInfo.outputPath(`thread-first-run-${viewport.width}x${viewport.height}.png`) });
+
+      await expectComposerInView(page);
+      await expectMessageInView(page, "Sound, see you at the Lamb at 7");
+      // The head is not over the bubble either.
+      const [bubble, head] = await Promise.all([
+        page.locator(".messageBubble").first().boundingBox(),
+        box(page, ".threadHeader"),
+      ]);
+      expect(bubble!.y).toBeGreaterThanOrEqual(head.bottom - 1);
+      // The composer sits above the card, never under it.
+      const [dock, cardBox] = await Promise.all([box(page, ".composerDock"), card.boundingBox()]);
+      expect(dock.bottom).toBeLessThanOrEqual(cardBox!.y + 1);
+
+      await card.getByRole("button", { name: "No thanks" }).click();
+      await expect(card).toBeHidden();
+      await expectComposerInView(page);
+      await expectMessageInView(page, "Sound, see you at the Lamb at 7");
+    });
+  }
+
   test("keeps the composer and the newest message in view with the keyboard up", async ({ page }) => {
     await page.goto("/messages/c1");
     await expect(page.locator(".threadMessages .messageBubble")).toHaveCount(8);
@@ -345,5 +385,32 @@ test.describe("the message thread on a desktop", () => {
     expect(scrolled.atBottom).toBe(true);
     await expectMessageInView(page, "Bring cash, card machine is dodgy");
     await expectSendCentred(page);
+  });
+
+  test("the consent card never lands on the desktop composer", async ({ page }, testInfo) => {
+    // verify-preview-4, 7.2 at 1440: the fixed-height split kept its
+    // viewport-sized box while the body reserved the card's lane under it,
+    // so the card sat on the composer row. The panel gives the lane back.
+    await page.setViewportSize(DESKTOP);
+    await installThread(page, fixture());
+    await page.addInitScript(() => {
+      window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
+      window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
+    });
+    await page.goto("/messages/c1");
+    await expect(page.locator(".threadMessages .messageBubble")).toHaveCount(8);
+    const card = page.getByLabel("Anonymous analytics choice");
+    await expect(card).toBeVisible({ timeout: 30_000 });
+    await page.screenshot({ path: testInfo.outputPath("thread-first-run-1440x900.png") });
+
+    const [dock, cardBox, split] = await Promise.all([
+      box(page, ".composerDock"),
+      card.boundingBox(),
+      box(page, ".messagesSplit"),
+    ]);
+    expect(split.bottom).toBeLessThanOrEqual(cardBox!.y + 1);
+    expect(dock.bottom).toBeLessThanOrEqual(cardBox!.y + 1);
+    await expectComposerInView(page);
+    await expectMessageInView(page, "Bring cash, card machine is dodgy");
   });
 });

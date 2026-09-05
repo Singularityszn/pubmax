@@ -4456,6 +4456,16 @@ body:has(.chooseAreaDesktopScrim) .analyticsConsentPrompt {
   pointer-events: none;
 }
 
+/* Night mode is the whole screen while it is engaged (components/plan/
+   NightCrawlMode.tsx): a fixed surface with its own way out. The card owned
+   the centre of "We are here" at 320x568 (verify-preview-4 RED 2). Its own
+   rule rather than a third branch above, because that list is the map sheet's
+   and __tests__/qaHighFindings.test.ts reads it as the two selectors it is. */
+body:has(.nightCrawl) .analyticsConsentPrompt {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* Desktop: reserve foot clearance while the fixed consent bar is mounted so
    list cards and page footers are not half-covered. */
 @media (min-width: 641px) {

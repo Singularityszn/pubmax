@@ -39,6 +39,8 @@ export type MapSurfaceState = {
   areaTargetKey: string;
   areaTarget: unknown;
   layersTab: string;
+  /** The landmark whose story is open, so Back can put the story back. */
+  landmarkId: string;
 };
 
 export const EMPTY_MAP_SURFACE_STATE: MapSurfaceState = {
@@ -47,6 +49,7 @@ export const EMPTY_MAP_SURFACE_STATE: MapSurfaceState = {
   areaTargetKey: "",
   areaTarget: null,
   layersTab: "",
+  landmarkId: "",
 };
 
 function sameState(a: MapSurfaceState | undefined, b: MapSurfaceState): boolean {
@@ -55,8 +58,19 @@ function sameState(a: MapSurfaceState | undefined, b: MapSurfaceState): boolean 
       a.venueTab === b.venueTab &&
       a.venueId === b.venueId &&
       a.areaTargetKey === b.areaTargetKey &&
-      a.layersTab === b.layersTab,
+      a.layersTab === b.layersTab &&
+      (a.landmarkId ?? "") === (b.landmarkId ?? ""),
   );
+}
+
+/** The one owned param a landmark arrival carries (`/map?landmark=<id>`). */
+const LANDMARK_PARAM = "landmark";
+
+function withoutLandmarkParam(pathname: string, search: string, hash: string): string {
+  const params = new URLSearchParams(search);
+  params.delete(LANDMARK_PARAM);
+  const query = params.toString();
+  return `${pathname}${query ? `?${query}` : ""}${hash}`;
 }
 
 function selectedVenueId(stack: SurfaceStack<MapSurfaceState>): string {
@@ -180,6 +194,28 @@ export function useMapSurfaceNavigation({
         arrivalUrl,
       );
       publishInitialStack(selected);
+      return;
+    }
+
+    // A story arrival (`?landmark=`) is the same shape as a selection arrival:
+    // the map is the root entry, the story sits over it, and Back from the
+    // story lands on the map without the story rather than on the page before.
+    if (
+      shown?.id === "landmark" &&
+      new URLSearchParams(arrivalSearch).has(LANDMARK_PARAM)
+    ) {
+      window.history.replaceState(
+        stampMapSurfaceHistory(window.history.state, root, ""),
+        "",
+        withoutLandmarkParam(pathname, search, hash),
+      );
+      const story = [shown] as SurfaceStack<MapSurfaceState>;
+      window.history.pushState(
+        stampMapSurfaceHistory(window.history.state, story, ""),
+        "",
+        arrivalUrl,
+      );
+      publishInitialStack(story);
       return;
     }
 

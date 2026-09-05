@@ -38,9 +38,23 @@ describe("finding M4 - one planner per surface", () => {
     );
   });
 
-  it("leaves the phone its own intake form", () => {
+  it("leaves the phone its own intake form, mounted once, under the same guard", () => {
+    // The form moved out of the panel tree into `phoneDescribeForm` so the
+    // panel can seat it at the head or the foot: a crawl the reader is
+    // BUILDING leads the phone sheet, and the describe form follows it
+    // (verify-preview-4, J04). The guard and the one mount are the invariant.
+    expect((pubMap.match(/<MobilePlanActivation\b/g) ?? []).length).toBe(1);
+    expect(pubMap, "the phone form waits for a phone, London and an area").toMatch(
+      /const phoneDescribeForm =\s*\n?\s*mobileViewport && isLondon && suggestedPlanArea \? \(\s*<MobilePlanActivation\b/,
+    );
+    // One slot at a time: the other is null, so the form can never be twice on
+    // one sheet.
+    expect(pubMap).toMatch(
+      /\[plannerHead, plannerFoot\] = builtCrawlLeads\s*\n?\s*\? \[null, phoneDescribeForm\]\s*\n?\s*: \[phoneDescribeForm, null\];/,
+    );
     const panel = plannerPanelSource();
-    expect(panel).toMatch(/\{mobileViewport && isLondon && suggestedPlanArea \? \(\s*<MobilePlanActivation\b/);
+    expect((panel.match(/\{plannerHead\}/g) ?? []).length).toBe(1);
+    expect((panel.match(/\{plannerFoot\}/g) ?? []).length).toBe(1);
   });
 
   it("still hands the desktop drawer the rail", () => {

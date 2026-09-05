@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 export const IconButton = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, size = "icon", variant = "secondary", ...props }, ref) => (
-    <Button ref={ref} size={size} variant={variant} className={cn("shrink-0 rounded-[var(--radius-pill)]", className)} {...props} />
+    <Button ref={ref} size={size} variant={variant} className={cn("shrink-0 uiButton--pill", className)} {...props} />
   ),
 );
 IconButton.displayName = "IconButton";
