@@ -418,6 +418,25 @@
   display: none;
 }
 
+/* THE SCROLL CONTAINER SAYS WHICH PART OF ITSELF IS THE VIEWING REGION. A
+   `scrollIntoView` (and the scroll a focus() makes) aims at the scrollport, so
+   with a sticky bar pinned over its bottom edge a row asked into view can land
+   under the bar, and at 641-768 the scrollport itself hangs 45dvh below the
+   screen, so "centre" was 154px under the viewport's bottom edge (#1516).
+   `scroll-padding-bottom` is the one property that tells the browser where
+   the visible content ends: the part of the sheet below the viewport
+   (`--sheet-hidden-below`, published by globals.css; 0 wherever the drawer is
+   a side panel) plus the bar's own height. The bar is 44px controls, 10px
+   above and below and a 1px rule, plus the safe-area inset the ≤768 band adds
+   under it. The ≤640 portal sheet portals the bar OUT of the scroll body and
+   needs neither term. */
+.mapDrawer.right.open:not(.mobileSharedSheet) {
+  --venue-command-bar-h: calc(65px + env(safe-area-inset-bottom, 0px));
+  scroll-padding-bottom: calc(
+    var(--sheet-hidden-below, 0px) + var(--venue-command-bar-h)
+  );
+}
+
 /* Venue command bar. It stays pinned in the desktop inspector and moves into
    the shared sheet footer on phones. */
 .venueSheetStickyBar {
@@ -535,10 +554,14 @@
   /* Tab bar is hidden on detail-open; --mobile-tab-clearance shrinks to a
      safe-area breathing buffer (see globals.css). Don't hardcode tab height. */
   .venueInspector {
-    /* Clearance for the sticky command bar (44px controls + 20px padding +
-       border) so the last content row ("Share location for travel times")
-       can always scroll clear of it. */
-    padding-bottom: calc(var(--mobile-tab-clearance, 12px) + 84px);
+    /* A plain gutter under the command bar. The bar is this inspector's last
+       child, so at the end of the scroll it rests in flow below the last
+       content row and nothing can sit under it; the drawer's own bottom
+       padding (globals.css `--sheet-hidden-below`) is what lets that last row
+       reach the visible bottom. The old reserve added the phone tab bar's
+       58px lane plus the bar's height again, which at 641-768 (no tab bar)
+       was 142px of dead air under the bar at the end of every scroll. */
+    padding-bottom: 8px;
     /* U6b — inside the bottom sheet the title block used to sit flush at x=0;
        give the whole inspector the sheet's standard 18px gutter (matches
        .venueSheetSkeleton's `margin: 0 18px`). */
@@ -563,26 +586,20 @@
 
   /* LEGACY viewport-tall drawer only: that sheet is translated DOWN by its
      snap fraction, so its scrollport extends that far below the physical
-     viewport and the sticky bar needs the same offset to stay visible.
+     viewport and the sticky bar needs the same offset to stay visible. The
+     offset is READ, never restated: `--sheet-hidden-below` is published on the
+     drawer by globals.css from the very px the spring moves the sheet by (with
+     a per-snap dvh fallback for the frame before the spring's first). Three
+     dvh copies used to live here, and they were right only while the drawer's
+     box sat where the snap put it: one `scrollIntoView` scrolled the shell
+     under the sheet and the bar sat mid-viewport over a price row (#1516).
      The portal sheet (.mobileSharedSheet) is EXCLUDED: its body is already
-     sized to the visible height, so these offsets would float the bar
-     mid-content over the copy (the owner's Black Friar screenshot) — there
-     the base `bottom: 0` is correct. dvh to match the transforms. */
-  .mapDrawer.right.open.sheet-full:not(.mobileSharedSheet) .venueSheetStickyBar {
-    bottom: calc(8vh + 8px);
-    bottom: calc(8dvh + 8px);
+     sized to the visible height, so any offset would float the bar mid-content
+     over the copy (the owner's Black Friar screenshot); there the base
+     `bottom: 0` is correct. */
+  .mapDrawer.right.open:not(.mobileSharedSheet) .venueSheetStickyBar {
+    bottom: var(--sheet-hidden-below, 0px);
   }
-
-  .mapDrawer.right.open.sheet-half:not(.mobileSharedSheet) .venueSheetStickyBar {
-    bottom: calc(45vh + 8px);
-    bottom: calc(45dvh + 8px);
-  }
-
-  .mapDrawer.right.open.sheet-peek:not(.mobileSharedSheet) .venueSheetStickyBar {
-    bottom: calc(78vh + 8px);
-    bottom: calc(78dvh + 8px);
-  }
-
 }
 
 /* ── Portal sheet footer slot (systemic rebuild) ─────────────────────────────
