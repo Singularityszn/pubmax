@@ -118,6 +118,7 @@ const NOT_REPO_PATHS = new Set([
   "CATEGORY_META.order",
   "ComposerHydration.heldVenueId",
   "filters.drinkCategory",
+  "navigator.share",
   "ProfileImageServeDeps.extraServingKey",
   "profileImageSlotSpec.cover.aspectRatio",
   "PublicProfile.coverUrls",
