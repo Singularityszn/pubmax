@@ -1,7 +1,9 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { resolveBuildStamp } from "./lib/buildInfo.mjs";
 import {
   freshnessArtifactIncludeById,
   freshnessArtifactIncludes,
@@ -99,6 +101,30 @@ const swVersion = nonEmptyRevision(
         throw new Error("A deploy revision is required for production builds");
       })()
     : "local");
+
+// The commit this build is building. Vercel only stamps VERCEL_GIT_COMMIT_SHA
+// on a build its Git integration owns, and it stamps NEITHER the build nor the
+// runtime of a `vercel deploy` from a CLI, so reading it at request time made
+// /api/version answer null on exactly the deploys a verifier most needs to
+// identify. Ask git for the working tree instead, ONCE, here: the source is
+// uploaded with its .git directory on a CLI deploy, and a build with no
+// repository around it still answers honestly (null) rather than guessing.
+// lib/buildInfo.mjs owns the rule; app/api/version reads the values back.
+const workingTreeCommitSha = (() => {
+  try {
+    return execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: projectRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+  } catch {
+    // No git, no repository, or a shallow copy with no HEAD. Not an error: the
+    // stamp is a fact about the build, and an absent fact is reported as absent.
+    return null;
+  }
+})();
+
+const buildStamp = resolveBuildStamp(process.env, { workingTreeSha: workingTreeCommitSha });
 
 // Next 16 tags framework-owned assets and navigations with this identifier,
 // allowing skew protection to keep stale clients on one deployment during a
@@ -247,6 +273,12 @@ const nextConfig = {
   env: {
     // See swVersion above — SW cache-busting build id.
     NEXT_PUBLIC_SW_VERSION: swVersion,
+    // Inlined at build time and read back by app/api/version. Next replaces a
+    // STATIC `process.env.NAME` member expression with the literal, so the
+    // route must read these by name and never through a variable key.
+    PUBMAX_BUILD_COMMIT_SHA: buildStamp.commitSha ?? "",
+    PUBMAX_BUILD_COMMIT_SHA_SOURCE: buildStamp.commitShaSource ?? "",
+    PUBMAX_BUILD_TIME: buildStamp.builtAt,
   },
   skipTrailingSlashRedirect: true,
   async rewrites() {

@@ -331,6 +331,50 @@ Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pas
 
 `docs/SOFT_LAUNCH_RUNBOOK.md` section 1.2 is the operator source for this command pair and the promotion mechanics behind it.
 
+### Which commit is this deploy serving
+
+`GET /api/version` names the running code. It is public, uncached and cheap: the
+answer is decided during the build and inlined, so the route runs no git and
+reads no platform variable per request.
+
+```sh
+curl -s https://<deployment-url>/api/version
+```
+
+```json
+{
+  "deploymentId": "dpl_...",
+  "gitCommitSha": "182aa88212fc58cd2d146a5c3a4a91efe4c6a1fb",
+  "gitCommitShaSource": "working-tree",
+  "builtAt": "2026-09-05T07:30:00.000Z"
+}
+```
+
+| Field | What it says |
+|---|---|
+| `deploymentId` | WHICH deploy answered. It does not name what is in it. |
+| `gitCommitSha` | The commit the running code was built from, or `null` when the build could name no commit. |
+| `gitCommitShaSource` | `vercel-git` when Vercel's Git integration stamped the build, `working-tree` when the build read the commit of the tree it built, `null` with no sha. |
+| `builtAt` | When the build ran, as an ISO instant. |
+
+The two sources are separate on purpose. `vercel-git` is a commit Vercel checked
+out, so it names something that was pushed. `working-tree` is the commit of the
+tree the build ran over: on a `vercel deploy` from a CLI that tree is the one on
+the machine that ran the command, so it can carry uncommitted work, and matching
+it against local `git rev-parse HEAD` is what proves the preview serves the code
+you meant to send.
+
+Earlier, the route read `VERCEL_GIT_COMMIT_SHA` at request time. Vercel puts that
+variable in the environment of a build its Git integration owns, and in neither
+the build nor the runtime of a CLI deploy, so `gitCommitSha` was `null` on exactly
+the previews that needed identifying and each verification went through the Vercel
+deployment API instead. `lib/buildInfo.mjs` now owns the rule, `next.config.mjs`
+asks it once during the build, and the values ride in `env` as
+`PUBMAX_BUILD_COMMIT_SHA`, `PUBMAX_BUILD_COMMIT_SHA_SOURCE` and
+`PUBMAX_BUILD_TIME`. Next replaces a static `process.env.NAME` member expression
+with the build-time literal, so the route must read each name directly and never
+through a variable key. Pin: `__tests__/deploymentVersionRoute.test.ts`.
+
 ### Known GitHub check sources
 
 The latest code-level gate is healthy locally and on Vercel. If GitHub shows red checks, identify which app owns the failure before changing product code:
