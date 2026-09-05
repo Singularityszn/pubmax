@@ -309,6 +309,11 @@ const NOT_RENDERED: ReadonlyArray<{ route: string; reason: string }> = [
   { route: "/map", reason: "the map canvas is another track's surface and has no heading" },
   { route: "/map/[city]", reason: "the map canvas is another track's surface and has no heading" },
   { route: "/u/you", reason: "an alias of /u/[handle], rendered under that row" },
+  {
+    route: "/drinks",
+    reason:
+      "next.config.mjs 308s it to /social?tab=discover and app/drinks/page.tsx is the same permanentRedirect, so it renders no document and has no primary action to count",
+  },
 ];
 
 describe("every launch route is rendered by an audit", () => {
