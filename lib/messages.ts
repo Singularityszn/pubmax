@@ -103,7 +103,10 @@ export type ConversationDTO = {
   lastBody?: string;
   lastAt: string;
   lastFromMe: boolean;
-  unread: number;
+  /** How many messages the viewer has waiting. ABSENT means the count could not
+   *  be run, which is not the same as none: a surface reads it as unknown and
+   *  the inbox read's own `status` says so. Never coerce it to 0 in a store. */
+  unread?: number;
 };
 
 /**

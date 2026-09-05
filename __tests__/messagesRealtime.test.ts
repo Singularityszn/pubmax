@@ -18,6 +18,8 @@ import {
   INBOX_POLL_FALLBACK_MS,
   MESSAGES_POLL_FALLBACK_MS,
   MESSAGES_POLL_LIVE_MS,
+  MESSAGES_REATTACH_MAX_ATTEMPTS,
+  messagesReattachDelayMs,
   subscribeToInbox,
   subscribeToMessages,
 } from "@/lib/messagesRealtime";
@@ -41,7 +43,12 @@ function realtimeFixture(options?: { removeChannel?: (channel: unknown) => void 
   };
   const removeChannel = vi.fn(options?.removeChannel ?? (() => {}));
   const client = {
-    channel: vi.fn(() => channel),
+    // Typed by its CALL SIGNATURE rather than its parameters: the topic and the
+    // channel config are both part of what the subscriber promises, and the
+    // assertions read them off `mock.calls`.
+    channel: vi.fn<(topic: string, options?: { config?: { private?: boolean } }) => typeof channel>(
+      () => channel,
+    ),
     removeChannel,
   };
   return {
@@ -127,7 +134,9 @@ describe("message realtime subscription", () => {
 
     const unsubscribe = subscribeToMessages("conversation-42", onMessage);
 
-    expect(fixture.client.channel).toHaveBeenCalledWith(messagesThreadTopic("conversation-42"));
+    expect(fixture.client.channel).toHaveBeenCalledWith(messagesThreadTopic("conversation-42"), {
+      config: { private: true },
+    });
     for (const call of fixture.channel.on.mock.calls) {
       expect(call[0]).toBe("broadcast");
     }
@@ -217,7 +226,9 @@ describe("message realtime subscription", () => {
     resolveClient(fixture.client);
     await Promise.resolve();
     await Promise.resolve();
-    expect(fixture.client.channel).toHaveBeenCalledWith(messagesThreadTopic("conversation-1"));
+    expect(fixture.client.channel).toHaveBeenCalledWith(messagesThreadTopic("conversation-1"), {
+      config: { private: true },
+    });
     fixture.emitStatus("SUBSCRIBED");
     expect(onStatus).toHaveBeenLastCalledWith("live");
   });
@@ -260,7 +271,9 @@ describe("inbox realtime subscription", () => {
 
     subscribeToInbox("ken", onSignal);
 
-    expect(fixture.client.channel).toHaveBeenCalledWith(messagesInboxTopic("ken"));
+    expect(fixture.client.channel).toHaveBeenCalledWith(messagesInboxTopic("ken"), {
+      config: { private: true },
+    });
     expect(fixture.events()).toEqual(["message"]);
     fixture.emit("message");
     expect(onSignal).toHaveBeenCalledWith();
@@ -278,5 +291,159 @@ describe("inbox realtime subscription", () => {
     expect(poll).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
     expect(poll).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-1 / fix task 32 - EVERY messaging channel is PRIVATE.
+//
+// A Supabase public channel authorises on the API key alone and this client is
+// built from the public one, so a public `live:inbox:<handle>` was a live
+// activity oracle on any named account. `private: true` is what makes
+// supabase-js send this browser's own JWT, which the policy in migration 0148
+// then judges. It is checked on BOTH lanes because a channel opened public
+// here would hear nothing at all: the server broadcasts private.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("messaging channels are private", () => {
+  it("opens the thread channel private, so the browser's own JWT decides", () => {
+    const fixture = realtimeFixture();
+    getSupabaseBrowser.mockReturnValue(fixture.client);
+
+    const unsubscribe = subscribeToMessages("conversation-9", vi.fn(), { poll: vi.fn() });
+
+    const [, config] = fixture.client.channel.mock.calls[0];
+    expect(config).toEqual({ config: { private: true } });
+    unsubscribe();
+  });
+
+  it("opens the inbox channel private too - the topic a stranger could enumerate", () => {
+    const fixture = realtimeFixture();
+    getSupabaseBrowser.mockReturnValue(fixture.client);
+
+    const unsubscribe = subscribeToInbox("ken", vi.fn(), { poll: vi.fn() });
+
+    const [topic, config] = fixture.client.channel.mock.calls[0];
+    expect(topic).toBe(messagesInboxTopic("ken"));
+    expect(config).toEqual({ config: { private: true } });
+    unsubscribe();
+  });
+
+  it("keeps the channel private on every re-attach after an error", () => {
+    const fixture = realtimeFixture();
+    let statusCallback: StatusCallback = () => {};
+    fixture.channel.subscribe.mockImplementation((callback: StatusCallback) => {
+      statusCallback = callback;
+      return fixture.channel;
+    });
+    getSupabaseBrowser.mockReturnValue(fixture.client);
+
+    const unsubscribe = subscribeToMessages("conversation-9", vi.fn(), { poll: vi.fn() });
+    statusCallback("CHANNEL_ERROR");
+    vi.advanceTimersByTime(messagesReattachDelayMs(1));
+
+    expect(fixture.client.channel).toHaveBeenCalledTimes(2);
+    for (const call of fixture.client.channel.mock.calls) {
+      expect(call[1]).toEqual({ config: { private: true } });
+    }
+    unsubscribe();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-24 / fix task 16 - a transient socket error is not the end of the lane.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("re-attaching after a dropped channel", () => {
+  function erroringFixture() {
+    const fixture = realtimeFixture();
+    let statusCallback: StatusCallback = () => {};
+    fixture.channel.subscribe.mockImplementation((callback: StatusCallback) => {
+      statusCallback = callback;
+      return fixture.channel;
+    });
+    getSupabaseBrowser.mockReturnValue(fixture.client);
+    return { fixture, fail: () => statusCallback("CHANNEL_ERROR"), join: () => statusCallback("SUBSCRIBED") };
+  }
+
+  it("asks for the channel back ONCE under a bounded backoff, and polls meanwhile", () => {
+    const { fixture, fail } = erroringFixture();
+    const poll = vi.fn();
+    const onStatus = vi.fn();
+
+    const unsubscribe = subscribeToMessages("conversation-1", vi.fn(), { poll, onStatus });
+    fail();
+
+    expect(onStatus).toHaveBeenLastCalledWith("polling");
+    // Nothing is re-asked before the backoff has run out.
+    vi.advanceTimersByTime(messagesReattachDelayMs(1) - 1);
+    expect(fixture.client.channel).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(1);
+    expect(fixture.client.channel).toHaveBeenCalledTimes(2);
+    // ONE re-ask, not a storm: the second attach is still connecting.
+    vi.advanceTimersByTime(messagesReattachDelayMs(1) * 4);
+    expect(fixture.client.channel).toHaveBeenCalledTimes(2);
+    unsubscribe();
+  });
+
+  it("goes live again when the re-ask joins", () => {
+    const { fail, join } = erroringFixture();
+    const onStatus = vi.fn();
+
+    const unsubscribe = subscribeToMessages("conversation-1", vi.fn(), { poll: vi.fn(), onStatus });
+    join();
+    expect(onStatus).toHaveBeenLastCalledWith("live");
+
+    fail();
+    expect(onStatus).toHaveBeenLastCalledWith("polling");
+    vi.advanceTimersByTime(messagesReattachDelayMs(1));
+    join();
+
+    expect(onStatus).toHaveBeenLastCalledWith("live");
+    unsubscribe();
+  });
+
+  it("gives up after a bounded number of attempts rather than retrying for ever", () => {
+    const { fixture, fail } = erroringFixture();
+
+    const unsubscribe = subscribeToMessages("conversation-1", vi.fn(), { poll: vi.fn() });
+    for (let attempt = 1; attempt <= MESSAGES_REATTACH_MAX_ATTEMPTS + 2; attempt += 1) {
+      fail();
+      vi.advanceTimersByTime(messagesReattachDelayMs(attempt));
+    }
+
+    // The first attach plus the capped re-asks, and nothing beyond.
+    expect(fixture.client.channel).toHaveBeenCalledTimes(MESSAGES_REATTACH_MAX_ATTEMPTS + 1);
+    unsubscribe();
+  });
+
+  it("a join that LANDED clears the budget, so a long session keeps recovering", () => {
+    const { fixture, fail, join } = erroringFixture();
+
+    const unsubscribe = subscribeToMessages("conversation-1", vi.fn(), { poll: vi.fn() });
+    for (let round = 0; round < MESSAGES_REATTACH_MAX_ATTEMPTS + 3; round += 1) {
+      fail();
+      vi.advanceTimersByTime(messagesReattachDelayMs(1));
+      join();
+    }
+
+    expect(fixture.client.channel).toHaveBeenCalledTimes(MESSAGES_REATTACH_MAX_ATTEMPTS + 4);
+    unsubscribe();
+  });
+
+  it("cancels a pending re-ask when the caller unsubscribes", () => {
+    const { fixture, fail } = erroringFixture();
+
+    const unsubscribe = subscribeToMessages("conversation-1", vi.fn(), { poll: vi.fn() });
+    fail();
+    unsubscribe();
+    vi.advanceTimersByTime(messagesReattachDelayMs(1) * 10);
+
+    expect(fixture.client.channel).toHaveBeenCalledTimes(1);
+  });
+
+  it("backs off further each attempt, and never past the ceiling", () => {
+    expect(messagesReattachDelayMs(1)).toBeLessThan(messagesReattachDelayMs(2));
+    expect(messagesReattachDelayMs(2)).toBeLessThan(messagesReattachDelayMs(3));
+    expect(messagesReattachDelayMs(99)).toBe(messagesReattachDelayMs(50));
   });
 });

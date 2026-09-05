@@ -6,6 +6,7 @@ vi.mock("@/lib/supabase", () => ({ supabaseServerConfig: () => null }));
 import {
   broadcastMessageSent,
   broadcastMessagesRead,
+  deferMessagesSignal,
   MESSAGES_BROADCAST_TIMEOUT_MS,
 } from "@/lib/messagesBroadcast.server";
 import { messagesInboxTopic, messagesThreadTopic } from "@/lib/messagesTopics";
@@ -40,7 +41,7 @@ describe("message broadcast (server half of the realtime lane)", () => {
     for (const message of body.messages) {
       expect(message.event).toBe("message");
       expect(message.payload).toEqual({});
-      expect(message.private).toBe(false);
+      expect(message.private).toBe(true);
     }
   });
 
@@ -49,7 +50,7 @@ describe("message broadcast (server half of the realtime lane)", () => {
     await broadcastMessagesRead("c1", { fetchImpl, config });
     const body = JSON.parse(String(calls[0].init.body)) as { messages: Array<Record<string, unknown>> };
     expect(body.messages).toEqual([
-      { topic: messagesThreadTopic("c1"), event: "read", payload: {}, private: false },
+      { topic: messagesThreadTopic("c1"), event: "read", payload: {}, private: true },
     ]);
   });
 
@@ -73,5 +74,99 @@ describe("message broadcast (server half of the realtime lane)", () => {
     await broadcastMessagesRead("c1", { fetchImpl, config });
     expect(calls[0].init.signal).toBeInstanceOf(AbortSignal);
     expect(MESSAGES_BROADCAST_TIMEOUT_MS).toBeLessThanOrEqual(2_000);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-1 / fix task 32 - the topics a stranger could enumerate are PRIVATE.
+//
+// A public channel authorises on the API key alone, and handles are public and
+// enumerable, so a public inbox topic pinged anybody holding the anon key the
+// instant a named person sent or received a DM. Nothing here may go out public
+// again, on any lane: the fence reads every message of every send.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("no messaging signal is ever public", () => {
+  it("marks the thread topic and BOTH inbox topics private on a send", async () => {
+    const { calls, fetchImpl } = capture();
+    await broadcastMessageSent("c1", ["ken", "sam"], { fetchImpl, config });
+
+    const body = JSON.parse(String(calls[0].init.body)) as {
+      messages: Array<Record<string, unknown>>;
+    };
+    expect(body.messages).toHaveLength(3);
+    expect(body.messages.every((message) => message.private === true)).toBe(true);
+    expect(body.messages.some((message) => message.private === false)).toBe(false);
+  });
+
+  it("marks the read signal private too", async () => {
+    const { calls, fetchImpl } = capture();
+    await broadcastMessagesRead("c1", { fetchImpl, config });
+
+    const body = JSON.parse(String(calls[0].init.body)) as {
+      messages: Array<Record<string, unknown>>;
+    };
+    expect(body.messages.every((message) => message.private === true)).toBe(true);
+  });
+
+  it("still carries the SECRET key, which is what passes the policy 0148 installs", async () => {
+    const { calls, fetchImpl } = capture();
+    await broadcastMessageSent("c1", ["ken"], { fetchImpl, config });
+
+    const headers = new Headers(calls[0].init.headers);
+    expect(headers.get("apikey")).toBe(config.key);
+    expect(headers.get("authorization")).toBe(`Bearer ${config.key}`);
+  });
+
+  it("says nothing but that something happened - no handle, no id, no content", async () => {
+    const { calls, fetchImpl } = capture();
+    await broadcastMessageSent("c1", ["ken", "sam"], { fetchImpl, config });
+
+    const body = JSON.parse(String(calls[0].init.body)) as {
+      messages: Array<{ payload: unknown }>;
+    };
+    for (const message of body.messages) expect(message.payload).toEqual({});
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-26 / fix task 17 - the nudge is handed to the platform, not to the reader.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("deferMessagesSignal", () => {
+  it("returns before the work it was given has finished", async () => {
+    let release = (): void => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let done = false;
+
+    deferMessagesSignal(async () => {
+      await gate;
+      done = true;
+    });
+
+    // The caller is already past it; the response is not held behind the nudge.
+    expect(done).toBe(false);
+    release();
+    await gate;
+    await Promise.resolve();
+    expect(done).toBe(true);
+  });
+
+  it("swallows a failed nudge rather than rejecting into the caller's request", async () => {
+    expect(() =>
+      deferMessagesSignal(async () => {
+        throw new Error("realtime is down");
+      }),
+    ).not.toThrow();
+    await Promise.resolve();
+  });
+
+  it("runs the work even with no request scope for `after` to hang it on", async () => {
+    let ran = false;
+    deferMessagesSignal(async () => {
+      ran = true;
+    });
+    await Promise.resolve();
+    expect(ran).toBe(true);
   });
 });

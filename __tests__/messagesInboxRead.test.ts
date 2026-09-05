@@ -87,6 +87,7 @@ vi.mock("@/lib/supabase", () => ({
 
 import {
   INBOX_LAST_MESSAGE_WINDOW,
+  INBOX_UNREAD_SCAN_CAP,
   supabaseMessagesStore,
 } from "@/lib/messagesStore";
 
@@ -126,7 +127,8 @@ describe("inbox read", () => {
       };
     };
 
-    const inbox = await supabaseMessagesStore.listConversations("ken");
+    const { conversations: inbox, status } = await supabaseMessagesStore.listConversations("ken");
+    expect(status).toBe("ready");
 
     const messageReads = state.queries.filter((q) => q.table === "messages");
     expect(state.queries.filter((q) => q.table === "conversations")).toHaveLength(1);
@@ -168,7 +170,7 @@ describe("inbox read", () => {
       return { data: busyRows, error: null };
     };
 
-    const inbox = await supabaseMessagesStore.listConversations("ken");
+    const { conversations: inbox } = await supabaseMessagesStore.listConversations("ken");
     const singles = state.queries.filter((q) => q.single);
     expect(singles).toHaveLength(1);
     expect(filterValue(singles[0], "eq")).toEqual(["conversation_id", C2]);
@@ -177,7 +179,10 @@ describe("inbox read", () => {
 
   it("asks nothing more for an empty inbox", async () => {
     state.answer = () => ({ data: [], error: null });
-    await expect(supabaseMessagesStore.listConversations("ken")).resolves.toEqual([]);
+    await expect(supabaseMessagesStore.listConversations("ken")).resolves.toEqual({
+      conversations: [],
+      status: "ready",
+    });
     expect(state.queries).toHaveLength(1);
   });
 });
@@ -236,5 +241,125 @@ describe("thread read", () => {
     await expect(supabaseMessagesStore.participants(C1)).resolves.toEqual({ handleA: "ken", handleB: "sam" });
     state.answer = () => ({ data: null, error: null });
     await expect(supabaseMessagesStore.participants(C1)).resolves.toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-9 / F-10 / fix task 23 - a failed read may never read as absence, and a
+// truncated scan may never read as a confident zero.
+// ─────────────────────────────────────────────────────────────────────────────
+/** What a per-conversation HEAD re-ask answers, so the assertions can name it. */
+const RE_ASKED_COUNT = 1_234;
+
+describe("inbox read is honest about what it could not do", () => {
+  const conversationRows = {
+    data: [
+      { id: C1, handle_a: "ken", handle_b: "sam", last_message_at: "2026-09-05T10:00:00Z" },
+      { id: C2, handle_a: "jen", handle_b: "ken", last_message_at: "2026-09-05T09:00:00Z" },
+    ],
+    error: null,
+  };
+
+  it("orders the unread scan, so its cap is a WINDOW rather than a silent filter", async () => {
+    state.answer = (q) => (q.table === "conversations" ? conversationRows : { data: [], error: null });
+    await supabaseMessagesStore.listConversations("ken");
+
+    const unreadScan = state.queries.find(
+      (q) => q.table === "messages" && q.filters.some((f) => f[0] === "is"),
+    );
+    expect(filterValue(unreadScan!, "order")).toEqual(["conversation_id", { ascending: true }]);
+    expect(unreadScan?.limit).toBe(INBOX_UNREAD_SCAN_CAP);
+  });
+
+  it("re-asks per conversation for every count the filled scan could have cut short", async () => {
+    // The whole budget spent on C1, so C1's own count may be incomplete and C2
+    // was never reached at all. Both are re-asked; neither is reported as 0.
+    const truncated = Array.from({ length: INBOX_UNREAD_SCAN_CAP }, () => ({
+      conversation_id: C1,
+    }));
+    state.answer = (q) => {
+      if (q.table === "conversations") return conversationRows;
+      const isUnreadLane = q.filters.some((f) => f[0] === "is");
+      if (!isUnreadLane) {
+        return {
+          data: [{ conversation_id: C1, sender_handle: "sam", body: "hi", attachment_kind: null }],
+          error: null,
+        };
+      }
+      // A HEAD count carries no rows, only a count.
+      const asksOneConversation = q.filters.some(
+        (f) => f[0] === "eq" && f[1] === "conversation_id",
+      );
+      if (asksOneConversation) {
+        return { data: null, error: null, count: RE_ASKED_COUNT } as never;
+      }
+      return { data: truncated, error: null };
+    };
+
+    const { conversations, status } = await supabaseMessagesStore.listConversations("ken");
+
+    const reAsks = state.queries.filter(
+      (q) =>
+        q.table === "messages" &&
+        q.filters.some((f) => f[0] === "is") &&
+        q.filters.some((f) => f[0] === "eq" && f[1] === "conversation_id"),
+    );
+    expect(reAsks.map((q) => filterValue(q, "eq")?.[1])).toEqual([C1, C2]);
+    expect(status).toBe("ready");
+    expect(conversations.find((c) => c.id === C1)?.unread).toBe(RE_ASKED_COUNT);
+    expect(conversations.find((c) => c.id === C2)?.unread).toBe(RE_ASKED_COUNT);
+  });
+
+  it("keeps the conversations when the unread scan fails, and SAYS the read is degraded", async () => {
+    state.answer = (q) => {
+      if (q.table === "conversations") return conversationRows;
+      if (q.filters.some((f) => f[0] === "is")) {
+        return { data: null, error: { message: "canceling statement due to statement timeout" } };
+      }
+      return {
+        data: [{ conversation_id: C1, sender_handle: "sam", body: "still here", attachment_kind: null }],
+        error: null,
+      };
+    };
+
+    const { conversations, status } = await supabaseMessagesStore.listConversations("ken");
+
+    expect(status).toBe("degraded");
+    expect(conversations.map((c) => c.id)).toEqual([C1, C2]);
+    expect(conversations[0].lastBody).toBe("still here");
+    // UNCOUNTED IS NOT ZERO: the field is absent, so no surface can print a
+    // confident nothing over a message that is waiting.
+    for (const conversation of conversations) {
+      expect(conversation.unread).toBeUndefined();
+    }
+  });
+
+  it("keeps the conversations when the recent window fails, and says so", async () => {
+    state.answer = (q) => {
+      if (q.table === "conversations") return conversationRows;
+      if (q.filters.some((f) => f[0] === "is")) {
+        return { data: [{ conversation_id: C1 }], error: null };
+      }
+      return { data: null, error: { message: "connection reset" } };
+    };
+
+    const { conversations, status } = await supabaseMessagesStore.listConversations("ken");
+
+    expect(status).toBe("degraded");
+    expect(conversations.map((c) => c.id)).toEqual([C1, C2]);
+    expect(conversations[0].lastBody).toBeUndefined();
+    expect(conversations[0].unread).toBe(1);
+  });
+
+  it("only the CONVERSATIONS read may empty the inbox, and even then it says degraded", async () => {
+    state.answer = (q) =>
+      q.table === "conversations"
+        ? { data: null, error: { message: "statement timeout" } }
+        : { data: [], error: null };
+
+    await expect(supabaseMessagesStore.listConversations("ken")).resolves.toEqual({
+      conversations: [],
+      status: "degraded",
+    });
   });
 });

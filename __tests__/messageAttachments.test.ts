@@ -159,7 +159,7 @@ describe("a reported message stops carrying its photo", () => {
       width: 1080,
       height: 1350,
     });
-    expect(sent?.attachment).toEqual({
+    expect(sent?.message.attachment).toEqual({
       kind: "photo",
       url: messagePhotoServePath(conversationId!, messageId),
       width: 1080,

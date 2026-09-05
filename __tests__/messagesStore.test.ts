@@ -42,7 +42,7 @@ describe("send — participant gating + body validation", () => {
   it("stores a message from a participant and returns the DTO", async () => {
     const s = memoryMessagesStore;
     const id = (await s.openConversation("ken", "sam"))!;
-    const msg = await s.send(id, "ken", "  first <b>message</b>  ");
+    const msg = (await s.send(id, "ken", "  first <b>message</b>  "))?.message;
     expect(msg).not.toBeNull();
     expect(msg!.senderHandle).toBe("ken");
     expect(msg!.body).toBe("first bmessage/b"); // cleaned
@@ -71,22 +71,22 @@ describe("listConversations — inbox with preview + per-viewer unread", () => {
     await s.send(id, "ken", "hello sam");
     await s.send(id, "ken", "you there?");
 
-    const samInbox = await s.listConversations("sam");
+    const samInbox = (await s.listConversations("sam")).conversations;
     expect(samInbox).toHaveLength(1);
     expect(samInbox[0].otherHandle).toBe("ken");
     expect(samInbox[0].lastBody).toBe("you there?");
     expect(samInbox[0].lastFromMe).toBe(false);
     expect(samInbox[0].unread).toBe(2); // two unread from ken
 
-    const kenInbox = await s.listConversations("ken");
+    const kenInbox = (await s.listConversations("ken")).conversations;
     expect(kenInbox[0].unread).toBe(0); // his own messages are never unread
     expect(kenInbox[0].lastFromMe).toBe(true);
   });
 
   it("is empty for a handle with no conversations / a blank handle", async () => {
     const s = memoryMessagesStore;
-    expect(await s.listConversations("nobody")).toEqual([]);
-    expect(await s.listConversations("")).toEqual([]);
+    expect((await s.listConversations("nobody")).conversations).toEqual([]);
+    expect((await s.listConversations("")).conversations).toEqual([]);
   });
 });
 
@@ -103,7 +103,7 @@ describe("listMessages — participant gating + mark-read", () => {
 
     // A read is a read: the route marks explicitly, so a photo send or a report
     // that lists the thread to prove participation marks nothing.
-    expect((await s.listConversations("sam"))[0].unread).toBe(1);
+    expect((await s.listConversations("sam")).conversations[0].unread).toBe(1);
   });
 
   it("markRead marks the viewer's received rows, counts them, and marks nothing for an outsider", async () => {
@@ -114,12 +114,12 @@ describe("listMessages — participant gating + mark-read", () => {
     await s.send(id, "sam", "three");
 
     expect(await s.markRead(id, "mallory")).toBe(0);
-    expect((await s.listConversations("sam"))[0].unread).toBe(2);
+    expect((await s.listConversations("sam")).conversations[0].unread).toBe(2);
 
     expect(await s.markRead(id, "sam")).toBe(2);
-    expect((await s.listConversations("sam"))[0].unread).toBe(0);
+    expect((await s.listConversations("sam")).conversations[0].unread).toBe(0);
     // Sam's own message to ken stays unread for ken.
-    expect((await s.listConversations("ken"))[0].unread).toBe(1);
+    expect((await s.listConversations("ken")).conversations[0].unread).toBe(1);
     expect(await s.markRead(id, "sam")).toBe(0);
   });
 
@@ -147,7 +147,7 @@ describe("report — abuse flag seam", () => {
   it("flags a message once; a second flag is a no-op", async () => {
     const s = memoryMessagesStore;
     const id = (await s.openConversation("ken", "sam"))!;
-    const msg = (await s.send(id, "ken", "rude thing"))!;
+    const msg = (await s.send(id, "ken", "rude thing"))!.message;
     expect(await s.report(id, msg.id, "sam")).toBe(true);
     expect(await s.report(id, msg.id, "sam")).toBe(false); // already flagged
 
@@ -159,7 +159,7 @@ describe("report — abuse flag seam", () => {
     const s = memoryMessagesStore;
     const kenSam = (await s.openConversation("ken", "sam"))!;
     const jenMax = (await s.openConversation("jen", "max"))!;
-    const otherMessage = (await s.send(jenMax, "jen", "not your thread"))!;
+    const otherMessage = (await s.send(jenMax, "jen", "not your thread"))!.message;
 
     expect(await s.report(kenSam, otherMessage.id, "sam")).toBe(false);
 

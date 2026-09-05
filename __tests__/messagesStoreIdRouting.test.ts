@@ -118,7 +118,7 @@ describe("supabaseMessagesStore — a durable UUID starting with 'c' stays durab
     );
 
     expect(sent).not.toBeNull();
-    expect(sent!.body).toBe("still here");
+    expect(sent!.message.body).toBe("still here");
   });
 
   it("reports through Supabase instead of no-opping", async () => {

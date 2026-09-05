@@ -34,8 +34,8 @@ import {
   type CommunityPriceObservation,
 } from "@/lib/communityPriceStore";
 import { normalizeHandle } from "@/lib/handleNormalize";
-import type { ConversationDTO, MessageDTO } from "@/lib/messages";
-import { messagesStore } from "@/lib/messagesStore";
+import type { MessageDTO } from "@/lib/messages";
+import { messagesStore, type InboxRead } from "@/lib/messagesStore";
 import type { NightMemory, NightMoment } from "@/lib/nightMemory";
 import { listNightMemories, listNightMoments } from "@/lib/nightMemoryStore";
 import { pintDropsStore, type PintDropDTO } from "@/lib/pintDropsStore";
@@ -61,7 +61,7 @@ export type AccountExportDeps = {
     limit: number,
   ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }>;
   pintDrops(handle: string): Promise<PintDropDTO[]>;
-  conversations(handle: string): Promise<ConversationDTO[]>;
+  conversations(handle: string): Promise<InboxRead>;
   /** Null when the caller is not a participant, which for their own inbox row is a read that failed. */
   messages(conversationId: string, handle: string): Promise<MessageDTO[] | null>;
 };
@@ -174,8 +174,12 @@ export async function buildAccountExport(
     if (!handle) return boundedLane<AccountExportConversation>([]);
     try {
       const inbox = await deps.conversations(handle);
+      // A DEGRADED inbox read may have missed conversations entirely, and a
+      // portable copy that quietly omits a thread is a partial file handed over
+      // as a complete one. The lane refuses instead.
+      if (inbox.status === "degraded") return unavailableLane<AccountExportConversation>();
       const out: AccountExportConversation[] = [];
-      for (const conversation of inbox.slice(0, ACCOUNT_EXPORT_LANE_CAP + 1)) {
+      for (const conversation of inbox.conversations.slice(0, ACCOUNT_EXPORT_LANE_CAP + 1)) {
         const thread = await deps.messages(conversation.id, handle);
         // The inbox named this thread as the caller's, so a refused read is a
         // read that failed rather than a thread that is not theirs.

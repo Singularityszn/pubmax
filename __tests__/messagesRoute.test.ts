@@ -84,7 +84,7 @@ describe("GET /api/messages — inbox", () => {
     const res = await getInbox();
     expect(res.status).toBe(200);
     expectNoStore(res);
-    expect(await res.json()).toEqual({ conversations: [] });
+    expect(await res.json()).toEqual({ conversations: [], status: "ready" });
   });
 
   it("401s when a handle is asserted without a signed-in actor (Wave I2)", async () => {
