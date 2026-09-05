@@ -14,17 +14,19 @@
    until the pill is actually mounted (html:has(.nightPill)). Surfaces add that
    var to their existing bottom clearance, so they reserve room for the pill ONLY
    when one is really floating: no dead whitespace on a night with no live plan,
-   and nothing to guess: the number is derived from the pill's own tokens. */
+   and nothing to guess: the number is derived from the tokens the floating
+   stack publishes for this member (components/nav/mobileNav.css), which is the
+   same pair the create action reads to park one gap above this pill. */
 :root {
-  --night-pill-h: 44px;    /* the pill's touch-target height */
-  --night-pill-inset: 10px; /* the pill's own gap above the tab bar (mobile) */
   --night-pill-clearance: 0px;
 }
 
 html:has(.nightPill) {
   /* Pill footprint + a small breathing gap, so a CTA docked above it is clear,
      not kissing its top edge. */
-  --night-pill-clearance: calc(var(--night-pill-h) + var(--night-pill-inset) + 8px);
+  --night-pill-clearance: calc(
+    var(--float-stack-gap) + var(--night-pill-h) + 8px
+  );
 }
 
 .nightCard {
@@ -631,9 +633,13 @@ html:has(.nightPill) {
   cursor: pointer;
 }
 
+/* The phone berth is published by the floating stack (components/nav/
+   mobileNav.css), not restated here: the create action reads that same token to
+   park one gap above this pill, and a number stated twice is how a fixed
+   control lands on another one. */
 @media (max-width: 640px) {
   .nightPill {
-    bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 10px);
+    bottom: var(--night-pill-bottom);
   }
 }
 

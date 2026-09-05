@@ -39,6 +39,16 @@
   --pal-summon-h: 52px;
   --pal-summon-bottom: calc(78px + env(safe-area-inset-bottom, 0px));
 
+  /* Member: the Night Mode pill, the way back into a plan that is on tonight.
+     It parks on the base band on every in-app route but /map and /, and it was
+     the one member that published its geometry in its OWN stylesheet instead of
+     here, so the create action never read it and landed straight on top of it,
+     swallowing its taps at 320px. Both numbers now live here, with the pill's
+     rule and its own published clearance reading them back
+     (components/night/nightMode.css). */
+  --night-pill-h: 44px;
+  --night-pill-bottom: var(--float-stack-base);
+
   /* Member: the phone map's planning pill. */
   --plan-activation-h: 48px;
   --plan-activation-bottom: calc(var(--float-stack-base) + 10px);
@@ -87,6 +97,9 @@
   /* Each member's top edge, which is the only thing a control above it needs. */
   --float-stack-top-create: calc(var(--create-fab-bottom) + var(--create-fab-h));
   --float-stack-top-pal: calc(var(--pal-summon-bottom) + var(--pal-summon-h));
+  --float-stack-top-night-pill: calc(
+    var(--night-pill-bottom) + var(--night-pill-h)
+  );
   --float-stack-top-plan: calc(
     var(--plan-activation-bottom) + var(--plan-activation-h)
   );
@@ -129,6 +142,16 @@ body:has(.mapStage):has(.analyticsConsentPrompt) {
   );
 }
 
+/* First of the four, because source order is what settles a tie and every
+   member below it parks higher: the Night pill never shares a screen with the
+   two map members (NightModeCard stands down on /map), and where it does share
+   one with the Pub Pal pill, on /plan, that pill's top edge is the higher of
+   the two and must win. */
+body:has(.nightPill) {
+  --create-fab-bottom: calc(
+    var(--float-stack-top-night-pill) + var(--float-stack-gap)
+  );
+}
 body:has(.mobilePlanActivation) {
   --create-fab-bottom: calc(var(--float-stack-top-plan) + var(--float-stack-gap));
 }
