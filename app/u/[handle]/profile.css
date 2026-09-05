@@ -1474,8 +1474,12 @@
   .profilePage .profileCardFacts { grid-template-columns: minmax(0, 1fr); }
   .profilePage .profileEditorGroup { padding: 14px; }
 
-  .profilePage .youIdentityIntro { grid-template-columns: auto 1fr; }
-  .profilePage .youIdentityAvatar { width: 72px; }
+  /* A phone stacks the card. Two columns put a 72px face beside a 29px
+     display heading, so "Make the night yours." broke across the face and
+     the lede wrapped in a 230px column; one column lets the heading, the
+     lede and the two actions share the card's full width. */
+  .profilePage .youIdentityIntro { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 20px; }
+  .profilePage .youIdentityAvatar { width: 60px; font-size: .8rem; }
   /* Two fixed columns cut each action to about 150px at 390px, and neither
      label fits: "Claim your @handle" and "Meet your Pub Pal" both wrapped
      mid-phrase and the pair stopped matching in height. The columns are asked
