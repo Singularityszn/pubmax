@@ -211,9 +211,9 @@ describe("launch routes (group c) carry one primary action", () => {
     expect(rendered).not.toContain("storyPrimaryBtn");
   });
 
-  // next.config.mjs 308s /drinks to /social?tab=discover and app/drinks/page.tsx
-  // is the same permanentRedirect, so the route renders no document of its own.
-  it.skip("/drinks carries one primary action", () => {});
+  // /drinks has no case here: next.config.mjs 308s it to /social?tab=discover and
+  // app/drinks/page.tsx is the same permanentRedirect, so the route renders no
+  // document of its own and has no primary action to count.
 
   it("/drink/[slug] carries one primary action (guinness)", async () => {
     const rendered = renderToStaticMarkup(
