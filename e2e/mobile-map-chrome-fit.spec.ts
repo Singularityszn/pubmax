@@ -1210,6 +1210,59 @@ for (const viewport of VIEWPORTS) {
   });
 }
 
+// GAP 19 (mobile store-readiness audit, 2026-09-04, 390x844): on /near the
+// floating create action covered the right-hand price of the row under it, and
+// the price is the product. The float stack is already governed — every member
+// publishes its berth in mobileNav.css and this file measures the rendered
+// result — so what was missing was a surface reserving the control's HORIZONTAL
+// lane the way the map chrome reserves --mobile-map-corner-lane.
+//
+// The list scrolls under a fixed control, so the assertion is made at several
+// scroll offsets rather than at rest: any row may be the one in its band.
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px /near prices stay clear of the create action`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    });
+
+    const response = await page.goto("/near?patch=soho");
+    expect(response?.status()).toBe(200);
+
+    await expect(page.locator(".nmnCardPriceValue").first()).toBeVisible();
+    await expect(page.getByTestId("create-fab")).toBeVisible();
+
+    const overlapsAtOffset = async () =>
+      page.evaluate(() => {
+        const fab = document.querySelector(".createFab");
+        if (!fab) return { measured: false, overlaps: [] as string[] };
+        const f = fab.getBoundingClientRect();
+        const overlaps = [...document.querySelectorAll(".nmnCardPriceValue")]
+          .filter((price) => {
+            const r = price.getBoundingClientRect();
+            return r.left < f.right && r.right > f.left && r.top < f.bottom && r.bottom > f.top;
+          })
+          .map((price) => price.textContent ?? "");
+        return { measured: true, overlaps };
+      });
+
+    // 0, 24, 48 … past the control's own height, so every row passes through
+    // its band at least once.
+    for (let offset = 0; offset <= 240; offset += 24) {
+      await page.evaluate((y) => window.scrollTo(0, y), offset);
+      const report = await overlapsAtOffset();
+      expect(report.measured, "the create action is on screen to measure").toBe(true);
+      expect(
+        report.overlaps,
+        `no price cell sits under the create action at scroll ${offset}`,
+      ).toEqual([]);
+    }
+  });
+}
+
 // Social is a primary phone destination in the live launch. The count-driven
 // row must close over the WHOLE primary set at every supported phone width.
 //

@@ -119,6 +119,12 @@
 .spillPriceStep {
   display: grid;
   gap: 12px;
+  /* The log intent reveals this block (lib/logIntentReveal.ts), and a reveal
+     that lands flush against the sheet's own head clips the question it came
+     to ask. The margin is the reveal's breathing room, not a layout offset:
+     scroll-margin moves where a scroll STOPS and nothing about where the block
+     sits. */
+  scroll-margin-top: 16px;
 }
 
 .spillSignedOutNote {

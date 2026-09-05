@@ -17,7 +17,7 @@
     align-items: flex-end;
     gap: 8px;
     position: fixed;
-    right: calc(12px + env(safe-area-inset-right, 0px));
+    right: var(--create-fab-right);
     bottom: var(--create-fab-bottom);
     /* BELOW the map sheet portal. The portal is clipped at the tab bar so the
        bar is never covered, and this control sits inside that clip, so a create

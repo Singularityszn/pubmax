@@ -284,6 +284,29 @@
   line-height: 1.4;
 }
 
+/* The price column keeps out from under the create action.
+   The control is fixed to the bottom-right of the phone viewport, so every row
+   of this list passes under it while the list scrolls, and the cell it lands on
+   is the price — the one figure the page exists to state. The reserve is the
+   control's OWN published lane (mobileNav.css) less this page's gutter, the
+   same shape the map chrome takes against --mobile-map-corner-lane, so nothing
+   here restates a berth. The caption and the collected line take it too, so the
+   column shifts as one rather than the prices alone stepping inwards.
+   It is reserved whenever the control is in the document rather than only while
+   it is painted: a lane that appeared and vanished with the soft keyboard would
+   reflow the list under the reader's thumb. Rendered proof at 320, 390 and 430
+   is e2e/mobile-map-chrome-fit.spec.ts. */
+@media (max-width: 640px) {
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab))
+    .nmnPage
+    :is(.nmnListCaption, .nmnCard, .nmnPriceCollected) {
+    padding-right: max(
+      var(--space-2),
+      calc(var(--create-fab-lane) - var(--page-gutter))
+    );
+  }
+}
+
 /* Explicit acceptance.
    Each card splits into a browse tap plus a distinct "Keep for tonight" action.
    The CTA uses the one loud accent because it starts a Plan handoff. Embedded
