@@ -97,6 +97,17 @@
       var(--map-arrival-h, 256px) + max(20px, env(safe-area-inset-bottom)) + 12px
     );
   }
+
+  /* The Layers control parks in that same corner, and the phone stack lifts
+     every member above this card while it is up. Desktop lifted the credit
+     alone, so the card covered the control outright: measured at 768px the
+     card sat at 388,769-748,1004 and the control at 659,946-754,990. It takes
+     the card's own published berth, like the credit above it. */
+  body:has(.mapArrivalCard) .mapStage .mapLayersControl {
+    bottom: calc(
+      var(--map-arrival-h, 256px) + max(20px, env(safe-area-inset-bottom)) + 12px
+    );
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
