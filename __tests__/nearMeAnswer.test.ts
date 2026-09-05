@@ -179,3 +179,17 @@ describe("boroughsWithPrices", () => {
     expect(boroughsWithPrices(venues)).toEqual(["Camden", "Southwark"]);
   });
 });
+
+describe("withoutWalkTimes", () => {
+  it("strips distance and walk minutes and keeps everything else", async () => {
+    const { withoutWalkTimes } = await import("@/lib/nearMeAnswer");
+    const cards = [
+      { id: "a", name: "A", borough: "Westminster", cheapestPrice: 4.5, distanceKm: 0.02, walkMinutes: 1 },
+      { id: "b", name: "B", borough: "Camden", cheapestPrice: 5.1 },
+    ];
+    expect(withoutWalkTimes(cards)).toEqual([
+      { id: "a", name: "A", borough: "Westminster", cheapestPrice: 4.5 },
+      { id: "b", name: "B", borough: "Camden", cheapestPrice: 5.1 },
+    ]);
+  });
+});

@@ -26,6 +26,7 @@ import { loadSlimVenuesForCity } from "@/lib/venuesSlim";
 import {
   boroughsWithPrices,
   formatNearDistance,
+  withoutWalkTimes,
   nearMeAnswerHeadline,
   rankBoroughCheapest,
   rankNearMe,
@@ -338,7 +339,10 @@ export default function NearMeNow({
           if (generation !== answerGenerationRef.current) return;
           try {
             const answer = rankNearMe(next.lat, next.lng, slim);
-            setCards(answer.cards);
+            // A centre the reader fell back to (location off or unavailable)
+            // is not where they are standing; its rows carry no walk time.
+            const fallbackCentre = reason === "denied" || reason === "unavailable";
+            setCards(fallbackCentre ? withoutWalkTimes(answer.cards) : answer.cards);
             setScope(answer.scope);
             // Derive this patch's honest coverage tier from the priced pubs actually
             // in the slim index (real counts, no uniform claim).
