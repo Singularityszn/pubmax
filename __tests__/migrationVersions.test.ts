@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 
+// A migration's four-digit label is the number the captain applies by, so two
+// files carrying one label is an ambiguous instruction rather than a naming
+// nit: #1500 and #1501 merged within an hour and both called themselves 0142.
+// The collisions below are GRANDFATHERED. The list may only ever SHRINK: a new
+// pair belongs in a renamed file, not in this table.
+
 const GRANDFATHERED_DUPLICATE_LABEL_FILES = {
   "0007": [
     "20260705214936_0007_function_search_path.sql",
@@ -53,13 +59,23 @@ const GRANDFATHERED_DUPLICATE_LABEL_FILES = {
   ],
 } as const;
 
+function migrationFiles(directory: string): string[] {
+  return readdirSync(join(process.cwd(), directory)).filter((name) =>
+    name.endsWith(".sql"),
+  );
+}
+
+function labelOf(name: string): string | null {
+  return name.match(/^\d{14}_(\d{4})_/)?.[1] ?? null;
+}
+
 function duplicateLabelFiles(
   migrations: readonly string[],
 ): Record<string, string[]> {
   const filesByLabel = new Map<string, string[]>();
 
   for (const name of [...migrations].sort()) {
-    const label = name.match(/^\d{14}_(\d{4})_/)?.[1];
+    const label = labelOf(name);
     if (!label) continue;
     filesByLabel.set(label, [...(filesByLabel.get(label) ?? []), name]);
   }
@@ -73,8 +89,7 @@ function duplicateLabelFiles(
 
 describe("Supabase migration versions", () => {
   it("keeps every timestamp version unique", () => {
-    const migrations = readdirSync(join(process.cwd(), "supabase/migrations"))
-      .filter((name) => name.endsWith(".sql"));
+    const migrations = migrationFiles("supabase/migrations");
     const versions = migrations.map((name) => name.split("_", 1)[0]);
     const duplicates = versions.filter((version, index) => versions.indexOf(version) !== index);
 
@@ -82,11 +97,50 @@ describe("Supabase migration versions", () => {
   });
 
   it("permits only the documented numbered-label collisions", () => {
-    const migrations = readdirSync(join(process.cwd(), "supabase/migrations"))
-      .filter((name) => name.endsWith(".sql"));
+    const migrations = migrationFiles("supabase/migrations");
 
     expect(duplicateLabelFiles(migrations)).toEqual(
       GRANDFATHERED_DUPLICATE_LABEL_FILES,
     );
+  });
+
+  it("gives every migration landing after the grandfathered ones its own label", () => {
+    const grandfathered = new Set(Object.keys(GRANDFATHERED_DUPLICATE_LABEL_FILES));
+    const duplicates = duplicateLabelFiles(migrationFiles("supabase/migrations"));
+
+    // Stated apart from the table above so the failure names the offending
+    // pair rather than printing the whole grandfathered list as a diff.
+    for (const [label, files] of Object.entries(duplicates)) {
+      expect(
+        grandfathered.has(label),
+        `migration ${label} is claimed by ${files.join(" and ")}; renumber the later one`,
+      ).toBe(true);
+    }
+  });
+
+  it("gives every rollback its own label too, and one per migration label", () => {
+    const grandfathered = new Set(Object.keys(GRANDFATHERED_DUPLICATE_LABEL_FILES));
+    const rollbacks = migrationFiles("supabase/migrations/rollback");
+
+    // A rollback mirrors its migration's label, so the grandfathered pairs are
+    // doubled here and nothing else may be.
+    for (const [label, files] of Object.entries(duplicateLabelFiles(rollbacks))) {
+      expect(
+        grandfathered.has(label),
+        `rollback ${label} is claimed by ${files.join(" and ")}; renumber the later one`,
+      ).toBe(true);
+    }
+
+    // A rollback names the migration it undoes, so a label with a rollback
+    // file must be a label some migration actually carries.
+    const migrationLabels = new Set(
+      migrationFiles("supabase/migrations").map(labelOf).filter(Boolean),
+    );
+    const orphans = rollbacks
+      .map(labelOf)
+      .filter((label): label is string => Boolean(label))
+      .filter((label) => !migrationLabels.has(label));
+
+    expect(orphans).toEqual([]);
   });
 });

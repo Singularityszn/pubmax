@@ -1,4 +1,4 @@
--- Rollback of 0142. Drops the partial unread index.
+-- Rollback of 0143. Drops the partial unread index.
 --
 -- Costs nothing but the unread count's speed: the inbox read falls back to the
 -- plain messages_conversation_created_idx bitmap scan it used before, which

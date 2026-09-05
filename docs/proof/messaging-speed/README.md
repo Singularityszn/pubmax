@@ -98,12 +98,12 @@ PostgREST sends:
 | --- | --- | --- |
 | Inbox conversations by participant | Seq Scan at 461 rows (planner's choice; both handle indexes exist) | 1.08 ms |
 | Inbox unread rows across the viewer's conversations | Bitmap Index Scan `messages_conversation_created_idx`, 9,000 index rows, filter removes 8,100 | 1.02 ms |
-| Same, with the 0142 partial index `(conversation_id) where read_at is null` | Bitmap Index Scan on the partial index, 1,800 index rows | 0.43 ms |
+| Same, with the 0143 partial index `(conversation_id) where read_at is null` | Bitmap Index Scan on the partial index, 1,800 index rows | 0.43 ms |
 | Inbox recent window (`order by created_at desc limit 240`) | Bitmap Index Scan, top-N heapsort | 2.28 ms |
 | Thread rows for one conversation | Bitmap Index Scan, 150 rows | 2.61 ms (0.22 ms warm) |
 | markRead update, one conversation | Bitmap Index Scan, 15 rows updated | 0.72 ms |
 
-No read is a sequential scan of `messages`. Migration `0142` (file only, not
+No read is a sequential scan of `messages`. Migration `0143` (file only, not
 applied) adds the partial unread index; the code answers the same rows with
 or without it.
 
