@@ -3593,16 +3593,35 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
     box-shadow var(--duration-base) var(--ease-out);
 }
 
-.firstDropNudgeCta,
+.firstDropNudgeCta:hover,
 .confirmPintCta:hover {
   border-color: var(--brass-bright);
   box-shadow: 0 10px 22px color-mix(in srgb, var(--brass) 28%, transparent);
 }
 
-.firstDropNudgeCta,
+.firstDropNudgeCta:focus-visible,
 .confirmPintCta:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
+}
+
+/* The standing line and the door share one row where the row can hold both,
+   the way the eyebrow and the plaque share the block's first row: the claim on
+   the left, the thing to do about it on the right. Where the row cannot hold
+   both (a 390 phone) the door wraps under the line and keeps the left edge,
+   the thumb side every other action on this sheet starts from. */
+.contributorPrice .communityPriceStanding:has(+ .confirmPintCta) {
+  flex: 1 1 auto;
+}
+
+.contributorPrice .confirmPintCta {
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .contributorPrice .confirmPintCta {
+    margin-left: 0;
+  }
 }
 
 /* Claim list — every provenance-stamped claim renders as its own card so a
