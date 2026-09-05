@@ -116,7 +116,10 @@ test("mobile venue footer stays pinned and actionable at every sheet detent", as
   const sheet = portal.locator(".mobileSharedSheet");
   const footer = portal.locator(".mobileSharedSheetFooter");
   const body = portal.locator(".mobileSharedSheetBody");
-  const addPrice = portal.getByRole("button", { name: "Add a price at Arnos Arms" });
+  // The footer carries no price action (the Overview's one price door owns
+  // that); Share is the command every pub sheet keeps, so it is the one held
+  // in view at every detent.
+  const addPrice = portal.getByRole("button", { name: "Share Arnos Arms" });
 
   await expect(sheet).toHaveClass(/sheet-half/);
   await expectSheetInsideViewport(page, sheet, footer);

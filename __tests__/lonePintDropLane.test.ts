@@ -184,7 +184,6 @@ function renderSelectedVenue(
       onRequestLocation: noop,
       onClearLocation: noop,
       onLogTonightPrice: noop,
-      onStartFirstDrop: noop,
       onConfirmPrice,
       onOpenVisitReports: noop,
       priceEntryAllowed: false,

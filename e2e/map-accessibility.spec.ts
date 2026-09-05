@@ -79,10 +79,11 @@ function cssColourChannels(cssColour: string): [number, number, number] {
 }
 
 /**
- * The sticky bar's SECONDARY action is not locked coral and must not be held to
- * the locked-coral ink: acceptance owns the one primary slot on a pub sheet, so
- * Add price reads as a ghost over the sheet's own panel. What it still owes is
- * ordinary readable contrast against the surface it actually renders on.
+ * The sticky bar carries NO primary: the phone peek's "Plan stop" is the one
+ * painted plan action and the Overview's price door the one painted price
+ * action (lib/pintTrust.ts, `overviewPriceDoor`), so "Make it Stop 1" reads as
+ * a ghost over the sheet's own panel. What it still owes is ordinary readable
+ * contrast against the surface it actually renders on.
  */
 async function expectReadableGhostContrast(control: Locator): Promise<void> {
   const computed = await control.evaluate((node) => {
@@ -445,18 +446,18 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await page.setViewportSize(MOBILE);
     await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
     const planStop = page.getByRole("button", { name: "Plan stop" });
-    // Acceptance is permanent, so the pub sheet's ONE primary slot is now
-    // "Make it Stop 1" and Add price is its ghost neighbour. The locked coral
-    // guarantee follows the primary; it never followed the button's name.
+    // One painted primary per screen: the peek's "Plan stop" keeps the locked
+    // coral, and the sticky bar's "Make it Stop 1" is its ghost neighbour. The
+    // sheet's one painted PRICE action is the Overview's price door, and it
+    // wears the same locked pair. The guarantee follows the primary; it never
+    // followed the button's name.
     const acceptStop1 = page.getByRole("button", {
       name: "Make Arnos Arms Stop 1",
     });
-    const addPrice = page.getByRole("button", {
-      name: "Add a price at Arnos Arms",
-    });
+    const priceDoor = page.locator("[data-price-door]");
     await expect(planStop).toBeVisible();
     await expect(acceptStop1).toBeVisible();
-    await expect(addPrice).toBeVisible();
+    await expect(priceDoor).toHaveCount(1);
 
     for (const theme of ["light", "dark"] as const) {
       await page.evaluate((nextTheme) => {
@@ -464,8 +465,8 @@ test.describe("map keyboard and screen-reader venue path", () => {
         document.documentElement.dataset.theme = nextTheme;
       }, theme);
       await expectLockedCoralContrast(planStop);
-      await expectLockedCoralContrast(acceptStop1);
-      await expectReadableGhostContrast(addPrice);
+      await expectLockedCoralContrast(priceDoor);
+      await expectReadableGhostContrast(acceptStop1);
     }
   });
 });

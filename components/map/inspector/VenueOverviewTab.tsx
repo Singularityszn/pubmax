@@ -1,11 +1,16 @@
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
-import { MapPin } from "lucide-react";
+import { MapPin, PlusCircle } from "lucide-react";
 
 import Disclosure from "@/components/Disclosure";
 import PriceBadge from "@/components/PriceBadge";
 import TrustPill from "@/components/ui/trust-pill";
-import { trustChipStateFor, type PintTrustState } from "@/lib/pintTrust";
+import {
+  LOG_PRICE_DOOR_LABEL,
+  overviewPriceDoor,
+  trustChipStateFor,
+  type OverviewPriceDoor,
+} from "@/lib/pintTrust";
 import { priceStandingFor, type ConfirmedPriceInput } from "@/lib/priceTier";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { Amenity, ClaimBadge } from "@/components/map/venueInspectorBits";
@@ -28,7 +33,6 @@ import {
   venueBundlePrices,
   venuePriceLane,
   venuePriceLaneIsDrinkerLog,
-  venuePriceLaneObservedGbp,
   type ProvisionalPriceInput,
   type VenuePriceLane,
 } from "@/lib/venuePriceLane";
@@ -37,7 +41,10 @@ import SaveForNightButton from "@/components/wanted/SaveForNightButton";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
 import VenueDrinkPrices from "@/components/map/VenueDrinkPrices";
-import VenueSheetPriceEntry from "./VenueSheetPriceEntry";
+import VenuePriceEntryPanel from "./VenuePriceEntryPanel";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { usePriceEvidenceMission } from "@/components/nearme/usePriceEvidenceMission";
+import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
 import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
 import VenueAreaPriceCompare from "@/components/map/VenueAreaPriceCompare";
@@ -67,12 +74,67 @@ import {
 import { drinkLaneNoun, venueDrinkPriceView } from "@/lib/drinkLanes";
 import { namedLegacyPintPriceSource, type DrinkCategory } from "@/lib/drinks";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
-import {
-  confirmPintActionLabel,
-  confirmPintActionName,
-  secondDrinkerDoorOffered,
-} from "@/lib/pintDropSecondDrinker";
+import { confirmPintActionName } from "@/lib/pintDropSecondDrinker";
 import type { ZonePintIndex } from "@/lib/zones";
+
+/**
+ * The ranked evidence mission for THIS pub, read where the Overview decides
+ * whether its composer is open. A mission for another venue, a read that has
+ * not answered, or a viewer who may not submit all read as no mission.
+ */
+function useOverviewMission(
+  venueId: string,
+  pub: boolean,
+  priceEntryAllowed: boolean,
+): {
+  mission: PriceEvidenceMission | null;
+  pending: boolean;
+  dismiss: (mission: PriceEvidenceMission) => void;
+} {
+  const { user, handle, identityResolved } = useAuth();
+  const read = usePriceEvidenceMission({
+    venueIds: [venueId],
+    enabled: Boolean(pub && identityResolved && user && handle && priceEntryAllowed),
+    surface: "map",
+  });
+  return {
+    mission: read.mission?.venueId === venueId ? read.mission : null,
+    pending: read.status === "loading",
+    dismiss: read.dismiss,
+  };
+}
+
+/**
+ * Whether the prices-by-drink invite folds away. It is the ONE door only where
+ * the price area below renders none: under a drink lens or the no-alcohol
+ * view, where that area is hidden. With the area on screen for a pub, or the
+ * composer open, a second "Log a beer price" would be the sprawl the door
+ * policy removes (lib/pintTrust.ts, `overviewPriceDoor`).
+ */
+export function drinkInviteOwnedByPriceArea(
+  showsPriceSummary: boolean,
+  pub: boolean,
+  composerOpen: boolean,
+): boolean {
+  return (showsPriceSummary && pub) || composerOpen;
+}
+
+/**
+ * Whether the pub's own composer is on screen. A pure reading of three flags
+ * the sheet already owns, so the door above the form and the form itself are
+ * decided from one answer and can never both stand on one screen.
+ */
+export function overviewComposerOpen({
+  focusRequest,
+  signInRequested,
+  missionPresent,
+}: {
+  focusRequest: number;
+  signInRequested: boolean;
+  missionPresent: boolean;
+}): boolean {
+  return focusRequest > 0 || signInRequested || missionPresent;
+}
 
 /**
  * What the price area below the drink rows does on this pub, and whether the
@@ -107,38 +169,53 @@ function overviewPriceAreaReach(
 }
 
 /**
- * THE SECOND DRINKER'S DOOR. Built off the trust state the chip carries
- * (lib/pintTrust.ts through `trustChipStateFor`), never off a lane branch, so
- * the states that are owed a second drinker are the closed set in
- * lib/pintDropSecondDrinker.ts and the figure it names is the lane's own
- * observed figure. It seeds the composer rather than sending anything: the
- * drinker still presses Log it, and independence is decided on the server.
- * Renders nothing where no door was handed in, on a venue that is not a pub,
- * in any other state, or over a lane with no figure.
+ * THE ONE PRICE DOOR. The Overview's price area offers exactly one price
+ * action, decided by `overviewPriceDoor` (lib/pintTrust.ts) over the trust
+ * state the chip carries and the lane the area prints, never by a lane branch
+ * here. Two kinds, one element: the log door opens the pub's own composer in
+ * place and hides once it has (the open composer is then the price action),
+ * and the confirm door (#1492) seeds the Pint Drop composer with the figure the
+ * lane prints. Renders nothing on a venue that is not a pub, over an anchor
+ * lane, or while the composer this door opens is already on screen.
  */
-function SecondDrinkerDoor({
+function PriceDoor({
   venue,
-  lane,
-  state,
+  door,
+  composerOpen,
+  onLogTonightPrice,
   onConfirmPrice,
 }: {
   venue: Venue;
-  lane: VenuePriceLane | null;
-  state: PintTrustState | null;
+  door: OverviewPriceDoor | null;
+  composerOpen: boolean;
+  onLogTonightPrice: () => void;
   onConfirmPrice?: (priceGbp: number) => void;
 }) {
-  if (!onConfirmPrice || !isPubVenue(venue) || !secondDrinkerDoorOffered(state)) return null;
-  const figure = lane ? venuePriceLaneObservedGbp(lane) : null;
-  if (figure === null) return null;
+  if (!door || !isPubVenue(venue) || composerOpen) return null;
+  if (door.kind === "confirm" && onConfirmPrice) {
+    return (
+      <button
+        type="button"
+        className="priceDoor"
+        data-price-door="confirm"
+        data-testid="confirm-pint-cta"
+        aria-label={confirmPintActionName(door.priceGbp, venue.name)}
+        onClick={() => onConfirmPrice(door.priceGbp)}
+      >
+        {door.label}
+      </button>
+    );
+  }
   return (
     <button
       type="button"
-      className="confirmPintCta"
-      data-testid="confirm-pint-cta"
-      aria-label={confirmPintActionName(figure, venue.name)}
-      onClick={() => onConfirmPrice(figure)}
+      className="priceDoor"
+      data-price-door="log"
+      data-testid="log-price-cta"
+      aria-label={`${LOG_PRICE_DOOR_LABEL} at ${venue.name}`}
+      onClick={onLogTonightPrice}
     >
-      {confirmPintActionLabel(figure)}
+      <PlusCircle size={15} aria-hidden="true" /> {LOG_PRICE_DOOR_LABEL}
     </button>
   );
 }
@@ -149,8 +226,8 @@ function VenuePriceSummary({
   confirmedPrice,
   sourcedObserved,
   anchorStamp,
+  composerOpen,
   onLogTonightPrice,
-  onStartFirstDrop,
   onConfirmPrice,
   priceRevealMotionClass = "",
 }: {
@@ -161,8 +238,10 @@ function VenuePriceSummary({
   confirmedPrice?: ConfirmedPriceInput | null;
   sourcedObserved: string;
   anchorStamp: string | null;
+  /** True while the pub's own composer is on screen below, so the log door
+   *  folds away rather than standing beside the form it opens. */
+  composerOpen: boolean;
   onLogTonightPrice: () => void;
-  onStartFirstDrop?: () => void;
   /** The second drinker's door: opens the Pint Drop composer seeded with the
    *  logged-once figure (lib/pintDropSecondDrinker.ts). */
   onConfirmPrice?: (priceGbp: number) => void;
@@ -199,11 +278,14 @@ function VenuePriceSummary({
   const baselineSource = baselinePriceRow
     ? namedLegacyPintPriceSource(baselinePriceRow)
     : null;
-  const secondDrinkerDoor = (
-    <SecondDrinkerDoor
+  // THE ONE DOOR, decided once here and appended to whichever lane block
+  // renders, so no lane can grow a second invitation of its own.
+  const door = (
+    <PriceDoor
       venue={venue}
-      lane={lane}
-      state={trustChipState}
+      door={overviewPriceDoor(trustChipState, lane)}
+      composerOpen={composerOpen}
+      onLogTonightPrice={onLogTonightPrice}
       onConfirmPrice={onConfirmPrice}
     />
   );
@@ -267,6 +349,7 @@ function VenuePriceSummary({
         <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
           {COMMUNITY_PRICE_NOTE}
         </small>
+        {door}
       </div>
     );
   }
@@ -291,6 +374,7 @@ function VenuePriceSummary({
             {lane.sourcedPrice.sourceLabel}
           </a>
         </small>
+        {door}
       </div>
     );
   }
@@ -315,6 +399,7 @@ function VenuePriceSummary({
             source
           </a>
         </small>
+        {door}
       </div>
     );
   }
@@ -338,7 +423,7 @@ function VenuePriceSummary({
         <small className={`communityPriceStanding ${priceRevealMotionClass}`.trim()}>
           {PROVISIONAL_PRICE_LINE}
         </small>
-        {secondDrinkerDoor}
+        {door}
       </div>
     );
   }
@@ -372,6 +457,7 @@ function VenuePriceSummary({
             </>
           )}
         </small>
+        {door}
       </div>
     );
   }
@@ -395,7 +481,7 @@ function VenuePriceSummary({
         <small className={`communityPriceStanding ${priceRevealMotionClass}`.trim()}>
           {AGED_PRICE_LINE}
         </small>
-        {secondDrinkerDoor}
+        {door}
       </div>
     );
   }
@@ -408,17 +494,13 @@ function VenuePriceSummary({
             carries the method link beside it, and the basis line is left to
             /how-we-estimate rather than restated here in a second vocabulary. */}
         <TrustPill decision={priceStanding} area={bandArea} />
+        {door}
       </div>
     );
   }
 
   return isPubVenue(venue) ? (
-    <FirstDropNudge
-      venueId={venue.id}
-      venueName={venue.name}
-      onLogTonightPrice={onLogTonightPrice}
-      onStartFirstDrop={onStartFirstDrop}
-    />
+    <FirstDropNudge venueId={venue.id}>{door}</FirstDropNudge>
   ) : null;
 }
 
@@ -444,7 +526,6 @@ export default function VenueOverviewTab({
   onRequestLocation,
   onClearLocation,
   onLogTonightPrice,
-  onStartFirstDrop,
   onConfirmPrice,
   onOpenVisitReports,
   priceEntryAllowed,
@@ -491,11 +572,9 @@ export default function VenueOverviewTab({
   locationRequestStatus: LocationRequestStatus;
   onRequestLocation: () => void;
   onClearLocation: () => void;
-  /** Community price path — primary unpriced CTA (map trust). */
+  /** The log door: the community price path, soft-gated by the sheet, which
+   *  answers by raising `priceFocusRequest` or `priceSignInRequested`. */
   onLogTonightPrice: () => void;
-  /** Opens the existing Pint Drop composer prefilled for this venue (Pints
-   *  tab + composer open). Fired by the first-drop nudge on unpriced venues. */
-  onStartFirstDrop: () => void;
   /** Opens the Pint Drop composer seeded with a logged-once figure, so a
    *  second drinker can confirm it (lib/pintDropSecondDrinker.ts). */
   onConfirmPrice?: (priceGbp: number) => void;
@@ -540,6 +619,20 @@ export default function VenueOverviewTab({
   useEffect(() => {
     loadVenue(venue.id);
   }, [loadVenue, venue.id]);
+
+  // THE COMPOSER IS FOLDED UNTIL THE DOOR OPENS IT. Three things open it, and
+  // every one is already a decision the sheet made: the sheet answered the log
+  // door with a focus request, it answered with the sign-in gate, or a ranked
+  // evidence mission for this pub arrived (the mission IS the ask, so it opens
+  // on its own). The mission read is taken here rather than one component down
+  // so the door and the form can never both stand on one screen.
+  const pub = isPubVenue(venue);
+  const mission = useOverviewMission(venue.id, pub, priceEntryAllowed);
+  const composerOpen = overviewComposerOpen({
+    focusRequest: priceFocusRequest,
+    signInRequested: priceSignInRequested,
+    missionPresent: mission.mission !== null,
+  });
 
   // The ordinary view names the freshest category; the no-alcohol view admits
   // only its two categories, while the food view reserves this slot for the
@@ -592,6 +685,11 @@ export default function VenueOverviewTab({
     experienceLens,
     drinkLensCategory,
     priceLane,
+  );
+  const drinkInviteOwnedElsewhere = drinkInviteOwnedByPriceArea(
+    showsPriceSummary,
+    pub,
+    composerOpen,
   );
   const sourcedObserved =
     sourcedPrice?.observedAt != null ? formatObservedAt(sourcedPrice.observedAt) : "";
@@ -756,6 +854,7 @@ export default function VenueOverviewTab({
           laneNoun={leadLaneNoun}
           readStatus={venueReadStatus}
           laneLoggedPriceShown={laneLoggedPriceShown}
+          inviteOwnedElsewhere={drinkInviteOwnedElsewhere}
           communityPrices={communityPrices}
           onLogPrice={onLogTonightPrice}
           canLog={isPubVenue(venue)}
@@ -777,8 +876,8 @@ export default function VenueOverviewTab({
           confirmedPrice={confirmedPrice}
           sourcedObserved={sourcedObserved}
           anchorStamp={anchorStamp}
+          composerOpen={composerOpen}
           onLogTonightPrice={onLogTonightPrice}
-          onStartFirstDrop={onStartFirstDrop}
           onConfirmPrice={onConfirmPrice}
           priceRevealMotionClass={
             drinkPriceRows?.length ? "" : priceRevealMotionClass
@@ -814,15 +913,16 @@ export default function VenueOverviewTab({
       {/* The submission loop itself: pick a drink, type tonight's price, and
           the pin, the list row and the row above restamp on the same tap.
           Pubs only — a Pint Drop at a bar or late-food venue would
-          feed a non-pint figure into the pint record. */}
-      {isPubVenue(venue) ? (
-        <VenueSheetPriceEntry
+          feed a non-pint figure into the pint record. FOLDED until the one
+          door above opens it: the panel's effects (the venue read, the viewed
+          event) still run, and the form itself mounts only on `composerOpen`. */}
+      {pub ? (
+        <VenuePriceEntryPanel
           // Keyed by venue so the chosen drink, the typed price and the receipt
           // never leak across pubs - this instance persists between selections.
           key={venue.id}
           venueId={venue.id}
           venueName={venue.name}
-          isPub
           communityPrices={communityPrices}
           canSubmitPrice={priceEntryAllowed}
           showSignInGate={priceSignInRequested}
@@ -831,9 +931,13 @@ export default function VenueOverviewTab({
           latestPintDropAt={latestPintDropAt}
           focusRequest={priceFocusRequest}
           includeSignals={false}
+          open={composerOpen}
           // The composer opens on the drink the map is under, so a cocktail map
           // does not ask a drinker to find cocktails again.
           laneCategory={leadLane}
+          mission={mission.mission}
+          missionPending={mission.pending}
+          onDismissMission={mission.dismiss}
           onLogged={onLogged}
         />
       ) : null}

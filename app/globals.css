@@ -3419,75 +3419,70 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   line-height: 1.35;
 }
 
-.firstDropNudgeSecondary {
-  flex: 1 1 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--ink-soft);
-  font: inherit;
-  font-size: 0.75rem;
-  text-align: left;
-  text-decoration: underline;
-  text-underline-offset: 0.12em;
-  cursor: pointer;
-}
-
-/* `.confirmPintCta` is the second drinker's door on a logged-once price
-   (lib/pintDropSecondDrinker.ts): the same painted action as the first-drop
-   nudge, because both ask a drinker for one kept action at this pub. */
-.firstDropNudgeCta,
-.confirmPintCta {
+/* THE ONE PRICE DOOR (lib/pintTrust.ts, `overviewPriceDoor`): the log door on
+   an unpriced, listed, baseline, modelled or confirmed pub, and the second
+   drinker's "Still £4.50?" on a logged-once or aged report. One class, because
+   it is one button: the same flat accent the sheet's own primary and every
+   launch primary wear (components/ui/screen.css), no gradient and no glow, so a
+   door is a door on every screen. It wears the ACTION accent and never a
+   price band, because a door is not a price. */
+.priceDoor {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  min-height: 44px;
-  padding: 0 14px;
-  border: 1px solid var(--brass);
-  border-radius: var(--radius-sm);
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent);
-  font-size: 0.82rem;
-  font-weight: 700;
+  min-height: var(--control-height, 44px);
+  padding: 0 16px;
+  border: 1px solid var(--accent-action);
+  border-radius: var(--control-radius, 14px);
+  background: var(--accent-action);
+  color: var(--color-on-accent-strong);
+  font: inherit;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
   cursor: pointer;
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
   /* Colour transitions only; the press-scale (0.97, <=250ms) comes from the
      global button:active rule so motion stays consistent sheet-wide. */
   transition:
     background var(--duration-base) var(--ease-out),
-    border-color var(--duration-base) var(--ease-out),
-    box-shadow var(--duration-base) var(--ease-out);
+    border-color var(--duration-base) var(--ease-out);
 }
 
-.firstDropNudgeCta:hover,
-.confirmPintCta:hover {
-  border-color: var(--brass-bright);
-  box-shadow: 0 10px 22px color-mix(in srgb, var(--brass) 28%, transparent);
+.priceDoor:hover {
+  background: var(--accent-action-strong);
+  border-color: var(--accent-action-strong);
+  color: var(--color-on-accent-strong);
 }
 
-.firstDropNudgeCta:focus-visible,
-.confirmPintCta:focus-visible {
+.priceDoor:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
 
-/* The standing line and the door share one row where the row can hold both,
-   the way the eyebrow and the plaque share the block's first row: the claim on
-   the left, the thing to do about it on the right. Where the row cannot hold
-   both (a 390 phone) the door wraps under the line and keeps the left edge,
-   the thumb side every other action on this sheet starts from. */
-.contributorPrice .communityPriceStanding:has(+ .confirmPintCta) {
+/* The line and the door share one row where the row can hold both, the way
+   the eyebrow and the plaque share the block's first row: the claim on the
+   left, the thing to do about it on the right. The standing line ("Logged
+   once, needs a second drinker") and the provenance note ("Dataset price
+   from...") both take this seat. Where the row cannot hold both (a 390 phone)
+   the door wraps under the line and keeps the left edge, the thumb side every
+   other action on this sheet starts from. */
+.contributorPrice .communityPriceStanding:has(+ .priceDoor),
+.contributorPrice .communityPriceNote:has(+ .priceDoor) {
   flex: 1 1 auto;
 }
 
-.contributorPrice .confirmPintCta {
+.contributorPrice .priceDoor,
+.firstDropNudge .priceDoor {
   margin-left: auto;
 }
 
 @media (max-width: 640px) {
-  .contributorPrice .confirmPintCta {
+  .contributorPrice .priceDoor,
+  .firstDropNudge .priceDoor {
     margin-left: 0;
   }
 }

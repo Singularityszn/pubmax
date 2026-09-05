@@ -311,7 +311,6 @@ describe("VenueOverviewTab community signals", () => {
         onRequestLocation: noop,
         onClearLocation: noop,
         onLogTonightPrice: noop,
-        onStartFirstDrop: noop,
         priceEntryAllowed: false,
         priceSignInRequested: false,
         priceAuthLoading: false,

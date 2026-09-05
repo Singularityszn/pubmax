@@ -1,0 +1,210 @@
+import { expect, test, type Page } from "@playwright/test";
+
+import { installAuthDoubles } from "./helpers/authDoubles";
+
+/**
+ * ONE PRICE DOOR PER TRUST STATE, on the venue Overview at 390 (captain's rule
+ * from the core-loop battle test L03, 5 Sept 2026: one button system, one
+ * clear primary per screen).
+ *
+ * Five states are driven through the same sheet, signed in through the auth
+ * doubles so the account rules admit the composer: no price on record, a
+ * listed bundle price alone, and the three Pint Drop states (logged once,
+ * confirmed, aged out) over The Sir Christopher Hatton, whose drops are served
+ * by a route mock in the shape /api/pint-drops answers. For each, exactly one
+ * `[data-price-door]` is visible, the composer is folded behind it, the sticky
+ * bar carries no price action, and the retired invitations never return.
+ * Taking the log door unfolds the form and folds the door away; the confirm
+ * door (#1492) still lands on the Pint Drop composer's price step with the
+ * figure seeded.
+ */
+test.use({
+  launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
+  viewport: { width: 390, height: 844 },
+});
+
+const HATTON = "venue-1vle947";
+const UNPRICED = "venue-1kt3p9o";
+const LISTED_ONLY = "venue-133bdp8";
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+type DropRow = Record<string, unknown>;
+
+function row(overrides: DropRow = {}): DropRow {
+  return {
+    id: "e3f592df-0dc3-434e-a6a4-a154e5358bbc",
+    venueId: HATTON,
+    handle: "tester",
+    drink: "Lager",
+    priceGbp: 4.5,
+    passedDownNote: "",
+    era: "",
+    provenance: "contributor",
+    status: "visible",
+    visibility: "public",
+    createdAt: new Date(Date.now() - 4 * DAY_MS).toISOString(),
+    pintPhotoUrl: null,
+    venuePhotoUrl: null,
+    venueName: "The Sir Christopher Hatton",
+    venueMapUrl: `/map?sel=${HATTON}`,
+    ...overrides,
+  };
+}
+
+const confirmation = {
+  confirmationId: "conf-1",
+  confirmedAt: new Date(Date.now() - DAY_MS).toISOString(),
+  basis: "second_reporter",
+  confirmingDropId: "drop-2",
+};
+
+const STATES = {
+  none: { venueId: UNPRICED, drops: [] as DropRow[], door: "log" },
+  listed: { venueId: LISTED_ONLY, drops: [] as DropRow[], door: "log" },
+  "logged-once": { venueId: HATTON, drops: [row()], door: "confirm" },
+  confirmed: {
+    venueId: HATTON,
+    drops: [
+      row({ confirmation, createdAt: new Date(Date.now() - 2 * DAY_MS).toISOString() }),
+      row({
+        id: "drop-2",
+        handle: "second_drinker",
+        authorityKey: "account-second",
+        confirmation,
+        createdAt: new Date(Date.now() - 3 * DAY_MS).toISOString(),
+      }),
+    ],
+    door: "log",
+  },
+  "aged-out": {
+    venueId: HATTON,
+    drops: [row({ createdAt: new Date(Date.now() - 90 * DAY_MS).toISOString() })],
+    door: "confirm",
+  },
+} as const;
+
+type StateName = keyof typeof STATES;
+
+/** Every price action the battle test counted, none of which may be visible. */
+const RETIRED = [
+  /^Add a price at/i,
+  /^Or leave a Pint Drop$/i,
+  /^Log a beer price$/i,
+  /^Log it$/,
+];
+
+async function serveDrops(page: Page, venueId: string, drops: DropRow[]): Promise<void> {
+  await page.route("**/api/pint-drops**", async (route) => {
+    const url = new URL(route.request().url());
+    const forVenue = url.searchParams.get("venueId");
+    const body = forVenue && forVenue !== venueId ? [] : drops;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ drops: body }),
+    });
+  });
+}
+
+async function openVenueSheet(page: Page) {
+  const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(venueSheet).toBeVisible({ timeout: 30_000 });
+  const inspector = venueSheet.locator(".venueInspector");
+  const expand = venueSheet.getByRole("button", { name: "Expand sheet" });
+  await expect
+    .poll(async () => (await inspector.isVisible()) || (await expand.isVisible()))
+    .toBe(true);
+  if (!(await inspector.isVisible()) && (await expand.isVisible())) await expand.click();
+  await expect(inspector).toBeVisible();
+  return venueSheet;
+}
+
+test.setTimeout(120_000);
+
+test.beforeEach(async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  });
+});
+
+for (const state of Object.keys(STATES) as StateName[]) {
+  test(`${state}: exactly one price door, the composer folded, nothing retired on screen`, async ({
+    page,
+  }) => {
+    const fixture = STATES[state];
+    const stub = await installAuthDoubles(page);
+    await serveDrops(page, fixture.venueId, fixture.drops);
+    await page.goto("/");
+    await stub.signedInAs("A");
+
+    await page.goto(`/map?sel=${fixture.venueId}`);
+    const sheet = await openVenueSheet(page);
+    const doors = sheet.locator("[data-price-door]");
+    await expect(doors).toHaveCount(1, { timeout: 30_000 });
+    await expect(doors.first()).toHaveAttribute("data-price-door", fixture.door);
+    await doors.first().scrollIntoViewIfNeeded();
+    await expect(doors.first()).toBeVisible();
+    const box = await doors.first().boundingBox();
+    expect(box?.height ?? 0, "the door is a thumb target").toBeGreaterThanOrEqual(44);
+
+    // The composer is folded: no form, no Log it, no chips, until the door.
+    await expect(sheet.locator(".venuePriceSubmit")).toHaveCount(0);
+    for (const retired of RETIRED) {
+      await expect(page.getByRole("button", { name: retired }), String(retired)).toHaveCount(0);
+    }
+    // The sticky bar carries no price action and no painted primary.
+    const toolbar = page.locator(".venueSheetStickyBar");
+    await expect(toolbar.locator("button", { hasText: /price/i })).toHaveCount(0);
+    await expect(toolbar.locator(".venueSheetStickyPrimary")).toHaveCount(0);
+  });
+}
+
+test("the log door unfolds the composer in place and folds itself away", async ({ page }) => {
+  const stub = await installAuthDoubles(page);
+  await serveDrops(page, UNPRICED, []);
+  await page.goto("/");
+  await stub.signedInAs("A");
+
+  await page.goto(`/map?sel=${UNPRICED}`);
+  const sheet = await openVenueSheet(page);
+  const door = sheet.locator('[data-price-door="log"]');
+  await expect(door).toBeVisible({ timeout: 30_000 });
+  await expect(door).toHaveText(/Log tonight.s price/);
+
+  const submit = sheet.locator(".venuePriceSubmit");
+  await expect(async () => {
+    await door.click();
+    await expect(submit).toBeVisible({ timeout: 1_500 });
+  }).toPass({ timeout: 20_000 });
+  await expect(sheet.getByRole("textbox", { name: /Price of a beer at/ })).toBeFocused();
+  await expect(sheet.locator("[data-price-door]")).toHaveCount(0);
+  // The form is now the one price action; the drink-prices invite stays folded.
+  await expect(sheet.getByRole("button", { name: /^Log a beer price$/ })).toHaveCount(0);
+  await expect(sheet.getByRole("button", { name: "Log it" })).toHaveCount(1);
+});
+
+test("the confirm door still lands on the Pint Drop composer with the figure seeded", async ({
+  page,
+}) => {
+  const stub = await installAuthDoubles(page);
+  await serveDrops(page, HATTON, STATES["logged-once"].drops);
+  await page.goto("/");
+  await stub.signedInAs("B");
+
+  await page.goto(`/map?sel=${HATTON}`);
+  const sheet = await openVenueSheet(page);
+  const door = sheet.locator('[data-price-door="confirm"]');
+  await expect(door).toBeVisible({ timeout: 30_000 });
+  await expect(door).toHaveText("Still £4.50?");
+
+  const priceStep = page.getByTestId("spill-price-step");
+  await expect(async () => {
+    await door.click();
+    await expect(priceStep).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 25_000 });
+  await expect(priceStep.locator("input").first()).toHaveValue("4.50");
+});

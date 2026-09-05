@@ -453,7 +453,6 @@ export default function VenueInspector({
         onRequestLocation={onRequestLocation}
         onClearLocation={onClearLocation}
         onLogTonightPrice={requestPriceEntry}
-        onStartFirstDrop={startPintDrop}
         onConfirmPrice={confirmProvisionalPrice}
         onOpenVisitReports={() => selectTab("story")}
         priceEntryAllowed={!authConfigured || Boolean(user && handle)}
@@ -528,7 +527,6 @@ export default function VenueInspector({
         onToggleStop={onToggleStop}
         onAcceptStop1={onAcceptStop1}
         acceptanceError={acceptanceError}
-        onAddPrice={requestPriceEntry}
         shareVenue={shareVenue}
         currentShareFeedback={currentShareFeedback}
       />

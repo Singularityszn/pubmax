@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 // Community price submission E2E: the word-of-mouth moment end to end on a
 // phone - tap a pub, pick a drink, type tonight's price, and watch the venue
@@ -42,6 +42,22 @@ async function openVenueSheet(page: Page) {
 
 // A known seed venue id (lib/pintDropSeeds.ts) - the same pub the Golden
 // Thread spec drives, so the sheet reliably has content around the card.
+/**
+ * The composer is FOLDED behind the Overview's one price door (lib/pintTrust.ts,
+ * `overviewPriceDoor`): take the door, and the form it opens is the submit card.
+ * A server-painted control can drop the first tap before hydration, so the tap
+ * is retried until the form answers.
+ */
+async function openPriceComposer(venueSheet: Locator): Promise<Locator> {
+  const door = venueSheet.locator('[data-price-door="log"]');
+  const submit = venueSheet.locator(".venuePriceSubmit");
+  await expect(async () => {
+    await door.click();
+    await expect(submit).toBeVisible({ timeout: 1_500 });
+  }).toPass({ timeout: 20_000 });
+  return submit;
+}
+
 const SEED_VENUE_ID = "venue-16pnwmm";
 const NO_ALCOHOL_VENUE_ID = "venue-19211ib";
 const VIEWPORT = { width: 390, height: 844 };
@@ -277,8 +293,7 @@ test("an over-limit drink price is blocked before any network attempt", async ({
 
   const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
   await expect(venueSheet).toBeVisible();
-  const submit = venueSheet.locator(".venuePriceSubmit");
-  await expect(submit).toBeVisible();
+  const submit = await openPriceComposer(venueSheet);
 
   const priceField = submit.getByRole("textbox");
   const logButton = submit.getByRole("button", { name: "Log it" });
@@ -385,9 +400,9 @@ test("a drinker logs tonight's price after completing private signup", async ({
   await expect(onboarding).toHaveCount(0);
   await openVenueSheet(page);
 
-  // The submit card lives on the Overview tab, the tab the sheet opens on.
-  const submit = venueSheet.locator(".venuePriceSubmit");
-  await expect(submit).toBeVisible();
+  // The submit card lives on the Overview tab, the tab the sheet opens on,
+  // folded behind the one price door until the drinker takes it.
+  const submit = await openPriceComposer(venueSheet);
   // The copy uses a typographic apostrophe, so match the shape, not the glyph.
   await expect(submit.getByRole("heading", { name: /What.s it tonight\?/ })).toBeVisible();
 
@@ -562,8 +577,7 @@ test("a person can log soft-drink, alcohol-free and coffee prices from the pub s
   expect(response?.status()).toBe(200);
 
   const venueSheet = await openVenueSheet(page);
-  const submit = venueSheet.locator(".venuePriceSubmit");
-  await expect(submit).toBeVisible();
+  const submit = await openPriceComposer(venueSheet);
   const priceField = submit.getByRole("textbox");
   const logButton = submit.getByRole("button", { name: "Log it" });
   const stamp = submit.locator(".vpsubStamp");
