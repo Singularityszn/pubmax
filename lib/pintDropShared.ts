@@ -10,6 +10,8 @@
 // exact same browser-safe-twin pattern.
 
 import type { Provenance } from "@/lib/curation";
+// Type-only: lib/drinkMeasure.ts is a pure leaf, so this stays browser-safe.
+import type { DrinkMeasure } from "@/lib/drinkMeasure";
 // Type-only, so the browser-safe twin keeps its promise: a "use client" module
 // that imports this shape pulls no runtime module in behind it.
 import type { PintDropConfirmation } from "@/lib/pintDropConfirmation";
@@ -22,6 +24,14 @@ export type PintDropInput = {
   venueId: string;
   handle: string;
   drink?: string;
+  /**
+   * The SERVING this price is about (lib/drinkMeasure.ts). Absent reads as
+   * `pint`, which is what the lane already assumed of every row written before
+   * migration 0147.
+   */
+  measure?: DrinkMeasure;
+  /** Free label, carried only by an `other` measure. */
+  measureLabel?: string;
   priceGbp?: number | null;
   passedDownNote?: string;
   era?: string;
@@ -103,6 +113,16 @@ export type PintDrop = {
   venueId: string;
   handle: string;
   drink: string;
+  /**
+   * The SERVING the price is about (lib/drinkMeasure.ts). Optional so every row
+   * written before migration 0147 reads cleanly; absent means `pint`, and
+   * `measureIsPint` is the ONE predicate that answers it. A non-pint row is
+   * still a real dated observation on the pub's own sheet: it is held out of
+   * the pint lane, never scaled into it.
+   */
+  measure?: DrinkMeasure;
+  /** Free label an `other` measure carries, capped by the leaf module. */
+  measureLabel?: string;
   priceGbp: number | null;
   passedDownNote: string;
   era: string;

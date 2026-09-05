@@ -17,6 +17,13 @@ import type { CityId } from "@/lib/cities";
 import { venueIdMatchesCity } from "@/lib/cityVenueIds";
 import type { Provenance } from "@/lib/curation";
 import {
+  cleanDrinkMeasure,
+  cleanDrinkMeasureLabel,
+  measureIsPint,
+  measureNamedInDrinkText,
+  MEASURE_ASK_LINE,
+} from "@/lib/drinkMeasure";
+import {
   demoDropsFor,
   demoPintDrops,
   demoPintDropsForCity,
@@ -155,6 +162,25 @@ export function validatePintDrop(input: unknown): ValidationResult {
     return { ok: false, error: "Add a price or a passed-down note." };
   }
 
+  // WHAT SERVING THE PRICE IS ABOUT (battle test D04). The pint lane, the pin
+  // band, the cheapest buckets and the Pint Index read pint rows only, so the
+  // measure has to arrive with the figure rather than be inferred from free
+  // text afterwards. Absent collapses to `pint`, which is what the lane already
+  // assumed of every row written before migration 0147.
+  const measure = cleanDrinkMeasure(raw.measure);
+  const measureLabel =
+    measure === "other" ? cleanDrinkMeasureLabel(raw.measureLabel) : "";
+  const drink = clean(raw.drink, MAX_DRINK);
+
+  // A drop that CALLS ITSELF a half while claiming the pint measure is the
+  // exact row this defect was found over. Refuse it and hand the drinker the
+  // control that says it properly, rather than storing a contradiction or
+  // silently overriding what they picked. Only a PRICED drop is refused: a
+  // passed-down memory about "halves at 40p" is a story, not a price lane.
+  if (priceGbp !== null && measureIsPint(measure) && measureNamedInDrinkText(drink)) {
+    return { ok: false, error: MEASURE_ASK_LINE };
+  }
+
   const provenance: Provenance = priceGbp !== null ? "contributor" : "anecdote";
 
   // Vibe tags are supporting metadata, not a standalone signal: they never
@@ -187,7 +213,9 @@ export function validatePintDrop(input: unknown): ValidationResult {
       id: randomUUID(),
       venueId,
       handle,
-      drink: clean(raw.drink, MAX_DRINK),
+      drink,
+      measure,
+      ...(measureLabel ? { measureLabel } : {}),
       priceGbp,
       passedDownNote: note,
       era: clean(raw.era, MAX_ERA),

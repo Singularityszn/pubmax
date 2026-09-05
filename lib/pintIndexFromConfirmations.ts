@@ -31,6 +31,7 @@
 //    of its own, and a source URL that is not a public page is refused upstream
 //    by the validator rather than guessed at here.
 
+import { measureIsPint, type DrinkMeasure } from "@/lib/drinkMeasure";
 import {
   confirmationIsLive,
   type PintDropConfirmation,
@@ -49,6 +50,11 @@ export type ConfirmedDropRow = {
   id: string;
   venueId: string;
   priceGbp: number | null;
+  /**
+   * The serving the price is about. Absent reads as `pint`, so every row
+   * written before migration 0147 is cited exactly as it was.
+   */
+  measure?: DrinkMeasure;
   /** ISO instant the drop was logged: the night the price was seen. */
   createdAt: string;
   confirmation?: PintDropConfirmation | null;
@@ -64,6 +70,7 @@ export type IndexVenueFact = {
 /** Why a confirmed drop did not reach the snapshot. Closed, and each is counted. */
 export const PINT_INDEX_EXCLUSION_REASONS = [
   "confirmation_not_live",
+  "measure_not_pint",
   "price_not_recorded",
   "venue_not_in_index",
   "venue_outside_london_boroughs",
@@ -73,6 +80,8 @@ export type PintIndexExclusionReason = (typeof PINT_INDEX_EXCLUSION_REASONS)[num
 const EXCLUSION_NOTE: Record<PintIndexExclusionReason, string> = {
   confirmation_not_live:
     "A Pint Drop nobody has confirmed inside the trust window is a report, not a citable observation.",
+  measure_not_pint:
+    "The price is for another measure, so it says nothing about what a pint costs. It is never scaled into one.",
   price_not_recorded: "A Pint Drop carrying no price says nothing about what a pint costs.",
   venue_not_in_index: "The pub is not in the curated venue index, so the Index cannot name it.",
   venue_outside_london_boroughs:
@@ -137,6 +146,15 @@ export function buildPintIndexSnapshotFromConfirmations(
     const confirmation = drop.confirmation;
     if (!confirmation || !confirmationIsLive(confirmation, now)) {
       count("confirmation_not_live");
+      continue;
+    }
+    // A half already cannot be confirmed (lib/pintDropConfirmation.ts refuses
+    // it on both sides of a pair), so this catches the rows that carry a
+    // confirmation minted BEFORE migration 0147 flagged their measure. The
+    // Index publishes what a PINT costs, and a half is counted out under its
+    // own name rather than doubled into one.
+    if (!measureIsPint(drop.measure)) {
+      count("measure_not_pint");
       continue;
     }
     const pricePence = pricePenceOf(drop.priceGbp);

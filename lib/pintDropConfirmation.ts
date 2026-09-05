@@ -41,6 +41,7 @@
 
 import type { Provenance } from "@/lib/curation";
 import { agreesWithinTolerance, isWithinMaxAge } from "@/lib/communityPrice";
+import { measureIsPint } from "@/lib/drinkMeasure";
 import {
   confirmationIsLive,
   type PintDropConfirmation,
@@ -69,12 +70,23 @@ export type ConfirmableDrop = SummaryDrop & {
   confirmation?: PintDropConfirmation | null;
 };
 
-/** Is this row a first-party priced observation rather than a seed or a note? */
+/**
+ * Is this row a first-party priced PINT observation rather than a seed, a note
+ * or another measure?
+ *
+ * The measure clause is battle-test D04. A confirmation is what the Pint Index
+ * cites and what paints a pin, so a half may neither be confirmed nor confirm
+ * anything: the production row this was found over was a "Half of lager" at
+ * £2.60 that a second drinker's agreeing report turned into a confirmed £2.60
+ * pint. `measureIsPint` reads an absent measure as `pint`, so every row written
+ * before migration 0147 keeps the lane it already had.
+ */
 function isPricedObservation(drop: ConfirmableDrop): boolean {
   return (
     (drop.provenance as Provenance) !== "demo" &&
     typeof drop.priceGbp === "number" &&
-    Number.isFinite(drop.priceGbp)
+    Number.isFinite(drop.priceGbp) &&
+    measureIsPint(drop.measure)
   );
 }
 

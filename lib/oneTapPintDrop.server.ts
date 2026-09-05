@@ -47,6 +47,12 @@ function buildDrop(input: OneTapPintDropInput): PintDrop {
     venueId: input.venueId,
     handle,
     drink: submitCategoryLabel(input.drinkCategory),
+    // STATED, never inherited. The community price composer this pairs from
+    // carries a closed drink category and no free drink text, so its beer chip
+    // means a pint and the paired drop says so in the column the pint lane
+    // reads. Saying it here is what keeps that promise checkable: a reader of
+    // this row never has to assume which measure a null meant.
+    measure: "pint",
     priceGbp: input.priceGbp,
     passedDownNote: "",
     era: "",

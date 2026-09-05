@@ -30,6 +30,8 @@ const DRAFT: PintDropDraft = {
   form: {
     price: "5.8",
     drink: "Guinness",
+    measure: "pint",
+    measureLabel: "",
     note: "Quiet corner table",
     era: "Tonight",
     withWho: "@sam",
@@ -72,6 +74,8 @@ describe("pint drop drafts", () => {
       form: {
         price: "",
         drink: "Ale",
+        measure: "pint",
+        measureLabel: "",
         note: "x".repeat(500),
         era: "",
         withWho: "@sam",
@@ -87,7 +91,15 @@ describe("pint drop drafts", () => {
     writePintDropDraft(storage, "venue-a", DRAFT);
 
     const emptyDraft: PintDropDraft = {
-      form: { price: "", drink: "", note: "", era: "", withWho: "" },
+      form: {
+        price: "",
+        drink: "",
+        measure: "pint",
+        measureLabel: "",
+        note: "",
+        era: "",
+        withWho: "",
+      },
       visibility: "public",
       vibeTags: [],
       updatedAt: "2026-07-08T12:00:00.000Z",
@@ -137,6 +149,8 @@ describe("seededPintDropDraftForm", () => {
     expect(seededPintDropDraftForm(null, "6.50")).toEqual({
       price: "6.50",
       drink: "",
+      measure: "pint",
+      measureLabel: "",
       note: "",
       era: "",
       withWho: "",
@@ -148,17 +162,41 @@ describe("seededPintDropDraftForm", () => {
   });
 
   it("never overwrites a price the drinker already put in their own draft", () => {
-    const own = { price: "5.80", drink: "Guinness", note: "", era: "", withWho: "" };
+    const own = {
+      price: "5.80",
+      drink: "Guinness",
+      measure: "pint" as const,
+      measureLabel: "",
+      note: "",
+      era: "",
+      withWho: "",
+    };
     expect(seededPintDropDraftForm(own, "6.50")).toBe(own);
   });
 
   it("still seeds a draft that holds a note but no figure", () => {
-    const noPrice = { price: "", drink: "", note: "Quiet corner", era: "", withWho: "" };
+    const noPrice = {
+      price: "",
+      drink: "",
+      measure: "pint" as const,
+      measureLabel: "",
+      note: "Quiet corner",
+      era: "",
+      withWho: "",
+    };
     expect(seededPintDropDraftForm(noPrice, "6.50")).toEqual({ ...noPrice, price: "6.50" });
   });
 
   it("hands a draft straight back when the intent carried no figure", () => {
-    const draft = { price: "", drink: "", note: "Quiet corner", era: "", withWho: "" };
+    const draft = {
+      price: "",
+      drink: "",
+      measure: "pint" as const,
+      measureLabel: "",
+      note: "Quiet corner",
+      era: "",
+      withWho: "",
+    };
     expect(seededPintDropDraftForm(draft, null)).toBe(draft);
   });
 });
