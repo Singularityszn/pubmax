@@ -81,7 +81,12 @@ async function ownsItsCentre(page: Page, selector: string, within?: string): Pro
 
 async function expectStoryBodyHonest(page: Page, scope: string): Promise<void> {
   // The failed hero paints the brand treatment and the credit leaves with it.
-  await expect(page.locator(`${scope} .landmarkStoryHero.landmarkHeroFallback`)).toBeVisible();
+  // The image is lazy, so its refused request (and the error it raises) only
+  // arrives once the browser has laid the sheet out, which a loaded box does
+  // in its own time.
+  await expect(page.locator(`${scope} .landmarkStoryHero.landmarkHeroFallback`)).toBeVisible({
+    timeout: 30_000,
+  });
   await expect(page.locator(`${scope} .landmarkStory img`)).toHaveCount(0);
   await expect(page.locator(`${scope} .landmarkStory figcaption`)).toHaveCount(0);
 
