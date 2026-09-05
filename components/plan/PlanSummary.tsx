@@ -406,6 +406,11 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
   // inside that lag used to send a second PATCH (M03). The ref is claimed
   // synchronously before anything is awaited and released in `finally`.
   const saveInFlight = useRef(false);
+  // The same rule on the other handler (F-32): `loadingPreview` is rendered
+  // state, so it lags the click that set it, and two taps in one task both
+  // POSTed /api/plans/generate - on an anchored plan both then reached
+  // `writePendingRoute`. The ref is claimed before anything is awaited.
+  const previewInFlight = useRef(false);
   // A save or a stale-save unmounts the focused Save control, which drops
   // focus on the document. Focus returns to the control that reopens the
   // editor, so a keyboard or screen-reader host keeps their place.
@@ -461,6 +466,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
   }
 
   async function beginEditing() {
+    if (previewInFlight.current) return;
     if (!memberToken) {
       refuse("Join the crew before proposing a route change.");
       return;
@@ -477,6 +483,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
       refuse("This plan doesn't have enough saved to sort a fresh route. Add the details, then try again.");
       return;
     }
+    previewInFlight.current = true;
     setLoadingPreview(true);
     const requestedStopCount = normalizePlanStopCount(state.context.stopCount);
     announce(anchoredPlan
@@ -526,6 +533,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
       setEditing(false);
       refuse(`${caught instanceof Error ? caught.message : "Could not find a replacement route."} The current route is unchanged.`);
     } finally {
+      previewInFlight.current = false;
       setLoadingPreview(false);
     }
   }
