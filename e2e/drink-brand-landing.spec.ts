@@ -1,8 +1,16 @@
 import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 
+import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+
 const BRAND = "Guinness";
 const BRAND_SLUG = "guinness";
-const SUMMARY = "347 pubs with listed Guinness pints. Collected 3 July 2026.";
+// The collection day is DERIVED from data/freshness_registry.json through the
+// same export the page prints it from, never typed: a typed day turns every
+// honest re-collection of the bundled dataset into a sweep of spec edits
+// (#1504). The pub count stays a checked figure, because it is the dataset's
+// own answer for this brand and a change to it is a change worth reading.
+const COLLECTED_DAY = formatObservedDate(PINT_DATASET_OBSERVED_AT);
+const SUMMARY = `347 pubs with listed Guinness pints. Collected ${COLLECTED_DAY}.`;
 const TRACKED_PROOF_DIR = "docs/proof/drink-brand-landing";
 type ProofScreenshotName =
   | "guinness-390-light.png"
@@ -164,7 +172,7 @@ async function assertLandingContract(page: Page): Promise<void> {
 
   const summary = page.locator(".drinkBrandDirectory__summary");
   await expect(summary).toHaveText(SUMMARY);
-  await expect(page.getByText("3 July 2026", { exact: false })).toHaveCount(1);
+  await expect(page.getByText(COLLECTED_DAY, { exact: false })).toHaveCount(1);
 
   const actions = page.locator(".screenActions");
   await expectAboveFold(page, actions, "brand actions");

@@ -1,16 +1,21 @@
 import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 
+import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+
 const AREA_SLUG = "victoria";
 const AREA_NAME = "Victoria";
 const BRAND_SLUG = "guinness";
 const BRAND_LABEL = "Guinness";
 const LANDING_PATH = `/area/${AREA_SLUG}/drink/${BRAND_SLUG}`;
 const TRACKED_PROOF_DIR = "docs/proof/drink-brand-area-landing";
-// Checked browser fixture for Victoria and Guinness on 3 July 2026. Unit
-// tests own policy and dataset derivation; this proof owns rendered URLs.
+// Checked browser fixture for Victoria and Guinness (first checked against the
+// 3 July 2026 collection). Unit tests own policy and dataset derivation; this
+// proof owns rendered URLs. The collection day is DERIVED from
+// data/freshness_registry.json through the same export the page prints it
+// from, never typed, so a re-collection moves no line here (#1504).
 const CHECKED_VICTORIA_GUINNESS_FIXTURE = {
   totalPricedVenues: 17,
-  collectionDate: "3 July 2026",
+  collectionDate: formatObservedDate(PINT_DATASET_OBSERVED_AT),
   firstRow: {
     venueId: "venue-1duinu2",
     venueName: "Alma",
