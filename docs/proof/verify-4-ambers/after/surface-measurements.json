@@ -1,0 +1,110 @@
+{
+  "tabs-320": {
+    "scrollWidth": 248,
+    "clientWidth": 248,
+    "rows": 2,
+    "pastViewport": 0,
+    "tabs": [
+      {
+        "label": "OverviewOverview",
+        "x": 39,
+        "right": 109,
+        "y": 352
+      },
+      {
+        "label": "PhotosPhotos",
+        "x": 111,
+        "right": 165,
+        "y": 352
+      },
+      {
+        "label": "DrinksDrinks",
+        "x": 167,
+        "right": 218,
+        "y": 352
+      },
+      {
+        "label": "StoriesStories",
+        "x": 220,
+        "right": 274,
+        "y": 352
+      },
+      {
+        "label": "LoreLore",
+        "x": 39,
+        "right": 83,
+        "y": 398
+      },
+      {
+        "label": "AskAsk",
+        "x": 85,
+        "right": 129,
+        "y": 398
+      },
+      {
+        "label": "Last trainTrain",
+        "x": 131,
+        "right": 175,
+        "y": 398
+      }
+    ]
+  },
+  "tabs-390": {
+    "scrollWidth": 318,
+    "clientWidth": 318,
+    "rows": 2,
+    "pastViewport": 0,
+    "tabs": [
+      {
+        "label": "OverviewOverview",
+        "x": 39,
+        "right": 109,
+        "y": 550
+      },
+      {
+        "label": "PhotosPhotos",
+        "x": 111,
+        "right": 165,
+        "y": 550
+      },
+      {
+        "label": "DrinksDrinks",
+        "x": 167,
+        "right": 218,
+        "y": 550
+      },
+      {
+        "label": "StoriesStories",
+        "x": 220,
+        "right": 274,
+        "y": 550
+      },
+      {
+        "label": "LoreLore",
+        "x": 276,
+        "right": 320,
+        "y": 550
+      },
+      {
+        "label": "AskAsk",
+        "x": 39,
+        "right": 83,
+        "y": 596
+      },
+      {
+        "label": "Last trainTrain",
+        "x": 85,
+        "right": 129,
+        "y": 596
+      }
+    ]
+  },
+  "story-button-390": {
+    "label": "Start a crawl here",
+    "fontSize": "13.76px",
+    "fontWeight": "700",
+    "borderRadius": "14px",
+    "minHeight": "44px"
+  },
+  "story-pill-count": 0
+}

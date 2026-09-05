@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 // The landmark story, in the frame each width already owns.
 //
@@ -235,6 +235,45 @@ for (const width of PHONE_WIDTHS) {
   });
 }
 
+/**
+ * The names on the story's nearby list, once the list has stopped moving.
+ *
+ * The rows re-rank as venue shards land, and a re-rank REPLACES the buttons,
+ * so a click that starts a frame before one lands on a detached element and
+ * the pub never opens. Two consecutive identical reads is the settle.
+ */
+async function settledStoryPubNames(storyPortal: Locator): Promise<string[]> {
+  let previous = "";
+  let settled = "";
+  await expect
+    .poll(
+      async () => {
+        const names = (await storyPortal.locator(".landmarkStoryPubName").allInnerTexts())
+          .map((name) => name.trim())
+          .filter(Boolean)
+          .join("|");
+        const stable = names.length > 0 && names === previous;
+        previous = names;
+        if (stable) settled = names;
+        return stable;
+      },
+      { timeout: 45_000, intervals: [400] },
+    )
+    .toBe(true);
+  return settled.split("|");
+}
+
+/** Open a story pub by name, re-resolving the row on every attempt. */
+async function openStoryPub(storyPortal: Locator, venuePortal: Locator, pubName: string): Promise<void> {
+  await expect(async () => {
+    if ((await venuePortal.count()) === 0) {
+      const row = storyPortal.locator(".landmarkStoryPubs button").filter({ hasText: pubName }).first();
+      await row.click();
+    }
+    await expect(venuePortal).toBeVisible({ timeout: 4_000 });
+  }).toPass({ timeout: 45_000 });
+}
+
 test("phone 390: a pub opened from the story has the story as its Back", async ({ page }) => {
   // verify-preview-4, J02: The White Lion, opened from the Covent Garden
   // story, landed on /map?sel=… and browser Back then landed on a bare /map
@@ -252,16 +291,12 @@ test("phone 390: a pub opened from the story has the story as its Back", async (
   const rows = storyPortal.locator(".landmarkStoryPubs button");
   await expect(rows.first()).toBeVisible({ timeout: 45_000 });
   // The nearby rows re-rank as venue shards land, so the pub is addressed by
-  // the NAME read off the list rather than by "first", or the row that was
-  // tapped and the row that was read can be two different pubs.
-  const pubName = (await rows.first().locator(".landmarkStoryPubName").innerText()).trim();
-  const namedPub = rows.filter({ hasText: pubName }).first();
-
-  await expect(async () => {
-    await namedPub.click();
-    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue"]')).toBeVisible({ timeout: 1_000 });
-  }).toPass({ timeout: 20_000 });
+  // the NAME read off a SETTLED list rather than by "first", or the row that
+  // was tapped and the row that was read can be two different pubs - and a tap
+  // mid-re-rank lands on a button that is no longer in the document.
+  const pubName = (await settledStoryPubNames(storyPortal))[0]!;
   const venuePortal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await openStoryPub(storyPortal, venuePortal, pubName);
   await expect(venuePortal.locator(".mobileSharedSheetHeader h2")).toHaveText(pubName);
   await expect(venuePortal).toHaveAttribute("data-surface-back", `Back to ${LANDMARK_NAME}`);
   await expect.poll(() => new URL(page.url()).searchParams.get("sel")).not.toBeNull();
@@ -276,10 +311,8 @@ test("phone 390: a pub opened from the story has the story as its Back", async (
   await expect.poll(() => new URL(page.url()).searchParams.get("landmark")).toBe("covent-garden");
 
   // And so is the browser's Back, from the pub opened a second time.
-  await expect(async () => {
-    await storyPortal.locator(".landmarkStoryPubs button").filter({ hasText: pubName }).first().click();
-    await expect(venuePortal).toBeVisible({ timeout: 1_000 });
-  }).toPass({ timeout: 20_000 });
+  await settledStoryPubNames(storyPortal);
+  await openStoryPub(storyPortal, venuePortal, pubName);
   await page.goBack();
   await expect(storyPortal).toBeVisible({ timeout: 30_000 });
   await expect(storyPortal.locator(".mobileSharedSheetHeader h2")).toHaveText(LANDMARK_NAME);

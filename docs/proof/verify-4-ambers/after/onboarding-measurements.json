@@ -1,0 +1,174 @@
+{
+  "onboarding-320x568": {
+    "viewport": {
+      "width": 320,
+      "height": 568
+    },
+    "consentCard": {
+      "x": 12,
+      "y": 440,
+      "width": 296,
+      "height": 116
+    },
+    "primary": {
+      "x": 158.875,
+      "y": 376,
+      "width": 147.125,
+      "height": 44
+    },
+    "primaryFullyInViewport": true,
+    "primaryOverlapsCard": false,
+    "rows": [
+      {
+        "x": 14,
+        "y": 164.453125,
+        "width": 292,
+        "height": 70.515625
+      },
+      {
+        "x": 14,
+        "y": 238.96875,
+        "width": 292,
+        "height": 50.515625
+      },
+      {
+        "x": 14,
+        "y": 293.484375,
+        "width": 292,
+        "height": 70.515625
+      }
+    ],
+    "rowsOverlappingCard": 0,
+    "rowsOverlappingPrimary": 0,
+    "gapPrimaryBottomToCardTop": 20
+  },
+  "onboarding-360x640": {
+    "viewport": {
+      "width": 360,
+      "height": 640
+    },
+    "consentCard": {
+      "x": 12,
+      "y": 512,
+      "width": 336,
+      "height": 116
+    },
+    "primary": {
+      "x": 198.875,
+      "y": 448,
+      "width": 147.125,
+      "height": 44
+    },
+    "primaryFullyInViewport": true,
+    "primaryOverlapsCard": false,
+    "rows": [
+      {
+        "x": 14,
+        "y": 276.453125,
+        "width": 332,
+        "height": 50.515625
+      },
+      {
+        "x": 14,
+        "y": 330.96875,
+        "width": 332,
+        "height": 50.515625
+      },
+      {
+        "x": 14,
+        "y": 385.484375,
+        "width": 332,
+        "height": 50.515625
+      }
+    ],
+    "rowsOverlappingCard": 0,
+    "rowsOverlappingPrimary": 0,
+    "gapPrimaryBottomToCardTop": 20
+  },
+  "onboarding-390x844": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "consentCard": {
+      "x": 12,
+      "y": 716,
+      "width": 366,
+      "height": 116
+    },
+    "primary": {
+      "x": 216.875,
+      "y": 634,
+      "width": 155.125,
+      "height": 50
+    },
+    "primaryFullyInViewport": true,
+    "primaryOverlapsCard": false,
+    "rows": [
+      {
+        "x": 18,
+        "y": 417.40625,
+        "width": 354,
+        "height": 61.53125
+      },
+      {
+        "x": 18,
+        "y": 487.9375,
+        "width": 354,
+        "height": 61.53125
+      },
+      {
+        "x": 18,
+        "y": 558.46875,
+        "width": 354,
+        "height": 61.53125
+      }
+    ],
+    "rowsOverlappingCard": 0,
+    "rowsOverlappingPrimary": 0,
+    "gapPrimaryBottomToCardTop": 32
+  },
+  "onboarding-430x932": {
+    "viewport": {
+      "width": 430,
+      "height": 932
+    },
+    "consentCard": {
+      "x": 12,
+      "y": 804,
+      "width": 406,
+      "height": 116
+    },
+    "primary": {
+      "x": 256.875,
+      "y": 722,
+      "width": 155.125,
+      "height": 50
+    },
+    "primaryFullyInViewport": true,
+    "primaryOverlapsCard": false,
+    "rows": [
+      {
+        "x": 18,
+        "y": 505.40625,
+        "width": 394,
+        "height": 61.53125
+      },
+      {
+        "x": 18,
+        "y": 575.9375,
+        "width": 394,
+        "height": 61.53125
+      },
+      {
+        "x": 18,
+        "y": 646.46875,
+        "width": 394,
+        "height": 61.53125
+      }
+    ],
+    "rowsOverlappingCard": 0,
+    "rowsOverlappingPrimary": 0,
+    "gapPrimaryBottomToCardTop": 32
+  }
+}
