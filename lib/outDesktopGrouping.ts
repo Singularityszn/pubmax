@@ -153,7 +153,19 @@ export function outListingUnmatchedCount(rows: readonly WhatsOnRow[]): number {
   );
 }
 
+/**
+ * Whether the notice is the page's answer or a footnote under it.
+ *
+ * The listing surface renders only rows that open a PUBMAXX venue, so a night
+ * whose every row is at an unlisted place has no card above this and the
+ * notice IS what the reader gets. With a card above it, it is an aside about
+ * the rows that are not on one, and it reads in the quieter voice.
+ */
+export type OutUnmatchedNoticeRole = "lead" | "aside";
+
 export type OutUnmatchedNotice = {
+  /** Whether the page leads with this, or shows it under the cards. */
+  role: OutUnmatchedNoticeRole;
   /** The count, and which night it is about. */
   line: string;
   /** Provider place names, or empty beside useful matched Venue cards. */
@@ -207,20 +219,30 @@ export function outUnmatchedListingsNotice(
   // "at the weekend" reads as a phrase; "tonight" and "tomorrow" stand alone.
   const when = window === "weekend" ? `at ${noun}` : noun;
 
-  // "more" already tells a reader with a matched card above this is the
-  // rest, not the story. With no matched card (shown === 0) that word was
-  // absent, so the sentence stood alone and read as the night's lede (#1430).
-  // "Also" carries the same subordinating job when there is nothing above it
-  // to say "more" than.
+  // "more" tells a reader with a matched card above that this is the rest,
+  // not the story. With no matched card there is nothing for it to be more
+  // than, so the notice takes the lead role and says the whole finding in one
+  // sentence. "Also, 4 listings tonight are at places we don't list yet."
+  // (#1430) subordinated the sentence to a page that had nothing above it.
+  const role: OutUnmatchedNoticeRole = shown > 0 ? "aside" : "lead";
+  const possessive = noun === "the weekend" ? "the weekend's" : `${noun}'s`;
+  const owned = `${possessive.charAt(0).toUpperCase()}${possessive.slice(1)}`;
+
   let line: string;
   if (venueMatch !== "ready") {
-    line = `We couldn't check which of ${noun === "the weekend" ? "the weekend's" : `${noun}'s`} ${count} ${
+    line = `We couldn't check which of ${possessive} ${count} ${
       count === 1 ? "listing is" : "listings are"
     } at a pub we list.`;
-  } else if (count === 1) {
-    line = `${shown > 0 ? "1 more" : "Also, 1"} listing ${when} is at a place we don't list yet.`;
+  } else if (role === "aside") {
+    line =
+      count === 1
+        ? `1 more listing ${when} is at a place we don't list yet.`
+        : `${count} more listings ${when} are at places we don't list yet.`;
   } else {
-    line = `${shown > 0 ? `${count} more` : `Also, ${count}`} listings ${when} are at places we don't list yet.`;
+    line =
+      count === 1
+        ? `${owned} 1 listing is at a place we don't list yet.`
+        : `${owned} ${count} listings are all at places we don't list yet.`;
   }
 
   const names = options.unmatchedPlaces ? [...options.unmatchedPlaces] : (() => {
@@ -259,7 +281,7 @@ export function outUnmatchedListingsNotice(
     options.unmatchedSources === undefined
       ? outSourceAttribution(hidden)
       : outSourceAttributionFromLabels(options.unmatchedSources);
-  return { line, places, credits, way };
+  return { role, line, places, credits, way };
 }
 
 /** A sendable open plan carries a resolved meeting point the card can render. */

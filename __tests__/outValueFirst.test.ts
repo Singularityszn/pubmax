@@ -32,6 +32,7 @@ import type { WhatsOnRow } from "@/lib/whatsOn";
 
 const REPO_ROOT = join(__dirname, "..");
 const outClient = readFileSync(join(REPO_ROOT, "app/out/OutClient.tsx"), "utf8");
+const outCss = readFileSync(join(REPO_ROOT, "app/out/out.css"), "utf8");
 
 const matchedRow: WhatsOnRow = {
   id: "mark-render",
@@ -74,6 +75,44 @@ describe("the listings come before the line about what is missing", () => {
       outClient.indexOf("<EditorialRail />"),
     );
     expect(section).toContain('data-testid="out-unmatched-notice"');
+  });
+});
+
+// The notice's ROLE decides its weight. GrokBot's 5 September production run
+// found /out reading as a Ticketmaster night story: every row was at an
+// unlisted place, so no card rendered, and the count, the provider credit and
+// the way onward were the whole page at full status weight. A footnote may not
+// be the loudest thing on a screen, and it may not be the only thing either.
+describe("the unmatched notice reads at the weight its role earns", () => {
+  it("leads with the EmptyState idiom when no card sits above it", () => {
+    expect(outClient).toContain('unmatchedNotice.role === "lead"');
+    const notice = outClient.slice(outClient.indexOf('data-testid="out-unmatched-notice"'));
+    const emptyStateAt = notice.indexOf("<EmptyState");
+    const creditAt = notice.indexOf("Listings from");
+    expect(emptyStateAt).toBeGreaterThan(-1);
+    // The provider credit stays a footer line UNDER the answer, never the
+    // heading of a page whose listings are all somewhere we do not list.
+    expect(creditAt).toBeGreaterThan(emptyStateAt);
+  });
+
+  it("marks the notice with its role so the stylesheet can quieten the aside", () => {
+    expect(outClient).toContain("data-role={unmatchedNotice.role}");
+  });
+
+  it("sets the aside below the page's own status copy", () => {
+    const status = outCss.match(/\.outStatus \{[^}]*font-size:\s*([\d.]+)rem/);
+    const aside = outCss.match(
+      /\.outListingUnmatched\[data-role="aside"\][^{]*\{[^}]*font-size:\s*([\d.]+)rem/,
+    );
+    expect(status).not.toBeNull();
+    expect(aside).not.toBeNull();
+    expect(Number(aside?.[1])).toBeLessThan(Number(status?.[1]));
+  });
+
+  it("rules the aside off from the cards it is a footnote to", () => {
+    expect(outCss).toMatch(
+      /\.outListingUnmatched\[data-role="aside"\] \{[^}]*border-top:\s*1px solid var\(--line\)/,
+    );
   });
 });
 

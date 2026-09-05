@@ -242,7 +242,9 @@ test.describe("out supply honesty @390", () => {
     await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
     const notice = page.getByTestId("out-unmatched-notice");
     await expect(notice).toBeVisible();
-    await expect(notice).toContainText("Also, 4 listings tonight are at places we don't list yet.");
+    await expect(notice).toContainText(
+      "Tonight's 4 listings are all at places we don't list yet.",
+    );
     await expect(notice).toContainText("Jazz Cafe, Up The Creek, Soul Mama and The Comedy Store.");
     await expect(notice.getByRole("link", { name: "Ticketmaster", exact: true })).toHaveAttribute(
       "href",
