@@ -122,6 +122,33 @@ export function railHeading(scope: LandingAnswerScope, area: string): string {
 export const TONIGHT_DOOR_HREF = "/tonight";
 export const TONIGHT_DOOR_LABEL = "Tonight";
 
+export type LandingQuietDoor = {
+  href: string;
+  label: string;
+  /** The `landing_cta_clicked` target this door reports. */
+  cta: "pal" | "tonight";
+  /** A class the door carries for its own width rule, where it has one. */
+  className?: string;
+};
+
+/**
+ * The hero's quiet row, in order: the Pal first, the way the captain set the
+ * hero, then Tonight (#1488). This table is the ONE statement of that row.
+ * `components/landing/LandingHero.tsx` renders it, the hierarchy test holds
+ * it to two, and the browser spec counts the rendered anchors against it, so
+ * a door added or dropped in one place fails the others rather than reading
+ * as a number somebody typed (#1503).
+ */
+export const LANDING_QUIET_DOORS: readonly LandingQuietDoor[] = [
+  { href: "/pal", label: "Meet your Pub Pal", cta: "pal" },
+  {
+    href: TONIGHT_DOOR_HREF,
+    label: TONIGHT_DOOR_LABEL,
+    cta: "tonight",
+    className: "lpTonightDoor",
+  },
+];
+
 /** The one quiet control that asks for a location. */
 export const NEAR_ME_CONTROL_LABEL = "Near me";
 export const NEAR_ME_CONTROL_BUSY_LABEL = "Finding you…";

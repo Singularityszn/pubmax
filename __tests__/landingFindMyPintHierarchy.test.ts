@@ -25,6 +25,7 @@ vi.mock("@/lib/cityPreference", () => ({
 }));
 
 import LandingPage from "@/components/landing/LandingPage";
+import { LANDING_QUIET_DOORS } from "@/lib/landingHero";
 
 // The landing hierarchy is permanent and no flag decides it (captain
 // 2026-09-03, issue #1354; 2026-09-04, issue #1357): ONE primary action, the
@@ -134,6 +135,10 @@ describe("landing hierarchy: the price receipt door", () => {
       ["/pal", "Meet your Pub Pal"],
       ["/tonight", "Tonight"],
     ]);
+    // The rendered row IS the table in lib/landingHero.ts, which is what
+    // e2e/mobile-button-system.spec.ts counts the painted anchors against, so
+    // the two cannot disagree about how many doors the hero carries (#1503).
+    expect(quietDoors).toEqual(LANDING_QUIET_DOORS.map((door) => [door.href, door.label]));
     const textLinks = [...rendered.matchAll(/<a[^>]*class="lpTextLink"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => m[1]);
     expect(textLinks).toEqual(["Open the map"]);
   });
