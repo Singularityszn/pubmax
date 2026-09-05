@@ -1995,6 +1995,34 @@
 .accountHubSettings { display: grid; gap: .75rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
 .accountHubSettings > h3 { margin: 0; font-size: 1.05rem; }
 .accountHubSettingsGrid { margin: 0; }
+
+/* Account deletion. Quiet by default and only ever loud once opened: the panel
+   carries the account of what happens, so the control that opens it does not
+   need to shout. Every tap target keeps the 44px floor the phone chrome fence
+   holds the rest of this surface to. */
+.accountHubDelete { display: grid; gap: .5rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
+.accountHubDelete h3 { margin: 0; font-size: 1.05rem; }
+.accountHubDelete > p { margin: 0; color: var(--ink-muted); }
+.accountHubDeleteOpen { min-height: 44px; justify-self: start; padding: .65rem .9rem; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); font: inherit; font-weight: 700; }
+.accountHubDeleteConfirm { display: grid; gap: .5rem; margin-top: .25rem; padding-top: .75rem; border-top: 1px solid var(--line); }
+.accountHubDeleteConfirm h4 { margin: 0; font-size: .85rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted); }
+.accountHubDeleteConfirm ul { display: grid; gap: .35rem; margin: 0; padding-left: 1.1rem; }
+.accountHubDeleteConfirm li { line-height: 1.45; }
+.accountHubDeleteConfirmBtn { min-height: 44px; padding: .65rem .9rem; border: 0; border-radius: 12px; background: var(--brick); color: var(--paper); font: inherit; font-weight: 700; }
+.accountHubDeleteCancel { min-height: 44px; padding: .65rem .9rem; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); font: inherit; font-weight: 700; }
+.accountHubDeleteConfirmBtn[disabled], .accountHubDeleteCancel[disabled] { opacity: .6; }
+.accountHubDeleteNotice { margin: 0; color: var(--ink-muted); }
+
+/* Privacy, terms and support. The native shell starts on /tonight and never has
+   to open `/`, so this row is the only place inside the app these are reachable
+   from. It stays a plain list on purpose: a reviewer scans it, they do not
+   navigate it. */
+.accountLegalRow { display: grid; gap: .5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.accountLegalRow h3 { margin: 0; font-size: 1.05rem; }
+.accountLegalLinks { display: flex; flex-wrap: wrap; gap: .35rem 1rem; margin: 0; padding: 0; list-style: none; }
+.accountLegalLinks a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.accountLegalLinks a:hover { color: var(--brass); }
+.accountLegalNote { margin: 0; color: var(--ink-muted); font-size: .85rem; }
 @media (max-width: 520px) { .accountHubNightProfileGrid { grid-template-columns: 1fr; } .accountHubSignIn { align-items: stretch; flex-direction: column; } }
 
 .memoryStudio {

@@ -142,6 +142,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // carry no UGC, so they belong in the sitemap like /about.
     { path: "/privacy", priority: 0.3, changeFrequency: "yearly", lastModified: now },
     { path: "/terms", priority: 0.3, changeFrequency: "yearly", lastModified: now },
+    // The public account-deletion page. Play Console holds this URL in its Data
+    // safety form and expects to be able to open it, so it is listed like the
+    // other token-free content pages rather than living only behind a link.
+    { path: "/account/delete", priority: 0.3, changeFrequency: "yearly", lastModified: now },
   ];
   for (const r of staticRoutes) {
     entries.push({

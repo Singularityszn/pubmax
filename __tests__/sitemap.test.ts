@@ -21,9 +21,11 @@ import type { MetadataRoute } from "next";
 // (the fixed list in app/sitemap.ts minus /social). Kept here so a change to
 // that list is a conscious test edit. Includes /pint-index (Wave S3.3 — the
 // London Pint Index hub), /about (founder story + press kit hub), /founders
-// (the numbered public wall of the first hundred claimed handles) and the two
-// legal content pages (/privacy, /terms) linked from the site footer.
-const STATIC_HUB_COUNT = 13;
+// (the numbered public wall of the first hundred claimed handles), the two legal
+// content pages (/privacy, /terms) linked from the site footer, and
+// /account/delete, the public account-deletion page Play Console holds in its
+// Data safety form and expects to be able to open.
+const STATIC_HUB_COUNT = 14;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is

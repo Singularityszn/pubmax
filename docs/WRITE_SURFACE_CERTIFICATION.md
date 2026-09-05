@@ -18,6 +18,7 @@ bodies are checked separately, including only local helpers each body calls.
 Protection in a sibling method cannot certify another method.
 
 <!-- mutation-handler-inventory:start -->
+- `DELETE app/api/account`
 - `DELETE app/api/admin/session`
 - `DELETE app/api/auth/session`
 - `DELETE app/api/check-ins`
