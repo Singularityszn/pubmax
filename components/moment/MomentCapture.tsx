@@ -33,10 +33,18 @@ import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { captureNativePhoto } from "@/lib/nativeCamera";
 import { isNativeApp } from "@/lib/nativePlatform";
 import {
-  MOMENT_MAX_PHOTO_BYTES,
   MOMENT_PHOTO_TYPES,
   replaceMomentMediaWithEditedBlob,
 } from "@/lib/momentPhotoEditor";
+import { fitMomentPhoto } from "@/lib/momentPhotoFit";
+import {
+  MOMENT_PHOTO_FIT_FAILED_LINE,
+  momentPhotoIntakeDecision,
+  momentPhotoStillTooLargeLine,
+  momentPickerHint,
+} from "@/lib/momentPhotoIntake";
+import { unreadableImageMessageFor } from "@/lib/profileImagePicker";
+import { photoFitsUploadBody } from "@/lib/uploadBodyLimit";
 import {
   createMomentDraft,
   deleteMomentDraft,
@@ -240,7 +248,7 @@ export default function MomentCapture(): React.JSX.Element {
   function chooseMedia(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
-    addFiles(files);
+    void addFiles(files);
   }
 
   // Inside the Capacitor shell the picker label routes through the native
@@ -250,7 +258,7 @@ export default function MomentCapture(): React.JSX.Element {
     if (!isNativeApp()) return;
     event.preventDefault();
     const file = await captureNativePhoto("moment");
-    if (file) addFiles([file]);
+    if (file) void addFiles([file]);
   }
 
   function onPickerDragEnter(event: ReactDragEvent<HTMLLabelElement>) {
@@ -282,17 +290,45 @@ export default function MomentCapture(): React.JSX.Element {
     event.stopPropagation();
     setDragOver(false);
     const files = Array.from(event.dataTransfer.files ?? []);
-    addFiles(files);
+    void addFiles(files);
   }
 
-  function addFiles(files: File[]) {
-    if (!files.length) return;
-    const invalid = files.find((file) => !MOMENT_PHOTO_TYPES.has(file.type) || file.size > MOMENT_MAX_PHOTO_BYTES);
-    if (invalid) {
-      setMessage("Choose JPEG, PNG, or WebP photos up to 10MB each.");
-      return;
+  // Intake is THREE questions per file (lib/momentPhotoIntake.ts): may it be
+  // opened, may it go up as it is, or must it be fitted under the wire limit
+  // first. A phone photo is routinely 8 MB and the function refuses 4.5 MB
+  // before any handler runs, so the fit is what makes the phone's own photos
+  // saveable; nothing over the limit is ever handed to the request.
+  async function admitFile(file: File): Promise<File | null> {
+    if (!MOMENT_PHOTO_TYPES.has(file.type)) {
+      setMessage("Choose JPEG, PNG or WebP photos.");
+      return null;
     }
-    const incoming = files.map(makeMedia);
+    const decision = momentPhotoIntakeDecision(file.size);
+    if (decision.outcome === "refuse") {
+      setMessage(decision.message);
+      return null;
+    }
+    if (decision.outcome === "keep") return file;
+    setMessage("Resizing photo...");
+    const fitted = await fitMomentPhoto(file);
+    if (fitted.outcome === "fitted") return fitted.file;
+    setMessage(
+      fitted.outcome === "unreadable"
+        ? unreadableImageMessageFor("moment photo", false)
+        : MOMENT_PHOTO_FIT_FAILED_LINE,
+    );
+    return null;
+  }
+
+  async function addFiles(files: File[]) {
+    if (!files.length) return;
+    const admitted: File[] = [];
+    for (const file of files) {
+      const ready = await admitFile(file);
+      if (!ready) return;
+      admitted.push(ready);
+    }
+    const incoming = admitted.map(makeMedia);
     const selection = selectMomentMedia(draft.media, incoming);
     if (selection.error) {
       incoming.forEach((item) => { if (item.objectUrl) URL.revokeObjectURL(item.objectUrl); });
@@ -309,9 +345,7 @@ export default function MomentCapture(): React.JSX.Element {
     : isPhone
       ? "Take a photo"
       : "Upload a photo";
-  const pickerSecondary = isPhone
-    ? "Camera or library"
-    : "JPEG, PNG, or WebP · drag and drop or browse";
+  const pickerSecondary = momentPickerHint(isPhone);
 
   // Author-written alt text lives on the draft media item. This is the ONLY way
   // a description is set in v1 — the author types it. AI-suggestion seam: a
@@ -433,6 +467,14 @@ export default function MomentCapture(): React.JSX.Element {
     }
 
     const items: Array<MomentMediaDraft | null> = draft.media.length ? draft.media : [null];
+    // A draft restored from before the wire limit can still hold a blob the
+    // function would refuse with a 413 nothing of ours can word. Say so here.
+    const heavy = draft.media.find((item) => item.blob && !photoFitsUploadBody(item.blob.size));
+    if (heavy) {
+      setSaveState("idle");
+      setMessage(momentPhotoStillTooLargeLine(heavy.name));
+      return;
+    }
     for (let index = 0; index < items.length; index += 1) {
       const item = items[index];
       const body = item ? new FormData() : JSON.stringify({

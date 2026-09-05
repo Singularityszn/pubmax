@@ -27,8 +27,14 @@ import {
 } from "@/lib/imageSafety";
 import { log } from "@/lib/log";
 import { isSupabaseConfigured, requireSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
+import { UPLOAD_PHOTO_MAX_BYTES } from "@/lib/uploadBodyLimit";
 
-export const UPLOADED_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+/**
+ * The wire limit, not a figure of our own: the platform refuses a heavier body
+ * before this module runs (`lib/uploadBodyLimit.ts`), so a looser number here
+ * would be a promise no route could keep.
+ */
+export const UPLOADED_IMAGE_MAX_BYTES = UPLOAD_PHOTO_MAX_BYTES;
 export const UPLOADED_IMAGE_MAX_DIMENSION = 12_000;
 export const UPLOADED_IMAGE_MAX_PIXELS = 20_000_000;
 

@@ -1,8 +1,12 @@
 import type { MomentMediaDraft } from "@/lib/momentDraft";
+import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
 
 export const MOMENT_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-// Matches the private Moment upload boundary.
-export const MOMENT_MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+/**
+ * The private Moment upload boundary, which is the wire limit and nothing
+ * looser: a heavier photo never reaches the route (`lib/uploadBodyLimit.ts`).
+ */
+export const MOMENT_MAX_PHOTO_BYTES = UPLOAD_PHOTO_MAX_BYTES;
 
 export type EditedMomentPhotoResult = {
   blob: Blob;
@@ -105,7 +109,7 @@ export function replaceMomentMediaWithEditedBlob(
     return { media: current, error: "Edited photo must be JPEG, PNG, or WebP." };
   }
   if (result.blob.size > MOMENT_MAX_PHOTO_BYTES) {
-    return { media: current, error: "Edited photo must be 10MB or smaller." };
+    return { media: current, error: `Edited photo must be ${UPLOAD_PHOTO_MAX_LABEL} or smaller.` };
   }
 
   const file = new File([result.blob], editedName(current.name, mimeType), {
