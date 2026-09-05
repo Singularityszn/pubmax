@@ -191,12 +191,37 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
         {/* The honesty line comes AFTER the listings it is honest about. It led
             the page, so a reader met "57 more listings are at places we don't
             list yet" before the one listing we DO have - and the word "more"
-            was answering nothing. */}
+            was answering nothing.
+
+            Its ROLE decides how it reads. Under a card it is a footnote about
+            the rows that are not on one, and it takes the quiet voice. With no
+            card above it there is nothing for it to be a footnote to: it is the
+            night's own answer, so it takes the EmptyState idiom, and the
+            provider credit stays a footer line under it rather than becoming
+            the loudest thing on an otherwise empty page. */}
         {unmatchedNotice ? (
-          <div className="outListingUnmatched" role="status" data-testid="out-unmatched-notice">
-            <p className="outStatus outListingUnmatchedLine">
-              {unmatchedNotice.line} {unmatchedNotice.places}
-            </p>
+          <div
+            className="outListingUnmatched"
+            data-role={unmatchedNotice.role}
+            role="status"
+            data-testid="out-unmatched-notice"
+          >
+            {unmatchedNotice.role === "lead" ? (
+              <EmptyState
+                title={unmatchedNotice.line}
+                action={
+                  <Link prefetch={false} href={unmatchedNotice.way.href}>
+                    {unmatchedNotice.way.label}
+                  </Link>
+                }
+              >
+                {unmatchedNotice.places || null}
+              </EmptyState>
+            ) : (
+              <p className="outStatus outListingUnmatchedLine">
+                {unmatchedNotice.line} {unmatchedNotice.places}
+              </p>
+            )}
             {unmatchedNotice.credits.length > 0 ? (
               <p className="outListingUnmatchedCredit">
                 Listings from{" "}
@@ -211,11 +236,13 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
                 .
               </p>
             ) : null}
-            <p className="outListingUnmatchedWay">
-              <Link prefetch={false} href={unmatchedNotice.way.href} className="outPlansFootLink">
-                {unmatchedNotice.way.label}
-              </Link>
-            </p>
+            {unmatchedNotice.role === "aside" ? (
+              <p className="outListingUnmatchedWay">
+                <Link prefetch={false} href={unmatchedNotice.way.href} className="outPlansFootLink">
+                  {unmatchedNotice.way.label}
+                </Link>
+              </p>
+            ) : null}
           </div>
         ) : null}
       </section>

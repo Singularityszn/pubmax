@@ -103,9 +103,33 @@
   margin: 0 0 16px;
 }
 
+/* The aside is a footnote about the rows that are NOT on the cards above it,
+   so it may not carry the weight of the page's own copy: at status size it
+   read as a second section rather than as a note under the first. The rule
+   above the block marks where the cards stop and the note begins. The lead
+   role keeps full strength on purpose, because with no card above it the
+   notice is the night's answer. */
+.outListingUnmatched[data-role="aside"] {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: color-mix(in srgb, var(--ink-soft) 82%, transparent);
+}
+
 .outListingUnmatched .outListingUnmatchedLine {
   margin-bottom: 6px;
   overflow-wrap: anywhere;
+}
+
+.outListingUnmatched[data-role="aside"] .outListingUnmatchedLine,
+.outListingUnmatched[data-role="aside"] .outListingUnmatchedCredit,
+.outListingUnmatched[data-role="aside"] .outListingUnmatchedWay {
+  color: inherit;
+  font-size: 0.85rem;
+}
+
+.outListingUnmatched[data-role="aside"] .outPlansFootLink {
+  color: inherit;
 }
 
 .outListingUnmatchedCredit {
@@ -360,6 +384,13 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: 24px;
     row-gap: 28px;
+  }
+
+  /* The aside's rule marks where the cards stop, so it holds the card
+     column's own width rather than the page's. */
+  .outListingUnmatched[data-role="aside"] {
+    max-width: 1120px;
+    margin-inline: auto;
   }
 
   .outListingRow {

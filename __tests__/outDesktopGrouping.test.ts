@@ -251,7 +251,8 @@ describe("outUnmatchedListingsNotice", () => {
       "tonight",
       "ready",
     );
-    expect(notice?.line).toBe("Also, 4 listings tonight are at places we don't list yet.");
+    expect(notice?.role).toBe("lead");
+    expect(notice?.line).toBe("Tonight's 4 listings are all at places we don't list yet.");
   });
 
   it("keeps the hidden-row count without place names when the pub list is not empty", () => {
@@ -260,6 +261,7 @@ describe("outUnmatchedListingsNotice", () => {
       "tonight",
       "ready",
     );
+    expect(notice?.role).toBe("aside");
     expect(notice?.line).toBe("2 more listings tonight are at places we don't list yet.");
     expect(notice?.places).toBe("");
   });
@@ -280,6 +282,23 @@ describe("outUnmatchedListingsNotice", () => {
     expect(notice?.places).toBe("");
     expect(notice?.credits.map((credit) => credit.label)).toEqual(["Ticketmaster"]);
     expect(notice?.way).toEqual({ href: "/tonight", label: "See what else is on tonight" });
+  });
+
+  it("names the window in the lead sentence too, with no word left dangling", () => {
+    // The lead has nothing above it to be "more" or "also" than, so it says
+    // the whole finding once and names its own night.
+    const rows = [unmatched("a", "The O2"), unmatched("b", "Wembley Arena")];
+    expect(outUnmatchedListingsNotice(rows, "tomorrow", "ready")?.line).toBe(
+      "Tomorrow's 2 listings are all at places we don't list yet.",
+    );
+    expect(outUnmatchedListingsNotice(rows, "weekend", "ready")?.line).toBe(
+      "The weekend's 2 listings are all at places we don't list yet.",
+    );
+    for (const window of ["tonight", "tomorrow", "weekend"] as const) {
+      const notice = outUnmatchedListingsNotice(rows, window, "ready");
+      expect(notice?.role).toBe("lead");
+      expect(notice?.line).not.toMatch(/\bAlso\b|\bmore\b/);
+    }
   });
 
   it("names the window the chip asked for and sends the other days to the map", () => {
@@ -376,7 +395,7 @@ describe("outUnmatchedListingsNotice", () => {
           unmatchedSources: ["Ticketmaster"],
         },
       )?.line,
-    ).toBe("Also, 1 listing tonight is at a place we don't list yet.");
+    ).toBe("Tonight's 1 listing is at a place we don't list yet.");
   });
 
   it("omits response place inventory when a matched card is present", () => {
