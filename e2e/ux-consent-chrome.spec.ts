@@ -341,9 +341,69 @@ for (const viewport of ONBOARDING_VIEWPORTS) {
     // gone, on a surface that scrolls to it.
     await prompt.getByRole("button", { name: "No thanks" }).click();
     await expect(prompt).toBeHidden();
+    // The SCROLL is retried beside the assertion, not taken once in front of
+    // it. Answering the card releases the reserved lane and brings the
+    // photograph band back, and that reflow can land AFTER a one-shot
+    // scrollIntoViewIfNeeded has already settled: the button then drifts back
+    // under the fold and toBeInViewport, which re-reads but never re-scrolls,
+    // waits out its whole budget against a stale offset. That is what made
+    // this case fail at 360 about one run in three.
     // scrollIntoViewIfNeeded settles on a fractional offset, so the last half
     // pixel is the scroller's rounding rather than a covered control.
-    await primary.scrollIntoViewIfNeeded();
-    await expect(primary).toBeInViewport({ ratio: 0.99 });
+    await expect(async () => {
+      await primary.scrollIntoViewIfNeeded();
+      await expect(primary).toBeInViewport({ ratio: 0.99, timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+  });
+}
+
+// One decision per screen. /u/you carries the account settings block, which is
+// itself a live consent control, so the fixed arrival bar does not render
+// there; every other route keeps it. lib/consentSurfaceRoutes.ts is the rule.
+const CONSENT_ONCE_VIEWPORTS = [
+  { width: 390, height: 844 },
+  { width: 1440, height: 900 },
+] as const;
+
+for (const viewport of CONSENT_ONCE_VIEWPORTS) {
+  test(`/u/you offers the analytics decision exactly once @${viewport.width}`, async ({ page }) => {
+    test.setTimeout(60_000);
+    await prepareUndecidedConsent(page, viewport);
+    await page.goto("/u/you", { waitUntil: "domcontentloaded" });
+
+    // The settings block is the control this route owns. It is a dynamic
+    // import, so it is awaited rather than assumed: a bar found absent before
+    // the block had mounted would pass this test for the wrong reason.
+    const settings = page.locator("#analytics-settings");
+    await expect(settings).toBeVisible({ timeout: 30_000 });
+    await expect(settings.getByRole("button", { name: "Allow" })).toBeVisible();
+    await expect(settings.getByRole("button", { name: "No thanks" })).toBeVisible();
+
+    // Both controls carry the same pair of words, so the count is taken over
+    // the whole document rather than over one container.
+    await expect(page.getByRole("button", { name: "Allow", exact: true })).toHaveCount(1);
+    await expect(page.getByRole("button", { name: "No thanks", exact: true })).toHaveCount(1);
+    await expect(page.getByLabel("Anonymous analytics choice")).toHaveCount(0);
+
+    // The block still decides: the choice is the page's to make, and it is the
+    // stored answer that proves the surviving control is the live one.
+    await settings.getByRole("button", { name: "No thanks" }).click();
+    await expect
+      .poll(() => page.evaluate((key) => localStorage.getItem(key), CONSENT_KEY))
+      .toBe("denied");
+  });
+
+  test(`the arrival bar still meets a reader off that route @${viewport.width}`, async ({ page }) => {
+    test.setTimeout(60_000);
+    // One preparation for both routes: the init script re-runs on every
+    // navigation, so each arrival is an undecided one with a free budget.
+    await prepareUndecidedConsent(page, viewport);
+    for (const route of ["/", "/tonight"]) {
+      await page.goto(route, { waitUntil: "domcontentloaded" });
+      await expect(page.getByLabel("Anonymous analytics choice")).toBeVisible({
+        timeout: 30_000,
+      });
+      await expect(page.locator("#analytics-settings")).toHaveCount(0);
+    }
   });
 }

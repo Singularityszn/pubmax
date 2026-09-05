@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { BRAND_NAME } from "@/lib/brandNaming";
 import { useEffect, useState } from "react";
 
@@ -10,6 +11,7 @@ import {
   subscribeAnalyticsConsent,
 } from "@/lib/analytics";
 import type { AnalyticsConsentDecision } from "@/lib/analyticsIdentity";
+import { routeCarriesConsentControl } from "@/lib/consentSurfaceRoutes";
 import {
   ANALYTICS_CONSENT_PROMPT_SURFACE,
   claimPromptBudget,
@@ -44,8 +46,13 @@ export function AnalyticsConsentPromptContent({
 
 export default function AnalyticsConsentPrompt() {
   const [decision, setDecision] = useState<AnalyticsConsentDecision | null | "checking">("checking");
+  // One decision per screen: a route carrying its own live consent control owns
+  // the ask, so the arrival bar neither paints there nor spends the session's
+  // prompt budget on a moment nobody sees (lib/consentSurfaceRoutes.ts).
+  const pageOwnsConsent = routeCarriesConsentControl(usePathname());
 
   useEffect(() => {
+    if (pageOwnsConsent) return;
     let cancelled = false;
     const refresh = () => {
       const nextDecision = analyticsConsentDecision();
@@ -68,8 +75,9 @@ export default function AnalyticsConsentPrompt() {
       unsubscribeConsent();
       unsubscribeBudget();
     };
-  }, []);
+  }, [pageOwnsConsent]);
 
+  if (pageOwnsConsent) return null;
   if (decision !== null) return null;
 
   function decide(granted: boolean) {
