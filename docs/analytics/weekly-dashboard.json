@@ -161,6 +161,27 @@
           "trendsFilter": { "display": "ActionsBarValue" }
         }
       }
+    },
+    {
+      "name": "6. The four loop moments",
+      "description": "Read as pairs, never as totals: a shortlist shown against one taken, a brief seen against one opened from its own notification. docs/analytics/TRACKING_PLAN.md section 5.11.",
+      "query": {
+        "kind": "InsightVizNode",
+        "source": {
+          "kind": "TrendsQuery",
+          "dateRange": { "date_from": "-12w" },
+          "interval": "week",
+          "series": [
+            { "kind": "EventsNode", "event": "late_food_viewed", "name": "Food shortlist shown", "math": "total" },
+            { "kind": "EventsNode", "event": "late_food_added", "name": "Food ending taken", "math": "total" },
+            { "kind": "EventsNode", "event": "briefing_viewed", "name": "Brief seen", "math": "total" },
+            { "kind": "EventsNode", "event": "briefing_opened", "name": "Brief opened from its push", "math": "total" },
+            { "kind": "EventsNode", "event": "voice_started", "name": "Voice session connected", "math": "total" },
+            { "kind": "EventsNode", "event": "recap_viewed", "name": "Published recap read", "math": "total" }
+          ],
+          "trendsFilter": { "display": "ActionsLineGraph" }
+        }
+      }
     }
   ]
 }

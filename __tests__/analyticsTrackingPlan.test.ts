@@ -151,7 +151,7 @@ describe("the tracking plan document", () => {
 });
 
 describe("the weekly dashboard definition", () => {
-  it("carries the five numbers the weekly view is for", () => {
+  it("carries the six numbers the weekly view is for", () => {
     expect(DASHBOARD.insights.map((insight) => insight.name)).toEqual([
       "1. Weekly active visitors",
       "2. First meaningful action within 60 seconds",
@@ -159,6 +159,7 @@ describe("the weekly dashboard definition", () => {
       "3. Landing to Map to venue sheet",
       "4. Pint Drop submissions and corroboration",
       "5. Top routes by LCP (p75)",
+      "6. The four loop moments",
     ]);
   });
 

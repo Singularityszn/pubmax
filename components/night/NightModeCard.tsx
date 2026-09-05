@@ -41,7 +41,13 @@ import {
   markNightModeActiveFired,
   type ActivePlanRef,
 } from "@/lib/activePlan";
+import { useLoopMoment } from "@/components/loop/useLoopMoment";
 import { trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
+import {
+  LATE_FOOD_CONFIDENCES,
+  type LateFoodAnalyticsConfidence,
+  type LateFoodResultBand,
+} from "@/lib/analyticsEvents";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
@@ -191,6 +197,18 @@ export function completePlanPayload(
     ...(endingSelection ? { endingSelection } : {}),
     ...(finalPintDropId ? { finalPintDropId } : {}),
   };
+}
+
+/**
+ * A saved ending's snapshot may say `unknown`, which is not a late-food read at
+ * all (lib/plan.ts widens the field for the transport and keep-going endings).
+ * The sanitizer would drop such a value anyway; refusing it here means we never
+ * send an event we know will be thrown away.
+ */
+function isLateFoodAnalyticsConfidence(
+  value: string,
+): value is LateFoodAnalyticsConfidence {
+  return (LATE_FOOD_CONFIDENCES as readonly string[]).includes(value);
 }
 
 function anchorObservedClause(terminal: LateFoodTerminal): string {
@@ -745,6 +763,16 @@ function NightModeSheet({
           );
         }
         setPlan(canonical);
+        // The ending really saved, so the food half of the shortlist ratio is
+        // countable. It rides the SAVED selection rather than the tap, because
+        // a refused save leaves the night exactly where it was. Only the hours
+        // confidence travels: never the terminal, its name, or its area.
+        if (endingSelection.kind === "food") {
+          const confidence = endingSelection.evidenceSnapshot.confidence;
+          if (isLateFoodAnalyticsConfidence(confidence)) {
+            trackEvent("late_food_added", { confidence });
+          }
+        }
         const completionTelemetry = completionTelemetryFromBody(body);
         if (completionTelemetry) {
           trackEvent(
@@ -1183,6 +1211,14 @@ function NightModeSheet({
   );
 }
 
+/**
+ * The result band `late_food_viewed` reports. The served shortlist is capped at
+ * MAX_LATE_FOOD_HANDOFFS, so these are the only two answers there are.
+ */
+export function lateFoodResultBand(count: number): LateFoodResultBand {
+  return count > 0 ? "1-3" : "0";
+}
+
 function FoodEndingPicker({
   terminals,
   lastStopVenueId,
@@ -1195,6 +1231,11 @@ function FoodEndingPicker({
   onChoose: (terminal: LateFoodTerminal) => void;
 }) {
   const mapHref = lateFoodNearMapUrl(lastStopVenueId);
+  // The shortlist was offered. This is the denominator `late_food_added` is a
+  // ratio against, so it is reported for an EMPTY list too: a night that asked
+  // for food and was shown none is the finding, not the absence of an event.
+  const resultBand = lateFoodResultBand(terminals.length);
+  useLoopMoment("late_food_viewed", `${lastStopVenueId}:${resultBand}`, { resultBand });
   if (terminals.length === 0) {
     return (
       <div className="nightCard__foodPicker" aria-label="Choose a food ending">

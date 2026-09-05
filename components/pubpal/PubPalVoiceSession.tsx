@@ -22,6 +22,7 @@ import {
 } from "@elevenlabs/react";
 import { Mic, MicOff, Send } from "lucide-react";
 
+import { trackEvent } from "@/lib/analytics";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
@@ -206,6 +207,12 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             if (!ownsAttempt(attempt)) return;
             startController.settle();
             setIsStarting(false);
+            // The session is live. This is reported on CONNECT and not on the
+            // tap, because a grant that was refused, a microphone that was
+            // denied, and a socket that never opened are all sessions that
+            // never started. `connectedAt` is null until here, so it is also
+            // the latch: a reconnect on the same attempt reports once.
+            if (attempt.connectedAt === null) trackEvent("voice_started");
             attempt.connectedAt = Date.now();
             clearCapTimer(attempt);
             attempt.capTimer = window.setTimeout(() => {

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { BRIEFING_PUSH_URL } from "@/lib/briefingArrival";
 import type { PerTokenResult, PushProvider } from "@/lib/pushProvider";
 import type { PushPlatform } from "@/lib/pushTokenStore";
 
@@ -237,7 +238,7 @@ describe("maybeBroadcastNightSignalLive", () => {
 });
 
 describe("broadcastDailyBrief", () => {
-  it("targets explicit web subscriptions only and deep-links to /today", async () => {
+  it("targets explicit web subscriptions only and deep-links to the brief's own landing", async () => {
     await seed("native-token");
     const webToken = encodeWebPushSubscription({
       endpoint: "https://updates.push.services.mozilla.com/wpush/v2/daily",
@@ -255,8 +256,13 @@ describe("broadcastDailyBrief", () => {
     expect(sendMock).toHaveBeenCalledWith([webToken], expect.objectContaining({
       title: "Today in London",
       body: "Warm and dry. Beer garden weather. Tonight: Pub quiz at The Anchor.",
-      data: { kind: "daily_brief", url: "/today" },
+      // BRIEFING_PUSH_URL, not a bare "/today": the marker is what lets
+      // `briefing_opened` mean the brief was reached from the brief
+      // (lib/briefingArrival.ts). A sender that dropped it would leave that
+      // event reading zero forever with nothing saying so.
+      data: { kind: "daily_brief", url: BRIEFING_PUSH_URL },
     }));
+    expect(BRIEFING_PUSH_URL).toBe("/today?from=brief");
     expect(summary).toMatchObject({ targeted: 1, sent: 1 });
   });
 });

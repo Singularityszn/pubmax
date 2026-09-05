@@ -6,6 +6,8 @@ import PriceBadge from "@/components/PriceBadge";
 import PubmaxxNightSeal from "@/components/brand/PubmaxxNightSeal";
 import SiteNav from "@/components/nav/SiteNav";
 import RecapShareButton from "@/components/plan/RecapShareButton";
+import RecapViewAnalytics from "@/components/plan/RecapViewAnalytics";
+import type { RecapVisibility } from "@/lib/analyticsEvents";
 import { getPublishedRecapSource } from "@/lib/nightMemoryStore";
 import { PUBLIC_RECAP_PHOTO_TTL_SECONDS, signedNightMomentPhotoUrl } from "@/lib/nightMomentMedia";
 import { pintDropsStore } from "@/lib/pintDropsStore";
@@ -89,6 +91,13 @@ export default async function PublicRecapPage({ params }: Props) {
   const view = composeRecapFromPublishedStory({ story: src.story, moments: src.moments, pintDropsById, venueNames });
   if (!view) notFound();
 
+  // composeRecapFromPublishedStory refuses a private story, so anything that
+  // renders here is one of the two published visibilities. The narrowing is
+  // written out rather than asserted, because the analytics vocabulary is
+  // closed and an invented third value would be dropped in silence.
+  const recapVisibility: RecapVisibility =
+    src.story.visibility === "public" ? "public" : "unlisted";
+
   // Resolve approved photo URLs server-side (signed, short-lived). Only the
   // published + consent-approved photos ever reach this map.
   const photoUrls = new Map<string, string>();
@@ -111,6 +120,7 @@ export default async function PublicRecapPage({ params }: Props) {
 
   return (
     <main id="main" className="recapPage">
+      <RecapViewAnalytics visibility={recapVisibility} />
       <SiteNav />
 
       <header className="recapHero" style={step()}>

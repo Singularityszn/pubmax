@@ -16,6 +16,7 @@
 // Sending to ALL tokens for a plan-scoped event would be a privacy leak (crew A
 // gets crew B's Plan updates), so that path stays closed until identity exists.
 
+import { BRIEFING_PUSH_URL } from "@/lib/briefingArrival";
 import { DAY_MS } from "@/lib/dayMs";
 import { isLimited } from "@/lib/pintDrops";
 import {
@@ -191,7 +192,9 @@ export async function broadcastDailyBrief(
     title: "Today in London",
     body: `${highlight.weatherLine} Tonight: ${highlight.topPickTitle} at ${highlight.topPickPlace}.`,
     threadId: "daily-brief",
-    data: { kind: "daily_brief", url: "/today" },
+    // BRIEFING_PUSH_URL, not "/today": the marker is how the brief's own
+    // landing is told apart from any other arrival (lib/briefingArrival.ts).
+    data: { kind: "daily_brief", url: BRIEFING_PUSH_URL },
   });
 }
 

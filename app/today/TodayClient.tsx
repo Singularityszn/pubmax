@@ -46,6 +46,8 @@ import {
 } from "@/lib/dayGreeting";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PicksAlternatives from "@/components/picks/PicksAlternatives";
+import { useLoopMoment } from "@/components/loop/useLoopMoment";
+import { arrivedFromBriefingPush } from "@/lib/briefingArrival";
 import type { NightAreaSlug } from "@/lib/nightAreas";
 import {
   NIGHT_PATCHES,
@@ -379,6 +381,9 @@ function FactCard({ fact }: { fact: TodayFact | null }) {
   );
 }
 
+/** What the morning brief turned out to be for this reader. */
+type BriefShape = { personalized: boolean; muted: boolean };
+
 export default function TodayClient({
   dateLabel,
   nowIso,
@@ -395,6 +400,13 @@ export default function TodayClient({
   quietPint,
 }: Props) {
   const [brief, setBrief] = useState({ weather, picks: picks.slice(0, 3), filteredPickCount: 0 });
+  // What the brief turned out to be, once the deferred personalization pass has
+  // run. Null means "not resolved yet", so the impression is never reported off
+  // a state the reader has not been shown.
+  const [briefShape, setBriefShape] = useState<BriefShape | null>(null);
+  // Did this arrival come from the daily-brief notification's own landing?
+  // Read after mount, because the server has no reader's URL to read.
+  const [openedFromBrief, setOpenedFromBrief] = useState(false);
   // What a fallback door out of an empty picks card must not drop: the area the
   // viewer last chose anywhere in the app, and the occasion they arrived with.
   // Both are read in the deferred pass below, so the first paint matches SSR.
@@ -420,6 +432,18 @@ export default function TodayClient({
           name: deviceHandle,
         });
 
+  // The brief was on screen, and what it turned out to be. Both props are
+  // booleans on purpose: WHICH area or topic a reader mutes is a small set that
+  // names their own patch, so only whether anything was muted travels.
+  useLoopMoment(
+    "briefing_viewed",
+    briefShape ? `${briefShape.personalized}:${briefShape.muted}` : null,
+    briefShape ?? undefined,
+  );
+  // A strict subset of the impression above, on the same page: the brief was
+  // reached from the brief. No props - the closed name is the whole signal.
+  useLoopMoment("briefing_opened", openedFromBrief ? "push" : null);
+
   // Silent continuity (#427 seam), now resolved field-by-field. The progressive
   // intake is the only newly consumed source in this UI wave. Account and
   // device Night Profiles stay pure resolver inputs until their owning account
@@ -437,6 +461,9 @@ export default function TodayClient({
         patchId: rememberedPatch,
         occasion: parsePlanOccasionIdFromSearch(window.location.search),
       });
+      // The same deferred pass reads the address once: whether this arrival
+      // carried the daily brief's own landing marker.
+      setOpenedFromBrief(arrivedFromBriefingPush(window.location.search));
       const resolved = resolveTodayPersonalization({
         progressiveIntake: readPlanIntakeDraftReadonly(),
         reviewedDevice: null,
@@ -455,6 +482,10 @@ export default function TodayClient({
       setBrief(near
         ? { ...personalized, picks: orderPicksNear(personalized.picks, near.near) }
         : personalized);
+      setBriefShape({
+        personalized: resolved.personalized,
+        muted: personalized.filteredPickCount > 0,
+      });
     });
     return () => {
       cancelled = true;
