@@ -363,6 +363,161 @@ export async function listNightMoments(
   return error ? [] : (data ?? []).map((row) => momentFromRow(row as Record<string, unknown>));
 }
 
+/**
+ * Why a removal was refused. A Memory or Moment that is not the caller's reads
+ * as `not_found`, the same answer an unknown id gets, so a stranger learns
+ * nothing about what somebody else keeps.
+ */
+export type NightRemovalRefusal = "not_found" | "published" | "shared" | "error";
+
+/**
+ * The outcome of removing a Memory or a Moment. A success carries the storage
+ * keys the caller must now delete: the store owns rows, the route owns bytes,
+ * exactly as the write path does (the Moment POST uploads in the route).
+ */
+export type NightRemovalResult =
+  | { ok: true; mediaObjectKeys: string[] }
+  | { ok: false; reason: NightRemovalRefusal };
+
+function refusal(reason: NightRemovalRefusal): NightRemovalResult {
+  return { ok: false, reason };
+}
+
+/**
+ * Remove one private Moment the caller owns.
+ *
+ * Ownership is checked AT THE TABLE: the delete statement carries the owner id,
+ * so a row that is not the caller's is never matched however the id was found.
+ * A Moment already inside a published Story keeps the publication path it has:
+ * withdrawing consent takes it out of the Story first (setMomentPublicationConsent).
+ */
+export async function removeNightMoment(
+  ownerId: string,
+  momentId: string,
+): Promise<NightRemovalResult> {
+  if (!ownerId || !momentId) return refusal("not_found");
+  if (!isSupabaseConfigured()) {
+    const moment = moments.get(momentId);
+    if (!moment || moment.ownerId !== ownerId) return refusal("not_found");
+    const published = [...stories.values()].some(
+      (story) => story.status === "published" && story.publishedMomentIds.includes(momentId),
+    );
+    if (published) return refusal("published");
+    moments.delete(momentId);
+    for (const [storyId, rows] of consents) {
+      consents.set(storyId, rows.filter((row) => row.momentId !== momentId));
+    }
+    return { ok: true, mediaObjectKeys: moment.mediaObjectKey ? [moment.mediaObjectKey] : [] };
+  }
+  const admin = requireSupabaseAdmin();
+  const read = await admin
+    .from("night_moments")
+    .select("id, owner_id, media_object_key")
+    .eq("id", momentId)
+    .maybeSingle();
+  if (read.error) return refusal("error");
+  const row = read.data as Record<string, unknown> | null;
+  if (!row || String(row.owner_id) !== ownerId) return refusal("not_found");
+  const published = await publishedStoryHoldsMoment(momentId);
+  if (published === "error") return refusal("error");
+  if (published) return refusal("published");
+  const deleted = await admin
+    .from("night_moments")
+    .delete()
+    .eq("id", momentId)
+    .eq("owner_id", ownerId)
+    .select("id");
+  if (deleted.error) return refusal("error");
+  if (!deleted.data || deleted.data.length === 0) return refusal("not_found");
+  const key = typeof row.media_object_key === "string" ? row.media_object_key : null;
+  return { ok: true, mediaObjectKeys: key ? [key] : [] };
+}
+
+/** Whether a published Story carries this Moment. `error` means we could not look. */
+async function publishedStoryHoldsMoment(momentId: string): Promise<boolean | "error"> {
+  const admin = requireSupabaseAdmin();
+  const joins = await admin
+    .from("night_story_moments")
+    .select("story_id")
+    .eq("moment_id", momentId);
+  if (joins.error) return "error";
+  const storyIds = (joins.data ?? []).map((join) => String((join as Record<string, unknown>).story_id));
+  if (storyIds.length === 0) return false;
+  const published = await admin
+    .from("night_stories")
+    .select("id")
+    .in("id", storyIds)
+    .eq("status", "published");
+  if (published.error) return "error";
+  return (published.data ?? []).length > 0;
+}
+
+/**
+ * Remove one private Memory the caller owns, with the Moments inside it.
+ *
+ * Two refusals keep somebody else's work out of this delete. A Memory behind a
+ * published Story keeps the publication path it has, and a Memory holding a
+ * contributor's Moment is theirs as well, so the row cascade may not take it.
+ */
+export async function removeNightMemory(
+  ownerId: string,
+  memoryId: string,
+): Promise<NightRemovalResult> {
+  if (!ownerId || !memoryId) return refusal("not_found");
+  if (!isSupabaseConfigured()) {
+    const memory = memories.get(memoryId);
+    if (!memory || memory.ownerId !== ownerId) return refusal("not_found");
+    const memoryStories = [...stories.values()].filter((story) => story.memoryId === memoryId);
+    if (memoryStories.some((story) => story.status === "published")) return refusal("published");
+    const memoryMoments = [...moments.values()].filter((moment) => moment.memoryId === memoryId);
+    if (memoryMoments.some((moment) => moment.ownerId !== ownerId)) return refusal("shared");
+    for (const moment of memoryMoments) moments.delete(moment.id);
+    for (const story of memoryStories) {
+      stories.delete(story.id);
+      contributors.delete(story.id);
+      consents.delete(story.id);
+    }
+    memories.delete(memoryId);
+    return {
+      ok: true,
+      mediaObjectKeys: memoryMoments
+        .map((moment) => moment.mediaObjectKey)
+        .filter((key): key is string => Boolean(key)),
+    };
+  }
+  const admin = requireSupabaseAdmin();
+  const storyRead = await admin
+    .from("night_stories")
+    .select("id, status")
+    .eq("memory_id", memoryId);
+  if (storyRead.error) return refusal("error");
+  const published = (storyRead.data ?? []).some(
+    (story) => String((story as Record<string, unknown>).status) === "published",
+  );
+  if (published) return refusal("published");
+  const momentRead = await admin
+    .from("night_moments")
+    .select("id, owner_id, media_object_key")
+    .eq("memory_id", memoryId);
+  if (momentRead.error) return refusal("error");
+  const rows = (momentRead.data ?? []) as Record<string, unknown>[];
+  if (rows.some((row) => String(row.owner_id) !== ownerId)) return refusal("shared");
+  const deleted = await admin
+    .from("night_memories")
+    .delete()
+    .eq("id", memoryId)
+    .eq("owner_id", ownerId)
+    .select("id");
+  if (deleted.error) return refusal("error");
+  if (!deleted.data || deleted.data.length === 0) return refusal("not_found");
+  return {
+    ok: true,
+    mediaObjectKeys: rows
+      .map((row) => (typeof row.media_object_key === "string" ? row.media_object_key : null))
+      .filter((key): key is string => Boolean(key)),
+  };
+}
+
 async function getMoment(momentId: string): Promise<NightMoment | null> {
   if (!isSupabaseConfigured()) return moments.get(momentId) ?? null;
   const { data, error } = await requireSupabaseAdmin()
