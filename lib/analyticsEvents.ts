@@ -506,13 +506,42 @@ export type PintIndexVisit = (typeof PINT_INDEX_VISITS)[number];
 /** The closed set of area codes a Pint Index arrival tap may report. */
 export const PINT_INDEX_AREA_CODES = LONDON_BOROUGH_NAMES.map(boroughCode);
 
+/**
+ * The four loop moments #252 named, as the six registry entries they became
+ * (section 5.11 of docs/analytics/TRACKING_PLAN.md). Written down HERE rather
+ * than restated per surface, because the rule below is about the whole set.
+ */
+export const LOOP_MOMENT_EVENTS = [
+  "late_food_viewed",
+  "late_food_added",
+  "briefing_viewed",
+  "briefing_opened",
+  "voice_started",
+  "recap_viewed",
+] as const satisfies readonly AnalyticsEventName[];
+
+export type LoopMomentEvent = (typeof LOOP_MOMENT_EVENTS)[number];
+
+/**
+ * NONE of the six loop moments is a Weekly Meaningful core action, and the type
+ * below is what says so: the roll-up is narrowed to the event names that are
+ * NOT loop moments, so folding one in is a compile error rather than a silent
+ * change to the denominator every loop ratio is read against.
+ *
+ * Five of the six are IMPRESSIONS, and this roll-up counts value TAKEN rather
+ * than a surface seen. The sixth, `late_food_added`, is a real action, and the
+ * night it belongs to is already counted: the ending save that reports it is
+ * the same POST that mints `plan_completed`, whose receipt is what puts that
+ * night in the roll-up (components/night/NightModeCard.tsx). Adding the food
+ * ending beside it would count one night twice.
+ */
 export const WEEKLY_MEANINGFUL_CORE_ACTIONS = [
   "plan_accepted",
   "plan_saved",
   "plan_completed",
   "memory_reviewed",
   "story_published",
-] as const satisfies readonly AnalyticsEventName[];
+] as const satisfies readonly Exclude<AnalyticsEventName, LoopMomentEvent>[];
 
 export type WeeklyMeaningfulCoreAction = (typeof WEEKLY_MEANINGFUL_CORE_ACTIONS)[number];
 

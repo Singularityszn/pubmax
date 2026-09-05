@@ -413,7 +413,7 @@ half of a ratio, so they are read as pairs and never on their own.
 | `voice_started` | A Pub Pal voice session really connected. Never the tap: a refused grant or a denied microphone is a session that did not start. |
 | `recap_viewed` | A PUBLISHED recap was read, and whether its link was public or unlisted. |
 
-Three limits that decide how these are queried.
+Four limits that decide how these are queried.
 
 - **`recap_viewed` is not the private recap.** `/plan/[id]/recap` reports
   `memory_reviewed` and always has. Counting both as one read would double every
@@ -426,6 +426,14 @@ Three limits that decide how these are queried.
 - **`late_food_viewed` bands at two values.** `MAX_LATE_FOOD_HANDOFFS` caps the
   served shortlist at three, so `0` and `1-3` are the whole vocabulary. A third
   band would be a value nothing can send.
+- **None of the six is a Weekly Meaningful core action.** Five are impressions,
+  and `meaningful_core_action` counts value taken rather than a surface seen. The
+  sixth, `late_food_added`, is a real action whose night the roll-up already
+  holds: the ending save that reports it is the same POST that mints
+  `plan_completed`, so a second roll-up call beside it would count one night
+  twice. `WEEKLY_MEANINGFUL_CORE_ACTIONS` is typed to exclude the six, so a fold
+  is a compile error, and `__tests__/loopMomentEvents.test.ts` holds the
+  sanitizer to the same answer.
 
 ## 6. Registered with no emitter today
 
