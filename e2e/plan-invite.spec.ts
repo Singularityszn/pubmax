@@ -1,6 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
+import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
+
 // Task: plan-invite-page. Proves the whole public invite feature end to end on
 // the production build: a real Plan's member-only invite token (exposed via
 // GET /api/plans/[id]'s member branch), the public /invite/[token] render, and
@@ -138,8 +140,8 @@ test("Copy invite link shows for the host's own session and never for an anonymo
     window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
   await openHydratedPlanComposer(page);
-  await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
-  await page.getByRole("button", { name: "Make a plan" }).click();
+  await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
+  await describeFirstSubmit(page).click();
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
@@ -185,8 +187,8 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
     window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
   await openHydratedPlanComposer(page);
-  await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
-  await page.getByRole("button", { name: "Make a plan" }).click();
+  await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
+  await describeFirstSubmit(page).click();
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");

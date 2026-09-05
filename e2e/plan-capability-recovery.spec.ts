@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
 
 // A signed-in browser that has LOST its Plan capability cookie must get it
 // back, and a signed-out one must never spend the write finding that out.
@@ -65,8 +66,8 @@ async function lockInAPlan(
   options: { waitForAccountClaim?: boolean } = {},
 ): Promise<string> {
   await openHydratedPlanComposer(page);
-  await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
-  await page.getByRole("button", { name: "Make a plan" }).click();
+  await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
+  await describeFirstSubmit(page).click();
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
   await page.getByLabel("First pint").fill(futureLondonFirstPint());
