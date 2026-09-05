@@ -5,7 +5,7 @@
 // pure arithmetic over the visual viewport's own readings, and the store
 // around it attaches nothing until somebody subscribes.
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   keyboardInsetPx,
@@ -52,5 +52,31 @@ describe("the store", () => {
     const unsubscribe = subscribeKeyboardInset(() => {});
     expect(readKeyboardInset()).toBe(0);
     expect(() => unsubscribe()).not.toThrow();
+  });
+
+  // THE HELD FIGURE IS A MEMORY ONCE NOBODY IS LISTENING. `readKeyboardInset`
+  // is the `getSnapshot` for `useSyncExternalStore`, so a thread remounted
+  // after the keyboard closed would paint the old inset for one frame.
+  it("forgets the inset when the last subscriber leaves", () => {
+    const noop = () => {};
+    vi.stubGlobal("window", {
+      innerHeight: 768,
+      addEventListener: noop,
+      removeEventListener: noop,
+      visualViewport: {
+        height: 468,
+        offsetTop: 0,
+        addEventListener: noop,
+        removeEventListener: noop,
+      },
+    });
+    try {
+      const unsubscribe = subscribeKeyboardInset(() => {});
+      expect(readKeyboardInset()).toBe(300);
+      unsubscribe();
+      expect(readKeyboardInset()).toBe(0);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

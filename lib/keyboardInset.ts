@@ -90,6 +90,12 @@ export function subscribeKeyboardInset(onStoreChange: () => void): () => void {
     window.visualViewport?.removeEventListener("resize", refresh);
     window.visualViewport?.removeEventListener("scroll", refresh);
     window.removeEventListener("resize", refresh);
+    // The last subscriber leaves and nothing is listening to the viewport any
+    // more, so the held figure is a MEMORY rather than an answer. `readKeyboardInset`
+    // is the `getSnapshot` for `useSyncExternalStore`, so a remount with a
+    // keyboard that has since closed would paint the old inset for one frame
+    // before `refresh()` corrected it. Zero is what nobody-is-covered means.
+    inset = 0;
   };
 }
 
