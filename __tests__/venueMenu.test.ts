@@ -271,7 +271,7 @@ describe("venueMenuForInspector", () => {
     expect(menu).toEqual([]);
   });
 
-  it("renders dated overlay lines with publisher provenance for a price-free city pub", () => {
+  it("names an overlay line a dated snapshot, with publisher provenance, for a price-free city pub", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-05T12:00:00.000Z"));
     const menu = venueMenuForInspector(
@@ -288,7 +288,11 @@ describe("venueMenuForInspector", () => {
 
     expect(html).toContain("Abbot Ale");
     expect(html).toContain("Greene King — official menu");
-    expect(html).toContain("Last seen");
+    // Captain ruling 2026-09-05: drink_price_updates is a closed static
+    // snapshot, so an overlay row is DATED and never warned about. "Last seen"
+    // here would be a staleness warning over a lane that owes no refresh.
+    expect(html).toContain("Snapshot from");
+    expect(html).not.toContain("Last seen");
     expect(html).toContain('<time dateTime="2026-07-11T12:13:09.496Z">11 Jul 2026</time>');
     vi.useRealTimers();
   });

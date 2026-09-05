@@ -55,11 +55,15 @@ export interface FreshnessRegistry {
  * A dataset's health, kept deliberately coarse so the UI can label it directly:
  *  - live      — served per request; there is no disk artifact to age.
  *  - fresh     — within its staleness budget and recent enough to speak for now.
- *  - snapshot  — inside its budget, but old enough that it describes the day it
- *    was collected rather than today. Not a breach and not an alarm: a
- *    point-in-time feed ageing is what a point-in-time feed does. It exists so
- *    nothing calls a hand-collected bundle, or one that grows only as drinkers
- *    arrive, "fresh" months after the last observation in it.
+ *  - snapshot  - a feed named for the day it was collected rather than reported
+ *    as a current reading. Not a breach and not an alarm: a point-in-time feed
+ *    ageing is what a point-in-time feed does. Two lanes reach it. A BUDGETED
+ *    point-in-time feed inside its budget but past SNAPSHOT_AFTER_DAYS is
+ *    renamed here, so nothing calls a hand-collected bundle, or one that grows
+ *    only as drinkers arrive, "fresh" months after the last observation in it.
+ *    A feed DECLARED `class: "snapshot"` with no budget at all is reported here
+ *    from the moment it is dated: nothing may lawfully advance it, so its
+ *    collection day is the whole claim.
  *  - stale     — a budget breach (owner-visible; never a build break).
  *  - untracked — intentionally not budgeted (static / episodic / user-cadence).
  *  - unknown   — expected a stamp but couldn't resolve one (missing/broken file).
@@ -389,6 +393,26 @@ export function evaluateDataset(
   const ageHours = Math.round((ageMs / 3_600_000) * 10) / 10;
 
   if (dataset.stalenessBudgetHours === null) {
+    // A lane DECLARED a snapshot and given no budget is one nothing may
+    // lawfully advance, so there is nothing for it to be late for: it reports
+    // the day it was collected and no refresh is owed. Reporting it
+    // "untracked" alongside a static reference file with no stamp at all would
+    // merge two different facts, "nothing was dated" and "this is dated and
+    // final", and throw away the one thing a reader needs, the date.
+    //
+    // The budget is what carries the declaration. A snapshot-class lane that
+    // KEEPS a budget (area_news) can still be re-collected, so it keeps its
+    // stale finding; only dropping the budget says the lane is closed.
+    if (dataset.class === "snapshot") {
+      return {
+        ...base,
+        ageHours,
+        status: "snapshot",
+        detail:
+          `Aged ${ageHours}h. A declared snapshot with no staleness budget: it reports ` +
+          "the day it was collected, and no refresh is owed.",
+      };
+    }
     return {
       ...base,
       ageHours,

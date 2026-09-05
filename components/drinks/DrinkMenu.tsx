@@ -13,8 +13,8 @@ import {
 } from "@/lib/drinks";
 import { firstHttp } from "@/lib/httpUrl";
 import {
-  DRINK_PRICE_UPDATE_STALENESS_BUDGET_DAYS,
   PINT_DATASET_PRESENTATION_BUDGET_DAYS,
+  SNAPSHOT_CAPTION_PREFIX,
 } from "@/lib/dataFreshness";
 import { DrinkGlyph } from "./DrinkGlyph";
 import DrinkRowMain from "./DrinkRowMain";
@@ -22,23 +22,40 @@ import DrinkRowMain from "./DrinkRowMain";
 import "./drinkMenu.css";
 
 
+const OBSERVATION_DAY = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "Europe/London",
+});
+
+// The caption beside a row's price, and WHICH question it answers depends on
+// the lane the row came from.
+//
+// A dataset row is re-collected, so its caption is a currency claim measured
+// against the price-authority window: "Seen" inside it, "Last seen" past it.
+//
+// A drink-price-update row is not. That lane is a STATIC SNAPSHOT (captain
+// ruling 2026-09-05: its only permitted source publishes no per-drink web
+// prices, so nothing may lawfully advance the file), so there is no window to
+// be inside or outside of and "Last seen" would be a staleness warning about a
+// lane that is doing exactly what it is meant to. It takes the same words the
+// freshness spine and the pint bundle's own caption use (SNAPSHOT_CAPTION_PREFIX,
+// lib/dataFreshness.ts), so a drinker, a page caption and the audit cannot drift
+// into three vocabularies. The date is the whole claim either way.
 function drinkMenuObservationMeta(
   observedAt: string,
-  freshnessBudgetDays: number,
+  freshnessBudgetDays: number | null,
   now: number = Date.now(),
-): { label: "Seen" | "Last seen"; formattedDate: string } | null {
+): { label: string; formattedDate: string } | null {
   const observedAtMs = Date.parse(observedAt);
   if (!Number.isFinite(observedAtMs)) return null;
+  const formattedDate = OBSERVATION_DAY.format(new Date(observedAtMs));
+  if (freshnessBudgetDays === null) {
+    return { label: SNAPSHOT_CAPTION_PREFIX, formattedDate };
+  }
   const stale = now - observedAtMs > freshnessBudgetDays * DAY_MS;
-  return {
-    label: stale ? "Last seen" : "Seen",
-    formattedDate: new Intl.DateTimeFormat("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      timeZone: "Europe/London",
-    }).format(new Date(observedAtMs)),
-  };
+  return { label: stale ? "Last seen" : "Seen", formattedDate };
 }
 
 // The venue Menu (PRD E1): a venue's drinks grouped by category, each section
@@ -112,7 +129,7 @@ function DrinkRow({ drink, venueId }: { drink: Drink; venueId?: string }) {
         drink.provenance.observedAt,
         drink.provenance.lane === "dataset" || drink.provenance.source === "app-dataset"
           ? PINT_DATASET_PRESENTATION_BUDGET_DAYS
-          : DRINK_PRICE_UPDATE_STALENESS_BUDGET_DAYS,
+          : null,
       );
   return (
     <li className="drinkRow">

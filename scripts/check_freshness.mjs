@@ -189,6 +189,21 @@ function evaluateDataset(dataset, observedAt, now, unresolvedReason = null) {
   const ageHours = Math.round(((now.getTime() - Date.parse(observedAt)) / 3_600_000) * 10) / 10;
 
   if (base.stalenessBudgetHours === null) {
+    // Mirror of lib/freshness.ts: a lane DECLARED a snapshot and given no
+    // budget is one nothing may lawfully advance, so it reports the day it was
+    // collected rather than being merged with unstamped static reference data.
+    // A snapshot-class lane that KEEPS a budget can still be re-collected and
+    // keeps its stale finding.
+    if (base.class === "snapshot") {
+      return {
+        ...base,
+        ageHours,
+        status: "snapshot",
+        detail:
+          `Aged ${ageHours}h. A declared snapshot with no staleness budget: it reports ` +
+          "the day it was collected, and no refresh is owed.",
+      };
+    }
     return { ...base, ageHours, status: "untracked", detail: "Intentionally not budgeted (episodic / user-cadence)." };
   }
   if (ageHours > base.stalenessBudgetHours) {

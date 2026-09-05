@@ -34,7 +34,7 @@ page, official API, open data) supports.
 | **Area news** | Keenable `search_web_pages` + `fetch_page_content`; reviewed rows retain source URL and publication date | Manual `npm run refresh:area-news`, then review and merge the committed artifact; operational details and serverless limitation live in [`CRON_PLANE_RUNBOOK.md`](./CRON_PLANE_RUNBOOK.md) | Manual reviewed snapshot | `KEENABLE_API_KEY` is optional; keyless public endpoint remains available | Successful manual refresh | 21 d serving; 504 h registry budget |
 | **Pint prices (core dataset)** | Collected July 2026 snapshot | Manual `export:data → canonicalize:venues → build:slim` | Episodic (bundled static) | none | Re-collection cadence (manual) | 90 d |
 | **Price updates (cheapest pint)** | First-party / open sources allowlist | Manual reviewed publish to `price_updates/latest.json` | Episodic - parser stub keeps served envelope empty; `generatedAt` names bundled pint collection day until reviewed publish lands | needs a real per-source parser | Publish-bound serving once parsers ship | untracked |
-| **Drink price updates** | Reviewed first-party observations | Manual reviewed publish | Episodic - current-price policy expires rows after 14 days | source must publish permissible per-drink prices | Per observation | 14 d |
+| **Drink price updates** | Reviewed first-party observations, collected once | None. Captain ruling 2026-09-05: a **static snapshot**. The one permitted source (Wetherspoons) publishes no per-drink web prices, so no run can advance the file and a staleness budget was a promise nobody could keep | Snapshot - surfaces name it "Snapshot from &lt;collection date&gt;" and claim nothing about currency | adding a source is a separate captain decision, not a budget change | Never (closed lane) | untracked (`class: snapshot`, budget `null`) |
 | **Food price updates** | Menu harvest | Manual harvest (no workflow) | Episodic | `FIRECRAWL_API_KEY` for scraping | Episodic | 60 d |
 | **Pint Index (borough medians)** | Confirmed Pint Drops + official-publisher / open-data | Recomputed as eligible observations arrive | **Event-sourced** (grows with the product) | none | User-cadence — **the growth loop IS the refresh** | untracked |
 | **Late-food evidence** | Hand-evidenced per Night Area | Manual curation | Episodic | none | Episodic | untracked |
@@ -108,7 +108,11 @@ Honest accounting of what will **not** get fresher on its own:
    a no-op and leaves freshness unchanged. Drink source (Wetherspoons) exposes
    **no per-drink web prices**; prices live only in native Order-&-Pay backend.
    Scheduled retrieval produces zero rows until a permissible parser lands.
-   **Gap: real first-party price parsers.**
+   **Gap: real first-party price parsers.** Because that gap is a permission
+   fact and not a backlog item, `drink_price_updates` is now a closed lane
+   (`class: snapshot`, budget `null`): it reports its collection day and owes no
+   refresh. A permitted per-drink source is a captain decision that re-opens the
+   lane and restores a budget in the same change.
 3. **What's-On has a reliable bounded refresh.** Vercel Cron refreshes quiz,
    deal, music, sport, and configured official event lanes into
    `whats_on_listings`; readers fall back to bundled files when a durable row is
