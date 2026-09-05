@@ -23,9 +23,12 @@
 /data-harvest/
 /.firecrawl/
 
-# Agent tooling checkouts. Not inputs to any build.
+# Agent tooling checkouts. Not inputs to any build. `.gitnexus` is the local code
+# graph a developer running that tool builds beside the repo; it reaches a
+# gigabyte and no deploy reads a byte of it.
 /.agents/
 /.cursor/
+/.gitnexus/
 /.opencode/
 /skills/
 
