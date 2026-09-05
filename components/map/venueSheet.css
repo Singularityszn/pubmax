@@ -415,7 +415,12 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 12px -4px 0;
+  /* No side bleed. A symmetric -4px pulled the bar past the drawer's own
+     padding, and on desktop that padding IS the viewport edge: measured in a
+     1440px viewport the drawer sat at 800-1440 and this bar at 797-1444, so
+     the last action lost 4px off its right edge. The bar spans its container
+     and nothing else. */
+  margin: 12px 0 0;
   padding: 10px 8px;
   border-top: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
   background: linear-gradient(
