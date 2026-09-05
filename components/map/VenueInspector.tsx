@@ -442,6 +442,9 @@ export default function VenueInspector({
         confirmedPrice={confirmedPrice}
         provisionalPrice={provisionalPrice}
         agedPrice={agedPrice}
+        // Where this pub's own drop read got to, so the price area can tell a
+        // pub nobody has logged from one we could not look at (F-8).
+        dropReadStatus={pintDrops.venueDropStatus.get(venue.id)}
         communityPrices={communityPrices}
         experienceLens={experienceLens}
         drinkLensCategory={drinkLensCategory}

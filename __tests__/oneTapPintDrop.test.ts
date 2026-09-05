@@ -38,6 +38,7 @@ describe("writeOneTapPintDrop", () => {
       handle: "karan",
       drinkCategory: "beer",
       priceGbp: 4.2,
+      measure: "pint",
     });
 
     expect(outcome).toMatchObject({ ok: true });
@@ -59,6 +60,7 @@ describe("writeOneTapPintDrop", () => {
         handle: "karan",
         drinkCategory: "coffee",
         priceGbp: 2.5,
+        measure: "pint",
       }),
     ).rejects.toThrow(/only pairs beer/);
     expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(0);
@@ -70,6 +72,7 @@ describe("writeOneTapPintDrop", () => {
       handle: "karan",
       drinkCategory: "beer",
       priceGbp: 4.2,
+      measure: "pint",
       verifiedAccountId: "account-a",
     });
 
@@ -138,6 +141,7 @@ describe("writeOneTapPintDrop", () => {
       handle: "karan",
       drinkCategory: "beer" as const,
       priceGbp: 4.2,
+      measure: "pint" as const,
     };
     const first = await writeOneTapPintDrop(input);
     expect(first).toMatchObject({ ok: true });

@@ -18,6 +18,7 @@ import {
   priceBandThresholdsFor,
   priceBandThresholdsFrom,
   priceBandAreaForVenue,
+  priceBandBasisNoun,
 } from "@/lib/priceBand";
 import { buildPriceBandTable, readCityPintPrices } from "../scripts/build_price_bands.mjs";
 import thresholdsTable from "@/public/data/price_bands/thresholds.json";
@@ -120,6 +121,60 @@ describe("the band a figure wears", () => {
     expect(priceBandLegendLabel("average", LONDON)).toBe("Over £5.15, up to £6.15");
     expect(priceBandLegendLabel("expensive", LONDON)).toBe("Over £6.15");
     expect(priceBandNote("expensive", LONDON)).toContain("dearest third of 952 priced pubs");
+  });
+});
+
+describe("whose terciles a figure was cut against (F-21)", () => {
+  // `basis` was returned and read by nothing, so a Manchester or Bristol figure
+  // was coloured against London's £5.15/£6.15 and the note called them the
+  // reader's own. Every city outside London ships `sampleSize: 0` today, so
+  // this is not a rare path: it is all of them, plus the national base layer.
+  const MANCHESTER_ID = "venue-mcr-abc12";
+  const BASE_ID = "venue-uk-n251829660";
+  const LONDON_ID = "venue-xjf3n0";
+
+  it("never labels a national base pub a London one", () => {
+    // `venue-uk-…` carries no three-letter city prefix, so the old fallback
+    // called every unpriced pub in the country London.
+    expect(priceBandAreaForVenue(BASE_ID)).toEqual({ city: null });
+    expect(priceBandAreaForVenue(LONDON_ID)).toEqual({ city: "london" });
+    expect(priceBandAreaForVenue(MANCHESTER_ID)).toEqual({ city: "manchester" });
+  });
+
+  it("reads the whole dataset for a city with no terciles of its own", () => {
+    expect(priceBandBasisFor(priceBandAreaForVenue(MANCHESTER_ID)).basis).toBe("all");
+    expect(priceBandBasisFor(priceBandAreaForVenue(BASE_ID)).basis).toBe("all");
+    expect(priceBandBasisFor(priceBandAreaForVenue(LONDON_ID)).basis).toBe("city");
+  });
+
+  it("says so in the note rather than implying the pub's own city", () => {
+    for (const id of [MANCHESTER_ID, BASE_ID]) {
+      const area = priceBandAreaForVenue(id);
+      expect(priceBandBasisNoun(area)).toBe("priced pubs across every city we hold");
+      expect(priceBandNote("cheap", area)).toContain(
+        "priced pubs across every city we hold",
+      );
+    }
+    // London's own terciles keep the plain noun: they ARE the city's.
+    const london = priceBandAreaForVenue(LONDON_ID);
+    expect(priceBandBasisNoun(london)).toBe("priced pubs");
+    expect(priceBandNote("cheap", london)).not.toContain("every city we hold");
+  });
+
+  it("still paints a band, because the dataset is the honest fallback", () => {
+    // Removing the colour from every non-London pub would be a bigger claim
+    // than the finding supports: the thresholds are real prices somebody pays,
+    // and today every one of them is a London price, which the note now says.
+    expect(priceBand(4, priceBandAreaForVenue(MANCHESTER_ID))).toBe("cheap");
+    expect(priceBand(9, priceBandAreaForVenue(BASE_ID))).toBe("expensive");
+  });
+
+  it("puts the note where a reader of a base pub's sheet can reach it", () => {
+    const sheet = readFileSync(
+      join(ROOT, "components/map/UnverifiedPubSheet.tsx"),
+      "utf8",
+    );
+    expect(sheet).toContain("priceBandNote");
   });
 });
 

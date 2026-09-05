@@ -36,7 +36,7 @@
 // `priceStandingFor` for a standing); this module only says what colour a
 // figure that MAY be painted is painted.
 
-import { cityIdFromVenueId } from "@/lib/cityVenueIds";
+import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
 import thresholdsTable from "@/public/data/price_bands/thresholds.json";
 
 export const PRICE_BANDS = ["cheap", "average", "expensive"] as const;
@@ -119,11 +119,19 @@ export function priceBandThresholdsFrom(
 
 /**
  * The area a venue's figure is read in: its city, from the id prefix every
- * city pack stamps (lib/cityVenueIds.ts). A London id carries no prefix and
- * answers null there, which reads the dataset row, and today that IS London.
+ * city pack stamps (lib/cityVenueIds.ts). A curated London id carries no prefix
+ * and answers "london".
+ *
+ * A NATIONAL BASE PUB NAMES NO CITY (review finding F-21). `venue-uk-…` ids
+ * carry no three-letter prefix, so the old `?? "london"` fallback labelled every
+ * unpriced pub in the country a London one, and `priceBandNote` then told a
+ * reader in Newcastle their pint sat in "the cheapest third of 952 priced pubs"
+ * in London. It answers null instead, which reads the whole dataset's row and
+ * says so in the note.
  */
 export function priceBandAreaForVenue(venueId: string | null | undefined): PriceBandArea {
   if (!venueId) return null;
+  if (isNationalBaseVenueId(venueId)) return { city: null };
   return { city: cityIdFromVenueId(venueId) ?? "london" };
 }
 
@@ -235,10 +243,27 @@ export function priceBandLegendLabel(band: PriceBand, area?: PriceBandArea): str
   }
 }
 
+/**
+ * What the thresholds a figure was cut against are OF, in one noun phrase.
+ *
+ * Review finding F-21: `basis` was returned by `priceBandBasisFor` and read by
+ * nothing, so a Manchester or Bristol figure was coloured against London's
+ * terciles and the note called them the reader's own. Every city outside London
+ * ships `sampleSize: 0` today, so this is not a rare path: it is every one of
+ * them, plus the whole national base layer. The band still paints - the whole
+ * dataset is the honest fallback and today it IS London - and the sentence now
+ * says whose numbers they are rather than implying the pub's own city.
+ */
+export function priceBandBasisNoun(area?: PriceBandArea): string {
+  return priceBandBasisFor(area).basis === "city"
+    ? "priced pubs"
+    : "priced pubs across every city we hold";
+}
+
 /** One sentence naming the rule, for a title attribute or a method page. */
 export function priceBandNote(band: PriceBand, area?: PriceBandArea): string {
   const { sampleSize } = priceBandThresholdsFor(area);
   const third =
     band === "cheap" ? "cheapest third" : band === "average" ? "middle third" : "dearest third";
-  return `${priceBandLabel(band)}: in the ${third} of ${sampleSize} priced pubs (${priceBandLegendLabel(band, area)}).`;
+  return `${priceBandLabel(band)}: in the ${third} of ${sampleSize} ${priceBandBasisNoun(area)} (${priceBandLegendLabel(band, area)}).`;
 }

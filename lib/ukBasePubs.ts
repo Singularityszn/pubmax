@@ -33,6 +33,7 @@ import {
   type ShardManifest,
   parseShardManifest,
 } from "@/lib/slimShards";
+import { UK_BASE_ID_PREFIX } from "@/lib/cityVenueIds";
 import { discardBody } from "@/lib/responseBody";
 import { offlineCache } from "@/lib/offlineCache";
 
@@ -47,7 +48,10 @@ const UK_BASE_URL_PREFIX =
  * consumer - the map, the sheet, a submitted price - can tell at a glance that
  * a row is an unverified OSM pub rather than a curated venue.
  */
-export const UK_BASE_ID_PREFIX = "venue-uk-";
+// The prefix itself is owned by lib/cityVenueIds.ts, the module that answers
+// what a venue id says about where it is, and re-exported here so this layer's
+// own callers keep their import (review finding F-21).
+export { UK_BASE_ID_PREFIX };
 /** Maximum stable base ids one viewport visibility read may carry. */
 export const MAX_PROVISIONAL_BASE_VENUE_IDS = 64;
 
