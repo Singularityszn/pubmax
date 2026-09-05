@@ -14,6 +14,10 @@ import {
 import { resolveStorageUrl } from "@/lib/pintDropsStore";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
 import { resolveAvatarUrlsForHandles } from "@/lib/avatarResolve";
+import {
+  authorRetiredAtFromRow,
+  contributorHasRetired,
+} from "@/lib/retiredContributor";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import { normalizeHandle } from "@/lib/profiles";
 import { resolveVenue, venueMapUrl } from "@/lib/venueIndex";
@@ -32,6 +36,25 @@ import { resolveVenue, venueMapUrl } from "@/lib/venueIndex";
 // here — a hidden drop's photo keys and moderation trail must not leave the DB.
 const PUBLIC_COLUMNS =
   "id,venue_id,handle,drink,price_gbp,passed_down_note,era,provenance,created_at,vibe_tags,visibility,pint_photo_key,venue_photo_key";
+
+// The same list plus the retirement stamp (migration 0150), which decides which
+// NAME the reader is given. This lane names its columns rather than selecting
+// `*`, so a cluster without 0150 refuses the whole read; the read below falls
+// back to PUBLIC_COLUMNS on that one error, and a drop then reads as a live
+// author, which on such a cluster it is.
+const PUBLIC_COLUMNS_WITH_RETIREMENT = `${PUBLIC_COLUMNS},author_retired_at`;
+
+/** PostgREST's answer for a column this deployment's database does not have. */
+function isMissingRetirementColumnError(
+  error: { code?: string; message?: string } | null,
+): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const message = error.message ?? "";
+  return (
+    (code === "42703" || code === "PGRST204") && message.includes("author_retired_at")
+  );
+}
 
 // The one shape the permalink page + OG card consume. Photo keys are already
 // resolved to public URLs; the raw venue id is enriched to a real pub name and a
@@ -159,22 +182,31 @@ function permittedOnPermalink(
 // Enrich a gated drop into the shared DTO: withhold the handle for an anonymous
 // drop, resolve the venue name + map link. Split out so both backends share one
 // exit path. Returns null when the viewer isn't permitted to see the drop.
-async function enrich(fields: EnrichFields, viewer?: ViewerContext): Promise<PublicDrop | null> {
+async function enrich(
+  fields: EnrichFields,
+  viewer?: ViewerContext,
+  /** Set when the account behind `fields.handle` has left (migration 0150). It
+   *  is a separate argument rather than a field, because it decides the name
+   *  the reader is given and may never travel to the reader itself. */
+  authorRetiredAt?: string,
+): Promise<PublicDrop | null> {
   if (!permittedOnPermalink(fields, viewer)) return null;
   const venue = await resolveVenue(fields.venueId);
   // ANONYMITY GUARANTEE (issue #29): an anonymous drop's real handle never leaves
   // the server — swap it for the withheld label before it can reach the page/OG
   // card. The author still reads their own anonymous drop with the label (their
   // choice); moderation reads a different, server-only path.
-  const handle = fields.visibility === "anonymous" ? ANON_HANDLE_LABEL : fields.handle;
-  const avatarUrls =
-    fields.visibility === "anonymous"
-      ? new Map<string, string>()
-      : await resolveAvatarUrlsForHandles([fields.handle]);
-  const avatarUrl =
-    fields.visibility === "anonymous"
-      ? undefined
-      : avatarUrls.get(normalizeHandle(fields.handle));
+  // A RETIRED AUTHOR is withheld the same way, for the same reason: the account
+  // that logged this drop has left (migration 0150, `lib/retiredContributor.ts`).
+  // The tombstone already cleared that profile's face, so the avatar lookup is
+  // skipped rather than left to answer nothing.
+  const withheld =
+    fields.visibility === "anonymous" || contributorHasRetired(authorRetiredAt);
+  const handle = withheld ? ANON_HANDLE_LABEL : fields.handle;
+  const avatarUrls = withheld
+    ? new Map<string, string>()
+    : await resolveAvatarUrlsForHandles([fields.handle]);
+  const avatarUrl = withheld ? undefined : avatarUrls.get(normalizeHandle(fields.handle));
   return {
     ...fields,
     handle,
@@ -312,12 +344,17 @@ export async function getPintDropById(
     try {
       const admin = getSupabaseAdmin();
       if (admin) {
-        const { data, error } = await admin
-          .from(PINT_DROPS_TABLE)
-          .select(PUBLIC_COLUMNS)
-          .eq("id", dropId)
-          .eq("status", "visible")
-          .maybeSingle();
+        const read = async (columns: string) =>
+          admin
+            .from(PINT_DROPS_TABLE)
+            .select(columns)
+            .eq("id", dropId)
+            .eq("status", "visible")
+            .maybeSingle();
+        let { data, error } = await read(PUBLIC_COLUMNS_WITH_RETIREMENT);
+        if (isMissingRetirementColumnError(error)) {
+          ({ data, error } = await read(PUBLIC_COLUMNS));
+        }
         if (!error && isVisibleRow(data)) {
           const row = data;
           const [pintPhotoUrl, venuePhotoUrl] = await Promise.all([
@@ -338,7 +375,9 @@ export async function getPintDropById(
             visibility: cleanVisibility(row.visibility),
             pintPhotoUrl,
             venuePhotoUrl,
-          }, viewer);
+          }, viewer, authorRetiredAtFromRow(
+            (row as { author_retired_at?: unknown }).author_retired_at,
+          ));
         }
         // No row (unknown/hidden) or a query error → fall through to memory so a
         // demo-seeded drop id still resolves; if it isn't there either, null.
@@ -368,7 +407,7 @@ export async function getPintDropById(
       // The in-memory store has no Storage, so no photos.
       pintPhotoUrl: null,
       venuePhotoUrl: null,
-    }, viewer);
+    }, viewer, hit.authorRetiredAt);
   } catch {
     return null;
   }

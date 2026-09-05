@@ -761,6 +761,12 @@ export default function PrivacyPage() {
             personal content attached to it within 30 days.
           </li>
           <li>
+            <strong>After you delete your account:</strong>{" "}the prices and
+            reports you logged stay up with your handle taken off them, and we
+            keep a private record, readable only by us, of which deleted account
+            logged which of them.
+          </li>
+          <li>
             <strong>Social account records:</strong>{" "}the private product account
             link stays with the Social account until deletion. The date of birth
             used for the 18+ gate stays in your private identity record until you
@@ -789,12 +795,14 @@ export default function PrivacyPage() {
             Each row records the venue, either a drink and its price or one
             venue answer from a fixed list, the date and the private profile
             key. Price attribution stays with the row while it is up
-            and counts on the public contributor record. Legacy rows may
+            and counts on the public contributor record until you delete your
+            account. Legacy rows may
             instead contain an unreversible device token or no public handle.
           </li>
           <li>
             <strong>Recommendations:</strong>{" "}a Recommendation keeps your
-            handle and private profile key for as long as it is up. The handle
+            handle and private profile key for as long as it is up, or until you
+            delete your account. The handle
             attributes the opinion publicly; the private key stays hidden and
             supports rate limits and audit provenance. Writing another under
             the same handle for the same pub and condition replaces the one you

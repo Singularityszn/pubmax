@@ -335,6 +335,8 @@ Declare the following. Everything else: Not Collected.
 
 **Account deletion URL:** required by Play's Data safety form, which asks for a page anybody can open WITHOUT signing in. Use `https://pubmaxxing.com/account/delete` (`app/account/delete/page.tsx`). It describes the in-app path and does not offer a second delete door: a deletion control a stranger can reach is an account-takeover surface however it is worded.
 
+**What a deletion keeps, and both stores are told plainly:** we keep the prices, and we remember these accounts and what they logged, so a departed account's contributions stay up with the handle taken off them while a private ledger only we can read (`public.account_retention_ledger`, migration `0150`) records which deleted account logged which of them. Answer Play's "Can users request data deletion?" and Apple's account-deletion review question with that sentence, because a reviewer who reads `/privacy` and then finds a public price still on a pub's sheet is owed the reason in advance.
+
 **Where the in-app door is:** You tab, Account settings, **Delete account**, then **Delete my account**. It is `components/profile/DeleteAccountCard.tsx` calling `DELETE /api/account`, which removes the caller's own photos through the Storage API, deletes the caller's own `auth.users` row and lets migration `0078`'s trigger (as restated by `0145`) do the rest. The words on the confirm step and on the public page are the same constants (`lib/accountDeletion.ts`), so the two cannot promise different things. A reviewer probing the account flow finds it in three taps from the tab bar.
 
 ---

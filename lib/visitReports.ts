@@ -19,6 +19,7 @@
 import { normalizeHandle } from "@/lib/handleNormalize";
 import { londonDayKey } from "@/lib/pintContributions";
 import { presentableDescription } from "@/lib/slopFilter";
+import { publicContributorHandle } from "@/lib/retiredContributor";
 import { DAY_MS } from "@/lib/dayMs";
 
 // ── Fixed vocabularies ───────────────────────────────────────────────────────
@@ -95,6 +96,10 @@ export type VisitReport = VisitReportFields & {
   id: string;
   status: VisitReportStatus;
   createdAt: string;
+  /** When the account behind `handle` deleted itself (migration 0150). The row
+   *  keeps its visit date and every observation on it; only the NAME is
+   *  withheld, through `lib/retiredContributor.ts` in the DTO below. */
+  authorRetiredAt?: string;
   reportedAt?: string;
   reportReason?: string;
   reportCount?: number;
@@ -110,7 +115,16 @@ export type VisitReport = VisitReportFields & {
  *  and moderator notes never leave the server), mirroring PintDropDTO. */
 export type VisitReportDTO = Omit<
   VisitReport,
-  "reportedAt" | "reportReason" | "reportCount" | "reportActors" | "moderatedAt" | "moderatorNote" | "status"
+  | "reportedAt"
+  | "reportReason"
+  | "reportCount"
+  | "reportActors"
+  | "moderatedAt"
+  | "moderatorNote"
+  | "status"
+  // The stamp is the REASON for the withheld name, and a reader is owed the
+  // name alone.
+  | "authorRetiredAt"
 >;
 
 export type ValidationResult =
@@ -290,7 +304,11 @@ export function toVisitReportDTO(report: VisitReport): VisitReportDTO {
   return {
     id: report.id,
     venueId: report.venueId,
-    handle: report.handle,
+    // A visit stays an account of one visit after its author has left: the
+    // date, the observations and the note are unchanged, and the retired handle
+    // reads as the withheld label every anonymous contribution already wears
+    // (migration 0150, `lib/retiredContributor.ts`).
+    handle: publicContributorHandle(report.handle, report.authorRetiredAt),
     visitedAt: report.visitedAt,
     busyness: report.busyness,
     noise: report.noise,
