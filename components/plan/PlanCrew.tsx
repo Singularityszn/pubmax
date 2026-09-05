@@ -18,7 +18,7 @@ import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import { subscribeToAuthFragmentRestored } from "@/lib/authRedirect";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
-import { usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
+import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 
 function readInviteTokenFromHash(): string | null {
   if (typeof window === "undefined") return null;
@@ -211,19 +211,11 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
   // claimed after this component's first read left the roster showing the host
   // alone until the next poll tick.
   const readCrew = useCallback((isActive: () => boolean) => {
-    fetch(`/api/plans/${planId}`, { cache: "no-store" })
-      .then((response) => {
-        // A body nobody reads is a request that never finishes.
-        if (!response.ok) {
-          discardBody(response);
-          return null;
-        }
-        return response.json();
-      })
-      .then((body) => {
-        if (isActive() && Array.isArray(body?.crew)) setCrew(body.crew);
-      })
-      .catch(() => undefined);
+    // One request per Plan, shared with every other surface asking (F-34).
+    void readPlanMemberProjection(planId).then((body) => {
+      const crewRows = (body as { crew?: unknown } | null)?.crew;
+      if (isActive() && Array.isArray(crewRows)) setCrew(crewRows);
+    });
   }, [planId]);
   usePlanMemberRead(planId, readCrew);
 

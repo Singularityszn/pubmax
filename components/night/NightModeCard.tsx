@@ -42,7 +42,7 @@ import {
   type ActivePlanRef,
 } from "@/lib/activePlan";
 import { useLoopMoment } from "@/components/loop/useLoopMoment";
-import { usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
+import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 import { trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import {
   LATE_FOOD_CONFIDENCES,
@@ -496,14 +496,9 @@ function NightModeSheet({
   // A body nobody reads is a request that never finishes (lib/responseBody.ts),
   // so every non-ok exit drains.
   const readPlanState = useCallback((isActive: () => boolean) => {
-    void fetch(`/api/plans/${id}`, { cache: "no-store" })
-      .then((response) => {
-        if (!response.ok) {
-          discardBody(response);
-          return null;
-        }
-        return response.json();
-      })
+    // One request per Plan, shared with every other surface asking (F-34).
+    void readPlanMemberProjection(id)
+      .then((body) => body as PlanState | null)
       .then((body: PlanState | null) => {
         if (!isActive()) return;
         if (body && Array.isArray(body.stops)) {

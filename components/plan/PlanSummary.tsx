@@ -10,7 +10,7 @@ import RoundStarter from "@/components/round/RoundStarter";
 import { planViewModel } from "@/components/plan/planPresentation";
 import { anchorConflictMessage, routeStopsFromGenerated } from "@/components/plan/PlanComposer";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot, restorePlanCapability } from "@/lib/planSessionCapability";
-import { usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
+import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 import { setActivePlanRole } from "@/lib/activePlan";
 import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 
@@ -322,22 +322,13 @@ export default function PlanSummary({
     void restorePlanCapability(planId).catch(() => undefined);
   }, [identityResolved, planId]);
   const readPlan = useCallback((isActive: () => boolean) => {
-    void fetch(`/api/plans/${planId}`, { cache: "no-store" })
-      .then((response) => {
-        // A body nobody reads is a request that never finishes.
-        if (!response.ok) {
-          discardBody(response);
-          return null;
-        }
-        return response.json();
-      })
-      .then((body) => {
-        if (!isActive()) return;
-        const canonical = canonicalStateFromBody(body);
-        if (canonical) setState(canonical);
-        else if (isPlanPreviewProjection(body)) setState(null);
-      })
-      .catch(() => undefined);
+    // One request per Plan, shared with every other surface asking (F-34).
+    void readPlanMemberProjection(planId).then((body) => {
+      if (!isActive()) return;
+      const canonical = canonicalStateFromBody(body);
+      if (canonical) setState(canonical);
+      else if (isPlanPreviewProjection(body)) setState(null);
+    });
   }, [planId]);
   usePlanMemberRead(planId, readPlan);
 
