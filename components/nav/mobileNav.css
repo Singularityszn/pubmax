@@ -71,6 +71,18 @@
      right of its final row and /today lost the title of its third card. */
   --create-fab-h: 56px;
   --create-fab-bottom: var(--float-stack-base);
+  /* The control's own inset from the right edge, published here rather than
+     restated at createFab.css, because a surface that has to keep content out
+     from under it needs the same number this control parks on. */
+  --create-fab-right: calc(12px + env(safe-area-inset-right, 0px));
+  /* The horizontal band the control owns, measured from the viewport's right
+     edge: its inset, its width and one gap. A scrolling list reserves this the
+     way the map chrome reserves --mobile-map-corner-lane, minus its own gutter,
+     because every row of a list passes under this control while it scrolls and
+     the row's right cell is where /near prints the price. */
+  --create-fab-lane: calc(
+    var(--create-fab-right) + var(--create-fab-h) + var(--float-stack-gap)
+  );
 
   /* Each member's top edge, which is the only thing a control above it needs. */
   --float-stack-top-create: calc(var(--create-fab-bottom) + var(--create-fab-h));

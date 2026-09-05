@@ -27,6 +27,7 @@ function read(relative: string): string {
 
 const mobileNavCss = read("components/nav/mobileNav.css");
 const createFabCss = read("components/nav/createFab.css");
+const nearMeNowCss = read("components/nearme/nearMeNow.css");
 
 describe("the body reserves the control's own lane", () => {
   it("publishes the create action's geometry beside every other member", () => {
@@ -59,6 +60,49 @@ describe("the body reserves the control's own lane", () => {
     expect(mobileNavCss).toContain(
       "body:has(.createFabRoot):not(:has(.pageHidesCreateFab))",
     );
+  });
+});
+
+// GAP 19 (mobile store-readiness audit, 2026-09-04, 390x844): the control also
+// owns a HORIZONTAL lane, and on /near it stood on the right-hand price of the
+// row under it. The price is the product, so the list reserves that lane the
+// way the map chrome reserves --mobile-map-corner-lane. Rendered proof at 320,
+// 390 and 430 is e2e/mobile-map-chrome-fit.spec.ts.
+describe("the list reserves the control's horizontal lane", () => {
+  it("publishes the control's own right inset and lane beside its berth", () => {
+    expect(mobileNavCss).toContain(
+      "--create-fab-right: calc(12px + env(safe-area-inset-right, 0px));",
+    );
+    expect(mobileNavCss).toContain(
+      "--create-fab-lane: calc(\n    var(--create-fab-right) + var(--create-fab-h) + var(--float-stack-gap)\n  );",
+    );
+  });
+
+  it("makes the control read that published inset rather than restate it", () => {
+    expect(createFabCss).toContain("right: var(--create-fab-right);");
+    expect(createFabCss).not.toContain("right: calc(12px + env(safe-area-inset-right, 0px));");
+  });
+
+  it("reserves the lane on the price column, derived and never restated", () => {
+    const start = nearMeNowCss.indexOf("padding-right: max(");
+    expect(start, "the price column reserves a lane").toBeGreaterThan(-1);
+    const rule = nearMeNowCss.slice(start, nearMeNowCss.indexOf(";", start));
+    expect(rule).toContain("var(--create-fab-lane)");
+    expect(rule).toContain("var(--page-gutter)");
+    // A number written here is how the float stack broke three times already.
+    expect(rule).not.toMatch(/\d+px/);
+  });
+
+  it("gives the caption and the collected line the same lane, so the column moves as one", () => {
+    expect(nearMeNowCss).toContain(
+      ":is(.nmnListCaption, .nmnCard, .nmnPriceCollected)",
+    );
+  });
+
+  it("keeps the reservation to the phone, where the control is", () => {
+    const block = nearMeNowCss.slice(nearMeNowCss.indexOf(".nmnPriceCollected {"));
+    const media = block.slice(block.indexOf("@media"));
+    expect(media.startsWith("@media (max-width: 640px)")).toBe(true);
   });
 });
 
