@@ -68,7 +68,6 @@ silently stale.
 | planInviteRsvpStore | factory-ready | Shared selector with `globalThis` memory state. |
 | planStore | legacy-exception | Multiple inline Supabase configuration checks and plan policy. |
 | presenceStore | factory-ready | Presence rows with shared backend selection. |
-| priceConfirmStore | factory-ready | Price confirmation rows with shared backend selection. |
 | priceTrustEventStore | factory-eligible, policy-heavy | Append-only trust events, reversals, and account credits. |
 | privateIdentityStore | factory-ready | Private account identity rows with owner policy at its boundary. |
 | profileCoverPhotoStore | factory-eligible, policy-heavy | Cover rotation, media generations, and moderation policy. |
@@ -187,7 +186,6 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/planInviteRsvpStore.ts",
     "lib/planStore.ts",
     "lib/presenceStore.ts",
-    "lib/priceConfirmStore.ts",
     "lib/privateIdentityStore.ts",
     "lib/profileCoverPhotoRoute.server.ts",
     "lib/profileCoverPhotoStore.ts",

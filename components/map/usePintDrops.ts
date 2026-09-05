@@ -46,6 +46,7 @@ import {
   type RoundAppendSnapshot,
   type RoundRequestIdentity,
 } from "@/lib/roundRequest";
+import { DEFAULT_DRINK_MEASURE, type DrinkMeasure } from "@/lib/drinkMeasure";
 import {
   appendWithSuffix,
   DEFAULT_VISIBILITY,
@@ -159,6 +160,25 @@ async function appendPintDropStopToActiveRound(input: {
   return completion.current && completion.value;
 }
 
+/**
+ * The measure fields a write carries, from the composer's own form.
+ *
+ * Module scope on purpose. The submit path is already at ESLint's complexity
+ * ceiling, and the label rule (only an `other` measure carries one) is one
+ * decision that three call sites need: the optimistic row, the request body
+ * and the receipt. Deciding it once here keeps all three in step and leaves
+ * the branch out of the handler.
+ */
+function measureFieldsOf(form: {
+  measure: DrinkMeasure;
+  measureLabel: string;
+}): { measure: DrinkMeasure; measureLabel: string } {
+  return {
+    measure: form.measure,
+    measureLabel: form.measure === "other" ? form.measureLabel.trim() : "",
+  };
+}
+
 function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhotos[]> {
   const grouped = new Map<string, DropWithPhotos[]>();
   for (const drop of drops) {
@@ -248,7 +268,18 @@ export function usePintDrops(
   const seedComposerPrice = useCallback((price: string | null) => {
     setConfirmSeed(price);
   }, []);
-  const [dropForm, setDropForm] = useState({ price: "", drink: "", note: "", era: "", withWho: "" });
+  const [dropForm, setDropForm] = useState({
+    price: "",
+    drink: "",
+    // The SERVING the price is about (battle test D04). Defaults to the
+    // measure the pint lane already assumed, so the composer opens on the
+    // ordinary case and a half is one tap away rather than a free-text hope.
+    measure: DEFAULT_DRINK_MEASURE as DrinkMeasure,
+    measureLabel: "",
+    note: "",
+    era: "",
+    withWho: "",
+  });
   // Visibility (issue #29 backbone; this composer is the first writer of it).
   // Additive field — defaults to `public`, matching the server default exactly.
   const [visibility, setVisibility] = useState<Visibility>(DEFAULT_VISIBILITY);
@@ -390,7 +421,15 @@ export function usePintDrops(
       if (current) URL.revokeObjectURL(current.previewUrl);
       return null;
     });
-    setDropForm({ price: "", drink: "", note: "", era: "", withWho: "" });
+    setDropForm({
+      price: "",
+      drink: "",
+      measure: DEFAULT_DRINK_MEASURE,
+      measureLabel: "",
+      note: "",
+      era: "",
+      withWho: "",
+    });
     setVibeTags([]);
     setVisibility(DEFAULT_VISIBILITY);
     if (pintInputRef.current) pintInputRef.current.value = "";
@@ -500,6 +539,9 @@ export function usePintDrops(
       venueId,
       handle: optimisticDrop.handle,
       drink: optimisticDrop.drink,
+      // The optimistic row carries its measure too, so a half never
+      // flashes through the pint lane between the tap and the answer.
+      ...measureFieldsOf(dropForm),
       priceGbp: optimisticDrop.priceGbp,
       passedDownNote: optimisticDrop.passedDownNote,
       era: optimisticDrop.era,
@@ -527,6 +569,7 @@ export function usePintDrops(
     const submittedHandle = submittedAuthor.handle.trim();
     const submittedDrink = dropForm.drink;
     const submittedPrice = dropForm.price;
+    const submittedMeasure = measureFieldsOf(dropForm);
     const submittedEra = dropForm.era;
     const submittedVisibility = visibility;
     const submittedVibeTags = [...vibeTags];
@@ -584,6 +627,10 @@ export function usePintDrops(
       body.set("venueId", venueId);
       body.set("handle", submittedHandle);
       body.set("drink", submittedDrink);
+      // The SERVING the price is about (battle test D04). Always sent, so
+      // the server never has to infer a measure from the drink text.
+      body.set("measure", submittedMeasure.measure);
+      body.set("measureLabel", submittedMeasure.measureLabel);
       body.set("priceGbp", submittedPrice);
       // "With" has no server column (frozen API contract) — folded into the
       // note as a structured suffix ("— with @sam, @priya") at submit time, so

@@ -8,7 +8,15 @@ import { ComposerFields } from "@/components/map/composer/ComposerFields";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
 
 const composerFieldsProps = {
-  dropForm: { price: "4.2", drink: "Pint", note: "", era: "", withWho: "" },
+  dropForm: {
+    price: "4.2",
+    drink: "Pint",
+    measure: "pint" as const,
+    measureLabel: "",
+    note: "",
+    era: "",
+    withWho: "",
+  },
   setDropForm: vi.fn(),
   vibeTags: [],
   toggleVibeTag: vi.fn(),

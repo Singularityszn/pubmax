@@ -20,6 +20,8 @@ import { formatPriceChipGbp, QUICK_ADD_PRICES_GBP } from "@/lib/spill";
 //      and the toolbar's city dropdown. The name belongs to the control that can
 //      change it.
 
+import type { DrinkMeasure } from "@/lib/drinkMeasure";
+
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
 let container: HTMLDivElement;
@@ -29,6 +31,8 @@ function PriceStepHarness() {
   const [dropForm, setDropForm] = useState({
     price: "",
     drink: "",
+    measure: "pint" as DrinkMeasure,
+    measureLabel: "",
     note: "",
     era: "",
     withWho: "",

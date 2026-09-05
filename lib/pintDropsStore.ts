@@ -11,6 +11,7 @@ import sharp from "sharp";
 
 import type { CityId } from "@/lib/cities";
 import type { Provenance } from "@/lib/curation";
+import { cleanDrinkMeasure, cleanDrinkMeasureLabel } from "@/lib/drinkMeasure";
 import { detectImageKind, magicBytesOk as magicBytesOkPure, stripImageMetadata } from "@/lib/imageSafety";
 import { log } from "@/lib/log";
 import { demoDropsFor, demoPintDropsForCity } from "@/lib/pintDropSeeds";
@@ -291,6 +292,11 @@ function toRow(drop: PersistableDrop, capDay: string | null = null) {
     venue_id: drop.venueId,
     handle: drop.handle,
     drink: drop.drink,
+    // The SERVING the price is about (migration 0147). Written explicitly on
+    // every create rather than left to the column default, so a row always
+    // states its own lane instead of inheriting one.
+    measure: cleanDrinkMeasure(drop.measure),
+    measure_label: drop.measureLabel ?? null,
     price_gbp: drop.priceGbp,
     passed_down_note: drop.passedDownNote,
     era: drop.era,
@@ -360,6 +366,17 @@ export function confirmationFromRow(
   };
 }
 
+/**
+ * The free measure label a row carries, or undefined. Only an `other` measure
+ * may carry one: a label beside `pint` or `half` would be a second name for a
+ * measure that already names itself.
+ */
+function measureLabelFromRow(row: Record<string, unknown>): string | undefined {
+  if (cleanDrinkMeasure(row.measure) !== "other") return undefined;
+  const label = cleanDrinkMeasureLabel(row.measure_label);
+  return label || undefined;
+}
+
 export function pintDropReportCountFromRow(row: Record<string, unknown>): number | undefined {
   const value = row.verified_report_count ?? row.report_count;
   return value === null || value === undefined ? undefined : Number(value);
@@ -371,6 +388,10 @@ function fromRow(row: Record<string, unknown>): PersistableDrop {
     venueId: String(row.venue_id),
     handle: String(row.handle),
     drink: String(row.drink ?? ""),
+    // Coerce on the way out too (defence in depth): a row written before 0147,
+    // or a hand-edited value, collapses to `pint` - the lane it already had.
+    measure: cleanDrinkMeasure(row.measure),
+    measureLabel: measureLabelFromRow(row),
     priceGbp: row.price_gbp === null || row.price_gbp === undefined ? null : Number(row.price_gbp),
     passedDownNote: String(row.passed_down_note ?? ""),
     era: String(row.era ?? ""),
@@ -527,6 +548,10 @@ export function toDTO(
     venueId: drop.venueId,
     handle,
     drink: drop.drink,
+    // PUBLIC, and it has to be: the browser's own drop lanes (lib/venues.ts)
+    // hold a non-pint row out of the pint lane, and a DTO that withheld the
+    // measure would leave every reader defaulting a half back to a pint.
+    measure: cleanDrinkMeasure(drop.measure),
     priceGbp: drop.priceGbp,
     passedDownNote: drop.passedDownNote,
     era: drop.era,
@@ -537,6 +562,7 @@ export function toDTO(
     pintPhotoUrl: visible ? (photoUrls?.pint ?? null) : null,
     venuePhotoUrl: visible ? (photoUrls?.venue ?? null) : null,
   };
+  if (drop.measureLabel) dto.measureLabel = drop.measureLabel;
   // The authority key is a per-venue pseudonym for one verified account, so on
   // an ANONYMOUS drop it would name the drinker: the same account's public drop
   // at that pub carries the same key beside its real handle. The key rides the

@@ -144,6 +144,7 @@ function communityPrices(venueId: string): CommunityPricesState {
       ok: true,
       attribution: { status: "anonymous" },
       price: null,
+      pintTrust: null,
     }),
     submitVenueSignal: async () => ({ ok: true }),
     submitting: false,

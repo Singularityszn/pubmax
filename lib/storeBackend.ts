@@ -206,7 +206,7 @@ export type FailSoftGuard = {
  * `runStoreOp` with exactly the values a hand-rolled call would pass.
  */
 export function createFailSoftGuard(opts: {
-  /** Log/warn tag, e.g. "price-confirm". */
+  /** Log/warn tag, e.g. "community-price". */
   tag: string;
   /** Durable table name(s) whose absence routes to the memory fallback. */
   tables: string | readonly string[];

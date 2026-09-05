@@ -1,7 +1,7 @@
 // Structured Visit Reports store (Wayfinder 3.4) — the impure seam. ONE store
 // interface, TWO implementations (process-memory + Supabase
 // public.structured_visit_reports), chosen at the single visitReportsStore()
-// seam, exactly like areaDemandStore / ratingsStore / priceConfirmStore.
+// seam, exactly like areaDemandStore / ratingsStore / communityPriceStore.
 //
 // Supabase when env keys exist, process-memory otherwise. Before migrations
 // 0046 and 0058 land (or on a schema-cache miss) local/preview paths fail soft

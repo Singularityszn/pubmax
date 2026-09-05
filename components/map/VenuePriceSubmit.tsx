@@ -169,6 +169,9 @@ export default function VenuePriceSubmit({
   const [error, setError] = useState<string | null>(null);
   const [pintPhoto, setPintPhoto] = useState<File | null>(null);
   const pintPhotoInputRef = useRef<HTMLInputElement>(null);
+  // Claimed synchronously before the first await, so two taps in one tick
+  // cannot both run the write (battle test D10).
+  const logInFlight = useRef(false);
 
   function enterPrice(next: string) {
     setPrice(next);
@@ -304,68 +307,85 @@ export default function VenuePriceSubmit({
   async function logPrice() {
     // The Enter key reaches here even while the button is disabled; one
     // submission at a time keeps the optimistic rollback snapshots coherent.
-    if (submitting || missionPending || !priceValidation.ok) return;
+    if (missionPending || !priceValidation.ok) return;
+    // THE LATCH IS A REF, CLAIMED BEFORE THE FIRST AWAIT (battle test D10).
+    // `submitting` is React state, committed in a microtask after the event, so
+    // three taps in one tick all read it false and all three ran: the report
+    // saw three POSTs and three `pint_drops` rows 21 ms apart. A ref is written
+    // synchronously, so the second tap of the same tick sees the first one's
+    // claim. Same idiom as PlanSummary's save.
+    if (logInFlight.current) return;
+    logInFlight.current = true;
     setError(null);
-    await requestContribution(async (auth) => {
-      const result = await submit({
-        venueId,
-        drinkCategory: category,
-        priceGbp: price,
-        pintPhoto,
-      }, auth);
-      if (!result.ok) {
-        trackEvent("price_submit_failed", { category, reason: result.reason });
-        if (result.status) {
-          return {
-            status: result.status,
-            error: result.error,
-          };
-        }
-        haptic("action-refused");
-        setError(result.error);
-        return;
-      }
-      trackEvent("price_submitted", { category });
-      // A Pint Drop is the action this whole product is built around, so it
-      // gets the one two-beat tap in the vocabulary. Fire-and-forget: the
-      // receipt below never waits on a vibrator (lib/nativeHaptics.ts).
-      haptic("contribution-kept");
-      // A price the drinker kept is the first kept action for most people, and
-      // until now only a plan could offer notifications. The explainer still
-      // decides whether to show (lib/nativePushPrompt.ts); this only says an
-      // action worth being offered one happened.
-      recordPlanHighIntentAction();
-      // A logged price is a kept action, so it also counts towards the once-ever
-      // store review ask. lib/nativeReviewPrompt.ts owns whether this is the
-      // moment; nothing is awaited and the receipt below never waits on it.
-      void recordKeptAction("price-logged");
-      // Read back what this tap turned out to be worth. It is derived for
-      // EVERY confirmed submission, not only inside a mission: the corroboration
-      // rate is submissions that reached the map over submissions made, and
-      // mission_submitted can only ever give it a denominator of missions.
-      const readback = missionReceiptFromReadback({ price: result.price });
-      trackEvent("price_submit_outcome", { category, outcome: readback.outcome });
-      const missionReceipt = mission ? readback : undefined;
-      if (mission && missionReceipt) {
-        const analytics = missionAnalyticsProps(mission.surface, {
-          reason: mission.reason,
+    try {
+      await requestContribution(async (auth) => {
+        const result = await submit({
+          venueId,
           drinkCategory: category,
-        }, { outcome: missionReceipt.outcome });
-        trackEvent("mission_submitted", analytics);
-        if (missionReceipt.outcome === "trusted") {
-          trackEvent("mission_newly_trusted", analytics);
+          priceGbp: price,
+          pintPhoto,
+        }, auth);
+        if (!result.ok) {
+          trackEvent("price_submit_failed", { category, reason: result.reason });
+          if (result.status) {
+            return {
+              status: result.status,
+              error: result.error,
+            };
+          }
+          haptic("action-refused");
+          setError(result.error);
+          return;
         }
-      }
-      setLogged({
-        category,
-        attribution: result.attribution,
-        missionReceipt,
+        trackEvent("price_submitted", { category });
+        // A Pint Drop is the action this whole product is built around, so it
+        // gets the one two-beat tap in the vocabulary. Fire-and-forget: the
+        // receipt below never waits on a vibrator (lib/nativeHaptics.ts).
+        haptic("contribution-kept");
+        // A price the drinker kept is the first kept action for most people, and
+        // until now only a plan could offer notifications. The explainer still
+        // decides whether to show (lib/nativePushPrompt.ts); this only says an
+        // action worth being offered one happened.
+        recordPlanHighIntentAction();
+        // A logged price is a kept action, so it also counts towards the once-ever
+        // store review ask. lib/nativeReviewPrompt.ts owns whether this is the
+        // moment; nothing is awaited and the receipt below never waits on it.
+        void recordKeptAction("price-logged");
+        // Read back what this tap turned out to be worth. It is derived for
+        // EVERY confirmed submission, not only inside a mission: the corroboration
+        // rate is submissions that reached the map over submissions made, and
+        // mission_submitted can only ever give it a denominator of missions.
+        const readback = missionReceiptFromReadback({
+          price: result.price,
+          pintTrust: result.pintTrust,
+        });
+        trackEvent("price_submit_outcome", { category, outcome: readback.outcome });
+        const missionReceipt = mission ? readback : undefined;
+        if (mission && missionReceipt) {
+          const analytics = missionAnalyticsProps(mission.surface, {
+            reason: mission.reason,
+            drinkCategory: category,
+          }, { outcome: missionReceipt.outcome });
+          trackEvent("mission_submitted", analytics);
+          if (missionReceipt.outcome === "trusted") {
+            trackEvent("mission_newly_trusted", analytics);
+          }
+        }
+        setLogged({
+          category,
+          attribution: result.attribution,
+          missionReceipt,
+        });
+        setPrice("");
+        setHeldCategory(null);
+        clearPintPhoto();
+        onLogged?.(venueId);
       });
-      setPrice("");
-      setHeldCategory(null);
-      clearPintPhoto();
-      onLogged?.(venueId);
-    });
+    } finally {
+      // Released whatever the outcome: a refused or failed write must leave
+      // the drinker able to try again.
+      logInFlight.current = false;
+    }
   }
 
   return (

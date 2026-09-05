@@ -16,7 +16,6 @@ describe("DAY_MS owner", () => {
       "lib/pintContributions.ts",
       "lib/a2hsPrompt.ts",
       "lib/dailyActivity.ts",
-      "lib/priceConfirmStore.ts",
     ]) {
       const source = readFileSync(join(process.cwd(), rel), "utf8");
       expect(source).not.toMatch(/86_400_000/);

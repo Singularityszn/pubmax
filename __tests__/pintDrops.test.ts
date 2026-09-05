@@ -495,7 +495,15 @@ describe("POST /api/pint-drops (create)", () => {
       authorityKey: pintDropAuthorityKey(VENUE, reportAuth.userId),
     });
     const { runSecondReporterPass } = await import("@/lib/pintDropConfirm.server");
-    expect(await runSecondReporterPass(VENUE)).toEqual({ status: "same_reporter" });
+    // Asked AS that account: `same_reporter` is a sentence about the caller and
+    // is only ever true of the caller's own key (battle test D08).
+    expect(
+      await runSecondReporterPass(
+        VENUE,
+        Date.now(),
+        pintDropAuthorityKey(VENUE, reportAuth.userId),
+      ),
+    ).toEqual({ status: "same_reporter" });
     const listed = (await (await get(VENUE)).json()) as { drops: Array<{ confirmation?: unknown }> };
     expect(listed.drops.every((drop) => !drop.confirmation)).toBe(true);
   });

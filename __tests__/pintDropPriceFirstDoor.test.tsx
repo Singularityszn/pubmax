@@ -142,11 +142,17 @@ describe("price-first Pint Drop door", () => {
     expect(priceStep).toBeTruthy();
     expect(container.querySelector('[aria-label="Quick-add price"]')).toBeTruthy();
 
+    // The measure IS part of the price question, so it rides the price step
+    // (battle test D04): a half that cannot be said is a half that ends up in
+    // the pint lane. Asserted by name here rather than by role, because the
+    // control below is also a radiogroup and the two mean opposite things.
+    expect(container.querySelector(".measureChips")).toBeTruthy();
+
     // Nothing optional renders before the first tap — no camera step, no
     // story, no vibes, no visibility control.
     expect(container.querySelector('[data-testid="spill-camera-step"]')).toBeNull();
     expect(container.querySelector("textarea")).toBeNull();
-    expect(container.querySelector('[role="radiogroup"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Visibility"]')).toBeNull();
 
     // The price step sits before the extras toggle in document order.
     const toggle = extrasToggle();

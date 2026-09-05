@@ -78,11 +78,10 @@ export function buildPriceEvidence(input: {
     || validIso(input.observedAt)! > input.now
   ) return { pence: null, source: null, confidenceState: "unknown" };
   const observedAt = new Date(Date.parse(input.observedAt)).toISOString();
-  const confidenceState = priceConfidence({
-    confirms: 0,
-    lastConfirmedAt: null,
-    priceObservedAt: Date.parse(observedAt),
-  }, input.now).state;
+  const confidenceState = priceConfidence(
+    { priceObservedAt: Date.parse(observedAt) },
+    input.now,
+  ).state;
   return {
     pence: input.pence,
     source: { label: input.label.trim(), url: input.url, observedAt },

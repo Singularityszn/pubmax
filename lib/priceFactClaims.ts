@@ -1,13 +1,15 @@
 // Price adapter over the generic fact-claim model (Wayfinder 3.3). Wires the
-// existing price signals — the on-record dataset/scraped baseline, the freshest
-// community-reported "now" price, and the community price-confirm vouches — through
+// two price signals a venue surface holds — the on-record dataset/scraped
+// baseline and the freshest community-reported "now" price — through
 // lib/factClaims so a served price carries an honest verification level and any
 // live conflict surfaces plainly.
 //
-// This FORMALIZES what lib/priceConfidence.ts only half-modelled: a community
-// vouch on an already-shown price is corroboration. priceConfidence keeps its
-// exact public API (state + label) untouched — this sits alongside it as the
-// resolution/conflict layer, not a rewrite. Pure and hermetic: callers pass `now`.
+// A THIRD SIGNAL USED TO RIDE HERE and battle test L03 retired it: the
+// anonymous price-confirm vouch, which entered as its own `community`
+// publisher and upgraded a lone scraped baseline to `corroborated` on the word
+// of a hashed IP. Corroboration is a claim about two PEOPLE, and an IP is a
+// household, a pub's own wifi and a mobile carrier's NAT. Pure and hermetic:
+// callers pass `now`.
 
 import {
   buildFactClaims,
@@ -82,15 +84,6 @@ export function priceFieldId(venueId: string, beverage = "pint"): string {
   return `price:${venueId}:${beverage}`;
 }
 
-// A community price-confirm tally, exactly the shape lib/priceConfirmStore.ts
-// returns. Kept structural so this module never imports the store (which pulls
-// in Supabase) and stays browser-safe for the venue surface.
-export type PriceConfirmTallyLike = {
-  confirms: number;
-  lastConfirmedAt: number | null;
-  recentConfirms: number;
-};
-
 export type PriceStorySignalsInput = {
   /** The dataset/scraped baseline on record, GBP. */
   baselineGbp: number | null;
@@ -98,19 +91,22 @@ export type PriceStorySignalsInput = {
   nowGbp: number | null;
   /** Epoch ms the community "now" price was observed, when known. */
   nowObservedAt?: number | null;
-  /** The confirm tally for `confirmTargetGbp`, when fetched. */
-  confirm?: PriceConfirmTallyLike | null;
-  /** Which displayed price the confirm tally is keyed to (usually `now`, else baseline). */
-  confirmTargetGbp?: number | null;
 };
 
 /**
  * Build price signals for the venue Golden Thread from the values the surface
- * already has: the on-record baseline (scraped, undated), the community "now"
- * price, and the confirm vouches. A vouch on the SAME value as a scraped price
- * corroborates it (distinct authority) — the formalized upgrade path. When the
- * community freshly vouches a DIFFERENT price from the baseline, resolvePrice
- * reports a live conflict for the surface to expose.
+ * already has: the on-record baseline (scraped, undated) and the community
+ * "now" price. When the two disagree, resolvePrice reports a live conflict for
+ * the surface to expose.
+ *
+ * THE ANONYMOUS VOUCH IS GONE (battle test L03). It used to ride here as a
+ * third `community` publisher at the confirmed figure, which upgraded a lone
+ * scraped baseline to `corroborated` on the word of a hashed IP. An IP is a
+ * household, a pub's own wifi and a mobile carrier's NAT, so it could never
+ * prove two people, and "corroborated" is a word this tree owns elsewhere with
+ * a much harder meaning: two authority keys derived from two verified
+ * accounts. One word, one meaning, and this was the copy of it that could not
+ * keep the promise.
  */
 export function priceStorySignals(input: PriceStorySignalsInput): PriceSignalInput[] {
   const signals: PriceSignalInput[] = [];
@@ -125,45 +121,13 @@ export function priceStorySignals(input: PriceStorySignalsInput): PriceSignalInp
     });
   }
 
-  const confirm = input.confirm ?? null;
-  const confirmAt = confirm && typeof confirm.lastConfirmedAt === "number" ? confirm.lastConfirmedAt : null;
-
   if (typeof input.nowGbp === "number" && Number.isFinite(input.nowGbp)) {
-    // The community "now" price. Its freshness is the drop's own observedAt when
-    // known, else the confirm timestamp when the tally is keyed to this price.
-    const keyedToNow =
-      typeof input.confirmTargetGbp === "number" && pricesEqual(input.confirmTargetGbp, input.nowGbp);
-    const nowObservedAt =
-      (typeof input.nowObservedAt === "number" ? input.nowObservedAt : null) ??
-      (keyedToNow ? confirmAt : null) ??
-      0;
     signals.push({
       gbp: input.nowGbp,
       authority: "community",
-      observedAt: nowObservedAt,
+      observedAt: typeof input.nowObservedAt === "number" ? input.nowObservedAt : 0,
       publisher: "community-report",
       confidence: 0.5,
-    });
-  }
-
-  // A community vouch corroborates whichever displayed price it is keyed to: a
-  // distinct community publisher at that exact value. On a scraped baseline it
-  // upgrades single_source → corroborated; on the community "now" price it
-  // corroborates the report.
-  if (
-    confirm &&
-    confirm.confirms > 0 &&
-    confirmAt !== null &&
-    typeof input.confirmTargetGbp === "number" &&
-    Number.isFinite(input.confirmTargetGbp)
-  ) {
-    signals.push({
-      gbp: input.confirmTargetGbp,
-      authority: "community",
-      observedAt: confirmAt,
-      publisher: "price-confirm",
-      // A recently-vouched price carries a touch more confidence than a lone report.
-      confidence: confirm.recentConfirms > 0 ? 0.6 : 0.55,
     });
   }
 

@@ -1,8 +1,21 @@
+import {
+  cleanDrinkMeasure,
+  cleanDrinkMeasureLabel,
+  DEFAULT_DRINK_MEASURE,
+  type DrinkMeasure,
+} from "@/lib/drinkMeasure";
 import { VIBE_TAGS, cleanVisibility, type VibeTag, type Visibility } from "@/lib/pintDropShared";
 
 export type PintDropDraftForm = {
   price: string;
   drink: string;
+  /**
+   * The SERVING the drafted price is about (battle test D04). A draft that
+   * dropped this would resurrect a half as a pint on the next mount, which
+   * is the same defect wearing a different door.
+   */
+  measure: DrinkMeasure;
+  measureLabel: string;
   note: string;
   era: string;
   withWho: string;
@@ -24,6 +37,8 @@ const VIBE_TAG_SET: ReadonlySet<string> = new Set(VIBE_TAGS);
 const EMPTY_FORM: PintDropDraftForm = {
   price: "",
   drink: "",
+  measure: DEFAULT_DRINK_MEASURE,
+  measureLabel: "",
   note: "",
   era: "",
   withWho: "",
@@ -98,6 +113,10 @@ export function normalisePintDropDraft(value: unknown): PintDropDraft | null {
     form: {
       price: cleanField(form.price),
       drink: cleanField(form.drink),
+      // An unknown or absent measure collapses to `pint`, the same
+      // forgiving reading the write path and the row mapper take.
+      measure: cleanDrinkMeasure(form.measure),
+      measureLabel: cleanDrinkMeasureLabel(form.measureLabel),
       note: raw.version === 2 ? cleanField(form.note) : "",
       era: cleanField(form.era),
       withWho: cleanField(form.withWho),

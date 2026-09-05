@@ -152,20 +152,6 @@
   color: var(--ink-soft);
 }
 
-/* Honest price conflict: on-record vs a freshly-vouched different price. Shown
-   plainly, never resolved away. A quiet caution band, not an alarm. */
-.vpsConflict {
-  margin: 10px 0 0;
-  padding: 9px 11px;
-  border: 1px solid rgba(176, 129, 58, 0.32);
-  border-radius: var(--radius-sm);
-  background: rgba(176, 129, 58, 0.09);
-  color: var(--ink);
-  font-size: 0.84rem;
-  line-height: 1.45;
-  font-variant-numeric: tabular-nums;
-}
-
 /* The inflation line — a dated, priced memory revalued into today's money. */
 .vpsInflation {
   margin-top: 12px;
@@ -209,125 +195,20 @@
   line-height: 1.4;
 }
 
-/* ── "Still £X?" price-confirm micro-contribution chip ───────────────────────
-   A one-tap community "still accurate?" signal on the freshest price. Idle: a
-   quiet brass-tinted pill invitation. Confirmed: a --pint "verified" pill that
-   pops in (scale .95→1 + opacity) with the tick stroke-drawing on. This is a
-   signal, never a price — the copy reads "Confirmed just now · N confirms", it
-   never restates or edits a figure. All motion is opacity/transform only and is
-   fully gated behind no-preference; reduced-motion shows the finished tick with
-   no movement. The idle chip is a <button>, so it inherits the global press
-   feedback (scale on :active) — no bespoke transform here to conflict with it. */
+/* ── The correction door ─────────────────────────────────────────────────────
+   The one-tap "Still £X?" confirm chip that used to lead this block was retired
+   by battle test L03: it printed "Confirmed - 1 confirm." on an anonymous,
+   IP-keyed tally, beside a price the trust chip called logged-once. Its wrapper
+   survives as the lane the correction door sits in, and the confidence classes
+   went with the tally that fed them. */
 .vpsConfirm {
   margin: 12px 0 2px;
 }
 
-.vpsConfirmBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 44px;
-  padding: 6px 12px;
-  border: 1px solid color-mix(in srgb, var(--accent-action) 34%, var(--line));
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--accent-action) 7%, var(--panel-raised));
-  color: var(--ink);
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  cursor: pointer;
-}
-
-.vpsConfirmBtn .vpsConfirmTick {
-  color: var(--ink-soft);
-}
-
-.vpsConfirmBtn:focus-visible {
-  outline: 2px solid var(--accent-action);
-  outline-offset: 2px;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .vpsConfirmBtn:hover {
-    border-color: var(--accent-action);
-    background: color-mix(in srgb, var(--accent-action) 12%, var(--panel-raised));
-  }
-}
-
-.vpsConfirmDone {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 12px 0 2px;
-  padding: 6px 12px;
-  border: 1px solid color-mix(in srgb, var(--pint) 34%, var(--line));
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--pint) 10%, var(--panel-raised));
-  color: var(--pint);
-  font-size: 0.8rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-.vpsConfirmDone .vpsConfirmTick {
-  flex: 0 0 auto;
-  color: var(--pint);
-}
-
-.vpsConfirmCount {
-  color: var(--ink-soft);
-  font-weight: 700;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  /* Satisfying pop on confirm — a little spring overshoot because the tap
-     carried intent (rubric: ease-spring for momentum entrances only). */
-  .vpsConfirmDone {
-    animation: vpsConfirmIn var(--duration-base) var(--ease-spring) both;
-  }
-
-  /* The tick draws itself on, just after the pill has begun settling. */
-  .vpsConfirmDone .vpsConfirmTickPath {
-    stroke-dasharray: 20;
-    stroke-dashoffset: 20;
-    animation: vpsTickDraw var(--duration-slow) var(--ease-out-strong) 40ms forwards;
-  }
-}
-
-@keyframes vpsConfirmIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes vpsTickDraw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-/* ── Confidence states (lib/priceConfidence.ts) ──────────────────────────────
-   The plaque keeps its dignity as signals age: FRESH renders exactly as today
-   (no class needed beyond the hook), AGING quietly lowers the plaque's voice,
-   STALE visibly humbles it — an old truth beats a blank, but it must not
-   impersonate a fresh one. Colors stay inside the existing token set. */
-.vpsConfidence-aging {
-  opacity: 0.86;
-}
-.vpsConfidence-stale {
-  opacity: 0.68;
-  filter: saturate(0.75);
-}
-
-/* "It's changed" — the correction path. Deliberately quieter than the confirm
-   chip (text-button weight): correcting is welcome, but confirming is the
-   one-tap hero. Same 44px minimum target as every action. */
+/* "It's changed" — the correction path, and now the only door in this block.
+   A correction IS a new dated observation by a named drinker, so it opens the
+   Pint Drop composer. Text-button weight, and the same 44px minimum target as
+   every action. */
 .vpsChangedBtn {
   appearance: none;
   background: none;

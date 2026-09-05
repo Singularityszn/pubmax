@@ -9,9 +9,11 @@
 // sourced baseline - both stand, each with its own dated badge, per the
 // app-wide rule that provenance is never flattened away (CONTEXT.md).
 //
-// The confirm signal (lib/priceConfirmStore.ts) counts vouches for a price that
-// is ALREADY displayed. This module is its sibling: the first time a price is
-// SUBMITTED. Together they are the whole community price loop.
+// This module is where a price is first SUBMITTED. The anonymous vouch lane
+// that used to sit beside it, counting taps on an already-displayed figure, was
+// retired by battle test L03: it was a third "Confirmed" vocabulary keyed on a
+// hashed IP. Agreement is lib/pintTrust.ts's question now, read over authority
+// keys derived from verified accounts.
 
 import {
   CATEGORY_META,

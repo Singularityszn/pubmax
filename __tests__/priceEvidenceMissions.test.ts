@@ -291,26 +291,96 @@ describe("toPriceEvidenceMissionDto", () => {
 });
 
 describe("missionReceiptFromReadback", () => {
-  it("says the price is trusted only when the read-back is corroborated and in window", () => {
-    const receipt = missionReceiptFromReadback({
-      price: row("venue-live", "beer", { corroborations: 2 }),
-      now: NOW,
-    });
-    expect(receipt).toEqual({
-      outcome: "trusted",
-      line: "Price is trusted now.",
-    });
+  // BATTLE TEST D07. These cases used to assert the defect: a beer receipt
+  // worded from `community_prices` corroborations while the sheet's head, chip
+  // and drop row wore the Pint Drop lane's own state. Over one pub the two
+  // disagreed and the receipt took the stronger word, printing "Price is
+  // trusted now." above "Logged once, needs a second drinker". For beer the
+  // drop lane decides now, and only the drop lane.
+
+  it("says the price is trusted when the pint lane confirmed it", () => {
+    expect(
+      missionReceiptFromReadback({
+        price: row("venue-live", "beer", { corroborations: 1 }),
+        pintTrust: "confirmed",
+        now: NOW,
+      }),
+    ).toEqual({ outcome: "trusted", line: "Price is trusted now." });
   });
 
-  it("asks for another independent check when the logged price is still alone", () => {
-    const receipt = missionReceiptFromReadback({
-      price: row("venue-live", "beer"),
-      now: NOW,
-    });
-    expect(receipt).toEqual({
+  it("says the same for a corroborated pint lane, which is the same agreement", () => {
+    expect(
+      missionReceiptFromReadback({
+        price: row("venue-live", "beer"),
+        pintTrust: "corroborated",
+        now: NOW,
+      }),
+    ).toEqual({ outcome: "trusted", line: "Price is trusted now." });
+  });
+
+  it("asks for another independent check while the pint lane is logged once", () => {
+    expect(
+      missionReceiptFromReadback({
+        price: row("venue-live", "beer"),
+        pintTrust: "logged-once",
+        now: NOW,
+      }),
+    ).toEqual({
       outcome: "needs_check",
       line: "Another independent check is still needed.",
     });
+  });
+
+  it("REFUSES to call a beer price trusted on community corroborations alone", () => {
+    // The exact disagreement the report found: two community actors inside the
+    // window, and a pint lane that holds one drop with no independent peer.
+    const receipt = missionReceiptFromReadback({
+      price: row("venue-live", "beer", { corroborations: 2 }),
+      pintTrust: "logged-once",
+      now: NOW,
+    });
+    expect(receipt.outcome).toBe("needs_check");
+  });
+
+  it("claims nothing when the pint trust read could not be taken", () => {
+    // Null is "we could not look", never "no trust", and it may not fall back
+    // to the lane that was wrong however corroborated that lane says it is.
+    expect(
+      missionReceiptFromReadback({
+        price: row("venue-live", "beer", { corroborations: 2 }),
+        pintTrust: null,
+        now: NOW,
+      }),
+    ).toEqual({ outcome: "logged", line: "Logged." });
+  });
+
+  it("says nothing stronger than logged over an aged-out or empty pint lane", () => {
+    for (const trust of ["aged-out", "none"] as const) {
+      expect(
+        missionReceiptFromReadback({
+          price: row("venue-live", "beer", { corroborations: 2 }),
+          pintTrust: trust,
+          now: NOW,
+        }),
+      ).toEqual({ outcome: "logged", line: "Logged." });
+    }
+  });
+
+  it("leaves every other drink category on its own community reading", () => {
+    // Wine has no pint lane to read, so the community corroboration count is
+    // still the honest answer there and this change narrows nothing.
+    expect(
+      missionReceiptFromReadback({
+        price: row("venue-live", "wine", { corroborations: 2 }),
+        now: NOW,
+      }),
+    ).toEqual({ outcome: "trusted", line: "Price is trusted now." });
+    expect(
+      missionReceiptFromReadback({
+        price: row("venue-live", "wine", { corroborations: 1 }),
+        now: NOW,
+      }).outcome,
+    ).toBe("needs_check");
   });
 
   it("does not claim map impact for a category the map will not paint", () => {
@@ -323,12 +393,9 @@ describe("missionReceiptFromReadback", () => {
   });
 
   it("never infers trust from the client mission reason", () => {
-    const uncorroborated = row("venue-live", "beer", { corroborations: 1 });
-    const corroborated = row("venue-live", "beer", { corroborations: 2 });
-    expect(missionReceiptFromReadback({ price: uncorroborated, now: NOW }).outcome)
-      .toBe("needs_check");
-    expect(missionReceiptFromReadback({ price: corroborated, now: NOW }).outcome)
-      .toBe("trusted");
+    expect(
+      missionReceiptFromReadback({ price: null, pintTrust: "confirmed", now: NOW }),
+    ).toEqual({ outcome: "logged", line: "Logged." });
   });
 });
 

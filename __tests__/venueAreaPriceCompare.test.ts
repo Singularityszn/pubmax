@@ -335,6 +335,7 @@ describe("VenueOverviewTab area-price compare mount", () => {
         ok: true,
         attribution: { status: "anonymous" },
         price: null,
+        pintTrust: null,
       }),
       submitVenueSignal: async () => ({ ok: true }),
       submitting: false,

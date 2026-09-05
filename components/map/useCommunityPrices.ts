@@ -22,6 +22,7 @@ import {
   type CommunityVenueSignalValue,
 } from "@/lib/communityVenueSignals";
 import type { DrinkCategory } from "@/lib/drinks";
+import { PINT_TRUST_STATES, type PintTrustState } from "@/lib/pintTrust";
 import type {
   CategoryPriceIndexStatus,
   NoAlcoholIndexStatus,
@@ -66,11 +67,33 @@ export type CommunitySubmissionFailure = {
 };
 
 export type CommunityPriceSubmitResult =
-  | { ok: true; attribution: CommunityPriceAttribution; price: CommunityPrice | null }
+  | {
+      ok: true;
+      attribution: CommunityPriceAttribution;
+      price: CommunityPrice | null;
+      /**
+       * The venue's pint trust state as the SERVER read it after this write
+       * (battle test D07). Present on a beer write whose read landed, null
+       * otherwise, and the receipt claims no trust without it.
+       */
+      pintTrust: PintTrustState | null;
+    }
   // `reason` is the coarse funnel bucket for the failure - the analytics enum,
   // not a second copy of the sentence. `error` stays the human sentence and is
   // never sent anywhere.
   | CommunitySubmissionFailure;
+
+/**
+ * Narrow the pint trust state the write path answered with. Unknown text is
+ * NOT coerced to a state: an unrecognised word means we do not know what this
+ * pub became, and the receipt must then claim nothing (battle test D07).
+ */
+function readPintTrustState(value: unknown): PintTrustState | null {
+  return typeof value === "string" &&
+    (PINT_TRUST_STATES as readonly string[]).includes(value)
+    ? (value as PintTrustState)
+    : null;
+}
 
 export type CommunityVenueSignalSubmitResult =
   | { ok: true }
@@ -964,6 +987,7 @@ export function useCommunityPrices(): CommunityPricesState {
           | {
               price?: CommunityPrice;
               attribution?: unknown;
+              pintTrust?: unknown;
               error?: unknown;
               status?: string;
             }
@@ -1001,6 +1025,7 @@ export function useCommunityPrices(): CommunityPricesState {
           ok: true,
           attribution: readCommunityPriceAttribution(data?.attribution),
           price: stored ?? null,
+          pintTrust: readPintTrustState(data?.pintTrust),
         };
       } catch {
         rollback();

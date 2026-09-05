@@ -1,8 +1,10 @@
 // Community price-submission route - backs the "What's it tonight?" card on the
 // venue sheet (VenuePriceSubmit). A submission is a NEW dated observation by a
-// drinker standing in the pub, unlike /api/price-confirm which only counts
-// vouches for a price that is already displayed. The two are siblings; this one
-// is the first time a figure enters the map from the community.
+// drinker standing in the pub, and it is the first time a figure enters the map
+// from the community. The anonymous one-tap vouch that used to sit beside it
+// was retired by battle test L03: an IP-keyed tally cannot say how many PEOPLE
+// stood behind a price, so this named, dated, account-bound lane is the only
+// way a drinker's agreement now reaches anything.
 //
 //   POST { venueId, drinkCategory, priceGbp }              → { ok, price }
 //   POST { kind: "venue-signal", venueId, signalKey, ... } → { ok, signal }
@@ -64,8 +66,10 @@ import {
   revertOneTapCommunityPricePairing,
   writeOneTapPintDrop,
 } from "@/lib/oneTapPintDrop.server";
-import { runSecondReporterPass } from "@/lib/pintDropConfirm.server";
+import { readVenuePintTrust, runSecondReporterPass } from "@/lib/pintDropConfirm.server";
 import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
+import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
+import type { PintTrustState } from "@/lib/pintTrust";
 import { qualifyCheapPintForOwnerActor } from "@/lib/cheapPintPingQualify.server";
 import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
 import { syncTrustAfterPriceWrite } from "@/lib/priceTrustImpact.server";
@@ -246,6 +250,12 @@ export async function POST(request: Request): Promise<Response> {
   // Pint Drop ran it. Absent when no drop was paired, because then nothing
   // about a confirmation was asked.
   let confirmationOutcome: PintDropConfirmationOutcome | null = null;
+  // The venue's pint TRUST STATE after this write, as the drop lane reads it.
+  // Battle test D07: the mission receipt used to word itself from community
+  // corroborations while the sheet wore this state, and over one pub the two
+  // disagreed. Null means the read could not be taken, and the receipt then
+  // claims nothing rather than borrowing the weaker lane's stronger word.
+  let pintTrust: PintTrustState | null = null;
   if (submission.drinkCategory === "beer") {
     const pintDrop = await writeOneTapPintDrop(
       {
@@ -283,7 +293,18 @@ export async function POST(request: Request): Promise<Response> {
       // Running the pass here too is what stops the two write lanes disagreeing
       // about whether a pub is confirmed. It never throws and never fails the
       // price that has already landed.
-      confirmationOutcome = await runSecondReporterPass(submission.venueId);
+      // The caller's own authority key rides in, so `same_reporter` is only
+      // ever said to the drinker whose earlier report it is about (D08). It is
+      // the SAME key the paired drop was written with, derived from the same
+      // verified account id, so the pass and the row cannot disagree.
+      confirmationOutcome = await runSecondReporterPass(
+        submission.venueId,
+        Date.now(),
+        pintDropAuthorityKey(submission.venueId, contributor.accountId),
+      );
+      // Read AFTER the pass, so a receipt that says "trusted" is saying it
+      // over the confirmation the pass may have just minted.
+      pintTrust = await readVenuePintTrust(submission.venueId);
     }
   }
 
@@ -323,6 +344,7 @@ export async function POST(request: Request): Promise<Response> {
       trustReconciliation:
         trust.status === "synced" ? "synced" : "pending",
       ...(confirmationOutcome ? { confirmationOutcome } : {}),
+      ...(pintTrust ? { pintTrust } : {}),
       price:
         record ??
         {

@@ -41,6 +41,7 @@
 
 import type { Provenance } from "@/lib/curation";
 import { agreesWithinTolerance, isWithinMaxAge } from "@/lib/communityPrice";
+import { measureIsPint } from "@/lib/drinkMeasure";
 import {
   confirmationIsLive,
   type PintDropConfirmation,
@@ -69,12 +70,23 @@ export type ConfirmableDrop = SummaryDrop & {
   confirmation?: PintDropConfirmation | null;
 };
 
-/** Is this row a first-party priced observation rather than a seed or a note? */
+/**
+ * Is this row a first-party priced PINT observation rather than a seed, a note
+ * or another measure?
+ *
+ * The measure clause is battle-test D04. A confirmation is what the Pint Index
+ * cites and what paints a pin, so a half may neither be confirmed nor confirm
+ * anything: the production row this was found over was a "Half of lager" at
+ * £2.60 that a second drinker's agreeing report turned into a confirmed £2.60
+ * pint. `measureIsPint` reads an absent measure as `pint`, so every row written
+ * before migration 0147 keeps the lane it already had.
+ */
 function isPricedObservation(drop: ConfirmableDrop): boolean {
   return (
     (drop.provenance as Provenance) !== "demo" &&
     typeof drop.priceGbp === "number" &&
-    Number.isFinite(drop.priceGbp)
+    Number.isFinite(drop.priceGbp) &&
+    measureIsPint(drop.measure)
   );
 }
 
@@ -189,6 +201,7 @@ export type SecondReporterReading =
 export function readSecondReporter(
   drops: readonly ConfirmableDrop[],
   now: number = Date.now(),
+  callerAuthorityKey?: string | null,
 ): SecondReporterReading {
   const live = liveConfirmationFor(drops, now);
   if (live) {
@@ -209,12 +222,25 @@ export function readSecondReporter(
       isWithinMaxAge({ submittedAt: Date.parse(drop.createdAt) }, now) &&
       Boolean(drop.authorityKey?.trim()),
   );
-  for (let i = 0; i < keyed.length; i += 1) {
-    for (let j = i + 1; j < keyed.length; j += 1) {
-      const a = keyed[i];
-      const b = keyed[j];
-      if (a.authorityKey?.trim() !== b.authorityKey?.trim()) continue;
-      if (!agreesWithinTolerance(a.priceGbp as number, b.priceGbp as number)) continue;
+  // WHOSE REPORT REPEATED ITSELF (battle test D08). This scan used to be
+  // venue-wide: any same-key agreeing pair at the pub named the outcome,
+  // whoever had just written. So Alice's £6.50 at a pub where Bob had twice
+  // logged £5.20 came back `same_reporter`, and Alice - a different person,
+  // reporting a different figure - was told "That matches your own earlier
+  // report". `same_reporter` is a sentence ABOUT THE CALLER, so it is only
+  // ever true of the caller's own key.
+  //
+  // A caller with no key is no reporter at all (an unattributed row carries no
+  // authority key by construction), so it can never be the same reporter and
+  // the honest answer for it is `awaiting`.
+  const callerKey = callerAuthorityKey?.trim();
+  if (!callerKey) return { kind: "awaiting" };
+  const own = keyed.filter((drop) => drop.authorityKey?.trim() === callerKey);
+  for (let i = 0; i < own.length; i += 1) {
+    for (let j = i + 1; j < own.length; j += 1) {
+      if (!agreesWithinTolerance(own[i].priceGbp as number, own[j].priceGbp as number)) {
+        continue;
+      }
       return { kind: "same_reporter" };
     }
   }

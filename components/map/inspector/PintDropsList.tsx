@@ -2,10 +2,25 @@ import VenueImage from "@/components/media/VenueImage";
 import { ProvenanceChip } from "@/components/map/venueInspectorBits";
 import { Flag } from "lucide-react";
 
+import { drinkMeasureName, measureIsPint } from "@/lib/drinkMeasure";
 import { formatPrice, type Venue } from "@/lib/venues";
 import { lastTrainBadge } from "@/lib/lastTrainBadge";
 import type { LastPintDecision } from "@/lib/tfl";
 import type { DropWithPhotos, PintDropsState } from "@/components/map/usePintDrops";
+
+/**
+ * The measure a row NAMES, or "" when it is the ordinary pint.
+ *
+ * Battle test D04: a half is held out of every pint lane, so this list is where
+ * it still speaks. It has to say WHICH measure, because the figure beside it is
+ * the price of that serving and of nothing else. A pint says nothing, because
+ * every other row on the list is one and repeating the word on all of them
+ * would make the exception harder to see rather than easier.
+ */
+function nonPintMeasureName(drop: DropWithPhotos): string {
+  if (measureIsPint(drop.measure)) return "";
+  return drinkMeasureName(drop.measure, drop.measureLabel);
+}
 
 export default function PintDropsList({
   venue,
@@ -91,7 +106,9 @@ export default function PintDropsList({
             ) : null}
             <div className="dropFoot">
               <small>
-                {[drop.drink, drop.era].filter(Boolean).join(" · ") || "Visit report"}
+                {[nonPintMeasureName(drop), drop.drink, drop.era]
+                  .filter(Boolean)
+                  .join(" · ") || "Visit report"}
                 {trainBadge ? (
                   <span className="trainBadge" data-tone={trainBadge.tone}>
                     {trainBadge.label}

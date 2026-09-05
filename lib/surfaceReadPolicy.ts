@@ -41,7 +41,6 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "components/map/UnverifiedPubSheet.tsx", fetchCount: 1, reason: "harvest overlay is an additive lazy read for one unverified pub sheet and never paints a reload surface" },
   { path: "components/map/VenueBuzz.tsx", fetchCount: 2, reason: "venue search and buzz are interactive detail reads" },
   { path: "components/map/VenueHygiene.tsx", fetchCount: 1, reason: "venue hygiene lookup is an additive detail read" },
-  { path: "components/map/VenuePriceStory.tsx", fetchCount: 2, reason: "price story reads and confirmation action use the price lane" },
   { path: "components/map/VenueWeatherRecommendations.tsx", fetchCount: 1, reason: "venue weather recommendations are location and venue interaction reads" },
   { path: "components/map/pubmap/useActivePlanRoute.ts", fetchCount: 1, reason: "active plan state is no-store and mutation-sensitive" },
   { path: "components/map/pubmap/useUkBaseStreaming.ts", fetchCount: 1, reason: "UK base shard streaming is viewport-owned data loading" },

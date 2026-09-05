@@ -1314,12 +1314,31 @@ describe("POST /api/price-submit second-drinker confirmation", () => {
 
   it("tells the same account its repeat confirms nothing", async () => {
     const venueId = await realVenueId(20);
+    // A second REPORT, not a second tap: a different figure inside the shared
+    // agreement tolerance, so the duplicate-tap window (D10) leaves it alone
+    // and the independence rule is what answers.
     await submitAs("solo", { venueId, drinkCategory: "beer", priceGbp: 4.5 });
-    const res = await submitAs("solo", { venueId, drinkCategory: "beer", priceGbp: 4.5 });
+    const res = await submitAs("solo", { venueId, drinkCategory: "beer", priceGbp: 4.6 });
     expect(res.status).toBe(201);
     const body = (await res.json()) as ConfirmationBody;
     expect(body.confirmationOutcome).toEqual({ status: "same_reporter" });
     expect(listVisiblePintDrops(venueId).every((row) => !row.confirmation)).toBe(true);
+  });
+
+  // BATTLE TEST D10. Three taps on Log it in one tick sent three POSTs, all
+  // 201, and wrote three `pint_drops` rows 21 ms apart. The client latch stops
+  // the taps; this is the half that survives a retry or a second tab, so an
+  // identical submission inside the window pairs no second drop.
+  it("writes ONE drop for an identical submission repeated at once", async () => {
+    const venueId = await realVenueId(21);
+    const first = await submitAs("burst", { venueId, drinkCategory: "beer", priceGbp: 5.9 });
+    expect(first.status).toBe(201);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const again = await submitAs("burst", { venueId, drinkCategory: "beer", priceGbp: 5.9 });
+      // The drinker still sees the success their first tap earned.
+      expect(again.status).toBe(201);
+    }
+    expect(listVisiblePintDrops(venueId)).toHaveLength(1);
   });
 
   it("mints for a different account, naming the confirming drop, on both rows", async () => {

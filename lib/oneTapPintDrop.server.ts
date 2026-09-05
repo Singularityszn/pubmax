@@ -6,6 +6,7 @@ import { submitCategoryLabel } from "@/lib/communityPrice";
 import { moderateCommunityPrice } from "@/lib/communityPriceStore";
 import type { DrinkCategory } from "@/lib/drinks";
 import { log } from "@/lib/log";
+import { cleanDrinkMeasure } from "@/lib/drinkMeasure";
 import type { PintDrop } from "@/lib/pintDrops";
 import { normalizeViewerHandle } from "@/lib/pintDrops";
 import { pintDropsStore, type PintDropPhotos } from "@/lib/pintDropsStore";
@@ -21,10 +22,84 @@ export type OneTapPintDropInput = Readonly<{
   verifiedAccountId?: string;
 }>;
 
+/**
+ * The venue's recent rows for the duplicate check, or null when the read could
+ * not be run. Null is "we could not look", never "nothing there": the caller
+ * writes on a null rather than refusing a price it cannot prove is a repeat.
+ */
+async function listRecentForDedupe(
+  store: ReturnType<typeof pintDropsStore>,
+  venueId: string,
+): Promise<PintDrop[] | null> {
+  try {
+    return await store.listConfirmationCandidates(venueId);
+  } catch (err) {
+    log("warn", "one_tap_pint_drop.dedupe_read_failed", {
+      venueId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+}
+
 export type OneTapPintDropOutcome =
   | { ok: true; drop: PintDrop }
   | { ok: false; kind: "invalid_photo"; message: string }
   | { ok: false; kind: "storage"; message: string };
+
+/**
+ * How long two identical priced drops from one account at one pub are read as
+ * ONE tap rather than two reports (battle test D10).
+ *
+ * Three `el.click()` calls on Log it in one tick sent three POSTs, all 201, and
+ * wrote three `pint_drops` rows 21 ms apart; a human double-tap on a slow
+ * network does the same, and so does any retry of a request whose response was
+ * lost. The client latch below is the first line, but a latch lives in one
+ * browser tab and cannot speak for a retry, so the write path needs its own
+ * answer.
+ *
+ * It is deliberately NOT the daily cap. `POST /api/price-submit` pairs a drop
+ * with every community price and takes several from one account at one pub in
+ * one day ON PURPOSE (AGENTS.md), so a day-wide guard would refuse the second
+ * honest correction of an evening. Six seconds refuses a duplicate tap and a
+ * lost-response retry, and refuses nothing a drinker meant twice.
+ */
+export const ONE_TAP_DUPLICATE_WINDOW_MS = 6_000;
+
+/**
+ * The row an identical earlier tap already wrote, or null. Pure, so the window
+ * rule is testable without a store.
+ *
+ * Identity is the whole observation: same pub, same account, same figure, same
+ * measure. A different figure is a correction and is welcome; a different
+ * measure is a different drink. Only an exact repeat inside the window is the
+ * same tap arriving twice.
+ */
+export function duplicateOneTapDrop(
+  rows: readonly PintDrop[],
+  candidate: Pick<PintDrop, "venueId" | "handle" | "priceGbp" | "measure">,
+  now: number,
+): PintDrop | null {
+  const handle = normalizeViewerHandle(candidate.handle);
+  if (!handle || typeof candidate.priceGbp !== "number") return null;
+  const measure = cleanDrinkMeasure(candidate.measure);
+  let best: PintDrop | null = null;
+  let bestAt = Number.NEGATIVE_INFINITY;
+  for (const row of rows) {
+    if (row.venueId !== candidate.venueId) continue;
+    if (normalizeViewerHandle(row.handle) !== handle) continue;
+    if (row.priceGbp !== candidate.priceGbp) continue;
+    if (cleanDrinkMeasure(row.measure) !== measure) continue;
+    const at = Date.parse(row.createdAt);
+    if (!Number.isFinite(at)) continue;
+    // A row dated ahead of us is a clock we cannot reason about, not a repeat.
+    if (at > now || now - at > ONE_TAP_DUPLICATE_WINDOW_MS) continue;
+    if (at <= bestAt) continue;
+    best = row;
+    bestAt = at;
+  }
+  return best;
+}
 
 async function ensureProfileForHandle(handle: string): Promise<void> {
   try {
@@ -47,6 +122,12 @@ function buildDrop(input: OneTapPintDropInput): PintDrop {
     venueId: input.venueId,
     handle,
     drink: submitCategoryLabel(input.drinkCategory),
+    // STATED, never inherited. The community price composer this pairs from
+    // carries a closed drink category and no free drink text, so its beer chip
+    // means a pint and the paired drop says so in the column the pint lane
+    // reads. Saying it here is what keeps that promise checkable: a reader of
+    // this row never has to assume which measure a null meant.
+    measure: "pint",
     priceGbp: input.priceGbp,
     passedDownNote: "",
     era: "",
@@ -109,7 +190,22 @@ export async function writeOneTapPintDrop(
   }
 
   try {
-    const drop = await pintDropsStore().create(buildDrop(input), photos);
+    const store = pintDropsStore();
+    const built = buildDrop(input);
+    // IDEMPOTENT ON A SHORT WINDOW. A duplicate tap is answered with the row the
+    // first one wrote, so the caller sees the success it already earned and the
+    // pub's sheet does not list the same pint three times. A read we could not
+    // run writes the drop rather than refusing it: losing a drinker's price to
+    // protect against a duplicate is the worse of the two failures.
+    const recent = await listRecentForDedupe(store, input.venueId);
+    const duplicate = recent
+      ? duplicateOneTapDrop(recent, built, Date.parse(built.createdAt))
+      : null;
+    if (duplicate) {
+      log("info", "one_tap_pint_drop.duplicate_tap", { venueId: input.venueId });
+      return { ok: true, drop: duplicate };
+    }
+    const drop = await store.create(built, photos);
     void ensureProfileForHandle(handle);
     return { ok: true, drop };
   } catch (err) {

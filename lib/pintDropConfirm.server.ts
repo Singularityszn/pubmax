@@ -27,6 +27,7 @@ import {
 } from "@/lib/pintDropConfirmation";
 import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
 import { pintDropsStore } from "@/lib/pintDropsStore";
+import { pintTrustFor, type PintTrustState } from "@/lib/pintTrust";
 
 function mint(
   basis: PintDropConfirmation["basis"],
@@ -52,6 +53,12 @@ function mint(
  * who has just repeated their own report is told so rather than shown a line
  * asking for a second drinker they cannot be.
  *
+ * `same_reporter` is a sentence ABOUT THE CALLER, so the caller's own authority
+ * key is passed in and nothing else can name that outcome (battle test D08).
+ * Without it the reading was venue-wide: Alice's £6.50 at a pub where Bob had
+ * twice logged £5.20 came back "That matches your own earlier report", which
+ * was a claim about somebody else's rows made to her face.
+ *
  * Idempotent by construction: a retry after a mint reads the live confirmation
  * and answers `already_confirmed` with the record on file, never a second id.
  * NEVER throws: the caller is a create path, and a confirmation that could not
@@ -61,11 +68,12 @@ function mint(
 export async function runSecondReporterPass(
   venueId: string,
   now: number = Date.now(),
+  callerAuthorityKey?: string | null,
 ): Promise<PintDropConfirmationOutcome> {
   try {
     const store = pintDropsStore();
     const candidates = await store.listConfirmationCandidates(venueId);
-    const reading = readSecondReporter(candidates, now);
+    const reading = readSecondReporter(candidates, now, callerAuthorityKey);
     if (reading.kind !== "pair") return outcomeForUnmintedReading(reading);
     const confirmation = mint("second_reporter", now, reading.confirmingDropId);
     // Both drops carry the SAME confirmation id on purpose: one agreement
@@ -95,8 +103,9 @@ export async function runSecondReporterPass(
 export async function confirmVenueBySecondReporter(
   venueId: string,
   now: number = Date.now(),
+  callerAuthorityKey?: string | null,
 ): Promise<PintDropConfirmation | null> {
-  const outcome = await runSecondReporterPass(venueId, now);
+  const outcome = await runSecondReporterPass(venueId, now, callerAuthorityKey);
   return outcome.status === "confirmed" ? outcome.confirmation : null;
 }
 
@@ -118,6 +127,41 @@ export async function confirmPintDropByModerator(
     confirmationId: confirmation.confirmationId,
   });
   return confirmation;
+}
+
+/**
+ * The venue's whole pint TRUST STATE, or null when the reading could not be
+ * taken. Battle test D07.
+ *
+ * The mission receipt used to word itself from `community_prices`
+ * corroborations while the sheet's head, chip and drop row wore the Pint Drop
+ * lane's own state, and over one pub the two disagreed: the receipt printed
+ * "Price is trusted now." above a head reading "Logged once, needs a second
+ * drinker", because a seeded community row from a second actor is not a second
+ * PINT DROP carrying an authority key. Two lanes, two readings, and the receipt
+ * took the stronger word.
+ *
+ * There is one reading of that story and it is `pintTrustFor`. This is the
+ * server seam onto it, so a browser holding no drops - `/near`'s mission slot
+ * holds none at all - can still be told what the pub's trust state became.
+ *
+ * Null is honest and is NOT "no trust": a caller that cannot read the state
+ * must decline to claim one rather than fall back to a weaker lane's word.
+ * Never throws, for the reason the pass does not: this rides a create path.
+ */
+export async function readVenuePintTrust(
+  venueId: string,
+  now: number = Date.now(),
+): Promise<PintTrustState | null> {
+  try {
+    const candidates = await pintDropsStore().listConfirmationCandidates(venueId);
+    return pintTrustFor(candidates, now).state;
+  } catch (err) {
+    log("warn", "pint_drop.trust_read_failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
 }
 
 /** The venue's live confirmation, or null. Read seam for a server surface that

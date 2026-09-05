@@ -4,6 +4,7 @@ import {
   isWithinMaxAge,
 } from "@/lib/communityPrice";
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
+import { measureIsPint, type DrinkMeasure } from "@/lib/drinkMeasure";
 import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import { firstHttp } from "@/lib/httpUrl";
@@ -471,6 +472,15 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
 // The minimal drop shape mergeVenueDrops needs — the client DTO satisfies it.
 export type SummaryDrop = {
   drink: string;
+  /**
+   * The SERVING this price is about (lib/drinkMeasure.ts). Absent reads as
+   * `pint`, so every row written before migration 0147 keeps the lane it had.
+   * Every lane below asks `measureIsPint` FIRST: a half is a real dated
+   * observation on the pub's own sheet and is never scaled into a pint.
+   */
+  measure?: DrinkMeasure;
+  /** Free label an `other` measure carries; presentation only. */
+  measureLabel?: string;
   priceGbp: number | null;
   passedDownNote: string;
   provenance: Provenance;
@@ -570,15 +580,32 @@ export function formatObservedAt(iso: string | null | undefined, now: Date = new
 //   rule mapCandidateOf keeps for community submissions.
 // Returns null when nothing on offer has earned the map. Ties keep the earlier
 // (newest-first) drop, matching the store's ordering.
+// THE ONE QUESTION every lane below asks first, and the whole of what
+// battle-test D04 added to them.
+//
+// A drop whose measure is not `pint` is a real, dated, public observation, and
+// the pub's own drop list still prints it with its measure beside the figure.
+// What it is NOT is evidence about what a pint costs here, so it reaches no
+// band, no cheapest bucket, no confirmation and no Index citation. It is held
+// out rather than scaled in, deliberately: a half of lager is not half the
+// price of a pint of it, and doubling a figure would publish a price nobody
+// paid under the word of the drinker who paid the other one.
+function isPintPricedDrop(drop: SummaryDrop): boolean {
+  return (
+    drop.provenance !== "demo" &&
+    typeof drop.priceGbp === "number" &&
+    Number.isFinite(drop.priceGbp) &&
+    measureIsPint(drop.measure)
+  );
+}
+
 export function corroboratedPriceDrop<D extends SummaryDrop>(
   drops: readonly D[],
   now: number = Date.now(),
 ): D | null {
   const inWindow = drops.filter(
     (drop) =>
-      drop.provenance !== "demo" &&
-      typeof drop.priceGbp === "number" &&
-      Number.isFinite(drop.priceGbp) &&
+      isPintPricedDrop(drop) &&
       isWithinMaxAge({ submittedAt: Date.parse(drop.createdAt) }, now),
   );
   if (inWindow.length < COMMUNITY_PRICE_CORROBORATION_THRESHOLD) return null;
@@ -624,8 +651,7 @@ export function confirmedPriceDrop<D extends SummaryDrop>(
   let best: D | null = null;
   let bestAt = Number.NEGATIVE_INFINITY;
   for (const drop of drops) {
-    if (drop.provenance === "demo") continue;
-    if (typeof drop.priceGbp !== "number" || !Number.isFinite(drop.priceGbp)) continue;
+    if (!isPintPricedDrop(drop)) continue;
     if (!confirmationIsLive(drop.confirmation, now)) continue;
     const at = Date.parse((drop.confirmation as PintDropConfirmation).confirmedAt);
     if (!Number.isFinite(at) || at <= bestAt) continue;
@@ -679,8 +705,7 @@ export function provisionalPriceDrop<D extends SummaryDrop>(
   let best: D | null = null;
   let bestAt = Number.NEGATIVE_INFINITY;
   for (const drop of drops) {
-    if (drop.provenance === "demo") continue;
-    if (typeof drop.priceGbp !== "number" || !Number.isFinite(drop.priceGbp)) continue;
+    if (!isPintPricedDrop(drop)) continue;
     const at = Date.parse(drop.createdAt);
     if (!isWithinMaxAge({ submittedAt: at }, now)) continue;
     if (!Number.isFinite(at) || at <= bestAt) continue;
@@ -717,8 +742,7 @@ export function agedPriceDrop<D extends SummaryDrop>(
   let best: D | null = null;
   let bestAt = Number.NEGATIVE_INFINITY;
   for (const drop of drops) {
-    if (drop.provenance === "demo") continue;
-    if (typeof drop.priceGbp !== "number" || !Number.isFinite(drop.priceGbp)) continue;
+    if (!isPintPricedDrop(drop)) continue;
     const at = Date.parse(drop.createdAt);
     // A drop dated in the future is a bad row, not an old one.
     if (!Number.isFinite(at) || at > now || at <= bestAt) continue;
