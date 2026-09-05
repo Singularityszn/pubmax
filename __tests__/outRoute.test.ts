@@ -1041,7 +1041,7 @@ describe("the live lane is venue-matched at request time", () => {
       unmatchedPlaceCount: body.unmatchedPlaceCount,
       unmatchedSources: body.unmatchedSources,
     });
-    expect(notice?.line).toBe("100 listings tonight are at places we don't list yet.");
+    expect(notice?.line).toBe("Also, 100 listings tonight are at places we don't list yet.");
   });
 
   it("never serves a live row whose start has already passed", async () => {

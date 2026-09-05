@@ -251,7 +251,7 @@ describe("outUnmatchedListingsNotice", () => {
       "tonight",
       "ready",
     );
-    expect(notice?.line).toBe("4 listings tonight are at places we don't list yet.");
+    expect(notice?.line).toBe("Also, 4 listings tonight are at places we don't list yet.");
   });
 
   it("keeps the hidden-row count without place names when the pub list is not empty", () => {
@@ -376,7 +376,7 @@ describe("outUnmatchedListingsNotice", () => {
           unmatchedSources: ["Ticketmaster"],
         },
       )?.line,
-    ).toBe("1 listing tonight is at a place we don't list yet.");
+    ).toBe("Also, 1 listing tonight is at a place we don't list yet.");
   });
 
   it("omits response place inventory when a matched card is present", () => {

@@ -39,6 +39,11 @@ import {
   validatePostcodeCoordinateQuarantine,
 } from "./lib/postcodeCoordinateConsistency.mjs";
 import {
+  PRICED_INDEX_EXCLUSIONS_FILE,
+  findExcludedPricedRows,
+  isValidExclusionEntry,
+} from "./lib/pricedIndexExclusions.mjs";
+import {
   nightOutPlaceRowValidationErrors,
 } from "../lib/nightOutPlaceContract.mjs";
 import { CITY_VENUE_PACKS } from "../lib/cityVenuePacks.mjs";
@@ -1094,6 +1099,35 @@ function validatePintPrices() {
 
   if (outOfBounds > 0) {
     console.log(`  ${outOfBounds} row(s) outside Greater London bounds`);
+  }
+
+  try {
+    const exclusionsPath = join(ROOT_DIR, PRICED_INDEX_EXCLUSIONS_FILE);
+    const exclusions = JSON.parse(readFileSync(exclusionsPath, "utf8"));
+    if (!Array.isArray(exclusions)) {
+      errs.add(`${PRICED_INDEX_EXCLUSIONS_FILE}: expected a top-level array`);
+    } else {
+      exclusions.forEach((entry, i) => {
+        if (!isValidExclusionEntry(entry)) {
+          errs.add(
+            `${PRICED_INDEX_EXCLUSIONS_FILE} entry ${i}: needs non-empty name, address and reason`,
+          );
+        }
+      });
+      const excludedRows = findExcludedPricedRows(data, exclusions);
+      for (const { row, exclusion } of excludedRows) {
+        errs.add(
+          `${row.pub_name} is a proven non-drinking venue (${exclusion.reason}) and must not enter the priced dataset`,
+        );
+      }
+      console.log(
+        `  priced-index exclusions: ${exclusions.length} entr${exclusions.length === 1 ? "y" : "ies"} checked, ${excludedRows.length} present in the dataset`,
+      );
+    }
+  } catch (e) {
+    errs.add(
+      `could not read/parse ${PRICED_INDEX_EXCLUSIONS_FILE} (${e.message})`,
+    );
   }
 
   if (osmPubs && postcodeCoordinateExceptions) {

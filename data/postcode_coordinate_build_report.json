@@ -22,7 +22,7 @@
       "sha256": "d1a496eaef7e17ee859ac444c8a0d8a43a063012e388c1984e60871b9243a74f"
     }
   },
-  "checkedRows": 2194,
+  "checkedRows": 2193,
   "outwardCodeReferences": 2611,
   "corrections": [
     {
@@ -336,7 +336,7 @@
   ],
   "output": {
     "path": "data/pint_prices_app_dataset.csv",
-    "sha256": "4a73d195c3efc6468ac7856d618d929e0dd1a3b70d0fb0472f69f2a1585d7d80",
-    "rows": 3085
+    "sha256": "ba28535423f468f285cb97d7bfc7ce6f834c50523cffe49fa91572b6bbf48c16",
+    "rows": 3084
   }
 }

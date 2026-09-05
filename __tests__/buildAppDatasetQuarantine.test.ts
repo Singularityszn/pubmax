@@ -89,6 +89,9 @@ function setupScratch(): string {
     "summary.json",
     "postcode_coordinate_exceptions.json",
     "postcode_coordinate_quarantine.json",
+    // The priced-index exclusion guard (#1463): a hand-curated, name+address
+    // denylist build_app_dataset.py reads after id assignment.
+    "priced_index_excluded_venues.json",
   ]) {
     cpSync(join(ROOT, "data", file), join(scratchData, file));
   }

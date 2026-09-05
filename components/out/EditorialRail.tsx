@@ -10,7 +10,6 @@ import {
   EDITORIAL_RAIL_TITLE,
   editorialOglAttributionForSource,
   editorialSnapshotIsStale,
-  editorialStaleLine,
   editorialThisWeekItems,
   editorialViaChip,
   type EditorialSnapshot,
@@ -35,13 +34,18 @@ export function EditorialRailView({
   const stale = editorialSnapshotIsStale(snapshot, resolvedNow);
   const items = stale ? [] : editorialThisWeekItems(snapshot, resolvedNow);
   const empty = items.length === 0;
+
+  // A stale snapshot never carries this-week rows (see `stale` above), so
+  // stale and empty are the same case here. Printing an apology for a quiet
+  // maintenance gap read as the rail's main story; a stale-and-empty rail
+  // says nothing instead of a line about US.
+  if (stale && empty) return null;
+
   const statusLine =
     snapshot.status === "degraded"
       ? empty
         ? EDITORIAL_DEGRADED_EMPTY_LINE
         : EDITORIAL_DEGRADED_LINE
-      : stale
-        ? editorialStaleLine(snapshot, resolvedNow)
       : empty
         ? EDITORIAL_EMPTY_LINE
         : null;

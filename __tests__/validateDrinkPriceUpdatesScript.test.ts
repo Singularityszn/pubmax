@@ -108,6 +108,17 @@ function setupScratch(files: Record<string, unknown>): string {
   );
   cpSync(join(ROOT, "lib", "cityBounds.mjs"), join(scratchLib, "cityBounds.mjs"));
   cpSync(join(ROOT, "lib", "editorialRss.mjs"), join(scratchLib, "editorialRss.mjs"));
+  // The priced-index exclusion guard (#1463) is its own leaf module plus one
+  // hand-curated data file, which the script imports/reads rather than
+  // restates.
+  cpSync(
+    join(ROOT, "scripts", "lib", "pricedIndexExclusions.mjs"),
+    join(scratchScripts, "lib", "pricedIndexExclusions.mjs"),
+  );
+  cpSync(
+    join(ROOT, "data", "priced_index_excluded_venues.json"),
+    join(scratchRoot, "data", "priced_index_excluded_venues.json"),
+  );
   for (const f of [
     "london_pois.json",
     "london_localities.json",

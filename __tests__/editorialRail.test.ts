@@ -71,7 +71,7 @@ describe("editorial rail", () => {
     expect(markup).not.toMatch(/observed/i);
   });
 
-  it("hides stale picks and names the stale snapshot state", () => {
+  it("hides the whole rail rather than apologising for a stale, empty snapshot", () => {
     const markup = renderToStaticMarkup(
       createElement(EditorialRailView, {
         snapshot: {
@@ -82,10 +82,9 @@ describe("editorial rail", () => {
         onRetry: () => undefined,
       }),
     );
-    expect(markup).toContain(EDITORIAL_STALE_LINE);
-    expect(markup).toContain(
-      "No fresh picks to show just now. Last checked 13 Aug.",
-    );
+    expect(markup).toBe("");
+    expect(markup).not.toContain(EDITORIAL_STALE_LINE);
+    expect(markup).not.toContain(EDITORIAL_RAIL_TITLE);
     expect(markup).not.toContain("Point Taproom opens");
   });
 
