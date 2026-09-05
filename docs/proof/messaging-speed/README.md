@@ -107,6 +107,30 @@ No read is a sequential scan of `messages`. Migration `0143` (file only, not
 applied) adds the partial unread index; the code answers the same rows with
 or without it.
 
+## Correction to the merged commit body (recorded 5 Sep 2026)
+
+`86650ade7` ("perf(messages): a send is one request...", #1501) names two
+things that were never in the tree, and this note is where the record is put
+straight, because the commit body itself cannot be rewritten after merge.
+
+- **`lib/messageDelivery.ts` does not exist**, and neither does any
+  `__tests__/messageDelivery*`. The commit's own `--stat` lists neither. The
+  optimistic bubble it describes DID ship, inside
+  `components/messages/MessageThread.tsx`: `outboxMessage` mints the row, the
+  POST's own answer replaces it, and `takeBack` removes it on a refusal.
+- **"fails it with a retry tap" did not ship at all.** A refused send takes the
+  bubble back and restores the text only when the field is still empty, so
+  words typed while the request was in flight keep the drinker's earlier
+  message off the screen with no way back to it. That is an OPEN defect, not a
+  merged behaviour, and it is the one the phrase describes.
+- **The migration is `0143`, not `0142`.** The file that shipped is
+  `supabase/migrations/20260905120000_0143_messages_unread_partial_index.sql`,
+  renumbered by #1509 because two files claimed the 0142 label in the same
+  hour. Everything else on this page already says 0143.
+
+Nothing in the measurement above depends on either claim: the figures were
+taken against the code that shipped.
+
 ## Screenshots
 
 `before-thread-*.png` and `after-thread-*.png` at 390x844, 768x1024 and
