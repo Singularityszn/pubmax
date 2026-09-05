@@ -1,0 +1,55 @@
+/* The two non-event doors under an empty picks section (lib/picksState.ts).
+   Role tokens only, so both themes inherit. Deliberately edgeless: this sits
+   inside a card that already has one (docs/DESIGN_SYSTEM.md "Edges: the de-box
+   rule"), and a bordered block here would be the banned card-in-card shape.
+   No em dashes in any copy this file drives. */
+
+.picksAlternatives {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft, var(--line));
+}
+
+/* Reads as a label, not a heading: the section above it already owns the
+   heading level, and this only has to say the links are not listings. */
+.picksAlternativesLabel {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.picksAlternativesList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Thumb-sized reach without a thumb-sized box, the .todayCardFootLink deal:
+   the row keeps its visual height and the extra target comes from a negative
+   block margin. */
+.picksAlternativesLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  margin-block: -10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--state-active-ink);
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .picksAlternativesLink:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}

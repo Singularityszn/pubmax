@@ -303,6 +303,26 @@ export function tonightListingsStatus(
   return "empty";
 }
 
+/**
+ * The What's-On status the PAINT reads while a re-read is in flight.
+ *
+ * `useWhatsOnTonight.retry()` puts the spine back to `idle` and KEEPS the rows
+ * it already holds, and the merge then drops every one of them, because only a
+ * `ready` spine may contribute. So pressing Retry replaced a full list with a
+ * skeleton, which is the `refreshing` case in lib/picksState.ts wearing the
+ * first-load shape. This says the held rows may stay on screen; the STATE
+ * beside them still says a read is running and dates what they came from.
+ *
+ * A first load holds nothing, so `idle` passes straight through and the
+ * skeleton is still what an arriving reader meets.
+ */
+export function tonightPaintStatus(
+  whatsOn: TonightWhatsOnStatus,
+  heldRowCount: number,
+): TonightWhatsOnStatus {
+  return whatsOn === "idle" && heldRowCount > 0 ? "ready" : whatsOn;
+}
+
 export const TONIGHT_WHATS_ON_FAILED_LINE =
   "Couldn't reach tonight's listings just now.";
 export const TONIGHT_OUT_NOT_CONFIGURED_LINE = "Live listings not set up yet.";

@@ -95,6 +95,30 @@ export function parsePlanDescribeFromSearch(search: string): string | null {
 }
 
 /**
+ * The occasion ID a URL carries, or null. Never the query it resolves to.
+ *
+ * `parsePlanDescribeFromSearch` answers with the composer's PREFILL TEXT, which
+ * is what /plan needs and exactly what a caller passing the occasion onward
+ * must not use: `/plan?occasion=Quiet%20in%20Clapham%20for%204` is not a
+ * closed id and prefills nothing. A surface that carries a reader's chosen
+ * occasion into a fallback link asks this instead, and only the two closed id
+ * sets answer, so nothing arbitrary from an address can be forwarded.
+ */
+export function parsePlanOccasionIdFromSearch(search: string): string | null {
+  let params: URLSearchParams;
+  try {
+    params = new URLSearchParams(search);
+  } catch {
+    return null;
+  }
+  const occasion = params.get(PLAN_OCCASION_PARAM);
+  if (isSoftPlanOccasionId(occasion) || isCultureCrawlChipId(occasion)) {
+    return occasion;
+  }
+  return null;
+}
+
+/**
  * The Pub Pal handoff ask ALONE, ignoring `occasion` and `describe`.
  *
  * `parsePlanDescribeFromSearch` answers for all three params, so a caller that

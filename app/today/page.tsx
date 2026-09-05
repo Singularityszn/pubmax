@@ -201,6 +201,10 @@ export default async function TodayPage() {
       weatherByArea={weatherByArea}
       picks={picks}
       picksStatus={picksStatus}
+      // The day the rows on screen were OBSERVED, never the instant this
+      // request was served. Null when the read carries no source time, and the
+      // card then prints no date rather than borrowing this render's.
+      picksCheckedAt={whatsOn?.sourceObservedAt ?? null}
       fact={fact}
       pintsIndex={pintsIndex}
       quietPint={quietPint}

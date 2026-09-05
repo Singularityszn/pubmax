@@ -45,8 +45,18 @@ import {
   type PicksListReadStatus,
 } from "@/lib/dayGreeting";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
+import PicksAlternatives from "@/components/picks/PicksAlternatives";
 import type { NightAreaSlug } from "@/lib/nightAreas";
 import { NIGHT_PATCHES, readRememberedArea } from "@/lib/nightPatches";
+import {
+  PICKS_REFRESHING_LINE,
+  picksCheckedLabel,
+  picksState,
+  picksStateOffersAlternative,
+  picksStateShowsRows,
+  type PicksContext,
+} from "@/lib/picksState";
+import { parsePlanOccasionIdFromSearch } from "@/lib/planOccasion";
 import { PLAN_INTAKE_STORAGE_KEY, parsePlanIntakeDraft } from "@/lib/planIntake";
 import { resolveTonightNear } from "@/lib/tonight";
 import { orderPicksNear, type TodayFact, type TonightPickDto, type WeatherBrief } from "@/lib/todayBrief";
@@ -73,6 +83,8 @@ type Props = {
   weatherByArea: Partial<Record<NightAreaSlug, WeatherBrief | null>>;
   picks: TonightPickDto[];
   picksStatus: PicksListReadStatus;
+  /** When the rows behind the picks were OBSERVED, not when this page was served. */
+  picksCheckedAt?: string | null;
   fact: TodayFact | null;
   pintsIndex: TodayPintsIndex;
   quietPint: QuietPintModule | null;
@@ -151,18 +163,38 @@ function PicksCard({
   filteredPickCount,
   slot,
   picksStatus,
+  picksCheckedAt,
+  context,
 }: {
   picks: TonightPickDto[];
   filteredPickCount: number;
   slot: DaySlot;
   picksStatus: PicksListReadStatus;
+  picksCheckedAt: string | null;
+  context: PicksContext;
 }) {
+  // ONE state, the same four words /tonight reads (lib/picksState.ts). Today's
+  // picks are composed on the SERVER and never re-read from the browser, so
+  // `inFlight` is honestly false here and `refreshing` is unreachable on this
+  // surface. It stays in the vocabulary because the renderer is built against
+  // the whole of it rather than retrofitted the day a client read lands.
+  //
+  // Listings the viewer filtered out still mean the read ANSWERED, so they
+  // count towards ready exactly as they did before.
+  const state = picksState({
+    visibleCount: picks.length + filteredPickCount,
+    inFlight: false,
+    unreadable: picksStatus === "degraded",
+    checkedAt: picksCheckedAt,
+  });
+  const checked = picksCheckedLabel(state.checkedAt);
   return (
     <section
       className="todayCard"
       aria-labelledby="today-picks-title"
       data-testid="today-picks"
       data-picks-status={picksCardStatus(picksStatus, picks.length, filteredPickCount)}
+      data-picks-state={state.kind}
     >
       <div className="todayCardHead">
         <span className="todayCardIcon" aria-hidden="true">
@@ -176,7 +208,7 @@ function PicksCard({
         </div>
       </div>
 
-      {picks.length > 0 ? (
+      {picksStateShowsRows(state, picks.length) ? (
         <>
           <ul className="todayPicks">
             {picks.map((pick) => {
@@ -232,10 +264,18 @@ function PicksCard({
               See everything on tonight
               <ArrowRight size={14} aria-hidden="true" />
             </Link>
+            {state.kind === "refreshing" ? (
+              <span className="todayPickChecked" data-testid="today-picks-checked">
+                {PICKS_REFRESHING_LINE}
+                {checked ? ` ${checked}.` : ""}
+              </span>
+            ) : null}
           </p>
         </>
       ) : (
         <>
+          {/* A read we could not run says what happened to US. It may never be
+              swapped for the quiet-night line, because we did not look. */}
           <p className="todayCardEmpty">
             {filteredPickCount > 0
               ? "Tonight has listings, but none match your current preferences."
@@ -250,6 +290,11 @@ function PicksCard({
               <ArrowRight size={14} aria-hidden="true" />
             </Link>
           </p>
+          {/* Nothing here is a dead end: two doors that are honestly not
+              listings, carrying the area and occasion the reader already chose. */}
+          {picksStateOffersAlternative(state) ? (
+            <PicksAlternatives context={context} />
+          ) : null}
         </>
       )}
     </section>
@@ -319,11 +364,16 @@ export default function TodayClient({
   weatherByArea,
   picks,
   picksStatus,
+  picksCheckedAt = null,
   fact,
   pintsIndex,
   quietPint,
 }: Props) {
   const [brief, setBrief] = useState({ weather, picks: picks.slice(0, 3), filteredPickCount: 0 });
+  // What a fallback door out of an empty picks card must not drop: the area the
+  // viewer last chose anywhere in the app, and the occasion they arrived with.
+  // Both are read in the deferred pass below, so the first paint matches SSR.
+  const [picksContext, setPicksContext] = useState<PicksContext>({});
 
   // Who the salutation may name. SSR and hydration both see nobody, then the
   // live session answers. Nothing about the layout depends on it, so its
@@ -358,6 +408,10 @@ export default function TodayClient({
       const rememberedPatch = remembered?.kind === "patch"
         ? NIGHT_PATCHES.find((patch) => patch.id === remembered.id)?.id ?? null
         : null;
+      setPicksContext({
+        patchId: rememberedPatch,
+        occasion: parsePlanOccasionIdFromSearch(window.location.search),
+      });
       const resolved = resolveTodayPersonalization({
         progressiveIntake: readPlanIntakeDraftReadonly(),
         reviewedDevice: null,
@@ -419,6 +473,8 @@ export default function TodayClient({
           <WeatherCard weather={brief.weather} />
           <TodayTubeCard slot={shownGreeting.slot} />
           <PicksCard
+            picksCheckedAt={picksCheckedAt}
+            context={picksContext}
             picks={brief.picks}
             filteredPickCount={brief.filteredPickCount}
             slot={shownGreeting.slot}
