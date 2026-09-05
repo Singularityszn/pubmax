@@ -75,7 +75,6 @@ Categories:
 | pushTokenStore | 144 | factory-ready | |
 | reactionsStore | 196 | factory-ready | |
 | socialConnectionStore | 169 | factory-ready | |
-| priceConfirmStore | 300 | factory-ready | |
 | profileStore | 501 | factory-ready | |
 | ratingsStore | 288 | factory-ready | |
 | operatorProposalsStore | 251 | factory-ready | |

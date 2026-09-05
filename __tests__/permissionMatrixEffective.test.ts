@@ -869,7 +869,10 @@ describe("price observation and its confirmation", () => {
     expect(first.status, await first.clone().text()).toBe(201);
     expect((await readJson<PriceSubmitBody>(first)).confirmationOutcome?.status).toBe("awaiting_second_drinker");
 
-    const repeat = await submitPrice(BEARER_ALICE, PRICE_VENUE, 4.5);
+    // A second REPORT, not a second tap: a different figure inside the shared
+    // agreement tolerance, so the duplicate-tap window (battle test D10) leaves
+    // it alone and the independence rule is what answers.
+    const repeat = await submitPrice(BEARER_ALICE, PRICE_VENUE, 4.6);
     expect(repeat.status, await repeat.clone().text()).toBe(201);
     expect((await readJson<PriceSubmitBody>(repeat)).confirmationOutcome?.status).toBe("same_reporter");
     expect(truth(

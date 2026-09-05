@@ -119,7 +119,6 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/plans/[id]/vibe-votes`
 - `POST app/api/plans/generate`
 - `POST app/api/presence`
-- `POST app/api/price-confirm`
 - `POST app/api/price-submit`
 - `POST app/api/profiles/[handle]/follow`
 - `POST app/api/profiles/[handle]/avatar`
@@ -820,9 +819,11 @@ commit.
   A drinker standing in the pub logs tonight's price for one drink category; it
   shows on the venue sheet at once, and the pin/card restamp only after the
   trust gate (second independent submitter, 30-day window - policy in
-  `lib/communityPrice.ts`). Sibling of `POST /api/price-confirm`, which only counts
-  vouches for an already-displayed figure; this is where a figure first enters
-  the map from the community. It is no longer the only door: a Round's itemised
+  `lib/communityPrice.ts`). It is where a figure first enters the map from the
+  community. The anonymous `POST /api/price-confirm` that used to sit beside it,
+  counting vouches for an already-displayed figure, was RETIRED by contribution
+  battle test L03: an IP-keyed tally cannot say how many people stood behind a
+  price. It is no longer the only door: a Round's itemised
   drink lines (`POST /api/rounds/[code] { action: "recordSpend" }`) reach
   `submitCommunityPrice` only when the writer passes the same authenticated
   account and public-handle boundary. Anonymous lines remain in the private
