@@ -325,19 +325,27 @@ async function handleModeratorAction(
  * never fails the drop. The answer NAMES what the pass found
  * (lib/pintDropSecondDrinker.ts), so a drinker repeating their own report is
  * told so, and a retry after a mint reads the confirmation on file rather than
- * minting a second. Only a priced drop can complete a pair. The row was read
+ * minting a second. That `same_reporter` answer is a sentence about THIS
+ * caller, so their own authority key rides in with it (battle test D08):
+ * without it the reading was venue-wide and named the outcome over anybody's
+ * repeated pair, whoever had just written. Only a priced drop can complete a pair. The row was read
  * back before the pass ran, so when this drop is one of the pair its own
  * answer is stamped with the record it just earned.
  */
 async function settleConfirmation(
   drop: PintDropDTO,
   priceGbp: number | null,
+  callerAuthorityKey: string | undefined,
 ): Promise<{
   confirmation: PintDropConfirmation | null;
   confirmationOutcome: PintDropConfirmationOutcome | null;
 }> {
   if (priceGbp === null) return { confirmation: null, confirmationOutcome: null };
-  const confirmationOutcome = await runSecondReporterPass(drop.venueId);
+  const confirmationOutcome = await runSecondReporterPass(
+    drop.venueId,
+    Date.now(),
+    callerAuthorityKey,
+  );
   if (confirmationOutcome.status !== "confirmed") {
     return { confirmation: null, confirmationOutcome };
   }
@@ -509,6 +517,7 @@ export async function POST(request: Request): Promise<Response> {
     const { confirmation, confirmationOutcome } = await settleConfirmation(
       drop,
       dropPayload.priceGbp,
+      dropPayload.authorityKey,
     );
     // Fire-and-forget: the profile bootstrap must never delay or fail the drop
     // response (an awaited Supabase upsert here blocks every submission and hangs

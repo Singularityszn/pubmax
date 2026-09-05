@@ -96,6 +96,9 @@ describe("the independence reading", () => {
         drop({ id: "again", authorityKey: "key-tester", createdAt: new Date(NOW).toISOString() }),
       ),
       NOW,
+      // The caller is that account. `same_reporter` is a sentence about the
+      // caller, so it is only ever true of the caller's own key (D08).
+      "key-tester",
     );
     expect(reading).toEqual({ kind: "same_reporter" });
     expect(outcomeForUnmintedReading(reading as { kind: "same_reporter" })).toEqual({
@@ -189,13 +192,59 @@ describe("the producer", () => {
     addPintDrop(
       drop({ id: "again", authorityKey: "key-tester", createdAt: new Date(NOW).toISOString() }),
     );
-    expect(await runSecondReporterPass(VENUE, NOW)).toEqual({ status: "same_reporter" });
+    expect(await runSecondReporterPass(VENUE, NOW, "key-tester")).toEqual({
+      status: "same_reporter",
+    });
     expect(listVisiblePintDrops(VENUE).every((row) => !row.confirmation)).toBe(true);
+  });
+
+  // BATTLE TEST D08. The reading used to be venue-wide: ANY same-key agreeing
+  // pair at the pub named the outcome, whoever had just written. So Alice's
+  // £6.50 at a pub where Bob had twice logged £5.20 came back
+  // `same_reporter`, and its sentence - "That matches your own earlier report"
+  // - was a claim about somebody else's rows made to her face.
+  it("does not tell a DIFFERENT reporter that they repeated themselves", async () => {
+    addPintDrop(drop({ id: "bob-1", authorityKey: "key-bob", priceGbp: 5.2 }));
+    addPintDrop(
+      drop({
+        id: "bob-2",
+        authorityKey: "key-bob",
+        priceGbp: 5.2,
+        createdAt: new Date(NOW).toISOString(),
+      }),
+    );
+    addPintDrop(
+      drop({
+        id: "alice-1",
+        authorityKey: "key-alice",
+        priceGbp: 6.5,
+        createdAt: new Date(NOW).toISOString(),
+      }),
+    );
+    expect(await runSecondReporterPass(VENUE, NOW, "key-alice")).toEqual({
+      status: "awaiting_second_drinker",
+    });
+    // And Bob, asking about the same pub, is still told the truth about his own
+    // pair: the fix narrows who hears the sentence, never whether it is true.
+    expect(await runSecondReporterPass(VENUE, NOW, "key-bob")).toEqual({
+      status: "same_reporter",
+    });
+  });
+
+  it("says awaiting when the caller carries no authority key at all", async () => {
+    // An unattributed row is no reporter, so it can never be the SAME one.
+    addPintDrop(drop({ id: "first", authorityKey: "key-tester" }));
+    addPintDrop(
+      drop({ id: "again", authorityKey: "key-tester", createdAt: new Date(NOW).toISOString() }),
+    );
+    expect(await runSecondReporterPass(VENUE, NOW)).toEqual({
+      status: "awaiting_second_drinker",
+    });
   });
 
   it("says awaiting over a lone report", async () => {
     addPintDrop(drop({ id: "first", authorityKey: "key-tester" }));
-    expect(await runSecondReporterPass(VENUE, NOW)).toEqual({
+    expect(await runSecondReporterPass(VENUE, NOW, "key-tester")).toEqual({
       status: "awaiting_second_drinker",
     });
   });

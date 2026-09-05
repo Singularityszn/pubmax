@@ -66,6 +66,7 @@ import {
 } from "@/lib/oneTapPintDrop.server";
 import { readVenuePintTrust, runSecondReporterPass } from "@/lib/pintDropConfirm.server";
 import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
+import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import type { PintTrustState } from "@/lib/pintTrust";
 import { qualifyCheapPintForOwnerActor } from "@/lib/cheapPintPingQualify.server";
 import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
@@ -290,7 +291,15 @@ export async function POST(request: Request): Promise<Response> {
       // Running the pass here too is what stops the two write lanes disagreeing
       // about whether a pub is confirmed. It never throws and never fails the
       // price that has already landed.
-      confirmationOutcome = await runSecondReporterPass(submission.venueId);
+      // The caller's own authority key rides in, so `same_reporter` is only
+      // ever said to the drinker whose earlier report it is about (D08). It is
+      // the SAME key the paired drop was written with, derived from the same
+      // verified account id, so the pass and the row cannot disagree.
+      confirmationOutcome = await runSecondReporterPass(
+        submission.venueId,
+        Date.now(),
+        pintDropAuthorityKey(submission.venueId, contributor.accountId),
+      );
       // Read AFTER the pass, so a receipt that says "trusted" is saying it
       // over the confirmation the pass may have just minted.
       pintTrust = await readVenuePintTrust(submission.venueId);
