@@ -17,6 +17,10 @@ import type {
 } from "@/lib/visitReports";
 import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import {
+  readContributionGateStatus,
+  type ContributionGateStatus,
+} from "@/lib/contributionGateStatus";
 
 export type VisitReportVenueRead = {
   status: VisitReportReadStatus;
@@ -38,7 +42,7 @@ export type VisitReportPostResult =
   | {
       ok: false;
       error: string;
-      status?: "sign_in_required" | "onboarding_required";
+      status?: ContributionGateStatus;
     };
 
 /** Read a venue's visit reports. A network failure becomes a degraded read so
@@ -90,11 +94,7 @@ export async function postVisitReport(
       error?: unknown;
       status?: unknown;
     };
-    const status =
-      body.status === "sign_in_required" ||
-      body.status === "onboarding_required"
-        ? body.status
-        : undefined;
+    const status = readContributionGateStatus(body.status);
     return {
       ok: false,
       error: errorMessageFrom(body, "Couldn't save your visit report just now."),

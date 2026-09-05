@@ -10,6 +10,7 @@
 // the "measurement spine" the other waves draw their success signals from
 // honest and PII-free even as new events are added.
 
+import { CONTRIBUTION_GATE_STATUSES } from "@/lib/contributionGateStatus";
 import {
   COVERAGE_STATUSES,
   NIGHT_AREA_SLUGS,
@@ -525,10 +526,10 @@ export type AnalyticsEvent = {
 
 const MAX_STRING_LEN = 40;
 
-const CONTRIBUTION_GATE_STEPS = [
-  "sign_in_required",
-  "onboarding_required",
-] as const;
+// The gate's own vocabulary, never a second copy of it: a step this registry
+// did not know about is dropped by the sanitiser, so a refusal the product
+// really shows would report as nothing at all.
+const CONTRIBUTION_GATE_STEPS = CONTRIBUTION_GATE_STATUSES;
 
 const SAFE_STRING_VALUES = new Set([
   // fixed product surfaces and provenance

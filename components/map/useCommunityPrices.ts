@@ -21,6 +21,10 @@ import {
   type CommunityVenueSignalKey,
   type CommunityVenueSignalValue,
 } from "@/lib/communityVenueSignals";
+import {
+  readContributionGateStatus,
+  type ContributionGateStatus,
+} from "@/lib/contributionGateStatus";
 import type { DrinkCategory } from "@/lib/drinks";
 import { PINT_TRUST_STATES, type PintTrustState } from "@/lib/pintTrust";
 import type {
@@ -63,7 +67,7 @@ export type CommunitySubmissionFailure = {
   ok: false;
   error: string;
   reason: PriceSubmitFailureReason;
-  status?: "sign_in_required" | "onboarding_required";
+  status?: ContributionGateStatus;
 };
 
 export type CommunityPriceSubmitResult =
@@ -105,15 +109,16 @@ export function rejectedCommunitySubmission(
   fallback: string,
   gateStatus?: string,
 ): CommunitySubmissionFailure {
+  // The server's own word wins. A bare 401 or 409 from somewhere that named no
+  // status keeps the older reading, and 409 stays the handle answer there
+  // because only the gate itself can tell the age question apart from it.
   const contributionStatus =
-    gateStatus === "sign_in_required" ||
-    gateStatus === "onboarding_required"
-      ? gateStatus
-      : status === 401
-        ? "sign_in_required"
-        : status === 409
-          ? "onboarding_required"
-          : null;
+    readContributionGateStatus(gateStatus) ??
+    (status === 401
+      ? "sign_in_required"
+      : status === 409
+        ? "onboarding_required"
+        : null);
   return {
     ok: false,
     error: errorMessageFrom({ error }, fallback),

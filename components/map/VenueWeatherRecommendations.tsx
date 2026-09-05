@@ -28,6 +28,7 @@ import {
   type WeatherRecommendationErrorField,
 } from "@/lib/weatherRecommendations";
 import { discardBody } from "@/lib/responseBody";
+import { readContributionGateStatus } from "@/lib/contributionGateStatus";
 
 import "./venueWeatherRecommendations.css";
 
@@ -348,12 +349,10 @@ export default function VenueWeatherRecommendations({
         );
         const body = (await response.json()) as Record<string, unknown>;
         if (!response.ok) {
-          if (
-            body.status === "sign_in_required" ||
-            body.status === "onboarding_required"
-          ) {
+          const gateStatus = readContributionGateStatus(body.status);
+          if (gateStatus) {
             return {
-              status: body.status,
+              status: gateStatus,
               error: errorMessageFrom(body, "Could not save that recommendation right now."),
             };
           }
