@@ -54,6 +54,13 @@ type SpringDrawerProps = Omit<
 
 type SpringDrawerStyle = CSSProperties & {
   "--drawer-spring-transform"?: string;
+  /**
+   * The vertical translate in px, published beside the transform so the
+   * stylesheet can read the SAME number the sheet is moved by: the tablet
+   * sheet's bottom padding and its sticky command bar's inset are derived from
+   * it (globals.css `--sheet-hidden-below`), never restated in dvh (#1516).
+   */
+  "--drawer-sheet-offset"?: string;
 };
 
 /**
@@ -249,6 +256,9 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
     const style: SpringDrawerStyle = ready
       ? {
           "--drawer-spring-transform": transform,
+          ...(tabletSheet
+            ? { "--drawer-sheet-offset": `${verticalValue}px` }
+            : {}),
           transform,
           opacity,
           transition: "none",

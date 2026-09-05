@@ -696,7 +696,16 @@ button {
   --map-chrome-gap: 6px;
   height: 100dvh;
   position: relative;
-  overflow: hidden;
+  /* `clip`, not `hidden`. A hidden-overflow box is still a SCROLL CONTAINER,
+     and `scrollIntoView` (or focusing a control) scrolls it programmatically
+     even though no gesture can. The 641-768 bottom sheet below is a
+     viewport-tall drawer translated DOWN by its snap fraction, so it overflows
+     this shell by that fraction, and one scrollIntoView on a price row scrolled
+     the whole shell 403px up at 768x1024: the drawer's box moved, its sticky
+     command bar kept the inset that restates the translate, and the bar sat
+     mid-viewport over the price row (#1516). A clipped box cannot be scrolled
+     by anything, so the map and its drawers keep the geometry the CSS states. */
+  overflow: clip;
 }
 
 .siteNav {
@@ -5006,18 +5015,21 @@ button:disabled {
      otherwise win over the portal's own geometry. */
   .mapDrawer.left.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet),
   .mapDrawer.right.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet) {
+    --drawer-sheet-offset: 45dvh;
     transform: translateY(45vh) !important;
     transform: translateY(45dvh) !important;
   }
 
   .mapDrawer.left.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet),
   .mapDrawer.right.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet) {
+    --drawer-sheet-offset: 78dvh;
     transform: translateY(78vh) !important;
     transform: translateY(78dvh) !important;
   }
 
   .mapDrawer.left.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet),
   .mapDrawer.right.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet) {
+    --drawer-sheet-offset: 8dvh;
     transform: translateY(8vh) !important;
     transform: translateY(8dvh) !important;
   }
@@ -5030,6 +5042,43 @@ button:disabled {
   .mapDrawer.right.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet) {
     height: 100dvh;
     max-height: none;
+  }
+
+  /* THE SHEET SAYS HOW MUCH OF ITSELF IS BELOW THE VIEWPORT, ONCE. This legacy
+     641-768 sheet is viewport-tall and translated down by its snap, so at
+     `half` 45dvh of its scrollport hangs under the screen: its last 45dvh of
+     content could never scroll into view, and anything pinned to its bottom
+     edge (`position: sticky; bottom: 0`) sat 45dvh out of sight. Every
+     consumer used to restate the translate in dvh to compensate, and a
+     restated number is wrong the moment the real one differs: mid-spring,
+     mid-drag, or after the shell's box moved (#1516). So the translate is
+     published as ONE value: SpringDrawer writes `--drawer-sheet-offset` in px
+     on every frame it owns, and the per-snap declarations above are the
+     fallback for the frame before it does. `--sheet-hidden-below` is that
+     offset less the lane the sheet already sits above, i.e. exactly the part
+     of the sheet under the viewport's bottom edge. A spacer of that height
+     ends the scroll body so the LAST content pixel can reach the visible
+     bottom, and a bottom-pinned child reads the same variable for its inset
+     (venueSheet.css). The spacer is CONTENT, not padding, on purpose: Chromium
+     measures a sticky inset from the scroll container's content edge, so a
+     padding of the same size would move the reference edge the inset is
+     measured from (measured: `padding-bottom: 100px` on the scroller put a
+     `bottom: 0` sticky child 100px up), and the same rule would then read two
+     ways in two engines. The ≤640 portal sheet (.mobileSharedSheet) is
+     content-height and needs none of this. */
+  .mapDrawer.left.open:not(.mobileSharedSheet),
+  .mapDrawer.right.open:not(.mobileSharedSheet) {
+    --sheet-hidden-below: max(
+      0px,
+      calc(var(--drawer-sheet-offset, 0px) - var(--mobile-tab-clearance))
+    );
+  }
+
+  .mapDrawer.left.open:not(.mobileSharedSheet)::after,
+  .mapDrawer.right.open:not(.mobileSharedSheet)::after {
+    content: "";
+    display: block;
+    height: var(--sheet-hidden-below);
   }
 
   /* SpringDrawer must outrank the legacy snap declarations above, including
