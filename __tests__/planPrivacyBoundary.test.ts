@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import type { PlanState } from "@/lib/plan";
@@ -41,61 +44,79 @@ const identity = (role: "host" | "guest"): Identity =>
 
 async function resolve(opts: {
   cap: boolean;
-  flag: boolean;
   lookup?: typeof planMemberIdentityResult;
 }) {
   return resolvePlanProjection({
     request: request(opts.cap),
     planId: PLAN_ID,
     state: planState(),
-    memberRehydrationEnabled: opts.flag,
     identityLookup: opts.lookup,
   });
 }
 
-describe("resolvePlanProjection — fails closed to preview", () => {
-  it("flag OFF returns preview even with a valid capability", async () => {
-    const p = await resolve({ cap: true, flag: false, lookup: lookupReturning(identity("host")) });
-    expect(p.visibility).toBe("preview");
-  });
-
-  it("flag ON + valid HOST capability returns member state", async () => {
-    const p = await resolve({ cap: true, flag: true, lookup: lookupReturning(identity("host")) });
+describe("resolvePlanProjection \u2014 a capability is the whole question", () => {
+  it("a valid HOST capability returns member state, with no flag to switch it off", async () => {
+    const p = await resolve({ cap: true, lookup: lookupReturning(identity("host")) });
     expect(p.visibility).toBe("member");
     if (p.visibility === "member") expect(p.state.stops).toHaveLength(2);
   });
 
-  it("flag ON + valid GUEST capability returns member state", async () => {
-    const p = await resolve({ cap: true, flag: true, lookup: lookupReturning(identity("guest")) });
+  it("a joined GUEST's capability returns member state", async () => {
+    const p = await resolve({ cap: true, lookup: lookupReturning(identity("guest")) });
     expect(p.visibility).toBe("member");
+    if (p.visibility === "member") expect(p.state.stops).toHaveLength(2);
   });
 
-  it("flag ON + no capability returns preview", async () => {
-    const p = await resolve({ cap: false, flag: true, lookup: lookupReturning(identity("host")) });
+  it("no capability returns preview", async () => {
+    const p = await resolve({ cap: false, lookup: lookupReturning(identity("host")) });
     expect(p.visibility).toBe("preview");
   });
 
-  it("flag ON + missing/expired/revoked/wrong-plan identity returns preview", async () => {
-    const p = await resolve({ cap: true, flag: true, lookup: lookupReturning({ ok: true, identity: null } as Identity) });
+  it("a missing/expired/revoked/wrong-plan identity returns preview", async () => {
+    const p = await resolve({ cap: true, lookup: lookupReturning({ ok: true, identity: null } as Identity) });
     expect(p.visibility).toBe("preview");
   });
 
-  it("flag ON + store error returns preview (fail closed)", async () => {
-    const p = await resolve({ cap: true, flag: true, lookup: lookupReturning({ ok: false, error: "error" } as Identity) });
+  it("a store error returns preview (fail closed)", async () => {
+    const p = await resolve({ cap: true, lookup: lookupReturning({ ok: false, error: "error" } as Identity) });
     expect(p.visibility).toBe("preview");
   });
 
-  it("flag ON + lookup throws returns preview (fail closed)", async () => {
+  it("a lookup that throws returns preview (fail closed)", async () => {
     const throwing = (async () => { throw new Error("db down"); }) as unknown as typeof planMemberIdentityResult;
-    const p = await resolve({ cap: true, flag: true, lookup: throwing });
+    const p = await resolve({ cap: true, lookup: throwing });
     expect(p.visibility).toBe("preview");
   });
 
   it("a preview projection serializes with no venue ids or names", async () => {
-    const p = await resolve({ cap: false, flag: true, lookup: lookupReturning(identity("host")) });
+    const p = await resolve({ cap: false, lookup: lookupReturning(identity("host")) });
     const raw = JSON.stringify(p);
     expect(raw).not.toContain("venue-the-dove");
     expect(raw).not.toContain("The Dove");
     expect(raw).not.toContain("Private stag route");
+  });
+
+  // D01 regression (core-loop battle test, 5 Sep 2026): the member projection
+  // sat behind PUBMAX_FRIEND_MEMBER_REHYDRATION_V2, so a deployment without
+  // that variable answered the preview to a host reading their own plan. The
+  // environment may no longer decide this.
+  it("reads no environment variable, so a host is a host on every deployment", async () => {
+    const source = readFileSync(
+      path.join(process.cwd(), "lib/planPrivacyBoundary.server.ts"),
+      "utf8",
+    );
+    expect(source).not.toContain("process.env");
+    expect(source).not.toContain("FRIEND_MEMBER_REHYDRATION");
+
+    const withFlagUnset = { ...process.env };
+    delete withFlagUnset.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2;
+    const previous = process.env;
+    process.env = withFlagUnset as NodeJS.ProcessEnv;
+    try {
+      const p = await resolve({ cap: true, lookup: lookupReturning(identity("host")) });
+      expect(p.visibility).toBe("member");
+    } finally {
+      process.env = previous;
+    }
   });
 });

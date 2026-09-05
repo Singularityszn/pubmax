@@ -1,7 +1,7 @@
 import "server-only";
 
-// Server-only by construction: it imports planStore and lazily the
-// `server-only` flag reader, so it can never end up in a client bundle.
+// Server-only by construction: it imports planStore, so it can never end up in
+// a client bundle.
 
 import type { PlanState } from "@/lib/plan";
 import { planMemberCapability } from "@/lib/planMemberCapability";
@@ -13,25 +13,21 @@ import {
 import { planMemberIdentityResult } from "@/lib/planStore";
 import type { VibeTally } from "@/lib/vibeTally";
 
-// Env name for PUBMAX_FRIEND_MEMBER_REHYDRATION_V2. The trusted-handoff flag
-// registry (lib/trustedHandoffFlags.server) remains the source of truth for the
-// name and its strict `0|1` parse; it is read directly here (server-side, never
-// on the client) so this boundary carries no `server-only` import into a bundle
-// or a test runtime. Unknown/absent values mean off, exactly as the registry.
-const FRIEND_MEMBER_REHYDRATION_ENV = "PUBMAX_FRIEND_MEMBER_REHYDRATION_V2";
-
-function memberRehydrationFlagEnabled(): boolean {
-  return process.env[FRIEND_MEMBER_REHYDRATION_ENV] === "1";
-}
-
 /**
  * Sole server seam that decides whether a request may receive the full Plan
- * state or only the anonymous preview (§4.10). It fails CLOSED: the member
- * projection is returned ONLY when the friendMemberRehydrationV2 flag is on AND
- * the request carries a capability that resolves to an active host/guest
- * identity. Every other outcome — flag off, no capability, store error, or a
- * missing/expired/revoked/wrong-plan identity — degrades to the preview. The
- * privacy-safe preview is therefore never flag-disableable.
+ * state or only the anonymous preview (§4.10). A CAPABILITY IS THE WHOLE
+ * QUESTION, and there is no second one: the member projection used to sit
+ * behind a rollout switch as well, and a deployment without it answered the
+ * preview to every reader, so a host who had just locked a plan read "You've
+ * been invited" on their own plan, a joined guest never saw the route and the
+ * host never saw who joined (D01, core-loop battle test, 5 Sep 2026).
+ *
+ * It still fails CLOSED. The member projection is returned only when the
+ * request carries a capability that resolves to an active host/guest identity;
+ * no capability, a store error, or a missing, expired, revoked or wrong-plan
+ * identity each degrade to the preview. The privacy-safe preview therefore has
+ * no switch either: nothing can turn it off for a stranger, and nothing can
+ * turn a member into one.
  */
 
 type IdentityLookup = typeof planMemberIdentityResult;
@@ -43,8 +39,6 @@ export type ResolvePlanProjectionInput = {
   vibeTally?: VibeTally | null;
   /** Test seam only; defaults to the real store lookup. */
   identityLookup?: IdentityLookup;
-  /** Test seam only; defaults to the real flag reader. */
-  memberRehydrationEnabled?: boolean;
 };
 
 export async function resolvePlanProjection({
@@ -53,12 +47,8 @@ export async function resolvePlanProjection({
   state,
   vibeTally = null,
   identityLookup = planMemberIdentityResult,
-  memberRehydrationEnabled,
 }: ResolvePlanProjectionInput): Promise<PlanVisibilityProjection> {
   const preview = () => buildPlanPrivacyPreview(state, vibeTally);
-
-  const flagOn = memberRehydrationEnabled ?? memberRehydrationFlagEnabled();
-  if (!flagOn) return preview();
 
   const token = planMemberCapability(request, undefined);
   if (!token) return preview();

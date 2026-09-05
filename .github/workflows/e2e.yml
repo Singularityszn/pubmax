@@ -109,7 +109,6 @@ jobs:
           PUBMAX_MAP_ROUTE_TRANSFER: "1"
           PUBMAX_PAL_HANDOFF: "1"
           PUBMAX_TONIGHT_GROUPING: "1"
-          PUBMAX_FRIEND_MEMBER_REHYDRATION_V2: "1"
           PUBMAX_SOCIAL_FRIENDS_LAUNCH: "1"
         run: >-
           npx playwright test

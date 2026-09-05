@@ -35,13 +35,18 @@ describe("trusted handoff flag parser", () => {
 });
 
 describe("trusted handoff flag registry", () => {
-  it("registers exactly five live rollout flags with ownership and removal metadata", () => {
-    expect(TRUSTED_HANDOFF_FLAG_KEYS).toHaveLength(5);
+  it("registers exactly four live rollout flags with ownership and removal metadata", () => {
+    expect(TRUSTED_HANDOFF_FLAG_KEYS).toHaveLength(4);
     expect(Object.keys(TRUSTED_HANDOFF_FLAG_DEFINITIONS)).toEqual(TRUSTED_HANDOFF_FLAG_KEYS);
     expect(TRUSTED_HANDOFF_FLAG_KEYS).not.toContain("landingFindMyPint");
     expect(TRUSTED_HANDOFF_FLAG_KEYS).not.toContain("intentWrite");
     expect(TRUSTED_HANDOFF_FLAG_KEYS).not.toContain("intentRead");
     expect(TRUSTED_HANDOFF_FLAG_KEYS).not.toContain("anchoredGeneration");
+    // D01: the member projection is the only Plan read path, so no key,
+    // definition or environment name may bring the switch back.
+    expect(TRUSTED_HANDOFF_FLAG_KEYS).not.toContain("friendMemberRehydrationV2");
+    expect(Object.values(TRUSTED_HANDOFF_FLAG_DEFINITIONS).map(({ env }) => env))
+      .not.toContain("PUBMAX_FRIEND_MEMBER_REHYDRATION_V2");
 
     for (const definition of Object.values(TRUSTED_HANDOFF_FLAG_DEFINITIONS)) {
       expect(definition.env).toMatch(/^PUBMAX_/);
@@ -71,7 +76,6 @@ describe("trusted handoff flag registry", () => {
       mapRouteTransfer: true,
       tonightGrouping: true,
       palHandoff: true,
-      friendMemberRehydrationV2: true,
       socialFriendsLaunch: true,
     });
   });

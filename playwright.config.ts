@@ -389,9 +389,6 @@ export default defineConfig({
           ...(process.env.PUBMAX_TONIGHT_GROUPING
             ? { PUBMAX_TONIGHT_GROUPING: process.env.PUBMAX_TONIGHT_GROUPING }
             : {}),
-          ...(process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2
-            ? { PUBMAX_FRIEND_MEMBER_REHYDRATION_V2: process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2 }
-            : {}),
           ...(process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH
             ? { PUBMAX_SOCIAL_FRIENDS_LAUNCH: process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH }
             : {}),

@@ -14,8 +14,19 @@
 // and the commit would then name code that was not sent. Every argument is
 // forwarded, so `npm run deploy:preview -- --prod` is still the operator's call
 // rather than this script's.
+//
+// THE TARGET IS NAMED BEFORE THE UPLOAD, because a deploy that lands in the
+// wrong project is discovered an hour later rather than now. `.vercel/project
+// .json` is gitignored and local, so a worktree can carry a link the operator
+// never chose: a verifier's preview went to project `pubmaxx`, which holds no
+// environment variables and sits behind Vercel Authentication, so it could sign
+// nobody in and no journey past the first screen could be checked (L06,
+// core-loop battle test, 5 Sep 2026). This script only READS that link and
+// prints it; `vercel link --project <name>` is how it is changed, and
+// docs/DEPLOYMENT.md "A preview a verifier can sign in to" owns the recipe.
 
 import { execFileSync, spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -33,6 +44,29 @@ function git(args) {
   } catch {
     return null;
   }
+}
+
+// A link we could not read is an UNKNOWN target, never an unlinked one: the
+// CLI will either ask or use a link this script failed to parse, and saying
+// "unlinked" would be a claim rather than a reading.
+function linkedProjectName() {
+  try {
+    const raw = readFileSync(path.join(projectRoot, ".vercel", "project.json"), "utf8");
+    const name = JSON.parse(raw).projectName;
+    return typeof name === "string" && name ? name : null;
+  } catch {
+    return null;
+  }
+}
+
+const projectName = linkedProjectName();
+if (projectName) {
+  console.log(`Deploying to Vercel project "${projectName}".`);
+} else {
+  console.log(
+    "No readable Vercel link in this worktree; the CLI decides the target.\n" +
+      "  Run `vercel link --project <name>` first to choose it yourself.",
+  );
 }
 
 const headSha = git(["rev-parse", "HEAD"]);

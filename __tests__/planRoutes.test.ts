@@ -133,25 +133,18 @@ describe("Plan public HTTP contract", () => {
     expect(JSON.stringify(preview)).not.toContain("Friday near Bank");
   });
 
-  it("returns full member state to a valid capability once member rehydration is enabled", async () => {
-    const previous = process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2;
-    process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2 = "1";
-    try {
-      const { body } = await createPlan();
-      const response = await GET(
-        new Request(`${URL}/${body.plan.plan.id}`, {
-          headers: { authorization: `Bearer ${body.memberToken}` },
-        }),
-        ctx(body.plan.plan.id),
-      );
-      expect(response.status).toBe(200);
-      const state = await response.json() as PlanState;
-      expect(state.plan.title).toBe("Friday near Bank");
-      expect(state.crew.map((member) => member.name)).toEqual(["Karan"]);
-    } finally {
-      if (previous === undefined) delete process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2;
-      else process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2 = previous;
-    }
+  it("returns full member state to a valid capability, with no environment to set", async () => {
+    const { body } = await createPlan();
+    const response = await GET(
+      new Request(`${URL}/${body.plan.plan.id}`, {
+        headers: { authorization: `Bearer ${body.memberToken}` },
+      }),
+      ctx(body.plan.plan.id),
+    );
+    expect(response.status).toBe(200);
+    const state = await response.json() as PlanState;
+    expect(state.plan.title).toBe("Friday near Bank");
+    expect(state.crew.map((member) => member.name)).toEqual(["Karan"]);
   });
 
   it("rejects join without an invite token", async () => {

@@ -26,7 +26,6 @@ describe("browser CI policy", () => {
     expect(workflow).toContain("--shard=${{ matrix.shard }}/4");
     expect(workflow).toContain("--project=chromium-flag-on");
     expect(workflow).toContain('PUBMAX_TONIGHT_GROUPING: "1"');
-    expect(workflow).toContain('PUBMAX_FRIEND_MEMBER_REHYDRATION_V2: "1"');
     expect(workflow).toContain("npx playwright install --with-deps chromium");
 
     const fullSuite = workflow.slice(workflow.indexOf("  full-suite:"));

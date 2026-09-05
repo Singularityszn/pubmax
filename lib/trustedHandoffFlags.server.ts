@@ -34,12 +34,6 @@ export const TRUSTED_HANDOFF_FLAG_DEFINITIONS = Object.freeze({
     removalCondition: "Remove after Pal acceptance handoff is stable and old result navigation is retired.",
     offBehavior: "Existing Pal results remain; Pal does not write PlanningIntent.",
   },
-  friendMemberRehydrationV2: {
-    env: "PUBMAX_FRIEND_MEMBER_REHYDRATION_V2",
-    ownerLane: "L10",
-    removalCondition: "Remove after capability-aware member rehydration is the only supported full-state path.",
-    offBehavior: "Everyone receives the safe privacy preview; anonymous Route leakage remains impossible.",
-  },
   socialFriendsLaunch: {
     env: "PUBMAX_SOCIAL_FRIENDS_LAUNCH",
     ownerLane: "L21",
@@ -59,7 +53,6 @@ export function readTrustedHandoffFlags(
     mapRouteTransfer: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.mapRouteTransfer.env]),
     tonightGrouping: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.tonightGrouping.env]),
     palHandoff: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.palHandoff.env]),
-    friendMemberRehydrationV2: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.friendMemberRehydrationV2.env]),
     socialFriendsLaunch: isSocialFriendsLaunchEnabled(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.socialFriendsLaunch.env]),
   });
 }

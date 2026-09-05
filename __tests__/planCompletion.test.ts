@@ -264,20 +264,13 @@ describe("Plan Completion", () => {
     const completion = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
     expect(await completion.json()).toEqual({ completion: null });
     // The privacy boundary redacts an anonymous GET, so read the underlying
-    // state as the plan member (rehydration on) to assert no partial write.
-    const previous = process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2;
-    process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2 = "1";
-    try {
-      const plan = await GET_PLAN(
-        new Request(`http://localhost/api/plans/${id}`, {
-          headers: { authorization: `Bearer ${created.memberToken}` },
-        }),
-        ctx(id),
-      );
-      expect(await plan.json()).toMatchObject({ plan: { status: "draft", routeRevision: 1 }, actions: [] });
-    } finally {
-      if (previous === undefined) delete process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2;
-      else process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2 = previous;
-    }
+    // state as the plan member to assert no partial write.
+    const plan = await GET_PLAN(
+      new Request(`http://localhost/api/plans/${id}`, {
+        headers: { authorization: `Bearer ${created.memberToken}` },
+      }),
+      ctx(id),
+    );
+    expect(await plan.json()).toMatchObject({ plan: { status: "draft", routeRevision: 1 }, actions: [] });
   });
 });
