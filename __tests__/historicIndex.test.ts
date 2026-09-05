@@ -11,6 +11,7 @@ import type { HistoricPub } from "@/lib/historic";
 // stub declaration. Same pattern as the other .mjs-in-test imports.
 import {
   buildHistoricIndex,
+  buildHistoricPublication,
   buildVenueIdIndex,
   extractEra,
   extractListed,
@@ -407,5 +408,63 @@ describe("the shipped historic index (generated artifact)", () => {
       expect(rec?.borough).toBeTruthy();
       expect(typeof rec?.lat).toBe("number");
     }
+  });
+});
+
+// F05: the publication gate. A fact written for us rather than for a reader is
+// withheld and NAMED, never rewritten, so the cache entry behind it is what
+// gets fixed. A record with nothing left to say is withheld whole rather than
+// published with an empty description.
+describe("buildHistoricPublication — internal language is quarantined", () => {
+  const CACHE = {
+    // One publishable fact and one internal note: the pub still publishes, on
+    // the fact that was written for a reader.
+    "the old bell": [
+      { source: "wikipedia", fact: "The Old Bell is a Grade II* listed pub rebuilt in 1670." },
+      { source: "seed", fact: "A useful reference stop for the seeded heritage route." },
+    ],
+    // Nothing but an internal note: the record is withheld whole.
+    "the new inn": [
+      { source: "seed", fact: "Kept as a soft match until the exact pub is verified." },
+    ],
+  };
+
+  const { records, quarantined } = buildHistoricPublication({
+    heritageCache: CACHE,
+    dataset: FIXTURE_DATASET,
+  });
+
+  it("publishes the pub, without the sentence written for us", () => {
+    const bell = byName(records, "The Old Bell");
+    expect(bell.facts).toHaveLength(1);
+    expect(bell.hook).toBe("The Old Bell is a Grade II* listed pub rebuilt in 1670.");
+    expect(JSON.stringify(bell)).not.toContain("reference stop");
+  });
+
+  it("withholds a record whose every fact was refused", () => {
+    expect(records.find((r) => r.name === "The New Inn")).toBeUndefined();
+    expect(
+      quarantined.some(
+        (q: { cacheKey: string; reason: string }) =>
+          q.cacheKey === "the new inn" && q.reason === "no-publishable-facts",
+      ),
+    ).toBe(true);
+  });
+
+  it("names what it withheld and why, so the cache entry can be corrected", () => {
+    const refused = quarantined.filter(
+      (q: { reason: string }) => q.reason === "internal-language",
+    );
+    expect(refused).toHaveLength(2);
+    for (const item of refused) {
+      expect(item.detail).toMatch(/[a-z-]+: ".+" .+/);
+      expect(item.name).toBeTruthy();
+    }
+  });
+
+  it("buildHistoricIndex still answers with the records alone", () => {
+    expect(buildHistoricIndex({ heritageCache: CACHE, dataset: FIXTURE_DATASET })).toEqual(
+      records,
+    );
   });
 });

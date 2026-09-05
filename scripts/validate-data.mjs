@@ -49,11 +49,16 @@ import {
 import { CITY_VENUE_PACKS } from "../lib/cityVenuePacks.mjs";
 import { CITY_BOUNDS } from "../lib/cityBounds.mjs";
 import { EDITORIAL_FEEDS, EDITORIAL_ITEM_KEYS } from "../lib/editorialRss.mjs";
+import {
+  describeInternalLanguage,
+  internalLanguageFindings,
+} from "../lib/heritageLanguageGate.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, "..");
 const DATA_DIR = join(ROOT_DIR, "public", "data");
 const GENERATED_DATA_DIR = join(ROOT_DIR, "data", "generated");
+const HISTORIC_PUBS_FILE = join(DATA_DIR, "historic_pubs.json");
 const FAMOUS_VENUES_DIR = join(ROOT_DIR, "data", "famous_venues");
 const UK_OSM_PUBS_FILE = join(
   ROOT_DIR,
@@ -146,6 +151,7 @@ const ARTIFACT_CLASSIFICATION = [
   { id: "pint_index_snapshot", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
   { id: "late_food_evidence", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
   { id: "editorial_overlay", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the file is absent; a file that IS present with a body or extra keys is a genuine defect and stays a hard gate" },
+  { id: "historic_pubs", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the artifact is absent; a record that IS present carrying a note we wrote to ourselves is published to strangers as a fact about a pub, and stays a hard gate" },
 ];
 
 function classificationFor(id) {
@@ -3737,6 +3743,62 @@ function validateLateFoodEvidenceSnapshot() {
 // ---------------------------------------------------------------------------
 
 // One id/run pair per top-level dataset, in report order. Each id must have a
+// historic_pubs.json — the cited heritage index /historic, /historic/[slug] and
+// the borough heritage rails all read.
+//
+// ONE FENCE HERE, AND IT IS ABOUT WHO THE WORDS WERE WRITTEN FOR. Every string
+// on these records is shown to a stranger as a fact about a pub, so none of it
+// may be a note we wrote to ourselves. The Queens Arms card carried "a useful
+// Victorian reference stop for the seeded heritage route" in production, and
+// nothing failed, because a description is free text and free text was never
+// checked. scripts/build_historic_index.mjs refuses such a sentence on the way
+// in; this refuses it again over the artifact that actually ships, so a
+// hand-edited file cannot walk around the generator.
+function validateHistoricPubs() {
+  const name = "public/data/historic_pubs.json";
+  if (!existsSync(HISTORIC_PUBS_FILE)) {
+    console.log(`SKIP ${name}: file does not exist`);
+    return { ok: true, count: 0 };
+  }
+  let rows;
+  try {
+    rows = JSON.parse(readFileSync(HISTORIC_PUBS_FILE, "utf8"));
+  } catch (e) {
+    console.log(`FAIL ${name}: unreadable (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+  if (!Array.isArray(rows)) {
+    console.log(`FAIL ${name}: expected an array of records`);
+    return { ok: false, count: 0 };
+  }
+
+  const errs = [];
+  for (const [index, row] of rows.entries()) {
+    const where = `record ${index} (${row?.name ?? "unnamed"})`;
+    const published = [
+      ["hook", row?.hook],
+      ...(Array.isArray(row?.facts) ? row.facts : []).map((f, i) => [
+        `facts[${i}].fact`,
+        f?.fact,
+      ]),
+    ];
+    for (const [field, text] of published) {
+      for (const finding of internalLanguageFindings(text)) {
+        errs.push(`${where} ${field}: ${describeInternalLanguage(finding)}`);
+      }
+    }
+  }
+
+  if (errs.length > 0) {
+    console.log(`FAIL ${name}: ${errs.length} problem(s)`);
+    for (const e of errs.slice(0, 20)) console.log(`  - ${e}`);
+    if (errs.length > 20) console.log(`  … and ${errs.length - 20} more`);
+    return { ok: false, count: rows.length };
+  }
+  console.log(`OK   ${name}: ${rows.length} records, no internal language published`);
+  return { ok: true, count: rows.length };
+}
+
 // matching entry in ARTIFACT_CLASSIFICATION: that is what decides whether a
 // failing run below fails the build or degrades to a WARN.
 const DATASET_RUNS = [
@@ -3760,6 +3822,7 @@ const DATASET_RUNS = [
   { id: "late_food_evidence", run: validateLateFoodEvidenceSnapshot },
   { id: "pubmaxxing_seed", run: validatePubmaxxingSeed },
   { id: "editorial_overlay", run: validateEditorialOverlay },
+  { id: "historic_pubs", run: validateHistoricPubs },
 ];
 
 async function main() {

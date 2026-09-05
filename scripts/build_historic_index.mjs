@@ -14,6 +14,13 @@
 // from the cache. `era` and `listed` are EXTRACTED from the cited fact text by
 // regex only — if the text doesn't say it, the field is null.
 //
+// Publication contract: a fact copied verbatim is still checked before it is
+// published. lib/heritageLanguageGate.mjs refuses a sentence written for us
+// rather than for a reader, and the refusal is QUARANTINE, never a rewrite: the
+// fact is withheld and reported by name so it is fixed at the cache, and a
+// record left with nothing publishable is withheld whole rather than shown with
+// an empty description.
+//
 // Determinism: output is sorted (era ascending, nulls last, then name) and
 // pretty-printed with a trailing newline, so running twice is byte-identical.
 //
@@ -22,6 +29,11 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import {
+  describeInternalLanguage,
+  internalLanguageFinding,
+} from "../lib/heritageLanguageGate.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -265,8 +277,10 @@ const VENUE_STATUS_BY_CACHE_KEY = {
 };
 
 // Pure builder: heritage cache (object keyed by normalised name) + dataset rows
-// → sorted, slugged HistoricPub records. Deterministic and side-effect free.
-export function buildHistoricIndex({
+// → the sorted, slugged HistoricPub records that MAY be published, plus every
+// fact and record the publication gates withheld and why. Deterministic and
+// side-effect free.
+export function buildHistoricPublication({
   heritageCache,
   dataset,
   venueAliases = {},
@@ -276,21 +290,50 @@ export function buildHistoricIndex({
   const venueIdIndex = buildVenueIdIndex(dataset);
 
   const records = [];
+  const quarantined = [];
   // Iterate cache keys in sorted order so the pre-slug build order is stable
   // (slugs are assigned after the final sort, but sorting the input first keeps
   // the whole pipeline order-independent of JS object insertion order).
   for (const cacheKey of Object.keys(heritageCache).sort()) {
     const rawFacts = heritageCache[cacheKey];
     if (!Array.isArray(rawFacts) || rawFacts.length === 0) continue;
-    const facts = rawFacts
+    const cited = rawFacts
       .filter((f) => f && typeof f.fact === "string" && f.fact.trim())
       .map(normaliseFact);
-    if (facts.length === 0) continue;
+    if (cited.length === 0) continue;
 
     const match =
       venueIndex.get(cacheKey) ??
       curatedVenueMatch(cacheKey, venueIdIndex, venueAliases, venueIdsByCacheKey);
     const name = match && match.name ? match.name : titleCase(cacheKey);
+
+    // Publication gate: a fact written for us rather than for a reader never
+    // reaches a card. Refusing is all this does; the cache is where it is fixed.
+    const facts = [];
+    for (const fact of cited) {
+      const finding = internalLanguageFinding(fact.fact);
+      if (finding) {
+        quarantined.push({
+          cacheKey,
+          name,
+          reason: "internal-language",
+          detail: describeInternalLanguage(finding),
+          fact: fact.fact,
+        });
+        continue;
+      }
+      facts.push(fact);
+    }
+    if (facts.length === 0) {
+      quarantined.push({
+        cacheKey,
+        name,
+        reason: "no-publishable-facts",
+        detail: "every cited fact for this pub was withheld",
+        fact: null,
+      });
+      continue;
+    }
 
     // era/listed are scanned across ALL fact text for this venue.
     const allText = facts.map((f) => f.fact).join("  ");
@@ -324,7 +367,7 @@ export function buildHistoricIndex({
 
   // Assign slugs in final (sorted) order so collisions resolve deterministically.
   const usedSlugs = new Map();
-  return records.map((rec) => {
+  const published = records.map((rec) => {
     const base = slugify(rec.name) || "pub";
     const count = usedSlugs.get(base) ?? 0;
     usedSlugs.set(base, count + 1);
@@ -346,6 +389,13 @@ export function buildHistoricIndex({
       ...(rest.venueStatus ? { venueStatus: rest.venueStatus } : {}),
     };
   });
+
+  return { records: published, quarantined };
+}
+
+// The records alone, for callers that only want the index.
+export function buildHistoricIndex(options) {
+  return buildHistoricPublication(options).records;
 }
 
 // --- io ----------------------------------------------------------------------
@@ -374,14 +424,26 @@ export async function generate({
   const heritageCache = await readJson(cachePath);
   const dataset = await readJson(datasetPath);
   const venueAliases = await readVenueAliases(aliasPath);
-  const records = buildHistoricIndex({ heritageCache, dataset, venueAliases });
+  const { records, quarantined } = buildHistoricPublication({
+    heritageCache,
+    dataset,
+    venueAliases,
+  });
   // Pretty-printed + trailing newline for a clean, diff-friendly, stable file.
   await writeFile(outPath, `${JSON.stringify(records, null, 2)}\n`);
 
   const matched = records.filter((r) => r.venueId != null).length;
   const withEra = records.filter((r) => r.era != null).length;
   const withListed = records.filter((r) => r.listed != null).length;
-  return { records, total: records.length, matched, withEra, withListed, outPath };
+  return {
+    records,
+    quarantined,
+    total: records.length,
+    matched,
+    withEra,
+    withListed,
+    outPath,
+  };
 }
 
 async function main() {
@@ -390,6 +452,14 @@ async function main() {
   console.log(`  matched to a venue id: ${summary.matched}`);
   console.log(`  with an extracted era: ${summary.withEra}`);
   console.log(`  with a listing grade:  ${summary.withListed}`);
+  // A withheld fact is a FINDING, not a silent drop: it is named here so the
+  // cache entry behind it can be corrected rather than quietly disappearing.
+  if (summary.quarantined.length > 0) {
+    console.log(`quarantined (not published): ${summary.quarantined.length}`);
+    for (const item of summary.quarantined) {
+      console.log(`  [${item.reason}] ${item.name}: ${item.detail}`);
+    }
+  }
   console.log(`wrote: ${path.relative(ROOT, summary.outPath)}`);
 }
 

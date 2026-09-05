@@ -98,7 +98,7 @@ const curatedVenues: Record<string, VenueCuration> = {
     nearWater: true,
     heritageEra: "Tudor",
     heritageNote:
-      "Riverside Wapping pub usually dated to 1520; a strong fit for the heritage-by-water demo.",
+      "Riverside Wapping pub usually dated to 1520.",
     storyTag: "Old riverside London",
   },
   "the grapes": {
@@ -115,7 +115,7 @@ const curatedVenues: Record<string, VenueCuration> = {
     nearWater: true,
     heritageEra: "Georgian",
     heritageNote:
-      "Upper Mall riverside pub in Hammersmith; useful as a west London water-side heritage stop.",
+      "Upper Mall riverside pub in Hammersmith.",
     storyTag: "Thames-side room",
   },
   "the old pack horse": {
@@ -127,31 +127,22 @@ const curatedVenues: Record<string, VenueCuration> = {
   "the lamb": {
     heritageEra: "Victorian",
     heritageNote:
-      "Victorian Bloomsbury pub with the kind of preserved interior detail that suits a heritage crawl.",
+      "Victorian Bloomsbury pub with preserved interior detail.",
     storyTag: "Victorian room",
   },
   "the sun tavern": {
     heritageEra: "East End",
     heritageNote:
-      "Bethnal Green pub included in Hilton's visible pub print shop, useful for a writer-inspired crawl seed.",
+      "Bethnal Green pub included in Alastair Hilton's pub print series.",
     writerPick: true,
     storyTag: "Hilton print trail",
     sourceLabel: "All Products - Alastair Hilton",
     sourceUrl: "https://www.alastairhiltonphotographer.com/category/all-products",
   },
-  "the queens head": {
-    heritageEra: "Victorian",
-    heritageNote:
-      "One of the app's closest matches for Hilton's visible The Queens print; keep as a soft match until the exact pub is verified.",
-    writerPick: true,
-    storyTag: "Possible Queens match",
-    sourceLabel: "The Queens print",
-    sourceUrl: "https://www.alastairhiltonphotographer.com/product-page/the-queens",
-  },
   "the queens arms": {
     heritageEra: "Victorian",
     heritageNote:
-      "Pimlico pub from 1846; a useful Victorian reference stop for the seeded heritage route.",
+      "Victorian Pimlico pub from 1846.",
     storyTag: "Victorian pub",
   },
   // Eating Europe "London's Pubs" guide — editorial / heritage only (never prices).

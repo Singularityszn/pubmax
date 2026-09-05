@@ -10,7 +10,7 @@
     "facts": [
       {
         "source": "seed",
-        "fact": "Riverside Wapping pub usually dated to 1520; a strong fit for the heritage-by-water demo.",
+        "fact": "Riverside Wapping pub usually dated to 1520.",
         "sourceRef": "https://en.wikipedia.org/wiki/Prospect_of_Whitby"
       },
       {
@@ -370,15 +370,11 @@
     "borough": "Westminster",
     "lat": 51.4927,
     "lng": -0.139219,
-    "hook": "Pimlico pub from 1846; a useful Victorian reference stop for the seeded heritage route.",
+    "hook": "Victorian Pimlico pub from 1846.",
     "facts": [
       {
         "source": "seed",
-        "fact": "Pimlico pub from 1846; a useful Victorian reference stop for the seeded heritage route."
-      },
-      {
-        "source": "seed",
-        "fact": "A Victorian-era Pimlico pub kept as a reference stop for the heritage crawl."
+        "fact": "Victorian Pimlico pub from 1846."
       }
     ],
     "era": "1846",
@@ -4365,7 +4361,7 @@
     "facts": [
       {
         "source": "seed",
-        "fact": "Upper Mall riverside pub in Hammersmith; useful as a west London water-side heritage stop.",
+        "fact": "Upper Mall riverside pub in Hammersmith.",
         "sourceRef": "https://en.wikipedia.org/wiki/The_Dove,_Hammersmith"
       },
       {
@@ -5207,7 +5203,7 @@
     "facts": [
       {
         "source": "seed",
-        "fact": "Victorian Bloomsbury pub with the kind of preserved interior detail that suits a heritage crawl.",
+        "fact": "Victorian Bloomsbury pub with preserved interior detail.",
         "sourceRef": "https://en.wikipedia.org/wiki/The_Lamb,_Bloomsbury"
       },
       {
@@ -5687,30 +5683,6 @@
     "sourced": true
   },
   {
-    "venueId": "venue-1u82rds",
-    "name": "The Queens Head",
-    "slug": "the-queens-head",
-    "borough": "Camden",
-    "lat": 51.5284,
-    "lng": -0.118499,
-    "hook": "One of the app's closest matches for Hilton's visible The Queens print; kept as a soft match until the exact pub is verified.",
-    "facts": [
-      {
-        "source": "seed",
-        "fact": "One of the app's closest matches for Hilton's visible The Queens print; kept as a soft match until the exact pub is verified.",
-        "sourceRef": "https://www.alastairhiltonphotographer.com/product-page/the-queens"
-      },
-      {
-        "source": "seed",
-        "fact": "A candidate stop on the writer's Queens print trail, pending confirmation of the exact venue.",
-        "sourceRef": "https://www.alastairhiltonphotographer.com/product-page/the-queens"
-      }
-    ],
-    "era": null,
-    "listed": null,
-    "sourced": true
-  },
-  {
     "venueId": "venue-1iyj2h1",
     "name": "The Red Lion",
     "slug": "the-red-lion",
@@ -5984,11 +5956,11 @@
     "borough": "Tower Hamlets",
     "lat": 51.5273,
     "lng": -0.0584212,
-    "hook": "Bethnal Green pub included in Hilton's visible pub print shop, useful for a writer-inspired crawl seed.",
+    "hook": "Bethnal Green pub included in Alastair Hilton's pub print series.",
     "facts": [
       {
         "source": "seed",
-        "fact": "Bethnal Green pub included in Hilton's visible pub print shop, useful for a writer-inspired crawl seed.",
+        "fact": "Bethnal Green pub included in Alastair Hilton's pub print series.",
         "sourceRef": "https://www.alastairhiltonphotographer.com/category/all-products"
       },
       {

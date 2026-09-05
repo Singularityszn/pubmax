@@ -482,7 +482,11 @@ const CURATED_VENUES = {
   "the old pack horse": { hasHeritage: true },
   "the lamb": { hasHeritage: true },
   "the sun tavern": { hasHeritage: true },
-  "the queens head": { hasHeritage: true },
+  // "the queens head" is deliberately absent: the entry claimed a
+  // photographer's print we could not tie to a pub, and the name-keyed lookup
+  // spread that one claim over six different Queens Heads in six boroughs.
+  // Removed from lib/curation.ts, and removed here so the flag and the note
+  // still agree (__tests__/venuesSlim.test.ts holds them to each other).
   "the queens arms": { hasHeritage: true },
   // Eating Europe guide — heritage rings on first paint (never prices).
   "the mayflower": { nearWater: true, hasHeritage: true },
