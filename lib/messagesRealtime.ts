@@ -23,7 +23,7 @@
 // any named account. `private: true` makes supabase-js send this browser's own
 // user JWT on join, and Realtime then checks it against the policy on
 // `realtime.messages` (migration 0148): your own inbox, and a conversation you
-// are a participant of, and nothing else. It is not a client-side preference —
+// are a participant of, and nothing else. It is not a client-side preference -
 // the server broadcasts private too, so a channel opened public here would hear
 // nothing at all. A browser with no session cannot join, which is correct: no
 // messaging surface renders for one, and the poll fallback carries anything

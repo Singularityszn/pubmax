@@ -135,7 +135,7 @@ export function broadcastMessagesRead(
  * Hand a nudge to the platform rather than to the response.
  *
  * A signal is a COURTESY: the row is already stored when it runs, so a reader
- * must never wait on it. Awaited inline it did exactly that — a degraded
+ * must never wait on it. Awaited inline it did exactly that - a degraded
  * Realtime added the whole MESSAGES_BROADCAST_TIMEOUT_MS to every send, plus
  * whatever read the caller made to name the participants. `after` keeps the
  * function alive past the response on a platform that supports it; outside a

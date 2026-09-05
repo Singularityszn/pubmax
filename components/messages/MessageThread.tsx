@@ -551,7 +551,7 @@ export default function MessageThread({
   }, []);
 
   const send = useCallback(async () => {
-    // LATCHED ON A REF, CLAIMED BEFORE THE FIRST AWAIT — the plan-route rule.
+    // LATCHED ON A REF, CLAIMED BEFORE THE FIRST AWAIT - the plan-route rule.
     // `sending` is React state, committed a microtask after the event, so two
     // taps in one task both read it false and both posted.
     if (sendInFlightRef.current) return;

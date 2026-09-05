@@ -2,7 +2,7 @@
 //
 // The send path had no idempotency key at all. A connection reset AFTER the row
 // committed answered the browser as a failure, the optimistic bubble was taken
-// back, the text went into the field, and the drinker sent it again — so the
+// back, the text went into the field, and the drinker sent it again - so the
 // conversation held the same line twice and nothing could tell the two apart.
 // The browser now mints one uuid per attempt and sends it on every retry of
 // that attempt; migration 0149's unique index turns the second arrival into a

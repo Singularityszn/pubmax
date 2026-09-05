@@ -306,7 +306,7 @@ type InboxRecent = {
  * THE CAP IS A WINDOW, NOT A FILTER, and the order is what makes it one. The
  * scan is bounded at INBOX_UNREAD_SCAN_CAP rows across up to MAX_CONVERSATIONS
  * conversations, so a busy inbox can fill it. With no `order` the plan returned
- * rows in whatever order the index gave — under 0143's partial index that is
+ * rows in whatever order the index gave - under 0143's partial index that is
  * conversation_id order, so the lowest-sorting ids ate the budget and every
  * conversation after them reported a confident `unread: 0` (F-9). Ordering
  * makes the truncation KNOWABLE: when the window filled, every conversation the
@@ -524,7 +524,7 @@ export const supabaseMessagesStore: MessagesStore = {
         return memoryMessagesStore.listConversations(me);
       }
       console.error(
-        "[messages] listConversations failed — inbox unreadable:",
+        "[messages] listConversations failed - inbox unreadable:",
         err instanceof Error ? err.message : err,
       );
       return { conversations: [], status: "degraded" };

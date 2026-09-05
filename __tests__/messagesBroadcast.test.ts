@@ -78,7 +78,7 @@ describe("message broadcast (server half of the realtime lane)", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// F-1 / fix task 32 — the topics a stranger could enumerate are PRIVATE.
+// F-1 / fix task 32 - the topics a stranger could enumerate are PRIVATE.
 //
 // A public channel authorises on the API key alone, and handles are public and
 // enumerable, so a public inbox topic pinged anybody holding the anon key the
@@ -117,7 +117,7 @@ describe("no messaging signal is ever public", () => {
     expect(headers.get("authorization")).toBe(`Bearer ${config.key}`);
   });
 
-  it("says nothing but that something happened — no handle, no id, no content", async () => {
+  it("says nothing but that something happened - no handle, no id, no content", async () => {
     const { calls, fetchImpl } = capture();
     await broadcastMessageSent("c1", ["ken", "sam"], { fetchImpl, config });
 
@@ -129,7 +129,7 @@ describe("no messaging signal is ever public", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// F-26 / fix task 17 — the nudge is handed to the platform, not to the reader.
+// F-26 / fix task 17 - the nudge is handed to the platform, not to the reader.
 // ─────────────────────────────────────────────────────────────────────────────
 describe("deferMessagesSignal", () => {
   it("returns before the work it was given has finished", async () => {

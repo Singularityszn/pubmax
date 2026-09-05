@@ -43,7 +43,7 @@ function realtimeFixture(options?: { removeChannel?: (channel: unknown) => void 
   };
   const removeChannel = vi.fn(options?.removeChannel ?? (() => {}));
   const client = {
-    channel: vi.fn(() => channel),
+    channel: vi.fn((_topic: string, _options?: { config?: { private?: boolean } }) => channel),
     removeChannel,
   };
   return {
@@ -290,7 +290,7 @@ describe("inbox realtime subscription", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// F-1 / fix task 32 — EVERY messaging channel is PRIVATE.
+// F-1 / fix task 32 - EVERY messaging channel is PRIVATE.
 //
 // A Supabase public channel authorises on the API key alone and this client is
 // built from the public one, so a public `live:inbox:<handle>` was a live
@@ -306,18 +306,18 @@ describe("messaging channels are private", () => {
 
     const unsubscribe = subscribeToMessages("conversation-9", vi.fn(), { poll: vi.fn() });
 
-    const [, config] = fixture.client.channel.mock.calls[0] as [string, unknown];
+    const [, config] = fixture.client.channel.mock.calls[0];
     expect(config).toEqual({ config: { private: true } });
     unsubscribe();
   });
 
-  it("opens the inbox channel private too — the topic a stranger could enumerate", () => {
+  it("opens the inbox channel private too - the topic a stranger could enumerate", () => {
     const fixture = realtimeFixture();
     getSupabaseBrowser.mockReturnValue(fixture.client);
 
     const unsubscribe = subscribeToInbox("ken", vi.fn(), { poll: vi.fn() });
 
-    const [topic, config] = fixture.client.channel.mock.calls[0] as [string, unknown];
+    const [topic, config] = fixture.client.channel.mock.calls[0];
     expect(topic).toBe(messagesInboxTopic("ken"));
     expect(config).toEqual({ config: { private: true } });
     unsubscribe();
@@ -345,7 +345,7 @@ describe("messaging channels are private", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// F-24 / fix task 16 — a transient socket error is not the end of the lane.
+// F-24 / fix task 16 - a transient socket error is not the end of the lane.
 // ─────────────────────────────────────────────────────────────────────────────
 describe("re-attaching after a dropped channel", () => {
   function erroringFixture() {

@@ -29,7 +29,7 @@
 -- IT IS PERMISSIVE, AND THAT IS THE POINT. A policy can only ever ADMIT. This
 -- one names our two topic families and answers false for everything else, so a
 -- future private channel elsewhere in the app is neither admitted nor denied by
--- it — it simply needs its own policy, exactly as it would have without this.
+-- it - it simply needs its own policy, exactly as it would have without this.
 --
 -- THE PREDICATE LIVES IN pubmax_private, NOT public. 0070 moved every RLS helper
 -- there and the policies read it there; a copy in `public` is a copy no policy

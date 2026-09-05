@@ -245,7 +245,7 @@ describe("thread read", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// F-9 / F-10 / fix task 23 — a failed read may never read as absence, and a
+// F-9 / F-10 / fix task 23 - a failed read may never read as absence, and a
 // truncated scan may never read as a confident zero.
 // ─────────────────────────────────────────────────────────────────────────────
 /** What a per-conversation HEAD re-ask answers, so the assertions can name it. */

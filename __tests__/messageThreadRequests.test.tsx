@@ -197,7 +197,7 @@ describe("message thread request budget", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// F-25 / fix task 13 — one tap is one message, and one message is one row.
+// F-25 / fix task 13 - one tap is one message, and one message is one row.
 // ─────────────────────────────────────────────────────────────────────────────
 describe("the send is latched and carries an idempotency key", () => {
   it("posts ONCE when the control is tapped twice in a single task", async () => {
@@ -242,7 +242,7 @@ describe("the send is latched and carries an idempotency key", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// F-11 / fix task 14 — a refused send keeps what the drinker wrote.
+// F-11 / fix task 14 - a refused send keeps what the drinker wrote.
 //
 // The field is cleared at the tap. Somebody who starts the next line while the
 // first is in flight used to lose the first one outright: the bubble went, the

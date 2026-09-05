@@ -9,8 +9,8 @@
 // WHY THIS IS THE RIGHT PLACE TO PROVE IT. Supabase Realtime authorises a
 // PRIVATE channel by running the caller's own JWT against the RLS policies on
 // `realtime.messages`, with `realtime.topic()` naming the channel. Nothing
-// about that check is in our code — it is the policy, the helper and the
-// caller's role — so a browser test would prove the client flag and nothing
+// about that check is in our code - it is the policy, the helper and the
+// caller's role - so a browser test would prove the client flag and nothing
 // about who is actually let in. This runs the same predicate, as the same
 // role, over the same rows, on a real PostgreSQL 16.
 //
@@ -272,7 +272,7 @@ const AT = "2026-09-05 22:40:00+01";
 /**
  * What Realtime does on a private-channel join, run as the caller's own role:
  * name the topic, name the JWT, and see whether the broadcast row is readable.
- * Answers the number of rows the role can see — 1 is admitted, 0 is refused.
+ * Answers the number of rows the role can see - 1 is admitted, 0 is refused.
  */
 function joinsTopic(topic: string, userId: string | null, role = "authenticated"): number {
   const claims =
@@ -378,7 +378,7 @@ describe.skipIf(skipReason !== null || process.env.PUBMAX_MESSAGING_REALTIME_NO_
           "select cmd from pg_policies where policyname = 'pubmax_messaging_topics_read';",
         ),
       ).toBe("SELECT");
-      // In pubmax_private, where the policies read it — never a copy in public,
+      // In pubmax_private, where the policies read it - never a copy in public,
       // which is the hole 0144 was.
       expect(
         session.sql(

@@ -2,7 +2,7 @@
 //
 // A send used to `await broadcastMessageSent(...)` before its 201, and on the
 // thread route it first `await`ed `store.participants(...)` to name the two
-// inbox topics — a round trip for a pair the write had just proved. With
+// inbox topics - a round trip for a pair the write had just proved. With
 // MESSAGES_BROADCAST_TIMEOUT_MS at 1.5 s, a degraded Realtime added that whole
 // timeout to every message anybody sent.
 //
@@ -109,7 +109,7 @@ beforeEach(() => {
   for (const handle of ["ken", "sam"]) __seedMemoryOwnedProfile(handle, `user-${handle}`);
 });
 
-describe("POST /api/messages — the inbox send", () => {
+describe("POST /api/messages - the inbox send", () => {
   it("answers 201 while the broadcast is still in flight", async () => {
     const res = await postInbox({ action: "send", handle: "ken", other: "sam", body: "Pint?" });
 
@@ -128,7 +128,7 @@ describe("POST /api/messages — the inbox send", () => {
   });
 });
 
-describe("POST /api/messages/[id] — the thread send", () => {
+describe("POST /api/messages/[id] - the thread send", () => {
   async function openConversation(): Promise<string> {
     const opened = await postInbox({ action: "open", handle: "ken", other: "sam" });
     const body = (await opened.json()) as { conversationId: string };
