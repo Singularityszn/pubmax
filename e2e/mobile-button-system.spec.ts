@@ -206,3 +206,150 @@ for (const route of BUTTON_SYSTEM_ROUTES) {
     expect(findings.offCentre).toEqual([]);
   });
 }
+
+// ── The 5 September sweep: four things read off the page, never off a
+// stylesheet. Each figure below was the defect's own measurement.
+
+// (1) The tablet bar. At 641px the row asked for 742px inside 573px and the
+// action cluster sat on top of Out, Social and You; at 768px it covered You.
+// A destination is pressable when the point at its own centre belongs to it.
+for (const width of [641, 700, 768, 900] as const) {
+  test(`${width}px: every top-bar destination is pressable and the bar fits`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await setTheme(page, "light");
+    await page.goto("/tonight");
+    await expect(page.locator(".siteNavLinks .siteNavLink").first()).toBeVisible();
+
+    const findings = await page.evaluate(() => {
+      const covered: string[] = [];
+      for (const link of Array.from(document.querySelectorAll(".siteNavLinks .siteNavLink"))) {
+        const box = link.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        if (!hit || !link.contains(hit)) covered.push(link.textContent?.trim() ?? "?");
+      }
+      const more = document.querySelector(".siteNavMoreBtn")?.getBoundingClientRect();
+      return {
+        covered,
+        more: more ? { width: more.width, height: more.height } : null,
+        overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      };
+    });
+
+    expect(findings.covered).toEqual([]);
+    expect(findings.more?.width ?? 0).toBeGreaterThanOrEqual(44);
+    expect(findings.more?.height ?? 0).toBeGreaterThanOrEqual(44);
+    expect(findings.overflow).toBeLessThanOrEqual(0);
+  });
+}
+
+// (2) The Day | Tonight segment used to sit ON the bar: 0px between the two at
+// 768px and 1440px, 4px at 390px.
+for (const route of ["/tonight", "/today"] as const) {
+  for (const width of [390, 768, 1440] as const) {
+    test(`${width}px: ${route} keeps the Now segment off the top bar`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await setTheme(page, "light");
+      await page.goto(route);
+      const segment = page.locator(".nowSegment");
+      await expect(segment).toBeVisible();
+      const gap = await page.evaluate(() => {
+        const bar = document.querySelector(".siteNavBar")!.getBoundingClientRect();
+        const seg = document.querySelector(".nowSegment")!.getBoundingClientRect();
+        return seg.top - bar.bottom;
+      });
+      expect(gap).toBeGreaterThanOrEqual(12);
+    });
+  }
+}
+
+// (3) The docked venue drawer at desktop width. The venue name sat flush on
+// the drawer's left edge (801px in an 800px drawer) while the address below
+// it started at 819px. Kicker, name and body now share one left edge, and
+// that edge is inset from the drawer.
+test("1440px: the docked venue drawer aligns its name with its body", async ({ page }) => {
+  // The map loads its shards before the drawer fills; the default budget
+  // was spent on that load alone under parallel workers.
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await setTheme(page, "light");
+  await page.goto("/map?sel=venue-nyowgc");
+  const name = page.locator(".mapDrawer.right .venueInspector > h3");
+  await expect(name).toBeVisible({ timeout: 20_000 });
+  const address = page.locator(".mapDrawer.right .venueAddress");
+  await expect(address).toBeVisible({ timeout: 20_000 });
+  const geometry = await page.evaluate(() => {
+    const drawer = document.querySelector(".mapDrawer.right")!.getBoundingClientRect();
+    const h3 = document.querySelector(".mapDrawer.right .venueInspector > h3")!.getBoundingClientRect();
+    const kicker = document.querySelector(".mapDrawer.right .venueInspector > .inspectorTitle")!.getBoundingClientRect();
+    const addr = document.querySelector(".mapDrawer.right .venueAddress")!.getBoundingClientRect();
+    return { inset: h3.left - drawer.left, kickerDelta: kicker.left - h3.left, bodyDelta: addr.left - h3.left };
+  });
+  expect(geometry.inset).toBeGreaterThanOrEqual(16);
+  expect(Math.abs(geometry.kickerDelta)).toBeLessThanOrEqual(1);
+  expect(Math.abs(geometry.bodyDelta)).toBeLessThanOrEqual(1);
+});
+
+// (4) One text-button family. These controls wore five radii and four type
+// sizes across the routes; every one now reads the control tokens in
+// app/globals.css, and this is the rendered proof: the same radius as the
+// token, the thumb floor, and one weight.
+const UNIFIED_CONTROLS = [
+  { route: "/tonight", selector: ".tonightShare, .tonightRetry, .tonightLocationButton" },
+  { route: "/near?patch=soho", selector: ".nmnAccept" },
+  { route: "/u/you", selector: ".youIdentityActions a" },
+  { route: "/map?sel=venue-nyowgc", selector: ".venueSheetStickyBar button, .venueActionStrip__btn" },
+] as const;
+
+for (const surface of UNIFIED_CONTROLS) {
+  test(`390px: ${surface.route} text buttons share the control tokens`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await setTheme(page, "light");
+    await page.goto(surface.route);
+    const controls = page.locator(surface.selector);
+    await expect(controls.first()).toBeVisible({ timeout: 20_000 });
+    const findings = await controls.evaluateAll((elements) => {
+      const token = getComputedStyle(document.documentElement).getPropertyValue("--control-radius").trim();
+      return elements
+        .filter((element) => element.getBoundingClientRect().height > 0)
+        .map((element) => {
+          const styles = getComputedStyle(element);
+          const box = element.getBoundingClientRect();
+          return {
+            text: element.textContent?.trim().slice(0, 24) ?? "",
+            radiusMatchesToken: styles.borderTopLeftRadius === token,
+            height: box.height,
+            weight: Number(styles.fontWeight),
+          };
+        });
+    });
+    expect(findings.length).toBeGreaterThan(0);
+    for (const control of findings) {
+      expect(control.radiusMatchesToken, `${control.text} radius`).toBe(true);
+      expect(control.height, `${control.text} height`).toBeGreaterThanOrEqual(44);
+      expect(control.weight, `${control.text} weight`).toBeGreaterThanOrEqual(700);
+    }
+  });
+}
+
+// (5) The signed-out identity card on a phone stacks: the heading takes the
+// card's width instead of a 230px column beside the face.
+test("390px: /u/you stacks the identity card", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await setTheme(page, "light");
+  await page.goto("/u/you");
+  const heading = page.locator(".youIdentityIntro h1");
+  await expect(heading).toBeVisible();
+  const geometry = await page.evaluate(() => {
+    const avatar = document.querySelector(".youIdentityAvatar")!.getBoundingClientRect();
+    const h1 = document.querySelector(".youIdentityIntro h1")!.getBoundingClientRect();
+    const card = document.querySelector(".youIdentityIntro")!.getBoundingClientRect();
+    return { sameEdge: Math.abs(avatar.left - h1.left), share: h1.width / card.width };
+  });
+  expect(geometry.sameEdge).toBeLessThanOrEqual(1);
+  expect(geometry.share).toBeGreaterThanOrEqual(0.8);
+});
