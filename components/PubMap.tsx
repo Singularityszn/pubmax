@@ -349,6 +349,11 @@ import {
   resolveLogNearbyOrigin,
   LOG_NEARBY_MAX_KM,
 } from "@/lib/mapLogIntent";
+import {
+  browserPrefersReducedMotion,
+  browserRevealTimers,
+  scheduleLogIntentReveal,
+} from "@/lib/logIntentReveal";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
@@ -3578,6 +3583,18 @@ export default function PubMap({
     setSheetDragY(null);
     dismissOnboarding();
     setComposerOpen(true);
+    // The reader has already said the one thing they came to say, so what they
+    // are owed on arrival is the price field rather than the top of the sheet.
+    // A REVEAL and never a re-layout: the sheet renders exactly what it did,
+    // and focus stays put so raising the keyboard is the reader's own next move
+    // (lib/logIntentReveal.ts owns the wait, the selector and the behaviour).
+    if (typeof document !== "undefined") {
+      scheduleLogIntentReveal({
+        root: document,
+        reducedMotion: browserPrefersReducedMotion(),
+        timers: browserRevealTimers(),
+      });
+    }
   }, [closePlanning, dismissOnboarding, setComposerOpen, setSheetDragY, setSheetSnap]);
 
   const pickLogNearbyVenue = useCallback(
