@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 144 mutating handlers across 115 route files.** Each exported
+> **Inventory: 150 mutating handlers across 118 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -18,6 +18,10 @@ bodies are checked separately, including only local helpers each body calls.
 Protection in a sibling method cannot certify another method.
 
 <!-- mutation-handler-inventory:start -->
+- `DELETE app/api/[[...unmatched]]`
+- `PATCH app/api/[[...unmatched]]`
+- `POST app/api/[[...unmatched]]`
+- `PUT app/api/[[...unmatched]]`
 - `DELETE app/api/account`
 - `DELETE app/api/admin/session`
 - `DELETE app/api/auth/session`
@@ -165,6 +169,26 @@ Protection in a sibling method cannot certify another method.
 - `PUT app/api/profiles/[handle]`
 - `PUT app/api/social/interactions`
 <!-- mutation-handler-inventory:end -->
+
+## `app/api/[[...unmatched]]`: the API tree's 404, a refusal and no boundary
+
+The one certified route with no authority or abuse boundary, and the reason is
+that it writes nothing at all. It exists because Next treats a form-encoded or
+multipart POST to a path no route handler claims as a Server Action invocation:
+verification scout verify-preview-4 (section 7.3) measured a mistyped multipart
+`POST /api/avatar` answering a 500 HTML page rather than a 404 in the house
+envelope, so the CONTENT TYPE decided what an unknown address said. An optional
+catch-all now claims every unmatched path under `/api`, below every real route,
+and answers one `publicApiError(..., 404)` whatever the method.
+
+Its four mutation methods enter the inventory because every exported `POST`,
+`PUT`, `PATCH` or `DELETE` is a reviewed surface. They take no boundary: there
+is no write for one to stand in front of, and spending a durable rate-limit read
+on an unknown address would make a typo cost more than a real request.
+`__tests__/writeSurfaceCertification.test.ts` proves that rather than asserting
+it. The route may import nothing but `@/lib/apiError`, and each handler's whole
+reachable source must be the single refusal call, so the day it reads a store
+or resolves an identity the exemption fails instead of covering for it.
 
 ## Boundary classes
 

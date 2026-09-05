@@ -152,6 +152,19 @@ describe("app/api public error envelope (tree-wide)", () => {
 const LIMITER_TOKENS =
   /\bisLimited\b|[a-zA-Z]+RateLimited\b|\bis[A-Z][a-zA-Z]*Limited\b|\bpreparePlanGeneration\b|\bsocialCrewActor\b|\bhandleProfileImage(?:Upload|Delete|Report)\b|\bhandleProfileCoverPhoto(?:Upload|Delete|Move|Report)\b/;
 
+// A ROUTE THAT ONLY EVER REFUSES SPENDS NO BUDGET.
+//
+// `app/api/[[...unmatched]]` is the API tree's own 404: it writes nothing, so
+// there is nothing for a limiter to protect, and a durable budget read on an
+// unknown address would make a typo cost more than a real request. The
+// exemption is proved rather than listed -
+// `__tests__/writeSurfaceCertification.test.ts` holds that route to one import
+// and one refusal call per method - so it cannot hide a write. Like the
+// envelope exemptions above, this list may only shrink.
+const LIMITER_EXEMPT_REFUSAL_ROUTES = new Set([
+  "app/api/[[...unmatched]]/route.ts",
+]);
+
 describe("app/api rate limiting (tree-wide)", () => {
   it("gates every cron route with assertCronRequest instead of a limiter", () => {
     for (const file of ALL_ROUTES.filter((path) => path.includes("/cron/"))) {
@@ -160,10 +173,17 @@ describe("app/api rate limiting (tree-wide)", () => {
     }
   });
 
+  it("keeps the refusal exemption honest: every entry still exists", () => {
+    for (const file of LIMITER_EXEMPT_REFUSAL_ROUTES) {
+      expect(existsSync(join(ROOT, file)), file).toBe(true);
+    }
+  });
+
   it("references a rate limiter (or a named delegation) in every non-cron mutating route", () => {
     const failures: string[] = [];
     for (const file of ALL_ROUTES) {
       if (file.includes("/cron/")) continue;
+      if (LIMITER_EXEMPT_REFUSAL_ROUTES.has(relative(ROOT, file))) continue;
       const source = readFileSync(file, "utf8");
       const mutating = /export (?:async )?(?:function|const) (?:POST|PUT|PATCH|DELETE)\b/.test(
         source,
