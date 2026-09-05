@@ -17,7 +17,7 @@ import { planCollaborationStore } from "@/lib/planCollaborationStore";
 import { planInviteToken, planMemberIdentityResult, planStateResult, planStore, type PlanWriteError } from "@/lib/planStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { planAcceptedEventTokens } from "@/lib/verifiedAnalytics.server";
-import { isPlanStopCount } from "@/lib/planStopCount";
+import { isPlanStopCount, PLAN_STOP_COUNT_RANGE_SENTENCE } from "@/lib/planStopCount";
 
 assertServerEnv();
 type Context = { params: Promise<{ id: string }> };
@@ -68,7 +68,7 @@ function checkAnchoredUpgrade(
     return { done: publicApiError(mapped.message, mapped.code, 422) };
   }
   if (verdict.outcome !== "route") {
-    return { done: publicApiError("Save three to six route stops before continuing.", "PLAN_ANCHOR_OUTCOME_MISMATCH", 422) };
+    return { done: publicApiError(`Save ${PLAN_STOP_COUNT_RANGE_SENTENCE} route stops before continuing.`, "PLAN_ANCHOR_OUTCOME_MISMATCH", 422) };
   }
   return { groundedUpgrade: true, upgradeAnchored: verdict.anchored };
 }
@@ -170,7 +170,7 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
   const stops = hasStops ? await canonicalPlanRoute(body.stops) : undefined;
   const expectedRouteRevision = typeof body.expectedRouteRevision === "number" && Number.isInteger(body.expectedRouteRevision) && body.expectedRouteRevision > 0 ? body.expectedRouteRevision : undefined;
   if (body.context !== undefined && !nightContext) return publicApiError("Add valid Plan details.", "NIGHT_CONTEXT_INVALID", 400);
-  if (hasStops && (!stops || !isPlanStopCount(stops.length) || expectedRouteRevision === undefined || status)) return publicApiError("Choose three to six different listed stops and use the latest route version.", "PLAN_ROUTE_INVALID", 400);
+  if (hasStops && (!stops || !isPlanStopCount(stops.length) || expectedRouteRevision === undefined || status)) return publicApiError(`Choose ${PLAN_STOP_COUNT_RANGE_SENTENCE} different listed stops and use the latest route version.`, "PLAN_ROUTE_INVALID", 400);
   if (!hasStops && !status && !nightContext) return publicApiError("Choose what to update.", "PLAN_UPDATE_INVALID", 400);
   // Anchored upgrade (§3.3): a one-Stop draft rises to a grounded three-to-six-Stop
   // route only with a valid V2 proof over the exact new order.

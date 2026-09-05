@@ -100,7 +100,10 @@ describe("planRouteReady", () => {
   });
 
   it("is false without a valid route stop count, and false once abandoned", () => {
-    expect(planRouteReady(planState({ stops: planState().stops.slice(0, 2) }))).toBe(false);
+    // Two Stops IS a valid route size now (lib/planStopCount.ts); an empty
+    // route is what has no valid count.
+    expect(planRouteReady(planState({ stops: planState().stops.slice(0, 2) }))).toBe(true);
+    expect(planRouteReady(planState({ stops: [] }))).toBe(false);
     expect(planRouteReady(planState({
       plan: { ...planState().plan, status: "abandoned" },
     }))).toBe(false);

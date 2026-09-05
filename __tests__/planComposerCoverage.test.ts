@@ -551,9 +551,9 @@ describe("PlanComposer route preview seam", () => {
     });
   });
 
-  it("blocks a generated one-Stop Plan unless its anchor-only outcome names Stop 1", () => {
+  it("blocks an anchor-only DRAFT unless its own anchor names Stop 1", () => {
     const generatedOneStop = {
-      title: "Thursday crawl",
+      title: "Thursday meetup",
       creatorName: "Karan",
       startTime: "2026-07-20T18:00",
       completeStopCount: 1,
@@ -562,17 +562,8 @@ describe("PlanComposer route preview seam", () => {
       singleStopVenueId: "venue-a",
     };
 
-    expect(planLockValidationError(generatedOneStop)).toEqual({
-      message: "Sort this pub again before locking it in.",
-      focus: null,
-    });
-    expect(planLockValidationError({
-      ...generatedOneStop,
-      planAnchor: { venueId: "venue-a", source: "near", outcome: "route" as const },
-    })).toEqual({
-      message: "Sort this pub again before locking it in.",
-      focus: null,
-    });
+    // An anchor-only draft standing over some other pub is still refused: the
+    // proof was minted for the pub that was accepted, and no other.
     expect(planLockValidationError({
       ...generatedOneStop,
       planAnchor: { venueId: "venue-b", source: "near", outcome: "anchor-only" as const },
@@ -584,6 +575,16 @@ describe("PlanComposer route preview seam", () => {
       ...generatedOneStop,
       planAnchor: { venueId: "venue-a", source: "near", outcome: "anchor-only" as const },
     })).toBeNull();
+
+    // One Stop is an ordinary requested size now (lib/planStopCount.ts), so a
+    // deliberate one-pub meetup locks: unanchored through describe-first, and
+    // anchored off a venue sheet as a one-Stop ROUTE outcome.
+    expect(planLockValidationError(generatedOneStop)).toBeNull();
+    expect(planLockValidationError({
+      ...generatedOneStop,
+      planAnchor: { venueId: "venue-a", source: "near", outcome: "route" as const },
+    })).toBeNull();
+
     expect(isMatchingAnchorOnlyPlan({
       groundingProof: "signed-proof",
       completeStopCount: 1,
@@ -629,7 +630,10 @@ describe("PlanComposer route preview seam", () => {
       outcome: "anchor-only",
     }, stops.slice(0, 1))).toBe(true);
     expect(isGroundedGeneratedRoute({ routeRevision: 7 }, stops)).toBe(false);
-    expect(isGroundedGeneratedRoute({ grounded: true, groundingProof: "signed-proof" }, stops.slice(0, 2))).toBe(false);
+    // Two Stops is an ordinary grounded route now (lib/planStopCount.ts).
+    expect(isGroundedGeneratedRoute({ grounded: true, groundingProof: "signed-proof" }, stops.slice(0, 2))).toBe(true);
+    // A length outside the table still is not one, proof or no proof.
+    expect(isGroundedGeneratedRoute({ grounded: true, groundingProof: "signed-proof" }, [])).toBe(false);
   });
 
   it("reads only exact server-returned anchor metadata", () => {

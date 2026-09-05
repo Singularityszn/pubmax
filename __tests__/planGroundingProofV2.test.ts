@@ -141,7 +141,10 @@ describe("grounding proof V2 — rejections", () => {
 
 describe("grounding proof V2 — mint invariants", () => {
   it("refuses inconsistent anchor, source, outcome, and Stop counts", () => {
-    expect(() => mintPlanGroundingProofV2(routeInput({ routeVenueIds: ["venue-a"], outcome: "route" }), ISSUED_AT)).toThrow();
+    // A one-Stop ROUTE is an ordinary deliberate size and mints, while an
+    // anchor-only outcome is still exactly one Stop and no more.
+    expect(() => mintPlanGroundingProofV2(routeInput({ routeVenueIds: ["venue-a"], outcome: "route" }), ISSUED_AT)).not.toThrow();
+    expect(() => mintPlanGroundingProofV2(routeInput({ routeVenueIds: [], outcome: "route" }), ISSUED_AT)).toThrow();
     expect(() => mintPlanGroundingProofV2(routeInput({ routeVenueIds: ["venue-a", "venue-b", "venue-c"], outcome: "anchor-only" }), ISSUED_AT)).toThrow();
     expect(() => mintPlanGroundingProofV2(routeInput({ anchorVenueId: "venue-b" }), ISSUED_AT)).toThrow();
     expect(() => mintPlanGroundingProofV2(routeInput({ anchorVenueId: "venue-a", anchorSource: null }), ISSUED_AT)).toThrow();

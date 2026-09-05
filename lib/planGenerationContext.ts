@@ -5,6 +5,7 @@ import {
 } from "@/lib/nightPlanning";
 import { PLAN_TIME_WINDOWS } from "@/lib/planIntake";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
+import { DEFAULT_PLAN_STOP_COUNT } from "@/lib/planStopCount";
 
 export type PlanContextSource = "query" | "context" | "intake" | "default";
 export type ReconciledPlanContext = {
@@ -44,7 +45,7 @@ function intakeReason(field: keyof NightContext, intake: ParsedPlanGenerationInt
       : field === "groupSize"
         ? String(intake.handoff.groupSize)
         : field === "stopCount"
-          ? String(intake.handoff.stopCount ?? 3)
+          ? String(intake.handoff.stopCount ?? DEFAULT_PLAN_STOP_COUNT)
           : field === "budgetLimitPence"
           ? intake.handoff.budget?.limitPence === null
             ? "no explicit ceiling"

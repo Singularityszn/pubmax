@@ -1,7 +1,12 @@
 import { londonHour } from "@/lib/londonHour";
 import { NIGHT_AREAS, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { cleanText } from "@/lib/textClean";
-import { inferPlanStopCount, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
+import {
+  DEFAULT_PLAN_STOP_COUNT,
+  inferPlanStopCount,
+  normalizePlanStopCount,
+  type PlanStopCount,
+} from "@/lib/planStopCount";
 
 export const DAYPARTS = ["daytime", "after_work", "evening", "late_night", "get_home"] as const;
 export type Daypart = (typeof DAYPARTS)[number];
@@ -95,8 +100,8 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   if (groupSize) reasons.push({ field: "groupSize", evidence: numeric?.[1] ?? (word?.[0].replace(/^./, (c) => c.toUpperCase()) ?? ""), explanation: "Matched the stated group size." });
 
   const stopCount = inferPlanStopCount(lower, NUMBER_WORDS);
-  if (stopCount !== 3) {
-    reasons.push({ field: "stopCount", evidence: `${stopCount} stops`, explanation: "Matched the requested crawl size." });
+  if (stopCount !== DEFAULT_PLAN_STOP_COUNT) {
+    reasons.push({ field: "stopCount", evidence: `${stopCount} stops`, explanation: "Matched the requested number of stops." });
   }
 
   const partyType: PartyType = /colleague|team|work social|leaving do/.test(lower) ? "work" : /solo|just me|on my own/.test(lower) ? "solo" : "friends";

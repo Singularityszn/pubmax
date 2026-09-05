@@ -37,23 +37,24 @@ export type PlanDTO = {
   anchorSource?: PlanAnchorSource | null;
   /** Grounded generation outcome; null for legacy/manual Plans. */
   outcome?: PlanOutcome | null;
-  /** Set once, immutably, on the first grounded three-Stop transition. Null while a one-Stop draft. */
+  /** Set once, immutably, on the first grounded route transition. Null while an anchor-only draft. */
   routeReadyAt?: string | null;
 };
 
 /**
  * Server-derived route readiness. A Plan is route-ready only as a grounded
- * three-Stop route whose immutable routeReadyAt has been stamped — a one-Stop
- * anchor-only draft is never route-ready.
+ * route of a listed stop count whose immutable routeReadyAt has been stamped.
+ * An anchor-only draft is never route-ready, and the OUTCOME is what says so:
+ * one Stop is an ordinary deliberate size, so the count cannot decide this.
  */
 export function planRouteReady(plan: PlanDTO, stopCount: number): boolean {
   return plan.outcome === "route" && typeof plan.routeReadyAt === "string" && Boolean(plan.routeReadyAt) && isPlanStopCount(stopCount);
 }
 
 /**
- * Does this Plan actually hold a Crawl Route? A grounded anchor-only draft
- * holds one accepted pub and no route; every other Plan carrying a valid Plan
- * stop count holds one, whether or not an anchor was ever involved. This is
+ * Does this Plan actually hold a Route? A grounded anchor-only draft holds one
+ * accepted pub it could not build around; every other Plan carrying a valid
+ * Plan stop count holds a Route, one deliberate Stop included. This is
  * the honest question a lifecycle transition and a privacy preview ask —
  * `planRouteReady` is the narrower question of whether the grounded lane
  * stamped its immutable `routeReadyAt`.

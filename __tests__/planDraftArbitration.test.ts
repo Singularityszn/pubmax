@@ -235,8 +235,13 @@ describe("V2 Route draft migration", () => {
     const storage = memoryStorage();
     writePlanRouteDraftEnvelope(routeValue(), "plan-generated", storage, NOW);
     const envelope = JSON.parse(storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY) ?? "{}") as Record<string, unknown>;
+    // One Stop is a listed route size now (lib/planStopCount.ts), so it parses.
     envelope.stops = [routeValue().stops[0]];
-    expect(parsePlanRouteDraftV2(JSON.stringify(envelope), NOW)).toBeNull();
+    expect(parsePlanRouteDraftV2(JSON.stringify(envelope), NOW)).toMatchObject({
+      value: { outcome: "route" },
+    });
+    // A count outside the table is still rejected.
+    expect(parsePlanRouteDraftV2(JSON.stringify({ ...envelope, stops: [] }), NOW)).toBeNull();
 
     const wrongAnchor = {
       ...envelope,

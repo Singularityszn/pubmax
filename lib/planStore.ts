@@ -88,7 +88,7 @@ export function planRequestDigest(value: unknown): string {
 
 /**
  * Confirm anchor metadata is consistent with the submitted Stops: an anchor-only
- * outcome is exactly one Stop, a route outcome is three to six, and either way
+ * outcome is exactly one Stop, a route outcome is any listed count, and either way
  * the accepted anchor Venue is Stop 1.
  */
 function validatedCreateAnchor(
@@ -270,7 +270,7 @@ export const supabasePlanStore: PlanStore = {
         p_idempotency_key_hash: keyHash,
         p_request_hash: requestHash,
         // Anchor metadata is additive; the RPC stamps route_ready_at = created_at
-        // for a grounded three-Stop route and leaves it null for anchor-only.
+        // for a grounded route and leaves it null for anchor-only.
         p_anchor_venue_id: anchor?.venueId ?? null,
         p_anchor_source: anchor?.source ?? null,
         p_outcome: anchor?.outcome ?? null,
@@ -622,8 +622,8 @@ export const memoryPlanStore: PlanStore = {
         anchorVenueId: anchor?.venueId ?? null,
         anchorSource: anchor?.source ?? null,
         outcome: anchor?.outcome ?? null,
-        // A grounded three-Stop route is route-ready at creation; a one-Stop
-        // anchor-only draft stays not-ready until it is upgraded.
+        // A grounded route is route-ready at creation; an anchor-only draft
+        // stays not-ready until it is upgraded.
         routeReadyAt: anchor?.outcome === "route" ? createdAt : null,
       },
       stops: clean.stops.map((stop, position) => ({ ...stop, position })),
