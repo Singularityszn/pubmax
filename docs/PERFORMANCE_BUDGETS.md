@@ -591,6 +591,90 @@ same commit as the change that moved it. Take `targetMs` DOWN under the ratchet
 rule above; raising it is raising the promise, which is a captain decision
 rather than a number to edit.
 
+## The first pin on a cold, throttled /map
+
+The pin-ready record above is taken on a warm box with a real renderer. The
+audit's R2 rig is the other question: a phone at 390x844 under a 4x CPU throttle
+on Slow 4G, cold. `docs/perf/baseline-2026-09-05.md` measured the first tappable
+pin there at about 14.6 s and named the eight seconds between "everything needed
+is in hand" and "a thumb can hit a pin" as the next lane. This is that lane.
+
+### What the profile found
+
+Cold `/map`, mobile rig, local production build, one CDP session per page. Full
+traces in `docs/proof/map-first-pin/`.
+
+| moment | ms |
+| --- | ---: |
+| venue rows merged (`pubmax:first-pins`) | 5,743 |
+| map constructed | 6,986 |
+| scene built (`pubmax:map-scene-built`) | 7,722 |
+| 57 `venues_slim.cell.*` ring requests opened, 7,031 -> | 7,830 |
+| `maplibre-gl-shared.mjs` requested | 7,173 |
+| `maplibre-gl-shared.mjs` landed (478 KB / 133 KB) | **10,948** |
+| glyph range landed | 13,163 |
+| first painted, tappable pin | **13,512** |
+
+The engine's worker module took 3,775 ms for 133 KB on a wire that carries it
+in about 720 ms. It was not slow; it was QUEUED. Between the scene being built
+and that module landing, the map opened 57 shard-cell requests, a 190 KB ambient
+POI read and, on a returning visit, the UK base manifest and its packs - none of
+which the first pin needs. Only once the worker module lands can it parse the
+pubs source, ask for the glyph range and place a symbol.
+
+### The rule that shipped
+
+**Until the pins have painted, the wire belongs to the pins.**
+`lib/mapFirstPinStreams.ts` owns it and names the closed set of held lanes: the
+slim shard rings, the UK base layer and the ambient POI overlay. Nothing is
+dropped and nothing new is fetched; the sides fill in the moment the map has
+something a thumb can hit. A hold is never a cage - a painted pin, the shell
+deciding there is no canvas at all, or the hold's own ceiling each end it, and
+that ceiling is DERIVED from `MAP_CANVAS_READINESS_CEILING_MS` rather than
+typed.
+
+### The interleaved A/B
+
+Both arms in one process, order alternated each pair so shared box load moves
+them together; one CDP session per page; every arm served through the same
+interception of the cold-open init script; the arm parked on `about:blank`
+between samples, because an arm left on `/map` keeps MapLibre rendering under
+the same throttle and taxes whichever arm measures next. Two production builds
+on two ports, so the tree stays committed while both arms are measured. Raw
+output in `docs/proof/map-first-pin/`.
+
+First visit (storage cleared on the app's own origin before every sample), five
+pairs:
+
+| | before | after |
+| --- | ---: | ---: |
+| **first painted, tappable pin (median)** | **15,589 ms** | **10,679 ms** |
+| shared worker module landed (median) | 13,217 ms | 8,204 ms |
+| glyph range landed (median) | 15,394 ms | 10,381 ms |
+| pubs source loaded (median) | 15,425 ms | 8,264 ms |
+| shard cells started before the pin | 59 | 4 |
+| first pin, per pair | NONE / 15986 / 15635 / 15439 / 15544 | 12194 / 10723 / 10581 / 10603 / 10679 |
+
+Returning visitor (the cold-open warm fires at load), five pairs:
+
+| | before | after |
+| --- | ---: | ---: |
+| **first painted, tappable pin (median)** | **15,908 ms** | **12,644 ms** |
+| shared worker module landed (median) | 13,460 ms | 10,222 ms |
+| first pin, per pair | 13131 / 15877 / 15911 / 15976 / 15908 | 10660 / 12853 / 12644 / 12650 / 12605 |
+
+Every pair favours the after arm in both tables. The `NONE` is honest: that
+sample never painted a pin inside the harness's 90 s ceiling, and the median is
+taken over the four figures the run printed.
+
+**What this rig overstates.** `next start` serves HTTP/1.1, so six connections
+per origin turn 59 queued shard requests into head-of-line blocking, and
+production serves HTTP/2 where they multiplex. The ORDERING win is real on both
+- the held bytes are not on the wire at all until the pins have painted - but a
+production figure will be smaller than 4.9 s. Nothing here is written into
+`perf/route-budgets.json` or `perf/cwv-baseline.json`: no ceiling moved, and
+`e2e/cwv-baseline.spec.ts` remains the only writer of the recorded table.
+
 ## The second navigation
 
 The budgeted numbers above are about ARRIVING. They say nothing about the

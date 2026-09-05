@@ -7,6 +7,7 @@ import {
 import { isTransitNetworkVisible } from "@/lib/poiToggleGroups";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
 import { iconId, UK_BASE_ICON_KEY, type IconTokens } from "@/lib/mapIcons";
+import { markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   type Tokens,
   withAlpha,
@@ -489,6 +490,7 @@ export function registerSceneIcons(ctx: SceneCtx) {
     ...venuePinEdgeTokens(tokens, dark),
   };
   registerMapIcons(map, iconTokens);
+  markPubmaxTiming("pubmax:map-icons-ready");
 }
 
 export function buildLandmarks(ctx: SceneCtx) {

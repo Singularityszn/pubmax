@@ -1,0 +1,165 @@
+Cold /map trace, BEFORE the first-pin stream hold.
+390x844, 4x CPU throttle, Slow 4G, empty HTTP cache and storage, SwiftShader WebGL2,
+local production build served by next start. One CDP session per page.
+
+
+===== run 1 /map firstPin=14047 ms =====
+marks:
+    5220  pubmax:map-chunk-ready
+    5729  pubmax:first-pins
+    5730  pubmax:slim-venues-ready
+    7133  pubmax:map-constructed
+    7529  pubmax:map-style-load
+    8159  pubmax:map-icons-ready
+    8204  pubmax:map-scene-built
+    8262  pubmax:camera-intent:area
+   11130  pubmax:pubs-source-loaded
+   11147  pubmax:pins-visible
+   11659  pubmax:pin-entrance-settled
+slim cells, first 6 and last 6 (start->end):
+      6438 ->   6719    43KB  51.500_-0.125.json
+      6439 ->   6894    22KB  51.525_-0.125.json
+      7182 ->   7481     2KB  51.450_-0.100.json
+      7182 ->   7601     9KB  51.450_-0.125.json
+      7183 ->   7648     9KB  51.450_-0.150.json
+      7184 ->   7777     8KB  51.450_-0.175.json
+      8383 ->  13014     3KB  51.625_-0.100.json
+      8384 ->  13148     3KB  51.625_-0.125.json
+      8384 ->  13100     2KB  51.625_-0.150.json
+      8384 ->  13140     0KB  51.625_-0.175.json
+      8384 ->  13172     1KB  51.625_-0.200.json
+      8384 ->  13236     0KB  51.625_-0.225.json
+slim cells started, by second:
+    6s    2 cells  65 KB
+    7s   32 cells  284 KB
+    8s   25 cells  106 KB
+started before the first pin: 149 requests; 59 slim cells (455 KB decoded)
+     212 ->   1131    1x     31KB /   31KB  /_next/static/media/051742360c26797e-s.p.1bkzbscqrt8rl.woff2?dpl=local
+     213 ->  11987   27x    418KB /   88KB  _next css chunks
+     213 ->    956    1x     22KB /   22KB  /_next/static/media/0c89a48fa5027cee-s.p.2cyn07wtgehh0.woff2?dpl=local
+     213 ->   1251    1x     47KB /   48KB  /_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2?dpl=local
+     213 ->   1601    1x     31KB /    9KB  /_next/static/chunks/0tc6q3pptkbo4.js?dpl=local
+     213 ->   1680    1x     35KB /   12KB  /_next/static/chunks/13_3ki2qh77ch.js?dpl=local
+     214 ->   1562    1x     22KB /    7KB  /_next/static/chunks/29wz0vhnk41j_.js?dpl=local
+     214 ->   1672    1x     40KB /   13KB  /_next/static/chunks/1at4d-2uyg2-r.js?dpl=local
+     214 ->   2126    1x    112KB /   30KB  /_next/static/chunks/28tipahhpwika.js?dpl=local
+     214 ->   1886    1x     11KB /    5KB  /_next/static/chunks/turbopack-2s0dxqh_mh077.js?dpl=local
+     214 ->   1935    1x     31KB /    9KB  /_next/static/chunks/2z2yg5v28uu9q.js?dpl=local
+     214 ->   2873    1x    202KB /   64KB  /_next/static/chunks/34udaucpi5k0-.js?dpl=local
+     214 ->   2077    1x     24KB /    9KB  /_next/static/chunks/3p5nugjmdpf5n.js?dpl=local
+     214 ->   2229    1x     47KB /   15KB  /_next/static/chunks/10n92vfe84i_e.js?dpl=local
+     214 ->   2316    1x     29KB /   10KB  /_next/static/chunks/0zesap8_dvz66.js?dpl=local
+     214 ->   2356    1x     28KB /   10KB  /_next/static/chunks/0uojk6c14xvcw.js?dpl=local
+     214 ->   2484    1x     29KB /   11KB  /_next/static/chunks/0xr912qawgvw7.js?dpl=local
+     214 ->   2619    1x     35KB /   13KB  /_next/static/chunks/1rsj2b6guo3vu.js?dpl=local
+     215 ->   2673    1x     30KB /   11KB  /_next/static/chunks/2od644h4b6kyw.js?dpl=local
+     215 ->   2786    1x     34KB /   11KB  /_next/static/chunks/2gr8ly1px7vl5.js?dpl=local
+     215 ->   2888    1x     64KB /   21KB  /_next/static/chunks/3at-1l0d0v7n4.js?dpl=local
+    3089 ->   3389    1x     22KB /    7KB  /_next/static/chunks/0kgzvr0sxwfj5.js?dpl=local
+    3090 ->   3929    1x    216KB /   56KB  /_next/static/chunks/2-64qkiwhoxfm.js?dpl=local
+    3106 ->   4025    1x     24KB /    9KB  /_next/static/chunks/38dp_rwvfi5ml.js?dpl=local
+    3106 ->   4206    1x     31KB /   11KB  /_next/static/chunks/2w1960dcfemn-.js?dpl=local
+    3106 ->   6529    1x   1024KB /  274KB  /_next/static/chunks/2d2juwb4dq3k5.js?dpl=local
+    3112 ->   4065    1x      9KB /    3KB  /_next/static/chunks/3kg22dciql9em.js?dpl=local
+    3113 ->   4287    1x     33KB /   11KB  /_next/static/chunks/05qj950v9eraj.js?dpl=local
+    3113 ->   4303    1x     24KB /    9KB  /_next/static/chunks/06ld5iilrwqz9.js?dpl=local
+    3114 ->   4979    1x    120KB /   40KB  /_next/static/chunks/0ukofs300p_b3.js?dpl=local
+    3114 ->   5122    1x    135KB /   44KB  /_next/static/chunks/3fy3kkfl987g-.js?dpl=local
+    3114 ->   4645    1x     32KB /   11KB  /_next/static/chunks/375l3j3a9l-8l.js?dpl=local
+    3137 ->   4598    1x     15KB /    5KB  /_next/static/chunks/0irppqy_mzdc9.js?dpl=local
+    5237 ->   5718    1x     71KB /    9KB  /data/venues_slim.core.json
+    5240 ->   5590    1x      1KB /    1KB  /data/price_updates/latest.json
+    5241 ->   5796    1x     87KB /   13KB  /data/london_localities.json
+    5729 ->   6433    1x     42KB /    4KB  /data/venues_slim.manifest.json?v=local
+    6438 ->  13236   59x    455KB /  102KB  /data/venues_slim.cell.*
+    7160 ->  10423    2x    190KB /   26KB  /data/london_pois.json
+    7175 ->   7451    1x      0KB /    0KB  https://tiles.openfreemap.org/styles/positron
+    7287 ->   7315    1x     18KB /    6KB  /vendor/maplibre/maplibre-gl-worker.mjs
+    7316 ->  11034    1x    478KB /  133KB  /vendor/maplibre/maplibre-gl-shared.mjs
+    7531 ->   7720    1x      0KB /    0KB  https://tiles.openfreemap.org/planet
+    7532 ->   7745    1x      0KB /    0KB  https://tiles.openfreemap.org/sprites/ofm_f384/ofm.json
+    7540 ->   8062    1x      0KB /    0KB  https://tiles.openfreemap.org/sprites/ofm_f384/ofm.png
+    8451 ->  13640    1x     44KB /    6KB  /data/uk_base/manifest.json
+   11105 ->  13625    1x      0KB /    0KB  openfreemap fonts/*.pbf
+   11663 ->  13791    1x     17KB /    6KB  /_next/static/chunks/2r_3splbcn-bz.js?dpl=local
+
+===== run 2 /map firstPin=15894 ms =====
+marks:
+    5501  pubmax:map-chunk-ready
+    5579  pubmax:first-pins
+    5581  pubmax:slim-venues-ready
+    6026  pubmax:first-pins
+    6026  pubmax:slim-venues-ready
+    7144  pubmax:map-constructed
+    7444  pubmax:map-style-load
+    7616  pubmax:map-icons-ready
+    7667  pubmax:map-scene-built
+    7750  pubmax:camera-intent:area
+   10668  pubmax:pins-visible
+   15719  pubmax:pubs-source-loaded
+slim cells, first 6 and last 6 (start->end):
+      6277 ->   6661    43KB  51.500_-0.125.json
+      6278 ->   6854    22KB  51.525_-0.125.json
+      7184 ->   7497     2KB  51.450_-0.100.json
+      7184 ->   7640     9KB  51.450_-0.125.json
+      7185 ->   7695     9KB  51.450_-0.150.json
+      7185 ->   7822     8KB  51.450_-0.175.json
+      7273 ->  11795     3KB  51.625_-0.100.json
+      7274 ->  11891     3KB  51.625_-0.125.json
+      7274 ->  11955     2KB  51.625_-0.150.json
+      7274 ->  12053     0KB  51.625_-0.175.json
+      7274 ->  12121     1KB  51.625_-0.200.json
+      7275 ->  12224     0KB  51.625_-0.225.json
+slim cells started, by second:
+    6s    2 cells  65 KB
+    7s   57 cells  390 KB
+started before the first pin: 150 requests; 59 slim cells (455 KB decoded)
+     236 ->   1155    1x     31KB /   31KB  /_next/static/media/051742360c26797e-s.p.1bkzbscqrt8rl.woff2?dpl=local
+     237 ->   5789   26x    414KB /   87KB  _next css chunks
+     237 ->    996    1x     22KB /   22KB  /_next/static/media/0c89a48fa5027cee-s.p.2cyn07wtgehh0.woff2?dpl=local
+     237 ->   1273    1x     47KB /   48KB  /_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2?dpl=local
+     238 ->   1623    1x     31KB /    9KB  /_next/static/chunks/0tc6q3pptkbo4.js?dpl=local
+     238 ->   1694    1x     35KB /   12KB  /_next/static/chunks/13_3ki2qh77ch.js?dpl=local
+     238 ->   1583    1x     22KB /    7KB  /_next/static/chunks/29wz0vhnk41j_.js?dpl=local
+     238 ->   2148    1x    112KB /   30KB  /_next/static/chunks/28tipahhpwika.js?dpl=local
+     238 ->   1703    1x     40KB /   13KB  /_next/static/chunks/1at4d-2uyg2-r.js?dpl=local
+     238 ->   1910    1x     11KB /    5KB  /_next/static/chunks/turbopack-2s0dxqh_mh077.js?dpl=local
+     238 ->   1957    1x     31KB /    9KB  /_next/static/chunks/2z2yg5v28uu9q.js?dpl=local
+     238 ->   2101    1x     24KB /    9KB  /_next/static/chunks/3p5nugjmdpf5n.js?dpl=local
+     238 ->   2251    1x     47KB /   15KB  /_next/static/chunks/10n92vfe84i_e.js?dpl=local
+     238 ->   2331    1x     29KB /   10KB  /_next/static/chunks/0zesap8_dvz66.js?dpl=local
+     238 ->   2895    1x    202KB /   64KB  /_next/static/chunks/34udaucpi5k0-.js?dpl=local
+     239 ->   2378    1x     28KB /   10KB  /_next/static/chunks/0uojk6c14xvcw.js?dpl=local
+     239 ->   2506    1x     29KB /   11KB  /_next/static/chunks/0xr912qawgvw7.js?dpl=local
+     239 ->   2657    1x     35KB /   13KB  /_next/static/chunks/1rsj2b6guo3vu.js?dpl=local
+     239 ->   2689    1x     30KB /   11KB  /_next/static/chunks/2od644h4b6kyw.js?dpl=local
+     239 ->   2808    1x     34KB /   11KB  /_next/static/chunks/2gr8ly1px7vl5.js?dpl=local
+     239 ->   2911    1x     64KB /   21KB  /_next/static/chunks/3at-1l0d0v7n4.js?dpl=local
+    3295 ->   3595    1x     22KB /    7KB  /_next/static/chunks/0kgzvr0sxwfj5.js?dpl=local
+    3297 ->   4127    1x    216KB /   56KB  /_next/static/chunks/2-64qkiwhoxfm.js?dpl=local
+    3334 ->   4404    1x     24KB /    9KB  /_next/static/chunks/38dp_rwvfi5ml.js?dpl=local
+    3335 ->   6893    1x   1024KB /  274KB  /_next/static/chunks/2d2juwb4dq3k5.js?dpl=local
+    3336 ->   4484    1x     31KB /   11KB  /_next/static/chunks/2w1960dcfemn-.js?dpl=local
+    3349 ->   4309    1x      9KB /    3KB  /_next/static/chunks/3kg22dciql9em.js?dpl=local
+    3350 ->   4548    1x     33KB /   11KB  /_next/static/chunks/05qj950v9eraj.js?dpl=local
+    3350 ->   4532    1x     24KB /    9KB  /_next/static/chunks/06ld5iilrwqz9.js?dpl=local
+    3351 ->   5264    1x    120KB /   40KB  /_next/static/chunks/0ukofs300p_b3.js?dpl=local
+    3352 ->   5398    1x    135KB /   44KB  /_next/static/chunks/3fy3kkfl987g-.js?dpl=local
+    3352 ->   4922    1x     32KB /   11KB  /_next/static/chunks/375l3j3a9l-8l.js?dpl=local
+    3390 ->   4834    1x     15KB /    5KB  /_next/static/chunks/0irppqy_mzdc9.js?dpl=local
+    5519 ->   6011    1x     71KB /    9KB  /data/venues_slim.core.json
+    5521 ->   5867    1x      1KB /    1KB  /data/price_updates/latest.json
+    5522 ->   6122    1x     87KB /   13KB  /data/london_localities.json
+    5534 ->   6432    2x      0KB /    0KB  /api/citymcp/things-to-do?window=tonight&limit=8
+    5580 ->   6273    1x     42KB /    4KB  /data/venues_slim.manifest.json?v=local
+    6277 ->  12224   59x    455KB /  102KB  /data/venues_slim.cell.*
+    7166 ->  12535    2x    190KB /   26KB  /data/london_pois.json
+    7178 ->   7393    1x      0KB /    0KB  https://tiles.openfreemap.org/styles/positron
+    7300 ->   7330    1x     18KB /    6KB  /vendor/maplibre/maplibre-gl-worker.mjs
+    7331 ->  13251    1x    478KB /  133KB  /vendor/maplibre/maplibre-gl-shared.mjs
+    7445 ->   7656    1x      0KB /    0KB  https://tiles.openfreemap.org/planet
+    7445 ->   7670    1x      0KB /    0KB  https://tiles.openfreemap.org/sprites/ofm_f384/ofm.json
+    7449 ->   7973    1x      0KB /    0KB  https://tiles.openfreemap.org/sprites/ofm_f384/ofm.png
+    7923 ->  12774    1x     44KB /    6KB  /data/uk_base/manifest.json
+   12983 ->  14411    2x    214KB /   75KB  /data/uk_base/packs/*
+   13441 ->  15658    1x      0KB /    0KB  openfreemap fonts/*.pbf

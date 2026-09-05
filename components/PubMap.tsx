@@ -449,6 +449,7 @@ import { mapAmbientBannersVisible, pickMapSurfaceToast } from "@/lib/mapSurfaceC
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import MapLoadingFrame from "@/components/map/MapLoadingFrame";
 import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
+import { useMapSecondaryStreamHold } from "@/components/map/useMapSecondaryStreamHold";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import {
   drinkLensPriceNoun,
@@ -1977,6 +1978,15 @@ export default function PubMap({
   }, [cityId]);
   const ringLoadPendingKeyRef = useRef<string | null>(null);
   const targetViewportLoadStartedRef = useRef(false);
+  // Until the pins have painted, the wire belongs to the pins
+  // (lib/mapFirstPinStreams.ts). A ring asked for while the hold is on is
+  // remembered rather than dropped, and runs against the camera the reader is
+  // actually looking at once the hold ends.
+  const secondaryStreamsHeldRef = useRef(true);
+  const heldRingLoadRef = useRef<{
+    loader: SlimShardLoader;
+    bounds: MapBounds;
+  } | null>(null);
   const [deferInitialSpatialLoad] = useState(() => {
     try {
       return window.localStorage.getItem(FIRST_PINS_SEEN_KEY) !== "1";
@@ -2062,6 +2072,10 @@ export default function PubMap({
       loader: SlimShardLoader,
       bounds: MapBounds,
     ) => {
+      if (secondaryStreamsHeldRef.current) {
+        heldRingLoadRef.current = { loader, bounds };
+        return;
+      }
       const key = JSON.stringify([
         bounds.west,
         bounds.south,
@@ -2132,6 +2146,29 @@ export default function PubMap({
     ceilingLapsed: mapCanvasCeilingLapsedAttempt === mapCanvasAttempt,
   });
   const mapCanvasUnavailable = mapCanvasAvailabilityState.status === "unavailable";
+  // Until the pins have painted, the wire belongs to the pins. The rule and the
+  // measurement that produced it are lib/mapFirstPinStreams.ts; this is the one
+  // place the answer is derived, and the canvas takes it as a prop rather than
+  // keeping a second copy.
+  const secondaryStreamsHeld = useMapSecondaryStreamHold({
+    pinsRevealed,
+    canvasUnavailable: mapCanvasUnavailable,
+  });
+  useEffect(() => {
+    secondaryStreamsHeldRef.current = secondaryStreamsHeld;
+    if (secondaryStreamsHeld) return;
+    const held = heldRingLoadRef.current;
+    heldRingLoadRef.current = null;
+    if (!held) return;
+    // The camera may have settled somewhere else while the hold was on, so the
+    // released ring reads the CURRENT view when the map has named one.
+    const bounds =
+      latestMapBoundsCityRef.current === activeMapCityIdRef.current &&
+      latestMapBoundsRef.current
+        ? latestMapBoundsRef.current
+        : held.bounds;
+    scheduleRingLoad(held.loader, bounds);
+  }, [scheduleRingLoad, secondaryStreamsHeld]);
   // The ambient lane describes the MAP. With the map's own venue view in the
   // canvas's place, a road-closure or another-city banner is a claim about
   // something the reader cannot see, and at 1440 it landed straight over the
@@ -5799,6 +5836,7 @@ export default function PubMap({
         searchFitToken={searchFitToken}
         userLocation={userLocation}
         poisPath={city.poisPath}
+        secondaryStreamsHeld={secondaryStreamsHeld}
         transitLinesPath={city.transitLinesPath}
         cityLandmarks={cityLandmarks}
         cityStoryBands={cityStoryBands}

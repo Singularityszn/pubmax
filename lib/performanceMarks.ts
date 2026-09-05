@@ -6,6 +6,12 @@ export type PubmaxPerformanceMark =
   | "pubmax:composer-mounted"
   | "pubmax:composer-interactive"
   | "pubmax:first-pins"
+  | "pubmax:map-constructed"
+  | "pubmax:map-style-load"
+  | "pubmax:map-icons-ready"
+  | "pubmax:map-scene-built"
+  | "pubmax:pubs-source-loaded"
+  | "pubmax:pins-visible"
   | "pubmax:pin-entrance-settled";
 
 const FIRST_PINS_EVENT = "pubmax:first-pins";

@@ -1,0 +1,22 @@
+A/B start 2026-09-05T21:22:19.115Z
+pair 1 before firstPin=13131  shared 6920->10598  glyphs 10660->12767  sceneBuilt=7408  pubsSourceLoaded=12848  cells=59
+pair 1 after  firstPin=10660  shared 6976->8166  glyphs 8214->10337  sceneBuilt=7262  pubsSourceLoaded=8228  cells=4
+pair 2 after  firstPin=12853  shared 9367->10407  glyphs 10465->12569  sceneBuilt=7165  pubsSourceLoaded=12827  cells=33
+pair 2 before firstPin=15877  shared 12514->13466  glyphs 13552->15668  sceneBuilt=7212  pubsSourceLoaded=15724  cells=62
+pair 3 before firstPin=15911  shared 12536->13481  glyphs 13576->15699  sceneBuilt=7411  pubsSourceLoaded=15749  cells=62
+pair 3 after  firstPin=12644  shared 9329->10210  glyphs 10268->12388  sceneBuilt=7157  pubsSourceLoaded=12618  cells=33
+pair 4 after  firstPin=12650  shared 9342->10222  glyphs 10285->12401  sceneBuilt=7174  pubsSourceLoaded=12625  cells=33
+pair 4 before firstPin=15976  shared 12532->13460  glyphs 13551->15670  sceneBuilt=7178  pubsSourceLoaded=15724  cells=62
+pair 5 before firstPin=15908  shared 12545->13459  glyphs 13558->15675  sceneBuilt=7174  pubsSourceLoaded=15733  cells=62
+pair 5 after  firstPin=12605  shared 9331->10222  glyphs 10279->12400  sceneBuilt=7124  pubsSourceLoaded=12428  cells=33
+
+before: firstPin median 15908 ms  (13131/15877/15911/15976/15908)
+before: shared module landed median 13460 ms
+before: glyph range landed median 15670 ms
+before: pubs source loaded median 15724 ms
+
+after: firstPin median 12644 ms  (10660/12853/12644/12650/12605)
+after: shared module landed median 10222 ms
+after: glyph range landed median 12400 ms
+after: pubs source loaded median 12618 ms
+A/B end 2026-09-05T21:24:40.058Z
