@@ -5,6 +5,7 @@ import { outWindowToApiDay } from "@/lib/outListings";
 import { buildOutResponse } from "@/lib/out/loadOut";
 import {
   mergeTonightListingRows,
+  tonightLaneReports,
   tonightListingsStatus,
   type TonightOutAnswer,
   type TonightWhatsOnStatus,
@@ -58,6 +59,32 @@ export function todayPicksReadStatus(
     true,
   );
   return listingsStatus === "error" ? "degraded" : "ready";
+}
+
+/**
+ * The lane note /today owes beside an empty picks card, and whether asking
+ * again could change it.
+ *
+ * Battle test M07: on a preview with no listings keys, /today printed
+ * "Nothing on tonight's list yet." while /api/out answered `not-configured`.
+ * `todayPicksReadStatus` cannot see that, because a lane nobody ASKED is not a
+ * lane that FAILED and `tonightListingsStatus` calls it `empty`. Both are the
+ * same thing to a reader though: an absence that is about US. So the lane
+ * reports are asked directly, /today words the card from the lane's own line,
+ * and a lane nobody switched on is told rather than offered a retry.
+ */
+export function todayPicksLaneReport(
+  whatsOnReadStatus: WhatsOnReadStatus,
+  whatsOnRowCount: number,
+  out: TonightOutAnswer,
+): { reason: string | null; retryable: boolean } {
+  const whatsOnStatus = whatsOnStatusForTonightListings(whatsOnReadStatus, whatsOnRowCount);
+  const reports = tonightLaneReports(whatsOnStatus, out);
+  if (reports.length === 0) return { reason: null, retryable: false };
+  return {
+    reason: reports.map((report) => report.line).join(" · "),
+    retryable: reports.some((report) => report.retryable),
+  };
 }
 
 /** Bundled plus live What's-On for tonight — same spine as /api/whats-on. */

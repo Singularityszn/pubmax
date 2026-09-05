@@ -19,6 +19,7 @@ import {
   loadTodayOutAnswer,
   loadTodayWhatsOnAnswer,
   mergeTodayListingRows,
+  todayPicksLaneReport,
   todayPicksReadStatus,
   whatsOnStatusForTonightListings,
 } from "@/lib/todayListings.server";
@@ -148,6 +149,9 @@ export default async function TodayPage() {
     now.getTime(),
     whatsOnRows,
   );
+  // A lane that FAILED and a lane nobody ASKED are the same absence to a
+  // reader, and neither is a quiet city (battle test M07).
+  const picksLane = todayPicksLaneReport(whatsOnReadStatus, whatsOnRows.length, out);
   const picks = digestSectionPicks(listingRows, { limit: Number.POSITIVE_INFINITY }).map((pick) => {
     const dto = toTonightPickDto(pick.row);
     return pick.digest ? { ...dto, venueNote: dealDigestNote(pick.digest.venueCount) } : dto;
@@ -201,6 +205,12 @@ export default async function TodayPage() {
       weatherByArea={weatherByArea}
       picks={picks}
       picksStatus={picksStatus}
+      // The day the rows on screen were OBSERVED, never the instant this
+      // request was served. Null when the read carries no source time, and the
+      // card then prints no date rather than borrowing this render's.
+      picksCheckedAt={whatsOn?.sourceObservedAt ?? null}
+      picksReason={picksLane.reason}
+      picksRetryable={picksLane.retryable}
       fact={fact}
       pintsIndex={pintsIndex}
       quietPint={quietPint}

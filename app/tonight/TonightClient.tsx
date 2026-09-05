@@ -62,7 +62,11 @@ import {
   type TonightRowEvidence,
 } from "@/app/tonight/TonightRowAccept";
 import { VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
-import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
+import {
+  readRememberedArea,
+  rememberedPatchId,
+  type RememberedArea,
+} from "@/lib/nightPatches";
 import { VibeChipButton, VibeChipLink, VibeChips } from "@/components/vibe/VibeChips";
 import { planOccasionHref, TONIGHT_SOFT_PLAN_CHIPS } from "@/lib/planOccasion";
 import { palChatHref, visibleTonightVibeChips } from "@/lib/vibeChips";
@@ -80,12 +84,17 @@ import {
   tonightListingLede,
   tonightListingLanes,
   tonightEmptyLead,
+  tonightHeldRowCount,
   tonightListingsNoteLine,
   tonightNoteOffersRetry,
+  tonightPaintStatus,
+  tonightPicksState,
   tonightRetryLanes,
   tonightRowLinks,
   tonightProvenanceCredits,
 } from "@/lib/tonightOutListings";
+import type { PicksContext } from "@/lib/picksState";
+import { parsePlanOccasionIdFromSearch } from "@/lib/planOccasion";
 import type { QuietPintModule } from "@/lib/quietPint";
 import type { TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
 import { whatsOnBarePriceGbp, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
@@ -189,6 +198,12 @@ export default function TonightClient({
   // seam, written by the map's Near me). Read in an effect: localStorage is
   // browser-only and the first paint must match SSR.
   const [remembered, setRemembered] = useState<RememberedArea | null>(null);
+  // The occasion the reader arrived with, so a door out of an empty section
+  // still plans the night they came here for. Read off the address in the same
+  // deferred pass as the remembered area rather than through useSearchParams,
+  // which would put this page behind a Suspense boundary for one optional
+  // parameter. Only the closed ids answer, so nothing arbitrary is forwarded.
+  const [occasion, setOccasion] = useState<string | null>(null);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>("idle");
   const [acceptanceError, setAcceptanceError] = useState<TonightAcceptanceError | null>(null);
   // The location card is a quiet, collapsed row until tapped — it must not be
@@ -202,7 +217,9 @@ export default function TonightClient({
     // Deferred like useWhatsOnTonight's setState (react-hooks rule): the
     // remembered area lands next microtask, before the first fetch settles.
     void Promise.resolve().then(() => {
-      if (!cancelled) setRemembered(readRememberedArea());
+      if (cancelled) return;
+      setRemembered(readRememberedArea());
+      setOccasion(parsePlanOccasionIdFromSearch(window.location.search));
     });
     return () => {
       cancelled = true;
@@ -239,13 +256,19 @@ export default function TonightClient({
   // One instant answers both questions. Reading the clock twice lets the merge
   // drop the night's last row while the status still calls the page ready, and
   // a ready page over no rows shows neither cards nor the quiet-night sentence.
+  // A retry puts the spine back to `idle`, which empties the merge of BOTH
+  // lanes, so the paint reads the answer already on screen and only the state
+  // below says a read is running. Counted across both lanes on purpose: the
+  // retry control is offered when the SPINE reported, and a spine that reported
+  // holds no rows, so the list under that button is the Out lane's.
+  const paintStatus = tonightPaintStatus(status, tonightHeldRowCount(rows, outAnswer));
   const { listingRows, primaryListingRows, listingsStatus, outEvents } = useMemo(() => {
     // The past guard needs the real clock, and this memo reads it again only
     // when one of the two reads answers, so both halves keep the same instant.
     // eslint-disable-next-line react-hooks/purity -- deliberate clock read
     const now = Date.now();
-    return tonightLedeComposition(rows, outAnswer, status, now, selectableVenueIds);
-  }, [rows, status, outAnswer, selectableVenueIds]);
+    return tonightLedeComposition(rows, outAnswer, paintStatus, now, selectableVenueIds);
+  }, [rows, paintStatus, outAnswer, selectableVenueIds]);
   const retryLanes = tonightRetryLanes(status, outAnswer);
   const retryWhatsOnLane = retryLanes.whatsOn;
   const retryOutLane = retryLanes.out;
@@ -352,6 +375,16 @@ export default function TonightClient({
   );
 
   const empty = listingsStatus === "empty";
+  // What a fallback door must not drop. The patch id is already validated by
+  // readRememberedArea; a remembered BOROUGH carries no patch, so it is left
+  // off rather than guessed at.
+  const picksContext = useMemo<PicksContext>(
+    () => ({
+      patchId: rememberedPatchId(remembered),
+      occasion,
+    }),
+    [remembered, occasion],
+  );
   // Null when the source cannot be dated; the header then prints the plain
   // sentence instead of a dated chain segment.
   const checked = freshnessLabel(sourceFreshnessKind, asOf);
@@ -378,6 +411,31 @@ export default function TonightClient({
   // list short for a reason the reader is owed.
   const listingsNote = tonightListingsNoteLine(status, outAnswer, selectableVenueIds);
   const noteOffersRetry = tonightNoteOffersRetry(status, outAnswer, selectableVenueIds);
+  // ONE state for the whole section (lib/picksState.ts). `idle` is a read in
+  // flight; anything else that could not answer is unreadable. The note is the
+  // reason, and `asOf` is the day the rows on screen were observed, so a held
+  // answer is dated by its own evidence rather than by the instant we re-asked.
+  const listingsState = useMemo(
+    () =>
+      tonightPicksState({
+        visibleCount: primaryListingRows.length,
+        whatsOn: status,
+        out: outAnswer,
+        listingsStatus,
+        note: listingsNote,
+        retryLanes,
+        checkedAt: asOf,
+      }),
+    [
+      primaryListingRows.length,
+      status,
+      outAnswer,
+      listingsStatus,
+      listingsNote,
+      retryLanes,
+      asOf,
+    ],
+  );
   // Which read a row came from decides how keeping it is recorded, so the Out
   // lane is identified by the same reference identity the credits use.
   const rowEvidence = useMemo(() => {
@@ -423,6 +481,7 @@ export default function TonightClient({
       className="tonightPage"
       data-testid="tonight-screen"
       data-listings-status={listingsStatus}
+      data-picks-state={listingsState.kind}
     >
       <SiteNav active="tonight" />
       <NowSegment current="tonight" />
@@ -480,10 +539,12 @@ export default function TonightClient({
 
       <div className="tonightPrimary" data-status={listingsStatus}>
       <TonightListingsNotice
-        status={listingsStatus}
+        state={listingsState}
         note={listingsNote}
         noteOffersRetry={noteOffersRetry}
         emptyLead={tonightEmptyLead(status, outAnswer)}
+        heldRowCount={primaryListingRows.length}
+        context={picksContext}
         onRetry={retryListings}
       />
 

@@ -350,6 +350,14 @@
   opacity: 0.85;
 }
 
+/* The re-read line beside held picks. Quiet by design: the rows above it are
+   still the answer, and this only says a fresher one is on its way and dates
+   the ones on screen. */
+.todayPickChecked {
+  font-size: 0.76rem;
+  color: var(--ink-soft);
+}
+
 /* Chain-deal disclosure: "Same deal at 12 pubs". Honest, understated, so a
    syndicated promotion reads as one deal at many pubs, not many picks. */
 .todayPickDigest {

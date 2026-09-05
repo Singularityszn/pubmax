@@ -245,6 +245,13 @@
   margin-top: 10px;
 }
 
+/* The two non-event doors under an empty or unreadable listing spine. The
+   shared block owns its own type and spacing; this only seats it in the
+   column's rhythm. */
+.tonightAlternatives {
+  margin-bottom: 20px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .tonightLocationButton:hover:not(:disabled),
   .tonightRetry:hover {

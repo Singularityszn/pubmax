@@ -202,9 +202,10 @@ describe("friction-state voice fence", () => {
   it("Tonight's rendered empty night hands the user an exit to the map", () => {
     const markup = renderToStaticMarkup(
       createElement(TonightListingsNotice, {
-        status: "empty",
+        state: { kind: "genuinely_empty", reason: null, checkedAt: null, retryable: false },
         note: null,
         noteOffersRetry: false,
+        heldRowCount: 0,
         emptyLead: "Nothing listed for tonight.",
         onRetry: () => undefined,
       }),
@@ -336,9 +337,10 @@ const RENDERED_FRICTION_SURFACES: ReadonlyArray<[string, () => string]> = [
     () =>
       renderToStaticMarkup(
         createElement(TonightListingsNotice, {
-          status: "error",
+          state: { kind: "temporarily_unavailable", reason: null, checkedAt: null, retryable: true },
           note: null,
           noteOffersRetry: true,
+          heldRowCount: 0,
           emptyLead: "Nothing listed for tonight.",
           onRetry: () => undefined,
         }),
@@ -349,9 +351,10 @@ const RENDERED_FRICTION_SURFACES: ReadonlyArray<[string, () => string]> = [
     () =>
       renderToStaticMarkup(
         createElement(TonightListingsNotice, {
-          status: "ready",
+          state: { kind: "ready", reason: "Couldn't confirm tonight's venues right now.", checkedAt: null, retryable: true },
           note: "Couldn't confirm tonight's venues right now.",
           noteOffersRetry: true,
+          heldRowCount: 2,
           emptyLead: "Nothing listed for tonight.",
           onRetry: () => undefined,
         }),
@@ -362,9 +365,10 @@ const RENDERED_FRICTION_SURFACES: ReadonlyArray<[string, () => string]> = [
     () =>
       renderToStaticMarkup(
         createElement(TonightListingsNotice, {
-          status: "empty",
+          state: { kind: "genuinely_empty", reason: null, checkedAt: null, retryable: false },
           note: null,
           noteOffersRetry: false,
+          heldRowCount: 0,
           emptyLead: "Nothing listed for tonight.",
           onRetry: () => undefined,
         }),
