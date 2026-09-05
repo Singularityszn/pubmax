@@ -7,7 +7,9 @@ import {
   ANALYTICS_EVENTS,
   LATE_FOOD_CONFIDENCES,
   LATE_FOOD_RESULT_BANDS,
+  LOOP_MOMENT_EVENTS,
   RECAP_VISIBILITIES,
+  WEEKLY_MEANINGFUL_CORE_ACTIONS,
   sanitizeEvent,
 } from "@/lib/analyticsEvents";
 import {
@@ -19,16 +21,6 @@ import {
 
 const ROOT = process.cwd();
 const read = (relative: string): string => readFileSync(join(ROOT, relative), "utf8");
-
-/** The four loop moments #252 named, as six registry entries. */
-const LOOP_MOMENT_EVENTS = [
-  "late_food_viewed",
-  "late_food_added",
-  "briefing_viewed",
-  "briefing_opened",
-  "voice_started",
-  "recap_viewed",
-] as const;
 
 function sourceFiles(): string[] {
   const found: string[] = [];
@@ -160,6 +152,50 @@ describe("what the sanitizer lets out of the device", () => {
     expect(sanitizeEvent("recap_viewed", {})).toBeNull();
     // A private recap is `memory_reviewed`, and may not arrive under this name.
     expect(sanitizeEvent("recap_viewed", { visibility: "private" })).toBeNull();
+  });
+});
+
+describe("what the roll-up may count", () => {
+  it("names the six moments once, in the registry", () => {
+    expect([...LOOP_MOMENT_EVENTS]).toEqual([
+      "late_food_viewed",
+      "late_food_added",
+      "briefing_viewed",
+      "briefing_opened",
+      "voice_started",
+      "recap_viewed",
+    ]);
+  });
+
+  it("keeps every loop moment out of Weekly Meaningful core actions", () => {
+    // Five of the six are impressions, and the roll-up counts value TAKEN. The
+    // sixth is an action whose night is already in the roll-up as
+    // `plan_completed`, so folding it in would count one night twice.
+    for (const event of LOOP_MOMENT_EVENTS) {
+      expect(
+        (WEEKLY_MEANINGFUL_CORE_ACTIONS as readonly string[]).includes(event),
+        `${event} may not be a Weekly Meaningful core action`,
+      ).toBe(false);
+    }
+  });
+
+  it("refuses a loop moment sent as a roll-up action", () => {
+    for (const event of LOOP_MOMENT_EVENTS) {
+      expect(sanitizeEvent("meaningful_core_action", { action: event })).toBeNull();
+    }
+  });
+
+  it("counts the food ending's night through plan_completed, in the same save", () => {
+    const card = read("components/night/NightModeCard.tsx");
+    const added = card.indexOf('trackEvent("late_food_added"');
+    const rolledUp = card.indexOf('trackMeaningfulCoreAction(\n            "plan_completed"');
+    expect(added).toBeGreaterThan(-1);
+    // The ending save is the completion, so the roll-up for that night rides
+    // the receipt-gated `plan_completed` a few lines further down the SAME
+    // handler. A second roll-up call beside the food ending is what this
+    // guards against.
+    expect(rolledUp).toBeGreaterThan(added);
+    expect(card).not.toMatch(/trackMeaningfulCoreAction\(\s*\n?\s*"late_food_added"/);
   });
 });
 
