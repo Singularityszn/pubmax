@@ -25,16 +25,29 @@ export function cleanCrewName(value: unknown): string {
   return cleanText(value, CREW_NAME_MAX);
 }
 
-/** Signed-in lock-in: prefer account metadata over an empty composer field. */
-export function creatorNameFromAuthUser(user: {
-  email?: string | null;
-  user_metadata?: Record<string, unknown> | null;
+/**
+ * Signed-in lock-in: the name a host is offered for an empty composer field.
+ *
+ * THE PUBLIC HANDLE COMES FIRST, AND THE EMAIL NEVER COMES AT ALL (battle test
+ * L05). This name is not a private convenience: it becomes the host name on the
+ * plan, on the share card and in the unfurler, so it went out to everyone the
+ * link reached as "pentest.alice is planning a night out". The handle is the
+ * account's own public name here; a display name the person volunteered to the
+ * identity provider is the fallback; an email address is neither.
+ *
+ * The handle argument is TRI-STATE by way of null, so a caller must not ask
+ * until the live session has answered - a cached handle is exactly where the
+ * previous account's name lives (lib/deviceAccountIdentity.ts).
+ */
+export function creatorNameFromAccount(input: {
+  handle: string | null;
+  user: { user_metadata?: Record<string, unknown> | null } | null;
 }): string {
-  const meta = user.user_metadata ?? {};
+  const meta = input.user?.user_metadata ?? {};
   const raw =
-    (typeof meta.full_name === "string" && meta.full_name.trim())
+    (typeof input.handle === "string" && input.handle.trim())
+    || (typeof meta.full_name === "string" && meta.full_name.trim())
     || (typeof meta.name === "string" && meta.name.trim())
-    || (typeof user.email === "string" && user.email.split("@")[0]?.trim())
     || "";
   return cleanCrewName(raw);
 }
