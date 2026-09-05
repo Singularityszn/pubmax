@@ -33,6 +33,10 @@ export default function PriceEvidenceMissionSlot({
   embedComposer = false,
 }: PriceEvidenceMissionSlotProps) {
   const [opened, setOpened] = useState(embedComposer);
+  // Once this pub's price is logged the ASK is answered, so the heading and
+  // its skip go. The composer stays exactly where it is, because the receipt
+  // it just printed lives inside this slot.
+  const [answered, setAnswered] = useState(false);
   const heading = missionHeading({
     reason: mission.reason,
     venueName,
@@ -47,25 +51,27 @@ export default function PriceEvidenceMissionSlot({
 
   return (
     <section className="pemSlot" aria-labelledby={headingId} data-surface={surface}>
-      <div className="pemHead">
-        <h3 id={headingId} className="pemHeading">
-          {heading}
-        </h3>
-        <div className="pemActions">
-          {!opened ? (
-            <button type="button" className="pemOpen" onClick={open}>
-              Log it
+      {answered ? null : (
+        <div className="pemHead">
+          <h3 id={headingId} className="pemHeading">
+            {heading}
+          </h3>
+          <div className="pemActions">
+            {!opened ? (
+              <button type="button" className="pemOpen" onClick={open}>
+                Log it
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="pemSkip"
+              onClick={() => onDismiss(mission)}
+            >
+              Not now
             </button>
-          ) : null}
-          <button
-            type="button"
-            className="pemSkip"
-            onClick={() => onDismiss(mission)}
-          >
-            Not now
-          </button>
+          </div>
         </div>
-      </div>
+      )}
       {opened ? (
         <VenuePriceSubmit
           venueId={mission.venueId}
@@ -77,7 +83,9 @@ export default function PriceEvidenceMissionSlot({
             surface,
           }}
           onLogged={(venueId) => {
-            if (venueId === mission.venueId) onFulfilled?.(mission);
+            if (venueId !== mission.venueId) return;
+            setAnswered(true);
+            onFulfilled?.(mission);
           }}
         />
       ) : null}

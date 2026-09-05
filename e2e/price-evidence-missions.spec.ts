@@ -318,8 +318,12 @@ test("the credit sentence and its link share one row on a desktop width", async 
   await installContributorBoundary(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`/map?sel=${SEED_VENUE_ID}`);
-  const sheet = await openVenueSheet(page);
+  // The desktop sheet is the drawer, not the phone portal, so this reaches the
+  // inspector directly rather than through the phone opener above.
+  const sheet = page.locator(".venueInspector").first();
+  await expect(sheet).toBeVisible({ timeout: 30_000 });
   const submit = sheet.locator(".venuePriceSubmit");
+  await expect(submit).toBeVisible({ timeout: 30_000 });
   await submit.getByRole("textbox").fill("4.20");
   await submit.getByRole("button", { name: "Log it" }).click();
   await expect(submit.getByRole("status")).toBeVisible();
