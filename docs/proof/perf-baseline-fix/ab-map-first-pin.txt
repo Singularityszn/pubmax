@@ -1,0 +1,18 @@
+A/B start Sat  5 Sep 2026 15:40:39 BST load: 15:40  up 2 days,  6:01, 1 user, load averages: 49.88 52.20 49.32
+pair 1 before firstPin= 24915  shared 13674->15391  lcp=null
+pair 1 after  firstPin= 15697  shared 1203->4220  lcp=null
+pair 2 after  firstPin= 15604  shared 1100->3894  lcp=null
+pair 2 before firstPin= 13894  shared 8305->10234  lcp=null
+pair 3 before firstPin= 15206  shared 8311->10481  lcp=null
+pair 3 after  firstPin= 13229  shared 1279->4020  lcp=null
+pair 4 after  firstPin= 13626  shared 1133->4036  lcp=null
+pair 4 before firstPin= 13924  shared 8152->10053  lcp=null
+
+before: firstPin median 14565 ms  (24915/13894/15206/13924)
+before: shared module started median 8308 ms, landed median 10357.5 ms
+before: LCP median NaN ms
+
+after: firstPin median 14615 ms  (15697/15604/13229/13626)
+after: shared module started median 1168 ms, landed median 4028 ms
+after: LCP median NaN ms
+A/B end Sat  5 Sep 2026 15:43:05 BST load: 15:43  up 2 days,  6:03, 1 user, load averages: 54.00 51.91 49.56
