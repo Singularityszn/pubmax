@@ -205,6 +205,20 @@ describe("the second drinker's door on a logged-once price", () => {
     );
   });
 
+  it("is offered on an aged-out report too, over the aged figure", () => {
+    // AGED_PRICE_LINE asks for a fresh drinker, and the door is how one
+    // arrives. Read off the same trust state the chip carries.
+    const html = renderSelectedVenue(
+      [drop({ createdAt: new Date(NOW - 90 * DAY_MS).toISOString() })],
+      venue(),
+      null,
+      noop,
+    );
+    expect(html).toContain('data-pint-trust="aged-out"');
+    expect(html).toContain('data-testid="confirm-pint-cta"');
+    expect(html).toContain(confirmPintActionLabel(4.5));
+  });
+
   it("is absent where the map already holds the pub's price", () => {
     const html = renderSelectedVenue(
       [drop({ authorityKey: "key-a" }), drop({ authorityKey: "key-b" })],

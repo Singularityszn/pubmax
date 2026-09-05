@@ -24,7 +24,10 @@ import {
   confirmPintPriceSeed,
   confirmationOutcomeLine,
   parseConfirmationOutcome,
+  SECOND_DRINKER_STATES,
+  secondDrinkerDoorOffered,
 } from "@/lib/pintDropSecondDrinker";
+import { PINT_TRUST_STATES } from "@/lib/pintTrust";
 
 const NOW = Date.parse("2026-09-05T20:00:00.000Z");
 const VENUE = "venue-1vle947";
@@ -63,6 +66,14 @@ describe("the door's words", () => {
     expect(confirmPintPriceSeed(0)).toBeNull();
     expect(confirmPintPriceSeed(Number.NaN)).toBeNull();
     expect(confirmPintPriceSeed(null)).toBeNull();
+  });
+});
+
+describe("where the door is offered", () => {
+  it("is owed exactly to the two states that lack a second drinker, off the one trust reading", () => {
+    for (const state of SECOND_DRINKER_STATES) expect(PINT_TRUST_STATES).toContain(state);
+    expect(PINT_TRUST_STATES.filter(secondDrinkerDoorOffered)).toEqual(["logged-once", "aged-out"]);
+    expect(secondDrinkerDoorOffered(null)).toBe(false);
   });
 });
 

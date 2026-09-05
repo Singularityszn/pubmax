@@ -18,6 +18,21 @@
 
 import { formatGbp } from "@/lib/formatGbp";
 import type { PintDropConfirmation } from "@/lib/pintDropConfirmationRecord";
+import type { PintTrustState } from "@/lib/pintTrust";
+
+/**
+ * The trust states (lib/pintTrust.ts) a pub is in when it is owed a second
+ * drinker: one in-window report, or every report past the window. CLOSED, and
+ * read off the ONE trust reading rather than off a lane branch, so the door
+ * mounts against the same state the chip's `data-pint-trust` carries and the
+ * two cannot disagree. `confirmed` and `corroborated` already have their
+ * second drinker; `none` has nothing to confirm.
+ */
+export const SECOND_DRINKER_STATES = ["logged-once", "aged-out"] as const satisfies readonly PintTrustState[];
+
+export function secondDrinkerDoorOffered(state: PintTrustState | null | undefined): boolean {
+  return state !== null && state !== undefined && (SECOND_DRINKER_STATES as readonly string[]).includes(state);
+}
 
 /** The figure as the composer's own price field spells it, or null. */
 export function confirmPintPriceSeed(priceGbp: number | null | undefined): string | null {

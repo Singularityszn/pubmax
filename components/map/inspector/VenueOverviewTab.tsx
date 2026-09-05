@@ -5,7 +5,7 @@ import { MapPin } from "lucide-react";
 import Disclosure from "@/components/Disclosure";
 import PriceBadge from "@/components/PriceBadge";
 import TrustPill from "@/components/ui/trust-pill";
-import { trustChipStateFor } from "@/lib/pintTrust";
+import { trustChipStateFor, type PintTrustState } from "@/lib/pintTrust";
 import { priceStandingFor, type ConfirmedPriceInput } from "@/lib/priceTier";
 import { Amenity, ClaimBadge } from "@/components/map/venueInspectorBits";
 import {
@@ -27,6 +27,7 @@ import {
   venueBundlePrices,
   venuePriceLane,
   venuePriceLaneIsDrinkerLog,
+  venuePriceLaneObservedGbp,
   type ProvisionalPriceInput,
   type VenuePriceLane,
 } from "@/lib/venuePriceLane";
@@ -68,6 +69,7 @@ import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import {
   confirmPintActionLabel,
   confirmPintActionName,
+  secondDrinkerDoorOffered,
 } from "@/lib/pintDropSecondDrinker";
 import type { ZonePintIndex } from "@/lib/zones";
 
@@ -101,6 +103,43 @@ function overviewPriceAreaReach(
     laneLoggedPriceShown:
       showsPriceSummary && lane !== null && venuePriceLaneIsDrinkerLog(lane),
   };
+}
+
+/**
+ * THE SECOND DRINKER'S DOOR. Built off the trust state the chip carries
+ * (lib/pintTrust.ts through `trustChipStateFor`), never off a lane branch, so
+ * the states that are owed a second drinker are the closed set in
+ * lib/pintDropSecondDrinker.ts and the figure it names is the lane's own
+ * observed figure. It seeds the composer rather than sending anything: the
+ * drinker still presses Log it, and independence is decided on the server.
+ * Renders nothing where no door was handed in, on a venue that is not a pub,
+ * in any other state, or over a lane with no figure.
+ */
+function SecondDrinkerDoor({
+  venue,
+  lane,
+  state,
+  onConfirmPrice,
+}: {
+  venue: Venue;
+  lane: VenuePriceLane | null;
+  state: PintTrustState | null;
+  onConfirmPrice?: (priceGbp: number) => void;
+}) {
+  if (!onConfirmPrice || !isPubVenue(venue) || !secondDrinkerDoorOffered(state)) return null;
+  const figure = lane ? venuePriceLaneObservedGbp(lane) : null;
+  if (figure === null) return null;
+  return (
+    <button
+      type="button"
+      className="confirmPintCta"
+      data-testid="confirm-pint-cta"
+      aria-label={confirmPintActionName(figure, venue.name)}
+      onClick={() => onConfirmPrice(figure)}
+    >
+      {confirmPintActionLabel(figure)}
+    </button>
+  );
 }
 
 function VenuePriceSummary({
@@ -156,6 +195,14 @@ function VenuePriceSummary({
   const baselineSource = baselinePriceRow
     ? namedLegacyPintPriceSource(baselinePriceRow)
     : null;
+  const secondDrinkerDoor = (
+    <SecondDrinkerDoor
+      venue={venue}
+      lane={lane}
+      state={trustChipState}
+      onConfirmPrice={onConfirmPrice}
+    />
+  );
 
   if (lane?.lane === "anchor") {
     return (
@@ -285,21 +332,7 @@ function VenuePriceSummary({
         <small className={`communityPriceStanding ${priceRevealMotionClass}`.trim()}>
           {PROVISIONAL_PRICE_LINE}
         </small>
-        {/* The second drinker's door. ONE action, the figure it names is the
-            one printed above, and it seeds the composer rather than sending
-            anything: the drinker still presses Log it, and independence is
-            decided on the server from the authority key, never here. */}
-        {onConfirmPrice && isPubVenue(venue) ? (
-          <button
-            type="button"
-            className="confirmPintCta"
-            data-testid="confirm-pint-cta"
-            aria-label={confirmPintActionName(lane.provisionalPrice, venue.name)}
-            onClick={() => onConfirmPrice(lane.provisionalPrice)}
-          >
-            {confirmPintActionLabel(lane.provisionalPrice)}
-          </button>
-        ) : null}
+        {secondDrinkerDoor}
       </div>
     );
   }
@@ -356,6 +389,7 @@ function VenuePriceSummary({
         <small className={`communityPriceStanding ${priceRevealMotionClass}`.trim()}>
           {AGED_PRICE_LINE}
         </small>
+        {secondDrinkerDoor}
       </div>
     );
   }
