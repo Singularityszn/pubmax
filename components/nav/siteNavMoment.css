@@ -69,3 +69,14 @@
     display: none;
   }
 }
+
+/* Tablet's narrow half (641-767px): the bar's action cluster has to fit
+   beside six destinations inside a 573px row, and this dot is the 48px that
+   would otherwise put the cluster over "You". The rule lives here rather than
+   in siteNav.css because this sheet's own display rule loads later and would
+   win. From 768px up the dot is back. */
+@media (min-width: 641px) and (max-width: 767px) {
+  .siteNavMoment {
+    display: none;
+  }
+}
