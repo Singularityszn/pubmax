@@ -35,7 +35,13 @@ const selectStyle: CSSProperties = {
   padding: 0,
   cursor: "pointer",
   outline: "none",
-  maxWidth: 140,
+  // The control has to be able to SAY what it is set to. At 140px a native
+  // select cut "Cheapest pint (any)" to "Cheapest pint (a" with no ellipsis and
+  // no scroll, so the resting state of the map's drink filter was unreadable.
+  // The ceiling now fits that resting label, and anything longer (a brand plus
+  // its ABV) ends in an ellipsis rather than mid-word.
+  maxWidth: "12.5rem",
+  textOverflow: "ellipsis",
 };
 
 const shellStyle: CSSProperties = {
