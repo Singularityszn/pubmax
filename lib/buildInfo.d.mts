@@ -33,3 +33,7 @@ export declare function resolveBuildStamp(
 export declare function readBuildStamp(
   env?: Record<string, string | undefined>,
 ): BuildStamp;
+
+export declare function deployStampBuildEnv(
+  input?: { headSha?: string | null; dirty?: boolean },
+): Record<string, string>;

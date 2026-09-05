@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { GET } from "@/app/api/version/route";
 import {
+  deployStampBuildEnv,
   normalizeBuildTime,
   normalizeCommitSha,
   readBuildStamp,
@@ -59,6 +60,33 @@ describe("build commit resolver", () => {
     expect(resolveBuildCommit({ VERCEL_GIT_COMMIT_SHA: "main" }, "  ")).toEqual({
       commitSha: null,
       commitShaSource: null,
+    });
+  });
+
+  // A CLI deploy uploads no repository, so the tree it came from is named by the
+  // deploy command. Measured: neither VERCEL_GIT_COMMIT_SHA nor a .git directory
+  // reaches the builder of such a deploy.
+  it("takes the commit a deploy command passed, and calls it the working tree", () => {
+    expect(resolveBuildCommit({ PUBMAX_BUILD_COMMIT_SHA: SHA }, null)).toEqual({
+      commitSha: SHA,
+      commitShaSource: "working-tree",
+    });
+  });
+
+  it("still lets Vercel's own stamp win over the one a deploy passed", () => {
+    const vercelSha = "0".repeat(40);
+    expect(
+      resolveBuildCommit({ VERCEL_GIT_COMMIT_SHA: vercelSha, PUBMAX_BUILD_COMMIT_SHA: SHA }, null),
+    ).toEqual({ commitSha: vercelSha, commitShaSource: "vercel-git" });
+  });
+
+  // The upload is the working tree, so over a dirty tree the commit names code
+  // that was not sent. A marker naming the wrong commit is worse than none.
+  it("stamps nothing for a deploy from a dirty tree", () => {
+    expect(deployStampBuildEnv({ headSha: SHA, dirty: true })).toEqual({});
+    expect(deployStampBuildEnv({ headSha: null, dirty: false })).toEqual({});
+    expect(deployStampBuildEnv({ headSha: `${SHA}\n`, dirty: false })).toEqual({
+      PUBMAX_BUILD_COMMIT_SHA: SHA,
     });
   });
 
