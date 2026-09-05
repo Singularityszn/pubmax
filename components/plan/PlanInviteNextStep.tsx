@@ -158,6 +158,20 @@ export default function PlanInviteNextStep({
     }
   }, [inviteToken, relativeUrl, text]);
 
+  // A reader with no crew session is not the host: the WhatsApp slot, the
+  // link tools and the "more" controls are theirs alone. One notice, printed
+  // once; the host link component below used to print the same sentence a
+  // second time (battle test L01).
+  if (!memberToken && sessionCheckedPlanId === planId) {
+    return (
+      <div className="planInviteNext" id="share">
+        <p className="planInviteNext__whatsapp planInviteNext__whatsapp--pending" role="status">
+          Invite tools need a crew session. Join the plan, then try again.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="planInviteNext" id="share">
       {inviteReady && inviteToken ? (

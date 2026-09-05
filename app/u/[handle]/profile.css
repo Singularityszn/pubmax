@@ -136,34 +136,34 @@
 .profilePage .youIdentityActions { display: grid; gap: 8px; }
 .profilePage .youIdentityActions a,
 .profilePage .profilePalLink {
-  min-height: 44px;
-  padding: 10px 15px;
+  min-height: var(--control-height, 44px);
+  padding: 10px var(--control-pad-x, 16px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  border: 1px solid var(--control-secondary-border, var(--line));
+  border-radius: var(--control-radius, 14px);
   color: var(--ink);
-  font-size: .86rem;
-  font-weight: 700;
+  font-size: var(--control-font-size, .86rem);
+  font-weight: var(--control-font-weight, 700);
   text-decoration: none;
 }
 .profilePage .youIdentityActions a:first-child { border-color: var(--brass); background: var(--brass); color: var(--color-on-accent); }
 /* "Claim your @handle" is the primary here (brass, above); "Meet your Pub Pal"
    steps back to a quiet secondary so the two don't compete at equal weight. */
-.profilePage .youIdentityActions a:last-child { border-color: transparent; background: transparent; color: var(--ink-soft); font-weight: 600; }
+.profilePage .youIdentityActions a:last-child { border-color: transparent; background: transparent; color: var(--ink-soft); }
 .profilePage .youIdentityActions a:last-child:hover { color: var(--ink); }
 
 /* Invite-your-lot is the crew loop's primary action, so it wears the brass fill
    the pub-pal / edit pills leave quiet. Shares the pill geometry above. */
 .profilePage .profileInviteLink {
-  min-height: 44px;
-  padding: 10px 15px;
+  min-height: var(--control-height, 44px);
+  padding: 10px var(--control-pad-x, 16px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--brass);
-  border-radius: 12px;
+  border-radius: var(--control-radius, 14px);
   background: var(--brass);
   color: var(--color-on-accent);
   font-size: .86rem;
@@ -1474,9 +1474,18 @@
   .profilePage .profileCardFacts { grid-template-columns: minmax(0, 1fr); }
   .profilePage .profileEditorGroup { padding: 14px; }
 
-  .profilePage .youIdentityIntro { grid-template-columns: auto 1fr; }
-  .profilePage .youIdentityAvatar { width: 72px; }
-  .profilePage .youIdentityActions { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  /* A phone stacks the card. Two columns put a 72px face beside a 29px
+     display heading, so "Make the night yours." broke across the face and
+     the lede wrapped in a 230px column; one column lets the heading, the
+     lede and the two actions share the card's full width. */
+  .profilePage .youIdentityIntro { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 20px; }
+  .profilePage .youIdentityAvatar { width: 60px; font-size: .8rem; }
+  /* Two fixed columns cut each action to about 150px at 390px, and neither
+     label fits: "Claim your @handle" and "Meet your Pub Pal" both wrapped
+     mid-phrase and the pair stopped matching in height. The columns are asked
+     for a width a label can live in instead, so a phone stacks them and a wider
+     screen still seats both on one line. */
+  .profilePage .youIdentityActions { grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); width: 100%; }
 
   /* In a stacked column, margin-left:auto would shove the actions to the far
      edge on their own line — reset it so they sit naturally under the name. */

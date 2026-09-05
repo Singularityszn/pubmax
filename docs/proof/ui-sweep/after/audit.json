@@ -1,0 +1,4825 @@
+[
+ {
+  "route": "landing",
+  "url": "/",
+  "width": "390x844",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [
+   {
+    "el": "li.dropStripCard",
+    "left": 322,
+    "right": 632,
+    "text": "@tessa_of_shadwell£6.10Nan cleaned here "
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 342,
+    "right": 612,
+    "text": "@tessa_of_shadwell£6.10"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 342,
+    "right": 472,
+    "text": "@tessa_of_shadwell"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 540,
+    "right": 612,
+    "text": "£6.10"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 342,
+    "right": 612,
+    "text": "Nan cleaned here in the fifties and said"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 342,
+    "right": 612,
+    "text": "Nan's shift, 1950sDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 342,
+    "right": 472,
+    "text": "Nan's shift, 1950s"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 554,
+    "right": 612,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 644,
+    "right": 954,
+    "text": "@limehouse_reach£5.80Dad always took the"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 664,
+    "right": 934,
+    "text": "@limehouse_reach£5.80"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 664,
+    "right": 779,
+    "text": "@limehouse_reach"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 862,
+    "right": 934,
+    "text": "£5.80"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 664,
+    "right": 934,
+    "text": "Dad always took the window seat over the"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 664,
+    "right": 934,
+    "text": "Dad's rule, 1980sDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 664,
+    "right": 786,
+    "text": "Dad's rule, 1980s"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 876,
+    "right": 934,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 966,
+    "right": 1276,
+    "text": "@narrowstreet_nell£5.60Grandma said at a"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 986,
+    "right": 1256,
+    "text": "@narrowstreet_nell£5.60"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 986,
+    "right": 1116,
+    "text": "@narrowstreet_nell"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 1184,
+    "right": 1256,
+    "text": "£5.60"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 986,
+    "right": 1256,
+    "text": "Grandma said at a proper high tide the b"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 986,
+    "right": 1256,
+    "text": "High-tide adviceDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 986,
+    "right": 1101,
+    "text": "High-tide advice"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 1198,
+    "right": 1256,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 1288,
+    "right": 1598,
+    "text": "@hammersmith_oar£7.20Grandad rowed off t"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 1308,
+    "right": 1578,
+    "text": "@hammersmith_oar£7.20"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 1308,
+    "right": 1423,
+    "text": "@hammersmith_oar"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-expensive",
+    "left": 1506,
+    "right": 1578,
+    "text": "£7.20"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 1308,
+    "right": 1578,
+    "text": "Grandad rowed off the Mall and called th"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 1308,
+    "right": 1578,
+    "text": "Rowing club loreDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 1308,
+    "right": 1423,
+    "text": "Rowing club lore"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 1520,
+    "right": 1578,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 1610,
+    "right": 1920,
+    "text": "@conduit_st_kit£6.50Mum said her grandmo"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 1630,
+    "right": 1900,
+    "text": "@conduit_st_kit£6.50"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 1630,
+    "right": 1738,
+    "text": "@conduit_st_kit"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-expensive",
+    "left": 1828,
+    "right": 1900,
+    "text": "£6.50"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 1630,
+    "right": 1900,
+    "text": "Mum said her grandmother could order a p"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 1630,
+    "right": 1900,
+    "text": "Great-grandmother's trickDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 1630,
+    "right": 1810,
+    "text": "Great-grandmother's trick"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 1842,
+    "right": 1900,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 1932,
+    "right": 2242,
+    "text": "@chiswick_wheeler£5.90My grandfather dra"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 1952,
+    "right": 2222,
+    "text": "@chiswick_wheeler£5.90"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 1952,
+    "right": 2074,
+    "text": "@chiswick_wheeler"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 2150,
+    "right": 2222,
+    "text": "£5.90"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 1952,
+    "right": 2222,
+    "text": "My grandfather drank here when the trams"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 1952,
+    "right": 2222,
+    "text": "Since the tramsDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 1952,
+    "right": 2060,
+    "text": "Since the trams"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 2164,
+    "right": 2222,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 2254,
+    "right": 2564,
+    "text": "@bethnal_iris£5.20Grandad came in after "
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 2274,
+    "right": 2544,
+    "text": "@bethnal_iris£5.20"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 2274,
+    "right": 2368,
+    "text": "@bethnal_iris"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 2472,
+    "right": 2544,
+    "text": "£5.20"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 2274,
+    "right": 2544,
+    "text": "Grandad came in after his market shifts "
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 2274,
+    "right": 2544,
+    "text": "Market-day habitDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 2274,
+    "right": 2389,
+    "text": "Market-day habit"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 2486,
+    "right": 2544,
+    "text": "Demo"
+   },
+   {
+    "el": "li.mobileTabHighlight",
+    "left": -48,
+    "right": 13,
+    "text": ""
+   }
+  ],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [
+   {
+    "el": "a.lpRailLink.createFabLane",
+    "by": "a.mobileTab.pressable",
+    "text": "The Sir John Hawkshaw£3.49"
+   }
+  ],
+  "small": [
+   {
+    "el": "a",
+    "w": 68,
+    "h": 16,
+    "text": "Pint Prices"
+   },
+   {
+    "el": "a",
+    "w": 128,
+    "h": 15,
+    "text": "beerintheevening.com"
+   }
+  ],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "landing",
+  "url": "/",
+  "width": "390x844",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [
+   {
+    "el": "li.dropStripCard",
+    "left": 322,
+    "right": 632,
+    "text": "@tessa_of_shadwell£6.10Nan cleaned here "
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 342,
+    "right": 612,
+    "text": "@tessa_of_shadwell£6.10"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 342,
+    "right": 472,
+    "text": "@tessa_of_shadwell"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 540,
+    "right": 612,
+    "text": "£6.10"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 342,
+    "right": 612,
+    "text": "Nan cleaned here in the fifties and said"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 342,
+    "right": 612,
+    "text": "Nan's shift, 1950sDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 342,
+    "right": 472,
+    "text": "Nan's shift, 1950s"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 554,
+    "right": 612,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 644,
+    "right": 954,
+    "text": "@limehouse_reach£5.80Dad always took the"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 664,
+    "right": 934,
+    "text": "@limehouse_reach£5.80"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 664,
+    "right": 779,
+    "text": "@limehouse_reach"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 862,
+    "right": 934,
+    "text": "£5.80"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 664,
+    "right": 934,
+    "text": "Dad always took the window seat over the"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 664,
+    "right": 934,
+    "text": "Dad's rule, 1980sDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 664,
+    "right": 786,
+    "text": "Dad's rule, 1980s"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 876,
+    "right": 934,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 966,
+    "right": 1276,
+    "text": "@narrowstreet_nell£5.60Grandma said at a"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 986,
+    "right": 1256,
+    "text": "@narrowstreet_nell£5.60"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 986,
+    "right": 1116,
+    "text": "@narrowstreet_nell"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 1184,
+    "right": 1256,
+    "text": "£5.60"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 986,
+    "right": 1256,
+    "text": "Grandma said at a proper high tide the b"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 986,
+    "right": 1256,
+    "text": "High-tide adviceDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 986,
+    "right": 1101,
+    "text": "High-tide advice"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 1198,
+    "right": 1256,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 1288,
+    "right": 1598,
+    "text": "@hammersmith_oar£7.20Grandad rowed off t"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 1308,
+    "right": 1578,
+    "text": "@hammersmith_oar£7.20"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 1308,
+    "right": 1423,
+    "text": "@hammersmith_oar"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-expensive",
+    "left": 1506,
+    "right": 1578,
+    "text": "£7.20"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 1308,
+    "right": 1578,
+    "text": "Grandad rowed off the Mall and called th"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 1308,
+    "right": 1578,
+    "text": "Rowing club loreDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 1308,
+    "right": 1423,
+    "text": "Rowing club lore"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 1520,
+    "right": 1578,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 1610,
+    "right": 1920,
+    "text": "@conduit_st_kit£6.50Mum said her grandmo"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 1630,
+    "right": 1900,
+    "text": "@conduit_st_kit£6.50"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 1630,
+    "right": 1738,
+    "text": "@conduit_st_kit"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-expensive",
+    "left": 1828,
+    "right": 1900,
+    "text": "£6.50"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 1630,
+    "right": 1900,
+    "text": "Mum said her grandmother could order a p"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 1630,
+    "right": 1900,
+    "text": "Great-grandmother's trickDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 1630,
+    "right": 1810,
+    "text": "Great-grandmother's trick"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 1842,
+    "right": 1900,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 1932,
+    "right": 2242,
+    "text": "@chiswick_wheeler£5.90My grandfather dra"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 1952,
+    "right": 2222,
+    "text": "@chiswick_wheeler£5.90"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 1952,
+    "right": 2074,
+    "text": "@chiswick_wheeler"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 2150,
+    "right": 2222,
+    "text": "£5.90"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 1952,
+    "right": 2222,
+    "text": "My grandfather drank here when the trams"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 1952,
+    "right": 2222,
+    "text": "Since the tramsDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 1952,
+    "right": 2060,
+    "text": "Since the trams"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 2164,
+    "right": 2222,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 2254,
+    "right": 2564,
+    "text": "@bethnal_iris£5.20Grandad came in after "
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 2274,
+    "right": 2544,
+    "text": "@bethnal_iris£5.20"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 2274,
+    "right": 2368,
+    "text": "@bethnal_iris"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 2472,
+    "right": 2544,
+    "text": "£5.20"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 2274,
+    "right": 2544,
+    "text": "Grandad came in after his market shifts "
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 2274,
+    "right": 2544,
+    "text": "Market-day habitDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 2274,
+    "right": 2389,
+    "text": "Market-day habit"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 2486,
+    "right": 2544,
+    "text": "Demo"
+   },
+   {
+    "el": "li.mobileTabHighlight",
+    "left": -48,
+    "right": 13,
+    "text": ""
+   }
+  ],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [
+   {
+    "el": "a.lpRailLink.createFabLane",
+    "by": "a.mobileTab.pressable",
+    "text": "The Sir John Hawkshaw£3.49"
+   }
+  ],
+  "small": [
+   {
+    "el": "a",
+    "w": 68,
+    "h": 16,
+    "text": "Pint Prices"
+   },
+   {
+    "el": "a",
+    "w": 128,
+    "h": 15,
+    "text": "beerintheevening.com"
+   }
+  ],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "landing",
+  "url": "/",
+  "width": "768x1024",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [
+   {
+    "el": "li.dropStripCard",
+    "left": 576,
+    "right": 836,
+    "text": "@limehouse_reach£5.80Dad always took the"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 596,
+    "right": 816,
+    "text": "@limehouse_reach£5.80"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 744,
+    "right": 816,
+    "text": "£5.80"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 596,
+    "right": 816,
+    "text": "Dad always took the window seat over the"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 596,
+    "right": 816,
+    "text": "Dad's rule, 1980sDemo"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 765,
+    "right": 816,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 848,
+    "right": 1108,
+    "text": "@narrowstreet_nell£5.60Grandma said at a"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 868,
+    "right": 1088,
+    "text": "@narrowstreet_nell£5.60"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 868,
+    "right": 987,
+    "text": "@narrowstreet_nell"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 1016,
+    "right": 1088,
+    "text": "£5.60"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 868,
+    "right": 1088,
+    "text": "Grandma said at a proper high tide the b"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 868,
+    "right": 1088,
+    "text": "High-tide adviceDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 868,
+    "right": 954,
+    "text": "High-tide advice"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 1037,
+    "right": 1088,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 1120,
+    "right": 1380,
+    "text": "@hammersmith_oar£7.20Grandad rowed off t"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 1140,
+    "right": 1360,
+    "text": "@hammersmith_oar£7.20"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 1140,
+    "right": 1246,
+    "text": "@hammersmith_oar"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-expensive",
+    "left": 1288,
+    "right": 1360,
+    "text": "£7.20"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 1140,
+    "right": 1360,
+    "text": "Grandad rowed off the Mall and called th"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 1140,
+    "right": 1360,
+    "text": "Rowing club loreDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 1140,
+    "right": 1226,
+    "text": "Rowing club lore"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 1309,
+    "right": 1360,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 1392,
+    "right": 1652,
+    "text": "@conduit_st_kit£6.50Mum said her grandmo"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 1412,
+    "right": 1632,
+    "text": "@conduit_st_kit£6.50"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 1412,
+    "right": 1511,
+    "text": "@conduit_st_kit"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-expensive",
+    "left": 1560,
+    "right": 1632,
+    "text": "£6.50"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 1412,
+    "right": 1632,
+    "text": "Mum said her grandmother could order a p"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 1412,
+    "right": 1632,
+    "text": "Great-grandmother's trickDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 1412,
+    "right": 1547,
+    "text": "Great-grandmother's trick"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 1581,
+    "right": 1632,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 1664,
+    "right": 1924,
+    "text": "@chiswick_wheeler£5.90My grandfather dra"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 1684,
+    "right": 1904,
+    "text": "@chiswick_wheeler£5.90"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 1684,
+    "right": 1796,
+    "text": "@chiswick_wheeler"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 1832,
+    "right": 1904,
+    "text": "£5.90"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 1684,
+    "right": 1904,
+    "text": "My grandfather drank here when the trams"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 1684,
+    "right": 1904,
+    "text": "Since the tramsDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 1684,
+    "right": 1765,
+    "text": "Since the trams"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 1853,
+    "right": 1904,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 1936,
+    "right": 2196,
+    "text": "@bethnal_iris£5.20Grandad came in after "
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 1956,
+    "right": 2176,
+    "text": "@bethnal_iris£5.20"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 1956,
+    "right": 2042,
+    "text": "@bethnal_iris"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 2104,
+    "right": 2176,
+    "text": "£5.20"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 1956,
+    "right": 2176,
+    "text": "Grandad came in after his market shifts "
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 1956,
+    "right": 2176,
+    "text": "Market-day habitDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 1956,
+    "right": 2042,
+    "text": "Market-day habit"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 2125,
+    "right": 2176,
+    "text": "Demo"
+   }
+  ],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [
+   {
+    "el": "a",
+    "w": 68,
+    "h": 16,
+    "text": "Pint Prices"
+   },
+   {
+    "el": "a",
+    "w": 128,
+    "h": 15,
+    "text": "beerintheevening.com"
+   }
+  ],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "landing",
+  "url": "/",
+  "width": "768x1024",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [
+   {
+    "el": "li.dropStripCard",
+    "left": 576,
+    "right": 836,
+    "text": "@limehouse_reach£5.80Dad always took the"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 596,
+    "right": 816,
+    "text": "@limehouse_reach£5.80"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 744,
+    "right": 816,
+    "text": "£5.80"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 596,
+    "right": 816,
+    "text": "Dad always took the window seat over the"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 596,
+    "right": 816,
+    "text": "Dad's rule, 1980sDemo"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 765,
+    "right": 816,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 848,
+    "right": 1108,
+    "text": "@narrowstreet_nell£5.60Grandma said at a"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 868,
+    "right": 1088,
+    "text": "@narrowstreet_nell£5.60"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 868,
+    "right": 987,
+    "text": "@narrowstreet_nell"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 1016,
+    "right": 1088,
+    "text": "£5.60"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 868,
+    "right": 1088,
+    "text": "Grandma said at a proper high tide the b"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 868,
+    "right": 1088,
+    "text": "High-tide adviceDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 868,
+    "right": 954,
+    "text": "High-tide advice"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 1037,
+    "right": 1088,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 1120,
+    "right": 1380,
+    "text": "@hammersmith_oar£7.20Grandad rowed off t"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 1140,
+    "right": 1360,
+    "text": "@hammersmith_oar£7.20"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 1140,
+    "right": 1246,
+    "text": "@hammersmith_oar"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-expensive",
+    "left": 1288,
+    "right": 1360,
+    "text": "£7.20"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 1140,
+    "right": 1360,
+    "text": "Grandad rowed off the Mall and called th"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 1140,
+    "right": 1360,
+    "text": "Rowing club loreDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 1140,
+    "right": 1226,
+    "text": "Rowing club lore"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 1309,
+    "right": 1360,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 1392,
+    "right": 1652,
+    "text": "@conduit_st_kit£6.50Mum said her grandmo"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 1412,
+    "right": 1632,
+    "text": "@conduit_st_kit£6.50"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 1412,
+    "right": 1511,
+    "text": "@conduit_st_kit"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-expensive",
+    "left": 1560,
+    "right": 1632,
+    "text": "£6.50"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 1412,
+    "right": 1632,
+    "text": "Mum said her grandmother could order a p"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 1412,
+    "right": 1632,
+    "text": "Great-grandmother's trickDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 1412,
+    "right": 1547,
+    "text": "Great-grandmother's trick"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 1581,
+    "right": 1632,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 1664,
+    "right": 1924,
+    "text": "@chiswick_wheeler£5.90My grandfather dra"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 1684,
+    "right": 1904,
+    "text": "@chiswick_wheeler£5.90"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 1684,
+    "right": 1796,
+    "text": "@chiswick_wheeler"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 1832,
+    "right": 1904,
+    "text": "£5.90"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 1684,
+    "right": 1904,
+    "text": "My grandfather drank here when the trams"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 1684,
+    "right": 1904,
+    "text": "Since the tramsDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 1684,
+    "right": 1765,
+    "text": "Since the trams"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 1853,
+    "right": 1904,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 1936,
+    "right": 2196,
+    "text": "@bethnal_iris£5.20Grandad came in after "
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 1956,
+    "right": 2176,
+    "text": "@bethnal_iris£5.20"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 1956,
+    "right": 2042,
+    "text": "@bethnal_iris"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 2104,
+    "right": 2176,
+    "text": "£5.20"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 1956,
+    "right": 2176,
+    "text": "Grandad came in after his market shifts "
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 1956,
+    "right": 2176,
+    "text": "Market-day habitDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 1956,
+    "right": 2042,
+    "text": "Market-day habit"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 2125,
+    "right": 2176,
+    "text": "Demo"
+   }
+  ],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [
+   {
+    "el": "a",
+    "w": 68,
+    "h": 16,
+    "text": "Pint Prices"
+   },
+   {
+    "el": "a",
+    "w": 128,
+    "h": 15,
+    "text": "beerintheevening.com"
+   }
+  ],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "landing",
+  "url": "/",
+  "width": "1440x900",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [
+   {
+    "el": "li.dropStripCard",
+    "left": 1188,
+    "right": 1448,
+    "text": "@hammersmith_oar£7.20Grandad rowed off t"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 1460,
+    "right": 1720,
+    "text": "@conduit_st_kit£6.50Mum said her grandmo"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 1480,
+    "right": 1700,
+    "text": "@conduit_st_kit£6.50"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 1480,
+    "right": 1579,
+    "text": "@conduit_st_kit"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-expensive",
+    "left": 1628,
+    "right": 1700,
+    "text": "£6.50"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 1480,
+    "right": 1700,
+    "text": "Mum said her grandmother could order a p"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 1480,
+    "right": 1700,
+    "text": "Great-grandmother's trickDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 1480,
+    "right": 1615,
+    "text": "Great-grandmother's trick"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 1649,
+    "right": 1700,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 1732,
+    "right": 1992,
+    "text": "@chiswick_wheeler£5.90My grandfather dra"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 1752,
+    "right": 1972,
+    "text": "@chiswick_wheeler£5.90"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 1752,
+    "right": 1864,
+    "text": "@chiswick_wheeler"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 1900,
+    "right": 1972,
+    "text": "£5.90"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 1752,
+    "right": 1972,
+    "text": "My grandfather drank here when the trams"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 1752,
+    "right": 1972,
+    "text": "Since the tramsDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 1752,
+    "right": 1833,
+    "text": "Since the trams"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 1921,
+    "right": 1972,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 2004,
+    "right": 2264,
+    "text": "@bethnal_iris£5.20Grandad came in after "
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 2024,
+    "right": 2244,
+    "text": "@bethnal_iris£5.20"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 2024,
+    "right": 2110,
+    "text": "@bethnal_iris"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 2172,
+    "right": 2244,
+    "text": "£5.20"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 2024,
+    "right": 2244,
+    "text": "Grandad came in after his market shifts "
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 2024,
+    "right": 2244,
+    "text": "Market-day habitDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 2024,
+    "right": 2110,
+    "text": "Market-day habit"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 2193,
+    "right": 2244,
+    "text": "Demo"
+   }
+  ],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [
+   {
+    "el": "a",
+    "w": 68,
+    "h": 16,
+    "text": "Pint Prices"
+   },
+   {
+    "el": "a",
+    "w": 128,
+    "h": 15,
+    "text": "beerintheevening.com"
+   }
+  ],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "landing",
+  "url": "/",
+  "width": "1440x900",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [
+   {
+    "el": "li.dropStripCard",
+    "left": 1188,
+    "right": 1448,
+    "text": "@hammersmith_oar£7.20Grandad rowed off t"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 1460,
+    "right": 1720,
+    "text": "@conduit_st_kit£6.50Mum said her grandmo"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 1480,
+    "right": 1700,
+    "text": "@conduit_st_kit£6.50"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 1480,
+    "right": 1579,
+    "text": "@conduit_st_kit"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-expensive",
+    "left": 1628,
+    "right": 1700,
+    "text": "£6.50"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 1480,
+    "right": 1700,
+    "text": "Mum said her grandmother could order a p"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 1480,
+    "right": 1700,
+    "text": "Great-grandmother's trickDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 1480,
+    "right": 1615,
+    "text": "Great-grandmother's trick"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 1649,
+    "right": 1700,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 1732,
+    "right": 1992,
+    "text": "@chiswick_wheeler£5.90My grandfather dra"
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 1752,
+    "right": 1972,
+    "text": "@chiswick_wheeler£5.90"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 1752,
+    "right": 1864,
+    "text": "@chiswick_wheeler"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 1900,
+    "right": 1972,
+    "text": "£5.90"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 1752,
+    "right": 1972,
+    "text": "My grandfather drank here when the trams"
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 1752,
+    "right": 1972,
+    "text": "Since the tramsDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 1752,
+    "right": 1833,
+    "text": "Since the trams"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 1921,
+    "right": 1972,
+    "text": "Demo"
+   },
+   {
+    "el": "li.dropStripCard",
+    "left": 2004,
+    "right": 2264,
+    "text": "@bethnal_iris£5.20Grandad came in after "
+   },
+   {
+    "el": "div.dropStripTop",
+    "left": 2024,
+    "right": 2244,
+    "text": "@bethnal_iris£5.20"
+   },
+   {
+    "el": "span.dropStripWho",
+    "left": 2024,
+    "right": 2110,
+    "text": "@bethnal_iris"
+   },
+   {
+    "el": "span.priceBadge.priceBadge--current.priceBand-average",
+    "left": 2172,
+    "right": 2244,
+    "text": "£5.20"
+   },
+   {
+    "el": "p.dropStripNote",
+    "left": 2024,
+    "right": 2244,
+    "text": "Grandad came in after his market shifts "
+   },
+   {
+    "el": "div.dropStripMeta",
+    "left": 2024,
+    "right": 2244,
+    "text": "Market-day habitDemo"
+   },
+   {
+    "el": "span.dropStripEra",
+    "left": 2024,
+    "right": 2110,
+    "text": "Market-day habit"
+   },
+   {
+    "el": "span.provChip.provChip-demo",
+    "left": 2193,
+    "right": 2244,
+    "text": "Demo"
+   }
+  ],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [
+   {
+    "el": "a",
+    "w": 68,
+    "h": 16,
+    "text": "Pint Prices"
+   },
+   {
+    "el": "a",
+    "w": 128,
+    "h": 15,
+    "text": "beerintheevening.com"
+   }
+  ],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "map",
+  "url": "/map",
+  "width": "390x844",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [
+   {
+    "el": "summary.maplibregl-ctrl-attrib-button",
+    "by": "circle",
+    "text": ""
+   }
+  ],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "map",
+  "url": "/map",
+  "width": "390x844",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "map",
+  "url": "/map",
+  "width": "768x1024",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span.sr-only",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "Search pubs"
+   },
+   {
+    "el": "span.sr-only",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "Search pubs"
+   }
+  ],
+  "covered": [],
+  "small": [
+   {
+    "el": "summary.maplibregl-ctrl-attrib-button",
+    "w": 24,
+    "h": 24,
+    "text": "Toggle attribution"
+   }
+  ],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "map",
+  "url": "/map",
+  "width": "768x1024",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span.sr-only",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "Search pubs"
+   },
+   {
+    "el": "span.sr-only",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "Search pubs"
+   }
+  ],
+  "covered": [],
+  "small": [
+   {
+    "el": "summary.maplibregl-ctrl-attrib-button",
+    "w": 24,
+    "h": 24,
+    "text": "Toggle attribution"
+   }
+  ],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "map",
+  "url": "/map",
+  "width": "1440x900",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm"
+  ],
+  "overflow": null,
+  "wide": [
+   {
+    "el": "div.springDrawer.mapDrawer.left",
+    "left": -376,
+    "right": 0,
+    "text": ""
+   },
+   {
+    "el": "div.springDrawer.mapDrawer.right",
+    "left": 1440,
+    "right": 1816,
+    "text": ""
+   }
+  ],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.sr-only",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "Search pubs"
+   },
+   {
+    "el": "span.sr-only",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "Search pubs"
+   }
+  ],
+  "covered": [],
+  "small": [
+   {
+    "el": "summary.maplibregl-ctrl-attrib-button",
+    "w": 24,
+    "h": 24,
+    "text": "Toggle attribution"
+   },
+   {
+    "el": "select.favoritePintSelect",
+    "w": 179,
+    "h": 22,
+    "text": "Cheapest pint (any)Guinness · "
+   }
+  ],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "map",
+  "url": "/map",
+  "width": "1440x900",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm"
+  ],
+  "error": "TimeoutError: page.screenshot: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - taking page screenshot\u001b[22m\n\u001b[2m  - waiting for fonts to load...\u001b[22m\n\u001b[2m  - fonts loaded\u001b[22m\n"
+ },
+ {
+  "route": "map-venue",
+  "url": "/map?sel=venue-nyowgc",
+  "width": "390x844",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm"
+  ],
+  "overflow": null,
+  "wide": [
+   {
+    "el": "button#venueTab-getting-home.venueTab",
+    "left": 368,
+    "right": 412,
+    "text": "Last trainTrain"
+   },
+   {
+    "el": "span.venueTabShort",
+    "left": 376,
+    "right": 405,
+    "text": "Train"
+   }
+  ],
+  "clipped": [],
+  "covered": [
+   {
+    "el": "canvas.maplibregl-canvas",
+    "by": "strong.mobileVenuePeekNearMe.isPhrase",
+    "text": ""
+   },
+   {
+    "el": "summary.maplibregl-ctrl-attrib-button",
+    "by": "section.venueInspector",
+    "text": ""
+   },
+   {
+    "el": "button.mobileSheetScrim",
+    "by": "div.mobileVenuePeekSummary",
+    "text": ""
+   }
+  ],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "map-venue",
+  "url": "/map?sel=venue-nyowgc",
+  "width": "390x844",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm"
+  ],
+  "error": "TimeoutError: page.screenshot: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - taking page screenshot\u001b[22m\n\u001b[2m  - waiting for fonts to load...\u001b[22m\n\u001b[2m  - fonts loaded\u001b[22m\n"
+ },
+ {
+  "route": "map-venue",
+  "url": "/map?sel=venue-nyowgc",
+  "width": "768x1024",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm"
+  ],
+  "error": "TimeoutError: page.screenshot: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - taking page screenshot\u001b[22m\n\u001b[2m  - waiting for fonts to load...\u001b[22m\n\u001b[2m  - fonts loaded\u001b[22m\n"
+ },
+ {
+  "route": "map-venue",
+  "url": "/map?sel=venue-nyowgc",
+  "width": "768x1024",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm"
+  ],
+  "error": "TimeoutError: page.screenshot: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - taking page screenshot\u001b[22m\n\u001b[2m  - waiting for fonts to load...\u001b[22m\n"
+ },
+ {
+  "route": "map-venue",
+  "url": "/map?sel=venue-nyowgc",
+  "width": "1440x900",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm"
+  ],
+  "error": "TimeoutError: page.screenshot: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - taking page screenshot\u001b[22m\n"
+ },
+ {
+  "route": "map-venue",
+  "url": "/map?sel=venue-nyowgc",
+  "width": "1440x900",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm"
+  ],
+  "error": "TimeoutError: page.screenshot: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - taking page screenshot\u001b[22m\n\u001b[2m  - waiting for fonts to load...\u001b[22m\n\u001b[2m  - fonts loaded\u001b[22m\n"
+ },
+ {
+  "route": "map-story",
+  "url": "/map?landmark=covent-garden",
+  "width": "390x844",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "Loading the image 'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Covent_Garden_Interior_May_2006_crop.jpg/960px-Covent_Garden_Interior_May_2006_crop.",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [
+   {
+    "el": "canvas.maplibregl-canvas",
+    "by": "p",
+    "text": ""
+   },
+   {
+    "el": "summary.maplibregl-ctrl-attrib-button",
+    "by": "circle",
+    "text": ""
+   }
+  ],
+  "small": [
+   {
+    "el": "a",
+    "w": 61,
+    "h": 16,
+    "text": "CC BY 2.5"
+   },
+   {
+    "el": "a",
+    "w": 128,
+    "h": 16,
+    "text": "Wikimedia Commons"
+   },
+   {
+    "el": "a.landmarkChapterLink",
+    "w": 80,
+    "h": 15,
+    "text": "Open chapter"
+   },
+   {
+    "el": "button",
+    "w": 26,
+    "h": 26,
+    "text": "Close landmark history"
+   },
+   {
+    "el": "a",
+    "w": 124,
+    "h": 15,
+    "text": "Source: Wikipedia"
+   },
+   {
+    "el": "button.landmarkAction.primary",
+    "w": 266,
+    "h": 31,
+    "text": "Start a crawl here"
+   },
+   {
+    "el": "button.landmarkAction",
+    "w": 266,
+    "h": 31,
+    "text": "Ask the PUBMAXXER"
+   },
+   {
+    "el": "button",
+    "w": 266,
+    "h": 26,
+    "text": "The White Lion134 m straight-l"
+   },
+   {
+    "el": "button",
+    "w": 266,
+    "h": 26,
+    "text": "The Old Bell166 m straight-lin"
+   },
+   {
+    "el": "button",
+    "w": 266,
+    "h": 26,
+    "text": "Nell Gwynne Tavern190 m straig"
+   }
+  ],
+  "brokenImages": [
+   "https://commons.wikimedia.org/wiki/Special:FilePath/Covent_Garden_Interior_May_2006_crop.jpg?width=800"
+  ],
+  "emptyMain": false
+ },
+ {
+  "route": "map-story",
+  "url": "/map?landmark=covent-garden",
+  "width": "390x844",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "Loading the image 'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Covent_Garden_Interior_May_2006_crop.jpg/960px-Covent_Garden_Interior_May_2006_crop.",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [
+   {
+    "el": "canvas.maplibregl-canvas",
+    "by": "p",
+    "text": ""
+   },
+   {
+    "el": "summary.maplibregl-ctrl-attrib-button",
+    "by": "circle",
+    "text": ""
+   }
+  ],
+  "small": [
+   {
+    "el": "a",
+    "w": 61,
+    "h": 16,
+    "text": "CC BY 2.5"
+   },
+   {
+    "el": "a",
+    "w": 128,
+    "h": 16,
+    "text": "Wikimedia Commons"
+   },
+   {
+    "el": "a.landmarkChapterLink",
+    "w": 80,
+    "h": 15,
+    "text": "Open chapter"
+   },
+   {
+    "el": "button",
+    "w": 26,
+    "h": 26,
+    "text": "Close landmark history"
+   },
+   {
+    "el": "a",
+    "w": 124,
+    "h": 15,
+    "text": "Source: Wikipedia"
+   },
+   {
+    "el": "button.landmarkAction.primary",
+    "w": 266,
+    "h": 31,
+    "text": "Start a crawl here"
+   },
+   {
+    "el": "button.landmarkAction",
+    "w": 266,
+    "h": 31,
+    "text": "Ask the PUBMAXXER"
+   },
+   {
+    "el": "button",
+    "w": 266,
+    "h": 26,
+    "text": "The White Lion134 m straight-l"
+   },
+   {
+    "el": "button",
+    "w": 266,
+    "h": 26,
+    "text": "The Old Bell166 m straight-lin"
+   },
+   {
+    "el": "button",
+    "w": 266,
+    "h": 26,
+    "text": "Nell Gwynne Tavern190 m straig"
+   }
+  ],
+  "brokenImages": [
+   "https://commons.wikimedia.org/wiki/Special:FilePath/Covent_Garden_Interior_May_2006_crop.jpg?width=800"
+  ],
+  "emptyMain": false
+ },
+ {
+  "route": "map-story",
+  "url": "/map?landmark=covent-garden",
+  "width": "768x1024",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "Loading the image 'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Covent_Garden_Interior_May_2006_crop.jpg/960px-Covent_Garden_Interior_May_2006_crop.",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm"
+  ],
+  "error": "TimeoutError: page.screenshot: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - taking page screenshot\u001b[22m\n\u001b[2m  - waiting for fonts to load...\u001b[22m\n\u001b[2m  - fonts loaded\u001b[22m\n"
+ },
+ {
+  "route": "map-story",
+  "url": "/map?landmark=covent-garden",
+  "width": "768x1024",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "Loading the image 'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Covent_Garden_Interior_May_2006_crop.jpg/960px-Covent_Garden_Interior_May_2006_crop.",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm"
+  ],
+  "error": "TimeoutError: page.screenshot: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - taking page screenshot\u001b[22m\n\u001b[2m  - waiting for fonts to load...\u001b[22m\n\u001b[2m  - fonts loaded\u001b[22m\n"
+ },
+ {
+  "route": "map-story",
+  "url": "/map?landmark=covent-garden",
+  "width": "1440x900",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "Loading the image 'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Covent_Garden_Interior_May_2006_crop.jpg/960px-Covent_Garden_Interior_May_2006_crop.",
+   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm"
+  ],
+  "error": "TimeoutError: page.screenshot: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - taking page screenshot\u001b[22m\n\u001b[2m  - waiting for fonts to load...\u001b[22m\n\u001b[2m  - fonts loaded\u001b[22m\n"
+ },
+ {
+  "route": "map-story",
+  "url": "/map?landmark=covent-garden",
+  "width": "1440x900",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "WebSocket connection to 'wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket?apikey=sb_publishable_pubmaxx_e2e&vsn=2.0.0' failed: Error in connection establishm",
+   "Loading the image 'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Covent_Garden_Interior_May_2006_crop.jpg/960px-Covent_Garden_Interior_May_2006_crop.",
+   "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+  ],
+  "overflow": null,
+  "wide": [
+   {
+    "el": "div.springDrawer.mapDrawer.left",
+    "left": -376,
+    "right": 0,
+    "text": ""
+   },
+   {
+    "el": "div.springDrawer.mapDrawer.right",
+    "left": 1440,
+    "right": 1816,
+    "text": ""
+   }
+  ],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [
+   {
+    "el": "summary.maplibregl-ctrl-attrib-button",
+    "w": 24,
+    "h": 24,
+    "text": "Toggle attribution"
+   },
+   {
+    "el": "select.favoritePintSelect",
+    "w": 179,
+    "h": 22,
+    "text": "Cheapest pint (any)Guinness · "
+   }
+  ],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "tonight",
+  "url": "/tonight",
+  "width": "390x844",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "tonight",
+  "url": "/tonight",
+  "width": "390x844",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "tonight",
+  "url": "/tonight",
+  "width": "768x1024",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "tonight",
+  "url": "/tonight",
+  "width": "768x1024",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "tonight",
+  "url": "/tonight",
+  "width": "1440x900",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "tonight",
+  "url": "/tonight",
+  "width": "1440x900",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "today",
+  "url": "/today",
+  "width": "390x844",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "today",
+  "url": "/today",
+  "width": "390x844",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "today",
+  "url": "/today",
+  "width": "768x1024",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "today",
+  "url": "/today",
+  "width": "768x1024",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "today",
+  "url": "/today",
+  "width": "1440x900",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "today",
+  "url": "/today",
+  "width": "1440x900",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "near-soho",
+  "url": "/near?patch=soho",
+  "width": "390x844",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [
+   {
+    "el": "li.mobileTabHighlight",
+    "left": -48,
+    "right": 13,
+    "text": ""
+   }
+  ],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [
+   {
+    "el": "button.nmnAccept",
+    "by": "span.mobileTabIcon",
+    "text": "Keep for tonight"
+   }
+  ],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "near-soho",
+  "url": "/near?patch=soho",
+  "width": "390x844",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [
+   {
+    "el": "li.mobileTabHighlight",
+    "left": -48,
+    "right": 13,
+    "text": ""
+   }
+  ],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [
+   {
+    "el": "button.nmnAccept",
+    "by": "span.mobileTabIcon",
+    "text": "Keep for tonight"
+   }
+  ],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "near-soho",
+  "url": "/near?patch=soho",
+  "width": "768x1024",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "near-soho",
+  "url": "/near?patch=soho",
+  "width": "768x1024",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "near-soho",
+  "url": "/near?patch=soho",
+  "width": "1440x900",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "near-soho",
+  "url": "/near?patch=soho",
+  "width": "1440x900",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "out",
+  "url": "/out",
+  "width": "390x844",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "out",
+  "url": "/out",
+  "width": "390x844",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "out",
+  "url": "/out",
+  "width": "768x1024",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "out",
+  "url": "/out",
+  "width": "768x1024",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "out",
+  "url": "/out",
+  "width": "1440x900",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "out",
+  "url": "/out",
+  "width": "1440x900",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "places",
+  "url": "/places",
+  "width": "390x844",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [
+   {
+    "el": "input#_R_2av5saedb_.placesSearchInput",
+    "w": 294,
+    "h": 26,
+    "text": ""
+   }
+  ],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "places",
+  "url": "/places",
+  "width": "390x844",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [
+   {
+    "el": "input#_R_2av5saedb_.placesSearchInput",
+    "w": 294,
+    "h": 26,
+    "text": ""
+   }
+  ],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "places",
+  "url": "/places",
+  "width": "768x1024",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   }
+  ],
+  "covered": [],
+  "small": [
+   {
+    "el": "input#_R_2av5saedb_.placesSearchInput",
+    "w": 588,
+    "h": 26,
+    "text": ""
+   }
+  ],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "places",
+  "url": "/places",
+  "width": "768x1024",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   }
+  ],
+  "covered": [],
+  "small": [
+   {
+    "el": "input#_R_2av5saedb_.placesSearchInput",
+    "w": 588,
+    "h": 26,
+    "text": ""
+   }
+  ],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "places",
+  "url": "/places",
+  "width": "1440x900",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [
+   {
+    "el": "input#_R_2av5saedb_.placesSearchInput",
+    "w": 588,
+    "h": 26,
+    "text": ""
+   }
+  ],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "places",
+  "url": "/places",
+  "width": "1440x900",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [
+   {
+    "el": "input#_R_2av5saedb_.placesSearchInput",
+    "w": 588,
+    "h": 26,
+    "text": ""
+   }
+  ],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "plan",
+  "url": "/plan",
+  "width": "390x844",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [
+   {
+    "el": "li.mobileTabHighlight",
+    "left": -48,
+    "right": 13,
+    "text": ""
+   }
+  ],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "label.planComposer__srOnly",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "Describe the outing"
+   },
+   {
+    "el": "label.planComposer__srOnly",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "Describe the outing"
+   }
+  ],
+  "covered": [
+   {
+    "el": "button.planDescribeFirst__chip",
+    "by": "a.mobileTab.pressable",
+    "text": "alcohol-free drinks in Camden "
+   }
+  ],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "plan",
+  "url": "/plan",
+  "width": "390x844",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [
+   {
+    "el": "li.mobileTabHighlight",
+    "left": -48,
+    "right": 13,
+    "text": ""
+   }
+  ],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "label.planComposer__srOnly",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "Describe the outing"
+   },
+   {
+    "el": "label.planComposer__srOnly",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "Describe the outing"
+   }
+  ],
+  "covered": [
+   {
+    "el": "button.planDescribeFirst__chip",
+    "by": "a.mobileTab.pressable",
+    "text": "alcohol-free drinks in Camden "
+   }
+  ],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "plan",
+  "url": "/plan",
+  "width": "768x1024",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "label.planComposer__srOnly",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "Describe the outing"
+   },
+   {
+    "el": "label.planComposer__srOnly",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "Describe the outing"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "plan",
+  "url": "/plan",
+  "width": "768x1024",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "label.planComposer__srOnly",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "Describe the outing"
+   },
+   {
+    "el": "label.planComposer__srOnly",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "Describe the outing"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "plan",
+  "url": "/plan",
+  "width": "1440x900",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "label.planComposer__srOnly",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "Describe the outing"
+   },
+   {
+    "el": "label.planComposer__srOnly",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "Describe the outing"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "plan",
+  "url": "/plan",
+  "width": "1440x900",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "label.planComposer__srOnly",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "Describe the outing"
+   },
+   {
+    "el": "label.planComposer__srOnly",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "Describe the outing"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "pal",
+  "url": "/pal",
+  "width": "390x844",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [
+   {
+    "el": "li.mobileTabHighlight",
+    "left": -48,
+    "right": 13,
+    "text": ""
+   }
+  ],
+  "clipped": [],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "pal",
+  "url": "/pal",
+  "width": "390x844",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [
+   {
+    "el": "li.mobileTabHighlight",
+    "left": -48,
+    "right": 13,
+    "text": ""
+   }
+  ],
+  "clipped": [],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "pal",
+  "url": "/pal",
+  "width": "768x1024",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "pal",
+  "url": "/pal",
+  "width": "768x1024",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "pal",
+  "url": "/pal",
+  "width": "1440x900",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [
+   {
+    "el": "div.palPortrait.palPortrait-beer.palPortrait-hologram",
+    "left": 795,
+    "right": 1467,
+    "text": ""
+   }
+  ],
+  "clipped": [],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "pal",
+  "url": "/pal",
+  "width": "1440x900",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [
+   {
+    "el": "div.palPortrait.palPortrait-beer.palPortrait-hologram",
+    "left": 795,
+    "right": 1467,
+    "text": ""
+   }
+  ],
+  "clipped": [],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "social",
+  "url": "/social",
+  "width": "390x844",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.srOnly",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "Search handles"
+   },
+   {
+    "el": "span.srOnly",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "Search handles"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "social",
+  "url": "/social",
+  "width": "390x844",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.srOnly",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "Search handles"
+   },
+   {
+    "el": "span.srOnly",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "Search handles"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "social",
+  "url": "/social",
+  "width": "768x1024",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span.srOnly",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "Search handles"
+   },
+   {
+    "el": "span.srOnly",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "Search handles"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "social",
+  "url": "/social",
+  "width": "768x1024",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span.srOnly",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "Search handles"
+   },
+   {
+    "el": "span.srOnly",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "Search handles"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "social",
+  "url": "/social",
+  "width": "1440x900",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.srOnly",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "Search handles"
+   },
+   {
+    "el": "span.srOnly",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "Search handles"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "social",
+  "url": "/social",
+  "width": "1440x900",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.srOnly",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "Search handles"
+   },
+   {
+    "el": "span.srOnly",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "Search handles"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "u-you",
+  "url": "/u/you",
+  "width": "390x844",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "u-you",
+  "url": "/u/you",
+  "width": "390x844",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "u-you",
+  "url": "/u/you",
+  "width": "768x1024",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "u-you",
+  "url": "/u/you",
+  "width": "768x1024",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "u-you",
+  "url": "/u/you",
+  "width": "1440x900",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "u-you",
+  "url": "/u/you",
+  "width": "1440x900",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "onboarding",
+  "url": "/onboarding",
+  "width": "390x844",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "onboarding",
+  "url": "/onboarding",
+  "width": "390x844",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "onboarding",
+  "url": "/onboarding",
+  "width": "768x1024",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "onboarding",
+  "url": "/onboarding",
+  "width": "768x1024",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "onboarding",
+  "url": "/onboarding",
+  "width": "1440x900",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "onboarding",
+  "url": "/onboarding",
+  "width": "1440x900",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "account",
+  "url": "/u/you?tab=account",
+  "width": "390x844",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "account",
+  "url": "/u/you?tab=account",
+  "width": "390x844",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "account",
+  "url": "/u/you?tab=account",
+  "width": "768x1024",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "account",
+  "url": "/u/you?tab=account",
+  "width": "768x1024",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "More"
+   },
+   {
+    "el": "span",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "More"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "account",
+  "url": "/u/you?tab=account",
+  "width": "1440x900",
+  "theme": "light",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ },
+ {
+  "route": "account",
+  "url": "/u/you?tab=account",
+  "width": "1440x900",
+  "theme": "dark",
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ],
+  "overflow": null,
+  "wide": [],
+  "clipped": [
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "x",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   },
+   {
+    "el": "span.pubmaxxWordmarkSr",
+    "axis": "y",
+    "ellipsis": false,
+    "text": "PUBMAXX"
+   }
+  ],
+  "covered": [],
+  "small": [],
+  "brokenImages": [],
+  "emptyMain": false
+ }
+]

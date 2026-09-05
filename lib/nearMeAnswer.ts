@@ -102,6 +102,22 @@ export type NearMeCard = {
 
 export type NearMeScope = "walkable" | "widened" | "none";
 
+/**
+ * The same cards with no distance and no walk time. A fallback centre (the
+ * reader refused or could not give a fix, so the answer came from central
+ * London) is not a place the reader is standing, and "1 min · right here"
+ * from it was a walk time to nowhere (battle test M06). A patch the reader
+ * CHOSE keeps its walk times, because it names its own centre.
+ */
+export function withoutWalkTimes(cards: NearMeCard[]): NearMeCard[] {
+  return cards.map((card) => {
+    const rest: NearMeCard = { ...card };
+    delete rest.distanceKm;
+    delete rest.walkMinutes;
+    return rest;
+  });
+}
+
 export type NearMeAnswer = {
   cards: NearMeCard[];
   /**

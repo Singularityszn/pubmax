@@ -58,15 +58,18 @@
     color 120ms ease;
 }
 
+/* The way into Lore is a secondary, in the tinted family the sheet's other
+   secondaries wear (Find booking, Add price). It used to be the one outlined
+   coral rectangle in the drawer, beside a filled coral primary. */
 .visitReportOpen {
   flex: 0 0 auto;
-  border: 1px solid var(--color-accent, var(--brass, #8a6d3b));
-  border-radius: var(--radius-sm, 8px);
-  padding: 0.45rem 0.75rem;
-  background: transparent;
-  color: var(--color-accent, var(--brass, #8a6d3b));
-  font-size: 0.84rem;
-  font-weight: 650;
+  border: 1px solid var(--control-tint-border, var(--line));
+  border-radius: var(--control-radius, 14px);
+  padding: 0.45rem var(--control-pad-x, 16px);
+  background: var(--control-tint-surface, transparent);
+  color: var(--ink);
+  font-size: var(--control-font-size, 0.84rem);
+  font-weight: var(--control-font-weight, 700);
 }
 
 .visitReportEmpty,

@@ -18,16 +18,21 @@
   place-items: center;
   min-height: 120px;
   padding: 1rem;
-  color: var(--ink-soft);
+  color: var(--muted);
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  /* Honest gradient placeholder for photo-less pubs — never a stock photo. */
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--panel-raised) 85%, var(--ink-deep) 6%),
-    color-mix(in srgb, var(--panel-raised) 70%, var(--accent, #8a6d3b) 14%)
-  );
+  /* Honest placeholder for photo-less pubs, never a stock photo. A flat
+     surface with a hairline: the earlier warm gradient band read as an image
+     that had failed to load rather than as a pub with no photo yet. */
+  border: 1px solid var(--line-soft, var(--line));
+  background: var(--panel, var(--paper));
+}
+
+.venueImage--empty > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .venueImage__caption {
@@ -71,8 +76,11 @@
    Real-photo path only; the empty fallback stays slim (rule above).
    ≥1024px matches venueSheet.css / globals "real desktop" cut. */
 @media (min-width: 1024px) {
+  /* The inspector now carries its own 18px inset (venueSheet.css), so the
+     header photo is a framed picture inside that column rather than an
+     edge-to-edge band, and its corners follow. */
   .venueInspector .venueImage--header {
-    border-radius: 0 0 14px 14px;
+    border-radius: 12px;
     margin: 0 0 0.75rem;
   }
 

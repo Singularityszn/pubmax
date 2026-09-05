@@ -260,6 +260,19 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* The warm wash and the bottom scrim are for a PHOTOGRAPH. On the empty
+   placeholder they painted a gradient band that read as an image that had
+   failed to load; the placeholder keeps the flat surface venueImage.css
+   gives it. */
+.venueBaselinePhoto.venueImage--empty {
+  background: var(--panel, var(--paper));
+  box-shadow: none;
+}
+
+.venueBaselinePhoto.venueImage--empty::after {
+  display: none;
+}
+
 .venueBaselinePhoto img {
   display: block;
   width: 100%;
@@ -415,7 +428,12 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 12px -4px 0;
+  /* No side bleed. A symmetric -4px pulled the bar past the drawer's own
+     padding, and on desktop that padding IS the viewport edge: measured in a
+     1440px viewport the drawer sat at 800-1440 and this bar at 797-1444, so
+     the last action lost 4px off its right edge. The bar spans its container
+     and nothing else. */
+  margin: 12px 0 0;
   padding: 10px 8px;
   border-top: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
   background: linear-gradient(
@@ -432,29 +450,38 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  min-height: 44px;
+  min-height: var(--control-height, 44px);
   padding: 8px 10px;
   border-radius: var(--control-radius, 14px);
   font: inherit;
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   letter-spacing: -0.01em;
   cursor: pointer;
   white-space: nowrap;
 }
 
+/* The same flat accent every other primary wears (components/ui/screen.css).
+   A gradient plus a coloured drop shadow made this the one glowing primary
+   on a screen whose landing, plan and tonight primaries are all flat. */
 .venueSheetStickyPrimary {
   flex: 1.2 1 0;
-  border: 1px solid var(--brass);
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  border: 1px solid var(--accent-action);
+  background: var(--accent-action);
+  /* The locked coral pair: e2e/map-accessibility.spec.ts holds this ink to
+     the on-accent-strong token in both themes. */
   color: var(--color-on-accent-strong);
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
+}
+
+.venueSheetStickyPrimary:hover {
+  background: var(--accent-action-strong);
+  color: var(--color-on-accent-strong);
 }
 
 .venueSheetStickyGhost {
   flex: 1 1 0;
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+  border: 1px solid var(--control-tint-border, var(--line));
+  background: var(--control-tint-surface, var(--panel-raised));
   color: var(--ink);
 }
 
@@ -1227,8 +1254,26 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     display: none;
   }
 
+  /* The docked drawer's own inset. The inspector used to sit flush against
+     the drawer's left edge (measured: drawer 800px, kicker, name, photo and
+     tab strip all at 801px) while the tab panel below padded its body text
+     to 819px, so the venue name hung 18px outside the column its address sat
+     in. The inspector now carries the 18px and the panel pads only its
+     vertical rhythm, which keeps the address exactly where it was. The
+     head's own top band is trimmed to match: a 20px margin plus an 18px
+     padding above the kicker was a 38px empty strip under the close button. */
+  .mapDrawer.right .venueInspector {
+    margin-top: 0;
+    padding: 6px 18px 0;
+    border-top: 0;
+  }
+
+  .mapDrawer.right .mapDrawerHead {
+    padding-inline: 18px;
+  }
+
   .venueInspector .venueTabPanel {
-    padding: 18px;
+    padding: 18px 0;
   }
 
   /* Golden Thread (or the composer, when open) beside the Pint Drops list

@@ -145,6 +145,26 @@
     outline: 2px solid var(--brass);
     outline-offset: 1px;
   }
+
+  /* The lane this control owns, offered to any surface whose right-hand cell
+     carries meaning. The body already reserves the control's BAND at the foot
+     of the page, so a page cannot end underneath it; what it cannot reserve is
+     the horizontal lane every row of a scrolling list passes through, and the
+     cell that lands there is the one a price, a walk time or a way-onward
+     arrow prints in. /near reserved it by hand first (nearMeNow.css); the same
+     reserve was then missing on the landing rail, the /today cards and the
+     /tonight rows, so the compose action sat on a price and on two arrows.
+     The reserve is the control's OWN published lane less the page gutter the
+     surface already carries, so nothing here restates a berth, and it is held
+     whenever the control is in the DOCUMENT rather than only while it is
+     painted: a lane that appeared and vanished with the soft keyboard would
+     reflow the list under the reader's thumb. */
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .createFabLane {
+    padding-right: max(
+      var(--space-2),
+      calc(var(--create-fab-lane) - var(--page-gutter))
+    );
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

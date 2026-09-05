@@ -23,6 +23,14 @@ function readInviteTokenFromHash(): string | null {
   return new URLSearchParams(window.location.hash.replace(/^#/, "")).get("invite");
 }
 
+/** The hash carries an invite that is not shaped like one (battle test L02). */
+function inviteHashIsMalformed(token: string | null): boolean {
+  return token !== null && !isClassicPlanInviteToken(token);
+}
+
+export const MALFORMED_INVITE_LINE =
+  "This invite link isn't valid. Ask the host for a fresh one.";
+
 const STATUS_LABELS: Record<CrewPresenceStatus, string> = {
   in: "In",
   on_the_way: "On the way",
@@ -328,6 +336,10 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
         <p className="planCrew__empty" role="status">
           {sessionUnavailable ? "Your private crew session is temporarily unavailable." : "Restoring your private crew session…"}
           {sessionUnavailable ? <button type="button" onClick={() => { setSessionUnavailable(false); setSessionAttempt((value) => value + 1); }}>Retry</button> : null}
+        </p>
+      ) : !memberToken && inviteHashIsMalformed(hashInviteToken) ? (
+        <p className="planCrew__empty" role="status">
+          {MALFORMED_INVITE_LINE}
         </p>
       ) : !memberToken && !hashInviteToken ? (
         <p className="planCrew__empty" role="status">

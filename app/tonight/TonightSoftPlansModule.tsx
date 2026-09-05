@@ -43,6 +43,8 @@ export default function TonightSoftPlansModule({ hasQuietPint = false }: Props) 
       aria-label="Soft plans tonight"
       data-testid="tonight-soft-plans"
     >
+      {/* Each row's way-onward arrow sits in the lane the compose action floats
+          in on a phone, so the row takes that lane (createFab.css). */}
       <p className="tonightSoftPlansEyebrow">Soft plans tonight</p>
       <ul className="tonightSoftPlansList">
         {TONIGHT_SOFT_PLAN_CHIPS.map((chip) => {
@@ -51,7 +53,7 @@ export default function TonightSoftPlansModule({ hasQuietPint = false }: Props) 
             <li key={chip.id} className="tonightSoftPlansRow">
               <IntentLink
                 href={planOccasionHref(chip.id, { src: "tonight-soft" })}
-                className="tonightSoftPlansLink pressable"
+                className="tonightSoftPlansLink createFabLane pressable"
               >
                 <span className="tonightSoftPlansIcon" aria-hidden="true">
                   <Icon size={17} />
@@ -64,7 +66,7 @@ export default function TonightSoftPlansModule({ hasQuietPint = false }: Props) 
         })}
         {hasQuietPint ? (
           <li className="tonightSoftPlansRow">
-            <Link href="#tonight-quiet-pint" className="tonightSoftPlansLink pressable">
+            <Link href="#tonight-quiet-pint" className="tonightSoftPlansLink createFabLane pressable">
               <span className="tonightSoftPlansIcon" aria-hidden="true">
                 <Moon size={17} />
               </span>
@@ -84,7 +86,7 @@ export default function TonightSoftPlansModule({ hasQuietPint = false }: Props) 
             <li key={chip.id} className="tonightSoftPlansRow">
               <IntentLink
                 href={planOccasionHref(chip.id, { src: "tonight-culture" })}
-                className="tonightSoftPlansLink pressable"
+                className="tonightSoftPlansLink createFabLane pressable"
               >
                 <span className="tonightSoftPlansIcon" aria-hidden="true">
                   <Icon size={17} />

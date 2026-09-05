@@ -542,8 +542,18 @@ button.siteNavMoreItem {
     display: none;
   }
 
+  /* A six-letter destination may not be cut to five. The row ran over budget
+     here and .siteNavItem's shrink took the difference out of the labels, so
+     at 768px "Places" needed 49px in a 46px box and rendered "Place...", and
+     "Social" the same. The items keep their own width and the padding pays for
+     it: one pixel a side across six links frees more than the two labels were
+     short. */
+  .siteNavItem {
+    flex: 0 0 auto;
+  }
+
   .siteNavLink {
-    padding: 0 7px;
+    padding: 0 6px;
     font-size: 0.74rem;
   }
 
@@ -553,18 +563,53 @@ button.siteNavMoreItem {
   }
 }
 
-/* Mid-width discoverability valley (IA-4 / KB-2): from 641–900px the full link
-   row is up but the phone tab bar is not, yet the ⌘K pill above is hidden — so
-   there is no visible entry to the palette in that band. Restore it here (this
-   rule follows the max-width:900 hide, so it wins by source order at 641–900),
-   tightened to an icon-width pill so it reclaims minimal room from the links.
-   ≤640 stays hidden (the max-width:640 rule below still matches; this one does
-   not), keeping the phone bar unchanged. */
-@media (min-width: 641px) and (max-width: 900px) {
-  .siteNavCmdk {
-    display: inline-flex;
-    min-width: 40px;
-    padding: 0 6px;
+/* The tablet band, MEASURED rather than assumed. At 641px the bar's inner
+   width is 573px and the row asked for 742px: brand 71px, six links 282px,
+   the action cluster 373px, plus gaps. The links sit BEHIND the cluster,
+   because .siteNavLinks may shrink and its items may not, so at 768px the
+   More button covered "You" and at 641px it covered Out, Social and You. A
+   destination a reader cannot press is worse than a hint they cannot see, so
+   from 900px down the cluster gives the row its room back:
+   - the More button keeps its chevron and drops its label (77px to 44px);
+   - the palette hint pill goes (the palette still answers the keyboard, and
+     the ≤900 rule above already removed it before the 641-900 restore);
+   - the cluster's gap tightens, and the links lose their 2px seam.
+   Between 641px and 767px the compose dot leaves as well (siteNavMoment.css,
+   whose own display rule loads after this sheet) and the bar takes the 12px
+   side margin the phone bar uses, which is what closes the last 40px; from
+   768px up the dot stays. Every figure is read off the rendered
+   bar in e2e/mobile-button-system.spec.ts. */
+@media (max-width: 900px) {
+  .siteNavLinks {
+    gap: 0;
+  }
+
+  .siteNavLink {
+    padding: 0 5px;
+  }
+
+  .siteNavActions {
+    gap: 4px;
+  }
+
+  .siteNavMoreBtn {
+    padding: 0;
+    width: 44px;
+  }
+
+  .siteNavMoreBtn > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 767px) {
+  .siteNavBar:not(.siteNavBarFloating) {
+    --site-nav-width: min(1100px, 100vw - 24px);
   }
 }
 

@@ -4844,7 +4844,13 @@ export default function PubMap({
           </button>
         ) : null}
         <span>
-          <strong className="mobileVenuePeekNearMe">
+          <strong
+            className={
+              userLocation
+                ? "mobileVenuePeekNearMe"
+                : "mobileVenuePeekNearMe isPhrase"
+            }
+          >
             {userLocation
               ? `${Math.max(1, Math.ceil(haversineKm(
                   [userLocation.lng, userLocation.lat],

@@ -11,6 +11,7 @@
 // source's provenance is always labelled on-image — a photo whose provenance
 // is unknown is never rendered, only the gradient fallback.
 
+import { ImageOff } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 
@@ -68,7 +69,10 @@ export default function VenueImage({
         role="img"
         aria-label={alt}
       >
-        <span aria-hidden="true">No photo yet</span>
+        <span aria-hidden="true">
+          <ImageOff size={14} aria-hidden="true" />
+          No photo yet
+        </span>
       </div>
     );
   }
