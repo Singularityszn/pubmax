@@ -43,11 +43,12 @@ import {
   profileStore,
 } from "@/lib/profileStore";
 import {
+  admin,
   createFailSoftGuard,
   onMissingDurableWrite,
   selectStore,
 } from "@/lib/storeBackend";
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 const TABLE = "profile_cover_photos";
 const MIGRATION_HINT = "apply migration 0100";
@@ -398,10 +399,6 @@ const { guard, isSchemaMiss, resetWarnings } = createFailSoftGuard({
   tables: TABLE,
   migrationHint: MIGRATION_HINT,
 });
-
-function admin() {
-  return requireSupabaseAdmin();
-}
 
 /**
  * Owner reorder upserts positions only: never replay moderation fields, or a

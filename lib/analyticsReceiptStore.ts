@@ -1,6 +1,7 @@
 import "server-only";
 
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import { selectStore } from "@/lib/storeBackend";
+import { requireSupabaseAdmin } from "@/lib/supabase";
 
 export type AnalyticsReceiptClaim = "claimed" | "delivered" | "busy" | "conflict" | "error";
 
@@ -81,7 +82,7 @@ export const supabaseAnalyticsReceiptStore: AnalyticsReceiptStore = {
 };
 
 export function analyticsReceiptStore(): AnalyticsReceiptStore {
-  return isSupabaseConfigured() ? supabaseAnalyticsReceiptStore : memoryAnalyticsReceiptStore;
+  return selectStore(memoryAnalyticsReceiptStore, supabaseAnalyticsReceiptStore);
 }
 
 export function __resetMemoryAnalyticsReceipts(): void {

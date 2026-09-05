@@ -24,11 +24,11 @@ import "server-only";
 import { randomUUID } from "crypto";
 
 import {
+  admin,
   createFailSoftGuard,
   onMissingDurableWrite,
   selectStore,
 } from "@/lib/storeBackend";
-import { requireSupabaseAdmin } from "@/lib/supabase";
 import {
   cleanBusyness,
   cleanNoise,
@@ -251,10 +251,6 @@ const { guard, isSchemaMiss, resetWarnings: resetSchemaMissWarnings } = createFa
   tables: TABLE,
   migrationHint: "apply migrations 0046 and 0058",
 });
-
-function admin() {
-  return requireSupabaseAdmin();
-}
 
 // snake_case row <-> camelCase VisitReport, in one place.
 function toRow(report: VisitReport) {

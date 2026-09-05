@@ -23,6 +23,7 @@ import "server-only";
 //    stay, so the decision is reversible from the surface that made it.
 
 import {
+  admin,
   createFailSoftGuard,
   onMissingDurableWrite,
   selectStore,
@@ -33,7 +34,6 @@ import {
   profileStore,
   publicProfileFromRecord,
 } from "@/lib/profileStore";
-import { requireSupabaseAdmin } from "@/lib/supabase";
 import {
   byNewestVenuePhoto,
   cleanVenuePhotoCaption,
@@ -252,10 +252,6 @@ const { guard, isSchemaMiss, resetWarnings } = createFailSoftGuard({
   tables: TABLE,
   migrationHint: MIGRATION_HINT,
 });
-
-function admin() {
-  return requireSupabaseAdmin();
-}
 
 function toRow(photo: VenuePhoto) {
   return {

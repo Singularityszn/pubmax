@@ -20,8 +20,7 @@ import {
   type ProfileImageSlot,
 } from "@/lib/profileImageSlots";
 import { isReservedContributorHandle } from "@/lib/pubmaxxIdentity";
-import { requireSupabaseAdmin } from "@/lib/supabase";
-import { selectStore } from "@/lib/storeBackend";
+import { admin, selectStore } from "@/lib/storeBackend";
 import { cleanText, isHttpUrl } from "@/lib/textClean";
 
 /** Owned-image moderation states persisted on profiles (migrations 0089/0096). */
@@ -503,10 +502,6 @@ export type ProfileStore = {
 };
 
 const TABLE = "profiles";
-
-function admin() {
-  return requireSupabaseAdmin();
-}
 
 // profiles (snake_case) <-> ProfileRecord (camelCase). One place so a column
 // rename is a one-line change on each side.

@@ -39,8 +39,7 @@ import {
   type MessageDTO,
 } from "@/lib/messages";
 import { normalizeHandle } from "@/lib/profiles";
-import { requireSupabaseAdmin } from "@/lib/supabase";
-import { selectStore } from "@/lib/storeBackend";
+import { admin, errorMessage, missingTables, selectStore } from "@/lib/storeBackend";
 
 // Hard caps so one busy handle can't return an unbounded payload.
 export const MAX_CONVERSATIONS = 100;
@@ -182,19 +181,7 @@ function rowToAttachment(row: Record<string, unknown>): MessageAttachment | unde
   };
 }
 
-function admin() {
-  return requireSupabaseAdmin();
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
-
-function isMissingMessagesSchema(err: unknown): boolean {
-  return /Could not find the table 'public\.(conversations|messages)'|relation "public\.(conversations|messages)" does not exist|schema cache/i.test(
-    errorMessage(err),
-  );
-}
+const isMissingMessagesSchema = missingTables("conversations", "messages");
 
 // A memory-minted conversation id is `c` followed by a decimal sequence number
 // and nothing else (see memoryMessagesStore.openConversation). A durable id is a

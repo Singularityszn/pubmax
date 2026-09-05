@@ -57,7 +57,8 @@ function cleanVibeTagsOrUndefined(value: unknown): VibeTag[] | undefined {
   return tags.length ? tags : undefined;
 }
 import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
-import { isSupabaseConfigured, requireSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
+import { admin, selectStore } from "@/lib/storeBackend";
+import { STORAGE_BUCKET } from "@/lib/supabase";
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { londonDayKey } from "@/lib/pintContributions";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
@@ -267,10 +268,6 @@ export function validatePhoto(type: string, size: number, maxBytes = MAX_PHOTO_B
  * as a named export here too so existing callers/tests are unaffected.
  */
 export const magicBytesOk = magicBytesOkPure;
-
-function admin() {
-  return requireSupabaseAdmin();
-}
 
 async function recordAnonymousReport(
   id: string,
@@ -1242,7 +1239,7 @@ const JPEG_QUALITY = 80;
  */
 /** The single backend selection point (mirrors the other stores). */
 export function pintDropsStore(): PintDropStore {
-  return isSupabaseConfigured() ? supabasePintDropStore : memoryPintDropStore;
+  return selectStore(memoryPintDropStore, supabasePintDropStore);
 }
 
 

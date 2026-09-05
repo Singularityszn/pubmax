@@ -6,6 +6,7 @@ import { cleanCrewName, CREW_MAX_MEMBERS, isCrewPresenceStatus, type CrewMemberD
 import { canTransitionPlannedNight, cleanCreatePlan, cleanEndingSelection, isPlanId, type CleanPlanInput, type CrawlEnding, type CreatePlanInput, type EndingSelection, type PlanActionDTO, type PlanAnchorMetadata, type PlanCompletionDTO, type PlanDTO, type PlanMemberRole, type PlannedNightStatus, type PlanState, type PlanStopDTO } from "@/lib/plan";
 import { CLASSIC_PLAN_INVITE_TOKEN_PATTERN } from "@/lib/planCrewInviteUrl";
 import type { NightContext } from "@/lib/nightPlanning";
+import { selectStore } from "@/lib/storeBackend";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { isPlanStopCount } from "@/lib/planStopCount";
 
@@ -1050,7 +1051,7 @@ export async function planCompletionResult(id: string): Promise<PlanCompletionLo
 }
 
 export function planStore(): PlanStore {
-  return isSupabaseConfigured() ? supabasePlanStore : memoryPlanStore;
+  return selectStore(memoryPlanStore, supabasePlanStore);
 }
 
 export function __resetMemoryPlans(): void {
