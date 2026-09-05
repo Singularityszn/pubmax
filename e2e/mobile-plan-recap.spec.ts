@@ -2,15 +2,14 @@ import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 
-// Renamed to *.flag-on so it runs only in the chromium-flag-on project against
-// a server built with friendMemberRehydrationV2 ON (no runtime test.skip —
-// L20 zero-skip contract). The Night Mode card reads the FULL PlanState to
-// know a night is complete and to seed its recap, and resolvePlanProjection
-// (lib/planPrivacyBoundary.server.ts) fails closed on that flag: with it off,
-// GET /api/plans/[id] answers the anonymous preview, which carries no stops
-// and no ending, so the card sits on "Loading tonight's route…" for ever and
-// the recap invitation this test taps is never rendered. Reading the full
-// state as its own member IS member rehydration, so this is the lane.
+// The Night Mode card reads the FULL PlanState to know a night is complete and
+// to seed its recap, so this journey only exists for a caller carrying the
+// plan's own capability. resolvePlanProjection (lib/planPrivacyBoundary.
+// server.ts) answers the anonymous preview to everyone else, and a preview
+// carries no stops and no ending, so the card would sit on "Loading tonight's
+// route…" for ever. The capability arrives the way a real host's does: the
+// legacy member token seeded below is exchanged for the path-scoped HttpOnly
+// session by restorePlanCapability on mount.
 
 test("completed Plan recap stays inside 320px viewport and explicit discard survives remount", async ({ page, request }) => {
   const startTime = new Date().toISOString();
