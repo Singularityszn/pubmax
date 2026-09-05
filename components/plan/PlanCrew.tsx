@@ -17,6 +17,8 @@ import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import { subscribeToAuthFragmentRestored } from "@/lib/authRedirect";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { discardBody } from "@/lib/responseBody";
+import { usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 
 function readInviteTokenFromHash(): string | null {
   if (typeof window === "undefined") return null;
@@ -192,7 +194,11 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
   const refetchCrew = useCallback(async () => {
     if (document.visibilityState !== "visible") return;
     const response = await fetch(`/api/plans/${planId}`, { cache: "no-store" }).catch(() => null);
-    if (!response?.ok) return;
+    if (!response) return;
+    if (!response.ok) {
+      discardBody(response);
+      return;
+    }
     const body = await response.json();
     if (Array.isArray(body?.crew)) setCrew(body.crew);
   }, [planId]);
@@ -200,18 +206,26 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
   // Mount-upgrade: pull the full crew straight away so a member sees the real
   // roster without waiting for the first poll tick. Anonymous viewers get the
   // preview envelope (no `crew` array), so this leaves the host-only view intact.
-  useEffect(() => {
-    let active = true;
+  //
+  // It follows the capability rather than the mount (battle test M01): a seat
+  // claimed after this component's first read left the roster showing the host
+  // alone until the next poll tick.
+  const readCrew = useCallback((isActive: () => boolean) => {
     fetch(`/api/plans/${planId}`, { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
+      .then((response) => {
+        // A body nobody reads is a request that never finishes.
+        if (!response.ok) {
+          discardBody(response);
+          return null;
+        }
+        return response.json();
+      })
       .then((body) => {
-        if (active && Array.isArray(body?.crew)) setCrew(body.crew);
+        if (isActive() && Array.isArray(body?.crew)) setCrew(body.crew);
       })
       .catch(() => undefined);
-    return () => {
-      active = false;
-    };
   }, [planId]);
+  usePlanMemberRead(planId, readCrew);
 
   useEffect(() => {
     return subscribeToPlanCrew(planId, refetchCrew, { poll: refetchCrew });

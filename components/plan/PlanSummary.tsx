@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import type { PlanState } from "@/lib/plan";
 import PlanRoute from "@/components/plan/PlanRoute";
@@ -10,6 +10,7 @@ import RoundStarter from "@/components/round/RoundStarter";
 import { planViewModel } from "@/components/plan/planPresentation";
 import { anchorConflictMessage, routeStopsFromGenerated } from "@/components/plan/PlanComposer";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot, restorePlanCapability } from "@/lib/planSessionCapability";
+import { usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 import { setActivePlanRole } from "@/lib/activePlan";
 import type { PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 import type { InvitePrivacyPreviewDTO } from "@/lib/invitePrivacyPreview";
@@ -19,6 +20,7 @@ import {
   normalizePlanStopCount,
   PLAN_STOP_COUNT_RANGE_SENTENCE,
 } from "@/lib/planStopCount";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { tryGetNightArea } from "@/lib/nightAreas";
 import { discardBody } from "@/lib/responseBody";
@@ -284,12 +286,23 @@ function canonicalStateFromBody(value: unknown): PlanState | null {
   return null;
 }
 
+/** A body the server answered as the anonymous preview rather than a member. */
+export function isPlanPreviewProjection(value: unknown): boolean {
+  return Boolean(value) && typeof value === "object"
+    && (value as { visibility?: unknown }).visibility === "preview";
+}
+
 /**
  * §4.10 boundary: the server never embeds the route in this component's props.
  * The page passes only the privacy-safe preview; a member's full state is
- * fetched on mount from the capability-gated /api/plans/[id] (which returns the
- * raw PlanState only for a valid host/guest with the flag on, else the preview).
+ * fetched from the capability-gated /api/plans/[id] (which returns the raw
+ * PlanState only for a valid host/guest with the flag on, else the preview).
  * Until — or unless — that member state arrives, only the redacted preview renders.
+ *
+ * The read follows the capability rather than the mount (battle test M01, M02);
+ * usePlanMemberRead owns that rule. A read that comes back as the PREVIEW is an
+ * answer rather than a failure, so it also takes the route back down when a
+ * capability is revoked.
  */
 export default function PlanSummary({
   planId,
@@ -300,24 +313,35 @@ export default function PlanSummary({
   vibeTally?: VibeTally | null;
 }) {
   const [state, setState] = useState<PlanState | null>(null);
+  const { identityResolved } = useAuth();
+  // The session lane, gated the way PlanCrew gates its own: asking before
+  // identity has resolved cannot spend the recovery write, so it would be a
+  // question that could never come back a member.
+  const sessionAsked = useRef(false);
   useEffect(() => {
-    let active = true;
-    void restorePlanCapability(planId)
-      .catch(() => undefined)
-      .finally(() => {
-        if (!active) return;
-        void fetch(`/api/plans/${planId}`, { cache: "no-store" })
-          .then((response) => (response.ok ? response.json() : null))
-          .then((body) => {
-            const canonical = canonicalStateFromBody(body);
-            if (active && canonical) setState(canonical);
-          })
-          .catch(() => undefined);
-      });
-    return () => {
-      active = false;
-    };
+    if (!identityResolved || sessionAsked.current) return;
+    sessionAsked.current = true;
+    void restorePlanCapability(planId).catch(() => undefined);
+  }, [identityResolved, planId]);
+  const readPlan = useCallback((isActive: () => boolean) => {
+    void fetch(`/api/plans/${planId}`, { cache: "no-store" })
+      .then((response) => {
+        // A body nobody reads is a request that never finishes.
+        if (!response.ok) {
+          discardBody(response);
+          return null;
+        }
+        return response.json();
+      })
+      .then((body) => {
+        if (!isActive()) return;
+        const canonical = canonicalStateFromBody(body);
+        if (canonical) setState(canonical);
+        else if (isPlanPreviewProjection(body)) setState(null);
+      })
+      .catch(() => undefined);
   }, [planId]);
+  usePlanMemberRead(planId, readPlan);
 
   if (!state) {
     return (
