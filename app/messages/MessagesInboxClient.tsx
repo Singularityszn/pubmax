@@ -7,8 +7,10 @@ import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
+import MessageAvatar from "@/components/messages/MessageAvatar";
 import { authedActionFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
+import { inboxTimeLabel } from "@/lib/messageTimeline";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 
@@ -188,6 +190,9 @@ export default function MessagesInboxClient({
   }, [refresh, handle]);
 
   const accountDataReady = loadedRevision === accountRevision;
+  // One clock for the whole list per render, so every row's time is measured
+  // from the same instant.
+  const now = new Date();
 
   return (
     <Screen
@@ -199,9 +204,13 @@ export default function MessagesInboxClient({
       // A new message starts from a person, and the people are on Social.
       primary={<Link href="/social">New message</Link>}
     >
-      <p className="messagesCourtesyNote">
-        Messages need a signed-in account. Keep it low-key, and report anything off.
-      </p>
+      {/* The one line about what messaging needs. Shown to somebody who is
+          not signed in; a signed-in inbox is a list of people, not a notice. */}
+      {viewerSession.signedOut ? (
+        <p className="messagesCourtesyNote">
+          Messages need a signed-in account. Keep it low-key, and report anything off.
+        </p>
+      ) : null}
 
       {!accountDataReady ? (
         <p className="conversationPreview">With you in a sec.</p>
@@ -238,18 +247,23 @@ export default function MessagesInboxClient({
           <ul className="conversationList">
             {conversations.map((c) => {
               const active = c.id === activeConversationId;
+              const unread = c.unread > 0;
+              const classes = [
+                "conversationItem",
+                active ? "conversationItemActive" : "",
+                unread ? "conversationItemUnread" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+              const when = c.lastAt ? inboxTimeLabel(c.lastAt, now) : "";
               return (
-                <li
-                  key={c.id}
-                  className={
-                    active ? "conversationItem conversationItemActive" : "conversationItem"
-                  }
-                >
+                <li key={c.id} className={classes}>
                   <Link
                     href={`/messages/${encodeURIComponent(c.id)}`}
                     className="conversationLink"
                     aria-current={active ? "page" : undefined}
                   >
+                    <MessageAvatar handle={c.otherHandle} avatarUrl={c.otherAvatarUrl} />
                     <div className="conversationBody">
                       <div className="conversationHandle">@{c.otherHandle}</div>
                       <div className="conversationPreview">
@@ -258,11 +272,18 @@ export default function MessagesInboxClient({
                           : "No messages yet"}
                       </div>
                     </div>
-                    {c.unread > 0 ? (
-                      <span className="conversationUnread" aria-label={`${c.unread} unread`}>
-                        {c.unread > 99 ? "99+" : c.unread}
-                      </span>
-                    ) : null}
+                    <div className="conversationAside">
+                      {when ? (
+                        <time className="conversationTime" dateTime={c.lastAt}>
+                          {when}
+                        </time>
+                      ) : null}
+                      {unread ? (
+                        <span className="conversationUnread" aria-label={`${c.unread} unread`}>
+                          {c.unread > 99 ? "99+" : c.unread}
+                        </span>
+                      ) : null}
+                    </div>
                   </Link>
                 </li>
               );

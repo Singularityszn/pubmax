@@ -1,5 +1,18 @@
 /* 1:1 messaging surfaces (PRD E4). Colours stay on the shared tokens (globals);
-   this file is layout + the bubble language only. */
+   this file is layout + the bubble language only.
+
+   THE SHAPE, on a phone: a sticky head naming who you are talking to, the
+   thread as the page's own scroll, and a composer pinned over the foot of the
+   page, above the tab bar, and above the keyboard when one is up (the thread
+   root carries `--keyboard-inset` from lib/keyboardInset.ts and
+   `data-keyboard-open` from lib/softKeyboard.ts). On a desktop the split is a
+   fixed-height panel: the inbox and the thread each scroll on their own and
+   the composer never leaves the bottom edge.
+
+   THE EDGES follow the de-box rule (docs/DESIGN_SYSTEM.md): borders are for
+   inputs, fills are for selection, hairlines are for structure. An inbox row
+   is a hairline-divided line with a face; a bubble is a fill; the field is the
+   one bordered thing in the composer. */
 
 .messagesPage {
   min-height: 100dvh;
@@ -14,6 +27,14 @@
   padding-block: 1.5rem 4rem;
   padding-inline: 20px;
   margin-inline: auto;
+  /* The thread's full-bleed head and composer read this to reach the edges. */
+  --messages-gutter: 20px;
+}
+
+/* The thread page owns its own foot: the composer is the last thing on it and
+   sits over the tab bar's reserved lane, so the page pays no bottom padding. */
+.messagesMainThread {
+  padding-block: 0 0;
 }
 
 .messagesSplit {
@@ -72,12 +93,13 @@
   padding-block: 0 var(--space-3);
 }
 
+/* The one line about what messaging needs, shown to a reader who is not
+   signed in. A signed-in inbox does not restate it above every row. */
 .messagesCourtesyNote {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: var(--muted);
-  border-left: 3px solid var(--line);
-  padding: 0.4rem 0.75rem;
-  margin: 0 0 1.25rem;
+  margin: 0 0 1rem;
+  line-height: 1.5;
 }
 
 /* A refresh that failed over a list already on screen: it sits ABOVE the list
@@ -97,52 +119,91 @@
   flex-basis: 100%;
 }
 
+/* ── a face ───────────────────────────────────────────────────────────────── */
+/* The handle's first letter on a warm fill, or the photograph when one is
+   held. Sized by the caller through one custom property so the row, the head
+   and the empty thread share one drawing. */
+.messageAvatar {
+  --message-avatar-size: 44px;
+
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: var(--message-avatar-size);
+  height: var(--message-avatar-size);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--brass) 18%, var(--panel));
+  color: var(--ink);
+  font-family: var(--font-display, var(--serif));
+  font-size: calc(var(--message-avatar-size) * 0.42);
+  font-weight: 700;
+  line-height: 1;
+  overflow: hidden;
+}
+
+.messageAvatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* ── inbox: conversation list ─────────────────────────────────────────────── */
 .conversationList {
   list-style: none;
-  margin: 0;
+  margin: 0 calc(var(--messages-gutter, 20px) * -0.5);
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
 }
 
 .conversationItem {
-  border: 1px solid var(--line);
-  border-radius: 0.6rem;
-  background: var(--panel);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.conversationItem:last-child {
+  border-bottom: 0;
 }
 
 .conversationLink {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.85rem 1rem;
+  gap: 0.8rem;
+  min-height: 68px;
+  padding: 0.6rem calc(var(--messages-gutter, 20px) * 0.5);
+  border-radius: var(--radius, 8px);
   text-decoration: none;
   color: inherit;
+  transition: background-color var(--duration-fast) var(--ease-out);
 }
 
 .conversationLink:hover {
+  background: var(--panel);
+}
+
+.conversationLink:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: -2px;
+}
+
+/* Selection is a fill, never a coral edge. */
+.conversationItemActive .conversationLink {
   background: var(--panel-raised);
 }
 
-.conversationItemActive {
-  border-color: color-mix(in srgb, var(--brass) 58%, var(--line));
-  box-shadow: inset 3px 0 0 var(--brass);
-}
-
-.conversationItemActive .conversationLink {
-  background: color-mix(in srgb, var(--brass) 9%, var(--panel));
-}
-
 .conversationBody {
-  flex: 1;
   min-width: 0;
+  display: grid;
+  gap: 0.15rem;
 }
 
 .conversationHandle {
   font-weight: 600;
   color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .conversationPreview {
@@ -153,52 +214,177 @@
   white-space: nowrap;
 }
 
+/* An unread row is the whole row speaking louder, not a badge alone. */
+.conversationItemUnread .conversationPreview {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.conversationAside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  min-width: 2.5rem;
+}
+
+.conversationTime {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.conversationItemUnread .conversationTime {
+  color: var(--brass);
+  font-weight: 600;
+}
+
 .conversationUnread {
   flex-shrink: 0;
-  min-width: 1.4rem;
-  height: 1.4rem;
+  min-width: 1.25rem;
+  height: 1.25rem;
   padding: 0 0.4rem;
   border-radius: 999px;
   background: var(--brass);
-  color: #fff;
-  font-size: 0.75rem;
+  color: var(--color-on-accent);
+  font-size: 0.72rem;
   font-weight: 700;
+  line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
 /* ── thread ───────────────────────────────────────────────────────────────── */
-.threadHeader {
+.messageThread {
   display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  flex-direction: column;
+  /* The viewport less the site nav, so the composer sits at the foot of the
+     screen on a phone and a tablet alike; the desktop split gives the thread
+     a real height instead. */
+  min-height: calc(100dvh - 7.5rem);
+}
+
+/* The shell draws no box: it is where the keyboard facts arrive as data and
+   custom properties, which the composer dock below reads by inheritance. */
+.messageThreadShell {
+  --composer-clearance: 0px;
+
+  display: contents;
+}
+
+/* Who you are talking to, and the way back. Sticky on the phone, where the
+   page is the scroller. Full bleed, so the hairline under it runs edge to
+   edge like the composer's. */
+.threadHeader {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 56px;
+  margin: 0 calc(var(--messages-gutter, 20px) * -1);
+  padding: 0.25rem 0.5rem;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .threadBackLink {
-  font-size: 0.85rem;
-  color: var(--brass);
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: var(--ink);
   text-decoration: none;
 }
 
+.threadBackLink:hover {
+  background: var(--panel);
+}
+
 .threadWith {
-  font-family: var(--font-display, var(--serif));
-  font-size: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 0.5rem 0 0.25rem;
+  border-radius: var(--radius-pill, 999px);
   color: var(--ink);
+  text-decoration: none;
+}
+
+a.threadWith:hover {
+  background: var(--panel);
+}
+
+.threadWithHandle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 1rem;
 }
 
 .threadMessages {
   list-style: none;
-  margin: 0 0 1rem;
-  padding: 0;
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 0.75rem 0 0.5rem;
   display: flex;
   flex-direction: column;
+  gap: 2px;
+}
+
+/* A day line between two days. Quiet: it is a landmark, not a message. */
+.threadDay {
+  display: flex;
+  justify-content: center;
+  margin: 0.9rem 0 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.01em;
+}
+
+/* Nothing sent yet: the face and the handle sit in the middle of the room. */
+.threadEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 0.5rem;
+  flex: 1 1 auto;
+  margin: auto 0;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.threadEmptyTitle {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-display, var(--serif));
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.threadEmptyLine {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
 }
 
 .messageRow {
   display: flex;
+}
+
+/* A run opens with a little air above it; inside a run the bubbles sit tight. */
+.messageRow[data-first] {
+  margin-top: 0.6rem;
 }
 
 .messageRowMine {
@@ -221,32 +407,62 @@
   max-width: 75%;
   min-width: 0;
   width: fit-content;
+  display: flex;
+  flex-direction: column;
+}
+
+.messageRowMine .messageLine {
+  align-items: flex-end;
 }
 
 .messageBubble {
   max-width: 100%;
-  padding: 0.55rem 0.8rem;
-  border-radius: 0.9rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 18px;
   font-size: 0.95rem;
-  line-height: 1.35;
+  line-height: 1.38;
   word-wrap: break-word;
   overflow-wrap: anywhere;
+  cursor: default;
 }
 
-/* mine: right, category-brass tint */
+/* mine: right, the one coral fill on the surface, ink on it for contrast */
 .messageBubbleMine {
-  background: color-mix(in srgb, var(--brass) 16%, var(--panel));
-  border: 1px solid color-mix(in srgb, var(--brass) 32%, var(--line));
-  color: var(--ink);
-  border-bottom-right-radius: 0.25rem;
+  background: var(--brass);
+  color: var(--color-on-accent);
 }
 
-/* theirs: left, plain panel */
+/* theirs: left, a panel fill and no edge */
 .messageBubbleTheirs {
   background: var(--panel);
-  border: 1px solid var(--line);
   color: var(--ink);
-  border-bottom-left-radius: 0.25rem;
+}
+
+html[data-theme="dark"] .messageBubbleTheirs {
+  background: var(--panel-raised);
+}
+
+/* Inside a run the bubbles share a straight shoulder on the speaker's side,
+   so three quick messages read as one breath rather than three cards. */
+.messageRowMine:not([data-first]) .messageBubble {
+  border-top-right-radius: 5px;
+}
+
+.messageRowMine:not([data-last]) .messageBubble {
+  border-bottom-right-radius: 5px;
+}
+
+.messageRow:not(.messageRowMine):not([data-first]) .messageBubble {
+  border-top-left-radius: 5px;
+}
+
+.messageRow:not(.messageRowMine):not([data-last]) .messageBubble {
+  border-bottom-left-radius: 5px;
+}
+
+/* An own message still on its way: a little lighter, and it says so below. */
+.messageRow[data-sending] .messageBubble {
+  opacity: 0.72;
 }
 
 .messageMention {
@@ -255,17 +471,48 @@
   text-decoration: none;
 }
 
+.messageBubbleMine .messageMention {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .messageMention:hover {
   text-decoration: underline;
 }
 
+/* The time and the Report control live under the bubble and stay folded
+   until the bubble is tapped, hovered with a pointer that can hover, or
+   reached with the keyboard. A thread is not a column of Report links. */
 .messageMeta {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.6rem;
   align-items: center;
-  margin-top: 0.2rem;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  padding: 0 0.3rem;
   font-size: 0.7rem;
   color: var(--muted);
+  transition:
+    max-height var(--duration-base, 0.18s) var(--ease-out),
+    opacity var(--duration-base, 0.18s) var(--ease-out),
+    margin-top var(--duration-base, 0.18s) var(--ease-out);
+}
+
+.messageRow[data-revealed] .messageMeta,
+.messageLine:focus-within .messageMeta {
+  max-height: 2.5rem;
+  opacity: 1;
+  margin-top: 0.2rem;
+}
+
+@media (hover: hover) {
+  .messageLine:hover .messageMeta {
+    max-height: 2.5rem;
+    opacity: 1;
+    margin-top: 0.2rem;
+  }
 }
 
 /* An own message's meta is usually empty, so it sits under the right edge of
@@ -274,14 +521,31 @@
   justify-content: flex-end;
 }
 
+.messageClock {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Seen, Sent or Sending, under the viewer's own newest message alone. */
+.messageReadState {
+  margin-top: 0.15rem;
+  padding: 0 0.3rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
 .messageReportBtn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 0.15rem;
   background: none;
   border: none;
-  padding: 0;
   color: var(--muted);
+  font: inherit;
   font-size: 0.7rem;
   cursor: pointer;
   text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .messageReportBtn:hover {
@@ -360,6 +624,16 @@
   background: color-mix(in srgb, var(--ink) 6%, transparent);
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+/* The photo the sender chose, drawn from its local preview while the bytes
+   are on their way, under the same cap the stored tile takes. */
+.messagePhotoSending {
+  display: block;
+  max-width: 100%;
+  max-height: min(40dvh, 240px);
+  border-radius: 0.6rem;
+  object-fit: contain;
 }
 
 .messagePhotoFailed {
@@ -441,17 +715,20 @@
 .messageVenueCard {
   display: block;
   padding: 0.5rem 0.6rem;
-  border: 1px solid var(--line);
   border-radius: 0.6rem;
-  background: var(--panel-raised);
+  background: color-mix(in srgb, var(--paper) 55%, transparent);
   color: inherit;
   text-decoration: none;
+}
+
+.messageBubbleTheirs .messageVenueCard {
+  background: var(--panel-raised);
 }
 
 .messageVenueCardName {
   display: block;
   font-weight: 600;
-  color: var(--ink);
+  color: inherit;
 }
 
 .messageVenueCardArea,
@@ -459,24 +736,60 @@
 .messageVenueCardUnresolved {
   display: block;
   font-size: 0.8rem;
-  color: var(--muted);
+  color: inherit;
+  opacity: 0.85;
 }
 
 .messageVenueCardPrice {
-  color: var(--brass);
   font-weight: 600;
+  opacity: 1;
+}
+
+.messageBubbleTheirs .messageVenueCardPrice {
+  color: var(--brass);
 }
 
 /* ── composer ─────────────────────────────────────────────────────────────── */
-/* Two rows on every width: the field, then the controls. One row would put a
-   photo button, a pub button, a counter and Send beside a text field inside
-   350px, and something would be under 44px or truncated. */
-.composer {
+/* The dock is everything that rides with the field: the error line, the pub
+   picker, the pending attachment, then the composer row. Pinned over the foot
+   of the page on the phone, above the tab bar's lane and above the keyboard;
+   the desktop split makes it the bottom of the thread pane instead. */
+.composerDock {
+  position: sticky;
+  bottom: calc(var(--composer-clearance) + var(--keyboard-inset, 0px));
+  z-index: 3;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  border-top: 1px solid var(--line);
-  padding-top: 0.75rem;
+  margin: 0 calc(var(--messages-gutter, 20px) * -1);
+  padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  background: var(--paper);
+  border-top: 1px solid var(--line-soft);
+}
+
+/* One row: the attachments, the field, Send. The field is the only thing that
+   grows, and everything else sits on the field's bottom line so a three-line
+   message keeps the buttons where a thumb left them. */
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.composerControls {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.composerField {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.2rem;
 }
 
 .composerInput {
@@ -487,25 +800,30 @@
   overflow-y: auto;
   min-height: 44px;
   max-height: 9rem;
-  padding: 0.6rem 0.7rem;
+  padding: 0.65rem 1rem;
   border: 1px solid var(--line);
-  border-radius: 0.6rem;
+  border-radius: 22px;
   background: var(--panel-raised);
   color: var(--ink);
   font: inherit;
   line-height: 1.35;
 }
 
-.composerControls {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.composerInput::placeholder {
+  color: var(--muted);
+}
+
+.composerInput:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 0;
+  border-radius: 22px;
 }
 
 .composerMobileAttach {
   display: none;
 }
 
+/* The desktop attachment pair: two quiet round icon buttons. */
 .composerAttach {
   display: inline-flex;
   white-space: nowrap;
@@ -513,21 +831,25 @@
   justify-content: center;
   min-height: 44px;
   min-width: 44px;
-  padding: 0 0.6rem;
-  border: 1px solid var(--line);
-  border-radius: 0.6rem;
-  background: var(--panel-raised);
-  color: var(--ink);
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-soft);
   font: inherit;
   cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
 }
 
 .composerAttach:hover:not(:disabled) {
   background: var(--panel);
+  color: var(--ink);
 }
 
 .composerAttach[aria-pressed="true"] {
-  border-color: color-mix(in srgb, var(--brass) 58%, var(--line));
+  background: color-mix(in srgb, var(--brass) 16%, var(--panel));
   color: var(--brass);
 }
 
@@ -656,8 +978,10 @@
   pointer-events: none;
 }
 
+/* The counter appears only inside the last hundred characters. */
 .composerCount {
-  margin-left: auto;
+  align-self: flex-end;
+  padding-right: 0.5rem;
   font-size: 0.72rem;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
@@ -667,24 +991,50 @@
   color: #b3261e;
 }
 
+/* Send: the one coral control in the dock, a 44px circle with the arrow dead
+   centre. Disabled it drops to a panel fill rather than a ghost of coral. */
 .composerSend {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   min-height: 44px;
   min-width: 44px;
-  padding: 0 1.1rem;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   border: none;
-  border-radius: 0.6rem;
+  border-radius: 50%;
   background: var(--brass);
-  color: #fff;
-  font-weight: 600;
+  color: var(--color-on-accent);
   cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.composerSend:hover:not(:disabled) {
+  background: var(--brass-bright);
+}
+
+/* Press feedback owned here, so the shared press layer in app/globals.css
+   stands down through its documented seam (--shared-press-scale). */
+.composerSend:active:not(:disabled) {
+  transform: scale(0.94);
+  --shared-press-scale: 1;
 }
 
 .composerSend:disabled {
-  opacity: 0.55;
+  background: var(--panel);
+  color: var(--muted);
   cursor: not-allowed;
+}
+
+.composerSend:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 50%;
 }
 
 /* ── attaching a pub from the composer ────────────────────────────────────── */
@@ -697,9 +1047,9 @@
 .composerVenueSearch {
   width: 100%;
   min-height: 44px;
-  padding: 0.6rem 0.7rem;
+  padding: 0.6rem 0.9rem;
   border: 1px solid var(--line);
-  border-radius: 0.6rem;
+  border-radius: 22px;
   background: var(--panel-raised);
   color: var(--ink);
   font: inherit;
@@ -722,10 +1072,10 @@
   align-items: flex-start;
   width: 100%;
   min-height: 44px;
-  padding: 0.4rem 0.6rem;
-  border: 1px solid var(--line);
-  border-radius: 0.6rem;
-  background: var(--panel-raised);
+  padding: 0.4rem 0.75rem;
+  border: none;
+  border-radius: var(--radius, 8px);
+  background: var(--panel);
   color: var(--ink);
   font: inherit;
   text-align: left;
@@ -733,7 +1083,7 @@
 }
 
 .composerVenueResult:hover {
-  background: var(--panel);
+  background: var(--panel-raised);
 }
 
 .composerVenueResultArea {
@@ -751,12 +1101,17 @@
 .composerPending {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.6rem;
-  border: 1px solid color-mix(in srgb, var(--brass) 40%, var(--line));
-  border-radius: 0.6rem;
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel));
+  gap: 0.6rem;
+  padding: 0.4rem 0.4rem 0.4rem 0.7rem;
+  border-radius: var(--radius, 8px);
+  background: var(--panel);
   font-size: 0.85rem;
+  color: var(--ink);
+}
+
+.composerPendingIcon {
+  flex-shrink: 0;
+  color: var(--brass);
 }
 
 .composerPendingLabel {
@@ -778,12 +1133,15 @@
   justify-content: center;
   min-height: 44px;
   min-width: 44px;
+  padding: 0 0.6rem;
   border: none;
-  border-radius: 0.6rem;
+  border-radius: var(--radius, 8px);
   background: none;
   color: var(--ink);
   font: inherit;
+  font-size: 0.85rem;
   text-decoration: underline;
+  text-underline-offset: 3px;
   cursor: pointer;
 }
 
@@ -832,7 +1190,8 @@
 .threadError {
   font-size: 0.85rem;
   color: #b3261e;
-  margin: 0.25rem 0;
+  margin: 0;
+  padding: 0 0.25rem;
 }
 
 /* The thread we could not load: the line WRAPS (never ellipses) and both exits
@@ -842,6 +1201,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem 0.9rem;
+  padding-top: 1rem;
   font-size: 0.85rem;
   color: var(--muted);
 }
@@ -873,6 +1233,16 @@
 .threadRetryBtn[aria-busy="true"] {
   opacity: 0.55;
   cursor: progress;
+}
+
+/* The sign-in door and the not-found line get the same breathing room. The
+   rule is scoped to the thread pane's OWN line, because the inbox beside it
+   prints a `.conversationPreview` per row that has to stay on one line. */
+.messagesSignInPrompt,
+.messagesThreadPane > .conversationPreview,
+.messagesThreadPane > .messageThread .conversationPreview {
+  padding-top: 1rem;
+  white-space: normal;
 }
 
 /* ── the profile "Message" control ────────────────────────────────────────── */
@@ -914,21 +1284,30 @@
   font-size: 0.85rem;
 }
 
+/* ── the desktop split ────────────────────────────────────────────────────── */
 @media (min-width: 1024px) {
   .messagesMain {
     max-width: var(--content-max-wide);
     padding-block: 2rem 3rem;
     padding-inline: 24px;
+    --messages-gutter: 0px;
   }
 
+  .messagesMainThread {
+    padding-block: 2rem 3rem;
+  }
+
+  /* A fixed-height panel: each pane scrolls on its own, so the composer never
+     leaves the bottom edge and the inbox never pushes the thread down. */
   .messagesSplit {
     display: grid;
     grid-template-columns: minmax(19rem, 22rem) minmax(0, 1fr);
-    min-height: calc(100dvh - 9rem);
+    height: calc(100dvh - 9rem);
+    min-height: 32rem;
     overflow: hidden;
     border: 1px solid var(--line);
     border-radius: 1rem;
-    background: var(--panel);
+    background: var(--panel-raised);
     box-shadow: var(--shadow-card);
   }
 
@@ -938,64 +1317,111 @@
   }
 
   .messagesInboxPane {
-    padding: 1.5rem;
-    border-right: 1px solid var(--line);
+    min-height: 0;
+    overflow-y: auto;
+    padding: 1.25rem 0.75rem 1.5rem;
+    border-right: 1px solid var(--line-soft);
+    background: var(--panel-raised);
+  }
+
+  .messagesInboxPane .screenHead {
+    padding-inline: 0.5rem;
+  }
+
+  .messagesInboxPane .conversationList {
+    margin: 0;
+  }
+
+  .messagesInboxPane .conversationLink {
+    gap: 0.6rem;
+    padding-inline: 0.5rem;
+  }
+
+  .messagesInboxPane .conversationItemActive .conversationLink {
     background: var(--panel);
   }
 
   .messagesThreadPane {
     min-height: 0;
-    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
     background: var(--paper);
   }
 
   .messagesThreadEmpty {
     display: grid !important;
     place-items: center;
+    padding: 1.5rem;
   }
 
   .messagesThreadPane .messageThread {
-    display: flex;
-    flex-direction: column;
-    min-height: calc(100dvh - 12rem);
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .messagesThreadPane .threadHeader {
+    position: static;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .messagesThreadPane .threadBackLink {
+    display: none;
   }
 
   .messagesThreadPane .threadMessages {
-    flex: 1;
+    flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
-    padding-right: 0.25rem;
+    padding: 0.75rem 1.25rem 0.5rem;
   }
 
-  .messagesThreadPane .composer {
-    position: sticky;
-    bottom: 0;
-    background: var(--paper);
+  .messagesThreadPane .composerDock {
+    position: static;
+    margin: 0;
+    padding: 0.6rem 0.75rem 0.85rem;
   }
 
-  .threadBackLink {
-    display: none;
+  .messagesThreadPane > .conversationPreview,
+  .messagesThreadPane > .threadFailure,
+  .messagesThreadPane > .messagesSignInPrompt {
+    padding: 1.5rem;
   }
 }
 
+/* ── the phone ────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
+  /* The composer clears the tab bar's lane. When the keyboard is up the bar
+     has stepped aside (lib/softKeyboard.ts), so the lane is the keyboard's
+     own inset instead. */
+  .messageThreadShell {
+    --composer-clearance: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .messageThreadShell[data-keyboard-open] {
+    --composer-clearance: 0px;
+  }
+
   .composerPhotoDesktop {
     display: none;
   }
 
+  /* The + opens the attachment sheet; the pin stays beside it because the
+     sheet carries photos alone. */
   .composerMobileAttach {
     display: inline-flex;
     min-height: 44px;
     min-width: 44px;
+    width: 44px;
+    height: 44px;
     align-items: center;
     justify-content: center;
-    padding: 0 0.7rem;
-    border: 1px solid var(--brass);
-    border-radius: 0.6rem;
-    background: transparent;
-    color: var(--brass);
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--panel-raised);
+    color: var(--ink);
     font: inherit;
-    font-weight: 700;
     cursor: pointer;
     touch-action: manipulation;
   }
