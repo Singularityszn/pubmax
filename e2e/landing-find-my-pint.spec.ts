@@ -54,10 +54,13 @@ test.describe("landing hierarchy", () => {
     await expect(primaries.first()).toHaveAttribute("href", LANDING_PRIMARY_HREF);
     await expect(primaries.first()).toHaveText(LANDING_PRIMARY_NAME);
 
+    // One quiet row, two doors since #1488, and the Pal is still the first.
     const secondary = hero.locator(".screenSecondary a");
-    await expect(secondary).toHaveCount(1);
-    await expect(secondary).toHaveAttribute("href", "/pal");
-    await expect(secondary).toContainText("Meet your Pub Pal");
+    await expect(secondary).toHaveCount(2);
+    await expect(secondary.first()).toHaveAttribute("href", "/pal");
+    await expect(secondary.first()).toContainText("Meet your Pub Pal");
+    await expect(secondary.nth(1)).toHaveAttribute("href", "/tonight");
+    await expect(secondary.nth(1)).toHaveText("Tonight");
 
     // Nothing else on the page is a filled button.
     await expect(page.locator("main [data-primary-action]")).toHaveCount(1);
@@ -147,8 +150,14 @@ test.describe("landing hierarchy", () => {
       expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
       expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewport.height + 1);
 
-      const secondary = await page.locator(".lpHero .screenSecondary a").boundingBox();
-      expect(secondary?.height ?? 0).toBeGreaterThanOrEqual(44);
+      // Every door on the quiet row carries the tap floor, not just the first.
+      const quietDoors = page.locator(".lpHero .screenSecondary a");
+      const doorCount = await quietDoors.count();
+      expect(doorCount).toBeGreaterThan(0);
+      for (let index = 0; index < doorCount; index += 1) {
+        const door = await quietDoors.nth(index).boundingBox();
+        expect(door?.height ?? 0).toBeGreaterThanOrEqual(44);
+      }
     });
   }
 

@@ -60,6 +60,49 @@ async function expectNoHorizontalOverflow(page: Page, width = MOBILE.width): Pro
   expect(overflow, `page should not horizontally overflow at ${width}px`).toBeLessThanOrEqual(1);
 }
 
+// #1488. Tonight had no tap on the phone's home screen: the landing bar hides
+// its link list under 960px (`.lpPrimaryNav { display: none }`), the six-tab
+// dock carries Now rather than Tonight, and the only rendered /tonight link on
+// `/` sat in the footer about 3,500px down. This is the contract that replaces
+// it, measured on the RENDERED box at the four phone widths the shell is held
+// to elsewhere, because a link that exists and is 0x0 is what the old nav was.
+test.describe("Tonight is one tap from the mobile home", () => {
+  for (const { width, height } of [
+    { width: 320, height: 844 },
+    { width: 360, height: 800 },
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+  ]) {
+    test(`reaches Tonight above the fold at ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto("/");
+
+      const tonight = page.locator(".lpHero").getByRole("link", { name: "Tonight", exact: true });
+      await expect(tonight, `Tonight door at ${width}px`).toBeVisible();
+      await expect(tonight).toHaveAttribute("href", "/tonight");
+
+      const box = await tonight.boundingBox();
+      expect(box, `Tonight door should have a layout box at ${width}px`).not.toBeNull();
+      if (!box) return;
+      expect(box.width, `Tonight door width at ${width}px`).toBeGreaterThanOrEqual(44);
+      expect(box.height, `Tonight door height at ${width}px`).toBeGreaterThanOrEqual(44);
+      expect(
+        box.y + box.height,
+        `Tonight door should finish inside the first viewport at ${width}px`,
+      ).toBeLessThanOrEqual(height);
+
+      // One tap, and it lands on Tonight itself. The tap is retried rather
+      // than the assertion after it, because this control is painted on the
+      // server and is clickable before React attaches (AGENTS.md, "A LONE
+      // CLICK IS NOT A WAIT FOR HYDRATION").
+      await expect(async () => {
+        await tonight.click();
+        await expect(page).toHaveURL(/\/tonight$/, { timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+    });
+  }
+});
+
 test.describe("mobile landing entry", () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize(MOBILE);

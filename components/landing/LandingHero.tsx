@@ -23,6 +23,8 @@ import {
   pintDropDoorHref,
   railHeading,
   stillPriceLabel,
+  TONIGHT_DOOR_HREF,
+  TONIGHT_DOOR_LABEL,
   type AnswerPublisher,
   type LandingAnswerScope,
   type LandingArchiveIndex,
@@ -39,8 +41,8 @@ import { formatPrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 // The landing hero (issue #1357): kicker, the claim, then the ANSWER, then the
-// one filled action that acts on it, the Pal as the quiet second door, then
-// the three next-cheapest rows. The DOM order is the phone order; the desktop
+// one filled action that acts on it, the quiet row of the Pal and Tonight
+// (#1488), then the three next-cheapest rows. The DOM order is the phone order; the desktop
 // seats the answer and the rail beside the copy. Everything the card prints is
 // a fact with its source beside it, and the browser only ever swaps the anchor
 // for a near-you answer built from the same slim index /near ranks.
@@ -283,9 +285,22 @@ export default function LandingHero({
       answer={answer ? <AnswerCard answer={answer} near={near} onLocate={locate} /> : undefined}
       primary={primary}
       secondary={
-        <Link prefetch={false} href="/pal" onClick={() => trackLandingCta("pal")}>
-          Meet your Pub Pal
-        </Link>
+        // Two quiet doors on one row. The Pal stays first, the way the captain
+        // set the hero; Tonight joins it because the phone had no tap to it at
+        // all (#1488) and this row is the last thing above the consent bar.
+        <>
+          <Link prefetch={false} href="/pal" onClick={() => trackLandingCta("pal")}>
+            Meet your Pub Pal
+          </Link>
+          <Link
+            prefetch={false}
+            href={TONIGHT_DOOR_HREF}
+            className="lpTonightDoor"
+            onClick={() => trackLandingCta("tonight")}
+          >
+            {TONIGHT_DOOR_LABEL}
+          </Link>
+        </>
       }
     >
       {answer && answer.rail.length > 0 ? <AnswerRail answer={answer} /> : null}

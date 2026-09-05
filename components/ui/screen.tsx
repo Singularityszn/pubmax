@@ -17,6 +17,8 @@ import "./screen.css";
  * the actions. A phone reads it top to bottom; a desktop reads it the same
  * way, wider. There is no second column and no side art in the head.
  *
+ * The quiet row beside it holds at most two doors; `secondary` says why.
+ *
  * The lede is optional and usually absent. Add one only where it prevents a
  * misunderstanding, never to repeat the heading.
  */
@@ -45,7 +47,17 @@ export default function Screen({
   answer?: ReactNode;
   /** Exactly one link or button. The Screen paints it as the filled primary. */
   primary: ReactElement;
-  /** At most one quieter way onward. */
+  /**
+   * The quiet row under the primary: at most TWO ways onward, and a second one
+   * only where the screen would otherwise hide a real destination.
+   *
+   * It was one door until #1488. On a phone the landing's first screen ends at
+   * the consent bar, about 25px under this row, so a second door given a row of
+   * its own is a door nobody sees, and the fixed landing bar has 39px of free
+   * width at 390px. Sharing this row is the only place above the fold left.
+   * `.screenSecondary` styles its children through a direct-child selector, so
+   * both doors read alike; every other screen still passes one.
+   */
   secondary?: ReactElement;
   children?: ReactNode;
   as?: "section" | "main" | "div";
