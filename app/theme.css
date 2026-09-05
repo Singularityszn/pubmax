@@ -92,6 +92,11 @@ html[data-theme="dark"] {
      amber brand. Amber remains transport/price semantics, coral owns action. */
   --brass: #ff5a5f;
   --brass-bright: #ff7a55;
+  /* Coral as INK needs no deepening here: on the dark ladder --brass reads
+     6.48:1 on --paper, 6.03:1 on --panel and 5.32:1 on --panel-raised, all
+     past AA. Deepening it would only make the accent harder to see, so dark
+     keeps the one coral and the light-only value stays in globals.css. */
+  --brass-ink: #ff5a5f;
   --night-amber: #f0a01a;
   --river: #7aa6cc; /* info / by-water — muted steel blue (was #64b5ff) */
   --river-bright: #9ac0da; /* muted light blue (was #7dd3fc) */

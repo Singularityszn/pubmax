@@ -74,7 +74,8 @@
   min-height: 44px;
   font-size: 16px;
   font-weight: 600;
-  color: var(--brass);
+  /* A coral WORD, so the accent's ink rather than its fill colour. */
+  color: var(--color-accent-ink);
 }
 
 .venueOccupancyError {

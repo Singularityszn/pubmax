@@ -155,7 +155,7 @@ export default function PintDropStrip() {
       </div>
 
       {status === "loading" && (
-        <div className="dropStripRail" aria-hidden="true">
+        <div className="dropStripRail dropStripRailStatic" aria-hidden="true">
           {Array.from({ length: 4 }).map((_, i) => (
             <div className="dropStripCard dropStripCardSkeleton" key={i}>
               <span className="skelLine skelLineTop" />
@@ -167,8 +167,17 @@ export default function PintDropStrip() {
         </div>
       )}
 
+      {/* The rail scrolls sideways and its cards hold no control of their own,
+          so without a tab stop of its own every drop past the fold was
+          unreachable by keyboard (axe scrollable-region-focusable). Focused,
+          it takes the browser's native arrow-key scrolling; the list keeps its
+          own role, and the label says what the arrows will move. */}
       {status === "ready" && (
-        <ul className="dropStripRail" aria-label="Latest community Pint Drops">
+        <ul
+          className="dropStripRail"
+          aria-label="Latest community Pint Drops"
+          tabIndex={0}
+        >
           {drops.map((d) => (
             <li className="dropStripCard" key={d.id}>
               <div className="dropStripTop">

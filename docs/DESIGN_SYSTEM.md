@@ -74,6 +74,14 @@ hairlines for structure (see "Edges: the de-box rule").
 `--brass-accessible` is the login primary alone. A Screen paints exactly one
 control with `--accent-action`; nothing else on that screen wears it.
 
+**Coral as a fill and coral as a word are two tokens.** `--brass` is 2.5:1 to
+2.9:1 as TEXT on the light elevation ladder, below AA at every step, so accent
+words take `--brass-ink` (`--color-accent-ink`) instead: a light-only deepening
+that clears 4.78:1 on the recessed panel and 5.27:1 on the page. Dark keeps one
+coral, because `--brass` already reads 5.3:1 to 6.5:1 there. A coral FILL is
+unchanged and still carries `--color-on-accent`. `__tests__/accentInkContrast.test.ts`
+holds the ratios and sweeps for a coral put back on a light word.
+
 **Status and price.** `--pint` (`--color-positive`), `--amber`
 (`--color-caution`), `--brick` (`--color-negative`), `--river` (`--color-info`).
 A PRICE wears its band and nothing else (captain's law 2026-09-05,
@@ -150,6 +158,7 @@ live in `lib/mapBasemapTaste.ts`; the stable token roles are:
 | `--ink-deep` | inverse and stamp-dark chrome |
 | `--brass`, `--brass-bright` | Plan CTA and identity accent |
 | `--brass-accessible` | login primary only - deepened coral that carries a white label at AA |
+| `--brass-ink` | coral as a WORD on a light surface - light-only deepening so accent TEXT clears AA; dark keeps `--brass` |
 | `--pint`, `--amber`, `--brick` | price and status semantics |
 | `--river`, `--river-bright` | heritage and by-water information |
 
@@ -168,6 +177,7 @@ should prefer the semantic name so a future palette change (e.g. retuning
 ```
 --color-accent            → var(--brass)
 --color-accent-strong     → var(--brass-bright)
+--color-accent-ink        → var(--brass-ink)
 --color-positive          → var(--pint)
 --color-caution           → var(--amber)
 --color-negative          → var(--brick)

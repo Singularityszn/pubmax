@@ -34,7 +34,9 @@ const selectStyle: CSSProperties = {
   font: "inherit",
   padding: 0,
   cursor: "pointer",
-  outline: "none",
+  // No `outline: none` here: an inline style outranks every stylesheet rule,
+  // so it silently killed the global :focus-visible ring (app/globals.css) and
+  // left the map's drink filter with no visible focus at all.
   // The control has to be able to SAY what it is set to. At 140px a native
   // select cut "Cheapest pint (any)" to "Cheapest pint (a" with no ellipsis and
   // no scroll, so the resting state of the map's drink filter was unreadable.
@@ -42,6 +44,12 @@ const selectStyle: CSSProperties = {
   // its ABV) ends in an ellipsis rather than mid-word.
   maxWidth: "12.5rem",
   textOverflow: "ellipsis",
+  // The select is the TARGET, so it fills its label's height rather than
+  // sitting 22px tall inside a 44px pill: measured on the control itself it
+  // was under the 24px WCAG floor, and a pointer that lands on the pill's top
+  // edge should hit the thing it looks like it is hitting.
+  alignSelf: "stretch",
+  minHeight: 32,
 };
 
 const shellStyle: CSSProperties = {
