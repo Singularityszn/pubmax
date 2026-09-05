@@ -56,3 +56,22 @@ Saving OTHER private details (a name, a gender) still needs a date of birth
 when the account has none, because the row those details live on cannot be
 built without one. That is the one place the answer is not optional, and the
 column is the thing to change if it ever must be.
+
+## Two browser tests repaired on the way through
+
+`e2e/price-submission.spec.ts` failed on this rig before any change of mine,
+and both failures were the spec's, not the app's.
+
+1. `the one-tap price confirm still works alongside submission` asserted
+   `.vpsConfirmBtn`, a class no source file has carried since battle test L03
+   retired the anonymous one-tap confirm (`__tests__/priceConfirmRetired.test.ts`,
+   PR #1551). It now asserts the correction door that replaced it: `It's changed`
+   opens the Pint Drop composer, and `.vpsConfirmBtn` is asserted absent.
+2. `a drinker logs tonight's price after completing private signup` expanded the
+   venue sheet while the claim card's modal backdrop was up, so every tap landed
+   on the backdrop and the retry loop spent the whole 60 s budget. The sheet is
+   only needed there for a z-index comparison, which its presence answers; it is
+   expanded after the handle is claimed.
+
+After both repairs: `11 passed` over `price-submission`, `arrival-journey` and
+`claim-no-birth-date` in one run.

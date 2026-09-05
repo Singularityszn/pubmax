@@ -371,7 +371,13 @@ test("a drinker logs tonight's price after completing private signup", async ({
   const response = await page.goto(`/map?sel=${SEED_VENUE_ID}`);
   expect(response?.status()).toBe(200);
 
-  const venueSheet = await openVenueSheet(page);
+  // The claim card is a modal with a backdrop, so EXPANDING the sheet is not
+  // possible until it closes: every tap lands on the backdrop and the retry
+  // loop spends the whole test budget. The sheet is only needed here for the
+  // z-index comparison below, which its presence answers; it is expanded once
+  // the handle is claimed, through `openVenueSheet` further down.
+  const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(venueSheet).toBeVisible();
 
   const onboarding = page.getByRole("dialog", {
     name: "Let's get you in",
@@ -618,7 +624,7 @@ test("a person can log soft-drink, alcohol-free and coffee prices from the pub s
   expect(errors).toEqual([]);
 });
 
-test("the one-tap price confirm still works alongside submission", async ({ page }) => {
+test("the Golden Thread's correction door opens the composer", async ({ page }) => {
   const errors = watchPageErrors(page);
 
   const response = await page.goto(`/map?sel=${SEED_VENUE_ID}`);
@@ -626,20 +632,29 @@ test("the one-tap price confirm still works alongside submission", async ({ page
 
   const venueSheet = await openVenueSheet(page);
 
-  // The Golden Thread (and its "Still £X?" chip) lives on the Stories tab.
+  // The Golden Thread lives on the Stories tab.
   await venueSheet.getByRole("tab", { name: "Stories", exact: true }).click();
   const priceStory = page.locator(".venuePriceStory");
   await expect(priceStory).toHaveCount(1);
 
-  // This seed pub carries a resolvable price, so the vouch chip is present and
-  // asserted outright - if a seed change ever removed it, this regression guard
-  // should fail loudly rather than quietly assert nothing.
-  const confirmChip = priceStory.locator(".vpsConfirmBtn");
-  await expect(confirmChip).toBeVisible();
-  await expect(confirmChip).toHaveAttribute("aria-pressed", "false");
-  await confirmChip.click();
-  await expect(confirmChip).toHaveAttribute("aria-pressed", "true");
-  await expect(confirmChip).toContainText("Confirmed");
+  // Battle test L03 RETIRED the anonymous one-tap confirm chip: it printed
+  // "Confirmed - 1 confirm." off a hashed-IP tally beside a price the trust
+  // chip called logged-once (__tests__/priceConfirmRetired.test.ts). This spec
+  // kept asserting `.vpsConfirmBtn`, a class no source file has carried since,
+  // so it has failed for every run since that merge. What remains is the
+  // correction door, which writes through the one lane that can be trusted.
+  await expect(priceStory.locator(".vpsConfirmBtn")).toHaveCount(0);
+  const changed = priceStory.locator(".vpsChangedBtn");
+  await expect(changed).toBeVisible();
+  await expect(changed).toHaveText("It’s changed");
+  await changed.click();
+
+  // The correction IS a new dated drop, so the door opens the Pint Drop
+  // composer in the story's place, on the tab it was taken from.
+  await expect(
+    venueSheet.getByRole("form", { name: "Pint Drop composer" }),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(priceStory).toHaveCount(0);
 
   expect(errors).toEqual([]);
 });
