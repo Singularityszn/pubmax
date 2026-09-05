@@ -1,6 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const supabaseHarness = vi.hoisted(() => ({
+  requireSupabaseAdmin: vi.fn(() => ({ tag: "admin-client" })),
+}));
+
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, requireSupabaseAdmin: supabaseHarness.requireSupabaseAdmin };
+});
+
 import {
+  admin,
   createDualBackendStore,
   createFailSoftGuard,
   errorMessage,
@@ -66,6 +76,16 @@ describe("storeBackend", () => {
   it("stringifies unknown errors", () => {
     expect(errorMessage(new Error("boom"))).toBe("boom");
     expect(errorMessage("plain")).toBe("plain");
+  });
+
+  it("admin() resolves the service-role client per call, never at module load", () => {
+    // The seam's admin() is the one wrapper every Supabase implementation calls,
+    // so a test that mocks @/lib/supabase reaches every store through it.
+    supabaseHarness.requireSupabaseAdmin.mockClear();
+    expect(supabaseHarness.requireSupabaseAdmin).not.toHaveBeenCalled();
+    expect(admin()).toEqual({ tag: "admin-client" });
+    expect(admin()).toEqual({ tag: "admin-client" });
+    expect(supabaseHarness.requireSupabaseAdmin).toHaveBeenCalledTimes(2);
   });
 });
 

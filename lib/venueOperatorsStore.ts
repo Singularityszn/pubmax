@@ -19,11 +19,11 @@ import "server-only";
 import { randomUUID } from "crypto";
 
 import {
+  admin,
   createFailSoftGuard,
   onMissingDurableWrite,
   selectStore,
 } from "@/lib/storeBackend";
-import { requireSupabaseAdmin } from "@/lib/supabase";
 import {
   toOperatorClaimDTO,
   type OperatorClaim,
@@ -135,10 +135,6 @@ const { guard, resetWarnings: resetSchemaMissWarnings } = createFailSoftGuard({
   tables: TABLE,
   migrationHint: "apply migration 0048",
 });
-
-function admin() {
-  return requireSupabaseAdmin();
-}
 
 function toRow(claim: OperatorClaim) {
   return {

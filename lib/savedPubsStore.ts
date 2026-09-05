@@ -24,7 +24,7 @@ import "server-only";
 import { normalizeHandle } from "@/lib/profiles";
 import { isBuiltInListType } from "@/lib/savedListPolicy";
 import { supabaseProfileStore, type ProfileStore } from "@/lib/profileStore";
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import { admin, selectStore } from "@/lib/storeBackend";
 import { cleanText } from "@/lib/textClean";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 
@@ -182,10 +182,6 @@ function unavailableBatch(handles: readonly string[]): Map<string, SavedPubsRead
     handle,
     { status: "unavailable" },
   ]));
-}
-
-function admin() {
-  return requireSupabaseAdmin();
 }
 
 // Resolve a handle to its profile id, bootstrapping a row on first save (mirrors
@@ -471,7 +467,7 @@ export const memorySavedPubsStore: SavedPubsStore = {
 // memory store uses the in-memory profile store implicitly (no profile id needed),
 // so dev/demo/test never touch the network.
 export function savedPubsStore(): SavedPubsStore {
-  return isSupabaseConfigured() ? supabaseSavedPubsStore : memorySavedPubsStore;
+  return selectStore(memorySavedPubsStore, supabaseSavedPubsStore);
 }
 
 /** Test-only: clear the in-memory saved-pub partitions between cases. */
@@ -557,7 +553,7 @@ export const memorySavedListsStore: SavedListsStore = {
 };
 
 export function savedListsStore(): SavedListsStore {
-  return isSupabaseConfigured() ? supabaseSavedListsStore : memorySavedListsStore;
+  return selectStore(memorySavedListsStore, supabaseSavedListsStore);
 }
 
 /** Test-only: clear the in-memory custom-list registry between cases. */
@@ -871,7 +867,7 @@ export const memorySavedListFollowsStore: SavedListFollowsStore = {
 };
 
 export function savedListFollowsStore(): SavedListFollowsStore {
-  return isSupabaseConfigured() ? supabaseSavedListFollowsStore : memorySavedListFollowsStore;
+  return selectStore(memorySavedListFollowsStore, supabaseSavedListFollowsStore);
 }
 
 /** Test-only: clear the in-memory saved-list follow edges between cases. */

@@ -15,8 +15,7 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 
-import { createFailSoftGuard, selectStore } from "@/lib/storeBackend";
-import { requireSupabaseAdmin } from "@/lib/supabase";
+import { admin, createFailSoftGuard, selectStore } from "@/lib/storeBackend";
 import {
   toOperatorProposalDTO,
   type OperatorProposal,
@@ -104,10 +103,6 @@ const { guard, resetWarnings: resetSchemaMissWarnings } = createFailSoftGuard({
   tables: TABLE,
   migrationHint: "apply migration 0048",
 });
-
-function admin() {
-  return requireSupabaseAdmin();
-}
 
 function toRow(p: OperatorProposal) {
   return {
