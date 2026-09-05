@@ -180,7 +180,11 @@ test("the log door unfolds the composer in place and folds itself away", async (
     await door.click();
     await expect(submit).toBeVisible({ timeout: 1_500 });
   }).toPass({ timeout: 20_000 });
-  await expect(sheet.getByRole("textbox", { name: /Price of a beer at/ })).toBeFocused();
+  // The form's own focus effect runs a beat after mount (lib timer plus a
+  // frame), and a loaded box can hold that beat for a while.
+  await expect(sheet.getByRole("textbox", { name: /Price of a beer at/ })).toBeFocused({
+    timeout: 15_000,
+  });
   await expect(sheet.locator("[data-price-door]")).toHaveCount(0);
   // The form is now the one price action; the drink-prices invite stays folded.
   await expect(sheet.getByRole("button", { name: /^Log a beer price$/ })).toHaveCount(0);

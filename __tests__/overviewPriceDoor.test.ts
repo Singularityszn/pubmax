@@ -27,7 +27,11 @@ import VenueOverviewTab, {
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { drinkLaneLogActionLabel } from "@/lib/drinkLanes";
 import { firstDropNudgeCopy } from "@/lib/firstDropNudge";
-import { confirmPintActionLabel, confirmPintActionName } from "@/lib/pintDropSecondDrinker";
+import {
+  confirmPintActionLabel,
+  confirmPintActionName,
+  secondDrinkerDoorOffered,
+} from "@/lib/pintDropSecondDrinker";
 import {
   LOG_PRICE_DOOR_LABEL,
   OVERVIEW_PRICE_DOOR_KIND,
@@ -223,6 +227,13 @@ describe("overviewPriceDoor: one door per trust state", () => {
       "aged-out": "confirm",
       none: "log",
     });
+    // The confirm states are exactly the second-drinker states, so the two
+    // tables (this one and lib/pintDropSecondDrinker.ts) cannot drift apart.
+    for (const state of PINT_TRUST_STATES) {
+      expect(OVERVIEW_PRICE_DOOR_KIND[state] === "confirm", state).toBe(
+        secondDrinkerDoorOffered(state),
+      );
+    }
   });
 
   it("words the confirm door over the lane's own figure (the #1492 door, kept as the primary)", () => {
