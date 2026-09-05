@@ -412,11 +412,25 @@ export default function TonightClient({
       picksState({
         visibleCount: primaryListingRows.length,
         inFlight: status === "idle" || outPending,
-        unreadable: listingsStatus === "error",
+        // A lane that FAILED and a lane NOBODY ASKED are one absence to a
+        // reader, and neither is a quiet city (battle test M07). The note is
+        // present for both; only a lane somebody could re-ask is offered a
+        // button.
+        unreadable: listingsStatus === "error" || listingsNote !== null,
         reason: listingsNote,
+        retryable: retryLanes.whatsOn || retryLanes.out,
         checkedAt: asOf,
       }),
-    [primaryListingRows.length, status, outPending, listingsStatus, listingsNote, asOf],
+    [
+      primaryListingRows.length,
+      status,
+      outPending,
+      listingsStatus,
+      listingsNote,
+      retryLanes.whatsOn,
+      retryLanes.out,
+      asOf,
+    ],
   );
   // Which read a row came from decides how keeping it is recorded, so the Out
   // lane is identified by the same reference identity the credits use.

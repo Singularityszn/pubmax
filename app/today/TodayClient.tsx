@@ -85,6 +85,17 @@ type Props = {
   picksStatus: PicksListReadStatus;
   /** When the rows behind the picks were OBSERVED, not when this page was served. */
   picksCheckedAt?: string | null;
+  /**
+   * A lane's own line for why it is not carrying its share, else null.
+   *
+   * Covers a lane that FAILED and a lane NOBODY ASKED alike: both are an
+   * absence about us, and neither may be worded as a quiet city (battle test
+   * M07, where an unconfigured listings lane printed "Nothing on tonight's
+   * list yet.").
+   */
+  picksReason?: string | null;
+  /** False for a lane nobody switched on: asking it again changes nothing. */
+  picksRetryable?: boolean;
   fact: TodayFact | null;
   pintsIndex: TodayPintsIndex;
   quietPint: QuietPintModule | null;
@@ -164,6 +175,8 @@ function PicksCard({
   slot,
   picksStatus,
   picksCheckedAt,
+  picksReason,
+  picksRetryable,
   context,
 }: {
   picks: TonightPickDto[];
@@ -171,6 +184,8 @@ function PicksCard({
   slot: DaySlot;
   picksStatus: PicksListReadStatus;
   picksCheckedAt: string | null;
+  picksReason: string | null;
+  picksRetryable: boolean;
   context: PicksContext;
 }) {
   // ONE state, the same four words /tonight reads (lib/picksState.ts). Today's
@@ -184,7 +199,11 @@ function PicksCard({
   const state = picksState({
     visibleCount: picks.length + filteredPickCount,
     inFlight: false,
-    unreadable: picksStatus === "degraded",
+    // A lane that failed and a lane nobody asked are one absence here, and
+    // neither is a quiet city.
+    unreadable: picksStatus === "degraded" || picksReason !== null,
+    reason: picksReason,
+    retryable: picksRetryable,
     checkedAt: picksCheckedAt,
   });
   const checked = picksCheckedLabel(state.checkedAt);
@@ -279,7 +298,7 @@ function PicksCard({
           <p className="todayCardEmpty">
             {filteredPickCount > 0
               ? "Tonight has listings, but none match your current preferences."
-              : picksListLine(picksStatus, slot)}
+              : (state.reason ?? picksListLine(picksStatus, slot))}
           </p>
           {/* The compose action floats over this card's right cell on a phone,
               and this row's arrow lands in it, so the row takes the control's
@@ -365,6 +384,8 @@ export default function TodayClient({
   picks,
   picksStatus,
   picksCheckedAt = null,
+  picksReason = null,
+  picksRetryable = true,
   fact,
   pintsIndex,
   quietPint,
@@ -474,6 +495,8 @@ export default function TodayClient({
           <TodayTubeCard slot={shownGreeting.slot} />
           <PicksCard
             picksCheckedAt={picksCheckedAt}
+            picksReason={picksReason}
+            picksRetryable={picksRetryable}
             context={picksContext}
             picks={brief.picks}
             filteredPickCount={brief.filteredPickCount}

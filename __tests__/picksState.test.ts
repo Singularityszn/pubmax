@@ -116,11 +116,11 @@ describe("picksState", () => {
   });
 
   it("shows rows only where rows exist and the state may paint them", () => {
-    const held: PicksState = { kind: "refreshing", reason: null, checkedAt: OBSERVED };
+    const held: PicksState = { kind: "refreshing", reason: null, checkedAt: OBSERVED, retryable: true };
     expect(picksStateShowsRows(held, 3)).toBe(true);
     expect(picksStateShowsRows(held, 0)).toBe(false);
     expect(
-      picksStateShowsRows({ kind: "genuinely_empty", reason: null, checkedAt: null }, 3),
+      picksStateShowsRows({ kind: "genuinely_empty", reason: null, checkedAt: null, retryable: false }, 3),
     ).toBe(false);
   });
 
@@ -132,18 +132,55 @@ describe("picksState", () => {
       "temporarily_unavailable",
     ];
     const offering = kinds.filter((kind) =>
-      picksStateOffersAlternative({ kind, reason: null, checkedAt: null }),
+      picksStateOffersAlternative({ kind, reason: null, checkedAt: null, retryable: true }),
     );
     expect(offering).toEqual(["genuinely_empty", "temporarily_unavailable"]);
   });
 
   it("offers a retry only for the lane we could not read", () => {
     expect(
-      picksStateOffersRetry({ kind: "temporarily_unavailable", reason: null, checkedAt: null }),
+      picksStateOffersRetry({
+        kind: "temporarily_unavailable",
+        reason: null,
+        checkedAt: null,
+        retryable: true,
+      }),
     ).toBe(true);
     expect(
-      picksStateOffersRetry({ kind: "genuinely_empty", reason: null, checkedAt: null }),
+      picksStateOffersRetry({
+        kind: "genuinely_empty",
+        reason: null,
+        checkedAt: null,
+        retryable: false,
+      }),
     ).toBe(false);
+  });
+
+  // Battle test M07: a preview with no listings keys answered `not-configured`
+  // and /today printed "Nothing on tonight's list yet." A lane nobody ASKED is
+  // an absence about us, exactly like a lane that FAILED.
+  it("a lane nobody asked is unavailable, never an empty night", () => {
+    const state = picksState({
+      visibleCount: 0,
+      inFlight: false,
+      unreadable: true,
+      reason: "We don\u2019t have listings to show yet.",
+      retryable: false,
+    });
+    expect(state.kind).toBe("temporarily_unavailable");
+    expect(state.kind).not.toBe("genuinely_empty");
+  });
+
+  it("tells a lane nobody switched on rather than offering to re-ask it", () => {
+    const state = picksState({
+      visibleCount: 0,
+      inFlight: false,
+      unreadable: true,
+      reason: "We don\u2019t have listings to show yet.",
+      retryable: false,
+    });
+    expect(picksStateOffersAlternative(state)).toBe(true);
+    expect(picksStateOffersRetry(state)).toBe(false);
   });
 });
 
@@ -246,7 +283,7 @@ function renderTonight(
 describe("Tonight listings notice, one render per state", () => {
   it("ready says nothing about its own read", () => {
     const markup = renderTonight(
-      { kind: "ready", reason: null, checkedAt: OBSERVED },
+      { kind: "ready", reason: null, checkedAt: OBSERVED, retryable: true },
       { heldRowCount: 3 },
     );
     expect(markup).not.toContain(PICKS_ALTERNATIVE_LABEL);
@@ -256,7 +293,7 @@ describe("Tonight listings notice, one render per state", () => {
 
   it("refreshing over held rows keeps them and dates them", () => {
     const markup = renderTonight(
-      { kind: "refreshing", reason: null, checkedAt: OBSERVED },
+      { kind: "refreshing", reason: null, checkedAt: OBSERVED, retryable: true },
       { heldRowCount: 3 },
     );
     expect(markup).toContain(PICKS_REFRESHING_LINE);
@@ -268,7 +305,7 @@ describe("Tonight listings notice, one render per state", () => {
 
   it("a first load is a skeleton and says nothing about the city", () => {
     const markup = renderTonight(
-      { kind: "refreshing", reason: null, checkedAt: null },
+      { kind: "refreshing", reason: null, checkedAt: null, retryable: true },
       { heldRowCount: 0 },
     );
     expect(markup).toContain("listingsSkeleton");
@@ -281,6 +318,7 @@ describe("Tonight listings notice, one render per state", () => {
       kind: "genuinely_empty",
       reason: null,
       checkedAt: OBSERVED,
+      retryable: false,
     });
     expect(markup).toContain("quiet one tonight");
     expect(markup).toContain("The map still knows where the cheap pints are");
@@ -294,6 +332,7 @@ describe("Tonight listings notice, one render per state", () => {
       kind: "temporarily_unavailable",
       reason: null,
       checkedAt: null,
+      retryable: true,
     });
     expect(markup).toContain(PICKS_UNAVAILABLE_LINE);
     expect(markup).toContain(PICKS_RETRY_LABEL);
@@ -307,13 +346,14 @@ describe("Tonight listings notice, one render per state", () => {
       kind: "temporarily_unavailable",
       reason: "Some listings could not be checked.",
       checkedAt: null,
+      retryable: true,
     });
     expect(markup).toContain("Some listings could not be checked.");
   });
 
   it("carries the selected area and occasion into both doors", () => {
     const markup = renderTonight(
-      { kind: "genuinely_empty", reason: null, checkedAt: null },
+      { kind: "genuinely_empty", reason: null, checkedAt: null, retryable: false },
       { context: { patchId: "soho", occasion: "coffee" } },
     );
     expect(markup).toContain('href="/near?patch=soho"');
@@ -326,6 +366,7 @@ describe("Tonight listings notice, one render per state", () => {
 function renderToday(
   picksStatus: PicksListReadStatus,
   picks: Parameters<typeof TodayClient>[0]["picks"] = [],
+  lane: { picksReason?: string | null; picksRetryable?: boolean } = {},
 ): string {
   return decode(
     renderToStaticMarkup(
@@ -343,6 +384,8 @@ function renderToday(
         picks,
         picksStatus,
         picksCheckedAt: OBSERVED,
+        picksReason: lane.picksReason ?? null,
+        picksRetryable: lane.picksRetryable ?? true,
         fact: null,
         pintsIndex: {
           [TODAY_PINTS_DEFAULT_PATCH_ID]: {
@@ -396,6 +439,20 @@ describe("Today picks card, one render per reachable state", () => {
     expect(markup).toContain(PICKS_DEGRADED_LINE);
     expect(markup).toContain(PICKS_ALTERNATIVE_LABEL);
     expect(markup).not.toContain("Nothing on tonight");
+  });
+
+  // Battle test M07, on the real card: a preview with no listings keys must not
+  // print the empty-night sentence over a question nobody put.
+  it("a lane nobody asked is told, never worded as an empty night", () => {
+    const markup = renderToday("ready", [], {
+      picksReason: "We don\u2019t have listings to show yet.",
+      picksRetryable: false,
+    });
+    expect(markup).toContain('data-picks-state="temporarily_unavailable"');
+    expect(markup).toContain("We don\u2019t have listings to show yet.");
+    expect(markup).not.toContain(PICKS_EMPTY_LINE.night);
+    // Still not a dead end.
+    expect(markup).toContain(PICKS_ALTERNATIVE_LABEL);
   });
 
   it("keeps the three-state attribute the earlier honesty fence reads", () => {

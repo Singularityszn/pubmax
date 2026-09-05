@@ -46,6 +46,8 @@ export type PicksState = {
   reason: string | null;
   /** ISO instant the evidence behind the visible rows was checked, else null. */
   checkedAt: string | null;
+  /** Whether asking again could change the answer. A lane nobody asked cannot. */
+  retryable: boolean;
 };
 
 export type PicksReadInput = {
@@ -53,12 +55,25 @@ export type PicksReadInput = {
   visibleCount: number;
   /** A read is in flight: first load, or a retry over rows already held. */
   inFlight: boolean;
-  /** A FINISHED read did not answer: failed, degraded, or index unavailable. */
+  /**
+   * A FINISHED read did not answer FOR US.
+   *
+   * Two different things, one state. A lane that FAILED (threw, degraded, or
+   * could not confirm its venues) did not answer; a lane NOBODY ASKED did not
+   * answer either, and the difference between them is about us rather than
+   * about the city. Battle test M07: on a preview with no listings keys /today
+   * printed "Nothing on tonight's list yet." while /api/out said
+   * `not-configured`, which is a claim that London is quiet made on a question
+   * we never put. Both are `temporarily_unavailable`; `reason` carries the
+   * lane's own words and `retryable` says which of the two it was.
+   */
   unreadable: boolean;
   /** The lane note, already worded by the lane that could not answer. */
   reason?: string | null;
   /** The evidence stamp for the visible rows. */
   checkedAt?: string | null;
+  /** False for a lane nobody switched on: asking it again changes nothing. */
+  retryable?: boolean;
 };
 
 /**
@@ -73,10 +88,13 @@ export type PicksReadInput = {
 export function picksState(input: PicksReadInput): PicksState {
   const reason = input.reason ?? null;
   const checkedAt = input.checkedAt ?? null;
-  if (input.inFlight) return { kind: "refreshing", reason, checkedAt };
-  if (input.visibleCount > 0) return { kind: "ready", reason, checkedAt };
-  if (input.unreadable) return { kind: "temporarily_unavailable", reason, checkedAt };
-  return { kind: "genuinely_empty", reason: null, checkedAt };
+  const retryable = input.retryable ?? true;
+  if (input.inFlight) return { kind: "refreshing", reason, checkedAt, retryable };
+  if (input.visibleCount > 0) return { kind: "ready", reason, checkedAt, retryable };
+  if (input.unreadable) {
+    return { kind: "temporarily_unavailable", reason, checkedAt, retryable };
+  }
+  return { kind: "genuinely_empty", reason: null, checkedAt, retryable: false };
 }
 
 /** True while the state is holding rows the reader may still act on. */
@@ -95,9 +113,13 @@ export function picksStateOffersAlternative(state: PicksState): boolean {
   return state.kind === "genuinely_empty" || state.kind === "temporarily_unavailable";
 }
 
-/** Only a lane we could not read may be asked again. */
+/**
+ * Only a lane we could not read may be asked again, and only when asking could
+ * change the answer. A lane nobody switched on is told, never offered a button
+ * that would re-ask the same unasked question.
+ */
 export function picksStateOffersRetry(state: PicksState): boolean {
-  return state.kind === "temporarily_unavailable";
+  return state.kind === "temporarily_unavailable" && state.retryable;
 }
 
 // ── Words ────────────────────────────────────────────────────────────────
