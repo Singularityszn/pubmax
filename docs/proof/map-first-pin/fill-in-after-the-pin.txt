@@ -1,0 +1,17 @@
+Nothing is dropped: the held lanes fill in once the pins have painted.
+Cold /map on the after arm, 390x844, 4x CPU, Slow 4G, then 15 s of settling.
+Counts are resource entries started before and after the first tappable pin;
+the three data-* attributes are read off .mapCanvasWrap at the end.
+
+firstPin=13768 ms, then 15000 ms more:
+{
+  "cellsBefore": 59,
+  "cellsAfter": 0,
+  "ukBaseBefore": 1,
+  "ukBaseAfter": 2,
+  "poisBefore": 1,
+  "poisAfter": 0,
+  "ukBaseStatus": "ready",
+  "ukBaseCount": "1737",
+  "venueCount": "1083"
+}
