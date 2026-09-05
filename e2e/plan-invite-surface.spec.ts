@@ -1,11 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 
-// The invite surface on a Plan page.
+// The invite surface on a Plan page. Neither case needs the member projection,
+// so both ride the default suite.
 //
 //   M04 (core-loop battle test, 5 Sep 2026) "New link" rotated the token and
 //       said so, while the Send on WhatsApp href beside it still carried the old
 //       one. The old token is refused, so a host who shared straight away sent a
 //       dead link.
+//   The rail: it is the ROUTE's spine, and the invitee teaser has no route. At
+//       390 it struck through the host's name and the join control.
 
 const HOST_ACTION_BUDGET_MS = 20_000;
 
@@ -93,4 +97,52 @@ test("M04: rotating the invite link re-points the WhatsApp share href", async ({
     return (await response.json()) as { inviteToken?: string | null };
   }, planId);
   expect(inviteTokenFromHref(await share.getAttribute("href"))).toBe(live.inviteToken);
+});
+
+test("the invitee teaser draws no route rail over its own copy at 390", async ({
+  page,
+  request,
+}) => {
+  const venues = ((await (await request.get("/data/venues_slim.json")).json() as {
+    rows: Array<{ id: string; name: string }>;
+  }).rows).slice(0, 3);
+  const created = await request.post("/api/plans", {
+    headers: { "idempotency-key": randomUUID() },
+    data: {
+      title: "Teaser rail",
+      startTime: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+      creatorName: "Karan",
+      stops: venues.map((venue) => ({ venueId: venue.id, venueName: venue.name })),
+    },
+  });
+  expect(created.ok()).toBe(true);
+  const planId: string = (await created.json()).plan.plan.id;
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/plan/${planId}`);
+  await expect(page.getByRole("link", { name: "Join the crew to see the route" })).toBeVisible({
+    timeout: HOST_ACTION_BUDGET_MS,
+  });
+
+  // Measured, not eyeballed: the rail sat at x 66 while the preview copy starts
+  // at x 43, so it struck through the host's name and the join control.
+  const overlap = await page.evaluate(() => {
+    const box = (selector: string) => {
+      const element = document.querySelector(selector);
+      if (!element) return null;
+      const { x, y, width, height } = element.getBoundingClientRect();
+      return { x, y, width, height };
+    };
+    const rail = box(".planSummary__rail");
+    const hits = (other: { x: number; y: number; width: number; height: number } | null) =>
+      Boolean(rail && other
+        && rail.x < other.x + other.width && rail.x + rail.width > other.x
+        && rail.y < other.y + other.height && rail.y + rail.height > other.y);
+    return {
+      railPresent: Boolean(rail),
+      overHeading: hits(box(".invitePreview h2")),
+      overJoin: hits(box(".invitePreview__join")),
+    };
+  });
+  expect(overlap).toEqual({ railPresent: false, overHeading: false, overJoin: false });
 });

@@ -343,10 +343,12 @@ export default function PlanSummary({
   }, [planId]);
   usePlanMemberRead(planId, readPlan);
 
+  // No rail on the teaser: the rail is the ROUTE's spine, and a preview has no
+  // route to hang on it. At 390 it landed at x 66 while the preview copy starts
+  // at x 43, so it struck through the host's name and the join control.
   if (!state) {
     return (
       <section className="planSummary" aria-labelledby="plan-stops-title">
-        <div className="planSummary__rail" aria-hidden="true" />
         <div className="planSummary__heading">
           <p className="planPage__eyebrow">First pint · {initialPreview.startLabel}</p>
           <h2 id="plan-stops-title">The route</h2>
