@@ -11,6 +11,17 @@ import { useFocusTrap } from "@/lib/useFocusTrap";
 import { mobileSheetFocusContained, mobileSheetIsModal } from "@/lib/mobileSheetA11y";
 import type { MapSheetDetent, MapSheetKind } from "@/lib/mobileShell";
 
+// The module that paints `.mobileSheetPortal` and `.mobileSharedSheet` owns the
+// stylesheet naming them. PubMap renders this sheet itself (renderPhoneSheet)
+// through a static import, while the stylesheet used to ride only the
+// dynamically loaded MobileMapShell, so on a phone-width `/map?sel=` arrival
+// the venue sheet mounted about 240ms in and its rules arrived with the shell
+// chunk one to four seconds later: for that window the portal was
+// `position: static; z-index: auto`, unstyled in document flow, and a browser
+// test read its stacking as NaN (#1490). Next dedupes a global stylesheet by
+// module, so the shell's own import of the same file costs nothing twice.
+import "@/components/mobile/mobileMapShell.css";
+
 /**
  * The mobile bottom sheet, rebuilt as a bottom-anchored flex column:
  *

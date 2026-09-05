@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { LANDING_QUIET_DOORS } from "@/lib/landingHero";
+
 import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
 
 const DEVICES = [
@@ -29,9 +31,18 @@ for (const viewport of DEVICES) {
       await setTheme(page, theme);
       await page.goto("/");
 
+      // ONE painted primary plus the quiet row, which is the table in
+      // lib/landingHero.ts rather than a number typed here: the row carried two
+      // doors from #1488 while this spec still counted for one (#1503).
       const heroActions = page.locator(".lpHero .screenActions a");
-      await expect(heroActions).toHaveCount(2);
+      await expect(heroActions).toHaveCount(1 + LANDING_QUIET_DOORS.length);
       await expect(page.getByRole("link", { name: LANDING_PRIMARY_NAME }).first()).toBeVisible();
+      const quietDoors = page.locator(".lpHero .screenSecondary > a");
+      await expect(quietDoors).toHaveCount(LANDING_QUIET_DOORS.length);
+      for (const [index, door] of LANDING_QUIET_DOORS.entries()) {
+        await expect(quietDoors.nth(index)).toHaveAttribute("href", door.href);
+        await expect(quietDoors.nth(index)).toHaveText(door.label);
+      }
 
       const actionGeometry = await heroActions.evaluateAll((elements) =>
         elements.map((element) => {
@@ -276,10 +287,13 @@ test("1440px: the docked venue drawer aligns its name with its body", async ({ p
   await page.emulateMedia({ reducedMotion: "reduce" });
   await setTheme(page, "light");
   await page.goto("/map?sel=venue-nyowgc");
+  // The drawer fills from the venue read, which is load-bound: measured at
+  // 3 seconds on a quiet box and past 20 under a fleet build. A wait for the
+  // read, never a geometry ceiling.
   const name = page.locator(".mapDrawer.right .venueInspector > h3");
-  await expect(name).toBeVisible({ timeout: 20_000 });
+  await expect(name).toBeVisible({ timeout: 45_000 });
   const address = page.locator(".mapDrawer.right .venueAddress");
-  await expect(address).toBeVisible({ timeout: 20_000 });
+  await expect(address).toBeVisible({ timeout: 45_000 });
   const geometry = await page.evaluate(() => {
     const drawer = document.querySelector(".mapDrawer.right")!.getBoundingClientRect();
     const h3 = document.querySelector(".mapDrawer.right .venueInspector > h3")!.getBoundingClientRect();
@@ -310,7 +324,9 @@ for (const surface of UNIFIED_CONTROLS) {
     await setTheme(page, "light");
     await page.goto(surface.route);
     const controls = page.locator(surface.selector);
-    await expect(controls.first()).toBeVisible({ timeout: 20_000 });
+    // The venue sheet's controls arrive with the venue read (see the docked
+    // drawer case above for the measured wait).
+    await expect(controls.first()).toBeVisible({ timeout: 45_000 });
     const findings = await controls.evaluateAll((elements) => {
       const token = getComputedStyle(document.documentElement).getPropertyValue("--control-radius").trim();
       return elements
@@ -377,13 +393,34 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
       return Boolean(hit && element.contains(hit));
     };
     const banner = document.querySelector(".cityStatusBanner");
+    if (!banner) return { zoomIn: owns(".maplibregl-ctrl-zoom-in"), zoomOut: owns(".maplibregl-ctrl-zoom-out"), banner: null };
+    // The banner's text is a live TfL headline, so its rendered width is the
+    // headline's: "District line closure" is 216px by content where the Rye
+    // Lane closure was a 400px sentence. What the sweep fixed was the LANE,
+    // a 160px left column the banner was squeezed into beside the location
+    // prompt. So the measurement is the berth, not the width: the banner is
+    // centred on the map, and its headline is not broken across more than two
+    // lines, which is what a squeezed lane did to "dangerous".
+    const box = banner.getBoundingClientRect();
+    const headline = banner.querySelector("button");
+    const lineHeight = headline ? parseFloat(getComputedStyle(headline).lineHeight) : 0;
+    const headlineBox = headline?.getBoundingClientRect();
     return {
       zoomIn: owns(".maplibregl-ctrl-zoom-in"),
       zoomOut: owns(".maplibregl-ctrl-zoom-out"),
-      bannerWidth: banner ? banner.getBoundingClientRect().width : null,
+      banner: {
+        width: box.width,
+        centreOffset: Math.abs(box.left + box.width / 2 - window.innerWidth / 2),
+        headlineLines:
+          headlineBox && lineHeight > 0 ? Math.round(headlineBox.height / lineHeight) : 1,
+      },
     };
   });
   expect(findings.zoomIn).toBe(true);
   expect(findings.zoomOut).toBe(true);
-  if (findings.bannerWidth !== null) expect(findings.bannerWidth).toBeGreaterThanOrEqual(300);
+  if (findings.banner) {
+    expect(findings.banner.width).toBeGreaterThan(160);
+    expect(findings.banner.centreOffset).toBeLessThanOrEqual(2);
+    expect(findings.banner.headlineLines).toBeLessThanOrEqual(2);
+  }
 });

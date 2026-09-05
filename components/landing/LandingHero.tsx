@@ -16,6 +16,7 @@ import {
   HERO_RAIL_SIZE,
   LANDING_FALLBACK_PRIMARY_HREF,
   LANDING_FALLBACK_PRIMARY_LABEL,
+  LANDING_QUIET_DOORS,
   NEAR_ME_CONTROL_BUSY_LABEL,
   NEAR_ME_CONTROL_LABEL,
   NEAR_ME_FAILED_LINE,
@@ -23,8 +24,6 @@ import {
   pintDropDoorHref,
   railHeading,
   stillPriceLabel,
-  TONIGHT_DOOR_HREF,
-  TONIGHT_DOOR_LABEL,
   type AnswerPublisher,
   type LandingAnswerScope,
   type LandingArchiveIndex,
@@ -286,21 +285,22 @@ export default function LandingHero({
       answer={answer ? <AnswerCard answer={answer} near={near} onLocate={locate} /> : undefined}
       primary={primary}
       secondary={
-        // Two quiet doors on one row. The Pal stays first, the way the captain
-        // set the hero; Tonight joins it because the phone had no tap to it at
-        // all (#1488) and this row is the last thing above the consent bar.
+        // Two quiet doors on one row, read off the one table. The Pal stays
+        // first, the way the captain set the hero; Tonight joins it because
+        // the phone had no tap to it at all (#1488) and this row is the last
+        // thing above the consent bar.
         <>
-          <Link prefetch={false} href="/pal" onClick={() => trackLandingCta("pal")}>
-            Meet your Pub Pal
-          </Link>
-          <Link
-            prefetch={false}
-            href={TONIGHT_DOOR_HREF}
-            className="lpTonightDoor"
-            onClick={() => trackLandingCta("tonight")}
-          >
-            {TONIGHT_DOOR_LABEL}
-          </Link>
+          {LANDING_QUIET_DOORS.map((door) => (
+            <Link
+              key={door.href}
+              prefetch={false}
+              href={door.href}
+              className={door.className}
+              onClick={() => trackLandingCta(door.cta)}
+            >
+              {door.label}
+            </Link>
+          ))}
         </>
       }
     >

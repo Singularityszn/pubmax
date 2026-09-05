@@ -1,0 +1,39 @@
+{
+  "landing-390": [
+    "Still £6.50? -> /map?sel=venue-eltcmh&log=1&price=6.50",
+    "Meet your Pub Pal -> /pal",
+    "Tonight -> /tonight"
+  ],
+  "venue-sheet-390": {
+    "early": {
+      "position": "static",
+      "zIndex": "auto",
+      "top": 844,
+      "height": 20
+    },
+    "settled": {
+      "position": "fixed",
+      "zIndex": "1300",
+      "top": 0,
+      "height": 780
+    }
+  },
+  "landing-768": [
+    "Still £6.50? -> /map?sel=venue-eltcmh&log=1&price=6.50",
+    "Meet your Pub Pal -> /pal",
+    "Tonight -> /tonight"
+  ],
+  "venue-sheet-768": {
+    "early": null,
+    "settled": null
+  },
+  "landing-1440": [
+    "Still £6.50? -> /map?sel=venue-eltcmh&log=1&price=6.50",
+    "Meet your Pub Pal -> /pal",
+    "Tonight -> /tonight"
+  ],
+  "venue-sheet-1440": {
+    "early": null,
+    "settled": null
+  }
+}

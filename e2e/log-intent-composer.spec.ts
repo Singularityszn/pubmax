@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+
 /**
  * GAP 18 (mobile store-readiness audit, 2026-09-04, 390x844).
  *
@@ -19,20 +21,40 @@ test.use({
 });
 
 test("the log intent lands the reader on the composer's price step", async ({ page }) => {
+  // The picker waits on the venue index and the composer on the sheet, and
+  // both are load-bound on a fleet box: the second repeat of a two-repeat run
+  // at load 50 spent 20s reaching the picker and ran out of the default 30s
+  // test budget on the way to the composer. The waits below have to fit in
+  // the test's own budget, so the test says it is slow.
+  test.slow();
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
   });
+  // The basemap is the house fixture, not the live tile host (#1489). The
+  // nearby picker is a blurred sheet standing over the map for the whole of
+  // the load, and under SwiftShader every one of the hundred-odd frames the
+  // live tiles paint beneath it is composited in software through that blur:
+  // measured on a production build, the picker arrived at 65 to 80 seconds
+  // with live tiles and at 11 to 17 with this fixture, and with the blur
+  // stripped it arrived at 11 either way. Nothing asserted here is about the
+  // basemap, and the map's own tile specs keep the live host.
+  await installDeterministicMapBasemap(page);
 
   const response = await page.goto("/map?log=1");
   expect(response?.status()).toBe(200);
 
   // With no `sel=`, the intent offers the nearby picker; take the pub it leads
   // with, which is the ordinary path from the create action's "Log a price".
+  // The picker needs the viewport's shards and the venue index before it can
+  // name a pub, and that wait is load-bound: 11 to 17 seconds on a quiet box,
+  // past 20 under a fleet build. The budget below is a wait for the index,
+  // never a geometry ceiling; the reveal's own ceilings further down stay
+  // exactly where GAP 18 put them.
   const nearby = page.locator(".logIntentNearbyBtn").first();
-  await expect(nearby).toBeVisible({ timeout: 20_000 });
+  await expect(nearby).toBeVisible({ timeout: 45_000 });
   // A control painted on the server is tappable before React attaches, so the
   // tap is retried rather than the assertion after it made harder.
   const priceStep = page.getByTestId("spill-price-step");
