@@ -53,11 +53,27 @@
    breakpoint and that width the column drops under the toolbar block instead,
    reading the toolbar's own published height rather than a restated berth. */
 @media (min-width: 641px) and (max-width: 1371px) {
+  /* The camera stack (Show all, Reset view) lands in the same berth under
+     the toolbar block, and the zoom pair sat underneath it: measured at 768px
+     the stack at 229-323 and the pair at 248-336, so neither zoom button was
+     reachable. The pair now starts under the stack, whose height is
+     published beside it rather than restated: two 44px rows and a 6px gap
+     while the stack is a column, one row once it is a row. */
+  .appShell {
+    --map-camera-stack-height: 94px;
+  }
+
   .appShell .mapStage .maplibregl-ctrl-top-right {
     top: calc(
-      var(--map-top-clearance) + var(--map-toolbar-resting-height) +
+      var(--map-overlay-top) + var(--map-camera-stack-height) +
         var(--map-chrome-gap)
     );
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1371px) {
+  .appShell {
+    --map-camera-stack-height: 44px;
   }
 }
 
