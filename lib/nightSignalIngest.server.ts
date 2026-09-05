@@ -15,6 +15,7 @@ import {
   type NightSignalCandidate,
 } from "@/scripts/ingest_night_signal_candidates.mjs";
 import { DAY_MS } from "@/lib/dayMs";
+import type { NightSignalQuery } from "@/lib/nightSignalReview";
 
 const EXA_ENDPOINT = "https://api.exa.ai/search";
 const LOOKBACK_DAYS = 30;
@@ -25,6 +26,16 @@ export type { NightSignalCandidate };
 export type NightSignalIngestResult =
   | { status: "skipped"; reason: "no-exa-key"; candidates: [] }
   | { status: "ingested"; candidates: NightSignalCandidate[] };
+
+/**
+ * One query's own outcome. The sweep reports PER QUERY rather than throwing for
+ * the whole run, because a checkpoint can only defer a query it was told about,
+ * and because the candidates of a query that ANSWERED are still good evidence
+ * when a later query fails.
+ */
+export type NightSignalQueryOutcome =
+  | { query: NightSignalQuery; status: "ok"; candidates: NightSignalCandidate[] }
+  | { query: NightSignalQuery; status: "failed"; reason: string };
 
 /** Injectable so tests never touch the paid Exa provider. Defaults to global fetch. */
 export type NightSignalIngestDeps = {
@@ -55,6 +66,35 @@ async function searchExa(
   }
   const payload = (await response.json()) as { results?: unknown };
   return Array.isArray(payload.results) ? payload.results : [];
+}
+
+/** The query set the scheduled sweep and the CLI share. */
+export function nightSignalQuerySet(): NightSignalQuery[] {
+  return EXA_QUERY_SET.map((entry) => ({ kind: entry.kind, query: entry.query }));
+}
+
+/**
+ * Ask ONE query and normalise its answer. Never throws: a provider failure is
+ * an outcome the caller records, so a run that ends early still leaves the
+ * failed query written down and owed a retry.
+ */
+export async function sweepNightSignalQuery(
+  query: NightSignalQuery,
+  deps: NightSignalIngestDeps & { apiKey: string },
+): Promise<NightSignalQueryOutcome> {
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  const now = deps.now ?? Date.now();
+  const startPublishedDate = new Date(now - LOOKBACK_DAYS * DAY_MS).toISOString();
+  try {
+    const results = await searchExa(fetchImpl, deps.apiKey, query.query, startPublishedDate);
+    return {
+      query,
+      status: "ok",
+      candidates: buildCandidates([{ kind: query.kind, results }], { now }),
+    };
+  } catch (err) {
+    return { query, status: "failed", reason: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 /**

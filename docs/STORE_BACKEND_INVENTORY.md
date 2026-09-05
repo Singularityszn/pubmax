@@ -174,6 +174,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/nightMemoryStore.ts",
     "lib/nightMomentMedia.ts",
     "lib/nightProfileStore.ts",
+    "lib/nightSignalStore.server.ts",
     "lib/notificationsStore.ts",
     "lib/operatorProposalsStore.ts",
     "lib/pendingPlanRecapStore.ts",

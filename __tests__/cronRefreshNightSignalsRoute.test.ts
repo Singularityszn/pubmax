@@ -5,6 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/cron/refresh-night-signals/route";
 import { __resetFeedFreshnessStore, memoryFeedFreshnessStore } from "@/lib/feedFreshnessStore";
+import {
+  nightSignalCandidateStore,
+  resetNightSignalStoreMemory,
+} from "@/lib/nightSignalStore.server";
 import { NIGHT_SIGNAL_CANDIDATES_FEED_KEY } from "@/lib/freshnessStoreOverlay";
 
 // A recent, dated, https, area-attributable, pub-relevant Exa result — the only
@@ -32,6 +36,7 @@ function req(auth?: string): Request {
 
 beforeEach(() => {
   __resetFeedFreshnessStore();
+  resetNightSignalStoreMemory();
   vi.stubEnv("CRON_SECRET", "test-secret");
 });
 
@@ -65,8 +70,16 @@ describe("GET /api/cron/refresh-night-signals", () => {
     const body = await res.json();
     expect(body.ok).toBe(true);
     expect(body.staged).toBeGreaterThanOrEqual(1);
-    // Candidates are PENDING and route-neutral — never published.
-    for (const candidate of body.candidates) {
+    // The sweep now PERSISTS what it finds rather than returning the rows in
+    // its own body, so the proof is what the store holds. Every stored row is
+    // PENDING and route-neutral — never published.
+    const stored = await nightSignalCandidateStore().list({ state: "pending" });
+    if (stored.status !== "ready") throw new Error("the memory store always answers");
+    expect(stored.candidates.length).toBe(body.staged);
+    expect([...stored.candidates.map((row) => row.id)].sort()).toEqual(
+      [...(body.candidateIds as string[])].sort(),
+    );
+    for (const candidate of stored.candidates) {
       expect(candidate.reviewState).toBe("pending");
       expect(candidate.routeEffect).toBe("none");
     }
