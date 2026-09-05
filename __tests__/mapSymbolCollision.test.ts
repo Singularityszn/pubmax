@@ -1,4 +1,9 @@
 import type * as maplibregl from "maplibre-gl";
+import {
+  createExpression,
+  type ExpressionSpecification,
+  type StyleExpression,
+} from "@maplibre/maplibre-gl-style-spec";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -14,6 +19,7 @@ import {
   PIN_HALO_ENVELOPE_PX,
   PIN_MIN_ZOOM,
   PIN_PRICE_LABEL_PADDING,
+  pinPriceTagInkExpr,
   PROVISIONAL_BADGE_OFFSET_PX,
   PROVISIONAL_BADGE_RADIUS_MAX_PX,
   UK_BASE_ICON_OPACITY,
@@ -506,6 +512,25 @@ describe("priced-pin price tag (collides, and yields before the pin does)", () =
     expect(typeof ink[3]).toBe("string");
     expect(typeof pins["text-halo-color"]).toBe("string");
     expect(JSON.stringify(pins)).not.toContain("bucket");
+    // And MapLibre's own engine reads it the way the table says: the confirmed
+    // ink over a confirmed feature, the plaque ink over every other. Two real
+    // inks here, because the scene above paints every token the same black.
+    const inks = { priceConfirmedInk: "#18a76d", pricePlaqueInk: "#8f671f" } as Tokens;
+    const compiled = createExpression(
+      pinPriceTagInkExpr(inks) as ExpressionSpecification,
+      "layers[0].paint.text-color",
+    );
+    expect(compiled.result).toBe("success");
+    const evaluate = (properties: Record<string, unknown>) =>
+      String(
+        (compiled as { value: StyleExpression }).value.evaluate(
+          { zoom: 15 },
+          { type: "Point", properties } as never,
+        ),
+      );
+    expect(evaluate({ standing: "confirmed" })).toBe(inks.priceConfirmedInk);
+    expect(evaluate({})).toBe(inks.pricePlaqueInk);
+    expect(evaluate({ standing: "listed" })).toBe(inks.pricePlaqueInk);
   });
 
   it("dims with its own pin instead of shouting past the spotlight", () => {

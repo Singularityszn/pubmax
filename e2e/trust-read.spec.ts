@@ -19,7 +19,7 @@ import { expect, test, type Page } from "@playwright/test";
 const VENUE_ID = "venue-1vle947";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PROVISIONAL_LINE = "Logged once, needs a second drinker";
-const AGED_LINE = "Logged over 30 days ago, needs a fresh drinker";
+const AGED_LINE = "Over 30 days old, needs a fresh drinker";
 const ABSENCES = ["No price yet", "No beer price logged here yet", "no beer price logged"];
 
 type DropRow = {

@@ -469,9 +469,9 @@ describe("the Pint Index cites the same confirmations this module calls confirme
       generatedAt: new Date(NOW).toISOString(),
       classification: { method: "point_in_polygon", boundarySource: "test", boundaryVersion: "1" },
       publisher: "PUBMAXX",
-      dropUrl: (id) => `https://pubmaxxing.com/drops/${id}`,
+      dropUrl: (id: string) => `https://pubmaxxing.com/drops/${id}`,
       licence: null,
-    } as Parameters<typeof buildPintIndexSnapshotFromConfirmations>[0]);
+    } as unknown as Parameters<typeof buildPintIndexSnapshotFromConfirmations>[0]);
   }
 
   it("a live confirmation is cited; an expired one is counted out, as this module reads it", () => {

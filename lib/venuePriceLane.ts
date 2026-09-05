@@ -30,7 +30,7 @@ export const PROVISIONAL_PRICE_LINE = "Logged once, needs a second drinker";
  * says what the figure is worth instead, and the day beside it says how old.
  * The window is read from its owner rather than typed.
  */
-export const AGED_PRICE_LINE = `Logged over ${PRICE_AUTHORITY_MAX_AGE_DAYS} days ago, needs a fresh drinker`;
+export const AGED_PRICE_LINE = `Over ${PRICE_AUTHORITY_MAX_AGE_DAYS} days old, needs a fresh drinker`;
 
 /** The price claim the overview area prints, in precedence order. */
 export type VenuePriceLaneName =
