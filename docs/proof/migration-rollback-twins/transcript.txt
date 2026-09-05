@@ -1,0 +1,28 @@
+applied 78 migrations after 20260806035204_0070_v1_release_security.sql
+last applied: 20260905170000_0147_pint_drop_measure.sql
+
+--- 0120 BEFORE rollback (every migration applied) ---
+0120 columns          : consent_version, fetched_at, refresh_status, upstream_revocation_state
+0120 lifecycle checks : external_social_accounts_lifecycle_mode_check, external_social_accounts_refresh_status_check, external_social_accounts_revocation_state_check, social_post_media_lifecycle_events_action_check, social_post_media_lifecycle_events_pkey
+0120 policies         : (none)
+0120 browser grantees : (none)
+
+--- 0120 AFTER rollback ---
+0120 columns          : (none)
+0120 lifecycle checks : social_post_media_lifecycle_events_action_check, social_post_media_lifecycle_events_pkey
+0120 policies         : external_social_accounts_anon_deny, external_social_accounts_owner_all
+0120 browser grantees : authenticated
+
+--- 0121 BEFORE rollback ---
+0121 columns   : promoted_at, promoted_list_type
+0121 pair check: wanteds_promotion_pair_check
+0121 function  : promote_wanted_to_saved_list
+
+--- 0121 AFTER rollback (0122's rollback first) ---
+0121 columns   : (none)
+0121 pair check: (none)
+0121 function  : (none)
+
+saved_pubs still present: yes
+
+PROOF_OK
