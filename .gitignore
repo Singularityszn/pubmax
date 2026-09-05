@@ -93,3 +93,10 @@ data-harvest/*
 # hundred MB, and rebuilt by the script; ios/App and ios/App/CapApp-SPM ARE
 # committed.
 ios/build/
+
+# Supabase CLI local state. `_current_branch` names whichever branch the CLI on
+# THIS machine last linked and `cli-latest` is its own update check, so both
+# rewrite themselves on ordinary use and neither is a change anybody made.
+# The migrations, the rollbacks and config.toml ARE committed.
+supabase/.branches/
+supabase/.temp/
