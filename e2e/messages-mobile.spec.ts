@@ -56,8 +56,12 @@ test.describe("messages mobile surface", () => {
     );
     await expect(page.locator(".messagesInboxPane")).toBeVisible();
     await expect(page.locator(".messagesThreadPane")).toBeHidden();
+    // The empty state is the shared EmptyState primitive, whose title is a
+    // paragraph rather than a heading (components/ui/empty-state.tsx).
     await expect(
-      page.getByRole("heading", { name: /sign in to message|no conversations yet/i }),
+      page.locator(".messagesInboxPane .emptyStateTitle", {
+        hasText: /sign in to message|nobody in here yet/i,
+      }),
     ).toBeVisible();
 
     await expectTapTargetsAtLeast44(
