@@ -265,8 +265,9 @@ band here, but it is a true answer and must be given.
 Declaring user-generated content, social media and messaging is not optional
 and it carries a duty: the submitted build must ship working reporting,
 moderation, blocking, account deletion and a public support contact. All five
-exist (`lib/siteContact.ts` owns the address); make sure a reviewer can reach
-each one without an account where the surface allows it.
+exist (`lib/siteContact.mjs` owns the address); make sure a reviewer can reach
+each one without an account where the surface allows it. The support mailbox
+itself must answer before submission: see section 8, "Before either store".
 
 ### Google Play (IARC questionnaire)
 
@@ -323,12 +324,12 @@ Declare the following. Everything else: Not Collected.
 
 - **Does your app collect or share any of the required user data types?** Yes.
 - **Precise location:** Collected, optional, processed ephemerally, purpose App functionality, not used for tracking. Full GPS precision stays on the device; only the three-decimal point leaves it. In the Data safety flow, identify the ephemeral processing and current service-provider or user-initiated transfers exactly as the form asks.
-- **Personal info > Email address:** Collected, not shared, optional, purpose App functionality. Encrypted in transit. Account deletion removes the sign-in address; other erasure requests use the public contact in `lib/siteContact.ts`.
+- **Personal info > Email address:** Collected, not shared, optional, purpose App functionality. Encrypted in transit. Account deletion removes the sign-in address; other erasure requests use the public contact in `lib/siteContact.mjs`.
 - **Photos and videos:** Collected, purpose App functionality. Answer **shared: yes** for the pub photo wall. A wall photo is PUBLIC by design: it appears on that pub's page to anyone who opens it, and the composer offers a crosspost to the public feed. Saying "not shared publicly by default" would be a wrong answer on the form, not a cautious one. Moment drafts stay on the device and are collected only on publish.
 - **App activity > Product interaction:** Collected, not shared, optional (opt-in), purpose Analytics. Encrypted in transit.
 - **Device or other IDs:** Collected (push token), not shared, purpose App functionality.
 - **Is all data encrypted in transit?** Yes (HTTPS only, the shell loads `https://pubmaxxing.com`).
-- **Can users request data deletion?** Yes. Account deletion covers account-linked data, including Night Memories and their Moment photos; the public contact in `lib/siteContact.ts` handles other requests, including an optional area-demand address.
+- **Can users request data deletion?** Yes. Account deletion covers account-linked data, including Night Memories and their Moment photos; the public contact in `lib/siteContact.mjs` handles other requests, including an optional area-demand address.
 
 **Privacy policy URL:** required by both stores. Use `https://pubmaxxing.com/privacy`. The site publishes it (with `/terms`) from `app/privacy` / `app/terms`; see the AGENTS.md privacy-notice entry for the keep-it-honest rule.
 
@@ -637,6 +638,23 @@ Evidence from the run that landed these scripts is in
 ## 8. Owner-only remaining steps
 
 Everything above is done or ready to paste. The steps below need a real account, real money, or a physical signing step, and only the owner can do them. Nothing here is blocked by the codebase.
+
+### Before either store: the support mailbox must answer
+
+The site's one public contact address is `CONTACT_EMAIL` in
+`lib/siteContact.mjs`, which `lib/siteContact.ts` re-exports for the app and the
+crawler scripts read for their user-agent headers. The address is
+`support@pubmaxxing.com`. **The mailbox does not exist yet.** The captain owns
+this step: create it as a real inbox, or as a forwarder to an address he reads
+every day.
+
+Do it before either submission. Both stores require a working public support
+contact for an app that declares user content, and `/privacy`, `/terms`,
+`/about` and `/account/delete` print this address to strangers today. A privacy
+notice that names an inbox nobody reads is worse than no address at all.
+
+*Done when:* a message sent to `support@pubmaxxing.com` from an outside address
+arrives, and a reply sent from it is delivered.
 
 ### Apple App Store
 

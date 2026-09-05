@@ -39,6 +39,7 @@ import {
   pubPageUrlFromMenuUrl,
   buildSportAttributeRows,
 } from "./greeneKingSportParser.mjs";
+import { CONTACT_EMAIL } from "../../lib/siteContact.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const RAW_DIR = join(ROOT, "data", "greene_king", "raw");
@@ -48,7 +49,7 @@ const TIMED_PATH = join(OUT_DIR, "sport_whats_on.json");
 
 const ORIGIN = "https://www.greeneking.co.uk";
 const USER_AGENT =
-  "PubmaxxingBot/0.1 (+https://pubmaxxing.com; what's-on data curation; contact karanszdy@gmail.com)";
+  `PubmaxxingBot/0.1 (+https://pubmaxxing.com; what's-on data curation; contact ${CONTACT_EMAIL})`;
 const FETCH_DELAY_MS = 1500;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

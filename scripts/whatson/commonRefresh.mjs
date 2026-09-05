@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 
 import { DATE_ONLY_TIME_EVIDENCE } from "../../lib/whatson/eventNormalise.mjs";
 import { eventsOutputPath } from "./eventsOutputPath.mjs";
+import { CONTACT_EMAIL } from "../../lib/siteContact.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -24,7 +25,7 @@ export const COMMON_SOURCE = {
   url: "https://www.common-social.com/",
 };
 export const COMMON_USER_AGENT =
-  "PUBMAXX/1 (+https://pubmaxxing.com; contact karanszdy@gmail.com)";
+  `PUBMAXX/1 (+https://pubmaxxing.com; contact ${CONTACT_EMAIL})`;
 export const COMMON_FETCH_GAP_MS = 1000;
 // The sitemap grows with the site's whole history and every fetch costs a
 // polite second, so a run that re-read all of it would grow without limit. A
