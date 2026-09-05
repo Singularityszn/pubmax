@@ -43,6 +43,18 @@ with offset and blur. Both are the same ask at the same pub, one kept action,
 so they wear one treatment. The mechanical detector
 (`impeccable detect`) reports nothing on the lines this PR touched.
 
+## The aged-out row, after the rebase onto #1495
+
+`after-aged-chip-<size>.png`, `after-aged-chip-detail-<size>.png`,
+`after-aged-composer-<size>.png`. The same pub with its one row 90 days old,
+which `lib/pintTrust.ts` reads as `aged-out` and the chip prints as "Over 30
+days old, needs a fresh drinker". The door is built off that trust state
+(`SECOND_DRINKER_STATES` in `lib/pintDropSecondDrinker.ts`), never off a lane
+branch, so the aged row offers it too, with the same geometry as the
+logged-once row: door at x 645 y 865 (768) and x 1319 y 586 (1440) beside the
+line, wrapped left at 390. The `after-*` logged-once shots were retaken on the
+rebased head and match the pre-rebase geometry to the pixel.
+
 ## The composer after the tap
 
 `after-composer-<size>.png`. Journey: the door on the Overview, signed out.

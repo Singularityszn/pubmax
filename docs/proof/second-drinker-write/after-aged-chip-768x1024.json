@@ -1,5 +1,5 @@
 {
-  "trust": "logged-once",
+  "trust": "aged-out",
   "block": {
     "x": 21,
     "y": 795,
@@ -32,7 +32,7 @@
     {
       "tag": "small",
       "cls": "",
-      "text": "logged 3 days ago",
+      "text": "logged 90 days ago",
       "rect": {
         "x": 21,
         "y": 842,
@@ -43,7 +43,7 @@
     {
       "tag": "small",
       "cls": "communityPriceStanding",
-      "text": "Logged once, needs a second drinker",
+      "text": "Over 30 days old, needs a fresh drinker",
       "rect": {
         "x": 21,
         "y": 880,

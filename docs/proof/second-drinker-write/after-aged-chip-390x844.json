@@ -1,10 +1,10 @@
 {
-  "trust": "logged-once",
+  "trust": "aged-out",
   "block": {
-    "x": 21,
-    "y": 795,
-    "w": 727,
-    "h": 126
+    "x": 47,
+    "y": 463,
+    "w": 296,
+    "h": 178
   },
   "kids": [
     {
@@ -12,8 +12,8 @@
       "cls": "",
       "text": "Contributor Logged by a Pubmaxxer",
       "rect": {
-        "x": 21,
-        "y": 809,
+        "x": 47,
+        "y": 474,
         "w": 277,
         "h": 21
       }
@@ -23,8 +23,8 @@
       "cls": "priceBadge priceBadge--current price-plaque ink-stamp ink-stamp--tilt PriceBadge-module__E2sksq__badge",
       "text": "£4.50",
       "rect": {
-        "x": 676,
-        "y": 805,
+        "x": 47,
+        "y": 502,
         "w": 72,
         "h": 30
       }
@@ -32,22 +32,22 @@
     {
       "tag": "small",
       "cls": "",
-      "text": "logged 3 days ago",
+      "text": "logged 90 days ago",
       "rect": {
-        "x": 21,
-        "y": 842,
-        "w": 727,
+        "x": 47,
+        "y": 539,
+        "w": 296,
         "h": 16
       }
     },
     {
       "tag": "small",
       "cls": "communityPriceStanding",
-      "text": "Logged once, needs a second drinker",
+      "text": "Over 30 days old, needs a fresh drinker",
       "rect": {
-        "x": 21,
-        "y": 880,
-        "w": 612,
+        "x": 47,
+        "y": 562,
+        "w": 296,
         "h": 16
       }
     },
@@ -56,8 +56,8 @@
       "cls": "confirmPintCta",
       "text": "Still £4.50?",
       "rect": {
-        "x": 645,
-        "y": 865,
+        "x": 47,
+        "y": 586,
         "w": 103,
         "h": 44
       }
@@ -65,8 +65,8 @@
   ],
   "door": {
     "rect": {
-      "x": 645,
-      "y": 865,
+      "x": 47,
+      "y": 586,
       "w": 103,
       "h": 44
     },
