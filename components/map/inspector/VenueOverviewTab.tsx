@@ -916,7 +916,7 @@ export default function VenueOverviewTab({
           feed a non-pint figure into the pint record. FOLDED until the one
           door above opens it: the panel's effects (the venue read, the viewed
           event) still run, and the form itself mounts only on `composerOpen`. */}
-      {pub ? (
+      {isPubVenue(venue) ? (
         <VenuePriceEntryPanel
           // Keyed by venue so the chosen drink, the typed price and the receipt
           // never leak across pubs - this instance persists between selections.
