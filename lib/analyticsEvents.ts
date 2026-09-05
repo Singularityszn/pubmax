@@ -273,6 +273,42 @@ export const ANALYTICS_EVENTS = {
   creator_list_map_opened: [],
   creator_list_plan_started: [],
   creator_list_followed: [],
+  // The four loop moments #252 named and nothing sent (docs/split of #252,
+  // 5 September 2026). Their names come from docs/API_CONTRACTS_THE_LOCAL.md
+  // section 8's "#252 mandated names" list: section 12.3 resolved that the
+  // SHIPPED vocabulary wins where an event already emits, and these six never
+  // emitted, so there is no shipped name to keep and #252's own names stand.
+  //
+  // The end of a night. `late_food_viewed` is the denominator (the food ending
+  // was offered and its shortlist shown) and `late_food_added` the numerator (a
+  // terminal was taken as the ending). Props stay at the registry's bar: a
+  // result BAND rather than a count of what was near somebody, and the hours
+  // confidence the surface already prints - never a terminal id, a name, an
+  // area, a coordinate, or the walking detour, each of which narrows toward
+  // where one drinker stood at closing time.
+  late_food_viewed: ["resultBand"],
+  late_food_added: ["confidence"],
+  // The morning brief (/today). `briefing_viewed` is the surface impression,
+  // with two booleans: whether a Night Profile or progressive intake shaped it,
+  // and whether the reader's own briefing mutes filtered a pick out. Neither
+  // says WHICH area or topic is muted, because a mute list is a small set that
+  // names a person's own patch. `briefing_opened` carries no props at all: it
+  // fires only on an arrival from the daily-brief notification itself
+  // (lib/briefingArrival.ts), so the closed name is the whole signal, the same
+  // reading poster_landing takes.
+  briefing_viewed: ["personalized", "muted"],
+  briefing_opened: [],
+  // A Pub Pal voice session really connected. No props on purpose: a session
+  // has no describable content that is not either the reader's own speech or a
+  // duration, and this registry carries neither (section 7 of the tracking
+  // plan). The count is the whole signal.
+  voice_started: [],
+  // A published recap was read. Its own visibility only, so the question "does
+  // an unlisted link travel" is answerable without a story id, a title, a
+  // handle, or a venue. The PRIVATE crew recap at /plan/[id]/recap is NOT this
+  // event: `memory_reviewed` already owns that moment, and two names for one
+  // read would double every recap figure.
+  recap_viewed: ["visibility"],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;
@@ -431,6 +467,37 @@ export type LandingCtaTarget = (typeof LANDING_CTA_TARGETS)[number];
 export const VENUE_SHEET_LAYERS = ["curated", "uk_base"] as const;
 export type VenueSheetLayer = (typeof VENUE_SHEET_LAYERS)[number];
 
+/**
+ * How many reviewed late-food terminals the food-ending shortlist held.
+ *
+ * A crawl ending offers a SHORTLIST, not a directory: `MAX_LATE_FOOD_HANDOFFS`
+ * in lib/lateFood.ts caps a served list at three, so these two bands are the
+ * whole honest vocabulary and a third would register a value nothing can send.
+ * Both strings already sit in the shared allow-list below, because the Near
+ * lane bands its own result count the same way.
+ */
+export const LATE_FOOD_RESULT_BANDS = ["0", "1-3"] as const;
+export type LateFoodResultBand = (typeof LATE_FOOD_RESULT_BANDS)[number];
+
+/**
+ * The hours confidence of the terminal a night ended on. It mirrors
+ * `LateFoodConfidence` (lib/lateFood.ts), spelled out here rather than imported
+ * so the registry keeps its zero-runtime-dependency shape - the same treatment
+ * the drink taxonomy gets above. A food ending is the one place this app hands
+ * a reader an opening time it did not observe tonight, so whether the chosen
+ * option was a confident read is the question worth counting.
+ */
+export const LATE_FOOD_CONFIDENCES = ["high", "medium", "low"] as const;
+export type LateFoodAnalyticsConfidence = (typeof LATE_FOOD_CONFIDENCES)[number];
+
+/**
+ * Which recap a reader opened. Only the PUBLISHED recap reports here, so the
+ * vocabulary is the story's own visibility (the same two values
+ * `story_published` carries) rather than a second word for the same fact.
+ */
+export const RECAP_VISIBILITIES = ["public", "unlisted"] as const;
+export type RecapVisibility = (typeof RECAP_VISIBILITIES)[number];
+
 /** First time this browser has opened a Pint Index page, or a return. */
 export const PINT_INDEX_VISITS = ["first", "repeat"] as const;
 export type PintIndexVisit = (typeof PINT_INDEX_VISITS)[number];
@@ -506,6 +573,9 @@ const SAFE_STRING_VALUES = new Set([
   "place", "accept", "decline",
   // Out card sources. Closed set; never a free-text publisher or venue name.
   "ticketmaster", "skiddle", "common",
+  // Late-food hours confidence (late_food_added). The bands "0" and "1-3" and
+  // the recap visibilities "public"/"unlisted" already sit above.
+  "high", "medium", "low",
   // Community-price funnel vocabulary: the drink taxonomy and the three
   // failure buckets.
   ...PRICE_SUBMIT_CATEGORIES,
@@ -595,6 +665,16 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   // uncountable step in a ratio - both fail closed like the rest.
   venue_sheet_opened: ["layer"],
   price_submit_outcome: ["category", "outcome"],
+  // The four loop moments. Each of these is one half of a ratio - a shortlist
+  // shown against a shortlist taken, a brief seen against a brief opened - so a
+  // step with no band, no confidence, no personalization answer or no
+  // visibility is an uncountable event rather than a partial one, and fails
+  // closed like the rest. `briefing_opened` and `voice_started` carry no props
+  // at all and therefore require none.
+  late_food_viewed: ["resultBand"],
+  late_food_added: ["confidence"],
+  briefing_viewed: ["personalized", "muted"],
+  recap_viewed: ["visibility"],
 } as const satisfies Partial<Record<AnalyticsEventName, readonly string[]>>;
 
 function includesValue(values: readonly string[], value: string | number | boolean): boolean {
@@ -844,6 +924,32 @@ function isAllowedMessageAttachProp(
   return includesValue(["photos", "camera", "document"], value);
 }
 
+/**
+ * The four loop moments' strictness (#252's named set, shipped 5 September
+ * 2026). Each key belongs to exactly one of these events, so the checks are
+ * scoped to the event names rather than to the keys: `confidence` and
+ * `visibility` would both mean something else elsewhere in the registry.
+ */
+function isAllowedLoopMomentProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (name === "late_food_viewed" && key === "resultBand") {
+    return includesValue(LATE_FOOD_RESULT_BANDS, value);
+  }
+  if (name === "late_food_added" && key === "confidence") {
+    return includesValue(LATE_FOOD_CONFIDENCES, value);
+  }
+  if (name === "briefing_viewed") {
+    return ["personalized", "muted"].includes(key) && typeof value === "boolean";
+  }
+  if (name === "recap_viewed" && key === "visibility") {
+    return includesValue(RECAP_VISIBILITIES, value);
+  }
+  return true;
+}
+
 function isAllowedOpenPlanProp(
   name: AnalyticsEventName,
   key: string,
@@ -924,6 +1030,7 @@ export function sanitizeEvent(
               && isAllowedMessageAttachProp(name, key, value)
               && isAllowedLandingCtaProp(name, key, value)
               && isAllowedVenueSheetProp(name, key, value)
+              && isAllowedLoopMomentProp(name, key, value)
               && isAllowedOpenPlanProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }

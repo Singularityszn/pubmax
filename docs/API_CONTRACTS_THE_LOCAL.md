@@ -23,20 +23,22 @@ Adjacent endpoints Codex also built and this contract now governs: `POST /api/pl
 
 ## 0. Reconciliation summary — read this first
 
-These are the places where Codex's implementation diverges from #252 or `sol.md`. Each has a recommended "which side wins" call for the owner.
+These are the places where Codex's implementation diverges from #252 or `sol.md`.
 
-1. **Endpoint naming: `/api/plans/generate` vs #252's `/api/companion/recommend`.**
-   #252's Implementation Decisions literally say `POST /api/companion/recommend`. Codex shipped `POST /api/plans/generate` instead, matching `sol.md`. **Recommendation: `sol.md` / Codex wins** — `/api/plans/generate` is already built and tested; treat `/api/companion/recommend` as a superseded alias in #252. Do not build a parallel companion route.
+**Four of them were decided by the owner on 2026-07-16 and are RESOLVED. §12 is the record.** They are marked RESOLVED below and repeat the decision rather than the question, so a reader who stops here gets the same answer as a reader who reaches §12. Only two things are still open, and §12 lists those two and nothing else: the read and member-write rate-limit budgets (§0.3, §12.5) and the late-food evidence expansion (§12.6).
 
-2. **Flat public errors are authoritative.** THE LOCAL clients consume `{ error: string, code: string, retryable: boolean, details? }`. `publicApiError()` emits that shape with `no-store`. The older nested `apiError()` is retained only for the shipped Heritage response and is not a THE LOCAL contract. See §7.
+1. **Endpoint naming: `/api/plans/generate` vs #252's `/api/companion/recommend` - RESOLVED (§12.1).**
+   #252's Implementation Decisions literally say `POST /api/companion/recommend`. Codex shipped `POST /api/plans/generate` instead, matching `sol.md`. **`sol.md` / Codex won.** `/api/plans/generate` is the endpoint; `/api/companion/recommend` is a superseded historical alias in #252. Do not build a parallel companion route. `app/api/companion/` does not exist and must not be created.
 
-3. **Rate-limit scope.** `POST /api/plans/generate` uses one privacy-safe hashed client key for both memory and Supabase limiters. Read/member-route budgets remain a separate owner decision; the matrix in §11 records current behavior without calling it implemented.
+2. **Flat public errors are authoritative - RESOLVED (§12.2).** THE LOCAL clients consume `{ error: string, code: string, retryable: boolean, details? }`. `publicApiError()` emits that shape with `no-store`. The older nested `apiError()` is retained only for the shipped Heritage response and is not a THE LOCAL contract. See §7.
+
+3. **Rate-limit scope - STILL OPEN (§12.5).** `POST /api/plans/generate` uses one privacy-safe hashed client key for both memory and Supabase limiters. Read/member-route budgets remain a separate owner decision; the matrix in §11 records current behavior without calling it implemented.
 
 4. **`plan-generate` isolation is fixed.** Both limiters receive `plan-generate:${hashIp(clientIp(request))}`. Raw IP addresses are neither persisted nor passed to the limiter.
 
-5. **Analytics vocabulary diverges from #252's registry.** #252 mandates a named set (`activation_started`, `area_selected`, `companion_selected`, `recommendation_returned`, `recommendation_accepted`, `plan_shared`, `plan_joined`, `late_food_viewed`, `late_food_added`, …). Codex instead added its own names (`night_description_submitted`, `planned_night_status_changed`, `planned_night_action`, `planned_night_completed`, `pub_pal_adopted`, `plan_invite_sent`, `plan_invite_opened`, `crew_committed`, `district_viewed`, …). **Open question: which registry wins?** See §8.
+5. **Analytics vocabulary diverges from #252's registry - RESOLVED (§12.3).** #252 mandates a named set (`activation_started`, `area_selected`, `companion_selected`, `recommendation_returned`, `recommendation_accepted`, `plan_shared`, `plan_joined`, `late_food_viewed`, `late_food_added`, …). Codex instead added its own names (`night_description_submitted`, `planned_night_status_changed`, `planned_night_action`, `planned_night_completed`, `pub_pal_adopted`, `plan_invite_sent`, `plan_invite_opened`, `crew_committed`, `district_viewed`, …). **The shipped vocabulary won**, and #252's registry is amended to it: an event that already emits keeps its shipped name, and renaming one buys nothing. A #252 name for a moment that never emitted has no shipped name to keep, so it stands as written. That is where `late_food_viewed`, `late_food_added`, `briefing_viewed`, `briefing_opened`, `voice_started` and `recap_viewed` came from on 2026-09-05. §8 carries the correspondence table and what each moment may say.
 
-6. **"Companion" is shipped as "Pub Pal."** #252 says "companion" and `POST /api/companion/recommend`. Codex shipped the persona system as **Pub Pal** (`lib/pubPal.ts`, `app/api/pub-pal/*`). Same concept, different surface name. Contract treats them as synonyms; owner should pick one product noun.
+6. **"Companion" is shipped as "Pub Pal" - RESOLVED (§12.4).** #252 says "companion" and `POST /api/companion/recommend`. Codex shipped the persona system as **Pub Pal** (`lib/pubPal.ts`, `app/api/pub-pal/*`). Same concept, different surface name. **"Pub Pal" is the product noun everywhere**: UI, code and analytics. "Companion" is #252's historical wording and is read as a synonym for it, never as a second thing to build.
 
 7. **Late-food is evidence-gated.** All 20 Night Area slugs are represented. Only options with active official-operator evidence are returned; empty areas stay empty. ISO `at=` values affect weekly-hours ranking, and `fromLat`/`fromLng` compute an estimate from the actual final stop. Unknown opening/hygiene/walking-route evidence is labelled, never inferred.
 
@@ -497,9 +499,32 @@ Registry: `lib/analyticsEvents.ts` (`ANALYTICS_EVENTS`), first-party, low-cardin
 
 **Codex added (branch reality):** `night_description_submitted {area,daypart}`, `planned_night_status_changed {status}`, `planned_night_action {type}`, `planned_night_completed {ending}`, `pub_pal_adopted {pal}`, `pub_pal_summoned {surface}`, `pub_pal_memory_changed {action,category}`, `discovery_viewed {surface,daypart}`, `plan_invite_sent {channel}`, `plan_invite_opened {source}`, `crew_committed {source,participants}`, `account_claimed {source}`, `social_account_connected {provider,connectionType}`, `night_moment_saved {kind,visibility}`, `night_story_published {contributors,moments}`, `next_night_committed {windowDays,source}`, `draft_recovered {kind,surface}`, `web_vital {metric,value,rating}`, `guest_plan_participated {action}`, plus district events `district_catalogue_viewed`, `district_viewed`, `district_route_blocked`, `district_route_ready_selected`, `route_ready_gate_failed`.
 
-**#252 mandated names (not yet present):** `activation_started`, `area_selected`, `companion_selected`, `preferences_completed`, `recommendation_returned`, `recommendation_accepted`, `plan_shared`, `plan_joined`, `late_food_viewed`, `late_food_added`, `briefing_viewed`, `briefing_opened`, `voice_started`, `recap_viewed`, `return_prompt_opened`.
+**RESOLVED (§12.3): the shipped vocabulary wins, and #252's registry is amended to it.** An event that already emits keeps its shipped name; renaming one buys nothing and breaks every query built on it. This is the mapping, and it is the record rather than a proposal:
 
-**Open question (§0.5):** adopt #252's exact registry, keep Codex's vocabulary, or map. Suggested mapping if Codex wins: `activation_started`→`night_description_submitted`, `area_selected`→`district_viewed`, `companion_selected`→`pub_pal_adopted`, `recommendation_accepted`→`planned_night_status_changed`, `plan_joined`→`crew_committed`/`guest_plan_participated`, `recap_viewed`→`night_story_published`.
+| #252 name | Shipped name |
+| --- | --- |
+| `activation_started` | `night_description_submitted` |
+| `area_selected` | `district_viewed` |
+| `companion_selected` | `pub_pal_adopted` |
+| `recommendation_returned` | `plan_generated` |
+| `recommendation_accepted` | `plan_accepted` (`planned_night_status_changed` for the status move) |
+| `plan_shared` | `plan_invite_sent` |
+| `plan_joined` | `crew_committed` / `guest_plan_participated` |
+
+**#252 names that had no shipped equivalent stand as written.** A moment nothing ever emitted has no shipped name to keep, so §12.3's decision leaves #252's own name in place. Six landed with their emitters on 2026-09-05 (the split of #252, issue [#1522](https://github.com/Singularityszn/pubmax/issues/1522)):
+
+| Event | Moment | Props |
+| --- | --- | --- |
+| `late_food_viewed` | The food ending's shortlist was shown, empty ones included | `resultBand` (`0` \| `1-3`) |
+| `late_food_added` | A food ending really saved | `confidence` (`high` \| `medium` \| `low`) |
+| `briefing_viewed` | The morning brief was on screen | `personalized`, `muted` (booleans) |
+| `briefing_opened` | The brief was reached from its own notification | none |
+| `voice_started` | A Pub Pal voice session connected | none |
+| `recap_viewed` | A PUBLISHED recap was read | `visibility` (`public` \| `unlisted`) |
+
+Three rules ride with those six. `recap_viewed` is NOT the private crew recap, which reports `memory_reviewed` and always has, because two names for one read would double every recap figure. `briefing_opened` depends on the landing marker in `lib/briefingArrival.ts`, which `broadcastDailyBrief` writes and `/today` reads. And each is one half of a ratio, so none of them is read on its own. `docs/analytics/TRACKING_PLAN.md` §5.11 owns the detail; `lib/analyticsEvents.ts` owns the props.
+
+**Still unbuilt from #252's list:** `preferences_completed` and `return_prompt_opened`. Both belong to surfaces that do not exist, so neither has a registry entry: the sanitizer must know an event's shape before the first one arrives, and a registered name nothing sends reads zero forever (`docs/analytics/TRACKING_PLAN.md` §6).
 
 ---
 
@@ -606,11 +631,13 @@ Existing shared limiter: `isLimited(localKey, durableKey, limit=8, windowMs=60_0
 
 ## 12. Owner decisions (resolved 2026-07-16) + remaining open questions
 
+This section is the record. §0 repeats these decisions where the questions were first raised, so the two cannot be read differently.
+
 **Decided by the owner:**
 
 1. **Endpoint name — RESOLVED:** `/api/plans/generate` supersedes #252's `/api/companion/recommend`. The #252 path is a historical alias; do not build it.
 2. **Error envelope — RESOLVED:** flat `PublicApiError` wins: `{ error, code, retryable, details? }`. The nested Heritage helper remains compatibility-only.
-3. **Analytics registry — RESOLVED:** keep Codex's event names (already emitting; renaming buys nothing). #252's registry is amended to the shipped vocabulary; the §8 mapping table records the correspondence.
+3. **Analytics registry - RESOLVED:** keep Codex's event names (already emitting; renaming buys nothing). #252's registry is amended to the shipped vocabulary; the §8 mapping table records the correspondence. A #252 name for a moment that never emitted has nothing to be renamed to and stands as written, which is how six of them landed on 2026-09-05 (§8).
 4. **Product noun — RESOLVED:** "Pub Pal" wins over #252's "Companion" everywhere (UI, code, analytics).
 
 **Still open:**
@@ -620,4 +647,4 @@ Existing shared limiter: `isLimited(localKey, durableKey, limit=8, windowMs=60_0
 
 ---
 
-*Updated against the local hardening implementation on 2026-07-16. The work remains local until exact-commit review and authorization.*
+*Updated against the local hardening implementation on 2026-07-16. The work remains local until exact-commit review and authorization. §0, §8 and §12 re-stated as resolved on 2026-09-05 (the split of #252, issue [#1522](https://github.com/Singularityszn/pubmax/issues/1522)): the decisions did not change, only the places that still asked them as questions.*

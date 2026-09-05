@@ -117,8 +117,8 @@ it as tile 2 and names the action by the id the call above returns.
 
 ## 3. The weekly view
 
-`docs/analytics/weekly-dashboard.json` is the machine definition. Five numbers, in
-six insights: tile 2 ships its funnel companion beside the figure it answers with.
+`docs/analytics/weekly-dashboard.json` is the machine definition. Six numbers, in
+seven insights: tile 2 ships its funnel companion beside the figure it answers with.
 
 | # | Tile | Reads |
 |---|---|---|
@@ -127,6 +127,7 @@ six insights: tile 2 ships its funnel companion beside the figure it answers wit
 | 3 | Landing to Map to venue sheet | `discovery_viewed` (landing), `$pageview` (`/map`), `venue_sheet_opened` |
 | 4 | Pint Drop submissions and corroboration | `price_submitted`, `price_submit_outcome`, `price_submit_failed` |
 | 5 | Top routes by LCP | `web_vital` where `metric = LCP`, p75 of `value`, broken down by `route` |
+| 6 | The four loop moments (5.11) | `late_food_viewed` / `late_food_added`, `briefing_viewed` / `briefing_opened`, `voice_started`, `recap_viewed` |
 
 Two honest limits on that table.
 
@@ -134,6 +135,10 @@ Two honest limits on that table.
   because no named event marks arriving on the Map. A visitor whose SDK is blocked
   drops out at step 2 while still reaching step 3. Read step 1 to step 3 as the
   reliable pair, and step 2 as the shape of the walk between them.
+- **Tile 6 reads as pairs, not as totals.** Each series is one half of a ratio
+  (5.11). A rise in `late_food_viewed` with a flat `late_food_added` is the
+  finding; either line alone says nothing, because both move with how many
+  nights reached their last stop at all.
 - **Tile 4 does not say "confirmed".** A `PintDropConfirmation` is minted on the
   server (`lib/pintDropConfirm.server.ts`), by a second reporter or by a moderator.
   Neither has a consenting browser we may speak for, so it may not become a PostHog
@@ -198,6 +203,8 @@ Read the dashboard once a week. Each number has one owner and one action.
 | `price_submit_failed` where `reason = 'rejected'` | Near zero | Any sustained rise | Engineer on call: `/api/price-submit` is refusing real drinkers. Read the route logs the same day. |
 | Weekly active visitors | Rising | Falls while tile 2 holds | Captain: the product converts and nobody arrives. This is an acquisition finding, never a product one. |
 | LCP p75 per route | Under the route's ceiling in `perf/route-budgets.json` | Any route over its ceiling | Engineer on call: open the route budget, not the dashboard. `docs/PERFORMANCE_BUDGETS.md` owns the remedy. |
+| `late_food_added` against `late_food_viewed` | Rising share | Falls while `late_food_viewed` rises | Captain: the night asks for food and the shortlist is not worth taking. Read `late_food_added` by `confidence` before widening the evidence lane. |
+| `briefing_opened` against pushes sent | Rising | Near zero while briefs are sent | Captain: the brief is delivered and nobody opens it. It is a copy and timing question, never a bug in the surface. |
 | `contribution_gate` where `step = 'sign_in_required'` | Low against `price_submit_viewed` | Rising share | Captain: the identity door is the cost of a price. It is a product decision, not a bug. |
 
 None of these numbers may be read as a person. There is no account identity in the
@@ -282,6 +289,8 @@ vocabularies. The column here is the question the event exists to answer.
 | `plan_saved` | The plan and its route finished saving. |
 | `plan_created` | A plan was created, with its stop count. |
 | `plan_completed` | The night ended, and how. |
+| `late_food_viewed` | The food ending's shortlist was shown. See 5.11. |
+| `late_food_added` | A food ending was taken. See 5.11. |
 | `memory_reviewed` | The night was read back. |
 | `story_published` | The night became a public story. |
 | `meaningful_core_action` | The roll-up denominator for Weekly Meaningful Pubmaxxers. |
@@ -338,6 +347,9 @@ vocabularies. The column here is the question the event exists to answer.
 | `night_story_published` | A night story was published. |
 | `recap_shared` | A recap was shared. |
 | `recap_share_gate_opened` | A crew stepped toward the share consent flow. |
+| `recap_viewed` | A published recap was read. See 5.11. |
+| `briefing_viewed` | The morning brief was on screen. See 5.11. |
+| `briefing_opened` | The brief was reached from its own notification. See 5.11. |
 
 ### 5.7 Pub Pal and the concierge
 
@@ -348,6 +360,7 @@ vocabularies. The column here is the question the event exists to answer.
 | `pub_pal_adopted` | A Pal was chosen. |
 | `pub_pal_summoned` | The Pal was called from a surface. |
 | `pub_pal_memory_changed` | A Pal memory was written or removed. |
+| `voice_started` | A Pub Pal voice session connected. See 5.11. |
 
 ### 5.8 Identity and account
 
@@ -386,10 +399,39 @@ vocabularies. The column here is the question the event exists to answer.
 | `activity_pulse` | One coarse day bucket per identity per day. The return-rate rail. |
 | `web_vital` | Field performance, per metric, per route. Tile 5. |
 
+### 5.11 The four loop moments
+
+The four moments #252 named and nothing sent until 5 September 2026. Each is one
+half of a ratio, so they are read as pairs and never on their own.
+
+| Event | Answers |
+|---|---|
+| `late_food_viewed` | A night reached its last stop, asked for food, and was shown a shortlist. The denominator, reported for an empty shortlist too. |
+| `late_food_added` | That shortlist was taken, and how confident the chosen place's hours were. |
+| `briefing_viewed` | The morning brief was on screen, whether a profile shaped it, and whether the reader's own mutes filtered a pick out. |
+| `briefing_opened` | The brief was reached from the daily-brief notification itself. A strict subset of `briefing_viewed`. |
+| `voice_started` | A Pub Pal voice session really connected. Never the tap: a refused grant or a denied microphone is a session that did not start. |
+| `recap_viewed` | A PUBLISHED recap was read, and whether its link was public or unlisted. |
+
+Three limits that decide how these are queried.
+
+- **`recap_viewed` is not the private recap.** `/plan/[id]/recap` reports
+  `memory_reviewed` and always has. Counting both as one read would double every
+  recap figure, so the private surface has exactly one name and the published one
+  has exactly one name.
+- **`briefing_opened` needs the marker.** It fires only on an arrival carrying the
+  daily brief's own landing marker (`lib/briefingArrival.ts`), which
+  `broadcastDailyBrief` writes and the service worker preserves. A brief sent
+  without that URL reads as zero opens, not as zero pushes.
+- **`late_food_viewed` bands at two values.** `MAX_LATE_FOOD_HANDOFFS` caps the
+  served shortlist at three, so `0` and `1-3` are the whole vocabulary. A third
+  band would be a value nothing can send.
+
 ## 6. Registered with no emitter today
 
 These 18 names are in the registry and nothing in `app`, `components` or `lib` sends
-them. A dashboard tile built on one of them reads zero forever, and the zero is not a
+them. The six loop moments in 5.11 were added WITH their emitters and are not on
+this list; `__tests__/loopMomentEvents.test.ts` is what keeps them off it. A dashboard tile built on one of them reads zero forever, and the zero is not a
 product finding.
 
 `cmdk_open`, `drop_logged`, `planned_night_status_changed`, `pub_pal_adopted`,
