@@ -862,6 +862,12 @@ export default function PrivacyPage() {
           consent whenever you like, in the app, without asking us.
         </p>
         <p className="legalBody">
+          A portable copy you can take yourself, without asking us: open the You
+          tab, go to Account settings and choose Download your data. It is one
+          JSON file of your Night Memories and Moments, the prices and Pint Drops
+          you logged, and the messages you sent.
+        </p>
+        <p className="legalBody">
           Deletion you can do yourself, without asking us: open the You tab, go
           to Account settings and choose Delete account. It happens immediately.{" "}
           <Link href="/account/delete" className="legalLink">

@@ -48,8 +48,10 @@ import {
   YouSignedOutSurface,
   YOU_SIGN_IN_HREF,
 } from "@/app/u/[handle]/ProfilePageClient";
+import AccountExportCard from "@/components/profile/AccountExportCard";
 import AccountLegalRow from "@/components/profile/AccountLegalRow";
 import DeleteAccountCard from "@/components/profile/DeleteAccountCard";
+import { ACCOUNT_EXPORT_LABEL, ACCOUNT_EXPORT_TITLE } from "@/lib/accountExport";
 import {
   ACCOUNT_DELETION_CONFIRM_LABEL,
   ACCOUNT_DELETION_LEAVES,
@@ -131,6 +133,30 @@ describe("the in-app account-deletion control", () => {
     // The account of what happens belongs to the second beat.
     expect(html).not.toContain(ACCOUNT_DELETION_CONFIRM_LABEL);
     expect(html).not.toContain(ACCOUNT_DELETION_LEAVES[0]);
+  });
+});
+
+describe("the account's own export door", () => {
+  it("says nothing at all until the live session answers, and nothing to a stranger", () => {
+    sessionState.user = null;
+    sessionState.unresolved = true;
+    expect(renderToStaticMarkup(createElement(AccountExportCard))).toBe("");
+
+    sessionState.unresolved = false;
+    expect(renderToStaticMarkup(createElement(AccountExportCard))).toBe("");
+  });
+
+  it("is one quiet control that names the file it prepares", () => {
+    sessionState.user = { id: "user-1" };
+
+    const html = renderToStaticMarkup(createElement(AccountExportCard));
+
+    expect(html).toContain(ACCOUNT_EXPORT_TITLE);
+    expect(html).toContain(ACCOUNT_EXPORT_LABEL);
+    expect(html).toContain('id="export-account"');
+    // It is a signed request the browser sends, never a bare link a stranger
+    // could open: an <a href> cannot carry the bearer.
+    expect(html).not.toContain('href="/api/account/export"');
   });
 });
 

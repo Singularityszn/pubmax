@@ -2312,6 +2312,17 @@ const observationReader = {
       degraded: false,
     };
   },
+  async listForActor(
+    actor: string,
+    limit: number,
+  ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
+    if (!actor) return { observations: [], degraded: false };
+    const observations = memoryObservations()
+      .filter((row) => row.actor === actor)
+      .sort((a, b) => b.submittedAt - a.submittedAt || a.id.localeCompare(b.id))
+      .slice(0, limit);
+    return { observations, degraded: false };
+  },
   async findById(
     id: string,
   ): Promise<{ observation: CommunityPriceObservation | null; degraded: boolean }> {
@@ -2388,6 +2399,37 @@ const durableObservationReader = {
       },
     });
   },
+  async listForActor(
+    actor: string,
+    limit: number,
+  ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
+    // Every observation ONE actor made, hidden rows included, newest first:
+    // the account export's read. It is the only per-actor list, and it is
+    // bounded by the caller's cap rather than by a scan window, because an
+    // export that stops short must say so rather than look whole.
+    if (!actor) return { observations: [], degraded: false };
+    return observationGuard.guard({
+      context: "listForActor",
+      onSchemaMiss: () => observationReader.listForActor(actor, limit),
+      message: "actor observation list failed",
+      onError: () => ({ observations: [], degraded: true }),
+      run: async () => {
+        const { data, error } = await admin()
+          .from("community_prices")
+          .select(OBSERVATION_COLUMNS)
+          .not("drink_category", "is", null)
+          .eq("actor", actor)
+          .order("submitted_at", { ascending: false })
+          .order("id", { ascending: false })
+          .limit(limit);
+        if (error) throw new Error(error.message);
+        const observations = storedPricesFromRows(Array.isArray(data) ? data : [])
+          .map(observationFromStored)
+          .filter((row): row is CommunityPriceObservation => row !== null);
+        return { observations, degraded: false };
+      },
+    });
+  },
   async findById(
     id: string,
   ): Promise<{ observation: CommunityPriceObservation | null; degraded: boolean }> {
@@ -2437,6 +2479,18 @@ export function countCommunityPriceObservationsForActor(
   actor: string,
 ): Promise<{ count: number; degraded: boolean }> {
   return observations().countForActor(actor);
+}
+
+/**
+ * Every price observation one actor made, newest first, hidden rows included,
+ * at most `limit`. The account export's read; `degraded` marks a read that
+ * could not be run, never an honest empty.
+ */
+export function listCommunityPriceObservationsForActor(
+  actor: string,
+  limit: number,
+): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
+  return observations().listForActor(actor, limit);
 }
 
 export function findCommunityPriceObservation(

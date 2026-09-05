@@ -59,7 +59,10 @@ export default function DeleteAccountCard(): React.JSX.Element | null {
         deleted?: boolean;
         error?: string;
       };
-      if (!response.ok || body.deleted !== true) {
+      // `deleted: true` is the answer, whatever the status: a fresh delete is
+      // 200 and a repeat from a browser that never saw the first answer is 410,
+      // and both mean the account is gone.
+      if (body.deleted !== true) {
         setPhase("confirming");
         setNotice(errorMessageFrom(body, ACCOUNT_DELETION_FAILED_LINE));
         return;

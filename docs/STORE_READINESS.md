@@ -328,13 +328,13 @@ Declare the following. Everything else: Not Collected.
 - **App activity > Product interaction:** Collected, not shared, optional (opt-in), purpose Analytics. Encrypted in transit.
 - **Device or other IDs:** Collected (push token), not shared, purpose App functionality.
 - **Is all data encrypted in transit?** Yes (HTTPS only, the shell loads `https://pubmaxxing.com`).
-- **Can users request data deletion?** Yes. Account deletion covers account-linked data; the public contact in `lib/siteContact.ts` handles other requests, including an optional area-demand address and Moments.
+- **Can users request data deletion?** Yes. Account deletion covers account-linked data, including Night Memories and their Moment photos; the public contact in `lib/siteContact.ts` handles other requests, including an optional area-demand address.
 
 **Privacy policy URL:** required by both stores. Use `https://pubmaxxing.com/privacy`. The site publishes it (with `/terms`) from `app/privacy` / `app/terms`; see the AGENTS.md privacy-notice entry for the keep-it-honest rule.
 
 **Account deletion URL:** required by Play's Data safety form, which asks for a page anybody can open WITHOUT signing in. Use `https://pubmaxxing.com/account/delete` (`app/account/delete/page.tsx`). It describes the in-app path and does not offer a second delete door: a deletion control a stranger can reach is an account-takeover surface however it is worded.
 
-**Where the in-app door is:** You tab, Account settings, **Delete account**, then **Delete my account**. It is `components/profile/DeleteAccountCard.tsx` calling `DELETE /api/account`, which deletes the caller's own `auth.users` row and lets migration `0078`'s trigger do the rest. The words on the confirm step and on the public page are the same constants (`lib/accountDeletion.ts`), so the two cannot promise different things. A reviewer probing the account flow finds it in three taps from the tab bar.
+**Where the in-app door is:** You tab, Account settings, **Delete account**, then **Delete my account**. It is `components/profile/DeleteAccountCard.tsx` calling `DELETE /api/account`, which removes the caller's own photos through the Storage API, deletes the caller's own `auth.users` row and lets migration `0078`'s trigger (as restated by `0145`) do the rest. The words on the confirm step and on the public page are the same constants (`lib/accountDeletion.ts`), so the two cannot promise different things. A reviewer probing the account flow finds it in three taps from the tab bar.
 
 ---
 

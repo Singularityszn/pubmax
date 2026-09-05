@@ -13,9 +13,9 @@
 // every private write in this app goes through; a caller with no claimed handle
 // keeps the door, because a handle is not what makes an account theirs.
 //
-// The write itself is one row (`lib/accountDeletion.server.ts`). Migration
-// `0078`'s trigger, extended by `0096`, `0097`, `0098` and `0102`, owns
-// everything downstream.
+// The write is `lib/accountDeletion.server.ts`: the account's own Storage
+// objects through the Storage API first, then the one auth row. Migration
+// `0078`'s trigger, as restated by `0145`, owns everything downstream.
 
 import { accountIsDeleted } from "@/lib/accountDeletion";
 import { deleteOwnAccount } from "@/lib/accountDeletion.server";
@@ -81,7 +81,18 @@ export async function DELETE(request: Request): Promise<Response> {
     );
   }
 
-  // `already-gone` answers exactly like `deleted`: a second DELETE from a
-  // browser that never saw the first answer must not report a live account.
+  // A second DELETE is 410 Gone, and it still says `deleted: true`: a browser
+  // that never saw the first answer must not be told the account it just
+  // deleted is still here, and a caller reading the status alone must not read
+  // a repeat as a fresh deletion. Nothing was written this time.
+  if (outcome === "already-gone") {
+    return publicApiError(
+      "Your account is already deleted.",
+      "ACCOUNT_GONE",
+      410,
+      { compatibilityFields: { deleted: true } },
+    );
+  }
+
   return jsonNoStore({ deleted: true }, { status: 200 });
 }

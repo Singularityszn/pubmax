@@ -28,6 +28,7 @@ import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { emitIdentityHandleChanged, syncDeviceHandle } from "@/lib/identityClient";
 import PrivateIdentityEditor from "@/components/identity/PrivateIdentityEditor";
 import SetAccountPassword from "@/components/auth/SetAccountPassword";
+import AccountExportCard from "@/components/profile/AccountExportCard";
 import AccountLegalRow from "@/components/profile/AccountLegalRow";
 import DeleteAccountCard from "@/components/profile/DeleteAccountCard";
 import NightMemoryStudio from "@/components/profile/NightMemoryStudio";
@@ -909,11 +910,15 @@ export default function PubmaxxAccountHub() {
           <StepOutNudgePref />
           {analyticsControls}
         </div>
-        {/* The store-required pair, last in the settings block because both are
-            things a reader goes looking for rather than meets on the way past:
-            the in-app deletion door (App Store 5.1.1(v), Play 2024) and the
-            legal row the native shell can otherwise never reach. */}
-        <DeleteAccountCard />
+        {/* The account's own data doors, last in the settings block because
+            they are things a reader goes looking for rather than meets on the
+            way past: the portable copy (UK GDPR) beside the in-app deletion
+            door (App Store 5.1.1(v), Play 2024), then the legal row the native
+            shell can otherwise never reach. */}
+        <div className="accountHubDataDoors">
+          <AccountExportCard />
+          <DeleteAccountCard />
+        </div>
         <AccountLegalRow />
       </section>
       <NightMemoryStudio key={user.id} userId={user.id} />

@@ -159,9 +159,11 @@ describe("DELETE /api/account", () => {
     expect(body.retryable).toBe(true);
   });
 
-  it("answers a second delete the same way as the first", async () => {
+  it("answers a second delete 410 Gone, and still says the account is deleted", async () => {
     // A browser that never saw the first answer must not be told the account it
-    // just deleted is still here.
+    // just deleted is still here, so the body keeps `deleted: true`; a caller
+    // reading the status alone must not read a repeat as a fresh deletion, so
+    // the status says nothing was written this time.
     const caller = callerId("twice");
     authState.userId = caller;
 
@@ -170,8 +172,13 @@ describe("DELETE /api/account", () => {
     const second = await del();
 
     expect(first.status).toBe(200);
-    expect(second.status).toBe(200);
-    expect(await second.json()).toEqual({ deleted: true });
+    expect(await first.json()).toEqual({ deleted: true });
+    expect(second.status).toBe(410);
+    expect(second.headers.get("Cache-Control")).toBe("no-store");
+    const body = (await second.json()) as { deleted?: boolean; code?: string; retryable?: boolean };
+    expect(body.deleted).toBe(true);
+    expect(body.code).toBe("ACCOUNT_GONE");
+    expect(body.retryable).toBe(false);
     expect(deleteState.calls).toEqual([caller, caller]);
   });
 
