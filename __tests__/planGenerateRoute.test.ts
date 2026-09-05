@@ -206,6 +206,29 @@ describe("POST /api/plans/generate", () => {
       .toEqual([null, ...Array.from({ length: stopCount - 1 }, () => expect.any(Number))]);
   });
 
+  // F-13: with a stopCount of 1 or 2 the candidate set can be 1 or 2 ids, and
+  // the grounding proof's own floor was still a literal 3, so the mint threw a
+  // plain Error the route re-threw as a 500 - the one answer a planner surface
+  // cannot word. Both counts now mint like any other plan, and a set the server
+  // still cannot prove takes the scarcity 422 beside it.
+  it.each([1, 2])("returns a grounded %i-stop route rather than a 500", async (stopCount) => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: `a ${stopCount} pub crawl in Clapham` }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).not.toBe(500);
+    expect(response.status).toBe(200);
+    expect(body.inferredContext.stopCount).toBe(stopCount);
+    expect(body.stops).toHaveLength(stopCount);
+    expect(verifyPlanGroundingProof(
+      body.groundingProof,
+      body.stops.map((stop: { venueId: string }) => stop.venueId),
+      body.operationKey,
+    )).toBe(true);
+  });
+
   it("returns an actionable retry response when trusted proof signing is unavailable", async () => {
     vi.stubEnv("NODE_ENV", "development");
     process.env.SUPABASE_URL = "https://example.supabase.co";

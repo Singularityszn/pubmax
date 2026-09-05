@@ -21,7 +21,7 @@ import { selectPlanGenerationCandidates } from "@/lib/planGenerationSelection.se
 import type { PlanConstraintReport, SelectedGroundedPlanStop } from "@/lib/planRouteOptimizer";
 import type { PlanningIntentSource } from "@/lib/planningIntent";
 import { mintPlanGroundingProof, mintPlanGroundingProofV2 } from "@/lib/planGrounding.server";
-import { planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
+import { planGroundingUnmintableResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { normalizePlanStopCount } from "@/lib/planStopCount";
 import { assertServerEnv } from "@/lib/serverEnv";
 
@@ -210,6 +210,15 @@ export async function POST(request: Request): Promise<Response> {
 	} catch (error) {
 		const unavailable = planSigningUnavailableResponse(error);
 		if (unavailable) return unavailable;
+		// A set the server cannot prove is a refusal about this request, so it
+		// answers the same 422 the scarcity check above does rather than
+		// escaping as a 500 (F-13).
+		const unmintable = planGroundingUnmintableResponse(error, {
+			nightArea: area.slug,
+			availableVenueCount: chosen.length,
+			requestedStopCount,
+		});
+		if (unmintable) return unmintable;
 		throw error;
 	}
   return jsonNoStore({
