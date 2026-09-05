@@ -20,8 +20,8 @@ function error(error: string, code: string, status: number, retryable = false): 
 
 /**
  * §4.10: the full recap (route venue names, pints logged, the user title) is
- * returned ONLY to a viewer whose request carries a valid host/guest capability
- * with member rehydration enabled. Everyone else gets a preview shell with no
+ * returned ONLY to a viewer whose request carries a valid host/guest
+ * capability. Everyone else gets a preview shell with no
  * route, venue, pint, or title — exactly like the main Plan projection.
  */
 export async function GET(request: Request, context: Context): Promise<Response> {

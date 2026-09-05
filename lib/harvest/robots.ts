@@ -50,6 +50,10 @@
 //   * The check itself is a plain fetch, not a Firecrawl request, so it costs
 //     the run's budget nothing and cannot be the thing that exhausts it.
 
+// A plain-node CLI imports this module, so the specifier is RELATIVE and carries
+// its extension. `lib/responseBody.ts` is a leaf and pulls nothing behind it.
+import { discardBody } from "../responseBody.ts";
+
 export const HARVEST_ROBOTS_AGENTS = ["cloudflarebrowserrenderingcrawler", "firecrawlagent", "*"] as const;
 
 /** robots.txt is small; anything larger is not a rules file we should trust. */
@@ -328,6 +332,9 @@ export function createRobotsChecker(options: { fetchImpl?: typeof fetch } = {}):
         redirect: "follow",
       });
       if (response.status === 404 || response.status === 410) {
+        // Nothing here reads this body, so let the stream go rather than
+        // leaving the connection open on a host we are about to stop asking.
+        discardBody(response);
         return {
           allowed: true,
           reason: "no-rules-published",

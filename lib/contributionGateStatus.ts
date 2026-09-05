@@ -11,12 +11,30 @@
  * date of birth" on a claim surface that stores none, and the price path was a
  * door with nothing behind it. The age answer is the 10 Aug rule's: a stored
  * date of birth, or the recorded one tap.
+ *
+ * ONE EXCEPTION, AND A REFUSAL SAYS WHICH BRANCH IT TOOK (5 Sep 2026). The age
+ * question used to be asked as `needsAdultSelfAssertion` ALONE, which is true
+ * only when NOBODY has answered, so an account whose stored date of birth said
+ * 2012 was admitted: it had answered, and no door read the answer. The pub
+ * photo wall on the neighbouring surface asked `accountIsAdult` and refused the
+ * same account, so one product answered the alcohol-age question two ways. The
+ * rule is now one rule with one exception: a stored date of birth that says
+ * under 18 is refused at EVERY contribution door, and otherwise the recorded
+ * tap admits at every door.
+ *
+ * That is TWO refusals, not one, because they differ in what the reader can do
+ * next: a tap is the way through the first and there is no way through the
+ * second, and offering a tap that would not be honoured is the door with
+ * nothing behind it this entry already refuses. `contributionAdultRefusal` is
+ * the ONE place the branch is chosen, so the sentence a reader gets always
+ * describes the check the code performed.
  */
 
 export const CONTRIBUTION_GATE_STATUSES = [
   "sign_in_required",
   "onboarding_required",
   "adult_check_required",
+  "adult_check_failed",
 ] as const;
 
 export type ContributionGateStatus =
@@ -27,6 +45,40 @@ export const CONTRIBUTION_HANDLE_REFUSAL =
   "Choose a public handle before contributing.";
 export const CONTRIBUTION_ADULT_REFUSAL =
   "Confirm you are 18 or over before contributing.";
+/**
+ * The account HAS answered, and the answer was under 18. There is no tap behind
+ * this one, so the sentence offers none: it names the answer on file, which is
+ * the only thing the reader could change and the exact check the code ran.
+ */
+export const CONTRIBUTION_UNDER_18_REFUSAL =
+  "The date of birth on your account is under 18, so contributing is not open to you.";
+
+/** The two age refusals, chosen once. */
+export type ContributionAdultRefusal = {
+  status: Extract<
+    ContributionGateStatus,
+    "adult_check_required" | "adult_check_failed"
+  >;
+  error: string;
+};
+
+/**
+ * WHICH AGE REFUSAL A DOOR SPENDS, decided in one place so no door can word an
+ * answer it did not reach. Both booleans come from `lib/socialLaunch.ts`, which
+ * stays the ONE adult gate: `accountIsAdult` judges the age and
+ * `needsAdultSelfAssertion` says whether a tap is the ACTUAL thing in the way.
+ * This leaf takes the two answers rather than the evidence, because it imports
+ * nothing and must keep importing nothing.
+ */
+export function contributionAdultRefusal(answers: {
+  isAdult: boolean;
+  needsSelfAssertion: boolean;
+}): ContributionAdultRefusal | null {
+  if (answers.isAdult) return null;
+  return answers.needsSelfAssertion
+    ? { status: "adult_check_required", error: CONTRIBUTION_ADULT_REFUSAL }
+    : { status: "adult_check_failed", error: CONTRIBUTION_UNDER_18_REFUSAL };
+}
 
 /** A status a route really answered with, or nothing. Unknown text is NOT a
  *  status: a surface that guessed one would offer a way through the server

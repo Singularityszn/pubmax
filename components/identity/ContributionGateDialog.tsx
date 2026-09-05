@@ -19,6 +19,7 @@ import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import {
   CONTRIBUTION_ADULT_REFUSAL,
   CONTRIBUTION_HANDLE_REFUSAL,
+  CONTRIBUTION_UNDER_18_REFUSAL,
   type ContributionGateStatus,
 } from "@/lib/contributionGateStatus";
 import { discardBody } from "@/lib/responseBody";
@@ -127,6 +128,16 @@ export function ContributionGateDialog({
               ask once.
             </p>
             <AdultCheck onAsserted={onAsserted} />
+          </>
+        ) : mode === "adult_check_failed" ? (
+          // The account HAS answered and the answer was under 18, so there is
+          // no tap here: offering one that would not be honoured is the door
+          // with nothing behind it. The line names the answer on file, which is
+          // the only thing the reader could change.
+          <>
+            <p className="contributionGateEyebrow">Age check</p>
+            <h2 id="contribution-gate-title">Not open to you</h2>
+            <p>{CONTRIBUTION_UNDER_18_REFUSAL}</p>
           </>
         ) : (
           <>
@@ -265,6 +276,7 @@ type ContributionGateStateAction =
 const OWN_REFUSALS: readonly string[] = [
   CONTRIBUTION_ADULT_REFUSAL,
   CONTRIBUTION_HANDLE_REFUSAL,
+  CONTRIBUTION_UNDER_18_REFUSAL,
 ];
 
 export function contributionGateError(

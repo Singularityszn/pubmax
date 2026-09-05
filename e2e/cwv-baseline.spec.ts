@@ -56,7 +56,10 @@ import {
  *
  * Neither runs in the ordinary browser suite: a full sweep is five runs across
  * six routes, two devices and two cache temperatures under a CPU throttle,
- * which is an hour of wall clock and belongs to its own job.
+ * which is an hour of wall clock. GitHub Actions is off by the captain's
+ * decision, so no job runs this: `npm run perf:cwv-sweep` is the fence and it
+ * is spent by hand, before a merge that could move a figure. AGENTS.md's speed
+ * entry says the same thing in the same words.
  *
  * WHY A REAL WEBGL CONTEXT. Two of the six routes are the map, and the product
  * timing that matters most on this whole list is the first pin a thumb can land
@@ -199,7 +202,7 @@ async function timeAcknowledgedSave(page: Page): Promise<number> {
 }
 
 test.describe("Core Web Vitals baseline", () => {
-  test.skip(!RECORD && !SWEEP, "Owned by the CWV baseline job (PUBMAX_CWV_RECORD or _SWEEP).");
+  test.skip(!RECORD && !SWEEP, "Spent by hand: npm run perf:cwv-sweep or perf:cwv-record.");
   // Six routes, two temperatures, five runs, under a CPU throttle. It is one
   // test because one page and one cache is the only way cold really means cold.
   test.setTimeout(3 * 60 * 60_000);

@@ -1246,7 +1246,13 @@ describe("POST /api/rounds/[code] — actions", () => {
     });
   });
 
-  it("allows a signed-in account of any age to share a Round price", async () => {
+  // ONE RULE, ONE EXCEPTION (5 Sep 2026, review finding F-6). An under-18 stored
+  // date of birth is refused at every CONTRIBUTION door, and sharing a Round
+  // drink line to the community-price store is one of them. The Round itself is
+  // a private diary and is untouched: the spend still records, and the line
+  // stays as `diary_only` rather than being dropped, which is the same lane an
+  // anonymous line already takes.
+  it("keeps an under-18 account's Round line in the diary and out of the price store", async () => {
     await authorizeContributor("user-young", "young_person", "2015-02-03");
     const { round } = await newRound("young_person");
     await action(round.code, {
@@ -1261,6 +1267,34 @@ describe("POST /api/rounds/[code] — actions", () => {
       payerHandle: "young_person",
       venueId: "venue-1",
       clientRef: "spend-young-1",
+      items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+    });
+
+    expect(res.status).toBe(200);
+    const state = (await res.json()) as RoundState;
+    expect(state.spends).toHaveLength(1);
+    expect(state.spends[0]?.items?.[0]).toMatchObject({
+      drinkName: "Guinness",
+      promotionStatus: "diary_only",
+    });
+    expect(await readCommunityPrices("venue-1")).toHaveLength(0);
+  });
+
+  it("shares an adult account's Round line to the price store", async () => {
+    await authorizeContributor("user-grown", "grown_person", "1990-02-03");
+    const { round } = await newRound("grown_person");
+    await action(round.code, {
+      action: "addStop",
+      handle: "grown_person",
+      venueId: "venue-1",
+    });
+
+    const res = await action(round.code, {
+      action: "recordSpend",
+      handle: "grown_person",
+      payerHandle: "grown_person",
+      venueId: "venue-1",
+      clientRef: "spend-grown-1",
       items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
     });
 

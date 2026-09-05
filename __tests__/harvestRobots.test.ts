@@ -319,6 +319,31 @@ describe("asking a host before reading it", () => {
     expect(decision.robots).toBe("absent");
   });
 
+  // A RESPONSE NOBODY READS IS A CONNECTION NOBODY CLOSES. The 404 branch takes
+  // its answer from the status alone, so the body it never looks at has to be
+  // let go of rather than left holding the socket open on a host we have
+  // finished asking.
+  it("lets go of the body on a 404 it never reads", async () => {
+    let cancelled = false;
+    const fetchImpl = vi.fn(async () => {
+      const response = new Response("not found", { status: 404 });
+      const body = response.body;
+      if (!body) throw new Error("the fixture needs a body to cancel");
+      const originalCancel = body.cancel.bind(body);
+      body.cancel = async (reason?: unknown) => {
+        cancelled = true;
+        return originalCancel(reason);
+      };
+      return response;
+    });
+    const check = createRobotsChecker({ fetchImpl: fetchImpl as unknown as typeof fetch });
+    const decision = await check("https://smallpub.co.uk/whats-on");
+    expect(decision.allowed).toBe(true);
+    expect(decision.reason).toBe("no-rules-published");
+    await Promise.resolve();
+    expect(cancelled).toBe(true);
+  });
+
   // A NETWORK FAILURE IS NOT A REFUSAL. The page is still not taken, and the
   // finding is named for what happened rather than for permission nobody
   // withheld.

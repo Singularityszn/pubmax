@@ -5,11 +5,12 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 // Core-loop battle test, 5 Sep 2026: D02 (silent data loss in the route
 // editor) and M03 (a triple-clicked Save sent two PATCHes and printed two
 // contradictory lines). The editor needs the member projection of
-// /api/plans/[id], which a capability alone now decides (D01), so this no
-// longer needs a flag and may move to the default suite whenever its owner
-// wants; it stays here only because that is where it landed. The keyless
-// server holds the plan in memory and the HttpOnly member cookie set on create
-// travels with the page and the shared request context.
+// /api/plans/[id], which a capability ALONE decides after #1519 deleted the
+// rollout flag, so this fence belongs in the default project: a data-loss
+// guard only a dedicated shard runs is a guard a local `npm run test:e2e`
+// never spends. The keyless server holds the plan in memory and the HttpOnly
+// member cookie set on create travels with the page and the shared request
+// context.
 
 type Stop = { venueId: string; venueName: string };
 
