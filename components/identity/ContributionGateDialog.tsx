@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import {
   useCallback,
   useReducer,
+  useRef,
   useState,
   type SetStateAction,
 } from "react";
@@ -11,33 +13,93 @@ import {
 import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
 import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import {
+  CONTRIBUTION_ADULT_REFUSAL,
+  CONTRIBUTION_HANDLE_REFUSAL,
+  type ContributionGateStatus,
+} from "@/lib/contributionGateStatus";
+import { discardBody } from "@/lib/responseBody";
+import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/socialLaunch";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { trackEvent } from "@/lib/analytics";
 
 import "./contributionGate.css";
 
-export type ContributionGateDialogMode =
-  | "sign_in_required"
-  | "onboarding_required";
+/** The dialog answers the gate, so it speaks the gate's own vocabulary. */
+export type ContributionGateDialogMode = ContributionGateStatus;
 
 type ContributionGateDialogProps = {
   mode: ContributionGateDialogMode;
   error: string | null;
   onClose: () => void;
+  /** Called once the one tap is recorded, so the held action can run. */
+  onAsserted?: () => void;
 };
+
+/**
+ * The one tap, in the price path's own frame. Social records the same
+ * assertion through the same route (`/api/identity/adult-assertion`); this is
+ * that door where a drinker already asked to log a price, so the age question
+ * is answered where it was raised rather than on another surface.
+ */
+function AdultCheck({
+  onAsserted,
+}: {
+  onAsserted?: () => void;
+}): React.JSX.Element {
+  const [busy, setBusy] = useState(false);
+  const [assertError, setAssertError] = useState<string | null>(null);
+  const assert = useCallback(() => {
+    setBusy(true);
+    setAssertError(null);
+    authedActionFetch(
+      "/api/identity/adult-assertion",
+      { method: "POST", cache: "no-store", credentials: "same-origin" },
+      { requiresIdentity: true },
+    )
+      .then((response) => {
+        discardBody(response);
+        if (!response.ok) throw new Error("Adult assertion refused");
+        onAsserted?.();
+      })
+      .catch(() => {
+        setAssertError("We could not save that just now. Try again.");
+      })
+      .finally(() => setBusy(false));
+  }, [onAsserted]);
+  return (
+    <>
+      <button
+        type="button"
+        className="contributionGatePrimary"
+        onClick={assert}
+        disabled={busy}
+      >
+        {ADULT_SELF_ASSERTION_ACTION}
+      </button>
+      {assertError ? (
+        <p className="contributionGateError" role="alert">
+          {assertError}
+        </p>
+      ) : null}
+    </>
+  );
+}
 
 export function ContributionGateDialog({
   mode,
   error,
   onClose,
+  onAsserted,
 }: ContributionGateDialogProps): React.JSX.Element {
   // A blocking dialog owes a keyboard way out. This one had a close button and
   // nothing else, so a reader who reached it with the keyboard had to tab to
   // the end of the dialog to leave.
   useDismissOnEscape(true, onClose);
-  return (
+  const dialog = (
     <div className="contributionGateBackdrop" role="presentation">
       <section
         className="contributionGate"
@@ -56,20 +118,30 @@ export function ContributionGateDialog({
             </p>
             <SignInButton />
           </>
+        ) : mode === "adult_check_required" ? (
+          <>
+            <p className="contributionGateEyebrow">Age check</p>
+            <h2 id="contribution-gate-title">Confirm your age</h2>
+            <p>
+              Logging a drink price is for over-18s. One tap records it, and we
+              ask once.
+            </p>
+            <AdultCheck onAsserted={onAsserted} />
+          </>
         ) : (
           <>
-            <p className="contributionGateEyebrow">Profile needed</p>
-            <h2 id="contribution-gate-title">Finish account setup</h2>
+            <p className="contributionGateEyebrow">Handle needed</p>
+            <h2 id="contribution-gate-title">Choose your handle</h2>
             <p>
-              Choose a public handle and add your date of birth before
-              contributing. The setup dialog collects both together.
+              Contributions carry your public handle, so pick one before you
+              log a price.
             </p>
             <Link
               className="contributionGatePrimary"
               href={HANDLE_CLAIM_NEXT}
               onClick={onClose}
             >
-              Finish setup
+              Choose a handle
             </Link>
           </>
         )}
@@ -88,6 +160,17 @@ export function ContributionGateDialog({
       </section>
     </div>
   );
+  // A DIALOG IS THE VIEWPORT'S, NOT ITS OPENER'S. The desktop map drawer this
+  // door is opened from is a transformed, filtered box, and a transformed
+  // ancestor is the containing block for `position: fixed`, so the backdrop
+  // centred itself inside the drawer and put the panel above the viewport with
+  // only "Not now" showing (measured at 1440 on this branch and on main). The
+  // phone shell never showed it because its sheet is already a body-level
+  // portal. Server rendering has no document, so the markup is returned inline
+  // there and the surface fence still reads it.
+  return typeof document === "undefined"
+    ? dialog
+    : createPortal(dialog, document.body);
 }
 
 export type ContributionActionResult =
@@ -172,6 +255,29 @@ type ContributionGateStateAction =
       error: string | null;
     };
 
+/**
+ * The red line under a gate door, or nothing. A door that ASKS a question is
+ * not a failure: the gate's own refusal sentence is the same thing the heading
+ * and the button already say, and printing it in alarm colours reads as a
+ * fault. A sentence the gate did NOT write is something else and still prints.
+ * A signed-in reader is told the one thing an expired token needs.
+ */
+const OWN_REFUSALS: readonly string[] = [
+  CONTRIBUTION_ADULT_REFUSAL,
+  CONTRIBUTION_HANDLE_REFUSAL,
+];
+
+export function contributionGateError(
+  result: Readonly<{ status: ContributionGateStatus; error?: string }>,
+  signedIn: boolean,
+): string | null {
+  if (result.status === "sign_in_required" && signedIn) {
+    return "Your sign-in expired. Sign out, then sign in again.";
+  }
+  if (OWN_REFUSALS.includes(result.error?.trim() ?? "")) return null;
+  return errorMessageFrom(result, "That action could not be completed.");
+}
+
 export function contributionGateReducer(
   state: ContributionGateState,
   action: ContributionGateStateAction,
@@ -210,9 +316,15 @@ export function useContributionGate(): {
     dispatch({ type: "clear", userId: nextUserId });
   }, []);
 
+  // The action the drinker asked for, held while the gate stands in front of
+  // it. A recorded age answer is the way through, so the price they typed goes
+  // where they sent it rather than being retyped behind a closed dialog.
+  const pendingAction = useRef<PendingContribution | null>(null);
+
   const requestContribution = useCallback(
     async (action: PendingContribution) => {
       dispatch({ type: "clear", userId });
+      pendingAction.current = action;
       if (!user || !contributionAuth) {
         trackEvent("contribution_gate", { step: "sign_in_required" });
         dispatch({
@@ -233,14 +345,17 @@ export function useContributionGate(): {
         type: "show",
         userId,
         mode: result.status,
-        error:
-          result.status === "sign_in_required" && user
-            ? "Your sign-in expired. Sign out, then sign in again."
-            : errorMessageFrom(result, "That action could not be completed."),
+        error: contributionGateError(result, Boolean(user)),
       });
     },
     [contributionAuth, invalidateContributionAuth, user, userId],
   );
+
+  const resumeAfterAssertion = useCallback(() => {
+    const held = pendingAction.current;
+    resetGate(userId);
+    if (held) void requestContribution(held);
+  }, [requestContribution, resetGate, userId]);
 
   return {
     requestContribution,
@@ -251,6 +366,7 @@ export function useContributionGate(): {
           mode={gate.mode}
           error={gate.error}
           onClose={() => resetGate(userId)}
+          onAsserted={resumeAfterAssertion}
         />
       ) : null,
   };

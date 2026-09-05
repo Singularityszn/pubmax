@@ -149,6 +149,10 @@ import {
 } from "@/lib/priceTrustImpact.server";
 import { COMMUNITY_PRICE_MAX_GBP, submitCategoryLabel } from "@/lib/communityPrice";
 import {
+  __resetMemoryAdultSelfAssertions,
+  memoryAdultSelfAssertionStore,
+} from "@/lib/adultSelfAssertionStore";
+import {
   __resetMemoryIdentityHandles,
   memoryIdentityHandleStore,
 } from "@/lib/identityHandleStore";
@@ -252,6 +256,7 @@ beforeEach(async () => {
   __resetMemoryIdentityHandles();
   __resetMemoryProfiles();
   __resetMemoryPrivateIdentities();
+  __resetMemoryAdultSelfAssertions();
   __resetPintDrops();
   await authorizeContributor("user-default", "default_contributor");
   const actualCommunityPriceStore =
@@ -534,6 +539,47 @@ describe("POST /api/price-submit", () => {
     expect(
       (await memoryCommunityPriceStore.listLeaderboardContributions()).records,
     ).toEqual([]);
+  });
+
+  it("takes the recorded adult tap as the age answer", async () => {
+    // ONE RULE (captain, 5 Sep 2026). An account claimed through the handle
+    // path holds no date of birth, and the claim surface collects none, so
+    // asking for one here was a door with nothing behind it.
+    authState.userId = "user-asserted";
+    const claimed = await memoryIdentityHandleStore.claim(
+      "user-asserted",
+      "asserted_drinker",
+    );
+    expect(claimed).toMatchObject({ ok: true });
+    await memoryAdultSelfAssertionStore.record("user-asserted");
+
+    const res = await POST(
+      post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.4 }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({
+      attribution: { status: "credited", handle: "asserted_drinker" },
+    });
+  });
+
+  it("refuses a handled account that has answered neither age question", async () => {
+    authState.userId = "user-silent";
+    const claimed = await memoryIdentityHandleStore.claim(
+      "user-silent",
+      "silent_drinker",
+    );
+    expect(claimed).toMatchObject({ ok: true });
+
+    const res = await POST(
+      post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.4 }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({
+      status: "adult_check_required",
+    });
+    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(0);
   });
 
   it("requires completed onboarding but allows contributions at any age", async () => {

@@ -1,9 +1,26 @@
 import "server-only";
 
+import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { verifyCallerAuth } from "@/lib/authServer";
+import {
+  CONTRIBUTION_ADULT_REFUSAL,
+  CONTRIBUTION_HANDLE_REFUSAL,
+  type ContributionGateStatus,
+} from "@/lib/contributionGateStatus";
 import { identityHandleStore } from "@/lib/identityHandleStore";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import { profileStore } from "@/lib/profileStore";
+import { needsAdultSelfAssertion } from "@/lib/socialLaunch";
+
+// The vocabulary is a pure leaf so the browser can read it too; every name is
+// re-exported here, because this module is the one a reader reaches for.
+export {
+  CONTRIBUTION_ADULT_REFUSAL,
+  CONTRIBUTION_GATE_STATUSES,
+  CONTRIBUTION_HANDLE_REFUSAL,
+  readContributionGateStatus,
+} from "@/lib/contributionGateStatus";
+export type { ContributionGateStatus } from "@/lib/contributionGateStatus";
 
 export type ContributionIdentityResolution =
   | {
@@ -16,7 +33,7 @@ export type ContributionIdentityResolution =
       ok: false;
       accountId?: string;
       body: {
-        status?: "sign_in_required" | "onboarding_required";
+        status?: ContributionGateStatus;
         code?: "AUTH_VERIFICATION_UNAVAILABLE";
         error: string;
         retryable?: true;
@@ -51,18 +68,39 @@ export async function resolveContributionIdentity(
   }
   const userId = verification.identity.id;
   try {
-    const [profile, privateIdentity] = await Promise.all([
+    const [profile, privateIdentity, adultSelfAssertedAt] = await Promise.all([
       profileStore().getByUserId(userId),
       privateIdentityStore().read(userId),
+      adultSelfAssertionStore().read(userId),
     ]);
-    if (!profile || !privateIdentity?.dateOfBirth) {
+    if (!profile) {
       return {
         ok: false,
         accountId: userId,
         body: {
           status: "onboarding_required",
-          error:
-            "Choose a public handle and add your date of birth before contributing.",
+          error: CONTRIBUTION_HANDLE_REFUSAL,
+        },
+        httpStatus: 409,
+      };
+    }
+    // THE 10 AUG RULE, ASKED HERE TOO. `needsAdultSelfAssertion` is true only
+    // when the account has answered neither way, so the recorded one tap is
+    // the age answer and a stored date of birth still decides where there is
+    // one - this gate reads it the same way Social's does, and neither of them
+    // is the place a stored date of birth is judged.
+    if (
+      needsAdultSelfAssertion({
+        dateOfBirth: privateIdentity?.dateOfBirth ?? null,
+        adultSelfAssertedAt,
+      })
+    ) {
+      return {
+        ok: false,
+        accountId: userId,
+        body: {
+          status: "adult_check_required",
+          error: CONTRIBUTION_ADULT_REFUSAL,
         },
         httpStatus: 409,
       };

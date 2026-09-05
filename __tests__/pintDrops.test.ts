@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The route talks to the PintDropStore interface only. Keep the real module
@@ -156,6 +159,10 @@ vi.mock("@/lib/profileOwnership", async (importOriginal) => {
 
 import { GET, POST } from "@/app/api/pint-drops/route";
 import {
+  __resetMemoryAdultSelfAssertions,
+  memoryAdultSelfAssertionStore,
+} from "@/lib/adultSelfAssertionStore";
+import {
   __resetPintDrops,
   dropMatchesCityScope,
   reportPintDrop,
@@ -253,6 +260,7 @@ describe("dropMatchesCityScope", () => {
 
 beforeEach(() => {
   __resetPintDrops();
+  __resetMemoryAdultSelfAssertions();
   // The moderator gate still reads process.env.NODE_ENV at runtime; keep the
   // stub for it. The durable-store guard is driven by the mocked supaGuard flags
   // (reset to the in-memory demo defaults here), NOT by NODE_ENV — see the
@@ -328,6 +336,39 @@ describe("POST /api/pint-drops (create)", () => {
         }),
       ]),
     );
+  });
+
+  it("posts a priced drop for an account whose age answer is the one tap", async () => {
+    // ONE RULE (captain, 5 Sep 2026). This route asks for a linked handle and
+    // a verified actor and NEVER for a date of birth, so an account that
+    // answered the age question with the recorded tap posts its price here the
+    // same way it now does through /api/price-submit.
+    reportAuth.userId = "account-tapped";
+    await memoryProfileStore.createOwned("tapped_drinker", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
+
+    const created = await post({
+      venueId: VENUE,
+      handle: "tapped_drinker",
+      priceGbp: 4.6,
+      drink: "Pint of ale",
+    });
+
+    expect(created.status).toBe(201);
+    expect((await created.json()).drop).toMatchObject({
+      handle: "tapped_drinker",
+      priceGbp: 4.6,
+      provenance: "contributor",
+    });
+  });
+
+  it("asks the Pint Drop write path for no birth date", () => {
+    // A source fence, because no request can prove the ABSENCE of a question.
+    const route = readFileSync(
+      resolve(process.cwd(), "app/api/pint-drops/route.ts"),
+      "utf8",
+    );
+    expect(route).not.toMatch(/dateOfBirth|date_of_birth/);
   });
 
   it("requires account onboarding instead of claiming a body handle", async () => {

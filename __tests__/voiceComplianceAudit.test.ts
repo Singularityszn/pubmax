@@ -79,9 +79,15 @@ describe("VOICE.md compliance audit", () => {
     expect(contributionGate).toMatch(
       /Contributions show your public handle, so you need an account\s+first\./,
     );
+    // ONE RULE (5 Sep 2026): the handle door asks for a handle, the age door
+    // asks for the one tap, and neither asks for a birth date.
     expect(contributionGate).toMatch(
-      /Choose a public handle and add your date of birth before\s+contributing\./,
+      /Contributions carry your public handle, so pick one before you\s+log a price\./,
     );
+    expect(contributionGate).toMatch(
+      /Logging a drink price is for over-18s\./,
+    );
+    expect(contributionGate).not.toMatch(/date of birth/i);
     expect(contributionGate).not.toContain("account-owned");
     expect(contributionGate).not.toContain("private profile");
 

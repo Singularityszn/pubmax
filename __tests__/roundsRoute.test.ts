@@ -636,7 +636,7 @@ describe("POST /api/rounds/[code] — actions", () => {
     });
   });
 
-  it("keeps an incompletely onboarded member's spend in the private diary", async () => {
+  it("keeps a member's spend in the diary until they answer the age question", async () => {
     const { round } = await newRound("ken");
     await action(round.code, {
       action: "addStop",
@@ -663,7 +663,9 @@ describe("POST /api/rounds/[code] — actions", () => {
 
     expect(response.status).toBe(409);
     expect(await response.json()).toMatchObject({
-      status: "onboarding_required",
+      // A handle alone is not the whole gate: this account has answered
+      // neither age question, so the one tap is its way through.
+      status: "adult_check_required",
     });
     const state = (await (await get(round.code)).json()) as RoundState;
     expect(state.spends).toMatchObject([
