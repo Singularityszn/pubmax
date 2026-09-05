@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowUp, ChevronLeft, ImageIcon, MapPin, Plus } from "lucide-react";
 import Link from "next/link";
 import {
   useCallback,
@@ -20,6 +21,7 @@ import MessageAttachmentPicker, {
   type MessageAttachKind,
   type MessageAttachmentPickerHandle,
 } from "@/components/messages/MessageAttachmentPicker";
+import MessageAvatar from "@/components/messages/MessageAvatar";
 import MessagePhoto from "@/components/messages/MessagePhoto";
 import MessageVenueCard from "@/components/messages/MessageVenueCard";
 import MessageVenuePicker, {
@@ -29,26 +31,40 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { trackEvent } from "@/lib/analytics";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
+import { useKeyboardInset } from "@/lib/keyboardInset";
 import { discardBody } from "@/lib/responseBody";
 import {
   MESSAGE_ATTACH_PHOTO_LABEL,
-  MESSAGE_ATTACH_PHOTO_SHORT,
   MESSAGE_ATTACH_VENUE_LABEL,
-  MESSAGE_ATTACH_VENUE_SHORT,
   MESSAGE_PHOTO_CROP_TARGET,
   MESSAGE_PHOTO_FAILED_LINE,
 } from "@/lib/messageAttachments";
-import { linkifyMentions, MAX_MESSAGE_BODY, type MessageDTO } from "@/lib/messages";
+import {
+  linkifyMentions,
+  MAX_MESSAGE_BODY,
+  type ConversationDTO,
+  type MessageDTO,
+} from "@/lib/messages";
 import { subscribeToMessages } from "@/lib/messagesRealtime";
+import {
+  buildMessageTimeline,
+  MESSAGE_READ_STATE_LABEL,
+  type TimelineItem,
+} from "@/lib/messageTimeline";
 import { normalizeHandle } from "@/lib/profiles";
+import {
+  readSoftKeyboardOpen,
+  serverSoftKeyboardOpen,
+  subscribeSoftKeyboard,
+} from "@/lib/softKeyboard";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 
 import "@/app/messages/messages.css";
 
-// The message thread (PRD E4): bubbles (mine right / category-brass tint, theirs
-// left / plain panel), a composer with the 1000-char cap, and a light abuse
-// "Report" affordance per received message. Live via realtime SIGNALS
+// The message thread (PRD E4): bubbles (mine right / coral, theirs left /
+// panel), a composer with the 1000-char cap, and a light abuse "Report"
+// affordance per received message. Live via realtime SIGNALS
 // (subscribeToMessages) with a MANDATORY polling fallback — the payload is never
 // rendered; every signal refetches through the participant-gated API so the
 // courtesy check re-applies to every row.
@@ -62,6 +78,22 @@ import "@/app/messages/messages.css";
 // the bubble made every bubble 78% of its OWN natural width, and "Yo!!" arrived
 // on production as one character per line. See app/messages/messages.css.
 //
+// A THREAD READS LIKE A CONVERSATION. lib/messageTimeline.ts decides the day
+// lines, which bubbles sit tight in one run, and where the time and the read
+// state print (once, under the last bubble of a run). Tapping any bubble
+// reveals its own time, and the Report control with it, so the thread is not
+// a column of underlined Report links.
+//
+// A SENT MESSAGE APPEARS THE MOMENT IT IS SENT. The composer clears and an own
+// bubble lands in the thread before the server answers; the refetch replaces
+// it with the stored row, and a refused send takes it back off and puts the
+// words back in the field, with the reason beside it.
+//
+// THE COMPOSER IS PINNED, above the phone tab bar and above the keyboard.
+// lib/keyboardInset.ts measures the covered strip; lib/softKeyboard.ts says
+// whether the bar has stepped aside. Both ride the root as data, so the
+// stylesheet decides the geometry.
+//
 // A MESSAGE MAY CARRY ONE ATTACHMENT: a photo, or a pub. The photo takes the
 // whole owned-image journey server-side and its bytes come back through the same
 // courtesy gate the thread does (components/messages/MessagePhoto.tsx). The pub
@@ -70,6 +102,8 @@ import "@/app/messages/messages.css";
 
 const HANDLE_KEY = "pubmax_handle";
 const POLL_MS = 10_000;
+/** The counter shows only once a message is close to the cap. */
+const COUNTER_FROM = MAX_MESSAGE_BODY - 100;
 
 function readHandle(): string {
   if (typeof window === "undefined") return "";
@@ -166,6 +200,30 @@ function fileKey(file: File): string {
   return `${file.name}:${file.size}:${file.lastModified}`;
 }
 
+/** An own message the server has not answered for yet. */
+type OutboxMessage = MessageDTO & { pendingPhotoUrl?: string };
+
+let outboxSeq = 0;
+
+function outboxMessage(
+  conversationId: string,
+  handle: string,
+  body: string,
+  pending: PendingAttachment | null,
+): OutboxMessage {
+  outboxSeq += 1;
+  return {
+    id: `outbox-${outboxSeq}`,
+    conversationId,
+    senderHandle: handle,
+    body,
+    createdAt: new Date().toISOString(),
+    read: false,
+    flagged: false,
+    ...(pending?.kind === "photo" ? { pendingPhotoUrl: pending.previewUrl } : {}),
+  };
+}
+
 export default function MessageThread({
   conversationId,
 }: {
@@ -177,6 +235,7 @@ export default function MessageThread({
   const viewerSession = useViewerSession();
   const [handle, setHandle] = useState("");
   const [messages, setMessages] = useState<MessageDTO[]>([]);
+  const [outbox, setOutbox] = useState<OutboxMessage[]>([]);
   const [otherHandle, setOtherHandle] = useState("");
   const [state, setState] = useState<ThreadState>("loading");
   const [draft, setDraft] = useState("");
@@ -186,6 +245,8 @@ export default function MessageThread({
   const [cropping, setCropping] = useState<File | null>(null);
   const [pickingVenue, setPickingVenue] = useState(false);
   const [mobileAttachOpen, setMobileAttachOpen] = useState(false);
+  const [revealedId, setRevealedId] = useState<string | null>(null);
+  const listRef = useRef<HTMLUListElement | null>(null);
   const listEndRef = useRef<HTMLDivElement | null>(null);
   const loadedForRef = useRef<ThreadReadKey | null>(null);
   const [viewRevision, setViewRevision] = useState<ThreadReadKey | null>(null);
@@ -198,6 +259,8 @@ export default function MessageThread({
     activeReadRef.current = null;
     loadedForRef.current = null;
     setViewRevision(null);
+    setOutbox([]);
+    setRevealedId(null);
     conversationIdRef.current = conversationId;
   }, [conversationId]);
   useLayoutEffect(() => {
@@ -211,6 +274,12 @@ export default function MessageThread({
     subscribeMobileViewport,
     getMobileViewportSnapshot,
     () => false,
+  );
+  const keyboardInset = useKeyboardInset();
+  const keyboardOpen = useSyncExternalStore(
+    subscribeSoftKeyboard,
+    readSoftKeyboardOpen,
+    serverSoftKeyboardOpen,
   );
 
   useEffect(() => {
@@ -317,7 +386,7 @@ export default function MessageThread({
         setViewRevision(requestKey);
         setMessages(next);
         const theirs = next.find((m) => m.senderHandle !== h);
-        setOtherHandle(theirs?.senderHandle ?? "");
+        if (theirs) setOtherHandle(theirs.senderHandle);
         setState("ready");
       } catch (err) {
         // An abort is our own teardown, never a failure the reader should see.
@@ -355,10 +424,74 @@ export default function MessageThread({
     };
   }, [conversationId, refresh, handle]);
 
-  // Auto-scroll to the newest message on change.
+  // An EMPTY thread has no row to read the other participant off, so the head
+  // would say "Conversation" to somebody who opened a named person. The inbox
+  // row for this id names them; one read of it, only in that case.
+  const readyAndEmpty = state === "ready" && messages.length === 0;
   useEffect(() => {
-    listEndRef.current?.scrollIntoView({ block: "end" });
-  }, [messages]);
+    if (!readyAndEmpty || otherHandle || !user) return;
+    const h = normalizeHandle(authHandle ?? "") || readHandle();
+    if (!h) return;
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const res = await authedActionFetch(
+          `/api/messages?handle=${encodeURIComponent(h)}`,
+          { signal: controller.signal },
+          { requiresIdentity: true },
+        );
+        if (!res.ok) {
+          discardBody(res);
+          return;
+        }
+        const body = (await res.json()) as { conversations?: ConversationDTO[] };
+        const row = (body.conversations ?? []).find((c) => c.id === conversationId);
+        if (row?.otherHandle && !controller.signal.aborted) setOtherHandle(row.otherHandle);
+      } catch {
+        // The head keeps its neutral word; nothing else depends on this.
+      }
+    })();
+    return () => controller.abort();
+  }, [readyAndEmpty, otherHandle, user, authHandle, conversationId]);
+
+  // The newest message is what a thread opens on and what a send lands on.
+  // The list scrolls on its own inside the desktop split; on a phone the page
+  // is the scroller and the composer is pinned over its foot, so the end
+  // marker is scrolled clear of the composer rather than merely into view.
+  const scrollToNewest = useCallback(() => {
+    const list = listRef.current;
+    if (list && getComputedStyle(list).overflowY === "auto") {
+      list.scrollTop = list.scrollHeight;
+      return;
+    }
+    const page = document.documentElement;
+    // A page no taller than its viewport has nowhere to scroll to (and a DOM
+    // with no layout, as in a unit test, measures zero here).
+    if (page.scrollHeight <= window.innerHeight) return;
+    window.scrollTo({ top: page.scrollHeight });
+  }, []);
+
+  useEffect(() => {
+    scrollToNewest();
+  }, [messages, outbox, keyboardInset, scrollToNewest]);
+
+  // A viewport that changes height under an open thread (a keyboard on a
+  // browser that shrinks the layout viewport, a rotation) keeps the newest
+  // message in view rather than leaving the reader looking at the middle.
+  useEffect(() => {
+    let frame = 0;
+    const onResize = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(scrollToNewest);
+    };
+    window.addEventListener("resize", onResize);
+    window.visualViewport?.addEventListener("resize", onResize);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", onResize);
+      window.visualViewport?.removeEventListener("resize", onResize);
+    };
+  }, [scrollToNewest]);
 
   // The field grows with what is typed and stops at the CSS max-height, where
   // it starts scrolling. Measured off scrollHeight each change, because a row
@@ -405,24 +538,38 @@ export default function MessageThread({
     const bodyText = draft.trim();
     if (!user || !h || over) return;
     if (!bodyText && !pending) return;
+    const sentPending = pending;
+    const optimistic = outboxMessage(conversationId, h, bodyText, sentPending);
     setSending(true);
     setError("");
+    // The bubble lands and the field clears NOW; the server's answer replaces
+    // the bubble or takes it back.
+    setOutbox((rows) => [...rows, optimistic]);
+    setDraft("");
+    setPending(null);
+    setCropping(null);
+    setPickingVenue(false);
+    const takeBack = () => {
+      setOutbox((rows) => rows.filter((row) => row.id !== optimistic.id));
+      setDraft((current) => (current.trim() ? current : bodyText));
+      if (sentPending) setPending(sentPending);
+    };
     try {
       const address = `/api/messages/${encodeURIComponent(conversationId)}`;
       const post = {
         action: "send",
         handle: h,
         body: bodyText,
-        ...(pending?.kind === "venue" ? { venueId: pending.venue.id } : {}),
+        ...(sentPending?.kind === "venue" ? { venueId: sentPending.venue.id } : {}),
       };
 
       let res: Response;
-      if (pending?.kind === "photo") {
+      if (sentPending?.kind === "photo") {
         // The photo lane is multipart: one JSON part and one file, exactly the
         // shape the pub wall already sends.
         const form = new FormData();
         form.append("post", JSON.stringify(post));
-        form.append("photo", pending.file);
+        form.append("photo", sentPending.file);
         res = await authedActionFetch(address, { method: "POST", body: form }, { requiresIdentity: true });
       } else {
         res = await authedActionFetch(address, {
@@ -434,11 +581,13 @@ export default function MessageThread({
 
       if (res.status === 401) {
         discardBody(res);
+        takeBack();
         setState("signedout");
         return;
       }
       if (res.status === 429) {
         discardBody(res);
+        takeBack();
         setError("Too many messages, slow down.");
         return;
       }
@@ -446,28 +595,29 @@ export default function MessageThread({
         // The server's own sentence when it has one: a refused photo and a
         // conversation that is gone are different things to be told.
         const body: unknown = await res.json().catch(() => null);
+        takeBack();
         setError(
           offlineOrMessage(errorMessageFrom(
                 body,
-                pending ? MESSAGE_PHOTO_FAILED_LINE : "Could not send that message. Try again.")
+                sentPending ? MESSAGE_PHOTO_FAILED_LINE : "Could not send that message. Try again.")
               ),
         );
         return;
       }
       discardBody(res);
-      setDraft("");
-      clearPending();
       await refresh();
+      setOutbox((rows) => rows.filter((row) => row.id !== optimistic.id));
     } catch {
+      takeBack();
       setError(
-        offlineOrMessage(pending
+        offlineOrMessage(sentPending
             ? MESSAGE_PHOTO_FAILED_LINE
             : "Could not send that message. Try again.")
       );
     } finally {
       setSending(false);
     }
-  }, [conversationId, draft, over, pending, refresh, user, authHandle, clearPending]);
+  }, [conversationId, draft, over, pending, refresh, user, authHandle]);
 
   const report = useCallback(
     async (messageId: string) => {
@@ -496,6 +646,16 @@ export default function MessageThread({
       }
     },
     [conversationId, refresh, user, authHandle],
+  );
+
+  const timeline = useMemo<TimelineItem[]>(() => {
+    const rows: MessageDTO[] = outbox.length > 0 ? [...messages, ...outbox] : messages;
+    return buildMessageTimeline(rows, handle, new Date());
+  }, [messages, outbox, handle]);
+  const outboxIds = useMemo(() => new Set(outbox.map((row) => row.id)), [outbox]);
+  const outboxPhotoUrls = useMemo(
+    () => new Map(outbox.map((row) => [row.id, row.pendingPhotoUrl])),
+    [outbox],
   );
 
   if (!sameThreadReadKey(viewRevision, conversationId, accountRevision)) {
@@ -539,25 +699,69 @@ export default function MessageThread({
     );
   }
 
+  const showCounter = draft.length >= COUNTER_FROM;
+
   return (
     <div className="messageThread">
+      {/* The shell is `display: contents`: it carries the keyboard facts as
+          data for the stylesheet and the marker that hides the compose
+          control, and draws no box of its own. */}
+      <div
+        className="messageThreadShell pageHidesCreateFab"
+        data-keyboard-open={keyboardOpen ? "" : undefined}
+        style={{ "--keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
+      >
       <div className="threadHeader">
-        <Link href="/messages" className="threadBackLink">
-          ← Inbox
+        <Link href="/messages" className="threadBackLink" aria-label="Back to inbox">
+          <ChevronLeft size={24} aria-hidden="true" />
         </Link>
-        <span className="threadWith">
-          {otherHandle ? `@${otherHandle}` : "Conversation"}
-        </span>
+        {otherHandle ? (
+          <Link href={`/u/${encodeURIComponent(otherHandle)}`} className="threadWith">
+            <MessageAvatar handle={otherHandle} size={36} />
+            <span className="threadWithHandle">@{otherHandle}</span>
+          </Link>
+        ) : (
+          <span className="threadWith">
+            <span className="threadWithHandle">Conversation</span>
+          </span>
+        )}
       </div>
 
       {state === "loading" ? (
         <p className="conversationPreview">With you in a sec.</p>
       ) : (
-        <ul className="threadMessages">
-          {messages.map((m) => {
-            const mine = m.senderHandle === handle;
+        <ul className="threadMessages" ref={listRef}>
+          {timeline.length === 0 ? (
+            <li className="threadEmpty" aria-live="polite">
+              {otherHandle ? <MessageAvatar handle={otherHandle} size={72} /> : null}
+              <p className="threadEmptyTitle">
+                {otherHandle ? `@${otherHandle}` : "Nothing here yet."}
+              </p>
+              <p className="threadEmptyLine">Say hello. This one stays between the two of you.</p>
+            </li>
+          ) : null}
+          {timeline.map((item) => {
+            if (item.kind === "day") {
+              return (
+                <li key={`day-${item.key}`} className="threadDay" aria-label={item.label}>
+                  <span>{item.label}</span>
+                </li>
+              );
+            }
+            const m = item.message;
+            const mine = item.mine;
+            const sendingRow = outboxIds.has(m.id);
+            const revealed = revealedId === m.id;
+            const pendingPhoto = outboxPhotoUrls.get(m.id);
             return (
-              <li key={m.id} className={mine ? "messageRow messageRowMine" : "messageRow"}>
+              <li
+                key={m.id}
+                className={mine ? "messageRow messageRowMine" : "messageRow"}
+                data-first={item.first ? "" : undefined}
+                data-last={item.last ? "" : undefined}
+                data-revealed={revealed ? "" : undefined}
+                data-sending={sendingRow ? "" : undefined}
+              >
                 {/* The box the 75% width limit lives on. */}
                 <div className="messageLine">
                   <div
@@ -566,6 +770,7 @@ export default function MessageThread({
                         ? "messageBubble messageBubbleMine"
                         : "messageBubble messageBubbleTheirs"
                     }
+                    onClick={() => setRevealedId((current) => (current === m.id ? null : m.id))}
                   >
                     {m.attachment?.kind === "photo" ? (
                       <MessagePhoto
@@ -576,12 +781,19 @@ export default function MessageThread({
                         handle={handle}
                       />
                     ) : null}
+                    {pendingPhoto ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- local object URL for the photo on its way
+                      <img className="messagePhotoSending" src={pendingPhoto} alt="" />
+                    ) : null}
                     {m.attachment?.kind === "venue" ? (
                       <MessageVenueCard card={m.attachment.card} />
                     ) : null}
                     {m.body ? <MessageBody body={m.body} /> : null}
                   </div>
                   <div className="messageMeta">
+                    <time className="messageClock" dateTime={m.createdAt}>
+                      {item.clock}
+                    </time>
                     {m.flagged ? (
                       <span className="messageFlagged">Reported</span>
                     ) : !mine ? (
@@ -594,6 +806,13 @@ export default function MessageThread({
                       </button>
                     ) : null}
                   </div>
+                  {sendingRow ? (
+                    <span className="messageReadState">Sending</span>
+                  ) : item.readState ? (
+                    <span className="messageReadState">
+                      {MESSAGE_READ_STATE_LABEL[item.readState]}
+                    </span>
+                  ) : null}
                 </div>
               </li>
             );
@@ -603,8 +822,6 @@ export default function MessageThread({
           </li>
         </ul>
       )}
-
-      {error ? <p className="threadError">{error}</p> : null}
 
       <MessageAttachmentPicker
         ref={attachmentPickerRef}
@@ -640,112 +857,127 @@ export default function MessageThread({
         </div>
       ) : null}
 
-      {pickingVenue ? (
-        <MessageVenuePicker
-          onCancel={() => setPickingVenue(false)}
-          onPick={(venue) => {
-            setPickingVenue(false);
-            setPending({ kind: "venue", venue });
-          }}
-        />
-      ) : null}
+      <div className="composerDock">
+        {error ? <p className="threadError" role="alert">{error}</p> : null}
 
-      {pending ? (
-        <div className="composerPending">
-          {pending.kind === "photo" ? (
-            // eslint-disable-next-line @next/next/no-img-element -- local object URL for the photo about to send
-            <img className="composerPendingThumb" src={pending.previewUrl} alt="" />
-          ) : null}
-          <span className="composerPendingLabel">
-            {pending.kind === "photo" ? "Photo ready to send" : pending.venue.name}
-          </span>
-          <button type="button" className="composerPendingRemove" onClick={clearPending}>
-            Remove
-          </button>
-        </div>
-      ) : null}
+        {pickingVenue ? (
+          <MessageVenuePicker
+            onCancel={() => setPickingVenue(false)}
+            onPick={(venue) => {
+              setPickingVenue(false);
+              setPending({ kind: "venue", venue });
+            }}
+          />
+        ) : null}
 
-      <div className="composer">
-        <textarea
-          ref={inputRef}
-          className="composerInput"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Write a message…"
-          maxLength={MAX_MESSAGE_BODY + 100}
-          rows={1}
-          aria-label="Message"
-          /* A message is somebody talking. The keyboard helps them the way it
-             helps them everywhere else: sentence case, autocorrect on, spelling
-             checked. Turning these off is what makes a web composer feel unlike
-             the messaging app beside it. */
-          autoCapitalize="sentences"
-          autoCorrect="on"
-          spellCheck
-          enterKeyHint={enterSends ? "send" : "enter"}
-          onKeyDown={(e) => {
-            if (e.key !== "Enter" || e.shiftKey) return;
-            // On a phone the return key writes a new line; only a keyboard with
-            // a modifier to spare sends on it.
-            if (!enterSends) return;
-            e.preventDefault();
-            if (canSend) void send();
-          }}
-        />
-        <div className="composerControls">
-          {isMobileViewport ? (
+        {pending ? (
+          <div className="composerPending">
+            {pending.kind === "photo" ? (
+              // eslint-disable-next-line @next/next/no-img-element -- local object URL for the photo about to send
+              <img className="composerPendingThumb" src={pending.previewUrl} alt="" />
+            ) : (
+              <MapPin size={18} aria-hidden="true" className="composerPendingIcon" />
+            )}
+            <span className="composerPendingLabel">
+              {pending.kind === "photo" ? "Photo ready to send" : pending.venue.name}
+            </span>
+            <button type="button" className="composerPendingRemove" onClick={clearPending}>
+              Remove
+            </button>
+          </div>
+        ) : null}
+
+        <div className="composer">
+          <div className="composerControls">
+            {isMobileViewport ? (
+              <button
+                type="button"
+                className="composerMobileAttach"
+                aria-label="Add an attachment"
+                aria-expanded={mobileAttachOpen}
+                disabled={sending}
+                onClick={() => {
+                  setPickingVenue(false);
+                  setMobileAttachOpen(true);
+                }}
+              >
+                <Plus size={22} aria-hidden="true" />
+              </button>
+            ) : null}
             <button
               type="button"
-              className="composerMobileAttach"
-              aria-label="Add an attachment"
-              aria-expanded={mobileAttachOpen}
+              className="composerAttach composerPhotoDesktop"
+              aria-label={MESSAGE_ATTACH_PHOTO_LABEL}
+              aria-pressed={pending?.kind === "photo"}
               disabled={sending}
               onClick={() => {
                 setPickingVenue(false);
-                setMobileAttachOpen(true);
+                attachmentPickerRef.current?.select("photos");
               }}
             >
-              Attach
+              <ImageIcon size={20} aria-hidden="true" />
             </button>
-          ) : null}
-          <button
-            type="button"
-            className="composerAttach composerPhotoDesktop"
-            aria-label={MESSAGE_ATTACH_PHOTO_LABEL}
-            aria-pressed={pending?.kind === "photo"}
-            disabled={sending}
-            onClick={() => {
-              setPickingVenue(false);
-              attachmentPickerRef.current?.select("photos");
-            }}
-          >
-            {MESSAGE_ATTACH_PHOTO_SHORT}
-          </button>
-          <button
-            type="button"
-            className="composerAttach"
-            aria-label={MESSAGE_ATTACH_VENUE_LABEL}
-            aria-pressed={pending?.kind === "venue"}
-            disabled={sending}
-            onClick={() => {
-              setCropping(null);
-              setPickingVenue((open) => !open);
-            }}
-          >
-            {MESSAGE_ATTACH_VENUE_SHORT}
-          </button>
-          <span className={over ? "composerCount composerCountOver" : "composerCount"}>
-            {draft.length}/{MAX_MESSAGE_BODY}
-          </span>
+            <button
+              type="button"
+              className="composerAttach composerVenueDesktop"
+              aria-label={MESSAGE_ATTACH_VENUE_LABEL}
+              aria-pressed={pending?.kind === "venue"}
+              disabled={sending}
+              onClick={() => {
+                setCropping(null);
+                setPickingVenue((open) => !open);
+              }}
+            >
+              <MapPin size={20} aria-hidden="true" />
+            </button>
+          </div>
+          <div className="composerField">
+            <textarea
+              ref={inputRef}
+              className="composerInput"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Message…"
+              maxLength={MAX_MESSAGE_BODY + 100}
+              rows={1}
+              aria-label="Message"
+              /* A message is somebody talking. The keyboard helps them the way it
+                 helps them everywhere else: sentence case, autocorrect on, spelling
+                 checked. Turning these off is what makes a web composer feel unlike
+                 the messaging app beside it. */
+              autoCapitalize="sentences"
+              autoCorrect="on"
+              spellCheck
+              enterKeyHint={enterSends ? "send" : "enter"}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter" || e.shiftKey) return;
+                // On a phone the return key writes a new line; only a keyboard with
+                // a modifier to spare sends on it.
+                if (!enterSends) return;
+                e.preventDefault();
+                if (canSend) void send();
+              }}
+            />
+            {showCounter ? (
+              <span
+                className={over ? "composerCount composerCountOver" : "composerCount"}
+                aria-live="polite"
+              >
+                {draft.length}/{MAX_MESSAGE_BODY}
+              </span>
+            ) : null}
+          </div>
           <button
             type="button"
             className="composerSend"
+            aria-label="Send"
             disabled={!canSend}
             onClick={() => void send()}
           >
-            Send
+            <ArrowUp size={22} aria-hidden="true" />
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

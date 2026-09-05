@@ -97,6 +97,9 @@ export type MessageDTO = {
 export type ConversationDTO = {
   id: string;
   otherHandle: string;
+  /** The other participant's face, when the read carries one. Optional by
+   *  design: the inbox draws a monogram without it. */
+  otherAvatarUrl?: string;
   lastBody?: string;
   lastAt: string;
   lastFromMe: boolean;

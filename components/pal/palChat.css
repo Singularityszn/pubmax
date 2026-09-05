@@ -391,18 +391,42 @@
   }
 }
 
-/* — Composer — */
+/* — Composer —
+   Pinned over the foot of the page: the transcript ends where its content
+   ends and the PAGE scrolls, so after a long answer the field used to sit
+   below the fold with nothing on screen to type into. Sticky holds it at the
+   bottom edge, clear of the phone tab bar's lane, and `--keyboard-inset`
+   (lib/keyboardInset.ts, written by PalChat.tsx) lifts it above the keyboard
+   on a phone whose layout viewport does not shrink for one. Solid paper, not
+   a blur: a bar a person types into is chrome, not a window onto the page. */
 .palChatComposer {
+  --pal-composer-clearance: 0px;
+
+  position: sticky;
+  bottom: calc(var(--pal-composer-clearance) + var(--keyboard-inset, 0px));
+  z-index: 3;
   flex: 0 0 auto;
-  width: min(46rem, 100%);
+  width: 100%;
   margin: 0 auto;
   padding: 0.7rem clamp(1rem, 4vw, 1.5rem) calc(0.7rem + env(safe-area-inset-bottom, 0px));
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  border-top: 1px solid var(--line);
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
-  backdrop-filter: blur(0.8rem) saturate(140%);
+  border-top: 1px solid var(--line-soft, var(--line));
+  background: var(--paper);
+}
+
+/* The row keeps the transcript's measure while the bar runs edge to edge. */
+.palChatComposer > * {
+  max-width: 46rem;
+}
+
+.palChatInput {
+  margin-left: auto;
+}
+
+.palChatSend {
+  margin-right: auto;
 }
 
 .palChatInput {
@@ -458,18 +482,23 @@
    never hides behind either. --night-pill-clearance is 0px unless a pill is
    actually mounted (see components/night/nightMode.css). */
 @media (max-width: 640px) {
+  /* The body already reserves the tab bar's lane (mobileNav.css), so the page
+     pays only for the floating re-open pill; paying the bar's lane twice put
+     a blank strip between the composer and the bar. */
   .palChat {
-    padding-bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--night-pill-clearance, 0px));
+    padding-bottom: var(--night-pill-clearance, 0px);
   }
   .palChatComposer {
+    --pal-composer-clearance: calc(
+      var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--night-pill-clearance, 0px)
+    );
+
     padding-bottom: 0.7rem;
   }
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  .palChatComposer {
-    background: var(--paper);
-    backdrop-filter: none;
+  /* The bar has stepped aside for the keyboard (lib/softKeyboard.ts), so the
+     only thing under the composer is the keyboard's own inset. */
+  .palChatComposer[data-keyboard-open] {
+    --pal-composer-clearance: 0px;
   }
 }
 
@@ -535,7 +564,7 @@
    its own, which at 390px read as two unrelated controls. */
 .palChatProposal {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.5rem;
   align-items: stretch;
 }
@@ -570,6 +599,8 @@
   flex: 1 1 auto;
   min-width: 0;
   text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .palChatProposalDismiss {

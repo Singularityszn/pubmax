@@ -7,7 +7,15 @@
 // ask; durable Pal memory stays confirm-gated elsewhere. Web grounding stays
 // OFF (lib/palChat PAL_WEB_GROUNDING).
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowUp, MapPin, Sparkles } from "lucide-react";
@@ -25,6 +33,12 @@ import { occupancyReceiptLine } from "@/lib/occupancy";
 import { confirmOccupancyProposal } from "@/components/map/useVenueOccupancy";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { writeAskPlanDraft } from "@/lib/conciergeAskClient";
+import { useKeyboardInset } from "@/lib/keyboardInset";
+import {
+  readSoftKeyboardOpen,
+  serverSoftKeyboardOpen,
+  subscribeSoftKeyboard,
+} from "@/lib/softKeyboard";
 import { rankNearMe } from "@/lib/nearMeAnswer";
 import { CENTRAL_PATCH, readRememberedArea, resolveNightPatch } from "@/lib/nightPatches";
 import {
@@ -220,6 +234,15 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
   const [knownVenueIds, setKnownVenueIds] = useState<ReadonlySet<string> | null>(null);
   const inputId = useId();
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  // The composer is pinned over the foot of the page and rides up by the
+  // keyboard's own inset; when the keyboard is up the tab bar has stepped
+  // aside, so the bar's lane is not reserved under it.
+  const keyboardInset = useKeyboardInset();
+  const keyboardOpen = useSyncExternalStore(
+    subscribeSoftKeyboard,
+    readSoftKeyboardOpen,
+    serverSoftKeyboardOpen,
+  );
   const composerInput = useRef<HTMLInputElement | null>(null);
   const sessionRef = useRef<ReturnType<typeof createPalChatSession> | null>(null);
   const counterRef = useRef(0);
@@ -258,11 +281,18 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
     [knownVenueIds, router],
   );
 
-  // Keep the newest turn in view as the transcript grows.
+  // Keep the newest turn in view as the transcript grows. The transcript ends
+  // where its content ends (palChat.css), so the PAGE is the scroller and the
+  // composer is pinned over its foot; the region's own scrollTop is set too
+  // for the one case where it is the scroller (a bounded host).
   useEffect(() => {
     const node = scrollRef.current;
     if (node) node.scrollTop = node.scrollHeight;
-  }, [entries, pending]);
+    if (entries.length === 0 && !pending) return;
+    const page = document.documentElement;
+    if (page.scrollHeight <= window.innerHeight) return;
+    window.scrollTo({ top: page.scrollHeight });
+  }, [entries, pending, keyboardInset]);
 
   const ask = useCallback(
     async (raw: string) => {
@@ -469,7 +499,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
       <Screen
         as="main"
         id="main"
-        className="palChat"
+        className="palChat pageHidesCreateFab"
         kicker={
           <>
             <PubPalMascot size={18} circular />
@@ -678,7 +708,12 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
         ) : null}
       </div>
 
-      <form className="palChatComposer" onSubmit={onSubmit}>
+      <form
+        className="palChatComposer"
+        onSubmit={onSubmit}
+        data-keyboard-open={keyboardOpen ? "" : undefined}
+        style={{ "--keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
+      >
         <label className="palChatSr" htmlFor={inputId}>
           Describe the outing
         </label>
