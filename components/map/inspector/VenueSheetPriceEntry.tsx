@@ -40,7 +40,7 @@ export default function VenueSheetPriceEntry({
   onLogged?: (venueId: string) => void;
 }) {
   const { user, handle, identityResolved } = useAuth();
-  const { mission, dismiss, status } = usePriceEvidenceMission({
+  const { mission, dismiss, complete, status } = usePriceEvidenceMission({
     venueIds: [venueId],
     enabled: Boolean(isPub && identityResolved && user && handle && canSubmitPrice),
     surface: "map",
@@ -63,6 +63,7 @@ export default function VenueSheetPriceEntry({
       mission={mission?.venueId === venueId ? mission : null}
       missionPending={status === "loading"}
       onDismissMission={dismiss}
+      onMissionFulfilled={complete}
       onLogged={onLogged}
     />
   );

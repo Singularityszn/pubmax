@@ -48,6 +48,12 @@ type VenuePriceEntryPanelProps = {
   mission?: PriceEvidenceMission | null;
   missionPending?: boolean;
   onDismissMission?: (mission: PriceEvidenceMission) => void;
+  /**
+   * The mission's own ask has been answered by a logged price. The card leaves
+   * on this, never on the dismissal, because a drinker who did the thing did
+   * not skip it (lib/priceEvidenceMissionDismiss.ts).
+   */
+  onMissionFulfilled?: (mission: PriceEvidenceMission) => void;
   /** Refresh Pint Drops for this venue after a successful Log it. */
   onLogged?: (venueId: string) => void;
 };
@@ -75,6 +81,7 @@ export default function VenuePriceEntryPanel({
   mission = null,
   missionPending = false,
   onDismissMission,
+  onMissionFulfilled,
   onLogged,
 }: VenuePriceEntryPanelProps) {
   const viewedVenueId = useRef<string | null>(null);
@@ -118,7 +125,13 @@ export default function VenuePriceEntryPanel({
           : null
       }
       missionPending={missionPending}
-      onLogged={onLogged}
+      onLogged={(loggedVenueId) => {
+        // The mission asked for THIS pub's price and now has it, so the card
+        // above the receipt goes: leaving it there asks again for what the
+        // reader just answered, over the answer itself.
+        if (mission && loggedVenueId === mission.venueId) onMissionFulfilled?.(mission);
+        onLogged?.(loggedVenueId);
+      }}
     />
   ) : showSignInGate ? (
     <VenuePriceSignInGate

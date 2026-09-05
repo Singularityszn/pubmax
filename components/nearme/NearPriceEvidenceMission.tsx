@@ -21,7 +21,7 @@ export default function NearPriceEvidenceMission({
     [cards],
   );
   const communityPrices = useCommunityPrices();
-  const { mission, dismiss } = usePriceEvidenceMission({
+  const { mission, dismiss, complete } = usePriceEvidenceMission({
     venueIds,
     enabled,
     surface: "near",
@@ -36,6 +36,7 @@ export default function NearPriceEvidenceMission({
       surface="near"
       communityPrices={communityPrices}
       onDismiss={dismiss}
+      onFulfilled={complete}
     />
   );
 }

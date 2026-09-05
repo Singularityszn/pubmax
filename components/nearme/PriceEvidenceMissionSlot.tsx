@@ -17,6 +17,8 @@ export type PriceEvidenceMissionSlotProps = {
   surface: MissionSurface;
   communityPrices: CommunityPricesState;
   onDismiss: (mission: PriceEvidenceMission) => void;
+  /** The logged price answers the ask, so the slot leaves rather than repeating it. */
+  onFulfilled?: (mission: PriceEvidenceMission) => void;
   /** Map already mounts the composer; Near opens it on tap. */
   embedComposer?: boolean;
 };
@@ -27,6 +29,7 @@ export default function PriceEvidenceMissionSlot({
   surface,
   communityPrices,
   onDismiss,
+  onFulfilled,
   embedComposer = false,
 }: PriceEvidenceMissionSlotProps) {
   const [opened, setOpened] = useState(embedComposer);
@@ -72,6 +75,9 @@ export default function PriceEvidenceMissionSlot({
             reason: mission.reason,
             drinkCategory: mission.drinkCategory,
             surface,
+          }}
+          onLogged={(venueId) => {
+            if (venueId === mission.venueId) onFulfilled?.(mission);
           }}
         />
       ) : null}

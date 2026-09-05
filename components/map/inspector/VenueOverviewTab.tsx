@@ -90,6 +90,7 @@ function useOverviewMission(
   mission: PriceEvidenceMission | null;
   pending: boolean;
   dismiss: (mission: PriceEvidenceMission) => void;
+  complete: (mission: PriceEvidenceMission) => void;
 } {
   const { user, handle, identityResolved } = useAuth();
   const read = usePriceEvidenceMission({
@@ -101,6 +102,7 @@ function useOverviewMission(
     mission: read.mission?.venueId === venueId ? read.mission : null,
     pending: read.status === "loading",
     dismiss: read.dismiss,
+    complete: read.complete,
   };
 }
 
@@ -938,6 +940,7 @@ export default function VenueOverviewTab({
           mission={mission.mission}
           missionPending={mission.pending}
           onDismissMission={mission.dismiss}
+          onMissionFulfilled={mission.complete}
           onLogged={onLogged}
         />
       ) : null}
