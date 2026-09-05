@@ -47,10 +47,13 @@
 //    carry a text layer after all is a fact about the earlier crawl, and a scan
 //    we read cleanly that stated no drink price is a fact about the pub.
 //
-// 6. THE TEXT LAYER IS ASKED FIRST, EVERY TIME. A document that carries one is
-//    NOT OCR'd: it is counted and skipped, and left to the ordinary reader. This
-//    lane may only read what nothing else can, so a re-run after the text lane
-//    improves cannot quietly re-read the whole estate through a model.
+// 6. THE TEXT LAYER IS ASKED FIRST, EVERY TIME, THROUGH THE DOCUMENT LANE'S OWN
+//    READER. `readPdfText` (lib/harvest/pdfText.ts) is the ONE thing that says
+//    whether a document has words of its own, so this lane and the crawl cannot
+//    answer that question differently: what it returns text for is already read,
+//    and what it answers null on is exactly what the crawl counted `unreadable`.
+//    A document with a text layer is counted and skipped, so a re-run after the
+//    text lane improves cannot quietly re-read the whole estate through a model.
 //
 // THE MODEL AND HOW IT IS INSTALLED.
 //
@@ -104,6 +107,7 @@ import path from "node:path";
 import process from "node:process";
 import { promisify } from "node:util";
 
+import { readPdfText } from "../../../lib/harvest/pdfText.ts";
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
 import { isHarvestableOperatorUrl } from "../../../lib/harvest/sourcePolicy.ts";
 import {
@@ -136,9 +140,9 @@ const MAX_PAGE_BYTES = 4 * 1024 * 1024;
 /**
  * What an OCR'd menu may cost.
  *
- * THE BYTE CEILING IS DELIBERATELY NOT THE TEXT READER'S. That reader stops at
- * 12 MB because "a document far past this is a brochure or a scan", and a scan
- * was worth nothing to it. A scan is this lane's whole subject, and it is large
+ * THE BYTE CEILING IS DELIBERATELY NOT THE TEXT READER'S. `MAX_PDF_BYTES` in
+ * lib/harvest/pdfText.ts stops at 12 MB because "a document far past this is a
+ * brochure or a scan", and a scan was worth nothing to it. A scan is this lane's whole subject, and it is large
  * for the ordinary reason: it is a photograph of paper. Every one of the drinks
  * menus this lane was built for sits above that ceiling, from 13.4 MB to 55.9 MB,
  * so inheriting it would have refused the documents and reported them as pubs we
@@ -164,7 +168,6 @@ const DEFAULT_SERVER = "http://127.0.0.1:8099/v1";
 
 const HOME = process.env.HOME ?? "";
 const DEFAULT_OLMOCR_BIN = path.join(HOME, ".local/bin/olmocr");
-const OLMOCR_PYTHON = path.join(HOME, ".local/share/uv/tools/olmocr/bin/python");
 
 /**
  * Every reason a document this lane opened produced no price. Each is a FINDING
@@ -384,33 +387,6 @@ async function discoverPdfs(entry, statedSitemaps) {
 }
 
 /**
- * What the document's own text layer states, asked through olmocr's own `pypdf`.
- *
- * RULE 6 LIVES HERE. A document with words of its own is not this lane's, and
- * asking first is the only thing that stops an OCR run widening into pages the
- * ordinary reader already handles. It answers null when it could not look at
- * all, which is deliberately NOT the same answer as a document holding no text.
- */
-async function pdfTextLayer(file) {
-  const source = [
-    "import sys",
-    "from pypdf import PdfReader",
-    "reader = PdfReader(sys.argv[1])",
-    `pages = min(len(reader.pages), ${MAX_PDF_PAGES})`,
-    "sys.stdout.write(''.join((reader.pages[i].extract_text() or '') for i in range(pages)))",
-  ].join("\n");
-  try {
-    const { stdout } = await run(OLMOCR_PYTHON, ["-c", source, file], {
-      maxBuffer: 32 * 1024 * 1024,
-      timeout: 120_000,
-    });
-    return stdout;
-  } catch {
-    return null;
-  }
-}
-
-/**
  * The words a scanned document states, as olmOCR reads them.
  *
  * The pipeline is given ONE document at a time in its own workspace, because it
@@ -619,19 +595,23 @@ async function main() {
         continue;
       }
 
-      const slug = url.replace(/[^a-z0-9]+/gi, "-").slice(-80);
-      const workspace = path.join(WORK_DIR, `${target.host}-${slug}`);
-      const file = path.join(workspace, "document.pdf");
-      mkdirSync(workspace, { recursive: true });
-      writeFileSync(file, page.bytes);
-
-      // RULE 6. A document with words of its own belongs to the text reader.
-      const layer = await pdfTextLayer(file);
+      // RULE 6, and it asks the DOCUMENT LANE'S OWN READER so the two cannot
+      // disagree about what having a text layer means. A document `readPdfText`
+      // got words out of is one the ordinary crawl already reads, so it is
+      // counted and left alone; the ones it answers null on are exactly the ones
+      // it recorded as `unreadable`, and those are this lane's whole job.
+      const layer = await readPdfText(page.bytes);
       if (typeof layer === "string" && layer.replace(/\s+/g, "").length >= MIN_TEXT_LAYER_CHARS) {
         counts["has-text-layer"] += 1;
         documents.push({ host: target.host, url, outcome: "has-text-layer" });
         continue;
       }
+
+      const slug = url.replace(/[^a-z0-9]+/gi, "-").slice(-80);
+      const workspace = path.join(WORK_DIR, `${target.host}-${slug}`);
+      const file = path.join(workspace, "document.pdf");
+      mkdirSync(workspace, { recursive: true });
+      writeFileSync(file, page.bytes);
 
       const ocr = await ocrPdf(file, workspace);
       if (!ocr.ok) {
@@ -677,9 +657,22 @@ async function main() {
   }
 
   const jsonl = rows.map((row) => JSON.stringify(row)).join("\n");
+  if (rows.length > 0) appendFileSync(PUBLISHED_ROWS, `${jsonl}\n`);
+
+  // A NARROWED RUN MAY NOT SPEAK FOR THE WHOLE LANE. `--only` asks about one
+  // host, and its counts describe that host alone, so writing them to the
+  // report every reader treats as the national answer would state that the
+  // other eleven hosts published nothing. The rows are still kept, because a
+  // price a pub really states is true however few hosts were asked.
+  if (ONLY) {
+    console.log(
+      `narrowed run: ${rows.length} row(s) appended to ${path.relative(ROOT, PUBLISHED_ROWS)}, report not written`,
+    );
+    return;
+  }
+
   writeFileSync(OCR_ROWS_PATH, rows.length > 0 ? `${jsonl}\n` : "");
   writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`);
-  if (rows.length > 0) appendFileSync(PUBLISHED_ROWS, `${jsonl}\n`);
   console.log(
     `wrote ${rows.length} row(s) to ${path.relative(ROOT, OCR_ROWS_PATH)} and appended them to ${path.relative(ROOT, PUBLISHED_ROWS)}`,
   );
