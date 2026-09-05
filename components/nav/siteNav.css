@@ -542,8 +542,18 @@ button.siteNavMoreItem {
     display: none;
   }
 
+  /* A six-letter destination may not be cut to five. The row ran over budget
+     here and .siteNavItem's shrink took the difference out of the labels, so
+     at 768px "Places" needed 49px in a 46px box and rendered "Place...", and
+     "Social" the same. The items keep their own width and the padding pays for
+     it: one pixel a side across six links frees more than the two labels were
+     short. */
+  .siteNavItem {
+    flex: 0 0 auto;
+  }
+
   .siteNavLink {
-    padding: 0 7px;
+    padding: 0 6px;
     font-size: 0.74rem;
   }
 
