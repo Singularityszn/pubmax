@@ -312,9 +312,13 @@ export function securityProxy(request: NextRequest) {
     "style-src 'self' 'unsafe-inline'",
     // img-src is deliberately MINIMAL — a "proxy-or-nothing" guard (image
     // rights audit U9, docs/IMAGE_RIGHTS_AUDIT_2026-07-21.md). Only origins the
-    // BROWSER loads directly are listed: Wikimedia (landmark cards in
-    // PubMapCanvas + /landmark/[id], via Special:FilePath which 302s to
-    // upload.wikimedia.org), the Greene King Sitecore DAM (the 4 food-menu tiles
+    // BROWSER loads directly are listed: Wikimedia (landmark stories on the map
+    // + /landmark/[id], via Special:FilePath, whose redirect chain ends on
+    // thumb.wikimedia.org for a sized file and upload.wikimedia.org for the
+    // original; MEASURED 2026-09-05, a width-sized request 302s to
+    // Special:Redirect/file, then 301s to thumb.wikimedia.org, and a host
+    // missing here drew every landmark hero as a broken-image glyph with the
+    // credit bar still under it), the Greene King Sitecore DAM (the 4 food-menu tiles
     // MenuCategoryGrid renders raw), *.supabase.co (community Pint Drop photos +
     // user avatars, our own bucket) and *.googleusercontent.com (Google IdP
     // sign-in/profile avatars). Every OTHER venue photo — the ~439 open-ended
@@ -329,7 +333,7 @@ export function securityProxy(request: NextRequest) {
     // Clerk adds https://img.clerk.com here, its own account-avatar CDN. It is
     // a first-party ACCOUNT image, not a third-party venue photo, so the
     // "proxy-or-nothing" rule above is untouched: no venue imagery may join it.
-    `img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://*.supabase.co https://*.googleusercontent.com https://gkbr-p-001.sitecorecontenthub.cloud${clerk.img.map((origin) => ` ${origin}`).join("")}`,
+    `img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://thumb.wikimedia.org https://*.supabase.co https://*.googleusercontent.com https://gkbr-p-001.sitecorecontenthub.cloud${clerk.img.map((origin) => ` ${origin}`).join("")}`,
     "font-src 'self' data: https://tiles.openfreemap.org",
     // Clerk adds its Frontend API host (session, sign-in and sign-up calls) and
     // its abuse-protection hosts. Supabase's entries stay: both auth systems

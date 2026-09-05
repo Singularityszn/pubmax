@@ -9,8 +9,6 @@ import Link from "next/link";
 import * as maplibregl from "maplibre-gl";
 import {
   Crosshair,
-  ExternalLink,
-  Landmark as LandmarkIcon,
   MapPinned,
   Navigation2,
   X,
@@ -25,9 +23,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { nearestStoryPubs } from "@/lib/landmarkVenueProximity";
 import type { Landmark } from "@/lib/landmarks";
-import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
 import { bandMemberPubs } from "@/lib/storyBandVenueProximity";
 import type { StoryBand } from "@/lib/storyBands";
 import {
@@ -45,7 +41,6 @@ import {
 const MapLayersControl = dynamic(() => import("@/components/map/MapLayersControl"), {
   ssr: false,
 });
-import LandmarkPhotoCredit from "@/components/LandmarkPhotoCredit";
 import MapHeroCard from "@/components/map/MapHeroCard";
 import type { CityId } from "@/lib/cities";
 import { cityMaxBounds, DEFAULT_CITY_ID, getCity } from "@/lib/cities";
@@ -279,10 +274,6 @@ type PubMapCanvasProps = {
   activeBandId?: string;
   /** Called when the band picker changes the active band. */
   onBandChange?: (bandId: string) => void;
-  /** "Start a crawl here" from a landmark card — receives 2-3 nearest pub ids. */
-  onStartCrawl?: (pubIds: string[]) => void;
-  /** "Ask the PUBMAXXER" from a landmark card — receives the nearest story pub id. */
-  onAskPubmaxxer?: (venueId: string) => void;
   /** Deep-link a landmark history card open on arrival (`?landmark=`). */
   initialLandmarkId?: string;
   /** Reports when the canvas can replace the parent's loading chrome. */
@@ -510,8 +501,6 @@ export default function PubMapCanvas({
   onLandmarkSelect,
   activeBandId = "",
   onBandChange,
-  onStartCrawl,
-  onAskPubmaxxer,
   initialLandmarkId = "",
   onMapReady,
   onMapErrored,
@@ -772,10 +761,6 @@ export default function PubMapCanvas({
   // if the new canvas is also dead. User Retry (soft toast / full card) resets.
   const contextAutoReinitSpentRef = useRef(false);
   const appliedResumeViewportKeyRef = useRef<string | null>(null);
-  const [activeLandmark, setActiveLandmark] = useState<Landmark | null>(() =>
-    initialLandmarkId ? landmarkById(initialLandmarkId) ?? null : null,
-  );
-  const initialLandmarkConsumedRef = useRef<string | null>(null);
   const [heroDismissed, setHeroDismissed] = useState(false);
   const [hoveredVenue, setHoveredVenue] = useState<HoveredVenue | null>(null);
   const hoveredVenueId = hoveredVenue?.id ?? null;
@@ -1084,32 +1069,14 @@ export default function PubMapCanvas({
     gestureCameraRef,
   })
 
+  // The parent owns the selection and renders the story (the phone's shared
+  // sheet, the desktop's left drawer); the canvas only reports a pin tap here
+  // and a venue pick retiring it. A deep link needs no seeding pass: PubMap
+  // reads ?landmark= itself and the story resolves the moment the city's
+  // catalog can answer the id.
   const selectLandmark = useCallback((landmark: Landmark | null) => {
-    setActiveLandmark(landmark);
     onLandmarkSelectRef.current?.(landmark);
   }, []);
-
-  // Deep-link ?landmark= may arrive before the city's landmark catalog loads.
-  // Open the history card once the catalog can resolve the id, not only on mount.
-  useEffect(() => {
-    if (
-      !initialLandmarkId ||
-      initialLandmarkConsumedRef.current === initialLandmarkId
-    ) {
-      return;
-    }
-    const landmark = landmarkById(initialLandmarkId);
-    if (!landmark) return;
-    initialLandmarkConsumedRef.current = initialLandmarkId;
-    if (activeLandmark) return;
-    let cancelled = false;
-    void Promise.resolve().then(() => {
-      if (!cancelled) selectLandmark(landmark);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [initialLandmarkId, activeLandmark, landmarkById, selectLandmark]);
 
   useEffect(() => {
     if (!initialLandmarkId || !mapReady) return;
@@ -3599,14 +3566,6 @@ export default function PubMapCanvas({
     publishRenderedState,
   ]);
 
-  // H5: a tapped landmark surfaces its nearest story pubs (straight-line
-  // distance — no routing, per PRD scope), wiring the history layer into the
-  // heritage layer instead of leaving a dead-end Wikipedia card.
-  const storyPubsNearby = useMemo(
-    () => (activeLandmark ? nearestStoryPubs(activeLandmark, venues) : []),
-    [activeLandmark, venues],
-  );
-
   // M5 / PRD P1.5: one curated story venue greets the first paint. Prefer a
   // heritage pub the community has actually logged (Pint Drops), with the
   // Prospect of Whitby as the London-only flagship tie-break.
@@ -3864,95 +3823,6 @@ export default function PubMapCanvas({
           <span className="mapCompassBtnLabel">Reset view</span>
         </button>
       </div>
-      {activeLandmark ? (
-        <aside className="landmarkCard" aria-label={`${activeLandmark.name} history`}>
-          {activeLandmark.image ? (
-            <figure className="landmarkPhoto">
-              {/* Plain <img> (not next/image): a remote Wikimedia URL loaded
-                  lazily, so no remotePatterns config and no layout cost until the
-                  card opens. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={activeLandmark.image.url}
-                alt={activeLandmark.name}
-                loading="lazy"
-                decoding="async"
-              />
-              <LandmarkPhotoCredit image={activeLandmark.image} />
-            </figure>
-          ) : null}
-          <div className="landmarkCardHead">
-            <LandmarkIcon size={15} />
-            <strong>{activeLandmark.name}</strong>
-            <Link
-              className="landmarkChapterLink"
-              href={`/landmark/${encodeURIComponent(activeLandmark.id)}`}
-            >
-              Open chapter
-            </Link>
-            <button
-              type="button"
-              onClick={() => selectLandmark(null)}
-              aria-label="Close landmark history"
-            >
-              <X size={14} />
-            </button>
-          </div>
-          <p>{activeLandmark.history}</p>
-          <a href={activeLandmark.source.url} target="_blank" rel="noreferrer">
-            Source: {activeLandmark.source.label}
-            <ExternalLink size={12} />
-          </a>
-          {/* Issue #15: promote the card to a journey entry point — start a crawl
-              from the nearest pubs, or open the nearest story pub's PUBMAXXER. */}
-          {storyPubsNearby.length > 0 && (onStartCrawl || onAskPubmaxxer) ? (
-            <div className="landmarkActions">
-              {onStartCrawl ? (
-                <button
-                  type="button"
-                  className="landmarkAction primary"
-                  onClick={() => {
-                    onStartCrawl(storyPubsNearby.map((p) => p.venue.id).slice(0, 3));
-                    selectLandmark(null);
-                  }}
-                >
-                  Start a crawl here
-                </button>
-              ) : null}
-              {onAskPubmaxxer ? (
-                <button
-                  type="button"
-                  className="landmarkAction"
-                  onClick={() => {
-                    onAskPubmaxxer(storyPubsNearby[0].venue.id);
-                    selectLandmark(null);
-                  }}
-                >
-                  Ask the PUBMAXXER
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-          {storyPubsNearby.length > 0 ? (
-            <div className="landmarkNearby">
-              <h4>Story pubs nearby</h4>
-              {storyPubsNearby.map(({ venue, km }) => (
-                <button
-                  key={venue.id}
-                  type="button"
-                  onClick={() => {
-                    selectLandmark(null);
-                    onVenueClick(venue.id);
-                  }}
-                >
-                  <span>{venue.name}</span>
-                  <span>{formatLogNearbyDistance(km)} straight-line</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </aside>
-      ) : null}
       {hoveredVenue ? (
         <aside className="venueHoverCard" style={hoverCardStyle} aria-hidden="true">
           {hoverImageUrl ? (

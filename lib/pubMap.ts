@@ -462,6 +462,13 @@ export function venueEntranceOvershootFor(input: {
 export function mapShellClassName(input: {
   planningOpen: boolean;
   detailOpen: boolean;
+  /**
+   * The landmark story is in the LEFT drawer, the planner's frame, so the
+   * toolbar and banners read this the way they read `planning-open`
+   * (mapToolbar.css, mapBannerStaging.css). Never true while the planner or a
+   * venue is open: those own their frames and the story waits.
+   */
+  storyOpen?: boolean;
   sheetSnap: string;
   plannerSheetSnap: string;
   routeMappedActive: boolean;
@@ -471,6 +478,7 @@ export function mapShellClassName(input: {
   const {
     planningOpen,
     detailOpen,
+    storyOpen = false,
     sheetSnap,
     plannerSheetSnap,
     routeMappedActive,
@@ -483,6 +491,7 @@ export function mapShellClassName(input: {
     "appShell dark" +
     (planningOpen ? " planning-open" : "") +
     (detailOpen ? " detail-open" : "") +
+    (storyOpen ? " story-open" : "") +
     (sheetFull ? " sheet-full" : "") +
     (routeMappedActive ? " route-mapped" : "") +
     (!mobileViewport && showOnboarding ? " onboarding-open" : "")

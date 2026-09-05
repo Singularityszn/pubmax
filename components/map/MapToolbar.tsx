@@ -156,6 +156,12 @@ type MapToolbarProps = {
   planningOpen: boolean;
   detailOpen: boolean;
   desktopLaneActive: boolean;
+  /**
+   * The landmark story is in the left drawer, the planner's frame, so the
+   * toolbar leaves its lane the way it leaves the planner's. Never true while
+   * the planner or a venue drawer is open (PubMap's `storyDrawerOpen`).
+   */
+  storyOpen?: boolean;
   onTogglePlanning: () => void;
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
@@ -206,6 +212,7 @@ export default function MapToolbar({
   planningOpen,
   detailOpen,
   desktopLaneActive,
+  storyOpen = false,
   onTogglePlanning,
   filters,
   onFiltersChange,
@@ -271,17 +278,18 @@ export default function MapToolbar({
       return;
     }
 
+    const leftOpen = planningOpen || storyOpen;
     const drawerSelector = detailOpen
       ? ".mapDrawer.right"
-      : planningOpen
-        ? ".mapDrawer.left"
+      : leftOpen
+        ? ".mapDrawer.left.open"
         : null;
     const drawer = drawerSelector
       ? shell.querySelector<HTMLElement>(drawerSelector)
       : null;
     const sync = (immediate = false) => {
       const width = drawer?.getBoundingClientRect().width ?? 0;
-      const target = detailOpen ? -width / 2 : planningOpen ? width / 2 : 0;
+      const target = detailOpen ? -width / 2 : leftOpen ? width / 2 : 0;
       if (immediate) {
         jumpLaneOffset(target);
       } else {
@@ -300,6 +308,7 @@ export default function MapToolbar({
     detailOpen,
     jumpLaneOffset,
     planningOpen,
+    storyOpen,
   ]);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 640px)");

@@ -391,6 +391,12 @@ describe("the CSP once a Clerk key is configured", () => {
     expect(imgSrc).toContain(CLERK_IMAGE_ORIGIN);
     // The "proxy-or-nothing" venue-image rule is untouched.
     expect(imgSrc).toContain("https://commons.wikimedia.org");
+    // A landmark photo is asked for through Special:FilePath and the browser
+    // follows the redirect chain, so every host that chain can land on has to
+    // be admitted: a sized file answers from thumb.wikimedia.org and the
+    // original from upload.wikimedia.org. A missing hop is a broken image.
+    expect(imgSrc).toContain("https://upload.wikimedia.org");
+    expect(imgSrc).toContain("https://thumb.wikimedia.org");
     expect(imgSrc).not.toContain("https://*.clerk.com");
   });
 

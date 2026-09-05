@@ -482,7 +482,8 @@ html[data-theme="dark"] .drinkShapeChipLabel {
    duplicated rail controls yield and search may shrink without painting under
    the drawer. */
 @media (min-width: 1024px) {
-  .appShell.planning-open .mapToolbar {
+  .appShell.planning-open .mapToolbar,
+  .appShell.story-open .mapToolbar {
     width: fit-content;
     max-width: calc(100% - var(--desktop-planner-rail-width) - 32px);
     left: 50%;
@@ -491,16 +492,21 @@ html[data-theme="dark"] .drinkShapeChipLabel {
 
   .appShell.planning-open .mapToolbar .mapToolbarDesktopExtras,
   .appShell.planning-open .mapToolbar .conditionsChip,
-  .appShell.planning-open .mapToolbar .zonePicker {
+  .appShell.planning-open .mapToolbar .zonePicker,
+  .appShell.story-open .mapToolbar .mapToolbarDesktopExtras,
+  .appShell.story-open .mapToolbar .conditionsChip,
+  .appShell.story-open .mapToolbar .zonePicker {
     display: none;
   }
 
-  .appShell.planning-open .mapToolbarSearch .mapSearchSuggest--toolbar {
+  .appShell.planning-open .mapToolbarSearch .mapSearchSuggest--toolbar,
+  .appShell.story-open .mapToolbarSearch .mapSearchSuggest--toolbar {
     min-width: 0;
     max-width: 100%;
   }
 
-  .appShell.planning-open .mapToolbarSearch input {
+  .appShell.planning-open .mapToolbarSearch input,
+  .appShell.story-open .mapToolbarSearch input {
     min-width: 0;
   }
 }
