@@ -34,7 +34,7 @@
 
 .trustPill-green {
   background: color-mix(in srgb, var(--color-positive) 14%, var(--color-surface-raised));
-  color: var(--price-confirmed-ink);
+  color: color-mix(in srgb, var(--color-positive) 60%, var(--color-text));
 }
 
 .trustPill-green .trustPillDot {

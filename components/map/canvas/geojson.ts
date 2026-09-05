@@ -68,9 +68,10 @@ function pinPriceTag(
   const decision = priceStandings?.get(venueId) ?? null;
   // A decided standing wins. Without one the pin still knows ONE thing for
   // itself: whether the drop lane reads `confirmed` (lib/pintTrust.ts), which
-  // is what lets the tag wear the confirmed ink over a pub the server
-  // confirmed. A pin knows no bundle, so it never stamps `listed` or
-  // `estimate` on its own.
+  // is what lets the pin wear the confirmed badge (a hollow ring in the
+  // provisional dot's berth) over a pub the server confirmed. Colour is the
+  // price band alone, by captain's law. A pin knows no bundle, so it never
+  // stamps `listed` or `estimate` on its own.
   const standing = decision?.standing ?? pintTrustPinStanding(signals?.pintTrust);
   if (labels.lensActive) return { label: labels.lensPriceLabel, standing };
   if (labels.basePriceLabel) return { label: labels.basePriceLabel, standing };

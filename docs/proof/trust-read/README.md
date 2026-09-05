@@ -32,13 +32,13 @@ yet".
   `data-pint-trust="logged-once"` and `data-venue-id`, the element the
   second-drinker action mounts against.
 - **confirmed** (a server-minted pair): the Overview prints the trust pill
-  "£4.50 Confirmed <day>", the pin paints its band and its £4.50 tag, and the
-  tag's ink is the confirmed green rather than the brass plaque ink. The two
-  inks are one token, `--price-confirmed-ink`, shared with the pill. The
-  software rasteriser this rig paints with flattens small SDF text to grey in
-  BOTH builds, so the ink is held at the engine instead: the collision test
-  evaluates the layer's `text-color` expression through
-  `@maplibre/maplibre-gl-style-spec` and holds it to the standing.
+  "£4.50 Confirmed <day>", the pin paints its price band and its £4.50 tag as
+  a corroborated pin always did, and wears the confirmed badge: the provisional
+  dot's berth drawn HOLLOW, a ring in the same river tone. Captain's law (5
+  September 2026): colour on a pin encodes the price band alone, so the trust
+  state is a shape and the tag keeps the plaque ink. `pubs-confirmed-badge` in
+  `components/map/canvas/buildScene.ts`, held by
+  `__tests__/mapSymbolCollision.test.ts`.
 - **aged-out** (the same row, 90 days old): before, the price area printed the
   bundle's modelled `est. £6.50` above a prices-by-drink block reading "No beer
   price logged here yet", while the Drinks tab printed the £4.50 drop. That is

@@ -105,22 +105,6 @@ export const CLUSTER_STROKE_OPACITY = 1;
 // to roughly the disc footprint makes the whole marker reserve its space.
 export const CLUSTER_COLLISION_PADDING = 10;
 
-/**
- * The ink a pin's price tag prints in. Brass plaque ink for every sayable
- * figure, and the CONFIRMED ink where the feature carries a `confirmed`
- * standing (lib/pintTrust.ts through geojson.ts), so the pin says in one
- * colour what the sheet's trust pill says in words. The band and the rim are
- * untouched: a standing rides the TAG by law (AGENTS.md, price standings).
- */
-export function pinPriceTagInkExpr(tokens: Tokens): maplibregl.ExpressionSpecification {
-  return [
-    "case",
-    ["==", ["get", "standing"], "confirmed"],
-    tokens.priceConfirmedInk,
-    tokens.pricePlaqueInk,
-  ];
-}
-
 // The provisional-report badge: the small dot that rides at a pin's upper right
 // when someone has logged tonight's pint price there and it is still one report
 // short of moving the map (components/map/communityPriceSignals.ts).
@@ -162,6 +146,22 @@ function provisionalBadgePaint(
     "circle-stroke-width": 1.4,
     "circle-opacity": opacity,
     "circle-stroke-opacity": opacity,
+  };
+}
+
+/** The confirmed badge's paint: the provisional dot's geometry, hollowed out. */
+export const CONFIRMED_BADGE_STROKE_PX = 1.6;
+function confirmedBadgePaint(
+  tokens: Tokens,
+  dark: boolean,
+  opacity: number | maplibregl.ExpressionSpecification,
+) {
+  const dot = provisionalBadgePaint(tokens, dark, opacity);
+  return {
+    ...dot,
+    "circle-color": dot["circle-stroke-color"],
+    "circle-stroke-color": tokens.riverBright,
+    "circle-stroke-width": CONFIRMED_BADGE_STROKE_PX,
   };
 }
 
@@ -1101,7 +1101,7 @@ export function buildPubs(ctx: SceneCtx) {
       // Same brass-plaque ink, surface, and press tilt as PriceBadge. The halo
       // is MapLibre's compact plaque surface, preserving collision behaviour
       // without introducing a second free-floating layer.
-      "text-color": pinPriceTagInkExpr(tokens),
+      "text-color": tokens.pricePlaqueInk,
       "text-halo-color": tokens.pricePlaqueSurface,
       "text-halo-width": 2.1,
       "text-halo-blur": 0.2,
@@ -1153,7 +1153,7 @@ export function buildPubs(ctx: SceneCtx) {
     },
     paint: {
       "icon-opacity": 1,
-      "text-color": pinPriceTagInkExpr(tokens),
+      "text-color": tokens.pricePlaqueInk,
       "text-halo-color": tokens.pricePlaqueSurface,
       "text-halo-width": 2.1,
       "text-halo-blur": 0.2,
@@ -1220,6 +1220,26 @@ export function buildPubs(ctx: SceneCtx) {
       // selection spotlight while its own pin receded.
       pubIconOpacityExpr(selectedId),
     ),
+  });
+  // The confirmed badge: the SAME berth, radius and river tone as the
+  // provisional dot, drawn HOLLOW. Captain's law (5 Sept 2026): colour on a pin
+  // encodes the price band alone, so a trust state may change the badge or the
+  // shape and never the colour. A filled dot says one drinker logged this and
+  // the map is still waiting; a ring says a second independent drinker agreed
+  // and the server minted the confirmation (lib/pintTrust.ts through
+  // geojson.ts's `standing`). Neither is a price-band colour, and neither
+  // grows the pin's footprint, so the density contract is untouched.
+  addLayerOnce({
+    id: "pubs-confirmed-badge",
+    type: "circle",
+    source: "pubs",
+    minzoom: PIN_MIN_ZOOM,
+    filter: [
+      "all",
+      ["!", ["has", "point_count"]],
+      ["==", ["get", "standing"], "confirmed"],
+    ],
+    paint: confirmedBadgePaint(tokens, dark, pubIconOpacityExpr(selectedId)),
   });
   addLayerOnce({
     id: "clusters",

@@ -12,13 +12,14 @@
 //
 //   confirmed     the server minted a confirmation and it is inside the window
 //                 lib/priceTier.ts owns (CONFIRMED_MAX_AGE_DAYS). Paints the
-//                 pin's band and figure, wears the confirmed ink on the tag,
-//                 prints the trust pill, may lead the cheapest-pint story.
+//                 pin's band and figure, wears the confirmed badge (a hollow
+//                 ring, never a colour), prints the trust pill, may lead the
+//                 cheapest-pint story.
 //   corroborated  no minted confirmation, but this browser can still prove two
 //                 independent in-window reports from the keys it was handed
 //                 (corroboratedPriceDrop). Same authority as `confirmed` on the
 //                 map, because it IS the same agreement; it only lacks the
-//                 record the server writes. Brass plaque ink, no pill.
+//                 record the server writes. No badge, no pill.
 //   logged-once   one in-window public report (provisionalPriceDrop). Paints
 //                 the pin's provisional MARK and nothing else; the sheet prints
 //                 the figure, dated, with PROVISIONAL_PRICE_LINE.
@@ -71,11 +72,13 @@ export type PintTrustState = (typeof PINT_TRUST_STATES)[number];
 
 /**
  * What each state may PAINT on a pin. Named once so the pin, the tests and the
- * PR body cannot drift apart about it.
+ * PR body cannot drift apart about it. Captain's law (5 Sept 2026): colour on a
+ * pin is the price band alone, so a trust state is a badge SHAPE and never a
+ * colour.
  *
- *   authority  the band and the printed figure come from the drop, and the
- *              tag wears the plaque ink (`confirmed` swaps the ink alone).
- *   mark       the provisional badge and nothing else; band and figure stay
+ *   authority  the band and the printed figure come from the drop; `confirmed`
+ *              adds the hollow ring badge, `corroborated` adds nothing.
+ *   mark       the provisional dot and nothing else; band and figure stay
  *              whatever the curated data says.
  *   none       the drop lane paints nothing.
  */

@@ -1,9 +1,4 @@
 import type * as maplibregl from "maplibre-gl";
-import {
-  createExpression,
-  type ExpressionSpecification,
-  type StyleExpression,
-} from "@maplibre/maplibre-gl-style-spec";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -19,7 +14,7 @@ import {
   PIN_HALO_ENVELOPE_PX,
   PIN_MIN_ZOOM,
   PIN_PRICE_LABEL_PADDING,
-  pinPriceTagInkExpr,
+  CONFIRMED_BADGE_STROKE_PX,
   PROVISIONAL_BADGE_OFFSET_PX,
   PROVISIONAL_BADGE_RADIUS_MAX_PX,
   UK_BASE_ICON_OPACITY,
@@ -342,6 +337,54 @@ describe("symbol collision policy", () => {
   });
 });
 
+// The confirmed badge is the provisional dot HOLLOWED OUT: same berth, same
+// river tone, same envelope. Captain's law (5 Sept 2026): colour on a pin
+// encodes the price band alone, so a trust state is a shape and never a
+// traffic-light colour.
+describe("confirmed badge (a shape, never a colour)", () => {
+  const { layers } = buildScenePieces();
+  const badge = layers.get("pubs-confirmed-badge")!;
+  const dot = layers.get("pubs-provisional-badge")!;
+  const paint = (badge.paint ?? {}) as Record<string, unknown>;
+  const dotPaint = (dot.paint ?? {}) as Record<string, unknown>;
+
+  it("rides only an unclustered pin whose standing is confirmed", () => {
+    expect(badge.filter).toEqual([
+      "all",
+      ["!", ["has", "point_count"]],
+      ["==", ["get", "standing"], "confirmed"],
+    ]);
+    expect((badge as { minzoom?: number }).minzoom).toBe(PIN_MIN_ZOOM);
+  });
+
+  it("keeps the dot's berth and radius, so the envelope is unchanged", () => {
+    expect(paint["circle-translate"]).toEqual(dotPaint["circle-translate"]);
+    expect(paint["circle-radius"]).toEqual(dotPaint["circle-radius"]);
+  });
+
+  it("is hollow: the dot's rim becomes the fill and the dot's fill becomes the ring", () => {
+    expect(paint["circle-color"]).toEqual(dotPaint["circle-stroke-color"]);
+    expect(paint["circle-stroke-color"]).toEqual(dotPaint["circle-color"]);
+    expect(paint["circle-stroke-width"]).toBe(CONFIRMED_BADGE_STROKE_PX);
+  });
+
+  it("never borrows a price-band colour", () => {
+    expect(JSON.stringify(badge)).not.toContain("bucket");
+    expect(JSON.stringify(badge)).not.toContain("price");
+  });
+
+  it("draws over every per-pin layer and dims with its pin", () => {
+    const ids = [...layers.keys()];
+    for (const under of ["pubs-point", "pubs-point-selected", "pubs-selected-glow", "pubs-selected"]) {
+      expect(ids.indexOf(under)).toBeLessThan(ids.indexOf("pubs-confirmed-badge"));
+    }
+    const selected = buildScenePieces("venue-abc").layers.get("pubs-confirmed-badge")!;
+    const selectedPaint = (selected.paint ?? {}) as Record<string, unknown>;
+    expect(selectedPaint["circle-opacity"]).toEqual(pubIconOpacityExpr("venue-abc"));
+    expect(selectedPaint["circle-stroke-opacity"]).toEqual(pubIconOpacityExpr("venue-abc"));
+  });
+});
+
 // The provisional-report badge is the newest thing riding on a pin, so it is
 // also the easiest way to break two contracts at once: the density rule (a
 // marker that grows the pin's footprint changes which pins get placed) and the
@@ -499,38 +542,13 @@ describe("priced-pin price tag (collides, and yields before the pin does)", () =
     // array, never a string. (Reading `text-color` off the LAYOUT object, as
     // an earlier version of this test did, asserts nothing: it is a paint
     // property, so that lookup is undefined no matter what the layer does.)
-    //
-    // The ONE data expression the ink may carry is a case over `standing`
-    // (lib/pintTrust.ts through geojson.ts): the confirmed ink where a pub's
-    // drop lane reads confirmed, the plaque ink everywhere else. Both of its
-    // branches are constants and neither reads the band.
     const pins = paint("pubs-point");
-    const ink = pins["text-color"] as unknown[];
-    expect(ink[0]).toBe("case");
-    expect(ink[1]).toEqual(["==", ["get", "standing"], "confirmed"]);
-    expect(typeof ink[2]).toBe("string");
-    expect(typeof ink[3]).toBe("string");
+    expect(typeof pins["text-color"]).toBe("string");
     expect(typeof pins["text-halo-color"]).toBe("string");
     expect(JSON.stringify(pins)).not.toContain("bucket");
-    // And MapLibre's own engine reads it the way the table says: the confirmed
-    // ink over a confirmed feature, the plaque ink over every other. Two real
-    // inks here, because the scene above paints every token the same black.
-    const inks = { priceConfirmedInk: "#18a76d", pricePlaqueInk: "#8f671f" } as Tokens;
-    const compiled = createExpression(
-      pinPriceTagInkExpr(inks) as ExpressionSpecification,
-      "layers[0].paint.text-color",
-    );
-    expect(compiled.result).toBe("success");
-    const evaluate = (properties: Record<string, unknown>) =>
-      String(
-        (compiled as { value: StyleExpression }).value.evaluate(
-          { zoom: 15 },
-          { type: "Point", properties } as never,
-        ),
-      );
-    expect(evaluate({ standing: "confirmed" })).toBe(inks.priceConfirmedInk);
-    expect(evaluate({})).toBe(inks.pricePlaqueInk);
-    expect(evaluate({ standing: "listed" })).toBe(inks.pricePlaqueInk);
+    // And a trust state never reaches the ink either: captain's law, colour on
+    // a pin is the price band alone (the confirmed state is a badge SHAPE).
+    expect(JSON.stringify(pins)).not.toContain("standing");
   });
 
   it("dims with its own pin instead of shouting past the spotlight", () => {

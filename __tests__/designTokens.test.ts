@@ -40,7 +40,7 @@ export const LAUNCH_TOKENS = [
   // Status and price: semantic hues, never decoration.
   "--pint", "--amber", "--brick", "--river",
   "--color-positive", "--color-caution", "--color-negative", "--color-info",
-  "--accent-price", "--accent-price-ink", "--price-confirmed-ink",
+  "--accent-price", "--accent-price-ink",
   "--badge-surface", "--badge-border", "--badge-ink",
   "--state-active-surface", "--state-active-border", "--state-active-ink",
   // Type.

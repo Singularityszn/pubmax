@@ -77,9 +77,7 @@ control with `--accent-action`; nothing else on that screen wears it.
 **Status and price.** `--pint` (`--color-positive`, a confirmed price),
 `--amber` (`--color-caution`, a price the pub or its chain published), `--brick`
 (`--color-negative`), `--river` (`--color-info`). Prices read as brass plaques
-through `--accent-price` and `--accent-price-ink`; a CONFIRMED price prints its
-figure in `--price-confirmed-ink`, the one ink the trust pill and the map pin's
-tag share. Counts and metadata take the
+through `--accent-price` and `--accent-price-ink`. Counts and metadata take the
 neutral `--badge-surface`, `--badge-border`, `--badge-ink`. "You are here" is
 `--state-active-surface`, `--state-active-border`, `--state-active-ink`.
 
