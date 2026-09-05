@@ -77,7 +77,6 @@ beforeAll(async () => {
     "PLAN_INVITE_TOKEN_SALT",
     "PLAN_IDEMPOTENCY_SECRET",
     "RATE_LIMIT_SALT",
-    "PUBMAX_FRIEND_MEMBER_REHYDRATION_V2",
   ]) previousEnv[name] = process.env[name];
   process.env.SUPABASE_URL = session.restBaseUrl;
   process.env.SUPABASE_SERVICE_ROLE_KEY = session.serviceRoleKey;
@@ -85,7 +84,6 @@ beforeAll(async () => {
   process.env.PLAN_INVITE_TOKEN_SALT = "route-proof-plan-invite-salt";
   process.env.PLAN_IDEMPOTENCY_SECRET = "route-proof-idempotency-secret-32-bytes";
   process.env.RATE_LIMIT_SALT = "route-proof-rate-limit-secret-32-bytes";
-  process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2 = "1";
   globalThis.fetch = (input, init) => {
     const rawUrl = input instanceof Request ? input.url : String(input);
     const rewrittenUrl = rawUrl.replace(`${session!.restBaseUrl}/rest/v1`, session!.restBaseUrl);

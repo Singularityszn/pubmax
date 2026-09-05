@@ -111,13 +111,13 @@ async function safeVibeTally(id: string) {
 }
 
 /**
- * A member's own Plan invite token, independent of the friendMemberRehydrationV2
- * read flag (Task: plan-invite-page). That flag governs one thing only —
- * whether resolvePlanProjection returns the full identity-bearing PlanState
- * (§4.10) — never whether a genuine host/guest may learn their own Plan's
- * public invite link. A real capability that resolves to an active identity is
- * enough; the token itself is never a public read (that stays behind
- * resolvePlanIdByInviteToken's own token-scoped seam at app/invite/[token]).
+ * A member's own Plan invite token (Task: plan-invite-page). A real capability
+ * that resolves to an active identity is enough, and it is asked separately
+ * from resolvePlanProjection: whether a reader gets the full identity-bearing
+ * PlanState (§4.10) is a different question from whether a genuine host or
+ * guest may learn their own Plan's public invite link. The token itself is
+ * never a public read; that stays behind resolvePlanIdByInviteToken's own
+ * token-scoped seam at app/invite/[token].
  */
 async function ownInviteToken(request: Request, id: string): Promise<string | null> {
   const capabilityToken = planMemberCapability(request, undefined);

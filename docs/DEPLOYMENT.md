@@ -335,6 +335,67 @@ Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pas
 
 `docs/SOFT_LAUNCH_RUNBOOK.md` section 1.2 is the operator source for this command pair and the promotion mechanics behind it.
 
+### A preview a verifier can sign in to
+
+A preview with no Supabase values can sign nobody in, so every journey past the
+first screen is unverifiable on one. A verifier lost an hour to that on
+5 September 2026 (L06, core-loop battle test): a fresh worktree's `npm run
+deploy:preview` landed in Vercel project **`pubmaxx`**, which carries no
+environment variables at all and sits behind Vercel Authentication, so
+`/api/version` needed a share link and no account could be created. The script
+now prints the project it will deploy to before it uploads anything; read that
+line.
+
+Four things a signable preview needs.
+
+1. **The right project.** `.vercel/project.json` is gitignored and local, so a
+   worktree can carry a link nobody chose. Pick it explicitly:
+
+   ```sh
+   vercel link --project <name>
+   ```
+
+   Verification previews have used **`chengdu`**, which is not behind Vercel
+   Authentication. `pubmaxx` is not that project.
+
+2. **An isolated database. Never production.** Point the preview at a separate
+   Supabase project with its own migrations and its own `pint-drops` bucket.
+   A verification run creates plans, joins crews and writes prices; production
+   data is never the place for it.
+
+3. **The variables, inline on the deploy.** Passing them on the command keeps
+   the stored project environment untouched, so one verifier's run cannot change
+   what the next deploy of that project does. `-b` is the build environment and
+   `-e` the runtime one; the `NEXT_PUBLIC_*` values are build-time, so they need
+   both.
+
+   ```sh
+   npm run deploy:preview -- \
+     -e SUPABASE_URL="$SUPABASE_URL" \
+     -e SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
+     -e ADMIN_TOKEN="$ADMIN_TOKEN" \
+     -e RATE_LIMIT_SALT="$RATE_LIMIT_SALT" \
+     -b NEXT_PUBLIC_SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL" \
+     -b NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" \
+     -e NEXT_PUBLIC_SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL" \
+     -e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+   ```
+
+   Read the values out of the shell rather than typing them, so no key lands in
+   shell history or in a log.
+
+4. **Accounts that already exist.** Email magic links do not arrive at a
+   verifier, so seed handles in the isolated database and set their passwords
+   through the admin API, then sign in with handle and password. The battle test
+   used `alicepent`, `bobpent` and `carolpent`.
+
+**No rollout variable is needed for a Plan to be readable by its own host.**
+`PUBMAX_FRIEND_MEMBER_REHYDRATION_V2` is retired: it gated the member
+projection, so a preview without it answered the anonymous preview to everyone
+and a host read "You've been invited" on their own plan (D01, same report). A
+capability is now the whole question. Do not set that variable, and do not add
+it back to a deployment.
+
 ### Which commit is this deploy serving
 
 `GET /api/version` names the running code. It is public, uncached and cheap: the
