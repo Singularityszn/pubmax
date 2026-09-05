@@ -15,6 +15,7 @@ import {
   REGULAR_THRESHOLD,
   type ProfileDrop,
 } from "@/lib/profiles";
+import { handlePrefixLikePattern } from "@/lib/profileStore";
 import {
   removeSaved,
   upsertSaved,
@@ -431,5 +432,24 @@ describe("formatGbp and numeric clamp helpers (#1043 L7)", () => {
       if (/function clamp\s*\(\s*value:\s*number/.test(source)) offenders.push(file);
     }
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("a handle is search text, and `_` is a LIKE wildcard", () => {
+  it("escapes the underscore and keeps the one prefix wildcard", () => {
+    expect(handlePrefixLikePattern("a_c")).toBe("a\\_c%");
+    expect(handlePrefixLikePattern("abc")).toBe("abc%");
+    expect(handlePrefixLikePattern("a_b_c")).toBe("a\\_b\\_c%");
+  });
+
+  it("answers a store holding a_c and abc with a_c alone", async () => {
+    const { memoryProfileStore, __resetMemoryProfiles } = await import(
+      "@/lib/profileStore"
+    );
+    __resetMemoryProfiles();
+    await memoryProfileStore.createOwned("a_c", "user-a-c");
+    await memoryProfileStore.createOwned("abc", "user-abc");
+    const rows = await memoryProfileStore.searchClaimedByHandlePrefix("a_c", 8);
+    expect(rows.map((row) => row.handle)).toEqual(["a_c"]);
   });
 });

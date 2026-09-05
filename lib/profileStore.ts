@@ -731,6 +731,22 @@ const HANDLE_BATCH_SIZE = 200;
  */
 const HANDLE_BATCH_CONCURRENCY = 6;
 
+/**
+ * A handle is SEARCH TEXT, and `_` is a wildcard in LIKE.
+ *
+ * `normalizeHandle` keeps `[a-z0-9_]`, so a typed handle can carry an
+ * underscore and nothing else LIKE reads as a pattern. Unescaped, `a_c`
+ * matched `abc` as well as `a_c`, so a prefix search over a real handle
+ * answered with accounts nobody asked for. Postgres LIKE takes a backslash
+ * as its default escape character, so `a\_c%` is the literal underscore
+ * followed by the prefix wildcard we DO mean. The backslash itself cannot
+ * arrive here, the alphabet having no place for one, so this escapes once
+ * and can never double-escape.
+ */
+export function handlePrefixLikePattern(key: string): string {
+  return `${key.replace(/_/g, "\\_")}%`;
+}
+
 function handleBatches(handles: readonly string[]): string[][] {
   const keys = [...new Set(handles.map((handle) => normalizeHandle(handle)).filter(Boolean))];
   const batches: string[][] = [];
@@ -1142,7 +1158,7 @@ export const supabaseProfileStore: ProfileStore = {
       .select("*")
       .not("user_id", "is", null)
       .is("tombstoned_at", null)
-      .ilike("handle", `${key}%`)
+      .ilike("handle", handlePrefixLikePattern(key))
       .order("handle", { ascending: true })
       .limit(bounded);
     if (error) throw new Error(error.message);
