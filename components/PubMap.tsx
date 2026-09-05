@@ -5,7 +5,7 @@ import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBan
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 
 const PubPalMascot = dynamic(
   () => import("@/components/pal/PubPalMascot").then((m) => m.PubPalMascot),
@@ -17,6 +17,13 @@ import "@/components/map/venueSheet.css";
 import "@/components/map/spillComposer.css";
 import "@/components/map/logIntentFallback.css";
 import "@/components/map/mapBannerStaging.css";
+// The selection notice below renders `.ukPlaceArrival` MARKUP directly, and
+// that stylesheet used to arrive only with UkPlaceArrivalBanner or
+// UkNationalBrowseBanner, both dynamically imported. A bad `?sel=` mounts
+// neither, so the note a reader needs painted unstyled at the top-left of
+// the viewport, one clipped line over the phone top bar. The shell that
+// renders the markup owns the stylesheet.
+import "@/components/map/ukPlaceArrivalBanner.css";
 import "@/components/map/mapToolbar.css";
 import "@/components/map/citySuggestBanner.css";
 import "@/components/map/cityStatusBanner.css";
@@ -81,6 +88,8 @@ import {
   type MapVenueListSortMode,
 } from "@/lib/mapVenueList";
 import { UK_BOUNDS } from "@/components/map/canvas/tokens";
+import MapFallbackCard from "@/components/map/MapFallbackCard";
+import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 const SpringDrawer = dynamic(() => import("@/components/map/SpringDrawer"), {
@@ -96,16 +105,67 @@ const SiteNav = dynamic(() => import("@/components/nav/SiteNav"), {
 // filters/interactions/buildScene. Loading fallback is a full-bleed map-shaped
 // plate matching the dark basemap so CLS stays 0 under the existing .mapLoading
 // overlay (same absolute inset stage).
-const PubMapCanvas = dynamic(() => import("@/components/PubMapCanvas"), {
-  ssr: false,
-  loading: () => (
-    <div
-      className="mapCanvasWrap mapCanvasSkeleton"
-      aria-hidden="true"
-      data-map-canvas="loading"
-    />
-  ),
-});
+// How many pubs the shell lists where the map would be. Same number the
+// canvas's own fallback uses, for one reason: it is the same card.
+const MAP_SHELL_FALLBACK_VENUE_COUNT = 6;
+function loadPubMapCanvas() {
+  return dynamic(() => import("@/components/PubMapCanvas"), {
+    ssr: false,
+    loading: () => (
+      <div
+        className="mapCanvasWrap mapCanvasSkeleton"
+        aria-hidden="true"
+        data-map-canvas="loading"
+      />
+    ),
+  });
+}
+// A rejected lazy component stays rejected: React caches the settled promise,
+// so remounting the same one throws again without re-asking the network. Retry
+// after a blocked chunk therefore needs a FRESH one. Attempt 0 is built once
+// and cached, so the ordinary render path is a stable component type and the
+// import stays dynamic, which is what keeps MapLibre out of this shell chunk.
+const pubMapCanvasByAttempt = new Map<number, ReturnType<typeof loadPubMapCanvas>>();
+function pubMapCanvasForAttempt(attempt: number) {
+  const held = pubMapCanvasByAttempt.get(attempt);
+  if (held) return held;
+  const built = loadPubMapCanvas();
+  pubMapCanvasByAttempt.set(attempt, built);
+  return built;
+}
+
+/**
+ * Everything under the canvas, caught. Without this a rejected canvas chunk
+ * reaches app/error.tsx and takes the WHOLE map page with it: no venue list, no
+ * selected pub's sheet, no Pint Drop composer. Reporting up lets the shell fall
+ * back to its own venue view (lib/mapCanvasAvailability.ts) instead. It renders
+ * nothing itself; the shell decides what goes in the canvas's place.
+ */
+class MapCanvasBoundary extends Component<
+  { children: ReactNode; onFailed: () => void; slotState: string },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch() {
+    this.props.onFailed();
+  }
+
+  render() {
+    // One render behind the shell: this boundary reports the failure, and the
+    // shell's next render puts the venue view in the slot. Stamp the slot in
+    // the meantime so a browser test never reads that gap as an answer.
+    return this.state.failed ? (
+      <div className="mapCanvasWrap" data-map-canvas="failing" aria-hidden="true" />
+    ) : (
+      this.props.children
+    );
+  }
+}
 const MobileMapShell = dynamic(() => import("@/components/mobile/MobileMapShell"), {
   ssr: false,
 });
@@ -375,7 +435,17 @@ import {
 } from "@/lib/mapOpeningLocation";
 import type { MapOpeningLocation } from "@/lib/mapOpeningLocation";
 import { mapLoadingHeld, mapLoadingProgressPercent } from "@/lib/mapLoadingCopy";
-import { pickMapSurfaceToast } from "@/lib/mapSurfaceChrome";
+import {
+  MAP_CANVAS_READINESS_CEILING_MS,
+  MAP_CANVAS_RETRY_LABEL,
+  mapCanvasAvailability,
+  mapCanvasCeilingArmed,
+  mapCanvasFrameReleased,
+  mapCanvasSlotState,
+  mapCanvasUnavailableHeading,
+  mapCanvasUnavailableLine,
+} from "@/lib/mapCanvasAvailability";
+import { mapAmbientBannersVisible, pickMapSurfaceToast } from "@/lib/mapSurfaceChrome";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import MapLoadingFrame from "@/components/map/MapLoadingFrame";
 import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
@@ -1158,6 +1228,19 @@ export default function PubMap({
   // We drop the loading skeleton immediately in that case even if slim pins
   // are still in flight, so the fallback card isn't hidden behind chrome.
   const [mapCanvasErrored, setMapCanvasErrored] = useState(false);
+  // The two failures the canvas cannot report, because neither leaves a canvas
+  // to report them: its module never loaded, and it never answered at all.
+  // lib/mapCanvasAvailability.ts owns what either one means and what it says.
+  const [mapCanvasModuleFailed, setMapCanvasModuleFailed] = useState(false);
+  // Stamped with the attempt it lapsed on rather than a bare flag: a retry
+  // bumps the attempt and the derived answer goes false with it, so nothing has
+  // to reset this from inside an effect body.
+  const [mapCanvasCeilingLapsedAttempt, setMapCanvasCeilingLapsedAttempt] =
+    useState<number | null>(null);
+  // Bumped by the shell's own Retry. It keys a fresh lazy component AND a fresh
+  // boundary, so a blocked chunk is genuinely re-requested rather than replayed
+  // out of React's cache.
+  const [mapCanvasAttempt, setMapCanvasAttempt] = useState(0);
   // Issue #35 - staged load. `slimPins` are Venue-shape pins built from the
   // compact index (or its IndexedDB mirror) before any detail request. They
   // carry kind, anchor provenance, and fast filter signals; detail-only fields
@@ -2042,6 +2125,48 @@ export default function PubMap({
     [pinsRevealed, mapCanvasReady, loaded, slimPins.length],
   );
   const mapLoadingProgress = mapLoadingProgressPercent(mapLoadingStage);
+  const mapCanvasAvailabilityState = mapCanvasAvailability({
+    moduleFailed: mapCanvasModuleFailed,
+    canvasOwnsFailure: mapCanvasErrored,
+    canvasReady: mapCanvasReady,
+    ceilingLapsed: mapCanvasCeilingLapsedAttempt === mapCanvasAttempt,
+  });
+  const mapCanvasUnavailable = mapCanvasAvailabilityState.status === "unavailable";
+  // The ambient lane describes the MAP. With the map's own venue view in the
+  // canvas's place, a road-closure or another-city banner is a claim about
+  // something the reader cannot see, and at 1440 it landed straight over the
+  // card's sentence and first pub row.
+  const ambientBannerLaneOpen =
+    ambientBannerLane && mapAmbientBannersVisible({ canvasUnavailable: mapCanvasUnavailable });
+  const mapCanvasCeilingRunning = mapCanvasCeilingArmed({
+    moduleFailed: mapCanvasModuleFailed,
+    canvasOwnsFailure: mapCanvasErrored,
+    canvasReady: mapCanvasReady,
+  });
+  const handleMapCanvasModuleFailed = useCallback(() => {
+    setMapCanvasModuleFailed(true);
+  }, []);
+  // The shell's own Retry. A fresh attempt re-asks for the chunk, remounts a
+  // clean boundary and re-arms the ceiling, so a reader whose signal came back
+  // gets a real second go rather than the same cached rejection.
+  const retryMapCanvas = useCallback(() => {
+    setMapCanvasModuleFailed(false);
+    setMapCanvasAttempt((attempt) => attempt + 1);
+  }, []);
+  // The bounded readiness timeout. A canvas that never answers used to hold the
+  // loading frame, and with it the whole phone shell, indefinitely: every other
+  // watchdog is armed by the canvas itself, so a mount that never gets that far
+  // has nothing watching it. The clock runs only while the frame is genuinely
+  // held by a canvas that has said nothing, and it restarts with each attempt.
+  useEffect(() => {
+    if (!mapCanvasCeilingRunning) return;
+    const attempt = mapCanvasAttempt;
+    const timer = window.setTimeout(
+      () => setMapCanvasCeilingLapsedAttempt(attempt),
+      MAP_CANVAS_READINESS_CEILING_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [mapCanvasCeilingRunning, mapCanvasAttempt]);
 
   useEffect(() => {
     if (
@@ -2243,6 +2368,34 @@ export default function PubMap({
   // it intersects and merge their pins. Already-loaded shards are skipped by
   // the loader; a failed shard is not marked loaded, so a later moveend retries
   // it — the map keeps working with whatever loaded.
+  // A canvas is the ONLY thing that ever reports map bounds, and three arrival
+  // lanes (a search arrival, a UK place arrival, national browse) deliberately
+  // wait for that report before reading a single shard, so the pubs land where
+  // the reader was actually taken. With no canvas that wait never ends.
+  // Measured with the map chunk blocked: `/map?sel=<id>` sat at zero venues for
+  // the whole life of the page, which took the fallback's pub rows, the venue
+  // list and the log intent with it, while a bare `/map` loaded 141. So when
+  // the shell has decided there is no canvas, it hands the loader the opening
+  // view ONCE per attempt, through the same door the canvas comes through.
+  const canvaslessShardBoundsAttemptRef = useRef<number | null>(null);
+  // Read through a ref: the handler is declared just below, and this effect
+  // must not re-arm every time that callback is rebuilt.
+  const handleMapBoundsChangeRef = useRef<((bounds: MapBounds) => void) | null>(null);
+  useEffect(() => {
+    if (mapCanvasAvailabilityState.status !== "unavailable") return;
+    if (canvaslessShardBoundsAttemptRef.current === mapCanvasAttempt) return;
+    canvaslessShardBoundsAttemptRef.current = mapCanvasAttempt;
+    const bounds = boundsForOpeningView(
+      openingLoadViewportFor(initialShardViewport, city.mapView),
+    );
+    queueMicrotask(() => handleMapBoundsChangeRef.current?.(bounds));
+  }, [
+    city.mapView,
+    initialShardViewport,
+    mapCanvasAttempt,
+    mapCanvasAvailabilityState.status,
+  ]);
+
   const handleMapBoundsChange = useCallback(
     (bounds: MapBounds) => {
       if (activeMapCityIdRef.current !== cityId) return;
@@ -2335,6 +2488,9 @@ export default function PubMap({
       shouldResolveOpeningLocation,
     ],
   );
+  useEffect(() => {
+    handleMapBoundsChangeRef.current = handleMapBoundsChange;
+  }, [handleMapBoundsChange]);
   const handleVisibleVenueIdsChange = useCallback(
     (membership: {
       curatedVenueIds: string[];
@@ -4981,7 +5137,13 @@ export default function PubMap({
   const storyPanel = renderStoryPanel();
   const storyOnlyOpen = storyOpen && !detailOpen && !planningOpen;
 
-  const mapLoadingActive = !mapCanvasErrored && mapLoadingHeld(mapLoadingStage);
+  // The held frame keeps its own question (painted, tappable pins), and loses
+  // it outright the moment there is no canvas to paint them: an honest card
+  // may never sit behind the chrome that was waiting for it.
+  const mapLoadingActive =
+    !mapCanvasErrored &&
+    !mapCanvasFrameReleased(mapCanvasAvailabilityState) &&
+    mapLoadingHeld(mapLoadingStage);
 
   const mobileShellReady = !mapLoadingActive;
   // Desktop reader controls. Both live inside Layers rather than on the map
@@ -5515,6 +5677,7 @@ export default function PubMap({
         selectionNotice: selectionNotice !== null,
         selectionNoticePriority: arrivalSelectionNotice !== null,
         softRetry: mapSoftRetryActive,
+        canvasUnavailable: mapCanvasUnavailable,
       }) === "soft-retry" ? null : selectionNotice ? (
         <aside
           className="ukPlaceArrival"
@@ -5546,7 +5709,7 @@ export default function PubMap({
             <X size={18} aria-hidden="true" />
           </button>
         </aside>
-      ) : ukPlaceArrival ? (
+      ) : !mapAmbientBannersVisible({ canvasUnavailable: mapCanvasUnavailable }) ? null : ukPlaceArrival ? (
         <UkPlaceArrivalBanner arrival={ukPlaceArrival} />
       ) : ukNationalBrowse ? (
         <UkNationalBrowseBanner variant="national" />
@@ -5556,9 +5719,44 @@ export default function PubMap({
     );
   }
 
-  /* The map itself. Full-bleed base layer; every panel slides in over it. */
+  /* The map itself. Full-bleed base layer; every panel slides in over it.
+
+     When the canvas cannot be shown at all - its module never loaded, or it
+     never answered inside the readiness ceiling - the map's own venue view
+     takes its place (the SAME card the canvas shows for its own failures) and
+     the rest of the page carries on: the venue list, the selected pub's sheet
+     and the log-intent composer all live in this shell and none of them needs
+     a canvas. */
   function renderMapCanvas() {
+    const slotState = mapCanvasSlotState(mapCanvasAvailabilityState);
+    if (mapCanvasAvailabilityState.status === "unavailable") {
+      const reason = mapCanvasAvailabilityState.reason;
+      return (
+        <div
+          className="mapCanvasWrap"
+          data-map-canvas={slotState}
+          data-venue-count={canvasVenues.length}
+          data-venue-index={loaded ? "loaded" : venueIndexFailed ? "failed" : "loading"}
+        >
+          <MapFallbackCard
+            key={`map-canvas-unavailable-${mapCanvasAttempt}`}
+            heading={mapCanvasUnavailableHeading(reason)}
+            message={mapCanvasUnavailableLine(reason)}
+            venues={selectMapFallbackPubs(canvasVenues, MAP_SHELL_FALLBACK_VENUE_COUNT)}
+            onSelectVenue={handleVenueClick}
+            retryLabel={MAP_CANVAS_RETRY_LABEL}
+            onRetry={retryMapCanvas}
+          />
+        </div>
+      );
+    }
+    const PubMapCanvas = pubMapCanvasForAttempt(mapCanvasAttempt);
     return (
+      <MapCanvasBoundary
+        key={`map-canvas-${mapCanvasAttempt}`}
+        onFailed={handleMapCanvasModuleFailed}
+        slotState={slotState}
+      >
       <PubMapCanvas
         venues={canvasVenues}
         interactionLocked={mobileViewport && showMapArrivalCard}
@@ -5624,6 +5822,7 @@ export default function PubMap({
         onUserCameraMove={dismissAmbientBanners}
         onBoundsChange={handleMapBoundsChange}
       />
+      </MapCanvasBoundary>
     );
   }
 
@@ -5692,13 +5891,13 @@ export default function PubMap({
           moment the reader moves the camera (design judgement 2026-08-01,
           finding 2.15). They used to park in the exact centre of the
           viewport, over the pins the map exists to show. */}
-      {ambientBannerLane && !baseLedChrome ? (
+      {ambientBannerLaneOpen && !baseLedChrome ? (
         <CitySuggestBanner
           cityId={cityId}
           onLocationFound={setUserLocation}
         />
       ) : null}
-      {ambientBannerLane && isLondon ? (
+      {ambientBannerLaneOpen && isLondon ? (
         <CityStatusBanner cityId={cityId} />
       ) : null}
       {/* F3: concierge as map home — a first-class grounded ask affordance in

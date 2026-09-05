@@ -173,7 +173,15 @@ describe("finding 2.15 — the banners dock under the bar and step off the map",
     expect(pubMap).toMatch(
       /const ambientBannerLane = !mobileViewport && !mapCameraTouched/,
     );
-    expect(pubMap).toMatch(/\{ambientBannerLane && !baseLedChrome \?/);
-    expect(pubMap).toMatch(/\{ambientBannerLane && isLondon \?/);
+    // The lane composes a second question: an ambient banner describes the
+    // MAP, so it stands down when the shell has put the map's own venue view
+    // where the canvas would be (lib/mapCanvasAvailability.ts). At 1440 with
+    // the map chunk blocked the city-conditions banner landed straight over
+    // that card's sentence and its first pub row.
+    expect(pubMap).toMatch(
+      /const ambientBannerLaneOpen =\s*\n?\s*ambientBannerLane && mapAmbientBannersVisible\(/,
+    );
+    expect(pubMap).toMatch(/\{ambientBannerLaneOpen && !baseLedChrome \?/);
+    expect(pubMap).toMatch(/\{ambientBannerLaneOpen && isLondon \?/);
   });
 });

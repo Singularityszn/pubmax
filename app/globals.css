@@ -2562,12 +2562,14 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 }
 
 @media (max-width: 640px) {
+  /* Clear the WHOLE phone chrome, bar plus docked chip row, from the token
+     mobileMapShell.css publishes for it. This used to read a
+     --mobile-map-rail-h that nothing defines, which made the calc() invalid
+     and dropped the padding entirely, so the card's heading and its one
+     sentence sat behind the top bar on every phone that ever reached it. */
   .mapFallback {
     place-content: start center;
-    padding-top: calc(
-      var(--mobile-map-top) + var(--mobile-map-bar-h) +
-      var(--mobile-map-rail-h) + 70px
-    );
+    padding-top: calc(var(--mobile-map-chrome-full-h, 118px) + 18px);
   }
 }
 
@@ -5128,8 +5130,17 @@ button:disabled {
     --map-bottom-chip-row: calc(var(--mobile-tab-clearance) + 78px);
   }
 
+  /* The plan-activation bar is a fixed member of the phone's bottom stack and
+     publishes its own height and berth (components/nav/mobileNav.css). This
+     notice used to clear the tab bar alone, so its Retry sat UNDER that bar:
+     measured at 390, the button's own centre point was owned by
+     BUTTON.mobilePlanActivation, and the control the copy tells a reader to tap
+     was not tappable. Read that member's own top edge rather than restating a
+     number, and reserve it whenever the bar is in the document. */
   .mapSoftRetry {
-    bottom: calc(var(--mobile-tab-clearance) + 10px);
+    bottom: calc(
+      var(--plan-activation-bottom) + var(--plan-activation-h) + 10px
+    );
   }
 
   /* Tab bar is hidden while planning/detail sheets own the bottom edge. */
