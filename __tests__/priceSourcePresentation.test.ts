@@ -219,7 +219,7 @@ describe("baseline price-source presentation", () => {
     expect(html).not.toContain("Publisher not recorded");
   });
 
-  it("shows a sourced menu price's publisher and formatted observation date", () => {
+  it("shows a sourced menu price's publisher and dates it as a snapshot", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-05T12:00:00.000Z"));
     const sourceUrl = "https://www.pint-prices.com/pub/the-test-arms";
@@ -232,13 +232,22 @@ describe("baseline price-source presentation", () => {
     );
 
     expect(html).toContain(">Pint Prices</a>");
-    expect(html).toContain("Seen");
+    // The sourced menu lane (drink_price_updates) is a CLOSED static snapshot
+    // after the captain's 2026-09-05 ruling: its one permitted source publishes
+    // no per-drink web prices, so no run can advance it. The row is dated and
+    // claims nothing about currency.
+    expect(html).toContain("Snapshot from");
     expect(html).toContain(
       `<time dateTime="${observedAt}">1 Aug 2026</time>`,
     );
   });
 
-  it("labels a sourced menu price beyond the freshness budget as last seen", () => {
+  it("dates a sourced menu price at any age without warning about it", () => {
+    // This used to read "Last seen" past a 14-day budget borrowed from the
+    // freshness registry. That budget is gone: a staleness warning over a lane
+    // nobody may lawfully refresh warns about the lane doing exactly what it
+    // was ruled to do. The date still carries the whole claim, and no wording
+    // here may imply the figure speaks for tonight.
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-05T12:00:00.000Z"));
     const observedAt = "2026-07-21T12:00:00.000Z";
@@ -255,7 +264,8 @@ describe("baseline price-source presentation", () => {
       }),
     );
 
-    expect(html).toContain("Last seen");
+    expect(html).toContain("Snapshot from");
+    expect(html).not.toContain("Last seen");
     expect(html).toContain(
       `<time dateTime="${observedAt}">21 Jul 2026</time>`,
     );

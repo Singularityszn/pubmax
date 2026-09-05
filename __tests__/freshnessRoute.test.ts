@@ -88,6 +88,29 @@ describe("GET /api/freshness", () => {
     }
   });
 
+  it("reports the closed per-drink lane as a dated snapshot, never stale", async () => {
+    // Captain ruling 2026-09-05. The lane's only permitted source (Wetherspoons)
+    // publishes no per-drink web prices, so no run can advance the file and the
+    // 336h budget it used to carry alarmed for ageing exactly as designed. The
+    // route must date it and stop warning: the collection day is the whole
+    // claim, and the release gate stays quiet.
+    const res = await GET();
+    const body = (await res.json()) as {
+      datasets: Array<{
+        id: string;
+        status: string;
+        observedAt: string | null;
+        stalenessBudgetHours: number | null;
+      }>;
+    };
+    const drink = body.datasets.find((d) => d.id === "drink_price_updates");
+
+    expect(drink?.status).toBe("snapshot");
+    expect(drink?.stalenessBudgetHours).toBeNull();
+    expect(typeof drink?.observedAt).toBe("string");
+    expect(Number.isFinite(Date.parse(drink?.observedAt ?? ""))).toBe(true);
+  });
+
   it("never surfaces a broken bundled artifact as an unresolved stamp", async () => {
     // The shipped, artifact-backed datasets are all valid, so none of THEM should
     // read as "unknown" (that status is reserved for a genuinely missing/broken

@@ -616,6 +616,70 @@ describe("evaluateDataset — a point-in-time feed is named a snapshot, not call
   });
 });
 
+describe("evaluateDataset - a DECLARED snapshot with no budget", () => {
+  // Captain ruling 2026-09-05, over drink_price_updates: a lane whose only
+  // permitted source publishes no per-drink web prices cannot be refreshed, so
+  // a staleness budget there alarms for ageing exactly as designed. Dropping
+  // the budget is the declaration that the lane is closed; the spine then
+  // reports the day it was collected.
+  const declaredSnapshot = (overrides: Partial<FreshnessDataset> = {}) =>
+    dataset({ class: "snapshot", stalenessBudgetHours: null, ...overrides });
+  const daysBefore = (days: number) =>
+    new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
+
+  it("reports a snapshot from the moment it is dated, not after 30 days", () => {
+    // There is no window to be inside: nothing may advance the file, so a
+    // one-hour-old snapshot and a one-year-old snapshot make the same claim.
+    for (const days of [0, 1, 29, SNAPSHOT_AFTER_DAYS, 400]) {
+      const r = evaluateDataset(declaredSnapshot(), daysBefore(days), NOW);
+      expect(r.status).toBe("snapshot");
+      expect(r.detail).toContain("no staleness budget");
+    }
+  });
+
+  it("still carries its collection date and never reads as a breach", () => {
+    const results = [evaluateDataset(declaredSnapshot(), daysBefore(400), NOW)];
+    expect(results[0]?.observedAt).toBe(daysBefore(400));
+    expect(results[0]?.ageHours).toBe(400 * 24);
+    expect(hasBreach(results)).toBe(false);
+    expect(staleFeeds(results)).toEqual([]);
+    expect(unresolvedFeeds(results)).toEqual([]);
+  });
+
+  it("does not merge a closed lane with unstamped static reference data", () => {
+    // "Nothing was dated" and "this is dated and final" are two different
+    // facts, and untracked can only say the first. Merging them would throw
+    // away the one thing a reader of a closed lane needs: the date.
+    const unstamped = evaluateDataset(
+      dataset({ class: "static", stamp: null, stalenessBudgetHours: null }),
+      null,
+      NOW,
+    );
+    expect(unstamped.status).toBe("untracked");
+    expect(unstamped.observedAt).toBeNull();
+  });
+
+  it("keeps the stale finding for a snapshot lane that KEEPS a budget", () => {
+    // area_news is class `snapshot` and IS re-collected (npm run
+    // refresh:area-news), so its budget is a real promise. Only the absence of
+    // a budget closes a lane.
+    const budgeted = declaredSnapshot({ stalenessBudgetHours: 504 });
+    expect(evaluateDataset(budgeted, daysBefore(1), NOW).status).toBe("fresh");
+    expect(evaluateDataset(budgeted, daysBefore(30), NOW).status).toBe("stale");
+  });
+
+  it("leaves an unbudgeted feed of any other class untracked", () => {
+    for (const other of ["episodic", "user-cadence", "cron"] as const) {
+      const r = evaluateDataset(
+        dataset({ class: other, stalenessBudgetHours: null }),
+        daysBefore(400),
+        NOW,
+      );
+      expect(r.status).toBe("untracked");
+    }
+  });
+});
+
 describe("evaluateDataset - a user-cadence feed ages the same way", () => {
   // pint_index_snapshot grows only as confirmed Pint Drops arrive, so a quiet
   // stretch leaves it describing the last night anybody logged. It sat 1,211
@@ -770,11 +834,19 @@ describe("data/freshness_registry.json integrity", () => {
       class: "episodic",
       stalenessBudgetHours: null,
     });
+    // Captain ruling 2026-09-05: the per-drink lane is a STATIC SNAPSHOT. Its
+    // one permitted source publishes no per-drink web prices, so no run can
+    // advance the file and a staleness budget was a promise nobody could keep:
+    // it reported stale for ageing exactly as designed. Dropping the budget is
+    // what declares the lane closed, so both halves are pinned together.
     expect(byId.get("drink_price_updates")).toMatchObject({
-      class: "episodic",
-      stalenessBudgetHours: 336,
+      class: "snapshot",
+      stalenessBudgetHours: null,
     });
-    expect(byId.get("drink_price_updates")?.stalenessBudgetHours).toBe(SIGHTING_MAX_AGE_HOURS);
+    // The feed's recency window is now this surface's own number and no longer
+    // borrows the registry's, so a registry edit can never silently move what a
+    // heading claims. See lib/feedSightings.ts.
+    expect(SIGHTING_MAX_AGE_HOURS).toBe(336);
     expect(byId.has("price_update_retrieval")).toBe(false);
     expect(byId.get("night_signal_candidates")?.class).toBe("cron");
   });

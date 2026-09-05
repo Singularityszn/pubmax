@@ -28,12 +28,12 @@
     {
       "id": "drink_price_updates",
       "label": "Per-drink price updates",
-      "class": "episodic",
+      "class": "snapshot",
       "artifact": "public/data/drink_price_updates/latest.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "reviewed first-party observations; maximum current-price age is 14 days",
-      "stalenessBudgetHours": 336,
-      "refreshWorkflow": "Manual reviewed publish. The Drink price refresh workflow is retrieval-only while the allowlisted source exposes no web prices.",
+      "cadence": "static snapshot: the rows describe the day they were collected and nothing may lawfully advance them",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "None. Captain ruling 2026-09-05: this lane is a static snapshot. The Drink price refresh workflow is retrieval-only and its ONLY permitted source (Wetherspoons) publishes no per-drink web prices, so no run can advance the file. A staleness budget here was a promise nobody could keep: the lane reported stale for ageing exactly as designed. Surfaces name it \"Snapshot from <collection date>\" (lib/dataFreshness.ts formatSnapshotFrom) and claim nothing about currency. Adding a source is a separate captain decision, not a budget change.",
       "gate": "Only allowlisted first-party source (Wetherspoons) has no per-drink web prices. Never restamp old rows after a zero-row retrieval."
     },
     {

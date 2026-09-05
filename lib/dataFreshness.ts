@@ -22,7 +22,6 @@ export const PINT_DATASET_FILE = "pint_prices_app_dataset.json";
 
 /** Registry id of the bundled pint-price dataset entry (the stamp we read). */
 const PINT_DATASET_REGISTRY_ID = "pint_prices";
-const DRINK_PRICE_UPDATE_REGISTRY_ID = "drink_price_updates";
 
 const registry = freshnessRegistry as unknown as FreshnessRegistry;
 
@@ -48,9 +47,6 @@ function stalenessBudgetDays(id: string): number {
  */
 export const PINT_DATASET_STALENESS_BUDGET_DAYS = stalenessBudgetDays(
   PINT_DATASET_REGISTRY_ID,
-);
-export const DRINK_PRICE_UPDATE_STALENESS_BUDGET_DAYS = stalenessBudgetDays(
-  DRINK_PRICE_UPDATE_REGISTRY_ID,
 );
 
 /**
@@ -134,18 +130,32 @@ export function formatObservedDate(date: Date): string {
 }
 
 /**
- * "Snapshot from 16 July 2026" — the bundled pint-price baseline named as what
- * it is, for a caption that stands on its own.
- *
- * The bundle is collected episodically by hand, so months after its collection
- * day it is a record of that day rather than a reading of this one. The word
- * SNAPSHOT is the one the freshness spine uses for the same fact
- * (lib/freshness.ts SNAPSHOT_AFTER_DAYS), so what a drinker reads and what the
- * audit reports cannot drift into two vocabularies. It claims nothing about
- * currency: the date is the whole claim.
+ * The words every snapshot caption leads with. Exported so a surface that has
+ * to compose its own date element (a `<time>` inside a dense caption, say)
+ * still takes the WORDS from here rather than typing them a second time.
  */
+export const SNAPSHOT_CAPTION_PREFIX = "Snapshot from";
+
+/**
+ * "Snapshot from 16 July 2026" - a point-in-time price lane named as what it
+ * is, for a caption that stands on its own.
+ *
+ * THE ONE COMPOSER of that caption, shared by every lane the freshness spine
+ * reports as a `snapshot`: the hand-collected pint bundle, and the per-drink
+ * price updates, which carry no refresh path at all (captain ruling
+ * 2026-09-05: their only permitted source publishes no per-drink web prices).
+ * The word SNAPSHOT is the one the spine uses for the same fact
+ * (lib/freshness.ts), so what a drinker reads and what the audit reports cannot
+ * drift into two vocabularies. It claims nothing about currency: the date is
+ * the whole claim.
+ */
+export function formatSnapshotFrom(date: Date): string {
+  return `${SNAPSHOT_CAPTION_PREFIX} ${formatObservedDate(date)}`;
+}
+
+/** The bundled pint-price baseline's own snapshot caption. */
 export function formatPintDatasetSnapshot(): string {
-  return `Snapshot from ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
+  return formatSnapshotFrom(PINT_DATASET_OBSERVED_AT);
 }
 
 /**

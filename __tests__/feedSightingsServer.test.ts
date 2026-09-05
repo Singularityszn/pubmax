@@ -179,14 +179,24 @@ describe("feed sightings server boundary", () => {
     expect(await loadFeedSightings()).toEqual([]);
   });
 
-  it("keeps the recency window equal to the overlay's own staleness budget", () => {
+  it("owns its recency window now the overlay lane is a closed snapshot", () => {
+    // The window used to borrow drink_price_updates' staleness budget. That
+    // lane is now a static snapshot with NO budget (captain ruling 2026-09-05:
+    // its only permitted source publishes no per-drink web prices), and a
+    // registry entry that promises no refresh cannot answer what a HEADING may
+    // claim about recency. The gate matters more for a closed lane, not less:
+    // it is what drains the heading with its rows.
     const registry = JSON.parse(
       readFileSync(join(process.cwd(), "data/freshness_registry.json"), "utf8"),
-    ) as { datasets: { id: string; stalenessBudgetHours: number | null }[] };
+    ) as {
+      datasets: { id: string; class: string; stalenessBudgetHours: number | null }[];
+    };
     const overlay = registry.datasets.find(
       (dataset) => dataset.id === "drink_price_updates",
     );
 
-    expect(overlay?.stalenessBudgetHours).toBe(SIGHTING_MAX_AGE_HOURS);
+    expect(overlay?.class).toBe("snapshot");
+    expect(overlay?.stalenessBudgetHours).toBeNull();
+    expect(SIGHTING_MAX_AGE_HOURS).toBe(336);
   });
 });

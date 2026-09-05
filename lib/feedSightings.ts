@@ -62,15 +62,22 @@ export type ResolveSightingVenue = (venueKey: string) => SightingVenue | null;
 export const SIGHTINGS_CAP = 12;
 
 // How old an observation may be and still sit under a heading that claims
-// recency. The number is borrowed from the drink_price_updates staleness budget
-// in data/freshness_registry.json (336h) so the feed and the spine speak of the
-// same span, but they measure DIFFERENT clocks and can disagree: the registry
-// ages the artifact's `generatedAt`, this gate ages each row's `observedAt`, so
-// a freshly regenerated file may still carry observations too old to print here.
-// __tests__/feedSightingsServer.test.ts pins the shared number, not an
-// equivalence. What the gate buys is that the heading drains with its rows: an
-// overlay that stops refreshing empties this surface instead of leaving a
-// recency claim standing over dates that contradict it.
+// recency: 14 days, this surface's OWN number.
+//
+// It began as the drink_price_updates staleness budget in
+// data/freshness_registry.json and outlived it. That lane is now a static
+// snapshot with no budget at all (captain ruling 2026-09-05: its only permitted
+// source publishes no per-drink web prices, so nothing may lawfully advance the
+// file), and a registry entry that no longer promises a refresh cannot answer
+// what a HEADING may claim. The two always measured different clocks anyway:
+// the registry aged the artifact's `generatedAt`, this gate ages each row's
+// `observedAt`.
+//
+// What the gate buys is that the heading drains with its rows: an overlay that
+// stops refreshing empties this surface instead of leaving a recency claim
+// standing over dates that contradict it. That is exactly what a closed lane
+// does, so the gate matters MORE now, not less. Never point it back at a
+// registry budget.
 export const SIGHTING_MAX_AGE_HOURS = 336;
 
 /** The www-stripped host of an absolute URL, or "" when it can't be parsed. */
