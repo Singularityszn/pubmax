@@ -323,9 +323,13 @@ The workflow supports `workflow_dispatch`, so it can be rerun manually from GitH
 This project does not auto-assign the production domain to every deploy. After a Vercel deploy, promote it explicitly:
 
 ```sh
-vercel deploy
+npm run deploy:preview
 vercel promote <deployment-url>
 ```
+
+`npm run deploy:preview` is `vercel deploy` plus the commit of the tree it is
+uploading, so `GET /api/version` on the preview names it (see below). It
+forwards every argument.
 
 Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pass `--prebuilt` from a Mac: the locally built sharp binary is darwin-arm64 and crashes the linux runtime.
 
@@ -364,12 +368,25 @@ the machine that ran the command, so it can carry uncommitted work, and matching
 it against local `git rev-parse HEAD` is what proves the preview serves the code
 you meant to send.
 
-Earlier, the route read `VERCEL_GIT_COMMIT_SHA` at request time. Vercel puts that
-variable in the environment of a build its Git integration owns, and in neither
-the build nor the runtime of a CLI deploy, so `gitCommitSha` was `null` on exactly
-the previews that needed identifying and each verification went through the Vercel
-deployment API instead. `lib/buildInfo.mjs` now owns the rule, `next.config.mjs`
-asks it once during the build, and the values ride in `env` as
+A CLI deploy has to carry its own commit, and `npm run deploy:preview` is how it
+does. Measured 2026-09-05 against preview `dpl_CgDWoXWduiQJyFBwJPEYSHTsdcB8`: a
+bare `vercel deploy` uploads no `.git` directory and Vercel stamps no
+`VERCEL_GIT_COMMIT_SHA` on either the build or the runtime of such a deploy, so
+the builder has nothing to ask and the marker answered `null` on exactly the
+previews that needed identifying. The script reads `HEAD` on the machine running
+the command and passes it as a build variable; every argument is forwarded, so
+the target stays the operator's call, and `PUBMAX_VERCEL_BIN` names a CLI binary
+for anyone who has their own. A deploy through Vercel's Git integration needs
+none of this and answers `vercel-git`.
+
+**A dirty tree stamps nothing.** A CLI deploy uploads the working tree, so over a
+dirty tree the commit would name code that was not sent; the script warns, the
+deploy proceeds, and `gitCommitSha` is `null`. Commit the tree to get an
+identifiable deploy.
+
+Earlier, the route read `VERCEL_GIT_COMMIT_SHA` at request time, which is absent
+from the runtime of every CLI deploy. `lib/buildInfo.mjs` now owns the rule,
+`next.config.mjs` asks it once during the build, and the values ride in `env` as
 `PUBMAX_BUILD_COMMIT_SHA`, `PUBMAX_BUILD_COMMIT_SHA_SOURCE` and
 `PUBMAX_BUILD_TIME`. Next replaces a static `process.env.NAME` member expression
 with the build-time literal, so the route must read each name directly and never
