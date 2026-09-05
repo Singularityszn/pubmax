@@ -44,6 +44,14 @@
     max-width: min(420px, calc(100vw - 384px));
   }
 
+}
+
+/* The left lane exists from 1024px up. Below that the formula bottomed out
+   at its 160px floor (measured at 768px: a 58px text column, "dangerous"
+   broken mid-word beside the close), so between 641px and 1023px the status
+   banner keeps its default berth: centred, full width, under the prompt,
+   which the +82px top anchor already clears. */
+@media (min-width: 1024px) {
   .mapStage:has(.citySuggestBanner) .cityStatusStack {
     left: 16px;
     width: min(460px, max(160px, calc(50vw - 242px)));
