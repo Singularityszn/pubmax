@@ -1,22 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
+import { setFirstPintIn } from "./helpers/planFirstPint";
 
-/** A `datetime-local` value in London, `minutes` from now. */
-function londonFirstPintIn(minutes: number): string {
-  const when = new Date(Date.now() + minutes * 60 * 1000);
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(when);
-  const lookup = (type: string) => parts.find((part) => part.type === type)?.value ?? "00";
-  return `${lookup("year")}-${lookup("month")}-${lookup("day")}T${lookup("hour")}:${lookup("minute")}`;
-}
 
 test("concierge picks become a public Plan that a mate joins with only a name", async ({
   browser,
@@ -33,6 +19,11 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // The identity nudge (lib/identityNudge.ts) fires after the first
+    // qualifying plan action and lays a backdrop over the night surface this
+    // test taps. It is real signed-out UX and has its own coverage; pre-
+    // dismissing it here is what a returning visitor already carries.
+    window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
   await page.goto("/plan");
   await expect(page.getByRole("heading", { name: "Describe the outing. We’ll put it in order." })).toBeVisible();
@@ -83,6 +74,11 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // The identity nudge (lib/identityNudge.ts) fires after the first
+    // qualifying plan action and lays a backdrop over the night surface this
+    // test taps. It is real signed-out UX and has its own coverage; pre-
+    // dismissing it here is what a returning visitor already carries.
+    window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
   const matePage = await mate.newPage();
   matePage.on("request", (request) => {
@@ -137,6 +133,11 @@ test("host still gets night mode ambushed at their own plan's start time", async
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // The identity nudge (lib/identityNudge.ts) fires after the first
+    // qualifying plan action and lays a backdrop over the night surface this
+    // test taps. It is real signed-out UX and has its own coverage; pre-
+    // dismissing it here is what a returning visitor already carries.
+    window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
   await page.goto("/plan");
   await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
@@ -150,7 +151,7 @@ test("host still gets night mode ambushed at their own plan's start time", async
   // 15:00 London and failed every hour before it. Naming a start half an hour
   // out puts the plan inside the window whenever the suite runs. Editing the
   // start marks the route stale, so refresh it before locking in.
-  await page.getByLabel("First pint").fill(londonFirstPintIn(30));
+  await setFirstPintIn(page, 30);
   await page.getByRole("button", { name: "Regenerate route" }).click();
   await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
