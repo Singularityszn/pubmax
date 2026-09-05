@@ -134,7 +134,6 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     inlineBranches: 1,
     reason: "Ambient demo presence is blended in only where no durable store answers.",
   },
-  "lib/priceConfirmStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/priceTrustEventStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/privateIdentityStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/profileCoverPhotoStore.ts": {

@@ -1,8 +1,10 @@
 // Community price-submission route - backs the "What's it tonight?" card on the
 // venue sheet (VenuePriceSubmit). A submission is a NEW dated observation by a
-// drinker standing in the pub, unlike /api/price-confirm which only counts
-// vouches for a price that is already displayed. The two are siblings; this one
-// is the first time a figure enters the map from the community.
+// drinker standing in the pub, and it is the first time a figure enters the map
+// from the community. The anonymous one-tap vouch that used to sit beside it
+// was retired by battle test L03: an IP-keyed tally cannot say how many PEOPLE
+// stood behind a price, so this named, dated, account-bound lane is the only
+// way a drinker's agreement now reaches anything.
 //
 //   POST { venueId, drinkCategory, priceGbp }              → { ok, price }
 //   POST { kind: "venue-signal", venueId, signalKey, ... } → { ok, signal }

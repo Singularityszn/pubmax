@@ -1,98 +1,67 @@
+// How old the evidence behind a displayed price is, and nothing else.
+//
+// This file used to test a vouch reader: "×3 this week", "vouched this week",
+// "vouched recently", all derived from the anonymous price-confirm tally that
+// battle test L03 retired. Those cases are gone with the capability, because a
+// test of a retired lane is a test that keeps its vocabulary alive.
+//
+// What is left is an age read over the price's own observation, plus the one
+// line that invites a fresh look when that is old.
+
 import { describe, expect, it } from "vitest";
 
 import {
-  CONFIRM_WINDOW_DAYS,
   FRESH_WITHIN_DAYS,
   priceConfidence,
   STALE_AFTER_DAYS,
 } from "@/lib/priceConfidence";
 
-const DAY = 86_400_000;
-const NOW = 1_800_000_000_000; // fixed clock — the module never calls Date.now()
+const NOW = Date.parse("2026-09-05T18:00:00.000Z");
+const DAY = 24 * 60 * 60 * 1000;
 
 describe("priceConfidence", () => {
-  it("is FRESH within the fresh window and labels real weekly activity", () => {
-    const c = priceConfidence(
-      { confirms: 5, lastConfirmedAt: NOW - 2 * DAY, recentConfirms: 3 },
-      NOW,
-    );
-    expect(c.state).toBe("fresh");
-    expect(c.label).toBe("×3 this week");
+  it("reads a price observed today as fresh, and says nothing about it", () => {
+    expect(priceConfidence({ priceObservedAt: NOW - DAY }, NOW)).toEqual({
+      state: "fresh",
+      label: null,
+    });
   });
 
-  it("uses the singular wording for exactly one weekly confirm", () => {
-    const c = priceConfidence(
-      { confirms: 1, lastConfirmedAt: NOW - DAY, recentConfirms: 1 },
-      NOW,
-    );
-    expect(c.label).toBe("vouched this week");
-  });
-
-  it("falls back to 'vouched recently' inside the fresh window with no weekly activity", () => {
-    const c = priceConfidence(
-      { confirms: 2, lastConfirmedAt: NOW - 10 * DAY, recentConfirms: 0 },
-      NOW,
-    );
-    expect(c.state).toBe("fresh");
-    expect(c.label).toBe("vouched recently");
-  });
-
-  it("boundary: exactly FRESH_WITHIN_DAYS old is still fresh; a ms past is aging", () => {
-    const at = NOW - FRESH_WITHIN_DAYS * DAY;
-    expect(priceConfidence({ confirms: 1, lastConfirmedAt: at, recentConfirms: 0 }, NOW).state).toBe(
-      "fresh",
-    );
+  it("holds the fresh boundary itself as fresh", () => {
     expect(
-      priceConfidence({ confirms: 1, lastConfirmedAt: at - 1, recentConfirms: 0 }, NOW).state,
+      priceConfidence({ priceObservedAt: NOW - FRESH_WITHIN_DAYS * DAY }, NOW).state,
+    ).toBe("fresh");
+    expect(
+      priceConfidence({ priceObservedAt: NOW - FRESH_WITHIN_DAYS * DAY - 1 }, NOW).state,
     ).toBe("aging");
   });
 
-  it("AGING carries no label — the plaque just goes quiet", () => {
-    const c = priceConfidence(
-      { confirms: 4, lastConfirmedAt: NOW - 30 * DAY, recentConfirms: 0 },
-      NOW,
-    );
-    expect(c.state).toBe("aging");
-    expect(c.label).toBeNull();
+  it("goes quiet rather than humble in the middle band", () => {
+    expect(priceConfidence({ priceObservedAt: NOW - 30 * DAY }, NOW)).toEqual({
+      state: "aging",
+      label: null,
+    });
   });
 
-  it("STALE past the stale threshold, with the honest invitation", () => {
-    const c = priceConfidence(
-      { confirms: 2, lastConfirmedAt: NOW - (STALE_AFTER_DAYS + 1) * DAY, recentConfirms: 0 },
-      NOW,
-    );
-    expect(c.state).toBe("stale");
-    expect(c.label).toBe("worth a fresh look");
+  it("invites a fresh look once the observation is stale", () => {
+    expect(
+      priceConfidence({ priceObservedAt: NOW - STALE_AFTER_DAYS * DAY - DAY }, NOW),
+    ).toEqual({ state: "stale", label: "worth a fresh look" });
   });
 
-  it("a fresh price OBSERVATION keeps state fresh but earns no community wording", () => {
-    const c = priceConfidence(
-      { confirms: 0, lastConfirmedAt: null, recentConfirms: 0, priceObservedAt: NOW - DAY },
-      NOW,
-    );
-    expect(c.state).toBe("fresh");
-    expect(c.label).toBeNull();
+  it("treats an unknown observation date as stale rather than fresh", () => {
+    // Absence of evidence is not evidence of freshness. The price still
+    // renders; it just stops implying anybody checked it recently.
+    expect(priceConfidence({}, NOW).state).toBe("stale");
+    expect(priceConfidence({ priceObservedAt: null }, NOW).state).toBe("stale");
   });
 
-  it("no signal at all is stale — absence is never dressed up as freshness", () => {
-    const c = priceConfidence({ confirms: 0, lastConfirmedAt: null, recentConfirms: 0 }, NOW);
-    expect(c.state).toBe("stale");
-  });
-
-  it("the latest of confirm vs observation wins the age read", () => {
-    const c = priceConfidence(
-      {
-        confirms: 1,
-        lastConfirmedAt: NOW - 90 * DAY,
-        recentConfirms: 0,
-        priceObservedAt: NOW - 3 * DAY,
-      },
-      NOW,
-    );
-    expect(c.state).toBe("fresh");
-  });
-
-  it("exports a 7-day window constant the store windows on", () => {
-    expect(CONFIRM_WINDOW_DAYS).toBe(7);
+  it("never claims a community vouch, because there is no longer such a thing", () => {
+    // L03: the words this module used to print were about an anonymous,
+    // IP-keyed tally that could not say how many PEOPLE stood behind a price.
+    for (const days of [0, 3, 10, 20, 90]) {
+      const label = priceConfidence({ priceObservedAt: NOW - days * DAY }, NOW).label;
+      expect(label === null || label === "worth a fresh look").toBe(true);
+    }
   });
 });

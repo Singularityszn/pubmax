@@ -64,7 +64,6 @@ const LIB_NON_COPY_ALLOWLIST: ReadonlySet<string> = new Set([
   "lib/notificationsStore.ts",
   "lib/operatorProposalsStore.ts",
   "lib/pintDropsStore.ts",
-  "lib/priceConfirmStore.ts",
   "lib/pushProvider.ts",
   "lib/ratingsStore.ts",
   "lib/storeBackend.ts",

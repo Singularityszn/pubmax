@@ -135,67 +135,60 @@ describe("conflict-window behaviour", () => {
   });
 });
 
-describe("vouch-upgrade path — a community vouch on a scraped price corroborates it", () => {
-  it("scraped single_source becomes corroborated once a community vouch lands on the same value", () => {
-    const before = buildPriceClaims(FIELD, [
-      { gbp: 6.4, authority: "scraped", observedAt: 0, publisher: "dataset" },
-    ]);
-    expect(before[0].verification).toBe("single_source");
+// THE VOUCH-UPGRADE PATH IS GONE (battle test L03). It used to sit here: an
+// anonymous, IP-keyed confirm rode into the signals as a third `community`
+// publisher, and one tap turned a lone scraped baseline from `single_source`
+// into `corroborated`. An IP is a household, a pub's own wifi and a mobile
+// carrier's NAT, so it could never prove two people, and "corroborated" is a
+// word this tree owns elsewhere with a much harder meaning: two authority keys
+// derived from two verified accounts. The generic claim model below still
+// corroborates across two REAL publishers; what left is the fake third one.
 
-    const after = buildPriceClaims(FIELD, [
-      { gbp: 6.4, authority: "scraped", observedAt: 0, publisher: "dataset" },
-      { gbp: 6.4, authority: "community", observedAt: NOW, publisher: "price-confirm" },
-    ]);
-    expect(after).toHaveLength(1); // same value → one claim
-    expect(after[0].verification).toBe("corroborated");
+describe("the retired vouch publisher", () => {
+  it("no longer rides into the story signals", () => {
+    const signals = priceStorySignals({ baselineGbp: 6.4, nowGbp: null });
+    expect(signals).toHaveLength(1);
+    expect(signals.every((signal) => signal.publisher !== "price-confirm")).toBe(true);
   });
 
-  it("priceStorySignals upgrades a vouched scraped baseline (no separate now price)", () => {
-    const signals = priceStorySignals({
-      baselineGbp: 6.4,
-      nowGbp: null,
-      confirm: { confirms: 3, lastConfirmedAt: NOW - DAY, recentConfirms: 2 },
-      confirmTargetGbp: 6.4,
-    });
+  it("leaves a lone scraped baseline as the single source it is", () => {
+    const signals = priceStorySignals({ baselineGbp: 6.4, nowGbp: null });
     const claims = buildPriceClaims(priceFieldId("venue-1"), signals);
     expect(claims).toHaveLength(1);
-    expect(claims[0].verification).toBe("corroborated");
-    // No competing value → no conflict.
-    expect(conflictPrices(resolvePrice(priceFieldId("venue-1"), signals, { now: NOW }))).toEqual([]);
+    expect(claims[0].verification).toBe("single_source");
   });
 
-  it("two vouches from the SAME publisher do not fake corroboration", () => {
+  it("still corroborates across two publishers that are really two", () => {
+    // The model is unchanged. Only the anonymous publisher is gone.
     const claims = buildPriceClaims(FIELD, [
-      { gbp: 6.4, authority: "community", observedAt: NOW, publisher: "price-confirm" },
-      { gbp: 6.4, authority: "community", observedAt: NOW, publisher: "price-confirm" },
+      { gbp: 6.4, authority: "scraped", observedAt: 0, publisher: "dataset" },
+      { gbp: 6.4, authority: "community", observedAt: NOW, publisher: "community-report" },
     ]);
-    expect(claims[0].verification).toBe("single_source");
+    expect(claims).toHaveLength(1);
+    expect(claims[0].verification).toBe("corroborated");
   });
 });
 
-describe("honest-conflict render inputs — scrape 6.40 vs fresh vouch 6.90", () => {
-  it("priceStorySignals + resolvePrice surfaces both prices ascending", () => {
+describe("honest-conflict render inputs — scrape 6.40 vs a dated community now price", () => {
+  it("surfaces both prices ascending when the community report is dated", () => {
     const signals = priceStorySignals({
       baselineGbp: 6.4,
       nowGbp: 6.9,
-      confirm: { confirms: 2, lastConfirmedAt: NOW - DAY, recentConfirms: 2 },
-      confirmTargetGbp: 6.9, // the tally is keyed to the community "now" price
+      nowObservedAt: NOW - DAY,
     });
     const res = resolvePrice(priceFieldId("venue-1"), signals, { now: NOW });
     expect(res?.winner.value).toBe(6.4); // scraped serves by authority
     expect(conflictPrices(res)).toEqual([6.4, 6.9]); // both exposed, never hidden
   });
 
-  it("an unvouched, undated community now-price cannot fake liveness", () => {
-    // Without a confirm timestamp we cannot prove the drop is fresh → no live
-    // conflict is asserted (honest: absence of proof is not a conflict).
-    const signals = priceStorySignals({
-      baselineGbp: 6.4,
-      nowGbp: 6.9,
-      confirm: null,
-      confirmTargetGbp: 6.9,
-    });
-    expect(conflictPrices(resolvePrice(priceFieldId("venue-1"), signals, { now: NOW }))).toEqual([]);
+  it("an UNDATED community now-price cannot fake liveness", () => {
+    // Absence of proof is not a conflict. This used to lean on a confirm
+    // timestamp; it leans on the observation's own date now, which is the only
+    // date anybody can check.
+    const signals = priceStorySignals({ baselineGbp: 6.4, nowGbp: 6.9 });
+    expect(
+      conflictPrices(resolvePrice(priceFieldId("venue-1"), signals, { now: NOW })),
+    ).toEqual([]);
   });
 
   it("the conflict window matches priceConfidence's fresh fortnight", () => {
@@ -203,17 +196,16 @@ describe("honest-conflict render inputs — scrape 6.40 vs fresh vouch 6.90", ()
   });
 });
 
-describe("adapter API stability — priceConfidence public contract is unchanged", () => {
-  it("priceConfidence still returns { state, label } and reads the same shape", () => {
-    const out = priceConfidence(
-      { confirms: 2, lastConfirmedAt: NOW - DAY, recentConfirms: 2 },
-      NOW,
-    );
-    expect(out).toEqual({ state: "fresh", label: "×2 this week" });
+describe("adapter API stability — priceConfidence still answers { state, label }", () => {
+  it("dates a recently observed price as fresh, and says nothing about it", () => {
+    expect(priceConfidence({ priceObservedAt: NOW - DAY }, NOW)).toEqual({
+      state: "fresh",
+      label: null,
+    });
   });
 
-  it("a price with no confirm history still yields no confidence line", () => {
-    const out = priceConfidence({ confirms: 0, lastConfirmedAt: null }, NOW);
+  it("a price with no observation date still yields the fresh-look line", () => {
+    const out = priceConfidence({}, NOW);
     expect(out.state).toBe("stale");
     expect(out.label).toBe("worth a fresh look");
   });

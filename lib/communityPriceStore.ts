@@ -5,7 +5,7 @@
 // the Supabase admin client.
 //
 // ONE store interface, TWO implementations (process-memory + Supabase
-// public.community_prices) - the exact dual-backend seam as priceConfirmStore /
+// public.community_prices) - the exact dual-backend seam as ratingsStore /
 // ratingsStore: Supabase when env keys exist, process-memory otherwise, chosen
 // at the single communityPriceStore() seam. Until migration 0054 lands (or on a
 // schema miss) the Supabase path fails soft to memory OUTSIDE production, so

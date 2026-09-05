@@ -33,7 +33,6 @@ const VENUE = "venue-a9nk2t";
 
 function row(over: Partial<PintDrop> & { id: string }): PintDrop {
   return {
-    id: over.id,
     venueId: VENUE,
     handle: "bobpent",
     drink: "Beer",
