@@ -1,0 +1,144 @@
+{
+  "label": "before",
+  "base": "http://127.0.0.1:3101",
+  "conversationId": "eae0ae27-b1e0-48f6-8d87-18ce91f6a11f",
+  "open": {
+    "medianMs": 491,
+    "samples": [
+      {
+        "ms": 760,
+        "requests": 4,
+        "apiBytes": 1544,
+        "apiCalls": [
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 1141B 709ms",
+          "GET /api/notifications?handle=msgqa_a 200 31B 876ms",
+          "GET /api/messages?handle=msgqa_a 200 186B 971ms",
+          "GET /api/messages?handle=msgqa_a 200 186B 1025ms"
+        ]
+      },
+      {
+        "ms": 467,
+        "requests": 4,
+        "apiBytes": 1544,
+        "apiCalls": [
+          "GET /api/notifications?handle=msgqa_a 200 31B 321ms",
+          "GET /api/messages?handle=msgqa_a 200 186B 383ms",
+          "GET /api/messages?handle=msgqa_a 200 186B 402ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 1141B 421ms"
+        ]
+      },
+      {
+        "ms": 491,
+        "requests": 4,
+        "apiBytes": 1544,
+        "apiCalls": [
+          "GET /api/notifications?handle=msgqa_a 200 31B 414ms",
+          "GET /api/messages?handle=msgqa_a 200 186B 425ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 1141B 435ms",
+          "GET /api/messages?handle=msgqa_a 200 186B 452ms"
+        ]
+      },
+      {
+        "ms": 436,
+        "requests": 4,
+        "apiBytes": 1544,
+        "apiCalls": [
+          "GET /api/notifications?handle=msgqa_a 200 31B 345ms",
+          "GET /api/messages?handle=msgqa_a 200 186B 346ms",
+          "GET /api/messages?handle=msgqa_a 200 186B 360ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 1141B 363ms"
+        ]
+      },
+      {
+        "ms": 771,
+        "requests": 4,
+        "apiBytes": 1544,
+        "apiCalls": [
+          "GET /api/messages?handle=msgqa_a 200 186B 585ms",
+          "GET /api/notifications?handle=msgqa_a 200 31B 597ms",
+          "GET /api/messages?handle=msgqa_a 200 186B 604ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 1141B 637ms"
+        ]
+      }
+    ]
+  },
+  "send": {
+    "ownMedianMs": 1279,
+    "otherMedianMs": 3953,
+    "otherMaxMs": 4281,
+    "readMedianMs": null,
+    "samples": [
+      {
+        "ownMs": 274,
+        "otherMs": 4281,
+        "readMs": null,
+        "senderRequests": [
+          "POST /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f 201 0B 126ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 1376B 131ms"
+        ]
+      },
+      {
+        "ownMs": 1279,
+        "otherMs": 3953,
+        "readMs": null,
+        "senderRequests": [
+          "POST /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f 201 0B 620ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 1615B 662ms"
+        ]
+      },
+      {
+        "ownMs": 1550,
+        "otherMs": 2362,
+        "readMs": null,
+        "senderRequests": [
+          "POST /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f 201 0B 661ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 1854B 899ms"
+        ]
+      },
+      {
+        "ownMs": 1224,
+        "otherMs": 2856,
+        "readMs": null,
+        "senderRequests": [
+          "POST /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f 201 0B 431ms",
+          "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a 200 2093B 776ms"
+        ]
+      },
+      {
+        "ownMs": 5196,
+        "otherMs": 4063,
+        "readMs": null,
+        "senderRequests": [
+          "POST /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f 201 0B 3420ms"
+        ]
+      }
+    ]
+  },
+  "idle30s": {
+    "aRequests": 6,
+    "aBytes": 7424,
+    "aCalls": [
+      "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a",
+      "GET /api/notifications?handle=msgqa_a",
+      "GET /api/messages?handle=msgqa_a",
+      "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a",
+      "GET /api/messages?handle=msgqa_a",
+      "GET /api/messages/eae0ae27-b1e0-48f6-8d87-18ce91f6a11f?handle=msgqa_a"
+    ],
+    "bRequests": 6,
+    "bBytes": 7426
+  },
+  "inbox": {
+    "calls": [
+      "GET /api/auth/session 200 44B 31ms",
+      "GET /api/identity/handle/current 200 67B 754ms",
+      "GET /api/identity/handle/current 200 67B 1657ms",
+      "GET /api/identity/handle/current 200 67B 1871ms",
+      "GET /api/identity/handle/current 200 67B 893ms",
+      "GET /api/identity/onboarding 200 37B 1101ms",
+      "GET /api/notifications?handle=msgqa_a 200 31B 1247ms",
+      "GET /api/messages?handle=msgqa_a 200 200B 1656ms",
+      "GET /api/messages?handle=msgqa_a 200 200B 2477ms"
+    ]
+  }
+}

@@ -36,6 +36,7 @@ vi.mock("@/lib/analytics", () => ({ trackEvent: () => {} }));
 
 vi.mock("@/lib/messagesRealtime", () => ({
   subscribeToMessages: () => () => {},
+  subscribeToInbox: () => () => {},
 }));
 
 // One empty, readable thread: enough for the composer and its attachment picker

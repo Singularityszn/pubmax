@@ -74,8 +74,52 @@ function isInvalidBearerError(error: unknown): boolean {
   );
 }
 
+export type VerifyCallerAuthOptions = Readonly<{
+  /**
+   * Ask GoTrue for the ACCOUNT rather than verifying the token here. Only a
+   * caller that needs `createdAt` should pass this: the JWT carries no creation
+   * time, so that one field costs a network round trip to the auth server.
+   */
+  accountMetadata?: boolean;
+}>;
+
+/**
+ * Verify the bearer locally when the project signs with an asymmetric key.
+ *
+ * `auth.getUser(token)` is a NETWORK round trip to GoTrue on every request, and
+ * a messaging poll spent it every few seconds per open thread. `getClaims`
+ * checks the signature against the project's JWKS (fetched once per process and
+ * cached by supabase-js) and the expiry, so an ES256 token is verified in
+ * microseconds with nothing on the wire. Where the project still signs HS256,
+ * supabase-js falls back to `getUser` inside `getClaims`, which is exactly the
+ * old behaviour. Nothing here trusts a claim it did not verify.
+ */
+async function verifyClaimsLocally(
+  admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
+  token: string,
+): Promise<CallerAuthVerification | null> {
+  const auth = admin.auth as {
+    getClaims?: (
+      jwt: string,
+    ) => Promise<{
+      data: { claims: { sub?: unknown; email?: unknown } } | null;
+      error: unknown;
+    }>;
+  };
+  if (typeof auth.getClaims !== "function") return null;
+  const { data, error } = await auth.getClaims(token);
+  if (error) {
+    return { status: isInvalidBearerError(error) ? "invalid" : "unavailable" };
+  }
+  const id = data?.claims?.sub;
+  if (typeof id !== "string" || !id) return { status: "invalid" };
+  const email = typeof data.claims.email === "string" ? data.claims.email : null;
+  return { status: "verified", identity: { id, email, createdAt: null } };
+}
+
 export async function verifyCallerAuth(
   request: Request,
+  options: VerifyCallerAuthOptions = {},
 ): Promise<CallerAuthVerification> {
   const token = bearerToken(request);
   if (!token) return { status: "absent" };
@@ -84,6 +128,10 @@ export async function verifyCallerAuth(
   if (!admin) return { status: "unavailable" };
 
   try {
+    if (!options.accountMetadata) {
+      const local = await verifyClaimsLocally(admin, token);
+      if (local) return local;
+    }
     const { data, error } = await admin.auth.getUser(token);
     if (error) {
       return {
@@ -127,7 +175,7 @@ export async function callerUserId(request: Request): Promise<string | null> {
 export async function callerAuthIdentity(
   request: Request,
 ): Promise<CallerAuthIdentity | null> {
-  const verification = await verifyCallerAuth(request);
+  const verification = await verifyCallerAuth(request, { accountMetadata: true });
   return verification.status === "verified"
     ? verification.identity
     : null;

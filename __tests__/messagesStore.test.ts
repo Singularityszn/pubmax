@@ -91,7 +91,7 @@ describe("listConversations — inbox with preview + per-viewer unread", () => {
 });
 
 describe("listMessages — participant gating + mark-read", () => {
-  it("returns the thread oldest-first for a participant and marks received read", async () => {
+  it("returns the thread oldest-first for a participant and reads without marking", async () => {
     const s = memoryMessagesStore;
     const id = (await s.openConversation("ken", "sam"))!;
     await s.send(id, "ken", "one");
@@ -101,9 +101,33 @@ describe("listMessages — participant gating + mark-read", () => {
     expect(thread).not.toBeNull();
     expect(thread!.map((m) => m.body)).toEqual(["one", "two"]);
 
-    // Sam read the thread → ken's message to her is now read; her own is untouched.
-    const samInbox = await s.listConversations("sam");
-    expect(samInbox[0].unread).toBe(0);
+    // A read is a read: the route marks explicitly, so a photo send or a report
+    // that lists the thread to prove participation marks nothing.
+    expect((await s.listConversations("sam"))[0].unread).toBe(1);
+  });
+
+  it("markRead marks the viewer's received rows, counts them, and marks nothing for an outsider", async () => {
+    const s = memoryMessagesStore;
+    const id = (await s.openConversation("ken", "sam"))!;
+    await s.send(id, "ken", "one");
+    await s.send(id, "ken", "two");
+    await s.send(id, "sam", "three");
+
+    expect(await s.markRead(id, "mallory")).toBe(0);
+    expect((await s.listConversations("sam"))[0].unread).toBe(2);
+
+    expect(await s.markRead(id, "sam")).toBe(2);
+    expect((await s.listConversations("sam"))[0].unread).toBe(0);
+    // Sam's own message to ken stays unread for ken.
+    expect((await s.listConversations("ken"))[0].unread).toBe(1);
+    expect(await s.markRead(id, "sam")).toBe(0);
+  });
+
+  it("participants names the pair, and null for an unknown conversation", async () => {
+    const s = memoryMessagesStore;
+    const id = (await s.openConversation("sam", "ken"))!;
+    expect(await s.participants(id)).toEqual({ handleA: "ken", handleB: "sam" });
+    expect(await s.participants("nope")).toBeNull();
   });
 
   it("returns NULL for a non-participant (route → 404, the leak test)", async () => {

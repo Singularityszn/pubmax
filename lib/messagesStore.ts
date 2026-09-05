@@ -45,6 +45,11 @@ import { selectStore } from "@/lib/storeBackend";
 // Hard caps so one busy handle can't return an unbounded payload.
 export const MAX_CONVERSATIONS = 100;
 export const MAX_MESSAGES = 200;
+// The inbox read's two windows (see listConversations): how many unread rows
+// one inbox is counted over, and how many recent rows per conversation the
+// newest-first window fetches to find each conversation's last message.
+export const INBOX_UNREAD_SCAN_CAP = 1_000;
+export const INBOX_LAST_MESSAGE_WINDOW = 4;
 
 export type MessagesStore = {
   /** Find-or-create the conversation for an unordered pair. Returns the
@@ -70,9 +75,20 @@ export type MessagesStore = {
   listConversations(handle: string): Promise<ConversationDTO[]>;
   /** A conversation's thread, oldest-first, ONLY IF `handle` is a participant.
    *  A non-participant (or unknown conversation) gets null — the caller turns
-   *  that into a 404 so a thread never leaks. Marks the viewer's received
-   *  messages read as a side effect. Never throws on a valid participant read. */
+   *  that into a 404 so a thread never leaks. A READ and nothing else: marking
+   *  what the viewer received as read is `markRead`, asked by the thread route
+   *  alone, so a photo send or a report (which read the thread to prove
+   *  participation) cannot mark anything read. Never throws on a valid
+   *  participant read. */
   listMessages(conversationId: string, handle: string): Promise<MessageDTO[] | null>;
+  /** Mark the viewer's RECEIVED unread messages read. Returns how many rows
+   *  changed, so the route can tell the sender's thread only when something did.
+   *  A non-participant marks nothing and gets 0. Never throws. */
+  markRead(conversationId: string, handle: string): Promise<number>;
+  /** The two handles of a conversation, or null when it is unknown or the read
+   *  failed. For naming who a send signal is for; never a participant check on
+   *  its own. */
+  participants(conversationId: string): Promise<HandlePair | null>;
   /** Flag a message for the admin queue (abuse seam). Returns true when a row was
    *  flagged. Reuses the moderation posture — the message is marked, not deleted. */
   report(
@@ -288,24 +304,66 @@ export const supabaseMessagesStore: MessagesStore = {
         .limit(MAX_CONVERSATIONS);
       if (error) throw new Error(error.message);
       const rows = (data ?? []) as Array<Record<string, unknown>>;
-      // For each conversation resolve the last message + the viewer's unread
-      // count. Done per-row; fine at the 100-conversation cap.
-      const out: ConversationDTO[] = [];
-      for (const row of rows) {
+      if (rows.length === 0) return [];
+      const ids = rows.map((row) => String(row.id));
+      // TWO reads for the whole inbox, in parallel, where there used to be ONE
+      // PER CONVERSATION, each pulling up to 200 rows: the unread rows the
+      // viewer has not read (bounded), and a newest-first window of recent
+      // messages wide enough to hold the last message of every conversation
+      // on an ordinary inbox. A conversation the window did not reach is asked
+      // for on its own, so a busy thread cannot hide a quiet one's preview.
+      const [unreadResult, recentResult] = await Promise.all([
+        admin()
+          .from(MESSAGES)
+          .select("conversation_id")
+          .in("conversation_id", ids)
+          .neq("sender_handle", me)
+          .is("read_at", null)
+          .limit(INBOX_UNREAD_SCAN_CAP),
+        admin()
+          .from(MESSAGES)
+          .select("conversation_id, sender_handle, body, attachment_kind")
+          .in("conversation_id", ids)
+          .order("created_at", { ascending: false })
+          .limit(ids.length * INBOX_LAST_MESSAGE_WINDOW),
+      ]);
+      if (unreadResult.error) throw new Error(unreadResult.error.message);
+      if (recentResult.error) throw new Error(recentResult.error.message);
+      const unreadByConversation = new Map<string, number>();
+      for (const row of (unreadResult.data ?? []) as Array<Record<string, unknown>>) {
+        const id = String(row.conversation_id);
+        unreadByConversation.set(id, (unreadByConversation.get(id) ?? 0) + 1);
+      }
+      const lastByConversation = new Map<string, Record<string, unknown>>();
+      for (const row of (recentResult.data ?? []) as Array<Record<string, unknown>>) {
+        const id = String(row.conversation_id);
+        if (!lastByConversation.has(id)) lastByConversation.set(id, row);
+      }
+      const recentWindowFull =
+        ((recentResult.data ?? []) as unknown[]).length >= ids.length * INBOX_LAST_MESSAGE_WINDOW;
+      if (recentWindowFull) {
+        const missing = ids.filter((id) => !lastByConversation.has(id));
+        await Promise.all(
+          missing.map(async (id) => {
+            const { data: one } = await admin()
+              .from(MESSAGES)
+              .select("conversation_id, sender_handle, body, attachment_kind")
+              .eq("conversation_id", id)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (one) lastByConversation.set(id, one as unknown as Record<string, unknown>);
+          }),
+        );
+      }
+      return rows.map((row) => {
         const id = String(row.id);
         const other =
           normalizeHandle(String(row.handle_a)) === me
             ? String(row.handle_b)
             : String(row.handle_a);
-        const { data: msgs } = await admin()
-          .from(MESSAGES)
-          .select("sender_handle, body, created_at, read_at, attachment_kind")
-          .eq("conversation_id", id)
-          .order("created_at", { ascending: false })
-          .limit(MAX_MESSAGES);
-        const list = (msgs ?? []) as Array<Record<string, unknown>>;
-        const last = list[0];
-        out.push({
+        const last = lastByConversation.get(id);
+        return {
           id,
           otherHandle: normalizeHandle(other),
           ...(last
@@ -313,16 +371,9 @@ export const supabaseMessagesStore: MessagesStore = {
             : {}),
           lastAt: String(row.last_message_at ?? new Date(0).toISOString()),
           lastFromMe: last ? normalizeHandle(String(last.sender_handle)) === me : false,
-          unread: unreadForViewer(
-            list.map((m) => ({
-              senderHandle: String(m.sender_handle ?? ""),
-              read: m.read_at != null,
-            })),
-            me,
-          ),
-        });
-      }
-      return out;
+          unread: unreadByConversation.get(id) ?? 0,
+        };
+      });
     } catch (err) {
       if (isMissingMessagesSchema(err)) {
         warnMemoryFallback("listConversations", err);
@@ -343,25 +394,23 @@ export const supabaseMessagesStore: MessagesStore = {
       return memoryMessagesStore.listMessages(conversationId, me);
     }
     try {
-      const pair = await loadPair(conversationId);
+      // The pair and the rows are asked for TOGETHER, keyed on the same id, so
+      // a thread open is one round trip's wait rather than two in a row. The
+      // rows are still only RETURNED behind the courtesy check below.
+      const [pair, selected] = await Promise.all([
+        loadPair(conversationId),
+        admin()
+          .from(MESSAGES)
+          .select(MESSAGE_COLUMNS)
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: false })
+          .limit(MAX_MESSAGES),
+      ]);
       // COURTESY CHECK: a non-participant (or unknown conversation) gets null →
       // the route turns that into a 404. Never return another pair's thread.
       if (!pair || !isParticipant(pair, me)) return null;
-      const { data, error } = await admin()
-        .from(MESSAGES)
-        .select(MESSAGE_COLUMNS)
-        .eq("conversation_id", conversationId)
-        .order("created_at", { ascending: false })
-        .limit(MAX_MESSAGES);
-      if (error) throw new Error(error.message);
-      const rows = ((data ?? []) as unknown as Array<Record<string, unknown>>).reverse();
-      // Mark the viewer's RECEIVED (not own) unread messages read. Best-effort.
-      await admin()
-        .from(MESSAGES)
-        .update({ read_at: new Date().toISOString() })
-        .eq("conversation_id", conversationId)
-        .neq("sender_handle", me)
-        .is("read_at", null);
+      if (selected.error) throw new Error(selected.error.message);
+      const rows = ((selected.data ?? []) as unknown as Array<Record<string, unknown>>).reverse();
       return rows.map((r) => rowToMessageDTO(r));
     } catch (err) {
       if (isMissingMessagesSchema(err)) {
@@ -375,6 +424,54 @@ export const supabaseMessagesStore: MessagesStore = {
       // A participant we already verified hitting a transient read error gets an
       // empty thread, not a leak and not a 500.
       return [];
+    }
+  },
+
+  async markRead(conversationId, handle) {
+    const me = normalizeHandle(handle);
+    if (!conversationId || !me) return 0;
+    if (isMemoryConversationId(conversationId)) {
+      return memoryMessagesStore.markRead(conversationId, me);
+    }
+    try {
+      const pair = await loadPair(conversationId);
+      if (!pair || !isParticipant(pair, me)) return 0;
+      const { data, error } = await admin()
+        .from(MESSAGES)
+        .update({ read_at: new Date().toISOString() })
+        .eq("conversation_id", conversationId)
+        .neq("sender_handle", me)
+        .is("read_at", null)
+        .select("id");
+      if (error) throw new Error(error.message);
+      return Array.isArray(data) ? data.length : 0;
+    } catch (err) {
+      if (isMissingMessagesSchema(err)) {
+        warnMemoryFallback("markRead", err);
+        return memoryMessagesStore.markRead(conversationId, me);
+      }
+      console.error("[messages] markRead failed:", err instanceof Error ? err.message : err);
+      return 0;
+    }
+  },
+
+  async participants(conversationId) {
+    if (!conversationId) return null;
+    if (isMemoryConversationId(conversationId)) {
+      return memoryMessagesStore.participants(conversationId);
+    }
+    try {
+      return await loadPair(conversationId);
+    } catch (err) {
+      if (isMissingMessagesSchema(err)) {
+        warnMemoryFallback("participants", err);
+        return memoryMessagesStore.participants(conversationId);
+      }
+      console.error(
+        "[messages] participants failed:",
+        err instanceof Error ? err.message : err,
+      );
+      return null;
     }
   },
 
@@ -630,12 +727,31 @@ export const memoryMessagesStore: MessagesStore = {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)) // newest-first cap
       .slice(0, MAX_MESSAGES)
       .reverse(); // oldest-first display
-    // Mark received (not own) messages read.
-    const now = new Date().toISOString();
-    for (const m of memMessages.get(conversationId) ?? []) {
-      if (m.readAt == null && m.senderHandle !== me) m.readAt = now;
-    }
     return list.map(memMessageDTO);
+  },
+
+  async markRead(conversationId, handle) {
+    const me = normalizeHandle(handle);
+    if (!conversationId || !me) return 0;
+    const conv = memConversations.get(conversationId);
+    if (!conv) return 0;
+    const pair: HandlePair = { handleA: conv.handleA, handleB: conv.handleB };
+    if (!isParticipant(pair, me)) return 0;
+    const now = new Date().toISOString();
+    let marked = 0;
+    for (const m of memMessages.get(conversationId) ?? []) {
+      if (m.readAt == null && m.senderHandle !== me) {
+        m.readAt = now;
+        marked += 1;
+      }
+    }
+    return marked;
+  },
+
+  async participants(conversationId) {
+    const conv = memConversations.get(conversationId);
+    if (!conv) return null;
+    return { handleA: conv.handleA, handleB: conv.handleB };
   },
 
   async report(conversationId, messageId, reporterHandle) {
