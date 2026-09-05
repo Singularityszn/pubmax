@@ -25,6 +25,10 @@ import {
   type PintDropConfirmation,
 } from "@/lib/pintDropConfirmation";
 import {
+  authorRetiredAtFromRow,
+  publicContributorHandle,
+} from "@/lib/retiredContributor";
+import {
   addPintDrop,
   ANON_HANDLE_LABEL,
   canViewOnPublicSurface,
@@ -409,6 +413,9 @@ function fromRow(row: Record<string, unknown>): PersistableDrop {
     // absent → undefined) or a hand-edited value collapses to the safe `public`.
     visibility: cleanVisibility(row.visibility),
     createdAt: String(row.created_at),
+    // Absent on a cluster without 0150, and on every row whose author is still
+    // here. `select("*")` is what keeps the column additive.
+    authorRetiredAt: authorRetiredAtFromRow(row.author_retired_at),
     authorityKey:
       typeof row.authority_key === "string" && row.authority_key.trim()
         ? row.authority_key
@@ -546,7 +553,15 @@ export function toDTO(
   // (row/moderation/rate-limits) and only leaves via toModeratorDTO. The price,
   // note, tags, and photos are still public content on an anonymous drop — only
   // the identity is withheld.
-  const handle = visibility === "anonymous" ? ANON_HANDLE_LABEL : drop.handle;
+  // A RETIRED AUTHOR reads the same way and for the same reason: the account
+  // that logged this price has left, so the observation stays public and the
+  // identity does not (migration 0150, `lib/retiredContributor.ts`). It changes
+  // the NAME alone — the price, the measure, the date and the authority key
+  // below are untouched, so the drop keeps whatever trust state it earned.
+  const handle =
+    visibility === "anonymous"
+      ? ANON_HANDLE_LABEL
+      : publicContributorHandle(drop.handle, drop.authorRetiredAt);
   const dto: PintDropDTO = {
     id: drop.id,
     venueId: drop.venueId,

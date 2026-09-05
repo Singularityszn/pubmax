@@ -137,6 +137,14 @@ export type PintDrop = {
   visibility?: Visibility;
   createdAt: string;
   /**
+   * When the account behind `handle` deleted itself (migration 0150, stamped by
+   * the tombstone trigger). Absent for every live author and for every row
+   * written before that file. The drop keeps its price, its measure, its date
+   * and its place in every trust lane; only the NAME is withheld, through
+   * `lib/retiredContributor.ts` at the public projection.
+   */
+  authorRetiredAt?: string;
+  /**
    * Server-derived, per-venue pseudonym for a verified PUBMAXX User ID.
    * Present only when this price may count as an independent authority voice.
    * Missing means provisional, never untrusted or invalid.

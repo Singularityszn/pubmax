@@ -80,6 +80,8 @@ const NOT_REPO_PATHS = new Set([
   "uploaded_image.scan_skipped",
   // Log line name, not a repository path.
   "pint_drops.daily_cap_conflict",
+  // Database table name, not a repository path.
+  "public.account_retention_ledger",
   // CSS class on the Plan invite preview's join control, not a repository path.
   ".invitePreview__join",
   // Database column name, not a repository path.

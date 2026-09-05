@@ -42,6 +42,7 @@ import {
   type VisitReportReadStatus,
   type VisitReportStatus,
 } from "@/lib/visitReports";
+import { authorRetiredAtFromRow } from "@/lib/retiredContributor";
 import type {
   ContributionRecord,
   ContributionRecordReadResult,
@@ -293,6 +294,9 @@ function fromRow(row: Record<string, unknown>): VisitReport {
     note: typeof row.note === "string" ? row.note : "",
     status: row.status === "hidden" ? "hidden" : "visible",
     createdAt: String(row.created_at),
+    // Absent on a cluster without 0150, and on every row whose author is still
+    // here. `select("*")` is what keeps the column additive.
+    authorRetiredAt: authorRetiredAtFromRow(row.author_retired_at),
     reportCount: row.report_count == null ? undefined : Number(row.report_count),
     reportActors: actors.length ? actors : undefined,
     reportedAt: row.reported_at ? String(row.reported_at) : undefined,

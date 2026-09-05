@@ -23,6 +23,10 @@ import {
   type WeatherRecommendationInput,
 } from "@/lib/weatherRecommendations";
 import { normalizeHandle } from "@/lib/profiles";
+import {
+  authorRetiredAtFromRow,
+  publicContributorHandle,
+} from "@/lib/retiredContributor";
 import type {
   ContributionRecord,
   ContributionRecordReadResult,
@@ -63,11 +67,15 @@ export type WeatherRecommendationStore = {
   listLeaderboardContributions(): Promise<ContributionRecordReadResult>;
 };
 
-type StoredWeatherRecommendation = WeatherRecommendation & {
+export type StoredWeatherRecommendation = WeatherRecommendation & {
   actorHash: string;
   status: "visible" | "hidden";
   moderatedAt?: number;
   moderatorNote?: string;
+  /** When the account behind `contributorHandle` deleted itself (migration
+   *  0150). The recommendation and its date stay; only the NAME is withheld,
+   *  through `lib/retiredContributor.ts` in `published()` below. */
+  authorRetiredAt?: string;
 };
 
 type NormalizedWeatherRecommendationWrite = WeatherRecommendationInput & {
@@ -94,7 +102,12 @@ function validWrite(
   return { ...validation.value, actorHash };
 }
 
-function published(
+/**
+ * The ONE public projection of a stored Recommendation. Exported so the
+ * retired-author rule is provable without a database: the swap below is the
+ * only thing standing between a departed account's handle and a stranger.
+ */
+export function published(
   row: StoredWeatherRecommendation,
 ): WeatherRecommendation {
   return {
@@ -102,7 +115,13 @@ function published(
     venueId: row.venueId,
     condition: row.condition,
     reason: row.reason,
-    contributorHandle: row.contributorHandle,
+    // The recommendation outlives the account that made it: the words and the
+    // date stay, and a retired handle reads as the withheld label every
+    // anonymous contribution already wears (migration 0150).
+    contributorHandle: publicContributorHandle(
+      row.contributorHandle,
+      row.authorRetiredAt,
+    ),
     submittedAt: row.submittedAt,
     source: "community",
   };
@@ -230,6 +249,7 @@ type WeatherRecommendationRow = {
   status?: unknown;
   moderated_at?: unknown;
   moderator_note?: unknown;
+  author_retired_at?: unknown;
 };
 
 function storedFromRow(
@@ -258,6 +278,11 @@ function storedFromRow(
       : {}),
     ...(typeof row.moderator_note === "string" && row.moderator_note
       ? { moderatorNote: row.moderator_note }
+      : {}),
+    // Absent on a cluster without 0150, and on every row whose author is still
+    // here. `select("*")` is what keeps the column additive.
+    ...(authorRetiredAtFromRow(row.author_retired_at)
+      ? { authorRetiredAt: authorRetiredAtFromRow(row.author_retired_at) }
       : {}),
   };
 }
@@ -307,9 +332,7 @@ export const supabaseWeatherRecommendationStore: WeatherRecommendationStore = {
             },
             { onConflict: "venue_id,condition,contributor_handle" },
           )
-          .select(
-            "id, venue_id, condition, reason, contributor_handle, submitted_at, status, moderated_at, moderator_note",
-          )
+          .select("*")
           .single();
         if (error) throw new Error(error.message);
         const recommendation = fromRow(data as WeatherRecommendationRow);
@@ -333,9 +356,7 @@ export const supabaseWeatherRecommendationStore: WeatherRecommendationStore = {
       run: async () => {
         const { data, error } = await requireSupabaseAdmin()
           .from(TABLE)
-          .select(
-            "id, venue_id, condition, reason, contributor_handle, submitted_at, status, moderated_at, moderator_note",
-          )
+          .select("*")
           .eq("venue_id", venueId)
           .eq("status", "visible")
           .order("submitted_at", { ascending: false })
@@ -418,9 +439,7 @@ export const supabaseWeatherRecommendationStore: WeatherRecommendationStore = {
         for (let offset = 0; ; offset += pageSize) {
           const { data, error } = await requireSupabaseAdmin()
             .from(TABLE)
-            .select(
-              "id, venue_id, condition, reason, contributor_handle, actor_hash, submitted_at, status, moderated_at, moderator_note",
-            )
+            .select("*")
             .order("submitted_at", { ascending: false })
             .order("id", { ascending: true })
             .range(offset, offset + pageSize - 1);

@@ -10,8 +10,12 @@
 
 # Local verification and generated build output are not production inputs.
 # `.next` is named on its own line because `/.next-*` does not match it.
+# `.vercel` is the CLI's own project link and its local build output: the
+# platform excludes it from an upload itself, and it reaches tens of megabytes
+# on any machine that has run `npm run deploy:preview`.
 /.next
 /.next-*
+/.vercel/
 /coverage/
 /__tests__/
 /e2e/
