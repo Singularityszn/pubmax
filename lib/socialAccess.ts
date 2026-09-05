@@ -1,4 +1,4 @@
-import { accountIsAdult } from "@/lib/socialLaunch";
+import { accountIsAdult } from "@/lib/adultGate";
 
 export type SocialAccessState =
   | "preview"
@@ -35,7 +35,7 @@ export function decideFriendsLaunchSocialAccess(
     input.now instanceof Date ? input.now.getTime() : Date.parse(input.now);
   if (!Number.isFinite(now)) return "age_verification_required";
   // ONE gate for the age question: a stored adult date of birth or a recorded
-  // one-tap self-assertion. `lib/socialLaunch.ts` owns which of them decides.
+  // one-tap self-assertion. `lib/adultGate.ts` owns which of them decides.
   if (
     !accountIsAdult(
       {

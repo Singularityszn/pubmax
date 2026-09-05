@@ -1,7 +1,7 @@
 // Recorded adult self-assertion — dual backend (memory + Supabase).
 // One row per auth account, keyed on the account's own user id (migration
 // 0103). The row says one thing: this account tapped "I'm 18 or over", and
-// when. `lib/socialLaunch.ts` `accountIsAdult` is the only thing that reads
+// when. `lib/adultGate.ts` `accountIsAdult` is the only thing that reads
 // meaning into it; nothing in the product branches on it for anything else.
 
 import {

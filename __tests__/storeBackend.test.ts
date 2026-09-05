@@ -41,6 +41,34 @@ describe("storeBackend", () => {
     }
   });
 
+  it("selectStore refuses the process-memory fallback where a durable store is required", () => {
+    // A rotated key that fails the role check reads as unconfigured. Falling back would
+    // answer 200 to a write that evaporates on the next cold start, so the seam throws.
+    type Backend = { kind: "memory" | "supabase" };
+    const memory: Backend = { kind: "memory" };
+    const supabase: Backend = { kind: "supabase" };
+    const prevUrl = process.env.SUPABASE_URL;
+    const prevKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const prevVercelEnv = process.env.VERCEL_ENV;
+    try {
+      delete process.env.SUPABASE_URL;
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+      process.env.VERCEL_ENV = "production";
+      expect(() => selectStore(memory, supabase)).toThrow(
+        /durable store required in production/,
+      );
+      delete process.env.VERCEL_ENV;
+      expect(selectStore(memory, supabase)).toBe(memory);
+    } finally {
+      if (prevUrl === undefined) delete process.env.SUPABASE_URL;
+      else process.env.SUPABASE_URL = prevUrl;
+      if (prevKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+      else process.env.SUPABASE_SERVICE_ROLE_KEY = prevKey;
+      if (prevVercelEnv === undefined) delete process.env.VERCEL_ENV;
+      else process.env.VERCEL_ENV = prevVercelEnv;
+    }
+  });
+
   it("createDualBackendStore curries selectStore into a zero-arg getter", () => {
     type Backend = { kind: "memory" | "supabase" };
     const memory: Backend = { kind: "memory" };

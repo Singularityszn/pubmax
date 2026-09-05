@@ -1,5 +1,6 @@
 import "server-only";
 
+import { needsAdultSelfAssertion } from "@/lib/adultGate";
 import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { verifyCallerAuth } from "@/lib/authServer";
 import {
@@ -13,7 +14,6 @@ import {
 } from "@/lib/socialAccess";
 import {
   isSocialFriendsLaunchEnabled,
-  needsAdultSelfAssertion,
   SOCIAL_FRIENDS_LAUNCH_ENV,
 } from "@/lib/socialLaunch";
 import type { SocialPostActor } from "@/lib/socialPostStore";

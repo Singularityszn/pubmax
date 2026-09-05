@@ -23,7 +23,7 @@ import {
   type ContributionGateStatus,
 } from "@/lib/contributionGateStatus";
 import { discardBody } from "@/lib/responseBody";
-import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/socialLaunch";
+import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/adultGate";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { trackEvent } from "@/lib/analytics";
 
