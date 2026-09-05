@@ -1476,7 +1476,12 @@
 
   .profilePage .youIdentityIntro { grid-template-columns: auto 1fr; }
   .profilePage .youIdentityAvatar { width: 72px; }
-  .profilePage .youIdentityActions { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  /* Two fixed columns cut each action to about 150px at 390px, and neither
+     label fits: "Claim your @handle" and "Meet your Pub Pal" both wrapped
+     mid-phrase and the pair stopped matching in height. The columns are asked
+     for a width a label can live in instead, so a phone stacks them and a wider
+     screen still seats both on one line. */
+  .profilePage .youIdentityActions { grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); width: 100%; }
 
   /* In a stacked column, margin-left:auto would shove the actions to the far
      edge on their own line — reset it so they sit naturally under the name. */
