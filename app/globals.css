@@ -69,6 +69,21 @@
      (__tests__/loginPage.test.ts holds both states to 4.5:1). */
   --brass-accessible: #d63d42; /* deepened coral: white (--color-on-photo) passes AA */
   --brass-bright: #ff7a55; /* louder warm hover for Plan hierarchy */
+  /* CORAL AS TEXT, LIGHT THEME ONLY. --brass reads 2.5:1 to 2.9:1 as ink on
+     the light elevation ladder, so every coral WORD on a light surface — the
+     kicker, a quiet link, a badge caption — sat below AA, and the audit's
+     accessibility sweep found six of them at once. Dark needs no such token:
+     coral on the dark ladder is already 5.3:1 to 6.5:1, so theme.css points
+     this back at --brass and the accent keeps ONE value wherever it passes.
+     It is deliberately NOT --brick (#b8323c): the price band owns that
+     crimson by law, and a kicker wearing it would say "expensive". Deepened
+     and warmed instead (hue 12 against brick's 356), so it reads as the coral
+     under candlelight rather than as a price. Clears AA on every step of the
+     light ladder: 5.27:1 on --paper, 5.59:1 on --panel-raised, 4.78:1 on the
+     recessed --panel. It is INK: a coral FILL still takes --brass with
+     --color-on-accent over it, and the login primary still takes
+     --brass-accessible. __tests__/accentInkContrast.test.ts holds the ratios. */
+  --brass-ink: #b43b1d;
   --river: #2864d8; /* tube blue / by-water + heritage — Field Guide semantic */
   --river-bright: #29b6f6;
   --spritz: #ffb000;
@@ -96,6 +111,9 @@
        here (and everything built on it) follows. */
   --color-accent: var(--brass); /* Plan CTA accent - coral in both themes */
   --color-accent-strong: var(--brass-bright);
+  /* The accent when it is a WORD rather than a fill. Ask for this wherever
+     coral is the text colour; --color-accent stays the fill. */
+  --color-accent-ink: var(--brass-ink);
   --color-positive: var(--pint); /* cheap pint */
   --color-caution: var(--amber); /* mid price */
   --color-negative: var(--brick); /* expensive / destructive */

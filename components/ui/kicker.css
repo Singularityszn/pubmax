@@ -2,9 +2,12 @@
    Launch tokens only (docs/DESIGN_SYSTEM.md "Launch tokens"). Sentence case by
    construction: no text-transform here, ever. */
 
+/* The kicker is a WORD in the accent, never a fill, so it takes the accent's
+   ink. --color-accent is 2.9:1 as text on the light ladder, and the audit
+   found this one line failing on four surfaces at once. */
 .kicker {
   margin: 0 0 var(--space-2);
-  color: var(--color-accent);
+  color: var(--color-accent-ink);
   font-family: var(--font-body);
   font-size: var(--text-xs);
   font-weight: 700;

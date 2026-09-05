@@ -7,6 +7,14 @@
   --fit-uncertain: var(--color-caution);
   --fit-unlikely: var(--color-negative);
   --fit-book: var(--plan-accent-strong);
+  /* A hue paints a FILL; a WORD takes its ink. The verdict pill and the crew
+     panel's stamp print their hue as text on a 12 per cent tint of itself,
+     which is 1.56:1 to 4.00:1 in light and below AA at every verdict. These
+     deepen the same hue toward --ink, the way theme.css derives the price-band
+     inks, so the pill keeps its colour and the word can be read. The share is
+     per theme: light darkens hard, dark lightens a touch. */
+  --fit-ink: color-mix(in srgb, var(--fit-accent) 45%, var(--ink));
+  --plan-stamp-ink: color-mix(in srgb, var(--plan-accent-strong) 45%, var(--ink));
   min-height: 100dvh;
   padding: clamp(18px, 4vw, 48px) max(var(--page-gutter), clamp(16px, 5vw, 72px)) 96px;
   /* Paper, and only paper. The pinstripes that used to sit behind the page
@@ -149,12 +157,15 @@
 }
 .planCollab__heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
 .planCollab__heading h3 { margin: 0; font-family: var(--display, var(--serif)); font-size: 1.35rem; }
-.planCollab__heading > span { padding: 6px 10px; border-radius: 999px; background: color-mix(in srgb, var(--plan-accent) 12%, var(--panel)); color: var(--plan-accent-strong); font-size: 0.7rem; font-weight: 850; text-transform: uppercase; }
+.planCollab__heading > span { padding: 6px 10px; border-radius: 999px; background: color-mix(in srgb, var(--plan-accent) 12%, var(--panel)); color: var(--plan-stamp-ink); font-size: 0.7rem; font-weight: 850; text-transform: uppercase; }
 .planCollab button,
 .planCollab input,
 .planCollab select,
 .planCollab textarea { min-height: 44px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-raised); color: var(--ink); font: inherit; }
-.planCollab button { padding: 9px 13px; border-color: var(--plan-accent); background: var(--plan-accent); color: #fff; font-size: 0.76rem; font-weight: 850; cursor: pointer; }
+/* White on --plan-accent read 3.41:1 in light and 2.15:1 over the dark theme's
+   amber. A coral or amber FILL carries dark ink here, as it does on the landing
+   hero and the invite preview. */
+.planCollab button { padding: 9px 13px; border-color: var(--plan-accent); background: var(--plan-accent); color: var(--color-on-accent); font-size: 0.76rem; font-weight: 850; cursor: pointer; }
 .planCollab button:disabled { opacity: 0.55; cursor: wait; }
 .planCollab .planCollab__quiet { border-color: var(--line); background: var(--panel-raised); color: var(--ink-soft); }
 .planCollab__invite { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -165,10 +176,14 @@
 .matchGroupPrefs__heading { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
 .matchGroupPrefs__heading h4 { margin: 0; font-size: 1rem; }
 .matchGroupPrefs__heading > span { padding: 5px 8px; border-radius: 999px; background: var(--panel-raised); color: var(--muted); font-size: 0.62rem; font-weight: 850; text-transform: uppercase; white-space: nowrap; }
+/* This panel's ground is TINTED (7 per cent of the accent over --panel), which
+   lifts it past the surface --muted was tuned against: the tertiary ink read
+   4.32:1 there. Body copy on it takes the secondary ink, and the eyebrow takes
+   the same stamp ink the crew panel's own stamp does. */
 .matchGroupPrefs__eyebrow,
 .matchGroupPrefs__intro,
-.matchGroupPrefs__status { margin: 0; color: var(--muted); font-size: 0.72rem; line-height: 1.45; }
-.matchGroupPrefs__eyebrow { color: var(--plan-accent-strong); font-weight: 850; letter-spacing: 0.01em; }
+.matchGroupPrefs__status { margin: 0; color: var(--color-text-soft); font-size: 0.72rem; line-height: 1.45; }
+.matchGroupPrefs__eyebrow { color: var(--plan-stamp-ink); font-weight: 850; letter-spacing: 0.01em; }
 .matchGroupPrefs__field { display: grid; gap: 7px; }
 .matchGroupPrefs__field > strong { font-size: 0.78rem; }
 .matchGroupPrefs__chips,
@@ -342,7 +357,7 @@
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--fit-accent) 42%, transparent);
   background: color-mix(in srgb, var(--fit-accent) 12%, transparent);
-  color: var(--fit-accent);
+  color: var(--fit-ink);
   font-weight: 750;
   letter-spacing: 0.01em;
   cursor: default;
@@ -968,6 +983,8 @@ html[data-theme="dark"] .planPage {
   --plan-accent-strong: #ffc45e;
   /* Verdict ramp inherits the dark values of the semantic roles via theme.css. */
   --fit-book: var(--plan-accent-strong);
+  --fit-ink: color-mix(in srgb, var(--fit-accent) 85%, var(--ink));
+  --plan-stamp-ink: color-mix(in srgb, var(--plan-accent-strong) 85%, var(--ink));
   background: var(--paper);
 }
 html[data-theme="dark"] .planSummary,
@@ -1295,6 +1312,10 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   font-size: 0.85rem;
   line-height: 1.45;
 }
+/* A coral fill carries DARK ink here, the way the landing hero CTA and the
+   map's sanctioned coral marks do. White on --plan-accent read 3.41:1 in
+   light and 2.15:1 over the dark theme's amber; --color-on-accent reads
+   5.33:1 and 8.45:1. --brass-accessible stays the login primary alone. */
 .invitePreview__join {
   display: inline-flex;
   align-items: center;
@@ -1302,7 +1323,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   padding: 12px 22px;
   border-radius: 999px;
   background: var(--plan-accent);
-  color: #fff;
+  color: var(--color-on-accent);
   font-size: 0.9rem;
   font-weight: 800;
   letter-spacing: 0.01em;

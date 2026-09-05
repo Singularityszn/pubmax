@@ -114,7 +114,7 @@
 
 .cityChooser--section .cityChooserSearchLabel,
 .cityChooser--section .cityChooserResultsLabel {
-  color: var(--brass);
+  color: var(--color-accent-ink);
 }
 
 .cityChooserSearchField {
@@ -138,9 +138,14 @@
   color: var(--brass);
 }
 
+/* The input suppresses its own outline (line above), so the FIELD is what has
+   to show focus. A 22%-alpha ring was barely there beside the 2px solid ring
+   every other control on the page wears; this is that same ring, on the box
+   the reader is actually looking at. */
 .cityChooserSearchField:focus-within {
   border-color: var(--brass-bright, var(--brass));
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brass) 22%, transparent);
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
 }
 
 .cityChooserSearchInput {
@@ -151,13 +156,20 @@
   border: 0;
   outline: 0;
   background: transparent;
-  color: inherit;
+  /* What a person TYPES is text, never the accent. Inheriting the field's
+     coral put their own words at 2.9:1 on the light card. The field keeps its
+     coral icon and edge; the value reads in ink. */
+  color: var(--color-on-photo, #fdfaf2);
   font: 650 1rem/1.2 var(--font-body, var(--font-geist, Inter), sans-serif);
 }
 
 .cityChooserSearchInput::placeholder {
   color: color-mix(in srgb, currentcolor 64%, transparent);
   opacity: 1;
+}
+
+.cityChooser--section .cityChooserSearchInput {
+  color: var(--color-text);
 }
 
 .cityChooser--section .cityChooserSearchInput::placeholder {
@@ -208,7 +220,7 @@
 }
 
 .cityChooser--section .cityChooserLocate {
-  color: var(--brass);
+  color: var(--color-accent-ink);
   background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
   border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
 }
@@ -491,7 +503,9 @@
   padding: 3px 7px;
   border: 1px solid color-mix(in srgb, var(--brass) 44%, transparent);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 18%, transparent);
+  /* 10.56px bold on a coral tint. An 18% tint cleared neither theme (4.38
+     light, 4.09 dark); 10% clears both (5.02 and 4.69). */
+  background: color-mix(in srgb, var(--brass) 10%, transparent);
   color: var(--brass-bright, var(--brass));
   font-size: 0.66rem;
   font-weight: 800;
@@ -501,7 +515,7 @@
 
 .cityChooser--section .cityChooserReleaseBadge {
   border-color: color-mix(in srgb, var(--brass) 44%, var(--line));
-  color: var(--brass);
+  color: var(--color-accent-ink);
 }
 
 .cityChooserTagline {
