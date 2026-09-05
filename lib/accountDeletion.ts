@@ -16,6 +16,7 @@
 export const ACCOUNT_DELETION_LEAVES: readonly string[] = [
   "Your sign-in. You will not be able to sign in with it again.",
   "Your profile photo, your cover photos and the photos you added to pub walls.",
+  "Your Night Memories, with every Moment and photo in them.",
   "The photos you sent in messages. The words you sent stay in the thread.",
   "The private details on your card: favourite drink, interests and workplace.",
 ];

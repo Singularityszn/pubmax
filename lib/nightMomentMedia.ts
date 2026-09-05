@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
+import { nightMomentObjectPrefix } from "@/lib/accountOwnedObjects";
 import { MOMENT_MAX_PHOTO_BYTES } from "@/lib/momentPhotoEditor";
 import { deletePhotos, uploadPhoto } from "@/lib/pintDropsStore";
 import { isSupabaseConfigured, requireSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
@@ -14,9 +15,12 @@ export async function uploadNightMomentPhoto(
   if (!isSupabaseConfigured()) {
     throw new Error("Photo storage is unavailable. Your draft is still on this device.");
   }
+  // The prefix is owned by `lib/accountOwnedObjects.ts`, because it is also
+  // what account deletion walks: a photo written under any other prefix would
+  // survive the account that took it.
   return uploadPhoto(
     "venue",
-    `night-moments/${ownerId}/${memoryId}`,
+    nightMomentObjectPrefix(ownerId, memoryId),
     randomUUID(),
     file,
     MOMENT_MAX_PHOTO_BYTES,
