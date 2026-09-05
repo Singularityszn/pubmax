@@ -35,6 +35,8 @@ Protection in a sibling method cannot certify another method.
 - `DELETE app/api/pub-pal/memories/[memoryId]`
 - `DELETE app/api/social-connections/[provider]`
 - `DELETE app/api/social/crews/[crewId]/invitations/[invitationId]`
+- `DELETE app/api/night-memories/[id]`
+- `DELETE app/api/night-moments/[id]`
 - `DELETE app/api/social/crews/[crewId]/join-requests`
 - `DELETE app/api/social/crews/[crewId]/members/[memberId]`
 - `DELETE app/api/social/interactions`
@@ -681,6 +683,34 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   them, so private capture keeps working pre-apply. Disabling is
   consequence-free: 503/remove the route and photos simply can't be described
   (and so can't be published) until it returns.
+
+### `app/api/night-memories/[id]` and `app/api/night-moments/[id]` — taking a private night back (routes 68 and 69)
+
+- **Route / method:** `DELETE app/api/night-memories/[id]/route.ts` removes a
+  Memory with the Moments inside it; `DELETE app/api/night-moments/[id]/route.ts`
+  removes one Moment. Added after the contribution battle test of 5 September
+  2026 found no removal door anywhere under `app/api/night-*`, so a private
+  Memory, a private Moment and their photos could only ever accumulate.
+- **Validation:** the path id alone. There is no body, so there is nothing to
+  normalise and nothing a caller can assert about what they own.
+- **Auth stance (boundary):** `callerUserId` (account class), then ownership AT
+  THE TABLE: `removeNightMemory` / `removeNightMoment`
+  (`lib/nightMemoryStore.ts`) carry the owner id on the delete statement, so a
+  row that is not the caller's is never matched. A Memory or Moment belonging to
+  somebody else answers the same 404 an unknown id answers, so the door
+  discloses nothing. Both routes spend the shared per-IP `isLimited` budget.
+- **Refusals that protect another person's work:** a Memory a published Story
+  stands on, and a Moment inside one, are refused 409 and keep the path they
+  have (consent withdrawal takes the Moment out of the Story first). A Memory
+  holding a contributor's Moment is refused 409 as well, because the row cascade
+  would take their Moment with it.
+- **Storage:** the store returns the object keys of the photos it removed and
+  the route deletes the bytes through `removeNightMomentPhoto`, the same split
+  the Moment POST uses when it uploads them. A storage failure is the storage
+  seam's own and never turns a completed removal into a refusal.
+- **Rollback / kill:** 503 or remove either route. Nothing else reads the two
+  store functions, and no migration ships with them: the delete rides the
+  existing `on delete cascade` from migration 0028.
 
 ## Internal cron routes (excluded from the mutating-verb inventory)
 

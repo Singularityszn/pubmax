@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { useCommunityPrices } from "@/components/map/useCommunityPrices";
 import type { NearMeCard } from "@/lib/nearMeAnswer";
+import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
 
 import PriceEvidenceMissionSlot from "./PriceEvidenceMissionSlot";
 import { usePriceEvidenceMission } from "./usePriceEvidenceMission";
@@ -21,21 +22,30 @@ export default function NearPriceEvidenceMission({
     [cards],
   );
   const communityPrices = useCommunityPrices();
-  const { mission, dismiss } = usePriceEvidenceMission({
+  const { mission, dismiss, complete } = usePriceEvidenceMission({
     venueIds,
     enabled,
     surface: "near",
   });
+  // A logged price answers the mission, and the read then stops offering this
+  // pub, but the RECEIPT is inside the slot. So the answered mission is held
+  // here and keeps its own slot on screen; the slot drops the ask itself.
+  const [answered, setAnswered] = useState<PriceEvidenceMission | null>(null);
+  const shown = mission ?? answered;
 
-  if (!enabled || !mission) return null;
-  const venueName = names.get(mission.venueId) ?? "this pub";
+  if (!enabled || !shown) return null;
+  const venueName = names.get(shown.venueId) ?? "this pub";
   return (
     <PriceEvidenceMissionSlot
-      mission={mission}
+      mission={shown}
       venueName={venueName}
       surface="near"
       communityPrices={communityPrices}
       onDismiss={dismiss}
+      onFulfilled={(current) => {
+        setAnswered(current);
+        complete(current);
+      }}
     />
   );
 }

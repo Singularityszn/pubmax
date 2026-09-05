@@ -20,6 +20,21 @@ export function readDismissedMissions(storage: Pick<Storage, "getItem"> | null):
   }
 }
 
+/**
+ * A mission the drinker COMPLETED. It writes the same session skip a dismissal
+ * writes, so the read that follows the log does not offer the pub back inside
+ * this tab, and it is a separate name because the two are different events: a
+ * skip is "not now", a completion is the ask already answered. Analytics stay
+ * with the caller (`mission_submitted` is emitted by the composer), so nothing
+ * here reports a dismissal that never happened.
+ */
+export function completePriceEvidenceMission(
+  mission: PriceEvidenceMission,
+  storage: Pick<Storage, "getItem" | "setItem"> | null,
+): Set<string> {
+  return dismissPriceEvidenceMission(mission, storage);
+}
+
 export function dismissPriceEvidenceMission(
   mission: PriceEvidenceMission,
   storage: Pick<Storage, "getItem" | "setItem"> | null,

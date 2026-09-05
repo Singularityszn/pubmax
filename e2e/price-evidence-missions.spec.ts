@@ -252,6 +252,100 @@ test("map venue sheet shows the mission and prints the write-back receipt", asyn
   expect(errors).toEqual([]);
 });
 
+/**
+ * The mission card after its own ask is answered (L02 of the contribution
+ * battle test, 5 September 2026): "Check the beer price at The Bohemia / Not
+ * now" stood above the receipt for the price that had just been logged.
+ */
+test("a logged mission takes its own card away", async ({ page }) => {
+  await installContributorBoundary(page);
+  await page.goto(`/map?sel=${SEED_VENUE_ID}`);
+  const sheet = await openVenueSheet(page);
+  const slot = sheet.locator(".pemSlot");
+  await expect(slot).toBeVisible();
+
+  const submit = sheet.locator(".venuePriceSubmit");
+  await submit.getByRole("textbox").fill("4.20");
+  await submit.getByRole("button", { name: "Log it" }).click();
+  await expect(submit.getByRole("status")).toBeVisible();
+
+  await expect(slot).toHaveCount(0);
+});
+
+/**
+ * The credit sentence under the receipt (L01): it was a flex container, so its
+ * own words broke into three cells at 390, one per text run either side of the
+ * handle.
+ */
+test("the credit sentence reads as one line of prose at 390", async ({
+  page,
+}) => {
+  await installContributorBoundary(page);
+  await page.goto(`/map?sel=${SEED_VENUE_ID}`);
+  const sheet = await openVenueSheet(page);
+  const submit = sheet.locator(".venuePriceSubmit");
+  await submit.getByRole("textbox").fill("4.20");
+  await submit.getByRole("button", { name: "Log it" }).click();
+  await expect(submit.getByRole("status")).toBeVisible();
+
+  // The sentence is prose, and at 390 it keeps the whole row with the link
+  // under it rather than sharing the row and splitting into cells.
+  const geometry = await page.evaluate(() => {
+    const row = document.querySelector(".vpsubImpactRow") as HTMLElement | null;
+    const hint = row?.querySelector(".vpsubStampHint") as HTMLElement | null;
+    const link = row?.querySelector(".vpsubImpactLink") as HTMLElement | null;
+    if (!row || !hint || !link) return null;
+    const box = (el: Element) => {
+      const rect = el.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, width: rect.width };
+    };
+    return {
+      display: getComputedStyle(hint).display,
+      row: box(row),
+      hint: box(hint),
+      link: box(link),
+    };
+  });
+  expect(geometry).not.toBeNull();
+  expect(geometry!.display).toBe("block");
+  expect(geometry!.hint.width).toBeGreaterThan(geometry!.row.width - 2);
+  expect(geometry!.link.top).toBeGreaterThanOrEqual(geometry!.hint.bottom - 1);
+});
+
+test("the credit sentence and its link share one row on a desktop width", async ({
+  page,
+}) => {
+  await installContributorBoundary(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`/map?sel=${SEED_VENUE_ID}`);
+  // The desktop sheet is the drawer, not the phone portal, so this reaches the
+  // inspector directly rather than through the phone opener above.
+  const sheet = page.locator(".venueInspector").first();
+  await expect(sheet).toBeVisible({ timeout: 30_000 });
+  const submit = sheet.locator(".venuePriceSubmit");
+  await expect(submit).toBeVisible({ timeout: 30_000 });
+  await submit.getByRole("textbox").fill("4.20");
+  await submit.getByRole("button", { name: "Log it" }).click();
+  await expect(submit.getByRole("status")).toBeVisible();
+
+  const geometry = await page.evaluate(() => {
+    const hint = document.querySelector(".vpsubImpactRow .vpsubStampHint");
+    const link = document.querySelector(".vpsubImpactRow .vpsubImpactLink");
+    if (!hint || !link) return null;
+    const hintRect = hint.getBoundingClientRect();
+    const linkRect = link.getBoundingClientRect();
+    return {
+      lines: hintRect.height,
+      sameRow: linkRect.top < hintRect.bottom,
+      linkLeft: linkRect.left,
+      hintRight: hintRect.right,
+    };
+  });
+  expect(geometry).not.toBeNull();
+  expect(geometry!.sameRow).toBe(true);
+  expect(geometry!.linkLeft).toBeGreaterThanOrEqual(geometry!.hintRight - 1);
+});
+
 test("map sheet keeps one-tap prices when the mission is missing", async ({
   page,
 }) => {

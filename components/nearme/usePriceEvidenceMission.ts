@@ -7,6 +7,7 @@ import { trackEvent } from "@/lib/analytics";
 import type { MissionSurface } from "@/lib/analyticsEvents";
 import { authedActionFetch } from "@/lib/authedFetch";
 import {
+  completePriceEvidenceMission,
   dismissPriceEvidenceMission,
   readDismissedMissions,
 } from "@/lib/priceEvidenceMissionDismiss";
@@ -35,6 +36,8 @@ export function usePriceEvidenceMission(input: {
   mission: PriceEvidenceMission | null;
   status: PriceEvidenceMissionView["status"];
   dismiss: (mission: PriceEvidenceMission) => void;
+  /** The ask was answered: take the card away without calling it a skip. */
+  complete: (mission: PriceEvidenceMission) => void;
 } {
   const { user, identityResolved } = useAuth();
   const signedIn = Boolean(identityResolved && user);
@@ -125,5 +128,19 @@ export function usePriceEvidenceMission(input: {
     [input.surface],
   );
 
-  return { mission, status: view.status, dismiss };
+  // A logged price ANSWERS the mission, so the card leaves the way a dismissal
+  // takes it away, and for the same session reason: the next read must not
+  // offer this pub back in the tab that has just reported it. It emits no
+  // `mission_dismissed`, because nothing was skipped; the composer's own
+  // `mission_submitted` is the event for this moment.
+  const complete = useCallback((current: PriceEvidenceMission) => {
+    setDismissed(
+      completePriceEvidenceMission(
+        current,
+        typeof window === "undefined" ? null : window.sessionStorage,
+      ),
+    );
+  }, []);
+
+  return { mission, status: view.status, dismiss, complete };
 }

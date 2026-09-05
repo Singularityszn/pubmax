@@ -97,3 +97,143 @@
     transition: none;
   }
 }
+
+/* ── What you are keeping ──────────────────────────────────────────────────
+   The studio could create a Memory and a Moment and never take one back, so
+   this is the removal shelf: one row per Memory, the held Memory's own Moments
+   under it, and a Remove control that arms an inline confirm rather than
+   opening a dialog. The confirm is the second beat; nothing leaves on one tap. */
+.memoryKeepShelf {
+  /* A row's title is one nowrap line with an ellipsis, so every box around it
+     has to be allowed to be narrower than that line: a grid or flex child
+     floors on its content by default, and at 390 that floor pushed the page
+     64px wide. */
+  min-width: 0;
+  margin-top: 1rem;
+  padding-top: .85rem;
+  border-top: 1px solid var(--line-soft, var(--line));
+}
+
+.memoryKeepShelf h4 {
+  margin: 0 0 .5rem;
+  font-size: .95rem;
+  font-weight: 750;
+  color: var(--ink);
+}
+
+.memoryKeepList {
+  min-width: 0;
+  display: grid;
+  gap: .2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.memoryKeepList--moments {
+  margin-top: .35rem;
+  padding-left: .75rem;
+  border-left: 2px solid var(--line-soft, var(--line));
+}
+
+.memoryKeepList li {
+  min-width: 0;
+  border-bottom: 1px solid var(--line-soft, var(--line));
+}
+
+.memoryKeepList li[data-active] {
+  border-color: var(--brass);
+}
+
+.memoryKeepList li:last-child {
+  border-bottom: 0;
+}
+
+.memoryKeepRow {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+}
+
+.memoryKeepRow__select,
+.memoryKeepRow__moment {
+  display: flex;
+  min-width: 0;
+  min-height: 44px;
+  flex: 1 1 auto;
+  align-items: baseline;
+  gap: .5rem;
+  padding: .55rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+
+.memoryKeepRow__select { cursor: pointer; }
+.memoryKeepRow__select span,
+.memoryKeepRow__moment strong {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memoryKeepRow small {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: .76rem;
+}
+
+.memoryKeepRemove {
+  flex: 0 0 auto;
+  min-height: var(--control-height, 44px);
+  padding: 0 var(--control-pad-x, 16px);
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius, 14px);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: var(--control-font-size, .82rem);
+  font-weight: var(--control-font-weight, 700);
+  cursor: pointer;
+}
+
+.memoryKeepConfirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+  padding: 0 0 .65rem;
+}
+
+.memoryKeepConfirm p {
+  flex: 1 1 100%;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: .82rem;
+}
+
+.memoryKeepConfirm button {
+  min-height: var(--control-height, 44px);
+  padding: 0 var(--control-pad-x, 16px);
+  border: 0;
+  border-radius: var(--control-radius, 14px);
+  background: var(--ink);
+  color: var(--paper);
+  font: inherit;
+  font-size: var(--control-font-size, .82rem);
+  font-weight: var(--control-font-weight, 700);
+  cursor: pointer;
+}
+
+/* The quiet half of the pair. Element specificity above would otherwise win
+   over a bare class, and both beats would read as the same filled action. */
+.memoryKeepConfirm button.memoryKeepConfirm__keep {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-soft);
+}

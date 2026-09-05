@@ -97,9 +97,10 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
   "lib/messagesStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/nightMemoryStore.ts": {
     class: "legacy-exception",
-    selector: "inline",
+    selector: "selectStore",
     inlineBranches: 24,
-    reason: "Every operation branches inline over several tables and maps; the largest hand-rolled exception.",
+    reason:
+      "Every legacy operation branches inline over several tables and maps; the largest hand-rolled exception. The removal pair (D06) rides selectStore, so the 24 may only shrink from here.",
   },
   "lib/nightProfileStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/nightSignalStore.server.ts": {

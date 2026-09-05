@@ -392,11 +392,15 @@
 }
 
 /* The provisional half of the receipt: the dot the map is now drawing, at the
-   same colour, so "look at your pin" is a comparison and not a promise. */
+   same colour, so "look at your pin" is a comparison and not a promise.
+
+   A SENTENCE IS PROSE. This was a flex container, which made every child of it
+   a flex ITEM: the impact receipt's own words ("Counted under @handle on the
+   contributor record.") became three columns at 390, each wrapping inside its
+   own cell, because a text run either side of a <strong> is a run of its own.
+   The dot beside the other sentence is an inline marker instead, so both read
+   as one line of prose that wraps where a line of prose wraps. */
 .vpsubStampHint {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
   margin: 8px 0 0;
   font-size: 0.78rem;
   line-height: 1.45;
@@ -410,8 +414,12 @@
   gap: 4px 12px;
 }
 
+/* The sentence keeps a whole line of its own wherever the row cannot seat it
+   beside the link with room to read: the basis is what the sentence needs, so
+   a phone drops the link under it and a desktop keeps them side by side. No
+   width query decides it, the sentence's own measure does. */
 .vpsubImpactRow .vpsubStampHint {
-  flex: 1 1 210px;
+  flex: 1 1 22rem;
 }
 
 .vpsubImpactLink {
@@ -431,12 +439,14 @@
 }
 
 .vpsubStampDot {
-  flex: 0 0 auto;
-  /* Sits on the FIRST line like a bullet - centring it against a three-line
-     paragraph parks the dot beside the middle of the sentence, which reads as
-     decoration rather than as the mark being named. */
-  align-self: flex-start;
-  margin-top: 4px;
+  /* An INLINE marker on the first line, like a bullet: the paragraph around it
+     is prose, so the dot rides the text rather than being a flex cell beside
+     it. Centring it against a three-line paragraph would park the dot beside
+     the middle of the sentence, which reads as decoration rather than as the
+     mark being named. */
+  display: inline-block;
+  margin-right: 7px;
+  vertical-align: 0.02em;
   width: 9px;
   height: 9px;
   border: 1.4px solid var(--panel-raised);

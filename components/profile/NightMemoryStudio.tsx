@@ -28,6 +28,17 @@ type StoryWorkspace = {
 };
 type PublicationConfirmation = { storyId: string; proposalId: string; confirmationToken: string; visibility: "public" | "unlisted"; momentCount: number; revision: number };
 
+/** Every kind a kept Moment can be, so a saved photo is never printed by its id. */
+const MOMENT_KIND_LABELS: Record<NightMomentKind, string> = {
+  photo: "Photo",
+  pint_drop: "Pint Drop",
+  event: "Event",
+  venue: "Place",
+  quote: "Quote",
+  person: "Person",
+  side_quest: "Detour",
+};
+
 const MOMENT_LABELS: Record<MemoryStudioDraft["momentKind"], string> = {
   event: "Event",
   venue: "Place",
@@ -55,6 +66,11 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
   const [inviteHandle, setInviteHandle] = useState("");
   // Per-photo alt-text drafts, keyed by moment id. Falls back to the saved value.
   const [altDrafts, setAltDrafts] = useState<Record<string, string>>({});
+  // Removal is TWO BEATS: the Remove control arms this, and only the confirm
+  // beside it spends the DELETE. A private night is not undone by one stray tap.
+  const [pendingRemoval, setPendingRemoval] = useState<
+    { kind: "memory" | "moment"; id: string } | null
+  >(null);
   const [contributionDraft, setContributionDraft] = useState<{ kind: NightMomentKind; caption: string; venueId: string }>({
     kind: "quote",
     caption: "",
@@ -237,6 +253,62 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     selectStory(body.story.id);
     update({ storyTitle: "", storySummary: "" });
     setMessage("Story draft created. It remains private until you review and publish it.");
+  }
+
+  /**
+   * Remove one private Memory, with the Moments inside it.
+   *
+   * The server owns the rules (owner only, checked at the table, and a refusal
+   * for a Memory a published Story stands on). This prints what it answered
+   * rather than deciding anything of its own.
+   */
+  async function removeMemory(memoryId: string) {
+    setSaving(true);
+    setMessage("");
+    try {
+      const response = await authedActionFetch(
+        `/api/night-memories/${encodeURIComponent(memoryId)}`,
+        { method: "DELETE" },
+        { requiresIdentity: true },
+      );
+      const body = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(errorMessageFrom(body, "That Memory could not be removed."));
+      setPendingRemoval(null);
+      const remaining = memories.filter((memory) => memory.id !== memoryId);
+      setMemories(remaining);
+      setStories((current) => current.filter((story) => story.memoryId !== memoryId));
+      if (draft.selectedMemoryId === memoryId) {
+        setMoments([]);
+        update({ selectedMemoryId: remaining[0]?.id ?? "" });
+      }
+      setMessage("Memory removed. Its Moments and their photos went with it.");
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "That Memory could not be removed.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /** Remove one private Moment. Its photo leaves with it. */
+  async function removeMoment(momentId: string) {
+    setSaving(true);
+    setMessage("");
+    try {
+      const response = await authedActionFetch(
+        `/api/night-moments/${encodeURIComponent(momentId)}`,
+        { method: "DELETE" },
+        { requiresIdentity: true },
+      );
+      const body = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(errorMessageFrom(body, "That Moment could not be removed."));
+      setPendingRemoval(null);
+      setMoments((current) => current.filter((moment) => moment.id !== momentId));
+      setMessage("Moment removed. Its photo went with it.");
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "That Moment could not be removed.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function saveStoryPreview(event: FormEvent) {
@@ -513,6 +585,103 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
         <div><strong>{moments.length}</strong><span>Moments in this Memory</span></div>
         <div><strong>{stories.length}</strong><span>Stories</span></div>
       </div>
+      {memories.length ? (
+        <section className="memoryKeepShelf" aria-labelledby="memory-keep-title">
+          <h4 id="memory-keep-title">What you are keeping</h4>
+          <ul className="memoryKeepList" aria-label="Your private Memories">
+            {memories.map((memory) => {
+              const held = memory.id === draft.selectedMemoryId;
+              const armed = pendingRemoval?.kind === "memory" && pendingRemoval.id === memory.id;
+              return (
+                <li key={memory.id} data-active={held ? "" : undefined}>
+                  <div className="memoryKeepRow">
+                    <button
+                      type="button"
+                      className="memoryKeepRow__select"
+                      aria-pressed={held}
+                      onClick={() => { setPendingRemoval(null); update({ selectedMemoryId: memory.id }); }}
+                    >
+                      <span>{memory.title}</span>
+                      {held ? <small>{moments.length === 1 ? "1 Moment" : `${moments.length} Moments`}</small> : null}
+                    </button>
+                    {armed ? null : (
+                      <button
+                        type="button"
+                        className="memoryKeepRemove"
+                        disabled={saving}
+                        onClick={() => setPendingRemoval({ kind: "memory", id: memory.id })}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  {armed ? (
+                    <div className="memoryKeepConfirm" role="group" aria-label={`Remove ${memory.title}`}>
+                      <p>Remove this Memory and every Moment in it?</p>
+                      <button type="button" disabled={saving} onClick={() => void removeMemory(memory.id)}>
+                        Remove for good
+                      </button>
+                      <button
+                        type="button"
+                        className="memoryKeepConfirm__keep"
+                        disabled={saving}
+                        onClick={() => setPendingRemoval(null)}
+                      >
+                        Keep it
+                      </button>
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+          {moments.length ? (
+            <ul className="memoryKeepList memoryKeepList--moments" aria-label="Moments in this Memory">
+              {moments.map((moment) => {
+                const armed = pendingRemoval?.kind === "moment" && pendingRemoval.id === moment.id;
+                const title = moment.caption || moment.venueId || MOMENT_KIND_LABELS[moment.kind];
+                return (
+                  <li key={moment.id}>
+                    <div className="memoryKeepRow">
+                      <span className="memoryKeepRow__moment">
+                        <strong>{title}</strong>
+                        <small>{MOMENT_KIND_LABELS[moment.kind]}</small>
+                      </span>
+                      {armed ? null : (
+                        <button
+                          type="button"
+                          className="memoryKeepRemove"
+                          disabled={saving}
+                          onClick={() => setPendingRemoval({ kind: "moment", id: moment.id })}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    {armed ? (
+                      <div className="memoryKeepConfirm" role="group" aria-label={`Remove ${title}`}>
+                        <p>Remove this Moment, and its photo with it?</p>
+                        <button type="button" disabled={saving} onClick={() => void removeMoment(moment.id)}>
+                          Remove for good
+                        </button>
+                        <button
+                          type="button"
+                          className="memoryKeepConfirm__keep"
+                          disabled={saving}
+                          onClick={() => setPendingRemoval(null)}
+                        >
+                          Keep it
+                        </button>
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
+
       {stories.length ? (
         <ul className="memoryStoryList" aria-label="Your Night Stories">
           {visibleStories.map((story) => (
