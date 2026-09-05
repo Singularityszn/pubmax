@@ -37,14 +37,20 @@ export default defineConfig({
       include: ["lib/**", "app/api/**"],
       exclude: ["**/*.d.ts", "**/*.d.mts"],
       // Regression gate, not a target. Thresholds sit ~2% under the measured
-      // numbers so CI stays green today (2026-07-09: lines 75.86%, functions
-      // 78.82%, statements 72.86% — up from 74.03/77.43/71.04).
+      // numbers so CI stays green today (2026-09-06, full suite, 1464 files:
+      // statements 81.35%, branches 74.62%, functions 85.57%, lines 85.08% —
+      // up from 72.86/-/78.82/75.86 measured 2026-07-09, whose floors of
+      // 71/-/77/74 had drifted 8 to 11 points below the real figures and so
+      // would have passed a large regression without a word).
+      // BRANCHES is scored from this wave on: it was the one metric with no
+      // floor at all, which is where an untested error path hides.
       // RATCHET RULE: thresholds only ever rise; re-floor them after each wave
       // that lands fully-tested pure libs. The point is to PREVENT a drop.
       thresholds: {
-        lines: 74,
-        functions: 77,
-        statements: 71,
+        statements: 79,
+        branches: 72,
+        functions: 83,
+        lines: 83,
       },
     },
   },
