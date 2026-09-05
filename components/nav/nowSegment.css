@@ -4,7 +4,11 @@
   gap: 2px;
   width: min(100%, 16rem);
   min-height: 44px;
-  margin: 0 0 14px;
+  /* The segment is the first thing under the top bar on /today and /tonight,
+     and it used to sit ON the bar: measured 0px between the bar's bottom edge
+     and the segment's top at 768px and 1440px, 4px at 390px. The bar gets the
+     same breathing room the Screen head gives itself below the segment. */
+  margin: var(--space-4) 0 14px;
   padding: 2px;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill, 999px);
@@ -34,4 +38,10 @@
 .nowSegmentOpt:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
+}
+
+@media (min-width: 641px) {
+  .nowSegment {
+    margin-top: var(--space-6);
+  }
 }
