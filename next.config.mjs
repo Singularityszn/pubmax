@@ -1,9 +1,9 @@
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { resolveBuildStamp } from "./lib/buildInfo.mjs";
+import { readWorkingTreeCommitSha, requireDataRevision } from "./lib/dataRevision.mjs";
 import {
   freshnessArtifactIncludeById,
   freshnessArtifactIncludes,
@@ -86,22 +86,6 @@ const feedDataFiles = withRuntimeDataPacks(
 // same client chunk once per id. Use one revision supplied by the release
 // environment instead. Local builds use a stable marker because no worker from
 // a local build can cross into production.
-const nonEmptyRevision = (...values) =>
-  values.find((value) => typeof value === "string" && value.trim())?.trim();
-
-const swVersion = nonEmptyRevision(
-  process.env.NEXT_PUBLIC_SW_VERSION,
-  process.env.DEPLOYMENT_VERSION,
-  process.env.VERCEL_DEPLOYMENT_ID,
-  process.env.VERCEL_GIT_COMMIT_SHA,
-  process.env.GITHUB_SHA,
-) ??
-  (process.env.NODE_ENV === "production"
-    ? (() => {
-        throw new Error("A deploy revision is required for production builds");
-      })()
-    : "local");
-
 // The commit this build is building. Vercel only stamps VERCEL_GIT_COMMIT_SHA
 // on a build its Git integration owns, and it stamps NEITHER the build nor the
 // runtime of a `vercel deploy` from a CLI, so reading it at request time made
@@ -110,19 +94,17 @@ const swVersion = nonEmptyRevision(
 // uploaded with its .git directory on a CLI deploy, and a build with no
 // repository around it still answers honestly (null) rather than guessing.
 // lib/buildInfo.mjs owns the rule; app/api/version reads the values back.
-const workingTreeCommitSha = (() => {
-  try {
-    return execFileSync("git", ["rev-parse", "HEAD"], {
-      cwd: projectRoot,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    });
-  } catch {
-    // No git, no repository, or a shallow copy with no HEAD. Not an error: the
-    // stamp is a fact about the build, and an absent fact is reported as absent.
-    return null;
-  }
-})();
+const workingTreeCommitSha = readWorkingTreeCommitSha(projectRoot);
+
+// The same tree also names the REVISION when no release environment does, which
+// is what makes a production build possible from a clean worktree with a pulled
+// environment (that file carries VERCEL_GIT_COMMIT_SHA="" and no deployment id).
+// lib/dataRevision.mjs owns the order and the refusal; scripts/lib/slimShards.mjs
+// stamps its shard payloads from the same rule, so a build and its data cannot
+// disagree about which deploy they belong to.
+const swVersion = requireDataRevision(process.env, {
+  workingTreeSha: workingTreeCommitSha,
+});
 
 const buildStamp = resolveBuildStamp(process.env, { workingTreeSha: workingTreeCommitSha });
 

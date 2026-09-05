@@ -331,9 +331,67 @@ vercel promote <deployment-url>
 uploading, so `GET /api/version` on the preview names it (see below). It
 forwards every argument.
 
-Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pass `--prebuilt` from a Mac: the locally built sharp binary is darwin-arm64 and crashes the linux runtime.
+Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pass `--prebuilt` from a Mac: the locally built sharp binary is darwin-arm64 and crashes the linux runtime. `npm run deploy:preview:prod-env` refuses that flag for you.
 
 `docs/SOFT_LAUNCH_RUNBOOK.md` section 1.2 is the operator source for this command pair and the promotion mechanics behind it.
+
+### A preview built with production values, in one command
+
+```sh
+npm run deploy:preview:prod-env
+```
+
+It reads the production environment, builds in Vercel's cloud, and returns a
+PREVIEW URL. It never promotes, and it writes nothing to Vercel: `vercel pull` is
+a read, and every value it carries rides on that one deploy.
+
+What the command does, in order:
+
+1. `vercel pull --yes --environment=production` into `.vercel/.env.production.local`.
+2. Sorts what came back into three groups (`scripts/lib/previewProdEnv.mjs`).
+3. Runs `npm run deploy:preview` with each carried value as `--build-env` and
+   `--env`, so a `NEXT_PUBLIC_*` value reaches the client bundle and the running
+   function alike, and the commit stamp rides along as before.
+4. Prints the names it carried, the names it could not, and how to prove the
+   result: `curl -s <deployment-url>/api/version`.
+
+**What it proves.** The preview serves the commit you sent (`gitCommitSha`
+matches local `git rev-parse HEAD`), built with every production value Vercel
+will hand back, on Vercel's own linux runtime.
+
+**What it does not prove.** Two gaps, and the command names both on the way out.
+
+- **Secret-typed values cannot be pulled.** Vercel writes `[SENSITIVE]` in their
+  place. Measured 5 September 2026 against the live project: 30 of 59 values,
+  six of them `NEXT_PUBLIC_*`. Those are DROPPED rather than carried, because a
+  forwarded placeholder is inlined into the client bundle: a verification
+  preview once shipped `NEXT_PUBLIC_SUPABASE_URL="[SENSITIVE]"`, so no browser
+  could sign in, and `NEXT_PUBLIC_DEMO_CONTENT="[SENSITIVE]"` read as "not off"
+  and put demo rows on the landing page. The preview falls back to the project's
+  own Preview environment for each dropped name.
+- **A preview RUNS with the Preview environment.** That is Vercel's rule, not
+  ours. Cron routes (no `CRON_SECRET`), live Ticketmaster and web push are
+  therefore unexercised on any preview.
+
+Platform-owned names (`VERCEL_*`, `TURBO_*`, `NX_*`) are never carried either.
+`VERCEL_ENV` is the reason: `proxy.ts` and `app/robots.ts` both key indexability
+on it, so a preview that called itself production would be indexable.
+
+**Never `--prod`, never `--prebuilt`.** The command refuses both. `--prod`
+promotes; `--prebuilt` uploads a macOS build, whose sharp binaries are
+darwin-only and answer 500 on every route that imports them.
+
+Four failures in the earlier three-command recipe are fixed at their sources,
+so this command works from a clean worktree:
+
+| Failure | Fix |
+|---|---|
+| `A deploy revision is required for production builds` from a pulled environment (`VERCEL_GIT_COMMIT_SHA=""`, no deployment id) | `lib/dataRevision.mjs`: the working tree names the revision; only a build with no environment AND no git refuses. |
+| `--prebuilt` refusing a `--prod` output for a preview target | The build runs in the cloud, so there is one target and no `builds.json` to edit. |
+| Upload ENOENT on `docs/**` from a whole-project trace | `lib/venueIndexOsm.ts`: the dynamic path is marked, and the two functions that traced 10,044 and 10,034 files now trace 295 and 285. |
+| `Could not load the "sharp" module using the linux-arm64 runtime` | A cloud build installs the linux binaries; `--prebuilt` is refused. |
+
+Pin: `__tests__/previewProdEnvDeploy.test.ts`.
 
 ### A preview a verifier can sign in to
 
