@@ -7,7 +7,7 @@ import {
   type PlanningIntentSource,
 } from "@/lib/planningIntent";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
-import { isPlanStopCount, PLAN_STOP_COUNT_RANGE_SENTENCE } from "@/lib/planStopCount";
+import { isPlanStopCount, MIN_PLAN_STOP_COUNT, PLAN_STOP_COUNT_RANGE_SENTENCE } from "@/lib/planStopCount";
 
 const PROOF_VERSION = 1;
 const PROOF_V2_VERSION = 2;
@@ -23,8 +23,17 @@ type GroundingPayload = {
   expiresAt: number;
 };
 
+/**
+ * A candidate set this proof may commit to.
+ *
+ * The floor is the STOP-COUNT TABLE's own, never a literal (F-13). #1512
+ * widened a Plan to one or two stops and left this floor at three, so a
+ * one-stop meetup in an area with one eligible pub - a plan that asked for
+ * exactly what it got - could not be minted at all, and its refusal escaped
+ * the generate route as a 500. The ceiling is a payload bound, not a stop rule.
+ */
 function canonicalVenueIds(values: readonly string[]): string[] | null {
-  if (values.length < 3 || values.length > 100) return null;
+  if (values.length < MIN_PLAN_STOP_COUNT || values.length > 100) return null;
   const ids = values.map((value) => value.trim());
   if (ids.some((value) => !value || value.length > VENUE_ID_MAX)) return null;
   return [...new Set(ids)].sort();
@@ -44,6 +53,26 @@ function operationDigest(operationKey: string, key: Buffer): string {
 
 export type PlanGroundingClaims = GroundingPayload;
 
+/**
+ * The server built a set it cannot prove. It is a REFUSAL about this request,
+ * never an outage, so it may not escape a route as a 500: the generate route
+ * maps it to the same 422 its own scarcity check answers with. A missing
+ * signing key is the other lane and stays `TrustedSigningKeyUnavailableError`,
+ * because that one really is about us.
+ */
+export class PlanGroundingProofUnmintableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PlanGroundingProofUnmintableError";
+  }
+}
+
+export function isPlanGroundingProofUnmintableError(
+  error: unknown,
+): error is PlanGroundingProofUnmintableError {
+  return error instanceof PlanGroundingProofUnmintableError;
+}
+
 /** Mint a signed proof that a set of venues came from server-side generation. */
 export function mintPlanGroundingProof(
   venueIds: readonly string[],
@@ -51,7 +80,9 @@ export function mintPlanGroundingProof(
   now = Date.now(),
 ): string {
   const canonical = canonicalVenueIds(venueIds);
-  if (!canonical || !operationKey.trim()) throw new Error("A grounding proof needs canonical venues and one create operation.");
+  if (!canonical || !operationKey.trim()) {
+    throw new PlanGroundingProofUnmintableError("A grounding proof needs canonical venues and one create operation.");
+  }
   const key = trustedSigningKey();
   const payload: GroundingPayload = {
     v: PROOF_VERSION,
@@ -242,14 +273,14 @@ export function mintPlanGroundingProofV2(
 ): string {
   const routeVenueIds = orderedVenueIds(input.routeVenueIds);
   if (!routeVenueIds || !input.operationKey.trim()) {
-    throw new Error(`A V2 grounding proof needs ${PLAN_STOP_COUNT_RANGE_SENTENCE} ordered venues and a create operation.`);
+    throw new PlanGroundingProofUnmintableError(`A V2 grounding proof needs ${PLAN_STOP_COUNT_RANGE_SENTENCE} ordered venues and a create operation.`);
   }
   const allowedVenueIds = sortedAllowedVenueIds(
     input.allowedVenueIds ?? routeVenueIds,
     routeVenueIds,
   );
   if (!allowedVenueIds) {
-    throw new Error("A V2 grounding proof needs an allowed set covering every Route Stop.");
+    throw new PlanGroundingProofUnmintableError("A V2 grounding proof needs an allowed set covering every Route Stop.");
   }
   const anchorSource = input.anchorSource === null
     || PLANNING_INTENT_SOURCES.includes(input.anchorSource)
@@ -264,7 +295,7 @@ export function mintPlanGroundingProofV2(
       outcome: input.outcome,
     })
   ) {
-    throw new Error("A V2 grounding proof needs a consistent anchor, source, and outcome.");
+    throw new PlanGroundingProofUnmintableError("A V2 grounding proof needs a consistent anchor, source, and outcome.");
   }
 
   const key = trustedSigningKey();

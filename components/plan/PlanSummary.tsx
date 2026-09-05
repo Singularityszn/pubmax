@@ -10,9 +10,11 @@ import RoundStarter from "@/components/round/RoundStarter";
 import { planViewModel } from "@/components/plan/planPresentation";
 import { anchorConflictMessage, routeStopsFromGenerated } from "@/components/plan/PlanComposer";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot, restorePlanCapability } from "@/lib/planSessionCapability";
-import { usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
+import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 import { setActivePlanRole } from "@/lib/activePlan";
-import type { PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
+import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
+
+export { isPlanPreviewProjection };
 import type { InvitePrivacyPreviewDTO } from "@/lib/invitePrivacyPreview";
 import type { VibeTally } from "@/lib/vibeTally";
 import {
@@ -30,6 +32,7 @@ import {
   ROUTE_CONFLICT_RESEEDED_LINE,
   ROUTE_CONFLICT_UNREAD_LINE,
   ROUTE_SAVED_LINE,
+  routeRevisionsMatch,
   routeSaveOutcome,
   seedRouteDraft,
 } from "@/lib/planRouteEditor";
@@ -286,11 +289,6 @@ function canonicalStateFromBody(value: unknown): PlanState | null {
   return null;
 }
 
-/** A body the server answered as the anonymous preview rather than a member. */
-export function isPlanPreviewProjection(value: unknown): boolean {
-  return Boolean(value) && typeof value === "object"
-    && (value as { visibility?: unknown }).visibility === "preview";
-}
 
 /**
  * §4.10 boundary: the server never embeds the route in this component's props.
@@ -324,22 +322,13 @@ export default function PlanSummary({
     void restorePlanCapability(planId).catch(() => undefined);
   }, [identityResolved, planId]);
   const readPlan = useCallback((isActive: () => boolean) => {
-    void fetch(`/api/plans/${planId}`, { cache: "no-store" })
-      .then((response) => {
-        // A body nobody reads is a request that never finishes.
-        if (!response.ok) {
-          discardBody(response);
-          return null;
-        }
-        return response.json();
-      })
-      .then((body) => {
-        if (!isActive()) return;
-        const canonical = canonicalStateFromBody(body);
-        if (canonical) setState(canonical);
-        else if (isPlanPreviewProjection(body)) setState(null);
-      })
-      .catch(() => undefined);
+    // One request per Plan, shared with every other surface asking (F-34).
+    void readPlanMemberProjection(planId).then((body) => {
+      if (!isActive()) return;
+      const canonical = canonicalStateFromBody(body);
+      if (canonical) setState(canonical);
+      else if (isPlanPreviewProjection(body)) setState(null);
+    });
   }, [planId]);
   usePlanMemberRead(planId, readPlan);
 
@@ -406,6 +395,11 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
   // inside that lag used to send a second PATCH (M03). The ref is claimed
   // synchronously before anything is awaited and released in `finally`.
   const saveInFlight = useRef(false);
+  // The same rule on the other handler (F-32): `loadingPreview` is rendered
+  // state, so it lags the click that set it, and two taps in one task both
+  // POSTed /api/plans/generate - on an anchored plan both then reached
+  // `writePendingRoute`. The ref is claimed before anything is awaited.
+  const previewInFlight = useRef(false);
   // A save or a stale-save unmounts the focused Save control, which drops
   // focus on the document. Focus returns to the control that reopens the
   // editor, so a keyboard or screen-reader host keeps their place.
@@ -419,6 +413,42 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
   // Exactly one line under the editor at a time: a status when something
   // landed, an error when it did not.
   const [notice, setNotice] = useState<RouteEditorNotice>(null);
+
+  // F-30: a member read that lands AFTER the mount is the read #1521 was
+  // written to add, and its route was dropped on the floor, because the stops
+  // are seeded from props once. A route another device saved then never reached
+  // the screen, and the editor PATCHed with a stale `expectedRouteRevision`.
+  //
+  // A revision is not ORDERABLE (`RouteRevision` is a string or a number), so
+  // "fresher" is not a comparison: what is tracked is the revision of the last
+  // `state` prop this component adopted from. A read carrying a revision it has
+  // not adopted from is adopted; a save that moved `savedRevision` past the
+  // prop can never be reverted by it, because the prop did not change.
+  //
+  // It adjusts state DURING RENDER rather than in an effect, which is React's
+  // own answer for state derived from a prop: an effect here would be a
+  // cascading render, and the rules in this repo refuse one. Nothing outside
+  // React is touched - the stale draft is cleared by the effect above, which
+  // already re-reads `livePendingRoute` against the revision this moves.
+  //
+  // The editor is the reader's own working copy, so an open editor is left
+  // alone.
+  const incomingRevision = routeRevisionFromPlanState(state);
+  const [adoptedFromRevision, setAdoptedFromRevision] = useState<RouteRevision | null>(incomingRevision);
+  if (
+    !editing
+    && incomingRevision !== null
+    && !routeRevisionsMatch(incomingRevision, adoptedFromRevision)
+  ) {
+    setAdoptedFromRevision(incomingRevision);
+    if (!routeRevisionsMatch(incomingRevision, savedRevision)) {
+      setSavedRevision(incomingRevision);
+      setCanonicalStops(initialStops);
+      setLocalStops(initialStops);
+      setLocalAuthority(null);
+    }
+  }
+
   const announce = (text: string) => setNotice({ tone: "status", text });
   const refuse = (text: string) => setNotice({ tone: "error", text });
   const draftStops = pending?.stops ?? localStops;
@@ -461,6 +491,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
   }
 
   async function beginEditing() {
+    if (previewInFlight.current) return;
     if (!memberToken) {
       refuse("Join the crew before proposing a route change.");
       return;
@@ -477,6 +508,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
       refuse("This plan doesn't have enough saved to sort a fresh route. Add the details, then try again.");
       return;
     }
+    previewInFlight.current = true;
     setLoadingPreview(true);
     const requestedStopCount = normalizePlanStopCount(state.context.stopCount);
     announce(anchoredPlan
@@ -526,6 +558,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
       setEditing(false);
       refuse(`${caught instanceof Error ? caught.message : "Could not find a replacement route."} The current route is unchanged.`);
     } finally {
+      previewInFlight.current = false;
       setLoadingPreview(false);
     }
   }

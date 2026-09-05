@@ -44,6 +44,19 @@ export type PlanMemberStateDTO = {
 
 export type PlanVisibilityProjection = PlanPrivacyPreviewDTO | PlanMemberStateDTO;
 
+/**
+ * A body the server answered as the anonymous preview rather than a member.
+ *
+ * It lives beside the projection it reads because a preview is an ANSWER: a
+ * surface holding a route must put it down when a read comes back this way
+ * (#1521), and a second copy of the discriminant is how one surface keeps
+ * showing a revoked member what the server already withheld.
+ */
+export function isPlanPreviewProjection(value: unknown): boolean {
+  return Boolean(value) && typeof value === "object"
+    && (value as { visibility?: unknown }).visibility === "preview";
+}
+
 function formatStartLabel(startTime: string): string {
   const parsed = Date.parse(startTime);
   if (!Number.isFinite(parsed)) return "Time to be confirmed";

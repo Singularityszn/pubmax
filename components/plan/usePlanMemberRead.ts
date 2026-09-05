@@ -22,6 +22,14 @@
 // Restoring the session is deliberately NOT this hook's job. It belongs to the
 // surfaces that own a session lane and gate it on `identityResolved`, because
 // asking before identity has resolved cannot spend the recovery write.
+//
+// THE REQUEST IS SHARED (F-34). Three surfaces ask this one endpoint about one
+// Plan - the route, the crew and the Night Mode card - and each one used to
+// hold its own request, so a plan page issued the same heavy GET two or three
+// times at mount and again on every capability change. `readPlanMemberProjection`
+// is the per-plan `inFlight` promise the invite token got in the same commit
+// (`lib/planInviteTokenClient.ts`), and it is the ONE place that fetch is
+// written down.
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 
@@ -30,6 +38,43 @@ import {
   planCapabilityEvent,
   readPlanCapabilitySnapshot,
 } from "@/lib/planSessionCapability";
+import { discardBody } from "@/lib/responseBody";
+
+const inFlight = new Map<string, Promise<unknown>>();
+
+/**
+ * One capability-gated `GET /api/plans/[id]` shared by every surface asking
+ * together. The answer is the parsed body, or null when the read did not RUN,
+ * which each caller reads apart from a body that came back the preview.
+ *
+ * A body nobody reads is a request that never finishes, so the non-ok exit
+ * drains (`lib/responseBody.ts`).
+ */
+export function readPlanMemberProjection(planId: string): Promise<unknown> {
+  const pending = inFlight.get(planId);
+  if (pending) return pending;
+  const request = (async () => {
+    try {
+      const response = await fetch(`/api/plans/${planId}`, { cache: "no-store" });
+      if (!response.ok) {
+        discardBody(response);
+        return null;
+      }
+      return await response.json().catch(() => null);
+    } catch {
+      return null;
+    }
+  })().finally(() => {
+    if (inFlight.get(planId) === request) inFlight.delete(planId);
+  });
+  inFlight.set(planId, request);
+  return request;
+}
+
+/** Forget one Plan's shared read, so the next caller issues a fresh one. */
+export function clearPlanMemberProjectionRead(planId: string): void {
+  inFlight.delete(planId);
+}
 
 /** The live capability token for one Plan, or "" while there is none. */
 export function usePlanCapabilityToken(planId: string): string {

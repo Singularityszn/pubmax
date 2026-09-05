@@ -106,9 +106,18 @@ export function refreshPlanInviteToken(planId: string): Promise<string | null> {
   return request;
 }
 
-/** The held token when there is one, else one shared read. */
+/**
+ * The held token when there is one, else one shared read.
+ *
+ * A read we could not RUN is not an answer about this Plan, so `unavailable` is
+ * re-asked exactly as `unknown` is: one network blip may not downgrade the
+ * host's share tools to a bare `/plan/{id}` link for the life of a page they
+ * never reload. `ready` and `missing` are answers and are held.
+ */
 export function ensurePlanInviteToken(planId: string): Promise<string | null> {
   const held = live.get(planId);
-  if (held && held.state !== "unknown") return Promise.resolve(held.token);
+  if (held && held.state !== "unknown" && held.state !== "unavailable") {
+    return Promise.resolve(held.token);
+  }
   return refreshPlanInviteToken(planId);
 }
