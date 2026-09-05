@@ -161,33 +161,58 @@ describe("POST /api/push-tokens", () => {
     expect(__listMemoryPushTokens().map((t) => t.token)).toEqual(["tok-a"]);
   });
 
-  it("429s on forwarded-header rotation once the global backstop trips", async () => {
-    // Faithful counting limiter: honours the per-key budget the route asks
-    // for, exactly like the real one. Rotating x-forwarded-for gives the
-    // attacker a FRESH per-IP key every request, so only the shared
-    // push-tokens:global bucket can stop the flood.
+  // Faithful counting limiter: honours the per-key budget the route asks for,
+  // exactly like the real one.
+  function countingLimiter(): void {
     const counts = new Map<string, number>();
     isLimitedMock.mockImplementation(async (localKey, _durable, limit = 10) => {
       const next = (counts.get(localKey) ?? 0) + 1;
       counts.set(localKey, next);
       return next > limit;
     });
+  }
 
-    let firstLimited: number | null = null;
-    for (let i = 0; i < 301 && firstLimited === null; i += 1) {
-      const res = await post(
-        { token: `tok-${i}`, platform: "ios" },
-        { "x-forwarded-for": `198.51.100.${i % 250}, 10.0.0.1` },
-      );
+  async function floodUntilLimited(
+    headersFor: (index: number) => Record<string, string>,
+    attempts: number,
+  ): Promise<number | null> {
+    for (let i = 0; i < attempts; i += 1) {
+      const res = await post({ token: `tok-${i}`, platform: "ios" }, headersFor(i));
       if (res.status === 429) {
-        firstLimited = i;
         expect(await res.json()).toEqual({
           error: "Too many registrations, slow down.",
           code: "RATE_LIMITED",
           retryable: true,
         });
+        return i;
       }
     }
+    return null;
+  }
+
+  it("gives a prepended x-forwarded-for entry no bucket of its own", async () => {
+    countingLimiter();
+    // The caller rotates the LEFT-MOST entry, which is the one value they can
+    // always write. `lib/clientIpTrust.ts` reads the right-most entry, so all
+    // 301 requests share ONE per-address bucket and the route's own 10/hour
+    // budget stops the flood long before the global backstop is needed.
+    const firstLimited = await floodUntilLimited(
+      (i) => ({ "x-forwarded-for": `198.51.100.${i % 250}, 10.0.0.1` }),
+      301,
+    );
+    expect(firstLimited).toBe(10);
+    expect(__listMemoryPushTokens()).toHaveLength(10);
+  });
+
+  it("429s on real address rotation once the global backstop trips", async () => {
+    countingLimiter();
+    // The self-hosted shape: one entry per request, each a different address a
+    // trusted hop really appended, so every request earns its own per-address
+    // key and only the shared push-tokens:global bucket can stop the flood.
+    const firstLimited = await floodUntilLimited(
+      (i) => ({ "x-forwarded-for": `198.51.100.${i % 250}` }),
+      301,
+    );
     // Every per-IP key stayed under its own 10/hour budget (250 rotating IPs),
     // yet the flood is stopped at the 300-request global ceiling.
     expect(firstLimited).toBe(300);
