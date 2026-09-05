@@ -161,12 +161,19 @@ import {
   INITIAL_TILE_FAILURE_SPEND,
   areBasemapTilesLoaded as readBasemapTilesLoaded,
   basemapFailureSurface,
+  basemapSourceReloadPlan,
   classifyTileFailure,
+  clearSilentTileRetries,
   createBasemapTileFailureTracker,
   isCriticalBasemapFailure,
+  isStyleResourceFailure,
+  markSilentTileRetrySpent,
   markTileFailureSurfaced,
   markTileRetrySpent,
   pruneTileFailures,
+  releaseQueuedSilentTileRetry,
+  silentTileRetriesLeft,
+  silentTileRetryDelayMs,
   spendTileFailureDecision,
   tileFailureRecheckDelay,
 } from "@/lib/mapTileFailure";
@@ -1541,6 +1548,7 @@ export default function PubMapCanvas({
     let tileSpend = INITIAL_TILE_FAILURE_SPEND;
     let tileFailureGeneration = 0;
     let tileFailureRecheckTimer: ReturnType<typeof setTimeout> | undefined;
+    let silentTileRetryTimer: ReturnType<typeof setTimeout> | undefined;
     const failedBasemapTiles = createBasemapTileFailureTracker();
     const clearTileFailureRecheck = () => {
       if (tileFailureRecheckTimer !== undefined) {
@@ -1548,12 +1556,53 @@ export default function PubMapCanvas({
       }
       tileFailureRecheckTimer = undefined;
     };
+    const clearSilentTileRetryTimer = () => {
+      if (silentTileRetryTimer !== undefined) {
+        clearTimeout(silentTileRetryTimer);
+      }
+      silentTileRetryTimer = undefined;
+    };
     const beginTileFailureGeneration = () => {
       tileFailureGeneration += 1;
       clearTileFailureRecheck();
+      clearSilentTileRetryTimer();
+      tileSpend = releaseQueuedSilentTileRetry(tileSpend);
       tileFailureStamps = [];
       failedBasemapTiles.reset();
       basemapTileReadyForPaint = false;
+    };
+    // The silent lane: re-ask every tiled basemap SOURCE for its own tiles.
+    // MapLibre never re-requests a tile it failed, so without this a transient
+    // outage leaves a permanent hole and the only way out was the style reload
+    // the reader can see. Nothing here rebuilds the scene, so the pins, the
+    // camera and the app data packs are untouched, and nothing is logged: a
+    // retry the reader is never told about is the whole point.
+    const reloadBasemapSources = () => {
+      const sources = map.getStyle()?.sources;
+      if (!sources) return;
+      // A silent retry is a FRESH attempt, so the stamps and the failed-tile
+      // set it was decided from - both about the attempt that just failed -
+      // go with it. The generation is NOT bumped: no style is being rebuilt.
+      clearTileFailureRecheck();
+      tileFailureStamps = [];
+      failedBasemapTiles.reset();
+      for (const [sourceId, spec] of Object.entries(sources)) {
+        if (appDataPackSourceId(sourceId)) continue;
+        const plan = basemapSourceReloadPlan(spec);
+        if (!plan) continue;
+        const source = map.getSource(sourceId) as
+          | {
+              setTiles?: (tiles: string[]) => unknown;
+              setUrl?: (url: string) => unknown;
+            }
+          | undefined;
+        try {
+          if (plan.kind === "tiles") source?.setTiles?.(plan.tiles);
+          else source?.setUrl?.(plan.url);
+        } catch {
+          // A source mid-swap is a no-op here, not a failure worth surfacing.
+        }
+      }
     };
     const hasPinsPaintable = () => {
       if (!venueDataReadyRef.current || !map.getSource("pubs")) return false;
@@ -1651,7 +1700,8 @@ export default function PubMapCanvas({
       if (failedBasemapTiles.hasFailures()) return;
       initialBasemapPending = false;
       tileFailureStamps = [];
-      tileSpend = { ...tileSpend, surfaced: false };
+      clearSilentTileRetryTimer();
+      tileSpend = clearSilentTileRetries({ ...tileSpend, surfaced: false });
       // MapLibre treats errored tiles as settled, so `areTilesLoaded()` cannot
       // prove recovery from a real error burst. Only a timeout-owned notice
       // may clear when a slow source eventually settles. Error-owned notices
@@ -2371,6 +2421,11 @@ export default function PubMapCanvas({
         cameraInFlight: map.isMoving(),
         retrySpent: tileSpend.retrySpent,
         recoveryBudgetLeft: PAINT_WATCHDOG_MAX_RETRIES - recoverySpent,
+        // The silent lane spends NONE of the shared recovery budget: it
+        // rebuilds nothing, so it cannot compound with the paint watchdog.
+        silentRetriesLeft: silentTileRetriesLeft(tileSpend),
+        unrecoveredTileFailures: failedBasemapTiles.count(),
+        styleResourceFailure: isStyleResourceFailure(message),
         initialBasemapPending,
       });
       if (decision === "ignore") {
@@ -2406,6 +2461,26 @@ export default function PubMapCanvas({
       clearTileFailureRecheck();
       const spent = spendTileFailureDecision(tileSpend, decision);
       tileSpend = spent.state;
+      if (spent.effect === "reload-source") {
+        const generation = tileFailureGeneration;
+        clearSilentTileRetryTimer();
+        silentTileRetryTimer = setTimeout(() => {
+          silentTileRetryTimer = undefined;
+          if (
+            mapRef.current !== map ||
+            tileSpend.surfaced ||
+            generation !== tileFailureGeneration
+          ) {
+            // Abandoned before it ran, so it spent nothing and gives its
+            // place back rather than blocking the lane for the mount.
+            tileSpend = releaseQueuedSilentTileRetry(tileSpend);
+            return;
+          }
+          tileSpend = markSilentTileRetrySpent(tileSpend);
+          reloadBasemapSources();
+        }, silentTileRetryDelayMs(tileSpend.silentSpent));
+        return;
+      }
       if (spent.effect === "reload-style") {
         queueMicrotask(() => {
           if (mapRef.current !== map || tileSpend.surfaced) return;
@@ -2919,6 +2994,7 @@ export default function PubMapCanvas({
       clearTimeout(hangFailTimer);
       pinRevealCoordinator.dispose();
       clearTileFailureRecheck();
+      clearSilentTileRetryTimer();
       clearPinRetryWait();
       styleGeneration += 1;
       cancelDeferredWork();

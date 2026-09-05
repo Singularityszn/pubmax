@@ -51,6 +51,11 @@ const BENIGN_PATTERNS: RegExp[] = [
   // local-serve noise, unrelated to the map scene this spec guards.
   /_vercel\/insights/i,
   /was preloaded using link preload but not used/i,
+  // The E2E build is given a deliberately fake Supabase host
+  // (playwright.config.ts), so the browser auth graph stays enabled while the
+  // realtime socket has nothing to resolve. Scoped to that one host, so a
+  // WebSocket failure against a real origin still fails this gate.
+  /pubmaxx-e2e\.supabase\.co/i,
 ];
 
 // Errors we must NEVER tolerate regardless of the allow-list above.

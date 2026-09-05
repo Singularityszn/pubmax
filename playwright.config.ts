@@ -236,6 +236,8 @@ export default defineConfig({
         // rendered edge: both need a real MapLibre camera to project from.
         "**/map-deep-link-pin.spec.ts",
         "**/map-console-health.spec.ts",
+        // Silent basemap-source retry: needs a real error path off a real scene.
+        "**/map-tile-retry.spec.ts",
         // Synthetic webglcontextlost recovery — needs a real GL canvas.
         "**/map-webgl-recovery.spec.ts",
         // UK base layer: asserts the zoom gate + a real tap on a painted pin.
