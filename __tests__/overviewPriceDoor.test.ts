@@ -366,6 +366,14 @@ describe("the composer is folded until the door opens it", () => {
     expect(overviewComposerOpen({ focusRequest: 1, signInRequested: false, missionPresent: false })).toBe(true);
     expect(overviewComposerOpen({ focusRequest: 0, signInRequested: true, missionPresent: false })).toBe(true);
     expect(overviewComposerOpen({ focusRequest: 0, signInRequested: false, missionPresent: true })).toBe(true);
+    // The latch: a mission opens the composer and a logged price takes the
+    // mission away (L02), so the form has to stay for the receipt it earned.
+    expect(overviewComposerOpen({
+      focusRequest: 0,
+      signInRequested: false,
+      missionPresent: false,
+      priceLogged: true,
+    })).toBe(true);
   });
 
   it("the prices-by-drink invite folds whenever the price area owns the door or the form is open", () => {

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MapPin, PlusCircle } from "lucide-react";
 
 import Disclosure from "@/components/Disclosure";
@@ -122,20 +122,28 @@ export function drinkInviteOwnedByPriceArea(
 }
 
 /**
- * Whether the pub's own composer is on screen. A pure reading of three flags
+ * Whether the pub's own composer is on screen. A pure reading of four flags
  * the sheet already owns, so the door above the form and the form itself are
  * decided from one answer and can never both stand on one screen.
+ *
+ * `priceLogged` is the LATCH, and it is why a fourth flag exists: a mission
+ * opens the composer, and a logged price now takes the mission away (L02), so
+ * without it the composer would fold on the write and take the receipt the
+ * drinker just earned off the screen with it. Once this pub's composer has
+ * answered, it stays answered.
  */
 export function overviewComposerOpen({
   focusRequest,
   signInRequested,
   missionPresent,
+  priceLogged = false,
 }: {
   focusRequest: number;
   signInRequested: boolean;
   missionPresent: boolean;
+  priceLogged?: boolean;
 }): boolean {
-  return focusRequest > 0 || signInRequested || missionPresent;
+  return focusRequest > 0 || signInRequested || missionPresent || priceLogged;
 }
 
 /**
@@ -630,10 +638,14 @@ export default function VenueOverviewTab({
   // so the door and the form can never both stand on one screen.
   const pub = isPubVenue(venue);
   const mission = useOverviewMission(venue.id, pub, priceEntryAllowed);
+  // The pub whose composer has already taken a price. Kept by venue id rather
+  // than as a flag, so selecting another pub starts closed again.
+  const [loggedVenueId, setLoggedVenueId] = useState<string | null>(null);
   const composerOpen = overviewComposerOpen({
     focusRequest: priceFocusRequest,
     signInRequested: priceSignInRequested,
     missionPresent: mission.mission !== null,
+    priceLogged: loggedVenueId === venue.id,
   });
 
   // The ordinary view names the freshest category; the no-alcohol view admits
@@ -941,7 +953,10 @@ export default function VenueOverviewTab({
           missionPending={mission.pending}
           onDismissMission={mission.dismiss}
           onMissionFulfilled={mission.complete}
-          onLogged={onLogged}
+          onLogged={(loggedId) => {
+            setLoggedVenueId(loggedId);
+            onLogged?.(loggedId);
+          }}
         />
       ) : null}
       {mode === "build" && isPubVenue(venue) ? (
