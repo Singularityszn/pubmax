@@ -87,7 +87,7 @@ async function expectStoryBodyHonest(page: Page, scope: string): Promise<void> {
 
   // Distances read like a person, and the caveat is said once in the head.
   const rows = page.locator(`${scope} .landmarkStoryPubs button`);
-  await expect(rows.first()).toBeVisible();
+  await expect(rows.first()).toBeVisible({ timeout: 45_000 });
   const distances = await rows.locator(".landmarkStoryPubDistance").allInnerTexts();
   expect(distances.length).toBeGreaterThan(0);
   for (const text of distances) {
@@ -141,6 +141,9 @@ async function expectStoryBodyHonest(page: Page, scope: string): Promise<void> {
 
 for (const width of PHONE_WIDTHS) {
   test(`phone ${width}: the story is the shared sheet, titled, honest and reachable`, async ({ page }) => {
+    // The nearby rows need the venue index, which arrives behind the canvas
+    // under SwiftShader; the case is slow by nature rather than by defect.
+    test.slow();
     const errors = watchPageErrors(page);
     await page.setViewportSize({ width, height: 844 });
     await preparePage(page);
@@ -149,7 +152,7 @@ for (const width of PHONE_WIDTHS) {
     expect(response?.status()).toBe(200);
 
     const portal = page.locator('.mobileSheetPortal[data-sheet-kind="landmark"]');
-    await expect(portal).toBeVisible();
+    await expect(portal).toBeVisible({ timeout: 30_000 });
     // No card of the old kind is pinned over the map any more.
     await expect(page.locator(".landmarkCard")).toHaveCount(0);
 
@@ -158,8 +161,12 @@ for (const width of PHONE_WIDTHS) {
     const title = portal.locator(".mobileSharedSheetHeader h2");
     await expect(title).toHaveText(LANDMARK_NAME);
     const titleSelector = '.mobileSheetPortal[data-sheet-kind="landmark"] .mobileSharedSheetHeader h2';
-    // The sheet springs in, so the geometry is polled until it rests.
-    await expect.poll(async () => (await boxOf(page, titleSelector)).bottom).toBeLessThanOrEqual(844);
+    // The sheet springs in, so the geometry is polled until it rests. The
+    // budget is generous because the canvas paints under SwiftShader in this
+    // suite and the spring only advances when the main thread is free.
+    await expect
+      .poll(async () => (await boxOf(page, titleSelector)).bottom, { timeout: 20_000 })
+      .toBeLessThanOrEqual(844);
     const titleBox = await boxOf(page, titleSelector);
     expect(titleBox.top).toBeGreaterThanOrEqual(0);
     expect(titleBox.left).toBeGreaterThanOrEqual(0);
@@ -201,6 +208,9 @@ for (const width of PHONE_WIDTHS) {
 }
 
 test("desktop 1440: the story takes the left drawer and the chrome leaves its lane", async ({ page }) => {
+  // A 1440 map under SwiftShader owns the main thread for whole seconds at a
+  // time, and every geometry read here waits its turn behind it.
+  test.slow();
   const errors = watchPageErrors(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await preparePage(page);
@@ -209,7 +219,7 @@ test("desktop 1440: the story takes the left drawer and the chrome leaves its la
   expect(response?.status()).toBe(200);
 
   const drawer = page.locator(".storyDrawer.open");
-  await expect(drawer).toBeVisible();
+  await expect(drawer).toBeVisible({ timeout: 30_000 });
   await expect(page.locator("main.appShell")).toHaveClass(/story-open/);
   await expect(page.locator(".landmarkCard")).toHaveCount(0);
 
