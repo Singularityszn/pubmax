@@ -173,6 +173,7 @@ export default async function TodayPage() {
               hook: pub.hook,
               facts: pub.facts,
               era: pub.era,
+              dateLabel: pub.dateLabel,
               listed: pub.listed,
             },
           ]

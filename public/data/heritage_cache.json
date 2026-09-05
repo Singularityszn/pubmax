@@ -2,7 +2,7 @@
   "prospect of whitby": [
     {
       "source": "seed",
-      "fact": "Riverside Wapping pub usually dated to 1520; a strong fit for the heritage-by-water demo.",
+      "fact": "Riverside Wapping pub usually dated to 1520.",
       "sourceRef": "https://en.wikipedia.org/wiki/Prospect_of_Whitby"
     },
     {
@@ -41,7 +41,7 @@
   "the dove": [
     {
       "source": "seed",
-      "fact": "Upper Mall riverside pub in Hammersmith; useful as a west London water-side heritage stop.",
+      "fact": "Upper Mall riverside pub in Hammersmith.",
       "sourceRef": "https://en.wikipedia.org/wiki/The_Dove,_Hammersmith"
     },
     {
@@ -75,7 +75,7 @@
   "the lamb": [
     {
       "source": "seed",
-      "fact": "Victorian Bloomsbury pub with the kind of preserved interior detail that suits a heritage crawl.",
+      "fact": "Victorian Bloomsbury pub with preserved interior detail.",
       "sourceRef": "https://en.wikipedia.org/wiki/The_Lamb,_Bloomsbury"
     },
     {
@@ -92,7 +92,7 @@
   "the sun tavern": [
     {
       "source": "seed",
-      "fact": "Bethnal Green pub included in Hilton's visible pub print shop, useful for a writer-inspired crawl seed.",
+      "fact": "Bethnal Green pub included in Alastair Hilton's pub print series.",
       "sourceRef": "https://www.alastairhiltonphotographer.com/category/all-products"
     },
     {
@@ -101,26 +101,10 @@
       "sourceRef": "https://www.alastairhiltonphotographer.com/category/all-products"
     }
   ],
-  "the queens head": [
-    {
-      "source": "seed",
-      "fact": "One of the app's closest matches for Hilton's visible The Queens print; kept as a soft match until the exact pub is verified.",
-      "sourceRef": "https://www.alastairhiltonphotographer.com/product-page/the-queens"
-    },
-    {
-      "source": "seed",
-      "fact": "A candidate stop on the writer's Queens print trail, pending confirmation of the exact venue.",
-      "sourceRef": "https://www.alastairhiltonphotographer.com/product-page/the-queens"
-    }
-  ],
   "the queens arms": [
     {
       "source": "seed",
-      "fact": "Pimlico pub from 1846; a useful Victorian reference stop for the seeded heritage route."
-    },
-    {
-      "source": "seed",
-      "fact": "A Victorian-era Pimlico pub kept as a reference stop for the heritage crawl."
+      "fact": "Victorian Pimlico pub from 1846."
     }
   ],
   "the nellie dean": [
@@ -361,12 +345,14 @@
       "sourceRef": "https://en.wikipedia.org/wiki/The_Pride_of_Spitalfields"
     }
   ],
-  "the cheshire cheese": [
+  "cheshire cheese": [
     {
       "source": "seed",
       "fact": "The Cheshire Cheese at 48 Crutched Friars sits beneath the viaduct of Fenchurch Street station in the City of London; a pub of this name traded on the site before the railway arrived in the 1850s, with records of the Cheshire Cheese, Crutched Friars going back to the early 19th century. (It is a separate pub from the famous Ye Olde Cheshire Cheese on Fleet Street.)",
       "sourceRef": "https://whatpub.com/pubs/ELC/14880/cheshire-cheese-london"
-    },
+    }
+  ],
+  "the cheshire cheese": [
     {
       "source": "wikidata",
       "fact": "pub in Essex Street, Strand, London",

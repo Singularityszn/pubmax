@@ -1,3 +1,4 @@
+import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
 import type { Venue } from "@/lib/venues";
 
 // Pure, deterministic helpers behind the borough discovery pages (cc_plan2
@@ -13,46 +14,13 @@ import type { Venue } from "@/lib/venues";
 // Covent Garden) and single-letter junk from visibleBoroughs[0].
 
 /**
- * The 32 London boroughs + City of London — the same canonical names carried
- * by data/london_boroughs_simplified.json (the point-in-polygon source that
- * assigns primary_borough at build time). __tests__/boroughs.test.ts asserts
- * this list matches that GeoJSON exactly.
+ * The 32 London boroughs plus the City of London, the same canonical names
+ * carried by data/london_boroughs_simplified.json (the point-in-polygon source
+ * that assigns primary_borough at build time). The list itself lives in
+ * lib/londonBoroughNames.mjs so the plain-node build scripts read the SAME 33
+ * names; __tests__/boroughs.test.ts asserts it matches that GeoJSON exactly.
  */
-export const LONDON_BOROUGHS: readonly string[] = [
-  "Barking and Dagenham",
-  "Barnet",
-  "Bexley",
-  "Brent",
-  "Bromley",
-  "Camden",
-  "City of London",
-  "Croydon",
-  "Ealing",
-  "Enfield",
-  "Greenwich",
-  "Hackney",
-  "Hammersmith and Fulham",
-  "Haringey",
-  "Harrow",
-  "Havering",
-  "Hillingdon",
-  "Hounslow",
-  "Islington",
-  "Kensington and Chelsea",
-  "Kingston upon Thames",
-  "Lambeth",
-  "Lewisham",
-  "Merton",
-  "Newham",
-  "Redbridge",
-  "Richmond upon Thames",
-  "Southwark",
-  "Sutton",
-  "Tower Hamlets",
-  "Waltham Forest",
-  "Wandsworth",
-  "Westminster",
-] as const;
+export const LONDON_BOROUGHS: readonly string[] = LONDON_BOROUGH_NAMES;
 
 export type BoroughSummary = {
   slug: string;

@@ -100,6 +100,27 @@ function setupScratch(files: Record<string, unknown>): string {
     join(ROOT, "lib", "ukPlaceName.mjs"),
     join(scratchLib, "ukPlaceName.mjs"),
   );
+  // The historic index publishes through three gates the validator imports
+  // rather than restates: what internal language is, what a stated borough
+  // contradicts, and what a heritage date is a date OF. The place gate reads
+  // the 33 canonical borough names from its own leaf module, so the scratch run
+  // needs that too.
+  cpSync(
+    join(ROOT, "lib", "heritageLanguageGate.mjs"),
+    join(scratchLib, "heritageLanguageGate.mjs"),
+  );
+  cpSync(
+    join(ROOT, "lib", "heritagePlaceConflict.mjs"),
+    join(scratchLib, "heritagePlaceConflict.mjs"),
+  );
+  cpSync(
+    join(ROOT, "lib", "londonBoroughNames.mjs"),
+    join(scratchLib, "londonBoroughNames.mjs"),
+  );
+  cpSync(
+    join(ROOT, "lib", "heritageDate.mjs"),
+    join(scratchLib, "heritageDate.mjs"),
+  );
   // Which city packs ship, and the one box each is cut to and rendered inside.
   // Both are read rather than restated, so the scratch run needs them.
   cpSync(

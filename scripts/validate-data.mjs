@@ -49,11 +49,21 @@ import {
 import { CITY_VENUE_PACKS } from "../lib/cityVenuePacks.mjs";
 import { CITY_BOUNDS } from "../lib/cityBounds.mjs";
 import { EDITORIAL_FEEDS, EDITORIAL_ITEM_KEYS } from "../lib/editorialRss.mjs";
+import {
+  describeInternalLanguage,
+  internalLanguageFindings,
+} from "../lib/heritageLanguageGate.mjs";
+import { heritagePlaceConflict } from "../lib/heritagePlaceConflict.mjs";
+import {
+  HERITAGE_DATE_TYPES,
+  heritageDateIsAgeEvidence,
+} from "../lib/heritageDate.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, "..");
 const DATA_DIR = join(ROOT_DIR, "public", "data");
 const GENERATED_DATA_DIR = join(ROOT_DIR, "data", "generated");
+const HISTORIC_PUBS_FILE = join(DATA_DIR, "historic_pubs.json");
 const FAMOUS_VENUES_DIR = join(ROOT_DIR, "data", "famous_venues");
 const UK_OSM_PUBS_FILE = join(
   ROOT_DIR,
@@ -146,6 +156,7 @@ const ARTIFACT_CLASSIFICATION = [
   { id: "pint_index_snapshot", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
   { id: "late_food_evidence", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
   { id: "editorial_overlay", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the file is absent; a file that IS present with a body or extra keys is a genuine defect and stays a hard gate" },
+  { id: "historic_pubs", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the artifact is absent; a record that IS present carrying a note we wrote to ourselves, a description of a pub in another borough, or an event year ordering the pub by age, is published to strangers as a fact about this pub, and stays a hard gate" },
 ];
 
 function classificationFor(id) {
@@ -3737,6 +3748,132 @@ function validateLateFoodEvidenceSnapshot() {
 // ---------------------------------------------------------------------------
 
 // One id/run pair per top-level dataset, in report order. Each id must have a
+// historic_pubs.json — the cited heritage index /historic, /historic/[slug] and
+// the borough heritage rails all read.
+//
+// TWO FENCES, BOTH ABOUT WHETHER A CARD TELLS THE TRUTH ABOUT ONE PUB.
+//
+// (1) WHO THE WORDS WERE WRITTEN FOR. Every string on these records is shown to
+// a stranger as a fact about a pub, so none of it may be a note we wrote to
+// ourselves. The Queens Arms card carried "a useful Victorian reference stop
+// for the seeded heritage route" in production and nothing failed, because a
+// description is free text and free text was never checked.
+//
+// (2) WHICH PUB THE WORDS ARE ABOUT. Heritage facts are keyed by pub name and
+// London has several of nearly every name, so a record can carry a description
+// of one pub over the borough, coordinates and map link of another. The
+// Cheshire Cheese card was labelled Westminster over a pub at 48 Crutched
+// Friars in the City of London. A fact that names a borough other than the
+// record's own is refused, never merged.
+//
+// (3) WHAT THE DATE ON THE CARD IS A DATE OF. `era` is the field every "oldest
+// first" ordering and age filter reads, so it may carry a date only where the
+// date's own type is evidence of age. The Captain Kidd was sorted among the
+// oldest pubs in London on 1701, the year the pirate it is named after was
+// hanged. A stated date must also carry a label naming its type, so no year on
+// a card stands bare.
+//
+// scripts/build_historic_index.mjs applies all three on the way in; this
+// applies them again over the artifact that actually ships, so a hand-edited
+// file cannot walk around the generator.
+// Every published string on one record, in the order a reader meets them.
+function historicPubPublishedText(row) {
+  return [
+    ["hook", row?.hook],
+    ...(Array.isArray(row?.facts) ? row.facts : []).map((f, i) => [
+      `facts[${i}].fact`,
+      f?.fact,
+    ]),
+  ];
+}
+
+// (1) and (2): who the words were written for, and which pub they are about.
+function historicPubTextProblems(row) {
+  const problems = [];
+  for (const [field, text] of historicPubPublishedText(row)) {
+    for (const finding of internalLanguageFindings(text)) {
+      problems.push(`${field}: ${describeInternalLanguage(finding)}`);
+    }
+  }
+  for (const [index, fact] of (Array.isArray(row?.facts) ? row.facts : []).entries()) {
+    const conflict = heritagePlaceConflict({
+      text: fact?.fact,
+      sourceRef: fact?.sourceRef,
+      venueBorough: row?.borough,
+    });
+    if (conflict) {
+      problems.push(`facts[${index}]: ${conflict.reason}, ${conflict.why}`);
+    }
+  }
+  return problems;
+}
+
+// (3): what the date on the card is a date OF.
+function historicPubDateProblems(row) {
+  const problems = [];
+  const dateType = row?.dateType ?? null;
+  if (dateType !== null && !HERITAGE_DATE_TYPES.includes(dateType)) {
+    problems.push(`dateType: "${dateType}" is not a heritage date type`);
+  }
+  if (row?.era != null && !heritageDateIsAgeEvidence(dateType)) {
+    problems.push(
+      `era: "${row.era}" orders this pub by age, but its date is typed "${dateType}", which is not evidence of age`,
+    );
+  }
+  if (row?.era != null && row.era !== row?.dateValue) {
+    problems.push(
+      `era: "${row.era}" does not match the stated date "${row?.dateValue}"`,
+    );
+  }
+  if (row?.dateValue != null && !String(row?.dateLabel ?? "").includes(row.dateValue)) {
+    problems.push(
+      `dateLabel: "${row.dateValue}" is published without a label naming what it dates`,
+    );
+  }
+  return problems;
+}
+
+function validateHistoricPubs() {
+  const name = "public/data/historic_pubs.json";
+  if (!existsSync(HISTORIC_PUBS_FILE)) {
+    console.log(`SKIP ${name}: file does not exist`);
+    return { ok: true, count: 0 };
+  }
+  let rows;
+  try {
+    rows = JSON.parse(readFileSync(HISTORIC_PUBS_FILE, "utf8"));
+  } catch (e) {
+    console.log(`FAIL ${name}: unreadable (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+  if (!Array.isArray(rows)) {
+    console.log(`FAIL ${name}: expected an array of records`);
+    return { ok: false, count: 0 };
+  }
+
+  const errs = [];
+  for (const [index, row] of rows.entries()) {
+    const where = `record ${index} (${row?.name ?? "unnamed"})`;
+    for (const problem of [
+      ...historicPubTextProblems(row),
+      ...historicPubDateProblems(row),
+    ]) {
+      errs.push(`${where} ${problem}`);
+    }
+  }
+
+  if (errs.length > 0) {
+    console.log(`FAIL ${name}: ${errs.length} problem(s)`);
+    for (const e of errs.slice(0, 20)) console.log(`  - ${e}`);
+    if (errs.length > 20) console.log(`  … and ${errs.length - 20} more`);
+    return { ok: false, count: rows.length };
+  }
+  console.log(
+    `OK   ${name}: ${rows.length} records, no internal language, no borough conflict, no untyped date ordering by age`,
+  );
+  return { ok: true, count: rows.length };
+}
+
 // matching entry in ARTIFACT_CLASSIFICATION: that is what decides whether a
 // failing run below fails the build or degrades to a WARN.
 const DATASET_RUNS = [
@@ -3760,6 +3897,7 @@ const DATASET_RUNS = [
   { id: "late_food_evidence", run: validateLateFoodEvidenceSnapshot },
   { id: "pubmaxxing_seed", run: validatePubmaxxingSeed },
   { id: "editorial_overlay", run: validateEditorialOverlay },
+  { id: "historic_pubs", run: validateHistoricPubs },
 ];
 
 async function main() {

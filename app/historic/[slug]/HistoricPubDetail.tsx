@@ -35,6 +35,10 @@ function planNightHref(venueId: string): string {
 }
 
 export default function HistoricPubDetail({ pub }: { pub: HistoricPub }) {
+  // The date chip states what the date is OF, never a bare year: The Captain
+  // Kidd's 1701 is the year the pirate it is named after was hanged, and a bare
+  // 1701 reads as the year the pub opened (lib/heritageDate.mjs).
+  const dateLabel = pub.dateLabel ?? pub.era;
   const grade = listedBadge(pub.listed);
   const status = venueStatusBadge(pub.venueStatus);
   const boroughSlug = pub.borough ? slugifyBorough(pub.borough) : null;
@@ -70,9 +74,9 @@ export default function HistoricPubDetail({ pub }: { pub: HistoricPub }) {
           ) : undefined
         }
       >
-        {pub.era || grade || status || pub.borough ? (
+        {dateLabel || grade || status || pub.borough ? (
           <div className="hdMeta">
-            {pub.era ? <span className="hdEra">{pub.era}</span> : null}
+            {dateLabel ? <span className="hdEra">{dateLabel}</span> : null}
             {grade ? <span className="hdGrade">{grade}</span> : null}
             {status ? <span className="hdGrade">{status}</span> : null}
             {pub.borough ? (

@@ -11,6 +11,7 @@ import type { HistoricPub } from "@/lib/historic";
 // stub declaration. Same pattern as the other .mjs-in-test imports.
 import {
   buildHistoricIndex,
+  buildHistoricPublication,
   buildVenueIdIndex,
   extractEra,
   extractListed,
@@ -67,6 +68,10 @@ const EXPECTED_KEYS = [
   "hook",
   "facts",
   "era",
+  "dateValue",
+  "datePrecision",
+  "dateType",
+  "dateLabel",
   "listed",
   "sourced",
 ];
@@ -407,5 +412,151 @@ describe("the shipped historic index (generated artifact)", () => {
       expect(rec?.borough).toBeTruthy();
       expect(typeof rec?.lat).toBe("number");
     }
+  });
+});
+
+// F05: the publication gate. A fact written for us rather than for a reader is
+// withheld and NAMED, never rewritten, so the cache entry behind it is what
+// gets fixed. A record with nothing left to say is withheld whole rather than
+// published with an empty description.
+describe("buildHistoricPublication — internal language is quarantined", () => {
+  const CACHE = {
+    // One publishable fact and one internal note: the pub still publishes, on
+    // the fact that was written for a reader.
+    "the old bell": [
+      { source: "wikipedia", fact: "The Old Bell is a Grade II* listed pub rebuilt in 1670." },
+      { source: "seed", fact: "A useful reference stop for the seeded heritage route." },
+    ],
+    // Nothing but an internal note: the record is withheld whole.
+    "the new inn": [
+      { source: "seed", fact: "Kept as a soft match until the exact pub is verified." },
+    ],
+  };
+
+  const { records, quarantined } = buildHistoricPublication({
+    heritageCache: CACHE,
+    dataset: FIXTURE_DATASET,
+  });
+
+  it("publishes the pub, without the sentence written for us", () => {
+    const bell = byName(records, "The Old Bell");
+    expect(bell.facts).toHaveLength(1);
+    expect(bell.hook).toBe("The Old Bell is a Grade II* listed pub rebuilt in 1670.");
+    expect(JSON.stringify(bell)).not.toContain("reference stop");
+  });
+
+  it("withholds a record whose every fact was refused", () => {
+    expect(records.find((r: HistoricPub) => r.name === "The New Inn")).toBeUndefined();
+    expect(
+      quarantined.some(
+        (q: { cacheKey: string; reason: string }) =>
+          q.cacheKey === "the new inn" && q.reason === "no-publishable-facts",
+      ),
+    ).toBe(true);
+  });
+
+  it("names what it withheld and why, so the cache entry can be corrected", () => {
+    const refused = quarantined.filter(
+      (q: { reason: string }) => q.reason === "internal-language",
+    );
+    expect(refused).toHaveLength(2);
+    for (const item of refused) {
+      expect(item.detail).toMatch(/[a-z-]+: ".+" .+/);
+      expect(item.name).toBeTruthy();
+    }
+  });
+
+  it("buildHistoricIndex still answers with the records alone", () => {
+    expect(buildHistoricIndex({ heritageCache: CACHE, dataset: FIXTURE_DATASET })).toEqual(
+      records,
+    );
+  });
+});
+
+// F06: two pubs with one name are two pubs. The heritage cache is keyed by pub
+// NAME, so one key collects facts about several, and the join then hangs them
+// all on whichever venue came first. A fact naming a borough other than the
+// joined venue's is quarantined, never merged into the card.
+describe("buildHistoricPublication — a fact about another borough is quarantined", () => {
+  const CACHE = {
+    // Joined to the Camden row. One fact agrees by silence, one names Hackney.
+    "the old bell": [
+      { source: "wikipedia", fact: "The Old Bell is a Grade II* listed pub rebuilt in 1670." },
+      {
+        source: "wikidata",
+        fact: "pub in Hackney, London",
+        sourceRef: "https://en.wikipedia.org/wiki/The_Old_Bell,_Hackney",
+      },
+    ],
+    // Joined to the Hackney row, and its only fact is about a Camden pub.
+    "the new inn": [{ source: "wikidata", fact: "pub in Camden, London" }],
+  };
+
+  const { records, quarantined } = buildHistoricPublication({
+    heritageCache: CACHE,
+    dataset: FIXTURE_DATASET,
+  });
+
+  it("keeps the pub, on the fact that does not contradict its borough", () => {
+    const bell = byName(records, "The Old Bell");
+    expect(bell.borough).toBe("Camden");
+    expect(bell.facts).toHaveLength(1);
+    expect(JSON.stringify(bell)).not.toContain("Hackney");
+  });
+
+  it("withholds a record left with nothing that is about it", () => {
+    expect(records.find((r: HistoricPub) => r.name === "The New Inn")).toBeUndefined();
+  });
+
+  it("says which borough disagreed with which, so the key can be split", () => {
+    const conflicts = quarantined.filter(
+      (q: { reason: string }) => q.reason === "borough-stated-in-fact",
+    );
+    expect(conflicts).toHaveLength(2);
+    expect(conflicts[0].detail).toContain("Hackney");
+    expect(conflicts[0].detail).toContain("Camden");
+  });
+});
+
+// F07: a year in a cited sentence is not automatically the pub's own date. The
+// index publishes the value, its precision, the TYPE of event it dates and a
+// label naming that type; `era`, the field every "oldest first" ordering reads,
+// carries the value only where the type is evidence of age.
+describe("buildHistoricPublication — a date says what it is a date of", () => {
+  const CACHE = {
+    "the old bell": [
+      {
+        source: "wikipedia",
+        fact: "The Old Bell is a Grade II* listed pub named after the highwayman John Bell, who was hanged nearby in 1701.",
+      },
+    ],
+    "the new inn": [
+      { source: "wikipedia", fact: "The New Inn is a coaching inn built in 1670." },
+    ],
+  };
+
+  const records: HistoricPub[] = buildHistoricIndex({
+    heritageCache: CACHE,
+    dataset: FIXTURE_DATASET,
+  });
+
+  it("publishes the event year, labelled, and orders nothing by it", () => {
+    const bell = byName(records, "The Old Bell");
+    expect(bell.dateValue).toBe("1701");
+    expect(bell.datePrecision).toBe("year");
+    expect(bell.dateType).toBe("associated_event");
+    expect(bell.dateLabel).toBe("Linked to 1701");
+    expect(bell.era).toBeNull();
+  });
+
+  it("publishes a real age in era as well as in the typed fields", () => {
+    const inn = byName(records, "The New Inn");
+    expect(inn.dateType).toBe("construction");
+    expect(inn.dateLabel).toBe("Built 1670");
+    expect(inn.era).toBe("1670");
+  });
+
+  it("sorts the dated pub above the one whose only date is an event", () => {
+    expect(records.map((r) => r.name)).toEqual(["The New Inn", "The Old Bell"]);
   });
 });
