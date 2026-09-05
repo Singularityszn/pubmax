@@ -260,6 +260,19 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* The warm wash and the bottom scrim are for a PHOTOGRAPH. On the empty
+   placeholder they painted a gradient band that read as an image that had
+   failed to load; the placeholder keeps the flat surface venueImage.css
+   gives it. */
+.venueBaselinePhoto.venueImage--empty {
+  background: var(--panel, var(--paper));
+  box-shadow: none;
+}
+
+.venueBaselinePhoto.venueImage--empty::after {
+  display: none;
+}
+
 .venueBaselinePhoto img {
   display: block;
   width: 100%;
