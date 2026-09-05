@@ -404,6 +404,73 @@ function selectBestOfficialPage(results) {
   return matchedPage;
 }
 
+/**
+ * A venue resolved without spending a query: a chain pub the estate harvesters
+ * own, or a pub OSM states no website for.
+ */
+function unsearchableVenue(pub, index) {
+  const chain = classifyChainPub(pub);
+  if (chain) {
+    return { chain, outcome: { index, osmId: pub.osmId, status: "delegated" } };
+  }
+  if (!hostnameOf(pub.website)) {
+    return { chain: null, outcome: { index, osmId: pub.osmId, status: "no-website" } };
+  }
+  return null;
+}
+
+/** Turn one accepted official page into its provenance rows. */
+function recordOfficialPage({ pub, matchedPage, observedAt, pages, prices }) {
+  const venueKey = venueKeyForOsmPub(pub);
+  pages.push({
+    osmId: pub.osmId,
+    venueKey,
+    pubName: pub.name,
+    address: pub.address,
+    officialUrl: matchedPage.result.url,
+    matchBasis: "osm-website-domain",
+    priceCount: matchedPage.extracted.length,
+    observedAt,
+  });
+  for (const price of matchedPage.extracted) {
+    prices.push({
+      venueKey,
+      drinkName: price.drinkName,
+      category: "beer",
+      priceGbp: price.priceGbp,
+      servingSize: price.servingSize,
+      source: {
+        label: sourceLabel(pub),
+        url: matchedPage.result.url,
+        licence: OFFICIAL_SITE_SOURCE_LICENCE,
+      },
+      observedAt,
+    });
+  }
+}
+
+/**
+ * One provider call for one pub. Which provider answers is a wiring question,
+ * so it lives here rather than inside the run loop, where it read as part of
+ * the enrichment rules.
+ */
+function searchOfficialPage({ pub, searchProvider, apiKey, fetchImpl, observedAt, signal }) {
+  const host = hostnameOf(pub.website);
+  if (searchProvider) {
+    return searchProvider.search({
+      query: searchQuery(pub),
+      maxResults: 10,
+      ...(host ? { includeDomains: [host] } : {}),
+      endPublishedDate: observedAt,
+      signal,
+      timeoutMs: SEARCH_REQUEST_WALL_MS,
+    });
+  }
+  return withRequestDeadline(signal, (requestSignal) =>
+    searchTavily({ pub, apiKey, fetchImpl, signal: requestSignal }),
+  );
+}
+
 function throwIfAborted(signal) {
   if (signal?.aborted) {
     const error = new Error("City enrichment aborted.");
@@ -441,6 +508,24 @@ async function withRequestDeadline(parentSignal, operation) {
   }
 }
 
+/**
+ * The venues one run walks. Sequential from `startIndex` is the ordinary
+ * coverage sweep; an explicit `indices` list is how the scheduler re-attempts
+ * venues a previous run deferred, without disturbing the coverage cursor.
+ */
+function* venueIndexSequence(pubs, startIndex, indices) {
+  if (Array.isArray(indices)) {
+    for (const raw of indices) {
+      const index = Math.floor(Number(raw));
+      if (Number.isFinite(index) && index >= 0 && index < pubs.length) yield index;
+    }
+    return;
+  }
+  for (let index = Math.max(0, Math.floor(Number(startIndex) || 0)); index < pubs.length; index += 1) {
+    yield index;
+  }
+}
+
 export async function runCityEnrichment({
   city: cityId,
   pubs,
@@ -448,9 +533,15 @@ export async function runCityEnrichment({
   searchProvider,
   maxQueries = 200,
   startIndex = 0,
+  indices,
   observedAt = new Date().toISOString(),
   fetchImpl = fetch,
   onProgress,
+  // A venue whose search fails is a fact about that venue, not about the run.
+  // The default stays "abort" so the CLI and every existing caller keep the
+  // behaviour they were written against; the scheduler asks for "continue" so
+  // one slow pub cannot throw away the rest of the night's budget.
+  onVenueError,
   signal,
 }) {
   const city = CITY_DEFINITIONS[cityId];
@@ -465,24 +556,36 @@ export async function runCityEnrichment({
   const prices = [];
   const pages = [];
   const delegatedChains = [];
+  const outcomes = [];
   const hostCounts = countPubsByHost(pubs);
   let queriesSpent = 0;
   let creditsSpent = 0;
+  const sequence = venueIndexSequence(pubs, startIndex, indices);
   let index = Math.max(0, Math.floor(Number(startIndex) || 0));
+  let resolvedIndex = index;
+  const report = async () => {
+    if (!onProgress) return;
+    await onProgress({
+      nextIndex: resolvedIndex,
+      queriesSpent,
+      creditsSpent,
+      prices,
+      pages,
+      delegatedChains,
+      outcomes,
+    });
+  };
 
-  while (index < pubs.length) {
+  for (const current of sequence) {
+    index = current;
     throwIfAborted(signal);
     const pub = pubs[index];
-    const chain = classifyChainPub(pub);
-    if (chain) {
-      delegatedChains.push({ pub, ...chain });
-      index += 1;
-      await onProgress?.({ nextIndex: index, queriesSpent, creditsSpent, prices, pages, delegatedChains });
-      continue;
-    }
-    if (!hostnameOf(pub.website)) {
-      index += 1;
-      await onProgress?.({ nextIndex: index, queriesSpent, creditsSpent, prices, pages, delegatedChains });
+    const unsearchable = unsearchableVenue(pub, index);
+    if (unsearchable) {
+      if (unsearchable.chain) delegatedChains.push({ pub, ...unsearchable.chain });
+      outcomes.push(unsearchable.outcome);
+      resolvedIndex = index + 1;
+      await report();
       continue;
     }
     if (queriesSpent >= queryCap) break;
@@ -490,72 +593,68 @@ export async function runCityEnrichment({
     queriesSpent += 1;
     let payload;
     try {
-      payload = searchProvider
-        ? await searchProvider.search({
-            query: searchQuery(pub),
-            maxResults: 10,
-            ...(hostnameOf(pub.website) ? { includeDomains: [hostnameOf(pub.website)] } : {}),
-            endPublishedDate: observedAt,
-            signal,
-            timeoutMs: SEARCH_REQUEST_WALL_MS,
-          })
-        : await withRequestDeadline(signal, (requestSignal) =>
-            searchTavily({ pub, apiKey, fetchImpl, signal: requestSignal }),
-          );
+      payload = await searchOfficialPage({
+        pub,
+        searchProvider,
+        apiKey,
+        fetchImpl,
+        observedAt,
+        signal,
+      });
     } catch (error) {
-      await onProgress?.({ nextIndex: index, queriesSpent, creditsSpent, prices, pages, delegatedChains });
-      throw error;
+      // An abort is the run's own deadline, never a verdict on this pub, so it
+      // is never offered to the venue-level policy and leaves no outcome.
+      if (error?.name === "AbortError") {
+        await report();
+        throw error;
+      }
+      // A query was spent asking about THIS pub and no answer came back. That
+      // outcome is recorded whatever the caller then decides about the run, or
+      // the venue that ends a run is a venue nobody ever hears about again.
+      outcomes.push({
+        index,
+        osmId: pub.osmId,
+        status: "failed",
+        error: error instanceof Error ? error.message : String(error),
+      });
+      if ((onVenueError?.({ pub, index, error }) ?? "abort") !== "continue") {
+        await report();
+        throw error;
+      }
+      resolvedIndex = index + 1;
+      await report();
+      continue;
     }
-    await onProgress?.({ nextIndex: index, queriesSpent, creditsSpent, prices, pages, delegatedChains });
+    await report();
     throwIfAborted(signal);
     creditsSpent += Number(payload?.creditsSpent ?? payload?.usage?.credits) || 0;
     const officialResults = acceptedOfficialResults(pub, payload, hostCounts, observedAt);
     const matchedPage = selectBestOfficialPage(officialResults);
 
-    if (matchedPage) {
-      const venueKey = venueKeyForOsmPub(pub);
-      pages.push({
-        osmId: pub.osmId,
-        venueKey,
-        pubName: pub.name,
-        address: pub.address,
-        officialUrl: matchedPage.result.url,
-        matchBasis: "osm-website-domain",
-        priceCount: matchedPage.extracted.length,
-        observedAt,
-      });
-      for (const price of matchedPage.extracted) {
-        prices.push({
-          venueKey,
-          drinkName: price.drinkName,
-          category: "beer",
-          priceGbp: price.priceGbp,
-          servingSize: price.servingSize,
-          source: {
-            label: sourceLabel(pub),
-            url: matchedPage.result.url,
-            licence: OFFICIAL_SITE_SOURCE_LICENCE,
-          },
-          observedAt,
-        });
-      }
-    }
+    outcomes.push({
+      index,
+      osmId: pub.osmId,
+      status: matchedPage ? "matched" : "empty",
+    });
 
-    index += 1;
-    await onProgress?.({ nextIndex: index, queriesSpent, creditsSpent, prices, pages, delegatedChains });
+    if (matchedPage) recordOfficialPage({ pub, matchedPage, observedAt, pages, prices });
+
+    resolvedIndex = index + 1;
+    await report();
   }
 
   return {
     city: cityId,
     totalPubs: pubs.length,
     startIndex,
-    nextIndex: index,
+    nextIndex: resolvedIndex,
     queriesSpent,
     creditsSpent,
     matchedPubs: pages.length,
     prices,
     pages,
     delegatedChains,
-    complete: index >= pubs.length,
+    outcomes,
+    complete: !Array.isArray(indices) && resolvedIndex >= pubs.length,
   };
 }

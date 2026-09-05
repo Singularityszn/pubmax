@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 142 mutating handlers across 114 route files.** Each exported
+> **Inventory: 144 mutating handlers across 115 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -55,6 +55,7 @@ Protection in a sibling method cannot certify another method.
 - `PATCH app/api/social/crews/[crewId]/join-requests/[requestId]`
 - `PATCH app/api/social/crews/[crewId]/members/[memberId]`
 - `PATCH app/api/social/posts/[postId]`
+- `POST app/api/admin/city-enrichment`
 - `POST app/api/admin/comments`
 - `POST app/api/admin/community-prices`
 - `POST app/api/admin/import-notes`
@@ -1117,6 +1118,39 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   variable definitions. Values are sensitive and are never printed or committed.
 - Route and limiter tests prove the fail-closed option returns the documented 429
   path before a Plan or paid-provider request proceeds.
+
+### `app/api/admin/city-enrichment` - enrichment checkpoint and retry path (route 93)
+
+- **Route / method:** `POST app/api/admin/city-enrichment/route.ts`
+  (`fm/enrich-city-resilience`), action `requeue` on ONE city's REFUSED venues.
+  The receiving side of the nightly enrichment cron: a venue whose official-page
+  search failed `MAX_VENUE_ATTEMPTS` times is recorded as terminal and stops
+  costing queries, and this is the way back for it. Until this existed a failed
+  venue was neither retried nor recorded at all (production 502, 2026-09-05).
+  The route also exports a read-only `GET` (each city's cursor, the venues owed
+  a bounded retry, the venues refused) which is NOT a mutating verb and is not
+  counted.
+- **Auth stance:** moderator-gated by `isModerator` (`lib/adminAuth.ts`) on BOTH
+  verbs - the `x-admin-token` header or the httpOnly admin session cookie, never
+  a query-string token; with `ADMIN_TOKEN` unset the gate opens only in dev and
+  test, so a preview deploy is never wide open. Same gate as the community
+  price and comment queues.
+- **Abuse boundary:** one per-IP budget through `isLimited` (`lib/pintDrops.ts`)
+  on both verbs, keyed `admin-city-enrichment:<hashed ip>`.
+- **Validation:** `action` restricted to `requeue` (anything else 400s, and
+  there is deliberately no `delete` and no cursor write), `city` must be one of
+  the rotation cities in `ENRICHMENT_CITIES` (400 otherwise, never a free-text
+  key), and `osmIds` is an optional list of strings naming which refused venues
+  to move; absent, every refused venue in that city moves.
+- **What it may not do:** the checkpoint is operational state, never a price
+  lane. Migration 0142 stores a cursor, a retry queue and one run summary, and
+  the table carries no price, drink or observation column
+  (`__tests__/cityEnrichmentProgressMigration.test.ts` holds it to that). This
+  route therefore cannot publish, hide or alter any figure a reader sees.
+- **Failure honesty:** a requeue whose write could not run answers 503
+  `CHECKPOINT_UNAVAILABLE`, never `ok` over a checkpoint that never moved. A
+  city that has refused nothing is a 200 with an empty `requeued` list, because
+  nothing to do is not an error.
 
 ### `app/api/venue-photos` - pub photo walls (route 73)
 

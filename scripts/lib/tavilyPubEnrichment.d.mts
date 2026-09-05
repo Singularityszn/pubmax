@@ -33,6 +33,8 @@ export type TavilyEnrichmentResult = {
   prices: TavilyPrice[];
   pages: Array<Record<string, unknown>>;
   delegatedChains: Array<{ pub: OsmPub; chain: string; harvester: string }>;
+  /** One entry per venue the run resolved, in the order it resolved them. */
+  outcomes?: VenueEnrichmentOutcome[];
   complete: boolean;
 };
 
@@ -65,6 +67,15 @@ export function mergeCanonicalPrices<T extends {
   drinkName: string;
   category: string;
 }>(existing: T[], incoming: T[]): T[];
+/** What one venue in a run came to. `failed` means a query was spent on it and
+ *  no answer came back, which is what the scheduler owes a bounded retry. */
+export type VenueEnrichmentOutcome = {
+  index: number;
+  osmId: string;
+  status: "matched" | "empty" | "delegated" | "no-website" | "failed";
+  error?: string;
+};
+
 export function runCityEnrichment(options: {
   city: string;
   pubs: OsmPub[];
@@ -72,8 +83,18 @@ export function runCityEnrichment(options: {
   searchProvider?: SearchProvider;
   maxQueries?: number;
   startIndex?: number;
+  /** Explicit venues to walk, for re-attempting ones a previous run deferred.
+   *  When given it replaces the sequential sweep and leaves the cursor alone. */
+  indices?: number[];
   observedAt?: string;
   fetchImpl?: typeof fetch;
   onProgress?: (state: Record<string, unknown>) => void | Promise<void>;
+  /** A venue whose search failed is a fact about that venue, not the run. The
+   *  default is "abort", so every existing caller keeps its old behaviour. */
+  onVenueError?: (info: {
+    pub: OsmPub;
+    index: number;
+    error: unknown;
+  }) => "abort" | "continue";
   signal?: AbortSignal;
 }): Promise<TavilyEnrichmentResult>;
