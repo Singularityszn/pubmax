@@ -88,9 +88,11 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
     await expect(route.getByText(stop.venueName, { exact: true })).toBeVisible();
   }
 
+  // The editor opens on the STORED stops in their stored order; the
+  // generator's answer only supplies the backups (D02, 5 Sep 2026).
   await page.getByRole("button", { name: "Edit route" }).click();
   await expect(page.locator(".planSummary__editStops strong")).toHaveText(
-    discardedStops.map((stop) => stop.venueName),
+    stops.map((stop) => stop.venueName),
   );
   await page.getByRole("button", { name: "Discard draft" }).click();
 
@@ -141,8 +143,13 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
     await startRound.click({ trial: true });
   }
   await page.getByLabel("Your handle").fill(handle);
-  await startRound.click();
-  await expect(page).toHaveURL(/\/rounds\/[A-Z0-9]{6}$/);
+  // A lone click is not a wait for hydration: on a cold server the tap
+  // landed before React attached and the page stayed on the plan for the
+  // whole assertion budget. Retry the tap until the Round answers.
+  await expect(async () => {
+    await startRound.click();
+    await expect(page).toHaveURL(/\/rounds\/[A-Z0-9]{6}$/, { timeout: 3_000 });
+  }).toPass({ timeout: 20_000 });
 
   await expect(
     page.getByRole("heading", { name: "Active Plan bridge", exact: true }),
