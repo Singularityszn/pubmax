@@ -65,12 +65,15 @@
   /* The planner owns the mirrored left edge. Keep both ambient banners inside
      the remaining map lane using the same centre and width as the toolbar. */
   .appShell.planning-open .cityStatusStack,
-  .appShell.planning-open .citySuggestBanner {
+  .appShell.planning-open .citySuggestBanner,
+  .appShell.story-open .cityStatusStack,
+  .appShell.story-open .citySuggestBanner {
     left: calc((100% + var(--desktop-planner-rail-width)) / 2);
     max-width: calc(100% - var(--desktop-planner-rail-width) - 32px);
   }
 
-  .appShell.planning-open .cityStatusStack {
+  .appShell.planning-open .cityStatusStack,
+  .appShell.story-open .cityStatusStack {
     transform: translateX(-50%);
   }
 
@@ -85,7 +88,8 @@
     transform: none;
   }
 
-  .appShell.planning-open .mapStage:has(.citySuggestBanner) .cityStatusStack {
+  .appShell.planning-open .mapStage:has(.citySuggestBanner) .cityStatusStack,
+  .appShell.story-open .mapStage:has(.citySuggestBanner) .cityStatusStack {
     top: auto;
     bottom: 16px;
     left: calc(var(--desktop-planner-rail-width) + 16px);

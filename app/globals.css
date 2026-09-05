@@ -343,7 +343,7 @@
   --z-map-base: 450;         /* lowest map overlay: mapLegend, mapHeroCard */
   --z-map-poi: 455;          /* POI category toggles */
   --z-map-controls: 456;     /* placeStoriesControl, bandPicker */
-  --z-map-cards: 460;        /* poiLabelCard, landmarkCard */
+  --z-map-cards: 460;        /* poiLabelCard */
   --z-map-hover: 470;        /* venueHoverCard + map price/layers FABs */
   --z-map-panel: 500;        /* routePanel, mapDrawer */
   --z-map-suggest: 512;      /* citySuggestBanner — below cityStatusBanner, as on main */
@@ -2361,200 +2361,6 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
    would wear the selection ring's colour (design judgement 2026-08-01,
    finding 2.1's three-place accent budget). Its CSS pulse did not survive
    the move. */
-
-/* Landmark history card — a sourced note pinned over the map. */
-.landmarkCard {
-  position: absolute;
-  top: 18px;
-  left: 18px;
-  z-index: var(--z-map-cards);
-  max-width: 310px;
-  padding: 14px 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--panel-raised);
-  color: var(--ink);
-  box-shadow: var(--shadow);
-}
-
-/* A real photo of the landmark, bled to the card edges as a header image. The
-   negative margins cancel the card's 14px/16px padding so it sits flush. */
-.landmarkPhoto {
-  position: relative;
-  margin: -14px -16px 11px;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  overflow: hidden;
-  background: var(--paper);
-}
-
-.landmarkPhoto img {
-  display: block;
-  width: 100%;
-  height: 148px;
-  object-fit: cover;
-}
-
-.landmarkPhoto figcaption {
-  /* Full-width bottom bar (not a bottom-right chip): the compliant CC credit is
-     author + licence + link, longer than the old platform-only caption, so it
-     wraps cleanly instead of crowding a corner. */
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 3px 7px;
-  font-size: 0.6rem;
-  line-height: 1.35;
-  letter-spacing: 0.02em;
-  color: var(--color-on-inverse);
-  background: rgba(15, 28, 22, 0.72);
-}
-
-.landmarkPhoto figcaption a {
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 1.5px;
-}
-
-.landmarkCardHead {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-bottom: 8px;
-}
-
-.landmarkCardHead svg {
-  color: var(--brass);
-  flex-shrink: 0;
-}
-
-.landmarkCardHead strong {
-  font-family: var(--serif);
-  font-weight: 600;
-  font-variation-settings: "SOFT" 0;
-  font-size: 1.02rem;
-  line-height: 1.25;
-}
-
-.landmarkChapterLink {
-  margin-left: auto;
-  font-size: 0.72rem;
-  font-weight: 800;
-  color: var(--brass);
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.landmarkCardHead button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: 6px;
-  width: 26px;
-  height: 26px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--muted);
-}
-
-.landmarkCardHead button:hover {
-  color: var(--ink);
-  border-color: var(--brass);
-}
-
-.landmarkCard p {
-  margin: 0 0 9px;
-  font-size: 0.84rem;
-  line-height: 1.5;
-  color: var(--ink-soft);
-}
-
-.landmarkCard a {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: var(--brass);
-}
-
-/* Landmark → heritage wiring: nearest story pubs, tappable. */
-.landmarkNearby {
-  margin-top: 11px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-}
-
-.landmarkNearby h4 {
-  margin: 0 0 6px;
-  font-family: var(--serif);
-  font-weight: 600;
-  font-variation-settings: "SOFT" 0;
-  font-size: 0.86rem;
-  color: var(--ink);
-}
-
-.landmarkNearby button {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  width: 100%;
-  padding: 5px 0;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  color: var(--ink);
-}
-
-.landmarkNearby button span:first-child {
-  font-size: 0.82rem;
-  font-weight: 600;
-}
-
-.landmarkNearby button span:last-child {
-  flex-shrink: 0;
-  font-size: 0.72rem;
-  color: var(--muted);
-}
-
-.landmarkNearby button:hover span:first-child {
-  color: var(--brass);
-}
-
-/* Issue #15: landmark card → journey. Two actions under the sourced history —
-   start a crawl from the nearest pubs, or open the nearest story pub's guide. */
-.landmarkActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 11px;
-}
-
-.landmarkAction {
-  flex: 1 1 auto;
-  padding: 7px 10px;
-  border: 1px solid var(--brass);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--brass);
-  font-size: 0.76rem;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.landmarkAction.primary {
-  background: var(--brass);
-  color: var(--paper);
-}
-
-.landmarkAction:hover {
-  background: var(--brass);
-  color: var(--paper);
-}
 
 /* Issue #15: story-band picker — a map overlay in the toolbar idiom (pill row,
    frosted panel), sat above the POI toggles at bottom-right. */
@@ -4991,16 +4797,12 @@ body:has(.chooseAreaDesktopScrim) .analyticsConsentPrompt {
 .composerToggle:focus-visible,
 .landlordBtn:focus-visible,
 .landlordSuggest button:focus-visible,
-.landmarkNearby button:focus-visible,
-.landmarkCardHead button:focus-visible,
 .mapHeroCardHead button:focus-visible,
 .photoPick:focus-within,
 .photoRemove:focus-visible,
 .citationChip:focus-visible,
 .sourceLinks a:focus-visible,
 .claimCard a:focus-visible,
-.landmarkCard a:focus-visible,
-.landmarkAction:focus-visible,
 .bandBtn:focus-visible,
 .bandActiveCard a:focus-visible,
 .venuePickerList button:focus-visible,
@@ -5016,7 +4818,6 @@ button:disabled {
 }
 
 /* Hover warm-up (color/border only) for list-style controls. */
-.landmarkNearby button:hover,
 .landlordSuggest button:hover,
 .citationChip:hover {
   background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
@@ -5050,9 +4851,7 @@ button:disabled {
   .composerToggle,
   .landlordBtn,
   .landlordSuggest button,
-  .landmarkNearby button,
   .citationChip,
-  .landmarkCardHead button,
   .mapHeroCardHead button,
   .photoPick,
   .photoRemove {
@@ -5282,14 +5081,8 @@ button:disabled {
   }
 
   /* Cards pinned over the map must not swallow it on a narrow screen. */
-  .landmarkCard,
   .mapHeroCard {
     max-width: min(78vw, 300px);
-  }
-
-  .landmarkCard {
-    top: var(--map-overlay-top);
-    left: 12px;
   }
 
   .mapHeroCard {

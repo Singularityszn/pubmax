@@ -474,6 +474,9 @@ import {
   type MapSurfaceState,
 } from "@/components/map/pubmap/useMapSurfaceNavigation";
 import SurfaceNav from "@/components/ui/surface-nav";
+import LandmarkStoryBody, { LandmarkStoryHead } from "@/components/map/LandmarkStoryBody";
+import { nearestStoryPubs } from "@/lib/landmarkVenueProximity";
+import { landmarkAreaLine, nightAreaContaining } from "@/lib/landmarkArea";
 import { homeActionLabel, type SurfaceEntry } from "@/lib/surfaceStack";
 import {
   filtersForCuratedCrawl,
@@ -4390,6 +4393,48 @@ export default function PubMap({
     surfaceStateRef.current = mapSurfaceState;
   }, [mapSurfaceState, mapSurfaceTrail.back, mapSurfaceTrail.open]);
 
+  // ── The landmark story ───────────────────────────────────────────────────
+  // One body (components/map/LandmarkStoryBody.tsx) in the frame each width
+  // already owns: the phone's shared bottom sheet, the desktop's left drawer.
+  // The canvas used to pin its own card over the map, which on a phone sat
+  // under the chip row, let pins bleed through its edges and hid its last
+  // rows under the planning pill. The id is PubMap's, synced to ?landmark=.
+  const activeLandmark = useMemo(
+    () =>
+      activeLandmarkId
+        ? cityLandmarks.find((landmark) => landmark.id === activeLandmarkId) ?? null
+        : null,
+    [activeLandmarkId, cityLandmarks],
+  );
+  const storyPubsNearby = useMemo(
+    () => (activeLandmark ? nearestStoryPubs(activeLandmark, canvasVenues) : []),
+    [activeLandmark, canvasVenues],
+  );
+  const storyAreaLine = useMemo(
+    () =>
+      activeLandmark
+        ? landmarkAreaLine(nightAreaContaining(cityId, activeLandmark.coordinates))
+        : null,
+    [activeLandmark, cityId],
+  );
+  const storyOpen = activeLandmark !== null;
+  // A landmark pick is a reader's own tap on the map, so it takes the surface
+  // the way a pin tap does: any open sheet leaves for it, and a venue pick in
+  // turn retires the story (PubMapCanvas retires it on selection).
+  const closeEverySurfaceRef = useRef(closeEverySurface);
+  useEffect(() => {
+    closeEverySurfaceRef.current = closeEverySurface;
+  }, [closeEverySurface]);
+  const handleLandmarkSelect = useCallback(
+    (landmark: { id: string } | null) => {
+      if (landmark) closeEverySurfaceRef.current();
+      setActiveLandmarkId(landmark?.id ?? "");
+    },
+    [],
+  );
+  const closeStory = useCallback(() => setActiveLandmarkId(""), []);
+  const storyDrawerOpen = storyOpen && !planningOpen && !detailOpen;
+
   useEffect(() => {
     if (!selectedVenueId || detailById.has(selectedVenueId) || isUkBaseId(selectedVenueId)) return;
     const requestedVenueId = selectedVenueId;
@@ -4927,6 +4972,8 @@ export default function PubMap({
   }
 
   const venuePanel = renderVenuePanel();
+  const storyPanel = renderStoryPanel();
+  const storyOnlyOpen = storyOpen && !detailOpen && !planningOpen;
 
   const mapLoadingActive = !mapCanvasErrored && mapLoadingHeld(mapLoadingStage);
 
@@ -5535,10 +5582,8 @@ export default function PubMap({
         lensIndexStatus={drinkIndexStatus}
         activeBandId={activeBandId}
         onBandChange={setActiveBandId}
-        onStartCrawl={startCrawlFromPubs}
-        onAskPubmaxxer={askPubmaxxerAtPub}
         initialLandmarkId={seed.landmarkId}
-        onLandmarkSelect={(landmark) => setActiveLandmarkId(landmark?.id ?? "")}
+        onLandmarkSelect={handleLandmarkSelect}
         onMapReady={handleMapCanvasReady}
         onMapErrored={setMapCanvasErrored}
         mapView={openingViewport
@@ -5603,6 +5648,7 @@ export default function PubMap({
         personaTonightCategory={personaTonightCategory}
         planningOpen={planningOpen}
         detailOpen={detailOpen}
+        storyOpen={storyDrawerOpen}
         desktopLaneActive={railViewport}
         onTogglePlanning={togglePlanning}
         filters={filters}
@@ -5730,27 +5776,97 @@ export default function PubMap({
   function renderPhoneSheet() {
     return mobileViewport ? (
           <Sheet
-            kind={detailOpen ? "venue" : planningOpen ? "planner" : null}
+            kind={
+              detailOpen
+                ? "venue"
+                : planningOpen
+                  ? "planner"
+                  : storyOpen
+                    ? "landmark"
+                    : null
+            }
             title={
               detailOpen
                 ? basePubOpen
                   ? selectedBasePub?.name ?? "Pub detail"
                   : selectedVenue?.name ?? selectedVenueLabels.detailLabel
-                : "Plan an outing"
+                : planningOpen
+                  ? "Plan an outing"
+                  : activeLandmark?.name ?? "Landmark"
             }
             initialSnap="half"
             requestedSnap={detailOpen ? sheetSnap : plannerSheetSnap}
-            onClose={mapSurfaceTrail.home}
-            onDismiss={mapSurfaceTrail.backLabel ? mapSurfaceTrail.back : mapSurfaceTrail.home}
-            closeLabel={detailOpen ? selectedVenueLabels.closeLabel : undefined}
-            backLabel={mapSurfaceTrail.backLabel}
+            onClose={storyOnlyOpen ? closeStory : mapSurfaceTrail.home}
+            onDismiss={
+              storyOnlyOpen
+                ? closeStory
+                : mapSurfaceTrail.backLabel
+                  ? mapSurfaceTrail.back
+                  : mapSurfaceTrail.home
+            }
+            closeLabel={
+              detailOpen
+                ? selectedVenueLabels.closeLabel
+                : storyOnlyOpen
+                  ? "Close the story"
+                  : undefined
+            }
+            backLabel={storyOnlyOpen ? null : mapSurfaceTrail.backLabel}
             onBack={mapSurfaceTrail.back}
             entranceOvershoot={detailOpen && venueEntranceOvershoot}
             onInterruptReveal={interruptVenueReveal}
             venueRevealSettleSequence={venueRevealSettleSequence}
           >
-            {detailOpen ? venuePanel : plannerPanel}
+            {detailOpen ? venuePanel : planningOpen ? plannerPanel : storyPanel}
         </Sheet>
+    ) : null;
+  }
+
+  /* The landmark story's body, shared by the phone sheet and the desktop drawer. */
+  function renderStoryPanel() {
+    return activeLandmark ? (
+      <LandmarkStoryBody
+        landmark={activeLandmark}
+        areaLine={storyAreaLine}
+        nearby={storyPubsNearby}
+        showChapterLink={mobileViewport}
+        onOpenVenue={(venueId) => {
+          closeStory();
+          handleVenueClick(venueId);
+        }}
+        onStartCrawl={(pubIds) => {
+          closeStory();
+          startCrawlFromPubs(pubIds);
+        }}
+        onAskPubmaxxer={(venueId) => {
+          closeStory();
+          askPubmaxxerAtPub(venueId);
+        }}
+      />
+    ) : null;
+  }
+
+  /* Left drawer: the landmark story, in the planner's frame. Desktop and tablet only. */
+  function renderStoryDrawer() {
+    return !mobileViewport && activeLandmark ? (
+      <SpringDrawer
+        open={storyDrawerOpen}
+        side="left"
+        snap="half"
+        dragOffsetY={null}
+        releaseVelocityY={0}
+        fade
+        className="mapDrawer left storyDrawer"
+        aria-hidden={!storyDrawerOpen}
+        role="dialog"
+        aria-label={`${activeLandmark.name} story`}
+      >
+        <div className="mapDrawerHead storyDrawerHead">
+          <LandmarkStoryHead landmark={activeLandmark} />
+          <SurfaceNav backLabel={null} homeLabel="Close the story" onHome={closeStory} />
+        </div>
+        <div className="storyDrawerBody">{storyPanel}</div>
+      </SpringDrawer>
     ) : null;
   }
 
@@ -5855,6 +5971,7 @@ export default function PubMap({
       className={mapShellClassName({
         planningOpen,
         detailOpen,
+        storyOpen: storyDrawerOpen,
         sheetSnap,
         plannerSheetSnap,
         routeMappedActive,
@@ -5904,6 +6021,11 @@ export default function PubMap({
           at half so the map stays partially visible. Desktop is unchanged —
           side drawer, no gesture. */}
       {renderPlannerDrawer()}
+
+      {/* Left drawer, the landmark story: the same frame as the planner, so the
+          toolbar and banners already leave its lane. The phone gets the Sheet
+          above, with the landmark's name in the chrome. */}
+      {renderStoryDrawer()}
 
       {/* Right drawer: the selected pub's detail — opens only on an explicit pick.
           On mobile (≤640px) this is a true drag bottom-sheet with snap points

@@ -7,6 +7,11 @@ import SiteNav from "@/components/nav/SiteNav";
 import LandmarkHeroPhoto from "@/components/LandmarkHeroPhoto";
 import { metadataSiteName } from "@/lib/brandNaming";
 import { landmarkById, nearestStoryPubs } from "@/lib/landmarks";
+import {
+  STORY_PUBS_DISTANCE_CAVEAT,
+  STORY_PUBS_NEARBY_HEADING,
+} from "@/lib/landmarkVenueProximity";
+import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 
 import "./landmark.css";
@@ -125,17 +130,15 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
       {nearby.length > 0 ? (
         <section aria-labelledby="landmarkNearbyHeading">
           <h2 id="landmarkNearbyHeading" className="landmarkChapterSectionTitle">
-            Story pubs nearby
+            {STORY_PUBS_NEARBY_HEADING}
           </h2>
-          <p className="landmarkChapterFoot">
-            Straight-line distances. Pavement walks will be longer.
-          </p>
+          <p className="landmarkChapterCaveat">{STORY_PUBS_DISTANCE_CAVEAT}</p>
           <ul className="landmarkChapterPubList">
             {nearby.map(({ venue, km }) => (
               <li key={venue.id}>
                 <Link href={`/map?sel=${encodeURIComponent(venue.id)}`}>
                   <span>{venue.name}</span>
-                  <span className="landmarkChapterPubDist">{km.toFixed(2)} km</span>
+                  <span className="landmarkChapterPubDist">{formatLogNearbyDistance(km)}</span>
                 </Link>
               </li>
             ))}

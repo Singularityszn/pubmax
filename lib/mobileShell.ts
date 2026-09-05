@@ -16,6 +16,8 @@ export type MapOverlay =
   | "layers"
   | "venue"
   | "planner"
+  /** The landmark story: the phone's shared sheet, titled by the landmark. */
+  | "landmark"
   | "pub-pal"
   | "moment"
   | "near-me"
