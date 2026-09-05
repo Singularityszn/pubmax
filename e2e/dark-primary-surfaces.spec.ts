@@ -298,11 +298,10 @@ for (const viewport of VIEWPORTS) {
     measurements.sheetActiveTab = await expectRenderedTextContrast(activeTab, {
       background: "gradient",
     });
-    const sheetPrimary = sheet.locator(".venueSheetStickyPrimary");
-    measurements.sheetPrimary = await expectRenderedTextContrast(
-      sheetPrimary,
-      { background: "gradient" },
-    );
+    // The sheet's one painted primary is the Overview's price door
+    // (lib/pintTrust.ts, `overviewPriceDoor`), flat like every other primary.
+    const sheetPrimary = sheet.locator("[data-price-door]");
+    measurements.sheetPrimary = await expectRenderedTextContrast(sheetPrimary);
 
     await activeTab.focus();
     const focusState = await activeTab.evaluate((node) => {

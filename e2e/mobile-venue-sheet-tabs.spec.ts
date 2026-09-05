@@ -174,13 +174,14 @@ async function expectPrimaryActions(page: Page): Promise<void> {
     }),
   );
 
-  // "Make <venue> Stop 1" belongs to permanent venue acceptance, which is a
-  // separate PR; this spec covers the tab strip's touch scrolling.
-  expect(actions.map((action) => action.name)).toEqual([
-    "Add a price at Arnos Arms",
-    "Crawl",
-    "Share Arnos Arms",
-  ]);
+  // The toolbar carries no price action: the Overview's one price door owns
+  // that (lib/pintTrust.ts, `overviewPriceDoor`). "Make <venue> Stop 1" rides
+  // as a ghost when acceptance is offered; this spec covers the tab strip's
+  // touch scrolling, so it asserts the commands the strip must keep reachable.
+  expect(actions.map((action) => action.name)).toEqual(
+    expect.arrayContaining(["Crawl", "Share Arnos Arms"]),
+  );
+  expect(actions.map((action) => action.name)).not.toContain("Add a price at Arnos Arms");
 
   for (const action of actions) {
     expect(action.width, `${action.name} width should be at least 44px`).toBeGreaterThanOrEqual(44);
@@ -231,21 +232,12 @@ test("mobile venue sheet tabs remain tappable and keep primary controls reachabl
     overviewMore.getByText("Details and practical info", { exact: true }),
   ).toBeVisible();
   await expect(overviewMore.locator(".venueOverviewMoreBody")).toBeHidden();
-  // The price ENTRY POINT is reachable, in whichever form this session earns
-  // and wherever the phone puts it. Two things had to be widened here: the
-  // inline form only mounts for an account that may submit, so asserting it
-  // outright made this line depend on whether the run had auth configured; and
-  // the command bar deliberately LEAVES this panel on a phone for the shared
-  // sheet footer, so scoping the search to the portal missed it. This line sat
-  // unreachable behind the icon assertion above for long enough that neither
-  // showed up.
-  const inlinePriceForm = portal.locator(".venuePriceSubmit");
-  // The command's ACCESSIBLE name is "Add a price at <pub>", not its visible
-  // "Add price": the label names the pub so a screen reader hears which one.
-  const addPriceCommand = page.getByRole("button", { name: /add a price at/i });
-  await expect
-    .poll(async () => (await inlinePriceForm.count()) + (await addPriceCommand.count()))
-    .toBeGreaterThan(0);
+  // The price ENTRY POINT is reachable: the Overview's ONE price door
+  // (lib/pintTrust.ts, `overviewPriceDoor`), which folds the form behind it.
+  // Its accessible name names the pub so a screen reader hears which one.
+  const priceDoor = portal.locator("[data-price-door]");
+  await expect(priceDoor).toHaveCount(1);
+  await expect(priceDoor).toHaveAttribute("aria-label", /Arnos Arms/);
 
   for (const { label, panelId } of TABS) {
     const tab = tablist.getByRole("tab", { name: label, exact: true });

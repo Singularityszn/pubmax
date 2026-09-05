@@ -259,7 +259,18 @@ test("map sheet keeps one-tap prices when the mission is missing", async ({
   const response = await page.goto(`/map?sel=${SEED_VENUE_ID}`);
   expect(response?.status()).toBe(200);
   const sheet = await openVenueSheet(page);
+  // The composer is folded behind the Overview's one price door until a
+  // mission for this pub opens it (lib/pintTrust.ts, `overviewPriceDoor`).
+  // Whichever answers first is taken: the door, or the form the mission opened.
   const submit = sheet.locator(".venuePriceSubmit");
+  const door = sheet.locator('[data-price-door="log"]');
+  await expect(submit.or(door).first()).toBeVisible({ timeout: 20_000 });
+  if (await door.isVisible()) {
+    await expect(async () => {
+      await door.click();
+      await expect(submit).toBeVisible({ timeout: 1_500 });
+    }).toPass({ timeout: 20_000 });
+  }
   await expect(submit).toBeVisible();
   await expect(submit.locator(".vpsubQuick")).toBeVisible();
   await expect(submit.getByRole("radiogroup")).toBeVisible();

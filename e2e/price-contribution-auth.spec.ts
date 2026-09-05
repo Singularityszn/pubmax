@@ -59,8 +59,9 @@ test("a real signed-out browser reaches account-first sign-in at the same venue"
   await page.goto(`/map?sel=${SEED_VENUE_ID}`);
 
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  // The Overview's one price door (lib/pintTrust.ts, `overviewPriceDoor`).
   await sheet
-    .getByRole("button", { name: `Add a price at ${SEED_VENUE_NAME}` })
+    .getByRole("button", { name: `Log tonight's price at ${SEED_VENUE_NAME}` })
     .click();
 
   const gateHeading = sheet.getByRole("heading", {

@@ -34,6 +34,15 @@ type VenuePriceEntryPanelProps = {
   focusRequest?: number;
   /** When false, omit the signals block (Overview mounts its own read-first copy). */
   includeSignals?: boolean;
+  /**
+   * Whether the form (or its sign-in gate) is on screen. The Overview folds
+   * the composer behind its one price door (lib/pintTrust.ts,
+   * `overviewPriceDoor`) and passes false until the door is taken; every other
+   * surface leaves it at the default and keeps the form open. The effects
+   * above the form run either way, so a folded panel still reads the venue's
+   * community prices and still counts as viewed.
+   */
+  open?: boolean;
   /** The drink the map is under. The composer opens on it. */
   laneCategory?: DrinkCategory;
   mission?: PriceEvidenceMission | null;
@@ -61,6 +70,7 @@ export default function VenuePriceEntryPanel({
   mapReach = "paint",
   focusRequest = 0,
   includeSignals = true,
+  open = true,
   laneCategory = DEFAULT_DRINK_LANE,
   mission = null,
   missionPending = false,
@@ -87,7 +97,7 @@ export default function VenuePriceEntryPanel({
     loadVenue(venueId);
   }, [loadVenue, venueId]);
 
-  const priceEntry = canSubmitPrice ? (
+  const priceEntry = !open ? null : canSubmitPrice ? (
     <VenuePriceSubmit
       key={venueId}
       venueId={venueId}
@@ -118,7 +128,7 @@ export default function VenuePriceEntryPanel({
   ) : null;
 
   const missionSlot =
-    mission && canSubmitPrice ? (
+    open && mission && canSubmitPrice ? (
       <div className="pemSlot pemSlotSheet">
         <div className="pemHead">
           <h3 className="pemHeading">

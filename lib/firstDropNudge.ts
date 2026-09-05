@@ -16,6 +16,7 @@ import {
   type VenueBundlePrices,
 } from "@/lib/venuePriceLane";
 import type { TabKey } from "@/lib/venueInspectorTabs";
+import { LOG_PRICE_DOOR_LABEL } from "@/lib/pintTrust";
 
 /**
  * A venue is "unpriced" - and so a first-drop candidate - when the overview
@@ -51,7 +52,7 @@ export function isVenueUnpriced(
 export type FirstDropCopy = {
   /** The single dry line shown in the price area. One line — never a banner. */
   line: string;
-  /** The CTA label on the button that opens the composer. */
+  /** The label of the one price door, read from its owner (lib/pintTrust.ts). */
   cta: string;
 };
 
@@ -60,10 +61,10 @@ export type FirstDropCopy = {
 // cluster of unpriced outer pubs. Selection is deterministic per venue (below)
 // so the same pub always speaks the same way — no reshuffling on re-render.
 const FIRST_DROP_VARIANTS: readonly FirstDropCopy[] = [
-  { line: "No pint price logged here yet. Be the first.", cta: "Log tonight's price" },
-  { line: "Nobody has logged a pint here. Yours can mark the pin.", cta: "Log tonight's price" },
-  { line: "No pint on record here. A dated log starts the trust path.", cta: "Log tonight's price" },
-  { line: "Prices here: none. Log one so mates can corroborate it.", cta: "Log tonight's price" },
+  { line: "No pint price logged here yet. Be the first.", cta: LOG_PRICE_DOOR_LABEL },
+  { line: "Nobody has logged a pint here. Yours can mark the pin.", cta: LOG_PRICE_DOOR_LABEL },
+  { line: "No pint on record here. A dated log starts the trust path.", cta: LOG_PRICE_DOOR_LABEL },
+  { line: "Prices here: none. Log one so mates can corroborate it.", cta: LOG_PRICE_DOOR_LABEL },
 ];
 
 /** Stable non-negative hash of a venue id — deterministic variant selection. */

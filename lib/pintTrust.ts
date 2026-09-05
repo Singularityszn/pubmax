@@ -48,9 +48,11 @@ import type { ConfirmedPriceInput, PriceStanding } from "@/lib/priceTier";
 import {
   AGED_PRICE_LINE,
   PROVISIONAL_PRICE_LINE,
+  venuePriceLaneObservedGbp,
   type ProvisionalPriceInput,
   type VenuePriceLane,
 } from "@/lib/venuePriceLane";
+import { confirmPintActionLabel } from "@/lib/pintDropSecondDrinker";
 import {
   agedPriceDrop,
   confirmedPriceDrop,
@@ -262,4 +264,73 @@ export function trustChipStateFor(
     default:
       return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// THE OVERVIEW'S ONE PRICE DOOR.
+//
+// Captain's rule (core-loop battle test L03, 5 Sept 2026): one button system,
+// one clear primary per screen. The venue Overview used to offer four to
+// eight price actions on one sheet, because every block that touched a price
+// grew its own invitation: the first-drop nudge and its "Or leave a Pint
+// Drop", the prices-by-drink invite, the second drinker's door, the sticky
+// bar's "Add price" and an always-open composer with its chips. This table
+// is the whole policy: each trust state names EXACTLY ONE primary door, and
+// every other price action folds into the composer that door opens.
+//
+//   log      opens the pub's own price composer in place (the community price
+//            form on the Overview, soft-gated by the account rules the sheet
+//            already applies). The composer stays FOLDED until this door is
+//            taken, so its Log it and its chips are never a second primary.
+//   confirm  the second drinker's door (#1492): "Still £4.50?", seeding the
+//            Pint Drop composer with the figure the lane prints, on the two
+//            states that are owed a second drinker (lib/pintDropSecondDrinker.ts).
+//
+// Nothing here decides a figure, a colour or a standing: the label is worded
+// over the lane's own observed figure, and the door wears the brass action
+// treatment rather than a band, because a door is not a price.
+// ---------------------------------------------------------------------------
+
+/** The two door kinds. A surface renders the one it is handed and no other. */
+export type OverviewPriceDoorKind = "log" | "confirm";
+
+/** ONE door per state. Written once so the sheet, the tests and the PR body agree. */
+export const OVERVIEW_PRICE_DOOR_KIND: Record<PintTrustState, OverviewPriceDoorKind> = {
+  confirmed: "log",
+  corroborated: "log",
+  "logged-once": "confirm",
+  "aged-out": "confirm",
+  none: "log",
+};
+
+/** The one label the log door prints, everywhere it prints. */
+export const LOG_PRICE_DOOR_LABEL = "Log tonight's price";
+
+export type OverviewPriceDoor =
+  | { kind: "log"; label: string }
+  | { kind: "confirm"; label: string; priceGbp: number };
+
+/**
+ * The door the Overview's price area offers over a decided lane, or null where
+ * no price action belongs at all (an anchor lane: a cocktail or a course is
+ * not a pint, and the caller already refuses a venue that is not a pub).
+ *
+ * A confirm state whose lane carries no figure (which the lane table does not
+ * produce, but the type allows) falls back to the log door rather than to
+ * nothing, because a pub with a public drop and no way to answer it is the
+ * defect this door exists to close.
+ */
+export function overviewPriceDoor(
+  state: PintTrustState | null,
+  lane: VenuePriceLane | null,
+): OverviewPriceDoor | null {
+  if (lane?.lane === "anchor") return null;
+  const kind = OVERVIEW_PRICE_DOOR_KIND[state ?? "none"];
+  if (kind === "confirm" && lane) {
+    const figure = venuePriceLaneObservedGbp(lane);
+    if (figure !== null) {
+      return { kind: "confirm", label: confirmPintActionLabel(figure), priceGbp: figure };
+    }
+  }
+  return { kind: "log", label: LOG_PRICE_DOOR_LABEL };
 }

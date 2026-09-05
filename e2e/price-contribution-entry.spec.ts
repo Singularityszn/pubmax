@@ -16,21 +16,26 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("a drinker opens the existing price form from the venue action", async ({
+// The ONE price door on the Overview (lib/pintTrust.ts, `overviewPriceDoor`):
+// the composer is folded behind it, and the sticky bar carries no price action.
+const DOOR_NAME = `Log tonight's price at ${SEED_VENUE_NAME}`;
+
+test("a drinker opens the folded price form from the one price door", async ({
   page,
 }) => {
   await page.goto(`/map?sel=${SEED_VENUE_ID}`);
 
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-  await sheet
-    .getByRole("button", { name: `Add a price at ${SEED_VENUE_NAME}` })
-    .click();
+  await expect(sheet.locator("[data-price-door]")).toHaveCount(1);
+  await sheet.getByRole("button", { name: DOOR_NAME }).click();
 
   const priceField = sheet.getByRole("textbox", {
     name: `Price of a beer at ${SEED_VENUE_NAME}, in pounds`,
   });
   await expect(priceField).toBeVisible();
   await expect(priceField).toBeFocused();
+  // The door folds away once the form it opens is on screen.
+  await expect(sheet.locator("[data-price-door]")).toHaveCount(0);
 });
 
 test("desktop venue sheet exposes the same clear price action", async ({
@@ -40,9 +45,7 @@ test("desktop venue sheet exposes the same clear price action", async ({
   await page.goto(`/map?sel=${SEED_VENUE_ID}`);
 
   const sheet = page.locator(".mapDrawer.right");
-  await sheet
-    .getByRole("button", { name: `Add a price at ${SEED_VENUE_NAME}` })
-    .click();
+  await sheet.getByRole("button", { name: DOOR_NAME }).click();
 
   await expect(
     sheet.getByRole("textbox", {

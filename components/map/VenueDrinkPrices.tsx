@@ -51,6 +51,7 @@ export default function VenueDrinkPrices({
   laneNoun,
   readStatus,
   laneLoggedPriceShown = false,
+  inviteOwnedElsewhere = false,
   communityPrices,
   onLogPrice,
   canLog,
@@ -77,6 +78,15 @@ export default function VenueDrinkPrices({
    * time, because one pub may never offer the same price twice.
    */
   laneLoggedPriceShown?: boolean;
+  /**
+   * True when the Overview's price area below already renders the ONE price
+   * door for this pub, or the composer that door opens is on screen. The
+   * absence line stays; the invite and its button fold away, because the
+   * captain's rule is one primary per screen (lib/pintTrust.ts,
+   * `overviewPriceDoor`). Under a drink lens the area is hidden, so this block
+   * keeps the lane's own door.
+   */
+  inviteOwnedElsewhere?: boolean;
   communityPrices: CommunityPricesState;
   /** Bring the composer under the reader's thumb, already on this drink. */
   onLogPrice: () => void;
@@ -101,7 +111,7 @@ export default function VenueDrinkPrices({
       ? null
       : drinkLensEmptyVenueNote(laneNoun, readStatus);
   const invite =
-    laneRow || laneLoggedPriceShown || !canLog
+    laneRow || laneLoggedPriceShown || !canLog || inviteOwnedElsewhere
       ? null
       : drinkLaneLogInvite(
           laneNoun,

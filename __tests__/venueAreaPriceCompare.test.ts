@@ -409,7 +409,6 @@ describe("VenueOverviewTab area-price compare mount", () => {
         onRequestLocation: noop,
         onClearLocation: noop,
         onLogTonightPrice: noop,
-        onStartFirstDrop: noop,
         priceEntryAllowed: false,
         priceSignInRequested: false,
         priceAuthLoading: false,

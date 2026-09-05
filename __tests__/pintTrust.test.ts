@@ -211,7 +211,6 @@ function renderOverview(drops: SummaryDrop[], base: Venue = venue()): string {
       onRequestLocation: noop,
       onClearLocation: noop,
       onLogTonightPrice: noop,
-      onStartFirstDrop: noop,
       onOpenVisitReports: noop,
       priceEntryAllowed: false,
       priceSignInRequested: false,

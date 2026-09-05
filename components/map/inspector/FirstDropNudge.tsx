@@ -1,53 +1,29 @@
-import { useEffect } from "react";
-import { PlusCircle } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { firstDropNudgeCopy } from "@/lib/firstDropNudge";
 import { UNPRICED_VENUE_TRUST_LINE } from "@/lib/mapPriceTrust";
 
 /**
- * Unpriced-pub nudge. Primary CTA opens the community price path (map trust).
- * Optional secondary opens the Pint Drop composer for drinkers who still want it.
+ * Unpriced-pub nudge: the honest empty-price line and its trust line. The ONE
+ * price door rides in as children, decided by the price area from
+ * `overviewPriceDoor` (lib/pintTrust.ts), so this block can never grow a
+ * second invitation of its own (it used to carry "Or leave a Pint Drop").
  */
 export default function FirstDropNudge({
   venueId,
-  venueName,
-  onLogTonightPrice,
-  onStartFirstDrop,
+  children,
 }: {
   venueId: string;
-  venueName: string;
-  /** Community price / contribution gate path — moves map trust. */
-  onLogTonightPrice: () => void;
-  /** Optional Pint Drop composer (secondary). */
-  onStartFirstDrop?: () => void;
+  /** The one price door. */
+  children?: ReactNode;
 }) {
   const copy = firstDropNudgeCopy(venueId);
-
-  useEffect(() => {
-    // Nudge visibility is product-local; conversion rides price_submit_viewed.
-  }, [venueId]);
 
   return (
     <div className="firstDropNudge" role="note">
       <p className="firstDropNudgeLine">{copy.line}</p>
       <p className="firstDropNudgeTrust">{UNPRICED_VENUE_TRUST_LINE}</p>
-      <button
-        type="button"
-        className="firstDropNudgeCta"
-        onClick={onLogTonightPrice}
-        aria-label={`Log tonight's price at ${venueName}`}
-      >
-        <PlusCircle size={15} aria-hidden="true" /> {copy.cta}
-      </button>
-      {onStartFirstDrop ? (
-        <button
-          type="button"
-          className="firstDropNudgeSecondary"
-          onClick={onStartFirstDrop}
-        >
-          Or leave a Pint Drop
-        </button>
-      ) : null}
+      {children}
     </div>
   );
 }
