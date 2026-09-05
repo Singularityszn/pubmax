@@ -241,7 +241,10 @@ function PicksCard({
               ? "Tonight has listings, but none match your current preferences."
               : picksListLine(picksStatus, slot)}
           </p>
-          <p className="todayCardFootRow">
+          {/* The compose action floats over this card's right cell on a phone,
+              and this row's arrow lands in it, so the row takes the control's
+              own lane (createFab.css). */}
+          <p className="todayCardFootRow createFabLane">
             <Link prefetch={false} href="/map" className="todayCardFootLink">
               Meanwhile, the map knows the cheap pints
               <ArrowRight size={14} aria-hidden="true" />
