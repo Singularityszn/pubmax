@@ -22,6 +22,7 @@ import { POST as SET_STORY_CONSENT } from "@/app/api/night-stories/[id]/consents
 import { POST as PROPOSE } from "@/app/api/night-stories/[id]/publish-proposals/route";
 import { POST as CONFIRM } from "@/app/api/night-stories/[id]/publish-confirmations/route";
 import { PATCH as SET_ALT } from "@/app/api/night-moments/[id]/alt-text/route";
+import { keepServerMemoryAfterRefusal, NIGHT_MEMORY_REFUSED_CODE } from "@/lib/momentPhotoIntake";
 import { __resetNightMemoryStore } from "@/lib/nightMemoryStore";
 import { __resetMemoryProfiles, profileStore } from "@/lib/profileStore";
 
@@ -48,6 +49,39 @@ describe("Night Memory HTTP contract", () => {
 
     const list = await LIST_MEMORIES(auth("/api/night-memories"));
     expect((await list.json()).memories).toHaveLength(1);
+  });
+
+  it("names a refusal about the Memory apart from a refusal about the photo", async () => {
+    // The composer keeps its Memory id across a refusal about the PHOTO and
+    // drops it only on this code, so a bad file cannot mint a Memory per try.
+    const memoryResponse = await CREATE_MEMORY(auth("/api/night-memories", { title: "Friday orbit" }));
+    const { memory } = await memoryResponse.json();
+
+    const strangersMemory = await ADD_MEMORY_MOMENT(
+      auth(`/api/night-memories/${memory.id}/moments`, { kind: "quote", caption: "Not mine" }, "stranger"),
+      ctx(memory.id),
+    );
+    expect(strangersMemory.status).toBe(400);
+    expect(await strangersMemory.json()).toMatchObject({ code: NIGHT_MEMORY_REFUSED_CODE });
+    expect(keepServerMemoryAfterRefusal(400, NIGHT_MEMORY_REFUSED_CODE)).toBe(false);
+
+    const form = new FormData();
+    form.set("photo", new File([new TextEncoder().encode("not a photo")], "night.jpg", { type: "image/jpeg" }));
+    const photoRefusal = await ADD_MEMORY_MOMENT(
+      new Request(`http://localhost/api/night-memories/${memory.id}/moments`, {
+        method: "POST",
+        headers: { authorization: "Bearer host" },
+        body: form,
+      }),
+      ctx(memory.id),
+    );
+    // Keyless, the storage seam refuses the bytes as unavailable; on a keyed
+    // server the sniff refuses them as INVALID_REQUEST. Neither is the
+    // Memory's code, so the Memory survives either.
+    expect([400, 503]).toContain(photoRefusal.status);
+    const refusalBody = await photoRefusal.json();
+    expect(refusalBody.code).not.toBe(NIGHT_MEMORY_REFUSED_CODE);
+    expect(keepServerMemoryAfterRefusal(photoRefusal.status, refusalBody.code)).toBe(true);
   });
 
   it("does not accept a client-supplied Plan completion link without an ownership binding", async () => {

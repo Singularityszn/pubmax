@@ -32,11 +32,23 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { captureNativePhoto } from "@/lib/nativeCamera";
 import { isNativeApp } from "@/lib/nativePlatform";
+import { replaceMomentMediaWithEditedBlob } from "@/lib/momentPhotoEditor";
+import { fitMomentPhoto } from "@/lib/momentPhotoFit";
 import {
-  MOMENT_MAX_PHOTO_BYTES,
-  MOMENT_PHOTO_TYPES,
-  replaceMomentMediaWithEditedBlob,
-} from "@/lib/momentPhotoEditor";
+  keepServerMemoryAfterRefusal,
+  MOMENT_PHOTO_FIT_FAILED_LINE,
+  momentPhotoIntakeDecision,
+  momentPhotoStillTooLargeLine,
+  momentPickerHint,
+  PHOTO_SNIFF_BYTES,
+  sniffPhotoKind,
+} from "@/lib/momentPhotoIntake";
+import {
+  isLikelyHeic,
+  PROFILE_IMAGE_PICKER_ACCEPT,
+  unreadableImageMessageFor,
+} from "@/lib/profileImagePicker";
+import { photoFitsUploadBody } from "@/lib/uploadBodyLimit";
 import {
   createMomentDraft,
   deleteMomentDraft,
@@ -226,10 +238,14 @@ export default function MomentCapture(): React.JSX.Element {
     [authLoading, draft.caption, draft.media.length, saveState],
   );
 
-  function update(patch: Partial<MomentDraftV1>) {
+  // A patch may be a function of the CURRENT draft. Two removals in one tick
+  // each read `draft.media` off their own closure and the second overwrote
+  // the first (battle test M01), so anything that edits the media list
+  // derives the next list inside the updater rather than outside it.
+  function update(patch: Partial<MomentDraftV1> | ((current: MomentDraftV1) => Partial<MomentDraftV1>)) {
     setDraft((current) => ({
       ...current,
-      ...patch,
+      ...(typeof patch === "function" ? patch(current) : patch),
       revision: current.revision + 1,
       updatedAt: new Date().toISOString(),
     }));
@@ -240,7 +256,7 @@ export default function MomentCapture(): React.JSX.Element {
   function chooseMedia(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
-    addFiles(files);
+    void addFiles(files);
   }
 
   // Inside the Capacitor shell the picker label routes through the native
@@ -250,7 +266,7 @@ export default function MomentCapture(): React.JSX.Element {
     if (!isNativeApp()) return;
     event.preventDefault();
     const file = await captureNativePhoto("moment");
-    if (file) addFiles([file]);
+    if (file) void addFiles([file]);
   }
 
   function onPickerDragEnter(event: ReactDragEvent<HTMLLabelElement>) {
@@ -282,17 +298,61 @@ export default function MomentCapture(): React.JSX.Element {
     event.stopPropagation();
     setDragOver(false);
     const files = Array.from(event.dataTransfer.files ?? []);
-    addFiles(files);
+    void addFiles(files);
   }
 
-  function addFiles(files: File[]) {
-    if (!files.length) return;
-    const invalid = files.find((file) => !MOMENT_PHOTO_TYPES.has(file.type) || file.size > MOMENT_MAX_PHOTO_BYTES);
-    if (invalid) {
-      setMessage("Choose JPEG, PNG, or WebP photos up to 10MB each.");
-      return;
+  // Intake is THREE questions per file (lib/momentPhotoIntake.ts): may it be
+  // opened, may it go up as it is, or must it be fitted under the wire limit
+  // first. A phone photo is routinely 8 MB and the function refuses 4.5 MB
+  // before any handler runs, so the fit is what makes the phone's own photos
+  // saveable; nothing over the limit is ever handed to the request. An
+  // iPhone's HEIC takes the same fit whatever it weighs, and a browser that
+  // cannot decode one says where to go rather than uploading nothing.
+  async function admitFile(file: File): Promise<File | null> {
+    const decision = momentPhotoIntakeDecision({
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      kind: await sniffFile(file),
+    });
+    if (decision.outcome === "refuse") {
+      setMessage(decision.message);
+      return null;
     }
-    const incoming = files.map(makeMedia);
+    if (decision.outcome === "keep") {
+      // The request declares what the bytes are, not what the name said.
+      return file.type === decision.type
+        ? file
+        : new File([file], file.name, { type: decision.type, lastModified: file.lastModified });
+    }
+    setMessage(decision.reason === "heic" ? "Converting photo..." : "Resizing photo...");
+    const fitted = await fitMomentPhoto(file);
+    if (fitted.outcome === "fitted") return fitted.file;
+    setMessage(
+      fitted.outcome === "unreadable"
+        ? unreadableImageMessageFor("moment photo", isLikelyHeic(file))
+        : MOMENT_PHOTO_FIT_FAILED_LINE,
+    );
+    return null;
+  }
+
+  async function sniffFile(file: File): Promise<ReturnType<typeof sniffPhotoKind>> {
+    try {
+      return sniffPhotoKind(new Uint8Array(await file.slice(0, PHOTO_SNIFF_BYTES).arrayBuffer()));
+    } catch {
+      return null;
+    }
+  }
+
+  async function addFiles(files: File[]) {
+    if (!files.length) return;
+    const admitted: File[] = [];
+    for (const file of files) {
+      const ready = await admitFile(file);
+      if (!ready) return;
+      admitted.push(ready);
+    }
+    const incoming = admitted.map(makeMedia);
     const selection = selectMomentMedia(draft.media, incoming);
     if (selection.error) {
       incoming.forEach((item) => { if (item.objectUrl) URL.revokeObjectURL(item.objectUrl); });
@@ -307,18 +367,18 @@ export default function MomentCapture(): React.JSX.Element {
   const pickerPrimary = draft.media.length
     ? "Add another"
     : isPhone
-      ? "Take a photo"
+      ? "Add a photo"
       : "Upload a photo";
-  const pickerSecondary = isPhone
-    ? "Camera or library"
-    : "JPEG, PNG, or WebP · drag and drop or browse";
+  const pickerSecondary = momentPickerHint(isPhone);
 
   // Author-written alt text lives on the draft media item. This is the ONLY way
   // a description is set in v1 — the author types it. AI-suggestion seam: a
   // provider could compute a suggestion and pass it as a prefill for this field
   // to edit, but it must never auto-fill or auto-confirm (see the field below).
   function updateMediaAlt(id: string, value: string) {
-    update({ media: draft.media.map((item) => (item.id === id ? { ...item, alt: value } : item)) });
+    update((current) => ({
+      media: current.media.map((item) => (item.id === id ? { ...item, alt: value } : item)),
+    }));
   }
 
   function removeMedia(id: string) {
@@ -331,7 +391,7 @@ export default function MomentCapture(): React.JSX.Element {
       URL.revokeObjectURL(target.objectUrl);
       previewUrls.current.delete(target.objectUrl);
     }
-    update({ media: draft.media.filter((item) => item.id !== id) });
+    update((current) => ({ media: current.media.filter((item) => item.id !== id) }));
   }
 
   function openPhotoEditor(mediaId: string, opener: HTMLElement) {
@@ -374,7 +434,9 @@ export default function MomentCapture(): React.JSX.Element {
       previewUrls.current.delete(current.objectUrl);
     }
     if (replacement.media.objectUrl) previewUrls.current.add(replacement.media.objectUrl);
-    update({ media: draft.media.map((item) => (item.id === current.id ? replacement.media : item)) });
+    update((latest) => ({
+      media: latest.media.map((item) => (item.id === current.id ? replacement.media : item)),
+    }));
     closePhotoEditor();
     setMessage("Edited photo ready.");
   }
@@ -433,6 +495,14 @@ export default function MomentCapture(): React.JSX.Element {
     }
 
     const items: Array<MomentMediaDraft | null> = draft.media.length ? draft.media : [null];
+    // A draft restored from before the wire limit can still hold a blob the
+    // function would refuse with a 413 nothing of ours can word. Say so here.
+    const heavy = draft.media.find((item) => item.blob && !photoFitsUploadBody(item.blob.size));
+    if (heavy) {
+      setSaveState("idle");
+      setMessage(momentPhotoStillTooLargeLine(heavy.name));
+      return;
+    }
     for (let index = 0; index < items.length; index += 1) {
       const item = items[index];
       const body = item ? new FormData() : JSON.stringify({
@@ -459,14 +529,16 @@ export default function MomentCapture(): React.JSX.Element {
         }, { requiresIdentity: true },
       ).catch(() => null);
       const responseBody = response
-        ? await response.json().catch(() => ({})) as { error?: string }
+        ? await response.json().catch(() => ({})) as { error?: string; code?: string }
         : {};
       if (!response?.ok) {
         const remaining = draft.media.slice(index);
+        // A refusal about the photo keeps the Memory, so the re-save after
+        // removing the bad file goes back into it rather than minting another.
         update({
           media: remaining,
           caption: index > 0 ? "" : draft.caption,
-          serverMemoryId: response?.status === 400 ? null : memoryId,
+          serverMemoryId: keepServerMemoryAfterRefusal(response?.status, responseBody.code) ? memoryId : null,
         });
         setSaveState("idle");
         setMessage(errorMessageFrom(responseBody, "Some photos could not be saved. The remaining draft is safe."));
@@ -591,12 +663,23 @@ export default function MomentCapture(): React.JSX.Element {
                   <Upload size={28} aria-hidden="true" />
                 )}
                 <strong>{pickerPrimary}</strong>
-                <span>{pickerSecondary}</span>
+                <span>
+                  {pickerSecondary.map((line, index) => (
+                    <span className="momentMediaPickerLine" key={line}>
+                      {index > 0 ? <br /> : null}
+                      {line}
+                    </span>
+                  ))}
+                </span>
+                {/* A PICKER, never a camera: `capture` tells iOS to open the
+                    camera and leave Photo Library off the sheet, and the accept
+                    list names HEIC because iOS matches a library photo's own
+                    type before converting anything. The fence is
+                    __tests__/profilePhotoPicker.test.ts. */}
                 <input
+                  id="moment-photo-file"
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  // Rear camera only on phone / native. Desktop is file pick.
-                  {...(isPhone ? { capture: "environment" as const } : {})}
+                  accept={PROFILE_IMAGE_PICKER_ACCEPT}
                   multiple
                   onChange={chooseMedia}
                 />

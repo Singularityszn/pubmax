@@ -82,6 +82,7 @@ import {
   requiresSupabaseStore,
 } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+import { UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
 
 const COVER_RATE_LIMIT = 20;
 const COVER_RATE_WINDOW_MS = 60 * 60 * 1000;
@@ -108,7 +109,7 @@ function photoError(error: unknown): Response {
     });
   }
   if (error instanceof RequestBodyTooLargeError) {
-    return publicApiError(`${SPEC.noun} must be 10 MB or smaller.`, "TOO_LARGE", 413);
+    return publicApiError(`${SPEC.noun} must be ${UPLOAD_PHOTO_MAX_LABEL} or smaller.`, "TOO_LARGE", 413);
   }
   return publicApiError(`${SPEC.noun} could not be processed.`, "PROCESSING_FAILED", 400);
 }

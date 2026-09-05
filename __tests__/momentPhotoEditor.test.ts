@@ -8,6 +8,7 @@ import {
 import * as momentPhotoEditor from "@/lib/momentPhotoEditor";
 import type { MomentMediaDraft } from "@/lib/momentDraft";
 import { validatePhoto } from "@/lib/pintDropsStore";
+import { UPLOAD_PHOTO_MAX_BYTES } from "@/lib/uploadBodyLimit";
 
 function media(overrides: Partial<MomentMediaDraft> = {}): MomentMediaDraft {
   return {
@@ -57,13 +58,16 @@ describe("Moment photo editor output", () => {
 
     const oversized = replaceMomentMediaWithEditedBlob(
       original,
-      edited(new Blob([new Uint8Array(10 * 1024 * 1024 + 1)], { type: "image/jpeg" })),
+      edited(new Blob([new Uint8Array(MOMENT_MAX_PHOTO_BYTES + 1)], { type: "image/jpeg" })),
     );
     expect(oversized.media).toBe(original);
-    expect(oversized.error).toMatch(/10MB/i);
+    expect(oversized.error).toMatch(/4 MB/);
   });
 
-  it("accepts edited photos through the 10 MB upload boundary", () => {
+  it("accepts edited photos through the wire upload boundary, and no looser", () => {
+    // The boundary is the wire limit (lib/uploadBodyLimit.ts): a looser number
+    // here would let the editor hand the route a body the platform refuses.
+    expect(MOMENT_MAX_PHOTO_BYTES).toBe(UPLOAD_PHOTO_MAX_BYTES);
     const accepted = new Blob([new Uint8Array(MOMENT_MAX_PHOTO_BYTES)], { type: "image/jpeg" });
     const rejected = new Blob([new Uint8Array(MOMENT_MAX_PHOTO_BYTES + 1)], { type: "image/jpeg" });
     const original = media();
@@ -72,11 +76,11 @@ describe("Moment photo editor output", () => {
     const rejectedResult = replaceMomentMediaWithEditedBlob(original, edited(rejected));
 
     expect(acceptedResult.error).toBeNull();
-    expect(acceptedResult.media.size).toBe(10 * 1024 * 1024);
+    expect(acceptedResult.media.size).toBe(MOMENT_MAX_PHOTO_BYTES);
     expect(rejectedResult.media).toBe(original);
-    expect(rejectedResult.error).toMatch(/10MB/i);
+    expect(rejectedResult.error).toMatch(/4 MB/);
     expect(validatePhoto(accepted.type, accepted.size, MOMENT_MAX_PHOTO_BYTES)).toBeNull();
-    expect(validatePhoto(rejected.type, rejected.size, MOMENT_MAX_PHOTO_BYTES)).toMatch(/10MB/i);
+    expect(validatePhoto(rejected.type, rejected.size, MOMENT_MAX_PHOTO_BYTES)).toMatch(/4MB/);
   });
 });
 

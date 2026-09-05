@@ -60,6 +60,7 @@ import {
   requiresSupabaseStore,
 } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+import { UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
 
 const IMAGE_RATE_LIMIT = 10;
 const IMAGE_RATE_WINDOW_MS = 60 * 60 * 1000;
@@ -93,7 +94,7 @@ function photoError(error: unknown, slot: ProfileImageSlot): Response {
     });
   }
   if (error instanceof RequestBodyTooLargeError) {
-    return publicApiError(`${spec.noun} must be 10 MB or smaller.`, "TOO_LARGE", 413);
+    return publicApiError(`${spec.noun} must be ${UPLOAD_PHOTO_MAX_LABEL} or smaller.`, "TOO_LARGE", 413);
   }
   return publicApiError(`${spec.noun} could not be processed.`, "PROCESSING_FAILED", 400);
 }
