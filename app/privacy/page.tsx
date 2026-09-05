@@ -125,8 +125,8 @@ export default function PrivacyPage() {
           Google or Apple sign-in. That means we hold your email address. You
           must choose one public handle, which is linked to your authenticated
           account and is the only identity shown with contributions. Handle
-          is needed to finish signup. Date of birth is needed to finish signup
-          too. Full name, gender and sex are optional. We collect and store date
+          is needed to finish signup. Date of birth is optional.
+          Full name, gender and sex are optional. We collect and store date
           of birth, full name, gender and sex as private details for existing
           account tools.
           Social adult access does not use full name, gender or sex. They are never shown on prices,
@@ -149,10 +149,10 @@ export default function PrivacyPage() {
         </p>
         <p className="legalBody">
           Full Social access is for signed-in accounts with a claimed handle and
-          an 18+ answer. The date of birth you gave at onboarding decides when it
-          it is present. New accounts must provide date of birth at onboarding;
-          for an existing account where it was not recorded, one self-assertion
-          can answer the access question. Social is live by default and may return
+          an 18+ answer. The date of birth you gave at onboarding decides when
+          it is present. A date of birth is optional at onboarding. Where an
+          account recorded none, one self-assertion can answer the access
+          question. Social is live by default and may return
           to preview during an emergency rollback. We do not run a separate hosted
           age check. None of that private data appears on your profile as an age or
           verification badge.
@@ -904,10 +904,9 @@ export default function PrivacyPage() {
           account. Social is live by default and may return to preview during an
           emergency rollback. Full access needs a signed-in account, a claimed
           handle and an 18+ answer. The date of birth you gave at onboarding
-          decides when it is present. For an existing account where it was not
-          recorded, one self-assertion can answer the access question. New accounts
-          must provide date of birth at onboarding. We do not run a separate hosted
-          age check.
+          decides when it is present. A date of birth is optional at onboarding.
+          Where an account recorded none, one self-assertion can answer the
+          access question. We do not run a separate hosted age check.
           Pubs remain responsible for deciding who they serve.
         </p>
       </section>

@@ -74,12 +74,32 @@ describe("account onboarding surface", () => {
     expect(render("checking")).toContain("disabled");
   });
 
-  it("enables handle claim only after date of birth is provided", () => {
-    expect(render("available")).toContain('disabled="">Claim handle');
-    const html = render("available", "2015-02-03");
-    expect(html).toContain(">Claim handle</button>");
-    expect(html).not.toContain('disabled="">Claim handle');
-    expect(html).toContain('value="2015-02-03"');
+  it("claims a handle with no date of birth, and keeps the date path working", () => {
+    // ONE RULE (captain, 5 Sep 2026). The card used to hold Claim handle
+    // disabled until a date of birth was typed, so a new member could not
+    // reach the price path at all: the recorded adult tap is the age answer,
+    // and this card demands the handle alone.
+    const blank = render("available");
+    expect(blank).toContain(">Claim handle</button>");
+    expect(blank).not.toContain('disabled="">Claim handle');
+    expect(blank).not.toContain("required");
+
+    const dated = render("available", "2015-02-03");
+    expect(dated).toContain(">Claim handle</button>");
+    expect(dated).toContain('value="2015-02-03"');
+  });
+
+  it("tags both the name and the date of birth as optional", () => {
+    const html = render("idle");
+    expect(html).toContain("Name <small>Optional</small>");
+    expect(html).toContain("Date of birth <small>Optional</small>");
+  });
+
+  it("keeps the handle the one thing a claim waits for", () => {
+    // A handle that has not been checked available still holds the action,
+    // whatever else the card is carrying.
+    expect(render("checking", "2000-02-03")).toContain("disabled");
+    expect(render("taken", "2000-02-03")).toContain("disabled");
   });
 
   it("uses different copy for a taken handle and a reserved handle", () => {

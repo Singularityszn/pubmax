@@ -197,7 +197,11 @@ test.describe("first-timer", () => {
       sheet.getByRole("heading", { name: "Let's get you in" }),
     ).toBeVisible();
     await expect(sheet.getByText("Your handle", { exact: true })).toBeVisible();
-    await expect(sheet.getByText("Date of birth", { exact: true })).toBeVisible();
+    // ONE RULE (captain, 5 Sep 2026): the date of birth rides beside the name
+    // and wears the same Optional tag, so the handle is the one thing asked.
+    await expect(
+      sheet.getByText("Date of birth Optional", { exact: true }),
+    ).toBeVisible();
 
     // One action, and nothing that offers to skip what was never demanded.
     await expect(sheet.getByRole("button")).toHaveCount(1);

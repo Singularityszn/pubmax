@@ -78,3 +78,33 @@ export function cleanDateOfBirth(
   }
   return dateOfBirth;
 }
+
+/**
+ * THE ONE RULE, READ ONCE (captain, 5 Sep 2026). A date of birth is OPTIONAL
+ * everywhere a person types one, so "nothing was typed" and "that is not a
+ * date" are two findings and only the second is a refusal. Merging them is
+ * what left the claim card unable to submit and `PATCH
+ * /api/identity/onboarding` answering 400 to a blank field, so an account
+ * could not reach the price path without a birth date the adult tap already
+ * answers for.
+ *
+ * `absent` covers undefined, null and a blank string, which is what an empty
+ * `<input type="date">` sends. Anything else must be a real date or it is
+ * `invalid`, so a typo is still caught.
+ */
+export type OptionalDateOfBirth =
+  | { status: "absent" }
+  | { status: "invalid" }
+  | { status: "given"; dateOfBirth: string };
+
+export function readOptionalDateOfBirth(
+  value: unknown,
+  now: number = Date.now(),
+): OptionalDateOfBirth {
+  if (value === undefined || value === null) return { status: "absent" };
+  if (typeof value === "string" && value.trim() === "") {
+    return { status: "absent" };
+  }
+  const dateOfBirth = cleanDateOfBirth(value, now);
+  return dateOfBirth ? { status: "given", dateOfBirth } : { status: "invalid" };
+}

@@ -3,8 +3,8 @@ import "server-only";
 import { parseFoundingMemberNumber } from "@/lib/foundingMembers";
 import { identityHandleStore } from "@/lib/identityHandleStore";
 import {
-  cleanDateOfBirth,
   MAX_GENDER_SELF_DESCRIBED,
+  readOptionalDateOfBirth,
   PRIVATE_IDENTITY_GENDER_VALUES,
   PRIVATE_IDENTITY_SEX_VALUES,
   type PrivateIdentityGender,
@@ -38,7 +38,8 @@ type PrivateIdentityDetailsInput = {
 type CompleteOnboardingInput = {
   userId: string;
   handle: string;
-  dateOfBirth: unknown;
+  /** Optional: a claim that carries none is still a claim (ONE RULE). */
+  dateOfBirth?: unknown;
   fullName?: unknown;
   sex?: unknown;
 };
@@ -48,7 +49,13 @@ type CompleteOnboardingResult =
       ok: true;
       profileId: string;
       handle: string;
-      privateIdentity: PrivateIdentityRecord;
+      /**
+       * ONE RULE (captain, 5 Sep 2026): a date of birth is optional, so a
+       * claim that carried none writes NO identity row and this is null.
+       * `date_of_birth` is NOT NULL, so an absent answer is an absent row
+       * rather than a null column, and the adult tap is the age answer.
+       */
+      privateIdentity: PrivateIdentityRecord | null;
       /** Granted by the claim underneath, when the first hundred had room. */
       foundingMemberNumber?: number;
     }
@@ -214,10 +221,10 @@ export const memoryPrivateIdentityStore: PrivateIdentityStore = {
 
   async completeOnboarding(input) {
     const userId = cleanUserId(input.userId);
-    const dateOfBirth = cleanDateOfBirth(input.dateOfBirth);
+    const answer = readOptionalDateOfBirth(input.dateOfBirth);
     const assessment = assessPubmaxxHandle(input.handle);
     if (!userId) return claimError("storage", null);
-    if (!dateOfBirth) {
+    if (answer.status === "invalid") {
       return {
         ok: false,
         code: "invalid",
@@ -229,18 +236,26 @@ export const memoryPrivateIdentityStore: PrivateIdentityStore = {
     if (!claimed.ok) return claimError(claimed.code, claimed.error);
 
     const now = new Date().toISOString();
-    const previous = memoryPrivateIdentities.get(userId);
-    const privateIdentity: PrivateIdentityRecord = {
-      ...(previous ?? {}),
-      dateOfBirth: previous?.dateOfBirth || dateOfBirth,
-      ...(cleanFullName(input.fullName)
-        ? { fullName: cleanFullName(input.fullName) }
-        : {}),
-      ...(cleanSex(input.sex) ? { sex: cleanSex(input.sex) } : {}),
-      createdAt: previous?.createdAt ?? now,
-      updatedAt: now,
-    };
-    memoryPrivateIdentities.set(userId, privateIdentity);
+    const previous = memoryPrivateIdentities.get(userId) ?? null;
+    const dateOfBirth =
+      previous?.dateOfBirth ||
+      (answer.status === "given" ? answer.dateOfBirth : "");
+    // A claim that carried no date of birth leaves no row behind it, the
+    // shape `POST /api/identity/handle/claim` has always written. The age
+    // answer is then the recorded adult tap.
+    const privateIdentity: PrivateIdentityRecord | null = dateOfBirth
+      ? {
+          ...(previous ?? {}),
+          dateOfBirth,
+          ...(cleanFullName(input.fullName)
+            ? { fullName: cleanFullName(input.fullName) }
+            : {}),
+          ...(cleanSex(input.sex) ? { sex: cleanSex(input.sex) } : {}),
+          createdAt: previous?.createdAt ?? now,
+          updatedAt: now,
+        }
+      : null;
+    if (privateIdentity) memoryPrivateIdentities.set(userId, privateIdentity);
     return {
       ok: true,
       profileId: claimed.profileId,
@@ -319,10 +334,10 @@ export const supabasePrivateIdentityStore: PrivateIdentityStore = {
 
   async completeOnboarding(input) {
     const userId = cleanUserId(input.userId);
-    const dateOfBirth = cleanDateOfBirth(input.dateOfBirth);
+    const answer = readOptionalDateOfBirth(input.dateOfBirth);
     const assessment = assessPubmaxxHandle(input.handle);
     if (!userId) return claimError("storage", null);
-    if (!dateOfBirth) {
+    if (answer.status === "invalid") {
       return {
         ok: false,
         code: "invalid",
@@ -330,12 +345,33 @@ export const supabasePrivateIdentityStore: PrivateIdentityStore = {
       };
     }
     if (!assessment.ok) return claimError(assessment.reason, assessment.error);
+    if (answer.status === "absent") {
+      // No date of birth, so no row to insert: this is the handle claim on its
+      // own, the RPC `POST /api/identity/handle/claim` already spends.
+      // `private_account_identities.date_of_birth` is NOT NULL, so an absent
+      // answer may never be written as a null column, and no migration stands
+      // between this code and a deploy.
+      const claimed = await identityHandleStore().claim(
+        userId,
+        assessment.handle,
+      );
+      if (!claimed.ok) return claimError(claimed.code, claimed.error);
+      return {
+        ok: true,
+        profileId: claimed.profileId,
+        handle: claimed.handle,
+        privateIdentity: null,
+        ...(claimed.foundingMemberNumber === undefined
+          ? {}
+          : { foundingMemberNumber: claimed.foundingMemberNumber }),
+      };
+    }
     const { data, error } = await requireSupabaseAdmin().rpc(
       "complete_contributor_onboarding",
       {
         p_user_id: userId,
         p_handle: assessment.handle,
-        p_date_of_birth: dateOfBirth,
+        p_date_of_birth: answer.dateOfBirth,
         p_full_name: cleanFullName(input.fullName) ?? null,
         p_sex: cleanSex(input.sex) ?? null,
       },

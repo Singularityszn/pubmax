@@ -2,7 +2,7 @@ import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { isHandleClaimLimited } from "@/lib/identityHandleClaimRateLimit";
-import { cleanDateOfBirth } from "@/lib/privateIdentity";
+import { readOptionalDateOfBirth } from "@/lib/privateIdentity";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -93,7 +93,11 @@ export async function POST(request: Request): Promise<Response> {
   }
   return jsonNoStore(
     {
-      complete: true,
+      // ONE RULE (captain, 5 Sep 2026): a claim may carry no date of birth, so
+      // `complete` is read off the row the claim really wrote rather than
+      // stated. GET answers the same way, and a claim with no birth date is
+      // still a claim: the recorded adult tap is the age answer.
+      complete: Boolean(result.privateIdentity?.dateOfBirth),
       handle: result.handle,
       // Public status, returned here so the claim surface can mark the moment
       // once rather than re-reading its own account to find out.
@@ -117,14 +121,14 @@ export async function PATCH(request: Request): Promise<Response> {
   } catch {
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
-  let dateOfBirth: string | undefined;
-  if ("dateOfBirth" in body) {
-    const cleaned = cleanDateOfBirth(body.dateOfBirth);
-    if (!cleaned) {
-      return publicApiError("Enter a valid date of birth.", "INVALID", 400);
-    }
-    dateOfBirth = cleaned;
+  // A blank date of birth is nothing to save, never a refusal: the field is
+  // optional, and only a value that is not a date is still an error.
+  const answer = readOptionalDateOfBirth(body.dateOfBirth);
+  if (answer.status === "invalid") {
+    return publicApiError("Enter a valid date of birth.", "INVALID", 400);
   }
+  const dateOfBirth =
+    answer.status === "given" ? answer.dateOfBirth : undefined;
   try {
     const [profile, privateIdentity] = await Promise.all([
       profileStore().getByUserId(userId),

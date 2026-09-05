@@ -61,29 +61,46 @@ describe("/api/identity/onboarding", () => {
     expect(await response.json()).toEqual({ complete: false });
   });
 
-  it("requires date of birth before claiming a handle", async () => {
+  it("claims a handle with no date of birth, and refuses one that is not a date", async () => {
+    // ONE RULE (captain, 5 Sep 2026). A blank date of birth is nothing to save
+    // rather than a refusal, so a new member reaches the price path on the
+    // recorded adult tap alone. `complete` still reports the row: this account
+    // has none, and the claim is not diminished by that.
     authState.userId = "user-1";
-    const missing = await POST(request("POST", { handle: "night_owl" }));
-    expect(missing.status).toBe(400);
-    expect(await missing.json()).toMatchObject({
+    const undated = await POST(request("POST", { handle: "night_owl" }));
+    expect(undated.status).toBe(201);
+    expect(await undated.json()).toEqual({
+      complete: false,
+      handle: "night_owl",
+      // The first claim in a fresh store lands inside the first hundred, so the
+      // claim underneath grants a founding number and it rides out here.
+      foundingMemberNumber: 1,
+    });
+    expect(await memoryProfileStore.getByHandle("night_owl")).not.toBeNull();
+
+    authState.userId = "user-typo";
+    const typo = await POST(
+      request("POST", { handle: "typing_owl", dateOfBirth: "not-a-date" }),
+    );
+    expect(typo.status).toBe(400);
+    expect(await typo.json()).toMatchObject({
       code: "invalid",
       error: "Enter a valid date of birth.",
     });
-    expect(await memoryProfileStore.getByHandle("night_owl")).toBeNull();
+    expect(await memoryProfileStore.getByHandle("typing_owl")).toBeNull();
 
+    authState.userId = "user-2";
     const response = await POST(
       request("POST", {
-        handle: "night_owl",
+        handle: "day_owl",
         dateOfBirth: "2015-02-03",
       }),
     );
     expect(response.status).toBe(201);
     expect(await response.json()).toEqual({
       complete: true,
-      handle: "night_owl",
-      // The first claim in a fresh store lands inside the first hundred, so the
-      // claim underneath grants a founding number and it rides out here.
-      foundingMemberNumber: 1,
+      handle: "day_owl",
+      foundingMemberNumber: 2,
       dateOfBirth: "2015-02-03",
     });
   });
@@ -299,6 +316,31 @@ describe("/api/identity/onboarding", () => {
     expect(
       accountIsAdult({ dateOfBirth: details.dateOfBirth ?? null }, Date.parse(NOW)),
     ).toBe(true);
+  });
+
+  it("takes a blank date of birth as nothing to save, never a refusal", async () => {
+    // ONE RULE (captain, 5 Sep 2026). `null` and an empty string are what an
+    // untouched `<input type="date">` sends, and answering 400 to them made a
+    // date of birth mandatory on the one surface that calls it optional. Only
+    // a value that is not a date is still an error.
+    authState.userId = "user-blank";
+    await POST(
+      request("POST", { handle: "blank_owl", dateOfBirth: "1990-01-01" }),
+    );
+
+    for (const dateOfBirth of [null, "", "   "]) {
+      const response = await PATCH(
+        request("PATCH", { dateOfBirth, fullName: "Blank Owl" }),
+      );
+      expect(response.status).toBe(200);
+      // Nothing to save means the stored date is left exactly as it was.
+      expect(await response.json()).toMatchObject({
+        complete: true,
+        handle: "blank_owl",
+        dateOfBirth: "1990-01-01",
+        fullName: "Blank Owl",
+      });
+    }
   });
 
   it("names the missing date of birth rather than the missing setup", async () => {
