@@ -193,6 +193,29 @@ describe("core UI audit fixes", () => {
     expect(vercelIgnore).not.toMatch(/^\/?data\/$/m);
     expect(vercelIgnore).not.toMatch(/^\/?public\/$/m);
   });
+
+  // A .vercelignore REPLACES the .gitignore fallback, so every heavy directory
+  // has to be named here or it is uploaded. `/.next-*` reads as a glob that
+  // covers the build directory and does not: it matches `.next-prod` and
+  // `.next-sweep` while leaving `.next` itself, the largest of them, in the
+  // upload. Each line below is a directory measured at tens or hundreds of
+  // megabytes that no build step reads.
+  it("names every heavy directory, including the one the glob misses", () => {
+    for (const entry of [
+      "/.next",
+      "/data-harvest/",
+      "/.opencode/",
+      "/.cursor/",
+      "/.agents/",
+      "/skills/",
+      "/.firecrawl/",
+      "/.tmp-evidence/",
+      "/e2e-shots/",
+    ]) {
+      const line = new RegExp(`^${entry.replaceAll(".", "\\.")}$`, "m");
+      expect(vercelIgnore, entry).toMatch(line);
+    }
+  });
 });
 
 // docs/design/LAUNCH_SCREENS.md: every launch route carries ONE primary action,

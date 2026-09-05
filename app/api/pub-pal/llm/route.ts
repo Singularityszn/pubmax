@@ -12,6 +12,7 @@ import {
   streamOpenAiChatCompletion,
   type OpenAiChatCompletionRequest,
 } from "@/lib/pubPalLlmStream";
+import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp, isSupabaseConfigured } from "@/lib/supabase";
 
@@ -32,6 +33,14 @@ export async function POST(request: Request): Promise<Response> {
 
   const authDenied = assertPubPalLlmAuth(request);
   if (authDenied) return authDenied;
+
+  // The per-address budget above is one signal and a caller picks their own
+  // address. This ceiling is the deployment's, and no header widens it. It is
+  // spent AFTER the shared-secret gate on purpose: this lane has a real caller
+  // (the ElevenLabs bridge), so an unauthorised flood must not be able to eat
+  // the budget that caller depends on.
+  const budgetRefusal = await paidSpendBudgetRefusal("pub-pal-llm");
+  if (budgetRefusal) return budgetRefusal;
 
   let body: unknown;
   try {

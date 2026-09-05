@@ -54,6 +54,12 @@ import { GET, POST } from "@/app/api/plans/generate/route";
 import { preparePlanGeneration } from "@/lib/planGeneration.server";
 import { verifyPlanGroundingProof } from "@/lib/planGrounding.server";
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+import {
+  PAID_SPEND_BUDGET_WINDOW_MS,
+  PAID_SPEND_REFUSAL_CODE,
+  PAID_SPEND_REFUSAL_LINE,
+  paidSpendBudgetKey,
+} from "@/lib/paidSpendBudget";
 import { hashIp } from "@/lib/supabase";
 import type { LngLat } from "@/lib/walkRoute";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
@@ -248,18 +254,59 @@ describe("POST /api/plans/generate", () => {
 	});
 
   it("uses the same privacy-safe per-client bucket for local and durable limiting", async () => {
-    const rawIp = "203.0.113.42";
+    // The LEFT-MOST entry is the one a caller always writes, so it names
+    // nobody; the right-most entry is what the nearest hop appended
+    // (lib/clientIpTrust.ts owns that rule).
+    const spoofedIp = "203.0.113.42";
+    const trustedIp = "198.51.100.7";
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",
-      headers: { "x-forwarded-for": `${rawIp}, 198.51.100.7` },
+      headers: { "x-forwarded-for": `${spoofedIp}, ${trustedIp}` },
       body: JSON.stringify({ query: "A quiet night in Barnes" }),
     }));
 
     expect(response.status).toBe(200);
-    const expectedKey = `plan-generate:${hashIp(rawIp)}`;
-    expect(isLimitedMock).toHaveBeenCalledOnce();
-    expect(isLimitedMock).toHaveBeenCalledWith(expectedKey, expectedKey, 8, 60_000);
-    expect(JSON.stringify(isLimitedMock.mock.calls)).not.toContain(rawIp);
+    const expectedKey = `plan-generate:${hashIp(trustedIp)}`;
+    expect(isLimitedMock.mock.calls[0]).toEqual([expectedKey, expectedKey, 8, 60_000]);
+    const recorded = JSON.stringify(isLimitedMock.mock.calls);
+    expect(recorded).not.toContain(spoofedIp);
+    expect(recorded).not.toContain(trustedIp);
+    expect(recorded).not.toContain(hashIp(spoofedIp));
+  });
+
+  it("spends the deployment ceiling as well, on a key no header can widen", async () => {
+    await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      headers: { "x-forwarded-for": "203.0.113.42" },
+      body: JSON.stringify({ query: "A quiet night in Barnes" }),
+    }));
+
+    const budgetCall = isLimitedMock.mock.calls.find(
+      (call) => call[0] === paidSpendBudgetKey("plan-generate"),
+    );
+    expect(budgetCall).toBeDefined();
+    expect(budgetCall?.[1]).toBe(paidSpendBudgetKey("plan-generate"));
+    expect(budgetCall?.[3]).toBe(PAID_SPEND_BUDGET_WINDOW_MS);
+    expect(budgetCall?.[4]).toEqual({ failClosed: true });
+  });
+
+  it("refuses with the deployment ceiling's own sentence once it is spent", async () => {
+    isLimitedMock.mockImplementation(async (key: string) =>
+      key === paidSpendBudgetKey("plan-generate"),
+    );
+
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      headers: { "x-forwarded-for": "203.0.113.42" },
+      body: JSON.stringify({ query: "A quiet night in Barnes" }),
+    }));
+
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({
+      error: PAID_SPEND_REFUSAL_LINE,
+      code: PAID_SPEND_REFUSAL_CODE,
+      retryable: true,
+    });
   });
 
   it("enforces rate limiting inside request preparation", async () => {
@@ -282,9 +329,13 @@ describe("POST /api/plans/generate", () => {
         body: JSON.stringify({ query: "A quiet night in Barnes" }),
       }));
     }
-    const firstKey = isLimitedMock.mock.calls[0]?.[0];
-    const secondKey = isLimitedMock.mock.calls[1]?.[0];
-    expect(firstKey).not.toBe(secondKey);
+    // Each request spends TWO budgets: its own address bucket, then the
+    // deployment ceiling. The per-address buckets differ; the ceiling does not.
+    const perClientKeys = isLimitedMock.mock.calls
+      .map((call) => call[0] as string)
+      .filter((key) => key.startsWith("plan-generate:"));
+    expect(perClientKeys).toHaveLength(2);
+    expect(perClientKeys[0]).not.toBe(perClientKeys[1]);
 
     isLimitedMock.mockResolvedValueOnce(true);
     const limited = await POST(new Request("http://localhost/api/plans/generate", {
@@ -309,7 +360,11 @@ describe("POST /api/plans/generate", () => {
         body: JSON.stringify({ query: "A quiet night in Barnes" }),
       }));
     }
-    expect(isLimitedMock.mock.calls[0]?.slice(0, 2)).toEqual(isLimitedMock.mock.calls[1]?.slice(0, 2));
+    const perClientCalls = isLimitedMock.mock.calls.filter((call) =>
+      String(call[0]).startsWith("plan-generate:"),
+    );
+    expect(perClientCalls).toHaveLength(2);
+    expect(perClientCalls[0]?.slice(0, 2)).toEqual(perClientCalls[1]?.slice(0, 2));
   });
 
   it("does not load venues after rate-limit rejection", async () => {

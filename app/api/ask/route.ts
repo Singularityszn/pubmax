@@ -1,6 +1,7 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { runAsk } from "@/lib/ask/runAsk";
+import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { assertProductionSecrets } from "@/lib/serverEnv";
 import { clientIp, hashIp, isSupabaseConfigured } from "@/lib/supabase";
@@ -46,6 +47,11 @@ export async function POST(request: Request): Promise<Response> {
     ) {
       return publicApiError("Too many asks, slow down.", "RATE_LIMITED", 429, { retryable: true });
     }
+
+    // The per-address budget above is one signal and a caller picks their own
+    // address. This ceiling is the deployment's, and no header widens it.
+    const budgetRefusal = await paidSpendBudgetRefusal("ask");
+    if (budgetRefusal) return budgetRefusal;
 
     // Paid-spend guard: without Supabase the durable limiter is only per-instance.
     // Withhold OpenRouter in that production posture; deterministic tools still answer.

@@ -9,6 +9,7 @@ import {
   NO_STORY_LINE,
   retrieveHeritageWithStatus,
 } from "@/lib/heritage";
+import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { assertProductionSecrets } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -70,6 +71,11 @@ export async function POST(request: Request): Promise<Response> {
     ) {
       return publicApiError("Too many questions, slow down.", "RATE_LIMITED", 429, { retryable: true });
     }
+
+    // The per-address budget above is one signal and a caller picks their own
+    // address. This ceiling is the deployment's, and no header widens it.
+    const budgetRefusal = await paidSpendBudgetRefusal("heritage");
+    if (budgetRefusal) return budgetRefusal;
 
     // Any client-supplied `context` is deliberately ignored — venue context is
     // reconstructed server-side (heritage cache + pub_heritage) so a client
