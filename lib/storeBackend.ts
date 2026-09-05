@@ -7,16 +7,37 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isDeployedProduction } from "@/lib/deploymentEnv";
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import {
+  isSupabaseConfigured,
+  requireSupabaseAdmin,
+  requiresSupabaseStore,
+} from "@/lib/supabase";
 
 /** Normalise unknown thrown values to a log-safe string. */
 export function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-/** Single seam: durable Supabase when env keys exist, process-memory otherwise. */
+/**
+ * Single seam: durable Supabase when env keys exist, process-memory otherwise.
+ *
+ * A deployment that REQUIRES a durable store never falls back. `isSupabaseConfigured()`
+ * is not "a URL and a key are set": it applies a key-role check, so a key rotated into
+ * the wrong format (a publishable key, or an anon JWT pasted into
+ * SUPABASE_SERVICE_ROLE_KEY) reads as unconfigured while the deploy stays otherwise
+ * healthy, and every write would answer 200 and evaporate on the next cold start.
+ * The guard used to be the caller's, one `assertServerEnv()` line per route, and 63 of
+ * 116 mutating routes carried none. It is the seam's now, on the same reasoning
+ * `onMissingDurableWrite` already applies to a missing TABLE.
+ */
 export function selectStore<T>(memory: T, supabase: T): T {
-  return isSupabaseConfigured() ? supabase : memory;
+  if (isSupabaseConfigured()) return supabase;
+  if (requiresSupabaseStore()) {
+    throw new Error(
+      "[storeBackend] durable store required in production; refusing process-memory fallback",
+    );
+  }
+  return memory;
 }
 
 /**
