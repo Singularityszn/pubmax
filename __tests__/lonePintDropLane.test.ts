@@ -428,11 +428,11 @@ describe("the phone peek chip over a lone Pint Drop", () => {
     });
   });
 
-  it("keeps the baseline chip it always printed", () => {
+  it("keeps the baseline chip it always printed, and names it a baseline", () => {
     expect(peekChipFor([], venue({ cheapestPrice: 6.2 }))).toEqual({
       figure: "£6.20",
       priceGbp: 6.2,
-      caption: "current recorded price",
+      caption: "baseline on record",
       observed: true,
       trust: null,
     });

@@ -26,6 +26,8 @@ import {
 } from "@/lib/priceTier";
 import { PINT_TRUST_LINE, trustChipStateFor, type PintTrustState } from "@/lib/pintTrust";
 import {
+  AGED_PRICE_LINE,
+  PROVISIONAL_PRICE_LINE,
   venuePriceLaneObservedGbp,
   type VenueBundlePrices,
   type VenuePriceLane,
@@ -782,9 +784,28 @@ export function peekPriceChip(
   return {
     figure: formatPrice(observedGbp),
     priceGbp: observedGbp,
-    // A report says what it still lacks, in the one wording its state owns.
-    caption: (trust && PINT_TRUST_LINE[trust]) || "current recorded price",
+    // A report says what it still lacks, in the one wording its state owns;
+    // every other lane names itself, so a dataset baseline is never called a
+    // current recorded price beside an Overview that calls it a baseline.
+    caption: (trust && PINT_TRUST_LINE[trust]) || PEEK_LANE_CAPTION[lane.lane],
     observed: true,
     trust,
   };
 }
+
+/**
+ * What the peek chip calls a figure that is NOT a drinker's report in a
+ * named trust state. The Overview prints the same lane under the same word
+ * (Baseline on record, Sourced, Listed), so the two surfaces cannot read one
+ * pub two ways (battle test M05).
+ */
+export const PEEK_LANE_CAPTION: Record<VenuePriceLane["lane"], string> = {
+  anchor: "listed anchor price",
+  contributor: "current recorded price",
+  sourced: "sourced price on record",
+  listed: "listed by the pub",
+  provisional: PROVISIONAL_PRICE_LINE,
+  baseline: "baseline on record",
+  aged: AGED_PRICE_LINE,
+  estimate: "estimate",
+};
