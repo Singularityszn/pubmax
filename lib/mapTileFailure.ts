@@ -31,8 +31,15 @@
  * - A critical sprite/glyph failure breaks labels/icons map-wide. An initial
  *   vector/raster source metadata failure leaves no tiles to request, so it
  *   emits only once. Both count as systemic without a sustain requirement.
- * - The first systemic verdict earns one retry IF the shared recovery budget
- *   (paint watchdog cap) still has room.
+ * - A verdict that a SOURCE could answer spends the silent lane first:
+ *   MapLibre never re-asks for a tile it failed, so a hole left by a transient
+ *   outage stays until the camera moves. `retry-source` re-asks the basemap
+ *   SOURCE for its own tiles, with backoff, and is invisible: no style reload,
+ *   no notice, no console line. A sprite or glyph is a STYLE resource and no
+ *   source reload can re-fetch it, so it skips the silent lane.
+ * - Only once the silent lane is spent does the first systemic verdict earn
+ *   one style reload, IF the shared recovery budget (paint watchdog cap) still
+ *   has room.
  * - After that single retry, a fresh systemic verdict surfaces the error
  *   card. Never a second retry loop, never a silent black canvas.
  */
@@ -51,7 +58,23 @@ export const TILE_FAILURE_BURST = 4;
  */
 export const TILE_FAILURE_SUSTAIN_MS = 5_000;
 
-export type TileFailureDecision = "ignore" | "retry" | "surface";
+/**
+ * Silent source reloads before the mount's one style reload is considered.
+ * Two, because a transient outage that survives two backed-off attempts is no
+ * longer transient and the reader is owed the honest lane instead.
+ */
+export const TILE_SILENT_RETRY_MAX = 2;
+/** The first silent retry waits this long; each later one doubles. */
+export const TILE_SILENT_RETRY_BASE_DELAY_MS = 700;
+/** Ceiling on that backoff, so a long-lived map never waits minutes. */
+export const TILE_SILENT_RETRY_MAX_DELAY_MS = 4_000;
+
+export type TileFailureDecision =
+  | "ignore"
+  /** Re-ask the basemap SOURCE for its tiles. Invisible to the reader. */
+  | "retry-source"
+  | "retry"
+  | "surface";
 
 export type BasemapTileReference = {
   sourceId?: unknown;
@@ -126,7 +149,64 @@ export function createBasemapTileFailureTracker() {
     hasFailures() {
       return failed.size > 0;
     },
+    /** Basemap tiles that failed and have not since loaded. */
+    count() {
+      return failed.size;
+    },
   };
+}
+
+/**
+ * A sprite or glyph belongs to the STYLE, not to a tile source: re-asking a
+ * source for its tiles cannot re-fetch one, so this failure skips the silent
+ * lane and goes straight to the style reload that could actually fix it.
+ */
+export function isStyleResourceFailure(message: string): boolean {
+  return /sprite|glyph/i.test(message);
+}
+
+export type BasemapSourceReload =
+  | { kind: "tiles"; tiles: string[] }
+  | { kind: "url"; url: string };
+
+/**
+ * How to re-ask ONE style source for its own tiles, read off the serialized
+ * source spec (`map.getStyle().sources[id]`) rather than the live source
+ * object, so nothing here touches a private MapLibre field. A source with
+ * neither an explicit tile list nor a TileJSON url, and every source that is
+ * not tiled (a GeoJSON pin source above all), answers null and is left alone.
+ */
+export function basemapSourceReloadPlan(source: unknown): BasemapSourceReload | null {
+  if (!source || typeof source !== "object") return null;
+  const spec = source as { type?: unknown; tiles?: unknown; url?: unknown };
+  if (
+    spec.type !== "vector" &&
+    spec.type !== "raster" &&
+    spec.type !== "raster-dem"
+  ) {
+    return null;
+  }
+  if (
+    Array.isArray(spec.tiles) &&
+    spec.tiles.length > 0 &&
+    spec.tiles.every((tile) => typeof tile === "string" && tile.length > 0)
+  ) {
+    return { kind: "tiles", tiles: spec.tiles as string[] };
+  }
+  if (typeof spec.url === "string" && spec.url.length > 0) {
+    return { kind: "url", url: spec.url };
+  }
+  return null;
+}
+
+/** How long the next silent retry waits, given how many are already spent. */
+export function silentTileRetryDelayMs(
+  spent: number,
+  baseDelayMs: number = TILE_SILENT_RETRY_BASE_DELAY_MS,
+  maxDelayMs: number = TILE_SILENT_RETRY_MAX_DELAY_MS,
+): number {
+  const steps = Math.max(0, Math.floor(spent));
+  return Math.min(maxDelayMs, baseDelayMs * 2 ** steps);
 }
 
 export type CriticalBasemapFailureInput = {
@@ -147,7 +227,7 @@ export function isCriticalBasemapFailure({
   sourceType,
   tilePresent,
 }: CriticalBasemapFailureInput): boolean {
-  if (/sprite|glyph/i.test(message)) return true;
+  if (isStyleResourceFailure(message)) return true;
   return (
     initialBasemapPending &&
     !tilePresent &&
@@ -176,6 +256,21 @@ export type TileFailureInput = {
   cameraInFlight: boolean;
   /** The one bounded tile retry has already been spent this mount. */
   retrySpent: boolean;
+  /**
+   * Silent source reloads still available. Zero means the invisible lane is
+   * spent and the reader's own lanes take over.
+   */
+  silentRetriesLeft: number;
+  /**
+   * Basemap tiles that failed and have not since loaded. MapLibre re-asks for
+   * none of them, so even one is a hole a source reload can close.
+   */
+  unrecoveredTileFailures?: number;
+  /**
+   * A sprite or glyph failed. A style resource, so the silent source lane
+   * cannot answer it.
+   */
+  styleResourceFailure?: boolean;
   /**
    * Remaining shared recovery budget (paint watchdog cap minus recoveries
    * already spent by EITHER net). At zero, retries are over for the mount.
@@ -228,18 +323,27 @@ export function classifyTileFailure(input: TileFailureInput): TileFailureDecisio
     cameraInFlight,
     retrySpent,
     recoveryBudgetLeft,
+    silentRetriesLeft,
+    unrecoveredTileFailures = 0,
+    styleResourceFailure = false,
     initialBasemapPending = false,
     burstThreshold = TILE_FAILURE_BURST,
     windowMs = TILE_FAILURE_WINDOW_MS,
     sustainMs = TILE_FAILURE_SUSTAIN_MS,
   } = input;
 
+  const reloadStyleOrSurface = (): TileFailureDecision =>
+    !retrySpent && recoveryBudgetLeft > 0 ? "retry" : "surface";
+
   // A terminal source/style resource emits one error, then MapLibre marks it
   // loaded. Act now even if the tab is hidden or the camera is moving because
   // there may be no post-flight or foreground event to replay.
   if (criticalFailure) {
-    if (!retrySpent && recoveryBudgetLeft > 0) return "retry";
-    return "surface";
+    // A sprite or glyph is the style's, not a source's: only setStyle re-fetches
+    // it, so the silent lane would spend an attempt that cannot help.
+    if (styleResourceFailure) return reloadStyleOrSurface();
+    if (silentRetriesLeft > 0) return "retry-source";
+    return reloadStyleOrSurface();
   }
 
   // A hidden tab aborts ordinary tile fetches as a matter of course.
@@ -255,37 +359,73 @@ export function classifyTileFailure(input: TileFailureInput): TileFailureDecisio
   const sustainedBurst = recent.length >= burstThreshold && burstAge >= sustainMs;
   const initialBurst = initialBasemapPending && recent.length >= burstThreshold;
   const systemic = initialBurst || sustainedBurst;
-  if (!systemic) return "ignore";
+  if (!systemic) {
+    // Below the burst threshold a miss is routine, but the tile it lost is a
+    // hole MapLibre will never re-request. One silent, backed-off source reload
+    // closes it and the reader is told nothing, which is the whole point.
+    return unrecoveredTileFailures > 0 && silentRetriesLeft > 0
+      ? "retry-source"
+      : "ignore";
+  }
 
-  if (!retrySpent && recoveryBudgetLeft > 0) return "retry";
-  return "surface";
+  if (silentRetriesLeft > 0) return "retry-source";
+  return reloadStyleOrSurface();
 }
 
 export type TileFailureSpendState = {
+  /** Silent source reloads already spent since the last real basemap paint. */
+  silentSpent: number;
+  /** A silent source reload is waiting out its backoff. */
+  silentQueued: boolean;
   retryQueued: boolean;
   retrySpent: boolean;
   surfaced: boolean;
 };
 
 export const INITIAL_TILE_FAILURE_SPEND: TileFailureSpendState = {
+  silentSpent: 0,
+  silentQueued: false,
   retryQueued: false,
   retrySpent: false,
   surfaced: false,
 };
 
-export type TileFailureSpendEffect = "none" | "reload-style" | "surface";
+export type TileFailureSpendEffect =
+  | "none"
+  | "reload-source"
+  | "reload-style"
+  | "surface";
+
+/** How many silent source reloads this state still has. */
+export function silentTileRetriesLeft(
+  state: TileFailureSpendState,
+  maxRetries: number = TILE_SILENT_RETRY_MAX,
+): number {
+  return Math.max(0, maxRetries - state.silentSpent);
+}
 
 /**
- * Caller-side spend of `classifyTileFailure`. One style reload, then the
- * honest surface. Never a second retry loop — even if a later sample still
- * says retry after the first reload was queued or spent.
+ * Caller-side spend of `classifyTileFailure`. The silent source lane first,
+ * then one style reload, then the honest surface. Never a second retry loop,
+ * even if a later sample still says retry after the first reload was queued or
+ * spent.
  */
 export function spendTileFailureDecision(
   state: TileFailureSpendState,
   decision: TileFailureDecision,
+  maxSilentRetries: number = TILE_SILENT_RETRY_MAX,
 ): { state: TileFailureSpendState; effect: TileFailureSpendEffect } {
   if (state.surfaced || decision === "ignore") {
     return { state, effect: "none" };
+  }
+  if (decision === "retry-source") {
+    if (state.silentQueued || state.silentSpent >= maxSilentRetries) {
+      return { state, effect: "none" };
+    }
+    return {
+      state: { ...state, silentQueued: true },
+      effect: "reload-source",
+    };
   }
   if (decision === "retry") {
     if (state.retryQueued || state.retrySpent) {
@@ -303,6 +443,35 @@ export function markTileRetrySpent(
   state: TileFailureSpendState,
 ): TileFailureSpendState {
   return { ...state, retryQueued: false, retrySpent: true };
+}
+
+/** A dispatched silent source reload. */
+export function markSilentTileRetrySpent(
+  state: TileFailureSpendState,
+): TileFailureSpendState {
+  return { ...state, silentQueued: false, silentSpent: state.silentSpent + 1 };
+}
+
+/**
+ * A silent reload that was queued and then abandoned (the style generation
+ * moved on under it). It spent nothing, so it gives its place back rather than
+ * blocking the next attempt for the life of the mount.
+ */
+export function releaseQueuedSilentTileRetry(
+  state: TileFailureSpendState,
+): TileFailureSpendState {
+  return { ...state, silentQueued: false };
+}
+
+/**
+ * A basemap that really painted hands its silent budget back, so the next
+ * flaky tile on a long session is met by the invisible lane rather than by the
+ * style reload the reader can see.
+ */
+export function clearSilentTileRetries(
+  state: TileFailureSpendState,
+): TileFailureSpendState {
+  return { ...state, silentQueued: false, silentSpent: 0 };
 }
 
 export function markTileFailureSurfaced(

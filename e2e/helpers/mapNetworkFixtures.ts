@@ -54,6 +54,14 @@ export async function installDeterministicMapBasemap(
     secondaryRasterDelayMs?: number;
     styleDelayMs?: number;
     stallSecondaryRaster?: boolean;
+    /**
+     * Abort this many primary raster tile requests before serving any. A
+     * transient basemap outage: the reader's next attempt succeeds, so the
+     * map must recover with nothing on screen about it.
+     */
+    failPrimaryRasterRequests?: number;
+    /** Refuse every style request, primary and fallback alike. */
+    failStyle?: boolean;
   } = {},
 ): Promise<void> {
   const emptyVectorTile = (route: Route) =>
@@ -62,7 +70,12 @@ export async function installDeterministicMapBasemap(
       contentType: "application/x-protobuf",
       body: Buffer.alloc(0),
     });
+  let primaryRasterFailuresLeft = options.failPrimaryRasterRequests ?? 0;
   const fulfillStyle = async (route: Route) => {
+    if (options.failStyle) {
+      await route.abort("failed");
+      return;
+    }
     if (options.styleDelayMs) {
       await new Promise((resolve) => setTimeout(resolve, options.styleDelayMs));
     }
@@ -76,6 +89,11 @@ export async function installDeterministicMapBasemap(
   await page.route("**/*.mvt*", emptyVectorTile);
   await page.route("**/*.pbf*", emptyVectorTile);
   await page.route("**/__empty/**/*.png", async (route) => {
+    if (primaryRasterFailuresLeft > 0) {
+      primaryRasterFailuresLeft -= 1;
+      await route.abort("failed");
+      return;
+    }
     if (options.primaryRasterDelayMs) {
       await new Promise((resolve) =>
         setTimeout(resolve, options.primaryRasterDelayMs),

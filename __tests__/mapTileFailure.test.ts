@@ -4,14 +4,24 @@ import {
   TILE_FAILURE_BURST,
   TILE_FAILURE_SUSTAIN_MS,
   TILE_FAILURE_WINDOW_MS,
+  TILE_SILENT_RETRY_BASE_DELAY_MS,
+  TILE_SILENT_RETRY_MAX,
+  TILE_SILENT_RETRY_MAX_DELAY_MS,
   areBasemapTilesLoaded,
+  basemapSourceReloadPlan,
   classifyTileFailure,
+  clearSilentTileRetries,
   createBasemapTileFailureTracker,
   isCriticalBasemapFailure,
+  isStyleResourceFailure,
   basemapFailureSurface,
+  markSilentTileRetrySpent,
   markTileFailureSurfaced,
   markTileRetrySpent,
   pruneTileFailures,
+  releaseQueuedSilentTileRetry,
+  silentTileRetriesLeft,
+  silentTileRetryDelayMs,
   spendTileFailureDecision,
   tileFailureRecheckDelay,
   type TileFailureInput,
@@ -184,7 +194,9 @@ describe("isCriticalBasemapFailure", () => {
 // A visible, settled-camera tab with a sustained burst and a full budget the
 // individual cases mutate. Every rule passes here, so each test flips exactly
 // one field to prove that rule. The stamps span the sustain requirement while
-// staying inside the window.
+// staying inside the window. The silent source lane is deliberately SPENT
+// here, so each case below is about the reader-visible lanes it guards; the
+// silent lane has its own describe block.
 const NOW = 60_000;
 const SPREAD = Math.ceil(TILE_FAILURE_SUSTAIN_MS / (TILE_FAILURE_BURST - 1)) + 100;
 const burst = Array.from({ length: TILE_FAILURE_BURST }, (_, i) => NOW - i * SPREAD);
@@ -196,6 +208,7 @@ const bursting: TileFailureInput = {
   cameraInFlight: false,
   retrySpent: false,
   recoveryBudgetLeft: 5,
+  silentRetriesLeft: 0,
 };
 
 describe("classifyTileFailure", () => {
@@ -434,5 +447,218 @@ describe("basemapFailureSurface", () => {
 
   it("shows the toast only after a style actually loaded", () => {
     expect(basemapFailureSurface(true)).toBe("toast");
+  });
+});
+
+// The silent source lane (#1488). MapLibre never re-asks for a tile it failed,
+// so a transient outage used to leave a permanent hole whose only way out was
+// the style reload the reader can see - and, one round later, the banner.
+// These hold the lane to being invisible, bounded, and never in front of the
+// failure classes it cannot fix.
+describe("the silent basemap-source retry lane", () => {
+  const withSilentBudget = (patch: Partial<TileFailureInput> = {}) => ({
+    ...bursting,
+    silentRetriesLeft: TILE_SILENT_RETRY_MAX,
+    ...patch,
+  });
+
+  it("takes a sustained burst before the style reload does", () => {
+    expect(classifyTileFailure(withSilentBudget())).toBe("retry-source");
+  });
+
+  it("takes a cold-load burst before the style reload does", () => {
+    const initialBurst = Array.from(
+      { length: TILE_FAILURE_BURST },
+      (_, i) => NOW - i * 100,
+    );
+    expect(
+      classifyTileFailure(
+        withSilentBudget({
+          errorTimestamps: initialBurst,
+          initialBasemapPending: true,
+        }),
+      ),
+    ).toBe("retry-source");
+  });
+
+  it("closes a lone unrecovered tile hole no burst would ever reach", () => {
+    expect(
+      classifyTileFailure(
+        withSilentBudget({
+          errorTimestamps: [NOW],
+          unrecoveredTileFailures: 1,
+        }),
+      ),
+    ).toBe("retry-source");
+  });
+
+  it("leaves a lone miss that already recovered alone", () => {
+    expect(
+      classifyTileFailure(
+        withSilentBudget({
+          errorTimestamps: [NOW],
+          unrecoveredTileFailures: 0,
+        }),
+      ),
+    ).toBe("ignore");
+  });
+
+  it("stays out of a hidden tab and a camera in flight", () => {
+    expect(
+      classifyTileFailure(
+        withSilentBudget({ documentVisible: false, unrecoveredTileFailures: 3 }),
+      ),
+    ).toBe("ignore");
+    expect(
+      classifyTileFailure(
+        withSilentBudget({ cameraInFlight: true, unrecoveredTileFailures: 3 }),
+      ),
+    ).toBe("ignore");
+  });
+
+  it("hands a spent lane back to the style reload, then to the banner", () => {
+    expect(classifyTileFailure({ ...bursting, silentRetriesLeft: 0 })).toBe(
+      "retry",
+    );
+    expect(
+      classifyTileFailure({
+        ...bursting,
+        silentRetriesLeft: 0,
+        retrySpent: true,
+      }),
+    ).toBe("surface");
+  });
+
+  it("never stands in front of a sprite or glyph, which no source can re-fetch", () => {
+    expect(isStyleResourceFailure("Unable to load sprite")).toBe(true);
+    expect(isStyleResourceFailure("Could not load glyph range")).toBe(true);
+    expect(isStyleResourceFailure("Failed to fetch tile")).toBe(false);
+    expect(
+      classifyTileFailure(
+        withSilentBudget({
+          errorTimestamps: [NOW],
+          criticalFailure: true,
+          styleResourceFailure: true,
+        }),
+      ),
+    ).toBe("retry");
+  });
+
+  it("does answer terminal source metadata, which a source reload can re-ask", () => {
+    expect(
+      classifyTileFailure(
+        withSilentBudget({ errorTimestamps: [NOW], criticalFailure: true }),
+      ),
+    ).toBe("retry-source");
+  });
+
+  it("backs off, and stops doubling at the ceiling", () => {
+    expect(silentTileRetryDelayMs(0)).toBe(TILE_SILENT_RETRY_BASE_DELAY_MS);
+    expect(silentTileRetryDelayMs(1)).toBe(TILE_SILENT_RETRY_BASE_DELAY_MS * 2);
+    expect(silentTileRetryDelayMs(20)).toBe(TILE_SILENT_RETRY_MAX_DELAY_MS);
+  });
+});
+
+describe("spending the silent lane", () => {
+  it("queues one reload at a time and stops at the cap", () => {
+    let state = INITIAL_TILE_FAILURE_SPEND;
+    expect(silentTileRetriesLeft(state)).toBe(TILE_SILENT_RETRY_MAX);
+
+    const first = spendTileFailureDecision(state, "retry-source");
+    expect(first.effect).toBe("reload-source");
+    state = first.state;
+    // A second sample while the first is still waiting out its backoff must
+    // not stack a second reload on top of it.
+    expect(spendTileFailureDecision(state, "retry-source").effect).toBe("none");
+
+    state = markSilentTileRetrySpent(state);
+    expect(silentTileRetriesLeft(state)).toBe(TILE_SILENT_RETRY_MAX - 1);
+    state = markSilentTileRetrySpent(
+      spendTileFailureDecision(state, "retry-source").state,
+    );
+    expect(silentTileRetriesLeft(state)).toBe(0);
+    expect(spendTileFailureDecision(state, "retry-source").effect).toBe("none");
+    // The reader-visible lane is untouched by everything above.
+    expect(state.retrySpent).toBe(false);
+    expect(spendTileFailureDecision(state, "retry").effect).toBe("reload-style");
+  });
+
+  it("gives an abandoned queued reload its place back", () => {
+    const queued = spendTileFailureDecision(
+      INITIAL_TILE_FAILURE_SPEND,
+      "retry-source",
+    ).state;
+    const released = releaseQueuedSilentTileRetry(queued);
+    expect(released.silentSpent).toBe(0);
+    expect(spendTileFailureDecision(released, "retry-source").effect).toBe(
+      "reload-source",
+    );
+  });
+
+  it("hands the whole budget back once the basemap really painted", () => {
+    let state = INITIAL_TILE_FAILURE_SPEND;
+    for (let i = 0; i < TILE_SILENT_RETRY_MAX; i += 1) {
+      state = markSilentTileRetrySpent(
+        spendTileFailureDecision(state, "retry-source").state,
+      );
+    }
+    expect(silentTileRetriesLeft(state)).toBe(0);
+    expect(silentTileRetriesLeft(clearSilentTileRetries(state))).toBe(
+      TILE_SILENT_RETRY_MAX,
+    );
+  });
+
+  it("spends nothing at all once the reader has been told", () => {
+    const surfaced = markTileFailureSurfaced(INITIAL_TILE_FAILURE_SPEND);
+    expect(spendTileFailureDecision(surfaced, "retry-source").effect).toBe(
+      "none",
+    );
+  });
+});
+
+describe("basemapSourceReloadPlan", () => {
+  it("re-asks an explicit tile list by its own tiles", () => {
+    expect(
+      basemapSourceReloadPlan({
+        type: "raster",
+        tiles: ["https://tiles.example/{z}/{x}/{y}.png"],
+      }),
+    ).toEqual({
+      kind: "tiles",
+      tiles: ["https://tiles.example/{z}/{x}/{y}.png"],
+    });
+  });
+
+  it("re-asks a TileJSON source by its url, which is what production ships", () => {
+    expect(
+      basemapSourceReloadPlan({
+        type: "vector",
+        url: "https://tiles.openfreemap.org/planet",
+      }),
+    ).toEqual({ kind: "url", url: "https://tiles.openfreemap.org/planet" });
+  });
+
+  it("leaves every source that is not a tiled basemap alone", () => {
+    expect(
+      basemapSourceReloadPlan({ type: "geojson", data: { type: "FeatureCollection" } }),
+    ).toBeNull();
+    expect(basemapSourceReloadPlan({ type: "vector" })).toBeNull();
+    expect(basemapSourceReloadPlan({ type: "raster", tiles: [] })).toBeNull();
+    expect(basemapSourceReloadPlan(undefined)).toBeNull();
+    expect(basemapSourceReloadPlan("openfreemap")).toBeNull();
+  });
+});
+
+describe("createBasemapTileFailureTracker counts", () => {
+  it("counts only the tiles that failed and have not since loaded", () => {
+    const tracker = createBasemapTileFailureTracker();
+    expect(tracker.count()).toBe(0);
+    tracker.recordFailure({ sourceId: "base", sourceType: "raster", tileKey: "a" });
+    tracker.recordFailure({ sourceId: "base", sourceType: "raster", tileKey: "b" });
+    expect(tracker.count()).toBe(2);
+    tracker.recordSuccess({ sourceId: "base", sourceType: "raster", tileKey: "a" });
+    expect(tracker.count()).toBe(1);
+    tracker.reset();
+    expect(tracker.count()).toBe(0);
   });
 });
