@@ -259,6 +259,53 @@ test("mobile venue sheet tabs remain tappable and keep primary controls reachabl
   }
 });
 
+/**
+ * The peek price plaque on the Drinks tab (L05 of the contribution battle test,
+ * 5 September 2026, which read the plaque as cut at the top). The plaque is
+ * TILTED, so its painted box overhangs its own layout row in proportion to its
+ * width, and it used to stretch to the whole grid column: a £6.50 on a plate
+ * three times its size, leaning into the divider drawn above it.
+ */
+test("the peek price plaque hugs its figure and stays inside its own row", async ({
+  page,
+}) => {
+  const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
+  expect(response?.status()).toBe(200);
+  const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(portal).toBeVisible();
+  const plaque = portal.locator(".mobileVenuePeekSummary .priceBadge").first();
+  await expect(plaque).toBeVisible();
+
+  await expect(async () => {
+    await portal.locator("#venueTab-menu").click();
+    await expect(portal.locator("#venuePanel-menu")).toBeVisible({ timeout: 1_500 });
+  }).toPass({ timeout: 20_000 });
+
+  const geometry = await plaque.evaluate((element) => {
+    const cell = element.parentElement as HTMLElement;
+    const scroller = element.closest(".mobileSharedSheetBody") as HTMLElement | null;
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    const box = element.getBoundingClientRect();
+    const figure = range.getBoundingClientRect();
+    const cellBox = cell.getBoundingClientRect();
+    const scrollerBox = scroller?.getBoundingClientRect();
+    return {
+      width: box.width,
+      figureWidth: figure.width,
+      paintedAboveRow: cellBox.top - box.top,
+      clearanceUnderHeader: scrollerBox ? box.top - scrollerBox.top : null,
+    };
+  });
+
+  // The plate is the figure plus the plaque's own padding, never the column.
+  expect(geometry.width).toBeLessThan(geometry.figureWidth * 2.2);
+  // The tilt still leans, but by less than a pixel and a half, so the plaque
+  // cannot reach the hairline the peek row draws above it.
+  expect(geometry.paintedAboveRow).toBeLessThan(1.5);
+  expect(geometry.clearanceUnderHeader ?? 0).toBeGreaterThan(4);
+});
+
 test("a real 390px touch swipe reaches the final Venue tab", async ({ page }) => {
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
   expect(response?.status()).toBe(200);
