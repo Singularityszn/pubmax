@@ -67,6 +67,7 @@ vi.mock("@/lib/adminAuth", async (importOriginal) => {
 
 import { GET, POST } from "@/app/api/venue-photos/route";
 import { __setVenuePhotoRouteDepsForTest } from "@/lib/venuePhotoRouteDeps.server";
+import { CONTRIBUTION_UNDER_18_REFUSAL } from "@/lib/contributionGateStatus";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import {
   __resetMemoryProfiles,
@@ -239,8 +240,27 @@ describe("posting a photo to a wall", () => {
     const storage = deps("approved");
     const response = await POST(upload(await jpeg()));
     expect(response.status).toBe(403);
-    expect((await response.json()).code).toBe("ADULT_REQUIRED");
+    const body = await response.json();
+    expect(body.code).toBe("ADULT_REQUIRED");
+    // ONE RULE, ONE EXCEPTION (review finding F-6). This door and the price
+    // door choose their age refusal in ONE place, so an account whose stored
+    // date of birth says under 18 gets the SAME answer from both, and the
+    // sentence names the answer on file rather than offering a tap that would
+    // not be honoured.
+    expect(body.status).toBe("adult_check_failed");
+    expect(body.error).toBe(CONTRIBUTION_UNDER_18_REFUSAL);
     // No scan was paid for.
+    expect(storage.uploads).toHaveLength(0);
+  });
+
+  it("offers the age tap only to an account that has answered neither way", async () => {
+    dobState.dateOfBirth = null;
+    const storage = deps("approved");
+    const response = await POST(upload(await jpeg()));
+    expect(response.status).toBe(403);
+    const body = await response.json();
+    expect(body.status).toBe("adult_check_required");
+    expect(body.error).toMatch(/Confirm your age/);
     expect(storage.uploads).toHaveLength(0);
   });
 

@@ -31,6 +31,10 @@ import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { boundedFormData } from "@/lib/boundedRequest.server";
+import {
+  contributionAdultRefusal,
+  type ContributionAdultRefusal,
+} from "@/lib/contributionGateStatus";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { log } from "@/lib/log";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
@@ -39,6 +43,7 @@ import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import {
   accountIsAdult,
   isSocialFriendsLaunchEnabled,
+  needsAdultSelfAssertion,
   SOCIAL_FRIENDS_LAUNCH_ENV,
   socialSurfaceName,
 } from "@/lib/socialLaunch";
@@ -109,6 +114,20 @@ async function parseUpload(
   } catch {
     return null;
   }
+}
+
+/**
+ * The wall's own wording for the age refusal the shared chooser picked. Only
+ * the tap branch names a surface to tap on: the under-18 branch has no way
+ * through, so it spends the shared sentence unchanged rather than inviting a
+ * confirmation the stored answer would refuse.
+ */
+function wallAgeRefusalLine(refusal: ContributionAdultRefusal): string {
+  if (refusal.status !== "adult_check_required") return refusal.error;
+  const surface = socialSurfaceName(
+    isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV]),
+  );
+  return `Photo walls are for over-18s. Confirm your age on ${surface}.`;
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -190,15 +209,22 @@ export async function POST(request: Request): Promise<Response> {
   // gate: a stored adult date of birth, or the recorded one-tap assertion. The
   // handle came from the session above; the age is re-checked here rather than
   // trusted from any earlier surface.
-  let adult = false;
+  let adultRefusal: ContributionAdultRefusal | null = null;
   try {
     const [identity, assertedAt] = await Promise.all([
       privateIdentityStore().read(contributor.accountId),
       adultSelfAssertionStore().read(contributor.accountId),
     ]);
-    adult = accountIsAdult({
+    // The SAME two questions the price door asks, chosen in the same place, so
+    // one product cannot answer the alcohol-age question two ways and a reader
+    // is never offered a tap their own stored date of birth would refuse.
+    const evidence = {
       dateOfBirth: identity?.dateOfBirth ?? null,
       adultSelfAssertedAt: assertedAt,
+    };
+    adultRefusal = contributionAdultRefusal({
+      isAdult: accountIsAdult(evidence),
+      needsSelfAssertion: needsAdultSelfAssertion(evidence),
     });
   } catch {
     return publicApiError(
@@ -208,14 +234,12 @@ export async function POST(request: Request): Promise<Response> {
       { retryable: true },
     );
   }
-  if (!adult) {
-    const surface = socialSurfaceName(
-      isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV]),
-    );
+  if (adultRefusal) {
     return publicApiError(
-      `Photo walls are for over-18s. Confirm your age on ${surface}, or add your date of birth to your account.`,
+      wallAgeRefusalLine(adultRefusal),
       "ADULT_REQUIRED",
       403,
+      { compatibilityFields: { status: adultRefusal.status } },
     );
   }
 

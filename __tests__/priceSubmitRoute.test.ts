@@ -148,6 +148,7 @@ import {
   syncTrustAfterPriceWrite,
 } from "@/lib/priceTrustImpact.server";
 import { COMMUNITY_PRICE_MAX_GBP, submitCategoryLabel } from "@/lib/communityPrice";
+import { CONTRIBUTION_UNDER_18_REFUSAL } from "@/lib/contributionGateStatus";
 import {
   __resetMemoryAdultSelfAssertions,
   memoryAdultSelfAssertionStore,
@@ -582,7 +583,11 @@ describe("POST /api/price-submit", () => {
     expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(0);
   });
 
-  it("requires completed onboarding but allows contributions at any age", async () => {
+  // ONE RULE, ONE EXCEPTION (5 Sep 2026, review finding F-6). A missing handle
+  // and an under-18 stored date of birth are two different refusals, and the
+  // second one has no tap behind it, so it may never be worded as an age check
+  // the reader can pass.
+  it("requires completed onboarding, and refuses an under-18 stored date of birth", async () => {
     authState.userId = "user-not-onboarded";
     let res = await POST(
       post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
@@ -594,7 +599,11 @@ describe("POST /api/price-submit", () => {
     res = await POST(
       post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
     );
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({
+      status: "adult_check_failed",
+      error: CONTRIBUTION_UNDER_18_REFUSAL,
+    });
     res = await POST(
       post({
         kind: "venue-signal",
@@ -602,6 +611,14 @@ describe("POST /api/price-submit", () => {
         signalKey: "character",
         signalValue: "rough",
       }),
+    );
+    expect(res.status).toBe(409);
+    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(0);
+
+    // An adult date of birth on the same door still lands.
+    await authorizeContributor("user-grown", "grown_person", "1990-02-03");
+    res = await POST(
+      post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
     );
     expect(res.status).toBe(201);
     expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(1);
