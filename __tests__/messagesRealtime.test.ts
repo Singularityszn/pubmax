@@ -43,7 +43,12 @@ function realtimeFixture(options?: { removeChannel?: (channel: unknown) => void 
   };
   const removeChannel = vi.fn(options?.removeChannel ?? (() => {}));
   const client = {
-    channel: vi.fn((_topic: string, _options?: { config?: { private?: boolean } }) => channel),
+    // Typed by its CALL SIGNATURE rather than its parameters: the topic and the
+    // channel config are both part of what the subscriber promises, and the
+    // assertions read them off `mock.calls`.
+    channel: vi.fn<(topic: string, options?: { config?: { private?: boolean } }) => typeof channel>(
+      () => channel,
+    ),
     removeChannel,
   };
   return {
