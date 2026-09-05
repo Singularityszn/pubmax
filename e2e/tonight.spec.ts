@@ -322,6 +322,111 @@ function playhouseEvent(now = Date.now()) {
   };
 }
 
+/**
+ * The Ticketmaster supply as production really serves it, measured 5 Sep 2026:
+ * `GET /api/whats-on?window=tonight` answered 37 rows, all Ticketmaster
+ * `kind: "event"`, and `GET /api/out?city=london` answered 52, of which 15
+ * were Ticketmaster `kind: "music"` with one on the white-label partner host
+ * universe.com. Every row here carries a venueId, so the pub-surface filter
+ * admits them and `tonightPrimaryRows` is the only thing that can refuse them.
+ */
+function ticketmasterOnlyRows(now = Date.now()) {
+  const startsAt = new Date(now + 2 * 60 * 60_000).toISOString();
+  const observedAt = new Date(now - 60_000).toISOString();
+  const base = { startsAt, observedAt, confidence: "listed" as const };
+  return [
+    {
+      ...base,
+      id: "events-tm-playhouse",
+      venueId: "venue-soho-theatre",
+      placeName: "Soho Theatre",
+      kind: "event",
+      title: "A Night at the Playhouse",
+      source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/1" },
+    },
+    {
+      // kind "music" on a partner host: neither the kind rule nor the host
+      // rule refuses this row, only its source label does.
+      ...base,
+      id: "events-tm-bpoom3",
+      venueId: "venue-outernet",
+      placeName: "Outernet Live",
+      kind: "music",
+      title: "Day Fever - London",
+      source: {
+        label: "Ticketmaster",
+        url: "https://www.universe.com/events/day-fever-london-tickets-J3Q985?ref=ticketmaster",
+      },
+    },
+    {
+      ...base,
+      id: "events-tm-sport-1",
+      venueId: "venue-the-o2",
+      placeName: "The O2",
+      kind: "sport",
+      title: "Boxing at the arena",
+      source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/2" },
+    },
+  ];
+}
+
+test("leads with the quiet-night sentence when the whole feed is Ticketmaster", async ({
+  page,
+}) => {
+  const rows = ticketmasterOnlyRows();
+  await page.route("**/api/whats-on?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        rows,
+        asOf: "2026-09-05T12:00:00.000Z",
+        sourceObservedAt: "2026-09-05T12:00:00.000Z",
+        sourceFreshnessKind: "dataset-generated",
+      }),
+    }),
+  );
+  await page.route("**/api/out?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "ready",
+        listingsStatus: "ready",
+        events: rows,
+        openPlans: [],
+        attribution: [],
+        observedAt: {},
+        providers: [
+          { name: "ticketmaster", configured: true, rows: rows.length, status: "ready" },
+        ],
+      }),
+    }),
+  );
+
+  await page.goto("/tonight");
+  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+
+  // Both lanes answered, and both carried nothing a pub surface may lead with.
+  await expect(page.getByTestId("tonight-screen")).toHaveAttribute(
+    "data-listings-status",
+    "empty",
+  );
+  await expect(page.getByText(/having a quiet one tonight/i)).toBeVisible();
+  await expect(page.locator('[data-tonight-provenance="whats-on"]')).toHaveText(
+    /^Quiet night · /,
+  );
+
+  // No Ticketmaster title reaches the first screen, whatever kind it arrived as.
+  for (const title of [
+    "A Night at the Playhouse",
+    "Day Fever - London",
+    "Boxing at the arena",
+  ]) {
+    await expect(page.getByRole("heading", { name: title })).toHaveCount(0);
+  }
+});
+
 test("does not promote Out theatre rows when What's-On answered empty", async ({ page }) => {
   const event = playhouseEvent();
   await page.route("**/api/whats-on?**", (route) =>
