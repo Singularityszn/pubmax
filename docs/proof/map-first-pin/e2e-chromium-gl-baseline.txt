@@ -1,0 +1,38 @@
+chromium-gl on this box, WITH and WITHOUT the change. --workers=1, same build path.
+
+== WITHOUT the change (components/PubMap.tsx, PubMapCanvas.tsx and
+   useUkBaseStreaming.ts reverted to the commit before it) ==
+    1) [chromium-gl] › e2e/map-deep-link-pin.spec.ts:98:5 › a deep-linked pin lands in the map strip above the phone sheet
+    2) [chromium-gl] › e2e/map-gestures.spec.ts:281:5 › two fingers turn the map, and it holds the bearing they left
+    3) [chromium-gl] › e2e/map-gestures.spec.ts:317:5 › two fingers tilt the map, and the pins stay on the ground
+    4) [chromium-gl] › e2e/map-gestures.spec.ts:372:5 › one compass, and it gives back the view the city opens on
+    5) [chromium-gl] › e2e/map-gl.spec.ts:115:5 › /map phone handoff contains real price clusters before loading retires
+    6) [chromium-gl] › e2e/map-uk-base-layer.spec.ts:37:5 › normal London entry paints UK base pubs and takes a price
+    7) [chromium-gl] › e2e/map-uk-base-layer.spec.ts:149:5 › a fresh national overview stays below the UK base gate and fetches no data
+    7 failed
+    18 did not run
+
+== WITH the change ==
+    1) [chromium-gl] › e2e/map-deep-link-pin.spec.ts:98:5 › a deep-linked pin lands in the map strip above the phone sheet
+    2) [chromium-gl] › e2e/map-gestures.spec.ts:281:5 › two fingers turn the map, and it holds the bearing they left
+    3) [chromium-gl] › e2e/map-gestures.spec.ts:372:5 › one compass, and it gives back the view the city opens on
+    4) [chromium-gl] › e2e/map-gl.spec.ts:151:5 › three-stop invite handoff fits the mobile map canvas
+    5) [chromium-gl] › e2e/map-uk-base-layer.spec.ts:37:5 › normal London entry paints UK base pubs and takes a price
+    6) [chromium-gl] › e2e/map-uk-base-layer.spec.ts:149:5 › a fresh national overview stays below the UK base gate and fetches no data
+    6 failed
+    17 did not run
+    2 passed (10.2m)
+
+The chromium-gl project does not pass on this box either way, and it fails the
+same way in both arms: under SwiftShader on a loaded box the canvas misses the
+shell's readiness ceiling, the shell takes its honest fallback, and
+`.mapCanvasWrap` and `.maplibreMap canvas` never mount at all. Both runs stop at
+their own failure cap, which is why map-gl reports a different case in each and
+why 17 to 18 tests never ran. The same seven tests are the ones that fail
+WITHOUT the change, so nothing here is attributable to it. The chromium project
+(no GL requirement) passed 51 of 51 with the change on the same build.
+
+An honest reading of this file: it does NOT show the map e2e green. It shows the
+GL project failing identically before and after, on a box that cannot render
+one, and the non-GL project green. A GPU box is what would answer the question
+properly.

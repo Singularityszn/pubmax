@@ -59,6 +59,14 @@ type Options = {
    * emptied and nothing is fetched, so the view costs no payload either.
    */
   suspended?: boolean;
+  /**
+   * Until the priced pins have painted, the wire belongs to them
+   * (lib/mapFirstPinStreams.ts). HELD is not SUSPENDED: a suspended layer is
+   * emptied and answers `suspended`, because a view has taken the map away
+   * from it; a held one has simply not been asked for yet, keeps its `loading`
+   * answer, and streams the moment the pins are on screen.
+   */
+  held?: boolean;
   scopeKey?: string;
   /**
    * A restored `?sel=venue-uk-*` arrival's id. Resolved cold (hint shard or
@@ -213,6 +221,7 @@ export function useUkBaseStreaming({
   drawableVenueIds,
   provisionalVenueIds = null,
   suspended = false,
+  held = false,
   scopeKey = "",
   restoreId = null,
   restoreHint = null,
@@ -337,6 +346,12 @@ export function useUkBaseStreaming({
         publish([], suspended ? "suspended" : "zoom_required");
         return;
       }
+      // A HELD lane still answers the camera, because that answer costs no
+      // fetch and is true: below the gate is `zoom_required` whether the pins
+      // have painted or not. Past the gate it stays `loading` and asks for
+      // nothing until the hold ends, when this effect re-runs and streams the
+      // camera the reader has by then.
+      if (held) return;
       setPublished((current) => ({
         ...current,
         scopeKey,
@@ -389,7 +404,7 @@ export function useUkBaseStreaming({
       map.off("moveend", schedule);
       map.off("zoomend", schedule);
     };
-  }, [mapReady, mapRef, publish, scopeKey, suspended, ukBaseDataRef]);
+  }, [held, mapReady, mapRef, publish, scopeKey, suspended, ukBaseDataRef]);
 
   // Suspension answers zero the moment it is set, ahead of the debounce that
   // empties the source, so the list beside the map never outlives the pins.

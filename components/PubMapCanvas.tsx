@@ -312,6 +312,13 @@ type PubMapCanvasProps = {
    */
   poisPath?: string | null;
   /**
+   * Until the pins have painted, the wire belongs to the pins
+   * (lib/mapFirstPinStreams.ts). PubMap owns the answer; the canvas spends it
+   * on the two lanes it owns, the UK base stream and the ambient POI read.
+   * Defaults to false so nothing that does not pass it is held.
+   */
+  secondaryStreamsHeld?: boolean;
+  /**
    * Optional transit GeoJSON path from CityConfig.transitLinesPath. `null`
    * skips TfL tube-line layers. Omit / undefined keeps London TfL default.
    */
@@ -508,6 +515,7 @@ export default function PubMapCanvas({
   resumeViewport = null,
   maxBounds = UK_BOUNDS,
   poisPath = LONDON_POIS_PATH,
+  secondaryStreamsHeld = false,
   transitLinesPath = "/data/tfl_lines.json",
   cityLandmarks = [],
   cityStoryBands = [],
@@ -1259,6 +1267,7 @@ export default function PubMapCanvas({
         // high-performance context under load but grant the integrated GPU.
         ...(lowPower ? { canvasContextAttributes: { powerPreference: "low-power" } } : {}),
       });
+      markPubmaxTiming("pubmax:map-constructed");
       // MapLibre creates a forced-compact attribution control in its expanded
       // state. Start with the native info affordance closed; later taps still
       // use MapLibre's own disclosure and keep every credit readable.
@@ -1705,6 +1714,21 @@ export default function PubMapCanvas({
       markBasemapRecovered();
     };
     map.on("sourcedata", onBasemapTileLoaded);
+    // The moment the venue rows are paintable: the pubs GeoJSON has been
+    // clustered by the worker and every tile in view has come back. It is the
+    // first of the pin gates the reveal coordinator waits on, so the sweep can
+    // read the engine's share of the first-pin window apart from the reveal's.
+    let pubsSourceLoadedMarked = false;
+    const onPubsSourceLoaded = (event: unknown) => {
+      if (pubsSourceLoadedMarked) return;
+      const dataEvent = event as { sourceId?: unknown; isSourceLoaded?: unknown };
+      if (dataEvent.sourceId !== "pubs" || !dataEvent.isSourceLoaded) return;
+      if (!venueDataReadyRef.current) return;
+      pubsSourceLoadedMarked = true;
+      map.off("sourcedata", onPubsSourceLoaded);
+      markPubmaxTiming("pubmax:pubs-source-loaded");
+    };
+    map.on("sourcedata", onPubsSourceLoaded);
 
     const pinRevealCoordinator = createPinRevealCoordinator({
       pinRevealTimeoutMs: PIN_REVEAL_TIMEOUT_MS,
@@ -1719,6 +1743,7 @@ export default function PubMapCanvas({
       confirmVisibleFrameBeforeReveal: phoneFirstImpression,
       visibleFrameHoldMs: phoneFirstImpression ? PHONE_PIN_COMPOSITE_HOLD_MS : 0,
       setPinsVisible: (visible) => {
+        if (visible) markPubmaxTiming("pubmax:pins-visible");
         for (const id of PUB_PIN_LAYERS) {
           if (map.getLayer(id)) {
             map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
@@ -1789,6 +1814,7 @@ export default function PubMapCanvas({
       // Keep the app-owned guard for teardown and app-owned setStyle windows.
       if (!styleStructureReadyRef.current) return;
       const generation = styleGeneration;
+      markPubmaxTiming("pubmax:map-style-load");
 
       // Wave K2: style.load already flipped `styleLoaded`, so the tile hard-fail
       // timer will never fire. Any throw below must still lift the parent
@@ -1809,6 +1835,7 @@ export default function PubMapCanvas({
           try {
             buildSceneBody(generation);
             settleSceneReady();
+            markPubmaxTiming("pubmax:map-scene-built");
             // Audit F5: one present after the scene graph builds, so a settled
             // style never waits on user input for its first frame.
             map.triggerRepaint();
@@ -2963,6 +2990,7 @@ export default function PubMapCanvas({
       map.off("render", markBasemapRecovered);
       map.off("idle", markBasemapRecovered);
       map.off("sourcedata", onBasemapTileLoaded);
+      map.off("sourcedata", onPubsSourceLoaded);
       themeObserver.disconnect();
       reducedQuery.removeEventListener("change", onReducedChange);
       window.removeEventListener("blur", onBlur);
@@ -3100,6 +3128,10 @@ export default function PubMapCanvas({
     // A non-null lensPrices map is the one signal that an experience view owns
     // the map, the same one the curated pins read below.
     suspended: lensPrices !== null,
+    // HELD is not SUSPENDED: a suspended layer is emptied and answers so, while
+    // a held one has simply not been asked for yet and starts the moment the
+    // priced pins are on screen.
+    held: secondaryStreamsHeld,
     scopeKey: cityId,
     restoreId: ukBaseRestore?.id ?? null,
     onRestorePub: handleRestoredBasePub,
@@ -3200,6 +3232,9 @@ export default function PubMapCanvas({
   // POIs load once (client fetch) and feed the "pois" source.
   // Non-London cities pass poisPath=null → empty layer, no 404.
   useEffect(() => {
+    // Ambient garnish under the priced pins, and 190 KB of it: it waits until
+    // the pins have painted (lib/mapFirstPinStreams.ts).
+    if (secondaryStreamsHeld) return;
     let cancelled = false;
     loadPoisFromPath(poisPath)
       .then((pois) => {
@@ -3218,7 +3253,7 @@ export default function PubMapCanvas({
     return () => {
       cancelled = true;
     };
-  }, [mapReady, applyToMap, poisPath]);
+  }, [mapReady, applyToMap, poisPath, secondaryStreamsHeld]);
 
   // POI category toggles → live layer filters + tube-line visibility.
   // Structural readiness only: existing layers accept filter and layout writes
