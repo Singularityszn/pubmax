@@ -48,13 +48,14 @@
     transform var(--duration-fast) var(--ease-out);
 }
 
-/* Priced zones ARE price data — they read as engraved brass plaques (amber),
-   never a coral price-alert. The number carries the meaning; the plaque is the
-   pub's own heritage metal. */
+/* Priced zones ARE price data, so a cell wears the price BAND of its median
+   (lib/priceBand.ts): red expensive, yellow average, green cheap. The band
+   class family in app/globals.css sets the three variables; a cell with no
+   band would fall to the neutral badge, never the old brass. */
 .zonePintCell.isPriced {
-  border-color: var(--price-plaque-border);
-  background: var(--price-plaque-surface);
-  color: var(--accent-price-ink);
+  border-color: var(--price-band-border, var(--badge-border));
+  background: var(--price-band-surface, var(--badge-surface));
+  color: var(--price-band-ink, var(--badge-ink));
   box-shadow: var(--price-plaque-shine);
 }
 

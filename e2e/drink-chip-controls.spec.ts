@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { priceBandLegendLabel } from "../lib/priceBand";
+
 const VIEWPORT = { width: 390, height: 844 };
 const CHIP_LABELS = ["Beer", "Wine", "Cocktails", "Whisky", "Gin", "Rum", "Coffee", "Alcohol-free", "Soft drinks"];
 
@@ -88,9 +90,9 @@ for (const viewport of [
       "Pint prices and other venue price bands",
     );
     await expect(rows).toHaveText([
-      "££5.50 or less; low for its venue type",
-      "££Over £5.50, up to £7; middle for its venue type",
-      "£££Over £7; high for its venue type",
+      `£${priceBandLegendLabel("cheap")}; low for its venue type`,
+      `££${priceBandLegendLabel("average")}; middle for its venue type`,
+      `£££${priceBandLegendLabel("expensive")}; high for its venue type`,
       "?No pint price on the map",
     ]);
 

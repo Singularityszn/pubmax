@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { ExternalLink, MapPin, Sparkles } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -182,7 +183,14 @@ export default function UnverifiedPubSheet({
             <span>
               <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
             </span>
-            <PriceBadge variant="current">
+            <PriceBadge
+              variant="current"
+              band={
+                communityPrice.drinkCategory === "beer"
+                  ? priceBand(communityPrice.priceGbp, priceBandAreaForVenue(pub.id))
+                  : null
+              }
+            >
               {formatPrice(communityPrice.priceGbp)}
             </PriceBadge>
             <small className="communityPriceStamp">

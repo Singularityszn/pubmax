@@ -1,4 +1,5 @@
 import { createElement } from "react";
+import { priceBandLegendLabel } from "@/lib/priceBand";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -39,9 +40,9 @@ describe("MapKey", () => {
   );
 
   it("pairs every colour band with a symbol and visible price text", () => {
-    expect(html).toContain("£5.50 or less");
-    expect(html).toContain("Over £5.50, up to £7");
-    expect(html).toContain("Over £7");
+    expect(html).toContain(priceBandLegendLabel("cheap"));
+    expect(html).toContain(priceBandLegendLabel("average"));
+    expect(html).toContain(priceBandLegendLabel("expensive"));
     expect(html).toContain("No pint price on the map");
     expect(html).toContain("mapKeyPriceCode");
     expect(html).toContain("Your approximate location");

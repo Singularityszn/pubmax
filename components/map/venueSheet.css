@@ -790,7 +790,8 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   padding-inline: 0;
   border-inline: 0;
   border-radius: 0;
-  border-color: color-mix(in srgb, var(--pint) 34%, var(--line));
+  /* A hairline, never a green: the figure inside carries its own band. */
+  border-color: var(--line);
   background: transparent;
   box-shadow: none;
 }

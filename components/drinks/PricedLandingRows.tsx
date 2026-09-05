@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 
 import PriceBadge from "@/components/PriceBadge";
 import { formatObservedDate } from "@/lib/dataFreshness";
@@ -105,7 +106,11 @@ export default function PricedLandingRows({
                 </Link>
               ) : null}
             </div>
-            <PriceBadge variant="current" className="drinkBrandDirectory__price">
+            <PriceBadge
+              variant="current"
+              className="drinkBrandDirectory__price"
+              band={priceBand(row.priceGbp, priceBandAreaForVenue(row.venueId))}
+            >
               {formatPrice(row.priceGbp)}
             </PriceBadge>
           </li>

@@ -1,6 +1,7 @@
 "use client";
 
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
+import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
 import { ClaimBadge } from "@/components/map/venueInspectorBits";
 import PriceBadge from "@/components/PriceBadge";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
@@ -87,6 +88,11 @@ export default function VenueDrinkPrices({
 }) {
   const ordered = orderVenueDrinkPrices(rows, activeLane);
   const [lead, ...rest] = ordered;
+  // A beer figure wears its price BAND (lib/priceBand.ts); the pint terciles
+  // say nothing about a wine or a cocktail, so every other row stays in ink.
+  const bandArea = priceBandAreaForVenue(venueId);
+  const beerBand = (category: string, priceGbp: number) =>
+    category === "beer" ? priceBand(priceGbp, bandArea) : null;
   const laneRow = ordered.find((row) => row.inActiveLane) ?? null;
   // The empty statement is the shared helper's, so a read that failed or one
   // still running can never settle as "nobody has logged this here".
@@ -116,7 +122,7 @@ export default function VenueDrinkPrices({
           <span className={priceRevealMotionClass || undefined}>
             <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
           </span>
-          <PriceBadge variant="current">
+          <PriceBadge variant="current" band={beerBand(lead.category, lead.price.priceGbp)}>
             {formatPrice(lead.price.priceGbp)}
           </PriceBadge>
           <small
@@ -169,7 +175,9 @@ export default function VenueDrinkPrices({
             return (
               <li key={`${venueId}-${row.category}`} className="venueDrinkPriceRow">
                 <span className="venueDrinkPriceTag">{row.label}</span>
-                <span className="venueDrinkPriceFigure">
+                <span
+                  className={`venueDrinkPriceFigure ${priceBandClass(beerBand(row.category, row.price.priceGbp))}`.trim()}
+                >
                   {formatPrice(row.price.priceGbp)}
                 </span>
                 <span className="venueDrinkPriceStamp">

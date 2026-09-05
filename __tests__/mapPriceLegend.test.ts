@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { priceBandLegendLabel } from "@/lib/priceBand";
 
 import {
   drinkLensPriceNoun,
@@ -50,9 +51,9 @@ describe("mapPriceLegend", () => {
       renderedState: ALL_RENDERED_STATE,
     });
     expect(legend.rows.map((row) => row.label)).toEqual([
-      "£5.50 or less",
-      "Over £5.50, up to £7",
-      "Over £7",
+      priceBandLegendLabel("cheap"),
+      priceBandLegendLabel("average"),
+      priceBandLegendLabel("expensive"),
       "No pint price on the map",
     ]);
     expect(legend.rows.map((row) => row.symbol)).toEqual([
@@ -79,9 +80,9 @@ describe("mapPriceLegend", () => {
       },
     });
     expect(legend.rows.map((row) => row.label)).toEqual([
-      "£5.50 or less; low for its venue type",
-      "Over £5.50, up to £7; middle for its venue type",
-      "Over £7; high for its venue type",
+      `${priceBandLegendLabel("cheap")}; low for its venue type`,
+      `${priceBandLegendLabel("average")}; middle for its venue type`,
+      `${priceBandLegendLabel("expensive")}; high for its venue type`,
       "No pint or venue price on the map",
     ]);
     expect(legend.ariaLabel).toContain("other venue types");
@@ -139,9 +140,9 @@ describe("mapPriceLegend", () => {
       renderedState: ALL_RENDERED_STATE,
     });
     expect(legend.rows.map((row) => row.label)).toEqual([
-      "£5.50 or less",
-      "Over £5.50, up to £7",
-      "Over £7",
+      priceBandLegendLabel("cheap"),
+      priceBandLegendLabel("average"),
+      priceBandLegendLabel("expensive"),
       "No whisky price on the map",
     ]);
     expect(legend.ariaLabel).toContain("Whisky price");
@@ -264,7 +265,7 @@ describe("mapPriceLegend", () => {
       },
     ]);
     expect(legend.hint).toContain("sourced menu prices stay on venue cards");
-    expect(legend.hint).not.toContain("£5.50");
+    expect(legend.hint).not.toContain("£5.15");
     expect(legend.hint).not.toContain("trusted food prices");
     expect(legend.clusterNote).toBe(
       "Food clusters stay grey because food prices do not colour this map. The number is every venue in the cluster.",

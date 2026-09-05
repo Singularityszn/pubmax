@@ -7,6 +7,7 @@ import {
   isPubVenueKind,
   venueKindLabel,
 } from "@/lib/venueKindFilters";
+import type { PriceBand } from "@/lib/priceBand";
 import type { VenueKind } from "@/lib/venues";
 
 type ResolveMapLogIntentInput = {
@@ -31,6 +32,8 @@ export type LogNearbyCandidate = {
   kind?: VenueKind;
   typeLabel: string;
   priceLabel: string;
+  /** The price BAND the label's figure wears (lib/priceBand.ts), where one is known. */
+  priceBand?: PriceBand | null;
   anchor: CompactVenueAnchor | null;
   /** Straight-line km from origin when geo-sorted; omitted without a fix. */
   distanceKm?: number;

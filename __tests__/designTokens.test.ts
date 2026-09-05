@@ -41,6 +41,11 @@ export const LAUNCH_TOKENS = [
   "--pint", "--amber", "--brick", "--river",
   "--color-positive", "--color-caution", "--color-negative", "--color-info",
   "--accent-price", "--accent-price-ink",
+  // Price band (lib/priceBand.ts): the hue paints a fill, the ink reads as text.
+  "--price-band-cheap", "--price-band-average", "--price-band-expensive",
+  "--price-band-cheap-ink", "--price-band-average-ink", "--price-band-expensive-ink",
+  // Set on the element by the .priceBand-* class family; read by badge, figure and pill.
+  "--price-band-hue", "--price-band-ink", "--price-band-surface", "--price-band-border",
   "--badge-surface", "--badge-border", "--badge-ink",
   "--state-active-surface", "--state-active-border", "--state-active-ink",
   // Type.

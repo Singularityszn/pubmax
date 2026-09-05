@@ -15,6 +15,7 @@ import {
   priceStandingFor,
   priceStandingLabel,
 } from "@/lib/priceTier";
+import { priceBand, priceBandClass } from "@/lib/priceBand";
 import { formatTrustDay, trustPillLabel } from "@/lib/trustPill";
 
 // The four launch primitives (issue #1354): Kicker, TrustPill, EmptyState,
@@ -113,12 +114,19 @@ describe("TrustPill", () => {
     }
   });
 
-  it("wears a different tone per standing, so the four never read alike", () => {
-    const tones = [confirmed, listed, estimate, nothing].map(
-      (decision) => /data-tone="(\w+)"/.exec(render(decision))?.[1],
-    );
-    expect(tones).toEqual(["green", "amber", "modelled", "grey"]);
-    expect(new Set(tones).size).toBe(4);
+  it("wears the price BAND of its figure and never a tone per standing", () => {
+    // Captain's law 2026-09-05: colour on a price is the band (lib/priceBand.ts).
+    // A standing is a word; the same standing over a cheap and a dear figure
+    // wears two colours, and no figure wears none.
+    for (const decision of [confirmed, listed, estimate, nothing]) {
+      expect(render(decision)).not.toMatch(/data-tone=|trustPill-(green|amber|modelled|grey)/);
+    }
+    const bandOf = (html: string) => /data-price-band="(\w+)"/.exec(html)?.[1] ?? null;
+    expect(bandOf(render(nothing))).toBeNull();
+    expect(bandOf(render(listed))).toBe(priceBand(listed.priceGbp));
+    expect(bandOf(render(confirmed))).toBe(priceBand(confirmed.priceGbp));
+    expect(bandOf(render(estimate))).toBe(priceBand(estimate.priceGbp));
+    expect(render(listed)).toContain(`trustPill ${priceBandClass(priceBand(listed.priceGbp))}`);
   });
 
   it("formats the day in London time as the pill prints it", () => {

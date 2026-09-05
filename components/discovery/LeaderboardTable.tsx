@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 
 import PriceBadge from "@/components/PriceBadge";
 import prefetchVenue from "@/lib/prefetchVenue";
@@ -80,7 +81,12 @@ export default function LeaderboardTable({
                 </th>
                 <td className="leaderboardArea">{entry.area}</td>
                 <td className="leaderboardPriceHead">
-                  <PriceBadge variant="cheap">{formatPrice(entry.venue.cheapestPrice)}</PriceBadge>
+                  <PriceBadge
+                    variant="cheap"
+                    band={priceBand(entry.venue.cheapestPrice, priceBandAreaForVenue(entry.venue.id))}
+                  >
+                    {formatPrice(entry.venue.cheapestPrice)}
+                  </PriceBadge>
                 </td>
               </tr>
             );

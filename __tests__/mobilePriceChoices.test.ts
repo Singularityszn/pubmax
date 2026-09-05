@@ -1,4 +1,5 @@
 import { createElement } from "react";
+import { priceBandLegendLabel } from "@/lib/priceBand";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -27,13 +28,13 @@ describe("MobilePriceChoices", () => {
 
     expect(html).toContain(expectedKey);
     expect(legend.rows.map((row) => row.label)).toEqual([
-      "£5.50 or less",
+      priceBandLegendLabel("cheap"),
       "No pint price on the map",
     ]);
     for (const row of legend.rows) {
       expect(html).toContain(row.label);
     }
-    expect(html).not.toContain("Over £5.50, up to £7");
+    expect(html).not.toContain(priceBandLegendLabel("average"));
     expect(html).not.toContain("mobilePriceBandLegend");
   });
 });

@@ -20,6 +20,7 @@ import {
   type DrinkCategory,
 } from "@/lib/drinks";
 import { DAY_MS } from "@/lib/dayMs";
+import { priceBandBucket, type PriceBandArea } from "@/lib/priceBand";
 import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
 
 /**
@@ -448,18 +449,16 @@ export function freshestPintPrice(
 }
 
 /**
- * The pin/pin-band bucket a pint price falls into: 0 = cheap (<=£5.50),
- * 1 = mid (<=£7), 2 = dear, 3 = unknown (no price). Lives here (not in the
- * map canvas) because the OG city-map card's server-only band counter
- * (lib/ogCityPriceBands.server.ts) needs the exact same thresholds the pin
- * paints with; components/map/canvas/geojson.ts re-exports it for the pin
- * drawing code and its existing tests.
+ * The pin/pin-band bucket a pint price falls into: 0 = cheap, 1 = average,
+ * 2 = expensive, 3 = unknown (no price). The thresholds are lib/priceBand.ts's
+ * city terciles (London: cheap up to £5.15, average up to £6.15), no longer a
+ * typed £5.50 and £7. Kept under this name here because the OG city-map card's
+ * server-only band counter (lib/ogCityPriceBands.server.ts) and the pin share
+ * it; components/map/canvas/geojson.ts re-exports it for the pin drawing code
+ * and its existing tests.
  */
-export function priceBucket(price: number | null): number {
-  if (price === null) return 3;
-  if (price <= 5.5) return 0;
-  if (price <= 7) return 1;
-  return 2;
+export function priceBucket(price: number | null, area?: PriceBandArea): number {
+  return priceBandBucket(price, area);
 }
 
 /**

@@ -74,12 +74,24 @@ hairlines for structure (see "Edges: the de-box rule").
 `--brass-accessible` is the login primary alone. A Screen paints exactly one
 control with `--accent-action`; nothing else on that screen wears it.
 
-**Status and price.** `--pint` (`--color-positive`, a confirmed price),
-`--amber` (`--color-caution`, a price the pub or its chain published), `--brick`
-(`--color-negative`), `--river` (`--color-info`). Prices read as brass plaques
-through `--accent-price` and `--accent-price-ink`. Counts and metadata take the
-neutral `--badge-surface`, `--badge-border`, `--badge-ink`. "You are here" is
-`--state-active-surface`, `--state-active-border`, `--state-active-ink`.
+**Status and price.** `--pint` (`--color-positive`), `--amber`
+(`--color-caution`), `--brick` (`--color-negative`), `--river` (`--color-info`).
+A PRICE wears its band and nothing else (captain's law 2026-09-05,
+`lib/priceBand.ts`, `docs/PRICE_BANDS.md`): `--price-band-cheap` (green),
+`--price-band-average` (yellow) and `--price-band-expensive` (red) paint a
+fill, and `--price-band-cheap-ink`, `--price-band-average-ink` and
+`--price-band-expensive-ink` are the same hues deepened to read as text at
+4.5:1 on the page and the card in both themes. They are applied through the
+`.priceBand-cheap`, `.priceBand-average` and `.priceBand-expensive` class
+family alone, which sets `--price-band-hue`, `--price-band-ink`,
+`--price-band-surface` and `--price-band-border` on the element. A price with
+no band, and every price that is not a pint, stays neutral on `--badge-surface`,
+`--badge-border`, `--badge-ink`. Trust (confirmed, listed, estimated, logged
+once, aged) is a word, a badge or a pin shape, never a tone: no surface may
+colour a standing. `--accent-price` and `--accent-price-ink` remain the brass
+plaque for non-price metal (the zone strip's frame, a history row) and are not
+a price colour. Counts and metadata take the neutral badge trio. "You are here"
+is `--state-active-surface`, `--state-active-border`, `--state-active-ink`.
 
 **Type.** Three faces: `--font-display`, `--font-body`, `--font-data`. Nine
 sizes: `--text-2xs`, `--text-xs`, `--text-sm`, `--text-base`, `--text-md`,

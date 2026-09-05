@@ -407,6 +407,7 @@ describe("the phone peek chip over a lone Pint Drop", () => {
   it("prints the drinker's figure rather than an absence", () => {
     expect(peekChipFor([drop()])).toEqual({
       figure: "£4.50",
+      priceGbp: 4.5,
       caption: PROVISIONAL_PRICE_LINE,
       observed: true,
       trust: "logged-once",
@@ -420,6 +421,7 @@ describe("the phone peek chip over a lone Pint Drop", () => {
       peekChipFor([drop({ createdAt: new Date(NOW - 90 * DAY_MS).toISOString() })]),
     ).toEqual({
       figure: "£4.50",
+      priceGbp: 4.5,
       caption: AGED_PRICE_LINE,
       observed: true,
       trust: "aged-out",
@@ -429,6 +431,7 @@ describe("the phone peek chip over a lone Pint Drop", () => {
   it("keeps the baseline chip it always printed", () => {
     expect(peekChipFor([], venue({ cheapestPrice: 6.2 }))).toEqual({
       figure: "£6.20",
+      priceGbp: 6.2,
       caption: "current recorded price",
       observed: true,
       trust: null,

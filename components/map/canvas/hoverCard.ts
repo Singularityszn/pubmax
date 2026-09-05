@@ -1,4 +1,5 @@
 import { COMMUNITY_PROVISIONAL_SHORT_NOTE } from "@/lib/communityPrice";
+import { priceBand, priceBandAreaForVenue, priceBandClass, type PriceBand } from "@/lib/priceBand";
 import { formatFreshness, formatObservedAt, type Venue } from "@/lib/venues";
 import { proxiedVenueImageUrl } from "@/lib/venueImages";
 import type { PricedVenue } from "@/lib/priceUpdates";
@@ -56,9 +57,33 @@ export type HoverPriceLine = {
   provenance: string;
 };
 
+/** The band a beer lens figure wears; a wine or a cocktail is not measured against pint terciles. */
+function lensBandFor(lensPrice: MapLensPrice): PriceBand | null {
+  return lensPrice.category === "beer"
+    ? priceBand(lensPrice.priceGbp, priceBandAreaForVenue(lensPrice.venueId))
+    : null;
+}
+
+/** The band a pub's pint figure wears, read in the pub's own city. */
+function pintBandFor(
+  price: number | null,
+  mapVenue: Venue | undefined,
+  hoverDetail: Venue | null | undefined,
+): PriceBand | null {
+  const venueId = hoverDetail?.id ?? mapVenue?.id;
+  return priceBand(price, priceBandAreaForVenue(venueId));
+}
+
+/** The class the hover card's figure wears, or nothing for an unbanded one. */
+export function hoverPriceBandClass(copy: Pick<HoverCardCopy, "priceBand">): string | undefined {
+  return priceBandClass(copy.priceBand) || undefined;
+}
+
 export type HoverCardCopy = {
   venueTypeLabel: string;
   price: number | null;
+  /** The price BAND the figure wears (lib/priceBand.ts); null for a non-pint figure. */
+  priceBand: PriceBand | null;
   priceSuffix: string;
   provenance: string;
   detailLabel: string;
@@ -129,6 +154,7 @@ export function hoverCardCopy(
       return {
         venueTypeLabel,
         price: null,
+        priceBand: null,
         priceSuffix: noun ? `for ${noun}` : "for this view",
         provenance: noun
           ? drinkLensUnknownSentence(noun, lensStatus)
@@ -152,6 +178,7 @@ export function hoverCardCopy(
     return {
       venueTypeLabel,
       price: experiencePrice.priceGbp,
+      priceBand: lensBandFor(experiencePrice),
       priceSuffix: experiencePrice.categoryLabel,
       provenance,
       detailLabel: isPubVenueKind(kind) ? "pub detail" : "venue detail",
@@ -163,6 +190,7 @@ export function hoverCardCopy(
     return {
       venueTypeLabel,
       price: line.price,
+      priceBand: pintBandFor(line.price, mapVenue, hoverDetail),
       priceSuffix: "cheapest pint",
       provenance: line.provenance,
       detailLabel: "pub detail",
@@ -188,6 +216,8 @@ export function hoverCardCopy(
   return {
     venueTypeLabel,
     price,
+    // An anchor is a cocktail or a course, never a pint, so it wears no band.
+    priceBand: null,
     priceSuffix:
       anchorLabel ??
       (kind === "bar" ? "cocktail anchor" : "large doner anchor"),

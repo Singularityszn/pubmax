@@ -1,12 +1,11 @@
-/* Trust pill (components/ui/trust-pill.tsx): green confirmed, amber listed,
-   blue modelled, grey none. Launch tokens only. A pill is a stamp, so it keeps
-   a fill; the fill is a tint of the status hue on the raised surface so the ink
-   stays readable in both themes.
-
-   The modelled tone deliberately takes the informational hue rather than a
-   second warm one: an estimate is a statement about our own working, not a
-   warning about the pub, and it must not read as confidently as the amber a
-   publisher earned. */
+/* Trust pill (components/ui/trust-pill.tsx). The WORD says how far to trust
+   the figure; the COLOUR says what the figure costs (lib/priceBand.ts): red
+   expensive, yellow average, green cheap, ink when there is no figure. The
+   pill used to wear a tone per standing (green confirmed, amber listed, blue
+   modelled) and a reader saw a green "Confirmed" over a dear pint; captain's
+   law 2026-09-05 moved every price colour onto the band. Launch tokens only.
+   A pill is a stamp, so it keeps a fill; the fill is a tint of the band hue
+   on the raised surface so the ink stays readable in both themes. */
 
 .trustPill {
   display: inline-flex;
@@ -32,31 +31,20 @@
   background: var(--color-text-muted);
 }
 
-.trustPill-green {
-  background: color-mix(in srgb, var(--color-positive) 14%, var(--color-surface-raised));
-  color: color-mix(in srgb, var(--color-positive) 60%, var(--color-text));
+/* A banded pill reads the band's own hue and ink off the class family in
+   app/globals.css; the dot echoes the hue for a reader who cannot read the
+   tint. Unbanded (no figure) stays the neutral badge above. */
+.trustPill.priceBand-cheap,
+.trustPill.priceBand-average,
+.trustPill.priceBand-expensive {
+  background: var(--price-band-surface);
+  color: var(--price-band-ink);
 }
 
-.trustPill-green .trustPillDot {
-  background: var(--color-positive);
-}
-
-.trustPill-amber {
-  background: color-mix(in srgb, var(--color-caution) 18%, var(--color-surface-raised));
-  color: color-mix(in srgb, var(--color-caution) 45%, var(--color-text));
-}
-
-.trustPill-amber .trustPillDot {
-  background: var(--color-caution);
-}
-
-.trustPill-modelled {
-  background: color-mix(in srgb, var(--color-info) 14%, var(--color-surface-raised));
-  color: color-mix(in srgb, var(--color-info) 55%, var(--color-text));
-}
-
-.trustPill-modelled .trustPillDot {
-  background: var(--color-info);
+.trustPill.priceBand-cheap .trustPillDot,
+.trustPill.priceBand-average .trustPillDot,
+.trustPill.priceBand-expensive .trustPillDot {
+  background: var(--price-band-hue);
 }
 
 /* The figure the standing is worth. A price caption never ellipses: the meaning

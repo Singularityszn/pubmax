@@ -1,5 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
+// The collection day is derived from the freshness registry, never typed.
+import { NEAR_PRICE_TRUST_COLLECTED_AT } from "../lib/nearPriceTrust";
+
 test.setTimeout(60_000);
 
 function watchErrors(page: Page): string[] {
@@ -52,7 +55,7 @@ test("Near shows prices before bounded publisher evidence on mobile", async ({ p
   releaseTrust();
   await expect(page.locator(".nmnCardTrust")).toHaveCount(5);
   await expect(page.locator(".nmnPriceCollected")).toHaveText(
-    "Prices last collected 3 July 2026.",
+    NEAR_PRICE_TRUST_COLLECTED_AT,
   );
 
   expect(trustRequests).toHaveLength(1);
@@ -87,7 +90,7 @@ test("Near keeps trust layout usable in dark desktop mode", async ({ page }) => 
   await expect(page.locator(".nmnCard")).toHaveCount(5);
   await expect(page.locator(".nmnCardTrust")).toHaveCount(5);
   await expect(page.locator(".nmnPriceCollected")).toHaveText(
-    "Prices last collected 3 July 2026.",
+    NEAR_PRICE_TRUST_COLLECTED_AT,
   );
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440);
   expect(errors).toEqual([]);

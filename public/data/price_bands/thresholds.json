@@ -1,0 +1,30 @@
+{
+  "rule": "terciles",
+  "minSample": 30,
+  "all": {
+    "cheapMaxGbp": 5.15,
+    "averageMaxGbp": 6.15,
+    "sampleSize": 952
+  },
+  "cities": {
+    "london": {
+      "cheapMaxGbp": 5.15,
+      "averageMaxGbp": 6.15,
+      "sampleSize": 952
+    }
+  },
+  "sampleSizes": {
+    "bath": 0,
+    "birmingham": 0,
+    "bristol": 0,
+    "cambridge": 0,
+    "durham": 0,
+    "glasgow": 0,
+    "leeds": 0,
+    "liverpool": 0,
+    "llandudno": 0,
+    "london": 952,
+    "manchester": 0,
+    "oxford": 0
+  }
+}

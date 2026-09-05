@@ -96,6 +96,7 @@ import {
   clusterEntranceProgress,
 } from "@/components/map/canvas/filters";
 import {
+  hoverPriceBandClass,
   HOVER_CARD_VIEWPORT_GUTTER_PX, HOVER_CARD_WIDTH_PX, HOVER_CARD_HEIGHT_PX,
   HOVER_CARD_MIN_TOP_PX, HOVER_CARD_X_OFFSET_PX, HOVER_CARD_Y_OFFSET_PX,
   withBoundedHoverDetailCache, hoverCardCopy, hoverImageUrlFor,
@@ -3985,9 +3986,17 @@ export default function PubMapCanvas({
             <strong>{hoverDetail?.name ?? hoveredVenue.name}</strong>
             <span className="venueHoverMeta">
               {hoverDetail?.primaryBorough ? `${hoverDetail.primaryBorough} · ` : ""}
-              {hoverCopy.price !== null && hoverCopy.price !== undefined
-                ? `${formatPrice(hoverCopy.price)} ${hoverCopy.priceSuffix}`
-                : `Tap for full ${hoverCopy.detailLabel}`}
+              {hoverCopy.price !== null && hoverCopy.price !== undefined ? (
+                <>
+                  {/* The figure wears its price band (lib/priceBand.ts). */}
+                  <span className={hoverPriceBandClass(hoverCopy)}>
+                    {formatPrice(hoverCopy.price)}
+                  </span>{" "}
+                  {hoverCopy.priceSuffix}
+                </>
+              ) : (
+                `Tap for full ${hoverCopy.detailLabel}`
+              )}
             </span>
             <span className="venueHoverProvenance">{hoverCopy.provenance}</span>
             {/* The badge on the pin, said in words. Its dot is the same colour

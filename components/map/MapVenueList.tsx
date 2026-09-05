@@ -208,6 +208,7 @@ export default function MapVenueList({
                             <CompactVenuePrice
                               priceLabel={row.priceLabel}
                               anchor={row.anchor}
+                              band={row.priceBand ?? null}
                               className="mapVenueListCompactPrice"
                               provenanceClassName="mapVenueListPriceProvenance"
                             />

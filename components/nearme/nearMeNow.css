@@ -269,11 +269,10 @@
   flex: none;
 }
 
-.nmnCardPriceValue {
-  font-family: var(--font-data);
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--pint);
+/* A PriceBadge plaque: its ink, fill and border are the band's own
+   (lib/priceBand.ts), so only the size is set here. */
+.nmnCardPrice .nmnCardPriceValue {
+  font-size: 0.95rem;
 }
 
 .nmnPriceCollected {

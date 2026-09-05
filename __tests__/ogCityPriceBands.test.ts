@@ -10,7 +10,7 @@ const now = Date.parse("2026-08-07T20:00:00.000Z");
 
 const venues: OgCityPriceBandVenue[] = [
   { id: "cheap-pub", kind: "pub", cheapestPrice: 4.5 }, // priceBucket → 0
-  { id: "mid-pub", kind: "pub", cheapestPrice: 6.2 }, // priceBucket → 1
+  { id: "mid-pub", kind: "pub", cheapestPrice: 5.8 }, // priceBucket → 1 (London middle third)
   { id: "dear-pub", kind: "pub", cheapestPrice: 9.0 }, // priceBucket → 2
   { id: "famous-bar", kind: "bar", cheapestPrice: 4.0 }, // non-pub anchor, never counted
   { id: "unpriced-pub", kind: "pub", cheapestPrice: null }, // no figure, excluded

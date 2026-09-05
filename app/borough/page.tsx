@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { priceBand } from "@/lib/priceBand";
 import Link from "next/link";
 
 import { formatPrice } from "@/lib/venues";
@@ -86,7 +87,7 @@ export default async function BoroughIndexPage() {
                     ) : (
                       <>
                         from{" "}
-                        <PriceBadge variant="current">
+                        <PriceBadge variant="current" band={priceBand(borough.cheapestGbp, { city: "london" })}>
                           {formatPrice(borough.cheapestGbp)}
                         </PriceBadge>
                       </>

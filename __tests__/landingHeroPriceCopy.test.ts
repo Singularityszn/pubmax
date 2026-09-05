@@ -61,11 +61,21 @@ describe("landing answer card copy", () => {
     expect(html).toContain('href="/map?sel=venue-test"');
   });
 
-  it("wears the standing lib/priceTier.ts decided, in words", () => {
-    expect(html).toMatch(/<span class="lpStanding lpStanding-amber" data-standing="listed" title="[^"]+"><span class="lpStandingDot" aria-hidden="true"><\/span>Listed<\/span>/);
+  it("wears the standing lib/priceTier.ts decided, in words and in no tone", () => {
+    // The chip carries the standing as a WORD. Colour on this card belongs to
+    // the price band alone (captain's law 2026-09-05), so the chip's class
+    // list is exactly `lpStanding` and the figure's badge wears the band.
+    expect(html).toMatch(/<span class="lpStanding" data-standing="listed" title="[^"]+"><span class="lpStandingDot" aria-hidden="true"><\/span>Listed<\/span>/);
+    expect(html).not.toMatch(/lpStanding-(green|amber|grey|modelled)/);
     expect(html).not.toContain("Confirmed");
     const none = render({ standing: "none" });
-    expect(none).toMatch(/lpStanding-grey" data-standing="none"[^>]*>[\s\S]*?No price yet<\/span>/);
+    expect(none).toMatch(/<span class="lpStanding" data-standing="none"[^>]*>[\s\S]*?No price yet<\/span>/);
+  });
+
+  it("paints the figure with its price band, red for a £6.50 London pint", () => {
+    expect(html).toMatch(/class="priceBadge priceBadge--current priceBand-expensive[^"]*"[^>]*>£6\.50</);
+    const cheap = render({ priceGbp: 4.2 });
+    expect(cheap).toMatch(/priceBand-cheap[^"]*"[^>]*>£4\.20</);
   });
 
   it("prints the archive line with its month and its source day", () => {
