@@ -22,6 +22,7 @@ import {
 } from "@/components/social/SocialViewerState";
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
+import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/adultGate";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
@@ -33,7 +34,6 @@ import { normalizeHandle } from "@/lib/profiles";
 import { relativeTime } from "@/lib/relativeTime";
 import type { SocialAccessState } from "@/lib/socialAccess";
 import {
-  ADULT_SELF_ASSERTION_ACTION,
   adultSelfAssertionLine,
   socialBoundaryCopy,
   socialInviteMessage,

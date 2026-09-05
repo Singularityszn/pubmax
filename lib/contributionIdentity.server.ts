@@ -10,7 +10,7 @@ import {
 import { identityHandleStore } from "@/lib/identityHandleStore";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import { profileStore } from "@/lib/profileStore";
-import { accountIsAdult, needsAdultSelfAssertion } from "@/lib/socialLaunch";
+import { accountIsAdult, needsAdultSelfAssertion } from "@/lib/adultGate";
 
 // The vocabulary is a pure leaf so the browser can read it too; every name is
 // re-exported here, because this module is the one a reader reaches for.

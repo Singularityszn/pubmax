@@ -27,6 +27,7 @@
 
 import { assertServerEnv } from "@/lib/serverEnv";
 import { isModerator } from "@/lib/adminAuth";
+import { accountIsAdult } from "@/lib/adultGate";
 import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -41,7 +42,6 @@ import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import {
-  accountIsAdult,
   isSocialFriendsLaunchEnabled,
   needsAdultSelfAssertion,
   SOCIAL_FRIENDS_LAUNCH_ENV,
