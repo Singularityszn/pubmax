@@ -1,10 +1,18 @@
 // @vitest-environment jsdom
 
+// Two rules about the route a member is looking at.
+//
 // F-32 THE PREVIEW ASK IS LATCHED. `loadingPreview` is rendered state, so it
 // lags the click that set it, and two taps in one task both POSTed
 // /api/plans/generate; on an anchored plan both then reached
 // `writePendingRoute`. This is the shape M03 already fixed on the save path.
 //
+// F-30 A FRESHER CANONICAL IS ADOPTED. `PlanSummaryMember` seeded its route
+// from props once, so the second member read #1521 was written to add - the one
+// the capability landing fires - was dropped on the floor: a route another
+// device had just saved arrived in `state` and never reached the screen, and
+// the editor then PATCHed with a stale `expectedRouteRevision`.
+
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -151,5 +159,72 @@ describe("the route preview ask", () => {
     });
 
     expect(generate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("a fresher canonical route", () => {
+  it("replaces the seeded stops when a later member read carries a newer revision", async () => {
+    let planBody: unknown = memberState(["The George", "The Swan", "The Crown"], 1);
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse(planBody))));
+
+    await mountWithMemberRead(null);
+    expect(renderedStops()).toEqual(["The George", "The Swan", "The Crown"]);
+
+    // The capability lands, which is what fires read 2 (#1521), and the route
+    // another device saved in between comes back with a newer revision.
+    planBody = memberState(["The George", "The Lamb", "The Crown"], 2);
+    capability.token = "member-token-rotated";
+    await act(async () => {
+      window.dispatchEvent(new Event(`pubmax:plan-capability:${PLAN}`));
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(renderedStops()).toEqual(["The George", "The Lamb", "The Crown"]);
+  });
+
+  it("leaves an open editor's draft alone while a later read lands", async () => {
+    let planBody: unknown = memberState(["The George", "The Swan", "The Crown"], 1);
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/plans/generate")) {
+        return Promise.resolve(jsonResponse({
+          stops: [
+            { venueId: "v-the-george", venueName: "The George" },
+            { venueId: "v-the-swan", venueName: "The Swan" },
+            { venueId: "v-the-crown", venueName: "The Crown" },
+          ],
+          alternatives: [[], [{ venueId: "v-the-bell", venueName: "The Bell" }], []],
+        }));
+      }
+      return Promise.resolve(jsonResponse(planBody));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await mountWithMemberRead(null);
+    await act(async () => {
+      editControl().click();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.querySelector(".planSummary__editor")).not.toBeNull();
+
+    planBody = memberState(["The George", "The Lamb", "The Crown"], 2);
+    capability.token = "member-token-rotated";
+    await act(async () => {
+      window.dispatchEvent(new Event(`pubmax:plan-capability:${PLAN}`));
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // The editor is still the reader's own working copy.
+    expect(container.querySelector(".planSummary__editor")).not.toBeNull();
   });
 });

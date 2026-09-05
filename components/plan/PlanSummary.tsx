@@ -30,6 +30,7 @@ import {
   ROUTE_CONFLICT_RESEEDED_LINE,
   ROUTE_CONFLICT_UNREAD_LINE,
   ROUTE_SAVED_LINE,
+  routeRevisionsMatch,
   routeSaveOutcome,
   seedRouteDraft,
 } from "@/lib/planRouteEditor";
@@ -424,6 +425,42 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
   // Exactly one line under the editor at a time: a status when something
   // landed, an error when it did not.
   const [notice, setNotice] = useState<RouteEditorNotice>(null);
+
+  // F-30: a member read that lands AFTER the mount is the read #1521 was
+  // written to add, and its route was dropped on the floor, because the stops
+  // are seeded from props once. A route another device saved then never reached
+  // the screen, and the editor PATCHed with a stale `expectedRouteRevision`.
+  //
+  // A revision is not ORDERABLE (`RouteRevision` is a string or a number), so
+  // "fresher" is not a comparison: what is tracked is the revision of the last
+  // `state` prop this component adopted from. A read carrying a revision it has
+  // not adopted from is adopted; a save that moved `savedRevision` past the
+  // prop can never be reverted by it, because the prop did not change.
+  //
+  // It adjusts state DURING RENDER rather than in an effect, which is React's
+  // own answer for state derived from a prop: an effect here would be a
+  // cascading render, and the rules in this repo refuse one. Nothing outside
+  // React is touched - the stale draft is cleared by the effect above, which
+  // already re-reads `livePendingRoute` against the revision this moves.
+  //
+  // The editor is the reader's own working copy, so an open editor is left
+  // alone.
+  const incomingRevision = routeRevisionFromPlanState(state);
+  const [adoptedFromRevision, setAdoptedFromRevision] = useState<RouteRevision | null>(incomingRevision);
+  if (
+    !editing
+    && incomingRevision !== null
+    && !routeRevisionsMatch(incomingRevision, adoptedFromRevision)
+  ) {
+    setAdoptedFromRevision(incomingRevision);
+    if (!routeRevisionsMatch(incomingRevision, savedRevision)) {
+      setSavedRevision(incomingRevision);
+      setCanonicalStops(initialStops);
+      setLocalStops(initialStops);
+      setLocalAuthority(null);
+    }
+  }
+
   const announce = (text: string) => setNotice({ tone: "status", text });
   const refuse = (text: string) => setNotice({ tone: "error", text });
   const draftStops = pending?.stops ?? localStops;
