@@ -50,6 +50,9 @@ import {
 
 import "./moment.css";
 
+/** How long the saved receipt stays on screen before the page returns. */
+export const MOMENT_SAVED_RECEIPT_MS = 1600;
+
 const GUEST_OWNER = "guest";
 
 const MomentImageEditor = dynamic(() => import("./MomentImageEditor"), {
@@ -481,7 +484,10 @@ export default function MomentCapture(): React.JSX.Element {
     setSaveState("saved");
     setMessage("Moment saved privately. You decide if it becomes a Story.");
     trackEvent("night_moment_saved", { kind: draft.media.length ? "photo" : draft.kind, visibility: "private" });
-    router.replace(returnTo);
+    // The receipt is the live region above the fields. Leaving on the same
+    // tick unmounted it before a reader or a screen reader met it (battle
+    // test L09), so the way back waits one beat for the line to land.
+    window.setTimeout(() => router.replace(returnTo), MOMENT_SAVED_RECEIPT_MS);
   }
 
   return (
