@@ -45,7 +45,7 @@ import {
 const MapLayersControl = dynamic(() => import("@/components/map/MapLayersControl"), {
   ssr: false,
 });
-import LandmarkPhotoCredit from "@/components/LandmarkPhotoCredit";
+import LandmarkHeroPhoto from "@/components/LandmarkHeroPhoto";
 import MapHeroCard from "@/components/map/MapHeroCard";
 import type { CityId } from "@/lib/cities";
 import { cityMaxBounds, DEFAULT_CITY_ID, getCity } from "@/lib/cities";
@@ -3867,19 +3867,12 @@ export default function PubMapCanvas({
       {activeLandmark ? (
         <aside className="landmarkCard" aria-label={`${activeLandmark.name} history`}>
           {activeLandmark.image ? (
-            <figure className="landmarkPhoto">
-              {/* Plain <img> (not next/image): a remote Wikimedia URL loaded
-                  lazily, so no remotePatterns config and no layout cost until the
-                  card opens. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={activeLandmark.image.url}
-                alt={activeLandmark.name}
-                loading="lazy"
-                decoding="async"
-              />
-              <LandmarkPhotoCredit image={activeLandmark.image} />
-            </figure>
+            <LandmarkHeroPhoto
+              key={activeLandmark.id}
+              image={activeLandmark.image}
+              name={activeLandmark.name}
+              className="landmarkPhoto"
+            />
           ) : null}
           <div className="landmarkCardHead">
             <LandmarkIcon size={15} />

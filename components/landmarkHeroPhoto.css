@@ -1,0 +1,13 @@
+/* The landmark photo's stand-in (components/LandmarkHeroPhoto.tsx).
+   The caller's figure class carries the box and the corner radius; this only
+   paints the field a missing photo leaves behind: the brass the map draws its
+   landmark pins in, at a whisper, with the same glyph centred in it. No border,
+   because it is a surface and not an input (docs/DESIGN_SYSTEM.md, de-box). */
+.landmarkHeroFallback {
+  display: grid;
+  place-items: center;
+  min-height: 148px;
+  aspect-ratio: 5 / 3;
+  background: color-mix(in srgb, var(--brass) 12%, var(--paper));
+  color: var(--brass);
+}
