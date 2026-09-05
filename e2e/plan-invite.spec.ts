@@ -290,7 +290,7 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
   expect(removedSession.active).toBe(false);
 
   await guestPage.goBack();
-  await expect(guestPage).toHaveURL(new RegExp(`/invite/${inviteToken}$`));
+  await expect(guestPage).toHaveURL(new RegExp(`/invite/${token}$`));
   await guestPage.getByRole("button", { name: "Going", exact: true }).click();
   await guestPage.getByRole("button", { name: "RSVP", exact: true }).click();
   await expect(guestPage.locator(".inviteRsvp__guest", { hasText: "Priya" })).toBeVisible();
