@@ -141,6 +141,10 @@ async function openVenueSheet(page: Page) {
   return venueSheet;
 }
 
+// Two page loads of the map plus a sheet, a composer and a re-read: the
+// default 30 s is spent on a loaded box before the assertions get their turn.
+test.setTimeout(90_000);
+
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
@@ -163,7 +167,9 @@ test("a second drinker confirms £4.50 and the Overview flips from logged-once t
   const sheet = await openVenueSheet(page);
 
   // The logged-once state, as production prints it, and its one door.
-  await expect(sheet.getByText(LOGGED_ONCE_LINE)).toBeVisible({ timeout: 20_000 });
+  // The peek chip prints the same line, so the Overview's own is the one asked.
+  const loggedOnce = sheet.locator(".communityPriceStanding", { hasText: LOGGED_ONCE_LINE });
+  await expect(loggedOnce).toBeVisible({ timeout: 20_000 });
   const door = sheet.getByTestId("confirm-pint-cta");
   await expect(door).toBeVisible();
   await expect(door).toHaveText("Still £4.50?");
@@ -195,8 +201,10 @@ test("a second drinker confirms £4.50 and the Overview flips from logged-once t
 
   // Back on the Overview the pub reads Confirmed, and the logged-once line is gone.
   await sheet.getByRole("tab", { name: "Overview" }).click();
-  await expect(sheet.getByText(/^Confirmed/)).toBeVisible({ timeout: 15_000 });
-  await expect(sheet.getByText(LOGGED_ONCE_LINE)).toHaveCount(0);
+  const pill = sheet.locator('[data-standing="confirmed"]');
+  await expect(pill).toBeVisible({ timeout: 15_000 });
+  await expect(pill).toContainText("Confirmed");
+  await expect(loggedOnce).toHaveCount(0);
   await expect(sheet.getByTestId("confirm-pint-cta")).toHaveCount(0);
 });
 
