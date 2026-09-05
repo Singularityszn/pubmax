@@ -105,6 +105,22 @@ export const CLUSTER_STROKE_OPACITY = 1;
 // to roughly the disc footprint makes the whole marker reserve its space.
 export const CLUSTER_COLLISION_PADDING = 10;
 
+/**
+ * The ink a pin's price tag prints in. Brass plaque ink for every sayable
+ * figure, and the CONFIRMED ink where the feature carries a `confirmed`
+ * standing (lib/pintTrust.ts through geojson.ts), so the pin says in one
+ * colour what the sheet's trust pill says in words. The band and the rim are
+ * untouched: a standing rides the TAG by law (AGENTS.md, price standings).
+ */
+export function pinPriceTagInkExpr(tokens: Tokens): maplibregl.ExpressionSpecification {
+  return [
+    "case",
+    ["==", ["get", "standing"], "confirmed"],
+    tokens.priceConfirmedInk,
+    tokens.pricePlaqueInk,
+  ];
+}
+
 // The provisional-report badge: the small dot that rides at a pin's upper right
 // when someone has logged tonight's pint price there and it is still one report
 // short of moving the map (components/map/communityPriceSignals.ts).
@@ -1085,7 +1101,7 @@ export function buildPubs(ctx: SceneCtx) {
       // Same brass-plaque ink, surface, and press tilt as PriceBadge. The halo
       // is MapLibre's compact plaque surface, preserving collision behaviour
       // without introducing a second free-floating layer.
-      "text-color": tokens.pricePlaqueInk,
+      "text-color": pinPriceTagInkExpr(tokens),
       "text-halo-color": tokens.pricePlaqueSurface,
       "text-halo-width": 2.1,
       "text-halo-blur": 0.2,
@@ -1137,7 +1153,7 @@ export function buildPubs(ctx: SceneCtx) {
     },
     paint: {
       "icon-opacity": 1,
-      "text-color": tokens.pricePlaqueInk,
+      "text-color": pinPriceTagInkExpr(tokens),
       "text-halo-color": tokens.pricePlaqueSurface,
       "text-halo-width": 2.1,
       "text-halo-blur": 0.2,

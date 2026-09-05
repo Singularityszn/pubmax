@@ -1,0 +1,262 @@
+// THE ONE trust-state derivation for a pub's Pint Drop lane.
+//
+// Captain's cut for v0 (5 Sept 2026, Fable51Fix section 1): the trust story
+// must read one way everywhere. Before this module the pins, the Overview
+// chip, the phone peek and the near-you rows each asked two or three of the
+// drop lanes in lib/venues.ts for themselves and stitched an answer, so one
+// surface could word an absence over a drop another surface was printing. Now
+// every surface asks THIS module for the state and reads its own words and
+// tone off the closed tables below.
+//
+// FIVE STATES, weakest last, and each is a READING at `now`, never a write.
+//
+//   confirmed     the server minted a confirmation and it is inside the window
+//                 lib/priceTier.ts owns (CONFIRMED_MAX_AGE_DAYS). Paints the
+//                 pin's band and figure, wears the confirmed ink on the tag,
+//                 prints the trust pill, may lead the cheapest-pint story.
+//   corroborated  no minted confirmation, but this browser can still prove two
+//                 independent in-window reports from the keys it was handed
+//                 (corroboratedPriceDrop). Same authority as `confirmed` on the
+//                 map, because it IS the same agreement; it only lacks the
+//                 record the server writes. Brass plaque ink, no pill.
+//   logged-once   one in-window public report (provisionalPriceDrop). Paints
+//                 the pin's provisional MARK and nothing else; the sheet prints
+//                 the figure, dated, with PROVISIONAL_PRICE_LINE.
+//   aged-out      every public priced report here is past the window
+//                 (agedPriceDrop), an expired confirmation included. Paints
+//                 NOTHING on the pin; the sheet still prints the figure, dated,
+//                 with AGED_PRICE_LINE, because the drop list below it prints
+//                 that same drop and "No price yet" above it would be untrue.
+//   none          no public priced report at all.
+//
+// A confirmation older than the window therefore drops back at read time: the
+// pair's drops are older than the confirmation, so the pub reads `aged-out`,
+// and nothing is deleted or rewritten to get there.
+//
+// This module DECIDES NOTHING OF ITS OWN. Each state is one of the four drop
+// lanes in lib/venues.ts asked in order, the window is lib/priceTier.ts's,
+// and the words are lib/venuePriceLane.ts's. It exists so the order and the
+// projection into a `VenueSignal` are written once.
+//
+// The Pint Index producer (lib/pintIndexFromConfirmations.ts) reads the SAME
+// `confirmationIsLive` this module reads `confirmed` through, so a pub the
+// Index cites and a pub this module calls confirmed are one set by
+// construction; __tests__/pintTrust.test.ts holds the two to each other.
+
+import type { ConfirmedPriceInput, PriceStanding } from "@/lib/priceTier";
+import {
+  AGED_PRICE_LINE,
+  PROVISIONAL_PRICE_LINE,
+  type ProvisionalPriceInput,
+  type VenuePriceLane,
+} from "@/lib/venuePriceLane";
+import {
+  agedPriceDrop,
+  confirmedPriceDrop,
+  corroboratedPriceDrop,
+  provisionalPriceDrop,
+  type SummaryDrop,
+} from "@/lib/venues";
+import type { PintDropConfirmation } from "@/lib/pintDropConfirmationRecord";
+
+/** The closed set, weakest last. A surface narrows FROM this list. */
+export const PINT_TRUST_STATES = [
+  "confirmed",
+  "corroborated",
+  "logged-once",
+  "aged-out",
+  "none",
+] as const;
+export type PintTrustState = (typeof PINT_TRUST_STATES)[number];
+
+/**
+ * What each state may PAINT on a pin. Named once so the pin, the tests and the
+ * PR body cannot drift apart about it.
+ *
+ *   authority  the band and the printed figure come from the drop, and the
+ *              tag wears the plaque ink (`confirmed` swaps the ink alone).
+ *   mark       the provisional badge and nothing else; band and figure stay
+ *              whatever the curated data says.
+ *   none       the drop lane paints nothing.
+ */
+export type PintTrustPinPaint = "authority" | "mark" | "none";
+export const PINT_TRUST_PIN_PAINT: Record<PintTrustState, PintTrustPinPaint> = {
+  confirmed: "authority",
+  corroborated: "authority",
+  "logged-once": "mark",
+  "aged-out": "none",
+  none: "none",
+};
+
+/**
+ * The one line each drop-lane state prints beside its figure, or null where
+ * the surface prints something richer (the trust pill on `confirmed`, the
+ * "Latest Pint Drop price" row on `corroborated`) or nothing (`none`).
+ */
+export const PINT_TRUST_LINE: Record<PintTrustState, string | null> = {
+  confirmed: null,
+  corroborated: null,
+  "logged-once": PROVISIONAL_PRICE_LINE,
+  "aged-out": AGED_PRICE_LINE,
+  none: null,
+};
+
+export type PintTrustReading<D extends SummaryDrop = SummaryDrop> = {
+  state: PintTrustState;
+  /** The drop the state is read over, or null on `none`. */
+  drop: D | null;
+  priceGbp: number | null;
+  /** Epoch ms the price was seen (the drop's own `createdAt`). */
+  observedAtMs: number | null;
+  /**
+   * What lib/priceTier.ts takes for its `confirmed` input. Present on
+   * `confirmed` alone: it carries the day the confirmation was minted, which is
+   * the day the trust pill prints.
+   */
+  confirmedPrice: ConfirmedPriceInput | null;
+};
+
+const NONE: PintTrustReading<never> = {
+  state: "none",
+  drop: null,
+  priceGbp: null,
+  observedAtMs: null,
+  confirmedPrice: null,
+};
+
+function epochOf(iso: string): number | null {
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/** THE reading. Four lanes asked in order, strongest first. */
+export function pintTrustFor<D extends SummaryDrop>(
+  drops: readonly D[],
+  now: number = Date.now(),
+): PintTrustReading<D> {
+  const confirmed = confirmedPriceDrop(drops, now);
+  if (confirmed) {
+    return {
+      state: "confirmed",
+      drop: confirmed,
+      priceGbp: confirmed.priceGbp as number,
+      observedAtMs: epochOf(confirmed.createdAt),
+      confirmedPrice: {
+        priceGbp: confirmed.priceGbp as number,
+        observedAt: (confirmed.confirmation as PintDropConfirmation).confirmedAt,
+      },
+    };
+  }
+  const corroborated = corroboratedPriceDrop(drops, now);
+  if (corroborated) {
+    return {
+      state: "corroborated",
+      drop: corroborated,
+      priceGbp: corroborated.priceGbp as number,
+      observedAtMs: epochOf(corroborated.createdAt),
+      confirmedPrice: null,
+    };
+  }
+  const provisional = provisionalPriceDrop(drops, now);
+  if (provisional) {
+    return {
+      state: "logged-once",
+      drop: provisional,
+      priceGbp: provisional.priceGbp as number,
+      observedAtMs: epochOf(provisional.createdAt),
+      confirmedPrice: null,
+    };
+  }
+  const aged = agedPriceDrop(drops, now);
+  if (aged) {
+    return {
+      state: "aged-out",
+      drop: aged,
+      priceGbp: aged.priceGbp as number,
+      observedAtMs: epochOf(aged.createdAt),
+      confirmedPrice: null,
+    };
+  }
+  return NONE;
+}
+
+/**
+ * The drop-lane fields of a `VenueSignal`, projected from ONE reading so the
+ * authority figure, the confirmation, the provisional figure and the aged
+ * figure can never be read over different drops.
+ */
+export type PintTrustSignalFields = {
+  pintTrust: PintTrustState;
+  latestContributorPrice: number | null;
+  latestContributorAt: number | null;
+  confirmedPrice: ConfirmedPriceInput | null;
+  provisionalContributorPrice: number | null;
+  provisionalContributorAt: number | null;
+  agedContributorPrice: number | null;
+  agedContributorAt: number | null;
+};
+
+export function pintTrustSignalFields(reading: PintTrustReading): PintTrustSignalFields {
+  const authority = PINT_TRUST_PIN_PAINT[reading.state] === "authority";
+  const loggedOnce = reading.state === "logged-once";
+  const aged = reading.state === "aged-out";
+  return {
+    pintTrust: reading.state,
+    latestContributorPrice: authority ? reading.priceGbp : null,
+    latestContributorAt: authority ? reading.observedAtMs : null,
+    confirmedPrice: reading.confirmedPrice,
+    provisionalContributorPrice: loggedOnce ? reading.priceGbp : null,
+    provisionalContributorAt: loggedOnce ? reading.observedAtMs : null,
+    agedContributorPrice: aged ? reading.priceGbp : null,
+    agedContributorAt: aged ? reading.observedAtMs : null,
+  };
+}
+
+/**
+ * A drop-lane figure and its day as `venuePriceLane` takes them, or null
+ * when the signal holds none. One helper so the sheet and the phone peek
+ * build the lane input the same way, and neither carries the branch.
+ */
+export function dropLaneInput(
+  priceGbp: number | null | undefined,
+  observedAtMs: number | null | undefined,
+): ProvisionalPriceInput | null {
+  return priceGbp != null ? { priceGbp, observedAt: observedAtMs ?? null } : null;
+}
+
+/**
+ * The standing a pin's price tag wears from the drop lane alone: `confirmed`
+ * when the reading is, else nothing. A pin knows no bundle, so this is the
+ * only standing the map can stamp for itself; a caller holding a full
+ * `PriceStandingDecision` passes that instead and this is not asked.
+ */
+export function pintTrustPinStanding(state: PintTrustState | null | undefined): PriceStanding | null {
+  return state === "confirmed" ? "confirmed" : null;
+}
+
+/**
+ * The trust state a rendered price lane is IN, for the `data-pint-trust`
+ * attribute the Overview chip and the phone peek carry. The two drop lanes
+ * name their state outright; the contributor lane is `confirmed` only when the
+ * standing lib/priceTier.ts decided says so, else `corroborated`. Every other
+ * lane is not a drop and answers null.
+ *
+ * That attribute is the hook the confirm action mounts against, so the two
+ * halves of the second-drinker loop can land in either order.
+ */
+export function trustChipStateFor(
+  lane: VenuePriceLane | null,
+  standing: PriceStanding,
+): PintTrustState | null {
+  if (!lane) return null;
+  switch (lane.lane) {
+    case "contributor":
+      return standing === "confirmed" ? "confirmed" : "corroborated";
+    case "provisional":
+      return "logged-once";
+    case "aged":
+      return "aged-out";
+    default:
+      return null;
+  }
+}

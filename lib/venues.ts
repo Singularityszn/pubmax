@@ -690,6 +690,44 @@ export function provisionalPriceDrop<D extends SummaryDrop>(
   return best;
 }
 
+// The freshest public priced organic drop that is PAST the window, or null.
+//
+// The third and weakest read of the drop lane, beside the two above. A report
+// older than the authority window is a record of a night rather than evidence
+// about tonight, so it reaches no band, no bucket, no pin figure and no pin
+// mark. What it still is, is a VISIBLE PUBLIC DROP: the sheet's own drop list
+// prints it, dated, and a price area that says "No price yet" above that list
+// is telling the reader two things about one pub (captain's cut, 5 Sept 2026:
+// that regression may never return). So the sheet keeps the figure, dated,
+// and words what it lacks (lib/venuePriceLane.ts, the `aged` lane).
+//
+// An AGED-OUT CONFIRMATION lands here too. A confirmation is never deleted for
+// being old; it simply stops answering (confirmationIsLive), and both drops of
+// its pair are older than it, so the pub reads as aged-out at read time and
+// nothing is written.
+//
+// Answers null while any in-window read is speaking, so one pub never offers
+// two figures. Ties keep the earlier (newest-first) drop, matching the store's
+// ordering.
+export function agedPriceDrop<D extends SummaryDrop>(
+  drops: readonly D[],
+  now: number = Date.now(),
+): D | null {
+  if (authoritativePriceDrop(drops, now) || provisionalPriceDrop(drops, now)) return null;
+  let best: D | null = null;
+  let bestAt = Number.NEGATIVE_INFINITY;
+  for (const drop of drops) {
+    if (drop.provenance === "demo") continue;
+    if (typeof drop.priceGbp !== "number" || !Number.isFinite(drop.priceGbp)) continue;
+    const at = Date.parse(drop.createdAt);
+    // A drop dated in the future is a bad row, not an old one.
+    if (!Number.isFinite(at) || at > now || at <= bestAt) continue;
+    best = drop;
+    bestAt = at;
+  }
+  return best;
+}
+
 // The venues whose drop lane holds an in-window pint report that has NOT
 // earned the map — the drop-side feeder for the provisional mark
 // (provisionalCommunityPriceVenueIds seam). VISIBILITY without AUTHORITY: a

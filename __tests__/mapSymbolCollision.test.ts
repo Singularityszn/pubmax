@@ -493,8 +493,17 @@ describe("priced-pin price tag (collides, and yields before the pin does)", () =
     // array, never a string. (Reading `text-color` off the LAYOUT object, as
     // an earlier version of this test did, asserts nothing: it is a paint
     // property, so that lookup is undefined no matter what the layer does.)
+    //
+    // The ONE data expression the ink may carry is a case over `standing`
+    // (lib/pintTrust.ts through geojson.ts): the confirmed ink where a pub's
+    // drop lane reads confirmed, the plaque ink everywhere else. Both of its
+    // branches are constants and neither reads the band.
     const pins = paint("pubs-point");
-    expect(typeof pins["text-color"]).toBe("string");
+    const ink = pins["text-color"] as unknown[];
+    expect(ink[0]).toBe("case");
+    expect(ink[1]).toEqual(["==", ["get", "standing"], "confirmed"]);
+    expect(typeof ink[2]).toBe("string");
+    expect(typeof ink[3]).toBe("string");
     expect(typeof pins["text-halo-color"]).toBe("string");
     expect(JSON.stringify(pins)).not.toContain("bucket");
   });

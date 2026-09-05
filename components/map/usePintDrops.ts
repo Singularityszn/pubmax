@@ -28,7 +28,6 @@ import {
   filterMapPintDropEntries,
   type MapPintDropVenue,
 } from "@/lib/mapPintDropPolicy";
-import { confirmedPriceInputFor } from "@/lib/pintDropConfirmation";
 import type { ConfirmedPriceInput } from "@/lib/priceTier";
 import { clearPintDropDraft } from "@/lib/pintDropDraft";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
@@ -50,7 +49,7 @@ import {
 } from "@/lib/spill";
 import type { LastPintDecision } from "@/lib/tfl";
 import { venueMapUrl } from "@/lib/venueMapUrl";
-import { authoritativePriceDrop, provisionalPriceDrop } from "@/lib/venues";
+import { pintTrustFor, pintTrustSignalFields, type PintTrustState } from "@/lib/pintTrust";
 
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base
 // shape, so we augment it here at the client boundary rather than editing lib/*.
@@ -705,6 +704,8 @@ export function usePintDrops(
       {
         hasPintDrops: boolean;
         dropCount: number;
+        /** THE trust state of the drop lane (lib/pintTrust.ts), read once. */
+        pintTrust: PintTrustState;
         latestContributorPrice: number | null;
         /**
          * Epoch ms that contributor price was logged, or null. Carried so a
@@ -720,28 +721,26 @@ export function usePintDrops(
         provisionalContributorPrice: number | null;
         /** Epoch ms that provisional report was logged, or null. */
         provisionalContributorAt: number | null;
+        /** A public report PAST the window, for the sheet's price area alone. */
+        agedContributorPrice: number | null;
+        /** Epoch ms that aged report was logged, or null. */
+        agedContributorAt: number | null;
       }
     >();
     for (const [venueId, venueDrops] of mapDropsByVenueId) {
-      // Demo seeds never feed the "latest contributor price" signal — a seeded
-      // price must not read as a community log. And a lone organic drop never
-      // feeds it either: AGENTS.md pin law, "an uncorroborated report cannot
-      // reach either lane" (band or printed figure). The ungated drop still
-      // shows on the venue sheet (dropsByVenueId) and earns the provisional
-      // mark through its own seam.
+      // ONE READING of the drop lane (lib/pintTrust.ts), projected into every
+      // drop-lane field of the signal. What has earned the map, what is one
+      // report short, what is past the window and whether the server minted a
+      // confirmation are four answers to one question, and they used to be
+      // asked here as four separate calls. The order inside that reading is
+      // the point: the minted confirmation comes first because the browser is
+      // not shown an anonymous drop's authority key (#1440), so the client
+      // re-derivation alone left the pin greyer than the venue sheet.
       //
-      // `authoritativePriceDrop` (lib/venues.ts) is the ONE reading of what has
-      // earned the map: the server's minted confirmation first, then the
-      // corroboration this browser can still prove from the keys it was given.
-      // The confirmation has to come first because the browser is not shown an
-      // anonymous drop's authority key (#1440), so the client re-derivation
-      // alone left the pin greyer than the venue sheet over the same pub.
-      const latestContributorDrop = authoritativePriceDrop(venueDrops);
-      const latestContributorPrice = latestContributorDrop?.priceGbp ?? null;
-      const createdAtMs = latestContributorDrop
-        ? Date.parse(latestContributorDrop.createdAt)
-        : NaN;
-      const latestContributorAt = Number.isFinite(createdAtMs) ? createdAtMs : null;
+      // Demo seeds never feed any of it. A lone organic drop feeds the
+      // provisional fields only: AGENTS.md pin law, "an uncorroborated report
+      // cannot reach either lane" (band or printed figure).
+      const trust = pintTrustSignalFields(pintTrustFor(venueDrops));
       // Pin colour fallback only: when a city pack has null cheapestPrice,
       // a demo seed can still tint the pin. Never merges into venue.cheapestPrice.
       const latestDemoPrice =
@@ -750,32 +749,11 @@ export function usePintDrops(
         )?.priceGbp ?? null;
       // dropCount/hasPintDrops match the map halo: any visible drop counts
       // (seeds included) so the "has drops" signal is consistent everywhere.
-      // The venue's minted confirmation, read rather than re-derived: a
-      // standing may only go green over a confirmation the server actually
-      // wrote (lib/pintDropConfirm.server.ts), never over a corroboration this
-      // render worked out for itself. An aged-out confirmation answers null
-      // here, so the pub falls through to a weaker standing with nothing
-      // deleted.
-      const confirmedPrice = confirmedPriceInputFor(venueDrops);
-      // The second, weaker read beside the gate above (issue #1426). It answers
-      // null the moment the corroborated lane speaks, so the two can never
-      // offer a sheet two figures for one pub, and it reaches no band, bucket
-      // or pin figure — only the price area's provisional lane.
-      const provisionalDrop = provisionalPriceDrop(venueDrops);
-      const provisionalAtMs = provisionalDrop
-        ? Date.parse(provisionalDrop.createdAt)
-        : NaN;
       signals.set(venueId, {
         hasPintDrops: venueDrops.length > 0,
         dropCount: venueDrops.length,
-        latestContributorPrice,
-        latestContributorAt,
         latestDemoPrice,
-        confirmedPrice,
-        provisionalContributorPrice: provisionalDrop?.priceGbp ?? null,
-        provisionalContributorAt: Number.isFinite(provisionalAtMs)
-          ? provisionalAtMs
-          : null,
+        ...trust,
       });
     }
     return signals;

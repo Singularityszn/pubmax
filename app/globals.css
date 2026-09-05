@@ -139,6 +139,10 @@
   --accent-price: var(--amber);
   --accent-price-ink: color-mix(in srgb, var(--amber) 52%, var(--ink));
   --price-plaque-surface: color-mix(in srgb, var(--amber) 11%, var(--panel-raised));
+  /* The ink a CONFIRMED price prints in: the trust pill's green and the map
+     pin's confirmed tag read this one token (components/ui/trustPill.css,
+     components/map/canvas/tokens.ts). */
+  --price-confirmed-ink: color-mix(in srgb, var(--color-positive) 60%, var(--color-text));
   --price-plaque-border: color-mix(in srgb, var(--amber) 46%, var(--line));
   --price-plaque-shine: inset 0 1px 0 color-mix(in srgb, #ffffff 42%, transparent);
 

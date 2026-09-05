@@ -13,6 +13,7 @@ import type { StoryBand } from "@/lib/storyBands";
 import type { Venue } from "@/lib/venues";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
+import { pintTrustPinStanding } from "@/lib/pintTrust";
 import {
   priceStandingFigure,
   type PriceStanding,
@@ -62,9 +63,15 @@ function pinPriceTag(
   venueId: string,
   priceStandings: ReadonlyMap<string, PriceStandingDecision> | null,
   labels: { lensActive: boolean; lensPriceLabel: string | null; basePriceLabel: string | null },
+  signals: VenueSignal | undefined,
 ): { label: string | null; standing: PriceStanding | null } {
   const decision = priceStandings?.get(venueId) ?? null;
-  const standing = decision?.standing ?? null;
+  // A decided standing wins. Without one the pin still knows ONE thing for
+  // itself: whether the drop lane reads `confirmed` (lib/pintTrust.ts), which
+  // is what lets the tag wear the confirmed ink over a pub the server
+  // confirmed. A pin knows no bundle, so it never stamps `listed` or
+  // `estimate` on its own.
+  const standing = decision?.standing ?? pintTrustPinStanding(signals?.pintTrust);
   if (labels.lensActive) return { label: labels.lensPriceLabel, standing };
   if (labels.basePriceLabel) return { label: labels.basePriceLabel, standing };
   const modelled = standing === "estimate" && decision ? priceStandingFigure(decision) : null;
@@ -178,11 +185,12 @@ export function pubsToGeoJSON(
         lensPrice?.category && formatPinPriceLabel(lensPrice.priceGbp)
           ? `${formatPinPriceLabel(lensPrice.priceGbp)} ${lensPrice.categoryLabel}`
           : null;
-      const tag = pinPriceTag(venue.id, priceStandings, {
-        lensActive,
-        lensPriceLabel,
-        basePriceLabel,
-      });
+      const tag = pinPriceTag(
+        venue.id,
+        priceStandings,
+        { lensActive, lensPriceLabel, basePriceLabel },
+        signals,
+      );
       // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
       // Without a lens, fall back to venue hint categories.
       const lens =

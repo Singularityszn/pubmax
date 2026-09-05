@@ -28,7 +28,11 @@ describe("price-stamp signature adoption", () => {
   it("map pin prices use the plaque ink, surface, and signature tilt", () => {
     const source = read("components/map/canvas/buildScene.ts");
     expect(source).toContain('"text-rotate": tokens.priceStampTiltDeg');
-    expect(source).toContain('"text-color": tokens.pricePlaqueInk');
+    // The tag's ink is an expression over the pub's STANDING alone: plaque ink
+    // for every sayable figure, the confirmed ink where the drop lane reads
+    // confirmed (lib/pintTrust.ts). Never a band colour.
+    expect(source).toContain('"text-color": pinPriceTagInkExpr(tokens)');
+    expect(source).toContain("tokens.priceConfirmedInk,\n    tokens.pricePlaqueInk,");
     expect(source).toContain('"text-halo-color": tokens.pricePlaqueSurface');
   });
 });

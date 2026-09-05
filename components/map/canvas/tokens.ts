@@ -125,6 +125,13 @@ export type Tokens = {
   brass: string;
   brassBright: string;
   pricePlaqueInk: string;
+  /**
+   * The ink a CONFIRMED price tag wears: the same `--price-confirmed-ink` the
+   * trust pill's green prints in, so the pin and the sheet call one standing
+   * one colour. The tag alone changes; the pin's band stays the price and its
+   * rim stays the contrast lane, by law.
+   */
+  priceConfirmedInk: string;
   pricePlaqueSurface: string;
   /**
    * The reader's own position. Named rather than borrowed from a price band,
@@ -188,6 +195,7 @@ type MapThemeToken = Exclude<
   keyof Tokens,
   | "cat"
   | "pricePlaqueInk"
+  | "priceConfirmedInk"
   | "pricePlaqueSurface"
   | "priceStampTiltDeg"
   | "userLocation"
@@ -234,6 +242,7 @@ export function readTokens(): Tokens {
   };
   const pricePlaqueInk = resolvedColour("--accent-price-ink", "#8f671f");
   const pricePlaqueSurface = resolvedColour("--price-plaque-surface", "#f4ead5");
+  const priceConfirmedInk = resolvedColour("--price-confirmed-ink", "#1f6b43");
   const userLocation = resolvedColour("--color-info-strong", "#29b6f6");
   colourProbe.remove();
   // Additive `--cat-*` read: one entry per drink family, resolved from the live
@@ -259,6 +268,7 @@ export function readTokens(): Tokens {
     brass: mapToken("brass", "#b0813a"),
     brassBright: mapToken("brassBright", "#d3a44a"),
     pricePlaqueInk,
+    priceConfirmedInk,
     pricePlaqueSurface,
     userLocation,
     priceStampTiltDeg:

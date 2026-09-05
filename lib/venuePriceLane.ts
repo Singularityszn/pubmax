@@ -9,6 +9,7 @@
 // nudge shows in — and only in — the branch that would otherwise render
 // nothing.
 
+import { PRICE_AUTHORITY_MAX_AGE_DAYS } from "@/lib/priceAuthorityWindow";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { EstimatedPriceInput, ListedPriceInput } from "@/lib/priceTier";
 import { isPubVenue } from "@/lib/venueKindFilters";
@@ -22,6 +23,15 @@ import type { Venue } from "@/lib/venues";
  */
 export const PROVISIONAL_PRICE_LINE = "Logged once, needs a second drinker";
 
+/**
+ * The ONE line an AGED report prints. Captain's cut 5 Sept 2026: a drop past
+ * the authority window is still a visible public drop, printed dated in the
+ * sheet's own list, so the price area may not say "No price yet" above it. It
+ * says what the figure is worth instead, and the day beside it says how old.
+ * The window is read from its owner rather than typed.
+ */
+export const AGED_PRICE_LINE = `Logged over ${PRICE_AUTHORITY_MAX_AGE_DAYS} days ago, needs a fresh drinker`;
+
 /** The price claim the overview area prints, in precedence order. */
 export type VenuePriceLaneName =
   | "anchor"
@@ -30,6 +40,7 @@ export type VenuePriceLaneName =
   | "listed"
   | "provisional"
   | "baseline"
+  | "aged"
   | "estimate";
 
 /**
@@ -80,6 +91,11 @@ export type VenuePriceLane =
       observedAt: string | number | null;
     }
   | { lane: "baseline"; cheapestPrice: number }
+  | {
+      lane: "aged";
+      agedPrice: number;
+      observedAt: string | number | null;
+    }
   | { lane: "estimate"; estimate: EstimatedPriceInput };
 
 /**
@@ -100,6 +116,7 @@ export function venuePriceLane(
   sourcedPrice: PricedVenue["sourcedPrice"],
   bundle: VenueBundlePrices = {},
   provisional?: ProvisionalPriceInput | null,
+  aged?: ProvisionalPriceInput | null,
 ): VenuePriceLane | null {
   const cheapestPrice =
     venue.cheapestPrice !== null && venue.cheapestPrice !== undefined
@@ -133,6 +150,15 @@ export function venuePriceLane(
     };
   }
   if (cheapestPrice !== null) return { lane: "baseline", cheapestPrice };
+  // AN AGED REPORT SITS BELOW THE BASELINE AND ABOVE THE MODEL. Below, because
+  // a report past the window is no longer about tonight and the baseline at
+  // least claims to be a price on record. Above, because a drinker did pay it
+  // one night and a modelled figure was paid by nobody. It is a lane rather
+  // than nothing for the reason in AGED_PRICE_LINE: the drop is still printed,
+  // dated, in the list below, so "No price yet" here would be untrue.
+  if (aged && typeof aged.priceGbp === "number" && Number.isFinite(aged.priceGbp)) {
+    return { lane: "aged", agedPrice: aged.priceGbp, observedAt: aged.observedAt };
+  }
   // AND A MODELLED FIGURE IS LAST, below every price somebody observed. It is
   // still a lane rather than nothing, because a pub we can say something honest
   // about is better than a blank, and `priceStandingFigure` is what stops the
@@ -180,6 +206,8 @@ export function venuePriceLaneObservedGbp(lane: VenuePriceLane): number | null {
       return lane.provisionalPrice;
     case "baseline":
       return lane.cheapestPrice;
+    case "aged":
+      return lane.agedPrice;
     case "estimate":
       return null;
   }
@@ -194,5 +222,5 @@ export function venuePriceLaneObservedGbp(lane: VenuePriceLane): number | null {
  * so the line stays true beside those, and an anchor is not a pint at all.
  */
 export function venuePriceLaneIsDrinkerLog(lane: VenuePriceLane): boolean {
-  return lane.lane === "contributor" || lane.lane === "provisional";
+  return lane.lane === "contributor" || lane.lane === "provisional" || lane.lane === "aged";
 }
