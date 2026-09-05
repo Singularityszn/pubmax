@@ -5,11 +5,52 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  CHALLENGE_PAGE_SIGNATURES,
   createRobotsChecker,
   HARVEST_ROBOTS_AGENTS,
+  looksLikeChallengePage,
+  looksLikeHtmlDocument,
   parseRobotsTxt,
   robotsAllows,
 } from "@/lib/harvest/robots";
+
+// FIXTURE BODIES. Each is the shape of something a UK pub host really served at
+// /robots.txt during the 2026-09-04 crawl, cut to what the classifier reads.
+const ORDINARY_HTML_PAGE = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Red Lion, Barnes | Home</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<nav><a href="/">Home</a> <a href="/drinks">Drinks</a> <a href="/food">Food</a></nav>
+<h1>Welcome to The Red Lion</h1>
+<p>Open every day from noon. Real ale, Sunday roasts, dogs welcome.</p>
+</body>
+</html>`;
+
+const CLOUDFLARE_CHALLENGE_PAGE = `<!DOCTYPE html>
+<html lang="en-US">
+<head>
+<title>Just a moment...</title>
+<meta http-equiv="refresh" content="390">
+</head>
+<body class="no-js">
+<div class="main-wrapper" role="main">
+<h1>www.nicholsonspubs.co.uk</h1>
+<p>Verifying you are human. This may take a few seconds.</p>
+<script src="/cdn-cgi/challenge-platform/h/b/orchestrate/chl_page/v1?ray=abc"></script>
+</div>
+</body>
+</html>`;
+
+const REAL_RULES_FILE = `# The Red Lion
+User-agent: *
+Disallow: /admin/
+Disallow: /basket
+Sitemap: https://redlionbarnes.co.uk/sitemap.xml
+`;
 
 function robotsResponse(body: string, status = 200): Response {
   return new Response(body, { status, headers: { "content-type": "text/plain" } });
@@ -102,20 +143,22 @@ describe("asking a host before reading it", () => {
     expect(decision.evidence).toContain("cloudflarebrowserrenderingcrawler");
   });
 
-  it("refuses a host that answers robots.txt with a challenge page", async () => {
+  it("refuses a host that answers robots.txt with a challenge page on a 403", async () => {
     const fetchImpl = vi.fn(async () => new Response("<!DOCTYPE html><title>Attention Required!</title>", { status: 403 }));
     const check = createRobotsChecker({ fetchImpl: fetchImpl as unknown as typeof fetch });
     const decision = await check("https://www.nicholsonspubs.co.uk/whats-on");
     expect(decision.allowed).toBe(false);
     expect(decision.reason).toBe("robots-unreadable");
+    expect(decision.robots).toBe("challenge-page");
   });
 
-  it("refuses a 200 body that is not a rules file", async () => {
-    const fetchImpl = vi.fn(async () => robotsResponse("<html><body>Just a page</body></html>"));
+  it("refuses a 200 body that is neither a rules file nor an HTML document", async () => {
+    const fetchImpl = vi.fn(async () => robotsResponse('{"error":"not found"}'));
     const check = createRobotsChecker({ fetchImpl: fetchImpl as unknown as typeof fetch });
     const decision = await check("https://example.com/whats-on");
     expect(decision.allowed).toBe(false);
     expect(decision.reason).toBe("robots-unreadable");
+    expect(decision.robots).toBe("not-a-rules-file");
   });
 
   // A RULES FILE WITH NO RULES IS STILL A RULES FILE. Each of these three
@@ -147,13 +190,124 @@ describe("asking a host before reading it", () => {
     expect((await check("https://smallpub.co.uk/admin")).reason).toBe("robots-disallowed");
   });
 
-  it("still refuses an HTML page served where a rules file should be, however long it runs", async () => {
-    const page = `<!DOCTYPE html>\n<html lang="en">\n<head><meta http-equiv="refresh" content="0;url=https://smallpub.co.uk/"></head>\n<body>404</body>\n</html>`;
-    const fetchImpl = vi.fn(async () => robotsResponse(page));
+  // AN ORDINARY HTML PAGE ON A 200 IS AN ABSENT RULES FILE. Captain's ruling of
+  // 2026-09-05 ("Crawl them") over the 254 UK pub hosts that route /robots.txt
+  // to their own site: no rules were published, which RFC 9309 section
+  // 2.3.1.3 reads as no restriction, the same permission a 404 gives.
+  describe("an ordinary HTML page served where a rules file should be", () => {
+    it("is read as no rules published, and says so on the decision", async () => {
+      const fetchImpl = vi.fn(async () => robotsResponse(ORDINARY_HTML_PAGE));
+      const check = createRobotsChecker({ fetchImpl: fetchImpl as unknown as typeof fetch });
+      const decision = await check("https://redlionbarnes.co.uk/drinks");
+      expect(decision.allowed).toBe(true);
+      expect(decision.reason).toBe("no-rules-published");
+      expect(decision.robots).toBe("html-page");
+      expect(decision.evidence).toContain("RFC 9309");
+      expect(decision.sitemaps).toBeUndefined();
+    });
+
+    it("admits a site's own 404 page that refreshes to its home page", async () => {
+      const page = `<!DOCTYPE html>\n<html lang="en">\n<head><meta http-equiv="refresh" content="0;url=https://smallpub.co.uk/"></head>\n<body>404</body>\n</html>`;
+      const fetchImpl = vi.fn(async () => robotsResponse(page));
+      const check = createRobotsChecker({ fetchImpl: fetchImpl as unknown as typeof fetch });
+      const decision = await check("https://smallpub.co.uk/drinks");
+      expect(decision.allowed).toBe(true);
+      expect(decision.robots).toBe("html-page");
+    });
+
+    it("admits a document root behind a byte-order mark, an XML declaration or a leading comment", () => {
+      expect(looksLikeHtmlDocument("\uFEFF<!DOCTYPE html><html></html>")).toBe(true);
+      expect(looksLikeHtmlDocument('<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE html>\n<html></html>')).toBe(true);
+      expect(looksLikeHtmlDocument("<!-- built 2026 -->\n<html lang=\"en\"><body></body></html>")).toBe(true);
+      expect(looksLikeHtmlDocument("  <html>\n")).toBe(true);
+    });
+
+    it("does not admit a fragment, a stray tag or a body that merely mentions html", () => {
+      expect(looksLikeHtmlDocument("<div>Just a page</div>")).toBe(false);
+      expect(looksLikeHtmlDocument("<body>404</body>")).toBe(false);
+      expect(looksLikeHtmlDocument("Not found. <html> would be here.")).toBe(false);
+      expect(looksLikeHtmlDocument("")).toBe(false);
+      expect(looksLikeHtmlDocument('{"html":"<html>"}')).toBe(false);
+    });
+
+    it("does not admit a rules file, whose Disallow lines are still honoured", async () => {
+      const fetchImpl = vi.fn(async () => robotsResponse(REAL_RULES_FILE));
+      const check = createRobotsChecker({ fetchImpl: fetchImpl as unknown as typeof fetch });
+      const drinks = await check("https://redlionbarnes.co.uk/drinks");
+      expect(drinks.allowed).toBe(true);
+      expect(drinks.reason).toBe("allowed");
+      expect(drinks.robots).toBe("rules-file");
+      expect(drinks.sitemaps).toEqual(["https://redlionbarnes.co.uk/sitemap.xml"]);
+      const admin = await check("https://redlionbarnes.co.uk/admin/users");
+      expect(admin.allowed).toBe(false);
+      expect(admin.reason).toBe("robots-disallowed");
+      expect(admin.robots).toBe("rules-file");
+      expect(looksLikeHtmlDocument(REAL_RULES_FILE)).toBe(false);
+    });
+  });
+
+  // A CHALLENGE IS A DOOR, NOT A PAGE. The admission above is for a host that
+  // served its site; a host that served an interstitial served nothing we were
+  // let through to, and it stays refused at every status.
+  describe("a challenge page served where a rules file should be", () => {
+    it("stays refused on a 200", async () => {
+      const fetchImpl = vi.fn(async () => robotsResponse(CLOUDFLARE_CHALLENGE_PAGE));
+      const check = createRobotsChecker({ fetchImpl: fetchImpl as unknown as typeof fetch });
+      const decision = await check("https://www.nicholsonspubs.co.uk/whats-on");
+      expect(decision.allowed).toBe(false);
+      expect(decision.reason).toBe("robots-unreadable");
+      expect(decision.robots).toBe("challenge-page");
+    });
+
+    it.each([
+      ["Cloudflare, Just a moment", "<!DOCTYPE html><html><head><title>Just a moment...</title></head><body></body></html>"],
+      ["Cloudflare, Attention Required", "<!DOCTYPE html><html><head><title>Attention Required! | Cloudflare</title></head></html>"],
+      ["Cloudflare, challenge platform script", '<html><head><script src="/cdn-cgi/challenge-platform/h/b/orchestrate/chl_page/v1"></script></head></html>'],
+      ["Akamai, edgesuite reference", '<html><head><title>Access Denied</title></head><body>Reference #18.abc<br>https://errors.edgesuite.net/18.abc</body></html>'],
+      ["hCaptcha widget", '<html><body><div class="h-captcha" data-sitekey="abc"></div></body></html>'],
+      ["meta refresh into a challenge", '<html><head><meta http-equiv="refresh" content="0;url=/cdn-cgi/challenge-platform/?r=1"></head></html>'],
+      ["meta refresh into a captcha", '<html><head><meta http-equiv="refresh" content="1; URL=https://geo.captcha-delivery.com/captcha/?initialCid=x"></head></html>'],
+    ])("recognises %s", (_name, body) => {
+      expect(looksLikeChallengePage(body)).toBe(true);
+    });
+
+    it("does not read an ordinary page, or a rules file, as a challenge", () => {
+      expect(looksLikeChallengePage(ORDINARY_HTML_PAGE)).toBe(false);
+      expect(looksLikeChallengePage(REAL_RULES_FILE)).toBe(false);
+      expect(looksLikeChallengePage("")).toBe(false);
+    });
+
+    // Cloudflare injects its detection beacon into EVERY page served behind Bot
+    // Fight Mode, ordinary home pages included; measured on 2026-09-05, the bare
+    // challenge-platform prefix refused 14 pub home pages that had let us in.
+    it("does not read Cloudflare's per-page detection beacon as a challenge", () => {
+      const page = `<!DOCTYPE html><html lang="en-GB"><head><title>Home - The Crown Cirencester</title></head><body><h1>The Crown</h1><script src="/cdn-cgi/challenge-platform/scripts/jsd/main.js"></script></body></html>`;
+      expect(looksLikeChallengePage(page)).toBe(false);
+      expect(looksLikeHtmlDocument(page)).toBe(true);
+    });
+
+    it("does not read a site's own redirect to its home page as a challenge", () => {
+      expect(looksLikeChallengePage('<html><head><meta http-equiv="refresh" content="0;url=https://smallpub.co.uk/"></head></html>')).toBe(false);
+    });
+
+    it("keeps its signature table closed, with every row naming its vendor", () => {
+      expect(CHALLENGE_PAGE_SIGNATURES.length).toBeGreaterThan(0);
+      for (const row of CHALLENGE_PAGE_SIGNATURES) {
+        expect(row.vendor.length).toBeGreaterThan(0);
+        expect(row.mark).toBe(row.mark.toLowerCase());
+      }
+    });
+  });
+
+  // NOTHING ELSE IS LOOSENED. A status that refuses us refuses us whatever the
+  // body says, an ordinary HTML page included.
+  it.each([401, 403, 429, 500, 502, 503])("still refuses a %s, even when its body is an ordinary page", async (status) => {
+    const fetchImpl = vi.fn(async () => new Response(ORDINARY_HTML_PAGE, { status, headers: { "content-type": "text/html" } }));
     const check = createRobotsChecker({ fetchImpl: fetchImpl as unknown as typeof fetch });
     const decision = await check("https://smallpub.co.uk/drinks");
     expect(decision.allowed).toBe(false);
     expect(decision.reason).toBe("robots-unreadable");
+    expect(decision.robots).toBe("http-refused");
   });
 
   it("permits everything when a host publishes no robots.txt at all", async () => {
@@ -162,6 +316,7 @@ describe("asking a host before reading it", () => {
     const decision = await check("https://smallpub.co.uk/whats-on");
     expect(decision.allowed).toBe(true);
     expect(decision.reason).toBe("no-rules-published");
+    expect(decision.robots).toBe("absent");
   });
 
   // A NETWORK FAILURE IS NOT A REFUSAL. The page is still not taken, and the
@@ -175,6 +330,7 @@ describe("asking a host before reading it", () => {
     const decision = await check("https://gone.example/whats-on");
     expect(decision.allowed).toBe(false);
     expect(decision.reason).toBe("robots-unreachable");
+    expect(decision.robots).toBe("unreachable");
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
@@ -191,7 +347,7 @@ describe("asking a host before reading it", () => {
   });
 
   it("does not ask a host that ANSWERED a second time", async () => {
-    const fetchImpl = vi.fn(async () => robotsResponse("<html>nope</html>"));
+    const fetchImpl = vi.fn(async () => robotsResponse('{"nope":true}'));
     const check = createRobotsChecker({ fetchImpl: fetchImpl as unknown as typeof fetch });
     await check("https://refused.example/drinks");
     expect(fetchImpl).toHaveBeenCalledTimes(1);

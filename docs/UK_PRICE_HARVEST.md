@@ -26,18 +26,31 @@ missing one: a challenge page or a 403 means no permission can be read, and a
 page we cannot ask about is a page we do not take. A genuine 404 publishes no
 restriction and is honoured.
 
-Three findings live under that one word, and they are separated because only two
+Four findings live under that one word, and they are separated because only two
 of them are about permission.
 
 * **A rules file with no rules is still a rules file.** What decides is whether
   the body PARSES as `robots.txt`, not whether it holds a `User-agent` line. An
   empty file, one that names only its Sitemap, and one that is comments to the
   last line each publish no restriction, which is the permission a 404 gives.
-* **An HTML page served where a rules file should be is unreadable,** and stays
-  refused. It cannot be told apart from a challenge page.
+* **An ordinary HTML page served on a 200 where a rules file should be is an
+  absent rules file** (captain's ruling, 2026-09-05). A small site that routes
+  every unknown path to its home page or its own 404 page has published no
+  rules, which RFC 9309 section 2.3.1.3 reads as no restriction. The ledger row
+  carries `robots: "html-page"` so each such admission is auditable.
+* **A challenge page is a door, not a page,** and it stays refused at every
+  status, a 200 included. `CHALLENGE_PAGE_SIGNATURES` in `lib/harvest/robots.ts`
+  is the closed table (Cloudflare, Akamai, hCaptcha, Imperva, DataDome,
+  PerimeterX, DDoS-Guard, and a meta refresh that points into a challenge).
+  A 401, 403, 429 or 5xx is refused whatever its body says.
 * **A network failure is not a refusal,** it is `robots-unreachable`, asked once
   more before it is believed. Reporting a host nobody was home at as a refusal
   says a pub turned us away when it has no site left.
+
+The ledger records what each host SERVED at `/robots.txt` apart from what was
+decided (`rules-file`, `absent`, `html-page`, `challenge-page`, `http-refused`,
+`not-a-rules-file`, `unreachable`), and `harvest_report.json` counts them as
+`robotsFiles`. A row written before that field existed counts as `unrecorded`.
 
 `npm run harvest:uk-prices -- --recheck <outcome>` asks one finding again after
 a rule changes, rather than throwing seven thousand answers away with `--reset`.
