@@ -1,6 +1,12 @@
 # A .vercelignore REPLACES the .gitignore fallback, so anything gitignored and
 # absent from this file is uploaded. Keep the two in step: a directory added to
-# .gitignore that a build does not need belongs here as well.
+# .gitignore that a build does not need belongs here as well. A CLI deploy
+# uploads the working tree, so a TRACKED directory the build never reads is
+# uploaded too unless it is named here.
+#
+# __tests__/vercelIgnoreCoverage.test.ts is the fence: every top-level directory
+# over 5 MB is either a deploy input named there with the reason it is one, or
+# it appears below.
 
 # Local verification and generated build output are not production inputs.
 # `.next` is named on its own line because `/.next-*` does not match it.
@@ -25,3 +31,13 @@
 
 # Design evidence and handoff documents are kept in GitHub, not deployed.
 /docs/
+
+# The native shells are built by Xcode and Gradle, never by the web build, and
+# they are the two largest directories in the tree after node_modules.
+/ios/
+/android/
+
+# The rest of the agent and browser-harness output.
+/.claude/
+/test-results/
+/playwright-report/

@@ -980,7 +980,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // a real handle to adopt) - the passport's first-run CTA drives the next step.
   // An unresolved viewer gets no identity-bearing action at all: a Follow
   // button carrying the wrong actor is worse than one that arrives a beat late.
-  const headerActions = !identityReadyForSurface ? null : isOwnProfile ? (
+  function headerActionSlot() {
+    return !identityReadyForSurface ? null : isOwnProfile ? (
     <>
       {/* The crew-invite loop's entry point: your own add link. Opening it shows
           the share surface (ConfirmFollow's self branch), so a friend can add
@@ -1027,8 +1028,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         viewerHandle={viewerHandle}
       />
     </>
-  );
-  const profileOptions: SiteNavMoreItem[] = [
+    );
+  }
+  const headerActions = headerActionSlot();
+
+  function buildProfileOptions(): SiteNavMoreItem[] {
+    return [
     {
       id: "edit-profile",
       label: "Edit profile",
@@ -1061,393 +1066,451 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       label: "Terms",
       description: "Rules for using PUBMAXX",
     },
-    ...(user
-      ? [
-          {
-            id: "sign-out",
-            label: "Sign out",
-            description: "End this account session",
-            onSelect: signOut,
-          } satisfies SiteNavMoreItem,
-        ]
-      : []),
-  ];
+      ...(user
+        ? [
+            {
+              id: "sign-out",
+              label: "Sign out",
+              description: "End this account session",
+              onSelect: signOut,
+            } satisfies SiteNavMoreItem,
+          ]
+        : []),
+    ];
+  }
+  const profileOptions: SiteNavMoreItem[] = buildProfileOptions();
+
+  // THE SURFACE IS PICKED ONCE, AND EACH ANSWER IS ITS OWN FUNCTION.
+  //
+  // `profileSurfaceFor` already decides which of these a reader gets; what sat
+  // here was every one of their bodies inline in one ternary chain, so the
+  // component scored a complexity of 91 against a ceiling of 35 and a reader
+  // had to hold five surfaces at once to follow any of them. These are NESTED
+  // functions rather than components on purpose, the way PubMap was taken
+  // apart: ESLint scores complexity per function, a nested call leaves the
+  // React element tree identical where a component would add a fibre, and the
+  // source text the profile fences read stays in this file.
+  function identityLoadingSurface() {
+    return (
+      <section className="profileIdentityLoadingSurface" aria-label="Loading your profile">
+        <ProfileHeader
+          profile={profile}
+          stats={stats}
+          viewerState="loading"
+        />
+      </section>
+    );
+  }
+
+  function goneSurface() {
+    return (
+      <section className="profileGoneState" aria-labelledby="profile-gone-title">
+        <p className="profileSectionKicker">@{routeHandle}</p>
+        <h1 id="profile-gone-title">This account has left</h1>
+        <p className="profileEmpty">
+          The handle is still reserved. Past pints stay attributed, but
+          there is no live profile here any more.
+        </p>
+        <p className="profileEmpty">
+          <Link href="/map" data-primary-action="">Back to the map</Link>
+        </p>
+      </section>
+    );
+  }
+
+  function errorSurface() {
+    return (
+      <div className="profileErrorState">
+        <ProfileHeader
+          profile={profile}
+          stats={stats}
+          socialLinks={visibleSocialData.socialLinks}
+          crawls={storyCount}
+          memories={stats.memoriesPosted}
+          drops={drops}
+          followers={visibleSocialData.counts?.followers}
+          following={visibleSocialData.counts?.following}
+          actions={headerActions}
+        />
+        <p className="profileEmpty">
+          Couldn&apos;t load pints right now. Try again.
+        </p>
+      </div>
+    );
+  }
+
+  function seasonalBadgeSection() {
+    return (
+      !youSignedOut && joinableBadgeEvents.length ? (
+        <section className="passportQuestOptIn" aria-labelledby="questOptInHeading">
+          <div>
+            <p className="passportQuestOptInKicker">Optional events</p>
+            <h2 id="questOptInHeading" className="passportQuestOptInTitle">
+              Seasonal badges
+            </h2>
+            <p className="passportQuestOptInCopy">
+              Join only if you want them. Progress starts from the moment you join.
+            </p>
+          </div>
+          <div className="passportQuestOptInActions">
+            {joinableBadgeEvents.map((event) => (
+              <button
+                key={event.id}
+                type="button"
+                className="passportCta passportCtaPrimary"
+                onClick={() => joinBadgeEvent(event.id)}
+              >
+                Join {event.label}
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null
+    );
+  }
+
+  function editingSection() {
+    return (
+      isOwnProfile && editing ? (
+        <section
+          id="profile-editing"
+          className="profileEditingSurface"
+          aria-labelledby="profile-editing-title"
+        >
+          <h2 id="profile-editing-title">Editing your profile</h2>
+          <ProfileEditor
+            handle={routeHandle}
+            initial={{
+              // Only pre-fill from durable, user-owned values — never the
+              // synthesized bio/name (those are placeholders the user hasn't
+              // authored, so the fields should read as empty and editable).
+              displayName: stored?.displayName,
+              bio: stored?.bio,
+              homeCity: stored?.homeCity,
+              avatarUrl: stored?.avatarUrl,
+              coverUrl: stored?.coverUrl,
+              coverUrls: stored?.coverUrls,
+              favouriteDrink: stored?.favouriteDrink,
+              interests: stored?.interests,
+              workplace: stored?.workplace,
+            }}
+            onSaved={handleSaved}
+            onProfileChanged={handleProfileChanged}
+            onClose={() => setEditing(false)}
+          />
+          {/* Linked socials are public content the owner typed in,
+              so they edit beside the public fields. Account
+              plumbing lives in Account settings below. */}
+          {user ? <SocialLinksEditor /> : null}
+        </section>
+      ) : null
+    );
+  }
+
+  function timelineSection() {
+    return (
+      !youSignedOut ? (
+        <section id="timeline" className="profileDropsSection" aria-labelledby="dropsHeading">
+          <h2 id="dropsHeading" className="profileSectionHeading">
+            Timeline
+          </h2>
+
+          {state === "loading" ? (
+            <div className="profileTimelineSkel feedList" aria-hidden="true">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="feedCard feedCardSkeleton">
+                  <div className="feedSkelHead">
+                    <span className="feedSkelAvatar" />
+                    <span className="feedSkelLine feedSkelLineShort" />
+                  </div>
+                  <div className="feedSkelPhoto" />
+                  <div className="feedSkelLine" />
+                </div>
+              ))}
+            </div>
+          ) : drops.length === 0 ? (
+            <p className="profileEmpty">No pints logged under @{routeHandle} yet.</p>
+          ) : (
+            <ProfileTimeline drops={drops as Array<Record<string, unknown>>} />
+          )}
+        </section>
+      ) : null
+    );
+  }
+
+  // The destination behind the Crawls tile. It prints only when this handle has
+  // published one, so an empty section never sits under a zero - or when the
+  // owner has an unlisted crawl, which lives nowhere else at all.
+  function crawlsSection() {
+    return !youSignedOut &&
+      (authoredCrawls.length > 0 || ownUnlistedCrawls.length > 0) ? (
+        <section
+          id="crawl-stories"
+          className="profileDropsSection"
+          aria-labelledby="crawlStoriesHeading"
+        >
+          <h2 id="crawlStoriesHeading" className="profileSectionHeading">
+            Crawls
+          </h2>
+          <ul className="profileCrawlList">
+            {authoredCrawls.map((crawl) => (
+              <li key={crawl.slug} className="profileCrawlRow">
+                <Link href={`/crawls/${encodeURIComponent(crawl.slug)}`}>
+                  {crawl.title}
+                </Link>
+                {typeof crawl.stops === "number" ? (
+                  <span className="profileCrawlStops">
+                    {crawl.stops} {crawl.stops === 1 ? "stop" : "stops"}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          {/* The tile counts every public crawl, so a page that
+              shows fewer has to SAY so rather than reading as the
+              whole set. One step widens the page to the ceiling;
+              past that the remainder is named plainly. */}
+          {crawlsHaveMore ? (
+            crawlLimit < AUTHOR_CRAWL_LIST_MAX_LIMIT ? (
+              <button
+                type="button"
+                className="profileCrawlMore"
+                onClick={() => setWidenedCrawlPage(routeHandle)}
+              >
+                Show more crawls
+              </button>
+            ) : typeof storyCount === "number" ? (
+              <p className="profileEmpty">
+                And {storyCount - authoredCrawls.length} more.
+              </p>
+            ) : null
+          ) : null}
+          {/* The owner's own unlisted crawls, and the ONE line that
+              says why their published tally is larger than the
+              public figure above it. A count with no way through
+              would be a dead end wearing a number, so the line
+              opens the rows it counts. Nobody but the verified
+              owner is ever answered with them. */}
+          {ownUnlistedCrawls.length > 0 ? (
+            <details className="profileCrawlUnlisted">
+              <summary>{ownUnlistedCrawlsLabel(ownUnlistedTotal)}</summary>
+              <ul className="profileCrawlList">
+                {ownUnlistedCrawls.map((crawl) => (
+                  <li key={crawl.slug} className="profileCrawlRow">
+                    <Link href={`/crawls/${encodeURIComponent(crawl.slug)}`}>
+                      {crawl.title}
+                    </Link>
+                    {typeof crawl.stops === "number" ? (
+                      <span className="profileCrawlStops">
+                        {crawl.stops} {crawl.stops === 1 ? "stop" : "stops"}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+              {/* The line above names every unlisted crawl, so a
+                  page holding fewer has to open the rest rather
+                  than leaving the difference unreachable. One step
+                  widens to the ceiling, then the remainder is named
+                  the way the public lane names its own. */}
+              {unlistedHaveMore ? (
+                unlistedLimit < AUTHOR_CRAWL_LIST_MAX_LIMIT ? (
+                  <button
+                    type="button"
+                    className="profileCrawlMore"
+                    onClick={() => setWidenedUnlistedPage(routeHandle)}
+                  >
+                    Show more unlisted crawls
+                  </button>
+                ) : typeof ownUnlistedTotal === "number" ? (
+                  <p className="profileEmpty">
+                    And {ownUnlistedTotal - ownUnlistedCrawls.length} more.
+                  </p>
+                ) : null
+              ) : null}
+            </details>
+          ) : null}
+        </section>
+      ) : null;
+  }
+
+  function readySurface() {
+    return (
+      <>
+        {/* Desktop multi-pane (≥1024): identity/bio docks into a sticky left
+            pane; passport, timeline and saved flow in the main pane. Both
+            panes are display:contents below the breakpoint, so the phone
+            layout is the same single column it was before. */}
+        <div className="profileLayout">
+            {isOwnProfile ? (
+              <div className="profileOwnerUtilities">
+                <SiteNavMore
+                  className="profileOptions"
+                  label="Options"
+                  ariaLabel="Profile options"
+                  items={profileOptions}
+                />
+              </div>
+            ) : null}
+            <div className="profileIdentityPane">
+              <div className={isOwnProfile ? "youProfileIdentity" : undefined}>
+                <ProfileHeader
+                  profile={profile}
+                  stats={stats}
+                  socialLinks={visibleSocialData.socialLinks}
+                  crawls={storyCount}
+                  memories={stats.memoriesPosted}
+                  drops={drops}
+                  followers={visibleSocialData.counts?.followers}
+                  following={visibleSocialData.counts?.following}
+                  actions={headerActions}
+                />
+              </div>
+            </div>
+
+            <div className="profileContentPane">
+              {passportIsOwn && !youSignedOut ? (
+                <div id="passport">
+                  <PintPassport
+                    handle={routeHandle}
+                    displayName={profile.displayName}
+                    data={passport}
+                    isOwn={passportIsOwn}
+                    hero
+                  />
+                </div>
+              ) : null}
+
+              {isOwnProfile ? (
+                <YourContributionsCard
+                  handle={routeHandle}
+                  claimNudge={shouldShowContributionClaimNudge({
+                    isOwnProfile,
+                    identityResolved: identityReadyForSurface,
+                    hasUser: Boolean(user),
+                  })}
+                />
+              ) : null}
+
+              {isOwnProfile ? (
+                <>
+                  <ClaimMomentWelcome />
+                  <FirstActionsRow />
+                  <ContributionLanesCard handle={routeHandle} />
+                  <OutTonightToggle handle={routeHandle} />
+                  <OutTonightBoard viewerHandle={routeHandle} />
+                </>
+              ) : null}
+
+              {(isYouRoute || isOwnProfile) && !youSignedOut ? (
+                <nav className="youProfileTabs" aria-label="Your profile sections">
+                  <a href="#timeline">Moments</a>
+                  <a href="#passport">Passport</a>
+                  <a href="#wanted">Wanted</a>
+                  <a href="#saved-pubs">Saved</a>
+                  <a href="#account-settings">Account settings</a>
+                </nav>
+              ) : null}
+
+              {!passportIsOwn ? (
+                <PintPassport
+                  handle={routeHandle}
+                  displayName={profile.displayName}
+                  data={passport}
+                  isOwn={passportIsOwn}
+                  hero={false}
+                />
+              ) : null}
+
+              {!isOwnProfile && routeHandle && routeHandle !== YOU_SENTINEL ? (
+                <OutTonightCrewLine ownerHandle={routeHandle} viewerHandle={viewerHandle} />
+              ) : null}
+
+              {/* Quest chips (Loop 2): next-badge progress for the viewed handle.
+                  NextBadgeChips fetches public drops and filters by handle — works
+                  for any profile with drops; renders nothing when empty. Own
+                  profile also surfaces local "Crawls walked" from crawlCompletion. */}
+              {routeHandle && routeHandle !== YOU_SENTINEL ? (
+                <NextBadgeChips handle={routeHandle} showCrawlsWalked={isOwnProfile} />
+              ) : null}
+
+              {seasonalBadgeSection()}
+
+              {isOwnProfile && savedNotice && !editing ? (
+                <p className="profileSavedNotice" role="status">
+                  Saved
+                </p>
+              ) : null}
+
+              {editingSection()}
+
+              {timelineSection()}
+
+              {crawlsSection()}
+
+              {/* /u/you redirects to the real handle the moment one is
+                  known, so gating this on the sentinel alone left the
+                  owner's own Wanted tab pointing at nothing. */}
+              {isYouRoute || isOwnProfile ? <WantedList /> : null}
+
+              {/* Your crews, on your own page only. It resolves the Social
+                  gate itself and renders nothing when Social is in
+                  preview, so this card never promises what the flag has
+                  not opened. */}
+              {isOwnProfile ? (
+                <CrewsPanel viewerHandle={viewerHandle} resolveAccess />
+              ) : null}
+
+              {!youSignedOut ? (
+                <div id="saved-pubs">
+                  <SavedPubList
+                    ownerHandle={isYouRoute ? viewerHandle : routeHandle}
+                    groups={saved}
+                    followedLists={followedLists}
+                  />
+                </div>
+              ) : null}
+
+              {isYouRoute || isOwnProfile ? (
+                <div id="account-settings">
+                  <PubmaxxAccountHub />
+                </div>
+              ) : null}
+            </div>
+        </div>
+
+        <footer className="profileFloor">
+          <p>
+            PUBMAXX is for over-18s. Drink responsibly, know the facts at{" "}
+            <a href="https://www.drinkaware.co.uk" rel="noreferrer">
+              drinkaware.co.uk
+            </a>
+            .
+          </p>
+        </footer>
+      </>
+    );
+  }
+
+  function surfaceBody() {
+    if (surface === "missing") {
+      return <p className="profileEmpty">That profile link is missing a handle.</p>;
+    }
+    if (surface === "you-invitation") {
+      return <YouSignedOutSurface nightMemoriesInvite={nightMemoriesInvite} />;
+    }
+    if (surface === "identity-loading") return identityLoadingSurface();
+    if (surface === "gone") return goneSurface();
+    if (surface === "error") return errorSurface();
+    return readySurface();
+  }
 
   return (
     <div className="lp profilePage">
       <SiteNav active="profile" />
 
       <main id="main" className="container profileMain">
-        {surface === "missing" ? (
-          <p className="profileEmpty">That profile link is missing a handle.</p>
-        ) : surface === "you-invitation" ? (
-          <YouSignedOutSurface nightMemoriesInvite={nightMemoriesInvite} />
-        ) : surface === "identity-loading" ? (
-          <section className="profileIdentityLoadingSurface" aria-label="Loading your profile">
-            <ProfileHeader
-              profile={profile}
-              stats={stats}
-              viewerState="loading"
-            />
-          </section>
-        ) : surface === "gone" ? (
-          <section className="profileGoneState" aria-labelledby="profile-gone-title">
-            <p className="profileSectionKicker">@{routeHandle}</p>
-            <h1 id="profile-gone-title">This account has left</h1>
-            <p className="profileEmpty">
-              The handle is still reserved. Past pints stay attributed, but
-              there is no live profile here any more.
-            </p>
-            <p className="profileEmpty">
-              <Link href="/map" data-primary-action="">Back to the map</Link>
-            </p>
-          </section>
-        ) : surface === "error" ? (
-          <div className="profileErrorState">
-            <ProfileHeader
-              profile={profile}
-              stats={stats}
-              socialLinks={visibleSocialData.socialLinks}
-              crawls={storyCount}
-              memories={stats.memoriesPosted}
-              drops={drops}
-              followers={visibleSocialData.counts?.followers}
-              following={visibleSocialData.counts?.following}
-              actions={headerActions}
-            />
-            <p className="profileEmpty">
-              Couldn&apos;t load pints right now. Try again.
-            </p>
-          </div>
-        ) : (
-          <>
-            {/* Desktop multi-pane (≥1024): identity/bio docks into a sticky left
-                pane; passport, timeline and saved flow in the main pane. Both
-                panes are display:contents below the breakpoint, so the phone
-                layout is the same single column it was before. */}
-            <div className="profileLayout">
-                {isOwnProfile ? (
-                  <div className="profileOwnerUtilities">
-                    <SiteNavMore
-                      className="profileOptions"
-                      label="Options"
-                      ariaLabel="Profile options"
-                      items={profileOptions}
-                    />
-                  </div>
-                ) : null}
-                <div className="profileIdentityPane">
-                  <div className={isOwnProfile ? "youProfileIdentity" : undefined}>
-                    <ProfileHeader
-                      profile={profile}
-                      stats={stats}
-                      socialLinks={visibleSocialData.socialLinks}
-                      crawls={storyCount}
-                      memories={stats.memoriesPosted}
-                      drops={drops}
-                      followers={visibleSocialData.counts?.followers}
-                      following={visibleSocialData.counts?.following}
-                      actions={headerActions}
-                    />
-                  </div>
-                </div>
-
-                <div className="profileContentPane">
-                  {passportIsOwn && !youSignedOut ? (
-                    <div id="passport">
-                      <PintPassport
-                        handle={routeHandle}
-                        displayName={profile.displayName}
-                        data={passport}
-                        isOwn={passportIsOwn}
-                        hero
-                      />
-                    </div>
-                  ) : null}
-
-                  {isOwnProfile ? (
-                    <YourContributionsCard
-                      handle={routeHandle}
-                      claimNudge={shouldShowContributionClaimNudge({
-                        isOwnProfile,
-                        identityResolved: identityReadyForSurface,
-                        hasUser: Boolean(user),
-                      })}
-                    />
-                  ) : null}
-
-                  {isOwnProfile ? (
-                    <>
-                      <ClaimMomentWelcome />
-                      <FirstActionsRow />
-                      <ContributionLanesCard handle={routeHandle} />
-                      <OutTonightToggle handle={routeHandle} />
-                      <OutTonightBoard viewerHandle={routeHandle} />
-                    </>
-                  ) : null}
-
-                  {(isYouRoute || isOwnProfile) && !youSignedOut ? (
-                    <nav className="youProfileTabs" aria-label="Your profile sections">
-                      <a href="#timeline">Moments</a>
-                      <a href="#passport">Passport</a>
-                      <a href="#wanted">Wanted</a>
-                      <a href="#saved-pubs">Saved</a>
-                      <a href="#account-settings">Account settings</a>
-                    </nav>
-                  ) : null}
-
-                  {!passportIsOwn ? (
-                    <PintPassport
-                      handle={routeHandle}
-                      displayName={profile.displayName}
-                      data={passport}
-                      isOwn={passportIsOwn}
-                      hero={false}
-                    />
-                  ) : null}
-
-                  {!isOwnProfile && routeHandle && routeHandle !== YOU_SENTINEL ? (
-                    <OutTonightCrewLine ownerHandle={routeHandle} viewerHandle={viewerHandle} />
-                  ) : null}
-
-                  {/* Quest chips (Loop 2): next-badge progress for the viewed handle.
-                      NextBadgeChips fetches public drops and filters by handle — works
-                      for any profile with drops; renders nothing when empty. Own
-                      profile also surfaces local "Crawls walked" from crawlCompletion. */}
-                  {routeHandle && routeHandle !== YOU_SENTINEL ? (
-                    <NextBadgeChips handle={routeHandle} showCrawlsWalked={isOwnProfile} />
-                  ) : null}
-
-                  {!youSignedOut && joinableBadgeEvents.length ? (
-                    <section className="passportQuestOptIn" aria-labelledby="questOptInHeading">
-                      <div>
-                        <p className="passportQuestOptInKicker">Optional events</p>
-                        <h2 id="questOptInHeading" className="passportQuestOptInTitle">
-                          Seasonal badges
-                        </h2>
-                        <p className="passportQuestOptInCopy">
-                          Join only if you want them. Progress starts from the moment you join.
-                        </p>
-                      </div>
-                      <div className="passportQuestOptInActions">
-                        {joinableBadgeEvents.map((event) => (
-                          <button
-                            key={event.id}
-                            type="button"
-                            className="passportCta passportCtaPrimary"
-                            onClick={() => joinBadgeEvent(event.id)}
-                          >
-                            Join {event.label}
-                          </button>
-                        ))}
-                      </div>
-                    </section>
-                  ) : null}
-
-                  {isOwnProfile && savedNotice && !editing ? (
-                    <p className="profileSavedNotice" role="status">
-                      Saved
-                    </p>
-                  ) : null}
-
-                  {isOwnProfile && editing ? (
-                    <section
-                      id="profile-editing"
-                      className="profileEditingSurface"
-                      aria-labelledby="profile-editing-title"
-                    >
-                      <h2 id="profile-editing-title">Editing your profile</h2>
-                      <ProfileEditor
-                        handle={routeHandle}
-                        initial={{
-                          // Only pre-fill from durable, user-owned values — never the
-                          // synthesized bio/name (those are placeholders the user hasn't
-                          // authored, so the fields should read as empty and editable).
-                          displayName: stored?.displayName,
-                          bio: stored?.bio,
-                          homeCity: stored?.homeCity,
-                          avatarUrl: stored?.avatarUrl,
-                          coverUrl: stored?.coverUrl,
-                          coverUrls: stored?.coverUrls,
-                          favouriteDrink: stored?.favouriteDrink,
-                          interests: stored?.interests,
-                          workplace: stored?.workplace,
-                        }}
-                        onSaved={handleSaved}
-                        onProfileChanged={handleProfileChanged}
-                        onClose={() => setEditing(false)}
-                      />
-                      {/* Linked socials are public content the owner typed in,
-                          so they edit beside the public fields. Account
-                          plumbing lives in Account settings below. */}
-                      {user ? <SocialLinksEditor /> : null}
-                    </section>
-                  ) : null}
-
-                  {!youSignedOut ? (
-                    <section id="timeline" className="profileDropsSection" aria-labelledby="dropsHeading">
-                      <h2 id="dropsHeading" className="profileSectionHeading">
-                        Timeline
-                      </h2>
-
-                      {state === "loading" ? (
-                        <div className="profileTimelineSkel feedList" aria-hidden="true">
-                          {Array.from({ length: 2 }).map((_, i) => (
-                            <div key={i} className="feedCard feedCardSkeleton">
-                              <div className="feedSkelHead">
-                                <span className="feedSkelAvatar" />
-                                <span className="feedSkelLine feedSkelLineShort" />
-                              </div>
-                              <div className="feedSkelPhoto" />
-                              <div className="feedSkelLine" />
-                            </div>
-                          ))}
-                        </div>
-                      ) : drops.length === 0 ? (
-                        <p className="profileEmpty">No pints logged under @{routeHandle} yet.</p>
-                      ) : (
-                        <ProfileTimeline drops={drops as Array<Record<string, unknown>>} />
-                      )}
-                    </section>
-                  ) : null}
-
-                  {/* The destination behind the Crawls tile. It prints only
-                      when this handle has published one, so an empty section
-                      never sits under a zero - or when the owner has an
-                      unlisted crawl, which lives nowhere else at all. */}
-                  {!youSignedOut &&
-                  (authoredCrawls.length > 0 || ownUnlistedCrawls.length > 0) ? (
-                    <section
-                      id="crawl-stories"
-                      className="profileDropsSection"
-                      aria-labelledby="crawlStoriesHeading"
-                    >
-                      <h2 id="crawlStoriesHeading" className="profileSectionHeading">
-                        Crawls
-                      </h2>
-                      <ul className="profileCrawlList">
-                        {authoredCrawls.map((crawl) => (
-                          <li key={crawl.slug} className="profileCrawlRow">
-                            <Link href={`/crawls/${encodeURIComponent(crawl.slug)}`}>
-                              {crawl.title}
-                            </Link>
-                            {typeof crawl.stops === "number" ? (
-                              <span className="profileCrawlStops">
-                                {crawl.stops} {crawl.stops === 1 ? "stop" : "stops"}
-                              </span>
-                            ) : null}
-                          </li>
-                        ))}
-                      </ul>
-                      {/* The tile counts every public crawl, so a page that
-                          shows fewer has to SAY so rather than reading as the
-                          whole set. One step widens the page to the ceiling;
-                          past that the remainder is named plainly. */}
-                      {crawlsHaveMore ? (
-                        crawlLimit < AUTHOR_CRAWL_LIST_MAX_LIMIT ? (
-                          <button
-                            type="button"
-                            className="profileCrawlMore"
-                            onClick={() => setWidenedCrawlPage(routeHandle)}
-                          >
-                            Show more crawls
-                          </button>
-                        ) : typeof storyCount === "number" ? (
-                          <p className="profileEmpty">
-                            And {storyCount - authoredCrawls.length} more.
-                          </p>
-                        ) : null
-                      ) : null}
-                      {/* The owner's own unlisted crawls, and the ONE line that
-                          says why their published tally is larger than the
-                          public figure above it. A count with no way through
-                          would be a dead end wearing a number, so the line
-                          opens the rows it counts. Nobody but the verified
-                          owner is ever answered with them. */}
-                      {ownUnlistedCrawls.length > 0 ? (
-                        <details className="profileCrawlUnlisted">
-                          <summary>{ownUnlistedCrawlsLabel(ownUnlistedTotal)}</summary>
-                          <ul className="profileCrawlList">
-                            {ownUnlistedCrawls.map((crawl) => (
-                              <li key={crawl.slug} className="profileCrawlRow">
-                                <Link href={`/crawls/${encodeURIComponent(crawl.slug)}`}>
-                                  {crawl.title}
-                                </Link>
-                                {typeof crawl.stops === "number" ? (
-                                  <span className="profileCrawlStops">
-                                    {crawl.stops} {crawl.stops === 1 ? "stop" : "stops"}
-                                  </span>
-                                ) : null}
-                              </li>
-                            ))}
-                          </ul>
-                          {/* The line above names every unlisted crawl, so a
-                              page holding fewer has to open the rest rather
-                              than leaving the difference unreachable. One step
-                              widens to the ceiling, then the remainder is named
-                              the way the public lane names its own. */}
-                          {unlistedHaveMore ? (
-                            unlistedLimit < AUTHOR_CRAWL_LIST_MAX_LIMIT ? (
-                              <button
-                                type="button"
-                                className="profileCrawlMore"
-                                onClick={() => setWidenedUnlistedPage(routeHandle)}
-                              >
-                                Show more unlisted crawls
-                              </button>
-                            ) : typeof ownUnlistedTotal === "number" ? (
-                              <p className="profileEmpty">
-                                And {ownUnlistedTotal - ownUnlistedCrawls.length} more.
-                              </p>
-                            ) : null
-                          ) : null}
-                        </details>
-                      ) : null}
-                    </section>
-                  ) : null}
-
-                  {/* /u/you redirects to the real handle the moment one is
-                      known, so gating this on the sentinel alone left the
-                      owner's own Wanted tab pointing at nothing. */}
-                  {isYouRoute || isOwnProfile ? <WantedList /> : null}
-
-                  {/* Your crews, on your own page only. It resolves the Social
-                      gate itself and renders nothing when Social is in
-                      preview, so this card never promises what the flag has
-                      not opened. */}
-                  {isOwnProfile ? (
-                    <CrewsPanel viewerHandle={viewerHandle} resolveAccess />
-                  ) : null}
-
-                  {!youSignedOut ? (
-                    <div id="saved-pubs">
-                      <SavedPubList
-                        ownerHandle={isYouRoute ? viewerHandle : routeHandle}
-                        groups={saved}
-                        followedLists={followedLists}
-                      />
-                    </div>
-                  ) : null}
-
-                  {isYouRoute || isOwnProfile ? (
-                    <div id="account-settings">
-                      <PubmaxxAccountHub />
-                    </div>
-                  ) : null}
-                </div>
-            </div>
-
-            <footer className="profileFloor">
-              <p>
-                PUBMAXX is for over-18s. Drink responsibly, know the facts at{" "}
-                <a href="https://www.drinkaware.co.uk" rel="noreferrer">
-                  drinkaware.co.uk
-                </a>
-                .
-              </p>
-            </footer>
-          </>
-        )}
+        {surfaceBody()}
         {surface === "identity-loading" || surface === "you-invitation" ? (
           <WantedList
             key="you-wanted-panel"

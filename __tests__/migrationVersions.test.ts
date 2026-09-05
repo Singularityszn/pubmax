@@ -59,6 +59,19 @@ const GRANDFATHERED_DUPLICATE_LABEL_FILES = {
   ],
 } as const;
 
+// A MIGRATION LANDS WITH THE WAY BACK OUT, and from label 0092 that is a rule
+// rather than a habit. The audit found 0120 and 0121 shipped without one, so a
+// social-connection lifecycle and a Wanted promotion could be applied and not
+// undone; both now carry a twin. 0092 is the floor because every label from it
+// onwards has one, while 89 older migrations predate the practice and are not
+// retrofitted here.
+const ROLLBACK_REQUIRED_FROM_LABEL = 92;
+
+// A migration at or after the floor that may ship without a rollback, each row
+// carrying the reason. The list may only ever SHRINK: it is EMPTY today, and
+// an exception belongs here with its reason rather than in a silent gap.
+const MIGRATIONS_WITHOUT_ROLLBACK: Record<string, string> = {};
+
 function migrationFiles(directory: string): string[] {
   return readdirSync(join(process.cwd(), directory)).filter((name) =>
     name.endsWith(".sql"),
@@ -142,5 +155,36 @@ describe("Supabase migration versions", () => {
       .filter((label) => !migrationLabels.has(label));
 
     expect(orphans).toEqual([]);
+  });
+
+  it("gives every migration from 0092 onwards a rollback twin", () => {
+    const rollbackLabels = new Set(
+      migrationFiles("supabase/migrations/rollback").map(labelOf).filter(Boolean),
+    );
+    const missing: Record<string, string> = {};
+
+    for (const name of migrationFiles("supabase/migrations")) {
+      const label = labelOf(name);
+      if (!label) continue;
+      if (Number(label) < ROLLBACK_REQUIRED_FROM_LABEL) continue;
+      // Keyed by LABEL, because that is what the captain applies by and what a
+      // rollback names; a grandfathered duplicate label shares one twin.
+      if (rollbackLabels.has(label)) continue;
+      if (label in MIGRATIONS_WITHOUT_ROLLBACK) continue;
+      missing[label] = name;
+    }
+
+    expect(missing).toEqual({});
+  });
+
+  it("keeps the no-rollback list shrink-only: no row that already has a twin", () => {
+    const rollbackLabels = new Set(
+      migrationFiles("supabase/migrations/rollback").map(labelOf).filter(Boolean),
+    );
+    const stale = Object.keys(MIGRATIONS_WITHOUT_ROLLBACK).filter((label) =>
+      rollbackLabels.has(label),
+    );
+
+    expect(stale).toEqual([]);
   });
 });
