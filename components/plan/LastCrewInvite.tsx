@@ -17,6 +17,7 @@ import {
   subscribeLastCrew,
 } from "@/lib/lastCrew";
 import { planCrewSharePath } from "@/lib/planCrewInviteUrl";
+import { refreshPlanInviteToken } from "@/lib/planInviteTokenClient";
 import {
   parsePlanCapabilitySnapshot,
   planCapabilityEvent,
@@ -69,10 +70,9 @@ export default function LastCrewInvite({
         return;
       }
     }
-    const projection = await fetch(`/api/plans/${planId}`, { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .catch(() => null) as { inviteToken?: string | null } | null;
-    const inviteToken = typeof projection?.inviteToken === "string" ? projection.inviteToken : null;
+    // One live token for the whole page: a rotate elsewhere on this screen
+    // must not leave this share carrying a link the server already refuses.
+    const inviteToken = await refreshPlanInviteToken(planId);
     if (!inviteToken) {
       setStatus("Invite link not ready yet. Try again in a moment.");
       return;
