@@ -12,7 +12,9 @@ import { anchorConflictMessage, routeStopsFromGenerated } from "@/components/pla
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot, restorePlanCapability } from "@/lib/planSessionCapability";
 import { usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 import { setActivePlanRole } from "@/lib/activePlan";
-import type { PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
+import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
+
+export { isPlanPreviewProjection };
 import type { InvitePrivacyPreviewDTO } from "@/lib/invitePrivacyPreview";
 import type { VibeTally } from "@/lib/vibeTally";
 import {
@@ -287,11 +289,6 @@ function canonicalStateFromBody(value: unknown): PlanState | null {
   return null;
 }
 
-/** A body the server answered as the anonymous preview rather than a member. */
-export function isPlanPreviewProjection(value: unknown): boolean {
-  return Boolean(value) && typeof value === "object"
-    && (value as { visibility?: unknown }).visibility === "preview";
-}
 
 /**
  * §4.10 boundary: the server never embeds the route in this component's props.

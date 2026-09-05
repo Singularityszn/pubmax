@@ -53,6 +53,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
+import { isPlanPreviewProjection } from "@/lib/planPrivacy";
 import type {
   CrawlEnding,
   EndingSelection,
@@ -504,7 +505,20 @@ function NightModeSheet({
         return response.json();
       })
       .then((body: PlanState | null) => {
-        if (isActive() && body && Array.isArray(body.stops)) setPlan(body);
+        if (!isActive()) return;
+        if (body && Array.isArray(body.stops)) {
+          setPlan(body);
+          return;
+        }
+        // A READ THAT ANSWERS PREVIEW IS AN ANSWER (#1521), so the card puts
+        // down what it was holding. Before this the preview body simply had no
+        // `stops`, the branch above was skipped, and a member whose capability
+        // had been revoked kept the route and the get-in report on screen: the
+        // server withheld the data and the client did not (F-33).
+        if (isPlanPreviewProjection(body)) {
+          setPlan(null);
+          setReport(null);
+        }
       })
       .catch(() => undefined);
     void fetch(`/api/plans/${id}/getin`, { cache: "no-store" })
