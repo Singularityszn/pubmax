@@ -53,6 +53,7 @@ import {
   describeInternalLanguage,
   internalLanguageFindings,
 } from "../lib/heritageLanguageGate.mjs";
+import { heritagePlaceConflict } from "../lib/heritagePlaceConflict.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, "..");
@@ -151,7 +152,7 @@ const ARTIFACT_CLASSIFICATION = [
   { id: "pint_index_snapshot", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
   { id: "late_food_evidence", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
   { id: "editorial_overlay", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the file is absent; a file that IS present with a body or extra keys is a genuine defect and stays a hard gate" },
-  { id: "historic_pubs", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the artifact is absent; a record that IS present carrying a note we wrote to ourselves is published to strangers as a fact about a pub, and stays a hard gate" },
+  { id: "historic_pubs", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the artifact is absent; a record that IS present carrying a note we wrote to ourselves, or a description of a pub in another borough, is published to strangers as a fact about this pub, and stays a hard gate" },
 ];
 
 function classificationFor(id) {
@@ -3746,14 +3747,24 @@ function validateLateFoodEvidenceSnapshot() {
 // historic_pubs.json — the cited heritage index /historic, /historic/[slug] and
 // the borough heritage rails all read.
 //
-// ONE FENCE HERE, AND IT IS ABOUT WHO THE WORDS WERE WRITTEN FOR. Every string
-// on these records is shown to a stranger as a fact about a pub, so none of it
-// may be a note we wrote to ourselves. The Queens Arms card carried "a useful
-// Victorian reference stop for the seeded heritage route" in production, and
-// nothing failed, because a description is free text and free text was never
-// checked. scripts/build_historic_index.mjs refuses such a sentence on the way
-// in; this refuses it again over the artifact that actually ships, so a
-// hand-edited file cannot walk around the generator.
+// TWO FENCES, BOTH ABOUT WHETHER A CARD TELLS THE TRUTH ABOUT ONE PUB.
+//
+// (1) WHO THE WORDS WERE WRITTEN FOR. Every string on these records is shown to
+// a stranger as a fact about a pub, so none of it may be a note we wrote to
+// ourselves. The Queens Arms card carried "a useful Victorian reference stop
+// for the seeded heritage route" in production and nothing failed, because a
+// description is free text and free text was never checked.
+//
+// (2) WHICH PUB THE WORDS ARE ABOUT. Heritage facts are keyed by pub name and
+// London has several of nearly every name, so a record can carry a description
+// of one pub over the borough, coordinates and map link of another. The
+// Cheshire Cheese card was labelled Westminster over a pub at 48 Crutched
+// Friars in the City of London. A fact that names a borough other than the
+// record's own is refused, never merged.
+//
+// scripts/build_historic_index.mjs applies both on the way in; this applies
+// them again over the artifact that actually ships, so a hand-edited file
+// cannot walk around the generator.
 function validateHistoricPubs() {
   const name = "public/data/historic_pubs.json";
   if (!existsSync(HISTORIC_PUBS_FILE)) {
@@ -3787,6 +3798,16 @@ function validateHistoricPubs() {
         errs.push(`${where} ${field}: ${describeInternalLanguage(finding)}`);
       }
     }
+    for (const [index2, fact] of (Array.isArray(row?.facts) ? row.facts : []).entries()) {
+      const conflict = heritagePlaceConflict({
+        text: fact?.fact,
+        sourceRef: fact?.sourceRef,
+        venueBorough: row?.borough,
+      });
+      if (conflict) {
+        errs.push(`${where} facts[${index2}]: ${conflict.reason}, ${conflict.why}`);
+      }
+    }
   }
 
   if (errs.length > 0) {
@@ -3795,7 +3816,9 @@ function validateHistoricPubs() {
     if (errs.length > 20) console.log(`  … and ${errs.length - 20} more`);
     return { ok: false, count: rows.length };
   }
-  console.log(`OK   ${name}: ${rows.length} records, no internal language published`);
+  console.log(
+    `OK   ${name}: ${rows.length} records, no internal language and no borough conflict published`,
+  );
   return { ok: true, count: rows.length };
 }
 

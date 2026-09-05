@@ -468,3 +468,48 @@ describe("buildHistoricPublication — internal language is quarantined", () => 
     );
   });
 });
+
+// F06: two pubs with one name are two pubs. The heritage cache is keyed by pub
+// NAME, so one key collects facts about several, and the join then hangs them
+// all on whichever venue came first. A fact naming a borough other than the
+// joined venue's is quarantined, never merged into the card.
+describe("buildHistoricPublication — a fact about another borough is quarantined", () => {
+  const CACHE = {
+    // Joined to the Camden row. One fact agrees by silence, one names Hackney.
+    "the old bell": [
+      { source: "wikipedia", fact: "The Old Bell is a Grade II* listed pub rebuilt in 1670." },
+      {
+        source: "wikidata",
+        fact: "pub in Hackney, London",
+        sourceRef: "https://en.wikipedia.org/wiki/The_Old_Bell,_Hackney",
+      },
+    ],
+    // Joined to the Hackney row, and its only fact is about a Camden pub.
+    "the new inn": [{ source: "wikidata", fact: "pub in Camden, London" }],
+  };
+
+  const { records, quarantined } = buildHistoricPublication({
+    heritageCache: CACHE,
+    dataset: FIXTURE_DATASET,
+  });
+
+  it("keeps the pub, on the fact that does not contradict its borough", () => {
+    const bell = byName(records, "The Old Bell");
+    expect(bell.borough).toBe("Camden");
+    expect(bell.facts).toHaveLength(1);
+    expect(JSON.stringify(bell)).not.toContain("Hackney");
+  });
+
+  it("withholds a record left with nothing that is about it", () => {
+    expect(records.find((r) => r.name === "The New Inn")).toBeUndefined();
+  });
+
+  it("says which borough disagreed with which, so the key can be split", () => {
+    const conflicts = quarantined.filter(
+      (q: { reason: string }) => q.reason === "borough-stated-in-fact",
+    );
+    expect(conflicts).toHaveLength(2);
+    expect(conflicts[0].detail).toContain("Hackney");
+    expect(conflicts[0].detail).toContain("Camden");
+  });
+});

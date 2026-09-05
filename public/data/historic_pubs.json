@@ -51,11 +51,6 @@
         "source": "wikidata",
         "fact": "pub in Limehouse, London",
         "sourceRef": "https://en.wikipedia.org/wiki/The_Grapes,_Limehouse"
-      },
-      {
-        "source": "wikidata",
-        "fact": "pub in Wandsworth, London",
-        "sourceRef": "https://en.wikipedia.org/wiki/The_Grapes,_Wandsworth"
       }
     ],
     "era": "1583",
@@ -254,6 +249,25 @@
     "sourced": true
   },
   {
+    "venueId": "venue-3zgjrk",
+    "name": "Cheshire Cheese",
+    "slug": "cheshire-cheese",
+    "borough": "City of London",
+    "lat": 51.5116,
+    "lng": -0.0778,
+    "hook": "The Cheshire Cheese at 48 Crutched Friars sits beneath the viaduct of Fenchurch Street station in the City of London; a pub of this name traded on the site before the railway arrived in the 1850s, with records of the Cheshire Cheese, Crutched Friars going back to the early 19th century. (It is a separate pub from the famous Ye Olde Cheshire Cheese on Fleet Street.)",
+    "facts": [
+      {
+        "source": "seed",
+        "fact": "The Cheshire Cheese at 48 Crutched Friars sits beneath the viaduct of Fenchurch Street station in the City of London; a pub of this name traded on the site before the railway arrived in the 1850s, with records of the Cheshire Cheese, Crutched Friars going back to the early 19th century. (It is a separate pub from the famous Ye Olde Cheshire Cheese on Fleet Street.)",
+        "sourceRef": "https://whatpub.com/pubs/ELC/14880/cheshire-cheese-london"
+      }
+    ],
+    "era": "19th century",
+    "listed": null,
+    "sourced": true
+  },
+  {
     "venueId": "venue-eco9y3",
     "name": "London Tavern",
     "slug": "london-tavern",
@@ -266,30 +280,6 @@
         "source": "wikidata",
         "fact": "notable pub and meeting place in London in the 18th and 19th centuries",
         "sourceRef": "https://en.wikipedia.org/wiki/London_Tavern"
-      }
-    ],
-    "era": "19th century",
-    "listed": null,
-    "sourced": true
-  },
-  {
-    "venueId": "venue-heljpa",
-    "name": "The Cheshire Cheese",
-    "slug": "the-cheshire-cheese",
-    "borough": "Westminster",
-    "lat": 51.512433,
-    "lng": -0.113197,
-    "hook": "The Cheshire Cheese at 48 Crutched Friars sits beneath the viaduct of Fenchurch Street station in the City of London; a pub of this name traded on the site before the railway arrived in the 1850s, with records of the Cheshire Cheese, Crutched Friars going back to the early 19th century. (It is a separate pub from the famous Ye Olde Cheshire Cheese on Fleet Street.)",
-    "facts": [
-      {
-        "source": "seed",
-        "fact": "The Cheshire Cheese at 48 Crutched Friars sits beneath the viaduct of Fenchurch Street station in the City of London; a pub of this name traded on the site before the railway arrived in the 1850s, with records of the Cheshire Cheese, Crutched Friars going back to the early 19th century. (It is a separate pub from the famous Ye Olde Cheshire Cheese on Fleet Street.)",
-        "sourceRef": "https://whatpub.com/pubs/ELC/14880/cheshire-cheese-london"
-      },
-      {
-        "source": "wikidata",
-        "fact": "pub in Essex Street, Strand, London",
-        "sourceRef": "https://en.wikipedia.org/wiki/The_Cheshire_Cheese"
       }
     ],
     "era": "19th century",
@@ -2327,11 +2317,6 @@
         "source": "wikidata",
         "fact": "pub in Hanwell, London",
         "sourceRef": "https://en.wikipedia.org/wiki/Kings_Arms,_Hanwell"
-      },
-      {
-        "source": "wikidata",
-        "fact": "pub in Woolwich, Greenwich, London, UK",
-        "sourceRef": "https://en.wikipedia.org/wiki/Kings_Arms,_Woolwich"
       }
     ],
     "era": null,
@@ -3021,11 +3006,6 @@
         "source": "wikidata",
         "fact": "pub on Duke of York Street, St James's, London",
         "sourceRef": "https://en.wikipedia.org/wiki/Red_Lion,_Duke_of_York_Street"
-      },
-      {
-        "source": "wikidata",
-        "fact": "pub in Whitehall, London",
-        "sourceRef": "https://en.wikipedia.org/wiki/Red_Lion,_Westminster"
       }
     ],
     "era": null,
@@ -3725,11 +3705,6 @@
         "source": "wikidata",
         "fact": "pub in Hayes, London Borough of Hillingdon",
         "sourceRef": "https://en.wikipedia.org/wiki/The_Angel,_Hayes"
-      },
-      {
-        "source": "wikidata",
-        "fact": "historic landmark in Islington, London, England",
-        "sourceRef": "https://en.wikipedia.org/wiki/The_Angel,_Islington"
       }
     ],
     "era": null,
@@ -3844,25 +3819,6 @@
         "source": "wikidata",
         "fact": "pub and music venue in Balham, London, England, UK",
         "sourceRef": "https://en.wikipedia.org/wiki/The_Bedford,_Balham"
-      }
-    ],
-    "era": null,
-    "listed": null,
-    "sourced": true
-  },
-  {
-    "venueId": "venue-jccpwa",
-    "name": "The Bell",
-    "slug": "the-bell",
-    "borough": "Tower Hamlets",
-    "lat": 51.5158,
-    "lng": -0.0754594,
-    "hook": "pub in City of London, England, UK",
-    "facts": [
-      {
-        "source": "wikidata",
-        "fact": "pub in City of London, England, UK",
-        "sourceRef": "https://en.wikipedia.org/wiki/The_Bell,_City_of_London"
       }
     ],
     "era": null,
@@ -4061,25 +4017,6 @@
     "sourced": true
   },
   {
-    "venueId": "venue-jxen6y",
-    "name": "The Castle",
-    "slug": "the-castle",
-    "borough": "Islington",
-    "lat": 51.532,
-    "lng": -0.109019,
-    "hook": "pub in Harrow, London",
-    "facts": [
-      {
-        "source": "wikidata",
-        "fact": "pub in Harrow, London",
-        "sourceRef": "https://en.wikipedia.org/wiki/The_Castle,_Harrow"
-      }
-    ],
-    "era": null,
-    "listed": null,
-    "sourced": true
-  },
-  {
     "venueId": "venue-159lkk9",
     "name": "The Centre Page",
     "slug": "the-centre-page",
@@ -4111,6 +4048,25 @@
         "source": "wikidata",
         "fact": "pub in the City of Westminster, Greater London, W1T",
         "sourceRef": "https://en.wikipedia.org/wiki/The_Champion,_Wells_Street"
+      }
+    ],
+    "era": null,
+    "listed": null,
+    "sourced": true
+  },
+  {
+    "venueId": "venue-heljpa",
+    "name": "The Cheshire Cheese",
+    "slug": "the-cheshire-cheese",
+    "borough": "Westminster",
+    "lat": 51.512433,
+    "lng": -0.113197,
+    "hook": "pub in Essex Street, Strand, London",
+    "facts": [
+      {
+        "source": "wikidata",
+        "fact": "pub in Essex Street, Strand, London",
+        "sourceRef": "https://en.wikipedia.org/wiki/The_Cheshire_Cheese"
       }
     ],
     "era": null,
@@ -4244,11 +4200,6 @@
         "source": "wikidata",
         "fact": "pub in Cowley, London",
         "sourceRef": "https://en.wikipedia.org/wiki/The_Crown,_Cowley"
-      },
-      {
-        "source": "wikidata",
-        "fact": "pub in Islington, London",
-        "sourceRef": "https://en.wikipedia.org/wiki/The_Crown,_Islington"
       }
     ],
     "era": null,
@@ -4325,25 +4276,6 @@
         "source": "wikidata",
         "fact": "fleet Street hostelry",
         "sourceRef": "https://en.wikipedia.org/wiki/The_Devil_Tavern"
-      }
-    ],
-    "era": null,
-    "listed": null,
-    "sourced": true
-  },
-  {
-    "venueId": "venue-o1bguk",
-    "name": "The Dolphin",
-    "slug": "the-dolphin",
-    "borough": "Lewisham",
-    "lat": 51.4261,
-    "lng": -0.0485584,
-    "hook": "pub in the London Borough of Hackney",
-    "facts": [
-      {
-        "source": "wikidata",
-        "fact": "pub in the London Borough of Hackney",
-        "sourceRef": "https://en.wikipedia.org/wiki/The_Dolphin,_Hackney"
       }
     ],
     "era": null,
@@ -5304,13 +5236,8 @@
     "borough": "Richmond upon Thames",
     "lat": 51.4631,
     "lng": -0.291475,
-    "hook": "pub in Greenwich, London",
+    "hook": "pub in Bayswater, London",
     "facts": [
-      {
-        "source": "wikidata",
-        "fact": "pub in Greenwich, London",
-        "sourceRef": "https://en.wikipedia.org/wiki/The_Mitre,_Greenwich"
-      },
       {
         "source": "wikidata",
         "fact": "pub in Bayswater, London",
@@ -5676,25 +5603,6 @@
         "source": "wikidata",
         "fact": "pub in Mayfair, London",
         "sourceRef": "https://en.wikipedia.org/wiki/The_Punch_Bowl,_Mayfair"
-      }
-    ],
-    "era": null,
-    "listed": null,
-    "sourced": true
-  },
-  {
-    "venueId": "venue-1iyj2h1",
-    "name": "The Red Lion",
-    "slug": "the-red-lion",
-    "borough": "Bromley",
-    "lat": 51.41,
-    "lng": 0.0216528,
-    "hook": "public house in the High Street, Chipping Barnet, London",
-    "facts": [
-      {
-        "source": "wikidata",
-        "fact": "public house in the High Street, Chipping Barnet, London",
-        "sourceRef": "https://en.wikipedia.org/wiki/The_Red_Lion,_Chipping_Barnet"
       }
     ],
     "era": null,
@@ -6517,13 +6425,8 @@
     "borough": "Camden",
     "lat": 51.5188,
     "lng": -0.132883,
-    "hook": "pub in Southwark, London",
+    "hook": "public house in Camden, London",
     "facts": [
-      {
-        "source": "wikidata",
-        "fact": "pub in Southwark, London",
-        "sourceRef": "https://en.wikipedia.org/wiki/The_Wheatsheaf,_Southwark"
-      },
       {
         "source": "wikidata",
         "fact": "public house in Camden, London",

@@ -345,12 +345,14 @@
       "sourceRef": "https://en.wikipedia.org/wiki/The_Pride_of_Spitalfields"
     }
   ],
-  "the cheshire cheese": [
+  "cheshire cheese": [
     {
       "source": "seed",
       "fact": "The Cheshire Cheese at 48 Crutched Friars sits beneath the viaduct of Fenchurch Street station in the City of London; a pub of this name traded on the site before the railway arrived in the 1850s, with records of the Cheshire Cheese, Crutched Friars going back to the early 19th century. (It is a separate pub from the famous Ye Olde Cheshire Cheese on Fleet Street.)",
       "sourceRef": "https://whatpub.com/pubs/ELC/14880/cheshire-cheese-london"
-    },
+    }
+  ],
+  "the cheshire cheese": [
     {
       "source": "wikidata",
       "fact": "pub in Essex Street, Strand, London",

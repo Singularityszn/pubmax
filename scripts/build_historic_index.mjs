@@ -15,11 +15,18 @@
 // regex only — if the text doesn't say it, the field is null.
 //
 // Publication contract: a fact copied verbatim is still checked before it is
-// published. lib/heritageLanguageGate.mjs refuses a sentence written for us
-// rather than for a reader, and the refusal is QUARANTINE, never a rewrite: the
-// fact is withheld and reported by name so it is fixed at the cache, and a
-// record left with nothing publishable is withheld whole rather than shown with
-// an empty description.
+// published, by two gates that both QUARANTINE and never rewrite. A withheld
+// fact is reported by name so it is fixed at the cache, and a record left with
+// nothing publishable is withheld whole rather than shown with an empty
+// description.
+//   • lib/heritageLanguageGate.mjs refuses a sentence written for us rather
+//     than for a reader.
+//   • lib/heritagePlaceConflict.mjs refuses a fact that names a London borough
+//     other than the borough of the venue it was joined to. Facts are keyed by
+//     pub NAME and London has several of nearly every name, so one key collects
+//     facts about several pubs; the join then hangs them all on whichever venue
+//     came first. That is how The Cheshire Cheese card ended up labelled
+//     Westminster over a description of a City of London pub.
 //
 // Determinism: output is sorted (era ascending, nulls last, then name) and
 // pretty-printed with a trailing newline, so running twice is byte-identical.
@@ -34,6 +41,7 @@ import {
   describeInternalLanguage,
   internalLanguageFinding,
 } from "../lib/heritageLanguageGate.mjs";
+import { heritagePlaceConflict } from "../lib/heritagePlaceConflict.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -307,8 +315,11 @@ export function buildHistoricPublication({
       curatedVenueMatch(cacheKey, venueIdIndex, venueAliases, venueIdsByCacheKey);
     const name = match && match.name ? match.name : titleCase(cacheKey);
 
-    // Publication gate: a fact written for us rather than for a reader never
-    // reaches a card. Refusing is all this does; the cache is where it is fixed.
+    // Publication gates. Refusing is all they do; the cache is where a refused
+    // fact is fixed. The venue row the record was joined to is the geographic
+    // authority here: it is where the card's coordinates, map link and borough
+    // label all come from, so a fact that contradicts it is about another pub.
+    const venueBorough = match ? match.borough : null;
     const facts = [];
     for (const fact of cited) {
       const finding = internalLanguageFinding(fact.fact);
@@ -318,6 +329,21 @@ export function buildHistoricPublication({
           name,
           reason: "internal-language",
           detail: describeInternalLanguage(finding),
+          fact: fact.fact,
+        });
+        continue;
+      }
+      const conflict = heritagePlaceConflict({
+        text: fact.fact,
+        sourceRef: fact.sourceRef,
+        venueBorough,
+      });
+      if (conflict) {
+        quarantined.push({
+          cacheKey,
+          name,
+          reason: conflict.reason,
+          detail: conflict.why,
           fact: fact.fact,
         });
         continue;
