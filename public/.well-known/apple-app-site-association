@@ -18,5 +18,8 @@
         ]
       }
     ]
+  },
+  "webcredentials": {
+    "apps": ["TEAMID.com.pubmaxx.app"]
   }
 }

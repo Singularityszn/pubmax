@@ -8,8 +8,20 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
+    <!-- Android Auto Backup copies the app's data, WebView localStorage
+         included, to the person's Google Drive, and it is ON by default. This
+         app keeps the browser session in evictable localStorage
+         (lib/authSessionResume.ts) and a refresh token per account beside it
+         (lib/deviceAccountSessions.ts), so the default would put live
+         credentials in a third-party cloud - a data practice
+         app/privacy/page.tsx does not describe and the Play Data safety form
+         does not declare. Refusing backup is the honest answer rather than the
+         narrow one: everything this app holds on a device is a signed-in
+         session and a city choice, and both are cheap to re-establish. The
+         same attribute governs Android 12+ device-to-device transfer, so one
+         line closes both doors and no extraction-rules file is needed. -->
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
