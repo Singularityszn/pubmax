@@ -230,7 +230,9 @@
   cursor: pointer;
 }
 
-.memoryKeepConfirm__keep {
+/* The quiet half of the pair. Element specificity above would otherwise win
+   over a bare class, and both beats would read as the same filled action. */
+.memoryKeepConfirm button.memoryKeepConfirm__keep {
   border: 1px solid var(--line);
   background: transparent;
   color: var(--ink-soft);
