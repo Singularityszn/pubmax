@@ -91,6 +91,7 @@
     "harvest:uk-prices-rendered": "tsx scripts/harvest/uk-prices/render.mjs"
   },
   "dependencies": {
+    "@capacitor-community/in-app-review": "^8.0.0",
     "@capacitor/android": "^8.5.0",
     "@capacitor/app": "^8.1.1",
     "@capacitor/camera": "^8.2.3",

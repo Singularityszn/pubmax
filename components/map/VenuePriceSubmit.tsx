@@ -28,6 +28,7 @@ import { haptic } from "@/lib/nativeHaptics";
 import { pickNativePhoto } from "@/lib/nativeCamera";
 import { isNativeApp } from "@/lib/nativePlatform";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
+import { recordKeptAction } from "@/lib/nativeReviewPrompt";
 import PriceContributionImpact from "@/components/map/PriceContributionImpact";
 import type { MissionSurface } from "@/lib/analyticsEvents";
 import {
@@ -334,6 +335,10 @@ export default function VenuePriceSubmit({
       // decides whether to show (lib/nativePushPrompt.ts); this only says an
       // action worth being offered one happened.
       recordPlanHighIntentAction();
+      // A logged price is a kept action, so it also counts towards the once-ever
+      // store review ask. lib/nativeReviewPrompt.ts owns whether this is the
+      // moment; nothing is awaited and the receipt below never waits on it.
+      void recordKeptAction("price-logged");
       // Read back what this tap turned out to be worth. It is derived for
       // EVERY confirmed submission, not only inside a mission: the corroboration
       // rate is submissions that reached the map over submissions made, and

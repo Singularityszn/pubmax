@@ -162,12 +162,21 @@ describe("native plugin projects carry every declared Capacitor plugin", () => {
   };
   // The platform packages themselves are the projects, not plugins inside them.
   const PLATFORM_PACKAGES = new Set(["@capacitor/android", "@capacitor/ios", "@capacitor/core", "@capacitor/cli"]);
+  // Both scopes a Capacitor plugin arrives under here: the official one and the
+  // capacitor-community org. A community plugin is wired into the two generated
+  // manifests by the same cap sync and fails in exactly the same silence, so it
+  // belongs inside this fence rather than beside it.
+  const PLUGIN_SCOPES = ["@capacitor/", "@capacitor-community/"];
   const plugins = Object.keys(pkg.dependencies)
-    .filter((name) => name.startsWith("@capacitor/") && !PLATFORM_PACKAGES.has(name))
+    .filter((name) => PLUGIN_SCOPES.some((scope) => name.startsWith(scope)) && !PLATFORM_PACKAGES.has(name))
     .sort();
 
   it("declares @capacitor/share as a runtime dependency", () => {
     expect(plugins).toContain("@capacitor/share");
+  });
+
+  it("declares the store review plugin as a runtime dependency", () => {
+    expect(plugins).toContain("@capacitor-community/in-app-review");
   });
 
   it("includes every plugin in the Android Gradle settings", () => {
