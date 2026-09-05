@@ -105,6 +105,29 @@ describe("the live invite token", () => {
     expect(snapshot()).toEqual({ state: "unavailable", token: null });
   });
 
+  it("re-asks after a read it could not run, rather than latching one blip for the page", async () => {
+    // F-31: `unavailable` is not an answer about this Plan, so holding it
+    // downgraded every share surface to a bare /plan/{id} link until a reload.
+    answerWith({ error: "Plan data is temporarily unavailable." }, false);
+    await expect(refreshPlanInviteToken(PLAN)).resolves.toBeNull();
+    expect(snapshot()).toEqual({ state: "unavailable", token: null });
+
+    answerWith({ inviteToken: FIRST });
+    await expect(ensurePlanInviteToken(PLAN)).resolves.toBe(FIRST);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(snapshot()).toEqual({ state: "ready", token: FIRST });
+  });
+
+  it("spends no second read on a projection that answered with no token", async () => {
+    answerWith({});
+    await expect(refreshPlanInviteToken(PLAN)).resolves.toBeNull();
+    expect(snapshot()).toEqual({ state: "missing", token: null });
+
+    answerWith({ inviteToken: FIRST });
+    await expect(ensurePlanInviteToken(PLAN)).resolves.toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("re-asks after a clear rather than sharing a token it no longer holds", async () => {
     answerWith({ inviteToken: FIRST });
     await refreshPlanInviteToken(PLAN);
