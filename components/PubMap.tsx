@@ -336,10 +336,6 @@ import { useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
 import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { planStopsToRouteVenues } from "@/lib/activePlanRoute";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
-import {
-  TRUSTED_HANDOFF_FLAGS_OFF,
-  type TrustedHandoffFlagsDTO,
-} from "@/lib/trustedHandoffFlags";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
 import {
   clearFavoritePint,
@@ -913,12 +909,10 @@ function mapChipLabelFor(input: {
 
 export default function PubMap({
   cityId = DEFAULT_CITY_ID,
-  flags = TRUSTED_HANDOFF_FLAGS_OFF,
   placeArrival = null,
   nationalBrowse = false,
 }: {
   cityId?: CityId;
-  flags?: TrustedHandoffFlagsDTO;
   /**
    * Server-resolved uncovered-place arrival. Frozen at mount like every other
    * arrival read. It arrives as a prop rather than being parsed out of
@@ -4918,7 +4912,6 @@ export default function PubMap({
         initialNightArea={suggestedPlanArea.slug}
         venuesById={venuesById}
         onGenerated={applyGeneratedMobilePlan}
-        mapRouteTransfer={flags.mapRouteTransfer}
       />
     ) : null;
   const plannerOrder = phonePlannerOrder({ mobileViewport, mode, builtCount: builtIds.length });

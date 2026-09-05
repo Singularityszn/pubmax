@@ -49,13 +49,15 @@ describe("groupTonightListings", () => {
     expect(grouped[0].alternates.map((r) => r.placeName)).toEqual(["Mid", "Far"]);
   });
 
-  it("keeps a stable, input-driven order when no location is known", () => {
-    const soon = makeRow({ placeName: "Soon", startsAt: "2026-07-23T18:00:00+01:00" });
-    const later = makeRow({ placeName: "Later", startsAt: "2026-07-23T20:00:00+01:00" });
-    // soonest wins the display slot; ties fall back to input order.
-    const grouped = groupTonightListings([later, soon], null);
-    expect(grouped[0].row.placeName).toBe("Soon");
-    expect(grouped[0].alternates.map((r) => r.placeName)).toEqual(["Later"]);
+  it("keeps a family's members in input order when no location is known", () => {
+    // Members of one family share a schedule by construction (the group key
+    // carries it), so with no near point there is nothing left to sort them by.
+    const first = makeRow({ placeName: "First" });
+    const second = makeRow({ placeName: "Second" });
+    const grouped = groupTonightListings([first, second], null);
+    expect(grouped).toHaveLength(1);
+    expect(grouped[0].row.placeName).toBe("First");
+    expect(grouped[0].alternates.map((r) => r.placeName)).toEqual(["Second"]);
   });
 
   it("passes a lone listing through untouched (count 1, no alternates)", () => {
@@ -65,7 +67,10 @@ describe("groupTonightListings", () => {
     expect(grouped[0].alternates).toEqual([]);
   });
 
-  it("preserves the list's first-appearance order across distinct families", () => {
+  it("orders fully tied families by their stable group key, never by input order", () => {
+    // No coordinates, one confidence, one source observation and one start, so
+    // every earlier tie-break level is equal and the group key decides. The key
+    // leads with the kind, so deal sorts before music sorts before quiz.
     const rows = [
       makeRow({ title: "Curry Club", placeName: "C1" }),
       makeRow({ title: "Quiz Night", kind: "quiz", placeName: "Q1" }),
@@ -73,7 +78,7 @@ describe("groupTonightListings", () => {
       makeRow({ title: "Live Jazz", kind: "music", placeName: "J1" }),
     ];
     const grouped = groupTonightListings(rows, null);
-    expect(grouped.map((g) => g.row.title)).toEqual(["Curry Club", "Quiz Night", "Live Jazz"]);
+    expect(grouped.map((g) => g.row.title)).toEqual(["Curry Club", "Live Jazz", "Quiz Night"]);
   });
 
   it("holds the plan cap: no offer family appears more than twice in the first ten rows", () => {
@@ -115,17 +120,13 @@ describe("groupTonightListings", () => {
     );
     expect(byKind).toEqual({ deal: 1, quiz: 1, music: 1 });
   });
-});
-
-describe("groupTonightListings V2 (PUBMAX_TONIGHT_GROUPING canonical model)", () => {
-  const v2 = { v2: true } as const;
 
   it("collapses only truly identical offers: case and punctuation are ignored", () => {
     const rows = [
       makeRow({ placeName: "A", title: "Curry Club" }),
       makeRow({ placeName: "B", title: "curry   club" }), // case + repeated whitespace
     ];
-    const grouped = groupTonightListings(rows, null, v2);
+    const grouped = groupTonightListings(rows, null);
     expect(grouped).toHaveLength(1);
     expect(grouped[0].venueCount).toBe(2);
   });
@@ -135,23 +136,20 @@ describe("groupTonightListings V2 (PUBMAX_TONIGHT_GROUPING canonical model)", ()
       makeRow({ placeName: "A", source: { label: "Chain Co", url: "https://a.example" } }),
       makeRow({ placeName: "B", source: { label: "Rival Co", url: "https://b.example" } }),
     ];
-    expect(groupTonightListings(rows, null, v2)).toHaveLength(2);
+    expect(groupTonightListings(rows, null)).toHaveLength(2);
   });
 
-  it("keeps distinct SCHEDULES apart — the V2 difference from the shipped collapse", () => {
+  it("keeps distinct SCHEDULES apart", () => {
     // Same title + source + kind, different start times: one syndicated name run at
     // two different times is two offers, not one.
     const rows = [
       makeRow({ placeName: "Early", startsAt: "2026-07-23T18:00:00+01:00" }),
       makeRow({ placeName: "Late", startsAt: "2026-07-23T21:00:00+01:00" }),
     ];
-    // Shipped collapse (flag off) folds them into one card (key has no schedule)...
-    expect(groupTonightListings(rows, null, { v2: false })).toHaveLength(1);
-    // ...V2 keeps the two distinct schedules as separate cards.
-    expect(groupTonightListings(rows, null, v2)).toHaveLength(2);
+    expect(groupTonightListings(rows, null)).toHaveLength(2);
   });
 
-  it("keeps different listed-time evidence separate in both grouping modes", () => {
+  it("keeps different listed-time evidence separate", () => {
     const rows = [
       makeRow({
         placeName: "Early",
@@ -167,13 +165,12 @@ describe("groupTonightListings V2 (PUBMAX_TONIGHT_GROUPING canonical model)", ()
       }),
     ];
 
-    expect(groupTonightListings(rows, null, { v2: false })).toHaveLength(2);
-    expect(groupTonightListings(rows, null, v2)).toHaveLength(2);
+    expect(groupTonightListings(rows, null)).toHaveLength(2);
   });
 
   it("still collapses a 60-pub syndicated chain (identical schedule) to one card", () => {
     const curry = Array.from({ length: 60 }, (_, i) => makeRow({ placeName: `Curry ${i}` }));
-    const grouped = groupTonightListings(curry, null, v2);
+    const grouped = groupTonightListings(curry, null);
     expect(grouped).toHaveLength(1);
     expect(grouped[0].venueCount).toBe(60);
     expect(grouped[0].alternates).toHaveLength(59);
@@ -182,7 +179,7 @@ describe("groupTonightListings V2 (PUBMAX_TONIGHT_GROUPING canonical model)", ()
   it("orders groups by distance FIRST — a nearer listed offer beats a farther confirmed one", () => {
     const nearListed = makeRow({ title: "Near Listed", placeName: "N", confidence: "listed", lat: 51.5, lng: -0.129 });
     const farConfirmed = makeRow({ title: "Far Confirmed", placeName: "F", confidence: "confirmed", lat: 51.5, lng: -0.05 });
-    const grouped = groupTonightListings([farConfirmed, nearListed], NEAR, v2);
+    const grouped = groupTonightListings([farConfirmed, nearListed], NEAR);
     expect(grouped.map((g) => g.row.title)).toEqual(["Near Listed", "Far Confirmed"]);
   });
 
@@ -192,7 +189,7 @@ describe("groupTonightListings V2 (PUBMAX_TONIGHT_GROUPING canonical model)", ()
     const confirmed = makeRow({ title: "Confirmed", confidence: "confirmed", observedAt: "2026-07-23T05:00:00.000Z", startsAt: "2026-07-23T22:00:00+01:00" });
     const listedFresh = makeRow({ title: "Listed Fresh", confidence: "listed", observedAt: "2026-07-23T09:00:00.000Z", startsAt: "2026-07-23T18:00:00+01:00" });
     const listedStale = makeRow({ title: "Listed Stale", confidence: "listed", observedAt: "2026-07-23T04:00:00.000Z", startsAt: "2026-07-23T18:00:00+01:00" });
-    const grouped = groupTonightListings([listedStale, listedFresh, confirmed], null, v2);
+    const grouped = groupTonightListings([listedStale, listedFresh, confirmed], null);
     // Confidence wins first (confirmed), then among the listed pair the fresher
     // source observation wins, though its start is identical.
     expect(grouped.map((g) => g.row.title)).toEqual(["Confirmed", "Listed Fresh", "Listed Stale"]);
@@ -201,7 +198,7 @@ describe("groupTonightListings V2 (PUBMAX_TONIGHT_GROUPING canonical model)", ()
   it("breaks a full tie by earliest start", () => {
     const late = makeRow({ title: "Late", startsAt: "2026-07-23T21:00:00+01:00", observedAt: "2026-07-23T06:00:00.000Z" });
     const early = makeRow({ title: "Early", startsAt: "2026-07-23T18:00:00+01:00", observedAt: "2026-07-23T06:00:00.000Z" });
-    const grouped = groupTonightListings([late, early], null, v2);
+    const grouped = groupTonightListings([late, early], null);
     expect(grouped.map((g) => g.row.title)).toEqual(["Early", "Late"]);
   });
 
@@ -215,7 +212,7 @@ describe("groupTonightListings V2 (PUBMAX_TONIGHT_GROUPING canonical model)", ()
     const singles = Array.from({ length: 6 }, (_, i) => makeRow({ title: `Solo ${i}`, placeName: `Solo ${i}` }));
     const rows = [...mkFamily("Family A", 5), ...mkFamily("Family B", 5), ...singles];
 
-    const grouped = groupTonightListings(rows, null, v2);
+    const grouped = groupTonightListings(rows, null);
     // 5 + 5 + 6 = 16 distinct groups; nothing is dropped.
     expect(grouped).toHaveLength(16);
 
@@ -229,7 +226,7 @@ describe("groupTonightListings V2 (PUBMAX_TONIGHT_GROUPING canonical model)", ()
     const far = makeRow({ placeName: "Far", lat: 51.5, lng: -0.05 });
     const near = makeRow({ placeName: "Near", lat: 51.5, lng: -0.129 });
     const mid = makeRow({ placeName: "Mid", lat: 51.5, lng: -0.1 });
-    const [group] = groupTonightListings([far, near, mid], NEAR, v2);
+    const [group] = groupTonightListings([far, near, mid], NEAR);
     expect(group.row.placeName).toBe("Near");
     expect(group.alternates.map((r) => r.placeName)).toEqual(["Mid", "Far"]);
     const all = [group.row, ...group.alternates].map((r) => r.placeName);
@@ -242,8 +239,8 @@ describe("groupTonightListings V2 (PUBMAX_TONIGHT_GROUPING canonical model)", ()
       makeRow({ title: "A", placeName: "a" }),
       makeRow({ title: "C", placeName: "c" }),
     ];
-    const first = groupTonightListings(rows, null, v2).map((g) => g.row.title);
-    const second = groupTonightListings(rows, null, v2).map((g) => g.row.title);
+    const first = groupTonightListings(rows, null).map((g) => g.row.title);
+    const second = groupTonightListings(rows, null).map((g) => g.row.title);
     expect(first).toEqual(second);
   });
 });

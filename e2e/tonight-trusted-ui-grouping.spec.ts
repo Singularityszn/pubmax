@@ -3,11 +3,10 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
-// DAG L15 flag-ON half, split out of tonight-trusted-ui.spec.ts so neither half
-// needs a runtime test.skip (L20 zero-skip contract). This file runs ONLY in the
-// flag-on invocation: the chromium-flag-on project drives a server built with
-// PUBMAX_TONIGHT_GROUPING=1 (see Playwright webServer pass-through),
-// so every assertion below always executes.
+// The canonical Tonight grouping, split out of tonight-trusted-ui.spec.ts. It
+// used to need PUBMAX_TONIGHT_GROUPING=1 and its own Playwright project; that
+// flag is retired and the canonical model is the only model, so this runs in
+// the default suite over the shipped server.
 
 const SHOTS_DIR = path.join(process.cwd(), "e2e-shots", "tonight-trusted-ui");
 
@@ -83,7 +82,7 @@ async function shoot(page: Page, name: string) {
   await page.emulateMedia({ colorScheme: "light" });
 }
 
-test.describe("Tonight trusted UI (flag on / canonical)", () => {
+test.describe("Tonight trusted UI (canonical grouping)", () => {
   test("keeps secondary lanes directly after the main list on phones", async ({ page }) => {
     await mockWhatsOn(page, { rows: [ROWS[0]!, ROWS[2]!] });
     await openTonight(page);
@@ -103,7 +102,7 @@ test.describe("Tonight trusted UI (flag on / canonical)", () => {
       ));
     });
     expect(order).toEqual([true, true, true, true]);
-    await shoot(page, "flagon");
+    await shoot(page, "grouping");
   });
 
   test("accepting a Tonight Venue arrives at the map as src=tonight", async ({ page }) => {

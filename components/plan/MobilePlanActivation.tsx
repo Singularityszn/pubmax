@@ -54,14 +54,11 @@ export function MobilePlanActivation({
   initialNightArea,
   venuesById,
   onGenerated,
-  mapRouteTransfer = false,
 }: {
   cityId: CityId;
   initialNightArea: NightAreaSlug;
   venuesById?: ReadonlyMap<string, Venue>;
   onGenerated: (plan: GeneratedMobilePlan) => void;
-  /** L12: when true, "Open Plan" carries the exact Route into the Plan draft. */
-  mapRouteTransfer?: boolean;
 }) {
   const { user } = useAuth();
   const areas = getNightAreasForCity(cityId);
@@ -266,7 +263,7 @@ export function MobilePlanActivation({
           </div>
           <p className="mobilePlannerRouteTotal">{result.routeTotalLabel}</p>
           <p className="mobilePlannerNextStep">Route preview stays on this device. Lock it in on Plan when you want a shareable crew link.</p>
-          <MapRouteTransferButton response={result.mapRoute} mapRouteTransfer={mapRouteTransfer} />
+          <MapRouteTransferButton response={result.mapRoute} />
           <div className="mobilePlannerEndings" aria-label="Ending recommendations">
             {result.endings.map((ending) => (
               <div key={ending.kind} data-recommended={ending.preselected ? "true" : undefined}>

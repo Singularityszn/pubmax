@@ -96,7 +96,6 @@ import {
 import type { PicksContext } from "@/lib/picksState";
 import { parsePlanOccasionIdFromSearch } from "@/lib/planOccasion";
 import type { QuietPintModule } from "@/lib/quietPint";
-import type { TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
 import { whatsOnBarePriceGbp, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 import {
   checkedLabel,
@@ -179,12 +178,10 @@ const QUIET_ALTERNATIVES: QuietAlternative[] = [
 ];
 
 export default function TonightClient({
-  flags,
   quietPint = null,
   softPlansWindow = false,
   mapSelectableVenueIds,
 }: {
-  flags: TrustedHandoffFlagsDTO;
   /** Server-composed quiet-pint module; null outside a quiet window. */
   quietPint?: QuietPintModule | null;
   /** Typical-pattern hour reads quiet — surfaces soft plan handoffs. */
@@ -331,11 +328,10 @@ export default function TonightClient({
   // expander. Grouped on the same near signal that orders the list, so the card
   // and its ordering agree. Group the whole set once, then filter by kind — a
   // family carries a single kind, so this equals grouping the kind-filtered rows.
-  // Consume the canonical model: when PUBMAX_TONIGHT_GROUPING is on the server
-  // already ordered + diversity-capped + flattened the rows, so regrouping with
-  // the SAME v2 mode reconstructs the server's cards in the server's order (the
-  // client stops being its own grouping authority). Flag off keeps the shipped
-  // chain-duplicate collapse, byte-identical to today.
+  // Consume the canonical model: the server already ordered, diversity-capped
+  // and flattened the rows, so regrouping with the same rule reconstructs the
+  // server's cards in the server's order (the client stops being its own
+  // grouping authority).
   // The coarse point every deal surface on this page measures from: the centre
   // of the viewer's nearest area, never their own fix. Same coarse read the
   // area news rail below already takes.
@@ -344,20 +340,16 @@ export default function TonightClient({
     [tonightNear],
   );
   const groupedAll = useMemo(() => {
-    const groups = groupTonightListings(primaryListingRows, tonightNear?.near ?? null, {
-      v2: flags.tonightGrouping,
-    });
+    const groups = groupTonightListings(primaryListingRows, tonightNear?.near ?? null);
     // Deals order among themselves: nearest patch first, then closing soonest.
     // In place, so no quiz, match or gig moves to make room, and so the order
     // holds on the mixed list rather than only behind the Deal filter.
     return orderDealsInPlace(groups, (group) => group.row, dealAnchor);
-  }, [primaryListingRows, tonightNear, flags.tonightGrouping, dealAnchor]);
+  }, [primaryListingRows, tonightNear, dealAnchor]);
   const groupedSecondaryAll = useMemo(() => {
-    const groups = groupTonightListings(listingRows, tonightNear?.near ?? null, {
-      v2: flags.tonightGrouping,
-    });
+    const groups = groupTonightListings(listingRows, tonightNear?.near ?? null);
     return orderDealsInPlace(groups, (group) => group.row, dealAnchor);
-  }, [listingRows, tonightNear, flags.tonightGrouping, dealAnchor]);
+  }, [listingRows, tonightNear, dealAnchor]);
   const grouped = useMemo(
     () => (activeKind ? groupedAll.filter((g) => g.row.kind === activeKind) : groupedAll),
     [groupedAll, activeKind],

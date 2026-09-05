@@ -321,9 +321,9 @@ describe("launch routes (group d) carry one primary action", () => {
   });
 
   it("/pal/chat carries one primary action", () => {
-    const rendered = renderToStaticMarkup(createElement(PalChat, { palHandoff: false }));
+    const rendered = renderToStaticMarkup(createElement(PalChat));
     expect(primaryCount(rendered)).toBe(1);
     expect(rendered).toMatch(/data-primary-action=""><button type="button">Send<\/button>/);
-    expect(rendered).toMatch(/class="screenSecondary"><a[^>]*href="\/plan"[^>]*>Plan with the Pal<\/a>/);
+    expect(rendered).toMatch(/class="screenSecondary"><a[^>]*href="\/pal"[^>]*>Back to your Pub Pal<\/a>/);
   });
 });

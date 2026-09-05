@@ -44,6 +44,8 @@ test("accepted Venue becomes visible Stop 1 on the permanent Plan path", async (
   await expect(page.getByText(CARRIED)).toBeVisible();
   await expect(page.getByLabel("Venue name").first()).toHaveValue(venue!.name);
   await expect(page.getByText(venue!.name).first()).toBeVisible();
+  // The summary is pre-answered with the venue's NAME, never its id.
+  await expect(page.locator("body")).not.toContainText(venue!.id);
 
   await page.reload();
   await expect(page.getByLabel("Venue name").first()).toHaveValue(venue!.name);

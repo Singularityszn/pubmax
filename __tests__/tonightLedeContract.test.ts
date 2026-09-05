@@ -139,7 +139,7 @@ const OUT_ANSWERED_EMPTY: TonightOutAnswer = readyOut([]);
 /** The first card a reader meets, composed exactly as TonightClient does. */
 function ledeCardTitles(rows: readonly WhatsOnRow[]): string[] {
   const groups = orderDealsInPlace(
-    groupTonightListings([...rows], null, { v2: false }),
+    groupTonightListings([...rows], null),
     (group) => group.row,
     null,
   );

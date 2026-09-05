@@ -148,10 +148,6 @@ export default defineConfig({
         // context for the map routes, and it re-emulates device, CPU and
         // network per run, which this project's fixed device would fight.
         "**/cwv-baseline.spec.ts",
-        // Flag-ON specs run only in the chromium-flag-on project against a
-        // flag-on build (L20 zero-skip contract) — never in the default
-        // flag-off suite, where their assertions would false-fail.
-        "**/*.flag-on.spec.ts",
       ],
     },
     {
@@ -311,18 +307,6 @@ export default defineConfig({
         },
       },
     },
-    {
-      // Flag-ON half of the trusted-handoff matrix (L20 zero-skip contract).
-      // Runs ONLY the *.flag-on.spec.ts files, and only when invoked
-      // explicitly with the relevant PUBMAX_* flags exported — the shared
-      // webServer then builds a flag-on server (env pass-through below), so each
-      // spec's assertion always executes with no runtime test.skip. Kept out of
-      // a bare `playwright test` (no flags) because its specs assume a flag-on
-      // build; the assembly gate runs it as its own flag-set invocation.
-      name: "chromium-flag-on",
-      testMatch: "**/*.flag-on.spec.ts",
-      use: { ...devices["Desktop Chrome"] },
-    },
     ...(process.env.PW_SCREENSHOTS
       ? [
           ...(["light", "dark"] as const).flatMap((theme) =>
@@ -403,18 +387,7 @@ export default defineConfig({
                   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
               }
             : {}),
-          // Remaining trusted-handoff rollout flags stay off unless the run
-          // exports one for its dedicated flag-on project.
-          ...(process.env.PUBMAX_MAP_ROUTE_TRANSFER
-            ? { PUBMAX_MAP_ROUTE_TRANSFER: process.env.PUBMAX_MAP_ROUTE_TRANSFER }
-            : {}),
-          ...(process.env.PUBMAX_PAL_HANDOFF
-            ? { PUBMAX_PAL_HANDOFF: process.env.PUBMAX_PAL_HANDOFF }
-            : {}),
-          // L15 Tonight trusted UI: canonical grouping remains rollout-controlled.
-          ...(process.env.PUBMAX_TONIGHT_GROUPING
-            ? { PUBMAX_TONIGHT_GROUPING: process.env.PUBMAX_TONIGHT_GROUPING }
-            : {}),
+          // The one remaining rollout flag: the Social launch rollback switch.
           ...(process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH
             ? { PUBMAX_SOCIAL_FRIENDS_LAUNCH: process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH }
             : {}),

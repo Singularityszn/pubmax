@@ -24,25 +24,23 @@ function card(overrides: Partial<PalCard> = {}): PalCard {
 const noop = (_venueId: string) => {};
 
 describe("Pub Pal card acceptance handoff", () => {
-  it("offers an explicit source-pal acceptance to Map when palHandoff is on", () => {
+  it("offers an explicit source-pal acceptance to Map on every venue card", () => {
     const locality = resolvePalLocality("cheap in Brixton", null);
-    const html = renderToStaticMarkup(createElement(AnswerCard, { card: card(), onOpen: noop, palHandoff: true, locality }));
+    const html = renderToStaticMarkup(createElement(AnswerCard, { card: card(), onOpen: noop, locality }));
     expect(html).toContain("Use this Venue");
     expect(html).toContain("/map?sel=venue-a&amp;accept=1&amp;src=pal");
     // The browse deep-link stays available and browse-only alongside it.
     expect(html).toContain("/map?sel=venue-a");
   });
 
-  it("stays browse-only with no acceptance affordance when palHandoff is off (byte-identical)", () => {
-    const html = renderToStaticMarkup(createElement(AnswerCard, { card: card(), onOpen: noop, palHandoff: false, locality: null }));
-    expect(html).not.toContain("Use this Venue");
-    expect(html).not.toContain("accept=1");
-    expect(html).not.toContain("src=pal");
-    expect(html).toContain("/map?sel=venue-a");
+  it("still offers the acceptance with no resolved locality", () => {
+    const html = renderToStaticMarkup(createElement(AnswerCard, { card: card(), onOpen: noop, locality: null }));
+    expect(html).toContain("Use this Venue");
+    expect(html).toContain("/map?sel=venue-a&amp;accept=1&amp;src=pal");
   });
 
   it("shows no acceptance for a card that does not deep-link to a Venue", () => {
-    const html = renderToStaticMarkup(createElement(AnswerCard, { card: card({ venueId: "" }), onOpen: noop, palHandoff: true, locality: null }));
+    const html = renderToStaticMarkup(createElement(AnswerCard, { card: card({ venueId: "" }), onOpen: noop, locality: null }));
     expect(html).not.toContain("Use this Venue");
     expect(html).not.toContain("accept=1");
   });
@@ -58,7 +56,6 @@ describe("Pub Pal card acceptance handoff", () => {
           },
         }),
         onOpen: noop,
-        palHandoff: false,
         locality: null,
       }),
     );

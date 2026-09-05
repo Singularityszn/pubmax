@@ -211,12 +211,6 @@ export type LoadWhatsOnDeps = {
    * injected, which keeps its own unbounded wait.
    */
   liveDeadlineMs?: number;
-  /** PUBMAX_TONIGHT_GROUPING (DAG L14). When true, tonight grouping uses the
-   *  canonical V2 model (schedule-aware key, deterministic locality tie-break,
-   *  first-ten family diversity). Off keeps the shipped chain-duplicate collapse.
-   *  The server handler reads the flag; defaulting to false keeps the safe off
-   *  state and lets tests exercise both paths without env. */
-  tonightGroupingV2?: boolean;
 };
 
 // Default live layer: CityMCP things_to_do mapped to whats-on rows. Final user
@@ -391,13 +385,12 @@ function flattenGroupsBeforeLimit(
   rows: WhatsOnRow[],
   near: { lat: number; lng: number } | null,
   limit: number | undefined,
-  v2: boolean,
 ): WhatsOnRow[] {
-  // Group the full inventory (V2 ordering + diversity when enabled) BEFORE the
-  // caller's limit, so the limit selects whole families, not raw rows. Each
+  // Group the full inventory (locality ordering plus family diversity) BEFORE
+  // the caller's limit, so the limit selects whole families, not raw rows. Each
   // selected family is flattened back to hero + alternates so the shipped client
   // expander keeps its complete venue inventory.
-  const groups = groupTonightListings(rows, near, { v2 });
+  const groups = groupTonightListings(rows, near);
   const selected = typeof limit === "number" && limit > 0 ? groups.slice(0, limit) : groups;
   return selected.flatMap((group) => [group.row, ...group.alternates]);
 }
@@ -415,7 +408,6 @@ function filterRowsForRequest(
   rows: WhatsOnRow[],
   params: LoadWhatsOnParams,
   now: number,
-  tonightGroupingV2: boolean,
 ): WhatsOnRow[] {
   let filtered = rows;
   if (!params.near && (params.localityBasis ?? "london-default") === "london-default") {
@@ -438,7 +430,6 @@ function filterRowsForRequest(
       filtered,
       params.near ?? null,
       params.limit,
-      tonightGroupingV2,
     );
   }
   return typeof params.limit === "number" && params.limit > 0
@@ -589,7 +580,6 @@ export async function loadWhatsOn(
     filterNotPast(mergeWhatsOn(baselineForRequest, liveForRequest), now),
     params,
     now,
-    deps.tonightGroupingV2 ?? false,
   );
 
   // Which of the rows we are about to serve may DATE themselves.

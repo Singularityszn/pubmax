@@ -111,9 +111,6 @@ export async function handleWhatsOnRequest(
       }
     }
 
-    // The tonightGrouping V2 flag arrives via deps (the server route reads the
-    // canonical registry and injects it — the flag reader depends on server-only,
-    // which unit tests cannot resolve). Absent dep means safe off.
     const result = await loadWhatsOn(load, deps);
     const response: WhatsOnResponse = {
       rows: result.rows,

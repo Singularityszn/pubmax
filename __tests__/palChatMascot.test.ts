@@ -31,8 +31,8 @@ import { PAL_VISUAL_MANIFEST } from "@/lib/pubPal";
 import PalChat from "@/components/pal/PalChat";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
 
-function palChatMarkup(palHandoff: boolean): string {
-  return renderToStaticMarkup(createElement(PalChat, { palHandoff }));
+function palChatMarkup(): string {
+  return renderToStaticMarkup(createElement(PalChat));
 }
 
 function pubPalImgs(html: string): string[] {
@@ -42,19 +42,14 @@ function pubPalImgs(html: string): string[] {
 }
 
 describe("Pub Pal mascot on the chat surface", () => {
-  it("renders the mascot image with alt Pub Pal when the Pal handoff is off", () => {
-    const imgs = pubPalImgs(palChatMarkup(false));
+  it("renders the mascot image with alt Pub Pal, sized, beside the way back", () => {
+    const html = palChatMarkup();
+    const imgs = pubPalImgs(html);
     expect(imgs.length).toBeGreaterThan(0);
     expect(imgs[0]).toMatch(/width="\d+"/);
     expect(imgs[0]).toMatch(/height="\d+"/);
-  });
-
-  it("renders the same mascot image when the Pal handoff is on", () => {
-    const html = palChatMarkup(true);
-    const imgs = pubPalImgs(html);
-    expect(imgs.length).toBeGreaterThan(0);
-    expect(html).toContain("href=\"/pal\"");
     expect(imgs[0]).toMatch(/alt="Pub Pal"/);
+    expect(html).toContain("href=\"/pal\"");
   });
 });
 

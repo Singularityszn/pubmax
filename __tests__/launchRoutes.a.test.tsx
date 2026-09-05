@@ -111,7 +111,6 @@ import NearPageClient from "@/components/nearme/NearPageClient";
 import TodayClient from "@/app/today/TodayClient";
 import TonightClient from "@/app/tonight/TonightClient";
 import OutClient from "@/app/out/OutClient";
-import { TRUSTED_HANDOFF_FLAGS_OFF } from "@/lib/trustedHandoffFlags";
 
 function renderNear(): string {
   return renderToStaticMarkup(createElement(NearPageClient));
@@ -143,7 +142,6 @@ function renderToday(): string {
 function renderTonight(): string {
   return renderToStaticMarkup(
     createElement(TonightClient, {
-      flags: TRUSTED_HANDOFF_FLAGS_OFF,
       quietPint: null,
     }),
   );

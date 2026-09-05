@@ -3,8 +3,8 @@ import path from "node:path";
 
 import { expect, test, type Locator, type Page, type Request } from "@playwright/test";
 
-// Tonight grouping remains rollout-controlled. Explicit Venue acceptance is a
-// permanent action and is proved in this default project.
+// Explicit Venue acceptance, the spine's single fetch and honest freshness.
+// The grouping half of this surface is e2e/tonight-trusted-ui-grouping.spec.ts.
 
 const SHOTS_DIR = path.join(process.cwd(), "e2e-shots", "tonight-trusted-ui");
 
@@ -109,7 +109,7 @@ async function shoot(page: Page, name: string) {
   await page.emulateMedia({ colorScheme: "light" });
 }
 
-test.describe("Tonight trusted UI (flag off / shipped)", () => {
+test.describe("Tonight trusted UI", () => {
   test("keeps a Venue for tonight only after the explicit action", async ({ page }) => {
     await mockWhatsOn(page);
     await openTonight(page);
@@ -187,7 +187,7 @@ test.describe("Tonight trusted UI (flag off / shipped)", () => {
     await mockWhatsOn(page);
     await openTonight(page);
     // Every user gets the primary confirmed listings first, including the
-    // default flag-off installed-app cold-start path.
+    // installed-app cold-start path.
     const deals = page.locator(".dealsTonight").first();
     await expect(deals).toBeVisible();
     const order = await page.evaluate(() => {
@@ -202,7 +202,7 @@ test.describe("Tonight trusted UI (flag off / shipped)", () => {
     expect(firstRow).not.toBeNull();
     expect(mobileTabBar).not.toBeNull();
     expect(firstRow!.y).toBeLessThan(mobileTabBar!.y);
-    await shoot(page, "flagoff");
+    await shoot(page, "acceptance");
   });
 
   test("loads the spine once — secondary lanes reuse, never self-fetch", async ({ page }) => {

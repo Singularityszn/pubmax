@@ -1,22 +1,20 @@
 import { test, expect } from "@playwright/test";
 
-// DAG L16 deferred e2e (from PR #592). With palHandoff OFF (default) Pub Pal is
-// byte-identical legacy — its answer cards carry only the browse deep-link and
-// never the explicit "Use this Venue" acceptance affordance (offBehavior per
-// lib/trustedHandoffFlags.server.ts: "Existing Pal results remain; Pal does not
-// write PlanningIntent"). The ask surface still mounts.
+// DAG L16. The acceptance handoff used to sit behind PUBMAX_PAL_HANDOFF, which
+// no deployment ever set, so the "Use this Venue" affordance and the locality
+// line were dark. The flag is retired and the handoff is the only behaviour.
 //
-// The flag-ON acceptance assertion (a "Use this Venue" link →
-// /map?sel=&accept=1&src=pal on a real answer card) needs a deterministic
-// /api/ask result, which the keyless e2e env does not guarantee (concierge
-// is LLM-backed). That path is covered by L16 render/unit tests and is
-// documented as deferred for L20 rather than shipped as a flaky spec.
+// Asserting the affordance itself needs a deterministic /api/ask answer, which
+// the keyless e2e environment does not guarantee (the concierge is LLM-backed).
+// That path is covered by __tests__/palChatAccept.test.ts. What this spec owns
+// is that the page mounts and carries the handoff build's own chrome.
 
-test("flag-off: Pal chat mounts and offers no Use-this-Venue acceptance", async ({ page }) => {
+test("Pal chat mounts and carries the handoff way back", async ({ page }) => {
   const response = await page.goto("/pal/chat");
   expect(response?.status()).toBe(200);
   // The ask surface renders.
   await expect(page.getByRole("textbox").first()).toBeVisible();
-  // No explicit acceptance affordance anywhere with the flag off.
-  await expect(page.getByRole("link", { name: "Use this Venue" })).toHaveCount(0);
+  // The secondary way onward is the handoff build's, not the retired flag-off copy.
+  await expect(page.getByRole("link", { name: "Back to your Pub Pal" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Plan with the Pal" })).toHaveCount(0);
 });

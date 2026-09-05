@@ -546,10 +546,10 @@ describe("loadWhatsOn orchestration", () => {
     expect(new Set(result.rows.map((row) => row.title)).size).toBe(10);
   });
 
-  it("threads the tonightGrouping V2 flag so distinct schedules split before the limit", async () => {
-    // Same title/source/kind, two schedules, two venues each. The shipped collapse
-    // folds all four into one card; V2 keeps the two schedule-distinct cards, so a
-    // limit of one selects different inventory under each behaviour.
+  it("splits distinct schedules into distinct families before the limit", async () => {
+    // Same title/source/kind, two schedules, two venues each. The group key
+    // carries the schedule, so a limit of one selects one schedule's family and
+    // both of its venues, never a single card standing for all four.
     const sched1 = "2026-07-11T22:00:00+01:00";
     const sched2 = "2026-07-11T23:00:00+01:00";
     const rows = [
@@ -560,13 +560,9 @@ describe("loadWhatsOn orchestration", () => {
     ];
     const deps = { now: NOW, loadBaseline: () => [], fetchLive: async () => ({ rows, sourceObservedAt: null }) };
 
-    const off = await loadWhatsOn({ window: "tonight", limit: 1 }, { ...deps, tonightGroupingV2: false });
-    expect(off.rows).toHaveLength(4); // one collapsed family carries all four venues
-    expect(new Set(off.rows.map((r) => r.startsAt)).size).toBe(2);
-
-    const on = await loadWhatsOn({ window: "tonight", limit: 1 }, { ...deps, tonightGroupingV2: true });
-    expect(on.rows).toHaveLength(2); // only the first schedule-distinct family survives the limit
-    expect(new Set(on.rows.map((r) => r.startsAt)).size).toBe(1);
+    const result = await loadWhatsOn({ window: "tonight", limit: 1 }, deps);
+    expect(result.rows).toHaveLength(2); // only the first schedule-distinct family survives the limit
+    expect(new Set(result.rows.map((r) => r.startsAt)).size).toBe(1);
   });
 
   it("reports locality basis independently from source freshness", async () => {
@@ -861,7 +857,7 @@ describe("GET /api/whats-on (handleWhatsOnRequest)", () => {
     expect(res.headers.get("Cache-Control")).toBe("no-store");
   });
 
-  it("forwards an injected tonightGrouping V2 flag through to grouping", async () => {
+  it("groups before the caller's limit, so the limit selects whole families", async () => {
     const sched1 = "2026-07-11T22:00:00+01:00";
     const sched2 = "2026-07-11T23:00:00+01:00";
     const rows = [
@@ -872,14 +868,9 @@ describe("GET /api/whats-on (handleWhatsOnRequest)", () => {
     ];
     const deps = { now: NOW, loadBaseline: () => [], fetchLive: async () => ({ rows, sourceObservedAt: null }) };
 
-    // The server route injects tonightGroupingV2 from the canonical flag reader;
-    // the handler forwards it to the store. Off keeps the shipped collapse, on
-    // splits distinct schedules before the limit.
-    const off = await (await handleWhatsOnRequest(req("?window=tonight&limit=1"), { ...deps, tonightGroupingV2: false })).json();
-    expect(off.rows).toHaveLength(4);
-
-    const on = await (await handleWhatsOnRequest(req("?window=tonight&limit=1"), { ...deps, tonightGroupingV2: true })).json();
-    expect(on.rows).toHaveLength(2);
+    const body = await (await handleWhatsOnRequest(req("?window=tonight&limit=1"), deps)).json();
+    // One schedule-distinct family, flattened back to its hero and its alternate.
+    expect(body.rows).toHaveLength(2);
   });
 
   it("applies params; unknown kind and bad near are dropped, not 400", async () => {
