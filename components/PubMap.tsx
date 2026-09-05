@@ -45,6 +45,7 @@ import {
   venuePriceLane,
   venueSourcedPrice,
 } from "@/lib/venuePriceLane";
+import { dropLaneInput } from "@/lib/pintTrust";
 import {
   isMapSearchField,
   typedSearchCameraMove,
@@ -4733,14 +4734,13 @@ export default function PubMap({
       peekDropSignal?.latestContributorPrice,
       venueSourcedPrice(selectedVenue),
       peekBundle,
-      peekDropSignal?.provisionalContributorPrice != null
-        ? {
-            priceGbp: peekDropSignal.provisionalContributorPrice,
-            observedAt: peekDropSignal.provisionalContributorAt ?? null,
-          }
-        : null,
+      dropLaneInput(
+        peekDropSignal?.provisionalContributorPrice,
+        peekDropSignal?.provisionalContributorAt,
+      ),
+      dropLaneInput(peekDropSignal?.agedContributorPrice, peekDropSignal?.agedContributorAt),
     );
-    const peekPrice = peekPriceChip(peekLane, peekBundle);
+    const peekPrice = peekPriceChip(peekLane, peekBundle, peekDropSignal?.pintTrust ?? null);
     return (
       <div className="mobileVenuePeekSummary" aria-label={selectedVenueLabels.summaryLabel}>
         {activeLensPrices !== null ? (
@@ -4759,7 +4759,10 @@ export default function PubMap({
             </small>
           </span>
         ) : peekPrice ? (
-          <span>
+          <span
+            data-pint-trust={peekPrice.trust ?? undefined}
+            data-venue-id={peekPrice.trust ? selectedVenue.id : undefined}
+          >
             {peekPrice.observed ? (
               <PriceBadge>{peekPrice.figure}</PriceBadge>
             ) : (
@@ -4860,16 +4863,14 @@ export default function PubMap({
           // The venue's own minted confirmation, unmerged like the drop price
           // beside it: the standing reports what a drinker confirmed HERE.
           confirmedPrice={dropSignals.get(selectedVenue.id)?.confirmedPrice}
-          provisionalPrice={
-            dropSignals.get(selectedVenue.id)?.provisionalContributorPrice != null
-              ? {
-                  priceGbp: dropSignals.get(selectedVenue.id)!
-                    .provisionalContributorPrice as number,
-                  observedAt:
-                    dropSignals.get(selectedVenue.id)?.provisionalContributorAt ?? null,
-                }
-              : null
-          }
+          provisionalPrice={dropLaneInput(
+            dropSignals.get(selectedVenue.id)?.provisionalContributorPrice,
+            dropSignals.get(selectedVenue.id)?.provisionalContributorAt,
+          )}
+          agedPrice={dropLaneInput(
+            dropSignals.get(selectedVenue.id)?.agedContributorPrice,
+            dropSignals.get(selectedVenue.id)?.agedContributorAt,
+          )}
           // Share copy prefers the MERGED map-authority figure (same seam as
           // pins), dated — never a sheet-only uncorroborated report.
           shareLoggedPintGbp={venueSignals.get(selectedVenue.id)?.latestContributorPrice}

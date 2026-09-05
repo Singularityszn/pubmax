@@ -67,6 +67,10 @@ const NOT_REPO_PATHS = new Set([
   "AuthProvider.updateSession",
   // Database column glob, not a repository path.
   "profiles.cover_*",
+  // A row's field, named in the Out listing entry, not a repository path.
+  "source.label",
+  // A provider host named in the Out listing entry, not a repository path.
+  "universe.com",
   // Analytics event name, not a repository path.
   "uploaded_image.scan_skipped",
   // Log line name, not a repository path.

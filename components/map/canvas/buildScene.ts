@@ -149,6 +149,22 @@ function provisionalBadgePaint(
   };
 }
 
+/** The confirmed badge's paint: the provisional dot's geometry, hollowed out. */
+export const CONFIRMED_BADGE_STROKE_PX = 1.6;
+function confirmedBadgePaint(
+  tokens: Tokens,
+  dark: boolean,
+  opacity: number | maplibregl.ExpressionSpecification,
+) {
+  const dot = provisionalBadgePaint(tokens, dark, opacity);
+  return {
+    ...dot,
+    "circle-color": dot["circle-stroke-color"],
+    "circle-stroke-color": tokens.riverBright,
+    "circle-stroke-width": CONFIRMED_BADGE_STROKE_PX,
+  };
+}
+
 // The price tag: the figure a priced pin prints under its glyph from
 // PIN_PRICE_LABEL_MIN_ZOOM (see ./filters, which owns the zoom gate and the
 // text expressions). It is the one thing on a pin that is NOT free of the
@@ -1204,6 +1220,26 @@ export function buildPubs(ctx: SceneCtx) {
       // selection spotlight while its own pin receded.
       pubIconOpacityExpr(selectedId),
     ),
+  });
+  // The confirmed badge: the SAME berth, radius and river tone as the
+  // provisional dot, drawn HOLLOW. Captain's law (5 Sept 2026): colour on a pin
+  // encodes the price band alone, so a trust state may change the badge or the
+  // shape and never the colour. A filled dot says one drinker logged this and
+  // the map is still waiting; a ring says a second independent drinker agreed
+  // and the server minted the confirmation (lib/pintTrust.ts through
+  // geojson.ts's `standing`). Neither is a price-band colour, and neither
+  // grows the pin's footprint, so the density contract is untouched.
+  addLayerOnce({
+    id: "pubs-confirmed-badge",
+    type: "circle",
+    source: "pubs",
+    minzoom: PIN_MIN_ZOOM,
+    filter: [
+      "all",
+      ["!", ["has", "point_count"]],
+      ["==", ["get", "standing"], "confirmed"],
+    ],
+    paint: confirmedBadgePaint(tokens, dark, pubIconOpacityExpr(selectedId)),
   });
   addLayerOnce({
     id: "clusters",

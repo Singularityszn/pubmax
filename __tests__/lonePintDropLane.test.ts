@@ -28,18 +28,21 @@ import { drinkLaneLogActionLabel, drinkLaneLogInvite } from "@/lib/drinkLanes";
 import type { DrinkCategory } from "@/lib/drinks";
 import { peekPriceChip } from "@/lib/pubMap";
 import {
+  AGED_PRICE_LINE,
   PROVISIONAL_PRICE_LINE,
   venuePriceLane,
   venueBundlePrices,
   venueSourcedPrice,
 } from "@/lib/venuePriceLane";
 import {
+  agedPriceDrop,
   corroboratedPriceDrop,
   mergeVenueDrops,
   provisionalPriceDrop,
   type SummaryDrop,
   type Venue,
 } from "@/lib/venues";
+import { pintTrustFor } from "@/lib/pintTrust";
 
 vi.mock("@/components/visits/VisitReportPanel", () => ({
   default: () => createElement("div", { "data-testid": "visit-report-peek" }),
@@ -147,6 +150,7 @@ function renderSelectedVenue(
   const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
   const corroborated = corroboratedPriceDrop(drops, NOW);
   const provisional = provisionalPriceDrop(drops, NOW);
+  const aged = agedPriceDrop(drops, NOW);
   return renderToStaticMarkup(
     createElement(VenueOverviewTab, {
       venue: merged,
@@ -160,6 +164,9 @@ function renderSelectedVenue(
             priceGbp: provisional.priceGbp as number,
             observedAt: Date.parse(provisional.createdAt),
           }
+        : null,
+      agedPrice: aged
+        ? { priceGbp: aged.priceGbp as number, observedAt: Date.parse(aged.createdAt) }
         : null,
       communityPrices: communityPrices(VENUE_ID),
       experienceLens: "all",
@@ -240,13 +247,19 @@ describe("a lone public Pint Drop on the venue Overview", () => {
     expect(html).not.toContain(PROVISIONAL_PRICE_LINE);
   });
 
-  it("an aged-out report leaves the pub unpriced and invites the first drop", () => {
+  it("an aged-out report keeps its figure, dated, and says what it lacks", () => {
+    // Captain's cut 5 Sept 2026: the drop list below still prints this drop,
+    // so the price area may not invite a FIRST drop over it. It prints the
+    // figure with its age and the one aged line (lib/venuePriceLane.ts).
     const html = renderSelectedVenue([
       drop({ createdAt: new Date(NOW - 90 * DAY_MS).toISOString() }),
     ]);
-    expect(html).not.toContain("£4.50");
+    expect(html).toContain("£4.50");
+    expect(html).toContain("logged 90 days ago");
+    expect(html).toContain(AGED_PRICE_LINE);
     expect(html).not.toContain(PROVISIONAL_PRICE_LINE);
-    expect(html).toContain(firstDropNudgeCopy(VENUE_ID).line);
+    expect(html).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+    expect(html).toContain('data-pint-trust="aged-out"');
   });
 
   it("never moves the map: the projection and the corroboration gate are untouched", () => {
@@ -297,11 +310,17 @@ describe("the prices-by-drink block over a lone Pint Drop", () => {
   });
 
   it("returns the wording when the drop is gone", () => {
+    const html = renderSelectedVenue([]);
+    expect(html).toContain(BEER_ABSENCE_NOTE);
+    expect(html).toContain(firstDropNudgeCopy(VENUE_ID).line);
+  });
+
+  it("holds the wording over an aged report too, which is still a log", () => {
     const html = renderSelectedVenue([
       drop({ createdAt: new Date(NOW - 90 * DAY_MS).toISOString() }),
     ]);
-    expect(html).toContain(BEER_ABSENCE_NOTE);
-    expect(html).toContain(firstDropNudgeCopy(VENUE_ID).line);
+    expect(html).not.toContain(BEER_ABSENCE_NOTE);
+    expect(html).not.toContain("No price yet");
   });
 
   it("still says so for a drink the report is not about", () => {
@@ -316,6 +335,7 @@ describe("the prices-by-drink block over a lone Pint Drop", () => {
 function peekChipFor(drops: SummaryDrop[], base: Venue = venue()) {
   const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
   const provisional = provisionalPriceDrop(drops, NOW);
+  const aged = agedPriceDrop(drops, NOW);
   const bundle = venueBundlePrices(merged);
   return peekPriceChip(
     venuePriceLane(
@@ -329,8 +349,12 @@ function peekChipFor(drops: SummaryDrop[], base: Venue = venue()) {
             observedAt: Date.parse(provisional.createdAt),
           }
         : null,
+      aged
+        ? { priceGbp: aged.priceGbp as number, observedAt: Date.parse(aged.createdAt) }
+        : null,
     ),
     bundle,
+    pintTrustFor(drops, NOW).state,
   );
 }
 
@@ -340,14 +364,21 @@ describe("the phone peek chip over a lone Pint Drop", () => {
       figure: "£4.50",
       caption: PROVISIONAL_PRICE_LINE,
       observed: true,
+      trust: "logged-once",
     });
   });
 
   it("answers null only when the pub has no price at all, which is the ONE branch that may say so", () => {
     expect(peekChipFor([])).toBeNull();
+    // An aged report is still a visible public drop, so the chip keeps it.
     expect(
       peekChipFor([drop({ createdAt: new Date(NOW - 90 * DAY_MS).toISOString() })]),
-    ).toBeNull();
+    ).toEqual({
+      figure: "£4.50",
+      caption: AGED_PRICE_LINE,
+      observed: true,
+      trust: "aged-out",
+    });
   });
 
   it("keeps the baseline chip it always printed", () => {
@@ -355,6 +386,7 @@ describe("the phone peek chip over a lone Pint Drop", () => {
       figure: "£6.20",
       caption: "current recorded price",
       observed: true,
+      trust: null,
     });
   });
 
@@ -365,7 +397,9 @@ describe("the phone peek chip over a lone Pint Drop", () => {
     );
     // The chip decides first, and the "No price yet" button is reachable only
     // where it answered null.
-    expect(source).toContain("const peekPrice = peekPriceChip(peekLane, peekBundle);");
+    expect(source).toContain(
+      "const peekPrice = peekPriceChip(peekLane, peekBundle, peekDropSignal?.pintTrust ?? null);",
+    );
     expect(source).toMatch(
       /\) : peekPrice \? \([\s\S]*?\) : selectedVenueIsPub \? \([\s\S]*?No price yet\./,
     );

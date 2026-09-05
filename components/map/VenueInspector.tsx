@@ -65,6 +65,8 @@ type VenueInspectorProps = {
   confirmedPrice?: ConfirmedPriceInput | null;
   /** An in-window pint report that has NOT earned the map, for the price area. */
   provisionalPrice?: ProvisionalPriceInput | null;
+  /** A public pint report PAST the window, for the price area alone. */
+  agedPrice?: ProvisionalPriceInput | null;
   /**
    * Map-authority people-logged pint for share copy: the merged signal the
    * pins already paint (corroborated community candidate and/or contributor
@@ -143,6 +145,7 @@ export default function VenueInspector({
   latestPintDropAt,
   confirmedPrice,
   provisionalPrice,
+  agedPrice,
   shareLoggedPintGbp = null,
   shareLoggedAt = null,
   onToggleStop,
@@ -419,6 +422,7 @@ export default function VenueInspector({
         latestPintDropAt={latestPintDropAt}
         confirmedPrice={confirmedPrice}
         provisionalPrice={provisionalPrice}
+        agedPrice={agedPrice}
         communityPrices={communityPrices}
         experienceLens={experienceLens}
         drinkLensCategory={drinkLensCategory}

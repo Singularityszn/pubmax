@@ -24,8 +24,8 @@ import {
   priceStandingFor,
   priceStandingLabel,
 } from "@/lib/priceTier";
+import { PINT_TRUST_LINE, trustChipStateFor, type PintTrustState } from "@/lib/pintTrust";
 import {
-  PROVISIONAL_PRICE_LINE,
   venuePriceLaneObservedGbp,
   type VenueBundlePrices,
   type VenuePriceLane,
@@ -740,25 +740,28 @@ export function searchParamsQuery(
 export function peekPriceChip(
   lane: VenuePriceLane | null,
   bundle: VenueBundlePrices,
-): { figure: string; caption: string; observed: boolean } | null {
+  /** The drop lane's trust state (lib/pintTrust.ts), so the chip can carry it. */
+  pintTrust: PintTrustState | null = null,
+): { figure: string; caption: string; observed: boolean; trust: PintTrustState | null } | null {
   if (!lane) return null;
   if (lane.lane === "estimate") {
     const figure = priceStandingFigure(
       priceStandingFor({ estimate: bundle.estimate ?? null }),
     );
     return figure
-      ? { figure, caption: priceStandingLabel("estimate"), observed: false }
+      ? { figure, caption: priceStandingLabel("estimate"), observed: false, trust: null }
       : null;
   }
   const observedGbp = venuePriceLaneObservedGbp(lane);
   if (observedGbp === null) return null;
+  // The chip carries the same state the Overview chip carries, read from the
+  // signal rather than re-derived: the peek holds no confirmation of its own.
+  const trust = trustChipStateFor(lane, pintTrust === "confirmed" ? "confirmed" : "none");
   return {
     figure: formatPrice(observedGbp),
-    // A lone report says what it still lacks, in the one wording the lane owns.
-    caption:
-      lane.lane === "provisional"
-        ? PROVISIONAL_PRICE_LINE
-        : "current recorded price",
+    // A report says what it still lacks, in the one wording its state owns.
+    caption: (trust && PINT_TRUST_LINE[trust]) || "current recorded price",
     observed: true,
+    trust,
   };
 }

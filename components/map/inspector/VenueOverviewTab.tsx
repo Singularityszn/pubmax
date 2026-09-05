@@ -5,6 +5,7 @@ import { MapPin } from "lucide-react";
 import Disclosure from "@/components/Disclosure";
 import PriceBadge from "@/components/PriceBadge";
 import TrustPill from "@/components/ui/trust-pill";
+import { trustChipStateFor } from "@/lib/pintTrust";
 import { priceStandingFor, type ConfirmedPriceInput } from "@/lib/priceTier";
 import { Amenity, ClaimBadge } from "@/components/map/venueInspectorBits";
 import {
@@ -21,6 +22,7 @@ import {
 } from "@/lib/venueAccessibility";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import {
+  AGED_PRICE_LINE,
   PROVISIONAL_PRICE_LINE,
   venueBundlePrices,
   venuePriceLane,
@@ -132,6 +134,14 @@ function VenuePriceSummary({
     listed: bundle.listed ?? null,
     estimate: bundle.estimate ?? null,
   });
+  // THE TRUST CHIP. Every drop-lane row below carries `data-pint-trust`, the
+  // one state lib/pintTrust.ts reads this lane as, so a browser test can hold
+  // the chip to the state and the second-drinker action has one thing to mount
+  // against. Not a drop lane means no attribute, not "none".
+  const trustChipState = trustChipStateFor(lane, priceStanding.standing);
+  const trustChipAttrs = trustChipState
+    ? { "data-pint-trust": trustChipState, "data-venue-id": venue.id }
+    : {};
   const baselinePriceRow = venue.prices.find(
     (price) => price.price_gbp === venue.cheapestPrice,
   );
@@ -174,7 +184,7 @@ function VenuePriceSummary({
 
   if (lane?.lane === "contributor") {
     return (
-      <div className="contributorPrice">
+      <div className="contributorPrice" {...trustChipAttrs}>
         <span className={chromeRevealClass}>
           <ClaimBadge kind="contributor" /> Latest Pint Drop price
         </span>
@@ -256,7 +266,7 @@ function VenuePriceSummary({
   if (lane?.lane === "provisional") {
     const loggedAt = formatFreshness(lane.observedAt);
     return (
-      <div className="contributorPrice">
+      <div className="contributorPrice" {...trustChipAttrs}>
         <span className={chromeRevealClass}>
           <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
         </span>
@@ -304,6 +314,29 @@ function VenuePriceSummary({
     );
   }
 
+  // A report PAST the window, printed as one. The drop list below prints this
+  // same drop, dated, so the price area may not word an absence above it
+  // (captain's cut, 5 Sept 2026). The day says how old it is and the one line
+  // says what it lacks; `priceStanding` is not consulted, as for the
+  // provisional row, because a drinker's log is not a published price.
+  if (lane?.lane === "aged") {
+    const loggedAt = formatFreshness(lane.observedAt);
+    return (
+      <div className="contributorPrice" {...trustChipAttrs}>
+        <span className={chromeRevealClass}>
+          <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
+        </span>
+        <PriceBadge variant="current">
+          {formatPrice(lane.agedPrice)}
+        </PriceBadge>
+        {loggedAt ? <small className={chromeRevealClass}>{loggedAt}</small> : null}
+        <small className={`communityPriceStanding ${priceRevealMotionClass}`.trim()}>
+          {AGED_PRICE_LINE}
+        </small>
+      </div>
+    );
+  }
+
   if (lane?.lane === "estimate") {
     return (
       <div className="contributorPrice">
@@ -336,6 +369,7 @@ export default function VenueOverviewTab({
   latestPintDropAt,
   confirmedPrice,
   provisionalPrice,
+  agedPrice,
   communityPrices,
   experienceLens,
   drinkLensCategory = null,
@@ -378,6 +412,9 @@ export default function VenueOverviewTab({
   /** An in-window pint report that has NOT earned the map, for the price area
    *  alone. It reaches no band, no bucket and no pin figure. */
   provisionalPrice?: ProvisionalPriceInput | null;
+  /** A public pint report PAST the window, for the price area alone, so the
+   *  area never words an absence over a drop the list below still prints. */
+  agedPrice?: ProvisionalPriceInput | null;
   /** Community price layer - the dated submission row plus the submit card. */
   communityPrices: CommunityPricesState;
   experienceLens: MapExperienceLens;
@@ -481,6 +518,7 @@ export default function VenueOverviewTab({
     sourcedPrice,
     venueBundlePrices(venue),
     provisionalPrice,
+    agedPrice,
   );
   const { showsPriceSummary, laneLoggedPriceShown } = overviewPriceAreaReach(
     venue,
