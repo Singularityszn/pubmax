@@ -141,9 +141,52 @@ reads `untracked` rather than `stale` until a human publishes through
 `scripts/refresh_prices.mjs`.
 
 Night Signal candidate ingestion is separately machine-scheduled. It never
-publishes reviewed `night_signals`; approved human publication remains the only
-way that snapshot advances. For that reason the reviewed feed is registered as
-episodic and has no machine staleness budget.
+publishes: the sweep may write only PENDING rows, and a person is the only thing
+that advances one. For that reason the reviewed feed is registered as episodic
+and has no machine staleness budget.
+
+### Reviewing Night Signal candidates
+
+The sweep stores each candidate in `public.night_signal_claims` (migration 0034)
+as `review_state = 'pending'`, and its own lease and retry state in
+`public.night_signal_ingest_checkpoint` (migration 0146). The moderator door is
+`/api/admin/night-signals`, gated by the same `ADMIN_TOKEN` credential as every
+other `/api/admin` route. It replaces the git-PR staging flow of
+`scripts/ingest_night_signal_candidates.mjs`, which a serverless function cannot
+run.
+
+Read the queue, then advance one candidate:
+
+```bash
+# What is waiting, plus the sweep's deferred and terminal queries.
+curl -s -H "x-admin-token: $ADMIN_TOKEN" \
+  https://pubmaxxing.com/api/admin/night-signals?status=pending | jq
+
+# Approve one. `authority` is operations (default) or editorial.
+curl -s -X POST -H "x-admin-token: $ADMIN_TOKEN" -H 'content-type: application/json' \
+  -d '{"action":"approve","id":"<candidate id>","authority":"editorial"}' \
+  https://pubmaxxing.com/api/admin/night-signals | jq
+
+# Or refuse it. Neither decision can be taken twice: the second answers 409.
+curl -s -X POST -H "x-admin-token: $ADMIN_TOKEN" -H 'content-type: application/json' \
+  -d '{"action":"reject","id":"<candidate id>"}' \
+  https://pubmaxxing.com/api/admin/night-signals | jq
+
+# A query the attempt cap refused is requeued here, and only here.
+curl -s -X POST -H "x-admin-token: $ADMIN_TOKEN" -H 'content-type: application/json' \
+  -d '{"action":"requeue"}' https://pubmaxxing.com/api/admin/night-signals | jq
+```
+
+Four things the door will refuse, each with its own code: an unknown candidate
+(`404 NOT_FOUND`), a second decision (`409 ALREADY_REVIEWED`, naming the
+standing one), a candidate whose own `expiresAt` has passed
+(`422 CANDIDATE_EXPIRED`, because approving it would publish nothing), and
+`authority: "automated"` (`400 INVALID_REQUEST`, because this door exists to
+record that a person decided).
+
+An approved, in-window candidate joins `GET /api/night-signals` beside the
+committed snapshot. The policy lives in `lib/nightSignalReview.ts`; the store is
+`lib/nightSignalStore.server.ts`.
 
 ---
 

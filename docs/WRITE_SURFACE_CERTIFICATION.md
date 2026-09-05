@@ -59,6 +59,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/admin/comments`
 - `POST app/api/admin/community-prices`
 - `POST app/api/admin/import-notes`
+- `POST app/api/admin/night-signals`
 - `POST app/api/admin/profile-avatars`
 - `POST app/api/admin/session`
 - `POST app/api/admin/social-posts`
@@ -1151,6 +1152,42 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   `CHECKPOINT_UNAVAILABLE`, never `ok` over a checkpoint that never moved. A
   city that has refused nothing is a 200 with an empty `requeued` list, because
   nothing to do is not an error.
+
+### `app/api/admin/night-signals` - Night Signal candidate review (route 94)
+
+- **Route / method:** `POST app/api/admin/night-signals/route.ts`
+  (`fm/night-signal-review`), actions `approve` and `reject` on ONE stored
+  candidate, plus `requeue` on the sweep's terminal queries. This is the review
+  surface the scheduled sweep's own header named as its follow-up: a serverless
+  function cannot own the git-PR flow `scripts/ingest_night_signal_candidates.mjs`
+  uses, so the cron stores PENDING candidates and a person advances them here.
+  The route also exports a read-only `GET` (the queue for one review state, plus
+  the sweep's deferred and terminal queries) which is NOT a mutating verb and is
+  not counted.
+- **Auth stance:** moderator-gated by `isModerator` (`lib/adminAuth.ts`) on BOTH
+  verbs - the `x-admin-token` header or the httpOnly admin session cookie, never
+  a query-string token; with `ADMIN_TOKEN` unset the gate opens only in dev and
+  test. The same gate as the community price and comment queues, and no second
+  auth layer of its own.
+- **Abuse boundary:** one per-IP budget through `isLimited` (`lib/pintDrops.ts`)
+  on both verbs, keyed `admin-night-signals:<hashed ip>`.
+- **Validation:** `action` restricted to `approve`, `reject` and `requeue`;
+  `id` must name a stored candidate; `authority` is `operations` (default) or
+  `editorial` alone. `automated` is refused with 400, because this door exists
+  to record that a PERSON decided.
+- **What it may not do:** it may not decide twice. A candidate already approved
+  or rejected answers 409 `ALREADY_REVIEWED` naming the standing decision, and
+  the durable write is a conditional UPDATE guarded on `review_state =
+  'pending'`, so two moderators racing produce one decision rather than a silent
+  overwrite. A candidate whose own `expiresAt` has passed cannot be approved
+  (422 `CANDIDATE_EXPIRED`), because the feed would filter it out and the
+  approval would publish nothing. It writes no claim text, no source and no
+  date: those are the sweep's, and this door only ever moves the review state.
+- **Failure honesty:** a queue read that could not run answers 503
+  `STORE_UNAVAILABLE` rather than an empty queue, which would read as nothing to
+  review; a requeue whose write could not run answers 503
+  `CHECKPOINT_UNAVAILABLE`; and a requeue with nothing terminal is a 200 with
+  `requeued: 0`.
 
 ### `app/api/venue-photos` - pub photo walls (route 73)
 

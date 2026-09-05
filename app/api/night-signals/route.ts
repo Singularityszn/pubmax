@@ -1,6 +1,19 @@
+// GET /api/night-signals — the reviewed Night Signal feed.
+//
+// It has TWO sources and they say the same thing: a claim a person approved.
+// The committed snapshot is the CLI's reviewed output, and the durable rows are
+// the ones a moderator advanced at POST /api/admin/night-signals. Both are read
+// through the same admission rules, so nothing reaches a reader that has not
+// been approved, dated and left in window.
+//
+// A durable read we could NOT run is reported as `durable: "unavailable"` and
+// the bundled snapshot still answers, because a feed that goes quiet on a store
+// error tells a reader the city has nothing on.
+
 import snapshot from "@/public/data/night_signals/latest.json";
-import { jsonCached } from "@/lib/apiResponses";
-import { activeNightSignalClaims } from "@/lib/nightSignalClaims";
+import { jsonCached, jsonNoStore } from "@/lib/apiResponses";
+import { activeNightSignalClaims, type NightSignalClaim } from "@/lib/nightSignalClaims";
+import { nightSignalCandidateStore, nightSignalStoreIsDurable } from "@/lib/nightSignalStore.server";
 import { fireAndForgetPush, maybeBroadcastNightSignalLive } from "@/lib/pushSender";
 
 export async function GET(request: Request): Promise<Response> {
@@ -11,9 +24,8 @@ export async function GET(request: Request): Promise<Response> {
   // that only changes on deploy, so the first request after a new snapshot is
   // its go-live edge. Fire-and-forget a broadcast to ALL registered devices,
   // deduped durably per snapshot version (lib/pushSender.ts) so later reads
-  // are no-ops. Edge caching below composes safely: a cached response never
-  // needs to re-fire, and a new snapshot ships via redeploy, which purges the
-  // edge — so the go-live request always reaches the function once.
+  // are no-ops. The durable rows below are deliberately NOT part of that
+  // dedupe: their go-live is a moderator's decision, not a deploy.
   fireAndForgetPush(() => maybeBroadcastNightSignalLive(
     snapshot.generatedAt,
     active.map((claim) => ({
@@ -23,6 +35,25 @@ export async function GET(request: Request): Promise<Response> {
       entityId: claim.entity.id,
     })),
   ));
-  const claims = active.filter((claim) => !entityId || claim.entity.id === entityId);
-  return jsonCached({ version: 1, asOf: snapshot.generatedAt, claims }, { sMaxAge: 300, staleWhileRevalidate: 600 });
+
+  const durableConfigured = nightSignalStoreIsDurable();
+  const reviewed = await nightSignalCandidateStore().approved(Date.now());
+  const merged = new Map<string, NightSignalClaim>(active.map((claim) => [claim.id, claim]));
+  if (reviewed.status === "ready") {
+    for (const claim of reviewed.candidates) merged.set(claim.id, claim);
+  }
+
+  const claims = [...merged.values()].filter((claim) => !entityId || claim.entity.id === entityId);
+  const body = {
+    version: 1,
+    asOf: snapshot.generatedAt,
+    durable: reviewed.status === "ready" ? ("ready" as const) : ("unavailable" as const),
+    claims,
+  };
+  // A body that reads mutable rows may not be held at the edge. Without a
+  // durable store the answer is a pure function of the deployment, exactly as
+  // it was before, so that read keeps its cache window.
+  return durableConfigured
+    ? jsonNoStore(body)
+    : jsonCached(body, { sMaxAge: 300, staleWhileRevalidate: 600 });
 }
