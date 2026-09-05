@@ -485,8 +485,15 @@ describe("mobile tap-target floors", () => {
     expect(globalCss).toMatch(
       /\.mapSoftRetryBtn\s*{[^}]*min-width:\s*64px;[^}]*min-height:\s*44px/,
     );
+    // Clearing the tab bar alone put this notice UNDER the plan-activation
+    // bar: measured at 390 with tiles refused, the Retry button's own centre
+    // point was owned by BUTTON.mobilePlanActivation, so the control the copy
+    // tells a reader to tap was not tappable. It reads that stack member's own
+    // published berth and height (components/nav/mobileNav.css) rather than
+    // restating a number, and e2e/map-blocked-fallback.spec.ts measures the
+    // rendered ownership.
     expect(globalCss).toMatch(
-      /@media \(max-width: 640px\)[\s\S]*?\.mapSoftRetry\s*{[^}]*bottom:\s*calc\(var\(--mobile-tab-clearance\) \+ 10px\)/,
+      /@media \(max-width: 640px\)[\s\S]*?\.mapSoftRetry\s*{[^}]*bottom:\s*calc\([\s\S]*?var\(--plan-activation-bottom\) \+ var\(--plan-activation-h\)/,
     );
   });
 });

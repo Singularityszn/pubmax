@@ -17,6 +17,17 @@
        height is the bar's own bottom edge. Every surface that used to clear a
        three-row stack reads this instead of a hand-copied 118px. */
     --mobile-map-chrome-h: calc(var(--mobile-map-top) + var(--mobile-map-bar-h));
+    /* The docked chip row under that bar (.mobileMapChipRow), and the grid gap
+       above it. Published because a surface that has to clear the WHOLE phone
+       chrome cannot read a height off a row it does not own, and the one that
+       tried it named a token nothing defines: `.mapFallback` asked for
+       --mobile-map-rail-h, the calc() was invalid at computed-value time, its
+       padding-top was dropped, and every phone reader who reached the map's
+       honest failure card read its heading from behind the top bar. */
+    --mobile-map-chip-row-h: 44px;
+    --mobile-map-chrome-full-h: calc(
+      var(--mobile-map-chrome-h) + 6px + var(--mobile-map-chip-row-h)
+    );
     /* The floating stack's own base (mobileNav.css owns it), so the map's
        bottom band and the create action above it cannot drift apart. */
     --mobile-map-dock-clearance: var(--float-stack-base);
