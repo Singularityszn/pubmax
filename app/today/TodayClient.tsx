@@ -113,7 +113,7 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
         <>
           {weather.stale ? (
             <p className="todayStale" role="status">
-              {weather.checkedLabel}. It may have moved on. We refresh this by hand.
+              {weather.checkedLabel}. It may have moved on.
             </p>
           ) : null}
           <div className="todayCardFootRow">
