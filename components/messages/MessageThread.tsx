@@ -204,6 +204,20 @@ type OutboxMessage = MessageDTO & { pendingPhotoUrl?: string };
 
 let outboxSeq = 0;
 
+/**
+ * The id ONE send attempt is known by, end to end. A uuid because the column
+ * migration 0149 adds is a uuid; `crypto.randomUUID` is absent on an insecure
+ * origin and in some older browsers, so the fallback keeps the shape rather
+ * than sending something the write path would refuse.
+ */
+function newClientMessageId(): string {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  if (uuid) return uuid;
+  const hex = (length: number): string =>
+    Array.from({ length }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+  return `${hex(8)}-${hex(4)}-4${hex(3)}-a${hex(3)}-${hex(12)}`;
+}
+
 function outboxMessage(
   conversationId: string,
   handle: string,
@@ -267,6 +281,8 @@ export default function MessageThread({
   }, [accountRevision]);
   const attachmentPickerRef = useRef<MessageAttachmentPickerHandle | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  /** Claimed before the first await in `send`; see the note there. */
+  const sendInFlightRef = useRef(false);
   const cropCardRef = useRef<HTMLDivElement | null>(null);
   const enterSends = useEnterSends();
   const isMobileViewport = useSyncExternalStore(
@@ -535,12 +551,21 @@ export default function MessageThread({
   }, []);
 
   const send = useCallback(async () => {
+    // LATCHED ON A REF, CLAIMED BEFORE THE FIRST AWAIT — the plan-route rule.
+    // `sending` is React state, committed a microtask after the event, so two
+    // taps in one task both read it false and both posted.
+    if (sendInFlightRef.current) return;
     const h = normalizeHandle(authHandle ?? "") || readHandle();
     const bodyText = draft.trim();
     if (!user || !h || over) return;
     if (!bodyText && !pending) return;
+    sendInFlightRef.current = true;
     const sentPending = pending;
     const optimistic = outboxMessage(conversationId, h, bodyText, sentPending);
+    // ONE ID FOR THIS ATTEMPT, minted here and sent on every retry of it, so a
+    // connection reset after the row committed cannot store the line twice
+    // (migration 0149's unique index is the other half).
+    const clientMessageId = newClientMessageId();
     setSending(true);
     setError("");
     // The bubble lands and the field clears NOW; the server's answer replaces
@@ -550,10 +575,19 @@ export default function MessageThread({
     setPending(null);
     setCropping(null);
     setPickingVenue(false);
+    // A REFUSED SEND KEEPS WHAT THE DRINKER WROTE. The field was cleared at the
+    // tap, so somebody who started the next line while the first was in flight
+    // used to lose the first one outright: the bubble went, the text was
+    // dropped for being "not empty", and all that was left was an error with
+    // nothing to try again with. The failed line goes back at the TOP of
+    // whatever is in the field, and a newly picked attachment is never
+    // overwritten by the one that failed.
     const takeBack = () => {
       setOutbox((rows) => rows.filter((row) => row.id !== optimistic.id));
-      setDraft((current) => (current.trim() ? current : bodyText));
-      if (sentPending) setPending(sentPending);
+      if (bodyText) {
+        setDraft((current) => (current.trim() ? `${bodyText}\n${current}` : bodyText));
+      }
+      if (sentPending) setPending((current) => current ?? sentPending);
     };
     try {
       const address = `/api/messages/${encodeURIComponent(conversationId)}`;
@@ -561,6 +595,7 @@ export default function MessageThread({
         action: "send",
         handle: h,
         body: bodyText,
+        clientMessageId,
         ...(sentPending?.kind === "venue" ? { venueId: sentPending.venue.id } : {}),
       };
 
@@ -624,6 +659,7 @@ export default function MessageThread({
             : "Could not send that message. Try again.")
       );
     } finally {
+      sendInFlightRef.current = false;
       setSending(false);
     }
   }, [conversationId, draft, over, pending, refresh, user, authHandle]);

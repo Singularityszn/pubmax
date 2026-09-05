@@ -80,4 +80,34 @@ grant all on table storage.objects to service_role;
 -- Realtime migrations add selected tables only when this publication exists.
 create publication supabase_realtime;
 
+-- Supabase Realtime owns this schema in production. Only the two things a
+-- migration or a policy reads are here: `realtime.messages`, the table Realtime
+-- runs its channel authorization check against, and `realtime.topic()`, which
+-- names the channel being joined. Realtime sets the topic per check; a test
+-- stands in for that with `set local realtime.topic = '<topic>'`.
+create schema if not exists realtime;
+grant usage on schema realtime to anon, authenticated, service_role;
+
+create table if not exists realtime.messages (
+  id         uuid primary key default gen_random_uuid(),
+  topic      text not null,
+  extension  text not null,
+  payload    jsonb,
+  event      text,
+  private    boolean not null default false,
+  inserted_at timestamptz not null default now()
+);
+alter table realtime.messages enable row level security;
+grant select, insert on table realtime.messages to anon, authenticated;
+grant all on table realtime.messages to service_role;
+
+create or replace function realtime.topic()
+returns text
+language sql
+stable
+as $$
+  select nullif(current_setting('realtime.topic', true), '');
+$$;
+grant execute on function realtime.topic() to anon, authenticated, service_role;
+
 commit;

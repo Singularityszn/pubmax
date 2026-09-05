@@ -67,6 +67,11 @@ const NOT_REPO_PATHS = new Set([
   "AuthProvider.updateSession",
   // Database column glob, not a repository path.
   "profiles.cover_*",
+  // A DTO field named in the messaging entry, not a repository path.
+  "ConversationDTO.unread",
+  // Supabase Realtime's own platform table, named in the messaging entry, not a
+  // repository path.
+  "realtime.messages",
   // A row's field, named in the Out listing entry, not a repository path.
   "source.label",
   // A provider host named in the Out listing entry, not a repository path.

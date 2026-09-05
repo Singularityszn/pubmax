@@ -17,11 +17,28 @@
 // Broadcast on the same topic the moment a row lands
 // (lib/messagesBroadcast.server.ts), which needs no table read at all.
 //
+// WHY EVERY CHANNEL IS PRIVATE. A public channel authorises on the API key
+// alone, and this client is built from the PUBLIC key, so `live:inbox:<handle>`
+// on a public channel handed anybody holding that key a live activity feed for
+// any named account. `private: true` makes supabase-js send this browser's own
+// user JWT on join, and Realtime then checks it against the policy on
+// `realtime.messages` (migration 0148): your own inbox, and a conversation you
+// are a participant of, and nothing else. It is not a client-side preference —
+// the server broadcasts private too, so a channel opened public here would hear
+// nothing at all. A browser with no session cannot join, which is correct: no
+// messaging surface renders for one, and the poll fallback carries anything
+// that reaches this far.
+//
 // RESILIENCE - polling is MANDATORY, realtime is the optimisation. No public
 // Supabase env, a channel that cannot join in ~5s, or one that errors mid
-// session → the caller's `poll` runs on the fallback cadence. A channel that IS
-// live still gets a slow safety poll, because a socket can stay connected
-// through a missed frame. A HIDDEN tab polls not at all and refetches once the
+// session → the caller's `poll` runs on the fallback cadence. A dropped channel
+// is RE-ASKED under a bounded backoff rather than abandoned: one transient
+// socket error used to downgrade a thread to polling for the life of the mount,
+// which on a phone waking from sleep is the ordinary case rather than a rare
+// one. The attempts are capped, so a genuinely unreachable Realtime settles on
+// the poll lane instead of retrying for ever. A channel that IS live still gets
+// a slow safety poll, because a socket can stay connected through a missed
+// frame. A HIDDEN tab polls not at all and refetches once the
 // moment it is shown again, because a phone in a pocket is the common case and
 // each poll is a server round trip with several reads behind it.
 //
@@ -48,6 +65,18 @@ export type MessagesSubscribeOptions = Readonly<{
 }>;
 
 const JOIN_TIMEOUT_MS = 5_000;
+/** How many times a dropped channel is re-asked before the poll lane keeps it. */
+export const MESSAGES_REATTACH_MAX_ATTEMPTS = 4;
+/** First backoff step; each further attempt doubles it, capped below. */
+export const MESSAGES_REATTACH_BASE_MS = 1_000;
+/** No backoff step is longer than this, so a woken phone recovers promptly. */
+export const MESSAGES_REATTACH_MAX_MS = 30_000;
+
+/** The delay before re-asking, for attempt 1..MESSAGES_REATTACH_MAX_ATTEMPTS. */
+export function messagesReattachDelayMs(attempt: number): number {
+  const step = MESSAGES_REATTACH_BASE_MS * 2 ** Math.max(0, attempt - 1);
+  return Math.min(step, MESSAGES_REATTACH_MAX_MS);
+}
 /** Without a socket a conversation still has to feel like one. */
 export const MESSAGES_POLL_FALLBACK_MS = 5_000;
 /** With a live socket a poll is a safety net, not the delivery lane. */
@@ -156,8 +185,11 @@ function subscribeBroadcast(
   setStatus("connecting");
 
   let joinTimer: ReturnType<typeof setTimeout> | null = null;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let channel: { unsubscribe?: () => unknown } | null = null;
   let removeChannel: ((channel: unknown) => unknown) | null = null;
+  let client: NonNullable<ReturnType<typeof getSupabaseBrowser>> | null = null;
+  let attempts = 0;
 
   function dropChannel(): void {
     if (joinTimer) {
@@ -178,32 +210,53 @@ function subscribeBroadcast(
     }
   }
 
+  /**
+   * The channel is gone. Poll NOW, so the reader is never left waiting on a
+   * lane that has stopped answering, and ask for it back once under a bounded
+   * backoff. A retry already in flight is never doubled: the synchronous
+   * "CLOSED" that `dropChannel` provokes lands here too.
+   */
   function fallBackToPolling(): void {
     if (disposed) return;
     dropChannel();
     setStatus("polling");
+    if (retryTimer !== null) return;
+    if (!client || attempts >= MESSAGES_REATTACH_MAX_ATTEMPTS) return;
+    attempts += 1;
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      if (disposed || !client) return;
+      attach(client);
+    }, messagesReattachDelayMs(attempts));
   }
 
-  function attach(client: NonNullable<ReturnType<typeof getSupabaseBrowser>>): void {
+  function attach(next: NonNullable<ReturnType<typeof getSupabaseBrowser>>): void {
     if (disposed) return;
+    client = next;
     try {
-      removeChannel = (dead) => client.removeChannel(dead as never);
-      const next = client.channel(topic);
-      channel = next;
+      removeChannel = (dead) => next.removeChannel(dead as never);
+      // PRIVATE (see header): supabase-js sends this browser's own user JWT on
+      // join, so Realtime's policy on `realtime.messages` decides, not the
+      // public key. The server broadcasts private too; the two must agree.
+      const channelNext = next.channel(topic, { config: { private: true } });
+      channel = channelNext;
       for (const event of events) {
-        next.on("broadcast" as never, { event } as never, () => {
+        channelNext.on("broadcast" as never, { event } as never, () => {
           // SIGNAL ONLY - the payload is ignored by construction (see header).
           if (!disposed) onSignal();
         });
       }
       joinTimer = setTimeout(fallBackToPolling, JOIN_TIMEOUT_MS);
-      next.subscribe((state: string) => {
+      channelNext.subscribe((state: string) => {
         if (disposed) return;
         if (state === "SUBSCRIBED") {
           if (joinTimer) {
             clearTimeout(joinTimer);
             joinTimer = null;
           }
+          // A join that LANDED clears the budget, so a socket that drops once
+          // an hour is re-asked each time rather than spending its four.
+          attempts = 0;
           setStatus("live");
         } else if (state === "CHANNEL_ERROR" || state === "TIMED_OUT" || state === "CLOSED") {
           fallBackToPolling();
@@ -222,9 +275,9 @@ function subscribeBroadcast(
     // rather than polling for the life of the page.
     timer.setCadence(cadence.fallbackMs);
     void ensureSupabaseBrowser()
-      .then((client) => {
+      .then((loaded) => {
         if (disposed) return;
-        if (client) attach(client);
+        if (loaded) attach(loaded);
         else fallBackToPolling();
       })
       .catch(() => fallBackToPolling());
@@ -232,6 +285,10 @@ function subscribeBroadcast(
 
   return () => {
     disposed = true;
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+    }
     timer.dispose();
     dropChannel();
   };

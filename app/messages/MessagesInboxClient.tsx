@@ -112,6 +112,11 @@ export default function MessagesInboxClient({
   const [loadedRevision, setLoadedRevision] = useState<number | null>(null);
   const [needsSignIn, setNeedsSignIn] = useState(false);
   const [failed, setFailed] = useState(false);
+  // A read that ANSWERED but could not run one of the reads behind it. The rows
+  // are real; a count or a preview may be missing. Kept apart from `failed`,
+  // which is a read that did not answer at all, because the two owe the reader
+  // different sentences.
+  const [partial, setPartial] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const retryingRef = useRef(false);
   const accountRevisionRef = useRef(accountRevision);
@@ -141,6 +146,7 @@ export default function MessagesInboxClient({
         setConversations([]);
         setNeedsSignIn(true);
         setFailed(false);
+        setPartial(false);
         setLoadedRevision(requestRevision);
         return;
       }
@@ -150,6 +156,7 @@ export default function MessagesInboxClient({
         setConversations([]);
         setNeedsSignIn(true);
         setFailed(false);
+        setPartial(false);
         setLoadedRevision(requestRevision);
         return;
       }
@@ -166,25 +173,36 @@ export default function MessagesInboxClient({
           setNeedsSignIn(true);
           setConversations([]);
           setFailed(false);
+          setPartial(false);
           return;
         }
         if (!res.ok) {
           discardBody(res);
           setNeedsSignIn(false);
           setFailed(true);
+          setPartial(false);
           return;
         }
         setNeedsSignIn(false);
-        setFailed(false);
-        const body = (await res.json()) as { conversations?: ConversationDTO[] };
+        const body = (await res.json()) as {
+          conversations?: ConversationDTO[];
+          status?: string;
+        };
         if (!stillCurrent()) return;
-        setConversations(Array.isArray(body.conversations) ? body.conversations : []);
+        const rows = Array.isArray(body.conversations) ? body.conversations : [];
+        const degraded = body.status === "degraded";
+        setConversations(rows);
+        // Degraded WITH NO ROWS may never read as an empty inbox: nothing was
+        // answered, so the honest surface is the same one a failed read gets.
+        setFailed(degraded && rows.length === 0);
+        setPartial(degraded && rows.length > 0);
       } catch (err) {
         const aborted =
           signal?.aborted || (err instanceof Error && err.name === "AbortError");
         if (!aborted && stillCurrent()) {
           setNeedsSignIn(false);
           setFailed(true);
+          setPartial(false);
         }
       } finally {
         if (stillCurrent()) setLoadedRevision(requestRevision);
@@ -293,11 +311,16 @@ export default function MessagesInboxClient({
               <span>Couldn&rsquo;t refresh this list. It shows what loaded last.</span>
               {retryButton}
             </p>
+          ) : partial ? (
+            <p className="inboxStaleNotice" role="status">
+              <span>Couldn&rsquo;t check for new messages. Your conversations are here.</span>
+              {retryButton}
+            </p>
           ) : null}
           <ul className="conversationList">
             {conversations.map((c) => {
               const active = c.id === activeConversationId;
-              const unread = c.unread > 0;
+              const unread = (c.unread ?? 0) > 0;
               const classes = [
                 "conversationItem",
                 active ? "conversationItemActive" : "",
@@ -329,8 +352,8 @@ export default function MessagesInboxClient({
                         </time>
                       ) : null}
                       {unread ? (
-                        <span className="conversationUnread" aria-label={`${c.unread} unread`}>
-                          {c.unread > 99 ? "99+" : c.unread}
+                        <span className="conversationUnread" aria-label={`${c.unread ?? 0} unread`}>
+                          {(c.unread ?? 0) > 99 ? "99+" : c.unread}
                         </span>
                       ) : null}
                     </div>

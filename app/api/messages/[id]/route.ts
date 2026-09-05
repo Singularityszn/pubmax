@@ -27,7 +27,11 @@ import {
   type MessageAttachmentWrite,
 } from "@/lib/messageAttachments";
 import { requireLinkedActor } from "@/lib/messageAuth";
-import { broadcastMessageSent, broadcastMessagesRead } from "@/lib/messagesBroadcast.server";
+import {
+  broadcastMessageSent,
+  broadcastMessagesRead,
+  deferMessagesSignal,
+} from "@/lib/messagesBroadcast.server";
 import {
   discardStagedMessagePhoto,
   MESSAGE_PHOTO_MAX_BYTES,
@@ -40,6 +44,7 @@ import {
 } from "@/lib/messagePhotoMedia.server";
 import { messagePhotoRouteDeps } from "@/lib/messagePhotoRoute.server";
 import { attachMessageVenueCards } from "@/lib/messageVenueCards.server";
+import type { HandlePair } from "@/lib/messages";
 import { messagesStore } from "@/lib/messagesStore";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
@@ -136,7 +141,7 @@ export async function GET(request: Request, { params }: Ctx): Promise<Response> 
   const unreadReceived = messages.some((m) => !m.read && m.senderHandle !== handle);
   if (unreadReceived) {
     const marked = await store.markRead(id, handle);
-    if (marked > 0) await broadcastMessagesRead(id);
+    if (marked > 0) deferMessagesSignal(() => broadcastMessagesRead(id));
   }
   const readDone = performance.now();
   return jsonNoStore(
@@ -242,24 +247,30 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
     return publicApiError("Write a message.", "INVALID_REQUEST", 400);
   }
 
-  const message = await store.send(id, handle, messageBody, attachment);
-  if (!message) {
+  const sent = await store.send(id, handle, messageBody, attachment, {
+    clientMessageId: readString(body.clientMessageId) ?? undefined,
+  });
+  if (!sent) {
     return publicApiError("Conversation not found.", "NOT_FOUND", 404);
   }
-  await signalSent(store, id);
+  signalSent(id, sent.pair);
   return jsonNoStore(
-    { message: (await attachMessageVenueCards([message]))[0] },
+    { message: (await attachMessageVenueCards([sent.message]))[0] },
     { status: 201 },
   );
 }
 
 /**
  * The row is stored; tell the two open surfaces. Never a reason to fail the
- * send: a nudge that could not go out leaves the poll fallback to carry it.
+ * send: a nudge that could not go out leaves the poll fallback to carry it, so
+ * this is handed to the platform rather than awaited before the 201. The PAIR
+ * comes from the write that just proved it, not from a second read of the
+ * conversation the send had already loaded.
  */
-async function signalSent(store: ReturnType<typeof messagesStore>, conversationId: string): Promise<void> {
-  const pair = await store.participants(conversationId);
-  await broadcastMessageSent(conversationId, pair ? [pair.handleA, pair.handleB] : []);
+function signalSent(conversationId: string, pair: HandlePair): void {
+  deferMessagesSignal(() =>
+    broadcastMessageSent(conversationId, [pair.handleA, pair.handleB]),
+  );
 }
 
 async function sendPhoto(
@@ -318,18 +329,18 @@ async function sendPhoto(
     const promoted = await promoteStagedMessagePhoto(staged, storage);
     staged = null;
 
-    const message = await store.send(conversationId, handle, messageBody, {
+    const sent = await store.send(conversationId, handle, messageBody, {
       kind: "photo",
       messageId,
       objectKey: promoted.objectKey,
       width: promoted.width,
       height: promoted.height,
     });
-    if (!message) {
+    if (!sent) {
       return publicApiError("Conversation not found.", "NOT_FOUND", 404);
     }
-    await signalSent(store, conversationId);
-    return jsonNoStore({ message }, { status: 201 });
+    signalSent(conversationId, sent.pair);
+    return jsonNoStore({ message: sent.message }, { status: 201 });
   } catch (error) {
     if (staged) {
       try {

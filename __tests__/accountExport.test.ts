@@ -130,7 +130,7 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
     moments: async () => [moment],
     prices: async () => ({ observations: [price], degraded: false }),
     pintDrops: async () => [drop],
-    conversations: async () => [conversation],
+    conversations: async () => ({ conversations: [conversation], status: "ready" as const }),
     messages: async () => thread,
     ...overrides,
   };
@@ -213,7 +213,7 @@ describe("buildAccountExport", () => {
       },
       conversations: async (handle) => {
         asked.push(`inbox:${handle}`);
-        return [];
+        return { conversations: [], status: "ready" as const };
       },
     });
 
