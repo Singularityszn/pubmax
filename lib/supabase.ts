@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { resolveClientIp } from "@/lib/clientIpTrust";
 import { isDeployedProduction } from "@/lib/deploymentEnv";
 import { resolveSupabaseConfig, type SupabaseConfig } from "@/lib/supabaseConfig";
 
@@ -190,17 +191,19 @@ export async function checkRateLimitDurable(
  * consent-gated analytics route is the narrow exception: it validates the
  * address and forwards it to PostHog without writing it to PUBMAXX storage.
  *
- * M1 trust boundary: `x-forwarded-for` is client-suppliable. On Vercel the
- * edge normalises it (left-most entry = real client), which this deployment
- * relies on; a self-hosted deployment must front this with a trusted proxy
- * that overwrites the header. The IP is a SECONDARY limiter signal - write
- * keys pair it with an account or contributor identity - so a spoofed header
- * only widens one actor's own budget.
+ * The trust boundary is `lib/clientIpTrust.ts` and it is the whole of the rule:
+ * a header the platform sets and overwrites first, and the RIGHT-MOST
+ * `x-forwarded-for` entry only as the self-hosted fallback. The left-most entry
+ * is never read, because it is the one value in the chain a caller can always
+ * choose, and reading it let one machine mint an unlimited number of distinct
+ * limiter buckets from a header.
+ *
+ * This value is still only ONE signal. An anonymous route that spends money
+ * pairs it with the deployment-wide ceiling in `lib/paidSpendBudget.ts`, which
+ * no header can widen; a write route pairs it with an account or contributor
+ * identity. A limiter keyed on this address alone guards nothing an attacker
+ * with a header cannot walk around.
  */
 export function clientIp(request: Request): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
+  return resolveClientIp((name) => request.headers.get(name));
 }

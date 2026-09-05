@@ -1,8 +1,27 @@
+# A .vercelignore REPLACES the .gitignore fallback, so anything gitignored and
+# absent from this file is uploaded. Keep the two in step: a directory added to
+# .gitignore that a build does not need belongs here as well.
+
 # Local verification and generated build output are not production inputs.
+# `.next` is named on its own line because `/.next-*` does not match it.
+/.next
 /.next-*
 /coverage/
 /__tests__/
 /e2e/
+/e2e-shots/
+/.tmp-evidence/
+
+# Harvest shards and crawler output. Gitignored, large, and read by scripts the
+# deployed functions never run.
+/data-harvest/
+/.firecrawl/
+
+# Agent tooling checkouts. Not inputs to any build.
+/.agents/
+/.cursor/
+/.opencode/
+/skills/
 
 # Design evidence and handoff documents are kept in GitHub, not deployed.
 /docs/
