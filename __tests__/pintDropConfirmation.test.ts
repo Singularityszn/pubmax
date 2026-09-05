@@ -14,6 +14,7 @@ import {
   findSecondReporterConfirmation,
   liveConfirmationFor,
   isPintDropConfirmationBasis,
+  readSecondReporter,
   type ConfirmableDrop,
 } from "@/lib/pintDropConfirmation";
 import { priceStandingFor } from "@/lib/priceTier";
@@ -239,6 +240,55 @@ describe("a confirmation ages out", () => {
         NOW,
       ),
     ).toEqual({ confirmationId: "new", confirmedAtMs: Date.parse(newer) });
+  });
+});
+
+describe("a confirmed half blocks nothing (F-7)", () => {
+  // The 0147 backfill writes the `measure` column ALONE, so a row flagged back
+  // out of the pint lane keeps the `confirmation_id` it was minted with. The
+  // Arnos Arms row is exactly that: a confirmed £2.60 now reading `half`.
+  const CONFIRMED_HALF = drop({
+    id: "half-a",
+    priceGbp: 2.6,
+    measure: "half",
+    authorityKey: "key-half",
+    confirmation: {
+      confirmationId: "stale-half",
+      confirmedAt: new Date(NOW - 2 * DAY_MS).toISOString(),
+      basis: "second_reporter" as const,
+    },
+  });
+
+  it("is not the venue's live confirmation", () => {
+    expect(liveConfirmationFor(candidates(CONFIRMED_HALF), NOW)).toBeNull();
+  });
+
+  it("lets two real pint drinkers mint their own confirmation", () => {
+    const pair = findSecondReporterConfirmation(
+      candidates(
+        CONFIRMED_HALF,
+        drop({ id: "pint-a", priceGbp: 5.5, authorityKey: "key-one" }),
+        drop({ id: "pint-b", priceGbp: 5.5, authorityKey: "key-two" }),
+      ),
+      NOW,
+    );
+    expect(pair).not.toBeNull();
+    expect(new Set([pair?.dropId, pair?.confirmingDropId])).toEqual(
+      new Set(["pint-a", "pint-b"]),
+    );
+  });
+
+  it("never answers a caller `already_confirmed` over the half's own figure", () => {
+    expect(
+      readSecondReporter(
+        candidates(
+          CONFIRMED_HALF,
+          drop({ id: "pint-a", priceGbp: 5.5, authorityKey: "key-one" }),
+        ),
+        NOW,
+        "key-two",
+      ),
+    ).toEqual({ kind: "awaiting" });
   });
 });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
+import { priceBand, priceBandAreaForVenue, priceBandNote } from "@/lib/priceBand";
 import { ExternalLink, MapPin, Sparkles } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -119,6 +119,14 @@ export default function UnverifiedPubSheet({
   const communityTrustStanding = communityPrice
     ? communityTrustNote(communityPrice, undefined, "mark")
     : "";
+  // A base pub's id names no city, so the area answers null and the band is cut
+  // from the whole dataset (review finding F-21). Taken once, so the plaque's
+  // colour and its own sentence cannot come from two readings.
+  const baseBandArea = priceBandAreaForVenue(pub.id);
+  const basePriceBand =
+    communityPrice && communityPrice.drinkCategory === "beer"
+      ? priceBand(communityPrice.priceGbp, baseBandArea)
+      : null;
   const drinkLensNoun = drinkLensCategory
     ? drinkLensPriceNoun(drinkLensCategory)
     : null;
@@ -185,11 +193,11 @@ export default function UnverifiedPubSheet({
             </span>
             <PriceBadge
               variant="current"
-              band={
-                communityPrice.drinkCategory === "beer"
-                  ? priceBand(communityPrice.priceGbp, priceBandAreaForVenue(pub.id))
-                  : null
-              }
+              band={basePriceBand}
+              // A national base pub names no city, so its band is cut from the
+              // whole dataset and the sentence says so rather than implying
+              // this pub's own town (review finding F-21).
+              title={basePriceBand ? priceBandNote(basePriceBand, baseBandArea) : undefined}
             >
               {formatPrice(communityPrice.priceGbp)}
             </PriceBadge>

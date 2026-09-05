@@ -101,8 +101,8 @@ export function drinkMeasureName(
  *
  * Word-bounded on purpose: `half` as a whole word catches "Half of lager" and
  * leaves "Halfway House Pale" alone. The SQL backfill in migration 0147 mirrors
- * this table and `__tests__/drinkMeasureMigration.test.ts` holds the two
- * together, because this module is the owner and the migration is the copy.
+ * this table and `__tests__/drinkMeasure.test.ts` holds the two together,
+ * because this module is the owner and the migration is the copy.
  */
 export const NON_PINT_MEASURE_PATTERNS: ReadonlyArray<{
   readonly word: string;
@@ -133,16 +133,66 @@ function boundedPattern(word: string): RegExp {
 }
 
 /**
+ * The words that put a measure word in a MEASURE CONTEXT when they follow it.
+ *
+ * Review finding F-22: word boundaries alone refused three real pints, because
+ * London brewery names are made of measure words. "Other Half Green Diamond",
+ * "Half Moon IPA" and "Small Beer Lager" are beers; "Third Wheel Bitter" is a
+ * beer. A drinker typing one of those had a valid pint refused with a sentence
+ * telling them to pick the measure they had already picked.
+ */
+export const MEASURE_CONTEXT_WORDS: readonly string[] = ["of", "a", "pint", "pints"];
+
+const MEASURE_CONTEXT_SET: ReadonlySet<string> = new Set(MEASURE_CONTEXT_WORDS);
+
+/** The text as lowercase word tokens, so a measure word's neighbours can be read. */
+function wordTokens(text: string): string[] {
+  return text.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word !== "");
+}
+
+/**
+ * Is this alphabetic measure word being used AS a measure?
+ *
+ * Three ways it is: it is the whole text, it ENDS the text ("Neck Oil half"),
+ * or a measure context word follows it ("half of lager", "half a lager", "half
+ * pint"). Anywhere else it is a name: a brewery, a beer or a pub.
+ *
+ * The direction of the remaining error is deliberate. A missed contradiction
+ * here costs nothing on its own, because the composer now ASKS the measure on
+ * both price doors and this predicate is the backstop behind that answer; a
+ * false positive refuses a pint somebody really drank and tells them to fix
+ * something that is not wrong.
+ */
+function usedAsMeasure(text: string, word: string): boolean {
+  const words = wordTokens(text);
+  for (let i = 0; i < words.length; i += 1) {
+    if (words[i] !== word) continue;
+    const next = words[i + 1];
+    if (next === undefined) return true;
+    if (MEASURE_CONTEXT_SET.has(next)) return true;
+  }
+  return false;
+}
+
+/**
  * The non-pint measure a drink text NAMES, or null. Used twice: the write path
  * refuses a pint-measured drop whose own words say half, and the migration
  * FLAGS a legacy row the same way.
+ *
+ * A FRACTION IS ALWAYS A MEASURE. "1/2", "½", "2/3" and their kin carry no
+ * other meaning in a drink name, so they are read wherever they appear; only
+ * the spelled words need the context test above.
  */
 export function measureNamedInDrinkText(
   text: unknown,
 ): Exclude<DrinkMeasure, "pint"> | null {
   if (typeof text !== "string" || text.trim() === "") return null;
   for (const entry of NON_PINT_MEASURE_PATTERNS) {
-    if (boundedPattern(entry.word).test(text)) return entry.measure;
+    const spelled = /^[a-z]+$/.test(entry.word);
+    const named = spelled
+      ? usedAsMeasure(text, entry.word)
+      : boundedPattern(entry.word).test(text);
+    if (named) return entry.measure;
   }
   return null;
 }
@@ -153,6 +203,15 @@ export function measureNamedInDrinkText(
  */
 export const MEASURE_ASK_LINE =
   "Pick the measure first, so a half never reads as a pint.";
+
+/**
+ * Where a non-pint figure reaches, said once. The pint lane holds it out by
+ * law (nothing is ever scaled), so the receipt for a half may promise the pub's
+ * own page and nothing more: claiming the map for it would be the D04 defect
+ * worded rather than stored.
+ */
+export const NON_PINT_PRICE_REACH_LINE =
+  "Kept on this pub’s page with its measure. Nothing but a pint sets a pint price.";
 
 /** The composer's own label above the measure chips. */
 export const MEASURE_FIELD_LABEL = "What measure?";

@@ -37,6 +37,11 @@ import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { postCommunityContribution } from "@/lib/communityContributionClient";
+import {
+  cleanDrinkMeasure,
+  measureIsPint,
+  type DrinkMeasure,
+} from "@/lib/drinkMeasure";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   isUkBaseId,
@@ -175,6 +180,14 @@ export type CommunityPricesState = {
     venueId: string;
     drinkCategory: DrinkCategory;
     priceGbp: string | number;
+    /**
+     * WHAT SERVING THE FIGURE IS ABOUT (review finding F-2). Only the beer lane
+     * asks it, and a non-pint answer writes the dated Pint Drop alone: the
+     * community price lane carries no measure by design, so a half may not
+     * enter it wearing the beer chip's meaning.
+     */
+    measure?: DrinkMeasure;
+    measureLabel?: string;
     pintPhoto?: File | null;
   }, auth: AccountAuthSnapshot) => Promise<CommunityPriceSubmitResult>;
   /** Log one categorical pub observation through the same write seam. */
@@ -936,6 +949,16 @@ export function useCommunityPrices(): CommunityPricesState {
       if (!parsed.ok) return { ok: false, error: parsed.error, reason: "invalid" };
       const { venueId, drinkCategory, priceGbp } = parsed.value;
       const pintPhoto = input.pintPhoto ?? null;
+      // A measure only means anything on the beer lane, so it only travels
+      // with one. `cleanDrinkMeasure` collapses anything else to `pint`, which
+      // is what the lane already assumed of every submission before F-2.
+      const measure: DrinkMeasure =
+        drinkCategory === "beer" ? cleanDrinkMeasure(input.measure) : "pint";
+      const measureLabel = measure === "other" ? (input.measureLabel ?? "") : "";
+      // A non-pint figure is NOT a beer community price: the route writes its
+      // dated Pint Drop and nothing else, so nothing optimistic may restamp
+      // this pub's beer row with a half's figure.
+      const writesCommunityPrice = measureIsPint(measure);
 
       const submittedAt = Date.now();
       const optimistic: CommunityPrice = {
@@ -946,23 +969,26 @@ export function useCommunityPrices(): CommunityPricesState {
         source: "community",
         corroborations: 1,
       };
-      setByVenueId((current) => {
-        const previous = current.get(venueId);
-        const category = previous?.find(
-          (row) => row.drinkCategory === drinkCategory,
-        );
-        const next = new Map(current);
-        next.set(
-          venueId,
-          upsertPrice(previous ?? [], {
-            ...optimistic,
-            mapCandidate: category?.mapCandidate,
-          }),
-        );
-        return next;
-      });
+      if (writesCommunityPrice) {
+        setByVenueId((current) => {
+          const previous = current.get(venueId);
+          const category = previous?.find(
+            (row) => row.drinkCategory === drinkCategory,
+          );
+          const next = new Map(current);
+          next.set(
+            venueId,
+            upsertPrice(previous ?? [], {
+              ...optimistic,
+              mapCandidate: category?.mapCandidate,
+            }),
+          );
+          return next;
+        });
+      }
 
       const rollback = () => {
+        if (!writesCommunityPrice) return;
         setByVenueId((current) => {
           const next = new Map(current);
           const restored = rollbackOptimisticPrice(
@@ -985,6 +1011,9 @@ export function useCommunityPrices(): CommunityPricesState {
             venueId,
             drinkCategory,
             priceGbp,
+            ...(drinkCategory === "beer"
+              ? { measure, ...(measureLabel ? { measureLabel } : {}) }
+              : {}),
           },
           pintPhoto ? { pintPhoto } : undefined,
         );

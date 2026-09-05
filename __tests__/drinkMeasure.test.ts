@@ -28,6 +28,11 @@ import {
   statedDrinkMeasure,
 } from "@/lib/drinkMeasure";
 import { validatePintDrop } from "@/lib/pintDrops";
+
+const MEASURE_MIGRATION = join(
+  process.cwd(),
+  "supabase/migrations/20260905170000_0147_pint_drop_measure.sql",
+);
 import { pintTrustFor } from "@/lib/pintTrust";
 import {
   agedPriceDrop,
@@ -114,10 +119,34 @@ describe("measure words in a drink text", () => {
   it("is word-bounded, so a pub or beer name is not a measure", () => {
     expect(measureNamedInDrinkText("Halfway House Pale")).toBe(null);
     expect(measureNamedInDrinkText("Smallbatch IPA")).toBe(null);
-    expect(measureNamedInDrinkText("Third Wheel Bitter")).toBe("other");
   });
 
-  it("reads the fraction forms nobody spells out", () => {
+  it("reads a measure word AS a measure, or not at all (F-22)", () => {
+    // London brewery names are made of measure words, and a word boundary alone
+    // refused four real pints with a sentence telling the drinker to pick the
+    // measure they had already picked.
+    expect(measureNamedInDrinkText("Other Half Green Diamond")).toBe(null);
+    expect(measureNamedInDrinkText("Half Moon IPA")).toBe(null);
+    expect(measureNamedInDrinkText("Small Beer Lager")).toBe(null);
+    expect(measureNamedInDrinkText("Third Wheel Bitter")).toBe(null);
+  });
+
+  it("still reads the phrasings that really name a serving", () => {
+    // Followed by a context word, or standing at the end of the text, or the
+    // whole text: the three ways a measure word is used as a measure.
+    expect(measureNamedInDrinkText("Half of lager")).toBe("half");
+    expect(measureNamedInDrinkText("half a lager")).toBe("half");
+    expect(measureNamedInDrinkText("Half pint of Guinness")).toBe("half");
+    expect(measureNamedInDrinkText("2 halves of stout")).toBe("half");
+    expect(measureNamedInDrinkText("Neck Oil half")).toBe("half");
+    expect(measureNamedInDrinkText("half")).toBe("half");
+    expect(measureNamedInDrinkText("Schooner of IPA")).toBe("other");
+    expect(measureNamedInDrinkText("Third of stout")).toBe("other");
+  });
+
+  it("reads the fraction forms nobody spells out, wherever they sit", () => {
+    // A fraction carries no other meaning in a drink name, so it needs no
+    // context test: nobody calls a beer "1/2".
     expect(measureNamedInDrinkText("1/2 lager")).toBe("half");
     expect(measureNamedInDrinkText("lager ½")).toBe("half");
     expect(measureNamedInDrinkText("stout 2/3")).toBe("other");
@@ -352,13 +381,50 @@ describe("nothing in the tree scales one measure into another", () => {
     }
   });
 
-  it("keeps the SQL backfill's word list in step with the owner module", () => {
-    const sql = readFileSync(
-      join(process.cwd(), "supabase/migrations/20260905170000_0147_pint_drop_measure.sql"),
-      "utf8",
-    );
+  it("holds the SQL backfill to the shared table, and to nothing of its own", () => {
+    // The migration is the COPY and lib/drinkMeasure.ts is the owner, so every
+    // word the backfill matches on must come off that table. A word invented
+    // here would flag rows no runtime reader agrees about.
+    const sql = readFileSync(MEASURE_MIGRATION, "utf8");
+    const backfills = sql.match(/update public\.pint_drops[\s\S]*?;/gi) ?? [];
+    expect(backfills).toHaveLength(2);
+
+    const known = new Set<string>([
+      ...DRINK_MEASURES,
+      ...NON_PINT_MEASURE_PATTERNS.map((entry) => entry.word),
+    ]);
+    const named: string[] = [];
+    for (const statement of backfills) {
+      for (const quoted of statement.match(/'[^']*'/g) ?? []) {
+        // Strip the bounding syntax a regex clause carries; the WORD inside it
+        // is what has to be on the table.
+        const word = quoted
+          .slice(1, -1)
+          .replace(/\\m|\\M/g, "")
+          .replace(/\(\^\|\\s\)|\(\\s\|\$\)/g, "")
+          .trim();
+        named.push(word);
+        expect(
+          known.has(word),
+          `migration 0147 names "${word}", which lib/drinkMeasure.ts does not`,
+        ).toBe(true);
+      }
+    }
+    // Every non-pint word the owner holds is applied by one of the two passes.
     for (const entry of NON_PINT_MEASURE_PATTERNS) {
-      expect(sql, `migration 0147 must flag "${entry.word}"`).toContain(entry.word);
+      expect(named, `migration 0147 must flag "${entry.word}"`).toContain(entry.word);
+    }
+  });
+
+  it("is pointed at by the two files that name their own fence", () => {
+    // Both pointers named a test file that has never existed, so neither the
+    // module nor the migration told a reader where its promise is held.
+    const owner = readFileSync(join(process.cwd(), "lib/drinkMeasure.ts"), "utf8");
+    const sql = readFileSync(MEASURE_MIGRATION, "utf8");
+    for (const [name, source] of [["lib/drinkMeasure.ts", owner], ["migration 0147", sql]] as const) {
+      expect(source, `${name} must name this file`).toContain(
+        "__tests__/drinkMeasure.test.ts",
+      );
     }
   });
 });

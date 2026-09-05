@@ -6,7 +6,11 @@ import { submitCategoryLabel } from "@/lib/communityPrice";
 import { moderateCommunityPrice } from "@/lib/communityPriceStore";
 import type { DrinkCategory } from "@/lib/drinks";
 import { log } from "@/lib/log";
-import { cleanDrinkMeasure } from "@/lib/drinkMeasure";
+import {
+  cleanDrinkMeasure,
+  cleanDrinkMeasureLabel,
+  type DrinkMeasure,
+} from "@/lib/drinkMeasure";
 import type { PintDrop } from "@/lib/pintDrops";
 import { normalizeViewerHandle } from "@/lib/pintDrops";
 import { pintDropsStore, type PintDropPhotos } from "@/lib/pintDropsStore";
@@ -19,6 +23,14 @@ export type OneTapPintDropInput = Readonly<{
   handle: string;
   drinkCategory: DrinkCategory;
   priceGbp: number;
+  /**
+   * WHAT SERVING THE FIGURE IS ABOUT, as the DRINKER answered it (review
+   * finding F-2). Required, and deliberately not optional: an optional field
+   * here is the same assertion this defect was made of, one default away.
+   */
+  measure: DrinkMeasure;
+  /** The free label an `other` measure carries. Empty for pint and half. */
+  measureLabel?: string;
   verifiedAccountId?: string;
 }>;
 
@@ -117,17 +129,30 @@ function buildDrop(input: OneTapPintDropInput): PintDrop {
   if (!handle) {
     throw new Error("Add a contributor handle.");
   }
+  // A label beside `pint` or `half` would be a second name for a measure that
+  // already names itself, which the table's own CHECK refuses (migration 0147).
+  const measureLabel =
+    cleanDrinkMeasure(input.measure) === "other"
+      ? cleanDrinkMeasureLabel(input.measureLabel)
+      : "";
   return {
     id: randomUUID(),
     venueId: input.venueId,
     handle,
     drink: submitCategoryLabel(input.drinkCategory),
-    // STATED, never inherited. The community price composer this pairs from
-    // carries a closed drink category and no free drink text, so its beer chip
-    // means a pint and the paired drop says so in the column the pint lane
-    // reads. Saying it here is what keeps that promise checkable: a reader of
-    // this row never has to assume which measure a null meant.
-    measure: "pint",
+    // THE DRINKER'S OWN ANSWER, carried through (review finding F-2).
+    //
+    // This line used to state `"pint"`, on the reasoning that the community
+    // price composer carries a closed category and no drink text, so its beer
+    // chip means a pint. #1517 then made that composer the ONE primary price
+    // door on a pub's Overview, and it still never asked: a drinker holding a
+    // half tapped Beer, typed 2.60, and got a row stamped `pint` with a real
+    // authority key that a second reporter could confirm into pin colour, the
+    // cheapest buckets and the Pint Index. The door asks now
+    // (components/map/composer/MeasureChips.tsx), and this row says what was
+    // answered rather than what was assumed.
+    measure: cleanDrinkMeasure(input.measure),
+    ...(measureLabel ? { measureLabel } : {}),
     priceGbp: input.priceGbp,
     passedDownNote: "",
     era: "",
@@ -166,9 +191,12 @@ export async function revertOneTapCommunityPricePairing(
 }
 
 /**
- * The Pint Drop half of a one-tap price submission from the venue sheet. Community
- * price is written first by the caller; this lane lands the paired row in
- * pint_drops through the existing Pint Drop store.
+ * The Pint Drop half of a one-tap price submission from the venue sheet.
+ *
+ * On a PINT the caller writes the community price first and this lands the
+ * paired row. On any other measure there is no community price to pair with:
+ * that lane carries no measure column, so the route sends the figure here
+ * alone and the pint reads hold it out by measure (review finding F-2).
  */
 export async function writeOneTapPintDrop(
   input: OneTapPintDropInput,

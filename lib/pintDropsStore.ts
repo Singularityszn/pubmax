@@ -11,7 +11,11 @@ import sharp from "sharp";
 
 import type { CityId } from "@/lib/cities";
 import type { Provenance } from "@/lib/curation";
-import { cleanDrinkMeasure, cleanDrinkMeasureLabel } from "@/lib/drinkMeasure";
+import {
+  cleanDrinkMeasure,
+  cleanDrinkMeasureLabel,
+  measureIsPint,
+} from "@/lib/drinkMeasure";
 import { detectImageKind, magicBytesOk as magicBytesOkPure, stripImageMetadata } from "@/lib/imageSafety";
 import { log } from "@/lib/log";
 import { demoDropsFor, demoPintDropsForCity } from "@/lib/pintDropSeeds";
@@ -860,6 +864,32 @@ function isDailyPriceCapViolation(error: {
   return said.includes("pint_drops_priced_day_unique_idx");
 }
 
+/**
+ * Additive-rollout guard for the measure columns (migration 0147).
+ *
+ * A PINT retries without the two columns and loses nothing: an absent measure
+ * reads as `pint` at every reader, which is exactly what the lane assumed of
+ * every row written before 0147.
+ *
+ * A HALF DOES NOT. Dropping the column there would store the figure as a pint
+ * and hand it to pin colour, the cheapest buckets and the Pint Index - battle
+ * test D04, reintroduced by a retry. `create` therefore keeps the refusal for a
+ * non-pint drop on a pre-0147 database, and the route answers the ordinary 503,
+ * so the drinker is told the price did not land rather than seeing it land as
+ * something they did not report.
+ */
+function isMissingMeasureColumnError(error: {
+  code?: string;
+  message?: string;
+} | null): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const message = (error.message ?? "").toLowerCase();
+  const mentions =
+    message.includes("measure_label") || message.includes("measure");
+  return (code === "42703" || code === "PGRST204") && mentions;
+}
+
 // Additive-rollout guard for Wave G1 Last Train columns (migration 0021).
 function isMissingLastTrainColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
@@ -939,6 +969,28 @@ export const supabasePintDropStore: PintDropStore = {
         void _omitConfirmingDrop;
         delete persistable.confirmation;
         row = rowWithoutConfirmation as typeof row;
+        error = await insert(row);
+      }
+      if (error && isMissingMeasureColumnError(error)) {
+        if (!measureIsPint(persistable.measure)) {
+          // The one retry this ladder refuses. See the guard's own note: a half
+          // stored without its measure is a half published as a pint.
+          throw new Error(
+            "This pub's price store cannot record a measure yet (apply migration 0147).",
+          );
+        }
+        console.warn(
+          "[pint-drops] measure columns missing - inserting this pint without them (apply migration 0147):",
+          error.message,
+        );
+        const {
+          measure: _omitMeasure,
+          measure_label: _omitMeasureLabel,
+          ...rowWithoutMeasure
+        } = row;
+        void _omitMeasure;
+        void _omitMeasureLabel;
+        row = rowWithoutMeasure as typeof row;
         error = await insert(row);
       }
       if (error && isMissingLastTrainColumnError(error)) {

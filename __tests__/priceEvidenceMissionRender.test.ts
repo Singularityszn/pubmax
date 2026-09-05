@@ -112,7 +112,11 @@ describe("price evidence mission render", () => {
     );
     expect(html).toContain("vpsubLockedDrink");
     expect(html).toContain(">Beer<");
-    expect(html).not.toContain('role="radiogroup"');
+    // The DRINK is locked: no category chip row. The MEASURE is a different
+    // question and is still asked, because a mission that locked beer has said
+    // nothing about whether this figure is a pint (review finding F-2).
+    expect(html).not.toContain("vpsubCats");
+    expect(html).toContain("measureChips");
     expect(html).not.toContain("Common prices");
     expect(html).toContain('value=""');
   });

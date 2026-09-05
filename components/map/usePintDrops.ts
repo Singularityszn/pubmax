@@ -34,6 +34,11 @@ import {
   type PintDropConfirmationOutcome,
 } from "@/lib/pintDropSecondDrinker";
 import type { ConfirmedPriceInput } from "@/lib/priceTier";
+import {
+  venueDropsAfterRead,
+  type VenueDropRead,
+  type VenueDropReadStatus,
+} from "@/lib/venueDropRead";
 import { clearPintDropDraft } from "@/lib/pintDropDraft";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
 import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
@@ -64,6 +69,9 @@ export type DropWithPhotos = PintDrop & {
   venuePhotoUrl: string | null;
   optimistic?: PintDropDTO["optimistic"];
 };
+
+/** Re-exported from its owner so a surface can take it from either door. */
+export type { VenueDropReadStatus } from "@/lib/venueDropRead";
 
 export type PhotoSlot = { file: File; previewUrl: string };
 export type PhotoSlotName = "pint" | "venue";
@@ -254,6 +262,13 @@ export function usePintDrops(
   const [handle, setHandle] = useState(() =>
     typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? ""),
   );
+  // WHERE EACH PER-VENUE DROP READ GOT TO (review finding F-8). Same three-way
+  // shape as `venuePriceStatus` in useCommunityPrices: a surface may only word a
+  // pub as having no drops once its own read ANSWERED. An absent entry is
+  // `idle`, which is honestly "not asked yet".
+  const [venueDropStatus, setVenueDropStatus] = useState<
+    Map<string, VenueDropReadStatus>
+  >(() => new Map());
   const [dropsByVenueId, setDropsByVenueId] = useState<Map<string, DropWithPhotos[]>>(
     () => new Map(),
   );
@@ -342,28 +357,42 @@ export function usePintDrops(
   }, [cityId]);
 
   // Refresh one venue's drops; returns a cancel function for effect cleanup.
+  //
+  // A FAILED READ IS A FACT ABOUT US, NEVER ABOUT THE PUB (review finding F-8).
+  // This used to write `[]` into the venue's entry on a non-ok response and on a
+  // rejection alike. `/api/pint-drops` answers 503 whenever its store read
+  // throws, so one hiccup replaced a pub's real drops with nothing:
+  // `pintTrustFor([])` reads `none` and the Overview printed the first-drop
+  // nudge over a pub holding a confirmed price - the exact sentence #1495 exists
+  // to keep off a public drop. The city refresh above already keeps its layer on
+  // a failure; this now does the same, and records the read so a surface can
+  // tell "we could not look" from "nobody has logged one".
   const refreshVenueDrops = useCallback((venueId: string) => {
     let active = true;
-    fetch(`/api/pint-drops?venueId=${encodeURIComponent(venueId)}`)
-      .then((response) => (response.ok ? response.json() : { drops: [] }))
-      .then((data: { drops?: DropWithPhotos[] }) => {
-        if (active) {
-          setDropsByVenueId((current) => {
-            const next = new Map(current);
-            next.set(venueId, data.drops ?? []);
-            return next;
-          });
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setDropsByVenueId((current) => {
-            const next = new Map(current);
-            next.set(venueId, []);
-            return next;
-          });
-        }
+    // ONE RULE for both outcomes (lib/venueDropRead.ts), so the failure path
+    // cannot quietly grow a second answer.
+    const settle = (read: VenueDropRead<DropWithPhotos>) => {
+      if (!active) return;
+      setDropsByVenueId((current) => {
+        const held = current.get(venueId);
+        const kept = venueDropsAfterRead(held, read);
+        if (kept === held) return current;
+        const next = new Map(current);
+        next.set(venueId, kept as DropWithPhotos[]);
+        return next;
       });
+      setVenueDropStatus((current) => {
+        const next = new Map(current);
+        next.set(venueId, read.status);
+        return next;
+      });
+    };
+    fetch(`/api/pint-drops?venueId=${encodeURIComponent(venueId)}`)
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error("bad status"))))
+      .then((data: { drops?: DropWithPhotos[] }) => {
+        settle({ status: "ready", drops: data.drops ?? [] });
+      })
+      .catch(() => settle({ status: "unavailable" }));
     return () => {
       active = false;
     };
@@ -856,6 +885,7 @@ export function usePintDrops(
 
   return {
     dropsByVenueId: mapDropsByVenueId,
+    venueDropStatus,
     venueSignals,
     refreshVenueDrops,
     refreshAllDrops,

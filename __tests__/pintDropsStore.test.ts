@@ -513,6 +513,59 @@ describe("supabasePintDropStore.create (vibe_tags rollout resilience)", () => {
     warn.mockRestore();
   });
 
+  it("missing measure columns: a PINT retries without them (fix task 11)", async () => {
+    insertMock.mockReset();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    insertMock
+      .mockResolvedValueOnce({
+        error: {
+          code: "42703",
+          message: 'column "measure" of relation "visit_reports" does not exist',
+        },
+      })
+      .mockResolvedValueOnce({ error: null });
+
+    const dto = await supabasePintDropStore.create(
+      drop({ measure: "pint" }) as Parameters<typeof supabasePintDropStore.create>[0],
+      noPhotos,
+    );
+
+    expect(insertMock).toHaveBeenCalledTimes(2);
+    expect(insertMock.mock.calls[0][0]).toHaveProperty("measure", "pint");
+    expect(insertMock.mock.calls[1][0]).not.toHaveProperty("measure");
+    expect(insertMock.mock.calls[1][0]).not.toHaveProperty("measure_label");
+    // Nothing is lost: an absent measure reads as `pint` at every reader.
+    expect(dto.measure).toBe("pint");
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("migration 0147"),
+      expect.any(String),
+    );
+    warn.mockRestore();
+  });
+
+  it("missing measure columns: a HALF is refused rather than stored as a pint", async () => {
+    insertMock.mockReset();
+    // Dropping the column here would publish £2.60 for a half as a pint price -
+    // battle test D04 reintroduced by a retry. The refusal is the whole point.
+    insertMock.mockResolvedValueOnce({
+      error: {
+        code: "PGRST204",
+        message:
+          "Could not find the 'measure' column of 'visit_reports' in the schema cache",
+      },
+    });
+
+    await expect(
+      supabasePintDropStore.create(
+        drop({ measure: "half", priceGbp: 2.6 }) as Parameters<
+          typeof supabasePintDropStore.create
+        >[0],
+        noPhotos,
+      ),
+    ).rejects.toThrow(/migration 0147/);
+    expect(insertMock).toHaveBeenCalledTimes(1);
+  });
+
   it("an unrelated insert error still throws (not swallowed as a missing column)", async () => {
     insertMock.mockReset();
     // A different missing column (not vibe_tags) must NOT be silently retried —

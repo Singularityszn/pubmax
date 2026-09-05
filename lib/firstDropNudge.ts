@@ -67,6 +67,31 @@ const FIRST_DROP_VARIANTS: readonly FirstDropCopy[] = [
   { line: "Prices here: none. Log one so mates can corroborate it.", cta: LOG_PRICE_DOOR_LABEL },
 ];
 
+/**
+ * WHAT A FAILED DROP READ MAY SAY (review finding F-8).
+ *
+ * Every line above states that nobody has logged a price here. That is a claim
+ * about the pub, and it may only be made once this pub's own drop read has
+ * ANSWERED. `/api/pint-drops` answers 503 whenever its store read throws, so a
+ * hiccup used to put "No pint price logged here yet" over a pub holding a
+ * confirmed price. This line says the true thing instead, and the one price
+ * door still rides beside it, so the reader is not left at a dead end.
+ */
+export const DROP_READ_UNAVAILABLE_LINE =
+  "We could not read this pub’s logged prices.";
+
+/**
+ * May the price area word this pub as having no price on it? Only when the
+ * drop read is not known to have failed. `idle` still nudges: a pub nobody has
+ * asked about is the ordinary first-drop case, and the read that would change
+ * the answer is already in flight.
+ */
+export function firstDropNudgeMayClaimAbsence(
+  dropReadStatus: "idle" | "ready" | "unavailable" = "idle",
+): boolean {
+  return dropReadStatus !== "unavailable";
+}
+
 /** Stable non-negative hash of a venue id — deterministic variant selection. */
 function hashVenueId(venueId: string): number {
   let hash = 0;

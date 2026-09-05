@@ -1,13 +1,7 @@
 import { useId } from "react";
 import { Minus, Plus } from "lucide-react";
 
-import {
-  DRINK_MEASURES,
-  DRINK_MEASURE_LABEL,
-  DRINK_MEASURE_LABEL_MAX,
-  MEASURE_FIELD_LABEL,
-  MEASURE_OTHER_PLACEHOLDER,
-} from "@/lib/drinkMeasure";
+import MeasureChips from "@/components/map/composer/MeasureChips";
 import { formatPriceChipGbp, stepPrice } from "@/lib/spill";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 
@@ -39,7 +33,6 @@ export function ComposerPriceStep({
 }: ComposerPriceStepProps) {
   const priceInputId = useId();
   const drinkInputId = useId();
-  const measureLabelInputId = useId();
 
   return (
     <div className="spillPriceStep" data-testid="spill-price-step">
@@ -95,55 +88,11 @@ export function ComposerPriceStep({
         </div>
       </div>
 
-      <div className="measureField">
-        <span className="spillFieldLabel" id={`${priceInputId}-measure`}>
-          {MEASURE_FIELD_LABEL}
-        </span>
-        <div
-          className="measureChips"
-          role="radiogroup"
-          aria-labelledby={`${priceInputId}-measure`}
-        >
-          {DRINK_MEASURES.map((measure) => {
-            const selected = dropForm.measure === measure;
-            return (
-              <button
-                key={measure}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                className={selected ? "measureChip selected" : "measureChip"}
-                onClick={() =>
-                  setDropForm({
-                    ...dropForm,
-                    measure,
-                    // Leaving `other` drops the label with it: a free word kept
-                    // beside `pint` would be a second name for a measure that
-                    // already names itself.
-                    measureLabel: measure === "other" ? dropForm.measureLabel : "",
-                  })
-                }
-              >
-                {DRINK_MEASURE_LABEL[measure]}
-              </button>
-            );
-          })}
-        </div>
-        {dropForm.measure === "other" ? (
-          <label className="spillTextField" htmlFor={measureLabelInputId}>
-            <span className="srOnly">What measure was it?</span>
-            <input
-              id={measureLabelInputId}
-              value={dropForm.measureLabel}
-              maxLength={DRINK_MEASURE_LABEL_MAX}
-              onChange={(event) =>
-                setDropForm({ ...dropForm, measureLabel: event.target.value })
-              }
-              placeholder={MEASURE_OTHER_PLACEHOLDER}
-            />
-          </label>
-        ) : null}
-      </div>
+      <MeasureChips
+        measure={dropForm.measure}
+        measureLabel={dropForm.measureLabel}
+        onChange={(next) => setDropForm({ ...dropForm, ...next })}
+      />
 
       <label className="spillTextField" htmlFor={drinkInputId}>
         <span className="spillFieldLabel">Drink</span>

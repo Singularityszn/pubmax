@@ -6,7 +6,7 @@
 // stood behind a price, so this named, dated, account-bound lane is the only
 // way a drinker's agreement now reaches anything.
 //
-//   POST { venueId, drinkCategory, priceGbp }              → { ok, price }
+//   POST { venueId, drinkCategory, priceGbp, measure? }    → { ok, price }
 //   POST { kind: "venue-signal", venueId, signalKey, ... } → { ok, signal }
 //   POST { action: "report", id, reason? }                 → { ok }
 //   GET  ?venueId=<id>                                     → { prices, signals }
@@ -50,7 +50,14 @@ import {
 } from "@/lib/communityPrice";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { validateCommunityVenueSignal } from "@/lib/communityVenueSignals";
-import { isDrinkCategory } from "@/lib/drinks";
+import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
+import {
+  cleanDrinkMeasure,
+  cleanDrinkMeasureLabel,
+  drinkMeasureName,
+  measureIsPint,
+  type DrinkMeasure,
+} from "@/lib/drinkMeasure";
 import {
   readCommunityPriceCategoryIndex,
   readCommunityPrices,
@@ -72,6 +79,7 @@ import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import type { PintTrustState } from "@/lib/pintTrust";
 import { qualifyCheapPintForOwnerActor } from "@/lib/cheapPintPingQualify.server";
 import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
+import type { PintDropPhotos } from "@/lib/pintDropsStore";
 import { syncTrustAfterPriceWrite } from "@/lib/priceTrustImpact.server";
 import { isLimited } from "@/lib/pintDrops";
 import { log } from "@/lib/log";
@@ -228,6 +236,21 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Too many price logs, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
+  // WHAT SERVING THIS FIGURE IS ABOUT (review finding F-2, battle test D04).
+  const { measure, measureLabel, pairsPintDrop, writesCommunityPrice } =
+    submittedServing(body, submission.drinkCategory);
+  if (!writesCommunityPrice) {
+    return nonPintPriceResponse({
+      venueId: submission.venueId,
+      priceGbp: submission.priceGbp,
+      handle: contributor.handle,
+      accountId: contributor.accountId,
+      measure,
+      measureLabel,
+      photos: pintDropPhotos,
+    });
+  }
+
   // submitCommunityPrice never throws; a hard durable-write failure comes back
   // flagged so we answer 503 (degraded dependency) rather than a fake success.
   const { price, failed } = await submitCommunityPrice({
@@ -256,36 +279,27 @@ export async function POST(request: Request): Promise<Response> {
   // disagreed. Null means the read could not be taken, and the receipt then
   // claims nothing rather than borrowing the weaker lane's stronger word.
   let pintTrust: PintTrustState | null = null;
-  if (submission.drinkCategory === "beer") {
+  if (pairsPintDrop) {
     const pintDrop = await writeOneTapPintDrop(
       {
         venueId: submission.venueId,
         handle: contributor.handle,
         drinkCategory: submission.drinkCategory,
         priceGbp: submission.priceGbp,
+        // STATED by the drinker on the chips above the price field, never
+        // asserted here. Reaching this line means the answer was `pint`.
+        measure,
+        measureLabel,
         verifiedAccountId: contributor.accountId,
       },
       pintDropPhotos,
     );
     if (!pintDrop.ok) {
-      const reverted = await revertOneTapCommunityPricePairing(price.id);
-      if (reverted) {
-        if (pintDrop.kind === "invalid_photo") {
-          return publicApiError(pintDrop.message, "INVALID_REQUEST", 400);
-        }
-        return publicApiError(pintDrop.message, "UNAVAILABLE", 503, { retryable: true });
-      }
-      log("error", "one_tap_pint_drop.pairing_repair_required", {
+      return failedPairingResponse(pintDrop, {
         priceId: price.id,
         venueId: submission.venueId,
         drinkCategory: submission.drinkCategory,
       });
-      return publicApiError(
-        "Could not finish that price log. Try again.",
-        "PAIRING_REPAIR_REQUIRED",
-        503,
-        { retryable: true },
-      );
     } else {
       void qualifyCheapPintForOwnerActor(contributor.actor);
       // The paired drop is a real priced observation, so it can complete a
@@ -352,6 +366,117 @@ export async function POST(request: Request): Promise<Response> {
           corroborations: 1,
           ...(categoryRow?.mapCandidate ? { mapCandidate: categoryRow.mapCandidate } : {}),
         },
+    },
+    { status: 201 },
+  );
+}
+
+/**
+ * A PAIRED PINT DROP THAT DID NOT LAND, answered honestly.
+ *
+ * The community price has already been written by the time this runs, so the
+ * pairing is reverted first: a price standing with no drop beside it is a
+ * figure the drop lanes cannot see. A revert that itself fails is its own
+ * refusal (`PAIRING_REPAIR_REQUIRED`), because the two rows are then out of
+ * step and only a person can put them back.
+ */
+async function failedPairingResponse(
+  outcome: Extract<Awaited<ReturnType<typeof writeOneTapPintDrop>>, { ok: false }>,
+  context: { priceId?: string; venueId: string; drinkCategory: DrinkCategory },
+): Promise<Response> {
+  const reverted = await revertOneTapCommunityPricePairing(context.priceId);
+  if (reverted) {
+    if (outcome.kind === "invalid_photo") {
+      return publicApiError(outcome.message, "INVALID_REQUEST", 400);
+    }
+    return publicApiError(outcome.message, "UNAVAILABLE", 503, { retryable: true });
+  }
+  log("error", "one_tap_pint_drop.pairing_repair_required", context);
+  return publicApiError(
+    "Could not finish that price log. Try again.",
+    "PAIRING_REPAIR_REQUIRED",
+    503,
+    { retryable: true },
+  );
+}
+
+/**
+ * WHAT SERVING A SUBMISSION IS ABOUT, and what that means for the two lanes.
+ *
+ * The measure is asked on the beer lane and nowhere else, because the pint lane
+ * is the only lane it changes the meaning of. An absent measure reads as
+ * `pint`, so every client written before F-2 behaves exactly as it did.
+ */
+function submittedServing(
+  body: Record<string, unknown>,
+  drinkCategory: DrinkCategory,
+): {
+  measure: DrinkMeasure;
+  measureLabel: string;
+  pairsPintDrop: boolean;
+  writesCommunityPrice: boolean;
+} {
+  const measure = cleanDrinkMeasure(body.measure);
+  const pairsPintDrop = drinkCategory === "beer";
+  return {
+    measure,
+    measureLabel:
+      measure === "other" ? cleanDrinkMeasureLabel(body.measureLabel) : "",
+    pairsPintDrop,
+    writesCommunityPrice: !pairsPintDrop || measureIsPint(measure),
+  };
+}
+
+/**
+ * A BEER PRICE THAT IS NOT A PINT WRITES NO COMMUNITY PRICE (review finding
+ * F-2, battle test D04).
+ *
+ * `community_prices` carries no measure column by design, and AGENTS.md states
+ * why: its composer offers a closed category and no drink text, so its beer
+ * chip MEANS a pint. That was true only while nobody could say otherwise. Now
+ * that the door asks, the way to keep it true is to send a half down the lane
+ * that can hold it: a dated Pint Drop carrying its own measure, held out of
+ * every pint read by `isPintPricedDrop`. Nothing is scaled and nothing is lost -
+ * the figure stays on the pub's own drop list with its serving beside it.
+ *
+ * Nothing is written before this, so a refusal reverts nothing.
+ */
+async function nonPintPriceResponse(input: {
+  venueId: string;
+  priceGbp: number;
+  handle: string;
+  accountId?: string;
+  measure: DrinkMeasure;
+  measureLabel: string;
+  photos: PintDropPhotos;
+}): Promise<Response> {
+  const drop = await writeOneTapPintDrop(
+    {
+      venueId: input.venueId,
+      handle: input.handle,
+      drinkCategory: "beer",
+      priceGbp: input.priceGbp,
+      measure: input.measure,
+      measureLabel: input.measureLabel,
+      verifiedAccountId: input.accountId,
+    },
+    input.photos,
+  );
+  if (!drop.ok) {
+    if (drop.kind === "invalid_photo") {
+      return publicApiError(drop.message, "INVALID_REQUEST", 400);
+    }
+    return publicApiError(drop.message, "UNAVAILABLE", 503, { retryable: true });
+  }
+  return jsonNoStore(
+    {
+      ok: true,
+      attribution: { status: "credited", handle: input.handle },
+      // No community price exists for this figure, and saying so explicitly is
+      // what stops a client inferring one from an omitted field.
+      price: null,
+      measure: input.measure,
+      measureName: drinkMeasureName(input.measure, input.measureLabel),
     },
     { status: 201 },
   );

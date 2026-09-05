@@ -507,9 +507,19 @@ describe("VenueOverviewTab renders from the shared lane", () => {
     expect(summaryEnd).toBeGreaterThan(summaryStart);
     const summary = overview.slice(summaryStart, summaryEnd);
 
-    // The nudge is the fall-through, after the last lane branch has returned.
+    // The unpriced block is the fall-through, after the last lane branch has
+    // returned. It is a block rather than the nudge itself since review finding
+    // F-8: a drop read we could not RUN may not be worded as a pub with no
+    // price on it, so the two absences are told apart in one place.
     const lastLaneBranch = summary.lastIndexOf('if (lane?.lane === "');
-    expect(summary.indexOf("<FirstDropNudge")).toBeGreaterThan(lastLaneBranch);
+    expect(summary.indexOf("<UnpricedPubBlock")).toBeGreaterThan(lastLaneBranch);
+    // And that block is the only thing that renders the nudge.
+    expect(overview).toContain("<FirstDropNudge");
+    const blockStart = overview.indexOf("function UnpricedPubBlock(");
+    expect(blockStart).toBeGreaterThan(-1);
+    const block = overview.slice(blockStart, overview.indexOf("function VenuePriceSummary("));
+    expect(block).toContain("<FirstDropNudge");
+    expect(block).toContain("firstDropNudgeMayClaimAbsence");
 
     // And the summary must not hand-roll the precedence beside the lane call.
     expect(summary).not.toMatch(

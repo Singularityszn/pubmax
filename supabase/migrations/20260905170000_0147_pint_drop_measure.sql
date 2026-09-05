@@ -71,12 +71,21 @@ $$;
 -- Arnos Arms £2.60 leaves the map and the Index without anything being erased.
 --
 -- The word list MIRRORS NON_PINT_MEASURE_PATTERNS in lib/drinkMeasure.ts, which
--- is the owner. __tests__/drinkMeasureMigration.test.ts holds the two together
--- so this copy cannot drift.
+-- is the owner. __tests__/drinkMeasure.test.ts holds the two together so this
+-- copy cannot drift.
 --
 -- Word-bounded on purpose: the half word catches "Half of lager" and leaves
 -- "Halfway House Pale" alone. The fraction forms carry no word characters at
 -- their edges, so they are bounded on whitespace or a string edge instead.
+--
+-- THIS PASS IS DELIBERATELY BROADER THAN THE RUNTIME PREDICATE, and the
+-- asymmetry is written down here because it is the one place the two rules
+-- differ. `measureNamedInDrinkText` also asks whether a spelled measure word is
+-- used AS a measure, so "Other Half Green Diamond" logs as the pint it is
+-- (review finding F-22). This pass judges rows written before anybody could be
+-- asked, so it errs the other way: a brewery name caught here loses a pint from
+-- the pint lane, which publishes no wrong price, while a half missed here is
+-- the £2.60 that fed pin colour and the Pint Index.
 
 update public.pint_drops
    set measure = 'half'
