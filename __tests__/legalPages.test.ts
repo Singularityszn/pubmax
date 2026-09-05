@@ -412,8 +412,12 @@ describe("legal content pages", () => {
 
   it("states exactly what private profile data is retained", () => {
     expect(privacy).toMatch(/Google or Apple sign-in/);
-    expect(privacy).toMatch(/date of birth is needed to finish signup/i);
+    // ONE RULE (captain, 5 Sep 2026): signup asks for the handle alone, so
+    // the notice may not tell a reader a date of birth is needed to finish it.
+    expect(privacy).toMatch(/Date of birth is optional\./);
+    expect(privacy).not.toMatch(/date of birth is needed to finish signup/i);
     expect(privacy).toMatch(/Full name, gender and sex are optional/);
+    expect(privacy).not.toMatch(/must provide date of birth/i);
     expect(privacy).toMatch(/only identity shown with contributions/);
     expect(privacy).toMatch(
       /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*existing\s+account tools[\s\S]*Social adult access does not use full name, gender or sex/i,
@@ -430,9 +434,8 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(
       /keeps your authentication account,\s+public\s+handle and\s+handle-keyed contribution history/,
     );
-    expect(terms).toMatch(
-      /date of birth is needed to finish signup/i,
-    );
+    expect(terms).toMatch(/Date of birth is optional\./);
+    expect(terms).not.toMatch(/date of birth is needed to finish signup/i);
     expect(terms).toMatch(
       /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*existing\s+account tools[\s\S]*Social adult access does not use full name, gender or sex/i,
     );

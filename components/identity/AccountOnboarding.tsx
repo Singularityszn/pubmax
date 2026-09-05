@@ -27,7 +27,7 @@ import {
   emitIdentityHandleChanged,
   syncDeviceHandle,
 } from "@/lib/identityClient";
-import { cleanDateOfBirth } from "@/lib/privateIdentity";
+import { londonCalendarDate } from "@/lib/privateIdentity";
 import { normalizeHandle } from "@/lib/profiles";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
 import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
@@ -82,10 +82,13 @@ function availabilityCopy(availability: Availability): string | null {
  *
  * Beat one is why they are here: a line of the place itself, not a form
  * heading. Beat two is the only thing the account genuinely cannot start
- * without. Nothing optional beyond a name, no second button offering to skip
- * what was never demanded, and no private details that profile editing already
- * owns (components/identity/PrivateIdentityEditor.tsx). A returning account
- * never reaches this surface at all.
+ * without, the handle. A name and a date of birth ride beside it and both are
+ * OPTIONAL, because the age answer is the recorded adult tap (the 10 Aug rule,
+ * `lib/socialLaunch.ts`) and a demanded birth date was a door with nothing
+ * behind it. No second button offering to skip what was never demanded, and no
+ * private details that profile editing already owns
+ * (components/identity/PrivateIdentityEditor.tsx). A returning account never
+ * reaches this surface at all.
  */
 export function AccountOnboardingForm({
   dialogRef,
@@ -101,11 +104,12 @@ export function AccountOnboardingForm({
   onSubmit,
 }: AccountOnboardingFormProps): React.JSX.Element {
   const status = availabilityCopy(availability);
+  const [dateOfBirthMax] = useState(() => londonCalendarDate(Date.now()));
+  // ONE RULE (captain, 5 Sep 2026): the handle is the only thing this card
+  // demands. A date of birth is optional here as it is in profile editing, so
+  // the age answer is the recorded adult tap for anybody who gives none.
   const canSubmit =
-    availability === "available" &&
-    handle.trim().length > 0 &&
-    cleanDateOfBirth(dateOfBirth) !== null &&
-    !busy;
+    availability === "available" && handle.trim().length > 0 && !busy;
   return (
     <div className="accountOnboardingBackdrop" role="presentation">
       <section
@@ -163,12 +167,15 @@ export function AccountOnboardingForm({
               />
             </label>
             <label className="accountOnboardingField">
-              <span>Date of birth</span>
+              <span>
+                Date of birth <small>Optional</small>
+              </span>
               <input
                 type="date"
                 value={dateOfBirth}
                 autoComplete="bday"
-                required
+                min="1900-01-01"
+                max={dateOfBirthMax}
                 onChange={(event) => onDateOfBirthChange(event.target.value)}
               />
             </label>
@@ -177,8 +184,8 @@ export function AccountOnboardingForm({
 
         <p id="account-onboarding-privacy" className="accountOnboardingPrivacy">
           Only your handle is public. Date of birth and name stay private. We
-          use them to check your age and for product analytics and social
-          features.
+          use a date of birth you give to check your age, and both for product
+          analytics and social features.
         </p>
         {error ? (
           <p className="accountOnboardingError" role="alert">
@@ -414,11 +421,7 @@ function AccountOnboardingForUser({
 
   const submit = useCallback(
     async () => {
-      if (
-        !canSubmitCheckedHandle(handle, checkedHandle, availability) ||
-        !cleanDateOfBirth(dateOfBirth) ||
-        busy
-      ) {
+      if (!canSubmitCheckedHandle(handle, checkedHandle, availability) || busy) {
         return;
       }
       setBusy(true);
@@ -432,7 +435,9 @@ function AccountOnboardingForUser({
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
               handle,
-              dateOfBirth,
+              // A blank field is left out rather than sent empty: the claim
+              // stores no date of birth, and nothing about it is a refusal.
+              ...(dateOfBirth.trim() ? { dateOfBirth } : {}),
               ...(fullName.trim() ? { fullName } : {}),
             }),
           },

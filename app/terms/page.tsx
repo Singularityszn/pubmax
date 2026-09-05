@@ -108,8 +108,8 @@ export default function TermsPage() {
           the closed product events described in our privacy notice. PostHog
           deletes analytics events 12 months after collection and pseudonymous
           person and device records 12 months after their last activity. Handle
-          is needed to finish signup. Date of birth is needed to finish signup
-          too. Full name, gender and sex are optional. We collect and store date
+          is needed to finish signup. Date of birth is optional.
+          Full name, gender and sex are optional. We collect and store date
           of birth, full name, gender and sex as private details for existing
           account tools.
           Social adult access does not use full name, gender or sex.

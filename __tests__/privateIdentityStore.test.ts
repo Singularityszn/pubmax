@@ -37,8 +37,8 @@ describe("private identity store", () => {
     });
   });
 
-  it("rejects a missing or invalid date before claiming the handle", async () => {
-    for (const dateOfBirth of [undefined, "", "not-a-date", "2035-01-01"]) {
+  it("rejects a date that is not a date before claiming the handle", async () => {
+    for (const dateOfBirth of ["not-a-date", "2035-01-01", 19900101]) {
       await expect(
         memoryPrivateIdentityStore.completeOnboarding({
           userId: "user-invalid",
@@ -54,6 +54,55 @@ describe("private identity store", () => {
         memoryIdentityHandleStore.resolve("invalid_date_person"),
       ).resolves.toBeNull();
     }
+  });
+
+  it("claims a handle with no date of birth and writes no identity row", async () => {
+    // ONE RULE (captain, 5 Sep 2026). A blank field is nothing to save, so the
+    // claim goes through and `private_account_identities` stays empty for this
+    // account: its `date_of_birth` is NOT NULL, so an absent answer is an
+    // absent ROW rather than a null column. The age answer is the adult tap.
+    for (const dateOfBirth of [undefined, null, "", "   "]) {
+      __resetMemoryIdentityHandles();
+      __resetMemoryPrivateIdentities();
+      __resetMemoryProfiles();
+      await expect(
+        memoryPrivateIdentityStore.completeOnboarding({
+          userId: "user-undated",
+          handle: "undated_drinker",
+          dateOfBirth,
+        }),
+      ).resolves.toMatchObject({
+        ok: true,
+        handle: "undated_drinker",
+        privateIdentity: null,
+      });
+      await expect(
+        memoryIdentityHandleStore.resolve("undated_drinker"),
+      ).resolves.toMatchObject({ currentHandle: "undated_drinker" });
+      await expect(
+        memoryPrivateIdentityStore.read("user-undated"),
+      ).resolves.toBeNull();
+    }
+  });
+
+  it("still stores a date of birth an undated account adds later", async () => {
+    expect(
+      await memoryPrivateIdentityStore.completeOnboarding({
+        userId: "user-later",
+        handle: "later_drinker",
+        dateOfBirth: null,
+      }),
+    ).toMatchObject({ ok: true, privateIdentity: null });
+
+    await expect(
+      memoryPrivateIdentityStore.updateDetails("user-later", {
+        dateOfBirth: "1990-01-01",
+        fullName: "Later Drinker",
+      }),
+    ).resolves.toMatchObject({
+      dateOfBirth: "1990-01-01",
+      fullName: "Later Drinker",
+    });
   });
 
   it("creates the identity row for a claim-path account that has none", async () => {

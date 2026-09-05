@@ -99,6 +99,33 @@ describe("the contribution gate's age answer", () => {
     });
   });
 
+  it("refuses an account claimed with no date of birth until it taps", async () => {
+    // ONE RULE (captain, 5 Sep 2026). The claim card no longer demands a date
+    // of birth, so this is the ORDINARY new account rather than a legacy one:
+    // it holds a handle, no identity row and no tap, and the gate asks for the
+    // tap alone. The tap then lets it through, with no birth date anywhere.
+    authState.userId = "user-undated";
+    expect(
+      await memoryPrivateIdentityStore.completeOnboarding({
+        userId: "user-undated",
+        handle: "undated_drinker",
+      }),
+    ).toMatchObject({ ok: true, privateIdentity: null });
+
+    await expect(resolveContributionIdentity(request)).resolves.toMatchObject({
+      ok: false,
+      httpStatus: 409,
+      body: { status: "adult_check_required", error: CONTRIBUTION_ADULT_REFUSAL },
+    });
+
+    await memoryAdultSelfAssertionStore.record("user-undated");
+    await expect(resolveContributionIdentity(request)).resolves.toMatchObject({
+      ok: true,
+      accountId: "user-undated",
+      handle: "undated_drinker",
+    });
+  });
+
   it("names the missing handle apart from the missing age answer", async () => {
     // Two findings, two ways through. Merging them is what sent an account
     // that already held a handle to a claim surface that stores no birth date.
