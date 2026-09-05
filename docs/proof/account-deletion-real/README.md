@@ -21,7 +21,8 @@ Moment bytes (D09) and the missing export (L04), 5 September 2026.
   FIRST (avatars, covers, Moment photos, wall photos, message photos; the table is
   `lib/accountOwnedObjects.ts`), while the rows that name them still exist, then
   deletes the auth row. A removal that fails leaves the account in place and
-  answers a retryable 503. A second DELETE is 410 Gone carrying `deleted: true`.
+  answers a retryable 503. A second DELETE is 410 Gone carrying `deleted: true`
+  (that last claim was unreachable in production until the follow-up below).
 - `GET /api/account/export` answers the verified bearer's own Memories, Moments,
   prices, Pint Drops and sent messages as one JSON file, and refuses the whole
   file when a lane could not be read. The You tab carries `Download your data`
@@ -67,3 +68,12 @@ npx playwright test e2e/account-store-doors.spec.ts --project=chromium
 That spec also rehearses the export door itself: the signed request carries the
 caller's bearer and nothing else names an account, and the browser is handed a
 file named after the handle and the day.
+
+## Follow-up: the 410 was unreachable
+
+Verification scout verify-preview-4 (section 7.3) measured the repeat DELETE
+answering 401 `UNAUTHENTICATED` rather than 410: the route resolved its caller
+by asking GoTrue for the ACCOUNT, and the first delete had already removed the
+auth row. The route now verifies the bearer against the project JWKS and takes
+the caller from the token's own claims, so the idempotent answer is reachable.
+Measurement and reasoning: `docs/proof/api-envelope-contracts/README.md`.

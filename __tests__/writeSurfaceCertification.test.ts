@@ -125,6 +125,23 @@ const BOUNDARY_PATTERNS: Record<Boundary, RegExp> = {
   session: /\bclearSessionCookie\b/,
 };
 
+// A ROUTE THAT ONLY EVER REFUSES IS NOT A WRITE SURFACE.
+//
+// `app/api/[[...unmatched]]` is the API tree's own 404 (added after
+// verification scout verify-preview-4 found a multipart POST to an unknown
+// path answering a 500 HTML page instead of the house envelope). It stays in
+// this inventory, because every exported mutation method is a reviewed
+// surface whatever it does; it takes no authority or abuse boundary, because
+// there is no write for one to stand in front of, and a rate-limit read would
+// make a mistyped address cost more than a real request.
+//
+// This is NOT a listing that can hide a write: the case below proves the route
+// imports nothing but the envelope and that each of its handlers is the one
+// refusal call, so the day any of them reads a store or resolves an identity it
+// fails here rather than being waved through. `__tests__/theLocalErrorContract`
+// carries the same exemption for the same route and the same reason.
+const REFUSAL_ONLY_ROUTES = new Set(["app/api/[[...unmatched]]"]);
+
 function boundaries(source: string): Boundary[] {
   return (Object.entries(BOUNDARY_PATTERNS) as [Boundary, RegExp][])
     .filter(([, pattern]) => pattern.test(source))
@@ -171,9 +188,10 @@ describe("mutating API surface certification", () => {
   it("keeps the reviewed inventory explicit", () => {
     // Each mutation method is one coordination point. Exact path and method
     // pairs live in docs/WRITE_SURFACE_CERTIFICATION.md.
-    // 146: main's 147 less POST /api/price-confirm, which contribution battle
-    // test L03 retired.
-    expect(mutationHandlers).toHaveLength(146);
+    // 150: 146 (main's 147 less POST /api/price-confirm, which contribution
+    // battle test L03 retired) plus the four mutation methods of the API tree's
+    // own 404, `app/api/[[...unmatched]]`, which refuses and writes nothing.
+    expect(mutationHandlers).toHaveLength(150);
     expect(certifiedMutationHandlers()).toEqual(
       mutationHandlers.map(mutationHandlerKey),
     );
@@ -259,12 +277,46 @@ describe("mutating API surface certification", () => {
 
   it("gives every mutating handler its own abuse or authority boundary", () => {
     const uncovered = mutationHandlers
-      .filter(({ source }) =>
-        boundaries(source).length === 0,
+      .filter(({ route, source }) =>
+        !REFUSAL_ONLY_ROUTES.has(route) && boundaries(source).length === 0,
       )
       .map(mutationHandlerKey);
 
     expect(uncovered).toEqual([]);
+  });
+
+  it("keeps every refusal-only route a refusal and nothing else", () => {
+    expect([...REFUSAL_ONLY_ROUTES]).toEqual(["app/api/[[...unmatched]]"]);
+
+    for (const route of REFUSAL_ONLY_ROUTES) {
+      const source = readFileSync(join(ROOT, route, "route.ts"), "utf8");
+      // The ONE import. A store, an identity seam or a limiter arriving here
+      // would make this a surface rather than a refusal, and this is where that
+      // is caught: the boundary case above stops asking about it.
+      expect(
+        [...source.matchAll(/from "([^"]+)"/g)].map((match) => match[1]),
+        route,
+      ).toEqual(["@/lib/apiError"]);
+
+      const handlers = mutationHandlers.filter((handler) => handler.route === route);
+      expect(handlers.map(mutationHandlerKey).sort()).toEqual([
+        "DELETE app/api/[[...unmatched]]",
+        "PATCH app/api/[[...unmatched]]",
+        "POST app/api/[[...unmatched]]",
+        "PUT app/api/[[...unmatched]]",
+      ]);
+      // The handler body plus every local declaration it reaches: one call to
+      // the shared refusal, and that refusal's own single 404 envelope. Any
+      // other statement anywhere in that chain lands here.
+      for (const handler of handlers) {
+        expect(
+          handler.source.replace(/\s+/g, " ").trim(),
+          mutationHandlerKey(handler),
+        ).toMatch(
+          /^\{ return unmatchedApiRoute\(\); \} \{ return publicApiError\("[^"]+", "NOT_FOUND", 404\); \}$/,
+        );
+      }
+    }
   });
 
   it("fails closed around anonymous paid spend and Plan creation", () => {

@@ -16,12 +16,18 @@
 // The write is `lib/accountDeletion.server.ts`: the account's own Storage
 // objects through the Storage API first, then the one auth row. Migration
 // `0078`'s trigger, as restated by `0145`, owns everything downstream.
+//
+// A DELETE IS IDEMPOTENT, so the door must still answer AFTER the auth row it
+// names has gone. The bearer is therefore verified against the project JWKS
+// rather than by asking the auth server for the account; the reasoning is on
+// that call below, and it is what makes the documented 410 `already-gone`
+// reachable at all.
 
 import { accountIsDeleted } from "@/lib/accountDeletion";
 import { deleteOwnAccount } from "@/lib/accountDeletion.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
-import { callerUserId } from "@/lib/authServer";
+import { verifyCallerAuth } from "@/lib/authServer";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
@@ -33,10 +39,36 @@ assertServerEnv();
 export async function DELETE(request: Request): Promise<Response> {
   // ONE bearer verification for the whole request; the gate below takes it
   // rather than asking Supabase a second time.
-  const caller = await callerUserId(request);
-  if (!caller) {
+  //
+  // IT IS THE TOKEN'S OWN CLAIMS, NEVER THE ACCOUNT ROW, AND THAT IS WHAT MAKES
+  // THE SECOND DELETE ANSWERABLE. `callerUserId` asks GoTrue for the account, so
+  // the moment the first delete removes the auth row every later request with
+  // that bearer reads as `user_not_found`, and the repeat answered 401
+  // `UNAUTHENTICATED` - the one thing it is not, because the caller signed the
+  // request and we know exactly whose account it names. Verification scout
+  // verify-preview-4 measured that: `DELETE 200 at 21:02:17, DELETE 401 at
+  // 21:02:31`, with the documented 410 `already-gone` unreachable behind it.
+  // `verifyCallerAuth` with no options checks the signature and the expiry
+  // against the project JWKS and takes `sub` from the verified claims, so a
+  // deleted account is still NAMED by its own unexpired token and the request
+  // reaches the idempotent answer it was promised. Nothing here trusts a claim
+  // it did not verify, and the target is still the token rather than a field.
+  //
+  // THREE-WAY, because a verification we could not RUN is a fact about us: it
+  // answers 503 rather than telling somebody who is signed in that they are not.
+  const verification = await verifyCallerAuth(request);
+  if (verification.status === "unavailable") {
+    return publicApiError(
+      "We could not check your sign-in. Try again.",
+      "AUTH_UNAVAILABLE",
+      503,
+      { retryable: true },
+    );
+  }
+  if (verification.status !== "verified") {
     return publicApiError("Sign in to delete your account.", "UNAUTHENTICATED", 401);
   }
+  const caller = verification.identity.id;
 
   // Per-account plus hashed-IP budget, like every other mutating route.
   const key = `account-delete:${caller}:${hashIp(clientIp(request))}`;

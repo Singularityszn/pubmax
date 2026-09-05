@@ -26,10 +26,31 @@ vi.mock("@/lib/profileStore", async (importOriginal) => {
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
-const authState = vi.hoisted(() => ({ userId: null as string | null }));
+// The bearer seam. `userId` is the account the token NAMES; `unavailable` is a
+// verification we could not run at all. The route asks `verifyCallerAuth` with
+// NO options on purpose (the local JWKS lane), so the mock records what it was
+// asked with: a route that went back to asking the auth server for the ACCOUNT
+// could not answer a caller whose auth row the first delete already removed.
+const authState = vi.hoisted(() => ({
+  userId: null as string | null,
+  unavailable: false,
+  optionsSeen: [] as Array<Record<string, unknown> | undefined>,
+}));
 vi.mock("@/lib/authServer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/authServer")>();
-  return { ...actual, callerUserId: async () => authState.userId };
+  return {
+    ...actual,
+    verifyCallerAuth: async (_request: Request, options?: Record<string, unknown>) => {
+      authState.optionsSeen.push(options);
+      if (authState.unavailable) return { status: "unavailable" as const };
+      return authState.userId
+        ? {
+            status: "verified" as const,
+            identity: { id: authState.userId, email: null, createdAt: null },
+          }
+        : { status: "absent" as const };
+    },
+  };
 });
 
 // The admin write is its own seam and is proved separately
@@ -80,6 +101,8 @@ async function envelope(res: Response): Promise<{ error?: string; code?: string 
 beforeEach(() => {
   storeState.durable = true;
   authState.userId = null;
+  authState.unavailable = false;
+  authState.optionsSeen = [];
   deleteState.calls = [];
   deleteState.outcome = "deleted";
   __resetMemoryProfiles();
@@ -159,6 +182,39 @@ describe("DELETE /api/account", () => {
     expect(body.retryable).toBe(true);
   });
 
+  it("names the caller from the token\'s own claims, never from the account row", async () => {
+    // THE REGRESSION. Verification scout verify-preview-4 measured a repeat
+    // `DELETE /api/account` answering 401 `UNAUTHENTICATED` rather than the
+    // documented 410: the route asked the auth server for the ACCOUNT, and the
+    // first delete had removed the row, so every later request with that same
+    // unexpired bearer read as `user_not_found`. Asking for account metadata
+    // here is what makes the idempotent answer below unreachable.
+    const caller = callerId("claims");
+    authState.userId = caller;
+
+    await del();
+
+    expect(authState.optionsSeen).toEqual([undefined]);
+    for (const options of authState.optionsSeen) {
+      expect(options?.accountMetadata).toBeUndefined();
+    }
+  });
+
+  it("reports a verification it could not run as a retryable 503, and writes nothing", async () => {
+    // A read we could not run is a fact about US. Telling somebody who is
+    // signed in that they are not is the one thing this may not answer.
+    authState.userId = callerId("auth-outage");
+    authState.unavailable = true;
+
+    const res = await del();
+
+    expect(res.status).toBe(503);
+    const body = (await res.json()) as { code?: string; retryable?: boolean };
+    expect(body.code).toBe("AUTH_UNAVAILABLE");
+    expect(body.retryable).toBe(true);
+    expect(deleteState.calls).toEqual([]);
+  });
+
   it("answers a second delete 410 Gone, and still says the account is deleted", async () => {
     // A browser that never saw the first answer must not be told the account it
     // just deleted is still here, so the body keeps `deleted: true`; a caller
@@ -168,6 +224,10 @@ describe("DELETE /api/account", () => {
     authState.userId = caller;
 
     const first = await del();
+    // The auth row is gone now; the bearer still verifies against the project
+    // JWKS and still names this account, which is the whole reason the second
+    // request reaches the writer at all rather than being turned away as
+    // anonymous.
     deleteState.outcome = "already-gone";
     const second = await del();
 
