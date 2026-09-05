@@ -46,14 +46,31 @@ export const metadata: Metadata = {
   alternates: { canonical: "/today" },
 };
 
-// The brief reads the current London day (weather staleness, tonight's window,
-// the pub-of-the-day rotation), so it must never be statically cached. Dynamic
-// rendering is already guaranteed by the root layout's per-request `headers()`
-// (the CSP nonce), which opts every route into dynamic rendering — so an
-// explicit `force-dynamic` here is redundant and has been removed. (If the
-// layout's nonce read is ever removed, restore force-dynamic to keep /today
-// from being statically cached with stale weather.)
 export const runtime = "nodejs";
+
+// THIS DOCUMENT IS PRERENDERED (captain 2026-09-05, "Widen", recorded in
+// proxy.ts beside CDN_CACHED_DOCUMENT_PATHS): it drops the per-request CSP
+// nonce so the Vercel CDN can hold it. Two rules follow, both enforced by
+// `__tests__/cdnCachedDocuments.test.ts`:
+//
+//   1. Nothing per-request may be read here. `force-static` makes that a build
+//      error rather than a silent per-request render, and it is also what stops
+//      the root layout's nonce read (`headers()`) from pulling this route back
+//      into dynamic rendering. The remembered area, the briefing-arrival marker
+//      and the viewer's location are all read by the client after load.
+//   2. Nothing personal may reach this document. One prerendered copy is handed
+//      to every stranger, so the greeting names no one and the get-there strip
+//      and the Tube card own their own client fetches.
+export const dynamic = "force-static";
+// The brief reads the current London day: the greeting's slot, the weather
+// snapshot's staleness, tonight's listing window and the pub-of-the-day
+// rotation all take `now`. Before 2026-09-05 that was the reason the page was
+// rendered per request. It is now an ISR window instead: five minutes bounds
+// how far a held copy can lag any of those readings (the weather read-through
+// itself tolerates ninety), and the CDN regenerates in the background so no
+// reader waits for the compose. Do not lengthen this to an hour: a greeting
+// that says "morning" at ten past noon is the cost.
+export const revalidate = 300;
 
 // Two derivations over the bundled price dataset that are the SAME for every
 // reader and every request: the per-patch cheapest-pint index, and the venue-id

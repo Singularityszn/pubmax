@@ -5,11 +5,11 @@
 // One attribute on <html>, set only inside the Capacitor wrap, is what scopes
 // components/native/nativeShell.css. It is written from an effect rather than
 // server-rendered on purpose: the shell loads the SAME production HTML the web
-// serves (capacitor.config.ts is remote-URL mode), and "/" and "/map" are the
-// two documents the CDN hands to every stranger unchanged (proxy.ts,
-// CDN_CACHED_DOCUMENT_PATHS). A server-rendered native flag would either be
-// wrong for the reader who got the cached copy or take those routes off the
-// CDN entirely.
+// serves (capacitor.config.ts is remote-URL mode), and "/", "/map", "/tonight",
+// "/today" and "/near" are the documents the CDN hands to every stranger
+// unchanged (proxy.ts, CDN_CACHED_DOCUMENT_PATHS). A server-rendered native
+// flag would either be wrong for the reader who got the cached copy or take
+// those routes off the CDN entirely.
 //
 // The attribute is also the seam a test reads, which is why it is an attribute
 // and not a class: a class on <html> is shared with the theme switch and the

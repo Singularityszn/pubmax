@@ -240,8 +240,9 @@ export const defaultFetchLive: FetchLive = async ({ now, area }) => {
  *
  * `defaultFetchLive` is a JSON-RPC POST to CityMCP, a third party we do not
  * control, with its own 10s timeout and one retry. It sat unbounded on the
- * server render of `/today`, which is dynamic per request, so a cold provider
- * call WAS the route's response time: measured at 465 ms on a cold process and
+ * server render of `/today` (dynamic per request when this was measured; an
+ * ISR regeneration since 2026-09-05), so a cold provider call WAS the route's
+ * response time: measured at 465 ms on a cold process and
  * 179 ms warm, against a 150 ms budget, while every other read on that render
  * finished inside 140 ms.
  *

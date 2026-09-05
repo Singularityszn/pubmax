@@ -77,32 +77,43 @@ test.describe("crawls page — curated crawls", () => {
   });
 });
 
-test.describe("security headers", () => {
-  test("/ serves a Content-Security-Policy header", async ({ page }) => {
-    const response = await page.goto("/");
-    expect(response?.status()).toBe(200);
+// The prerendered documents (proxy.ts, CDN_CACHED_DOCUMENT_PATHS): `/` and
+// `/map` by captain decision 2026-08-09, `/tonight`, `/today` and `/near` by
+// the 2026-09-05 widening. A CDN copy cannot carry a per-request nonce, so the
+// inline slot is 'unsafe-inline' on each — and a nonce would be worse than
+// none, because the same one would go to everybody.
+const CDN_CACHED_DOCUMENTS = ["/", "/map", "/tonight", "/today", "/near"];
 
-    const csp = response?.headers()["content-security-policy"];
-    expect(csp).toBeTruthy();
-    // Sanity-check a couple of the load-bearing directives from proxy.ts
-    // rather than pinning the whole string (which would make this test brittle
-    // to any future directive tweak).
-    expect(csp).toMatch(/default-src 'self'/);
-    expect(csp).toMatch(/frame-ancestors 'none'/);
-    expect(csp).toMatch(/object-src 'none'/);
-    // `/` is one of the two prerendered documents (captain decision
-    // 2026-08-09, recorded in proxy.ts). A CDN copy cannot carry a per-request
-    // nonce, so the inline slot is 'unsafe-inline' here — and a nonce would be
-    // worse than none, because the same one would go to everybody.
-    expect(csp).toMatch(/script-src[^;]*'unsafe-inline'/);
-    expect(csp).not.toMatch(/script-src[^;]*'nonce-/);
-  });
+test.describe("security headers", () => {
+  for (const path of CDN_CACHED_DOCUMENTS) {
+    test(`${path} serves the cached-document Content-Security-Policy`, async ({ page }) => {
+      const response = await page.goto(path);
+      expect(response?.status()).toBe(200);
+
+      const csp = response?.headers()["content-security-policy"];
+      expect(csp).toBeTruthy();
+      // Sanity-check a couple of the load-bearing directives from proxy.ts
+      // rather than pinning the whole string (which would make this test
+      // brittle to any future directive tweak).
+      expect(csp).toMatch(/default-src 'self'/);
+      expect(csp).toMatch(/frame-ancestors 'none'/);
+      expect(csp).toMatch(/object-src 'none'/);
+      expect(csp).toMatch(/script-src[^;]*'unsafe-inline'/);
+      expect(csp).not.toMatch(/script-src[^;]*'nonce-/);
+      // A prerendered document is what `next start` serves as a static copy:
+      // the response says so in its own cache header, where a per-request
+      // render answers private, no-store.
+      const cacheControl = response?.headers()["cache-control"] ?? "";
+      expect(cacheControl, path).toMatch(/s-maxage=\d+/);
+      expect(cacheControl, path).not.toMatch(/no-store/);
+    });
+  }
 
   test("a route that resolves identity still gets the per-request nonce", async ({
     page,
   }) => {
-    // The other half of the same decision: the exception is two public
-    // documents, and it may never spread to a route where a session is
+    // The other half of the same decision: the exception is a closed set of
+    // public documents, and it may never spread to a route where a session is
     // resolved or a handle is printed.
     const response = await page.goto("/login");
     expect(response?.status()).toBe(200);
@@ -110,12 +121,13 @@ test.describe("security headers", () => {
     const csp = response?.headers()["content-security-policy"];
     expect(csp).toMatch(/script-src[^;]*'nonce-[^']+'/);
     expect(csp).not.toMatch(/script-src[^;]*'unsafe-inline'/);
+    expect(response?.headers()["cache-control"] ?? "").toMatch(/no-store/);
   });
 
   test("the prerendered documents name nobody", async ({ page }) => {
     // One prerendered copy is handed to every stranger, so the document itself
     // must carry no person. Everything about the viewer is fetched after load.
-    for (const path of ["/", "/map"]) {
+    for (const path of CDN_CACHED_DOCUMENTS) {
       const response = await page.goto(path);
       expect(response?.status(), path).toBe(200);
       const html = (await response?.text()) ?? "";
