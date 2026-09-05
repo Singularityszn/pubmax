@@ -20,6 +20,7 @@ import { writeDeviceNightContext } from "@/lib/nightProfileClient";
 import { planRouteTotalsFallbackLabel, resolvePlanRouteTotalLabel } from "@/lib/planRouteTotalsClient";
 import { isPlanStopCount, normalizePlanStopCount, PLAN_STOP_COUNTS, type PlanStopCount } from "@/lib/planStopCount";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
+import { recordKeptAction } from "@/lib/nativeReviewPrompt";
 import type { Venue } from "@/lib/venues";
 import { errorMessageFrom, readApiJson } from "@/lib/apiErrorMessage";
 
@@ -189,6 +190,10 @@ export function MobilePlanActivation({
       // explainer in Capacitor or the daily-brief explainer in an installed
       // PWA. Both remain no-ops in an ordinary web tab and during SSR.
       recordPlanHighIntentAction();
+      // A kept plan is the second kept action in the store review table
+      // (lib/nativeReviewPrompt.ts). It decides whether this is the moment; the
+      // route below is never held up by it.
+      void recordKeptAction("plan-kept");
       // Keep the planner result responsive while the map derives and paints
       // the route layers. Route activation is non-urgent and remains ordered.
       startTransition(() => onGenerated(generated));
