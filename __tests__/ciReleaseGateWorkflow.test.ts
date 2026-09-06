@@ -31,9 +31,16 @@ describe("clean-main CI release gate", () => {
 
   it("gates coverage and freshness independently", () => {
     expect(workflow).toMatch(/coverage:[\s\S]*name: Coverage[\s\S]*run: >-[\s\S]*npm run coverage/);
+    // The clusterless jobs exclude exactly the closed list in
+    // scripts/rls/postgresSuites.mjs, never a `*Migration*` glob: that glob
+    // both dropped source-text migration tests nobody needed to skip AND let
+    // three new `*MigrationEffective` proofs run in a job with no PostgreSQL,
+    // where they printed a skip banner and left the job green.
+    // __tests__/postgresSuiteInventory.test.ts holds the two lists together.
     expect(workflow).toMatch(
-      /coverage:[\s\S]*PUBMAX_RLS_NO_PG: "1"[\s\S]*--exclude '__tests__\/\*\*\/\*Migration\.test\.ts'/,
+      /coverage:[\s\S]*PUBMAX_RLS_NO_PG: "1"[\s\S]*--exclude '__tests__\/permissionMatrixEffective\.test\.ts'/,
     );
+    expect(workflow).not.toMatch(/--exclude '__tests__\/\*\*\/\*Migration\.test\.ts'/);
     expect(workflow).toMatch(
       /freshness:[\s\S]*name: Freshness release gate[\s\S]*npm run check:freshness -- --artifacts-only[\s\S]*node scripts\/check-production-store-freshness\.mjs/,
     );

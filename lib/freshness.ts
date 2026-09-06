@@ -24,6 +24,14 @@ export type FreshnessClass =
   | "snapshot";
 
 export interface FreshnessDataset {
+  /**
+   * What a committed artifact IS, where a dataset names one beside a store
+   * stamp. `degraded-fallback` says the file is what the site serves when the
+   * store is away and that it dates nothing: a Vercel filesystem is read-only,
+   * so the weather cache's copy can only age. Absent for every dataset whose
+   * artifact IS the measurement.
+   */
+  readonly artifactRole?: "degraded-fallback";
   readonly id: string;
   readonly label: string;
   readonly class: FreshnessClass;

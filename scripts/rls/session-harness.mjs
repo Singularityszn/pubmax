@@ -18,6 +18,14 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 
+import {
+  acquireClusterSlot,
+  findPostgresBinary,
+  missingPostgresReason,
+} from "./postgresHost.mjs";
+
+export { missingPostgresReason };
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "../..");
 const MIGRATIONS_DIR = join(REPO_ROOT, "supabase/migrations");
@@ -36,32 +44,6 @@ const V1_RELEASE = [
 const PRE_WAVE_MIGRATIONS = readdirSync(MIGRATIONS_DIR)
   .filter((name) => name.endsWith(".sql") && name < WAVE2[0])
   .sort();
-
-function findPgBin(name) {
-  const candidates = [
-    `/opt/homebrew/opt/postgresql@16/bin/${name}`,
-    `/opt/homebrew/opt/postgresql@17/bin/${name}`,
-    `/usr/local/opt/postgresql@16/bin/${name}`,
-    `/opt/homebrew/bin/${name}`,
-    // Debian/Ubuntu packages (CI: apt install postgresql-16)
-    `/usr/lib/postgresql/16/bin/${name}`,
-    `/usr/lib/postgresql/17/bin/${name}`,
-    `/usr/bin/${name}`,
-    name,
-  ];
-  for (const c of candidates) {
-    try {
-      if (c === name) {
-        execFileSync("which", [name], { stdio: "pipe" });
-        return name;
-      }
-      if (existsSync(c)) return c;
-    } catch {
-      /* try next */
-    }
-  }
-  return null;
-}
 
 function findPostgrestBin() {
   const candidates = [
@@ -99,35 +81,6 @@ function jwt(secret, sub, role = "authenticated") {
   return `${header}.${payload}.${signature}`;
 }
 
-/**
- * When Postgres binaries are missing, return a loud skip reason.
- * Callers must SKIP (not pass, not fail) effective RLS tests when this is set.
- * A skipped RLS test must never read as a passed one.
- */
-export function missingPostgresReason() {
-  // Escape hatch to prove the loud-skip path without uninstalling Postgres
-  // (Vercel and other hosts without a DB hit the real probe below).
-  if (process.env.PUBMAX_RLS_NO_PG === "1") {
-    return (
-      "PostgreSQL 16+ binaries not found (initdb/postgres/psql). " +
-      "Install postgresql@16 to run effective RLS tests. " +
-      "CI job rls-session installs Postgres 16 and runs them for real. " +
-      "(PUBMAX_RLS_NO_PG=1 forced this skip.)"
-    );
-  }
-  const initdb = findPgBin("initdb");
-  const postgres = findPgBin("postgres");
-  const psql = findPgBin("psql");
-  if (!initdb || !postgres || !psql) {
-    return (
-      "PostgreSQL 16+ binaries not found (initdb/postgres/psql). " +
-      "Install postgresql@16 to run effective RLS tests. " +
-      "CI job rls-session installs Postgres 16 and runs them for real."
-    );
-  }
-  return null;
-}
-
 async function pickPort() {
   const { createServer } = await import("node:net");
   return new Promise((resolve, reject) => {
@@ -146,17 +99,30 @@ export async function startRlsSession() {
   if (missing) {
     throw new Error(missing);
   }
-  const initdb = findPgBin("initdb");
-  const postgres = findPgBin("postgres");
-  const psql = findPgBin("psql");
+  const initdb = findPostgresBinary("initdb");
+  const postgres = findPostgresBinary("postgres");
+  const psql = findPostgresBinary("psql");
+
+  // One of the host's cluster slots, held until stop(). Without it a wide
+  // parallel run exhausts the SysV segment table and a healthy migration fails
+  // on shmget: see scripts/rls/postgresHost.mjs.
+  const releaseClusterSlot = await acquireClusterSlot("rls-session");
 
   const dataDir = mkdtempSync(join(tmpdir(), "pubmax-rls-"));
   const port = await pickPort();
-  execFileSync(
-    initdb,
-    ["-D", dataDir, "--locale=C", "-E", "UTF8", "--username=postgres", "--auth=trust"],
-    { stdio: "pipe" },
-  );
+  try {
+    execFileSync(
+      initdb,
+      [
+        "-D", dataDir, "--locale=C", "-E", "UTF8", "--username=postgres", "--auth=trust",
+        "-c", "shared_memory_type=mmap", "-c", "dynamic_shared_memory_type=mmap",
+      ],
+      { stdio: "pipe" },
+    );
+  } catch (error) {
+    releaseClusterSlot();
+    throw error;
+  }
 
   // Keep the cluster tiny and local-only.
   writeFileSync(
@@ -201,6 +167,7 @@ export async function startRlsSession() {
   }
   if (!ready) {
     proc.kill("SIGKILL");
+    releaseClusterSlot();
     throw new Error(`Postgres failed to start:\n${logChunks.join("")}`);
   }
 
@@ -444,6 +411,7 @@ export async function startRlsSession() {
   const postgrest = findPostgrestBin();
   if (!postgrest) {
     proc.kill("SIGKILL");
+    releaseClusterSlot();
     rmSync(dataDir, { recursive: true, force: true });
     throw new Error(
       "PostgreSQL is available but PostgREST is not. Install PostgREST 14 or set POSTGREST_BIN; HTTP-boundary RLS proofs may not be skipped.",
@@ -495,6 +463,7 @@ export async function startRlsSession() {
   if (!restReady) {
     restProc.kill("SIGKILL");
     proc.kill("SIGKILL");
+    releaseClusterSlot();
     rmSync(dataDir, { recursive: true, force: true });
     throw new Error(`PostgREST failed to start:\n${restLogs.join("")}`);
   }
@@ -563,6 +532,9 @@ export async function startRlsSession() {
     } catch {
       /* ignore */
     }
+    // The slot is the host's budget, so it goes back even when the cluster
+    // refused to die tidily.
+    releaseClusterSlot();
   }
 
   return {

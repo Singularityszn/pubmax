@@ -1,13 +1,18 @@
 #!/bin/sh
-# Local CI gate — a free stand-in for GitHub Actions.
-# Runs validate-data + lint + typecheck + coverage before every push so broken
-# code never leaves your machine. Enable once with:  npm run setup  (sets
-# core.hooksPath=.githooks)
+# Local CI gate - a free stand-in for GitHub Actions.
+# Runs the whole of `npm run verify` before every push so broken code never
+# leaves your machine: validate-data, lint, typecheck, coverage, the effective
+# RLS proofs, the e2e skip gate, freshness and the audit. Enable once with:
+# npm run setup  (sets core.hooksPath=.githooks)
+#
+# test:rls needs PostgreSQL 16. A host that genuinely cannot install one sets
+# PUBMAX_RLS_ALLOW_SKIP=1 and says so out loud; a skipped policy proof read as a
+# pass is what let an RLS hole live for four days.
 #
 # The heavier `next build` is intentionally left out here (it's slow); Vercel
 # runs the full `npm run ci` (incl. build) on every deploy via vercel.json, so
 # a broken build still can't reach production.
 set -e
-echo "pre-push › validate-data · lint · typecheck · coverage"
+echo "pre-push › npm run verify"
 npm run verify
 echo "pre-push › green ✓"

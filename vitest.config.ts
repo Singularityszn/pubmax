@@ -28,6 +28,19 @@ export default defineConfig({
     // Keep a bounded 60s ceiling so those real assertions remain deterministic
     // without turning a genuine hang into an unbounded release wait.
     testTimeout: 60000,
+    // A cluster boot plus a migration chain is a hook, not a test, and vitest's
+    // default hook ceiling is 10s. 180s is the same ceiling every Postgres-
+    // backed suite declares on its own beforeAll.
+    hookTimeout: 180000,
+    // BOUNDED FILE PARALLELISM. Unbounded workers ran 28 throwaway PostgreSQL
+    // clusters at once against a macOS default of `kern.sysv.shmmni = 32`, and
+    // the same commit on the same machine then exited 1 on a cold run and 0 on
+    // a warm one - the flake the 5 September 2026 reviews both landed on. Four
+    // is the `--maxWorkers=4` path `npm run coverage` already passes on, so
+    // `npm test` and the coverage gate now run the same way; the host-wide
+    // cluster budget in scripts/rls/postgresHost.mjs is the second line,
+    // because two worktrees can run this suite at once.
+    maxWorkers: 4,
     coverage: {
       provider: "v8",
       reporter: ["text", "json-summary"],

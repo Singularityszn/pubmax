@@ -1,11 +1,12 @@
-import { execFile, execFileSync, spawn, type ChildProcess } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
-import { promisify } from "node:util";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import {
+  postgresSkipReason,
+  startPostgres,
+  type PostgresSession,
+} from "./helpers/postgres";
 
 const POSTS = join(process.cwd(), "supabase/migrations/20260806145914_0072_social_posts.sql");
 const INTERACTIONS = join(process.cwd(), "supabase/migrations/20260806150000_0073_social_interactions.sql");
@@ -16,90 +17,8 @@ const ADMIN_MODERATION_ROLLBACK = join(process.cwd(), "supabase/migrations/rollb
 const ADMIN_REVISION_GUARD_ROLLBACK = join(process.cwd(), "supabase/migrations/rollback/20260830120000_0124_social_admin_revision_guard_rollback.sql");
 const ROLLBACK = join(process.cwd(), "supabase/migrations/rollback/20260806151000_0074_social_composer_rollback.sql");
 
-function binary(name: "initdb" | "postgres" | "psql"): string | null {
-  for (const path of [
-    `/opt/homebrew/opt/postgresql@16/bin/${name}`,
-    `/opt/homebrew/opt/postgresql@17/bin/${name}`,
-    `/opt/homebrew/bin/${name}`,
-    name,
-  ]) {
-    try {
-      if (path === name) execFileSync("which", [name], { stdio: "pipe" });
-      else if (!existsSync(path)) continue;
-      return path;
-    } catch {}
-  }
-  return null;
-}
-
-const execFileAsync = promisify(execFile);
-type Database = {
-  sql(statement: string): string;
-  sqlAsync(statement: string): Promise<string>;
-  apply(path: string): void;
-  applyTransactional(path: string): void;
-  stop(): Promise<void>;
-};
-let database: Database | null = null;
-
-async function freePort(): Promise<number> {
-  const { createServer } = await import("node:net");
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      server.close(() => resolve(typeof address === "object" && address ? address.port : 0));
-    });
-    server.on("error", reject);
-  });
-}
-
-async function startDatabase(): Promise<Database> {
-  const initdb = binary("initdb");
-  const postgres = binary("postgres");
-  const psql = binary("psql");
-  if (!initdb || !postgres || !psql) throw new Error("PostgreSQL is unavailable.");
-  const directory = mkdtempSync(join(tmpdir(), "pubmax-social-composer-"));
-  const port = await freePort();
-  execFileSync(initdb, [
-    "-D", directory, "--auth=trust", "--username=postgres",
-    "-c", "shared_memory_type=mmap", "-c", "dynamic_shared_memory_type=mmap",
-  ], { stdio: "pipe" });
-  writeFileSync(join(directory, "postgresql.auto.conf"), `listen_addresses='127.0.0.1'\nport=${port}\nfsync=off\n`);
-  const server: ChildProcess = spawn(postgres, ["-D", directory, "-h", "127.0.0.1", "-p", String(port)], { stdio: "ignore" });
-  const connection = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    try {
-      execFileSync(psql, [...connection, "-c", "select 1"], { stdio: "pipe" });
-      break;
-    } catch {
-      if (attempt === 49) throw new Error("PostgreSQL did not start.");
-      await sleep(100);
-    }
-  }
-  const run = (args: string[]) => execFileSync(psql, [...connection, "-v", "ON_ERROR_STOP=1", ...args], {
-    encoding: "utf8",
-    stdio: ["pipe", "pipe", "pipe"],
-  }).trim();
-  return {
-    sql: (statement) => run(["-q", "-t", "-A", "-c", statement]),
-    async sqlAsync(statement) {
-      const { stdout } = await execFileAsync(psql, [
-        ...connection, "-v", "ON_ERROR_STOP=1", "-q", "-t", "-A", "-c", statement,
-      ], { encoding: "utf8" });
-      return stdout.trim();
-    },
-    apply: (path) => run(["-f", path]),
-    applyTransactional: (path) => run(["-1", "-f", path]),
-    async stop() {
-      if (server.exitCode === null) {
-        server.kill("SIGTERM");
-        await Promise.race([new Promise<void>((resolve) => server.once("exit", resolve)), sleep(1_000)]);
-      }
-      rmSync(directory, { recursive: true, force: true });
-    },
-  };
-}
+let database: PostgresSession | null = null;
+const skipReason = postgresSkipReason();
 
 const ALICE = "11111111-1111-4111-8111-111111111111";
 const BOB = "22222222-2222-4222-8222-222222222222";
@@ -116,7 +35,7 @@ let mediaObjectKey = "";
 let staleAdminPostId = "";
 
 beforeAll(async () => {
-  database = await startDatabase();
+  database = await startPostgres({ label: "social-composer-0074" });
   database.sql(`
     create role anon noinherit;
     create role authenticated noinherit;
@@ -133,22 +52,22 @@ beforeAll(async () => {
     insert into public.follows(follower_id,followee_id) values
       ('${ALICE}','${BOB}'), ('${BOB}','${ALICE}');
   `);
-  database.apply(POSTS);
-  database.apply(INTERACTIONS);
-}, 60_000);
+  database.applyFile(POSTS);
+  database.applyFile(INTERACTIONS);
+}, 180_000);
 
 afterAll(async () => database?.stop());
 
-describe("Social composer migration forward, concurrency, and rollback", () => {
+describe.skipIf(skipReason !== null)("Social composer migration forward, concurrency, and rollback", () => {
   it("applies atomic private media, audit, tags, moderation, and service-only authority", () => {
     const db = database!;
     const legacy = db.sql(`insert into public.social_posts(author_profile_id,author_handle,kind,visibility,body,comment_policy,photo_media_id,photo_alt_text)
       values('${ALICE}','alice','standard','friends','Legacy photo','open','77777777-7777-4777-8777-777777777777','Legacy') returning id`);
-    expect(() => db.applyTransactional(FORWARD)).toThrow(/requires Task 3 photo_media_id rows to be null/i);
+    expect(() => db.applyFileTransactional(FORWARD)).toThrow(/requires Task 3 photo_media_id rows to be null/i);
     db.sql(`delete from public.social_posts where id='${legacy}'`);
-    db.apply(FORWARD);
-    db.apply(ADMIN_MODERATION);
-    db.apply(ADMIN_REVISION_GUARD);
+    db.applyFile(FORWARD);
+    db.applyFile(ADMIN_MODERATION);
+    db.applyFile(ADMIN_REVISION_GUARD);
     mediaObjectKey = db.sql(`select object_key from public.reserve_social_post_media_upload(
       '${ALICE}','${MEDIA}','${"a".repeat(64)}',1200,800,12345
     )`);
@@ -647,7 +566,7 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
 
   it("rolls back Task 6 state and restores Task 3 public-Venue and edit rules", () => {
     const db = database!;
-    db.apply(ADMIN_REVISION_GUARD_ROLLBACK);
+    db.applyFile(ADMIN_REVISION_GUARD_ROLLBACK);
     expect(db.sql("select to_regprocedure('public.moderate_social_post_admin(uuid,uuid,uuid,integer,text)') is null"))
       .toBe("t");
     expect(db.sql("select to_regprocedure('public.moderate_social_post_admin(uuid,uuid,uuid,text)') is not null"))
@@ -657,8 +576,8 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
     )`)).toBe("f");
     expect(db.sql(`select status || ':' || moderation_state || ':' || revision from public.social_posts
       where id='${staleAdminPostId}'`)).toBe("visible:needs_review:1");
-    db.apply(ADMIN_MODERATION_ROLLBACK);
-    db.apply(ROLLBACK);
+    db.applyFile(ADMIN_MODERATION_ROLLBACK);
+    db.applyFile(ROLLBACK);
     expect(db.sql("select to_regclass('public.social_post_media') is null")).toBe("t");
     expect(db.sql("select to_regclass('public.social_post_media_lifecycle_events') is null")).toBe("t");
     expect(db.sql("select to_regclass('public.social_post_edit_audit') is null")).toBe("t");

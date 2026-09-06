@@ -6,6 +6,57 @@ import ts from "typescript";
 
 const root = path.resolve(process.argv[2] ?? "e2e");
 
+/**
+ * THE ARGUED EXCEPTIONS, and nothing else, may skip.
+ *
+ * A skipped browser test is a lane nobody proves, so every skip is refused
+ * unless e2e/conditional-skips.allowlist.json names its spec AND the exact
+ * condition, with the reason and what ends it. A row that matches no live skip
+ * is itself a failure, so the list can only ever shrink.
+ */
+// PUBMAX_E2E_SKIP_ALLOWLIST points the scan at a fixture list; the tree's own
+// list is the default and the only one a run of `npm run gate:e2e-skips` reads.
+const ALLOWLIST_PATH = path.resolve(
+  process.env.PUBMAX_E2E_SKIP_ALLOWLIST ?? "e2e/conditional-skips.allowlist.json",
+);
+
+async function readAllowlist() {
+  let raw;
+  try {
+    raw = await readFile(ALLOWLIST_PATH, "utf8");
+  } catch {
+    return [];
+  }
+  const parsed = JSON.parse(raw);
+  const rows = Array.isArray(parsed.allowed) ? parsed.allowed : [];
+  for (const row of rows) {
+    if (!row.file || !row.condition || !row.reason || !row.ends) {
+      console.error(
+        `conditional skip allowlist is incomplete: every row needs file, condition, reason and ends (${JSON.stringify(row)})`,
+      );
+      process.exit(1);
+    }
+  }
+  return rows;
+}
+
+const allowlist = await readAllowlist();
+const allowlistHits = new Set();
+
+function compact(expression) {
+  return expression.replace(/\s+/g, " ").trim();
+}
+
+function isAllowed(file, expression) {
+  const relative = path.relative(process.cwd(), file);
+  const row = allowlist.find(
+    (entry) => entry.file === relative && entry.condition === compact(expression),
+  );
+  if (!row) return false;
+  allowlistHits.add(`${row.file}::${row.condition}`);
+  return true;
+}
+
 async function filesUnder(entry) {
   const info = await stat(entry);
   if (info.isFile()) return [entry];
@@ -45,9 +96,32 @@ function skipCallKind(expression) {
   return null;
 }
 
-function isIntentionalProjectGate(file, expression) {
+/**
+ * Module-scope `const NAME = process.env.X ...` declarations, so a skip written
+ * as `!SHOOTING` is judged as the environment gate it is rather than as a
+ * data-dependent condition. The initialiser must read process.env and NOTHING
+ * else: a const derived from a page read is exactly what this scan refuses.
+ */
+function environmentConstants(sourceFile) {
+  const names = new Set();
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
+      const text = declaration.initializer.getText(sourceFile);
+      if (/process\.env\.[A-Z0-9_]+/.test(text) && !/\b(await|page|request)\b/.test(text)) {
+        names.add(declaration.name.text);
+      }
+    }
+  }
+  return names;
+}
+
+function isIntentionalProjectGate(file, expression, envConstants = new Set()) {
   const compact = expression.replace(/\s+/g, " ").trim();
   if (/^\(*!process\.env\.[A-Z0-9_]+\)*$/.test(compact)) return true;
+  const negatedConstant = /^\(*!([A-Za-z_$][\w$]*)\)*$/.exec(compact);
+  if (negatedConstant && envConstants.has(negatedConstant[1])) return true;
   if (
     path.basename(file) === "screenshots.spec.ts" &&
     /^(?:!?isDesktop|isDesktop \|\| viewportName !== ["']390["'])$/.test(compact)
@@ -83,21 +157,33 @@ for (const file of files) {
     scriptKind(file),
   );
 
+  const envConstants = environmentConstants(sourceFile);
+
   function visit(node) {
     if (ts.isCallExpression(node)) {
       const kind = skipCallKind(node.expression);
       if (kind) {
         const argument = node.arguments[0];
         const position = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
-        let expression = argument?.getText(sourceFile) ?? "missing condition";
+        const stated = argument?.getText(sourceFile) ?? "missing condition";
+        let expression = stated;
         const staticDeclaration =
           !argument ||
           ts.isStringLiteral(argument) ||
           ts.isNoSubstitutionTemplateLiteral(argument) ||
           kind.startsWith("describe.");
         if (staticDeclaration) expression = "static skipped declaration";
+        // The allowlist names the condition a reader can see in the spec, so a
+        // static skip is matched on its own text rather than on that label.
+        if (staticDeclaration && isAllowed(file, stated)) {
+          ts.forEachChild(node, visit);
+          return;
+        }
 
-        if (staticDeclaration || !isIntentionalProjectGate(file, expression)) {
+        const excused =
+          isAllowed(file, expression) ||
+          (!staticDeclaration && isIntentionalProjectGate(file, expression, envConstants));
+        if (!excused) {
           findings.push({
             file: path.relative(process.cwd(), file),
             line: position.line + 1,
@@ -111,6 +197,26 @@ for (const file of files) {
   }
 
   visit(sourceFile);
+}
+
+// Only rows about the tree being scanned can be judged: the unit fixtures run
+// this script over a temporary directory, where the real specs do not exist.
+const scannedRoot = path.relative(process.cwd(), root);
+const staleRows = allowlist.filter(
+  (row) =>
+    row.file.startsWith(`${scannedRoot}/`) &&
+    !allowlistHits.has(`${row.file}::${row.condition}`),
+);
+if (staleRows.length > 0) {
+  for (const row of staleRows) {
+    console.error(
+      `conditional skip allowlist row matches no live skip: ${row.file} (${row.condition})`,
+    );
+  }
+  console.error(
+    `conditional skip scan failed: ${staleRows.length} stale allowlist row(s). Delete the row when the skip goes.`,
+  );
+  process.exit(1);
 }
 
 if (findings.length > 0) {

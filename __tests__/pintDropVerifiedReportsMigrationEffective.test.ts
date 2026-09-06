@@ -1,10 +1,14 @@
-import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+
+import {
+  postgresSkipReason,
+  startPostgres,
+  type PostgresSession,
+} from "./helpers/postgres";
+
+const skipReason = postgresSkipReason();
 
 const MIGRATION_PATH = join(
   process.cwd(),
@@ -27,236 +31,70 @@ const TABLE_SEPARATION_ROLLBACK_PATH = join(
   "supabase/migrations/rollback/20260824010000_0118_pint_drop_table_separation_rollback.sql",
 );
 
-function binary(name: "initdb" | "postgres" | "psql"): string | null {
-  const candidates = [
-    `/opt/homebrew/opt/postgresql@16/bin/${name}`,
-    `/opt/homebrew/opt/postgresql@17/bin/${name}`,
-    `/opt/homebrew/bin/${name}`,
-    `/usr/local/opt/postgresql@16/bin/${name}`,
-    `/usr/lib/postgresql/16/bin/${name}`,
-    name,
-  ];
-  for (const candidate of candidates) {
-    try {
-      if (candidate === name) execFileSync("which", [name], { stdio: "pipe" });
-      else if (!existsSync(candidate)) continue;
-      return candidate;
-    } catch {
-      // Try next known installation.
-    }
-  }
-  return null;
-}
-
-async function freePort(): Promise<number> {
-  const { createServer } = await import("node:net");
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : 0;
-      server.close(() => resolve(port));
-    });
-    server.on("error", reject);
-  });
-}
-
-type Session = {
-  sql: (statement: string) => string;
-  sqlAsync: (statement: string) => Promise<string>;
-  expectRefusal: (statement: string) => string;
-  apply: (path: string) => void;
-  stop: () => Promise<void>;
-};
-
-async function startSession(): Promise<Session> {
-  const initdb = binary("initdb");
-  const postgres = binary("postgres");
-  const psql = binary("psql");
-  if (!initdb || !postgres || !psql) throw new Error("PostgreSQL 16 is required.");
-
-    const dataDir = mkdtempSync(join(tmpdir(), "pubmax-pint-drop-0112-0116-"));
-  const port = await freePort();
-  execFileSync(
-    initdb,
-    ["-D", dataDir, "--locale=C", "-E", "UTF8", "--username=postgres", "--auth=trust"],
-    { stdio: "pipe" },
-  );
-  writeFileSync(
-    join(dataDir, "postgresql.auto.conf"),
-    [
-      "listen_addresses = '127.0.0.1'",
-      `port = ${port}`,
-      "shared_buffers = 16MB",
-      "fsync = off",
-      "full_page_writes = off",
-      "synchronous_commit = off",
-    ].join("\n") + "\n",
-  );
-  const processHandle = spawn(
-    postgres,
-    ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"],
-    { stdio: "ignore" },
-  );
-  const args = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres", "-d", "postgres"];
-
-  const teardown = async (): Promise<void> => {
-    if (processHandle.exitCode === null) {
-      processHandle.kill("SIGTERM");
-      await Promise.race([
-        new Promise<void>((resolve) => processHandle.once("exit", () => resolve())),
-        sleep(1_000).then(() => undefined),
-      ]);
-      if (processHandle.exitCode === null) processHandle.kill("SIGKILL");
-    }
-    rmSync(dataDir, { recursive: true, force: true });
-  };
-
-  const sql = (statement: string): string =>
-    execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-t", "-A", "-c", statement], {
-      encoding: "utf8",
-    }).trim();
-
-  const sqlAsync = (statement: string): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const child = spawn(
-        psql,
-        [...args, "-v", "ON_ERROR_STOP=1", "-t", "-A", "-c", statement],
-        { stdio: ["ignore", "pipe", "pipe"] },
-      );
-      let stdout = "";
-      let stderr = "";
-      child.stdout.on("data", (chunk) => { stdout += String(chunk); });
-      child.stderr.on("data", (chunk) => { stderr += String(chunk); });
-      child.once("exit", (code) => {
-        if (code === 0) resolve(stdout.trim());
-        else reject(new Error(stderr));
-      });
-    });
-
-  const expectRefusal = (statement: string): string => {
-    try {
-      execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-t", "-A", "-c", statement], {
-        encoding: "utf8",
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-    } catch (error) {
-      return String((error as { stderr?: string | Buffer }).stderr ?? "");
-    }
-    throw new Error(`PostgreSQL accepted a statement it had to refuse: ${statement}`);
-  };
-
-  try {
-    let ready = false;
-    for (let attempt = 0; attempt < 50; attempt += 1) {
-      try {
-        execFileSync(psql, [...args, "-c", "select 1"], { stdio: "pipe" });
-        ready = true;
-        break;
-      } catch {
-        await sleep(100);
-      }
-    }
-    if (!ready) throw new Error("PostgreSQL did not start.");
-
-    sql(`
-      create role anon nologin;
-      create role authenticated nologin;
-      create role service_role nologin bypassrls;
-      create table public.visit_reports (
-        id uuid primary key,
-        report_count integer not null default 0,
-        verified_report_count integer not null default 0,
-        reported_at timestamptz,
-        report_reason text,
-        moderated_at timestamptz,
-        moderator_note text,
-        status text not null default 'visible'
-      );
-      create table public.pint_drop_reports (
-        id uuid primary key default gen_random_uuid(),
-        pint_drop_id uuid not null references public.visit_reports(id),
-        actor_hash text not null,
-        reason text,
-        unique (pint_drop_id, actor_hash)
-      );
-      create table public.profiles (
-        id uuid primary key,
-        handle text unique not null,
-        cover_object_key text,
-        cover_generation uuid,
-        cover_moderation_state text,
-        cover_moderated_at timestamptz,
-        cover_moderator_note text,
-        updated_at timestamptz not null default now()
-      );
-      create table public.profile_cover_photos (
-        id uuid primary key,
-        profile_id uuid not null references public.profiles(id),
-        moderation_state text not null default 'approved',
-        report_actors text[] not null default '{}',
-        report_count integer not null default 0,
-        reported_at timestamptz,
-        report_reason text,
-        moderated_at timestamptz,
-        moderator_note text
-      );
-    `);
-    execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-f", MIGRATION_PATH], {
-      stdio: "pipe",
-    });
-    execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-f", REOPEN_MIGRATION_PATH], {
-      stdio: "pipe",
-    });
-  } catch (error) {
-    await teardown();
-    throw error;
-  }
-
-  return {
-    sql,
-    sqlAsync,
-    expectRefusal,
-    apply: (path: string) => {
-      execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-f", path], {
-        stdio: "pipe",
-      });
-    },
-    stop: teardown,
-  };
-}
-
-function missingPostgresReason(): string | null {
-  if (process.env.PUBMAX_RLS_NO_PG === "1") {
-    return "PostgreSQL was deliberately hidden by PUBMAX_RLS_NO_PG=1.";
-  }
-  const missing = (["initdb", "postgres", "psql"] as const).filter((name) => !binary(name));
-  return missing.length > 0 ? `Missing PostgreSQL binaries: ${missing.join(", ")}.` : null;
-}
-
-let session: Session | null = null;
-let skipReason: string | null = null;
+let session: PostgresSession | null = null;
 
 beforeAll(async () => {
-  skipReason = missingPostgresReason();
-  if (skipReason) {
-    console.error(
-      `PINT DROP 0112 + 0116 EFFECTIVE TESTS SKIPPED - THIS IS NOT A PASS: ${skipReason}`,
+  if (skipReason) return;
+  session = await startPostgres({
+    label: "pint-reports",
+    database: "pubmax_pint_reports",
+  });
+  // The pre-0112 shape both migrations are applied over.
+  session.sql(`
+    create role anon nologin;
+    create role authenticated nologin;
+    create role service_role nologin bypassrls;
+    create table public.visit_reports (
+      id uuid primary key,
+      report_count integer not null default 0,
+      verified_report_count integer not null default 0,
+      reported_at timestamptz,
+      report_reason text,
+      moderated_at timestamptz,
+      moderator_note text,
+      status text not null default 'visible'
     );
-    return;
-  }
-  session = await startSession();
-}, 60_000);
+    create table public.pint_drop_reports (
+      id uuid primary key default gen_random_uuid(),
+      pint_drop_id uuid not null references public.visit_reports(id),
+      actor_hash text not null,
+      reason text,
+      unique (pint_drop_id, actor_hash)
+    );
+    create table public.profiles (
+      id uuid primary key,
+      handle text unique not null,
+      cover_object_key text,
+      cover_generation uuid,
+      cover_moderation_state text,
+      cover_moderated_at timestamptz,
+      cover_moderator_note text,
+      updated_at timestamptz not null default now()
+    );
+    create table public.profile_cover_photos (
+      id uuid primary key,
+      profile_id uuid not null references public.profiles(id),
+      moderation_state text not null default 'approved',
+      report_actors text[] not null default '{}',
+      report_count integer not null default 0,
+      reported_at timestamptz,
+      report_reason text,
+      moderated_at timestamptz,
+      moderator_note text
+    );
+  `);
+  session.applyFile(MIGRATION_PATH);
+  session.applyFile(REOPEN_MIGRATION_PATH);
+}, 180_000);
 
-beforeEach((context) => {
-  if (skipReason) context.skip(true, skipReason);
+beforeEach(() => {
 });
 
 afterAll(async () => {
   await session?.stop();
 });
 
-describe("0112 verified ledger and 0116 report reopening", () => {
+describe.skipIf(skipReason !== null)("0112 verified ledger and 0116 report reopening", () => {
   it("does not let a legacy anonymous count hide a visible Pint Drop", () => {
     const id = "00000000-0000-4000-8000-000000000112";
       session!.sql(`
@@ -428,7 +266,7 @@ describe("0112 verified ledger and 0116 report reopening", () => {
   });
 
   it("rollback restores the pre-reopen function behavior", () => {
-    session!.apply(REOPEN_ROLLBACK_PATH);
+    session!.applyFile(REOPEN_ROLLBACK_PATH);
     const id = "00000000-0000-4000-8000-000000000116";
     session!.sql(`
       insert into public.visit_reports (id, moderated_at, status, moderator_note)
@@ -446,11 +284,11 @@ describe("0112 verified ledger and 0116 report reopening", () => {
   });
 
   it("renames Pint Drop storage in place and rolls the name back without losing rows or foreign keys", () => {
-    session!.apply(REOPEN_MIGRATION_PATH);
+    session!.applyFile(REOPEN_MIGRATION_PATH);
     const id = "00000000-0000-4000-8000-000000000118";
     session!.sql(`insert into public.visit_reports (id) values ('${id}')`);
 
-    session!.apply(TABLE_SEPARATION_PATH);
+    session!.applyFile(TABLE_SEPARATION_PATH);
 
     expect(
       session!.sql(
@@ -477,7 +315,7 @@ describe("0112 verified ledger and 0116 report reopening", () => {
       session!.sql(`select verified_report_count from public.visit_reports where id = '${id}'`),
     ).toBe("1");
 
-    session!.apply(TABLE_SEPARATION_ROLLBACK_PATH);
+    session!.applyFile(TABLE_SEPARATION_ROLLBACK_PATH);
 
     expect(session!.sql("select to_regclass('public.pint_drops') is null")).toBe("t");
     expect(session!.sql("select relkind from pg_class where oid = 'public.visit_reports'::regclass")).toBe("r");

@@ -7,13 +7,18 @@
 // (socialCrewMigration, occupancyMigration0109): a host with no PostgreSQL
 // binaries skips loudly rather than passing quietly.
 
-import { execFileSync, spawn, type ChildProcess } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+
+import {
+  postgresSkipReason,
+  startPostgres,
+  type PostgresSession,
+} from "./helpers/postgres";
+
+const skipReason = postgresSkipReason();
 
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
@@ -45,142 +50,6 @@ const PREREQUISITES = readdirSync(MIGRATIONS)
   .sort()
   .map((name) => join(MIGRATIONS, name));
 
-type Database = {
-  sql(statement: string): string;
-  expectRefusal(statement: string): string;
-  apply(path: string): void;
-  stop(): Promise<void>;
-};
-
-function binary(name: "initdb" | "postgres" | "psql"): string | null {
-  for (const path of [
-    `/opt/homebrew/opt/postgresql@16/bin/${name}`,
-    `/opt/homebrew/opt/postgresql@17/bin/${name}`,
-    `/usr/local/opt/postgresql@16/bin/${name}`,
-    `/usr/lib/postgresql/16/bin/${name}`,
-    `/usr/lib/postgresql/17/bin/${name}`,
-  ]) {
-    try {
-      if (existsSync(path)) return path;
-    } catch {
-      // Try the next known PostgreSQL installation path.
-    }
-  }
-  return null;
-}
-
-function missingPostgresReason(): string | null {
-  if (process.env.PUBMAX_OPEN_CREW_MIGRATION_NO_PG === "1") {
-    return "PostgreSQL binaries were deliberately hidden by PUBMAX_OPEN_CREW_MIGRATION_NO_PG=1.";
-  }
-  const missing = (["initdb", "postgres", "psql"] as const).filter(
-    (name) => binary(name) === null,
-  );
-  return missing.length > 0
-    ? `Missing PostgreSQL binaries: ${missing.join(", ")}. Install PostgreSQL 16 to run the open Social Crew proofs.`
-    : null;
-}
-
-async function freePort(): Promise<number> {
-  const { createServer } = await import("node:net");
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      server.close(() =>
-        resolve(typeof address === "object" && address ? address.port : 0),
-      );
-    });
-    server.on("error", reject);
-  });
-}
-
-async function startDatabase(): Promise<Database> {
-  const initdb = binary("initdb");
-  const postgres = binary("postgres");
-  const psql = binary("psql");
-  if (!initdb || !postgres || !psql) {
-    throw new Error(missingPostgresReason() ?? "PostgreSQL is unavailable.");
-  }
-  const directory = mkdtempSync(join(tmpdir(), "pubmax-open-crews-"));
-  const port = await freePort();
-  execFileSync(
-    initdb,
-    [
-      "-D", directory, "--auth=trust", "--username=postgres", "--locale=C", "-E", "UTF8",
-      "-c", "shared_memory_type=mmap", "-c", "dynamic_shared_memory_type=mmap",
-    ],
-    { stdio: "pipe" },
-  );
-  writeFileSync(
-    join(directory, "postgresql.auto.conf"),
-    `listen_addresses='127.0.0.1'\nport=${port}\nfsync=off\nfull_page_writes=off\nsynchronous_commit=off\n`,
-  );
-  const server: ChildProcess = spawn(
-    postgres,
-    ["-D", directory, "-k", directory, "-h", "127.0.0.1", "-p", String(port)],
-    { stdio: ["ignore", "ignore", "pipe"], env: { ...process.env, LC_ALL: "C" } },
-  );
-  let serverLog = "";
-  server.stderr!.setEncoding("utf8");
-  server.stderr!.on("data", (chunk: string) => {
-    serverLog = (serverLog + chunk).slice(-8_000);
-  });
-  const connection = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
-  const BOOT_ATTEMPTS = 600;
-  for (let attempt = 0; attempt < BOOT_ATTEMPTS; attempt += 1) {
-    try {
-      execFileSync(psql, [...connection, "-c", "select 1"], { stdio: "pipe" });
-      break;
-    } catch {
-      if (server.exitCode !== null) {
-        throw new Error(
-          `PostgreSQL exited with code ${server.exitCode} before accepting connections.\n${serverLog.trim()}`,
-        );
-      }
-      if (attempt === BOOT_ATTEMPTS - 1) {
-        throw new Error(`PostgreSQL did not start within 60s.\n${serverLog.trim()}`);
-      }
-      await sleep(100);
-    }
-  }
-  const run = (args: string[]): string =>
-    execFileSync(psql, [...connection, "-v", "ON_ERROR_STOP=1", ...args], {
-      encoding: "utf8",
-      stdio: ["pipe", "pipe", "pipe"],
-    })
-      .trim()
-      .split("\n")
-      .filter((line) => line.trim() !== "SET")
-      .join("\n")
-      .trim();
-
-  return {
-    sql: (statement) => run(["-q", "-t", "-A", "-c", statement]),
-    expectRefusal: (statement) => {
-      try {
-        run(["-q", "-t", "-A", "-c", statement]);
-      } catch (error) {
-        const shell = error as { stderr?: Buffer | string };
-        return String(shell.stderr ?? "");
-      }
-      throw new Error(`PostgreSQL accepted a statement it had to refuse: ${statement}`);
-    },
-    apply: (path) => run(["-f", path]),
-    async stop() {
-      if (server.exitCode === null) {
-        server.kill("SIGTERM");
-        await Promise.race([
-          new Promise<void>((resolve) => server.once("exit", () => resolve())),
-          sleep(1_000),
-        ]);
-      }
-      if (server.exitCode === null) server.kill("SIGKILL");
-      rmSync(directory, { recursive: true, force: true });
-    },
-  };
-}
-
 const HOST_USER = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa01";
 const HOST_PROFILE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa02";
 const HOST_ACCOUNT = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa03";
@@ -211,8 +80,7 @@ const FRIENDS_STRANGER_PLAN_MEMBER = "22222222-0000-4000-8000-000000000007";
 const FRIENDS_STRANGER_MEMBER = "22222222-0000-4000-8000-000000000008";
 const DIGEST = "a".repeat(64);
 
-let database: Database | null = null;
-let skipReason: string | null = null;
+let database: PostgresSession | null = null;
 let keySequence = 0;
 /** The rollback narrows the CHECK, so a reseed after it may not say `open`. */
 let seedVisibility: "open" | "private" = "open";
@@ -233,7 +101,7 @@ function writeKey(label: string): string {
   return `${label}-${String(keySequence).padStart(4, "0")}`.slice(0, 128).padEnd(16, "0");
 }
 
-function requireDatabase(): Database {
+function requireDatabase(): PostgresSession {
   if (!database) throw new Error("PostgreSQL open-crew session did not start.");
   return database;
 }
@@ -306,7 +174,7 @@ function acceptIntoOpenCrew(accountId: string): void {
   )`);
 }
 
-function seed(db: Database): void {
+function seed(db: PostgresSession): void {
   db.sql(`
     delete from public.social_crew_join_requests;
     delete from public.social_crew_members;
@@ -353,23 +221,11 @@ function seed(db: Database): void {
 }
 
 beforeAll(async () => {
-  skipReason = missingPostgresReason();
-  if (skipReason) {
-    console.error(
-      [
-        "",
-        "OPEN SOCIAL CREW 0110 + 0114 EFFECTIVE TESTS SKIPPED - THIS IS NOT A PASS",
-        `Reason: ${skipReason}`,
-        "No open join, queue authority, request lifecycle, ACL or rollback was exercised on this host.",
-        "",
-      ].join("\n"),
-    );
-    return;
-  }
+  if (skipReason) return;
   if (!existsSync(FORWARD)) throw new Error(`Missing migration: ${FORWARD}`);
-  database = await startDatabase();
-  database.apply(SESSION_FIXTURE);
-  for (const migration of PREREQUISITES) database.apply(migration);
+  database = await startPostgres({ label: "open-crews-0110" });
+  database.applyFile(SESSION_FIXTURE);
+  for (const migration of PREREQUISITES) database.applyFile(migration);
   database.sql(`
     insert into auth.users(id) values
       ('${HOST_USER}'),('${STRANGER_USER}'),('${BLOCKED_USER}'),('${MATE_USER}'),('${ALLY_USER}');
@@ -388,13 +244,12 @@ beforeAll(async () => {
       ('${MATE_ACCOUNT}','clerk-mate','${MATE_USER}','${MATE_PROFILE}','active'),
       ('${ALLY_ACCOUNT}','clerk-ally','${ALLY_USER}','${ALLY_PROFILE}','active');
   `);
-  database.apply(FORWARD);
-  database.apply(QUEUE_FORWARD);
-  database.apply(PUBLIC_PREVIEW_FORWARD);
+  database.applyFile(FORWARD);
+  database.applyFile(QUEUE_FORWARD);
+  database.applyFile(PUBLIC_PREVIEW_FORWARD);
 }, 300_000);
 
-beforeEach((context) => {
-  if (skipReason) context.skip(true, skipReason);
+beforeEach(() => {
   if (database) seed(database);
 });
 
@@ -402,7 +257,7 @@ afterAll(async () => {
   await database?.stop();
 });
 
-describe("0110 and 0114 applied to PostgreSQL", () => {
+describe.skipIf(skipReason !== null)("0110 and 0114 applied to PostgreSQL", () => {
   it("shows pending requests only to current crew managers", () => {
     requestJoin(STRANGER_ACCOUNT, OPEN_CREW);
     expect(joinRequestQueue(HOST_ACCOUNT, HOST_PROFILE, OPEN_CREW)).toEqual({
@@ -788,23 +643,23 @@ describe("0110 and 0114 applied to PostgreSQL", () => {
   });
 });
 
-describe("0114 and 0110 rolled back", () => {
+describe.skipIf(skipReason !== null)("0114 and 0110 rolled back", () => {
   beforeAll(() => {
-    if (skipReason || !database) return;
-    seed(database);
-    database.apply(PUBLIC_PREVIEW_ROLLBACK);
-    database.sql(`update public.plans set start_time=now() - interval '9 hours' where id='${OPEN_PLAN}'`);
+    const db = database!;
+    seed(db);
+    db.applyFile(PUBLIC_PREVIEW_ROLLBACK);
+    db.sql(`update public.plans set start_time=now() - interval '9 hours' where id='${OPEN_PLAN}'`);
     listAfterPublicPreviewRollback = jsonValue(
-      database.sql(
+      db.sql(
         `set role service_role;
          select public.list_open_social_crews(
            now() - interval '10 hours', now() + interval '7 days', 'london', 50
          )`,
       ),
     );
-    database.apply(QUEUE_ROLLBACK);
-    database.apply(ROLLBACK);
-    visibilityAfterRollback = database.sql(
+    db.applyFile(QUEUE_ROLLBACK);
+    db.applyFile(ROLLBACK);
+    visibilityAfterRollback = db.sql(
       `select visibility from public.social_crews where id='${OPEN_CREW}'`,
     );
     seedVisibility = "private";

@@ -1,88 +1,15 @@
-import { execFileSync, spawn, type ChildProcess } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import {
+  postgresSkipReason,
+  startPostgres,
+  type PostgresSession,
+} from "./helpers/postgres";
+
 const MIGRATION = join(process.cwd(), "supabase/migrations/20260824120000_0119_whats_on_listings.sql");
 const ROLLBACK = join(process.cwd(), "supabase/migrations/rollback/20260824120000_0119_whats_on_listings_rollback.sql");
-
-function binary(name: "initdb" | "postgres" | "psql"): string | null {
-  for (const path of [
-    `/opt/homebrew/opt/postgresql@16/bin/${name}`,
-    `/opt/homebrew/opt/postgresql@17/bin/${name}`,
-    `/opt/homebrew/bin/${name}`,
-    name,
-  ]) {
-    try {
-      if (path === name) execFileSync("which", [name], { stdio: "pipe" });
-      else if (!existsSync(path)) continue;
-      return path;
-    } catch {}
-  }
-  return null;
-}
-
-type Database = {
-  sql(statement: string): string;
-  apply(path: string): void;
-  stop(): Promise<void>;
-};
-
-async function freePort(): Promise<number> {
-  const { createServer } = await import("node:net");
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      server.close(() => resolve(typeof address === "object" && address ? address.port : 0));
-    });
-    server.on("error", reject);
-  });
-}
-
-async function startDatabase(): Promise<Database> {
-  const initdb = binary("initdb");
-  const postgres = binary("postgres");
-  const psql = binary("psql");
-  if (!initdb || !postgres || !psql) throw new Error("PostgreSQL is unavailable.");
-  const directory = mkdtempSync(join(tmpdir(), "pubmax-whats-on-listings-"));
-  const port = await freePort();
-  execFileSync(initdb, ["-D", directory, "--auth=trust", "--username=postgres", "-c", "shared_memory_type=mmap", "-c", "dynamic_shared_memory_type=mmap"], { stdio: "pipe" });
-  writeFileSync(join(directory, "postgresql.auto.conf"), `listen_addresses='127.0.0.1'\nport=${port}\nfsync=off\n`);
-  const server: ChildProcess = spawn(postgres, ["-D", directory, "-h", "127.0.0.1", "-p", String(port)], { stdio: "ignore" });
-  const connection = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    try {
-      execFileSync(psql, [...connection, "-c", "select 1"], { stdio: "pipe" });
-      break;
-    } catch {
-      if (attempt === 49) throw new Error("PostgreSQL did not start.");
-      await sleep(100);
-    }
-  }
-  const run = (args: string[]) => execFileSync(
-    psql,
-    [...connection, "-v", "ON_ERROR_STOP=1", ...args],
-    { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] },
-  ).trim();
-  return {
-    sql: (statement) => run(["-q", "-t", "-A", "-c", statement]),
-    apply: (path) => run(["-f", path]),
-    async stop() {
-      if (server.exitCode === null) {
-        server.kill("SIGTERM");
-        await Promise.race([
-          new Promise<void>((resolve) => server.once("exit", () => resolve())),
-          sleep(1_000),
-        ]);
-      }
-      rmSync(directory, { recursive: true, force: true });
-    },
-  };
-}
 
 function rowJson(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
@@ -95,16 +22,16 @@ function rowJson(overrides: Record<string, unknown> = {}): string {
   }).replaceAll("'", "''");
 }
 
-const postgresAvailable = process.env.PUBMAX_RLS_NO_PG !== "1" && ["initdb", "postgres", "psql"].every((name) => binary(name as "initdb" | "postgres" | "psql") !== null);
+const skipReason = postgresSkipReason();
 
-describe.skipIf(!postgresAvailable)("0119 whats_on_listings migration", () => {
-  let database: Database | null = null;
+describe.skipIf(skipReason !== null)("0119 whats_on_listings migration", () => {
+  let database: PostgresSession | null = null;
 
   beforeAll(async () => {
-    database = await startDatabase();
+    database = await startPostgres({ label: "whats-on-listings-0119" });
     database.sql("create role anon noinherit; create role authenticated noinherit; create role service_role noinherit bypassrls;");
-    database.apply(MIGRATION);
-  }, 60_000);
+    database.applyFile(MIGRATION);
+  }, 180_000);
 
   afterAll(async () => database?.stop());
 
@@ -151,7 +78,7 @@ describe.skipIf(!postgresAvailable)("0119 whats_on_listings migration", () => {
 
   it("rolls back the table and replacement function", () => {
     const db = database!;
-    db.apply(ROLLBACK);
+    db.applyFile(ROLLBACK);
     expect(db.sql("select to_regclass('public.whats_on_listings') is null")).toBe("t");
     expect(db.sql("select to_regclass('public.whats_on_listing_generations') is null")).toBe("t");
     expect(db.sql("select to_regprocedure('public.replace_whats_on_listings(text,jsonb,timestamptz)') is null")).toBe("t");

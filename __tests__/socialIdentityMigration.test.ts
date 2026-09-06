@@ -1,11 +1,16 @@
-import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import {
+  postgresSkipReason,
+  startPostgres,
+  type PostgresSession,
+} from "./helpers/postgres";
+
+const skipReason = postgresSkipReason();
 
 const FORWARD = join(
   process.cwd(),
@@ -30,160 +35,7 @@ const PROVISION_ROLLBACK = join(
   "supabase/migrations/rollback/20260808200000_0092_social_friends_provision_rollback.sql",
 );
 
-function postgresBinary(name: "initdb" | "postgres" | "psql"): string | null {
-  for (const path of [
-    `/opt/homebrew/opt/postgresql@16/bin/${name}`,
-    `/opt/homebrew/opt/postgresql@17/bin/${name}`,
-    `/opt/homebrew/bin/${name}`,
-    name,
-  ]) {
-    try {
-      if (path === name) execFileSync("which", [name], { stdio: "pipe" });
-      else if (!existsSync(path)) continue;
-      return path;
-    } catch {}
-  }
-  return null;
-}
-
-type Database = {
-  sql(statement: string): string;
-  apply(path: string): void;
-  concurrent(statements: readonly string[]): Promise<void>;
-  concurrentResults(statements: readonly string[]): Promise<string[]>;
-  stop(): Promise<void>;
-};
-
-async function freePort(): Promise<number> {
-  const { createServer } = await import("node:net");
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      server.close(() =>
-        resolve(typeof address === "object" && address ? address.port : 0),
-      );
-    });
-    server.on("error", reject);
-  });
-}
-
-async function startDatabase(): Promise<Database> {
-  const initdb = postgresBinary("initdb");
-  const postgres = postgresBinary("postgres");
-  const psql = postgresBinary("psql");
-  if (!initdb || !postgres || !psql) throw new Error("PostgreSQL is unavailable.");
-  const directory = mkdtempSync(join(tmpdir(), "pubmax-social-identity-"));
-  const port = await freePort();
-  execFileSync(initdb, ["-D", directory, "--auth=trust", "--username=postgres"], {
-    stdio: "pipe",
-  });
-  writeFileSync(
-    join(directory, "postgresql.auto.conf"),
-    `listen_addresses='127.0.0.1'\nport=${port}\nfsync=off\n`,
-  );
-  const server: ChildProcess = spawn(
-    postgres,
-    ["-D", directory, "-h", "127.0.0.1", "-p", String(port)],
-    { stdio: "ignore" },
-  );
-  const connection = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    try {
-      execFileSync(psql, [...connection, "-c", "select 1"], { stdio: "pipe" });
-      break;
-    } catch {
-      if (attempt === 49) throw new Error("PostgreSQL did not start.");
-      await sleep(100);
-    }
-  }
-  const run = (args: string[]): string =>
-    execFileSync(psql, [...connection, "-v", "ON_ERROR_STOP=1", ...args], {
-      encoding: "utf8",
-      stdio: ["pipe", "pipe", "pipe"],
-    }).trim();
-  run([
-    "-c",
-    `create schema auth;
-     create role anon noinherit;
-     create role authenticated noinherit;
-     create role service_role noinherit;
-     create table auth.users(id uuid primary key);
-     create table public.profiles(
-       id uuid primary key default gen_random_uuid(),
-       user_id uuid unique references auth.users(id),
-       handle text not null unique,
-       created_at timestamptz not null default now(),
-       updated_at timestamptz not null default now()
-     );
-     create table public.profile_handle_aliases(
-       profile_id uuid not null references public.profiles(id),
-       handle text primary key,
-       is_current boolean not null default true
-     );
-     insert into public.profiles(handle) values ('pre_migration_shape');`,
-  ]);
-  const runConcurrent = async (
-    statements: readonly string[],
-  ): Promise<string[]> =>
-    Promise.all(
-      statements.map(
-        (statement) =>
-          new Promise<string>((resolve, reject) => {
-            const client = spawn(
-              psql,
-              [
-                ...connection,
-                "-v",
-                "ON_ERROR_STOP=1",
-                "-t",
-                "-A",
-                "-c",
-                statement,
-              ],
-              { stdio: ["ignore", "pipe", "pipe"] },
-            );
-            let stdout = "";
-            let stderr = "";
-            client.stdout.setEncoding("utf8");
-            client.stdout.on("data", (chunk: string) => {
-              stdout += chunk;
-            });
-            client.stderr.setEncoding("utf8");
-            client.stderr.on("data", (chunk: string) => {
-              stderr += chunk;
-            });
-            client.once("error", reject);
-            client.once("exit", (code) => {
-              if (code === 0) resolve(stdout.trim());
-              else reject(new Error(stderr || `psql exited ${code}`));
-            });
-          }),
-      ),
-    );
-  return {
-    sql: (statement) => run(["-t", "-A", "-c", statement]),
-    apply: (path) => {
-      run(["-f", path]);
-    },
-    concurrentResults: runConcurrent,
-    concurrent: async (statements) => {
-      await runConcurrent(statements);
-    },
-    async stop() {
-      if (server.exitCode === null) {
-        server.kill("SIGTERM");
-        await Promise.race([
-          new Promise<void>((resolve) => server.once("exit", () => resolve())),
-          sleep(1_000).then(() => undefined),
-        ]);
-      }
-      rmSync(directory, { recursive: true, force: true });
-    },
-  };
-}
-
-describe("social identity migration shape", () => {
+describe.skipIf(skipReason !== null)("social identity migration shape", () => {
   it("keeps applied ownership migration 0009 byte-identical", () => {
     const digest = createHash("sha256")
       .update(readFileSync(APPLIED_OWNERSHIP))
@@ -225,19 +77,41 @@ describe("social identity migration shape", () => {
   });
 });
 
-let database: Database | null = null;
+let database: PostgresSession | null = null;
 
 beforeAll(async () => {
-  database = await startDatabase();
-  database.apply(FORWARD);
-  database.apply(PROVISION_FORWARD);
-}, 60_000);
+  database = await startPostgres({ label: "social-identity-0071" });
+  // The pre-migration shape 0071 is applied over: Supabase's own roles, the
+  // auth schema, and the profile tables as they stood before it.
+  database.sql(`
+    create schema auth;
+    create role anon noinherit;
+    create role authenticated noinherit;
+    create role service_role noinherit;
+    create table auth.users(id uuid primary key);
+    create table public.profiles(
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid unique references auth.users(id),
+      handle text not null unique,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    );
+    create table public.profile_handle_aliases(
+      profile_id uuid not null references public.profiles(id),
+      handle text primary key,
+      is_current boolean not null default true
+    );
+    insert into public.profiles(handle) values ('pre_migration_shape');
+  `);
+  database.applyFile(FORWARD);
+  database.applyFile(PROVISION_FORWARD);
+}, 180_000);
 
 afterAll(async () => {
   await database?.stop();
 });
 
-describe("social identity migration runtime", () => {
+describe.skipIf(skipReason !== null)("social identity migration runtime", () => {
   it("freezes every unowned row and creates only absent handles as owned", () => {
     const db = database!;
     db.sql(`
@@ -532,7 +406,7 @@ describe("social identity migration runtime", () => {
 
   it("rolls back new private state and restores the prior handle-claim function", () => {
     const db = database!;
-    db.apply(ROLLBACK);
+    db.applyFile(ROLLBACK);
     expect(db.sql("select to_regclass('public.private_social_accounts') is null")).toBe("t");
     expect(
       db.sql(

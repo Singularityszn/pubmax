@@ -61,14 +61,16 @@ describe("GET /api/cron/freshness-audit", () => {
     // The whole cause of the daily flood: the audit ran somewhere its artifacts
     // were not. With them present it must be able to age every one, so any
     // OTHER "unknown" left here is a real defect and not the audit's blind spot.
-    // The candidate-ingestion store feed is the sole legitimate exception in this
-    // credential-less test run: they have no artifact, so with no Supabase
-    // configured they correctly report unmeasurable-without-credentials.
+    // The STORE-STAMPED feeds are the legitimate exceptions in this
+    // credential-less test run: their age lives in the durable store, so with no
+    // Supabase configured they correctly report unmeasurable-without-credentials.
+    // `weather` joined them once the registry stopped dating it by a committed
+    // file a read-only serverless filesystem can never advance.
     const res = await GET(req("Bearer test-secret"));
     const body = await res.json();
-    const STORE_ONLY_FEEDS = new Set(["night_signal_candidates", "whats_on"]);
+    const STORE_STAMPED_FEEDS = new Set(["night_signal_candidates", "whats_on", "weather"]);
     const unresolvedIds = (body.unresolved as Array<{ id: string }>).map((n) => n.id);
-    expect(unresolvedIds.every((id) => STORE_ONLY_FEEDS.has(id))).toBe(true);
+    expect(unresolvedIds.every((id) => STORE_STAMPED_FEEDS.has(id))).toBe(true);
     for (const notice of body.unresolved as Array<{ detail: string }>) {
       expect(notice.detail).toContain("unmeasurable without credentials");
     }

@@ -25,16 +25,18 @@
 //                account then leaves unrecorded, and the forward file
 //                re-applies.
 
-import { execFile, execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
-import { promisify } from "node:util";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-const execFileAsync = promisify(execFile);
+import {
+  postgresSkipReason,
+  startPostgres,
+  type PostgresSession,
+} from "./helpers/postgres";
+
+const skipReason = postgresSkipReason();
 
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
@@ -97,216 +99,9 @@ const LATE_DROP = "30000000-0000-4000-8000-000000000302";
 
 const VENUE = "venue-1vle947";
 
-type Attempt = { ok: boolean; said: string };
+let database: PostgresSession | null = null;
 
-type Session = {
-  sql: (statement: string) => string;
-  attempt: (statement: string) => Promise<Attempt>;
-  applyFile: (path: string) => void;
-  stop: () => Promise<void>;
-};
-
-async function waitForExit(
-  processHandle: ReturnType<typeof spawn>,
-  timeoutMs: number,
-): Promise<void> {
-  if (processHandle.exitCode !== null || processHandle.signalCode !== null) return;
-  await new Promise<void>((resolve) => {
-    const timer = setTimeout(resolve, timeoutMs);
-    processHandle.once("exit", () => {
-      clearTimeout(timer);
-      resolve();
-    });
-  });
-}
-
-function findPostgresBinary(name: "initdb" | "postgres" | "psql"): string | null {
-  const candidates = [
-    `/opt/homebrew/opt/postgresql@16/bin/${name}`,
-    `/usr/local/opt/postgresql@16/bin/${name}`,
-    `/usr/lib/postgresql/16/bin/${name}`,
-    `/opt/homebrew/bin/${name}`,
-    `/usr/bin/${name}`,
-  ];
-  const isPostgres16 = (candidate: string): boolean => {
-    try {
-      const version = execFileSync(candidate, ["--version"], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-      return /\bPostgreSQL\)?\s+16(?:\.|\s|$)/i.test(version);
-    } catch {
-      return false;
-    }
-  };
-  for (const candidate of candidates) {
-    if (existsSync(candidate) && isPostgres16(candidate)) return candidate;
-  }
-  try {
-    const candidate = execFileSync("which", [name], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    }).trim();
-    return candidate !== "" && isPostgres16(candidate) ? candidate : null;
-  } catch {
-    return null;
-  }
-}
-
-function missingPostgresReason(): string | null {
-  const missing = (["initdb", "postgres", "psql"] as const).filter(
-    (name) => findPostgresBinary(name) === null,
-  );
-  return missing.length > 0
-    ? `PostgreSQL 16 binaries unavailable for: ${missing.join(", ")}. Each binary must report major version 16 to run the 0150 retention ledger proof.`
-    : null;
-}
-
-async function pickPort(): Promise<number> {
-  const { createServer } = await import("node:net");
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : 0;
-      server.close(() => resolve(port));
-    });
-    server.on("error", reject);
-  });
-}
-
-async function startPostgres(): Promise<Session> {
-  const initdb = findPostgresBinary("initdb");
-  const postgres = findPostgresBinary("postgres");
-  const psql = findPostgresBinary("psql");
-  if (!initdb || !postgres || !psql) {
-    throw new Error(missingPostgresReason() ?? "PostgreSQL binaries unavailable.");
-  }
-
-  const dataDir = mkdtempSync(join(tmpdir(), "pubmax-retention-ledger-0150-"));
-  let handle: ReturnType<typeof spawn> | null = null;
-  try {
-    const port = await pickPort();
-    execFileSync(
-      initdb,
-      ["-D", dataDir, "--locale=C", "-E", "UTF8", "--username=postgres", "--auth=trust"],
-      { stdio: "pipe" },
-    );
-    writeFileSync(
-      join(dataDir, "postgresql.auto.conf"),
-      [
-        "listen_addresses = '127.0.0.1'",
-        `port = ${port}`,
-        "max_connections = 24",
-        "shared_buffers = 16MB",
-        "fsync = off",
-        "full_page_writes = off",
-        "synchronous_commit = off",
-      ].join("\n") + "\n",
-    );
-
-    const processHandle = spawn(
-      postgres,
-      ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"],
-      { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, LC_ALL: "C" } },
-    );
-    handle = processHandle;
-    const logs: string[] = [];
-    processHandle.stdout?.on("data", (chunk) => logs.push(chunk.toString()));
-    processHandle.stderr?.on("data", (chunk) => logs.push(chunk.toString()));
-
-    const connectionArgs = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
-    let ready = false;
-    for (let attempt = 0; attempt < 60; attempt += 1) {
-      try {
-        execFileSync(psql, [...connectionArgs, "-d", "postgres", "-c", "select 1"], {
-          stdio: "pipe",
-        });
-        ready = true;
-        break;
-      } catch {
-        await sleep(100);
-      }
-    }
-    if (!ready) throw new Error(`PostgreSQL failed to start:\n${logs.join("")}`);
-
-    const database = "pubmax_retention_ledger_0150";
-    execFileSync(
-      psql,
-      [
-        ...connectionArgs,
-        "-d",
-        "postgres",
-        "-v",
-        "ON_ERROR_STOP=1",
-        "-c",
-        `create database ${database}`,
-      ],
-      { stdio: "pipe" },
-    );
-    const databaseArgs = [...connectionArgs, "-d", database, "-v", "ON_ERROR_STOP=1"];
-
-    const sql = (statement: string): string =>
-      execFileSync(psql, [...databaseArgs, "-t", "-A", "-c", statement], {
-        encoding: "utf8",
-        stdio: ["pipe", "pipe", "pipe"],
-      })
-        .trim()
-        .split("\n")
-        .filter((line) => line.trim() !== "SET")
-        .join("\n")
-        .trim();
-
-    const attempt = async (statement: string): Promise<Attempt> => {
-      try {
-        await execFileAsync(psql, [...databaseArgs, "-c", statement], {
-          encoding: "utf8",
-        });
-        return { ok: true, said: "" };
-      } catch (error) {
-        const said =
-          typeof error === "object" && error !== null && "stderr" in error
-            ? String((error as { stderr?: unknown }).stderr ?? "")
-            : String(error);
-        return { ok: false, said };
-      }
-    };
-
-    const applyFile = (path: string): void => {
-      execFileSync(psql, [...databaseArgs, "-f", path], { stdio: "pipe" });
-    };
-
-    const stop = async (): Promise<void> => {
-      if (processHandle.exitCode === null && processHandle.signalCode === null) {
-        processHandle.kill("SIGINT");
-        await waitForExit(processHandle, 5_000);
-      }
-      if (processHandle.exitCode === null && processHandle.signalCode === null) {
-        processHandle.kill("SIGTERM");
-        await waitForExit(processHandle, 2_000);
-      }
-      if (processHandle.exitCode === null && processHandle.signalCode === null) {
-        processHandle.kill("SIGKILL");
-        await waitForExit(processHandle, 5_000);
-      }
-      rmSync(dataDir, { recursive: true, force: true });
-    };
-
-    return { sql, attempt, applyFile, stop };
-  } catch (error) {
-    if (handle && handle.exitCode === null && handle.signalCode === null) {
-      handle.kill("SIGKILL");
-      await waitForExit(handle, 5_000);
-    }
-    rmSync(dataDir, { recursive: true, force: true });
-    throw error;
-  }
-}
-
-let database: Session | null = null;
-let skipReason: string | null = null;
-
-function db(): Session {
+function db(): PostgresSession {
   if (!database) throw new Error("the 0150 proof cluster is not running");
   return database;
 }
@@ -393,21 +188,8 @@ function seed(): void {
 }
 
 beforeAll(async () => {
-  skipReason = missingPostgresReason();
-  if (skipReason) {
-    console.error(
-      [
-        "",
-        "══════════════════════════════════════════════════════════════",
-        "SKIPPING the 0150 retention ledger proof (not a pass)",
-        `Reason: ${skipReason}`,
-        "══════════════════════════════════════════════════════════════",
-        "",
-      ].join("\n"),
-    );
-    return;
-  }
-  database = await startPostgres();
+  if (skipReason) return;
+  database = await startPostgres({ label: "retention-0150", database: "pubmax_retention_0150" });
   database.applyFile(SESSION_FIXTURE);
   for (const path of PREREQUISITES) database.applyFile(path);
   database.sql(STORAGE_DELETE_GUARD);
@@ -416,9 +198,9 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await database?.stop();
-}, 30_000);
+}, 180_000);
 
-describe("0150: a contribution outlives the account, and the account is remembered", () => {
+describe.skipIf(skipReason !== null)("0150: a contribution outlives the account, and the account is remembered", () => {
   it("BEFORE: an account leaves, its price stays, and nothing records who logged it", async ({ skip }) => {
     if (skipReason) skip(skipReason);
     expect(ledgerTableExists()).toBe(false);

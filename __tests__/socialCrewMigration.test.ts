@@ -1,11 +1,17 @@
-import { execFile, execFileSync, spawn, type ChildProcess } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { spawn } from "node:child_process";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { promisify } from "node:util";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import {
+  postgresSkipReason,
+  startPostgres,
+  type PostgresSession,
+} from "./helpers/postgres";
+
+const skipReason = postgresSkipReason();
 
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
@@ -18,30 +24,12 @@ const PREREQUISITES = readdirSync(MIGRATIONS)
   .sort()
   .map((name) => join(MIGRATIONS, name));
 
-function binary(name: "initdb" | "postgres" | "psql"): string | null {
-  for (const path of [
-    `/opt/homebrew/opt/postgresql@16/bin/${name}`,
-    `/usr/local/opt/postgresql@16/bin/${name}`,
-    `/usr/lib/postgresql/16/bin/${name}`,
-  ]) {
-    try {
-      if (!existsSync(path)) continue;
-      return path;
-    } catch {}
-  }
-  return null;
-}
-
-const execFileAsync = promisify(execFile);
-type Database = {
-  sql(statement: string): string;
-  apply(path: string): void;
-  concurrentResults(statements: readonly string[]): Promise<string[]>;
-  snapshotDuringWrite(mutation: string, snapshotExpression: string): Promise<unknown>;
-  stop(): Promise<void>;
-};
-
-function authenticatedSql(db: Database, userId: string, statement: string): string {
+/** One statement read as a signed-in account, then rolled back. */
+function authenticatedSql(
+  db: PostgresSession,
+  userId: string,
+  statement: string,
+): string {
   return db.sql(`begin;
     set local role authenticated;
     set local "request.jwt.claim.sub"='${userId}';
@@ -49,73 +37,18 @@ function authenticatedSql(db: Database, userId: string, statement: string): stri
     rollback`);
 }
 
-async function freePort(): Promise<number> {
-  const { createServer } = await import("node:net");
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      server.close(() => resolve(typeof address === "object" && address ? address.port : 0));
-    });
-    server.on("error", reject);
-  });
-}
-
-async function startDatabase(): Promise<Database> {
-  const initdb = binary("initdb");
-  const postgres = binary("postgres");
-  const psql = binary("psql");
-  if (!initdb || !postgres || !psql) throw new Error("PostgreSQL is unavailable.");
-  const directory = mkdtempSync(join(tmpdir(), "pubmax-social-crews-"));
-  const port = await freePort();
-  execFileSync(initdb, [
-    "-D", directory, "--auth=trust", "--username=postgres",
-    "-c", "shared_memory_type=mmap", "-c", "dynamic_shared_memory_type=mmap",
-  ], { stdio: "pipe" });
-  writeFileSync(join(directory, "postgresql.auto.conf"), `listen_addresses='127.0.0.1'\nport=${port}\nfsync=off\n`);
-  // -k puts the unix socket in the data directory. The compiled-in socket
-  // directory (/var/run/postgresql) is not writable on a CI runner, so the
-  // cluster refuses to boot without it. Connections still go over TCP.
-  const server: ChildProcess = spawn(postgres, ["-D", directory, "-k", directory, "-h", "127.0.0.1", "-p", String(port)], {
-    stdio: ["ignore", "ignore", "pipe"],
-  });
-  // Keep the server log so a boot failure names its own reason. The stream is
-  // always consumed, and only the tail is retained, so a long run cannot fill
-  // the pipe buffer and stall the cluster.
-  let serverLog = "";
-  server.stderr!.setEncoding("utf8");
-  server.stderr!.on("data", (chunk: string) => {
-    serverLog = (serverLog + chunk).slice(-8_000);
-  });
-  const connection = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
-  const BOOT_ATTEMPTS = 600;
-  for (let attempt = 0; attempt < BOOT_ATTEMPTS; attempt += 1) {
-    try {
-      execFileSync(psql, [...connection, "-c", "select 1"], { stdio: "pipe" });
-      break;
-    } catch {
-      if (server.exitCode !== null) {
-        throw new Error(`PostgreSQL exited with code ${server.exitCode} before accepting connections.\n${serverLog.trim()}`);
-      }
-      if (attempt === BOOT_ATTEMPTS - 1) {
-        throw new Error(`PostgreSQL did not start within 60s.\n${serverLog.trim()}`);
-      }
-      await sleep(100);
-    }
-  }
-  const run = (args: string[]) => execFileSync(psql, [...connection, "-v", "ON_ERROR_STOP=1", ...args], {
-    encoding: "utf8",
-    stdio: ["pipe", "pipe", "pipe"],
-  }).trim();
-  const concurrentResults = (statements: readonly string[]) => Promise.all(
-    statements.map(async (statement) => {
-      const { stdout } = await execFileAsync(psql, [
-        ...connection, "-v", "ON_ERROR_STOP=1", "-q", "-t", "-A", "-c", statement,
-      ], { encoding: "utf8" });
-      return stdout.trim();
-    }),
-  );
-  const snapshotDuringWrite = async (mutation: string, snapshotExpression: string): Promise<unknown> => {
+/**
+ * The barrier probe this proof needs and no other does: it holds a mutation
+ * open on its own connection and reads the snapshot RPC while the write is
+ * still uncommitted. It rides the shared session's own psql and connection
+ * arguments, so there is still one cluster and one binary search.
+ */
+function snapshotDuringWriteOn(
+  session: PostgresSession,
+): (mutation: string, snapshotExpression: string) => Promise<unknown> {
+  const psql = session.psql;
+  const connection = session.databaseArgs;
+  return async (mutation, snapshotExpression) => {
     const barrierKey = "7531001";
     const readyMarker = "SOCIAL_CREW_MUTATION_READY";
     const writer = spawn(psql, [
@@ -149,13 +82,12 @@ async function startDatabase(): Promise<Database> {
         ready,
         sleep(10_000).then(() => { throw new Error("Race writer did not reach barrier."); }),
       ]);
-      const { stdout } = await execFileAsync(psql, [
-        ...connection, "-v", "ON_ERROR_STOP=1", "-q", "-t", "-A", "-c",
+      const stdout = await session.sqlAsync(
         `select case
           when pg_catalog.pg_try_advisory_lock(${barrierKey}::bigint) then '"barrier_missing"'
           else coalesce((${snapshotExpression}),'null'::jsonb)::text
         end`,
-      ], { encoding: "utf8" });
+      );
       const snapshot = jsonValue(stdout.trim());
       readerCompleted = true;
       return snapshot;
@@ -175,19 +107,6 @@ async function startDatabase(): Promise<Database> {
         throw new Error(`Race writer failed (${writer.exitCode}): ${writerError}`);
       }
     }
-  };
-  return {
-    sql: (statement) => run(["-q", "-t", "-A", "-c", statement]),
-    apply: (path) => run(["-f", path]),
-    concurrentResults,
-    snapshotDuringWrite,
-    async stop() {
-      if (server.exitCode === null) {
-        server.kill("SIGTERM");
-        await Promise.race([new Promise<void>((resolve) => server.once("exit", resolve)), sleep(1_000)]);
-      }
-      rmSync(directory, { recursive: true, force: true });
-    },
   };
 }
 
@@ -244,7 +163,7 @@ function jsonValue(value: string): unknown {
 }
 
 function readSnapshot(
-  db: Database,
+  db: PostgresSession,
   accountId: string,
   profileId: string,
   targetCrewId = READ_CREW,
@@ -255,7 +174,7 @@ function readSnapshot(
 }
 
 function readMemberPage(
-  db: Database,
+  db: PostgresSession,
   accountId: string,
   profileId: string,
   limit: number,
@@ -375,7 +294,7 @@ function expectedReadMemberSnapshot({
   };
 }
 
-function seedReadFixture(db: Database): void {
+function seedReadFixture(db: PostgresSession): void {
   db.sql(`
     delete from public.social_blocks
       where blocker_profile_id in ('${ALICE_PROFILE}','${BOB_PROFILE}','${CAROL_PROFILE}')
@@ -454,7 +373,7 @@ function seedReadFixture(db: Database): void {
   `);
 }
 
-function seedMemberPageIdentities(db: Database): void {
+function seedMemberPageIdentities(db: PostgresSession): void {
   seedReadFixture(db);
   db.sql(`
     insert into auth.users(id) values('${DAVE_USER}') on conflict(id) do nothing;
@@ -495,7 +414,7 @@ function memberPageFixtureUuid(scope: number, ordinal: number, entity: number): 
 }
 
 function insertMemberPageCrew(
-  db: Database,
+  db: PostgresSession,
   input: {
     scope: number;
     ordinal: number;
@@ -555,7 +474,7 @@ function insertMemberPageCrew(
   return { planId, crewId, viewerMemberId };
 }
 
-function beginMemberPageFixture(db: Database): void {
+function beginMemberPageFixture(db: PostgresSession): void {
   seedMemberPageIdentities(db);
   db.sql(`
     delete from public.social_blocks
@@ -567,7 +486,7 @@ function beginMemberPageFixture(db: Database): void {
   `);
 }
 
-function cleanMemberPageFixture(db: Database, fixtures: readonly MemberPageCrewFixture[]): void {
+function cleanMemberPageFixture(db: PostgresSession, fixtures: readonly MemberPageCrewFixture[]): void {
   db.sql(`
     delete from public.social_blocks
       where (blocker_profile_id='${ALICE_PROFILE}' and blocked_profile_id='${EVE_PROFILE}')
@@ -580,7 +499,7 @@ function cleanMemberPageFixture(db: Database, fixtures: readonly MemberPageCrewF
   `);
 }
 
-function catalog(db: Database): string {
+function catalog(db: PostgresSession): string {
   return db.sql(`
     with catalog_item(item) as (
       select 'table|' || c.relname || '|' || c.relkind::text || '|' || c.relrowsecurity::text || '|' || coalesce(c.relacl::text,'')
@@ -618,7 +537,9 @@ function callCreate(digest = DIGEST_A, key = "create-crew-key-0001"): string {
   )`;
 }
 
-let database: Database | null = null;
+let database: PostgresSession | null = null;
+let snapshotDuringWrite: (mutation: string, snapshotExpression: string) => Promise<unknown> =
+  () => Promise.reject(new Error("the Social Crew proof cluster is not running"));
 let beforeCatalog = "";
 let crewId = "";
 let invitationId = "";
@@ -626,9 +547,10 @@ let carolInvitationId = "";
 
 beforeAll(async () => {
   if (!existsSync(FORWARD)) throw new Error(`Missing migration: ${FORWARD}`);
-  database = await startDatabase();
-  database.apply(SESSION_FIXTURE);
-  for (const migration of PREREQUISITES) database.apply(migration);
+  database = await startPostgres({ label: "social-crews" });
+  snapshotDuringWrite = snapshotDuringWriteOn(database);
+  database.applyFile(SESSION_FIXTURE);
+  for (const migration of PREREQUISITES) database.applyFile(migration);
   database.sql(`
     insert into auth.users(id) values ('${ALICE_USER}'),('${BOB_USER}'),('${CAROL_USER}');
     insert into public.profiles(id,user_id,handle) values
@@ -671,12 +593,12 @@ beforeAll(async () => {
       values('${PLAN}','${HOST_MEMBER}','legacy-vibe','quiet',now());
   `);
   beforeCatalog = catalog(database);
-  database.apply(FORWARD);
-}, 120_000);
+  database.applyFile(FORWARD);
+}, 300_000);
 
 afterAll(async () => database?.stop());
 
-describe("Social Crew migration foundation", () => {
+describe.skipIf(skipReason !== null)("Social Crew migration foundation", () => {
   it("runs the actual prerequisite catalog on PostgreSQL 16", () => {
     const db = database!;
     expect(db.sql("select current_setting('server_version_num')::int / 10000")).toBe("16");
@@ -1576,7 +1498,7 @@ describe("Social Crew migration foundation", () => {
     const deniedAfterCommit = async (mutation: string) => {
       seedReadFixture(db);
       expect(readSnapshot(db, BOB_ACCOUNT, BOB_PROFILE)).toEqual(expectedBefore);
-      expect(await db.snapshotDuringWrite(
+      expect(await snapshotDuringWrite(
         mutation,
         snapshotExpression(BOB_ACCOUNT, BOB_PROFILE),
       )).toEqual(expectedBefore);
@@ -1591,7 +1513,7 @@ describe("Social Crew migration foundation", () => {
 
     seedReadFixture(db);
     expect(readSnapshot(db, BOB_ACCOUNT, BOB_PROFILE)).toEqual(expectedBefore);
-    expect(await db.snapshotDuringWrite(
+    expect(await snapshotDuringWrite(
       `select public.transfer_social_crew_owner_atomic(
         '${ALICE_ACCOUNT}','${READ_CREW}','${READ_MEMBER}','race-transfer-key-01','${DIGEST_A}'
       )`,
@@ -1694,7 +1616,7 @@ describe("Social Crew migration foundation", () => {
     {
       label: "a block",
       scope: 2,
-      mutate: (db: Database) => db.sql(`
+      mutate: (db: PostgresSession) => db.sql(`
         insert into public.social_blocks(blocker_profile_id,blocked_profile_id)
           values('${ALICE_PROFILE}','${EVE_PROFILE}')
       `),
@@ -1702,7 +1624,7 @@ describe("Social Crew migration foundation", () => {
     {
       label: "an unfriend",
       scope: 3,
-      mutate: (db: Database) => db.sql(`
+      mutate: (db: PostgresSession) => db.sql(`
         delete from public.follows
           where follower_id='${EVE_PROFILE}' and followee_id='${ALICE_PROFILE}'
       `),
@@ -1710,7 +1632,7 @@ describe("Social Crew migration foundation", () => {
     {
       label: "active membership removal",
       scope: 4,
-      mutate: (db: Database, target: MemberPageCrewFixture) => db.sql(`
+      mutate: (db: PostgresSession, target: MemberPageCrewFixture) => db.sql(`
         update public.social_crew_members
           set state='removed',ended_at=statement_timestamp(),updated_at=statement_timestamp()
           where id='${target.viewerMemberId}'
@@ -2032,7 +1954,7 @@ describe("Social Crew migration foundation", () => {
 
   it("restores the byte-equivalent pre-0075 catalog on rollback", () => {
     const db = database!;
-    db.apply(ROLLBACK);
+    db.applyFile(ROLLBACK);
     expect(catalog(db)).toBe(beforeCatalog);
     expect(db.sql(`select string_agg(n.nspname,',' order by n.nspname)
       from pg_proc p join pg_namespace n on n.oid=p.pronamespace

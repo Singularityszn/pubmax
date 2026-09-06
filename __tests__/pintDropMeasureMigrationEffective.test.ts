@@ -14,13 +14,18 @@
 // Every timestamp is a literal, for the reason 0141's proof gives: a test that
 // leaned on the wall clock would be a different test at 00:30 than at noon.
 
-import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import {
+  postgresSkipReason,
+  startPostgres,
+  type PostgresSession,
+} from "./helpers/postgres";
+
+const skipReason = postgresSkipReason();
 
 import { NON_PINT_MEASURE_PATTERNS } from "@/lib/drinkMeasure";
 
@@ -38,218 +43,9 @@ const PREREQUISITES = readdirSync(MIGRATIONS)
   .sort()
   .map((name) => join(MIGRATIONS, name));
 
-type Session = {
-  sql: (statement: string) => string;
-  attempt: (statement: string) => { ok: boolean; said: string };
-  applyFile: (path: string) => void;
-  stop: () => Promise<void>;
-};
+let database: PostgresSession | null = null;
 
-async function waitForExit(
-  processHandle: ReturnType<typeof spawn>,
-  timeoutMs: number,
-): Promise<void> {
-  if (processHandle.exitCode !== null || processHandle.signalCode !== null) return;
-  await new Promise<void>((resolve) => {
-    const timer = setTimeout(resolve, timeoutMs);
-    processHandle.once("exit", () => {
-      clearTimeout(timer);
-      resolve();
-    });
-  });
-}
-
-function findPostgresBinary(name: "initdb" | "postgres" | "psql"): string | null {
-  const candidates = [
-    `/opt/homebrew/opt/postgresql@16/bin/${name}`,
-    `/usr/local/opt/postgresql@16/bin/${name}`,
-    `/usr/lib/postgresql/16/bin/${name}`,
-    `/opt/homebrew/bin/${name}`,
-    `/usr/bin/${name}`,
-  ];
-  const isPostgres16 = (candidate: string): boolean => {
-    try {
-      const version = execFileSync(candidate, ["--version"], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-      return /\bPostgreSQL\)?\s+16(?:\.|\s|$)/i.test(version);
-    } catch {
-      return false;
-    }
-  };
-  for (const candidate of candidates) {
-    if (existsSync(candidate) && isPostgres16(candidate)) return candidate;
-  }
-  try {
-    const candidate = execFileSync("which", [name], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    }).trim();
-    return candidate !== "" && isPostgres16(candidate) ? candidate : null;
-  } catch {
-    return null;
-  }
-}
-
-function missingPostgresReason(): string | null {
-  if (process.env.PUBMAX_PINT_DROP_MEASURE_NO_PG === "1") {
-    return "PostgreSQL binaries were deliberately hidden by PUBMAX_PINT_DROP_MEASURE_NO_PG=1.";
-  }
-  const missing = (["initdb", "postgres", "psql"] as const).filter(
-    (name) => findPostgresBinary(name) === null,
-  );
-  return missing.length > 0
-    ? `PostgreSQL 16 binaries unavailable for: ${missing.join(", ")}. Each binary must report major version 16 to run the 0147 measure proof.`
-    : null;
-}
-
-async function pickPort(): Promise<number> {
-  const { createServer } = await import("node:net");
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : 0;
-      server.close(() => resolve(port));
-    });
-    server.on("error", reject);
-  });
-}
-
-async function startPostgres(): Promise<Session> {
-  const initdb = findPostgresBinary("initdb");
-  const postgres = findPostgresBinary("postgres");
-  const psql = findPostgresBinary("psql");
-  if (!initdb || !postgres || !psql) {
-    throw new Error(missingPostgresReason() ?? "PostgreSQL binaries unavailable.");
-  }
-
-  const dataDir = mkdtempSync(join(tmpdir(), "pubmax-measure-0147-"));
-  let handle: ReturnType<typeof spawn> | null = null;
-  try {
-    const port = await pickPort();
-    execFileSync(
-      initdb,
-      ["-D", dataDir, "--locale=C", "-E", "UTF8", "--username=postgres", "--auth=trust"],
-      { stdio: "pipe" },
-    );
-    writeFileSync(
-      join(dataDir, "postgresql.auto.conf"),
-      [
-        "listen_addresses = '127.0.0.1'",
-        `port = ${port}`,
-        "shared_buffers = 16MB",
-        "fsync = off",
-        "full_page_writes = off",
-        "synchronous_commit = off",
-      ].join("\n") + "\n",
-    );
-
-    const processHandle = spawn(
-      postgres,
-      ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"],
-      { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, LC_ALL: "C" } },
-    );
-    handle = processHandle;
-    const logs: string[] = [];
-    processHandle.stdout?.on("data", (chunk) => logs.push(chunk.toString()));
-    processHandle.stderr?.on("data", (chunk) => logs.push(chunk.toString()));
-
-    const connectionArgs = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
-    let ready = false;
-    for (let attempt = 0; attempt < 60; attempt += 1) {
-      try {
-        execFileSync(psql, [...connectionArgs, "-d", "postgres", "-c", "select 1"], {
-          stdio: "pipe",
-        });
-        ready = true;
-        break;
-      } catch {
-        await sleep(100);
-      }
-    }
-    if (!ready) throw new Error(`PostgreSQL failed to start:\n${logs.join("")}`);
-
-    const database = "pubmax_pint_drop_measure_0147";
-    execFileSync(
-      psql,
-      [
-        ...connectionArgs,
-        "-d",
-        "postgres",
-        "-v",
-        "ON_ERROR_STOP=1",
-        "-c",
-        `create database ${database}`,
-      ],
-      { stdio: "pipe" },
-    );
-    const databaseArgs = [...connectionArgs, "-d", database, "-v", "ON_ERROR_STOP=1"];
-
-    const sql = (statement: string): string =>
-      execFileSync(psql, [...databaseArgs, "-t", "-A", "-c", statement], {
-        encoding: "utf8",
-        stdio: ["pipe", "pipe", "pipe"],
-      })
-        .trim()
-        .split("\n")
-        .filter((line) => line.trim() !== "SET")
-        .join("\n")
-        .trim();
-
-    // An outcome instead of a throw, so a REFUSAL can be asserted on by name.
-    const attempt = (statement: string): { ok: boolean; said: string } => {
-      try {
-        execFileSync(psql, [...databaseArgs, "-v", "VERBOSITY=verbose", "-c", statement], {
-          encoding: "utf8",
-          stdio: ["pipe", "pipe", "pipe"],
-        });
-        return { ok: true, said: "" };
-      } catch (error) {
-        const said =
-          typeof error === "object" && error !== null && "stderr" in error
-            ? String((error as { stderr?: unknown }).stderr ?? "")
-            : String(error);
-        return { ok: false, said };
-      }
-    };
-
-    const applyFile = (path: string): void => {
-      execFileSync(psql, [...databaseArgs, "-f", path], { stdio: "pipe" });
-    };
-
-    const stop = async (): Promise<void> => {
-      if (processHandle.exitCode === null && processHandle.signalCode === null) {
-        processHandle.kill("SIGINT");
-        await waitForExit(processHandle, 5_000);
-      }
-      if (processHandle.exitCode === null && processHandle.signalCode === null) {
-        processHandle.kill("SIGTERM");
-        await waitForExit(processHandle, 2_000);
-      }
-      if (processHandle.exitCode === null && processHandle.signalCode === null) {
-        processHandle.kill("SIGKILL");
-        await waitForExit(processHandle, 5_000);
-      }
-      rmSync(dataDir, { recursive: true, force: true });
-    };
-
-    return { sql, attempt, applyFile, stop };
-  } catch (error) {
-    if (handle && handle.exitCode === null && handle.signalCode === null) {
-      handle.kill("SIGKILL");
-      await waitForExit(handle, 5_000);
-    }
-    rmSync(dataDir, { recursive: true, force: true });
-    throw error;
-  }
-}
-
-let database: Session | null = null;
-let skipReason: string | null = null;
-
-function requireDatabase(): Session {
+function requireDatabase(): PostgresSession {
   if (!database) throw new Error("PostgreSQL session unavailable.");
   return database;
 }
@@ -309,21 +105,9 @@ function insertPriced(options: {
 }
 
 beforeAll(async () => {
-  skipReason = missingPostgresReason();
-  if (skipReason) {
-    console.error(
-      [
-        "",
-        "0147 PINT DROP MEASURE EFFECTIVE TESTS SKIPPED - THIS IS NOT A PASS",
-        `Reason: ${skipReason}`,
-        "Nothing proved that the column applies over the rows the finding left, that the backfill flags without scaling, or that the rollback keeps every price.",
-        "",
-      ].join("\n"),
-    );
-    return;
-  }
+  if (skipReason) return;
   try {
-    database = await startPostgres();
+    database = await startPostgres({ label: "pint-measure", database: "pubmax_pint_measure_0147" });
     database.applyFile(SESSION_FIXTURE);
     for (const path of PREREQUISITES) database.applyFile(path);
   } catch (error) {
@@ -338,7 +122,7 @@ afterAll(async () => {
   database = null;
 });
 
-describe("0147 on PostgreSQL", () => {
+describe.skipIf(skipReason !== null)("0147 on PostgreSQL", () => {
   it("cannot tell a half from a pint before the migration", (context) => {
     if (skipReason) context.skip(true, skipReason);
     const db = requireDatabase();
@@ -478,17 +262,16 @@ describe("0147 on PostgreSQL", () => {
     }
   });
 
-  it("refuses a measure outside the closed set, and a label beside a pint", (context) => {
-    if (skipReason) context.skip(true, skipReason);
+  it("refuses a measure outside the closed set, and a label beside a pint", async () => {
     const db = requireDatabase();
 
-    const unknown = db.attempt(
+    const unknown = await db.attempt(
       `update public.pint_drops set measure = 'yard' where id = '${dropId(3)}'::uuid`,
     );
     expect(unknown.ok).toBe(false);
     expect(unknown.said).toContain("pint_drops_measure_known");
 
-    const strayLabel = db.attempt(
+    const strayLabel = await db.attempt(
       `update public.pint_drops set measure_label = 'schooner' where id = '${dropId(3)}'::uuid`,
     );
     expect(strayLabel.ok).toBe(false);
@@ -496,8 +279,10 @@ describe("0147 on PostgreSQL", () => {
 
     // The label is welcome where it belongs.
     expect(
-      db.attempt(
-        `update public.pint_drops set measure = 'other', measure_label = 'schooner' where id = '${dropId(3)}'::uuid`,
+      (
+        await db.attempt(
+          `update public.pint_drops set measure = 'other', measure_label = 'schooner' where id = '${dropId(3)}'::uuid`,
+        )
       ).ok,
     ).toBe(true);
     db.sql(

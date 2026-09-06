@@ -50,20 +50,46 @@ function looksLikeMissingTableSchema(text, table) {
   ).test(text ?? "");
 }
 
+// WHERE EACH DURABLE FEED'S STAMP ACTUALLY LIVES.
+//
+// Most cron feeds stamp `feed_freshness` (migration 0047), but two keep their
+// stamp in the table they serve, and reading the wrong one is how a healthy
+// feed reported stale: the weather cron writes weather_snapshots, while
+// public/data/weather/latest.json is a read-only fallback on Vercel that can
+// only ever age. Mirror of lib/freshnessStoreOverlay.ts.
+const DURABLE_FEED_SOURCES = {
+  whats_on: {
+    table: "whats_on_listing_generations",
+    column: "generated_at",
+    // The OLDEST lane dates the combined feed: one stale lane is a stale feed.
+    query: "select=generated_at&order=generated_at.asc&limit=1",
+    migration: "0119",
+  },
+  weather: {
+    table: "weather_snapshots",
+    column: "generated_at",
+    // One batch is one write, so the newest batch is the feed's observation.
+    query: "select=generated_at&order=generated_at.desc&limit=1",
+    migration: "0047",
+  },
+};
+
 // Mirror of lib/freshnessStoreOverlay.ts readDurableFeedStamp, dependency-free:
-// a raw PostgREST fetch against the feed_freshness table (migration 0047),
-// gated on the same two env vars lib/supabase.ts requires. Never throws —
-// every outcome is one of the four StoreRead kinds mirrored below.
+// a raw PostgREST fetch, gated on the same two env vars lib/supabase.ts
+// requires. Never throws - every outcome is one of the four StoreRead kinds
+// mirrored below.
 async function readDurableFeedStamp(feedKey) {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return { kind: "unconfigured" };
 
-  const isWhatsOn = feedKey === "whats_on";
-  const table = isWhatsOn ? "whats_on_listing_generations" : "feed_freshness";
-  const query = isWhatsOn
-    ? "select=generated_at&order=generated_at.asc&limit=1"
-    : `feed=eq.${encodeURIComponent(feedKey)}&select=observed_at&limit=1`;
+  const source = DURABLE_FEED_SOURCES[feedKey] ?? {
+    table: "feed_freshness",
+    column: "observed_at",
+    query: `feed=eq.${encodeURIComponent(feedKey)}&select=observed_at&limit=1`,
+    migration: "0047",
+  };
+  const { table, column, query, migration } = source;
   const endpoint = `${url.replace(/\/+$/, "")}/rest/v1/${table}?${query}`;
   try {
     const response = await fetch(endpoint, {
@@ -74,15 +100,14 @@ async function readDurableFeedStamp(feedKey) {
       if (looksLikeMissingTableSchema(body, table)) {
         return {
           kind: "unreachable",
-          error: `durable table missing (apply migration ${isWhatsOn ? "0119" : "0047"}): ${response.status} ${body}`.trim(),
+          error: `durable table missing (apply migration ${migration}): ${response.status} ${body}`.trim(),
         };
       }
       return { kind: "unreachable", error: `${response.status} ${response.statusText}: ${body}`.trim() };
     }
     const rows = await response.json();
-    const observedAt = Array.isArray(rows) && rows.length > 0
-      ? rows[0]?.[isWhatsOn ? "generated_at" : "observed_at"]
-      : undefined;
+    const observedAt =
+      Array.isArray(rows) && rows.length > 0 ? rows[0]?.[column] : undefined;
     if (!observedAt) return { kind: "empty" };
     return { kind: "ok", observedAt };
   } catch (err) {
@@ -333,6 +358,15 @@ export function formatFreshnessTable(results) {
 
 async function main() {
   const artifactOnly = process.argv.includes("--artifacts-only");
+  // A STORE THIS RUNTIME HAS NO CREDENTIALS FOR IS NOT A FINDING ABOUT THE
+  // DATA. The tree runs keyless by design, so a local `npm run verify` cannot
+  // reach the cron plane's tables; reporting that as a breach would make the
+  // gate red on every developer machine and be switched off within a week,
+  // which is how a gate stops being a gate. It is still never read as fresh:
+  // the row prints under UNRESOLVED with its own reason either way. Pass
+  // --require-store on a credentialed run (the production freshness gate) to
+  // make an unmeasurable store fatal again.
+  const requireStore = process.argv.includes("--require-store");
   const registry = loadRegistry(DEFAULT_ROOT);
   const selectedRegistry = artifactOnly
     ? {
@@ -340,14 +374,17 @@ async function main() {
         datasets: (registry.datasets ?? []).filter((dataset) => dataset.stamp?.kind !== "store"),
       }
     : registry;
-  const { results, breached } = await evaluateFreshness({ registry: selectedRegistry });
+  const { results } = await evaluateFreshness({ registry: selectedRegistry });
   console.log("Freshness registry check (data/freshness_registry.json)\n");
   if (artifactOnly) console.log("Scope: candidate artifact-backed feeds. Production store feeds use their own gate.\n");
   console.log(formatFreshnessTable(results));
   const stale = results.filter((r) => r.status === "stale");
   const unknown = results.filter((r) => r.status === "unknown");
+  const unmeasurableHere = unknown.filter((r) => /unmeasurable without credentials/.test(r.detail ?? ""));
+  const failed =
+    stale.length > 0 || (requireStore ? unknown.length > 0 : unknown.length > unmeasurableHere.length);
   console.log("");
-  if (breached) {
+  if (stale.length || unknown.length) {
     // Two findings, reported apart. Stale means the data is old; unresolved means
     // the age could not be measured and says nothing about the data itself.
     if (stale.length) {
@@ -358,8 +395,17 @@ async function main() {
       console.log("  UNRESOLVED (the age could not be determined):");
       for (const r of unknown) console.log(`    ? ${r.id}: ${r.detail}`);
     }
-    console.log(`\nFRESHNESS CHECK FAILED: ${stale.length} stale, ${unknown.length} unresolved of ${results.length} datasets.`);
-    process.exit(1);
+    if (failed) {
+      console.log(
+        `\nFRESHNESS CHECK FAILED: ${stale.length} stale, ${unknown.length} unresolved of ${results.length} datasets.`,
+      );
+      process.exit(1);
+    }
+    console.log(
+      `\nFRESHNESS CHECK PASSED with ${unmeasurableHere.length} store feed(s) this runtime cannot measure. ` +
+        "They are NOT reported fresh. Run with --require-store where credentials exist.",
+    );
+    return;
   }
   console.log(`FRESHNESS CHECK PASSED: ${results.length} datasets within budget (or live/untracked/snapshot).`);
 }
