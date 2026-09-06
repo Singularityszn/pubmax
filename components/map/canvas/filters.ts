@@ -373,27 +373,6 @@ export function pinEntranceLocalTExpr(
   return ["max", 0, ["min", 1, raw]] as unknown as maplibregl.ExpressionSpecification;
 }
 
-// pubs-point `icon-size` during the M7 entrance window: every pub ramps in
-// from 0 to its normal PIN_ICON_SIZE_EXPR size — EXCEPT the selected pin
-// (deep-linked `?sel=` or otherwise), which must read at full size
-// immediately; M1's spotlight always wins over the entrance choreography.
-export function pinEntranceIconSizeExpr(
-  elapsedMs: number,
-  selectedId: string,
-  buckets: number,
-  staggerMs: number,
-  rampMs: number,
-): maplibregl.ExpressionSpecification {
-  const localT = pinEntranceLocalTExpr(elapsedMs, buckets, staggerMs, rampMs);
-  if (!selectedId) return pinIconSizeExpr(localT);
-  return pinIconSizeExpr([
-    "case",
-    ["==", ["get", "id"], selectedId],
-    SELECTED_PIN_SIZE_SCALE,
-    localT,
-  ]);
-}
-
 // pubs-point `icon-opacity` during the M7 entrance window — same guard: the
 // selected pin keeps its normal pubIconOpacityExpr value (1, unmissable),
 // every other pin ramps in against ITS resolved (serves-aware) opacity.

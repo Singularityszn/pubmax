@@ -6,7 +6,6 @@ import {
   applyPoiCategoryVisibility,
   opportunityForFeature,
   pinEntranceIconOpacityExpr,
-  pinEntranceIconSizeExpr,
   pinEntranceLocalT,
   pinEntranceLocalTExpr,
   PIN_ICON_SIZE_EXPR,
@@ -315,36 +314,7 @@ function evalIconSizeExpr(
   throw new Error(`evalIconSizeExpr: unhandled op "${op}"`);
 }
 
-describe("pinEntranceIconSizeExpr / pinEntranceIconOpacityExpr (M7 selection guard)", () => {
-  it("size: keeps zoom at the top-level interpolation while unselected pins ramp", () => {
-    const expr = pinEntranceIconSizeExpr(
-      0,
-      "",
-      PIN_ENTRANCE_BUCKETS,
-      PIN_ENTRANCE_STAGGER_MS,
-      PIN_ENTRANCE_RAMP_MS,
-    );
-    expect(expr[0]).toBe("interpolate");
-    expect(zoomPaths(expr)).toEqual([[2]]);
-    expect(evalIconSizeExpr(expr, { id: "pub-2", story: false, entranceSeed: 0 }, 10)).toBe(0);
-  });
-
-  it("size: the selected pin bypasses the ramp at boosted spotlight size", () => {
-    const expr = pinEntranceIconSizeExpr(
-      0,
-      "pub-1",
-      PIN_ENTRANCE_BUCKETS,
-      PIN_ENTRANCE_STAGGER_MS,
-      PIN_ENTRANCE_RAMP_MS,
-    );
-    expect(expr[0]).toBe("interpolate");
-    expect(zoomPaths(expr)).toEqual([[2]]);
-    expect(evalIconSizeExpr(expr, { id: "pub-1", story: false, entranceSeed: 13 }, 10)).toBeCloseTo(
-      0.62 * SELECTED_PIN_SIZE_SCALE,
-    );
-    expect(evalIconSizeExpr(expr, { id: "pub-2", story: false, entranceSeed: 13 }, 10)).toBe(0);
-  });
-
+describe("pinEntranceIconOpacityExpr (M7 selection guard)", () => {
   it("opacity: the selected pin keeps pubIconOpacityExpr's value, not the ramped one", () => {
     const expr = pinEntranceIconOpacityExpr(
       0,

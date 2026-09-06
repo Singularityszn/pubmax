@@ -75,6 +75,7 @@ import {
   DASH_SEQ,
   GLOW_BASE_STROKE_OPACITY, GLOW_BASE_STROKE_WIDTH,
   PIN_ENTRANCE_BUCKETS, PIN_ENTRANCE_STAGGER_MS, PIN_ENTRANCE_RAMP_MS, PIN_ENTRANCE_TOTAL_MS,
+  PIN_ENTRANCE_SETTLE_CEILING_MS,
   readTokens,
   type Tokens,
 } from "@/components/map/canvas/tokens";
@@ -86,7 +87,7 @@ import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import {
   applyPoiCategoryVisibility,
   TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, glowPulsePaint,
-  pinEntranceIconSizeExpr, pinEntranceIconOpacityExpr,
+  pinEntranceIconOpacityExpr,
   selectedPinIconSizeExpr, selectedPinFilter, pinSortKeyExpr, pinPriceLabelExpr,
   clusterEntranceProgress,
 } from "@/components/map/canvas/filters";
@@ -2084,17 +2085,10 @@ export default function PubMapCanvas({
     const applyPinEntranceFrame = (elapsedMs: number) => {
       if (!map.getLayer("pubs-point")) return;
       const selectedId = selectedIdRef.current;
-      map.setLayoutProperty(
-        "pubs-point",
-        "icon-size",
-        pinEntranceIconSizeExpr(
-          elapsedMs,
-          selectedId,
-          PIN_ENTRANCE_BUCKETS,
-          PIN_ENTRANCE_STAGGER_MS,
-          PIN_ENTRANCE_RAMP_MS,
-        ),
-      );
+      // `icon-size` is deliberately NOT written here: it is a LAYOUT property
+      // and therefore the pin's own hit box, so ramping it from 0 held every
+      // pin untappable for the length of the entrance (see tokens.ts). The
+      // pins keep buildScene's resting size and fade in.
       map.setPaintProperty(
         "pubs-point",
         "icon-opacity",
@@ -2143,12 +2137,23 @@ export default function PubMapCanvas({
     // duration of the ramp so the manual per-frame writes above aren't
     // smoothed/lagged by it — same reasoning as pubs-selected-glow's pulse).
     let pinEntranceSettled = false;
+    // The wall-clock end of the ramp. The RAF loop advances the entrance, and a
+    // starved frame budget is exactly the case where pins must not be held
+    // faded out past the duration the ramp promises.
+    let pinEntranceCeilingTimer: ReturnType<typeof setTimeout> | undefined;
+    const clearPinEntranceCeiling = () => {
+      if (pinEntranceCeilingTimer !== undefined) {
+        clearTimeout(pinEntranceCeilingTimer);
+        pinEntranceCeilingTimer = undefined;
+      }
+    };
     const markPinEntranceSettled = () => {
       if (pinEntranceSettled) return;
       pinEntranceSettled = true;
       markPubmaxTiming("pubmax:pin-entrance-settled");
     };
     const finishPinEntrance = () => {
+      clearPinEntranceCeiling();
       pinEntranceActiveRef.current = false;
       applyClusterEntranceFrame(1);
       if (map.getLayer("pubs-point")) {
@@ -2189,6 +2194,10 @@ export default function PubMapCanvas({
       }
       pinEntranceActiveRef.current = true;
       pinEntranceStartRef.current = performance.now();
+      pinEntranceCeilingTimer = setTimeout(() => {
+        pinEntranceCeilingTimer = undefined;
+        if (pinEntranceActiveRef.current) finishPinEntrance();
+      }, PIN_ENTRANCE_SETTLE_CEILING_MS);
       map.setPaintProperty("pubs-point", "icon-opacity-transition", { duration: 0, delay: 0 });
       map.setPaintProperty("pubs-point", "text-opacity-transition", { duration: 0, delay: 0 });
       // Paint t=0 synchronously so there's no one-frame flash of full-size,
@@ -2978,6 +2987,7 @@ export default function PubMapCanvas({
       canvasEl.removeEventListener("webglcontextrestored", onCanvasContextRestored);
       if (contextRecoveryTimer) clearTimeout(contextRecoveryTimer);
       clearStyleLoadProtection();
+      clearPinEntranceCeiling();
       clearTimeout(hangFailTimer);
       pinRevealCoordinator.dispose();
       clearTileFailureRecheck();
