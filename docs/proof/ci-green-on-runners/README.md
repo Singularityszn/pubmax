@@ -259,3 +259,7 @@ Five samples of one build each, same box, same throttle:
 The banner still shows where it is true: `mapBounds` becomes non-null the moment
 the camera settles on a real view, so a pan past the city's own bounds answers
 exactly as before. `__tests__/pubMap.test.ts` pins both directions.
+
+`shots/map-held-frame-390.png` is the held frame after the type change and
+`shots/map-settled-390.png` the same open once it lands: London named in the bar,
+no coverage note anywhere on the route.
