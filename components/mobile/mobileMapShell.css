@@ -943,7 +943,7 @@
   /* Never ellipsis the caption. This line is what the number above it MEANS
      ("current recorded price"), and at 390px the nowrap+ellipsis cut it to
      "current recorded pri…" - a price with its own label truncated reads as a
-     price you cannot check. It wraps to a second line instead. */
+     price you cannot check. It wraps to a second line instead.
      A caption also takes a MEASURE, so it wraps under the thing it is about
      rather than running the length of the row: unmeasured, the standing line
      was what sized the figure column past the phrase beside it. */
