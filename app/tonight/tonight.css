@@ -297,6 +297,14 @@
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scrollbar-width: none;
+    /* A scrollport clips BOTH axes: `overflow-y` computes to auto the moment
+       one axis is not visible, so the 2px focus ring at its 2px offset would be
+       cut off a focused chip. The 4px of padding is the ring's own room, and
+       the equal negative margin gives it back, so the chips and the first
+       listing row keep the box they had. */
+    padding: 4px;
+    margin: -4px -4px 12px;
+    scroll-padding-inline: 4px;
   }
 
   .tonightFilters::-webkit-scrollbar {
