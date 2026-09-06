@@ -18,6 +18,7 @@ import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import {
+  DEFERRED_QUEUE_AGE_ALERT_MS,
   ENRICHMENT_CITIES,
   MAX_VENUE_ATTEMPTS,
   RETRY_QUERY_BUDGET,
@@ -51,9 +52,16 @@ export async function GET(request: Request): Promise<Response> {
 
   const report = await readCityEnrichmentHealth();
   return jsonNoStore({
+    // `durable` is OBSERVED from the reads and `expectedDurable` is what the
+    // credentials promise. They disagree when migration 0142 is unapplied,
+    // which is the one state where every deferred venue on this page is
+    // fiction: the row holding it dies with the function instance.
     durable: report.durable,
+    expectedDurable: report.expectedDurable,
     maxVenueAttempts: MAX_VENUE_ATTEMPTS,
     retryQueryBudget: RETRY_QUERY_BUDGET,
+    deferredQueueAgeAlertMs: DEFERRED_QUEUE_AGE_ALERT_MS,
+    citiesWithAgedQueue: report.citiesWithAgedQueue,
     cities: report.cities,
   });
 }

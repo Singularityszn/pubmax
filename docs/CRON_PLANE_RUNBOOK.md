@@ -320,8 +320,105 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   observations stream per pub, so a mid-batch failure never loses what was
   found).
 - City enrichment on a **Bristol primary night** splits the nightly
-  `SEARCH_CRON_QUERY_CAP` (25): Bristol runs under `BRISTOL_CRON_QUERY_CAP`
+  `SEARCH_CRON_QUERY_CAP` (10): Bristol runs under `BRISTOL_CRON_QUERY_CAP`
   (8) and `BRISTOL_CRON_WALL_MS` (45s), then spillover cities share the
   remaining budget. A Bristol timeout or upstream 504 is isolated to that
   city's `cityRuns` entry; spillover cities still enrich and the route stays
   **`200 { ok: true }`** without an `[ALERT]`. One city failure stays one city.
+
+---
+
+## City enrichment: the retry queue
+
+A venue whose search fails is not lost and not retried for ever. It is
+recorded in the checkpoint's `deferred` list, owed at most
+`MAX_VENUE_ATTEMPTS` (3) attempts with bounded backoff, and then moved to
+`terminal`, which is a refusal recorded **with a way back**. So a deferred
+venue always ends one of two ways: it is read and leaves both lists, or it is
+refused by name and waits for an operator. Neither outcome publishes anything.
+This cron's only output is its log, and the response says `published: 0`.
+
+The backoff steps are 30 minutes, 6 hours and 24 hours
+(`VENUE_RETRY_BACKOFF_MS`), each with up to `VENUE_RETRY_JITTER_RATIO` (25%)
+taken **off** it, derived from the venue's own id. Every venue one failed batch
+defers is stamped at the same instant, so without that they would share one
+retry time, come due together and be re-asked together against whatever was
+still down. Jitter only ever makes a retry earlier, so no venue waits longer
+than the table says.
+
+### Reading the queue age
+
+`deferred: 3` reads exactly the same whether the queue drains nightly or has
+been stuck since the first outage, and only the second is a fault. The **queue
+age** is the figure that tells them apart: how long the oldest owed retry has
+been owed, measured from its **first** failure, so a venue retried and
+re-failed every night never looks new.
+
+```bash
+curl -sS -H "Authorization: Bearer $ADMIN_TOKEN" \
+  https://<prod-domain>/api/admin/city-enrichment | jq '{
+    durable, expectedDurable, citiesWithAgedQueue,
+    cities: [.cities[] | {city, deferred, terminal, queueAgeMs, queueAgeAlert}]
+  }'
+```
+
+The nightly response carries the same per-city figures under `checkpoints[]`,
+and the run logs `[city-enrichment][ALERT] deferred-queue-not-draining` once
+the oldest owed retry passes `DEFERRED_QUEUE_AGE_ALERT_MS` (72 hours). That
+threshold is three nights: a venue that fails just after a run waits about a
+day for the next one whatever its 30-minute backoff says, so attempt 2 lands
+near 24 h and attempt 3 near 48 h. Anything still deferred at 72 h has missed
+a whole extra night, and the retry lane rather than the venue is the finding.
+
+### `durable` and `expectedDurable`
+
+Two fields, and **the pair disagreeing is itself the alarm**. `expectedDurable`
+is what the credentials promise; `durable` is where the reads and writes really
+landed. They part company when migration 0142 has not been applied: the store
+falls back to process memory, every deferral is written to a map that dies with
+the function instance, and the retry queue is fiction. The run says so once, as
+`[city-enrichment][ALERT] checkpoint-not-durable`, and the remedy is in the
+line. Never read `durable: true` off the presence of Supabase keys.
+
+`checkpointDurable` in the cron response is **tri-state**: `null` means no city
+wrote a checkpoint this run (every one declined to spend), which is not the
+same answer as memory and is never flattened into `false`.
+
+### Putting a refused venue back
+
+`terminal` is the operator's queue. Every refusal is logged by name on both
+exits, success and failure alike, with this path beside it:
+
+```bash
+# every refused venue in the city
+curl -sS -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"action":"requeue","city":"edinburgh"}' \
+  https://<prod-domain>/api/admin/city-enrichment | jq
+
+# or name them
+curl -sS -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"action":"requeue","city":"edinburgh","osmIds":["node/33179113"]}' \
+  https://<prod-domain>/api/admin/city-enrichment | jq
+```
+
+Each named venue returns to `deferred` due immediately with its attempt count
+reset. A city that has refused nothing answers `{ ok: true, requeued: [] }`,
+a no-op rather than an error. A write that could not run answers **`503
+CHECKPOINT_UNAVAILABLE`** rather than reporting a requeue that never happened.
+
+### Two things a 502 here does not mean
+
+- **It does not mean work was lost.** The checkpoint is committed before the
+  refusal is raised, so the cursor, the deferrals and the run record are all on
+  disk. The `[city-enrichment][checkpoint]` line prints them.
+- **It does not mean the venues were skipped.** A run refuses when it read
+  *none* of the venues it asked about, which is a provider outage; every venue
+  it asked about is in `deferred` and owed its retry. A run that read some and
+  failed on others answers `200`.
+
+A failure that is about **us** (an exhausted provider budget, an absent
+credential, the run's own deadline) never spends a venue's attempts, because
+the search was never really put. Those venues keep their place in the queue and
+the cursor does not pass them either.

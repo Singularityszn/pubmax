@@ -100,7 +100,7 @@ describe("POST /api/admin/city-enrichment", () => {
     expect(response.status).toBe(200);
     expect(body).toMatchObject({ ok: true, city: "birmingham", requeued: [REFUSED_OSM_ID] });
 
-    const after = await cityEnrichmentCheckpointStore().read("birmingham", 106, NOW);
+    const { checkpoint: after } = await cityEnrichmentCheckpointStore().read("birmingham", 106, NOW);
     expect(after!.terminal).toEqual([]);
     expect(after!.deferred.map((entry) => entry.osmId)).toEqual([REFUSED_OSM_ID]);
   });

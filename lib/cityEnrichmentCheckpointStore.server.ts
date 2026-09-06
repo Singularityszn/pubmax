@@ -58,8 +58,21 @@ export type CheckpointCommit =
   | { status: "lease-lost" }
   | { status: "unavailable"; reason: string };
 
+/**
+ * A read answers WHERE it read from as well as what it found.
+ *
+ * `durable` is false when the answer came out of process memory, which is what
+ * this store falls back to when the table is absent. The moderator surface
+ * asks it because "three venues owed a retry" means nothing if the row holding
+ * them dies with the function instance.
+ */
+export type CheckpointRead = {
+  checkpoint: CityEnrichmentCheckpoint | null;
+  durable: boolean;
+};
+
 export type CityEnrichmentCheckpointStore = {
-  read(city: string, totalPubs: number, now: number): Promise<CityEnrichmentCheckpoint | null>;
+  read(city: string, totalPubs: number, now: number): Promise<CheckpointRead>;
   claim(input: {
     city: string;
     totalPubs: number;
@@ -141,7 +154,10 @@ export function resetCityEnrichmentCheckpointMemory(): void {
 const memoryStore: CityEnrichmentCheckpointStore = {
   async read(city, totalPubs, now) {
     const held = memoryRows.get(city);
-    return held ? normaliseCheckpoint(held, city, totalPubs, now) : null;
+    return {
+      checkpoint: held ? normaliseCheckpoint(held, city, totalPubs, now) : null,
+      durable: false,
+    };
   },
   async claim({ city, totalPubs, owner, now, leaseMs }) {
     const held = memoryRows.get(city);
@@ -177,10 +193,14 @@ const memoryStore: CityEnrichmentCheckpointStore = {
 
 const supabaseStore: CityEnrichmentCheckpointStore = {
   async read(city, totalPubs, now) {
-    return guard.guard<CityEnrichmentCheckpoint | null>({
+    return guard.guard<CheckpointRead>({
       context: "read",
+      // The table is absent, so the answer is memory's and says so.
       onSchemaMiss: () => memoryStore.read(city, totalPubs, now),
-      onError: () => null,
+      // A read we could not run is not a durable empty city. It reports no
+      // checkpoint AND no durability, so nothing downstream may word it as
+      // "this city owes nothing".
+      onError: () => ({ checkpoint: null, durable: false }),
       message: `checkpoint read failed for ${city}`,
       run: async () => {
         const { data, error } = await admin()
@@ -189,7 +209,10 @@ const supabaseStore: CityEnrichmentCheckpointStore = {
           .eq("city", city)
           .maybeSingle();
         if (error) throw new Error(error.message);
-        return data ? rowToCheckpoint(data as Row, city, totalPubs, now) : null;
+        return {
+          checkpoint: data ? rowToCheckpoint(data as Row, city, totalPubs, now) : null,
+          durable: true,
+        };
       },
     });
   },
@@ -227,7 +250,7 @@ const supabaseStore: CityEnrichmentCheckpointStore = {
         .maybeSingle();
       if (error) throw new Error(error.message);
       if (!data) {
-        const current = await supabaseStore.read(city, totalPubs, now);
+        const current = (await supabaseStore.read(city, totalPubs, now)).checkpoint;
         return {
           status: "lease-held",
           heldBy: current?.leaseOwner ?? "unknown",
@@ -292,7 +315,16 @@ export function cityEnrichmentCheckpointStore(): CityEnrichmentCheckpointStore {
   return selectStore(memoryStore, supabaseStore);
 }
 
-/** Whether this deployment has a durable checkpoint at all. */
+/**
+ * Whether this deployment is CONFIGURED for a durable checkpoint.
+ *
+ * This is an expectation, never an observation, and the difference is the
+ * whole of finding F04: credentials being present says nothing about whether
+ * migration 0142 was applied, and when it has not been the store falls back to
+ * process memory and the retry queue dies with the function instance. Callers
+ * compare this against what a read or a write actually reported; nothing may
+ * report a durable checkpoint on the strength of this answer alone.
+ */
 export function cityEnrichmentCheckpointIsDurable(): boolean {
   return isSupabaseConfigured();
 }
