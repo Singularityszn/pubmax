@@ -110,15 +110,16 @@
   justify-content: center;
   text-align: center;
   text-decoration: none;
-  min-height: 44px;
+  min-height: var(--control-height, 44px);
   min-width: 44px;
-  padding: 0.55rem 0.9rem;
-  border: 1px solid var(--line-strong, var(--line));
-  border-radius: var(--radius-md, 10px);
-  background: var(--panel-raised);
+  padding: 0 var(--control-pad-x, 16px);
+  border: 1px solid var(--control-secondary-border, var(--line));
+  border-radius: var(--control-radius, 14px);
+  background: var(--control-secondary-surface, var(--panel-raised));
   color: var(--ink);
   font: inherit;
-  font-weight: 650;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   cursor: pointer;
 }
 

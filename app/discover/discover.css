@@ -985,13 +985,14 @@
   display: inline-flex;
   align-items: center;
   width: fit-content;
-  padding: 12px 18px;
-  border-radius: 12px;
+  min-height: var(--control-height, 44px);
+  padding: 0 var(--control-pad-x, 16px);
+  border-radius: var(--control-radius, 14px);
   border: 1px solid color-mix(in srgb, var(--amber, var(--brass)) 40%, var(--line));
   background: color-mix(in srgb, var(--amber, var(--brass)) 12%, var(--panel-raised));
   color: var(--ink);
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   text-decoration: none;
 }
 

@@ -41,17 +41,22 @@
 }
 
 .nightAreaCoverage__plannerLink,
+/* A text button reads the --control-* row (docs/DESIGN_SYSTEM.md, "Text
+   buttons"): these stood on the discover page at 8px corners in 12px and 13px
+   at weight 800 beside 14px-corner controls at 0.86rem/700, and the ready
+   variant printed the raw coral as a WORD on the light ground, which is
+   2.9:1. The word takes the accent's ink; the planner link keeps its fill. */
 .nightAreaCoverage__action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  padding: 9px 13px;
+  min-height: var(--control-height, 44px);
+  padding: 0 var(--control-pad-x, 16px);
   border: 1px solid var(--brass);
-  border-radius: var(--radius);
-  color: var(--brass);
-  font-size: 13px;
-  font-weight: 800;
+  border-radius: var(--control-radius, 14px);
+  color: var(--color-accent-ink);
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   text-align: center;
   text-decoration: none;
   white-space: nowrap;
@@ -189,14 +194,13 @@
 
 .nightAreaCoverage__action {
   flex: 0 0 auto;
-  border-color: var(--line);
-  color: var(--ink-soft);
-  font-size: 12px;
+  border-color: var(--control-secondary-border, var(--line));
+  color: var(--ink);
 }
 
 .nightAreaCoverage__action--ready {
   border-color: var(--brass);
-  color: var(--brass);
+  color: var(--color-accent-ink);
 }
 
 .nightAreaCoverage__details {
