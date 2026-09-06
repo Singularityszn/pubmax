@@ -23,6 +23,7 @@ import type { ReactNode } from "react";
 import { ExternalLink, Newspaper } from "lucide-react";
 
 import { discardBody } from "@/lib/responseBody";
+import { searchCityPlacesByName } from "@/lib/cityPlaceSearch";
 import { haversineKm } from "@/lib/haversine";
 
 import "./venueBuzz.css";
@@ -39,43 +40,6 @@ type Props = {
   /** Explicit gate; when omitted defaults to London-on. */
   cityId?: string;
 };
-
-async function searchByName(
-  name: string,
-  borough: string | undefined,
-  signal: AbortSignal,
-): Promise<Array<{ id: string; location?: { lat: number; lng: number } }>> {
-  const params = new URLSearchParams();
-  const q = borough ? `${name} ${borough}` : name;
-  params.set("q", q);
-  params.set("limit", "5");
-  const res = await fetch(`/api/citymcp/places?${params.toString()}`, {
-    signal,
-    headers: { accept: "application/json" },
-  });
-  if (!res.ok) {
-    discardBody(res);
-    return [];
-  }
-  const body = (await res.json()) as {
-    places?: Array<{ id?: string; location?: { lat?: number; lng?: number } }>;
-  };
-  if (!Array.isArray(body.places)) return [];
-  return body.places
-    .filter(
-      (p): p is { id: string; location?: { lat: number; lng: number } } =>
-        typeof p?.id === "string" && p.id.length > 0,
-    )
-    .map((p) => ({
-      id: p.id,
-      location:
-        p.location &&
-        typeof p.location.lat === "number" &&
-        typeof p.location.lng === "number"
-          ? { lat: p.location.lat, lng: p.location.lng }
-          : undefined,
-    }));
-}
 
 async function fetchBuzz(
   id: string,
@@ -175,7 +139,11 @@ export default function VenueBuzz({
     const controller = new AbortController();
     (async () => {
       try {
-        const candidates = await searchByName(venueName, primaryBorough, controller.signal);
+        const candidates = await searchCityPlacesByName(
+          venueName,
+          primaryBorough,
+          controller.signal,
+        );
         if (controller.signal.aborted || candidates.length === 0) return;
 
         const target = { lat: latitude, lng: longitude };
