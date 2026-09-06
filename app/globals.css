@@ -2253,11 +2253,18 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   line-height: 1.15;
 }
 
+/* The route skeleton and PubMap's own .mapLoading print the SAME sentence, one
+   after the other, and the handover is meant to read as one held frame. It did
+   not: this line was 0.84rem/650 and .mapLoadingCopy's is 0.88rem/700, so the
+   swap repainted one sentence 19% larger about 700 ms in. That is a new largest
+   contentful paint for a reader who has been shown nothing new, and it carried
+   the frame's own layout shift with it. The type is the live frame's, so the
+   first paint is already the final one. */
 .mapSkeletonCopy p {
   margin: 0;
-  font-size: 0.84rem;
-  font-weight: 650;
-  line-height: 1.35;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.25;
 }
 
 .mapSkeletonSpinnerDot {

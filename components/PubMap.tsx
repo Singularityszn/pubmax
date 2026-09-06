@@ -2830,6 +2830,11 @@ export default function PubMap({
     nationalBrowse: ukNationalBrowse,
     center: mapViewport.center,
     city,
+    // mapBounds is null until the canvas publishes its first moveend, which is
+    // the same "a map that has not settled claims no place" rule the area lane
+    // reads. Without it the opening centre answered the question before the
+    // camera had drawn anything.
+    viewportSettled: mapBounds !== null,
   });
 
   const hasReactiveLogIntent = reactiveLogIntentActive(

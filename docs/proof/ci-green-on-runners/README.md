@@ -216,3 +216,46 @@ when the wait ended rather than when anything a drinker reads arrived.
 The behaviour a reader sees is unchanged: both bells still warm their route the
 moment a pointer goes down, and a pub card warms `/map` on hover, focus or
 touch.
+
+## 7. /map printed a false claim on arrival, and it was the largest paint
+
+`/map` was the last row over its ceiling. Its LCP element is never map content:
+a canvas is not a contentful paint, so the largest thing on the route is
+whichever line of held-frame copy last painted. Three of them did.
+
+The route skeleton (`components/map/MapLoadingSkeleton.tsx`) printed `Loading
+London pubs...` at 0.84rem/650. PubMap's own `.mapLoading` frame then printed the
+SAME sentence at 0.88rem/700, so the handover the skeleton's own comment calls
+seamless repainted one sentence 19 per cent larger about 700 ms in. A new
+largest paint for a reader who had been shown nothing new, and the route's 0.007
+layout shift with it. The skeleton now carries the live frame's type, so the
+first paint is already the final one.
+
+Then, measured frame by frame on a plain `/map` open with no query at all:
+
+    [431, ""] [1960, "Outside the priced city map / Pubs here are the base ..."] [2294, ""]
+
+London, on the London map, told for 334 ms that it was outside the priced city
+map. `mapPlaceContext` (`lib/pubMap.ts`) answered `outsideCuratedBounds` from
+`mapViewport.center`, and its own doc comment already said the answer is a claim
+about the SETTLED camera. The centre cannot carry that: the map is seeded with
+an opening centre before it has drawn anything, and MapLibre reports its own
+maxBounds until the camera settles, which is the fault `boundsNameNowhere`
+already exists for on the shard lane. `mapBounds` in `components/PubMap.tsx` is
+published by that same settled-camera door, is null until it fires, and carries
+the rule in its own comment: a map that has not settled claims no place. It is
+now what the place claim reads, so the two agree.
+
+Five samples of one build each, same box, same throttle:
+
+| route | metric | before | after | ceiling |
+| --- | --- | ---: | ---: | ---: |
+| /map | LCP (ms) | 1276 | **208** | 900 |
+| /map | requests | 119 | 118 | 160 |
+| /map | JS decoded (KB) | 3019 | 3017 | 3400 |
+| /pubs | requests | 68 | **62** | 68 |
+| /pubs | LCP (ms) | 616 | **560** | 600 |
+
+The banner still shows where it is true: `mapBounds` becomes non-null the moment
+the camera settles on a real view, so a pan past the city's own bounds answers
+exactly as before. `__tests__/pubMap.test.ts` pins both directions.
