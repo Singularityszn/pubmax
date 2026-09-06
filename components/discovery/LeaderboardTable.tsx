@@ -5,7 +5,7 @@ import PriceBadge from "@/components/PriceBadge";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { formatPrice } from "@/lib/venues";
-import type { LeaderboardEntry } from "@/lib/leaderboard";
+import type { LeaderboardRowView } from "@/lib/leaderboard";
 
 // Presentational, prop-driven leaderboard. A real semantic <table> (scoped
 // column headers, a caption for screen readers) so the ranking reads correctly
@@ -18,7 +18,9 @@ import type { LeaderboardEntry } from "@/lib/leaderboard";
 // every row.
 
 type LeaderboardTableProps = {
-  entries: LeaderboardEntry[];
+  // The narrow row view, not a whole grouped Venue: the ranked rows arrive
+  // precomputed (lib/discoverBoard.ts) and carry only what this table prints.
+  entries: readonly LeaderboardRowView[];
   caption?: string;
 };
 

@@ -15,6 +15,16 @@ export type ThenVsNowDrop = {
   createdAt: string;
 };
 
+// The "then" half: the three fields this reads off a venue and nothing else. A
+// grouped `Venue` satisfies it, and so does a baseline row cut at build time
+// (lib/discoverBoard.ts), so asking for a comparison never means downloading
+// the whole priced dataset to a browser.
+export type ThenVsNowVenue = {
+  id: string;
+  name: string;
+  cheapestPrice: number | null;
+};
+
 // One resolved comparison row, ready to hand straight to a card.
 // - thenGbp  = the venue's baseline/dataset cheapest price
 // - nowGbp   = the price on the most-recent priced community drop for that venue
@@ -53,7 +63,7 @@ function mostRecentPricedDrop(drops: ThenVsNowDrop[]): ThenVsNowDrop | null {
 // tell the most striking price story lead), ties broken on venue name so the
 // order is deterministic across renders. `limit` caps the returned list.
 export function computeThenVsNow(
-  venues: Venue[],
+  venues: readonly ThenVsNowVenue[],
   drops: ThenVsNowDrop[],
   limit = 8,
 ): ThenVsNowItem[] {

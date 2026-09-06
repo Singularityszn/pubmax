@@ -81,18 +81,35 @@ export const GLOW_PULSE_MAX_OPACITY = 0.62;
 export const GLOW_PULSE_MIN_WIDTH = 3;
 export const GLOW_PULSE_MAX_WIDTH = 4.6;
 
-// M7 pin entrance — a per-pub icon-size/opacity ramp fired once, right after
+// M7 pin entrance: a per-pub OPACITY ramp fired once, right after
 // settleSceneReady()'s first pin reveal, off the SAME RAF loop the M1 pulse
 // uses (no second requestAnimationFrame). Each pub's own ramp is spread out
-// (`entranceSeed`, a hash of its id — see filters.ts pinEntranceLocalT) over
-// PIN_ENTRANCE_STAGGER_MS so the cascade isn't mechanical/left-to-right, then
+// (`entranceSeed`, a hash of its id, see filters.ts pinEntranceLocalT) over
+// PIN_ENTRANCE_STAGGER_MS so the cascade is not mechanical/left-to-right, then
 // individually ramps in over PIN_ENTRANCE_RAMP_MS. Stagger + ramp sum to the
-// PRD's "~400ms" total. Reduced-motion is a hard skip (see PubMapCanvas) —
+// PRD's "~400ms" total. Reduced-motion is a hard skip (see PubMapCanvas), and
 // those users keep today's instant pin paint.
+//
+// IT RAMPS OPACITY AND NOTHING ELSE, BECAUSE A PIN'S SIZE IS ITS HIT BOX.
+// `icon-size` is a LAYOUT property: MapLibre places symbols and answers
+// queryRenderedFeatures from the box that size produces, so a size ramp
+// starting at 0 makes every pin untappable for the whole entrance, and a
+// per-frame layout write re-runs placement on every frame of it. That is not a
+// cosmetic animation, it is a hold on the product's core interaction, and it
+// falls hardest on the phone that can least afford it. Opacity is a PAINT
+// property: the pins are placed, hit-testable and being drawn from the first
+// frame, and the entrance is the fade it was always described as.
 export const PIN_ENTRANCE_BUCKETS = 14;
 export const PIN_ENTRANCE_STAGGER_MS = 220;
 export const PIN_ENTRANCE_RAMP_MS = 180;
 export const PIN_ENTRANCE_TOTAL_MS = PIN_ENTRANCE_STAGGER_MS + PIN_ENTRANCE_RAMP_MS;
+
+// The entrance advances on RAF ticks, and a throttled phone does not always
+// have one to give: measured at 1440x900 under a 4x CPU throttle on Slow 4G it
+// took 591 to 1,328 ms to settle against its own 400 ms specification. A ramp
+// is a promise about a duration, so this is the wall clock that ends it
+// whatever the frame budget did, one frame of slack past the specified total.
+export const PIN_ENTRANCE_SETTLE_CEILING_MS = PIN_ENTRANCE_TOTAL_MS + 100;
 
 // Classic "marching ants" dash cycle for the brass route line.
 export const DASH_SEQ: number[][] = [

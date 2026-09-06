@@ -74,15 +74,22 @@ export default async function PubsPage({
         {/* The route's head is the launch Screen (docs/design/LAUNCH_SCREENS.md).
             The heading stays the Chains count the page title prints, because
             this page lists the chain pubs we have checked, not every pub. The
-            lede names the three chains so "Chains" cannot be misread. */}
+            lede names the three chains so "Chains" cannot be misread.
+
+            Both way-onward destinations PREFETCH NOTHING. Next prefetches a
+            Link on sight, and on a production build this page asked for /map,
+            /near and two /map?sel= payloads before a reader had touched
+            anything, pulling those routes' own chunks in front of this page's
+            answer. That is the rule components/nav/IntentLink states, stated
+            the one way a server component can state it. */}
         <Screen
           as="section"
           kicker="Pubs"
           title={chainsHeading(count)}
           titleId="pubs-title"
           lede="Young's gardens, Nicholson's historic rooms, and Greene King menus we have pulled onto the London map."
-          primary={<Link href="/map">Open the map</Link>}
-          secondary={<Link href="/near">Find my pint</Link>}
+          primary={<Link href="/map" prefetch={false}>Open the map</Link>}
+          secondary={<Link href="/near" prefetch={false}>Find my pint</Link>}
         >
           <PubsGallery
             pubs={pageResult.rows}

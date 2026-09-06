@@ -42,6 +42,23 @@ import { preparePerfPage, runPerfRoute } from "./helpers/perfMeasurement";
 
 const budgets = PERFORMANCE_BUDGETS;
 
+// THIS SWEEP IS NEVER RETRIED, AND THAT IS THE GATE.
+//
+// playwright.config.ts retries once on CI, which is right for a browser test
+// that raced something. It is wrong for a measurement: Playwright calls a test
+// that fails then passes FLAKY, and a flaky run exits 0. On 6 September 2026 the
+// push run for main's own head measured /pubs at 1275 KB against a 1200 ceiling
+// and 73 requests against 68, printed the breach table, retried, measured under
+// the ceiling the second time and reported the job GREEN, while every pull
+// request carrying the same numbers went red. A breach that a coin flip can
+// launder into "flaky" is not a ceiling.
+//
+// The method already owns the noise this would paper over: warmup runs, several
+// measured runs, the median, and a spread warning when the samples sat further
+// apart than the tracked width. Re-running the whole sweep is not a second
+// opinion, it is a second draw.
+test.describe.configure({ retries: 0 });
+
 // The whole sweep in one test: the server is shared, so the routes must be
 // measured one after another rather than raced by parallel workers.
 const SWEEP_TIMEOUT_MS =

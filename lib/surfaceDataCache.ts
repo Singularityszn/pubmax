@@ -303,6 +303,32 @@ export function surfaceCacheSize(): number {
   return store.size;
 }
 
+// Two surfaces that read the same URL in the same tick are two requests, not
+// one: the first has not answered yet, so the second finds no held snapshot and
+// asks again. On a venue sheet that was measured as `/api/whats-on` and
+// `/api/citymcp/places` each fetched TWICE per open, both `no-store`, so both
+// were two function invocations and two round trips for one answer.
+//
+// A read in flight is therefore joinable. It is keyed by the URL, which is
+// already the whole of this store's identity: an answer fetched for one caller
+// is handed to the next through the snapshot regardless of the `init` either
+// passed, so sharing the request in flight is no wider a promise than the
+// sharing this module already does. Each joiner still runs its OWN validate
+// and apply, so a shared body cannot make one surface adopt another's reading
+// of it.
+//
+// The request carries its own AbortController rather than any one caller's
+// signal, and is aborted only when EVERY joiner has gone: one surface
+// unmounting must not cancel the read another is still waiting on, and a read
+// nobody is waiting for should not stay on the wire.
+type InFlightRequest = {
+  promise: Promise<unknown | undefined>;
+  controller: AbortController;
+  joiners: number;
+};
+
+const inFlight = new Map<string, InFlightRequest>();
+
 export type LoadSurfaceJsonOptions<T = unknown> = {
   signal?: AbortSignal;
   init?: RequestInit;
@@ -329,7 +355,7 @@ export async function loadSurfaceJson<T>(
   apply: (value: T, source: "snapshot" | "network") => void | boolean,
 ): Promise<"snapshot" | "network" | "failed"> {
   assertCacheable(key);
-  const { signal, init, maxAgeMs, fetchImpl, validate } = options;
+  const { signal, init, maxAgeMs, validate } = options;
   let applied: "snapshot" | "network" | "failed" = "failed";
   const requestSignal = signal ?? init?.signal ?? undefined;
 
@@ -358,34 +384,112 @@ export async function loadSurfaceJson<T>(
     }
   }
 
+  if (requestSignal?.aborted) return applied;
+  const request = joinSurfaceRequest(key, options);
+  // Release on the caller's own abort as well as on settle, so an unmount
+  // still takes a read off the wire the moment nobody is left waiting for it.
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    releaseSurfaceRequest(key, request);
+  };
+  requestSignal?.addEventListener("abort", release, { once: true });
+  let body: T | undefined;
+  try {
+    body = (await request.promise) as T | undefined;
+  } finally {
+    requestSignal?.removeEventListener("abort", release);
+    release();
+  }
+  if (body === undefined) return applied;
+  if (requestSignal?.aborted) return applied;
+  if (validate) {
+    let valid = false;
+    try {
+      valid = validate(body);
+    } catch {
+      valid = false;
+    }
+    if (!valid) return applied;
+  }
+  const shouldCache = apply(body, "network") !== false;
+  if (shouldCache) writeSurfaceSnapshot(key, body);
+  return "network";
+}
+
+/**
+ * The one request per key. A caller arriving while another is waiting joins it
+ * rather than opening a second; `undefined` means the read did not answer.
+ */
+function joinSurfaceRequest<T>(
+  key: string,
+  options: LoadSurfaceJsonOptions<T>,
+): InFlightRequest {
+  const existing = inFlight.get(key);
+  if (existing) {
+    existing.joiners += 1;
+    return existing;
+  }
+  const controller = new AbortController();
+  const entry: InFlightRequest = {
+    controller,
+    joiners: 1,
+    promise: runSurfaceRequest(key, options, controller.signal).finally(() => {
+      if (inFlight.get(key) === entry) inFlight.delete(key);
+    }),
+  };
+  inFlight.set(key, entry);
+  return entry;
+}
+
+/** One joiner has stopped waiting; the last one out aborts the read. */
+function releaseSurfaceRequest(key: string, request: InFlightRequest): void {
+  request.joiners -= 1;
+  if (request.joiners > 0) return;
+  if (inFlight.get(key) === request) inFlight.delete(key);
+  request.controller.abort();
+}
+
+/**
+ * Fetch the key once, with the transient retry the surfaces rely on. Resolves
+ * to the parsed body, or `undefined` when the read did not answer. The first
+ * caller's `init`, `fetchImpl` and `validate` shape the request, exactly as the
+ * first caller's answer already shapes the held snapshot; every joiner still
+ * validates the body it is handed for itself.
+ */
+async function runSurfaceRequest<T>(
+  key: string,
+  options: LoadSurfaceJsonOptions<T>,
+  signal: AbortSignal,
+): Promise<T | undefined> {
+  const { init, fetchImpl, validate } = options;
   const doFetch = fetchImpl ?? fetch;
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    if (requestSignal?.aborted) return applied;
+    if (signal.aborted) return undefined;
     try {
-      const response = await doFetch(key, { ...init, signal: requestSignal });
+      const response = await doFetch(key, { ...init, signal });
       if (!response.ok) {
         const retryable = isTransientResponse(response);
         discardBody(response);
-        if (retryable && attempt === 0 && await waitForRetry(requestSignal)) continue;
-        return applied;
+        if (retryable && attempt === 0 && await waitForRetry(signal)) continue;
+        return undefined;
       }
       const body = (await response.json()) as T;
-      if (requestSignal?.aborted) return applied;
+      if (signal.aborted) return undefined;
       if (validate && !validate(body)) {
-        if (attempt === 0 && await waitForRetry(requestSignal)) continue;
-        return applied;
+        if (attempt === 0 && await waitForRetry(signal)) continue;
+        return undefined;
       }
-      const shouldCache = apply(body, "network") !== false;
-      if (shouldCache) writeSurfaceSnapshot(key, body);
-      return "network";
+      return body;
     } catch {
-      if (requestSignal?.aborted) return applied;
-      if (attempt === 0 && await waitForRetry(requestSignal)) continue;
+      if (signal.aborted) return undefined;
+      if (attempt === 0 && await waitForRetry(signal)) continue;
       // Aborted, offline, or a blip. A surface that already showed a real
       // answer keeps it; one that showed nothing reports the failure to its
       // caller.
-      return applied;
+      return undefined;
     }
   }
-  return applied;
+  return undefined;
 }

@@ -190,17 +190,19 @@ export default function PubsGallery({
                   ) : null}
                 </div>
                 <h2 className="pubsCardName">
-                  {/* Deliberately a plain Link, not IntentLink. The intent warm
-                      is the right rule for these two /map?sel= links, but this
-                      is a server component and IntentLink is a client one, so
-                      importing it here pulled the router and lib/mapWarmup into
-                      the page's own client bundle: measured on the Avrea runner,
-                      /pubs went from 1114 KB decoded to 1276 KB against a 1200
-                      ceiling and from 68 requests to 71, so the fix cost more
-                      than the two prefetches it saved. It comes back the day
-                      this gallery has a client boundary of its own to hang it
-                      on. */}
-                  <Link href={venueMapUrl(pub.id)}>{pub.name}</Link>
+                  {/* A plain Link that PREFETCHES NOTHING, which is the same
+                      rule IntentLink states and the only way to state it from a
+                      server component. IntentLink is a client one, so importing
+                      it here pulled the router and lib/mapWarmup into this
+                      page's own bundle: measured on the Avrea runner, /pubs went
+                      from 1114 KB decoded to 1276 KB against a 1200 ceiling.
+                      Reverting to a bare Link put the weight back a second way,
+                      because Next prefetches a Link on sight and each of these
+                      pulls /map's own chunks in front of this page's answer.
+                      `prefetch={false}` costs nothing and warms nothing. */}
+                  <Link href={venueMapUrl(pub.id)} prefetch={false}>
+                    {pub.name}
+                  </Link>
                 </h2>
                 <p className="pubsCardPrice">
                   {pub.cheapestPrice != null
@@ -208,7 +210,7 @@ export default function PubsGallery({
                     : "No price logged yet"}
                 </p>
                 <div className="pubsCardActions">
-                  <Link className="pubsMapLink" href={venueMapUrl(pub.id)}>
+                  <Link className="pubsMapLink" href={venueMapUrl(pub.id)} prefetch={false}>
                     <MapPinned size={14} aria-hidden="true" />
                     See on map
                   </Link>
