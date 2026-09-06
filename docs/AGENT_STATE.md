@@ -35,7 +35,8 @@ that caught real bugs this week:
    tools only; reader copy comes from returned hints and cards.
 4. Every `app/api` route uses `publicApiError` (`lib/apiError.ts`) and a rate
    limit via `isLimited`. PR CI also runs lint, typecheck, and sharded unit
-   tests on stock `ubuntu-latest` (`.github/workflows/ci.yml`).
+   tests on the Avrea runners (`avrea-ubuntu-latest-2-vcpu`,
+   `.github/workflows/ci.yml`).
 
 ## Open items
 

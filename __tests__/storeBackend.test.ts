@@ -20,6 +20,10 @@ import {
 } from "@/lib/storeBackend";
 
 describe("storeBackend", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("selectStore prefers supabase when configured", () => {
     type Backend = { kind: "memory" | "supabase" };
     const memory: Backend = { kind: "memory" };
@@ -67,6 +71,35 @@ describe("storeBackend", () => {
       if (prevVercelEnv === undefined) delete process.env.VERCEL_ENV;
       else process.env.VERCEL_ENV = prevVercelEnv;
     }
+  });
+
+  it("selectStore takes the memory backend while `next build` prerenders", () => {
+    // `next build` sets NODE_ENV=production, so a runner with no Supabase keys
+    // satisfies isDeployedProduction() and the seam used to throw over /today,
+    // which reads the weather snapshot store at prerender. A build serves no
+    // request, so nothing it writes can be lost. The guarantee that stays is the
+    // last assertion here: at request time, VERCEL_ENV=production still refuses.
+    type Backend = { kind: "memory" | "supabase" };
+    const memory: Backend = { kind: "memory" };
+    const supabase: Backend = { kind: "supabase" };
+    vi.stubEnv("SUPABASE_URL", "");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv("NEXT_PHASE", "phase-production-build");
+    expect(selectStore(memory, supabase)).toBe(memory);
+
+    // The same build on Vercel Production is still a build, and lib/serverEnv
+    // already skips its startup assertions there on this same signal.
+    vi.stubEnv("VERCEL_ENV", "production");
+    expect(selectStore(memory, supabase)).toBe(memory);
+
+    // Serving a request is not a build: Next never sets the build phase on a
+    // server, so the refusal is exactly where it was.
+    vi.stubEnv("NEXT_PHASE", "");
+    expect(() => selectStore(memory, supabase)).toThrow(
+      /durable store required in production/,
+    );
   });
 
   it("createDualBackendStore curries selectStore into a zero-arg getter", () => {

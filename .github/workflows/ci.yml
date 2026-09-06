@@ -1,9 +1,12 @@
 name: CI
 
-# Stock GitHub-hosted runners (`ubuntu-latest`). Effective RLS stays in
+# Avrea runners (`avrea-ubuntu-latest-2-vcpu`), installed by the captain on
+# 6 September 2026 after GitHub-hosted allocation stopped answering on an
+# organisation billing fault: no job started between 5 September 11:08Z and
+# 6 September 16:37Z. The label is the only difference - the image is Ubuntu and
+# every job below still installs its own toolchain. Effective RLS stays in
 # rls-session.yml so this workflow stays lean and finishes under the 15-minute
-# wall budget. Re-enabled for pull_request / push after the captain rejected the
-# Blacksmith migration (#747); RLS already proves hosted allocation works.
+# wall budget.
 
 on:
   pull_request:
@@ -319,10 +322,21 @@ jobs:
       #
       # It runs BEFORE the sweep because it needs no browser and no build, so a
       # raised ceiling is reported in seconds rather than after half an hour.
+      #
+      # It reads the base out of the checkout above rather than fetching it.
+      # Every checkout in this workflow sets `persist-credentials: false`, so a
+      # `git fetch` here carries no credential and dies with "could not read
+      # Username for 'https://github.com'". `fetch-depth: 0` has already brought
+      # every branch down as a remote-tracking ref, so the base is on disk. The
+      # ref is verified first because the ratchet reports a base it cannot read
+      # as "nothing was compared" and exits 0: a missing ref would turn the pawl
+      # off in silence, and a gate that does not run is not a gate that passed.
       - name: Refuse a ceiling taken up without a record
+        env:
+          BUDGET_BASE_BRANCH: ${{ github.base_ref || 'main' }}
         run: |
-          git fetch --no-tags --depth=1 origin "${{ github.base_ref || 'main' }}"
-          node scripts/check-budget-ratchet.mjs FETCH_HEAD
+          git rev-parse --verify "refs/remotes/origin/$BUDGET_BASE_BRANCH" >/dev/null
+          node scripts/check-budget-ratchet.mjs "origin/$BUDGET_BASE_BRANCH"
 
       # Chromium only: the budget is measured in one engine on purpose, so a run
       # is comparable to the one before it.
