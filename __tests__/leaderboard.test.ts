@@ -3,19 +3,44 @@ import { describe, it, expect } from "vitest";
 import {
   cheapestPints,
   cheapestByArea,
+  leaderboardAdmitsStanding,
   leaderboardPubKey,
+  leaderboardStandingFor,
   venueArea,
   UNKNOWN_AREA,
 } from "@/lib/leaderboard";
+import { isoDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+import { trustPillLabel } from "@/lib/trustPill";
 import type { Venue } from "@/lib/venues";
 
-// The ranking helpers only read id/name/cheapestPrice/primaryBorough/
-// visibleBoroughs, so a partial cast keeps the fixtures readable without
-// spelling out every Venue field.
+// The ranking helpers read id/name/cheapestPrice/cheapestPint/primaryBorough/
+// visibleBoroughs and, since the board began wearing its trust label, the
+// venue's own price rows: the publisher on a row is what earns the listing the
+// board claims. A fixture therefore ships one publisher-bearing row by default,
+// which is what every row of the bundled dataset carries; pass `prices: []` to
+// build a venue nobody published.
 function v(
   over: Partial<Venue> & { id: string; name: string; cheapestPrice: number | null },
 ): Venue {
-  return { primaryBorough: "", visibleBoroughs: [], cheapestPint: "", ...over } as Venue;
+  const prices =
+    over.prices ??
+    (typeof over.cheapestPrice === "number"
+      ? [
+          {
+            app_price_id: `${over.id}-1`,
+            pint_name: over.cheapestPint ?? "",
+            price_gbp: over.cheapestPrice,
+            pub_url: `https://www.pint-prices.com/pub/${over.id}`,
+          },
+        ]
+      : []);
+  return {
+    primaryBorough: "",
+    visibleBoroughs: [],
+    cheapestPint: "",
+    ...over,
+    prices,
+  } as Venue;
 }
 
 describe("cheapestPints", () => {
@@ -136,5 +161,69 @@ describe("the Cheap Pint Leaderboard says one thing per row", () => {
       v({ id: "z", name: "Zebra", cheapestPrice: 5, primaryBorough: "Camden" }),
     ]);
     expect(rows.map((entry) => entry.venue.id)).toEqual(["a", "z"]);
+  });
+});
+
+
+describe("every row wears its trust label", () => {
+  // Captain 6 Sep 2026, ruling on the board's honesty: it keeps its listed
+  // rows and each says out loud that a listing is all it is.
+  const COLLECTED = Date.parse(`${isoDate(PINT_DATASET_OBSERVED_AT)}T12:00:00.000Z`);
+  const listedRow = v({
+    id: "venue-gdlj1b",
+    name: "The Fox on the Hill",
+    cheapestPrice: 1.99,
+    cheapestPint: "BUD LIGHT",
+    primaryBorough: "Southwark",
+  });
+
+  it("reads the same standing the landing answer card reads", () => {
+    expect(leaderboardStandingFor(listedRow as never, COLLECTED)).toBe("listed");
+    expect(cheapestPints([listedRow], 10, COLLECTED)[0].standing).toBe("listed");
+    expect(trustPillLabel("listed")).toBe("Listed");
+  });
+
+  it("refuses a row that cannot earn a listing", () => {
+    // No publisher on any of its rows, so nothing published this figure and the
+    // board would have to print "No price yet" beside a price it is showing.
+    const unpublished = v({
+      id: "venue-nopub",
+      name: "The Unlisted",
+      cheapestPrice: 1.5,
+      cheapestPint: "Lager",
+      primaryBorough: "Camden",
+      prices: [
+        { app_price_id: "venue-nopub-1", pint_name: "Lager", price_gbp: 1.5 },
+      ] as never,
+    });
+    expect(leaderboardStandingFor(unpublished as never, COLLECTED)).toBe("none");
+    expect(leaderboardAdmitsStanding("none")).toBe(false);
+    const rows = cheapestPints([unpublished, listedRow], 10, COLLECTED);
+    expect(rows.map((entry) => entry.venue.id)).toEqual(["venue-gdlj1b"]);
+  });
+
+  it("ages a listing out rather than claiming it for ever", () => {
+    // LISTED_MAX_AGE_DAYS is 365, so two years after collection the same row
+    // stands for nothing and leaves the board with its claim.
+    const twoYearsOn = COLLECTED + 730 * 24 * 60 * 60 * 1000;
+    expect(leaderboardStandingFor(listedRow as never, twoYearsOn)).toBe("none");
+    expect(cheapestPints([listedRow], 10, twoYearsOn)).toEqual([]);
+  });
+
+  it("holds a refused row out without spending the pub key of another", () => {
+    // A refused row must not take a second pub of the same price list with it.
+    const unpublishedCheaper = v({
+      id: "venue-nopub2",
+      name: "The Unlisted Two",
+      cheapestPrice: 1.99,
+      cheapestPint: "BUD LIGHT",
+      primaryBorough: "Croydon",
+      prices: [
+        { app_price_id: "venue-nopub2-1", pint_name: "BUD LIGHT", price_gbp: 1.99 },
+      ] as never,
+    });
+    const rows = cheapestPints([unpublishedCheaper, listedRow], 10, COLLECTED);
+    expect(rows.map((entry) => entry.venue.id)).toEqual(["venue-gdlj1b"]);
+    expect(rows[0].standing).toBe("listed");
   });
 });

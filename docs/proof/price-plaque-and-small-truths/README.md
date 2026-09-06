@@ -77,7 +77,46 @@ pinned by unit tests rather than by a screenshot.
   rows were one chain, six sat at £1.99, five of those were Bud Light, and one
   Wandsworth pub held two rows under two spellings of its own name. One row per
   pub, and one row per price several pubs publish for the same drink. Pinned by
-  `__tests__/leaderboard.test.ts` against those exact rows.
+  `__tests__/leaderboard.test.ts` against those exact rows. It does have a
+  visual surface, and it is shot at all four widths as
+  `after/cheap-pint-board-*.png`: ten distinct pubs, ten distinct figures, and
+  every row wearing "Listed" (see below).
 - **You card.** It printed "1-day mapping streak" over an account an hour old.
   The block, the "best day streak" stat and `streakLabel` are retired. Pinned
   by `__tests__/yourContributionsCard.test.tsx`.
+
+## The board wears its trust label
+
+Captain, same day, ruling on the leaderboard: it keeps its ten listed rows, and
+every row says out loud that a listing is all it is.
+
+The word is `trustPillLabel`, the one place a standing becomes a word, over a
+standing decided by `answerEvidenceFor` — the SAME reading the landing answer
+card makes — so the label beside a price here and the label beside the same
+price on the landing cannot drift. The pill COMPONENT is deliberately not
+mounted: it prints the figure itself, and the figure in this cell is already
+the plaque above it.
+
+A row that cannot earn at least a listing is refused rather than labelled,
+because the alternative is a row printing "No price yet" beside a price it is
+showing. Measured on the shipped dataset after the change: ten rows, every one
+`listed`, so the board is still ten deep. Two rows that carried no publisher
+(`Lager` at £2.43 and £2.49) left and two further published pubs took their
+place. No horizontal overflow at 320.
+
+| rank | price | standing | pub |
+|---|---|---|---|
+| 1 | £1.99 | listed | The Fox on the Hill |
+| 2 | £1.99 | listed | The Pennsylvanian (JD Wetherspoons) |
+| 3 | £2.09 | listed | J.J. Moons |
+| 4 | £2.39 | listed | The Millers Well |
+| 5 | £2.43 | listed | J.J. Moon's - JD Wetherspoon (Hillingdon) |
+| 6 | £2.49 | listed | The Masque Haunt |
+| 7 | £2.55 | listed | The Greyhound - JD Wetherspoon |
+| 8 | £2.59 | listed | J.J. Moon's - JD Wetherspoon (Brent) |
+| 9 | £2.66 | listed | The Asparagus |
+| 10 | £2.66 | listed | The Coronet |
+
+A listing ages out rather than being claimed for ever: `LISTED_MAX_AGE_DAYS` is
+365, so the same row two years past collection stands for nothing and leaves
+the board with its claim. That is pinned rather than described.

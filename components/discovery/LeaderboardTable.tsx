@@ -3,6 +3,8 @@ import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 
 import PriceBadge from "@/components/PriceBadge";
 import prefetchVenue from "@/lib/prefetchVenue";
+import { priceStandingNote } from "@/lib/priceTier";
+import { trustPillLabel } from "@/lib/trustPill";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { formatPrice } from "@/lib/venues";
 import type { LeaderboardRowView } from "@/lib/leaderboard";
@@ -15,7 +17,14 @@ import type { LeaderboardRowView } from "@/lib/leaderboard";
 //
 // Honesty: these are dataset cheapest-on-record prices, not a live tonight feed
 // (contrast TonightBoard). A short footnote keeps that clear without cluttering
-// every row.
+// every row, and EVERY ROW WEARS ITS OWN TRUST LABEL beside its figure
+// (captain 6 Sep 2026), so the board never claims more than a listing and a
+// reader does not have to reach the footnote to learn what a row is worth.
+//
+// The word is `trustPillLabel`, the ONE place a standing becomes a word, so the
+// label here and the label on the landing answer card cannot drift. The pill
+// COMPONENT is deliberately not mounted: it prints the figure itself, and the
+// figure in this cell is already the PriceBadge above it.
 
 type LeaderboardTableProps = {
   // The narrow row view, not a whole grouped Venue: the ranked rows arrive
@@ -89,6 +98,13 @@ export default function LeaderboardTable({
                   >
                     {formatPrice(entry.venue.cheapestPrice)}
                   </PriceBadge>
+                  <span
+                    className="leaderboardStanding"
+                    data-standing={entry.standing}
+                    title={priceStandingNote(entry.standing)}
+                  >
+                    {trustPillLabel(entry.standing)}
+                  </span>
                 </td>
               </tr>
             );
