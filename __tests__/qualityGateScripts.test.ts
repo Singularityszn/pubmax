@@ -48,6 +48,32 @@ function playwrightReport(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/** One skipped test, reported with the spec file the run gate matches on. */
+function skippedReportForFile(file: string) {
+  return {
+    suites: [
+      {
+        title: file,
+        file,
+        specs: [
+          {
+            title: "argued lane",
+            file,
+            tests: [
+              {
+                projectName: "chromium",
+                status: "skipped",
+                expectedStatus: "skipped",
+                results: [{ status: "skipped", retry: 0 }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
 function playwrightAxeAttachmentReport() {
   const body = Buffer.from(
     JSON.stringify({
@@ -203,9 +229,7 @@ describe("assert-playwright-gate", () => {
     // else it proved.
     const directory = tempDirectory();
     const report = path.join(directory, "report.json");
-    const argued = playwrightReport({ status: "skipped" });
-    argued.suites[0].specs[0].file = "plan-capability-recovery.spec.ts";
-    writeFileSync(report, JSON.stringify(argued));
+    writeFileSync(report, JSON.stringify(skippedReportForFile("plan-capability-recovery.spec.ts")));
 
     const allowlist = path.join(directory, "allowlist.json");
     writeFileSync(
@@ -231,9 +255,7 @@ describe("assert-playwright-gate", () => {
     expect(accepted.status).toBe(0);
     expect(accepted.stdout).toContain('"arguedSkips":1');
 
-    const unargued = playwrightReport({ status: "skipped" });
-    unargued.suites[0].specs[0].file = "some-other.spec.ts";
-    writeFileSync(report, JSON.stringify(unargued));
+    writeFileSync(report, JSON.stringify(skippedReportForFile("some-other.spec.ts")));
 
     const refused = run("assert-playwright-gate.mjs", [
       report,
