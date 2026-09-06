@@ -14,7 +14,7 @@ photographs could be used at all.
 | `/borough/[slug]` | Head, then the price card | A framed picture of the borough under the head |
 | `/area/[slug]/drink/[brand]` | Head, then the rows | A framed picture of the area under the head |
 | `/borough` (the index) | No picture | No picture: a directory of 33 boroughs is not a place |
-| `/places` | No picture | No picture: six city cards on one screen would fetch six photographs, past the 150 KB a landing may add, for five cities that are not London |
+| `/places` | No picture | No picture: it lists every city we know, so a photograph per card would fetch a screenful of them, past the 150 KB a landing may add, for cities that are not London |
 
 Screenshots are `before-*` and `after-*` at 320x568, 390x844, 768x1024 and
 1440x900, on a production build with `deviceScaleFactor: 2`.
