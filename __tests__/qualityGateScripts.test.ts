@@ -195,6 +195,71 @@ describe("assert-playwright-gate", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("cannot parse");
   });
+
+  it("accepts a skip the e2e allowlist argues, and refuses one it does not", () => {
+    // The source gate (assert-no-conditional-e2e-skips.mjs) already accepts an
+    // argued skip. Before the run gate read the same list it refused one, so a
+    // spec carrying an argued skip could never join a gated run however much
+    // else it proved.
+    const directory = tempDirectory();
+    const report = path.join(directory, "report.json");
+    const argued = playwrightReport({ status: "skipped" });
+    argued.suites[0].specs[0].file = "plan-capability-recovery.spec.ts";
+    writeFileSync(report, JSON.stringify(argued));
+
+    const allowlist = path.join(directory, "allowlist.json");
+    writeFileSync(
+      allowlist,
+      JSON.stringify({
+        allowed: [
+          {
+            file: "e2e/plan-capability-recovery.spec.ts",
+            condition: "true",
+            reason: "argued",
+            ends: "a real authenticated e2e lane",
+          },
+        ],
+      }),
+    );
+
+    const accepted = run("assert-playwright-gate.mjs", [
+      report,
+      "--require-zero-skipped",
+      "--skips-argued",
+      allowlist,
+    ]);
+    expect(accepted.status).toBe(0);
+    expect(accepted.stdout).toContain('"arguedSkips":1');
+
+    const unargued = playwrightReport({ status: "skipped" });
+    unargued.suites[0].specs[0].file = "some-other.spec.ts";
+    writeFileSync(report, JSON.stringify(unargued));
+
+    const refused = run("assert-playwright-gate.mjs", [
+      report,
+      "--require-zero-skipped",
+      "--skips-argued",
+      allowlist,
+    ]);
+    expect(refused.status).toBe(1);
+    expect(refused.stderr).toContain("skipped test");
+  });
+
+  it("refuses an allowlist it cannot read rather than passing without one", () => {
+    const directory = tempDirectory();
+    const report = path.join(directory, "report.json");
+    writeFileSync(report, JSON.stringify(playwrightReport()));
+
+    const result = run("assert-playwright-gate.mjs", [
+      report,
+      "--require-zero-skipped",
+      "--skips-argued",
+      path.join(directory, "absent.json"),
+    ]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("cannot parse");
+  });
 });
 
 describe("assert-no-conditional-e2e-skips", () => {
