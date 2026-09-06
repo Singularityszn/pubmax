@@ -14,12 +14,13 @@
 
 /* Reads as a label, not a heading: the section above it already owns the
    heading level, and this only has to say the links are not listings. */
+/* Sentence case: caps are for a stamp alone (docs/DESIGN_SYSTEM.md, "Caps
+   policy"), and this label says the doors under it are not listings. */
 .picksAlternativesLabel {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--ink-soft);
 }
 

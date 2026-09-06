@@ -608,6 +608,20 @@
   text-decoration: none;
 }
 
+/* The create action floats over a phone's right edge, and a soft plan's
+   arrow sat under it (measured 6 Sep 2026 at 390, signed in). The row
+   reserves the control's own published lane, the shape the /near list and
+   the landing's city cards take, and holds it whenever the control is in
+   the document rather than only while it is painted. */
+@media (max-width: 640px) {
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .tonightSoftPlansLink {
+    padding-right: max(
+      14px,
+      calc(var(--create-fab-lane) - var(--page-gutter))
+    );
+  }
+}
+
 .tonightSoftPlansIcon {
   display: inline-flex;
   align-items: center;
