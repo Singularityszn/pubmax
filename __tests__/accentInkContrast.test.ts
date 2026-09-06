@@ -159,10 +159,13 @@ describe("no surface puts the raw coral back on a light word", () => {
       expect(start, `${selector} still exists in ${file}`).toBeGreaterThan(-1);
       const block = css.slice(start);
       const declaration = block.slice(0, block.indexOf("}"));
+      // The accent's ink, or the page's own ink: either is a word that is
+      // not the raw coral. The city chooser's locate control moved to the
+      // plain pill the landing answer card wears, whose label is --color-text.
       expect(
         declaration,
-        `${selector} in ${file} paints its text with var(--color-accent-ink)`,
-      ).toMatch(/color:\s*var\(--color-accent-ink\)/);
+        `${selector} in ${file} paints its text with var(--color-accent-ink) or var(--color-text)`,
+      ).toMatch(/color:\s*var\(--color-(?:accent-ink|text)\)/);
     });
   }
 

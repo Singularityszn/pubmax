@@ -107,16 +107,21 @@
   width: 100%;
 }
 
+/* The dismiss is a 44px target drawn as a 28px disc: the button is the tap
+   floor and its inner span is the disc, with a negative margin so the pill's
+   own padding is what the eye measures. A 28px button was the one control on
+   the landing under the floor. */
 .arrivalWelcomeDismiss {
   flex: 0 0 auto;
   display: inline-grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
+  margin: -8px;
   padding: 0;
   border: 0;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  background: transparent;
   color: var(--ink-soft);
   font: inherit;
   font-size: 1rem;
@@ -126,6 +131,15 @@
   /* Press feedback is the app-wide button scale owner (app/globals.css);
      this control only owns its own colour change. */
   transition: color 140ms ease;
+}
+
+.arrivalWelcomeDismiss > span {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 .arrivalWelcomeDismiss:hover {
