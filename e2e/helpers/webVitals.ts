@@ -324,6 +324,11 @@ export const PRIMARY_INTERACTIONS: Record<string, PrimaryInteraction> = {
     kind: "click",
     label: "Find my pint",
   },
+  "/pal": {
+    selector: "[data-primary-action] button",
+    kind: "click",
+    label: "Meet your Pub Pal",
+  },
   "/plan": {
     selector: "#plan-describe-first-query",
     kind: "type",

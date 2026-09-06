@@ -235,7 +235,9 @@ export function PalMeetingScreen({
         secondary={<Link href="/map">Back to the map</Link>}
       >
         <div className="palMeetingPortrait">
-          <PalPortrait appearance={appearance} name="Unclaimed Pub Pal" state="noticing" />
+          {/* The meeting screen's LCP element on a desktop: measured at 403 CSS
+              px square against a 288 px heading block. */}
+          <PalPortrait appearance={appearance} name="Unclaimed Pub Pal" state="noticing" priority />
           <p className="palSpeech" aria-live="polite">There you are. What kind of night are we making?</p>
         </div>
       </Screen>
