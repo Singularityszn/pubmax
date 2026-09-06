@@ -29,6 +29,7 @@ import {
   PRODUCT_TIMING_CEILING_MS,
   VITALS_DEVICES,
   applyVitalsDevice,
+  clearSampleResidue,
   coolBrowser,
   exercisePrimaryAction,
   installVitalsProbe,
@@ -97,7 +98,10 @@ const ROUTE_READY: Record<string, string> = {
   "/tonight": "main",
   "/today": "main",
   "/plan": "main.planPage",
-  "/pal": "main.palMeeting",
+  // `.palExperience` rather than `.palMeeting`: clearSampleResidue puts every
+  // sample back on the meeting screen, and a gate naming one screen would spend
+  // its whole budget on the other if that ever stopped being true.
+  "/pal": "main.palExperience",
   "/map": ".mapShell, .mobileMapShell, main",
   "/map?sel=venue-1vle947": ".venueInspector",
 };
@@ -147,8 +151,12 @@ async function sampleRoute(
   } else {
     // Warm means the browser has already had this route once. The priming load
     // is not measured; it is what fills the cache the measured load reads.
+    await clearSampleResidue(page, routePath);
     await loadAndSettle(page, routePath);
   }
+  // The previous sample's own interaction is not part of this one's cache
+  // temperature, and on /pal it changed which screen was measured.
+  await clearSampleResidue(page, routePath);
   await loadAndSettle(page, routePath);
   const interacted = await exercisePrimaryAction(page, routePath);
   return { ...(await readVitals(page)), interacted };
