@@ -150,6 +150,26 @@ test("Copy invite link shows for the host's own session and never for an anonymo
   await copyButton.click();
   await expect(page.locator(".planHostInviteLink__status")).toHaveText("Invite link copied.");
 
+  // AND IT IS TAPPABLE ON A PHONE. PlanAstra could not click this control in
+  // 30 seconds at 390: Playwright resolved it and reported it obscured, the
+  // floating create action sitting over the card's right edge. The page now
+  // carries the marker that stands the control down, the same one the message
+  // thread and the 404 carry, so the check is who owns the tap at the button's
+  // own centre rather than whether it is merely present.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(copyButton).toBeVisible();
+  await copyButton.scrollIntoViewIfNeeded();
+  const copyOwner = await copyButton.evaluate((button) => {
+    const rect = button.getBoundingClientRect();
+    const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+    if (!hit) return "nothing";
+    if (hit === button || button.contains(hit)) return "copy";
+    if (hit.closest(".createFabRoot")) return "create action";
+    return hit.tagName.toLowerCase();
+  });
+  expect(copyOwner).toBe("copy");
+  await expect(page.locator(".createFabRoot")).toBeHidden();
+
   // A genuinely anonymous visitor to the exact same URL never sees it — no
   // capability in this fresh browser context's memory, and the server page
   // itself only ever carries the privacy-safe preview.

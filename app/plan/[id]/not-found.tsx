@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 export default function PlanNotFound(): React.JSX.Element {
   return (
-    <main id="main" className="planPage planPage--composer">
+    <main id="main" className="planPage planPage--composer pageHidesCreateFab">
       {/* Standard site navigation — a shared plan link is many people's first
           screen; it must route onward, not dead-end on a wordmark. SiteNav
           carries the brand, so the masthead keeps just the context line. */}

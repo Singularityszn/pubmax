@@ -117,7 +117,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
  */
 function PlanReadUnavailable({ id }: { id: string }): React.JSX.Element {
   return (
-    <main id="main" className="planPage planPage--composer">
+    <main id="main" className="planPage planPage--composer pageHidesCreateFab">
       <SiteNav />
       <header className="planPage__masthead">
         <span>Plan</span>
@@ -169,7 +169,15 @@ export default async function PlanPage({ params }: Props) {
   const endingLabel = state.ending ? ENDING_LABEL[state.ending] : null;
 
   return (
-    <main id="main" className="planPage">
+    /* A locked plan is a page about ONE night, and the whole of what it asks a
+       reader to do is send the link. The floating create action parked over
+       the right edge of that card at 390: PlanAstra could not tap `Copy invite
+       link` in 30 seconds because Playwright kept reporting it obscured. Its
+       three rows are a Moment, a price and "Start a plan" - none of them this
+       page's business, and the last is a door back to a plan the reader has
+       just finished making. The marker is the same one the message thread and
+       the 404 carry (components/nav/createFab.css). */
+    <main id="main" className="planPage pageHidesCreateFab">
       {/* Marks this plan as "on tonight" so the shell's Night Mode card can
           follow it across screens (client-only pointer, no backend). */}
       <ActivePlanMarker id={id} startTime={state.plan.startTime} />
