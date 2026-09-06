@@ -1283,6 +1283,13 @@ function PlanComposerForm({
   const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>({});
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(routeDraftFields.routeRevision);
   const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale);
+  // WHETHER THE GENERATOR HAS ANSWERED, which is the moment the page's one
+  // painted primary becomes `Lock it in` and the concierge control above steps
+  // back. It is NOT "a Stop names a pub": a held acceptance seeds Stop 1 and
+  // has no route at all, and asking the stops made `Make a plan` disappear on
+  // exactly the surface that still needs it (e2e/plan-held-acceptance.spec.ts).
+  // A recovered route draft IS a route, so it seeds this true.
+  const [routeSorted, setRouteSorted] = useState(Boolean(recoveredRouteDraft));
   const [groundingProof, setGroundingProof] = useState(routeDraftFields.groundingProof);
   const [createOperationKey, setCreateOperationKey] = useState(routeDraftFields.createOperationKey);
   const [planAnchor, setPlanAnchor] = useState(routeDraftFields.planAnchor);
@@ -1323,10 +1330,6 @@ function PlanComposerForm({
     activeUnsupportedPatch,
   );
   const conciergeStatus = conciergeStatusText(sorting, activeUnsupportedPatch, conciergeNote);
-  // A route is ON THE PAGE once a Stop names a pub. That is the moment the
-  // page's one painted primary becomes `Lock it in`, so the concierge control
-  // above steps back and says what it now does.
-  const routeSorted = completeStops.length > 0;
   const composerVisible =
     planIntake.completed
     || stops.length > 0
@@ -1779,6 +1782,7 @@ function PlanComposerForm({
         return;
       }
       setStops(suggested);
+      setRouteSorted(true);
       setCultureOpener(cleanCultureOpener(body.cultureOpener));
       const grounded = isGroundedGeneratedRoute(body, suggested);
       if (body.inferredContext) {
