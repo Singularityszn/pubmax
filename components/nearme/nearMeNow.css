@@ -97,6 +97,21 @@
   font-size: 0.92rem;
 }
 
+/* The failed-read block wears the status idiom rather than a shape of its own:
+   it is the same row, in the same place, saying a different thing. It stacks
+   because it carries a sentence and a control, where the spinner rows carry a
+   sentence alone. */
+.nmnStatusFail {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+}
+
+.nmnStatusFail p {
+  margin: 0;
+}
+
 .nmnSpinner {
   width: 18px;
   height: 18px;

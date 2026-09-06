@@ -852,11 +852,18 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   box-shadow: 0 10px 22px color-mix(in srgb, var(--brass) 24%, transparent);
 }
 
+/* CORAL IS A FILL AND CORAL IS A WORD, AND THOSE ARE TWO TOKENS. These two
+   controls print the accent as TEXT on a 7% tint of itself, which is what
+   --brass-ink exists for: --brass reads 2.49:1 to 2.91:1 as a word on the
+   light elevation ladder and points back at --brass in dark, so one token
+   serves both. axe reported this as a serious contrast violation on
+   /map?sel= at 1440 light (e2e/a11y-core-journeys.spec.ts). The tint, the
+   border and the hover are untouched. */
 .venueTabPanel .saveToListToggle,
 .venueTabPanel .composerToggle {
   border-color: color-mix(in srgb, var(--brass) 34%, var(--line));
   background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
-  color: var(--brass);
+  color: var(--brass-ink);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 82%, transparent);
 }
 

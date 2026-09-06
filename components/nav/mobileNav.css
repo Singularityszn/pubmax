@@ -245,7 +245,7 @@ body:has(.mobileMapUtilityCorner) {
      that push the control higher (the map, the planner) do not scroll their
      body at all. A page that hides the control keeps the bar's clearance and
      nothing more. */
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)):not(:has(.analyticsConsentPrompt)):not(:has(.mapArrivalCard)):not(:has(.appShell.detail-open)):not(:has(.appShell.planning-open)):not(:has(.createFabRoot.isKeyboardHidden)) {
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)):not(:has(.analyticsConsentPrompt)):not(:has(.planComposer__lock)):not(:has(.mapArrivalCard)):not(:has(.appShell.detail-open)):not(:has(.appShell.planning-open)):not(:has(.createFabRoot.isKeyboardHidden)) {
     padding-bottom: var(--float-stack-top-create);
   }
 

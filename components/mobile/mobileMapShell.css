@@ -910,10 +910,16 @@
   .mobilePalSummon a { min-height: var(--control-height, 44px); display: inline-flex; align-items: center; padding: 0 var(--control-pad-x, 16px); border-radius: var(--control-radius, 14px); background: var(--color-accent); color: var(--color-on-accent); font-weight: var(--control-font-weight, 700); text-decoration: none; }
   .mobilePalSummon small { display: flex; align-items: center; gap: 6px; max-width: 34ch; color: var(--color-text-muted); }
 
-  /* The figure's column is content-sized: at 320px a modelled "est. £6.50" in
-     the data face overran an equal-share column into "Near me" (measured
-     5 Sep 2026); the phrase column is the one that yields. */
-  .mobileVenuePeekSummary { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; margin-bottom: 14px; padding: 12px 0; border: 1px solid var(--sheet-material-border); border-inline: 0; border-radius: 0; background: transparent; }
+  /* THREE CELLS, THREE FLOORS. The figure's column is content-sized, and the
+     phrase column had none (`minmax(0, 1fr)`), so a long standing line
+     ("Logged once, needs a second drinker") sized the figure column to its own
+     max-content and left the middle track a few pixels. "Near me" is one
+     unbreakable phrase, so it overflowed its cell and ran under `Plan stop`,
+     printing as "Near m" (PlanAstra, the Sir Christopher Hatton at 390, light
+     and dark). The middle track now floors at min-content, which IS that
+     phrase, so no figure of any length can take the cell away from it; the
+     figure column yields instead, down to the plaque it is there to hold. */
+  .mobileVenuePeekSummary { display: grid; grid-template-columns: minmax(0, auto) minmax(min-content, 1fr) auto; align-items: center; gap: 10px; margin-bottom: 14px; padding: 12px 0; border: 1px solid var(--sheet-material-border); border-inline: 0; border-radius: 0; background: transparent; }
   .mobileVenuePeekSummary > span { min-width: 0; display: grid; gap: 2px; }
   /* THE PLAQUE HUGS ITS FIGURE. As a stretched grid item it took the whole
      column, so £6.50 sat on a plate three times its own width with the figure
@@ -929,14 +935,19 @@
   /* --font-data is the figures face, and this cell prints a figure only when
      the reader has shared a location. Without one it prints the words
      "Near me", which in the figures face read as a machine label beside a
-     display-face pub name. The phrase takes the body face; the walk time it is
-     replaced by keeps the figures face, because that is what it is. */
-  .mobileVenuePeekSummary .mobileVenuePeekNearMe.isPhrase { font-family: var(--font-body); }
+     display-face pub name. The phrase takes the body face AND the body size,
+     because it is a prompt rather than a heading: at the figures size it read
+     as a second title under the pub's own. The walk time it is replaced by
+     keeps both, because that is what a walk time is. */
+  .mobileVenuePeekSummary .mobileVenuePeekNearMe.isPhrase { font-family: var(--font-body); font-size: var(--text-base); }
   /* Never ellipsis the caption. This line is what the number above it MEANS
      ("current recorded price"), and at 390px the nowrap+ellipsis cut it to
      "current recorded pri…" - a price with its own label truncated reads as a
-     price you cannot check. It wraps to a second line instead. */
-  .mobileVenuePeekSummary small { color: var(--color-text-muted); font-size: .68rem; line-height: 1.25; white-space: normal; overflow-wrap: break-word; }
+     price you cannot check. It wraps to a second line instead.
+     A caption also takes a MEASURE, so it wraps under the thing it is about
+     rather than running the length of the row: unmeasured, the standing line
+     was what sized the figure column past the phrase beside it. */
+  .mobileVenuePeekSummary small { max-inline-size: 22ch; color: var(--color-text-muted); font-size: .68rem; line-height: 1.25; white-space: normal; overflow-wrap: break-word; }
   .mobileVenuePeekSummary button { min-height: var(--control-height, 44px); padding: 0 var(--control-pad-x, 16px); border: 0; border-radius: var(--control-radius, 14px); background: var(--color-accent); color: var(--color-on-accent-strong); font: inherit; font-size: var(--control-font-size, var(--text-sm)); font-weight: var(--control-font-weight, 700); }
   /* Empty-price cell doubles as the drop CTA: a quiet accent-tinted button that
      keeps the price column's stacked look but reads as tappable. */

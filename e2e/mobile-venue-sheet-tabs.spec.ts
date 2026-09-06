@@ -306,6 +306,81 @@ test("the peek price plaque hugs its figure and stays inside its own row", async
   expect(geometry.clearanceUnderHeader ?? 0).toBeGreaterThan(4);
 });
 
+/**
+ * The peek head is three cells and the middle one is a PROMPT, not a heading.
+ *
+ * PlanAstra measured the Sir Christopher Hatton at 390 (light and dark): the
+ * standing line "Logged once, needs a second drinker" ran the full width of the
+ * figure column, the phrase column had no floor of its own, and "Near me" -
+ * one unbreakable phrase - overflowed its cell and printed as "Near m" under
+ * the `Plan stop` button. The caption is set here rather than hunted for,
+ * because the contract is about caption LENGTH and the pub a fixture opens on
+ * is not the pub that carries the longest one.
+ */
+for (const width of [320, 390] as const) {
+  test(`the peek head keeps Near me whole beside the longest standing line @${width}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
+    expect(response?.status()).toBe(200);
+
+    const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    await expect(portal).toBeVisible();
+    const peek = portal.locator(".mobileVenuePeekSummary");
+    await expect(peek).toBeVisible();
+    const nearMe = peek.locator(".mobileVenuePeekNearMe");
+    await expect(nearMe).toBeVisible();
+
+    const geometry = await peek.evaluate((row) => {
+      const caption = row.querySelector<HTMLElement>(":scope > span:first-child small");
+      if (caption) caption.textContent = "Logged once, needs a second drinker";
+      const phrase = row.querySelector<HTMLElement>(".mobileVenuePeekNearMe")!;
+      const phraseCell = phrase.parentElement as HTMLElement;
+      const action = row.querySelector<HTMLElement>(":scope > button");
+      const box = (element: Element) => {
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+      };
+      const range = document.createRange();
+      range.selectNodeContents(phrase);
+      return {
+        phrase: box(phrase),
+        phraseText: box(range),
+        phraseCell: box(phraseCell),
+        action: action ? box(action) : null,
+        rowRight: box(row).right,
+        // A prompt may not print at the FIGURES size. That size is --text-md,
+        // which is what this cell prints when it carries a walk time, so the
+        // reference is the resolved token rather than a literal: the assertion
+        // then survives a change to the scale. It is resolved through a probe
+        // because the plaque beside it wears a smaller face of its own.
+        phraseFontPx: Number.parseFloat(getComputedStyle(phrase).fontSize),
+        figureFontPx: (() => {
+          const probe = document.createElement("span");
+          probe.style.fontSize = "var(--text-md)";
+          row.appendChild(probe);
+          const size = Number.parseFloat(getComputedStyle(probe).fontSize);
+          probe.remove();
+          return size;
+        })(),
+      };
+    });
+
+    // The phrase is inside its own cell, and its cell is inside the row.
+    expect(geometry.phraseText.right).toBeLessThanOrEqual(geometry.phraseCell.right + 0.5);
+    expect(geometry.phraseCell.right).toBeLessThanOrEqual(geometry.rowRight + 0.5);
+    // Nothing is drawn over it. The action is the control that used to be.
+    if (geometry.action) {
+      expect(geometry.phraseText.right).toBeLessThanOrEqual(geometry.action.left + 0.5);
+    }
+    // "Near me" is a location prompt, so it prints BELOW the figures size the
+    // walk time it stands in for uses. Strictly below: equal is the defect.
+    expect(geometry.phraseFontPx).toBeLessThan(geometry.figureFontPx);
+    await expectNoPageHorizontalOverflow(page);
+  });
+}
+
 test("a real 390px touch swipe reaches the final Venue tab", async ({ page }) => {
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
   expect(response?.status()).toBe(200);

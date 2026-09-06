@@ -89,7 +89,12 @@ test("held pub shows one describe box, names the area, and release un-anchors wh
   await expect(page.getByRole("region", { name: "Accepted plan context" }).getByText("clapham", { exact: true })).toHaveCount(0);
 
   await expect(page.getByRole("textbox", { name: "Describe the outing" })).toHaveCount(1);
-  await expect(page.getByRole("button", { name: "Make a plan" })).toHaveCount(1);
+  // The composer's own concierge control, addressed by its place rather than
+  // its label: it reads "Make a plan" before the generator has answered and
+  // "Sort it again" after, because a page carrying a route has ONE painted
+  // primary and that is `Lock it in`. What this line owns is that exactly one
+  // such control is mounted beside the one describe box above it.
+  await expect(page.locator(".planComposer__conciergeInput button")).toHaveCount(1);
 
   await page.getByRole("button", { name: "Release this pub" }).click();
   await expect(page.locator("#plan-route-status")).toHaveText(
@@ -137,7 +142,12 @@ test("Keep on Near then Make it Stop 1 shows one describe box and names the area
   await expect(accepted.getByText("Clapham")).toBeVisible();
   await expect(accepted.getByText("clapham", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: "Describe the outing" })).toHaveCount(1);
-  await expect(page.getByRole("button", { name: "Make a plan" })).toHaveCount(1);
+  // The composer's own concierge control, addressed by its place rather than
+  // its label: it reads "Make a plan" before the generator has answered and
+  // "Sort it again" after, because a page carrying a route has ONE painted
+  // primary and that is `Lock it in`. What this line owns is that exactly one
+  // such control is mounted beside the one describe box above it.
+  await expect(page.locator(".planComposer__conciergeInput button")).toHaveCount(1);
 
   await page.getByRole("button", { name: "Release this pub" }).click();
   await expect(page.locator("#plan-route-status")).toContainText(

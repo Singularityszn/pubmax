@@ -32,8 +32,18 @@ export const UPLOAD_FIELDS_ALLOWANCE_BYTES = 64 * 1024;
 /** The most one photo may weigh in an upload body. */
 export const UPLOAD_PHOTO_MAX_BYTES = 4 * 1024 * 1024;
 
+/**
+ * A byte figure as a reader sees it, and the ONE spelling of it. A caller may
+ * pass its own ceiling (the upload path takes an override), so the words come
+ * from the number rather than from a second constant beside each one.
+ */
+export function uploadPhotoSizeLabel(bytes: number): string {
+  const mib = bytes / (1024 * 1024);
+  return `${Number.isInteger(mib) ? mib : mib.toFixed(1)} MB`;
+}
+
 /** The number as a reader sees it, on the picker hint and in every refusal. */
-export const UPLOAD_PHOTO_MAX_LABEL = "4 MB";
+export const UPLOAD_PHOTO_MAX_LABEL = uploadPhotoSizeLabel(UPLOAD_PHOTO_MAX_BYTES);
 
 export function photoFitsUploadBody(size: number): boolean {
   return Number.isFinite(size) && size > 0 && size <= UPLOAD_PHOTO_MAX_BYTES;

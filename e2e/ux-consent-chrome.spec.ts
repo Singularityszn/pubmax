@@ -233,6 +233,87 @@ test("mobile consent never covers /pubs Book a table while visible", async ({ pa
   expect(await pointOwner(page, coveredBox!, ".pubsBookLink")).toBe("control");
 });
 
+// EVERY PHONE IS A HEIGHT, AND THE SHORT ONES ARE WHERE THIS CARD BITES.
+//
+// The coverage tests above run at 390x844, which is where the card has the most
+// room to be harmless. PlanAstra measured the two shorter phones this repo
+// already sweeps for width: at 320x568 the card sat over the landing's
+// next-cheapest rail, and at 360x640 it covered Tonight's quiet-night copy and
+// the one door under it. The card is fixed and the first screen is short, so
+// what has to hold at every height is that the reader can always reach past it:
+// the reserved foot lane is what makes that true, and this is its rendered
+// proof rather than a reading of the padding it comes from.
+const PHONE_HEIGHTS = [568, 640, 844, 932] as const;
+
+for (const height of PHONE_HEIGHTS) {
+  test(`the consent card leaves the landing's foot reachable @390x${height}`, async ({ page }) => {
+    test.setTimeout(60_000);
+    await prepareUndecidedConsent(page, { width: 390, height });
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+
+    const prompt = page.getByLabel("Anonymous analytics choice");
+    await expect(prompt).toBeVisible({ timeout: 30_000 });
+    // The ceiling is a height contract, so it is re-asked at every height: a
+    // card that wrapped to a fifth line on a short phone would take the lane
+    // the foot reserve was sized against.
+    const fit = await consentFit(prompt);
+    expect(fit.boxHeight).toBeLessThanOrEqual(120);
+    expect(fit.scrollHeight).toBeLessThanOrEqual(120);
+    // The rail is the row the report found under the card, so it has to exist
+    // before the sweep below can mean anything.
+    await expect(page.locator(".lpRailLink").last()).toBeVisible({ timeout: 30_000 });
+
+    // WHAT THE RESERVE PROMISES. The card is fixed and a short phone's first
+    // screen is short, so it will always sit over something at rest; what has
+    // to hold is that a reader can reach PAST it. At the bottom of the scroll
+    // nothing tappable may be left under it. `scrollIntoViewIfNeeded` is not
+    // the way to ask: it does not move an element that is inside the viewport
+    // and under an overlay, which is the exact case this owns.
+    const covered = await page.evaluate(() => {
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      const controls = Array.from(
+        document.querySelectorAll<HTMLElement>("main a, main button, footer a, footer button"),
+      );
+      return controls
+        .filter((element) => {
+          const rect = element.getBoundingClientRect();
+          if (rect.height <= 0) return false;
+          const x = rect.x + rect.width / 2;
+          const y = rect.y + rect.height / 2;
+          if (y < 0 || y > window.innerHeight) return false;
+          const hit = document.elementFromPoint(x, y);
+          return Boolean(hit?.closest(".analyticsConsentPrompt"));
+        })
+        .map((element) => (element.textContent ?? "").trim().slice(0, 40));
+    });
+    expect(covered).toEqual([]);
+
+    // The probe can still answer "prompt", so the sweep above is one the card
+    // can lose.
+    const promptBox = await prompt.boundingBox();
+    expect(promptBox).not.toBeNull();
+    expect(await pointOwner(page, promptBox!, ".lpRailLink")).toBe("prompt");
+  });
+
+  test(`the consent card leaves the tab bar tappable @390x${height}`, async ({ page }) => {
+    test.setTimeout(60_000);
+    await prepareUndecidedConsent(page, { width: 390, height });
+    await page.goto("/tonight", { waitUntil: "domcontentloaded" });
+
+    const prompt = page.getByLabel("Anonymous analytics choice");
+    await expect(prompt).toBeVisible({ timeout: 30_000 });
+
+    const mapTab = page.getByRole("navigation", { name: "Primary" }).getByRole("link", {
+      name: "Map",
+      exact: true,
+    });
+    await expect(mapTab).toBeVisible();
+    const tabBox = await mapTab.boundingBox();
+    expect(tabBox).not.toBeNull();
+    expect(await pointOwner(page, tabBox!, ".mobileTabBar")).toBe("control");
+  });
+}
+
 for (const width of PHONE_WIDTHS) {
   test(`the whole disclosure and its privacy link fit the card @${width}`, async ({ page }) => {
     test.setTimeout(60_000);

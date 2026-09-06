@@ -121,6 +121,17 @@ describe("the pages with nothing to compose", () => {
     }
   });
 
+  it("hides it on a plan, whose whole ask is the link it stands over", () => {
+    // The three rows are a Moment, a price and "Start a plan": none of them a
+    // locked plan's business, and the last is a door back to the page the
+    // reader has just finished making. It sat over `Copy invite link` at 390
+    // (PlanAstra 23). Marker rather than a path, because `createFabVisible`
+    // matches a pathname exactly and every plan carries an id of its own.
+    for (const file of ["app/plan/[id]/page.tsx", "app/plan/[id]/not-found.tsx"]) {
+      expect(read(file), file).toContain("pageHidesCreateFab");
+    }
+  });
+
   it("hides it on the 404 by marker, because that page has no path", () => {
     expect(read("app/not-found.tsx")).toContain('className="pageHidesCreateFab"');
     const rule = createFabCss.slice(

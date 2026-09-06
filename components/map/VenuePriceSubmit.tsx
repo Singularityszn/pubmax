@@ -28,6 +28,7 @@ import { formatPriceGbp, QUICK_ADD_PRICES_GBP } from "@/lib/spill";
 import { mergePriceChips } from "@/lib/spillPreview";
 import type { DrinkCategory } from "@/lib/drinks";
 import { formatPrice } from "@/lib/venues";
+import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { useContributionGate } from "@/components/identity/ContributionGateDialog";
 import { trackEvent } from "@/lib/analytics";
@@ -50,7 +51,27 @@ import {
 } from "@/lib/priceEvidenceMissions";
 
 const PINT_PHOTO_ACCEPT = "image/jpeg,image/png,image/webp";
-const PINT_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+// The wire's own number, never a second one: a 4.5 MB photo that passed a 5 MB
+// gate here was refused by the platform with a 413 before any handler ran, and
+// the composer could only word that as a failed save (lib/uploadBodyLimit.ts).
+const PINT_PHOTO_MAX_BYTES = UPLOAD_PHOTO_MAX_BYTES;
+
+/**
+ * Why this file cannot go, in the reader's words, or null.
+ *
+ * Pure and module-scope so the browser's two checks are one statement, and so
+ * the size refusal quotes the wire's own figure rather than a number typed
+ * beside a picker.
+ */
+function pintPhotoRefusal(file: File): string | null {
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+    return "Photos must be JPEG, PNG, or WebP.";
+  }
+  if (file.size > PINT_PHOTO_MAX_BYTES) {
+    return `Each photo must be under ${UPLOAD_PHOTO_MAX_LABEL}.`;
+  }
+  return null;
+}
 
 export type VenuePriceSubmitMission = {
   reason: PriceEvidenceMissionReason;
@@ -361,13 +382,9 @@ export default function VenuePriceSubmit({
 
   function onPintPhotoChosen(file: File | undefined) {
     if (!file) return;
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setError("Photos must be JPEG, PNG, or WebP.");
-      clearPintPhoto();
-      return;
-    }
-    if (file.size > PINT_PHOTO_MAX_BYTES) {
-      setError("Each photo must be under 5MB.");
+    const refusal = pintPhotoRefusal(file);
+    if (refusal) {
+      setError(refusal);
       clearPintPhoto();
       return;
     }
@@ -541,6 +558,53 @@ export default function VenuePriceSubmit({
     );
   }
 
+  // The drink chooser, nested rather than extracted: ESLint scores complexity
+  // per function, and a nested call leaves the React element tree identical
+  // where a component would add a fibre (AGENTS.md, the god-component rule).
+  function renderDrinkChooser() {
+    return (
+        missionLocksCategory ? (
+          <>
+            <p className="vpsubLockedDrink">{submitCategoryLabel(category)}</p>
+            {missionAsksAnother ? (
+              <p className="vpsubHeldDrink">
+                {`Clear the price to log ${drinkLaneNoun(missionCategory)} instead.`}
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <div
+            className="vpsubCats"
+            role="radiogroup"
+            aria-label={`What are you drinking at ${venueName}?`}
+          >
+            {categories.map((option) => (
+              <button
+                key={option}
+                type="button"
+                role="radio"
+                aria-checked={category === option}
+                className={category === option ? "vpsubCat vpsubCatOn" : "vpsubCat"}
+                onClick={() => {
+                  // The receipt belongs to the drink it was logged for, so
+                  // switching categories shows that category's own record.
+                  setCategory(option);
+                  setHeldCategory((held) => (held === null ? null : option));
+                  // The measure belongs to the drink it was picked under, so a
+                  // half of lager cannot follow the reader onto wine.
+                  setMeasure(DEFAULT_DRINK_MEASURE);
+                  setMeasureLabel("");
+                  setError(null);
+                }}
+              >
+                {submitCategoryLabel(option)}
+              </button>
+            ))}
+          </div>
+        )
+    );
+  }
+
   return (
     <section
       id={`venue-price-submit-${venueId}`}
@@ -554,45 +618,7 @@ export default function VenuePriceSubmit({
         </h3>
       </div>
 
-      {missionLocksCategory ? (
-        <>
-          <p className="vpsubLockedDrink">{submitCategoryLabel(category)}</p>
-          {missionAsksAnother ? (
-            <p className="vpsubHeldDrink">
-              {`Clear the price to log ${drinkLaneNoun(missionCategory)} instead.`}
-            </p>
-          ) : null}
-        </>
-      ) : (
-        <div
-          className="vpsubCats"
-          role="radiogroup"
-          aria-label={`What are you drinking at ${venueName}?`}
-        >
-          {categories.map((option) => (
-            <button
-              key={option}
-              type="button"
-              role="radio"
-              aria-checked={category === option}
-              className={category === option ? "vpsubCat vpsubCatOn" : "vpsubCat"}
-              onClick={() => {
-                // The receipt belongs to the drink it was logged for, so
-                // switching categories shows that category's own record.
-                setCategory(option);
-                setHeldCategory((held) => (held === null ? null : option));
-                // The measure belongs to the drink it was picked under, so a
-                // half of lager cannot follow the reader onto wine.
-                setMeasure(DEFAULT_DRINK_MEASURE);
-                setMeasureLabel("");
-                setError(null);
-              }}
-            >
-              {submitCategoryLabel(option)}
-            </button>
-          ))}
-        </div>
-      )}
+      {renderDrinkChooser()}
 
       {asksMeasure ? (
         // ABOVE the price field, in the composer's own order: the closed

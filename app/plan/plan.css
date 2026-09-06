@@ -887,6 +887,20 @@
 /* Plan my night — same --accent-action fill as mobile Find my pint / Claim handle. */
 .planComposer__conciergeInput button { min-height: 48px; border: 0; border-radius: 11px; padding: 0 20px; background: var(--accent-action); color: var(--color-on-accent); font: inherit; font-weight: 800; cursor: pointer; }
 .planComposer__conciergeInput button:hover:not(:disabled) { background: var(--accent-action-strong); }
+/* ONE PAINTED PRIMARY PER SCREEN. With a route on the page `Lock it in` is the
+   thing to do next, so this control drops its fill and keeps everything else:
+   same box, same height, same place, so a reader who wants another route still
+   finds it exactly where it was. */
+.planComposer__conciergeInput button.planComposer__resort,
+.planComposer__conciergeInput button.planComposer__resort:hover:not(:disabled) {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+}
+.planComposer__conciergeInput button.planComposer__resort:hover:not(:disabled) {
+  border-color: var(--accent-action);
+  color: var(--accent-action-strong);
+}
 /* disabled styles shared with .planComposer__submit:disabled (M3) above */
 .planComposer__concierge > p { margin: 12px 0 0; color: var(--ink-soft); font-size: 0.9rem; }
 .planComposer__conciergeStatus:empty { display: none; }
@@ -974,8 +988,9 @@
 .planComposer__number { align-self: center; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--plan-accent) 15%, var(--panel)); color: var(--plan-accent-strong); font-weight: 850; }
 .planComposer__remove { color: var(--ink-soft); }
 .planComposer__add { margin-top: 6px; }
-.planComposer__submit { grid-column: 1 / -1; min-height: 56px; font-size: 1rem; }
-.planComposer__trust { grid-column: 1 / -1; margin: -8px 0 0; text-align: center; color: var(--muted); font-size: 0.78rem; }
+.planComposer__lock { grid-column: 1 / -1; display: grid; gap: 8px; }
+.planComposer__submit { min-height: 56px; font-size: 1rem; }
+.planComposer__trust { margin: 0; text-align: center; color: var(--muted); font-size: 0.78rem; }
 .planComposer__error { grid-column: 1 / -1; margin: 0; color: #a52c24; font-weight: 700; }
 
 html[data-theme="dark"] .planPage {
@@ -1036,8 +1051,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   .planComposer__stop > div,
   .planComposer__stopActions { grid-column: 2; justify-content: start; }
   .planComposer__stops,
-  .planComposer__submit,
-  .planComposer__trust,
+  .planComposer__lock,
   .planComposer__error { grid-column: 1; }
   .planSummary { padding: 26px 20px; }
   .planSummary__rail { left: 43px; top: 105px; }
@@ -1333,4 +1347,28 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 .invitePreview__join:hover { background: var(--plan-accent-strong); }
 @media (max-width: 600px) {
   .invitePreview { padding-left: 0; }
+}
+
+/* THE ANSWER IS PINNED, AND THE CHROME THAT COVERED IT STANDS DOWN.
+ *
+ * `Lock it in` is the last control on a form several screens long, so on a
+ * phone it landed at the natural foot of the page: under the tab bar's own
+ * reserved lane and under the floating create action. PlanAstra measured it
+ * roughly 40% covered at 390 with the `+` over its right edge.
+ *
+ * It is now a bar. The offset is the tab bar's own reserved lane rather than a
+ * number restated here, so a change to the bar's height moves this with it,
+ * and the trust line rides INSIDE the bar because it is the sentence that
+ * qualifies the action: a sticky action that left its own caption behind under
+ * it would be the same defect with the parts swapped. */
+@media (max-width: 640px) {
+  .planComposer__lock {
+    position: sticky;
+    bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+    z-index: var(--z-nav);
+    margin-inline: calc(var(--page-gutter) * -1);
+    padding: 12px var(--page-gutter) 14px;
+    border-top: 1px solid var(--line);
+    background: var(--paper);
+  }
 }

@@ -8,7 +8,7 @@ import {
 import * as momentPhotoEditor from "@/lib/momentPhotoEditor";
 import type { MomentMediaDraft } from "@/lib/momentDraft";
 import { validatePhoto } from "@/lib/pintDropsStore";
-import { UPLOAD_PHOTO_MAX_BYTES } from "@/lib/uploadBodyLimit";
+import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
 
 function media(overrides: Partial<MomentMediaDraft> = {}): MomentMediaDraft {
   return {
@@ -80,7 +80,12 @@ describe("Moment photo editor output", () => {
     expect(rejectedResult.media).toBe(original);
     expect(rejectedResult.error).toMatch(/4 MB/);
     expect(validatePhoto(accepted.type, accepted.size, MOMENT_MAX_PHOTO_BYTES)).toBeNull();
-    expect(validatePhoto(rejected.type, rejected.size, MOMENT_MAX_PHOTO_BYTES)).toMatch(/4MB/);
+    // ONE SPELLING OF THE FIGURE. The store's refusal printed "4MB" while the
+    // boundary above it printed "4 MB" for the same number; both now read
+    // UPLOAD_PHOTO_MAX_LABEL through uploadPhotoSizeLabel.
+    expect(validatePhoto(rejected.type, rejected.size, MOMENT_MAX_PHOTO_BYTES)).toMatch(
+      new RegExp(UPLOAD_PHOTO_MAX_LABEL),
+    );
   });
 });
 
