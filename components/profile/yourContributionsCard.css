@@ -1,5 +1,5 @@
 /* Your Contributions card (feat/price-drops-v2). The honest "your impact"
-   surface: a mapping streak, pints mapped, and a per-borough tally. Tokens only,
+   surface: pints mapped and a per-borough tally. Tokens only,
    per docs/DESIGN_SYSTEM.md. The label uses sentence case, numerals are set in
    the mono data face, borough chips are bordered pills like .questChip/.vibeChip.
    Duty of care: copy rewards CONTRIBUTION (mapping prices), never drinking. */
@@ -20,26 +20,8 @@
   margin: 0;
 }
 
-.contribStreak {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-}
-
-.contribStreakValue {
-  font-family: var(--font-data);
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  font-size: var(--text-2xl, 1.6rem);
-  color: var(--ink, inherit);
-}
-
-.contribStreakLabel {
-  font-size: var(--text-sm);
-  color: var(--ink-soft);
-}
-
+/* There is no streak block. The card counts what somebody mapped, never how
+   many days running (captain 6 Sep 2026). */
 .contribTotals {
   display: flex;
   flex-wrap: wrap;

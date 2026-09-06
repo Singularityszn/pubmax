@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   contributionStreak,
   londonDayKey,
-  streakLabel,
   summariseContributions,
   tallyByBorough,
 } from "@/lib/pintContributions";
@@ -140,19 +139,13 @@ describe("summariseContributions", () => {
   });
 });
 
-describe("streakLabel", () => {
-  it("prompts to start when there is no active streak", () => {
-    expect(streakLabel({ current: 0, longest: 3, activeDays: 3, lastDay: "" })).toMatch(
-      /drop a price to start/i,
-    );
-  });
-
-  it("pluralises the day count and stays on the mapping framing", () => {
-    expect(streakLabel({ current: 1, longest: 1, activeDays: 1, lastDay: "" })).toBe(
-      "1-day mapping streak",
-    );
-    expect(streakLabel({ current: 4, longest: 4, activeDays: 4, lastDay: "" })).toBe(
-      "4-days mapping streak",
-    );
+describe("nothing words a streak back at anybody", () => {
+  // Captain 6 Sep 2026: the You card printed "1-day mapping streak" over a
+  // brand-new account. `contributionStreak` still counts, because the stats
+  // body already carries it, but no module may turn a run of days into a
+  // sentence somebody is asked to keep.
+  it("exports no streak label", async () => {
+    const contributions = (await import("@/lib/pintContributions")) as Record<string, unknown>;
+    expect(Object.keys(contributions)).not.toContain("streakLabel");
   });
 });
