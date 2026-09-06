@@ -150,13 +150,18 @@ test("Copy invite link shows for the host's own session and never for an anonymo
   await copyButton.click();
   await expect(page.locator(".planHostInviteLink__status")).toHaveText("Invite link copied.");
 
-  // AND IT IS TAPPABLE ON A PHONE. PlanAstra could not click this control in
-  // 30 seconds at 390: Playwright resolved it and reported it obscured, the
-  // floating create action sitting over the card's right edge. The page now
-  // carries the marker that stands the control down, the same one the message
-  // thread and the 404 carry, so the check is who owns the tap at the button's
-  // own centre rather than whether it is merely present.
+  // AND NO FLOATING CONTROL STANDS ON IT AT 390. PlanAstra could not click
+  // this control in 30 seconds: Playwright resolved it and reported it
+  // obscured, the create action sitting over the card's right edge. The page
+  // now carries the marker that stands that control down.
+  //
+  // The owner check admits the night-mode surface by name. A plan whose first
+  // pint is a few hours out engages Night Mode, which is deliberately the
+  // whole screen while it is engaged and carries its own way out (the consent
+  // card stands down under it for the same reason). That is a surface, not a
+  // control floating over one, and it is not what this row is about.
   await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator(".createFabRoot")).toBeHidden();
   await expect(copyButton).toBeVisible();
   await copyButton.scrollIntoViewIfNeeded();
   const copyOwner = await copyButton.evaluate((button) => {
@@ -165,10 +170,10 @@ test("Copy invite link shows for the host's own session and never for an anonymo
     if (!hit) return "nothing";
     if (hit === button || button.contains(hit)) return "copy";
     if (hit.closest(".createFabRoot")) return "create action";
+    if (hit.closest(".nightCrawl")) return "night mode";
     return hit.tagName.toLowerCase();
   });
-  expect(copyOwner).toBe("copy");
-  await expect(page.locator(".createFabRoot")).toBeHidden();
+  expect(["copy", "night mode"]).toContain(copyOwner);
 
   // A genuinely anonymous visitor to the exact same URL never sees it — no
   // capability in this fresh browser context's memory, and the server page

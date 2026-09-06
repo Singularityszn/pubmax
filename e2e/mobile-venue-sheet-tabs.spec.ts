@@ -350,12 +350,20 @@ for (const width of [320, 390] as const) {
         phraseCell: box(phraseCell),
         action: action ? box(action) : null,
         rowRight: box(row).right,
-        // A prompt may not print at the figure's own size. The sibling figure
-        // is the reference, so the assertion survives a change to the scale.
+        // A prompt may not print at the FIGURES size. That size is --text-md,
+        // which is what this cell prints when it carries a walk time, so the
+        // reference is the resolved token rather than a literal: the assertion
+        // then survives a change to the scale. It is resolved through a probe
+        // because the plaque beside it wears a smaller face of its own.
         phraseFontPx: Number.parseFloat(getComputedStyle(phrase).fontSize),
-        figureFontPx: Number.parseFloat(
-          getComputedStyle(row.querySelector<HTMLElement>(":scope > span:first-child strong, :scope > span:first-child .priceBadge")!).fontSize,
-        ),
+        figureFontPx: (() => {
+          const probe = document.createElement("span");
+          probe.style.fontSize = "var(--text-md)";
+          row.appendChild(probe);
+          const size = Number.parseFloat(getComputedStyle(probe).fontSize);
+          probe.remove();
+          return size;
+        })(),
       };
     });
 
@@ -366,8 +374,9 @@ for (const width of [320, 390] as const) {
     if (geometry.action) {
       expect(geometry.phraseText.right).toBeLessThanOrEqual(geometry.action.left + 0.5);
     }
-    // "Near me" is a location prompt, so it never outsizes the figure beside it.
-    expect(geometry.phraseFontPx).toBeLessThanOrEqual(geometry.figureFontPx);
+    // "Near me" is a location prompt, so it prints BELOW the figures size the
+    // walk time it stands in for uses. Strictly below: equal is the defect.
+    expect(geometry.phraseFontPx).toBeLessThan(geometry.figureFontPx);
     await expectNoPageHorizontalOverflow(page);
   });
 }

@@ -246,7 +246,7 @@ test("mobile consent never covers /pubs Book a table while visible", async ({ pa
 const PHONE_HEIGHTS = [568, 640, 844, 932] as const;
 
 for (const height of PHONE_HEIGHTS) {
-  test(`the consent card leaves the landing rail reachable @390x${height}`, async ({ page }) => {
+  test(`the consent card leaves the landing's foot reachable @390x${height}`, async ({ page }) => {
     test.setTimeout(60_000);
     await prepareUndecidedConsent(page, { width: 390, height });
     await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -254,24 +254,42 @@ for (const height of PHONE_HEIGHTS) {
     const prompt = page.getByLabel("Anonymous analytics choice");
     await expect(prompt).toBeVisible({ timeout: 30_000 });
     // The ceiling is a height contract, so it is re-asked at every height: a
-    // card that wrapped to a fifth line on a narrow short phone would take the
-    // lane the foot reserve was sized against.
+    // card that wrapped to a fifth line on a short phone would take the lane
+    // the foot reserve was sized against.
     const fit = await consentFit(prompt);
     expect(fit.boxHeight).toBeLessThanOrEqual(120);
     expect(fit.scrollHeight).toBeLessThanOrEqual(120);
+    // The rail is the row the report found under the card, so it has to exist
+    // before the sweep below can mean anything.
+    await expect(page.locator(".lpRailLink").last()).toBeVisible({ timeout: 30_000 });
 
-    // The rail is the last thing on the landing and the row the report found
-    // under the card. Scroll to it the way a reader would, then ask who owns
-    // the tap at its centre WHILE the card is still up.
-    const lastRow = page.locator(".lpRailLink").last();
-    await expect(lastRow).toBeVisible({ timeout: 30_000 });
-    await lastRow.scrollIntoViewIfNeeded();
-    const rowBox = await lastRow.boundingBox();
-    expect(rowBox).not.toBeNull();
-    expect(await pointOwner(page, rowBox!, ".lpRailLink")).toBe("control");
+    // WHAT THE RESERVE PROMISES. The card is fixed and a short phone's first
+    // screen is short, so it will always sit over something at rest; what has
+    // to hold is that a reader can reach PAST it. At the bottom of the scroll
+    // nothing tappable may be left under it. `scrollIntoViewIfNeeded` is not
+    // the way to ask: it does not move an element that is inside the viewport
+    // and under an overlay, which is the exact case this owns.
+    const covered = await page.evaluate(() => {
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      const controls = Array.from(
+        document.querySelectorAll<HTMLElement>("main a, main button, footer a, footer button"),
+      );
+      return controls
+        .filter((element) => {
+          const rect = element.getBoundingClientRect();
+          if (rect.height <= 0) return false;
+          const x = rect.x + rect.width / 2;
+          const y = rect.y + rect.height / 2;
+          if (y < 0 || y > window.innerHeight) return false;
+          const hit = document.elementFromPoint(x, y);
+          return Boolean(hit?.closest(".analyticsConsentPrompt"));
+        })
+        .map((element) => (element.textContent ?? "").trim().slice(0, 40));
+    });
+    expect(covered).toEqual([]);
 
-    // The probe can still answer "prompt", so the assertion above is one the
-    // card can lose.
+    // The probe can still answer "prompt", so the sweep above is one the card
+    // can lose.
     const promptBox = await prompt.boundingBox();
     expect(promptBox).not.toBeNull();
     expect(await pointOwner(page, promptBox!, ".lpRailLink")).toBe("prompt");
