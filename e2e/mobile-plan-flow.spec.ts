@@ -86,6 +86,56 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   await expectTouchHeight(page.getByRole("button", { name: "Add another stop" }));
   await expectTouchHeight(page.getByRole("button", { name: "Lock it in" }), 48);
 
+  // THE ANSWER IS REACHABLE. PlanAstra measured this primary roughly 40%
+  // under the tab bar at 390, with the floating create action over its right
+  // edge. Height alone never said so: the control was the right size and in
+  // the wrong place, so the assertion is whether a thumb landing on its centre
+  // reaches it.
+  const lockIn = page.getByRole("button", { name: "Lock it in" });
+  await expect(lockIn).toBeInViewport({ ratio: 0.99 });
+  const lockOwner = await lockIn.evaluate((button) => {
+    const rect = button.getBoundingClientRect();
+    const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+    if (!hit) return "nothing";
+    if (hit === button || button.contains(hit)) return "lock";
+    if (hit.closest(".mobileTabBar")) return "tab bar";
+    if (hit.closest(".createFabRoot")) return "create action";
+    return hit.tagName.toLowerCase();
+  });
+  expect(lockOwner).toBe("lock");
+
+  // ONE PAINTED PRIMARY. With a route on the page the concierge control keeps
+  // its place and its size and says what it now does, without a second coral
+  // fill competing with the action above.
+  const resort = page.getByRole("button", { name: "Sort it again" });
+  await expect(resort).toBeVisible();
+  await expect(page.getByRole("button", { name: "Make a plan" })).toHaveCount(0);
+  const fills = await page.evaluate(() => {
+    const paint = (selector: string) => {
+      const element = document.querySelector(selector);
+      return element ? getComputedStyle(element).backgroundColor : null;
+    };
+    return {
+      lock: paint(".planComposer__submit"),
+      resort: paint(".planComposer__resort"),
+    };
+  });
+  expect(fills.resort).toBe("rgba(0, 0, 0, 0)");
+  expect(fills.lock).not.toBe("rgba(0, 0, 0, 0)");
+
+  // The first tab stop is a tab stop, not a box in the middle of the form.
+  // A transformed ancestor turned the old translate-away into a few pixels.
+  const skipLink = page.locator(".skipLink");
+  await expect(skipLink).toHaveCount(1);
+  const skipBox = await skipLink.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return { width: rect.width, height: rect.height };
+  });
+  expect(skipBox.width).toBeLessThanOrEqual(1);
+  expect(skipBox.height).toBeLessThanOrEqual(1);
+  await skipLink.focus();
+  await expect(skipLink).toBeInViewport({ ratio: 0.99 });
+
   await page.getByLabel("Your name").fill("Terra");
   await page.getByRole("button", { name: "Lock it in" }).click();
 

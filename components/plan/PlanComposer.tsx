@@ -1323,6 +1323,10 @@ function PlanComposerForm({
     activeUnsupportedPatch,
   );
   const conciergeStatus = conciergeStatusText(sorting, activeUnsupportedPatch, conciergeNote);
+  // A route is ON THE PAGE once a Stop names a pub. That is the moment the
+  // page's one painted primary becomes `Lock it in`, so the concierge control
+  // above steps back and says what it now does.
+  const routeSorted = completeStops.length > 0;
   const composerVisible =
     planIntake.completed
     || stops.length > 0
@@ -1983,7 +1987,21 @@ function PlanComposerForm({
         <div className="planComposer__conciergeInput">
           <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the outing</label>
           <input id="plan-concierge-query" type="text" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
-          <button type="button" onClick={() => sortWithConcierge()} disabled={sorting || !canSortWithCurrentGenerator} aria-busy={sorting}>{sorting ? "Planning…" : "Make a plan"}</button>
+          {/* ONE PAINTED PRIMARY PER SCREEN. Once a route is on the page,
+              `Lock it in` is the thing to do next, and two coral fills on one
+              screen is the reader choosing between them. This control keeps
+              its place and its words change to what it now does; it is
+              demoted rather than removed, because editing the description
+              above it has to stay answerable. */}
+          <button
+            type="button"
+            className={routeSorted ? "planComposer__resort" : undefined}
+            onClick={() => sortWithConcierge()}
+            disabled={sorting || !canSortWithCurrentGenerator}
+            aria-busy={sorting}
+          >
+            {sorting ? "Planning…" : routeSorted ? "Sort it again" : "Make a plan"}
+          </button>
         </div>
         <p id="plan-concierge-status" className="planComposer__conciergeStatus" role="status" aria-live="polite">
           {conciergeStatus}
@@ -2228,8 +2246,17 @@ function PlanComposerForm({
       </fieldset>
 
       {error ? <PlanComposerErrorNotice message={error} /> : null}
-      <button className="planComposer__submit" type="submit" disabled={!canLockPlan}>{submitting ? "Locking it in…" : "Lock it in"}</button>
-      <p className="planComposer__trust">Anyone with the link can see the plan. Joining only asks for a name.</p>
+      {/* THE ANSWER IS PINNED. On a phone this action sat at the natural end of
+          a page several screens long, which is under the tab bar and under the
+          floating create action: PlanAstra measured it 40% covered at 390. It
+          is now a full-width bar above the reserved chrome, carrying the one
+          line that qualifies it, so the two can never separate. The create
+          action stands down while it is up, on the same terms as the consent
+          card (components/nav/createFab.css). */}
+      <div className="planComposer__lock">
+        <button className="planComposer__submit" type="submit" disabled={!canLockPlan}>{submitting ? "Locking it in…" : "Lock it in"}</button>
+        <p className="planComposer__trust">Anyone with the link can see the plan. Joining only asks for a name.</p>
+      </div>
         </>
       ) : null}
     </form>

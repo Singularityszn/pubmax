@@ -1,30 +1,50 @@
+/* First tab stop, and it may not be VISIBLE until it is focused.
+ *
+ * It used to hide with `transform: translateY(-140%)` off a `position: fixed`
+ * box. Both halves of that fail together the moment any ancestor takes a
+ * transform, a filter or a `will-change`: such an ancestor becomes the
+ * containing block, `fixed` stops meaning the viewport, and -140% of the
+ * link's own height is then a few pixels rather than the whole screen. That is
+ * how `/plan` printed a bordered "Skip to main content" in flow, mid-page,
+ * under the first-pint field (PlanAstra at 390).
+ *
+ * The visually-hidden idiom has no such dependency: a 1px clipped box is out
+ * of sight wherever it is laid out, and the focused state restores real
+ * geometry over the page. */
 .skipLink {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 100000;
-  margin: 8px;
-  padding: 10px 16px;
-  border-radius: var(--radius-sm, 8px);
-  border: 2px solid var(--ink-deep, #0b0b0d);
-  background: var(--panel-overlay, #ffffff);
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
   color: var(--ink-deep, #0b0b0d);
   font-weight: 600;
   text-decoration: none;
-  transform: translateY(-140%);
-  transition: transform 120ms ease;
 }
 
 .skipLink:focus {
-  transform: translateY(0);
+  z-index: 100000;
+  width: auto;
+  height: auto;
+  margin: 8px;
+  padding: 10px 16px;
+  overflow: visible;
+  clip: auto;
+  clip-path: none;
+  border-radius: var(--radius-sm, 8px);
+  border: 2px solid var(--ink-deep, #0b0b0d);
+  background: var(--panel-overlay, #ffffff);
   outline: 2px solid var(--brass, #ff5a5f);
   outline-offset: 2px;
 }
 
 .skipLink:focus:not(:focus-visible) {
   outline: none;
-}
-
-.skipLink:focus-visible {
-  transform: translateY(0);
 }

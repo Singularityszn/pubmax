@@ -59,7 +59,12 @@
     display: none;
   }
 
+  /* The planner's `Lock it in` bar is the same shape and the same deal: full
+     width, its one action across this control's own lane, and it is the answer
+     the whole page exists to give. Compose offers "Start a plan", which from
+     that page is a door back to the page the reader is standing on. */
   body:has(.analyticsConsentPrompt) .createFabRoot,
+  body:has(.planComposer__lock) .createFabRoot,
   body:has(.mapArrivalCard) .createFabRoot,
   body:has(.appShell.detail-open) .createFabRoot,
   body:has(.appShell.planning-open) .createFabRoot,
@@ -76,6 +81,7 @@
   }
 
   body:has(.analyticsConsentPrompt) .createFabRoot :is(.createFab, .createFabMenu),
+  body:has(.planComposer__lock) .createFabRoot :is(.createFab, .createFabMenu),
   body:has(.mapArrivalCard) .createFabRoot :is(.createFab, .createFabMenu),
   body:has(.appShell.detail-open) .createFabRoot :is(.createFab, .createFabMenu),
   body:has(.appShell.planning-open) .createFabRoot :is(.createFab, .createFabMenu),
