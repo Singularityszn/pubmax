@@ -140,7 +140,12 @@ vi.mock("@/lib/publicPintIndexSnapshot.server", () => ({
   loadPublicPintIndexSnapshot: async () => null,
 }));
 vi.mock("@/lib/planStore", () => ({
-  planStore: () => ({ get: async () => PLAN_STATE }),
+  // `read` is the three-way reading the page asks: a store we could not reach
+  // is its own answer, never a plan that has closed (lib/planStore.ts).
+  planStore: () => ({
+    read: async () => ({ status: "found", state: PLAN_STATE }),
+    get: async () => PLAN_STATE,
+  }),
 }));
 vi.mock("@/lib/planCollaborationStore", () => ({
   planCollaborationStore: () => ({ vibeTally: async () => ({ ok: false }) }),
