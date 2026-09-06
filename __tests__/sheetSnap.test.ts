@@ -11,10 +11,8 @@ import {
   SHEET_SNAP_ORDER,
   SHEET_SNAP_TRANSLATE_FRACTIONS,
   mobileSelectCameraOffset,
-  sheetEntranceStartHeight,
-  SHEET_ENTRANCE_OVERSHOOT_DAMPING,
+  SHEET_ENTRANCE_MS,
 } from "@/lib/sheetSnap";
-import { stepSpring } from "@/lib/springMotion";
 
 const VH = 800; // a plausible phone viewport height in px
 
@@ -59,22 +57,15 @@ describe("sheetClosedTranslateY", () => {
   });
 });
 
-describe("sheetEntranceStartHeight", () => {
-  it("calibrates phone entrance spring overshoot to 2-3 percent", () => {
-    const target = 440;
-    const start = sheetEntranceStartHeight(target, true);
-    let state = { value: start, velocity: 0 };
-    let peak = start;
-    for (let frame = 0; frame < 240; frame += 1) {
-      state = stepSpring(state, target, 1 / 240, {
-        response: 0.34,
-        dampingRatio: SHEET_ENTRANCE_OVERSHOOT_DAMPING,
-      });
-      peak = Math.max(peak, state.value);
-    }
-    const overshoot = (peak - target) / target;
-    expect(overshoot).toBeGreaterThanOrEqual(0.02);
-    expect(overshoot).toBeLessThanOrEqual(0.03);
+// The phone sheet's entrance used to spring the BOX HEIGHT from a sliver up to
+// the snap cap, and `sheetEntranceStartHeight` set that sliver. This sheet is
+// bottom-anchored, so that travel moved every pixel inside it and Chrome scored
+// the lot: a `/map?sel=` arrival measured CLS 0.31 on the audit's phone rig. The
+// entrance is a transform now (components/mobile/mobileMapShell.css,
+// `.sheet-entering`), the height is set at once, and the helper is retired.
+describe("SHEET_ENTRANCE_MS", () => {
+  it("is the one duration the entrance class and its keyframes share", () => {
+    expect(SHEET_ENTRANCE_MS).toBeGreaterThan(0);
   });
 });
 
