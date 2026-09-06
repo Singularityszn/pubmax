@@ -129,3 +129,42 @@ The whole law-pin set, run locally against a production build on a private port:
 - `api-performance.yml` fires only on a production `deployment_status`, so it
   cannot be exercised from a pull request. It runs Node and one probe script and
   carries no runner-specific step.
+
+## 5. The performance budget is breached on main-equivalent code, on two machines
+
+The one job still red. It is not this PR and it is not the runner.
+
+The gate has never run against these ceilings. `perf/route-budgets.json` was
+ratcheted on 4 September at 09:28 (#1416), and every CI run on `main` from
+4 September 07:43 onward reports every job as failure, which is the billing
+fault rather than a test result: the run at the ratchet commit itself has all
+fifteen checks red. Fifty-five commits have landed on `main` since the last job
+actually executed.
+
+Measured here against a local production build of this branch, on a private
+port, with the same spec the job runs, beside the Avrea figures:
+
+| route | metric | ceiling | Avrea | this Mac |
+| --- | --- | ---: | ---: | ---: |
+| /map | requests | 160 | 335 | 335 |
+| /map | lcpMs | 900 | 2184 | 1416 |
+| /drinks | lcpMs | 400 | 772 | 820 |
+| /messages | lcpMs | 800 | 844 | 1024 |
+| /onboarding | lcpMs | 900 | 964 | 1244 |
+| /crawls | lcpMs | 300 | 336 | 332 |
+| /historic | lcpMs | 400 | 460 | 452 |
+| /moment | lcpMs | 300 | 312 | 332 |
+| /drinks | jsDecodedKB | 1130 | 1242 | not breached |
+| /today | lcpMs | 300 | 700 | not breached |
+
+`/map` asks for 335 requests against a ceiling of 160 on BOTH machines, to the
+request. A request count is not a CPU measurement, so that one is a real
+regression in what the map fetches, not runner slowness. The LCP figures are
+over on both machines too, by different amounts, which is what a slower host
+does to a figure that is already over.
+
+Nothing here is fixed in this PR, and no ceiling is moved: raising one would be
+the exact move the ratchet exists to refuse, and the drift belongs to whichever
+commit caused it. The likeliest place to start for `/map` is #1561 ("until the
+pins have painted, the wire belongs to the pins"), which holds the shard ring
+requests and replays them once a pin paints.
