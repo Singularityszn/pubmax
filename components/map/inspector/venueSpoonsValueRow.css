@@ -1,0 +1,90 @@
+/* The Spoons value row on a pub's Overview. De-boxed like its neighbours: one
+   hairline above it, no card, and the figure carries the only colour. */
+.venueSpoonsValue {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--line-soft);
+  min-width: 0;
+}
+
+.venueSpoonsValueHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Sentence case: uppercase is reserved for stamps (docs/DESIGN_SYSTEM.md). */
+.venueSpoonsValueTitle {
+  margin: 0;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+}
+
+/* The one coloured thing in the row, and it is a units count rather than a
+   price, which is why it prints its unit and never a bare number. */
+.venueSpoonsValueUnits {
+  flex: none;
+  padding: 2px 8px;
+  border: 1px solid var(--price-band-border, var(--line));
+  border-radius: var(--control-radius, 12px);
+  background: var(--price-band-surface, var(--panel-raised));
+  color: var(--price-band-ink, var(--ink));
+  font-size: 0.78rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.venueSpoonsValueLine {
+  margin: 0;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  /* A round names real drinks, so it wraps; it never truncates. */
+  overflow-wrap: anywhere;
+}
+
+.venueSpoonsValueMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+}
+
+.venueSpoonsValueStanding {
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+.venueSpoonsValueBand {
+  font-weight: 700;
+}
+
+.venueSpoonsValueCredit {
+  margin: 0;
+  min-width: 0;
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.venueSpoonsValueCredit a {
+  color: var(--brass-ink, var(--brass));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

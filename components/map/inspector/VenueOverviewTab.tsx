@@ -47,6 +47,7 @@ import {
 import type { VenueDropReadStatus } from "@/components/map/usePintDrops";
 import VenueDrinkPrices from "@/components/map/VenueDrinkPrices";
 import VenuePriceEntryPanel from "./VenuePriceEntryPanel";
+import VenueSpoonsValueRow from "./VenueSpoonsValueRow";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { usePriceEvidenceMission } from "@/components/nearme/usePriceEvidenceMission";
 import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
@@ -692,6 +693,9 @@ export default function VenueOverviewTab({
   // only its two categories, while the food view reserves this slot for the
   // sourced menu anchor below. Sheet visibility remains independent of map
   // authority, which still requires category-specific trust gates.
+  // The ordinary map, with no drink lens over it. Two blocks below ask the same
+  // question, so it is asked once.
+  const restingPintView = experienceLens === "all" && !drinkLensCategory;
   const venueReadStatus =
     communityPrices.venuePriceStatus.get(venue.id) ?? "idle";
   const communityRows = communityPrices.byVenueId.get(venue.id);
@@ -939,13 +943,19 @@ export default function VenueOverviewTab({
           }
         />
       ) : null}
+      {/* What a tenner buys here, when this pub is one of the Wetherspoons the
+          Spoons value ranking holds. Sits under today's price because it is a
+          different question about the same bar, and renders nothing for every
+          other pub. Never a price lane: the figure is a units count somebody
+          else read off a menu (lib/spoonsValue.ts). */}
+      <VenueSpoonsValueRow venueId={venue.id} visible={restingPintView} />
       {/* What a pint here used to cost: one dated figure from the archives,
           against the price on record now. Sits directly under today's price
           because the comparison IS the point. History only - the old figure
           never enters bands, pins, cheapest buckets or the Pint Index
           (lib/priceHistory.ts). Renders nothing for a pub with no history.
           Hidden under a drink lens: an old pint does not answer coffee. */}
-      {experienceLens === "all" && !drinkLensCategory ? (
+      {restingPintView ? (
         <VenuePriceThen
           venueId={venue.id}
         // "Now" is only offered where today's figure is a pint. A bar or food

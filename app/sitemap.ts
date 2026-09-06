@@ -7,6 +7,7 @@ import { loadHistoricPubs } from "@/lib/historic";
 import { loadPintPriceLandingVenuesOrThrow } from "@/lib/pintPriceLandingDataset.server";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
+import { readSpoonsValue } from "@/lib/spoonsValue.server";
 import {
   drinkBrandAreaLandingRoute,
   loadDrinkBrandAreaLandings,
@@ -91,6 +92,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     pintIndexEditions,
     drinkBrandLandings,
     drinkBrandAreaLandings,
+    spoonsValueRead,
   ] = await Promise.all([
     loadPintPriceLandingVenuesOrThrow(),
     loadHistoricPubs(),
@@ -100,7 +102,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     loadPintIndexArchive(),
     loadDrinkBrandLandings(),
     loadDrinkBrandAreaLandings(),
+    readSpoonsValue(),
   ]);
+  // The imported edition dates its own page. A read we could not run falls back
+  // to the build clock rather than dropping the URL: an unreadable pack is a
+  // reason to be vague about the date, never to deindex a live page.
+  const spoonsValueModified = spoonsValueRead.pack
+    ? new Date(spoonsValueRead.pack.provenance.retrievedAt)
+    : now;
   const pintIndexPublished = pintIndexSnapshot
     ? new Date(pintIndexSnapshot.generatedAt)
     : new Date("2026-07-16T00:00:00.000Z");
@@ -131,6 +140,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/borough", priority: 0.8, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/pint-index", priority: 0.8, changeFrequency: "monthly", lastModified: pintIndexPublished },
     { path: "/historic", priority: 0.8, changeFrequency: "weekly", lastModified: historicModified },
+    // The Spoons value ranking. Its own content dates it: the figures are an
+    // imported edition and nothing we run advances them, so it changes when a
+    // re-import lands and not on our build clock.
+    {
+      path: "/spoons-value",
+      priority: 0.6,
+      changeFrequency: "yearly",
+      lastModified: spoonsValueModified,
+    },
     { path: "/pubs", priority: 0.7, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/tonight", priority: 0.6, changeFrequency: "daily", lastModified: now },
     { path: "/crawls", priority: 0.6, changeFrequency: "weekly", lastModified: now },

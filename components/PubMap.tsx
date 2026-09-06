@@ -181,6 +181,10 @@ const MobilePlanActivation = dynamic(
   { ssr: false },
 );
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+const SpoonsValueLensControl = dynamic(
+  () => import("@/components/map/SpoonsValueLensControl"),
+  { ssr: false },
+);
 const DrinkLanePicker = dynamic(() => import("@/components/map/DrinkLanePicker"), {
   ssr: false,
 });
@@ -470,6 +474,14 @@ import {
   type CategoryPriceIndexStatus,
   type MapExperienceLens as MapExperienceLensValue,
 } from "@/lib/mapExperienceLens";
+import { loadSpoonsValueLane } from "@/lib/spoonsValueLane";
+import {
+  SPOONS_VALUE_LENS_OFF,
+  spoonsValueLensView,
+  spoonsValueReadForToggle,
+  type SpoonsValueLensState,
+  type SpoonsValuePinLane,
+} from "@/lib/spoonsValue";
 import { type DrinkCategory } from "@/lib/drinks";
 import {
   activeDrinkLane,
@@ -1379,6 +1391,52 @@ export default function PubMap({
       cancelled = true;
     };
   }, [filters.openNow]);
+  // The Spoons value lens. OFF by default and its lane is fetched only when a
+  // reader switches it on, so a cold /map pays nothing for it: this is not one
+  // of the streams lib/mapFirstPinStreams.ts holds, because nothing asks for it
+  // until the map has already drawn the control to switch it over.
+  const [spoonsValueOn, setSpoonsValueOn] = useState(false);
+  const [spoonsValueRead, setSpoonsValueRead] = useState<SpoonsValueLensState>(
+    SPOONS_VALUE_LENS_OFF,
+  );
+  const [spoonsValueLaneRead, setSpoonsValueLaneRead] =
+    useState<SpoonsValuePinLane | null>(null);
+  // OFF is DERIVED rather than written back (lib/spoonsValue.ts owns the rule).
+  const { lens: spoonsValueLens, lane: spoonsValueLane } = spoonsValueLensView(
+    spoonsValueOn,
+    spoonsValueRead,
+    spoonsValueLaneRead,
+  );
+  const changeSpoonsValue = useCallback((next: boolean) => {
+    setSpoonsValueOn(next);
+    // The event that started the read is where the wait is said out loud.
+    setSpoonsValueRead(spoonsValueReadForToggle(next));
+  }, []);
+  useEffect(() => {
+    if (!spoonsValueOn) return;
+    let cancelled = false;
+    loadSpoonsValueLane()
+      .then((lane) => {
+        if (cancelled) return;
+        setSpoonsValueRead({
+          status: lane.status,
+          modalMilliunits: lane.modalMilliunits,
+        });
+        setSpoonsValueLaneRead(
+          lane.status === "ready"
+            ? { byVenueId: lane.byVenueId, modalMilliunits: lane.modalMilliunits }
+            : null,
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSpoonsValueRead({ status: "unavailable", modalMilliunits: null });
+        setSpoonsValueLaneRead(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [spoonsValueOn]);
   const [experienceLens, setExperienceLens] =
     useState<MapExperienceLensValue>("all");
   const [experiencePolicyNow] = useState(() => Date.now());
@@ -5556,18 +5614,30 @@ export default function PubMap({
         }}
         filtersContent={renderMobileFiltersPanel()}
         drinkContent={
-          <DrinkLanePicker
-            lane={activeMapDrinkLane}
-            status={drinkIndexStatus}
-            variant="sheet"
-            onChange={(lane) => {
-              changeDrinkLane(lane);
-              // An experience view stands the drink lane down, so picking a
-              // drink has to hand the map back to All or the tap does nothing
-              // a reader can see.
-              if (experienceLens !== "all") changeExperienceLens("all");
-            }}
-          />
+          <>
+            <DrinkLanePicker
+              lane={activeMapDrinkLane}
+              status={drinkIndexStatus}
+              variant="sheet"
+              onChange={(lane) => {
+                changeDrinkLane(lane);
+                // An experience view stands the drink lane down, so picking a
+                // drink has to hand the map back to All or the tap does nothing
+                // a reader can see.
+                if (experienceLens !== "all") changeExperienceLens("all");
+              }}
+            />
+            {/* The Spoons value lens shares this sheet rather than taking one
+                of its own: it is the same question about what the map is
+                showing you about a drink, and a sheet nobody can find is a
+                lens nobody uses. */}
+            <SpoonsValueLensControl
+              on={spoonsValueOn}
+              state={spoonsValueLens}
+              variant="sheet"
+              onChange={changeSpoonsValue}
+            />
+          </>
         }
         tflContent={<MobileTflPanel status={tflStatus} />}
         tonightContent={
@@ -5864,6 +5934,7 @@ export default function PubMap({
         whatsOnByVenue={whatsOnTonight.summary}
         provisionalVenueIds={provisionalVenueIds}
         lensPrices={activeLensPrices}
+        spoonsValue={spoonsValueLane}
         lensNoun={activeLensNoun?.toLowerCase() ?? null}
         lensIndexStatus={drinkIndexStatus}
         activeBandId={activeBandId}
@@ -5931,6 +6002,9 @@ export default function PubMap({
         onDrinkBrandChange={changeDrinkBrand}
         onDrinkLaneChange={changeDrinkLane}
         drinkLaneStatus={drinkIndexStatus}
+        spoonsValueOn={spoonsValueOn}
+        spoonsValueLens={spoonsValueLens}
+        onSpoonsValueChange={changeSpoonsValue}
         personaId={personaLensId}
         onPersonaSelect={selectPersona}
         personaTonightCategory={personaTonightCategory}

@@ -8,6 +8,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import PriceBadge from "@/components/PriceBadge";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
 import VenueSheetPriceEntry from "@/components/map/inspector/VenueSheetPriceEntry";
+import VenueSpoonsValueRow from "./inspector/VenueSpoonsValueRow";
 import { useVenueSheetOpened } from "@/components/map/useVenueSheetOpened";
 import {
   freshestCommunityPrice,
@@ -254,6 +255,12 @@ export default function UnverifiedPubSheet({
         mapReach="mark"
         laneCategory={drinkLensCategory ?? DEFAULT_DRINK_LANE}
       />
+
+      {/* What a tenner buys here, when this pub is one of the Wetherspoons the
+          Spoons value ranking holds. Most of the pubs that ranking joins are
+          base pins like this one, so the row lives on this sheet as well as on
+          the curated Overview, and renders nothing for every other pub. */}
+      <VenueSpoonsValueRow venueId={pub.id} visible={!drinkLensCategory} />
 
       {/* ODbL requires attribution wherever these pins are publicly displayed
           (data/osm/uk/README.md), and it is also the honest provenance line:

@@ -67,6 +67,7 @@ import type {
   CategoryPriceIndexStatus,
   MapLensPrice,
 } from "@/lib/mapExperienceLens";
+import type { SpoonsValuePinLane } from "@/lib/spoonsValue";
 import { projectedItemIdsInViewport } from "@/lib/mapVenueList";
 import type { VenueSignal, HoveredVenue, VenueDetailResponse, FailedHoverImage } from "@/components/map/canvas/types";
 import {
@@ -265,6 +266,14 @@ type PubMapCanvasProps = {
   provisionalVenueIds?: ReadonlySet<string> | null;
   /** Dedicated no-alcohol or food figures, separate from pint signals. */
   lensPrices?: ReadonlyMap<string, MapLensPrice> | null;
+  /**
+   * A non-null lane means the Spoons value lens owns the map: the pins in the
+   * ranking wear a value band and print the units the best £10 round holds.
+   * Its own prop rather than a `lensPrices` entry, because the figure is a
+   * units count read off a Wetherspoon menu by somebody else and must never be
+   * able to reach the price stack (lib/spoonsValue.ts owns the whole rule).
+   */
+  spoonsValue?: SpoonsValuePinLane | null;
   /** What the active lens is called inside a sentence ("whisky"). */
   lensNoun?: string | null;
   /** How complete the lens's cross-venue read was, for the hover card's line. */
@@ -504,6 +513,10 @@ export default function PubMapCanvas({
   whatsOnByVenue = null,
   provisionalVenueIds = null,
   lensPrices = null,
+  // No default: an absent lane and an off lens are the same falsy answer to
+  // every reader below, and a default here costs this already-dense function
+  // a branch it does not need.
+  spoonsValue,
   lensNoun = null,
   lensIndexStatus = "ready",
   onLandmarkSelect,
@@ -3089,6 +3102,8 @@ export default function PubMapCanvas({
       whatsOnByVenue,
       provisionalVenueIds,
       lensPrices,
+      null,
+      spoonsValue,
     );
     publishRenderedState(readTokens());
     if (!mapReady) return;
@@ -3109,6 +3124,7 @@ export default function PubMapCanvas({
     whatsOnByVenue,
     provisionalVenueIds,
     lensPrices,
+    spoonsValue,
     mapReady,
     publishRenderedState,
   ]);
@@ -3135,6 +3151,10 @@ export default function PubMapCanvas({
     ukBaseDataRef,
     drawableVenueIds,
     provisionalVenueIds,
+    // The Spoons value lens rides THIS layer: most of the pubs it ranks are
+    // base pins rather than curated venues, so it is passed through rather
+    // than suspending the layer the way an experience view does.
+    spoonsValue,
     // A non-null lensPrices map is the one signal that an experience view owns
     // the map, the same one the curated pins read below.
     suspended: lensPrices !== null,

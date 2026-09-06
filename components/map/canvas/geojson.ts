@@ -5,9 +5,11 @@ import {
   drinkPinKindFromCategories,
   iconId,
   venuePinIconKey,
+  type VenuePinKind,
 } from "@/lib/mapIcons";
 import type { Landmark } from "@/lib/landmarks";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
+import { spoonsValuePinFor, type SpoonsValuePinLane } from "@/lib/spoonsValue";
 import { bandAnchors } from "@/lib/storyBandGeometry";
 import type { StoryBand } from "@/lib/storyBands";
 import type { Venue } from "@/lib/venues";
@@ -127,6 +129,102 @@ function pinPriceStack(
   };
 }
 
+/**
+ * What ONE pin paints and what it says: its colour bucket and its tag.
+ *
+ * Both answers come from here rather than from two expression chains inside
+ * `pubsToGeoJSON`'s row builder, because they are one decision made in a fixed
+ * order and that function is already the densest in this file.
+ *
+ * The order IS the rule. The Spoons value lens owns the pin outright when it is
+ * on, and it stamps NO price standing: a round somebody else costed off a
+ * Wetherspoon menu is not a claim about this pub's pint, so it may never reach
+ * `pinPriceTag`'s standing stack. Below it everything is exactly as it was.
+ */
+/**
+ * The glyph one pin wears.
+ *
+ * An active drink lens owns it (beer to pint glasses, wine to wine); without a
+ * lens it falls back to the venue's own recorded categories.
+ *
+ * Only REAL recorded drink categories drive the resting (lens-off) glyph. When
+ * a venue has none (filterHints.drinkCategories absent or empty), the honest
+ * default for a pub is a pint glass, never the synthetic per-venue accent hash
+ * (drinkAccentForVenue stays decorative card art), which otherwise painted
+ * ale-led heritage pubs like The Black Friar with a hash-random martini glyph
+ * (owner audit). #372 fixed the amenity path; this closes the accent path. The
+ * cocktails amenity alone likewise never promotes a hintless pub to a martini
+ * pin: a pub that pours cocktails is still a pub. An explicit cocktail lens is
+ * a user choice and does paint martinis, as intended.
+ */
+function pinDrinkKind(
+  venue: Venue,
+  drinkCategory: string | null,
+  lensPrice: MapLensPrice | null,
+): VenuePinKind {
+  const lens = drinkCategory?.trim().toLowerCase() ?? lensPrice?.category ?? "";
+  const cocktailsAmenity =
+    Boolean(venue.amenities.cocktails) ||
+    Boolean(venue.filterHints?.amenities.cocktails);
+  const hintCategories = venue.filterHints?.drinkCategories;
+  return venue.kind === "bar"
+    ? "coupe"
+    : venue.kind === "food"
+      ? "skewer"
+      : venue.kind === "restaurant"
+        ? "fork"
+        : lens === "beer"
+          ? "pint"
+          : lens && lens !== "other"
+            ? drinkPinKindFromCategories([lens], lens === "cocktail" || cocktailsAmenity)
+            : hintCategories && hintCategories.length > 0
+              ? drinkPinKindFromCategories(hintCategories, cocktailsAmenity)
+              : "pint";
+}
+
+function pinBucketAndTag(args: {
+  venue: Venue;
+  signals: VenueSignal | undefined;
+  price: number | null;
+  sourcedPrice: number | null;
+  lensPrices: ReadonlyMap<string, MapLensPrice> | null;
+  priceStandings: ReadonlyMap<string, PriceStandingDecision> | null;
+  spoonsValue: SpoonsValuePinLane | null;
+}): {
+  bucket: number;
+  tag: { label: string | null; standing: PriceStanding | null };
+} {
+  const { venue, signals, price, sourcedPrice, lensPrices, priceStandings } = args;
+  if (args.spoonsValue) {
+    const pin = spoonsValuePinFor(args.spoonsValue, venue.id);
+    return { bucket: pin.bucket, tag: { label: pin.label, standing: null } };
+  }
+  const lensActive = lensPrices !== null;
+  const lensPrice = lensPrices?.get(venue.id) ?? null;
+  // A selected drink owns both colour and figure. Missing means unknown,
+  // never the pub's pint or anchor price. Food anchors have category null
+  // and remain sheet-only because their figures are not drink prices.
+  const bucket = lensActive
+    ? lensPrice?.category
+      ? priceBucket(lensPrice.priceGbp)
+      : 3
+    : venue.priceBand ?? priceBucket(price);
+  const basePriceLabel = formatPinPriceLabel(sourcedPrice);
+  const lensPriceLabel =
+    lensPrice?.category && formatPinPriceLabel(lensPrice.priceGbp)
+      ? `${formatPinPriceLabel(lensPrice.priceGbp)} ${lensPrice.categoryLabel}`
+      : null;
+  return {
+    bucket,
+    tag: pinPriceTag(
+      venue.id,
+      priceStandings,
+      { lensActive, lensPriceLabel, basePriceLabel },
+      signals,
+    ),
+  };
+}
+
 export function pubsToGeoJSON(
   venues: Venue[],
   venueSignals: Map<string, VenueSignal>,
@@ -154,6 +252,14 @@ export function pubsToGeoJSON(
   // and print a labelled `est. £X` tag on a pub that has no sayable price of
   // its own. Absent map = today's behaviour, unchanged.
   priceStandings: ReadonlyMap<string, PriceStandingDecision> | null = null,
+  // A non-null lane means the Spoons value lens owns the map. It is its own
+  // argument rather than a `lensPrices` entry for the reason `priceStandings`
+  // is: the figure is a units count somebody else derived from a Wetherspoon
+  // menu, so it must be impossible for it to reach the price stack that
+  // `bucket` and every downstream price surface read. It does exactly two
+  // things, and stamps no standing: a pub's round is not a claim about its
+  // pint. Absent lane = today's behaviour, unchanged.
+  spoonsValue: SpoonsValuePinLane | null = null,
 ): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
@@ -173,65 +279,16 @@ export function pubsToGeoJSON(
       );
       const lensActive = lensPrices !== null;
       const lensPrice = lensPrices?.get(venue.id) ?? null;
-      // A selected drink owns both colour and figure. Missing means unknown,
-      // never the pub's pint or anchor price. Food anchors have category null
-      // and remain sheet-only because their figures are not drink prices.
-      const bucket = lensActive
-        ? lensPrice?.category
-          ? priceBucket(lensPrice.priceGbp)
-          : 3
-        : venue.priceBand ?? priceBucket(price);
-      const basePriceLabel = formatPinPriceLabel(sourcedPrice);
-      const lensPriceLabel =
-        lensPrice?.category && formatPinPriceLabel(lensPrice.priceGbp)
-          ? `${formatPinPriceLabel(lensPrice.priceGbp)} ${lensPrice.categoryLabel}`
-          : null;
-      const tag = pinPriceTag(
-        venue.id,
-        priceStandings,
-        { lensActive, lensPriceLabel, basePriceLabel },
+      const { bucket, tag } = pinBucketAndTag({
+        venue,
         signals,
-      );
-      // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
-      // Without a lens, fall back to venue hint categories.
-      const lens =
-        drinkCategory?.trim().toLowerCase() ??
-        lensPrice?.category ??
-        "";
-      // Only REAL recorded drink categories drive the resting (lens-off) pin
-      // glyph. When a venue has none (filterHints.drinkCategories absent/empty),
-      // the honest default for a pub is a pint glass — never the synthetic
-      // per-venue accent hash (drinkAccentForVenue stays decorative card art),
-      // which otherwise painted ale-led heritage pubs like The Black Friar with
-      // a hash-random martini glyph (owner audit). #372 fixed the amenity path;
-      // this closes the accent path. The cocktails amenity alone likewise never
-      // promotes a hintless pub to a martini pin — a pub that pours cocktails is
-      // still a pub. An explicit cocktail lens (below) is a user choice and does
-      // paint martinis, as intended.
-      const hintCategories = venue.filterHints?.drinkCategories;
-      const drinkKind =
-        venue.kind === "bar"
-          ? "coupe"
-          : venue.kind === "food"
-            ? "skewer"
-            : venue.kind === "restaurant"
-              ? "fork"
-              : lens === "beer"
-                ? "pint"
-                : lens && lens !== "other"
-                  ? drinkPinKindFromCategories(
-                      [lens],
-                      lens === "cocktail" ||
-                        Boolean(venue.amenities.cocktails) ||
-                        Boolean(venue.filterHints?.amenities.cocktails),
-                    )
-                  : hintCategories && hintCategories.length > 0
-                    ? drinkPinKindFromCategories(
-                        hintCategories,
-                        Boolean(venue.amenities.cocktails) ||
-                          Boolean(venue.filterHints?.amenities.cocktails),
-                      )
-                    : "pint";
+        price,
+        sourcedPrice,
+        lensPrices,
+        priceStandings,
+        spoonsValue,
+      });
+      const drinkKind = pinDrinkKind(venue, drinkCategory, lensPrice);
       const scraped = Boolean(
         venue.filterHints?.scraped ||
         venue.sourceDatasets?.some((source) =>

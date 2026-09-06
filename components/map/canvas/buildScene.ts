@@ -88,6 +88,32 @@ export const UK_BASE_ICON_SIZE_EXPR: maplibregl.ExpressionSpecification = [
 ];
 export const UK_BASE_ICON_OPACITY = 0.85;
 
+/**
+ * The base pin's glyph: its own unpriced silhouette, or the curated pint sprite
+ * for the value band the Spoons lens stamped. `spoonsBucket` is absent on every
+ * pub the lens holds nothing about and on every pub while the lens is off, so
+ * the fallback is the whole of today's behaviour.
+ */
+const UK_BASE_ICON_IMAGE_EXPR: maplibregl.ExpressionSpecification = [
+  "case",
+  ["has", "spoonsBucket"],
+  [
+    "concat",
+    "drink:pint-",
+    ["to-string", ["get", "spoonsBucket"]],
+  ],
+  iconId("base", UK_BASE_ICON_KEY),
+];
+
+/** The base pin's units tag, blank on every pub outside the ranking. */
+const UK_BASE_SPOONS_LABEL_EXPR: maplibregl.ExpressionSpecification = [
+  "step",
+  ["zoom"],
+  "",
+  PIN_PRICE_LABEL_MIN_ZOOM,
+  ["coalesce", ["get", "spoonsLabel"], ""],
+];
+
 // Supercluster grouping radius in screen pixels. Sized off the widest cluster
 // disc this scene draws (radius 20 + stroke, see the `clusters` layer) so two
 // discs can never touch on a 390px-wide phone, with margin for the count label.
@@ -192,6 +218,8 @@ export const PIN_PRICE_LABEL_OFFSET_EM: [number, number] = [0, 1.2];
 export const SELECTED_PIN_PRICE_LABEL_OFFSET_EM: [number, number] = [0, 1.45];
 /** Collision padding around the tag's own box, in px. */
 export const PIN_PRICE_LABEL_PADDING = 4;
+/** The plaque halo behind a pin tag, shared by the curated and base layers. */
+export const PIN_PRICE_LABEL_HALO_WIDTH = 2.1;
 
 // Zoom at/above which curated landmark pictograms stop yielding to other
 // symbols. Below it a landmark icon gives way where a pub cluster or pin
@@ -815,7 +843,7 @@ export function buildBandCorridor(ctx: SceneCtx) {
  * for a base pin, MapLibre simply does not place it.
  */
 export function buildUkBase(ctx: SceneCtx) {
-  const { map, tokens, dark, addLayerOnce, ukBaseData, selectedId } = ctx;
+  const { map, tokens, dark, textFont, addLayerOnce, ukBaseData, selectedId } = ctx;
   if (!map.getSource("uk-base")) {
     // This layer is wholly OSM-derived, so it carries the credit on the source
     // itself as well as on the map (tokens.ts OSM_ATTRIBUTION) - MapLibre
@@ -849,14 +877,42 @@ export function buildUkBase(ctx: SceneCtx) {
     source: "uk-base",
     minzoom: UK_BASE_MIN_ZOOM,
     layout: {
-      "icon-image": iconId("base", UK_BASE_ICON_KEY),
+      // A base pub draws the layer's own unpriced glyph, EXCEPT while the
+      // Spoons value lens has stamped a band on it. Then it borrows the
+      // curated pint sprite for that band, so the lens paints in the one pin
+      // family this map already has rather than a second one, and a reader
+      // sees the same three hues they read a price in. The expression is
+      // data-driven, so this layer is still added once and a pub the lens
+      // holds nothing about is untouched.
+      "icon-image": UK_BASE_ICON_IMAGE_EXPR,
       "icon-size": UK_BASE_ICON_SIZE_EXPR,
       "icon-allow-overlap": false,
       "icon-ignore-placement": false,
       "icon-padding": 3,
+      // The units tag, on exactly the deal the curated price tag takes: it is
+      // a real symbol in the collision index, and where it will not fit the
+      // TAG goes and the pin stays.
+      "text-field": UK_BASE_SPOONS_LABEL_EXPR,
+      "text-font": textFont,
+      "text-size": PIN_PRICE_LABEL_SIZE_EXPR,
+      "text-anchor": "top",
+      "text-offset": PIN_PRICE_LABEL_OFFSET_EM,
+      "text-letter-spacing": 0.01,
+      "text-rotate": tokens.priceStampTiltDeg,
+      "text-rotation-alignment": "viewport",
+      "text-allow-overlap": false,
+      "text-ignore-placement": false,
+      "text-optional": true,
+      "text-padding": PIN_PRICE_LABEL_PADDING,
     },
     paint: {
       "icon-opacity": UK_BASE_ICON_OPACITY,
+      // The same brass plaque the curated price tag wears, so one map does not
+      // print two kinds of tag.
+      "text-color": tokens.pricePlaqueInk,
+      "text-halo-color": tokens.pricePlaqueSurface,
+      "text-halo-width": PIN_PRICE_LABEL_HALO_WIDTH,
+      "text-halo-blur": 0.2,
     },
   });
   addLayerOnce({
@@ -1105,7 +1161,7 @@ export function buildPubs(ctx: SceneCtx) {
       // without introducing a second free-floating layer.
       "text-color": tokens.pricePlaqueInk,
       "text-halo-color": tokens.pricePlaqueSurface,
-      "text-halo-width": 2.1,
+      "text-halo-width": PIN_PRICE_LABEL_HALO_WIDTH,
       "text-halo-blur": 0.2,
       // The tag belongs to its pin, so it dims with it - same expression the
       // icon and the provisional badge wear. Without it, a pub the
@@ -1157,7 +1213,7 @@ export function buildPubs(ctx: SceneCtx) {
       "icon-opacity": 1,
       "text-color": tokens.pricePlaqueInk,
       "text-halo-color": tokens.pricePlaqueSurface,
-      "text-halo-width": 2.1,
+      "text-halo-width": PIN_PRICE_LABEL_HALO_WIDTH,
       "text-halo-blur": 0.2,
       "text-opacity": 1,
     },

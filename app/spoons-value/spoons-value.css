@@ -1,0 +1,250 @@
+/* The Spoons value ranking. One column that reads top to bottom on a phone and
+   the same on a desktop, wider: the page is a table, so the table gets the
+   width and nothing sits beside it. */
+.spoonsPage {
+  padding: 24px 16px 64px;
+  max-width: 68rem;
+  margin: 0 auto;
+  min-width: 0;
+}
+
+.spoonsLede {
+  margin: 0 0 16px;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+/* The cuts. Same chip as the map's lane picker, so a reader who has met one
+   has met both.
+
+   A SIDEWAYS RAIL ON A PHONE, never a wrapped block: nine chips wrapped to
+   three 44px rows at 390px and pushed the first table row off the screen, which
+   is the /tonight defect in another coat. Every chip keeps its 44px box and its
+   tab stop, so the browser scrolls a focused one into view. */
+.spoonsTableCuts {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 12px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.spoonsTableCuts::-webkit-scrollbar {
+  display: none;
+}
+
+.spoonsTableCut {
+  flex: none;
+  white-space: nowrap;
+}
+
+.spoonsTableCut {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 7px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--control-radius, 12px);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.spoonsTableCut:hover,
+.spoonsTableCut:focus-visible {
+  color: var(--ink);
+}
+
+.spoonsTableCut:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: -2px;
+}
+
+.spoonsTableCut.isSelected {
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-weight: 800;
+  box-shadow: var(--shadow-sm);
+}
+
+.spoonsTableCutCount {
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* Wide content scrolls inside its own box. The page body never scrolls
+   sideways. */
+.spoonsTableScroll {
+  overflow-x: auto;
+  min-width: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md, 14px);
+}
+
+.spoonsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.spoonsTableCaption {
+  padding: 10px 12px;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  text-align: left;
+  caption-side: top;
+}
+
+.spoonsTable th,
+.spoonsTable td {
+  padding: 10px 8px;
+  border-top: 1px solid var(--line-soft);
+  text-align: left;
+  vertical-align: top;
+}
+
+.spoonsTable thead th:last-child {
+  text-align: right;
+}
+
+.spoonsTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-top: 0;
+  background: var(--panel);
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.spoonsTableRank {
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.spoonsTablePub {
+  display: grid;
+  gap: 2px;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.spoonsTablePub a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.spoonsTableWhere {
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.spoonsTableUnits {
+  white-space: nowrap;
+  text-align: right;
+  vertical-align: top;
+}
+
+/* The one coloured figure in the row. It always prints its unit, so it can
+   never be read as the price of a pint. */
+.spoonsTableUnitsFigure {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid var(--price-band-border, var(--line));
+  border-radius: var(--control-radius, 12px);
+  background: var(--price-band-surface, var(--panel-raised));
+  color: var(--price-band-ink, var(--ink));
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The round sits WITH the pub it is poured in rather than in a column of its
+   own: a fourth column clipped to one word a line at 390px and pushed the whole
+   answer behind a sideways scroll. */
+.spoonsTableRound {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.spoonsTableCost {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.spoonsCredit {
+  display: grid;
+  gap: 8px;
+  margin: 24px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--line-soft);
+  min-width: 0;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.spoonsCreditTitle {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.spoonsCredit p {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.spoonsCredit a {
+  color: var(--brass-ink, var(--brass));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* With room for them, the chips wrap into a block rather than hiding a cut
+   behind a scroll nobody looks for. */
+@media (min-width: 768px) {
+  .spoonsTableCuts {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .spoonsPage {
+    padding: 32px 24px 80px;
+  }
+
+  .spoonsTable {
+    font-size: 0.86rem;
+  }
+
+  .spoonsTable th,
+  .spoonsTable td {
+    padding: 10px 12px;
+  }
+
+  .spoonsTableRound {
+    font-size: 0.78rem;
+  }
+}
