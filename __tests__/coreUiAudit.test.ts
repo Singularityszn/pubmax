@@ -125,7 +125,6 @@ import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import { PalMeetingScreen } from "@/components/pal/PalExperience";
 import SocialPageClient from "@/app/social/SocialPageClient";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
-import { TRUSTED_HANDOFF_FLAGS_OFF } from "@/lib/trustedHandoffFlags";
 
 const root = process.cwd();
 const wordmark = readFileSync(join(root, "components/brand/PubmaxxWordmark.tsx"), "utf8");
@@ -253,7 +252,6 @@ const LAUNCH_SURFACES: ReadonlyArray<[string, () => string]> = [
     () =>
       renderToStaticMarkup(
         createElement(TonightClient, {
-          flags: TRUSTED_HANDOFF_FLAGS_OFF,
           quietPint: null,
         }),
       ),

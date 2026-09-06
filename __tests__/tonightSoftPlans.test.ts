@@ -32,7 +32,6 @@ import TonightClient from "@/app/tonight/TonightClient";
 import TonightSoftPlansModule from "@/app/tonight/TonightSoftPlansModule";
 import type { QuietPintModule } from "@/lib/quietPint";
 import { isQuietPintWindow } from "@/lib/quietPint";
-import { TRUSTED_HANDOFF_FLAGS_OFF } from "@/lib/trustedHandoffFlags";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 const QUIET_PINT: QuietPintModule = {
@@ -123,7 +122,6 @@ describe("Tonight soft plans window", () => {
   it("renders the soft plans module only when softPlansWindow is true", () => {
     const onHtml = renderToStaticMarkup(
       createElement(TonightClient, {
-        flags: TRUSTED_HANDOFF_FLAGS_OFF,
         quietPint: null,
         softPlansWindow: true,
       }),
@@ -132,7 +130,6 @@ describe("Tonight soft plans window", () => {
 
     const offHtml = renderToStaticMarkup(
       createElement(TonightClient, {
-        flags: TRUSTED_HANDOFF_FLAGS_OFF,
         quietPint: null,
         softPlansWindow: false,
       }),
@@ -143,7 +140,6 @@ describe("Tonight soft plans window", () => {
   it("anchors the quiet pint module for in-page scroll", () => {
     const html = renderToStaticMarkup(
       createElement(TonightClient, {
-        flags: TRUSTED_HANDOFF_FLAGS_OFF,
         quietPint: QUIET_PINT,
         softPlansWindow: true,
       }),

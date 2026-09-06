@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { loadHistoricPubs } from "@/lib/historic";
 import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
 import { buildQuietPint, isQuietPintWindow } from "@/lib/quietPint";
-import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import TonightClient from "./TonightClient";
 
@@ -31,8 +30,7 @@ export const runtime = "nodejs";
 //      into dynamic rendering. The remembered area and every query parameter
 //      are read by the client after load.
 //   2. Nothing personal may reach this document. One prerendered copy is handed
-//      to every stranger; the trusted-handoff flags are deployment env, not a
-//      viewer, and the What's-On spine is fetched by the client.
+//      to every stranger, and the What's-On spine is fetched by the client.
 export const dynamic = "force-static";
 // The one input that moves between deploys is the London clock: the quiet-pint
 // window and the soft-plans window both read the hour. Five minutes bounds how
@@ -41,10 +39,6 @@ export const dynamic = "force-static";
 export const revalidate = 300;
 
 export default async function TonightPage() {
-  // Server reads the trusted-handoff flags once; the client receives an immutable
-  // DTO and never interprets env itself (contract 4.1). All-off keeps today's
-  // Tonight behaviour byte-for-byte.
-  const flags = readTrustedHandoffFlags();
   const now = new Date();
   const softPlansWindow = isQuietPintWindow(now);
 
@@ -83,7 +77,6 @@ export default async function TonightPage() {
 
   return (
     <TonightClient
-      flags={flags}
       quietPint={quietPint}
       softPlansWindow={softPlansWindow}
       mapSelectableVenueIds={

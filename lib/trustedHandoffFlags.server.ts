@@ -15,25 +15,14 @@ export type TrustedHandoffFlagDefinition = Readonly<{
   offBehavior: string;
 }>;
 
+// Every key here is a rollout switch a deployment must be able to SET, so each
+// one is documented in .env.example and __tests__/trustedHandoffFlags.test.ts
+// fails the build when a key is registered without that line. A flag nobody
+// sets in production is dark code: the three trusted-handoff rollout flags
+// (Map-to-Plan transfer, Tonight grouping, the Pal handoff) were exactly that,
+// on in CI and off in every deployment, so each is DELETED and its flag-on
+// behaviour is now the only behaviour. That fence names them.
 export const TRUSTED_HANDOFF_FLAG_DEFINITIONS = Object.freeze({
-  mapRouteTransfer: {
-    env: "PUBMAX_MAP_ROUTE_TRANSFER",
-    ownerLane: "L12",
-    removalCondition: "Remove after Map-to-Plan transfer is the stable default and legacy regeneration fallback retires.",
-    offBehavior: "Existing Map preview remains; Plan can use its existing generation path.",
-  },
-  tonightGrouping: {
-    env: "PUBMAX_TONIGHT_GROUPING",
-    ownerLane: "L14",
-    removalCondition: "Remove after canonical server grouping, locality, and diversity complete the rollback window.",
-    offBehavior: "Retain schedule-safe chain duplicate collapse; disable only V2 server locality, diversity, and grouped response behavior.",
-  },
-  palHandoff: {
-    env: "PUBMAX_PAL_HANDOFF",
-    ownerLane: "L16",
-    removalCondition: "Remove after Pal acceptance handoff is stable and old result navigation is retired.",
-    offBehavior: "Existing Pal results remain; Pal does not write PlanningIntent.",
-  },
   socialFriendsLaunch: {
     env: "PUBMAX_SOCIAL_FRIENDS_LAUNCH",
     ownerLane: "L21",
@@ -42,17 +31,10 @@ export const TRUSTED_HANDOFF_FLAG_DEFINITIONS = Object.freeze({
   },
 } satisfies Record<TrustedHandoffFlagKey, TrustedHandoffFlagDefinition>);
 
-export function parseTrustedHandoffFlag(value: string | undefined): boolean {
-  return value === "1";
-}
-
 export function readTrustedHandoffFlags(
   env: Record<string, string | undefined> = process.env,
 ): TrustedHandoffFlagsDTO {
   return createTrustedHandoffFlagsDTO({
-    mapRouteTransfer: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.mapRouteTransfer.env]),
-    tonightGrouping: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.tonightGrouping.env]),
-    palHandoff: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.palHandoff.env]),
     socialFriendsLaunch: isSocialFriendsLaunchEnabled(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.socialFriendsLaunch.env]),
   });
 }
@@ -62,8 +44,5 @@ export function readTrustedHandoffFlag(
   env: Record<string, string | undefined> = process.env,
 ): boolean {
   if (!isTrustedHandoffFlagKey(key)) return false;
-  if (key === "socialFriendsLaunch") {
-    return isSocialFriendsLaunchEnabled(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS[key].env]);
-  }
-  return parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS[key].env]);
+  return isSocialFriendsLaunchEnabled(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS[key].env]);
 }

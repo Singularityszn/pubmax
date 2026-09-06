@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import PubMaxingShell from "@/components/PubMaxingShell";
-import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 import { getCity, parseCityId } from "@/lib/cities";
 import {
   cityMapOgAlt,
@@ -55,7 +54,7 @@ export default async function CityMapPage({ params }: CityMapPageProps) {
         // eslint-disable-next-line @next/next/no-sync-scripts
         <script src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />
       ) : null}
-      <PubMaxingShell cityId={cityId} flags={readTrustedHandoffFlags()} />
+      <PubMaxingShell cityId={cityId} />
     </>
   );
 }

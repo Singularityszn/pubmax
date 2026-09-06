@@ -1,7 +1,6 @@
 import PintIndexMapArrival from "@/components/pintindex/PintIndexMapArrival";
 import PubMaxingShell from "@/components/PubMaxingShell";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
-import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 
 // /map stays London for back-compat bookmarks. Other cities live at /map/[city].
 //
@@ -37,7 +36,7 @@ export default function MapPage() {
     <>
       {/* eslint-disable-next-line @next/next/no-sync-scripts */}
       <script src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />
-      <PubMaxingShell cityId="london" flags={readTrustedHandoffFlags()} />
+      <PubMaxingShell cityId="london" />
       {/* Records that a Pint Index arrival reached the map. Renders nothing and
           owns no map state; it only reads its own arrival marker off the URL. */}
       <PintIndexMapArrival />

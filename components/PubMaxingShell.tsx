@@ -8,10 +8,6 @@ import { warmCityMapFirstPaint, warmMapFirstPaint } from "@/lib/mapWarmup";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
-import {
-  TRUSTED_HANDOFF_FLAGS_OFF,
-  type TrustedHandoffFlagsDTO,
-} from "@/lib/trustedHandoffFlags";
 import type { UkPlaceMapArrival } from "@/lib/ukPlaceSearch";
 
 // next/dynamic hands its loading component no props, so the city the shell is
@@ -83,9 +79,6 @@ function persistOnboardingDismissal(): void {
 
 type PubMaxingShellProps = {
   cityId?: CityId;
-  // Server-owned trusted-handoff flag DTO, read once in the RSC page and passed
-  // down immutably. The client never interprets flag env vars itself.
-  flags?: TrustedHandoffFlagsDTO;
   // Server-resolved uncovered-place arrival, checked against our own place
   // index (lib/ukPlaceIndex.server). The client never reads the place name off
   // the query string, so no stranger's copy can be rendered as ours, and a soft
@@ -97,7 +90,6 @@ type PubMaxingShellProps = {
 
 export default function PubMaxingShell({
   cityId = DEFAULT_CITY_ID,
-  flags = TRUSTED_HANDOFF_FLAGS_OFF,
   placeArrival = null,
   ukNationalBrowse = false,
 }: PubMaxingShellProps) {
@@ -139,7 +131,6 @@ export default function PubMaxingShell({
       <PubMap
         key={cityId}
         cityId={cityId}
-        flags={flags}
         placeArrival={placeArrival}
         nationalBrowse={ukNationalBrowse}
       />

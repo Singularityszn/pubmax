@@ -11,20 +11,17 @@ const PLAN_HREF = "/plan?src=mobile-route-preview";
 const PLAN_LABEL = "Open Plan to lock it in";
 
 /**
- * L12 transfer CTA. Behind the mapRouteTransfer flag (and only with a captured
- * Map Route), it writes the identical Route into the Plan draft the instant the
- * link is followed, so Plan hydrates the same Stops/order/anchor/proof without a
- * second generation request. With the flag off — or no Route to carry — it is
- * byte-identical to the legacy navigate-and-regenerate link.
+ * L12 transfer CTA. With a captured Map Route it writes the identical Route into
+ * the Plan draft the instant the link is followed, so Plan hydrates the same
+ * Stops/order/anchor/proof without a second generation request. With no Route to
+ * carry it is the plain navigate-and-regenerate link.
  */
 export function MapRouteTransferButton({
   response,
-  mapRouteTransfer,
 }: {
   response: MapGeneratedRouteResponse | null;
-  mapRouteTransfer: boolean;
 }) {
-  if (!mapRouteTransfer || !response) {
+  if (!response) {
     return (
       <Button asChild size="large" variant="secondary" className="w-full">
         <Link href={PLAN_HREF}>{PLAN_LABEL}</Link>

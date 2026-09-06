@@ -170,13 +170,11 @@ export function AnswerCard({
   card,
   onOpen,
   knownVenueIds = null,
-  palHandoff,
   locality,
 }: {
   card: PalCard;
   onOpen: (venueId: string) => void;
   knownVenueIds?: ReadonlySet<string> | null;
-  palHandoff: boolean;
   locality: PalLocality | null;
 }) {
   const when = card.when ? formatPalWhen(card.when) : "";
@@ -211,7 +209,7 @@ export function AnswerCard({
           ) : null}
         </div>
       </div>
-      {palHandoff && card.venueId ? (
+      {card.venueId ? (
         <Link
           className="palChatCardAccept pressable"
           href={venueAcceptUrl(card.venueId, "pal")}
@@ -224,7 +222,7 @@ export function AnswerCard({
   );
 }
 
-export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }) {
+export default function PalChat() {
   const router = useRouter();
   const { user, session } = useAuth();
   const auth = captureAccountAuth(user?.id ?? null, session);
@@ -317,9 +315,8 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
         ]);
         return;
       }
-      // Ground WHERE this answer applies from the query and remembered area,
-      // only when the handoff is on. Off = no locality copy, byte-identical.
-      const locality = palHandoff ? resolvePalLocality(text, readRememberedArea()) : null;
+      // Ground WHERE this answer applies from the query and remembered area.
+      const locality = resolvePalLocality(text, readRememberedArea());
       const proposals =
         result.status === "answered" || result.status === "empty"
           ? result.proposals ?? []
@@ -329,7 +326,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
         { kind: "answer", id: nextId(), answer: result, locality, proposals, recall },
       ]);
     },
-    [nextId, pending, palHandoff],
+    [nextId, pending],
   );
 
   const dismissProposal = useCallback((entryId: string, proposalId: string) => {
@@ -523,13 +520,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
             Send
           </button>
         }
-        secondary={
-          palHandoff ? (
-            <Link href="/pal">Back to your Pub Pal</Link>
-          ) : (
-            <Link href="/plan">Plan with the Pal</Link>
-          )
-        }
+        secondary={<Link href="/pal">Back to your Pub Pal</Link>}
       >
 
       <div className="palChatScroll" ref={scrollRef}>
@@ -569,7 +560,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
                     {recall.line}
                   </p>
                 ) : null}
-                {palHandoff && locality ? (
+                {locality ? (
                   <p className="palChatLocality" role="note">
                     {palLocalityLine(locality)}
                   </p>
@@ -622,7 +613,6 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
                         card={card}
                         onOpen={openVenue}
                         knownVenueIds={knownVenueIds}
-                        palHandoff={palHandoff}
                         locality={locality}
                       />
                     ))}

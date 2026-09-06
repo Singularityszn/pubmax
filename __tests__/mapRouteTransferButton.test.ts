@@ -11,20 +11,18 @@ const response: MapRouteResponse = {
 };
 
 describe("MapRouteTransferButton", () => {
-  it("renders the byte-identical legacy CTA with the flag off or no captured Route", () => {
-    const flagOff = renderToStaticMarkup(createElement(MapRouteTransferButton, { response, mapRouteTransfer: false }));
-    const noRoute = renderToStaticMarkup(createElement(MapRouteTransferButton, { response: null, mapRouteTransfer: true }));
+  it("renders the plain navigate-and-regenerate CTA with no captured Route", () => {
+    const noRoute = renderToStaticMarkup(createElement(MapRouteTransferButton, { response: null }));
 
-    expect(flagOff).toContain('href="/plan?src=mobile-route-preview"');
-    expect(flagOff).toContain("Open Plan to lock it in");
-    expect(noRoute).toBe(flagOff);
+    expect(noRoute).toContain('href="/plan?src=mobile-route-preview"');
+    expect(noRoute).toContain("Open Plan to lock it in");
   });
 
-  it("keeps the identical navigation target with the flag on — the transfer rides the click, not a re-render", () => {
-    const flagOn = renderToStaticMarkup(createElement(MapRouteTransferButton, { response, mapRouteTransfer: true }));
-    const flagOff = renderToStaticMarkup(createElement(MapRouteTransferButton, { response, mapRouteTransfer: false }));
+  it("keeps the identical navigation target with a Route: the transfer rides the click, not a re-render", () => {
+    const withRoute = renderToStaticMarkup(createElement(MapRouteTransferButton, { response }));
+    const noRoute = renderToStaticMarkup(createElement(MapRouteTransferButton, { response: null }));
 
-    expect(flagOn).toContain('href="/plan?src=mobile-route-preview"');
-    expect(flagOn).toBe(flagOff);
+    expect(withRoute).toContain('href="/plan?src=mobile-route-preview"');
+    expect(withRoute).toBe(noRoute);
   });
 });

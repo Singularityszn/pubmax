@@ -3,20 +3,25 @@ import path from "node:path";
 
 import { expect, test, type Locator, type Page, type Request } from "@playwright/test";
 
-// Tonight grouping remains rollout-controlled. Explicit Venue acceptance is a
-// permanent action and is proved in this default project.
+// Explicit Venue acceptance, the spine's single fetch and honest freshness.
+// The grouping half of this surface is e2e/tonight-trusted-ui-grouping.spec.ts.
 
 const SHOTS_DIR = path.join(process.cwd(), "e2e-shots", "tonight-trusted-ui");
 
 // Deterministic spine: a two-venue deal family (collapses to one card), plus a
 // music and a quiz row — enough to show grouping, the secondary lanes, and an
 // acceptable Venue, without depending on live upstream data.
+// The venue ids are REAL ids out of public/data/venues_slim.json, not readable
+// stand-ins: the Keep control renders only for a venue the map can open
+// (tonightAcceptedVenueId over loadMapSelectableVenueIds), so a made-up id
+// silently removes the very control these tests are about. The place names
+// stay invented, because they come from the mocked row alone.
 const TEST_TONIGHT_START = Date.now() + 60 * 60 * 1000;
 const ROWS = [
-  { id: "d1", venueId: "venue-deala", placeName: "The Deal Arms A", kind: "deal", startsAt: new Date(TEST_TONIGHT_START).toISOString(), title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
-  { id: "d2", venueId: "venue-dealb", placeName: "The Deal Arms B", kind: "deal", startsAt: new Date(TEST_TONIGHT_START).toISOString(), title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
-  { id: "m1", venueId: "venue-music", placeName: "The Blue Note", kind: "music", startsAt: new Date(TEST_TONIGHT_START + 60 * 60 * 1000).toISOString(), title: "Live Jazz", source: { label: "Listings", url: "https://listings.example/jazz" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
-  { id: "q1", venueId: "venue-quiz", placeName: "The Sharp Wit", kind: "quiz", startsAt: new Date(TEST_TONIGHT_START - 30 * 60 * 1000).toISOString(), title: "Pub Quiz", source: { label: "Listings", url: "https://listings.example/quiz" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
+  { id: "d1", venueId: "venue-xjf3n0", placeName: "The Deal Arms A", kind: "deal", startsAt: new Date(TEST_TONIGHT_START).toISOString(), title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
+  { id: "d2", venueId: "venue-1f5ygjb", placeName: "The Deal Arms B", kind: "deal", startsAt: new Date(TEST_TONIGHT_START).toISOString(), title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
+  { id: "m1", venueId: "venue-3h52h", placeName: "The Blue Note", kind: "music", startsAt: new Date(TEST_TONIGHT_START + 60 * 60 * 1000).toISOString(), title: "Live Jazz", source: { label: "Listings", url: "https://listings.example/jazz" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
+  { id: "q1", venueId: "venue-lrz4u2", placeName: "The Sharp Wit", kind: "quiz", startsAt: new Date(TEST_TONIGHT_START - 30 * 60 * 1000).toISOString(), title: "Pub Quiz", source: { label: "Listings", url: "https://listings.example/quiz" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
 ];
 
 type WhatsOnBody = { sourceFreshnessKind?: string; sourceObservedAt?: string | null };
@@ -109,7 +114,7 @@ async function shoot(page: Page, name: string) {
   await page.emulateMedia({ colorScheme: "light" });
 }
 
-test.describe("Tonight trusted UI (flag off / shipped)", () => {
+test.describe("Tonight trusted UI", () => {
   test("keeps a Venue for tonight only after the explicit action", async ({ page }) => {
     await mockWhatsOn(page);
     await openTonight(page);
@@ -118,7 +123,7 @@ test.describe("Tonight trusted UI (flag off / shipped)", () => {
     const accept = page.getByRole("button", { name: "Keep The Deal Arms A for tonight" });
     const row = page.locator(".tonightRow", { has: accept });
     await row.getByRole("link").click();
-    await expect(page).toHaveURL(/\/map\?[^#]*sel=venue-deala/);
+    await expect(page).toHaveURL(/\/map\?[^#]*sel=venue-xjf3n0/);
     expect(new URL(page.url()).searchParams.get("accept")).toBeNull();
     expect(await page.evaluate(() => sessionStorage.getItem("pubmax:planning-intent:v1"))).toBeNull();
 
@@ -149,7 +154,7 @@ test.describe("Tonight trusted UI (flag off / shipped)", () => {
       return raw ? JSON.parse(raw) : null;
     });
     expect(stored?.source).toBe("tonight");
-    expect(stored?.acceptedVenueId).toBe("venue-deala");
+    expect(stored?.acceptedVenueId).toBe("venue-xjf3n0");
   });
 
   test("storage denial stays on Tonight and emits no acceptance events", async ({ page }) => {
@@ -187,7 +192,7 @@ test.describe("Tonight trusted UI (flag off / shipped)", () => {
     await mockWhatsOn(page);
     await openTonight(page);
     // Every user gets the primary confirmed listings first, including the
-    // default flag-off installed-app cold-start path.
+    // installed-app cold-start path.
     const deals = page.locator(".dealsTonight").first();
     await expect(deals).toBeVisible();
     const order = await page.evaluate(() => {
@@ -202,7 +207,7 @@ test.describe("Tonight trusted UI (flag off / shipped)", () => {
     expect(firstRow).not.toBeNull();
     expect(mobileTabBar).not.toBeNull();
     expect(firstRow!.y).toBeLessThan(mobileTabBar!.y);
-    await shoot(page, "flagoff");
+    await shoot(page, "acceptance");
   });
 
   test("loads the spine once — secondary lanes reuse, never self-fetch", async ({ page }) => {

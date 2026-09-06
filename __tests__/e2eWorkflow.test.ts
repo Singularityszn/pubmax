@@ -21,12 +21,15 @@ describe("browser CI policy", () => {
 
     expect(workflow).toMatch(/schedule:/);
     expect(workflow).toMatch(/push:\n\s+branches: \[main\]/);
-    expect(workflow).toContain("suite: [default, flag-on]");
     expect(workflow).toContain("shard: [1, 2, 3, 4]");
     expect(workflow).toContain("--shard=${{ matrix.shard }}/4");
-    expect(workflow).toContain("--project=chromium-flag-on");
-    expect(workflow).toContain('PUBMAX_TONIGHT_GROUPING: "1"');
     expect(workflow).toContain("npx playwright install --with-deps chromium");
+    // P0-3: the three trusted-handoff rollout flags are retired, so there is no
+    // second suite whose behaviour a deployment lacks.
+    expect(workflow).not.toContain("flag-on");
+    expect(workflow).not.toContain("PUBMAX_TONIGHT_GROUPING");
+    expect(workflow).not.toContain("PUBMAX_MAP_ROUTE_TRANSFER");
+    expect(workflow).not.toContain("PUBMAX_PAL_HANDOFF");
 
     const fullSuite = workflow.slice(workflow.indexOf("  full-suite:"));
     expect(fullSuite).toContain(
@@ -43,6 +46,6 @@ describe("browser CI policy", () => {
   it("gives each production browser build enough heap", () => {
     const workflow = readFileSync(workflowPath, "utf8");
 
-    expect(workflow.match(/NODE_OPTIONS: "--max-old-space-size=6144"/g)).toHaveLength(3);
+    expect(workflow.match(/NODE_OPTIONS: "--max-old-space-size=6144"/g)).toHaveLength(2);
   });
 });

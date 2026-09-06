@@ -16,19 +16,13 @@
 // S2: per-IP rate limited (own key, isWhatsOnLimited) — the fail-soft "never
 // 500" contract above is unaffected; a 429 is the one allowed exception.
 
-import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { loadOutVenueMatchIndex } from "@/lib/out/venueMatch.server";
 import { handleWhatsOnRequest } from "@/lib/whatsOnHandler";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request): Promise<Response> {
-  // The single server-owned flag reader (contract 4.1) lives here at the server
-  // entry and injects the resolved flag into the handler's store deps. Keeping
-  // it here leaves the unit-testable handler/store free of the server-only
-  // import that the reader depends on.
   return handleWhatsOnRequest(request, {
-    tonightGroupingV2: readTrustedHandoffFlag("tonightGrouping"),
     loadVenueMatchIndex: () => loadOutVenueMatchIndex("london"),
   });
 }

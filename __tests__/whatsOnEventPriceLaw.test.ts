@@ -40,7 +40,6 @@ vi.mock("@/components/discovery/MusicTonightLane", () => ({ default: () => null 
 import TonightClient from "@/app/tonight/TonightClient";
 import { ticketFromLine } from "@/components/out/OutCard";
 import { stopEventChips } from "@/lib/planWhatsOn";
-import { TRUSTED_HANDOFF_FLAGS_OFF } from "@/lib/trustedHandoffFlags";
 import { toTonightPickDto } from "@/lib/todayBrief";
 import { laneCardsFromRows } from "@/lib/whatsOnBadges";
 import { whatsOnBarePriceGbp, type WhatsOnRow } from "@/lib/whatsOn";
@@ -135,7 +134,7 @@ describe("the Tonight page renders no bare ticket price", () => {
     tonightRows.length = 0;
     tonightRows.push(...rows);
     return renderToStaticMarkup(
-      createElement(TonightClient, { flags: TRUSTED_HANDOFF_FLAGS_OFF, quietPint: null }),
+      createElement(TonightClient, { quietPint: null }),
     );
   }
 

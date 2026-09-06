@@ -30,7 +30,6 @@ vi.mock("@/components/discovery/MusicTonightLane", () => ({ default: () => null 
 
 import TonightClient from "@/app/tonight/TonightClient";
 import type { QuietPintModule } from "@/lib/quietPint";
-import { TRUSTED_HANDOFF_FLAGS_OFF } from "@/lib/trustedHandoffFlags";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 const QUIET_PINT: QuietPintModule = {
@@ -91,7 +90,6 @@ describe("Tonight quiet pint module", () => {
   it("includes the quiet pint module when quietPint is non-null", () => {
     const html = renderToStaticMarkup(
       createElement(TonightClient, {
-        flags: TRUSTED_HANDOFF_FLAGS_OFF,
         quietPint: QUIET_PINT,
       }),
     );
@@ -107,7 +105,6 @@ describe("Tonight quiet pint module", () => {
   it("renders no quiet pint module when quietPint is null", () => {
     const html = renderToStaticMarkup(
       createElement(TonightClient, {
-        flags: TRUSTED_HANDOFF_FLAGS_OFF,
         quietPint: null,
       }),
     );

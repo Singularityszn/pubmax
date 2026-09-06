@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 
 import PintIndexMapArrival from "@/components/pintindex/PintIndexMapArrival";
 import PubMaxingShell from "@/components/PubMaxingShell";
-import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 import { firstSearchParam, stopCountFromPubsParam } from "@/lib/cityShare";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
 import { resolveUkPlaceMapArrival } from "@/lib/ukPlaceIndex.server";
@@ -124,7 +123,6 @@ export default async function MapArrivalPage({
     <>
       <PubMaxingShell
         cityId="london"
-        flags={readTrustedHandoffFlags()}
         placeArrival={placeArrival}
         ukNationalBrowse={nationalBrowseFor(sp, placeArrival)}
       />
