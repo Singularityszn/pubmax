@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 
-import { cheapestPints, cheapestByArea, venueArea, UNKNOWN_AREA } from "@/lib/leaderboard";
+import {
+  cheapestPints,
+  cheapestByArea,
+  leaderboardPubKey,
+  venueArea,
+  UNKNOWN_AREA,
+} from "@/lib/leaderboard";
 import type { Venue } from "@/lib/venues";
 
 // The ranking helpers only read id/name/cheapestPrice/primaryBorough/
@@ -53,5 +59,82 @@ describe("cheapestByArea", () => {
     const venues = [v({ id: "x", name: "Nowhere", cheapestPrice: 4 })];
     expect(venueArea(venues[0])).toBe(UNKNOWN_AREA);
     expect(cheapestByArea(venues)[0].area).toBe(UNKNOWN_AREA);
+  });
+});
+
+// The Cheap Pint Leaderboard the captain read on 6 Sep 2026, in the shape the
+// shipped dataset really produced. Ten ranked rows, six of them at £1.99, five
+// of those the same drink, and one Wandsworth pub holding two rows under two
+// spellings of its own name.
+const OFFENDING_BOARD: ReadonlyArray<{
+  id: string;
+  name: string;
+  cheapestPrice: number;
+  cheapestPint: string;
+  primaryBorough: string;
+}> = [
+  { id: "venue-gdlj1b", name: "The Fox on the Hill", cheapestPrice: 1.99, cheapestPint: "BUD LIGHT", primaryBorough: "Southwark" },
+  { id: "venue-1e6ogfb", name: "The George", cheapestPrice: 1.99, cheapestPint: "BUD LIGHT", primaryBorough: "Croydon" },
+  { id: "venue-1fabngq", name: "The Kentish Drovers", cheapestPrice: 1.99, cheapestPint: "Bud Light", primaryBorough: "Southwark" },
+  { id: "venue-12g95oo", name: "The Moon Under Water", cheapestPrice: 1.99, cheapestPint: "BUD LIGHT", primaryBorough: "Enfield" },
+  { id: "venue-14t4gxt", name: "The Pennsylvanian (JD Wetherspoons)", cheapestPrice: 1.99, cheapestPint: "Worthington\u2019s Creamflow Ale", primaryBorough: "Hillingdon" },
+  { id: "venue-1dyrfr0", name: "The Rochester Castle", cheapestPrice: 1.99, cheapestPint: "BUD LIGHT", primaryBorough: "Hackney" },
+  { id: "venue-11mu12n", name: "J.J. Moons", cheapestPrice: 2.09, cheapestPint: "Jaipur", primaryBorough: "Wandsworth" },
+  { id: "venue-10paqy", name: "The Millers Well", cheapestPrice: 2.39, cheapestPint: "Carlsberg", primaryBorough: "Newham" },
+  { id: "venue-o98nz5", name: "J.J. Moon\u2019s - JD Wetherspoon", cheapestPrice: 2.43, cheapestPint: "Bud Light", primaryBorough: "Wandsworth" },
+  { id: "venue-g5uud9", name: "J.J. Moon\u2019s - JD Wetherspoon", cheapestPrice: 2.43, cheapestPint: "Bud Light", primaryBorough: "Hillingdon" },
+];
+
+describe("the Cheap Pint Leaderboard says one thing per row", () => {
+  const board = () => cheapestPints(OFFENDING_BOARD.map((row) => v(row)), 10);
+
+  it("prints one row for a price several pubs publish for the same drink", () => {
+    const rows = board();
+    const budLightAt199 = rows.filter(
+      (entry) => entry.venue.cheapestPrice === 1.99 && /bud light/i.test(entry.venue.cheapestPint),
+    );
+    expect(budLightAt199).toHaveLength(1);
+    // The cheapest pub still leads, and the tie is broken by name as before.
+    expect(rows[0].venue.name).toBe("The Fox on the Hill");
+  });
+
+  it("keeps a different drink at the same price", () => {
+    // £1.99 Worthington's is one pub's own figure, not the list five pubs share.
+    expect(board().map((entry) => entry.venue.id)).toContain("venue-14t4gxt");
+  });
+
+  it("prints one row per pub, however the dataset spells it", () => {
+    const rows = board();
+    const wandsworth = rows.filter(
+      (entry) => /moon/i.test(entry.venue.name) && entry.area === "Wandsworth",
+    );
+    expect(wandsworth).toHaveLength(1);
+    expect(leaderboardPubKey(v(OFFENDING_BOARD[6]))).toBe(
+      leaderboardPubKey(v(OFFENDING_BOARD[8])),
+    );
+  });
+
+  it("keeps two pubs of one name in two different areas apart", () => {
+    expect(leaderboardPubKey(v(OFFENDING_BOARD[8]))).not.toBe(
+      leaderboardPubKey(v(OFFENDING_BOARD[9])),
+    );
+  });
+
+  it("ranks contiguously and never repeats a pub or a price list", () => {
+    const rows = board();
+    expect(rows.map((entry) => entry.rank)).toEqual(
+      Array.from({ length: rows.length }, (_, index) => index + 1),
+    );
+    const pubs = rows.map((entry) => leaderboardPubKey(entry.venue));
+    expect(new Set(pubs).size).toBe(pubs.length);
+  });
+
+  it("leaves a figure with no drink beside it to rank on its own", () => {
+    // A bare price proves no list, so two unnamed £5 pints both keep a row.
+    const rows = cheapestPints([
+      v({ id: "a", name: "Anchor", cheapestPrice: 5, primaryBorough: "Camden" }),
+      v({ id: "z", name: "Zebra", cheapestPrice: 5, primaryBorough: "Camden" }),
+    ]);
+    expect(rows.map((entry) => entry.venue.id)).toEqual(["a", "z"]);
   });
 });

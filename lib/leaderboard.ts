@@ -46,22 +46,94 @@ function hasPrice(venue: Venue): venue is PricedVenue {
   return typeof venue.cheapestPrice === "number";
 }
 
+// ── The Cheap Pint Leaderboard reads as a fact about pubs ───────────────────
+// Captain 6 Sep 2026, over the /social?tab=discover board: it listed seven pubs
+// at £1.99 and five of them were the same drink. Measured on the shipped
+// dataset, all ten ranked rows were one chain, six sat at £1.99, and rows 7 and
+// 9 were the SAME pub twice ("J.J. Moons" and "J.J. Moon's - JD Wetherspoon",
+// both in Wandsworth). A reader met ten rows and learned one thing: what one
+// company charges for Bud Light. The board is meant to say ten things about
+// London.
+//
+// Two rules, both about what a row is EVIDENCE of, and neither invents a price.
+
+/**
+ * The operator suffix the dataset appends to some rows of a chain. It is
+ * spelling, not identity: the same pub is filed twice, once with it and once
+ * without. Grow this table only when a dataset row proves another spelling.
+ */
+const OPERATOR_NAME_SUFFIX = /\s*[-(]\s*(?:jd\s*)?wetherspoons?\b[^)]*\)?\s*$/;
+
+function normaliseVenueName(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .replace(OPERATOR_NAME_SUFFIX, " ")
+      // An apostrophe is dropped rather than folded to a space, or "J.J. Moons"
+      // and "J.J. Moon\u2019s" read as two pubs, which is how one Wandsworth pub
+      // held two of the board's ten rows.
+      .replace(/['\u2018\u2019\u02bc]/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+  );
+}
+
+/**
+ * ONE ROW PER PUB. A pub is one pub however many ways the dataset spells it, so
+ * identity is the normalised name inside its own area. Two pubs of one name in
+ * one area collapse to one row, which is the safe side: a leaderboard that
+ * shows a pub twice is wrong in a way a reader can see.
+ */
+export function leaderboardPubKey(venue: Venue): string {
+  return `${normaliseVenueName(venue.name)}@${venueArea(venue).toLowerCase()}`;
+}
+
+/**
+ * NEVER A CHAIN LIST PRICE. A figure several pubs publish to the penny for the
+ * same drink is a price LIST, not a fact about any one of them, so it earns one
+ * row and no more. The drink must be NAMED: a bare figure proves no list, and a
+ * row with no drink beside it is left to rank on its own.
+ */
+export function sharedPriceListKey(venue: PricedVenue): string | null {
+  const drink = venue.cheapestPint.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  if (!drink) return null;
+  return `${venue.cheapestPrice.toFixed(2)}|${drink}`;
+}
+
 // Cheapest priced venues, ascending. Venues with a null cheapestPrice are
 // dropped entirely (they can't be ranked on price). Ties break on name so the
-// order is deterministic across renders. `limit` caps the returned list.
+// order is deterministic across renders, which is also what decides WHICH pub
+// keeps a shared price list's one row. `limit` caps the returned list, and it
+// is a WINDOW over what survived both rules, never a filter applied after it.
 export function cheapestPints(venues: Venue[], limit = 10): LeaderboardEntry[] {
-  return venues
+  const seenPub = new Set<string>();
+  const seenPriceList = new Set<string>();
+  const ranked: PricedVenue[] = [];
+
+  for (const venue of venues
     .filter(hasPrice)
     .sort(
       (a, b) =>
         a.cheapestPrice - b.cheapestPrice || a.name.localeCompare(b.name),
-    )
-    .slice(0, Math.max(0, limit))
-    .map((venue, index) => ({
-      rank: index + 1,
-      venue,
-      area: venueArea(venue),
-    }));
+    )) {
+    if (ranked.length >= Math.max(0, limit)) break;
+
+    const pub = leaderboardPubKey(venue);
+    if (seenPub.has(pub)) continue;
+
+    const priceList = sharedPriceListKey(venue);
+    if (priceList !== null && seenPriceList.has(priceList)) continue;
+
+    seenPub.add(pub);
+    if (priceList !== null) seenPriceList.add(priceList);
+    ranked.push(venue);
+  }
+
+  return ranked.map((venue, index) => ({
+    rank: index + 1,
+    venue,
+    area: venueArea(venue),
+  }));
 }
 
 // The single cheapest priced venue in each area. Venues with no price are
