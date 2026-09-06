@@ -39,10 +39,28 @@ machine.
 
 Two consecutive full runs on this machine, no serial rerun, no `--no-file-parallelism`:
 
-<!-- RUN_RESULTS -->
+```
+$ npm test -- --run          # run 1
+ Test Files  1482 passed | 1 skipped (1483)
+      Tests  15586 passed | 1 skipped (15587)
+exit 0
+
+$ npm test -- --run          # run 2, immediately after
+ Test Files  1482 passed | 1 skipped (1483)
+      Tests  15586 passed | 1 skipped (15587)
+exit 0
+```
+
+Zero `shmget` failures in either log, no serial rerun, and no
+`--no-file-parallelism`. Live clusters during a run peaked at the budget rather
+than at the number of Postgres-backed suites.
 
 ## The gates, proved
 
 ```
-<!-- GATE_RESULTS -->
+$ PUBMAX_RLS_NO_PG=1 npm run test:rls                              exit 1
+$ PUBMAX_RLS_ALLOW_SKIP=1 PUBMAX_RLS_NO_PG=1 npm run test:rls      exit 0
+$ npm run gate:e2e-skips        conditional skip scan passed: 215 spec file(s), exit 0
+$ node scripts/check_freshness.mjs                                  exit 0
+$ node scripts/check_freshness.mjs --require-store                  exit 1
 ```
