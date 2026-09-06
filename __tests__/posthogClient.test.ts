@@ -5,6 +5,7 @@ import {
   posthogBrowserConfig,
   sanitizePosthogEvent,
 } from "@/lib/posthogClient";
+import { currentAnalyticsAttributionProps } from "@/lib/analyticsAttribution.mjs";
 
 const UUID = "018f47a2-8e71-7a7a-9f18-8b953d45b2da";
 
@@ -64,6 +65,7 @@ describe("PostHog browser privacy boundary", () => {
       event: "$pageview",
       timestamp: new Date("2026-07-28T12:00:00.000Z"),
       properties: {
+        ...currentAnalyticsAttributionProps(),
         token: "phc_public",
         distinct_id: anonymousId,
         $device_id: anonymousId,
@@ -179,6 +181,7 @@ describe("PostHog browser privacy boundary", () => {
       event: "$exception",
       timestamp: new Date("2026-07-26T12:00:00.000Z"),
       properties: {
+        ...currentAnalyticsAttributionProps(),
         token: "phc_public",
         distinct_id: anonymousId,
         $device_id: anonymousId,
@@ -340,6 +343,7 @@ describe("PostHog browser privacy boundary", () => {
       event: "$web_vitals",
       timestamp: new Date("2026-07-29T12:00:00.000Z"),
       properties: {
+        ...currentAnalyticsAttributionProps(),
         token: "phc_public",
         distinct_id: anonymousId,
         $device_id: anonymousId,

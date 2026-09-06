@@ -24,6 +24,7 @@
 // value straight through to PostHog.
 
 import { isIP } from "node:net";
+import { currentAnalyticsAttribution } from "@/lib/analyticsAttribution.mjs";
 import { sanitizeEvent } from "@/lib/analyticsEvents";
 import { analyticsReferrerFromUrl } from "@/lib/analyticsPath";
 import { analyticsSurfaceFromPath } from "@/lib/analyticsSurface";
@@ -160,12 +161,17 @@ export async function POST(req: Request): Promise<Response> {
       if (claim !== "claimed") return noContent(claim === "conflict" ? "discard" : "retry");
     }
 
-    // Structured, PII-free log line. Server owns the timestamp.
+    // Structured, PII-free log line. Server owns the timestamp. It carries the
+    // same lane and build the provider is sent, so a log read during a release
+    // says which deployment it is reading (lib/analyticsAttribution.mjs).
+    const attribution = currentAnalyticsAttribution();
     console.log(
       `[pubmax-analytics] ${JSON.stringify({
         name: event.name,
         props: event.props,
         path: safePath,
+        environment: attribution.environment,
+        release: attribution.release,
         ts: new Date().toISOString(),
       })}`,
     );
