@@ -43,6 +43,14 @@
   margin-top: var(--space-2);
 }
 
+/* The way-onward row when it ends the screen instead of the head
+   (components/ui/screen.tsx `actionsAfterContent`). It is the same row, so only
+   the space above it changes: the head's own top margin would sit it too close
+   to the content it follows. */
+.screenActionsAfterContent {
+  margin-top: var(--space-6);
+}
+
 /* The one filled control on the screen. The caller passes a bare link or
    button; the Screen owns its weight so no caller can make two. This app ships
    no Tailwind preflight, so border and background are stated, not assumed. */

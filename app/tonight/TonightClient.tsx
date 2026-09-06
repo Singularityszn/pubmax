@@ -480,10 +480,22 @@ export default function TonightClient({
 
       {/* The head is the Screen primitive (docs/design/LAUNCH_SCREENS.md), and
           the Screen is the desktop grid: its head takes the first cell, the
-          credits and the listing spine follow it down the primary column, and
-          the context rail sits beside them. The map is the one primary,
-          because that is where tonight's listings become a pint; Find my
-          pint is the quieter way onward. */}
+          listing spine follows it down the primary column, and the context rail
+          sits beside them. The map is the one primary, because that is where
+          tonight's listings become a pint; Find my pint is the quieter way
+          onward.
+
+          THE LISTINGS ARE THE ANSWER, SO NOTHING THAT ACTS ON THEM STANDS IN
+          FRONT OF THEM. This page put the head, its two doors, the freshness
+          credits, the share control and nine vibe chips above the first row: at
+          390x844 the row began at y=868 against a tab bar at y=788, and at
+          320x568 at y=972 against y=514, so a phone met no listing at all. The
+          way-onward row now ends the screen (`actionsAfterContent`), and the
+          credits and the vibe chips follow the list. Only the head's words and
+          the list's own kind filter come first, which puts the first row at
+          y=413 at all three phone widths. Every move is a DOM move, so the
+          reading order, the tab order and the paint order stay one order.
+          Measured in docs/proof/tonight-first-row-fold/. */}
       <Screen
         as="div"
         className="tonightDesktopGrid"
@@ -501,17 +513,8 @@ export default function TonightClient({
             Find my pint
           </Link>
         }
+        actionsAfterContent
       >
-      <div className="tonightHeadCredits">
-        {ready || empty ? (
-          <TonightProvenanceLines
-            provenance={provenance}
-            nearestSuffix={nearestPatchSuffix}
-          />
-        ) : null}
-        <TonightShareButton />
-      </div>
-
       <aside className="tonightContext" aria-label="Tonight at a glance">
         <TonightConditionsStrip origin={origin} />
         {ready ? (
@@ -539,61 +542,6 @@ export default function TonightClient({
         context={picksContext}
         onRetry={retryListings}
       />
-
-      {ready || empty ? (
-        /* Vibe picker (docs/VIBE_LAYER_SPEC_2026-07-19.md): the user's voice,
-           not the brand's. Kind-backed chips appear only when their listing
-           kind exists; ask-backed chips remain useful on an empty night. */
-        <VibeChips
-          shellClassName="tonightVibes"
-          groupLabel="What’s the vibe tonight"
-          lede={"What’s the vibe?"}
-        >
-          {visibleVibeChips.map((chip) =>
-            chip.tonight.type === "filter" ? (
-              <VibeChipButton
-                key={chip.id}
-                active={ready && activeKind === chip.tonight.kind}
-                onClick={() => {
-                  const kind =
-                    chip.tonight.type === "filter" ? chip.tonight.kind : null;
-                  setActiveKind((current) =>
-                    current === kind ? null : kind,
-                  );
-                  trackEvent("tonight_vibe_select", { vibe: chip.id });
-                }}
-              >
-                {chip.label}
-              </VibeChipButton>
-            ) : (
-              <VibeChipLink
-                key={chip.id}
-                href={
-                  chip.id === "quiet"
-                    ? planOccasionHref("quiet", { src: "tonight-vibes" })
-                    : palChatHref(chip)
-                }
-                onClick={() =>
-                  trackEvent("tonight_vibe_select", { vibe: chip.id })
-                }
-              >
-                {chip.label}
-              </VibeChipLink>
-            ),
-          )}
-          {TONIGHT_SOFT_PLAN_CHIPS.map((chip) => (
-            <VibeChipLink
-              key={chip.id}
-              href={planOccasionHref(chip.id, { src: "tonight-vibes" })}
-              onClick={() =>
-                trackEvent("tonight_vibe_select", { vibe: chip.id })
-              }
-            >
-              {chip.label}
-            </VibeChipLink>
-          ))}
-        </VibeChips>
-      ) : null}
 
       {ready ? (
         <>
@@ -856,6 +804,78 @@ export default function TonightClient({
             </p>
           ) : null}
         </>
+      ) : null}
+
+      {/* The freshness stamp and the share control sit UNDER the listings they
+          are about. A stamp is a footnote on the data, and nobody shares a list
+          they have not read yet. */}
+      <div className="tonightHeadCredits">
+        {ready || empty ? (
+          <TonightProvenanceLines
+            provenance={provenance}
+            nearestSuffix={nearestPatchSuffix}
+          />
+        ) : null}
+        <TonightShareButton />
+      </div>
+
+      {/* Vibe chips follow the list. Nine chips wrapped to four rows above it,
+          and five of them lead off the page, so they were nine ways not to read
+          tonight's listings. They are a mood ask for a reader the list did not
+          suit, never the list's own filter, which stays above it. */}
+      {ready || empty ? (
+        /* Vibe picker (docs/VIBE_LAYER_SPEC_2026-07-19.md): the user's voice,
+           not the brand's. Kind-backed chips appear only when their listing
+           kind exists; ask-backed chips remain useful on an empty night. */
+        <VibeChips
+          shellClassName="tonightVibes"
+          groupLabel="What’s the vibe tonight"
+          lede={"What’s the vibe?"}
+        >
+          {visibleVibeChips.map((chip) =>
+            chip.tonight.type === "filter" ? (
+              <VibeChipButton
+                key={chip.id}
+                active={ready && activeKind === chip.tonight.kind}
+                onClick={() => {
+                  const kind =
+                    chip.tonight.type === "filter" ? chip.tonight.kind : null;
+                  setActiveKind((current) =>
+                    current === kind ? null : kind,
+                  );
+                  trackEvent("tonight_vibe_select", { vibe: chip.id });
+                }}
+              >
+                {chip.label}
+              </VibeChipButton>
+            ) : (
+              <VibeChipLink
+                key={chip.id}
+                href={
+                  chip.id === "quiet"
+                    ? planOccasionHref("quiet", { src: "tonight-vibes" })
+                    : palChatHref(chip)
+                }
+                onClick={() =>
+                  trackEvent("tonight_vibe_select", { vibe: chip.id })
+                }
+              >
+                {chip.label}
+              </VibeChipLink>
+            ),
+          )}
+          {TONIGHT_SOFT_PLAN_CHIPS.map((chip) => (
+            <VibeChipLink
+              key={chip.id}
+              href={planOccasionHref(chip.id, { src: "tonight-vibes" })}
+              onClick={() =>
+                trackEvent("tonight_vibe_select", { vibe: chip.id })
+              }
+            >
+              {chip.label}
+            </VibeChipLink>
+          ))}
+        </VibeChips>
       ) : null}
 
       </div>
