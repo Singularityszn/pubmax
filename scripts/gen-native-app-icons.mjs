@@ -156,4 +156,64 @@ for (const [name, data] of await buildAndroidLauncherFiles()) {
   process.stdout.write(`  android/app/src/main/res/${name}\n`);
 }
 
+// THE iOS LAUNCH SCREEN IS TWO ASSET-CATALOG ENTRIES, NOT A STORYBOARD.
+// Info.plist names them under UILaunchScreen (UIColorName + UIImageName), the
+// Info.plist launch screen Apple has offered since iOS 14. The storyboard
+// route was retired because the iOS 26 runtime drew it as a plain black frame
+// whatever it held (docs/proof/mobile-app-design/ios-sim-iphone17pro/launch/),
+// and a launch image the system centres at its own size is also the honest
+// shape for the master, whose whole subject is one mark on a dark field.
+// Both entries are cut from the SAME master as every splash above, so no
+// second opinion about the launch treatment exists: the colour is the field,
+// the mark is the master's own centre at three iPhone scales.
+const IOS_ASSETS = join(ROOT, "ios/App/App/Assets.xcassets");
+const LAUNCH_MARK_POINTS = 300;
+const LAUNCH_MARK_CROP = 1200;
+process.stdout.write("Writing the iOS launch screen assets:\n");
+{
+  const dir = join(IOS_ASSETS, "LaunchMark.imageset");
+  mkdirSync(dir, { recursive: true });
+  // Rasterise the master ONCE at its native 2732 and cut every scale from
+  // that buffer: sharp orders a crop against the input's own size, and an
+  // SVG's is whatever the rasteriser picked.
+  const master = await sharp(SPLASH_MASTER).resize(2732, 2732).png().toBuffer();
+  const cropOrigin = (2732 - LAUNCH_MARK_CROP) / 2;
+  const images = [];
+  for (const scale of [1, 2, 3]) {
+    const file = `LaunchMark@${scale}x.png`;
+    await sharp(master)
+      .extract({ left: cropOrigin, top: cropOrigin, width: LAUNCH_MARK_CROP, height: LAUNCH_MARK_CROP })
+      .resize(LAUNCH_MARK_POINTS * scale, LAUNCH_MARK_POINTS * scale)
+      .png()
+      .toFile(join(dir, file));
+    images.push({ idiom: "universal", filename: file, scale: `${scale}x` });
+    process.stdout.write(`  ios/App/App/Assets.xcassets/LaunchMark.imageset/${file}\n`);
+  }
+  writeFileSync(
+    join(dir, "Contents.json"),
+    `${JSON.stringify({ images, info: { version: 1, author: "xcode" } }, null, 2)}\n`,
+  );
+}
+{
+  const dir = join(IOS_ASSETS, "LaunchBackground.colorset");
+  mkdirSync(dir, { recursive: true });
+  const hex = C.inkDeep.replace("#", "");
+  const channel = (offset) => `0x${hex.slice(offset, offset + 2).toUpperCase()}`;
+  const components = { red: channel(0), green: channel(2), blue: channel(4), alpha: "1.000" };
+  // ONE colour, no dark appearance entry: the field is the same in light and
+  // dark on purpose (#523), and a second entry is a second place to be wrong.
+  writeFileSync(
+    join(dir, "Contents.json"),
+    `${JSON.stringify(
+      {
+        colors: [{ idiom: "universal", color: { "color-space": "srgb", components } }],
+        info: { version: 1, author: "xcode" },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  process.stdout.write("  ios/App/App/Assets.xcassets/LaunchBackground.colorset/Contents.json\n");
+}
+
 process.stdout.write("Done. Next: npx capacitor-assets generate\n");

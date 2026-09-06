@@ -91,6 +91,9 @@ both Splash renditions are compiled into the built `Assets.car`, so the wiring i
 whole and something below it is not drawing.
 
 That is a SEPARATE defect from the one fixed here and it was not introduced by
-this change. It does not soften the gap: the asset is wrong wherever the launch
+this change. (Fixed on 7 September 2026: the storyboard route itself was what
+drew black on the iOS 26 runtime, so the launch screen is now the `UILaunchScreen`
+Info.plist kind over two asset-catalog entries cut from the same master. Before
+and after: `docs/proof/mobile-app-design/ios-sim-iphone17pro/launch/`.) It does not soften the gap: the asset is wrong wherever the launch
 screen does work, and the Android half renders. It is recorded here so the next
 reader does not spend the same hour proving it twice.

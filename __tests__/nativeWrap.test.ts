@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import capacitorConfig from "../capacitor.config";
+import capacitorConfig, { nativeServerUrl } from "../capacitor.config";
 import { APP_NAME } from "@/lib/brandNaming";
 import { BRAND_COLORS } from "@/lib/brandMark.mjs";
 import {
@@ -47,6 +47,23 @@ describe("Capacitor wrapped-build contract", () => {
     expect(offline).toContain("prefers-color-scheme: dark");
     expect(offline).toContain("env(safe-area-inset-top, 0px)");
     expect(offline).toContain("https://pubmaxxing.com");
+  });
+
+  it("takes a local origin only from the review variable, and never ships one", () => {
+    // The unset case above is what every CI and store build sees. A rig
+    // reviewing a checkout sets PUBMAX_NATIVE_SERVER_URL at sync time, and
+    // cleartext follows the scheme rather than being a second switch.
+    expect(nativeServerUrl({})).toBe("https://pubmaxxing.com");
+    expect(nativeServerUrl({ PUBMAX_NATIVE_SERVER_URL: "   " })).toBe("https://pubmaxxing.com");
+    expect(nativeServerUrl({ PUBMAX_NATIVE_SERVER_URL: "http://10.0.2.2:3811" })).toBe(
+      "http://10.0.2.2:3811",
+    );
+    // The committed config must be the production one: the generated
+    // capacitor.config.json files are untracked, so this is the only copy a
+    // reviewer can read.
+    const source = rootFile("capacitor.config.ts");
+    expect(source).toContain('PRODUCTION_SERVER_URL = "https://pubmaxxing.com"');
+    expect(source).toContain('serverUrl.startsWith("http://") ? { cleartext: true }');
   });
 
   it("keeps system bars visible and enables Capacitor safe-area correction", () => {

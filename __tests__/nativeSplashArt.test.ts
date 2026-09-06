@@ -35,6 +35,20 @@ const ROOT = join(__dirname, "..");
 const MASTER = join(ROOT, "public/store-assets/png/splash/splash-2732.png");
 const IOS_SPLASH = join(ROOT, "ios/App/App/Assets.xcassets/Splash.imageset");
 const ANDROID_RES = join(ROOT, "android/app/src/main/res");
+// THE iOS LAUNCH SCREEN IS NOT THE SPLASH IMAGESET. Capacitor's storyboard
+// route drew a plain black frame on the iOS 26 runtime whatever it held (a
+// coral root view with no image launched black too), so the launch screen is
+// the Info.plist kind: UILaunchScreen naming a colour set for the field and
+// an imageset for the mark, both cut from the same master by
+// scripts/gen-native-app-icons.mjs. docs/proof/mobile-app-design/
+// ios-sim-iphone17pro/launch/ holds the before and after.
+const IOS_LAUNCH_MARK = join(ROOT, "ios/App/App/Assets.xcassets/LaunchMark.imageset");
+const IOS_LAUNCH_BACKGROUND = join(
+  ROOT,
+  "ios/App/App/Assets.xcassets/LaunchBackground.colorset/Contents.json",
+);
+const IOS_INFO_PLIST = join(ROOT, "ios/App/App/Info.plist");
+const IOS_LAUNCH_MARK_SCALES = 3;
 
 // What the sweeps must find. Capacitor stamps 26 Android densities and 6 iOS
 // slots today; the floor is those counts, so a set that silently shrank fails.
@@ -87,8 +101,14 @@ function iosSplashFiles(): string[] {
     .map((name) => join(IOS_SPLASH, name));
 }
 
+function iosLaunchMarkFiles(): string[] {
+  return readdirSync(IOS_LAUNCH_MARK)
+    .filter((name) => name.endsWith(".png"))
+    .map((name) => join(IOS_LAUNCH_MARK, name));
+}
 const androidFiles = androidSplashFiles();
 const iosFiles = iosSplashFiles();
+const launchMarkFiles = iosLaunchMarkFiles();
 const master = await samples(MASTER);
 
 describe("the splash master is the treatment every phone gets", () => {
@@ -122,6 +142,40 @@ describe("no native splash launches on the retired coral field", () => {
       expect(got.centre).not.toEqual(hexToRgb(BRAND_COLORS.coralBright));
     });
   }
+});
+
+describe("the iOS launch screen is the same master, wired the way iOS 26 draws it", () => {
+  it("names the colour set and the imageset from Info.plist, and no storyboard", () => {
+    const plist = readFileSync(IOS_INFO_PLIST, "utf8");
+    expect(plist).toContain("<key>UILaunchScreen</key>");
+    expect(plist).toContain("<key>UIColorName</key>\n\t\t<string>LaunchBackground</string>");
+    expect(plist).toContain("<key>UIImageName</key>\n\t\t<string>LaunchMark</string>");
+    // The storyboard is what drew black. Naming it again would win over the
+    // dictionary and put the defect back with every asset still in place.
+    expect(plist).not.toContain("UILaunchStoryboardName");
+  });
+
+  it("paints the field from the one ink token, once, for both appearances", () => {
+    const colorset = JSON.parse(readFileSync(IOS_LAUNCH_BACKGROUND, "utf8")) as {
+      colors: Array<{ appearances?: unknown; color: { components: Record<string, string> } }>;
+    };
+    expect(colorset.colors).toHaveLength(1);
+    expect(colorset.colors[0].appearances).toBeUndefined();
+    const { red, green, blue } = colorset.colors[0].color.components;
+    expect([red, green, blue].map((c) => Number.parseInt(c, 16))).toEqual(INK);
+  });
+
+  it("ships the mark at every iPhone scale, cut from the master's own centre", async () => {
+    expect(launchMarkFiles).toHaveLength(IOS_LAUNCH_MARK_SCALES);
+    for (const file of launchMarkFiles) {
+      const got = await samples(file);
+      expect(got.width).toBe(got.height);
+      expect(got.centre).toEqual(master.centre);
+      // The crop is well inside the field, so its corner is the field: the
+      // glow around the mark never reaches it.
+      expect(got.corner).toEqual(master.corner);
+    }
+  });
 });
 
 describe("light and dark are the same splash, on purpose", () => {
