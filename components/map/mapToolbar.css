@@ -77,6 +77,27 @@
   }
 }
 
+/* The tablet band's venue sheet rises to about 40% of the viewport, and the
+   zoom pair under the camera stack straddled its top edge: measured at 768
+   with a pub open, the pair sat at 340 to 428 against a sheet top at 395, so
+   "Zoom out" was half under the sheet and its own close ring. While a pub is
+   open the pair moves BESIDE the stack, on the same top line, inside the map
+   lane the sheet leaves. The stack's width is published beside its height
+   rather than restated. */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .appShell {
+    --map-camera-stack-width: 102px;
+  }
+
+  .appShell.detail-open .mapStage .maplibregl-ctrl-top-right {
+    top: var(--map-overlay-top);
+    right: calc(
+      var(--map-chrome-inset, 10px) + var(--map-camera-stack-width) +
+        var(--map-chrome-gap, 6px)
+    );
+  }
+}
+
 .mapToolbarSearch {
   position: relative;
   min-width: 0;

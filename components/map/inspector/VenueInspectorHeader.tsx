@@ -1,6 +1,5 @@
 "use client";
 
-import { Waves } from "lucide-react";
 
 import { useTrailingEdgeFade } from "@/lib/useTrailingEdgeFade";
 import type { Venue } from "@/lib/venues";
@@ -63,7 +62,6 @@ export default function VenueInspectorHeader({
         <span className="venueSheetGrab" aria-hidden="true" />
       </div>
       <div className="inspectorTitle">
-        <Waves size={17} />
         <span>Venue Detail</span>
       </div>
       <h3>{venue.name}</h3>

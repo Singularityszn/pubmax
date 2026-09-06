@@ -1253,7 +1253,11 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   }
 
   .venueInspector .venueTab {
-    padding: 9px 16px;
+    /* Seven tabs share the docked panel's one row: at 16px a side the
+       seventh ("Last train") wrapped alone onto a second row inside the
+       bordered strip on a 1440 desktop (measured 6 Sep 2026: 591px asked of
+       a 603px strip). 12px a side leaves the row 56px to spare. */
+    padding: 9px 12px;
     font-size: 0.9rem;
   }
 

@@ -607,6 +607,10 @@ for (const width of FIRST_RUN_BANNER_WIDTHS) {
         "pubmaxx:analytics-consent:v1",
         "denied",
       );
+      // The first-visit arrival card owns the location ask while it is up
+      // and the suggest banner stands down behind it (mapBannerStaging.css);
+      // this spec measures the banners' own berths, so the card is answered.
+      window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
     });
     await page.route("**/api/citymcp/status**", (route) =>
       route.fulfill({

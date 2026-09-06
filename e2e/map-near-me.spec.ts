@@ -25,6 +25,11 @@ for (const { width, tonightState, tonightBody } of desktopCases) {
         "denied",
       );
       window.localStorage.removeItem("pubmax-tour-v1-done");
+      // The first-visit arrival card owns the location ask while it is up,
+      // and the suggest banner this spec drives stands down behind it
+      // (mapBannerStaging.css). This spec is about the BANNER's Near me, so
+      // the card has already been answered.
+      window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
     });
     await page.route("**/api/whats-on**", (route) =>
       route.fulfill({
