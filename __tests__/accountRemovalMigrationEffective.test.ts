@@ -24,6 +24,11 @@
 //                (`lib/accountDeletion.server.ts`), before the auth row goes.
 //   ROLLBACK:    restores the restrict FK and the old trigger, so a delete
 //                under the guard refuses again; the forward file re-applies.
+//
+// The last block carries 0151 on the same cluster, because review finding F-4
+// is about this trigger and not a second one: it applies every migration after
+// 0145, seeds an account that RENAMED, and proves the fault before the file and
+// its absence after.
 
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -49,6 +54,14 @@ const ROLLBACK = join(
 const SESSION_FIXTURE = join(ROOT, "scripts/rls/session-fixture.sql");
 const PREREQUISITES = readdirSync(MIGRATIONS)
   .filter((name) => name.endsWith(".sql") && name < FORWARD_NAME)
+  .sort()
+  .map((name) => join(MIGRATIONS, name));
+
+/** 0151, the file the last block proves, and everything between it and 0145. */
+const SENDER_PROFILE_NAME = "20260906100000_0151_message_sender_profile.sql";
+const SENDER_PROFILE = join(MIGRATIONS, SENDER_PROFILE_NAME);
+const BETWEEN_0145_AND_0151 = readdirSync(MIGRATIONS)
+  .filter((name) => name.endsWith(".sql") && name > FORWARD_NAME && name < SENDER_PROFILE_NAME)
   .sort()
   .map((name) => join(MIGRATIONS, name));
 
@@ -93,6 +106,11 @@ const MEMORY = "f0000000-0000-4000-8000-000000000008";
 const MOMENT = "f1000000-0000-4000-8000-000000000009";
 const WALL_PHOTO = "f2000000-0000-4000-8000-00000000000a";
 const CONVERSATION = "f3000000-0000-4000-8000-00000000000b";
+/** Two accounts that RENAMED: Dana leaves before 0151, Erin after it. */
+const DANA = "d3000000-0000-4000-8000-00000000000e";
+const DANA_PROFILE = "d4000000-0000-4000-8000-00000000000f";
+const ERIN = "d5000000-0000-4000-8000-000000000010";
+const ERIN_PROFILE = "d6000000-0000-4000-8000-000000000011";
 const PHOTO_MESSAGE = "f4000000-0000-4000-8000-00000000000c";
 const TEXT_MESSAGE = "f5000000-0000-4000-8000-00000000000d";
 
@@ -275,5 +293,121 @@ describe.skipIf(skipReason !== null)("0145: account removal under Supabase's sto
     const reapplied = await db().attempt(`delete from auth.users where id = '${CARL}'`);
     expect(reapplied.ok, reapplied.said).toBe(true);
     expect(db().sql(`select tombstoned_at is not null from public.profiles where id = '${CARL_PROFILE}'`)).toBe("t");
+  });
+});
+
+// ── 0151: the identity a rename cannot move ──────────────────────────────────
+//
+// Review finding F-4. `messages.sender_handle` is text stamped at send time and
+// the rename path never rewrites it, so the tombstone trigger's `p.handle =
+// m.sender_handle` join reached only the messages an account sent under its
+// CURRENT handle. Every photo it sent under an older one kept its
+// `attachment_object_key` and stayed fetchable by the other participant after
+// the sender was tombstoned.
+describe("0151: a renamed account's message photos leave with it", () => {
+  /** A profile that renamed: the alias table is what remembers the old handle. */
+  function seedRenamed(
+    userId: string,
+    profileId: string,
+    oldHandle: string,
+    handle: string,
+    conversationId: string,
+    oldMessageId: string,
+    newMessageId: string,
+  ): void {
+    db().sql(`
+      insert into auth.users (id) values ('${userId}');
+      insert into public.profiles (id, user_id, handle) values ('${profileId}', '${userId}', '${handle}');
+      insert into public.profile_handle_aliases (profile_id, handle, is_current, retired_at) values
+        ('${profileId}', '${oldHandle}', false, now()),
+        ('${profileId}', '${handle}', true, null);
+      insert into public.conversations (id, handle_a, handle_b, user_id_a, user_id_b)
+        values ('${conversationId}', 'bobpm', '${handle}', '${BOB}', '${userId}');
+      insert into public.messages (id, conversation_id, sender_handle, body, attachment_kind, attachment_object_key, attachment_width, attachment_height)
+        values
+          ('${oldMessageId}', '${conversationId}', '${oldHandle}', 'before the rename', 'photo', 'messages/${conversationId}/${oldMessageId}.jpg', 800, 600),
+          ('${newMessageId}', '${conversationId}', '${handle}', 'after the rename', 'photo', 'messages/${conversationId}/${newMessageId}.jpg', 800, 600);
+    `);
+  }
+
+  const DANA_OLD_MESSAGE = "d7000000-0000-4000-8000-000000000012";
+  const DANA_NEW_MESSAGE = "d8000000-0000-4000-8000-000000000013";
+  const DANA_CONVERSATION = "d9000000-0000-4000-8000-000000000014";
+  const ERIN_OLD_MESSAGE = "da000000-0000-4000-8000-000000000015";
+  const ERIN_NEW_MESSAGE = "db000000-0000-4000-8000-000000000016";
+  const ERIN_CONVERSATION = "dc000000-0000-4000-8000-000000000017";
+
+  /** What `lib/accountDeletion.server.ts` collects: the keys it would remove. */
+  function collectedKeys(profileId: string, handle: string): string {
+    return db().sql(`
+      select coalesce(string_agg(attachment_object_key, ',' order by attachment_object_key), '')
+        from public.messages
+       where attachment_object_key is not null
+         and (sender_profile_id = '${profileId}' or sender_handle = '${handle}')
+    `);
+  }
+
+  it("BEFORE: an account that renamed leaves its older photo in the bucket and in the row", async ({ skip }) => {
+    if (skipReason) skip(skipReason);
+    // Everything between 0145 and 0151, so the trigger under test is 0150's.
+    for (const path of BETWEEN_0145_AND_0151) db().applyFile(path);
+    seedRenamed(DANA, DANA_PROFILE, "danaold", "danapm", DANA_CONVERSATION, DANA_OLD_MESSAGE, DANA_NEW_MESSAGE);
+
+    const gone = await db().attempt(`delete from auth.users where id = '${DANA}'`);
+    expect(gone.ok, gone.said).toBe(true);
+
+    // THE FAULT. The message sent under the current handle lost its photo; the
+    // one sent under the retired handle still names an object in the bucket.
+    expect(db().sql(`select attachment_object_key is null from public.messages where id = '${DANA_NEW_MESSAGE}'`)).toBe("t");
+    expect(db().sql(`select attachment_object_key from public.messages where id = '${DANA_OLD_MESSAGE}'`))
+      .toBe(`messages/${DANA_CONVERSATION}/${DANA_OLD_MESSAGE}.jpg`);
+  });
+
+  it("AFTER: the backfill stamps the rows already sent, and the trigger stamps every new one", async ({ skip }) => {
+    if (skipReason) skip(skipReason);
+    db().applyFile(SENDER_PROFILE);
+
+    // The backfill read the alias table, so Dana's pre-rename row now names its
+    // author even though her account has already gone.
+    expect(db().sql(`select sender_profile_id from public.messages where id = '${DANA_OLD_MESSAGE}'`)).toBe(DANA_PROFILE);
+
+    // A message sent from here on is stamped by the insert trigger, whichever
+    // handle it carries.
+    seedRenamed(ERIN, ERIN_PROFILE, "erinold", "erinpm", ERIN_CONVERSATION, ERIN_OLD_MESSAGE, ERIN_NEW_MESSAGE);
+    expect(count(`select count(*) from public.messages where sender_profile_id = '${ERIN_PROFILE}'`)).toBe(2);
+
+    // What the deletion COLLECTS: both photos, the pre-rename one included.
+    expect(collectedKeys(ERIN_PROFILE, "erinpm")).toBe(
+      [
+        `messages/${ERIN_CONVERSATION}/${ERIN_NEW_MESSAGE}.jpg`,
+        `messages/${ERIN_CONVERSATION}/${ERIN_OLD_MESSAGE}.jpg`,
+      ]
+        .sort()
+        .join(","),
+    );
+  });
+
+  it("AFTER: both attachment columns are cleared when the renamed account leaves", async ({ skip }) => {
+    if (skipReason) skip(skipReason);
+    const gone = await db().attempt(`delete from auth.users where id = '${ERIN}'`);
+    expect(gone.ok, gone.said).toBe(true);
+
+    expect(count(`select count(*) from public.messages where conversation_id = '${ERIN_CONVERSATION}' and attachment_kind is not null`)).toBe(0);
+    expect(count(`select count(*) from public.messages where conversation_id = '${ERIN_CONVERSATION}' and attachment_object_key is not null`)).toBe(0);
+    // The words each message carried stay in the thread.
+    expect(db().sql(`select body from public.messages where id = '${ERIN_OLD_MESSAGE}'`)).toBe("before the rename");
+    expect(db().sql(`select body from public.messages where id = '${ERIN_NEW_MESSAGE}'`)).toBe("after the rename");
+    // Nothing here removes bytes: that is the Storage API's job either way.
+    expect(count("select count(*) from storage.objects where bucket_id = 'pint-drops'")).toBe(OBJECTS.length);
+  });
+
+  it("cannot reach another account's rows through the handle half of the union", async ({ skip }) => {
+    if (skipReason) skip(skipReason);
+    // Bob is still here and still has his own thread rows. A retired handle is
+    // never re-issued (0029's unique index on lower(handle) plus 0078's kept
+    // profile row), so the handle match can only ever name its own account.
+    expect(count(`select count(*) from public.profiles where id = '${BOB_PROFILE}' and tombstoned_at is null`)).toBe(1);
+    expect(count(`select count(*) from public.messages where sender_handle = 'bobpm' and attachment_kind is not null`)).toBe(0);
+    expect(count("select count(*) from public.profile_handle_aliases where handle = 'danaold'")).toBe(1);
   });
 });

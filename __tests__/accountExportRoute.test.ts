@@ -36,7 +36,9 @@ const exportState = vi.hoisted(() => ({
   calls: [] as string[],
   unavailable: [] as string[],
 }));
-vi.mock("@/lib/accountExport.server", () => ({
+vi.mock("@/lib/accountExport.server", async () => {
+  const { ACCOUNT_EXPORT_LANES } = await import("@/lib/accountExport");
+  return {
   buildAccountExport: async (userId: string) => {
     exportState.calls.push(userId);
     const lane = (name: string) => ({
@@ -44,17 +46,20 @@ vi.mock("@/lib/accountExport.server", () => ({
       truncated: false,
       items: [] as unknown[],
     });
+    // Every lane the document names, built off the ONE table, so a lane added
+    // to `ACCOUNT_EXPORT_LANES` cannot leave this double behind.
+    const lanes = Object.fromEntries(
+      ACCOUNT_EXPORT_LANES.map((name) => [name, lane(name)]),
+    );
     return {
       version: 1,
       exportedAt: "2026-09-05T18:00:00.000Z",
       account: { userId, handle: userId === "user-owner" ? "night_owl" : null, displayName: null },
-      memories: lane("memories"),
-      prices: lane("prices"),
-      pintDrops: lane("pintDrops"),
-      messages: lane("messages"),
+      ...lanes,
     };
   },
-}));
+  };
+});
 
 import { GET } from "@/app/api/account/export/route";
 import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";

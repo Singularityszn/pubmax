@@ -2,26 +2,53 @@ import "server-only";
 
 // The ONE writer that deletes a PUBMAXX account.
 //
-// TWO PHASES, in an order that has to stay written down. First the account's
-// own Storage objects are removed through the Storage API: the profile's
-// avatars and covers, its Night Moment photos, the photos it put on pub walls
-// and the photos it sent in messages (`lib/accountOwnedObjects.ts` is the
-// table). Then `auth.admin.deleteUser(userId)` deletes the auth row, and
-// migration `0078`'s BEFORE DELETE trigger, as restated by `0145`, does the
-// rest: the profile tombstone, the wall photo rows, the cover rotation rows,
-// the message attachment columns and the Social account's suspension.
+// THREE PHASES, in an order that has to stay written down, and the middle one
+// is where a failure is allowed to be a failure.
 //
-// WHY THE BYTES GO FIRST. Supabase refuses `delete from storage.objects` at
-// the statement level (SQLSTATE 42501, contribution battle test D01), and its
-// own guide says a row deleted by SQL leaves the bytes orphaned, so the
-// trigger may not remove objects. The wall photo rows and the message columns
-// are what NAME the objects, and the trigger deletes or clears them, so the
-// keys have to be collected while those rows still exist. A removal that
-// fails leaves the account in place and answers `unavailable`, which the
-// reader may retry; the objects already removed stay removed, and a retry
-// finds fewer. The other order (auth row first, objects after) would leave
-// orphans nobody could retry against, because the account that could ask
-// would be gone.
+// (1) COLLECT the keys of every object the account owns: the profile's avatars
+//     and covers, its Night Moment photos, the photos it put on pub walls and
+//     the photos it sent in messages (`lib/accountOwnedObjects.ts` is the
+//     table). This is a READ, and it has to happen first, because the wall
+//     photo rows and the message columns are what NAME half of those objects
+//     and the tombstone trigger deletes or clears them. A read we could not run
+//     is `unavailable` and nothing has been touched. A message photo is asked
+//     for by PROFILE as well as by handle, because `sender_handle` is text
+//     stamped at send time and a rename does not rewrite it: migration `0151`
+//     is what added the identity that cannot be renamed (review finding F-4).
+// (2) DELETE the auth row. Migration `0078`'s BEFORE DELETE trigger, as
+//     restated by `0145` and `0150`, does the rest: the retention ledger, the
+//     retired-author stamps, the profile tombstone, the wall photo rows, the
+//     cover rotation rows, the message attachment columns and the Social
+//     account's suspension. A delete that fails here is `unavailable` and,
+//     again, NOTHING HAS BEEN REMOVED.
+// (3) REMOVE the objects through the Storage API, with the keys from (1).
+//
+// WHY THE BYTES GO LAST, which is a REVERSAL of the order `0145`'s header
+// describes. Supabase refuses `delete from storage.objects` at the statement
+// level (SQLSTATE 42501, contribution battle test D01), and its own guide says
+// a row deleted by SQL leaves the bytes orphaned, so the trigger may not remove
+// objects and the keys must be read before it runs. That argument is about
+// COLLECTING the keys, and collecting is already its own phase — it was never
+// an argument for removing the bytes first. Removing first meant that any
+// failure after the removal loop answered `unavailable` over a LIVE account
+// whose every photo had just been irreversibly deleted: a person who tapped
+// Delete, read "Your account could not be deleted. Try again." and decided not
+// to had silently lost every photo they ever uploaded, and their pub wall
+// photos stayed on public walls as broken images (review finding F-5).
+//
+// THE COST OF THIS ORDER IS ORPHANED BYTES, and it is the smaller cost. When
+// the auth row is gone and a removal batch then fails, the objects stay in the
+// bucket with nothing pointing at them: the profile is tombstoned with its
+// image keys nulled, the wall photo rows are deleted and the message attachment
+// columns are cleared, so no product surface can serve one. It is logged by
+// name (`account.delete_objects_orphaned`) for an operator sweep, the loop
+// carries on to the batches it can still remove, and the outcome stays the auth
+// row's: answering `unavailable` over an account that IS deleted would be the
+// same lie in mirror image. A RETRY still helps, because the folder walk in (1)
+// lists by prefix rather than by row: a second DELETE reads `already-gone`,
+// finds the avatar, cover and Night Moment objects still there and removes
+// them. Only the row-named keys are beyond a retry, which is the narrowest
+// version of the old trade.
 //
 // The caller id is derived from the caller's own verified bearer at the route,
 // never from a request field, so this function can only ever delete the account
@@ -64,6 +91,22 @@ function isAlreadyGone(error: unknown): boolean {
   );
 }
 
+/**
+ * PostgREST's undefined-column answer, for the one read that asks for a column
+ * migration `0151` adds. A deploy that lands before the migration must still
+ * delete accounts.
+ */
+function isMissingSenderProfileColumn(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: unknown; message?: unknown };
+  if (candidate.code === "42703") return true;
+  return (
+    typeof candidate.message === "string"
+    && /sender_profile_id/.test(candidate.message)
+    && /does not exist|schema cache/i.test(candidate.message)
+  );
+}
+
 function failureReason(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (error && typeof error === "object") {
@@ -88,8 +131,16 @@ export type AccountDeletionDeps = {
   listObjectKeys(folder: string): Promise<string[]>;
   /** The serving keys of the wall photos this profile authored. Throws on a read it could not run. */
   wallPhotoKeys(profileId: string): Promise<string[]>;
-  /** The serving keys of the photos this handle sent in messages. Throws on a read it could not run. */
-  messagePhotoKeys(handle: string): Promise<string[]>;
+  /**
+   * The serving keys of the photos this account sent in messages, by PROFILE
+   * and by current handle. Throws on a read it could not run.
+   *
+   * Both, because `sender_handle` is text stamped at send time and a rename
+   * does not rewrite it (review finding F-4), while `sender_profile_id` is
+   * stamped from the alias table by migration `0151` and may be null on a row
+   * older than its backfill.
+   */
+  messagePhotoKeys(profileId: string, handle: string): Promise<string[]>;
   /** Remove these objects through the Storage API. Throws when the API refused. */
   removeObjects(keys: readonly string[]): Promise<void>;
   /** GoTrue's admin delete of the auth row. */
@@ -138,16 +189,29 @@ function supabaseDeps(): AccountDeletionDeps {
         .map((row) => (row as { object_key?: unknown }).object_key)
         .filter((key): key is string => typeof key === "string");
     },
-    async messagePhotoKeys(handle) {
-      const { data, error } = await admin()
-        .from("messages")
-        .select("attachment_object_key")
-        .eq("sender_handle", handle)
-        .not("attachment_object_key", "is", null);
-      if (error) throw new Error(error.message);
-      return (data ?? [])
-        .map((row) => (row as { attachment_object_key?: unknown }).attachment_object_key)
-        .filter((key): key is string => typeof key === "string");
+    async messagePhotoKeys(profileId, handle) {
+      const keys = (rows: unknown[] | null): string[] =>
+        (rows ?? [])
+          .map((row) => (row as { attachment_object_key?: unknown }).attachment_object_key)
+          .filter((key): key is string => typeof key === "string");
+      const attached = () =>
+        admin().from("messages").select("attachment_object_key").not("attachment_object_key", "is", null);
+
+      // The account's whole message history, by either identity. `.or` is one
+      // round trip and one union; PostgREST refuses a bare `.eq` pair.
+      const { data, error } = await attached().or(
+        `sender_profile_id.eq.${profileId},sender_handle.eq.${handle}`,
+      );
+      if (!error) return keys(data);
+      // Migration 0151 has not landed yet, so the column is not there. Fall back
+      // to the handle alone, which is exactly the pre-0151 behaviour: it finds
+      // less for a renamed account rather than refusing every deletion.
+      if (isMissingSenderProfileColumn(error)) {
+        const fallback = await attached().eq("sender_handle", handle);
+        if (fallback.error) throw new Error(fallback.error.message);
+        return keys(fallback.data);
+      }
+      throw new Error(error.message);
     },
     async removeObjects(keys) {
       const { error } = await bucket().remove([...keys]);
@@ -177,7 +241,7 @@ export async function ownedObjectKeys(
   const fromRows = profile
     ? [
         ...(await deps.wallPhotoKeys(profile.id)),
-        ...(await deps.messagePhotoKeys(profile.handle)),
+        ...(await deps.messagePhotoKeys(profile.id, profile.handle)),
       ]
     : [];
   // A walked folder already lists every object in it, staging twins included;
@@ -190,14 +254,17 @@ export async function ownedObjectKeys(
 }
 
 /**
- * Delete the account behind `userId`: its Storage objects first, then the auth
- * row, and the `0078` trigger does the rest.
+ * Delete the account behind `userId`: collect its object keys, delete the auth
+ * row (the `0078` trigger does the rest), then remove the objects.
  *
  * THREE-WAY on purpose, and the third answer is the point: a delete we could not
  * RUN is `unavailable` and is reported as a failure the reader may retry, while
  * an account that is already gone is a success. Merging them would either tell a
  * person their account survived an outage it did not, or tell them a live
  * account is deleted when nothing was written.
+ *
+ * A FAILURE BEFORE THE AUTH ROW GOES REMOVES NOTHING. That is the whole point
+ * of the order; see the header.
  */
 export async function deleteOwnAccount(
   userId: string,
@@ -214,24 +281,39 @@ export async function deleteOwnAccount(
     return "unavailable";
   }
 
-  for (const batch of removalBatches(keys)) {
-    try {
-      await deps.removeObjects(batch);
-    } catch (err) {
-      log("error", "account.delete_failed", { stage: "objects_not_removed", reason: failureReason(err) });
+  // The auth row goes BEFORE a single object is removed, so a delete that
+  // cannot run leaves the account whole rather than photoless.
+  let outcome: AccountDeletionOutcome;
+  try {
+    const { error } = await deps.deleteAuthUser(id);
+    if (!error) outcome = "deleted";
+    else if (isAlreadyGone(error)) outcome = "already-gone";
+    else {
+      log("error", "account.delete_failed", { stage: "auth", reason: failureReason(error) });
+      return "unavailable";
+    }
+  } catch (err) {
+    if (isAlreadyGone(err)) outcome = "already-gone";
+    else {
+      log("error", "account.delete_failed", { stage: "auth", reason: failureReason(err) });
       return "unavailable";
     }
   }
 
-  try {
-    const { error } = await deps.deleteAuthUser(id);
-    if (!error) return "deleted";
-    if (isAlreadyGone(error)) return "already-gone";
-    log("error", "account.delete_failed", { stage: "auth", reason: failureReason(error) });
-    return "unavailable";
-  } catch (err) {
-    if (isAlreadyGone(err)) return "already-gone";
-    log("error", "account.delete_failed", { stage: "auth", reason: failureReason(err) });
-    return "unavailable";
+  // The account is gone. Every batch we can still remove is removed, and one
+  // we cannot is named for an operator rather than turned into a refusal over
+  // an account that no longer exists.
+  for (const batch of removalBatches(keys)) {
+    try {
+      await deps.removeObjects(batch);
+    } catch (err) {
+      log("error", "account.delete_objects_orphaned", {
+        stage: "objects_not_removed",
+        objects: batch.length,
+        reason: failureReason(err),
+      });
+    }
   }
+
+  return outcome;
 }

@@ -12,6 +12,23 @@ import "server-only";
 // to (auth.getUser(jwt)) using the admin client — this validates the signature +
 // expiry server-side, so a forged/expired token yields null (anonymous), never a
 // trusted uid. NEVER trust a uid sent in the body/query; only a verified token.
+//
+// THE DEFAULT ASKS THE AUTH SERVER, BECAUSE REVOCATION IS A FACT ABOUT THE
+// ACCOUNT AND NOT ABOUT THE TOKEN. `getClaims` checks a signature and an `exp`
+// against the project JWKS and NOTHING ELSE, so a token whose account has been
+// deleted or banned still verifies for the rest of its hour. #1501 made that
+// local lane the default to spare a messaging poll a round trip; review finding
+// F-3 measured what it cost. Every gate that reads a live account — the
+// contribution gate on every price write, the Social 18+ gate, the two plan-seat
+// claims and the session refresh — was answering yes to an account that had just
+// deleted itself. And the messaging routes it was written for never took the
+// saving anyway: `lib/messageAuth.ts` asks `callerUserId`, which needs account
+// metadata and has always asked GoTrue.
+//
+// ONE caller opts out, and it is the one door that MUST answer after the
+// account is gone: `DELETE /api/account` passes `{ localOnly: true }` so a
+// second delete reaches its documented 410 rather than a 401 about an account
+// we know the caller owns. That argument is written at the call site.
 
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -76,23 +93,30 @@ function isInvalidBearerError(error: unknown): boolean {
 
 export type VerifyCallerAuthOptions = Readonly<{
   /**
-   * Ask GoTrue for the ACCOUNT rather than verifying the token here. Only a
-   * caller that needs `createdAt` should pass this: the JWT carries no creation
-   * time, so that one field costs a network round trip to the auth server.
+   * Verify the token HERE against the project JWKS rather than asking GoTrue
+   * who it belongs to.
+   *
+   * It is faster and it is weaker: a locally verified token says the signature
+   * and the expiry are good and says nothing about whether the account still
+   * exists. Pass it only where the answer must survive the account's own
+   * deletion — `DELETE /api/account` is the whole list — and say why at the
+   * call site. Every other caller wants revocation.
    */
-  accountMetadata?: boolean;
+  localOnly?: boolean;
 }>;
 
 /**
- * Verify the bearer locally when the project signs with an asymmetric key.
+ * Verify the bearer locally against the project JWKS, for the one caller that
+ * asked for it.
  *
- * `auth.getUser(token)` is a NETWORK round trip to GoTrue on every request, and
- * a messaging poll spent it every few seconds per open thread. `getClaims`
- * checks the signature against the project's JWKS (fetched once per process and
+ * `getClaims` checks the signature (against a JWKS fetched once per process and
  * cached by supabase-js) and the expiry, so an ES256 token is verified in
  * microseconds with nothing on the wire. Where the project still signs HS256,
- * supabase-js falls back to `getUser` inside `getClaims`, which is exactly the
- * old behaviour. Nothing here trusts a claim it did not verify.
+ * supabase-js falls back to `getUser` inside `getClaims`, so an HS256 project
+ * gets the account check back for free. Nothing here trusts a claim it did not
+ * verify — but nothing here asks whether the account is still there either,
+ * which is why it is opt-in. Returns null when the client cannot answer
+ * locally at all, and the caller falls through to GoTrue.
  */
 async function verifyClaimsLocally(
   admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
@@ -128,7 +152,7 @@ export async function verifyCallerAuth(
   if (!admin) return { status: "unavailable" };
 
   try {
-    if (!options.accountMetadata) {
+    if (options.localOnly) {
       const local = await verifyClaimsLocally(admin, token);
       if (local) return local;
     }
@@ -171,11 +195,14 @@ export async function callerUserId(request: Request): Promise<string | null> {
  * bearer JWT, or null when anonymous / invalid / unconfigured. Same fail-closed
  * rules as callerUserId. Prefer this when a route needs JWT-owned account
  * metadata rather than a client-supplied proxy.
+ *
+ * `createdAt` is not in the JWT, so this lane has always asked GoTrue; it now
+ * simply takes the default and passes no option at all.
  */
 export async function callerAuthIdentity(
   request: Request,
 ): Promise<CallerAuthIdentity | null> {
-  const verification = await verifyCallerAuth(request, { accountMetadata: true });
+  const verification = await verifyCallerAuth(request);
   return verification.status === "verified"
     ? verification.identity
     : null;

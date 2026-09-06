@@ -48,15 +48,24 @@ export async function DELETE(request: Request): Promise<Response> {
   // request and we know exactly whose account it names. Verification scout
   // verify-preview-4 measured that: `DELETE 200 at 21:02:17, DELETE 401 at
   // 21:02:31`, with the documented 410 `already-gone` unreachable behind it.
-  // `verifyCallerAuth` with no options checks the signature and the expiry
-  // against the project JWKS and takes `sub` from the verified claims, so a
-  // deleted account is still NAMED by its own unexpired token and the request
-  // reaches the idempotent answer it was promised. Nothing here trusts a claim
-  // it did not verify, and the target is still the token rather than a field.
+  // `{ localOnly: true }` checks the signature and the expiry against the
+  // project JWKS and takes `sub` from the verified claims, so a deleted account
+  // is still NAMED by its own unexpired token and the request reaches the
+  // idempotent answer it was promised. Nothing here trusts a claim it did not
+  // verify, and the target is still the token rather than a field.
+  //
+  // THIS DOOR IS THE ONLY ONE THAT MAY ASK FOR IT. A locally verified token
+  // says nothing about whether the account still exists, which is exactly the
+  // property a second DELETE needs and exactly the property every other gate
+  // must not have (review finding F-3): `verifyCallerAuth` asks GoTrue by
+  // default, so a deleted account stops passing the contribution gate, the
+  // Social gate and the plan-seat claim the moment its auth row is gone.
+  // Nothing is lost here by the weaker check, because the only thing this
+  // request can do to a live account is delete it at its own asking.
   //
   // THREE-WAY, because a verification we could not RUN is a fact about us: it
   // answers 503 rather than telling somebody who is signed in that they are not.
-  const verification = await verifyCallerAuth(request);
+  const verification = await verifyCallerAuth(request, { localOnly: true });
   if (verification.status === "unavailable") {
     return publicApiError(
       "We could not check your sign-in. Try again.",

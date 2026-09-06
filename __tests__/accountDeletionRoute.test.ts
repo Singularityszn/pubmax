@@ -28,9 +28,11 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 // The bearer seam. `userId` is the account the token NAMES; `unavailable` is a
 // verification we could not run at all. The route asks `verifyCallerAuth` with
-// NO options on purpose (the local JWKS lane), so the mock records what it was
-// asked with: a route that went back to asking the auth server for the ACCOUNT
-// could not answer a caller whose auth row the first delete already removed.
+// `{ localOnly: true }` on purpose (the local JWKS lane), so the mock records
+// what it was asked with: a route that went back to asking the auth server for
+// the ACCOUNT could not answer a caller whose auth row the first delete already
+// removed. That option is this door's alone (review finding F-3); the default
+// asks GoTrue so revocation holds everywhere else.
 const authState = vi.hoisted(() => ({
   userId: null as string | null,
   unavailable: false,
@@ -187,17 +189,14 @@ describe("DELETE /api/account", () => {
     // `DELETE /api/account` answering 401 `UNAUTHENTICATED` rather than the
     // documented 410: the route asked the auth server for the ACCOUNT, and the
     // first delete had removed the row, so every later request with that same
-    // unexpired bearer read as `user_not_found`. Asking for account metadata
-    // here is what makes the idempotent answer below unreachable.
+    // unexpired bearer read as `user_not_found`. Asking the auth server for the
+    // account here is what makes the idempotent answer below unreachable.
     const caller = callerId("claims");
     authState.userId = caller;
 
     await del();
 
-    expect(authState.optionsSeen).toEqual([undefined]);
-    for (const options of authState.optionsSeen) {
-      expect(options?.accountMetadata).toBeUndefined();
-    }
+    expect(authState.optionsSeen).toEqual([{ localOnly: true }]);
   });
 
   it("reports a verification it could not run as a retryable 503, and writes nothing", async () => {
