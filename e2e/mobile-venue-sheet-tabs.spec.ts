@@ -300,8 +300,9 @@ test("the peek price plaque hugs its figure and stays inside its own row", async
 
   // The plate is the figure plus the plaque's own padding, never the column.
   expect(geometry.width).toBeLessThan(geometry.figureWidth * 2.2);
-  // The tilt still leans, but by less than a pixel and a half, so the plaque
-  // cannot reach the hairline the peek row draws above it.
+  // Nothing of the plaque is painted above its own layout row, so it cannot
+  // reach the hairline the peek row draws over it. The -1.5deg tilt that used
+  // to put a fraction of a pixel up there is retired (captain 6 Sep 2026).
   expect(geometry.paintedAboveRow).toBeLessThan(1.5);
   expect(geometry.clearanceUnderHeader ?? 0).toBeGreaterThan(4);
 });

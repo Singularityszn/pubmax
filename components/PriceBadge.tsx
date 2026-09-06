@@ -38,9 +38,11 @@ export default function PriceBadge({
     "priceBadge",
     `priceBadge--${variant}`,
     priceBandClass(band),
+    // `.price-plaque` is the whole shape and face. The `.ink-stamp` pair left
+    // with the bevel and the tilt (captain 6 Sep 2026): every declaration they
+    // added here was already overridden by the plaque, apart from the two
+    // inset shadows and the lean, which were the defect.
     "price-plaque",
-    "ink-stamp",
-    "ink-stamp--tilt",
     styles.badge,
     className,
   ]

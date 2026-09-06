@@ -434,10 +434,11 @@
    API for other agents/components to adopt:
      .ink-stamp        — base treatment: brass hairline border, inset
                           "pressed" shadow, data face, tabular numerals.
-     .ink-stamp--tilt   — adds the signature -1.5deg press tilt. Reserved for
-                          prices, so only the figure leans.
      .ink-stamp--flat   — same border/shadow, no data face (for chips whose
                           copy is words, not numbers, e.g. provenance/vibe).
+   There is no longer a tilt class. It existed for the price plaque alone,
+   and a price no longer leans (see .price-plaque below). The
+   `--ink-stamp-tilt` token stays, because the /about seal still reads it.
    Existing .provChip / .vibeChip classes are untouched; this is additive so
    artifact chips can opt in with a single extra class. */
 .ink-stamp {
@@ -453,10 +454,6 @@
 .ink-stamp--flat {
   font-family: var(--font-body);
   font-variant-numeric: normal;
-}
-
-.ink-stamp--tilt {
-  transform: rotate(var(--ink-stamp-tilt));
 }
 
 body {
@@ -500,19 +497,25 @@ html:not([data-theme="dark"]) body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Price plaque (signature move) ─────────────────────────────────────────
-   The pub's brass-plaque heritage made literal: prices and headline data sit
-   on an engraved lager-gold plate — mono face, tabular figures, a warm brass
-   hairline and a hair of top shine — instead of borrowing the coral action
-   colour. This is the ONE place the amber/brass metal treatment lives, so a
-   price never reads as a coral alert. Opt in with class="price-plaque"; the
+/* ── Price plaque ──────────────────────────────────────────────────────────
+   A PRICE IS A FIGURE, NOT AN ORNAMENT. Captain 6 Sep 2026 ("there's a button
+   mistake where the prices are looking in a weird shape"): the plaque was an
+   engraved plate - a 6px radius, a bevelled inset press, a top shine and a
+   -1.5deg tilt in the mono face at weight 800, right-aligned inside a 71px
+   minimum box - standing beside 14px body copy and `--control-radius` pill
+   buttons, so the one thing a reader came for wore a shape nothing else on
+   the screen wore. It now sits in the SAME shape family as the controls
+   beside it: the control radius, the body face, no bevel and no tilt.
+   What it keeps is the only thing it ever said: the band's surface, border
+   and ink (`lib/priceBand.ts` is the colour law), and tabular figures so a
+   column of prices lines up. Opt in with class="price-plaque"; the
    PriceBadge resolves every price variant to these tokens. */
 .price-plaque {
-  font-family: var(--font-data);
+  font-family: var(--font-body);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
   font-weight: 700;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
   /* A plaque is NEUTRAL until a band paints it. The brass tint it used to
      carry read as the yellow band on a price nobody had banded (a cocktail, a
      course, a history row), and under the law a colour on a price is a claim
@@ -520,8 +523,18 @@ html:not([data-theme="dark"]) body {
   color: var(--price-band-ink, var(--badge-ink));
   background: var(--price-band-surface, var(--badge-surface));
   border: 1px solid var(--price-band-border, var(--badge-border));
-  border-radius: var(--ink-stamp-radius);
-  box-shadow: var(--price-plaque-shine), var(--ink-stamp-shadow);
+  /* THE SAME CORNER AS A BUTTON, WHICH IS NOT THE SAME NUMBER. `--control-radius`
+     is 14px on a 44px control, a ratio of about a third. A price plaque is 28px
+     tall, so that same 14px renders a full stadium, and a stadium is the PILL,
+     which the design system reserves for circular icon controls and tab-group
+     segments. Measured at 390 on /today and /borough: a column of prices read as
+     a stack of status tags. `--radius` at 8px is the same corner ratio on this
+     box that the control token is on a button, so a price joins the shape
+     family rather than borrowing another shape's meaning. */
+  border-radius: var(--radius, 8px);
+  /* No bevel and no shine. The two inset shadows WERE the engraved reading,
+     and a figure a drinker has to trust does not need a texture. */
+  box-shadow: none;
 }
 
 /* THE ONE CLASS FAMILY a band paints with (`priceBandClass` in
