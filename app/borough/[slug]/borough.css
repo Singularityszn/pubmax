@@ -65,6 +65,14 @@
 
 /* --- detail: pubs table --------------------------------------------------- */
 
+/* The price table is wide content. It scrolls inside its own box so the page
+   body never scrolls sideways (docs/DESIGN_SYSTEM.md): at 320 the pub column
+   alone put the document 25px past the viewport. */
+.boroughTableScroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .boroughTable {
   width: 100%;
   border-collapse: collapse;

@@ -320,47 +320,52 @@ export default async function BoroughPage({ params }: PageProps) {
             been walked yet.
           </EmptyState>
         ) : (
-          <table className="boroughTable">
-            <caption className="srOnly">
-              Pubs in {name}, ordered by cheapest pint price
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col" className="boroughRankHead">
-                  #
-                </th>
-                <th scope="col" className="boroughNameHead">
-                  Pub
-                </th>
-                <th scope="col" className="boroughPriceHead">
-                  Cheapest pint
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {pubs.map((pub, index) => (
-                <tr key={pub.id}>
-                  <th scope="row" className="boroughRank">
-                    <span className="boroughRankNum">{index + 1}</span>
+          // A price table is wide content, so it scrolls inside its own box
+          // rather than making the page scroll sideways: at 320 the pub column
+          // alone put the document 25px past the viewport.
+          <div className="boroughTableScroll">
+            <table className="boroughTable">
+              <caption className="srOnly">
+                Pubs in {name}, ordered by cheapest pint price
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col" className="boroughRankHead">
+                    #
                   </th>
-                  <td className="boroughName">
-                    <Link href={venueMapUrl(pub.id)} className="boroughPub">
-                      {pub.name}
-                    </Link>
-                    {pub.cheapestPint ? (
-                      <span className="boroughPint">{pub.cheapestPint}</span>
-                    ) : null}
-                    <Link href={`/ledger/${pub.id}`} className="boroughLedgerLink">
-                      Price history →
-                    </Link>
-                  </td>
-                  <td className="boroughPriceCell">
-                    <BoroughPubPrice pub={pub} />
-                  </td>
+                  <th scope="col" className="boroughNameHead">
+                    Pub
+                  </th>
+                  <th scope="col" className="boroughPriceHead">
+                    Cheapest pint
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {pubs.map((pub, index) => (
+                  <tr key={pub.id}>
+                    <th scope="row" className="boroughRank">
+                      <span className="boroughRankNum">{index + 1}</span>
+                    </th>
+                    <td className="boroughName">
+                      <Link href={venueMapUrl(pub.id)} className="boroughPub">
+                        {pub.name}
+                      </Link>
+                      {pub.cheapestPint ? (
+                        <span className="boroughPint">{pub.cheapestPint}</span>
+                      ) : null}
+                      <Link href={`/ledger/${pub.id}`} className="boroughLedgerLink">
+                        Price history →
+                      </Link>
+                    </td>
+                    <td className="boroughPriceCell">
+                      <BoroughPubPrice pub={pub} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {storyPubs.length > 0 ? (
