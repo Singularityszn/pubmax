@@ -341,7 +341,7 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
   await expect(sheet).toHaveCount(0);
 });
 
-test("mobile venue sheet sticky actions switch to Train and price sign-in gate", async ({
+test("mobile venue sheet reaches Train, holds no price action in the strip, and gates the one price door", async ({
   page,
 }) => {
   test.setTimeout(120_000);
@@ -378,16 +378,29 @@ test("mobile venue sheet sticky actions switch to Train and price sign-in gate",
   await expect(sheet).toHaveClass(/sheet-half/);
   await expect(stickyActions).toBeInViewport();
 
+  // The strip holds actions, not price doors. #1517 folded its "Add price"
+  // into the Overview's one door (lib/pintTrust.ts, `overviewPriceDoor`), so a
+  // price action here would be the second painted primary that rule removed.
+  await expect(
+    stickyActions.getByRole("button", { name: /price/i }),
+  ).toHaveCount(0);
+
+  // The price path is the Overview's ONE door, whichever kind the pub's trust
+  // state names, and there is exactly one of it on the sheet.
+  const overviewTab = page.getByRole("tab", { name: "Overview", exact: true });
+  await overviewTab.click();
+  await expect(overviewTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#venuePanel-overview")).toBeVisible();
+  const priceDoor = page.locator("[data-price-door]");
+  await expect(priceDoor).toHaveCount(1);
+
   // Anonymous sessions have always been routed to sign-in before the price
   // form (runPriceContributionRequest in lib/priceContributionIntent.ts,
   // unchanged since PR #675 — not a tonight regression). The default e2e
   // chromium project injects a configured-but-fake Supabase URL/key
   // (playwright.config.ts), so authConfigured is true and an anonymous click
   // always shows the sign-in gate, never the price textbox directly.
-  await stickyActions.getByRole("button", { name: /add a price/i }).click();
-  const overviewTab = page.getByRole("tab", { name: "Overview", exact: true });
-  await expect(overviewTab).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#venuePanel-overview")).toBeVisible();
+  await priceDoor.click();
   await expect(
     page.getByRole("heading", { name: "Sign in to add a price" }).first(),
   ).toBeVisible();
