@@ -3,6 +3,7 @@ import { ExternalLink, MapPinned } from "lucide-react";
 import { firstHttps } from "@/lib/httpUrl";
 
 import BookingClickAnalytics from "@/components/pubs/BookingClickAnalytics";
+import IntentLink from "@/components/nav/IntentLink";
 import PubsFilters, {
   type PubsFilterCounts,
   type PubsFilterKey,
@@ -190,7 +191,11 @@ export default function PubsGallery({
                   ) : null}
                 </div>
                 <h2 className="pubsCardName">
-                  <Link href={venueMapUrl(pub.id)}>{pub.name}</Link>
+                  {/* /map is the heaviest dynamic route here and a card carries
+                      two links to it, each keyed by its own venue id, so nothing
+                      dedupes. Warmed on intent rather than on sight
+                      (components/nav/IntentLink.tsx). */}
+                  <IntentLink href={venueMapUrl(pub.id)}>{pub.name}</IntentLink>
                 </h2>
                 <p className="pubsCardPrice">
                   {pub.cheapestPrice != null
@@ -198,10 +203,10 @@ export default function PubsGallery({
                     : "No price logged yet"}
                 </p>
                 <div className="pubsCardActions">
-                  <Link className="pubsMapLink" href={venueMapUrl(pub.id)}>
+                  <IntentLink className="pubsMapLink" href={venueMapUrl(pub.id)}>
                     <MapPinned size={14} aria-hidden="true" />
                     See on map
-                  </Link>
+                  </IntentLink>
                   {menuUrl ? (
                     <a
                       className="pubsMenuLink"

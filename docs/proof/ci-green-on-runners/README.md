@@ -168,3 +168,51 @@ the exact move the ratchet exists to refuse, and the drift belongs to whichever
 commit caused it. The likeliest place to start for `/map` is #1561 ("until the
 pins have painted, the wire belongs to the pins"), which holds the shard ring
 requests and replays them once a pin paints.
+
+## 6. Two routes sat on their own ceilings, and the flap was on-sight prefetch
+
+After the map lane merged (#1593) and the captain ruled the `/drinks` raise, the
+sweep came down to two rows, and both flipped between the job's two attempts on
+one commit:
+
+| run | attempt 1 | attempt 2 |
+| --- | --- | --- |
+| 34055837578 | `/pubs` requests 69 vs 68 | `/map` LCP 956 vs 900 |
+| 34058553256 | `/pubs` requests 69 vs 68 | `/map` LCP 1024 vs 900 |
+
+A route that sits ON its ceiling is a permanent flake, so neither was treated as
+noise. Measured against a local production build on a private port with the
+sweep's own helper, `/pubs` asked 68 requests and `/map` painted at 1276 ms
+(samples 948/1280/1240/1276/1648), both worse than the runner. So it is the
+routes, not the host.
+
+`/pubs` asked for nine RSC prefetches before it was interactive:
+
+    /activity  /messages  /map  /near  /map?sel=venue-9h7mch  /map?sel=venue-ru7vbr
+    /activity  /messages  /map
+
+`components/nav/IntentLink.tsx` already carries the law those break: a link to a
+dynamic route is warmed on INTENT, never prefetched on sight. Three controls had
+half of it. `MessagesLink` and `NotificationBell` each warm their own
+destination on `pointerdown` and still left Next's automatic prefetch on, and
+they ride `SiteNav` on every route. The two `/map?sel=` links on a `/pubs` card
+had neither half, and `/map` is the heaviest dynamic route in the app.
+
+Turning the automatic half off, five samples of one build each, same box, same
+throttle:
+
+| route | metric | before | after | ceiling |
+| --- | --- | ---: | ---: | ---: |
+| /pubs | requests | 68 | **62** | 68 |
+| /pubs | LCP (ms) | 616 | **572** | 600 |
+| /map | LCP (ms) | 1276 | **980** | 900 |
+
+`/pubs` gains six requests of margin, which is what takes it off the line. `/map`
+comes down by 23 per cent and is still the noisiest row on the table: three
+sweeps of the same build on this Mac measured 1276, 980 and 696. Its LCP element
+is the held loading frame's own copy, never map content, so the figure reports
+when the wait ended rather than when anything a drinker reads arrived.
+
+The behaviour a reader sees is unchanged: both bells still warm their route the
+moment a pointer goes down, and a pub card warms `/map` on hover, focus or
+touch.

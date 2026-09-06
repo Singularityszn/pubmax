@@ -85,6 +85,11 @@ export default function NotificationBell(): React.JSX.Element {
   return (
     <Link
       href="/activity"
+      // Warmed on intent by the handler below, so Next's automatic on-sight
+      // prefetch is turned off: this control rides SiteNav on every route, and
+      // a dynamic route prefetched on sight is a server render queued in front
+      // of the page the reader is waiting for (components/nav/IntentLink.tsx).
+      prefetch={false}
       className="siteNavBell"
       aria-label={label}
       title={label}
