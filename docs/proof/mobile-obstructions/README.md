@@ -106,8 +106,6 @@ a 7% tint of itself. That is the accent law this repo already wrote down
 controls under that rule read `--brass-ink`. It is pre-existing on main and
 touched by neither open PR.
 
-## Reproducing
-
 ```sh
 NEXT_DIST_DIR=.next-mobobs npm run build
 NEXT_DIST_DIR=.next-mobobs npm run start -- --port 3170     # plus the keyless env
@@ -115,6 +113,26 @@ PW_PORT=3170 PW_SKIP_WEBSERVER=1 npx playwright test \
   e2e/mobile-venue-sheet-tabs.spec.ts e2e/mobile-plan-flow.spec.ts \
   e2e/ux-consent-chrome.spec.ts e2e/plan-invite.spec.ts --project=chromium
 ```
+
+## What was red on main at this branch's base, and stayed red
+
+`1326ca341` is the base commit, and its own CI run (34050621997 / 34050621906)
+fails these for the same reasons. None is touched by this branch.
+
+| job / spec | cause | who owns it |
+|---|---|---|
+| Production build | `/today` prerenders, reads the weather snapshot store, and `selectStore` refuses a memory fallback on a runner with `NODE_ENV=production` and no Supabase keys | PR #1589, which adds `isProductionBuildPhase()` and names this failure in its own test |
+| Performance budget | `fatal: could not read Username for 'https://github.com'` fetching main for the ratchet | the runner's git credentials |
+| `smoke.spec.ts:344` | waits for an "add a price" button in the sticky Venue actions toolbar, which #1517 removed - `e2e/mobile-venue-sheet-tabs.spec.ts` asserts the opposite of the same toolbar | the overview-price-door lane |
+| `mobile-venue-sheet-tabs.spec.ts` "a real 390px touch swipe" | expects `data-trailing-fade="on"`; measured in both arms the phone strip computes `flex-wrap: wrap`, `overflow-x: visible`, `scrollWidth === clientWidth`, two rows, so nothing is past the edge | whoever owns that wrap |
+| `mobile-button-system.spec.ts` "/tonight keeps its right cell clear" | asserts `.tonightSoftPlansLink` unconditionally, but `app/tonight/page.tsx` mounts that module only when `isQuietPintWindow(now)` - a server-side London-clock gate | needs an argued row in `e2e/conditional-skips.allowlist.json` |
+
+One regression this branch DID introduce and CI caught:
+`plan-held-acceptance` went red because the first cut of the demoted concierge
+control asked the STOPS whether a route was on the page, and a held acceptance
+seeds Stop 1 with no route. Fixed in `bc67c806a`.
+
+## Reproducing
 
 `/api/plans/generate` is limited to 8 per minute per address
 (`RATE_LIMIT_MAX`), and the plan specs spend two each, so run them serially
