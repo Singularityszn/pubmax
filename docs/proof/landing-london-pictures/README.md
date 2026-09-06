@@ -83,9 +83,9 @@ costs 76 ms of largest contentful paint and two requests.
 
 Added weight on the phone profile is ONE file: the landing's anchor photograph
 at 640 wide in AVIF, 17.9 KB. The whole set's narrow AVIFs run 15.1 KB to
-27.3 KB, so the widest a landing could ever be asked to add is 27.3 KB against
-the 150 KB budget. The 1280 files exist for a DPR-2 screen and are 41.4 KB to
-83.7 KB.
+26.7 KB, so the widest a landing could ever be asked to add is 26.7 KB against
+the 150 KB budget. The 1280 files exist for a DPR-2 screen and are 41.3 KB to
+83.0 KB.
 
 CLS stayed at 0 because every `<img>` carries its intrinsic `width` and
 `height`, and the inline base64 placeholder (about 200 bytes per photograph)

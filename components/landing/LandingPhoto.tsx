@@ -116,9 +116,15 @@ export function LandingPhotoCredit({
 }
 
 /**
- * The head of the document for a landing whose largest paint is a photograph.
- * React hoists these, so the browser starts the fetch beside the stylesheet
- * rather than after the card has mounted.
+ * The preload for a landing whose largest paint is a photograph.
+ *
+ * React hoists a `<link rel="preload">` by its `href`, and a RESPONSIVE
+ * preload has none: the widths ride `imageSrcSet` and the browser picks one.
+ * So this one is not hoisted into the head and is rendered where the caller
+ * puts it. That is enough, and measured to be: put it above the card and the
+ * preload scanner reads it while parsing, well before the `<img>` it is for.
+ * HTML attribute names are case-insensitive, so React's `imageSrcSet` parses
+ * as `imagesrcset` in the document.
  */
 export function LandingPhotoPreload({
   resolved,
