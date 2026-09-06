@@ -98,7 +98,16 @@ afterEach(() => {
 describe("build scripts", () => {
   it("regenerates bundled data artifacts before the production build", () => {
     expect(packageJson.scripts?.prebuild).toBe(
-      "npm run prepare:maplibre-worker && npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base",
+      "npm run prepare:maplibre-worker && npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base && npm run build:discover-board",
+    );
+  });
+
+  it("cuts the Discover board, because the browser no longer cuts it", () => {
+    // /social?tab=discover reads public/data/discover/board.json rather than
+    // the 6.87 MB dataset. A build that skipped this step would serve the last
+    // committed board over a dataset that had moved on.
+    expect(packageJson.scripts?.["build:discover-board"]).toBe(
+      "tsx scripts/build_discover_board.mjs",
     );
   });
 
