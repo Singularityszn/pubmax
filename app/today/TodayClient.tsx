@@ -145,10 +145,17 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
               {weather.checkedLabel}. It may have moved on.
             </p>
           ) : null}
+          {/* The day is printed ONCE: the stale line above already carries it,
+              so a stale card's foot keeps the credit alone. Fresh, the foot
+              is the one place the day and the publisher are said. */}
           <div className="todayCardFootRow">
             <span className="todayProvenance">
-              {weather.checkedLabel}
-              <span aria-hidden="true"> · </span>
+              {weather.stale ? null : (
+                <>
+                  {weather.checkedLabel}
+                  <span aria-hidden="true"> · </span>
+                </>
+              )}
               via{" "}
               <a
                 className="todayProvenanceLink"
