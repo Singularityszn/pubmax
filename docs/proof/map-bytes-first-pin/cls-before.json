@@ -1,0 +1,55 @@
+[
+  {
+    "route": "/map",
+    "cls": 0.0024,
+    "shifts": [
+      {
+        "value": 0.0024111640775686953,
+        "startTime": 16818,
+        "sources": [
+          "details.maplibregl-ctrl.maplibregl-ctrl-attrib.maplibregl-compact"
+        ]
+      }
+    ]
+  },
+  {
+    "route": "/map?sel=venue-1vle947",
+    "cls": 0.3141,
+    "shifts": [
+      {
+        "value": 0.07225663170189349,
+        "startTime": 6059,
+        "sources": [
+          "section.mapDrawer.mobileSharedSheet.right"
+        ]
+      },
+      {
+        "value": 0.24184092899979784,
+        "startTime": 8215,
+        "sources": [
+          "section.mapDrawer.mobileSharedSheet.right"
+        ]
+      }
+    ]
+  },
+  {
+    "route": "/tonight",
+    "cls": 0.0225,
+    "shifts": [
+      {
+        "value": 0.014322684944414014,
+        "startTime": 4348,
+        "sources": [
+          "div.tonightPrimary"
+        ]
+      },
+      {
+        "value": 0.008184339974394106,
+        "startTime": 4757,
+        "sources": [
+          "section.tonightSoftPlans"
+        ]
+      }
+    ]
+  }
+]

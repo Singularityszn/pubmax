@@ -51,8 +51,8 @@ export default async function CityMapPage({ params }: CityMapPageProps) {
   return (
     <>
       {cityId === "london" ? (
-        // eslint-disable-next-line @next/next/no-sync-scripts
-        <script src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />
+        // Deferred for the reason app/map/page.tsx states beside its own copy.
+        <script defer src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />
       ) : null}
       <PubMaxingShell cityId={cityId} />
     </>

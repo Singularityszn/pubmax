@@ -352,6 +352,19 @@ export function resolveInitialSlimShardLifecycle<Viewport>({
 }
 
 /**
+ * The lowest zoom at which a VIEWPORT still names a place, derived from the
+ * span ceiling above rather than typed beside it.
+ *
+ * Web Mercator puts 360 degrees of longitude across `256 * 2^zoom` pixels, so a
+ * 390px phone spans `SHARD_READ_MAX_SPAN_DEGREES` at zoom 8.1. Rounding down to
+ * 8 keeps every legitimate city view (London opens at zoom 12+) and refuses
+ * every country-scale one. The two rules are one rule read two ways: this one
+ * over the viewport a read starts from, `boundsNameNowhere` over the bounds a
+ * settled camera reports.
+ */
+export const SHARD_READ_MIN_ZOOM = 8;
+
+/**
  * A viewport that names nowhere, so nothing spatial may be read from it.
  *
  * The map holds this placeholder (centre [0, 0] at zoom 0) while the opening
@@ -365,9 +378,18 @@ export function viewportNamesNowhere(viewport: {
   center: [number, number];
   zoom: number;
 }): boolean {
-  return (
-    viewport.zoom <= 0 && viewport.center[0] === 0 && viewport.center[1] === 0
-  );
+  if (viewport.zoom <= 0 && viewport.center[0] === 0 && viewport.center[1] === 0) {
+    return true;
+  }
+  // A country-wide viewport names no place either, and a RESTORED session is
+  // how one arrives. Measured on a warm `/map` whose saved session held
+  // `zoom 4.9` over the middle of Britain: the opening read asked for 243
+  // shard cells in the first second, before anything had painted, against a
+  // route ceiling of 160 requests. The camera is untouched by this — the
+  // reader still opens where they left off — but the shard read is about a
+  // PLACE, and a view this wide has none. Below this zoom no pin can paint
+  // (PIN_MIN_ZOOM is 12), so the cells the read would fetch draw nothing.
+  return viewport.zoom < SHARD_READ_MIN_ZOOM;
 }
 
 /**

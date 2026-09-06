@@ -1,0 +1,21 @@
+The phone venue sheet's own box on a cold `/map?sel=venue-1vle947` arrival,
+commit 5bf044f55, 390x844, 4x CPU, Slow 4G. One row per frame on which the
+box's top, height or body scroll height changed.
+
+  6181ms top= 778 h=   2 maxH=0px       bodyScrollH= 107 right open sheet-half sheet-settling
+  6225ms top= 607 h= 173 maxH=317.744px bodyScrollH= 107 right open sheet-half sheet-settling
+  8373ms top= 316 h= 464 maxH=464.2px   bodyScrollH=1135 right open sheet-half
+  9736ms top= 316 h= 464 maxH=464.2px   bodyScrollH=1209 right open sheet-half
+
+The sheet mounts at h=2 with max-height 0 and springs its HEIGHT open, and it
+hugs a 107px body while the venue panel's chunk is still in flight. Both travels
+move every pixel inside the sheet:
+
+  layout-shift 0.0723 @ 6059ms  section.mapDrawer.mobileSharedSheet.right
+  layout-shift 0.2418 @ 8215ms  section.mapDrawer.mobileSharedSheet.right
+  CLS 0.3141 over 2 shifts
+
+What the body held at each step:
+
+  6058ms h= 107  <div class="mobileVenuePeekSummary" ...>  (the peek summary alone)
+  8568ms h=1135  ... <section class="venueInspector">      (the chunk has landed)

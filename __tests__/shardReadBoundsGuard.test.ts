@@ -5,6 +5,7 @@ import {
   shardsForBounds,
   SHARD_READ_MAX_SPAN_DEGREES,
   viewportNamesNowhere,
+  SHARD_READ_MIN_ZOOM,
   type ShardManifest,
 } from "../lib/slimShards";
 
@@ -49,9 +50,14 @@ describe("boundsNameNowhere", () => {
     expect(boundsNameNowhere(LONDON_VIEWPORT_BOUNDS)).toBe(false);
   });
 
-  it("catches what the placeholder guard cannot, which is why it exists", () => {
-    // UK bounds are a real centre at a real zoom, so the viewport guard passes
-    // them. Both guards are needed; neither replaces the other.
+  it("catches a wide read a city-zoom camera reports, which is why it exists", () => {
+    // Both guards are needed and neither replaces the other, but the line
+    // between them moved. The viewport guard now refuses a country ZOOM too
+    // (SHARD_READ_MIN_ZOOM), because a restored session is how a country-wide
+    // viewport arrives and one measured 243 cell requests in the first second
+    // of a warm `/map`. What it still cannot catch is the case this guard was
+    // written for: MapLibre reporting its own maxBounds while the camera sits
+    // at a perfectly ordinary city zoom, before it has settled.
     expect(
       viewportNamesNowhere({
         center: [
@@ -60,8 +66,23 @@ describe("boundsNameNowhere", () => {
         ],
         zoom: 5,
       }),
+    ).toBe(true);
+    expect(
+      viewportNamesNowhere({ center: [-0.1276, 51.5072], zoom: 12 }),
     ).toBe(false);
     expect(boundsNameNowhere(UK_WIDE_BOUNDS)).toBe(true);
+  });
+
+  it("refuses a viewport too wide for a pin to paint, and admits a city view", () => {
+    // The floor is derived from SHARD_READ_MAX_SPAN_DEGREES: a 390px phone
+    // spans 2 degrees at zoom 8.1, and no pin paints below zoom 12 anyway.
+    expect(SHARD_READ_MIN_ZOOM).toBe(8);
+    expect(
+      viewportNamesNowhere({ center: [-3.4, 55.8], zoom: 4.9 }),
+    ).toBe(true);
+    expect(
+      viewportNamesNowhere({ center: [-0.1276, 51.5072], zoom: 8 }),
+    ).toBe(false);
   });
 
   it("leaves a generous margin above any real city view", () => {

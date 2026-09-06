@@ -20,15 +20,13 @@ import "server-only";
 // Production target enforces durable-store + secret requirements.
 
 import { isSupabaseConfigured } from "@/lib/supabase";
-import { isDeployedProduction } from "@/lib/deploymentEnv";
+import { isDeployedProduction, isProductionBuildPhase } from "@/lib/deploymentEnv";
 
 export { isDeployedProduction } from "@/lib/deploymentEnv";
 
 /** Dev default for RATE_LIMIT_SALT — must not be used in production. */
 export const DEV_RATE_LIMIT_SALT = "pubmax-rate-limit";
 const MIN_PRODUCTION_SECRET_BYTES = 32;
-
-const NEXT_PRODUCTION_BUILD_PHASE = "phase-production-build";
 
 /**
  * Next evaluates route modules while compiling a production build, before a
@@ -44,7 +42,7 @@ const NEXT_PRODUCTION_BUILD_PHASE = "phase-production-build";
  * therefore ignored — production always runs the full assertions.
  */
 function shouldSkipProductionEnvAssertions(): boolean {
-  if (process.env.NEXT_PHASE === NEXT_PRODUCTION_BUILD_PHASE) return true;
+  if (isProductionBuildPhase()) return true;
   return (
     process.env.PUBMAX_E2E_KEYLESS === "1" &&
     process.env.VERCEL_ENV !== "production"

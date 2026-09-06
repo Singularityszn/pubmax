@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { resolveClientIp } from "@/lib/clientIpTrust";
-import { isDeployedProduction } from "@/lib/deploymentEnv";
+import { isDeployedProduction, isProductionBuildPhase } from "@/lib/deploymentEnv";
 import { resolveSupabaseConfig, type SupabaseConfig } from "@/lib/supabaseConfig";
 
 // Server-only Supabase admin client. Returns null when env is absent so every
@@ -58,6 +58,16 @@ export function isSupabaseConfigured(): boolean {
 }
 
 export function requiresSupabaseStore(): boolean {
+  // A BUILD is not a runtime. `next build` sets NODE_ENV=production, so a
+  // keyless runner satisfies isDeployedProduction() while it collects page data
+  // and prerenders static pages - and lib/storeBackend's selectStore then threw
+  // over /today, which reads the weather snapshot store at prerender. Nothing a
+  // build writes can be lost, because no request exists yet. lib/serverEnv
+  // already skips its startup assertions for exactly this reason and on exactly
+  // this signal; both now read it from the one leaf that owns it. Next never
+  // sets this phase on a server answering requests, so a real Vercel Production
+  // request with a misconfigured key still refuses.
+  if (isProductionBuildPhase()) return false;
   // Keep the runtime store guard aligned with lib/serverEnv's startup guard:
   // Playwright's production-style keyless server deliberately runs with
   // PUBMAX_E2E_KEYLESS=1 so local/mobile QA can exercise real write paths

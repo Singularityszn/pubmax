@@ -63,10 +63,17 @@ jobs:
           --workers=1
 
       # A skipped browser test is a lane nobody proved, so the law pins are held
-      # to zero skips. scripts/assert-no-conditional-e2e-skips.mjs refuses one in
-      # the source; this refuses one at run time.
+      # to zero UNARGUED skips. scripts/assert-no-conditional-e2e-skips.mjs
+      # refuses one in the source; this refuses one at run time, and both read
+      # the same argued list, which may only shrink. Without the list this step
+      # refused e2e/plan-capability-recovery.spec.ts's one argued skip (no
+      # service-role key in the keyless server, #1300) and took its signed-out
+      # proof down with it.
       - name: Gate the law-pinning run
-        run: node scripts/assert-playwright-gate.mjs playwright-law-pins.json --require-zero-skipped
+        run: >-
+          node scripts/assert-playwright-gate.mjs playwright-law-pins.json
+          --require-zero-skipped
+          --skips-argued e2e/conditional-skips.allowlist.json
 
   full-suite:
     name: Full browser suite (${{ matrix.shard }}/4)

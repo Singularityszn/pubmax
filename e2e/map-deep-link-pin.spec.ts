@@ -126,9 +126,10 @@ test("a deep-linked pin lands in the map strip above the phone sheet", async ({
     .poll(async () => (await readCamera(page)).moving, { timeout: ARRIVAL_TIMEOUT_MS })
     .toBe(false);
 
-  // The sheet springs open from below the fold, so its first frames report an
-  // edge at the bottom of the screen. Wait for the edge it settles at - that
-  // is the one the reader is left looking past.
+  // The sheet SLIDES in from below the fold on a transform (its box is already
+  // at its resting height, which is what keeps the arrival off the CLS score),
+  // so its first frames report an edge at the bottom of the screen. Wait for
+  // the edge it settles at - that is the one the reader is left looking past.
   await expect
     .poll(async () => (await sheet.boundingBox())?.y ?? PHONE.height, {
       timeout: ARRIVAL_TIMEOUT_MS,

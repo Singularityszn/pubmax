@@ -34,8 +34,16 @@ const mapWarmVersion = process.env.NEXT_PUBLIC_SW_VERSION?.trim() || "local";
 export default function MapPage() {
   return (
     <>
-      {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-      <script src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />
+      {/* defer, not a sync script. On a cold first visit - the one the
+          budget sweep measures - this file registers a listener for
+          pubmax:first-pins and does nothing else, yet as a blocking script it
+          held /map's first paint for about 100 ms under the tracked throttle.
+          Its own law is that bytes pulled early compete with the work they are
+          meant to accelerate; a script that blocks the first paint in order to
+          SCHEDULE a warm is that same trade. It still runs long before the
+          event it waits for, and document.currentScript is set for a deferred
+          classic script, so the ?v= revision read is unchanged. */}
+      <script defer src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />
       <PubMaxingShell cityId="london" />
       {/* Records that a Pint Index arrival reached the map. Renders nothing and
           owns no map state; it only reads its own arrival marker off the URL. */}

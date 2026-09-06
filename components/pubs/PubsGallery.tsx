@@ -190,6 +190,16 @@ export default function PubsGallery({
                   ) : null}
                 </div>
                 <h2 className="pubsCardName">
+                  {/* Deliberately a plain Link, not IntentLink. The intent warm
+                      is the right rule for these two /map?sel= links, but this
+                      is a server component and IntentLink is a client one, so
+                      importing it here pulled the router and lib/mapWarmup into
+                      the page's own client bundle: measured on the Avrea runner,
+                      /pubs went from 1114 KB decoded to 1276 KB against a 1200
+                      ceiling and from 68 requests to 71, so the fix cost more
+                      than the two prefetches it saved. It comes back the day
+                      this gallery has a client boundary of its own to hang it
+                      on. */}
                   <Link href={venueMapUrl(pub.id)}>{pub.name}</Link>
                 </h2>
                 <p className="pubsCardPrice">

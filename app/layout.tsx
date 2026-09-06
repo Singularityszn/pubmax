@@ -126,6 +126,16 @@ const dataMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-data",
   display: "swap",
+  // NOT preloaded, unlike the display and body faces. next/font preloads every
+  // declared face from the document head, so this one cost a request and its
+  // bytes on the critical path of all 35 budgeted routes while no route paints
+  // its largest element in it: it is the price stamp and the numerals, and the
+  // map draws its own glyphs. Measured on the Avrea runner, /pubs asked 69
+  // requests against a ceiling of 68 and /map painted at 952 ms against 900,
+  // both as medians of five samples rather than jitter. The face still loads
+  // the moment something uses it, and display: swap plus the metric-matched
+  // fallback above keep the swap from moving the page.
+  preload: false,
   // 400 for un-weighted var(--font-data) consumers (globals.css .font-data, the
   // venue price story), which would otherwise render a synthesised
   // faux-bold-adjacent fallback, and 700 for the stamped and emphasis numerals.

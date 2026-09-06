@@ -714,6 +714,26 @@
      with an interrupted gesture. Promote only while presentation value moves. */
   .mobileSharedSheet.sheet-dragging,
   .mobileSharedSheet.sheet-settling { will-change: max-height; }
+
+  /* THE ENTRANCE IS A TRANSFORM. The box is laid out at its resting snap on the
+     first painted frame (useSheetHeightDrag.openAtSnap jumps the height rather
+     than springing it), so the sheet APPEARS at its final size — an insertion,
+     which scores no layout shift — and travels up from below the fold on the
+     compositor. Springing the height instead moved every pixel of content
+     inside the sheet and Chrome scored the whole travel: a `/map?sel=` arrival
+     measured CLS 0.31 that way. `both` holds the from-frame before the first
+     paint so the sheet never flashes at rest. */
+  @keyframes mobileSheetRise {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  .mobileSharedSheet.mapDrawer.sheet-entering {
+    animation: mobileSheetRise 340ms var(--ease-drawer) both;
+    will-change: transform;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mobileSharedSheet.mapDrawer.sheet-entering { animation: none; }
+  }
   .mobileSharedSheetHeader { position: relative; flex: 0 0 auto; min-height: 64px; display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; padding: 10px 12px 4px; touch-action: none; }
   .mobileSharedSheetHeader h2 {
     grid-column: 2;
@@ -753,6 +773,22 @@
      is between content and footer, not the sheet's bottom edge). */
   .mobileSharedSheet.right .mobileSharedSheetBody {
     padding-bottom: 8px;
+  }
+  /* THE LOADING PANEL FILLS THE SHEET. This box is content-driven under
+     `max-height: var(--sheet-cap)`, so while the venue panel's own chunk was in
+     flight the sheet hugged the peek summary alone — 107px measured on the
+     audit's phone rig — and then grew to 464px when the panel landed, which
+     Chrome scored as a 0.24 layout shift on a `/map?sel=` arrival. The skeleton
+     asks for more than the largest snap so the sheet sits at its cap from the
+     first frame; `--sheet-cap` still clamps it, so peek stays peek. */
+  .mobileSharedSheet .venueSheetSkeleton {
+    min-height: 92dvh;
+  }
+  /* Two waits can overlap — the venue read and the panel chunk each own a
+     skeleton — and two shimmer blocks in one sheet is two answers to one
+     question, announced twice. The reservation is already made by the first. */
+  .mobileSharedSheet .venueSheetSkeleton + .venueSheetSkeleton {
+    display: none;
   }
   /* Footer slot — a real flex child OUTSIDE the scroll body. The venue command
      bar (VenueStickyBar) portals into this via SheetFooterContext, so it rides

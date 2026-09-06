@@ -4,8 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   resolveSheetHeightSnap,
-  SHEET_ENTRANCE_OVERSHOOT_DAMPING,
-  sheetEntranceStartHeight,
+  SHEET_ENTRANCE_MS,
   sheetSnapCaps,
   type SheetSnap,
 } from "@/lib/sheetSnap";
@@ -25,11 +24,13 @@ export interface SheetHeightDrag {
   sheetSnap: SheetSnap;
   setSheetSnap: (snap: SheetSnap) => void;
   settleToRest: (snap?: SheetSnap) => void;
-  openAtSnap: (snap: SheetSnap, options?: { entranceOvershoot?: boolean }) => void;
+  openAtSnap: (snap: SheetSnap) => void;
   requestDismiss: (presentedHeight?: number) => void;
   sheetHeight: number;
   dragging: boolean;
   settling: boolean;
+  /** True for the entrance animation's own duration — see openAtSnap. */
+  entering: boolean;
   onSheetDragStart: (event: React.PointerEvent<HTMLElement>) => void;
   onSheetDragMove: (event: React.PointerEvent<HTMLElement>) => void;
   onSheetDragEnd: (event: React.PointerEvent<HTMLElement>) => void;
@@ -54,6 +55,8 @@ function presentHeight(raw: number, fullCap: number): number {
 export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
   const [sheetSnap, setRestingSnap] = useState<SheetSnap>("half");
   const [dragging, setDragging] = useState(false);
+  const [entering, setEntering] = useState(false);
+  const enteringTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onDismissRef = useRef(onDismiss);
   const {
     value: sheetHeight,
@@ -93,9 +96,12 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
     [],
   );
 
+  // Both of these SPRING the height, so the entrance's transform stands down
+  // first: a sheet sliding up while its box grows is two travels at once.
   const setSheetSnap = useCallback(
     (snap: SheetSnap) => {
       setRestingSnap(snap);
+      setEntering(false);
       animateTo(capsForViewport()[snap], { dampingRatio: 1 });
     },
     [animateTo, capsForViewport],
@@ -103,26 +109,45 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
 
   const settleToRest = useCallback((targetSnap: SheetSnap = sheetSnap) => {
     setRestingSnap(targetSnap);
+    setEntering(false);
     stop();
     animateTo(capsForViewport()[targetSnap], { dampingRatio: 1 });
   }, [animateTo, capsForViewport, sheetSnap, stop]);
 
+  // THE ENTRANCE MOVES THE SHEET, NEVER THE LAYOUT.
+  //
+  // This sheet is bottom-anchored and its box height IS its presentation, so
+  // springing that height from ~0 to the snap cap moved every pixel of content
+  // inside it and Chrome scored the whole travel as layout shift: measured on
+  // the audit's phone rig, a `/map?sel=` arrival recorded CLS 0.31, of which the
+  // entrance alone was 0.07 and the rest was the sheet growing again when the
+  // venue panel's chunk landed. Only transform and opacity are exempt from that
+  // score, so the entrance is now a transform (`.sheet-entering` in
+  // components/mobile/mobileMapShell.css) and the height is set AT ONCE: the
+  // sheet is laid out at its resting snap on its first painted frame, which is
+  // an insertion rather than a move, and slides up from below the fold.
+  //
+  // Everything else here still owns the height: a drag tracks the finger 1:1
+  // and a release springs to the resolved snap, both of which carry recent
+  // input and are excluded from CLS by construction.
   const openAtSnap = useCallback(
-    (snap: SheetSnap, options?: { entranceOvershoot?: boolean }) => {
+    (snap: SheetSnap) => {
       setRestingSnap(snap);
-      const targetHeight = capsForViewport()[snap];
-      jumpTo(
-        sheetEntranceStartHeight(
-          targetHeight,
-          options?.entranceOvershoot === true,
-        ),
+      stop();
+      jumpTo(capsForViewport()[snap]);
+      setEntering(true);
+      if (enteringTimer.current) clearTimeout(enteringTimer.current);
+      enteringTimer.current = setTimeout(
+        () => setEntering(false),
+        SHEET_ENTRANCE_MS,
       );
-      animateTo(targetHeight, {
-        dampingRatio: options?.entranceOvershoot ? SHEET_ENTRANCE_OVERSHOOT_DAMPING : 1,
-      });
     },
-    [animateTo, capsForViewport, jumpTo],
+    [capsForViewport, jumpTo, stop],
   );
+
+  useEffect(() => () => {
+    if (enteringTimer.current) clearTimeout(enteringTimer.current);
+  }, []);
 
   const dismissWithVelocity = useCallback(
     (velocityPxPerMillisecond: number, presentedHeight?: number) => {
@@ -162,6 +187,10 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
       if (!drawer) return;
 
       stop();
+      // A finger on the sheet ends the entrance: the slide is a transform and
+      // the drag is a height, so leaving the class on would move the box the
+      // reader is holding.
+      setEntering(false);
       const startHeight = drawer.getBoundingClientRect().height;
       jumpTo(startHeight);
       const dockPx =
@@ -255,6 +284,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
     sheetHeight,
     dragging,
     settling,
+    entering,
     onSheetDragStart,
     onSheetDragMove,
     onSheetDragEnd,

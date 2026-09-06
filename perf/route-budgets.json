@@ -5,6 +5,9 @@
     "deviceScaleFactor": 1,
     "warmupRuns": 1,
     "measuredRuns": 3,
+    "resampleRuns": 2,
+    "resampleWhy": "A median of 3 is only a median when the samples agree. On the Avrea runners the 6 September sweep reported LCP spreads of 37 to 51 percent on /today, /discover, /drinks and /crawls, past this method's own 12 percent width, so a route flipped between pass and fail on one commit. A route whose spread passes sampleSpreadWarnPct on any metric is measured twice more and its median is taken over 5 samples. Extra samples are only ever taken where the run said it could not measure, so a quiet route costs nothing and a noisy one is judged on more evidence rather than on less.",
+    "resampleWithinCeilingPct": 10,
     "aggregate": "median",
     "cpuThrottleRate": 4,
     "network": {
@@ -17,7 +20,10 @@
       "streamAfterMs": 12000,
       "why": "Chrome DevTools' own Fast 4G preset, written out in its own units: 9 Mbit/s down and 1.5 Mbit/s up at 90% of nominal, with a 20 ms base round trip scaled by 3.75. Loopback has no round trip at all, so it cannot see a waterfall, and a waterfall is what the requests ceiling exists to catch. The numbers are here rather than in code because two runs are only comparable when the wire under them was the same."
     },
-    "viewport": { "width": 390, "height": 844 },
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
     "thirdPartyBlocked": true,
     "futureDeviceMigration": "A later DPR-3 migration is possible, but it must re-seed every ceiling in one commit. playwright.config.ts already has iPhone 14 wiring; the cost is re-measurement, not plumbing.",
     "countedUpTo": "route interactive: the later of the document's own load event and the first in-page frame on which the route's readiness gate held. A resource counts if it STARTED before that moment, so the post-paint background warmup is excluded by construction rather than by how fast the box is.",
@@ -64,7 +70,10 @@
         "targetMs": 2500,
         "measuredMs": 2713,
         "signal": "window.__pubmaxPaintedMapTapPoints().length > 0",
-        "viewport": { "width": 390, "height": 844 },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
         "note": "Cold first visit on phone; pinReadyMs from e2e/mobile-map-chrome-fit.spec.ts on a production build with one Chromium worker and the pin SLA enforced. The target comes DOWN from 4000 to 2500 here. The measured figure is 2713, the median of five runs on the map lane's own box after #1378, so 2500 is a baseline to beat rather than a ceiling that has been met: the gap is 213 ms and it is debt, not a licence to raise the number back. (A single run on this box measured 1822 ms before #1378 landed; five runs after it is the figure to trust.) Local pub pins reveal from their painted source without waiting for remote basemap tiles; the basemap retains its independent recovery lane. The SPEC reads targetMs from here, so there is one owner of the number, and scripts/check-budget-ratchet.mjs refuses a commit that takes it back up. It is enforced only where a real renderer is available (PUBMAX_PIN_SLA_ENFORCE=1): a GPU-less runner measures SwiftShader rather than the map."
       }
     },
@@ -201,7 +210,16 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1130,
       "requests": 56,
-      "lcpMs": 400
+      "lcpMs": 1000,
+      "ceilingRaises": [
+        {
+          "metric": "lcpMs",
+          "from": 400,
+          "to": 1000,
+          "measured": 684,
+          "why": "This path is not a surface any more. app/drinks/page.tsx has been a permanentRedirect to /social?tab=discover since #765 (6 August), so the row measures the discover tab plus one redirect round trip, and /discover is budgeted 1000 for exactly that content and passes at 688. The 400 here was written for the drink lanes page that no longer exists. Measured on the Avrea runner at 684 ms (samples 708/684/488), and locally against a production build under the tracked throttle at 856 ms against /social's 692 ms on the same run, the two carrying identical decoded JS. The captain ruled the raise on 6 September 2026. It goes to /discover's own figure and no further, so the redirect can never cost more than the page it lands on."
+        }
+      ]
     },
     {
       "path": "/messages",

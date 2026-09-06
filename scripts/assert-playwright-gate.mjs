@@ -4,8 +4,25 @@ import { readFile } from "node:fs/promises";
 
 function usage() {
   console.error(
-    "Usage: node scripts/assert-playwright-gate.mjs <report.json> [--require-zero-skipped] [--report-retries]",
+    "Usage: node scripts/assert-playwright-gate.mjs <report.json> [--require-zero-skipped] " +
+      "[--skips-argued <allowlist.json>] [--report-retries]",
   );
+}
+
+/**
+ * The spec file a test came from, as the report writes it: a path relative to
+ * the Playwright testDir. Falls back through the suite tree, because only the
+ * file-level suite carries it.
+ */
+function specFile(test) {
+  return typeof test.file === "string" && test.file ? test.file : null;
+}
+
+/** Compare a report path against an allowlist path without caring about the testDir prefix. */
+function samePath(reportFile, allowlistFile) {
+  if (!reportFile || !allowlistFile) return false;
+  const trim = (value) => value.replace(/^\.\//, "").replace(/^e2e\//, "");
+  return trim(reportFile) === trim(allowlistFile);
 }
 
 function fail(message) {
@@ -22,6 +39,7 @@ function collectTests(suites, path = []) {
       for (const test of spec.tests ?? []) {
         tests.push({
           ...test,
+          file: spec.file ?? suite.file ?? null,
           titlePath: [...suitePath, spec.title, test.projectName].filter(Boolean),
         });
       }
@@ -95,8 +113,23 @@ function collectAttachmentAxeViolations(tests) {
 }
 
 const args = process.argv.slice(2);
-const reportPath = args.find((arg) => !arg.startsWith("--"));
 const requireZeroSkipped = args.includes("--require-zero-skipped");
+// A SKIP IS ARGUED OR IT IS REFUSED. e2e/conditional-skips.allowlist.json is
+// the one place a browser skip is argued (the spec, the exact condition, the
+// reason and what ends it), and scripts/assert-no-conditional-e2e-skips.mjs
+// already holds the source to it. Without this the run gate refused a skip the
+// source gate had accepted, so a spec file carrying one argued skip could never
+// join a gated run however much else it proved. An unargued skip still fails.
+const skipsArguedIndex = args.indexOf("--skips-argued");
+const skipsArguedPath = skipsArguedIndex >= 0 ? args[skipsArguedIndex + 1] : null;
+if (skipsArguedIndex >= 0 && (!skipsArguedPath || skipsArguedPath.startsWith("--"))) {
+  usage();
+  process.exit(2);
+}
+const reportPath = args.find(
+  (arg, index) =>
+    !arg.startsWith("--") && !(skipsArguedIndex >= 0 && index === skipsArguedIndex + 1),
+);
 const reportRetries = args.includes("--report-retries");
 
 if (!reportPath) {
@@ -117,15 +150,39 @@ if (!report || typeof report !== "object" || !Array.isArray(report.suites)) {
   process.exit();
 }
 
+let arguedSkipFiles = [];
+if (skipsArguedPath) {
+  let allowlist;
+  try {
+    allowlist = JSON.parse(await readFile(skipsArguedPath, "utf8"));
+  } catch (error) {
+    fail(
+      `cannot parse ${skipsArguedPath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    process.exit();
+  }
+  if (!allowlist || !Array.isArray(allowlist.allowed)) {
+    fail(`${skipsArguedPath} must hold an "allowed" array`);
+    process.exit();
+  }
+  arguedSkipFiles = allowlist.allowed
+    .map((row) => (row && typeof row.file === "string" ? row.file : null))
+    .filter(Boolean);
+}
+
 const tests = collectTests(report.suites);
 if (tests.length === 0) fail("zero tests discovered");
 
-const skipped = tests.filter(
+const allSkipped = tests.filter(
   (test) =>
     test.status === "skipped" ||
     test.expectedStatus === "skipped" ||
     (test.results ?? []).some((result) => result.status === "skipped"),
 );
+const argued = allSkipped.filter((test) =>
+  arguedSkipFiles.some((file) => samePath(specFile(test), file)),
+);
+const skipped = allSkipped.filter((test) => !argued.includes(test));
 const unexpected = tests.filter(
   (test) =>
     test.status === "unexpected" ||
@@ -175,6 +232,7 @@ if (axeViolations.length > 0) {
 const stats = {
   discovered: tests.length,
   skipped: skipped.length,
+  arguedSkips: argued.length,
   unexpected: unexpected.length,
   retried: retried.length,
   axeSeriousOrCritical: axeViolations.length,

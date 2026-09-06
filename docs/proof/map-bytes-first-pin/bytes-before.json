@@ -1,0 +1,350 @@
+[
+  {
+    "route": "/map",
+    "totalDecodedKB": 9092,
+    "requests": 189,
+    "top": [
+      {
+        "url": "/data/wetherspoons/pubs.json",
+        "kb": 2098,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/1ox13exykt5_1.js?dpl=local",
+        "kb": 1024,
+        "count": 1
+      },
+      {
+        "url": "/vendor/maplibre/maplibre-gl-shared.mjs",
+        "kb": 478,
+        "count": 1
+      },
+      {
+        "url": "/data/tfl_lines.json",
+        "kb": 419,
+        "count": 1
+      },
+      {
+        "url": "https://tiles.openfreemap.org/planet/20260830_080001_pt/12/2046/1361.pbf",
+        "kb": 346,
+        "count": 1
+      },
+      {
+        "url": "https://tiles.openfreemap.org/planet/20260830_080001_pt/12/2047/1361.pbf",
+        "kb": 291,
+        "count": 1
+      },
+      {
+        "url": "https://tiles.openfreemap.org/planet/20260830_080001_pt/12/2046/1362.pbf",
+        "kb": 287,
+        "count": 1
+      },
+      {
+        "url": "https://tiles.openfreemap.org/planet/20260830_080001_pt/12/2047/1362.pbf",
+        "kb": 223,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/2-64qkiwhoxfm.js?dpl=local",
+        "kb": 216,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/34udaucpi5k0-.js?dpl=local",
+        "kb": 202,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/2oiat_i_qjfxr.css?dpl=local",
+        "kb": 167,
+        "count": 1
+      },
+      {
+        "url": "https://tiles.openfreemap.org/planet/20260830_080001_pt/12/2046/1360.pbf",
+        "kb": 148,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/2gmob-zzs0_ln.js?dpl=local",
+        "kb": 135,
+        "count": 1
+      },
+      {
+        "url": "/data/uk_base/packs/5660fa63ea2a45a8/51.50_-0.25.json",
+        "kb": 134,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/20ahrctq8tlv-.js?dpl=local",
+        "kb": 122,
+        "count": 1
+      },
+      {
+        "url": "https://tiles.openfreemap.org/planet/20260830_080001_pt/12/2045/1360.pbf",
+        "kb": 121,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/28tipahhpwika.js?dpl=local",
+        "kb": 112,
+        "count": 1
+      },
+      {
+        "url": "/data/london_pois.json",
+        "kb": 95,
+        "count": 1
+      },
+      {
+        "url": "/data/london_localities.json",
+        "kb": 87,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/35rswqjelm12s.css?dpl=local",
+        "kb": 81,
+        "count": 1
+      }
+    ]
+  },
+  {
+    "route": "/map?sel=venue-1vle947",
+    "totalDecodedKB": 15032,
+    "requests": 173,
+    "top": [
+      {
+        "url": "/data/wetherspoons/pubs.json",
+        "kb": 2098,
+        "count": 1
+      },
+      {
+        "url": "/data/drink_price_updates/latest.json",
+        "kb": 1862,
+        "count": 1
+      },
+      {
+        "url": "/data/food_price_updates/latest.json",
+        "kb": 1519,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/1ox13exykt5_1.js?dpl=local",
+        "kb": 1024,
+        "count": 1
+      },
+      {
+        "url": "https://tiles.openfreemap.org/planet/20260830_080001_pt/14/8186/5447.pbf",
+        "kb": 775,
+        "count": 1
+      },
+      {
+        "url": "https://tiles.openfreemap.org/planet/20260830_080001_pt/14/8187/5447.pbf",
+        "kb": 595,
+        "count": 1
+      },
+      {
+        "url": "https://tiles.openfreemap.org/planet/20260830_080001_pt/14/8186/5448.pbf",
+        "kb": 556,
+        "count": 1
+      },
+      {
+        "url": "https://tiles.openfreemap.org/planet/20260830_080001_pt/14/8186/5446.pbf",
+        "kb": 494,
+        "count": 1
+      },
+      {
+        "url": "/vendor/maplibre/maplibre-gl-shared.mjs",
+        "kb": 478,
+        "count": 1
+      },
+      {
+        "url": "https://tiles.openfreemap.org/planet/20260830_080001_pt/14/8187/5448.pbf",
+        "kb": 432,
+        "count": 1
+      },
+      {
+        "url": "https://tiles.openfreemap.org/planet/20260830_080001_pt/14/8187/5446.pbf",
+        "kb": 425,
+        "count": 1
+      },
+      {
+        "url": "/data/tfl_lines.json",
+        "kb": 419,
+        "count": 1
+      },
+      {
+        "url": "https://tiles.openfreemap.org/planet/20260830_080001_pt/13/4093/2723.pbf",
+        "kb": 261,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/2-64qkiwhoxfm.js?dpl=local",
+        "kb": 216,
+        "count": 1
+      },
+      {
+        "url": "https://tiles.openfreemap.org/planet/20260830_080001_pt/13/4093/2724.pbf",
+        "kb": 214,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/34udaucpi5k0-.js?dpl=local",
+        "kb": 202,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/2oiat_i_qjfxr.css?dpl=local",
+        "kb": 167,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/32nqti4qsv4el.js?dpl=local",
+        "kb": 156,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/2gmob-zzs0_ln.js?dpl=local",
+        "kb": 135,
+        "count": 1
+      },
+      {
+        "url": "/data/uk_base/packs/5660fa63ea2a45a8/51.50_-0.25.json",
+        "kb": 134,
+        "count": 1
+      }
+    ]
+  },
+  {
+    "route": "/plan",
+    "totalDecodedKB": 3554,
+    "requests": 55,
+    "top": [
+      {
+        "url": "/data/venues_slim.json",
+        "kb": 1821,
+        "count": 2
+      },
+      {
+        "url": "/_next/static/chunks/2-64qkiwhoxfm.js?dpl=local",
+        "kb": 216,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/34udaucpi5k0-.js?dpl=local",
+        "kb": 202,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/2oiat_i_qjfxr.css?dpl=local",
+        "kb": 167,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/0cuu-ad7pni1i.js?dpl=local",
+        "kb": 143,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/28tipahhpwika.js?dpl=local",
+        "kb": 112,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/2kiznz1pr398p.js?dpl=local",
+        "kb": 64,
+        "count": 1
+      },
+      {
+        "url": "/plan",
+        "kb": 60,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2?dpl=local",
+        "kb": 47,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/0velmqb3l_522.css?dpl=local",
+        "kb": 47,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/10n92vfe84i_e.js?dpl=local",
+        "kb": 47,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/1at4d-2uyg2-r.js?dpl=local",
+        "kb": 40,
+        "count": 1
+      }
+    ]
+  },
+  {
+    "route": "/pal/chat",
+    "totalDecodedKB": 2692,
+    "requests": 72,
+    "top": [
+      {
+        "url": "/data/venues_slim.json",
+        "kb": 911,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/2-64qkiwhoxfm.js?dpl=local",
+        "kb": 216,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/34udaucpi5k0-.js?dpl=local",
+        "kb": 202,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/2oiat_i_qjfxr.css?dpl=local",
+        "kb": 167,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/28tipahhpwika.js?dpl=local",
+        "kb": 112,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/0vhrymbmrs-s_.js?dpl=local",
+        "kb": 67,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/2kiznz1pr398p.js?dpl=local",
+        "kb": 64,
+        "count": 1
+      },
+      {
+        "url": "/pal/chat",
+        "kb": 59,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2?dpl=local",
+        "kb": 47,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/10n92vfe84i_e.js?dpl=local",
+        "kb": 47,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/398o-i5y39f0m.js?dpl=local",
+        "kb": 41,
+        "count": 1
+      },
+      {
+        "url": "/_next/static/chunks/1at4d-2uyg2-r.js?dpl=local",
+        "kb": 40,
+        "count": 1
+      }
+    ]
+  }
+]

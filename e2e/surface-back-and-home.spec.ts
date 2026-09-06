@@ -61,6 +61,23 @@ async function openSheetFromTopBar(page: Page, label: string): Promise<void> {
   await expect(sheet(page)).toBeVisible();
 }
 
+/**
+ * Open the planner from the layers sheet, retrying the TAP rather than waiting
+ * harder on what follows it. A control painted on the server is tappable before
+ * React attaches, so Playwright's actionability check passes and the tap is
+ * dropped with nothing on screen saying so (AGENTS.md, "A LONE CLICK IS NOT A
+ * WAIT FOR HYDRATION"). On a 2 vCPU runner that window is wide enough to hit,
+ * and the browser law pins are gated on zero retries.
+ */
+async function openPlannerFromSheet(page: Page): Promise<void> {
+  await expect(async () => {
+    await page.getByRole("button", { name: "Plan an outing" }).first().click();
+    await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "planner", {
+      timeout: 2_000,
+    });
+  }).toPass({ timeout: 30_000 });
+}
+
 test.describe("every surface offers a way back and a way home", () => {
   test.use({ viewport: PHONE });
 
@@ -78,9 +95,8 @@ test.describe("every surface offers a way back and a way home", () => {
     await openPhoneMap(page);
     await openSheetFromTopBar(page, "More map controls");
     await page.getByRole("tab", { name: "Layers" }).click();
-    await page.getByRole("button", { name: "Plan an outing" }).first().click();
+    await openPlannerFromSheet(page);
 
-    await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "planner");
     await expect(back(page)).toHaveCount(1);
     await expect(back(page)).toHaveAccessibleName("Back to Map controls");
     // Home stops claiming to close THIS sheet, because it closes them all.
@@ -91,8 +107,7 @@ test.describe("every surface offers a way back and a way home", () => {
     await openPhoneMap(page);
     await openSheetFromTopBar(page, "More map controls");
     await page.getByRole("tab", { name: "Layers" }).click();
-    await page.getByRole("button", { name: "Plan an outing" }).first().click();
-    await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "planner");
+    await openPlannerFromSheet(page);
 
     await back(page).click();
     // Back lands on the sheet that opened the planner, not on the map.
@@ -110,8 +125,7 @@ test.describe("every surface offers a way back and a way home", () => {
     await page.getByRole("tab", { name: "Layers" }).click();
     await expect(page.getByRole("tab", { name: "Layers" })).toHaveAttribute("aria-selected", "true");
 
-    await page.getByRole("button", { name: "Plan an outing" }).first().click();
-    await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "planner");
+    await openPlannerFromSheet(page);
 
     await back(page).click();
     await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "layers");
@@ -124,8 +138,7 @@ test.describe("every surface offers a way back and a way home", () => {
     await openPhoneMap(page);
     await openSheetFromTopBar(page, "More map controls");
     await page.getByRole("tab", { name: "Layers" }).click();
-    await page.getByRole("button", { name: "Plan an outing" }).first().click();
-    await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "planner");
+    await openPlannerFromSheet(page);
 
     await page.goBack();
     await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "layers");
@@ -138,8 +151,7 @@ test.describe("every surface offers a way back and a way home", () => {
     await openPhoneMap(page);
     await openSheetFromTopBar(page, "More map controls");
     await page.getByRole("tab", { name: "Layers" }).click();
-    await page.getByRole("button", { name: "Plan an outing" }).first().click();
-    await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "planner");
+    await openPlannerFromSheet(page);
 
     await page.keyboard.press("Escape");
     await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "layers");
@@ -153,9 +165,13 @@ test.describe("the desktop panels take the same pair", () => {
 
   test("the venue drawer's way out is quiet, and the planner has one at all", async ({ page }) => {
     await openMap(page);
-    await page.getByRole("button", { name: "Plan an outing" }).first().click();
     const planner = page.locator(".mapDrawer.left");
-    await expect(planner).toBeVisible();
+    // The same dropped-tap window as the phone helper above, on the desktop
+    // drawer this time.
+    await expect(async () => {
+      await page.getByRole("button", { name: "Plan an outing" }).first().click();
+      await expect(planner).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
     // The planner head used to hold a grab handle and nothing else.
     await expect(planner.locator(".surfaceNavHome")).toHaveCount(1);
 

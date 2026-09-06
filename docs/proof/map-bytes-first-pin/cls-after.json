@@ -1,0 +1,40 @@
+[
+  {
+    "route": "/map",
+    "cls": 0.0024,
+    "shifts": [
+      {
+        "value": 0.0024111640775686953,
+        "startTime": 11454,
+        "sources": [
+          "details.maplibregl-ctrl.maplibregl-ctrl-attrib.maplibregl-compact"
+        ]
+      }
+    ]
+  },
+  {
+    "route": "/map?sel=venue-1vle947",
+    "cls": 0,
+    "shifts": []
+  },
+  {
+    "route": "/tonight",
+    "cls": 0.0225,
+    "shifts": [
+      {
+        "value": 0.014322684944414014,
+        "startTime": 4282,
+        "sources": [
+          "div.tonightPrimary"
+        ]
+      },
+      {
+        "value": 0.008184339974394106,
+        "startTime": 4665,
+        "sources": [
+          "section.tonightSoftPlans"
+        ]
+      }
+    ]
+  }
+]

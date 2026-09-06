@@ -375,6 +375,35 @@ describe("mapPlaceContext", () => {
     expect(answer.mapContextName).toBe("London");
   });
 
+  // The opening centre exists from the first render, so "no centre" was never
+  // the state a cold open was in: MapLibre reported its own maxBounds until the
+  // camera settled and a plain London open painted "Outside the priced city
+  // map" for 334 ms. An unsettled viewport is read as an absent centre.
+  it("claims no place while the camera is unsettled, whatever the centre says", () => {
+    const answer = mapPlaceContext({
+      placeArrivalName: undefined,
+      nationalBrowse: false,
+      center: outside,
+      city,
+      viewportSettled: false,
+    });
+    expect(answer.outsideCuratedBounds).toBe(false);
+    expect(answer.baseLedChrome).toBe(false);
+    expect(answer.mapContextName).toBe("London");
+  });
+
+  it("answers the settled camera once it has settled", () => {
+    const answer = mapPlaceContext({
+      placeArrivalName: undefined,
+      nationalBrowse: false,
+      center: outside,
+      city,
+      viewportSettled: true,
+    });
+    expect(answer.outsideCuratedBounds).toBe(true);
+    expect(answer.mapContextName).toBe("UK");
+  });
+
   it("lets an uncovered place keep its own name wherever the camera is", () => {
     const answer = mapPlaceContext({
       placeArrivalName: "Llandudno",

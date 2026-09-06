@@ -248,10 +248,17 @@ export function ambientBannerLaneOpen(
 /**
  * The place the map is OVER, and whether that place is off the curated city.
  *
- * `outsideCuratedBounds` is a claim about the settled camera, so a viewport with
- * no centre yet is outside nothing. `baseLedChrome` is the one answer the chrome
- * branches on: an uncovered place, an explicit national browse, or a pan past
- * the city's own bounds all mean the base layer is leading.
+ * `outsideCuratedBounds` is a claim about the SETTLED camera, so a viewport
+ * that has not settled is outside nothing. The centre alone cannot answer that:
+ * the map is seeded with an opening centre before it has drawn anything, and
+ * MapLibre then reports its own maxBounds until the camera settles, so a plain
+ * London open painted "Outside the priced city map" for 334 ms about two
+ * seconds in. That is the law `mapBounds` already carries in
+ * components/PubMap.tsx - a map that has not settled claims no place - and it
+ * is why an unsettled viewport is read here exactly as an absent centre.
+ * `baseLedChrome` is the one answer the chrome branches on: an uncovered place,
+ * an explicit national browse, or a pan past the city's own bounds all mean the
+ * base layer is leading.
  */
 export type MapPlaceContext = {
   mapContextName: string;
@@ -264,14 +271,20 @@ export function mapPlaceContext(input: {
   nationalBrowse: boolean;
   center: readonly [number, number] | null | undefined;
   city: CityConfig;
+  /** Whether the camera has settled at least once. Defaults to true so a caller
+   *  that knows nothing about settling keeps the answer it had. */
+  viewportSettled?: boolean;
 }): MapPlaceContext {
-  const { placeArrivalName, nationalBrowse, center, city } = input;
-  const insideCity = Boolean(center && pointInCityBounds(center[1], center[0], city));
+  const { placeArrivalName, nationalBrowse, center, city, viewportSettled = true } = input;
+  const settledCentre = viewportSettled ? center : null;
+  const insideCity = Boolean(
+    settledCentre && pointInCityBounds(settledCentre[1], settledCentre[0], city),
+  );
   const mapContextName =
     placeArrivalName ??
-    (nationalBrowse ? "UK" : !center || insideCity ? city.displayName : "UK");
+    (nationalBrowse ? "UK" : !settledCentre || insideCity ? city.displayName : "UK");
   const outsideCuratedBounds =
-    !placeArrivalName && !nationalBrowse && Boolean(center && !insideCity);
+    !placeArrivalName && !nationalBrowse && Boolean(settledCentre && !insideCity);
   return {
     mapContextName,
     outsideCuratedBounds,
