@@ -12,7 +12,8 @@
 // lane of that supply is refused here:
 //   - images.app.goo.gl / search.app.goo.gl (891 rows) are already blocked in
 //     lib/venueImages.ts: they are share redirects, not images.
-//   - lh3/lh5.googleusercontent.com (409 rows) are Google Places photographs.
+//   - lh3/lh5.googleusercontent.com and gstatic (418 rows) are Google Places
+//     photographs.
 //     The Google Maps Platform terms require the attribution Places returns
 //     with the photo and forbid caching or re-hosting it, so re-encoding one
 //     into this repository and printing our own credit under it is exactly
