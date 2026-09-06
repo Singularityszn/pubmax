@@ -30,7 +30,10 @@
   height: 44px;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  /* A circular icon control keeps the pill (owner ruling 2026-07-23), the
+     shape the header's own icon controls wear; a 6px square was the one
+     third shape on the profile. */
+  border-radius: var(--radius-pill, 999px);
   background: var(--panel);
   color: var(--ink-soft);
   cursor: pointer;
