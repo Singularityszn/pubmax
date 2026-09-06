@@ -92,6 +92,7 @@ import {
   tonightRetryLanes,
   tonightRowLinks,
   tonightProvenanceCredits,
+  tonightWhatsOnObservedAt,
 } from "@/lib/tonightOutListings";
 import type { PicksContext } from "@/lib/picksState";
 import { parsePlanOccasionIdFromSearch } from "@/lib/planOccasion";
@@ -116,8 +117,13 @@ type LocationStatus = "idle" | "requesting" | "unavailable";
 // out of the interpunct chain and gets its own sentence below it (VOICE.md rule
 // 2), because a chain segment reading like an enum is what made this line look
 // like debug output. Keying off the kind makes the intent explicit.
-function freshnessLabel(kind: TonightFreshnessKind, asOf: string | null): string | null {
-  return kind === "unknown" ? null : checkedLabel(asOf);
+//
+// `observedAt` is `tonightWhatsOnObservedAt`, the live read's own per-kind
+// answer, and NEVER `asOf`: that field is the freshest of the bundled
+// artifacts and the rows, so a quiet night took its date off a snapshot file
+// and told a phone the night was checked two weeks ago (captain 6 Sep 2026).
+function freshnessLabel(kind: TonightFreshnessKind, observedAt: string | null): string | null {
+  return kind === "unknown" ? null : checkedLabel(observedAt);
 }
 
 // The coarse Night Area the news rail reads, derived from the area the viewer
@@ -227,7 +233,7 @@ export default function TonightClient({
   // the same answer the map's Near me gives, so tabs stop disagreeing.
   const router = useRouter();
   const tonightNear = resolveTonightNear(origin, remembered);
-  const { rows, asOf, sourceFreshnessKind, kindObservedAt, status, retry } = useWhatsOnTonight(
+  const { rows, sourceFreshnessKind, kindObservedAt, status, retry } = useWhatsOnTonight(
     true,
     tonightNear?.near ?? null,
     { pubOnly: true },
@@ -379,7 +385,19 @@ export default function TonightClient({
   );
   // Null when the source cannot be dated; the header then prints the plain
   // sentence instead of a dated chain segment.
-  const checked = freshnessLabel(sourceFreshnessKind, asOf);
+  // The day the What's-On rows on screen were observed, off the live read's own
+  // per-kind map. Undated when a kind cannot be dated and undated on a night
+  // carrying no What's-On rows, because a snapshot on disk is not a check.
+  const whatsOnObservedAt = useMemo(
+    () =>
+      tonightWhatsOnObservedAt({
+        renderedGroups: grouped,
+        outEvents,
+        kindObservedAt,
+      }),
+    [grouped, outEvents, kindObservedAt],
+  );
+  const checked = freshnessLabel(sourceFreshnessKind, whatsOnObservedAt);
   // The ordering claim rides the What's-On credit, so it is only made when
   // there are rows in that order and a patch to name.
   const nearestPatchSuffix =
@@ -405,8 +423,9 @@ export default function TonightClient({
   const noteOffersRetry = tonightNoteOffersRetry(status, outAnswer, selectableVenueIds);
   // ONE state for the whole section (lib/picksState.ts). `idle` is a read in
   // flight; anything else that could not answer is unreadable. The note is the
-  // reason, and `asOf` is the day the rows on screen were observed, so a held
-  // answer is dated by its own evidence rather than by the instant we re-asked.
+  // reason, and `checkedAt` is the day the rows on screen were OBSERVED, off
+  // the live read's own per-kind map, so a held answer is dated by its own
+  // evidence rather than by the instant we re-asked or by a bundled file.
   const listingsState = useMemo(
     () =>
       tonightPicksState({
@@ -416,7 +435,7 @@ export default function TonightClient({
         listingsStatus,
         note: listingsNote,
         retryLanes,
-        checkedAt: asOf,
+        checkedAt: whatsOnObservedAt,
       }),
     [
       primaryListingRows.length,
@@ -425,7 +444,7 @@ export default function TonightClient({
       listingsStatus,
       listingsNote,
       retryLanes,
-      asOf,
+      whatsOnObservedAt,
     ],
   );
   // Which read a row came from decides how keeping it is recorded, so the Out

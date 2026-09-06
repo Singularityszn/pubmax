@@ -16,9 +16,11 @@ import type { TonightGroupedRow } from "@/lib/tonightListGrouping";
 import { tonightPrimaryRows } from "@/lib/tonightPrimary";
 import {
   WHATS_ON_KINDS,
+  coveringObservedAt,
   dedupeRows,
   filterNotPast,
   type WhatsOnKind,
+  type WhatsOnKindObservedAt,
   type WhatsOnRow,
 } from "@/lib/whatsOn";
 import { picksState, type PicksState } from "@/lib/picksState";
@@ -261,6 +263,43 @@ export function tonightListingLanes(
   const fromOut = new Set<WhatsOnRow>(outEvents);
   const outRows = merged.filter((row) => fromOut.has(row));
   return { whatsOnCount: merged.length - outRows.length, outRows };
+}
+
+/**
+ * The day the What's-On rows ON SCREEN were observed, or null.
+ *
+ * THE STAMP IS THE LIVE READ'S OR THERE IS NO STAMP. Captain 6 Sep 2026: the
+ * phone printed "Quiet night · Checked 22 Aug · via what's-on" while
+ * `/api/whats-on?window=tonight` answered `kindObservedAt.event` of that same
+ * morning and the desktop, at the same minute, read "Checked 6 Sept". The line
+ * was dated from `sourceObservedAt`, which is the freshest of the BUNDLED
+ * artifacts' own `generatedAt` and the rows', so a night carrying no rows was
+ * dated by a snapshot file on disk rather than by anything anybody checked.
+ *
+ * This asks `kindObservedAt` instead - the per-kind map the live read returns
+ * and nothing else writes - and takes the covering rule already stated in
+ * CLAUDE.md: one line covering several kinds takes the OLDEST of them and goes
+ * undated entirely when it cannot date one. With no What's-On rows there is no
+ * kind to date, so the answer is null and the credit says "undated", which is
+ * the honest thing a quiet night can say about itself.
+ */
+export function tonightWhatsOnObservedAt(input: {
+  /** The grouped cards on screen, in render order. */
+  renderedGroups: TonightGroupedRow[];
+  /** Everything the Out read returned, merged or not. */
+  outEvents: WhatsOnRow[];
+  /** The live read's own per-kind observation map. */
+  kindObservedAt: WhatsOnKindObservedAt;
+}): string | null {
+  const rows = input.renderedGroups.map((group) => group.row);
+  const { outRows } = tonightListingLanes(rows, input.outEvents);
+  const fromOut = new Set<WhatsOnRow>(outRows);
+  const kinds = new Set<WhatsOnKind>();
+  for (const row of rows) {
+    if (fromOut.has(row)) continue;
+    kinds.add(row.kind);
+  }
+  return coveringObservedAt(input.kindObservedAt, [...kinds]);
 }
 
 /**
