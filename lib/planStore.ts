@@ -50,8 +50,25 @@ export type PlanCreateOptions = {
   anchor?: PlanAnchorMetadata;
 };
 
+/**
+ * What a plan read really answered.
+ *
+ * `get` collapses three outcomes into `null`, and the page above it turns a
+ * null into `notFound()`, so a store we could not reach told a reader "This
+ * plan has closed" over a plan that is perfectly alive (PlanAstra, section
+ * 2.4). A read we could not RUN is a fact about us, never a fact about the
+ * plan, so it is its own answer and the surface words it as one.
+ */
+export type PlanReadResult =
+  | { status: "found"; state: PlanState }
+  | { status: "absent" }
+  | { status: "unavailable" };
+
 export type PlanStore = {
   create(input: CreatePlanInput, options?: PlanCreateOptions): Promise<PlanCreateResult>;
+  /** Three-way. Prefer this wherever an absence is worded to a reader. */
+  read(id: string): Promise<PlanReadResult>;
+  /** Found or not, for callers that already treat both absences alike. */
   get(id: string): Promise<PlanState | null>;
   join(id: string, name: unknown, options?: { collaborationAuthorized?: boolean; idempotencyKey?: string; userId?: string }): Promise<PlanJoinResult>;
   updatePresence(id: string, memberToken: unknown, status: unknown): Promise<PlanPresenceResult>;
@@ -301,14 +318,20 @@ export const supabasePlanStore: PlanStore = {
     }
   },
 
-  async get(id) {
-    if (!isPlanId(id)) return null;
+  async read(id) {
+    if (!isPlanId(id)) return { status: "absent" };
     try {
-      return await readSupabasePlanState(id, null);
+      const state = await readSupabasePlanState(id, null);
+      return state ? { status: "found", state } : { status: "absent" };
     } catch (error) {
       console.error("[plans] read failed:", error instanceof Error ? error.message : error);
-      return null;
+      return { status: "unavailable" };
     }
+  },
+
+  async get(id) {
+    const result = await this.read(id);
+    return result.status === "found" ? result.state : null;
   },
 
   async join(id, rawName, options = {}) {
@@ -643,10 +666,16 @@ export const memoryPlanStore: PlanStore = {
     planMemory.createRequests.set(keyHash, { requestHash, planId: id });
     return { ok: true, plan: publicState(plan), memberToken, role: "host", created: true };
   },
-  async get(id) {
-    if (!isPlanId(id)) return null;
+  // The memory store cannot fail to be reached, so it never answers
+  // "unavailable": an absence here really is an absence.
+  async read(id) {
+    if (!isPlanId(id)) return { status: "absent" };
     const plan = memoryPlans.get(id);
-    return plan ? publicState(plan) : null;
+    return plan ? { status: "found", state: publicState(plan) } : { status: "absent" };
+  },
+  async get(id) {
+    const result = await this.read(id);
+    return result.status === "found" ? result.state : null;
   },
   async join(id, rawName, options = {}) {
     const name = cleanCrewName(rawName);

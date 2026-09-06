@@ -66,6 +66,7 @@ function cleanVibeTagsOrUndefined(value: unknown): VibeTag[] | undefined {
   return tags.length ? tags : undefined;
 }
 import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
+import { UPLOAD_PHOTO_MAX_BYTES, uploadPhotoSizeLabel } from "@/lib/uploadBodyLimit";
 import { admin, selectStore } from "@/lib/storeBackend";
 import { STORAGE_BUCKET } from "@/lib/supabase";
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
@@ -248,7 +249,11 @@ export type PintDropStore = {
 };
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5MB
+// The wire's own ceiling, never a second figure. This said 5 MB while the
+// platform refuses any body over 4.5 MB before a handler runs, so the half
+// megabyte between the two was a promise nothing here could keep
+// (lib/uploadBodyLimit.ts).
+const MAX_PHOTO_BYTES = UPLOAD_PHOTO_MAX_BYTES;
 
 /**
  * Pure photo check so it is testable without a real File. Returns a user-safe
@@ -259,7 +264,7 @@ export function validatePhoto(type: string, size: number, maxBytes = MAX_PHOTO_B
     return "Photo must be a JPEG, PNG, or WebP image.";
   }
   if (size > maxBytes) {
-    return `Photo must be ${Math.round(maxBytes / (1024 * 1024))}MB or smaller.`;
+    return `Photo must be ${uploadPhotoSizeLabel(maxBytes)} or smaller.`;
   }
   return null;
 }

@@ -72,6 +72,7 @@ import {
   supabasePintDropStore,
   MAX_PUBLIC_DROPS,
 } from "@/lib/pintDropsStore";
+import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
 import type { PersistableDrop } from "@/lib/pintDropsStore";
 import {
   addPintDrop,
@@ -110,8 +111,13 @@ describe("validatePhoto", () => {
     expect(validatePhoto("application/pdf", 1000)).toMatch(/JPEG, PNG, or WebP/);
   });
 
-  it("rejects a file over 5MB", () => {
-    expect(validatePhoto("image/jpeg", 5 * 1024 * 1024 + 1)).toMatch(/5MB/);
+  it("rejects a file over the wire's own ceiling", () => {
+    // The figure is the platform's, read from lib/uploadBodyLimit.ts: a cap
+    // typed here would be the 5 MB promise nothing could keep.
+    expect(validatePhoto("image/jpeg", UPLOAD_PHOTO_MAX_BYTES + 1)).toMatch(
+      new RegExp(UPLOAD_PHOTO_MAX_LABEL),
+    );
+    expect(validatePhoto("image/jpeg", UPLOAD_PHOTO_MAX_BYTES)).toBeNull();
   });
 });
 

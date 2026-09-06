@@ -11,6 +11,7 @@ import { trackEvent } from "@/lib/analytics";
 import type { CityId } from "@/lib/cities";
 import { unresolvedVenueLabel } from "@/lib/cityVenueIds";
 import type { PintDropDTO } from "@/lib/feed";
+import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
 import {
   buildOptimisticSpillDrop,
   buildOptimisticSpillRetryPayload,
@@ -83,7 +84,12 @@ export type DropMsg = {
   links?: Array<{ href: string; label: string }>;
 };
 
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5MB — server re-validates.
+// ONE NUMBER ON BOTH SIDES OF THE WIRE. This gate said 5 MB while the platform
+// refuses any body over 4.5 MB with a plain-text 413 before a handler runs, so
+// a 4.5 MB phone photo passed the check the browser made and came back as
+// "Could not save that drop." with nothing about its size (PlanAstra, section
+// 2.4). lib/uploadBodyLimit.ts is where that figure lives.
+const MAX_PHOTO_BYTES = UPLOAD_PHOTO_MAX_BYTES;
 const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_VIBE_TAGS = 4; // mirrors the server cap in lib/pintDrops.ts.
 
@@ -411,7 +417,7 @@ export function usePintDrops(
       return;
     }
     if (file.size > MAX_PHOTO_BYTES) {
-      setDropMsg({ ok: false, text: "Each photo must be under 5MB." });
+      setDropMsg({ ok: false, text: `Each photo must be under ${UPLOAD_PHOTO_MAX_LABEL}.` });
       if (inputEl) inputEl.value = "";
       return;
     }

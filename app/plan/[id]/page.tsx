@@ -10,6 +10,7 @@ import PlanInviteNextStep from "@/components/plan/PlanInviteNextStep";
 import CompletedPlanUsualLot from "@/components/plan/CompletedPlanUsualLot";
 import LastCrewInvite from "@/components/plan/LastCrewInvite";
 import SiteNav from "@/components/nav/SiteNav";
+import EmptyState from "@/components/ui/empty-state";
 import PlanSummary from "@/components/plan/PlanSummary";
 import Screen from "@/components/ui/screen";
 import PlanVibe from "@/components/plan/PlanVibe";
@@ -72,8 +73,13 @@ async function readVibeTally(id: string): Promise<VibeTally | null> {
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const state = await planStore().get(id);
-  if (!state) return { title: "Plan not found · PUBMAXXING" };
+  const read = await planStore().read(id);
+  // A read we could not run is not a plan that has gone. It is never indexed
+  // either way, so the unfurl says the neutral thing and the page below says
+  // the honest one.
+  if (read.status === "unavailable") return { title: "Plan · PUBMAXXING" };
+  if (read.status === "absent") return { title: "Plan not found · PUBMAXXING" };
+  const state = read.state;
   // Vibe stamp on the unfurl (share loop, issue #438): a valid ?vibe= on the
   // shared link pins the stamp the sharer saw; otherwise the crew's live top
   // vibe stamps the card; otherwise the base card. Slugs are the locked
@@ -101,6 +107,34 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   };
 }
 
+/**
+ * A plan we could not READ. It is not the not-found surface: that one says the
+ * link expired and sends the reader off to start their own night, which over a
+ * live plan is the wrong sentence and the wrong door. This one says what
+ * happened, and its one way onward is the SAME address - a plain anchor, so
+ * the reader gets a fresh document and a fresh server read rather than the
+ * held payload a soft navigation would serve back.
+ */
+function PlanReadUnavailable({ id }: { id: string }): React.JSX.Element {
+  return (
+    <main id="main" className="planPage planPage--composer">
+      <SiteNav />
+      <header className="planPage__masthead">
+        <span>Plan</span>
+        <span>London · Tonight</span>
+      </header>
+
+      <EmptyState
+        title="We could not load this plan"
+        action={<a href={`/plan/${id}`}>Try again</a>}
+      >
+        The plan is still there. Our end could not answer just now, so nothing
+        here is a reading of your night.
+      </EmptyState>
+    </main>
+  );
+}
+
 const ENDING_LABEL: Record<"food" | "get_home" | "keep_going", string> = {
   food: "found food after",
   get_home: "headed home",
@@ -109,8 +143,15 @@ const ENDING_LABEL: Record<"food" | "get_home" | "keep_going", string> = {
 
 export default async function PlanPage({ params }: Props) {
   const { id } = await params;
-  const state = await planStore().get(id);
-  if (!state) notFound();
+  const read = await planStore().read(id);
+  // THE PLAN HAS NOT CLOSED; WE COULD NOT LOOK. `get` answered null for an
+  // unknown plan and for a store error alike, and this page turned both into
+  // the not-found surface, so one Supabase blip told a host their own night
+  // was over (PlanAstra, section 2.4). The two answers are now two surfaces,
+  // and this one offers the way back rather than a way onward.
+  if (read.status === "unavailable") return <PlanReadUnavailable id={id} />;
+  if (read.status === "absent") notFound();
+  const state = read.state;
   // Crew vibe (share loop): the picker's server-rendered starting tally, and
   // the top slug that stamps the invite URL. Both fail soft to "no votes".
   const vibeTally = await readVibeTally(id);

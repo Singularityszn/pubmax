@@ -22,6 +22,12 @@ import { UPLOADED_IMAGE_MAX_BYTES } from "@/lib/uploadedImage.server";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
+/** What a browser-side photo cap is DEFINED as, read off the source. */
+function photoCapIn(file: string, name: string): string {
+  const match = new RegExp(`const ${name} = ([^;]+);`).exec(read(file));
+  return match ? match[1].trim() : "not found";
+}
+
 function sourceFiles(dir: string): string[] {
   const root = join(process.cwd(), dir);
   const out: string[] = [];
@@ -61,6 +67,39 @@ describe("every server photo cap reads the wire limit", () => {
   it("through the Moment boundary and the shared image journey", () => {
     expect(MOMENT_MAX_PHOTO_BYTES).toBe(UPLOAD_PHOTO_MAX_BYTES);
     expect(UPLOADED_IMAGE_MAX_BYTES).toBe(UPLOAD_PHOTO_MAX_BYTES);
+  });
+
+  it("through the map composers, which are the browser's own gate", async () => {
+    const [{ MAX_PHOTO_BYTES }, { PINT_PHOTO_MAX_BYTES }] = [
+      { MAX_PHOTO_BYTES: photoCapIn("components/map/usePintDrops.ts", "MAX_PHOTO_BYTES") },
+      { PINT_PHOTO_MAX_BYTES: photoCapIn("components/map/VenuePriceSubmit.tsx", "PINT_PHOTO_MAX_BYTES") },
+    ];
+    expect(MAX_PHOTO_BYTES).toBe("UPLOAD_PHOTO_MAX_BYTES");
+    expect(PINT_PHOTO_MAX_BYTES).toBe("UPLOAD_PHOTO_MAX_BYTES");
+  });
+
+  it("with no photo cap of any size typed beside a picker", () => {
+    // A 4.5 MB photo passed a 5 MB browser gate and came back as the platform's
+    // own 413, which the composer could only word as a failed save (PlanAstra,
+    // section 2.4). The sweep is on the FIGURE rather than on one wrong value,
+    // so the next composer cannot land with a fresh number of its own.
+    // A PHOTO cap, which is what this leaf owns: a ceiling on a PDF the harvest
+    // reads, or on what a picker will accept before the composer re-encodes it
+    // down to fit, is a different number and stays its own. The image proxy is
+    // named below for the same reason: it bounds an INBOUND fetch of somebody
+    // else's image, which never crosses a function's request body.
+    const exempt = new Set([
+      "lib/uploadBodyLimit.ts",
+      "lib/socialPostMedia.server.ts",
+      "app/api/image-proxy/route.ts",
+    ]);
+    const offenders: string[] = [];
+    for (const file of [...sourceFiles("lib"), ...sourceFiles("app/api"), ...sourceFiles("components")]) {
+      if (exempt.has(file)) continue;
+      const source = read(file);
+      if (/PHOTO[A-Z_]*_BYTES\s*=\s*\d+\s*\*\s*1024\s*\*\s*1024/.test(source)) offenders.push(file);
+    }
+    expect(offenders).toEqual([]);
   });
 
   it("with no 10 MB restated anywhere a photo route reads", () => {

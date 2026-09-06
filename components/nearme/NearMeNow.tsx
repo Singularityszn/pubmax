@@ -66,6 +66,12 @@ type LocateState = "idle" | "requesting" | "ready" | "denied" | "unavailable";
 
 /** Why we're answering from a patch instead of the viewer's own spot. */
 type PatchReason = "denied" | "unavailable" | "none" | null;
+/** Whether the priced index answered: absent rows and a failed read are two findings. */
+type SlimReadState = "unknown" | "ready" | "unavailable";
+/** The ask a retry re-runs, recorded by whichever answer path served it. */
+type RetryTarget =
+  | { kind: "patch"; patch: NightPatch; reason: PatchReason; source: NearAnswerSource }
+  | { kind: "borough"; name: string; source: NearAnswerSource };
 
 export type NearMeNowProps = {
   cityId?: CityId | string;
@@ -281,6 +287,13 @@ export default function NearMeNow({
   const [acceptanceError, setAcceptanceError] = useState("");
   const slimRef = useRef<PricedPoint[] | null>(venues ?? null);
   const loadingSlimRef = useRef<Promise<PricedPoint[]> | null>(null);
+  // Whether the priced index ANSWERED. A caller in map mode is handed the rows
+  // already in memory, so that read has plainly run.
+  const [slimRead, setSlimRead] = useState<SlimReadState>(venues ? "ready" : "unknown");
+  // What the reader last asked for, so a retry re-answers THAT rather than
+  // dropping them back on the idle screen. Recorded as the ask itself rather
+  // than as a closure over the answer path, so neither path has to name itself.
+  const retryTargetRef = useRef<RetryTarget | null>(null);
   const answerGenerationRef = useRef(0);
   const autoLocateStartedRef = useRef(false);
   const [activeAnswerGeneration, setActiveAnswerGeneration] = useState(0);
@@ -311,7 +324,20 @@ export default function NearMeNow({
     if (slimRef.current) return slimRef.current;
     if (!loadingSlimRef.current) {
       loadingSlimRef.current = loadSlimVenuesForCity(cityId)
-        .catch(() => [] as PricedPoint[])
+        .then((rows) => {
+          setSlimRead("ready");
+          return rows;
+        })
+        // A READ WE COULD NOT RUN IS NOT AN EMPTY AREA. The empty list stays,
+        // because every caller here answers with an area rather than hanging on
+        // the locate spinner, but the FAILURE is now recorded beside it: without
+        // it, a shard miss printed "We haven't mapped pubs in Clapham yet" with
+        // a demand form under it, over a borough this product has mapped for a
+        // year (PlanAstra, section 2.4).
+        .catch(() => {
+          setSlimRead("unavailable");
+          return [] as PricedPoint[];
+        })
         .then((rows) => {
           slimRef.current = rows;
           return rows;
@@ -329,6 +355,7 @@ export default function NearMeNow({
       answerSource: NearAnswerSource = "picked-area",
     ) => {
       const generation = beginAnswer();
+      retryTargetRef.current = { kind: "patch", patch: next, reason, source: answerSource };
       setState("requesting");
       setPatch(next);
       setBorough(null);
@@ -385,6 +412,7 @@ export default function NearMeNow({
   const pickBorough = useCallback(
     (name: string, answerSource: NearAnswerSource = "picked-area") => {
       const generation = beginAnswer();
+      retryTargetRef.current = { kind: "borough", name, source: answerSource };
       void loadSlim().then((slim) => {
         if (generation !== answerGenerationRef.current) return;
         setCards(rankBoroughCheapest(slim, name));
@@ -400,6 +428,17 @@ export default function NearMeNow({
     },
     [beginAnswer, loadSlim],
   );
+
+  /** Ask the index again, then re-answer the ask the reader last made. */
+  const retrySlim = useCallback(() => {
+    slimRef.current = null;
+    loadingSlimRef.current = null;
+    setSlimRead("unknown");
+    const target = retryTargetRef.current;
+    if (!target) return;
+    if (target.kind === "patch") pickPatch(target.patch, target.reason, target.source);
+    else pickBorough(target.name, target.source);
+  }, [pickBorough, pickPatch]);
 
   // No fix (denied / unavailable / nothing priced in range): answer anyway.
   // Last remembered area first, central London otherwise — the pint before
@@ -654,10 +693,12 @@ export default function NearMeNow({
           acceptReceipt={acceptReceipt}
           acceptanceError={acceptanceError}
           priceTrust={priceTrust}
+          slimRead={slimRead}
           loadSlim={loadSlim}
           onPickPatch={pickPatch}
           onPickBorough={pickBorough}
           onLocate={locate}
+          onRetrySlim={retrySlim}
         />
       ) : null}
     </section>
@@ -745,6 +786,31 @@ function NearMeRequestingStatus({ patch }: { patch: NightPatch | null }) {
       {patch
         ? `Checking listed pint prices around ${patch.label}…`
         : "Checking listed pint prices near you…"}
+    </div>
+  );
+}
+
+/**
+ * The index would not answer.
+ *
+ * NOT the coverage card: that one says "We haven't mapped pubs in {area} yet"
+ * and offers a form asking us to map it, which over a borough we have mapped
+ * for a year is a claim about the AREA made from a fact about US (PlanAstra,
+ * section 2.4). This says what happened and offers the one thing that helps.
+ */
+export function NearMeReadUnavailable({
+  areaLabel,
+  onRetry,
+}: {
+  areaLabel: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="nmnStatus nmnStatusFail" role="status">
+      <p>We could not read the pub list for {areaLabel} just now.</p>
+      <button type="button" className="nmnRetry nmnRetryGhost" onClick={onRetry}>
+        <RotateCw size={15} aria-hidden="true" /> Try again
+      </button>
     </div>
   );
 }
@@ -859,10 +925,12 @@ function NearMeAreaAnswer({
   acceptReceipt,
   acceptanceError,
   priceTrust,
+  slimRead,
   loadSlim,
   onPickPatch,
   onPickBorough,
   onLocate,
+  onRetrySlim,
 }: {
   scope: NearMeScope;
   borough: string | null;
@@ -880,10 +948,12 @@ function NearMeAreaAnswer({
   acceptReceipt: string | null;
   acceptanceError: string;
   priceTrust?: NearPriceTrustView;
+  slimRead: SlimReadState;
   loadSlim: () => Promise<PricedPoint[]>;
   onPickPatch: (patch: NightPatch) => void;
   onPickBorough: (name: string) => void;
   onLocate: () => void;
+  onRetrySlim: () => void;
 }) {
   return (
     <>
@@ -908,7 +978,9 @@ function NearMeAreaAnswer({
         priceTrust={priceTrust}
       />
       {acceptanceError ? <p className="nmnAcceptError" role="alert">{acceptanceError}</p> : null}
-      {cards.length === 0 ? (
+      {cards.length === 0 && slimRead === "unavailable" ? (
+        <NearMeReadUnavailable areaLabel={areaLabel} onRetry={onRetrySlim} />
+      ) : cards.length === 0 ? (
         <div className="nmnOutside">
           <UnsupportedAreaPreview
             area={areaLabel}
