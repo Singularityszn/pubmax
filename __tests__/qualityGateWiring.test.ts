@@ -36,6 +36,10 @@ describe("the quality gates", () => {
       "npm run validate-data",
       "npm run lint",
       "npm run typecheck",
+      // A dead dependency is dead code no compiler sees, so knip is a static
+      // gate: `knip.json` scopes it to dependency findings alone and it runs in
+      // about three seconds.
+      "npm run deadcode",
       "npm run coverage",
       // The proofs that need a real cluster, and a skip is a failure there.
       "npm run test:rls",
