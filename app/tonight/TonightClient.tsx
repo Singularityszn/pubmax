@@ -46,6 +46,15 @@ import TonightSoftPlansModule from "./TonightSoftPlansModule";
 import TodayQuietPintCard from "@/app/today/TodayQuietPintCard";
 import { trackEvent } from "@/lib/analytics";
 import {
+  LOCATION_FINDING_LABEL,
+  LOCATION_FINDING_STATUS,
+  LOCATION_REMOVE_LABEL,
+  LOCATION_RETRY_LABEL,
+  LOCATION_SHARE_LABEL,
+  LOCATION_UNAVAILABLE_STATUS,
+  locationDisclosureLines,
+} from "@/lib/locationDisclosure";
+import {
   resolveTonightNear,
   tonightHeading,
   tonightLocalityBasis,
@@ -78,6 +87,8 @@ import {
   orderDealsInPlace,
 } from "@/lib/dealsHonesty";
 import { groupTonightListings } from "@/lib/tonightListGrouping";
+
+const LOCATION_SURFACE = "tonight-walk-and-last-train" as const;
 import {
   tonightAcceptedVenueId,
   tonightLedeComposition,
@@ -949,11 +960,15 @@ export default function TonightClient({
           </button>
           {locationExpanded ? (
             <div className="tonightLocationBody">
-              <p className="tonightLocationCopy">
-                Sharing location is optional. Walk times stay on this page; your
-                rough position (nearest 100m or so) is used once to check your
-                nearest station and last train, and is never saved.
-              </p>
+              {/* The disclosure is lib/locationDisclosure's, not this file's:
+                  one owner for the words, so the prompt, /privacy and Today's
+                  own ask cannot drift apart (Astra F01). */}
+              <p className="tonightLocationCopy">Sharing location is optional.</p>
+              {locationDisclosureLines(LOCATION_SURFACE).map((line) => (
+                <p className="tonightLocationCopy" key={line}>
+                  {line}
+                </p>
+              ))}
               {origin ? (
                 <button
                   type="button"
@@ -961,7 +976,7 @@ export default function TonightClient({
                   onClick={clearLocation}
                 >
                   <X size={15} aria-hidden="true" />
-                  Remove location
+                  {LOCATION_REMOVE_LABEL}
                 </button>
               ) : (
                 <button
@@ -972,17 +987,17 @@ export default function TonightClient({
                 >
                   <LocateFixed size={15} aria-hidden="true" />
                   {locationStatus === "requesting"
-                    ? "Finding your location…"
+                    ? LOCATION_FINDING_LABEL
                     : locationStatus === "unavailable"
-                      ? "Try location again"
-                      : "Share location for walk times and last train"}
+                      ? LOCATION_RETRY_LABEL
+                      : LOCATION_SHARE_LABEL[LOCATION_SURFACE]}
                 </button>
               )}
               <span className="tonightSrOnly" role="status" aria-live="polite">
                 {locationStatus === "requesting"
-                  ? "Finding your location."
+                  ? LOCATION_FINDING_STATUS
                   : locationStatus === "unavailable"
-                    ? "Location unavailable. You can try again."
+                    ? LOCATION_UNAVAILABLE_STATUS
                     : origin
                       ? "Walk times are now shown."
                       : ""}

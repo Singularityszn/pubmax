@@ -153,7 +153,7 @@ export const PICKS_REFRESHING_LINE = "Checking again.";
  */
 export const PICKS_ALTERNATIVE_LABEL = "No event needed";
 
-export type PicksAlternativeKey = "quiet-pints" | "plan";
+export type PicksAlternativeKey = "pubs-near" | "plan";
 
 export type PicksAlternativeWay = {
   key: PicksAlternativeKey;
@@ -185,15 +185,30 @@ function withParam(path: string, key: string, value: string | null | undefined):
 /**
  * The two non-event doors, in order, carrying the reader's own context.
  *
- * Quiet pints first: it is the nearer answer and the one a reader standing in
- * a patch with nothing on actually wants. The plan door is second because it
- * asks more of them. Neither is a listing and the label above them says so.
+ * Pubs near you first: it is the nearer answer and the one a reader standing
+ * in a patch with nothing on actually wants. The plan door is second because
+ * it asks more of them. Neither is a listing and the label above them says so.
+ *
+ * A DOOR MAY PROMISE ONLY WHAT THE SURFACE BEHIND IT ANSWERS.
+ *
+ * Astra F02 (6 Sep 2026): this door read "Quiet pints near you" and opened
+ * /near, which ranks the nearest pubs by listed price, cheapest first. It has
+ * no crowd signal at all. The word was not a small imprecision: the only quiet
+ * reading this product holds is `estimateBusyness`, and its typical-pattern
+ * half is a function of the HOUR alone, identical for every pub in London, so
+ * a per-venue quiet list cannot be built from it honestly. A community
+ * occupancy report (lib/occupancy.ts) is per venue and real, but a venue
+ * nobody has reported has an UNKNOWN crowd state, and unknown is never quiet.
+ * So the door names what /near does. The quiet answer this product CAN make
+ * still exists and is unmoved: lib/quietPint.ts, which only appears in a
+ * genuinely quiet window and prints its own "usual pattern for the hour, not
+ * the door" caveat, on the same two screens this door renders on.
  */
 export function picksAlternativeWays(context: PicksContext = {}): PicksAlternativeWay[] {
   return [
     {
-      key: "quiet-pints",
-      label: "Quiet pints near you",
+      key: "pubs-near",
+      label: "Pubs near you",
       href: withParam("/near", "patch", context.patchId),
     },
     {

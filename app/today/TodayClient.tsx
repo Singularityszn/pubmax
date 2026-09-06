@@ -65,7 +65,8 @@ import {
 import { parsePlanOccasionIdFromSearch } from "@/lib/planOccasion";
 import { PLAN_INTAKE_STORAGE_KEY, parsePlanIntakeDraft } from "@/lib/planIntake";
 import { resolveTonightNear } from "@/lib/tonight";
-import { orderPicksNear, type TodayFact, type TonightPickDto, type WeatherBrief } from "@/lib/todayBrief";
+import { orderPicksNear, type TonightPickDto, type WeatherBrief } from "@/lib/todayBrief";
+import type { PubOfTheDayCard } from "@/lib/pubOfTheDay";
 import {
   applyTodayPersonalization,
   resolveTodayPersonalization,
@@ -102,7 +103,7 @@ type Props = {
   picksReason?: string | null;
   /** False for a lane nobody switched on: asking it again changes nothing. */
   picksRetryable?: boolean;
-  fact: TodayFact | null;
+  fact: PubOfTheDayCard | null;
   pintsIndex: TodayPintsIndex;
   quietPint: QuietPintModule | null;
 };
@@ -343,7 +344,11 @@ function readPlanIntakeDraftReadonly() {
   }
 }
 
-function FactCard({ fact }: { fact: TodayFact | null }) {
+// The daily editorial card. What may fill it is lib/pubOfTheDay's decision,
+// never this component's: a card with no card is the honest empty state, and
+// the ONE action is internal, because a pub of the day a reader cannot open is
+// a magazine page (Astra F08).
+function FactCard({ fact }: { fact: PubOfTheDayCard | null }) {
   return (
     <section className="todayCard" aria-labelledby="today-fact-title" data-testid="today-fact">
       <div className="todayCardHead">
@@ -360,7 +365,11 @@ function FactCard({ fact }: { fact: TodayFact | null }) {
 
       {fact ? (
         <>
-          <p className="todayCardBody">{fact.fact}</p>
+          <p className="todayCardBody">{fact.reason}</p>
+          <Link className="todayButton" href={fact.mapHref} prefetch={false}>
+            <MapPin size={15} aria-hidden="true" />
+            Open {fact.pubName} on the map
+          </Link>
           <div className="todayCardFootRow">
             <span className="todayProvChip" data-provenance={fact.provenance}>
               {fact.provenanceLabel}
@@ -372,10 +381,12 @@ function FactCard({ fact }: { fact: TodayFact | null }) {
                 target="_blank"
                 rel="noreferrer noopener"
               >
-                View source
+                via {fact.sourceLabel}
                 <ExternalLink size={13} aria-hidden="true" />
               </a>
-            ) : null}
+            ) : (
+              <span className="todayProvenance">via {fact.sourceLabel}</span>
+            )}
           </div>
         </>
       ) : (

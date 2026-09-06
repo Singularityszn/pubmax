@@ -4,12 +4,12 @@ import { buildDayGreeting } from "@/lib/dayGreeting";
 import { dealDigestNote, digestSectionPicks } from "@/lib/dealsDigest";
 import {
   buildWeatherBrief,
-  pickPubOfTheDayFact,
   toTonightPickDto,
   type WeatherBrief,
 } from "@/lib/todayBrief";
 import { loadHistoricPubs } from "@/lib/historic";
 import { LONDON_NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
+import { pickPubOfTheDay } from "@/lib/pubOfTheDay";
 import { buildQuietPint } from "@/lib/quietPint";
 import { formatConditionDate } from "@/lib/tonightConditions";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
@@ -23,7 +23,6 @@ import {
   todayPicksReadStatus,
   whatsOnStatusForTonightListings,
 } from "@/lib/todayListings.server";
-import heritageCache from "@/public/data/heritage_cache.json";
 
 import TodayClient from "./TodayClient";
 import { buildTodayPintsIndex, type TodayPintsIndex } from "./todayPints";
@@ -174,7 +173,12 @@ export default async function TodayPage() {
     return pick.digest ? { ...dto, venueNote: dealDigestNote(pick.digest.venueCount) } : dto;
   });
 
-  const fact = pickPubOfTheDayFact(heritageCache, now);
+  // Pub of the day, from the JOINED historic index rather than the raw
+  // heritage cache: the join carries the venue id the card's map link needs,
+  // and a name-keyed cache cannot tell two pubs of one name apart (Astra F08).
+  // Every quality refusal lives in lib/pubOfTheDay; an empty eligible set is a
+  // null card and the honest "still in the archive" state.
+  const fact = pickPubOfTheDay(historicPubs, now);
 
   const pintsIndex = todayPintsIndexFor(pricedVenues);
 
