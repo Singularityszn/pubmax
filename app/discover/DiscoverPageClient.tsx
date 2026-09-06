@@ -4,11 +4,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { discardBody } from "@/lib/responseBody";
-import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import {
-  cheapestPints,
+  DISCOVER_BOARD_PATH,
+  parseDiscoverBoard,
+  type DiscoverBoard,
+  type DiscoverBoardRow,
+} from "@/lib/discoverBoard";
+import {
   cheapestTonight,
-  type LeaderboardEntry,
   type TonightDrop,
   type TonightEntry,
 } from "@/lib/leaderboard";
@@ -246,7 +249,7 @@ export function DiscoverBody({
     () => readPreferredCity() ?? DEFAULT_CITY_ID,
     () => DEFAULT_CITY_ID, // SSR snapshot
   );
-  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [entries, setEntries] = useState<DiscoverBoardRow[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
     "idle",
   );
@@ -274,9 +277,10 @@ export function DiscoverBody({
   const lowNoMapHref = lowNoHref(preferredCity);
   const openMapHref = preferredCityMapHref();
 
-  // Defer the 5.9MB public dataset until the data-heavy sections are near the
-  // viewport. The route shell and drink categories can paint without competing
-  // with the dataset download + grouping work on mobile.
+  // Defer the board read until the data-heavy sections are near the viewport.
+  // The board is the ten ranked rows plus the "then" baselines, cut from the
+  // dataset at build time (lib/discoverBoard.ts): about 66 KB rather than the
+  // 6,868 KB dataset this used to pull into a phone to print ten rows.
   useEffect(() => {
     const controller = new AbortController();
     const startAnalysis = () => {
@@ -284,18 +288,19 @@ export function DiscoverBody({
         signal: controller.signal,
         setStatus,
         loadDataset: async () => {
-          const res = await fetch("/data/pint_prices_app_dataset.json", {
+          const res = await fetch(DISCOVER_BOARD_PATH, {
             signal: controller.signal,
           });
           if (!res.ok) {
             discardBody(res);
             throw new Error(`HTTP ${res.status}`);
           }
-          const rows = (await res.json()) as VenuePrice[];
-          return groupVenuePrices(Array.isArray(rows) ? rows : []);
+          const board = parseDiscoverBoard(await res.json());
+          if (!board) throw new Error("discover board: unreadable");
+          return board;
         },
-        applyDataset: (venues: Venue[]) => {
-          setEntries(cheapestPints(venues, 10));
+        applyDataset: (board: DiscoverBoard) => {
+          setEntries(board.cheapest);
         },
         loadDrops: async () => {
           const res = await fetch("/api/pint-drops", {
@@ -308,11 +313,11 @@ export function DiscoverBody({
           const body = await res.json();
           return pickDrops(body);
         },
-        applyDrops: (venues: Venue[], drops: TonightDrop[]) => {
+        applyDrops: (board: DiscoverBoard, drops: TonightDrop[]) => {
           // Same drops, two computes: the live "tonight" board (last 24h,
           // cheapest-first) and the "then vs now" baseline comparison.
           setTonight(cheapestTonight(drops, { limit: 10 }));
-          setThenVsNow(computeThenVsNow(venues, drops, 8));
+          setThenVsNow(computeThenVsNow(board.baselines, drops, 8));
         },
         // Community "now" prices are best-effort: a non-abort failure still
         // leaves the rest of the page ready, with empty sections and friendly copy.

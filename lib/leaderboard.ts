@@ -16,6 +16,16 @@ export type LeaderboardEntry = {
   area: string;
 };
 
+// Everything a leaderboard row PRINTS, and nothing else. `LeaderboardEntry`
+// satisfies it, and so does a row cut at build time (lib/discoverBoard.ts), so
+// the table cannot demand a whole grouped Venue, and a 6.87 MB dataset to build
+// one, for the four fields it renders.
+export type LeaderboardRowView = {
+  rank: number;
+  area: string;
+  venue: Pick<Venue, "id" | "name" | "cheapestPint"> & { cheapestPrice: number };
+};
+
 // The fallback area label used when a venue has no borough/area field at all.
 export const UNKNOWN_AREA = "Greater London";
 

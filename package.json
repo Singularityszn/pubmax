@@ -8,7 +8,7 @@
   "scripts": {
     "predev": "npm run prepare:maplibre-worker",
     "dev": "next dev --webpack",
-    "prebuild": "npm run prepare:maplibre-worker && npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base",
+    "prebuild": "npm run prepare:maplibre-worker && npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base && npm run build:discover-board",
     "build": "next build",
     "prestart": "node -e \"const d=process.env.NEXT_DIST_DIR||'.next'; require('fs').existsSync(d+'/BUILD_ID') || (console.error('\\n\\u2717 '+d+'/BUILD_ID is missing \\u2014 there is no completed production build to serve.\\n  Run npm run build to completion first. In this shared worktree a concurrent next dev/next build can clobber .next mid-build and leave it partial; for isolated production QA use NEXT_DIST_DIR=.next-prod.\\n'), process.exit(1))\"",
     "start": "next start",
@@ -94,7 +94,8 @@
     "harvest:uk-menu-urls": "tsx scripts/harvest/uk-prices/menu-urls.mjs",
     "harvest:uk-prices-rendered": "tsx scripts/harvest/uk-prices/render.mjs",
     "harvest:uk-prices-ocr": "tsx scripts/harvest/uk-prices/ocr.mjs",
-    "build:price-bands": "tsx scripts/build_price_bands.mjs"
+    "build:price-bands": "tsx scripts/build_price_bands.mjs",
+    "build:discover-board": "tsx scripts/build_discover_board.mjs"
   },
   "dependencies": {
     "@capacitor-community/in-app-review": "^8.0.0",
