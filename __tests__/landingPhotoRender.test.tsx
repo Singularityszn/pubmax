@@ -13,7 +13,7 @@ import type { LandingPubCardData } from "@/lib/landingPubCard";
 
 // What a reader really gets (captain 6 Sep 2026): a landing carries a
 // photograph of London, credited, and it never carries the venue lane's
-// "No photo yet" placeholder — London is a picture we hold for everybody.
+// "No photo yet" placeholder: London is a picture we hold for everybody.
 
 const anchorId = Object.keys(PUB_PHOTOS)[0];
 

@@ -2,7 +2,7 @@
 //
 // Captain 6 Sep 2026: "I want the landing pages to show the pictures of
 // London." This module is the whole policy and the whole set. It is a PURE
-// LEAF — no fs, no React, no venue index — so the browser can resolve a
+// LEAF (no fs, no React, no venue index) so the browser can resolve a
 // photograph when the landing swaps its answer for a near-you one without
 // pulling a data lane in behind it.
 //

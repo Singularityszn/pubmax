@@ -14,7 +14,7 @@ import type { ResolvedLandingPhoto } from "@/lib/landingImagery";
 //
 // A borough CHAPTER carries a photograph of London under its head (captain
 // 6 Sep 2026): its own borough where lib/landingImagery.ts holds one, else the
-// city. The INDEX passes none — it is a directory of 33 boroughs rather than a
+// city. The INDEX passes none, being a directory of 33 boroughs rather than a
 // place, and its LCP ceiling (perf/route-budgets.json) is the tightest of the
 // two.
 export default function BoroughScreen({

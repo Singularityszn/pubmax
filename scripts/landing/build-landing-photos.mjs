@@ -201,7 +201,7 @@ async function main() {
       blurDataUrl: `data:image/webp;base64,${blur.toString("base64")}`,
       credit: { author, licence, licenceUrl, sourceUrl },
     });
-    console.error(`ok ${photo.id} — ${licence} — ${author} (blur ${blur.length}B)`);
+    console.error(`ok ${photo.id}: ${licence}, ${author} (blur ${blur.length}B)`);
   }
 
   const rows = manifest

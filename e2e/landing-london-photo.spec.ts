@@ -4,7 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
 // that a unit test cannot: the photograph really paints, its credit is really
 // on screen, the card's own scrim is really the alpha the contrast contract is
 // proved at, and adding a picture did not push the landing's one primary
-// action under the fold at 390x844 — the law e2e/landing-find-my-pint.spec.ts
+// action under the fold at 390x844, the law e2e/landing-find-my-pint.spec.ts
 // owns, and the reason the picture is the card's backdrop rather than a band.
 
 async function open(page: Page, path: string, viewport: { width: number; height: number }) {

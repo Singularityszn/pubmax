@@ -29,7 +29,7 @@ import { LONDON_NIGHT_AREA_SLUGS } from "@/lib/nightAreas";
 // The landing photographs of London (captain 6 Sep 2026). What this holds:
 // every picture is a licensed file we ship, every slot answers, and every line
 // printed over one clears WCAG AA against the worst pixel a photograph could
-// carry — proved by arithmetic rather than by sampling the nine we happen to
+// carry, proved by arithmetic rather than by sampling the nine we happen to
 // hold today.
 
 const root = process.cwd();
