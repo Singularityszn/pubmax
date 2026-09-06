@@ -16,6 +16,7 @@ import {
   resolveNightPatch,
   type RememberedArea,
 } from "@/lib/nightPatches";
+import { venueAreaClaim, type VenueAreaRelation } from "@/lib/venueTruth";
 import type { Venue } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
@@ -34,6 +35,14 @@ export type TodayPintRow = {
   priceLabel: string;
   /** Deep link to the venue on the map ({@link venueMapUrl}). */
   mapHref: string;
+  /**
+   * Whether this pub is IN the area the card names, or only near it
+   * (lib/venueTruth.ts). The area's radius is how far the list reaches, not a
+   * claim about where a pub is: the Three Tuns at the LSE student centre sits
+   * 0.87 of the way out of Piccadilly & Soho's disc and was printed as being
+   * in Soho.
+   */
+  areaRelation: VenueAreaRelation;
 };
 
 export type TodayPintsModule = {
@@ -73,16 +82,22 @@ export function buildTodayPintsForPatch(
     .slice(0, TODAY_PINTS_LIMIT);
   if (priced.length === 0) return null;
 
+  const byId = new Map(venues.map((venue) => [venue.id, venue]));
+
   return {
     patchId: patch.id,
     areaName: area.name,
-    rows: priced.map((row) => ({
-      id: row.id,
-      name: row.name,
-      price: row.price as number,
-      priceLabel: row.priceLabel,
-      mapHref: venueMapUrl(row.id),
-    })),
+    rows: priced.map((row) => {
+      const venue = byId.get(row.id);
+      return {
+        id: row.id,
+        name: row.name,
+        price: row.price as number,
+        priceLabel: row.priceLabel,
+        mapHref: venueMapUrl(row.id),
+        areaRelation: venue ? venueAreaClaim(venue, [area]).relation : "unplaced",
+      };
+    }),
   };
 }
 

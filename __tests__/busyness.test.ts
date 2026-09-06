@@ -97,16 +97,30 @@ describe("evaluateOpenState", () => {
 });
 
 describe("canGroupGetIn", () => {
+  // The evidence a pub with unknown hours and nobody reporting really carries.
+  // Both answers below are about the GROUP rather than the door, so they are
+  // honest whatever this says, which is why the gate does not reach them.
+  const noEvidence = {
+    openState: "unknown",
+    reportCount: 0,
+    busynessSource: "typical-pattern",
+  } as const;
+
   it("does not promise entry when a large group meets a busy estimate", () => {
-    expect(canGroupGetIn({ groupSize: 8, level: "busy", hasBookingLink: false })).toEqual({
+    expect(
+      canGroupGetIn({ groupSize: 8, level: "busy", hasBookingLink: false, evidence: noEvidence }),
+    ).toEqual({
       fit: "unlikely",
       label: "Call ahead",
       reason: "A group of 8 may struggle at a usually busy time.",
+      confidence: "unknown",
     });
   });
 
   it("offers booking as the honest next step when a link exists", () => {
-    expect(canGroupGetIn({ groupSize: 6, level: "rammed", hasBookingLink: true })).toMatchObject({
+    expect(
+      canGroupGetIn({ groupSize: 6, level: "rammed", hasBookingLink: true, evidence: noEvidence }),
+    ).toMatchObject({
       fit: "book-ahead",
       label: "Book ahead",
     });

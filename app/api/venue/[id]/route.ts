@@ -23,6 +23,7 @@ import { clientIp, hashIp } from "@/lib/supabase";
 import { BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceBundle";
 import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
+import { venueAmenityStatus, venueContacts, type VenuePrice } from "@/lib/venues";
 
 export async function GET(
   request: Request,
@@ -57,6 +58,16 @@ export async function GET(
       ? null
       : bundlePricesForCategory(bundle.rows, BUNDLE_DEFAULT_CATEGORY);
 
+  // THE CONTACT CONTRACT IS THE ONLY CONTACT ON THE WIRE. The source rows hold
+  // four free-text columns nobody validated, and one of them shipped
+  // "\u{1F310} https://www.lsesu.com/social/three-tuns/" as a phone number
+  // (finding F03). `venueContacts` publishes a field only when the value parses
+  // as the thing its column claims to be, and the raw columns are stripped here
+  // so no caller can build a `tel:` out of one behind our back.
+  const contacts = venueContacts(venue);
+  const amenityStatus = venueAmenityStatus(venue);
+  const prices = venue.prices.map((row) => withoutRawContacts(row));
+
   const requestedGroupSize = Number(new URL(request.url).searchParams.get("groupSize") ?? 2);
   const groupSize = Number.isFinite(requestedGroupSize)
     ? Math.max(1, Math.min(30, Math.round(requestedGroupSize)))
@@ -69,12 +80,17 @@ export async function GET(
       groupSize,
       level: busyness.level,
       hasBookingLink: booking.available,
+      evidence: {
+        openState: busyness.isOpen,
+        reportCount: busyness.reportCount,
+        busynessSource: busyness.source,
+      },
       timeZone: "Europe/London",
     }),
   };
 
   return NextResponse.json(
-    { venue: { ...venue, bundlePrices }, busyness, getIn, booking },
+    { venue: { ...venue, prices, contacts, amenityStatus, bundlePrices }, busyness, getIn, booking },
     {
       status: 200,
       headers: {
@@ -85,4 +101,23 @@ export async function GET(
       },
     },
   );
+}
+
+/**
+ * The four free-text columns nobody validated. Named once, so the strip and the
+ * `Omit` below cannot drift apart.
+ */
+const RAW_CONTACT_COLUMNS = ["phone_number", "email", "website", "booking_link"] as const;
+
+/**
+ * One source row with its contact columns removed. They are duplicated by the
+ * sanitized `contacts` contract above, and a caller that reads one is a caller
+ * reading an unchecked value.
+ */
+function withoutRawContacts(
+  row: VenuePrice,
+): Omit<VenuePrice, (typeof RAW_CONTACT_COLUMNS)[number]> {
+  const rest: Record<string, unknown> = { ...row };
+  for (const column of RAW_CONTACT_COLUMNS) delete rest[column];
+  return rest as Omit<VenuePrice, (typeof RAW_CONTACT_COLUMNS)[number]>;
 }

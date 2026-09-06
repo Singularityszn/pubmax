@@ -22,7 +22,7 @@
       "stamp": { "kind": "field", "pointer": "generatedAt" },
       "cadence": "human-gated reviewed publish; no machine schedule until real first-party parsers ship",
       "stalenessBudgetHours": null,
-      "refreshWorkflow": "manual reviewed publish via npm run refresh:prices -- --open-pr. The retired scheduled retrieval route had only stubbed parsers and could never advance this served file. While parsers are stubbed the committed envelope stays empty and its generatedAt names the same collection day as the bundled pint dataset (2026-07-03), not a fresher-looking date with no rows behind it.",
+      "refreshWorkflow": "manual reviewed publish via npm run refresh:prices -- --open-pr. The retired scheduled retrieval route had only stubbed parsers and could never advance this served file. While parsers are stubbed the committed envelope stays EMPTY and its generatedAt dates NO observation: it is the day the empty envelope was aligned to the bundled pint dataset's own collection day, and it moves only when that day moves. Read it as an envelope date, never as a price date. This prose names no day of its own: the day the envelope is aligned to is whatever pint_prices reports, and a date typed here would rot the moment that one moved. Nothing restamps a row, because there are no rows.",
       "gate": "none to run; first-party parsers are STUBBED (fetchFromSource returns []), so scheduled retrieval remains an honest no-op until a real parser retrieves valid rows AND a human publishes them"
     },
     {

@@ -1,7 +1,7 @@
-import { haversineKm } from "@/lib/haversine";
 import { namedLegacyPintPriceSource } from "@/lib/drinks";
 import { NIGHT_AREAS, nightAreaHasRouteReadyProof, type NightArea } from "@/lib/nightAreas";
 import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
+import { venueAreaClaim } from "@/lib/venueTruth";
 import type { Venue } from "@/lib/venues";
 
 // One seam for every governed priced landing page. The drink-brand family and
@@ -297,19 +297,14 @@ export function nightAreaForPoint(
   latitude: number,
   areas: readonly NightArea[] = NIGHT_AREAS,
 ): NightArea | null {
-  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null;
-  return (
-    areas
-      .map((area) => ({
-        area,
-        distanceKm: haversineKm([longitude, latitude], [area.centre.lng, area.centre.lat]),
-      }))
-      .filter(({ area, distanceKm }) => distanceKm <= area.radiusKm)
-      .sort(
-        (left, right) =>
-          left.distanceKm - right.distanceKm || left.area.slug.localeCompare(right.area.slug),
-      )[0]?.area ?? null
-  );
+  // ONE geometry, two readings. `venueAreaClaim` (lib/venueTruth.ts) owns the
+  // nearest-containing-disc rule and also says how STRONG the claim is; this
+  // function is the routing half, which asks only which area a pub is listed
+  // under and is unchanged by the strength. A surface that PRINTS the area name
+  // asks for the claim instead, because the radius is how far the list reaches
+  // and not a statement that a pub is in that place.
+  const claim = venueAreaClaim({ longitude, latitude }, areas);
+  return claim.area === null ? null : (claim.area as NightArea);
 }
 
 /**

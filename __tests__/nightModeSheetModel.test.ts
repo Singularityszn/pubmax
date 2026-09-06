@@ -65,6 +65,7 @@ const middleSignal: PlanGetInStopDTO = {
     fit: "uncertain",
     label: "Could be tight",
     reason: "Group fit is uncertain.",
+    confidence: "unknown",
   },
   booking: {
     available: false,

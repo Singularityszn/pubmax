@@ -414,17 +414,35 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .todayPintLink:hover .todayPintName {
+  /* The NAME alone, never the whole label: text decoration propagates to
+     in-flow children, so underlining .todayPintName would drag the "just
+     outside" qualifier under with it and no child rule could cancel that. */
+  .todayPintLink:hover .todayPintNameText {
     text-decoration: underline;
     text-underline-offset: 3px;
   }
 }
 
 .todayPintName {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
   font-size: 0.9rem;
   font-weight: 650;
   line-height: 1.25;
   color: var(--ink);
+}
+
+/* The heading names the area; this row only sits NEAR it. A quiet qualifier,
+   never a coloured badge and never a second plaque: the price plaque already
+   owns the right of this row, and a band colour may only ever mean price. */
+.todayPintNearby {
+  flex: none;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-text-muted);
 }
 
 /* A PriceBadge plaque wearing its band (lib/priceBand.ts): red expensive,

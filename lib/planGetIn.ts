@@ -17,6 +17,7 @@ import {
   type GroupFit,
 } from "@/lib/busyness";
 import type { PlanState } from "@/lib/plan";
+import type { GetInConfidence } from "@/lib/venueTruth";
 
 // Minimal shape this module needs from a venue record — deliberately narrower
 // than lib/venues.ts's full Venue type so callers (and tests) don't have to
@@ -47,6 +48,8 @@ export type PlanGetInStopDTO = {
     fit: GroupFit;
     label: string;
     reason: string;
+    /** What the answer is worth (lib/venueTruth.ts). Never a guess wearing a word. */
+    confidence: GetInConfidence;
   };
   booking: {
     available: boolean;
@@ -83,6 +86,15 @@ export async function planGetInReport(
         groupSize,
         level: busyness.level,
         hasBookingLink: booking.available,
+        // The Plan lane holds no opening hours and no door reports, so this is
+        // exactly the evidence `estimateBusyness` just read: an unknown door
+        // and a clock heuristic. Naming it is what stops the answer claiming a
+        // confidence it does not have.
+        evidence: {
+          openState: busyness.isOpen,
+          reportCount: busyness.reportCount,
+          busynessSource: busyness.source,
+        },
         now,
         timeZone: "Europe/London",
       });
@@ -103,6 +115,7 @@ export async function planGetInReport(
           fit: getIn.fit,
           label: getIn.label,
           reason: getIn.reason,
+          confidence: getIn.confidence,
         },
         booking: {
           available: booking.available,

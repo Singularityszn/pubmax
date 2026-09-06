@@ -1,4 +1,10 @@
 import { firstHttp } from "@/lib/httpUrl";
+import {
+  GET_IN_CONFIDENCE_LINE,
+  getInConfidence,
+  type GetInConfidence,
+  type GetInEvidence,
+} from "@/lib/venueTruth";
 
 export type BusynessLevel = "quiet" | "moderate" | "busy" | "rammed";
 export type BusynessSource = "typical-pattern" | "community-report";
@@ -50,6 +56,9 @@ const GROUP_SIZE_WORDS = [
   "Twelve",
 ];
 const REPORT_FRESHNESS_MS = 90 * 60 * 1_000;
+
+/** One label for every answer that cannot claim a positive fit. */
+export const GET_IN_CHECK_LABEL = "Check before going";
 
 // "Four of you" reads honest and specific; past a dozen, spell it as a
 // numeral rather than reaching for words nobody says out loud.
@@ -197,22 +206,48 @@ export function estimateBusyness(input: {
   };
 }
 
-export type GroupFit = "likely" | "uncertain" | "unlikely" | "book-ahead";
+/**
+ * `unknown` is not a fifth degree of confidence. It is the answer when we
+ * cannot say the door is open, and it sits apart from `uncertain`, which is a
+ * real reading about a group that may be too big for the room.
+ */
+export type GroupFit = "likely" | "uncertain" | "unlikely" | "book-ahead" | "unknown";
 
+export type GroupFitAnswer = {
+  fit: GroupFit;
+  label: string;
+  reason: string;
+  /** What the answer is worth (lib/venueTruth.ts). */
+  confidence: GetInConfidence;
+};
+
+/**
+ * Whether this crew is likely to get in.
+ *
+ * A POSITIVE answer is gated on evidence, which is finding F03(c): production
+ * answered "Two of you should get in fine" over a pub whose opening hours are
+ * unknown and which nobody had reported on. The size-based answers below are
+ * honest whatever the evidence says, because they are about the group rather
+ * than the door, so only the positive branch is gated.
+ */
 export function canGroupGetIn(input: {
   groupSize: number;
   level: BusynessLevel;
   hasBookingLink: boolean;
+  /** What stands behind the busyness reading. */
+  evidence: GetInEvidence;
   /** Drives the day-name in the "likely" reason copy. Defaults to now/London. */
   now?: Date;
   timeZone?: string;
-}): { fit: GroupFit; label: string; reason: string } {
+}): GroupFitAnswer {
+  const confidence = getInConfidence(input.evidence);
   const groupSize = Math.max(1, Math.min(30, Math.round(input.groupSize) || 1));
   if (input.hasBookingLink && groupSize >= 6 && ["busy", "rammed"].includes(input.level)) {
     return {
       fit: "book-ahead",
       label: "Book ahead",
       reason: `A group of ${groupSize} should book rather than rely on this estimate.`,
+      confidence,
     };
   }
   if (groupSize >= 8 && ["busy", "rammed"].includes(input.level)) {
@@ -220,6 +255,7 @@ export function canGroupGetIn(input: {
       fit: "unlikely",
       label: "Call ahead",
       reason: `A group of ${groupSize} may struggle at a usually busy time.`,
+      confidence,
     };
   }
   if (groupSize >= 6 || input.level === "rammed") {
@@ -227,6 +263,25 @@ export function canGroupGetIn(input: {
       fit: "uncertain",
       label: "Check before you go",
       reason: "Entry is uncertain; the venue has not confirmed space.",
+      confidence,
+    };
+  }
+  // THE GATE. Without an open door and somebody who looked, the only honest
+  // answer is that we do not know, and the reason says which half is missing.
+  if (confidence === "unknown") {
+    return {
+      fit: "unknown",
+      label: GET_IN_CHECK_LABEL,
+      reason: GET_IN_CONFIDENCE_LINE.unknown,
+      confidence,
+    };
+  }
+  if (confidence === "pattern-only") {
+    return {
+      fit: "uncertain",
+      label: GET_IN_CHECK_LABEL,
+      reason: `Nobody has reported this room tonight. ${GET_IN_CONFIDENCE_LINE["pattern-only"]}`,
+      confidence,
     };
   }
   const dayName =
@@ -235,6 +290,7 @@ export function canGroupGetIn(input: {
     fit: "likely",
     label: "Likely workable",
     reason: `${groupSizeWords(groupSize)} should get in fine, but no promises on a ${dayName}. If it matters, book.`,
+    confidence,
   };
 }
 

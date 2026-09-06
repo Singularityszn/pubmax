@@ -69,6 +69,65 @@ describe("GET /api/venue/[id]", () => {
     }
   });
 
+  // THE VENUE TRUTH CONTRACT ON THE WIRE (Astra finding F03). The response used
+  // to carry four unvalidated contact columns per source row, all-false
+  // amenities over blank columns, and a "likely" get-in over an unknown door.
+  it("publishes a sanitized contact contract and no raw contact columns", async () => {
+    // The audited pub: its phone column holds a website URL with a globe emoji.
+    const res = await GET(
+      new Request("http://localhost/api/venue/venue-p7p18j"),
+      ctx("venue-p7p18j"),
+    );
+    const body = await res.json();
+    expect(res.status).toBe(200);
+
+    expect(body.venue.contacts).toBeDefined();
+    expect(body.venue.contacts.phoneNumber).toBeNull();
+    expect(body.venue.contacts.phoneHref).toBeNull();
+    expect(body.venue.contacts.websiteHref).toBe("https://www.lsesu.com/social/three-tuns/");
+
+    for (const row of body.venue.prices) {
+      expect(row).not.toHaveProperty("phone_number");
+      expect(row).not.toHaveProperty("email");
+      expect(row).not.toHaveProperty("website");
+      expect(row).not.toHaveProperty("booking_link");
+    }
+    // Nothing anywhere in the body may look like a dialable value built from
+    // something that is not a telephone number.
+    expect(JSON.stringify(body)).not.toContain("tel:");
+  });
+
+  it("says what the source states about each amenity, and never invents a No", async () => {
+    const res = await GET(
+      new Request("http://localhost/api/venue/venue-p7p18j"),
+      ctx("venue-p7p18j"),
+    );
+    const body = await res.json();
+    expect(body.venue.amenityStatus).toBeDefined();
+    // Every column on this pub is blank, so every answer is unknown and not one
+    // is false. The booleans stay for the filter machinery that already reads a
+    // false as "not known to be true".
+    for (const [key, status] of Object.entries(body.venue.amenityStatus)) {
+      expect(status, key).toBe("unknown");
+    }
+  });
+
+  it("will not say a group is likely to get in over an unknown door", async () => {
+    const res = await GET(
+      new Request("http://localhost/api/venue/venue-p7p18j?groupSize=2"),
+      ctx("venue-p7p18j"),
+    );
+    const body = await res.json();
+    // The route holds no opening hours and no door reports for any pub today,
+    // so the honest answer is that we cannot say.
+    expect(body.busyness.isOpen).toBe("unknown");
+    expect(body.busyness.reportCount).toBe(0);
+    expect(body.getIn.fit).toBe("unknown");
+    expect(body.getIn.confidence).toBe("unknown");
+    expect(body.getIn.label).toBe("Check before going");
+    expect(body.getIn.reason).not.toContain("should get in fine");
+  });
+
   it("returns a friendly 404 for an unknown venue id", async () => {
     const res = await GET(
       new Request("http://localhost/api/venue/venue-does-not-exist"),
