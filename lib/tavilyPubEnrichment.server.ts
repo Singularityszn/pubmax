@@ -80,8 +80,8 @@ export type ScheduledCityEnrichment = TavilyEnrichmentResult & {
    * spend wrote nothing, and "we did not write" is not "we wrote to memory".
    * This is OBSERVED from the writes rather than inferred from credentials,
    * because the store falls back to memory when the table is absent and the
-   * old claim (`isSupabaseConfigured()`) reported a durable checkpoint over a
-   * queue that dies with the function instance.
+   * old credentials check reported a durable checkpoint over a queue that dies
+   * with the function instance.
    */
   checkpointDurable?: boolean | null;
   /** Whether this deployment is CONFIGURED for a durable checkpoint. */
