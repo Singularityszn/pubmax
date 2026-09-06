@@ -174,8 +174,16 @@ describe("governed drink brand by Night Area landing page", () => {
     expect(html.match(/Publisher not recorded/g)).toHaveLength(3);
     expect(html.match(/drinkBrandDirectory__fromPublisher/g)).toHaveLength(1);
     expect(html.match(/drinkBrandDirectory__publisher\b/g)).toHaveLength(2);
-    expect(html).not.toContain('target="_blank"');
-    expect(html).not.toContain('href="http');
+    // The area photograph's credit is the ONE thing on this page that links
+    // out, and it is a claim about the picture (lib/landingImagery.ts) rather
+    // than about a price. Strip it, then hold the whole of the rest of the
+    // document to naming no source at all.
+    const withoutPhotoCredit = html.replace(
+      /<p class="landingPhotoCredit">[\s\S]*?<\/p>/,
+      "",
+    );
+    expect(withoutPhotoCredit).not.toContain('target="_blank"');
+    expect(withoutPhotoCredit).not.toContain('href="http');
   });
 
   it("drops a sel the map cannot resolve from the arrival and the row action", () => {
