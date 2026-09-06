@@ -21,10 +21,15 @@
   box-sizing: border-box;
 }
 
+/* Family and size, never the shorthand: `font: inherit` resets weight too,
+   and this sheet loads after components/ui/screen.css, so it stripped the
+   700 off the head's Send (measured 6 Sep 2026 at 390 and 1440: 16px/400
+   on the one painted control of the page). */
 .palChat button,
 .palChat input,
 .palChat a {
-  font: inherit;
+  font-family: inherit;
+  font-size: inherit;
 }
 
 .palChat button,
@@ -447,16 +452,18 @@
 
 /* The head's Send is the one filled control on this page, so the inline
    arrow beside the field is a bordered secondary. */
+/* The page's one painted control: the composer's own submit, a circular icon
+   control (so it keeps the pill) in the action accent. */
 .palChatSend {
   flex: 0 0 auto;
   width: 3rem;
   height: 3rem;
   display: grid;
   place-items: center;
-  border: 1px solid var(--line);
+  border: 1px solid transparent;
   border-radius: 50%;
-  background: var(--panel);
-  color: var(--ink);
+  background: var(--accent-action);
+  color: var(--color-on-accent);
   cursor: pointer;
   transition:
     background var(--duration-base, 0.18s) var(--ease-out, ease-out),
@@ -464,8 +471,13 @@
 }
 
 .palChatSend:hover:not(:disabled) {
-  border-color: var(--brass);
-  color: var(--brass);
+  background: var(--accent-action-strong);
+  color: var(--color-on-accent-strong);
+}
+
+.palChatSend:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .palChatSend:active:not(:disabled) {

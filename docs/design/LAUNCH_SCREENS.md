@@ -33,9 +33,9 @@ Rules the table obeys:
 | `/plan` | Sort the outing | Describe the outing. We'll put it in order. | Sort it (submit the ask) | Guide me instead |
 | `/plan/[id]` | Your plan | (the plan's own name) | Send to the crew | Open the map |
 | `/pal` | Your Pub Pal | A little signal that becomes yours. | Meet your Pub Pal | Back to the map |
-| `/pal/chat` | Your Pub Pal | (the Pal's name) | Send | Plan with the Pal |
+| `/pal/chat` | Your Pub Pal | (the Pal's name) | the composer's own submit (Ask), beside the field; the head paints none | Back to your Pub Pal |
 | `/u/you` and `/u/[handle]` | You (or the handle) | (the display name) | Edit profile (owner) or Follow (visitor) | Share |
-| `/login` | Sign in | Welcome back (or: Make an account) | Send the link | Use a password |
+| `/login` | Sign in | Welcome back (or: Make an account) | the email form's own submit (Email me a sign-in link), beside the field; the head paints none while the form is on screen | Use a password |
 | `/choose-city` | Places | Pick a city. | London | Browse pubs across the UK |
 | `/discover` | Discover | Pint prices, pub stories and routes worth walking. | Open the map | Find my pint |
 | `/pubs` | Pubs | Every pub on record. | Open the map | Find my pint |

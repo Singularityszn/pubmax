@@ -268,19 +268,9 @@
   gap: 0.5rem;
 }
 
-/* The head's Screen paints the one filled control on this page, so the email
-   form's own submit, shared with the nav popover, is a bordered secondary here. */
-.loginPageForm .authSignIn.authMagicLinkButton {
-  border-color: var(--line);
-  background: var(--panel);
-  color: var(--ink);
-}
-
-.loginPageForm .authSignIn.authMagicLinkButton:hover:not(:disabled) {
-  border-color: var(--brass);
-  background: var(--panel);
-  color: var(--brass);
-}
+/* The email form's own submit is the page's ONE painted control (captain's
+   ruling, 7 Sep 2026), so it keeps the accent fill app/auth/auth.css gives it;
+   the head paints nothing while the form is on screen. */
 
 .loginPageSignOut {
   width: 100%;

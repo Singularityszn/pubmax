@@ -185,6 +185,7 @@ import ContributorRecord from "@/components/contributors/ContributorRecord";
 import PrivacyPage from "@/app/privacy/page";
 import TermsPage from "@/app/terms/page";
 import LoginPage from "@/components/auth/LoginPage";
+import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import ProfilePageClient from "@/app/u/[handle]/ProfilePageClient";
 import PlanPage from "@/app/plan/[id]/page";
 import PalChat from "@/components/pal/PalChat";
@@ -291,10 +292,27 @@ describe("launch routes (group d) carry one primary action", () => {
     expect(rendered).toMatch(/<p class="kicker">Small print<\/p><h1/);
   });
 
-  it("/login carries one primary action", () => {
+  it("/login paints no door until the session answers, and then the form's own submit", () => {
+    // A form screen's one painted control is the form's own submit, beside the
+    // field it submits (captain's ruling, 7 Sep 2026). The static render is the
+    // skeleton state, before the session answers, so no door is painted yet.
     const rendered = renderToStaticMarkup(createElement(LoginPage));
-    expect(primaryCount(rendered)).toBe(1);
-    expect(rendered).toMatch(/data-primary-action=""><button type="button"[^>]*>Send the link<\/button>/);
+    expect(primaryCount(rendered)).toBe(0);
+    expect(rendered).not.toContain("Send the link");
+    const form = renderToStaticMarkup(
+      createElement(MagicLinkForm, {
+        disabled: false,
+        hasSocialProviders: false,
+        signInWithEmail: async () => ({ status: "sent" as const, message: "" }),
+        cancelAuthAttempt: () => {},
+        submitLabel: "Email me a sign-in link",
+        primaryAction: true,
+      }),
+    );
+    expect(primaryCount(form)).toBe(1);
+    expect(form).toMatch(
+      /<button type="submit" class="authSignIn authMagicLinkButton" data-primary-action=""[^>]*>.*Email me a sign-in link<\/button>/,
+    );
     // The head names nobody until the live session answers.
     expect(rendered).toContain("Sign in or create your account");
     expect(rendered).not.toContain("Welcome back");
@@ -326,10 +344,13 @@ describe("launch routes (group d) carry one primary action", () => {
     expect(rendered).toMatch(/class="screenSecondary"><a[^>]*href="\/plan"[^>]*>Make another plan<\/a>/);
   });
 
-  it("/pal/chat carries one primary action", () => {
+  it("/pal/chat carries one primary action, and it is the composer's own submit", () => {
     const rendered = renderToStaticMarkup(createElement(PalChat));
     expect(primaryCount(rendered)).toBe(1);
-    expect(rendered).toMatch(/data-primary-action=""><button type="button">Send<\/button>/);
+    expect(rendered).toMatch(
+      /<button type="submit" class="palChatSend pressable" data-primary-action=""/,
+    );
+    expect(rendered).not.toMatch(/class="screenPrimary"/);
     expect(rendered).toMatch(/class="screenSecondary"><a[^>]*href="\/pal"[^>]*>Back to your Pub Pal<\/a>/);
   });
 });

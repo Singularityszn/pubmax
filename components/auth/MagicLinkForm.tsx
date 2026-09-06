@@ -17,6 +17,7 @@ export default function MagicLinkForm({
   cancelAuthAttempt,
   label,
   submitLabel,
+  primaryAction = false,
 }: {
   disabled: boolean;
   hasSocialProviders: boolean;
@@ -26,6 +27,12 @@ export default function MagicLinkForm({
   label?: string;
   /** Overrides the idle button label for the same reason. */
   submitLabel?: string;
+  /**
+   * On /login this submit is the page's ONE painted control, so it carries the
+   * launch-screen marker; the nav popover mounts the same form beside a page
+   * that already has a primary and passes nothing.
+   */
+  primaryAction?: boolean;
 }): React.JSX.Element {
   const inputId = useId();
   const messageId = useId();
@@ -83,6 +90,7 @@ export default function MagicLinkForm({
         <button
           type="submit"
           className="authSignIn authMagicLinkButton"
+          data-primary-action={primaryAction ? "" : undefined}
           disabled={!valid || disabled || status === "sending" || status === "sent"}
         >
           <Mail size={18} aria-hidden="true" />
