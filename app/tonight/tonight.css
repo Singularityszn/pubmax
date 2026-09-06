@@ -42,12 +42,13 @@
   padding-top: var(--space-3);
 }
 
-/* The credit lines and the share control, directly under the head. */
+/* The credit lines and the share control, directly under the listings they are
+   about (app/tonight/TonightClient.tsx says why they left the head). */
 .tonightHeadCredits {
   display: grid;
   justify-items: start;
   gap: 8px;
-  margin: 0 0 20px;
+  margin: 20px 0 0;
 }
 
 .tonightShare {
@@ -274,15 +275,37 @@
 /* Vibe picker shell (docs/VIBE_LAYER_SPEC_2026-07-19.md). Chip skin lives in
    components/vibe/vibeChips.css; this file keeps Tonight-only spacing. */
 .tonightVibes {
-  margin: 0 0 18px;
+  margin: 24px 0 0;
 }
 
-/* Filter chips — derived from the kinds actually present tonight. */
+/* Filter chips - derived from the kinds actually present tonight. This is the
+   list's OWN control, so it is the one refinement that stays above the list.
+   On a phone it scrolls sideways rather than wrapping: four kinds wrapped to two
+   44px rows at 320px, and a second row of chips is 52px of the reading area the
+   first listing needs. Every chip keeps its 44px target and stays a tab stop,
+   so the browser scrolls a focused chip into view. */
 .tonightFilters {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin: 0 0 16px;
+}
+
+@media (max-width: 640px) {
+  .tonightFilters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .tonightFilters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tonightFilters > .tonightChip {
+    flex: none;
+  }
 }
 
 .tonightChip {
@@ -792,23 +815,26 @@
     grid-row: 1;
   }
 
-  .tonightDesktopGrid > .tonightHeadCredits {
-    grid-column: 1;
-    grid-row: 2;
-  }
-
   .tonightDesktopGrid > .tonightPrimary {
     display: block;
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 2;
     min-width: 0;
   }
 
   .tonightDesktopGrid > .tonightAfterPrimary {
     display: block;
     grid-column: 1;
-    grid-row: 4;
+    grid-row: 3;
     min-width: 0;
+  }
+
+  /* The way-onward row ends the primary column, the same place it ends the
+     phone. One composition at every width, so the tab order never disagrees
+     with the paint order. */
+  .tonightDesktopGrid > .screenActions {
+    grid-column: 1;
+    grid-row: 4;
   }
 
   .tonightDesktopGrid > .tonightContext {

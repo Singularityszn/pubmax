@@ -21,6 +21,15 @@ import "./screen.css";
  *
  * The lede is optional and usually absent. Add one only where it prevents a
  * misunderstanding, never to repeat the heading.
+ *
+ * `actionsAfterContent` moves that row to the end of the screen. A screen whose
+ * own content IS the answer must not make a phone read two doors before the
+ * thing they lead away from: on /tonight the head, the credits and the
+ * refinement chips put the first listing 868px down a 788px reading area at
+ * 390x844, so a reader met no listing at all. It is a DOM move and not a CSS
+ * `order`, so the reading order, the tab order and the paint order stay one
+ * order at every width. Reach for it only where the content is the answer, and
+ * never to seat a second primary.
  */
 export default function Screen({
   kicker,
@@ -29,6 +38,7 @@ export default function Screen({
   answer,
   primary,
   secondary,
+  actionsAfterContent = false,
   children,
   as: Tag = "section",
   headingLevel = 1,
@@ -59,6 +69,11 @@ export default function Screen({
    * both doors read alike; every other screen still passes one.
    */
   secondary?: ReactElement;
+  /**
+   * Render the way-onward row after `children` instead of inside the head.
+   * Default false, so every other screen keeps the head it has.
+   */
+  actionsAfterContent?: boolean;
   children?: ReactNode;
   as?: "section" | "main" | "div";
   /** 1 for a route's own head; 2 when the Screen is a section inside a page. */
@@ -69,6 +84,22 @@ export default function Screen({
 }) {
   const Heading = headingLevel === 2 ? "h2" : "h1";
   const classes = ["screen", className].filter(Boolean).join(" ");
+  // One definition of the row, so the two placements cannot drift apart and
+  // the screen still paints exactly one primary either way.
+  const actions = (
+    <div
+      className={
+        actionsAfterContent
+          ? "screenActions screenActionsAfterContent"
+          : "screenActions"
+      }
+    >
+      <div className="screenPrimary" data-primary-action="">
+        {primary}
+      </div>
+      {secondary ? <div className="screenSecondary">{secondary}</div> : null}
+    </div>
+  );
   return (
     <Tag className={classes} id={id} aria-labelledby={titleId}>
       <header className="screenHead">
@@ -78,14 +109,10 @@ export default function Screen({
         </Heading>
         {lede ? <p className="screenLede">{lede}</p> : null}
         {answer ? <div className="screenAnswer">{answer}</div> : null}
-        <div className="screenActions">
-          <div className="screenPrimary" data-primary-action="">
-            {primary}
-          </div>
-          {secondary ? <div className="screenSecondary">{secondary}</div> : null}
-        </div>
+        {actionsAfterContent ? null : actions}
       </header>
       {children}
+      {actionsAfterContent ? actions : null}
     </Tag>
   );
 }
