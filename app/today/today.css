@@ -7,12 +7,17 @@
 .todayPage {
   max-width: var(--content-max);
   margin: 0 auto;
-  /* Top inset clears the iOS status bar in the installed/native shells, where
-     viewport-fit=cover puts the page under the clock. env() is 0 in an ordinary
-     browser, so the web layout keeps its 12px. Bottom matches the tab bar +
-     home-indicator so the last card is never trapped under the bar (same seam
-     as /tonight and components/nav/mobileNav.css --tabbar-h). */
-  padding: calc(12px + env(safe-area-inset-top, 0px)) var(--page-gutter)
+  /* Bottom matches the tab bar + home-indicator so the last card is never
+     trapped under the bar (same seam as /tonight and
+     components/nav/mobileNav.css --tabbar-h). */
+  /* A FLAT top, never the safe-area inset: SiteNav is this page's first child
+     and the bar already adds env(safe-area-inset-top) through
+     .siteNavBar:not(.siteNavBarFloating){margin-top}, so adding it here again
+     doubled the clock's clearance inside the native shells and the installed
+     PWA (59px twice on an iPhone 17 Pro) while an ordinary browser, where
+     env() is 0, never showed it. 10px + the bar's own inset lands the bar on
+     the same rect /tonight and the map use. */
+  padding: 10px var(--page-gutter)
     calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 24px);
   color: var(--ink);
 }

@@ -3,12 +3,18 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 
-type Theme = "light" | "dark";
+import {
+  THEME_STORAGE_KEY,
+  resolveThemePreference,
+  storedThemePreference,
+  type ThemePreference,
+} from "@/lib/themePreference";
+
+type Theme = ThemePreference;
 
 function storedTheme(): Theme | null {
   if (typeof localStorage === "undefined") return null;
-  const t = localStorage.getItem("pubmax-theme");
-  return t === "light" || t === "dark" ? t : null;
+  return storedThemePreference(localStorage);
 }
 
 function domTheme(): Theme {
@@ -51,16 +57,16 @@ export default function ThemeToggle({ floating = false }: { floating?: boolean }
   // setState — so it doesn't trip react-hooks/set-state-in-effect). The
   // MutationObserver above then re-reads it, so the icon resolves too.
   useEffect(() => {
-    const t =
-      storedTheme() ??
-      (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    document.documentElement.dataset.theme = t;
+    document.documentElement.dataset.theme = resolveThemePreference(
+      storedTheme(),
+      window.matchMedia("(prefers-color-scheme: dark)").matches,
+    );
   }, []);
 
   function toggle() {
     const next: Theme = domTheme() === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
-    localStorage.setItem("pubmax-theme", next);
+    localStorage.setItem(THEME_STORAGE_KEY, next);
   }
 
   return (
