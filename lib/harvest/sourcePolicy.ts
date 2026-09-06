@@ -436,6 +436,78 @@ const REFUSED_HOSTS = new Set([
   ...REFUSED_ESTATE_HOSTS,
 ]);
 
+/**
+ * Hostname shapes that name THIS MACHINE or the network it sits on rather than
+ * a pub's website.
+ *
+ * A menu URL is not something we typed: it arrives from
+ * `harvest_venue_overlays.menu_url`, from a pub's OSM `website` tag, or from a
+ * link on a page we crawled. So it is caller-influenced input reaching a
+ * server-side fetch, and a loopback, link-local or private address there asks
+ * our own infrastructure a question in the name of a pub. The cloud metadata
+ * address (169.254.169.254) is the sharpest case and the reason this is a
+ * REFUSAL rather than an ordinary miss.
+ */
+function namesOurOwnNetwork(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  if (host === "localhost" || host.endsWith(".localhost")) return true;
+  if (host === "::1" || host.startsWith("fc") || host.startsWith("fd")) return true;
+  if (host.endsWith(".local") || host.endsWith(".internal")) return true;
+  const octets = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (!octets) return false;
+  const [first, second] = octets.slice(1).map(Number);
+  if (first === undefined || second === undefined) return false;
+  if (first === 0 || first === 127) return true;
+  if (first === 10) return true;
+  if (first === 169 && second === 254) return true;
+  if (first === 172 && second >= 16 && second <= 31) return true;
+  if (first === 192 && second === 168) return true;
+  return false;
+}
+
+/**
+ * True when the hostname IS a refused host or sits UNDER one.
+ *
+ * A refusal is about an operator, not about one string: `tobycarvery.co.uk`
+ * and `menu.tobycarvery.co.uk` are the same estate answering the same way, so
+ * refusing only the exact spelling would let every refused estate back in
+ * through a subdomain while the table still claimed to hold it out.
+ */
+function underRefusedHost(hostname: string): boolean {
+  const host = hostname.replace(/^www\./, "");
+  if (REFUSED_HOSTS.has(host)) return true;
+  for (const refused of REFUSED_HOSTS) {
+    if (host.endsWith(`.${refused}`)) return true;
+  }
+  return false;
+}
+
+/**
+ * What a crawl lane may do with the page a redirect chain LANDED on.
+ *
+ * `redirect: "follow"` means the host, not us, chooses the last hop, so the
+ * permission we asked about is not necessarily the permission we spent. Both
+ * price lanes carried the landed URL already and read it with nothing; this is
+ * the rule they read it with, in one place, so the two cannot drift.
+ *
+ * `refused` means the chain left the allow-list and the page is not ours to
+ * read. `redirected` means it stayed inside and the row's provenance should
+ * name where the words actually were, not where we knocked.
+ */
+export type HarvestRedirectLanding =
+  | { outcome: "same"; url: string }
+  | { outcome: "redirected"; url: string }
+  | { outcome: "refused"; url: string };
+
+export function harvestRedirectLanding(
+  askedUrl: string,
+  landedUrl: string | null | undefined,
+): HarvestRedirectLanding {
+  const landed = typeof landedUrl === "string" && landedUrl.trim() ? landedUrl.trim() : askedUrl;
+  if (!isHarvestableOperatorUrl(landed)) return { outcome: "refused", url: landed };
+  return { outcome: landed === askedUrl ? "same" : "redirected", url: landed };
+}
+
 export function isHarvestableOperatorUrl(value: unknown): value is string {
   if (typeof value !== "string" || value.trim().length === 0) return false;
   let url: URL;
@@ -445,7 +517,11 @@ export function isHarvestableOperatorUrl(value: unknown): value is string {
     return false;
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") return false;
-  return !REFUSED_HOSTS.has(url.hostname.replace(/^www\./, ""));
+  // Credentials in a URL are sent to whatever the URL names, so a harvested one
+  // is somebody else's secret heading for somebody else's host.
+  if (url.username || url.password) return false;
+  if (namesOurOwnNetwork(url.hostname)) return false;
+  return !underRefusedHost(url.hostname);
 }
 
 /**

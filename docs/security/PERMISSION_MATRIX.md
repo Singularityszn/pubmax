@@ -1,23 +1,47 @@
 # Permission matrix
 
-What each actor may do with a private Plan, a private Moment and its upload
-object, a price observation and its confirmation, moderator actions and
-account deletion. The executable owner is
+What each actor may do with a private Plan, a Social Crew, a private
+conversation and its attachment, a private Moment and its upload object, a
+photo tag, a save, a price observation and its confirmation, moderator actions,
+account deletion and the data export. The executable owner is
 `__tests__/permissionMatrixEffective.test.ts` (run by `npm run test:rls`): it
 boots PostgreSQL 16 plus PostgREST, applies every migration in production
 order, and asserts every cell below at the API route and, where a browser JWT
 could reach the table, at the table. Change a policy and change this file in
 the same commit.
 
+**Why the route door carries the weight.** Astra's delta audit (6 September
+2026, F07) read the Supabase advisor and reported `rls_enabled_no_policy` on a
+set of tables that are service-mediated by design, the Social Crew family among
+them. A table with RLS on and no policy is refused to every browser role, which
+is the strongest table answer there is; what it does not say is whether the
+route in front of it gates correctly, because the route holds the service-role
+key and RLS never runs for it. The answer to that advisory is not a policy. It
+is this file, asserted per role, per resource, with reads and writes separated.
+
+**Three rules every denied cell is held to.** A refusal answers the honest
+status. It discloses no protected value, asserted over the whole serialized
+body rather than over the fields a reader remembered to check. And it has no
+side effect, asserted as a truth read of the row it was aimed at, taken either
+side of the attempt. A resource id that names nothing must answer exactly as
+one that belongs to somebody else, or the refusal is an existence oracle.
+
 ## Actors and doors
 
 | Actor | How it reaches the app |
 | --- | --- |
 | anonymous | no bearer, or the anon key alone |
-| user A (alice) | her Supabase access token; owns everything private below |
-| user B (bob) | his Supabase access token; an unrelated signed-in account |
+| owner (alice) | her Supabase access token; owns everything private below |
+| invited participant (bob) | holds a pending Crew invitation, then a seat, then is removed |
+| unrelated user (dave) | a signed-in account with no relationship to anything here |
+| blocked user (carol) | a mutual follower of the owner whom the owner has blocked |
+| guest (device RSVP) | a Plan seat with a capability token and no account behind it |
 | capability | a Plan member token or invite token, which is not an identity |
-| moderator | the `ADMIN_TOKEN` credential, never ownership |
+| staff (moderator) | the `ADMIN_TOKEN` credential, never ownership |
+
+Carol differs from Bob by the block alone: both are mutual followers of the
+owner, so a cell that refuses Carol is measuring the block rather than a
+missing follow.
 
 Two doors. The API route runs through the service-role client and gates in
 code. The table is what a browser JWT can read through PostgREST, gated by RLS.
@@ -52,7 +76,33 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Hidden rows and `actor` or `hidden_at` columns at the table | denied | denied | denied | n/a |
 | Moderator confirm, restore, review lanes, hide a price | 403 | 403 | 403 | `ADMIN_TOKEN` only |
 | Delete account (`DELETE /api/account`) | 401 | own account only, whatever the body names | own account only | n/a |
-| Export account data | no route exists | no route exists | no route exists | n/a |
+| Export account data (`GET /api/account/export`) | 401 | own account only, whatever the query names | own account only | not an identity: 401 |
+
+## Cells added for the wider roles
+
+The column here is the ROLE rather than the account, because these resources
+are where the roles differ. Denied is the honest refusal plus no disclosure and
+no side effect, as above.
+
+| Cell | anonymous | unrelated | blocked | invited (pending) | member | removed member | owner |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Raise a Crew over a Plan (`POST /api/social/crews`) | denied | denied, Plan untouched | n/a | n/a | n/a | n/a | host seat only |
+| Read a Crew (`GET /api/social/crews/[crewId]`) | denied | denied | denied | denied | allowed | denied, immediately | allowed |
+| Invite to a Crew | denied | denied | may not be invited | denied | denied | denied | allowed |
+| Spend an invitation (`PATCH .../invitations/[id]`) | denied | denied, invitation stays pending | denied | allowed, once | n/a | spent invitation is not a way back | n/a |
+| Change a Crew's visibility, remove a member | denied | denied | denied | denied | denied | denied | allowed |
+| Crew tables and Crew RPCs at the table | denied | denied | denied | denied | denied | denied | denied |
+| Read a conversation (`GET /api/messages/[id]`) | 401 | own empty thread; naming a participant is refused | same as unrelated | n/a | n/a | n/a | allowed to both participants |
+| Send into a conversation | denied | denied, thread does not grow | denied | n/a | n/a | n/a | allowed |
+| `conversations`, `messages` at the table | denied | no rows | no rows | n/a | n/a | n/a | participant rows, SELECT only |
+| A message photo (`GET .../photo/[messageId]`) | denied | denied | denied | n/a | n/a | n/a | participant only |
+| A reported message's attachment | gone from the thread and from the serving door, for its own participants |||||||
+| Photo tag inbox (`GET /api/social/tags`) | 401 | own lane only | own lane only | n/a | n/a | n/a | own lane only |
+| Read a Wanted (`GET /api/wanted`) | 401 | own list only | own list only | n/a | n/a | n/a | own list only |
+| Read a saved-pub list (`GET /api/saved-pubs`) | public by design |||||||
+| Write a saved-pub list (`POST /api/saved-pubs`) | 403 on a claimed handle | writes to their OWN list, never the named one ||||| allowed |
+| `saved_pubs` at the table | denied | owner rows only, a stranger's write matches nothing ||||| own rows |
+| A device RSVP (capability, no account) | reads the Plan it is a seat on; may not collaborate; names nobody at the inbox, the Wanted list, the export or deletion |||||||
 
 ## Findings from the first run
 
@@ -73,7 +123,82 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
    names a reauthenticated owner; the route deletes the account the verified
    bearer names and reads no target from the body. Recorded as a policy
    question, not changed here.
-4. **No data export route exists.** The cell is not applicable.
+4. **No data export route exists.** Superseded: `GET /api/account/export`
+   shipped afterwards and is now a cell, gated on the caller's own bearer.
+
+## Findings from the wider run (6 September 2026)
+
+1. **Nothing in the wider matrix was a hole.** Every role and resource above
+   answered as the design says it should, including the block, the removed
+   member, the spent invitation and the service-only Crew RPCs. Four cells were
+   written wrong on the first pass and the code was right; each is now recorded
+   as the behaviour it actually has, because a matrix that asserts the wrong
+   thing is worse than no matrix.
+2. **The linked handle wins over the asserted one.** `resolveMessageHandle`
+   prefers the handle the caller's account owns, so a signed-in caller naming
+   somebody else's handle at the inbox or the saved-pub door is not refused:
+   they act on their OWN list. Only a caller with no linked profile falls back
+   to the asserted handle, and an anonymous caller asserting a CLAIMED handle is
+   403. The cells assert both halves, because "refused" would have been the
+   wrong claim and "allowed" alone would have hidden which list moved.
+3. **`conversations` and `messages` are no longer deny-all.** Migration 0019
+   created them RLS-on with no policy and says so in its own comment; 0066 then
+   granted SELECT to `authenticated` behind two participant policies. The cell
+   asserts the live rule: a participant reads their own thread, an outsider
+   reads nothing, and SELECT is the whole grant, so the route stays the only way
+   a message is written. The 0019 comment is now the older half of the story.
+4. **An owner policy filters a statement, it does not error it.** A stranger's
+   `update` on somebody's saves succeeds against zero rows. A table cell must
+   therefore assert that nothing MOVED rather than that the statement failed.
+
+## The URL allow-list
+
+`__tests__/harvestUrlAllowList.test.ts` owns the other half of F07, the half
+that is not about accounts: a URL this repository decides to FETCH is
+caller-influenced input reaching a server-side request. Menu URLs come from
+`harvest_venue_overlays.menu_url`, a pub's OSM `website` tag, or a link on a
+page a crawl already read, and the same predicate gates every URL-taking
+Context.dev call, where a passing URL also spends credit.
+
+Three gaps were measured and closed in `isHarvestableOperatorUrl`:
+
+1. **A subdomain of a refused host was harvestable.** `tobycarvery.co.uk` was
+   refused and `menu.tobycarvery.co.uk` was not, so every refused estate had a
+   way back in that the table still claimed to hold shut. A refusal is about an
+   operator, so it now matches on a label boundary. A look-alike domain that
+   merely contains a refused name is a different operator and is unaffected.
+2. **Our own network was harvestable.** `localhost`, `127.0.0.1`, the private
+   ranges and `169.254.169.254` all passed, which is a server-side request to
+   our own infrastructure in the name of a pub.
+3. **Credentials in a URL passed through**, and they are sent to whatever the
+   URL names.
+
+And one gap that a single-URL check cannot see: **a redirect chain was never
+re-asked**. Both price crawl lanes fetch with `redirect: "follow"`, so the HOST
+picks the last hop; both computed a `finalUrl` and handed it to nothing, so a
+permitted site that 30x-ed to a refused one was read in full and the row was
+then stamped with the asked-for URL, naming a page that never stated the price.
+`harvestRedirectLanding` is the one owner of that rule and both lanes read it.
+
+## Password paths, for the leaked-password setting
+
+F07's other half is a Supabase dashboard toggle the captain owns
+(https://supabase.com/docs/guides/auth/password-security). Three password paths
+exist in the product and there is no fourth:
+
+| Path | Where | What sets the password |
+| --- | --- | --- |
+| create | `components/auth/SetAccountPassword.tsx`, mounted in `PubmaxxAccountHub` | `supabase.auth.updateUser({ password })` from a signed-in browser |
+| sign in | `POST /api/auth/handle-password` | GoTrue's password grant; sets nothing |
+| change | `POST /api/auth/change-password/verify`, then the browser's own `updateUser` | GoTrue's password grant proves the old one; `updateUser` sets the new one |
+
+There is **no password reset path and no password signup**: sign-up is the
+email link (`lib/passwordlessAuth.ts`), and nothing in the tree calls
+`resetPasswordForEmail` or `signUp` with a password. So every password this
+product ever stores is written by `auth.updateUser`, which is exactly where
+Supabase's HIBP check runs. Turning leaked-password protection on therefore
+covers both writing paths and costs the sign-in path nothing: an existing
+password is not re-checked at sign-in, so nobody is locked out by the change.
 
 ## Live check, isolated project
 

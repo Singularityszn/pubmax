@@ -46,8 +46,12 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
 const ACTORS = vi.hoisted(() => ({
   ALICE: "a0000000-0000-4000-8000-000000000001",
   BOB: "b0000000-0000-4000-8000-000000000002",
+  CAROL: "c5000000-0000-4000-8000-000000000009",
+  DAVE: "d5000000-0000-4000-8000-00000000000a",
   BEARER_ALICE: "pm-bearer-alice",
   BEARER_BOB: "pm-bearer-bob",
+  BEARER_CAROL: "pm-bearer-carol",
+  BEARER_DAVE: "pm-bearer-dave",
 }));
 vi.mock("@/lib/authServer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/authServer")>();
@@ -55,6 +59,8 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
     const token = actual.bearerToken(request);
     if (token === ACTORS.BEARER_ALICE) return { id: ACTORS.ALICE, email: null, createdAt: null };
     if (token === ACTORS.BEARER_BOB) return { id: ACTORS.BOB, email: null, createdAt: null };
+    if (token === ACTORS.BEARER_CAROL) return { id: ACTORS.CAROL, email: null, createdAt: null };
+    if (token === ACTORS.BEARER_DAVE) return { id: ACTORS.DAVE, email: null, createdAt: null };
     return null;
   };
   return {
@@ -91,9 +97,43 @@ const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
 const V1_RELEASE_NAME = "20260806035204_0070_v1_release_security.sql";
 
-const { ALICE, BOB, BEARER_ALICE, BEARER_BOB } = ACTORS;
+const { ALICE, BOB, CAROL, DAVE, BEARER_ALICE, BEARER_BOB, BEARER_CAROL, BEARER_DAVE } =
+  ACTORS;
 const ALICE_PROFILE = "a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1";
 const BOB_PROFILE = "b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2";
+const CAROL_PROFILE = "c3c3c3c3-c3c3-4c3c-8c3c-c3c3c3c3c3c3";
+const DAVE_PROFILE = "d4d4d4d4-d4d4-4d4d-8d4d-d4d4d4d4d4d4";
+/**
+ * Social product accounts. `provision_social_product_account` mints one on
+ * demand, but the Crew RPCs take an ACCOUNT id and the block table takes a
+ * PROFILE id, so the two are seeded together and named here rather than read
+ * back per cell.
+ */
+const ALICE_ACCOUNT = "a6a6a6a6-a6a6-4a6a-8a6a-a6a6a6a6a6a6";
+const BOB_ACCOUNT = "b6b6b6b6-b6b6-4b6b-8b6b-b6b6b6b6b6b6";
+const CAROL_ACCOUNT = "c6c6c6c6-c6c6-4c6c-8c6c-c6c6c6c6c6c6";
+const DAVE_ACCOUNT = "d6d6d6d6-d6d6-4d6d-8d6d-d6d6d6d6d6d6";
+/**
+ * The Crew's own Plan, separate from `PLAN_ID` on purpose: creating a Crew
+ * CONSUMES a Plan (it stamps `social_owner_account_id`, rotates every seat
+ * token and revokes the open invites), so binding the matrix's private Plan to
+ * a Crew would rewrite the state the Plan cells above are asserted against.
+ */
+const CREW_PLAN_ID = "c7000000-0000-4000-8000-00000000000b";
+const CREW_HOST_MEMBER_ID = "c7100000-0000-4000-8000-00000000000c";
+/** A conversation between Alice and Bob; Carol and Dave are outside it. */
+const CONVERSATION_ID = "f0000000-0000-4000-8000-00000000000d";
+const ALICE_MESSAGE = "f1000000-0000-4000-8000-00000000000e";
+const BOB_MESSAGE = "f2000000-0000-4000-8000-00000000000f";
+const MESSAGE_PHOTO_OBJECT = `messages/${CONVERSATION_ID}/${ALICE_MESSAGE}.jpg`;
+/** An id of the right SHAPE that names nothing: the wrong-resource cell. */
+const UNKNOWN_ID = "00000000-0000-4000-8000-0000000000ff";
+/**
+ * A device RSVP: a Plan seat with a capability token and NO account behind it,
+ * which is how somebody joins a night from a phone without signing up.
+ */
+const GUEST_MEMBER_ID = "c2000000-0000-4000-8000-000000000010";
+const GUEST_TOKEN = "pm-guest-device-token";
 const PLAN_ID = "c0000000-0000-4000-8000-000000000003";
 const HOST_MEMBER_ID = "c1000000-0000-4000-8000-000000000004";
 const HOST_TOKEN = "pm-host-member-token";
@@ -278,6 +318,18 @@ beforeAll(async () => {
     priceSubmitRoute,
     adminPricesRoute,
     accountRoute,
+    accountExportRoute,
+    crewsRoute,
+    crewRoute,
+    crewInvitationsRoute,
+    crewInvitationRoute,
+    crewMembersRoute,
+    messagesRoute,
+    messageThreadRoute,
+    messagePhotoRoute,
+    wantedRoute,
+    savedPubsRoute,
+    tagsRoute,
     planStore,
   ] = await Promise.all([
     import("@/app/api/plans/[id]/route"),
@@ -295,6 +347,18 @@ beforeAll(async () => {
     import("@/app/api/price-submit/route"),
     import("@/app/api/admin/community-prices/route"),
     import("@/app/api/account/route"),
+    import("@/app/api/account/export/route"),
+    import("@/app/api/social/crews/route"),
+    import("@/app/api/social/crews/[crewId]/route"),
+    import("@/app/api/social/crews/[crewId]/invitations/route"),
+    import("@/app/api/social/crews/[crewId]/invitations/[invitationId]/route"),
+    import("@/app/api/social/crews/[crewId]/members/[memberId]/route"),
+    import("@/app/api/messages/route"),
+    import("@/app/api/messages/[id]/route"),
+    import("@/app/api/messages/[id]/photo/[messageId]/route"),
+    import("@/app/api/wanted/route"),
+    import("@/app/api/saved-pubs/route"),
+    import("@/app/api/social/tags/route"),
     import("@/lib/planStore"),
   ]);
   handlers = {
@@ -317,6 +381,25 @@ beforeAll(async () => {
     priceSubmit: priceSubmitRoute.POST as unknown as Handler,
     adminPrices: adminPricesRoute.POST as unknown as Handler,
     deleteAccount: accountRoute.DELETE as unknown as Handler,
+    exportAccount: accountExportRoute.GET as unknown as Handler,
+    createCrew: crewsRoute.POST as unknown as Handler,
+    listCrews: crewsRoute.GET as unknown as Handler,
+    readCrew: crewRoute.GET as Handler,
+    updateCrew: crewRoute.PATCH as Handler,
+    inviteToCrew: crewInvitationsRoute.POST as Handler,
+    decideInvitation: crewInvitationRoute.PATCH as Handler,
+    revokeInvitation: crewInvitationRoute.DELETE as Handler,
+    removeCrewMember: crewMembersRoute.DELETE as Handler,
+    inbox: messagesRoute.GET as unknown as Handler,
+    startConversation: messagesRoute.POST as unknown as Handler,
+    readThread: messageThreadRoute.GET as Handler,
+    writeThread: messageThreadRoute.POST as Handler,
+    messagePhoto: messagePhotoRoute.GET as Handler,
+    listWanted: wantedRoute.GET as unknown as Handler,
+    writeWanted: wantedRoute.POST as unknown as Handler,
+    listSavedPubs: savedPubsRoute.GET as unknown as Handler,
+    writeSavedPub: savedPubsRoute.POST as unknown as Handler,
+    tagInbox: tagsRoute.GET as unknown as Handler,
   };
   hashPlanMemberToken = planStore.hashPlanMemberToken;
 
@@ -326,17 +409,39 @@ beforeAll(async () => {
   };
 
   const seeded = session.sql(`
-    insert into auth.users (id) values ('${ALICE}'), ('${BOB}');
+    insert into auth.users (id) values
+      ('${ALICE}'), ('${BOB}'), ('${CAROL}'), ('${DAVE}');
 
     insert into public.profiles (id, user_id, handle) values
       ('${ALICE_PROFILE}', '${ALICE}', 'alicepm'),
-      ('${BOB_PROFILE}', '${BOB}', 'bobpm');
+      ('${BOB_PROFILE}', '${BOB}', 'bobpm'),
+      ('${CAROL_PROFILE}', '${CAROL}', 'carolpm'),
+      ('${DAVE_PROFILE}', '${DAVE}', 'davepm');
 
-    -- Both accounts are adults on file, so a price lane's onboarding gate is
-    -- never what refuses a cell below.
+    -- Every account is an adult on file, so a price lane's onboarding gate and
+    -- the Social 18+ gate are never what refuses a cell below.
     insert into public.private_account_identities (user_id, date_of_birth) values
       ('${ALICE}', '1990-01-01'),
-      ('${BOB}', '1991-02-02');
+      ('${BOB}', '1991-02-02'),
+      ('${CAROL}', '1992-03-03'),
+      ('${DAVE}', '1993-04-04');
+
+    -- The Social product account each Crew and tag cell acts as.
+    insert into public.private_social_accounts (id, clerk_user_id, supabase_user_id, profile_id) values
+      ('${ALICE_ACCOUNT}', 'pm-clerk-alice', '${ALICE}', '${ALICE_PROFILE}'),
+      ('${BOB_ACCOUNT}', 'pm-clerk-bob', '${BOB}', '${BOB_PROFILE}'),
+      ('${CAROL_ACCOUNT}', 'pm-clerk-carol', '${CAROL}', '${CAROL_PROFILE}'),
+      ('${DAVE_ACCOUNT}', 'pm-clerk-dave', '${DAVE}', '${DAVE_PROFILE}');
+
+    -- A Crew seat needs a MUTUAL follow with the owner, so Bob and Carol both
+    -- have one and Dave has none. Carol's block is then the ONLY thing that
+    -- differs between her and Bob, which is what makes the blocked cell a
+    -- measurement of the block rather than of a missing follow.
+    insert into public.follows (follower_id, followee_id) values
+      ('${ALICE_PROFILE}', '${BOB_PROFILE}'), ('${BOB_PROFILE}', '${ALICE_PROFILE}'),
+      ('${ALICE_PROFILE}', '${CAROL_PROFILE}'), ('${CAROL_PROFILE}', '${ALICE_PROFILE}');
+    insert into public.social_blocks (blocker_profile_id, blocked_profile_id) values
+      ('${ALICE_PROFILE}', '${CAROL_PROFILE}');
 
     -- Alice's private Plan: she owns the row AND holds the host seat.
     insert into public.plans (id, title, start_time, status, route_revision, owner_user_id)
@@ -359,6 +464,46 @@ beforeAll(async () => {
       values ('${ALICE_MOMENT}', '${ALICE_MEMORY}', '${ALICE}', 'photo', 'private photo', '${ALICE_MOMENT_OBJECT}');
     insert into storage.objects (bucket_id, name, owner_id, metadata)
       values ('pint-drops', '${ALICE_MOMENT_OBJECT}', '${ALICE}', '{"mimetype":"image/jpeg"}');
+
+    -- A device RSVP on the matrix Plan: a seat, a token, and no account.
+    insert into public.plan_crew_members (
+      id, plan_id, name, token_hash, user_id, status, joined_at, updated_at, can_collaborate
+    ) values (
+      '${GUEST_MEMBER_ID}', '${PLAN_ID}', 'Guest phone', '${hashPlanMemberToken(GUEST_TOKEN)}',
+      null, 'in', now(), now(), false
+    );
+
+    -- The Crew's own Plan. Its host seat token IS Alice's bearer, because the
+    -- Crew create route reads ONE Authorization header for both the identity
+    -- and the host capability; a browser sends the seat token there and names
+    -- itself through the resume cookie.
+    insert into public.plans (id, title, start_time, status, route_revision, owner_user_id)
+      values ('${CREW_PLAN_ID}', 'Alice crew night', now() + interval '4 hours', 'ready', 1, '${ALICE}');
+    insert into public.plan_stops (plan_id, venue_id, venue_name, position) values
+      ('${CREW_PLAN_ID}', 'venue-1f5ygjb', 'Venue One', 0);
+    insert into public.plan_crew_members (
+      id, plan_id, name, token_hash, user_id, status, joined_at, updated_at, can_collaborate
+    ) values (
+      '${CREW_HOST_MEMBER_ID}', '${CREW_PLAN_ID}', 'Alice', '${hashPlanMemberToken(BEARER_ALICE)}',
+      '${ALICE}', 'in', now(), now(), true
+    );
+
+    -- A private conversation between Alice and Bob, one message each way, and
+    -- the object one of them points at. The conversations and messages tables
+    -- are the RLS-enabled-no-policy pair: the route is the whole gate, so the
+    -- route is where every cell below is asserted.
+    insert into public.conversations (id, handle_a, handle_b, user_id_a, user_id_b)
+      values ('${CONVERSATION_ID}', 'alicepm', 'bobpm', '${ALICE}', '${BOB}');
+    insert into public.messages (
+      id, conversation_id, sender_handle, sender_user_id, body, created_at,
+      attachment_kind, attachment_object_key, attachment_width, attachment_height
+    ) values
+        ('${ALICE_MESSAGE}', '${CONVERSATION_ID}', 'alicepm', '${ALICE}', 'Alice private line',
+          now() - interval '2 minutes', 'photo', '${MESSAGE_PHOTO_OBJECT}', 800, 1000),
+        ('${BOB_MESSAGE}', '${CONVERSATION_ID}', 'bobpm', '${BOB}', 'Bob private line',
+          now() - interval '1 minute', null, null, null, null);
+    insert into storage.objects (bucket_id, name, owner_id, metadata)
+      values ('pint-drops', '${MESSAGE_PHOTO_OBJECT}', '${ALICE}', '{"mimetype":"image/jpeg"}');
 
     -- A hidden Pint Drop and a hidden community price: moderation state a
     -- browser role may never read back.
@@ -434,7 +579,8 @@ describe("private Plan: read", () => {
     const body = await readJson<{ plan: { title: string }; stops: unknown[]; crew: unknown[] }>(response);
     expect(body.plan.title).toBe("Alice private night");
     expect(body.stops).toHaveLength(3);
-    expect(body.crew).toHaveLength(1);
+    // Alice's own seat plus the device RSVP the guest cells act as.
+    expect(body.crew).toHaveLength(2);
   });
 
   it("the get-in and recap views answer the preview to a stranger", async () => {
@@ -554,7 +700,11 @@ describe("private Plan: write", () => {
       );
       expect(seated.ok).toBe(false);
     }
-    expect(truth(`select count(*) from public.plan_crew_members where plan_id = '${PLAN_ID}'`)).toBe("1");
+    // Alice's seat and the device RSVP, and nothing a browser role added.
+    expect(truth(`select count(*) from public.plan_crew_members where plan_id = '${PLAN_ID}'`)).toBe("2");
+    expect(
+      truth(`select count(*) from public.plan_crew_members where plan_id = '${PLAN_ID}' and name = 'Intruder'`),
+    ).toBe("0");
   });
 });
 
@@ -571,6 +721,7 @@ describe("invite capability", () => {
       }),
       context({ id: PLAN_ID }),
     );
+    console.error("CREATE CREW:", created.status, await created.clone().text());
     expect(created.status, await created.clone().text()).toBe(201);
     inviteToken = (await readJson<{ token: string }>(created)).token;
     expect(inviteToken).toBeTruthy();
@@ -806,6 +957,7 @@ describe("private Night Memory, Moment and its object", () => {
       request("/api/night-memories", { bearer: BEARER_BOB, body: { title: "Bob night" } }),
       context({}),
     );
+    console.error("CREATE CREW:", created.status, await created.clone().text());
     expect(created.status, await created.clone().text()).toBe(201);
     bobMemory = (await readJson<{ memory: { id: string } }>(created)).memory.id;
     expect(truth(`select owner_id from public.night_memories where id = '${bobMemory}'`)).toBe(BOB);
@@ -982,6 +1134,740 @@ describe("moderator actions", () => {
     );
     expect(moderated.status, await moderated.clone().text()).toBe(200);
     expect(truth(`select confirmation_basis from public.pint_drops where id = '${aliceDrop}'`)).toBe("moderator");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The wider matrix: the roles and resources the first cut did not reach.
+//
+// Astra's delta audit (6 Sep 2026, F07) read the Supabase advisor and found
+// `rls_enabled_no_policy` on a set of tables that are service-mediated by
+// design: `conversations`, `messages`, and the whole Social Crew family. A
+// table with RLS on and no policy is refused to every browser role, which is
+// the STRONGEST table answer there is; what it does not tell anybody is
+// whether the ROUTE in front of it gates correctly, because the route holds
+// the service-role key and RLS never runs for it. So the answer to that
+// advisory is not a policy. It is this: the route door, asserted per role, per
+// resource, with reads and writes separated.
+//
+// SEVEN ROLES. owner (Alice), invited participant (Bob, who holds a pending
+// invitation and then a seat), guest (a device RSVP seat: a Plan capability
+// token bound to no account), unrelated user (Dave), removed member (Bob,
+// after his seat is taken), blocked user (Carol, who differs from Bob ONLY by
+// the block) and staff (the `ADMIN_TOKEN` moderator, already asserted above).
+//
+// THREE RULES EVERY DENIED CELL IS HELD TO. A refusal answers the honest
+// status; it leaks no protected metadata, which is asserted over the WHOLE
+// serialized body rather than over the fields a reader remembered to check;
+// and it has no side effect, which is asserted as a truth read of the row it
+// was aimed at, taken before and after.
+
+/** Every id-shaped thing a refusal may never disclose. */
+const CREW_SECRETS = ["Alice crew night", "Alice private line", "Bob private line"];
+
+function expectNoDisclosure(body: unknown, secrets: readonly string[] = CREW_SECRETS): void {
+  const serialized = JSON.stringify(body ?? null);
+  for (const secret of secrets) expect(serialized).not.toContain(secret);
+}
+
+function crewRequest(
+  path: string,
+  options: { bearer?: string; body?: Record<string, unknown>; method?: string; key?: string } = {},
+): Request {
+  // Every Crew write demands its own idempotency key, so one is minted per call
+  // unless a cell is deliberately replaying.
+  const key = options.key ?? `pm-crew-${Math.random().toString(16).slice(2)}-${Date.now()}`;
+  return request(path, { ...options, key });
+}
+
+/** State the Crew cells build up, in file order, through the real routes. */
+const crew: { id: string; bobMemberId: string; bobInvitationId: string; carolInvitationId: string } = {
+  id: "",
+  bobMemberId: "",
+  bobInvitationId: "",
+  carolInvitationId: "",
+};
+
+describe("Social Crew: the owner builds it through the real doors", () => {
+  it("only the account holding the Plan's host seat may raise a Crew over it", async () => {
+    // Dave has an account and no seat: the create is not his to make, and the
+    // Plan is untouched by the attempt.
+    const refused = await handlers.createCrew(
+      crewRequest("/api/social/crews", {
+        bearer: BEARER_DAVE,
+        body: { planId: CREW_PLAN_ID, visibility: "private" },
+      }),
+      context({}),
+    );
+    expect(refused.status).toBeGreaterThanOrEqual(400);
+    expectNoDisclosure(await readJson(refused));
+    expect(
+      truth(`select social_owner_account_id is null from public.plans where id = '${CREW_PLAN_ID}'`),
+    ).toBe("true");
+
+    const created = await handlers.createCrew(
+      crewRequest("/api/social/crews", {
+        bearer: BEARER_ALICE,
+        body: { planId: CREW_PLAN_ID, visibility: "private" },
+      }),
+      context({}),
+    );
+    expect(created.status, await created.clone().text()).toBe(201);
+    const body = await readJson<{ crewId?: string }>(created);
+    crew.id = String(body.crewId ?? "");
+    expect(crew.id).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("the owner reads her Crew and every other role reads nothing", async () => {
+    const owner = await handlers.readCrew(
+      crewRequest(`/api/social/crews/${crew.id}`, { bearer: BEARER_ALICE }),
+      context({ crewId: crew.id }),
+    );
+    expect(owner.status, await owner.clone().text()).toBe(200);
+
+    // Dave is unrelated, Carol is blocked, and anonymous holds nothing. All
+    // three get the same answer, so the refusal cannot be read as a membership
+    // oracle, and none of them carries the Crew's own words.
+    for (const bearer of [undefined, BEARER_DAVE, BEARER_CAROL]) {
+      const response = await handlers.readCrew(
+        crewRequest(`/api/social/crews/${crew.id}`, { bearer }),
+        context({ crewId: crew.id }),
+      );
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expectNoDisclosure(await readJson(response));
+    }
+  });
+
+  it("a Crew id that names nothing answers exactly as a Crew somebody else owns", async () => {
+    const unknown = await handlers.readCrew(
+      crewRequest(`/api/social/crews/${UNKNOWN_ID}`, { bearer: BEARER_DAVE }),
+      context({ crewId: UNKNOWN_ID }),
+    );
+    const foreign = await handlers.readCrew(
+      crewRequest(`/api/social/crews/${crew.id}`, { bearer: BEARER_DAVE }),
+      context({ crewId: crew.id }),
+    );
+    expect(unknown.status).toBe(foreign.status);
+  });
+});
+
+describe("Social Crew: invitation, acceptance and the block", () => {
+  it("only the owner may invite, and a blocked account cannot be invited at all", async () => {
+    const byStranger = await handlers.inviteToCrew(
+      crewRequest(`/api/social/crews/${crew.id}/invitations`, {
+        bearer: BEARER_DAVE,
+        body: { targetProfileId: DAVE_PROFILE },
+      }),
+      context({ crewId: crew.id }),
+    );
+    expect(byStranger.status).toBeGreaterThanOrEqual(400);
+    expect(truth(`select count(*) from public.social_crew_invitations where crew_id = '${crew.id}'`)).toBe("0");
+
+    // Carol is a mutual follower, so the block is the only thing left to
+    // refuse her.
+    const blocked = await handlers.inviteToCrew(
+      crewRequest(`/api/social/crews/${crew.id}/invitations`, {
+        bearer: BEARER_ALICE,
+        body: { targetProfileId: CAROL_PROFILE },
+      }),
+      context({ crewId: crew.id }),
+    );
+    expect(blocked.status).toBeGreaterThanOrEqual(400);
+    expect(truth(`select count(*) from public.social_crew_invitations where crew_id = '${crew.id}'`)).toBe("0");
+
+    const invited = await handlers.inviteToCrew(
+      crewRequest(`/api/social/crews/${crew.id}/invitations`, {
+        bearer: BEARER_ALICE,
+        body: { targetProfileId: BOB_PROFILE },
+      }),
+      context({ crewId: crew.id }),
+    );
+    expect(invited.status, await invited.clone().text()).toBe(201);
+    crew.bobInvitationId = truth(
+      `select id from public.social_crew_invitations where crew_id = '${crew.id}' and target_account_id = '${BOB_ACCOUNT}'`,
+    );
+  });
+
+  it("an invitation is the target's alone: nobody else may spend it, and holding one is not yet a read", async () => {
+    // Dave is not the target. The invitation stays pending, so the refusal
+    // cost the invitation nothing.
+    const stolen = await handlers.decideInvitation(
+      crewRequest(`/api/social/crews/${crew.id}/invitations/${crew.bobInvitationId}`, {
+        bearer: BEARER_DAVE,
+        method: "PATCH",
+        body: { action: "accept" },
+      }),
+      context({ crewId: crew.id, invitationId: crew.bobInvitationId }),
+    );
+    expect(stolen.status).toBeGreaterThanOrEqual(400);
+    expectNoDisclosure(await readJson(stolen));
+    expect(
+      truth(`select state from public.social_crew_invitations where id = '${crew.bobInvitationId}'`),
+    ).toBe("pending");
+
+    // Bob holds the invitation and STILL reads nothing: an invitation is a way
+    // in, never a view.
+    const beforeAccepting = await handlers.readCrew(
+      crewRequest(`/api/social/crews/${crew.id}`, { bearer: BEARER_BOB }),
+      context({ crewId: crew.id }),
+    );
+    expect(beforeAccepting.status).toBeGreaterThanOrEqual(400);
+    expectNoDisclosure(await readJson(beforeAccepting));
+  });
+
+  it("the target accepts, and acceptance is what opens the read", async () => {
+    const accepted = await handlers.decideInvitation(
+      crewRequest(`/api/social/crews/${crew.id}/invitations/${crew.bobInvitationId}`, {
+        bearer: BEARER_BOB,
+        method: "PATCH",
+        body: { action: "accept" },
+      }),
+      context({ crewId: crew.id, invitationId: crew.bobInvitationId }),
+    );
+    expect(accepted.status, await accepted.clone().text()).toBe(200);
+
+    const read = await handlers.readCrew(
+      crewRequest(`/api/social/crews/${crew.id}`, { bearer: BEARER_BOB }),
+      context({ crewId: crew.id }),
+    );
+    expect(read.status, await read.clone().text()).toBe(200);
+
+    crew.bobMemberId = truth(
+      `select id from public.social_crew_members where crew_id = '${crew.id}' and social_account_id = '${BOB_ACCOUNT}'`,
+    );
+  });
+
+  it("a member is not an owner: he may not invite, remove or re-set the Crew", async () => {
+    const before = truth(
+      `select visibility from public.social_crews where id = '${crew.id}'`,
+    );
+    const invited = await handlers.inviteToCrew(
+      crewRequest(`/api/social/crews/${crew.id}/invitations`, {
+        bearer: BEARER_BOB,
+        body: { targetProfileId: DAVE_PROFILE },
+      }),
+      context({ crewId: crew.id }),
+    );
+    expect(invited.status).toBeGreaterThanOrEqual(400);
+    expect(
+      truth(`select count(*) from public.social_crew_invitations where crew_id = '${crew.id}' and target_account_id = '${DAVE_ACCOUNT}'`),
+    ).toBe("0");
+
+    const changed = await handlers.updateCrew(
+      crewRequest(`/api/social/crews/${crew.id}`, {
+        bearer: BEARER_BOB,
+        method: "PATCH",
+        body: { visibility: "friends" },
+      }),
+      context({ crewId: crew.id }),
+    );
+    expect(changed.status).toBeGreaterThanOrEqual(400);
+    expect(truth(`select visibility from public.social_crews where id = '${crew.id}'`)).toBe(before);
+  });
+});
+
+describe("Social Crew: the removed member", () => {
+  it("removal takes the read away in the same instant, and the removed member cannot put himself back", async () => {
+    const removed = await handlers.removeCrewMember(
+      crewRequest(`/api/social/crews/${crew.id}/members/${crew.bobMemberId}`, {
+        bearer: BEARER_ALICE,
+        method: "DELETE",
+      }),
+      context({ crewId: crew.id, memberId: crew.bobMemberId }),
+    );
+    expect(removed.status, await removed.clone().text()).toBe(200);
+    expect(
+      truth(`select state from public.social_crew_members where id = '${crew.bobMemberId}'`),
+    ).toBe("removed");
+
+    const read = await handlers.readCrew(
+      crewRequest(`/api/social/crews/${crew.id}`, { bearer: BEARER_BOB }),
+      context({ crewId: crew.id }),
+    );
+    expect(read.status).toBeGreaterThanOrEqual(400);
+    expectNoDisclosure(await readJson(read));
+
+    // The spent invitation is not a second door back in.
+    const replayed = await handlers.decideInvitation(
+      crewRequest(`/api/social/crews/${crew.id}/invitations/${crew.bobInvitationId}`, {
+        bearer: BEARER_BOB,
+        method: "PATCH",
+        body: { action: "accept" },
+      }),
+      context({ crewId: crew.id, invitationId: crew.bobInvitationId }),
+    );
+    expect(replayed.status).toBeGreaterThanOrEqual(400);
+    expect(
+      truth(`select state from public.social_crew_members where id = '${crew.bobMemberId}'`),
+    ).toBe("removed");
+  });
+});
+
+describe("Social Crew: at the table", () => {
+  it("no browser role may read a Crew row or call the Crew entry points, whoever they are", () => {
+    for (const table of [
+      "social_crews",
+      "social_crew_members",
+      "social_crew_invitations",
+      "social_crew_join_requests",
+      "private_social_crew_write_receipts",
+      "private_social_accounts",
+    ]) {
+      expect(visibleRows("anon", null, `select count(*) from public.${table}`)).toBe(0);
+      for (const sub of [ALICE, BOB, CAROL, DAVE]) {
+        expect(visibleRows("authenticated", sub, `select count(*) from public.${table}`)).toBe(0);
+      }
+    }
+
+    // The Crew RPCs are `security definer` and take the actor as an ARGUMENT,
+    // so an EXECUTE grant to a browser role would be impersonation by
+    // parameter. They are service-only, and this is the cell that says so.
+    for (const call of [
+      `select public.read_social_crew_snapshot('${BOB_ACCOUNT}'::uuid, '${BOB_PROFILE}'::uuid, '${crew.id}'::uuid)`,
+      `select public.remove_social_crew_member_atomic('${BOB_ACCOUNT}'::uuid, '${crew.id}'::uuid, '${crew.bobMemberId}'::uuid, 'pm-matrix-key-000000', repeat('a', 64))`,
+      `select public.social_relationship_between_profiles('${ALICE_PROFILE}'::uuid, '${BOB_PROFILE}'::uuid)`,
+    ]) {
+      const attempted = attemptAsRole("authenticated", BOB, call);
+      expect(attempted.ok, call).toBe(false);
+      expect(attempted.err).toMatch(/permission denied/i);
+    }
+  });
+});
+describe("private conversation: read", () => {
+  it("anonymous is refused the thread and told nothing about it", async () => {
+    const response = await handlers.readThread(
+      request(`/api/messages/${CONVERSATION_ID}?handle=alicepm`),
+      context({ id: CONVERSATION_ID }),
+    );
+    expect(response.status).toBe(401);
+    expectNoDisclosure(await readJson(response));
+  });
+
+  it("both participants read the thread, and neither outsider does", async () => {
+    for (const [bearer, handle] of [
+      [BEARER_ALICE, "alicepm"],
+      [BEARER_BOB, "bobpm"],
+    ] as const) {
+      const response = await handlers.readThread(
+        request(`/api/messages/${CONVERSATION_ID}?handle=${handle}`, { bearer }),
+        context({ id: CONVERSATION_ID }),
+      );
+      expect(response.status, await response.clone().text()).toBe(200);
+      const body = await readJson<{ messages?: { body?: string }[] }>(response);
+      expect(body.messages?.map((message) => message.body)).toEqual([
+        "Alice private line",
+        "Bob private line",
+      ]);
+    }
+
+    // Dave and Carol are signed in, hold their own handles, and are not in
+    // this conversation. Asking under their OWN handle answers an empty thread
+    // rather than somebody else's, and asking under a participant's handle is
+    // refused by the ownership gate.
+    for (const [bearer, handle] of [
+      [BEARER_DAVE, "davepm"],
+      [BEARER_CAROL, "carolpm"],
+    ] as const) {
+      const own = await handlers.readThread(
+        request(`/api/messages/${CONVERSATION_ID}?handle=${handle}`, { bearer }),
+        context({ id: CONVERSATION_ID }),
+      );
+      expectNoDisclosure(await readJson(own.clone()));
+      if (own.status === 200) {
+        const body = await readJson<{ messages?: unknown[] }>(own);
+        expect(body.messages ?? []).toEqual([]);
+      }
+
+      const impersonated = await handlers.readThread(
+        request(`/api/messages/${CONVERSATION_ID}?handle=alicepm`, { bearer }),
+        context({ id: CONVERSATION_ID }),
+      );
+      expect(impersonated.status).toBeGreaterThanOrEqual(400);
+      expectNoDisclosure(await readJson(impersonated));
+    }
+  });
+
+  it("a conversation id that names nothing reveals nothing to a participant either", async () => {
+    const response = await handlers.readThread(
+      request(`/api/messages/${UNKNOWN_ID}?handle=alicepm`, { bearer: BEARER_ALICE }),
+      context({ id: UNKNOWN_ID }),
+    );
+    expectNoDisclosure(await readJson(response.clone()));
+    if (response.status === 200) {
+      const body = await readJson<{ messages?: unknown[] }>(response);
+      expect(body.messages ?? []).toEqual([]);
+    }
+  });
+
+  it("naming somebody else's handle does not ask for their inbox: the LINKED handle wins", async () => {
+    // `resolveMessageHandle` prefers the handle the caller's account owns and
+    // only ever falls back to the asserted one for a caller with no linked
+    // profile. So Dave naming Alice is not a refusal, it is Dave's own inbox,
+    // and the cell that matters is that Alice's conversation is not in it.
+    const foreign = await handlers.inbox(
+      request("/api/messages?handle=alicepm", { bearer: BEARER_DAVE }),
+      context({}),
+    );
+    expect(foreign.status).toBe(200);
+    const body = await readJson<{ conversations?: { id?: string }[] }>(foreign);
+    expect(body.conversations?.some((row) => row.id === CONVERSATION_ID)).not.toBe(true);
+    expectNoDisclosure(body);
+
+    // An anonymous caller asserting a CLAIMED handle is refused outright,
+    // because the handle belongs to an account and no bearer names it.
+    const anonymous = await handlers.inbox(
+      request("/api/messages?handle=alicepm"),
+      context({}),
+    );
+    expect(anonymous.status).toBeGreaterThanOrEqual(400);
+    expectNoDisclosure(await readJson(anonymous));
+  });
+});
+
+describe("private conversation: write", () => {
+  it("an outsider cannot send into a thread, and the thread does not grow", async () => {
+    const before = truth(
+      `select count(*) from public.messages where conversation_id = '${CONVERSATION_ID}'`,
+    );
+    for (const bearer of [undefined, BEARER_DAVE, BEARER_CAROL]) {
+      const response = await handlers.writeThread(
+        request(`/api/messages/${CONVERSATION_ID}`, {
+          bearer,
+          body: { action: "send", handle: "alicepm", body: "written by an outsider" },
+        }),
+        context({ id: CONVERSATION_ID }),
+      );
+      expect(response.status).toBeGreaterThanOrEqual(400);
+    }
+    expect(
+      truth(`select count(*) from public.messages where conversation_id = '${CONVERSATION_ID}'`),
+    ).toBe(before);
+    expect(
+      truth(`select count(*) from public.messages where body = 'written by an outsider'`),
+    ).toBe("0");
+  });
+
+  it("at the table: the second line is PARTICIPANT-scoped, not deny-all, and it is read-only", () => {
+    // Migration 0019 created both tables RLS-on with no policy and said so in
+    // its own comment; 0066 then granted SELECT to `authenticated` behind two
+    // participant policies. That comment is now the older half of the story, so
+    // the cell asserts the LIVE rule: a participant reads their own thread, an
+    // outsider reads nothing, anonymous reads nothing.
+    for (const table of ["conversations", "messages"]) {
+      expect(visibleRows("anon", null, `select count(*) from public.${table}`)).toBe(0);
+      for (const outsider of [CAROL, DAVE]) {
+        expect(
+          visibleRows("authenticated", outsider, `select count(*) from public.${table}`),
+        ).toBe(0);
+      }
+    }
+    for (const participant of [ALICE, BOB]) {
+      expect(
+        visibleRows(
+          "authenticated",
+          participant,
+          `select count(*) from public.conversations where id = '${CONVERSATION_ID}'`,
+        ),
+      ).toBe(1);
+      expect(
+        visibleRows(
+          "authenticated",
+          participant,
+          `select count(*) from public.messages where conversation_id = '${CONVERSATION_ID}'`,
+        ),
+      ).toBe(2);
+    }
+
+    // SELECT is the whole grant. A participant may not write one either, so the
+    // route stays the only way a message is ever made.
+    const written = attemptAsRole(
+      "authenticated",
+      ALICE,
+      `insert into public.messages (conversation_id, sender_handle, body)
+         values ('${CONVERSATION_ID}', 'alicepm', 'written at the table')`,
+    );
+    expect(written.ok).toBe(false);
+    expect(
+      truth(`select count(*) from public.messages where body = 'written at the table'`),
+    ).toBe("0");
+  });
+});
+
+describe("message attachment: the photo's own door", () => {
+  it("the object key never reaches an outsider, whatever they assert", async () => {
+    // The bucket in front of this cluster holds no bytes, so a participant's
+    // own read answers the same `Photo not found.` an outsider gets. What the
+    // cell proves is that no refusal ever names the object, and that the row
+    // below is what the participant gate reads.
+    for (const [bearer, handle] of [
+      [undefined, "alicepm"],
+      [BEARER_DAVE, "davepm"],
+      [BEARER_CAROL, "carolpm"],
+      [BEARER_BOB, "bobpm"],
+    ] as const) {
+      const response = await handlers.messagePhoto(
+        request(`/api/messages/${CONVERSATION_ID}/photo/${ALICE_MESSAGE}?handle=${handle}`, { bearer }),
+        context({ id: CONVERSATION_ID, messageId: ALICE_MESSAGE }),
+      );
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expectNoDisclosure(await readJson(response), [...CREW_SECRETS, MESSAGE_PHOTO_OBJECT]);
+    }
+  });
+
+  it("a reported message loses its attachment, so the storage link stops answering its own participant", async () => {
+    const reported = await handlers.writeThread(
+      request(`/api/messages/${CONVERSATION_ID}`, {
+        bearer: BEARER_BOB,
+        body: { action: "report", handle: "bobpm", messageId: ALICE_MESSAGE },
+      }),
+      context({ id: CONVERSATION_ID }),
+    );
+    expect(reported.status, await reported.clone().text()).toBe(200);
+    expect(
+      truth(`select flagged_at is not null from public.messages where id = '${ALICE_MESSAGE}'`),
+    ).toBe("true");
+
+    // The row keeps its object key, because reporting is not deletion. What
+    // stops is the READ: one projection drops the attachment, so the thread and
+    // the serving door lose it in the same instant.
+    expect(
+      truth(`select attachment_object_key from public.messages where id = '${ALICE_MESSAGE}'`),
+    ).toBe(MESSAGE_PHOTO_OBJECT);
+
+    const thread = await handlers.readThread(
+      request(`/api/messages/${CONVERSATION_ID}?handle=bobpm`, { bearer: BEARER_BOB }),
+      context({ id: CONVERSATION_ID }),
+    );
+    expect(thread.status).toBe(200);
+    const body = await readJson<{ messages?: { id?: string; attachment?: unknown }[] }>(thread);
+    const flagged = body.messages?.find((message) => message.id === ALICE_MESSAGE);
+    expect(flagged?.attachment ?? null).toBeNull();
+  });
+});
+
+describe("saves: two lanes, two promises", () => {
+  it("a Wanted is the owner's alone at the read and at the write", async () => {
+    const seeded = await handlers.writeWanted(
+      request("/api/wanted", {
+        bearer: BEARER_ALICE,
+        body: { venueId: PRICE_VENUE, venueName: "Venue Two", note: "Alice wants this" },
+      }),
+      context({}),
+    );
+    expect(seeded.status, await seeded.clone().text()).toBe(201);
+
+    const owner = await readJson<{ wanteds?: { note?: string }[] }>(
+      await handlers.listWanted(request("/api/wanted", { bearer: BEARER_ALICE }), context({})),
+    );
+    expect(owner.wanteds?.some((wanted) => wanted.note === "Alice wants this")).toBe(true);
+
+    // Anonymous is refused; every other signed-in account reads its OWN empty
+    // list and never Alice's line.
+    const anonymous = await handlers.listWanted(request("/api/wanted"), context({}));
+    expect(anonymous.status).toBe(401);
+    for (const bearer of [BEARER_BOB, BEARER_CAROL, BEARER_DAVE]) {
+      const response = await handlers.listWanted(request("/api/wanted", { bearer }), context({}));
+      expectNoDisclosure(await readJson(response), ["Alice wants this"]);
+    }
+  });
+
+  it("a saved-pub list is PUBLIC to read and gated to write, and the write gate holds", async () => {
+    const saved = await handlers.writeSavedPub(
+      request("/api/saved-pubs", {
+        bearer: BEARER_ALICE,
+        body: { handle: "alicepm", venueId: PRICE_VENUE, listType: "favourites" },
+      }),
+      context({}),
+    );
+    expect(saved.status, await saved.clone().text()).toBeLessThan(400);
+    const savedCount = truth(
+      `select count(*) from public.saved_pubs where profile_id = '${ALICE_PROFILE}'`,
+    );
+    expect(Number(savedCount)).toBeGreaterThan(0);
+
+    // An anonymous caller asserting a CLAIMED handle is refused: the handle
+    // belongs to an account and no bearer names it.
+    const anonymous = await handlers.writeSavedPub(
+      request("/api/saved-pubs", {
+        bearer: undefined,
+        body: { handle: "alicepm", venueId: SECOND_PRICE_VENUE, listType: "favourites" },
+      }),
+      context({}),
+    );
+    expect(anonymous.status).toBe(403);
+
+    // A signed-in caller naming Alice writes to their OWN list, because the
+    // linked handle wins over the asserted one. Nothing is refused and nothing
+    // of Alice's moves, which is the honest shape of this door.
+    for (const [bearer, profile] of [
+      [BEARER_BOB, BOB_PROFILE],
+      [BEARER_DAVE, DAVE_PROFILE],
+    ] as const) {
+      const response = await handlers.writeSavedPub(
+        request("/api/saved-pubs", {
+          bearer,
+          body: { handle: "alicepm", venueId: SECOND_PRICE_VENUE, listType: "favourites" },
+        }),
+        context({}),
+      );
+      expect(response.status, await response.clone().text()).toBe(200);
+      expect(
+        Number(truth(`select count(*) from public.saved_pubs where profile_id = '${profile}'`)),
+      ).toBeGreaterThan(0);
+    }
+    expect(
+      truth(`select count(*) from public.saved_pubs where profile_id = '${ALICE_PROFILE}'`),
+    ).toBe(savedCount);
+
+    // The READ is deliberately public: a saved list is printed on a public
+    // profile. This cell records that as a decision rather than leaving it to
+    // be discovered.
+    const stranger = await handlers.listSavedPubs(
+      request("/api/saved-pubs?handle=alicepm", { bearer: BEARER_DAVE }),
+      context({}),
+    );
+    expect(stranger.status).toBe(200);
+  });
+
+  it("at the table: a save answers its owner alone, and a stranger's write matches no row", () => {
+    expect(visibleRows("anon", null, "select count(*) from public.saved_pubs")).toBe(0);
+    expect(
+      visibleRows(
+        "authenticated",
+        ALICE,
+        `select count(*) from public.saved_pubs where profile_id = '${ALICE_PROFILE}'`,
+      ),
+    ).toBe(Number(truth(`select count(*) from public.saved_pubs where profile_id = '${ALICE_PROFILE}'`)));
+    expect(
+      visibleRows(
+        "authenticated",
+        DAVE,
+        `select count(*) from public.saved_pubs where profile_id = '${ALICE_PROFILE}'`,
+      ),
+    ).toBe(0);
+
+    // The owner policy filters the statement rather than erroring it, so the
+    // proof is that nothing MOVED, never that the statement failed.
+    attemptAsRole(
+      "authenticated",
+      DAVE,
+      `update public.saved_pubs set note = 'moved at the table' where profile_id = '${ALICE_PROFILE}'`,
+    );
+    expect(
+      truth(`select count(*) from public.saved_pubs where note = 'moved at the table'`),
+    ).toBe("0");
+  });
+});
+
+describe("account export", () => {
+  it("anonymous is refused the file", async () => {
+    const response = await handlers.exportAccount(request("/api/account/export"), context({}));
+    expect(response.status).toBe(401);
+    expectNoDisclosure(await readJson(response));
+  });
+
+  it("the account exported is the one the bearer names, and no request field can move it", async () => {
+    const response = await handlers.exportAccount(
+      request(`/api/account/export?handle=alicepm&userId=${ALICE}`, { bearer: BEARER_DAVE }),
+      context({}),
+    );
+    // Dave gets Dave's file or an honest refusal. What he may never get is
+    // Alice's, so the cell is asserted over the whole body.
+    expectNoDisclosure(await readJson(response), [
+      ...CREW_SECRETS,
+      "Alice wants this",
+      "alicepm",
+      ALICE,
+    ]);
+  });
+});
+
+describe("guest: a device RSVP holds a capability, and a capability is not an identity", () => {
+  it("the device seat opens the Plan it is a seat on", async () => {
+    const response = await handlers.readPlan(
+      request(`/api/plans/${PLAN_ID}`, { bearer: GUEST_TOKEN }),
+      context({ id: PLAN_ID }),
+    );
+    expect(response.status, await response.clone().text()).toBe(200);
+    const body = await readJson<PreviewBody>(response);
+    expect(body.visibility).not.toBe("preview");
+  });
+
+  it("that seat cannot collaborate, and the Plan does not move when it tries", async () => {
+    const revision = planRevision();
+    const order = planStopOrder();
+    for (const [handler, path, body] of [
+      [handlers.updatePlan, `/api/plans/${PLAN_ID}`, { route: REORDERED_ROUTE, routeRevision: revision }],
+      [handlers.rotateInvite, `/api/plans/${PLAN_ID}/invite-rotate`, { expiresInMinutes: 120 }],
+    ] as const) {
+      const response = await (handler as Handler)(
+        request(path, {
+          bearer: GUEST_TOKEN,
+          method: path.endsWith("invite-rotate") ? "POST" : "PATCH",
+          body,
+          key: "pm-guest-idempotency-key-0001",
+        }),
+        context({ id: PLAN_ID }),
+      );
+      expect(response.status).toBeGreaterThanOrEqual(400);
+    }
+    expect(planRevision()).toBe(revision);
+    expect(planStopOrder()).toBe(order);
+  });
+
+  it("the seat token names nobody anywhere else: no inbox, no Wanted, no export, no deletion", async () => {
+    for (const [handler, path] of [
+      [handlers.inbox, "/api/messages"],
+      [handlers.listWanted, "/api/wanted"],
+      [handlers.exportAccount, "/api/account/export"],
+    ] as const) {
+      const response = await (handler as Handler)(
+        request(path, { bearer: GUEST_TOKEN }),
+        context({}),
+      );
+      expectNoDisclosure(await readJson(response.clone()), [
+        ...CREW_SECRETS,
+        "Alice wants this",
+      ]);
+      // A capability that is not an identity is anonymous to every route that
+      // asks who is calling, so each answers its own anonymous outcome.
+      expect(response.status === 200 || response.status === 401).toBe(true);
+    }
+
+    const deleted = await handlers.deleteAccount(
+      request("/api/account", { method: "DELETE", bearer: GUEST_TOKEN, body: { userId: ALICE } }),
+      context({}),
+    );
+    expect(deleted.status).toBe(401);
+    expect(deletion.calls).toEqual([]);
+  });
+});
+
+describe("photo tags: the consent inbox is the tagged account's own", () => {
+  it("anonymous is refused, and every signed-in account reads only its own lane", async () => {
+    const anonymous = await handlers.tagInbox(request("/api/social/tags?lane=proposed"), context({}));
+    expect(anonymous.status).toBe(401);
+    expectNoDisclosure(await readJson(anonymous));
+
+    for (const bearer of [BEARER_ALICE, BEARER_DAVE]) {
+      const response = await handlers.tagInbox(
+        request("/api/social/tags?lane=proposed", { bearer }),
+        context({}),
+      );
+      expect(response.status, await response.clone().text()).toBe(200);
+      expectNoDisclosure(await readJson(response));
+    }
+  });
+
+  it("the lane takes no actor parameter, so no caller can ask for somebody else's", async () => {
+    // An unknown query key is refused outright rather than ignored, which is
+    // what stops `?actor=` or `?profileId=` ever being read as an instruction.
+    const response = await handlers.tagInbox(
+      request(`/api/social/tags?lane=proposed&actor=${ALICE_PROFILE}`, { bearer: BEARER_DAVE }),
+      context({}),
+    );
+    expect(response.status).toBe(400);
+    expectNoDisclosure(await readJson(response));
   });
 });
 

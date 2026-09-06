@@ -52,6 +52,7 @@ import {
   allowedHarvestSources,
   harvestSourcesOfKind,
   isHarvestSourceAllowed,
+  harvestRedirectLanding,
   isHarvestableOperatorUrl,
 } from "../../../lib/harvest/sourcePolicy.ts";
 import {
@@ -177,7 +178,18 @@ async function fetchText(url) {
       signal: controller.signal,
       redirect: "follow",
     });
-    if (!response.ok) return { ok: false, status: response.status, body: "", finalUrl: url };
+    // THE ALLOW-LIST IS ASKED ABOUT THE PAGE WE LANDED ON, NOT ONLY THE ONE WE
+    // ASKED FOR. `redirect: "follow"` lets the HOST pick the last hop, so a
+    // permitted site that 30x-es to a refused one used to be read in full and
+    // the row was then stamped with the asked-for URL, naming a page that never
+    // stated the price. `harvestRedirectLanding` is the one owner of that rule;
+    // `finalUrl` was already carried here and read by nothing.
+    const landing = harvestRedirectLanding(url, response.url);
+    if (landing.outcome === "refused") {
+      return { ok: false, status: response.status, body: "", redirectedAway: true, finalUrl: landing.url };
+    }
+    const landed = landing.url;
+    if (!response.ok) return { ok: false, status: response.status, body: "", finalUrl: landed };
     const type = response.headers.get("content-type") ?? "";
     // A PDF IS BYTES, NOT MARKUP, so it never goes through the HTML stripper,
     // which would invent words out of a binary. The bytes are handed back for
@@ -190,7 +202,7 @@ async function fetchText(url) {
         body: "",
         pdf: true,
         bytes: pdfIsWorthReading(bytes.byteLength) ? bytes : null,
-        finalUrl: response.url || url,
+        finalUrl: landed,
       };
     }
     const body = await response.text();
@@ -198,7 +210,7 @@ async function fetchText(url) {
       ok: true,
       status: response.status,
       body: body.length > MAX_PAGE_BYTES ? body.slice(0, MAX_PAGE_BYTES) : body,
-      finalUrl: response.url || url,
+      finalUrl: landed,
     };
   } catch (error) {
     return { ok: false, status: 0, body: "", error: String(error).slice(0, 120), finalUrl: url };
