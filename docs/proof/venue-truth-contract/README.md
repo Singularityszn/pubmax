@@ -72,10 +72,14 @@ At 0.75 the band costs 167 rows (21%) a downgrade from "in" to "near".
 
 `today-*` after: rows that only sit near the area the heading names carry a
 quiet "Just outside" after the pub name. The words say the relation to the
-PLACE, not to the reader, because the card's other copy says "near you" and the
-heading says "in". The /today card's list is ranked cheapest-first rather than
-by distance, so it over-samples the rim: four of its five rows earn the
-qualifier here, which is a true thing about where the cheap pints are.
+PLACE, not to the reader, because the card's other copy says "near you".
+
+The heading follows the rows. The /today list is ranked cheapest-first rather
+than by distance, so it over-samples the rim: four of its five rows earn the
+qualifier here, and a heading saying "in" over four rows saying "outside"
+argues with itself. `todayPintsHeading` gives the card "The cheap ones around
+<area>." when more than half the rows are outer-band and keeps "in" otherwise,
+a tie keeping the stronger word because half the rows really are in the place.
 
 Nothing about which area LISTS a pub moved. `nightAreaForPoint` still answers
 `piccadilly-soho` for the Three Tuns; only the strength of the claim changed.

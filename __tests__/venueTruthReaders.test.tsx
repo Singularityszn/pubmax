@@ -11,7 +11,11 @@ import { describe, expect, it } from "vitest";
 
 import TodayPintsCard from "@/app/today/TodayPintsCard";
 import { Amenity } from "@/components/map/venueInspectorBits";
-import { buildTodayPintsForPatch, type TodayPintsIndex } from "@/app/today/todayPints";
+import {
+  buildTodayPintsForPatch,
+  todayPintsHeading,
+  type TodayPintsIndex,
+} from "@/app/today/todayPints";
 import { CENTRAL_PATCH } from "@/lib/nightPatches";
 import { AREA_NEARBY_ROW_TAG } from "@/lib/venueTruth";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
@@ -123,6 +127,8 @@ describe("the /today pints card and its area heading", () => {
         ],
       },
     });
+    // One row of two is outside, so the majority is not, and the stronger word
+    // stands.
     expect(html).toContain("The cheap ones in Piccadilly &amp; Soho");
     // Exactly one qualifier, on the row that earned it.
     expect(html.split(`>${AREA_NEARBY_ROW_TAG}<`)).toHaveLength(2);
@@ -178,5 +184,43 @@ describe("buildTodayPintsForPatch stamps the relation it measured", () => {
     const relations = new Map(built!.rows.map((row) => [row.name, row.areaRelation]));
     expect(relations.get("Centre Arms")).toBe("inside");
     expect(relations.get("Rim Arms")).toBe("nearby");
+  });
+});
+
+describe("todayPintsHeading", () => {
+  const row = (relation: "inside" | "nearby" | "unplaced", id: string) => ({
+    id,
+    name: id,
+    price: 4.8,
+    priceLabel: "£4.80",
+    mapHref: `/map?sel=${id}`,
+    areaRelation: relation,
+  });
+
+  const CASES: Array<[label: string, relations: Array<"inside" | "nearby" | "unplaced">, word: string]> = [
+    ["every row inside", ["inside", "inside", "inside"], "in"],
+    ["a minority outside", ["inside", "inside", "nearby"], "in"],
+    ["an even split keeps the stronger word", ["inside", "nearby"], "in"],
+    ["a majority outside", ["inside", "nearby", "nearby"], "around"],
+    ["THE MEASURED CARD: four of five outside", ["inside", "nearby", "nearby", "nearby", "nearby"], "around"],
+    ["every row outside", ["nearby", "nearby"], "around"],
+    ["an unplaced row is not inside either", ["unplaced", "unplaced"], "around"],
+    ["no rows at all", [], "in"],
+  ];
+
+  it.each(CASES)("%s heads the card with %s", (_label, relations, word) => {
+    const heading = todayPintsHeading({
+      areaName: "Piccadilly & Soho",
+      rows: relations.map((relation, index) => row(relation, `pub-${index}`)),
+    });
+    expect(heading).toBe(`The cheap ones ${word} Piccadilly & Soho.`);
+  });
+
+  it("says the same thing the rows say", () => {
+    // A heading that says "in" over rows that say "just outside" argues with
+    // itself, which is the whole of this rule.
+    const rows = [row("nearby", "a"), row("nearby", "b"), row("inside", "c")];
+    expect(todayPintsHeading({ areaName: "Soho", rows })).toContain("around");
+    expect(todayPintsHeading({ areaName: "Soho", rows })).not.toContain(" in ");
   });
 });

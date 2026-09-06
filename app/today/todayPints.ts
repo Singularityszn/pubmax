@@ -102,6 +102,22 @@ export function buildTodayPintsForPatch(
 }
 
 /**
+ * The card's heading, as strong as the rows under it allow.
+ *
+ * An area is a centre and a radius, and the radius is how far the list reaches
+ * rather than where a pub is (lib/venueTruth.ts). A heading that says "in" over
+ * a list where most rows say "just outside" argues with itself, and the list is
+ * ranked cheapest-first rather than by distance, so it over-samples the rim.
+ * The majority decides the preposition; a tie keeps the stronger word, because
+ * half the rows really are in the place the heading names.
+ */
+export function todayPintsHeading(module: Pick<TodayPintsModule, "areaName" | "rows">): string {
+  const outside = module.rows.filter((row) => row.areaRelation !== "inside").length;
+  const preposition = outside * 2 > module.rows.length ? "around" : "in";
+  return `The cheap ones ${preposition} ${module.areaName}.`;
+}
+
+/**
  * Precompute the module for every night patch plus the central default. Areas
  * with no priced pints are simply absent from the index, so a lookup that misses
  * degrades to the central default (or to no module) without inventing a list.

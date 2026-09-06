@@ -600,6 +600,63 @@ function amenityRow(
   );
 }
 
+/**
+ * What the kitchen is known to do, or nothing. Same shape as the markup it
+ * replaces: the sentence prints when food is stated, the chips print when there
+ * are any, and a pub with neither renders no row.
+ */
+function cuisineRow(servesFood: boolean, cuisineTags: readonly string[]) {
+  if (!servesFood && cuisineTags.length === 0) return null;
+  return (
+    <div className="cuisineRow" aria-label="Food and cuisine">
+      {servesFood ? (
+        <p className="cuisineServes">
+          <strong>Serves food</strong>
+          {cuisineTags.length === 0
+            ? ". Plates available; check the board for tonight’s kitchen."
+            : null}
+        </p>
+      ) : null}
+      {cuisineTags.length > 0 ? (
+        <div className="cuisineTags">
+          {cuisineTags.map((tag) => (
+            <span key={tag} className="cuisineChip">
+              {tag}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Only publicly-confirmed access facts, shown as chips, plus the quiet-hours
+ * line when there is one. A pub with no confirmed access facts shows nothing
+ * here, never a "No", per the provenance-honesty rule.
+ */
+function accessibilityRow(accessChips: readonly string[], quietHours: string | null) {
+  if (accessChips.length === 0 && !quietHours) return null;
+  return (
+    <>
+      {accessChips.length > 0 ? (
+        <div className="accessibilityChips" aria-label="Confirmed accessibility">
+          {accessChips.map((label) => (
+            <span key={label} className="accessibilityChip">
+              {label}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {quietHours ? (
+        <p className="accessibilityQuietHours">
+          <strong>Quiet hours:</strong> {quietHours}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 export default function VenueOverviewTab({
   venue,
   tab,
@@ -877,43 +934,8 @@ export default function VenueOverviewTab({
           venue-matched award fact exists for this pin. Renders nothing otherwise. */}
       <VenueAwardBadge venueId={venue.id} />
       {amenityRow(amenityChips)}
-      {servesFood || cuisineTags.length > 0 ? (
-        <div className="cuisineRow" aria-label="Food and cuisine">
-          {servesFood ? (
-            <p className="cuisineServes">
-              <strong>Serves food</strong>
-              {cuisineTags.length === 0
-                ? ". Plates available; check the board for tonight’s kitchen."
-                : null}
-            </p>
-          ) : null}
-          {cuisineTags.length > 0 ? (
-            <div className="cuisineTags">
-              {cuisineTags.map((tag) => (
-                <span key={tag} className="cuisineChip">
-                  {tag}
-                </span>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-      {/* Accessibility — only publicly-confirmed facts, shown as chips. A pub
-          with no confirmed access facts shows nothing here (never a "No"). */}
-      {accessChips.length > 0 ? (
-        <div className="accessibilityChips" aria-label="Confirmed accessibility">
-          {accessChips.map((label) => (
-            <span key={label} className="accessibilityChip">
-              {label}
-            </span>
-          ))}
-        </div>
-      ) : null}
-      {quietHours ? (
-        <p className="accessibilityQuietHours">
-          <strong>Quiet hours:</strong> {quietHours}
-        </p>
-      ) : null}
+      {cuisineRow(servesFood, cuisineTags)}
+      {accessibilityRow(accessChips, quietHours)}
           <VenueWeatherRecommendations
             key={`weather-recommendations-${venue.id}`}
             venueId={venue.id}

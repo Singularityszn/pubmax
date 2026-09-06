@@ -23,6 +23,7 @@ import { AREA_NEARBY_ROW_TAG } from "@/lib/venueTruth";
 
 import {
   resolveTodayPintsPatchId,
+  todayPintsHeading,
   type TodayPintsIndex,
   type TodayPintsModule,
 } from "./todayPints";
@@ -88,7 +89,7 @@ export default function TodayPintsCard({ index }: Props) {
             {eyebrow(hasRememberedLocality)}
           </p>
           <h2 className="todayCardTitle" id="today-pints-title">
-            The cheap ones in {pints.areaName}.
+            {todayPintsHeading(pints)}
           </h2>
         </div>
       </div>
