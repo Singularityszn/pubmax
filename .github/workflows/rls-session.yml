@@ -21,7 +21,7 @@ concurrency:
 jobs:
   rls-session:
     name: Effective RLS (Postgres 16 + PostgREST 14)
-    runs-on: ubuntu-latest
+    runs-on: avrea-ubuntu-latest-2-vcpu
     timeout-minutes: 15
 
     steps:

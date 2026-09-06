@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   send:
-    runs-on: ubuntu-latest
+    runs-on: avrea-ubuntu-latest-2-vcpu
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
