@@ -23,6 +23,7 @@ import {
 import { formatPrice, type Venue } from "@/lib/venues";
 import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
 import { boroughFromSlug, pubsInBorough, slugifyBorough } from "@/lib/boroughs";
+import { landingPhotoFor } from "@/lib/landingImagery";
 import { loadBoroughHeritage, NOTABLE_CAP } from "@/lib/boroughHeritage";
 import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import SiteNav from "@/components/nav/SiteNav";
@@ -285,6 +286,7 @@ export default async function BoroughPage({ params }: PageProps) {
         }
         mapHref={pubs.length > 0 ? boroughBrowseMapUrl(name) : "/map"}
         mapLabel={pubs.length > 0 ? "Open the map here" : "Open the map"}
+        photo={landingPhotoFor({ boroughSlug: slugifyBorough(name) })}
       >
         <BoroughPintPriceCard boroughName={name} ourCheapestPrice={ourCheapestPrice} />
         {pubs.length > 0 && pubs.length < BOROUGH_COVERAGE_FLOOR ? (

@@ -653,3 +653,11 @@
 .boroughPintChipCompare {
   color: var(--ink-soft);
 }
+
+/* The chapter's photograph of its own borough (components/landing/LandingPhoto
+   .tsx, band variant). It sits under the head, ahead of the price card, and it
+   keeps the head's own rhythm: one margin, no frame of its own beyond the
+   band's hairline. */
+.boroughPhoto {
+  margin: var(--space-3) 0 var(--space-5);
+}

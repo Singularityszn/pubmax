@@ -1,10 +1,12 @@
 import Link from "next/link";
 
+import LandingPhoto from "@/components/landing/LandingPhoto";
 import PricedLandingRows, {
   PricedLandingPublisher,
   formatPricedLandingCollectedDate,
 } from "@/components/drinks/PricedLandingRows";
 import type { DrinkBrandAreaLanding } from "@/lib/drinkBrandAreaLanding";
+import { landingPhotoFor } from "@/lib/landingImagery";
 import {
   pricedLandingAreaMapCta,
   pricedLandingCountLabel,
@@ -21,6 +23,11 @@ import { formatPrice } from "@/lib/venues";
 // only while the map can resolve it, through the same seam the London brand
 // page uses. No `?drink=beer`: decodeDrinkLens already fills the category from
 // the brand, and PubMap excludes beer from the selected lens.
+//
+// The head stands over a photograph of the area (captain 6 Sep 2026), or of
+// London where lib/landingImagery.ts holds no picture of it. It sits UNDER the
+// heading and the figure rather than over them: this page's answer is a price,
+// and a picture in front of it would be a picture in front of the answer.
 export default function DrinkBrandAreaLandingContent({
   landing,
   mapSelectableVenueIds,
@@ -72,6 +79,13 @@ export default function DrinkBrandAreaLandingContent({
             {arrival.label}
           </Link>
         </div>
+        <LandingPhoto
+          resolved={landingPhotoFor({ areaSlug: landing.areaSlug })}
+          variant="band"
+          sizes="(max-width: 1100px) 100vw, 1040px"
+          priority
+          className="drinkBrandDirectory__photo"
+        />
       </header>
 
       <section
