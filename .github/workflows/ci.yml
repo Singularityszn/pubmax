@@ -281,9 +281,17 @@ jobs:
   # The wall is 35 minutes because the sweep itself measured 11m45s locally over
   # that wire, on top of a production build. It was 15 with nine routes on
   # loopback.
+  # The measurement runs on a 4 vCPU Avrea runner rather than the 2 vCPU every
+  # other job takes. On the 2 vCPU box the sweep could not measure itself: the
+  # 6 September run reported LCP samples spread 37 to 51 per cent on /today,
+  # /discover, /drinks and /crawls, past the method's own 12 per cent width, so
+  # a route flipped between pass and fail on one commit. A ceiling is only a
+  # ceiling when the number under it is repeatable. The ceilings themselves do
+  # not move for this, and docs/PERFORMANCE_BUDGETS.md carries the rule that
+  # they come DOWN at the next sweep wherever the quieter box measures lower.
   performance-budget:
     name: Performance budget
-    runs-on: avrea-ubuntu-latest-2-vcpu
+    runs-on: avrea-ubuntu-latest-4-vcpu
     timeout-minutes: 35
     steps:
       - name: Checkout
@@ -362,9 +370,14 @@ jobs:
   # over its own ceiling is printed as a warning, because the ceilings are
   # already enforced by the job above. It fails only on a route it could not
   # measure at all, which is a broken route rather than a slow one.
+  # Same runner size as the budget job above, for the reason this job exists:
+  # it reports on the method e2e/helpers/perfMeasurement.ts owns so its figures
+  # are comparable to the ceilings, and two figures taken on two different boxes
+  # are not comparable. It printed no spread warnings of its own; it moves to
+  # keep the pair honest.
   ux-lane-performance:
     name: UX lane performance
-    runs-on: avrea-ubuntu-latest-2-vcpu
+    runs-on: avrea-ubuntu-latest-4-vcpu
     timeout-minutes: 15
     steps:
       - name: Checkout

@@ -1,8 +1,10 @@
 import { expect, type Page, type Request } from "@playwright/test";
 
 import {
+  BUDGET_METRICS,
   PERFORMANCE_BUDGETS,
   median,
+  perfSampleSpread,
   resolveCountBoundary,
   type BudgetMethod,
   type PerfBoundarySource,
@@ -441,6 +443,26 @@ export async function measurePerfRoute(
 }
 
 /**
+ * True when any metric's samples disagree past the tracked width AND its own
+ * floor - the same two tests findMethodWarnings applies when it reports a run
+ * as unmeasurable. Kept here rather than imported from the warning path so the
+ * decision to spend another run is made on the samples in hand.
+ */
+function routeCouldNotMeasureItself(
+  samples: readonly PerfSample[],
+  method: BudgetMethod,
+): boolean {
+  if (!method.resampleRuns || samples.length === 0) return false;
+  return BUDGET_METRICS.some((metric) => {
+    const spread = perfSampleSpread(samples.map((sample) => sample[metric]));
+    if (!Number.isFinite(spread.spreadPct) || spread.spreadPct <= method.sampleSpreadWarnPct) {
+      return false;
+    }
+    return spread.max - spread.min >= (method.sampleSpreadFloors[metric] ?? 0);
+  });
+}
+
+/**
  * The same run, with its individual samples kept.
  *
  * #1314 asked for exactly this before choosing a fix: a run that reports only
@@ -460,6 +482,16 @@ export async function runPerfRoute(
   const samples: PerfSample[] = [];
   for (let run = 0; run < method.measuredRuns; run += 1) {
     samples.push(await samplePerfRoute(page, route, method));
+  }
+  // A median of 3 is only a median when the samples agree. Where they do not,
+  // the run says so itself through the same spread rule findMethodWarnings
+  // prints, and a route that cannot measure itself is measured again rather
+  // than judged on the disagreement. The extra samples are spent ONLY on such
+  // a route, so a quiet sweep costs exactly what it did before.
+  if (routeCouldNotMeasureItself(samples, method)) {
+    for (let run = 0; run < (method.resampleRuns ?? 0); run += 1) {
+      samples.push(await samplePerfRoute(page, route, method));
+    }
   }
   return {
     samples,

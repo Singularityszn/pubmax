@@ -85,6 +85,18 @@ export type BudgetMethod = {
   warmupRuns: number;
   /** Measured runs per route. */
   measuredRuns: number;
+  /**
+   * Extra runs taken when a route could not measure itself.
+   *
+   * A median of 3 is only a median when the samples agree. A route whose
+   * samples spread past sampleSpreadWarnPct on any metric is measured this
+   * many times more and judged on the wider median. The extra runs are only
+   * ever spent where the run reported it could not measure, so a quiet route
+   * costs nothing and a noisy one is judged on more evidence rather than less.
+   */
+  resampleRuns?: number;
+  /** Why the resample exists, kept beside the number for the next reader. */
+  resampleWhy?: string;
   aggregate: "median";
   /** CDP CPU throttle applied to every measured run. */
   cpuThrottleRate: number;

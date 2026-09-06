@@ -257,8 +257,32 @@ Against the production build in Desktop Chrome at device pixel ratio 1, with a
 CSS viewport of 390x844, a 4x CPU throttle, and every cross-origin request
 refused, so a run measures what we ship and never a tile server's morning. Each
 route gets a warm-up load whose request lifecycle must fully drain before
-measurement, then the median of three measured runs. A network that does not
-drain within 20 seconds fails the run.
+measurement, then the median of three measured runs. A route whose samples
+disagree past the tracked width is measured twice more and judged on the median
+of five, because a median of three is only a median when the samples agree. A
+network that does not drain within 20 seconds fails the run.
+
+### The runner the sweep is taken on, and why it is not the one every other job takes
+
+The budget job and the UX lane report run on `avrea-ubuntu-latest-4-vcpu`; every
+other job in `.github/workflows/ci.yml` runs on the 2 vCPU label. On the 2 vCPU
+box the sweep could not measure itself. Its own method check reported LCP
+samples spread 37 to 51 per cent on `/today`, `/discover`, `/drinks` and
+`/crawls`, and a server-render spread of 320 per cent on `/feed`, all past the
+12 per cent width this method tracks. Inside one run of one commit `/crawls`
+measured 304 ms and then 612 ms, and `/today` 304 ms and then 708 ms: a route
+flipped between pass and fail with nothing in the tree changing. A ceiling is
+only a ceiling when the number under it is repeatable.
+
+Two things follow, and the second is the one that keeps this honest. The
+ceilings do not move because the box changed: not one number in
+`perf/route-budgets.json` was re-seeded for the runner size. And the ratchet law
+below still says a ceiling comes DOWN whenever the measured figure sits
+comfortably under it, so a quieter box is a reason to take ceilings down at the
+next sweep, never a place for a route to hide. The two perf jobs stay on the
+same label as each other for the reason the UX lane exists: it reports on this
+method so its figures are comparable to the ceilings, and two figures taken on
+two different boxes are not comparable.
 
 The method is tracked rather than remembered. It lives in the `method` block of
 `perf/route-budgets.json`, which `lib/performanceBudgets.ts` types and both perf
@@ -274,6 +298,7 @@ another:
 | `thirdPartyBlocked` | true | A run measures what we ship, never a tile server's morning. |
 | `warmupRuns` | 1 | Discarded, and its request lifecycle must fully drain, so a cold module load is not charged to the route. |
 | `measuredRuns` | 3 | Stated here rather than implied, because "the median" means nothing without an N. |
+| `resampleRuns` | 2 | Spent only on a route whose own samples disagreed past `sampleSpreadWarnPct` and its floor, so that route's median is taken over 5 rather than 3. A quiet route costs exactly what it did before. |
 | `aggregate` | median | One slow run cannot fail a green route. |
 | `boundaryClock` | page | Whose clock stops the count. See below. |
 | `sampleSpreadWarnPct` | 12 | How far a route's own samples may sit apart before the run says so. A warning; it fails nothing. |
@@ -521,10 +546,19 @@ written from memory. A raise with a record still prints in the job log under
 unremarked. The record stays in the file afterwards, which is what makes the
 next reader able to ask whether the debt was ever paid.
 
-No ceiling carries one today, and that is the point: the sweep that added a
-network profile to the rig found one route over its ceiling, and the answer was
-to report the route rather than to move the number. See "The one route over its
-ceiling" above.
+One ceiling carries one, and it is worth reading because of what it says about
+the row rather than about the route. `/drinks` went from 400 ms to 1000 ms on
+6 September 2026, on the captain's ruling. `app/drinks/page.tsx` has been a
+`permanentRedirect` to `/social?tab=discover` since #765 on 6 August, so the row
+has been measuring the discover tab plus one redirect round trip, while
+`/discover` is budgeted 1000 ms for exactly that content and passes at 688 ms.
+The 400 was written for a drink lanes page that no longer exists. Measured 684 ms
+on the runner (samples 708/684/488) and, locally against a production build under
+the tracked throttle, 856 ms against `/social`'s 692 ms in the same run with
+identical decoded JS. It goes to `/discover`'s own figure and no further, so the
+redirect can never cost more than the page it lands on. Every other route was
+brought back under its ceiling instead of being given room: see "The one route
+over its ceiling" above.
 
 Adding a route is cheap: one entry with a `readySelector` the route really
 renders and one sentence of `why`. Removing one is refused by the check, because
