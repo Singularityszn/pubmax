@@ -82,6 +82,13 @@ const NOT_REPO_PATHS = new Set([
   "pint_drops.daily_cap_conflict",
   // Database table name, not a repository path.
   "public.account_retention_ledger",
+  // Database table name, not a repository path.
+  "public.private_social_accounts",
+  // Database column names, not repository paths.
+  "public.profiles.user_id",
+  "profiles.user_id",
+  // RLS helper in pubmax_private, not a repository path.
+  "pubmax_private.rls_owns_handle",
   // CSS class on the Plan invite preview's join control, not a repository path.
   ".invitePreview__join",
   // Database column name, not a repository path.
