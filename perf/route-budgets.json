@@ -7,6 +7,7 @@
     "measuredRuns": 3,
     "resampleRuns": 2,
     "resampleWhy": "A median of 3 is only a median when the samples agree. On the Avrea runners the 6 September sweep reported LCP spreads of 37 to 51 percent on /today, /discover, /drinks and /crawls, past this method's own 12 percent width, so a route flipped between pass and fail on one commit. A route whose spread passes sampleSpreadWarnPct on any metric is measured twice more and its median is taken over 5 samples. Extra samples are only ever taken where the run said it could not measure, so a quiet route costs nothing and a noisy one is judged on more evidence rather than on less.",
+    "resampleWithinCeilingPct": 10,
     "aggregate": "median",
     "cpuThrottleRate": 4,
     "network": {

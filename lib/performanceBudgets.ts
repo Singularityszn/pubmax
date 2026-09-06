@@ -97,6 +97,14 @@ export type BudgetMethod = {
   resampleRuns?: number;
   /** Why the resample exists, kept beside the number for the next reader. */
   resampleWhy?: string;
+  /**
+   * And the second reason to spend them: a median this close to a ceiling, as a
+   * percentage of the ceiling, is decided by one sample's jitter. The spread
+   * rule asks whether the samples agreed with each other and is blind to where
+   * they sit, so a route can agree with itself at 14 per cent and still read
+   * 612 ms in one attempt and 956 ms in the next against a 900 ms ceiling.
+   */
+  resampleWithinCeilingPct?: number;
   aggregate: "median";
   /** CDP CPU throttle applied to every measured run. */
   cpuThrottleRate: number;

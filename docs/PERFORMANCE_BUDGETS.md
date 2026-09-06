@@ -257,10 +257,13 @@ Against the production build in Desktop Chrome at device pixel ratio 1, with a
 CSS viewport of 390x844, a 4x CPU throttle, and every cross-origin request
 refused, so a run measures what we ship and never a tile server's morning. Each
 route gets a warm-up load whose request lifecycle must fully drain before
-measurement, then the median of three measured runs. A route whose samples
-disagree past the tracked width is measured twice more and judged on the median
-of five, because a median of three is only a median when the samples agree. A
-network that does not drain within 20 seconds fails the run.
+measurement, then the median of three measured runs. Two kinds of route are
+measured twice more and judged on the median of five: one whose samples disagree
+past the tracked width, because a median of three is only a median when the
+samples agree, and one whose median lands within `resampleWithinCeilingPct` of
+its own ceiling, because a verdict that close is decided by jitter and deserves
+more evidence rather than less. A network that does not drain within 20 seconds
+fails the run.
 
 ### The runner the sweep is taken on, and why it is not the one every other job takes
 
@@ -298,7 +301,8 @@ another:
 | `thirdPartyBlocked` | true | A run measures what we ship, never a tile server's morning. |
 | `warmupRuns` | 1 | Discarded, and its request lifecycle must fully drain, so a cold module load is not charged to the route. |
 | `measuredRuns` | 3 | Stated here rather than implied, because "the median" means nothing without an N. |
-| `resampleRuns` | 2 | Spent only on a route whose own samples disagreed past `sampleSpreadWarnPct` and its floor, so that route's median is taken over 5 rather than 3. A quiet route costs exactly what it did before. |
+| `resampleRuns` | 2 | Spent only where the run needs more evidence, so that route's median is taken over 5 rather than 3. A quiet route costs exactly what it did before. |
+| `resampleWithinCeilingPct` | 10 | The second reason to spend them. The spread rule asks whether the samples agreed with EACH OTHER and is blind to where they sit: on 6 September `/map` agreed with itself to 14 per cent and still read 612 ms in one attempt of the job and 956 ms in the next against a 900 ms ceiling, while `/pubs` asked 68 requests in one attempt and 69 in the other against a ceiling of 68. A median inside this margin of its own ceiling, or over it, buys the same extra samples. It only ever ADDS runs and decides nothing. |
 | `aggregate` | median | One slow run cannot fail a green route. |
 | `boundaryClock` | page | Whose clock stops the count. See below. |
 | `sampleSpreadWarnPct` | 12 | How far a route's own samples may sit apart before the run says so. A warning; it fails nothing. |
