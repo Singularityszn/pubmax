@@ -37,10 +37,20 @@ export default function VenueMenuTab({
   // Observed price-update overlays, fetched once per session as data instead of
   // being bundled into the map chunk (~3 MB of JSON — see priceUpdatesLoader).
   // The menu renders its seed/app-dataset rows immediately; the overlay applies
-  // when the fetch resolves (usually before the sheet finishes opening).
+  // when the fetch resolves.
+  //
+  // ASKED FOR BY THE TAB THAT DRAWS THEM. Every venue tab is MOUNTED on every
+  // sheet open and hides itself with `hidden` (see the panel below), so this
+  // effect used to run for a reader who never opened Drinks: measured on the
+  // audit's phone rig, `/map?sel=` spent 1862 KB on the drink overlay and
+  // 1519 KB on the food one before the sheet had finished opening, 3381 KB of
+  // the route's 15032 KB. The loader caches per session, so opening the tab a
+  // second time still costs nothing.
   const [drinkUpdates, setDrinkUpdates] = useState<DrinkPriceUpdate[]>([]);
   const [foodUpdates, setFoodUpdates] = useState<FoodPriceUpdate[]>([]);
+  const menuTabOpen = tab === "menu";
   useEffect(() => {
+    if (!menuTabOpen) return;
     let cancelled = false;
     void loadDrinkPriceUpdates().then((updates) => {
       if (!cancelled && updates.length > 0) setDrinkUpdates(updates);
@@ -51,7 +61,7 @@ export default function VenueMenuTab({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [menuTabOpen]);
 
   // The Menu tab's full drink list (beer from venue.prices + seeded non-beer
   // drinks), plus public Pint Drops already loaded by the Venue sheet.

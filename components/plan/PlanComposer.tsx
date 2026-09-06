@@ -1378,7 +1378,15 @@ function PlanComposerForm({
       || completeStops.length === normalizePlanStopCount(nightContext.stopCount)
     );
 
+  // The venue index behind the Stop name field's datalist. It is only ever read
+  // by the composer's own stop rows (the datalist, the typed-name match in
+  // editedPlanStop, and the held pub's name), so it is asked for only once the
+  // composer is on screen. `/plan` opens on describe-first at every width, and
+  // measured on the audit's phone rig that arrival spent 1821 KB on two reads
+  // of a 911 KB index for a control it had not drawn: 1821 KB of the route's
+  // 3554 KB. Once the composer is up, the read runs exactly as it always did.
   useEffect(() => {
+    if (!composerVisible) return;
     let active = true;
     fetch(planComposerVenueIndexPath(acceptedCityId))
       .then((response) => response.json())
@@ -1400,7 +1408,7 @@ function PlanComposerForm({
       })
       .catch(() => undefined);
     return () => { active = false; };
-  }, [acceptedCityId, hydratedHandoff?.heldVenueId]);
+  }, [composerVisible, acceptedCityId, hydratedHandoff?.heldVenueId]);
 
   useEffect(() => {
     if (recoveredDraft) trackEvent("draft_recovered", { kind: "plan", surface: "plan" });

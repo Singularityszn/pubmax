@@ -1,0 +1,12 @@
+{
+  "note": "Time from navigation commit to the first tappable pin, read off the app's own painted-pin probe (window.__pubmaxPaintedMapTapPoints). Three cold runs per arm on one box, 390x844, 4x CPU throttle, Slow 4G, Playwright Chromium with SwiftShader. A null sample is the 60000 ms ceiling passing with no tappable mark.",
+  "before": {
+    "commit": "5bf044f55",
+    "/map": { "samples": [10624, 10896, 11775], "median": 10896 },
+    "/map?sel=venue-1vle947": { "samples": [null, null, null], "median": null }
+  },
+  "after": {
+    "/map": { "samples": [10539, 10163, 9783], "median": 10163 },
+    "/map?sel=venue-1vle947": { "samples": [null, null, null], "median": null }
+  }
+}

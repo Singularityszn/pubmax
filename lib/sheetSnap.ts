@@ -38,11 +38,12 @@ export const SHEET_SNAP_ORDER: SheetSnap[] = ["peek", "half", "full"];
  *
  * `sheetTopPx` is the sheet's measured top edge in the same viewport. It may
  * only ever move the pin HIGHER than the snap fraction implies, never lower:
- * the venue sheet is content-height and springs open, so a reading taken
- * mid-spring reports an edge near the bottom of the screen, and trusting that
- * one would park the pin exactly where the settled sheet lands. Taking the
- * higher of the two answers means an unmeasurable sheet, a growing sheet and a
- * taller-than-half sheet all leave the pin in map the reader can see.
+ * the venue sheet is content-height and slides in from below the fold, so a
+ * reading taken mid-entrance reports an edge near the bottom of the screen, and
+ * trusting that one would park the pin exactly where the settled sheet lands.
+ * Taking the higher of the two answers means an unmeasurable sheet, a sheet
+ * still arriving and a taller-than-half sheet all leave the pin in map the
+ * reader can see.
  *
  * Default assumes the sheet opens at `half` (selectVenue always does).
  */
@@ -82,8 +83,18 @@ export const SHEET_SNAP_TRANSLATE_FRACTIONS = {
 } as const;
 
 export const SHEET_ENTRANCE_OVERSHOOT_DAMPING = 0.75;
-/** Keep first phone-sheet frame visible while the entrance spring starts. */
-export const SHEET_ENTRANCE_START_FRACTION = 0.05;
+
+/**
+ * How long the phone sheet's entrance takes.
+ *
+ * The entrance is a TRANSFORM, not a height animation: this sheet is
+ * bottom-anchored and springing its box height moved everything inside it,
+ * which Chrome scores as layout shift (see openAtSnap in
+ * components/mobile/useSheetHeightDrag.ts). The number is shared by the CSS
+ * that draws the slide (`.sheet-entering` in mobileMapShell.css) and the hook
+ * that holds the class on for its duration, so the two cannot drift.
+ */
+export const SHEET_ENTRANCE_MS = 340;
 
 export const VENUE_REVEAL_STALE_MS = 8_000;
 export const VENUE_REVEAL_SHORT_MS = 160;
@@ -107,14 +118,6 @@ export function revealForm(
   if (lastRevealAt === null || !Number.isFinite(lastRevealAt)) return "full";
   if (now - lastRevealAt >= VENUE_REVEAL_STALE_MS) return "full";
   return "short";
-}
-
-export function sheetEntranceStartHeight(
-  targetHeight: number,
-  overshoot: boolean,
-): number {
-  if (!overshoot || !Number.isFinite(targetHeight) || targetHeight <= 0) return 0;
-  return targetHeight * SHEET_ENTRANCE_START_FRACTION;
 }
 
 /** translateY fraction of viewport for a snap (same units as CSS `vh`). */

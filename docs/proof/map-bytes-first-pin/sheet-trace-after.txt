@@ -1,0 +1,26 @@
+The same arrival on this branch. Same rig, same probe.
+
+  5900ms top= 780 h= 464 maxH=464.2px bodyScrollH= 898 right open sheet-half sheet-entering
+  5915ms top= 753 h= 464 maxH=464.2px bodyScrollH= 898 right open sheet-half sheet-entering
+  5930ms top= 692 h= 464 maxH=464.2px bodyScrollH= 898 right open sheet-half sheet-entering
+  5955ms top= 573 h= 464 maxH=464.2px bodyScrollH= 898 right open sheet-half sheet-entering
+  5983ms top= 449 h= 464 maxH=464.2px bodyScrollH= 898 right open sheet-half sheet-entering
+  6021ms top= 370 h= 464 maxH=464.2px bodyScrollH= 898 right open sheet-half sheet-entering
+  6067ms top= 342 h= 464 maxH=464.2px bodyScrollH= 898 right open sheet-half sheet-entering
+  6268ms top= 321 h= 464 maxH=464.2px bodyScrollH= 898 right open sheet-half sheet-entering
+  6304ms top= 316 h= 464 maxH=464.2px bodyScrollH= 898 right open sheet-half
+  8238ms top= 316 h= 464 maxH=464.2px bodyScrollH=1135 right open sheet-half
+  9323ms top= 316 h= 464 maxH=464.2px bodyScrollH=1209 right open sheet-half
+
+The HEIGHT is 464 on the first painted frame and never changes. The top slides
+780 -> 316 on a transform, so no frame of that travel is a layout shift. The
+body is 898px from the start because the skeleton fills the sheet while the
+panel's chunk is in flight, and when the chunk lands at 8238ms the body grows
+inside a box that does not move.
+
+  CLS 0.0000 over 0 shifts
+
+What the body held at each step:
+
+  5900ms h= 898  ... <div class="venueSheetSkeleton" role="status" aria-live="polite" ...>
+  8024ms h=1135  ... <section class="venueInspector">

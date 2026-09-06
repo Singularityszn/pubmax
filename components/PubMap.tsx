@@ -244,11 +244,17 @@ const ActiveRoundChip = dynamic(() => import("@/components/map/ActiveRoundChip")
   ssr: false,
 });
 import type { TabKey } from "@/components/map/VenueInspector";
+import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
+// The panel is its own chunk, and on a throttled phone that chunk lands seconds
+// after the sheet opens. Without a fallback the sheet held the peek summary
+// alone and then grew when the chunk arrived, which is a layout shift the
+// reader pays for: measured 0.24 of a 0.31 CLS on a `/map?sel=` arrival. The
+// skeleton is what this sheet already shows while `/api/venue/[id]` hydrates,
+// so the wait for the chunk now looks like the wait for the data.
 const VenueInspector = dynamic(
   () => import("@/components/map/VenueInspector"),
-  { ssr: false },
+  { ssr: false, loading: () => <VenueSheetSkeleton /> },
 );
-import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
 // Only ever mounted for a tapped UK base pin, so it stays off the map's
 // critical chunk exactly like the curated inspector above it.
 const UnverifiedPubSheet = dynamic(
@@ -1348,16 +1354,19 @@ export default function PubMap({
   const [wetherspoonsDirectoryPubs, setWetherspoonsDirectoryPubs] = useState<
     WetherspoonsPub[] | null
   >(null);
-  // Held until the canvas hands over. The directory is 2.1 MB of national
-  // opening times: it answers the Open now filter and nothing on the first
-  // frame, but fetched at mount it queues ahead of the slim venue shard that
-  // makes the pins exist and then parses on the main thread mid map-init.
-  // `null` already means "not loaded yet" everywhere downstream, so waiting
-  // reads as it always did rather than as a pub with no hours. A reader who
-  // arrives with Open now already on is asking for those hours, so that case
-  // does not wait.
+  // Asked for ONLY by the filter that reads it. The directory is 2.1 MB of
+  // national opening times and `openNowStateById` below is its one and only
+  // reader, so with Open now off every one of those bytes was spent on an
+  // answer nothing asked: measured on the audit's own phone rig it was the
+  // single largest response on a cold `/map`, 2098 KB of the route's 9092 KB.
+  // It used to be HELD until the canvas handed over, which kept it off the
+  // first pin's wire but still spent it on every reader. Holding was the right
+  // rule for a lane the map really draws; this one is a filter's own read.
+  // `null` already means "not loaded yet" everywhere downstream, so a reader
+  // who turns the filter on sees the map narrow as the hours land, which is
+  // what a reader arriving with Open now already on has always seen.
   useEffect(() => {
-    if (!mapCanvasReady && !filters.openNow) return;
+    if (!filters.openNow) return;
     let cancelled = false;
     loadWetherspoonsDirectory()
       .then((directory) => {
@@ -1369,7 +1378,7 @@ export default function PubMap({
     return () => {
       cancelled = true;
     };
-  }, [mapCanvasReady, filters.openNow]);
+  }, [filters.openNow]);
   const [experienceLens, setExperienceLens] =
     useState<MapExperienceLensValue>("all");
   const [experiencePolicyNow] = useState(() => Date.now());
@@ -6085,7 +6094,6 @@ export default function PubMap({
             }
             backLabel={mapSurfaceTrail.backLabel}
             onBack={mapSurfaceTrail.back}
-            entranceOvershoot={detailOpen && venueEntranceOvershoot}
             onInterruptReveal={interruptVenueReveal}
             venueRevealSettleSequence={venueRevealSettleSequence}
           >
