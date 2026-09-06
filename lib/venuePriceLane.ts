@@ -10,8 +10,11 @@
 // nothing.
 
 import { PRICE_AUTHORITY_MAX_AGE_DAYS } from "@/lib/priceAuthorityWindow";
+import { answerEvidenceFor, type AnswerPublisher } from "@/lib/landingHero";
 import type { PricedVenue } from "@/lib/priceUpdates";
-import type { EstimatedPriceInput, ListedPriceInput } from "@/lib/priceTier";
+import type { EstimatedPriceInput, ListedPriceInput, PriceStanding } from "@/lib/priceTier";
+import { isoDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+import { formatTrustDay, trustPillLabel } from "@/lib/trustPill";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 
@@ -90,7 +93,18 @@ export type VenuePriceLane =
       provisionalPrice: number;
       observedAt: string | number | null;
     }
-  | { lane: "baseline"; cheapestPrice: number }
+  | {
+      lane: "baseline";
+      cheapestPrice: number;
+      /**
+       * What this figure is worth, DECIDED once here through the same reading
+       * the landing answer card makes, so the peek, the Overview and the
+       * landing cannot call one pub's own price three things.
+       */
+      standing: PriceStanding;
+      /** Who published it, for the note that links out. Null when nobody did. */
+      publisher: AnswerPublisher | null;
+    }
   | {
       lane: "aged";
       agedPrice: number;
@@ -117,6 +131,7 @@ export function venuePriceLane(
   bundle: VenueBundlePrices = {},
   provisional?: ProvisionalPriceInput | null,
   aged?: ProvisionalPriceInput | null,
+  now: number = Date.now(),
 ): VenuePriceLane | null {
   const cheapestPrice =
     venue.cheapestPrice !== null && venue.cheapestPrice !== undefined
@@ -149,7 +164,17 @@ export function venuePriceLane(
       observedAt: provisional.observedAt,
     };
   }
-  if (cheapestPrice !== null) return { lane: "baseline", cheapestPrice };
+  if (cheapestPrice !== null) {
+    const { publisher, standing } = answerEvidenceFor(
+      {
+        priceGbp: cheapestPrice,
+        prices: venue.prices ?? [],
+        collectedOn: isoDate(PINT_DATASET_OBSERVED_AT),
+      },
+      now,
+    );
+    return { lane: "baseline", cheapestPrice, standing, publisher };
+  }
   // AN AGED REPORT SITS BELOW THE BASELINE AND ABOVE THE MODEL. Below, because
   // a report past the window is no longer about tonight and the baseline at
   // least claims to be a price on record. Above, because a drinker did pay it
@@ -192,6 +217,37 @@ export function venueSourcedPrice(venue: Venue): PricedVenue["sourcedPrice"] {
  * string, so a caller that wants it has to go through the module that keeps the
  * "est." on it.
  */
+/**
+ * THE READER'S WORD FOR THE PRICE WE HOLD, never ours.
+ *
+ * Captain 6 Sep 2026, reading the venue sheet head: under the price it said
+ * "baseline on record". That is an internal word. It means the LISTED price we
+ * hold for this pub, and the rest of the product already has a word for that,
+ * on the landing answer card and now on the cheap pint board: "Listed", with
+ * the day it was collected.
+ *
+ * The word is `trustPillLabel`, the ONE place a standing becomes a word, over
+ * the standing the lane already decided. A baseline row nobody published cannot
+ * claim a listing and says what it really is instead, which is the same fork
+ * the Overview's own note has always drawn.
+ *
+ * The day is the bundled dataset's collection day, in the format the landing
+ * card prints it, because a price we hold is only as good as the day we read
+ * it. A row that has aged past the listed window stops claiming a listing on
+ * its own, without anything being rewritten.
+ */
+export const BASELINE_NO_PUBLISHER_CAPTION = "Price on record, publisher not recorded";
+
+export function baselineTrustCaption(lane: {
+  standing: PriceStanding;
+  publisher: AnswerPublisher | null;
+}): string {
+  if (lane.standing !== "listed" || !lane.publisher) {
+    return BASELINE_NO_PUBLISHER_CAPTION;
+  }
+  return `${trustPillLabel("listed")} · collected ${formatTrustDay(PINT_DATASET_OBSERVED_AT.getTime())}`;
+}
+
 export function venuePriceLaneObservedGbp(lane: VenuePriceLane): number | null {
   switch (lane.lane) {
     case "anchor":

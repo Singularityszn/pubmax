@@ -30,6 +30,7 @@ import { isPubVenue } from "@/lib/venueKindFilters";
 import {
   AGED_PRICE_LINE,
   PROVISIONAL_PRICE_LINE,
+  baselineTrustCaption,
   venueBundlePrices,
   venuePriceLane,
   venuePriceLaneIsDrinkerLog,
@@ -77,7 +78,7 @@ import {
   type MapExperienceLens,
 } from "@/lib/mapExperienceLens";
 import { drinkLaneNoun, venueDrinkPriceView } from "@/lib/drinkLanes";
-import { namedLegacyPintPriceSource, type DrinkCategory } from "@/lib/drinks";
+import { type DrinkCategory } from "@/lib/drinks";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import { confirmPintActionName } from "@/lib/pintDropSecondDrinker";
 import type { ZonePintIndex } from "@/lib/zones";
@@ -319,12 +320,6 @@ function VenuePriceSummary({
   // Every figure below wears its price BAND (lib/priceBand.ts) and no other
   // colour; the standing and the lane are said in the badge and the words.
   const bandArea = priceBandAreaForVenue(venue.id);
-  const baselinePriceRow = venue.prices.find(
-    (price) => price.price_gbp === venue.cheapestPrice,
-  );
-  const baselineSource = baselinePriceRow
-    ? namedLegacyPintPriceSource(baselinePriceRow)
-    : null;
   // THE ONE DOOR, decided once here and appended to whichever lane block
   // renders, so no lane can grow a second invitation of its own.
   const door = (
@@ -479,21 +474,27 @@ function VenuePriceSummary({
     return (
       <div className="contributorPrice">
         <span className={chromeRevealClass}>
-          <ClaimBadge kind="baseline" /> Baseline on record
+          {/* No "Baseline" chip. That word is ours, and it stood immediately
+              before the reader's word for the same fact. The heading is now the
+              SAME STRING the phone peek prints (battle test M05). */}
+          {baselineTrustCaption(lane)}
         </span>
         <PriceBadge variant="baseline" band={priceBand(venue.cheapestPrice, bandArea)}>
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
         <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
-          {baselineSource ? (
+          {/* The publisher is DECIDED BY THE LANE, through the same reading the
+              landing answer card makes, so the peek's caption and this block's
+              heading are one string and one publisher (battle test M05). */}
+          {lane.publisher ? (
             <>
               Dataset price from{" "}
               <a
-                href={baselineSource.url}
+                href={lane.publisher.url}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                {baselineSource.label}
+                {lane.publisher.label}
               </a>
               . Not a live tonight feed.
             </>

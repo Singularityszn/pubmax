@@ -120,3 +120,30 @@ place. No horizontal overflow at 320.
 A listing ages out rather than being claimed for ever: `LISTED_MAX_AGE_DAYS` is
 365, so the same row two years past collection stands for nothing and leaves
 the board with its claim. That is pinned rather than described.
+
+## The sheet head says the reader's word
+
+Captain, same day, reading the venue sheet: under the price it said "baseline
+on record". That is our word. It means the LISTED price we hold for this pub,
+and the product already had a word for that on the landing answer card.
+
+`after/sheet-head-caption-390.png` is the Blackfriar's peek at 390 after the
+change: **£6.50 · Listed · collected 4 Sept**. The word is `trustPillLabel`,
+the day is the bundled dataset's collection day in the format the landing card
+prints it, and the standing is decided by `answerEvidenceFor`, the same reading
+the landing card and the cheap pint board now make. Three surfaces, one reading.
+
+Two rules ride with it.
+
+- **A price nobody published cannot claim a listing.** `answerEvidenceFor`
+  answers `none` where no row carries a publisher, and the caption then says
+  `Price on record, publisher not recorded` rather than borrowing the word. It
+  is the same fork the Overview's own note has always drawn, now drawn once.
+- **The peek and the Overview print ONE string.** The caption rides the lane,
+  so neither surface names it, and the "Baseline" chip that stood immediately
+  before the reader's word on the Overview is gone with the word it repeated.
+  Pinned by `__tests__/lonePintDropLane.test.ts`, which renders both and
+  asserts the Overview contains the peek's exact caption.
+
+A listing also ages out here for free: past `LISTED_MAX_AGE_DAYS` the same row
+stops claiming one, because the caption reads a decision rather than a constant.

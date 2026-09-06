@@ -23,6 +23,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import VenueOverviewTab from "@/components/map/inspector/VenueOverviewTab";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { firstDropNudgeCopy } from "@/lib/firstDropNudge";
+import {
+  BASELINE_NO_PUBLISHER_CAPTION,
+  baselineTrustCaption,
+} from "@/lib/venuePriceLane";
 import { drinkLensEmptyVenueNote } from "@/lib/mapExperienceLens";
 import { drinkLaneLogActionLabel, drinkLaneLogInvite } from "@/lib/drinkLanes";
 import type { DrinkCategory } from "@/lib/drinks";
@@ -427,14 +431,65 @@ describe("the phone peek chip over a lone Pint Drop", () => {
     });
   });
 
-  it("keeps the baseline chip it always printed, and names it a baseline", () => {
-    expect(peekChipFor([], venue({ cheapestPrice: 6.2 }))).toEqual({
+  const PUBLISHER = {
+    label: "Pint Prices",
+    url: "https://www.pint-prices.com/pub/the-sir-christopher-hatton",
+  };
+
+  it("keeps the baseline chip it always printed, in the reader's word", () => {
+    // Captain 6 Sep 2026, reading the sheet head: under the price it said
+    // "baseline on record", which is our word and not the reader's. It means
+    // the LISTED price we hold, so it says what the rest of the product says.
+    const published = venue({
+      cheapestPrice: 6.2,
+      prices: [
+        {
+          app_price_id: "app_price_1",
+          pint_name: "Pravha",
+          price_gbp: 6.2,
+          pub_url: "https://www.pint-prices.com/pub/the-sir-christopher-hatton",
+        },
+      ] as Venue["prices"],
+    });
+    const chip = peekChipFor([], published);
+    expect(chip).toEqual({
       figure: "£6.20",
       priceGbp: 6.2,
-      caption: "baseline on record",
+      caption: baselineTrustCaption({ standing: "listed", publisher: PUBLISHER }),
       observed: true,
       trust: null,
     });
+    expect(chip?.caption).toMatch(/^Listed · collected /);
+    expect(chip?.caption).not.toMatch(/baseline/i);
+  });
+
+  it("cannot claim a listing for a price nobody published", () => {
+    // The fixture carries no price rows, so no publisher, so no listing. The
+    // chip says what it really is rather than borrowing the word.
+    const chip = peekChipFor([], venue({ cheapestPrice: 6.2 }));
+    expect(chip?.caption).toBe(BASELINE_NO_PUBLISHER_CAPTION);
+    expect(chip?.caption).not.toMatch(/listed/i);
+  });
+
+  it("gives the sheet head and the Overview ONE word for one pub", () => {
+    // Battle test M05: the peek and the Overview may not read one pub two
+    // ways, so both take the caption from the lane rather than each naming it.
+    const published = venue({
+      cheapestPrice: 6.2,
+      prices: [
+        {
+          app_price_id: "app_price_1",
+          pint_name: "Pravha",
+          price_gbp: 6.2,
+          pub_url: "https://www.pint-prices.com/pub/the-sir-christopher-hatton",
+        },
+      ] as Venue["prices"],
+    });
+    const caption = peekChipFor([], published)?.caption ?? "";
+    const html = renderSelectedVenue([], published);
+    expect(caption).not.toBe("");
+    expect(html).toContain(caption);
+    expect(html).not.toContain("Baseline on record");
   });
 
   it("is the ONLY thing the peek words as an absence", () => {
