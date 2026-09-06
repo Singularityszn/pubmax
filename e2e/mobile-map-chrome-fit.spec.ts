@@ -727,24 +727,32 @@ test("320px keeps the whole place name and the map-edge lane tappable", async ({
   await chromium.send("Emulation.setSafeAreaInsetsOverride", {
     insets: { top: 0, right: safeAreaRight, bottom: 0, left: 0 },
   });
-  await page.evaluate(async () => {
-    await new Promise<void>((resolve) =>
-      requestAnimationFrame(() => resolve()),
-    );
-  });
-
-  const safeAreaLayout = await page.evaluate(() => {
-    const box = (selector: string) => {
-      const element = document.querySelector<HTMLElement>(selector);
-      if (!element) throw new Error(`Missing ${selector}`);
-      const rect = element.getBoundingClientRect();
-      return { left: rect.left, right: rect.right, width: rect.width };
-    };
-    return {
-      tfl: box(".mobileMapTflButton"),
-      locate: box(".mobileMapLocateFab"),
-    };
-  });
+  // The emulated inset reaches layout on a LATER frame on a slow host: on the
+  // Avrea runner (6 Sep 2026, run 34064821878 attempt 1) one animation frame
+  // after the CDP call still measured the default berth, 308 against 288, and
+  // the retry passed. So the pin waits, bounded, for the inset to LAND on the
+  // TfL control, then asserts the same edges it always did: nothing about
+  // where the controls must sit is loosened, only when they are read.
+  const readSafeAreaLayout = () =>
+    page.evaluate(() => {
+      const box = (selector: string) => {
+        const element = document.querySelector<HTMLElement>(selector);
+        if (!element) throw new Error(`Missing ${selector}`);
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, width: rect.width };
+      };
+      return {
+        tfl: box(".mobileMapTflButton"),
+        locate: box(".mobileMapLocateFab"),
+      };
+    });
+  await expect
+    .poll(async () => (await readSafeAreaLayout()).tfl.right, {
+      message: "the safe-area inset has landed on the map-edge lane",
+      timeout: 10_000,
+    })
+    .toBe(viewport.width - safeAreaRight);
+  const safeAreaLayout = await readSafeAreaLayout();
   expect(safeAreaLayout.tfl.right).toBe(viewport.width - safeAreaRight);
   expect(
     Math.round(safeAreaLayout.locate.right),
