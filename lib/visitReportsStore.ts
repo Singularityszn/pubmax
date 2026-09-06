@@ -53,6 +53,13 @@ const TABLE = "structured_visit_reports";
 /** Bounded public reads: a venue read never returns more than this many rows. */
 export const MAX_VENUE_REPORTS = 500;
 
+/**
+ * How many of one contributor's own reports a single read carries. A cap is a
+ * window rather than a filter; the account export says so through its own
+ * `truncated` flag.
+ */
+export const MAX_CONTRIBUTOR_REPORTS = 1_000;
+
 export type VisitReportReadResult = {
   status: VisitReportReadStatus;
   reports: VisitReportDTO[];
@@ -98,6 +105,13 @@ export type VisitReportStore = {
   moderate(id: string, status: VisitReportStatus, note?: string): Promise<boolean>;
   /** Private all-time projection for contributor counting. */
   listLeaderboardContributions(): Promise<ContributionRecordReadResult>;
+  /**
+   * Every report ONE contributor wrote, newest visit first, hidden rows
+   * included: it is their own account of their own night either way, and the
+   * account's portable copy (`lib/accountExport.server.ts`) is the only caller.
+   * The status says whether an empty list is an empty account or a failed read.
+   */
+  listForContributor(handle: string): Promise<VisitReportReadResult>;
 };
 
 function nightKey(venueId: string, handle: string, visitedAt: string): string {
@@ -197,6 +211,17 @@ export const memoryVisitReportStore: VisitReportStore = {
       if (report.handle === contributor && report.status === "visible") count += 1;
     }
     return { status: "ready", count };
+  },
+
+  async listForContributor(handle) {
+    const contributor = normalizeHandle(handle);
+    if (!contributor) return { status: "ready", reports: [] };
+    const reports = Array.from(byId.values())
+      .filter((r) => r.handle === contributor)
+      .sort(byNewestVisit)
+      .slice(0, MAX_CONTRIBUTOR_REPORTS)
+      .map(toVisitReportDTO);
+    return { status: "ready", reports };
   },
 
   async listForReview() {
@@ -542,6 +567,36 @@ export const supabaseVisitReportStore: VisitReportStore = {
           .select("id");
         if (error) throw new Error(error.message);
         return (data ?? []).length > 0;
+      },
+    });
+  },
+
+  async listForContributor(handle) {
+    const contributor = normalizeHandle(handle);
+    if (!contributor) return { status: "ready", reports: [] };
+    return guard<VisitReportReadResult>({
+      context: "listForContributor",
+      onSchemaMiss: async () => ({
+        ...(await memoryVisitReportStore.listForContributor(contributor)),
+        status: "degraded",
+      }),
+      message: "listForContributor failed - returning no reports",
+      onError: () => ({ status: "degraded", reports: [] }),
+      run: async () => {
+        const { data, error } = await admin()
+          .from(TABLE)
+          .select("*")
+          .eq("handle", contributor)
+          .order("visited_at", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(MAX_CONTRIBUTOR_REPORTS);
+        if (error) throw new Error(error.message);
+        return {
+          status: "ready",
+          reports: (data ?? []).map((r) =>
+            toVisitReportDTO(fromRow(r as Record<string, unknown>)),
+          ),
+        };
       },
     });
   },

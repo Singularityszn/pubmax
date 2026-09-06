@@ -2,14 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // `deleteOwnAccount` — the ONE writer behind account deletion.
 //
-// TWO PHASES in ONE order: the account's own Storage objects are removed
-// through the Storage API, then the auth row goes and migration `0078`'s
-// trigger (as restated by `0145`) owns everything downstream. The order is the
-// point: the wall photo rows and the message columns NAME the objects and the
-// trigger deletes or clears them, so the keys are collected first. And the
-// answer is THREE-WAY: an account that is already gone is a success, while a
-// delete we could not run is a failure the reader may retry, with nothing
-// deleted past the phase that failed.
+// THREE PHASES in ONE order: the object keys are COLLECTED (the wall photo rows
+// and the message columns NAME half of them and the trigger clears those rows,
+// so the read has to come first), then the auth row goes and migration `0078`'s
+// trigger (as restated by `0145` and `0150`) owns everything downstream, and
+// only then are the objects REMOVED. The order is the point, and it is the
+// reverse of the first cut: a failure before the auth row goes removes NOTHING,
+// so a person who taps Delete, is told to try again and decides not to still has
+// every photo they ever uploaded (review finding F-5). The answer is THREE-WAY:
+// an account that is already gone is a success, while a delete we could not run
+// is a failure the reader may retry.
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase", () => ({
@@ -54,6 +56,7 @@ type Fake = AccountDeletionDeps & {
   profile: { id: string; handle: string } | null;
   wallKeys: string[];
   messageKeys: string[];
+  messageKeysAskedWith: Array<[string, string]>;
 };
 
 /** A bucket that lists by folder the way the Storage API does, and an auth that answers as GoTrue does. */
@@ -70,6 +73,7 @@ function fakeDeps(): Fake {
     profile: { id: PROFILE, handle: "night_owl" },
     wallKeys: [],
     messageKeys: [],
+    messageKeysAskedWith: [],
     async profileForUser() {
       return fake.profile;
     },
@@ -83,7 +87,8 @@ function fakeDeps(): Fake {
       if (fake.rowsThrow) throw new Error("venue_photos unreadable");
       return fake.wallKeys;
     },
-    async messagePhotoKeys() {
+    async messagePhotoKeys(profileId, handle) {
+      fake.messageKeysAskedWith.push([profileId, handle]);
       if (fake.rowsThrow) throw new Error("messages unreadable");
       return fake.messageKeys;
     },
@@ -135,6 +140,19 @@ describe("ownedObjectKeys", () => {
     expect(keys).not.toContain(`night-moments/other-user/${MEMORY}/photo.jpg`);
   });
 
+  it("asks for message photos by PROFILE as well as by handle", async () => {
+    // Review finding F-4: `sender_handle` is text stamped at send time and a
+    // rename does not rewrite it, so a handle-only read left every photo an
+    // account sent under an older handle in the bucket. Migration `0151` is
+    // what put the un-renameable identity on the row.
+    const fake = fakeDeps();
+    seedPhotos(fake);
+
+    await ownedObjectKeys(USER, fake);
+
+    expect(fake.messageKeysAskedWith).toEqual([[PROFILE, "night_owl"]]);
+  });
+
   it("walks only the Moment folder for an account that never claimed a handle", async () => {
     const fake = fakeDeps();
     fake.profile = null;
@@ -147,7 +165,7 @@ describe("ownedObjectKeys", () => {
 });
 
 describe("deleteOwnAccount", () => {
-  it("removes the account's objects through the Storage API, then deletes the auth row", async () => {
+  it("deletes the auth row, then removes the account's objects through the Storage API", async () => {
     const fake = fakeDeps();
     const owned = seedPhotos(fake);
 
@@ -217,53 +235,78 @@ describe("deleteOwnAccount", () => {
     expect(fake.authDeleted).toEqual([]);
   });
 
-  it("keeps the auth row when the Storage API refused the removal, so the reader can retry", async () => {
+  it("keeps the account's photos when the auth delete could not run — F-5", async () => {
+    // THE REGRESSION. The first cut removed every object BEFORE the auth
+    // delete, so an auth failure answered "Your account could not be deleted.
+    // Try again." over a live account whose avatar, covers, Moments and pub
+    // wall photos were already irreversibly gone, with the wall rows still on
+    // public walls as broken images.
     const fake = fakeDeps();
-    seedPhotos(fake);
-    fake.removeThrows = true;
-
-    const outcome = await deleteOwnAccount(USER, fake);
-
-    expect(outcome).toBe("unavailable");
-    expect(fake.authDeleted).toEqual([]);
-    expect(logged.events).toEqual([{ event: "account.delete_failed", stage: "objects_not_removed" }]);
-  });
-
-  it("reports an auth delete it could not run as unavailable, and logs it", async () => {
-    const fake = fakeDeps();
+    const owned = seedPhotos(fake);
     fake.authError = { status: 500, message: "database unavailable" };
 
     const outcome = await deleteOwnAccount(USER, fake);
 
     expect(outcome).toBe("unavailable");
     expect(accountIsDeleted(outcome)).toBe(false);
+    expect(fake.removed).toEqual([]);
+    for (const key of owned) expect(fake.bucket.has(key)).toBe(true);
     expect(logged.events).toEqual([{ event: "account.delete_failed", stage: "auth" }]);
   });
 
-  it("survives a throwing auth client rather than taking the route down", async () => {
+  it("survives a throwing auth client rather than taking the route down, and removes nothing", async () => {
     const fake = fakeDeps();
+    const owned = seedPhotos(fake);
     fake.authThrows = new Error("network down");
 
     expect(await deleteOwnAccount(USER, fake)).toBe("unavailable");
+    expect(fake.removed).toEqual([]);
+    for (const key of owned) expect(fake.bucket.has(key)).toBe(true);
     expect(logged.events).toEqual([{ event: "account.delete_failed", stage: "auth" }]);
   });
 
-  it("finds nothing left to remove on a retry after a removal that landed", async () => {
-    // The first attempt removed the objects and then could not delete the auth
-    // row; the second finds an empty set and only the auth row to delete.
+  it("stays deleted when the Storage API refused the removal, and names the orphans", async () => {
+    // The account is gone; saying it is not would be the same lie in mirror
+    // image. The bytes nobody could remove are logged for an operator sweep,
+    // and no product surface can serve one: the trigger has already deleted
+    // the wall rows and cleared the message columns that named them.
     const fake = fakeDeps();
     seedPhotos(fake);
-    fake.authError = { status: 500, message: "database unavailable" };
-    expect(await deleteOwnAccount(USER, fake)).toBe("unavailable");
+    fake.removeThrows = true;
 
-    fake.authError = null;
+    const outcome = await deleteOwnAccount(USER, fake);
+
+    expect(outcome).toBe("deleted");
+    expect(fake.authDeleted).toEqual([USER]);
+    expect(logged.events).toEqual([
+      { event: "account.delete_objects_orphaned", stage: "objects_not_removed" },
+    ]);
+  });
+
+  it("removes the folder-walked objects on a retry after a removal that failed", async () => {
+    // The first attempt deleted the auth row and could not reach Storage. The
+    // retry reads `already-gone`, and the folder walk still lists the avatar,
+    // the cover and the Moment photo by PREFIX, so they leave on the second go.
+    const fake = fakeDeps();
+    seedPhotos(fake);
+    fake.removeThrows = true;
+    expect(await deleteOwnAccount(USER, fake)).toBe("deleted");
+
+    fake.removeThrows = false;
+    // The trigger cleared the rows that named the wall and message photos.
     fake.wallKeys = [];
     fake.messageKeys = [];
-    const removedByFirst = fake.removed.length;
-    expect(await deleteOwnAccount(USER, fake)).toBe("deleted");
-    // The stranger's photo is the only thing left in the bucket, and it stays.
-    expect(fake.removed.length).toBe(removedByFirst);
-    expect([...fake.bucket]).toEqual([`night-moments/other-user/${MEMORY}/photo.jpg`]);
+    fake.authError = { status: 404, code: "user_not_found" };
+    expect(await deleteOwnAccount(USER, fake)).toBe("already-gone");
+
+    expect([...fake.bucket].sort()).toEqual(
+      [
+        `night-moments/other-user/${MEMORY}/photo.jpg`,
+        "venue-photos/venue-1/photo-1.jpg",
+        "venue-photos/venue-1/photo-1.staging.jpg",
+        "messages/conv-1/msg-1.jpg",
+      ].sort(),
+    );
   });
 
   it("never reaches the seam for an empty id", async () => {

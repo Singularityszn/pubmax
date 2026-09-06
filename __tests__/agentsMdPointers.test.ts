@@ -160,6 +160,11 @@ const NOT_REPO_PATHS = new Set([
   "venues_slim.json",
   "venues_slim.core.json",
   "venues_slim*.json",
+  // A structured log EVENT name, not a repository path.
+  "account.delete_objects_orphaned",
+  // Database columns named in the account-deletion entry, not repository paths.
+  "messages.sender_handle",
+  "messages.sender_profile_id",
 ]);
 
 function pointers(): string[] {

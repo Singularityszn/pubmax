@@ -50,9 +50,16 @@ import {
   type VenuePhotoFields,
   type VenuePhotoModerationState,
   type VenuePhotoPage,
+  type VenuePhotoReadStatus,
 } from "@/lib/venuePhotos";
 
 const TABLE = "venue_photos";
+
+/**
+ * How many of one account's own wall photos a single read carries. A cap is a
+ * window rather than a filter; the account export says so through `truncated`.
+ */
+const MAX_AUTHOR_PHOTOS = 1_000;
 const MIGRATION_HINT = "apply migration 0098";
 
 export type VenuePhotoWallQuery = {
@@ -86,6 +93,13 @@ export type VenuePhotoStore = {
   listForReview(): Promise<VenuePhoto[]>;
   /** Moderator hidden lane, so a hide stays reversible. Fail-soft. */
   listHidden(): Promise<VenuePhoto[]>;
+  /**
+   * Every photo ONE account put on a wall, newest first, hidden rows included:
+   * it is their own photograph either way, and the account's portable copy
+   * (`lib/accountExport.server.ts`) is the only caller. The status separates an
+   * account with no photos from a read we could not run.
+   */
+  listForAuthor(authorProfileId: string): Promise<{ status: VenuePhotoReadStatus; photos: VenuePhoto[] }>;
 };
 
 // ── Author projection ────────────────────────────────────────────────────────
@@ -201,6 +215,14 @@ export const memoryVenuePhotoStore: VenuePhotoStore = {
       }
     }
     return count;
+  },
+
+  async listForAuthor(authorProfileId) {
+    const photos = [...byId.values()]
+      .filter((row) => row.authorProfileId === authorProfileId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, MAX_AUTHOR_PHOTOS);
+    return { status: "ready", photos };
   },
 
   async getById(id) {
@@ -362,6 +384,31 @@ export const supabaseVenuePhotoStore: VenuePhotoStore = {
           limit,
           query.viewerProfileId,
         );
+      },
+    });
+  },
+
+  async listForAuthor(authorProfileId) {
+    return guard<{ status: VenuePhotoReadStatus; photos: VenuePhoto[] }>({
+      context: "listForAuthor",
+      onSchemaMiss: async () => ({
+        ...(await memoryVenuePhotoStore.listForAuthor(authorProfileId)),
+        status: "degraded" as const,
+      }),
+      message: "listForAuthor failed - returning no photos",
+      onError: () => ({ status: "degraded" as const, photos: [] }),
+      run: async () => {
+        const { data, error } = await admin()
+          .from(TABLE)
+          .select("*")
+          .eq("author_profile_id", authorProfileId)
+          .order("created_at", { ascending: false })
+          .limit(MAX_AUTHOR_PHOTOS);
+        if (error) throw new Error(error.message);
+        return {
+          status: "ready" as const,
+          photos: (data ?? []).map((row) => fromRow(row as Record<string, unknown>)),
+        };
       },
     });
   },

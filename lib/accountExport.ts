@@ -7,7 +7,7 @@
 // route and the tests read one answer. It is pure: the reads live in
 // `lib/accountExport.server.ts`.
 //
-// FOUR rules. (1) The export is the caller's own and nobody else's: the route
+// FIVE rules. (1) The export is the caller's own and nobody else's: the route
 // derives the account from the verified bearer, like deletion does, and there
 // is no field a caller could aim elsewhere. (2) Every lane says whether it
 // answered whole: a read we could not run is `unavailable`, never an empty
@@ -16,10 +16,23 @@
 // authority on any figure: prices and Pint Drops are exported as the stores
 // project them. (4) No bytes: photos are named by their storage key and the
 // Memory they sit in, and the words of a message thread are exported for the
-// caller's own messages, never the other side's.
+// caller's own messages, never the other side's. (5) EVERY OWNER-KEYED STORE
+// IS EITHER A LANE OR A NAMED EXCLUSION. `ACCOUNT_EXPORT_LANES` below is the
+// table, and `__tests__/accountExport.test.ts` walks every `lib/*Store*.ts`
+// module in the tree and fails on one that is neither, so a store added
+// tomorrow cannot leave a person's data out of their own copy in silence.
+// Review finding: the first cut of this door shipped four lanes and left the
+// private card, the visit reports, the wall photos, the saved pubs, the Wanted
+// list, the linked socials and the Night Profile out of it.
 
 import type { DrinkCategory } from "@/lib/drinks";
+import type { CheckIn } from "@/lib/checkIn";
 import type { NightMemory, NightMoment } from "@/lib/nightMemory";
+import type { NightProfile } from "@/lib/nightProfile";
+import type { SavedPubDTO } from "@/lib/savedPubs";
+import type { PublicSocialConnection } from "@/lib/socialConnections";
+import type { VisitReportDTO } from "@/lib/visitReports";
+import type { WantedDTO } from "@/lib/wanted";
 
 /** The export document's version, bumped when a field changes meaning. */
 export const ACCOUNT_EXPORT_VERSION = 1;
@@ -32,7 +45,7 @@ export const ACCOUNT_EXPORT_TITLE = "Download your data";
 
 /** One line under the heading. */
 export const ACCOUNT_EXPORT_LEDE =
-  "A JSON file of your Memories, Moments, prices, Pint Drops and the messages you sent.";
+  "A JSON file of everything this account holds: your private details, your Memories and Moments, your prices, Pint Drops, visit reports and photos, your saved pubs and the messages you sent.";
 
 /** The control that prepares the file. */
 export const ACCOUNT_EXPORT_LABEL = "Download JSON";
@@ -54,6 +67,43 @@ export type AccountExportLaneStatus = "complete" | "unavailable";
 
 export type AccountExportMemory = NightMemory & {
   moments: NightMoment[];
+};
+
+/**
+ * The private card: the details behind the owner-authenticated read, which no
+ * public projection ever carries. It is the row a person is most obviously
+ * owed a copy of, and it was the one lane the first cut of this door missed.
+ */
+export type AccountExportIdentity = {
+  /** ISO 8601 date, `YYYY-MM-DD`, or null for an account that never gave one. */
+  dateOfBirth: string | null;
+  fullName: string | null;
+  sex: string | null;
+  gender: string | null;
+  genderSelfDescribed: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+/** One photo in this account's own cover rotation, named by its key. */
+export type AccountExportCoverPhoto = {
+  id: string;
+  /** 1-based rotation position, the order the owner chose. */
+  position: number;
+  objectKey: string;
+  createdAt: string;
+};
+
+/** One photo this account put on a pub wall, named by its key and never its bytes. */
+export type AccountExportWallPhoto = {
+  id: string;
+  venueId: string;
+  objectKey: string;
+  caption: string;
+  drinkCategory: DrinkCategory | null;
+  /** `approved`, `hidden` or whatever the moderation lane last decided. */
+  moderationState: string;
+  createdAt: string;
 };
 
 export type AccountExportPrice = {
@@ -111,14 +161,42 @@ export type AccountExport = {
     handle: string | null;
     displayName: string | null;
   };
+  /** At most one row, because an account has at most one private card. */
+  identity: AccountExportLane<AccountExportIdentity>;
   memories: AccountExportLane<AccountExportMemory>;
   prices: AccountExportLane<AccountExportPrice>;
   pintDrops: AccountExportLane<AccountExportPintDrop>;
+  visitReports: AccountExportLane<VisitReportDTO>;
+  wallPhotos: AccountExportLane<AccountExportWallPhoto>;
+  coverPhotos: AccountExportLane<AccountExportCoverPhoto>;
+  checkIns: AccountExportLane<CheckIn>;
+  /** The handles this account follows. Who follows it is their action, not its data. */
+  follows: AccountExportLane<string>;
+  savedPubs: AccountExportLane<SavedPubDTO>;
+  wanted: AccountExportLane<WantedDTO>;
+  socialLinks: AccountExportLane<PublicSocialConnection>;
+  /** At most one row, the same way `identity` is. */
+  nightProfile: AccountExportLane<NightProfile>;
   messages: AccountExportLane<AccountExportConversation>;
 };
 
 /** The lanes an export carries, so a refusal can name the one that could not answer. */
-export const ACCOUNT_EXPORT_LANES = ["memories", "prices", "pintDrops", "messages"] as const;
+export const ACCOUNT_EXPORT_LANES = [
+  "identity",
+  "memories",
+  "prices",
+  "pintDrops",
+  "visitReports",
+  "wallPhotos",
+  "coverPhotos",
+  "checkIns",
+  "follows",
+  "savedPubs",
+  "wanted",
+  "socialLinks",
+  "nightProfile",
+  "messages",
+] as const;
 export type AccountExportLaneName = (typeof ACCOUNT_EXPORT_LANES)[number];
 
 /** The lanes that could not be run, in table order. Empty means the export is whole. */
