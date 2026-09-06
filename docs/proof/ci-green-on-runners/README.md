@@ -263,3 +263,44 @@ exactly as before. `__tests__/pubMap.test.ts` pins both directions.
 `shots/map-held-frame-390.png` is the held frame after the type change and
 `shots/map-settled-390.png` the same open once it lands: London named in the bar,
 no coverage note anywhere on the route.
+
+## 8. What the runner said back, and the two corrections it forced
+
+Run 34061354510 on `698290fe7` measured the fixes above and refused two of them.
+The runner is the authority here, so both were corrected rather than argued
+with.
+
+**A client component imported into a server one is a bundle, not a link.**
+`/pubs` went the WRONG way: 1114 KB decoded to 1276 against a 1200 ceiling, and
+68 requests to 71, both with zero spread over five samples. `PubsGallery` is a
+server component, so importing `IntentLink` to warm its two `/map?sel=` links
+pulled `next/navigation` and `lib/mapWarmup` into the page's own client bundle.
+The local probe measured 1115 KB and missed it, which is a fact about this Mac's
+incremental build rather than about the change. The two links are plain `Link`
+again, with the reason written beside them; the intent warm comes back the day
+that gallery has a client boundary of its own. `MessagesLink` and
+`NotificationBell` keep their half of the fix: both were already client
+components, so turning the automatic prefetch off adds no graph to any route.
+
+**A script that blocks the first paint to schedule a warm is the same trade its
+own law refuses.** `/map` LCP read 924 ms against 900, and the samples say why
+the number is now honest: 848 / 220 / 932 / 968 / 924, one warm outlier and four
+cold paints. With the duplicate copy and the false banner gone, the route's LCP
+element is the held frame's own first line and nothing repaints after it, so the
+figure IS `/map`'s first contentful paint. Measured on this Mac at a 12x CPU
+throttle to stand in for the runner: first paint 564 ms, and the last thing
+blocking it was `public/map-first-paint-init.js`, ending at 467 ms. On a cold
+first visit that file registers a listener for `pubmax:first-pins` and does
+nothing else. It is `defer` now, which the `document.currentScript` revision read
+survives, and it still runs long before the event it waits for.
+
+| route | metric | 4x local | 12x before | 12x after | ceiling |
+| --- | --- | ---: | ---: | ---: | ---: |
+| /map | LCP (ms) | 208 | 548 | **452** | 900 |
+
+Five samples each: 424/416/836/548/760 before, 340/452/748/400/848 after. The
+next thing in front of that paint is the pair of classic head scripts
+`theme-init.js` and `splash-init.js`, which end at 439 and 448 ms and are a round
+trip each. They are left alone: both must run before paint by design, and
+inlining them touches the CSP nonce policy that `CDN_CACHED_DOCUMENT_PATHS`
+rests on.
