@@ -73,8 +73,10 @@
   line-height: 1.5;
 }
 
+/* The eyebrow is a WORD in the accent, so on the light ground it takes the
+   accent's ink: the raw --brass measured 2.9:1 here at 1440. */
 .messagesThreadEyebrow {
-  color: var(--brass);
+  color: var(--color-accent-ink);
   /* Type token: :root --text-2xs is 0.68rem; html[data-legacy="1"] may bump it.
      Fallback matches the :root value so the eyebrow never inherits a stray rem. */
   font-size: var(--text-2xs, 0.68rem);

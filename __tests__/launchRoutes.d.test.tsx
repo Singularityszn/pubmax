@@ -219,10 +219,16 @@ describe("launch routes (group d) carry one primary action", () => {
     expect(rendered).toContain('class="emptyStateTitle">Join with a link');
   });
 
-  it("/messages carries one primary action", () => {
+  it("/messages carries one primary action, and signed out it is the door that works", () => {
+    // A static render has no session, which is the signed-out reading: the
+    // one painted control is the sign-in door carrying the way back here,
+    // never a New message that leads to a sign-in wall.
     const rendered = renderToStaticMarkup(createElement(MessagesInboxClient, {}));
     expect(primaryCount(rendered)).toBe(1);
-    expect(rendered).toMatch(/data-primary-action=""><a[^>]*href="\/social"[^>]*>New message<\/a>/);
+    expect(rendered).toMatch(
+      /data-primary-action=""><a[^>]*href="\/login\?mode=signin&amp;from=%2Fmessages"[^>]*>Sign in<\/a>/,
+    );
+    expect(rendered).not.toContain("New message");
   });
 
   it("/activity carries one primary action", () => {

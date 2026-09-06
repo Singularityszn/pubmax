@@ -270,7 +270,16 @@ export default function MessagesInboxClient({
       title="Messages"
       titleId="messages-title"
       // A new message starts from a person, and the people are on Social.
-      primary={<Link href="/social">New message</Link>}
+      // Signed out, the one painted control is the door that WORKS: a
+      // painted New message led to a sign-in wall, and the reader met two
+      // doors for one step. The sign-in door carries the way back here.
+      primary={
+        viewerSession.signedOut ? (
+          <Link href="/login?mode=signin&from=%2Fmessages">Sign in</Link>
+        ) : (
+          <Link href="/social">New message</Link>
+        )
+      }
     >
       {/* The one line about what messaging needs. Shown to somebody who is
           not signed in; a signed-in inbox is a list of people, not a notice. */}
@@ -285,10 +294,9 @@ export default function MessagesInboxClient({
       ) : viewerSession.unresolved ? (
         <p className="conversationPreview">With you in a sec.</p>
       ) : viewerSession.signedOut && (needsSignIn || !user) ? (
-        <EmptyState
-          title="Sign in to message"
-          action={<Link href="/login?mode=signin&from=%2Fmessages">Sign in</Link>}
-        >
+        // The head's primary is the sign-in door, so the empty state carries
+        // no second copy of it.
+        <EmptyState title="Sign in to message">
           Private messages need a signed-in account, so each message is tied to
           the right handle.
         </EmptyState>
