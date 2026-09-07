@@ -38,6 +38,29 @@
   outline-offset: 2px;
 }
 
+.mapVenueKindFilterCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+/* The toolbar row is a budget from 641 to 900px: the search field is what a
+   longer label costs, and the top bar already drops its own "More" label in
+   that band. The count stays, and the accessible name is unchanged. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .mapVenueKindFilterWord {
+    display: none;
+  }
+}
+
 .mapVenueKindFilterPanel {
   position: absolute;
   top: calc(100% + 8px);

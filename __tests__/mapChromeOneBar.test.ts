@@ -126,8 +126,12 @@ describe("finding 2.3 — the category toggles have exactly one home per viewpor
     expect(filter).toMatch(
       /event\.key !== "Escape"[\s\S]*?setOpen\(false\)[\s\S]*?buttonRef\.current\?\.focus\(\)/,
     );
-    // A closed panel may not hide which kinds the map is leaving out.
-    expect(filter).toMatch(/venueKindFilterLabel\(hidden\)/);
+    // A closed panel may not hide which kinds the map is leaving out. The word
+    // is what the 641 to 900px toolbar budget drops; the count is what stays,
+    // and the accessible name carries the sentence at every width.
+    expect(filter).toMatch(/VENUE_KIND_FILTER_WORD/);
+    expect(filter).toMatch(/mapVenueKindFilterCount"?>\{hidden\}/);
+    expect(filter).toMatch(/venueKindFilterAriaLabel\(hidden\)/);
     // The chips are the reader's own tap, never the map's cold start.
     expect(filter).toMatch(
       /dynamic\(\s*\(\) => import\("@\/components\/map\/TonightArcChips"\)/,

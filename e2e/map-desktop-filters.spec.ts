@@ -47,6 +47,15 @@ for (const viewport of DESKTOP) {
       const filters = page.locator(".mapToolbar .mapVenueKindFilterBtn");
       await expect(filters).toBeVisible();
       await expect(filters).toHaveAttribute("aria-expanded", "false");
+      await expect(filters).toHaveAttribute("aria-label", "Filters: venue types");
+      // The word shows where the toolbar row can afford it: from 641 to 900px
+      // the search field is what a longer label would cost.
+      const word = filters.locator(".mapVenueKindFilterWord");
+      if (viewport.width > 900) {
+        await expect(word).toBeVisible();
+      } else {
+        await expect(word).toBeHidden();
+      }
       // Head row order: the search row leads, then Filters.
       const order = await page.evaluate(() => {
         const row = document.querySelector<HTMLElement>(".mapToolbarRow")!;
@@ -85,11 +94,14 @@ for (const viewport of DESKTOP) {
         ).toBeVisible({ timeout: 2_000 });
       }).toPass({ timeout: 30_000 });
 
-      await expect(filters).toHaveText("Filters");
+      // The count is the half that survives the 641 to 900px toolbar budget,
+      // so it is what these assertions read at both widths.
+      const count = filters.locator(".mapVenueKindFilterCount");
+      await expect(count).toHaveCount(0);
       await page.getByRole("button", { name: "Bars", exact: true }).click();
-      await expect(filters).toHaveText(/Filters · 1/);
+      await expect(count).toHaveText("1");
       await page.getByRole("button", { name: "Restaurants", exact: true }).click();
-      await expect(filters).toHaveText(/Filters · 2/);
+      await expect(count).toHaveText("2");
       await expect(filters).toHaveAttribute(
         "aria-label",
         "Filters: venue types, 2 types hidden",
@@ -99,7 +111,7 @@ for (const viewport of DESKTOP) {
       // of the map's own filter, never a second copy of it.
       await page.keyboard.press("Escape");
       await expect(filters).toHaveAttribute("aria-expanded", "false");
-      await expect(filters).toHaveText(/Filters · 2/);
+      await expect(count).toHaveText("2");
       await filters.click();
       await expect(
         page.getByRole("button", { name: "Bars", exact: true }),
@@ -110,7 +122,11 @@ for (const viewport of DESKTOP) {
 
       // One reset, and it names what it resets.
       await page.getByRole("button", { name: "Show all types" }).click();
-      await expect(filters).toHaveText("Filters");
+      await expect(count).toHaveCount(0);
+      await expect(filters).toHaveAttribute(
+        "aria-label",
+        "Filters: venue types",
+      );
     });
 
     test("closes on Escape and hands focus back to the control", async ({

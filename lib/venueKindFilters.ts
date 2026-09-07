@@ -143,9 +143,20 @@ export function showAllVenueKinds(
   return next;
 }
 
-/** The word on the closed control. The count rides it, so no filter is invisible. */
+/** The word on the closed control. */
+export const VENUE_KIND_FILTER_WORD = "Filters";
+
+/**
+ * What the closed control reads. The count rides the word, so no filter the map
+ * is applying is invisible. Under 900px the word itself is dropped and the
+ * count stays, because the toolbar row is a budget there and the search field
+ * is what a longer label costs; the accessible name below carries the whole
+ * sentence at every width.
+ */
 export function venueKindFilterLabel(hiddenCount: number): string {
-  return hiddenCount > 0 ? `Filters · ${hiddenCount}` : "Filters";
+  return hiddenCount > 0
+    ? `${VENUE_KIND_FILTER_WORD} · ${hiddenCount}`
+    : VENUE_KIND_FILTER_WORD;
 }
 
 /** What a reader hears. The visible label is a count; this one says what it counts. */

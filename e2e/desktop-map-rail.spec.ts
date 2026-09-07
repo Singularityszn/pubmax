@@ -168,7 +168,11 @@ test.describe("desktop map right-rail (D3.1/D3.2)", () => {
     await bars.click();
     await expect(bars).toHaveAttribute("aria-pressed", "false");
     // The count rides the closed control, so no filter is invisible.
-    await expect(filters).toHaveText(/Filters · 1/);
+    await expect(filters.locator(".mapVenueKindFilterCount")).toHaveText("1");
+    await expect(filters).toHaveAttribute(
+      "aria-label",
+      "Filters: venue types, 1 type hidden",
+    );
   });
 
   test("shows the rail with Conditions + Area news at 1440, and hides the toolbar's duplicate chip", async ({

@@ -18,7 +18,7 @@ import {
   hiddenVenueKindCount,
   showAllVenueKinds,
   venueKindFilterAriaLabel,
-  venueKindFilterLabel,
+  VENUE_KIND_FILTER_WORD,
   type VenueKindVisibility,
 } from "@/lib/venueKindFilters";
 
@@ -93,7 +93,14 @@ export default function MapVenueKindFilter({
         onClick={() => setOpen((current) => !current)}
       >
         <SlidersHorizontal size={15} aria-hidden="true" />
-        <span>{venueKindFilterLabel(hidden)}</span>
+        {/* The word goes under 900px, where the toolbar row is a budget and the
+            search field is what pays for a longer label (the top bar drops its
+            own "More" label in the same band). The count stays, and the
+            accessible name carries the whole sentence at every width. */}
+        <span className="mapVenueKindFilterWord">{VENUE_KIND_FILTER_WORD}</span>
+        {hidden > 0 ? (
+          <span className="mapVenueKindFilterCount">{hidden}</span>
+        ) : null}
       </button>
 
       {open ? (

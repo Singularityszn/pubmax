@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -93,7 +96,18 @@ describe("the control the desktop map opens", () => {
       food: false,
       restaurant: true,
     });
-    expect(html).toContain("Filters · 2");
+    // The word and the count are two elements, because the word is what the
+    // 641 to 900px toolbar budget drops and the count is what stays.
+    expect(html).toContain('class="mapVenueKindFilterWord"');
+    expect(html).toContain('class="mapVenueKindFilterCount"');
+    expect(html).toContain(">2<");
     expect(html).toContain('aria-label="Filters: venue types, 2 types hidden"');
+    const css = readFileSync(
+      join(process.cwd(), "components/map/mapVenueKindFilter.css"),
+      "utf8",
+    );
+    expect(css).toMatch(
+      /@media \(min-width: 641px\) and \(max-width: 900px\)[\s\S]*?\.mapVenueKindFilterWord\s*{[\s\S]*?display:\s*none/,
+    );
   });
 });

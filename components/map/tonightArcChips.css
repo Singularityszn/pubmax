@@ -97,7 +97,9 @@
    than scrolling and every chip keeps the 44px tap floor. */
 .tonightArcChipsPopover .tonightArcRow {
   flex-wrap: wrap;
-  max-width: 320px;
+  /* Three chips, then two: five in a row would make the panel wider than the
+     toolbar control it hangs from at the tablet widths this lane is about. */
+  max-width: 268px;
 }
 
 .tonightArcChipsPopover .tonightArcChip {
