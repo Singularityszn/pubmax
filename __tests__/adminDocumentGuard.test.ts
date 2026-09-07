@@ -101,6 +101,14 @@ describe("canOpenAdminDocument", () => {
 });
 
 describe("the admin document", () => {
+  it("refuses a malformed cookie with the token form's 401", async () => {
+    process.env.ADMIN_TOKEN = "test-admin-secret";
+    incoming.headers = new Headers({ cookie: `${ADMIN_SESSION_COOKIE}=%ZZ` });
+    const { default: AdminPage } = await import("@/app/admin/page");
+    await expect(AdminPage()).rejects.toThrow(/401/);
+    expect(navigation.unauthorized).toHaveBeenCalledTimes(1);
+  });
+
   it("refuses an anonymous request before the console mounts", async () => {
     process.env.ADMIN_TOKEN = "test-admin-secret";
     const { default: AdminPage } = await import("@/app/admin/page");

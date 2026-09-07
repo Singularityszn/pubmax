@@ -67,6 +67,19 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe("POST request body", () => {
+  it.each([null, [], "persist", 42, true].map((body) => [body]))("refuses a non-object JSON body: %j", async (body) => {
+    const { POST } = await import("@/app/api/auth/session/route");
+    const response = await POST(postRequest(body));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "Malformed request body.", code: "MALFORMED_REQUEST", retryable: false,
+    });
+    expect(response.headers.get("set-cookie")).toBeNull();
+    expect(verifyCallerAuth).not.toHaveBeenCalled();
+  });
+});
+
 describe("POST persist", () => {
   it("stores the refresh token and verified email in a durable HttpOnly Lax cookie", async () => {
     vi.stubEnv("NODE_ENV", "production");

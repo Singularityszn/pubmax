@@ -104,6 +104,9 @@ export async function POST(request: Request): Promise<Response> {
   } catch {
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  }
   const action = typeof body.action === "string" ? body.action : "";
 
   if (action === "persist") return persist(request, body);
