@@ -101,25 +101,30 @@ The temporary fixture remains at `.e2e/surface-state-client-check.mjs` in this w
 Run it with `node .e2e/surface-state-client-check.mjs` after providing dependencies.
 It uses account and API fixtures. It does not validate the complete AuthProvider or Next.js page integration.
 
-## Research #1618 handoff
+## Research #1618 handoff: baseline-only
+
+This section records the research snapshot at `6a759e0ac191d99f10c5e658bc8f2c3a6d3dd419`.
+Its counts and follow-up plan do not describe the research after parent integration.
+The parent's [research input README](../../../data/hyped-pubs-research/README.md) supersedes this snapshot and plan.
+That README was verified in the parent checkout at `0bd51086b`.
 
 [#1618](https://github.com/Singularityszn/pubmax/issues/1618) requests a ranked list of at least thirty pubs from the last thirty days.
 Each row needs a why line and a source URL.
 It also requires a clear statement of sources reached and not reached.
 
-Current local evidence:
+Evidence recorded at the baseline:
 
-- The research file holds **48 rows and 141 source URLs**.
-- Only **27 rows** carry any `observedAt` date from `2026-08-08` through `2026-09-07`.
+- The research file held **48 rows and 141 source URLs**.
+- Only **27 rows** carried any `observedAt` date from `2026-08-08` through `2026-09-07`.
 - `HypedPubSource.observedAt` explicitly means the day the researcher read the page.
 - A recent read date therefore does not prove a recent mention.
-- The issue has no comments, and its two acceptance boxes remain unchecked.
-- The existing Tonight proof documents rendering. It does not document research access failures.
+- The issue read during the audit had no comments, and its two acceptance boxes were unchecked.
+- The Tonight proof documented rendering. It did not document research access failures.
 
-The sources include Reddit 72, TikTok 34, Instagram 27, YouTube 4, and four other web URLs.
+The baseline sources included Reddit 72, TikTok 34, Instagram 27, YouTube 4, and four other web URLs.
 URL presence alone does not prove the researcher reached the source.
 
-| File | Work another owner can take |
+| File | Follow-up identified at baseline |
 | --- | --- |
 | [data/hyped-pubs-research/london.json](../../../data/hyped-pubs-research/london.json) | Verify recent mentions. Complete at least thirty supported rows and explain the ranking evidence. |
 | [lib/hypedPubs.ts](../../../lib/hypedPubs.ts) | Preserve the meaning of `observedAt`. Keep publication dates separate if they enter the published schema. |
@@ -130,13 +135,13 @@ URL presence alone does not prove the researcher reached the source.
 | [__tests__/hypedPubs.test.ts](../../../__tests__/hypedPubs.test.ts) | Check the runtime reader if the published schema changes. |
 | [docs/proof/tonight-hyped-lede/README.md](../tonight-hyped-lede/README.md) | Existing UI proof, with its local-only limits. |
 
-Smallest remaining plan:
+Follow-up plan recorded at baseline:
 
 1. Record reached and blocked sources in a research note beside the input JSON.
 2. Capture each mention's publication date separately from its access date.
-3. Confirm at least thirty pubs have qualifying recent evidence. Do not treat the current 27 access dates as publication proof.
+3. Confirm at least thirty pubs have qualifying recent evidence. Do not treat the baseline 27 access dates as publication proof.
 4. Explain the ranking from that evidence and update only the supported rows.
 5. Run the two focused tests above and `npm run ingest:hyped-pubs -- --check` after regeneration.
 
-The existing ingest path rejects future observations but does not enforce a thirty-day publication window.
+The baseline ingest path rejected future observations but did not enforce a thirty-day publication window.
 No research data or ingestion code changed in this branch.
