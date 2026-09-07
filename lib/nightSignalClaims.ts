@@ -77,6 +77,32 @@ function source(value: unknown): NightSignalSource | null {
   return sourceUrl && publisher && publishedAt ? { sourceUrl, publisher, publishedAt } : null;
 }
 
+function parseNightSignalEntity(value: unknown): NightSignalEntity | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  const type = row.type;
+  const id = text(row.id, 120);
+  if (!id || (type !== "venue" && type !== "night_area" && type !== "transport")) return null;
+  return { type, id };
+}
+
+function hasValidClaimEvidence(claim: NightSignalClaim): boolean {
+  if (Date.parse(claim.expiresAt) <= Date.parse(claim.observedAt)) return false;
+  if (Date.parse(claim.publishedAt) > Date.parse(claim.observedAt)) return false;
+  if (claim.corroboratingSources.some((item) => Date.parse(item.publishedAt) > Date.parse(claim.observedAt))) return false;
+  if (claim.reviewState === "approved" && (!claim.reviewedAt || !claim.reviewAuthority)) return false;
+  if (claim.reviewedAt && Date.parse(claim.reviewedAt) < Date.parse(claim.observedAt)) return false;
+  const independentCorroboration = claim.corroboratingSources.some((item) =>
+    new URL(item.sourceUrl).hostname !== new URL(claim.sourceUrl).hostname
+      && item.publisher.toLocaleLowerCase("en-GB") !== claim.publisher.toLocaleLowerCase("en-GB"),
+  );
+  if (claim.corroboratingSources.length > 0 && !independentCorroboration) return false;
+  if (claim.verification === "corroborated" && !independentCorroboration) return false;
+  if (claim.routeEffect !== "none" && claim.verification === "single_source") return false;
+  if (claim.routeEffect !== "none" && claim.verification === "manual_review" && claim.reviewAuthority !== "operations" && claim.reviewAuthority !== "editorial") return false;
+  return true;
+}
+
 export function validateNightSignalClaim(value: unknown): NightSignalClaim | null {
   if (!value || typeof value !== "object") return null;
   const row = value as Record<string, unknown>;
@@ -90,9 +116,7 @@ export function validateNightSignalClaim(value: unknown): NightSignalClaim | nul
     : ["operations", "editorial", "automated"].includes(String(row.reviewAuthority))
       ? row.reviewAuthority as NightSignalReviewAuthority
       : null;
-  const entityRow = row.entity && typeof row.entity === "object" ? row.entity as Record<string, unknown> : null;
-  const entityType = entityRow?.type;
-  const entityId = text(entityRow?.id, 120);
+  const entity = parseNightSignalEntity(row.entity);
   const kind = NIGHT_SIGNAL_KINDS.includes(row.kind as NightSignalKind) ? row.kind as NightSignalKind : null;
   const reviewState = ["pending", "approved", "rejected"].includes(String(row.reviewState)) ? row.reviewState as NightSignalReviewState : null;
   const verification = ["single_source", "corroborated", "manual_review"].includes(String(row.verification)) ? row.verification as NightSignalVerification : null;
@@ -106,27 +130,14 @@ export function validateNightSignalClaim(value: unknown): NightSignalClaim | nul
     `${item.sourceUrl}|${item.publisher.toLocaleLowerCase("en-GB")}`,
     item,
   ])).values()];
-  if (!id || !claim || !primary || !observedAt || !expiresAt || !entityId || !kind || !reviewState || !verification || !routeEffect || confidence === null) return null;
+  if (!id || !claim || !primary || !observedAt || !expiresAt || !entity || !kind || !reviewState || !verification || !routeEffect || confidence === null) return null;
   if (!corroboratingRows || corroboratingRows.length > 5 || parsedCorroboratingSources.length !== corroboratingRows.length || corroboratingSources.length !== parsedCorroboratingSources.length) return null;
-  if (entityType !== "venue" && entityType !== "night_area" && entityType !== "transport") return null;
-  if (Date.parse(expiresAt) <= Date.parse(observedAt)) return null;
-  if (Date.parse(primary.publishedAt) > Date.parse(observedAt)) return null;
-  if (corroboratingSources.some((item) => Date.parse(item.publishedAt) > Date.parse(observedAt))) return null;
-  if (reviewState === "approved" && (!reviewedAt || !reviewAuthority)) return null;
-  if (reviewedAt && Date.parse(reviewedAt) < Date.parse(observedAt)) return null;
-  const independentCorroboration = corroboratingSources.some((item) =>
-    new URL(item.sourceUrl).hostname !== new URL(primary.sourceUrl).hostname
-      && item.publisher.toLocaleLowerCase("en-GB") !== primary.publisher.toLocaleLowerCase("en-GB"),
-  );
-  if (corroboratingSources.length > 0 && !independentCorroboration) return null;
-  if (verification === "corroborated" && !independentCorroboration) return null;
-  if (routeEffect !== "none" && verification === "single_source") return null;
-  if (routeEffect !== "none" && verification === "manual_review" && reviewAuthority !== "operations" && reviewAuthority !== "editorial") return null;
-  return {
-    id, kind, entity: { type: entityType, id: entityId }, claim,
+  const parsed: NightSignalClaim = {
+    id, kind, entity, claim,
     ...primary, observedAt, expiresAt, confidence, reviewState, verification,
     routeEffect, corroboratingSources, reviewedAt, reviewAuthority,
   };
+  return hasValidClaimEvidence(parsed) ? parsed : null;
 }
 
 export function validateNightSignalSnapshot(value: unknown): NightSignalSnapshot | null {
