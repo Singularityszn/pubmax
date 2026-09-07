@@ -3,6 +3,8 @@ import { expect, test } from "@playwright/test";
 import { installAuthDoubles } from "./helpers/authDoubles";
 import { attachSpillBill, BILL_FIXTURE } from "./helpers/priceBill";
 
+type CapturedUpload = { price: FormDataEntryValue | null; receipt_photo: number[]; pint_photo: number[] };
+
 test.use({
   viewport: { width: 390, height: 844 },
   launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
@@ -24,6 +26,19 @@ test("a failed full composer keeps the bill and price until the retry lands", as
     localStorage.setItem("pubmax-tour-v1-done", "1");
     localStorage.setItem("pubmax_onboarding_dismissed", "1");
     sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    const captured: CapturedUpload[] = [];
+    Object.assign(window, { receiptRetryUploads: captured });
+    const originalFetch = window.fetch;
+    window.fetch = async (input, init) => {
+      if (String(input) === "/api/pint-drops" && init?.method === "POST" && init.body instanceof FormData) {
+        // Chromium's network event omits multipart file bytes. Read the actual
+        // Files passed to fetch, while the route below still intercepts writes.
+        const body = init.body;
+        const bytes = async (name: string) => Array.from(new Uint8Array(await (body.get(name) as File).arrayBuffer()));
+        captured.push({ price: body.get("priceGbp"), receipt_photo: await bytes("receipt_photo"), pint_photo: await bytes("pint_photo") });
+      }
+      return originalFetch(input, init);
+    };
   });
   const requests: FormData[] = [];
   await page.route("**/api/pint-drops", async (route) => {
@@ -67,11 +82,13 @@ test("a failed full composer keeps the bill and price until the retry lands", as
   await form.getByRole("button", { name: "Log it", exact: true }).click();
   await expect.poll(() => requests.length).toBe(2);
   const original = await readFile(BILL_FIXTURE);
-  for (const body of requests) {
-    for (const field of ["receipt_photo", "pint_photo"]) {
-      expect(Buffer.from(await (body.get(field) as File).arrayBuffer())).toEqual(original);
+  const uploads = await page.evaluate(() => (window as Window & { receiptRetryUploads?: CapturedUpload[] }).receiptRetryUploads!);
+  expect(uploads).toHaveLength(2);
+  for (const body of uploads) {
+    for (const field of ["receipt_photo", "pint_photo"] as const) {
+      expect(Buffer.from(body[field])).toEqual(original);
     }
-    expect(body.get("priceGbp")).toBe(requests[0].get("priceGbp"));
+    expect(body.price).toBe(requests[0].get("priceGbp"));
   }
   await expect(form).toBeHidden();
   const records = await page.evaluate(() => JSON.parse(localStorage.getItem("pubmax:optimistic-spill-posts:v1") ?? "[]"));
