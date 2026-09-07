@@ -630,7 +630,7 @@ Answer these in chat. A worker that invents an answer is a defect.
 1. **OAuth.** Google and Microsoft buttons are dead in Supabase until the captain supplies credentials.
 2. **Clerk.** Adopt in production or cancel. Production auth is Supabase magic links today.
 3. **Supabase Pro.** Free-tier pause after 7 days idle vs ~USD 25/mo.
-4. **Pint Drop corroboration vs AGENTS.md:20.** One uncorroborated drop currently paints pins in `lib/venues.ts` merge. Law says it must not. Pick: gate the lane, or amend the law to community submissions only.
+4. **Pint Drop corroboration vs the price laws in `lib/AGENTS.md`.** One uncorroborated drop currently paints pins in `lib/venues.ts` merge. Law says it must not. Pick: gate the lane, or amend the law to community submissions only.
 5. **Stripe ADR 0011/0012 freeze vs Founding Member / Connect sequencing.**
 6. **Round-split funds flow.** Peer repay vs merchant Connect. FCA / Tips Act / Challenge 25 if merchant.
 7. **Discord invite `r46K8Qv5W`.** Rotate or accept that it is public in the repo.

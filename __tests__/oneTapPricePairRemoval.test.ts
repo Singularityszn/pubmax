@@ -85,6 +85,10 @@ describe("0139 withdraws the one-tap price pair RPC", () => {
           "components",
           "lib",
           "scripts",
+          // The area `AGENTS.md` files NAME the withdrawn RPC to say it is
+          // withdrawn, so the sweep reads code and leaves the document that
+          // records the withdrawal alone.
+          ":(exclude)*/AGENTS.md",
         ],
         { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
       );
