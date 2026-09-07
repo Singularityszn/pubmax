@@ -73,9 +73,20 @@ test.describe("the first-visit card and the pin field", () => {
     const cardBottom = box!.y + box!.height;
     expect(cardBottom).toBeLessThan(PHONE.height / 2);
 
-    // Every reported mark is below it, so a tap on one reaches the map.
+    // No reported mark is UNDER the strip. Not "every mark is below it": the
+    // probe reported a pin at y 5.5, in the band above the phone's own top bar,
+    // which has no chrome over it and is perfectly tappable. What the card may
+    // not do is sit on the pin field, and that is what this reads.
     for (const point of await paintedPoints(page)) {
-      expect(point.y).toBeGreaterThan(cardBottom);
+      const insideCard =
+        point.y >= box!.y &&
+        point.y <= cardBottom &&
+        point.x >= box!.x &&
+        point.x <= box!.x + box!.width;
+      expect(
+        insideCard,
+        `a tappable mark at ${Math.round(point.x)},${Math.round(point.y)} is under the card`,
+      ).toBe(false);
     }
   });
 
