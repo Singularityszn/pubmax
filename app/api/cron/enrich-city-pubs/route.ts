@@ -20,6 +20,7 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { assertCronRequest } from "@/lib/cronAuth";
 import { createSearchProvider } from "@/lib/searchProvider.server";
 import {
+  DEFERRED_QUEUE_AGE_ALERT_MS,
   MAX_VENUE_ATTEMPTS,
   RETRY_QUERY_BUDGET,
   runScheduledCityEnrichment,
@@ -44,7 +45,76 @@ function checkpointSummary(checkpoints: CityEnrichmentHealth[] | undefined) {
     passes: health.passes,
     deferred: health.deferred,
     terminal: health.terminal,
+    // How long the oldest owed retry has been owed. A deferral count alone
+    // reads the same whether the queue drains nightly or has been stuck since
+    // the first outage, and only the second is a fault.
+    queueAgeMs: health.queueAgeMs,
+    queueAgeAlert: health.queueAgeAlert,
   }));
+}
+
+/**
+ * Everything the operator is owed about the retry queue, on EVERY exit.
+ *
+ * A CHECKPOINT THAT LANDED IN MEMORY is a retry queue that dies with the
+ * function instance, so every deferral this route records is lost before the
+ * next night reads it. The old body reported `checkpointDurable` from the
+ * credentials, which are present whether or not migration 0142 was applied.
+ *
+ * A QUEUE THAT IS NOT DRAINING is the same fault seen from the other end: the
+ * venues are recorded, and nothing is resolving them.
+ */
+function alertOnQueueHealth(result: {
+  checkpointDurable?: boolean | null;
+  checkpointExpectedDurable?: boolean;
+  checkpoints?: CityEnrichmentHealth[];
+}): void {
+  if (result.checkpointExpectedDurable && result.checkpointDurable === false) {
+    console.error(
+      "[cron:enrich-city-pubs][city-enrichment][ALERT]",
+      JSON.stringify({
+        finding: "checkpoint-not-durable",
+        detail:
+          "Checkpoints were written to process memory. Every deferred venue is lost on the next cold start.",
+        remedy: "apply migration 0142",
+      }),
+    );
+  }
+
+  // A venue the attempt cap has refused is an operator's decision to make, so
+  // it says so once, by name, with the way back beside it. It belongs on BOTH
+  // exits: the night a venue is refused for the third time is very often a
+  // night the whole run refuses too, and this used to be logged only on the
+  // success path, so exactly those refusals went unnamed.
+  for (const health of (result.checkpoints ?? []).filter((entry) => entry.terminal > 0)) {
+    console.error(
+      "[cron:enrich-city-pubs][city-enrichment][terminal]",
+      JSON.stringify({
+        city: health.city,
+        venuesRefused: health.venuesRefused,
+        maxVenueAttempts: MAX_VENUE_ATTEMPTS,
+        retryPath: TERMINAL_RETRY_PATH,
+      }),
+    );
+  }
+
+  const aged = (result.checkpoints ?? []).filter((health) => health.queueAgeAlert);
+  if (aged.length > 0) {
+    console.error(
+      "[cron:enrich-city-pubs][city-enrichment][ALERT]",
+      JSON.stringify({
+        finding: "deferred-queue-not-draining",
+        thresholdMs: DEFERRED_QUEUE_AGE_ALERT_MS,
+        cities: aged.map((health) => ({
+          city: health.city,
+          queueAgeMs: health.queueAgeMs,
+          oldestDeferredFirstFailedAt: health.oldestDeferredFirstFailedAt,
+          deferred: health.deferred,
+        })),
+        retryPath: TERMINAL_RETRY_PATH,
+      }),
+    );
+  }
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -108,7 +178,8 @@ export async function GET(request: Request): Promise<Response> {
         estimatedTokens: providerStats.estimatedTokens,
         tavilyCalls: providerStats.tavilyCalls,
         matchedPubs: result.matchedPubs,
-        checkpointDurable: result.checkpointDurable ?? false,
+        checkpointDurable: result.checkpointDurable ?? null,
+        checkpointExpectedDurable: result.checkpointExpectedDurable ?? false,
         checkpoints: checkpointSummary(result.checkpoints),
         prices: result.prices,
         pages: result.pages,
@@ -121,19 +192,7 @@ export async function GET(request: Request): Promise<Response> {
       }),
     );
 
-    // A venue the attempt cap has refused is an operator's decision to make,
-    // so it says so once, by name, with the way back beside it.
-    for (const health of (result.checkpoints ?? []).filter((entry) => entry.terminal > 0)) {
-      console.error(
-        "[cron:enrich-city-pubs][city-enrichment][terminal]",
-        JSON.stringify({
-          city: health.city,
-          venuesRefused: health.venuesRefused,
-          maxVenueAttempts: MAX_VENUE_ATTEMPTS,
-          retryPath: TERMINAL_RETRY_PATH,
-        }),
-      );
-    }
+    alertOnQueueHealth(result);
 
     return jsonNoStore({
       ok: true,
@@ -156,7 +215,11 @@ export async function GET(request: Request): Promise<Response> {
       matchedPubs: result.matchedPubs,
       pricesExtracted: result.prices.length,
       chainPubsDelegated: result.delegatedChains.length,
-      checkpointDurable: result.checkpointDurable ?? false,
+      // Null is "no city wrote a checkpoint this run", which is not the same
+      // answer as memory and may never be flattened into false.
+      checkpointDurable: result.checkpointDurable ?? null,
+      checkpointExpectedDurable: result.checkpointExpectedDurable ?? false,
+      deferredQueueAgeAlertMs: DEFERRED_QUEUE_AGE_ALERT_MS,
       checkpoints: checkpointSummary(result.checkpoints),
       // This route publishes nothing. The figure is stated so a reader never
       // has to infer it from an absence.
@@ -183,7 +246,13 @@ export async function GET(request: Request): Promise<Response> {
     const failure = error as Error & {
       cityRuns?: ScheduledCityRunOutcome[];
       checkpoints?: CityEnrichmentHealth[];
+      checkpointDurable?: boolean | null;
+      checkpointExpectedDurable?: boolean;
     };
+    // The night the queue stops draining is exactly a night this route
+    // refuses, so the queue-health alert belongs on the failure path most of
+    // all. The checkpoint is committed before the refusal reaches here.
+    alertOnQueueHealth(failure);
     const partial = lastProgress as ScheduledEnrichmentProgress | null;
     if (partial) {
       console.error(

@@ -36,6 +36,36 @@ export const MAX_VENUE_ATTEMPTS = 3;
 export const VENUE_RETRY_BACKOFF_MS = [30 * 60_000, 6 * 60 * 60_000, 24 * 60 * 60_000] as const;
 
 /**
+ * How much of a backoff step jitter may take OFF it, as a fraction.
+ *
+ * Every venue a single failed batch defers is stamped at the same instant, so
+ * without this they share one `retryAfter` to the millisecond: they come due
+ * together, are retried together, and burn an attempt each against whatever
+ * was still down. Three venues failing on one Edinburgh night is exactly that
+ * shape (production, 2026-09-06 03:15Z).
+ *
+ * The jitter SUBTRACTS, so a venue is never held back longer than the table
+ * says and the band is [step * (1 - ratio), step]. It is DERIVED from the
+ * venue's own id and attempt count rather than drawn at random, because a
+ * retry time nobody can reproduce is one nobody can reason about during an
+ * incident, and a deterministic offset spreads a batch just as well.
+ */
+export const VENUE_RETRY_JITTER_RATIO = 0.25;
+
+/**
+ * How long a venue may be owed a retry before the queue itself is the finding.
+ *
+ * The arithmetic: a venue that fails just after a nightly run waits about a
+ * day for the next one whatever its 30-minute backoff says, so attempt 2 lands
+ * near 24 h, its 6-hour backoff is spent long before the run after that, and
+ * attempt 3 lands near 48 h and refuses the venue. Anything still DEFERRED at
+ * 72 h has therefore missed a whole extra night: the queue is not draining,
+ * which is the state a recorded deferral looks identical to until somebody
+ * measures it.
+ */
+export const DEFERRED_QUEUE_AGE_ALERT_MS = 72 * 60 * 60_000;
+
+/**
  * Queries of one run's cap that retries may take. A poisoned set of deferred
  * venues can therefore never starve fresh coverage: at most four of ten.
  */
@@ -299,9 +329,37 @@ export function venueRetryDue(entry: DeferredVenue, now: number): boolean {
   return !Number.isFinite(due) || due <= now;
 }
 
+/** The nominal step for this attempt: the CEILING of the jitter band. */
 export function backoffMsForAttempts(attempts: number): number {
   const step = Math.min(Math.max(attempts, 1), VENUE_RETRY_BACKOFF_MS.length) - 1;
   return VENUE_RETRY_BACKOFF_MS[step];
+}
+
+/**
+ * A fraction in [0, 1) derived from the venue and the attempt. FNV-1a over the
+ * two, because the ids in one batch are consecutive OSM node numbers and a
+ * cheaper mix would leave them adjacent in the band as well as in time.
+ */
+function retryJitterFraction(osmId: string, attempts: number): number {
+  const key = `${osmId}:${attempts}`;
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < key.length; index += 1) {
+    hash ^= key.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash / 0x100000000;
+}
+
+/**
+ * The backoff one venue really waits: its step, less a deterministic slice of
+ * up to `VENUE_RETRY_JITTER_RATIO` of it. Two venues deferred by the same
+ * failed batch therefore come due minutes apart rather than together, and
+ * neither ever waits longer than the table promises.
+ */
+export function jitteredBackoffMs(osmId: string, attempts: number): number {
+  const base = backoffMsForAttempts(attempts);
+  const reduction = base * VENUE_RETRY_JITTER_RATIO * retryJitterFraction(osmId, attempts);
+  return Math.max(0, Math.round(base - reduction));
 }
 
 export type EnrichmentPlan = {
@@ -408,7 +466,7 @@ export function recordVenueFailure(
             attempts,
             lastError: options.error,
             firstFailedAt,
-            retryAfter: iso(options.now + backoffMsForAttempts(attempts)),
+            retryAfter: iso(options.now + jitteredBackoffMs(options.osmId, attempts)),
           },
         ],
         MAX_DEFERRED_VENUES,
@@ -479,6 +537,45 @@ export function requeueTerminalVenues(
   };
 }
 
+/**
+ * How long the oldest venue in the retry queue has been owed one.
+ *
+ * THE QUEUE AGE IS THE METRIC A RECORDED DEFERRAL DOES NOT GIVE YOU. "Three
+ * venues deferred" reads identically whether the queue is draining nightly or
+ * has been stuck since the first outage, and only the second is a fault. Age
+ * is measured from `firstFailedAt`, never from the last attempt, or a venue
+ * retried and re-failed every night would look permanently new.
+ *
+ * A null answer is "nothing is owed, or nothing owed carries a stamp we can
+ * read", which is not an age of zero and may never be reported as one.
+ */
+export function deferredQueueAgeMs(
+  checkpoint: CityEnrichmentCheckpoint,
+  now: number,
+): number | null {
+  let oldest: number | null = null;
+  for (const entry of checkpoint.deferred) {
+    const failedAt = Date.parse(entry.firstFailedAt);
+    if (!Number.isFinite(failedAt)) continue;
+    if (oldest === null || failedAt < oldest) oldest = failedAt;
+  }
+  return oldest === null ? null : Math.max(0, now - oldest);
+}
+
+/**
+ * Is the queue itself the finding? A venue owed a retry past the threshold has
+ * missed the nights that should have resolved it either way, so the retry lane
+ * is not running rather than the venue being slow.
+ */
+export function deferredQueueAgeExceeded(
+  checkpoint: CityEnrichmentCheckpoint,
+  now: number,
+  thresholdMs: number = DEFERRED_QUEUE_AGE_ALERT_MS,
+): boolean {
+  const age = deferredQueueAgeMs(checkpoint, now);
+  return age !== null && age > thresholdMs;
+}
+
 export type CityEnrichmentHealth = {
   city: string;
   totalPubs: number;
@@ -488,6 +585,12 @@ export type CityEnrichmentHealth = {
   deferred: number;
   deferredDue: number;
   terminal: number;
+  /** Age of the oldest owed retry, or null when nothing datable is owed. */
+  queueAgeMs: number | null;
+  /** The stamp that age was measured from, so an operator can go and look. */
+  oldestDeferredFirstFailedAt: string | null;
+  /** The queue is not draining. A fact about the retry lane, not the venue. */
+  queueAgeAlert: boolean;
   leaseHeld: boolean;
   leaseExpiresAt: string | null;
   updatedAt: string;
@@ -495,6 +598,16 @@ export type CityEnrichmentHealth = {
   venuesOwedARetry: DeferredVenue[];
   venuesRefused: TerminalVenue[];
 };
+
+function oldestDeferredStamp(checkpoint: CityEnrichmentCheckpoint): string | null {
+  let oldest: DeferredVenue | null = null;
+  for (const entry of checkpoint.deferred) {
+    const failedAt = Date.parse(entry.firstFailedAt);
+    if (!Number.isFinite(failedAt)) continue;
+    if (!oldest || failedAt < Date.parse(oldest.firstFailedAt)) oldest = entry;
+  }
+  return oldest?.firstFailedAt ?? null;
+}
 
 /** What the moderator surface prints. A projection, deciding nothing new. */
 export function cityEnrichmentHealth(
@@ -510,6 +623,9 @@ export function cityEnrichmentHealth(
     deferred: checkpoint.deferred.length,
     deferredDue: checkpoint.deferred.filter((entry) => venueRetryDue(entry, now)).length,
     terminal: checkpoint.terminal.length,
+    queueAgeMs: deferredQueueAgeMs(checkpoint, now),
+    oldestDeferredFirstFailedAt: oldestDeferredStamp(checkpoint),
+    queueAgeAlert: deferredQueueAgeExceeded(checkpoint, now),
     leaseHeld: leaseIsLive(checkpoint, now),
     leaseExpiresAt: checkpoint.leaseExpiresAt,
     updatedAt: checkpoint.updatedAt,

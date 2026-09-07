@@ -10,14 +10,19 @@ import { describe, expect, it } from "vitest";
 
 import {
   CITY_ENRICHMENT_LEASE_MS,
+  DEFERRED_QUEUE_AGE_ALERT_MS,
   MAX_DEFERRED_VENUES,
   MAX_TERMINAL_VENUES,
   MAX_VENUE_ATTEMPTS,
   RETRY_QUERY_BUDGET,
   VENUE_RETRY_BACKOFF_MS,
+  VENUE_RETRY_JITTER_RATIO,
   advanceCursor,
   backoffMsForAttempts,
   cityEnrichmentHealth,
+  deferredQueueAgeExceeded,
+  deferredQueueAgeMs,
+  jitteredBackoffMs,
   claimEnrichmentLease,
   emptyCityEnrichmentCheckpoint,
   leaseIsLive,
@@ -278,5 +283,86 @@ describe("what the moderator surface prints", () => {
       emptyCityEnrichmentCheckpoint("birmingham", 106, NOW),
     );
     expect(normaliseCheckpoint(null, "birmingham", 106, NOW).nextIndex).toBe(0);
+  });
+});
+
+describe("jitter", () => {
+  it("spreads the venues one failed batch deferred at the same instant", () => {
+    // The production shape: three venues fail inside one run, so every
+    // `firstFailedAt` and every backoff base is identical. Without jitter they
+    // share one `retryAfter` to the millisecond, come due together and are
+    // re-asked together against whatever was still down.
+    let checkpoint = fresh();
+    for (const osmId of ["node/1001", "node/1002", "node/1003"]) {
+      checkpoint = recordVenueFailure(checkpoint, { osmId, error: "timeout", now: NOW }).checkpoint;
+    }
+    const dueTimes = checkpoint.deferred.map((entry) => Date.parse(entry.retryAfter));
+    expect(new Set(dueTimes).size).toBe(dueTimes.length);
+  });
+
+  it("only ever takes time OFF the step, so no venue waits longer than the table says", () => {
+    const base = backoffMsForAttempts(1);
+    const floor = base * (1 - VENUE_RETRY_JITTER_RATIO);
+    for (let index = 0; index < 200; index += 1) {
+      const jittered = jitteredBackoffMs(`node/${index}`, 1);
+      expect(jittered).toBeLessThanOrEqual(base);
+      expect(jittered).toBeGreaterThanOrEqual(Math.floor(floor));
+    }
+  });
+
+  it("is reproducible, because a retry time nobody can replay is one nobody can debug", () => {
+    expect(jitteredBackoffMs("node/1001", 2)).toBe(jitteredBackoffMs("node/1001", 2));
+    // And it is really applied: at least one venue sits inside the band
+    // rather than on its ceiling, or the spread above proves nothing.
+    const offCeiling = ["node/1001", "node/1002", "node/1003"].filter(
+      (osmId) => jitteredBackoffMs(osmId, 1) < backoffMsForAttempts(1),
+    );
+    expect(offCeiling.length).toBeGreaterThan(0);
+  });
+});
+
+describe("the queue age", () => {
+  it("is measured from the FIRST failure, so a venue re-failed nightly never looks new", () => {
+    const first = recordVenueFailure(fresh(), { osmId: "node/1", error: "503", now: NOW })
+      .checkpoint;
+    const day = 24 * 60 * 60_000;
+    const again = recordVenueFailure(first, {
+      osmId: "node/1",
+      error: "503",
+      now: NOW + day,
+    }).checkpoint;
+    expect(deferredQueueAgeMs(again, NOW + day)).toBe(day);
+  });
+
+  it("answers null for an empty queue, which is not an age of zero", () => {
+    expect(deferredQueueAgeMs(fresh(), NOW)).toBeNull();
+    expect(deferredQueueAgeExceeded(fresh(), NOW)).toBe(false);
+    expect(cityEnrichmentHealth(fresh(), NOW).queueAgeMs).toBeNull();
+  });
+
+  it("alerts once the oldest owed retry has outlived the nights that should have resolved it", () => {
+    const deferred = recordVenueFailure(fresh(), { osmId: "node/1", error: "503", now: NOW })
+      .checkpoint;
+    const justInside = NOW + DEFERRED_QUEUE_AGE_ALERT_MS;
+    expect(deferredQueueAgeExceeded(deferred, justInside)).toBe(false);
+    expect(cityEnrichmentHealth(deferred, justInside).queueAgeAlert).toBe(false);
+
+    const past = justInside + 1;
+    expect(deferredQueueAgeExceeded(deferred, past)).toBe(true);
+    const health = cityEnrichmentHealth(deferred, past);
+    expect(health.queueAgeAlert).toBe(true);
+    // The stamp it measured from, so an operator can go and look at the row.
+    expect(health.oldestDeferredFirstFailedAt).toBe(deferred.deferred[0].firstFailedAt);
+  });
+
+  it("ignores a stamp it cannot read rather than reporting an age it invented", () => {
+    const checkpoint = {
+      ...fresh(),
+      deferred: [
+        { osmId: "node/1", attempts: 1, lastError: "", firstFailedAt: "", retryAfter: "" },
+      ],
+    };
+    expect(deferredQueueAgeMs(checkpoint, NOW)).toBeNull();
+    expect(deferredQueueAgeExceeded(checkpoint, NOW)).toBe(false);
   });
 });

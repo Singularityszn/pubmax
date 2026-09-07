@@ -126,7 +126,7 @@ describe("city enrichment fault injection", () => {
     // Nothing was read, so this is still an alerting night.
     expect(response.status).toBe(502);
 
-    const checkpoint = await cityEnrichmentCheckpointStore().read("edinburgh", 500, Date.now());
+    const { checkpoint } = await cityEnrichmentCheckpointStore().read("edinburgh", 500, Date.now());
     expect(checkpoint).not.toBeNull();
     // Every venue that was asked about is owed a retry. None was skipped.
     expect(checkpoint!.deferred).toHaveLength(CONSECUTIVE_VENUE_FAILURE_LIMIT);
@@ -148,7 +148,7 @@ describe("city enrichment fault injection", () => {
     await GET(req());
 
     const store = cityEnrichmentCheckpointStore();
-    const afterFailure = await store.read("edinburgh", 500, Date.now());
+    const { checkpoint: afterFailure } = await store.read("edinburgh", 500, Date.now());
     const owed = afterFailure!.deferred.map((entry) => entry.osmId);
     expect(owed).toHaveLength(CONSECUTIVE_VENUE_FAILURE_LIMIT);
     expect(owed.length).toBeLessThanOrEqual(RETRY_QUERY_BUDGET);
@@ -161,7 +161,7 @@ describe("city enrichment fault injection", () => {
     expect(body.ok).toBe(true);
     // The whole night still stayed inside one query cap, retries included.
     expect(body.queriesSpent).toBeLessThanOrEqual(SEARCH_CRON_QUERY_CAP);
-    const after = await store.read("edinburgh", 500, Date.now());
+    const { checkpoint: after } = await store.read("edinburgh", 500, Date.now());
     // Answered, so they are owed nothing more.
     for (const osmId of owed) {
       expect(after!.deferred.map((entry) => entry.osmId)).not.toContain(osmId);
@@ -179,7 +179,7 @@ describe("city enrichment fault injection", () => {
       await GET(req());
     }
 
-    const final = await store.read("edinburgh", 500, Date.now());
+    const { checkpoint: final } = await store.read("edinburgh", 500, Date.now());
     // A venue asked MAX_VENUE_ATTEMPTS times and never read is refused, by
     // name, and no further query is ever spent on it.
     expect(final!.terminal.length).toBeGreaterThan(0);
@@ -272,7 +272,7 @@ describe("city enrichment fault injection", () => {
     vi.stubGlobal("fetch", vi.fn(gatewayFailure(503)));
     await GET(req());
 
-    const after = await cityEnrichmentCheckpointStore().read("edinburgh", 500, Date.now());
+    const { checkpoint: after } = await cityEnrichmentCheckpointStore().read("edinburgh", 500, Date.now());
     // The failed run could only ever leave the city further along, never back
     // at a venue the earlier run had already read.
     expect(after!.nextIndex).toBeGreaterThanOrEqual(goodCursor);

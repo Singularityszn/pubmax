@@ -15,6 +15,7 @@ import { DAY_MS } from "@/lib/dayMs";
 import type { SearchProvider } from "@/lib/searchProvider.server";
 import {
   CONSECUTIVE_VENUE_FAILURE_LIMIT,
+  DEFERRED_QUEUE_AGE_ALERT_MS,
   MAX_VENUE_ATTEMPTS,
   RETRY_QUERY_BUDGET,
   advanceCursor,
@@ -72,7 +73,19 @@ export type ScheduledCityEnrichment = TavilyEnrichmentResult & {
   primaryCity: string;
   cityRuns?: ScheduledCityRunOutcome[];
   checkpoints?: CityEnrichmentHealth[];
-  checkpointDurable?: boolean;
+  /**
+   * Did the checkpoints this run wrote actually reach the durable store?
+   *
+   * TRI-STATE, and the null matters: a night where every city declined to
+   * spend wrote nothing, and "we did not write" is not "we wrote to memory".
+   * This is OBSERVED from the writes rather than inferred from credentials,
+   * because the store falls back to memory when the table is absent and the
+   * old credentials check reported a durable checkpoint over a queue that dies
+   * with the function instance.
+   */
+  checkpointDurable?: boolean | null;
+  /** Whether this deployment is CONFIGURED for a durable checkpoint. */
+  checkpointExpectedDurable?: boolean;
 };
 
 export type VenueOutcome = {
@@ -109,6 +122,8 @@ export type ScheduledCityRunOutcome = {
   venuesDeferred?: number;
   venuesTerminal?: number;
   checkpointCommitted?: boolean;
+  /** Where this city's checkpoint really landed. Null when it never wrote. */
+  checkpointDurable?: boolean | null;
 };
 
 type RunScheduledOptions = {
@@ -169,6 +184,9 @@ type CoreRunInput = {
   indices?: number[];
   signal?: AbortSignal;
   onOutcomes: (outcomes: VenueOutcome[]) => void;
+  /** A venue whose failure was about US. It records an outcome, and it is
+   *  named here so the checkpoint never charges it an attempt. */
+  onUnaskedVenue: (osmId: string) => void;
   onPartial: (progress: ScheduledEnrichmentProgress) => void;
   onProgress?: (progress: ScheduledEnrichmentProgress) => void | Promise<void>;
 };
@@ -186,8 +204,16 @@ function runCore(input: CoreRunInput): Promise<TavilyEnrichmentResult> {
     ...(input.indices ? { indices: input.indices } : { startIndex: input.startIndex ?? 0 }),
     observedAt: input.observedAt,
     signal: input.signal,
-    onVenueError: ({ error }: { error: unknown }) => {
-      if (runLevelFailure(error)) return "abort";
+    onVenueError: ({ pub, error }: { pub: OsmPub; error: unknown }) => {
+      if (runLevelFailure(error)) {
+        // The core has already recorded this venue's outcome as failed, and
+        // for a run-level failure that record is wrong about the venue: an
+        // exhausted provider budget or an absent credential means the search
+        // was never put. Charging the attempt anyway is how a venue nobody
+        // ever asked about reaches the terminal cap over three bad nights.
+        input.onUnaskedVenue(String(pub.osmId));
+        return "abort";
+      }
       consecutiveFailures += 1;
       return consecutiveFailures >= CONSECUTIVE_VENUE_FAILURE_LIMIT ? "abort" : "continue";
     },
@@ -319,6 +345,8 @@ export async function runScheduledCityEnrichment(
       partial?: ScheduledEnrichmentProgress;
       cityRuns?: ScheduledCityRunOutcome[];
       checkpoints?: CityEnrichmentHealth[];
+      checkpointDurable?: boolean | null;
+      checkpointExpectedDurable?: boolean;
     };
     if (primaryOutcome) {
       error.partial = {
@@ -333,6 +361,11 @@ export async function runScheduledCityEnrichment(
     }
     error.cityRuns = cityRuns;
     error.checkpoints = checkpoints;
+    // A refused run has still committed its checkpoint, so it can still say
+    // whether that checkpoint is real and whether the queue is draining. The
+    // night the retry lane breaks is a night this path is taken.
+    error.checkpointDurable = observedCheckpointDurability(cityRuns);
+    error.checkpointExpectedDurable = cityEnrichmentCheckpointIsDurable();
     throw error;
   }
 
@@ -358,8 +391,21 @@ export async function runScheduledCityEnrichment(
     ...merged,
     cityRuns,
     checkpoints,
-    checkpointDurable: cityEnrichmentCheckpointIsDurable(),
+    checkpointDurable: observedCheckpointDurability(cityRuns),
+    checkpointExpectedDurable: cityEnrichmentCheckpointIsDurable(),
   };
+}
+
+/**
+ * What the writes said, folded into one answer. Null when no city wrote a
+ * checkpoint at all, false the moment ONE landed in memory: a single volatile
+ * city is a volatile queue, and rounding that up to true is how the fault this
+ * function exists to surface stayed invisible.
+ */
+function observedCheckpointDurability(runs: ScheduledCityRunOutcome[]): boolean | null {
+  const written = runs.filter((run) => typeof run.checkpointDurable === "boolean");
+  if (written.length === 0) return null;
+  return written.every((run) => run.checkpointDurable === true);
 }
 
 type CityRunInput = {
@@ -462,6 +508,9 @@ async function runCityWithCheckpoint(input: CityRunInput): Promise<CityRunResult
   // asked about is a provider outage and still alerts, however many queries it
   // spent finding that out.
   let venuesRead = 0;
+  // Venues whose failure was about US rather than about them. Their attempts
+  // are not spent, so a budget-exhausted night costs no venue its retries.
+  const unaskedVenues = new Set<string>();
   // The cursor is DERIVED from the outcomes of the fresh lane, never from the
   // lane's return value alone: a lane that threw still recorded outcomes, and
   // every venue whose outcome is recorded is a venue the cursor may pass.
@@ -469,6 +518,10 @@ async function runCityWithCheckpoint(input: CityRunInput): Promise<CityRunResult
     for (const outcome of outcomes) {
       const osmId = String(outcome.osmId);
       if (outcome.status === "matched" || outcome.status === "empty") venuesRead += 1;
+      // A venue whose search was never really put keeps its place in the
+      // queue and its attempts, and the cursor does not pass it either: it is
+      // owed the query this run could not spend.
+      if (unaskedVenues.has(osmId)) continue;
       if (lane === "fresh") cursor = Math.max(cursor, outcome.index + 1);
       checkpoint =
         outcome.status === "failed"
@@ -502,6 +555,7 @@ async function runCityWithCheckpoint(input: CityRunInput): Promise<CityRunResult
           ...(lane.indices ? { indices: lane.indices } : { startIndex: lane.startIndex ?? 0 }),
           signal: controller.signal,
           onOutcomes: (outcomes) => applyOutcomes(outcomes, lane.indices ? "retry" : "fresh"),
+          onUnaskedVenue: (osmId) => unaskedVenues.add(osmId),
           onPartial: (state) => {
             partial = state;
           },
@@ -566,6 +620,10 @@ async function runCityWithCheckpoint(input: CityRunInput): Promise<CityRunResult
   };
   const released = releaseEnrichmentLease(checkpoint, { now, runRecord });
   const commit = await store.commit(released, runId);
+  // Where the write LANDED, taken from the write. A commit that fell back to
+  // memory reports false here however the deployment is configured, which is
+  // the whole point: the retry queue is only real if the row is.
+  const checkpointDurable = commit.status === "committed" ? commit.durable : claim.durable;
 
   return {
     batch: {
@@ -599,6 +657,7 @@ async function runCityWithCheckpoint(input: CityRunInput): Promise<CityRunResult
       venuesDeferred: released.deferred.length,
       venuesTerminal: released.terminal.length,
       checkpointCommitted: commit.status === "committed",
+      checkpointDurable,
       ...(runError ? { error: runError } : {}),
     },
   };
@@ -614,21 +673,38 @@ export const ENRICHMENT_CITIES: readonly string[] = CITY_ROTATION;
  */
 export async function readCityEnrichmentHealth(
   now = Date.now(),
-): Promise<{ durable: boolean; cities: CityEnrichmentHealth[] }> {
+): Promise<{
+  durable: boolean;
+  expectedDurable: boolean;
+  queueAgeAlertMs: number;
+  citiesWithAgedQueue: string[];
+  cities: CityEnrichmentHealth[];
+}> {
   const allPubs = loadUkPubs();
   const store = cityEnrichmentCheckpointStore();
   const cities: CityEnrichmentHealth[] = [];
+  let durable = true;
   for (const city of CITY_ROTATION) {
     const totalPubs = eligibleCityPubs(city, allPubs).length;
-    const checkpoint = await store.read(city, totalPubs, now);
+    const read = await store.read(city, totalPubs, now);
+    if (!read.durable) durable = false;
     cities.push(
       cityEnrichmentHealth(
-        checkpoint ?? emptyCityEnrichmentCheckpoint(city, totalPubs, now),
+        read.checkpoint ?? emptyCityEnrichmentCheckpoint(city, totalPubs, now),
         now,
       ),
     );
   }
-  return { durable: cityEnrichmentCheckpointIsDurable(), cities };
+  return {
+    // OBSERVED from the reads, never from the credentials. A surface that
+    // reported a durable checkpoint over a memory fallback is what let a
+    // retry queue evaporate nightly with nothing saying so.
+    durable,
+    expectedDurable: cityEnrichmentCheckpointIsDurable(),
+    queueAgeAlertMs: DEFERRED_QUEUE_AGE_ALERT_MS,
+    citiesWithAgedQueue: cities.filter((city) => city.queueAgeAlert).map((city) => city.city),
+    cities,
+  };
 }
 
 /**
@@ -645,7 +721,7 @@ export async function requeueCityEnrichmentTerminals(
   const now = options.now ?? Date.now();
   const totalPubs = eligibleCityPubs(city, loadUkPubs()).length;
   const store = cityEnrichmentCheckpointStore();
-  const checkpoint = await store.read(city, totalPubs, now);
+  const { checkpoint } = await store.read(city, totalPubs, now);
   if (!checkpoint) return { ok: true, requeued: [] };
   const moved = requeueTerminalVenues(checkpoint, { now, osmIds: options.osmIds });
   if (moved.requeued.length === 0) return { ok: true, requeued: [] };
@@ -656,4 +732,9 @@ export async function requeueCityEnrichmentTerminals(
   return { ok: true, requeued: moved.requeued };
 }
 
-export { CONSECUTIVE_VENUE_FAILURE_LIMIT, MAX_VENUE_ATTEMPTS, RETRY_QUERY_BUDGET };
+export {
+  CONSECUTIVE_VENUE_FAILURE_LIMIT,
+  DEFERRED_QUEUE_AGE_ALERT_MS,
+  MAX_VENUE_ATTEMPTS,
+  RETRY_QUERY_BUDGET,
+};

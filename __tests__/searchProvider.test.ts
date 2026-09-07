@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { runLevelFailure } from "@/lib/cityEnrichmentCheckpoint";
 import {
   SEARCH_GATEWAY_MODEL,
   SearchProviderBudgetError,
@@ -328,5 +329,41 @@ describe("gateway spend guard", () => {
       model: SEARCH_GATEWAY_MODEL,
     });
     expect(provider.stats().estimatedTokens).toBeGreaterThan(0);
+  });
+
+  it("stops the FALLBACK provider at the same cap, because it is the one that serves an outage", async () => {
+    // Tavily took this cap and counted against it without ever applying it,
+    // so the ceiling bounded only the primary. The night the primary times
+    // out is exactly the night every query falls through to the fallback,
+    // and the one bound on spend did not apply to whoever was answering.
+    const fetchImpl = vi.fn(async () => tavilyResponse());
+    const provider = createSearchProvider({
+      env: { TAVILY_API_KEY: "tavily-test-key", SEARCH_GATEWAY_MAX_CALLS: "2" },
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    await provider.search({ query: "first" });
+    await provider.search({ query: "second" });
+    await expect(provider.search({ query: "third" })).rejects.toBeInstanceOf(
+      SearchProviderBudgetError,
+    );
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(provider.stats()).toMatchObject({ selectedProvider: "tavily", tavilyCalls: 2 });
+  });
+
+  it("refuses an exhausted budget as a failure about US, so no venue is charged for it", async () => {
+    // `runLevelFailure` reads this code, which is what keeps an exhausted
+    // budget off a venue's attempt count. The two must not drift apart.
+    const fetchImpl = vi.fn(async () => tavilyResponse());
+    const provider = createSearchProvider({
+      env: { TAVILY_API_KEY: "tavily-test-key", SEARCH_GATEWAY_MAX_CALLS: "1" },
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    await provider.search({ query: "first" });
+    const refusal = await provider.search({ query: "second" }).catch((error) => error);
+    expect(refusal).toBeInstanceOf(SearchProviderBudgetError);
+    expect(runLevelFailure(refusal)).toBe(true);
   });
 });

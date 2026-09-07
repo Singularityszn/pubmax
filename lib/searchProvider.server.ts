@@ -294,7 +294,7 @@ class TavilyProvider implements SearchProvider {
   constructor(
     private readonly apiKey: string | undefined,
     private readonly fetchImpl: typeof fetch,
-    maxCalls: number,
+    private readonly maxCalls: number,
   ) {
     this.configured = Boolean(apiKey);
     this.statsValue = makeStats("tavily", maxCalls);
@@ -307,6 +307,16 @@ class TavilyProvider implements SearchProvider {
   private async searchAttempt(request: SearchRequest): Promise<SearchResponse> {
     if (!this.configured) {
       throw new SearchProviderUnavailableError("TAVILY_API_KEY is absent.");
+    }
+    // THE BUDGET IS PER PROVIDER, AND THIS IS THE PROVIDER THAT SERVES AN
+    // OUTAGE. Tavily took this cap and counted against it without ever
+    // applying it, so the ceiling bounded only the primary: the night Exa
+    // times out is exactly the night every query falls through to here, and
+    // the one bound on spend did not apply to whoever was answering. Refusing
+    // with the same error keeps that a failure about US (`runLevelFailure`),
+    // so an exhausted budget can never spend a venue's attempts.
+    if (this.statsValue.tavilyCalls >= this.maxCalls) {
+      throw new SearchProviderBudgetError(this.maxCalls);
     }
     this.statsValue.tavilyCalls += 1;
     const response = await this.fetchImpl("https://api.tavily.com/search", {
