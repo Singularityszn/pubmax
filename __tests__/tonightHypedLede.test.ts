@@ -164,9 +164,15 @@ describe("the tonight lede, hydrated", () => {
   );
 
   it.each([
-    ["The Devonshire", "https://www.tiktok.com/@amiet/video/7680115217233202465"],
-    ["Princess Louise", "https://www.tiktok.com/@louie.travels/video/7680924883462737174"],
-  ])("prints the source supporting the claim about %s", async (name, sourceUrl) => {
+    ["The Devonshire", "https://www.tiktok.com/@amiet/video/7680115217233202465",
+      "Recent Soho posts recommend its pub atmosphere and Guinness."],
+    ["Princess Louise", "https://www.tiktok.com/@louie.travels/video/7680924883462737174",
+      "A recent Holborn pub list highlights its Victorian interior."],
+    ["The Dickens Inn", "https://www.reddit.com/r/LondonTravel/comments/1w7ro1u/comment/p7ym9tn/",
+      "Visitors recommend its Sunday roast and views over St Katharine Docks."],
+    ["The Pelton Arms", "https://www.reddit.com/r/RoyalGreenwich/comments/1w56r5k/comment/p7cs1kz/",
+      "Greenwich residents recommend its live music and note a drinks surcharge during performances."],
+  ])("prints the source supporting the claim about %s", async (name, sourceUrl, whyLine) => {
     const { file } = buildHypedPubsFile(
       research.filter((entry) => entry.name === name),
       venues.rows,
@@ -174,6 +180,7 @@ describe("the tonight lede, hydrated", () => {
     );
     await mount({ hypedPubs: hypedPubsForPage(file.rows) });
     expect(container.querySelector(".tonightHypedSource")?.getAttribute("href")).toBe(sourceUrl);
+    expect(ledeText()).toContain(whyLine);
     if (name === "Princess Louise") expect(ledeText()).not.toContain("folk-music history");
   });
 
