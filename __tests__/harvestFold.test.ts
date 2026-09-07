@@ -978,6 +978,50 @@ describe("heritageFactFromOverlay / public overlay", () => {
     expect(parsePublicOverlay(rows[0])?.website).toBe("https://redlion.example/");
   });
 
+  it("preserves record order, first lore, and source order when observations merge", () => {
+    const observation = (kind: string, value: string, sourceUrl: string) => ({
+      kind, value, sourceUrl, fetchedAt: "2026-08-28T00:00:00.000Z",
+    });
+    const first = {
+      osmId: "node/456",
+      name: "The Red Lion",
+      town: "Clapham",
+      observations: [
+        observation("website", "https://redlion.example/, https://old.example/", "https://directory.example/"),
+        observation("history", LORE_TEXT, "https://history.example/first"),
+      ],
+    };
+    const rows = overlayRowsFromHarvestRecords([
+      first,
+      { ...first, osmId: "node/123" },
+      {
+        ...first,
+        osmId: "venue-uk-n456",
+        observations: [
+          observation("website", " https://redlion.example/ ", " https://redlion.example/ "),
+          observation("website", "https://later.example/", "https://redlion.example/"),
+          observation("menu", "https://redlion.example/menu", "https://menu.example/"),
+          observation("history", "The Red Lion in Clapham was rebuilt in 1900.", "https://history.example/later"),
+          observation("social", "@redlion", "https://instagram.com/redlion"),
+          observation("coverage", "Listed", "https://coverage.example/"),
+        ],
+      },
+    ]);
+
+    expect(rows.map(({ osmId }) => osmId)).toEqual(["node/456", "node/123"]);
+    expect(rows[0]).toMatchObject({
+      website: "https://redlion.example/",
+      menuUrl: "https://redlion.example/menu",
+      matchedLore: { text: LORE_TEXT, citations: ["https://history.example/first"] },
+      sources: [
+        "https://directory.example/",
+        "https://history.example/first",
+        "https://redlion.example/",
+        "https://menu.example/",
+      ],
+    });
+  });
+
   it("preserves an explicit concatenated harvest field for serving to drop", () => {
     const rows = overlayRowsFromHarvestRecords([
       {
