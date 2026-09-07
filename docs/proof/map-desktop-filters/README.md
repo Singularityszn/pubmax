@@ -15,7 +15,7 @@ to 24 controls before one pin has been tapped."
 ## What changed
 
 The chips are now the contents of ONE `Filters` control in the toolbar row,
-which the reader opens. Nothing below 641px moved: a phone still reads the same
+which the reader opens. Nothing below 641px moved. A phone still reads the same
 toggles in its own Filters sheet, and the desktop control is `display: none`
 there.
 
@@ -48,12 +48,13 @@ Taken on a production build (`NEXT_DIST_DIR=.next-prod next build`, served with
    hidden`.
 2. **The camera controls did not move.** PlanAstra's inventory names `Show all`
    and `Reset view` in the same overload list, and the brief for this lane put
-   them in the popover. They stayed where they are: they are camera actions
-   owned by `PubMapCanvas` (a city fit and the compass), not venue filters, and
+   them in the popover. They stayed where they are, because they are camera
+   actions owned by `PubMapCanvas`, a city fit and the compass, rather than
+   venue filters, and
    the map-camera stack publishes its own height to the zoom column's berth in
    `mapToolbar.css`. Folding a camera reset into a filter panel would have been a
-   second, riskier change wearing this lane's name. It is flagged for the
-   captain rather than done quietly.
+   second, riskier change wearing this lane's name. The PR flags it for the
+   captain rather than doing it quietly.
 
 ## Pins
 
