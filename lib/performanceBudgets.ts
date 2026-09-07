@@ -76,7 +76,36 @@ export type RouteBudget = {
     measured: number;
     why: string;
   }>;
+  /**
+   * This route has been MEASURED wide on this rig, so the ordinary three
+   * samples cannot decide it. See RouteNoiseRecord.
+   */
+  noisy?: RouteNoiseRecord;
 } & Record<BudgetMetric, number>;
+
+/**
+ * A ROUTE THAT CANNOT MEASURE ITSELF IN THREE, RECORDED RATHER THAN GUESSED.
+ *
+ * A ceiling is only a ceiling when the number under it is repeatable, and on
+ * these runners four routes are not: the 6 September sweep put their LCP
+ * samples 37 to 51 per cent apart, past this method's own 12 per cent width,
+ * and PR #1604 and PR #1611 both went red on routes they had not touched. The
+ * answer is more evidence, never a bigger ceiling, so a marked route takes a
+ * second discarded warm-up navigation and twice the resample budget, and is
+ * judged on the median of seven.
+ *
+ * The mark is EVIDENCE and not a preference: it carries the metric that was
+ * measured wide and the widest spread recorded, so it can be argued with, and
+ * it may be taken off the day a route measures narrow again. It touches no
+ * ceiling and can only ever ADD samples.
+ */
+export type RouteNoiseRecord = {
+  /** The metric or metrics this route was measured wide on. */
+  metrics: BudgetMetric[];
+  /** The widest spread recorded on this rig, as a whole percentage. */
+  measuredSpreadPct: number;
+  why: string;
+};
 
 export type BudgetMethod = {
   browser: string;
@@ -99,6 +128,20 @@ export type BudgetMethod = {
   resampleWhy?: string;
   /** And why the on-the-line half exists, and why its band reads both ways. */
   resampleWithinCeilingWhy?: string;
+  /**
+   * THE NOISE FLOOR: what a route carrying a `noisy` record spends instead.
+   *
+   * `noisyWarmupRuns` is its discarded navigations, and `noisyResampleRuns` its
+   * resample budget, so a marked route is judged on the median of
+   * `measuredRuns + noisyResampleRuns` rather than of `measuredRuns +
+   * resampleRuns`. Both are absolute counts rather than deltas, because a
+   * reader of this block should not have to do arithmetic to learn what a route
+   * actually costs. Neither moves a ceiling and neither is spent on an unmarked
+   * route, so a quiet sweep costs exactly what it did before.
+   */
+  noisyWarmupRuns?: number;
+  noisyResampleRuns?: number;
+  noisyFloorWhy?: string;
   /**
    * And the second reason to spend them: a median this close to a ceiling, as a
    * percentage of the ceiling, is decided by one sample's jitter. The spread
@@ -501,7 +544,7 @@ export function samplesDisagree(
   samples: readonly SampleRow[],
   method: BudgetMethod,
 ): boolean {
-  if (!method.resampleRuns || samples.length === 0) return false;
+  if (samples.length === 0) return false;
   return BUDGET_METRICS.some((metric) => {
     const spread = perfSampleSpread(samples.map((sample) => sample[metric]));
     if (!Number.isFinite(spread.spreadPct) || spread.spreadPct <= method.sampleSpreadWarnPct) {
@@ -537,7 +580,7 @@ export function medianSitsOnTheLine(
   method: BudgetMethod,
 ): boolean {
   const margin = method.resampleWithinCeilingPct;
-  if (!method.resampleRuns || !margin || samples.length === 0) return false;
+  if (!margin || samples.length === 0) return false;
   return BUDGET_METRICS.some((metric) => {
     const ceiling = ceilings[metric];
     if (typeof ceiling !== "number" || !Number.isFinite(ceiling) || ceiling <= 0) return false;
@@ -547,12 +590,68 @@ export function medianSitsOnTheLine(
   });
 }
 
-/** Either reason to spend the resample budget, asked once. */
+/**
+ * How many navigations one route costs: its discarded warm-ups, and the
+ * resample budget it may spend if `routeNeedsMoreEvidence` fires.
+ *
+ * It is a pure read of the route's own `noisy` record against the method
+ * block, so the sweep, the UX lane report and the sweep's own timeout all get
+ * the same answer from one place.
+ */
+export type RouteRunPlan = {
+  warmupRuns: number;
+  resampleRuns: number;
+  /** True when this route is spending the noise floor rather than the ordinary budget. */
+  noisy: boolean;
+};
+
+export function resolveRouteRunPlan(
+  route: { noisy?: RouteNoiseRecord },
+  method: BudgetMethod,
+): RouteRunPlan {
+  const ordinary = {
+    warmupRuns: method.warmupRuns,
+    resampleRuns: method.resampleRuns ?? 0,
+    noisy: false,
+  };
+  if (!route.noisy) return ordinary;
+  return {
+    warmupRuns: method.noisyWarmupRuns ?? ordinary.warmupRuns,
+    resampleRuns: method.noisyResampleRuns ?? ordinary.resampleRuns,
+    noisy: true,
+  };
+}
+
+/**
+ * The worst case a whole sweep can cost, in navigations. The sweep's own
+ * timeout reads it, because a noise floor that is not in the timeout is a
+ * sweep that times out rather than a sweep that measures.
+ */
+export function plannedNavigations(
+  routes: readonly { noisy?: RouteNoiseRecord }[],
+  method: BudgetMethod,
+): number {
+  return routes.reduce((total, route) => {
+    const plan = resolveRouteRunPlan(route, method);
+    return total + plan.warmupRuns + method.measuredRuns + plan.resampleRuns;
+  }, 0);
+}
+
+/**
+ * Either reason to spend the resample budget, asked once.
+ *
+ * The budget is passed in rather than read off the method, because a route
+ * carrying a `noisy` record spends `noisyResampleRuns` instead - and a route
+ * with no budget at all is never asked the question, so a method that declares
+ * no resample takes exactly the runs it says it takes.
+ */
 export function routeNeedsMoreEvidence(
   samples: readonly SampleRow[],
   ceilings: RouteCeilings,
   method: BudgetMethod,
+  resampleBudget: number,
 ): boolean {
+  if (!Number.isFinite(resampleBudget) || resampleBudget <= 0) return false;
   return samplesDisagree(samples, method) || medianSitsOnTheLine(samples, ceilings, method);
 }
 

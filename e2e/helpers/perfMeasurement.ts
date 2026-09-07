@@ -4,10 +4,12 @@ import {
   PERFORMANCE_BUDGETS,
   median,
   resolveCountBoundary,
+  resolveRouteRunPlan,
   routeNeedsMoreEvidence,
   type BudgetMethod,
   type BudgetMetric,
   type PerfBoundarySource,
+  type RouteNoiseRecord,
 } from "../../lib/performanceBudgets";
 
 /**
@@ -53,6 +55,13 @@ export type PerfRoute = {
   readySelector: string;
   /** Optional loading affordance that must be gone before measuring. */
   settledSelectorHidden?: string;
+  /**
+   * This route's recorded noise, when the caller passed a budget row. A marked
+   * route takes an extra discarded warm-up and a wider resample budget, both
+   * read through resolveRouteRunPlan. It moves no ceiling and only ever ADDS
+   * navigations.
+   */
+  noisy?: RouteNoiseRecord;
   /**
    * The route's own ceilings, when the caller passed a budget row rather than a
    * bare path. Read for one purpose: a figure that lands ON the line is worth
@@ -462,7 +471,13 @@ export async function runPerfRoute(
   method: BudgetMethod = PERFORMANCE_BUDGETS.method,
 ): Promise<PerfRouteRun> {
   await resetPerfState(page);
-  for (let run = 0; run < method.warmupRuns; run += 1) {
+  // What this route costs, off its own noise record. A marked route takes a
+  // SECOND discarded navigation before the first counted sample: the four
+  // routes the 6 September sweep could not measure are all shells whose second
+  // load is the first one whose caches, modules and fonts are all in place, and
+  // a warm-up that has not settled is the widest single source of the spread.
+  const plan = resolveRouteRunPlan(route, method);
+  for (let run = 0; run < plan.warmupRuns; run += 1) {
     await loadPerfRoute(page, route);
     await waitForQuietNetwork(page, method);
   }
@@ -475,10 +490,11 @@ export async function runPerfRoute(
   // spend more samples are owned by lib/performanceBudgets.ts, which is pure
   // and unit-tested without a browser, so the budget sweep and the UX lane
   // report cannot drift apart on when a route is measured again. The extra
-  // samples are spent ONLY where one of those two rules fired, so a quiet
-  // sweep costs exactly what it did before.
-  if (routeNeedsMoreEvidence(samples, route, method)) {
-    for (let run = 0; run < (method.resampleRuns ?? 0); run += 1) {
+  // samples are spent ONLY where one of those two rules fired, and how many
+  // there are to spend is this route's own plan: a marked route is judged on
+  // the median of seven, an unmarked one on three or five exactly as before.
+  if (routeNeedsMoreEvidence(samples, route, method, plan.resampleRuns)) {
+    for (let run = 0; run < plan.resampleRuns; run += 1) {
       samples.push(await samplePerfRoute(page, route, method));
     }
   }

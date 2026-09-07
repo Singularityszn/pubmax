@@ -311,10 +311,50 @@ another:
 | `measuredRuns` | 3 | Stated here rather than implied, because "the median" means nothing without an N. |
 | `resampleRuns` | 2 | Spent only where the run needs more evidence, so that route's median is taken over 5 rather than 3. A quiet route costs exactly what it did before. |
 | `resampleWithinCeilingPct` | 10 | The second reason to spend them, and it reads BOTH WAYS. The spread rule asks whether the samples agreed with EACH OTHER and is blind to where they sit: on 6 September `/map` agreed with itself to 14 per cent and still read 612 ms in one attempt of the job and 956 ms in the next against a 900 ms ceiling, while `/pubs` asked 68 requests in one attempt and 69 in the other against a ceiling of 68. A median within this margin of its own ceiling, on EITHER side of it, buys the extra samples: `\|median - ceiling\| <= ceiling * pct`. The band is symmetric on the captain's decision of 7 September 2026. It only ever ADDS runs and decides nothing. |
+| `noisyWarmupRuns` | 2 | What a route carrying a `noisy` record discards before its first counted sample, rather than one. The four marked routes are shells whose SECOND load is the first with caches, modules and fonts all in place, and a warm-up that has not settled is the widest single source of their spread. |
+| `noisyResampleRuns` | 4 | And the resample budget such a route may spend, rather than two, so it is judged on the median of seven. Spent only where the resample rules fired, exactly as before. |
 | `aggregate` | median | One slow run cannot fail a green route. |
 | `boundaryClock` | page | Whose clock stops the count. See below. |
 | `sampleSpreadWarnPct` | 12 | How far a route's own samples may sit apart before the run says so. A warning; it fails nothing. |
 | `sampleSpreadFloors` | 25 ms / 20 KB / 3 requests / 250 ms | And how wide that gap has to be in the metric's own units. A percentage alone is not information here: server render sits at 3 to 19 ms, so one millisecond of jitter reads as a 33% spread and every route would warn on every run. |
+
+### The noise floor, and which routes carry it
+
+Four routes on these runners cannot measure themselves in three. The 6
+September sweep's own method check put their LCP samples 37 to 51 per cent
+apart, past this method's tracked 12 per cent width, and inside one run of one
+commit `/crawls` measured 304 ms and then 612 ms while `/today` measured 304 ms
+and then 708 ms. Two pull requests then went red on routes they had not touched:
+#1604 on `/crawls` at 320 against 300, on a branch an interleaved A/B proved
+equal to or faster than main on that very route, and #1611, a docs-only change,
+on `/today` at 364 against 300 and `/onboarding` at 908 against 900.
+
+The answer to a figure nobody can repeat is more evidence, never a bigger
+ceiling. Not one number in `perf/route-budgets.json` moved for this. A route
+that has been MEASURED wide carries a `noisy` record naming the metric, the
+widest spread recorded and why, and spends `noisyWarmupRuns` and
+`noisyResampleRuns` instead of the ordinary pair: two discarded navigations
+rather than one, and a median of seven rather than of three or five.
+
+Two rules keep it a measurement rather than a mute button. The mark is
+EVIDENCE, so it carries the figure it was made on and can be taken off the day
+a route measures narrow again; `__tests__/performanceBudgets.test.ts` refuses a
+mark with no recorded spread wider than the tracked width. And it costs an
+unmarked route nothing, so a quiet sweep takes exactly the navigations it took
+before.
+
+| route | marked on | widest recorded spread |
+| --- | --- | --- |
+| `/today` | LCP | 51% |
+| `/discover` | LCP | 37% |
+| `/drinks` | LCP | 37% |
+| `/crawls` | LCP | 51% |
+
+`/onboarding` is deliberately NOT marked. It has no recorded wide spread; it
+went red at 908 against a 900 ceiling, which is nine tenths of one per cent
+over, and the symmetric on-the-line band already buys that verdict its extra
+samples. A mark is for a route whose samples disagree with each other, not for
+one whose answer sits near its line.
 
 ### Where counting stops, and whose clock stops it
 
