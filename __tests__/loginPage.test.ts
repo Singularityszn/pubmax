@@ -149,6 +149,15 @@ describe("login page", () => {
     expect(html).not.toMatch(/—|–/);
   });
 
+  it.each(["signin", "signup"] as const)("keeps the guest return path through the %s door", (initialIntent) => {
+    const html = renderToStaticMarkup(createElement(LoginPageWithProps, {
+      initialIntent,
+      from: "/map?sel=venue-xjf3n0",
+    }));
+    expect(html).toContain('href="/map?sel=venue-xjf3n0"');
+    expect(html).toContain("Browse without signing in");
+  });
+
   it("stays on first-time copy while the session is still unknown", () => {
     authState.current.loading = true;
     const html = renderToStaticMarkup(createElement(LoginPage));

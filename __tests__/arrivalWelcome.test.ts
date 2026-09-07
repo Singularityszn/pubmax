@@ -109,13 +109,16 @@ describe("where a completed sign-in lands", () => {
   });
 
   it("never lands anyone back on a sign-in page", () => {
-    for (const dead of ["/login", "/login?mode=signup", "/signin", "/signin/"]) {
+    for (const dead of [
+      "/login", "/login?mode=signup", "/login#email", "/signin", "/signin/",
+      "/sign-in", "/auth/callback?code=expired", "/map/../login",
+    ]) {
       expect(arrivalDestination("signin", dead, "/u/you")).toBe("/u/you");
     }
   });
 
   it("refuses an off-site or malformed return path", () => {
-    for (const hostile of ["//evil.test/map", "https://evil.test", "\\evil", "map", ""]) {
+    for (const hostile of ["//evil.test/map", "/\n/evil.test/map", "https://evil.test", "\\evil", "map", ""]) {
       expect(arrivalDestination("signin", hostile, "/u/you")).toBe("/u/you");
     }
     expect(arrivalDestination("signin", null, "/u/you")).toBe("/u/you");
