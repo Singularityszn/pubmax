@@ -29,10 +29,9 @@ import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 export const NATIVE_FIRST_RUN_ROUTED_KEY = "pubmax:nativeFirstRun:routed:v1";
 const STORAGE_KEY = NATIVE_FIRST_RUN_ROUTED_KEY;
 /**
- * The one-time onboarding eligibility slot. Exported for the same reason as
- * NATIVE_FIRST_RUN_ROUTED_KEY: the entry block in public/theme-init.js takes the
- * first-run branch itself and has to issue the same handoff the guarded route
- * consumes, one paint earlier.
+ * The one-time onboarding eligibility slot. AppEntryRoute issues the handoff
+ * before client navigation, and FirstRunOnboardingGate consumes it on arrival.
+ * Exported so the native entry tests can check the same slot.
  */
 export const NATIVE_FIRST_RUN_HANDOFF_KEY = "pubmax:nativeFirstRun:handoff:v1";
 const HANDOFF_KEY = NATIVE_FIRST_RUN_HANDOFF_KEY;
