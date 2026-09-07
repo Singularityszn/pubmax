@@ -6,6 +6,7 @@ import {
   NO_ALCOHOL_LENS_PRICE_NOUN,
 } from "@/lib/mapExperienceLens";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
+import { SPOONS_VALUE_RESPONSIBLE_LINE } from "@/lib/spoonsValue";
 
 const ALL_RENDERED_STATE = {
   priceBands: [
@@ -420,6 +421,56 @@ describe("map key inventory", () => {
       food.marks.find((row) => row.id === "provisional")?.detail,
     ).toBe(
       "A recent pint report. It doesn't set a food pin's colour. A UK base pub keeps only the dot.",
+    );
+  });
+
+  it("answers the Spoons value lens in its own words, and no pound figure", () => {
+    const legend = mapPriceLegend({
+      kind: "spoons",
+      modalMilliunits: 12_785,
+      renderedState: {
+        priceBands: [
+          { meaning: "spoons", bucket: 0 },
+          { meaning: "spoons", bucket: 1 },
+          { meaning: "spoons", bucket: 2 },
+          { meaning: "spoons", bucket: 3 },
+        ],
+        storyColour: null,
+      },
+    });
+    expect(legend.title).toBe("Spoons value key");
+    expect(legend.rows).toEqual([
+      { label: "More than 12.8 units", symbol: "More", tone: "green" },
+      { label: "12.8 units", symbol: "Usual", tone: "amber" },
+      { label: "Less than 12.8 units", symbol: "Less", tone: "red" },
+      { label: "Not in the ranking", symbol: "?", tone: "grey" },
+    ]);
+    expect(legend.hint).toContain("not a pint price");
+    expect(legend.hint).toContain(SPOONS_VALUE_RESPONSIBLE_LINE);
+    expect(legend.clusterNote).toContain("value bands");
+    expect(legend.priceCapFilter).toBe(false);
+    expect(legend.noAlcoholNote).toBeNull();
+    expect(
+      legend.marks.find((row) => row.id === "provisional")?.detail,
+    ).toBe(
+      "A recent pint report. It doesn't set a pin's value band. A UK base pub keeps only the dot.",
+    );
+  });
+
+  it("prints only the Spoons bands the map is drawing", () => {
+    const legend = mapPriceLegend({
+      kind: "spoons",
+      modalMilliunits: 12_785,
+      renderedState: {
+        priceBands: [{ meaning: "spoons", bucket: 3 }],
+        storyColour: null,
+      },
+    });
+    expect(legend.rows).toEqual([
+      { label: "Not in the ranking", symbol: "?", tone: "grey" },
+    ]);
+    expect(legend.clusterNote).toBe(
+      "Clusters stay grey because no pub in view is in the ranking. The number is every venue in the cluster.",
     );
   });
 });

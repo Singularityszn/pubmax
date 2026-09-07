@@ -21,10 +21,11 @@
 // basket cost is a basket cost: it is not a pint price and is never painted as
 // one. `__tests__/spoonsValue.test.ts` holds the fence.
 //
-// PURE and browser-safe: this module imports one leaf (the shared band class
-// family) and nothing else, so a bundle that needs the word "units" pulls no
-// venue index behind it.
+// PURE and browser-safe: this module imports two leaves (the shared band class
+// family and the URL reader) and nothing else, so a bundle that needs the word
+// "units" pulls no venue index behind it.
 
+import { firstHttps } from "@/lib/httpUrl";
 import { priceBandClass, type PriceBand } from "@/lib/priceBand";
 
 // ---------------------------------------------------------------------------
@@ -179,6 +180,12 @@ function parseCredit(value: unknown): SpoonsValueCredit | null {
   for (const field of fields) {
     if (typeof value[field] !== "string" || (value[field] as string).trim() === "") return null;
   }
+  // A CREDIT URL IS AN https URL. Three surfaces render `sourceUrl` as an
+  // `href`, so a string that is not an https address is not a credit: it is a
+  // link this lane would ask a reader to follow on our word. The check runs
+  // here as well as in the importer, because the pack is a committed file and
+  // a file can be older than the rule that wrote it.
+  if (firstHttps(value.sourceUrl as string) === "") return null;
   return {
     title: value.title as string,
     author: value.author as string,
@@ -344,6 +351,33 @@ export function spoonsValueBandLegendLabel(band: SpoonsValueBand, modal: number)
       return `Less than ${units}`;
   }
 }
+
+/**
+ * The map key's own row for one band: the line a reader sees beside the swatch
+ * on the map, and the short code that rides in front of it.
+ *
+ * The words live HERE rather than in `lib/mapPriceLegend.ts` for the reason the
+ * control's words do: this lane owns its vocabulary, and only the hue is
+ * shared. A map key row has to stand alone, so the line names the unit that the
+ * control's own note carries in a sentence beside it.
+ */
+export function spoonsValueMapKeyRow(
+  band: SpoonsValueBand,
+  modal: number,
+): Readonly<{ label: string; code: "More" | "Usual" | "Less" }> {
+  const units = formatUnitsLabel(modal);
+  switch (band) {
+    case "above":
+      return { label: `More than ${units}`, code: "More" };
+    case "typical":
+      return { label: units, code: "Usual" };
+    case "below":
+      return { label: `Less than ${units}`, code: "Less" };
+  }
+}
+
+/** The map key's row for a pub the ranking says nothing about. */
+export const SPOONS_VALUE_UNRANKED_KEY_LABEL = "Not in the ranking";
 
 // ---------------------------------------------------------------------------
 // Words and figures

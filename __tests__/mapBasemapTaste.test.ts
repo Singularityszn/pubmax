@@ -94,6 +94,7 @@ function evaluateClusterExpression(
   if (operator === "!=") return value(args[0]) !== value(args[1]);
   if (operator === "has") return Object.hasOwn(properties, String(args[0]));
   if (operator === "%") return Number(value(args[0])) % Number(value(args[1]));
+  if (operator === "+") return args.reduce((sum, item) => sum + Number(value(item)), 0);
   if (operator === "all") return args.every((item) => Boolean(value(item)));
   if (operator === "match") {
     const input = value(args[0]);
@@ -650,6 +651,18 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     {
       name: "missing counts are grey",
       properties: {},
+      expected: withAlpha(tokens.muted, 0.84),
+    },
+    {
+      // Under the Spoons value lens the disc counts the lens's own band, so a
+      // ring of pubs painted by units can never be coloured by their prices.
+      name: "the lens's own bands win once its counts are there",
+      properties: { b0: 9, b1: 0, b2: 0, b3: 0, s0: 0, s1: 0, s2: 2, s3: 7 },
+      expected: withAlpha(tokens.brick, 0.88),
+    },
+    {
+      name: "a cluster with nothing in the ranking is grey under the lens",
+      properties: { b0: 9, b1: 0, b2: 0, b3: 0, s0: 0, s1: 0, s2: 0, s3: 9 },
       expected: withAlpha(tokens.muted, 0.84),
     },
   ])("$name", ({ properties, expected }) => {

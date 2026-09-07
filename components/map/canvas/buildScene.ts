@@ -1005,11 +1005,22 @@ export function buildPubs(ctx: SceneCtx) {
       // comment names the bands rather than restating a figure that moves
       // every time the prices are rebuilt. Accumulated by supercluster itself,
       // so no client-side aggregation pass is needed.
+      // s0..s3 are the SAME count over the Spoons value lens's own band
+      // (`spoonsBucket`, stamped by geojson.ts and absent while the lens is
+      // off), because a donut wearing units bands under a note about price
+      // bands is the map key defect drawn as a ring. Both sets accumulate here
+      // because `clusterProperties` is create-time only: which one the donut
+      // reads is decided per cluster in donutClusters.ts, from the counts
+      // themselves.
       clusterProperties: {
         b0: ["+", ["case", ["==", ["get", "bucket"], 0], 1, 0]],
         b1: ["+", ["case", ["==", ["get", "bucket"], 1], 1, 0]],
         b2: ["+", ["case", ["==", ["get", "bucket"], 2], 1, 0]],
         b3: ["+", ["case", ["==", ["get", "bucket"], 3], 1, 0]],
+        s0: ["+", ["case", ["==", ["get", "spoonsBucket"], 0], 1, 0]],
+        s1: ["+", ["case", ["==", ["get", "spoonsBucket"], 1], 1, 0]],
+        s2: ["+", ["case", ["==", ["get", "spoonsBucket"], 2], 1, 0]],
+        s3: ["+", ["case", ["==", ["get", "spoonsBucket"], 3], 1, 0]],
       },
     });
   }

@@ -37,6 +37,13 @@ export function readCounts(props: GeoJSON.GeoJsonProperties): DonutCounts {
     const n = typeof v === "number" ? v : Number(v ?? 0);
     return Number.isFinite(n) ? n : 0;
   };
+  // THE RING COUNTS WHAT THE PINS ARE PAINTED BY. s0..s3 accumulate the Spoons
+  // value lens's own band and are all zero while the lens is off, because the
+  // property they read is absent then; under the lens EVERY curated pin carries
+  // one, so a non-zero s-total is the cluster saying which question its own
+  // colours answer. No plumbing: the counts are self-describing.
+  const spoons: DonutCounts = [at("s0"), at("s1"), at("s2"), at("s3")];
+  if (spoons[0] + spoons[1] + spoons[2] + spoons[3] > 0) return spoons;
   return [at("b0"), at("b1"), at("b2"), at("b3")];
 }
 

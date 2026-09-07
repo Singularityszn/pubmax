@@ -557,6 +557,12 @@ export function activeLensPricesFor<Prices>(
 /**
  * Which question the price key is answering.
  *
+ * THE KEY FOLLOWS WHAT THE PINS ARE PAINTED BY, in the order the pins are
+ * painted in. `pinBucketAndTag` (components/map/canvas/geojson.ts) asks the
+ * Spoons value lane FIRST and returns, so the key asks it first too: with a
+ * drink lane also chosen, the pins are units and a wine price key beside them
+ * would be a second answer to one question.
+ *
  * Food never colours the map, so it is its own kind. A drink lens only earns
  * the drink key once it has BOTH a heading and a sentence noun, because the key
  * prints both and a half-named lens would print a gap.
@@ -567,6 +573,8 @@ export function priceLegendInput<RenderedState>(input: {
   activeLensNoun: string | null;
   drinkIndexStatus: CategoryPriceIndexStatus;
   renderedMapState: RenderedState;
+  /** The Spoons value lane, or null when that lens does not own the map. */
+  spoonsValueLane?: { modalMilliunits: number | null } | null;
 }):
   | { kind: "food"; renderedState: RenderedState }
   | {
@@ -576,8 +584,24 @@ export function priceLegendInput<RenderedState>(input: {
       status: CategoryPriceIndexStatus;
       renderedState: RenderedState;
     }
+  | {
+      kind: "spoons";
+      modalMilliunits: number;
+      renderedState: RenderedState;
+    }
   | { kind: "default"; renderedState: RenderedState } {
   const { experienceLens, activeLensLabel, activeLensNoun, renderedMapState } = input;
+  const spoonsModal = input.spoonsValueLane?.modalMilliunits ?? null;
+  // A lane with no threshold cut no bands, so it painted nothing and has no key
+  // to print: that is the loading, empty and unavailable states, which the
+  // lens's own control words for itself.
+  if (typeof spoonsModal === "number" && spoonsModal > 0) {
+    return {
+      kind: "spoons",
+      modalMilliunits: spoonsModal,
+      renderedState: renderedMapState,
+    };
+  }
   if (experienceLens === "food") return { kind: "food", renderedState: renderedMapState };
   if (activeLensLabel && activeLensNoun) {
     return {

@@ -96,6 +96,7 @@ describe("MapKey", () => {
   it("omits undeclared sections and notes", () => {
     const sparseLegend: MapPriceLegendModel = {
       rows: [],
+      priceCapFilter: true,
       ariaLabel: "Sparse key",
       title: "Sparse key",
       hint: "No declared states.",

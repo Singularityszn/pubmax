@@ -1,5 +1,14 @@
 import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
 import { priceBandLegendLabel } from "@/lib/priceBand";
+import {
+  SPOONS_VALUE_BANDS,
+  SPOONS_VALUE_LENS_LABEL,
+  SPOONS_VALUE_RESPONSIBLE_LINE,
+  SPOONS_VALUE_UNRANKED_KEY_LABEL,
+  spoonsValueBucket,
+  spoonsValueMapKeyRow,
+  type SpoonsValueBand,
+} from "@/lib/spoonsValue";
 import type {
   MapRenderedPriceBand,
   MapRenderedPriceBucket,
@@ -9,7 +18,10 @@ import type {
 
 export type MapPriceLegendRow = {
   label: string;
-  symbol: "£" | "££" | "£££" | "?";
+  // The code in front of the row. Money symbols for a money band, and the
+  // lens's own words for a band that is not money: a units count wearing a
+  // pound sign is the defect this column exists to make visible.
+  symbol: "£" | "££" | "£££" | "?" | "More" | "Usual" | "Less";
   tone: "green" | "amber" | "red" | "grey";
 };
 
@@ -22,6 +34,8 @@ export type MapKeyEntry = {
 
 export type MapPriceLegendModel = {
   rows: MapPriceLegendRow[];
+  /** Whether a maximum-pint-price cap belongs beside this key. */
+  priceCapFilter: boolean;
   ariaLabel: string;
   title: string;
   hint: string;
@@ -49,11 +63,22 @@ export type MapPriceLegendContext = (
   | {
       kind: "food";
     }
+  | {
+      kind: "spoons";
+      /** The units the most pubs hand over for the budget, in milliunits. */
+      modalMilliunits: number;
+    }
 ) &
   MapPriceLegendMapState;
 
 const PRICE_CLUSTER_NOTE =
   "A split cluster ring shows the mix of price bands inside it. A solid cluster uses the most common known price band. Grey means none has a known map price. The number is every venue in the cluster.";
+
+const SPOONS_CLUSTER_NOTE =
+  "A split cluster ring shows the mix of value bands inside it. A solid cluster uses the most common band. Grey means no pub in it is in the ranking. The number is every venue in the cluster.";
+
+const SPOONS_EMPTY_CLUSTER_NOTE =
+  "Clusters stay grey because no pub in view is in the ranking. The number is every venue in the cluster.";
 
 const FOOD_CLUSTER_NOTE =
   "Food clusters stay grey because food prices do not colour this map. The number is every venue in the cluster.";
@@ -263,7 +288,7 @@ function renderedBuckets(
 
 type MapKeyDeclarations = Pick<
   MapPriceLegendModel,
-  "clusterNote" | "shapes" | "marks" | "routeMarks" | "noAlcoholNote"
+  "clusterNote" | "shapes" | "marks" | "routeMarks" | "noAlcoholNote" | "priceCapFilter"
 >;
 
 function declaredLegend(
@@ -272,6 +297,7 @@ function declaredLegend(
 ): MapPriceLegendModel {
   return {
     ...legend,
+    priceCapFilter: true,
     clusterNote: null,
     shapes: [],
     marks: [],
@@ -373,11 +399,82 @@ function defaultClusterNote(
   return "Clusters stay grey because no current venue has a known map price. The number is every venue in the cluster.";
 }
 
+/**
+ * The rows the Spoons value lens earns: its own three bands, each carrying the
+ * number it was cut at, plus one row for the pubs the ranking says nothing
+ * about. Only the bands the map is actually drawing are printed, the way every
+ * other kind here reads its rows off the rendered state.
+ */
+function spoonsRenderedRows(
+  bands: readonly MapRenderedPriceBand[],
+  modalMilliunits: number,
+): MapPriceLegendRow[] {
+  const drawn = new Set(
+    bands.flatMap((band) => (band.meaning === "spoons" ? [band.bucket] : [])),
+  );
+  // The same direction the price bands read in: the green end is the one that
+  // gives you more for the money. lib/spoonsValue.ts owns the hue itself for
+  // every surface that paints a swatch.
+  const TONES: Readonly<Record<SpoonsValueBand, MapPriceLegendRow["tone"]>> = {
+    above: "green",
+    typical: "amber",
+    below: "red",
+  };
+  const rows: MapPriceLegendRow[] = SPOONS_VALUE_BANDS.flatMap((band) => {
+    if (!drawn.has(spoonsValueBucket(band))) return [];
+    const row = spoonsValueMapKeyRow(band, modalMilliunits);
+    return [{ label: row.label, symbol: row.code, tone: TONES[band] }];
+  });
+  return drawn.has(3)
+    ? [
+        ...rows,
+        {
+          label: SPOONS_VALUE_UNRANKED_KEY_LABEL,
+          symbol: "?" as const,
+          tone: "grey" as const,
+        },
+      ]
+    : rows;
+}
+
 export function mapPriceLegend(
   context: MapPriceLegendContext,
 ): MapPriceLegendModel {
   const { priceBands, storyColour } = context.renderedState;
   const priceBuckets = renderedBuckets(priceBands);
+  if (context.kind === "spoons") {
+    const rows = spoonsRenderedRows(priceBands, context.modalMilliunits);
+    const hasRankedBand = rows.some((row) => row.symbol !== "?");
+    return declaredLegend(
+      {
+        rows,
+        ariaLabel: `${SPOONS_VALUE_LENS_LABEL} key`,
+        title: `${SPOONS_VALUE_LENS_LABEL} key`,
+        // WHAT THE COLOUR MEANS, AND WHAT IT DOES NOT. The figure is units in
+        // a £10 round somebody else costed off a Wetherspoon menu, so the key
+        // says so rather than letting a green pin read as a cheap pint.
+        hint: `Pin colours follow the units in the best £10 round at each Wetherspoon, not a pint price. ${SPOONS_VALUE_RESPONSIBLE_LINE}`,
+      },
+      {
+        // The cap chips filter on PINT PRICE, which is not what these pins are
+        // painted by, so the key does not offer them under this lens.
+        priceCapFilter: false,
+        clusterNote:
+          rows.length === 0
+            ? null
+            : hasRankedBand
+              ? SPOONS_CLUSTER_NOTE
+              : SPOONS_EMPTY_CLUSTER_NOTE,
+        shapes: MAP_SHAPES,
+        marks: mapMarks(
+          "A recent pint report. It doesn't set a pin's value band. A UK base pub keeps only the dot.",
+          storyColour,
+        ),
+        routeMarks: routeMarks(storyColour),
+        noAlcoholNote: null,
+      },
+    );
+  }
   if (context.kind === "food") {
     return declaredLegend(
       {
