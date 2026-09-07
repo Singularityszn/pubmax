@@ -30,10 +30,17 @@ import type { CameraIntentKind } from "@/lib/cameraIntent";
 export const GESTURE_CAMERA_HOLD_MS = 2_000;
 
 /**
- * Camera intents no reader asked for. Both fire off a changed venue or route
- * array, so both can land in the middle of somebody reading the map.
+ * Camera intents no reader asked for. `route` and `query` fire off a changed
+ * venue or route array; `arrival` is the map's own opening turn
+ * (lib/mapArrivalBearing.ts). All three can land in the middle of somebody
+ * reading the map, and a reader who has already taken hold of the camera has
+ * said what attitude they want.
  */
-export const REACTIVE_CAMERA_INTENTS: readonly CameraIntentKind[] = ["route", "query"];
+export const REACTIVE_CAMERA_INTENTS: readonly CameraIntentKind[] = [
+  "arrival",
+  "route",
+  "query",
+];
 
 export type GestureCameraState = {
   /** A gesture is on the glass right now. */

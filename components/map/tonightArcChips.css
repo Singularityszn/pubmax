@@ -74,24 +74,6 @@
   outline-offset: 2px;
 }
 
-.tonightArcUnavailableReason {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 50%;
-  z-index: 1;
-  width: max-content;
-  max-width: min(280px, calc(100vw - 24px));
-  padding: 7px 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel-raised);
-  color: var(--ink-soft);
-  box-shadow: var(--shadow-float);
-  font: 700 0.7rem/1.25 var(--font-sans);
-  text-align: center;
-  transform: translateX(-50%);
-}
-
 /* Popover variant - the desktop home, inside the toolbar's Filters panel. The
    panel owns the surface, so the group is plain content: the row wraps rather
    than scrolling and every chip keeps the 44px tap floor. */

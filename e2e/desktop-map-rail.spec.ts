@@ -115,23 +115,33 @@ test.describe("desktop map right-rail (D3.1/D3.2)", () => {
     const arc = page.locator(".mapVenueKindFilterPanel .tonightArcChips");
     await expect(arc).toBeVisible({ timeout: 20000 });
 
+    // Group by the line the chips are PAINTED on, not by the DOM row. The row
+    // is one flex container that wraps, so reading it as one line measured the
+    // gap from the last chip on line one to the first on line two and called
+    // -194.875px a violation of an 8px floor.
     const layout = await arc.evaluate((element) => {
-      const rows = [...element.querySelectorAll<HTMLElement>(".tonightArcRow")];
-      return rows.map((row) => {
-        const boxes = [...row.querySelectorAll<HTMLElement>(".tonightArcChip")].map(
-          (chip) => {
-            const rect = chip.getBoundingClientRect();
-            return {
-              label: chip.textContent?.trim() ?? "",
-              left: rect.left,
-              right: rect.right,
-              height: rect.height,
-              width: rect.width,
-            };
-          },
-        );
-        return boxes;
-      });
+      const boxes = [...element.querySelectorAll<HTMLElement>(".tonightArcChip")].map(
+        (chip) => {
+          const rect = chip.getBoundingClientRect();
+          return {
+            label: chip.textContent?.trim() ?? "",
+            top: Math.round(rect.top),
+            left: rect.left,
+            right: rect.right,
+            height: rect.height,
+            width: rect.width,
+          };
+        },
+      );
+      const lines = new Map<number, typeof boxes>();
+      for (const box of boxes) {
+        const line = lines.get(box.top) ?? [];
+        line.push(box);
+        lines.set(box.top, line);
+      }
+      return [...lines.values()].map((line) =>
+        [...line].sort((a, b) => a.left - b.left),
+      );
     });
 
     const chips = layout.flat();
@@ -169,13 +179,19 @@ test.describe("desktop map right-rail (D3.1/D3.2)", () => {
     await expect(bars).toHaveAttribute("aria-pressed", "false");
     // The count rides the closed control, so no filter is invisible.
     await expect(filters.locator(".mapVenueKindFilterCount")).toHaveText("1");
+    // The panel holds three questions now, not one: the venue types, the
+    // experience lens and the fare zones all moved in behind this control
+    // (7 Sep 2026, walk finding B9). So the count covers every refinement the
+    // panel holds, and the accessible name says what the count counts. A badge
+    // that counted one of three would call the map unfiltered while two
+    // filters were on (lib/venueKindFilters.ts, mapFilterRefinementCount).
     await expect(filters).toHaveAttribute(
       "aria-label",
-      "Filters: venue types, 1 type hidden",
+      "Filters: venue types, view and zone, 1 filter on",
     );
   });
 
-  test("shows the rail with Conditions + Area news at 1440, and hides the toolbar's duplicate chip", async ({
+  test("shows the rail with Area news at 1440, and keeps the conditions verdict to its one home", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -191,16 +207,22 @@ test.describe("desktop map right-rail (D3.1/D3.2)", () => {
     const rail = page.locator(".desktopRail.mapRail");
     await expect(rail).toBeVisible({ timeout: 20000 });
 
-    // Conditions renders inside the rail (owner: always-on when data exists).
-    await expect(rail.locator(".conditionsChip")).toBeVisible();
-    await expect(rail.locator(".conditionsChip")).toContainText(/light cloud/i);
-
     // Area news renders inside the rail when the area is known.
     await expect(rail.locator(".areaNewsRail")).toBeVisible();
 
-    // No duplicate Conditions: while the rail is up (drawer closed) the toolbar's
-    // own chip is hidden — the rail carries the verdict instead.
-    await expect(page.locator(".mapToolbar .conditionsChip")).toBeHidden();
+    // The conditions verdict used to have TWO homes, this rail and a toolbar
+    // chip, with a CSS rule hiding whichever was the duplicate. It has ONE now,
+    // inside the Layers popover, and it is not on the map at arrival at all
+    // (captain, 7 Sep 2026, walk finding B9: the arrival set at 1440 is eight
+    // controls). So neither the rail nor the toolbar carries it.
+    await expect(rail.locator(".conditionsChip")).toHaveCount(0);
+    await expect(page.locator(".mapToolbar .conditionsChip")).toHaveCount(0);
+
+    // It is a tap away, where the map's own layers and camera live.
+    await page.locator(".mapLayersControl button").first().click();
+    await expect(
+      page.locator(".mapLayersPanel .conditionsChip"),
+    ).toContainText(/light cloud/i, { timeout: 20_000 });
   });
 
   test("does not render the rail on a phone viewport", async ({ page }) => {

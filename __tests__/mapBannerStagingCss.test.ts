@@ -27,10 +27,18 @@ describe("map banner staging CSS", () => {
     expect(css).toMatch(/\.mapStage:has\(\.citySuggestBanner\)\s+\.tonightLaneCollapsed/);
   });
 
-  it("never suppresses the closure band itself via the priority cascade (it is the top)", () => {
-    // No :has(...) rule may target .cityStatusBanner — the highest priority band
-    // must always render when eligible.
-    expect(css).not.toMatch(/:has\([^)]*\)\s+\.cityStatusBanner/);
+  it("defers the closure band to the first-visit ask, and to nothing else", () => {
+    // The closure band was the top of the priority cascade and no :has() rule
+    // could touch it. ONE now can: while the first-visit strip is up the strip
+    // is the one banner (captain, 7 Sep 2026, over walk finding B9, which
+    // counted eighteen controls, a closure banner and the card at 1440 before
+    // a pin was tapped). Nothing is lost, because the strip clears on the
+    // reader's own first move on the map. Every OTHER banner still yields to
+    // the closure band rather than the other way round.
+    const suppressors = [
+      ...css.matchAll(/([^\n{,]*:has\([^)]*\)[^\n{,]*)\s+\.cityStatusBanner/g),
+    ].map((match) => match[1].trim());
+    expect(suppressors).toEqual(["body:has(.mapArrivalCard)"]);
   });
 
   it("scopes the staging to desktop so the mobile map shell is untouched", () => {

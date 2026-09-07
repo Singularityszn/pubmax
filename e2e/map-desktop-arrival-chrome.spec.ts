@@ -1,0 +1,123 @@
+import { expect, test, type Page } from "@playwright/test";
+
+// What a desktop reader meets before they have touched anything.
+//
+// Measured on a production build at 1440x900, 7 Sep 2026 (docs/proof/
+// astra-live-walk/report.md B9): EIGHTEEN interactive controls on the map
+// stage, plus an Elizabeth line banner and the first-visit card, before a
+// single pin had been tapped. The phone map shows four and is better for it.
+//
+// Captain's cut: search, Filters, the drink lane, Plan, zoom and Layers. The
+// city switcher stays with them, because it is the only door to another city
+// and to the two answers the first-visit strip itself hands off to. Everything
+// else moved into the control whose subject it shares.
+
+const DESKTOP = { width: 1440, height: 900 };
+
+/** Generous: this suite paints through a software rasteriser on a shared box. */
+const ARRIVAL_TIMEOUT_MS = 90_000;
+
+/**
+ * The whole arrival set. A control joins this list with the commit that needs
+ * it, a reason beside it, and never in silence.
+ */
+const ARRIVAL_CONTROLS = [
+  "Search pubs",
+  "Filters",
+  "Drink: Pints",
+  "Plan an outing",
+  "London",
+  "Zoom in",
+  "Zoom out",
+  "Layers",
+];
+
+/** The strip's own three, counted apart: it is the ask, and it goes. */
+const FIRST_VISIT_STRIP_CONTROLS = 3;
+
+async function arrivalChrome(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const stage = document.querySelector(".mapStage");
+    if (!stage) throw new Error("no map stage");
+    const visible = (element: Element): boolean => {
+      const box = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return (
+        box.width > 2 &&
+        box.height > 2 &&
+        box.top < window.innerHeight &&
+        box.bottom > 0 &&
+        box.left < window.innerWidth &&
+        box.right > 0 &&
+        style.visibility !== "hidden" &&
+        style.display !== "none"
+      );
+    };
+    return [
+      ...stage.querySelectorAll(
+        "button,a[href],[role=button],input[type=search],input[type=text]",
+      ),
+    ]
+      .filter((element) => visible(element))
+      // The card's own three are the ask, and the ask goes.
+      .filter((element) => !element.closest(".mapArrivalCard"))
+      // A cluster marker is the map's CONTENT, not its chrome. It is a button
+      // because it is tappable, and there are as many of them as London has
+      // clusters at this zoom.
+      .filter((element) => !element.closest(".donut-cluster-marker"))
+      .map((element) =>
+        (
+          (element as HTMLElement).innerText ||
+          element.getAttribute("aria-label") ||
+          element.getAttribute("placeholder") ||
+          ""
+        )
+          .replace(/\s+/g, " ")
+          .trim(),
+      );
+  });
+}
+
+test.use({ viewport: DESKTOP });
+
+test.describe("the desktop map's arrival chrome", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.removeItem("pubmax:map-first-visit-arrival:v1");
+    });
+  });
+
+  test("is the eight controls the captain named, and nothing else", async ({ page }) => {
+    const response = await page.goto("/map");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(".mapArrivalCard")).toBeVisible({
+      timeout: ARRIVAL_TIMEOUT_MS,
+    });
+    await expect
+      .poll(async () => (await arrivalChrome(page)).length, {
+        timeout: ARRIVAL_TIMEOUT_MS,
+      })
+      .toBe(ARRIVAL_CONTROLS.length);
+
+    expect((await arrivalChrome(page)).sort()).toEqual([...ARRIVAL_CONTROLS].sort());
+  });
+
+  test("shows one banner at a time, and while the strip is up the strip is it", async ({
+    page,
+  }) => {
+    await page.goto("/map");
+    await expect(page.locator(".mapArrivalCard")).toBeVisible({
+      timeout: ARRIVAL_TIMEOUT_MS,
+    });
+
+    // The weather rail, the area news and the closure banner all wait.
+    await expect(page.locator(".mapStage .desktopRail")).toHaveCount(0);
+    await expect(page.locator(".mapStage .cityStatusBanner")).toHaveCount(0);
+    await expect(page.locator(".mapStage .citySuggestBanner")).toHaveCount(0);
+    await expect(page.locator(".mapStage .palSummon")).toHaveCount(0);
+
+    expect(
+      await page.locator(".mapArrivalCard button").count(),
+    ).toBe(FIRST_VISIT_STRIP_CONTROLS);
+  });
+});

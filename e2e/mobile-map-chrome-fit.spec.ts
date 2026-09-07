@@ -639,26 +639,28 @@ for (const viewport of VIEWPORTS) {
     const arc = sheet.getByRole("group", { name: "Venue types" });
     await expect(arc).toHaveCount(1);
     const arcButtons = arc.locator(".tonightArcChip");
-    expect(await arcButtons.count()).toBe(5);
+    // Four, not five. The `Clubs` chip is gone (7 Sep 2026, walk finding B9):
+    // it stood here permanently `aria-disabled`, explained by a `title` no
+    // phone shows, and it could never be enabled because `curatedVenueKind` in
+    // lib/venueKindFilters.ts answers null for a club, so `filterVenuesByKind`
+    // leaves clubs off the map entirely. The DESKTOP chrome cut is not what
+    // moved this; the chip is one component (components/map/TonightArcChips.tsx)
+    // read at both widths, and a chip nobody can press is not a chip.
+    expect(await arcButtons.count()).toBe(4);
     for (let index = 0; index < (await arcButtons.count()); index += 1) {
       const button = arcButtons.nth(index);
       const label =
         (await button.getAttribute("aria-label")) ??
         (await button.textContent())?.trim() ??
         `Tonight Arc control ${index + 1}`;
-      const disabled = (await button.getAttribute("aria-disabled")) === "true";
+      // Every one of them toggles. The branch that handled an `aria-disabled`
+      // chip opening its own reason went with the chip.
       const pressedBefore = await button.getAttribute("aria-pressed");
       await tapRenderedCentre(page, button, viewport.width, label);
-      if (disabled) {
-        await expect(button).toHaveAttribute("aria-expanded", "true");
-        await tapRenderedCentre(page, button, viewport.width, `Close ${label}`);
-        await expect(button).toHaveAttribute("aria-expanded", "false");
-      } else {
-        await expect(button).toHaveAttribute(
-          "aria-pressed",
-          pressedBefore === "true" ? "false" : "true",
-        );
-      }
+      await expect(button).toHaveAttribute(
+        "aria-pressed",
+        pressedBefore === "true" ? "false" : "true",
+      );
     }
 
     const wine = sheet

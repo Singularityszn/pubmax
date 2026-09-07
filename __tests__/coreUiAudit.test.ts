@@ -175,9 +175,18 @@ describe("core UI audit fixes", () => {
     expect(planCss).toMatch(/@media \(max-width: 760px\)[\s\S]*?\.planPage__intro\s*\{\s*margin:\s*10px auto 10px/);
   });
 
-  it("removes non-core map tools during first-session arrival", () => {
-    expect(mobileMapCss).toMatch(
-      /body:has\(\.mapArrivalCard\) \.mobileMapUtilityCorner,[\s\S]*?body:has\(\.mapArrivalCard\) \.mobileMapTonightChip,[\s\S]*?\{\s*display:\s*none;/,
+  it("leaves the map's own tools up during first-session arrival", () => {
+    // This used to assert the opposite: the arrival card hid the chip row, the
+    // plan pill, the map-edge column and the camera controls, and the map under
+    // it was `inert`. The painted-pin probe then found zero tappable marks
+    // ANYWHERE on the canvas, 3 fresh contexts of 3 (docs/proof/
+    // astra-live-walk/report.md B1). The ask is a strip under the top bar now
+    // and it takes nothing down with it.
+    expect(mobileMapCss).not.toMatch(
+      /body:has\(\.mapArrivalCard\) \.mobileMapChipRow/,
+    );
+    expect(mobileMapCss).not.toMatch(
+      /body:has\(\.mapArrivalCard\) \.mobileMapUtilityCorner/,
     );
   });
 

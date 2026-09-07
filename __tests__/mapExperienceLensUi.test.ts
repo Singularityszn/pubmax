@@ -79,8 +79,11 @@ describe("MapExperienceLens", () => {
     // pint-map controls, so an experience view owns the map without them. One
     // named derivation gates every one of them.
     expect(toolbar).toContain('const laneAvailable = experienceLens === "all";');
-    expect(toolbar).toMatch(/laneAvailable \? \([\s\S]*?mapToolbarDrinksBtn/);
-    expect(toolbar).toMatch(/laneOpen && laneAvailable \? \(/);
+    // The drink filters used to have a "Drinks" button of their own beside the
+    // lane control. They read inside the lane's own panel now (7 Sep 2026,
+    // walk finding B9): one control, one subject.
+    expect(toolbar).not.toContain("mapToolbarDrinksBtn");
+    expect(toolbar).toMatch(/laneOpen && laneAvailable \? \([\s\S]*?<DrinkShapeChips/);
     const overview = readFileSync(
       join(
         process.cwd(),
@@ -214,7 +217,7 @@ describe("MapExperienceLens", () => {
     expect(food).not.toContain(">Bars<");
   });
 
-  it("marks selected venue filters without colour and labels why Clubs is unavailable", () => {
+  it("marks selected venue filters without colour, and offers no dead chip", () => {
     const html = renderToStaticMarkup(
       createElement(TonightArcChips, {
         visibility: {
@@ -236,10 +239,13 @@ describe("MapExperienceLens", () => {
     // aria-pressed carries the state.
     expect(pints).toContain('class="tonightArcChipTick" aria-hidden="true"');
     expect(bars).not.toContain("✓");
-    expect(html).toContain('aria-label="Clubs are not mapped yet"');
-    expect(html).toContain('aria-disabled="true"');
-    expect(html).toContain(">Clubs<");
-    expect(html).not.toContain(">are not mapped yet<");
+    // The Clubs chip is gone (7 Sep 2026, walk finding B9). It was permanently
+    // disabled, explained by a `title` attribute no phone shows, and it could
+    // never be enabled: `curatedVenueKind` in lib/venueKindFilters.ts answers
+    // null for a club, so clubs are not on this map at all.
+    expect(html).not.toContain("Clubs");
+    expect(html).not.toContain("aria-disabled");
+    expect(html).not.toContain("are not mapped yet");
     expect(html).not.toContain("Wave 2");
     expect(html).not.toContain("arrives in");
   });

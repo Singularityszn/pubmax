@@ -97,3 +97,36 @@
     display: none;
   }
 }
+
+/* The panel holds three groups now: the venue types, the experience lens and
+   the fare zones (7 Sep 2026, walk finding B9). It is a column with a hairline
+   between the groups, so a reader can see where one question ends. The width
+   grows with them; 360px held four chips and nothing else. */
+.mapVenueKindFilterPanel {
+  width: min(360px, calc(100vw - 24px));
+  max-width: none;
+  /* The panel must end ON SCREEN. Measured at 1440x900 with all three groups
+     open: the toolbar is 60px tall and sits 159px down, so the panel opens at
+     y 219, and a cap that subtracted the toolbar's HEIGHT alone left 744px on
+     a 900px screen. The panel ran to y 910 with the fare-zone footnote cut
+     mid-sentence. The room is what is left below the toolbar's own bottom
+     edge, which is the clearance plus the height (mapArrivalCard.css docks to
+     the same pair), less a margin. */
+  max-height: calc(
+    100dvh - var(--map-top-clearance, 0px) -
+      var(--map-toolbar-resting-height, 181px) - 24px
+  );
+  overflow-y: auto;
+  gap: 12px;
+  /* A popover is a CONTAINER, not a wash over the map: the raised surface, a
+     full hairline and a float shadow (walk finding B9 read five chips floating
+     on a near-transparent rectangle with a hard right edge). */
+  background: var(--panel-raised);
+  box-shadow: var(--shadow-float);
+}
+
+.mapVenueKindFilterPanel > .mapExperienceLens,
+.mapVenueKindFilterPanel > .zonePicker {
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline, var(--line));
+}

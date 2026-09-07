@@ -1,4 +1,13 @@
-export type CameraIntentKind = "city" | "cluster" | "nearby" | "query" | "route" | "venue" | "landmark" | "area";
+export type CameraIntentKind =
+  | "arrival"
+  | "city"
+  | "cluster"
+  | "nearby"
+  | "query"
+  | "route"
+  | "venue"
+  | "landmark"
+  | "area";
 
 type CameraIntentCoordinatorOptions = {
   requestFrame: (callback: FrameRequestCallback) => number;
