@@ -6,9 +6,12 @@ The inventory is descriptive, not a runtime registry.
 
 ## Current snapshot
 
+Source baseline: `6a759e0ac191d99f10c5e658bc8f2c3a6d3dd419`, 7 September 2026.
+Counts below use `lib/*Store.ts`; the broader source fixture also includes `*Store*.ts`.
+
 - The repository has 52 `lib/*Store.ts` modules.
-- 32 modules call `selectStore` directly.
-- 7 modules use `createDualBackendStore`.
+- 37 modules contain a direct `selectStore(...)` call.
+- 8 modules use `createDualBackendStore`.
 - 6 modules keep memory state on `globalThis` so it survives a development
   server reload. That state pattern is separate from backend selection.
 - The remaining modules use an explicit backend, a file or static data path,
@@ -43,7 +46,7 @@ silently stale.
 | Store | Classification | Notes |
 |---|---|---|
 | adultSelfAssertionStore | factory-ready | Account assertion read and record; adult policy lives in `socialLaunch`. |
-| analyticsReceiptStore | legacy-exception | Inline Supabase configuration checks; needs one selector seam. |
+| analyticsReceiptStore | factory-ready | Receipt selection uses the shared seam after #1523. |
 | areaDemandStore | factory-ready | Demand signal with shared backend selection. |
 | checkInStore | factory-ready | Check-in rows with shared backend selection. |
 | commentsStore | factory-eligible, policy-heavy | Comment moderation and report flow. |
@@ -56,13 +59,13 @@ silently stale.
 | identityHandleStore | factory-eligible, policy-heavy | Handle ownership, rename, reservation, and tombstone policy. |
 | importNotesStore | not dual-backend | JSON-file store with memory fallback when the filesystem is unavailable. |
 | messagesStore | factory-eligible, policy-heavy | Conversation identity, membership, and message policy. |
-| nightMemoryStore | legacy-exception | Multiple inline Supabase configuration checks around private memory policy. |
+| nightMemoryStore | legacy-exception | The removal pair uses the seam; 24 per-operation configuration branches remain in the source fixture. |
 | nightProfileStore | factory-ready | Night Profile preference rows with shared backend selection. |
 | notificationsStore | factory-ready | Notification rows with shared backend selection. |
 | occupancyStore | factory-eligible, policy-heavy | Time window, retake, reporting, and moderation policy. |
 | operatorProposalsStore | factory-ready | Operator proposal state has one backend selector. |
 | pendingPlanRecapStore | factory-ready | Small pending-plan recap store. |
-| pintDropsStore | legacy-exception | Inline Supabase configuration branch around Pint Drop and Storage work. |
+| pintDropsStore | factory-eligible, policy-heavy | Shared selector after #1523; Pint Drop and Storage policy stays explicit. |
 | planCollaborationStore | factory-ready | Shared selector with `globalThis` memory state. |
 | planGroupPrefsStore | factory-ready | Shared selector with `globalThis` memory state. |
 | planInviteRsvpStore | factory-ready | Shared selector with `globalThis` memory state. |
@@ -78,7 +81,7 @@ silently stale.
 | reactionsStore | factory-ready | Pint Drop reactions with shared backend selection. |
 | referralStore | factory-eligible, policy-heavy | Referral identity, milestone, and proof-expiry policy. |
 | roundsStore | factory-eligible, policy-heavy | Round membership, spend-line provenance, and promotion policy. |
-| savedPubsStore | legacy-exception | Inline Supabase configuration branch plus profile bootstrap; needs its own selector refactor. |
+| savedPubsStore | factory-ready | Shared selector after #1523; profile bootstrap stays in the store. |
 | socialConnectionStore | factory-ready | Connected provider rows with one backend selector. |
 | socialCrewStore | not dual-backend | Supabase-only RPC store. |
 | socialInteractionStore | factory-eligible, policy-heavy | Social relationship, block, and interaction policy. |
@@ -99,21 +102,22 @@ silently stale.
 
 The following stores intentionally stay outside the factory-ready path:
 
-- **legacy-exception:** `analyticsReceiptStore`, `contributorLeaderboardStore`,
-  `crawlStoryStore`, `nightMemoryStore`, `pintDropsStore`, `planStore`,
-  `pubPalStore`, and `savedPubsStore`. Each needs a separate selector
-  refactor before a factory wrapper can preserve its behavior. Owner: the
-  next issue #727 store wave.
+- **legacy-exception:** `contributorLeaderboardStore`, `crawlStoryStore`,
+  `nightMemoryStore`, `planStore`, and `pubPalStore`. Per-operation branches remain explicit.
+  `planStore` already selects its main interface at the seam; that does not remove its remaining branches.
+  Owner: the maintainers reviewing the next issue #727 store slice.
 - **not dual-backend:** `importNotesStore`, `socialCrewStore`,
   `socialPostConsentStore`, and `whatsOnStore`. Their storage premise is not
   memory-or-Supabase. Owner: not applicable for this factory.
 - **policy-heavy:** `commentsStore`, `communityPriceStore`,
   `identityHandleStore`, `messagesStore`, `occupancyStore`,
+  `pintDropsStore`,
   `priceTrustEventStore`, `profileCoverPhotoStore`, `referralStore`,
   `roundsStore`, `socialInteractionStore`, `socialPostStore`,
   `venueOperatorsStore`, `venuePhotoStore`, `visitReportsStore`, and
-  `weatherRecommendationStore`. Their explicit policy is the reason to defer
-  migration, not a claim that the selector is impossible to simplify later.
+  `weatherRecommendationStore`. Their explicit policy requires a separate review before further migration.
+  Some already use the factory; the label does not imply an unmigrated store.
+  Owner: the maintainers reviewing that store's issue #727 contract.
 
 ## Inline backend references
 
@@ -230,17 +234,63 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
 ```
 <!-- inline-backend-references:end -->
 
-## Existing pilot
+## Existing pilot and current adopters
 
 `feedFreshnessStore` was the first low-risk pilot. Its callers use the same
 zero-argument selector before and after the factory wrapper, and its memory
 and Supabase implementations keep their existing fail-soft behavior.
 
-The current branch also has `createDualBackendStore` in
-`adultSelfAssertionStore`, `feedFreshnessStore`, `occupancyStore`,
-`priceTrustEventStore`, `stepOutNudgeStore`, `walkRouteStore`, and
-`wantedStore`. This inventory records that current state; it does not require
-other stores to migrate.
+Current source has these eight factory adopters:
+
+1. `adultSelfAssertionStore`
+2. `feedFreshnessStore`
+3. `harvestOverlayStore`
+4. `occupancyStore`
+5. `priceTrustEventStore`
+6. `stepOutNudgeStore`
+7. `walkRouteStore`
+8. `wantedStore`
+
+The former seven-adopter list omitted `harvestOverlayStore`.
+This count records implementation, not acceptance of a wider migration.
+It neither directs further migrations nor authorises reverting existing adopters.
+
+### Issue #727: stale scope and unmet contract
+
+The [original issue](https://github.com/Singularityszn/pubmax/issues/727) requires exactly two low-risk pilots.
+Its contract matrix covers keyless reads, configured reads, missing schema, reset isolation and production strictness.
+It also requires a machine-readable inventory of interfaces, fallbacks, schema behaviour, authorization owners and reset helpers.
+
+| Record | What it establishes | What it does not establish |
+|---|---|---|
+| Original #727 acceptance | Exactly two pilots, with per-store parity evidence. Policy stays outside the factory. | Approval for every current adopter. |
+| First progress comment, after [#1155](https://github.com/Singularityszn/pubmax/pull/1155) | Calls the two-pilot count obsolete because seven stores already adopted the helper. Requests an acceptance update. | A completed scope update or waived parity matrix. |
+| Second progress comment, after [#1158](https://github.com/Singularityszn/pubmax/pull/1158) | Explicitly retains the named two-pilot matrix and disposition of the other five adopters. Records production strictness and reset work. | Acceptance of widening; the comment explicitly keeps the issue open. |
+| 5 September comment, [#1523](https://github.com/Singularityszn/pubmax/pull/1523) | Records selector cleanup and a source inventory. Lists remaining slices, ending with review scope in `npm run verify`. | Permission for a bulk factory rewrite or proof that all six slices landed. |
+| Current source | Eight adopters, including `harvestOverlayStore`; inventory and CI scope fences exist. | Satisfaction of the literal two-pilot clause. |
+
+The number is stale as an implementation description. The acceptance mismatch remains unresolved.
+The maintainer must record the accepted pilot pair and disposition of the six other current adopters.
+Alternatively, the maintainer can explicitly replace the two-pilot scope and define the required evidence for that scope.
+Neither choice is inferred from the progress comments.
+
+### Evidence available for the pilot contract
+
+The table separates evidence already present from missing parity proof. It does not claim a fresh full-suite pass.
+
+| Contract | Evidence on this baseline | Remaining action |
+|---|---|---|
+| Keyless reads | `__tests__/occupancyStore.test.ts` exercises the real occupancy memory path. It also writes and reads feed freshness memory rows. | Name the accepted pair and map their before/after return shapes explicitly. |
+| Healthy configured reads | `__tests__/storeBackend.test.ts` checks selection using sentinel implementations. | Supply healthy configured read parity for each named pilot. Selector identity alone is not a store read. |
+| Missing schema | Occupancy tests use an admin stub that always throws the missing-table error. They check degraded production reads and preview fallback. | Add the missing per-pilot matrix entries. `freshnessStoreOverlay.test.ts` mocks the feed store, so it is not feed-store parity. |
+| Reset isolation | Occupancy tests check both directions: occupancy reset preserves feed rows; feed reset preserves occupancy rows. | Retain this proof and bind it to the accepted pair. |
+| Production strictness | Occupancy tests refuse production moderation fallback. The selector suite refuses unconfigured production memory fallback. Feed writes use `onMissingDurableWrite`. | Demonstrate each pilot's own failed durable-write result, not merely the shared helper's behaviour. |
+| Inventory | `storeBackendInventory.test.ts` fences all 52 exact `*Store.ts` names and inline references. `storeInventory.test.ts` records class, selector and inline-branch reasons for the broader set. | The source fixture does not encode every requested interface, fallback, schema behaviour, authorization owner and reset helper. Complete or explicitly narrow that contract. |
+| CI review scope | `.github/workflows/ci.yml` runs `scripts/check_review_scope.mjs` with base and head SHAs. | The current `package.json` verify chain does not invoke that script. The final #1523 follow-up remains distinct from existing CI coverage. |
+
+The original issue also requires lint, scoped typecheck, tests and verify evidence.
+A bounded inventory check cannot substitute for those gates.
+The main audit owner supplies the integration results; this document supplies no blanket closure recommendation.
 
 ## Review-scope guard
 
