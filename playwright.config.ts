@@ -254,6 +254,10 @@ export default defineConfig({
         "**/map-gl.spec.ts",
         // Two-finger rotate and tilt against a real MapLibre canvas.
         "**/map-gestures.spec.ts",
+        // The opening turn and the first-visit card's grip on the pins: both
+        // read a real camera and a real painted-pin probe.
+        "**/map-arrival-turn.spec.ts",
+        "**/map-arrival-card-pins.spec.ts",
         // A deep-linked pin's painted position against the phone sheet's own
         // rendered edge: both need a real MapLibre camera to project from.
         "**/map-deep-link-pin.spec.ts",
