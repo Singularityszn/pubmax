@@ -49,7 +49,7 @@ function playwrightReport(overrides: Record<string, unknown> = {}) {
 }
 
 /** One skipped test, reported with the spec file the run gate matches on. */
-function skippedReportForFile(file: string) {
+function skippedReportForFile(file: string, title = "argued lane") {
   return {
     suites: [
       {
@@ -57,7 +57,7 @@ function skippedReportForFile(file: string) {
         file,
         specs: [
           {
-            title: "argued lane",
+            title,
             file,
             tests: [
               {
@@ -241,6 +241,7 @@ describe("assert-playwright-gate", () => {
             condition: "true",
             reason: "argued",
             ends: "a real authenticated e2e lane",
+            tests: ["argued lane"],
           },
         ],
       }),
@@ -265,6 +266,97 @@ describe("assert-playwright-gate", () => {
     ]);
     expect(refused.status).toBe(1);
     expect(refused.stderr).toContain("skipped test");
+  });
+
+  it("argues the tests a row names, and never the rest of the file", () => {
+    // THE RUN GATE USED TO READ `file` ALONE. Both allowlisted specs hold more
+    // than one test, and only one test in plan-capability-recovery.spec.ts
+    // carries the skip, so a new unargued test.skip in either file passed the
+    // law-pins run in silence: the zero-skip contract was file-granular while
+    // the contract the allowlist states is per test.
+    const directory = tempDirectory();
+    const allowlist = path.join(directory, "allowlist.json");
+    writeFileSync(
+      allowlist,
+      JSON.stringify({
+        allowed: [
+          {
+            file: "e2e/plan-capability-recovery.spec.ts",
+            condition: "true",
+            reason: "argued",
+            ends: "a real authenticated e2e lane",
+            tests: ["the argued recovery lane"],
+          },
+        ],
+      }),
+    );
+
+    const report = path.join(directory, "report.json");
+    const gate = () =>
+      run("assert-playwright-gate.mjs", [
+        report,
+        "--require-zero-skipped",
+        "--skips-argued",
+        allowlist,
+      ]);
+
+    writeFileSync(
+      report,
+      JSON.stringify(
+        skippedReportForFile(
+          "plan-capability-recovery.spec.ts",
+          "the argued recovery lane",
+        ),
+      ),
+    );
+    const named = gate();
+    expect(named.status).toBe(0);
+    expect(named.stdout).toContain('"arguedSkips":1');
+
+    // Same spec file, a test the row does not name: unargued, and refused.
+    writeFileSync(
+      report,
+      JSON.stringify(
+        skippedReportForFile(
+          "plan-capability-recovery.spec.ts",
+          "a signed-out browser never spends a recovery write",
+        ),
+      ),
+    );
+    const unnamed = gate();
+    expect(unnamed.status).toBe(1);
+    expect(unnamed.stderr).toContain("skipped test");
+  });
+
+  it("refuses an allowlist row that argues a file rather than named tests", () => {
+    const directory = tempDirectory();
+    const report = path.join(directory, "report.json");
+    writeFileSync(report, JSON.stringify(skippedReportForFile("plan-capability-recovery.spec.ts")));
+
+    const allowlist = path.join(directory, "allowlist.json");
+    writeFileSync(
+      allowlist,
+      JSON.stringify({
+        allowed: [
+          {
+            file: "e2e/plan-capability-recovery.spec.ts",
+            condition: "true",
+            reason: "argued",
+            ends: "a real authenticated e2e lane",
+          },
+        ],
+      }),
+    );
+
+    const result = run("assert-playwright-gate.mjs", [
+      report,
+      "--require-zero-skipped",
+      "--skips-argued",
+      allowlist,
+    ]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('"tests" array');
   });
 
   it("refuses an allowlist it cannot read rather than passing without one", () => {
@@ -382,6 +474,7 @@ describe("assert-no-conditional-e2e-skips", () => {
             condition: "true",
             reason: "argued in the fixture",
             ends: "when the lane it names exists",
+            tests: ["x"],
           },
         ],
       }),
@@ -414,6 +507,7 @@ describe("assert-no-conditional-e2e-skips", () => {
             condition: "true",
             reason: "the skip this argued for is gone",
             ends: "already",
+            tests: ["x"],
           },
         ],
       }),
@@ -425,6 +519,39 @@ describe("assert-no-conditional-e2e-skips", () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("matches no live skip");
+  });
+
+  it("refuses a row naming a test the spec no longer holds", () => {
+    // A renamed test leaves the row arguing a title nothing can produce, which
+    // is the same stale exception as a condition that no longer matches: the
+    // run gate would keep honouring it and the real skip would go unargued.
+    const directory = tempDirectory();
+    writeFileSync(
+      path.join(directory, "renamed.spec.ts"),
+      'import { test } from "@playwright/test";\ntest("the new title", () => { test.skip(true, "argued"); });\n',
+    );
+    const allowlist = path.join(directory, "allowlist.json");
+    writeFileSync(
+      allowlist,
+      JSON.stringify({
+        allowed: [
+          {
+            file: path.relative(ROOT, path.join(directory, "renamed.spec.ts")),
+            condition: "true",
+            reason: "argued in the fixture",
+            ends: "when the lane it names exists",
+            tests: ["the title this row was written for"],
+          },
+        ],
+      }),
+    );
+
+    const result = run("assert-no-conditional-e2e-skips.mjs", [directory], {
+      PUBMAX_E2E_SKIP_ALLOWLIST: allowlist,
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("no longer holds");
   });
 
   it("rejects an empty spec directory", () => {
