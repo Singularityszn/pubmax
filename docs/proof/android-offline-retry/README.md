@@ -46,8 +46,10 @@ The service-worker bypass isolates the uncached document failure that reaches Ca
 Without that bypass, the existing service worker could return a cached, unstyled document while offline.
 The run did not change the service worker or the shared offline HTML.
 
-An initial VIEW-intent experiment did not reproduce the loss. Existing app startup logic reapplied that original launch link.
-The confirmed failure followed a normal launcher start and subsequent navigation.
+An initial VIEW-intent experiment used the same launch link and failed destination. Retry returned to that venue.
+The experiment did not measure startup callback order or navigate to a different venue after launch.
+Launch link A, then venue B, outage, and Retry remains untested.
+The committed screenshots show the normal-launch reproduction. They do not show the initial VIEW-intent experiment.
 
 ## Visual proof
 
