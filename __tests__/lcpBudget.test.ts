@@ -34,11 +34,69 @@ describe("lcpMs is a budgeted metric", () => {
     expect(BUDGET_METRIC_LABELS.lcpMs).toBe("LCP (ms)");
   });
 
-  it("is set on every budgeted route", () => {
+  // A ROUTE THAT ANSWERS A REDIRECT PAINTS NOTHING, AND ZERO IS THE HONEST
+  // CEILING FOR IT.
+  //
+  // The sweep measures such a route through the redirect rather than the page
+  // it lands on (lib/performanceBudgets.ts, `redirectsTo`), so there is no
+  // largest contentful paint to hold to a number. Demanding one would force the
+  // row to carry a ceiling belonging to somebody else's page, which is the
+  // defect that lane exists to close.
+  //
+  // The exemption is NARROW and it is not a way out: a redirect row must read
+  // exactly 0, not merely "not positive", and every other row still owes a real
+  // ceiling.
+  it("is a positive ceiling on every route that paints, and exactly zero on one that does not", () => {
     for (const route of PERFORMANCE_BUDGETS.routes) {
-      expect(route.lcpMs, route.path).toBeGreaterThan(0);
       expect(Number.isInteger(route.lcpMs), route.path).toBe(true);
+      if (route.redirectsTo) {
+        expect(route.lcpMs, `${route.path} redirects, so it paints nothing`).toBe(0);
+        continue;
+      }
+      expect(route.lcpMs, route.path).toBeGreaterThan(0);
     }
+  });
+
+  it("keeps the rule strict for a route that draws a page", () => {
+    // The exemption reads `redirectsTo`, never the figure, so a page row that
+    // arrived carrying 0 is still a row with no ceiling.
+    const pageRow = PERFORMANCE_BUDGETS.routes.find((route) => !route.redirectsTo);
+    expect(pageRow?.lcpMs).toBeGreaterThan(0);
+    expect(
+      PERFORMANCE_BUDGETS.routes.filter((route) => !route.redirectsTo && route.lcpMs <= 0),
+    ).toEqual([]);
+  });
+
+  it("passes a redirect that costs what a redirect costs", () => {
+    // Zero measured against a zero ceiling is not a breach: `findBudgetBreaches`
+    // only reports a figure PAST its ceiling, so a metric a redirect cannot
+    // spend stays quiet rather than reading as an unmeasured route.
+    const redirecting = PERFORMANCE_BUDGETS.routes.filter((route) => route.redirectsTo);
+    expect(redirecting.length).toBeGreaterThan(0);
+    for (const route of redirecting) {
+      const measured = new Map<string, RouteMeasurement>([
+        [route.path, { serverRenderMs: 5, jsDecodedKB: 0, requests: 1, lcpMs: 0 }],
+      ]);
+      expect(findBudgetBreaches([route], measured), route.path).toEqual([]);
+    }
+  });
+
+  it("still asks the ratchet to bank the slack a redirect leaves behind", () => {
+    // /onboarding keeps the serverRenderMs ceiling it had as a page, because
+    // this rig has never measured what the 307 costs on the CI runner and this
+    // file's own law is that a ceiling comes down on a MEASUREMENT rather than
+    // on a guess. So the sweep names it as slack to bank, which is the warning
+    // doing its job, and the next sweep is the oracle that lowers it.
+    const onboarding = PERFORMANCE_BUDGETS.routes.find((route) => route.path === "/onboarding");
+    const measured = new Map<string, RouteMeasurement>([
+      ["/onboarding", { serverRenderMs: 5, jsDecodedKB: 0, requests: 1, lcpMs: 0 }],
+    ]);
+    const candidates = findRatchetCandidates([onboarding!], measured);
+    expect(candidates.map((candidate) => candidate.metric)).toEqual(["serverRenderMs"]);
+    // The metrics a redirect genuinely cannot spend are never named, because
+    // both readers refuse a zero ceiling rather than dividing by it.
+    expect(candidates.map((candidate) => candidate.metric)).not.toContain("lcpMs");
+    expect(candidates.map((candidate) => candidate.metric)).not.toContain("jsDecodedKB");
   });
 
   it("fails a route that paints past its ceiling", () => {

@@ -438,6 +438,32 @@ no after-arm run of any route breached. They do not establish a false-red RATE t
 any precision, and a second red on a later sweep would not be a surprise. The
 honest claim is the mechanism and the direction, not a probability.
 
+### A route that redirects is measured as a redirect
+
+`page.goto` follows a 3xx, so the moment a budgeted route starts redirecting its row
+measures the page it lands on, under a ceiling written for the page it used to be.
+`/onboarding` did exactly that on 7 September 2026: it began answering 307 to `/` and
+shipping no document, and the next sweep read the homepage's 45 requests against the 41
+that used to buy an almost empty first-run shell. Nothing had got slower. Measured on a
+production build, `/onboarding` and `/` return the identical count, because they are now
+the same page.
+
+Both readings of that number are wrong. Calling it a regression takes a ceiling up to hide
+a measurement pointing at the wrong page; calling it a win lets any route shed its own
+ceiling by learning to redirect.
+
+So the row says what it is. A route budget may carry `redirectsTo`, and the sweep then
+measures the redirect rather than the page: one request, no script, no paint, and the
+server time the 307 itself took. Two rules keep it honest. The target must carry a budget
+row of its own, so the page never falls out of the sweep. And the lane ASSERTS the
+redirect, with the `Accept` header a browser sends, rather than tolerating its absence: a
+route declared as a redirect that quietly starts serving a document again fails here
+instead of passing every ceiling on one request.
+
+Owner: `redirectsTo` in `lib/performanceBudgets.ts`, `measurePerfRedirect` in
+`e2e/helpers/perfMeasurement.ts`. Pin: `__tests__/performanceBudgets.test.ts`, "a budgeted
+route that redirects".
+
 ### Where counting stops, and whose clock stops it
 
 Counting stops at an APP-DEFINED moment, not a wall clock: the later of the

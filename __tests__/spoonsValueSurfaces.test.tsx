@@ -10,8 +10,11 @@ import SpoonsValueTable from "@/app/spoons-value/SpoonsValueTable";
 import { metadata } from "@/app/spoons-value/page";
 import {
   SPOONS_VALUE_LENS_OFF,
+  SPOONS_VALUE_MAP_HREF,
   SPOONS_VALUE_RESPONSIBLE_LINE,
   spoonsValueCuts,
+  spoonsValueLensRequested,
+  spoonsValueMapHref,
   type SpoonsValueTableRow,
 } from "@/lib/spoonsValue";
 
@@ -126,9 +129,36 @@ describe("the ranking table", () => {
         modalMilliunits: 12_785,
       }),
     );
-    expect(html).toContain('href="/map?sel=venue-uk-n1"');
+    expect(html).toContain('href="/map?sel=venue-uk-n1&amp;lens=spoons"');
     expect(html).toContain("The Airport One");
     expect(html).not.toContain('href="/map?sel=null"');
+  });
+
+  // Astra's live walk (7 Sep 2026, finding B5a): every door off this page landed
+  // on the ordinary pint map. The page is entirely about the units lens and
+  // nothing on it could switch the lens on.
+  it("carries the units lens through every door onto the map", () => {
+    expect(spoonsValueMapHref(rows[0])).toBe("/map?sel=venue-uk-n1&lens=spoons");
+    expect(spoonsValueMapHref(rows[1])).toBeNull();
+    expect(SPOONS_VALUE_MAP_HREF).toBe("/map?lens=spoons");
+
+    for (const href of [SPOONS_VALUE_MAP_HREF, spoonsValueMapHref(rows[0]) ?? ""]) {
+      expect(spoonsValueLensRequested(new URL(href, "https://x").search)).toBe(true);
+    }
+  });
+
+  it("reads the lens off an arrival, and only when it is asked for", () => {
+    expect(spoonsValueLensRequested("?lens=spoons")).toBe(true);
+    expect(spoonsValueLensRequested("?sel=venue-uk-n1&lens=spoons")).toBe(true);
+    expect(spoonsValueLensRequested("")).toBe(false);
+    expect(spoonsValueLensRequested("?sel=venue-uk-n1")).toBe(false);
+    expect(spoonsValueLensRequested("?lens=no-alcohol")).toBe(false);
+  });
+
+  it("is the page's own primary door", () => {
+    const page = readFileSync(join(ROOT, "app/spoons-value/page.tsx"), "utf8");
+    expect(page).toContain("SPOONS_VALUE_MAP_HREF");
+    expect(page).not.toMatch(/href="\/map"/);
   });
 
   it("prints every figure with its unit and its round beside it", () => {

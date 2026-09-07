@@ -177,6 +177,7 @@ export default function CitySuggestBanner({
         </p>
         <Link
           href={href}
+          prefetch={false}
           className="citySuggestBannerSwitch"
           onClick={() => writePreferredCity(suggested)}
         >
@@ -201,7 +202,7 @@ export default function CitySuggestBanner({
         <p className="citySuggestBannerCopy">
           Looks like you&apos;re near {suggestedPlace.name}. Open the pub map?
         </p>
-        <Link href={href} className="citySuggestBannerSwitch">
+        <Link href={href} prefetch={false} className="citySuggestBannerSwitch">
           Open
         </Link>
         <button

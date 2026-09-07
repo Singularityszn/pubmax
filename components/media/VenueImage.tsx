@@ -16,9 +16,12 @@ import Image from "next/image";
 import { useState } from "react";
 
 import {
+  isProxiedVenueImageUrl,
   resolveVenueImage,
+  venueImageLoader,
   VENUE_IMAGE_PROVENANCE_LABEL,
   type VenueImageSource,
+  type VenueImageWidth,
 } from "@/lib/venueImages";
 
 import "./venueImage.css";
@@ -35,6 +38,17 @@ type VenueImageProps = {
   priority?: boolean;
   /** When true, fill the parent (object-fit cover). */
   fill?: boolean;
+  /**
+   * The box this picture is drawn in, as a `sizes` value. Spent only on a
+   * proxied photo, where it decides which of the proxy's widths the browser
+   * asks for. Without it a card thumbnail is served at the source's own size.
+   */
+  sizes?: string;
+  /**
+   * The widest the proxy may be asked for. A decorative card caps this so a
+   * high-density phone stops asking for a sheet-header's worth of pixels.
+   */
+  maxWidth?: VenueImageWidth;
 };
 
 export default function VenueImage({
@@ -46,6 +60,8 @@ export default function VenueImage({
   height = 360,
   priority = false,
   fill = false,
+  sizes,
+  maxWidth,
 }: VenueImageProps) {
   // Per-candidate failure tracking: a resolved URL whose <img> errored is
   // excluded on the next resolution pass, so the next source in priority
@@ -79,6 +95,12 @@ export default function VenueImage({
 
   const { url: src, provenance } = resolved;
   const provenanceLabel = VENUE_IMAGE_PROVENANCE_LABEL[provenance];
+  // Only a proxied photo can be resized: a community photo is a signed Storage
+  // URL we do not re-encode, so it keeps the unoptimized path exactly as it was.
+  const resizable = isProxiedVenueImageUrl(src);
+  const sizing = resizable
+    ? { loader: venueImageLoader(maxWidth) }
+    : { unoptimized: true as const };
   const markFailed = () =>
     setFailedUrls((prev) => (prev.has(src) ? prev : new Set(prev).add(src)));
 
@@ -89,10 +111,10 @@ export default function VenueImage({
           src={src}
           alt={alt}
           fill
-          sizes="(max-width: 640px) 100vw, 420px"
+          sizes={sizes ?? "(max-width: 640px) 100vw, 420px"}
           className="venueImage__img"
           priority={priority}
-          unoptimized
+          {...sizing}
           onError={markFailed}
         />
       ) : (
@@ -101,9 +123,10 @@ export default function VenueImage({
           alt={alt}
           width={width}
           height={height}
+          {...(sizes ? { sizes } : {})}
           className="venueImage__img"
           priority={priority}
-          unoptimized
+          {...sizing}
           onError={markFailed}
         />
       )}

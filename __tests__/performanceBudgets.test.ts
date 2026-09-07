@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -57,6 +60,11 @@ describe("perf/route-budgets.json", () => {
       expect(entry.why.trim().length, entry.path).toBeGreaterThan(0);
       for (const metric of BUDGET_METRICS) {
         expect(Number.isFinite(entry[metric]), `${entry.path} ${metric}`).toBe(true);
+        // A PAGE owes a positive ceiling on every metric. A route that answers
+        // a redirect draws nothing and runs no script, so its honest ceiling on
+        // those metrics is zero, and the shape it must keep instead is pinned
+        // by "a budgeted route that redirects" below.
+        if (entry.redirectsTo) continue;
         expect(entry[metric], `${entry.path} ${metric}`).toBeGreaterThan(0);
       }
     }
@@ -314,3 +322,63 @@ describe("the routes the budget file marks noisy", () => {
     }
   });
 });
+
+// A ROUTE THAT REDIRECTS IS MEASURED AS A REDIRECT, NEVER AS ITS TARGET.
+//
+// The sweep opens each route with `waitUntil: "load"`, and a browser follows a
+// 3xx, so the moment a budgeted route starts redirecting its row silently
+// measures somebody else's page under its own ceiling. That is not theory:
+// /onboarding now answers 307 to "/" and ships no document (Astra's live walk,
+// finding B6), and the next sweep read the HOMEPAGE'S 45 requests against the
+// 41 that used to buy an almost empty first-run shell. Nothing had got slower.
+// The row had stopped naming a route.
+//
+// Reading it as a regression would have taken the ceiling up to hide a
+// measurement pointing at the wrong page, and reading it as a win would have
+// let any route lose its own ceiling by learning to redirect.
+describe("a budgeted route that redirects", () => {
+  const redirecting = PERFORMANCE_BUDGETS.routes.filter((entry) => entry.redirectsTo);
+
+  it("is declared, so the sweep can tell it from a page", () => {
+    const onboarding = PERFORMANCE_BUDGETS.routes.find((entry) => entry.path === "/onboarding");
+    expect(onboarding?.redirectsTo).toBe("/");
+  });
+
+  it("sends the reader to a path that carries a ceiling of its own", () => {
+    // Otherwise the target's cost leaves the budget entirely: the redirect is
+    // cheap, and the page it lands on is measured by nobody.
+    const budgeted = new Set(PERFORMANCE_BUDGETS.routes.map((entry) => entry.path));
+    for (const entry of redirecting) {
+      expect(budgeted.has(entry.redirectsTo!), `${entry.path} -> ${entry.redirectsTo}`).toBe(true);
+    }
+  });
+
+  it("is budgeted for the redirect it serves, not the page it points at", () => {
+    for (const entry of redirecting) {
+      const target = PERFORMANCE_BUDGETS.routes.find((row) => row.path === entry.redirectsTo);
+      expect(entry.requests, `${entry.path} requests`).toBeLessThanOrEqual(1);
+      expect(entry.jsDecodedKB, `${entry.path} jsDecodedKB`).toBe(0);
+      expect(entry.lcpMs, `${entry.path} lcpMs`).toBe(0);
+      // A redirect that costs what the page costs is the row still measuring
+      // the page.
+      expect(entry.requests, `${entry.path} against ${target?.path}`).toBeLessThan(
+        target?.requests ?? Number.POSITIVE_INFINITY,
+      );
+    }
+  });
+
+  it("is measured through the redirect lane, never through the page loader", () => {
+    const spec = readFileSync(join(process.cwd(), "e2e/performance-budget.spec.ts"), "utf8");
+    expect(spec).toContain("redirectsTo");
+    expect(spec).toContain("measurePerfRedirect");
+  });
+
+  it("still fails the ordinary way when the redirect costs more than its ceiling", () => {
+    const breaches = findBudgetBreaches(
+      [route({ path: "/gone", redirectsTo: "/", requests: 1, jsDecodedKB: 0, lcpMs: 0 })],
+      new Map([["/gone", measurement({ requests: 8, jsDecodedKB: 0, lcpMs: 0 })]]),
+    );
+    expect(breaches.map((breach) => breach.metric)).toContain("requests");
+  });
+});
+

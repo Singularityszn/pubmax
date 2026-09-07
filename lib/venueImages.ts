@@ -24,6 +24,92 @@ export function proxiedVenueImageUrl(url: string): string {
   return `/api/image-proxy?src=${encodeURIComponent(direct)}`;
 }
 
+/**
+ * The widths the proxy will resize to, and the ONLY ones it answers.
+ *
+ * A closed set rather than any number a caller asks for. The URL is the cache
+ * key, so an open range is a cache-buster and a CPU amplification vector on a
+ * route that already fetches a remote image per request.
+ *
+ * These four are next/image's OWN candidate widths (384 from its image sizes,
+ * the rest from its device sizes), so a `srcset` descriptor and the width the
+ * proxy really answers name the same number. A set of our own invention made
+ * the desktop card ask for 384 and be handed 688: not wrong, but a picture
+ * twice the size of the box, and nothing on either side said so.
+ */
+export const VENUE_IMAGE_WIDTHS = [384, 640, 1080, 1920] as const;
+export type VenueImageWidth = (typeof VENUE_IMAGE_WIDTHS)[number];
+
+export function isVenueImageWidth(value: number): value is VenueImageWidth {
+  return (VENUE_IMAGE_WIDTHS as readonly number[]).includes(value);
+}
+
+/** The proxy URL for one width. */
+export function proxiedVenueImageUrlAtWidth(url: string, width: VenueImageWidth): string {
+  const base = proxiedVenueImageUrl(url);
+  return base ? `${base}&w=${width}` : "";
+}
+
+/**
+ * The closed width this proxy URL should be asked for to fill a box `asked`
+ * pixels wide, or null when the URL is not ours to resize.
+ *
+ * /pubs shipped five photographs at their natural 1632x636 and 680x453 into a
+ * 344x168 box, 934 KB of it measured on a phone, and its load was the slowest
+ * on the site at 8289 ms on Slow 4G (Astra's live walk, 7 Sep 2026, finding
+ * B8). The bytes were never about the page: nothing had ever asked the source
+ * for a smaller picture.
+ *
+ * The answer is the narrowest width that covers the ask, and the widest we
+ * offer when nothing covers it. `maxWidth` is how a surface caps the pixel
+ * ratio it is willing to pay for: capping a decorative card at 688 is what
+ * stops a 3x phone asking for three times the pixels of a washed background.
+ */
+export function venueImageWidthFor(
+  proxyUrl: string,
+  asked: number,
+  maxWidth?: VenueImageWidth,
+): VenueImageWidth | null {
+  if (!proxiedImageSource(proxyUrl)) return null;
+  const ceiling = maxWidth ?? VENUE_IMAGE_WIDTHS[VENUE_IMAGE_WIDTHS.length - 1];
+  const offered = VENUE_IMAGE_WIDTHS.filter((width) => width <= ceiling);
+  return offered.find((width) => width >= asked) ?? offered[offered.length - 1]!;
+}
+
+/**
+ * The `loader` next/image spends to build its srcset over our own widths.
+ *
+ * A loader rather than a hand-written `srcSet` prop, because next/image sets
+ * srcSet from its own attributes after spreading the rest, so one passed in is
+ * silently dropped: measured, the page shipped the natural bytes and the prop
+ * never reached the markup.
+ */
+export function venueImageLoader(
+  maxWidth?: VenueImageWidth,
+): (args: { src: string; width: number }) => string {
+  return ({ src, width }) => {
+    const source = proxiedImageSource(src);
+    const answer = venueImageWidthFor(src, width, maxWidth);
+    return source && answer ? proxiedVenueImageUrlAtWidth(source, answer) : src;
+  };
+}
+
+/** Whether this URL is one the proxy can resize. */
+export function isProxiedVenueImageUrl(url: string): boolean {
+  return proxiedImageSource(url) !== "";
+}
+
+/** The `src` a proxy URL was built from, or "" when it is not a proxy URL. */
+function proxiedImageSource(proxyUrl: string): string {
+  try {
+    const parsed = new URL(proxyUrl, "https://venue-image.invalid");
+    if (parsed.pathname !== "/api/image-proxy") return "";
+    return directVenueImageUrl(parsed.searchParams.get("src") ?? "");
+  } catch {
+    return "";
+  }
+}
+
 // E3′ — one shared source-pick + provenance vocabulary for every place a
 // venue photo renders (venue sheet header, feed cards, gallery thumbnails,
 // hover cards). "chain" = a scraped/enrichment photo pulled from the pub's

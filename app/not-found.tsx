@@ -5,9 +5,18 @@
 // state, so it renders instantly inside the root layout. The dark surface is a
 // deliberate committed look that reads the same in both themes; the wordmark
 // inherits the light `color` set on the container.
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
+
+// A 404 in a browser tab used to be indistinguishable from the landing page,
+// because with no metadata of its own this page inherited the root layout's
+// default title (Astra's live walk, 7 Sep 2026, finding B7).
+export const metadata: Metadata = {
+  title: "Page not found",
+  robots: { index: false, follow: true },
+};
 
 export default function NotFound() {
   return (
@@ -74,8 +83,15 @@ export default function NotFound() {
             flexWrap: "wrap",
           }}
         >
+          {/* Both doors are guarded. Next prefetches a Link on sight, and these
+              two are the heaviest routes on the site: on a production build the
+              404 injected 17 stylesheet preloads it never used, one per CSS
+              chunk of /map and /tonight, and the browser then warned about
+              every one of them. It was the noisiest console on the site by a
+              factor of six. */}
           <Link
             href="/map"
+            prefetch={false}
             style={{
               minHeight: "44px",
               display: "inline-flex",
@@ -93,6 +109,7 @@ export default function NotFound() {
           </Link>
           <Link
             href="/tonight"
+            prefetch={false}
             style={{
               minHeight: "44px",
               display: "inline-flex",

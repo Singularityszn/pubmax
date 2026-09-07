@@ -50,9 +50,17 @@ const SCOPES = ["app", "components"] as const;
 const HEAVY_ROUTE_PREFIXES = ["/map", "/near", "/plan", "/pal", "/social"] as const;
 
 /**
- * Helpers that BUILD one of those hrefs. A call to one of these is a heavy link
- * however the destination is spelled at the call site, which is the whole point:
- * `venueMapUrl(pub.id)` is `/map?sel=<id>`, a distinct RSC payload per pub.
+ * Helpers that BUILD one of those hrefs and whose name does not say so. A call
+ * to one of these is a heavy link however the destination is spelled at the
+ * call site, which is the whole point: `venueMapUrl(pub.id)` is `/map?sel=<id>`,
+ * a distinct RSC payload per pub.
+ *
+ * The list is the SECOND check, not the first: a helper NAMED as a map link is
+ * caught by `HEAVY_NAME` below, at the call site as well as on the value. An
+ * allow-list alone goes stale the moment a new helper lands, which is exactly
+ * how `spoonsValueMapHref` shipped 805 unguarded links (Astra's live walk,
+ * 7 Sep 2026, finding B5b): absent from the list, and assigned to a const
+ * called `href`, so neither check saw it.
  */
 const HEAVY_HREF_HELPERS: ReadonlySet<string> = new Set([
   "boroughBrowseMapUrl",
@@ -70,9 +78,10 @@ const HEAVY_HREF_HELPERS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * A value NAMED as a map link is one. `row.mapHref`, `item.venueMapUrl` and
- * `pair.mapHref` are all `/map?sel=…` built one layer up, and reading the name
- * is the only way to see that from here.
+ * A value or a helper NAMED as a map link is one. `row.mapHref`,
+ * `item.venueMapUrl` and `pair.mapHref` are all `/map?sel=…` built one layer up,
+ * and `spoonsValueMapHref(row)` is the same thing said as a call. Reading the
+ * name is the only way to see either from here.
  */
 const HEAVY_NAME = /(?:^|[a-z])(?:maphref|mapurl)$/;
 
@@ -97,14 +106,9 @@ const PENDING_GUARD: ReadonlyArray<{ file: string }> = [
   { file: "app/activity/ActivityClient.tsx" },
   { file: "app/admin/AdminClient.tsx" },
   { file: "app/admin/AdminTokenForm.tsx" },
-  { file: "app/crawls/[slug]/CrawlStoryPoster.tsx" },
-  { file: "app/crawls/[slug]/not-found.tsx" },
-  { file: "app/crawls/[slug]/page.tsx" },
-  { file: "app/crawls/CrawlsPageClient.tsx" },
   { file: "app/discover/DiscoverPageClient.tsx" },
   { file: "app/feed/FeedPageClient.tsx" },
   { file: "app/messages/MessagesInboxClient.tsx" },
-  { file: "app/not-found.tsx" },
   { file: "app/p/[id]/page.tsx" },
   { file: "app/plan/[id]/not-found.tsx" },
   { file: "app/plan/[id]/page.tsx" },
@@ -219,7 +223,7 @@ function isHeavyHref(node: ts.Node, consts: Map<string, ts.Expression>, seen: Se
       : ts.isIdentifier(node.expression)
         ? node.expression.text
         : "";
-    if (HEAVY_HREF_HELPERS.has(callee)) return true;
+    if (HEAVY_HREF_HELPERS.has(callee) || HEAVY_NAME.test(callee.toLowerCase())) return true;
     return node.arguments.some((arg) => isHeavyHref(arg, consts, seen));
   }
   if (ts.isConditionalExpression(node)) {
@@ -331,8 +335,50 @@ describe("a heavy-route Link is never prefetched on sight", () => {
       "components/landing/LandingHero.tsx",
       "components/pubs/PubsGallery.tsx",
       "app/borough/[slug]/page.tsx",
+      // Astra's live walk, finding B5b: 805 row links and every /crawls door.
+      "app/spoons-value/SpoonsValueTable.tsx",
+      "app/crawls/CrawlsPageClient.tsx",
+      "app/crawls/[slug]/page.tsx",
+      "app/crawls/[slug]/CrawlStoryPoster.tsx",
+      "app/crawls/[slug]/not-found.tsx",
     ]) {
       expect(guarded.has(file), `${file} carries an unguarded heavy link`).toBe(false);
     }
+  });
+
+  // The allow-list is what went stale. A helper whose own name says it builds a
+  // map link is caught by the name, wherever it is called and whatever the call
+  // site assigns it to.
+  it("catches a map-link helper the allow-list has never heard of", () => {
+    const sf = ts.createSourceFile(
+      "sample.tsx",
+      [
+        'import Link from "next/link";',
+        "export function Row({ row }: { row: { id: string } }) {",
+        "  const href = someBrandNewMapHref(row);",
+        "  return <Link href={href}>{row.id}</Link>;",
+        "}",
+      ].join("\n"),
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX,
+    );
+    const consts = constBindings(sf);
+    let checked = false;
+    const visit = (node: ts.Node): void => {
+      if (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) {
+        for (const attribute of node.attributes.properties) {
+          if (!ts.isJsxAttribute(attribute)) continue;
+          if (attribute.name.getText() !== "href") continue;
+          const value = attribute.initializer;
+          if (!value) continue;
+          expect(isHeavyHref(value, consts, new Set())).toBe(true);
+          checked = true;
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+    expect(checked).toBe(true);
   });
 });

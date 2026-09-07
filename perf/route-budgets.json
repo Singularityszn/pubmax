@@ -276,11 +276,12 @@
     {
       "path": "/onboarding",
       "readySelector": "main",
-      "why": "Arrival for a brand new account, and the one route where a slow paint is the first thing anybody sees.",
+      "why": "The native shell's one-time first-run surface. It answers a redirect on the web and ships no document, so this row is budgeted for the redirect: the homepage it lands on carries its own ceiling under \"/\".",
       "serverRenderMs": 150,
-      "jsDecodedKB": 960,
-      "requests": 41,
-      "lcpMs": 900
+      "jsDecodedKB": 0,
+      "requests": 1,
+      "lcpMs": 0,
+      "redirectsTo": "/"
     },
     {
       "path": "/choose-city",
