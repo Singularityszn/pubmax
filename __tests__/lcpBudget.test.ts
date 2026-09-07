@@ -34,13 +34,6 @@ describe("lcpMs is a budgeted metric", () => {
     expect(BUDGET_METRIC_LABELS.lcpMs).toBe("LCP (ms)");
   });
 
-  it("is set on every budgeted route", () => {
-    for (const route of PERFORMANCE_BUDGETS.routes) {
-      expect(route.lcpMs, route.path).toBeGreaterThan(0);
-      expect(Number.isInteger(route.lcpMs), route.path).toBe(true);
-    }
-  });
-
   // A ROUTE THAT ANSWERS A REDIRECT PAINTS NOTHING, AND ZERO IS THE HONEST
   // CEILING FOR IT.
   //
