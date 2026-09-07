@@ -41,7 +41,7 @@ vi.mock("@/lib/messageVenueCards.server", () => ({ attachMessageVenueCards: asyn
 
 import { GET as inbox, POST as post } from "@/app/api/messages/route";
 import { GET as thread, POST as postThread } from "@/app/api/messages/[id]/route";
-import { __resetMemoryMessages, memoryMessagesStore, messagesStore } from "@/lib/messagesStore";
+import { __resetMemoryMessages, memoryMessagesStore, messagesStore, MessageReadUnavailableError } from "@/lib/messagesStore";
 import { GET as photo } from "@/app/api/messages/[id]/photo/[messageId]/route";
 import { __setMessagePhotoServeRouteDepsForTest } from "@/lib/messagePhotoServeRoute.server";
 import { messagePhotoServingKey } from "@/lib/messageAttachments";
@@ -158,7 +158,8 @@ describe("production message durability", () => {
       const fallback = vi.spyOn(memoryMessagesStore, method);
       const store = messagesStore();
       const id = "11111111-1111-4111-8111-111111111111";
-      if (method === "participants") await store.participants(id);
+      if (method === "listMessages") await expect(store.listMessages(id, "ken")).rejects.toBeInstanceOf(MessageReadUnavailableError);
+      else if (method === "participants") await store.participants(id);
       else if (method === "report" || method === "photoObjectKey") await store[method](id, "m1", "ken");
       else await store[method](id, "ken");
       expect(fallback).not.toHaveBeenCalled();

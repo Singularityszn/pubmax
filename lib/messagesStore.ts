@@ -9,8 +9,8 @@ import "server-only";
 // when requiresSupabaseStore() is true.
 //
 // Failed inbox reads carry InboxRead.status = "degraded" in production.
-// Thread reads retain a legacy limitation: an outage can return an empty array
-// without a failure status. Callers cannot distinguish that answer from an empty thread.
+// Failed thread reads throw MessageReadUnavailableError. Routes return a retryable
+// failure so the thread can keep its loaded messages or show its retry control.
 
 import {
   isMessagePhotoServingKey,
@@ -83,6 +83,13 @@ export type InboxRead = Readonly<{
   status: InboxReadStatus;
 }>;
 
+export class MessageReadUnavailableError extends Error {
+  constructor() {
+    super("Messages are unavailable right now.");
+    this.name = "MessageReadUnavailableError";
+  }
+}
+
 export type MessagesStore = {
   /** Find-or-create the conversation for an unordered pair. Returns the
    *  conversation id, or null when the pair is invalid (blank / self-pair). */
@@ -121,8 +128,8 @@ export type MessagesStore = {
    *  that into a 404 so a thread never leaks. A READ and nothing else: marking
    *  what the viewer received as read is `markRead`, asked by the thread route
    *  alone, so a photo send or a report (which read the thread to prove
-   *  participation) cannot mark anything read. Never throws on a valid
-   *  participant read. */
+   *  participation) cannot mark anything read. Failed reads throw
+   *  MessageReadUnavailableError; a healthy empty thread returns []. */
   listMessages(conversationId: string, handle: string): Promise<MessageDTO[] | null>;
   /** Mark the viewer's RECEIVED unread messages read. Returns how many rows
    *  changed, so the route can tell the sender's thread only when something did.
@@ -628,9 +635,7 @@ export const supabaseMessagesStore: MessagesStore = {
         "[messages] listMessages failed:",
         err instanceof Error ? err.message : err,
       );
-      // A participant we already verified hitting a transient read error gets an
-      // empty thread, not a leak and not a 500.
-      return [];
+      throw new MessageReadUnavailableError();
     }
   },
 

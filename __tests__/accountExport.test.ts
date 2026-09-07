@@ -27,6 +27,7 @@ import {
   type AccountExportDeps,
 } from "@/lib/accountExport.server";
 import type { CommunityPriceObservation } from "@/lib/communityPriceStore";
+import { MessageReadUnavailableError } from "@/lib/messagesStore";
 import type { ConversationDTO, MessageDTO } from "@/lib/messages";
 import type { CheckIn } from "@/lib/checkIn";
 import type { NightMemory, NightMoment } from "@/lib/nightMemory";
@@ -447,6 +448,11 @@ describe("buildAccountExport", () => {
     // a failed read and not "not theirs".
     const refused = await buildAccountExport(USER, fakeDeps({ messages: async () => null }), NOW);
     expect(unavailableExportLanes(refused)).toEqual(["messages"]);
+    const unavailable = await buildAccountExport(USER, fakeDeps({
+      messages: async () => { throw new MessageReadUnavailableError(); },
+    }), NOW);
+    expect(unavailableExportLanes(unavailable)).toEqual(["messages"]);
+
   });
 
   it("says when the cap bit rather than presenting a window as the whole", async () => {
