@@ -103,14 +103,24 @@ export type CommunityPriceWrite = CommunityPriceInput & {
    */
   contributorHandle?: string;
   roundSource?: RoundPriceSource;
+  /** Server-created Storage key. Never accepted from a public request body. */
+  receiptPhotoKey?: string | null;
+};
+
+export type CommunityPriceReceiptWrite = {
+  applied: boolean;
+  key: string | null;
+  replacedKey: string | null;
 };
 
 export type CommunityPriceWriteResult = {
   /** The stored observation, or null when the input fell outside the envelope. */
   price: CommunityPrice | null;
-  /** Set when a durable write hard-failed - the submission was NOT recorded. */
+  /** The durable write could not be confirmed; a lost response may follow a commit. */
   failed?: true;
   sourceBecameOwner?: boolean;
+  /** Absent means the store did not prove whether this receipt was attached. */
+  receiptWrite?: CommunityPriceReceiptWrite;
 };
 
 export type CommunityVenueSignalWrite = CommunityVenueSignalInput & {
@@ -360,6 +370,7 @@ type StoredPrice = CommunityPrice & {
   actor: string | null;
   contributorHandle: string | null;
   roundSource: RoundPriceSource | null;
+  receiptPhotoKey?: string | null;
 } & StoredModeration;
 
 type StoredVenueSignal = CommunityVenueSignal & {
@@ -871,6 +882,7 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
   async submit(input, now = Date.now()) {
     const key = normalize(input);
     if (!key) return { price: null };
+    if (input.receiptPhotoKey && !input.actor?.trim()) return { price: null };
     const roundSource = cleanRoundPriceSource(input.roundSource);
     const stored: StoredPrice = {
       ...toPrice(key.venueId, key.drinkCategory, key.pennies, now),
@@ -878,6 +890,7 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
       actor: input.actor ?? null,
       contributorHandle: normalizeHandle(input.contributorHandle) || null,
       roundSource,
+      receiptPhotoKey: input.receiptPhotoKey ?? null,
       hidden: false,
       reportCount: 0,
     };
@@ -898,7 +911,10 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
             sameRoundPriceSource(row.roundSource, roundSource),
         );
         return owned
-          ? { price: published(owned), sourceBecameOwner: true }
+          ? {
+              price: published(owned), sourceBecameOwner: true,
+              receiptWrite: { applied: false, key: owned.receiptPhotoKey ?? null, replacedKey: null },
+            }
           : { price: null };
       }
       if (sourceStatus !== "ready") return { price: null };
@@ -925,6 +941,7 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
       }
       return {
         price: published(replaced),
+        receiptWrite: { applied: false, key: replaced.receiptPhotoKey ?? null, replacedKey: null },
         ...(roundSource ? { sourceBecameOwner } : {}),
       };
     }
@@ -964,6 +981,11 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     evictIfNeeded();
     return {
       price: published(stored),
+      receiptWrite: {
+        applied: true,
+        key: stored.receiptPhotoKey ?? null,
+        replacedKey: replaced?.receiptPhotoKey ?? null,
+      },
       ...(roundSource ? { sourceBecameOwner: true } : {}),
     };
   },
@@ -1353,6 +1375,7 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
   async submit(input, now = Date.now()) {
     const key = normalize(input);
     if (!key) return { price: null };
+    if (input.receiptPhotoKey && !input.actor?.trim()) return { price: null };
     const submittedAt = new Date(now).toISOString();
     // Legacy or imported submissions without an actor insert independently;
     // attributed ones upsert over that contributor's own earlier entry for the
@@ -1401,6 +1424,9 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
                 p_round_spend_id: row.round_spend_id,
                 p_submitted_at: row.submitted_at,
                 p_venue_id: row.venue_id,
+                ...(input.receiptPhotoKey !== undefined
+                  ? { p_receipt_photo_key: input.receiptPhotoKey }
+                  : {}),
               },
             )
           : await admin().from("community_prices").insert(row).select("id");
@@ -1432,6 +1458,16 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
             ),
             ...(id ? { id } : {}),
           },
+          ...(typeof saved.write_applied === "boolean"
+            ? {
+                receiptWrite: {
+                  applied: saved.write_applied,
+                  key: typeof saved.receipt_photo_key === "string" ? saved.receipt_photo_key : null,
+                  replacedKey: typeof saved.replaced_receipt_photo_key === "string"
+                    ? saved.replaced_receipt_photo_key : null,
+                },
+              }
+            : {}),
           ...(roundSource && sourceBecameOwner !== undefined
             ? { sourceBecameOwner }
             : {}),

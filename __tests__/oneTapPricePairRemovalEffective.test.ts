@@ -174,3 +174,103 @@ describe.skipIf(skipReason !== null)("0139 on PostgreSQL", () => {
     expect(dropPounds(db, dropId)).toBe("8.00");
   }, 300_000);
 });
+
+const RECEIPT_FORWARD_NAME = "20260907230000_0156_community_price_receipt.sql";
+const RECEIPT_FORWARD = join(MIGRATIONS, RECEIPT_FORWARD_NAME);
+const RECEIPT_ROLLBACK = join(MIGRATIONS, "rollback/20260907230000_0156_community_price_receipt_rollback.sql");
+const OLD_PRICE_SIGNATURE = "public.upsert_attributed_community_price_if_newer(text,text,integer,text,text,timestamptz,uuid,integer)";
+const RECEIPT_SIGNATURE = "public.upsert_attributed_community_price_if_newer(text,text,integer,text,text,timestamptz,uuid,integer,text)";
+
+function receiptCall(pennies: number, minute: number, key?: string, venue = "receipt-pub"): string {
+  const receipt = key === undefined ? "" : `, '${key}'`;
+  return `select row_to_json(w)::text from public.upsert_attributed_community_price_if_newer(
+    '${venue}', 'coffee', ${pennies}, '${ACTOR}', '${HANDLE}',
+    '2026-09-07 18:${String(minute).padStart(2, "0")}:00+00'::timestamptz, null, null${receipt}
+  ) w`;
+}
+
+describe.skipIf(skipReason !== null)("0156 receipt ownership on PostgreSQL", () => {
+  beforeAll(() => {
+    const db = requireDatabase();
+    // Continue the same disposable cluster through the current schema.
+    for (const name of readdirSync(MIGRATIONS).filter(
+      (name) => name.endsWith(".sql") && name >= FORWARD_NAME && name < RECEIPT_FORWARD_NAME,
+    ).sort()) db.applyFile(join(MIGRATIONS, name));
+  });
+
+  it("reproduces the missing attachment contract, then installs one unambiguous RPC", () => {
+    const db = requireDatabase();
+    expect(db.sql(`select count(*) from information_schema.columns
+      where table_schema='public' and table_name='community_prices' and column_name='receipt_photo_key'`)).toBe("0");
+    const before = JSON.parse(db.sql(receiptCall(300, 1)));
+    expect(before).not.toHaveProperty("receipt_photo_key");
+    db.applyFile(RECEIPT_FORWARD);
+    db.applyFile(RECEIPT_FORWARD);
+    expect(db.sql(`select to_regprocedure('${OLD_PRICE_SIGNATURE}') is null`)).toBe("t");
+    expect(db.sql(`select count(*) from pg_proc where pronamespace='public'::regnamespace
+      and proname='upsert_attributed_community_price_if_newer'`)).toBe("1");
+    expect(db.sql(`select has_function_privilege('anon','${RECEIPT_SIGNATURE}','execute')::text || '|' ||
+      has_function_privilege('authenticated','${RECEIPT_SIGNATURE}','execute')::text || '|' ||
+      has_function_privilege('service_role','${RECEIPT_SIGNATURE}','execute')::text`)).toBe("false|false|true");
+    expect(JSON.parse(db.sql(receiptCall(300, 2)))).toMatchObject({ write_applied: true, receipt_photo_key: null });
+  });
+
+  it("stores a coffee price and receipt together without creating a Pint Drop", () => {
+    const db = requireDatabase();
+    const saved = JSON.parse(db.sql(receiptCall(350, 3, "receipt-pub/first/receipt.jpg")));
+    expect(saved).toMatchObject({ price_pennies: 350, write_applied: true,
+      receipt_photo_key: "receipt-pub/first/receipt.jpg", replaced_receipt_photo_key: null });
+    expect(db.sql(`select price_pennies::text || '|' || receipt_photo_key from public.community_prices
+      where venue_id='receipt-pub'`)).toBe("350|receipt-pub/first/receipt.jpg");
+    expect(db.sql(`select count(*) from public.pint_drops where venue_id='receipt-pub'`)).toBe("0");
+  });
+
+  it("keeps moderation while replacing both price and receipt, then refuses a stale bill", () => {
+    const db = requireDatabase();
+    db.sql(`update public.community_prices set hidden_at=now(), report_count=2 where venue_id='receipt-pub'`);
+    const saved = JSON.parse(db.sql(receiptCall(400, 5, "receipt-pub/second/receipt.jpg")));
+    expect(saved).toMatchObject({ price_pennies: 400, write_applied: true,
+      receipt_photo_key: "receipt-pub/second/receipt.jpg", replaced_receipt_photo_key: "receipt-pub/first/receipt.jpg" });
+    const stale = JSON.parse(db.sql(receiptCall(300, 4, "receipt-pub/stale/receipt.jpg")));
+    expect(stale).toMatchObject({ price_pennies: 400, write_applied: false,
+      receipt_photo_key: "receipt-pub/second/receipt.jpg", replaced_receipt_photo_key: null });
+    expect(db.sql(`select (hidden_at is not null)::text || '|' || report_count::text
+      from public.community_prices where venue_id='receipt-pub'`)).toBe("true|2");
+  });
+
+  it("rolls back the receipt with an invalid price", () => {
+    const db = requireDatabase();
+    expect(() => db.sql(receiptCall(0, 6, "receipt-pub/invalid/receipt.jpg"))).toThrow();
+    expect(db.sql(`select price_pennies::text || '|' || receipt_photo_key from public.community_prices
+      where venue_id='receipt-pub'`)).toBe("400|receipt-pub/second/receipt.jpg");
+  });
+
+  it.each([false, true])("keeps the newest price and its own bill under concurrent writes, equal price=%s", async (equalPrice) => {
+    const db = requireDatabase();
+    const venue = equalPrice ? "receipt-equal" : "receipt-race";
+    await db.concurrent([
+      receiptCall(equalPrice ? 450 : 300, 10, `${venue}/old/receipt.jpg`, venue),
+      receiptCall(450, 11, `${venue}/new/receipt.jpg`, venue),
+    ]);
+    expect(db.sql(`select price_pennies::text || '|' || receipt_photo_key from public.community_prices
+      where venue_id='${venue}'`)).toBe(`450|${venue}/new/receipt.jpg`);
+    expect(db.sql(`select count(*) from public.community_prices where venue_id='${venue}'`)).toBe("1");
+  });
+
+  it("clears an old bill when an eight-argument caller corrects the price", () => {
+    const result = JSON.parse(requireDatabase().sql(receiptCall(500, 7)));
+    expect(result).toMatchObject({ write_applied: true, receipt_photo_key: null,
+      replaced_receipt_photo_key: "receipt-pub/second/receipt.jpg" });
+  });
+
+  it("restores the old signature on rollback while retaining price and moderation", () => {
+    const db = requireDatabase();
+    db.applyFile(RECEIPT_ROLLBACK);
+    expect(db.sql(`select to_regprocedure('${RECEIPT_SIGNATURE}') is null`)).toBe("t");
+    expect(db.sql(`select to_regprocedure('${OLD_PRICE_SIGNATURE}') is not null`)).toBe("t");
+    expect(JSON.parse(db.sql(receiptCall(600, 8))).price_pennies).toBe(600);
+    expect(db.sql(`select (hidden_at is not null)::text || '|' || report_count::text
+      from public.community_prices where venue_id='receipt-pub'`)).toBe("true|2");
+    db.applyFile(RECEIPT_FORWARD);
+  });
+});

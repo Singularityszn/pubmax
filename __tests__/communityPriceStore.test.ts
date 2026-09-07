@@ -103,6 +103,42 @@ describe("communityPriceStore (memory backend)", () => {
     ]);
   });
 
+  it("keeps each receipt with its price through correction and stale arrival", async () => {
+    const input = { venueId: "receipt-pub", drinkCategory: "coffee" as const, actor: "a" };
+    const first = await submitCommunityPrice(
+      { ...input, priceGbp: 3, receiptPhotoKey: "receipt-pub/first/receipt.jpg" }, 1_000,
+    );
+    expect(first.receiptWrite).toEqual({
+      applied: true, key: "receipt-pub/first/receipt.jpg", replacedKey: null,
+    });
+    const corrected = await submitCommunityPrice(
+      { ...input, priceGbp: 4, receiptPhotoKey: "receipt-pub/second/receipt.jpg" }, 3_000,
+    );
+    expect(corrected.price?.id).toBe(first.price?.id);
+    expect(corrected.receiptWrite).toEqual({
+      applied: true, key: "receipt-pub/second/receipt.jpg", replacedKey: "receipt-pub/first/receipt.jpg",
+    });
+    const stale = await submitCommunityPrice(
+      { ...input, priceGbp: 2, receiptPhotoKey: "receipt-pub/stale/receipt.jpg" }, 2_000,
+    );
+    expect(stale.price?.priceGbp).toBe(4);
+    expect(stale.receiptWrite).toEqual({
+      applied: false, key: "receipt-pub/second/receipt.jpg", replacedKey: null,
+    });
+    expect(JSON.stringify(await readCommunityPrices(input.venueId))).not.toContain("receipt.jpg");
+  });
+
+  it("does not carry an earlier bill onto a correction from an older caller", async () => {
+    const input = { venueId: "receipt-pub", drinkCategory: "coffee" as const, actor: "a" };
+    await submitCommunityPrice(
+      { ...input, priceGbp: 3, receiptPhotoKey: "receipt-pub/first/receipt.jpg" }, 1_000,
+    );
+    const result = await submitCommunityPrice({ ...input, priceGbp: 4 }, 2_000);
+    expect(result.receiptWrite).toEqual({
+      applied: true, key: null, replacedKey: "receipt-pub/first/receipt.jpg",
+    });
+  });
+
   it("keeps two contributors' observations distinct, freshest winning the read", async () => {
     await submitCommunityPrice(
       { venueId: "v1", drinkCategory: "beer", priceGbp: 4.2, actor: "a" },
