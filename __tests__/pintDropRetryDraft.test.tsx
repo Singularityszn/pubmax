@@ -139,6 +139,7 @@ it("keeps the pending draft and refuses a second tap until the first request set
   const retryUrl = readOptimisticSpills(localStorage)[0].retry!.receiptPhotoUrl;
   await act(async () => state.resetComposer());
   expect(readOptimisticSpills(localStorage)).toEqual([]);
+  expect(state.dropsByVenueId.get("venue-1") ?? []).toEqual([]);
   expect(revoked).toHaveBeenCalledWith(retryUrl);
 });
 
@@ -212,4 +213,41 @@ it.each([true, false])("keeps the old request record across a venue reset, succe
     expect(settled.retry?.receiptPhotoUrl).toBe(oldRecord.retry?.receiptPhotoUrl);
     expect(revoked).not.toHaveBeenCalledWith(oldRecord.retry!.receiptPhotoUrl);
   }
+});
+
+it.each(["pending", "failed"])("discards a %s Legacy row with its draft across a failed venue refresh", async (phase) => {
+  await act(async () => {
+    state.setComposerOpen(true);
+    state.setVisibility("legacy");
+    state.setDropForm({ ...state.dropForm, price: "5.80" });
+    state.pickPhoto("receipt", file(), null);
+    state.pickPhoto("pint", file(), null);
+  });
+  const urls = [state.receiptPhoto!.previewUrl, state.pintPhoto!.previewUrl];
+  let finish!: (response: unknown) => void;
+  post.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+  let pending: ReturnType<PintDropsState["submitDrop"]>;
+  await act(async () => { pending = state.submitDrop({ preventDefault() {} } as FormEvent, "venue-1"); });
+  expect(state.dropsByVenueId.get("venue-1")).toHaveLength(1);
+  expect(readOptimisticSpills(localStorage)).toEqual([]);
+  const fail = async () => {
+    finish({ ok: false, json: async () => ({ error: "Temporary outage" }) });
+    await pending;
+  };
+  if (phase === "failed") await act(fail);
+  // Venue hydration discards the old composer before loading the next draft.
+  await act(async () => {
+    state.closeComposer();
+    state.resetComposer();
+    state.setDropForm({ ...state.dropForm, price: "7.40" });
+  });
+  if (phase === "pending") await act(fail);
+  vi.mocked(fetch).mockRejectedValue(new Error("Venue read unavailable"));
+  await act(async () => { state.refreshVenueDrops("venue-1"); });
+  expect(state.venueDropStatus.get("venue-1")).toBe("unavailable");
+  expect(state.dropsByVenueId.get("venue-1") ?? []).toEqual([]);
+  expect(readOptimisticSpills(localStorage)).toEqual([]);
+  for (const url of urls) expect(revoked).toHaveBeenCalledWith(url);
+  expect(state.dropForm.price).toBe("7.40");
+  expect(state.dropMsg).toBeNull();
 });
