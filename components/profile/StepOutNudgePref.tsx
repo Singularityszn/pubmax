@@ -9,6 +9,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { isNativeApp } from "@/lib/nativePlatform";
 import { registerWebPush, unregisterWebPush } from "@/lib/webPush";
+import { Button } from "@/components/ui/button";
 
 type PrefState = {
   enabled: boolean;
@@ -186,13 +187,13 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
       ) : null}
       <div className="accountHubActions">
         {enabled ? (
-          <button type="button" onClick={() => void withdraw()} disabled={busy}>
+          <Button variant="secondary" type="button" onClick={() => void withdraw()} disabled={busy}>
             {busy ? "Updating…" : "Turn Step Out off"}
-          </button>
+          </Button>
         ) : (
-          <button type="button" onClick={() => void enable()} disabled={busy}>
+          <Button type="button" onClick={() => void enable()} disabled={busy}>
             {busy ? "Updating…" : "Turn Step Out on"}
-          </button>
+          </Button>
         )}
       </div>
       <p className="accountHubConsentStatus" role="status">

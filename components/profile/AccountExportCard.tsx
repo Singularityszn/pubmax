@@ -29,6 +29,7 @@ import {
 } from "@/lib/accountExport";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { AuthActionSessionError, authedActionFetch } from "@/lib/authedFetch";
+import { Button } from "@/components/ui/button";
 
 /** The file name the server chose, read off its own header, else ours. */
 function filenameFrom(response: Response): string {
@@ -89,7 +90,8 @@ export default function AccountExportCard(): React.JSX.Element | null {
     <div className="accountHubExport" id="export-account">
       <h3>{ACCOUNT_EXPORT_TITLE}</h3>
       <p>{ACCOUNT_EXPORT_LEDE}</p>
-      <button
+      <Button
+        variant="secondary"
         type="button"
         className="accountHubExportButton"
         disabled={busy}
@@ -97,7 +99,7 @@ export default function AccountExportCard(): React.JSX.Element | null {
         onClick={() => void download()}
       >
         {ACCOUNT_EXPORT_LABEL}
-      </button>
+      </Button>
       {notice ? (
         <p role="status" className="accountHubExportNotice">
           {notice}

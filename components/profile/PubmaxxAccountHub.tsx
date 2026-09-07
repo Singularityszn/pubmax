@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState, useSyncExternalStore }
 import { useRouter } from "next/navigation";
 
 import SignInButton from "@/components/auth/SignInButton";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import FoundersWallLink from "@/components/founding/FoundersWallLink";
@@ -163,7 +164,7 @@ export function NightProfileControls({
         <label>Voice<select disabled={disabled} value={profile.voicePreference} onChange={(event) => update({ ...profile, voicePreference: event.target.value as NightProfileInput["voicePreference"] })}><option value="off">Off</option><option value="tts">Read replies aloud</option><option value="ptt">Push to talk</option></select></label>
         <label>Briefings<select disabled={disabled} value={profile.briefingPreferences.muteAll ? "muted" : "on"} onChange={(event) => update({ ...profile, briefingPreferences: { ...profile.briefingPreferences, muteAll: event.target.value === "muted" } })}><option value="on">On</option><option value="muted">Muted</option></select></label>
       </div>
-      {onSave ? <button className="accountHubNightProfileSave" type="button" disabled={disabled} onClick={onSave}>{saveLabel}</button> : <p className="accountHubNightProfileSaved" role="status">{saveLabel}</p>}
+      {onSave ? <Button className="accountHubNightProfileSave" type="button" disabled={disabled} onClick={onSave}>{saveLabel}</Button> : <p className="accountHubNightProfileSaved" role="status">{saveLabel}</p>}
     </section>
   );
 }
@@ -217,9 +218,9 @@ export function ReferralInviteCard({
       ) : null}
       <small>{REFERRAL_RECOGNITION_NOTE}</small>
       {!link ? (
-        <button type="button" disabled={busy} onClick={onInvite}>
+        <Button type="button" disabled={busy} onClick={onInvite}>
           {busy ? "Getting your link…" : "Invite a mate"}
-        </button>
+        </Button>
       ) : (
         <>
           <label className="accountHubReferralLink">
@@ -227,9 +228,9 @@ export function ReferralInviteCard({
             <input type="url" readOnly value={link} onFocus={(event) => event.target.select()} />
           </label>
           <div className="accountHubActions">
-            <button type="button" onClick={onCopy}>Copy link</button>
+            <Button variant="secondary" type="button" onClick={onCopy}>Copy link</Button>
             {shareSupported ? (
-              <button type="button" onClick={onShare}>Share…</button>
+              <Button variant="secondary" type="button" onClick={onShare}>Share…</Button>
             ) : null}
           </div>
         </>
@@ -343,7 +344,7 @@ function AccountHandleEditor({
         placeholder="night_owl"
         required
       />
-      <button type="submit">Rename handle</button>
+      <Button type="submit">Rename handle</Button>
       <small>Renames are limited to once every 30 days. Old links keep working.</small>
       {message ? <small role="status">{message}</small> : null}
     </form>
@@ -431,8 +432,8 @@ export default function PubmaxxAccountHub() {
         <>
           <p>Help improve journeys with a persistent device ID, standard browser details and allow-listed product events. This is optional and can be withdrawn here.</p>
           <div className="accountHubActions">
-            <button type="button" onClick={() => updateAnalyticsConsent(true)}>Allow</button>
-            <button type="button" onClick={() => updateAnalyticsConsent(false)}>No thanks</button>
+            <Button type="button" onClick={() => updateAnalyticsConsent(true)}>Allow</Button>
+            <Button variant="secondary" type="button" onClick={() => updateAnalyticsConsent(false)}>No thanks</Button>
           </div>
         </>
       ) : (
@@ -440,13 +441,14 @@ export default function PubmaxxAccountHub() {
           {analyticsConsent === "granted"
             ? "Usage analytics on."
             : "Usage analytics off."}{" "}
-          <button
+          <Button
+            variant="secondary"
             type="button"
             className="accountHubConsentChange"
             onClick={() => updateAnalyticsConsent(analyticsConsent !== "granted")}
           >
             {analyticsConsent === "granted" ? "Withdraw" : "Allow"}
-          </button>
+          </Button>
         </p>
       )}
     </div>
@@ -817,10 +819,10 @@ export default function PubmaxxAccountHub() {
               : "This device has night preferences that are not on your account yet. Nothing changes until you choose."}
           </p>
           <div className="accountHubActions">
-            <button type="button" onClick={() => void confirmProfileMerge(mergeState, "bring-device")}>Bring this device</button>
-            <button type="button" onClick={() => void confirmProfileMerge(mergeState, "keep-account")}>
+            <Button type="button" onClick={() => void confirmProfileMerge(mergeState, "bring-device")}>Bring this device</Button>
+            <Button variant="secondary" type="button" onClick={() => void confirmProfileMerge(mergeState, "keep-account")}>
               {mergeState.kind === "conflict" ? "Keep account preferences" : "Keep only on this device"}
-            </button>
+            </Button>
           </div>
         </div>
       ) : accountNightProfile ? (
@@ -835,12 +837,12 @@ export default function PubmaxxAccountHub() {
               : `This device has ${planRecapMergeState.recaps.length} finished-night recaps that are not on your account yet. Bringing them saves private Memories. Nothing is published.`}
           </p>
           <div className="accountHubActions">
-            <button type="button" onClick={() => void confirmPlanRecapClaim(planRecapMergeState, "bring-device")}>
+            <Button type="button" onClick={() => void confirmPlanRecapClaim(planRecapMergeState, "bring-device")}>
               Bring this device
-            </button>
-            <button type="button" onClick={() => void confirmPlanRecapClaim(planRecapMergeState, "keep-device")}>
+            </Button>
+            <Button variant="secondary" type="button" onClick={() => void confirmPlanRecapClaim(planRecapMergeState, "keep-device")}>
               Keep only on this device
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}
@@ -848,7 +850,8 @@ export default function PubmaxxAccountHub() {
         <div className="accountHubMerge accountHubNightProfileError" role="status">
           <p>Your account Night Profile could not be loaded.</p>
           <div className="accountHubActions">
-            <button
+            <Button
+              variant="secondary"
               type="button"
               onClick={() => {
                 setNightProfileError(false);
@@ -856,7 +859,7 @@ export default function PubmaxxAccountHub() {
               }}
             >
               Try again
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}

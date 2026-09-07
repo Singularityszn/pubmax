@@ -67,6 +67,10 @@ describe("the Button primitive", () => {
     expect(
       renderToStaticMarkup(createElement(Button, { variant: "ghost", size: "icon" }, "x")),
     ).toBe('<button class="uiButton uiButton--ghost uiButton--icon">x</button>');
+    // The one control that ENDS something differs in fill alone.
+    expect(
+      renderToStaticMarkup(createElement(Button, { variant: "danger" }, "Delete my account")),
+    ).toBe('<button class="uiButton uiButton--danger">Delete my account</button>');
     // A circular icon control keeps the pill (owner ruling 2026-07-23).
     expect(renderToStaticMarkup(createElement(IconButton, null, "x"))).toBe(
       '<button class="uiButton uiButton--secondary uiButton--icon shrink-0 uiButton--pill">x</button>',
@@ -116,5 +120,83 @@ describe("the venue sheet's two Save controls wear the same row", () => {
     // this save wears the secondary surface there.
     const overview = wanted.match(/\.wantedSaveWrap \.wantedSaveBtn\s*{([^}]*)}/)?.[1] ?? "";
     expect(overview).toMatch(/background:\s*var\(--control-secondary-surface/);
+  });
+});
+
+// THE PROFILE EDITOR HAS NO BUTTON FAMILY OF ITS OWN. The 6 September 2026
+// design review measured 23 button families on /u/you: the editor's own form
+// buttons wore 12px corners at weight 750, its export and deletion doors 12px
+// boxes, and the Memory studio two more. Every one of them is the primitive
+// now, and the surface's stylesheet paints none of them.
+describe("the profile editor wears the one family", () => {
+  const profileCss = read("app/u/[handle]/profile.css");
+  const EDITOR_FILES = [
+    "components/profile/PubmaxxAccountHub.tsx",
+    "components/identity/PrivateIdentityEditor.tsx",
+    "components/auth/SetAccountPassword.tsx",
+    "components/profile/StepOutNudgePref.tsx",
+    "components/profile/AccountExportCard.tsx",
+    "components/profile/DeleteAccountCard.tsx",
+    "components/profile/NightMemoryStudio.tsx",
+  ] as const;
+
+  it("paints no button of its own in the account surface", () => {
+    for (const selector of [
+      ".accountHubGrid button",
+      ".accountHubMerge button",
+      ".memoryStudioFlow button",
+      ".memoryStoryReview button",
+    ]) {
+      expect(profileCss).not.toContain(`${selector} {`);
+    }
+    // The named controls keep their PLACE and nothing else: a bespoke radius,
+    // weight or fill here is the defect coming back.
+    for (const rule of [".accountHubNightProfileSave", ".accountHubExportButton", ".accountHubDeleteOpen"]) {
+      const body = profileCss.match(new RegExp(`\\${rule}\\s*{([^}]*)}`))?.[1] ?? "";
+      expect(body).not.toMatch(/border-radius|font-weight|min-height/);
+    }
+    expect(profileCss).not.toContain(".accountHubDeleteConfirmBtn {");
+    expect(profileCss).not.toContain(".accountHubDeleteCancel {");
+  });
+
+  it("renders the primitive on every editor form", () => {
+    for (const file of EDITOR_FILES) {
+      expect(read(file), file).toContain('from "@/components/ui/button"');
+    }
+  });
+
+  it("leaves no editor button painted with a figure of its own", () => {
+    // The law is the ROW, so a button rule that survives in an editor
+    // stylesheet has to read the --control-* tokens rather than restate a
+    // radius, a weight or a height. The keep shelf's own pair is the standing
+    // example: it is scoped CSS, and it reads the row.
+    const sheets = ["app/u/[handle]/profile.css", "components/profile/NightMemoryStudio.css"];
+    const offenders: string[] = [];
+    for (const sheet of sheets) {
+      const css = read(sheet);
+      for (const rule of css.matchAll(/([^\n{}]*button[^\n{}]*)\s*{([^}]*)}/g)) {
+        const selector = rule[1]!.trim();
+        const body = rule[2]!;
+        for (const property of ["border-radius", "font-weight", "min-height", "font-size"]) {
+          const declared = body.match(new RegExp(`${property}:\\s*([^;]+);`))?.[1]?.trim();
+          if (declared && !declared.startsWith("var(--control-")) {
+            offenders.push(`${sheet}: ${selector} { ${property}: ${declared} }`);
+          }
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps the three named form submits on the primitive", () => {
+    expect(read("components/profile/PubmaxxAccountHub.tsx")).toContain(
+      '<Button type="submit">Rename handle</Button>',
+    );
+    expect(read("components/identity/PrivateIdentityEditor.tsx")).toMatch(
+      /<Button type="submit"[^>]*>\s*{saving \? "Saving…" : "Save private details"}/,
+    );
+    expect(read("components/profile/NightMemoryStudio.tsx")).toContain(
+      '<Button type="submit" disabled={saving}>Create private Memory</Button>',
+    );
   });
 });

@@ -75,6 +75,19 @@
   border-color: var(--color-accent);
 }
 
+/* The one control that ends something. It is the same row of tokens as every
+   other button and differs only in its fill, so a destructive action cannot
+   quietly grow a geometry of its own (the account deletion confirm wore a 12px
+   box at weight 700 before the 6 Sep 2026 review). */
+.uiButton--danger {
+  background: var(--brick);
+  color: var(--paper);
+}
+
+.uiButton--danger:hover {
+  background: color-mix(in srgb, var(--brick) 88%, var(--ink));
+}
+
 .uiButton--ghost {
   background: transparent;
   color: var(--color-text-soft);
