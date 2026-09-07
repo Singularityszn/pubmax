@@ -5,6 +5,7 @@ export type ReviewCategory =
   | "source"
   | "migration"
   | "generated"
+  | "regenerated"
   | "evidence"
   | "test"
   | "config"
@@ -12,8 +13,25 @@ export type ReviewCategory =
   | "skill-pack"
   | "other";
 
+/** A generated lane that may ride the review that produced it. */
+export type RegeneratedLane = {
+  id: string;
+  output: RegExp;
+  inputs: RegExp[];
+};
+
+export const REGENERATED_LANES: readonly RegeneratedLane[];
+
+export function explainedRegeneratedLanes(
+  paths: readonly string[],
+): RegeneratedLane[];
+
 export type ReviewScopeReport = {
   fileCount: number;
+  /** File count a person actually reviews: permitted generated output is out. */
+  reviewFileCount: number;
+  /** Lanes this diff produced, so their output was permitted rather than forbidden. */
+  regeneratedLanes: string[];
   categories: Partial<Record<ReviewCategory, string[]>>;
   categoryCounts: Partial<Record<ReviewCategory, number>>;
   domains: string[];
