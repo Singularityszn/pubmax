@@ -30,6 +30,16 @@ Four facts that decide how every query below is written.
    mixes the two transports must read the right property for each step.
 4. **No account identity ever joins the analytics id.** ADR 0009. A query that needs
    a person is the wrong query.
+5. **Every event names its lane and its build.** Both transports stamp `environment`
+   (`production`, `preview`, `development`, `internal-test`), `release` (the short
+   commit) and `schema_version`, from `lib/analyticsAttribution.mjs`. A product figure
+   filters `properties.environment = 'production'`, never `$host`: a named event is
+   sent from the server and carries no host at all. A row with no `schema_version` is
+   version 1 and is unattributed, so it may not be read as production.
+
+What each NUMBER means, and what it is divided by, lives in
+`docs/analytics/METRICS.md`: the north star and every supporting measure with its own
+denominator rule. This file stays the map of the EVENTS.
 
 ## 2. The release metric: first meaningful action within 60 seconds
 

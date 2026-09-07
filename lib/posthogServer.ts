@@ -1,3 +1,4 @@
+import { currentAnalyticsAttributionProps } from "@/lib/analyticsAttribution.mjs";
 import type { AnalyticsEvent } from "@/lib/analyticsEvents";
 import { isAnonymousAnalyticsId } from "@/lib/analyticsIdentity";
 
@@ -41,6 +42,11 @@ export async function capturePosthogEvent(input: {
         event: input.event.name,
         properties: {
           ...input.event.props,
+          // AFTER the event's own props, so a registry prop can never overwrite
+          // the lane an event says it came from. lib/analyticsAttribution.mjs
+          // owns both words; a named event carries no $host by design, and
+          // docs/analytics/METRICS.md says environment is the filter instead.
+          ...currentAnalyticsAttributionProps(),
           path: input.path,
           distinct_id: input.anonymousId,
           ...(input.clientIp ? { $ip: input.clientIp } : {}),

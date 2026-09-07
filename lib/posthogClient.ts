@@ -11,6 +11,7 @@ import {
   analyticsReferrerFromUrl,
   analyticsUrlWithoutQuery,
 } from "@/lib/analyticsPath";
+import { currentAnalyticsAttributionProps } from "@/lib/analyticsAttribution.mjs";
 
 const SAFE_EXCEPTION_TYPES = new Set([
   "AggregateError",
@@ -129,10 +130,17 @@ function standardBrowserProperties(
   properties: CaptureResult["properties"],
   pathname?: string,
 ): CaptureResult["properties"] {
-  const standard = Object.fromEntries(
-    Object.entries(properties).filter(([name]) =>
-      STANDARD_BROWSER_PROPERTIES.has(name)),
-  );
+  const standard: CaptureResult["properties"] = {
+    ...Object.fromEntries(
+      Object.entries(properties).filter(([name]) =>
+        STANDARD_BROWSER_PROPERTIES.has(name)),
+    ),
+    // The same two dimensions the server sender stamps on a named event
+    // (lib/analyticsAttribution.mjs), so ONE filter tells a preview or a test
+    // journey from a drinker's real night across both transports. The SDK
+    // already sends $host; a named event never can.
+    ...currentAnalyticsAttributionProps(),
+  };
   for (const metric of WEB_VITAL_METRICS) {
     const valueKey = `$web_vitals_${metric}_value`;
     const eventKey = `$web_vitals_${metric}_event`;

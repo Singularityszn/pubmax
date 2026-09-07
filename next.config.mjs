@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { analyticsBuildEnv } from "./lib/analyticsAttribution.mjs";
 import { resolveBuildStamp } from "./lib/buildInfo.mjs";
 import { readWorkingTreeCommitSha, requireDataRevision } from "./lib/dataRevision.mjs";
 import {
@@ -261,6 +262,10 @@ const nextConfig = {
     PUBMAX_BUILD_COMMIT_SHA: buildStamp.commitSha ?? "",
     PUBMAX_BUILD_COMMIT_SHA_SOURCE: buildStamp.commitShaSource ?? "",
     PUBMAX_BUILD_TIME: buildStamp.builtAt,
+    // Which lane an analytics event came from. Decided HERE because VERCEL_ENV
+    // reaches no browser bundle, so a build-time answer is the only one both
+    // transports can read. lib/analyticsAttribution.mjs owns the rule.
+    ...analyticsBuildEnv(process.env),
   },
   skipTrailingSlashRedirect: true,
   async rewrites() {

@@ -4,6 +4,57 @@ import { afterEach, beforeEach, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+// NODE'S OWN WEB STORAGE SHADOWS jsdom's, AND ANSWERS undefined.
+//
+// Node 22 and later define a global `localStorage` accessor that reports
+// undefined unless the process was started with `--localstorage-file`. In
+// vitest's jsdom environment `window` IS `globalThis`, so under Node 26 that
+// accessor sits where jsdom's own Storage should be: `window.sessionStorage` is
+// a real Storage while `window.localStorage` reads undefined. Sixteen browser
+// suites failed on their first `localStorage.clear()` that way, on a Node the
+// engines field admits, and every one of them was green on the same commit
+// under an older runtime.
+//
+// The restore runs ONCE, before any test, and only when jsdom is the
+// environment and its Storage is missing. A suite that deliberately deletes or
+// replaces localStorage still does so; nothing here puts it back.
+function inMemoryWebStorage(): Storage {
+  const items = new Map<string, string>();
+  const storage: Storage = {
+    get length(): number {
+      return items.size;
+    },
+    key(index: number): string | null {
+      return [...items.keys()][index] ?? null;
+    },
+    getItem(key: string): string | null {
+      return items.get(String(key)) ?? null;
+    },
+    setItem(key: string, value: string): void {
+      items.set(String(key), String(value));
+    },
+    removeItem(key: string): void {
+      items.delete(String(key));
+    },
+    clear(): void {
+      items.clear();
+    },
+  };
+  return storage;
+}
+
+if (
+  typeof window !== "undefined"
+  && typeof window.sessionStorage !== "undefined"
+  && typeof window.localStorage === "undefined"
+) {
+  Object.defineProperty(window, "localStorage", {
+    value: inMemoryWebStorage(),
+    configurable: true,
+    writable: true,
+  });
+}
+
 // vitest.config.ts creates this once per run and test.env distributes the same
 // value to every worker. Some security tests intentionally delete or replace
 // it; restore the worker baseline around every test so later route tests never

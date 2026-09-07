@@ -33,6 +33,8 @@ const PLATFORM_OWNED: Record<string, string> = {
   PUBMAX_BUILD_COMMIT_SHA: "next.config.mjs env, from lib/buildInfo.mjs",
   PUBMAX_BUILD_COMMIT_SHA_SOURCE: "next.config.mjs env, from lib/buildInfo.mjs",
   PUBMAX_BUILD_TIME: "next.config.mjs env, from lib/buildInfo.mjs",
+  // Injected by next.config.mjs from lib/analyticsAttribution.mjs at build time.
+  PUBMAX_ANALYTICS_ENVIRONMENT: "next.config.mjs env, from lib/analyticsAttribution.mjs",
   // Set by the Playwright harness (playwright.config.ts webServer.env).
   PW_NEXT_DIST_DIR: "playwright.config.ts",
   PW_SCREENSHOTS: "playwright.config.ts (screenshot runs)",
