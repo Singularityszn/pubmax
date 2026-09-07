@@ -10,10 +10,9 @@ import {
   readSurfaceSnapshot,
   writeSurfaceSnapshot,
 } from "@/lib/surfaceDataCache";
-import { loadSlimVenuesForCity, type SlimVenue } from "@/lib/venuesSlim";
-import type { Venue } from "@/lib/venues";
+import { loadSlimVenuesForCityResult, type SlimVenue } from "@/lib/venuesSlim";
 
-const SEARCH_INDEX_CACHE_KEY = "map-search-index:v1";
+const SEARCH_INDEX_CACHE_KEY = "map-search-index:v2";
 const SEARCH_INDEX_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 let cachedIndex: MapSearchIndex | null = null;
@@ -74,28 +73,7 @@ function packFromSlim(cityId: CityId, venues: readonly SlimVenue[]): MapSearchPa
   };
 }
 
-function packFromCurrentVenues(
-  cityId: CityId,
-  venues: readonly Pick<Venue, "id" | "name" | "primaryBorough">[],
-): MapSearchPack {
-  return {
-    cityId,
-    venues: venues.map((venue) => ({
-      id: venue.id,
-      name: venue.name,
-      area: venue.primaryBorough ?? "",
-    })),
-  };
-}
-
-export type MapSearchIndexLoadOptions = {
-  currentCityId?: CityId;
-  currentVenues?: readonly Pick<Venue, "id" | "name" | "primaryBorough">[];
-};
-
-export function loadMapSearchIndex(
-  options: MapSearchIndexLoadOptions = {},
-): Promise<MapSearchIndex> {
+export function loadMapSearchIndex(): Promise<MapSearchIndex> {
   if (cachedIndex) return Promise.resolve(cachedIndex);
   if (pendingIndex) return pendingIndex;
 
@@ -111,15 +89,11 @@ export function loadMapSearchIndex(
 
   const pending = Promise.all(
     cities.map(async (city) => {
-      if (
-        city.id === options.currentCityId &&
-        options.currentVenues &&
-        options.currentVenues.length > 0
-      ) {
-        return packFromCurrentVenues(city.id, options.currentVenues);
+      const result = await loadSlimVenuesForCityResult(city.id);
+      if (result.status !== "ready") {
+        throw new Error(`Search venues could not load for ${city.displayName}.`);
       }
-      const venues = await loadSlimVenuesForCity(city.id);
-      return packFromSlim(city.id, venues);
+      return packFromSlim(city.id, result.rows);
     }),
   )
     .then((packs) => {
