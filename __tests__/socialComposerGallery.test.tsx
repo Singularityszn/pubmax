@@ -56,6 +56,13 @@ async function change(label: string, value: string) {
     control.dispatchEvent(new Event("input", { bubbles: true }));
   });
 }
+async function changeBody(value: string) {
+  await act(async () => {
+    const textarea = host.querySelector("textarea")!;
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(textarea, value);
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
 async function mount(existing?: SocialPostDTO, strict = false) {
   await act(async () => {
     const component = createElement(SocialComposer, { post: existing, draftScope: "opaque-account", onSaved: saved });
@@ -276,22 +283,33 @@ describe("Social composer galleries", () => {
     mocks.save.mockRejectedValue(new DOMException("Quota exceeded", "QuotaExceededError"));
     if (deletionFails) mocks.clear.mockRejectedValue(new Error("Storage unavailable"));
     await mount();
+    await changeBody("Original caption");
     await choose([photo("unsaved")]);
     expect(host.textContent).toContain("Your photos could not be saved on this device.");
     expect(uploads()).toHaveLength(0);
     await click("Clear draft");
     expect(mocks.clear).toHaveBeenCalledWith(key);
-    await act(async () => {
-      const textarea = host.querySelector("textarea")!;
-      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(textarea, "A walk by the river");
-      textarea.dispatchEvent(new Event("input", { bubbles: true }));
-    });
+    expect(host.querySelector("textarea")?.value).toBe(deletionFails ? "Original caption" : "");
+    if (deletionFails) {
+      expect(host.querySelector(".socialComposerGallery li")).not.toBeNull();
+      expect(host.textContent).toContain("Your photo draft could not be cleared. Try again.");
+    }
+    await changeBody("A walk by the river");
     expect(button("Post").disabled).toBe(deletionFails);
     if (!deletionFails) {
       expect(host.textContent).not.toContain("Your photos could not be saved on this device.");
       await click("Post");
       expect(JSON.parse(commits()[0][1].body)).toMatchObject({ body: "A walk by the river" });
     }
+  });
+
+  it("clears a text draft without requiring photo storage", async () => {
+    mocks.clear.mockRejectedValue(new Error("Photo storage unavailable"));
+    await mount();
+    await changeBody("Text without photos");
+    await click("Clear draft");
+    expect(host.querySelector("textarea")?.value).toBe("");
+    expect(mocks.clear).not.toHaveBeenCalled();
   });
 
   it("restores ordered upload receipts without uploading again", async () => {

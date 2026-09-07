@@ -224,10 +224,12 @@ function useComposerGallery(draftKey: string) {
 
   async function clear() {
     run.current?.abort();
-    restore([]);
     await writes.current.catch(() => undefined);
     await clearSocialGalleryDraft(draftKey);
-    if (!controller.current.signal.aborted) setStorageError(null);
+    if (!controller.current.signal.aborted) {
+      restore([]);
+      setStorageError(null);
+    }
   }
 
   function reupload() {
@@ -825,9 +827,17 @@ function SocialComposerSession({
   async function clearDraft() {
     intakeVersion.current += 1;
     setMediaBusy(false);
+    if (draft.galleryMode || gallery.items.length > 0 || gallery.storageError) {
+      try {
+        await gallery.clear();
+      } catch {
+        setFeedback("Your photo draft could not be cleared. Try again.");
+        setFeedbackIsStatus(false);
+        return;
+      }
+    }
     try { localStorage.removeItem(draftKey); } catch { /* Keep the in-page clear available. */ }
     await saveSocialDraftPhoto(draftKey, null).catch(() => undefined);
-    await gallery.clear().catch(() => undefined);
     gallery.restore(retainedGallery(initialPostRef.current));
     setGalleryExpired(false);
     setDraft(initialDraft(initialPostRef.current));
