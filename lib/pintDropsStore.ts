@@ -7,6 +7,8 @@ import "server-only";
 // function assumes admin access exists — if getSupabaseAdmin() is null we
 // throw, we don't silently no-op, so the route can 503 deliberately.
 
+import { createHash } from "node:crypto";
+
 import sharp from "sharp";
 
 import type { CityId } from "@/lib/cities";
@@ -18,6 +20,11 @@ import {
 } from "@/lib/drinkMeasure";
 import { detectImageKind, magicBytesOk as magicBytesOkPure, stripImageMetadata } from "@/lib/imageSafety";
 import { log } from "@/lib/log";
+import {
+  proveUploadedImageWrite,
+  readUploadedImageObject,
+  uploadUploadedImageObject,
+} from "@/lib/uploadedImage.server";
 import { demoDropsFor, demoPintDropsForCity } from "@/lib/pintDropSeeds";
 import {
   confirmationIsLive,
@@ -1526,17 +1533,23 @@ export async function uploadPhoto(
 
   const key = `${venueId}/${dropId}/${slot}.${NORMALIZED_EXT}`;
 
-  const { error } = await admin()
-    .storage.from(STORAGE_BUCKET)
-    .upload(key, processed, { contentType: NORMALIZED_CONTENT_TYPE, upsert: false });
+  const error = await uploadUploadedImageObject(key, processed, NORMALIZED_CONTENT_TYPE, { upsert: false });
   if (error) {
     log("error", "pint_drops.photo_upload_failed", {
       slot,
       venueId,
       dropId,
-      error: error.message,
+      error,
     });
-    throw new Error(error.message);
+    throw new Error(error);
+  }
+  const proof = await proveUploadedImageWrite(key, {
+    sha256: createHash("sha256").update(processed).digest("hex"),
+    byteSize: processed.byteLength,
+  }, readUploadedImageObject);
+  if (proof === "corrupt") {
+    await deletePhotos([key]);
+    throw new Error("Photo storage could not preserve this image. Try again.");
   }
   return key;
 }
