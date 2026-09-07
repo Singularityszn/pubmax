@@ -80,13 +80,14 @@ const HEAVY_NAME = /(?:^|[a-z])(?:maphref|mapurl)$/;
  * The backlog, and it may only SHRINK.
  *
  * The rule was cut over the surfaces the finding measured: the crawlable
- * landings that render one heavy link PER ROW on a long page, where the cost
- * multiplies with the dataset (/borough/{slug} is 206 of them) and where a
- * reader arrives from a search result rather than from inside the product. Each
- * file below still owes the guard. None of them is on that shape - they are
- * short pages, signed-in surfaces or the moderator console - so the cost is one
- * or two prefetches rather than a page-long queue, and taking them is a
- * mechanical follow-up rather than this lane's measurement.
+ * landings, where the count multiplies with the dataset (/borough/{slug} is 206
+ * of them on a 33,441px page) and where a stranger arrives from a search result
+ * with nothing warm. Each file below still owes the guard. Several of them do
+ * carry a per-row link - a feed card, a saved list, the /today pints card - but
+ * over a short list inside the product rather than over a whole borough, so the
+ * cost is single figures rather than a page-long queue. Taking them is a
+ * mechanical follow-up; it is not this lane's measurement, and it is the reason
+ * the list exists rather than the reason the rule waits.
  *
  * Removing a row is the whole of the work: add prefetch={false} at each site the
  * failure names, then delete the line. Adding one is not, and a file that is
