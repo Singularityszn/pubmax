@@ -46,7 +46,10 @@ export function classifyReviewFile(value: unknown): {
   category: ReviewCategory;
   domain: string | null;
 };
-export function summarizeReviewScope(values: readonly unknown[]): ReviewScopeReport;
+export function summarizeReviewScope(
+  values: readonly unknown[],
+  unexplainedGeneratedPaths?: readonly string[],
+): ReviewScopeReport;
 export function changedFilesFromGit(
   base: string,
   head: string,
@@ -55,6 +58,7 @@ export function changedFilesFromGit(
 export function localChangesFromGit(cwd: string): {
   base: string;
   files: string[];
+  unexplainedGeneratedPaths: string[];
 };
 export function runReviewScopeCli(
   argv?: string[],

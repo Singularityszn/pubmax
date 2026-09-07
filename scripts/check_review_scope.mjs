@@ -147,12 +147,13 @@ function uniqueSorted(values) {
  * Build a deterministic report from changed paths. Large or mixed reviews
  * warn, but only generated and skill-pack paths make the report fail.
  */
-export function summarizeReviewScope(values) {
+export function summarizeReviewScope(values, unexplainedGeneratedPaths = []) {
+  const unexplained = new Set(unexplainedGeneratedPaths.map(normalizeReviewPath));
   const paths = uniqueSorted(values.map(normalizeReviewPath).filter(Boolean));
   const explainedLanes = explainedRegeneratedLanes(paths);
   const classifications = paths.map((path) => {
     const item = classifyReviewFile(path);
-    if (item.category !== "generated") return item;
+    if (item.category !== "generated" || unexplained.has(path)) return item;
     const lane = explainedLanes.find((candidate) => candidate.output.test(item.path));
     return lane ? { ...item, category: "regenerated", lane: lane.id } : item;
   });
@@ -215,10 +216,10 @@ export function changedFilesFromGit(base, head, cwd) {
     : base;
   const output = execFileSync(
     "git",
-    ["diff", "--name-only", "--diff-filter=ACMRD", diffBase, head],
+    ["diff", "--name-only", "-z", "--no-renames", "--diff-filter=ACMRDT", diffBase, head, "--"],
     { cwd, encoding: "utf8" },
   );
-  return output.split("\n").filter(Boolean);
+  return output.split("\0").filter(Boolean);
 }
 
 /** Include branch commits and local changes in one review, including untracked files. */
@@ -231,13 +232,27 @@ export function localChangesFromGit(cwd) {
   } catch {
     throw new Error("Local review needs origin/main and shared history. Fetch the base, or use --base <sha> --head <sha>.");
   }
-  const tracked = execFileSync("git", [
-    "diff", "--name-only", "-z", "--diff-filter=ACMRD", base, "--",
-  ], { cwd, encoding: "utf8" });
-  const untracked = execFileSync("git", [
-    "ls-files", "--others", "--exclude-standard", "-z",
-  ], { cwd, encoding: "utf8" });
-  return { base, files: uniqueSorted([...tracked.split("\0"), ...untracked.split("\0")].filter(Boolean)) };
+  const pathsFromGit = (args) => execFileSync("git", args, {
+    cwd, encoding: "utf8",
+  }).split("\0").filter(Boolean);
+  const diffPaths = (...args) => pathsFromGit([
+    "diff", "--name-only", "-z", "--no-renames", "--diff-filter=ACMRDT", ...args, "--",
+  ]);
+  const committed = diffPaths(base, "HEAD");
+  const index = diffPaths("--cached", base);
+  const worktree = diffPaths(base);
+  const untracked = pathsFromGit(["ls-files", "--others", "--exclude-standard", "-z"]);
+
+  // Each snapshot is compared with the same base. Later edits cannot cancel
+  // an earlier snapshot's paths or supply its missing generator provenance.
+  // Committed generator changes remain visible in later index/worktree diffs.
+  const snapshots = [committed, index, [...worktree, ...untracked]];
+  const unexplainedGeneratedPaths = uniqueSorted(snapshots.flatMap((paths) => {
+    const lanes = explainedRegeneratedLanes(paths);
+    return paths.filter((path) => isGeneratedPath(path)
+      && !lanes.some((lane) => lane.output.test(path)));
+  }));
+  return { base, files: uniqueSorted(snapshots.flat()), unexplainedGeneratedPaths };
 }
 
 function usage() {
@@ -274,7 +289,7 @@ export function runReviewScopeCli(argv = process.argv.slice(2), cwd = process.cw
   const changes = args.local
     ? localChangesFromGit(repo)
     : { base: args.base, files: changedFilesFromGit(args.base, args.head, repo) };
-  const report = summarizeReviewScope(changes.files);
+  const report = summarizeReviewScope(changes.files, changes.unexplainedGeneratedPaths);
   console.log(JSON.stringify({ base: changes.base, head: args.local ? "working-tree" : args.head, ...report }, null, 2));
   return report;
 }

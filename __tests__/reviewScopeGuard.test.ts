@@ -1,5 +1,12 @@
-import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import {
+  mkdirSync,
+  mkdtempSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -315,10 +322,157 @@ describe("local review scope", () => {
   });
   afterEach(() => rmSync(repo, { recursive: true, force: true }));
 
+  it.each([
+    "committed-restored",
+    "staged-removed",
+    "unstaged-generator",
+    "staged-generator",
+  ])("refuses forbidden content hidden by %s", (caseName) => {
+    const output = "public/data/uk_base/manifest.json";
+    if (caseName !== "staged-removed") {
+      write(output, "{}\n");
+      git("add", ".");
+      git("commit", "-qm", "base generated data");
+      git("update-ref", "refs/remotes/origin/main", "HEAD");
+    }
+    write(output, '{"forbidden":true}\n');
+    git("add", output);
+    if (caseName === "staged-removed") rmSync(join(repo, output));
+    else {
+      git("commit", "-qm", "generated-only edit");
+      if (caseName === "committed-restored") write(output, "{}\n");
+      else {
+        write("scripts/build_uk_base_shards.mjs");
+        if (caseName === "staged-generator")
+          git("add", "scripts/build_uk_base_shards.mjs");
+      }
+    }
+    const result = spawnSync(
+      process.execPath,
+      [script, "--local", "--repo", repo],
+      { encoding: "utf8" },
+    );
+    const report = JSON.parse(result.stdout);
+    expect(result.status).toBe(1);
+    expect(report.categories.generated).toContain(output);
+    expect(report.forbidden).toContainEqual({
+      category: "generated",
+      path: output,
+    });
+  });
+
+  it("does not let an unstaged generator excuse staged generated output", () => {
+    write("public/data/uk_base/manifest.json", "{}\n");
+    git("add", "public/data/uk_base/manifest.json");
+    write("scripts/build_uk_base_shards.mjs");
+    const result = spawnSync(
+      process.execPath,
+      [script, "--local", "--repo", repo],
+      { encoding: "utf8" },
+    );
+    expect(result.status).toBe(1);
+  });
+
+  it("permits a generator and its output staged together", () => {
+    write("scripts/build_uk_base_shards.mjs");
+    write("public/data/uk_base/manifest.json", "{}\n");
+    git("add", ".");
+    const result = spawnSync(
+      process.execPath,
+      [script, "--local", "--repo", repo],
+      { encoding: "utf8" },
+    );
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout).categories.regenerated).toEqual([
+      "public/data/uk_base/manifest.json",
+    ]);
+  });
+
+  it("refuses staged output after its committed generator is reverted in the index", () => {
+    write("scripts/build_uk_base_shards.mjs");
+    write("public/data/uk_base/manifest.json", "{}\n");
+    git("add", ".");
+    git("commit", "-qm", "generator and output");
+    git("rm", "scripts/build_uk_base_shards.mjs");
+    const result = spawnSync(
+      process.execPath,
+      [script, "--local", "--repo", repo],
+      { encoding: "utf8" },
+    );
+    expect(result.status).toBe(1);
+  });
+
+  it.each(["HEAD", "index", "worktree"])(
+    "keeps a forbidden type change in %s",
+    (state) => {
+      const output = "public/data/uk_base/manifest.json";
+      write(output, "{}\n");
+      git("add", ".");
+      git("commit", "-qm", "base generated file");
+      git("update-ref", "refs/remotes/origin/main", "HEAD");
+      rmSync(join(repo, output));
+      symlinkSync("../../../README.md", join(repo, output));
+      if (state !== "worktree") git("add", output);
+      if (state === "HEAD") {
+        git("commit", "-qm", "generated symlink");
+        expect(changedFilesFromGit("origin/main", "HEAD", repo)).toContain(
+          output,
+        );
+      }
+      const result = spawnSync(
+        process.execPath,
+        [script, "--local", "--repo", repo],
+        { encoding: "utf8" },
+      );
+      expect(result.status).toBe(1);
+      expect(JSON.parse(result.stdout).forbidden).toContainEqual({
+        category: "generated",
+        path: output,
+      });
+    },
+  );
+
+  it.each(["HEAD", "index"])(
+    "keeps the forbidden source of a rename in %s",
+    (state) => {
+      write("skills/example/SKILL.md", "source content\n");
+      git("add", ".");
+      git("commit", "-qm", "base skill file");
+      git("update-ref", "refs/remotes/origin/main", "HEAD");
+      mkdirSync(join(repo, "docs"));
+      renameSync(
+        join(repo, "skills/example/SKILL.md"),
+        join(repo, "docs/example.md"),
+      );
+      git("add", ".");
+      if (state === "HEAD") {
+        git("commit", "-qm", "rename skill file");
+        expect(changedFilesFromGit("origin/main", "HEAD", repo)).toEqual([
+          "docs/example.md",
+          "skills/example/SKILL.md",
+        ]);
+      }
+      const result = spawnSync(
+        process.execPath,
+        [script, "--local", "--repo", repo],
+        { encoding: "utf8" },
+      );
+      expect(result.status).toBe(1);
+      expect(JSON.parse(result.stdout).forbidden).toContainEqual({
+        category: "skill-pack",
+        path: "skills/example/SKILL.md",
+      });
+      expect(JSON.parse(result.stdout).categories.docs).toContain(
+        "docs/example.md",
+      );
+    },
+  );
+
   it("returns an empty review for a clean base checkout", () => {
     expect(localChangesFromGit(repo)).toEqual({
       base: git("rev-parse", "HEAD"),
       files: [],
+      unexplainedGeneratedPaths: [],
     });
   });
 
@@ -396,6 +550,7 @@ describe("local review scope", () => {
     expect(localChangesFromGit(repo)).toEqual({
       base,
       files: ["lib/branch.ts"],
+      unexplainedGeneratedPaths: [],
     });
   });
 
