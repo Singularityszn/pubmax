@@ -62,10 +62,23 @@ describe("Capacitor wrapped-build contract", () => {
     // scripts/gen-native-app-icons.mjs cuts LaunchBackground.colorset from, so
     // the two cannot drift and the app opens on ONE colour.
     expect(capacitorConfig.ios?.backgroundColor).toBe(BRAND_COLORS.inkDeep);
-    // Android is NOT given the same value: its window background is the page's
-    // own paper in light and ink in dark (PR #1599, android/app/src/main/res),
-    // and a WebView field of a third colour would fight it.
-    expect(capacitorConfig.android?.backgroundColor).toBeUndefined();
+    // ANDROID HAS THE SAME HOLE, AND THE WINDOW BACKGROUND DOES NOT FILL IT.
+    // That background (android/app/src/main/res/values*/colors.xml) paints the
+    // BANDS an older WebView is inset by, not the WebView's own rectangle, and
+    // the rectangle defaults to white. Measured on the API 36 emulator against
+    // a local production build on 7 September 2026: the paper bands sat under
+    // the clock and over the gesture pill exactly as PR #1599 intended, and
+    // between them the whole WebView was pure #FFFFFF at 1649ms
+    // (docs/proof/mobile-shells-refresh/).
+    //
+    // So both platforms take the launch field, from the one constant, and both
+    // shells open on ONE colour: the ink the Android system splash already uses
+    // (values/styles.xml windowSplashScreenBackground is colorPrimaryDark) and
+    // the ink iOS launches on.
+    expect(capacitorConfig.android?.backgroundColor).toBe(BRAND_COLORS.inkDeep);
+    expect(rootFile("android/app/src/main/res/values/colors.xml")).toContain(
+      `<color name="colorPrimaryDark">${BRAND_COLORS.inkDeep}</color>`,
+    );
     expect(capacitorConfig.backgroundColor).toBeUndefined();
 
     const launchField = rootFile(
@@ -478,9 +491,13 @@ describe("Capacitor wrapped-build contract", () => {
       "scripts/android/run.mjs",
     ]) {
       const source = rootFile(script);
-      // The origin is read from the config seam, never retyped as a literal.
       expect(source).not.toContain("The shell loads https://pubmaxxing.com");
-      expect(source).toContain("nativeServerUrl");
+      // The origin is read back out of the config `npx cap sync` GENERATED for
+      // this platform, which is the artefact the built app actually carries.
+      // A second copy of the fallback constant here would be one more place
+      // for the shipped origin to drift from what the operator is told.
+      expect(source).toContain("capacitor.config.json");
+      expect(source).toContain("syncedServerUrl");
     }
   });
 
