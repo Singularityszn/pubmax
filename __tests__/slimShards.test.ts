@@ -138,6 +138,20 @@ describe("parseShardManifest", () => {
     ).toBe(1);
   });
 
+  it.each([
+    { partition: "borough" },
+    { partition: "kind", borough: "Greenwich" },
+    { partition: "grid", borough: "Greenwich" },
+  ])("rejects the whole manifest for incompatible shard fields: %j", (fields) => {
+    expect(parseShardManifest({
+      ...MANIFEST,
+      shards: [
+        MANIFEST.shards[0],
+        { ...MANIFEST.shards[0], ...fields },
+      ],
+    })).toBeNull();
+  });
+
   it("requires matching deployment revision when one is supplied", () => {
     const current = { ...MANIFEST, revision: "deploy-42" };
     expect(parseShardManifest(current, 2, "deploy-42")?.revision).toBe("deploy-42");

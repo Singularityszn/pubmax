@@ -86,6 +86,36 @@ function isGrid(value: unknown): value is ShardManifest["grid"] {
   );
 }
 
+function parseShardEntry(value: unknown): ShardEntry | null {
+  if (typeof value !== "object" || value === null) return null;
+  const entry = value as Record<string, unknown>;
+  if (typeof entry.id !== "string" || !entry.id) return null;
+  if (typeof entry.url !== "string" || !entry.url) return null;
+  if (typeof entry.count !== "number") return null;
+  if (typeof entry.core !== "boolean") return null;
+  if (!isBbox(entry.bbox)) return null;
+  if (
+    entry.partition !== undefined &&
+    entry.partition !== "borough" &&
+    entry.partition !== "kind" &&
+    entry.partition !== "grid"
+  ) {
+    return null;
+  }
+  if (entry.partition === "borough" && typeof entry.borough !== "string") return null;
+  if (entry.partition === "kind" && entry.borough !== undefined) return null;
+  if (entry.partition === "grid" && entry.borough !== undefined) return null;
+  return {
+    id: entry.id,
+    core: entry.core,
+    url: entry.url,
+    count: entry.count,
+    bbox: entry.bbox,
+    ...(entry.partition !== undefined ? { partition: entry.partition } : {}),
+    ...(typeof entry.borough === "string" ? { borough: entry.borough } : {}),
+  };
+}
+
 /** Parse an unknown payload into a ShardManifest, or null if malformed. */
 export function parseShardManifest(
   value: unknown,
@@ -113,35 +143,9 @@ export function parseShardManifest(
   if (!Array.isArray(obj.shards)) return null;
   const shards: ShardEntry[] = [];
   for (const raw of obj.shards) {
-    if (typeof raw !== "object" || raw === null) return null;
-    const s = raw as Record<string, unknown>;
-    if (typeof s.id !== "string" || !s.id) return null;
-    if (typeof s.url !== "string" || !s.url) return null;
-    if (typeof s.count !== "number") return null;
-    if (typeof s.core !== "boolean") return null;
-    if (!isBbox(s.bbox)) return null;
-    if (
-      s.partition !== undefined &&
-      s.partition !== "borough" &&
-      s.partition !== "kind" &&
-      s.partition !== "grid"
-    ) {
-      return null;
-    }
-    if (s.partition === "borough" && typeof s.borough !== "string") return null;
-    if (s.partition === "kind" && s.borough !== undefined) return null;
-    if (s.partition === "grid" && s.borough !== undefined) return null;
-    shards.push({
-      id: s.id,
-      core: s.core,
-      url: s.url,
-      count: s.count,
-      bbox: s.bbox,
-      ...(s.partition !== undefined
-        ? { partition: s.partition as "borough" | "kind" }
-        : {}),
-      ...(typeof s.borough === "string" ? { borough: s.borough } : {}),
-    });
+    const entry = parseShardEntry(raw);
+    if (!entry) return null;
+    shards.push(entry);
   }
   if (obj.grid !== undefined && !isGrid(obj.grid)) return null;
   return {
