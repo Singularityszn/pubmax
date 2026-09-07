@@ -26,6 +26,13 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 describe("a plan we could not read has not closed", () => {
   const store = read("lib/planStore.ts");
   const page = read("app/plan/[id]/page.tsx");
+  // ONE surface for the whole segment: the plan page, the recap page and both
+  // sets of metadata word this outcome the same way rather than each deciding
+  // again, which is how the recap was left behind when #1594 fixed the page.
+  const surface = read("components/plan/PlanReadUnavailable.tsx");
+  const recapPage = read("app/plan/[id]/recap/page.tsx");
+  const recapView = read("lib/planRecapView.server.ts");
+  const recapRoute = read("app/api/plans/[id]/recap/route.ts");
 
   it("gives the store read three answers rather than two", () => {
     expect(store).toContain('export type PlanReadResult =');
@@ -53,12 +60,58 @@ describe("a plan we could not read has not closed", () => {
     expect(unavailable).toBeGreaterThan(-1);
     expect(absent).toBeGreaterThan(unavailable);
     expect(page).toContain("PlanReadUnavailable");
+  });
+
+  it("says what happened and claims nothing about the plan itself", () => {
     // The surface says what happened, and its way onward is the same address.
-    expect(page).toContain("We could not load this plan");
-    expect(page).toContain("Try again");
+    expect(surface).toContain("We could not load this plan");
+    expect(surface).toContain("Try again");
     // Never the not-found sentence, which is about a link that expired.
-    const surface = page.slice(page.indexOf("function PlanReadUnavailable"));
-    expect(surface.slice(0, surface.indexOf("\n}"))).not.toContain("closed");
+    expect(surface).not.toContain("closed");
+    // AND NEVER A FACT ABOUT THE PLAN. The first cut opened "The plan is still
+    // there", one clause before the sentence saying we could not read it: a
+    // claim about a plan the store had just failed to read, which is the very
+    // defect this file exists to refuse.
+    expect(surface).not.toContain("The plan is still there");
+    expect(surface).toContain("could not answer just now");
+  });
+
+  it("gives the recap page the same three answers as the plan page", () => {
+    // /plan/[id]/recap sits inside the same segment, so it inherits the same
+    // not-found copy: `get` collapsed absent and unavailable into one null and
+    // the recap rendered the expired-link surface over a live plan the crew
+    // was standing in.
+    for (const source of [recapPage, recapView, recapRoute]) {
+      expect(source).not.toContain("planStore().get(");
+    }
+    const unavailable = recapPage.indexOf('read.status === "unavailable"');
+    const absent = recapPage.indexOf('read.status === "absent"');
+    expect(unavailable).toBeGreaterThan(-1);
+    expect(absent).toBeGreaterThan(unavailable);
+    expect(recapPage).toContain("PlanReadUnavailable");
+    // The retry lands on the reader's own address, not the plan's.
+    expect(recapPage).toContain("/recap`");
+  });
+
+  it("makes the recap read three-way at the API too, and 503 rather than 404", () => {
+    expect(recapView).toContain("export type RecapAssemblyResult");
+    expect(recapView).toContain('| { status: "unavailable" }');
+    expect(recapRoute).toContain("PLAN_STORE_UNAVAILABLE");
+    expect(recapRoute).toContain("503");
+    // Each read answers its unavailable case BEFORE its absent one, or the 404
+    // keeps swallowing it. Measured from the read itself, because the handler's
+    // first PLAN_NOT_FOUND is the id-shape guard and runs before any read.
+    const afterRead = recapRoute.slice(recapRoute.indexOf("planStore().read(id)"));
+    const unavailable = afterRead.indexOf('read.status === "unavailable"');
+    const absent = afterRead.indexOf('read.status === "absent"');
+    expect(unavailable).toBeGreaterThan(-1);
+    expect(absent).toBeGreaterThan(unavailable);
+
+    const afterAssembly = recapRoute.slice(recapRoute.indexOf("assembleMemberRecap(id)"));
+    const assemblyUnavailable = afterAssembly.indexOf('assembled.status === "unavailable"');
+    const assemblyAbsent = afterAssembly.indexOf('assembled.status === "absent"');
+    expect(assemblyUnavailable).toBeGreaterThan(-1);
+    expect(assemblyAbsent).toBeGreaterThan(assemblyUnavailable);
   });
 
   it("does not let the unfurl call it a plan that was never here", () => {
