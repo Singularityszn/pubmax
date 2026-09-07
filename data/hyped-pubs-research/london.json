@@ -118,6 +118,12 @@
     "whyLine": "Recent Soho posts recommend its pub atmosphere and Guinness.",
     "sources": [
       {
+        "label": "TikTok amiet",
+        "url": "https://www.tiktok.com/@amiet/video/7680115217233202465",
+        "publishedAt": "2026-08-31",
+        "observedAt": "2026-09-07"
+      },
+      {
         "label": "TikTok _happihour",
         "url": "https://www.tiktok.com/@_happihour/video/7682180308325649678",
         "publishedAt": "2026-09-05",
@@ -127,12 +133,6 @@
         "label": "r/LondonFood",
         "url": "https://www.reddit.com/r/LondonFood/comments/1w60g1o/comment/p7j9xuw/",
         "publishedAt": "2026-09-03",
-        "observedAt": "2026-09-07"
-      },
-      {
-        "label": "TikTok amiet",
-        "url": "https://www.tiktok.com/@amiet/video/7680115217233202465",
-        "publishedAt": "2026-08-31",
         "observedAt": "2026-09-07"
       },
       {
@@ -160,7 +160,7 @@
   {
     "name": "Ye Olde Mitre",
     "area": "Holborn",
-    "venueId": null,
+    "venueId": "venue-lkjwk4",
     "whyLine": "A recent Guinness review recommends this Holborn pub, while preferring Sheephaven Bay for a quieter pint.",
     "sources": [
       {
@@ -300,6 +300,40 @@
     "mentions": 4
   },
   {
+    "name": "The Seven Stars",
+    "area": "Holborn",
+    "venueId": "venue-11n82fd",
+    "whyLine": "A visitor reports choosing this Holborn pub after reading another drinker's recommendation.",
+    "sources": [
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vpzdcu/comment/p4nw1aq/",
+        "publishedAt": "2026-08-19",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "TikTok thegreedydick",
+        "url": "https://www.tiktok.com/@thegreedydick/video/7674607046716574998",
+        "publishedAt": "2026-08-16",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vpzdcu/my_favourite_pub_in_central_london/",
+        "publishedAt": "2026-08-16",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vpzdcu/comment/p41ko9m/",
+        "publishedAt": "2026-08-16",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 44,
+    "mentions": 4
+  },
+  {
     "name": "Hope and Anchor",
     "area": "Brixton",
     "venueId": null,
@@ -334,50 +368,10 @@
         "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vytwmq/comment/p5zpykq/",
         "publishedAt": "2026-08-26",
         "observedAt": "2026-09-07"
-      },
-      {
-        "label": "r/LondonSocialClub",
-        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vytwmq/comment/p61pmvm/",
-        "publishedAt": "2026-08-26",
-        "observedAt": "2026-09-07"
       }
     ],
-    "score": 47,
-    "mentions": 6
-  },
-  {
-    "name": "The Seven Stars",
-    "area": "Holborn",
-    "venueId": "venue-11n82fd",
-    "whyLine": "Visitors recommend this Holborn pub and report returning after reading another drinker’s recommendation.",
-    "sources": [
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1vpzdcu/comment/p4nw1aq/",
-        "publishedAt": "2026-08-19",
-        "observedAt": "2026-09-07"
-      },
-      {
-        "label": "TikTok thegreedydick",
-        "url": "https://www.tiktok.com/@thegreedydick/video/7674607046716574998",
-        "publishedAt": "2026-08-16",
-        "observedAt": "2026-09-07"
-      },
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1vpzdcu/my_favourite_pub_in_central_london/",
-        "publishedAt": "2026-08-16",
-        "observedAt": "2026-09-07"
-      },
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1vpzdcu/comment/p41ko9m/",
-        "publishedAt": "2026-08-16",
-        "observedAt": "2026-09-07"
-      }
-    ],
-    "score": 44,
-    "mentions": 4
+    "score": 42,
+    "mentions": 5
   },
   {
     "name": "The Prospect of Whitby",
@@ -473,7 +467,7 @@
     "name": "Princess Louise",
     "area": "Holborn",
     "venueId": "venue-4xlgb0",
-    "whyLine": "Recent posts highlight the Holborn pub’s Victorian interior and folk-music history.",
+    "whyLine": "A recent Holborn pub list highlights its Victorian interior.",
     "sources": [
       {
         "label": "TikTok louie.travels",
@@ -749,7 +743,7 @@
     "name": "The Roebuck",
     "area": "Richmond",
     "venueId": null,
-    "whyLine": "Drinkers recommend this Richmond pub alongside walks and other riverside stops.",
+    "whyLine": "Drinkers recommend this Richmond pub in a recent London pub discussion.",
     "sources": [
       {
         "label": "r/LondonFood",
@@ -771,7 +765,7 @@
     "name": "Effra Social",
     "area": "Brixton",
     "venueId": "venue-1jy17e7",
-    "whyLine": "An August group invitation brought new London drinkers together at this Brixton venue.",
+    "whyLine": "An August invitation asked new London drinkers to join a group at this Brixton venue.",
     "sources": [
       {
         "label": "r/LondonSocialClub",

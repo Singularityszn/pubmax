@@ -60,6 +60,31 @@ describe("hyped pubs ingest", () => {
     expect(report.published).toBe(1);
   });
 
+  it.each(["Hackney", "Unknown area"])("refuses a sole name match outside %s", (area) => {
+    const { file, report } = buildHypedPubsFile([row({ area })], VENUES, NOW);
+    expect(file.rows[0].venueId).toBeNull();
+    expect(report.matched).toBe(0);
+    expect(report.published).toBe(1);
+  });
+
+  it("keeps verified ids when the research uses a neighbourhood or name alias", () => {
+    const { file } = buildHypedPubsFile(
+      [row({ name: "Dover Castle pub", area: "Fitzrovia", venueId: "venue-dover" })],
+      VENUES,
+      NOW,
+    );
+    expect(file.rows[0].venueId).toBe("venue-dover");
+  });
+
+  it("normalises name punctuation and area case without guessing another area", () => {
+    const { file } = buildHypedPubsFile(
+      [row({ name: "J.J. Moon’s", area: "  BRENT " })],
+      [{ id: "venue-moons", name: "The J J Moons", borough: "Brent" }],
+      NOW,
+    );
+    expect(file.rows[0].venueId).toBe("venue-moons");
+  });
+
   it("keeps a pub whose stated venue id no curated venue answers to, unmatched", () => {
     // The scout's 7 September file stated twelve `venue-uk-*` ids, which name
     // rows in the UK BASE layer rather than the curated index the map opens by
