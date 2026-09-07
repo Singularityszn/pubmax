@@ -1115,7 +1115,7 @@
 .profilePage .profileEditingSurface > h2 {
   margin: 0;
   font-size: 1.2rem;
-  color: var(--brass-bright, var(--brass));
+  color: var(--ink);
 }
 
 .profilePage .profileSavedNotice {
