@@ -386,3 +386,35 @@ describe("native first-run consent placement", () => {
     expect(actions.get("bottom")).toBe("0");
   });
 });
+
+describe("the first-run surface stands the compose control down", () => {
+  it("carries the marker every page with no use for compose carries", () => {
+    // COMPOSE APPEARED ON THE ONE SCREEN THAT HAS NO PRICE TO ADD, and it
+    // clipped a card while it was there: on the iPhone 17 Pro simulator against
+    // a local production build on 7 September 2026 the round + sat over the
+    // Victoria row and cut "PUBMAXX reviewed" to "PUBMAXX revi"
+    // (docs/proof/mobile-shells-refresh/).
+    //
+    // It was invisible until now only because the analytics consent card was
+    // standing compose down for it (components/nav/createFab.css) — two defects
+    // masking each other, so removing the card from the first screen uncovered
+    // this one. The surface has to say for itself that it has no use for
+    // compose, which is the marker that file documents.
+    for (const file of [
+      "components/onboarding/FirstRunOnboarding.tsx",
+      "components/onboarding/FirstRunOnboardingGate.tsx",
+    ]) {
+      const source = read(file);
+      const main = source.match(/className="firstRunOnboarding[^"]*"/);
+      expect(main, `${file} renders the first-run surface`).not.toBeNull();
+      expect(main![0], `${file} stands compose down`).toContain("pageHidesCreateFab");
+    }
+  });
+
+  it("is the same marker components/nav/createFab.css acts on", () => {
+    // A marker only one side knows about is a class name, not a contract.
+    expect(read("components/nav/createFab.css")).toContain(
+      "body:has(.pageHidesCreateFab) .createFabRoot",
+    );
+  });
+});

@@ -8,7 +8,16 @@ import { getCity, parseCityId, type CityId } from "@/lib/cities";
 import { cityAwareMapPath, cityMapShareUrl } from "@/lib/cityMapHref";
 import { safeLocalStorage } from "@/lib/safeStorage";
 
-const STORAGE_KEY = "pubmax:preferredCity:v1";
+/**
+ * The stored preferred-city slot. Exported because the entry block in
+ * public/theme-init.js
+ * reads whether it is PRESENT before React exists: the native first-run gate
+ * needs `readPreferredCity()` to answer null, and with no value at all that
+ * answer is null under every possible enabled-city table. The static file never
+ * reads the contents, so it forks no table.
+ */
+export const PREFERRED_CITY_KEY = "pubmax:preferredCity:v1";
+const STORAGE_KEY = PREFERRED_CITY_KEY;
 /** Same-tab notify so useSyncExternalStore clients re-read after a write. */
 const CHANGE_EVENT = "pubmax:preferred-city";
 

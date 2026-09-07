@@ -29,6 +29,11 @@ import { requireAndroidToolchain, requireSdkTool } from "./toolchain.mjs";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const apkPath = path.join(repoRoot, "android/app/build/outputs/apk/debug/app-debug.apk");
 const APPLICATION_ID = "com.pubmaxx.app";
+/** The config `npx cap sync android` writes into the app's assets. */
+const SYNCED_CONFIG = path.join(
+  repoRoot,
+  "android/app/src/main/assets/capacitor.config.json",
+);
 const LAUNCH_COMPONENT = `${APPLICATION_ID}/.MainActivity`;
 const FOCUSED_WINDOW_MARKER = `${APPLICATION_ID}/${APPLICATION_ID}.MainActivity`;
 
@@ -39,7 +44,7 @@ const MAX_RELAUNCHES = 6;
 
 // How long to let the screen settle once our activity holds the window. Two
 // things are still moving at that moment and both are slow under software
-// rendering: the WebView is fetching https://pubmaxxing.com over the network,
+// rendering: the WebView is fetching the remote origin over the network,
 // and SystemUI has not finished applying the status-bar icon appearance the
 // SystemBars plugin asked for. A shot taken at ten seconds caught white icons
 // over the light page and looked like a contrast bug in the app; the same
@@ -57,6 +62,23 @@ const screenshotPath = path.resolve(
 );
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * The origin the installed app will actually load, read back out of the config
+ * `npx cap sync` generated for this platform. That file is the artefact the
+ * APK carries, so it cannot disagree with what the shell does. Both run scripts
+ * used to name the production origin whatever `PUBMAX_NATIVE_SERVER_URL` was
+ * set to, which told an operator reviewing a checkout that he was looking at
+ * what had shipped (docs/CAPACITOR_WRAP.md).
+ */
+function syncedServerUrl(configPath) {
+  try {
+    return JSON.parse(readFileSync(configPath, "utf8")).server?.url ?? "an unset origin";
+  } catch {
+    return "an origin this script could not read";
+  }
+}
+
 
 function adbOut(toolchain, args) {
   const result = spawnSync(toolchain.adb, args, { encoding: "utf8", env: toolchain.env });
@@ -220,8 +242,9 @@ async function main() {
   capture(toolchain, serial);
 
   console.log(
-    `\n[pubmaxx] ${APPLICATION_ID} is running on ${serial}. ` +
-      `Stop the emulator with \`adb -s ${serial} emu kill\`.`,
+    `\n[pubmaxx] ${APPLICATION_ID} is running on ${serial}.\n` +
+      `[pubmaxx] It loads ${syncedServerUrl(SYNCED_CONFIG)}.\n` +
+      `[pubmaxx] Stop the emulator with \`adb -s ${serial} emu kill\`.`,
   );
 }
 

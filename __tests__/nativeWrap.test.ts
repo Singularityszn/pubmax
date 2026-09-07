@@ -14,6 +14,7 @@ const rootFile = (path: string) => readFileSync(join(process.cwd(), path), "utf8
 
 const ANDROID_RES = join(process.cwd(), "android/app/src/main/res");
 
+
 /** Every XML resource under android/app/src/main/res, path relative to it. */
 function androidResourceXml(dir = ANDROID_RES, prefix = ""): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -47,6 +48,36 @@ describe("Capacitor wrapped-build contract", () => {
     expect(offline).toContain("prefers-color-scheme: dark");
     expect(offline).toContain("env(safe-area-inset-top, 0px)");
     expect(offline).toContain("https://pubmaxxing.com");
+  });
+
+  it("carries the launch field behind the WebView, so no white frame stands between them", () => {
+    // WKWebView draws UIColor.systemBackground — WHITE in light appearance —
+    // until the page paints, and Capacitor holds it non-opaque for the whole
+    // initial load (WebViewDelegationHandler). Measured on the iPhone 17 Pro
+    // simulator against a local production build on 7 September 2026: the ink
+    // launch screen ended at 1601ms, the screen was PURE white (one colour over
+    // the whole frame) from 2140ms to 4507ms, and content arrived at 5550ms.
+    // Three fields in five seconds, the middle one belonging to no design.
+    //
+    // The field is the launch screen's own, read from the same constant
+    // scripts/gen-native-app-icons.mjs cuts LaunchBackground.colorset from, so
+    // the two cannot drift and the app opens on ONE colour.
+    expect(capacitorConfig.ios?.backgroundColor).toBe(BRAND_COLORS.inkDeep);
+    // ANDROID STILL HAS A WHITE FRAME AND THIS IS NOT ITS REMEDY. Two were
+    // measured out on the API 36 emulator on 7 September 2026 and both are
+    // written down in capacitor.config.ts so the next pass does not spend them
+    // again. This fence holds the config to the one that is proven, and holds
+    // Android to NOT carrying a setting that was proven to do nothing.
+    expect(capacitorConfig.android?.backgroundColor).toBeUndefined();
+    expect(capacitorConfig.backgroundColor).toBeUndefined();
+
+    const launchField = rootFile(
+      "ios/App/App/Assets.xcassets/LaunchBackground.colorset/Contents.json",
+    );
+    const hex = BRAND_COLORS.inkDeep.replace("#", "").toUpperCase();
+    expect(launchField).toContain(`"red": "0x${hex.slice(0, 2)}"`);
+    expect(launchField).toContain(`"green": "0x${hex.slice(2, 4)}"`);
+    expect(launchField).toContain(`"blue": "0x${hex.slice(4, 6)}"`);
   });
 
   it("takes a local origin only from the review variable, and never ships one", () => {
@@ -436,6 +467,42 @@ describe("Capacitor wrapped-build contract", () => {
     // that raises the OS dialog, and only after a kept action.
     const manifest = rootFile("android/app/src/main/AndroidManifest.xml");
     expect(manifest).toContain('android.permission.POST_NOTIFICATIONS');
+  });
+
+  it("labels the offline retry the way every other control in the app is labelled", () => {
+    // ONE CONTROL IN THE WHOLE SHELL ENDED ITS LABEL IN A FULL STOP. The app's
+    // own retries are "Retry" and "Try again"; the bundled offline page said
+    // "Try again.". Seen on the API 36 emulator in airplane mode on
+    // 7 September 2026 (docs/proof/mobile-shells-refresh/). Sentences take a
+    // full stop here and labels do not, and the outage page is the one screen a
+    // reader meets with nothing else of ours on it to compare against.
+    const offline = rootFile("native/web-stub/offline.html");
+    expect(offline).toContain(">Try again<");
+    expect(offline).not.toContain(">Try again.<");
+    // The heading beside it is a sentence and keeps its full stop.
+    expect(offline).toContain("<h1>Nothing to show yet.</h1>");
+  });
+
+  it("names the origin the rig actually loaded, not the one it usually loads", () => {
+    // THE LINE THAT TOLD THE OPERATOR HE WAS LOOKING AT PRODUCTION.
+    // `PUBMAX_NATIVE_SERVER_URL` points a rig at a local build, and both run
+    // scripts still printed the production origin at the end of a launch. An
+    // operator reading that line believes a checkout under review is what has
+    // shipped, which is the exact confusion this pass was opened to clear: the
+    // captain reported "still the old version" while looking at a stale build.
+    for (const script of [
+      "scripts/ios-simulator.mjs",
+      "scripts/android/run.mjs",
+    ]) {
+      const source = rootFile(script);
+      expect(source).not.toContain("The shell loads https://pubmaxxing.com");
+      // The origin is read back out of the config `npx cap sync` GENERATED for
+      // this platform, which is the artefact the built app actually carries.
+      // A second copy of the fallback constant here would be one more place
+      // for the shipped origin to drift from what the operator is told.
+      expect(source).toContain("capacitor.config.json");
+      expect(source).toContain("syncedServerUrl");
+    }
   });
 
   it("keeps store identity, Android toolchain, and location answers truthful", () => {

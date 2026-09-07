@@ -299,7 +299,11 @@ export default async function RootLayout({
           crossOrigin="anonymous"
         />
         <link rel="dns-prefetch" href="https://tiles.openfreemap.org" />
-        {/* Set theme before paint to avoid a flash of the wrong theme. Served
+        {/* The pre-paint decisions, in one render-blocking file: the native
+            shell's entry route first, then the theme, so neither the shell nor
+            the page ever paints something it is about to replace. One file
+            because one request - a second pre-paint script cost every web
+            route a fetch for a decision only the shell uses. Served
             as a static file (public/theme-init.js) rather than inline so it is
             covered by CSP `script-src 'self'` with no per-build hash. It is a
             render-blocking classic script in <head> (NO async/defer on purpose)
