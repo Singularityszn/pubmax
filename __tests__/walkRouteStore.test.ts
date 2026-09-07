@@ -69,6 +69,7 @@ vi.mock("@/lib/supabase", () => {
   return {
     requireSupabaseAdmin: () => ({ from: () => makeQuery() }),
     isSupabaseConfigured: () => true,
+    requiresSupabaseStore: () => false,
   };
 });
 
@@ -82,6 +83,27 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+});
+
+describe.each([
+  ["memory", memoryWalkRouteStore],
+  ["Supabase", supabaseWalkRouteStore],
+] as const)("%s cached coordinate contract", (_name, store) => {
+  it.each<{ name: string; coordinates: LngLat[] }>([
+    { name: "empty", coordinates: [] },
+    { name: "one point", coordinates: [GEOM[0]] },
+    { name: "one valid point", coordinates: [GEOM[0], [181, 51], [0, 91]] },
+    { name: "no valid points", coordinates: [[181, 51], [0, -91]] },
+  ])("reads $name geometry as a cache miss", async ({ coordinates }) => {
+    await store.putLeg(KEY, GEOM);
+    await expect(store.putLeg(KEY, coordinates)).resolves.toBeUndefined();
+    expect(await store.getLeg(KEY)).toBeNull();
+  });
+
+  it("removes invalid points when at least two valid points remain", async () => {
+    await store.putLeg(KEY, [GEOM[0], [181, 51], GEOM[1], [0, 91], GEOM[2]]);
+    expect(await store.getLeg(KEY)).toEqual(GEOM);
+  });
 });
 
 describe("memoryWalkRouteStore", () => {
