@@ -53,6 +53,16 @@ function httpUrl(value: unknown): string | null {
   }
 }
 
+function parseWeatherEvidenceSource(value: unknown): WeatherEvidenceSource | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  const sourceUrl = httpUrl(row.sourceUrl);
+  const publisher = text(row.publisher, 160);
+  const publishedAt = iso(row.publishedAt);
+  if (!sourceUrl || !publisher || !publishedAt) return null;
+  return { sourceUrl, publisher, publishedAt };
+}
+
 export function validateWeatherObservation(value: unknown): NightAreaWeatherObservation | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
@@ -74,15 +84,10 @@ export function validateWeatherObservation(value: unknown): NightAreaWeatherObse
     : typeof row.windKph === "number" && Number.isFinite(row.windKph) && row.windKph >= 0 && row.windKph <= 300
       ? row.windKph
       : undefined;
-  const sourceRow = row.source && typeof row.source === "object" && !Array.isArray(row.source)
-    ? row.source as Record<string, unknown>
-    : null;
-  const sourceUrl = httpUrl(sourceRow?.sourceUrl);
-  const publisher = text(sourceRow?.publisher, 160);
-  const publishedAt = iso(sourceRow?.publishedAt);
+  const source = parseWeatherEvidenceSource(row.source);
   if (!nightArea || !observedAt || !expiresAt || !condition || feelsLikeC === null
-    || precipitationProbabilityPct === null || windKph === undefined || !sourceUrl || !publisher || !publishedAt) return null;
-  if (Date.parse(expiresAt) <= Date.parse(observedAt) || Date.parse(publishedAt) > Date.parse(observedAt)) return null;
+    || precipitationProbabilityPct === null || windKph === undefined || !source) return null;
+  if (Date.parse(expiresAt) <= Date.parse(observedAt) || Date.parse(source.publishedAt) > Date.parse(observedAt)) return null;
   return {
     nightArea,
     observedAt,
@@ -91,7 +96,7 @@ export function validateWeatherObservation(value: unknown): NightAreaWeatherObse
     feelsLikeC,
     precipitationProbabilityPct,
     windKph,
-    source: { sourceUrl, publisher, publishedAt },
+    source,
   };
 }
 

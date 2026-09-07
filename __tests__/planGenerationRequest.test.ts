@@ -71,6 +71,34 @@ describe("parsePlanGenerationRequest", () => {
     });
   });
 
+  it.each([
+    {},
+    { groupSize: null, budgetLimitPence: null },
+    { groupSize: 1, budgetLimitPence: 500 },
+    { groupSize: 30, budgetLimitPence: 50_000 },
+  ])("preserves omitted, null, and boundary context integers: %j", async (context) => {
+    const result = await parsePlanGenerationRequest(request({ context }), NOW);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.context).toEqual(context);
+  });
+
+  it.each([
+    { groupSize: 31 },
+    { groupSize: 1.5 },
+    { groupSize: "1" },
+    { budgetLimitPence: 499 },
+    { budgetLimitPence: 50_001 },
+    { budgetLimitPence: 500.5 },
+    { budgetLimitPence: "500" },
+  ])("rejects invalid context integers without coercion: %j", async (context) => {
+    expect(await parsePlanGenerationRequest(request({ context }), NOW)).toEqual({
+      ok: false,
+      code: "MALFORMED_REQUEST",
+      message: "Night Context is invalid.",
+      status: 400,
+    });
+  });
+
   it("allowlists a requested three-to-six stop count", async () => {
     const result = await parsePlanGenerationRequest(
       request({ query: "Camden", context: { stopCount: 6 } }),
