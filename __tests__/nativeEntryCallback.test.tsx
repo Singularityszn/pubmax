@@ -59,4 +59,62 @@ describe.each([false, true])("native callback, previously routed=%s", (routed) =
     await establishAuthCallbackSession({ setSession }, callback!.tokens!);
     expect(setSession).toHaveBeenCalledWith({ access_token: "synthetic-access", refresh_token: "synthetic-refresh" });
   });
+
+  it.each(["script", "React"])("%s preserves a marked provider error", async (path) => {
+    if (routed) localStorage.setItem(routedKey, "1");
+    const search = "?_authCallback=1&authError=1";
+    window.history.replaceState(null, "", "/" + search);
+    if (path === "script") {
+      new Function("window", source)({
+        Capacitor: { isNativePlatform: () => true },
+        location: { pathname: "/", hash: "", search, replace },
+        localStorage,
+        sessionStorage,
+      });
+    } else {
+      const container = document.createElement("div");
+      document.body.append(container);
+      root = createRoot(container);
+      await act(() => root!.render(createElement(AppEntryRoute)));
+    }
+    expect(replace).not.toHaveBeenCalled();
+    expect(sessionStorage.length).toBe(0);
+    expect(window.location.search).toBe(search);
+    expect(readAuthCallbackAttempt(window.location.href)?.providerError).toBe(true);
+  });
+
+  it("keeps ordinary React entry routing", async () => {
+    if (routed) localStorage.setItem(routedKey, "1");
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(() => root!.render(createElement(AppEntryRoute)));
+    expect(replace).toHaveBeenCalledWith(routed ? "/tonight" : "/onboarding");
+  });
+
+  it.each([
+    "#error=access_denied", "#error_code=otp_expired",
+    "#access_token=synthetic-access", "#refresh_token=synthetic-refresh",
+    "#access_token=&refresh_token=", "#%65rror=access_denied",
+  ])("keeps unmarked root response %s outside callback handling", async (hash) => {
+    if (routed) localStorage.setItem(routedKey, "1");
+    window.history.replaceState(null, "", "/" + hash);
+    new Function("window", source)({
+      Capacitor: { isNativePlatform: () => true },
+      location: { pathname: "/", hash, search: "", replace },
+      localStorage,
+      sessionStorage,
+    });
+    expect(replace).toHaveBeenCalledWith(routed ? "/tonight" : "/onboarding");
+    replace.mockClear();
+    sessionStorage.clear();
+    if (!routed) localStorage.removeItem(routedKey);
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(() => root!.render(createElement(AppEntryRoute)));
+    expect(replace).toHaveBeenCalledWith(routed ? "/tonight" : "/onboarding");
+    // Unmarked root errors remain outside callback validation's accepted scope.
+    expect(readAuthCallbackAttempt(window.location.href)).toBeNull();
+  });
 });

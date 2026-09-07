@@ -71,6 +71,15 @@
     // never rewritten.
     if (window.location.pathname !== "/") return;
 
+    // AuthProvider must consume root callbacks before any entry redirect.
+    // Supabase can clamp the callback destination to the site root.
+    var callbackHash = new URLSearchParams((window.location.hash || "").slice(1));
+    var callbackQuery = new URLSearchParams(window.location.search || "");
+    if (
+      callbackQuery.get("_authCallback") === "1" ||
+      (callbackHash.get("access_token") && callbackHash.get("refresh_token"))
+    ) return;
+
     var session = window.sessionStorage;
     var local = window.localStorage;
     if (!session || !local) return;
