@@ -25,6 +25,7 @@ import { callerUserId } from "@/lib/authServer";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
 import { normalizeHandle } from "@/lib/profiles";
 import { profileStore } from "@/lib/profileStore";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 export type OwnershipDecision =
   | { allowed: true; reason: "unlinked" | "owner" }
@@ -140,6 +141,13 @@ export async function gateHandleAction(
       }
     }
     const linkNewHandle = handleActionIntent(request.method) === "write";
+    if (linkNewHandle && !existing && !caller && isSupabaseConfigured()) {
+      return {
+        allowed: false,
+        status: 401,
+        error: "Sign in to create a profile.",
+      };
+    }
     if (
       existing &&
       !rowUserId &&

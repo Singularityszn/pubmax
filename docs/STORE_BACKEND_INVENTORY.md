@@ -192,6 +192,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/profileImageMedia.server.ts",
     "lib/profileImageRoute.server.ts",
     "lib/profileImageServe.server.ts",
+    "lib/profileOwnership.ts",
     "lib/profileStore.ts",
     "lib/pubPalStore.ts",
     "lib/pushTokenStore.ts",
