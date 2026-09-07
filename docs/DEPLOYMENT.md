@@ -313,7 +313,7 @@ When GitHub Actions runner allocation is fixed, the existing triggers should sta
 - `npm run validate-data`
 - `npm run lint`
 - `npm run typecheck`
-- `npm run coverage` (fails if coverage drops below the vitest.config.ts thresholds)
+- `npm run coverage` (fails if coverage drops below the vitest.config.mts thresholds)
 - `npm run build`
 
 The workflow supports `workflow_dispatch`, so it can be rerun manually from GitHub Actions after account/runners are fixed.

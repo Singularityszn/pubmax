@@ -75,7 +75,7 @@ function renderSheet(
 // NOTE ON WHAT IS *NOT* TESTED HERE. The `key={pub.id}` that resets the price
 // form when the selection moves straight from one base pub to another is
 // deliberately NOT asserted in this file. Vitest runs in a node environment
-// (vitest.config.ts) with no DOM, so the only thing reachable from here is the
+// (vitest.config.mts) with no DOM, so the only thing reachable from here is the
 // React element's key - a shape assertion that passes whether or not the form
 // actually clears. That test cannot fail for the reason it claims to guard.
 // The real A-to-B transition is driven through one mounted sheet in a real
