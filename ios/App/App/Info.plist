@@ -37,8 +37,20 @@
 	<string>PUBMAXXING uses your location while the app is open to find nearby pubs and calculate walk times.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>PUBMAXXING opens your photo library so you can choose a photo you have already taken.</string>
-	<key>UILaunchStoryboardName</key>
-	<string>LaunchScreen</string>
+	<!-- The launch screen is the Info.plist kind Apple has offered since iOS
+	     14, not a storyboard: the iOS 26 runtime drew LaunchScreen.storyboard
+	     as a plain black frame whatever it held, image or colour alike
+	     (docs/proof/mobile-app-design/ios-sim-iphone17pro/launch/). Both
+	     names below are asset-catalog entries scripts/gen-native-app-icons.mjs
+	     cuts from the one splash master, so the field and the mark cannot
+	     drift from every other splash. -->
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+		<key>UIImageName</key>
+		<string>LaunchMark</string>
+	</dict>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
 	<!-- Capacitor template leftover: `armv7` is a 32-bit capability, and iOS
@@ -55,17 +67,14 @@
 	     toolbar take roughly 55% of the height, and the phone sheet shell does
 	     not mount at all (sheetsEnabled, components/mobile/MobileMapShell.tsx),
 	     so tapping a pin behaves differently from portrait. Deleting a whole
-	     untested layout class is the honest fix. ~ipad below is untouched. -->
+	     untested layout class is the honest fix. There is no iPad orientation key because
+	     v1 is iPhone only (TARGETED_DEVICE_FAMILY = 1, firstmate decision of
+	     7 September 2026): iPad is a later release with its own layout pass and
+	     13-inch screenshots, and a universal binary would have made App Store
+	     Connect demand those and reviewers open the untested class. -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>

@@ -19,6 +19,8 @@
 import { useEffect } from "react";
 
 import { isNativeApp, nativePlatform } from "@/lib/nativePlatform";
+import { followNativeTextScale } from "@/lib/nativeTextScale";
+import { installNativeWebShareBridge } from "@/lib/nativeWebShareBridge";
 import "./nativeShell.css";
 
 /** The attribute components/native/nativeShell.css scopes every rule to. */
@@ -32,7 +34,17 @@ export default function NativeShellChrome(): null {
     // iOS and Android has somewhere to hang without a second attribute. The
     // stylesheet only matches on presence today.
     root.setAttribute(NATIVE_SHELL_ATTRIBUTE, nativePlatform() ?? "native");
-    return () => root.removeAttribute(NATIVE_SHELL_ATTRIBUTE);
+    // The Android WebView has no Web Share API; the shell supplies one over
+    // the OS picker so every `navigator.share` caller reaches it unchanged.
+    const releaseShare = installNativeWebShareBridge();
+    // The OS text size: applied on iOS, read on Android, published on <html>
+    // either way so the tab bar can change shape rather than overflow.
+    const releaseTextScale = followNativeTextScale();
+    return () => {
+      releaseTextScale();
+      releaseShare();
+      root.removeAttribute(NATIVE_SHELL_ATTRIBUTE);
+    };
   }, []);
 
   return null;

@@ -111,9 +111,18 @@ export type NativeReviewPromptDeps = {
   loadPlugin?: () => Promise<InAppReviewPlugin>;
 };
 
+// A CAPACITOR PLUGIN IS A PROXY, AND IT ANSWERS "then" WITH A NATIVE CALL.
+// registerPlugin() hands back a Proxy whose every property is a method on the
+// native side, so returning it from an async function makes the await look
+// for a thenable, call the native "InAppReview.then()", and reject with
+// '"InAppReview.then()" is not implemented' (measured on the Pixel 7 emulator through
+// the WebView's console: docs/proof/mobile-app-design/android-emu-pixel7/share/).
+// The loader hands back a plain object that closes over the plugin instead.
+// __tests__/capacitorPluginProxy.test.ts holds every loader to this with a
+// proxy shaped like the real one.
 async function loadInAppReviewPlugin(): Promise<InAppReviewPlugin> {
   const { InAppReview } = await import("@capacitor-community/in-app-review");
-  return InAppReview;
+  return { requestReview: () => InAppReview.requestReview() };
 }
 
 function readInt(key: string): number {

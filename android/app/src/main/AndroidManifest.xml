@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- PHONES ONLY FOR v1, the same decision as iOS's TARGETED_DEVICE_FAMILY = 1
+         (7 September 2026): above 640px the page crosses into the desktop
+         layout, which no rig in the shell has tested, so the Play listing is
+         filtered to phone screen sizes until a tablet release with its own
+         layout pass and 7- and 10-inch screenshots. This is the documented
+         Play filter; it takes the listing off tablets and large foldables and
+         nothing else. -->
+    <supports-screens
+        android:smallScreens="true"
+        android:normalScreens="true"
+        android:largeScreens="false"
+        android:xlargeScreens="false" />
+
     <!-- Declaring the CAMERA permission implicitly declares that the device
          MUST have a camera, and Play then hides the listing from every device
          without one. A pub map is worth having on a tablet with no camera, so

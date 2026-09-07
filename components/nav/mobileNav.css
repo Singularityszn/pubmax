@@ -406,6 +406,19 @@ body:has(.mobileMapUtilityCorner) {
     overflow: hidden;
   }
 
+  /* AT A LARGE OS TEXT SIZE THE BAR KEEPS ITS SHAPE AND DROPS ITS WORDS.
+     The Android WebView zooms every text node by the OS font scale and the
+     iOS shell asks WebKit for the same (lib/nativeTextScale.ts), so at 2.0x
+     six 11px labels become six 22px labels in a 64px bar: measured on the
+     Pixel 7, "Places" ran into "Out" and the bar grew over the consent card
+     (docs/proof/mobile-app-design/android-emu-pixel7/textscale/). A native
+     tab bar answers the same setting by showing its icons alone, and the
+     accessible name stays on the link, so this is what the shell does from
+     the scale lib/nativeTextScale.ts publishes on <html>. */
+  html[data-text-scale="large"] .mobileTabLabel {
+    display: none;
+  }
+
   /* Ellipsis needs a block-level text box: it does nothing on the flex
      container above, so the word carries its own. */
   .mobileTabLabelText {

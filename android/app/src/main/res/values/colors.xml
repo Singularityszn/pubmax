@@ -31,4 +31,13 @@
          __tests__/androidNotificationIcon.test.ts, so the two halves of one
          colour cannot drift a file apart. -->
     <color name="pubmaxx_notification_accent">#FF5A5F</color>
+    <!-- The window behind the WebView. On a WebView older than the version
+         Capacitor trusts to report safe areas (SystemBars.java,
+         WEBVIEW_VERSION_WITH_SAFE_AREA_FIX) the WebView is inset from the
+         system bars and this colour is the band under the clock; the theme's
+         own default painted it white over an off-white page, which read as a
+         browser's chrome. It is the page's paper token, with the dark paper in
+         values-night, so the band is the page whichever way the phone reads.
+         paper: the page paper token, the body remap in app/globals.css. -->
+    <color name="pubmaxx_window_background">#F8F2EC</color>
 </resources>

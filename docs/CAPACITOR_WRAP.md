@@ -100,6 +100,27 @@ Before sync, hash or copy intentional native files (`AppDelegate.swift`,
 afterward. The 2026-07-20 Gate Z refresh did this and sync preserved all four;
 see `docs/screenshots/WRAPPED_BUILD_GATE_Z_2026-07-20.md`.
 
+### Reviewing a local build in the shells
+
+The shell is a remote-URL wrap of production, so by default a simulator or an
+emulator shows what has shipped, not the checkout. To review a checkout, run a
+local production server and point ONE sync at it:
+
+```sh
+NEXT_DIST_DIR=.next-prod PUBMAX_E2E_KEYLESS=1 npm run build
+NEXT_DIST_DIR=.next-prod PUBMAX_E2E_KEYLESS=1 npm run start -- --port 3811
+PUBMAX_NATIVE_SERVER_URL=http://localhost:3811 npm run ios:run      # simulator: localhost is the Mac
+PUBMAX_NATIVE_SERVER_URL=http://10.0.2.2:3811 npm run android:run   # emulator: 10.0.2.2 is the host
+```
+
+`capacitor.config.ts` reads the variable at `npx cap sync` time alone and sets
+`cleartext` when the scheme is `http`, so the emulator can load it; both
+generated `capacitor.config.json` files are untracked, so nothing about a
+shipped binary changes and `__tests__/nativeWrap.test.ts` holds the unset case
+to `https://pubmaxxing.com`. Run a plain `npx cap sync` before building anything
+you intend to distribute. Proof captured this way says so in its README, because
+a shot of a local build is not a shot of production.
+
 ## Remaining manual steps (need Apple developer access)
 
 This section says WHY each step exists and what the code already does.

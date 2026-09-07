@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Android 12+ system splash icon. The OS masks windowSplashScreenAnimatedIcon
+     to a circle two thirds of the icon's width, and the adaptive foreground's
+     double-struck X (drawn to fill the launcher's own safe zone) reaches past
+     that circle at its four corners. This inset keeps the mark, generated from
+     the one geometry master into mipmap/ic_launcher_foreground, inside the
+     splash mask without a second drawing of it. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@mipmap/ic_launcher_foreground"
+    android:inset="14%" />

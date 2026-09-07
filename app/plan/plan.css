@@ -1012,7 +1012,11 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 
 @media (max-width: 760px) {
   .planPage {
-    padding-top: max(10px, env(safe-area-inset-top, 0px));
+    /* A FLAT top: SiteNav is this page's first child and the bar already adds
+       env(safe-area-inset-top) itself (components/nav/siteNav.css), so the
+       inset here was paid twice inside the native shells and the installed
+       PWA. __tests__/pageShellSafeAreaTop.test.ts holds every such shell. */
+    padding-top: 10px;
   }
   .planPage__grid { grid-template-columns: 1fr; }
   .planPage__side { order: -1; }

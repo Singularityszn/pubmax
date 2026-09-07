@@ -4,6 +4,7 @@
 
 import { isNativeApp } from "@/lib/nativePlatform";
 import { navigateNativeBrowser } from "@/lib/nativeNavigation";
+import { closeSystemBrowser, isOAuthCallbackPath } from "@/lib/nativeOAuth";
 
 const APP_ORIGIN = "https://pubmaxxing.com";
 
@@ -91,7 +92,12 @@ export async function activateNativeDeepLinks(
     const { App } = await import("@capacitor/app");
     const route = (rawUrl: string) => {
       const path = nativeDeepLinkPath(rawUrl);
-      if (path) navigate(path);
+      if (!path) return;
+      // The provider's redirect is the moment the system browser is done
+      // (lib/nativeOAuth.ts): close it before the WebView takes the callback,
+      // or iOS leaves the sign-in page presented over the signed-in app.
+      if (isOAuthCallbackPath(path)) void closeSystemBrowser();
+      navigate(path);
     };
 
     const listener = await App.addListener("appUrlOpen", ({ url }) => route(url));

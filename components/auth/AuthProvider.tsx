@@ -29,6 +29,7 @@ import ArrivalWelcome from "@/components/auth/ArrivalWelcome";
 import AccountOnboarding from "@/components/identity/AccountOnboarding";
 import IdentityNudge from "@/components/identity/IdentityNudge";
 import { markArrival, takeChosenIntent } from "@/lib/arrivalWelcome";
+import { oauthOpensInSystemBrowser, openOAuthInSystemBrowser } from "@/lib/nativeOAuth";
 import {
   accountComposerAuth,
   captureAccountAuth,
@@ -771,6 +772,26 @@ export function AuthProvider({
     };
   }, [configured, updateSession]);
 
+  // Inside the native shell the provider page opens in the system browser
+  // (lib/nativeOAuth.ts): Google refuses OAuth in an embedded web view, and the
+  // universal link /auth/callback brings the person back to this WebView. On
+  // the web supabase-js has already navigated by the time this runs.
+  const handOffToSystemBrowser = useCallback(
+    async (systemBrowser: boolean, url: string | null | undefined, attemptId: string) => {
+      if (!systemBrowser) return { error: null };
+      if (!url) {
+        releaseBrowserAuthAttempt(attemptId);
+        return { error: "Sign-in could not be started. Try again." };
+      }
+      const outcome = await openOAuthInSystemBrowser(url);
+      if (outcome === "opened") return { error: null };
+      // No system browser to hand to: take the web's own path.
+      window.location.assign(url);
+      return { error: null };
+    },
+    [],
+  );
+
   const startSupabaseGoogleOAuth = useCallback(async (next?: string): Promise<{ error: string | null }> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
     const attempt = await prepareAuthCallback(window.location.href, next);
@@ -784,17 +805,24 @@ export function AuthProvider({
     // origin is only read inside this handler (post-mount, browser-only), so it
     // is SSR-safe. redirectTo must be an allowed URL in Supabase Auth settings.
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const systemBrowser = oauthOpensInSystemBrowser();
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: attempt.callbackUrl },
+        options: {
+          redirectTo: attempt.callbackUrl,
+          ...(systemBrowser ? { skipBrowserRedirect: true } : {}),
+        },
       });
-      if (error) releaseBrowserAuthAttempt(attempt.id);
-      return { error: error ? error.message : null };
+      if (error) {
+        releaseBrowserAuthAttempt(attempt.id);
+        return { error: error.message };
+      }
+      return handOffToSystemBrowser(systemBrowser, data?.url, attempt.id);
     } catch {
       releaseBrowserAuthAttempt(attempt.id);
       return { error: "Sign-in could not be started. Try again." };
     }
-  }, []);
+  }, [handOffToSystemBrowser]);
 
   const startSupabaseAppleOAuth = useCallback(async (next?: string): Promise<{ error: string | null }> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
@@ -807,19 +835,24 @@ export function AuthProvider({
       return { error: "Sign-in is not configured." };
     }
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const systemBrowser = oauthOpensInSystemBrowser();
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "apple",
         options: {
           redirectTo: attempt.callbackUrl,
+          ...(systemBrowser ? { skipBrowserRedirect: true } : {}),
         },
       });
-      if (error) releaseBrowserAuthAttempt(attempt.id);
-      return { error: error ? error.message : null };
+      if (error) {
+        releaseBrowserAuthAttempt(attempt.id);
+        return { error: error.message };
+      }
+      return handOffToSystemBrowser(systemBrowser, data?.url, attempt.id);
     } catch {
       releaseBrowserAuthAttempt(attempt.id);
       return { error: "Sign-in could not be started. Try again." };
     }
-  }, []);
+  }, [handOffToSystemBrowser]);
 
   const signInWithGoogle = useCallback(async (next?: string): Promise<{ error: string | null }> => {
     const guarded = await guardSocialAuthProvider(

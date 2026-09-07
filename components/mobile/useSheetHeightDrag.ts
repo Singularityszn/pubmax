@@ -8,6 +8,7 @@ import {
   sheetSnapCaps,
   type SheetSnap,
 } from "@/lib/sheetSnap";
+import { isTextEntryElement } from "@/lib/softKeyboard";
 import { useSpringValue } from "@/lib/useSpringValue";
 
 // Drag gesture for the bottom-anchored portal sheet. Pointer travel controls
@@ -148,6 +149,48 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
   useEffect(() => () => {
     if (enteringTimer.current) clearTimeout(enteringTimer.current);
   }, []);
+
+  // THE VIEWPORT CAN SHRINK UNDER AN OPEN SHEET, AND THE SHEET FOLLOWS IT.
+  //
+  // The resting height is a px value (openAtSnap jumps to it, for the CLS
+  // reasons above) applied inline, so it outranks the `dvh` caps in the
+  // stylesheet and does not move when the layout viewport does. iOS Safari
+  // and Android Chrome never shrink the layout viewport for the keyboard, so
+  // the web never saw it. The Android WebView inside the Capacitor shell DOES:
+  // the OS resizes the WebView by the keyboard's height, `window.innerHeight`
+  // drops by about 235px on a Pixel 7, and a full sheet still 711px tall was
+  // pushed 237px above the top edge with its header and the field being typed
+  // into (docs/proof/mobile-app-design/android-emu-pixel7/composer/). A resize
+  // is nobody's gesture, so the height JUMPS to the new cap rather than
+  // springing, and the field that holds focus is brought back into its
+  // scroller the way the browser does for the document itself.
+  const sheetHeightRef = useRef(sheetHeight);
+  const sheetSnapRef = useRef(sheetSnap);
+  useEffect(() => {
+    sheetHeightRef.current = sheetHeight;
+    sheetSnapRef.current = sheetSnap;
+  }, [sheetHeight, sheetSnap]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onResize = () => {
+      if (dragRef.current?.active) return;
+      if (sheetHeightRef.current <= 0) return;
+      const cap = capsForViewport()[sheetSnapRef.current];
+      if (Math.abs(cap - sheetHeightRef.current) < 1) return;
+      stop();
+      jumpTo(cap);
+      const focused = document.activeElement;
+      if (focused && isTextEntryElement(focused)) {
+        window.requestAnimationFrame(() => {
+          if (document.activeElement === focused) {
+            focused.scrollIntoView({ block: "nearest" });
+          }
+        });
+      }
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [capsForViewport, jumpTo, stop]);
 
   const dismissWithVelocity = useCallback(
     (velocityPxPerMillisecond: number, presentedHeight?: number) => {
