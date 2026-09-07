@@ -1,4 +1,5 @@
 import { cheapestPints, type LeaderboardRowView } from "@/lib/leaderboard";
+import { PRICE_STANDINGS, type PriceStanding } from "@/lib/priceTier";
 import type { Venue } from "@/lib/venues";
 
 // The Discover board, cut from the bundled pint dataset at BUILD time.
@@ -65,6 +66,7 @@ export function discoverBoardFromVenues(
   const cheapest = cheapestPints(venues, limit).map((entry) => ({
     rank: entry.rank,
     area: entry.area,
+    standing: entry.standing,
     venue: {
       id: entry.venue.id,
       name: entry.venue.name,
@@ -87,6 +89,10 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+function isPriceStanding(value: unknown): value is PriceStanding {
+  return typeof value === "string" && (PRICE_STANDINGS as readonly string[]).includes(value);
+}
+
 function parseRow(raw: unknown): DiscoverBoardRow | null {
   if (!raw || typeof raw !== "object") return null;
   const row = raw as Record<string, unknown>;
@@ -97,9 +103,14 @@ function parseRow(raw: unknown): DiscoverBoardRow | null {
   if (typeof v.name !== "string") return null;
   if (!isFiniteNumber(v.cheapestPrice)) return null;
   if (!isFiniteNumber(row.rank)) return null;
+  // A row without a standing is DROPPED rather than defaulted: a default here
+  // would print a trust word nobody decided, which is the unlabelled board this
+  // field was added to end.
+  if (!isPriceStanding(row.standing)) return null;
   return {
     rank: row.rank,
     area: typeof row.area === "string" ? row.area : "",
+    standing: row.standing,
     venue: {
       id: v.id,
       name: v.name,

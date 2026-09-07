@@ -31,6 +31,12 @@ export type LeaderboardEntry = {
 export type LeaderboardRowView = {
   rank: number;
   area: string;
+  /**
+   * The trust label the row wears. Carried on the VIEW as well as the entry,
+   * because a build-time cut (lib/discoverBoard.ts) prints the same row and a
+   * figure without its standing is the unlabelled board the captain refused.
+   */
+  standing: PriceStanding;
   venue: Pick<Venue, "id" | "name" | "cheapestPint"> & { cheapestPrice: number };
 };
 

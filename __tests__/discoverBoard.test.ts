@@ -70,8 +70,13 @@ describe("parseDiscoverBoard", () => {
     const parsed = parseDiscoverBoard({
       observedAt: "2026-01-01T00:00:00.000Z",
       cheapest: [
-        { rank: 1, area: "Southwark", venue: { id: "a", name: "A", cheapestPint: "Lager", cheapestPrice: 4 } },
-        { rank: 2, area: "Camden", venue: { id: "b", name: "B", cheapestPrice: null } },
+        {
+          rank: 1,
+          area: "Southwark",
+          standing: "listed",
+          venue: { id: "a", name: "A", cheapestPint: "Lager", cheapestPrice: 4 },
+        },
+        { rank: 2, area: "Camden", standing: "listed", venue: { id: "b", name: "B", cheapestPrice: null } },
       ],
       baselines: [
         { id: "a", name: "A", cheapestPrice: 4 },
@@ -80,5 +85,20 @@ describe("parseDiscoverBoard", () => {
     });
     expect(parsed?.cheapest.map((row) => row.venue.id)).toEqual(["a"]);
     expect(parsed?.baselines.map((row) => row.id)).toEqual(["a"]);
+  });
+
+  // A figure without its trust word is the unlabelled board the captain
+  // refused, so an unstamped row is dropped rather than given a default.
+  it("drops a row carrying no standing, and one carrying a word that is not one", () => {
+    const parsed = parseDiscoverBoard({
+      observedAt: "2026-01-01T00:00:00.000Z",
+      cheapest: [
+        { rank: 1, area: "Southwark", venue: { id: "a", name: "A", cheapestPrice: 4 } },
+        { rank: 2, area: "Camden", standing: "cheap", venue: { id: "b", name: "B", cheapestPrice: 5 } },
+        { rank: 3, area: "Hackney", standing: "listed", venue: { id: "c", name: "C", cheapestPrice: 6 } },
+      ],
+      baselines: [],
+    });
+    expect(parsed?.cheapest.map((row) => row.venue.id)).toEqual(["c"]);
   });
 });
