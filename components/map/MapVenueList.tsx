@@ -220,9 +220,9 @@ export default function MapVenueList({
                 </section>
               ) : null}
               {ukBaseModel.rows.length > 0 ? (
-                <section className="mapVenueListGroup mapVenueListGroup--unverified" aria-label="Other pubs with no listed price">
-                  <h3 className="mapVenueListGroupTitle">Other pubs · no listed price</h3>
-                  <ul className="mapVenueListItems" aria-label="Other pubs with no listed price">
+                <section className="mapVenueListGroup mapVenueListGroup--unverified" aria-label="Other pubs and bars with no listed price">
+                  <h3 className="mapVenueListGroupTitle">Other pubs and bars · no listed price</h3>
+                  <ul className="mapVenueListItems" aria-label="Other pubs and bars with no listed price">
                     {ukBaseModel.rows.map((row) => (
                       <li key={row.id}>
                         <button

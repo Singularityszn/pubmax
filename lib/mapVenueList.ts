@@ -51,10 +51,18 @@ export type MapVenueListModel = {
   coverageNote: string | null;
 };
 
+/**
+ * The list is the DOM parallel to the unpriced pins, so it names what OSM
+ * states: a bar reads as a bar. Neither kind carries a price.
+ */
+export type UkBasePubListLabel =
+  | "Other pub · no listed price"
+  | "Other bar · no listed price";
+
 export type UkBasePubListRow = {
   id: string;
   name: string;
-  priceLabel: "Other pub · no listed price";
+  priceLabel: UkBasePubListLabel;
   distanceKm?: number;
   pub: UkBasePub;
 };
@@ -280,7 +288,10 @@ export function buildUkBasePubListModel(
   const rows = pubs.map<UkBasePubListRow>((pub) => ({
     id: pub.id,
     name: pub.name,
-    priceLabel: "Other pub · no listed price",
+    priceLabel:
+      pub.kind === "bar"
+        ? "Other bar · no listed price"
+        : "Other pub · no listed price",
     ...(origin
       ? { distanceKm: haversineKm([origin.lng, origin.lat], [pub.lng, pub.lat]) }
       : {}),

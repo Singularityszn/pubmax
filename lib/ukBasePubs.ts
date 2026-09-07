@@ -56,6 +56,14 @@ export { UK_BASE_ID_PREFIX };
 /** Maximum stable base ids one viewport visibility read may carry. */
 export const MAX_PROVISIONAL_BASE_VENUE_IDS = 64;
 
+/**
+ * What OSM states this place is. `amenity=pub` and `amenity=bar` are two
+ * different statements and the product may not blur them: a bar called a pub
+ * is a lie a reader can check. Nothing else rides on this - neither kind
+ * carries a price, and both draw the same unpriced pin.
+ */
+export type UkBaseVenueKind = "pub" | "bar";
+
 /** A pub on the base layer. No price field exists: OSM is not a price source. */
 export type UkBasePub = {
   /** `venue-uk-<osm ref>`, e.g. `venue-uk-n251829660`. Stable across refreshes. */
@@ -66,6 +74,7 @@ export type UkBasePub = {
   lat: number;
   lng: number;
   curatedVenueId: string;
+  kind: UkBaseVenueKind;
 };
 
 export function ukBaseIdFor(osmRef: string): string {
@@ -80,14 +89,18 @@ export function isUkBaseId(id: string): boolean {
  * One shard row is a tuple, not an object: the bodies are machine-generated and
  * the map fetches them while the user pans, so repeating six keys across the
  * country-wide pack is paid for in the one place that matters.
- * `[osmRef, name, address, lat, lng, curatedVenueId]`.
+ * `[osmRef, name, address, lat, lng, curatedVenueId]`, and `"bar"` as a
+ * seventh element where OSM states a bar. The element is OPTIONAL so the
+ * 38,215 pub rows keep the bytes they had before bars joined the layer.
  */
-type ShardRow = [string, string, string, number, number, string];
+type ShardRow =
+  | [string, string, string, number, number, string]
+  | [string, string, string, number, number, string, "bar"];
 
 function isShardRow(value: unknown): value is ShardRow {
   return (
     Array.isArray(value) &&
-    value.length === 6 &&
+    (value.length === 6 || (value.length === 7 && value[6] === "bar")) &&
     typeof value[0] === "string" &&
     value[0].length > 0 &&
     typeof value[1] === "string" &&
@@ -119,6 +132,7 @@ export function parseUkBaseShard(value: unknown): UkBasePub[] {
       lat: row[3],
       lng: row[4],
       curatedVenueId: row[5],
+      kind: row.length === 7 ? "bar" : "pub",
     });
   }
   return pubs;
@@ -539,6 +553,10 @@ export function ukBasePubsToGeoJSON(
           address: pub.address,
           curatedVenueId: pub.curatedVenueId,
           provisional: Boolean(provisionalVenueIds?.has(pub.id)),
+          // Additive, like the Spoons pair below: a pub feature carries no
+          // `kind` at all, so the pin layers and every existing reader are
+          // untouched by bars joining the source.
+          ...(pub.kind === "bar" ? { kind: "bar" } : {}),
           ...(spoons && spoons.label
             ? { spoonsBucket: spoons.bucket, spoonsLabel: spoons.label }
             : {}),
@@ -567,7 +585,7 @@ export function ukBasePubFromFeature(feature: {
   const props = feature.properties;
   const geometry = feature.geometry;
   if (!props || geometry?.type !== "Point") return null;
-  const { id, name, address, curatedVenueId } = props;
+  const { id, name, address, curatedVenueId, kind } = props;
   if (typeof id !== "string" || !isUkBaseId(id)) return null;
   if (typeof name !== "string" || name.length === 0) return null;
   const [lng, lat] = geometry.coordinates;
@@ -579,5 +597,6 @@ export function ukBasePubFromFeature(feature: {
     lat,
     lng,
     curatedVenueId: typeof curatedVenueId === "string" ? curatedVenueId : "",
+    kind: kind === "bar" ? "bar" : "pub",
   };
 }

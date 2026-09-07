@@ -160,6 +160,10 @@ export default function UnverifiedPubSheet({
     return () => controller.abort();
   }, [pub.id]);
 
+  // OSM states a pub or a bar, and the sheet says which. Calling a bar a pub is
+  // a claim a reader can check on the pavement outside.
+  const placeNoun = pub.kind === "bar" ? "bar" : "pub";
+
   return (
     <div className="unverifiedPub">
       <div className="unverifiedPubHead">
@@ -185,8 +189,8 @@ export default function UnverifiedPubSheet({
       {communityPrice ? (
         <>
           <p className="unverifiedPubLead">
-            We know this pub from OpenStreetMap. Here is what the community last
-            logged.
+            We know this {placeNoun} from OpenStreetMap. Here is what the
+            community last logged.
           </p>
           <div className="contributorPrice communityPriceRow">
             <span>
@@ -231,8 +235,8 @@ export default function UnverifiedPubSheet({
         </p>
       ) : pricesKnown ? (
         <p className="unverifiedPubLead">
-          We know this pub is here, and that is all we know. Nobody has logged what
-          a drink costs - <strong>be the first</strong>.
+          We know this {placeNoun} is here, and that is all we know. Nobody has
+          logged what a drink costs - <strong>be the first</strong>.
         </p>
       ) : readFailed ? (
         <p className="unverifiedPubLead">
@@ -266,7 +270,7 @@ export default function UnverifiedPubSheet({
           (data/osm/uk/README.md), and it is also the honest provenance line:
           the pub's existence is sourced, its price is not. */}
       <p className="unverifiedPubSource">
-        Pub location from{" "}
+        {placeNoun === "bar" ? "Bar" : "Pub"} location from{" "}
         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
           OpenStreetMap contributors
         </a>
