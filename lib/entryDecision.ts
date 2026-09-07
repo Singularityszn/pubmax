@@ -133,8 +133,13 @@ export function isStandaloneDisplay(): boolean {
  * start (a fresh app session) but survives in-app navigation, and injectable so
  * the pure decision above stays hermetically testable. Mirrors the
  * resolveSessionStorage idiom in lib/nativeFirstRun.ts.
+ *
+ * The key itself is EXPORTED because public/native-entry-init.js takes the same
+ * decision one paint earlier, before React exists, and has to write the same
+ * slot; __tests__/nativeShellEntry.test.ts holds the static file to it.
  */
-const SESSION_ENTRY_KEY = "pubmax:entryDecision:consumed:v1";
+export const SESSION_ENTRY_CONSUMED_KEY = "pubmax:entryDecision:consumed:v1";
+const SESSION_ENTRY_KEY = SESSION_ENTRY_CONSUMED_KEY;
 
 function resolveSessionStorage(storage?: Storage | null): Storage | null {
   if (storage) return storage;

@@ -160,6 +160,39 @@ export function noteConsentRouteVisited(
   markConsentAnswerMoment("second-route", storage);
 }
 
+/**
+ * Undo the wait that the SHELL'S OWN entry rewrite started.
+ *
+ * The Capacitor wrap opens the site root and lib/entryDecision.ts rewrites it
+ * to /tonight or /onboarding. Two routes went past this module in one arrival,
+ * so `second-route` fired and the card met a new reader on the FIRST screen of
+ * the app — before the product had answered anything, which is the one thing
+ * this module exists to prevent. Measured in the iPhone 17 Pro simulator and
+ * the Pixel 7 emulator on 7 September 2026 (docs/proof/mobile-shells-refresh/).
+ *
+ * A rewrite is the app's own move, not the reader's, so the first route is
+ * forgotten and the destination becomes the first route instead. The answer
+ * marker is cleared ONLY when it is `second-route`: at the moment of the
+ * cold-start rewrite no venue sheet has opened and Pub Pal has said nothing, so
+ * `second-route` there can only have come from the rewrite itself, while a real
+ * answer must survive.
+ */
+export function resetConsentWaitForEntryRewrite(storage?: Storage | null): void {
+  const store = resolveStorage(storage);
+  if (!store) return;
+  try {
+    store.removeItem(CONSENT_FIRST_ROUTE_KEY);
+    if (store.getItem(CONSENT_ANSWER_MOMENT_KEY) === "second-route") {
+      store.removeItem(CONSENT_ANSWER_MOMENT_KEY);
+    }
+  } catch {
+    // Storage full or private mode: the card keeps waiting, which is the
+    // cautious side of this module either way.
+    return;
+  }
+  notifyChange();
+}
+
 export function subscribeConsentAnswerMoment(onChange: () => void): () => void {
   if (typeof window === "undefined") return () => {};
   const handler = () => onChange();

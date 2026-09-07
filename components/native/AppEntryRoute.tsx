@@ -19,6 +19,7 @@
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
+import { resetConsentWaitForEntryRewrite } from "@/lib/consentAnswerMoment";
 import {
   decideEntry,
   entryFirstRunHref,
@@ -48,6 +49,12 @@ export default function AppEntryRoute(): null {
       clearNativeFirstRunHandoff();
       return;
     }
+    // THE REWRITE IS THE APP'S MOVE, NOT THE READER'S. Landing then Tonight
+    // is two routes, and reaching a second route is one of the answers the
+    // consent card waits for, so the shell's own cold-start rewrite used to put
+    // the card on the first screen a new person ever saw
+    // (lib/consentAnswerMoment.ts, docs/proof/mobile-shells-refresh/).
+    resetConsentWaitForEntryRewrite();
     if (decision.reason === "native-first-run") {
       // Eligibility is carried out-of-URL and consumed by the guarded route.
       // Mark first so a slow transition can never double-fire on another boot.

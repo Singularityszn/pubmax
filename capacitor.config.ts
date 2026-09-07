@@ -9,6 +9,8 @@
 // See docs/CAPACITOR_WRAP.md for the full wrap runbook (signing, APNs, AASA).
 import type { CapacitorConfig } from "@capacitor/cli";
 
+import { BRAND_COLORS } from "./lib/brandMark.mjs";
+
 /** The one origin a shipped binary ever loads. */
 export const PRODUCTION_SERVER_URL = "https://pubmaxxing.com";
 
@@ -44,6 +46,29 @@ const config: CapacitorConfig = {
     // first successful load. Capacitor serves this bundled page when the main
     // frame cannot reach production, so an outage is honest and retryable.
     errorPath: "offline.html",
+  },
+  ios: {
+    // THE FIELD BEHIND THE WEBVIEW IS THE LAUNCH SCREEN'S OWN.
+    //
+    // Capacitor holds the WKWebView non-opaque for the whole initial load
+    // (WebViewDelegationHandler), and with no colour set it hands WebKit
+    // UIColor.systemBackground - WHITE in the light appearance. Measured on the
+    // iPhone 17 Pro simulator against a local production build on 7 September
+    // 2026: the ink launch screen ended at 1601ms, the WHOLE FRAME was a single
+    // white colour from 2140ms to 4507ms, and content arrived at 5550ms. Three
+    // fields in five seconds, and the middle one belongs to no design.
+    //
+    // The value is the same constant scripts/gen-native-app-icons.mjs cuts
+    // LaunchBackground.colorset from, so the launch screen and the frame behind
+    // the page are one colour and cannot drift. The launch field is
+    // deliberately the same in light and dark (#523), which is why this is a
+    // single value rather than a pair.
+    //
+    // Android is left alone on purpose: its window background is already the
+    // page's own paper in light and ink in dark (PR #1599,
+    // android/app/src/main/res/values*/), and a WebView field of a third colour
+    // would fight it.
+    backgroundColor: BRAND_COLORS.inkDeep,
   },
   plugins: {
     // Capacitor 8 bundles SystemBars in core. CSS inset injection covers older

@@ -72,9 +72,9 @@ describe("Capacitor wrapped-build contract", () => {
       "ios/App/App/Assets.xcassets/LaunchBackground.colorset/Contents.json",
     );
     const hex = BRAND_COLORS.inkDeep.replace("#", "").toUpperCase();
-    expect(launchField).toContain(`"red" : "0x${hex.slice(0, 2)}"`);
-    expect(launchField).toContain(`"green" : "0x${hex.slice(2, 4)}"`);
-    expect(launchField).toContain(`"blue" : "0x${hex.slice(4, 6)}"`);
+    expect(launchField).toContain(`"red": "0x${hex.slice(0, 2)}"`);
+    expect(launchField).toContain(`"green": "0x${hex.slice(2, 4)}"`);
+    expect(launchField).toContain(`"blue": "0x${hex.slice(4, 6)}"`);
   });
 
   it("takes a local origin only from the review variable, and never ships one", () => {
