@@ -33,6 +33,7 @@
     "validate-data": "node scripts/validate-data.mjs",
     "check:freshness": "node scripts/check_freshness.mjs",
     "build:pint-index-snapshot": "node --conditions=react-server --import tsx scripts/build_pint_index_snapshot.mjs",
+    "ingest:hyped-pubs": "node scripts/hyped-pubs-ingest.mjs",
     "publish:pint-index-month": "tsx scripts/publish_pint_index_month.mjs",
     "export:data": "python3 scripts/export_app_dataset_json.py",
     "postexport:data": "npm run canonicalize:venues",
