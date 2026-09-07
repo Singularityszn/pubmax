@@ -12,6 +12,12 @@
 //  3. The PUBMAXX venue badge drew the Crossing X in one ink colour at 18px,
 //     one line under a Ticketmaster credit, where it reads as another
 //     company's logo rather than ours.
+//
+// Live walk B4, 2026-09-07, carried the first finding to its end: the count was
+// not merely above the listings, it was INSTEAD of them, because the surface
+// rendered only rows it had matched to a pub. The fences below now hold the
+// law that replaced it - every sourced listing is a row, the pub answer is a
+// footnote on that row, and the page's primary is the first listing.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -53,13 +59,14 @@ function renderedPubPair(): HTMLElement {
   return host;
 }
 
-describe("the listings come before the line about what is missing", () => {
-  it("renders the unmatched notice after the listing surface", () => {
+describe("the listings come before the lines about them", () => {
+  it("renders both footnotes after the listing surface", () => {
     const surfaceAt = outClient.indexOf('className="outListingSurface"');
-    const noticeAt = outClient.indexOf('data-testid="out-unmatched-notice"');
+    const noticeAt = outClient.indexOf('data-testid="out-venue-match-notice"');
+    const creditAt = outClient.indexOf('data-testid="out-listing-credit"');
     expect(surfaceAt).toBeGreaterThan(-1);
-    expect(noticeAt).toBeGreaterThan(-1);
     expect(noticeAt).toBeGreaterThan(surfaceAt);
+    expect(creditAt).toBeGreaterThan(surfaceAt);
   });
 
   it("keeps the read's own status lines above the listings", () => {
@@ -69,50 +76,45 @@ describe("the listings come before the line about what is missing", () => {
     expect(statusAt).toBeLessThan(surfaceAt);
   });
 
-  it("keeps the notice inside the listings section it is about", () => {
+  it("keeps the footnotes inside the listings section they are about", () => {
     const section = outClient.slice(
       outClient.indexOf('className="outListings"'),
       outClient.indexOf("<EditorialRail />"),
     );
-    expect(section).toContain('data-testid="out-unmatched-notice"');
+    expect(section).toContain('data-testid="out-venue-match-notice"');
+    expect(section).toContain('data-testid="out-listing-credit"');
   });
 });
 
-// The notice's ROLE decides its weight. GrokBot's 5 September production run
-// found /out reading as a Ticketmaster night story: every row was at an
-// unlisted place, so no card rendered, and the count, the provider credit and
-// the way onward were the whole page at full status weight. A footnote may not
-// be the loudest thing on a screen, and it may not be the only thing either.
-describe("the unmatched notice reads at the weight its role earns", () => {
-  it("leads with the EmptyState idiom when no card sits above it", () => {
-    expect(outClient).toContain('unmatchedNotice.role === "lead"');
-    const notice = outClient.slice(outClient.indexOf('data-testid="out-unmatched-notice"'));
-    const emptyStateAt = notice.indexOf("<EmptyState");
-    const creditAt = notice.indexOf("Listings from");
-    expect(emptyStateAt).toBeGreaterThan(-1);
-    // The provider credit stays a footer line UNDER the answer, never the
-    // heading of a page whose listings are all somewhere we do not list.
-    expect(creditAt).toBeGreaterThan(emptyStateAt);
+// The count of unmatched rows was the page. It cannot be, because those rows
+// now render: the only page-level finding left is a match that never RAN.
+describe("no count stands in place of the listings it counts", () => {
+  it("keeps no lead role and no hidden-rows claim in the page", () => {
+    expect(outClient).not.toContain('unmatchedNotice.role === "lead"');
+    expect(outClient).not.toContain("data-role={unmatchedNotice.role}");
+    expect(outClient).not.toContain("out-unmatched-notice");
   });
 
-  it("marks the notice with its role so the stylesheet can quieten the aside", () => {
-    expect(outClient).toContain("data-role={unmatchedNotice.role}");
-  });
-
-  it("sets the aside below the page's own status copy", () => {
+  it("renders the pub answer on every row, at a weight under the page's own copy", () => {
+    expect(outClient).toContain("<OutListingPubPair row={row} />");
     const status = outCss.match(/\.outStatus \{[^}]*font-size:\s*([\d.]+)rem/);
-    const aside = outCss.match(
-      /\.outListingUnmatched\[data-role="aside"\][^{]*\{[^}]*font-size:\s*([\d.]+)rem/,
+    const footnote = outCss.match(
+      /\.outListingUnmatchedLine \{[^}]*font-size:\s*([\d.]+)rem/,
     );
     expect(status).not.toBeNull();
-    expect(aside).not.toBeNull();
-    expect(Number(aside?.[1])).toBeLessThan(Number(status?.[1]));
+    expect(footnote).not.toBeNull();
+    expect(Number(footnote?.[1])).toBeLessThan(Number(status?.[1]));
   });
 
-  it("rules the aside off from the cards it is a footnote to", () => {
-    expect(outCss).toMatch(
-      /\.outListingUnmatched\[data-role="aside"\] \{[^}]*border-top:\s*1px solid var\(--line\)/,
+  it("leads with the first listing and keeps the map as the second door", () => {
+    const primaryAt = outClient.indexOf("primary={");
+    const secondaryAt = outClient.indexOf("secondary={");
+    const primary = outClient.slice(primaryAt, secondaryAt);
+    expect(primary).toContain("primaryListing");
+    expect(primary.indexOf("primaryListing")).toBeLessThan(
+      primary.indexOf("OUT_MAP_WAY"),
     );
+    expect(outClient.slice(secondaryAt)).toContain("OUT_MAP_WAY");
   });
 });
 

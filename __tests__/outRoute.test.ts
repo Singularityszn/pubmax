@@ -68,7 +68,7 @@ import {
   outStatusLines,
 } from "@/lib/out/outStatus";
 import { buildOutVenueMatchIndex } from "@/lib/out/venueMatch";
-import { groupOutListings, outUnmatchedListingsNotice } from "@/lib/outDesktopGrouping";
+import { groupOutListings, outVenueMatchNotice } from "@/lib/outDesktopGrouping";
 import { londonServiceDayBounds } from "@/lib/whatsOn";
 import type { OutResponse } from "@/lib/out/types";
 import type { WhatsOnRow } from "@/lib/whatsOn";
@@ -928,13 +928,13 @@ describe("the live lane is venue-matched at request time", () => {
     expect(body.venueMatch).toBe("ready");
     expect(body.events).toHaveLength(1);
     expect(body.events[0].venueId).toBe("venue-1137z1c");
-    // Matched rows enter the pub list under the EXISTING rule, unchanged.
-    expect(groupOutListings(body.events).map((group) => group.key)).toEqual([
-      "venue:venue-1137z1c",
-    ]);
+    // The row lands under the night it is on, carrying the pub it matched.
+    const groups = groupOutListings(body.events, FIXTURE_NOW.getTime());
+    expect(groups.map((group) => group.label)).toEqual(["Tonight"]);
+    expect(groups[0].rows[0].venueId).toBe("venue-1137z1c");
   });
 
-  it("keeps an unmatched live row out of the pub list and counts it in the notice", async () => {
+  it("prints an unmatched live row beside the matched one and still counts it", async () => {
     const body = await buildOutResponse(
       { city: "london", day: "today" },
       {
@@ -947,25 +947,25 @@ describe("the live lane is venue-matched at request time", () => {
     expect(body.events).toHaveLength(2);
     const arena = body.events.find((row) => row.id === "events-tm-o2");
     expect(arena?.venueId).toBeUndefined();
-    expect(groupOutListings(body.events).flatMap((group) => group.rows.map((row) => row.id))).toEqual([
-      "events-tm-lex",
-    ]);
+    // NOTHING IS HIDDEN. Both rows print; the arena row says on its own line
+    // that we hold no pub for it.
+    expect(
+      groupOutListings(body.events, FIXTURE_NOW.getTime()).flatMap((group) =>
+        group.rows.map((row) => row.id),
+      ),
+    ).toEqual(["events-tm-lex", "events-tm-o2"]);
     expect(body.unmatchedCount).toBe(1);
-    const notice = outUnmatchedListingsNotice(
-      body.events,
-      "tonight",
-      body.venueMatch,
-      {
+    // The match RAN, so the page-level notice has nothing left to add.
+    expect(
+      outVenueMatchNotice(body.events, "tonight", body.venueMatch, {
         unmatchedCount: body.unmatchedCount,
         unmatchedPlaces: body.unmatchedPlaces,
         unmatchedSources: body.unmatchedSources,
-      },
-    );
-    expect(notice?.line).toBe("1 more listing tonight is at a place we don't list yet.");
-    expect(notice?.places).toBe("");
+      }),
+    ).toBeNull();
   });
 
-  it("keeps pre-cap unmatched places and credits for the empty-state notice", async () => {
+  it("keeps pre-cap unmatched places and credits on the answer itself", async () => {
     const matchedRows = Array.from({ length: MAX_OUT_EVENTS }, (_, index) =>
       eventRow({
         id: "matched-" + index,
@@ -994,22 +994,19 @@ describe("the live lane is venue-matched at request time", () => {
     expect(body.unmatchedPlaces).toEqual(["The O2"]);
     expect(body.unmatchedPlaceCount).toBe(1);
     expect(body.unmatchedSources).toEqual(["Ticketmaster"]);
-    const notice = outUnmatchedListingsNotice(
-      body.events,
-      "tonight",
-      body.venueMatch,
-      {
+    // The counts stay on the body for the log and for a match that could not
+    // run; with a healthy match the surface says nothing extra.
+    expect(
+      outVenueMatchNotice(body.events, "tonight", body.venueMatch, {
         unmatchedCount: body.unmatchedCount,
         unmatchedPlaces: body.unmatchedPlaces,
         unmatchedSources: body.unmatchedSources,
-      },
-    );
-    expect(notice?.line).toBe("1 more listing tonight is at a place we don't list yet.");
-    expect(notice?.places).toBe("");
-    expect(notice?.credits.map((credit) => credit.label)).toEqual(["Ticketmaster"]);
+      }),
+    ).toBeNull();
+    expect(body.attribution.map((credit) => credit.label)).toEqual(["Ticketmaster"]);
   });
 
-  it("names unmatched rows when only unmatched rows survive the serve cap", async () => {
+  it("prints every unmatched row that survives the serve cap", async () => {
     const unmatchedRows = Array.from({ length: MAX_OUT_EVENTS }, (_, index) =>
       eventRow({
         id: `unmatched-${index}`,
@@ -1034,15 +1031,18 @@ describe("the live lane is venue-matched at request time", () => {
         loadVenueMatchIndex: async () => slimIndex,
       },
     );
-    expect(groupOutListings(body.events)).toEqual([]);
-    const notice = outUnmatchedListingsNotice(body.events, "tonight", body.venueMatch, {
-      unmatchedCount: body.unmatchedCount,
-      unmatchedPlaces: body.unmatchedPlaces,
-      unmatchedPlaceCount: body.unmatchedPlaceCount,
-      unmatchedSources: body.unmatchedSources,
-    });
-    expect(notice?.role).toBe("lead");
-    expect(notice?.line).toBe("Tonight's 100 listings are all at places we don't list yet.");
+    // This is the walk-B4 shape: 100 sourced listings, none of them at a pub
+    // we list. Every one of them renders.
+    const groups = groupOutListings(body.events, FIXTURE_NOW.getTime());
+    expect(groups.flatMap((group) => group.rows)).toHaveLength(MAX_OUT_EVENTS);
+    expect(
+      outVenueMatchNotice(body.events, "tonight", body.venueMatch, {
+        unmatchedCount: body.unmatchedCount,
+        unmatchedPlaces: body.unmatchedPlaces,
+        unmatchedPlaceCount: body.unmatchedPlaceCount,
+        unmatchedSources: body.unmatchedSources,
+      }),
+    ).toBeNull();
   });
 
   it("never serves a live row whose start has already passed", async () => {

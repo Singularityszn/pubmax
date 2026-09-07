@@ -1,17 +1,21 @@
 import Link from "next/link";
 
 import { SourceCredit } from "@/components/out/SourceCredit";
-import { canonicalOutVenueId } from "@/lib/outDesktopGrouping";
+import { outListingKindLabel } from "@/lib/out/listingKind";
+import { outListingRoute } from "@/lib/out/listingRoute";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 /**
- * One Out listing.
+ * One Out listing, printed whole.
  *
- * The card box is the LIST ITEM. A venue-resolved card links to that PUBMAXX
- * venue, while the publisher credit remains its own explicit external link.
- * An anchor inside an anchor is invalid HTML, so the credit may never be
- * nested inside the card link. An unmatched card stays visibly static rather
- * than pretending PUBMAXX has a venue destination it does not hold.
+ * Every sourced listing is a real row: what it is, where it is, when it is, and
+ * one credit that opens the publisher's own page for it. The card link is the
+ * row's own route (lib/out/listingRoute.ts) - the source's event page when it
+ * published one, else the pub we matched it to. A row with neither is still a
+ * row; it stays visibly static rather than pretending to open something.
+ *
+ * An anchor inside an anchor is invalid HTML, so the credit is a sibling of the
+ * card link, never nested inside it.
  */
 export function ticketFromLine(row: WhatsOnRow): string | null {
   if (row.kind !== "event") return null;
@@ -46,11 +50,6 @@ export function formatWhen(row: WhatsOnRow): string {
   return row.timeEvidence ?? "";
 }
 
-function pubMapHref(row: WhatsOnRow): string | null {
-  const venueId = canonicalOutVenueId(row.venueId);
-  return venueId ? `/map?sel=${encodeURIComponent(venueId)}` : null;
-}
-
 type OutCardTitleLevel = 2 | 4;
 
 type OutCardBodyProps = {
@@ -63,25 +62,37 @@ export function OutCardBody({ row, onOpen, titleLevel = 2 }: OutCardBodyProps) {
   const from = ticketFromLine(row);
   const when = row.startsAt || row.startsDate ? formatWhen(row) : "";
   const TitleTag = titleLevel === 4 ? "h4" : "h2";
-  const mapHref = pubMapHref(row);
+  const route = outListingRoute(row);
+  const placeName = row.placeName.trim();
   const content = (
     <>
       <TitleTag>{row.title}</TitleTag>
       <p className="outCardMeta">
-        {row.placeName}
-        {when ? ` · ${when}` : ""}
+        <span className="outCardKind">{outListingKindLabel(row)}</span>
+        {placeName ? <span className="outCardPlace">{placeName}</span> : null}
+        {when ? <span className="outCardWhen">{when}</span> : null}
       </p>
       {from ? <p className="outPrice">{from}</p> : null}
     </>
   );
   return (
     <>
-      {mapHref ? (
-        <Link className="outCard" href={mapHref} onClick={onOpen}>
+      {route === null ? (
+        <div className="outCard outCard--static">{content}</div>
+      ) : route.external ? (
+        <a
+          className="outCard"
+          href={route.href}
+          rel="noopener noreferrer"
+          target="_blank"
+          onClick={onOpen}
+        >
+          {content}
+        </a>
+      ) : (
+        <Link className="outCard" href={route.href} onClick={onOpen}>
           {content}
         </Link>
-      ) : (
-        <div className="outCard outCard--static">{content}</div>
       )}
       <SourceCredit source={row.source} />
     </>

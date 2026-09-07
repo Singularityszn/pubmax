@@ -11,10 +11,19 @@ type OutListingPubPairProps = {
   row: WhatsOnRow;
 };
 
+/**
+ * The pub beside a listing, or the honest absence of one.
+ *
+ * An absent pub used to render nothing at all, and the count of those rows was
+ * the whole page. It is a footnote on the row now: the listing is real either
+ * way, and the only thing missing is a pin of ours.
+ */
 export function OutListingPubPair({ row }: OutListingPubPairProps) {
   const pair = outListingPubPair(row);
   if (pair.status === "absent") {
-    return null;
+    return (
+      <p className="outListingPubPair outListingPubPair--absent">{pair.line}</p>
+    );
   }
   return (
     <div className="outListingPubPair outListingPubPair--matched">

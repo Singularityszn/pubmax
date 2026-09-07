@@ -19,9 +19,10 @@ import { outCardSource } from "@/lib/out/attribution";
 import {
   groupOutListings,
   outOpenPlansSectionVisible,
-  outUnmatchedListingsNotice,
+  outVenueMatchNotice,
   sendableOpenPlans,
 } from "@/lib/outDesktopGrouping";
+import { outPrimaryListingWay } from "@/lib/out/listingRoute";
 import {
   OUT_DAY_WINDOWS,
   OUT_OPEN_PLANS_WAY_LABEL,
@@ -68,7 +69,15 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
 
   const listingRows = body?.events ?? [];
   const listingGroups = groupOutListings(listingRows);
-  const unmatchedNotice = outUnmatchedListingsNotice(
+  // The primary is the first listing in the order the page prints them, so the
+  // button and the top of the list cannot name two different nights.
+  const primaryListing = outPrimaryListingWay(
+    listingGroups.flatMap((group) => group.rows),
+  );
+  // Credit is owed for every row on screen, matched or not, so it is read off
+  // the answer's own attribution rather than off the rows we could not place.
+  const credits = body?.attribution ?? [];
+  const venueMatchNotice = outVenueMatchNotice(
     listingRows,
     day,
     body?.venueMatch,
@@ -96,10 +105,10 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
 
       {/* The head is the Screen primitive (docs/design/LAUNCH_SCREENS.md). The
           kicker names the city the listings follow: London on the server and
-          on first paint, then the city Places set. The map is the one primary
-          on every day, listed or quiet, because whatever is on tonight the
-          pubs are always there; the empty lane's own map link further down
-          stays unmarked so the page counts one. */}
+          on first paint, then the city Places set. The primary is the FIRST
+          LISTING: a reader who came to see what is on should not have to leave
+          the list to find out. The map is the quiet second door, and it takes
+          the primary back only on a night with nothing to lead with. */}
       <Screen
         as="div"
         className="outScreen"
@@ -107,14 +116,43 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
         title="What’s on, sourced."
         titleId="out-title"
         primary={
-          <Link prefetch={false} href={OUT_MAP_WAY.href}>
-            {OUT_MAP_WAY.label}
-          </Link>
+          primaryListing ? (
+            primaryListing.external ? (
+              <a
+                className="outPrimaryListing"
+                href={primaryListing.href}
+                rel="noopener noreferrer"
+                target="_blank"
+                onClick={() => trackEvent("out_card_opened", { source: outCardSource(primaryListing.sourceLabel) })}
+              >
+                <span className="outPrimaryListingLabel">{primaryListing.label}</span>
+              </a>
+            ) : (
+              <Link
+                prefetch={false}
+                className="outPrimaryListing"
+                href={primaryListing.href}
+                onClick={() => trackEvent("out_card_opened", { source: outCardSource(primaryListing.sourceLabel) })}
+              >
+                <span className="outPrimaryListingLabel">{primaryListing.label}</span>
+              </Link>
+            )
+          ) : (
+            <Link prefetch={false} href={OUT_MAP_WAY.href}>
+              {OUT_MAP_WAY.label}
+            </Link>
+          )
         }
         secondary={
-          <Link prefetch={false} href="/plan">
-            Plan a night
-          </Link>
+          primaryListing ? (
+            <Link prefetch={false} href={OUT_MAP_WAY.href}>
+              {OUT_MAP_WAY.label}
+            </Link>
+          ) : (
+            <Link prefetch={false} href="/plan">
+              Plan a night
+            </Link>
+          )
         }
       >
       <nav className="outDayChips" aria-label="When">
@@ -165,7 +203,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
             </p>
           ))
         )}
-        <div className="outListingSurface">
+        <div className="outListingSurface" data-testid="out-listing-surface">
           {listingGroups.map((group) => (
             <section
               key={group.key}
@@ -177,7 +215,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
               </h3>
               <ul className="outGroupList">
                 {group.rows.map((row) => (
-                  <li key={row.id} className="outListingRow">
+                  <li key={row.id} className="outListingRow" data-testid="out-listing-row">
                     <div className="outListingGig">
                       <OutCardBody row={row} onOpen={() => onOpen(row)} titleLevel={4} />
                     </div>
@@ -188,62 +226,37 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
             </section>
           ))}
         </div>
-        {/* The honesty line comes AFTER the listings it is honest about. It led
-            the page, so a reader met "57 more listings are at places we don't
-            list yet" before the one listing we DO have - and the word "more"
-            was answering nothing.
+        {/* Two footnotes under the list, in this order, and never above it.
 
-            Its ROLE decides how it reads. Under a card it is a footnote about
-            the rows that are not on one, and it takes the quiet voice. With no
-            card above it there is nothing for it to be a footnote to: it is the
-            night's own answer, so it takes the EmptyState idiom, and the
-            provider credit stays a footer line under it rather than becoming
-            the loudest thing on an otherwise empty page. */}
-        {unmatchedNotice ? (
-          <div
-            className="outListingUnmatched"
-            data-role={unmatchedNotice.role}
+            The FIRST is the one finding a row cannot state for itself: the
+            venue match never ran, so "not on our map yet" on a row would be a
+            claim about a lookup nobody performed. It is silent when the match
+            was healthy - every row now says its own pub answer on its own line.
+
+            The SECOND is the credit owed to whoever published these listings.
+            It is a footer under the answer, not the heading of the page. */}
+        {venueMatchNotice ? (
+          <p
+            className="outStatus outListingUnmatchedLine"
             role="status"
-            data-testid="out-unmatched-notice"
+            data-testid="out-venue-match-notice"
           >
-            {unmatchedNotice.role === "lead" ? (
-              <EmptyState
-                title={unmatchedNotice.line}
-                action={
-                  <Link prefetch={false} href={unmatchedNotice.way.href}>
-                    {unmatchedNotice.way.label}
-                  </Link>
-                }
-              >
-                {unmatchedNotice.places || null}
-              </EmptyState>
-            ) : (
-              <p className="outStatus outListingUnmatchedLine">
-                {unmatchedNotice.line} {unmatchedNotice.places}
-              </p>
-            )}
-            {unmatchedNotice.credits.length > 0 ? (
-              <p className="outListingUnmatchedCredit">
-                Listings from{" "}
-                {unmatchedNotice.credits.map((credit, index) => (
-                  <span key={credit.label}>
-                    {index > 0 ? " and " : ""}
-                    <a href={credit.url} rel="noopener noreferrer" target="_blank">
-                      {credit.label}
-                    </a>
-                  </span>
-                ))}
-                .
-              </p>
-            ) : null}
-            {unmatchedNotice.role === "aside" ? (
-              <p className="outListingUnmatchedWay">
-                <Link prefetch={false} href={unmatchedNotice.way.href} className="outPlansFootLink">
-                  {unmatchedNotice.way.label}
-                </Link>
-              </p>
-            ) : null}
-          </div>
+            {venueMatchNotice.line} {venueMatchNotice.places}
+          </p>
+        ) : null}
+        {credits.length > 0 ? (
+          <p className="outListingUnmatchedCredit" data-testid="out-listing-credit">
+            Listings from{" "}
+            {credits.map((credit, index) => (
+              <span key={credit.label}>
+                {index > 0 ? " and " : ""}
+                <a href={credit.url} rel="noopener noreferrer" target="_blank">
+                  {credit.label}
+                </a>
+              </span>
+            ))}
+            .
+          </p>
         ) : null}
       </section>
 
