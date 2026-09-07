@@ -345,7 +345,9 @@ test.describe("reduced motion: no meaning is carried by movement alone", () => {
       // own place is a card a reduced-motion reader never sees arrive.
       const parked = await page.evaluate(() => {
         const offenders: string[] = [];
-        for (const el of Array.from(document.body.querySelectorAll<HTMLElement>("*"))) {
+        for (const el of Array.from(document.body.querySelectorAll("*"))) {
+          // SVG transforms position drawings, including the static map labels.
+          if (!(el instanceof HTMLElement)) continue;
           if (el.closest("[aria-hidden='true']")) continue;
           const style = getComputedStyle(el);
           if (!style.transform || style.transform === "none") continue;
