@@ -7,9 +7,12 @@ import {
   formatBreachTable,
   median,
   medianSitsOnTheLine,
+  plannedNavigations,
+  resolveRouteRunPlan,
   routeNeedsMoreEvidence,
   samplesDisagree,
   type BudgetMethod,
+  type BudgetMetric,
   type RouteBudget,
   type RouteMeasurement,
   type SampleRow,
@@ -209,10 +212,9 @@ describe("medianSitsOnTheLine", () => {
     expect(medianSitsOnTheLine(at(300), {}, method)).toBe(false);
   });
 
-  it("spends nothing when the method declares no resample budget", () => {
-    expect(
-      medianSitsOnTheLine(at(300), ceilings, { ...method, resampleRuns: undefined }),
-    ).toBe(false);
+  it("spends nothing when the route has no resample budget to spend", () => {
+    expect(routeNeedsMoreEvidence(at(300), ceilings, method, 0)).toBe(false);
+    expect(routeNeedsMoreEvidence(at(300), ceilings, method, 2)).toBe(true);
   });
 
   it("still buys evidence for samples that disagree far under the ceiling", () => {
@@ -222,6 +224,93 @@ describe("medianSitsOnTheLine", () => {
     const wild = at(20, 200, 900);
     expect(medianSitsOnTheLine(wild, ceilings, method)).toBe(false);
     expect(samplesDisagree(wild, method)).toBe(true);
-    expect(routeNeedsMoreEvidence(wild, ceilings, method)).toBe(true);
+    expect(routeNeedsMoreEvidence(wild, ceilings, method, 2)).toBe(true);
+  });
+});
+
+// THE NOISE FLOOR, and the two things it may never do: move a ceiling, or cost
+// an unmarked route anything.
+describe("resolveRouteRunPlan", () => {
+  const method: BudgetMethod = {
+    ...PERFORMANCE_BUDGETS.method,
+    warmupRuns: 1,
+    measuredRuns: 3,
+    resampleRuns: 2,
+    noisyWarmupRuns: 2,
+    noisyResampleRuns: 4,
+  };
+  const mark = { metrics: ["lcpMs"] as const, measuredSpreadPct: 51, why: "measured wide" };
+
+  it("leaves an unmarked route on exactly the runs it took before", () => {
+    expect(resolveRouteRunPlan({}, method)).toEqual({
+      warmupRuns: 1,
+      resampleRuns: 2,
+      noisy: false,
+    });
+  });
+
+  it("gives a marked route a second discarded warm-up and a median of seven", () => {
+    const plan = resolveRouteRunPlan({ noisy: { ...mark, metrics: ["lcpMs"] } }, method);
+    expect(plan).toEqual({ warmupRuns: 2, resampleRuns: 4, noisy: true });
+    expect(method.measuredRuns + plan.resampleRuns).toBe(7);
+  });
+
+  it("falls back to the ordinary budget when the method declares no floor", () => {
+    const noFloor: BudgetMethod = {
+      ...method,
+      noisyWarmupRuns: undefined,
+      noisyResampleRuns: undefined,
+    };
+    expect(resolveRouteRunPlan({ noisy: { ...mark, metrics: ["lcpMs"] } }, noFloor)).toEqual({
+      warmupRuns: 1,
+      resampleRuns: 2,
+      noisy: true,
+    });
+  });
+
+  it("counts the worst case a sweep can cost, so its timeout is not a guess", () => {
+    const routes = [{}, { noisy: { ...mark, metrics: ["lcpMs"] as BudgetMetric[] } }];
+    // 1 + 3 + 2 for the quiet route, 2 + 3 + 4 for the marked one.
+    expect(plannedNavigations(routes, method)).toBe(15);
+  });
+});
+
+describe("the routes the budget file marks noisy", () => {
+  const marked = PERFORMANCE_BUDGETS.routes.filter((entry) => entry.noisy);
+
+  it("declares the noise floor it spends", () => {
+    const { method } = PERFORMANCE_BUDGETS;
+    expect(method.noisyWarmupRuns).toBeGreaterThan(method.warmupRuns);
+    expect(method.noisyResampleRuns).toBeGreaterThan(method.resampleRuns ?? 0);
+    expect((method.noisyFloorWhy ?? "").trim().length).toBeGreaterThan(20);
+  });
+
+  it("records the evidence for every mark, so it can be argued with and taken off", () => {
+    expect(marked.length).toBeGreaterThan(0);
+    for (const entry of marked) {
+      const noisy = entry.noisy!;
+      expect(noisy.metrics.length, entry.path).toBeGreaterThan(0);
+      for (const metric of noisy.metrics) {
+        expect(BUDGET_METRICS, `${entry.path} ${metric}`).toContain(metric);
+      }
+      expect(noisy.measuredSpreadPct, entry.path).toBeGreaterThan(
+        PERFORMANCE_BUDGETS.method.sampleSpreadWarnPct,
+      );
+      expect(noisy.why.trim().length, entry.path).toBeGreaterThan(40);
+    }
+  });
+
+  it("is a marking and never a ceiling, so no marked route pays for it in headroom", () => {
+    // The whole point of the floor: more evidence, never a bigger number. If a
+    // mark ever arrives in the same commit as a raise on the same metric, this
+    // says so.
+    for (const entry of marked) {
+      for (const raise of entry.ceilingRaises ?? []) {
+        expect(
+          entry.noisy!.metrics.includes(raise.metric) && raise.why.includes("noisy"),
+          `${entry.path} ${raise.metric}`,
+        ).toBe(false);
+      }
+    }
   });
 });
