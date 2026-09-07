@@ -1489,3 +1489,10 @@ html[data-theme="dark"] .messageBubbleTheirs {
     display: none;
   }
 }
+
+.messageRecipientSearch { display: flex; gap: 12px; margin-top: 8px; }
+.messageRecipientSearch input { min-width: 0; flex: 1; min-height: 44px; font-size: 1rem; }
+.messageRecipientSearch button { min-height: 44px; padding: 8px 16px; }
+.messageRecipientRow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.messageRecipientRow a { min-width: 0; overflow-wrap: anywhere; }
+.messageRecipientRow span { color: var(--ink-soft); }
