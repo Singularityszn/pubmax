@@ -27,6 +27,7 @@ const state = vi.hoisted(() => ({
     staffDisplayName: string;
     postId: string;
     mediaId: string | null;
+    media?: { kind: "video"; contentType: "video/mp4" };
     revision: number;
     authorHandle: string;
     body: string;
@@ -230,6 +231,25 @@ describe("Admin Social post moderation queue", () => {
     createdAt: "2026-08-29T12:00:00.000Z",
     updatedAt: "2026-08-29T12:05:00.000Z",
   };
+
+  it("plays held videos behind the moderator route and refuses approval without a loaded preview", async () => {
+    state.socialPosts = [{ ...heldPost, media: { kind: "video", contentType: "video/mp4" } }];
+    await loadAdmin();
+    const video = host.querySelector("video")!;
+    expect(video).toBeTruthy();
+    expect(video.getAttribute("src")).toBe(`/api/admin/social-posts/media/${heldPost.mediaId}`);
+    expect(video.controls).toBe(true);
+    const approve = [...host.querySelectorAll("button")].find((button) => button.textContent === "Approve")!;
+    const hide = [...host.querySelectorAll("button")].find((button) => button.textContent === "Hide")!;
+    expect(approve.disabled).toBe(true);
+    expect(hide.disabled).toBe(false);
+    await act(async () => { video.dispatchEvent(new Event("loadeddata")); });
+    expect(approve.disabled).toBe(false);
+    await act(async () => { video.dispatchEvent(new Event("error")); });
+    expect(approve.disabled).toBe(true);
+    expect(hide.disabled).toBe(false);
+    expect(host.textContent).toContain("Video preview failed.");
+  });
 
   it("removes legacy raw tokens when an authenticated console mounts", async () => {
     localStorage.setItem("pubmax_admin_token", "legacy-local-token");

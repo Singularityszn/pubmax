@@ -164,9 +164,9 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
   },
   "lib/socialInteractionStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/socialPostConsentStore.ts": {
-    class: "not-dual-backend",
-    selector: "none",
-    reason: "RPC-only durable store; no memory implementation.",
+    class: "policy-heavy",
+    selector: "selectStore",
+    reason: "Media and approved-tag reads select memory or Supabase; consent and admin operations remain durable.",
   },
   "lib/socialPostStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/stepOutNudgeStore.ts": { class: "policy-heavy", selector: "selectStore" },

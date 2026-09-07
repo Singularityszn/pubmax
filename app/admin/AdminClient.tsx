@@ -214,6 +214,7 @@ type ImportNoteRow = {
 };
 
 type ModeratorSocialPost = {
+  media?: { kind: "photo" | "video"; contentType: "image/jpeg" | "video/mp4" };
   staffDisplayName: string;
   postId: string;
   mediaId: string | null;
@@ -246,6 +247,8 @@ function isModeratorSocialPost(value: unknown): value is ModeratorSocialPost {
     typeof row.staffDisplayName === "string" &&
     typeof row.postId === "string" &&
     isNullableString(row.mediaId) &&
+    (row.media === undefined || (row.media !== null && typeof row.media === "object" &&
+      ["image/jpeg", "video/mp4"].includes(String((row.media as Record<string, unknown>).contentType)))) &&
     Number.isSafeInteger(row.revision) &&
     (row.revision as number) >= 0 &&
     typeof row.authorHandle === "string" &&
@@ -306,6 +309,8 @@ function SocialPostModerationQueue({
   sessionEntry?: React.ReactNode;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
+  const [videoPreviews, setVideoPreviews] = useState<Record<string, "ready" | "failed" | "loading">>({});
+  const previewKey = (post: ModeratorSocialPost) => `${post.postId}:${post.mediaId}:${post.revision}`;
   return (
     <>
       <h2 className="admin-section" ref={headingRef} tabIndex={-1}>
@@ -362,14 +367,29 @@ function SocialPostModerationQueue({
               <p className="admin-note">{post.body}</p>
               {post.mediaId ? (
                 <div className="admin-photos">
-                  <Image
+                  {post.media?.contentType === "video/mp4" ? (
+                    <video
+                      src={`/api/admin/social-posts/media/${post.mediaId}`}
+                      aria-label={post.photoAltText ?? "Social post video"}
+                      controls
+                      playsInline
+                      preload="auto"
+                      width={320}
+                      onLoadStart={() => setVideoPreviews((held) => ({ ...held, [previewKey(post)]: "loading" }))}
+                      onLoadedData={() => setVideoPreviews((held) => ({ ...held, [previewKey(post)]: "ready" }))}
+                      onError={() => setVideoPreviews((held) => ({ ...held, [previewKey(post)]: "failed" }))}
+                    />
+                  ) : <Image
                     src={`/api/admin/social-posts/media/${post.mediaId}`}
                     alt={post.photoAltText ?? "Social post photo"}
                     width={160}
                     height={160}
                     unoptimized
-                  />
+                  />}
                 </div>
+              ) : null}
+              {post.media?.contentType === "video/mp4" && videoPreviews[previewKey(post)] === "failed" ? (
+                <p role="alert">Video preview failed. Reload before approval.</p>
               ) : null}
               <div className="admin-meta">
                 <span>Area: {post.area ?? "None"}</span>
@@ -391,7 +411,7 @@ function SocialPostModerationQueue({
                 <button
                   className="admin-btn admin-restore"
                   onClick={() => onDecision(post, "approve")}
-                  disabled={pendingAction !== null}
+                  disabled={pendingAction !== null || (post.media?.contentType === "video/mp4" && videoPreviews[previewKey(post)] !== "ready")}
                 >
                   {socialPostActionLabel(pendingAction, post.postId, "approve")}
                 </button>

@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
+  configured: true,
+  durableRequired: false,
   rows: new Map<string, unknown>(),
   calls: [] as Array<{ name: string; input: Record<string, unknown> }>,
   tableRows: new Map<string, unknown[]>(),
@@ -13,6 +15,8 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/supabase", () => ({
+  isSupabaseConfigured: () => state.configured,
+  requiresSupabaseStore: () => state.durableRequired,
   requireSupabaseAdmin: () => ({
     rpc: async (name: string, input: Record<string, unknown>) => {
       state.calls.push({ name, input });
@@ -37,6 +41,8 @@ const viewer = { accountId: "account-a", profileId: "profile-a", handle: "alice"
 const staffRoleId = "99999999-9999-4999-8999-999999999999";
 
 beforeEach(() => {
+  state.configured = true;
+  state.durableRequired = false;
   state.rows = new Map();
   state.calls = [];
   state.tableRows = new Map();
@@ -44,6 +50,19 @@ beforeEach(() => {
 });
 
 describe("Social post consent and private read store", () => {
+  it("selects read backends at call time through the production guard", async () => {
+    const store = createSocialPostConsentStore();
+    state.configured = false;
+    expect(await store.approvedTags(viewer, ["post-a"])).toEqual(new Map());
+    expect(state.calls).toEqual([]);
+    state.durableRequired = true;
+    await expect(store.approvedTags(viewer, ["post-a"])).rejects.toThrow("durable store required");
+    await expect(store.mediaObjectKey(viewer, "media-a")).rejects.toThrow("durable store required");
+    state.configured = true;
+    state.rows.set("read_social_post_media", [{ object_key: "social/media-a/video.mp4" }]);
+    expect(await store.mediaObjectKey(viewer, "media-a")).toBe("social/media-a/video.mp4");
+  });
+
   it("batches only approved current-handle tags by visible post", async () => {
     state.rows.set("read_social_post_tags_many", [
       { post_id: "post-a", proposal_id: "proposal-a", handle: "bob_new" },
@@ -118,7 +137,7 @@ describe("Social post consent and private read store", () => {
     });
   });
 
-  it("uses the admin-only moderation RPCs without requiring a Social session", async () => {
+  it.each(["image/jpeg", "video/mp4"])("projects %s through admin-only moderation without the new post column", async (contentType) => {
     state.rows.set("read_social_post_moderation_queue_admin", [{
       staff_display_name: "Captain",
       post_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -145,6 +164,7 @@ describe("Social post consent and private read store", () => {
         comment_policy: "friends",
         photo_media_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
         photo_alt_text: "Two pints beside the window",
+        social_post_media: { content_type: contentType },
         moderation_state: "approved",
         revision: 4,
         created_at: "2026-08-29T11:55:00.000Z",
@@ -161,6 +181,7 @@ describe("Social post consent and private read store", () => {
       authorHandle: "alice",
       body: "Friday at the Pineapple.",
       photoAltText: "Two pints beside the window",
+      ...(contentType === "video/mp4" ? { media: { kind: "video", contentType } } : {}),
       area: "camden",
       venueId: "venue-pineapple",
       visibility: "friends",

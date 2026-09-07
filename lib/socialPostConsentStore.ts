@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import { socialPostFromRow, type SocialPostActor } from "@/lib/socialPostStore";
+import { memorySocialPostStore, socialPostFromRow, type SocialPostActor } from "@/lib/socialPostStore";
 import {
   socialPostDTO,
   type SocialPost,
@@ -10,6 +10,7 @@ import {
   type SocialPostVisibility,
 } from "@/lib/socialPosts";
 import { requireSupabaseAdmin } from "@/lib/supabase";
+import { selectStore } from "@/lib/storeBackend";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 
 export type SocialPostTag = { handle: string };
@@ -39,6 +40,7 @@ export type SocialPostHeldItem = {
   createdAt: string;
 };
 export type SocialPostAdminHeldItem = SocialPostHeldItem & {
+  media?: { kind: "photo" | "video"; contentType: "image/jpeg" | "video/mp4" };
   revision: number;
   authorHandle: string;
   body: string;
@@ -161,7 +163,9 @@ function adminHeldItemFromRow(
 ): SocialPostAdminHeldItem | null {
   const rawPost = Array.isArray(item.social_posts) ? item.social_posts[0] : item.social_posts;
   if (!rawPost || typeof rawPost !== "object" || Array.isArray(rawPost)) return null;
-  const post = socialPostFromRow(rawPost);
+  const raw = rawPost as Record<string, unknown>;
+  const media = Array.isArray(raw.social_post_media) ? raw.social_post_media[0] : raw.social_post_media;
+  const post = socialPostFromRow({ ...raw, photo_content_type: media?.content_type ?? raw.photo_content_type });
   if (!heldJobMatches(held, item, post) || post.moderationState === "pending") return null;
   return {
     ...held,
@@ -169,6 +173,7 @@ function adminHeldItemFromRow(
     authorHandle: post.authorHandle,
     body: post.body,
     photoAltText: post.photo?.altText ?? null,
+    ...(post.photo?.kind === "video" ? { media: { kind: "video" as const, contentType: "video/mp4" as const } } : {}),
     area: post.area,
     venueId: post.venueId,
     visibility: post.visibility,
@@ -209,7 +214,7 @@ export type SocialPostConsentStore = {
 };
 
 export function createSocialPostConsentStore(): SocialPostConsentStore {
-  return {
+  const durable: SocialPostConsentStore = {
     async approvedTags(viewer, postIds) {
       if (postIds.length === 0) return new Map();
       const result = new Map<string, SocialPostTag[]>();
@@ -366,6 +371,7 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
             comment_policy,
             photo_media_id,
             photo_alt_text,
+            social_post_media!social_posts_photo_media_fk(content_type),
             moderation_state,
             revision,
             created_at,
@@ -406,6 +412,19 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
           "conflict",
         );
       }
+    },
+  };
+  const memoryReads: Pick<SocialPostConsentStore, "approvedTags" | "mediaObjectKey"> = {
+    async approvedTags() { return new Map(); },
+    async mediaObjectKey(viewer, mediaId) { return memorySocialPostStore.mediaObjectKey!(viewer, mediaId); },
+  };
+  return {
+    ...durable,
+    async approvedTags(viewer, postIds) {
+      return selectStore(memoryReads, durable).approvedTags(viewer, postIds);
+    },
+    async mediaObjectKey(viewer, mediaId) {
+      return selectStore(memoryReads, durable).mediaObjectKey(viewer, mediaId);
     },
   };
 }

@@ -1,15 +1,15 @@
+import { SOCIAL_MEDIA_BODY_MAX_BYTES, socialMediaMetadata } from "@/lib/socialMediaPolicy";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { publicApiError } from "@/lib/apiError";
 import { isLimited } from "@/lib/pintDrops";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { socialPostStore, SocialPostStoreError } from "@/lib/socialPostStore";
-import { prepareSocialPhoto, reconcileSocialPhotoUpload, reserveSocialPhotoUpload, SocialPhotoError, uploadPreparedSocialPhoto, type UploadedSocialPhoto } from "@/lib/socialPostMedia.server";
+import { prepareSocialVideo, prepareSocialPhoto, reconcileSocialPhotoUpload, reserveSocialPhotoUpload, SocialPhotoError, uploadPreparedSocialPhoto, type UploadedSocialPhoto } from "@/lib/socialPostMedia.server";
 import { parseSocialEditSubmission } from "@/lib/socialPostSubmission";
 import { projectSocialVenueName, resolveSocialVenueId } from "@/lib/socialPostVenue.server";
 import { hashActor } from "@/lib/supabase";
 import { boundedFormData, boundedJson } from "@/lib/boundedRequest.server";
-import { SOCIAL_PHOTO_MAX_BYTES } from "@/lib/socialPostMedia.server";
 import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
 
 assertServerEnv();
@@ -48,11 +48,12 @@ async function readPatchInput(request: Request): Promise<{ input: unknown; photo
   if (!(request.headers.get("Content-Type") ?? "").startsWith("multipart/form-data")) {
     return { input: await boundedJson(request), photo: null };
   }
-  const form = await boundedFormData(request, SOCIAL_PHOTO_MAX_BYTES + 64 * 1024);
-  if ([...form.keys()].some((key) => key !== "post" && key !== "photo") || form.getAll("post").length !== 1 || form.getAll("photo").length > 1) throw new Error();
+  const form = await boundedFormData(request, SOCIAL_MEDIA_BODY_MAX_BYTES);
+  if ([...form.keys()].some((key) => key !== "post" && key !== "photo" && key !== "video") || form.getAll("post").length !== 1 || form.getAll("photo").length + form.getAll("video").length > 1) throw new Error();
   const post = form.get("post");
-  const photo = form.get("photo");
+  const photo = form.get("photo") ?? form.get("video");
   if (typeof post !== "string" || (photo !== null && !(photo instanceof File))) throw new Error();
+  if (photo instanceof File && ((form.has("video") && photo.type !== "video/mp4") || (form.has("photo") && photo.type === "video/mp4"))) throw new Error();
   return { input: JSON.parse(post), photo: photo as File | null };
 }
 
@@ -113,7 +114,7 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
       return storeError(error);
     }
   }
-  const validation = parseSocialEditSubmission(input, photo !== null);
+  const validation = parseSocialEditSubmission(input, photo !== null, photo?.type);
   if (!validation.ok) {
     return publicApiError(validation.error, validation.code, 400, { headers: { "Cache-Control": "private, no-store" } });
   }
@@ -135,7 +136,7 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
       changes = { ...changes, venueId: venue.venueId };
     }
     if (photo) {
-      const prepared = await prepareSocialPhoto(photo);
+      const prepared = await (photo.type === "video/mp4" ? prepareSocialVideo : prepareSocialPhoto)(photo);
       reserved = await reserveSocialPhotoUpload(access.actor.profileId, prepared);
       uploaded = await uploadPreparedSocialPhoto(
         access.actor.profileId,
@@ -145,7 +146,7 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
         reserved.objectKey,
         reserved.generation,
       );
-      changes = { ...changes, photo: { mediaId: uploaded.mediaId, altText: validation.photoAltText! } };
+      changes = { ...changes, photo: { mediaId: uploaded.mediaId, altText: validation.photoAltText!, ...(prepared.contentType === "video/mp4" ? socialMediaMetadata(prepared.contentType) : {}) } };
     } else if (validation.removePhoto) changes = { ...changes, photo: null };
     const editOptions = uploaded
       ? { media: uploaded, tagHandles: validation.tagHandles }

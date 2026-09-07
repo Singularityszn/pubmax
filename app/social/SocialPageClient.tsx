@@ -1,16 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 
-import { DiscoverBody } from "@/app/discover/DiscoverPageClient";
+
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import FoundersWallLink from "@/components/founding/FoundersWallLink";
 import SiteNav from "@/components/nav/SiteNav";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import CrewsPanel from "@/components/social/CrewsPanel";
+import SocialPostActions from "@/components/social/SocialPostActions";
+import SocialPostMedia from "@/components/social/SocialPostMedia";
 import CreatorListsLane from "@/components/social/CreatorListsLane";
 import FindYourLot from "@/components/social/FindYourLot";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
@@ -50,9 +53,12 @@ import type { SocialPostDTO } from "@/lib/socialPosts";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import "./social.css";
+import "./socialDiscovery.css";
 import SocialComposer from "./SocialComposer";
 import SocialTagInbox from "./SocialTagInbox";
 import SocialOutbox from "./SocialOutbox";
+
+const DiscoverBody = dynamic(() => import("@/app/discover/DiscoverPageClient").then((module) => module.DiscoverBody));
 
 export type SocialBoundaryState = SocialBoundaryCopyState;
 
@@ -229,7 +235,7 @@ export function SocialAccessBoundary({
   );
 }
 
-export function SocialPostCard({ post, canEdit = false, draftScope, onEdited }: { post: SocialPostDTO; canEdit?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void }) {
+export function SocialPostCard({ post, canEdit = false, canInteract = false, draftScope, onEdited }: { post: SocialPostDTO; canEdit?: boolean; canInteract?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void }) {
   const area = post.area ? getNightArea(post.area) : null;
   const exactVenueId = post.venueProjected ? post.venueId : null;
   const when = relativeTime(post.createdAt);
@@ -243,32 +249,28 @@ export function SocialPostCard({ post, canEdit = false, draftScope, onEdited }: 
           imageClassName="socialPostAvatar"
           size={32}
         />
-        <strong>@{post.author.handle}</strong>
+        <Link className="socialPostAuthor" href={`/u/${encodeURIComponent(post.author.handle)}`}>
+          @{post.author.handle}
+        </Link>
         {when ? <time dateTime={post.createdAt}>{when}</time> : null}
       </header>
       {post.kind === "feature_request" ? (
         <p className="socialPostKind">Feature request</p>
       ) : null}
-      <p className="socialPostBody">{post.body}</p>
       {post.photo ? (
         <figure className="socialPostPhoto">
-          {/* eslint-disable-next-line @next/next/no-img-element -- private signed delivery route. */}
-          <img
-            src={`/api/social/media/${post.photo.mediaId}`}
-            alt={post.photo.altText}
-            loading="lazy"
-            decoding="async"
-          />
+          <SocialPostMedia media={post.photo} />
           {post.photo.tags && post.photo.tags.length > 0 ? (
             <figcaption>{post.photo.tags.map((tag) => `@${tag.handle}`).join(" ")}</figcaption>
           ) : null}
         </figure>
       ) : null}
+      {post.body ? <p className="socialPostBody">{post.body}</p> : null}
       {area || exactVenueId ? (
         <p className="socialPostPlace">
           {area ? <span>{area.name}</span> : null}
           {exactVenueId ? (
-            <Link href={venueMapUrl(exactVenueId)}>Open venue</Link>
+            <Link href={venueMapUrl(exactVenueId)}>{post.venueName || "Open venue"}</Link>
           ) : null}
         </p>
       ) : null}
@@ -280,6 +282,7 @@ export function SocialPostCard({ post, canEdit = false, draftScope, onEdited }: 
         </p>
       ) : null}
       {post.editedAt ? <p className="socialPostEdited">Edited</p> : null}
+      {canInteract ? <SocialPostActions post={post} /> : null}
       {canEdit && draftScope && onEdited ? <SocialComposer key={`${draftScope}:${post.id}`} post={post} draftScope={draftScope} onSaved={onEdited} /> : null}
     </article>
   );
@@ -295,23 +298,14 @@ function PostsControls({
   return (
     <>
       <nav className="socialLaneNav" aria-label="Post lanes">
-        <Link
-          href="/social"
-          aria-current={state.feed === "following" ? "page" : undefined}
-        >
+        <Link href="/social" aria-current={state.feed === "discover" ? "page" : undefined}>
+          Discover
+        </Link>
+        <Link href="/social?feed=following" aria-current={state.feed === "following" ? "page" : undefined}>
           Following
         </Link>
-        <Link
-          href="/social?feed=nearby"
-          aria-current={state.feed === "nearby" ? "page" : undefined}
-        >
+        <Link href="/social?feed=nearby" aria-current={state.feed === "nearby" ? "page" : undefined}>
           Nearby
-        </Link>
-        <Link
-          href="/social?feed=discover"
-          aria-current={state.feed === "discover" ? "page" : undefined}
-        >
-          Across town
         </Link>
       </nav>
       {state.feed === "nearby" ? (
@@ -744,60 +738,15 @@ function SocialPageAccountState({
         <Screen
           as="section"
           kicker={surfaceName}
-          title="Crews and people who are already here."
+          title="Good times, shared."
           titleId="social-title"
           primary={primary}
           secondary={secondary}
         >
         <div className="socialLayout">
-          <aside className="socialControlRail" aria-label={`${surfaceName} views`}>
-            {showViewerCards ? <SocialTagInbox /> : null}
-            {showViewerCards ? <SocialOutbox draftScope={draftScope} submittedPost={submittedPost} onPostChanged={(updated) => {
-              if (updated) setSubmittedPost(updated);
-              setFeedAttempt((value) => value + 1);
-            }} /> : null}
-            <nav className="socialSwitcher" aria-label={`${surfaceName} view`}>
-              <Link href="/social" aria-current={isPosts ? "page" : undefined}>
-                Posts
-              </Link>
-              <Link
-                href="/social?tab=discover"
-                aria-current={!isPosts ? "page" : undefined}
-              >
-                Pubs &amp; pints
-              </Link>
-            </nav>
+          <div className="socialMain">
             {showPostsControls ? <PostsControls state={initialState} /> : null}
-            {/* Crews render their own neutral identity state before the
-                verified gate answers. Protected crew data still stays behind
-                that gate. */}
-            {showViewerCards ? (
-              <CrewsPanel viewerHandle={viewerHandle} compact />
-            ) : null}
-            {/* Friend-graph formation rides the posts tab, and an EMERGENCY
-                ROLLBACK (PUBMAX_SOCIAL_FRIENDS_LAUNCH=0) takes it with the rest
-                of the surface: the body beside these becomes the preview
-                boundary, so leaving them mounted would offer follows on a page
-                that says it is not open yet. Pinned by
-                __tests__/socialRollbackRender.test.tsx. */}
-            {/* ONE live copy of the packs on this page. Signed-in cards keep
-                their follow results; stranger cards are read-only, and the
-                two render paths must never appear together. */}
-            {friendsLaunchEnabled && isPosts && !packsBesideTheDoor ? <StarterPacks compact /> : null}
-            {/* The founders wall. Public, already sitemapped, and until now
-                reachable from nowhere inside the app. One quiet link, no
-                count, and no branch on whether this reader holds a number:
-                that would make the number a capability, which
-                lib/foundingMembers.ts forbids. */}
-            {isPosts ? <FoundersWallLink className="socialFoundersLink" /> : null}
-            {/* And ONE live copy of the search-and-invite surface, for the same
-                reason: the body used to mount a second one beside it, so an
-                unverified viewer met the same heading, the same field and the
-                same invite button twice at 1440 and stacked at 390 - and both
-                copies carried `id="find-lot-title"`, which left every
-                `aria-labelledby` on the page pointing at the first. */}
-            {friendsLaunchEnabled && isPosts ? <FindYourLot myHandle={viewerHandle} compact /> : null}
-          </aside>
+
 
           {!friendsLaunchEnabled ? (
             <SocialAccessBoundary
@@ -908,17 +857,19 @@ function SocialPageAccountState({
                 </div>
               ) : posts.length === 0 ? (
                 <div className="socialFeedEmpty" role="status">
-                  <EmptyState title="No posts here yet.">
-                    Find your lot: search a handle or send an invite. Nights from
-                    mutuals land here.
-                  </EmptyState>
+                  <EmptyState
+                    title={initialState.feed === "following" ? "Your people, your next good night." : "Be the first to share a moment."}
+                    action={initialState.feed === "following"
+                      ? <Link href="/social">Discover moments</Link>
+                      : <Link href="/social?tab=discover">Find somewhere to go</Link>}
+                  />
                   {/* The search-and-invite surface is the rail's, once. */}
                   <PeopleDirectory myHandle={viewerHandle} />
                 </div>
               ) : (
                 <div className="socialPostList">
                   {posts.map((post) => (
-                    <SocialPostCard key={post.id} post={post} canEdit={post.ownedByViewer} draftScope={draftScope}
+                    <SocialPostCard key={post.id} post={post} canEdit={post.ownedByViewer} canInteract draftScope={draftScope}
                       onEdited={(updated) => updated
                         ? setPosts((current) => chronological(current.map((item) => item.id === updated.id ? updated : item)))
                         : setFeedAttempt((value) => value + 1)} />
@@ -937,6 +888,55 @@ function SocialPageAccountState({
               ) : null}
             </section>
           )}
+
+          </div>
+          <aside className="socialControlRail" aria-label={`${surfaceName} views`}>
+            {showViewerCards ? <SocialTagInbox /> : null}
+            {showViewerCards ? <SocialOutbox draftScope={draftScope} submittedPost={submittedPost} onPostChanged={(updated) => {
+              if (updated) setSubmittedPost(updated);
+              setFeedAttempt((value) => value + 1);
+            }} /> : null}
+            <nav className="socialSwitcher" aria-label={`${surfaceName} view`}>
+              <Link href="/social" aria-current={isPosts ? "page" : undefined}>
+                Posts
+              </Link>
+              <Link
+                href="/social?tab=discover"
+                aria-current={!isPosts ? "page" : undefined}
+              >
+                Pubs &amp; pints
+              </Link>
+            </nav>
+            {/* Crews render their own neutral identity state before the
+                verified gate answers. Protected crew data still stays behind
+                that gate. */}
+            {showViewerCards ? (
+              <CrewsPanel viewerHandle={viewerHandle} compact />
+            ) : null}
+            {/* Friend-graph formation rides the posts tab, and an EMERGENCY
+                ROLLBACK (PUBMAX_SOCIAL_FRIENDS_LAUNCH=0) takes it with the rest
+                of the surface: the body beside these becomes the preview
+                boundary, so leaving them mounted would offer follows on a page
+                that says it is not open yet. Pinned by
+                __tests__/socialRollbackRender.test.tsx. */}
+            {/* ONE live copy of the packs on this page. Signed-in cards keep
+                their follow results; stranger cards are read-only, and the
+                two render paths must never appear together. */}
+            {friendsLaunchEnabled && isPosts && !packsBesideTheDoor ? <StarterPacks compact /> : null}
+            {/* The founders wall. Public, already sitemapped, and until now
+                reachable from nowhere inside the app. One quiet link, no
+                count, and no branch on whether this reader holds a number:
+                that would make the number a capability, which
+                lib/foundingMembers.ts forbids. */}
+            {isPosts ? <FoundersWallLink className="socialFoundersLink" /> : null}
+            {/* And ONE live copy of the search-and-invite surface, for the same
+                reason: the body used to mount a second one beside it, so an
+                unverified viewer met the same heading, the same field and the
+                same invite button twice at 1440 and stacked at 390 - and both
+                copies carried `id="find-lot-title"`, which left every
+                `aria-labelledby` on the page pointing at the first. */}
+            {friendsLaunchEnabled && isPosts ? <FindYourLot myHandle={viewerHandle} compact /> : null}
+          </aside>
 
           {showPostsControls ? (
             <SocialContextRail status={visibleActivityStatus} items={visibleActivityItems} />

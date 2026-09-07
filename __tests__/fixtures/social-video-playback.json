@@ -1,0 +1,20 @@
+[
+  {
+    "name": "social-video.mp4",
+    "width": 320,
+    "height": 240,
+    "duration": 2.026667,
+    "currentTime": 1,
+    "readyState": 4,
+    "error": null
+  },
+  {
+    "name": "social-video-faststart.mp4",
+    "width": 320,
+    "height": 240,
+    "duration": 2.026667,
+    "currentTime": 1,
+    "readyState": 4,
+    "error": null
+  }
+]

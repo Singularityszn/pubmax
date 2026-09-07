@@ -564,6 +564,53 @@ describe.skipIf(skipReason !== null)("Social composer migration forward, concurr
       .toBe("propose,cancel");
   });
 
+  it("stores bounded videos with honest metadata, audience gates, cleanup and a guarded rollback", () => {
+    const db = database!;
+    const forward = join(process.cwd(), "supabase/migrations/20260907160000_0154_social_video.sql");
+    const rollback = join(process.cwd(), "supabase/migrations/rollback/20260907160000_0154_social_video_rollback.sql");
+    db.applyFile(forward);
+    const videoId = "abababab-abab-4bab-8bab-abababababab";
+    const key = db.sql(`select object_key from public.reserve_social_post_video_upload(
+      '${ALICE}','${videoId}','${"b".repeat(64)}',1080,1920,1024,2)`);
+    expect(key).toMatch(/\/video\.mp4$/);
+    expect(db.expectRefusal(`select * from public.reserve_social_post_video_upload('${BOB}','${videoId}','${"b".repeat(64)}',1080,1920,1024,2)`)).toMatch(/reservation/);
+    expect(db.expectRefusal(`select * from public.reserve_social_post_video_upload('${ALICE}','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','${"b".repeat(64)}',1080,1920,4194305,2)`)).toMatch(/invalid Social video/);
+    const videoPost = db.sql(`select id from public.create_social_post('${ALICE}','alice','standard','friends','Video night',null,null,array[]::text[],'open',
+      '${videoId}','${key}','${"b".repeat(64)}',1080,1920,1024,'Friends at the pub',array[]::text[])`);
+    expect(db.sql(`select content_type || ':' || duration_seconds from public.social_post_media where id='${videoId}'`)).toBe("video/mp4:2");
+    expect(db.sql(`select photo_content_type from public.read_social_post_outbox_item('${videoPost}','${ALICE}')`)).toBe("video/mp4");
+    expect(db.sql(`select count(*) from public.read_social_post_media('${BOB}','${videoId}')`)).toBe("0");
+    expect(db.expectRefusal(`insert into public.social_post_tag_proposals(post_id,media_id,author_profile_id,target_profile_id)
+      values('${videoPost}','${videoId}','${ALICE}','${BOB}')`)).toMatch(/invalid Social/);
+    const job = JSON.parse(db.sql(`select row_to_json(t) from public.claim_social_post_moderation_jobs(50) t where post_id='${videoPost}'`));
+    expect(db.sql(`select public.complete_social_post_moderation_job('${videoPost}',0,'${videoId}','${job.lease_token}','needs_review',null,null)`)).toBe("t");
+    const staffRole = "55555555-5555-4555-8555-555555555555";
+    expect(db.sql(`select object_key from public.read_social_post_media_admin('${staffRole}','${videoId}')`)).toBe(key);
+    expect(db.sql(`select public.moderate_social_post_admin('${staffRole}','${videoPost}','${videoId}',1,'approve')`)).toBe("f");
+    expect(db.sql(`select public.moderate_social_post_admin('${staffRole}','${videoPost}','${videoId}',0,'approve')`)).toBe("t");
+    expect(db.expectRefusal(`update public.social_post_moderation_actions set media_id=null where post_id='${videoPost}'`)).toMatch(/append-only/);
+    expect(db.expectRefusal(`delete from public.social_post_moderation_actions where post_id='${videoPost}'`)).toMatch(/append-only/);
+    db.sql(`delete from public.social_blocks where blocker_profile_id='${ALICE}' and blocked_profile_id='${BOB}'`);
+    expect(db.sql(`select object_key from public.read_social_post_media('${BOB}','${videoId}')`)).toBe(key);
+    expect(db.sql(`select count(*) from public.read_social_post_media('${CAROL}','${videoId}')`)).toBe("0");
+    db.sql(`insert into public.social_blocks(blocker_profile_id,blocked_profile_id) values('${ALICE}','${BOB}')`);
+    expect(db.sql(`select count(*) from public.read_social_post_media('${BOB}','${videoId}')`)).toBe("0");
+    db.sql(`delete from public.social_blocks where blocker_profile_id='${ALICE}' and blocked_profile_id='${BOB}'`);
+    db.sql(`update public.social_posts set visibility='private' where id='${videoPost}'`);
+    expect(db.sql(`select count(*) from public.read_social_post_media('${BOB}','${videoId}')`)).toBe("0");
+    expect(db.sql(`select object_key from public.read_social_post_media('${ALICE}','${videoId}')`)).toBe(key);
+    expect(db.sql("select has_function_privilege('authenticated','public.reserve_social_post_video_upload(uuid,uuid,text,integer,integer,integer,double precision)','execute')")).toBe("f");
+    expect(() => db.applyFileTransactional(rollback)).toThrow(/Remove video attachments/);
+    db.sql(`select public.remove_social_post_idempotent('${videoPost}','${ALICE}',0,'video-remove-key-1234')`);
+    expect(db.sql(`select count(*) from public.read_social_post_media('${ALICE}','${videoId}')`)).toBe("0");
+    db.sql(`update public.social_post_media set retention_expires_at=now()-interval '1 day' where id='${videoId}';`);
+    const claim = JSON.parse(db.sql(`select row_to_json(t) from public.claim_social_post_media_cleanup_batch(100) t where media_id='${videoId}'`));
+    expect(db.sql(`select public.finalize_social_post_media_cleanup('${videoId}','${claim.generation}','${claim.cleanup_token}')`)).toBe("t");
+    expect(db.sql(`select action || ':' || (media_id is null) from public.social_post_moderation_actions where post_id='${videoPost}'`)).toBe("approve:true");
+    db.applyFile(rollback);
+    expect(db.sql("select count(*) from information_schema.columns where table_name='social_posts' and column_name='photo_content_type'")).toBe("0");
+  });
+
   it("rolls back Task 6 state and restores Task 3 public-Venue and edit rules", () => {
     const db = database!;
     db.applyFile(ADMIN_REVISION_GUARD_ROLLBACK);

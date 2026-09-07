@@ -10,25 +10,38 @@ function database(): Promise<IDBDatabase> {
   });
 }
 
-export async function saveSocialDraftPhoto(scope: string, photo: File | null): Promise<void> {
+export async function saveSocialDraftPhoto(
+  scope: string,
+  photo: File | null,
+): Promise<void> {
   const db = await database();
-  await new Promise<void>((resolve, reject) => {
-    const transaction = db.transaction(STORE, "readwrite");
-    if (photo) transaction.objectStore(STORE).put(photo, scope);
-    else transaction.objectStore(STORE).delete(scope);
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-  });
-  db.close();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(STORE, "readwrite");
+      if (photo) transaction.objectStore(STORE).put(photo, scope);
+      else transaction.objectStore(STORE).delete(scope);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () =>
+        reject(transaction.error ?? new Error("Draft save was interrupted."));
+    });
+  } finally {
+    db.close();
+  }
 }
 
-export async function readSocialDraftPhoto(scope: string): Promise<File | null> {
+export async function readSocialDraftPhoto(
+  scope: string,
+): Promise<File | null> {
   const db = await database();
-  const value = await new Promise<unknown>((resolve, reject) => {
-    const request = db.transaction(STORE).objectStore(STORE).get(scope);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-  db.close();
-  return value instanceof File ? value : null;
+  try {
+    const value = await new Promise<unknown>((resolve, reject) => {
+      const request = db.transaction(STORE).objectStore(STORE).get(scope);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    return value instanceof File ? value : null;
+  } finally {
+    db.close();
+  }
 }

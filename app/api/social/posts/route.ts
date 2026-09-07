@@ -1,3 +1,4 @@
+import { SOCIAL_MEDIA_BODY_MAX_BYTES, socialMediaMetadata } from "@/lib/socialMediaPolicy";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { publicApiError } from "@/lib/apiError";
 import { isLimited } from "@/lib/pintDrops";
@@ -5,9 +6,9 @@ import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import {
   prepareSocialPhoto,
+  prepareSocialVideo,
   reconcileSocialPhotoUpload,
   reserveSocialPhotoUpload,
-  SOCIAL_PHOTO_MAX_BYTES,
   SocialPhotoError,
   uploadPreparedSocialPhoto,
   type UploadedSocialPhoto,
@@ -42,13 +43,14 @@ async function submissionBody(request: Request): Promise<{
     if (!contentType.toLowerCase().startsWith("multipart/form-data")) {
       return { input: await boundedJson(request), photo: null };
     }
-    const form = await boundedFormData(request, SOCIAL_PHOTO_MAX_BYTES + 64 * 1024);
-    if ([...form.keys()].some((key) => key !== "post" && key !== "photo")) return null;
+    const form = await boundedFormData(request, SOCIAL_MEDIA_BODY_MAX_BYTES);
+    if ([...form.keys()].some((key) => key !== "post" && key !== "photo" && key !== "video")) return null;
     const postParts = form.getAll("post");
-    const photoParts = form.getAll("photo");
+    const photoParts = [...form.getAll("photo"), ...form.getAll("video")];
     if (postParts.length !== 1 || typeof postParts[0] !== "string" || photoParts.length > 1) return null;
     const photo = photoParts[0] ?? null;
     if (photo !== null && !(photo instanceof File)) return null;
+    if (photo && ((form.has("video") && photo.type !== "video/mp4") || (form.has("photo") && photo.type === "video/mp4"))) return null;
     return { input: JSON.parse(postParts[0]), photo };
   } catch {
     return null;
@@ -130,7 +132,7 @@ export async function POST(request: Request): Promise<Response> {
   if (submitted === null) {
     return publicApiError("Post request is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
   }
-  const validation = parseSocialCreateSubmission(submitted.input, submitted.photo !== null);
+  const validation = parseSocialCreateSubmission(submitted.input, submitted.photo !== null, submitted.photo?.type);
   if (!validation.ok) {
     return publicApiError(validation.error, validation.code, 400, { headers: { "Cache-Control": "private, no-store" } });
   }
@@ -156,11 +158,11 @@ export async function POST(request: Request): Promise<Response> {
   let requestDigest = socialPostRequestDigest(fields, null, []);
   try {
     if (submitted.photo) {
-      const prepared = await prepareSocialPhoto(submitted.photo);
+      const prepared = await (submitted.photo.type === "video/mp4" ? prepareSocialVideo : prepareSocialPhoto)(submitted.photo);
       const mediaId = socialPhotoMediaId(access.actor.profileId, idempotencyKey, prepared.sha256);
       fields = {
         ...fields,
-        photo: { mediaId, altText: validation.photoAltText! },
+        photo: { mediaId, altText: validation.photoAltText!, ...(prepared.contentType === "video/mp4" ? socialMediaMetadata(prepared.contentType) : {}) },
       };
       const digest = socialPostRequestDigest(fields, prepared.sha256, validation.tagHandles);
       requestDigest = digest;

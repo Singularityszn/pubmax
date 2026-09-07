@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const POST_ID = "11111111-1111-4111-8111-111111111111";
 const E2E_AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
@@ -16,8 +16,15 @@ const basePost = {
   author: { handle: "old-alice" }, ownedByViewer: true,
 };
 
+async function expandDetails(detail: Locator): Promise<void> {
+  if (!(await detail.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await detail.locator("summary").click();
+  }
+}
+
 async function seedSocialSession(page: Page): Promise<void> {
   await page.context().addInitScript(({ authStorageKey, userId }) => {
+    if (window.localStorage.getItem(authStorageKey)) return;
     window.localStorage.setItem(
       authStorageKey,
       JSON.stringify({
@@ -41,9 +48,10 @@ async function seedSocialSession(page: Page): Promise<void> {
   await page.context().route("**/api/identity/handle/current", async (route) => {
     await route.fulfill({
       contentType: "application/json",
-      body: JSON.stringify({ handle: "alice-renamed" }),
+      body: JSON.stringify({ handle: "alice" }),
     });
   });
+  await page.context().route("**/auth/v1/**", (route) => route.fulfill({ status: 401, json: { message: "Mock session only" } }));
   await page.context().route("**/api/auth/session", async (route) => {
     await route.fulfill({
       contentType: "application/json",
@@ -55,7 +63,7 @@ async function seedSocialSession(page: Page): Promise<void> {
       contentType: "application/json",
       body: JSON.stringify({
         complete: true,
-        handle: "alice-renamed",
+        handle: "alice",
         dateOfBirth: "1995-03-21",
       }),
     });
@@ -63,11 +71,14 @@ async function seedSocialSession(page: Page): Promise<void> {
 }
 
 async function mockVerified(page: Page) {
-  await page.route("**/api/social/access", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ state: "verified", viewerHandle: "alice-renamed", draftScope: "a".repeat(43) }) }));
+  await page.route("**/api/social/access", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ state: "verified", viewerHandle: "alice", draftScope: "a".repeat(43) }) }));
   await page.route("**/api/social/interactions?**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ items: [], nextCursor: null }) }));
   await page.route("**/api/social/outbox", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ posts: [{ id: "held-1", moderationState: "needs_review", revision: 1, createdAt: "2026-08-05T19:00:00.000Z" }] }) }));
   await page.route("**/api/social/venues?**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ venues: [{ id: "venue-a", name: "The Proof Arms", borough: "Camden" }] }) }));
-  await page.route("**/api/social/media/**", (route) => route.fulfill({ status: 404, body: "" }));
+  await page.route("https://media.example.test/**", (route) => route.fulfill({ path: "e2e/fixtures/bill.jpg", contentType: "image/jpeg" }));
+  await page.route("**/api/social/media/**", (route) => new URL(route.request().url()).searchParams.get("format") === "json"
+    ? route.fulfill({ json: { url: "https://media.example.test/social-composer.jpg" } })
+    : route.fulfill({ path: "e2e/fixtures/bill.jpg", contentType: "image/jpeg" }));
 }
 
 test.beforeEach(async ({ page }) => {
@@ -139,10 +150,11 @@ test("verified composer preserves failed photo draft, records consent choices, a
     { proposalId: "tag-1", action: "withdraw" },
   ]);
 
-  await page.getByRole("button", { name: "New post" }).click();
+  await page.getByRole("button", { name: "Post", exact: true }).click();
   let dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toBeFocused();
   await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Photo draft survives reload");
+  await dialog.locator("summary").filter({ hasText: "Add location" }).click();
   const venueCombobox = dialog.getByRole("combobox", { name: "Venue - Friends only" });
   await venueCombobox.fill("Proof");
   await expect(venueCombobox).toHaveAttribute("aria-expanded", "true");
@@ -150,9 +162,11 @@ test("verified composer preserves failed photo draft, records consent choices, a
   await expect(dialog.getByRole("status")).toContainText("1 Venue found");
   await venueCombobox.press("ArrowDown");
   await venueCombobox.press("Enter");
+  await expandDetails(dialog.locator("details").first());
   await expect(dialog.getByLabel("Selected Venue")).toContainText("The Proof Arms");
+  await dialog.locator("summary").filter({ hasText: "Advanced settings" }).click();
   await dialog.getByLabel("Post type").selectOption("feature_request");
-  await dialog.getByLabel("Add photo", { exact: true }).setInputFiles({ name: "proof.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
+  await dialog.getByLabel("Add photo or video", { exact: true }).setInputFiles({ name: "proof.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
   await expect(dialog.getByRole("img", { name: "Selected photo preview" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Remove selected photo" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Post", exact: true })).toBeDisabled();
@@ -164,7 +178,7 @@ test("verified composer preserves failed photo draft, records consent choices, a
   expect((await dialog.getByRole("alert").boundingBox())?.y).toBeLessThan(220);
   await page.waitForTimeout(400);
   await page.reload();
-  await page.getByRole("button", { name: "New post" }).click();
+  await page.getByRole("button", { name: "Post", exact: true }).click();
   dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Photo draft survives reload");
   await expect(dialog.getByLabel("Photo description")).toBeVisible();
@@ -181,7 +195,7 @@ test("verified composer preserves failed photo draft, records consent choices, a
   expect(createKeys[0]).toBe(createKeys[1]);
   expect(createKeys[2]).not.toBe(createKeys[1]);
 
-  await page.getByRole("button", { name: "New post" }).click();
+  await page.getByRole("button", { name: "Post", exact: true }).click();
   dialog = page.getByRole("dialog");
   await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Text-only post");
   await dialog.getByRole("button", { name: "Post", exact: true }).click();
@@ -191,11 +205,12 @@ test("verified composer preserves failed photo draft, records consent choices, a
 
   await page.getByRole("button", { name: "Edit post" }).click();
   dialog = page.getByRole("dialog");
+  await expandDetails(dialog.locator("details").first());
   await expect(dialog.getByLabel("Selected Venue")).toContainText("The Proof Arms");
   await expect(dialog.getByRole("button", { name: "Remove venue" })).toBeVisible();
   await expect(dialog.getByLabel("Photo description")).toHaveValue("Friends outside");
-  await dialog.getByLabel("Add photo", { exact: true }).setInputFiles({ name: "replacement.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
-  await expect(dialog.getByRole("img", { name: "Selected photo preview" })).toBeVisible();
+  await dialog.getByLabel("Add photo or video", { exact: true }).setInputFiles({ name: "replacement.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
+  await expect(dialog.getByRole("img", { name: "Friends outside" })).toBeVisible();
   await dialog.getByRole("button", { name: "Remove selected photo" }).click();
   await expect(dialog.getByRole("img", { name: "Friends outside" })).toBeVisible();
   await expect(dialog.getByLabel("Photo description")).toHaveValue("Friends outside");
@@ -208,7 +223,8 @@ test("verified composer preserves failed photo draft, records consent choices, a
   await dialog.getByRole("button", { name: "Load latest" }).click();
   await expect(dialog.getByText("Latest post loaded. Review it before saving.")).toBeVisible();
   await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Changed in another tab");
-  await expect(dialog.getByLabel("Visibility")).toHaveValue("private");
+  await expect(dialog.getByRole("radio", { name: "Only me" })).toBeChecked();
+  await expandDetails(dialog.locator("details").last());
   await expect(dialog.getByLabel("Comments")).toHaveValue("locked");
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Changed in another tab")).toBeVisible();
@@ -216,6 +232,7 @@ test("verified composer preserves failed photo draft, records consent choices, a
   await page.getByRole("button", { name: "Edit post" }).click();
   dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Changed in another tab");
+  await expandDetails(dialog.locator("details").first());
   await expect(dialog.getByLabel("Selected Venue")).toBeVisible();
   await expect(dialog.getByLabel("Photo description")).toHaveValue("Friends outside");
   await dialog.getByRole("button", { name: "Remove photo" }).click();
@@ -234,13 +251,16 @@ test("account-bound drafts isolate text and photo while two tabs warn", async ({
   await context.route("**/api/social/outbox", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ posts: [] }) }));
   await context.route("**/api/social/tags**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ proposals: [] }) }));
   await context.route("**/api/social/posts?**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ posts: [], nextCursor: null }) }));
-  await page.goto("/social"); await page.getByRole("button", { name: "New post" }).click();
+  await page.goto("/social");
+  await page.getByRole("button", { name: "Post", exact: true }).click();
   let dialog = page.getByRole("dialog");
   await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Alice private draft");
-  await dialog.getByLabel("Add photo", { exact: true }).setInputFiles({ name: "alice.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
+  await dialog.getByLabel("Add photo or video", { exact: true }).setInputFiles({ name: "alice.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
   await dialog.getByLabel("Photo description").fill("Alice photo");
   await page.waitForTimeout(400);
-  const second = await context.newPage(); await second.goto("/social"); await second.getByRole("button", { name: "New post" }).click();
+  const second = await context.newPage();
+  await second.goto("/social");
+  await second.getByRole("button", { name: "Post", exact: true }).click();
   await expect(second.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Alice private draft");
   await expect(second.getByLabel("Photo description")).toHaveValue("Alice photo");
   await expect(page.getByText("This draft is open in another tab.")).toBeVisible();
@@ -249,10 +269,12 @@ test("account-bound drafts isolate text and photo while two tabs warn", async ({
   await expect(second.getByLabel("Photo description")).toHaveCount(0);
   await second.getByRole("button", { name: "Clear draft" }).click();
   await expect(second.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("");
-  await second.reload(); await second.getByRole("button", { name: "New post" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Alice private draft");
+  await second.reload(); await second.getByRole("button", { name: "Post", exact: true }).click();
   await expect(second.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("");
   await expect(second.getByLabel("Photo description")).toHaveCount(0);
-  scope = "b".repeat(43); await second.reload(); await second.getByRole("button", { name: "New post" }).click();
+  scope = "b".repeat(43); await second.reload(); await second.getByRole("button", { name: "Post", exact: true }).click();
   dialog = second.getByRole("dialog");
   await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("");
   await expect(dialog.getByLabel("Photo description")).toHaveCount(0);
@@ -291,10 +313,11 @@ test("private visibility and comment policy survive create, owner outbox, and ed
   });
 
   await page.goto("/social");
-  await page.getByRole("button", { name: "New post" }).click();
+  await page.getByRole("button", { name: "Post", exact: true }).click();
   let dialog = page.getByRole("dialog");
   await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Private plan");
-  await dialog.getByLabel("Visibility").selectOption("private");
+  await dialog.getByRole("radio", { name: "Only me" }).check();
+  await dialog.locator("summary").filter({ hasText: "Advanced settings" }).click();
   await dialog.getByLabel("Comments").selectOption("locked");
   await dialog.getByRole("button", { name: "Post", exact: true }).click();
 
@@ -305,15 +328,16 @@ test("private visibility and comment policy survive create, owner outbox, and ed
 
   await page.getByRole("button", { name: "Edit private post" }).click();
   dialog = page.getByRole("dialog");
-  await expect(dialog.getByLabel("Visibility")).toHaveValue("private");
+  await expect(dialog.getByRole("radio", { name: "Only me" })).toBeChecked();
+  await expandDetails(dialog.locator("details").last());
   await expect(dialog.getByLabel("Comments")).toHaveValue("locked");
   await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Private plan updated");
   await dialog.getByRole("button", { name: "Save" }).click();
   expect(editPayloads[0]).toMatchObject({ visibility: "private", commentPolicy: "locked" });
 
-  await page.getByRole("button", { name: "New post" }).click();
+  await page.getByRole("button", { name: "Post", exact: true }).click();
   dialog = page.getByRole("dialog");
-  await expect(dialog.getByLabel("Visibility").locator("option")).toHaveText(["Private", "Friends", "Public"]);
+  await expect(dialog.getByRole("group", { name: "Audience" }).locator("label")).toHaveText(["Friends", "Only me", "Everyone"]);
   await expect(dialog.getByLabel("Comments").locator("option")).toHaveText(["Open", "Friends", "Locked"]);
 });
 
@@ -484,22 +508,21 @@ test("photo tag lanes expose read failures, retry, and preserve approved withdra
     authorHandle: "cee", state: "approved", mediaId: null, photoAltText: null,
     audienceAtApproval: { visibility: "friends", revision: 1, shownAt: "2026-08-05T19:02:00.000Z" },
   };
-  let proposedReads = 0;
-  let approvedReads = 0;
+  let proposedState: "unavailable" | "offline" | "ready" = "unavailable";
+  let approvedState: "ready" | "offline" | "empty" = "ready";
   await page.route("**/api/social/tags**", async (route) => {
     if (route.request().method() === "POST") {
+      approvedState = "offline";
       return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true }) });
     }
     const lane = new URL(route.request().url()).searchParams.get("lane");
     if (lane === "proposed") {
-      proposedReads += 1;
-      if (proposedReads === 1) return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Unavailable" }) });
-      if (proposedReads === 2) return route.abort("connectionrefused");
+      if (proposedState === "unavailable") return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Unavailable" }) });
+      if (proposedState === "offline") return route.abort("connectionrefused");
       return route.fulfill({ contentType: "application/json", body: JSON.stringify({ proposals: [proposed], nextCursor: null }) });
     }
-    approvedReads += 1;
-    if (approvedReads === 2) return route.abort("connectionrefused");
-    return route.fulfill({ contentType: "application/json", body: JSON.stringify({ proposals: approvedReads === 1 ? [approved] : [], nextCursor: null }) });
+    if (approvedState === "offline") return route.abort("connectionrefused");
+    return route.fulfill({ contentType: "application/json", body: JSON.stringify({ proposals: approvedState === "ready" ? [approved] : [], nextCursor: null }) });
   });
 
   await page.goto("/social");
@@ -508,8 +531,10 @@ test("photo tag lanes expose read failures, retry, and preserve approved withdra
   await expect(proposedLane.getByRole("alert")).toHaveText("Tags to review are unavailable right now.");
   const proposedRetry = proposedLane.getByRole("button", { name: "Retry tags to review" });
   expect((await proposedRetry.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  proposedState = "offline";
   await proposedRetry.click();
   await expect(proposedLane.getByRole("alert")).toBeVisible();
+  proposedState = "ready";
   await proposedRetry.click();
   await expect(proposedLane.getByText("@bob")).toBeVisible();
 
@@ -517,8 +542,83 @@ test("photo tag lanes expose read failures, retry, and preserve approved withdra
   await approvedTag.getByRole("button", { name: "Withdraw" }).click();
   await expect(approvedLane.getByRole("alert")).toHaveText("Approved tags are unavailable right now.");
   await expect(approvedTag.getByRole("button", { name: "Withdraw" })).toBeVisible();
+  approvedState = "empty";
   await approvedLane.getByRole("button", { name: "Retry approved tags" }).click();
   await expect(approvedLane).toHaveCount(0);
+});
+
+test("video preview decodes and posts the friends-only video wire with a held receipt", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockVerified(page);
+  const fixture = "__tests__/fixtures/social-video-faststart.mp4";
+  const description = "The band plays beside the canal";
+  const held = { ...basePost, body: "Music by the canal", moderationState: "needs_review", photo: {
+    ...basePost.photo, altText: description, kind: "video", contentType: "video/mp4",
+  } };
+  let writes = 0;
+  await page.route("**/api/social/tags**", (route) => route.fulfill({ json: { proposals: [], nextCursor: null } }));
+  await page.route("**/api/social/posts?**", (route) => route.fulfill({ json: { posts: [], nextCursor: null } }));
+  await page.route("**/api/social/outbox", (route) => route.fulfill({ json: { posts: writes ? [held] : [] } }));
+  await page.route("**/api/social/posts", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("POST");
+    expect(request.headers().authorization).toBe(`Bearer pubmaxx-e2e-access-token-${E2E_AUTH_USER_ID}`);
+    expect(request.headers()["content-type"]).toContain("multipart/form-data; boundary=");
+    const form = await new Request("http://fixture.test", {
+      method: "POST", headers: { "Content-Type": request.headers()["content-type"] },
+      body: new Uint8Array(request.postDataBuffer()!),
+    }).formData();
+    expect(form.has("photo")).toBe(false);
+    const video = form.get("video") as File;
+    expect(video.type).toBe("video/mp4");
+    // Chromium omits uploaded file bytes from intercepted request postData.
+    expect(video.name).toBe("social-video-faststart.mp4");
+    expect(JSON.parse(form.get("post") as string)).toMatchObject({ visibility: "friends", photoAltText: description });
+    writes += 1;
+    return route.fulfill({ status: 201, json: { post: held } });
+  });
+  await page.addInitScript(() => {
+    const originalFetch = window.fetch;
+    window.fetch = function (input, init) {
+      const url = input instanceof Request ? input.url : String(input);
+      if (new URL(url, window.location.href).pathname === "/api/social/posts" && init?.body instanceof FormData) {
+        const file = init.body.get("video");
+        if (file instanceof File) {
+          void file.arrayBuffer().then((bytes) => {
+            (window as unknown as { socialComposerVideoBytes: number[] }).socialComposerVideoBytes = Array.from(new Uint8Array(bytes));
+          });
+        }
+      }
+      return originalFetch.call(this, input, init);
+    };
+  });
+  await page.goto("/social");
+  await page.getByRole("button", { name: "Post", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("radio", { name: "Friends", exact: true })).toBeChecked();
+  const picker = dialog.getByLabel("Add photo or video", { exact: true });
+  await picker.setInputFiles(fixture);
+  expect(await picker.evaluate((element: HTMLInputElement) => element.files?.[0].size)).toBe(readFileSync(fixture).byteLength);
+  const video = dialog.locator("video");
+  await expect(video).toBeVisible();
+  await expect.poll(() => video.evaluate((element) => element.readyState)).toBeGreaterThanOrEqual(2);
+  expect(await video.evaluate((element) => ({ width: element.videoWidth, height: element.videoHeight, autoplay: element.autoplay, paused: element.paused, controls: element.controls, inline: element.playsInline })))
+    .toMatchObject({ width: expect.any(Number), height: expect.any(Number), autoplay: false, paused: true, controls: true, inline: true });
+  expect(await video.evaluate((element) => element.videoWidth)).toBeGreaterThan(0);
+  expect(writes).toBe(0);
+  await expect(dialog.getByRole("button", { name: "Post", exact: true })).toBeDisabled();
+  await dialog.getByLabel("Video description").fill(description);
+  await dialog.getByRole("button", { name: "Post", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Outbox" }).getByText("Held for review")).toBeVisible();
+  await expect.poll(() => page.evaluate(() =>
+    (window as unknown as { socialComposerVideoBytes?: number[] }).socialComposerVideoBytes?.length ?? 0,
+  )).toBe(readFileSync(fixture).byteLength);
+  const submittedBytes = await page.evaluate(() =>
+    (window as unknown as { socialComposerVideoBytes: number[] }).socialComposerVideoBytes,
+  );
+  expect(Buffer.from(submittedBytes)).toEqual(readFileSync(fixture));
+  expect(writes).toBe(1);
 });
 
 for (const viewport of [{ width: 320, height: 720 }, { width: 390, height: 844 }, { width: 430, height: 932 }, { width: 1280, height: 900 }]) {
@@ -528,7 +628,7 @@ for (const viewport of [{ width: 320, height: 720 }, { width: 390, height: 844 }
       await page.route("**/api/social/tags**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ proposals: [] }) }));
       await page.route("**/api/social/posts?**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ posts: [basePost], nextCursor: null }) }));
       await page.goto("/social");
-      const trigger = page.getByRole("button", { name: "New post" });
+      const trigger = page.getByRole("button", { name: "Post", exact: true });
       await trigger.click();
       const dialog = page.getByRole("dialog");
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
