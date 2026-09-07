@@ -228,7 +228,7 @@ export default function SetAccountPassword(): React.JSX.Element | null {
           required
         />
       </label>
-      <Button type="submit" disabled={busy}>
+      <Button variant="secondary" type="submit" disabled={busy}>
         {busy ? "Saving…" : "Save password"}
       </Button>
       {message ? (

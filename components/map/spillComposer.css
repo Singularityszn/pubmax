@@ -246,23 +246,20 @@
 }
 
 /* THE LADDER, and its numbers are lib/priceChipLadder.ts's rather than this
-   sheet's: four across on a phone, five from 480px. An equal-column grid, so
-   five chips read as four and one with the fifth starting the second row in
-   the FIRST column, instead of a flex wrap that re-cut its rows whenever a
-   label grew. `minmax(0, 1fr)` lets a long label shrink its own text rather
-   than push the row sideways, and the chip's own min-height keeps the target.
-   Fence: __tests__/priceChipLadder.test.ts. */
+   sheet's: four across, at every width. An equal-column grid, so five chips
+   read as four and one with the fifth starting the second row in the FIRST
+   column, instead of a flex wrap that re-cut its rows whenever a label grew
+   (it stood 4 + 1 at 390 and 3 + 2 in the desktop drawer on the same build).
+   Four rather than five because the row this grid sits in is 269px in the
+   phone sheet and 238px in the desktop drawer, and five 44px targets plus
+   their gaps need 244px. `minmax(0, 1fr)` lets a long label shrink its own
+   text rather than push the row sideways, and the chip's own min-height keeps
+   the target. Fence: __tests__/priceChipLadder.test.ts. */
 .priceQuickAdds {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   justify-items: stretch;
-}
-
-@media (min-width: 480px) {
-  .priceQuickAdds {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
 }
 
 .priceChip {

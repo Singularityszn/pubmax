@@ -559,7 +559,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
           <span className="memoryStudioStep">1</span>
           <h4>Start a Memory</h4>
           <label><span>Name this night</span><input value={draft.memoryTitle} onChange={(event) => update({ memoryTitle: event.target.value })} maxLength={120} placeholder="Friday detour" required /></label>
-          <Button type="submit" disabled={saving}>Create private Memory</Button>
+          <Button variant="secondary" type="submit" disabled={saving}>Create private Memory</Button>
         </form>
 
         <form onSubmit={addMoment}>
@@ -569,7 +569,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
           <label><span>Kind</span><select value={draft.momentKind} onChange={(event) => update({ momentKind: event.target.value as MemoryStudioDraft["momentKind"] })}>{Object.entries(MOMENT_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
           <label><span>What happened?</span><textarea value={draft.momentCaption} onChange={(event) => update({ momentCaption: event.target.value })} maxLength={500} rows={3} placeholder="We followed the music and found a tiny basement set." required /></label>
           <label><span>Venue reference <small>optional</small></span><input value={draft.venueId} onChange={(event) => update({ venueId: event.target.value })} maxLength={80} placeholder="Venue ID or map reference" /></label>
-          <Button type="submit" disabled={saving || !draft.selectedMemoryId}>Save private Moment</Button>
+          <Button variant="secondary" type="submit" disabled={saving || !draft.selectedMemoryId}>Save private Moment</Button>
         </form>
 
         <form onSubmit={createStory}>
@@ -577,7 +577,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
           <h4>Shape the Story</h4>
           <label><span>Story title</span><input value={draft.storyTitle} onChange={(event) => update({ storyTitle: event.target.value })} maxLength={120} placeholder="The night we missed the last train" required /></label>
           <label><span>Opening line <small>optional</small></span><textarea value={draft.storySummary} onChange={(event) => update({ storySummary: event.target.value })} maxLength={500} rows={3} placeholder="A plan for two turned into a table of eight." /></label>
-          <Button type="submit" disabled={saving || !draft.selectedMemoryId}>Create private Story draft</Button>
+          <Button variant="secondary" type="submit" disabled={saving || !draft.selectedMemoryId}>Create private Story draft</Button>
         </form>
       </div>
 
@@ -691,7 +691,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
                 <span>{story.title}</span>
                 <small>{story.membership?.status === "invited" ? "Consent invitation" : story.status === "draft" ? "Private draft" : story.visibility}</small>
               </button>
-              {story.membership?.status === "invited" ? <div className="memoryStoryList__invite"><Button type="button" disabled={saving} onClick={() => void decideStoryInvitation(story.id, "accept")}>Accept</Button><Button variant="secondary" type="button" disabled={saving} onClick={() => void decideStoryInvitation(story.id, "decline")}>Decline</Button></div> : null}
+              {story.membership?.status === "invited" ? <div className="memoryStoryList__invite"><Button variant="secondary" type="button" disabled={saving} onClick={() => void decideStoryInvitation(story.id, "accept")}>Accept</Button><Button variant="secondary" type="button" disabled={saving} onClick={() => void decideStoryInvitation(story.id, "decline")}>Decline</Button></div> : null}
             </li>
           ))}
         </ul>
@@ -710,7 +710,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
           <form className="memoryStoryReview__copy" onSubmit={saveStoryPreview}>
             <label><span>Story title</span><input value={workspace.story.title} maxLength={120} disabled={workspace.story.status !== "draft" || !workspace.caller.canEdit || saving} onChange={(event) => { invalidatePublication(); setWorkspace((current) => current ? { ...current, story: { ...current.story, title: event.target.value } } : current); }} required /></label>
             <label><span>Opening line</span><textarea value={workspace.story.summary} maxLength={500} rows={3} disabled={workspace.story.status !== "draft" || !workspace.caller.canEdit || saving} onChange={(event) => { invalidatePublication(); setWorkspace((current) => current ? { ...current, story: { ...current.story, summary: event.target.value } } : current); }} /></label>
-            {workspace.story.status === "draft" && workspace.caller.canEdit ? <Button type="submit" disabled={saving}>Save private preview</Button> : null}
+            {workspace.story.status === "draft" && workspace.caller.canEdit ? <Button variant="secondary" type="submit" disabled={saving}>Save private preview</Button> : null}
           </form>
 
           {workspace.story.status === "draft" && !workspace.caller.canEdit ? (
@@ -722,7 +722,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
               <label><span>Kind</span><select value={contributionDraft.kind} disabled={saving} onChange={(event) => setContributionDraft((current) => ({ ...current, kind: event.target.value as NightMomentKind }))}>{Object.entries(MOMENT_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
               <label><span>What happened?</span><textarea value={contributionDraft.caption} disabled={saving} onChange={(event) => setContributionDraft((current) => ({ ...current, caption: event.target.value }))} maxLength={500} rows={3} placeholder="The line or moment you want the host to consider." required /></label>
               <label><span>Venue reference <small>optional</small></span><input value={contributionDraft.venueId} disabled={saving} onChange={(event) => setContributionDraft((current) => ({ ...current, venueId: event.target.value }))} maxLength={80} placeholder="Venue ID or map reference" /></label>
-              <Button type="submit" disabled={saving || !contributionDraft.caption.trim()}>Add private Moment</Button>
+              <Button variant="secondary" type="submit" disabled={saving || !contributionDraft.caption.trim()}>Add private Moment</Button>
             </form>
           ) : null}
 
@@ -779,11 +779,11 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
             <div className="memoryStoryReview__controls">
               <form onSubmit={inviteContributor}>
                 <label><span><UserPlus size={15} aria-hidden="true" />Invite affected contributor</span><input value={inviteHandle} onChange={(event) => setInviteHandle(event.target.value)} placeholder="PUBMAXX handle" maxLength={30} /></label>
-                <Button type="submit" disabled={saving || !inviteHandle.trim()}>Invite</Button>
+                <Button variant="secondary" type="submit" disabled={saving || !inviteHandle.trim()}>Invite</Button>
               </form>
               <div className="memoryStoryReview__publish">
                 <label><span>Audience</span><select value={publishVisibility} disabled={saving} onChange={(event) => { setPublishVisibility(event.target.value as "public" | "unlisted"); invalidatePublication(); }}><option value="unlisted">Anyone with the link</option><option value="public">Public in Stories</option></select></label>
-                <Button type="button" disabled={saving || selectedMomentIds.length === 0} onClick={() => void proposePublication()}><Eye size={15} aria-hidden="true" />Review publication</Button>
+                <Button variant="secondary" type="button" disabled={saving || selectedMomentIds.length === 0} onClick={() => void proposePublication()}><Eye size={15} aria-hidden="true" />Review publication</Button>
               </div>
             </div>
           ) : null}
@@ -792,7 +792,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
             <div className="memoryStoryReview__confirmation" role="group" aria-label="Confirm Story publication">
               <Check size={18} aria-hidden="true" />
               <div><strong>Publish {confirmation.momentCount} Moment{confirmation.momentCount === 1 ? "" : "s"}?</strong><p>{confirmation.visibility === "public" ? "This Story will appear publicly in Stories." : "Only people with its link will be able to open it."} Consent is checked again when you confirm.</p></div>
-              <Button type="button" disabled={saving} onClick={() => void confirmPublication()}>{saving ? "Confirming…" : "Confirm publication"}</Button>
+              <Button variant="secondary" type="button" disabled={saving} onClick={() => void confirmPublication()}>{saving ? "Confirming…" : "Confirm publication"}</Button>
               <Button variant="secondary" type="button" className="memoryStoryReview__cancel" onClick={() => setConfirmation(null)}>Cancel</Button>
             </div>
           ) : null}

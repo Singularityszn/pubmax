@@ -1,10 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import {
-  PRICE_CHIP_PHONE_COLUMNS,
-  PRICE_CHIP_WIDE_COLUMNS,
-  priceChipColumns,
-} from "@/lib/priceChipLadder";
+import { PRICE_CHIP_COLUMNS, PRICE_CHIP_MIN_COLUMN_PX } from "@/lib/priceChipLadder";
 
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
@@ -51,6 +47,13 @@ async function controlBoxes(scope: Locator): Promise<ControlBox[]> {
       };
     }),
   );
+}
+
+/** A React re-render can detach the element between the wait and the shot. */
+async function shoot(locator: Locator, path: string): Promise<void> {
+  await expect(async () => {
+    await locator.first().screenshot({ path });
+  }).toPass({ timeout: 20_000 });
 }
 
 async function quietPage(page: Page): Promise<void> {
@@ -125,7 +128,10 @@ for (const viewport of WIDTHS) {
           .map((element) => String(element.className))
           .filter(
             (className) =>
-              !/memoryKeepRow__select|memoryKeepRemove|memoryKeepConfirm|memoryStoryList__select|profileImage|coverPhoto/.test(
+              // Row controls (a list row a reader selects) and the one
+              // control that is a <button> for a member and a <Link> for
+              // everyone else, which already reads the same --control-* row.
+              !/memoryKeepRow__select|memoryKeepRemove|memoryKeepConfirm|memoryStoryList__select|profileImage|coverPhoto|findLot__follow/.test(
                 className,
               ),
           ),
@@ -136,7 +142,7 @@ for (const viewport of WIDTHS) {
       (document.activeElement as HTMLElement | null)?.blur();
       window.scrollTo(0, 0);
     });
-    await hub.screenshot({ path: `${PROOF}/after-profile-editor-${viewport.name}.png` });
+    await shoot(hub, `${PROOF}/after-profile-editor-${viewport.name}.png`);
   });
 
   test(`${viewport.name}px: the planner and /pubs number squares are one chip`, async ({ page }) => {
@@ -144,132 +150,120 @@ for (const viewport of WIDTHS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await quietPage(page);
 
+    // A box measured in the frame a row is still laying out is a smaller box,
+    // not a smaller control, so each read is retried rather than made looser.
+    async function settledBoxes(scope: Locator): Promise<ControlBox[]> {
+      let settled: ControlBox[] = [];
+      await expect(async () => {
+        const boxes = await controlBoxes(scope);
+        expect(boxes.length).toBeGreaterThan(1);
+        for (const box of boxes) expect(box.height).toBeGreaterThanOrEqual(44);
+        settled = boxes;
+      }).toPass({ timeout: 15_000 });
+      return settled;
+    }
+
     await page.goto("/plan", { waitUntil: "domcontentloaded" });
     const plannerChips = page.locator(".planStopCount__choices .uiChip--number");
     await expect(plannerChips.first()).toBeVisible({ timeout: 30_000 });
-    const plannerBoxes = await controlBoxes(plannerChips);
-    expect(plannerBoxes.length).toBeGreaterThan(1);
-    await page
-      .locator(".planStopCount")
-      .first()
-      .screenshot({ path: `${PROOF}/after-plan-stop-count-${viewport.name}.png` });
+    const plannerBoxes = await settledBoxes(plannerChips);
+    await shoot(
+      page.locator(".planStopCount"),
+      `${PROOF}/after-plan-stop-count-${viewport.name}.png`,
+    );
 
     await page.goto("/pubs?zone=1", { waitUntil: "domcontentloaded" });
     const zoneChips = page.locator(".pubsZoneChips .uiChip--number");
     await expect(zoneChips.first()).toBeVisible({ timeout: 30_000 });
-    const zoneBoxes = await controlBoxes(zoneChips);
-    expect(zoneBoxes.length).toBeGreaterThan(1);
-    await page
-      .locator(".pubsZoneChips")
-      .first()
-      .screenshot({ path: `${PROOF}/after-pubs-zone-chips-${viewport.name}.png` });
+    const zoneBoxes = await settledBoxes(zoneChips);
+    await shoot(
+      page.locator(".pubsZoneChips"),
+      `${PROOF}/after-pubs-zone-chips-${viewport.name}.png`,
+    );
 
     // ONE SELECTOR reaches both rows, and both rows measure the same square.
+    const reference = plannerBoxes[0]!;
     for (const box of [...plannerBoxes, ...zoneBoxes]) {
-      expect(box.radius).toBe(plannerBoxes[0]!.radius);
-      expect(box.weight).toBe(plannerBoxes[0]!.weight);
-      expect(box.fontSize).toBe(plannerBoxes[0]!.fontSize);
-      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(box.radius).toBe(reference.radius);
+      expect(box.weight).toBe(reference.weight);
+      expect(box.fontSize).toBe(reference.fontSize);
     }
-    expect(plannerBoxes[0]!.radius).toBe("14px");
+    expect(reference.radius).toBe("14px");
 
     // The chosen square carries its state on aria-pressed, on both surfaces.
     await expect(page.locator('.pubsZoneChips .uiChip--number[aria-pressed="true"]')).toHaveCount(1);
   });
 }
 
-test("390px: the five quick price chips wrap four and one, aligned to the first column", async ({
-  page,
-}) => {
-  test.slow();
-  await page.setViewportSize({ width: 390, height: 844 });
-  await quietPage(page);
-  await installDeterministicMapBasemap(page);
+for (const viewport of WIDTHS) {
+  test(`${viewport.name}px: the five quick price chips wrap four and one, aligned to the first column`, async ({
+    page,
+  }) => {
+    test.slow();
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await quietPage(page);
+    await installDeterministicMapBasemap(page);
 
-  const response = await page.goto("/map?log=1");
-  expect(response?.status()).toBe(200);
+    const response = await page.goto("/map?log=1");
+    expect(response?.status()).toBe(200);
 
-  const nearby = page.locator(".logIntentNearbyBtn").first();
-  await expect(nearby).toBeVisible({ timeout: 45_000 });
-  const priceStep = page.getByTestId("spill-price-step");
-  // A control painted on the server is tappable before React attaches, so the
-  // tap is retried rather than the assertion after it made harder.
-  await expect(async () => {
-    await nearby.click();
-    await expect(priceStep).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 25_000 });
+    const nearby = page.locator(".logIntentNearbyBtn").first();
+    await expect(nearby).toBeVisible({ timeout: 45_000 });
+    const priceStep = page.getByTestId("spill-price-step");
+    // A control painted on the server is tappable before React attaches, so the
+    // tap is retried rather than the assertion after it made harder.
+    await expect(async () => {
+      await nearby.click();
+      await expect(priceStep).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 25_000 });
 
-  const chips = priceStep.locator(".priceQuickAdds .priceChip");
-  await expect(chips.first()).toBeVisible({ timeout: 15_000 });
+    const chips = priceStep.locator(".priceQuickAdds .priceChip");
+    await expect(chips.first()).toBeVisible({ timeout: 15_000 });
 
-  const layout = await chips.evaluateAll((elements) =>
-    elements.map((element) => {
-      const rect = element.getBoundingClientRect();
-      return {
-        left: Math.round(rect.left),
-        top: Math.round(rect.top),
-        width: Math.round(rect.width),
-        height: Math.round(rect.height),
-      };
-    }),
-  );
-  expect(layout.length).toBeGreaterThanOrEqual(5);
+    const layout = await chips.evaluateAll((elements) =>
+      elements.map((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          left: Math.round(rect.left),
+          top: Math.round(rect.top),
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+        };
+      }),
+    );
+    expect(layout.length).toBeGreaterThanOrEqual(5);
 
-  // The rows the ladder cut, read off the painted boxes.
-  const rows: (typeof layout)[] = [];
-  for (const box of layout) {
-    const row = rows.at(-1);
-    if (row && Math.abs(row[0]!.top - box.top) <= 2) row.push(box);
-    else rows.push([box]);
-  }
+    // The rows the ladder cut, read off the painted boxes.
+    const rows: (typeof layout)[] = [];
+    for (const box of layout) {
+      const row = rows.at(-1);
+      if (row && Math.abs(row[0]!.top - box.top) <= 2) row.push(box);
+      else rows.push([box]);
+    }
 
-  const columns = priceChipColumns(390);
-  expect(columns).toBe(PRICE_CHIP_PHONE_COLUMNS);
-  // Four across, and the fifth chip STARTS the second row rather than landing
-  // wherever the fourth left off.
-  expect(rows[0]!.length).toBe(4);
-  expect(rows.length).toBeGreaterThan(1);
-  expect(rows[1]![0]!.left).toBe(rows[0]![0]!.left);
-  // Nothing squeezed: every chip keeps the tap target the row promised.
-  for (const box of layout) {
-    expect(box.height).toBeGreaterThanOrEqual(44);
-    expect(box.width).toBeGreaterThanOrEqual(44);
-  }
-  // The row never scrolls sideways.
-  const overflow = await priceStep.evaluate((step) => {
-    const row = step.querySelector(".priceQuickAdds") as HTMLElement | null;
-    return row ? row.scrollWidth - row.clientWidth : 0;
+    // Four across at BOTH widths, and the fifth chip STARTS the second row
+    // rather than landing wherever the fourth left off. The phone sheet's row
+    // is 269px and the desktop drawer's 238px, so five across would squeeze
+    // the desktop chips under the tap target.
+    expect(rows[0]!.length).toBe(PRICE_CHIP_COLUMNS);
+    expect(rows.length).toBeGreaterThan(1);
+    expect(rows[1]![0]!.left).toBe(rows[0]![0]!.left);
+    // Nothing squeezed: every chip keeps the tap target the row promised.
+    for (const box of layout) {
+      expect(box.height).toBeGreaterThanOrEqual(PRICE_CHIP_MIN_COLUMN_PX);
+      expect(box.width).toBeGreaterThanOrEqual(PRICE_CHIP_MIN_COLUMN_PX);
+    }
+    // Every column is the same width, which is what a grid buys and a wrap did
+    // not: on the old build the rows re-cut themselves per width.
+    const widths = new Set(rows[0]!.map((box) => box.width));
+    expect(widths.size).toBe(1);
+    // The row never scrolls sideways.
+    const overflow = await priceStep.evaluate((step) => {
+      const row = step.querySelector(".priceQuickAdds") as HTMLElement | null;
+      return row ? row.scrollWidth - row.clientWidth : 0;
+    });
+    expect(overflow).toBeLessThanOrEqual(1);
+
+    await shoot(priceStep, `${PROOF}/after-price-chips-${viewport.name}.png`);
   });
-  expect(overflow).toBeLessThanOrEqual(1);
-
-  await priceStep.screenshot({ path: `${PROOF}/after-price-chips-390.png` });
-});
-
-test("1280px: the same ladder stands the quick price chips five across", async ({ page }) => {
-  test.slow();
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await quietPage(page);
-  await installDeterministicMapBasemap(page);
-
-  const response = await page.goto("/map?log=1");
-  expect(response?.status()).toBe(200);
-
-  const nearby = page.locator(".logIntentNearbyBtn").first();
-  await expect(nearby).toBeVisible({ timeout: 45_000 });
-  const priceStep = page.getByTestId("spill-price-step");
-  await expect(async () => {
-    await nearby.click();
-    await expect(priceStep).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 25_000 });
-
-  const chips = priceStep.locator(".priceQuickAdds .priceChip");
-  await expect(chips.first()).toBeVisible({ timeout: 15_000 });
-  const tops = await chips.evaluateAll((elements) =>
-    elements.map((element) => Math.round(element.getBoundingClientRect().top)),
-  );
-  const firstRow = tops.filter((top) => Math.abs(top - tops[0]!) <= 2).length;
-  expect(priceChipColumns(1280)).toBe(PRICE_CHIP_WIDE_COLUMNS);
-  expect(firstRow).toBe(Math.min(tops.length, PRICE_CHIP_WIDE_COLUMNS));
-
-  await priceStep.screenshot({ path: `${PROOF}/after-price-chips-1280.png` });
-});
+}

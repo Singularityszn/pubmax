@@ -11,11 +11,10 @@ and the one thing that makes it hard.
 
 ## Open debt
 
-| What | Where | Why it was not taken |
-|---|---|---|
-| The profile editor's own form buttons (`Rename handle`, `Save private details`, `Create private Memory`) wear 12px corners at weight 750 rather than the `--control-*` row | `components/profile/PubmaxxAccountHub.tsx`, `components/profile/PrivateIdentityEditor.tsx` | One editor family, recorded during the #1597 sweep rather than moved, because #1591 was live in the same component tree. |
-| Number-square chips want one family: the planner's stop count at 10px, the pubs zone picker at `--radius-sm` on 44px squares | `components/plan/PlanIntake.tsx`, `app/pubs/` | A number square is neither a text button nor a pill, so it needs a decision about which family it joins before either surface moves. |
-| The five quick price chips wrap 4 + 1 at 390 (the row is 268px, a chip 60px, five need 324px) | the Pint Drop and price-submit composers | The ladder is a policy in `lib/`, not a style, so this is a product change rather than a layout fix. |
+Nothing open today. The three rows this file opened with shipped together in
+the design-review follow-ups lane; the measurement is
+[`docs/proof/design-review-followups/`](../proof/design-review-followups/), and
+each row is in Closed below.
 
 ## Decisions raised and still open
 
@@ -29,3 +28,6 @@ and the one thing that makes it hard.
 | Key | Answer | Where |
 |---|---|---|
 | `head-primary-on-form-screens` | A form screen paints no head primary: the form's own submit, beside the field it submits, is the one painted control. | Captain, 7 September 2026; applied in #1597 and written into `docs/design/LAUNCH_SCREENS.md`'s rules list. |
+| The profile editor's own form buttons | Every text button on `/u/you` is the Button primitive in its quiet variant, and the surface's stylesheet paints none of them. A destructive action is the primitive's `danger` fill rather than a box of its own. | The design-review follow-ups lane; proof `docs/proof/design-review-followups/`. |
+| One family for number-square chips | The planner's pub-stop count and the /pubs fare-zone picker both render `Chip variant="number"`, painted from the `--control-*` row by `components/ui/chip.css`. The map's segmented zone picker keeps its own recorded treatment. | Same lane. |
+| The five quick price chips wrapping 4 + 1 at 390 | `lib/priceChipLadder.ts` owns the column count and the composer's grid reads it: four across at every width, so the fifth chip starts the second row in the first column. Four rather than five because the desktop drawer's row is 238px and five 44px targets need 244px. | Same lane. |

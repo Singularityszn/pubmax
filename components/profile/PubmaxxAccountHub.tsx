@@ -164,7 +164,7 @@ export function NightProfileControls({
         <label>Voice<select disabled={disabled} value={profile.voicePreference} onChange={(event) => update({ ...profile, voicePreference: event.target.value as NightProfileInput["voicePreference"] })}><option value="off">Off</option><option value="tts">Read replies aloud</option><option value="ptt">Push to talk</option></select></label>
         <label>Briefings<select disabled={disabled} value={profile.briefingPreferences.muteAll ? "muted" : "on"} onChange={(event) => update({ ...profile, briefingPreferences: { ...profile.briefingPreferences, muteAll: event.target.value === "muted" } })}><option value="on">On</option><option value="muted">Muted</option></select></label>
       </div>
-      {onSave ? <Button className="accountHubNightProfileSave" type="button" disabled={disabled} onClick={onSave}>{saveLabel}</Button> : <p className="accountHubNightProfileSaved" role="status">{saveLabel}</p>}
+      {onSave ? <Button variant="secondary" className="accountHubNightProfileSave" type="button" disabled={disabled} onClick={onSave}>{saveLabel}</Button> : <p className="accountHubNightProfileSaved" role="status">{saveLabel}</p>}
     </section>
   );
 }
@@ -218,7 +218,7 @@ export function ReferralInviteCard({
       ) : null}
       <small>{REFERRAL_RECOGNITION_NOTE}</small>
       {!link ? (
-        <Button type="button" disabled={busy} onClick={onInvite}>
+        <Button variant="secondary" type="button" disabled={busy} onClick={onInvite}>
           {busy ? "Getting your link…" : "Invite a mate"}
         </Button>
       ) : (
@@ -344,7 +344,7 @@ function AccountHandleEditor({
         placeholder="night_owl"
         required
       />
-      <Button type="submit">Rename handle</Button>
+      <Button variant="secondary" type="submit">Rename handle</Button>
       <small>Renames are limited to once every 30 days. Old links keep working.</small>
       {message ? <small role="status">{message}</small> : null}
     </form>
@@ -432,7 +432,7 @@ export default function PubmaxxAccountHub() {
         <>
           <p>Help improve journeys with a persistent device ID, standard browser details and allow-listed product events. This is optional and can be withdrawn here.</p>
           <div className="accountHubActions">
-            <Button type="button" onClick={() => updateAnalyticsConsent(true)}>Allow</Button>
+            <Button variant="secondary" type="button" onClick={() => updateAnalyticsConsent(true)}>Allow</Button>
             <Button variant="secondary" type="button" onClick={() => updateAnalyticsConsent(false)}>No thanks</Button>
           </div>
         </>
@@ -819,7 +819,7 @@ export default function PubmaxxAccountHub() {
               : "This device has night preferences that are not on your account yet. Nothing changes until you choose."}
           </p>
           <div className="accountHubActions">
-            <Button type="button" onClick={() => void confirmProfileMerge(mergeState, "bring-device")}>Bring this device</Button>
+            <Button variant="secondary" type="button" onClick={() => void confirmProfileMerge(mergeState, "bring-device")}>Bring this device</Button>
             <Button variant="secondary" type="button" onClick={() => void confirmProfileMerge(mergeState, "keep-account")}>
               {mergeState.kind === "conflict" ? "Keep account preferences" : "Keep only on this device"}
             </Button>
@@ -837,7 +837,7 @@ export default function PubmaxxAccountHub() {
               : `This device has ${planRecapMergeState.recaps.length} finished-night recaps that are not on your account yet. Bringing them saves private Memories. Nothing is published.`}
           </p>
           <div className="accountHubActions">
-            <Button type="button" onClick={() => void confirmPlanRecapClaim(planRecapMergeState, "bring-device")}>
+            <Button variant="secondary" type="button" onClick={() => void confirmPlanRecapClaim(planRecapMergeState, "bring-device")}>
               Bring this device
             </Button>
             <Button variant="secondary" type="button" onClick={() => void confirmPlanRecapClaim(planRecapMergeState, "keep-device")}>

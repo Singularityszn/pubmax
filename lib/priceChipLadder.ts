@@ -12,7 +12,10 @@
  * A deliberate ladder is a COLUMN COUNT: the chips sit in an equal-column grid,
  * so five chips read as four and one, the fifth starts the second row in the
  * first column, and six read as four and two. Nothing is squeezed, because a
- * column is never narrower than the tap target the row already promised.
+ * column is never narrower than the tap target the row already promised, and
+ * the count does not change with the viewport: the composer's row is 269px in
+ * the phone sheet and 238px in the desktop drawer, so a wider rung would have
+ * squeezed the desktop chips to 43px to fit five across.
  *
  * The numbers live here rather than in the stylesheet so one module answers
  * "how many across?" for the composer, the fence and any future surface;
@@ -20,23 +23,32 @@
  * this table so the CSS and the policy cannot drift apart.
  */
 
-/** Columns on a phone: four 60px chips plus three gaps fit the 268px row. */
-export const PRICE_CHIP_PHONE_COLUMNS = 4;
-
-/** Columns once the composer is wide enough for the whole base list. */
-export const PRICE_CHIP_WIDE_COLUMNS = 5;
-
-/** The one step in the ladder, in px: the width the wide count starts at. */
-export const PRICE_CHIP_WIDE_MIN_WIDTH_PX = 480;
+/** Four across, at every width. */
+export const PRICE_CHIP_COLUMNS = 4;
 
 /** The narrowest a chip column may be: the shared control height. */
 export const PRICE_CHIP_MIN_COLUMN_PX = 44;
 
-/** How many chips stand across at this viewport width. */
-export function priceChipColumns(viewportWidthPx: number): number {
-  return viewportWidthPx >= PRICE_CHIP_WIDE_MIN_WIDTH_PX
-    ? PRICE_CHIP_WIDE_COLUMNS
-    : PRICE_CHIP_PHONE_COLUMNS;
+/** The gap between two chips, mirrored by .priceQuickAdds. */
+export const PRICE_CHIP_GAP_PX = 6;
+
+/**
+ * The composer's own chip row, measured on the shipped build: 269px inside the
+ * phone sheet at 390, and 238px inside the desktop drawer at 1280. The desktop
+ * row is the NARROWER of the two, which is why there is one rung rather than a
+ * wider one above it - five 44px targets plus their gaps need 244px, and the
+ * drawer has never had it.
+ */
+export const PRICE_CHIP_MEASURED_ROW_PX = { phone390: 269, desktop1280: 238 } as const;
+
+/** The px a row needs to stand `columns` chips across without squeezing one. */
+export function priceChipRowWidthFor(columns: number): number {
+  return columns * PRICE_CHIP_MIN_COLUMN_PX + (columns - 1) * PRICE_CHIP_GAP_PX;
+}
+
+/** How many chips stand across. One answer, so no width can re-cut the rows. */
+export function priceChipColumns(): number {
+  return PRICE_CHIP_COLUMNS;
 }
 
 /**

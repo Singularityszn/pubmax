@@ -134,7 +134,7 @@ export function PrivateIdentityEditorForm({
         Only your handle is public. These details stay private and never show
         on your profile.
       </small>
-      <Button type="submit" disabled={!saveEnabled || saving}>
+      <Button variant="secondary" type="submit" disabled={!saveEnabled || saving}>
         {saving ? "Saving…" : "Save private details"}
       </Button>
       {onRetryLoad ? (

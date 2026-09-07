@@ -188,15 +188,27 @@ describe("the profile editor wears the one family", () => {
     expect(offenders).toEqual([]);
   });
 
+  it("keeps the coral fill for the screen's own primary, not for a settings card", () => {
+    // ONE painted primary per screen: /u/you's is the identity card's own door.
+    // A settings card's action is a quiet control of the same family, and the
+    // one control that ENDS something is the danger fill.
+    for (const file of EDITOR_FILES) {
+      const source = read(file);
+      for (const tag of source.matchAll(/<Button\b[^>]*>/g)) {
+        expect(tag[0], `${file}: ${tag[0]}`).toMatch(/variant="(secondary|ghost|danger)"/);
+      }
+    }
+  });
+
   it("keeps the three named form submits on the primitive", () => {
     expect(read("components/profile/PubmaxxAccountHub.tsx")).toContain(
-      '<Button type="submit">Rename handle</Button>',
+      '<Button variant="secondary" type="submit">Rename handle</Button>',
     );
     expect(read("components/identity/PrivateIdentityEditor.tsx")).toMatch(
-      /<Button type="submit"[^>]*>\s*{saving \? "Saving…" : "Save private details"}/,
+      /<Button variant="secondary" type="submit"[^>]*>\s*{saving \? "Saving…" : "Save private details"}/,
     );
     expect(read("components/profile/NightMemoryStudio.tsx")).toContain(
-      '<Button type="submit" disabled={saving}>Create private Memory</Button>',
+      '<Button variant="secondary" type="submit" disabled={saving}>Create private Memory</Button>',
     );
   });
 });

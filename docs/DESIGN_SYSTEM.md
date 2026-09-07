@@ -56,6 +56,7 @@ refuses, and add your assertion there rather than minting a second gate.
 |---|---|---|
 | The token set a launch surface may paint with | Launch tokens, below; `app/globals.css` owns the values | `__tests__/designTokens.test.ts` |
 | A text button is one row of `--control-*` tokens, and `button.css` sits outside every cascade layer | Launch tokens > Text buttons | `__tests__/buttonPrimitive.test.tsx`, `e2e/mobile-button-system.spec.ts` |
+| A chip reads that same row, and a number square is ONE family across the planner and /pubs | Launch tokens > Text buttons; `components/ui/chip.css` | `__tests__/chipPrimitive.test.tsx`, `e2e/design-review-followups.spec.ts` |
 | One painted primary per screen, a quiet row of at most two ways onward, and a form screen paints no head primary | `docs/design/LAUNCH_SCREENS.md` | `__tests__/coreUiAudit.test.ts`, `__tests__/launchPrimitives.test.tsx` |
 | The accent as a WORD takes `--brass-ink`; opacity is never a muted token | Colour, below | `__tests__/accentInkContrast.test.ts` |
 | A price wears its band and no other colour | `docs/PRICE_BANDS.md` | `__tests__/priceBand.test.ts`, `__tests__/priceBandSurfaces.test.ts` |
@@ -144,6 +145,13 @@ sits outside every cascade layer on purpose: `app/globals.css` resets
 layered utility whatever the order, which is how a Tailwind `text-sm font-bold`
 on the primitive rendered as 16px at weight 400. A bespoke text button reads
 the same tokens rather than restating a figure.
+
+**Chips.** `components/ui/chip.tsx` is the primitive and
+`components/ui/chip.css` paints it, outside every cascade layer for the reason
+the text button's sheet is: a chip is a control, so it reads the same
+`--control-*` row. Two variants and no third: `pill` is a word you tap and
+`number` the square a reader taps a figure on, which the planner's pub-stop
+count and the `/pubs` fare-zone picker both render.
 
 **Motion.** `--duration-fast`, `--duration-base`, `--duration-slow`;
 `--ease-out` for colour, `--ease-out-strong` for entrances; `--press-scale` on

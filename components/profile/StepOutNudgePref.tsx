@@ -191,7 +191,7 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
             {busy ? "Updating…" : "Turn Step Out off"}
           </Button>
         ) : (
-          <Button type="button" onClick={() => void enable()} disabled={busy}>
+          <Button variant="secondary" type="button" onClick={() => void enable()} disabled={busy}>
             {busy ? "Updating…" : "Turn Step Out on"}
           </Button>
         )}
