@@ -12,6 +12,7 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import {
+  areaNewsLaneCovers,
   awardForVenue,
   entriesForBorough,
   entriesForNightArea,
@@ -27,8 +28,15 @@ export async function GET(request: Request): Promise<Response> {
     const venueId = params.get("venueId")?.trim();
     const area = params.get("area")?.trim();
     if (!venueId && !area) return publicApiError("Pass area or venueId.", "INVALID_REQUEST", 400);
-    if (area && !venueId && !isKnownAreaSlug(area)) {
-      return publicApiError("Unknown area.", "INVALID_REQUEST", 400);
+    if (area && !venueId) {
+      if (!isKnownAreaSlug(area)) {
+        return publicApiError("Unknown area.", "INVALID_REQUEST", 400);
+      }
+      // A real place the join table cannot reach. We hold no lane for it, so the
+      // honest answer is that we could not look, never an empty list.
+      if (!areaNewsLaneCovers(area)) {
+        return jsonNoStore({ status: "unavailable", entries: [], award: null }, { status: 200 });
+      }
     }
 
     const loaded = await loadAreaNews();
