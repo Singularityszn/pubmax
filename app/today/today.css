@@ -191,6 +191,9 @@
   font: inherit;
   font-size: 0.82rem;
   font-weight: 750;
+  /* The daily card's action is a Link, so it arrives underlined from the
+     global anchor rule. The control is a chip, not a sentence. */
+  text-decoration: none;
   cursor: pointer;
   transition: border-color 0.16s ease, background 0.16s ease;
 }
@@ -265,6 +268,76 @@
 .todayGetThereStatus {
   color: var(--ink);
   font-weight: 650;
+}
+
+/* The disclosure block runs to four short lines, so they read as one paragraph
+   with air between them rather than four separate claims. */
+.todayGetThere > .todayCardBody + .todayCardBody {
+  margin-top: -4px;
+}
+
+/* Whose station this is. Printed only when the origin is an AREA, because an
+   area's nearest station is the area's and never the reader's own
+   (lib/locationDisclosure). */
+.todayOriginLine {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+}
+
+/* The answer that needs no location. It follows the share button, so it reads
+   as the second way rather than a competing primary. */
+/* The policy link rides the end of the disclosure it is about, so the card
+   keeps one quiet row rather than four stacked ones. */
+.todayInlineLink {
+  color: var(--brass-ink);
+  font-weight: 700;
+  text-underline-offset: 2px;
+}
+
+.todayManualPrompt {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.todayAreaPicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.todayAreaChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  /* The house tap floor. A chip a thumb misses is a path nobody takes. */
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.16s ease, color 0.16s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .todayAreaChip:hover {
+    border-color: var(--brass);
+    color: var(--ink);
+  }
+}
+
+.todayAreaChip:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
 }
 
 /* Tonight picks. Rows inside a card are a list, not a second card each: a
@@ -478,6 +551,8 @@
 .todayPintLink,
 .quietPintLink,
 .todayCardFootLink,
+.todayButton,
+.todayAreaChip,
 .todayTextButton {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;

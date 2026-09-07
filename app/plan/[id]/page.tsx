@@ -71,14 +71,29 @@ async function readVibeTally(id: string): Promise<VibeTally | null> {
   }
 }
 
+// AN INVITE IS ONE CREW'S NIGHT, SO IT IS NOT A SEARCH RESULT.
+//
+// The page's own answer is capability-gated: a stranger who opens it gets the
+// privacy-safe preview and nothing else (buildPlanPrivacyPreview). Indexing it
+// would still publish the plan's address beside its area and its start time,
+// which is the one thing about a private night a stranger could act on. Follow
+// stays true, because a shared plan link routes onward to the map and the pubs
+// and must never be a dead end. `og:` is untouched: an unfurler ignores robots,
+// and the WhatsApp card IS the invite.
+const PLAN_INVITE_ROBOTS = {
+  index: false,
+  follow: true,
+  googleBot: { index: false, follow: true },
+} as const;
+
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const read = await planStore().read(id);
   // A read we could not run is not a plan that has gone. It is never indexed
   // either way, so the unfurl says the neutral thing and the page below says
   // the honest one.
-  if (read.status === "unavailable") return { title: "Plan · PUBMAXXING" };
-  if (read.status === "absent") return { title: "Plan not found · PUBMAXXING" };
+  if (read.status === "unavailable") return { title: "Plan · PUBMAXXING", robots: PLAN_INVITE_ROBOTS };
+  if (read.status === "absent") return { title: "Plan not found · PUBMAXXING", robots: PLAN_INVITE_ROBOTS };
   const state = read.state;
   // Vibe stamp on the unfurl (share loop, issue #438): a valid ?vibe= on the
   // shared link pins the stamp the sharer saw; otherwise the crew's live top
@@ -96,6 +111,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   return {
     title: `${safeTitle} · PUBMAXXING`,
     description,
+    robots: PLAN_INVITE_ROBOTS,
     openGraph: {
       title: safeTitle,
       description,

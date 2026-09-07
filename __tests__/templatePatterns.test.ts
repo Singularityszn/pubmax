@@ -17,7 +17,8 @@ import { describe, expect, it } from "vitest";
 //   dot-grid               a blueprint dot grid painted under a section
 //   numbered-icon-triplet  01 / 02 / 03 with an icon each
 //   hedge-copy             "whether you're", "we believe", "look no further"
-//   emoji-bullet           a line that opens with an emoji
+//   emoji-bullet           a line that opens with an emoji, the star rating
+//                          glyph excepted: it is the rating, not a bullet
 //   card-in-card           a card whose child is another card
 //   three-column-grid      repeat(3, ...) or 1fr 1fr 1fr of identical cells
 //   gamified-level         Level N, mastery points, XP
@@ -256,6 +257,18 @@ function cardInCard(source: ts.SourceFile): Copy[] {
 }
 
 const EMOJI_BULLET = /^\s*\p{Extended_Pictographic}/u;
+/**
+ * A RATING GLYPH IS NOT A BULLET.
+ *
+ * U+2605 BLACK STAR is Extended_Pictographic, so the drink star rating
+ * (components/ratings) and the garden card's rating readout both opened a copy
+ * string with one and read as emoji bullets. They are neither decoration nor a
+ * list marker: they ARE the rating, drawn as glyphs, and the same star is the
+ * one docs/AGENTS.md already names as out of the store-review fence's way. A
+ * string whose only non-space characters are stars is that glyph; an emoji
+ * followed by words is still an offence.
+ */
+const RATING_GLYPH = /^[\s★☆]+$/u;
 const GAMIFIED = /\bLevel\s+\d|^\s*Level\s*$|\bmastery points?\b|\bXP\b|\blevel up\b/i;
 const NUMBERED_INDEX = /\b0\$?\{\s*(?:index|idx|i)\s*\+\s*1\s*\}/;
 
@@ -272,7 +285,9 @@ export function sourceFindings(rel: string, raw: string): Finding[] {
     const lower = c.text.toLowerCase();
     const hedge = HEDGE_PHRASES.find((phrase) => new RegExp(`\\b${phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(lower));
     if (hedge) out.push({ file: rel, pattern: "hedge-copy", detail: `${c.line}: "${hedge}"` });
-    if (EMOJI_BULLET.test(c.text)) out.push({ file: rel, pattern: "emoji-bullet", detail: `${c.line}: ${c.text.trim().slice(0, 30)}` });
+    if (EMOJI_BULLET.test(c.text) && !RATING_GLYPH.test(c.text)) {
+      out.push({ file: rel, pattern: "emoji-bullet", detail: `${c.line}: ${c.text.trim().slice(0, 30)}` });
+    }
     if (GAMIFIED.test(c.text)) out.push({ file: rel, pattern: "gamified-level", detail: `${c.line}: ${c.text.trim().slice(0, 30)}` });
   }
   if (rel.endsWith(".tsx")) {

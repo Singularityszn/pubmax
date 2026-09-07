@@ -23,18 +23,10 @@ import {
   type VenueLens,
 } from "@/lib/drinkWeather";
 import { daySlot } from "@/lib/daySlot";
-import { DAY_MS } from "@/lib/dayMs";
 import { haversineKm } from "@/lib/haversine";
-import {
-  isFeaturedHeritageSource,
-  sanitizeHeritageFacts,
-  type HeritageFact,
-} from "@/lib/heritageFacts";
 import { firstHttp } from "@/lib/httpUrl";
 import type { NightAreaSlug } from "@/lib/nightAreas";
-import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
 import { formatConditionDate, londonMonth } from "@/lib/tonightConditions";
-import type { Provenance } from "@/lib/curation";
 import { validateWeatherSnapshot } from "@/lib/weatherSnapshots";
 import { whatsOnBarePriceGbp, type WhatsOnConfidence, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 
@@ -287,109 +279,13 @@ export function orderPicksNear(
 }
 
 // ---------------------------------------------------------------------------
-// Card 4: one sourced pub-of-the-day fact.
+// Card 4: the daily editorial pick.
 // ---------------------------------------------------------------------------
-
-export type TodayFact = {
-  /** Display-cased pub name. */
-  pubName: string;
-  fact: string;
-  sourceRef?: string;
-  provenance: Provenance;
-  provenanceLabel: string;
-};
-
-// Prefer the most readable attributable source. Seed content is excluded up
-// front (it is seeded example material, not a sourced claim), so it never
-// appears here.
-const SOURCE_PRIORITY: readonly HeritageFact["source"][] = ["wikipedia", "nhle", "wikidata", "osm"];
-
-function sourcePriority(source: HeritageFact["source"]): number {
-  const index = SOURCE_PRIORITY.indexOf(source);
-  return index === -1 ? SOURCE_PRIORITY.length : index;
-}
-
-// Stable per-London-day integer (days since epoch), so the pick rotates once a
-// day and is identical for every visitor on that calendar day.
-function londonDayIndex(now: Date): number {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
-  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? "0");
-  return Math.floor(Date.UTC(get("year"), get("month") - 1, get("day")) / DAY_MS);
-}
-
-function titleCasePubName(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter((word) => word.length > 0)
-    .map((word) => word.charAt(0).toLocaleUpperCase("en-GB") + word.slice(1))
-    .join(" ");
-}
-
-// A pub that heritage sources describe as closed or former is history, not a
-// place to send someone today — headlining it as "pub of the day" is the same
-// honesty break as a closed venue on the map. HeritageFact carries no structured
-// open/closed flag (see lib/heritageFacts), so we read the one signal that IS
-// present: the sourced prose the card would display. Kept to high-precision
-// closure phrases — an OPEN pub described as a "former coaching inn" or "former
-// brewery" is never dropped, because those name a past role, not a closure.
-const CLOSURE_MARKERS: readonly string[] = [
-  "former pub", // also matches "former public house" (substring)
-  "closed pub",
-  "now closed",
-  "closed down",
-  "closed permanently",
-  "permanently closed",
-  "no longer a pub",
-];
-
-function signalsClosure(text: string): boolean {
-  const haystack = text.toLowerCase();
-  return CLOSURE_MARKERS.some((marker) => haystack.includes(marker));
-}
-
-/**
- * Deterministically pick one genuinely sourced heritage fact as the pub of the
- * day, or null when the cache carries no eligible fact at all. Pubs whose only
- * facts are seed examples are skipped so the surfaced claim always attributes to
- * a real source with its provenance label; pubs the sources describe as closed
- * or former are skipped so today's pick is always somewhere that still exists.
- * Both skips run before the day-rotation, so the pick deterministically falls
- * through to the next eligible pub, and an empty eligible set returns null (the
- * card fails soft to its "still in the archive" state rather than lying).
- */
-export function pickPubOfTheDayFact(cache: unknown, now: Date): TodayFact | null {
-  if (!cache || typeof cache !== "object" || Array.isArray(cache)) return null;
-
-  const entries: { name: string; fact: HeritageFact }[] = [];
-  for (const [name, rawFacts] of Object.entries(cache as Record<string, unknown>)) {
-    if (typeof name !== "string" || name.trim().length === 0) continue;
-    const sourced = sanitizeHeritageFacts(rawFacts).filter((fact) =>
-      isFeaturedHeritageSource(fact.source),
-    );
-    if (sourced.length === 0) continue;
-    // Closed/former pubs are ineligible — check the name and every sourced fact,
-    // not just the surfaced one, so a pub known to be gone never headlines.
-    if (signalsClosure(name) || sourced.some((fact) => signalsClosure(fact.fact))) continue;
-    const best = [...sourced].sort((a, b) => sourcePriority(a.source) - sourcePriority(b.source))[0];
-    entries.push({ name, fact: best });
-  }
-  if (entries.length === 0) return null;
-
-  entries.sort((a, b) => a.name.localeCompare(b.name));
-  const chosen = entries[londonDayIndex(now) % entries.length];
-
-  const provenance: Provenance = "sourced";
-  const result: TodayFact = {
-    pubName: titleCasePubName(chosen.name),
-    fact: chosen.fact.fact,
-    provenance,
-    provenanceLabel: PROVENANCE_LABEL[provenance],
-  };
-  if (chosen.fact.sourceRef) result.sourceRef = chosen.fact.sourceRef;
-  return result;
-}
+//
+// It lives in lib/pubOfTheDay now, and it is built from the JOINED historic
+// index rather than the name-keyed heritage cache this module used to read.
+// Astra F08 (6 Sep 2026): a name key cannot tell two London pubs of one name
+// apart, and no content test stood between a Wikidata classification and the
+// card, so "Sun Inn / pub in Barnes, London, UK" shipped as an editorial pick
+// with no way into the product. `pickPubOfTheDayFact` and `TodayFact` are
+// retired rather than kept beside it: two pickers is two answers.

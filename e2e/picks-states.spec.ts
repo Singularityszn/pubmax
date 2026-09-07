@@ -137,7 +137,7 @@ test.describe("Tonight picks states", () => {
     await expect(alternatives).toBeVisible();
     await expect(alternatives.getByText(ALTERNATIVE_LABEL)).toBeVisible();
     // The chosen area rides both doors rather than being dropped at the exit.
-    await expect(alternatives.locator('[data-picks-way="quiet-pints"]')).toHaveAttribute(
+    await expect(alternatives.locator('[data-picks-way="pubs-near"]')).toHaveAttribute(
       "href",
       "/near?patch=soho",
     );
@@ -259,7 +259,7 @@ test.describe("Today picks states", () => {
     const alternatives = card.getByTestId("picks-alternatives");
     await expect(alternatives).toBeVisible();
     await expect(alternatives.getByText(ALTERNATIVE_LABEL)).toBeVisible();
-    await expect(alternatives.locator('[data-picks-way="quiet-pints"]')).toHaveAttribute(
+    await expect(alternatives.locator('[data-picks-way="pubs-near"]')).toHaveAttribute(
       "href",
       "/near?patch=soho",
     );

@@ -1,0 +1,14 @@
+<title>Sort the outing | PUBMAXX</title>
+<meta name="description" content="Put the pubs in order, pick a time, and send one link to the crew."/>
+<meta name="robots" content="noindex, follow"/>
+<link rel="canonical" href="https://pubmaxxing.com/plan"/>
+<meta property="og:title" content="Sort the outing · PUBMAXXING"/>
+<meta property="og:description" content="Put the pubs in order, pick a time, and send one link to the crew."/>
+<meta property="og:url" content="https://pubmaxxing.com/plan"/>
+<meta property="og:site_name" content="PUBMAXX"/>
+<meta property="og:image" content="https://pubmaxxing.com/og.png?v=20260715-coral"/>
+<meta property="og:type" content="website"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="Sort the outing · PUBMAXXING"/>
+<meta name="twitter:description" content="Put the pubs in order, pick a time, and send one link to the crew."/>
+<meta name="twitter:image" content="https://pubmaxxing.com/og.png?v=20260715-coral"/>

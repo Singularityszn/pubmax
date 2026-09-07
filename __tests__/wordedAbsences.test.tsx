@@ -62,7 +62,9 @@ describe("a plan we could not read has not closed", () => {
   });
 
   it("does not let the unfurl call it a plan that was never here", () => {
-    expect(page).toContain('if (read.status === "unavailable") return { title: "Plan · PUBMAXXING" };');
+    // The refusal also carries PLAN_INVITE_ROBOTS (Astra F09), so the pin is the
+    // sentence rather than the whole object literal.
+    expect(page).toContain('if (read.status === "unavailable") return { title: "Plan · PUBMAXXING"');
   });
 });
 

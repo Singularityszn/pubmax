@@ -198,11 +198,19 @@ describe("picksCheckedLabel", () => {
 // ── The two doors ────────────────────────────────────────────────────────
 
 describe("picksAlternativeWays", () => {
-  it("offers quiet pints and a plan door, in that order, and nothing else", () => {
+  it("offers pubs near you and a plan door, in that order, and nothing else", () => {
     expect(picksAlternativeWays().map((way) => way.key)).toEqual([
-      "quiet-pints",
+      "pubs-near",
       "plan",
     ]);
+  });
+
+  // Astra F02: /near ranks the nearest pubs by listed price and holds no crowd
+  // signal, so no door into it may promise a crowd state.
+  it("promises only what /near answers, never a crowd state", () => {
+    const near = picksAlternativeWays().find((way) => way.key === "pubs-near");
+    expect(near?.label).toBe("Pubs near you");
+    expect(near?.label).not.toMatch(/quiet|empty|busy|calm/i);
   });
 
   it("carries the selected area and occasion", () => {
@@ -323,7 +331,7 @@ describe("Tonight listings notice, one render per state", () => {
     expect(markup).toContain("quiet one tonight");
     expect(markup).toContain("The map still knows where the cheap pints are");
     expect(markup).toContain(PICKS_ALTERNATIVE_LABEL);
-    expect(markup).toContain("Quiet pints near you");
+    expect(markup).toContain("Pubs near you");
     expect(markup).toContain("Plan the night instead");
   });
 
@@ -429,7 +437,7 @@ describe("Today picks card, one render per reachable state", () => {
     expect(markup).toContain(PICKS_EMPTY_LINE.night);
     expect(markup).toContain("Meanwhile, the map knows the cheap pints");
     expect(markup).toContain(PICKS_ALTERNATIVE_LABEL);
-    expect(markup).toContain("Quiet pints near you");
+    expect(markup).toContain("Pubs near you");
     expect(markup).toContain("Plan the night instead");
   });
 
