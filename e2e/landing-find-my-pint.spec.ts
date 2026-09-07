@@ -1,13 +1,18 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { LANDING_PRIMARY_HREF, LANDING_PRIMARY_NAME } from "./helpers/landingHero";
+import {
+  LANDING_PRIMARY_HREF,
+  LANDING_PRIMARY_NAME,
+  LANDING_RECEIPT_HREF,
+  LANDING_RECEIPT_NAME,
+} from "./helpers/landingHero";
 
 // Permanent one-action hierarchy (captain 2026-09-03, issue #1354; 2026-09-04,
-// issue #1357). No build flag changes this contract: the price receipt door is
-// the one primary ("Still £X?" into the pub's own Pint Drop composer, or the
-// plain door when no card backs the document), the Pal is the quiet second
-// door, the hero fills the viewport at every width and the phone order is the
-// desktop order.
+// issue #1357; rebuilt 2026-09-07). No build flag changes this contract: the
+// near-me answer is the one primary, the price receipt door is the first quiet
+// door ("Still £X?" into the pub's own Pint Drop composer, or the plain door
+// when no card backs the document) with Tonight beside it, the hero fills the
+// viewport at every width and the phone order is the desktop order.
 
 async function openLanding(page: Page, viewport: { width: number; height: number }) {
   await page.setViewportSize(viewport);
@@ -43,7 +48,7 @@ test("landing nav and footer name Social", async ({ page }) => {
 });
 
 test.describe("landing hierarchy", () => {
-  test("keeps the price receipt door primary and the Pal as the second door", async ({ page }) => {
+  test("keeps the near-me answer primary and the receipt door first in the quiet row", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });
 
     const hero = page.locator(".lpHero");
@@ -54,11 +59,11 @@ test.describe("landing hierarchy", () => {
     await expect(primaries.first()).toHaveAttribute("href", LANDING_PRIMARY_HREF);
     await expect(primaries.first()).toHaveText(LANDING_PRIMARY_NAME);
 
-    // One quiet row, two doors since #1488, and the Pal is still the first.
+    // One quiet row, two doors: the receipt door, then Tonight (#1488).
     const secondary = hero.locator(".screenSecondary a");
     await expect(secondary).toHaveCount(2);
-    await expect(secondary.first()).toHaveAttribute("href", "/pal");
-    await expect(secondary.first()).toContainText("Meet your Pub Pal");
+    await expect(secondary.first()).toHaveAttribute("href", LANDING_RECEIPT_HREF);
+    await expect(secondary.first()).toHaveText(LANDING_RECEIPT_NAME);
     await expect(secondary.nth(1)).toHaveAttribute("href", "/tonight");
     await expect(secondary.nth(1)).toHaveText("Tonight");
 
@@ -66,12 +71,14 @@ test.describe("landing hierarchy", () => {
     await expect(page.locator("main [data-primary-action]")).toHaveCount(1);
     await expect(page.locator(".lpButtonPrimary, .lpButtonQuiet")).toHaveCount(0);
 
-    // The map stays one text link below the hero.
-    const mapLink = page.locator("#why").getByRole("link", { name: "Open the map", exact: true });
+    // The map stays one text link below the hero, in the saving section now.
+    const mapLink = page
+      .locator(".lpWorth")
+      .getByRole("link", { name: "Open the map", exact: true });
     await expect(mapLink).toHaveAttribute("href", "/map");
   });
 
-  test("shows one real pub with its price, publisher, day and archive line, and asks Still £X? of it", async ({ page }) => {
+  test("shows one real pub with its price, publisher, day and archive line, and asks Still £X? of it quietly", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });
     const card = page.locator(".lpHero .lpPubCard");
     await expect(card).toBeVisible();
@@ -82,16 +89,16 @@ test.describe("landing hierarchy", () => {
     await expect(card.locator(".lpPubThen")).toContainText(/£\d+\.\d\d in \w+ \d{4}\./);
     await expect(card.locator(".lpPubThenSource a")).toHaveAttribute("href", /^https?:\/\//);
 
-    // The one filled action names the price on the card and opens THAT pub's
+    // The quiet receipt door names the price on the card and opens THAT pub's
     // Pint Drop door: the map, that pub selected, the composer open.
     const price = (await card.locator(".priceBadge").first().textContent())?.trim();
     const pubHref = await card.locator(".lpPubName a").getAttribute("href");
-    const primary = page.locator(".lpHero [data-primary-action] a");
-    await expect(primary).toHaveText(`Still ${price}?`);
+    const receipt = page.locator(".lpHero .screenSecondary a").first();
+    await expect(receipt).toHaveText(`Still ${price}?`);
     // #1462 — the figure rides with the intent, so the composer the tap opens
     // holds the price the tap named.
     const figure = price!.replace("£", "");
-    await expect(primary).toHaveAttribute("href", `${pubHref}&log=1&price=${figure}`);
+    await expect(receipt).toHaveAttribute("href", `${pubHref}&log=1&price=${figure}`);
 
     // Three next-cheapest rows under it, each a Pint Drop door of its own,
     // each carrying the figure its own row prints.
@@ -105,20 +112,21 @@ test.describe("landing hierarchy", () => {
         `/map?sel=${(await row.locator("a").getAttribute("href"))!.match(/sel=([^&]+)/)![1]}&log=1&price=${rowPrice!.replace("£", "")}`,
       );
     }
-    // The one quiet location control, and no location ask on arrival.
+    // The card's own quiet location control, and exactly ONE door on the page
+    // that carries the geolocation ask: the deliberate primary.
     await expect(card.getByRole("button", { name: "Near me" })).toBeVisible();
-    await expect(page.locator(".lpHero a[href*='locate=1']")).toHaveCount(0);
+    await expect(page.locator("a[href*='locate=1']")).toHaveCount(1);
   });
 
   test("Still £X? lands on that pub with the Pint Drop composer already holding £X", async ({ page }) => {
     await openLanding(page, { width: 390, height: 844 });
-    const primary = page.locator(".lpHero [data-primary-action] a");
-    await expect(primary).toHaveText(/^Still £/);
-    const label = (await primary.textContent())!.trim();
+    const receipt = page.locator(".lpHero .screenSecondary a").first();
+    await expect(receipt).toHaveText(/^Still £/);
+    const label = (await receipt.textContent())!.trim();
     const figure = label.replace(/^Still £/, "").replace(/\?$/, "");
     expect(figure).toMatch(/^\d+\.\d\d$/);
 
-    await primary.click();
+    await receipt.click();
     await expect(page).toHaveURL(/\/map\?sel=[^&]+&log=1&price=\d+\.\d\d$/);
     await expect(page.getByText("Set the price now. Sign in to post it under your name.")).toBeVisible({ timeout: 20_000 });
 
@@ -161,10 +169,10 @@ test.describe("landing hierarchy", () => {
     });
   }
 
-  test("reads the same order on a phone as on a desktop: kicker, heading, pub, primary, second door, rail", async ({ page }) => {
+  test("reads the same order on a phone as on a desktop: kicker, heading, line, picture, primary, quiet row, pub, rail", async ({ page }) => {
     await openLanding(page, { width: 390, height: 844 });
     const tops = await page.evaluate(() =>
-      [".lpHero > .kicker, .lpHero .screenHead > .kicker", "#hero-title", ".lpHero .lpPubCard", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpRail"].map(
+      [".lpHero > .kicker, .lpHero .screenHead > .kicker", "#hero-title", ".lpHero .screenLede", ".lpHero .lpMapFigure", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpPubCard", ".lpHero .lpRail"].map(
         (selector) => document.querySelector(selector)?.getBoundingClientRect().top ?? Number.NaN,
       ),
     );

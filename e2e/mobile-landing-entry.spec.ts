@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
+import { LANDING_PRIMARY_NAME, LANDING_RECEIPT_NAME } from "./helpers/landingHero";
 
 const MOBILE = { width: 390, height: 844 };
 
@@ -120,18 +120,16 @@ test.describe("mobile landing entry", () => {
       origin: new URL(page.url()).origin,
     });
 
-    // The price receipt door is the one primary, and it is the one-tap route
-    // to the answer.
+    // The near-me answer is the one primary, and it is the one-tap route to an
+    // answer with no account and no wall in front of it.
     await page
       .locator(".lpHero [data-primary-action]")
       .getByRole("link", { name: LANDING_PRIMARY_NAME })
       .click();
 
-    // The door is the pub's own: the map, that pub selected, the composer open.
-    await expect(page).toHaveURL(/\/map\?sel=[^&]+&log=1&price=\d+\.\d\d$/);
-    await expect(
-      page.getByText("Set the price now. Sign in to post it under your name."),
-    ).toBeVisible({ timeout: 20_000 });
+    await expect(page).toHaveURL(/\/near\?locate=1$/);
+    // The answer itself: priced pubs within a walk, ranked cheapest first.
+    await expect(page.locator(".nmnCard").first()).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
     await expect(page.locator(".mobileTabBar")).toBeVisible();
   });
@@ -211,13 +209,13 @@ test.describe("mobile landing entry", () => {
     await expectWordmarkLettersOnOneLine(page, "root landing wordmark");
 
     const planTonight = page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME });
+    await expectTappable(planTonight, "hero Cheapest pints near me CTA");
+    await expectWithinFirstViewport(page, planTonight, "hero Cheapest pints near me CTA");
     await expectTappable(
-      planTonight,
-      "hero Log what you paid CTA",
+      page.locator(".lpHero .screenSecondary a").first(),
+      "hero receipt door",
     );
-    await expectWithinFirstViewport(page, planTonight, "hero Log what you paid CTA");
-    await expectTappable(page.locator(".lpHero .screenSecondary").getByRole("link", { name: "Meet your Pub Pal" }), "hero Pub Pal door");
-    await expectTappable(page.locator("#why").getByRole("link", { name: "Open the map" }), "why Open the map link");
+    await expectTappable(page.locator(".lpWorth").getByRole("link", { name: "Open the map" }), "saving section Open the map link");
     await expectTappable(page.locator(".lpFooterNav").getByRole("link", { name: "Find my pint" }), "footer Find my pint link");
 
     // The one real pub sits in the first screen with its price and its source.
@@ -244,11 +242,8 @@ test.describe("mobile landing entry", () => {
       await expectAppTabClearance(page, `root landing at ${width}px`);
       await expectWordmarkLettersOnOneLine(page, `root landing wordmark at ${width}px`);
       const planTonight = page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME });
-      await expectTappable(
-        planTonight,
-        `hero Log what you paid CTA at ${width}px`,
-      );
-      await expectWithinFirstViewport(page, planTonight, `hero Log what you paid CTA at ${width}px`);
+      await expectTappable(planTonight, `hero Cheapest pints near me CTA at ${width}px`);
+      await expectWithinFirstViewport(page, planTonight, `hero Cheapest pints near me CTA at ${width}px`);
       await expectNoHorizontalOverflow(page, width);
       await page.screenshot({
         path: testInfo.outputPath(`landing-root-${width}-light.png`),
@@ -266,11 +261,8 @@ test.describe("mobile landing entry", () => {
     await expectAppTabClearance(page, "dark root landing");
     await expectWordmarkLettersOnOneLine(page, "dark root landing wordmark");
     const planTonight = page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME });
-    await expectTappable(
-      planTonight,
-      "dark hero Log what you paid CTA",
-    );
-    await expectWithinFirstViewport(page, planTonight, "dark hero Log what you paid CTA");
+    await expectTappable(planTonight, "dark hero Cheapest pints near me CTA");
+    await expectWithinFirstViewport(page, planTonight, "dark hero Cheapest pints near me CTA");
     await expectNoHorizontalOverflow(page);
     await page.screenshot({
       path: testInfo.outputPath("landing-root-390-dark.png"),
@@ -278,19 +270,21 @@ test.describe("mobile landing entry", () => {
     });
   });
 
-  test("routes the primary, the second door and the map link where they say", async ({ page }) => {
+  test("routes the primary, the quiet doors and the map link where they say", async ({ page }) => {
     await page.goto("/");
 
     await page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME }).click();
-    // The pub's own Pint Drop door: the map with that pub selected.
-    await expect(page).toHaveURL(/\/map\?sel=[^&]+&log=1&price=\d+\.\d\d$/);
+    await expect(page).toHaveURL(/\/near\?locate=1$/);
     await page.goto("/");
 
-    await page.locator(".lpHero").getByRole("link", { name: "Meet your Pub Pal" }).click();
-    await expect(page).toHaveURL(/\/pal$/);
-
+    // The receipt door, quiet now: the pub's own Pint Drop door.
+    const receipt = page.locator(".lpHero .screenSecondary a").first();
+    await expect(receipt).toHaveText(LANDING_RECEIPT_NAME);
+    await receipt.click();
+    await expect(page).toHaveURL(/\/map\?sel=[^&]+&log=1&price=\d+\.\d\d$|\/near$/);
     await page.goto("/");
-    await page.locator("#why").getByRole("link", { name: "Open the map" }).click();
+
+    await page.locator(".lpWorth").getByRole("link", { name: "Open the map" }).click();
     await expect(page).toHaveURL(/\/map$/);
   });
 });

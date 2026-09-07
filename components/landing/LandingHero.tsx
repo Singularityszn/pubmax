@@ -15,8 +15,10 @@ import {
   answerEvidenceFor,
   answerKicker,
   HERO_RAIL_SIZE,
-  LANDING_FALLBACK_PRIMARY_HREF,
-  LANDING_FALLBACK_PRIMARY_LABEL,
+  LANDING_FALLBACK_RECEIPT_HREF,
+  LANDING_FALLBACK_RECEIPT_LABEL,
+  LANDING_PRIMARY_HREF,
+  LANDING_PRIMARY_LABEL,
   LANDING_QUIET_DOORS,
   NEAR_ME_CONTROL_BUSY_LABEL,
   NEAR_ME_CONTROL_LABEL,
@@ -46,21 +48,32 @@ import { formatPrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import LandingPhoto, { LandingPhotoCredit, LandingPhotoPreload } from "./LandingPhoto";
+import LondonMapSnapshot from "./LondonMapSnapshot";
+import { LONDON_MAP_PUB_COUNT } from "./londonMapGeometry";
 
-// The landing hero (issue #1357): kicker, the claim, then the ANSWER, then the
-// one filled action that acts on it, the quiet row of the Pal and Tonight
-// (#1488), then the three next-cheapest rows. The DOM order is the phone order; the desktop
-// seats the answer and the rail beside the copy. Everything the card prints is
-// a fact with its source beside it, and the browser only ever swaps the anchor
-// for a near-you answer built from the same slim index /near ranks.
+// The landing hero (issue #1357, rebuilt on the captain's 7 Sep 2026 ask):
+// kicker, the claim, one line under it, the PICTURE, then the one filled action,
+// then the quiet row, then the pub card and the three next-cheapest rows. The
+// DOM order is the phone order; the desktop seats the picture and the rows
+// beside the copy.
 //
-// The card stands on a photograph of London (captain 6 Sep 2026): the pub
-// itself where we hold its picture, else its borough, else the city. The photo
-// is the card's BACKDROP rather than a band above it, because the landing's own
-// law is that the primary action sits above the fold at 390x844
-// (e2e/landing-find-my-pint.spec.ts) and a band would push it under. Nothing
-// the card prints moved, and lib/landingImagery.ts owns which picture, whose it
-// is, and the scrim that keeps every line over it inside WCAG AA.
+// THE PICTURE IS A DRAWING, NOT THE MAP. A stranger asked for "the places to
+// visit, the historical pubs", and the live MapLibre canvas costs a WebGL
+// context, a style and megabytes of tiles before anything appears. So the hero
+// paints inline vector geometry generated from the borough outlines and the
+// heritage dataset (components/landing/LondonMapSnapshot.tsx). No request, no
+// script, sharp at every width, and the real map is one tap away.
+//
+// THE PRIMARY GIVES BEFORE IT ASKS. The receipt door was the primary until
+// today and it ends in a sign-in ask, so it is the first QUIET door now and
+// /near is the filled one (lib/landingHero.ts).
+//
+// The pub card under the picture stands on a photograph of London (captain
+// 6 Sep 2026): the pub itself where we hold its picture, else its borough, else
+// the city. Everything the card prints is a fact with its source beside it, and
+// the browser only ever swaps the anchor for a near-you answer built from the
+// same slim index /near ranks. lib/landingImagery.ts owns which picture, whose
+// it is, and the scrim that keeps every line over it inside WCAG AA.
 
 /** What the card really paints at: the answer column, capped at the card. */
 const ANSWER_PHOTO_SIZES = "(max-width: 959px) calc(100vw - 2rem), 480px";
@@ -289,8 +302,23 @@ export default function LandingHero({
     ? landingPhotoFor({ venueId: card.id, boroughSlug: slugifyBorough(card.area) })
     : null;
 
-  const primary = answer ? (
+  // The one filled action, and it is the same door whether or not a pub card
+  // stands behind the document: /near answers a stranger in one tap.
+  const primary = (
     <Link
+      prefetch={false}
+      href={LANDING_PRIMARY_HREF}
+      onClick={() => trackLandingCta("near")}
+    >
+      {LANDING_PRIMARY_LABEL}
+    </Link>
+  );
+
+  // The receipt door, quiet now. It carries the anchor pub where there is one,
+  // so the label still names the figure the card printed.
+  const receipt = answer ? (
+    <Link
+      key="receipt"
       prefetch={false}
       href={pintDropDoorHref(answer.id, answer.priceGbp)}
       onClick={() => trackLandingCta("receipt")}
@@ -300,11 +328,12 @@ export default function LandingHero({
     </Link>
   ) : (
     <Link
+      key="receipt"
       prefetch={false}
-      href={LANDING_FALLBACK_PRIMARY_HREF}
+      href={LANDING_FALLBACK_RECEIPT_HREF}
       onClick={() => trackLandingCta("receipt")}
     >
-      {LANDING_FALLBACK_PRIMARY_LABEL}
+      {LANDING_FALLBACK_RECEIPT_LABEL}
     </Link>
   );
 
@@ -318,18 +347,22 @@ export default function LandingHero({
       kicker="PUBMAXX"
       title="What a pint costs, pub by pub."
       titleId="hero-title"
+      lede={`London on one map, with ${LONDON_MAP_PUB_COUNT} historic pubs marked and a listed price wherever we hold one.`}
       answer={
-        answer ? (
-          <AnswerCard answer={answer} near={near} onLocate={locate} photo={photo} />
-        ) : undefined
+        <figure className="lpMapFigure">
+          <LondonMapSnapshot />
+          <figcaption className="lpMapCaption">
+            The London boroughs, and every old pub we hold a history for.
+          </figcaption>
+        </figure>
       }
       primary={primary}
       secondary={
-        // Two quiet doors on one row, read off the one table. The Pal stays
-        // first, the way the captain set the hero; Tonight joins it because
-        // the phone had no tap to it at all (#1488) and this row is the last
-        // thing above the consent bar.
+        // Two quiet doors on one row. The receipt door comes first, because
+        // it was the primary until today and a returning drinker looks for it
+        // there; Tonight keeps the tap #1488 gave it.
         <>
+          {receipt}
           {LANDING_QUIET_DOORS.map((door) => (
             <Link
               key={door.href}
@@ -344,6 +377,7 @@ export default function LandingHero({
         </>
       }
     >
+      {answer ? <AnswerCard answer={answer} near={near} onLocate={locate} photo={photo} /> : null}
       {answer && answer.rail.length > 0 ? <AnswerRail answer={answer} /> : null}
     </Screen>
     </>
