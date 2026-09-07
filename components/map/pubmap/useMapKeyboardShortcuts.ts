@@ -1,4 +1,6 @@
 import { useEffect } from "react";
+import { hasEscapeDismissal, useDismissOnEscape } from "@/lib/useDismissOnEscape";
+
 type KeyboardShortcutArgs = {
   planningOpen: boolean;
   selectedVenueId: string;
@@ -23,12 +25,11 @@ export function useMapKeyboardShortcuts({
   logIntentFallbackVisible,
   dismissLogIntent,
 }: KeyboardShortcutArgs) {
+  useDismissOnEscape(logIntentFallbackVisible, dismissLogIntent);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onKeyDown = (event: KeyboardEvent) => {
-      // A popover that handled Escape (city switcher, layers, price, zone,
-      // status banner) claims the key via preventDefault — one Escape closes
-      // one layer, never the drawer underneath it too.
       if (event.defaultPrevented) return;
       const target = event.target as HTMLElement | null;
       const typing =
@@ -42,12 +43,7 @@ export function useMapKeyboardShortcuts({
           search.focus();
         }
       } else if (event.key === "Escape") {
-        // Topmost first: the Drop pub picker, then the planner (higher z on
-        // mobile), then venue detail.
-        if (logIntentFallbackVisible) {
-          dismissLogIntent();
-          return;
-        }
+        if (hasEscapeDismissal()) return;
         if (planningOpen || selectedVenueId) {
           onInterruptReveal();
           onBack();
@@ -57,8 +53,6 @@ export function useMapKeyboardShortcuts({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
-    dismissLogIntent,
-    logIntentFallbackVisible,
     onBack,
     onInterruptReveal,
     planningOpen,

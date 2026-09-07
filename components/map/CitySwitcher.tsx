@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { LocateFixed } from "lucide-react";
 
 import {
@@ -157,6 +158,8 @@ function CitySwitcherTrigger({
   const [open, setOpen] = useState(false);
   const current = cities.find((city) => city.id === cityId) ?? cities[0];
 
+  useDismissOnEscape(open, () => setOpen(false));
+
   useEffect(() => {
     if (!open) return;
     const onPointer = (event: MouseEvent | PointerEvent) => {
@@ -164,16 +167,9 @@ function CitySwitcherTrigger({
       if (!root) return;
       if (event.target instanceof Node && !root.contains(event.target)) setOpen(false);
     };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      setOpen(false);
-    };
     document.addEventListener("pointerdown", onPointer);
-    document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("pointerdown", onPointer);
-      document.removeEventListener("keydown", onKey);
     };
   }, [open]);
 

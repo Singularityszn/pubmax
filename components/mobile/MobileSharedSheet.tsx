@@ -8,6 +8,7 @@ import { homeActionLabel } from "@/lib/surfaceStack";
 import { useSheetHeightDrag } from "@/components/mobile/useSheetHeightDrag";
 import { SheetFooterContext } from "@/components/mobile/sheetFooterContext";
 import { useFocusTrap } from "@/lib/useFocusTrap";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { mobileSheetFocusContained, mobileSheetIsModal } from "@/lib/mobileSheetA11y";
 import type { MapSheetDetent, MapSheetKind } from "@/lib/mobileShell";
 
@@ -135,8 +136,13 @@ export default function MobileSharedSheet({
     else requestClose();
   }, [requestClose]);
 
+  useDismissOnEscape(Boolean(kind), () => {
+    interruptAndSettleRef.current();
+    requestEscape();
+  });
+
   // On open: capture focus origin, reset to the requested opening snap, move
-  // focus into the sheet, and wire Escape-to-close.
+  // focus into the sheet.
   //
   // Focus lands on the SHEET, not on its close button. Focusing the close
   // button put a visible focus ring on Dismiss for every reader the instant the
@@ -153,23 +159,11 @@ export default function MobileSharedSheet({
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     openAtSnap(initialSnap);
     const frame = requestAnimationFrame(() => sheetRef.current?.focus({ preventScroll: true }));
-    const onKey = (event: KeyboardEvent) => {
-      // Claim the key so useMapKeyboardShortcuts' own Escape fallback (which
-      // checks event.defaultPrevented) does not also step back for the same
-      // press - otherwise one Escape pops two surface-stack levels at once.
-      if (event.key === "Escape") {
-        event.preventDefault();
-        interruptAndSettleRef.current();
-        requestEscape();
-      }
-    };
-    window.addEventListener("keydown", onKey);
     return () => {
       cancelAnimationFrame(frame);
-      window.removeEventListener("keydown", onKey);
       previousFocus.current?.focus({ preventScroll: true });
     };
-  }, [initialSnap, kind, openAtSnap, requestEscape]);
+  }, [initialSnap, kind, openAtSnap]);
 
   // PubMap/MobileMapShell can request a snap change (e.g. a content-tab tap
   // expands the venue sheet to full). Only re-applies on change.

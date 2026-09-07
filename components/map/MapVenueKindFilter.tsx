@@ -14,6 +14,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useId, useRef, useState } from "react";
 
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import {
   hiddenVenueKindCount,
   showAllVenueKinds,
@@ -46,17 +47,13 @@ export default function MapVenueKindFilter({
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const hidden = hiddenVenueKindCount(visibility, experienceLens);
 
+  useDismissOnEscape(open, () => {
+    setOpen(false);
+    buttonRef.current?.focus();
+  });
+
   useEffect(() => {
     if (!open) return;
-    function onKey(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
-      // Claim the key, so the map-level Escape (close drawer) does not also
-      // fire, and hand focus back to the control the reader opened.
-      event.preventDefault();
-      event.stopPropagation();
-      setOpen(false);
-      buttonRef.current?.focus();
-    }
     function onPointer(event: MouseEvent | TouchEvent) {
       const root = rootRef.current;
       if (!root) return;
@@ -64,11 +61,9 @@ export default function MapVenueKindFilter({
         setOpen(false);
       }
     }
-    window.addEventListener("keydown", onKey);
     window.addEventListener("mousedown", onPointer);
     window.addEventListener("touchstart", onPointer, { passive: true });
     return () => {
-      window.removeEventListener("keydown", onKey);
       window.removeEventListener("mousedown", onPointer);
       window.removeEventListener("touchstart", onPointer);
     };

@@ -205,6 +205,28 @@ test.describe("map keyboard and screen-reader venue path", () => {
       .toBe(venueId);
   });
 
+  test("Escape closes Layers before the underlying venue list", async ({ page }) => {
+    await page.goto("/map");
+    await openVenueListFromLayers(page);
+
+    const list = page.getByRole("region", { name: "London venue list" });
+    await expect(list).toBeVisible();
+    const cheapest = list.getByRole("button", { name: "Cheapest", exact: true });
+    await cheapest.click();
+    await expect(cheapest).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: /Map layers:/ }).click();
+    const layers = page.getByRole("dialog", { name: "Map layers", exact: true });
+    await expect(layers).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(layers).toBeHidden();
+    await expect(list).toBeVisible();
+    await expect(cheapest).toHaveAttribute("aria-pressed", "true");
+
+    await page.keyboard.press("Escape");
+    await expect(list).toBeHidden();
+  });
+
   test("updates open venue list after map movement and a venue-kind filter", async ({
     page,
   }) => {

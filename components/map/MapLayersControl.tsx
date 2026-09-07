@@ -17,6 +17,7 @@ import {
 } from "@/lib/poiToggleGroups";
 import type { PoiCategory } from "@/lib/pois";
 import type { StoryBand } from "@/lib/storyBands";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 import "./mapLayersControl.css";
 
@@ -123,15 +124,10 @@ export default function MapLayersControl({
     setClosedForBandId(null);
   }
 
+  useDismissOnEscape(open && !embedded, closePanel);
+
   useEffect(() => {
     if (!open) return;
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        // Claim the key so the map-level Escape (close drawer) doesn't also fire.
-        event.preventDefault();
-        closePanel();
-      }
-    }
     function onPointer(event: MouseEvent | TouchEvent) {
       const root = rootRef.current;
       if (!root) return;
@@ -139,11 +135,9 @@ export default function MapLayersControl({
         closePanel();
       }
     }
-    window.addEventListener("keydown", onKey);
     window.addEventListener("mousedown", onPointer);
     window.addEventListener("touchstart", onPointer, { passive: true });
     return () => {
-      window.removeEventListener("keydown", onKey);
       window.removeEventListener("mousedown", onPointer);
       window.removeEventListener("touchstart", onPointer);
     };

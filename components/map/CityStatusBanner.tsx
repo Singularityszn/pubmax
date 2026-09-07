@@ -15,6 +15,7 @@
 // Promise.resolve().then when reacting to fetch results.
 
 import { useEffect, useRef, useState } from "react";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { AlertTriangle, CloudRain, Info, Sun, TrainFront, X } from "lucide-react";
 
 import { discardBody } from "@/lib/responseBody";
@@ -243,18 +244,7 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
   const [expanded, setExpanded] = useState(false);
   const aborted = useRef(false);
 
-  useEffect(() => {
-    if (!expanded) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        // Claim the key so the map-level Escape (close drawer) doesn't also fire.
-        e.preventDefault();
-        setExpanded(false);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [expanded]);
+  useDismissOnEscape(expanded, () => setExpanded(false));
 
   useEffect(() => {
     aborted.current = false;
