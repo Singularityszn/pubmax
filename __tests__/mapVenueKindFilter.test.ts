@@ -11,6 +11,7 @@ import {
   hiddenVenueKindCount,
   offeredVenueKinds,
   showAllVenueKinds,
+  mapFilterRefinementCount,
   venueKindFilterAriaLabel,
   venueKindFilterLabel,
 } from "@/lib/venueKindFilters";
@@ -61,13 +62,35 @@ describe("the venue-type filter counts what the panel offers", () => {
   it("carries the count on the closed control, in words and in the label", () => {
     expect(venueKindFilterLabel(0)).toBe("Filters");
     expect(venueKindFilterLabel(2)).toBe("Filters · 2");
-    expect(venueKindFilterAriaLabel(0)).toBe("Filters: venue types");
+    expect(venueKindFilterAriaLabel(0)).toBe(
+      "Filters: venue types, view and zone",
+    );
     expect(venueKindFilterAriaLabel(1)).toBe(
-      "Filters: venue types, 1 type hidden",
+      "Filters: venue types, view and zone, 1 filter on",
     );
     expect(venueKindFilterAriaLabel(2)).toBe(
-      "Filters: venue types, 2 types hidden",
+      "Filters: venue types, view and zone, 2 filters on",
     );
+  });
+
+  it("counts every refinement the panel holds, not the kinds alone", () => {
+    // The experience lens and the fare-zone picker moved into this panel on
+    // 7 Sep 2026 (walk finding B9). A badge counting one of the three would
+    // say the map is unfiltered while two filters are on.
+    expect(
+      mapFilterRefinementCount({
+        hiddenKinds: 0,
+        lensNarrowed: false,
+        zoneNarrowed: false,
+      }),
+    ).toBe(0);
+    expect(
+      mapFilterRefinementCount({
+        hiddenKinds: 2,
+        lensNarrowed: true,
+        zoneNarrowed: true,
+      }),
+    ).toBe(4);
   });
 });
 
@@ -84,7 +107,7 @@ describe("the control the desktop map opens", () => {
   it("is closed at rest, and says so", () => {
     const html = render();
     expect(html).toContain('aria-expanded="false"');
-    expect(html).toContain('aria-label="Filters: venue types"');
+    expect(html).toContain('aria-label="Filters: venue types, view and zone"');
     // Closed means closed: no chips in the document until the reader opens it.
     expect(html).not.toContain("tonightArcChip");
   });
@@ -101,7 +124,9 @@ describe("the control the desktop map opens", () => {
     expect(html).toContain('class="mapVenueKindFilterWord"');
     expect(html).toContain('class="mapVenueKindFilterCount"');
     expect(html).toContain(">2<");
-    expect(html).toContain('aria-label="Filters: venue types, 2 types hidden"');
+    expect(html).toContain(
+      'aria-label="Filters: venue types, view and zone, 2 filters on"',
+    );
     const css = readFileSync(
       join(process.cwd(), "components/map/mapVenueKindFilter.css"),
       "utf8",
@@ -109,5 +134,21 @@ describe("the control the desktop map opens", () => {
     expect(css).toMatch(
       /@media \(min-width: 641px\) and \(max-width: 900px\)[\s\S]*?\.mapVenueKindFilterWord\s*{[\s\S]*?display:\s*none/,
     );
+  });
+
+  it("caps the panel at the room BELOW the toolbar, not at the toolbar's height", () => {
+    // Measured at 1440x900 with the panel open: the toolbar is 60px tall and
+    // sits 159px down, so the panel opens at y 219. Subtracting the height
+    // alone left a 744px cap on a 900px screen and the panel ran to y 910, ten
+    // pixels off the bottom, with the fare-zone footnote cut mid-sentence. The
+    // room is what is left below the toolbar's own bottom edge, which is the
+    // clearance plus the height.
+    const css = readFileSync(
+      join(process.cwd(), "components/map/mapVenueKindFilter.css"),
+      "utf8",
+    );
+    const cap = css.match(/\.mapVenueKindFilterPanel\s*\{[\s\S]*?max-height:[^;]+;/)?.[0] ?? "";
+    expect(cap).toContain("--map-top-clearance");
+    expect(cap).toContain("--map-toolbar-resting-height");
   });
 });

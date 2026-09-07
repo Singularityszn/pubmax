@@ -4651,7 +4651,6 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
     padding-inline: 8px;
   }
 
-  body:has(.mapArrivalCard) .analyticsConsentPrompt,
   body:has(.mobilePlanActivation) .analyticsConsentPrompt {
     /* The one place the card leaves its dock: a map surface already owns the
        foot of the screen, so the card rides above first-visit arrival or
@@ -4667,12 +4666,6 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
     backdrop-filter: none;
   }
 
-  body:has(.mapArrivalCard) .analyticsConsentPrompt {
-    /* The card's own published top edge (mobileNav.css), never a second
-       height written down here. Consent already waits behind the card
-       (lib/promptBudget.ts), so this is the belt to that braces. */
-    bottom: calc(var(--float-stack-top-map-arrival) + var(--float-stack-gap));
-  }
 }
 
 @media (prefers-reduced-motion: no-preference) {

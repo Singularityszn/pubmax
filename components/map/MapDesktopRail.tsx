@@ -1,23 +1,25 @@
 "use client";
 
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
-import ConditionsChip from "@/components/desktop/ConditionsChip";
 import DesktopRail from "@/components/desktop/DesktopRail";
 
 
 // Desktop map right-rail (D3.1). Composes the shared DesktopRail host with the
-// map's Conditions + Area-news slots. Mounted only at >=1024 with the venue
-// drawer closed (PubMap gates it); the top-right positioning and the toolbar
-// Conditions-chip swap live in mapDesktopRail.css. `area` is the Night Area slug
-// under the current map view, or null when unknown — AreaNewsRail then renders
-// nothing (fail-soft), and ConditionsChip likewise renders nothing until the
-// weather has a verdict, so an empty rail is simply an invisible, empty stack.
+// map's Area-news slot. Mounted only at >=1024, with the venue drawer closed and
+// the first-visit strip gone (PubMap gates all three); the top-right positioning
+// lives in mapDesktopRail.css. `area` is the Night Area slug under the current
+// map view, or null when unknown, and AreaNewsRail then renders nothing, so an
+// empty rail is simply an invisible, empty stack.
+//
+// The conditions verdict is NOT here any more. It had two homes, this rail and
+// the toolbar chip, with a CSS rule hiding whichever was the duplicate; it now
+// has one, inside the Layers popover, and it is not on the map at arrival at
+// all (captain, 7 Sep 2026, walk finding B9).
 export default function MapDesktopRail({ area }: { area: string | null }) {
   return (
     <DesktopRail
       className="mapRail"
       ariaLabel="Conditions and area news"
-      conditions={<ConditionsChip />}
       areaNews={<AreaNewsRail area={area} />}
     />
   );

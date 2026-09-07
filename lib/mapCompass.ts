@@ -8,10 +8,17 @@
 // control offered the tilt, but only while the map was ALREADY at north, so it
 // vanished at the exact moment somebody had turned the map and wanted it back.
 //
-// One control now, always present. It points at north, so it reads as a
-// compass, and pressing it eases the camera to the city's designed attitude -
-// bearing AND pitch together, because a reset that dropped the tilt would be a
+// One control now, with one home. It points at north, so it reads as a compass,
+// and pressing it eases the camera to the city's designed attitude - bearing
+// AND pitch together, because a reset that dropped the tilt would be a
 // different view rather than the one the map opens on.
+//
+// Captain, 7 Sep 2026: that home is the Layers popover, not the map edge. A
+// reader met eighteen controls at 1440 before touching a pin, and this was one
+// of two worded chips parked beside the zoom (walk finding B9). The rule above
+// is unchanged: what it refuses is a compass that appears and vanishes with the
+// map's own attitude, and a control behind one button the reader presses is not
+// that.
 
 export type CompassAttitude = { bearing: number; pitch: number };
 

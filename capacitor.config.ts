@@ -9,6 +9,8 @@
 // See docs/CAPACITOR_WRAP.md for the full wrap runbook (signing, APNs, AASA).
 import type { CapacitorConfig } from "@capacitor/cli";
 
+import { BRAND_COLORS } from "./lib/brandMark.mjs";
+
 /** The one origin a shipped binary ever loads. */
 export const PRODUCTION_SERVER_URL = "https://pubmaxxing.com";
 
@@ -44,6 +46,50 @@ const config: CapacitorConfig = {
     // first successful load. Capacitor serves this bundled page when the main
     // frame cannot reach production, so an outage is honest and retryable.
     errorPath: "offline.html",
+  },
+  ios: {
+    // THE FIELD BEHIND THE WEBVIEW IS THE LAUNCH SCREEN'S OWN.
+    //
+    // Capacitor holds the WKWebView non-opaque for the whole initial load
+    // (WebViewDelegationHandler), and with no colour set it hands WebKit
+    // UIColor.systemBackground - WHITE in the light appearance. Measured on the
+    // iPhone 17 Pro simulator against a local production build on 7 September
+    // 2026: the ink launch screen ended at 1601ms, the WHOLE FRAME was a single
+    // white colour from 2140ms to 4507ms, and content arrived at 5550ms. Three
+    // fields in five seconds, and the middle one belongs to no design.
+    //
+    // The value is the same constant scripts/gen-native-app-icons.mjs cuts
+    // LaunchBackground.colorset from, so the launch screen and the frame behind
+    // the page are one colour and cannot drift. The launch field is
+    // deliberately the same in light and dark (#523), which is why this is a
+    // single value rather than a pair.
+    //
+    // ANDROID CARRIES NO SUCH KEY, AND NOT BECAUSE IT DOES NOT NEED ONE. It has
+    // a white frame of its own, and the two obvious remedies were measured out
+    // on the API 36 emulator on 7 September 2026 against a local production
+    // build (docs/proof/mobile-shells-refresh/). The defect: a full-frame
+    // #FFFFFF stands between the ink system splash and the page for roughly
+    // 400ms, with the window's own paper bands correctly painted above and
+    // below it (PR #1599, android/app/src/main/res/values*/), so the window
+    // background is right and simply does not reach the WebView's rectangle.
+    //
+    //   RULED OUT 1 — `android.backgroundColor`. Capacitor does apply it
+    //   (Bridge.java calls webView.setBackgroundColor before the first load),
+    //   but that WebView is OPAQUE, unlike the WKWebView above, so whatever is
+    //   drawn in the view is covered. Set to #FF00FF and captured across a
+    //   whole launch: not one frame was ever magenta.
+    //
+    //   RULED OUT 2 — painting the canvas early from public/theme-init.js. It
+    //   is render-blocking and ahead of every stylesheet, so it is the earliest
+    //   the page can act, and the white frame was unchanged at 2075ms.
+    //
+    // What is left is the frame Android's WebView paints while it swaps
+    // documents, which the entry rewrite makes every launch cross. Holding the
+    // system splash until the page has painted (@capacitor/splash-screen with
+    // launchAutoHide false, hidden from the web side on first paint) is the
+    // remedy that fits the evidence, and it is a plugin and a web-side call
+    // rather than a config value, so it is its own change.
+    backgroundColor: BRAND_COLORS.inkDeep,
   },
   plugins: {
     // Capacitor 8 bundles SystemBars in core. CSS inset injection covers older

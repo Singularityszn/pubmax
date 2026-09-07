@@ -1,6 +1,6 @@
 "use client";
 
-import { GlassWater, Layers, Route, Wine } from "lucide-react";
+import { GlassWater, Route } from "lucide-react";
 import {
   lazy,
   Suspense,
@@ -12,17 +12,12 @@ import {
 } from "react";
 
 import CitySwitcher from "@/components/map/CitySwitcher";
-import ConditionsChip from "@/components/desktop/ConditionsChip";
 import DrinkLanePicker from "@/components/map/DrinkLanePicker";
 import SpoonsValueLensControl from "@/components/map/SpoonsValueLensControl";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import MapVenueKindFilter from "@/components/map/MapVenueKindFilter";
-import MapExperienceLensControl, {
-  MAP_EXPERIENCE_LENS_OPTIONS,
-} from "@/components/map/MapExperienceLens";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import PersonaLensPicker from "@/components/map/PersonaLensPicker";
-import ZonePicker from "@/components/map/ZonePicker";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { activeDrinkLane, drinkLaneLabel } from "@/lib/drinkLanes";
@@ -250,11 +245,9 @@ export default function MapToolbar({
   venueKindVisibility,
   onVenueKindVisibilityChange,
 }: MapToolbarProps) {
-  const [drinksOpen, setDrinksOpen] = useState(false);
   // Closed at rest (design judgement 2026-08-01, finding 2.15). The panel used
   // to arrive open, so the toolbar block was a third layer over the map before
   // the reader asked for anything.
-  const [lensOpen, setLensOpen] = useState(false);
   // Same contract for the drink lane: closed at rest, and its control names the
   // lane so a map showing cocktail prices never looks like the pint map.
   const [laneOpen, setLaneOpen] = useState(false);
@@ -354,18 +347,11 @@ export default function MapToolbar({
     filteredVenueCount,
   });
   const changeExperienceLens = (next: MapExperienceLens) => {
-    if (next !== "all") {
-      setDrinksOpen(false);
-      setLaneOpen(false);
-    }
+    // An experience view stands every drink control down, so the drink panel
+    // may not stay open under it.
+    if (next !== "all") setLaneOpen(false);
     onExperienceLensChange(next);
   };
-  // A closed panel may not hide which view the map is under, so the control
-  // names it. "All" is the resting view, so it needs no name.
-  const activeLensLabel =
-    MAP_EXPERIENCE_LENS_OPTIONS.find(
-      (option) => option.id === experienceLens && option.id !== "all",
-    )?.label ?? null;
 
   return (
     <div
@@ -402,6 +388,12 @@ export default function MapToolbar({
           <MapVenueKindFilter
             visibility={venueKindVisibility}
             experienceLens={experienceLens}
+            experienceSummary={experienceSummary}
+            lensAllSelected={!drinkFiltersActive}
+            onExperienceLensChange={changeExperienceLens}
+            zone={cityId === DEFAULT_CITY_ID && laneAvailable ? filters.zone : null}
+            zoneIndex={zoneIndex}
+            onZoneChange={(zone: string) => onFiltersChange({ ...filters, zone })}
             onChange={onVenueKindVisibilityChange}
           />
         ) : null}
@@ -412,62 +404,6 @@ export default function MapToolbar({
             laneSelected={activeLane !== "beer"}
             open={laneOpen}
             onToggle={() => setLaneOpen((open) => !open)}
-          />
-        ) : null}
-
-        <PintBrandSlot
-          show={isMobile === false && showPintBrand}
-          favoritePint={favoritePint}
-          onFavoritePintChange={onFavoritePintChange}
-          drinkBrand={drinkBrand}
-          onDrinkBrandChange={onDrinkBrandChange}
-          className="mapToolbarDesktopExtras"
-        />
-
-        {/* Weather verdict, always visible on desktop (owner requirement). The
-            map cannot host the right rail (the venue drawer owns that edge), so
-            the toolbar carries the compact chip instead. Fail-soft: renders
-            nothing when the weather has no verdict. */}
-        {isMobile === false ? <ConditionsChip /> : null}
-
-        <button
-          type="button"
-          className={
-            lensOpen || activeLensLabel
-              ? "mapToolbarLensBtn isActive"
-              : "mapToolbarLensBtn"
-          }
-          aria-pressed={lensOpen}
-          aria-expanded={lensOpen}
-          onClick={() => setLensOpen((open) => !open)}
-        >
-          <Layers size={15} aria-hidden="true" />
-          <span>{activeLensLabel ? `Show me: ${activeLensLabel}` : "Show me"}</span>
-        </button>
-
-        {laneAvailable ? (
-          <button
-            type="button"
-            className={
-              drinksOpen || drinkFiltersActive
-                ? "mapToolbarDrinksBtn isActive"
-                : "mapToolbarDrinksBtn"
-            }
-            aria-pressed={drinksOpen}
-            aria-expanded={drinksOpen}
-            aria-label={drinksOpen ? "Hide drink filters" : "Show drink filters"}
-            onClick={() => setDrinksOpen((open) => !open)}
-          >
-            <Wine size={15} aria-hidden="true" />
-            <span>Drinks</span>
-          </button>
-        ) : null}
-
-        {cityId === DEFAULT_CITY_ID && laneAvailable ? (
-          <ZonePicker
-            zone={filters.zone}
-            onZoneChange={(zone) => onFiltersChange({ ...filters, zone })}
-            index={zoneIndex}
           />
         ) : null}
 
@@ -502,15 +438,10 @@ export default function MapToolbar({
         />
       </div>
 
-      {lensOpen ? (
-        <MapExperienceLensControl
-          lens={experienceLens}
-          allSelected={!drinkFiltersActive}
-          summary={experienceSummary}
-          onChange={changeExperienceLens}
-        />
-      ) : null}
-
+      {/* Everything about the drink, behind the one control that names the
+          drink. The row used to carry a second "Drinks" button beside this
+          one, plus the pint-brand slot, so a reader met three controls for one
+          subject before touching a pin (walk finding B9). */}
       {laneOpen && laneAvailable ? (
         <>
           <DrinkLanePicker
@@ -523,6 +454,24 @@ export default function MapToolbar({
             state={spoonsValueLens}
             onChange={onSpoonsValueChange}
           />
+          <div className="mapToolbarDrinks isOpen">
+            <PintBrandSlot
+              show={showPintBrand}
+              favoritePint={favoritePint}
+              onFavoritePintChange={onFavoritePintChange}
+              drinkBrand={drinkBrand}
+              onDrinkBrandChange={onDrinkBrandChange}
+              className="mapToolbarDrinksLens"
+            />
+            <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
+            <div className="mapToolbarDrinksLens">
+              <PersonaLensPicker
+                personaId={personaId}
+                onSelect={onPersonaSelect}
+                tonightCategory={personaTonightCategory}
+              />
+            </div>
+          </div>
         </>
       ) : null}
 
@@ -552,26 +501,6 @@ export default function MapToolbar({
         </div>
       ) : null}
 
-      {laneAvailable ? (
-        <div className={drinksOpen ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
-          <PintBrandSlot
-            show={isMobile === true && showPintBrand}
-            favoritePint={favoritePint}
-            onFavoritePintChange={onFavoritePintChange}
-            drinkBrand={drinkBrand}
-            onDrinkBrandChange={onDrinkBrandChange}
-            className="mapToolbarDrinksLens"
-          />
-          <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
-          <div className="mapToolbarDrinksLens">
-            <PersonaLensPicker
-              personaId={personaId}
-              onSelect={onPersonaSelect}
-              tonightCategory={personaTonightCategory}
-            />
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

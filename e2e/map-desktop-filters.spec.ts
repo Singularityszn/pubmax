@@ -45,7 +45,7 @@ for (const viewport of DESKTOP) {
       await page.setViewportSize(viewport);
     });
 
-    test("keeps the five kind chips out of the head and inside the Filters popover", async ({
+    test("keeps the four kind chips out of the head and inside the Filters popover", async ({
       page,
     }) => {
       await openMap(page);
@@ -57,7 +57,13 @@ for (const viewport of DESKTOP) {
       const filters = page.locator(".mapToolbar .mapVenueKindFilterBtn");
       await expect(filters).toBeVisible();
       await expect(filters).toHaveAttribute("aria-expanded", "false");
-      await expect(filters).toHaveAttribute("aria-label", "Filters: venue types");
+      // The panel holds three questions now, not one: the venue types, the
+      // experience lens and the fare zones all moved in behind this control
+      // (7 Sep 2026, walk finding B9), so the accessible name says all three.
+      await expect(filters).toHaveAttribute(
+        "aria-label",
+        "Filters: venue types, view and zone",
+      );
       // The word shows where the toolbar row can afford it: from 641 to 900px
       // the search field is what a longer label would cost.
       const word = filters.locator(".mapVenueKindFilterWord");
@@ -116,12 +122,15 @@ for (const viewport of DESKTOP) {
       // A field narrower than this reads a postcode and nothing else.
       expect(boxes!.inputWidth).toBeGreaterThan(120);
 
-      // A tap opens the panel with the same five chips in it.
+      // A tap opens the panel with the same four chips in it. Four, not five:
+      // `Clubs` is deleted (walk finding B9), because `curatedVenueKind` in
+      // lib/venueKindFilters.ts answers null for a club, so it could never have
+      // been enabled.
       await expect(async () => {
         await filters.click();
         await expect(
           page.locator(".mapVenueKindFilterPanel .tonightArcChip"),
-        ).toHaveCount(5, { timeout: 2_000 });
+        ).toHaveCount(4, { timeout: 2_000 });
       }).toPass({ timeout: 30_000 });
       await expect(filters).toHaveAttribute("aria-expanded", "true");
       const panelId = await filters.getAttribute("aria-controls");
@@ -149,9 +158,12 @@ for (const viewport of DESKTOP) {
       await expect(count).toHaveText("1");
       await page.getByRole("button", { name: "Restaurants", exact: true }).click();
       await expect(count).toHaveText("2");
+      // The count covers EVERY refinement the panel holds, kinds plus lens plus
+      // zone, so a badge cannot say the map is unfiltered while two filters are
+      // on (lib/venueKindFilters.ts, mapFilterRefinementCount).
       await expect(filters).toHaveAttribute(
         "aria-label",
-        "Filters: venue types, 2 types hidden",
+        "Filters: venue types, view and zone, 2 filters on",
       );
 
       // Closing and reopening reads the same state back: the popover is a view
@@ -172,7 +184,7 @@ for (const viewport of DESKTOP) {
       await expect(count).toHaveCount(0);
       await expect(filters).toHaveAttribute(
         "aria-label",
-        "Filters: venue types",
+        "Filters: venue types, view and zone",
       );
     });
 
@@ -226,7 +238,9 @@ test.describe("390x844", () => {
     }).toPass({ timeout: 45_000 });
 
     const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
-    await expect(sheet.locator(".tonightArcChip")).toHaveCount(5);
+    // Four at both widths: `TonightArcChips` is one component read by the phone
+    // sheet and the desktop popover alike, and `Clubs` is gone from both.
+    await expect(sheet.locator(".tonightArcChip")).toHaveCount(4);
     await expect(sheet.locator(".tonightArcChipsSheet")).toBeVisible();
   });
 });

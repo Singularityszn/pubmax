@@ -143,6 +143,25 @@ export function showAllVenueKinds(
   return next;
 }
 
+/**
+ * How many refinements the desktop Filters control is holding.
+ *
+ * It counted hidden venue kinds alone, which was the whole of what the panel
+ * offered. The panel now also holds the experience lens and the fare-zone
+ * picker (the two other controls that narrow the same pin set, moved in off the
+ * toolbar row on 7 Sep 2026), and a badge that counted one of three would say
+ * the map is unfiltered while two filters are on.
+ */
+export function mapFilterRefinementCount(parts: {
+  hiddenKinds: number;
+  lensNarrowed: boolean;
+  zoneNarrowed: boolean;
+}): number {
+  return (
+    parts.hiddenKinds + (parts.lensNarrowed ? 1 : 0) + (parts.zoneNarrowed ? 1 : 0)
+  );
+}
+
 /** The word on the closed control. */
 export const VENUE_KIND_FILTER_WORD = "Filters";
 
@@ -160,9 +179,9 @@ export function venueKindFilterLabel(hiddenCount: number): string {
 }
 
 /** What a reader hears. The visible label is a count; this one says what it counts. */
-export function venueKindFilterAriaLabel(hiddenCount: number): string {
-  if (hiddenCount === 0) return "Filters: venue types";
-  return `Filters: venue types, ${hiddenCount} ${
-    hiddenCount === 1 ? "type" : "types"
-  } hidden`;
+export function venueKindFilterAriaLabel(refinementCount: number): string {
+  if (refinementCount === 0) return "Filters: venue types, view and zone";
+  return `Filters: venue types, view and zone, ${refinementCount} ${
+    refinementCount === 1 ? "filter" : "filters"
+  } on`;
 }

@@ -130,8 +130,13 @@ describe("finding 2.3 — the category toggles have exactly one home per viewpor
     // is what the 641 to 900px toolbar budget drops; the count is what stays,
     // and the accessible name carries the sentence at every width.
     expect(filter).toMatch(/VENUE_KIND_FILTER_WORD/);
-    expect(filter).toMatch(/mapVenueKindFilterCount"?>\{hidden\}/);
-    expect(filter).toMatch(/venueKindFilterAriaLabel\(hidden\)/);
+    // The count covers every refinement the panel holds, not the kinds alone:
+    // the experience lens and the fare-zone picker moved in beside them
+    // (7 Sep 2026, walk finding B9), and a badge counting one of three would
+    // say the map is unfiltered while two filters are on.
+    expect(filter).toMatch(/mapVenueKindFilterCount"?>\{refinements\}/);
+    expect(filter).toContain("mapFilterRefinementCount");
+    expect(filter).toMatch(/venueKindFilterAriaLabel\(refinements\)/);
     // The chips are the reader's own tap, never the map's cold start.
     expect(filter).toMatch(
       /dynamic\(\s*\(\) => import\("@\/components\/map\/TonightArcChips"\)/,
@@ -149,25 +154,24 @@ describe("finding 2.3 — the category toggles have exactly one home per viewpor
   });
 });
 
-describe("finding 2.15 — SHOW ME opens only from its own control", () => {
+describe("finding 2.15 — SHOW ME opens only from a control the reader presses", () => {
+  // The lens had a button of its own on the toolbar row until 7 Sep 2026. It
+  // reads inside the Filters popover now, beside the venue types and the fare
+  // zones, because all three narrow the same pin set and the row carried
+  // eighteen controls at 1440 before a pin was tapped (walk finding B9). It is
+  // still never mounted until a reader opens something.
+  const filter = read("components/map/MapVenueKindFilter.tsx");
+
   it("does not mount the experience lens panel by default", () => {
-    expect(toolbar, "closed on first paint").toMatch(
-      /const \[lensOpen, setLensOpen\] = useState\(false\)/,
+    expect(filter, "closed on first paint").toMatch(
+      /const \[open, setOpen\] = useState\(false\)/,
     );
-    expect(toolbar, "the panel is conditional").toMatch(
-      /\{lensOpen \? \(\s*<MapExperienceLensControl/,
+    expect(filter, "the panel is conditional").toMatch(
+      /\{open \? \([\s\S]*?<MapExperienceLensControl/,
     );
   });
 
-  it("gives it a control that names its own state", () => {
-    expect(toolbar).toContain('"mapToolbarLensBtn"');
-    expect(toolbar).toMatch(/aria-expanded=\{lensOpen\}/);
-    expect(toolbar).toMatch(/setLensOpen\(\(open\) => !open\)/);
-  });
-
-  it("names the active view on the closed control, so no lens is invisible", () => {
-    expect(toolbar).toMatch(/MAP_EXPERIENCE_LENS_OPTIONS\.find/);
-    expect(toolbar).toContain("`Show me: ${activeLensLabel}`");
+  it("keeps one table of view names", () => {
     const lens = read("components/map/MapExperienceLens.tsx");
     expect(lens, "one table of view names").toContain(
       "export const MAP_EXPERIENCE_LENS_OPTIONS",
@@ -217,8 +221,10 @@ describe("finding 2.15 — the banners dock under the bar and step off the map",
     // where the canvas would be (lib/mapCanvasAvailability.ts). At 1440 with
     // the map chunk blocked the city-conditions banner landed straight over
     // that card's sentence and its first pub row.
+    // The lane composes a THIRD question since 7 Sep 2026: banners stack one
+    // at a time, and while the first-visit strip is up the strip is it.
     expect(pubMap).toMatch(
-      /const ambientBannerLaneOpen =\s*\n?\s*ambientBannerLane && mapAmbientBannersVisible\(/,
+      /const ambientBannerLaneOpen =\s*\n?\s*ambientBannerLane\s*\n?\s*&& !showMapArrivalCard\s*\n?\s*&& mapAmbientBannersVisible\(/,
     );
     expect(pubMap).toMatch(/\{ambientBannerLaneOpen && !baseLedChrome \?/);
     expect(pubMap).toMatch(/\{ambientBannerLaneOpen && isLondon \?/);

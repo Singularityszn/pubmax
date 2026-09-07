@@ -23,10 +23,14 @@
 //  3. THE BUNDLE ID IS READ, NEVER TYPED. It comes back out of the built .app's
 //     own Info.plist, so `simctl launch` can only ever address the binary this
 //     run produced.
-//  4. THE SHELL IS REMOTE-URL. capacitor.config.ts points at
-//     https://pubmaxxing.com, so a launched simulator with no network serves
-//     the bundled offline.html instead of the site. That is the wrap working,
-//     not a build fault.
+//  4. THE SHELL IS REMOTE-URL, AND THE ORIGIN IS REPORTED, NEVER ASSUMED.
+//     capacitor.config.ts points at production unless PUBMAX_NATIVE_SERVER_URL
+//     names a local build (docs/CAPACITOR_WRAP.md). This script used to print
+//     the production origin either way, so an operator reviewing a checkout was
+//     told he was looking at what had shipped. It now reads the origin back out
+//     of the config `npx cap sync` generated. With no network the shell serves
+//     the bundled offline.html instead of the site, which is the wrap working
+//     and not a build fault.
 //
 // A GREEN SIMULATOR BUILD PROVES THE CODE COMPILES, NEVER THE ENTITLEMENTS:
 // with no team set Xcode writes an EMPTY entitlements file, so push and
@@ -34,16 +38,19 @@
 // App.entitlements is. STORE_READINESS section 8 owns that proof.
 
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const PROJECT = join(ROOT, "ios", "App", "App.xcodeproj");
+const IOS_DIR = join(ROOT, "ios");
+const PROJECT = join(IOS_DIR, "App", "App.xcodeproj");
+/** The config `npx cap sync ios` writes into the Xcode project. */
+const IOS_SYNCED_CONFIG = join(IOS_DIR, "App", "App", "capacitor.config.json");
 const SCHEME = "App";
 // Derived data is build output, kept inside ios/ so it is obvious what wrote
 // it and gitignored so it can never reach a commit.
-const DERIVED_DATA = join(ROOT, "ios", "build");
+const DERIVED_DATA = join(IOS_DIR, "build");
 const APP_PATH = join(DERIVED_DATA, "Build", "Products", "Debug-iphonesimulator", "App.app");
 
 // A preference order rather than one hardcoded device: a machine carrying any
@@ -106,6 +113,21 @@ function resolveSimulator() {
   );
 }
 
+/**
+ * The origin the built app will actually load, read back out of the config
+ * `npx cap sync` generated for this platform. That file is the artefact the
+ * binary carries, so it cannot disagree with what the shell does; retyping
+ * capacitor.config.ts's fallback constant here would be a second place for the
+ * shipped origin to drift from what the operator is told.
+ */
+function syncedServerUrl(configPath) {
+  try {
+    return JSON.parse(readFileSync(configPath, "utf8")).server?.url ?? "an unset origin";
+  } catch {
+    return "an origin this script could not read";
+  }
+}
+
 function buildForSimulator(simulator) {
   console.log("\n> npx cap sync ios");
   run("npx", ["cap", "sync", "ios"]);
@@ -164,8 +186,9 @@ function bootAndLaunch(simulator, appPath) {
 
   console.log(
     `\n${bundleId} is running on ${simulator.name}.\n` +
-      "  The shell loads https://pubmaxxing.com. With no network it serves the\n" +
-      "  bundled offline.html instead, which is the wrap working.\n" +
+      `  It loads ${syncedServerUrl(IOS_SYNCED_CONFIG)}.\n` +
+      "  With no network it serves the bundled offline.html instead, which is\n" +
+      "  the wrap working.\n" +
       `  Screenshot it with: xcrun simctl io ${simulator.udid} screenshot shot.png`,
   );
 }

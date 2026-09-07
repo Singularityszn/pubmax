@@ -251,12 +251,18 @@ for (const viewport of VIEWPORTS) {
       '.mobileSheetPortal[data-sheet-kind="filters"]',
     );
     await expect(filtersSheet).toBeVisible({ timeout: 45_000 });
+    // The sheet SHELL paints before its content: the venue types arrive a chunk
+    // later. Measuring on the shell alone read zero colour pairs and failed on
+    // "expected 0 to be greater than 0", which names the timing badly.
+    await expect(
+      filtersSheet.getByRole("group", { name: "Venue types" }),
+    ).toBeVisible({ timeout: 45_000 });
     measurements.mapActiveChip = await expectRenderedTextContrast(
       filtersSheet.locator(".tonightArcChip.isOn").first(),
     );
-    measurements.mapDisabledChip = await expectRenderedTextContrast(
-      filtersSheet.locator('.tonightArcChip[aria-disabled="true"]'),
-    );
+    // There is no disabled venue-type chip left to measure: `Clubs` was the
+    // only one and it is deleted (walk finding B9), so its contrast row goes
+    // with it rather than being pointed at a control that no longer exists.
     await page.keyboard.press("Escape");
     await expectNoHorizontalOverflow(page);
 
@@ -275,7 +281,11 @@ for (const viewport of VIEWPORTS) {
     measurements.sheetActiveTab = await expectRenderedTextContrast(activeTab);
     // The sheet's one painted primary is the Overview's price door
     // (lib/pintTrust.ts, `overviewPriceDoor`), flat like every other primary.
+    // It arrives with the venue's price read rather than with the sheet, and
+    // measuring before it paints returns no colour pairs at all, which reports
+    // as "expected 0 to be greater than 0" and names the timing badly.
     const sheetPrimary = sheet.locator("[data-price-door]");
+    await expect(sheetPrimary).toBeVisible({ timeout: 45_000 });
     measurements.sheetPrimary = await expectRenderedTextContrast(sheetPrimary);
 
     await activeTab.focus();
