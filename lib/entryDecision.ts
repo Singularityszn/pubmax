@@ -43,6 +43,7 @@
 // only globals readers, mirroring the lib/a2hsPrompt.ts snapshot idiom.
 
 import { readPreferredCity } from "@/lib/cityPreference";
+import { ONBOARDING_PATH } from "@/lib/firstRunRoute";
 import {
   getNativeFirstRunSnapshot,
   shouldRouteNativeFirstRun,
@@ -51,8 +52,9 @@ import { isNativeApp } from "@/lib/nativePlatform";
 
 /** Where every post-first-run shell open lands (owner-locked, issue #439). */
 export const SHELL_START_PATH = "/tonight";
-/** The native shell's one-time first-run surface (owner-locked, issue #441). */
-export const ONBOARDING_PATH = "/onboarding";
+/** The native shell's one-time first-run surface (owner-locked, issue #441).
+ *  Held in a leaf so proxy.ts can read the path without this module's imports. */
+export { ONBOARDING_PATH };
 
 export type EntryContext = {
   /** Pathname at boot (no query/hash) — "/" is the only decided route. */
