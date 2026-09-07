@@ -491,6 +491,16 @@ export function usePintDrops(
       ));
       emitOptimisticSpillChange();
     }
+    // A discarded draft cannot own a local row's photos or its Retry action.
+    // Only the public record can retain that row independently.
+    const retained = storage && readOptimisticSpills(storage).some(
+      (entry) => entry.clientRequestId === pendingId && entry.retry,
+    );
+    if (pendingId && !retained) {
+      setDropsByVenueId((current) => new Map([...current].map(([venueId, drops]) => [
+        venueId, drops.filter((drop) => drop.optimistic?.clientRequestId !== pendingId),
+      ])));
+    }
     pendingSubmissionId.current = null;
     setPintPhoto(null);
     setVenuePhoto(null);
