@@ -60,10 +60,35 @@ describe("which lane a build belongs to", () => {
   });
 
   it("keeps our own browser suite out of production, whatever it runs against", () => {
+    // The suite's own build sets the variable at BUILD time, so its answer is
+    // what gets inlined and the run is internal-test wherever it is driven.
+    expect(analyticsBuildEnv({
+      NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
+      VERCEL_ENV: "preview",
+    })).toEqual({ PUBMAX_ANALYTICS_ENVIRONMENT: "internal-test" });
+    expect(resolveAnalyticsEnvironment({
+      NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
+      VERCEL_ENV: "preview",
+    })).toBe("internal-test");
+    expect(resolveAnalyticsEnvironment({
+      PUBMAX_ANALYTICS_ENVIRONMENT: "internal-test",
+      VERCEL_ENV: "preview",
+    })).toBe("internal-test");
+  });
+
+  it("refuses to relabel a production runtime from an environment variable", () => {
+    // currentAnalyticsAttribution reads the live process.env on the server, so
+    // one project variable used to empty every production figure in silence.
     expect(resolveAnalyticsEnvironment({
       NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
       VERCEL_ENV: "production",
-      PUBMAX_ANALYTICS_ENVIRONMENT: "production",
+    })).toBe("production");
+    // The inlined answer still wins: a build that named itself is not overruled
+    // by the platform word it was already resolved from.
+    expect(resolveAnalyticsEnvironment({
+      NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
+      VERCEL_ENV: "production",
+      PUBMAX_ANALYTICS_ENVIRONMENT: "internal-test",
     })).toBe("internal-test");
   });
 

@@ -34,19 +34,23 @@ const MIN_PRODUCTION_SECRET_BYTES = 32;
  * would make a keyless build impossible even though runtime handlers remain
  * guarded.
  *
+ * The production check comes FIRST, and EVERY escape sits below it. Both the
+ * build phase and PUBMAX_E2E_KEYLESS are ordinary environment variables, and a
+ * Vercel dashboard variable applies to Build and Runtime alike, so either one
+ * set on a deployed application would otherwise skip the startup secret
+ * assertions on the process those assertions exist for.
+ *
  * PUBMAX_E2E_KEYLESS=1 is a deliberately exact, test-only escape hatch for
  * Playwright's local `next start` server. It must never be configured on a
  * deployed application: doing so opts that process into ephemeral stores.
  * It does not relax trusted signing; Playwright supplies a fresh dedicated key.
- * On a real Vercel Production deploy (`VERCEL_ENV=production`) it is
+ * On a real Vercel Production deploy (`VERCEL_ENV=production`) both escapes are
  * therefore ignored — production always runs the full assertions.
  */
 function shouldSkipProductionEnvAssertions(): boolean {
+  if (process.env.VERCEL_ENV === "production") return false;
   if (isProductionBuildPhase()) return true;
-  return (
-    process.env.PUBMAX_E2E_KEYLESS === "1" &&
-    process.env.VERCEL_ENV !== "production"
-  );
+  return process.env.PUBMAX_E2E_KEYLESS === "1";
 }
 
 /**

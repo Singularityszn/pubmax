@@ -89,13 +89,19 @@ describe("storeBackend", () => {
     vi.stubEnv("NEXT_PHASE", "phase-production-build");
     expect(selectStore(memory, supabase)).toBe(memory);
 
-    // The same build on Vercel Production is still a build, and lib/serverEnv
-    // already skips its startup assertions there on this same signal.
+    // A deployed Vercel Production process refuses however it was started.
+    // NEXT_PHASE is an ordinary environment variable and a Vercel dashboard
+    // variable applies to Build and Runtime alike, so one operator setting it
+    // there would otherwise return the whole app to the process-memory
+    // fallback: every write answering 200 and evaporating on the next cold
+    // start. The production check comes first; every escape sits below it.
     vi.stubEnv("VERCEL_ENV", "production");
-    expect(selectStore(memory, supabase)).toBe(memory);
+    expect(() => selectStore(memory, supabase)).toThrow(
+      /durable store required in production/,
+    );
 
-    // Serving a request is not a build: Next never sets the build phase on a
-    // server, so the refusal is exactly where it was.
+    // Serving a request is not a build either: Next never sets the build phase
+    // on a server, so the refusal is exactly where it was.
     vi.stubEnv("NEXT_PHASE", "");
     expect(() => selectStore(memory, supabase)).toThrow(
       /durable store required in production/,
