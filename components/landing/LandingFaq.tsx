@@ -31,7 +31,7 @@ export const LANDING_FAQ: readonly Question[] = [
     id: "how-it-works",
     question: "How does PUBMAXXING work?",
     answer:
-      "Say where you are and we show what a pint costs at the pubs around you, cheapest first. Every figure carries who listed it and the day it was collected. Nothing else sets the order, and no pub can pay to sit higher.",
+      "Say where you are and we show what a pint costs at the pubs around you, cheapest first. Each figure carries the day it was collected, and names the publisher when the record has one. Nothing else sets the order, and no pub can pay to sit higher.",
   },
   {
     id: "prices",
