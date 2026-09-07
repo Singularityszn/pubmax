@@ -22,6 +22,7 @@ import {
   shouldOptimisticallyAppearInFeed,
   upsertOptimisticSpill,
   writeOptimisticSpills,
+  type OptimisticSpillInput,
 } from "@/lib/optimisticSpillPost";
 import { lastTrainComposeFields } from "@/lib/lastTrainBadge";
 import {
@@ -79,6 +80,11 @@ export type DropWithPhotos = PintDrop & {
 export type { VenueDropReadStatus } from "@/lib/venueDropRead";
 
 export type PhotoSlot = { file: File; previewUrl: string };
+
+function photoPreviewUrl(photo: PhotoSlot | null): string | null {
+  return photo?.previewUrl ?? null;
+}
+
 /**
  * THREE SLOTS since 7 Sept 2026. `pint` is what they drank, `venue` is where,
  * and `receipt` is the photo of the bill a new price now carries
@@ -321,6 +327,8 @@ export function usePintDrops(
   const [venuePhoto, setVenuePhoto] = useState<PhotoSlot | null>(null);
   const [receiptPhoto, setReceiptPhoto] = useState<PhotoSlot | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const submitInFlight = useRef(false);
+  const pendingSubmissionId = useRef<string | null>(null);
   const [dropMsg, setDropMsg] = useState<DropMsg | null>(null);
   const pintInputRef = useRef<HTMLInputElement>(null);
   const venueInputRef = useRef<HTMLInputElement>(null);
@@ -428,7 +436,6 @@ export function usePintDrops(
   } as const;
 
   function pickPhoto(slot: PhotoSlotName, file: File | undefined, inputEl: HTMLInputElement | null) {
-    const current = photoSlots[slot].value;
     const setSlot = photoSlots[slot].set;
     if (!file) return;
     const refusal = photoRefusal(file);
@@ -437,7 +444,6 @@ export function usePintDrops(
       if (inputEl) inputEl.value = "";
       return;
     }
-    if (current) URL.revokeObjectURL(current.previewUrl);
     setDropMsg(null);
     setSlot({ file, previewUrl: URL.createObjectURL(file) });
   }
@@ -455,27 +461,25 @@ export function usePintDrops(
   }
 
   function removePhoto(slot: PhotoSlotName) {
-    const current = photoSlots[slot].value;
     const setSlot = photoSlots[slot].set;
     const inputEl = photoSlots[slot].input.current;
-    if (current) URL.revokeObjectURL(current.previewUrl);
     setSlot(null);
     if (inputEl) inputEl.value = "";
   }
 
   const resetComposer = useCallback(() => {
-    setPintPhoto((current) => {
-      if (current) URL.revokeObjectURL(current.previewUrl);
-      return null;
-    });
-    setVenuePhoto((current) => {
-      if (current) URL.revokeObjectURL(current.previewUrl);
-      return null;
-    });
-    setReceiptPhoto((current) => {
-      if (current) URL.revokeObjectURL(current.previewUrl);
-      return null;
-    });
+    const storage = localStorageSafe();
+    const pendingId = pendingSubmissionId.current;
+    if (storage && pendingId) {
+      writeOptimisticSpills(storage, readOptimisticSpills(storage).filter(
+        (entry) => entry.clientRequestId !== pendingId || !entry.retry,
+      ));
+      emitOptimisticSpillChange();
+    }
+    pendingSubmissionId.current = null;
+    setPintPhoto(null);
+    setVenuePhoto(null);
+    setReceiptPhoto(null);
     setDropForm({
       price: "",
       drink: "",
@@ -492,22 +496,44 @@ export function usePintDrops(
     if (receiptInputRef.current) receiptInputRef.current.value = "";
   }, []);
 
-  // Revoke any live preview URLs when the component unmounts.
-  useEffect(() => {
-    return () => {
-      if (pintPhoto) URL.revokeObjectURL(pintPhoto.previewUrl);
-      if (venuePhoto) URL.revokeObjectURL(venuePhoto.previewUrl);
-      if (receiptPhoto) URL.revokeObjectURL(receiptPhoto.previewUrl);
-    };
-  }, [pintPhoto, venuePhoto, receiptPhoto]);
+  // Each slot owns its preview. Changing one slot must not revoke another.
+  useEffect(() => () => {
+    if (pintPhoto) URL.revokeObjectURL(pintPhoto.previewUrl);
+  }, [pintPhoto]);
+  useEffect(() => () => {
+    if (venuePhoto) URL.revokeObjectURL(venuePhoto.previewUrl);
+  }, [venuePhoto]);
+  useEffect(() => () => {
+    if (receiptPhoto) URL.revokeObjectURL(receiptPhoto.previewUrl);
+  }, [receiptPhoto]);
 
   function updateOptimisticFeedStorage(
     update: (current: ReturnType<typeof readOptimisticSpills>) => ReturnType<typeof readOptimisticSpills>,
   ) {
-    if (typeof window === "undefined") return;
-    const next = update(readOptimisticSpills(window.localStorage));
-    writeOptimisticSpills(window.localStorage, next);
+    const storage = localStorageSafe();
+    if (!storage) return false;
+    const next = update(readOptimisticSpills(storage));
+    const saved = writeOptimisticSpills(storage, next);
     emitOptimisticSpillChange();
+    return saved;
+  }
+
+  function retainOptimisticFeedDraft(input: OptimisticSpillInput) {
+    // The record owns separate URLs over the original File bytes.
+    const retain = (photo: PhotoSlot | null) => photo ? URL.createObjectURL(photo.file) : null;
+    const retained = {
+      ...input,
+      pintPhotoUrl: retain(pintPhoto),
+      venuePhotoUrl: retain(venuePhoto),
+      receiptPhotoUrl: retain(receiptPhoto),
+    };
+    const saved = updateOptimisticFeedStorage((current) => upsertOptimisticSpill(
+      current, buildOptimisticSpillDrop(retained), buildOptimisticSpillRetryPayload(retained),
+    ));
+    if (!saved) {
+      [retained.pintPhotoUrl, retained.venuePhotoUrl, retained.receiptPhotoUrl]
+        .forEach((url) => { if (url) URL.revokeObjectURL(url); });
+    }
   }
 
   function submitDrop(
@@ -529,10 +555,21 @@ export function usePintDrops(
     return submitDropRequest(venueId, options);
   }
 
+  function clearSubmittedDraft(clientRequestId: string, venueId: string) {
+    if (pendingSubmissionId.current !== clientRequestId) return;
+    clearPintDropDraft(window.sessionStorage, venueId);
+    resetComposer();
+    setComposerOpen(false);
+  }
+
   async function submitDropRequest(
     venueId: string,
-    options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
+    { venueName, lastTrainDecision = null }: {
+      venueName?: string;
+      lastTrainDecision?: LastPintDecision | null;
+    } = {},
   ) {
+    if (submitInFlight.current) return;
     const submittedRound = captureRoundAppendSnapshot(
       roundIdentity,
       accountHandle,
@@ -541,7 +578,7 @@ export function usePintDrops(
     );
     setSubmitting(true);
     setDropMsg(null);
-    const clientRequestId = newOptimisticSpillClientId();
+    const clientRequestId = pendingSubmissionId.current ?? newOptimisticSpillClientId();
     const submittedAuthor = pintDropAuthorValue({
       accountHandle,
       draftHandle: handle,
@@ -571,11 +608,14 @@ export function usePintDrops(
     const passedDownNote = appendWithSuffix(dropForm.note, dropForm.withWho);
     // Wave G1: only stamp leave-by + decision when a LIVE Last Pint verdict is
     // on screen — never attach live_data_unavailable or a missing leave-by.
-    const trainFields = lastTrainComposeFields(options?.lastTrainDecision ?? null);
+    const trainFields = lastTrainComposeFields(lastTrainDecision);
+    submitInFlight.current = true;
+    pendingSubmissionId.current = clientRequestId;
+    const publishToFeed = shouldOptimisticallyAppearInFeed(visibility);
     const optimisticInput = {
       clientRequestId,
       venueId,
-      venueName: options?.venueName,
+      venueName: venueName,
       handle: submittedAuthor.handle,
       priceGbp: dropForm.price,
       drink: dropForm.drink,
@@ -583,22 +623,15 @@ export function usePintDrops(
       era: dropForm.era,
       visibility,
       vibeTags,
-      pintPhotoUrl: pintPhoto?.previewUrl ?? null,
-      venuePhotoUrl: venuePhoto?.previewUrl ?? null,
+      pintPhotoUrl: photoPreviewUrl(pintPhoto),
+      venuePhotoUrl: photoPreviewUrl(venuePhoto),
+      receiptPhotoUrl: photoPreviewUrl(receiptPhoto),
+      ...measureFieldsOf(dropForm),
       createdAt: new Date().toISOString(),
       ...(trainFields ?? {}),
     };
     const optimisticDrop = buildOptimisticSpillDrop(optimisticInput);
-    const publishToFeed = shouldOptimisticallyAppearInFeed(visibility);
-    if (publishToFeed) {
-      updateOptimisticFeedStorage((current) =>
-        upsertOptimisticSpill(
-          current,
-          optimisticDrop,
-          buildOptimisticSpillRetryPayload(optimisticInput),
-        ),
-      );
-    }
+    if (publishToFeed) retainOptimisticFeedDraft(optimisticInput);
     const optimisticMapDrop: DropWithPhotos = {
       id: optimisticDrop.id,
       venueId,
@@ -620,7 +653,7 @@ export function usePintDrops(
       // The bill shows on the row the moment it is posted, from the same local
       // preview the other two use, so the drinker sees their own evidence
       // before the upload lands.
-      receiptPhotoUrl: receiptPhoto?.previewUrl ?? null,
+      receiptPhotoUrl: optimisticInput.receiptPhotoUrl,
       optimistic: optimisticDrop.optimistic,
       ...(trainFields
         ? { leaveByIso: trainFields.leaveByIso, lastTrainDecision: trainFields.lastTrainDecision }
@@ -628,13 +661,13 @@ export function usePintDrops(
     };
     setDropsByVenueId((current) => {
       const next = new Map(current);
-      next.set(venueId, [optimisticMapDrop, ...(next.get(venueId) ?? [])]);
+      next.set(venueId, [optimisticMapDrop, ...(next.get(venueId) ?? []).filter(
+        (drop) => drop.id !== optimisticDrop.id,
+      )]);
       return next;
     });
 
-    // Instant post UX (IDEAS A2): close the composer immediately and reconcile
-    // in the background. Failures keep the optimistic card in a retryable state.
-    // Capture form fields BEFORE resetComposer clears them.
+    // Keep the draft and its Files until the server returns a saved drop.
     const submittedHandle = submittedAuthor.handle.trim();
     const submittedDrink = dropForm.drink;
     const submittedPrice = dropForm.price;
@@ -645,18 +678,11 @@ export function usePintDrops(
     const submittedPintFile = pintPhoto?.file ?? null;
     const submittedVenueFile = venuePhoto?.file ?? null;
     const submittedReceiptFile = receiptPhoto?.file ?? null;
-    clearPintDropDraft(
-      typeof window === "undefined" ? null : window.sessionStorage,
-      venueId,
-    );
     try {
       window.localStorage.setItem("pubmax_handle", submittedHandle);
     } catch {
       // Storage blocked — handle can be re-entered later.
     }
-    resetComposer();
-    setComposerOpen(false);
-    setSubmitting(false);
     setDropMsg({
       ok: true,
       text: "Cheers. Saving your Pint Drop…",
@@ -722,7 +748,7 @@ export function usePintDrops(
 
       const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
       const data = await response.json().catch(() => null);
-      if (!response.ok) {
+      if (!response.ok || !pintDropId(data?.drop)) {
         markFailed(errorMessageFrom(data, "Could not save that drop."));
         return;
       }
@@ -731,7 +757,7 @@ export function usePintDrops(
 
       const reconciledDrop = {
         ...(data.drop as PintDropDTO),
-        venueName: options?.venueName,
+        venueName: venueName,
         venueMapUrl: venueMapUrl(venueId),
       };
       if (publishToFeed) {
@@ -748,13 +774,15 @@ export function usePintDrops(
         return next;
       });
 
+      clearSubmittedDraft(clientRequestId, venueId);
+
       // Loop 2: if a Round is open, append this pub as a stop (existing
       // addStop API). Fail-soft — the drop already landed.
       const addedToNight = await appendPintDropStopToActiveRound({
         round: submittedRound,
         currentUserId: getCurrentUserId,
         venueId,
-        venueName: options?.venueName ?? unresolvedVenueLabel(venueId),
+        venueName: venueName ?? unresolvedVenueLabel(venueId),
         dropRef: pintDropId(data.drop),
       });
 
@@ -783,6 +811,9 @@ export function usePintDrops(
       });
     } catch {
       markFailed("Network or storage error. Try again.");
+    } finally {
+      submitInFlight.current = false;
+      setSubmitting(false);
     }
   }
 
