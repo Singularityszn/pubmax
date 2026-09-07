@@ -469,6 +469,20 @@ describe("Capacitor wrapped-build contract", () => {
     expect(manifest).toContain('android.permission.POST_NOTIFICATIONS');
   });
 
+  it("labels the offline retry the way every other control in the app is labelled", () => {
+    // ONE CONTROL IN THE WHOLE SHELL ENDED ITS LABEL IN A FULL STOP. The app's
+    // own retries are "Retry" and "Try again"; the bundled offline page said
+    // "Try again.". Seen on the API 36 emulator in airplane mode on
+    // 7 September 2026 (docs/proof/mobile-shells-refresh/). Sentences take a
+    // full stop here and labels do not, and the outage page is the one screen a
+    // reader meets with nothing else of ours on it to compare against.
+    const offline = rootFile("native/web-stub/offline.html");
+    expect(offline).toContain(">Try again<");
+    expect(offline).not.toContain(">Try again.<");
+    // The heading beside it is a sentence and keeps its full stop.
+    expect(offline).toContain("<h1>Nothing to show yet.</h1>");
+  });
+
   it("names the origin the rig actually loaded, not the one it usually loads", () => {
     // THE LINE THAT TOLD THE OPERATOR HE WAS LOOKING AT PRODUCTION.
     // `PUBMAX_NATIVE_SERVER_URL` points a rig at a local build, and both run
