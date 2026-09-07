@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 
 import { CONTACT_EMAIL } from "@/lib/siteContact";
 import { trackEvent } from "@/lib/analytics";
+import { RECEIPT_REQUIRED_LINE } from "@/lib/pintDropReceipt";
 
 // Six questions and one paragraph each, in the words a person would use at the
 // bar (docs/VOICE.md).
@@ -43,7 +44,7 @@ export const LANDING_FAQ: readonly Question[] = [
     id: "log-a-price",
     question: "How do I log a price?",
     answer:
-      "Open a pub on the map and press the price door. Type what you paid and which drink it was, then press Log it. A photo of the bill or the pint is optional. Photos and notes are public and can show people, so only add one you are happy to share.",
+      `Open a pub on the map and choose to log a price. Enter what you paid and which drink it was. ${RECEIPT_REQUIRED_LINE} A photo of the pint is optional. Sign in to post under your handle. Photos and notes are public, so only share what you want others to see.`,
   },
   {
     id: "today-tonight",
