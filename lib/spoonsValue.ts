@@ -662,9 +662,36 @@ export function applySpoonsValueCut(
   return rows.filter((row) => row.country === country);
 }
 
+/**
+ * The one query that opens the map under this lens.
+ *
+ * A page whose whole subject is the units ranking may not hand a reader a map
+ * that is not under it. Before this, every door off /spoons-value (the primary
+ * and all 805 row links) landed on the ordinary pint map, and the only way into
+ * the lens was the Drink lane menu, fourteen items down.
+ *
+ * It is a lens rather than a drink lane on purpose: this lane paints through its
+ * own `spoonsBucket` property, never `bucket`, so no reader is ever told a green
+ * pin means a cheap pint here.
+ */
+export const SPOONS_VALUE_LENS_PARAM = "lens";
+export const SPOONS_VALUE_LENS_VALUE = "spoons";
+
+/** Whether an arrival asked for the units lens. */
+export function spoonsValueLensRequested(search: string): boolean {
+  return (
+    new URLSearchParams(search).get(SPOONS_VALUE_LENS_PARAM) === SPOONS_VALUE_LENS_VALUE
+  );
+}
+
+/** Where the whole ranking opens on the map, under the lens it is about. */
+export const SPOONS_VALUE_MAP_HREF =
+  `/map?${SPOONS_VALUE_LENS_PARAM}=${SPOONS_VALUE_LENS_VALUE}` as const;
+
 /** Where a ranked pub opens on the map, or null when no pin was joined to it. */
 export function spoonsValueMapHref(row: SpoonsValueTableRow): string | null {
-  return row.venueId ? `/map?sel=${encodeURIComponent(row.venueId)}` : null;
+  if (!row.venueId) return null;
+  return `/map?sel=${encodeURIComponent(row.venueId)}&${SPOONS_VALUE_LENS_PARAM}=${SPOONS_VALUE_LENS_VALUE}`;
 }
 
 /** Where the map lane lives. The full edition is read on the server alone. */
