@@ -396,38 +396,17 @@ function buildPubSuggestion(
   };
 }
 
-/**
- * Everything the map search popup renders, derived once and hermetically
- * testable. Matches AREAS (the modelled Night Areas, then the Greater London
- * locality gazetteer, then boroughs that don't collide with either) and PUBS by
- * name, each carrying its distance from the viewer's position when granted, else
- * from the map centre — labelled honestly. Only modelled areas carry a coverage
- * chip; localities and boroughs are navigation targets, not coverage promises.
- *
- * When `places` is supplied and the query is two or more characters, UK places
- * from the national gazetteer join as a third group (same routing as
- * /choose-city). On a limited-coverage arrival, pass `includeLocalResults:
- * false` so emptied venues/localities do not leave an empty panel — places fill
- * the gap.
- *
- * An empty query returns the nearest few areas (a minimal, taste-first prompt)
- * and no pubs. A non-empty query with no match returns empty groups, so the
- * shell can show one honest "nothing matching" line rather than a dead panel.
- */
-export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSearchSuggestions {
-  const { cityId, userLocation, mapCenter, now = new Date() } = input;
+function buildAreaSuggestions(
+  input: MapSearchSuggestInput,
+  query: string,
+  originPoint: [number, number],
+  origin: SuggestOrigin,
+  now: Date,
+): AreaSuggestion[] {
+  const { cityId, venues } = input;
   const includeLocalResults = input.includeLocalResults !== false;
-  const venues = includeLocalResults ? input.venues : [];
-  const localities = includeLocalResults ? (input.localities ?? []) : [];
-  const places = input.places ?? [];
-  const pubLimit = input.pubLimit ?? SUGGEST_PUB_LIMIT;
-  const query = normalize(input.query);
+  const localities = input.localities ?? [];
   const isEmptyQuery = query.length === 0;
-
-  const origin: SuggestOrigin = userLocation ? "user" : "map-centre";
-  const originPoint: [number, number] = userLocation
-    ? [userLocation.lng, userLocation.lat]
-    : mapCenter;
 
   const areaMatches: { tier: number; suggestion: AreaSuggestion }[] = [];
   const modelledLabels = new Set<string>();
@@ -536,6 +515,43 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
     .sort(compareArea)
     .slice(0, Math.max(0, areaLimit))
     .map((entry) => entry.suggestion);
+
+  return rankedAreas;
+}
+
+/**
+ * Everything the map search popup renders, derived once and hermetically
+ * testable. Matches AREAS (the modelled Night Areas, then the Greater London
+ * locality gazetteer, then boroughs that don't collide with either) and PUBS by
+ * name, each carrying its distance from the viewer's position when granted, else
+ * from the map centre — labelled honestly. Only modelled areas carry a coverage
+ * chip; localities and boroughs are navigation targets, not coverage promises.
+ *
+ * When `places` is supplied and the query is two or more characters, UK places
+ * from the national gazetteer join as a third group (same routing as
+ * /choose-city). On a limited-coverage arrival, pass `includeLocalResults:
+ * false` so emptied venues/localities do not leave an empty panel — places fill
+ * the gap.
+ *
+ * An empty query returns the nearest few areas (a minimal, taste-first prompt)
+ * and no pubs. A non-empty query with no match returns empty groups, so the
+ * shell can show one honest "nothing matching" line rather than a dead panel.
+ */
+export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSearchSuggestions {
+  const { cityId, userLocation, mapCenter, now = new Date() } = input;
+  const includeLocalResults = input.includeLocalResults !== false;
+  const venues = includeLocalResults ? input.venues : [];
+  const places = input.places ?? [];
+  const pubLimit = input.pubLimit ?? SUGGEST_PUB_LIMIT;
+  const query = normalize(input.query);
+  const isEmptyQuery = query.length === 0;
+
+  const origin: SuggestOrigin = userLocation ? "user" : "map-centre";
+  const originPoint: [number, number] = userLocation
+    ? [userLocation.lng, userLocation.lat]
+    : mapCenter;
+
+  const rankedAreas = buildAreaSuggestions(input, query, originPoint, origin, now);
 
   const pubMatches: { tier: number; suggestion: PubSuggestion }[] = [];
   if (includeLocalResults && !isEmptyQuery) {
