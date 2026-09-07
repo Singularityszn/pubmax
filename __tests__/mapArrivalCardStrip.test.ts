@@ -50,11 +50,19 @@ describe("the first-visit card is a strip at the top on a phone", () => {
     expect(primary).not.toContain("var(--ink)");
   });
 
-  it("says its piece in one line, because a strip has one line", () => {
-    // The three-paragraph card belonged to a 256px panel. Eyebrow and lead are
-    // gone; the heading and the two actions are the whole card.
+  it("drops the eyebrow, and keeps the sentence the App Store copy is paired to", () => {
+    // "FIRST VISIT" is decoration: the card's own accessible name already says
+    // it. The location sentence STAYS. docs/proof/mobile-app-design/
+    // STORE_READINESS.md records it as the visible half of a pair with the iOS
+    // purpose string, so cutting it for a shorter strip would break a claim
+    // made to the store rather than tidy a card.
     expect(cardSource).not.toContain("mapArrivalCardEyebrow");
-    expect(cardSource).not.toContain("mapArrivalCardLead");
+    expect(cardSource).toContain("Location is used only while the map is open");
+  });
+
+  it("is capped short enough that the pin field is never under it", () => {
+    const card = cardCss.match(/\.mapArrivalCard\s*\{[^}]*\}/)?.[0] ?? "";
+    expect(card).toContain("--map-arrival-strip-max-h");
   });
 });
 
