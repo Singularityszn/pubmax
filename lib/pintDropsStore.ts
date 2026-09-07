@@ -970,6 +970,7 @@ export const supabasePintDropStore: PintDropStore = {
   async create(drop, photos, options) {
     const persistable: PersistableDrop = { ...drop };
     const uploaded: string[] = [];
+    let omittedReceiptKey: string | undefined;
     try {
       // Photos upload BEFORE the insert — a bad file throws before anything
       // persists; a failed insert leaves exact keys to clean up.
@@ -1064,8 +1065,8 @@ export const supabasePintDropStore: PintDropStore = {
           "[pint-drops] receipt_photo_key missing - saving this drop without its bill photo (apply migration 0153):",
           error.message,
         );
-        const { receipt_photo_key: _omitReceipt, ...rowWithoutReceipt } = row;
-        void _omitReceipt;
+        const { receipt_photo_key: omittedReceipt, ...rowWithoutReceipt } = row;
+        if (omittedReceipt && uploaded.includes(omittedReceipt)) omittedReceiptKey = omittedReceipt;
         delete persistable.receiptPhotoKey;
         row = rowWithoutReceipt as typeof row;
         error = await insert(row);
@@ -1149,6 +1150,8 @@ export const supabasePintDropStore: PintDropStore = {
       await deletePhotos(uploaded); // no orphans on any failure after an upload
       throw err;
     }
+    // The insert succeeded. Only the omitted bill is unreferenced; optional photos remain attached.
+    if (omittedReceiptKey) await deletePhotos([omittedReceiptKey]);
     return toDTOWithPhotos(persistable);
   },
 
@@ -1561,7 +1564,8 @@ export async function deletePhotos(keys: string[]): Promise<void> {
   const present = keys.filter(Boolean);
   if (!present.length) return;
   try {
-    await admin().storage.from(STORAGE_BUCKET).remove(present);
+    const { error } = await admin().storage.from(STORAGE_BUCKET).remove(present);
+    if (error) throw new Error(error.message);
   } catch (err) {
     // Never re-throw — cleanup must not mask the original failure. But log a
     // warning (safe fields only: a count, not the keys) so orphaned objects are
