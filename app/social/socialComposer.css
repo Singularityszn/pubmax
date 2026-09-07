@@ -45,6 +45,15 @@
   padding-block: var(--space-4);
 }
 
+.socialComposerCreate .socialComposerMedia > .socialComposerMedia {
+  padding-block: var(--space-3) 0;
+}
+
+.socialComposerCreate .socialComposerMedia > .socialComposerMedia .socialPhotoPicker {
+  min-height: 44px;
+  padding-block: var(--space-2);
+}
+
 .socialComposerCreate .socialPhotoPicker {
   min-height: 88px;
   margin-top: 0;
@@ -192,5 +201,51 @@
   margin: var(--space-2) 0 0;
   font-size: var(--text-sm);
   line-height: 1.5;
+  color: var(--ink-soft);
+}
+.socialComposerGallery ol {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.socialComposerGallery li {
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--paper);
+}
+
+.socialComposerGallery figure {
+  display: grid;
+  place-items: center;
+  min-height: 6rem;
+  margin: 0 0 0.75rem;
+}
+
+.socialComposerGallery figure img {
+  display: block;
+  width: 100%;
+  max-height: 20rem;
+  object-fit: contain;
+}
+
+.socialComposerGalleryActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.socialComposerGalleryActions button {
+  min-height: 44px;
+  flex: 1 1 auto;
+}
+
+.socialComposerGallery p[role="status"] {
+  margin: 0.5rem 0 0;
   color: var(--ink-soft);
 }

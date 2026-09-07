@@ -13,7 +13,9 @@ import SiteNav from "@/components/nav/SiteNav";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import CrewsPanel from "@/components/social/CrewsPanel";
 import SocialPostActions from "@/components/social/SocialPostActions";
-import SocialPostMedia from "@/components/social/SocialPostMedia";
+import SocialPostGallery from "@/components/social/SocialPostGallery";
+import SocialVideoViewer, { socialFeedVideos } from "@/components/social/SocialVideoViewer";
+import { socialPostPhotos } from "@/lib/socialGallery";
 import CreatorListsLane from "@/components/social/CreatorListsLane";
 import FindYourLot from "@/components/social/FindYourLot";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
@@ -24,6 +26,7 @@ import {
   type SocialViewerPhase,
 } from "@/components/social/SocialViewerState";
 import EmptyState from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
 import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/adultGate";
 import { authedActionFetch } from "@/lib/authedFetch";
@@ -235,7 +238,8 @@ export function SocialAccessBoundary({
   );
 }
 
-export function SocialPostCard({ post, canEdit = false, canInteract = false, draftScope, onEdited }: { post: SocialPostDTO; canEdit?: boolean; canInteract?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void }) {
+export function SocialPostCard({ post, canEdit = false, canInteract = false, draftScope, onEdited, onOpenVideo }: { post: SocialPostDTO; canEdit?: boolean; canInteract?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void; onOpenVideo?: () => void }) {
+  const photos = socialPostPhotos(post);
   const area = post.area ? getNightArea(post.area) : null;
   const exactVenueId = post.venueProjected ? post.venueId : null;
   const when = relativeTime(post.createdAt);
@@ -257,14 +261,16 @@ export function SocialPostCard({ post, canEdit = false, canInteract = false, dra
       {post.kind === "feature_request" ? (
         <p className="socialPostKind">Feature request</p>
       ) : null}
-      {post.photo ? (
+      {photos.length > 0 ? (
         <figure className="socialPostPhoto">
-          <SocialPostMedia media={post.photo} />
-          {post.photo.tags && post.photo.tags.length > 0 ? (
+          <SocialPostGallery photos={photos} />
+          {post.photos === undefined && post.photo?.tags && post.photo.tags.length > 0 ? (
             <figcaption>{post.photo.tags.map((tag) => `@${tag.handle}`).join(" ")}</figcaption>
           ) : null}
         </figure>
       ) : null}
+      {onOpenVideo && photos.length === 1 && photos[0].kind === "video" ? <Button type="button" variant="ghost"
+        className="socialVideoViewerTrigger" onClick={onOpenVideo}>Open video viewer</Button> : null}
       {post.body ? <p className="socialPostBody">{post.body}</p> : null}
       {area || exactVenueId ? (
         <p className="socialPostPlace">
@@ -286,6 +292,22 @@ export function SocialPostCard({ post, canEdit = false, canInteract = false, dra
       {canEdit && draftScope && onEdited ? <SocialComposer key={`${draftScope}:${post.id}`} post={post} draftScope={draftScope} onSaved={onEdited} /> : null}
     </article>
   );
+}
+
+export function SocialFeedPosts({ posts, draftScope, onEdited }: {
+  posts: SocialPostDTO[];
+  draftScope: string | null;
+  onEdited: (post?: SocialPostDTO) => void;
+}) {
+  const [videoPostId, setVideoPostId] = useState<string | null>(null);
+  const videos = socialFeedVideos(posts);
+  return <div className="socialPostList">
+    {videos.length > 0 ? <Button type="button" variant="ghost" className="socialVideoViewerTrigger"
+      onClick={() => setVideoPostId(videos[0].postId)}>Watch videos</Button> : null}
+    {posts.map(post => <SocialPostCard key={post.id} post={post} canEdit={post.ownedByViewer} canInteract
+      draftScope={draftScope} onEdited={onEdited} onOpenVideo={() => setVideoPostId(post.id)} />)}
+    {videoPostId ? <SocialVideoViewer videos={videos} initialPostId={videoPostId} onClose={() => setVideoPostId(null)} /> : null}
+  </div>;
 }
 
 function PostsControls({
@@ -414,7 +436,14 @@ function SocialPageAccountState({
       : viewerSession.signedIn
         ? "resolved"
         : "signed-out";
-  const [access, setAccess] = useState<AccessLoadState>("checking");
+  const [accessResult, setAccessResult] = useState({
+    state: "checking" as AccessLoadState,
+    accountRevision,
+  });
+  const access = accessResult.accountRevision === accountRevision ? accessResult.state : "checking";
+  const setAccess = useCallback((state: AccessLoadState) => {
+    setAccessResult({ state, accountRevision });
+  }, [accountRevision]);
   const [adultPrompt, setAdultPrompt] = useState(false);
   const [assertBusy, setAssertBusy] = useState(false);
   const [assertError, setAssertError] = useState<string | null>(null);
@@ -469,8 +498,13 @@ function SocialPageAccountState({
     }
 
     const controller = new AbortController();
-    const requestRevision = accountRevision;
-    void Promise.resolve().then(() => setAccess("checking"));
+    // Rechecking this account must not unmount its open composer. A different
+    // account is masked during render, before this effect runs.
+    void Promise.resolve().then(() => {
+      if (controller.signal.aborted) return;
+      setAccessResult(current => current.accountRevision === accountRevision && current.state === "verified"
+        ? current : { state: "checking", accountRevision });
+    });
     authedActionFetch("/api/social/access", {
       cache: "no-store",
       credentials: "same-origin",
@@ -489,7 +523,7 @@ function SocialPageAccountState({
         };
       })
       .then((result) => {
-        if (requestRevision !== accountRevision) return;
+        if (controller.signal.aborted) return;
         setAccess(result.state);
         setAdultPrompt(result.adultPrompt);
         setDraftScope(result.draftScope);
@@ -498,7 +532,7 @@ function SocialPageAccountState({
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError")
           return;
-        if (requestRevision !== accountRevision) return;
+        if (controller.signal.aborted) return;
         setAccess("unavailable");
       });
     return () => controller.abort();
@@ -509,6 +543,7 @@ function SocialPageAccountState({
     identityResolved,
     initialState.tab,
     viewerSession.phase,
+    setAccess,
   ]);
 
   // Claiming a handle on this very page changes the answer the access route
@@ -867,14 +902,10 @@ function SocialPageAccountState({
                   <PeopleDirectory myHandle={viewerHandle} />
                 </div>
               ) : (
-                <div className="socialPostList">
-                  {posts.map((post) => (
-                    <SocialPostCard key={post.id} post={post} canEdit={post.ownedByViewer} canInteract draftScope={draftScope}
-                      onEdited={(updated) => updated
-                        ? setPosts((current) => chronological(current.map((item) => item.id === updated.id ? updated : item)))
-                        : setFeedAttempt((value) => value + 1)} />
-                  ))}
-                </div>
+                <SocialFeedPosts key={`${accountRevision}:${feedHref}`} posts={posts} draftScope={draftScope}
+                  onEdited={(updated) => updated
+                    ? setPosts((current) => chronological(current.map((item) => item.id === updated.id ? updated : item)))
+                    : setFeedAttempt((value) => value + 1)} />
               )}
               {feedStatus === "ready" && nextCursor ? (
                 <button

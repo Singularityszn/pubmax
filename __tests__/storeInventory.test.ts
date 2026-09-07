@@ -163,6 +163,7 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     reason: "RPC-only durable store with injectable dependencies; no memory implementation.",
   },
   "lib/socialInteractionStore.ts": { class: "policy-heavy", selector: "selectStore" },
+  "lib/socialGalleryStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/socialPostConsentStore.ts": {
     class: "policy-heavy",
     selector: "selectStore",

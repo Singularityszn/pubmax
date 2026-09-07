@@ -16,7 +16,8 @@ import { purgeDetachedSocialPhotos } from "@/lib/socialPostMedia.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+// A ten-photo gallery can spend ten bounded provider calls before completion.
+export const maxDuration = 180;
 
 export async function GET(request: Request): Promise<Response> {
   const denied = assertCronRequest(request);

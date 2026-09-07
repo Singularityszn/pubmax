@@ -1,6 +1,8 @@
 "use client";
 
-import { type RefObject, useEffect, useId, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+
+import { type RefObject, useCallback, useEffect, useId, useRef, useState } from "react";
 
 import "./socialComposer.css";
 
@@ -10,6 +12,14 @@ import { nightAreasByCity } from "@/lib/nightAreas";
 import { getCity } from "@/lib/cities";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { authedActionJson } from "@/lib/authedFetch";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
+import {
+  clearSocialGalleryDraft, createSocialGalleryDraftItem, moveSocialGalleryDraftItem,
+  readSocialGalleryDraft, removeSocialGalleryDraftItem, saveSocialGalleryDraft,
+  type SocialGalleryDraftItem, type SocialGalleryLocalDraftItem,
+} from "@/lib/socialGalleryDrafts";
+import { SOCIAL_GALLERY_MAX_PHOTOS } from "@/lib/socialGallery";
+import { prepareSocialGalleryPhoto, SOCIAL_PHOTO_PICKER_ACCEPT } from "@/lib/socialPhotoPreparation";
 import {
   readSocialDraftPhoto,
   saveSocialDraftPhoto,
@@ -36,6 +46,7 @@ type Draft = {
   kind: SocialPostDTO["kind"];
   hashtags: string;
   tagHandles: string;
+  galleryMode: boolean;
 };
 type DraftChannelMessage = {
   key?: string;
@@ -66,7 +77,239 @@ function initialDraft(post?: SocialPostDTO): Draft {
     kind: post?.kind ?? "standard",
     hashtags: post?.hashtags.join(" ") ?? "",
     tagHandles: "",
+    galleryMode: post?.photos !== undefined && post.photo?.kind !== "video",
   };
+}
+
+type GalleryProgress = { state: "preparing" | "uploading" | "failed"; message?: string };
+
+async function uploadGalleryPhoto(file: File, uploadKey: string, signal: AbortSignal) {
+  if (signal.aborted) throw signal.reason;
+  const controller = new AbortController();
+  const timeout = new Error("Photo upload timed out. Try again.");
+  let abort = () => {};
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    abort = () => {
+      reject(signal.reason);
+      controller.abort(signal.reason);
+    };
+    signal.addEventListener("abort", abort, { once: true });
+    timer = setTimeout(() => {
+      reject(timeout);
+      controller.abort(timeout);
+    }, 120_000);
+  });
+  const body = new FormData();
+  body.set("photo", file);
+  try {
+    return await Promise.race([
+      authedActionJson<{ upload?: { mediaId: string }; error?: string; code?: string }>(
+        "/api/social/uploads/photos",
+        { method: "POST", body, signal: controller.signal, headers: { "Idempotency-Key": uploadKey } },
+        { requiresIdentity: true },
+      ),
+      deadline,
+    ]);
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", abort);
+  }
+}
+
+function retainedGallery(post?: SocialPostDTO): SocialGalleryDraftItem[] {
+  return (post?.photos ?? []).map(({ mediaId, altText }) => ({ source: "retained", id: mediaId, mediaId, altText }));
+}
+
+function useComposerGallery(draftKey: string) {
+  const [items, setItems] = useState<SocialGalleryDraftItem[]>([]);
+  const itemsRef = useRef(items);
+  const [progress, setProgress] = useState<Record<string, GalleryProgress>>({});
+  const [working, setWorking] = useState(false);
+  const [storageError, setStorageError] = useState<string | null>(null);
+  const controller = useRef(new AbortController());
+  const run = useRef<AbortController | null>(null);
+  const writes = useRef<Promise<void>>(Promise.resolve());
+
+  useEffect(() => {
+    if (controller.current.signal.aborted) controller.current = new AbortController();
+    const accountSignal = readProviderAccountSignal();
+    const abort = () => { controller.current.abort(); run.current?.abort(); };
+    if (accountSignal.aborted) abort();
+    accountSignal.addEventListener("abort", abort, { once: true });
+    return () => { accountSignal.removeEventListener("abort", abort); abort(); };
+  }, [controller]);
+
+  const restore = useCallback((next: SocialGalleryDraftItem[]) => {
+    itemsRef.current = next;
+    setItems(next);
+    setProgress({});
+  }, []);
+
+  function persist(next: SocialGalleryDraftItem[]): Promise<void> {
+    const snapshot = next.map((item) => ({ ...item }));
+    const pending = writes.current.catch(() => undefined).then(() => saveSocialGalleryDraft(draftKey, snapshot));
+    writes.current = pending;
+    return pending;
+  }
+
+  async function replace(next: SocialGalleryDraftItem[]) {
+    itemsRef.current = next;
+    setItems(next);
+    try {
+      await persist(next);
+      if (!controller.current.signal.aborted) setStorageError(null);
+    } catch {
+      if (!controller.current.signal.aborted) setStorageError("Your photos could not be saved on this device. Retry before posting.");
+      throw new Error("Your photos could not be saved on this device. Retry before posting.");
+    }
+  }
+
+  async function prepareAndUpload(item: SocialGalleryLocalDraftItem, signal: AbortSignal) {
+    let next = item;
+    if (!next.prepared) {
+      setProgress((current) => ({ ...current, [item.id]: { state: "preparing" } }));
+      const result = await prepareSocialGalleryPhoto(next.original, { signal });
+      if (signal.aborted || result.outcome === "aborted") return;
+      if (result.outcome === "failed") throw new Error(result.message);
+      next = { ...next, prepared: result.file };
+      await replace(itemsRef.current.map((entry) => entry.id === item.id ? next : entry));
+    }
+    if (signal.aborted) return;
+    setProgress((current) => ({ ...current, [item.id]: { state: "uploading" } }));
+    const result = await uploadGalleryPhoto(next.prepared!, next.uploadKey, signal);
+    if (signal.aborted) return;
+    if (!result.response.ok && result.body.code === "GALLERY_UPLOAD_UNAVAILABLE") {
+      next = { ...next, prepared: undefined, mediaId: undefined, uploadKey: crypto.randomUUID() };
+      await replace(itemsRef.current.map((entry) => entry.id === item.id ? next : entry));
+      throw new Error("This photo upload expired. Select Retry photos to upload it again.");
+    }
+    if (!result.response.ok || !result.body.upload?.mediaId) {
+      throw new Error(errorMessageFrom(result.body, "Photo upload failed. Try again."));
+    }
+    next = { ...next, mediaId: result.body.upload.mediaId };
+    await replace(itemsRef.current.map((entry) => entry.id === item.id ? next : entry));
+  }
+
+  async function process(next = itemsRef.current) {
+    if (run.current || controller.current.signal.aborted) return;
+    const operation = new AbortController();
+    const abort = () => operation.abort();
+    controller.current.signal.addEventListener("abort", abort, { once: true });
+    run.current = operation;
+    setProgress({});
+    setWorking(true);
+    try {
+      // Originals and retry keys must reach storage before any decode or request.
+      await replace(next);
+      for (const item of next) {
+        if (operation.signal.aborted) break;
+        if (item.source === "retained" || item.mediaId) continue;
+        try {
+          await prepareAndUpload(item, operation.signal);
+        } catch (cause) {
+          if (operation.signal.aborted) break;
+          setProgress((current) => ({ ...current, [item.id]: {
+            state: "failed", message: cause instanceof Error ? cause.message : "Photo upload failed. Try again.",
+          } }));
+        }
+      }
+    } catch { /* The storage error keeps originals visible and blocks publication. */ }
+    finally {
+      controller.current.signal.removeEventListener("abort", abort);
+      if (run.current === operation) run.current = null;
+      if (!controller.current.signal.aborted) setWorking(false);
+    }
+  }
+
+  async function clear() {
+    run.current?.abort();
+    restore([]);
+    await writes.current.catch(() => undefined);
+    await clearSocialGalleryDraft(draftKey);
+  }
+
+  function reupload() {
+    void process(itemsRef.current.map((item) => item.source === "retained" ? item : {
+      ...item, prepared: undefined, mediaId: undefined, uploadKey: crypto.randomUUID(),
+    }));
+  }
+
+  return { items, progress, working, storageError, restore, replace, process, clear, reupload, getSignal: () => controller.current.signal };
+}
+
+function GalleryPhotoPreview({ item, approved }: { item: SocialGalleryDraftItem; approved: boolean }) {
+  const file = item.source === "local" ? item.prepared : undefined;
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const next = file ? URL.createObjectURL(file) : null;
+    void Promise.resolve().then(() => setUrl(next));
+    return () => { if (next) URL.revokeObjectURL(next); };
+  }, [file]);
+  if (item.source === "retained") return approved
+    ? <SocialPostMedia media={{ mediaId: item.mediaId, altText: item.altText }} />
+    : <p>Photo held for review. Preview is not available.</p>;
+  // Only prepared files get previews, so ten phone originals never decode together.
+  return url
+    // eslint-disable-next-line @next/next/no-img-element -- prepared local object URL.
+    ? <img src={url} alt={item.altText || "Selected photo preview"} />
+    : <span>{item.original.name}</span>;
+}
+
+function GalleryEditor({ gallery, approved, onFiles, onChange }: {
+  gallery: ReturnType<typeof useComposerGallery>;
+  approved: boolean;
+  onFiles: (files: File[]) => void;
+  onChange: (items: SocialGalleryDraftItem[]) => void;
+}) {
+  const listRef = useRef<HTMLOListElement>(null);
+  const pickerRef = useRef<HTMLInputElement>(null);
+  const [announcement, setAnnouncement] = useState("");
+  function move(id: string, toIndex: number) {
+    onChange(moveSocialGalleryDraftItem(gallery.items, id, toIndex));
+    setAnnouncement(`Photo moved to position ${toIndex + 1}.`);
+  }
+  function remove(id: string, index: number) {
+    onChange(removeSocialGalleryDraftItem(gallery.items, id));
+    setAnnouncement(`Photo ${index + 1} removed.`);
+    window.requestAnimationFrame(() => {
+      const fields = listRef.current?.querySelectorAll<HTMLInputElement>("input");
+      const next = fields?.[Math.min(index, fields.length - 1)] ?? pickerRef.current;
+      next?.focus();
+    });
+  }
+  return <div className="socialComposerMedia socialComposerGallery">
+    <label className="socialPhotoPicker">
+      <span aria-hidden="true">+</span><span>Add photos</span>
+      <input ref={pickerRef} aria-label="Add photos" type="file" accept={SOCIAL_PHOTO_PICKER_ACCEPT} multiple
+        disabled={gallery.working || gallery.items.length >= SOCIAL_GALLERY_MAX_PHOTOS}
+        onChange={(event) => { onFiles(Array.from(event.currentTarget.files ?? [])); event.currentTarget.value = ""; }} />
+    </label>
+    <ol ref={listRef} aria-label="Gallery photos">
+      {gallery.items.map((item, index) => <li key={item.id}>
+        <figure><GalleryPhotoPreview item={item} approved={approved} /></figure>
+        <label>Photo {index + 1} description
+          <input required maxLength={300} value={item.altText} disabled={gallery.working}
+            onChange={(event) => onChange(gallery.items.map((entry) => entry.id === item.id ? { ...entry, altText: event.currentTarget.value } : entry))} />
+        </label>
+        <div className="socialComposerGalleryActions">
+          <Button variant="secondary" type="button" aria-label={`Move photo ${index + 1} earlier`} disabled={gallery.working || index === 0}
+            onClick={() => move(item.id, index - 1)}>Move earlier</Button>
+          <Button variant="secondary" type="button" aria-label={`Move photo ${index + 1} later`} disabled={gallery.working || index === gallery.items.length - 1}
+            onClick={() => move(item.id, index + 1)}>Move later</Button>
+          <Button variant="ghost" type="button" aria-label={`Remove photo ${index + 1}`} disabled={gallery.working}
+            onClick={() => remove(item.id, index)}>Remove</Button>
+        </div>
+        <p role="status">{item.mediaId ? "Photo ready" : gallery.progress[item.id]?.state === "uploading"
+          ? "Uploading photo…" : gallery.progress[item.id]?.state === "preparing" ? "Preparing photo…"
+          : gallery.progress[item.id]?.message ?? "Photo waiting"}</p>
+      </li>)}
+    </ol>
+    <span className="sr-only" role="status">{announcement}</span>
+    {gallery.storageError ? <p role="alert">{gallery.storageError}</p> : null}
+    {!gallery.working && (gallery.storageError || gallery.items.some((item) => !item.mediaId))
+      ? <Button variant="secondary" type="button" onClick={() => void gallery.process()}>Retry photos</Button> : null}
+  </div>;
 }
 
 function draftHasChanges(
@@ -142,19 +385,19 @@ function PhotoEditor({
             ? photo.name
             : post?.photo && !removePhoto
               ? `Replace ${mediaName}`
-              : "Add photo or video"}
+              : "Add video"}
         </span>
         <input
           ref={fileInputRef}
-          aria-label="Add photo or video"
+          aria-label={attachedPhoto ? "Replace photo or video" : "Add video"}
           aria-describedby={requirementsId}
           type="file"
-          accept={`image/jpeg,image/png,image/webp,${SOCIAL_VIDEO_ACCEPT}`}
+          accept={attachedPhoto ? `image/jpeg,image/png,image/webp,${SOCIAL_VIDEO_ACCEPT}` : SOCIAL_VIDEO_ACCEPT}
           onChange={(event) => onPhoto(event.currentTarget.files?.[0] ?? photo)}
         />
       </label>
       <p id={requirementsId} className="socialComposerMediaLimits">
-        Photos up to 4 MB. MP4 videos up to 15 seconds and 4 MB.
+        {attachedPhoto ? "Photos up to 4 MB. " : ""}MP4 videos up to 15 seconds and 4 MB.
       </p>
       {previewSource ? (
         <figure className="socialComposerPhotoPreview">
@@ -386,17 +629,63 @@ function PolicyFields({
   );
 }
 
-export default function SocialComposer({
-  post,
-  draftScope,
-  onSaved,
-  triggerLabel,
-}: {
+
+function composerPayload(draft: Draft, editing: boolean, mutationVersion: number | null, basePost: SocialPostDTO | undefined, photo: File | null, removePhoto: boolean, galleryItems: readonly SocialGalleryDraftItem[]) {
+    const hashtags = draft.hashtags
+      .split(/[\s,]+/)
+      .map((tag) => tag.replace(/^#/, "").trim())
+      .filter(Boolean);
+    return {
+      ...(editing ? { expectedMutationVersion: mutationVersion } : {}),
+      kind: draft.kind,
+      visibility: draft.visibility,
+      body: draft.body,
+      area: draft.area || null,
+      venueId: draft.venueId,
+      hashtags,
+      commentPolicy: draft.commentPolicy,
+      ...(draft.galleryMode && (editing || galleryItems.length) ? { gallery: galleryItems.map(({ mediaId, altText }) => ({ mediaId, altText })) } : {}),
+      ...(!draft.galleryMode && (photo || (editing && basePost?.photo && !removePhoto))
+        ? { photoAltText: draft.altText }
+        : {}),
+      ...(!draft.galleryMode && photo && photo.type !== SOCIAL_VIDEO_ACCEPT
+        ? { tagHandles: draft.tagHandles.split(/[\s,]+/).filter(Boolean) }
+        : {}),
+      ...(!draft.galleryMode && editing && removePhoto && !photo ? { removePhoto: true } : {}),
+    };
+}
+function composerHasContent(draft: Draft, basePost: SocialPostDTO | undefined, photo: File | null, removePhoto: boolean, galleryItems: readonly SocialGalleryDraftItem[]) {
+  if (!draft.galleryMode) return draftHasRequiredContent(draft, basePost, photo, removePhoto);
+  return Boolean(draft.body.trim() || galleryItems.length) && galleryItems.every((item) => item.mediaId && item.altText.trim());
+}
+
+function composerCanSubmit(
+  draft: Draft, basePost: SocialPostDTO | undefined, photo: File | null, removePhoto: boolean,
+  gallery: ReturnType<typeof useComposerGallery>,
+  state: { conflict: boolean; busy: boolean; mediaBusy: boolean; galleryExpired: boolean },
+) {
+  return !state.conflict && !state.busy && !state.mediaBusy && !state.galleryExpired
+    && !gallery.working && !gallery.storageError && !gallery.getSignal().aborted
+    && composerHasContent(draft, basePost, photo, removePhoto, gallery.items);
+}
+
+type SocialComposerProps = {
   post?: SocialPostDTO;
   draftScope: string;
   onSaved: (post?: SocialPostDTO) => void;
   triggerLabel?: string;
-}) {
+};
+
+export default function SocialComposer(props: SocialComposerProps) {
+  return <SocialComposerSession key={`${props.draftScope}:${props.post?.id ?? "new"}`} {...props} />;
+}
+
+function SocialComposerSession({
+  post,
+  draftScope,
+  onSaved,
+  triggerLabel,
+}: SocialComposerProps) {
   const editing = Boolean(post);
   const draftKey = `pubmaxx:social-composer:v1:${draftScope}:${post?.id ?? "new"}`;
   const initialPostRef = useRef(post);
@@ -417,6 +706,9 @@ export default function SocialComposer({
   const [feedbackIsStatus, setFeedbackIsStatus] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [concurrent, setConcurrent] = useState(false);
+  const gallery = useComposerGallery(draftKey);
+  const restoreGallery = gallery.restore;
+  const [galleryExpired, setGalleryExpired] = useState(false);
   const [venueResults, setVenueResults] = useState<VenueChoice[]>([]);
   const [activeVenueIndex, setActiveVenueIndex] = useState(-1);
   const [venueAnnouncement, setVenueAnnouncement] = useState("");
@@ -451,6 +743,50 @@ export default function SocialComposer({
       altText: basePost?.photo?.altText ?? "",
       tagHandles: "",
     }));
+  }
+
+  function changeGallery(items: SocialGalleryDraftItem[]) {
+    if (!editing && items.length === 0) {
+      setPhoto(null);
+      setRemovePhoto(false);
+      setDraft((current) => ({ ...current, galleryMode: false, altText: "", tagHandles: "" }));
+      window.requestAnimationFrame(() => dialogRef.current?.querySelector<HTMLInputElement>('input[aria-label="Add photos"]')?.focus());
+    }
+    if (galleryExpired && items.length < gallery.items.length) {
+      setGalleryExpired(false);
+      setDraft((current) => ({ ...current, requestKey: initialDraft().requestKey }));
+    }
+    void gallery.replace(items).catch(() => undefined);
+  }
+
+  function selectGallery(files: File[]) {
+    if (!files.length || gallery.working) return;
+    if (photo?.type === SOCIAL_VIDEO_ACCEPT || (!removePhoto && basePost?.photo?.kind === "video")) {
+      setFeedback("Remove the video before adding photos.");
+      setFeedbackIsStatus(false);
+      return;
+    }
+    const existing = draft.galleryMode ? gallery.items : photo
+      ? [createSocialGalleryDraftItem(photo, draft.altText)]
+      : basePost?.photo && !removePhoto
+        ? [{ source: "retained" as const, id: basePost.photo.mediaId, mediaId: basePost.photo.mediaId, altText: draft.altText }]
+        : [];
+    if (existing.length + files.length > SOCIAL_GALLERY_MAX_PHOTOS) {
+      setFeedback("Choose up to 10 photos.");
+      setFeedbackIsStatus(false);
+      return;
+    }
+    setDraft((current) => ({ ...current, galleryMode: true }));
+    setFeedback(null);
+    setGalleryExpired(false);
+    void gallery.process([...existing, ...files.map((file) => createSocialGalleryDraftItem(file))]);
+    // The original single-file draft remains until the gallery snapshot has been saved.
+  }
+
+  function retryExpiredGallery() {
+    setGalleryExpired(false);
+    setDraft((current) => ({ ...current, requestKey: initialDraft().requestKey }));
+    gallery.reupload();
   }
 
   async function selectMedia(file: File | null) {
@@ -490,6 +826,9 @@ export default function SocialComposer({
     setMediaBusy(false);
     try { localStorage.removeItem(draftKey); } catch { /* Keep the in-page clear available. */ }
     await saveSocialDraftPhoto(draftKey, null).catch(() => undefined);
+    await gallery.clear().catch(() => undefined);
+    gallery.restore(retainedGallery(initialPostRef.current));
+    setGalleryExpired(false);
     setDraft(initialDraft(initialPostRef.current));
     setMutationVersion(initialPostRef.current?.mutationVersion ?? 0);
     setPhoto(null);
@@ -519,6 +858,7 @@ export default function SocialComposer({
     let active = true;
     const restore = async () => {
       let nextDraft = initialDraft(initialPostRef.current);
+      let savedVersionFound = false;
       try {
         const saved = localStorage.getItem(draftKey);
         if (saved) {
@@ -528,6 +868,7 @@ export default function SocialComposer({
           };
           nextDraft = { ...nextDraft, ...savedDraft };
           if (active) {
+            savedVersionFound = Number.isInteger(savedDraft.baseMutationVersion);
             setRemovePhoto(savedDraft.removePhoto === true);
             if (initialPostRef.current) {
               const savedVersion = Number.isInteger(savedDraft.baseMutationVersion)
@@ -545,16 +886,35 @@ export default function SocialComposer({
         // Ignore invalid local draft.
       }
       const savedPhoto = await readSocialDraftPhoto(draftKey).catch(() => null);
+      let savedGallery: SocialGalleryDraftItem[] | null = null;
+      try { savedGallery = await readSocialGalleryDraft(draftKey); }
+      catch {
+        if (active && nextDraft.galleryMode) {
+          setFeedback("Your photo draft could not be restored. Clear the draft or try opening it again.");
+          setFeedbackIsStatus(false);
+          setConflict(true);
+        }
+      }
       if (!active) return;
+      if (savedGallery !== null) {
+        nextDraft.galleryMode = Boolean(initialPostRef.current || savedGallery.length);
+        if (initialPostRef.current && !savedVersionFound) {
+          setMutationVersion(null);
+          setConflict(true);
+          setFeedback("This photo draft has no post version. Load latest before saving. Your draft is still here.");
+        }
+      }
+      restoreGallery(savedGallery ?? retainedGallery(initialPostRef.current));
       setDraft(nextDraft);
-      setPhoto(savedPhoto);
+      setPhoto(savedGallery === null ? savedPhoto : null);
       setDraftReady(true);
     };
     void restore();
     return () => {
       active = false;
+      intakeVersion.current += 1;
     };
-  }, [draftKey]);
+  }, [draftKey, restoreGallery]);
 
   useEffect(() => {
     if (!draftReady) return;
@@ -698,6 +1058,11 @@ export default function SocialComposer({
         { requiresIdentity: true },
       );
       if (response.ok && value.post) {
+        if (gallery.getSignal().aborted) return;
+        if (draft.galleryMode) await gallery.clear();
+        if (gallery.getSignal().aborted) return;
+        gallery.restore(retainedGallery(value.post));
+        setGalleryExpired(false);
         initialPostRef.current = value.post;
         setBasePost(value.post);
         setDraft(initialDraft(value.post));
@@ -725,39 +1090,22 @@ export default function SocialComposer({
     setFeedback(null);
     setFeedbackIsStatus(false);
     setConflict(false);
-    const hashtags = draft.hashtags
-      .split(/[\s,]+/)
-      .map((tag) => tag.replace(/^#/, "").trim())
-      .filter(Boolean);
-    const payload = {
-      ...(editing ? { expectedMutationVersion: mutationVersion } : {}),
-      kind: draft.kind,
-      visibility: draft.visibility,
-      body: draft.body,
-      area: draft.area || null,
-      venueId: draft.venueId,
-      hashtags,
-      commentPolicy: draft.commentPolicy,
-      ...(photo || (editing && basePost?.photo && !removePhoto)
-        ? { photoAltText: draft.altText }
-        : {}),
-      ...(photo && photo.type !== SOCIAL_VIDEO_ACCEPT
-        ? { tagHandles: draft.tagHandles.split(/[\s,]+/).filter(Boolean) }
-        : {}),
-      ...(editing && removePhoto && !photo ? { removePhoto: true } : {}),
-    };
-    const requestBody: BodyInit = photo
+    const payload = composerPayload(draft, editing, mutationVersion, basePost, photo, removePhoto, gallery.items);
+    const multipartPhoto = !draft.galleryMode ? photo : null;
+    const requestBody: BodyInit = multipartPhoto
       ? (() => {
           const form = new FormData();
           form.set("post", JSON.stringify(payload));
           form.set(
-            photo.type === SOCIAL_VIDEO_ACCEPT ? "video" : "photo",
-            photo,
+            multipartPhoto.type === SOCIAL_VIDEO_ACCEPT ? "video" : "photo",
+            multipartPhoto,
           );
           return form;
         })()
       : JSON.stringify(payload);
     try {
+      if (draft.galleryMode) await gallery.replace(gallery.items);
+      if (gallery.getSignal().aborted) return;
       const { response, body: result } = await authedActionJson<{
         code?: string;
         error?: string;
@@ -767,7 +1115,8 @@ export default function SocialComposer({
         {
           method: editing ? "PATCH" : "POST",
           credentials: "same-origin",
-          headers: photo
+          signal: gallery.getSignal(),
+          headers: multipartPhoto
             ? { "Idempotency-Key": draft.requestKey }
             : {
                 "Content-Type": "application/json",
@@ -777,7 +1126,12 @@ export default function SocialComposer({
         },
         { requiresIdentity: true },
       );
+      if (gallery.getSignal().aborted) return;
       if (!response.ok) {
+        if (result.code === "GALLERY_UPLOAD_UNAVAILABLE") {
+          setGalleryExpired(true);
+          throw new Error("Some photo uploads expired. Upload the selected photos again before posting.");
+        }
         if (
           editing &&
           response.status === 409 &&
@@ -805,9 +1159,13 @@ export default function SocialComposer({
       }
       try { localStorage.removeItem(draftKey); } catch { /* The post was saved. */ }
       void saveSocialDraftPhoto(draftKey, null).catch(() => undefined);
+      await gallery.clear().catch(() => undefined);
+      if (gallery.getSignal().aborted) return;
       const savedPost = editing ? (result.post ?? basePost) : undefined;
       initialPostRef.current = savedPost;
       setBasePost(savedPost);
+      gallery.restore(retainedGallery(savedPost));
+      setGalleryExpired(false);
       setDraft(initialDraft(savedPost));
       if (savedPost) setMutationVersion(savedPost.mutationVersion);
       setPhoto(null);
@@ -816,7 +1174,7 @@ export default function SocialComposer({
       window.requestAnimationFrame(() => triggerRef.current?.focus());
       onSaved(result.post);
     } catch (cause) {
-      if (isAbortError(cause)) return;
+      if (isAbortError(cause) || gallery.getSignal().aborted) return;
       setFeedback(
         offlineOrMessage(
           cause instanceof Error ? cause.message : "Post was not saved.",
@@ -824,18 +1182,14 @@ export default function SocialComposer({
       );
       setFeedbackIsStatus(false);
     } finally {
-      setBusy(false);
+      if (!gallery.getSignal().aborted) setBusy(false);
     }
   }
 
   const previewSource = photo ? photoPreviewUrl : null;
-  const hasDraftChanges = draftHasChanges(draft, basePost, photo, removePhoto);
+  const hasDraftChanges = draft.galleryMode || draftHasChanges(draft, basePost, photo, removePhoto);
 
-  const canSubmit =
-    !conflict &&
-    !busy &&
-    !mediaBusy &&
-    draftHasRequiredContent(draft, basePost, photo, removePhoto);
+  const canSubmit = composerCanSubmit(draft, basePost, photo, removePhoto, gallery, { conflict, busy, mediaBusy, galleryExpired });
 
   return (
     <>
@@ -899,6 +1253,9 @@ export default function SocialComposer({
                     Load latest
                   </button>
                 ) : null}
+                {galleryExpired && gallery.items.some((item) => item.source === "local") ? (
+                  <button type="button" onClick={retryExpiredGallery}>Upload photos again</button>
+                ) : null}
               </div>
             ) : null}
 
@@ -910,7 +1267,16 @@ export default function SocialComposer({
               }}
             >
               <fieldset className="socialComposerFields" disabled={busy}>
-                <PhotoEditor
+                {draft.galleryMode ? (
+                  <GalleryEditor gallery={gallery} approved={basePost?.moderationState === "approved"}
+                    onFiles={selectGallery} onChange={changeGallery} />
+                ) : <div className="socialComposerMedia">
+                  <label className="socialPhotoPicker socialGalleryPicker">
+                    <span aria-hidden="true">+</span><span>Add photos</span>
+                    <input aria-label="Add photos" type="file" accept={SOCIAL_PHOTO_PICKER_ACCEPT} multiple
+                      disabled={mediaBusy || gallery.working} onChange={(event) => { selectGallery(Array.from(event.currentTarget.files ?? [])); event.currentTarget.value = ""; }} />
+                  </label>
+                  <PhotoEditor
                   post={basePost}
                   draft={draft}
                   photo={photo}
@@ -921,7 +1287,8 @@ export default function SocialComposer({
                   onPhoto={(nextPhoto) => void selectMedia(nextPhoto)}
                   onClearSelected={clearSelectedPhoto}
                   onToggleExisting={() => setRemovePhoto((value) => !value)}
-                />
+                  />
+                </div>}
 
                 {mediaBusy ? <p role="status">Checking video…</p> : null}
 
@@ -1018,7 +1385,7 @@ export default function SocialComposer({
                   <PolicyFields
                     draft={draft}
                     hasPhoto={Boolean(
-                      photo && photo.type !== SOCIAL_VIDEO_ACCEPT,
+                      !draft.galleryMode && photo && photo.type !== SOCIAL_VIDEO_ACCEPT,
                     )}
                     onDraft={setDraft}
                   />

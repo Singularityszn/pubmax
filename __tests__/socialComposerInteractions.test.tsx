@@ -188,17 +188,10 @@ describe("Social composer interaction", () => {
     ).toBe(true);
   });
 
-  it("requires a photo description and keeps selected bytes after a failed post", async () => {
-    await mount();
+  it("requires a legacy photo description and keeps restored bytes after a failed post", async () => {
     const photo = new File(["photo"], "friends.jpg", { type: "image/jpeg" });
-    const picker = host.querySelector<HTMLInputElement>('input[type="file"]')!;
-    await act(async () => {
-      Object.defineProperty(picker, "files", {
-        configurable: true,
-        value: [photo],
-      });
-      picker.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    mocks.readSocialDraftPhoto.mockResolvedValue(photo);
+    await mount();
     expect(button("Post").disabled).toBe(true);
     await change(input("Photo description"), "Friends beside the canal");
     expect(host.querySelector("img")?.alt).toBe("Friends beside the canal");
@@ -230,7 +223,7 @@ describe("Social composer interaction", () => {
     Object.defineProperty(video, "arrayBuffer", {
       value: async () => new Uint8Array([1, 2, 3]).buffer,
     });
-    const picker = host.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const picker = host.querySelector<HTMLInputElement>('input[accept*="video/mp4"]')!;
     await act(async () => {
       Object.defineProperty(picker, "files", { value: [video] });
       picker.dispatchEvent(new Event("change", { bubbles: true }));
@@ -270,7 +263,7 @@ describe("Social composer interaction", () => {
     Object.defineProperty(oversized, "size", {
       value: mediaPolicy.SOCIAL_VIDEO_MAX_BYTES + 1,
     });
-    const picker = host.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const picker = host.querySelector<HTMLInputElement>('input[accept*="video/mp4"]')!;
     await act(async () => {
       Object.defineProperty(picker, "files", { value: [oversized] });
       picker.dispatchEvent(new Event("change", { bubbles: true }));

@@ -6,8 +6,8 @@ The inventory is descriptive, not a runtime registry.
 
 ## Current snapshot
 
-- The repository has 52 `lib/*Store.ts` modules.
-- 38 modules call `selectStore` directly.
+- The repository has 53 `lib/*Store.ts` modules.
+- 39 modules call `selectStore` directly.
 - 8 modules use `createDualBackendStore`.
 - 6 modules keep memory state on `globalThis` so it survives a development
   server reload. That state pattern is separate from backend selection.
@@ -82,6 +82,7 @@ silently stale.
 | socialConnectionStore | factory-ready | Connected provider rows with one backend selector. |
 | socialCrewStore | not dual-backend | Supabase-only RPC store. |
 | socialInteractionStore | factory-eligible, policy-heavy | Social relationship, block, and interaction policy. |
+| socialGalleryStore | factory-eligible, policy-heavy | Owned staged uploads, ordered publication, and gallery edit replay. |
 | socialPostConsentStore | factory-eligible, policy-heavy | Media and approved-tag reads select memory or Supabase; consent and admin operations remain durable. |
 | socialPostStore | factory-eligible, policy-heavy | Moderation, visibility, consent, and relationship policy. |
 | stepOutNudgeStore | factory-ready | Nudge preference and send-stamp rows with shared backend selection. |
@@ -110,7 +111,7 @@ The following stores intentionally stay outside the factory-ready path:
 - **policy-heavy:** `commentsStore`, `communityPriceStore`,
   `identityHandleStore`, `messagesStore`, `occupancyStore`,
   `priceTrustEventStore`, `profileCoverPhotoStore`, `referralStore`,
-  `roundsStore`, `socialInteractionStore`, `socialPostConsentStore`, `socialPostStore`,
+  `roundsStore`, `socialGalleryStore`, `socialInteractionStore`, `socialPostConsentStore`, `socialPostStore`,
   `venueOperatorsStore`, `venuePhotoStore`, `visitReportsStore`, and
   `weatherRecommendationStore`. Their explicit policy is the reason to defer
   migration, not a claim that the selector is impossible to simplify later.
@@ -204,6 +205,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/savedPubsStore.ts",
     "lib/serverEnv.ts",
     "lib/socialConnectionStore.ts",
+    "lib/socialGalleryStore.ts",
     "lib/socialInteractionStore.ts",
     "lib/socialOAuth.ts",
     "lib/socialPostConsentStore.ts",

@@ -131,7 +131,7 @@ describe("Social composer visual contract", () => {
     expect(composerSource).toMatch(
       /<span className="socialPhotoCue" aria-hidden="true">\s*\+\s*<\/span>\s*<span>\s*\{photo\s*\?/,
     );
-    expect(composerSource).toMatch(/<input[^>]+aria-label="Add photo or video"[^>]+type="file"/);
+    expect(composerSource).toMatch(/<input[^>]+aria-label="Add photos"[^>]+type="file"[^>]+multiple/);
     expect(socialCss).toMatch(
       /padding:[\s\S]*?calc\(24px \+ env\(safe-area-inset-bottom, 0px\)\)/,
     );

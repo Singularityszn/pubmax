@@ -224,6 +224,68 @@ describe("Social post consent and private read store", () => {
     expect(state.tableCalls[0]?.columns).not.toContain("author_profile_id");
   });
 
+  it.each(["valid", "duplicate", "primary mismatch", "empty", "malformed"])("reads the complete current admin gallery: %s", async (scenario) => {
+    const postId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const mediaId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const secondId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+    const photos = [
+      { mediaId, altText: "Friends at the bar" },
+      { mediaId: secondId, altText: "The pub garden" },
+    ];
+    const gallery = scenario === "empty" ? []
+      : scenario === "duplicate" ? [photos[0], photos[0]]
+      : scenario === "primary mismatch" ? [...photos].reverse()
+      : scenario === "malformed" ? [{ mediaId, altText: "" }] : photos;
+    const primary = scenario === "empty" ? null : mediaId;
+    state.rows.set("read_social_post_moderation_queue_admin", [{
+      staff_display_name: "Captain", post_id: postId, media_id: primary,
+      moderation_claim: "Review needed", created_at: "2026-09-07T12:00:00Z",
+    }]);
+    state.tableRows.set("social_post_moderation_jobs", [{
+      post_id: postId, media_id: primary, revision: 4, state: "done", moderation_claim: "Review needed",
+      social_posts: {
+        id: postId, author_handle: "alice", visibility: "friends", status: "visible",
+        body: "Friday evening", area_slug: null, venue_id: null, comment_policy: "friends",
+        photo_media_id: primary, photo_alt_text: primary ? photos[0].altText : null,
+        gallery_photos: gallery, moderation_state: "needs_review", revision: 4,
+        created_at: "2026-09-07T12:00:00Z", updated_at: "2026-09-07T12:00:00Z",
+      },
+    }]);
+    const read = createSocialPostConsentStore().heldQueueForAdmin(staffRoleId, 20);
+    if (scenario === "valid" || scenario === "empty") {
+      const result = await read;
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({ revision: 4, mediaId: primary, photos: gallery });
+      expect(Object.keys(result[0].photos?.[0] ?? {})).toEqual(scenario === "empty" ? [] : ["mediaId", "altText"]);
+    } else {
+      await expect(read).rejects.toThrow();
+    }
+    expect(state.tableCalls[0]?.columns).toContain("gallery_photos");
+  });
+
+  it.each([undefined, [], ["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"]].map(reviewedMediaIds => ({ reviewedMediaIds })))(
+    "selects the moderation RPC from manifest presence: $reviewedMediaIds", async ({ reviewedMediaIds }) => {
+      const name = reviewedMediaIds === undefined ? "moderate_social_post_admin" : "moderate_social_post_gallery_admin";
+      state.rows.set(name, true);
+      await createSocialPostConsentStore().moderateHeldForAdmin(staffRoleId, "post-a", "media-a", 4, "approve", reviewedMediaIds);
+      expect(state.calls).toEqual([{
+        name,
+        input: {
+          p_staff_role_id: staffRoleId, p_post_id: "post-a", p_media_id: "media-a", p_expected_revision: 4, p_action: "approve",
+          ...(reviewedMediaIds === undefined ? {} : { p_reviewed_media_ids: reviewedMediaIds }),
+        },
+      }]);
+    },
+  );
+
+  it("does not fall back to legacy approval when the gallery RPC refuses", async () => {
+    state.rows.set("moderate_social_post_gallery_admin", false);
+    state.rows.set("moderate_social_post_admin", true);
+    await expect(createSocialPostConsentStore().moderateHeldForAdmin(staffRoleId, "post-a", "media-a", 4, "approve", ["media-a"]))
+      .rejects.toMatchObject({ kind: "conflict" });
+    expect(state.calls.map(call => call.name)).toEqual(["moderate_social_post_gallery_admin"]);
+  });
+
   it("does not combine an authorised queue row with a different post revision", async () => {
     state.rows.set("read_social_post_moderation_queue_admin", [{
       staff_display_name: "Captain",

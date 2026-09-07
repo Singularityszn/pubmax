@@ -22,6 +22,8 @@ import { hashActor } from "@/lib/supabase";
 import { boundedFormData, boundedJson } from "@/lib/boundedRequest.server";
 import { socialPhotoMediaId, socialPostRequestDigest, validSocialPostIdempotencyKey } from "@/lib/socialPostIdempotency.server";
 import { readSocialPostCreateRequest } from "@/lib/socialPostCreateRequest.server";
+import { hasSocialGallery } from "@/lib/socialGallerySubmission";
+import { handleSocialGallerySubmission } from "@/lib/socialGalleryRoute.server";
 
 assertServerEnv();
 
@@ -132,6 +134,7 @@ export async function POST(request: Request): Promise<Response> {
   if (submitted === null) {
     return publicApiError("Post request is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
   }
+  if (hasSocialGallery(submitted.input)) return handleSocialGallerySubmission(request, access.actor, submitted.input);
   const validation = parseSocialCreateSubmission(submitted.input, submitted.photo !== null, submitted.photo?.type);
   if (!validation.ok) {
     return publicApiError(validation.error, validation.code, 400, { headers: { "Cache-Control": "private, no-store" } });

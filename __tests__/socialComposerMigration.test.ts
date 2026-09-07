@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { proveSocialGallerySql } from "./helpers/socialGallerySql";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -610,6 +611,10 @@ describe.skipIf(skipReason !== null)("Social composer migration forward, concurr
     db.applyFile(rollback);
     expect(db.sql("select count(*) from information_schema.columns where table_name='social_posts' and column_name='photo_content_type'")).toBe("0");
   });
+
+  it("proves ordered gallery transactions, review, audience boundaries, cleanup and rollback", async () => {
+    await proveSocialGallerySql(database!);
+  }, 60_000);
 
   it("rolls back Task 6 state and restores Task 3 public-Venue and edit rules", () => {
     const db = database!;

@@ -7,6 +7,7 @@ import {
   socialPostConsentStore,
 } from "@/lib/socialPostConsentStore";
 import { boundedJson } from "@/lib/boundedRequest.server";
+import { SOCIAL_GALLERY_MAX_PHOTOS } from "@/lib/socialGallery";
 import {
   isSocialFriendsLaunchEnabled,
   SOCIAL_FRIENDS_LAUNCH_ENV,
@@ -15,6 +16,15 @@ import {
 } from "@/lib/socialLaunch";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const MODERATION_KEYS = new Set(["postId", "mediaId", "expectedRevision", "action", "reviewedMediaIds"]);
+
+function parseReviewedMediaIds(value: unknown): string[] | null {
+  if (!Array.isArray(value) || value.length > SOCIAL_GALLERY_MAX_PHOTOS) return null;
+  if (!value.every(id => typeof id === "string" && UUID.test(id))) return null;
+  const ids = value.map(id => id.toLowerCase());
+  return new Set(ids).size === ids.length ? ids : null;
+}
+
 function json(body: unknown, status = 200): Response { return Response.json(body, { status, headers: { "Cache-Control": "private, no-store" } }); }
 export async function GET(request: Request): Promise<Response> {
   if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
@@ -40,19 +50,24 @@ export async function POST(request: Request): Promise<Response> {
   let input: unknown;
   try { input = await boundedJson(request); } catch { return publicApiError("Moderation request is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } }); }
   const value = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : null;
-  if (!value || Object.keys(value).length !== 4 || typeof value.postId !== "string" ||
+  const hasReviewedMedia = value !== null && Object.hasOwn(value, "reviewedMediaIds");
+  const reviewedMediaIds = hasReviewedMedia ? parseReviewedMediaIds(value.reviewedMediaIds) : undefined;
+  if (!value || Object.keys(value).length !== (hasReviewedMedia ? 5 : 4) ||
+    Object.keys(value).some(key => !MODERATION_KEYS.has(key)) || reviewedMediaIds === null || typeof value.postId !== "string" ||
     !UUID.test(value.postId) ||
     (value.mediaId !== null && (typeof value.mediaId !== "string" || !UUID.test(value.mediaId))) ||
     !Number.isSafeInteger(value.expectedRevision) || Number(value.expectedRevision) < 0 ||
     Number(value.expectedRevision) > 2_147_483_647 ||
     (value.action !== "approve" && value.action !== "hide")) return publicApiError("Moderation request is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
   try {
+    const reviewArguments: [] | [string[]] = reviewedMediaIds === undefined ? [] : [reviewedMediaIds];
     await socialPostConsentStore.moderateHeldForAdmin(
       staffRoleId,
       value.postId,
       value.mediaId as string | null,
       Number(value.expectedRevision),
       value.action,
+      ...reviewArguments,
     );
     return json({ ok: true });
   } catch (error) {

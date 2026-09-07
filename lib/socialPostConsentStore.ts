@@ -12,6 +12,7 @@ import {
 import { requireSupabaseAdmin } from "@/lib/supabase";
 import { selectStore } from "@/lib/storeBackend";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
+import type { SocialGalleryPhoto } from "@/lib/socialGallery";
 
 export type SocialPostTag = { handle: string };
 export type SocialPostTagProposal = {
@@ -40,6 +41,7 @@ export type SocialPostHeldItem = {
   createdAt: string;
 };
 export type SocialPostAdminHeldItem = SocialPostHeldItem & {
+  photos?: SocialGalleryPhoto[];
   media?: { kind: "photo" | "video"; contentType: "image/jpeg" | "video/mp4" };
   revision: number;
   authorHandle: string;
@@ -167,12 +169,16 @@ function adminHeldItemFromRow(
   const media = Array.isArray(raw.social_post_media) ? raw.social_post_media[0] : raw.social_post_media;
   const post = socialPostFromRow({ ...raw, photo_content_type: media?.content_type ?? raw.photo_content_type });
   if (!heldJobMatches(held, item, post) || post.moderationState === "pending") return null;
+  if (post.photos !== undefined && (post.photos[0]?.mediaId ?? null) !== held.mediaId) {
+    throw new SocialPostConsentStoreError("Social gallery does not match the held post.");
+  }
   return {
     ...held,
     revision: post.revision,
     authorHandle: post.authorHandle,
     body: post.body,
     photoAltText: post.photo?.altText ?? null,
+    ...(post.photos !== undefined ? { photos: post.photos.map(({ mediaId, altText }) => ({ mediaId, altText })) } : {}),
     ...(post.photo?.kind === "video" ? { media: { kind: "video" as const, contentType: "video/mp4" as const } } : {}),
     area: post.area,
     venueId: post.venueId,
@@ -210,6 +216,7 @@ export type SocialPostConsentStore = {
     mediaId: string | null,
     expectedRevision: number,
     action: "approve" | "hide",
+    reviewedMediaIds?: readonly string[],
   ): Promise<void>;
 };
 
@@ -371,6 +378,7 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
             comment_policy,
             photo_media_id,
             photo_alt_text,
+            gallery_photos,
             social_post_media!social_posts_photo_media_fk(content_type),
             moderation_state,
             revision,
@@ -398,13 +406,14 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
       if (result.length === 0) return null;
       return typeof result[0]?.object_key === "string" ? result[0].object_key : null;
     },
-    async moderateHeldForAdmin(staffRoleId, postId, mediaId, expectedRevision, action) {
-      const result = await rpc("moderate_social_post_admin", {
+    async moderateHeldForAdmin(staffRoleId, postId, mediaId, expectedRevision, action, reviewedMediaIds) {
+      const result = await rpc(reviewedMediaIds === undefined ? "moderate_social_post_admin" : "moderate_social_post_gallery_admin", {
         p_staff_role_id: staffRoleId,
         p_post_id: postId,
         p_media_id: mediaId,
         p_expected_revision: expectedRevision,
         p_action: action,
+        ...(reviewedMediaIds === undefined ? {} : { p_reviewed_media_ids: reviewedMediaIds }),
       });
       if (result !== true) {
         throw new SocialPostConsentStoreError(

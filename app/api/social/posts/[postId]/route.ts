@@ -11,6 +11,8 @@ import { projectSocialVenueName, resolveSocialVenueId } from "@/lib/socialPostVe
 import { hashActor } from "@/lib/supabase";
 import { boundedFormData, boundedJson } from "@/lib/boundedRequest.server";
 import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
+import { hasSocialGallery } from "@/lib/socialGallerySubmission";
+import { handleSocialGallerySubmission } from "@/lib/socialGalleryRoute.server";
 
 assertServerEnv();
 
@@ -94,6 +96,7 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
   } catch {
     return publicApiError("Request body is not valid JSON.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
   }
+  if (hasSocialGallery(input)) return handleSocialGallerySubmission(request, access.actor, input, postId);
   if (input && typeof input === "object" && !Array.isArray(input) &&
     Object.keys(input).every((key) => key === "action" || key === "expectedMutationVersion") &&
     (input as { action?: unknown }).action === "remove" &&

@@ -30,6 +30,7 @@ export type SocialPostFields = {
   hashtags: string[];
   commentPolicy: SocialPostCommentPolicy;
   photo: SocialPostPhoto | null;
+  photos?: SocialPostPhoto[];
 };
 
 export type SocialPostFeatureRequest = {
@@ -250,6 +251,7 @@ export function socialPostDTO(
     photo: post.photo
       ? { ...post.photo, ...(post.photo.tags ? { tags: post.photo.tags.map((tag) => ({ ...tag })) } : {}) }
       : null,
+    ...(post.photos ? { photos: post.photos.map(photo => ({ ...photo })) } : {}),
     moderationState: post.moderationState,
     featureRequest: post.featureRequest ? { ...post.featureRequest } : null,
     revision: post.revision,

@@ -58,6 +58,7 @@ export class SocialPhotoError extends Error {
       | "TOO_LARGE"
       | "INVALID_DIMENSIONS"
       | "PROCESSING_FAILED"
+      | "UPLOAD_UNAVAILABLE"
       | "STORAGE_UNAVAILABLE",
     message: string,
   ) {
@@ -218,6 +219,9 @@ export async function reserveSocialPhotoUpload(
     ...(prepared.contentType === "video/mp4" ? { p_duration_seconds: prepared.durationSeconds } : {}),
   });
   const row = Array.isArray(data) ? data[0] : null;
+  if (error && /reservation expired|already attached|cleanup in progress/i.test(error.message)) {
+    throw new SocialPhotoError("UPLOAD_UNAVAILABLE", "This photo upload is no longer available. Choose it again.");
+  }
   if (error || !row || typeof row.media_id !== "string" || typeof row.generation !== "string" ||
     typeof row.object_key !== "string") {
     throw new SocialPhotoError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
