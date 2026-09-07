@@ -5,13 +5,17 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { median } from "../lib/performanceBudgets";
 import {
+  BASELINE_ROUTES_BY_DEVICE,
   CWV_BASELINE,
-  REQUIRED_BASELINE_ROUTES,
+  MEASURABLE_BASELINE_ROUTES,
+  carriedDebtKeys,
   findProductTimingRegressions,
   findVitalsRegressions,
   formatBaselineTable,
   formatProductTimingTable,
   formatRegressionTable,
+  mergeProductTimings,
+  mergeVitalsRecords,
   productTimingKey,
   vitalsRecordKey,
   type MeasuredVitals,
@@ -25,6 +29,7 @@ import {
   PRODUCT_TIMING_CEILING_MS,
   VITALS_DEVICES,
   applyVitalsDevice,
+  clearSampleResidue,
   coolBrowser,
   exercisePrimaryAction,
   installVitalsProbe,
@@ -93,6 +98,10 @@ const ROUTE_READY: Record<string, string> = {
   "/tonight": "main",
   "/today": "main",
   "/plan": "main.planPage",
+  // `.palExperience` rather than `.palMeeting`: clearSampleResidue puts every
+  // sample back on the meeting screen, and a gate naming one screen would spend
+  // its whole budget on the other if that ever stopped being true.
+  "/pal": "main.palExperience",
   "/map": ".mapShell, .mobileMapShell, main",
   "/map?sel=venue-1vle947": ".venueInspector",
 };
@@ -142,8 +151,12 @@ async function sampleRoute(
   } else {
     // Warm means the browser has already had this route once. The priming load
     // is not measured; it is what fills the cache the measured load reads.
+    await clearSampleResidue(page, routePath);
     await loadAndSettle(page, routePath);
   }
+  // The previous sample's own interaction is not part of this one's cache
+  // temperature, and on /pal it changed which screen was measured.
+  await clearSampleResidue(page, routePath);
   await loadAndSettle(page, routePath);
   const interacted = await exercisePrimaryAction(page, routePath);
   return { ...(await readVitals(page)), interacted };
@@ -214,6 +227,16 @@ test.describe("Core Web Vitals baseline", () => {
     await serveMapInitScript(page, MAP_INIT_SCRIPT);
     console.log(`[cwv] map cold-open script served from ${MAP_INIT_SCRIPT}`);
 
+    // THE FIRST NAVIGATION OF A FRESH CONTEXT REPORTS NO PAINT TIMINGS AT ALL.
+    // Measured on this harness: a context whose first load is `/pal` reports an
+    // empty `paint` buffer and an empty LCP buffer, while the same load taken
+    // second reports both. The probe then reads NaN, which the recorded table's
+    // own fence refuses - so the first cell of a run would either write an
+    // unreadable figure or, worse on a one-route run, be the only cell there
+    // was. One throwaway load spends a few seconds and takes the whole class of
+    // fault away. It is measured on nothing and recorded nowhere.
+    await page.goto("/plan", { waitUntil: "load" });
+
     const routeRecords: VitalsRecord[] = [];
     const measuredVitals = new Map<string, MeasuredVitals>();
     /** Rows whose primary action never appeared, so their INP means nothing. */
@@ -221,7 +244,7 @@ test.describe("Core Web Vitals baseline", () => {
 
     for (const device of DEVICES) {
       await applyVitalsDevice(page, device);
-      for (const routePath of REQUIRED_BASELINE_ROUTES) {
+      for (const routePath of BASELINE_ROUTES_BY_DEVICE[device]) {
         for (const temperature of ["cold", "warm"] as const) {
           const samples: Sample[] = [];
           for (let run = 0; run < RUNS; run += 1) {
@@ -317,6 +340,12 @@ test.describe("Core Web Vitals baseline", () => {
 
     if (RECORD) {
       const target = path.join(process.cwd(), "perf", "cwv-baseline.json");
+      // A record run REPLACES the cells it measured and leaves the rest, so one
+      // device can be re-taken without discarding the other. The rig block
+      // merges for the same reason: a desktop run may not delete the mobile
+      // rig it did not use.
+      const mergedRoutes = mergeVitalsRecords(CWV_BASELINE.routes, routeRecords);
+      const carried = carriedDebtKeys(CWV_BASELINE.routes, mergedRoutes);
       await writeFile(
         target,
         `${JSON.stringify(
@@ -325,26 +354,35 @@ test.describe("Core Web Vitals baseline", () => {
             method: {
               ...CWV_BASELINE.method,
               runs: RUNS,
-              devices: Object.fromEntries(
-                DEVICES.map((device) => [
-                  device,
-                  {
-                    viewport: VITALS_DEVICES[device].viewport,
-                    cpuThrottleRate: VITALS_DEVICES[device].cpuThrottleRate,
-                    network: VITALS_DEVICES[device].network.label,
-                  },
-                ]),
-              ),
+              devices: {
+                ...CWV_BASELINE.method.devices,
+                ...Object.fromEntries(
+                  DEVICES.map((device) => [
+                    device,
+                    {
+                      viewport: VITALS_DEVICES[device].viewport,
+                      cpuThrottleRate: VITALS_DEVICES[device].cpuThrottleRate,
+                      network: VITALS_DEVICES[device].network.label,
+                    },
+                  ]),
+                ),
+              },
             },
-            routes: routeRecords,
-            productTimings: productRecords,
+            routes: mergedRoutes,
+            productTimings: mergeProductTimings(CWV_BASELINE.productTimings, productRecords),
           },
           null,
           2,
         )}\n`,
         "utf8",
       );
-      console.log(`[cwv] wrote ${target}. Add a debt reason to any row over its R2 target.`);
+      console.log(
+        `[cwv] wrote ${target} for ${DEVICES.join(", ")}; every other cell was left as recorded. ` +
+          "Add a debt reason to any row newly over its R2 target, and re-state method.coverage.",
+      );
+      if (carried.length > 0) {
+        console.log(`[cwv] carried the recorded debt reason forward for: ${carried.join(", ")}`);
+      }
       return;
     }
 
@@ -366,7 +404,7 @@ test.describe("Core Web Vitals baseline", () => {
     // A route with no interaction records INP at the floor for ever, which
     // reads as the fastest route on the table. The table is the whole point, so
     // the gap is a failure rather than a silent 16 ms.
-    const missing = REQUIRED_BASELINE_ROUTES.filter(
+    const missing = MEASURABLE_BASELINE_ROUTES.filter(
       (routePath) => !PRIMARY_INTERACTIONS[routePath],
     );
     expect(missing, `No primary interaction for: ${missing.join(", ")}`).toEqual([]);

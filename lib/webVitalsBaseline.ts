@@ -167,19 +167,57 @@ export const REQUIRED_BASELINE_ROUTES = [
 ] as const;
 
 /**
- * The device the recorded table must be COMPLETE on.
+ * The device the FULL route list must be complete on.
  *
- * The audit's R2 is about a phone, and the phone is also the rig the sweep
- * finishes on: the desktop arm's `/map` cell has not completed a run here, so
- * desktop figures are recorded where they were measured and are not required.
- * Requiring a device the harness cannot finish would either block the fence
- * behind a hang or invite somebody to type a number nobody measured, and both
- * are worse than a table that says plainly which half it holds.
+ * The audit's R2 is about a phone, and the phone is the rig the whole list
+ * finishes on. Desktop is required too, on its own narrower list below, for the
+ * reason that list carries.
  *
  * `method.coverage` carries that sentence for a reader, and the unit fence
  * refuses a baseline that leaves it blank.
  */
 export const REQUIRED_BASELINE_DEVICES: readonly VitalsDevice[] = ["mobile"];
+
+/**
+ * The desktop rows the table must hold, and no more than that.
+ *
+ * Astra's 6 September audit read a desktop field p75 LCP of 3,686 ms over 27
+ * samples (`/map` 3,686 ms, `/pal` 5,904 ms, `/` 3,344 ms) against a recorded
+ * table that held ZERO desktop rows, so the product had no figure of its own to
+ * hold a regression against. These three are the routes that finding names, and
+ * they are the ones recorded here.
+ *
+ * The list is NARROWER than the mobile one on purpose rather than as a
+ * shortcut. A run measures every route on every device it is given, and one
+ * sweep of both full lists does not finish inside the spec's own timeout: that
+ * is why AGENTS.md recorded that "the desktop `/map` warm cell has never
+ * finished here". Recording the three routes the finding names, on a device run
+ * of its own, is a figure that exists; requiring six would leave the table at
+ * zero again.
+ *
+ * `/pal` is deliberately absent from the mobile list, because the recorded
+ * mobile table predates it and a device's rows are only ever re-taken by a run
+ * of that device.
+ */
+export const REQUIRED_DESKTOP_BASELINE_ROUTES = ["/", "/map", "/pal"] as const;
+
+/** Which routes a sweep measures on each device. */
+export const BASELINE_ROUTES_BY_DEVICE: Record<VitalsDevice, readonly string[]> = {
+  mobile: REQUIRED_BASELINE_ROUTES,
+  desktop: REQUIRED_DESKTOP_BASELINE_ROUTES,
+};
+
+/**
+ * Every route any device measures.
+ *
+ * The sweep fails a route whose primary action never appeared, so each route on
+ * this list must name one: a route measurable on one device and unnamed there
+ * would record the Event Timing floor and read as the fastest thing on the
+ * table.
+ */
+export const MEASURABLE_BASELINE_ROUTES: readonly string[] = Array.from(
+  new Set(Object.values(BASELINE_ROUTES_BY_DEVICE).flat()),
+);
 
 /**
  * The product timing the baseline may never be without.
@@ -355,6 +393,81 @@ export function findUnrecordedRoutes(
     }
   }
   return missing;
+}
+
+/**
+ * A re-recorded table: the run's own rows, over the rows it did not take.
+ *
+ * THE RECORDER USED TO WRITE ITS ROWS WHOLESALE, which made a one-device run
+ * impossible to take: recording desktop discarded every mobile row in the same
+ * write, and recording both devices in one run is the sweep that does not
+ * finish. So a record run now REPLACES the cells it measured and LEAVES the
+ * rest, keyed by route, device and temperature, which is the same key the
+ * regression fence reads a row by.
+ *
+ * A carried row is not a measured one, and `method.coverage` is the sentence
+ * that has to say so: this function merges numbers and never prose.
+ *
+ * The recorded DEBT reason travels with a row that is still over target, and
+ * the recorder prints each one it carried. A re-record used to drop every
+ * reason on the floor, so a sweep that changed nothing left the table failing
+ * its own unowned-debt fence; carrying it forward keeps the reason attached to
+ * the row it was written about, and a row that has newly gone over target still
+ * arrives with no reason and still fails until somebody writes one.
+ */
+export function mergeVitalsRecords(
+  existing: readonly VitalsRecord[],
+  measured: readonly VitalsRecord[],
+): VitalsRecord[] {
+  const previous = new Map(
+    existing.map((record) => [
+      vitalsRecordKey(record.path, record.device, record.temperature),
+      record,
+    ]),
+  );
+  const taken = measured.map((record) => {
+    const key = vitalsRecordKey(record.path, record.device, record.temperature);
+    const before = previous.get(key);
+    previous.delete(key);
+    const debt = before?.debt?.trim();
+    const stillOverTarget = VITAL_METRICS.some(
+      (metric) => record[metric] > CORE_WEB_VITAL_TARGETS[metric],
+    );
+    return debt && stillOverTarget ? { ...record, debt: before?.debt } : record;
+  });
+  return [...taken, ...previous.values()];
+}
+
+/** Every row a merge carried forward a recorded debt reason onto. */
+export function carriedDebtKeys(
+  existing: readonly VitalsRecord[],
+  merged: readonly VitalsRecord[],
+): string[] {
+  const before = new Map(
+    existing.map((record) => [
+      vitalsRecordKey(record.path, record.device, record.temperature),
+      record,
+    ]),
+  );
+  return merged
+    .filter((record) => {
+      const key = vitalsRecordKey(record.path, record.device, record.temperature);
+      const previous = before.get(key);
+      return Boolean(record.debt) && previous?.debt === record.debt && previous !== record;
+    })
+    .map((record) => vitalsRecordKey(record.path, record.device, record.temperature));
+}
+
+/** The same merge for the product timings, keyed by timing and device. */
+export function mergeProductTimings(
+  existing: readonly ProductTimingRecord[],
+  measured: readonly ProductTimingRecord[],
+): ProductTimingRecord[] {
+  const previous = new Map(
+    existing.map((record) => [productTimingKey(record.key, record.device), record]),
+  );
+  for (const record of measured) previous.delete(productTimingKey(record.key, record.device));
+  return [...measured, ...previous.values()];
 }
 
 /** Round a vital for printing: milliseconds whole, CLS to three places. */

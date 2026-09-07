@@ -1,11 +1,11 @@
 {
   "note": "The product's recorded Core Web Vitals, per route, per emulated device, per cache temperature, plus the four product timings the 2026-09-05 audit's R2 named. perf/route-budgets.json holds what a route COSTS; this holds what a person FEELS. Read docs/perf/baseline-2026-09-05.md before changing a number: down is free, and up needs a sentence in `debt` saying what got slower and why. lib/webVitalsBaseline.ts owns the rules; e2e/cwv-baseline.spec.ts is the only writer, under `npm run perf:cwv-record`, and the same spec under `npm run perf:cwv-sweep` is the fence, spent by hand before a merge because no CI job runs it. A figure over its R2 target (LCP 2500 ms, INP 200 ms, CLS 0.1) is DEBT and must carry its reason: __tests__/webVitalsBaseline.test.ts fails on an unowned one.",
   "method": {
-    "recordedOn": "2026-09-05",
-    "commit": "9b6dbcd8c",
+    "recordedOn": "2026-09-06",
+    "commit": "93309c032",
     "runs": 3,
     "aggregate": "median",
-    "build": "local production build (NEXT_DIST_DIR=.next-prod), keyless, served by next start; Playwright Chromium with SwiftShader so the map gets a real WebGL2 context and the sweep measures the map rather than its fallback. Taken on a shared box at load average ~52 on 18 cores, so these are pessimistic ceilings rather than clean figures.",
+    "build": "local production build (NEXT_DIST_DIR=.next-prod), keyless, served by next start; Playwright Chromium with SwiftShader so the map gets a real WebGL2 context and the sweep measures the map rather than its fallback. Taken on a shared box at load average ~52 on 18 cores, so these are pessimistic ceilings rather than clean figures. The desktop arm was taken on 2026-09-06 against a local production build on a private port, three runs a cell, on the same shared box.",
     "devices": {
       "mobile": {
         "viewport": {
@@ -14,12 +14,70 @@
         },
         "cpuThrottleRate": 4,
         "network": "chrome-slow-4g"
+      },
+      "desktop": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "cpuThrottleRate": 1,
+        "network": "chrome-fast-4g"
       }
     },
     "inpNote": "INP is the worst interaction the run produced, read off Event Timing entries carrying an interactionId. The API's durationThreshold floors at 16 ms, so a route whose interaction finished inside one frame reports no entry and is recorded at 16 rather than at 0: we did not see it, which is not the same as it taking no time.",
-    "coverage": "Mobile only, 3 runs per cell, median, from ONE sweep of the shipped tree (docs/proof/perf-baseline-fix/sweep-after-arm.log). Desktop is NOT recorded: the desktop /map cell has never completed a run on this harness, and a bounded re-measurement on 5 Sep was taken at load average 70 and produced no painted pin in two of three mobile samples, so it is reported in the doc and deliberately not used as a ceiling. plan-acknowledged-save is absent because its run timed out on a dropped tap before the retry idiom landed. Every figure here was printed by a run; none was typed."
+    "coverage": "Mobile and desktop, 3 runs per cell, median. The MOBILE half is the whole route list, recorded 2026-09-05 at commit 9b6dbcd8c from one sweep of the shipped tree (docs/proof/perf-baseline-fix/sweep-after-arm.log). The DESKTOP half is narrower and says so: `/`, `/map` and `/pal`, the three routes Astra's 6 September audit named, recorded 2026-09-06. Desktop is not the full list because one run of both full lists does not finish inside the spec's own timeout, which is why the desktop `/map` warm cell had never completed here before; the recorder now re-takes one device without discarding the other, so each half is a run of its own. `/pal` is a desktop row alone: the mobile table predates the route and a device's rows are only ever re-taken by a run of that device. Every figure here was printed by a run; none was typed."
   },
   "routes": [
+    {
+      "path": "/",
+      "device": "desktop",
+      "temperature": "cold",
+      "lcpMs": 580,
+      "inpMs": 64,
+      "cls": 0.0016689215012538582
+    },
+    {
+      "path": "/",
+      "device": "desktop",
+      "temperature": "warm",
+      "lcpMs": 564,
+      "inpMs": 48,
+      "cls": 0.0016689215012538582
+    },
+    {
+      "path": "/map",
+      "device": "desktop",
+      "temperature": "cold",
+      "lcpMs": 4884,
+      "inpMs": 160,
+      "cls": 0.012906870448736497,
+      "debt": "The map streams its venue shards and the UK base layer after paint; docs/perf/baseline-2026-09-05.md names the remaining gate, and the mobile rows above carry the same one. Taken on a shared box whose per-sample spread reached 6.5x on this cell (warm samples 648/4184/4128 ms), so this is a pessimistic ceiling rather than a clean figure. Recorded so it cannot regress unnoticed."
+    },
+    {
+      "path": "/map",
+      "device": "desktop",
+      "temperature": "warm",
+      "lcpMs": 4128,
+      "inpMs": 320,
+      "cls": 0.011521405121393819,
+      "debt": "The map streams its venue shards and the UK base layer after paint; docs/perf/baseline-2026-09-05.md names the remaining gate, and the mobile rows above carry the same one. Taken on a shared box whose per-sample spread reached 6.5x on this cell (warm samples 648/4184/4128 ms), so this is a pessimistic ceiling rather than a clean figure. Recorded so it cannot regress unnoticed."
+    },
+    {
+      "path": "/pal",
+      "device": "desktop",
+      "temperature": "cold",
+      "lcpMs": 828,
+      "inpMs": 192,
+      "cls": 0
+    },
+    {
+      "path": "/pal",
+      "device": "desktop",
+      "temperature": "warm",
+      "lcpMs": 736,
+      "inpMs": 192,
+      "cls": 0
+    },
     {
       "path": "/",
       "device": "mobile",
@@ -126,6 +184,34 @@
     }
   ],
   "productTimings": [
+    {
+      "key": "map-usable-venues",
+      "label": "usable venue results on /map (first painted pin)",
+      "device": "desktop",
+      "startedAt": "navigation start",
+      "ms": 4713.10000000149
+    },
+    {
+      "key": "map-venue-sheet",
+      "label": "a selected venue sheet (/map?sel=)",
+      "device": "desktop",
+      "startedAt": "navigation start",
+      "ms": 4119.30000000447
+    },
+    {
+      "key": "plan-editable",
+      "label": "an editable plan on /plan",
+      "device": "desktop",
+      "startedAt": "navigation start",
+      "ms": 896.8000000044703
+    },
+    {
+      "key": "plan-acknowledged-save",
+      "label": "an acknowledged save (Lock it in to the saved plan)",
+      "device": "desktop",
+      "startedAt": "the Lock it in tap",
+      "ms": 701
+    },
     {
       "key": "map-usable-venues",
       "label": "usable venue results on /map (first painted pin)",

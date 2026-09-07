@@ -324,6 +324,11 @@ export const PRIMARY_INTERACTIONS: Record<string, PrimaryInteraction> = {
     kind: "click",
     label: "Find my pint",
   },
+  "/pal": {
+    selector: "[data-primary-action] button",
+    kind: "click",
+    label: "Meet your Pub Pal",
+  },
   "/plan": {
     selector: "#plan-describe-first-query",
     kind: "type",
@@ -364,6 +369,41 @@ async function suppressNavigation(page: Page): Promise<void> {
   });
 }
 
+/** How long a primary action gets to become actionable before it is a no-show. */
+export const PRIMARY_ACTION_TIMEOUT_MS = 20_000;
+
+/**
+ * Browser state one sample's own interaction leaves behind for the next one.
+ *
+ * A WARM row is about a warm CACHE, and nothing else. `/pal` writes an
+ * onboarding draft the moment its primary is tapped, so the warm sample
+ * inherited the cold sample's draft and measured the ONBOARDING screen while
+ * the cold row measured the meeting screen - two different screens, two
+ * different LCP elements, recorded as one route's cold and warm figures. The
+ * residue is the harness's own, not a visitor's, so it is cleared before every
+ * sample; the HTTP cache, which is what the row is about, is untouched.
+ */
+const SAMPLE_RESIDUE_KEY_PREFIXES: Record<string, readonly string[]> = {
+  // lib/pubPal.ts PAL_ONBOARDING_DRAFT_KEY, plus the anonymous owner id it is
+  // suffixed with. Cleared by prefix so the owner suffix need not be guessed.
+  "/pal": ["pubmaxx.pub-pal-onboarding"],
+};
+
+/** Clears what the previous sample's own interaction left in this browser. */
+export async function clearSampleResidue(page: Page, routePath: string): Promise<void> {
+  const prefixes = SAMPLE_RESIDUE_KEY_PREFIXES[routePath];
+  if (!prefixes) return;
+  try {
+    await page.evaluate((keyPrefixes: readonly string[]) => {
+      for (const key of Object.keys(window.localStorage)) {
+        if (keyPrefixes.some((prefix) => key.startsWith(prefix))) window.localStorage.removeItem(key);
+      }
+    }, prefixes);
+  } catch {
+    // about:blank has no storage to clear.
+  }
+}
+
 /** Runs one route's primary interaction, so the probe has an INP to report. */
 export async function exercisePrimaryAction(page: Page, routePath: string): Promise<boolean> {
   const interaction = PRIMARY_INTERACTIONS[routePath];
@@ -386,7 +426,16 @@ export async function exercisePrimaryAction(page: Page, routePath: string): Prom
     }
   } else {
     await suppressNavigation(page);
-    await control.click();
+    // BOUNDED, because Playwright's default action timeout here is no timeout
+    // at all: a control that is in the document and DISABLED passes the
+    // visibility wait above and then waits for ever to become actionable. One
+    // /pal cell wedged a whole record run that way. An unactionable control is
+    // reported as un-interacted, which the sweep already fails on by name.
+    try {
+      await control.click({ timeout: PRIMARY_ACTION_TIMEOUT_MS });
+    } catch {
+      return false;
+    }
   }
 
   // The event entry is reported after the interaction's own paint, so give the

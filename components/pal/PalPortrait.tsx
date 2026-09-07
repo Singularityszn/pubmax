@@ -38,11 +38,26 @@ function legacyIconFor(species: PubPalSpecies): { Icon: LucideIcon; description:
   return { Icon: legacySpeciesIcons[key], description: legacySpeciesDescriptions[key] };
 }
 
-export default function PalPortrait({ appearance, name, compact = false, state = "idle" }: {
+/**
+ * The box `app/pal/pal.css` really draws the full portrait's mascot in.
+ *
+ * `.palPortrait` is `min(42rem, 74vw)` and `.palPortraitCore` is 58% of it, so
+ * the mascot fills about 403 CSS px on a 1440 desktop; under the 760px
+ * breakpoint the portrait narrows to `min(18rem, 72vw)` and the mascot to about
+ * 167 px. The `size` prop stays the intrinsic width and height pair, and this
+ * is what the browser is told to choose a rendition against - the two used to
+ * be one number, which under-stated the desktop box by half.
+ */
+const PORTRAIT_MASCOT_SIZES =
+  "(max-width: 760px) min(10.44rem, 41.76vw), min(24.36rem, 42.92vw)";
+
+export default function PalPortrait({ appearance, name, compact = false, state = "idle", priority = false }: {
   appearance: PubPalAppearance;
   name: string;
   compact?: boolean;
   state?: PalAnimationState;
+  /** True where this portrait is the largest thing on the screen it opens. */
+  priority?: boolean;
 }) {
   const mascotSize = compact ? 96 : 192;
   // A species that ships a master is drawn as that photograph. The legacy
@@ -65,7 +80,14 @@ export default function PalPortrait({ appearance, name, compact = false, state =
       <span className="palPortraitField" aria-hidden="true" />
       <span className="palPortraitCore" aria-hidden={!rendered}>
         {rendered ? (
-          <PubPalMascot species={appearance.species} size={mascotSize} circular={false} className="palPortraitMascot" />
+          <PubPalMascot
+            species={appearance.species}
+            size={mascotSize}
+            sizes={compact ? undefined : PORTRAIT_MASCOT_SIZES}
+            priority={priority}
+            circular={false}
+            className="palPortraitMascot"
+          />
         ) : legacy ? (
           <legacy.Icon className="palLegacyIcon" strokeWidth={1.15} />
         ) : null}

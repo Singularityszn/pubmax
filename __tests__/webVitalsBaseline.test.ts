@@ -3,11 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   CORE_WEB_VITAL_TARGETS,
   CWV_BASELINE,
+  MEASURABLE_BASELINE_ROUTES,
   REQUIRED_BASELINE_DEVICES,
   REQUIRED_BASELINE_ROUTES,
+  REQUIRED_DESKTOP_BASELINE_ROUTES,
   REQUIRED_LCP_ROUTES,
   REQUIRED_PRODUCT_TIMINGS,
   VITAL_METRICS,
+  carriedDebtKeys,
   findProductTimingRegressions,
   findTargetBreaches,
   findUnownedDebt,
@@ -15,6 +18,8 @@ import {
   findVitalsRegressions,
   formatBaselineTable,
   formatRegressionTable,
+  mergeProductTimings,
+  mergeVitalsRecords,
   productTimingKey,
   regressionCeiling,
   vitalsRecordKey,
@@ -210,6 +215,94 @@ describe("the recorded table", () => {
     }
     for (const timing of CWV_BASELINE.productTimings) {
       expect(Number.isFinite(timing.ms), `${timing.key} ${timing.device}`).toBe(true);
+    }
+  });
+});
+
+describe("the merge a record run writes with", () => {
+  // The recorder used to write its rows wholesale, which made a one-device run
+  // impossible to take: recording desktop discarded every mobile row in the
+  // same write, and recording both devices in one run is the sweep that does
+  // not finish. These are the rules that let a device be re-taken alone.
+  it("replaces the cells a run measured and leaves every other one as recorded", () => {
+    const merged = mergeVitalsRecords(
+      [record({ lcpMs: 1000 }), record({ device: "desktop", lcpMs: 2000 })],
+      [record({ device: "desktop", lcpMs: 2400 })],
+    );
+    const byKey = new Map(
+      merged.map((row) => [vitalsRecordKey(row.path, row.device, row.temperature), row]),
+    );
+    expect(byKey.get(vitalsRecordKey("/", "desktop", "cold"))?.lcpMs).toBe(2400);
+    expect(byKey.get(vitalsRecordKey("/", "mobile", "cold"))?.lcpMs).toBe(1000);
+    expect(merged).toHaveLength(2);
+  });
+
+  it("keeps a still-breached row's own recorded reason rather than dropping it on the floor", () => {
+    const before = [record({ lcpMs: 4000, debt: "the map streams shards" })];
+    const merged = mergeVitalsRecords(before, [record({ lcpMs: 4100 })]);
+    expect(merged[0].debt).toBe("the map streams shards");
+    expect(carriedDebtKeys(before, merged)).toEqual([vitalsRecordKey("/", "mobile", "cold")]);
+    expect(findUnownedDebt(merged)).toEqual([]);
+  });
+
+  it("lets a reason go when the figure it was written about came back inside target", () => {
+    const merged = mergeVitalsRecords(
+      [record({ lcpMs: 4000, debt: "the map streams shards" })],
+      [record({ lcpMs: 1800 })],
+    );
+    expect(merged[0].debt).toBeUndefined();
+  });
+
+  it("gives a newly breached row no reason, so the unowned-debt fence still fires", () => {
+    const merged = mergeVitalsRecords([record({ lcpMs: 1000 })], [record({ lcpMs: 4000 })]);
+    expect(findUnownedDebt(merged)).toHaveLength(1);
+  });
+
+  it("merges product timings on the timing and the device", () => {
+    const timing = (over: Partial<ProductTimingRecord> = {}): ProductTimingRecord => ({
+      key: "map-usable-venues",
+      label: "usable venue results on /map",
+      device: "mobile",
+      startedAt: "navigation start",
+      ms: 4000,
+      ...over,
+    });
+    const merged = mergeProductTimings(
+      [timing(), timing({ device: "desktop", ms: 900 })],
+      [timing({ device: "desktop", ms: 1200 })],
+    );
+    const byKey = new Map(merged.map((row) => [productTimingKey(row.key, row.device), row]));
+    expect(byKey.get(productTimingKey("map-usable-venues", "desktop"))?.ms).toBe(1200);
+    expect(byKey.get(productTimingKey("map-usable-venues", "mobile"))?.ms).toBe(4000);
+  });
+});
+
+describe("the desktop half of the table", () => {
+  // Astra's 6 September audit read a desktop field p75 LCP of 3,686 ms against
+  // a table holding zero desktop rows, so nothing in the tree could regress.
+  // These rows are the answer, and this is the gate that keeps them.
+  it("records the three routes the desktop finding names, cold and warm", () => {
+    const missing = findUnrecordedRoutes(
+      REQUIRED_DESKTOP_BASELINE_ROUTES,
+      CWV_BASELINE.routes,
+      ["desktop"],
+    );
+    expect(missing, `Unrecorded, so nothing can regress them: ${missing.join(", ")}`).toEqual([]);
+  });
+
+  it("states the desktop rig, because a figure without one is a number", () => {
+    const rig = CWV_BASELINE.method.devices.desktop;
+    expect(rig, "desktop rows are recorded, so the rig they were taken on must be too").toBeDefined();
+    expect(rig?.viewport).toEqual({ width: 1440, height: 900 });
+  });
+
+  it("names a primary action for every route any device measures", () => {
+    // The sweep asserts the same thing against its own interaction table; this
+    // is the half that runs without a browser, so a route added to a device
+    // list and left uninteracted fails on the commit that adds it.
+    expect(MEASURABLE_BASELINE_ROUTES).toContain("/pal");
+    for (const path of REQUIRED_DESKTOP_BASELINE_ROUTES) {
+      expect(MEASURABLE_BASELINE_ROUTES).toContain(path);
     }
   });
 });
