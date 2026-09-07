@@ -55,7 +55,7 @@ if (
   });
 }
 
-// vitest.config.ts creates this once per run and test.env distributes the same
+// vitest.config.mts creates this once per run and test.env distributes the same
 // value to every worker. Some security tests intentionally delete or replace
 // it; restore the worker baseline around every test so later route tests never
 // become order-dependent. Never print or snapshot this value.

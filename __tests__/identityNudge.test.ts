@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // native push gate — stay shut for N days after a "not now" before re-opening on
 // the next qualifying action. Browsing is never gated: no trigger, no nudge.
 //
-// Node env (vitest.config.ts): we install an in-memory window/localStorage the
+// Node env (vitest.config.mts): we install an in-memory window/localStorage the
 // same way __tests__/activePlan.test.ts does, and stub dispatchEvent so the
 // same-tab notify() never throws.
 import {
