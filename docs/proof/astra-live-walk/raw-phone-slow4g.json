@@ -1,0 +1,3790 @@
+[
+  {
+    "route": "/",
+    "profile": "phone-slow4g",
+    "status": 200,
+    "wall": 13610,
+    "ttfb": 14,
+    "respStart": 62,
+    "domContentLoaded": 1188,
+    "load": 3543,
+    "fcp": 1400,
+    "lcp": 2772,
+    "cls": 0.0042,
+    "shifts": [
+      {
+        "v": 0.004103677359258293,
+        "t": 4468.4000000059605,
+        "s": [
+          "DIV.lpNavActions"
+        ]
+      },
+      {
+        "v": 0.0001450624046474179,
+        "t": 2350.4000000059605,
+        "s": [
+          "#text"
+        ]
+      }
+    ],
+    "longTasks": 2,
+    "requests": 57,
+    "transferKB": 606,
+    "decodedKB": 1675,
+    "byType": {
+      "link": {
+        "n": 19,
+        "b": 185493
+      },
+      "script": {
+        "n": 28,
+        "b": 384444
+      },
+      "other": {
+        "n": 2,
+        "b": 600
+      },
+      "css": {
+        "n": 1,
+        "b": 31640
+      },
+      "fetch": {
+        "n": 6,
+        "b": 3563
+      }
+    },
+    "heavy": [
+      {
+        "u": "/_next/static/immutable/chunks/1d5w2479ak_h6.js",
+        "kb": 65,
+        "ms": 3148
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28h-i7tzcehq3.js",
+        "kb": 57,
+        "ms": 576
+      },
+      {
+        "u": "/landing/london/the-black-friar-1280.avif",
+        "kb": 50,
+        "ms": 2487
+      },
+      {
+        "u": "/_next/static/immutable/media/83afe278b6a6bb3c-s.p.45535valc9rzk.woff2",
+        "kb": 48,
+        "ms": 2054
+      },
+      {
+        "u": "/_next/static/immutable/chunks/2ikx7rmtximwe.js",
+        "kb": 31,
+        "ms": 2949
+      },
+      {
+        "u": "/_next/static/immutable/media/051742360c26797e-s.1wmoa0e_blxrz.woff2",
+        "kb": 31,
+        "ms": 2000
+      },
+      {
+        "u": "/_next/static/immutable/chunks/00g-fx2h3pf9y.css",
+        "kb": 24,
+        "ms": 909
+      },
+      {
+        "u": "/_next/static/immutable/media/0c89a48fa5027cee-s.p.1ii7211jqpzi_.woff2",
+        "kb": 22,
+        "ms": 868
+      }
+    ],
+    "h1": "What a pint costs, pub by pub.",
+    "title": "PUBMAXX: listed pint prices on an interactive map",
+    "firstText": [
+      "PUBMAXX",
+      "What a pint costs, pub by pub.",
+      "City of London",
+      "Near me",
+      "The Blackfriar",
+      "£6.50",
+      "a pint of Pravha",
+      "Listed by Pint Prices, collected 4 September 2026.",
+      "Listed",
+      "£3.60 in July 2013. Up £2.90 in 13 years.",
+      "beerintheevening.com, 14 July 2013",
+      "Photo: Love Art Nouveau, CC BY 2.0",
+      "Still £6.50?",
+      "Meet your Pub Pal"
+    ],
+    "controls": [
+      {
+        "tag": "A",
+        "t": "PUBMAXX PUBMAX X",
+        "href": "/"
+      },
+      {
+        "tag": "A",
+        "t": "Activity",
+        "href": "/activity"
+      },
+      {
+        "tag": "A",
+        "t": "Messages",
+        "href": "/messages"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Switch to dark theme"
+      },
+      {
+        "tag": "A",
+        "t": "Sign in",
+        "href": "/login?from=%2F"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Near me"
+      },
+      {
+        "tag": "A",
+        "t": "The Blackfriar",
+        "href": "/map?sel=venue-eltcmh"
+      },
+      {
+        "tag": "A",
+        "t": "Pint Prices",
+        "href": "https://www.pint-prices.com/pub/174%20Queen%20Victoria%20St,%20Greater,%20London%20EC4V%204EG,%20UK/The%20Blackfriar"
+      },
+      {
+        "tag": "A",
+        "t": "beerintheevening.com",
+        "href": "https://www.beerintheevening.com/pubs/comments.shtml/602/"
+      },
+      {
+        "tag": "A",
+        "t": "Love Art Nouveau",
+        "href": "https://commons.wikimedia.org/wiki/File:The_Black_Friar_Pub,_London_(8484501967).jpg"
+      },
+      {
+        "tag": "A",
+        "t": "CC BY 2.0",
+        "href": "https://creativecommons.org/licenses/by/2.0"
+      },
+      {
+        "tag": "A",
+        "t": "Still £6.50?",
+        "href": "/map?sel=venue-eltcmh&log=1&price=6.50"
+      },
+      {
+        "tag": "A",
+        "t": "Meet your Pub Pal",
+        "href": "/pal"
+      },
+      {
+        "tag": "A",
+        "t": "Tonight",
+        "href": "/tonight"
+      },
+      {
+        "tag": "A",
+        "t": "The Crosse Keys £2.99",
+        "href": "/map?sel=venue-zottpx&log=1&price=2.99"
+      },
+      {
+        "tag": "A",
+        "t": "The Liberty Bounds £2.99",
+        "href": "/map?sel=venue-1542m3&log=1&price=2.99"
+      },
+      {
+        "tag": "A",
+        "t": "The Sir John Hawkshaw £3.49",
+        "href": "/map?sel=venue-sjcbdo&log=1&price=3.49"
+      },
+      {
+        "tag": "A",
+        "t": "Now",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Places",
+        "href": "/places"
+      },
+      {
+        "tag": "A",
+        "t": "Out",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Social",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "You",
+        "href": "/u/you"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Create"
+      }
+    ],
+    "controlCount": 24,
+    "primary": [
+      "Still £6.50?"
+    ],
+    "console": [],
+    "failed": [],
+    "http4xx5xx": [],
+    "shot": "home-390-phone-slow4g.png"
+  },
+  {
+    "route": "/map",
+    "profile": "phone-slow4g",
+    "status": 200,
+    "wall": 15177,
+    "ttfb": 76,
+    "respStart": 283,
+    "domContentLoaded": 1732,
+    "load": 3165,
+    "fcp": 1416,
+    "lcp": 3316,
+    "cls": 0.0286,
+    "shifts": [
+      {
+        "v": 0.02855707966105307,
+        "t": 10296.60000000894,
+        "s": [
+          "DIV.createFabRoot",
+          "DETAILS.maplibregl-ctrl.maplibregl-ctrl-attrib"
+        ]
+      }
+    ],
+    "longTasks": 35,
+    "requests": 153,
+    "transferKB": 1171,
+    "decodedKB": 6611,
+    "byType": {
+      "link": {
+        "n": 37,
+        "b": 167021
+      },
+      "script": {
+        "n": 48,
+        "b": 922838
+      },
+      "other": {
+        "n": 5,
+        "b": 7654
+      },
+      "fetch": {
+        "n": 61,
+        "b": 60203
+      },
+      "css": {
+        "n": 1,
+        "b": 31640
+      }
+    },
+    "heavy": [
+      {
+        "u": "/_next/static/immutable/chunks/1ao343ndgtqsx.js",
+        "kb": 281,
+        "ms": 3653
+      },
+      {
+        "u": "/vendor/maplibre/maplibre-gl-shared.mjs",
+        "kb": 135,
+        "ms": 893
+      },
+      {
+        "u": "/_next/static/immutable/chunks/1d5w2479ak_h6.js",
+        "kb": 65,
+        "ms": 2612
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28h-i7tzcehq3.js",
+        "kb": 57,
+        "ms": 1842
+      },
+      {
+        "u": "/_next/static/immutable/media/83afe278b6a6bb3c-s.p.45535valc9rzk.woff2",
+        "kb": 48,
+        "ms": 961
+      },
+      {
+        "u": "/_next/static/immutable/chunks/09089gp05_0-_.js",
+        "kb": 44,
+        "ms": 1736
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28ojj2mnrfe9a.js",
+        "kb": 42,
+        "ms": 1681
+      },
+      {
+        "u": "/_next/static/immutable/chunks/2ikx7rmtximwe.js",
+        "kb": 31,
+        "ms": 2422
+      }
+    ],
+    "h1": null,
+    "title": "London pub map | PUBMAXX",
+    "firstText": [
+      "PUBMAXX",
+      "PUBMAX",
+      "X",
+      "London",
+      "FIRST VISIT",
+      "Cheapest pints near you?",
+      "Location is used only while the map is open. Or pick an area.",
+      " Use my location",
+      "Choose an area"
+    ],
+    "controls": [
+      {
+        "tag": "A",
+        "t": "PUBMAXX PUBMAX X",
+        "href": "/"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "London"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Search the map"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Filters"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "More map controls"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Close"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Use my location"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Choose an area"
+      },
+      {
+        "tag": "A",
+        "t": "Now",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Places",
+        "href": "/places"
+      },
+      {
+        "tag": "A",
+        "t": "Out",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Social",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "You",
+        "href": "/u/you"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Create"
+      }
+    ],
+    "controlCount": 15,
+    "primary": [],
+    "console": [
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/3tmkc3psw_0ow.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/0mnbwd9w3pg18.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "[.WebGL-0x12c00578000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+      },
+      {
+        "t": "warning",
+        "text": "[.WebGL-0x12c00578000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+      },
+      {
+        "t": "warning",
+        "text": "[.WebGL-0x12c00578000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+      },
+      {
+        "t": "warning",
+        "text": "[.WebGL-0x12c00578000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+      },
+      {
+        "t": "warning",
+        "text": "layers[road_shield_us].filter[1]: Expected value to be of type number, but found null instead. Falling back to false."
+      },
+      {
+        "t": "warning",
+        "text": "layers[road_shield_us].filter[1]: Expected value to be of type number, but found null instead. Falling back to false."
+      },
+      {
+        "t": "warning",
+        "text": "layers[road_shield_us].filter[1]: Expected value to be of type number, but found null instead. Falling back to false."
+      }
+    ],
+    "failed": [],
+    "http4xx5xx": [],
+    "shot": "map-390-phone-slow4g.png"
+  },
+  {
+    "route": "/map/london",
+    "profile": "phone-slow4g",
+    "status": 200,
+    "wall": 14730,
+    "ttfb": 35,
+    "respStart": 129,
+    "domContentLoaded": 1659,
+    "load": 2909,
+    "fcp": 1156,
+    "lcp": 3076,
+    "cls": 0.0286,
+    "shifts": [
+      {
+        "v": 0.02855707966105307,
+        "t": 9897.29999999702,
+        "s": [
+          "DIV.createFabRoot",
+          "DETAILS.maplibregl-ctrl.maplibregl-ctrl-attrib"
+        ]
+      }
+    ],
+    "longTasks": 33,
+    "requests": 154,
+    "transferKB": 1171,
+    "decodedKB": 7092,
+    "byType": {
+      "link": {
+        "n": 37,
+        "b": 167021
+      },
+      "script": {
+        "n": 48,
+        "b": 922392
+      },
+      "other": {
+        "n": 6,
+        "b": 7954
+      },
+      "fetch": {
+        "n": 61,
+        "b": 60215
+      },
+      "css": {
+        "n": 1,
+        "b": 31640
+      }
+    },
+    "heavy": [
+      {
+        "u": "/_next/static/immutable/chunks/1ao343ndgtqsx.js",
+        "kb": 281,
+        "ms": 3638
+      },
+      {
+        "u": "/vendor/maplibre/maplibre-gl-shared.mjs",
+        "kb": 135,
+        "ms": 889
+      },
+      {
+        "u": "/_next/static/immutable/chunks/1d5w2479ak_h6.js",
+        "kb": 65,
+        "ms": 2458
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28h-i7tzcehq3.js",
+        "kb": 57,
+        "ms": 1856
+      },
+      {
+        "u": "/_next/static/immutable/media/83afe278b6a6bb3c-s.p.45535valc9rzk.woff2",
+        "kb": 48,
+        "ms": 807
+      },
+      {
+        "u": "/_next/static/immutable/chunks/3_9lt4rtsfqa_.js",
+        "kb": 42,
+        "ms": 1695
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28ojj2mnrfe9a.js",
+        "kb": 42,
+        "ms": 1688
+      },
+      {
+        "u": "/_next/static/immutable/chunks/2ikx7rmtximwe.js",
+        "kb": 31,
+        "ms": 2268
+      }
+    ],
+    "h1": null,
+    "title": "London pub map | PUBMAXX",
+    "firstText": [
+      "PUBMAXX",
+      "PUBMAX",
+      "X",
+      "London",
+      "FIRST VISIT",
+      "Cheapest pints near you?",
+      "Location is used only while the map is open. Or pick an area.",
+      " Use my location",
+      "Choose an area"
+    ],
+    "controls": [
+      {
+        "tag": "A",
+        "t": "PUBMAXX PUBMAX X",
+        "href": "/"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "London"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Search the map"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Filters"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "More map controls"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Close"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Use my location"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Choose an area"
+      },
+      {
+        "tag": "A",
+        "t": "Now",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Places",
+        "href": "/places"
+      },
+      {
+        "tag": "A",
+        "t": "Out",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Social",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "You",
+        "href": "/u/you"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Create"
+      }
+    ],
+    "controlCount": 15,
+    "primary": [],
+    "console": [
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/3tmkc3psw_0ow.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/0mnbwd9w3pg18.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "layers[road_shield_us].filter[1]: Expected value to be of type number, but found null instead. Falling back to false."
+      },
+      {
+        "t": "warning",
+        "text": "layers[road_shield_us].filter[1]: Expected value to be of type number, but found null instead. Falling back to false."
+      },
+      {
+        "t": "warning",
+        "text": "layers[road_shield_us].filter[1]: Expected value to be of type number, but found null instead. Falling back to false."
+      }
+    ],
+    "failed": [],
+    "http4xx5xx": [],
+    "shot": "map-london-390-phone-slow4g.png"
+  },
+  {
+    "route": "/pubs",
+    "profile": "phone-slow4g",
+    "status": 200,
+    "wall": 19236,
+    "ttfb": 20,
+    "respStart": 113,
+    "domContentLoaded": 1489,
+    "load": 8289,
+    "fcp": 1640,
+    "lcp": 1640,
+    "cls": 0,
+    "shifts": [],
+    "longTasks": 2,
+    "requests": 56,
+    "transferKB": 1343,
+    "decodedKB": 2526,
+    "byType": {
+      "link": {
+        "n": 19,
+        "b": 131892
+      },
+      "script": {
+        "n": 27,
+        "b": 380853
+      },
+      "other": {
+        "n": 1,
+        "b": 300
+      },
+      "css": {
+        "n": 1,
+        "b": 31640
+      },
+      "img": {
+        "n": 5,
+        "b": 811097
+      },
+      "fetch": {
+        "n": 2,
+        "b": 319
+      }
+    },
+    "heavy": [
+      {
+        "u": "/api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub",
+        "kb": 210,
+        "ms": 6656
+      },
+      {
+        "u": "/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1px",
+        "kb": 156,
+        "ms": 6369
+      },
+      {
+        "u": "/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0",
+        "kb": 150,
+        "ms": 6289
+      },
+      {
+        "u": "/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLw",
+        "kb": 139,
+        "ms": 6116
+      },
+      {
+        "u": "/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFu",
+        "kb": 138,
+        "ms": 6067
+      },
+      {
+        "u": "/_next/static/immutable/chunks/1d5w2479ak_h6.js",
+        "kb": 65,
+        "ms": 4585
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28h-i7tzcehq3.js",
+        "kb": 57,
+        "ms": 2095
+      },
+      {
+        "u": "/_next/static/immutable/media/83afe278b6a6bb3c-s.p.45535valc9rzk.woff2",
+        "kb": 48,
+        "ms": 887
+      }
+    ],
+    "h1": "Chains (119 chain pubs)",
+    "title": "Chains (119 chain pubs) | PUBMAXX",
+    "firstText": [
+      "PUBMAXX",
+      "PUBMAX",
+      "X",
+      "Pubs",
+      "Chains (119 chain pubs)",
+      "Young's gardens, Nicholson's historic rooms, and Greene King menus we have pulled onto the London map.",
+      "Open the map",
+      "Find my pint",
+      "All",
+      "119",
+      "Nicholson's",
+      "44",
+      "Young's",
+      "43"
+    ],
+    "controls": [
+      {
+        "tag": "A",
+        "t": "PUBMAXX PUBMAX X",
+        "href": "/"
+      },
+      {
+        "tag": "A",
+        "t": "Activity",
+        "href": "/activity"
+      },
+      {
+        "tag": "A",
+        "t": "Messages",
+        "href": "/messages"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Switch to dark theme"
+      },
+      {
+        "tag": "A",
+        "t": "Open the map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Find my pint",
+        "href": "/near"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "All 119"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Nicholson's 44"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Young's 43"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Greene King 32"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "All zones"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "1"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "2"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "3"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "4"
+      },
+      {
+        "tag": "A",
+        "t": "Southwark",
+        "href": "#pubsCard-venue-9h7mch"
+      },
+      {
+        "tag": "A",
+        "t": "Westminster",
+        "href": "#pubsCard-venue-ru7vbr"
+      },
+      {
+        "tag": "A",
+        "t": "City of London",
+        "href": "#pubsCard-venue-eltcmh"
+      },
+      {
+        "tag": "A",
+        "t": "Kensington and Chelsea",
+        "href": "#pubsCard-venue-1jsmxy"
+      },
+      {
+        "tag": "A",
+        "t": "Wandsworth",
+        "href": "#pubsCard-venue-txfgkc"
+      },
+      {
+        "tag": "A",
+        "t": "Tower Hamlets",
+        "href": "#pubsCard-venue-on4bgj"
+      },
+      {
+        "tag": "A",
+        "t": "Doggett's Coat and Badge",
+        "href": "/map?sel=venue-9h7mch"
+      },
+      {
+        "tag": "A",
+        "t": "See on map",
+        "href": "/map?sel=venue-9h7mch"
+      },
+      {
+        "tag": "A",
+        "t": "Menu",
+        "href": "https://www.nicholsonspubs.co.uk/restaurants/london/doggettscoatandbadgesouthbanklondon/foodmenu"
+      },
+      {
+        "tag": "A",
+        "t": "Now",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Places",
+        "href": "/places"
+      },
+      {
+        "tag": "A",
+        "t": "Out",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Social",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "You",
+        "href": "/u/you"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Create"
+      }
+    ],
+    "controlCount": 31,
+    "primary": [
+      "Open the map"
+    ],
+    "console": [],
+    "failed": [],
+    "http4xx5xx": [],
+    "shot": "pubs-390-phone-slow4g.png"
+  },
+  {
+    "route": "/drinks",
+    "profile": "phone-slow4g",
+    "status": 200,
+    "wall": 13885,
+    "ttfb": 50,
+    "respStart": 366,
+    "domContentLoaded": 1450,
+    "load": 3877,
+    "fcp": 1680,
+    "lcp": 1680,
+    "cls": 0.0345,
+    "shifts": [
+      {
+        "v": 0.03452864940140608,
+        "t": 4483.70000000298,
+        "s": [
+          "DIV.discoverPage.discoverPageEmbedded"
+        ]
+      }
+    ],
+    "longTasks": 3,
+    "requests": 80,
+    "transferKB": 645,
+    "decodedKB": 1962,
+    "byType": {
+      "link": {
+        "n": 27,
+        "b": 147620
+      },
+      "script": {
+        "n": 31,
+        "b": 422075
+      },
+      "other": {
+        "n": 1,
+        "b": 300
+      },
+      "css": {
+        "n": 1,
+        "b": 31640
+      },
+      "fetch": {
+        "n": 19,
+        "b": 40686
+      }
+    },
+    "heavy": [
+      {
+        "u": "/_next/static/immutable/chunks/1d5w2479ak_h6.js",
+        "kb": 65,
+        "ms": 3215
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28h-i7tzcehq3.js",
+        "kb": 57,
+        "ms": 706
+      },
+      {
+        "u": "/_next/static/immutable/media/83afe278b6a6bb3c-s.p.45535valc9rzk.woff2",
+        "kb": 48,
+        "ms": 1018
+      },
+      {
+        "u": "/_next/static/immutable/chunks/2ikx7rmtximwe.js",
+        "kb": 31,
+        "ms": 3017
+      },
+      {
+        "u": "/_next/static/immutable/media/051742360c26797e-s.1wmoa0e_blxrz.woff2",
+        "kb": 31,
+        "ms": 2026
+      },
+      {
+        "u": "/_next/static/immutable/chunks/00g-fx2h3pf9y.css",
+        "kb": 24,
+        "ms": 906
+      },
+      {
+        "u": "/_next/static/immutable/media/0c89a48fa5027cee-s.p.1ii7211jqpzi_.woff2",
+        "kb": 22,
+        "ms": 836
+      },
+      {
+        "u": "/_next/static/immutable/chunks/3sm5o85ohvjc6.js",
+        "kb": 22,
+        "ms": 2842
+      }
+    ],
+    "h1": "Crews and people who are already here.",
+    "title": "Social | PUBMAXX",
+    "firstText": [
+      "Social",
+      "Crews and people who are already here.",
+      "Sign in",
+      "Posts",
+      "Pubs & pints",
+      "Creator lists",
+      "No creators have shared a list yet.",
+      "Find venues on Map",
+      "Across London",
+      "Where you can plan a crawl tonight",
+      "Open planner",
+      "We only call an area crawl-ready when its prices are fresh and checked. The rest are yours to browse.",
+      "4",
+      "Route-ready"
+    ],
+    "controls": [
+      {
+        "tag": "A",
+        "t": "PUBMAXX PUBMAX X",
+        "href": "/"
+      },
+      {
+        "tag": "A",
+        "t": "Activity",
+        "href": "/activity"
+      },
+      {
+        "tag": "A",
+        "t": "Messages",
+        "href": "/messages"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Switch to dark theme"
+      },
+      {
+        "tag": "A",
+        "t": "Sign in",
+        "href": "/login?mode=signin&from=%2Fsocial"
+      },
+      {
+        "tag": "A",
+        "t": "Posts",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "Pubs & pints",
+        "href": "/social?tab=discover"
+      },
+      {
+        "tag": "A",
+        "t": "Find venues on Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Open planner",
+        "href": "/plan"
+      },
+      {
+        "tag": "A",
+        "t": "Now",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Places",
+        "href": "/places"
+      },
+      {
+        "tag": "A",
+        "t": "Out",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Social",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "You",
+        "href": "/u/you"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Create"
+      }
+    ],
+    "controlCount": 16,
+    "primary": [
+      "Sign in"
+    ],
+    "console": [],
+    "failed": [],
+    "http4xx5xx": [],
+    "shot": "drinks-390-phone-slow4g.png"
+  },
+  {
+    "route": "/out",
+    "profile": "phone-slow4g",
+    "status": 200,
+    "wall": 12488,
+    "ttfb": 15,
+    "respStart": 48,
+    "domContentLoaded": 1130,
+    "load": 3185,
+    "fcp": 1288,
+    "lcp": 3592,
+    "cls": 0.0002,
+    "shifts": [
+      {
+        "v": 0.00019397897218195506,
+        "t": 3588.4000000059605,
+        "s": [
+          "SECTION.editorialRail"
+        ]
+      }
+    ],
+    "longTasks": 2,
+    "requests": 52,
+    "transferKB": 548,
+    "decodedKB": 1653,
+    "byType": {
+      "link": {
+        "n": 19,
+        "b": 130853
+      },
+      "script": {
+        "n": 27,
+        "b": 382661
+      },
+      "other": {
+        "n": 1,
+        "b": 300
+      },
+      "fetch": {
+        "n": 4,
+        "b": 37419
+      }
+    },
+    "heavy": [
+      {
+        "u": "/_next/static/immutable/chunks/1d5w2479ak_h6.js",
+        "kb": 65,
+        "ms": 2690
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28h-i7tzcehq3.js",
+        "kb": 57,
+        "ms": 740
+      },
+      {
+        "u": "/_next/static/immutable/media/83afe278b6a6bb3c-s.p.45535valc9rzk.woff2",
+        "kb": 48,
+        "ms": 897
+      },
+      {
+        "u": "/data/editorial/latest.json",
+        "kb": 32,
+        "ms": 583
+      },
+      {
+        "u": "/_next/static/immutable/chunks/2ikx7rmtximwe.js",
+        "kb": 31,
+        "ms": 2507
+      },
+      {
+        "u": "/_next/static/immutable/chunks/00g-fx2h3pf9y.css",
+        "kb": 24,
+        "ms": 761
+      },
+      {
+        "u": "/_next/static/immutable/media/0c89a48fa5027cee-s.p.1ii7211jqpzi_.woff2",
+        "kb": 22,
+        "ms": 732
+      },
+      {
+        "u": "/_next/static/immutable/chunks/3sm5o85ohvjc6.js",
+        "kb": 22,
+        "ms": 2387
+      }
+    ],
+    "h1": "What’s on, sourced.",
+    "title": "Out | PUBMAXX",
+    "firstText": [
+      "PUBMAXX",
+      "PUBMAX",
+      "X",
+      "Out in London",
+      "What’s on, sourced.",
+      "Open the map",
+      "Plan a night",
+      "Tonight",
+      "Tomorrow",
+      "Weekend",
+      "What's on tonight",
+      "Tonight's 31 listings are all at places we don't list yet.",
+      "Up The Creek, Bridge Theatre, Duke of Yorks Theatre, Garrick Theatre, Wyndham's Theatre, The Old Vic and 25 more places.",
+      "See what else is on tonight"
+    ],
+    "controls": [
+      {
+        "tag": "A",
+        "t": "PUBMAXX PUBMAX X",
+        "href": "/"
+      },
+      {
+        "tag": "A",
+        "t": "Activity",
+        "href": "/activity"
+      },
+      {
+        "tag": "A",
+        "t": "Messages",
+        "href": "/messages"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Switch to dark theme"
+      },
+      {
+        "tag": "A",
+        "t": "Open the map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Plan a night",
+        "href": "/plan"
+      },
+      {
+        "tag": "A",
+        "t": "Tonight",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Tomorrow",
+        "href": "/out?day=tomorrow"
+      },
+      {
+        "tag": "A",
+        "t": "Weekend",
+        "href": "/out?day=weekend"
+      },
+      {
+        "tag": "A",
+        "t": "See what else is on tonight",
+        "href": "/tonight"
+      },
+      {
+        "tag": "A",
+        "t": "Ticketmaster",
+        "href": "https://www.ticketmaster.co.uk/"
+      },
+      {
+        "tag": "A",
+        "t": "Now",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Places",
+        "href": "/places"
+      },
+      {
+        "tag": "A",
+        "t": "Out",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Social",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "You",
+        "href": "/u/you"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Create"
+      }
+    ],
+    "controlCount": 18,
+    "primary": [
+      "Open the map"
+    ],
+    "console": [],
+    "failed": [],
+    "http4xx5xx": [],
+    "shot": "out-390-phone-slow4g.png"
+  },
+  {
+    "route": "/tonight",
+    "profile": "phone-slow4g",
+    "status": 200,
+    "wall": 12978,
+    "ttfb": 29,
+    "respStart": 95,
+    "domContentLoaded": 1164,
+    "load": 3386,
+    "fcp": 1336,
+    "lcp": 4044,
+    "cls": 0.0846,
+    "shifts": [
+      {
+        "v": 0.059282488152738635,
+        "t": 3830,
+        "s": [
+          "DIV.tonightPrimary"
+        ]
+      },
+      {
+        "v": 0.02394861899656688,
+        "t": 4034.3999999910593,
+        "s": [
+          "DIV.tonightVibes",
+          "DIV.tonightHeadCredits"
+        ]
+      },
+      {
+        "v": 0.0013551081339316106,
+        "t": 3897.0999999940395,
+        "s": [
+          "DIV.tonightShareControl"
+        ]
+      }
+    ],
+    "longTasks": 4,
+    "requests": 68,
+    "transferKB": 607,
+    "decodedKB": 1854,
+    "byType": {
+      "link": {
+        "n": 28,
+        "b": 142312
+      },
+      "script": {
+        "n": 29,
+        "b": 408248
+      },
+      "other": {
+        "n": 1,
+        "b": 300
+      },
+      "fetch": {
+        "n": 9,
+        "b": 49000
+      }
+    },
+    "heavy": [
+      {
+        "u": "/_next/static/immutable/chunks/1d5w2479ak_h6.js",
+        "kb": 65,
+        "ms": 2902
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28h-i7tzcehq3.js",
+        "kb": 57,
+        "ms": 781
+      },
+      {
+        "u": "/_next/static/immutable/media/83afe278b6a6bb3c-s.p.45535valc9rzk.woff2",
+        "kb": 48,
+        "ms": 983
+      },
+      {
+        "u": "/data/editorial/latest.json",
+        "kb": 32,
+        "ms": 603
+      },
+      {
+        "u": "/_next/static/immutable/chunks/2ikx7rmtximwe.js",
+        "kb": 31,
+        "ms": 2712
+      },
+      {
+        "u": "/_next/static/immutable/chunks/00g-fx2h3pf9y.css",
+        "kb": 24,
+        "ms": 847
+      },
+      {
+        "u": "/_next/static/immutable/chunks/1c-4ghzq-fape.js",
+        "kb": 23,
+        "ms": 2613
+      },
+      {
+        "u": "/_next/static/immutable/media/0c89a48fa5027cee-s.p.1ii7211jqpzi_.woff2",
+        "kb": 22,
+        "ms": 825
+      }
+    ],
+    "h1": "What’s on across London tonight.",
+    "title": "Tonight in London · PUBMAXXING | PUBMAXX",
+    "firstText": [
+      "PUBMAXX",
+      "PUBMAX",
+      "X",
+      "Day",
+      "Tonight",
+      "Tonight in London",
+      "What’s on across London tonight.",
+      "Monday 7 Sept, 23°C, cloudy. Warm and dry. Beer garden weather.",
+      "The city’s having a quiet one tonight. We only list what’s really on, and nothing’s confirmed yet. The map still knows where the cheap pints are.",
+      "No event needed",
+      "Pubs near you",
+      "Plan the night instead",
+      "Quiet night · No date on this yet · via what’s-on",
+      "Share"
+    ],
+    "controls": [
+      {
+        "tag": "A",
+        "t": "PUBMAXX PUBMAX X",
+        "href": "/"
+      },
+      {
+        "tag": "A",
+        "t": "Activity",
+        "href": "/activity"
+      },
+      {
+        "tag": "A",
+        "t": "Messages",
+        "href": "/messages"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Switch to dark theme"
+      },
+      {
+        "tag": "A",
+        "t": "Day",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Tonight",
+        "href": "/tonight"
+      },
+      {
+        "tag": "A",
+        "t": "The map still knows where the cheap pints are",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Pubs near you",
+        "href": "/near"
+      },
+      {
+        "tag": "A",
+        "t": "Plan the night instead",
+        "href": "/plan"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Share"
+      },
+      {
+        "tag": "A",
+        "t": "Quiet pint",
+        "href": "/plan?occasion=quiet&src=tonight-vibes"
+      },
+      {
+        "tag": "A",
+        "t": "Cheeky one after work",
+        "href": "/pal/chat?ask=Cheapest%20decent%20pint%20for%20a%20quick%20one%20after%20work"
+      },
+      {
+        "tag": "A",
+        "t": "Date night",
+        "href": "/pal/chat?ask=A%20date-night%20pub%20with%20some%20history%2C%20calm%20not%20loud"
+      },
+      {
+        "tag": "A",
+        "t": "Coffee catch-up",
+        "href": "/plan?occasion=coffee&src=tonight-vibes"
+      },
+      {
+        "tag": "A",
+        "t": "Alcohol-free outing",
+        "href": "/plan?occasion=af&src=tonight-vibes"
+      },
+      {
+        "tag": "A",
+        "t": "Chill afternoon",
+        "href": "/plan?occasion=chill&src=tonight-vibes"
+      },
+      {
+        "tag": "A",
+        "t": "Now",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Places",
+        "href": "/places"
+      },
+      {
+        "tag": "A",
+        "t": "Out",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Social",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "You",
+        "href": "/u/you"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Create"
+      }
+    ],
+    "controlCount": 23,
+    "primary": [
+      "See them on the map"
+    ],
+    "console": [],
+    "failed": [],
+    "http4xx5xx": [],
+    "shot": "tonight-390-phone-slow4g.png"
+  },
+  {
+    "route": "/today",
+    "profile": "phone-slow4g",
+    "status": 200,
+    "wall": 12978,
+    "ttfb": 27,
+    "respStart": 131,
+    "domContentLoaded": 1148,
+    "load": 3334,
+    "fcp": 1392,
+    "lcp": 1392,
+    "cls": 0,
+    "shifts": [],
+    "longTasks": 3,
+    "requests": 54,
+    "transferKB": 533,
+    "decodedKB": 1584,
+    "byType": {
+      "link": {
+        "n": 21,
+        "b": 133681
+      },
+      "script": {
+        "n": 28,
+        "b": 396426
+      },
+      "other": {
+        "n": 1,
+        "b": 300
+      },
+      "fetch": {
+        "n": 3,
+        "b": 686
+      }
+    },
+    "heavy": [
+      {
+        "u": "/_next/static/immutable/chunks/1d5w2479ak_h6.js",
+        "kb": 65,
+        "ms": 2797
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28h-i7tzcehq3.js",
+        "kb": 57,
+        "ms": 555
+      },
+      {
+        "u": "/_next/static/immutable/media/83afe278b6a6bb3c-s.p.45535valc9rzk.woff2",
+        "kb": 48,
+        "ms": 923
+      },
+      {
+        "u": "/_next/static/immutable/chunks/2ikx7rmtximwe.js",
+        "kb": 31,
+        "ms": 2604
+      },
+      {
+        "u": "/_next/static/immutable/chunks/00g-fx2h3pf9y.css",
+        "kb": 24,
+        "ms": 790
+      },
+      {
+        "u": "/_next/static/immutable/media/0c89a48fa5027cee-s.p.1ii7211jqpzi_.woff2",
+        "kb": 22,
+        "ms": 774
+      },
+      {
+        "u": "/_next/static/immutable/chunks/3sm5o85ohvjc6.js",
+        "kb": 22,
+        "ms": 2502
+      },
+      {
+        "u": "/_next/static/immutable/chunks/0kabj876kxd1h.js",
+        "kb": 18,
+        "ms": 2445
+      }
+    ],
+    "h1": "Proper garden weather out there.",
+    "title": "Today in London · PUBMAXXING | PUBMAXX",
+    "firstText": [
+      "PUBMAXX",
+      "PUBMAX",
+      "X",
+      "Day",
+      "Tonight",
+      "Today in London",
+      "Proper garden weather out there.",
+      "Good afternoon. Monday 7 Sept, 23°C and cloudy in London.",
+      "Find my pint",
+      "Open the map",
+      "Drink weather",
+      "Warm and dry. Beer garden weather.",
+      "Checked 16 minutes ago · via Open-Meteo",
+      "Tonight"
+    ],
+    "controls": [
+      {
+        "tag": "A",
+        "t": "PUBMAXX PUBMAX X",
+        "href": "/"
+      },
+      {
+        "tag": "A",
+        "t": "Activity",
+        "href": "/activity"
+      },
+      {
+        "tag": "A",
+        "t": "Messages",
+        "href": "/messages"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Switch to dark theme"
+      },
+      {
+        "tag": "A",
+        "t": "Day",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Tonight",
+        "href": "/tonight"
+      },
+      {
+        "tag": "A",
+        "t": "Find my pint",
+        "href": "/near?locate=1"
+      },
+      {
+        "tag": "A",
+        "t": "Open the map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Open-Meteo",
+        "href": "https://api.open-meteo.com/v1/forecast?latitude=51.511&longitude=-0.134&current=apparent_temperature%2Cweather_code%2Cwind_speed_10m&hourly=precipitation_probability&forecast_hours=1&timezone=UTC"
+      },
+      {
+        "tag": "A",
+        "t": "Meanwhile, the map knows the cheap pints",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Pubs near you",
+        "href": "/near"
+      },
+      {
+        "tag": "A",
+        "t": "Plan the night instead",
+        "href": "/plan"
+      },
+      {
+        "tag": "A",
+        "t": "Now",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Places",
+        "href": "/places"
+      },
+      {
+        "tag": "A",
+        "t": "Out",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Social",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "You",
+        "href": "/u/you"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Create"
+      }
+    ],
+    "controlCount": 19,
+    "primary": [
+      "Find my pint"
+    ],
+    "console": [],
+    "failed": [],
+    "http4xx5xx": [],
+    "shot": "today-390-phone-slow4g.png"
+  },
+  {
+    "route": "/near",
+    "profile": "phone-slow4g",
+    "status": 200,
+    "wall": 12762,
+    "ttfb": 24,
+    "respStart": 65,
+    "domContentLoaded": 1087,
+    "load": 3457,
+    "fcp": 1280,
+    "lcp": 1280,
+    "cls": 0,
+    "shifts": [],
+    "longTasks": 2,
+    "requests": 56,
+    "transferKB": 554,
+    "decodedKB": 1612,
+    "byType": {
+      "link": {
+        "n": 21,
+        "b": 134131
+      },
+      "script": {
+        "n": 31,
+        "b": 422936
+      },
+      "other": {
+        "n": 1,
+        "b": 300
+      },
+      "fetch": {
+        "n": 2,
+        "b": 319
+      }
+    },
+    "heavy": [
+      {
+        "u": "/_next/static/immutable/chunks/1d5w2479ak_h6.js",
+        "kb": 65,
+        "ms": 2968
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28h-i7tzcehq3.js",
+        "kb": 57,
+        "ms": 547
+      },
+      {
+        "u": "/_next/static/immutable/media/83afe278b6a6bb3c-s.p.45535valc9rzk.woff2",
+        "kb": 48,
+        "ms": 915
+      },
+      {
+        "u": "/_next/static/immutable/chunks/2ikx7rmtximwe.js",
+        "kb": 31,
+        "ms": 2776
+      },
+      {
+        "u": "/_next/static/immutable/chunks/00g-fx2h3pf9y.css",
+        "kb": 24,
+        "ms": 787
+      },
+      {
+        "u": "/_next/static/immutable/media/0c89a48fa5027cee-s.p.1ii7211jqpzi_.woff2",
+        "kb": 22,
+        "ms": 772
+      },
+      {
+        "u": "/_next/static/immutable/chunks/3sm5o85ohvjc6.js",
+        "kb": 22,
+        "ms": 2664
+      },
+      {
+        "u": "/_next/static/immutable/chunks/12c4lgf851f1a.js",
+        "kb": 16,
+        "ms": 2569
+      }
+    ],
+    "h1": "Compare listed pint prices near you, cheapest first.",
+    "title": "Find my pint. Nearby London pint prices | PUBMAXX",
+    "firstText": [
+      "Pint",
+      "Desk",
+      "Near you",
+      "Compare listed pint prices near you, cheapest first.",
+      "Find my pint",
+      "We only use your location to rank pubs nearby. Nothing is stored.",
+      "Or pick a patch",
+      "Soho",
+      "Shoreditch",
+      "Camden",
+      "London Bridge",
+      "Brixton",
+      "Clapham",
+      "Islington"
+    ],
+    "controls": [
+      {
+        "tag": "A",
+        "t": "PUBMAXX PUBMAX X",
+        "href": "/"
+      },
+      {
+        "tag": "A",
+        "t": "Activity",
+        "href": "/activity"
+      },
+      {
+        "tag": "A",
+        "t": "Messages",
+        "href": "/messages"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Switch to dark theme"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Pint"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Desk"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Find my pint"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Soho"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Shoreditch"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Camden"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "London Bridge"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Brixton"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Clapham"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Islington"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Hackney"
+      },
+      {
+        "tag": "A",
+        "t": "Now",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Places",
+        "href": "/places"
+      },
+      {
+        "tag": "A",
+        "t": "Out",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Social",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "You",
+        "href": "/u/you"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Create"
+      }
+    ],
+    "controlCount": 22,
+    "primary": [
+      "Find my pint"
+    ],
+    "console": [],
+    "failed": [],
+    "http4xx5xx": [],
+    "shot": "near-390-phone-slow4g.png"
+  },
+  {
+    "route": "/places",
+    "profile": "phone-slow4g",
+    "status": 200,
+    "wall": 12804,
+    "ttfb": 34,
+    "respStart": 111,
+    "domContentLoaded": 1093,
+    "load": 3328,
+    "fcp": 1296,
+    "lcp": 1296,
+    "cls": 0,
+    "shifts": [],
+    "longTasks": 3,
+    "requests": 48,
+    "transferKB": 531,
+    "decodedKB": 1508,
+    "byType": {
+      "link": {
+        "n": 17,
+        "b": 128622
+      },
+      "script": {
+        "n": 26,
+        "b": 372658
+      },
+      "other": {
+        "n": 1,
+        "b": 300
+      },
+      "css": {
+        "n": 1,
+        "b": 31640
+      },
+      "fetch": {
+        "n": 2,
+        "b": 319
+      }
+    },
+    "heavy": [
+      {
+        "u": "/_next/static/immutable/chunks/1d5w2479ak_h6.js",
+        "kb": 65,
+        "ms": 2799
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28h-i7tzcehq3.js",
+        "kb": 57,
+        "ms": 549
+      },
+      {
+        "u": "/_next/static/immutable/media/83afe278b6a6bb3c-s.p.45535valc9rzk.woff2",
+        "kb": 48,
+        "ms": 885
+      },
+      {
+        "u": "/_next/static/immutable/chunks/2ikx7rmtximwe.js",
+        "kb": 31,
+        "ms": 2607
+      },
+      {
+        "u": "/_next/static/immutable/media/051742360c26797e-s.1wmoa0e_blxrz.woff2",
+        "kb": 31,
+        "ms": 1845
+      },
+      {
+        "u": "/_next/static/immutable/chunks/00g-fx2h3pf9y.css",
+        "kb": 24,
+        "ms": 744
+      },
+      {
+        "u": "/_next/static/immutable/media/0c89a48fa5027cee-s.p.1ii7211jqpzi_.woff2",
+        "kb": 22,
+        "ms": 721
+      },
+      {
+        "u": "/_next/static/immutable/chunks/3sm5o85ohvjc6.js",
+        "kb": 22,
+        "ms": 2441
+      }
+    ],
+    "h1": "Pick a city.",
+    "title": "Places | PUBMAXX",
+    "firstText": [
+      "Places",
+      "Pick a city.",
+      "Set one and the map, Out and Near all open there.",
+      "Open London",
+      "Browse pubs across the UK",
+      "Find a city",
+      "London",
+      "Prices listed",
+      "Price-aware crawls across the capital",
+      "Manchester",
+      "Prices coming",
+      "Northern Quarter rounds and city-centre crawls",
+      "Birmingham",
+      "Prices coming"
+    ],
+    "controls": [
+      {
+        "tag": "A",
+        "t": "PUBMAXX PUBMAX X",
+        "href": "/"
+      },
+      {
+        "tag": "A",
+        "t": "Activity",
+        "href": "/activity"
+      },
+      {
+        "tag": "A",
+        "t": "Messages",
+        "href": "/messages"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Switch to dark theme"
+      },
+      {
+        "tag": "A",
+        "t": "Open London",
+        "href": "/places?city=london"
+      },
+      {
+        "tag": "A",
+        "t": "Browse pubs across the UK",
+        "href": "/map?uk=1"
+      },
+      {
+        "tag": "A",
+        "t": "London Prices listed Price-aware crawls across the",
+        "href": "/places?city=london"
+      },
+      {
+        "tag": "A",
+        "t": "Manchester Prices coming Northern Quarter rounds a",
+        "href": "/places?city=manchester"
+      },
+      {
+        "tag": "A",
+        "t": "Birmingham Prices coming City-centre rounds and ca",
+        "href": "/places?city=birmingham"
+      },
+      {
+        "tag": "A",
+        "t": "Leeds Prices coming Arcade bars and Headingley ter",
+        "href": "/places?city=leeds"
+      },
+      {
+        "tag": "A",
+        "t": "Liverpool Prices coming Waterfront crawls and Mers",
+        "href": "/places?city=liverpool"
+      },
+      {
+        "tag": "A",
+        "t": "Oxford Prices coming College-town pints and rivers",
+        "href": "/places?city=oxford"
+      },
+      {
+        "tag": "A",
+        "t": "Now",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Places",
+        "href": "/places"
+      },
+      {
+        "tag": "A",
+        "t": "Out",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Social",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "You",
+        "href": "/u/you"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Create"
+      }
+    ],
+    "controlCount": 19,
+    "primary": [
+      "Open London"
+    ],
+    "console": [],
+    "failed": [],
+    "http4xx5xx": [],
+    "shot": "places-390-phone-slow4g.png"
+  },
+  {
+    "route": "/social",
+    "profile": "phone-slow4g",
+    "status": 200,
+    "wall": 13009,
+    "ttfb": 31,
+    "respStart": 63,
+    "domContentLoaded": 1291,
+    "load": 3592,
+    "fcp": 1468,
+    "lcp": 1468,
+    "cls": 0,
+    "shifts": [],
+    "longTasks": 3,
+    "requests": 72,
+    "transferKB": 641,
+    "decodedKB": 1767,
+    "byType": {
+      "link": {
+        "n": 27,
+        "b": 147620
+      },
+      "script": {
+        "n": 30,
+        "b": 418831
+      },
+      "other": {
+        "n": 1,
+        "b": 300
+      },
+      "fetch": {
+        "n": 11,
+        "b": 10478
+      },
+      "img": {
+        "n": 2,
+        "b": 68768
+      }
+    },
+    "heavy": [
+      {
+        "u": "/_next/static/immutable/chunks/1d5w2479ak_h6.js",
+        "kb": 65,
+        "ms": 3003
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28h-i7tzcehq3.js",
+        "kb": 57,
+        "ms": 578
+      },
+      {
+        "u": "/_next/static/immutable/media/83afe278b6a6bb3c-s.p.45535valc9rzk.woff2",
+        "kb": 48,
+        "ms": 1010
+      },
+      {
+        "u": "/api/avatar/562db223-41d1-424b-8127-e9eaecb41c5f/64196eef-c7ff-4a1c-ac64-f3fd7c5c6f24",
+        "kb": 39,
+        "ms": 528
+      },
+      {
+        "u": "/_next/static/immutable/chunks/2ikx7rmtximwe.js",
+        "kb": 31,
+        "ms": 2821
+      },
+      {
+        "u": "/api/avatar/cb0f4a7f-3ded-4cda-a043-1c5497a20996/5861f247-8c1d-4445-a9c2-d64bd166934a",
+        "kb": 28,
+        "ms": 426
+      },
+      {
+        "u": "/_next/static/immutable/chunks/00g-fx2h3pf9y.css",
+        "kb": 24,
+        "ms": 871
+      },
+      {
+        "u": "/_next/static/immutable/media/0c89a48fa5027cee-s.p.1ii7211jqpzi_.woff2",
+        "kb": 22,
+        "ms": 837
+      }
+    ],
+    "h1": "Crews and people who are already here.",
+    "title": "Social | PUBMAXX",
+    "firstText": [
+      "Social",
+      "Crews and people who are already here.",
+      "Sign in",
+      "Find your lot",
+      "Posts",
+      "Pubs & pints",
+      "Founding members",
+      "Your lot",
+      "Find your lot",
+      "Search a mate’s handle, or send an invite link. A lot is mutual: they follow back, and you share nights.",
+      "Search handles",
+      "Sign in to invite",
+      "Sign in to use Social.",
+      "Start with your lot"
+    ],
+    "controls": [
+      {
+        "tag": "A",
+        "t": "PUBMAXX PUBMAX X",
+        "href": "/"
+      },
+      {
+        "tag": "A",
+        "t": "Activity",
+        "href": "/activity"
+      },
+      {
+        "tag": "A",
+        "t": "Messages",
+        "href": "/messages"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Switch to dark theme"
+      },
+      {
+        "tag": "A",
+        "t": "Sign in",
+        "href": "/login?mode=signin&from=%2Fsocial"
+      },
+      {
+        "tag": "A",
+        "t": "Find your lot",
+        "href": "#find-lot-title"
+      },
+      {
+        "tag": "A",
+        "t": "Posts",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "Pubs & pints",
+        "href": "/social?tab=discover"
+      },
+      {
+        "tag": "A",
+        "t": "Founding members",
+        "href": "/founders"
+      },
+      {
+        "tag": "A",
+        "t": "Sign in to invite",
+        "href": "/login"
+      },
+      {
+        "tag": "A",
+        "t": "Now",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Places",
+        "href": "/places"
+      },
+      {
+        "tag": "A",
+        "t": "Out",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Social",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "You",
+        "href": "/u/you"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Create"
+      }
+    ],
+    "controlCount": 17,
+    "primary": [
+      "Sign in"
+    ],
+    "console": [],
+    "failed": [],
+    "http4xx5xx": [],
+    "shot": "social-390-phone-slow4g.png"
+  },
+  {
+    "route": "/crawls",
+    "profile": "phone-slow4g",
+    "status": 200,
+    "wall": 12609,
+    "ttfb": 13,
+    "respStart": 50,
+    "domContentLoaded": 1063,
+    "load": 3200,
+    "fcp": 1304,
+    "lcp": 1304,
+    "cls": 0,
+    "shifts": [],
+    "longTasks": 3,
+    "requests": 56,
+    "transferKB": 651,
+    "decodedKB": 2497,
+    "byType": {
+      "link": {
+        "n": 17,
+        "b": 129537
+      },
+      "script": {
+        "n": 28,
+        "b": 392576
+      },
+      "other": {
+        "n": 1,
+        "b": 300
+      },
+      "fetch": {
+        "n": 9,
+        "b": 131149
+      }
+    },
+    "heavy": [
+      {
+        "u": "/data/venues_slim.json?v=dpl_8Cz4fvuUqLbQoQLndnQnEDDFDxES",
+        "kb": 116,
+        "ms": 1233
+      },
+      {
+        "u": "/_next/static/immutable/chunks/1d5w2479ak_h6.js",
+        "kb": 65,
+        "ms": 2724
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28h-i7tzcehq3.js",
+        "kb": 57,
+        "ms": 924
+      },
+      {
+        "u": "/_next/static/immutable/media/83afe278b6a6bb3c-s.p.45535valc9rzk.woff2",
+        "kb": 48,
+        "ms": 889
+      },
+      {
+        "u": "/_next/static/immutable/chunks/2ikx7rmtximwe.js",
+        "kb": 31,
+        "ms": 2534
+      },
+      {
+        "u": "/_next/static/immutable/chunks/00g-fx2h3pf9y.css",
+        "kb": 24,
+        "ms": 756
+      },
+      {
+        "u": "/_next/static/immutable/media/0c89a48fa5027cee-s.p.1ii7211jqpzi_.woff2",
+        "kb": 22,
+        "ms": 739
+      },
+      {
+        "u": "/_next/static/immutable/chunks/3sm5o85ohvjc6.js",
+        "kb": 22,
+        "ms": 2420
+      }
+    ],
+    "h1": "Pub stories mapped into walks.",
+    "title": "Crawls worth walking | PUBMAXX",
+    "firstText": [
+      "PUBMAXX",
+      "PUBMAX",
+      "X",
+      "Crawls",
+      "Pub stories mapped into walks.",
+      "A Crawl Story is a shareable poster of a London pub crawl, the stops, the prices, the vibe. Here are a few listed routes worth the walk. Pick one, or start your own on the map.",
+      "Start a crawl",
+      "Open the map",
+      "Jump to a route pack",
+      "Old London",
+      "4",
+      "Thames-side",
+      "2",
+      "Writers & Fleet Street"
+    ],
+    "controls": [
+      {
+        "tag": "A",
+        "t": "PUBMAXX PUBMAX X",
+        "href": "/"
+      },
+      {
+        "tag": "A",
+        "t": "Activity",
+        "href": "/activity"
+      },
+      {
+        "tag": "A",
+        "t": "Messages",
+        "href": "/messages"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Switch to dark theme"
+      },
+      {
+        "tag": "A",
+        "t": "Start a crawl",
+        "href": "/map?mode=build&pubs=venue-1ufn31x%2Cvenue-1t8siin%2Cvenue-xiesdn%2Cvenue-phqazo%2Cvenue-15i2wst&crawl=victorian-soho&style=heritage"
+      },
+      {
+        "tag": "A",
+        "t": "Open the map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Old London 4",
+        "href": "/crawls?pack=old-london"
+      },
+      {
+        "tag": "A",
+        "t": "Thames-side 2",
+        "href": "/crawls?pack=thames"
+      },
+      {
+        "tag": "A",
+        "t": "Writers & Fleet Street 2",
+        "href": "/crawls?pack=writers"
+      },
+      {
+        "tag": "A",
+        "t": "Music & theatre 3",
+        "href": "/crawls?pack=music-theatre"
+      },
+      {
+        "tag": "A",
+        "t": "Markets & late trains 4",
+        "href": "/crawls?pack=markets-late-trains"
+      },
+      {
+        "tag": "A",
+        "t": "Coding pint 2",
+        "href": "/crawls?pack=coding-pint"
+      },
+      {
+        "tag": "A",
+        "t": "Cheap chaos 3",
+        "href": "/crawls?pack=cheap-chaos"
+      },
+      {
+        "tag": "A",
+        "t": "Late train 3",
+        "href": "/crawls?pack=late-train"
+      },
+      {
+        "tag": "A",
+        "t": "Quiet table 3",
+        "href": "/crawls?pack=quiet-table"
+      },
+      {
+        "tag": "A",
+        "t": "Civic west 3",
+        "href": "/crawls?pack=civic-west"
+      },
+      {
+        "tag": "A",
+        "t": "Southwark tide 3",
+        "href": "/crawls?pack=southwark-tide"
+      },
+      {
+        "tag": "A",
+        "t": "Now",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Places",
+        "href": "/places"
+      },
+      {
+        "tag": "A",
+        "t": "Out",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Social",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "You",
+        "href": "/u/you"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Create"
+      }
+    ],
+    "controlCount": 24,
+    "primary": [
+      "Start a crawl"
+    ],
+    "console": [],
+    "failed": [],
+    "http4xx5xx": [],
+    "shot": "crawls-390-phone-slow4g.png"
+  },
+  {
+    "route": "/spoons-value",
+    "profile": "phone-slow4g",
+    "status": 200,
+    "wall": 24716,
+    "ttfb": 86,
+    "respStart": 193,
+    "domContentLoaded": 1388,
+    "load": 3387,
+    "fcp": 1712,
+    "lcp": 1712,
+    "cls": 0,
+    "shifts": [],
+    "longTasks": 3,
+    "requests": 55,
+    "transferKB": 564,
+    "decodedKB": 2117,
+    "byType": {
+      "link": {
+        "n": 17,
+        "b": 128666
+      },
+      "script": {
+        "n": 27,
+        "b": 375391
+      },
+      "other": {
+        "n": 1,
+        "b": 300
+      },
+      "fetch": {
+        "n": 9,
+        "b": 13186
+      }
+    },
+    "heavy": [
+      {
+        "u": "/_next/static/immutable/chunks/1d5w2479ak_h6.js",
+        "kb": 65,
+        "ms": 2706
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28h-i7tzcehq3.js",
+        "kb": 57,
+        "ms": 650
+      },
+      {
+        "u": "/_next/static/immutable/media/83afe278b6a6bb3c-s.p.45535valc9rzk.woff2",
+        "kb": 48,
+        "ms": 984
+      },
+      {
+        "u": "/_next/static/immutable/chunks/2ikx7rmtximwe.js",
+        "kb": 31,
+        "ms": 2516
+      },
+      {
+        "u": "/_next/static/immutable/chunks/00g-fx2h3pf9y.css",
+        "kb": 24,
+        "ms": 843
+      },
+      {
+        "u": "/_next/static/immutable/media/0c89a48fa5027cee-s.p.1ii7211jqpzi_.woff2",
+        "kb": 22,
+        "ms": 818
+      },
+      {
+        "u": "/_next/static/immutable/chunks/3sm5o85ohvjc6.js",
+        "kb": 22,
+        "ms": 2406
+      },
+      {
+        "u": "/_next/static/immutable/chunks/12c4lgf851f1a.js",
+        "kb": 16,
+        "ms": 2311
+      }
+    ],
+    "h1": "What a tenner buys in a Wetherspoon",
+    "title": "What a tenner buys in a Wetherspoon · PUBMAXX | PUBMAXX",
+    "firstText": [
+      "Wetherspoons, everywhere",
+      "What a tenner buys in a Wetherspoon",
+      "Same tenner, and the answer runs from 4.1 units to 15.7. Most pubs pour 12.8. This ranks what a tenner buys, not what to drink. Know your limits.",
+      "Everywhere",
+      "805",
+      "England",
+      "692",
+      "Scotland",
+      "56",
+      "Wales",
+      "47",
+      "Ireland",
+      "6",
+      "Northern Ireland"
+    ],
+    "controls": [
+      {
+        "tag": "A",
+        "t": "PUBMAXX PUBMAX X",
+        "href": "/"
+      },
+      {
+        "tag": "A",
+        "t": "Activity",
+        "href": "/activity"
+      },
+      {
+        "tag": "A",
+        "t": "Messages",
+        "href": "/messages"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Switch to dark theme"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Everywhere 805"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "England 692"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Scotland 56"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Wales 47"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Ireland 6"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Northern Ireland 3"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Isle of Man 1"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "London zones 1-2 38"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Airports 9"
+      },
+      {
+        "tag": "A",
+        "t": "The Jolie Brise",
+        "href": "/map?sel=venue-uk-n3737846239"
+      },
+      {
+        "tag": "A",
+        "t": "The Union Rooms",
+        "href": "/map?sel=venue-uk-n11167121278"
+      },
+      {
+        "tag": "A",
+        "t": "The Horse Shoe Inn",
+        "href": "/map?sel=venue-uk-n5060517988"
+      },
+      {
+        "tag": "A",
+        "t": "The Picture House",
+        "href": "/map?sel=venue-uk-w926770527"
+      },
+      {
+        "tag": "A",
+        "t": "Now",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Places",
+        "href": "/places"
+      },
+      {
+        "tag": "A",
+        "t": "Out",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Social",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "You",
+        "href": "/u/you"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Create"
+      }
+    ],
+    "controlCount": 24,
+    "primary": [
+      "See it on the map"
+    ],
+    "console": [],
+    "failed": [],
+    "http4xx5xx": [],
+    "shot": "spoons-value-390-phone-slow4g.png"
+  },
+  {
+    "route": "/pal",
+    "profile": "phone-slow4g",
+    "status": 200,
+    "wall": 13674,
+    "ttfb": 27,
+    "respStart": 95,
+    "domContentLoaded": 1195,
+    "load": 3360,
+    "fcp": 1356,
+    "lcp": 1356,
+    "cls": 0,
+    "shifts": [],
+    "longTasks": 1,
+    "requests": 51,
+    "transferKB": 548,
+    "decodedKB": 1589,
+    "byType": {
+      "link": {
+        "n": 15,
+        "b": 128853
+      },
+      "script": {
+        "n": 28,
+        "b": 393556
+      },
+      "img": {
+        "n": 1,
+        "b": 22024
+      },
+      "other": {
+        "n": 1,
+        "b": 300
+      },
+      "fetch": {
+        "n": 5,
+        "b": 8022
+      }
+    },
+    "heavy": [
+      {
+        "u": "/_next/static/immutable/chunks/1d5w2479ak_h6.js",
+        "kb": 65,
+        "ms": 2840
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28h-i7tzcehq3.js",
+        "kb": 57,
+        "ms": 620
+      },
+      {
+        "u": "/_next/static/immutable/media/83afe278b6a6bb3c-s.p.45535valc9rzk.woff2",
+        "kb": 48,
+        "ms": 1007
+      },
+      {
+        "u": "/_next/static/immutable/chunks/2ikx7rmtximwe.js",
+        "kb": 31,
+        "ms": 2641
+      },
+      {
+        "u": "/_next/static/immutable/chunks/00g-fx2h3pf9y.css",
+        "kb": 24,
+        "ms": 861
+      },
+      {
+        "u": "/_next/static/immutable/media/0c89a48fa5027cee-s.p.1ii7211jqpzi_.woff2",
+        "kb": 22,
+        "ms": 815
+      },
+      {
+        "u": "/_next/static/immutable/chunks/3sm5o85ohvjc6.js",
+        "kb": 22,
+        "ms": 2568
+      },
+      {
+        "u": "/pal/circuit-robin-512.webp",
+        "kb": 22,
+        "ms": 849
+      }
+    ],
+    "h1": "A little signal that becomes yours.",
+    "title": "Meet your Pub Pal | PUBMAXX",
+    "firstText": [
+      "Your Pub Pal",
+      "A little signal that becomes yours.",
+      "Choose its form, voice and boundaries. It can help plan the night. You choose what it may do.",
+      "Meet your Pub Pal",
+      "Back to the map",
+      "There you are. What kind of night are we making?"
+    ],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "t": "Meet your Pub Pal"
+      },
+      {
+        "tag": "A",
+        "t": "Back to the map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Now",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Places",
+        "href": "/places"
+      },
+      {
+        "tag": "A",
+        "t": "Out",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Social",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "You",
+        "href": "/u/you"
+      }
+    ],
+    "controlCount": 8,
+    "primary": [
+      "Meet your Pub Pal"
+    ],
+    "console": [
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/3tmkc3psw_0ow.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/0mnbwd9w3pg18.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      }
+    ],
+    "failed": [],
+    "http4xx5xx": [],
+    "shot": "pal-390-phone-slow4g.png"
+  },
+  {
+    "route": "/onboarding",
+    "profile": "phone-slow4g",
+    "status": 200,
+    "wall": 13925,
+    "ttfb": 44,
+    "respStart": 138,
+    "domContentLoaded": 1149,
+    "load": 3166,
+    "fcp": 1236,
+    "lcp": 4676,
+    "cls": 0.0041,
+    "shifts": [
+      {
+        "v": 0.004103677359258293,
+        "t": 4516.100000008941,
+        "s": [
+          "DIV.lpNavActions"
+        ]
+      }
+    ],
+    "longTasks": 2,
+    "requests": 63,
+    "transferKB": 630,
+    "decodedKB": 1709,
+    "byType": {
+      "link": {
+        "n": 20,
+        "b": 142991
+      },
+      "script": {
+        "n": 30,
+        "b": 398011
+      },
+      "other": {
+        "n": 1,
+        "b": 300
+      },
+      "fetch": {
+        "n": 9,
+        "b": 12713
+      },
+      "img": {
+        "n": 1,
+        "b": 51458
+      },
+      "css": {
+        "n": 1,
+        "b": 31640
+      }
+    },
+    "heavy": [
+      {
+        "u": "/_next/static/immutable/chunks/1d5w2479ak_h6.js",
+        "kb": 65,
+        "ms": 2623
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28h-i7tzcehq3.js",
+        "kb": 57,
+        "ms": 861
+      },
+      {
+        "u": "/landing/london/the-black-friar-1280.avif",
+        "kb": 50,
+        "ms": 597
+      },
+      {
+        "u": "/_next/static/immutable/media/83afe278b6a6bb3c-s.p.45535valc9rzk.woff2",
+        "kb": 48,
+        "ms": 861
+      },
+      {
+        "u": "/_next/static/immutable/chunks/2ikx7rmtximwe.js",
+        "kb": 31,
+        "ms": 2431
+      },
+      {
+        "u": "/_next/static/immutable/media/051742360c26797e-s.1wmoa0e_blxrz.woff2",
+        "kb": 31,
+        "ms": 583
+      },
+      {
+        "u": "/_next/static/immutable/chunks/00g-fx2h3pf9y.css",
+        "kb": 24,
+        "ms": 781
+      },
+      {
+        "u": "/_next/static/immutable/media/0c89a48fa5027cee-s.p.1ii7211jqpzi_.woff2",
+        "kb": 22,
+        "ms": 761
+      }
+    ],
+    "h1": "What a pint costs, pub by pub.",
+    "title": "PUBMAXX: listed pint prices on an interactive map",
+    "firstText": [
+      "PUBMAXX",
+      "What a pint costs, pub by pub.",
+      "City of London",
+      "Near me",
+      "The Blackfriar",
+      "£6.50",
+      "a pint of Pravha",
+      "Listed by Pint Prices, collected 4 September 2026.",
+      "Listed",
+      "£3.60 in July 2013. Up £2.90 in 13 years.",
+      "beerintheevening.com, 14 July 2013",
+      "Photo: Love Art Nouveau, CC BY 2.0",
+      "Still £6.50?",
+      "Meet your Pub Pal"
+    ],
+    "controls": [
+      {
+        "tag": "A",
+        "t": "PUBMAXX PUBMAX X",
+        "href": "/"
+      },
+      {
+        "tag": "A",
+        "t": "Activity",
+        "href": "/activity"
+      },
+      {
+        "tag": "A",
+        "t": "Messages",
+        "href": "/messages"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Switch to dark theme"
+      },
+      {
+        "tag": "A",
+        "t": "Sign in",
+        "href": "/login?from=%2F"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Near me"
+      },
+      {
+        "tag": "A",
+        "t": "The Blackfriar",
+        "href": "/map?sel=venue-eltcmh"
+      },
+      {
+        "tag": "A",
+        "t": "Pint Prices",
+        "href": "https://www.pint-prices.com/pub/174%20Queen%20Victoria%20St,%20Greater,%20London%20EC4V%204EG,%20UK/The%20Blackfriar"
+      },
+      {
+        "tag": "A",
+        "t": "beerintheevening.com",
+        "href": "https://www.beerintheevening.com/pubs/comments.shtml/602/"
+      },
+      {
+        "tag": "A",
+        "t": "Love Art Nouveau",
+        "href": "https://commons.wikimedia.org/wiki/File:The_Black_Friar_Pub,_London_(8484501967).jpg"
+      },
+      {
+        "tag": "A",
+        "t": "CC BY 2.0",
+        "href": "https://creativecommons.org/licenses/by/2.0"
+      },
+      {
+        "tag": "A",
+        "t": "Still £6.50?",
+        "href": "/map?sel=venue-eltcmh&log=1&price=6.50"
+      },
+      {
+        "tag": "A",
+        "t": "Meet your Pub Pal",
+        "href": "/pal"
+      },
+      {
+        "tag": "A",
+        "t": "Tonight",
+        "href": "/tonight"
+      },
+      {
+        "tag": "A",
+        "t": "The Crosse Keys £2.99",
+        "href": "/map?sel=venue-zottpx&log=1&price=2.99"
+      },
+      {
+        "tag": "A",
+        "t": "The Liberty Bounds £2.99",
+        "href": "/map?sel=venue-1542m3&log=1&price=2.99"
+      },
+      {
+        "tag": "A",
+        "t": "The Sir John Hawkshaw £3.49",
+        "href": "/map?sel=venue-sjcbdo&log=1&price=3.49"
+      },
+      {
+        "tag": "A",
+        "t": "Now",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Places",
+        "href": "/places"
+      },
+      {
+        "tag": "A",
+        "t": "Out",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Social",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "You",
+        "href": "/u/you"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Create"
+      },
+      {
+        "tag": "A",
+        "t": "Privacy",
+        "href": "/privacy"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Allow"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "No thanks"
+      }
+    ],
+    "controlCount": 27,
+    "primary": [
+      "Still £6.50?"
+    ],
+    "console": [],
+    "failed": [
+      {
+        "url": "https://pubmaxxing.com/landing/london/the-black-friar-640.avif",
+        "err": "net::ERR_ABORTED"
+      }
+    ],
+    "http4xx5xx": [],
+    "shot": "onboarding-390-phone-slow4g.png"
+  },
+  {
+    "route": "/about",
+    "profile": "phone-slow4g",
+    "status": 200,
+    "wall": 14224,
+    "ttfb": 34,
+    "respStart": 108,
+    "domContentLoaded": 1234,
+    "load": 3432,
+    "fcp": 1548,
+    "lcp": 1548,
+    "cls": 0,
+    "shifts": [],
+    "longTasks": 3,
+    "requests": 47,
+    "transferKB": 532,
+    "decodedKB": 1519,
+    "byType": {
+      "link": {
+        "n": 16,
+        "b": 127770
+      },
+      "script": {
+        "n": 26,
+        "b": 369258
+      },
+      "other": {
+        "n": 1,
+        "b": 300
+      },
+      "css": {
+        "n": 1,
+        "b": 31640
+      },
+      "fetch": {
+        "n": 2,
+        "b": 319
+      }
+    },
+    "heavy": [
+      {
+        "u": "/_next/static/immutable/chunks/1d5w2479ak_h6.js",
+        "kb": 65,
+        "ms": 2753
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28h-i7tzcehq3.js",
+        "kb": 57,
+        "ms": 550
+      },
+      {
+        "u": "/_next/static/immutable/media/83afe278b6a6bb3c-s.p.45535valc9rzk.woff2",
+        "kb": 48,
+        "ms": 872
+      },
+      {
+        "u": "/_next/static/immutable/chunks/2ikx7rmtximwe.js",
+        "kb": 31,
+        "ms": 2547
+      },
+      {
+        "u": "/_next/static/immutable/media/051742360c26797e-s.1wmoa0e_blxrz.woff2",
+        "kb": 31,
+        "ms": 1788
+      },
+      {
+        "u": "/_next/static/immutable/chunks/00g-fx2h3pf9y.css",
+        "kb": 24,
+        "ms": 738
+      },
+      {
+        "u": "/_next/static/immutable/media/0c89a48fa5027cee-s.p.1ii7211jqpzi_.woff2",
+        "kb": 22,
+        "ms": 731
+      },
+      {
+        "u": "/_next/static/immutable/chunks/3sm5o85ohvjc6.js",
+        "kb": 22,
+        "ms": 2396
+      }
+    ],
+    "h1": "A pint in London can cost eight quid. Nobody tells you where it doesn’t.",
+    "title": "Our story: why PUBMAXX exists | PUBMAXX",
+    "firstText": [
+      "PUBMAXX",
+      "PUBMAX",
+      "X",
+      "Our story",
+      "A pint in London can cost eight quid. Nobody tells you where it doesn’t.",
+      "You finish work, you want somewhere nearby that will not mug you: a good pint, a coffee and a seat, food before the last train, or a quiet room with mates who are not drinking. So you open Google Maps, then another map, then reviews, then you’re asking ChatGPT, and an hour later you’re back at the same place as last time. We built PUBMAXX so you don’t have to do that. One map. Real prices with honest source status. The outing in one place.",
+      "Open the map",
+      "Contact",
+      "Why we built it",
+      "Planning a night out had quietly turned into admin. The cheap pint is on one app. The walk is on another. Whether the place is any good is on a third. And the price, the thing that actually decides where you go, is nowhere at all.",
+      "So most nights you don’t plan. You give up and end up where you always end up. Same for a daytime Spoons with a laptop, a soft-drink round, or a catch-up that never needed a lager. A seat shouldn’t cost a day’s lunch, and finding the one that doesn’t shouldn’t cost your whole evening.",
+      "What we did about it",
+      "We put real prices on the map, starting in London. When a price record names a publisher, we name and link it. When no publisher is recorded, the price says so. The ones logged by drinkers carry the day they were seen. Tap a pub and you see what a drink costs before you set off, not after you’ve handed over a note.",
+      "A first report can mark a pin straight away. Pin colour, list rows, and cheapest buckets wait for a second independent drinker. Speed is nice. A figure that survives a challenge is the product."
+    ],
+    "controls": [
+      {
+        "tag": "A",
+        "t": "PUBMAXX PUBMAX X",
+        "href": "/"
+      },
+      {
+        "tag": "A",
+        "t": "Activity",
+        "href": "/activity"
+      },
+      {
+        "tag": "A",
+        "t": "Messages",
+        "href": "/messages"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Switch to dark theme"
+      },
+      {
+        "tag": "A",
+        "t": "Open the map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Contact",
+        "href": "mailto:support@pubmaxxing.com"
+      },
+      {
+        "tag": "A",
+        "t": "Now",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Places",
+        "href": "/places"
+      },
+      {
+        "tag": "A",
+        "t": "Out",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Social",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "You",
+        "href": "/u/you"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Create"
+      }
+    ],
+    "controlCount": 13,
+    "primary": [
+      "Open the map"
+    ],
+    "console": [],
+    "failed": [],
+    "http4xx5xx": [],
+    "shot": "about-390-phone-slow4g.png"
+  },
+  {
+    "route": "/you",
+    "profile": "phone-slow4g",
+    "status": 200,
+    "wall": 12881,
+    "ttfb": 32,
+    "respStart": 246,
+    "domContentLoaded": 1353,
+    "load": 3549,
+    "fcp": 1504,
+    "lcp": 1504,
+    "cls": 0.0266,
+    "shifts": [
+      {
+        "v": 0.026563657148938356,
+        "t": 4436.399999991059,
+        "s": [
+          "SECTION.wantedPanel"
+        ]
+      }
+    ],
+    "longTasks": 2,
+    "requests": 78,
+    "transferKB": 649,
+    "decodedKB": 1880,
+    "byType": {
+      "link": {
+        "n": 29,
+        "b": 154957
+      },
+      "script": {
+        "n": 34,
+        "b": 460296
+      },
+      "other": {
+        "n": 1,
+        "b": 300
+      },
+      "fetch": {
+        "n": 12,
+        "b": 6674
+      },
+      "css": {
+        "n": 1,
+        "b": 31640
+      }
+    },
+    "heavy": [
+      {
+        "u": "/_next/static/immutable/chunks/1d5w2479ak_h6.js",
+        "kb": 65,
+        "ms": 2939
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28h-i7tzcehq3.js",
+        "kb": 57,
+        "ms": 585
+      },
+      {
+        "u": "/_next/static/immutable/media/83afe278b6a6bb3c-s.p.45535valc9rzk.woff2",
+        "kb": 48,
+        "ms": 996
+      },
+      {
+        "u": "/_next/static/immutable/chunks/2ikx7rmtximwe.js",
+        "kb": 31,
+        "ms": 2748
+      },
+      {
+        "u": "/_next/static/immutable/media/051742360c26797e-s.1wmoa0e_blxrz.woff2",
+        "kb": 31,
+        "ms": 735
+      },
+      {
+        "u": "/_next/static/immutable/chunks/00g-fx2h3pf9y.css",
+        "kb": 24,
+        "ms": 866
+      },
+      {
+        "u": "/_next/static/immutable/media/0c89a48fa5027cee-s.p.1ii7211jqpzi_.woff2",
+        "kb": 22,
+        "ms": 829
+      },
+      {
+        "u": "/_next/static/immutable/chunks/3sm5o85ohvjc6.js",
+        "kb": 22,
+        "ms": 2645
+      }
+    ],
+    "h1": "Make the night yours.",
+    "title": "Your profile | PUBMAXX",
+    "firstText": [
+      "PXX",
+      "Your PUBMAXX identity",
+      "Make the night yours.",
+      "Claim a unique @handle, meet your Pub Pal, and keep every moment in one place.",
+      "Claim your @handle",
+      "Meet your Pub Pal",
+      "Wanted",
+      "Paste a pub name or a link you saved elsewhere. It becomes a place you can plan around. We keep the link so you know where it came from, and we never fetch Instagram or TikTok.",
+      "Sign in to keep a Wanted list.",
+      "Your PUBMAXX",
+      "On this device",
+      "An account claims a handle, connects profiles, and keeps private Night Memories. What is saved on this device is only brought to an account after you review it.",
+      "Notifications",
+      "Step Out is a weekly, opt-in nudge for a Wanted pub near your patch, an open Soft Plan, or a sourced deal. Sign in to turn it on. Off by default. At most one push a week."
+    ],
+    "controls": [
+      {
+        "tag": "A",
+        "t": "PUBMAXX PUBMAX X",
+        "href": "/"
+      },
+      {
+        "tag": "A",
+        "t": "Activity",
+        "href": "/activity"
+      },
+      {
+        "tag": "A",
+        "t": "Messages",
+        "href": "/messages"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Switch to dark theme"
+      },
+      {
+        "tag": "A",
+        "t": "Claim your @handle",
+        "href": "/login?mode=signin&from=%2Fu%2Fyou"
+      },
+      {
+        "tag": "A",
+        "t": "Meet your Pub Pal",
+        "href": "/pal"
+      },
+      {
+        "tag": "A",
+        "t": "Now",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Places",
+        "href": "/places"
+      },
+      {
+        "tag": "A",
+        "t": "Out",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Social",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "You",
+        "href": "/u/you"
+      },
+      {
+        "tag": "BUTTON",
+        "t": "Create"
+      }
+    ],
+    "controlCount": 13,
+    "primary": [
+      "Claim your @handle"
+    ],
+    "console": [],
+    "failed": [],
+    "http4xx5xx": [],
+    "shot": "you-390-phone-slow4g.png"
+  },
+  {
+    "route": "/nope-404-check",
+    "profile": "phone-slow4g",
+    "status": 404,
+    "wall": 12188,
+    "ttfb": 51,
+    "respStart": 185,
+    "domContentLoaded": 866,
+    "load": 3012,
+    "fcp": 872,
+    "lcp": 872,
+    "cls": 0.0089,
+    "shifts": [
+      {
+        "v": 0.008455773234389822,
+        "t": 2482.9000000059605,
+        "s": [
+          "DIV"
+        ]
+      },
+      {
+        "v": 0.0004371006098245772,
+        "t": 2804,
+        "s": [
+          "#text"
+        ]
+      }
+    ],
+    "longTasks": 1,
+    "requests": 66,
+    "transferKB": 568,
+    "decodedKB": 1669,
+    "byType": {
+      "link": {
+        "n": 26,
+        "b": 70960
+      },
+      "script": {
+        "n": 29,
+        "b": 408248
+      },
+      "css": {
+        "n": 2,
+        "b": 71352
+      },
+      "other": {
+        "n": 1,
+        "b": 300
+      },
+      "fetch": {
+        "n": 7,
+        "b": 22578
+      }
+    },
+    "heavy": [
+      {
+        "u": "/_next/static/immutable/chunks/1d5w2479ak_h6.js",
+        "kb": 65,
+        "ms": 2535
+      },
+      {
+        "u": "/_next/static/immutable/chunks/28h-i7tzcehq3.js",
+        "kb": 57,
+        "ms": 877
+      },
+      {
+        "u": "/_next/static/immutable/media/83afe278b6a6bb3c-s.p.45535valc9rzk.woff2",
+        "kb": 48,
+        "ms": 1976
+      },
+      {
+        "u": "/_next/static/immutable/chunks/2ikx7rmtximwe.js",
+        "kb": 31,
+        "ms": 2249
+      },
+      {
+        "u": "/_next/static/immutable/chunks/00g-fx2h3pf9y.css",
+        "kb": 24,
+        "ms": 453
+      },
+      {
+        "u": "/_next/static/immutable/chunks/1c-4ghzq-fape.js",
+        "kb": 23,
+        "ms": 456
+      },
+      {
+        "u": "/_next/static/immutable/media/0c89a48fa5027cee-s.p.1ii7211jqpzi_.woff2",
+        "kb": 22,
+        "ms": 1659
+      },
+      {
+        "u": "/_next/static/immutable/chunks/3sm5o85ohvjc6.js",
+        "kb": 22,
+        "ms": 2089
+      }
+    ],
+    "h1": "Called for last orders here.",
+    "title": "PUBMAXX: listed pint prices on an interactive map",
+    "firstText": [
+      "PUBMAXX",
+      "PUBMAX",
+      "X",
+      "404",
+      "Called for last orders here.",
+      "Whatever was here has drunk up and gone home. The pubs haven’t.",
+      "Open the map",
+      "See tonight"
+    ],
+    "controls": [
+      {
+        "tag": "A",
+        "t": "Open the map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "See tonight",
+        "href": "/tonight"
+      },
+      {
+        "tag": "A",
+        "t": "Now",
+        "href": "/today"
+      },
+      {
+        "tag": "A",
+        "t": "Map",
+        "href": "/map"
+      },
+      {
+        "tag": "A",
+        "t": "Places",
+        "href": "/places"
+      },
+      {
+        "tag": "A",
+        "t": "Out",
+        "href": "/out"
+      },
+      {
+        "tag": "A",
+        "t": "Social",
+        "href": "/social"
+      },
+      {
+        "tag": "A",
+        "t": "You",
+        "href": "/u/you"
+      }
+    ],
+    "controlCount": 8,
+    "primary": [],
+    "console": [
+      {
+        "t": "error",
+        "text": "Failed to load resource: the server responded with a status of 404 ()"
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/3ts-e5wr0bbt9.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/21pl_przdqp7k.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/40u3c1pvgd7zn.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/1d_moxby1f183.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/14f73fwv3g8wq.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/21u9eaqsllg6_.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/3p8k2u9-hx4j1.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/43_n7y29vap_3.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/32yuy39iau6-1.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/2m7q9vhkukbck.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/151b29nq5quw6.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/2tgobp7p30fob.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/1sbqv66l_s9mu.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/1gh-z7qu67u3u.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/1z16v0vpsh57c.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/37-i5dyv2po59.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      },
+      {
+        "t": "warning",
+        "text": "The resource https://pubmaxxing.com/_next/static/immutable/chunks/3shr2-cfj72ml.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+      }
+    ],
+    "failed": [],
+    "http4xx5xx": [
+      {
+        "url": "https://pubmaxxing.com/nope-404-check",
+        "status": 404
+      }
+    ],
+    "shot": "nope-404-check-390-phone-slow4g.png"
+  }
+]

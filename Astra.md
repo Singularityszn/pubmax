@@ -297,9 +297,75 @@ The firstmate verifies the bar itself (`gh pr view --json mergeStateStatus,statu
 
 ## 9. Live walk of production, 7 September
 
-A scout is walking https://pubmaxxing.com at `74e688913` as a first-time user on a phone (390x844, Slow 4G and unthrottled) and on desktop (1440x900), clicking every control signed out, recording timings, console errors, and the journey. Its report is `data/astra-live-walk/report.md` with screenshots in `data/astra-live-walk/shots/`. The section below is filled from it.
+The scout walked https://pubmaxxing.com at `74e688913` between 12:05 and 13:45 BST on 7 September, signed out, read-only, in three cold profiles: phone 390x844 on Slow 4G with 4x CPU throttle, phone unthrottled, desktop 1440x900. Eighteen routes, every tab, every reachable control. 147 screenshots and the raw per-route metrics ride with this file under `docs/proof/astra-live-walk/` (the full report is `report.md` there; scripts to repeat every measurement are in `scripts/`).
 
-_The live walk is running as this version is pushed. Its findings land in the next commit on this branch._
+### 9.1 Headline
+
+The product is in better shape than the route list suggests. The landing, `/near`, the map itself and the venue sheet are good, fast, and honest about what they know. Three things spoil the first five minutes, and all three are cheap to fix:
+
+1. The map's own arrival card ("FIRST VISIT / Cheapest pints near you?") covers the bottom third of a phone screen over central London; the map's pin probe reports 0 tappable pins while the card is up and 32 to 41 the instant it is dismissed. Reproduced 3 of 3.
+2. The homepage's one primary action, "Still £6.50?", opens a price composer whose submit button reads "Sign in to post". The single call to action a stranger meets is a locked door.
+3. The Out tab is empty on every day: 148 real listings across tonight, tomorrow and the weekend, none surfaced because no venue matches, while `/tonight` says the city is having a quiet one. Two tabs contradict each other about the same night.
+
+No uncaught page errors on any route in any profile. No 4xx or 5xx except the deliberate 404 and one API bug (B2). TTFB 11 to 100 ms everywhere, median 24 ms. Every CLS inside 0.1.
+
+### 9.2 The stranger's first five minutes
+
+Land on `/`: the best screen on the site. One headline, one photo card (The Blackfriar, £6.50 a pint of Pravha, in the dear band, with publisher, date, and a 2013 archive price), a cheapest-in-borough rail with two £2.99 rows in green. Tap the coral primary "Still £6.50?": the Blackfriar sheet opens with a composer scrolled into view and a submit that says "Sign in to post". That is the stall. Back out, tap Map: pins in price colours, clusters, a lean four-control bar, and the arrival card over the densest pins with a black primary button (every other primary is coral). Tap a pin: a well-built sheet with seven tabs, busyness, hygiene, and "est. £6.50 / Estimated"; the next pin, the same. About a third of the slim pack carries no listed price. Tap Out: "Tonight's 31 listings are all at places we don't list yet" and a link to Ticketmaster. Tap Now: "The city's having a quiet one tonight." Try `/near`: location denied, it answers with central London, 71 priced pubs cheapest first, The Three Tuns at £2.95, "Keep for tonight" on each, no wall, under a second. This is the flow that works and should be what the landing primary does. Try `/plan`: a good composer; the shipped chip "cheap pints tonight in Shoreditch" takes 9.0 s to return a route with no progress signal. Tap a founding member: `/u/karan` is blank ("This passport is blank, for now") with a sign-in email form in the middle of someone else's profile.
+
+Where it flows: landing card, `/near`, the map once the card is gone, the venue sheet, `/plan`'s composer, `/places`. Where it stalls: the homepage primary, the map arrival card, `/out`, `/tonight` versus `/out`, `/plan` generation, founding profiles.
+
+### 9.3 Speed, per route (LCP in ms; requests and bytes from the unthrottled phone)
+
+| Route | LCP Slow 4G | LCP phone | LCP desktop | Requests | KB wire | KB decoded | CLS |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `/` | 2772 | 456 | 1076 | 57 | 606 | 1675 | 0.004 |
+| `/map` | 3316 | 552 | 1016 | 154 | 1354 | 6670 | 0.029 |
+| `/pubs` | 1640 | 592 | 1508 | 56 | 1343 | 2526 | 0 |
+| `/out` | 3592 | 436 | 2188 | 51 | 548 | 1651 | 0 |
+| `/tonight` | 4044 | 1128 | 508 | 68 | 607 | 1854 | 0.085 |
+| `/today` | 1392 | 176 | 444 | 54 | 533 | 1584 | 0 |
+| `/near` | 1280 | 272 | 604 | 56 | 554 | 1612 | 0 |
+| `/social` | 1468 | 276 | 264 | 72 | 641 | 1767 | 0 |
+| `/spoons-value` | 1712 | 640 | 1020 | 55 | 564 | 2117 | 0 |
+| `/pal` | 1356 | 412 | 548 | 51 | 548 | 1589 | 0 |
+| `/onboarding` (bounces to `/`) | 4676 | 476 | 1004 | 62 | 629 | 1707 | 0.004 |
+| `/u/you` | 1504 | 512 | 900 | 78 | 648 | 1880 | 0.027 |
+
+First tappable pin on `/map` (the map's own probe, polled from navigation start): desktop unthrottled median 2,537 ms over three runs; phone unthrottled null, null, 2,145 ms (two of three runs never reached a tappable pin inside 17.5 s because of the arrival card); phone Slow 4G 8,891 ms, of which about 3.6 s is the MapLibre chunk parse (pin data arrives at 5.3 s, the engine that draws it exists at 6.8 s).
+
+The three slowest things: `/pubs` ships 792 KB of five unresized photographs through the image proxy into a 344x168 box (load at 8.3 s on Slow 4G); `/plan`'s describe-chip generation takes 9.1 s with no progress state; `/map` decodes 6.7 MB on a phone and makes 154 to 203 requests, 85 of them slim-pack shards on desktop.
+
+### 9.4 Broken, ugly, confusing (worst first)
+
+- B1 (broken, P0): the map arrival card blocks every tappable pin on a first phone visit; its primary button is black, not coral. The project's own pin-ready budget is measured in a state a first-time user is never in.
+- B2 (broken, P1): `GET /api/area-news` answers 400 "Unknown area" for 5 of 20 night areas (balham, barnes, bermondsey-london-bridge, piccadilly-soho, victoria). `app/api/area-news/route.ts:30` gates on `isKnownAreaSlug`, which knows neighbourhood slugs (`soho`) while the map passes night-area slugs (`piccadilly-soho`). The map's "New round here" block fails silently over Soho, Victoria, Balham, Barnes and London Bridge.
+- B3 (confusing, P1): the homepage primary ends at a sign-in wall; the composer's explainer line is clipped at the top of the sheet; three ways to enter one number are stacked.
+- B4 (broken, P1): `/out` is empty on every day (31, 54, 63 listings, all unmatched), its only primary is "Open the map", and it contradicts `/tonight`.
+- B5 (broken, P2): `/spoons-value`'s "See it on the map" goes to bare `/map` with no units lens (`app/spoons-value/page.tsx:112`; `lib/spoonsValue.ts:666` returns `/map?sel=<id>` with no lens for all 805 rows), and its 805 row links prefetch the map (`SpoonsValueTable.tsx:86` has no `prefetch={false}`; the prefetch fence test misses it because it allow-lists helper names rather than matching call sites ending `mapHref`).
+- B6 (confusing, P2): `/onboarding` server-renders a document titled "Set up your first night" then bounces to `/`, recording the worst LCP on the site (4,676 ms on Slow 4G); the web first-run surface is unreachable.
+- B7 (ugly, P3): the 404 page preloads 17 stylesheets it never uses and carries the homepage title.
+- B8 (ugly, P2): `/pubs` ships 792 KB of unresized photographs; its first chain row is "No price logged yet" and its drink chips read "Shots" and "Whisky".
+- B9 (ugly, P2): the desktop map shows 17 chrome elements before a pin is touched; the Filters control works and badges correctly, but its popover has no visible container and clips the Elizabeth line banner; the Clubs chip is permanently disabled with a `title` no phone shows.
+- B10 (confusing, P3): founding member profiles are blank and carry an inline sign-in form.
+- B11 (small): `/drinks` redirects to an empty Discover panel; the consent card sits 8 px above the tab bar rather than flush and its copy is cramped beside two unequal buttons; MapLibre logs US road-shield style warnings on every load; the plan stop-count chips and the price chips are two different number-chip shapes.
+
+Verified correct: the consent card fires only after the product answers first (absent on `/` and `/tonight` on first visit, present on the second route, full-bleed, opaque); the five price chips wrap exactly 4+1 at 390; the venue sheet opens at a fixed 464 px box; the tab bar hides under an open sheet by design; all six tabs navigate in about a second; `/near` degrades perfectly when location is denied.
+
+### 9.5 What a new plan should fix first (the scout's order)
+
+1. Take the map arrival card off the pins: a top strip, a chip, or dismiss on the first map gesture.
+2. Point the homepage primary at an answer, not a login: send "Still £6.50?" to the unauthenticated result `/near` already gives and ask for the account after the answer.
+3. Accept night-area slugs in `isKnownAreaSlug`, or answer `unavailable` with a 200 for an unmapped area.
+4. Give `/out` something or fold it into `/tonight`.
+5. Carry the units lens on `/spoons-value`'s CTA and its 805 row links.
+6. `prefetch={false}` at `SpoonsValueTable.tsx:86`, and make the prefetch fence match call sites ending `mapHref` or `mapUrl`.
+7. Resize image-proxy output to the requested box with a `srcset` (792 KB to about 60 KB on `/pubs`).
+8. A progress state on `/plan`'s describe chips, and profile the 9 s generation.
+9. Cut the desktop map's 17 arrival controls; enable the Clubs chip or drop it.
+10. Decide what `/onboarding` is on the web: a real surface, or an edge redirect that ships no document.
+
+Two of these are product calls and are held for the captain (section 10.1): what `/out` is, and what the landing primary does (captain decision of 4 September, issue #1357, made it the Pint Drop door).
 
 ---
 
@@ -316,9 +382,14 @@ _The live walk is running as this version is pushed. Its findings land in the ne
 7. Supabase dashboard: enable leaked-password protection (password paths named in the #1586 PR body). Vercel: delete `PUBMAX_FRIEND_MEMBER_REHYDRATION_V2` from both environments; point the Preview environment at an isolated Supabase project; set the firewall challenge to documents only.
 8. Reddit r/london megathread ingestion ("add all of these to London and make it more dense"): Reddit returns 403 to this Mac on every route; the captain pastes the thread text or creates a Reddit API app.
 9. Dependabot: two green dependency groups (#1607, #1608) await "merge deps"; the two vitest 5 majors (#1609, #1610) are red and need a lane or a close.
-10. Older held calls: `review-merged-code-captain-calls`, `review-thermonuclear-captain-calls`, `review-codebase-design-captain-calls` (#727 retarget, `lib/` fold), `vendored-skills-in-repo`, `budget-resample-one-sided`.
+10. From the live walk: what `/out` is (`astra-live-walk-out-tab`: invest in venue matching, fold it into `/tonight`, or print unmatched listings as rows with a source credit); what the landing primary does (`astra-live-walk-landing-primary`: keep the Pint Drop door and its sign-in wall, send it to the `/near`-style answer and ask for the account after, or let a signed-out drinker post).
+11. Older held calls: `review-merged-code-captain-calls`, `review-thermonuclear-captain-calls`, `review-codebase-design-captain-calls` (#727 retarget, `lib/` fold), `vendored-skills-in-repo`, `budget-resample-one-sided`.
 
-### 10.2 Wave 1: the first sixty seconds and the photograph (next)
+### 10.2 Wave 0, this week: the live walk's ten fixes
+
+Section 9.5 in the scout's order. B1, B2, B5, B6 and B8 are root-caused to a line and are each a small testable PR (section 8 of the walk report names the existing test pin for each). B3 and B4 wait on the two captain calls above.
+
+### 10.3 Wave 1: the first sixty seconds and the photograph
 
 - D1 first screen: one question ("Where are you drinking?") with an area picker and Near me, then the cheapest three pints there, then the map with the answer selected (PlanAstra section 3 is the screen-by-screen script).
 - D4 onboarding: the sixty-second flow on the web and in the shell.
@@ -327,23 +398,23 @@ _The live walk is running as this version is pushed. Its findings land in the ne
 - Desktop LCP: `/pal` 5.9 s p75 in the field; the desktop row now recorded, the fix is next.
 - The reduced map toolbar at 768 and 1440 (Filters shipped; banners stack one at a time; the first-visit card replaces the Pal chip while open).
 
-### 10.3 Wave 2: a second person
+### 10.4 Wave 2: a second person
 
 The public London-tonight lane on Social signed out (recent public Pint Drops with photos, open crews, historic picks; sign-in only on the first write), camera-first Pint Drop, "I'm here" on the sheet, the second-drinker door on the pin, the contributor record with faces. Proves: a stranger sees someone else's photo and price before signing in; a drop takes three taps.
 
-### 10.4 Wave 3: plan together
+### 10.5 Wave 3: plan together
 
 Plan chat, open crews on the map, the plan as a card, Rounds folded (D8), the recap share-first, the WhatsApp share text with an absolute host. Proves: two accounts plan and talk in one place; a stranger can ask to join a night.
 
-### 10.5 Wave 4: the second Friday
+### 10.6 Wave 4: the second Friday
 
 The Friday 17:00 digest (push, email fallback), the weekly "still £X?" ask, activity that is activity, passport stamps, hours on the sheet. Proves: a reader who logged one pint hears from the product once a week and comes back.
 
-### 10.6 Wave 5: the stores and the city
+### 10.7 Wave 5: the stores and the city
 
 iOS and Android submission through the owner-only steps in `docs/STORE_READINESS.md` section 8; the share target; the historic index as walks; drink pages for every brand the landing can name; the P2 debt from the six reviews.
 
-### 10.7 Engineering debt worth a lane each
+### 10.8 Engineering debt worth a lane each
 
 - The P2 lists: `lib/` is 871 flat modules (fold by domain); ten test files are half the suite's cost; 209 exported lib symbols exist only for tests; four runtime import cycles in the auth provider; the design law lives in four places (one door now, the rest to fold); one-area geometry and location-ask fences; the dataset should have one reader.
 - `INSTALLED_SKILLS.md` (300 KB) and the vendored `skills/` tree in the product repo (held call `vendored-skills-in-repo`).
@@ -351,7 +422,7 @@ iOS and Android submission through the owner-only steps in `docs/STORE_READINESS
 - Pint Index: empty since 16 July; hold or seed (D10).
 - `/drink/pravha` 404; two city pickers; test handles on the founders wall; `/rounds` stub; `/we-are-out` dark.
 
-### 10.8 Measurement
+### 10.9 Measurement
 
 North star: weekly groups that complete a planned outing and repeat (`docs/analytics/METRICS.md`). Release metric: Weekly Meaningful Nights (`docs/analytics/TRACKING_PLAN.md`). Every event now carries environment, release and schema version, so a preview's numbers and production's no longer share a bucket. PostHog is connected (key in Vercel env). The Slow 4G table and the desktop row in PlanAstra section 6 are the speed scoreboard.
 
@@ -402,7 +473,7 @@ North star: weekly groups that complete a planned outing and repeat (`docs/analy
 
 ## 14. Index of sources
 
-Fleet home `~/karan-agent-workspace`: `data/captain.md` (laws), `data/learnings.md` (operational facts), `data/checkpoints/2026-09-0{3,4,5,6}-pubmax.md` (the minute-by-minute record), `data/backlog.md`, `data/<lane>/brief.md` and `data/<lane>/report.md`, `data/audits/`, `data/reports/PlanAstra.md`, `data/verify-main-preview/report.md`, `data/astra-live-walk/report.md`.
+Fleet home `~/karan-agent-workspace`: `data/captain.md` (laws), `data/learnings.md` (operational facts), `data/checkpoints/2026-09-0{3,4,5,6}-pubmax.md` (the minute-by-minute record), `data/backlog.md`, `data/<lane>/brief.md` and `data/<lane>/report.md`, `data/audits/`, `data/reports/PlanAstra.md`, `data/verify-main-preview/report.md`, `data/astra-live-walk/report.md` (also in the repository under `docs/proof/astra-live-walk/`).
 
 GitHub: https://github.com/Singularityszn/pubmax pull requests #1331 to #1611; Wayfinder maps #1354, #1423, #1576; grilling ticket #1580; residual epic #1522; review-bloat epic #727.
 
