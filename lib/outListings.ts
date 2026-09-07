@@ -13,7 +13,10 @@ export const OUT_DAY_WINDOWS = ["tonight", "tomorrow", "weekend"] as const;
 export type OutDayWindow = (typeof OUT_DAY_WINDOWS)[number];
 
 /**
- * What /out lists: everything the What's-On vocabulary holds EXCEPT deals.
+ * Which SPINE kinds reach /out: everything the What's-On vocabulary holds
+ * except deals. This is a filter over `WHATS_ON_KINDS`, and it is a different
+ * question from what a row is CALLED on screen, which is
+ * `OUT_LISTING_KINDS` in lib/out/listingKind.ts.
  *
  * Stated as the one exclusion rather than as a list of three, so a kind added
  * to the shared taxonomy later - the L2 events lane is the next one - reaches

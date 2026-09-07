@@ -106,56 +106,43 @@
   line-height: 1.45;
 }
 
-.outListingUnmatched {
-  margin: 0 0 16px;
-}
-
-/* The aside is a footnote about the rows that are NOT on the cards above it,
-   so it may not carry the weight of the page's own copy: at status size it
-   read as a second section rather than as a note under the first. The rule
-   above the block marks where the cards stop and the note begins. The lead
-   role keeps full strength on purpose, because with no card above it the
-   notice is the night's answer. */
-.outListingUnmatched[data-role="aside"] {
-  margin-top: 6px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
+/* Both footnotes sit UNDER the list they are about, at a quieter weight than
+   the page's own status copy: a note about the listings may not read as a
+   second section above them. */
+.outListingUnmatchedLine {
+  margin: 14px 0 6px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
   color: color-mix(in srgb, var(--ink-soft) 82%, transparent);
 }
 
-.outListingUnmatched .outListingUnmatchedLine {
-  margin-bottom: 6px;
-  overflow-wrap: anywhere;
-}
-
-.outListingUnmatched[data-role="aside"] .outListingUnmatchedLine,
-.outListingUnmatched[data-role="aside"] .outListingUnmatchedCredit,
-.outListingUnmatched[data-role="aside"] .outListingUnmatchedWay {
-  color: inherit;
-  font-size: 0.85rem;
-}
-
-.outListingUnmatched[data-role="aside"] .outPlansFootLink {
-  color: inherit;
-}
-
 .outListingUnmatchedCredit {
-  margin: 0 0 6px;
+  margin: 14px 0 6px;
   color: var(--ink-soft);
   font-size: 0.85rem;
   line-height: 1.45;
+}
+
+/* The primary NAMES the listing it opens, and a gig title is as long as its
+   promoter made it. The button holds one line and clips the tail rather than
+   growing past the column; the whole title stays in the DOM, so the link's
+   accessible name is never the truncated one. */
+.outPrimaryListing {
+  max-width: min(100%, 26rem);
+}
+
+.outPrimaryListingLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .outListingUnmatchedCredit a {
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 3px;
-}
-
-.outListingUnmatchedWay {
-  margin: 0;
-  font-size: 0.95rem;
-  line-height: 1.45;
 }
 
 /* The card box is the LIST ITEM, not the link. The source credit is its own
@@ -186,6 +173,17 @@
   text-decoration: none;
 }
 
+/* The card is the row's route now, so it has to read as one. The title takes
+   the underline on hover rather than the whole box taking a colour: the row
+   already carries a credit link and a map link, and three highlighted boxes
+   inside one card is noise. */
+@media (hover: hover) and (pointer: fine) {
+  a.outCard:hover :is(h2, h4) {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
 .outCard h2,
 .outCard h4 {
   margin: 0;
@@ -196,10 +194,35 @@
 }
 
 .outCardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
   margin: 0;
   font-size: 0.85rem;
   line-height: 1.4;
   color: var(--ink-soft);
+}
+
+/* The kind is the first thing a reader scans for on a whole-city list, so it
+   is a chip rather than another clause: a gig, a club night and a market are
+   three different evenings and they arrive here under one word, "event". */
+.outCardKind {
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* The gap is the separator. A punctuation mark between the place and the time
+   became an orphan at the head of a wrapped line, which is exactly the width
+   this meta line has to survive on a phone. */
+.outCardWhen {
+  white-space: nowrap;
 }
 
 .outPrice {
@@ -385,19 +408,19 @@
     max-width: var(--content-max-wide, 1240px);
   }
 
+  /* The nights stack; the ROWS inside one night take the two columns. A
+     two-column surface put Tonight in the left half and left the right half
+     of the page empty on every single-night chip. */
   .outListingSurface {
     max-width: 1120px;
     margin-inline: auto;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 24px;
     row-gap: 28px;
   }
 
-  /* The aside's rule marks where the cards stop, so it holds the card
-     column's own width rather than the page's. */
-  .outListingUnmatched[data-role="aside"] {
-    max-width: 1120px;
-    margin-inline: auto;
+  .outGroupList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 24px;
+    row-gap: 16px;
   }
 
   .outListingRow {

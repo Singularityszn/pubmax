@@ -104,39 +104,59 @@ describe("Skiddle credit, and the fence standing in for the asset we do not hold
 });
 
 describe("the out card", () => {
-  it("does not make an unmatched event card look tappable", () => {
-    const html = renderToStaticMarkup(
-      createElement(OutCard, {
-        row: eventRow({ venueId: "   " }),
-      }),
+  // WHERE A CARD GOES IS THE ROW'S OWN ROUTE. The publisher's event page comes
+  // first, because the credit and the link are one claim and the attribution is
+  // owed either way; the pub keeps its own way in beside the card, which is the
+  // rule lib/tonightOutListings.ts already states for the same rows on Tonight.
+  it("opens the publisher's own event page, matched or not", () => {
+    const unmatched = renderToStaticMarkup(
+      createElement(OutCard, { row: eventRow({ venueId: "   " }) }),
     );
-
-    expect(html).toContain('class="outCard outCard--static"');
-    expect(html).not.toMatch(/<a[^>]*class="outCard(?:\s|\")/);
-    // The source credit remains the explicit publisher link.
-    expect(html).toContain('class="outSourceCredit"');
+    expect(unmatched).toMatch(/<a[^>]*class="outCard"/);
+    expect(unmatched).toContain('href="https://www.skiddle.com/whats-on/e/1"');
+    expect(unmatched).toContain('class="outSourceCredit"');
   });
 
-  it("makes a matched event card open its canonical PUBMAXX venue", () => {
+  it("falls back to the pub when the publisher published no event page", () => {
     const html = renderToStaticMarkup(
       createElement(OutCard, {
-        row: eventRow({ venueId: " venue-warehouse " }),
+        row: eventRow({
+          venueId: " venue-warehouse ",
+          source: { label: "Skiddle", url: "https://www.skiddle.com/" },
+        }),
       }),
     );
 
     expect(html).toContain('href="/map?sel=venue-warehouse"');
     expect(html).toMatch(/<a[^>]*class="outCard"/);
-    // The publisher remains a separate source-credit link, not the card action.
-    expect(html).toContain("https://www.skiddle.com/whats-on/e/1");
+    // A front door is no event page, so the credit prints as text, not a link.
+    expect(html).toContain('class="outSourceCredit outSourceCredit--unlinked"');
   });
 
-  it("keeps the source credit link separate from the static card", () => {
+  it("stays visibly static when neither a pub nor an event page exists", () => {
+    const html = renderToStaticMarkup(
+      createElement(OutCard, {
+        row: eventRow({
+          venueId: "   ",
+          source: { label: "Skiddle", url: "https://www.skiddle.com/" },
+        }),
+      }),
+    );
+
+    expect(html).toContain('class="outCard outCard--static"');
+    expect(html).not.toMatch(/<a[^>]*class="outCard(?:\s|")/);
+  });
+
+  it("keeps the source credit its own link, after the card and never inside it", () => {
     const html = renderToStaticMarkup(createElement(OutCard, { row: eventRow() }));
     const creditAnchorAt = html.indexOf('class="outSourceCredit"');
-    const cardAt = html.indexOf('class="outCard outCard--static"');
+    const cardAt = html.indexOf('class="outCard"');
     expect(creditAnchorAt).toBeGreaterThan(-1);
     expect(cardAt).toBeGreaterThan(-1);
     expect(cardAt).toBeLessThan(creditAnchorAt);
+    // An anchor inside an anchor is invalid HTML the parser un-nests, so the
+    // card anchor must CLOSE before the credit anchor opens.
+    expect(html.indexOf("</a>")).toBeLessThan(creditAnchorAt);
     expect(html).toContain("https://www.skiddle.com/whats-on/e/1");
   });
 
