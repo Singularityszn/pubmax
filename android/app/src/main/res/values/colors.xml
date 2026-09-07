@@ -38,6 +38,6 @@
          own default painted it white over an off-white page, which read as a
          browser's chrome. It is the page's paper token, with the dark paper in
          values-night, so the band is the page whichever way the phone reads.
-         paper: the page --paper body remap in app/globals.css. -->
+         paper: the page paper token, the body remap in app/globals.css. -->
     <color name="pubmaxx_window_background">#F8F2EC</color>
 </resources>

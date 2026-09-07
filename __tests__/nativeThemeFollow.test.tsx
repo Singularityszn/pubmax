@@ -19,7 +19,7 @@ import {
 // Measured: docs/proof/mobile-app-design/ios-sim-iphone17pro/tonight/
 // os-dark-while-open.png.
 
-const syncNativeSystemBars = vi.fn(async () => true);
+const syncNativeSystemBars = vi.fn(async (_theme: string) => true);
 const isNativeApp = vi.fn(() => true);
 vi.mock("@/lib/nativePlatform", () => ({ isNativeApp: () => isNativeApp() }));
 vi.mock("@/lib/nativeSystemBars", () => ({
