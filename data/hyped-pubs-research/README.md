@@ -3,8 +3,8 @@
 Issue: [#1618](https://github.com/Singularityszn/pubmax/issues/1618).
 
 The research window is **8 August through 7 September 2026**, inclusive.
-The file contains **34 venues and 98 distinct source links across their rows**.
-One source can support several venues, so 98 is not a count of unique documents across the file.
+The file contains **34 venues and 97 source links across their rows**, covering 80 unique URLs.
+One source can support several venues.
 
 Each source records two dates:
 
@@ -43,7 +43,21 @@ The selection excludes several misleading matches:
 
 Multi-venue entries are narrowed to the named venue where evidence permits it.
 Coach & Horses uses Soho, Blues Kitchen uses Brixton, and Bricklayers Arms uses Putney.
-An unresolved venue identifier stays `null`; the existing ingest can resolve an unambiguous curated match.
+The ingest requires both name and area to match a curated name and borough before assigning an absent ID.
+Neighbourhood aliases need an explicit verified ID.
+Ye Olde Mitre in Holborn uses `venue-lkjwk4`, the curated entry at 51.51844, -0.107454, labelled Camden.
+Hope and Anchor and Blues Kitchen stay unmatched because their Brixton locations differ from the held Hammersmith and Camden venues.
+The pack retains 24 verified map matches.
+
+Deleted comment `p61pmvm` supplies no readable evidence and is excluded.
+Hope and Anchor therefore has five sources and a score of 42.
+Effra Social describes an invitation, not a confirmed meeting; Roebuck no longer attributes walks to its sources.
+
+The page shows one credit per row and selects the first source when capture dates tie.
+Put a source supporting the whole why line first, regardless of publication order.
+Devonshire credits the `amiet` caption about atmosphere and Guinness.
+Princess Louise credits its interior description; the why line omits history found only in another source.
+Source order does not change the newest publication date used for scoring.
 
 ## Sources reached
 

@@ -22,10 +22,9 @@
 // opens by `?sel=`; the pub is real and so is the talk about it, so the row
 // keeps its place and loses only its pin.
 //
-// WHAT IT FILLS IN: the venue id, when the pub's name matches exactly ONE
-// curated venue. An ambiguous name is left unmatched on purpose, because the
-// wrong pin on the right name is the worst answer available: the row still
-// shows, and says it is not on our map yet.
+// Fill an absent venue id only when name and area match one curated venue.
+// Neighbourhood or name aliases need a verified explicit curated id.
+// A name alone cannot prove which pub the source describes.
 //
 // AN EMPTY PUBLISH IS REFUSED over a file that already carries rows, the rule
 // `scripts/build_pint_index_snapshot.mjs` takes: a read that found nothing
@@ -186,8 +185,7 @@ export function buildHypedPubsFile(input, venues, now = Date.now()) {
       const inArea = candidates.filter(
         (venue) => area.length > 0 && normaliseVenueName(venue.borough) === area,
       );
-      const pool = inArea.length > 0 ? inArea : candidates;
-      if (pool.length === 1) venueId = pool[0].id;
+      if (inArea.length === 1) venueId = inArea[0].id;
     }
     if (venueId) matched += 1;
 

@@ -28,10 +28,11 @@ dated in the future; and a stated `venueId` no curated venue answers to. Every
 refusal is counted in the run report, so a research file gets better rather
 than quietly shorter.
 
-The ingest FILLS IN a `venueId` when the name matches exactly one curated
-venue, using the area to tell two pubs of one name apart. An ambiguous name is
-left unmatched on purpose: the row still shows, and says it is not on our map
-yet, because the wrong pin under the right name is the worst answer available.
+The ingest fills in a `venueId` only when name and area match one curated venue's name and borough.
+It normalises case, punctuation and a leading "The" before matching.
+A neighbourhood or name alias needs an explicit curated ID, verified during research.
+An ambiguous or mismatched area stays unmatched, even when the index holds only one pub with that name.
+The row still shows and says it is not on our map yet.
 
 ## Rules a reader should know
 
