@@ -22,14 +22,24 @@ function seedDismissedChrome(page: Page): Promise<void> {
   });
 }
 
-async function openMap(page: Page): Promise<void> {
+/**
+ * A phone has no `.mapToolbar` at all: the desktop toolbar is the surface this
+ * lane changed, and the phone reads its own top bar. Waiting for the wrong one
+ * is a 30 second timeout that reads like a missing control.
+ */
+async function openMap(page: Page, phone = false): Promise<void> {
   const response = await page.goto("/map", { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(200);
-  await expect(page.locator(".mapToolbar")).toBeVisible({ timeout: 30_000 });
+  await expect(
+    page.locator(phone ? ".mobileMapTopbar" : ".mapToolbar"),
+  ).toBeVisible({ timeout: 60_000 });
 }
 
 for (const viewport of DESKTOP) {
   test.describe(`${viewport.width}x${viewport.height}`, () => {
+    // A cold production map plus a retried first tap outruns the 30s default.
+    test.describe.configure({ timeout: 120_000 });
+
     test.beforeEach(async ({ page }) => {
       await seedDismissedChrome(page);
       await page.setViewportSize(viewport);
@@ -153,12 +163,14 @@ for (const viewport of DESKTOP) {
 }
 
 test.describe("390x844", () => {
+  test.describe.configure({ timeout: 120_000 });
+
   test("leaves the phone exactly as it was: chips in the Filters sheet", async ({
     page,
   }) => {
     await seedDismissedChrome(page);
     await page.setViewportSize({ width: 390, height: 844 });
-    await openMap(page);
+    await openMap(page, true);
 
     // The desktop control never reaches a phone.
     await expect(page.locator(".mapVenueKindFilterBtn")).toHaveCount(0);
