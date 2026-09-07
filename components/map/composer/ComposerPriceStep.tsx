@@ -75,7 +75,15 @@ export function ComposerPriceStep({
               <button
                 key={price}
                 type="button"
-                className={selected ? "priceChip stampChip selected" : "priceChip stampChip"}
+                className={[
+                  "priceChip stampChip",
+                  selected ? "selected" : "",
+                  // A tagged chip carries a word beside its figure, so the
+                  // ladder gives it two columns (lib/priceChipLadder.ts).
+                  isLastKnown ? "priceChip--tagged" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
                 onClick={() => setDropForm({ ...dropForm, price: label })}
                 title={isLastKnown ? "This pub's last logged price" : undefined}
                 aria-pressed={selected}

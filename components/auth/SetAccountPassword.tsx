@@ -15,6 +15,7 @@ import {
   checkPassword,
 } from "@/lib/passwordPolicy";
 import { discardBody } from "@/lib/responseBody";
+import { Button } from "@/components/ui/button";
 
 /**
  * Create or change the password on the signed-in account.
@@ -227,9 +228,9 @@ export default function SetAccountPassword(): React.JSX.Element | null {
           required
         />
       </label>
-      <button type="submit" disabled={busy}>
+      <Button variant="secondary" type="submit" disabled={busy}>
         {busy ? "Saving…" : "Save password"}
-      </button>
+      </Button>
       {message ? (
         <p className="accountHubMessage" role="status">
           {message}

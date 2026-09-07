@@ -36,6 +36,7 @@ import {
 } from "@/lib/accountDeletion";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { AuthActionSessionError, authedActionFetch } from "@/lib/authedFetch";
+import { Button } from "@/components/ui/button";
 
 type Phase = "idle" | "confirming" | "deleting" | "deleted";
 
@@ -95,7 +96,8 @@ export default function DeleteAccountCard(): React.JSX.Element | null {
       <h3>{ACCOUNT_DELETION_TITLE}</h3>
       <p>{ACCOUNT_DELETION_LEDE}</p>
       {phase === "idle" ? (
-        <button
+        <Button
+          variant="secondary"
           type="button"
           className="accountHubDeleteOpen"
           onClick={() => {
@@ -104,7 +106,7 @@ export default function DeleteAccountCard(): React.JSX.Element | null {
           }}
         >
           {ACCOUNT_DELETION_OPEN_LABEL}
-        </button>
+        </Button>
       ) : (
         <div
           className="accountHubDeleteConfirm"
@@ -124,15 +126,17 @@ export default function DeleteAccountCard(): React.JSX.Element | null {
             ))}
           </ul>
           <div className="accountHubActions">
-            <button
+            <Button
+              variant="danger"
               type="button"
               className="accountHubDeleteConfirmBtn"
               disabled={phase !== "confirming"}
               onClick={() => void deleteAccount()}
             >
               {ACCOUNT_DELETION_CONFIRM_LABEL}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="secondary"
               type="button"
               className="accountHubDeleteCancel"
               disabled={phase !== "confirming"}
@@ -142,7 +146,7 @@ export default function DeleteAccountCard(): React.JSX.Element | null {
               }}
             >
               {ACCOUNT_DELETION_CANCEL_LABEL}
-            </button>
+            </Button>
           </div>
         </div>
       )}

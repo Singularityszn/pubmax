@@ -622,10 +622,11 @@
    rather than shrinking a tap target or scrolling sideways. */
 .planStopCount { margin: var(--space-2) 0 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
 .planStopCount__label { color: var(--muted); font-size: 0.78rem; font-weight: 800; }
+/* Layout only. Each count is the shared number square, painted by
+   components/ui/chip.css from the --control-* row, so the planner and the
+   /pubs fare-zone picker are one family rather than a 10px square beside a
+   6px one (the 6 Sep 2026 design review). */
 .planStopCount__choices { display: flex; flex-wrap: wrap; gap: 6px; }
-.planStopCount__choices button { min-width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); font: inherit; font-size: 0.8rem; font-weight: 800; cursor: pointer; }
-.planStopCount__choices button[aria-pressed="true"] { border-color: var(--plan-accent); background: color-mix(in srgb, var(--plan-accent) 13%, var(--panel)); color: var(--plan-accent-strong); }
-.planStopCount__choices button:focus-visible { outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent); outline-offset: 2px; }
 .planDescribeFirst__chips { margin: var(--space-2) 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .planDescribeFirst__chip {
   min-height: 44px;

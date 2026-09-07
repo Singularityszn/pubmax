@@ -245,15 +245,33 @@
   outline-offset: 1px;
 }
 
+/* THE LADDER, and its numbers are lib/priceChipLadder.ts's rather than this
+   sheet's: four across, at every width. An equal-column grid, so five chips
+   read as four and one with the fifth starting the second row in the FIRST
+   column, instead of a flex wrap that re-cut its rows whenever a label grew
+   (it stood 4 + 1 at 390 and 3 + 2 in the desktop drawer on the same build).
+   Four rather than five because the row this grid sits in is 269px in the
+   phone sheet and 238px in the desktop drawer, and five 44px targets plus
+   their gaps need 244px. `minmax(0, 1fr)` lets a long label shrink its own
+   text rather than push the row sideways, and the chip's own min-height keeps
+   the target. Fence: __tests__/priceChipLadder.test.ts. */
 .priceQuickAdds {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
 }
 
 .priceChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
   min-height: 44px;
   padding: 6px 11px;
+  /* A column is the ladder's, so a figure longer than the ones shipped today
+     is clipped by its own control rather than painted outside it. */
+  overflow: hidden;
+  white-space: nowrap;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--panel-raised);
@@ -261,6 +279,13 @@
   font-size: 0.76rem;
   font-weight: 700;
   cursor: pointer;
+}
+
+/* The pub's own last logged price carries a word beside its figure, so it
+   takes two columns of the ladder rather than clipping inside one. It leads
+   the list, so it still starts the first row in the first column. */
+.priceChip--tagged {
+  grid-column: span 2;
 }
 
 .priceChip:hover {

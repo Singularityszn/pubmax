@@ -17,6 +17,7 @@ import {
   type PrivateIdentityGender,
 } from "@/lib/privateIdentity";
 import { loadPrivateIdentity } from "@/lib/privateIdentityClient";
+import { Button } from "@/components/ui/button";
 
 const GENDER_LABELS: Record<PrivateIdentityGender, string> = {
   woman: "Woman",
@@ -133,13 +134,13 @@ export function PrivateIdentityEditorForm({
         Only your handle is public. These details stay private and never show
         on your profile.
       </small>
-      <button type="submit" disabled={!saveEnabled || saving}>
+      <Button variant="secondary" type="submit" disabled={!saveEnabled || saving}>
         {saving ? "Saving…" : "Save private details"}
-      </button>
+      </Button>
       {onRetryLoad ? (
-        <button type="button" onClick={onRetryLoad}>
+        <Button variant="secondary" type="button" onClick={onRetryLoad}>
           Try again
-        </button>
+        </Button>
       ) : null}
       {message ? <small role="status">{message}</small> : null}
     </form>

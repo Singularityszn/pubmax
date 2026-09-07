@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
 
+import { Chip } from "@/components/ui/chip";
 import {
   SCRAPED_SOURCE_LABELS,
   type ScrapedPubSourceId,
@@ -84,27 +85,29 @@ export default function PubsFilters({
         })}
       </div>
 
+      {/* The fare zones are number squares, and a number square is ONE family:
+          this row renders the same `Chip variant="number"` the planner's
+          pub-stop count renders (components/ui/chip.tsx), rather than a
+          look-alike square of its own. */}
       {zonesPresent.length > 0 ? (
         <div className="zoneChips pubsZoneChips" role="group" aria-label="Filter by fare zone">
-          <button
-            type="button"
-            className={zone === "all" ? "zoneChip isOn" : "zoneChip"}
+          <Chip
+            variant="number"
             aria-pressed={zone === "all"}
             onClick={() => navigate(filter, "all")}
           >
             All zones
-          </button>
+          </Chip>
           {zonesPresent.map((id) => (
-            <button
+            <Chip
               key={id}
-              type="button"
-              className={zone === id ? "zoneChip isOn" : "zoneChip"}
+              variant="number"
               aria-pressed={zone === id}
               aria-label={`Zone ${id}${zone === id ? " (selected)" : ""}`}
               onClick={() => navigate(filter, id as ZoneSelection)}
             >
               {id}
-            </button>
+            </Chip>
           ))}
         </div>
       ) : null}

@@ -34,6 +34,10 @@ describe("browser credential form contracts", () => {
     expect(accountPasswordSource).toContain('autoComplete="current-password"');
     expect(accountPasswordSource).toContain('name="new-password"');
     expect(accountPasswordSource).toContain('autoComplete="new-password"');
-    expect(accountPasswordSource).toMatch(/<button[\s\S]*type="submit"/);
+    // A real submit control, which is what a password manager looks for. The
+    // profile editor renders it through the Button primitive
+    // (components/ui/button.tsx), and that primitive renders a <button> with
+    // the type it is handed; __tests__/buttonPrimitive.test.tsx holds that.
+    expect(accountPasswordSource).toMatch(/<(button|Button)[\s\S]*type="submit"/);
   });
 });

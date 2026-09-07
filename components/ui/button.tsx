@@ -14,6 +14,7 @@ const buttonVariants = cva("uiButton", {
       primary: "uiButton--primary",
       secondary: "uiButton--secondary",
       ghost: "uiButton--ghost",
+      danger: "uiButton--danger",
     },
     size: {
       default: "",

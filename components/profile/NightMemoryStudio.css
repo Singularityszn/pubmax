@@ -38,14 +38,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  padding: 0 18px;
+  min-height: var(--control-height, 44px);
+  padding: 0 var(--control-pad-x, 16px);
   border: 1px solid color-mix(in srgb, var(--brass) 50%, var(--line));
-  border-radius: 999px;
+  /* One family on this surface: these two are <Link>s rather than buttons, so
+     they cannot be the primitive, and they read the same --control-* row it
+     reads instead of a 999px pill at weight 750. */
+  border-radius: var(--control-radius, 14px);
   background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
   color: var(--ink);
-  font-size: 0.86rem;
-  font-weight: 750;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   text-decoration: none;
   transition: border-color 0.16s ease, background 0.16s ease;
 }
@@ -67,14 +70,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  padding: 0 18px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
+  min-height: var(--control-height, 44px);
+  padding: 0 var(--control-pad-x, 16px);
+  border: 1px solid var(--control-secondary-border, var(--line));
+  border-radius: var(--control-radius, 14px);
   background: transparent;
   color: var(--ink-soft);
-  font-size: 0.86rem;
-  font-weight: 700;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   text-decoration: none;
   transition: border-color 0.16s ease, color 0.16s ease;
 }
