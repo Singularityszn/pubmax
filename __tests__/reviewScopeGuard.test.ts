@@ -468,6 +468,38 @@ describe("local review scope", () => {
     },
   );
 
+  it("runs the guard when the CLI path is a symlink", () => {
+    write("public/data/uk_base/manifest.json", "{}\n");
+    const linkedScript = join(repo, "review-scope-link.mjs");
+    symlinkSync(script, linkedScript);
+    const result = spawnSync(
+      process.execPath,
+      [linkedScript, "--local", "--repo", repo],
+      { encoding: "utf8" },
+    );
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout).forbidden).toContainEqual({
+      category: "generated",
+      path: "public/data/uk_base/manifest.json",
+    });
+  });
+
+  it("keeps imports inert when argv does not identify an executable file", () => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        "const script = process.argv[1]; process.argv[1] = 'missing-entry.mjs'; await import(script);",
+        script,
+      ],
+      { cwd: repo, encoding: "utf8" },
+    );
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe("");
+  });
+
   it("returns an empty review for a clean base checkout", () => {
     expect(localChangesFromGit(repo)).toEqual({
       base: git("rev-parse", "HEAD"),

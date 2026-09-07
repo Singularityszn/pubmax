@@ -11,7 +11,7 @@
 
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { resolve } from "node:path";
+import { realpathSync } from "node:fs";
 
 export const MAX_REVIEW_FILES = 150;
 export const MAX_RUNTIME_DOMAINS = 2;
@@ -294,7 +294,17 @@ export function runReviewScopeCli(argv = process.argv.slice(2), cwd = process.cw
   return report;
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+function invokedAsCli() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1]);
+  } catch {
+    // Imports may run under eval or a loader with no executable entry path.
+    return false;
+  }
+}
+
+if (invokedAsCli()) {
   try {
     const report = runReviewScopeCli();
     if (!report.ok) process.exitCode = 1;
