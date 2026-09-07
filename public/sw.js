@@ -145,7 +145,18 @@ async function migrateCacheFamily({
         if (!(await source.delete(request))) covered = false;
         continue;
       }
-      if (await destination.match(request)) continue;
+      const replacementUrl = new URL(request.url);
+      let replacementRequest = request;
+      if (
+        current === DATA_CACHE &&
+        replacementUrl.searchParams.has("v") &&
+        (isVenueShardPath(replacementUrl.pathname) ||
+          expectedVenueManifestVersion(replacementUrl.pathname) !== null)
+      ) {
+        replacementUrl.searchParams.set("v", VERSION);
+        replacementRequest = new Request(replacementUrl, request);
+      }
+      if (await destination.match(replacementRequest)) continue;
       if (!copyEntries) {
         covered = false;
         continue;
@@ -461,21 +472,23 @@ async function handleNavigation(event, request, url) {
 
 /** Prefer network for freshness-sensitive JSON; fall back to cache when offline. */
 async function networkFirstWithCache(event, request) {
-  const cache = await caches.open(DATA_CACHE);
   try {
     const response = await fetch(request);
     if (isCacheable(response)) {
       event.waitUntil(
-        cachePutBestEffort(cache, request, response).then(async (stored) => {
-          if (stored) await migrateCacheFamily(DATA_CACHE_FAMILY);
-        }),
+        caches.open(DATA_CACHE)
+          .then((cache) => cachePutBestEffort(cache, request, response))
+          .then(async (stored) => {
+            if (stored) await migrateCacheFamily(DATA_CACHE_FAMILY);
+          })
+          .catch(() => undefined),
       );
     }
     return response;
   } catch {
     const cached = await matchCacheFamily(DATA_CACHE, request, {
       ignoreSearch: true,
-    });
+    }).catch(() => undefined);
     if (cached) return cached;
     return new Response("[]", {
       status: 503,
@@ -493,12 +506,6 @@ async function staleWhileRevalidate(
   preferNetworkForLegacy = false,
   afterStore = async () => undefined,
 ) {
-  const cache = await caches.open(cacheName);
-  const current = await cache.match(request);
-  const cachedCandidate = current ?? await matchCacheFamily(cacheName, request);
-  const cachedManifest = await isCompatibleVenueManifest(request, cachedCandidate);
-  const cachedShard = await isCompatibleVenueShard(request, cachedCandidate);
-  const cached = cachedManifest && cachedShard ? cachedCandidate : undefined;
   const network = fetch(request)
     .then(async (response) =>
       (await isCompatibleVenueManifest(request, response, { network: true })) &&
@@ -507,8 +514,24 @@ async function staleWhileRevalidate(
         : undefined,
     )
     .catch(() => undefined);
+  let cache;
+  let current;
+  let cached;
+  try {
+    cache = await caches.open(cacheName);
+    current = await cache.match(request);
+    const candidate = current ?? await matchCacheFamily(cacheName, request);
+    if (
+      await isCompatibleVenueManifest(request, candidate) &&
+      await isCompatibleVenueShard(request, candidate)
+    ) {
+      cached = candidate;
+    }
+  } catch {
+    // Cache Storage can fail while the network remains available.
+  }
   const update = network.then(async (response) => {
-    if (!isCacheable(response)) return;
+    if (!cache || !isCacheable(response)) return;
     const stored = await cachePutBestEffort(cache, request, response);
     if (!stored) return;
     await afterStore();
