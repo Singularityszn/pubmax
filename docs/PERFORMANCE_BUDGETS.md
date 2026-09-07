@@ -612,6 +612,16 @@ redirect can never cost more than the page it lands on. Every other route was
 brought back under its ceiling instead of being given room: see "The one route
 over its ceiling" above.
 
+One correction to the record, because a gate's history is part of the gate.
+#1589's own PR body said "No gate is loosened", and it was wrong twice over: that
+commit took the `/drinks` LCP ceiling from 400 ms to 1000 ms on the captain's
+word, which is the raise recorded above, and it added the on-the-line resample,
+whose band had no upper edge and so bought extra samples on every breach and on
+no figure sitting comfortably under the line. Both were argued and both were
+allowed; neither was "no gate loosened". The band was made symmetric on
+7 September 2026, which removes those rescue attempts and adds none, and the
+`/drinks` ceiling stands where the captain put it.
+
 Adding a route is cheap: one entry with a `readySelector` the route really
 renders and one sentence of `why`. Removing one is refused by the check, because
 an unmeasured route reads as a pass and never fails again.
