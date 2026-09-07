@@ -13,8 +13,9 @@ import type { Locator, Page } from "@playwright/test";
 // one place to follow it, and so no spec quietly starts asserting against a
 // composer that would refuse a real person.
 
-/** A real 131-byte JPEG. The upload path sniffs the leading bytes, so an
- *  invented buffer would be refused for the wrong reason. */
+/** A real baseline JPEG of a receipt. The upload path sniffs the leading bytes,
+ *  so an invented buffer would be refused for the wrong reason, and the proof
+ *  shots print this thumbnail, so it has to DECODE as well as validate. */
 export const BILL_FIXTURE = join(process.cwd(), "e2e/fixtures/bill.jpg");
 
 /**

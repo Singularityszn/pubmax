@@ -20,6 +20,8 @@ vi.mock("@/components/map/PriceContributionImpact", () => ({
   default: () => null,
 }));
 
+import { attachBill } from "./helpers/oneTapBill";
+
 import VenuePriceSubmit from "@/components/map/VenuePriceSubmit";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 
@@ -79,6 +81,7 @@ describe("Pint Drop sheet refresh", () => {
       quickPrice.click();
     });
 
+    await attachBill(container);
     const logButton = container.querySelector<HTMLButtonElement>(".vpsubLog");
     if (!logButton) throw new Error("Log it button did not render");
     await act(async () => {
