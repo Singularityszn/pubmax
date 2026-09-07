@@ -38,7 +38,7 @@ captain's hand rather than claimed.
 | Deep links into `/tonight` and `/map?sel=<venue>` open the pub inside the app (Android, with the package named, since verification needs the captain's fingerprint). | `android-emu-pixel7/deeplink/` |
 | The OS share sheet opens from the Tonight page on both platforms (Android never opened one before). | `ios-sim-iphone17pro/share/`, `android-emu-pixel7/share/` |
 | Offline cold start shows the bundled offline page, and reconnecting recovers. | `android-emu-pixel7/offline/` |
-| Text at 2.0x scale and three-button navigation both lay out without clipping. | `android-emu-pixel7/textscale/`, `android-emu-pixel7/nav/` |
+| Text size: iOS Larger Text now reaches the page (it had no effect at all), Android's 2.0x scale no longer collides the tab labels or clips the consent card, and three-button navigation lays out cleanly. | `ios-sim-iphone17pro/textscale/`, `android-emu-pixel7/textscale/`, `android-emu-pixel7/nav/` |
 | Third-party sign-in opens the system browser inside the shell instead of a Google error page. | `lib/nativeOAuth.ts`, `__tests__/nativeOAuth.test.ts` (round trip needs B2) |
 | The store review ask is once ever, after two kept actions, never on a failure, and now actually reaches the platform (the plugin proxy bug spent nothing and asked nothing). | `__tests__/nativeReviewPrompt.test.ts`, `__tests__/capacitorPluginProxy.test.ts` |
 | Location copy: the iOS purpose string ("uses your location while the app is open to find nearby pubs and calculate walk times") matches the first-visit map card ("Location is used only while the map is open") and /privacy. There is no `lib/locationDisclosure.ts` in the tree; the strings live in `Info.plist` and the map card. | `ios-sim-iphone17pro/map/dark.png` |

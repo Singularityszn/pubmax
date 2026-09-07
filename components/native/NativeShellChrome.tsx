@@ -19,6 +19,7 @@
 import { useEffect } from "react";
 
 import { isNativeApp, nativePlatform } from "@/lib/nativePlatform";
+import { followNativeTextScale } from "@/lib/nativeTextScale";
 import { installNativeWebShareBridge } from "@/lib/nativeWebShareBridge";
 import "./nativeShell.css";
 
@@ -36,7 +37,11 @@ export default function NativeShellChrome(): null {
     // The Android WebView has no Web Share API; the shell supplies one over
     // the OS picker so every `navigator.share` caller reaches it unchanged.
     const releaseShare = installNativeWebShareBridge();
+    // The OS text size: applied on iOS, read on Android, published on <html>
+    // either way so the tab bar can change shape rather than overflow.
+    const releaseTextScale = followNativeTextScale();
     return () => {
+      releaseTextScale();
       releaseShare();
       root.removeAttribute(NATIVE_SHELL_ATTRIBUTE);
     };

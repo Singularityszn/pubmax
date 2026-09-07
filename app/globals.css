@@ -4509,6 +4509,24 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
     padding: 10px;
   }
 
+  /* AT A LARGE OS TEXT SIZE THE CARD GROWS INSTEAD OF CLIPPING. The 120px
+     ceiling above holds because the copy fits it at every phone width at an
+     ordinary size; at the 2.0x the native shells apply (lib/nativeTextScale.ts,
+     which publishes the bucket on <html>) the sentence, the Privacy link and
+     the second word of "No thanks" all fell below the ceiling, measured on
+     both rigs (docs/proof/mobile-app-design, either rig's textscale folder;
+     a glob here would end this comment). The card is
+     bottom-anchored above the tab bar, so it grows upward, and the two
+     buttons share one row under the sentence rather than a 100px column. */
+  html[data-text-scale="large"] .analyticsConsentPrompt {
+    grid-template-columns: minmax(0, 1fr);
+    max-height: none;
+  }
+
+  html[data-text-scale="large"] .analyticsConsentPromptActions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   body:not(:has(.mobileTabBar, .mobileTabBarClearance)) .analyticsConsentPrompt {
     bottom: max(12px, env(safe-area-inset-bottom));
   }
