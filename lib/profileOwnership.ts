@@ -21,6 +21,8 @@
 //     claimed by an account, it can't be hijacked by a self-asserted handle.
 //   • Concurrent creation of the same new handle returns 409.
 
+import "server-only";
+
 import { callerUserId } from "@/lib/authServer";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
 import { normalizeHandle } from "@/lib/profiles";
