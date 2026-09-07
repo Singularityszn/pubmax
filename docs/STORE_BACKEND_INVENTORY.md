@@ -71,7 +71,7 @@ silently stale.
 | priceTrustEventStore | factory-eligible, policy-heavy | Append-only trust events, reversals, and account credits. |
 | privateIdentityStore | factory-ready | Private account identity rows with owner policy at its boundary. |
 | profileCoverPhotoStore | factory-eligible, policy-heavy | Cover rotation, media generations, and moderation policy. |
-| profileStore | factory-ready | Public profile projection and account-owned profile rows. |
+| profileStore | factory-eligible, policy-heavy | Caller-owned profile writes, moderation state and durable report-RPC compatibility. |
 | pubPalStore | legacy-exception | Multiple inline Supabase configuration checks around private Pub Pal state. |
 | pushTokenStore | factory-ready | Device push registration rows. |
 | ratingsStore | factory-ready | Drink and venue rating rows with shared backend selection; public reads expose summaries, not venue leaderboards. |
@@ -109,7 +109,7 @@ The following stores intentionally stay outside the factory-ready path:
   memory-or-Supabase. Owner: not applicable for this factory.
 - **policy-heavy:** `commentsStore`, `communityPriceStore`,
   `identityHandleStore`, `messagesStore`, `occupancyStore`,
-  `priceTrustEventStore`, `profileCoverPhotoStore`, `referralStore`,
+  `priceTrustEventStore`, `profileCoverPhotoStore`, `profileStore`, `referralStore`,
   `roundsStore`, `socialInteractionStore`, `socialPostStore`,
   `venueOperatorsStore`, `venuePhotoStore`, `visitReportsStore`, and
   `weatherRecommendationStore`. Their explicit policy is the reason to defer
