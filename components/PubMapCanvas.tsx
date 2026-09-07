@@ -37,6 +37,9 @@ import {
   defaultPoiHiddenMobile,
   type PoiHiddenChange,
 } from "@/lib/poiToggleGroups";
+const ConditionsChip = dynamic(() => import("@/components/desktop/ConditionsChip"), {
+  ssr: false,
+});
 const MapLayersControl = dynamic(() => import("@/components/map/MapLayersControl"), {
   ssr: false,
 });
@@ -189,6 +192,11 @@ import {
   type MapRenderedState,
 } from "@/lib/mapRenderedState";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
+import {
+  ARRIVAL_BEARING_POLL_MS,
+  ARRIVAL_BEARING_STILL_POLLS,
+  ARRIVAL_BEARING_WAIT_CEILING_MS,
+} from "@/lib/mapArrivalBearing";
 
 // MapLibre 6 is ESM-only. Its worker imports a sibling shared module, which
 // Next's asset URL transform does not emit beside the worker. The predev and
@@ -202,6 +210,12 @@ type PubMapCanvasProps = {
   route: Venue[];
   selectedVenueId: string;
   onVenueClick: (id: string) => void;
+  /**
+   * The reader put a finger or a cursor on the map. Not a camera move: a tap on
+   * open water is still somebody looking at the map rather than at the chrome,
+   * and the first-visit ask treats it as an answer (lib/mapFirstVisitArrival.ts).
+   */
+  onReaderTouchedMap?: () => void;
   /**
    * A tap on the UK base layer — an OSM pub with no price and no venue record.
    * Handed up whole (it exists nowhere else in the app) so PubMap can open the
@@ -494,6 +508,7 @@ export default function PubMapCanvas({
   route,
   selectedVenueId,
   onVenueClick,
+  onReaderTouchedMap,
   onUkBasePubClick,
   onUkBasePubsChange,
   onUkBaseStatusChange,
@@ -1101,9 +1116,41 @@ export default function PubMapCanvas({
     Boolean(selectedVenueId) || Boolean(initialLandmarkId),
   );
   useEffect(() => {
-    if (!mapReady || arrivalBearingSpentRef.current) return;
-    arrivalBearingSpentRef.current = true;
-    easeArrivalBearing(arrivalDeepLinkRef.current);
+    const map = mapRef.current;
+    if (!mapReady || !map || arrivalBearingSpentRef.current) return;
+    let cancelled = false;
+    let stillFrames = 0;
+    let waited = 0;
+    // The turn waits for the map to STOP. Measured without the wait: the
+    // opening-location answer schedules its own move a frame or so after the
+    // map is ready, the camera lane is latest-wins, and it cancelled the
+    // turn's pending frame outright - four runs of four came to rest at
+    // exactly the bearing they arrived at, with no `arrival` intent emitted.
+    //
+    // It polls rather than waiting on MapLibre's `idle`, because `idle` also
+    // waits on every requested tile and a basemap that never finishes would
+    // mean a map that never turns. The ceiling is the same judgement: past it
+    // the turn happens anyway, and `scheduleCamera` still refuses it if the
+    // reader has taken the map.
+    const tick = () => {
+      if (cancelled || arrivalBearingSpentRef.current) return;
+      waited += ARRIVAL_BEARING_POLL_MS;
+      stillFrames = map.isMoving() ? 0 : stillFrames + 1;
+      if (stillFrames < ARRIVAL_BEARING_STILL_POLLS && waited < ARRIVAL_BEARING_WAIT_CEILING_MS) {
+        timer = setTimeout(tick, ARRIVAL_BEARING_POLL_MS);
+        return;
+      }
+      arrivalBearingSpentRef.current = true;
+      easeArrivalBearing(arrivalDeepLinkRef.current);
+    };
+    let timer: ReturnType<typeof setTimeout> | null = setTimeout(
+      tick,
+      ARRIVAL_BEARING_POLL_MS,
+    );
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [mapReady, easeArrivalBearing]);
 
   // The parent owns the selection and renders the story (the phone's shared
@@ -3741,6 +3788,55 @@ export default function PubMapCanvas({
   const canRecenter = route.length >= 2;
   const cityDisplayName = getCity(cityId).displayName;
 
+  /* The map's view actions, rendered inside the Layers popover. Same handlers,
+     same accessible names; what changed is where a reader opens them. */
+  const mapViewActions = (
+    <>
+      <button
+        type="button"
+        className="mapFitLondonBtn"
+        onClick={fitCityBounds}
+        aria-label={`Show all of ${cityDisplayName}`}
+        title={`Show all of ${cityDisplayName}`}
+      >
+        <MapPinned size={14} aria-hidden />
+        Show all
+      </button>
+      {/* The one compass, and it hands back the attitude the city opens on
+          rather than flat north (lib/mapCompass.ts). */}
+      <button
+        type="button"
+        className="mapCompassBtn"
+        onClick={() => {
+          const map = mapRef.current;
+          if (!map) return;
+          const designed = getCity(cityId).mapView;
+          if (!mapIsOffHouseAttitude(map.getBearing(), map.getPitch(), designed)) return;
+          const target = compassResetTarget(designed);
+          map.easeTo({
+            bearing: target.bearing,
+            pitch: target.pitch,
+            duration: reducedRef.current ? 0 : COMPASS_RESET_DURATION_MS,
+            easing: easeOutCubic,
+          });
+        }}
+        aria-label={compassResetLabel(cityDisplayName)}
+        title={compassResetLabel(cityDisplayName)}
+      >
+        {/* Needle carries BOTH axes, because the control resets both: a
+            rotateX squash is how MapLibre's own compass shows tilt, and a
+            needle that only turned would say nothing about the pitch it is
+            about to give back. */}
+        <Navigation2
+          size={14}
+          aria-hidden
+          style={{ transform: `rotateX(${mapPitch}deg) rotate(${-mapBearing}deg)` }}
+        />
+        <span className="mapCompassBtnLabel">Reset view</span>
+      </button>
+    </>
+  );
+
   return (
     <div
       className="mapCanvasWrap"
@@ -3749,7 +3845,15 @@ export default function PubMapCanvas({
       data-uk-base-count={ukBase.count}
       data-uk-base-status={ukBase.status}
     >
-      <div ref={containerRef} className="maplibreMap" />
+      {/* A finger or a cursor on the map, whatever it lands on. `pointerdown`
+          rather than a click, because a drag is the same answer as a tap and it
+          never produces one. Capture, so a MapLibre handler that stops the
+          event cannot take it. */}
+      <div
+        ref={containerRef}
+        className="maplibreMap"
+        onPointerDownCapture={onReaderTouchedMap}
+      />
       {/* The reader's dot is painted on the canvas, which says nothing to a
           screen reader. This carries the same accessible name the old DOM
           marker did, so the position stays announced while the pins keep the
@@ -3790,27 +3894,18 @@ export default function PubMapCanvas({
           </button>
         </div>
       ) : null}
-      {/* Camera fit for the active city — not a city switcher (toolbar owns that).
-          D7: this used to PRINT the city name, so the map carried two controls
-          both reading "London", a pill here and the toolbar's dropdown. The name
-          belongs to the switcher, which is the control that can change it. This
-          one says what it does; the accessible name still names the city, and
-          leads with the visible words so the two agree. */}
-      <div className="mapCameraControls" aria-label="Map camera controls">
-        <button
-          type="button"
-          className="mapFitLondonBtn"
-          onClick={fitCityBounds}
-          aria-label={`Show all of ${cityDisplayName}`}
-          title={`Show all of ${cityDisplayName}`}
-        >
-          <MapPinned size={14} aria-hidden />
-          Show all
-        </button>
-        {/* D7: only render once there's a route to recenter — a disabled
-            "No route" ghost chip sitting in the camera-controls stack reads
-            as a stuck/broken control when the map is routeless. */}
-        {canRecenter ? (
+      {/* What is left on the map edge: the route recenter, and only while a
+          route exists. "Show all" and the compass moved into the Layers
+          popover (captain, 7 Sep 2026, walk finding B9): a reader met eighteen
+          controls at 1440 before touching a pin, and two of them were worded
+          chips parked here.
+
+          The compass is still ONE control with ONE home, which is what
+          lib/mapCompass.ts asks for. What that rule refused was a compass that
+          appeared and vanished with the map's own attitude; a compass the
+          reader opens the map's own control to reach is not that. */}
+      {canRecenter ? (
+        <div className="mapCameraControls" aria-label="Map camera controls">
           <button
             type="button"
             className="mapRecenterBtn"
@@ -3821,44 +3916,8 @@ export default function PubMapCanvas({
             <Crosshair size={14} aria-hidden />
             Recenter
           </button>
-        ) : null}
-        {/* The one compass. Always here, because a compass that comes and goes
-            is not a compass, and it hands back the attitude the city opens on
-            rather than flat north (lib/mapCompass.ts). */}
-        <button
-          type="button"
-          className="mapCompassBtn"
-          onClick={() => {
-            const map = mapRef.current;
-            if (!map) return;
-            const designed = getCity(cityId).mapView;
-            if (!mapIsOffHouseAttitude(map.getBearing(), map.getPitch(), designed)) return;
-            const target = compassResetTarget(designed);
-            map.easeTo({
-              bearing: target.bearing,
-              pitch: target.pitch,
-              duration: reducedRef.current ? 0 : COMPASS_RESET_DURATION_MS,
-              easing: easeOutCubic,
-            });
-          }}
-          aria-label={compassResetLabel(cityDisplayName)}
-          title={compassResetLabel(cityDisplayName)}
-        >
-          {/* Needle carries BOTH axes, because the control resets both: a
-              rotateX squash is how MapLibre's own compass shows tilt, and a
-              needle that only turned would say nothing about the pitch it is
-              about to give back. */}
-          <Navigation2
-            size={14}
-            aria-hidden
-            style={{ transform: `rotateX(${mapPitch}deg) rotate(${-mapBearing}deg)` }}
-          />
-          {/* The word is for the desktop stack, where its two siblings are
-              worded controls. On a phone this is a 44px circle in the map-edge
-              lane, so the word comes off and the accessible name carries it. */}
-          <span className="mapCompassBtnLabel">Reset view</span>
-        </button>
-      </div>
+        </div>
+      ) : null}
       {hoveredVenue ? (
         <aside className="venueHoverCard" style={hoverCardStyle} aria-hidden="true">
           {hoverImageUrl ? (
@@ -3929,6 +3988,8 @@ export default function PubMapCanvas({
           lives in the Layers popover. Do not rebuild #63 structure. */}
       {!hideLayersControl ? (
         <MapLayersControl
+          cameraActions={mapViewActions}
+          conditions={<ConditionsChip />}
           poiHidden={poiHidden}
           onPoiHiddenChange={setPoiHidden}
           activeBandId={activeBandId}

@@ -1,7 +1,5 @@
 "use client";
 
-import { useId, useState } from "react";
-
 import {
   toggleVenueKind,
   type CuratedVenueKind,
@@ -11,14 +9,18 @@ import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 
 import "./tonightArcChips.css";
 
+// The kinds the map's own filter offers, and no more. A "Clubs" chip stood
+// here permanently disabled, explained by a `title` attribute no phone shows
+// (docs/proof/astra-live-walk/report.md B9). It could never be enabled:
+// `curatedVenueKind` in lib/venueKindFilters.ts answers null for a club, so
+// `filterVenuesByKind` leaves clubs off the map entirely. Giving those kinds
+// their own surface is a separate wave, and the chip comes back with it.
 const CHIPS: ReadonlyArray<{
-  kind: CuratedVenueKind | "club";
+  kind: CuratedVenueKind;
   label: string;
-  unavailableReason?: string;
 }> = [
   { kind: "pub", label: "Pints" },
   { kind: "bar", label: "Bars" },
-  { kind: "club", label: "Clubs", unavailableReason: "are not mapped yet" },
   { kind: "food", label: "Food" },
   { kind: "restaurant", label: "Restaurants" },
 ];
@@ -44,19 +46,12 @@ export default function TonightArcChips({
   variant?: "popover" | "sheet";
   onChange: (next: VenueKindVisibility) => void;
 }) {
-  const unavailableReasonId = useId();
-  const [revealedUnavailableKind, setRevealedUnavailableKind] = useState<
-    CuratedVenueKind | "club" | null
-  >(null);
   const chips =
     experienceLens === "food"
       ? CHIPS.filter(
           (chip) => chip.kind === "food" || chip.kind === "restaurant",
         )
-      : CHIPS.filter((chip) => experienceLens === "all" || chip.kind !== "club");
-  const revealedUnavailableChip = chips.find(
-    (chip) => chip.kind === revealedUnavailableKind,
-  );
+      : CHIPS;
   return (
     <div
       className={
@@ -76,37 +71,14 @@ export default function TonightArcChips({
     >
       <div className="tonightArcRow">
         {chips.map((chip) => {
-          const on = chip.kind === "club" ? false : visibility[chip.kind];
-          const unavailable = chip.unavailableReason !== undefined;
-          const unavailableRevealed =
-            unavailable && revealedUnavailableKind === chip.kind;
+          const on = visibility[chip.kind];
           return (
             <button
               key={chip.kind}
               type="button"
-              className={`tonightArcChip${on ? " isOn" : ""}${unavailable ? " isUnavailable" : ""}`}
+              className={on ? "tonightArcChip isOn" : "tonightArcChip"}
               aria-pressed={on}
-              aria-disabled={unavailable || undefined}
-              aria-expanded={unavailable ? unavailableRevealed : undefined}
-              aria-controls={unavailable ? unavailableReasonId : undefined}
-              aria-label={
-                unavailable
-                  ? `${chip.label} ${chip.unavailableReason}`
-                  : undefined
-              }
-              title={unavailable ? `${chip.label} ${chip.unavailableReason}` : undefined}
-              onClick={() => {
-                if (unavailable) {
-                  setRevealedUnavailableKind(
-                    unavailableRevealed ? null : chip.kind,
-                  );
-                  return;
-                }
-                setRevealedUnavailableKind(null);
-                if (chip.kind !== "club") {
-                  onChange(toggleVenueKind(visibility, chip.kind));
-                }
-              }}
+              onClick={() => onChange(toggleVenueKind(visibility, chip.kind))}
             >
               {/* The tick, not a colour, marks selection (aria-pressed already
                   names it for readers, so the glyph stays decorative). */}
@@ -124,16 +96,6 @@ export default function TonightArcChips({
           );
         })}
       </div>
-      {revealedUnavailableChip?.unavailableReason ? (
-        <span
-          className="tonightArcUnavailableReason"
-          id={unavailableReasonId}
-          role="tooltip"
-        >
-          {revealedUnavailableChip.label}{" "}
-          {revealedUnavailableChip.unavailableReason}
-        </span>
-      ) : null}
     </div>
   );
 }

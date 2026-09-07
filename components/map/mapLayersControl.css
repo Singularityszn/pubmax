@@ -344,3 +344,40 @@
     animation: none;
   }
 }
+
+/* The map's view actions and the conditions verdict, inside the popover.
+   "Show all" and the compass were worded chips on the map edge, and the
+   verdict was a chip on the toolbar row; all three were part of the eighteen
+   controls a reader met at 1440 before touching a pin (7 Sep 2026, walk
+   finding B9). They keep their own paint: this only lays them out and puts a
+   hairline under the group, the way the other groups in this panel are
+   separated. */
+.mapLayersView {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--hairline, var(--line));
+}
+
+/* Both actions sit in a row here rather than in the map-edge column, so their
+   own stylesheet's stacking geometry does not apply. */
+.mapLayersView .mapFitLondonBtn,
+.mapLayersView .mapCompassBtn {
+  position: static;
+  width: auto;
+  min-height: 40px;
+  flex: 0 0 auto;
+}
+
+.mapLayersView .mapCompassBtn .mapCompassBtnLabel {
+  display: inline;
+}
+
+/* The verdict is a reading, not a control, so it takes the whole row under
+   the two actions rather than competing with them for the first one. */
+.mapLayersView .conditionsChip {
+  flex: 1 0 100%;
+}

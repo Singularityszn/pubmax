@@ -11,7 +11,13 @@
   --map-arrival-strip-max-h: 132px;
   position: fixed;
   z-index: calc(var(--z-tabbar, 30) + 2);
-  top: calc(var(--mobile-map-chrome-full-h, 118px) + 8px);
+  /* The phone chrome MEASURES itself, because its rows come and go (a query
+     chip, a search row) and the published token is the resting stack. Anchored
+     to the token alone the strip landed at y 120 with the chip row's own
+     bottom at 215, so "Pints" read through it. */
+  top: calc(
+    var(--mobile-map-chrome-measured-h, var(--mobile-map-chrome-full-h, 118px)) + 8px
+  );
   right: max(12px, env(safe-area-inset-right));
   left: max(12px, env(safe-area-inset-left));
   display: grid;
@@ -26,6 +32,14 @@
   color: var(--ink);
   box-shadow: var(--shadow-sm);
   backdrop-filter: blur(14px) saturate(125%);
+}
+
+/* The strip takes focus on arrival so a screen reader lands on it whole. That
+   is a programmatic focus on a container, not a reader tabbing to a control,
+   and the browser's ring around the whole strip read as a coral outline round
+   the card. The buttons inside it keep their own rings. */
+.mapArrivalCard:focus {
+  outline: none;
 }
 
 .mapArrivalCardSay {
@@ -112,6 +126,9 @@
 @media (min-width: 641px) {
   .mapArrivalCard {
     --map-arrival-strip-max-h: 76px;
+    /* Under the toolbar's own lane: a panel the reader OPENS from the toolbar
+       must paint over the ask, never under it. */
+    z-index: calc(var(--z-map-panel, 500) - 1);
     /* The same anchor the ambient banners take, so the one thing docked under
        the toolbar is docked where they are (components/map/citySuggestBanner.css). */
     position: absolute;
@@ -176,4 +193,25 @@
     opacity: 1;
     transform: translate(-50%, 0);
   }
+}
+
+/* A panel the reader opens from the toolbar takes the surface, and the ask
+   waits for it. Measured at 1440x900: the strip spans x 380 to 1060 and the
+   Filters popover opens at x 503 to 863, straight through the middle of it, so
+   the strip read as a card cut in three. Hiding it is right rather than tidy:
+   a reader who has opened Filters has moved past the location question, and
+   the strip is back the moment the panel closes. */
+body:has(.mapToolbar [aria-expanded="true"]) .mapArrivalCard {
+  display: none;
+}
+
+/* ONE painted action while the ask is on screen. `Plan an outing` is the
+   toolbar's own coral fill and it sat directly above this strip's `Use my
+   location`, so a first-time reader met two primaries side by side on the map's
+   first screen. The Plan control keeps its place and its accessible name; it
+   just stops competing for the eye until the ask is answered. */
+body:has(.mapArrivalCard) .mapToolbar .planBtn:not(.active) {
+  border: 1px solid var(--hairline, var(--line));
+  background: var(--panel-raised);
+  color: var(--ink);
 }

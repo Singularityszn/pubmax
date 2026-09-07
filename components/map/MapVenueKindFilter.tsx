@@ -1,26 +1,38 @@
 "use client";
 
-// The desktop map's venue-type filter, behind ONE control (PlanAstra item 9).
+// The desktop map's Filters control: every question about WHICH pins the map is
+// drawing, behind one button the reader opens.
 //
-// The five kind chips used to float over the map as a permanent band at every
-// width from 641px up, so a tablet met 20 to 24 controls before it had tapped a
-// pin. They are the same chips, read through the same state; what changed is
-// that the reader opens them. The closed control carries the count of the kinds
-// switched off, because a closed panel may not hide which pins the map is
-// leaving out - the same rule the "Show me" and "Drink" controls beside it keep.
+// It started as the venue-type chips (PlanAstra item 9), which used to float
+// over the map as a permanent band from 641px up. The 7 Sep walk then counted
+// eighteen controls at 1440 before a pin had been tapped (B9), so the two other
+// controls that narrow the same pin set moved in here beside them: "Show me",
+// the experience lens, and the fare-zone picker. The phone has read all three
+// in its own Filters sheet since 2026-08-01, so this is the same set in the
+// same order at both widths.
+//
+// The closed control carries a COUNT of what is switched off, because a closed
+// panel may not hide which pins the map is leaving out. The count now covers
+// every refinement the panel holds, for the same reason it covered the kinds:
+// a badge that counted one of three would say the map is unfiltered when it is
+// not.
 
 import { SlidersHorizontal } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useId, useRef, useState } from "react";
 
+import MapExperienceLensControl from "@/components/map/MapExperienceLens";
+import ZonePicker from "@/components/map/ZonePicker";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 import {
   hiddenVenueKindCount,
+  mapFilterRefinementCount,
   showAllVenueKinds,
   venueKindFilterAriaLabel,
   VENUE_KIND_FILTER_WORD,
   type VenueKindVisibility,
 } from "@/lib/venueKindFilters";
+import { parseZoneParam, type ZonePintIndex } from "@/lib/zones";
 
 import "./mapVenueKindFilter.css";
 
@@ -34,10 +46,28 @@ const TonightArcChips = dynamic(
 export default function MapVenueKindFilter({
   visibility,
   experienceLens = "all",
+  experienceSummary = "",
+  lensAllSelected = true,
+  onExperienceLensChange,
+  zone = null,
+  zoneIndex,
+  onZoneChange,
   onChange,
 }: {
   visibility: VenueKindVisibility;
   experienceLens?: MapExperienceLens;
+  /** The lens's own one-line summary, as the toolbar row used to print it. */
+  experienceSummary?: string;
+  lensAllSelected?: boolean;
+  onExperienceLensChange?: (lens: MapExperienceLens) => void;
+  /**
+   * `filters.zone`, or null where the map offers no fare zones. Only London
+   * has them, and only while a drink lane is available, so the caller answers
+   * null rather than this control guessing.
+   */
+  zone?: string | null;
+  zoneIndex?: ZonePintIndex;
+  onZoneChange?: (zone: string) => void;
   onChange: (next: VenueKindVisibility) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -45,6 +75,12 @@ export default function MapVenueKindFilter({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const hidden = hiddenVenueKindCount(visibility, experienceLens);
+  const zoneParsed = zone === null ? null : parseZoneParam(zone);
+  const refinements = mapFilterRefinementCount({
+    hiddenKinds: hidden,
+    lensNarrowed: experienceLens !== "all",
+    zoneNarrowed: zoneParsed !== null && zoneParsed !== "all",
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -83,13 +119,13 @@ export default function MapVenueKindFilter({
         type="button"
         ref={buttonRef}
         className={
-          open || hidden > 0
+          open || refinements > 0
             ? "mapVenueKindFilterBtn isActive"
             : "mapVenueKindFilterBtn"
         }
         aria-expanded={open}
         aria-controls={panelId}
-        aria-label={venueKindFilterAriaLabel(hidden)}
+        aria-label={venueKindFilterAriaLabel(refinements)}
         onClick={() => setOpen((current) => !current)}
       >
         <SlidersHorizontal size={15} aria-hidden="true" />
@@ -98,8 +134,8 @@ export default function MapVenueKindFilter({
             own "More" label in the same band). The count stays, and the
             accessible name carries the whole sentence at every width. */}
         <span className="mapVenueKindFilterWord">{VENUE_KIND_FILTER_WORD}</span>
-        {hidden > 0 ? (
-          <span className="mapVenueKindFilterCount">{hidden}</span>
+        {refinements > 0 ? (
+          <span className="mapVenueKindFilterCount">{refinements}</span>
         ) : null}
       </button>
 
@@ -116,6 +152,22 @@ export default function MapVenueKindFilter({
             variant="popover"
             onChange={onChange}
           />
+          {onExperienceLensChange ? (
+            <MapExperienceLensControl
+              lens={experienceLens}
+              allSelected={lensAllSelected}
+              summary={experienceSummary}
+              onChange={onExperienceLensChange}
+            />
+          ) : null}
+          {zone !== null && zoneIndex && onZoneChange ? (
+            <ZonePicker
+              zone={zone}
+              onZoneChange={onZoneChange}
+              index={zoneIndex}
+              variant="inline"
+            />
+          ) : null}
           {hidden > 0 ? (
             <button
               type="button"

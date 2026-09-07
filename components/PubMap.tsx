@@ -2248,8 +2248,15 @@ export default function PubMap({
   // canvas's place, a road-closure or another-city banner is a claim about
   // something the reader cannot see, and at 1440 it landed straight over the
   // card's sentence and first pub row.
+  // ONE BANNER AT A TIME, and while the first-visit strip is up the strip IS
+  // it (captain, 7 Sep 2026, over walk finding B9: eighteen controls, a closure
+  // banner and the card at 1440 before a pin was tapped). The closure banner
+  // is not lost, only deferred: it arrives the moment the ask is answered, and
+  // on this surface the reader's own first move answers it.
   const ambientBannerLaneOpen =
-    ambientBannerLane && mapAmbientBannersVisible({ canvasUnavailable: mapCanvasUnavailable });
+    ambientBannerLane
+    && !showMapArrivalCard
+    && mapAmbientBannersVisible({ canvasUnavailable: mapCanvasUnavailable });
   const mapCanvasCeilingRunning = mapCanvasCeilingArmed({
     moduleFailed: mapCanvasModuleFailed,
     canvasOwnsFailure: mapCanvasErrored,
@@ -5996,6 +6003,7 @@ export default function PubMap({
         onSoftRetryChange={setMapSoftRetryActive}
         focusPoint={openingLocationFocus ?? areaFocus}
         onViewportChange={setMapViewport}
+        onReaderTouchedMap={dismissMapFirstVisitArrivalOnMapUse}
         onUserCameraMove={dismissAmbientBanners}
         onBoundsChange={handleMapBoundsChange}
       />
@@ -6068,7 +6076,7 @@ export default function PubMap({
           and the toolbar chip carries Conditions instead (mapDesktopRail.css).
           The area is the Night Area under the current view (search-area first,
           else nearest to centre); AreaNewsRail fail-soft hides when it has none. */}
-      {railViewport && !detailOpen ? (
+      {railViewport && !detailOpen && !showMapArrivalCard ? (
         <MapDesktopRail area={searchAreaNewsArea ?? suggestedPlanArea?.slug ?? null} />
       ) : null}
       {/* Ambient banners dock under the control bar and step off the map the
@@ -6087,7 +6095,7 @@ export default function PubMap({
       {/* F3: concierge as map home — a first-class grounded ask affordance in
           the bottom map-home lane. Rendered before the Tonight lane so its
           sibling CSS lifts the lane above the collapsed pill (no collision). */}
-      {!mobileViewport && !ukPlaceArrival ? <MapConciergeAsk cityId={cityId} onSelectVenue={(id) => selectVenue(id)} /> : null}
+      {!mobileViewport && !ukPlaceArrival && !showMapArrivalCard ? <MapConciergeAsk cityId={cityId} onSelectVenue={(id) => selectVenue(id)} /> : null}
       {!mobileViewport && isLondon ? (
         <TonightLane
           rows={whatsOnTonight.rows}

@@ -4,8 +4,12 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  ARRIVAL_BEARING_POLL_MS,
+  ARRIVAL_BEARING_STILL_POLLS,
+  ARRIVAL_BEARING_WAIT_CEILING_MS,
   MAP_ARRIVAL_BEARING_DEG,
   MAP_ARRIVAL_BEARING_DURATION_MS,
+  MAP_ARRIVAL_BEARING_SETTLED_BY_MS,
   mapArrivalBearingPlan,
 } from "@/lib/mapArrivalBearing";
 import { REACTIVE_CAMERA_INTENTS } from "@/lib/mapGestureGuard";
@@ -73,6 +77,35 @@ describe("the opening turn is not the idle orbit", () => {
   it("is spent once per mounted map, so a context rebuild cannot re-turn it", () => {
     expect(canvas).toContain("arrivalBearingSpentRef");
     expect(canvas).toMatch(/arrivalBearingSpentRef\.current = true/);
+  });
+
+  it("waits for the map to be still, so no other camera writer cancels it", () => {
+    // Measured without the wait: the opening-location answer schedules its move
+    // a frame later, the camera lane is latest-wins, and it cancelled the
+    // turn's pending frame. Three runs of three came to rest at exactly the
+    // bearing they arrived at.
+    expect(canvas).toContain("ARRIVAL_BEARING_STILL_POLLS");
+    expect(canvas).toContain("ARRIVAL_BEARING_WAIT_CEILING_MS");
+    expect(canvas).toContain("map.isMoving()");
+    // Not MapLibre's `idle`: that also waits on every requested tile, so a
+    // basemap that never finishes would be a map that never turns.
+    expect(canvas).not.toMatch(/once\("idle"[\s\S]{0,40}?arrival/i);
+  });
+
+  it("keeps the wait window in the rule, because the browser spec waits it out too", () => {
+    // The canvas held its own copies. The browser spec then slept for the eased
+    // second alone and read the bearing during the stillness wait, BEFORE the
+    // turn: it reported a flat map on a build whose map turns to four degrees
+    // in 3.9 seconds, measured. One window, one home.
+    expect(canvas).toMatch(
+      /ARRIVAL_BEARING_POLL_MS[\s\S]{0,200}?from "@\/lib\/mapArrivalBearing"/,
+    );
+    expect(canvas).not.toMatch(/const ARRIVAL_BEARING_POLL_MS\s*=/);
+    expect(MAP_ARRIVAL_BEARING_SETTLED_BY_MS).toBe(
+      ARRIVAL_BEARING_WAIT_CEILING_MS +
+        ARRIVAL_BEARING_STILL_POLLS * ARRIVAL_BEARING_POLL_MS +
+        MAP_ARRIVAL_BEARING_DURATION_MS,
+    );
   });
 
   it("reads the deep link as it was on arrival, not as it is now", () => {

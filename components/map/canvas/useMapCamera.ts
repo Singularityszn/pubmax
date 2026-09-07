@@ -234,6 +234,27 @@ export function useMapCamera(refs: CameraRefs) {
     scheduleCamera(kind, `${kind}:${center}:${options.zoom ?? "current"}:${options.pitch ?? "current"}`, (map) => map.easeTo({ ...options, duration }));
   }, [reducedRef, scheduleCamera]);
 
+  // The map's opening turn. ONE eased move, once, and the camera is still
+  // afterwards; lib/mapArrivalBearing.ts holds the rule and every case where
+  // there is no move to make. It goes through the same lane as everything
+  // else, and it is a REACTIVE intent, so a reader who already has the map
+  // keeps the attitude they chose (lib/mapGestureGuard.ts).
+  const easeArrivalBearing = useCallback((deepLinkedVenue: boolean) => {
+    const map = mapRef.current;
+    if (!map) return;
+    const plan = mapArrivalBearingPlan({
+      currentBearing: map.getBearing(),
+      reducedMotion: reducedRef.current,
+      deepLinkedVenue,
+    });
+    if (!plan) return;
+    scheduleCamera("arrival", `arrival:${plan.bearing}`, (target) => target.easeTo({
+      bearing: plan.bearing,
+      duration: plan.duration,
+      easing: easeOutCubic,
+    }));
+  }, [mapRef, reducedRef, scheduleCamera]);
+
   const fitRoute = useCallback(() => {
     const current = routeRef.current;
     if (current.length < 2) return;
@@ -333,27 +354,6 @@ export function useMapCamera(refs: CameraRefs) {
     },
     [mapRef, reducedRef, scheduleCamera],
   );
-
-  // The map's opening turn. ONE eased move, once, and the camera is still
-  // afterwards; lib/mapArrivalBearing.ts holds the rule and every case where
-  // there is no move to make. It goes through the same lane as everything
-  // else, and it is a REACTIVE intent, so a reader who already has the map
-  // keeps the attitude they chose (lib/mapGestureGuard.ts).
-  const easeArrivalBearing = useCallback((deepLinkedVenue: boolean) => {
-    const map = mapRef.current;
-    if (!map) return;
-    const plan = mapArrivalBearingPlan({
-      currentBearing: map.getBearing(),
-      reducedMotion: reducedRef.current,
-      deepLinkedVenue,
-    });
-    if (!plan) return;
-    scheduleCamera("arrival", `arrival:${plan.bearing}`, (target) => target.easeTo({
-      bearing: plan.bearing,
-      duration: plan.duration,
-      easing: easeOutCubic,
-    }));
-  }, [mapRef, reducedRef, scheduleCamera]);
 
   return {
     cinematic,

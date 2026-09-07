@@ -39,15 +39,55 @@ describe("the first-visit card leaves the map usable", () => {
     expect(pubMapSource).toMatch(
       /const handleVenueClick = useCallback\([\s\S]{0,500}?dismissMapFirstVisitArrivalOnMapUse\(\)/,
     );
+    // And a finger on open water counts too: somebody looking at the map has
+    // answered, whatever the tap landed on.
+    expect(pubMapSource).toContain(
+      "onReaderTouchedMap={dismissMapFirstVisitArrivalOnMapUse}",
+    );
+    expect(canvasSource).toContain("onPointerDownCapture={onReaderTouchedMap}");
+    // It takes NO arguments, because it is handed straight to a React event
+    // prop: a `storage` parameter would receive the pointer event, `setItem`
+    // would throw on it, and the catch would swallow the dismissal in silence.
+    expect(read("lib/mapFirstVisitArrival.ts")).toContain(
+      "export function dismissMapFirstVisitArrivalOnMapUse(): void {",
+    );
   });
 });
 
 describe("the first-visit card is a strip at the top on a phone", () => {
+  it("reads the phone chrome's MEASURED bottom, not only its resting berth", () => {
+    // Anchored to the published berth alone the strip landed at y 120 with the
+    // chip row's own bottom at 215, so "Pints" read through it.
+    expect(cardCss).toContain("--mobile-map-chrome-measured-h");
+    expect(read("components/mobile/MobileMapShell.tsx")).toContain(
+      "usePublishedChromeHeight",
+    );
+  });
+
   it("docks under the phone's own chrome rather than over the pins", () => {
     expect(cardCss).toMatch(/\.mapArrivalCard\s*\{[^}]*top:/);
     expect(cardCss).toContain("--mobile-map-chrome-full-h");
     // The old berth pinned it to the foot of the screen.
     expect(cardCss).not.toMatch(/\.mapArrivalCard\s*\{[^}]*bottom:\s*var\(\s*--map-arrival-bottom/);
+  });
+
+  it("yields to a panel the reader opens from the toolbar", () => {
+    // Measured at 1440x900: the strip spans x 380 to 1060 and the Filters
+    // popover opens at x 503 to 863, straight through the middle of it. The
+    // strip stayed painted either side of the panel and read as a card cut in
+    // three. One surface at a time: the reader opening Filters has moved on
+    // from the ask, and the strip comes back when the panel closes.
+    expect(cardCss).toMatch(
+      /body:has\(\.mapToolbar \[aria-expanded="true"\]\)[\s\S]{0,120}?\.mapArrivalCard[\s\S]{0,60}?display:\s*none/,
+    );
+  });
+
+  it("is the only painted action while it is up", () => {
+    // `Plan an outing` is the toolbar's own coral fill and it sat directly
+    // above this strip's `Use my location` at 1440.
+    expect(cardCss).toMatch(
+      /body:has\(\.mapArrivalCard\)[\s\S]{0,120}?\.planBtn/,
+    );
   });
 
   it("paints its one primary in the product's coral, like every other screen", () => {

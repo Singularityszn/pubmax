@@ -67,6 +67,17 @@ type MapLayersControlProps = {
   onBandChange?: (bandId: string) => void;
   /** City Place-story corridors; defaults to London STORY_BANDS. */
   storyBands?: StoryBand[];
+  /**
+   * The map's own camera actions, and the conditions verdict.
+   *
+   * Both moved in here from the map's arrival chrome (captain, 7 Sep 2026,
+   * over walk finding B9). "Show all" and the compass were two worded chips
+   * parked on the map edge beside this control, and the weather chip was a
+   * third thing on the toolbar row; a reader who wants any of them opens the
+   * one control that already holds everything the map is DRAWING.
+   */
+  cameraActions?: ReactNode;
+  conditions?: ReactNode;
   /** City id for transit-aware aria/title/hint copy. Defaults to london. */
   cityId?: CityId;
   embedded?: boolean;
@@ -90,6 +101,8 @@ export default function MapLayersControl({
   activeBandId = "",
   onBandChange,
   storyBands = [],
+  cameraActions,
+  conditions,
   cityId = DEFAULT_CITY_ID,
   embedded = false,
   onRequestClose,
@@ -199,6 +212,13 @@ export default function MapLayersControl({
           </div>
 
           <p className="mapLayersHint">{layersCopy.hint}</p>
+
+          {cameraActions || conditions ? (
+            <div className="mapLayersView" role="group" aria-label="Map view">
+              {cameraActions}
+              {conditions}
+            </div>
+          ) : null}
 
           {readerKey || readerPriceFilter || onListOpenChange ? (
             <div className="mapLayersReader">

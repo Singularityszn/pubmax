@@ -39,8 +39,19 @@ describe("the toolbar row carries the arrival set only", () => {
 
 describe("the camera actions live in the Layers popover", () => {
   it("moves 'Show all' and the compass off the map edge", () => {
-    expect(canvasSource).not.toContain('className="mapFitLondonBtn"');
-    expect(canvasSource).toContain("cameraActions");
+    // The map-edge group is left holding the route recenter, and only while a
+    // route exists, so at arrival it renders nothing at all.
+    const edgeGroup =
+      canvasSource.match(
+        /<div className="mapCameraControls"[\s\S]*?<\/div>/,
+      )?.[0] ?? "";
+    expect(edgeGroup).not.toBe("");
+    expect(edgeGroup).not.toContain("mapFitLondonBtn");
+    expect(edgeGroup).not.toContain("mapCompassBtn");
+    expect(canvasSource).toMatch(/\{canRecenter \? \([\s\S]{0,200}?mapCameraControls/);
+
+    // Both are inside the Layers popover instead.
+    expect(canvasSource).toContain("cameraActions={mapViewActions}");
     expect(layersSource).toContain("cameraActions");
   });
 });

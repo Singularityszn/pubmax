@@ -57,18 +57,22 @@ export function hasDismissedMapFirstVisitArrival(
 }
 
 /**
- * The reader moved the map, or opened a pub on it. Either is an answer.
+ * The reader put a finger on the map, moved it, or opened a pub on it. Each is
+ * an answer.
  *
  * The card used to hold the map `inert` until somebody pressed one of its three
  * buttons, so the painted-pin probe found nothing tappable anywhere on the
  * canvas (docs/proof/astra-live-walk/report.md B1). The map is live under the
  * strip now, and a reader who goes straight to the pins has said what they came
  * for more plainly than the close button would.
+ *
+ * IT TAKES NO ARGUMENTS, and that is load-bearing: it is handed straight to a
+ * React event prop, so a `storage` parameter would receive the pointer event,
+ * `setItem` would throw on it, and the catch would swallow the whole dismissal
+ * in silence. Measured exactly that way once.
  */
-export function dismissMapFirstVisitArrivalOnMapUse(
-  storage?: Storage | null,
-): void {
-  dismissMapFirstVisitArrival(storage);
+export function dismissMapFirstVisitArrivalOnMapUse(): void {
+  dismissMapFirstVisitArrival();
 }
 
 export function dismissMapFirstVisitArrival(storage?: Storage | null): void {
