@@ -35,6 +35,7 @@ describe("the quality gates", () => {
     const verify = packageScripts().verify;
 
     for (const step of [
+      "npm run check:review-scope",
       "npm run validate-data",
       "npm run lint",
       "npm run typecheck",
@@ -51,6 +52,16 @@ describe("the quality gates", () => {
     ]) {
       expect(verify, `verify must run ${step}`).toContain(step);
     }
+  });
+
+  it("checks the whole local review before verification generates data", () => {
+    const scripts = packageScripts();
+    expect(scripts["check:review-scope"]).toBe(
+      "node scripts/check_review_scope.mjs --local",
+    );
+    expect(scripts.verify.indexOf("npm run check:review-scope")).toBeLessThan(
+      scripts.verify.indexOf("npm run validate-data"),
+    );
   });
 
   it("keeps the pre-push hook pointed at that one gate", () => {

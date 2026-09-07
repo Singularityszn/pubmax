@@ -87,7 +87,8 @@ Useful scripts:
 | Command | What it does |
 |---|---|
 | `npm run dev` | Dev server |
-| `npm run verify` | validate-data · lint · typecheck · coverage · test:rls · gate:e2e-skips · check:freshness · audit - the local pre-push gate. `test:rls` needs PostgreSQL 16; a host that genuinely cannot install one sets `PUBMAX_RLS_ALLOW_SKIP=1` to admit the skip out loud, because a skipped policy proof reported as a pass is what let an RLS hole live for four days |
+| `npm run check:review-scope` | Reports branch commits and local changes against the merge base with `origin/main`. Unexplained generated files and skill packs fail. |
+| `npm run verify` | check:review-scope · validate-data · lint · typecheck · coverage · test:rls · gate:e2e-skips · check:freshness · audit - the local pre-push gate. `test:rls` needs PostgreSQL 16; a host that genuinely cannot install one sets `PUBMAX_RLS_ALLOW_SKIP=1` to admit the skip out loud, because a skipped policy proof reported as a pass is what let an RLS hole live for four days |
 | `npm run ci` | `verify` + build — the full gate (what Vercel runs) |
 | `npm run ci:isolated` | Collision-safe keyless `ci` in a unique temporary Next dist directory; restores Next-managed tracked files |
 | `npm test` | Vitest unit suite (31 suites boot a throwaway PostgreSQL 16 cluster; `PUBMAX_PG_MAX_CLUSTERS` caps how many run at once, `PUBMAX_RLS_NO_PG=1` skips them) |

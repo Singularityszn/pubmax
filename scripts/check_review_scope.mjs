@@ -85,7 +85,7 @@ const MIGRATION_PATH = /^supabase\/migrations(?:\/|$)/;
 const TEST_PATH = /^(?:__tests__|e2e|tests)(?:\/|$)|(?:^|\/)(?:test|spec)\.[^/]+$/;
 const CONFIG_PATH = /^(?:\.github|\.githooks|\.husky)(?:\/|$)|^(?:package\.json|package-lock\.json|tsconfig(?:\.[^/]+)?\.json|next\.config\.[^/]+|vitest\.config\.[^/]+|playwright\.config\.[^/]+|eslint\.config\.[^/]+)$/;
 const SOURCE_ROOTS = new Set(["app", "components", "lib", "scripts", "supabase"]);
-const NON_RUNTIME_SOURCE_PATHS = new Set(["scripts/check_review_scope.mjs"]);
+const NON_RUNTIME_SOURCE_PATHS = new Set(["scripts/check_review_scope.mjs", "scripts/check_review_scope.d.mts"]);
 
 /** Convert Git's path spelling into the one used by the report. */
 export function normalizeReviewPath(value) {
@@ -221,14 +221,37 @@ export function changedFilesFromGit(base, head, cwd) {
   return output.split("\n").filter(Boolean);
 }
 
+/** Include branch commits and local changes in one review, including untracked files. */
+export function localChangesFromGit(cwd) {
+  let base;
+  try {
+    base = execFileSync("git", ["merge-base", "origin/main", "HEAD"], {
+      cwd, encoding: "utf8", stdio: "pipe",
+    }).trim();
+  } catch {
+    throw new Error("Local review needs origin/main and shared history. Fetch the base, or use --base <sha> --head <sha>.");
+  }
+  const tracked = execFileSync("git", [
+    "diff", "--name-only", "-z", "--diff-filter=ACMRD", base, "--",
+  ], { cwd, encoding: "utf8" });
+  const untracked = execFileSync("git", [
+    "ls-files", "--others", "--exclude-standard", "-z",
+  ], { cwd, encoding: "utf8" });
+  return { base, files: uniqueSorted([...tracked.split("\0"), ...untracked.split("\0")].filter(Boolean)) };
+}
+
 function usage() {
-  return "Usage: node scripts/check_review_scope.mjs --base <sha> --head <sha> [--repo <path>]";
+  return "Usage: node scripts/check_review_scope.mjs (--local | --base <sha> --head <sha>) [--repo <path>]";
 }
 
 function parseArgs(argv) {
   const values = {};
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
+    if (flag === "--local") {
+      values.local = true;
+      continue;
+    }
     if (flag !== "--base" && flag !== "--head" && flag !== "--repo") {
       throw new Error(`unknown option: ${flag}\n${usage()}`);
     }
@@ -239,15 +262,20 @@ function parseArgs(argv) {
     values[flag.slice(2)] = value;
     index += 1;
   }
-  if (!values.base || !values.head) throw new Error(usage());
+  if (values.local ? (values.base || values.head) : (!values.base || !values.head)) {
+    throw new Error(usage());
+  }
   return values;
 }
 
 export function runReviewScopeCli(argv = process.argv.slice(2), cwd = process.cwd()) {
   const args = parseArgs(argv);
-  const files = changedFilesFromGit(args.base, args.head, args.repo ?? cwd);
-  const report = summarizeReviewScope(files);
-  console.log(JSON.stringify({ base: args.base, head: args.head, ...report }, null, 2));
+  const repo = args.repo ?? cwd;
+  const changes = args.local
+    ? localChangesFromGit(repo)
+    : { base: args.base, files: changedFilesFromGit(args.base, args.head, repo) };
+  const report = summarizeReviewScope(changes.files);
+  console.log(JSON.stringify({ base: changes.base, head: args.local ? "working-tree" : args.head, ...report }, null, 2));
   return report;
 }
 

@@ -52,6 +52,10 @@ export function changedFilesFromGit(
   head: string,
   cwd: string,
 ): string[];
+export function localChangesFromGit(cwd: string): {
+  base: string;
+  files: string[];
+};
 export function runReviewScopeCli(
   argv?: string[],
   cwd?: string,
