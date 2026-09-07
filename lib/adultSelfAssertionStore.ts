@@ -36,10 +36,11 @@ export const memoryAdultSelfAssertionStore: AdultSelfAssertionStore = {
 
   async record(userId) {
     const key = cleanUserId(userId);
-    const existing = key ? memoryAssertions.get(key) : undefined;
+    if (!key) throw new Error("An account is required to record an assertion.");
+    const existing = memoryAssertions.get(key);
     if (existing) return existing;
     const assertedAt = new Date().toISOString();
-    if (key) memoryAssertions.set(key, assertedAt);
+    memoryAssertions.set(key, assertedAt);
     return assertedAt;
   },
 };
