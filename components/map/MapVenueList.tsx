@@ -34,6 +34,7 @@ export default function MapVenueList({
   ukBaseStatus = "ready",
   cityName,
   open,
+  active,
   onOpenChange,
   loaded,
   onSelectVenue,
@@ -51,6 +52,8 @@ export default function MapVenueList({
   ukBaseStatus?: UkBaseStreamStatus;
   cityName: string;
   open: boolean;
+  /** Only the current map surface handles Escape. */
+  active: boolean;
   onOpenChange: (open: boolean) => void;
   loaded: boolean;
   onSelectVenue: (id: string) => void;
@@ -75,12 +78,10 @@ export default function MapVenueList({
   const firstCuratedId = model.rows[0]?.id;
   const firstBaseId = firstCuratedId ? undefined : ukBaseModel.rows[0]?.id;
 
-  // The list opens from Layers, so the way back is this panel's own SurfaceNav
-  // and it does not join the surface trail. Escape leaves it too, because
-  // opening the list moves focus INTO the list and a keyboard reader had no way
-  // out but to tab to the close glyph.
+  // Keep the list below a selected venue for focus restoration. Only the
+  // current surface may consume Escape, through the shared history owner.
   const closeList = useCallback(() => onOpenChange(false), [onOpenChange]);
-  useDismissOnEscape(open, closeList);
+  useDismissOnEscape(open && active, onBack ?? closeList);
 
   useEffect(() => {
     if (!open) {

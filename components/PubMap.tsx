@@ -5780,6 +5780,7 @@ export default function PubMap({
         ukBaseStatus={ukBaseStatus}
         cityName={mapContextName}
         open={mapListOpen}
+        active={mapSurfaceId === "venue-list"}
         onOpenChange={setMapListOpen}
         loaded={
           loaded &&
