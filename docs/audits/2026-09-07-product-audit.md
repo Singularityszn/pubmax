@@ -72,6 +72,19 @@ These timeouts are not evidence that the product itself failed.
 The next broad browser run must use a stable updated build and a reserved compute window.
 No timeout increases are retained solely to hide contention.
 
+The conditional-skip check passes across 222 browser specs. The dependency audit reports no high or critical findings.
+The local freshness command passes with three feeds it cannot measure without credentials.
+Read-only Supabase queries resolved those unknowns using the authoritative timestamp columns:
+
+| Feed | Production timestamp, UTC | Age at check |
+| --- | --- | --- |
+| Weather, newest generated batch | 2026-09-07 18:00:29.456 | 2.55 hours |
+| What's-On, oldest listing generation | 2026-09-07 05:30:14.289 | 15.06 hours |
+| Night signal candidates, feed stamp | 2026-09-07 05:15:52.557 | 15.30 hours |
+
+Weather and What's-On meet their 48-hour budgets. The candidate feed has no freshness budget and was updated today.
+These queries read timestamps only from project `iankajxliutqogqkmvdg`.
+
 ## Standards review
 
 Independent source review found one clock-dependent arrival test.
@@ -119,6 +132,9 @@ Logs are temporary operational evidence. Copy required artifacts into the final 
 - `/tmp/pubmaxx-guest-return-unit.log`
 - `/tmp/pubmaxx-arrival-cls-probe.log`
 - `/tmp/pubmaxx-auth-fixtures.log`
+- `/tmp/pubmaxx-audit-baseline-results/`
+- `/tmp/pubmaxx-sw-consumption-before.log`
+- `/tmp/pubmaxx-sw-consumption-after.log`
 
 Generated venue revisions and proof screenshots are test outputs. They are excluded from audit commits.
 No audit commit has been pushed or deployed.
