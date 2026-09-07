@@ -77,6 +77,7 @@ test("a failed full composer keeps the bill and price until the retry lands", as
   await expect.poll(() => requests.length).toBe(1);
   await expect(form).toBeVisible();
   await expect(sheet).toContainText("Temporary storage outage");
+  await expect(sheet.locator("article.dropCard").filter({ hasText: "Pale ale" })).toHaveCount(0);
   await expect(form.locator('[data-testid="spill-receipt-step"] img')).toBeVisible();
   await expect.poll(() => form.locator('[data-testid="spill-receipt-step"] img').evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   await form.getByRole("button", { name: "Log it", exact: true }).click();

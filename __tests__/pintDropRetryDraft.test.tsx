@@ -76,6 +76,7 @@ it("retains the failed draft through a malformed success, then clears after a sa
   expect(state.dropForm.price).toBe("2.60");
   expect(state.receiptPhoto?.file).toBe(receipt);
   expect(revoked).not.toHaveBeenCalledWith(receiptUrl);
+  expect(state.dropsByVenueId.get("venue-1") ?? []).toEqual([]);
 
   post.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
   await act(async () => state.submitDrop({ preventDefault() {} } as FormEvent, "venue-1"));
