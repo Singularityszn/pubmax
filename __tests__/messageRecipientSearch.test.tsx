@@ -2,7 +2,7 @@
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-const auth = vi.hoisted(() => ({ accountRevision: 1, handle: "viewer", signedOut: false }));
+const auth = vi.hoisted(() => ({ accountRevision: 1, handle: "viewer" as string | null, signedOut: false, identityResolved: true }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => auth }));
 vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => ({ unresolved: false, signedOut: auth.signedOut }) }));
 vi.mock("next/link", () => ({ default: ({ href, children }: { href: string; children: ReactNode }) => <a href={href}>{children}</a> }));
@@ -12,7 +12,7 @@ let host: HTMLDivElement;
 let root: Root;
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  auth.accountRevision = 1; auth.signedOut = false;
+  auth.accountRevision = 1; auth.signedOut = false; auth.handle = "viewer"; auth.identityResolved = true;
   host = document.createElement("div"); document.body.append(host); root = createRoot(host);
 });
 afterEach(() => { act(() => root.unmount()); host.remove(); vi.unstubAllGlobals(); });
@@ -32,6 +32,7 @@ it("finds recipients, excludes the viewer, and reuses the message action", async
   expect(fetcher.mock.calls[0][0]).toBe("/api/profiles/search?q=sam");
   expect(host.textContent).toContain("Message sam");
   expect(host.textContent).not.toContain("Message viewer");
+  expect(host.querySelector('a[href="/u/sam"]')!.textContent).toBe("@sam");
   auth.accountRevision = 2;
   await act(async () => root.render(<MessageRecipientSearch />));
   expect(host.textContent).not.toContain("Message sam");
@@ -48,4 +49,18 @@ it("returns signed-out users to recipient search after login", async () => {
   await act(async () => root.render(<MessageRecipientSearch />));
   expect(host.querySelector("a")!.getAttribute("href")).toBe("/login?mode=signin&from=%2Fmessages%2Fnew");
   expect(host.querySelector("form")).toBeNull();
+});
+
+it("keeps pending identity neutral before deciding whether a handle is missing", async () => {
+  auth.handle = null;
+  auth.identityResolved = false;
+  await act(async () => root.render(<MessageRecipientSearch />));
+  expect(host.textContent).toBe("Checking your account…");
+  expect(host.querySelector("a")).toBeNull();
+  auth.identityResolved = true;
+  await act(async () => root.render(<MessageRecipientSearch />));
+  expect(host.textContent).toContain("Claim a handle to message");
+  auth.handle = "viewer";
+  await act(async () => root.render(<MessageRecipientSearch />));
+  expect(host.querySelector("form")).not.toBeNull();
 });

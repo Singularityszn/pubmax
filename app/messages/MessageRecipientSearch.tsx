@@ -15,7 +15,7 @@ export default function MessageRecipientSearch() {
 }
 
 function RecipientSearch() {
-  const { handle } = useAuth();
+  const { handle, identityResolved } = useAuth();
   const session = useViewerSession();
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<Match[]>([]);
@@ -25,6 +25,7 @@ function RecipientSearch() {
 
   if (session.unresolved) return <p role="status">Checking your account…</p>;
   if (session.signedOut) return <Link href="/login?mode=signin&from=%2Fmessages%2Fnew">Sign in to message</Link>;
+  if (!identityResolved) return <p role="status">Checking your account…</p>;
   if (!handle) return <Link href="/u/you">Claim a handle to message</Link>;
 
   return (
@@ -65,7 +66,7 @@ function RecipientSearch() {
       </p>
       <ul className="conversationList">
         {matches.map(match => <li className="messageRecipientRow" key={match.handle}>
-          <Link href={`/u/${encodeURIComponent(match.handle)}`}>{match.displayName || `@${match.handle}`}<span> @{match.handle}</span></Link>
+          <Link href={`/u/${encodeURIComponent(match.handle)}`}>{match.displayName ? <>{match.displayName}<span> @{match.handle}</span></> : `@${match.handle}`}</Link>
           <ProfileMessageButton targetHandle={match.handle} viewerHandle={handle} />
         </li>)}
       </ul>
