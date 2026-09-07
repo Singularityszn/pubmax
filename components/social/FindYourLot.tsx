@@ -329,7 +329,7 @@ export default function FindYourLot({
         </ul>
       ) : null}
 
-      <div className="findLot__invite">
+      <div className="findLot__invite createFabLane">
         {visibleInviteUrl ? (
           <>
             <code className="findLot__inviteUrl">{visibleInviteUrl}</code>
