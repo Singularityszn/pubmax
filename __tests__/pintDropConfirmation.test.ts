@@ -48,11 +48,11 @@ function candidates(...rows: PintDrop[]): ConfirmableDrop[] {
 }
 
 describe("second independent reporter", () => {
-  it("confirms a price when a second authority key agrees inside the window", () => {
+  it("confirms a price when a second authority key reports the same figure inside the window", () => {
     const pair = findSecondReporterConfirmation(
       candidates(
         drop({ id: "a", authorityKey: "key-one", priceGbp: 4.2 }),
-        drop({ id: "b", authorityKey: "key-two", priceGbp: 4.5 }),
+        drop({ id: "b", authorityKey: "key-two", priceGbp: 4.2 }),
       ),
       NOW,
     );
@@ -60,6 +60,33 @@ describe("second independent reporter", () => {
     expect(new Set([pair?.dropId, pair?.confirmingDropId])).toEqual(
       new Set(["a", "b"]),
     );
+  });
+
+  it("mints nothing over a DIFFERENT price, however close (captain 7 Sept 2026)", () => {
+    // £4.20 and £4.50 sit inside the community lane's 50p floor and used to
+    // mint a confirmation over a figure one of the two drinkers never paid.
+    // A different price is a third drop.
+    expect(
+      findSecondReporterConfirmation(
+        candidates(
+          drop({ id: "a", authorityKey: "key-one", priceGbp: 4.2 }),
+          drop({ id: "b", authorityKey: "key-two", priceGbp: 4.5 }),
+        ),
+        NOW,
+      ),
+    ).toBeNull();
+  });
+
+  it("mints nothing when two drinkers agree on a figure for DIFFERENT drinks", () => {
+    expect(
+      findSecondReporterConfirmation(
+        candidates(
+          drop({ id: "a", authorityKey: "key-one", priceGbp: 4.2, drink: "Guinness" }),
+          drop({ id: "b", authorityKey: "key-two", priceGbp: 4.2, drink: "Camden Hells" }),
+        ),
+        NOW,
+      ),
+    ).toBeNull();
   });
 
   it("does not confirm when the same reporter logs twice", () => {
@@ -300,7 +327,7 @@ describe("the minted record", () => {
 
   it("mints one id across both drops of a confirmed pair", async () => {
     addPintDrop(drop({ id: "a", authorityKey: "key-one", priceGbp: 4.2 }));
-    addPintDrop(drop({ id: "b", authorityKey: "key-two", priceGbp: 4.5 }));
+    addPintDrop(drop({ id: "b", authorityKey: "key-two", priceGbp: 4.2 }));
 
     const confirmation = await confirmVenueBySecondReporter(VENUE, NOW);
     expect(confirmation?.basis).toBe("second_reporter");

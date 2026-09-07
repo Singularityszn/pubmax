@@ -16,7 +16,7 @@
 // client components, so it must remain free of Node built-ins.
 
 import { LONDON_BOROUGHS, slugifyBorough } from "@/lib/boroughs";
-import type { NightAreaSlug } from "@/lib/nightAreas";
+import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 
 export const AREA_NEWS_KINDS = [
   "opening",
@@ -193,10 +193,35 @@ const AREA_INDEX: Record<string, AreaMeta> = {
   willesden: { borough: "brent", label: "Willesden" },
 };
 
-/** Every area slug the dataset is allowed to use: the neighbourhood keys plus
- *  every real borough slug (a borough-level fact uses the borough slug direct). */
+/** Night Area slugs some neighbourhood in the join table maps onto. Derived from
+ *  AREA_INDEX, so mapping one more neighbourhood to a patch is the only edit a
+ *  new lane needs. */
+const MAPPED_NIGHT_AREAS: ReadonlySet<string> = new Set(
+  Object.values(AREA_INDEX).flatMap((meta) => (meta.nightArea ? [meta.nightArea] : [])),
+);
+
+const NIGHT_AREA_SLUG_SET: ReadonlySet<string> = new Set<string>(NIGHT_AREA_SLUGS);
+
+/** Every area slug a reader may ask about: the dataset's own neighbourhood keys,
+ *  every real borough slug (a borough-level fact uses the borough slug direct),
+ *  and every Night Area the map can be sitting on.
+ *
+ *  The map passes the Night Area slug ("piccadilly-soho") while the dataset files
+ *  its facts under the neighbourhood ("soho"), so gating on the join table alone
+ *  refused five real London patches: balham, barnes, bermondsey-london-bridge,
+ *  piccadilly-soho and victoria. The other fifteen passed by coincidence, their
+ *  patch slug also being a table key. */
 export function isKnownAreaSlug(area: string): boolean {
-  return area in AREA_INDEX || BOROUGH_SLUG_TO_NAME.has(area);
+  return area in AREA_INDEX || BOROUGH_SLUG_TO_NAME.has(area) || NIGHT_AREA_SLUG_SET.has(area);
+}
+
+/** Whether the join table can reach this slug at all.
+ *
+ *  A Night Area no neighbourhood maps onto holds no news lane, and that is not
+ *  the same finding as a place with no news: no fact can ever be filed under it.
+ *  The route answers "unavailable" there rather than an empty list. */
+export function areaNewsLaneCovers(area: string): boolean {
+  return area in AREA_INDEX || BOROUGH_SLUG_TO_NAME.has(area) || MAPPED_NIGHT_AREAS.has(area);
 }
 
 /** The borough slug an area belongs to, or null when the slug is unknown. */

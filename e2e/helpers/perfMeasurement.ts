@@ -1,14 +1,15 @@
 import { expect, type Page, type Request } from "@playwright/test";
 
 import {
-  BUDGET_METRICS,
   PERFORMANCE_BUDGETS,
   median,
-  perfSampleSpread,
   resolveCountBoundary,
+  resolveRouteRunPlan,
+  routeNeedsMoreEvidence,
   type BudgetMethod,
   type BudgetMetric,
   type PerfBoundarySource,
+  type RouteNoiseRecord,
 } from "../../lib/performanceBudgets";
 
 /**
@@ -54,6 +55,13 @@ export type PerfRoute = {
   readySelector: string;
   /** Optional loading affordance that must be gone before measuring. */
   settledSelectorHidden?: string;
+  /**
+   * This route's recorded noise, when the caller passed a budget row. A marked
+   * route takes an extra discarded warm-up and a wider resample budget, both
+   * read through resolveRouteRunPlan. It moves no ceiling and only ever ADDS
+   * navigations.
+   */
+  noisy?: RouteNoiseRecord;
   /**
    * The route's own ceilings, when the caller passed a budget row rather than a
    * bare path. Read for one purpose: a figure that lands ON the line is worth
@@ -451,57 +459,6 @@ export async function measurePerfRoute(
 }
 
 /**
- * True when any metric's samples disagree past the tracked width AND its own
- * floor - the same two tests findMethodWarnings applies when it reports a run
- * as unmeasurable. Kept here rather than imported from the warning path so the
- * decision to spend another run is made on the samples in hand.
- */
-function routeCouldNotMeasureItself(
-  samples: readonly PerfSample[],
-  method: BudgetMethod,
-): boolean {
-  if (!method.resampleRuns || samples.length === 0) return false;
-  return BUDGET_METRICS.some((metric) => {
-    const spread = perfSampleSpread(samples.map((sample) => sample[metric]));
-    if (!Number.isFinite(spread.spreadPct) || spread.spreadPct <= method.sampleSpreadWarnPct) {
-      return false;
-    }
-    return spread.max - spread.min >= (method.sampleSpreadFloors[metric] ?? 0);
-  });
-}
-
-/**
- * True when a figure landed close enough to a ceiling that one sample's jitter
- * decides the verdict.
- *
- * The spread rule above asks whether the samples agreed with EACH OTHER, and it
- * is deliberately blind to where they sit. On 6 September /map's samples agreed
- * to 14 per cent and still read 612 ms in one attempt of the job and 956 ms in
- * the next against a 900 ms ceiling, while /pubs asked for 68 requests in one
- * attempt and 69 in the other against a ceiling of 68. Neither route could be
- * fixed by a route edit, and neither ceiling may move; what both needed was
- * more evidence exactly where the answer was close. So a median inside this
- * margin of its own ceiling, or over it, buys the same extra samples a
- * disagreeing route buys. It can only ever ADD runs, and it decides nothing:
- * lib/performanceBudgets still judges the median it is handed.
- */
-function routeLandedOnTheLine(
-  samples: readonly PerfSample[],
-  route: PerfRoute,
-  method: BudgetMethod,
-): boolean {
-  const margin = method.resampleWithinCeilingPct;
-  if (!method.resampleRuns || !margin || samples.length === 0) return false;
-  return BUDGET_METRICS.some((metric) => {
-    const ceiling = route[metric];
-    if (typeof ceiling !== "number" || !Number.isFinite(ceiling) || ceiling <= 0) return false;
-    const figure = median(samples.map((sample) => sample[metric]));
-    if (!Number.isFinite(figure)) return false;
-    return figure >= ceiling * (1 - margin / 100);
-  });
-}
-
-/**
  * The same run, with its individual samples kept.
  *
  * #1314 asked for exactly this before choosing a fix: a run that reports only
@@ -514,7 +471,13 @@ export async function runPerfRoute(
   method: BudgetMethod = PERFORMANCE_BUDGETS.method,
 ): Promise<PerfRouteRun> {
   await resetPerfState(page);
-  for (let run = 0; run < method.warmupRuns; run += 1) {
+  // What this route costs, off its own noise record. A marked route takes a
+  // SECOND discarded navigation before the first counted sample: the four
+  // routes the 6 September sweep could not measure are all shells whose second
+  // load is the first one whose caches, modules and fonts are all in place, and
+  // a warm-up that has not settled is the widest single source of the spread.
+  const plan = resolveRouteRunPlan(route, method);
+  for (let run = 0; run < plan.warmupRuns; run += 1) {
     await loadPerfRoute(page, route);
     await waitForQuietNetwork(page, method);
   }
@@ -522,13 +485,16 @@ export async function runPerfRoute(
   for (let run = 0; run < method.measuredRuns; run += 1) {
     samples.push(await samplePerfRoute(page, route, method));
   }
-  // A median of 3 is only a median when the samples agree. Where they do not,
-  // the run says so itself through the same spread rule findMethodWarnings
-  // prints, and a route that cannot measure itself is measured again rather
-  // than judged on the disagreement. The extra samples are spent ONLY on such
-  // a route, so a quiet sweep costs exactly what it did before.
-  if (routeCouldNotMeasureItself(samples, method) || routeLandedOnTheLine(samples, route, method)) {
-    for (let run = 0; run < (method.resampleRuns ?? 0); run += 1) {
+  // A median of 3 is only a median when the samples agree, and a median sitting
+  // on a ceiling is decided by jitter rather than by the code. Both reasons to
+  // spend more samples are owned by lib/performanceBudgets.ts, which is pure
+  // and unit-tested without a browser, so the budget sweep and the UX lane
+  // report cannot drift apart on when a route is measured again. The extra
+  // samples are spent ONLY where one of those two rules fired, and how many
+  // there are to spend is this route's own plan: a marked route is judged on
+  // the median of seven, an unmarked one on three or five exactly as before.
+  if (routeNeedsMoreEvidence(samples, route, method, plan.resampleRuns)) {
+    for (let run = 0; run < plan.resampleRuns; run += 1) {
       samples.push(await samplePerfRoute(page, route, method));
     }
   }
@@ -549,3 +515,56 @@ export async function runPerfRoute(
     },
   };
 }
+
+/**
+ * A route that answers a REDIRECT, measured as the redirect it is.
+ *
+ * `page.goto` follows a 3xx, so a redirecting route measured as a page reports
+ * the cost of whatever it lands on, under a ceiling written for the page it
+ * used to be. This asks for the route with redirects OFF, so the four figures
+ * describe the one thing the route now does.
+ *
+ * It asserts the redirect rather than tolerating its absence: a route declared
+ * as a redirect that has quietly started serving a document again must fail
+ * here, not slip through measuring one request and passing every ceiling.
+ */
+export async function measurePerfRedirect(
+  page: Page,
+  route: PerfRoute & { redirectsTo: string },
+): Promise<PerfSample> {
+  const startedAt = Date.now();
+  // ASK THE WAY A BROWSER ASKS. An APIRequestContext sends `Accept: */*`, and
+  // the /onboarding rule keys on a document request precisely so an RSC fetch
+  // is untouched, so a bare request here is answered with the document and this
+  // lane would report "it did not redirect" about a route that does.
+  const response = await page.request.get(route.path, {
+    maxRedirects: 0,
+    headers: {
+      accept:
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    },
+  });
+  const serverRenderMs = Date.now() - startedAt;
+
+  expect(
+    response.status(),
+    `${route.path} is budgeted as a redirect to ${route.redirectsTo}, so it must answer one.`,
+  ).toBeGreaterThanOrEqual(300);
+  expect(response.status(), `${route.path} answered ${response.status()}`).toBeLessThan(400);
+  expect(
+    new URL(response.headers().location ?? "", "http://localhost").pathname,
+    `${route.path} redirects somewhere other than its budgeted target.`,
+  ).toBe(route.redirectsTo);
+
+  return {
+    serverRenderMs,
+    // One request, no script, and no paint: there is no document to draw.
+    jsDecodedKB: 0,
+    requests: 1,
+    lcpMs: 0,
+    cls: 0,
+    boundarySource: "page-ready",
+    stillOpen: [],
+  };
+}
+

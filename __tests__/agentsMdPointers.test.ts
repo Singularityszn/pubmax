@@ -102,6 +102,8 @@ const NOT_REPO_PATHS = new Set([
   // Database column name, not a repository path.
   "plan_crew_members.token_hash",
   // Database column name, not a repository path.
+  "public.pint_drops.receipt_photo_key",
+  // Database column name, not a repository path.
   "community_prices.actor",
   // Database column name, not a repository path.
   "harvest_venue_overlays.menu_url",
@@ -115,6 +117,8 @@ const NOT_REPO_PATHS = new Set([
   "public/data/pint_index/<YYYY-MM>.json",
   // Next configuration property, not a repository path.
   "experimental.staleTimes",
+  // Next router method named in the /onboarding entry, not a repository path.
+  "router.replace",
   // URL in trailing-slash law, not a repository path.
   "/api/thing/",
   // Harvest working directory is gitignored by design.
@@ -136,6 +140,8 @@ const NOT_REPO_PATHS = new Set([
   ".mobileTabBarClearance",
   // An OSM tag VALUE, not a path.
   "24/7",
+  // Accept header value named in the /onboarding entry, not a path.
+  "text/html,...",
   // Receipt copy the product prints, not a file.
   "Logged.",
   // Member and property names, not repository paths.

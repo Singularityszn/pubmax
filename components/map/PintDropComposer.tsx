@@ -19,6 +19,7 @@ import {
   resolveDestination,
   type SpillDestination,
 } from "@/lib/spillPreview";
+import { priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import type { LastPintDecision } from "@/lib/tfl";
 import type { PintDropsState } from "@/components/map/usePintDrops";
@@ -27,6 +28,7 @@ import { ComposerPriceStep } from "@/components/map/composer/ComposerPriceStep";
 import { SpillCameraStep } from "@/components/map/composer/SpillCameraStep";
 import { SpillDesktopCapture } from "@/components/map/composer/SpillDesktopCapture";
 import { SpillPreviewCard } from "@/components/map/composer/SpillPreviewCard";
+import { SpillReceiptStep } from "@/components/map/composer/SpillReceiptStep";
 import { useActiveRound } from "@/components/map/composer/useActiveRound";
 import { useIsMobileComposer } from "@/components/map/composer/useIsMobileComposer";
 import { useSpeechDictation } from "@/components/map/composer/useSpeechDictation";
@@ -68,8 +70,10 @@ export default function PintDropComposer({
     setVisibility,
     pintPhoto,
     venuePhoto,
+    receiptPhoto,
     pintInputRef,
     venueInputRef,
+    receiptInputRef,
     pickPhoto,
     removePhoto,
     resetComposer,
@@ -250,6 +254,18 @@ export default function PintDropComposer({
         priceQuickAdds={priceQuickAdds}
         lastKnownPrice={lastKnownPrice}
       />
+
+      {/* THE BILL, under the price and never behind the disclosure: it is the
+          one thing a price cannot go without, so a drinker may not have to go
+          looking for it (captain 7 Sept 2026). */}
+      {priceNeedsReceipt(dropForm.price) ? (
+        <SpillReceiptStep
+          receiptPhoto={receiptPhoto}
+          receiptInputRef={receiptInputRef}
+          pickPhoto={pickPhoto}
+          removePhoto={removePhoto}
+        />
+      ) : null}
 
       {/* Author identity, compact. An account handle is the authority-bearing
           value (spec 3.3) and is shown, never edited. The typed handle input

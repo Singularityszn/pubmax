@@ -205,7 +205,11 @@ export default function GardenTonightCard() {
                   </span>
                 </div>
                 {href ? (
-                  <Link className="gardenTonightPubLink pressable" href={href}>
+                  <Link
+                    className="gardenTonightPubLink pressable"
+                    href={href}
+                    prefetch={false}
+                  >
                     Map
                     <ArrowUpRight size={13} aria-hidden="true" />
                   </Link>

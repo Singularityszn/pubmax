@@ -76,7 +76,52 @@ export type RouteBudget = {
     measured: number;
     why: string;
   }>;
+  /**
+   * This route ANSWERS A REDIRECT rather than a document, and this is where it
+   * sends the reader.
+   *
+   * The sweep opens each route with `waitUntil: "load"` and a browser follows a
+   * 3xx, so without this a redirecting route's row silently measures the page it
+   * lands on, under a ceiling written for the page it used to be. /onboarding
+   * did exactly that: it answers 307 to "/" now and ships no document, and the
+   * next sweep read the homepage's 45 requests against the 41 that used to buy
+   * an almost empty first-run shell.
+   *
+   * A declared route is measured through the redirect itself, so its ceilings
+   * are the redirect's own cost. The target keeps its own row, which is what
+   * stops the page falling out of the budget altogether.
+   */
+  redirectsTo?: string;
+  /**
+   * This route has been MEASURED wide on this rig, so the ordinary three
+   * samples cannot decide it. See RouteNoiseRecord.
+   */
+  noisy?: RouteNoiseRecord;
 } & Record<BudgetMetric, number>;
+
+/**
+ * A ROUTE THAT CANNOT MEASURE ITSELF IN THREE, RECORDED RATHER THAN GUESSED.
+ *
+ * A ceiling is only a ceiling when the number under it is repeatable, and on
+ * these runners four routes are not: the 6 September sweep put their LCP
+ * samples 37 to 51 per cent apart, past this method's own 12 per cent width,
+ * and PR #1604 and PR #1611 both went red on routes they had not touched. The
+ * answer is more evidence, never a bigger ceiling, so a marked route takes a
+ * second discarded warm-up navigation and twice the resample budget, and is
+ * judged on the median of seven.
+ *
+ * The mark is EVIDENCE and not a preference: it carries the metric that was
+ * measured wide and the widest spread recorded, so it can be argued with, and
+ * it may be taken off the day a route measures narrow again. It touches no
+ * ceiling and can only ever ADD samples.
+ */
+export type RouteNoiseRecord = {
+  /** The metric or metrics this route was measured wide on. */
+  metrics: BudgetMetric[];
+  /** The widest spread recorded on this rig, as a whole percentage. */
+  measuredSpreadPct: number;
+  why: string;
+};
 
 export type BudgetMethod = {
   browser: string;
@@ -97,12 +142,34 @@ export type BudgetMethod = {
   resampleRuns?: number;
   /** Why the resample exists, kept beside the number for the next reader. */
   resampleWhy?: string;
+  /** And why the on-the-line half exists, and why its band reads both ways. */
+  resampleWithinCeilingWhy?: string;
+  /**
+   * THE NOISE FLOOR: what a route carrying a `noisy` record spends instead.
+   *
+   * `noisyWarmupRuns` is its discarded navigations, and `noisyResampleRuns` its
+   * resample budget, so a marked route is judged on the median of
+   * `measuredRuns + noisyResampleRuns` rather than of `measuredRuns +
+   * resampleRuns`. Both are absolute counts rather than deltas, because a
+   * reader of this block should not have to do arithmetic to learn what a route
+   * actually costs. Neither moves a ceiling and neither is spent on an unmarked
+   * route, so a quiet sweep costs exactly what it did before.
+   */
+  noisyWarmupRuns?: number;
+  noisyResampleRuns?: number;
+  noisyFloorWhy?: string;
   /**
    * And the second reason to spend them: a median this close to a ceiling, as a
    * percentage of the ceiling, is decided by one sample's jitter. The spread
    * rule asks whether the samples agreed with each other and is blind to where
    * they sit, so a route can agree with itself at 14 per cent and still read
    * 612 ms in one attempt and 956 ms in the next against a 900 ms ceiling.
+   *
+   * The band is SYMMETRIC about the ceiling - `|median - ceiling| <= ceiling *
+   * pct` - and `medianSitsOnTheLine` is the one owner of that arithmetic. It
+   * used to be one-sided, firing on everything from a hair under the line to a
+   * route three times over it, which spent extra samples exactly and only where
+   * they could turn a red green.
    */
   resampleWithinCeilingPct?: number;
   aggregate: "median";
@@ -464,6 +531,145 @@ export type SampleRow = Record<BudgetMetric, number> & {
   /** Connections still open when the run stopped waiting. Reported, never failed on. */
   stillOpen?: readonly string[];
 };
+
+/**
+ * The ceilings a resample decision reads: a budget row, or any subset of one.
+ * A metric with no ceiling here simply does not vote.
+ */
+export type RouteCeilings = Partial<Record<BudgetMetric, number>>;
+
+/**
+ * WHEN A ROUTE IS MEASURED AGAIN, AND THE ONE OWNER OF THAT DECISION.
+ *
+ * A median of three is only a median when the samples agree, and a verdict
+ * taken within a hair of a ceiling is decided by jitter rather than by the
+ * code. Both are reasons to spend more samples, and both are asked here rather
+ * than in the browser helper, so the rule is unit-tested without a browser and
+ * the two perf specs cannot drift apart on it.
+ *
+ * Nothing in this file decides pass or fail from these predicates. They only
+ * ever ADD samples; findBudgetBreaches still judges the median it is handed.
+ */
+
+/**
+ * True when a route's own samples sat further apart than the tracked width AND
+ * further apart than the metric's own floor - the same two tests
+ * findMethodWarnings applies when it reports a run as unmeasurable.
+ */
+export function samplesDisagree(
+  samples: readonly SampleRow[],
+  method: BudgetMethod,
+): boolean {
+  if (samples.length === 0) return false;
+  return BUDGET_METRICS.some((metric) => {
+    const spread = perfSampleSpread(samples.map((sample) => sample[metric]));
+    if (!Number.isFinite(spread.spreadPct) || spread.spreadPct <= method.sampleSpreadWarnPct) {
+      return false;
+    }
+    return spread.max - spread.min >= (method.sampleSpreadFloors[metric] ?? 0);
+  });
+}
+
+/**
+ * True when a median landed close enough to a ceiling that one sample's jitter
+ * decides the verdict. THE BAND IS SYMMETRIC AROUND THE CEILING, and that is
+ * the whole of this rule.
+ *
+ * The first cut fired on any median at or above `ceiling * (1 - margin)`, which
+ * has no upper edge: it bought extra samples on every figure from a hair under
+ * the line all the way out to a route three times over it, and never on one
+ * sitting comfortably under. Extra samples can only move a median, so a trigger
+ * shaped like that spends evidence exactly and only where it can turn a red
+ * into a green - it is a thumb on the scale rather than a measurement, and the
+ * captain's decision (7 September 2026) is that it be symmetric.
+ *
+ * So the band is `|median - ceiling| <= ceiling * margin`. A figure just under
+ * the line and a figure just over it buy the same evidence, and a route far
+ * over its ceiling buys none: that is a regression rather than jitter, and the
+ * spread rule above is still there for the run where a box genuinely stalled.
+ * The change makes the gate STRICTER, never looser: it removes rescue attempts
+ * and adds none.
+ */
+export function medianSitsOnTheLine(
+  samples: readonly SampleRow[],
+  ceilings: RouteCeilings,
+  method: BudgetMethod,
+): boolean {
+  const margin = method.resampleWithinCeilingPct;
+  if (!margin || samples.length === 0) return false;
+  return BUDGET_METRICS.some((metric) => {
+    const ceiling = ceilings[metric];
+    if (typeof ceiling !== "number" || !Number.isFinite(ceiling) || ceiling <= 0) return false;
+    const figure = median(samples.map((sample) => sample[metric]));
+    if (!Number.isFinite(figure)) return false;
+    return Math.abs(figure - ceiling) <= ceiling * (margin / 100);
+  });
+}
+
+/**
+ * How many navigations one route costs: its discarded warm-ups, and the
+ * resample budget it may spend if `routeNeedsMoreEvidence` fires.
+ *
+ * It is a pure read of the route's own `noisy` record against the method
+ * block, so the sweep, the UX lane report and the sweep's own timeout all get
+ * the same answer from one place.
+ */
+export type RouteRunPlan = {
+  warmupRuns: number;
+  resampleRuns: number;
+  /** True when this route is spending the noise floor rather than the ordinary budget. */
+  noisy: boolean;
+};
+
+export function resolveRouteRunPlan(
+  route: { noisy?: RouteNoiseRecord },
+  method: BudgetMethod,
+): RouteRunPlan {
+  const ordinary = {
+    warmupRuns: method.warmupRuns,
+    resampleRuns: method.resampleRuns ?? 0,
+    noisy: false,
+  };
+  if (!route.noisy) return ordinary;
+  return {
+    warmupRuns: method.noisyWarmupRuns ?? ordinary.warmupRuns,
+    resampleRuns: method.noisyResampleRuns ?? ordinary.resampleRuns,
+    noisy: true,
+  };
+}
+
+/**
+ * The worst case a whole sweep can cost, in navigations. The sweep's own
+ * timeout reads it, because a noise floor that is not in the timeout is a
+ * sweep that times out rather than a sweep that measures.
+ */
+export function plannedNavigations(
+  routes: readonly { noisy?: RouteNoiseRecord }[],
+  method: BudgetMethod,
+): number {
+  return routes.reduce((total, route) => {
+    const plan = resolveRouteRunPlan(route, method);
+    return total + plan.warmupRuns + method.measuredRuns + plan.resampleRuns;
+  }, 0);
+}
+
+/**
+ * Either reason to spend the resample budget, asked once.
+ *
+ * The budget is passed in rather than read off the method, because a route
+ * carrying a `noisy` record spends `noisyResampleRuns` instead - and a route
+ * with no budget at all is never asked the question, so a method that declares
+ * no resample takes exactly the runs it says it takes.
+ */
+export function routeNeedsMoreEvidence(
+  samples: readonly SampleRow[],
+  ceilings: RouteCeilings,
+  method: BudgetMethod,
+  resampleBudget: number,
+): boolean {
+  if (!Number.isFinite(resampleBudget) || resampleBudget <= 0) return false;
+  return samplesDisagree(samples, method) || medianSitsOnTheLine(samples, ceilings, method);
+}
 
 /**
  * Every sample of every route, printed beside the aggregate.

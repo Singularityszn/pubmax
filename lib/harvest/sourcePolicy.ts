@@ -107,6 +107,8 @@ const PRICE_CHECKED_ON = "2026-09-03";
  * which question it answered.
  */
 const RENDER_CHECKED_ON = "2026-09-04";
+// The events aggregators, re-read against the live robots.txt on this day.
+const EVENTS_CHECKED_ON = "2026-09-07";
 
 export const HARVEST_SOURCES: readonly HarvestSource[] = [
   // --- chain deals: first-party operator offers pages ----------------------
@@ -297,11 +299,11 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
       allowed: false,
       reason: "terms-forbid-commercial-use",
       evidence:
-        "Skiddle's own terms make the events data non-commercial without written approval from dev@skiddle.com; PUBMAXX is commercial. robots.txt would permit the listing path, but the narrower rule binds. Recorded the same way in docs/EVENT_SOURCES_RESEARCH_2026-07-18.md.",
-      checkedOn: CHECKED_ON,
+        "Skiddle's own terms make the events data non-commercial without written approval from dev@skiddle.com; PUBMAXX is commercial. Re-read 2026-09-07: robots.txt disallows /orders/, /members/, /basket/ and friends and would permit the listing path, but the narrower terms rule binds. Recorded the same way in docs/EVENT_SOURCES_RESEARCH_2026-07-18.md.",
+      checkedOn: EVENTS_CHECKED_ON,
     },
     notes:
-      "The best pub-scale London coverage of the aggregators, and the one worth asking for. Written approval plus SKIDDLE_API_KEY switches on the official API path in scripts/whatson/eventsRefresh.mjs; it does not switch on scraping.",
+      "The best pub-scale London coverage of the aggregators, and the one worth asking for. SCRAPING IS REFUSED AND THE OFFICIAL API IS THE PERMITTED PATH: lib/events/skiddle.ts is that adapter, it runs at request time on /api/out, and it stays shut behind SKIDDLE_API_KEY plus the brand-asset fence in lib/whatson/eventNormalise.mjs. Written approval plus the key switch on the API; nothing switches on scraping.",
   },
   {
     id: "dice-listings",
@@ -313,10 +315,11 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
       allowed: false,
       reason: "robots-disallowed",
       evidence:
-        "robots.txt names `User-agent: CloudflareBrowserRenderingCrawler / Disallow: /` alongside the AI crawlers, and sets `Content-Signal: ai-train=no,use=reference`. The generic `Allow: /` does not survive the narrower rule.",
-      checkedOn: CHECKED_ON,
+        "robots.txt names `User-agent: CloudflareBrowserRenderingCrawler / Disallow: /` alongside the AI crawlers, and sets `Content-Signal: ai-train=no,use=reference`. The generic `Allow: /` does not survive the narrower rule. Re-read 2026-09-07: unchanged, both rules still stand.",
+      checkedOn: EVENTS_CHECKED_ON,
     },
-    notes: "No public discovery API either, so there is no permitted path to this inventory today.",
+    notes:
+      "No public discovery API either, so there is no permitted path to this inventory today. Asked for again on 2026-09-07 for the /out listings lane and refused again: no DICE adapter is built, and this entry IS the record of that answer.",
   },
   {
     id: "wegottickets-listings",

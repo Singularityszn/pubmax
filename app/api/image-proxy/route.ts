@@ -14,10 +14,12 @@
 // Responses are long-cached: scraped photos change on scrape cadence, and the
 // URL is the cache key.
 
+import sharp from "sharp";
+
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { allowedVenueImageHosts } from "@/lib/venueImageHosts.server";
-import { directVenueImageUrl } from "@/lib/venueImages";
+import { directVenueImageUrl, isVenueImageWidth } from "@/lib/venueImages";
 
 const MAX_BYTES = 8 * 1024 * 1024;
 // Per-IP rate limit (cursor bot, round 3): each request costs us an outbound
@@ -30,6 +32,51 @@ const RATE_WINDOW_MS = 60_000;
 const FETCH_TIMEOUT_MS = 8_000;
 const MAX_REDIRECTS = 1;
 const CACHE_CONTROL = "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400";
+// Quality for a resized answer. Measured on /pubs's own five photographs: the
+// five went from 792 KB at their natural size to well under a tenth of that at
+// the width the 344x168 card really draws.
+const RESIZE_QUALITY = 72;
+
+/**
+ * The width this request asked for, or null for the original bytes.
+ *
+ * `w` is honoured ONLY for a width in the closed set. Anything else is read as
+ * no width at all rather than refused, because the picture is what the caller
+ * came for and an unknown width is our vocabulary problem, not a broken image.
+ */
+function requestedWidth(params: URLSearchParams): number | null {
+  const raw = params.get("w");
+  if (!raw) return null;
+  const width = Number(raw);
+  return Number.isInteger(width) && isVenueImageWidth(width) ? width : null;
+}
+
+/**
+ * Resize to the asked-for width and re-encode as WebP.
+ *
+ * Never ENLARGES: `withoutEnlargement` means a source narrower than the ask is
+ * answered at its own width, so a small photograph is never blown up into more
+ * bytes than it started with.
+ *
+ * A failure here is about us rather than about the picture, so the original
+ * bytes are served instead. The reader gets a heavy image, which is what they
+ * got before this existed, rather than no image at all.
+ */
+async function resized(
+  body: Uint8Array,
+  width: number,
+): Promise<{ bytes: Uint8Array; type: string } | null> {
+  try {
+    const out = await sharp(body)
+      .rotate()
+      .resize({ width, withoutEnlargement: true })
+      .webp({ quality: RESIZE_QUALITY })
+      .toBuffer();
+    return { bytes: new Uint8Array(out), type: "image/webp" };
+  } catch {
+    return null;
+  }
+}
 
 function cacheableImageMiss(): Response {
   return new Response(null, {
@@ -87,9 +134,11 @@ export async function GET(request: Request): Promise<Response> {
     return new Response("Too many image requests, slow down.", { status: 429 });
   }
 
-  const src = new URL(request.url).searchParams.get("src") ?? "";
+  const params = new URL(request.url).searchParams;
+  const src = params.get("src") ?? "";
   const initial = validate(src);
   if (!initial) return new Response("Bad image source.", { status: 400 });
+  const width = requestedWidth(params);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -163,11 +212,17 @@ export async function GET(request: Request): Promise<Response> {
       chunks.push(value);
     }
     if (received === 0) return cacheableImageMiss();
-    const body = new Blob(chunks as BlobPart[]);
-    return new Response(body, {
+    const original = new Uint8Array(received);
+    let offset = 0;
+    for (const chunk of chunks) {
+      original.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    const answer = width ? await resized(original, width) : null;
+    return new Response(new Blob([(answer?.bytes ?? original) as BlobPart]), {
       status: 200,
       headers: {
-        "content-type": type,
+        "content-type": answer?.type ?? type,
         "cache-control": CACHE_CONTROL,
         "x-content-type-options": "nosniff",
       },

@@ -2,6 +2,12 @@
 
 // Review-scope report for pull requests. This script is deliberately
 // dependency-free so CI can run it before installing the application.
+//
+// It FAILS on one thing: generated or skill-pack output in a human review.
+// The file count and the runtime-domain count are warnings, because a wide
+// review is a judgement and a machine-written file in one is not. The single
+// exception is a REGENERATED LANE, declared below: output the same diff can be
+// shown to have produced.
 
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -14,6 +20,7 @@ const CATEGORY_ORDER = [
   "source",
   "migration",
   "generated",
+  "regenerated",
   "evidence",
   "test",
   "config",
@@ -38,6 +45,41 @@ const GENERATED_PATHS = [
   /(?:^|\/)[^/]+\.generated\.[^/]+$/,
   /^next-env\.d\.ts$/,
 ];
+/**
+ * A GENERATED LANE MAY RIDE THE REVIEW THAT PRODUCED IT.
+ *
+ * Two gates used to forbid every generator change between them. A build that
+ * rewrites a tracked file is refused (scripts/run-with-restored-next-env.mjs),
+ * so a generator change has to carry its regenerated output; and every path
+ * under a generated lane was forbidden here, so carrying that output failed
+ * this check. PR #1461 regenerated 610 uk_base files and was merged red on
+ * 4 September 2026 because there was no third answer.
+ *
+ * The third answer is EVIDENCE, not an exemption: output is permitted only
+ * when the same diff also changes the generator that writes it or the source
+ * input it is cut from, which is exactly the case where a reviewer can check
+ * the output against something. A lane's permission covers that lane alone.
+ * Output nobody in the diff produced stays forbidden, as does every skill
+ * pack, and the human-review count leaves permitted output out because a
+ * reviewer reads the generator, never 600 machine-written cells.
+ *
+ * A lane is declared here or it does not exist. Adding one means naming the
+ * generator that writes it and the input it reads.
+ */
+export const REGENERATED_LANES = [
+  {
+    id: "uk_base",
+    output: /^public\/data\/uk_base\/(?!README\.md$).+/,
+    inputs: [
+      /^scripts\/build_uk_base_shards\.mjs$/,
+      /^scripts\/build_uk_place_index\.mjs$/,
+      /^scripts\/build_uk_pub_search_index\.mjs$/,
+      /^scripts\/lib\/ukBaseGrid\.mjs$/,
+      /^data\/osm\/uk\/.+/,
+    ],
+  },
+];
+
 const EVIDENCE_PATH = /^(?:docs\/(?:proof|reviews|evidence)|e2e-shots|screenshots)(?:\/|$)/;
 const MIGRATION_PATH = /^supabase\/migrations(?:\/|$)/;
 const TEST_PATH = /^(?:__tests__|e2e|tests)(?:\/|$)|(?:^|\/)(?:test|spec)\.[^/]+$/;
@@ -86,6 +128,17 @@ export function classifyReviewFile(value) {
   return { path, category, domain: runtimeDomain(path, category) };
 }
 
+/**
+ * Which lanes the diff itself explains, by carrying the generator that writes
+ * them or the input they are cut from. A lane nobody produced is absent, and
+ * its output stays forbidden.
+ */
+export function explainedRegeneratedLanes(paths) {
+  return REGENERATED_LANES.filter((lane) =>
+    paths.some((path) => lane.inputs.some((input) => input.test(path))),
+  );
+}
+
 function uniqueSorted(values) {
   return [...new Set(values)].sort();
 }
@@ -96,7 +149,13 @@ function uniqueSorted(values) {
  */
 export function summarizeReviewScope(values) {
   const paths = uniqueSorted(values.map(normalizeReviewPath).filter(Boolean));
-  const classifications = paths.map(classifyReviewFile);
+  const explainedLanes = explainedRegeneratedLanes(paths);
+  const classifications = paths.map((path) => {
+    const item = classifyReviewFile(path);
+    if (item.category !== "generated") return item;
+    const lane = explainedLanes.find((candidate) => candidate.output.test(item.path));
+    return lane ? { ...item, category: "regenerated", lane: lane.id } : item;
+  });
   const categories = {};
   for (const item of classifications) {
     if (!categories[item.category]) categories[item.category] = [];
@@ -122,8 +181,13 @@ export function summarizeReviewScope(values) {
       `review spans ${domains.length} runtime domains (limit ${MAX_RUNTIME_DOMAINS})`,
     );
   }
-  if (paths.length > MAX_REVIEW_FILES) {
-    warnings.push(`review changes ${paths.length} files (limit ${MAX_REVIEW_FILES})`);
+  // A reviewer reads the generator, never the cells it wrote, so permitted
+  // output is out of the count this warning is about.
+  const reviewFileCount = classifications.filter(
+    (item) => item.category !== "regenerated",
+  ).length;
+  if (reviewFileCount > MAX_REVIEW_FILES) {
+    warnings.push(`review changes ${reviewFileCount} files (limit ${MAX_REVIEW_FILES})`);
   }
 
   const forbidden = classifications
@@ -132,6 +196,10 @@ export function summarizeReviewScope(values) {
 
   return {
     fileCount: paths.length,
+    reviewFileCount,
+    regeneratedLanes: explainedLanes
+      .filter((lane) => classifications.some((item) => item.lane === lane.id))
+      .map((lane) => lane.id),
     categories: orderedCategories,
     categoryCounts,
     domains,

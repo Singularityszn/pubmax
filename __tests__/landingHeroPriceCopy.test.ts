@@ -102,7 +102,10 @@ describe("landing answer card copy", () => {
     expect(bare).toContain("No publisher recorded, collected 3 July 2026.");
   });
 
-  it("asks Still £X? of the pub on the card, and opens that pub's Pint Drop door", () => {
-    expect(html).toMatch(/data-primary-action=""><a[^>]*href="\/map\?sel=venue-test&amp;log=1&amp;price=6\.50"[^>]*>Still £6\.50\?<\/a>/);
+  it("asks Still £X? of the pub on the card, as the first QUIET door", () => {
+    // The receipt door stopped being the primary on 7 Sep 2026: it ends in a
+    // sign-in ask, and /near answers a stranger with no wall at all.
+    expect(html).toMatch(/class="screenSecondary"><a[^>]*href="\/map\?sel=venue-test&amp;log=1&amp;price=6\.50"[^>]*>Still £6\.50\?<\/a>/);
+    expect(html).toMatch(/data-primary-action=""><a[^>]*href="\/near\?locate=1"[^>]*>Cheapest pints near me<\/a>/);
   });
 });

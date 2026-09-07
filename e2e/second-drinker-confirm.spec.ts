@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { ACCOUNTS, installAuthDoubles } from "./helpers/authDoubles";
+import { attachBill } from "./helpers/priceBill";
 
 /**
  * The second drinker's door, at 390 (Fable51Fix section 1, 5 Sept 2026).
@@ -187,6 +188,7 @@ test("a second drinker confirms £4.50 and the Overview flips from logged-once t
   await expect(priceInput).toBeInViewport();
 
   // The kept action, as the second drinker.
+  await attachBill(page);
   await page.getByRole("button", { name: "Log it" }).click();
   await expect
     .poll(() => lane.posts.length, { timeout: 15_000 })

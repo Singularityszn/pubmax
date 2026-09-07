@@ -20,7 +20,7 @@ import { buildCrawlShareText } from "@/lib/shareArtifacts";
 // Plan the crawl back onto the map from its stop venue ids, the same share-URL
 // shape seedCrawlState reads (mode=build&pubs=id1,id2). Stops missing a venue
 // id just are not planned back.
-function planCrawlHref(story: DurableStory): string {
+function crawlMapHref(story: DurableStory): string {
   const ids = story.stops.map((stop) => stop.venueId).filter(Boolean);
   if (ids.length === 0) return "/map";
   const params = new URLSearchParams();
@@ -95,8 +95,16 @@ export default function CrawlStoryPoster({ story, slug }: { story: DurableStory;
         title={story.title}
         titleId="storyHeading"
         lede={story.summary || undefined}
-        primary={<Link href={planCrawlHref(story)}>Start this crawl</Link>}
-        secondary={<Link href="/map">Open the map</Link>}
+        primary={
+          <Link prefetch={false} href={crawlMapHref(story)}>
+            Start this crawl
+          </Link>
+        }
+        secondary={
+          <Link prefetch={false} href="/map">
+            Open the map
+          </Link>
+        }
       >
         {story.vibeTags.length ? (
           <ul className="storyTags" aria-label="Crawl vibe tags">

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { installAuthDoubles } from "./helpers/authDoubles";
+import { attachBill } from "./helpers/priceBill";
 
 /**
  * THE ONE-TAP PRICE DOOR ASKS THE MEASURE (review finding F-2, battle test D04).
@@ -121,6 +122,7 @@ test("a half logged through the one-tap door travels as a half and moves no pin 
   );
 
   await submit.getByRole("textbox", { name: /Price of a beer at/ }).fill("2.60");
+  await attachBill(submit);
   await submit.getByRole("button", { name: "Log it" }).click();
 
   await expect.poll(() => sent.length, { timeout: 20_000 }).toBe(1);
@@ -167,6 +169,7 @@ test("a pint logged through the same door still says pint", async ({ page }) => 
     "true",
   );
   await submit.getByRole("textbox", { name: /Price of a beer at/ }).fill("5.50");
+  await attachBill(submit);
   await submit.getByRole("button", { name: "Log it" }).click();
 
   await expect.poll(() => sent.length, { timeout: 20_000 }).toBe(1);

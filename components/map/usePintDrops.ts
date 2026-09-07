@@ -11,7 +11,6 @@ import { trackEvent } from "@/lib/analytics";
 import type { CityId } from "@/lib/cities";
 import { unresolvedVenueLabel } from "@/lib/cityVenueIds";
 import type { PintDropDTO } from "@/lib/feed";
-import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
 import {
   buildOptimisticSpillDrop,
   buildOptimisticSpillRetryPayload,
@@ -61,6 +60,8 @@ import {
 } from "@/lib/spill";
 import type { LastPintDecision } from "@/lib/tfl";
 import { venueMapUrl } from "@/lib/venueMapUrl";
+import type { PintPriceSplit } from "@/lib/pintDropAgreement";
+import { RECEIPT_REQUIRED_LINE, photoRefusal, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { pintTrustFor, pintTrustSignalFields, type PintTrustState } from "@/lib/pintTrust";
 
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base
@@ -68,6 +69,9 @@ import { pintTrustFor, pintTrustSignalFields, type PintTrustState } from "@/lib/
 export type DropWithPhotos = PintDrop & {
   pintPhotoUrl: string | null;
   venuePhotoUrl: string | null;
+  /** The bill behind this price, or null (captain 7 Sept 2026). Absent on every
+   *  drop written before migration 0153, and on every drop with no price. */
+  receiptPhotoUrl?: string | null;
   optimistic?: PintDropDTO["optimistic"];
 };
 
@@ -75,7 +79,13 @@ export type DropWithPhotos = PintDrop & {
 export type { VenueDropReadStatus } from "@/lib/venueDropRead";
 
 export type PhotoSlot = { file: File; previewUrl: string };
-export type PhotoSlotName = "pint" | "venue";
+/**
+ * THREE SLOTS since 7 Sept 2026. `pint` is what they drank, `venue` is where,
+ * and `receipt` is the photo of the bill a new price now carries
+ * (lib/pintDropReceipt.ts). Three names rather than a reused one, because the
+ * drop's own row prints them apart and only one of them is required.
+ */
+export type PhotoSlotName = "pint" | "venue" | "receipt";
 
 /** Success/error banner after a drop — optional next-action links for Loop 2. */
 export type DropMsg = {
@@ -84,13 +94,13 @@ export type DropMsg = {
   links?: Array<{ href: string; label: string }>;
 };
 
-// ONE NUMBER ON BOTH SIDES OF THE WIRE. This gate said 5 MB while the platform
-// refuses any body over 4.5 MB with a plain-text 413 before a handler runs, so
-// a 4.5 MB phone photo passed the check the browser made and came back as
-// "Could not save that drop." with nothing about its size (PlanAstra, section
-// 2.4). lib/uploadBodyLimit.ts is where that figure lives.
-const MAX_PHOTO_BYTES = UPLOAD_PHOTO_MAX_BYTES;
-const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+// ONE NUMBER ON BOTH SIDES OF THE WIRE, and ONE PLACE THAT ASKS. This gate
+// said 5 MB while the platform refuses any body over 4.5 MB with a plain-text
+// 413 before a handler runs, so a 4.5 MB phone photo passed the check the
+// browser made and came back as "Could not save that drop." with nothing about
+// its size (PlanAstra, section 2.4). `photoRefusal` (lib/pintDropReceipt.ts) is
+// the browser's whole half of that rule, quoting lib/uploadBodyLimit.ts's own
+// figure, and both composers ask it rather than each keeping a copy.
 const MAX_VIBE_TAGS = 4; // mirrors the server cap in lib/pintDrops.ts.
 
 function localStorageSafe(): Storage | null {
@@ -309,10 +319,12 @@ export function usePintDrops(
   const [vibeTags, setVibeTags] = useState<VibeTag[]>([]);
   const [pintPhoto, setPintPhoto] = useState<PhotoSlot | null>(null);
   const [venuePhoto, setVenuePhoto] = useState<PhotoSlot | null>(null);
+  const [receiptPhoto, setReceiptPhoto] = useState<PhotoSlot | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [dropMsg, setDropMsg] = useState<DropMsg | null>(null);
   const pintInputRef = useRef<HTMLInputElement>(null);
   const venueInputRef = useRef<HTMLInputElement>(null);
+  const receiptInputRef = useRef<HTMLInputElement>(null);
   // Ref guard + optimistic removal is the whole "pending state" for reports —
   // the button unmounts on click, so double-submit can't happen.
   const reportsInFlight = useRef(new Set<string>());
@@ -407,17 +419,21 @@ export function usePintDrops(
   // Pick a photo for one slot: pre-validate (type + size) before we ever build a
   // preview or submit, so bad files are caught client-side. Object URLs are
   // revoked when the slot is replaced/removed and on unmount (effect below).
+  // ONE TABLE FOR THREE SLOTS. It was a pair of ternaries per function, and a
+  // third slot would have made six places to keep in step.
+  const photoSlots = {
+    pint: { value: pintPhoto, set: setPintPhoto, input: pintInputRef },
+    venue: { value: venuePhoto, set: setVenuePhoto, input: venueInputRef },
+    receipt: { value: receiptPhoto, set: setReceiptPhoto, input: receiptInputRef },
+  } as const;
+
   function pickPhoto(slot: PhotoSlotName, file: File | undefined, inputEl: HTMLInputElement | null) {
-    const current = slot === "pint" ? pintPhoto : venuePhoto;
-    const setSlot = slot === "pint" ? setPintPhoto : setVenuePhoto;
+    const current = photoSlots[slot].value;
+    const setSlot = photoSlots[slot].set;
     if (!file) return;
-    if (!ACCEPTED_PHOTO_TYPES.includes(file.type)) {
-      setDropMsg({ ok: false, text: "Photos must be JPEG, PNG, or WebP." });
-      if (inputEl) inputEl.value = "";
-      return;
-    }
-    if (file.size > MAX_PHOTO_BYTES) {
-      setDropMsg({ ok: false, text: `Each photo must be under ${UPLOAD_PHOTO_MAX_LABEL}.` });
+    const refusal = photoRefusal(file);
+    if (refusal) {
+      setDropMsg({ ok: false, text: refusal });
       if (inputEl) inputEl.value = "";
       return;
     }
@@ -439,9 +455,9 @@ export function usePintDrops(
   }
 
   function removePhoto(slot: PhotoSlotName) {
-    const current = slot === "pint" ? pintPhoto : venuePhoto;
-    const setSlot = slot === "pint" ? setPintPhoto : setVenuePhoto;
-    const inputEl = slot === "pint" ? pintInputRef.current : venueInputRef.current;
+    const current = photoSlots[slot].value;
+    const setSlot = photoSlots[slot].set;
+    const inputEl = photoSlots[slot].input.current;
     if (current) URL.revokeObjectURL(current.previewUrl);
     setSlot(null);
     if (inputEl) inputEl.value = "";
@@ -453,6 +469,10 @@ export function usePintDrops(
       return null;
     });
     setVenuePhoto((current) => {
+      if (current) URL.revokeObjectURL(current.previewUrl);
+      return null;
+    });
+    setReceiptPhoto((current) => {
       if (current) URL.revokeObjectURL(current.previewUrl);
       return null;
     });
@@ -469,6 +489,7 @@ export function usePintDrops(
     setVisibility(DEFAULT_VISIBILITY);
     if (pintInputRef.current) pintInputRef.current.value = "";
     if (venueInputRef.current) venueInputRef.current.value = "";
+    if (receiptInputRef.current) receiptInputRef.current.value = "";
   }, []);
 
   // Revoke any live preview URLs when the component unmounts.
@@ -476,8 +497,9 @@ export function usePintDrops(
     return () => {
       if (pintPhoto) URL.revokeObjectURL(pintPhoto.previewUrl);
       if (venuePhoto) URL.revokeObjectURL(venuePhoto.previewUrl);
+      if (receiptPhoto) URL.revokeObjectURL(receiptPhoto.previewUrl);
     };
-  }, [pintPhoto, venuePhoto]);
+  }, [pintPhoto, venuePhoto, receiptPhoto]);
 
   function updateOptimisticFeedStorage(
     update: (current: ReturnType<typeof readOptimisticSpills>) => ReturnType<typeof readOptimisticSpills>,
@@ -538,6 +560,14 @@ export function usePintDrops(
       });
       return;
     }
+    // A NEW PRICE COMES WITH THE BILL (captain 7 Sept 2026). Said here as well
+    // as at the route, so a drinker learns it before the upload rather than
+    // after it (lib/pintDropReceipt.ts owns the rule and the line).
+    if (priceNeedsReceipt(dropForm.price) && !receiptPhoto) {
+      setSubmitting(false);
+      setDropMsg({ ok: false, text: RECEIPT_REQUIRED_LINE });
+      return;
+    }
     const passedDownNote = appendWithSuffix(dropForm.note, dropForm.withWho);
     // Wave G1: only stamp leave-by + decision when a LIVE Last Pint verdict is
     // on screen — never attach live_data_unavailable or a missing leave-by.
@@ -587,6 +617,10 @@ export function usePintDrops(
       createdAt: optimisticDrop.createdAt,
       pintPhotoUrl: optimisticDrop.pintPhotoUrl,
       venuePhotoUrl: optimisticDrop.venuePhotoUrl,
+      // The bill shows on the row the moment it is posted, from the same local
+      // preview the other two use, so the drinker sees their own evidence
+      // before the upload lands.
+      receiptPhotoUrl: receiptPhoto?.previewUrl ?? null,
       optimistic: optimisticDrop.optimistic,
       ...(trainFields
         ? { leaveByIso: trainFields.leaveByIso, lastTrainDecision: trainFields.lastTrainDecision }
@@ -610,6 +644,7 @@ export function usePintDrops(
     const submittedVibeTags = [...vibeTags];
     const submittedPintFile = pintPhoto?.file ?? null;
     const submittedVenueFile = venuePhoto?.file ?? null;
+    const submittedReceiptFile = receiptPhoto?.file ?? null;
     clearPintDropDraft(
       typeof window === "undefined" ? null : window.sessionStorage,
       venueId,
@@ -683,6 +718,7 @@ export function usePintDrops(
       }
       if (submittedPintFile) body.set("pint_photo", submittedPintFile);
       if (submittedVenueFile) body.set("venue_photo", submittedVenueFile);
+      if (submittedReceiptFile) body.set("receipt_photo", submittedReceiptFile);
 
       const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
       const data = await response.json().catch(() => null);
@@ -855,6 +891,12 @@ export function usePintDrops(
         agedContributorPrice: number | null;
         /** Epoch ms that aged report was logged, or null. */
         agedContributorAt: number | null;
+        /** The figures this pub's drinkers disagree about, for the sheet and
+         *  the peek. Never a band, a bucket or a pin figure: two prices have
+         *  no one number (lib/pintDropAgreement.ts). */
+        disputedPrices: PintPriceSplit | null;
+        /** Epoch ms the freshest of those was logged, or null. */
+        disputedAt: number | null;
       }
     >();
     for (const [venueId, venueDrops] of mapDropsByVenueId) {
@@ -915,8 +957,10 @@ export function usePintDrops(
     setVisibility,
     pintPhoto,
     venuePhoto,
+    receiptPhoto,
     pintInputRef,
     venueInputRef,
+    receiptInputRef,
     pickPhoto,
     removePhoto,
     resetComposer,

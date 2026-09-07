@@ -20,8 +20,12 @@ export default function CrawlStoryNotFound(): React.JSX.Element {
     <main id="main" className="storyShell">
       <nav className="storyNav" aria-label="Site navigation">
         <Link href="/">Home</Link>
-        <Link href="/map">Map</Link>
-        <Link href="/social?tab=discover">Explore</Link>
+        <Link prefetch={false} href="/map">
+          Map
+        </Link>
+        <Link prefetch={false} href="/social?tab=discover">
+          Explore
+        </Link>
       </nav>
 
       <EmptyState

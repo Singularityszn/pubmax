@@ -53,7 +53,7 @@ import {
   venuePriceLane,
   venueSourcedPrice,
 } from "@/lib/venuePriceLane";
-import { dropLaneInput } from "@/lib/pintTrust";
+import { dropLaneInput, splitLaneInput } from "@/lib/pintTrust";
 import {
   isMapSearchField,
   typedSearchCameraMove,
@@ -476,7 +476,7 @@ import {
 } from "@/lib/mapExperienceLens";
 import { loadSpoonsValueLane } from "@/lib/spoonsValueLane";
 import {
-  SPOONS_VALUE_LENS_OFF,
+  spoonsValueLensRequested,
   spoonsValueLensView,
   spoonsValueReadForToggle,
   type SpoonsValueLensState,
@@ -1391,13 +1391,20 @@ export default function PubMap({
       cancelled = true;
     };
   }, [filters.openNow]);
-  // The Spoons value lens. OFF by default and its lane is fetched only when a
-  // reader switches it on, so a cold /map pays nothing for it: this is not one
-  // of the streams lib/mapFirstPinStreams.ts holds, because nothing asks for it
-  // until the map has already drawn the control to switch it over.
-  const [spoonsValueOn, setSpoonsValueOn] = useState(false);
-  const [spoonsValueRead, setSpoonsValueRead] = useState<SpoonsValueLensState>(
-    SPOONS_VALUE_LENS_OFF,
+  // The Spoons value lens. Off unless the arrival asked for it by name, which is
+  // `/map?lens=spoons`, the door every link off /spoons-value carries. This
+  // component is a dynamic import with ssr:false, so the query is honestly
+  // readable in the initializer and there is no server render to disagree with.
+  //
+  // Its lane is still fetched only once the lens is on, so a cold /map pays
+  // nothing for it: this is not one of the streams lib/mapFirstPinStreams.ts
+  // holds, because nothing asks for it until a reader arrives under it or the
+  // map has drawn the control to switch it over.
+  const [spoonsValueOn, setSpoonsValueOn] = useState(() =>
+    spoonsValueLensRequested(currentSearch()),
+  );
+  const [spoonsValueRead, setSpoonsValueRead] = useState<SpoonsValueLensState>(() =>
+    spoonsValueReadForToggle(spoonsValueLensRequested(currentSearch())),
   );
   const [spoonsValueLaneRead, setSpoonsValueLaneRead] =
     useState<SpoonsValuePinLane | null>(null);
@@ -5094,6 +5101,7 @@ export default function PubMap({
         peekDropSignal?.provisionalContributorAt,
       ),
       dropLaneInput(peekDropSignal?.agedContributorPrice, peekDropSignal?.agedContributorAt),
+      splitLaneInput(peekDropSignal?.disputedPrices, peekDropSignal?.disputedAt),
     );
     const peekPrice = peekPriceChip(peekLane, peekBundle, peekDropSignal?.pintTrust ?? null);
     return (
@@ -5246,6 +5254,10 @@ export default function PubMap({
           agedPrice={dropLaneInput(
             dropSignals.get(selectedVenue.id)?.agedContributorPrice,
             dropSignals.get(selectedVenue.id)?.agedContributorAt,
+          )}
+          disputedPrice={splitLaneInput(
+            dropSignals.get(selectedVenue.id)?.disputedPrices,
+            dropSignals.get(selectedVenue.id)?.disputedAt,
           )}
           // Share copy prefers the MERGED map-authority figure (same seam as
           // pins), dated — never a sheet-only uncorroborated report.

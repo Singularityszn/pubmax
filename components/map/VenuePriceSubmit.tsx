@@ -17,6 +17,15 @@ import {
   type CommunityPriceMapReach,
 } from "@/lib/communityPrice";
 import { drinkLaneNoun, submitCategoriesForLane } from "@/lib/drinkLanes";
+import { confirmationOutcomeLine } from "@/lib/pintDropSecondDrinker";
+import {
+  PHOTO_ACCEPT,
+  PINT_PHOTO_ACTION,
+  PINT_PHOTO_FUN_LINE,
+  RECEIPT_PHOTO_ACTION,
+  RECEIPT_REQUIRED_LINE,
+  photoRefusal,
+} from "@/lib/pintDropReceipt";
 import {
   DEFAULT_DRINK_MEASURE,
   drinkMeasureName,
@@ -28,7 +37,6 @@ import { formatPriceGbp, QUICK_ADD_PRICES_GBP } from "@/lib/spill";
 import { mergePriceChips } from "@/lib/spillPreview";
 import type { DrinkCategory } from "@/lib/drinks";
 import { formatPrice } from "@/lib/venues";
-import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { useContributionGate } from "@/components/identity/ContributionGateDialog";
 import { trackEvent } from "@/lib/analytics";
@@ -49,29 +57,6 @@ import {
   type MissionReceipt,
   type PriceEvidenceMissionReason,
 } from "@/lib/priceEvidenceMissions";
-
-const PINT_PHOTO_ACCEPT = "image/jpeg,image/png,image/webp";
-// The wire's own number, never a second one: a 4.5 MB photo that passed a 5 MB
-// gate here was refused by the platform with a 413 before any handler ran, and
-// the composer could only word that as a failed save (lib/uploadBodyLimit.ts).
-const PINT_PHOTO_MAX_BYTES = UPLOAD_PHOTO_MAX_BYTES;
-
-/**
- * Why this file cannot go, in the reader's words, or null.
- *
- * Pure and module-scope so the browser's two checks are one statement, and so
- * the size refusal quotes the wire's own figure rather than a number typed
- * beside a picker.
- */
-function pintPhotoRefusal(file: File): string | null {
-  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-    return "Photos must be JPEG, PNG, or WebP.";
-  }
-  if (file.size > PINT_PHOTO_MAX_BYTES) {
-    return `Each photo must be under ${UPLOAD_PHOTO_MAX_LABEL}.`;
-  }
-  return null;
-}
 
 export type VenuePriceSubmitMission = {
   reason: PriceEvidenceMissionReason;
@@ -258,6 +243,11 @@ export default function VenuePriceSubmit({
   const [error, setError] = useState<string | null>(null);
   const [pintPhoto, setPintPhoto] = useState<File | null>(null);
   const pintPhotoInputRef = useRef<HTMLInputElement>(null);
+  // THE BILL (captain 7 Sept 2026). A new price does not leave this composer
+  // without one, and the same rule refuses it again at the route
+  // (lib/pintDropReceipt.ts), because a browser is not a gate.
+  const [receiptPhoto, setReceiptPhoto] = useState<File | null>(null);
+  const receiptPhotoInputRef = useRef<HTMLInputElement>(null);
   // WHAT SERVING THE FIGURE IS ABOUT (review finding F-2, battle test D04).
   // Asked on the beer lane alone, because the pint lane is the only lane a
   // measure changes the meaning of: a £12 cocktail is not a half of anything.
@@ -287,6 +277,14 @@ export default function VenuePriceSubmit({
     category: DrinkCategory;
     attribution: CommunityPriceAttribution;
     missionReceipt?: MissionReceipt;
+    /**
+     * What the server's second-reporter pass made of this write, already worded
+     * (lib/pintDropSecondDrinker.ts). Null where the receipt above already says
+     * everything. The composer PRINTS it and decides nothing: a drinker who
+     * answered "Which did you pay?" with a third price is owed the pub's own
+     * figures rather than a line asking for a drinker who has already been.
+     */
+    outcomeLine?: string | null;
     /**
      * A non-pint log has no community price to read back (the route writes the
      * dated Pint Drop alone), so the receipt carries the figure and the serving
@@ -360,6 +358,11 @@ export default function VenuePriceSubmit({
     if (pintPhotoInputRef.current) pintPhotoInputRef.current.value = "";
   }
 
+  function clearReceiptPhoto() {
+    setReceiptPhoto(null);
+    if (receiptPhotoInputRef.current) receiptPhotoInputRef.current.value = "";
+  }
+
   // Inside the Capacitor shell the button opens the native sheet (camera or
   // library, the person's choice) through lib/nativeCamera.ts rather than the
   // file input, because WKWebView's own chooser is the thin-wrapper tell, and
@@ -382,7 +385,7 @@ export default function VenuePriceSubmit({
 
   function onPintPhotoChosen(file: File | undefined) {
     if (!file) return;
-    const refusal = pintPhotoRefusal(file);
+    const refusal = photoRefusal(file);
     if (refusal) {
       setError(refusal);
       clearPintPhoto();
@@ -390,6 +393,32 @@ export default function VenuePriceSubmit({
     }
     setError(null);
     setPintPhoto(file);
+  }
+
+  // The bill takes the SAME two doors as the pint photo: the native sheet
+  // inside the shell (camera or library, the person's choice) and the file
+  // input on the web. One validator behind both, so a rule cannot drift
+  // between the two ways in.
+  async function chooseReceiptPhoto() {
+    if (isNativeApp()) {
+      const pick = await pickNativePhoto("pint");
+      if (pick.outcome === "chosen") onReceiptPhotoChosen(pick.file);
+      else if (pick.outcome === "blocked") setError(pick.message);
+      return;
+    }
+    receiptPhotoInputRef.current?.click();
+  }
+
+  function onReceiptPhotoChosen(file: File | undefined) {
+    if (!file) return;
+    const refusal = photoRefusal(file);
+    if (refusal) {
+      setError(refusal);
+      clearReceiptPhoto();
+      return;
+    }
+    setError(null);
+    setReceiptPhoto(file);
   }
 
   // What this tap actually did to the map, asked of the same predicates the map
@@ -409,6 +438,12 @@ export default function VenuePriceSubmit({
     // The Enter key reaches here even while the button is disabled; one
     // submission at a time keeps the optimistic rollback snapshots coherent.
     if (missionPending || !priceValidation.ok) return;
+    // Said here as well as at the route, because a disabled button that never
+    // says why is a dead end (docs/VOICE.md). The Enter key reaches this line.
+    if (!receiptPhoto) {
+      setError(RECEIPT_REQUIRED_LINE);
+      return;
+    }
     // THE LATCH IS A REF, CLAIMED BEFORE THE FIRST AWAIT (battle test D10).
     // `submitting` is React state, committed in a microtask after the event, so
     // three taps in one tick all read it false and all three ran: the report
@@ -427,6 +462,7 @@ export default function VenuePriceSubmit({
           measure: submittedMeasure,
           measureLabel: submittedMeasure === "other" ? measureLabel : "",
           pintPhoto,
+          receiptPhoto,
         }, auth);
         if (!result.ok) {
           trackEvent("price_submit_failed", { category, reason: result.reason });
@@ -478,6 +514,10 @@ export default function VenuePriceSubmit({
           category,
           attribution: result.attribution,
           missionReceipt,
+          outcomeLine: confirmationOutcomeLine(
+            result.confirmationOutcome,
+            Number(price.replace(",", ".")),
+          ),
           ...(measureIsPint(submittedMeasure)
             ? {}
             : {
@@ -495,6 +535,7 @@ export default function VenuePriceSubmit({
         setMeasure(DEFAULT_DRINK_MEASURE);
         setMeasureLabel("");
         clearPintPhoto();
+        clearReceiptPhoto();
         onLogged?.(venueId);
       });
     } finally {
@@ -520,7 +561,7 @@ export default function VenuePriceSubmit({
   // call leaves the element tree identical where a component would add a fibre.
   function stampBlock() {
     if (!logged || logged.category !== category) return null;
-    if (!logged.missionReceipt && !logged.nonPint && !stamped) return null;
+    if (!logged.missionReceipt && !logged.nonPint && !stamped && !logged.outcomeLine) return null;
     return (
       <div className="vpsubStampBlock">
         <p className="vpsubStamp" role="status">
@@ -538,6 +579,9 @@ export default function VenuePriceSubmit({
             </>
           ) : null}
         </p>
+        {logged.outcomeLine ? (
+          <p className="vpsubStampHint">{logged.outcomeLine}</p>
+        ) : null}
         <PriceContributionImpact attribution={logged.attribution} />
         {/* Close the loop in-session: the mark the map just gained, named and
             coloured exactly as the map draws it, so the submitter can look up
@@ -676,7 +720,7 @@ export default function VenuePriceSubmit({
           type="button"
           className="vpsubLog"
           onClick={() => void logPrice()}
-          disabled={submitting || missionPending || !priceValidation.ok}
+          disabled={submitting || missionPending || !priceValidation.ok || !receiptPhoto}
         >
           {missionPending ? "Checking..." : submitting ? "Logging…" : "Log it"}
         </button>
@@ -699,37 +743,82 @@ export default function VenuePriceSubmit({
         </div>
       )}
 
+      {/* THE BILL, THEN THE PINT. The bill is the condition of logging a price
+          and says why in one line; the pint photo is offered right after it,
+          for fun, and is never a condition of anything (captain 7 Sept 2026). */}
       <div className="vpsubPhotoRow">
         <input
-          ref={pintPhotoInputRef}
+          ref={receiptPhotoInputRef}
           className="vpsubPhotoInput"
           type="file"
-          accept={PINT_PHOTO_ACCEPT}
-          aria-label={`Optional pint photo for ${venueName}`}
+          accept={PHOTO_ACCEPT}
+          aria-label={`Photo of the bill at ${venueName}`}
           onChange={(event) => {
-            onPintPhotoChosen(event.target.files?.[0]);
+            onReceiptPhotoChosen(event.target.files?.[0]);
           }}
         />
         <button
           type="button"
           className="vpsubPhotoBtn"
-          onClick={() => void choosePintPhoto()}
+          data-testid="receipt-photo-btn"
+          onClick={() => void chooseReceiptPhoto()}
           disabled={submitting || missionPending}
         >
           <Camera size={15} aria-hidden="true" />
-          {pintPhoto ? "Change photo" : "Add photo (optional)"}
+          {receiptPhoto ? "Change the bill" : RECEIPT_PHOTO_ACTION}
         </button>
-        {pintPhoto ? (
+        {receiptPhoto ? (
           <button
             type="button"
             className="vpsubPhotoClear"
-            onClick={clearPintPhoto}
+            onClick={clearReceiptPhoto}
             disabled={submitting || missionPending}
           >
-            Remove photo
+            Remove
           </button>
         ) : null}
       </div>
+      {receiptPhoto ? null : (
+        <p className="vpsubPhotoWhy">{RECEIPT_REQUIRED_LINE}</p>
+      )}
+
+      {receiptPhoto ? (
+        <>
+          <p className="vpsubPhotoWhy">{PINT_PHOTO_FUN_LINE}</p>
+          <div className="vpsubPhotoRow">
+            <input
+              ref={pintPhotoInputRef}
+              className="vpsubPhotoInput"
+              type="file"
+              accept={PHOTO_ACCEPT}
+              aria-label={`Optional pint photo for ${venueName}`}
+              onChange={(event) => {
+                onPintPhotoChosen(event.target.files?.[0]);
+              }}
+            />
+            <button
+              type="button"
+              className="vpsubPhotoBtn"
+              data-testid="pint-photo-btn"
+              onClick={() => void choosePintPhoto()}
+              disabled={submitting || missionPending}
+            >
+              <Camera size={15} aria-hidden="true" />
+              {pintPhoto ? "Change the pint" : PINT_PHOTO_ACTION}
+            </button>
+            {pintPhoto ? (
+              <button
+                type="button"
+                className="vpsubPhotoClear"
+                onClick={clearPintPhoto}
+                disabled={submitting || missionPending}
+              >
+                Remove
+              </button>
+            ) : null}
+          </div>
+        </>
+      ) : null}
 
       {visibleError ? (
         <p id="vpsubError" className="vpsubError" role="alert">

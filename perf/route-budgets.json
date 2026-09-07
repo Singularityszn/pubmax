@@ -8,6 +8,10 @@
     "resampleRuns": 2,
     "resampleWhy": "A median of 3 is only a median when the samples agree. On the Avrea runners the 6 September sweep reported LCP spreads of 37 to 51 percent on /today, /discover, /drinks and /crawls, past this method's own 12 percent width, so a route flipped between pass and fail on one commit. A route whose spread passes sampleSpreadWarnPct on any metric is measured twice more and its median is taken over 5 samples. Extra samples are only ever taken where the run said it could not measure, so a quiet route costs nothing and a noisy one is judged on more evidence rather than on less.",
     "resampleWithinCeilingPct": 10,
+    "resampleWithinCeilingWhy": "The second reason to spend the resample budget, and it reads BOTH WAYS. The spread rule asks whether the samples agreed with each other and is blind to where they sit: on 6 September /map agreed with itself to 14 percent and still read 612 ms in one attempt of the job and 956 ms in the next against a 900 ms ceiling, while /pubs asked 68 requests in one attempt and 69 in the other against a ceiling of 68. So a median within this percentage of its own ceiling, on EITHER side of it, buys the extra samples. The band is symmetric on the captain's decision of 7 September 2026: the first cut fired on anything at or above the ceiling minus the margin, a band with no upper edge, so it spent evidence on every breach and never on a figure sitting comfortably under, which is a rescue budget rather than a measurement. A route far over its ceiling now buys nothing, because that is a regression rather than jitter, and the spread rule still covers the run where a box genuinely stalled. lib/performanceBudgets.ts medianSitsOnTheLine is the one owner of the arithmetic. It only ever ADDS runs and decides nothing.",
+    "noisyWarmupRuns": 2,
+    "noisyResampleRuns": 4,
+    "noisyFloorWhy": "The noise floor: what a route carrying a noisy record spends instead of warmupRuns and resampleRuns. Two discarded navigations rather than one, and four resample runs rather than two, so a marked route is judged on the median of seven. It exists because four routes on these runners could not measure themselves in three: the 6 September sweep put their LCP samples 37 to 51 percent apart, past this method's own 12 percent width, and two pull requests then went red on routes they had not touched (#1604 on /crawls at 320 against 300, #1611, a docs-only change, on /today at 364 against 300 and /onboarding at 908 against 900). The answer to a figure nobody can repeat is more evidence, never a bigger ceiling: not one ceiling in this file moved for it. Both numbers are absolute counts rather than deltas, so a reader learns what a route costs without doing arithmetic, and neither is spent on an unmarked route, so a quiet sweep costs exactly what it did before.",
     "aggregate": "median",
     "cpuThrottleRate": 4,
     "network": {
@@ -84,7 +88,14 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1060,
       "requests": 52,
-      "lcpMs": 300
+      "lcpMs": 300,
+      "noisy": {
+        "metrics": [
+          "lcpMs"
+        ],
+        "measuredSpreadPct": 51,
+        "why": "Measured 304 ms and then 708 ms inside one run of one commit on the 2 vCPU box, and 364 ms against a 300 ms ceiling on PR #1611, a docs-only change that touched nothing this route renders. It is the one route that really composes something on the server, so its paint moves with whatever else the box is doing."
+      }
     },
     {
       "path": "/tonight",
@@ -201,7 +212,14 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1130,
       "requests": 56,
-      "lcpMs": 1000
+      "lcpMs": 1000,
+      "noisy": {
+        "metrics": [
+          "lcpMs"
+        ],
+        "measuredSpreadPct": 37,
+        "why": "Named by the 6 September sweep's own method check, alongside /today, /drinks and /crawls, with LCP samples 37 to 51 percent apart on a rig whose tracked width is 12 percent."
+      }
     },
     {
       "path": "/drinks",
@@ -219,7 +237,14 @@
           "measured": 684,
           "why": "This path is not a surface any more. app/drinks/page.tsx has been a permanentRedirect to /social?tab=discover since #765 (6 August), so the row measures the discover tab plus one redirect round trip, and /discover is budgeted 1000 for exactly that content and passes at 688. The 400 here was written for the drink lanes page that no longer exists. Measured on the Avrea runner at 684 ms (samples 708/684/488), and locally against a production build under the tracked throttle at 856 ms against /social's 692 ms on the same run, the two carrying identical decoded JS. The captain ruled the raise on 6 September 2026. It goes to /discover's own figure and no further, so the redirect can never cost more than the page it lands on."
         }
-      ]
+      ],
+      "noisy": {
+        "metrics": [
+          "lcpMs"
+        ],
+        "measuredSpreadPct": 37,
+        "why": "The same social shell as /discover plus a redirect round trip, and named by the same method check. Its samples on the Avrea runner were 708/684/488, which is a 32 percent spread on a route judged by a median of three."
+      }
     },
     {
       "path": "/messages",
@@ -251,11 +276,12 @@
     {
       "path": "/onboarding",
       "readySelector": "main",
-      "why": "Arrival for a brand new account, and the one route where a slow paint is the first thing anybody sees.",
+      "why": "The native shell's one-time first-run surface. It answers a redirect on the web and ships no document, so this row is budgeted for the redirect: the homepage it lands on carries its own ceiling under \"/\".",
       "serverRenderMs": 150,
-      "jsDecodedKB": 960,
-      "requests": 41,
-      "lcpMs": 900
+      "jsDecodedKB": 0,
+      "requests": 1,
+      "lcpMs": 0,
+      "redirectsTo": "/"
     },
     {
       "path": "/choose-city",
@@ -291,7 +317,14 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1020,
       "requests": 45,
-      "lcpMs": 300
+      "lcpMs": 300,
+      "noisy": {
+        "metrics": [
+          "lcpMs"
+        ],
+        "measuredSpreadPct": 51,
+        "why": "Measured 304 ms and then 612 ms inside one run of one commit, and 320 ms against a 300 ms ceiling on PR #1604, whose branch an interleaved A/B proved equal to or faster than main on this route."
+      }
     },
     {
       "path": "/borough",

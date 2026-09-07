@@ -423,7 +423,7 @@ describe("supabasePintDropStore.report (atomic RPC)", () => {
 // DB where the `vibe_tags` column isn't applied yet. Normal path includes the
 // column; a missing-column error triggers ONE retry without it and still succeeds.
 describe("supabasePintDropStore.create (vibe_tags rollout resilience)", () => {
-  const noPhotos = { pint: null, venue: null };
+  const noPhotos = { pint: null, venue: null, receipt: null };
   const dropWithTags = () =>
     drop({ id: "r1", vibeTags: ["cheap", "riverside"] }) as unknown as Parameters<
       typeof supabasePintDropStore.create

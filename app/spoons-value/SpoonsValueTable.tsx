@@ -83,7 +83,9 @@ export default function SpoonsValueTable({
                   <td className="spoonsTableRank">{row.rank}</td>
                   <th scope="row" className="spoonsTablePub">
                     {href ? (
-                      <Link href={href}>{row.name}</Link>
+                      <Link href={href} prefetch={false}>
+                        {row.name}
+                      </Link>
                     ) : (
                       <span>{row.name}</span>
                     )}

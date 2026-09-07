@@ -1003,3 +1003,80 @@ html[data-legacy="1"] .spillPreviewNote {
     gap: 3px;
   }
 }
+
+/* THE BILL'S OWN ROW (captain 7 Sept 2026), directly under the price on every
+   viewport. The pour and the bill are different jobs: one is the night, the
+   other is the evidence a reader has to be able to check. */
+.spillReceiptStep {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* The bill, once it is in: a small square beside its own name, not a wide
+   crop. A bill is a tall strip of paper, so a full-width thumbnail is mostly
+   the table it was photographed on, and everything the drinker still has to
+   reach sits below it. */
+.spillReceiptReady {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--brass) 12%, transparent);
+}
+
+.spillReceiptReady img {
+  display: block;
+  width: 56px;
+  height: 56px;
+  border-radius: calc(var(--radius-sm) - 2px);
+  object-fit: cover;
+}
+
+/* Ink, not --brass. The coral edge already marks the step as answered, and
+   coral text on its own 12% wash reads at about 2.8:1, under the 4.5:1 a
+   sentence this size needs. */
+.spillReceiptReadyName {
+  flex: 1;
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.spillReceiptRetake {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.spillReceiptRetake:hover {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+.spillReceiptRetake:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+}
+
+/* The one line that says why the bill is asked for, in the composer's own
+   quiet voice. It never shouts: a rule a drinker can see the point of is a rule
+   they keep. */
+.spillCaptureWhy {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}

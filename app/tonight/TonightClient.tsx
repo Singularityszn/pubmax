@@ -13,7 +13,6 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowRight,
-  Beer,
   CalendarClock,
   ChevronDown,
   ExternalLink,
@@ -34,7 +33,10 @@ import { useOutListings } from "@/components/out/useOutListings";
 import EditorialRail from "@/components/out/EditorialRail";
 import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import MusicTonightLane from "@/components/discovery/MusicTonightLane";
+import TonightChainDeals from "./TonightChainDeals";
+import TonightCheapPints from "./TonightCheapPints";
 import TonightConditionsStrip from "./TonightConditionsStrip";
+import TonightHypedPubs from "./TonightHypedPubs";
 import TonightListingsNotice from "./TonightListingsNotice";
 import TonightProvenanceLines from "./TonightProvenanceLines";
 import TonightGetHomeStrip from "./TonightGetHomeStrip";
@@ -105,6 +107,9 @@ import {
   tonightProvenanceCredits,
   tonightWhatsOnObservedAt,
 } from "@/lib/tonightOutListings";
+import type { HypedPub } from "@/lib/hypedPubs";
+import type { TonightCheapPint } from "@/lib/tonightCheapPints";
+import { withoutTonightChainRows } from "@/lib/tonightChainLanes";
 import type { PicksContext } from "@/lib/picksState";
 import { parsePlanOccasionIdFromSearch } from "@/lib/planOccasion";
 import type { QuietPintModule } from "@/lib/quietPint";
@@ -118,6 +123,7 @@ import {
 
 import "./tonight.css";
 import "./tonightDedup.css";
+import "./tonightLede.css";
 import "./tonightOnTonightSummary.css";
 
 type Origin = { lat: number; lng: number };
@@ -160,26 +166,23 @@ function mobileSecondaryLanes(lanes: ReactNode): ReactNode {
 }
 
 // A thin night (0-2 confirmed listings) leaves the list short enough that the
-// page dies into empty gradient below it. Rather than invent listings (never
-// — "thin nights stay thin" is honest), fill the rest of the page with the
-// three things someone standing here actually still wants: where's cheap,
-// how do I get home, and what else is there to do tonight.
+// page dies into empty gradient below it. Rather than invent listings (never,
+// "thin nights stay thin" is honest), the rest of the page answers what
+// somebody standing here still wants: which pubs are cheap, how they get home,
+// and what else is worth planning around.
 const THIN_NIGHT_MAX_ROWS = 2;
 
 type QuietAlternative = {
   href: string;
-  icon: typeof Beer;
+  icon: typeof TrainFront;
   title: string;
   sub: string;
 };
 
+// The cheapest-pints row this list used to open with is gone: the quiet page
+// now carries those pubs themselves, with their own figures, above the vibe
+// chips. A link to a list beside the list is one door too many.
 const QUIET_ALTERNATIVES: QuietAlternative[] = [
-  {
-    href: "/map",
-    icon: Beer,
-    title: "Cheapest pints in London",
-    sub: "Listed pint prices on the map",
-  },
   {
     href: "/map",
     icon: TrainFront,
@@ -198,6 +201,8 @@ export default function TonightClient({
   quietPint = null,
   softPlansWindow = false,
   mapSelectableVenueIds,
+  hypedPubs,
+  cheapPints,
 }: {
   /** Server-composed quiet-pint module; null outside a quiet window. */
   quietPint?: QuietPintModule | null;
@@ -205,6 +210,10 @@ export default function TonightClient({
   softPlansWindow?: boolean;
   /** Eager-shard venue ids the map can open via `?sel=`, or null when unreadable. */
   mapSelectableVenueIds?: readonly string[] | null;
+  /** The pubs people are talking about, read at build from the committed pack. */
+  hypedPubs?: readonly HypedPub[];
+  /** Cheapest listed pints, for the nights nothing is on. */
+  cheapPints?: readonly TonightCheapPint[];
 }) {
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [origin, setOrigin] = useState<Origin | null>(null);
@@ -484,7 +493,12 @@ export default function TonightClient({
   // Secondary Deals/Music lanes reuse already-loaded all-row grouped heroes
   // instead of each firing their own /api/whats-on fetch.
   const localityBasis = tonightLocalityBasis(origin != null, tonightNear);
-  const secondaryHeroes = groupedSecondaryAll.map((group) => group.row);
+  // A chain row has its own labelled block now, so it leaves the generic Deals
+  // lane: one Wetherspoon offer under two headings is the same offer counted
+  // twice, and the unlabelled heading is the one that reads as the city's.
+  const secondaryHeroes = withoutTonightChainRows(
+    groupedSecondaryAll.map((group) => group.row),
+  );
   const secondaryLanes = (
     <>
       <DealsTonightLane rows={secondaryHeroes} anchor={dealAnchor} />
@@ -563,6 +577,13 @@ export default function TonightClient({
       </aside>
 
       <div className="tonightPrimary" data-status={listingsStatus}>
+      {/* THE LEDE REGION. What a reader meets first is the pubs people are
+          talking about, then the independent listings, then the honest quiet
+          sentence, and nothing else may stand inside it. The chain blocks and
+          the cheap pints follow it in the DOM, so the reading order, the tab
+          order and the paint order stay one order (#1575). */}
+      <div className="tonightLedeRegion" data-testid="tonight-lede">
+      <TonightHypedPubs rows={hypedPubs} selectableVenueIds={selectableVenueIds} />
       <TonightListingsNotice
         state={listingsState}
         note={listingsNote}
@@ -835,6 +856,17 @@ export default function TonightClient({
           ) : null}
         </>
       ) : null}
+
+      </div>
+
+      {/* Real pubs before a mood ask. A night with nothing listed still has
+          pubs in it, and a listed price is the one thing this product can put
+          in front of somebody standing on a pavement. */}
+      <TonightCheapPints rows={cheapPints} show={thinNight} />
+
+      {/* The chains keep their supply and lose the front row: each block
+          carries the chain's own name and the day its page was read. */}
+      <TonightChainDeals rows={listingRows} selectableVenueIds={selectableVenueIds} />
 
       {/* The freshness stamp and the share control sit UNDER the listings they
           are about. A stamp is a footnote on the data, and nobody shares a list

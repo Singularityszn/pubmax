@@ -13,6 +13,7 @@ function basePub(overrides: Partial<UkBasePub> & { id: string; name: string }): 
     lat: 53.38,
     lng: -1.47,
     curatedVenueId: "",
+    kind: "pub",
     ...overrides,
   };
 }

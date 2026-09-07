@@ -967,7 +967,10 @@ describe("mergeVenueDrops", () => {
           createdAt: "2026-05-30T10:00:00.000Z",
         }),
         makeSummaryDrop({
-          priceGbp: 4.6,
+          // The SAME figure as the drop above it. The pair's agreement is now
+          // exact (lib/pintDropAgreement.ts): £4.60 beside £4.50 is two prices,
+          // not one backed figure (captain 7 Sept 2026).
+          priceGbp: 4.5,
           handle: "second_drinker",
           authorityKey: "venue-authority-b",
           createdAt: "2026-05-29T10:00:00.000Z",

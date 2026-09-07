@@ -16,10 +16,14 @@ export async function parsePriceSubmitPostBody(
     try {
       const form = await request.formData();
       const fields: Record<string, unknown> = {};
-      const photos: PintDropPhotos = { pint: null, venue: null };
+      const photos: PintDropPhotos = { pint: null, venue: null, receipt: null };
       for (const [key, value] of form.entries()) {
         if (key === "pint_photo" && value instanceof File && value.size > 0) {
           photos.pint = value;
+        } else if (key === "receipt_photo" && value instanceof File && value.size > 0) {
+          // The bill behind the price (captain 7 Sept 2026). Read here so the
+          // route can ask lib/pintDropReceipt.ts one question about one body.
+          photos.receipt = value;
         } else if (typeof value === "string") {
           fields[key] = value;
         }
@@ -32,7 +36,7 @@ export async function parsePriceSubmitPostBody(
   try {
     return {
       fields: (await request.json()) as Record<string, unknown>,
-      photos: { pint: null, venue: null },
+      photos: { pint: null, venue: null, receipt: null },
     };
   } catch {
     return null;

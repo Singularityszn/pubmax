@@ -165,12 +165,18 @@ describe("a shard read we could not run is not an unmapped area", () => {
 
 describe("a photo the platform will refuse is refused here, by size, in the browser", () => {
   it("gives both map composers the wire's own number and its own words", () => {
+    // Through ONE leaf. `photoRefusal` (lib/pintDropReceipt.ts) is what both
+    // composers ask, so the figure and the sentence beside it are written once
+    // and cannot drift apart per picker; the leaf is where the wire is read.
     for (const file of ["components/map/usePintDrops.ts", "components/map/VenuePriceSubmit.tsx"]) {
       const source = read(file);
-      expect(source, file).toContain('from "@/lib/uploadBodyLimit"');
-      expect(source, file).toContain("UPLOAD_PHOTO_MAX_BYTES");
-      expect(source, file).toContain("${UPLOAD_PHOTO_MAX_LABEL}.");
+      expect(source, file).toContain('from "@/lib/pintDropReceipt"');
+      expect(source, file).toContain("photoRefusal(file)");
     }
+    const leaf = read("lib/pintDropReceipt.ts");
+    expect(leaf).toContain('from "@/lib/uploadBodyLimit"');
+    expect(leaf).toContain("UPLOAD_PHOTO_MAX_BYTES");
+    expect(leaf).toContain("${UPLOAD_PHOTO_MAX_LABEL}.");
   });
 
   it("prints a figure a reader can act on, not the wrong one", () => {

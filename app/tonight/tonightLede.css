@@ -1,0 +1,246 @@
+/* The three blocks the 7 September lede rebuild added: the pubs people are
+   talking about, the chain blocks under them, and the cheap pints a quiet
+   night answers with.
+
+   All three take the row chrome the rest of this page already uses (one edge,
+   14px radius, the raised panel, brass on hover), so the page reads as one
+   list rather than three imported cards. No block wraps another: a heading with
+   rows under it is already a section (docs/VOICE.md, card-in-card). */
+
+.tonightHyped,
+.tonightChain,
+.tonightCheapPints {
+  margin: 0 0 20px;
+}
+
+.tonightHypedTitle,
+.tonightChainTitle,
+.tonightCheapPintsTitle {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.tonightHypedList,
+.tonightChainList,
+.tonightCheapPintsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Pubs people are talking about
+   ------------------------------------------------------------------ */
+
+.tonightHypedRow {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-raised);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--ink) 6%, transparent);
+  padding: 14px;
+}
+
+.tonightHypedName {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.tonightHypedArea {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.tonightHypedWhy {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.tonightHypedCredit,
+.tonightChainCredit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 10px 0 0;
+  font-size: 0.76rem;
+  color: var(--ink-soft);
+}
+
+.tonightChainCredit {
+  margin: 0 0 10px;
+}
+
+.tonightHypedSource {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--brass);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tonightHypedSource:hover {
+    text-decoration: underline;
+  }
+}
+
+.tonightHypedUnmatched {
+  margin: 10px 0 0;
+  font-size: 0.76rem;
+  color: var(--ink-soft);
+}
+
+.tonightHypedMap,
+.tonightChainRowMap {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  margin-top: 4px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--brass);
+  text-decoration: none;
+}
+
+/* Chain blocks
+   ------------------------------------------------------------------ */
+
+.tonightChainRow {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-raised);
+  padding: 12px 14px;
+}
+
+.tonightChainRowTitle {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.tonightChainRowPlace {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+/* The folded rows
+   ------------------------------------------------------------------ */
+
+.tonightHypedMore,
+.tonightChainMore {
+  margin-top: 10px;
+}
+
+.tonightHypedMoreToggle,
+.tonightChainMoreToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+  list-style: none;
+}
+
+.tonightHypedMoreToggle::-webkit-details-marker,
+.tonightChainMoreToggle::-webkit-details-marker {
+  display: none;
+}
+
+.tonightHypedMore[open] .tonightHypedMoreChevron,
+.tonightChainMore[open] .tonightChainMoreChevron {
+  transform: rotate(180deg);
+}
+
+.tonightHypedMore .tonightHypedList,
+.tonightChainMore .tonightChainList {
+  margin-top: 10px;
+}
+
+/* Cheapest listed pints
+   ------------------------------------------------------------------ */
+
+.tonightCheapPintsRow {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-raised);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--ink) 6%, transparent);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tonightCheapPintsRow:hover {
+    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
+    box-shadow: 0 14px 28px color-mix(in srgb, var(--brass) 12%, transparent);
+  }
+}
+
+.tonightCheapPintsLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 12px 14px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.tonightCheapPintsBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tonightCheapPintsName {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.tonightCheapPintsArea {
+  font-size: 0.76rem;
+  color: var(--ink-soft);
+}
+
+.tonightCheapPintsPrice {
+  margin-left: auto;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.tonightCheapPintsArrow {
+  flex-shrink: 0;
+  color: var(--brass);
+  opacity: 0.85;
+}
+
+.tonightCheapPintsCredit {
+  margin: 10px 0 0;
+  font-size: 0.76rem;
+  color: var(--ink-soft);
+}

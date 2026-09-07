@@ -70,6 +70,13 @@ function DrinkArt({
           sources={[{ url: photoUrl, provenance: "chain" }]}
           alt=""
           fill
+          // The card art is one column at 420 and under, two up to 640, and a
+          // 240-400px cell above that. Capped at 640 because this picture sits
+          // under a gradient wash, a glyph and a shelf at 0.88 opacity: it is
+          // the card's background, and a 3x phone has no use for a third pass
+          // of pixels over it.
+          sizes="(max-width: 420px) 100vw, (max-width: 640px) 50vw, 344px"
+          maxWidth={640}
         />
       ) : null}
       <div className="pubsCardArtWash" aria-hidden="true" />

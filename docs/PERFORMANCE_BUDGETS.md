@@ -261,9 +261,17 @@ measurement, then the median of three measured runs. Two kinds of route are
 measured twice more and judged on the median of five: one whose samples disagree
 past the tracked width, because a median of three is only a median when the
 samples agree, and one whose median lands within `resampleWithinCeilingPct` of
-its own ceiling, because a verdict that close is decided by jitter and deserves
-more evidence rather than less. A network that does not drain within 20 seconds
-fails the run.
+its own ceiling ON EITHER SIDE, because a verdict that close is decided by
+jitter and deserves more evidence rather than less. That second band is
+symmetric on purpose. It used to fire on any median at or above the ceiling
+minus the margin, which has no upper edge, so it bought extra samples on every
+figure from a hair under the line out to a route three times over it and never
+on one sitting comfortably under: extra samples can only move a median, so a
+trigger shaped like that spends evidence exactly and only where it can turn a
+red into a green. A route far over its ceiling now buys nothing, because that is
+a regression rather than jitter, and the spread rule still covers the run where
+a box genuinely stalled. A network that does not drain within 20 seconds fails
+the run.
 
 ### The runner the sweep is taken on, and why it is not the one every other job takes
 
@@ -302,11 +310,159 @@ another:
 | `warmupRuns` | 1 | Discarded, and its request lifecycle must fully drain, so a cold module load is not charged to the route. |
 | `measuredRuns` | 3 | Stated here rather than implied, because "the median" means nothing without an N. |
 | `resampleRuns` | 2 | Spent only where the run needs more evidence, so that route's median is taken over 5 rather than 3. A quiet route costs exactly what it did before. |
-| `resampleWithinCeilingPct` | 10 | The second reason to spend them. The spread rule asks whether the samples agreed with EACH OTHER and is blind to where they sit: on 6 September `/map` agreed with itself to 14 per cent and still read 612 ms in one attempt of the job and 956 ms in the next against a 900 ms ceiling, while `/pubs` asked 68 requests in one attempt and 69 in the other against a ceiling of 68. A median inside this margin of its own ceiling, or over it, buys the same extra samples. It only ever ADDS runs and decides nothing. |
+| `resampleWithinCeilingPct` | 10 | The second reason to spend them, and it reads BOTH WAYS. The spread rule asks whether the samples agreed with EACH OTHER and is blind to where they sit: on 6 September `/map` agreed with itself to 14 per cent and still read 612 ms in one attempt of the job and 956 ms in the next against a 900 ms ceiling, while `/pubs` asked 68 requests in one attempt and 69 in the other against a ceiling of 68. A median within this margin of its own ceiling, on EITHER side of it, buys the extra samples: `\|median - ceiling\| <= ceiling * pct`. The band is symmetric on the captain's decision of 7 September 2026. It only ever ADDS runs and decides nothing. |
+| `noisyWarmupRuns` | 2 | What a route carrying a `noisy` record discards before its first counted sample, rather than one. The four marked routes are shells whose SECOND load is the first with caches, modules and fonts all in place, and a warm-up that has not settled is the widest single source of their spread. |
+| `noisyResampleRuns` | 4 | And the resample budget such a route may spend, rather than two, so it is judged on the median of seven. Spent only where the resample rules fired, exactly as before. |
 | `aggregate` | median | One slow run cannot fail a green route. |
 | `boundaryClock` | page | Whose clock stops the count. See below. |
 | `sampleSpreadWarnPct` | 12 | How far a route's own samples may sit apart before the run says so. A warning; it fails nothing. |
 | `sampleSpreadFloors` | 25 ms / 20 KB / 3 requests / 250 ms | And how wide that gap has to be in the metric's own units. A percentage alone is not information here: server render sits at 3 to 19 ms, so one millisecond of jitter reads as a 33% spread and every route would warn on every run. |
+
+### The noise floor, and which routes carry it
+
+Four routes on these runners cannot measure themselves in three. The 6
+September sweep's own method check put their LCP samples 37 to 51 per cent
+apart, past this method's tracked 12 per cent width, and inside one run of one
+commit `/crawls` measured 304 ms and then 612 ms while `/today` measured 304 ms
+and then 708 ms. Two pull requests then went red on routes they had not touched:
+#1604 on `/crawls` at 320 against 300, on a branch an interleaved A/B proved
+equal to or faster than main on that very route, and #1611, a docs-only change,
+on `/today` at 364 against 300 and `/onboarding` at 908 against 900.
+
+The answer to a figure nobody can repeat is more evidence, never a bigger
+ceiling. Not one number in `perf/route-budgets.json` moved for this. A route
+that has been MEASURED wide carries a `noisy` record naming the metric, the
+widest spread recorded and why, and spends `noisyWarmupRuns` and
+`noisyResampleRuns` instead of the ordinary pair: two discarded navigations
+rather than one, and a median of seven rather than of three or five.
+
+Two rules keep it a measurement rather than a mute button. The mark is
+EVIDENCE, so it carries the figure it was made on and can be taken off the day
+a route measures narrow again; `__tests__/performanceBudgets.test.ts` refuses a
+mark with no recorded spread wider than the tracked width. And it costs an
+unmarked route nothing, so a quiet sweep takes exactly the navigations it took
+before.
+
+| route | marked on | widest recorded spread |
+| --- | --- | --- |
+| `/today` | LCP | 51% |
+| `/discover` | LCP | 37% |
+| `/drinks` | LCP | 37% |
+| `/crawls` | LCP | 51% |
+
+`/onboarding` is deliberately NOT marked. It has no recorded wide spread; it
+went red at 908 against a 900 ceiling, which is nine tenths of one per cent
+over, and the symmetric on-the-line band already buys that verdict its extra
+samples. A mark is for a route whose samples disagree with each other, not for
+one whose answer sits near its line.
+
+### Noise floor: what ten runs measured, 7 September 2026
+
+Ten CI runs on `avrea-ubuntu-latest-4-vcpu`, five per arm, dispatched in parallel
+on throwaway refs so no run cancelled another. Both arms sit on the same base
+(`563f51198`): the before arm is that commit unchanged, the after arm is this
+work, whose tree is byte-identical to the commit the runs measured.
+
+**False reds: 1 of 5 before, 0 of 5 after.** The one red is the defect this work
+is about, reproduced on code nobody had touched: `/crawls` LCP 320 against a
+300 ms ceiling, +7%, which is #1604's red to the millisecond.
+
+Per route, the median of each run's own LCP samples, and the spread of the
+samples behind it. `n` is how many samples each run took.
+
+| route | ceiling | before: medians | n | after: medians | n |
+| --- | --- | --- | --- | --- | --- |
+| `/crawls` | 300 | 236, 220, 220, 224, **320** | 5 | 220, 228, 240, 240, 272 | 7 |
+| `/today` | 300 | 212, 228, 208, 212, 216 | 5 | 224, 236, 216, 220, 208 | 7 |
+| `/discover` | 1000 | 308, 304, 308, 308, 336 | 5 | 332, 440, 336, 300, 332 | 7 |
+| `/drinks` | 1000 | 300, 308, 312, 336, 348 | 5 | 328, 336, 324, 312, 324 | 7 |
+| `/onboarding` | 900 | 788, 820, 676, 796, 700 | 5 | 724, 772, 672, 684, 692 | 5 |
+| `/pubs` | 600 | 260, 260, 252, 300, 296 | 5 | 284, 284, 272, 312, 264 | 5 |
+| `/map` | 900 | 220, 216, 200, 220, 192 | 3 | 256, 212, 200, 200, 196 | 3 |
+
+The `n` column is the floor working. The four marked routes take seven samples
+in the after arm and five in the before arm, so the second warm-up and the wider
+resample budget are really being spent on the runner and nowhere else.
+`/onboarding` and `/pubs` take five in both, which is the on-the-line band alone;
+`/map` takes three, having room either side and nothing to resample for.
+
+#### What the one red actually looked like
+
+`/crawls` samples, before arm, all five runs:
+
+```text
+216 / 244 / 236 / 244 / 212      median 236
+212 / 224 / 220 / 220 / 256      median 220
+220 / 216 / 220 / 224 / 224      median 220
+216 / 236 / 224 / 224 / 240      median 224
+320 / 268 / 308 / 656 / 356      median 320   <- RED against 300
+```
+
+And the same route, after arm:
+
+```text
+280 / 312 / 260 / 272 / 268 / 272 / 256      median 272
+236 / 240 / 248 / 240 / 280 / 224 / 256      median 240
+244 / 240 / 244 / 240 / 240 / 272 / 240      median 240
+220 / 224 / 280 / 232 / 228 / 216 / 228      median 228
+216 / 228 / 248 / 216 / 220 / 220 / 224      median 220
+```
+
+The red run is not one outlier against four good samples. Its FIRST counted
+sample is already 320 and four of its five sit at or above 308: that route had
+not settled when counting began. `/crawls` was already spending the resample
+budget in every before-arm run, which is why every before row shows five samples
+rather than three - the old on-the-line band fired every time and still landed
+at 320. Two more samples were not the missing thing. The second discarded
+navigation is, and no after-arm run drew a sample above 312.
+
+#### The spread gets WIDER, and that is arithmetic rather than a regression
+
+`/discover` and `/drinks` report a wider sample spread in the after arm, up from
+16% and 8% to 106% and 117%. Nothing got slower. `spreadPct` is
+`(max - min) / median` over the samples a run drew, and seven draws catch the
+tail more often than five do. `/discover`'s widest after-arm run is
+`364 / 656 / 304 / 332 / 324 / 336 / 328`: one 656 against six samples between
+304 and 364, median 332, against a 1000 ms ceiling.
+
+That is the floor doing its job rather than failing at it. It was never meant to
+narrow the spread; it is meant to stop one draw from the tail deciding a verdict,
+and a median of seven shrugs off the 656 that a median of three could not. The
+spread warning still prints, and still fails nothing.
+
+#### What this evidence does not show
+
+One red in five runs is a thin base. These ten runs show that the mechanism is
+spent where it was meant to be spent, that the reproduced red is real, and that
+no after-arm run of any route breached. They do not establish a false-red RATE to
+any precision, and a second red on a later sweep would not be a surprise. The
+honest claim is the mechanism and the direction, not a probability.
+
+### A route that redirects is measured as a redirect
+
+`page.goto` follows a 3xx, so the moment a budgeted route starts redirecting its row
+measures the page it lands on, under a ceiling written for the page it used to be.
+`/onboarding` did exactly that on 7 September 2026: it began answering 307 to `/` and
+shipping no document, and the next sweep read the homepage's 45 requests against the 41
+that used to buy an almost empty first-run shell. Nothing had got slower. Measured on a
+production build, `/onboarding` and `/` return the identical count, because they are now
+the same page.
+
+Both readings of that number are wrong. Calling it a regression takes a ceiling up to hide
+a measurement pointing at the wrong page; calling it a win lets any route shed its own
+ceiling by learning to redirect.
+
+So the row says what it is. A route budget may carry `redirectsTo`, and the sweep then
+measures the redirect rather than the page: one request, no script, no paint, and the
+server time the 307 itself took. Two rules keep it honest. The target must carry a budget
+row of its own, so the page never falls out of the sweep. And the lane ASSERTS the
+redirect, with the `Accept` header a browser sends, rather than tolerating its absence: a
+route declared as a redirect that quietly starts serving a document again fails here
+instead of passing every ceiling on one request.
+
+Owner: `redirectsTo` in `lib/performanceBudgets.ts`, `measurePerfRedirect` in
+`e2e/helpers/perfMeasurement.ts`. Pin: `__tests__/performanceBudgets.test.ts`, "a budgeted
+route that redirects".
 
 ### Where counting stops, and whose clock stops it
 
@@ -563,6 +719,16 @@ identical decoded JS. It goes to `/discover`'s own figure and no further, so the
 redirect can never cost more than the page it lands on. Every other route was
 brought back under its ceiling instead of being given room: see "The one route
 over its ceiling" above.
+
+One correction to the record, because a gate's history is part of the gate.
+#1589's own PR body said "No gate is loosened", and it was wrong twice over: that
+commit took the `/drinks` LCP ceiling from 400 ms to 1000 ms on the captain's
+word, which is the raise recorded above, and it added the on-the-line resample,
+whose band had no upper edge and so bought extra samples on every breach and on
+no figure sitting comfortably under the line. Both were argued and both were
+allowed; neither was "no gate loosened". The band was made symmetric on
+7 September 2026, which removes those rescue attempts and adds none, and the
+`/drinks` ceiling stands where the captain put it.
 
 Adding a route is cheap: one entry with a `readySelector` the route really
 renders and one sentence of `why`. Removing one is refused by the check, because

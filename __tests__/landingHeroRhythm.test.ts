@@ -26,10 +26,10 @@ import LandingPage from "@/components/landing/LandingPage";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
 
 // The hero's rhythm is the Screen primitive's order and nothing else: kicker,
-// heading, the answer (the one real pub), the one primary that acts on it,
-// the second door, then the three next-cheapest rows. That order is the DOM
-// order, so it is the phone order, and the desktop grid may only seat the
-// answer and the rows beside the copy, never reorder them.
+// heading, one line under it, the picture of London, the one primary, the quiet
+// row, then the one real pub and the three next-cheapest rows. That order is
+// the DOM order, so it is the phone order, and the desktop grid may only seat
+// the picture and the rows beside the copy, never reorder them.
 
 const card: LandingPubCardData = {
   id: "venue-test",
@@ -79,23 +79,26 @@ describe("landing hero rhythm", () => {
     }),
   );
 
-  it("reads kicker, heading, pub card, primary, second door, rail, in that order", () => {
+  it("reads kicker, heading, lede, picture, primary, quiet row, pub card, rail, in that order", () => {
     const order = positions(html, [
       '<p class="kicker">PUBMAXX</p>',
       '<h1 class="screenTitle" id="hero-title">What a pint costs, pub by pub.</h1>',
+      '<p class="screenLede">',
+      'class="lpMapFigure"',
+      'data-primary-action=""',
+      'class="screenSecondary"',
       // The card carries its photograph class too (lib/landingImagery.ts), so
       // the needle is the stable prefix rather than the whole attribute.
       'class="lpPubCard lpAnswerCard',
-      'data-primary-action=""',
-      'class="screenSecondary"',
       'class="lpRail"',
     ]);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
-  it("carries no lede: the pub card is the support", () => {
+  it("carries exactly one lede, and it describes the picture above it", () => {
     const hero = html.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
-    expect(hero).not.toContain("screenLede");
+    expect(hero.match(/class="screenLede"/g)).toHaveLength(1);
+    expect(hero).toMatch(/<p class="screenLede">London on one map, with \d+ historic pubs marked/);
     expect(hero.match(/<p class="kicker">/g)).toHaveLength(1);
   });
 
@@ -110,6 +113,8 @@ describe("landing hero rhythm", () => {
     const bare = renderToStaticMarkup(createElement(LandingPage));
     expect(bare).not.toContain("lpPubCard");
     expect(bare).not.toContain("lpRail");
+    // The picture is the document's own, so it stands with or without a pub.
+    expect(bare).toContain("lpMapFigure");
     expect(bare).toContain('<h1 class="screenTitle" id="hero-title">What a pint costs, pub by pub.</h1>');
   });
 });

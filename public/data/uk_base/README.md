@@ -1,13 +1,15 @@
-# UK base-pub shards
+# UK base shards
 
-Every `amenity=pub` in the UK, cut into one file per grid cell so the map can
-stream the layer a viewport at a time. Rows retain any matched curated owner so
-the client can deduplicate against what is actually loaded.
+Every `amenity=pub` and every `amenity=bar` in the UK, cut into one file per
+grid cell so the map can stream the layer a viewport at a time. Rows retain any
+matched curated owner so the client can deduplicate against what is actually
+loaded.
 
 Shard JSON is generated. This README is hand-written and survives rebuilds.
-`npm run build:uk-base` rebuilds the shards from
-`data/osm/uk/uk_osm_pubs.json` and then `places.json` from the raw Overpass
-chunks beside it; it also runs inside `prebuild` and `prevalidate-data`.
+`npm run build:uk-base` rebuilds the shards from `data/osm/uk/uk_osm_pubs.json`
+and the `bar` kind of `data/osm/uk/uk_osm_venues_drink.json`, and then
+`places.json` from the raw Overpass chunks beside it; it also runs inside
+`prebuild` and `prevalidate-data`.
 
 ## What is here
 
@@ -18,11 +20,25 @@ places.json                           # lazy chooser search index from pub local
 ```
 
 A shard row is a tuple, not an object:
-`[osmRef, name, address, lat, lng, curatedVenueId]`. These bodies are fetched
-while the user pans, so repeating six keys tens of
-thousands of times is paid for in the one place it is felt. The decoder and the
-`venue-uk-…` id salting live in [`lib/ukBasePubs.ts`](../../../lib/ukBasePubs.ts);
-`__tests__/ukBasePubs.test.ts` pins the shape.
+`[osmRef, name, address, lat, lng, curatedVenueId]`, plus `"bar"` as a seventh
+element where OSM states a bar. These bodies are fetched while the user pans, so
+repeating six keys tens of thousands of times is paid for in the one place it is
+felt, and the seventh element is written only where it is true so no pub row
+grew when bars joined. The decoder and the `venue-uk-…` id salting live in
+[`lib/ukBasePubs.ts`](../../../lib/ukBasePubs.ts);
+`__tests__/ukBasePubs.test.ts` pins the shape and
+`__tests__/ukBaseBars.test.ts` fences the seed counts and the cell size.
+
+Neither kind carries a price: OSM is not a price source, so a base pin says
+"no price yet" by its shape and never by a colour. A bar reads as a bar in the
+sheet and in the map list, because a bar called a pub is a claim a reader can
+check on the pavement.
+
+A cell over the 150 KB per-viewport budget is CUT IN FOUR on a grid of half the
+step rather than shipped fat, and its parts carry one more decimal in their ids
+(`51.500_-0.250`). Central London is the one cell that needs it. The client
+never derives a cell - it reads the manifest and intersects bboxes - so a finer
+cell costs the phone no new maths.
 
 An area is promoted into the curated layer by cutting its pubs out of this
 snapshot into a city pack (`data/cities/README.md`). The shard builder then
@@ -56,6 +72,12 @@ National **pub name** search is a separate server index
 `scripts/build_uk_pub_search_index.mjs` inside `npm run build:uk-base`).
 `GET /api/map-search` opens that file; the browser never downloads the
 country-wide pack. See `docs/prd/UK_MAP_COVERAGE_AND_SEARCH_PRD.md`.
+
+That index is built from the pub pack alone. Folding the bars in would carry it
+past its own 3.25 MB ceiling, and a ceiling comes down, never up, so national
+name search for bars needs a smaller row format first. Bars already in the
+streamed viewport are matched by the resident client search
+(`lib/ukBasePubSearch.ts`).
 
 Each build installs a new immutable generation, then atomically replaces only
 `manifest.json`. A crash before that final rename leaves the previous manifest

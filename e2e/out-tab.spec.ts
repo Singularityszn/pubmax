@@ -152,7 +152,7 @@ const PLAYHOUSE_EVENT = {
 };
 
 test(
-  "shows matched event cards and drops unmatched rows when GET /api/out is ready",
+  "shows every sourced listing, matched or not, when GET /api/out is ready",
   async ({ page }) => {
     await page.route(isOutListingsRequest, (route) =>
       route.fulfill({
@@ -184,25 +184,25 @@ test(
     await page.goto("/out");
     await expect(page.getByTestId("out-screen")).toBeVisible();
     await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+    // BOTH rows are real rows. The pub is a footnote on the row, not a filter.
     await expect(page.getByRole("heading", { name: "A Night at the Playhouse" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Unmatched Playhouse" })).toHaveCount(0);
-    // The hidden row is counted and credited, while place names stay hidden
-    // beside the matched venue card.
-    const notice = page.getByTestId("out-unmatched-notice");
-    await expect(notice).toContainText(
-      "1 more listing tonight is at a place we don't list yet.",
-    );
-    await expect(notice).not.toContainText("The O2");
+    await expect(page.getByRole("heading", { name: "Unmatched Playhouse" })).toBeVisible();
+    await expect(page.locator(".outListingPubPair--absent")).toHaveText("Not on our map yet.");
+    await expect(
+      page.locator(".outListingPubPair--matched").getByRole("link", { name: "Open on map" }),
+    ).toHaveAttribute("href", "/map?sel=venue-playhouse");
+    // The match RAN, so no page-level notice has anything left to say.
+    await expect(page.getByTestId("out-venue-match-notice")).toHaveCount(0);
     const listings = page.getByRole("region", { name: "What's on tonight" });
     await expect(listings).toBeVisible();
     await expect(page.getByRole("region", { name: "Open plans" })).toHaveCount(0);
   },
 );
 
-// The supply truth on a phone: rows exist, none is at a listed pub. The page
-// has to say how many, name the places, credit the provider, and hand the
-// reader somewhere to go - and say something different again when the match
-// could not run, or when the providers returned nothing at all.
+// The supply truth on a phone: rows exist and none is at a listed pub. Every
+// one of them is a row the reader can open, each saying for itself that we
+// hold no pub for it. The page says something different only when the match
+// could not RUN, or when the providers returned nothing at all.
 test.describe("out supply honesty @390", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
@@ -227,7 +227,7 @@ test.describe("out supply honesty @390", () => {
     };
   }
 
-  test("counts and names the unlisted places, credits the provider, and offers a way out", async ({
+  test("prints every row, leads with the first, and credits the provider", async ({
     page,
   }) => {
     await page.route(isOutListingsRequest, (route) =>
@@ -240,23 +240,30 @@ test.describe("out supply honesty @390", () => {
 
     await page.goto("/out");
     await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
-    const notice = page.getByTestId("out-unmatched-notice");
-    await expect(notice).toBeVisible();
-    await expect(notice).toContainText(
-      "Tonight's 4 listings are all at places we don't list yet.",
-    );
-    await expect(notice).toContainText("Jazz Cafe, Up The Creek, Soul Mama and The Comedy Store.");
-    await expect(notice.getByRole("link", { name: "Ticketmaster", exact: true })).toHaveAttribute(
+    // Four sourced listings, four rows. This is the walk-B4 shape.
+    await expect(page.getByTestId("out-listing-row")).toHaveCount(4);
+    for (const index of [1, 2, 3, 4]) {
+      await expect(page.getByRole("heading", { name: `Show ${index}` })).toBeVisible();
+    }
+    await expect(page.locator(".outListingPubPair--absent")).toHaveCount(4);
+    // The primary is the first listing's own route, and the map is the second
+    // door rather than the only one.
+    const primary = page.locator("[data-primary-action] a");
+    await expect(primary).toHaveText("Show 1");
+    await expect(primary).toHaveAttribute("href", "https://www.ticketmaster.co.uk/event/1");
+    await expect(
+      page.getByRole("link", { name: "Open the map", exact: true }).first(),
+    ).toBeVisible();
+    const credit = page.getByTestId("out-listing-credit");
+    await expect(credit.getByRole("link", { name: "Ticketmaster", exact: true })).toHaveAttribute(
       "href",
       "https://www.ticketmaster.co.uk/",
     );
-    await expect(
-      notice.getByRole("link", { name: "See what else is on tonight", exact: true }),
-    ).toHaveAttribute("href", "/tonight");
-    // No card for a row with no pub, and no bare status line either.
-    await expect(page.getByRole("heading", { name: "Show 1" })).toHaveCount(0);
+    // No apology stands in place of the listings it counts.
+    await expect(page.getByTestId("out-venue-match-notice")).toHaveCount(0);
     await expect(page.getByText("No listings for this day yet.")).toHaveCount(0);
     await expect(page.getByText(/^Some /)).toHaveCount(0);
+    await expect(page.getByText(/don't list yet/)).toHaveCount(0);
     // The notice fits the phone: nothing pushes the page wider than the viewport.
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -275,11 +282,13 @@ test.describe("out supply honesty @390", () => {
 
     await page.goto("/out");
     await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
-    const notice = page.getByTestId("out-unmatched-notice");
+    const notice = page.getByTestId("out-venue-match-notice");
     await expect(notice).toContainText(
       "We couldn't check which of tonight's 4 listings are at a pub we list.",
     );
     await expect(notice).not.toContainText("don't list yet");
+    // The rows are still rows. The finding is about the LOOKUP, not about them.
+    await expect(page.getByTestId("out-listing-row")).toHaveCount(4);
   });
 
   test("keeps the honest empty state when the providers return nothing", async ({ page }) => {
@@ -303,7 +312,9 @@ test.describe("out supply honesty @390", () => {
     await page.goto("/out");
     await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
     await expect(page.getByText("No listings for this day yet.")).toBeVisible();
-    await expect(page.getByTestId("out-unmatched-notice")).toHaveCount(0);
+    await expect(page.getByTestId("out-venue-match-notice")).toHaveCount(0);
+    // With no listing to lead with, the map takes the primary back.
+    await expect(page.locator("[data-primary-action] a")).toHaveText("Open the map");
   });
 });
 
@@ -377,7 +388,12 @@ test("shows Open plans when one sendable plan exists", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Ask to join", exact: true })).toBeVisible();
 });
 
-test("groups desktop listings and pairs a pub beside each gig", async ({ page }) => {
+// The venue used to be a GROUP HEADING, because the desktop list grouped by
+// resolved pub. It groups by the night now, so a listed pub is named on the row
+// itself: once in the meta line, once in the pub pair beside it, and once more
+// in the link that opens its pin. The heading that went is the venue's; the
+// night's own heading is the section title when one night is on screen.
+test("pairs a pub beside a gig, named on the row and linked to its pin", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.route(isOutListingsRequest, (route) =>
     route.fulfill({
@@ -401,8 +417,21 @@ test("groups desktop listings and pairs a pub beside each gig", async ({ page })
 
   await page.goto("/out");
   await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
-  await expect(page.getByRole("heading", { name: "Soho Theatre", exact: true })).toBeVisible();
-  await expect(page.getByText("No matching pub in PUBMAXX yet.")).toHaveCount(0);
+
+  const row = page.getByTestId("out-listing-row");
+  await expect(row).toHaveCount(1);
+  await expect(
+    row.getByRole("heading", { name: "A Night at the Playhouse", exact: true }),
+  ).toBeVisible();
+  // The venue is on the row's own meta line, where the gig, the place and the
+  // time read as one claim.
+  await expect(row.locator(".outCardPlace")).toHaveText("Soho Theatre");
+
+  // And beside it, badged as ours, with the way to its pin.
+  const pair = row.locator(".outListingPubPair--matched");
+  await expect(pair.locator(".outListingPubPairName")).toHaveText("Soho Theatre");
+  await expect(pair.locator(".outListingPubPairLabel")).toHaveText("On PUBMAXX");
+  await expect(page.getByText("Not on our map yet.")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Open on map", exact: true })).toHaveAttribute(
     "href",
     /\/map\?sel=venue-soho-theatre/,

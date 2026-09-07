@@ -62,7 +62,7 @@ export const HOME_CARD_HERO_LEAD = "What a pint";
 export const HOME_CARD_HERO_TAIL = "costs,";
 export const HOME_CARD_HERO_ACCENT = "pub by pub.";
 export const HOME_CARD_SUPPORT =
-  "You want somewhere that will not mug you on the first round. One map should answer that without the usual three-app shuffle.";
+  "The cheapest listed pint near you, on one map. Who listed it, and the day they did.";
 
 export function HomeOgCard({ stats }: { stats: AboutStats }) {
   const coverageBits = homeCardCoverage(stats);

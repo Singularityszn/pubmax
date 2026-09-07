@@ -32,6 +32,8 @@ import { join } from "node:path";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { billFixtureFile } from "./helpers/billFixture";
+
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 vi.mock("@/lib/pintDrops", async (importOriginal) => {
@@ -190,16 +192,24 @@ function request(
     bearer?: string;
     key?: string;
     body?: Record<string, unknown>;
+    /** A multipart body, for the doors that carry a photo. Sets no content-type:
+     *  the runtime writes it with the boundary. */
+    form?: FormData;
     method?: string;
     headers?: Record<string, string>;
   } = {},
 ): Request {
-  const headers = new Headers({ "content-type": "application/json", ...(options.headers ?? {}) });
+  const headers = new Headers(
+    options.form
+      ? { ...(options.headers ?? {}) }
+      : { "content-type": "application/json", ...(options.headers ?? {}) },
+  );
   if (options.bearer) headers.set("authorization", `Bearer ${options.bearer}`);
   if (options.key) headers.set("idempotency-key", options.key);
   return new Request(`http://localhost${path}`, {
-    method: options.method ?? (options.body ? "POST" : "GET"),
+    method: options.method ?? (options.body || options.form ? "POST" : "GET"),
     headers,
+    ...(options.form ? { body: options.form } : {}),
     ...(options.body ? { body: JSON.stringify(options.body) } : {}),
   });
 }
@@ -1000,12 +1010,30 @@ type PriceSubmitBody = {
   price?: { priceGbp: number };
 };
 
-async function submitPrice(bearer: string | undefined, venueId: string, priceGbp: number): Promise<Response> {
+/**
+ * A price as a real client sends it since 7 Sept 2026: multipart, carrying the
+ * photo of the bill the route refuses a price without (lib/pintDropReceipt.ts).
+ * The bytes are a tiny real JPEG, which is what the upload path sniffs for.
+ */
+async function submitPrice(
+  bearer: string | undefined,
+  venueId: string,
+  priceGbp: number,
+  options: { receipt?: boolean } = {},
+): Promise<Response> {
+  const form = new FormData();
+  form.set("venueId", venueId);
+  form.set("drinkCategory", "beer");
+  form.set("priceGbp", String(priceGbp));
+  if (options.receipt !== false) {
+    // A REAL receipt, because this suite reaches the real upload path: a
+    // four-byte JPEG sniffs correctly and then dies inside sharp
+    // ("VipsJpeg: JPEG datastream contains no image"), which answered 503 and
+    // read as a broken permission rule (__tests__/helpers/billFixture.ts).
+    form.set("receipt_photo", billFixtureFile());
+  }
   return handlers.priceSubmit(
-    request("/api/price-submit", {
-      bearer,
-      body: { venueId, drinkCategory: "beer", priceGbp },
-    }),
+    request("/api/price-submit", { bearer, form }),
     context({}),
   );
 }
@@ -1016,17 +1044,23 @@ describe("price observation and its confirmation", () => {
     expect(response.status).toBe(401);
   });
 
-  it("A's first report waits for a second drinker, and A reporting again is named as the same reporter", async () => {
+  it("A's first report waits for a second drinker, and A's second figure is a second price", async () => {
     const first = await submitPrice(BEARER_ALICE, PRICE_VENUE, 4.5);
     expect(first.status, await first.clone().text()).toBe(201);
     expect((await readJson<PriceSubmitBody>(first)).confirmationOutcome?.status).toBe("awaiting_second_drinker");
 
-    // A second REPORT, not a second tap: a different figure inside the shared
-    // agreement tolerance, so the duplicate-tap window (battle test D10) leaves
-    // it alone and the independence rule is what answers.
+    // A second REPORT, not a second tap: a different figure, so the
+    // duplicate-tap window (battle test D10) leaves it alone. Since 7 Sept 2026
+    // the drop lane's agreement is EXACT, so 4.50 and 4.60 are two prices this
+    // pub holds rather than one repeated report, and the outcome says so with
+    // ONE drinker behind them.
     const repeat = await submitPrice(BEARER_ALICE, PRICE_VENUE, 4.6);
     expect(repeat.status, await repeat.clone().text()).toBe(201);
-    expect((await readJson<PriceSubmitBody>(repeat)).confirmationOutcome?.status).toBe("same_reporter");
+    expect((await readJson<PriceSubmitBody>(repeat)).confirmationOutcome).toMatchObject({
+      status: "price_disagrees",
+      prices: [4.5, 4.6],
+      reporters: 1,
+    });
     expect(truth(
       `select count(*) from public.pint_drops where venue_id = '${PRICE_VENUE}' and confirmation_id is not null`,
     )).toBe("0");

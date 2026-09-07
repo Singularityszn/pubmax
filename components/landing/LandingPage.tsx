@@ -16,8 +16,10 @@ import Kicker from "@/components/ui/kicker";
 // The landing bar isn't the SiteNav component, but it flies the same wordmark
 // and action cluster, so it pulls in those shared styles directly.
 import "@/components/nav/siteNav.css";
+import type { LandingAnswers } from "@/lib/landingAnswers";
 import type { LandingArchiveIndex, LandingRailRow } from "@/lib/landingHero";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
+import type { PintPriceAverages } from "@/lib/pintSavings";
 import {
   preferredCityMapHref,
   readPreferredCity,
@@ -29,7 +31,10 @@ import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 import { socialSurfaceName } from "@/lib/socialLaunch";
 
+import LandingAnswerCards from "./LandingAnswerCards";
+import LandingFaq from "./LandingFaq";
 import LandingHero from "./LandingHero";
+import LandingSavings from "./LandingSavings";
 import PintDropStripLoading from "./PintDropStripLoading";
 import "./landing.css";
 
@@ -46,6 +51,8 @@ export default function LandingPage({
   card = null,
   archive = {},
   rail = [],
+  averages = null,
+  answers = null,
   // Server-threaded friends-launch flag. Explicit 0 is the rollback state.
   socialFriendsLaunchEnabled = true,
 }: {
@@ -55,6 +62,10 @@ export default function LandingPage({
   archive?: LandingArchiveIndex;
   /** The three next-cheapest rows under the anchor. */
   rail?: LandingRailRow[];
+  /** The city's two mean pint prices, for the saving line (lib/pintSavings.ts). */
+  averages?: PintPriceAverages | null;
+  /** What is on today and what is on tonight, one sentence each. */
+  answers?: LandingAnswers | null;
   socialFriendsLaunchEnabled?: boolean;
 }) {
   const router = useRouter();
@@ -111,27 +122,20 @@ export default function LandingPage({
       </header>
 
       <main id="main">
-        {/* The whole first screen, at every width: brand kicker, the claim, the
-            answer (one real pub), one primary action (Still £X?, the Pint Drop
-            door for that pub), the Pal as the quiet second door, then three
-            next-cheapest rows. The DOM order is the phone order; the desktop
-            only seats the answer and the rows beside the copy. */}
+        {/* The whole first screen, at every width: brand kicker, the claim, one
+            line under it, the drawing of London, one primary action (Cheapest
+            pints near me), the quiet row of the receipt door and Tonight, then
+            the one real pub and three next-cheapest rows. The DOM order is the
+            phone order; the desktop only seats the picture and the rows beside
+            the copy. */}
         <LandingHero card={card} archive={archive} rail={rail} />
 
-        <section className="lpWhy" id="why" aria-labelledby="why-title">
-          <Kicker>Why PUBMAXX</Kicker>
-          <h2 id="why-title">Built for the bit before you set off.</h2>
-          <p>
-            You want somewhere that will not mug you on the first round. A
-            cheap pint near the station. Coffee and a quiet Spoons when the
-            afternoon is the outing. Food before the last train. Soft drink
-            or alcohol-free with mates who are not drinking. One map should
-            answer that without the usual three-app shuffle.
-          </p>
-          <p>
-            Keeping those prices honest takes real work. We would rather
-            leave a gap than invent a figure.
-          </p>
+        {answers ? <LandingAnswerCards answers={answers} /> : null}
+
+        <section className="lpWorth" aria-labelledby="worth-title">
+          <Kicker>What it saves you</Kicker>
+          <h2 id="worth-title">The cheapest listed pint near you, on one map.</h2>
+          <LandingSavings averages={averages} />
           <Link
             prefetch={false}
             href={mapCtaHref}
@@ -146,6 +150,8 @@ export default function LandingPage({
         <div className="lpDrops">
           <PintDropStrip />
         </div>
+
+        <LandingFaq />
 
         <div id="cities" className="lpCityChooser">
           <CityChooser variant="section" />

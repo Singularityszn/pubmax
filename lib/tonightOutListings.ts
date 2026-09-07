@@ -13,6 +13,7 @@ import type { OutResponse } from "@/lib/out/types";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
 import type { MapSelectableVenueIds } from "@/lib/pricedLanding";
 import type { TonightGroupedRow } from "@/lib/tonightListGrouping";
+import { withoutTonightChainRows } from "@/lib/tonightChainLanes";
 import { tonightPrimaryRows } from "@/lib/tonightPrimary";
 import {
   WHATS_ON_KINDS,
@@ -199,6 +200,14 @@ export type TonightLedeComposition = {
  * answer carrying nothing else is honestly empty rather than led by one of
  * them. The secondary Deals and Music lanes keep the unfiltered list, which is
  * why both come back from one call.
+ *
+ * EVERY CHAIN IS REFUSED HERE, not just the one that led a build in August.
+ * `withoutTonightChainRows` takes the Greene King fixtures too: 259 of them
+ * ride the bundled sport file, each one saying in its own detail line that the
+ * pub has not confirmed the screening, and a list ordered by supply hands the
+ * first card to whoever publishes the most rows. They keep their own labelled
+ * block under the lede (`lib/tonightChainLanes.ts`), where the chain's name and
+ * the day its page was read sit beside them.
  */
 export function tonightLedeComposition(
   rows: readonly WhatsOnRow[],
@@ -215,8 +224,10 @@ export function tonightLedeComposition(
     selectable,
     true,
   );
-  const primaryWhatsOnRows = tonightPrimaryRows(rows);
-  const primaryOutEvents = tonightPrimaryRows(outBody?.events ?? []);
+  const primaryWhatsOnRows = withoutTonightChainRows(tonightPrimaryRows(rows));
+  const primaryOutEvents = withoutTonightChainRows(
+    tonightPrimaryRows(outBody?.events ?? []),
+  );
   const primaryOutAnswer: TonightOutAnswer = outBody
     ? { ...outAnswer, body: { ...outBody, events: primaryOutEvents } }
     : outAnswer;
@@ -245,7 +256,7 @@ export function tonightLedeComposition(
       selectable,
       true,
     ),
-    outEvents: tonightPrimaryRows(eligibleOutEvents),
+    outEvents: withoutTonightChainRows(tonightPrimaryRows(eligibleOutEvents)),
   };
 }
 
@@ -279,9 +290,25 @@ export function tonightListingLanes(
  * This asks `kindObservedAt` instead - the per-kind map the live read returns
  * and nothing else writes - and takes the covering rule already stated in
  * CLAUDE.md: one line covering several kinds takes the OLDEST of them and goes
- * undated entirely when it cannot date one. With no What's-On rows there is no
- * kind to date, so the answer is null and the credit says "undated", which is
- * the honest thing a quiet night can say about itself.
+ * undated entirely when it cannot date one.
+ *
+ * A QUIET NIGHT WAS CHECKED, AND THE CHIP NOW SAYS WHEN. With no What's-On row
+ * on screen the first cut answered null, so the phone printed "Quiet night · No
+ * date on this yet · via what's-on" over a read that had just served 96
+ * Wetherspoon deals and 24 Ticketmaster events and dated every one of them
+ * (Grok, 7 September 2026). Nothing about that night was undated: the rows the
+ * read returned were refused from the lede, which is a decision of ours and not
+ * an absence of evidence.
+ *
+ * So an EMPTY surface takes the read's own date, under two conditions that
+ * keep the 6 September ruling above intact. (1) NOTHING MAY BE ON SCREEN: a
+ * page carrying Out rows and no What's-On row still claims no What's-On day,
+ * because that lane really did contribute nothing to what a reader is looking
+ * at. (2) THE READ MUST BE ABOUT TONIGHT: evidence older than
+ * `TONIGHT_QUIET_READ_MAX_AGE_MS` cannot say what is on tonight, which is
+ * exactly what "Checked 22 Aug" claimed on 6 September, so it goes undated
+ * instead. A read that dated nothing answers null either way, because then
+ * nobody looked at all.
  */
 export function tonightWhatsOnObservedAt(input: {
   /** The grouped cards on screen, in render order. */
@@ -290,6 +317,8 @@ export function tonightWhatsOnObservedAt(input: {
   outEvents: WhatsOnRow[];
   /** The live read's own per-kind observation map. */
   kindObservedAt: WhatsOnKindObservedAt;
+  /** Injectable clock, so the quiet night's own date is testable. */
+  now?: number;
 }): string | null {
   const rows = input.renderedGroups.map((group) => group.row);
   const { outRows } = tonightListingLanes(rows, input.outEvents);
@@ -299,7 +328,33 @@ export function tonightWhatsOnObservedAt(input: {
     if (fromOut.has(row)) continue;
     kinds.add(row.kind);
   }
-  return coveringObservedAt(input.kindObservedAt, [...kinds]);
+  if (kinds.size > 0) return coveringObservedAt(input.kindObservedAt, [...kinds]);
+  if (input.renderedGroups.length > 0) return null;
+  return tonightQuietReadObservedAt(input.kindObservedAt, input.now ?? Date.now());
+}
+
+/**
+ * How old a read may be and still say what is on TONIGHT.
+ *
+ * A day. Past that the answer is about another night, and "Checked 22 Aug" over
+ * tonight's quiet sentence is the 6 September defect wearing the live read's
+ * clothes.
+ */
+export const TONIGHT_QUIET_READ_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+/** The day an empty surface may claim it was checked, or null. */
+export function tonightQuietReadObservedAt(
+  kindObservedAt: WhatsOnKindObservedAt,
+  now: number = Date.now(),
+): string | null {
+  const observed = coveringObservedAt(
+    kindObservedAt,
+    WHATS_ON_KINDS.filter((kind) => Boolean(kindObservedAt[kind])),
+  );
+  if (!observed) return null;
+  const ms = Date.parse(observed);
+  if (!Number.isFinite(ms)) return null;
+  return now - ms <= TONIGHT_QUIET_READ_MAX_AGE_MS ? observed : null;
 }
 
 /**

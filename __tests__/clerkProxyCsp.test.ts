@@ -266,7 +266,9 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
   const NONCED = [
     "/login",
     "/signin",
-    "/onboarding",
+    // /onboarding is deliberately absent: it answers no document at all now.
+    // A plain request for it is turned away at the edge, so there is no policy
+    // to hold. __tests__/onboardingWebDocument.test.ts is its fence.
     "/social",
     "/u/you",
     "/messages",

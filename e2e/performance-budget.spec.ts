@@ -9,10 +9,11 @@ import {
   formatMeasurementTable,
   formatRatchetTable,
   formatSampleTable,
+  plannedNavigations,
   type RouteMeasurement,
   type SampleRow,
 } from "../lib/performanceBudgets";
-import { preparePerfPage, runPerfRoute } from "./helpers/perfMeasurement";
+import { measurePerfRedirect, preparePerfPage, runPerfRoute } from "./helpers/perfMeasurement";
 
 // The enforced site performance budget (docs/PERFORMANCE_BUDGETS.md).
 //
@@ -61,8 +62,13 @@ test.describe.configure({ retries: 0 });
 
 // The whole sweep in one test: the server is shared, so the routes must be
 // measured one after another rather than raced by parallel workers.
-const SWEEP_TIMEOUT_MS =
-  60_000 * budgets.routes.length * (budgets.method.warmupRuns + budgets.method.measuredRuns);
+//
+// The budget is derived from the WORST CASE rather than from the routes alone,
+// because a route can spend a resample budget and a route marked noisy spends a
+// wider one: a timeout that did not count them would turn a route measuring
+// itself properly into a sweep that timed out, and an unmeasured route is
+// already reported as a breach of every metric.
+const SWEEP_TIMEOUT_MS = 60_000 * plannedNavigations(budgets.routes, budgets.method);
 
 test("every budgeted route stays inside its performance budget", async ({ page, baseURL }) => {
   test.skip(!process.env.PUBMAX_PERF_BUDGET, "Owned by the performance-budget CI job.");
@@ -74,7 +80,20 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
   const measured = new Map<string, RouteMeasurement>();
   const samplesByPath = new Map<string, SampleRow[]>();
   for (const route of budgets.routes) {
-    const run = await runPerfRoute(page, route, budgets.method);
+    // A route that ANSWERS A REDIRECT is measured as one. `page.goto` follows a
+    // 3xx, so measuring it as a page reports the cost of whatever it lands on
+    // under a ceiling written for the page it used to be, and neither reading
+    // of that number is true (lib/performanceBudgets.ts, `redirectsTo`).
+    let run;
+    if (route.redirectsTo) {
+      const sample = await measurePerfRedirect(page, {
+        ...route,
+        redirectsTo: route.redirectsTo,
+      });
+      run = { samples: [sample], aggregate: sample };
+    } else {
+      run = await runPerfRoute(page, route, budgets.method);
+    }
     measured.set(route.path, {
       serverRenderMs: run.aggregate.serverRenderMs,
       jsDecodedKB: run.aggregate.jsDecodedKB,

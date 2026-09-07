@@ -17,6 +17,10 @@ const cardSource = readFileSync(
   join(process.cwd(), "components/landing/LandingHero.tsx"),
   "utf8",
 );
+const faqCopy = readFileSync(
+  join(process.cwd(), "components/landing/LandingFaq.tsx"),
+  "utf8",
+);
 
 // Comment lines are not copy; strip them so a note about a banned phrase is
 // not read as the phrase. JSX text wraps across source lines, so whitespace
@@ -55,17 +59,18 @@ describe("landing price honesty", () => {
     expect(copy.match(/we name and link it/g)).toHaveLength(1);
   });
 
-  it("keeps the why beat as one column of plain words", () => {
-    expect(copy.match(/id="why"/g)).toHaveLength(1);
-    expect(copy).toContain("Built for the bit before you set off.");
-    expect(copy).toContain("Coffee and a quiet Spoons when the afternoon is the outing.");
-    expect(copy).toContain("Food before the last train.");
-    expect(copy).toContain("Soft drink or alcohol-free with mates who are not drinking.");
-    expect(copy).toContain("We would rather leave a gap than invent a figure.");
-    const why = copy.match(/id="why"[\s\S]*?<\/section>/)?.[0] ?? "";
-    expect(why).toContain("Open the map");
-    expect(why).not.toContain("data-primary-action");
-    expect(why).not.toMatch(/href="\/plan"/);
+  it("keeps the saving beat as one column of plain words", () => {
+    // The prose section under the answer cards. It says what the product is
+    // worth in pounds and opens the map; it paints no second primary.
+    expect(copy.match(/aria-labelledby="worth-title"/g)).toHaveLength(1);
+    expect(copy).toContain("The cheapest listed pint near you, on one map.");
+    const worth = copy.match(/aria-labelledby="worth-title"[\s\S]*?<\/section>/)?.[0] ?? "";
+    expect(worth).toContain("Open the map");
+    expect(worth).not.toContain("data-primary-action");
+    expect(worth).not.toMatch(/href="\/plan"/);
+    // The gap sentence moved to the questions, and it is still said once.
+    expect(faqCopy).toContain("We would rather leave a gap than invent a figure.");
+    expect(faqCopy.match(/We would rather leave a gap than invent a figure\./g)).toHaveLength(1);
   });
 
   it("stays out of the marketing register", () => {

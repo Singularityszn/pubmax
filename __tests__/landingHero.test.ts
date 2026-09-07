@@ -4,8 +4,10 @@ import {
   answerEvidenceFor,
   answerKicker,
   HERO_RAIL_SIZE,
-  LANDING_FALLBACK_PRIMARY_HREF,
-  LANDING_FALLBACK_PRIMARY_LABEL,
+  LANDING_FALLBACK_RECEIPT_HREF,
+  LANDING_FALLBACK_RECEIPT_LABEL,
+  LANDING_PRIMARY_HREF,
+  LANDING_PRIMARY_LABEL,
   pintDropDoorHref,
   railHeading,
   stillPriceLabel,
@@ -79,9 +81,17 @@ describe("landing hero policy", () => {
     expect(pintDropDoorHref("venue-eltcmh", -6.5)).toBe("/map?sel=venue-eltcmh&log=1");
   });
 
+  it("gives a stranger an answer before it asks them for anything", () => {
+    // The one filled action on the front door. /near answers from a London
+    // patch when the reader refuses location, so this tap never ends at a wall.
+    expect(LANDING_PRIMARY_HREF).toBe("/near?locate=1");
+    expect(LANDING_PRIMARY_LABEL).toBe("Cheapest pints near me");
+  });
+
   it("keeps the plain receipt door for a document with no card behind it", () => {
-    expect(LANDING_FALLBACK_PRIMARY_HREF).toBe("/near?locate=1");
-    expect(LANDING_FALLBACK_PRIMARY_LABEL).toBe("Log what you paid");
+    // Quiet, and it asks for no location: only the primary carries locate=1.
+    expect(LANDING_FALLBACK_RECEIPT_HREF).toBe("/near");
+    expect(LANDING_FALLBACK_RECEIPT_LABEL).toBe("Log what you paid");
   });
 
   it("words the kicker and the rail heading from where the answer came", () => {

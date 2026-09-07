@@ -29,6 +29,7 @@ import {
   PINT_TRUST_PIN_PAINT,
   PINT_TRUST_STATES,
   dropLaneInput,
+  splitLaneInput,
   pintTrustFor,
   pintTrustPinStanding,
   pintTrustSignalFields,
@@ -155,9 +156,18 @@ function corroboratedPair(): SummaryDrop[] {
   ];
 }
 
+/** Two in-window drinkers, one drink, two figures: the Hatton pub of 7 Sept. */
+function splitPair(): SummaryDrop[] {
+  return [
+    drop({ priceGbp: 4.7 }),
+    drop({ handle: "second_drinker", priceGbp: 4.5, createdAt: daysAgo(2) }),
+  ];
+}
+
 const FIXTURES: Record<PintTrustState, () => SummaryDrop[]> = {
   confirmed: () => confirmedPair(),
   corroborated: () => corroboratedPair(),
+  disputed: splitPair,
   "logged-once": () => [drop()],
   "aged-out": () => [drop({ createdAt: daysAgo(90) })],
   none: () => [],
@@ -200,6 +210,7 @@ function renderOverview(drops: SummaryDrop[], base: Venue = venue()): string {
       confirmedPrice: signal.confirmedPrice,
       provisionalPrice: dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
       agedPrice: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
+      disputedPrice: splitLaneInput(signal.disputedPrices, signal.disputedAt),
       communityPrices: communityPrices(VENUE_ID),
       experienceLens: "all",
       drinkLensCategory: null,
@@ -233,6 +244,7 @@ function peekChip(drops: SummaryDrop[], base: Venue = venue()) {
       bundle,
       dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
       dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
+      splitLaneInput(signal.disputedPrices, signal.disputedAt),
     ),
     bundle,
     signal.pintTrust,
@@ -255,9 +267,16 @@ const ABSENCES = [
   firstDropNudgeCopy(VENUE_ID).line,
 ];
 
-describe("pintTrustFor: five states, one order", () => {
+describe("pintTrustFor: six states, one order", () => {
   it("names the closed set weakest last", () => {
-    expect(PINT_TRUST_STATES).toEqual(["confirmed", "corroborated", "logged-once", "aged-out", "none"]);
+    expect(PINT_TRUST_STATES).toEqual([
+      "confirmed",
+      "corroborated",
+      "disputed",
+      "logged-once",
+      "aged-out",
+      "none",
+    ]);
   });
 
   it.each(PINT_TRUST_STATES)("reads %s from its fixture", (state) => {
@@ -278,7 +297,7 @@ describe("pintTrustFor: five states, one order", () => {
     const reading = pintTrustFor(confirmedPair(3), NOW);
     expect(reading.confirmedPrice).toEqual({ priceGbp: 4.5, observedAt: daysAgo(3) });
     expect(priceStandingFor({ confirmed: reading.confirmedPrice }, NOW).standing).toBe("confirmed");
-    for (const state of ["corroborated", "logged-once", "aged-out", "none"] as const) {
+    for (const state of ["corroborated", "disputed", "logged-once", "aged-out", "none"] as const) {
       expect(pintTrustFor(FIXTURES[state](), NOW).confirmedPrice, state).toBeNull();
     }
   });
@@ -321,6 +340,9 @@ describe("what each state paints on the pin", () => {
     expect(PINT_TRUST_PIN_PAINT).toEqual({
       confirmed: "authority",
       corroborated: "authority",
+      // A split has reports but no agreed figure, so it wears the same mark one
+      // report wears and reaches no band.
+      disputed: "mark",
       "logged-once": "mark",
       "aged-out": "none",
       none: "none",

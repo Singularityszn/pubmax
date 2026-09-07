@@ -4,6 +4,7 @@ import type { NextFetchEvent, NextRequest, ProxyConfig } from "next/server";
 
 import { clerkCspSources, isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
 import { assertE2ELoginSafe } from "@/lib/e2eReviewAuth";
+import { ONBOARDING_PATH } from "@/lib/firstRunRoute";
 import { isPosterLandingSrc, posterNearHref } from "@/lib/posterLanding";
 import {
   MAP_DOCUMENT_PATH,
@@ -95,6 +96,11 @@ function isArtifactPreviewHost(request: NextRequest): boolean {
     request.headers.get("x-vercel-deployment-url"),
     process.env.VERCEL_BRANCH_URL,
   ].some((artifactHost) => normalizeHostname(artifactHost) === hostname);
+}
+
+/** Whether this request asks for an HTML document rather than a data payload. */
+function wantsDocument(request: NextRequest): boolean {
+  return (request.headers.get("accept") ?? "").includes("text/html");
 }
 
 function servesApiCaller(pathname: string): boolean {
@@ -231,6 +237,36 @@ export function securityProxy(request: NextRequest) {
         307,
       ),
     );
+  }
+  // /onboarding is the native shell's one-time first-run surface and NOTHING
+  // else. `consumeNativeFirstRunHandoff` is native-only and session-scoped, so
+  // a web visit has always failed closed and replaced the URL with "/". It did
+  // that in the browser, after rendering and discarding a whole document: it
+  // was the worst LCP on the site at 4676 ms on Slow 4G, because the paint
+  // being measured was the homepage arriving after the bounce (Astra's live
+  // walk, 7 Sep 2026, finding B6).
+  //
+  // The shell reaches this route by `router.replace` from "/"
+  // (components/native/AppEntryRoute.tsx), which is a client navigation. So
+  // only a request that ASKS FOR A DOCUMENT is turned away, and the native
+  // first run is byte for byte what it was.
+  //
+  // The reading is `Accept`, not Next's own RSC header, which this version
+  // strips before middleware anyway (measured), and not the `_rsc` query,
+  // which it also strips. Measured on a production build: a browser document
+  // navigation sends `text/html,...`, and every RSC navigation and prefetch
+  // sends `*/*`. Reading Accept also FAILS SAFE. An RSC fetch cannot start
+  // claiming to want HTML, so a future Next release cannot turn this rule on
+  // the shell's own arrival; a header-name change could.
+  //
+  // 307, and never 308: a browser caches a permanent redirect, the shell is a
+  // remote-URL wrap of this same origin, and one cached 308 would take the
+  // first run away from every later install on that device.
+  if (pathname === ONBOARDING_PATH && wantsDocument(request)) {
+    const target = new URL(request.url);
+    target.pathname = "/";
+    target.search = "";
+    return applyNonProductionRobotsTag(NextResponse.redirect(target, 307));
   }
   // A /map request whose DOCUMENT differs from the prerendered shell (a town
   // arrival, national browse, a curated share card) is rewritten to the twin

@@ -1,11 +1,10 @@
 import type { OutOpenPlan } from "@/lib/out";
-import { getNightArea } from "@/lib/nightAreas";
-import { isNightAreaSlug } from "@/lib/nightPlanning";
 import {
   outSourceAttribution,
   outSourceAttributionFromLabels,
   type OutSourceCredit,
 } from "@/lib/out/attribution";
+import { outListingDayGroups, type OutListingDayGroup } from "@/lib/out/listingDays";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
 import { OUT_UNMATCHED_PLACES_SHOWN } from "@/lib/out/types";
 import type { OutVenueMatchStatus } from "@/lib/out/venueMatch";
@@ -15,21 +14,21 @@ import type { WhatsOnRow } from "@/lib/whatsOn";
 /** One listed Open Crew is enough to make discovery useful at London MVP. */
 export const OUT_OPEN_PLANS_MIN_SENDABLE = 1;
 
-export const OUT_LISTING_PUB_ABSENT_LINE =
-  "No matching pub in PUBMAXX yet.";
+/**
+ * What a row says when we hold no pub of our own for it.
+ *
+ * It is a fact about OUR map, not about the listing: the gig is on, the venue
+ * is real, and the only thing missing is a pin. Said on the row itself, because
+ * the alternative - counting these rows into one line and printing nothing else
+ * - is how /out came to show a reader 148 sourced listings as an empty page.
+ */
+export const OUT_LISTING_PUB_ABSENT_LINE = "Not on our map yet.";
 
 export { OUT_UNMATCHED_PLACES_SHOWN } from "@/lib/out/types";
 
 export { canonicalOutVenueId } from "@/lib/out/venueId";
 
-export type OutListingGroupKind = "venue" | "area" | "place";
-
-export type OutListingGroup = {
-  key: string;
-  kind: OutListingGroupKind;
-  label: string;
-  rows: WhatsOnRow[];
-};
+export type OutListingGroup = OutListingDayGroup;
 
 export type OutListingPubPair =
   | {
@@ -39,6 +38,7 @@ export type OutListingPubPair =
     }
   | {
       status: "absent";
+      placeName: string;
       line: typeof OUT_LISTING_PUB_ABSENT_LINE;
     };
 
@@ -50,82 +50,19 @@ function hasResolvedPub(row: WhatsOnRow): boolean {
   return canonicalOutVenueId(row.venueId) !== null;
 }
 
-function areaGroupLabel(area: string): string {
-  if (isNightAreaSlug(area)) return getNightArea(area).name;
-  return area
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-/** The desktop group key prefers a resolved pub, then a night area, then the place name. */
-export function outListingGroupKey(row: WhatsOnRow): {
-  key: string;
-  kind: OutListingGroupKind;
-  label: string;
-} {
-  const venueId = canonicalOutVenueId(row.venueId);
-  if (venueId) {
-    return {
-      key: `venue:${venueId}`,
-      kind: "venue",
-      label: row.placeName.trim() || venueId,
-    };
-  }
-  if (typeof row.area === "string" && row.area.trim().length > 0) {
-    const area = row.area.trim();
-    return {
-      key: `area:${area}`,
-      kind: "area",
-      label: areaGroupLabel(area),
-    };
-  }
-  const place = normalizePlaceName(row.placeName);
-  return {
-    key: `place:${place}`,
-    kind: "place",
-    label: row.placeName.trim() || "Listing",
-  };
-}
-
-function rowSortTime(row: WhatsOnRow): number {
-  if (row.startsAt && Number.isFinite(Date.parse(row.startsAt))) {
-    return Date.parse(row.startsAt);
-  }
-  if (row.startsDate && Number.isFinite(Date.parse(`${row.startsDate}T12:00:00.000Z`))) {
-    return Date.parse(`${row.startsDate}T12:00:00.000Z`);
-  }
-  return Number.POSITIVE_INFINITY;
-}
-
-/** Desktop /out groups only listings that can open a PUBMAXX venue. */
-export function groupOutListings(rows: readonly WhatsOnRow[]): OutListingGroup[] {
-  const byKey = new Map<string, OutListingGroup>();
-  for (const row of rows) {
-    if (!hasResolvedPub(row)) continue;
-    const descriptor = outListingGroupKey(row);
-    const existing = byKey.get(descriptor.key);
-    if (existing) {
-      existing.rows.push(row);
-      continue;
-    }
-    byKey.set(descriptor.key, {
-      key: descriptor.key,
-      kind: descriptor.kind,
-      label: descriptor.label,
-      rows: [row],
-    });
-  }
-  const groups = [...byKey.values()].map((group) => ({
-    ...group,
-    rows: [...group.rows].sort((left, right) => rowSortTime(left) - rowSortTime(right)),
-  }));
-  return groups.sort((left, right) => {
-    const leftTime = Math.min(...left.rows.map(rowSortTime));
-    const rightTime = Math.min(...right.rows.map(rowSortTime));
-    if (leftTime !== rightTime) return leftTime - rightTime;
-    return left.label.localeCompare(right.label, "en-GB");
-  });
+/**
+ * /out groups its listings by the night they are on, and prints every one.
+ *
+ * It used to group by resolved pub and skip any row without one, which meant a
+ * night of 63 sourced listings rendered as zero rows and one apologetic count.
+ * A listing we hold is a listing we show; whether we also hold the pub is said
+ * on the row (outListingPubPair), where it is a footnote rather than a filter.
+ */
+export function groupOutListings(
+  rows: readonly WhatsOnRow[],
+  now: number = Date.now(),
+): OutListingGroup[] {
+  return outListingDayGroups(rows, now);
 }
 
 /** Single reader-facing label for the resolved place badge on /out listings. */
@@ -134,49 +71,43 @@ export const OUT_LISTING_VENUE_BADGE_LABEL = "On PUBMAXX";
 /** The pub beside a gig is the resolved venue on the row, or an honest absence. */
 export function outListingPubPair(row: WhatsOnRow): OutListingPubPair {
   const venueId = canonicalOutVenueId(row.venueId);
+  const placeName = row.placeName.trim();
   if (venueId) {
     return {
       status: "matched",
-      placeName: row.placeName.trim() || venueId,
+      placeName: placeName || venueId,
       mapHref: `/map?sel=${encodeURIComponent(venueId)}`,
     };
   }
-  return { status: "absent", line: OUT_LISTING_PUB_ABSENT_LINE };
+  return { status: "absent", placeName, line: OUT_LISTING_PUB_ABSENT_LINE };
 }
 
-/** The page announces unmatched event listings once, not beside every row. */
+/** How many listings on screen carry no pub of ours. Reported, never hidden. */
 export function outListingUnmatchedCount(rows: readonly WhatsOnRow[]): number {
-  return rows.reduce(
-    (count, row) =>
-      hasResolvedPub(row) ? count : count + 1,
-    0,
-  );
+  return rows.reduce((count, row) => (hasResolvedPub(row) ? count : count + 1), 0);
 }
 
 /**
- * Whether the notice is the page's answer or a footnote under it.
+ * The one finding a row cannot state for itself.
  *
- * The listing surface renders only rows that open a PUBMAXX venue, so a night
- * whose every row is at an unlisted place has no card above this and the
- * notice IS what the reader gets. With a card above it, it is an aside about
- * the rows that are not on one, and it reads in the quieter voice.
+ * Every listing now prints, and a row with no pub of ours says so on its own
+ * line, so there is nothing left for a page-level count to reveal. What a row
+ * still cannot say is that the MATCH NEVER RAN: the slim venue index failed to
+ * read, so "not on our map yet" would be a claim about a lookup nobody
+ * performed. That is this notice's whole remit, and it is silent otherwise.
  */
-export type OutUnmatchedNoticeRole = "lead" | "aside";
-
-export type OutUnmatchedNotice = {
-  /** Whether the page leads with this, or shows it under the cards. */
-  role: OutUnmatchedNoticeRole;
-  /** The count, and which night it is about. */
+export type OutVenueMatchNotice = {
+  /** The finding, in words a reader can act on. */
   line: string;
-  /** Provider place names, or empty beside useful matched Venue cards. */
+  /** The places it is about, or empty when the response named none. */
   places: string;
-  /** Who listed the hidden rows. Credit is owed whether or not a card shows. */
+  /** Who listed the rows. Credit is owed however the match went. */
   credits: OutSourceCredit[];
   /** The one way onward. */
   way: { href: string; label: string };
 };
 
-export type OutUnmatchedListingsNoticeOptions = {
+export type OutVenueMatchNoticeOptions = {
   unmatchedCount?: number;
   unmatchedPlaces?: readonly string[];
   unmatchedPlaceCount?: number;
@@ -188,88 +119,48 @@ function joinPlaces(names: readonly string[]): string {
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
-/**
- * What the page says about the listings it is NOT showing.
- *
- * Every unmatched row is dropped from the pub list (groupOutListings), so
- * without this line an Out with four Ticketmaster rows at four arenas read as
- * an empty city under one word, "Some". The rule: say how many, credit who
- * listed them, and hand the reader somewhere to go. Name the hidden places
- * only when no matched card is available. The count is about the HIDDEN rows
- * alone, so with cards on screen it says "more".
- *
- * A match that could not RUN is a different finding from a place that is not
- * listed: the slim index failed to read, and the same four rows may well be at
- * pubs we list. That answer keeps the count and the names and drops the claim.
- *
- * Silent when nothing was hidden: with every row on a listed pub there is
- * nothing to say, and with no rows at all the status lines own the sentence.
- */
-export function outUnmatchedListingsNotice(
+export function outVenueMatchNotice(
   rows: readonly WhatsOnRow[],
   window: OutDayWindow,
   venueMatch: OutVenueMatchStatus | undefined,
-  options: OutUnmatchedListingsNoticeOptions = {},
-): OutUnmatchedNotice | null {
-  const hidden = rows.filter((row) => !hasResolvedPub(row));
-  const count = options.unmatchedCount ?? hidden.length;
+  options: OutVenueMatchNoticeOptions = {},
+): OutVenueMatchNotice | null {
+  if (venueMatch === "ready") return null;
+  const unresolved = rows.filter((row) => !hasResolvedPub(row));
+  const count = options.unmatchedCount ?? unresolved.length;
   if (count === 0) return null;
-  const shown = rows.length - hidden.length;
   const noun = outWindowNoun(window);
-  // "at the weekend" reads as a phrase; "tonight" and "tomorrow" stand alone.
-  const when = window === "weekend" ? `at ${noun}` : noun;
-
-  // "more" tells a reader with a matched card above that this is the rest,
-  // not the story. With no matched card there is nothing for it to be more
-  // than, so the notice takes the lead role and says the whole finding in one
-  // sentence. "Also, 4 listings tonight are at places we don't list yet."
-  // (#1430) subordinated the sentence to a page that had nothing above it.
-  const role: OutUnmatchedNoticeRole = shown > 0 ? "aside" : "lead";
   const possessive = noun === "the weekend" ? "the weekend's" : `${noun}'s`;
-  const owned = `${possessive.charAt(0).toUpperCase()}${possessive.slice(1)}`;
+  const line = `We couldn't check which of ${possessive} ${count} ${
+    count === 1 ? "listing is" : "listings are"
+  } at a pub we list.`;
 
-  let line: string;
-  if (venueMatch !== "ready") {
-    line = `We couldn't check which of ${possessive} ${count} ${
-      count === 1 ? "listing is" : "listings are"
-    } at a pub we list.`;
-  } else if (role === "aside") {
-    line =
-      count === 1
-        ? `1 more listing ${when} is at a place we don't list yet.`
-        : `${count} more listings ${when} are at places we don't list yet.`;
-  } else {
-    line =
-      count === 1
-        ? `${owned} 1 listing is at a place we don't list yet.`
-        : `${owned} ${count} listings are all at places we don't list yet.`;
-  }
-
-  const names = options.unmatchedPlaces ? [...options.unmatchedPlaces] : (() => {
-    const names: string[] = [];
-    const seen = new Set<string>();
-    for (const row of hidden) {
-      const name = row.placeName.trim();
-      const key = normalizePlaceName(name);
-      if (!name || seen.has(key)) continue;
-      seen.add(key);
-      names.push(name);
-    }
-    return names;
-  })();
-  const rest = names.length - OUT_UNMATCHED_PLACES_SHOWN;
+  const names = options.unmatchedPlaces
+    ? [...options.unmatchedPlaces]
+    : (() => {
+        const collected: string[] = [];
+        const seen = new Set<string>();
+        for (const row of unresolved) {
+          const name = row.placeName.trim();
+          const key = normalizePlaceName(name);
+          if (!name || seen.has(key)) continue;
+          seen.add(key);
+          collected.push(name);
+        }
+        return collected;
+      })();
   const named = names.slice(0, OUT_UNMATCHED_PLACES_SHOWN);
   const extraPlaceCount =
     options.unmatchedPlaceCount === undefined
-      ? rest
+      ? names.length - OUT_UNMATCHED_PLACES_SHOWN
       : Math.max(0, options.unmatchedPlaceCount - named.length);
   const places =
-    venueMatch === "ready" && shown > 0
-      ? ""
-      : named.length === 0
+    named.length === 0
       ? ""
       : extraPlaceCount > 0
-        ? `${named.join(", ")} and ${extraPlaceCount} more ${extraPlaceCount === 1 ? "place" : "places"}.`
+        ? `${named.join(", ")} and ${extraPlaceCount} more ${
+            extraPlaceCount === 1 ? "place" : "places"
+          }.`
         : `${joinPlaces(named)}.`;
 
   const way =
@@ -279,9 +170,9 @@ export function outUnmatchedListingsNotice(
 
   const credits =
     options.unmatchedSources === undefined
-      ? outSourceAttribution(hidden)
+      ? outSourceAttribution(unresolved)
       : outSourceAttributionFromLabels(options.unmatchedSources);
-  return { role, line, places, credits, way };
+  return { line, places, credits, way };
 }
 
 /** A sendable open plan carries a resolved meeting point the card can render. */
