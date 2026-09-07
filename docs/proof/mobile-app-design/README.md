@@ -29,3 +29,34 @@ fallback that was used instead.
 Checked and sound: icons, status-bar glyphs in light and dark, safe areas and the tab bar over the home indicator and the gesture bar, keyboard on the plan composer (iOS), Android Back (keyboard, sheet, history, background), deep links into `/tonight` and `/map?sel=`, the offline cold start, three-button navigation, and memory across ten minutes of map panning.
 
 Store readiness against the guidelines read on the day: `STORE_READINESS.md`.
+
+## Coverage of the review loop
+
+Every item the brief named, with the rig it was checked on. "Fallback" means
+the rig cannot show it and the named substitute was used instead.
+
+| Item | iOS | Android | Note |
+| --- | --- | --- | --- |
+| Launch and splash | measured, fixed | measured, fixed | `launch/` on both |
+| Icons and adaptive icons | measured | measured | home screen shots; the Play adaptive layers are the generated set |
+| Status bar style, light and dark | measured | measured | glyphs follow the page on both |
+| Safe areas, notch and gesture nav | measured, fixed (double inset) | measured, fixed (band under the clock) | |
+| Tab bar over the home indicator | measured | measured | |
+| Keyboard avoidance: price, plan, sign-in field | plan and sign-in field measured; price via search | price measured through DevTools, fixed | the message and handle-claim composers need a signed-in session the keyless rig cannot mint; they share the sheet and page idioms measured here |
+| Scroll restoration | not measured | not measured | a soft-navigation behaviour of the page, the same in a browser; outside the shell's seams |
+| Pull-to-refresh | shell CSS (`overscroll-behavior`) | measured: a pull on Tonight reloads nothing | |
+| Back gesture and hardware Back | n/a | measured: keyboard, sheet, history, then background | |
+| Deep and universal links | fallback: unit tests, the AASA needs the Team ID | measured with the package named; verification needs the Play fingerprint | `STORE_READINESS.md` B2 |
+| Share sheet | measured | measured, fixed | |
+| In-app review timing | fallback: unit tests, and the proxy fix that let it fire at all | same | once ever, after two kept actions, never on a failure |
+| Haptics | fallback: unit tests; a simulator has no engine | same | occasions on the kept actions the design system names |
+| Offline and airplane mode | fallback: the bundled page is the same file | measured: the offline page on a cold start, recovery on reconnect | |
+| Adult gate inside the shell | fallback: unit tests, `accountIsAdult` | same | needs a signed-in session; the surface is the same page as the web |
+| Sign-in in a WebView | fixed: system browser | fixed: Custom Tab | the round trip needs the verified links (B2) |
+| Photo pick and camera permissions | fallback: unit fences (`nativeCameraSurfaces`, `profilePhotoPicker`) | the wall's photo door is behind sign-in; the camera sheet is a device step | `STORE_READINESS.md` captain's hand |
+| Location permission copy | measured: the plist string against the map card and /privacy | the manifest declares the two permissions; copy is the page's | there is no `lib/locationDisclosure.ts`; the strings live in `Info.plist` and the card |
+| Notification permission timing | fallback: unit tests (`nativePushPrompt`) | same | after a kept action, never at launch |
+| Text scaling at the largest setting | measured, fixed (was ignored) | measured, fixed (labels collided) | |
+| VoiceOver and TalkBack | not measurable headless | not measurable headless | the tab bar keeps its accessible names at every size; `e2e/a11y-core-journeys.spec.ts` holds the page semantics |
+| Cold start to first paint | measured: about 2.7 s to content on the local rig | measured: 3.7 to 5.3 s to the activity on software GL | |
+| Memory after ten minutes of map use | not measured (no process view from `simctl`) | measured: flat on both processes | `android-emu-pixel7/README.md` |
