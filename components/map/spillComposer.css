@@ -259,7 +259,6 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
-  justify-items: stretch;
 }
 
 .priceChip {
@@ -269,6 +268,9 @@
   min-width: 0;
   min-height: 44px;
   padding: 6px 11px;
+  /* A column is the ladder's, so a figure longer than the ones shipped today
+     is clipped by its own control rather than painted outside it. */
+  overflow: hidden;
   white-space: nowrap;
   border: 1px solid var(--line);
   border-radius: 999px;
