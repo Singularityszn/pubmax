@@ -517,6 +517,7 @@ import {
 } from "@/lib/mapChosenArea";
 import type { MapCameraFocus } from "@/lib/mapCameraFocus";
 import {
+  dismissMapFirstVisitArrivalOnMapUse,
   shouldShowMapFirstVisitArrival,
   subscribeMapFirstVisitArrival,
 } from "@/lib/mapFirstVisitArrival";
@@ -1124,6 +1125,10 @@ export default function PubMap({
     setOpeningLocationCancelledBeforeResolution(nextCancellation);
   }, [openingLocationCancelledBeforeResolution, openingLocationResolved]);
   const dismissAmbientBanners = useCallback(() => {
+    // The reader's own first move on the map answers the first-visit ask. See
+    // lib/mapFirstVisitArrival.ts; this fires on a GESTURE only, never on a
+    // camera move the app made for them (PubMapCanvas emitUserCameraMove).
+    dismissMapFirstVisitArrivalOnMapUse();
     mapCameraTouchedRef.current = true;
     cancelOpeningLocation();
     setOpeningLocationFocus(null);
@@ -3970,6 +3975,8 @@ export default function PubMap({
       // W1: a pin carrying a What's-On badge was tapped → badge_tap (the typed
       // rail's map-badge signal). Silent for pins without a tonight badge.
       if (whatsOnTonight.summary.has(id)) trackEvent("badge_tap");
+      // Opening a pub is the first-visit answer, the same as moving the map.
+      dismissMapFirstVisitArrivalOnMapUse();
       selectVenue(id);
     },
     [selectVenue, whatsOnTonight.summary],
@@ -5583,7 +5590,6 @@ export default function PubMap({
         cityId={cityId}
         cityLabel={mapChipLabel}
         limitedCoverage={Boolean(ukPlaceArrival)}
-        interactionLocked={showMapArrivalCard}
         overlay={mobileShellState.overlay}
         onOverlayChange={changeMapOverlay}
         backLabel={mapSurfaceTrail.backLabel}
@@ -5929,7 +5935,6 @@ export default function PubMap({
       >
       <PubMapCanvas
         venues={canvasVenues}
-        interactionLocked={mobileViewport && showMapArrivalCard}
         venueDataReady={loaded && loadedCityId === cityId}
         // Clean first view stays route-free. Once the user maps a crawl, the
         // line remains visible even if the mobile planner closes.

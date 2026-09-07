@@ -30,8 +30,15 @@ describe("the first-visit card leaves the map usable", () => {
   });
 
   it("clears itself on the reader's first move on the map", () => {
-    expect(cardSource).toContain("onMapGestureDismiss");
-    expect(pubMapSource).toContain("dismissMapFirstVisitArrivalOnMapUse");
+    // PubMap owns it, because the gesture and the pin tap both arrive there:
+    // `dismissAmbientBanners` is the canvas's reader-gesture callback, and
+    // `handleVenueClick` is the pin.
+    expect(pubMapSource).toMatch(
+      /const dismissAmbientBanners = useCallback\(\(\) => \{[\s\S]{0,400}?dismissMapFirstVisitArrivalOnMapUse\(\)/,
+    );
+    expect(pubMapSource).toMatch(
+      /const handleVenueClick = useCallback\([\s\S]{0,500}?dismissMapFirstVisitArrivalOnMapUse\(\)/,
+    );
   });
 });
 

@@ -184,13 +184,12 @@ function MapChipRow({
   );
 }
 
-export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, interactionLocked = false, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, builtStopCount = 0, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, sheetsEnabled = true }: {
+export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, builtStopCount = 0, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, sheetsEnabled = true }: {
   cityId?: CityId;
   cityLabel: string;
   /** Base-pub-only arrival: omit city-guide controls that cannot answer here. */
   limitedCoverage: boolean;
   /** First-visit choice owns focus and taps until it is dismissed or answered. */
-  interactionLocked?: boolean;
   overlay: MapOverlay;
   onOverlayChange: (overlay: MapOverlay) => void;
   /**
@@ -286,7 +285,6 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
       <div
         className="mobileMapChrome"
         aria-label="Map controls"
-        inert={interactionLocked || undefined}
       >
         <header className="mobileMapTopbar mobileMapTopbarLimited">
           <Link href="/" className="mobileMapBrand" aria-label="Open PUBMAXX landing page">
@@ -351,7 +349,6 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
     <>
       <div className="mobileMapChrome"
         aria-label="Map controls"
-        inert={interactionLocked || undefined}
       >
         {/* ONE top bar (design judgement 2026-08-01, finding 2.3). The old
             chrome stacked three containers: this bar, a Near me / Tonight /

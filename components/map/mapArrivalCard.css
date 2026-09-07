@@ -1,18 +1,25 @@
+/* The first-visit strip. It asks from the TOP, under the phone's own one bar,
+   because the panel it replaced sat at the foot of the screen over the pins the
+   map exists to show (docs/proof/astra-live-walk/report.md B1, measured at
+   390x844: y 533 to 768). Nothing here berths any other floating member, and
+   nothing steps around it: the strip's whole lane is above the map's content.
+
+   The height is capped rather than left to the copy, so the pin field below it
+   is a fact rather than a hope. Two short lines and a 44px action row fit
+   inside it at 320px. */
 .mapArrivalCard {
+  --map-arrival-strip-max-h: 132px;
   position: fixed;
   z-index: calc(var(--z-tabbar, 30) + 2);
+  top: calc(var(--mobile-map-chrome-full-h, 118px) + 8px);
   right: max(12px, env(safe-area-inset-right));
-  /* Float-stack member: mobileNav.css publishes this berth and the card's
-     height, so the map-edge column, the plan pill and the OSM credit can all
-     step clear of it (mobileMapShell.css) instead of being painted over. */
-  bottom: var(
-    --map-arrival-bottom,
-    calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom) + 12px)
-  );
   left: max(12px, env(safe-area-inset-left));
   display: grid;
-  gap: 10px;
-  padding: 14px 14px 12px;
+  max-height: var(--map-arrival-strip-max-h);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 10px 44px 10px 12px;
   border: 1px solid var(--hairline, var(--line));
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--panel-raised) 96%, transparent);
@@ -21,43 +28,56 @@
   backdrop-filter: blur(14px) saturate(125%);
 }
 
-.mapArrivalCardEyebrow {
-  margin: 0;
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
+.mapArrivalCardSay {
+  display: grid;
+  gap: 2px;
+  grid-column: 1 / -1;
+  min-width: 0;
 }
 
 .mapArrivalCardTitle {
   margin: 0;
-  font-size: 1.05rem;
-  line-height: 1.25;
+  font-size: 0.98rem;
+  line-height: 1.2;
 }
 
 .mapArrivalCardLead {
   margin: 0;
-  font-size: 0.82rem;
-  line-height: 1.45;
+  font-size: 0.76rem;
+  line-height: 1.3;
   color: var(--muted);
 }
 
 .mapArrivalCardActions {
-  display: grid;
+  display: flex;
+  grid-column: 1 / -1;
   gap: 8px;
 }
 
 .mapArrivalCardActions button {
-  min-height: 48px;
+  min-height: 44px;
+  flex: 1 1 0;
   border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 600;
 }
 
+/* One painted primary, in the product's coral. It was --ink, the only black
+   primary on the site and on the map's first screen (report.md B1, secondary
+   finding). One button family. */
 .mapArrivalCardPrimary {
-  border: 1px solid var(--ink);
-  background: var(--ink);
-  color: var(--paper);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.mapArrivalCardPrimary:hover {
+  background: var(--color-accent-strong);
+  color: var(--color-on-accent-strong);
 }
 
 .mapArrivalCardSecondary {
@@ -66,13 +86,16 @@
   color: var(--ink);
 }
 
+/* The close sits in the strip's own top-right padding lane, so it never takes
+   a column from the copy. It keeps the 44px target with a negative margin
+   rather than a 44px box that would set the strip's height. */
 .mapArrivalCardClose {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 2px;
+  right: 2px;
   display: inline-flex;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   align-items: center;
   justify-content: center;
   border: 0;
@@ -81,32 +104,41 @@
   color: var(--muted);
 }
 
+/* From 641px up the map has a toolbar rather than one bar, and the strip docks
+   under it as a single row: the copy on the left, the two actions on the right.
+   The desktop map's own bottom-right lane (the ODbL credit, the Layers
+   control) is untouched by it, which is why the berths this file used to
+   publish for them are gone. */
 @media (min-width: 641px) {
   .mapArrivalCard {
-    right: max(20px, env(safe-area-inset-right));
-    bottom: max(20px, env(safe-area-inset-bottom));
-    left: auto;
-    width: min(360px, calc(100vw - 40px));
+    --map-arrival-strip-max-h: 76px;
+    /* The same anchor the ambient banners take, so the one thing docked under
+       the toolbar is docked where they are (components/map/citySuggestBanner.css). */
+    position: absolute;
+    top: calc(
+      var(--map-top-clearance, 0px) +
+      var(--map-toolbar-resting-height, 181px) +
+      12px
+    );
+    right: auto;
+    left: 50%;
+    width: min(680px, calc(100vw - 40px));
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    transform: translateX(-50%);
   }
 
-  /* The desktop card parks in MapLibre's own bottom-right lane, and the ODbL
-     credit is attached to the MAP rather than to a source, so it may not be
-     covered. Same published height the phone berths read. */
-  body:has(.mapArrivalCard) .mapStage .maplibregl-ctrl-bottom-right {
-    bottom: calc(
-      var(--map-arrival-h, 256px) + max(20px, env(safe-area-inset-bottom)) + 12px
-    );
+  .mapArrivalCardSay {
+    grid-column: 1;
   }
 
-  /* The Layers control parks in that same corner, and the phone stack lifts
-     every member above this card while it is up. Desktop lifted the credit
-     alone, so the card covered the control outright: measured at 768px the
-     card sat at 388,769-748,1004 and the control at 659,946-754,990. It takes
-     the card's own published berth, like the credit above it. */
-  body:has(.mapArrivalCard) .mapStage .mapLayersControl {
-    bottom: calc(
-      var(--map-arrival-h, 256px) + max(20px, env(safe-area-inset-bottom)) + 12px
-    );
+  .mapArrivalCardActions {
+    grid-column: 2;
+    flex: 0 0 auto;
+  }
+
+  .mapArrivalCardActions button {
+    flex: 0 0 auto;
+    padding: 0 14px;
   }
 }
 
@@ -119,10 +151,29 @@
 @keyframes map-arrival-card-arrive {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(-8px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* The desktop strip is centred, so its arrival must not fight its own
+   transform. */
+@media (min-width: 641px) and (prefers-reduced-motion: no-preference) {
+  .mapArrivalCard {
+    animation-name: map-arrival-strip-arrive;
+  }
+}
+
+@keyframes map-arrival-strip-arrive {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
   }
 }

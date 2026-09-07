@@ -129,24 +129,13 @@
     bottom: calc(var(--mobile-map-dock-clearance) + 206px);
   }
 
-  /* The first-visit arrival card owns the same lane and is taller than the
-     consent card, so it takes its own published berth. Ordered after the
-     consent rule at equal specificity: whichever of the two is on screen, the
-     credit clears the taller one. */
-  body:has(.mapArrivalCard) .appShell .mapStage .maplibregl-ctrl-bottom-right {
-    bottom: calc(var(--float-stack-top-map-arrival) + var(--float-stack-gap));
-  }
-
-  /* First-session map keeps the top bar and First visit card. The card owns
-     the arrival choice before map actions become available. */
-  body:has(.mapArrivalCard) .mobileMapUtilityCorner,
-  body:has(.mapArrivalCard) .mobileMapChipRow,
-  body:has(.mapArrivalCard) .mobilePlanActivation,
-  body:has(.mapArrivalCard) .mobileMapTonightChip,
-  body:has(.mapArrivalCard) .appShell .mapStage .mapCameraControls,
-  body:has(.mapArrivalCard) .appShell .mapStage .maplibregl-ctrl-top-right {
-    display: none;
-  }
+  /* The first-visit ask is a STRIP under this bar now, not a panel at the foot
+     of the screen, so nothing in the bottom band steps around it and nothing
+     stands down for it. It used to hide the chip row, the plan pill, the
+     map-edge column and the camera controls, and hold the map itself `inert`:
+     the painted-pin probe then found zero tappable marks anywhere on the
+     canvas, 3 runs of 3 (docs/proof/astra-live-walk/report.md B1). A reader
+     meets the whole map with the ask above it. */
 
   .appShell .mapStage .maplibregl-ctrl-attrib.maplibregl-compact {
     box-sizing: border-box;
@@ -494,12 +483,6 @@
      map-edge column so Near me never paints underneath it. */
   body:has(.palSummon) .mobileMapUtilityCorner {
     bottom: calc(var(--float-stack-top-pal) + var(--float-stack-gap));
-  }
-  /* Same deal for the first-visit arrival card, which is full width and taller
-     still: the Near me FAB may not paint over the card whose own primary
-     action is Use my location. */
-  body:has(.mapArrivalCard) .mobileMapUtilityCorner {
-    bottom: calc(var(--float-stack-top-map-arrival) + var(--float-stack-gap));
   }
 
   .mobileMapLocateFab[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); }

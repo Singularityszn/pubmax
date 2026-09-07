@@ -56,6 +56,21 @@ export function hasDismissedMapFirstVisitArrival(
   }
 }
 
+/**
+ * The reader moved the map, or opened a pub on it. Either is an answer.
+ *
+ * The card used to hold the map `inert` until somebody pressed one of its three
+ * buttons, so the painted-pin probe found nothing tappable anywhere on the
+ * canvas (docs/proof/astra-live-walk/report.md B1). The map is live under the
+ * strip now, and a reader who goes straight to the pins has said what they came
+ * for more plainly than the close button would.
+ */
+export function dismissMapFirstVisitArrivalOnMapUse(
+  storage?: Storage | null,
+): void {
+  dismissMapFirstVisitArrival(storage);
+}
+
 export function dismissMapFirstVisitArrival(storage?: Storage | null): void {
   const store = resolveStorage(storage);
   if (!store) return;

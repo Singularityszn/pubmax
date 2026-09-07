@@ -197,8 +197,6 @@ maplibregl.setWorkerUrl("/vendor/maplibre/maplibre-gl-worker.mjs");
 
 type PubMapCanvasProps = {
   venues: Venue[];
-  /** First-visit choice owns interaction while the map stays visibly ready. */
-  interactionLocked?: boolean;
   /** Parent's slim venue read has settled for the active city. */
   venueDataReady: boolean;
   route: Venue[];
@@ -492,7 +490,6 @@ function probeWebGl2(): { hasContext: boolean; status: string } {
 
 export default function PubMapCanvas({
   venues,
-  interactionLocked = false,
   venueDataReady,
   route,
   selectedVenueId,
@@ -3747,7 +3744,6 @@ export default function PubMapCanvas({
   return (
     <div
       className="mapCanvasWrap"
-      inert={interactionLocked || undefined}
       data-route-stops={route.length}
       data-venue-count={venues.length}
       data-uk-base-count={ukBase.count}
