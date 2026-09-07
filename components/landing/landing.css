@@ -122,6 +122,7 @@
     grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
     grid-template-areas:
       "head head"
+      ". card"
       ". rail";
     column-gap: clamp(28px, 4vw, 56px);
     row-gap: var(--space-4);
@@ -135,15 +136,18 @@
     grid-template-areas:
       "kicker answer"
       "title answer"
+      "lede answer"
       "actions answer";
-    grid-template-rows: auto auto 1fr;
+    grid-template-rows: auto auto auto 1fr;
     column-gap: clamp(28px, 4vw, 56px);
     align-items: start;
   }
   .lpHero .screenHead > .kicker { grid-area: kicker; }
   .lpHero .screenTitle { grid-area: title; }
+  .lpHero .screenLede { grid-area: lede; max-width: 34ch; }
   .lpHero .screenActions { grid-area: actions; align-self: start; }
   .lpHero .screenAnswer { grid-area: answer; margin-top: 0; }
+  .lpHero .lpAnswerCard { grid-area: card; }
   .lpHero .lpRail { grid-area: rail; }
 }
 
@@ -319,21 +323,24 @@
 }
 .lpTextLink:hover { color: var(--brass); }
 
-/* ── Why: one column of copy, no card, no grid ──────────────────────────── */
+/* ── The prose sections: one column of copy, no card, no grid ───────────── */
 
-.lpWhy {
+.lpWorth,
+.lpFaq {
   width: min(var(--lp-max), calc(100% - 2 * var(--page-gutter)));
   margin: 0 auto;
   padding: clamp(56px, 8vw, 104px) 0 clamp(24px, 3vw, 40px);
 }
-.lpWhy h2 {
+.lpWorth h2,
+.lpFaqTitle {
   max-width: 16ch;
   margin: 0;
   font: 700 clamp(2rem, 4.2vw, 3.25rem)/1 var(--font-display);
   letter-spacing: -.04em;
   text-wrap: balance;
 }
-.lpWhy p {
+.lpWorth p,
+.lpFaqAnswer {
   max-width: 36rem;
   margin: var(--space-4) 0 0;
   color: var(--ink-soft);
@@ -341,7 +348,7 @@
   line-height: 1.6;
   text-wrap: pretty;
 }
-.lpWhy .lpTextLink { margin-top: var(--space-3); }
+.lpWorth .lpTextLink { margin-top: var(--space-3); }
 
 /* ── Pint Drops strip ───────────────────────────────────────────────────── */
 
@@ -441,9 +448,12 @@
      (locked by landingChromeCss.test). */
   .lpNav { top: max(10px, env(safe-area-inset-top)); width: calc(100vw - 20px); min-height: var(--topbar-h, 52px); padding: 3px var(--topbar-pad-x, 10px); gap: 8px; border-radius: var(--topbar-radius, 14px); box-shadow: var(--topbar-shadow, var(--shadow-sm)); }.lpWordmark { font-size: 12px; }
   .lpPubCard { width: 100%; padding: var(--space-4) var(--space-5); }
-  .lpWhy { padding: 48px 0 12px; }
-  .lpWhy h2 { font-size: clamp(1.9rem, 9vw, 2.75rem); }
-  .lpWhy p { font-size: 16px; }
+  .lpWorth,
+  .lpFaq { padding: 48px 0 12px; }
+  .lpWorth h2,
+  .lpFaqTitle { font-size: clamp(1.9rem, 9vw, 2.75rem); }
+  .lpWorth p,
+  .lpFaqAnswer { font-size: 16px; }
   /* Full-bleed the rail to the section's own gutters symmetrically (negative
      margin then re-pad) so the first and last card line up with the content
      edges and nothing overflows the viewport on one side. */
@@ -566,3 +576,208 @@
   .lpHero .lpRailLink { min-height: 52px; }
   .lpHero .screenActions { margin-top: 0; }
 }
+
+
+/* ── The picture: London, drawn once at build ───────────────────────────── */
+
+/* The hero's largest element, and it is inline vector geometry rather than an
+   image request (components/landing/LondonMapSnapshot.tsx). Every colour is a
+   token, so the drawing is right in both themes from one set of bytes, and the
+   aspect ratio is fixed so nothing shifts as the rest of the page arrives. */
+.lpMapFigure {
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+  width: min(100%, 34rem);
+}
+
+.lpMapSnapshot {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1200 / 851;
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+}
+
+.lpMapOutline {
+  fill: var(--panel-raised);
+  stroke: var(--line);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.lpMapDots { fill: var(--accent-price); opacity: .8; }
+
+.lpMapPinDot {
+  fill: var(--brass-accessible);
+  stroke: var(--panel-raised);
+  stroke-width: 3;
+}
+
+.lpMapPinName {
+  fill: var(--ink);
+  font: 700 27px/1 var(--font-display);
+}
+
+.lpMapPinLabel {
+  fill: var(--muted);
+  font: 550 22px/1 var(--font-data);
+}
+
+.lpMapCaption {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
+/* ── Today and tonight: two answers, one sentence each ──────────────────── */
+
+.lpAnswers {
+  width: min(var(--lp-max), calc(100% - 2 * var(--page-gutter)));
+  margin: 0 auto;
+  padding: clamp(32px, 5vw, 64px) 0 0;
+}
+
+.lpAnswersTitle {
+  margin: 0 0 var(--space-3);
+  font: 700 clamp(1.25rem, 2.4vw, 1.6rem)/1.1 var(--font-display);
+  letter-spacing: -.02em;
+}
+
+.lpAnswersGrid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 720px) {
+  .lpAnswersGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.lpAnswerTile {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+  min-height: 44px;
+  padding: var(--space-4);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+  color: var(--ink);
+  text-decoration: none;
+}
+.lpAnswerTile:hover { border-color: var(--line); }
+.lpAnswerTile:hover .lpAnswerTileHead { color: var(--brass-ink); }
+
+.lpAnswerTileHead {
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.lpAnswerTileLine {
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.lpAnswerTileStamp {
+  color: var(--muted);
+  font: 550 var(--text-xs)/1.4 var(--font-data);
+}
+
+/* ── What it saves you ──────────────────────────────────────────────────── */
+
+.lpSaved {
+  max-width: 36rem;
+  margin: var(--space-4) 0 0;
+  color: var(--ink-soft);
+  font-size: 17px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+/* ── The questions ──────────────────────────────────────────────────────── */
+
+.lpFaqList { margin: var(--space-5) 0 0; }
+
+.lpFaqRow + .lpFaqRow {
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--line-soft);
+}
+
+.lpFaqQuestion {
+  margin: 0;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.lpFaqAnswer { margin: var(--space-2) 0 0; }
+
+/* Pro: a line and one field. There is no endpoint behind it, so the control
+   row is the ordinary one and nothing here wears the filled coral, which the
+   hero's own primary owns. */
+.lpPro {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--line-soft);
+}
+
+.lpProLine {
+  max-width: 36rem;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.lpProForm {
+  margin-top: var(--space-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.lpProLabel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.lpProInput {
+  flex: 1 1 16rem;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+
+/* CORAL IS A FILL AND CORAL IS A WORD, AND THOSE ARE TWO TOKENS. This control
+   prints the accent as TEXT on a tint of itself, which is what --brass-ink
+   exists for; --brass-accessible is a FILL carrying a white label and reads
+   about 4.1:1 as a word on paper (__tests__/accentInkContrast.test.ts). The
+   same shape the venue sheet's outlined controls take, so the front door and
+   the app read as one product. */
+.lpProSubmit {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
+  color: var(--brass-ink);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.lpProSubmit:hover { border-color: var(--brass); }

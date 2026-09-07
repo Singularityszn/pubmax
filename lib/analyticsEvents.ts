@@ -455,7 +455,18 @@ export const PINT_INDEX_SURFACES = ["index", "archive"] as const;
 export type PintIndexSurface = (typeof PINT_INDEX_SURFACES)[number];
 
 /** Landing hero / final CTA destinations (docs/plans/LANDING_ACQUISITION.md W6). */
-export const LANDING_CTA_TARGETS = ["map", "near", "plan", "pal", "tonight", "receipt"] as const;
+export const LANDING_CTA_TARGETS = [
+  "map",
+  "near",
+  "plan",
+  "pal",
+  "tonight",
+  "receipt",
+  "today",
+  // The Pro waitlist opens a mail app; nothing is stored, so this event is the
+  // only record that anybody asked (components/landing/LandingFaq.tsx).
+  "pro-waitlist",
+] as const;
 export type LandingCtaTarget = (typeof LANDING_CTA_TARGETS)[number];
 
 /**
