@@ -15,10 +15,23 @@
 //
 // The block lives on the `/u/` profile family alone: `app/u/[handle]/
 // ProfilePageClient.tsx` mounts it for the owner's own profile and on the
-// `/u/you` sentinel, including the signed-out invitation surface. A stranger's
-// profile carries no block and merely DEFERS the ask to the next route rather
-// than losing it, because this answer is pathname-driven and the session's
-// prompt budget is never spent on a route the bar does not paint on.
+// `/u/you` sentinel. A stranger's profile carries no block and merely DEFERS
+// the ask to the next route rather than losing it, because this answer is
+// pathname-driven and the session's prompt budget is never spent on a route
+// the bar does not paint on.
+//
+// The SIGNED-OUT `/u/you` panel is the same deferral. It used to carry a
+// SECOND Allow / No thanks pair of its own, so a stranger met the analytics
+// question twice in one column of copy; that pair is gone
+// (components/profile/PubmaxxAccountHub.tsx) and the settings block is now the
+// signed-in control alone, where a decision can be REVERSED. Signed out, the
+// profile family therefore asks nothing and the docked card catches the reader
+// on the next route, which is also one of the moments that ends the card's own
+// wait (lib/consentAnswerMoment.ts). Keeping the rule pathname-driven rather
+// than branching on the live session is deliberate: a session-driven answer
+// would paint the card and take it away once the session resolved, which is a
+// flash rather than a fix, and that is the same reason the block does not
+// announce itself at mount.
 
 /** The one route family whose own document carries a live consent control. */
 const CONSENT_CONTROL_ROUTE_PREFIX = "/u";

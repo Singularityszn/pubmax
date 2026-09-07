@@ -1938,6 +1938,10 @@
 }
 .accountHub h2 { margin: .25rem 0 1rem; }
 .accountHubGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+/* Signed out this grid holds ONE card since the duplicate consent pair left it
+   (components/profile/PubmaxxAccountHub.tsx); a lone card takes the whole row
+   rather than half of it beside an empty column. */
+.accountHubGrid:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
 .accountHubGrid > * { display: grid; align-content: start; gap: .65rem; padding: 1rem; border-radius: 18px; background: var(--panel-raised); }
 .accountHubGrid input, .accountHubGrid select, .accountHubGrid button { min-height: 44px; border-radius: 12px; }
 .accountHubGrid input, .accountHubGrid select { width: 100%; padding: .7rem .8rem; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }

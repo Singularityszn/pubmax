@@ -775,9 +775,14 @@ export default function PubmaxxAccountHub() {
         <p>An account claims a handle, connects profiles, and keeps private Night Memories. What is saved on this device is only brought to an account after you review it.</p>
       </div>
       {deviceNightProfile ? <DeviceNightProfileReadout profile={deviceNightProfile} /> : null}
+      {/* ONE CONSENT CONTROL ON ANY SCREEN. The signed-out panel used to carry
+          a SECOND Allow / No thanks pair of its own, so a stranger on /u/you
+          met the analytics question twice in one column of copy. The docked
+          consent card (components/AnalyticsConsentPrompt.tsx) is the one place
+          an undecided reader is asked now, and the settings block stays where
+          a decision can be REVERSED, which needs an account. */}
       <div className="accountHubGrid">
         <StepOutNudgePref />
-        {analyticsControls}
       </div>
       <AccountLegalRow />
       {message ? <p role="status" className="accountHubMessage">{message}</p> : null}
