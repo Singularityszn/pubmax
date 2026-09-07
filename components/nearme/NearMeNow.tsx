@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import PriceBadge from "@/components/PriceBadge";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { usePathname, useRouter } from "next/navigation";
@@ -1186,14 +1187,7 @@ function AreaPicker({
     };
   }, [open, patchProfiles, loadSlim]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  useDismissOnEscape(open, () => setOpen(false));
 
   const close = () => {
     setOpen(false);

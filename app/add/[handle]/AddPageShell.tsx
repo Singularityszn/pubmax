@@ -9,13 +9,14 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
+import { hasEscapeDismissal } from "@/lib/useDismissOnEscape";
 
 export default function AddPageShell({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || event.defaultPrevented || hasEscapeDismissal()) return;
       // Do not steal Escape from inputs/textareas if any appear later.
       const target = event.target;
       if (

@@ -227,6 +227,25 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect(list).toBeHidden();
   });
 
+  test("Escape closes More pages before the underlying venue list", async ({ page }) => {
+    await page.goto("/map");
+    await openVenueListFromLayers(page);
+    const list = page.getByRole("region", { name: "London venue list" });
+    await expect(list).toBeVisible();
+
+    const more = page.getByRole("button", { name: "More pages", exact: true });
+    await more.click();
+    const menu = page.getByRole("menu", { name: "More pages", exact: true });
+    await expect(menu).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(menu).toBeHidden();
+    await expect(more).toBeFocused();
+    await expect(list).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(list).toBeHidden();
+  });
+
   test("updates open venue list after map movement and a venue-kind filter", async ({
     page,
   }) => {

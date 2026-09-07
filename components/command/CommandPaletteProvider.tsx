@@ -9,6 +9,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 // The dialog is fetched when it first opens, not when the app boots. This
 // provider is mounted at the root on EVERY route, so a static import put the
@@ -57,6 +58,8 @@ export default function CommandPaletteProvider({
   const close = useCallback(() => setIsOpen(false), []);
   const toggle = useCallback(() => setIsOpen((v) => !v), []);
 
+  useDismissOnEscape(isOpen, close);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       // ⌘K (mac) / Ctrl+K (win/linux) always toggles — even from inside an
@@ -69,11 +72,6 @@ export default function CommandPaletteProvider({
         event.preventDefault();
         setIsOpen((v) => !v);
         return;
-      }
-      // Esc closes when open (the dialog also handles this locally; both are
-      // idempotent). Left as a global safety net.
-      if (event.key === "Escape") {
-        setIsOpen((wasOpen) => (wasOpen ? false : wasOpen));
       }
     };
     window.addEventListener("keydown", onKeyDown);

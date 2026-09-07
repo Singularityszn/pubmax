@@ -22,6 +22,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import {
   BookOpen,
   ChevronRight,
@@ -473,13 +474,10 @@ function NightModeSheet({
   const [keepAwake, setKeepAwake] = useState(false);
   const wakeLock = useScreenWakeLock(keepAwake);
 
+  useDismissOnEscape(true, onCollapse);
+
   useEffect(() => {
     closeRef.current?.focus({ preventScroll: true });
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onCollapse();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
   }, [onCollapse]);
 
   // Plan state + get-in report - the two feeds the plan screen already uses.
