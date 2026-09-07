@@ -22,9 +22,6 @@ vi.mock("@/lib/venueImageHosts.server", () => ({
     ]),
 }));
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import sharp from "sharp";
 
 import { GET } from "@/app/api/image-proxy/route";
@@ -91,8 +88,10 @@ describe("GET /api/image-proxy", () => {
       "https://attacker-controlled.example.net/p.jpg",
       "",
     ]) {
-      const res = await GET(req(bad));
-      expect(res.status, bad).toBe(400);
+      for (const query of ["", "&variant=card"]) {
+        const res = await GET(req(bad, query));
+        expect(res.status, bad).toBe(400);
+      }
     }
     expect(spy).not.toHaveBeenCalled();
   });
@@ -240,6 +239,36 @@ describe("GET /api/image-proxy", () => {
 // load was the slowest on the site. Nothing had ever asked the source for a
 // smaller picture.
 describe("the proxy resizes to a width the page really draws", () => {
+  it("spends fewer bytes on a textured card than the standard derivative at the same width", async () => {
+    const pixels = new Uint8Array(384 * 256 * 3);
+    let seed = 1;
+    for (let i = 0; i < pixels.length; i += 1) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      pixels[i] = seed >>> 24;
+    }
+    const bytes = await sharp(pixels, { raw: { width: 384, height: 256, channels: 3 } }).jpeg().toBuffer();
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => upstream(bytes));
+    const card = await (await GET(req("https://example.com/p.jpg", "&variant=card"))).arrayBuffer();
+    const standard = await (await GET(req("https://example.com/p.jpg", "&w=384"))).arrayBuffer();
+    expect(card.byteLength).toBeLessThan(standard.byteLength);
+  });
+
+  it("keeps the card preset fixed, without cropping or accepting arbitrary transforms", async () => {
+    const bytes = await photograph(800, 600);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => upstream(bytes));
+    const standard = new Uint8Array(await (await GET(req("https://example.com/p.jpg", "&variant=card"))).arrayBuffer());
+    const overridden = new Uint8Array(await (await GET(req("https://example.com/p.jpg", "&variant=card&w=1920&q=100&h=100"))).arrayBuffer());
+    expect(overridden).toEqual(standard);
+    expect(await sharp(standard).metadata()).toMatchObject({ format: "webp", width: 384, height: 288 });
+  });
+
+  it("does not interpret an unknown variant as the card preset", async () => {
+    const bytes = await photograph(800, 600);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(upstream(bytes));
+    const res = await GET(req("https://example.com/p.jpg", "&variant=thumbnail"));
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(bytes);
+  });
+
   it("answers a closed width as WebP, narrowed to the ask", async () => {
     const bytes = await photograph(1632, 636);
     vi.spyOn(globalThis, "fetch").mockResolvedValue(upstream(bytes));
@@ -278,9 +307,12 @@ describe("the proxy resizes to a width the page really draws", () => {
     const bytes = await photograph(200, 120);
     vi.spyOn(globalThis, "fetch").mockResolvedValue(upstream(bytes));
 
-    const res = await GET(req("https://example.com/p.jpg", "&w=1920"));
-    const out = new Uint8Array(await res.arrayBuffer());
-    expect((await sharp(out).metadata()).width).toBe(200);
+    for (const query of ["&w=1920", "&variant=card"]) {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(upstream(bytes));
+      const res = await GET(req("https://example.com/p.jpg", query));
+      const out = new Uint8Array(await res.arrayBuffer());
+      expect((await sharp(out).metadata()).width).toBe(200);
+    }
   });
 
   it("falls back to the original bytes when the resize fails", async () => {
@@ -289,10 +321,13 @@ describe("the proxy resizes to a width the page really draws", () => {
     const notAnImage = new Uint8Array([0x00, 0x01, 0x02, 0x03, 0x04]);
     vi.spyOn(globalThis, "fetch").mockResolvedValue(upstream(notAnImage));
 
-    const res = await GET(req("https://example.com/p.jpg", "&w=384"));
-    expect(res.status).toBe(200);
-    expect(res.headers.get("content-type")).toBe("image/jpeg");
-    expect(new Uint8Array(await res.arrayBuffer())).toEqual(notAnImage);
+    for (const query of ["&w=384", "&variant=card"]) {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(upstream(notAnImage));
+      const res = await GET(req("https://example.com/p.jpg", query));
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toBe("image/jpeg");
+      expect(new Uint8Array(await res.arrayBuffer())).toEqual(notAnImage);
+    }
   });
 });
 
@@ -352,16 +387,5 @@ describe("the loader next/image spends", () => {
       const width = Number(new URL(load({ src: proxied, width: candidate }), "https://x").searchParams.get("w"));
       expect(VENUE_IMAGE_WIDTHS, String(candidate)).toContain(width);
     }
-  });
-});
-
-describe("the /pubs card asks for the box it draws", () => {
-  const SOURCE = readFileSync(join(process.cwd(), "components/pubs/PubsGallery.tsx"), "utf8");
-
-  it("passes both the box and the cap to the shared image component", () => {
-    expect(SOURCE).toContain(
-      'sizes="(max-width: 420px) 100vw, (max-width: 640px) 50vw, 344px"',
-    );
-    expect(SOURCE).toContain("maxWidth={640}");
   });
 });
