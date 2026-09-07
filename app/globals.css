@@ -4620,19 +4620,22 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
   gap: 10px;
 }
 
+/* The composer's one painted control reads the --control-* row: it wore 6px
+   corners beside the map's 14px-corner buttons and the sheet's own doors. */
 .dropComposer button[type="submit"],
 .dropComposer .spillSubmitLink {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 44px;
-  padding: 9px 14px;
+  min-height: var(--control-height, 44px);
+  padding: 0 var(--control-pad-x, 16px);
   border: 1px solid var(--brass);
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius, 14px);
   background: var(--brass);
   color: var(--color-on-accent);
-  font-weight: 700;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   text-decoration: none;
   transition: filter 0.15s ease;
 }
@@ -4654,9 +4657,9 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
   width: 100%;
   justify-content: center;
   margin-top: 12px;
-  min-height: 42px;
+  min-height: 44px;
   border: 1px dashed var(--brass);
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius, 14px);
   background: color-mix(in srgb, var(--brass) 6%, transparent);
   color: var(--brass);
   font-weight: 700;
