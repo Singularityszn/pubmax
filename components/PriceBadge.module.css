@@ -1,17 +1,27 @@
+/* The badge's own layout. The FACE and the SHAPE are the global
+   `.price-plaque` rule (app/globals.css), so a figure cannot read one way
+   here and another way in a bare span.
+
+   It HUGS its figure and reads left to right. Captain 6 Sep 2026: the badge
+   held a 4.45rem (71px) minimum and pushed its own figure to the right end,
+   so "£4.70" sat alone at the far edge of a plate three times its width and
+   a short price and a long one started in different places. A price is as
+   wide as the price. */
 .badge {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
-  min-inline-size: 4.45rem;
+  justify-content: flex-start;
   min-block-size: 1.75rem;
   padding: 0.28rem 0.55rem;
-  font-family: var(--font-data, var(--font-body));
-  font-size: 0.84rem;
-  font-weight: 800;
+  font-family: var(--font-body);
+  /* The control row, read rather than restated: a price is set in the same type
+     as the buttons it stands beside. */
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
   line-height: 1;
   letter-spacing: 0;
-  text-align: right;
+  text-align: left;
   white-space: nowrap;
 }

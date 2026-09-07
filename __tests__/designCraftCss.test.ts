@@ -240,10 +240,19 @@ describe("pointer-down feedback", () => {
 });
 
 describe("price signature and map policy evidence", () => {
-  it("keeps static price tilt outside motion preference gates", () => {
-    expect(globalCss).toMatch(
-      /\.ink-stamp--tilt\s*{[^}]*transform:\s*rotate\(var\(--ink-stamp-tilt\)\);[^}]*}\s*body/,
-    );
+  it("leans no price and bevels none", () => {
+    // Captain 6 Sep 2026: the plaque was an engraved plate with a -1.5deg
+    // tilt, standing beside body copy and pill buttons. There is no tilt
+    // class left to gate, and the plaque paints no inset shadow.
+    expect(globalCss).not.toMatch(/\.ink-stamp--tilt\s*{/);
+    const plaque = /\.price-plaque \{[\s\S]*?\}/.exec(globalCss)?.[0] ?? "";
+    expect(plaque).toContain("box-shadow: none;");
+    expect(plaque).not.toContain("--price-plaque-shine");
+    // A price takes the button's corner RATIO, never its raw number: the
+    // control token on a 28px box renders a stadium, and the stadium is the
+    // pill this system reserves for icon controls and tab segments.
+    expect(plaque).toContain("border-radius: var(--radius, 8px);");
+    expect(plaque).not.toContain("border-radius: var(--control-radius");
   });
 
   it("records the unchanged cluster collision padding precisely", () => {

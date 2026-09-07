@@ -3,10 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-import {
-  streakLabel,
-  type ContributionSummary,
-} from "@/lib/pintContributions";
+import { type ContributionSummary } from "@/lib/pintContributions";
 import { nightsKeptLabel, readNightsKept } from "@/lib/nightsKept";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
@@ -14,19 +11,30 @@ import "./yourContributionsCard.css";
 
 // The "your impact" card on the You page (feat/price-drops-v2). Fetches the
 // contributor's own stats from GET /api/pint-drops/stats and renders the honest
-// reward: a mapping streak, pints mapped, and where on the map they landed. It
-// is deliberately self-contained (its own fetch by handle) so it can drop into
-// the owner-only block of app/u/[handle]/page.tsx without threading stats through
-// the whole page. Duty of care: every string here is about MAPPING prices, never
-// about drinking — the reward is visible impact, not a points economy.
+// reward: pints mapped, and where on the map they landed.
+//
+// IT COUNTS WHAT YOU MAPPED, NEVER HOW MANY DAYS RUNNING. Captain 6 Sep 2026:
+// the card printed "1-day mapping streak" over a brand-new account, and a
+// streak is exactly the mechanic this product refuses everywhere else - a
+// referral is a mark of honour and nothing branches on it, Step Out is one
+// owed weekly push and never a streak, and the Year in Pints wrap is a year
+// read back rather than a score. A count of pubs is a fact about the map. A
+// run of days is a reason to go out tonight so as not to lose it, which is a
+// thing a pub app may not ask of anybody.
+//
+// The card is deliberately self-contained (its own fetch by handle) so it can
+// drop into the owner-only block of app/u/[handle]/page.tsx without threading
+// stats through the whole page. Duty of care: every string here is about
+// MAPPING prices, never about drinking — the reward is visible impact, not a
+// points economy.
 
 type Props = {
   /** The owner's handle (already known — this only renders on your own profile). */
   handle: string;
   /**
-   * Show the "own your streak" account nudge (the identity-push: after your
-   * first drop, offer an account so a streak survives a lost device). Passed by
-   * the page when the viewer is on an unclaimed device identity.
+   * Show the account nudge (the identity-push: after your first drop, offer an
+   * account so the drops survive a lost device). Passed by the page when the
+   * viewer is on an unclaimed device identity.
    */
   claimNudge?: boolean;
 };
@@ -119,13 +127,6 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
         </p>
       ) : (
         <>
-          <div className="contribStreak">
-            <span className="contribStreakValue" aria-hidden="true">
-              {streak.current}
-            </span>
-            <span className="contribStreakLabel">{streakLabel(streak)}</span>
-          </div>
-
           <div className="contribTotals">
             <div className="contribStat">
               <span className="contribStatValue">{pintsMapped}</span>
@@ -139,12 +140,6 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
                 {byBorough.length === 1 ? "borough" : "boroughs"}
               </span>
             </div>
-            {streak.longest > 0 ? (
-              <div className="contribStat">
-                <span className="contribStatValue">{streak.longest}</span>
-                <span className="contribStatLabel">best day streak</span>
-              </div>
-            ) : null}
           </div>
 
           {topBoroughs.length ? (
@@ -161,7 +156,7 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
 
       {claimNudge ? (
         <a className="contribNudge" href="#account-settings">
-          Own your streak. Claim your @handle
+          Keep your drops. Claim your @handle
         </a>
       ) : null}
       <ContributorRecordLink />

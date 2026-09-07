@@ -923,11 +923,9 @@
   .mobileVenuePeekSummary > span { min-width: 0; display: grid; gap: 2px; }
   /* THE PLAQUE HUGS ITS FIGURE. As a stretched grid item it took the whole
      column, so £6.50 sat on a plate three times its own width with the figure
-     shoved to the right end, and the plate is TILTED (.ink-stamp--tilt), whose
-     painted box overhangs its layout row in proportion to width: 121.6px of
-     plate put 1.6px of plaque above its own row, into the divider the peek
-     draws over it. Hugging is the fix at the layout primitive: the stamp is the
-     size of what it stamps, and the overhang falls with it. */
+     shoved to the right end. The tilt that made a wide plate overhang its own
+     row is gone (captain 6 Sep 2026), but the hug is the fix at the layout
+     primitive either way: the price is the size of the price. */
   .mobileVenuePeekSummary > span > .priceBadge { justify-self: start; }
   .mobileVenuePeekSummary strong { white-space: nowrap; font-family: var(--font-data); font-size: var(--text-md); }
   /* "Near me" is one phrase. A narrow peek column must not break it mid-word. */

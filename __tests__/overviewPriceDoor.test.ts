@@ -42,7 +42,10 @@ import {
   pintTrustSignalFields,
   type PintTrustState,
 } from "@/lib/pintTrust";
-import type { VenuePriceLane } from "@/lib/venuePriceLane";
+import {
+  BASELINE_NO_PUBLISHER_CAPTION,
+  type VenuePriceLane,
+} from "@/lib/venuePriceLane";
 import { mergeVenueDrops, type SummaryDrop, type Venue } from "@/lib/venues";
 
 vi.mock("@/components/visits/VisitReportPanel", () => ({
@@ -257,7 +260,7 @@ describe("overviewPriceDoor: one door per trust state", () => {
     expect(overviewPriceDoor("corroborated", { lane: "contributor", contributorPrice: 4.5 })).toEqual(log);
     expect(overviewPriceDoor("none", null)).toEqual(log);
     expect(overviewPriceDoor(null, null)).toEqual(log);
-    expect(overviewPriceDoor(null, { lane: "baseline", cheapestPrice: 6.2 })).toEqual(log);
+    expect(overviewPriceDoor(null, { lane: "baseline", standing: "none", publisher: null, cheapestPrice: 6.2 })).toEqual(log);
     expect(
       overviewPriceDoor(null, {
         lane: "listed",
@@ -321,7 +324,11 @@ describe("the rendered Overview carries exactly one price door", () => {
     expect(listedHtml).toContain('data-price-door="log"');
 
     const baselineHtml = renderOverview([], venue({ cheapestPrice: 6.2 }));
-    expect(baselineHtml).toContain("Baseline on record");
+    // The fixture's baseline carries no publisher, so it cannot claim a
+    // listing and says what it really is (captain 6 Sep 2026). "Baseline on
+    // record" was our word, not the reader's, and may not come back.
+    expect(baselineHtml).toContain(BASELINE_NO_PUBLISHER_CAPTION);
+    expect(baselineHtml).not.toContain("Baseline on record");
     expect(doorCount(baselineHtml)).toBe(1);
     expect(baselineHtml).toContain('data-price-door="log"');
   });

@@ -257,6 +257,20 @@
   white-space: nowrap;
 }
 
+/* The figure, then what it is worth. The label sits UNDER the plaque rather
+   than beside it, because the column is already the narrowest on the row and a
+   second inline word pushed the price out of its own cell at 320. It carries no
+   colour of its own: colour on a price is its BAND and nothing else
+   (lib/priceBand.ts), and a standing says what it is in the word. */
+.leaderboardStanding {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
 .leaderboardHonesty {
   margin: 10px 0 0;
   color: var(--ink-soft);

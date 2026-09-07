@@ -179,9 +179,13 @@ describe("venuePriceLane — one precedence for the overview price area", () => 
       cheapestPrice: 5.9,
     });
 
+    // A baseline nobody published: the fixture carries no price rows, so no
+    // publisher, so the figure earns no listing and says so.
     expect(venuePriceLane(makeVenue({ cheapestPrice: 6.2 }), null, null)).toEqual({
       lane: "baseline",
       cheapestPrice: 6.2,
+      standing: "none",
+      publisher: null,
     });
 
     const anchored = makeVenue({

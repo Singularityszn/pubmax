@@ -15,6 +15,7 @@ import {
   tonightNoteOffersRetry,
   tonightProvenanceCredits,
   tonightRetryLanes,
+  tonightWhatsOnObservedAt,
   tonightRowLinks,
   type TonightOutAnswer,
   type TonightWhatsOnStatus,
@@ -637,5 +638,93 @@ describe("tonight reads the listings lane's own health", () => {
     expect(tonightListingsNoteLine("empty", listingsDegraded)).toBe(
       "Some listings could not be checked.",
     );
+  });
+});
+
+describe("the Tonight stamp is the live read's own answer", () => {
+  // Captain 6 Sep 2026: the phone printed "Quiet night · Checked 22 Aug · via
+  // what's-on" while /api/whats-on answered that same morning, because the
+  // line was dated from `sourceObservedAt` - the freshest of the BUNDLED
+  // artifacts and the rows. The stamp now reads `kindObservedAt`, the per-kind
+  // map only a live read writes, and nothing else.
+  const KIND_OBSERVED_AT = {
+    event: "2026-09-06T05:30:14.000Z",
+    music: "2026-09-06T04:00:00.000Z",
+    deal: "2026-09-05T06:00:00.000Z",
+  } as const;
+
+  it("dates the What's-On lane by the kinds actually on screen", () => {
+    const gig = row({ id: "wo-gig", title: "Gig", kind: "music" });
+    const observed = tonightWhatsOnObservedAt({
+      renderedGroups: groupTonightListings([gig], null),
+      outEvents: [],
+      kindObservedAt: KIND_OBSERVED_AT,
+    });
+    expect(observed).toBe(KIND_OBSERVED_AT.music);
+    expect(checkedLabel(observed)).toBe("Checked 6 Sept");
+  });
+
+  it("takes the OLDEST kind when one line covers several", () => {
+    const gig = row({ id: "wo-gig", title: "Gig", kind: "music" });
+    const deal = row({ id: "wo-deal", title: "Deal", kind: "deal" });
+    expect(
+      tonightWhatsOnObservedAt({
+        renderedGroups: groupTonightListings([gig, deal], null),
+        outEvents: [],
+        kindObservedAt: KIND_OBSERVED_AT,
+      }),
+    ).toBe(KIND_OBSERVED_AT.deal);
+  });
+
+  it("goes undated when a kind on screen cannot be dated", () => {
+    const quiz = row({ id: "wo-quiz", title: "Quiz", kind: "quiz" });
+    expect(
+      tonightWhatsOnObservedAt({
+        renderedGroups: groupTonightListings([quiz], null),
+        outEvents: [],
+        kindObservedAt: KIND_OBSERVED_AT,
+      }),
+    ).toBeNull();
+  });
+
+  it("prints no stamp on a quiet night, whatever a bundled file says", () => {
+    // THE DEFECT. No rows means no kind anybody checked, so the honest answer
+    // is null - never a snapshot's own generation day dressed as a check.
+    expect(
+      tonightWhatsOnObservedAt({
+        renderedGroups: [],
+        outEvents: [],
+        kindObservedAt: { event: "2026-08-22T03:00:00.000Z" },
+      }),
+    ).toBeNull();
+  });
+
+  it("prints no stamp when there is no live read", () => {
+    const gig = row({ id: "wo-gig", title: "Gig", kind: "music" });
+    expect(
+      tonightWhatsOnObservedAt({
+        renderedGroups: groupTonightListings([gig], null),
+        outEvents: [],
+        kindObservedAt: {},
+      }),
+    ).toBeNull();
+  });
+
+  it("never dates the What's-On lane from an Out row", () => {
+    const fromOut = row({
+      id: "out-gig",
+      title: "Out gig",
+      kind: "music",
+      source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/9" },
+    });
+    // The only row on screen came from Out, so the What's-On lane covers no
+    // kind and claims no day.
+    expect(
+      tonightWhatsOnObservedAt({
+        renderedGroups: groupTonightListings([fromOut], null),
+        outEvents: [fromOut],
+        kindObservedAt: KIND_OBSERVED_AT,
+      }),
+    ).toBeNull();
   });
 });

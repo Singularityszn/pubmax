@@ -28,6 +28,7 @@ import { PINT_TRUST_LINE, trustChipStateFor, type PintTrustState } from "@/lib/p
 import {
   AGED_PRICE_LINE,
   PROVISIONAL_PRICE_LINE,
+  baselineTrustCaption,
   venuePriceLaneObservedGbp,
   type VenueBundlePrices,
   type VenuePriceLane,
@@ -802,6 +803,17 @@ export function peekPriceChip(
         }
       : null;
   }
+  if (lane.lane === "baseline") {
+    // The price we HOLD, in the reader's word rather than ours. Decided by the
+    // lane, so this caption and the Overview's heading are one string.
+    return {
+      figure: formatPrice(lane.cheapestPrice),
+      priceGbp: lane.cheapestPrice,
+      caption: baselineTrustCaption(lane),
+      observed: true,
+      trust: null,
+    };
+  }
   const observedGbp = venuePriceLaneObservedGbp(lane);
   if (observedGbp === null) return null;
   // The chip carries the same state the Overview chip carries, read from the
@@ -825,13 +837,15 @@ export function peekPriceChip(
  * (Baseline on record, Sourced, Listed), so the two surfaces cannot read one
  * pub two ways (battle test M05).
  */
-export const PEEK_LANE_CAPTION: Record<VenuePriceLane["lane"], string> = {
+export const PEEK_LANE_CAPTION: Record<
+  Exclude<VenuePriceLane["lane"], "baseline">,
+  string
+> = {
   anchor: "listed anchor price",
   contributor: "current recorded price",
   sourced: "sourced price on record",
   listed: "listed by the pub",
   provisional: PROVISIONAL_PRICE_LINE,
-  baseline: "baseline on record",
   aged: AGED_PRICE_LINE,
   estimate: "estimate",
 };

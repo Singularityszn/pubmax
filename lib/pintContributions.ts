@@ -168,9 +168,11 @@ export function summariseContributions(
   };
 }
 
-/** A short, honest streak label. Never celebratory about drinking — "mapping". */
-export function streakLabel(streak: ContributionStreak): string {
-  if (streak.current <= 0) return "No active streak. Drop a price to start one";
-  const unit = streak.current === 1 ? "day" : "days";
-  return `${streak.current}-${unit} mapping streak`;
-}
+/*
+ * There is no streak label, and there may not be one. Captain 6 Sep 2026: the
+ * You card printed "1-day mapping streak" over a brand-new account, which is
+ * the one mechanic this product refuses everywhere else. `contributionStreak`
+ * survives because the stats API already answers with it and a reader of that
+ * body is free to count active days; nothing in the product may word a run of
+ * days back at somebody as a thing to keep.
+ */

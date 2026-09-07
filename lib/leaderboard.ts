@@ -1,4 +1,7 @@
+import { isoDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { DAY_MS } from "@/lib/dayMs";
+import { answerEvidenceFor } from "@/lib/landingHero";
+import type { PriceStanding } from "@/lib/priceTier";
 import type { Venue } from "@/lib/venues";
 
 // Pure ranking helpers over grouped Venue[] for the /discover leaderboard.
@@ -14,6 +17,11 @@ export type LeaderboardEntry = {
   rank: number;
   venue: PricedVenue;
   area: string;
+  /**
+   * How far the figure in this row may be trusted, DECIDED here so the table
+   * stays a pure renderer and no surface re-decides what a price is worth.
+   */
+  standing: PriceStanding;
 };
 
 // Everything a leaderboard row PRINTS, and nothing else. `LeaderboardEntry`
@@ -23,6 +31,12 @@ export type LeaderboardEntry = {
 export type LeaderboardRowView = {
   rank: number;
   area: string;
+  /**
+   * The trust label the row wears. Carried on the VIEW as well as the entry,
+   * because a build-time cut (lib/discoverBoard.ts) prints the same row and a
+   * figure without its standing is the unlabelled board the captain refused.
+   */
+  standing: PriceStanding;
   venue: Pick<Venue, "id" | "name" | "cheapestPint"> & { cheapestPrice: number };
 };
 
@@ -46,22 +60,139 @@ function hasPrice(venue: Venue): venue is PricedVenue {
   return typeof venue.cheapestPrice === "number";
 }
 
+/**
+ * EVERY ROW WEARS ITS TRUST LABEL, AND A ROW THAT CANNOT EARN ONE IS NOT ON
+ * THIS BOARD. Captain 6 Sep 2026, ruling on the board's own honesty: it keeps
+ * its ten listed rows and each says out loud that a listing is all it is.
+ *
+ * The reading is `answerEvidenceFor`, the SAME one the landing answer card
+ * makes, so the word beside a price here and the word beside the same price on
+ * the landing cannot differ: the venue's own rows name the publisher, the
+ * bundled dataset's collection day dates it, and `lib/priceTier.ts` decides.
+ * There is no second opinion about a price.
+ */
+export function leaderboardStandingFor(
+  venue: PricedVenue,
+  now: number = Date.now(),
+): PriceStanding {
+  return answerEvidenceFor(
+    {
+      priceGbp: venue.cheapestPrice,
+      prices: venue.prices ?? [],
+      collectedOn: isoDate(PINT_DATASET_OBSERVED_AT),
+    },
+    now,
+  ).standing;
+}
+
+/**
+ * A board of LISTED prices may only hold a row that earned a listing. The
+ * alternative is a row printing "No price yet" beside a figure it is showing,
+ * which is the contradiction a label was added to prevent.
+ */
+export function leaderboardAdmitsStanding(standing: PriceStanding): boolean {
+  return standing === "listed" || standing === "confirmed";
+}
+
+// ── The Cheap Pint Leaderboard reads as a fact about pubs ───────────────────
+// Captain 6 Sep 2026, over the /social?tab=discover board: it listed seven pubs
+// at £1.99 and five of them were the same drink. Measured on the shipped
+// dataset, all ten ranked rows were one chain, six sat at £1.99, and rows 7 and
+// 9 were the SAME pub twice ("J.J. Moons" and "J.J. Moon's - JD Wetherspoon",
+// both in Wandsworth). A reader met ten rows and learned one thing: what one
+// company charges for Bud Light. The board is meant to say ten things about
+// London.
+//
+// Two rules, both about what a row is EVIDENCE of, and neither invents a price.
+
+/**
+ * The operator suffix the dataset appends to some rows of a chain. It is
+ * spelling, not identity: the same pub is filed twice, once with it and once
+ * without. Grow this table only when a dataset row proves another spelling.
+ */
+const OPERATOR_NAME_SUFFIX = /\s*[-(]\s*(?:jd\s*)?wetherspoons?\b[^)]*\)?\s*$/;
+
+function normaliseVenueName(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .replace(OPERATOR_NAME_SUFFIX, " ")
+      // An apostrophe is dropped rather than folded to a space, or "J.J. Moons"
+      // and "J.J. Moon\u2019s" read as two pubs, which is how one Wandsworth pub
+      // held two of the board's ten rows.
+      .replace(/['\u2018\u2019\u02bc]/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+  );
+}
+
+/**
+ * ONE ROW PER PUB. A pub is one pub however many ways the dataset spells it, so
+ * identity is the normalised name inside its own area. Two pubs of one name in
+ * one area collapse to one row, which is the safe side: a leaderboard that
+ * shows a pub twice is wrong in a way a reader can see.
+ */
+export function leaderboardPubKey(venue: Venue): string {
+  return `${normaliseVenueName(venue.name)}@${venueArea(venue).toLowerCase()}`;
+}
+
+/**
+ * NEVER A CHAIN LIST PRICE. A figure several pubs publish to the penny for the
+ * same drink is a price LIST, not a fact about any one of them, so it earns one
+ * row and no more. The drink must be NAMED: a bare figure proves no list, and a
+ * row with no drink beside it is left to rank on its own.
+ */
+export function sharedPriceListKey(venue: PricedVenue): string | null {
+  const drink = venue.cheapestPint.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  if (!drink) return null;
+  return `${venue.cheapestPrice.toFixed(2)}|${drink}`;
+}
+
 // Cheapest priced venues, ascending. Venues with a null cheapestPrice are
 // dropped entirely (they can't be ranked on price). Ties break on name so the
-// order is deterministic across renders. `limit` caps the returned list.
-export function cheapestPints(venues: Venue[], limit = 10): LeaderboardEntry[] {
-  return venues
+// order is deterministic across renders, which is also what decides WHICH pub
+// keeps a shared price list's one row. `limit` caps the returned list, and it
+// is a WINDOW over what survived both rules, never a filter applied after it.
+export function cheapestPints(
+  venues: Venue[],
+  limit = 10,
+  now: number = Date.now(),
+): LeaderboardEntry[] {
+  const seenPub = new Set<string>();
+  const seenPriceList = new Set<string>();
+  const ranked: Array<{ venue: PricedVenue; standing: PriceStanding }> = [];
+
+  for (const venue of venues
     .filter(hasPrice)
     .sort(
       (a, b) =>
         a.cheapestPrice - b.cheapestPrice || a.name.localeCompare(b.name),
-    )
-    .slice(0, Math.max(0, limit))
-    .map((venue, index) => ({
-      rank: index + 1,
-      venue,
-      area: venueArea(venue),
-    }));
+    )) {
+    if (ranked.length >= Math.max(0, limit)) break;
+
+    const pub = leaderboardPubKey(venue);
+    if (seenPub.has(pub)) continue;
+
+    const priceList = sharedPriceListKey(venue);
+    if (priceList !== null && seenPriceList.has(priceList)) continue;
+
+    // Asked LAST of the three, so a row refused for its standing has already
+    // been refused, or admitted, on identity. A pub kept out here has not
+    // spent its own pub key, so nothing else of its is held out with it.
+    const standing = leaderboardStandingFor(venue, now);
+    if (!leaderboardAdmitsStanding(standing)) continue;
+
+    seenPub.add(pub);
+    if (priceList !== null) seenPriceList.add(priceList);
+    ranked.push({ venue, standing });
+  }
+
+  return ranked.map((entry, index) => ({
+    rank: index + 1,
+    venue: entry.venue,
+    area: venueArea(entry.venue),
+    standing: entry.standing,
+  }));
 }
 
 // The single cheapest priced venue in each area. Venues with no price are
@@ -85,7 +216,12 @@ export function cheapestByArea(venues: Venue[]): LeaderboardEntry[] {
   }
 
   return Array.from(cheapestPerArea.entries())
-    .map(([area, venue]) => ({ area, venue, rank: 0 }))
+    .map(([area, venue]) => ({
+      area,
+      venue,
+      rank: 0,
+      standing: leaderboardStandingFor(venue),
+    }))
     .sort(
       (a, b) =>
         a.venue.cheapestPrice - b.venue.cheapestPrice ||
