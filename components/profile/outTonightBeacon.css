@@ -198,3 +198,19 @@
   font-size: var(--text-xs);
   color: var(--muted, var(--ink-soft));
 }
+
+/* The board's Find link is a control in a row of controls, so it takes the
+   tap floor rather than its 15px line box. */
+.beaconBoardFindLot {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink-soft);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.beaconBoardFindLot:hover {
+  color: var(--ink);
+}

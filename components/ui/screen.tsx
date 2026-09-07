@@ -55,8 +55,14 @@ export default function Screen({
    * phone reads the pub before it reads "Still £6.50?". Hero prototype #1357.
    */
   answer?: ReactNode;
-  /** Exactly one link or button. The Screen paints it as the filled primary. */
-  primary: ReactElement;
+  /**
+   * Exactly one link or button. The Screen paints it as the filled primary.
+   * A FORM screen passes none: its one painted control is the form's own
+   * submit, next to the field it submits (captain's ruling, 7 Sep 2026, over
+   * /login and /pal/chat, which painted a head door above the field and the
+   * form's submit under it, two doors for one action).
+   */
+  primary?: ReactElement;
   /**
    * The quiet row under the primary: at most TWO ways onward, and a second one
    * only where the screen would otherwise hide a real destination.
@@ -94,9 +100,11 @@ export default function Screen({
           : "screenActions"
       }
     >
-      <div className="screenPrimary" data-primary-action="">
-        {primary}
-      </div>
+      {primary ? (
+        <div className="screenPrimary" data-primary-action="">
+          {primary}
+        </div>
+      ) : null}
       {secondary ? <div className="screenSecondary">{secondary}</div> : null}
     </div>
   );

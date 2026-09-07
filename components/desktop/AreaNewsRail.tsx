@@ -2,8 +2,10 @@
 
 // "New round here" rail block for wide viewports. Reads the fresh-facts layer
 // (/api/area-news, Cycle 15 Lane A). Fail-soft by design: while that API is not
-// yet deployed (PR #380), or the read fails, this renders nothing. A successful
-// empty read renders an honest empty state.
+// yet deployed (PR #380) this renders nothing, a failed read prints one line
+// about us, and a successful EMPTY read renders nothing, because an empty rail
+// is chrome over the pins (the area page's AreaNewsBlock keeps the honest
+// empty line, where a reader asked for the news).
 // Every item is a dated, source-linked fact; no filler, no em dashes.
 
 import { useEffect, useState } from "react";
@@ -82,14 +84,13 @@ export default function AreaNewsRail({ area }: { area: string | null }) {
     );
   }
 
-  if (entries.length === 0) {
-    return (
-      <section className="areaNewsRail" aria-label="New round here">
-        <h2 className="areaNewsRailTitle">New round here</h2>
-        <p className="areaNewsRailEmpty">No current updates here.</p>
-      </section>
-    );
-  }
+  // A rail with nothing in it is chrome over the map, not an answer: the
+  // desktop first load stood a "New round here / No current updates here."
+  // panel over the pins beside five other controls (measured 6 Sep 2026).
+  // The honest empty line still prints where a reader ASKED for area news
+  // (AreaNewsBlock on the area page); a read we could not run keeps its own
+  // line above, because that one is a fact about us.
+  if (entries.length === 0) return null;
 
   return (
     <section className="areaNewsRail" aria-label="New round here">

@@ -327,8 +327,36 @@
 
 /* ── Narrow widths ──────────────────────────────────────────────────────── */
 
+/* The tablet band (641px to 960px). The link row used to leave at 960px while
+   the bottom tab bar only arrives at 640px, so a 768px iPad met a landing with
+   NO primary navigation at all: six links rendered at 0x0 and no dock under
+   them. The links now stay to 641px in the same compact cut the in-app bar
+   takes on that band (siteNav.css, "the tablet band"): tighter gaps, the
+   0.78rem label, 6px side padding. Measured at 641px: brand, six links and
+   the four-control action island fit the bar with room to spare. */
 @media (max-width: 960px) {
+  .lpNav { gap: 10px; padding-left: 12px; }
+  .lpPrimaryNav { gap: 0; }
+  .lpPrimaryNav a { padding: 0 6px; font-size: 0.78rem; }
+}
+
+/* Under 641px the six-tab dock owns primary navigation, so the link row goes. */
+@media (max-width: 640px) {
   .lpNav { grid-template-columns: auto 1fr; }.lpPrimaryNav { display: none; }.lpNavActions { justify-self: end; }
+}
+
+/* The create action floats over the right edge of a phone, and a full-width
+   city card's tagline ran under it. The card reserves that lane from the
+   control's own published inset (components/nav/mobileNav.css), the shape
+   the /near list already takes, and holds it whenever the control is in the
+   document rather than only while it is painted. */
+@media (max-width: 640px) {
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .lp .cityChooserLink {
+    padding-right: max(
+      var(--space-4),
+      calc(var(--create-fab-lane) - var(--page-gutter))
+    );
+  }
 }
 
 @media (max-width: 700px) {

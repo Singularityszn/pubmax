@@ -107,7 +107,9 @@
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
+  /* The tap floor at every width, not only on a phone: 32px on a desktop
+     is still a control a finger on a touch laptop has to hit. */
+  min-height: 44px;
   padding: 5px 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -431,38 +433,33 @@
 .pubsMapLink,
 .pubsMenuLink,
 .pubsBookLink {
+  /* Text buttons read the --control-* row (docs/DESIGN_SYSTEM.md), at every
+     width: these were 30px pills in 0.76rem on a desktop, under the tap
+     floor, and 44px only on a phone. */
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  min-height: 30px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--panel);
+  min-height: var(--control-height, 44px);
+  padding: 0 var(--control-pad-x, 16px);
+  border-radius: var(--control-radius, 14px);
+  border: 1px solid var(--control-secondary-border, var(--line));
+  background: var(--control-secondary-surface, var(--panel));
   color: var(--ink);
-  font-size: 0.76rem;
-  font-weight: 700;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   text-decoration: none;
 }
 
 .pubsMapLink {
-  /* The card's PRIMARY action — solid accent fill, first in the row, and a
-     44px touch target on phones ("see it on the map" was invisible as a
-     terse tertiary chip; the owner literally couldn't find it at 390px). */
+  /* The card's LEADING action: first in the row and the tinted secondary,
+     so it is findable ("see it on the map" was invisible as a terse
+     tertiary chip; the owner could not find it at 390px) without being a
+     painted primary. A coral fill on every card put 119 primaries on one
+     page against the page's own Open the map. */
   order: -1;
-  border-color: var(--accent-action);
-  background: var(--accent-action);
-  color: var(--color-on-accent, #fdfaf2);
-}
-
-@media (max-width: 640px) {
-  .pubsMapLink,
-  .pubsMenuLink,
-  .pubsBookLink {
-    min-height: 44px;
-    padding: 8px 16px;
-    font-size: 0.84rem;
-  }
+  border-color: var(--control-tint-border, var(--line));
+  background: var(--control-tint-surface, var(--panel-raised));
+  color: var(--state-active-ink, var(--ink));
 }
 
 .pubsBookLink[data-tier="search"] {

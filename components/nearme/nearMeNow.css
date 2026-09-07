@@ -178,15 +178,16 @@
    the column that then truncated the pub's name. Rows are now hairline-divided
    list items: structure comes from the divider and the spacing, the name gets
    the width back, and the price stays the one right-aligned mono stamp. */
+/* Sentence case: caps are for a stamp alone (docs/DESIGN_SYSTEM.md, "Caps
+   policy"), and this is a column caption. */
 .nmnListCaption {
   margin: 0 0 2px;
   padding-inline: var(--space-2);
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: var(--text-xs);
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.01em;
   text-align: right;
-  text-transform: uppercase;
 }
 
 .nmnList {
@@ -391,19 +392,24 @@
   gap: var(--space-2);
 }
 
+/* A text button reads the --control-* row (docs/DESIGN_SYSTEM.md, "Text
+   buttons"): these two stood beside the rows' Keep for tonight as pills at
+   0.85rem/600 against 14px corners at 0.86rem/700, two families for one kind
+   of control on one screen. The patch chips keep the pill, because a chip is
+   a chip. */
 .nmnRetry,
 .nmnBack {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 44px;
-  padding: 0 var(--space-4);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  background: var(--panel);
+  min-height: var(--control-height, 44px);
+  padding: 0 var(--control-pad-x, 16px);
+  border: 1px solid var(--control-secondary-border, var(--line));
+  border-radius: var(--control-radius, 14px);
+  background: var(--control-secondary-surface, var(--panel-raised));
   color: var(--ink);
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   cursor: pointer;
   text-decoration: none;
   transition: transform 160ms ease-out, border-color 160ms ease-out;
@@ -501,7 +507,8 @@
   align-items: center;
   gap: var(--space-1);
   align-self: flex-start;
-  min-height: 36px;
+  /* The tap floor, like every other control on the page. */
+  min-height: 44px;
   padding: 0 var(--space-2);
   border: 0;
   background: transparent;

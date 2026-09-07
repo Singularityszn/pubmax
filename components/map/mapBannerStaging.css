@@ -29,6 +29,24 @@
     display: none;
   }
 
+  /* 1b. The first-visit arrival card (components/map/MapArrivalCard.tsx) is
+     the newer first paint and it owns the location ask: "Use my location" or
+     "Choose an area". While it is up, nothing else may ask the same question
+     or offer a second door. Measured 6 Sep 2026 at 768 and 1440: the card
+     stood beside the city suggest banner (a second "Near me?" for the same
+     question), the Tonight card and the Pub Pal chip (cut off behind the card
+     at 768), twenty controls before one pin was tapped. The status banner
+     STAYS, because a road closure is a fact the reader needs whatever they
+     are being asked, and one banner is the policy. The phone shell already
+     stands its chrome down on this selector (mobileMapShell.css); this is the
+     same rule for the wide bands. Keyed on element presence, so dismissing
+     the card releases every sibling under the ordinary policy below. */
+  body:has(.mapArrivalCard) .citySuggestBanner,
+  body:has(.mapArrivalCard) .tonightLaneCollapsed,
+  body:has(.mapArrivalCard) .mapConciergeAsk {
+    display: none;
+  }
+
   /* 2. Keep the opt-in location control available while either prompt defers
      the lower Tonight card. Keyed on element PRESENCE (eligibility), so
      dismissing both higher siblings releases Tonight normally. */

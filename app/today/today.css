@@ -112,12 +112,15 @@
 
 /* A notice inside a card takes a tint and no edge: the card already has one
    (docs/DESIGN_SYSTEM.md "Edges: the de-box rule"). */
+/* A stale reading is a CAUTION, so its wash is the caution token; the coral
+   tint it wore is the action accent, and a warning painted in the action's
+   colour reads as something to tap. */
 .todayStale {
   display: flex;
   margin: 0;
   padding: 8px 10px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--color-caution, var(--amber)) 16%, var(--panel-raised));
   font-size: 0.8rem;
   line-height: 1.45;
   color: var(--ink);

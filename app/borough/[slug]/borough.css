@@ -74,12 +74,14 @@
   overflow: hidden;
 }
 
+/* Sentence case: caps are for a stamp alone (docs/DESIGN_SYSTEM.md, "Caps
+   policy"), and a column head is a label. */
 .boroughTable thead th {
   text-align: left;
   padding: 12px 14px;
-  font-size: 11px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.01em;
   color: var(--ink-soft);
   border-bottom: 1px solid var(--line);
   background: var(--panel-raised);
@@ -148,6 +150,8 @@
 
 /* Modest entry point into the Ledger (issue #25) — a small, quiet link, not a
    second CTA competing with the pub name link above it. */
+/* A word in the accent takes the accent's ink on the light ground: the raw
+   coral measured 2.9:1 here, on every row of a 200-row table. */
 .boroughLedgerLink {
   display: inline-flex;
   align-items: center;
@@ -155,7 +159,7 @@
   margin-top: 4px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--brass);
+  color: var(--color-accent-ink);
   text-decoration: none;
 }
 

@@ -168,18 +168,21 @@
 
 /* --- CSV download + methodology ------------------------------------------- */
 
+/* A text button reads the --control-* row (docs/DESIGN_SYSTEM.md): this was
+   a coral-tinted pill printing the raw coral as a WORD on the light ground,
+   which is 2.9:1, beside the head's own 14px-corner controls. */
 .pintIndexDownload {
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
+  min-height: var(--control-height, 44px);
   margin-top: 16px;
-  padding: 10px 18px;
-  border-radius: 999px;
-  border: 1px solid var(--brass);
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel));
-  color: var(--brass);
-  font-weight: 700;
-  font-size: 14px;
+  padding: 0 var(--control-pad-x, 16px);
+  border-radius: var(--control-radius, 14px);
+  border: 1px solid var(--control-secondary-border, var(--line));
+  background: var(--control-secondary-surface, var(--panel-raised));
+  color: var(--ink);
+  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size, 0.86rem);
   text-decoration: none;
 }
 
@@ -233,7 +236,8 @@
 .pintIndexBoroughLinks a {
   display: inline-flex;
   align-items: center;
-  min-height: 38px;
+  /* The tap floor: these were 38px. */
+  min-height: 44px;
   padding: 6px 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -246,7 +250,7 @@
 
 .pintIndexBoroughLinks a:hover {
   border-color: var(--brass);
-  color: var(--brass);
+  color: var(--color-accent-ink);
 }
 
 .pintIndexBoroughLinks a:focus-visible {
@@ -258,12 +262,13 @@
 .pintIndexEditionCurrent {
   display: inline-flex;
   align-items: center;
-  min-height: 38px;
+  min-height: 44px;
   padding: 6px 12px;
   border: 1px solid var(--brass);
   border-radius: 999px;
   background: color-mix(in srgb, var(--brass) 12%, var(--panel));
-  color: var(--brass);
+  /* A word in the accent takes the accent's ink on the light ground. */
+  color: var(--color-accent-ink);
   font-size: 13px;
   font-weight: 600;
 }

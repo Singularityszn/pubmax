@@ -1062,24 +1062,28 @@
 }
 
 /* ── Owner actions: edit toggle + claim ──────────────────────────────── */
+/* Text buttons read the --control-* row (docs/DESIGN_SYSTEM.md): these wore
+   6px corners at 0.9rem/600 beside the page's 14px-corner controls, and the
+   outlined pair printed the raw coral as a WORD on the light ground (2.9:1),
+   so the word takes the accent's ink and the fill keeps its coral. */
 .profilePage .profileEditToggle,
 .profilePage .profileClaimBtn,
 .profilePage .profilePalLink {
-  min-height: 44px;
-  padding: 10px 16px;
-  border-radius: var(--radius-sm);
+  min-height: var(--control-height, 44px);
+  padding: 0 var(--control-pad-x, 16px);
+  border-radius: var(--control-radius, 14px);
   border: 1px solid var(--brass);
   background: transparent;
-  color: var(--brass);
-  font-size: 0.9rem;
-  font-weight: 600;
+  color: var(--color-accent-ink);
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   cursor: pointer;
   transition: background 0.18s ease, color 0.18s ease;
 }
 
 .profilePage .profileClaimBtn {
   background: var(--brass);
-  color: var(--paper);
+  color: var(--color-on-accent, var(--paper));
 }
 
 .profilePage .profileEditToggle:hover {
@@ -1099,7 +1103,7 @@
 /* ── Edit mode: the editing state must be unmistakable ───────────────── */
 .profilePage .profileEditToggle[aria-expanded="true"] {
   background: var(--brass);
-  color: var(--paper);
+  color: var(--color-on-accent, var(--paper));
 }
 
 .profilePage .profileEditingSurface {
@@ -1683,13 +1687,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  padding: 9px 16px;
+  min-height: var(--control-height, 44px);
+  padding: 0 var(--control-pad-x, 16px);
   border: 1px solid var(--brass);
-  border-radius: var(--radius-sm, 8px);
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--brass);
+  border-radius: var(--control-radius, 14px);
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
+  color: var(--color-accent-ink);
   background: transparent;
   text-decoration: none;
   transition: background 0.18s ease, color 0.18s ease;
@@ -1700,7 +1704,7 @@
 }
 
 .profilePage .passportCtaPrimary {
-  color: var(--paper);
+  color: var(--color-on-accent, var(--paper));
   background: var(--brass);
 }
 

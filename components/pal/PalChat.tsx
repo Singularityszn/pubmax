@@ -489,10 +489,10 @@ export default function PalChat() {
   return (
     <>
       <SiteNav />
-      {/* The launch head (docs/design/LAUNCH_SCREENS.md): kicker, heading,
-          ONE primary. Send is the composer's own submit, reached from the head
-          the way /plan's Sort it is: with nothing typed it puts the caret in
-          the field, which is the one thing left to do. */}
+      {/* The launch head (docs/design/LAUNCH_SCREENS.md): kicker and heading.
+          This is a form screen, so its ONE painted control is the composer's
+          own submit beside the field (captain's ruling, 7 Sep 2026); a head
+          Send above the transcript was a second door for one action. */}
       <Screen
         as="main"
         id="main"
@@ -506,20 +506,6 @@ export default function PalChat() {
         title={"What's the night?"}
         titleId="pal-chat-title"
         lede="Straight answers from what we have actually seen. Every card keeps its source. No made-up venues, prices, or events."
-        primary={
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => {
-              const input = composerInput.current;
-              if (!input) return;
-              if (input.value.trim()) input.form?.requestSubmit();
-              else input.focus();
-            }}
-          >
-            Send
-          </button>
-        }
         secondary={<Link href="/pal">Back to your Pub Pal</Link>}
       >
 
@@ -721,6 +707,7 @@ export default function PalChat() {
         <button
           type="submit"
           className="palChatSend pressable"
+          data-primary-action=""
           disabled={pending || !query.trim()}
           aria-label="Ask"
         >

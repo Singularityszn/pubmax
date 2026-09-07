@@ -520,25 +520,18 @@ export default function LoginPage({
   const showForm =
     !loading && !showSignedIn && hasAuthSurface && (!welcomeBack || useDifferentAccount);
 
-  /**
-   * The head's Send is the email form's own submit, reached from above it the
-   * way /plan's Sort it is: with nothing typed, the tap puts the caret in the
-   * field, which is the one thing left to do.
-   */
-  const sendFromHead = useCallback(() => {
-    const input = formRegion.current?.querySelector<HTMLInputElement>(
-      'input[type="email"]',
-    );
-    if (!input) return;
-    if (input.value.trim()) input.form?.requestSubmit();
-    else input.focus();
-  }, []);
 
   // ONE primary for the page, decided by the same state the body is. A signed-in
   // reader's is the map; a returning device's is the one-tap resume; everybody
   // else's is the link.
   const resumeSettled = resumeStatus === "sending" || resumeStatus === "sent";
-  const headPrimary: ReactElement = showSignedIn && !loading ? (
+  // ONE painted control for the page. A signed-in reader gets the map door and
+  // a returning one the resume tap; while the FORM is on screen the head paints
+  // nothing, because the form's own submit beside the field is the primary
+  // (captain's ruling, 7 Sep 2026: a head door above the field and the form's
+  // submit under it were two doors for one action). While the session is still
+  // unknown the skeleton stands where the form will, and no door is painted.
+  const headPrimary: ReactElement | undefined = showSignedIn && !loading ? (
     <Link href="/map">Continue to the map</Link>
   ) : showWelcomeBack ? (
     <button type="button" onClick={() => void onResume()} disabled={resumeSettled}>
@@ -550,15 +543,7 @@ export default function LoginPage({
             ? `Continue as ${welcomeBack.maskedEmail}`
             : "Email me a sign-in link"}
     </button>
-  ) : (
-    <button
-      type="button"
-      onClick={sendFromHead}
-      disabled={loading || !showForm || !configured}
-    >
-      Send the link
-    </button>
-  );
+  ) : undefined;
   const headSecondary: ReactElement | undefined = showSignedIn && !loading ? (
     <Link href="/u/you">Your profile</Link>
   ) : showWelcomeBack ? (
@@ -634,6 +619,7 @@ export default function LoginPage({
                     cancelAuthAttempt={cancelAuthAttempt}
                     label={door.emailLabel}
                     submitLabel={door.emailCta}
+                    primaryAction
                   />
                   {intent === "signin" ? (
                     <HandlePasswordSignIn

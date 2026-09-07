@@ -84,9 +84,25 @@
     margin: 0 0 0.75rem;
   }
 
+  /* The CAP is on the frame, never on the picture inside it. Capping the
+     <img> alone left a 16:9 frame 339px tall holding a 220px picture, so
+     the drawer at 1440 printed a photograph over a grey band with the
+     credit pinned to the band (measured 6 Sep 2026). The frame takes the
+     height ceiling and the picture fills whatever frame it is given. */
+  .venueInspector .venueImage--header {
+    /* A fixed height rather than a ceiling on the 16:9 ratio: Chromium
+       transfers a max-height through aspect-ratio into the WIDTH, so the
+       capped frame shrank to 391px inside a 603px column and sat left of
+       the tab strip under it. The frame spans the column; the photo covers. */
+    aspect-ratio: auto;
+    height: 220px;
+  }
+
   .venueInspector .venueImage--header .venueImage__img {
-    min-height: 180px;
-    max-height: 220px;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
   }
 }

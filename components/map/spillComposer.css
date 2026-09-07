@@ -29,12 +29,13 @@
   line-height: 1.18;
 }
 
+/* Sentence case: caps are for a stamp alone (docs/DESIGN_SYSTEM.md, "Caps
+   policy"), and this is the composer's kicker. */
 .spillComposerEyebrow {
   color: var(--ink-soft);
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 /* ── Visibility segmented control ───────────────────────────────────────── */
@@ -147,14 +148,16 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 44px;
-  padding: 8px 12px;
+  min-height: var(--control-height, 44px);
+  padding: 0 var(--control-pad-x, 16px);
   border: 1px dashed var(--line);
-  border-radius: 10px;
+  /* The composer's controls share one corner: the submit, the steppers and
+     this disclosure wore 6px, 6px and 10px beside each other. */
+  border-radius: var(--control-radius, 14px);
   background: transparent;
   color: var(--ink-soft);
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   cursor: pointer;
   justify-self: start;
 }
@@ -226,7 +229,7 @@
   min-width: 44px;
   min-height: 44px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius, 14px);
   background: var(--panel-raised);
   color: var(--ink);
   cursor: pointer;
@@ -234,7 +237,7 @@
 
 .priceStepBtn:hover {
   border-color: var(--brass);
-  color: var(--brass);
+  color: var(--color-accent-ink);
 }
 
 .priceStepBtn:focus-visible {

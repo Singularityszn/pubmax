@@ -184,7 +184,8 @@
 .factLinksList a {
   display: inline-flex;
   align-items: center;
-  min-height: 40px;
+  /* The tap floor: these were 40px on every borough page. */
+  min-height: 44px;
   padding: 6px 13px;
   border: 1px solid var(--line);
   border-radius: 999px;

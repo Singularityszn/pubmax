@@ -23,18 +23,19 @@
   gap: var(--space-2);
 }
 
+/* Text buttons read the --control-* row (docs/DESIGN_SYSTEM.md). */
 .firstActionsLink {
-  min-height: 44px;
-  padding: 10px 15px;
+  min-height: var(--control-height, 44px);
+  padding: 0 var(--control-pad-x, 16px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--panel-raised);
+  border: 1px solid var(--control-secondary-border, var(--line));
+  border-radius: var(--control-radius, 14px);
+  background: var(--control-secondary-surface, var(--panel-raised));
   color: var(--ink);
-  font-size: 0.86rem;
-  font-weight: 700;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   text-decoration: none;
   text-align: center;
 }
