@@ -49,6 +49,34 @@ describe("Capacitor wrapped-build contract", () => {
     expect(offline).toContain("https://pubmaxxing.com");
   });
 
+  it("carries the launch field behind the WebView, so no white frame stands between them", () => {
+    // WKWebView draws UIColor.systemBackground — WHITE in light appearance —
+    // until the page paints, and Capacitor holds it non-opaque for the whole
+    // initial load (WebViewDelegationHandler). Measured on the iPhone 17 Pro
+    // simulator against a local production build on 7 September 2026: the ink
+    // launch screen ended at 1601ms, the screen was PURE white (one colour over
+    // the whole frame) from 2140ms to 4507ms, and content arrived at 5550ms.
+    // Three fields in five seconds, the middle one belonging to no design.
+    //
+    // The field is the launch screen's own, read from the same constant
+    // scripts/gen-native-app-icons.mjs cuts LaunchBackground.colorset from, so
+    // the two cannot drift and the app opens on ONE colour.
+    expect(capacitorConfig.ios?.backgroundColor).toBe(BRAND_COLORS.inkDeep);
+    // Android is NOT given the same value: its window background is the page's
+    // own paper in light and ink in dark (PR #1599, android/app/src/main/res),
+    // and a WebView field of a third colour would fight it.
+    expect(capacitorConfig.android?.backgroundColor).toBeUndefined();
+    expect(capacitorConfig.backgroundColor).toBeUndefined();
+
+    const launchField = rootFile(
+      "ios/App/App/Assets.xcassets/LaunchBackground.colorset/Contents.json",
+    );
+    const hex = BRAND_COLORS.inkDeep.replace("#", "").toUpperCase();
+    expect(launchField).toContain(`"red" : "0x${hex.slice(0, 2)}"`);
+    expect(launchField).toContain(`"green" : "0x${hex.slice(2, 4)}"`);
+    expect(launchField).toContain(`"blue" : "0x${hex.slice(4, 6)}"`);
+  });
+
   it("takes a local origin only from the review variable, and never ships one", () => {
     // The unset case above is what every CI and store build sees. A rig
     // reviewing a checkout sets PUBMAX_NATIVE_SERVER_URL at sync time, and
