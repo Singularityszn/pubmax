@@ -28,6 +28,7 @@ import { ComposerPriceStep } from "@/components/map/composer/ComposerPriceStep";
 import { SpillCameraStep } from "@/components/map/composer/SpillCameraStep";
 import { SpillDesktopCapture } from "@/components/map/composer/SpillDesktopCapture";
 import { SpillPreviewCard } from "@/components/map/composer/SpillPreviewCard";
+import { SpillReceiptStep } from "@/components/map/composer/SpillReceiptStep";
 import { useActiveRound } from "@/components/map/composer/useActiveRound";
 import { useIsMobileComposer } from "@/components/map/composer/useIsMobileComposer";
 import { useSpeechDictation } from "@/components/map/composer/useSpeechDictation";
@@ -254,6 +255,18 @@ export default function PintDropComposer({
         lastKnownPrice={lastKnownPrice}
       />
 
+      {/* THE BILL, under the price and never behind the disclosure: it is the
+          one thing a price cannot go without, so a drinker may not have to go
+          looking for it (captain 7 Sept 2026). */}
+      {priceNeedsReceipt(dropForm.price) ? (
+        <SpillReceiptStep
+          receiptPhoto={receiptPhoto}
+          receiptInputRef={receiptInputRef}
+          pickPhoto={pickPhoto}
+          removePhoto={removePhoto}
+        />
+      ) : null}
+
       {/* Author identity, compact. An account handle is the authority-bearing
           value (spec 3.3) and is shown, never edited. The typed handle input
           exists only on the keyless demo path. */}
@@ -335,13 +348,10 @@ export default function PintDropComposer({
           {mobile ? (
             <SpillCameraStep
               pintPhoto={pintPhoto}
-              receiptPhoto={receiptPhoto}
               pintInputRef={pintInputRef}
               venueInputRef={venueInputRef}
-              receiptInputRef={receiptInputRef}
               pickPhoto={pickPhoto}
               removePhoto={removePhoto}
-              priced={priceNeedsReceipt(dropForm.price)}
             />
           ) : null}
 
@@ -369,13 +379,10 @@ export default function PintDropComposer({
             <SpillDesktopCapture
               pintPhoto={pintPhoto}
               venuePhoto={venuePhoto}
-              receiptPhoto={receiptPhoto}
               pintInputRef={pintInputRef}
               venueInputRef={venueInputRef}
-              receiptInputRef={receiptInputRef}
               pickPhoto={pickPhoto}
               removePhoto={removePhoto}
-              priced={priceNeedsReceipt(dropForm.price)}
             />
           ) : null}
 
