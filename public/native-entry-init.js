@@ -5,30 +5,36 @@
 //
 // WHY THIS EXISTS. capacitor.config.ts is a remote-URL wrap, so every native
 // launch opens the site ROOT. lib/entryDecision.ts then rewrites that to
-// /tonight — but it rewrites from a React effect, which only runs after the
-// landing page has been rendered, hydrated and painted. Measured inside the
-// iPhone 17 Pro simulator against production on 7 September 2026: the landing
-// painted at 7.9s and was replaced at 9.2s. Two costs, both paid on every
-// launch:
+// /tonight or /onboarding — but it rewrites from a React effect, which only
+// runs after the landing page has been rendered, hydrated and painted. Two
+// costs, both paid on every launch:
 //
 //   1. The first screen of the app is a page the reader never asked for, and
 //      then loses. Its hero photograph, its price card and its rails are all
-//      fetched and rendered for 1.3 seconds of screen time.
+//      fetched and rendered for over a second of screen time.
 //   2. Landing then Tonight is TWO routes, and reaching a second route is one
 //      of the answers lib/consentAnswerMoment.ts waits for before it lets the
 //      analytics consent card in. So the shell's own rewrite told the card the
 //      product had answered, and the card arrived on the first screen a new
 //      person ever saw — the exact thing that module exists to prevent.
 //
-// WHAT IT DECIDES, AND WHAT IT DELIBERATELY DOES NOT. Exactly one branch of
-// lib/entryDecision.ts's `decideEntry` is decidable from storage alone: a shell
-// cold start at the root AFTER the one-time native first run has already gone
-// (rule 4, `shell-cold-start`). The first-run branch needs readPreferredCity(),
-// whose answer depends on the enabled-city table in lib/cities.ts, and a static
-// file cannot read that table. Forking it here would be a second place for the
-// city list to be wrong, so the genuine first launch is left to AppEntryRoute
-// exactly as before — it happens once per install, and the consent half of it
-// is fixed in that component instead.
+// WHAT IT DECIDES, AND WHAT IT DELIBERATELY DOES NOT. Both routing branches of
+// lib/entryDecision.ts's `decideEntry` are decidable from storage alone, and
+// the file takes both:
+//
+//   · rule 4, `shell-cold-start`: the first-run mark is present, so this is an
+//     ordinary later launch and it lands on /tonight.
+//   · rule 2, `native-first-run`: NEITHER the first-run mark NOR a stored city
+//     value exists. `shouldRouteNativeFirstRun` needs `readPreferredCity()` to
+//     answer null, and with no stored value at all that answer is null under
+//     every possible enabled-city table in lib/cities.ts. So this reads the
+//     ABSENCE of the key and never its contents, and forks no table.
+//
+// The ONE case left to the client is a stored city value with the first-run
+// mark absent. Whether that value counts depends on whether lib/cities.ts still
+// has that city enabled, and a second copy of the city list here would be a
+// second place for it to be wrong. AppEntryRoute decides that one exactly as
+// before, one paint later.
 //
 // __tests__/nativeShellEntry.test.ts runs THIS FILE against a window of its
 // own, which is why every reference below goes through `window`.
@@ -54,11 +60,21 @@
     // an in-app tap on the wordmark and it stays on the landing page.
     if (session.getItem("pubmax:entryDecision:consumed:v1") === "1") return;
 
-    // Rule 2 is not ours (see above): with the first-run mark absent this may
-    // still be a genuine first launch, so leave the whole decision alone.
-    if (local.getItem("pubmax:nativeFirstRun:routed:v1") !== "1") return;
+    if (local.getItem("pubmax:nativeFirstRun:routed:v1") !== "1") {
+      // A stored city is the one thing this file may not judge (see above).
+      if (local.getItem("pubmax:preferredCity:v1") !== null) return;
+      // Rule 2. The onboarding route is guarded by a session handoff, so the
+      // same eligibility AppEntryRoute would have issued is issued here. Both
+      // marks are stamped BEFORE navigating, exactly as that component does, so
+      // a slow transition can never leave a flag unset and fire twice.
+      session.setItem("pubmax:nativeFirstRun:handoff:v1", String(Date.now()));
+      local.setItem("pubmax:nativeFirstRun:routed:v1", "1");
+      session.setItem("pubmax:entryDecision:consumed:v1", "1");
+      window.location.replace("/onboarding");
+      return;
+    }
 
-    // Stamp before navigating, exactly as AppEntryRoute does, so a slow
+    // Rule 4. Stamp before navigating, exactly as AppEntryRoute does, so a slow
     // transition cannot leave the flag unset and bounce the next arrival.
     session.setItem("pubmax:entryDecision:consumed:v1", "1");
     window.location.replace("/tonight");

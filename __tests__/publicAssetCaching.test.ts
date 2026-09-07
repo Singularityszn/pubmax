@@ -92,6 +92,10 @@ const EDITED_IN_PLACE_ASSETS = filesOutsideData.filter(
     [
       "/theme-init.js",
       "/splash-init.js",
+      // The shell's pre-render entry decision, edited in place beside the
+      // other three for the same reason: a static file the layout loads by a
+      // stable name, so a stale copy would send a launch to the wrong route.
+      "/native-entry-init.js",
       "/map-first-paint-init.js",
       "/manifest.webmanifest",
     ].includes(file),

@@ -44,6 +44,8 @@ import { safeSessionStorage } from "@/lib/safeStorage";
 export const CONSENT_ANSWER_MOMENT_KEY = "pubmax:consent-answer-moment:v1";
 /** sessionStorage slot holding the first route this session painted. */
 export const CONSENT_FIRST_ROUTE_KEY = "pubmax:consent-first-route:v1";
+/** sessionStorage slot naming the route a shell entry rewrite is heading for. */
+export const CONSENT_ENTRY_REWRITE_KEY = "pubmax:consent-entry-rewrite:v1";
 /** Same-tab notify, because a storage write raises no event on its own tab. */
 const CHANGE_EVENT = "pubmax:consent-answer-moment";
 
@@ -142,6 +144,32 @@ export function noteConsentRouteVisited(
   if (typeof pathname !== "string" || pathname === "") return;
   const store = resolveStorage(storage);
   if (!store) return;
+
+  // A SHELL ENTRY REWRITE IS IN FLIGHT, SO THE ROUTE IT IS LEAVING IS NOT A
+  // ROUTE THE READER CHOSE. While the destination is pending, any other
+  // pathname is recorded as nothing at all, and the destination itself becomes
+  // this session's first route. Naming the destination is what makes this
+  // independent of which effect React happens to run first: the reset can fire
+  // before the landing has been noted, which is the order app/layout.tsx
+  // actually produces, and the answer is the same either way.
+  let pending: string | null;
+  try {
+    pending = store.getItem(CONSENT_ENTRY_REWRITE_KEY);
+  } catch {
+    return;
+  }
+  if (pending !== null) {
+    if (pending !== pathname) return;
+    try {
+      store.removeItem(CONSENT_ENTRY_REWRITE_KEY);
+      store.setItem(CONSENT_FIRST_ROUTE_KEY, pathname);
+    } catch {
+      // Storage refused the swap: the next route reads as the first one again,
+      // which is the cautious side (the card keeps waiting).
+    }
+    return;
+  }
+
   let first: string | null;
   try {
     first = store.getItem(CONSENT_FIRST_ROUTE_KEY);
@@ -171,17 +199,32 @@ export function noteConsentRouteVisited(
  * the Pixel 7 emulator on 7 September 2026 (docs/proof/mobile-shells-refresh/).
  *
  * A rewrite is the app's own move, not the reader's, so the first route is
- * forgotten and the destination becomes the first route instead. The answer
+ * forgotten and the DESTINATION becomes the first route instead. The answer
  * marker is cleared ONLY when it is `second-route`: at the moment of the
  * cold-start rewrite no venue sheet has opened and Pub Pal has said nothing, so
  * `second-route` there can only have come from the rewrite itself, while a real
  * answer must survive.
+ *
+ * THE DESTINATION IS NAMED RATHER THAN ASSUMED, because clearing state is only
+ * half the job when the order is not ours to choose. AppEntryRoute is inside
+ * {children} in app/layout.tsx and AnalyticsConsentPrompt is mounted after it,
+ * so React fires this reset BEFORE the landing route has been recorded at all:
+ * it cleared an empty slot, the landing then recorded itself as the first route
+ * anyway, and the destination read as the reader's own second route. Holding
+ * the destination in storage makes `noteConsentRouteVisited` swallow whatever
+ * route the rewrite is leaving, in either order.
  */
-export function resetConsentWaitForEntryRewrite(storage?: Storage | null): void {
+export function resetConsentWaitForEntryRewrite(
+  destination: string,
+  storage?: Storage | null,
+): void {
   const store = resolveStorage(storage);
   if (!store) return;
   try {
     store.removeItem(CONSENT_FIRST_ROUTE_KEY);
+    if (typeof destination === "string" && destination !== "") {
+      store.setItem(CONSENT_ENTRY_REWRITE_KEY, destination);
+    }
     if (store.getItem(CONSENT_ANSWER_MOMENT_KEY) === "second-route") {
       store.removeItem(CONSENT_ANSWER_MOMENT_KEY);
     }

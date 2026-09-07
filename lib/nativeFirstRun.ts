@@ -27,7 +27,14 @@ import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
  */
 export const NATIVE_FIRST_RUN_ROUTED_KEY = "pubmax:nativeFirstRun:routed:v1";
 const STORAGE_KEY = NATIVE_FIRST_RUN_ROUTED_KEY;
-const HANDOFF_KEY = "pubmax:nativeFirstRun:handoff:v1";
+/**
+ * The one-time onboarding eligibility slot. Exported for the same reason as
+ * NATIVE_FIRST_RUN_ROUTED_KEY: public/native-entry-init.js now takes the
+ * first-run branch itself and has to issue the same handoff the guarded route
+ * consumes, one paint earlier.
+ */
+export const NATIVE_FIRST_RUN_HANDOFF_KEY = "pubmax:nativeFirstRun:handoff:v1";
+const HANDOFF_KEY = NATIVE_FIRST_RUN_HANDOFF_KEY;
 /** Long enough for a slow client transition, short enough to never become a bookmark. */
 export const NATIVE_FIRST_RUN_HANDOFF_MAX_AGE_MS = 5 * 60 * 1000;
 

@@ -89,7 +89,14 @@ export default function FirstRunOnboarding({
   const isCompanionStage = stage === "companion";
 
   return (
-    <main id="main" className="firstRunOnboarding" data-stage={stage}>
+    <main
+      id="main"
+      // The one screen with no price to add: compose stands down here rather
+      // than parking a round + over the reviewed-area list
+      // (components/nav/createFab.css).
+      className="firstRunOnboarding pageHidesCreateFab"
+      data-stage={stage}
+    >
       <header className="firstRunTopbar">
         <div className="firstRunBrand" aria-label="PUBMAXXING">
           <Image src="/brand/icon.svg" alt="" width={30} height={30} priority />

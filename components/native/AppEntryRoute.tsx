@@ -54,7 +54,9 @@ export default function AppEntryRoute(): null {
     // consent card waits for, so the shell's own cold-start rewrite used to put
     // the card on the first screen a new person ever saw
     // (lib/consentAnswerMoment.ts, docs/proof/mobile-shells-refresh/).
-    resetConsentWaitForEntryRewrite();
+    // The destination is named, so the route the rewrite LEAVES is swallowed
+    // whichever effect React runs first (lib/consentAnswerMoment.ts).
+    resetConsentWaitForEntryRewrite(decision.href);
     if (decision.reason === "native-first-run") {
       // Eligibility is carried out-of-URL and consumed by the guarded route.
       // Mark first so a slow transition can never double-fire on another boot.
