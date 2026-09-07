@@ -75,14 +75,6 @@ function contrastRatio(foreground: Rgba, background: Rgba): number {
   );
 }
 
-function gradientColours(backgroundImage: string): Rgba[] {
-  return (
-    backgroundImage.match(
-      /(?:rgb|color\(srgb)[^(]*(?:\([^)]*\)|\([^)]*\))/g,
-    ) ?? []
-  ).map(parseColour);
-}
-
 function withAlpha(colour: Rgba, alpha: number): Rgba {
   return [colour[0], colour[1], colour[2], alpha];
 }
@@ -125,39 +117,25 @@ async function readPaintState(
   }, { foregroundColour: colour, surfacePseudo });
 }
 
-function renderedContrastRatios(
-  state: PaintState,
-  background: "solid" | "gradient" = "solid",
-): number[] {
+function renderedContrastRatio(state: PaintState): number {
   const foreground = parseColour(state.colour);
   const backdrop = resolveBackdrop(state.ancestorBackgrounds);
-  const surfaceColour = parseColour(state.backgroundColour);
-  const surfaceBase = composite(surfaceColour, backdrop);
-  const paintedBackgrounds =
-    background === "gradient"
-      ? gradientColours(state.backgroundImage).map((stop) =>
-          composite(stop, surfaceBase),
-        )
-      : [surfaceBase];
-
-  return paintedBackgrounds.map((paintedBackground) => {
-    const localForeground = composite(foreground, paintedBackground);
-    const renderedForeground = composite(
-      withAlpha(localForeground, state.opacity),
-      backdrop,
-    );
-    const renderedBackground = composite(
-      withAlpha(paintedBackground, state.opacity),
-      backdrop,
-    );
-    return contrastRatio(renderedForeground, renderedBackground);
-  });
+  const paintedBackground = composite(parseColour(state.backgroundColour), backdrop);
+  const localForeground = composite(foreground, paintedBackground);
+  const renderedForeground = composite(
+    withAlpha(localForeground, state.opacity),
+    backdrop,
+  );
+  const renderedBackground = composite(
+    withAlpha(paintedBackground, state.opacity),
+    backdrop,
+  );
+  return contrastRatio(renderedForeground, renderedBackground);
 }
 
 async function expectRenderedTextContrast(
   colourLocator: Locator,
   options: {
-    background?: "solid" | "gradient";
     minimum?: number;
     pseudo?: "::placeholder";
     surfaceLocator?: Locator;
@@ -171,9 +149,8 @@ async function expectRenderedTextContrast(
     options.pseudo,
     options.surfacePseudo,
   );
-  const ratios = renderedContrastRatios(state, options.background);
-  expect(ratios.length).toBeGreaterThan(0);
-  const minimumRatio = Math.min(...ratios);
+  expect(state.backgroundImage).toBe("none");
+  const minimumRatio = renderedContrastRatio(state);
   expect(
     minimumRatio,
     `Rendered contrast for ${await colourLocator.evaluate((node) => node.className)} from ${JSON.stringify(state)}`,
@@ -295,9 +272,7 @@ for (const viewport of VIEWPORTS) {
     );
 
     const activeTab = sheet.locator(".venueTab.active");
-    measurements.sheetActiveTab = await expectRenderedTextContrast(activeTab, {
-      background: "gradient",
-    });
+    measurements.sheetActiveTab = await expectRenderedTextContrast(activeTab);
     // The sheet's one painted primary is the Overview's price door
     // (lib/pintTrust.ts, `overviewPriceDoor`), flat like every other primary.
     const sheetPrimary = sheet.locator("[data-price-door]");
@@ -312,16 +287,19 @@ for (const viewport of VIEWPORTS) {
       };
     });
     expect(focusState.outline).not.toBe("none");
-    const tabRailPaint = await readPaintState(sheet.locator(".venueTabs"));
-    const tabRailBackground = composite(
-      parseColour(tabRailPaint.backgroundColour),
-      resolveBackdrop(tabRailPaint.ancestorBackgrounds),
+    const focusedTabPaint = await readPaintState(activeTab);
+    const focusedTabBackground = composite(
+      parseColour(focusedTabPaint.backgroundColour),
+      resolveBackdrop(focusedTabPaint.ancestorBackgrounds),
     );
     measurements.sheetFocusOutline = contrastRatio(
       parseColour(focusState.outlineColour),
-      tabRailBackground,
+      focusedTabBackground,
     );
-    expect(measurements.sheetFocusOutline).toBeGreaterThanOrEqual(3);
+    expect(
+      measurements.sheetFocusOutline,
+      `Inset focus ring ${JSON.stringify({ focusState, focusedTabPaint })}`,
+    ).toBeGreaterThanOrEqual(3);
 
     const inactiveTab = sheet.locator(".venueTab:not(.active)").first();
     await inactiveTab.hover();
