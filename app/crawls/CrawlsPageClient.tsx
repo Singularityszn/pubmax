@@ -84,7 +84,7 @@ function groupCompactCrawls(crawls: CuratedCrawl[]): [string, CuratedCrawl[]][] 
 // Reproduce a crawl on the map from a story's stop ids, matching the existing
 // share-URL format read by seedCrawlState (mode=build&pubs=id1,id2). Stops that
 // carry no venueId (e.g. a hand-authored story) just aren't planned back.
-function planCrawlHref(story: CrawlStory): string {
+function crawlMapHref(story: CrawlStory): string {
   const ids = story.stops.map((stop) => stop.venueId).filter(Boolean);
   if (ids.length === 0) return "/map";
   const params = new URLSearchParams();
@@ -186,11 +186,18 @@ function CrawlsPageInner() {
           titleId="crawlsHeading"
           lede="A Crawl Story is a shareable poster of a London pub crawl, the stops, the prices, the vibe. Here are a few listed routes worth the walk. Pick one, or start your own on the map."
           primary={
-            <Link href={featuredCrawl ? curatedCrawlMapHref(featuredCrawl) : "/map"}>
+            <Link
+              prefetch={false}
+              href={featuredCrawl ? curatedCrawlMapHref(featuredCrawl) : "/map"}
+            >
               Start a crawl
             </Link>
           }
-          secondary={<Link href="/map">Open the map</Link>}
+          secondary={
+            <Link prefetch={false} href="/map">
+              Open the map
+            </Link>
+          }
         >
           <nav className="routePackNav" aria-labelledby="routePacksHeading">
             <p className="crawlEyebrow" id="routePacksHeading">
@@ -257,7 +264,7 @@ function CrawlsPageInner() {
           <p className="crawlEmptyBody crawlOwnLead">
             Or build your own. Pick the pubs, pass the round on.
           </p>
-          <Link href="/map" className="crawlSecondaryBtn">
+          <Link prefetch={false} href="/map" className="crawlSecondaryBtn">
             <MapPin size={16} aria-hidden="true" /> Build your own crawl on the map
           </Link>
         </Screen>
@@ -311,6 +318,7 @@ function FeaturedCrawlCard({
           {crawl.venueIds.length} stop{crawl.venueIds.length === 1 ? "" : "s"}
         </p>
         <Link
+          prefetch={false}
           href={curatedCrawlMapHref(crawl)}
           className="curatedPlanBtn"
           aria-label={`Plan the ${crawl.name} crawl on the map`}
@@ -341,6 +349,7 @@ function CompactCrawlRow({
   return (
     <li className="crawlCompactRow">
       <Link
+        prefetch={false}
         href={curatedCrawlMapHref(crawl)}
         className="crawlCompactLink"
         aria-label={`Plan the ${crawl.name} crawl on the map`}
@@ -386,8 +395,16 @@ function CrawlPoster({
         title={story.title || "An untitled crawl"}
         titleId="crawlPosterHeading"
         lede={story.caption || undefined}
-        primary={<Link href={planCrawlHref(story)}>Start this crawl</Link>}
-        secondary={<Link href="/map">Open the map</Link>}
+        primary={
+          <Link prefetch={false} href={crawlMapHref(story)}>
+            Start this crawl
+          </Link>
+        }
+        secondary={
+          <Link prefetch={false} href="/map">
+            Open the map
+          </Link>
+        }
       >
         {story.vibeTags.length ? (
           <ul className="crawlTags" aria-label="Crawl vibe tags">
