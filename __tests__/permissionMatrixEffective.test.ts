@@ -32,6 +32,8 @@ import { join } from "node:path";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { billFixtureFile } from "./helpers/billFixture";
+
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 vi.mock("@/lib/pintDrops", async (importOriginal) => {
@@ -1024,10 +1026,11 @@ async function submitPrice(
   form.set("drinkCategory", "beer");
   form.set("priceGbp", String(priceGbp));
   if (options.receipt !== false) {
-    form.set(
-      "receipt_photo",
-      new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], "bill.jpg", { type: "image/jpeg" }),
-    );
+    // A REAL receipt, because this suite reaches the real upload path: a
+    // four-byte JPEG sniffs correctly and then dies inside sharp
+    // ("VipsJpeg: JPEG datastream contains no image"), which answered 503 and
+    // read as a broken permission rule (__tests__/helpers/billFixture.ts).
+    form.set("receipt_photo", billFixtureFile());
   }
   return handlers.priceSubmit(
     request("/api/price-submit", { bearer, form }),

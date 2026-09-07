@@ -12,6 +12,7 @@ import {
   writeOneTapPintDrop,
 } from "@/lib/oneTapPintDrop.server";
 import { __resetPintDrops, listVisiblePintDrops } from "@/lib/pintDrops";
+import { PhotoRefusalError, UNREADABLE_PHOTO_REFUSAL } from "@/lib/pintDropsStore";
 
 vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
@@ -21,7 +22,24 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   };
 });
 
+// The store stays the real in-memory one until a test scripts a failure, so
+// every existing case here keeps exercising the write it was written for.
+const storeFailure = vi.hoisted(() => ({ error: null as Error | null }));
+
+vi.mock("@/lib/pintDropsStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/pintDropsStore")>();
+  const store = {
+    ...actual.memoryPintDropStore,
+    create: async (...args: Parameters<typeof actual.memoryPintDropStore.create>) => {
+      if (storeFailure.error) throw storeFailure.error;
+      return actual.memoryPintDropStore.create(...args);
+    },
+  };
+  return { ...actual, memoryPintDropStore: store, pintDropsStore: () => store };
+});
+
 beforeEach(async () => {
+  storeFailure.error = null;
   __resetCommunityPrices();
   __resetPintDrops();
   vi.mocked(moderateCommunityPrice).mockReset();
@@ -149,5 +167,41 @@ describe("writeOneTapPintDrop", () => {
     const second = await writeOneTapPintDrop({ ...input, priceGbp: 4.5 });
     expect(second).toMatchObject({ ok: true });
     expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(2);
+  });
+});
+
+// ── A PHOTO WE CANNOT READ IS THE DRINKER'S TO FIX ────────────────────────────
+//
+// The one-tap door told a refused FILE from a storage outage by the error's
+// words ("Photo must…"). The unreadable image is the one refusal whose sentence
+// starts differently, so it came back as `storage`: a retryable 503 inviting a
+// drinker to send the same bytes again, which can never succeed. The class is
+// the answer, not the sentence.
+describe("a photo the normaliser cannot open", () => {
+  const input = {
+    venueId: "venue-xjf3n0",
+    handle: "karan",
+    drinkCategory: "beer" as const,
+    priceGbp: 4.2,
+  };
+
+  it("is the drinker's to fix, and says so", async () => {
+    storeFailure.error = new PhotoRefusalError(UNREADABLE_PHOTO_REFUSAL);
+
+    const outcome = await writeOneTapPintDrop(input);
+
+    expect(outcome).toEqual({
+      ok: false,
+      kind: "invalid_photo",
+      message: UNREADABLE_PHOTO_REFUSAL,
+    });
+  });
+
+  it("is still told apart from a storage outage, which is ours", async () => {
+    storeFailure.error = new Error("supabase storage exploded");
+
+    const outcome = await writeOneTapPintDrop(input);
+
+    expect(outcome).toMatchObject({ ok: false, kind: "storage" });
   });
 });

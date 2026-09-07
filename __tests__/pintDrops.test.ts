@@ -169,7 +169,12 @@ import {
   type PintDropReportIdentity,
   validatePintDrop,
 } from "@/lib/pintDrops";
-import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
+import {
+  memoryPintDropStore,
+  PhotoRefusalError,
+  supabasePintDropStore,
+  UNREADABLE_PHOTO_REFUSAL,
+} from "@/lib/pintDropsStore";
 import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { memoryProfileStore } from "@/lib/profileStore";
 
@@ -1442,5 +1447,46 @@ describe("durable rate limiting (Supabase configured)", () => {
     const res = await post({ venueId: VENUE, handle: "strict", priceGbp: 4 });
     expect(res.status).toBe(429);
     expect(storeCreate).not.toHaveBeenCalled();
+  });
+});
+
+// ── A PHOTO WE CANNOT READ IS THE DRINKER'S TO FIX ────────────────────────────
+//
+// `uploadPhoto` refuses a file the normaliser cannot open, and it says so with
+// a PhotoRefusalError. The route used to tell a refusal from an outage by the
+// error's WORDS ("Photo must…"), so the one refusal whose sentence starts
+// differently, the unreadable image, fell through to a RETRYABLE 503: the app
+// invited a drinker to send the same bytes again, which can never work, and an
+// RLS suite reading 503 over a valid permission read it as a broken rule.
+//
+// The class is the answer, not the sentence.
+describe("a photo we cannot read", () => {
+  beforeEach(() => {
+    supaGuard.configured = true;
+    process.env.SUPABASE_URL = "https://stub.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "stub-key";
+    storeCreate.mockReset();
+  });
+
+  it("is refused in one line the drinker can act on, and never retried", async () => {
+    storeCreate.mockRejectedValue(new PhotoRefusalError(UNREADABLE_PHOTO_REFUSAL));
+
+    const res = await post({ venueId: VENUE, handle: "blurry", priceGbp: 4.2 });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      error: UNREADABLE_PHOTO_REFUSAL,
+      code: "INVALID_REQUEST",
+      retryable: false,
+    });
+  });
+
+  it("is still told apart from a storage outage, which IS ours and IS retryable", async () => {
+    storeCreate.mockRejectedValue(new Error("supabase storage exploded"));
+
+    const res = await post({ venueId: VENUE, handle: "unlucky", priceGbp: 4.2 });
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ retryable: true });
   });
 });
