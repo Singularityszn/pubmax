@@ -150,7 +150,14 @@ async function installUndatedBoundary(page: Page): Promise<Boundary> {
       });
       return;
     }
-    const body = route.request().postDataJSON() as Record<string, unknown>;
+    const request = route.request();
+    const form = await new Response(request.postData(), {
+      headers: { "content-type": request.headers()["content-type"] },
+    }).formData();
+    const body: Record<string, unknown> = {
+      ...Object.fromEntries(form),
+      priceGbp: Number(form.get("priceGbp")),
+    };
     boundary.prices.push(body);
     if (!tapped) {
       // The gate asks for the age answer alone, and never for a birth date.

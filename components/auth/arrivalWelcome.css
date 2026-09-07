@@ -45,6 +45,25 @@
   animation: arrivalWelcomeIn 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
+/* Now's selector owns the space below the top bar. The phone greeting shares
+   the existing floating-control row and clears its create button. */
+@media (max-width: 640px) {
+  body:has(.nowSegment) .arrivalWelcome {
+    top: auto;
+    bottom: var(
+      --create-fab-bottom,
+      calc(var(--tabbar-h, 64px) + var(--space-2, 8px))
+    );
+    left: max(var(--space-3, 12px), env(safe-area-inset-left));
+    right: var(--create-fab-lane, 80px);
+    max-width: calc(
+      100vw - var(--create-fab-lane, 80px) -
+      max(var(--space-3, 12px), env(safe-area-inset-left))
+    );
+    margin-inline: 0;
+  }
+}
+
 /* Exit is quicker than the entrance: the person decided, the system answers. */
 .arrivalWelcome[data-leaving] {
   animation: arrivalWelcomeOut 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
