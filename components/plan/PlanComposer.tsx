@@ -1371,19 +1371,16 @@ function PlanComposerForm({
     singleStopVenueId: completeStops.length === 1 ? completeStops[0]?.venueId : null,
     planAnchor,
   });
-  const canLockPlan =
-    composerVisible &&
-    !submitting &&
-    !sorting &&
-    !routeStale &&
-    lockValidation === null &&
-    startTimeIsValid &&
-    new Set(completeStopIds).size === completeStopIds.length &&
-    (
-      !nightContext
-      || matchingAnchorOnlyPlan
-      || completeStops.length === normalizePlanStopCount(nightContext.stopCount)
-    );
+  const lockUnavailableReason = sorting
+    ? "Refreshing the route."
+    : lockValidation?.message
+      ?? (!startTimeIsValid ? "Choose a valid future London start time." : null)
+      ?? (new Set(completeStopIds).size !== completeStopIds.length ? "Choose distinct venues for every stop." : null)
+      ?? (nightContext && !matchingAnchorOnlyPlan && completeStops.length !== normalizePlanStopCount(nightContext.stopCount)
+        ? `A generated ${planOutingNoun(nightContext.stopCount)} needs exactly ${planStopCountPhrase(nightContext.stopCount)} we can stand behind before you lock it in.`
+        : null)
+      ?? (routeStale ? "Refresh the route before locking it in." : null);
+  const canLockPlan = composerVisible && !submitting && lockUnavailableReason === null;
 
   // The venue index behind the Stop name field's datalist. It is only ever read
   // by the composer's own stop rows (the datalist, the typed-name match in
@@ -1824,36 +1821,9 @@ function PlanComposerForm({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const validationError = planLockValidationError({
-      title,
-      creatorName,
-      startTime,
-      completeStopCount: completeStops.length,
-      visibleStopCount: stops.length,
-      groundingProof,
-      singleStopVenueId: completeStops.length === 1 ? completeStops[0]?.venueId : null,
-      planAnchor,
-    });
-    if (validationError) {
-      setError(validationError.message);
-      if (validationError.focus === "name") nameInputRef.current?.focus();
-      return;
-    }
-    if (new Set(completeStops.map((stop) => stop.venueId)).size !== completeStops.length) {
-      setError("Choose distinct venues for every stop.");
-      return;
-    }
-    if (
-      nightContext
-      && !matchingAnchorOnlyPlan
-      && completeStops.length !== normalizePlanStopCount(nightContext.stopCount)
-    ) {
-      setError(`A generated ${planOutingNoun(nightContext.stopCount)} needs exactly ${planStopCountPhrase(nightContext.stopCount)} we can stand behind before you lock it in.`);
-      return;
-    }
-    if (routeStale) {
-      setError("Refresh the route before locking it in. Your previous preview is still safe.");
-      setRouteStatus("The route is still a preview because its context changed. Refresh it before locking.");
+    if (lockUnavailableReason) {
+      setError(lockUnavailableReason);
+      if (lockValidation?.focus === "name") nameInputRef.current?.focus();
       return;
     }
     setSubmitting(true);
@@ -2258,7 +2228,8 @@ function PlanComposerForm({
           action stands down while it is up, on the same terms as the consent
           card (components/nav/createFab.css). */}
       <div className="planComposer__lock">
-        <button className="planComposer__submit" type="submit" disabled={!canLockPlan}>{submitting ? "Locking it in…" : "Lock it in"}</button>
+        <button className="planComposer__submit" type="submit" disabled={!canLockPlan} aria-describedby={lockUnavailableReason ? "plan-lock-reason" : undefined}>{submitting ? "Locking it in…" : "Lock it in"}</button>
+        <p id="plan-lock-reason" className="planComposer__lockReason" role="status">{lockUnavailableReason}</p>
         <p className="planComposer__trust">Anyone with the link can see the plan. Joining only asks for a name.</p>
       </div>
         </>
