@@ -79,6 +79,33 @@ for (const viewport of DESKTOP) {
       });
       expect(order.filter).toBeGreaterThan(order.search);
 
+      // Rendered geometry, not source order: a control the row squeezes to
+      // nothing overlaps the search field beside it, and no source fence sees
+      // that. The two boxes may not intersect.
+      const boxes = await page.evaluate(() => {
+        const rect = (selector: string) =>
+          document.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
+        // The INPUT, not its cell: a flex item cannot shrink past its own
+        // min-width, so the field overflowed the cell the row gave it and its
+        // text ran under the control beside it while both cells still measured
+        // as neighbours.
+        const input = rect(".mapToolbar .mapToolbarSearch input");
+        const filter = rect(".mapToolbar .mapVenueKindFilterBtn");
+        return input && filter
+          ? {
+              inputRight: input.right,
+              inputWidth: input.width,
+              filterLeft: filter.left,
+              filterWidth: filter.width,
+            }
+          : null;
+      });
+      expect(boxes, "search and Filters both rendered").not.toBeNull();
+      expect(boxes!.filterLeft).toBeGreaterThanOrEqual(boxes!.inputRight - 0.5);
+      expect(boxes!.filterWidth).toBeGreaterThan(40);
+      // A field narrower than this reads a postcode and nothing else.
+      expect(boxes!.inputWidth).toBeGreaterThan(120);
+
       // A tap opens the panel with the same five chips in it.
       await expect(async () => {
         await filters.click();

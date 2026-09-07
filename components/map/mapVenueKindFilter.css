@@ -2,9 +2,13 @@
    own button rather than floating over the map, so the chips arrive where the
    reader asked for them and the map keeps the band they used to take. */
 
+/* The wrapper is what the toolbar row lays out, so it takes the row's own
+   sizing rule. Without it the row squeezes the wrapper to nothing and the
+   button inside it overlaps the search field. */
 .mapVenueKindFilter {
   position: relative;
   display: inline-flex;
+  flex: 0 0 auto;
 }
 
 /* The button itself wears the toolbar row's own family
