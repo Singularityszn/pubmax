@@ -1,0 +1,85 @@
+/* Filters control + popover (PlanAstra item 9). The panel is anchored to its
+   own button rather than floating over the map, so the chips arrive where the
+   reader asked for them and the map keeps the band they used to take. */
+
+.mapVenueKindFilter {
+  position: relative;
+  display: inline-flex;
+}
+
+.mapVenueKindFilterBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: var(--control-height);
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Selection is the raised neutral fill, never the accent: coral on the map
+   belongs to the primary action, the selected pin ring and the active tab
+   glyph alone (design judgement 2026-08-01, finding 2.1). */
+.mapVenueKindFilterBtn.isActive {
+  border-color: var(--ink-soft);
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.mapVenueKindFilterBtn:focus-visible {
+  outline: 2px solid var(--brass-bright);
+  outline-offset: 2px;
+}
+
+.mapVenueKindFilterPanel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: var(--z-map-toolbar);
+  display: grid;
+  gap: 8px;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 24px));
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: var(--shadow-float);
+}
+
+.mapVenueKindFilterReset {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--ink-soft);
+  font: var(--control-font-weight) var(--control-font-size) / 1 var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.mapVenueKindFilterReset:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--brass) 9%, transparent);
+}
+
+.mapVenueKindFilterReset:focus-visible {
+  outline: 2px solid var(--brass-bright);
+  outline-offset: 2px;
+}
+
+/* A phone reads these toggles in its own Filters sheet, so this control never
+   appears there (design judgement 2026-08-01, finding 2.3). */
+@media (max-width: 640px) {
+  .mapVenueKindFilter {
+    display: none;
+  }
+}

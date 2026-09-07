@@ -10,7 +10,7 @@ import { defaultVenueKindVisibility } from "@/lib/venueKindFilters";
 // accessibility tree as well as on screen. docs/VOICE.md rule 2 bans exactly
 // that. The chips name the venue types themselves, so the group needs no title.
 
-function render(variant: "map" | "sheet"): string {
+function render(variant: "popover" | "sheet"): string {
   return renderToStaticMarkup(
     createElement(TonightArcChips, {
       visibility: defaultVenueKindVisibility(),
@@ -21,7 +21,7 @@ function render(variant: "map" | "sheet"): string {
 }
 
 describe("Venue-type chips — no component name reaches the reader", () => {
-  for (const variant of ["map", "sheet"] as const) {
+  for (const variant of ["popover", "sheet"] as const) {
     it(`prints no internal name in the ${variant} variant`, () => {
       const html = render(variant);
       expect(html.toLowerCase()).not.toContain("tonight arc");

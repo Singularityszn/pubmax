@@ -22,9 +22,14 @@ describe("map surface alignment", () => {
     expect(siteNavCss).toMatch(
       /\.siteNavBarFloating\s*{[\s\S]*?width:\s*var\(--desktop-map-surface-width\)/,
     );
-    expect(tonightArcCss).toMatch(
-      /@media \(min-width: 641px\)[\s\S]*?\.tonightArcChips\s*{[\s\S]*?width:\s*var\(--desktop-map-surface-width\)[\s\S]*?background:\s*transparent/,
-    );
+    // The venue-type chips no longer claim a surface of their own: they are
+    // content inside the toolbar's Filters popover, which is anchored to its
+    // own button rather than to the map's centred boundary (PlanAstra item 9).
+    expect(tonightArcCss).not.toMatch(/--desktop-map-surface-width/);
+    expect(
+      read("components/map/mapVenueKindFilter.css"),
+      "the panel is anchored to its button",
+    ).toMatch(/\.mapVenueKindFilterPanel\s*{[\s\S]*?position:\s*absolute/);
   });
 
   it("gives phone map controls one centred boundary with balanced gutters", () => {
@@ -39,9 +44,10 @@ describe("map surface alignment", () => {
     expect(mobileCss).toMatch(
       /\.mobileMapNearMeAlert\s*{[\s\S]*?left:\s*var\(--mobile-map-stack-left\)[\s\S]*?right:\s*var\(--mobile-map-stack-right\)/,
     );
-    // The Tonight Arc floats over the DESKTOP map only. On a phone it is a
-    // section of the Filters sheet, so it declares no phone map geometry at
-    // all (design judgement 2026-08-01, finding 2.3).
+    // The venue-type chips float over NO map at any width: on a phone they are
+    // a section of the Filters sheet, and from 641px up they are the contents
+    // of the toolbar's Filters popover, so they declare no map geometry at all
+    // (design judgement 2026-08-01, finding 2.3; PlanAstra item 9).
     expect(tonightArcCss).not.toMatch(/@media \(max-width: 640px\)/);
     expect(tonightArcCss).not.toMatch(/--mobile-map-corner-lane/);
   });

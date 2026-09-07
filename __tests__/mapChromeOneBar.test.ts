@@ -85,18 +85,53 @@ describe("finding 2.3 — the phone map chrome is one bar", () => {
 });
 
 describe("finding 2.3 — the category toggles have exactly one home per viewport", () => {
-  it("floats them over the desktop map and nowhere else", () => {
-    const floating = pubMap.match(
+  /**
+   * PlanAstra item 9 moved the desktop copy BEHIND a control. It used to float
+   * over the map as a permanent band from 641px up, which is part of the 20 to
+   * 24 controls a tablet met before it had tapped a pin. The rule the fence
+   * still holds is the same one: ONE home per viewport, and no floating band.
+   */
+  it("keeps the phone copy in the Filters sheet and nowhere else in PubMap", () => {
+    const mounts = pubMap.match(
       /<TonightArcChips\n(?:(?!\/>)[\s\S])*?\/>/g,
     );
-    expect(floating?.length, "TonightArcChips mount sites").toBe(2);
-    // The map copy is desktop only.
-    expect(pubMap).toMatch(
-      /!baseLedChrome && !mobileViewport \? \(\s*<TonightArcChips/,
-    );
-    // The other copy is the Filters sheet section, which is where a phone
-    // reads them.
+    expect(mounts?.length, "TonightArcChips mount sites in PubMap").toBe(1);
+    // The one copy PubMap owns is the Filters sheet section, which is where a
+    // phone reads them.
     expect(pubMap).toMatch(/<TonightArcChips[\s\S]*?variant="sheet"/);
+    // Nothing floats them over the desktop map any more.
+    expect(pubMap, "no floating desktop band").not.toContain(
+      "renderDesktopVenueKindChips",
+    );
+    const arcCss = read("components/map/tonightArcChips.css");
+    // The group is plain content in whatever surface holds it. Its own
+    // container may not position itself over the map (the one absolute rule
+    // left is the unavailable-kind tooltip, which is anchored to its chip).
+    expect(
+      arcCss.match(/\.tonightArcChips\s*{([^}]*)}/)?.[1] ?? "",
+      "the chips declare no map geometry",
+    ).not.toMatch(/position:\s*absolute/);
+  });
+
+  it("gives the desktop copy one control that names how many kinds are off", () => {
+    const filter = read("components/map/MapVenueKindFilter.tsx");
+    expect(toolbar, "the toolbar row carries the control").toMatch(
+      /isMobile === false && venueKindVisibility && onVenueKindVisibilityChange \? \(\s*<MapVenueKindFilter/,
+    );
+    // One panel, opened by the reader, holding the same chips.
+    expect(filter).toMatch(/variant="popover"/);
+    expect(filter).toMatch(/aria-expanded=\{open\}/);
+    expect(filter).toMatch(/aria-controls=\{panelId\}/);
+    // Escape closes it and hands focus back to the control that opened it.
+    expect(filter).toMatch(
+      /event\.key !== "Escape"[\s\S]*?setOpen\(false\)[\s\S]*?buttonRef\.current\?\.focus\(\)/,
+    );
+    // A closed panel may not hide which kinds the map is leaving out.
+    expect(filter).toMatch(/venueKindFilterLabel\(hidden\)/);
+    // The chips are the reader's own tap, never the map's cold start.
+    expect(filter).toMatch(
+      /dynamic\(\s*\(\) => import\("@\/components\/map\/TonightArcChips"\)/,
+    );
   });
 
   it("gives the sheet copy sheet geometry rather than map geometry", () => {

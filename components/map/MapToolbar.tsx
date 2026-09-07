@@ -16,6 +16,7 @@ import ConditionsChip from "@/components/desktop/ConditionsChip";
 import DrinkLanePicker from "@/components/map/DrinkLanePicker";
 import SpoonsValueLensControl from "@/components/map/SpoonsValueLensControl";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
+import MapVenueKindFilter from "@/components/map/MapVenueKindFilter";
 import MapExperienceLensControl, {
   MAP_EXPERIENCE_LENS_OPTIONS,
 } from "@/components/map/MapExperienceLens";
@@ -29,6 +30,7 @@ import type { SpoonsValueLensState } from "@/lib/spoonsValue";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { PersonaDrink } from "@/lib/personaDrinks";
 import type { Filters } from "@/lib/venues";
+import type { VenueKindVisibility } from "@/lib/venueKindFilters";
 import type {
   CategoryPriceIndexStatus,
   MapExperienceLens,
@@ -197,6 +199,13 @@ type MapToolbarProps = {
   experienceLens: MapExperienceLens;
   experienceSummary: string;
   onExperienceLensChange: (lens: MapExperienceLens) => void;
+  /**
+   * The venue-type toggles, at 641px and wider (PlanAstra item 9). Absent on a
+   * base-pub-only arrival, where no curated kind is on the map to filter, and
+   * absent on a phone, which reads the same toggles in its Filters sheet.
+   */
+  venueKindVisibility?: VenueKindVisibility;
+  onVenueKindVisibilityChange?: (next: VenueKindVisibility) => void;
 };
 
 export default function MapToolbar({
@@ -238,6 +247,8 @@ export default function MapToolbar({
   experienceLens,
   experienceSummary,
   onExperienceLensChange,
+  venueKindVisibility,
+  onVenueKindVisibilityChange,
 }: MapToolbarProps) {
   const [drinksOpen, setDrinksOpen] = useState(false);
   // Closed at rest (design judgement 2026-08-01, finding 2.15). The panel used
@@ -381,6 +392,18 @@ export default function MapToolbar({
               </Suspense>
             ) : searchContent}
           </div>
+        ) : null}
+
+        {/* The venue types, behind ONE control. They used to float over the map
+            as a permanent band at every width from 641px up; the reader opens
+            them now (PlanAstra item 9). Held until the viewport has answered,
+            because a phone reads the same toggles in its Filters sheet. */}
+        {isMobile === false && venueKindVisibility && onVenueKindVisibilityChange ? (
+          <MapVenueKindFilter
+            visibility={venueKindVisibility}
+            experienceLens={experienceLens}
+            onChange={onVenueKindVisibilityChange}
+          />
         ) : null}
 
         {laneAvailable ? (
