@@ -24,9 +24,11 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  ONBOARDING_PATH,
   SESSION_ENTRY_CONSUMED_KEY,
   SHELL_START_PATH,
 } from "@/lib/entryDecision";
+import { PREFERRED_CITY_KEY } from "@/lib/cityPreference";
 import {
   CONSENT_ANSWER_MOMENT_KEY,
   CONSENT_FIRST_ROUTE_KEY,
@@ -34,7 +36,10 @@ import {
   noteConsentRouteVisited,
   resetConsentWaitForEntryRewrite,
 } from "@/lib/consentAnswerMoment";
-import { NATIVE_FIRST_RUN_ROUTED_KEY } from "@/lib/nativeFirstRun";
+import {
+  NATIVE_FIRST_RUN_HANDOFF_KEY,
+  NATIVE_FIRST_RUN_ROUTED_KEY,
+} from "@/lib/nativeFirstRun";
 
 const rootFile = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
@@ -130,14 +135,40 @@ describe("the native shell's pre-render entry decision", () => {
     expect(replaced).toEqual([]);
   });
 
-  it("leaves the genuine first run to the client, which owns the onboarding gate", () => {
-    // The first-run branch needs readPreferredCity()'s enabled-city table, which
-    // a static file cannot read. Rather than fork that table, the script decides
-    // only the case it can decide exactly and stays out of the other.
-    const { replaced, session } = runEntryInit({ local: {} });
+  it("takes the genuine first run to onboarding, with its eligibility already issued", () => {
+    // A GENUINE FIRST LAUNCH IS THE ONE LAUNCH THE READER JUDGES THE APP ON,
+    // and it was the launch that still painted the landing page first. Measured
+    // on the iPhone 17 Pro simulator against a local production build on
+    // 7 September 2026: the landing painted at 2951ms and the first-run screen
+    // replaced it at 4403ms (docs/proof/mobile-shells-refresh/).
+    //
+    // The branch is decidable here after all. It needs `readPreferredCity()`
+    // to answer null, and with NO stored city value at all that answer is null
+    // under every possible enabled-city table — so this reads the ABSENCE of
+    // the key, never its contents, and forks no table.
+    const { replaced, session, local } = runEntryInit({ local: {} });
+
+    expect(replaced).toEqual([ONBOARDING_PATH]);
+    expect(session.getItem(SESSION_ENTRY_CONSUMED_KEY)).toBe("1");
+    // The onboarding route is guarded by a session handoff, so the script has
+    // to issue the same eligibility AppEntryRoute would have issued.
+    expect(session.getItem(NATIVE_FIRST_RUN_HANDOFF_KEY)).toMatch(/^\d+$/);
+    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBe("1");
+  });
+
+  it("leaves a stored city to the client, which owns the enabled-city table", () => {
+    // A STORED CITY VALUE IS THE ONE CASE A STATIC FILE MAY NOT JUDGE. Whether
+    // it counts depends on whether lib/cities.ts still has that city enabled,
+    // and forking that table here would be a second place for the city list to
+    // be wrong. The whole decision goes back to AppEntryRoute untouched.
+    const { replaced, session, local } = runEntryInit({
+      local: { [PREFERRED_CITY_KEY]: "london" },
+    });
 
     expect(replaced).toEqual([]);
     expect(session.getItem(SESSION_ENTRY_CONSUMED_KEY)).toBeNull();
+    expect(session.getItem(NATIVE_FIRST_RUN_HANDOFF_KEY)).toBeNull();
+    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBeNull();
   });
 
   it("is loaded render-blocking, ahead of the other pre-paint scripts", () => {
@@ -158,7 +189,10 @@ describe("the native shell's pre-render entry decision", () => {
     for (const literal of [
       SESSION_ENTRY_CONSUMED_KEY,
       NATIVE_FIRST_RUN_ROUTED_KEY,
+      NATIVE_FIRST_RUN_HANDOFF_KEY,
+      PREFERRED_CITY_KEY,
       SHELL_START_PATH,
+      ONBOARDING_PATH,
     ]) {
       expect(ENTRY_INIT_SOURCE).toContain(literal);
     }
@@ -172,10 +206,34 @@ describe("the entry rewrite is not the reader's own second route", () => {
     noteConsentRouteVisited("/onboarding", store);
     expect(store.getItem(CONSENT_ANSWER_MOMENT_KEY)).toBe("second-route");
 
-    resetConsentWaitForEntryRewrite(store);
+    resetConsentWaitForEntryRewrite("/onboarding", store);
 
     expect(store.getItem(CONSENT_ANSWER_MOMENT_KEY)).toBeNull();
     expect(store.getItem(CONSENT_FIRST_ROUTE_KEY)).toBeNull();
+  });
+
+  it("swallows the route the rewrite leaves, whichever effect runs first", () => {
+    // THE FIX HAD TO ASSUME AN EFFECT ORDER, AND THE DEVICE RUNS THE OTHER ONE.
+    // AppEntryRoute is inside {children} in app/layout.tsx and
+    // AnalyticsConsentPrompt is mounted after it, so React fires the reset
+    // BEFORE the landing route has been recorded at all. The reset then cleared
+    // an empty slot, the landing recorded itself as the first route anyway, and
+    // the destination read as the reader's own second route. Measured on the
+    // iPhone 17 Pro simulator against a local production build on 7 September
+    // 2026: the consent card sat on the first-run screen from 4403ms
+    // (docs/proof/mobile-shells-refresh/).
+    const store = memoryStorage();
+
+    resetConsentWaitForEntryRewrite(ONBOARDING_PATH, store);
+    noteConsentRouteVisited("/", store);
+    noteConsentRouteVisited(ONBOARDING_PATH, store);
+
+    expect(store.getItem(CONSENT_ANSWER_MOMENT_KEY)).toBeNull();
+    // The destination is the arrival, so the reader's NEXT route is their first
+    // real second route and the wait ends exactly one screen later.
+    expect(store.getItem(CONSENT_FIRST_ROUTE_KEY)).toBe(ONBOARDING_PATH);
+    noteConsentRouteVisited("/tonight", store);
+    expect(store.getItem(CONSENT_ANSWER_MOMENT_KEY)).toBe("second-route");
   });
 
   it("keeps an answer the product actually gave", () => {
@@ -183,7 +241,7 @@ describe("the entry rewrite is not the reader's own second route", () => {
     noteConsentRouteVisited("/", store);
     markConsentAnswerMoment("venue-sheet", store);
 
-    resetConsentWaitForEntryRewrite(store);
+    resetConsentWaitForEntryRewrite("/onboarding", store);
 
     expect(store.getItem(CONSENT_ANSWER_MOMENT_KEY)).toBe("venue-sheet");
   });

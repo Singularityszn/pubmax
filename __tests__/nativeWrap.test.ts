@@ -466,6 +466,24 @@ describe("Capacitor wrapped-build contract", () => {
     expect(manifest).toContain('android.permission.POST_NOTIFICATIONS');
   });
 
+  it("names the origin the rig actually loaded, not the one it usually loads", () => {
+    // THE LINE THAT TOLD THE OPERATOR HE WAS LOOKING AT PRODUCTION.
+    // `PUBMAX_NATIVE_SERVER_URL` points a rig at a local build, and both run
+    // scripts still printed the production origin at the end of a launch. An
+    // operator reading that line believes a checkout under review is what has
+    // shipped, which is the exact confusion this pass was opened to clear: the
+    // captain reported "still the old version" while looking at a stale build.
+    for (const script of [
+      "scripts/ios-simulator.mjs",
+      "scripts/android/run.mjs",
+    ]) {
+      const source = rootFile(script);
+      // The origin is read from the config seam, never retyped as a literal.
+      expect(source).not.toContain("The shell loads https://pubmaxxing.com");
+      expect(source).toContain("nativeServerUrl");
+    }
+  });
+
   it("keeps store identity, Android toolchain, and location answers truthful", () => {
     const readiness = rootFile("docs/STORE_READINESS.md");
     expect(readiness).toContain("Create the app record in App Store Connect: name PUBMAXXING");
