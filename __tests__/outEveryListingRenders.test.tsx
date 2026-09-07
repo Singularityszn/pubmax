@@ -185,9 +185,24 @@ describe("a night of unmatched listings renders rows, not an empty state", () =>
   });
 
   it("groups the rows under the night they are on", async () => {
+    // One night under a section heading that already names it needs no second
+    // heading, so the night is on the section's accessible name instead.
     await renderOut([unmatchedRow(0)]);
-    const heading = container.querySelector(".outGroupTitle");
-    expect(heading?.textContent).toBe("Tonight");
+    expect(container.querySelector(".outGroupTitle")).toBeNull();
+    expect(container.querySelector(".outGroup")?.getAttribute("aria-label")).toBe("Tonight");
+
+    // Two nights under one chip DO need their headings.
+    await act(async () => {
+      root?.unmount();
+    });
+    container.remove();
+    await renderOut([
+      unmatchedRow(0),
+      { ...unmatchedRow(1), startsAt: new Date(NOW + 24 * 60 * 60 * 1000).toISOString() },
+    ]);
+    expect(
+      [...container.querySelectorAll(".outGroupTitle")].map((node) => node.textContent),
+    ).toEqual(["Tonight", "Tomorrow"]);
   });
 
   it("credits the publishers under the list, never above it", async () => {

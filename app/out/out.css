@@ -186,7 +186,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 8px;
+  gap: 4px 10px;
   margin: 0;
   font-size: 0.85rem;
   line-height: 1.4;
@@ -207,11 +207,11 @@
   color: var(--ink-soft);
 }
 
-/* The dot is a SEPARATOR, so it prints only where there are two things to
-   separate: a listing whose source names no place must not open with one. */
-.outCardPlace + .outCardWhen::before {
-  content: "·";
-  margin-right: 8px;
+/* The gap is the separator. A punctuation mark between the place and the time
+   became an orphan at the head of a wrapped line, which is exactly the width
+   this meta line has to survive on a phone. */
+.outCardWhen {
+  white-space: nowrap;
 }
 
 .outPrice {

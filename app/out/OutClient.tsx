@@ -77,6 +77,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
   // Credit is owed for every row on screen, matched or not, so it is read off
   // the answer's own attribution rather than off the rows we could not place.
   const credits = body?.attribution ?? [];
+  const showGroupTitles = listingGroups.length > 1;
   const venueMatchNotice = outVenueMatchNotice(
     listingRows,
     day,
@@ -208,11 +209,19 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
             <section
               key={group.key}
               className="outGroup"
-              aria-labelledby={`out-group-${group.key}`}
+              {...(showGroupTitles
+                ? { "aria-labelledby": `out-group-${group.key}` }
+                : { "aria-label": group.label })}
             >
-              <h3 id={`out-group-${group.key}`} className="outGroupTitle">
-                {group.label}
-              </h3>
+              {/* One night under a heading that already names it printed
+                  "What's on tonight" over "Tonight". The night is named once:
+                  by the section title when there is one night, by the group
+                  headings when the chip covers several. */}
+              {showGroupTitles ? (
+                <h3 id={`out-group-${group.key}`} className="outGroupTitle">
+                  {group.label}
+                </h3>
+              ) : null}
               <ul className="outGroupList">
                 {group.rows.map((row) => (
                   <li key={row.id} className="outListingRow" data-testid="out-listing-row">
