@@ -494,8 +494,21 @@ describe("evaluateDataset — status + budget math", () => {
     expect(r.status).toBe("stale");
   });
 
-  it("reports live datasets without ageing them", () => {
+  it("will not call an unobserved live dataset healthy", () => {
+    // A live lane nobody observed is `unmeasured`, never `live`: `live` used to
+    // be answered unconditionally, which is a health claim about an upstream
+    // API this spine has never spoken to (finding F12).
     const r = evaluateDataset(dataset({ class: "live", artifact: null, stamp: null }), null, NOW);
+    expect(r.status).toBe("unmeasured");
+    expect(r.ageHours).toBeNull();
+  });
+
+  it("reports an observed live dataset as live, and still without ageing it", () => {
+    const r = evaluateDataset(
+      dataset({ class: "live", artifact: null, stamp: null }),
+      NOW.toISOString(),
+      NOW,
+    );
     expect(r.status).toBe("live");
     expect(r.ageHours).toBeNull();
   });
@@ -765,7 +778,7 @@ describe("evaluateRegistry + hasBreach", () => {
       (d) => ({ observedAt: stamps[d.id] ?? null, reason: null }),
       NOW,
     );
-    expect(results.map((r) => r.status)).toEqual(["fresh", "stale", "live"]);
+    expect(results.map((r) => r.status)).toEqual(["fresh", "stale", "unmeasured"]);
   });
 
   it("detects a breach when any dataset is stale or unknown", () => {

@@ -195,8 +195,21 @@ function evaluateDataset(dataset, observedAt, now, unresolvedReason = null) {
     observedAt,
   };
 
+  // Mirror of lib/freshness.ts: a live lane this spine holds no observation of
+  // is `unmeasured`, never a health claim. Neither fresh nor stale, so the gate
+  // below is untouched.
   if (dataset.class === "live") {
-    return { ...base, ageHours: null, status: "live", detail: "Served live per request." };
+    if (observedAt === null) {
+      return {
+        ...base,
+        ageHours: null,
+        status: "unmeasured",
+        detail:
+          unresolvedReason ??
+          "Served live per request, and this spine holds no observation of it. Only a probe can call it healthy.",
+      };
+    }
+    return { ...base, ageHours: null, status: "live", detail: "Served live per request, and observed." };
   }
   const packUnmeasurable = dataset.pack === true && unresolvedReason !== null;
   if ((dataset.stamp || packUnmeasurable) && observedAt === null) {
@@ -380,6 +393,7 @@ async function main() {
   console.log(formatFreshnessTable(results));
   const stale = results.filter((r) => r.status === "stale");
   const unknown = results.filter((r) => r.status === "unknown");
+  const unmeasured = results.filter((r) => r.status === "unmeasured");
   const unmeasurableHere = unknown.filter((r) => /unmeasurable without credentials/.test(r.detail ?? ""));
   const failed =
     stale.length > 0 || (requireStore ? unknown.length > 0 : unknown.length > unmeasurableHere.length);
@@ -395,6 +409,7 @@ async function main() {
       console.log("  UNRESOLVED (the age could not be determined):");
       for (const r of unknown) console.log(`    ? ${r.id}: ${r.detail}`);
     }
+    printUnmeasured(unmeasured);
     if (failed) {
       console.log(
         `\nFRESHNESS CHECK FAILED: ${stale.length} stale, ${unknown.length} unresolved of ${results.length} datasets.`,
@@ -407,7 +422,23 @@ async function main() {
     );
     return;
   }
-  console.log(`FRESHNESS CHECK PASSED: ${results.length} datasets within budget (or live/untracked/snapshot).`);
+  printUnmeasured(unmeasured);
+  console.log(
+    `FRESHNESS CHECK PASSED: ${results.length} datasets within budget (or live/untracked/snapshot), ` +
+      `${unmeasured.length} unmeasured.`,
+  );
+}
+
+/**
+ * A THIRD finding, printed apart from stale and unresolved and failing nothing.
+ * A lane nothing observed owes no refresh; the point is that it may not read as
+ * healthy while nobody has looked.
+ */
+function printUnmeasured(unmeasured) {
+  if (!unmeasured.length) return;
+  console.log("  UNMEASURED (served live; this spine holds no observation):");
+  for (const r of unmeasured) console.log(`    · ${r.id}: ${r.detail}`);
+  console.log("");
 }
 
 // Run as a CLI only when invoked directly, not when imported by validate-data.

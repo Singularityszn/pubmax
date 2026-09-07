@@ -2,6 +2,7 @@
 // Keeps claim/provenance amenity markup out of the 1k-line inspector body.
 
 import type { ClaimKind, Provenance } from "@/lib/curation";
+import type { AmenityStatus } from "@/lib/venueTruth";
 
 const PROVENANCE_LABEL: Record<Provenance, string> = {
   sourced: "Sourced",
@@ -27,6 +28,20 @@ export function ClaimBadge({ kind }: { kind: ClaimKind }) {
   return <span className={`provChip ${kind}`}>{CLAIM_KIND_LABEL[kind]}</span>;
 }
 
-export function Amenity({ active, label }: { active: boolean; label: string }) {
-  return <span className={active ? "amenity active" : "amenity"}>{label}</span>;
+/**
+ * ONE amenity, said as strongly as the source allows.
+ *
+ * An `unknown` renders NOTHING. A greyed chip beside a green one reads as a
+ * stated absence, and the bundled dataset states no absences at all: every
+ * amenity column carries yes-shaped values and blanks, so a grey "Beer garden"
+ * was a negative the product invented (finding F03). This is the same rule the
+ * accessibility chips under it already follow, which show a confirmed fact and
+ * never a "No".
+ */
+export function Amenity({ status, label }: { status: AmenityStatus; label: string }) {
+  if (status === "unknown") return null;
+  if (status === "known-false") {
+    return <span className="amenity amenity--absent">No {label.toLowerCase()}</span>;
+  }
+  return <span className="amenity">{label}</span>;
 }

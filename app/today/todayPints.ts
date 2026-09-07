@@ -16,6 +16,7 @@ import {
   resolveNightPatch,
   type RememberedArea,
 } from "@/lib/nightPatches";
+import { venueAreaClaim, type VenueAreaRelation } from "@/lib/venueTruth";
 import type { Venue } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
@@ -34,6 +35,14 @@ export type TodayPintRow = {
   priceLabel: string;
   /** Deep link to the venue on the map ({@link venueMapUrl}). */
   mapHref: string;
+  /**
+   * Whether this pub is IN the area the card names, or only near it
+   * (lib/venueTruth.ts). The area's radius is how far the list reaches, not a
+   * claim about where a pub is: the Three Tuns at the LSE student centre sits
+   * 0.87 of the way out of Piccadilly & Soho's disc and was printed as being
+   * in Soho.
+   */
+  areaRelation: VenueAreaRelation;
 };
 
 export type TodayPintsModule = {
@@ -73,17 +82,39 @@ export function buildTodayPintsForPatch(
     .slice(0, TODAY_PINTS_LIMIT);
   if (priced.length === 0) return null;
 
+  const byId = new Map(venues.map((venue) => [venue.id, venue]));
+
   return {
     patchId: patch.id,
     areaName: area.name,
-    rows: priced.map((row) => ({
-      id: row.id,
-      name: row.name,
-      price: row.price as number,
-      priceLabel: row.priceLabel,
-      mapHref: venueMapUrl(row.id),
-    })),
+    rows: priced.map((row) => {
+      const venue = byId.get(row.id);
+      return {
+        id: row.id,
+        name: row.name,
+        price: row.price as number,
+        priceLabel: row.priceLabel,
+        mapHref: venueMapUrl(row.id),
+        areaRelation: venue ? venueAreaClaim(venue, [area]).relation : "unplaced",
+      };
+    }),
   };
+}
+
+/**
+ * The card's heading, as strong as the rows under it allow.
+ *
+ * An area is a centre and a radius, and the radius is how far the list reaches
+ * rather than where a pub is (lib/venueTruth.ts). A heading that says "in" over
+ * a list where most rows say "just outside" argues with itself, and the list is
+ * ranked cheapest-first rather than by distance, so it over-samples the rim.
+ * The majority decides the preposition; a tie keeps the stronger word, because
+ * half the rows really are in the place the heading names.
+ */
+export function todayPintsHeading(module: Pick<TodayPintsModule, "areaName" | "rows">): string {
+  const outside = module.rows.filter((row) => row.areaRelation !== "inside").length;
+  const preposition = outside * 2 > module.rows.length ? "around" : "in";
+  return `The cheap ones ${preposition} ${module.areaName}.`;
 }
 
 /**

@@ -3340,22 +3340,34 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   margin: 10px 0;
 }
 
+/* A STATED fact about the pub. Only stated facts render here now (an unknown
+   draws nothing), so the chip carries no hue of its own: green used to mean
+   "yes" against a grey "no" and would now mean nothing, while colliding with
+   the cheap price band, which is `--pint` and is the ONE thing green may mean
+   on this sheet. It wears the accessibility chip's idiom instead, because the
+   two rows sit together and follow one rule. */
 .amenity {
   display: inline-flex;
   align-items: center;
   min-height: 25px;
   padding: 3px 9px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--brass);
   border-radius: 999px;
-  color: var(--muted);
-  font-size: 0.72rem;
+  background: var(--surface-tint-brass);
+  color: var(--color-text-soft);
+  font-size: 0.74rem;
   font-weight: 600;
+  line-height: 1.3;
 }
 
-.amenity.active {
-  border-color: rgba(47, 143, 91, 0.4);
-  background: rgba(47, 143, 91, 0.12);
-  color: var(--pint);
+/* A STATED absence. No source in this tree states one yet, so this renders
+   nowhere today; it exists so a source that does state one has a shape to
+   render into rather than borrowing the unknown's silence. */
+.amenity--absent {
+  border-color: var(--line);
+  border-style: dashed;
+  background: transparent;
+  color: var(--color-text-muted);
 }
 
 .contributorPrice {

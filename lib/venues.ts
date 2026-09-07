@@ -33,6 +33,13 @@ import {
 } from "@/lib/venueAccessibility";
 import type { VenueMenuCategoryTile } from "@/lib/venueMenuEnrichment";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
+import {
+  amenityStatusFromValues,
+  derivedAmenityStatus,
+  venueContactContract,
+  type AmenityStatus,
+  type VenueContactContract,
+} from "@/lib/venueTruth";
 import { parseZoneParam, venueMatchesZone } from "@/lib/zones";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 
@@ -165,6 +172,13 @@ export type Venue = {
   website: string;
   /** First http(s) booking_link from price rows — table booking CTA. */
   bookingLink: string;
+  /**
+   * The sanitized contact contract (lib/venueTruth.ts). Stamped by the reader
+   * that publishes a venue over the wire, which is also the reader that strips
+   * the raw contact columns off `prices`. Absent means nobody asked, never
+   * "this pub has no contacts": ask `venueContacts` for that.
+   */
+  contacts?: VenueContactContract;
   /** Curated menu page URL (detail enrichment overlay). */
   menuUrl?: string;
   /** Curated food-order URL (detail enrichment overlay; never invented). */
@@ -346,6 +360,85 @@ export const initialFilters: Filters = {
   // "" = all zones (no narrowing). The zone picker sets "1".."6".
   zone: "",
 };
+
+/**
+ * The source column each amenity is read from. `nonAlcoholic` is deliberately
+ * absent: it is derived from the pub's listed drink names, not a column, and
+ * `venueAmenityStatus` reads it through `derivedAmenityStatus`.
+ */
+export const AMENITY_SOURCE_COLUMNS = {
+  food: "food",
+  cocktails: "cocktails",
+  beerGarden: "beer_garden",
+  liveSports: "live_sports",
+  liveMusic: "live_music",
+  pubQuiz: "pub_quiz",
+  darts: "darts",
+  pool: "pool",
+  happyHour: "happy_hour",
+  karaoke: "karaoke",
+} as const satisfies Partial<Record<VenueAmenityKey, keyof VenuePrice>>;
+
+export type VenueAmenityKey = keyof Venue["amenities"];
+
+export type VenueAmenityStatus = Record<VenueAmenityKey, AmenityStatus>;
+
+/**
+ * WHAT THE SOURCE SAYS about each amenity, rather than what a boolean had to
+ * round it to. `Venue.amenities` stays exactly as it was, because every filter
+ * and score in this module already reads a `false` as "not known to be true",
+ * which is the right direction. This is for the surfaces that PRINT one, where
+ * a false read as a stated absence and invented a negative.
+ *
+ * Two layers, one rule. A venue holding its source rows is read from the
+ * columns. A venue built from the slim index holds no rows, so a slim `true` is
+ * a statement carried forward and a slim `false` is `unknown`, which is what a
+ * flag that only ever carries presence really means.
+ */
+export function venueAmenityStatus(
+  venue: Pick<Venue, "amenities"> & { prices?: readonly VenuePrice[] },
+): VenueAmenityStatus {
+  const rows = venue.prices ?? [];
+  const fromColumn = (key: Exclude<VenueAmenityKey, "nonAlcoholic">): AmenityStatus =>
+    rows.length === 0
+      ? derivedAmenityStatus(venue.amenities[key])
+      : amenityStatusFromValues(rows.map((row) => row[AMENITY_SOURCE_COLUMNS[key]]));
+  return {
+    food: fromColumn("food"),
+    cocktails: fromColumn("cocktails"),
+    beerGarden: fromColumn("beerGarden"),
+    liveSports: fromColumn("liveSports"),
+    liveMusic: fromColumn("liveMusic"),
+    pubQuiz: fromColumn("pubQuiz"),
+    darts: fromColumn("darts"),
+    pool: fromColumn("pool"),
+    happyHour: fromColumn("happyHour"),
+    karaoke: fromColumn("karaoke"),
+    nonAlcoholic: derivedAmenityStatus(venue.amenities.nonAlcoholic),
+  };
+}
+
+/**
+ * The sanitized contacts for one venue. Prefers a contract already stamped on
+ * the record (the API stamps one and strips the raw columns), otherwise reads
+ * the source rows. A phone column holding anything but a telephone number
+ * answers null here, so no reader can build a `tel:` from it.
+ */
+export function venueContacts(
+  venue: Pick<Venue, "website" | "bookingLink"> & {
+    contacts?: VenueContactContract;
+    prices?: readonly VenuePrice[];
+  },
+): VenueContactContract {
+  if (venue.contacts) return venue.contacts;
+  const rows = venue.prices ?? [];
+  return venueContactContract({
+    phone: rows.find((row) => row.phone_number)?.phone_number ?? "",
+    email: rows.find((row) => row.email)?.email ?? "",
+    website: venue.website,
+    bookingLink: venue.bookingLink,
+  });
+}
 
 export function truthyFlag(value: string): boolean {
   return ["yes", "true", "y", "1"].includes(String(value).trim().toLowerCase());

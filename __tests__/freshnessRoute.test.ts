@@ -48,6 +48,9 @@ describe("GET /api/freshness", () => {
       "stale",
       "untracked",
       "unknown",
+      // A live lane this spine holds no observation of. Never fresh, never
+      // stale, and never reported as healthy (finding F12).
+      "unmeasured",
     ]);
     for (const d of body.datasets) {
       expect(known.has(d.status)).toBe(true);

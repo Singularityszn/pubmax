@@ -14,6 +14,8 @@ import {
 import { priceStandingFor, type ConfirmedPriceInput } from "@/lib/priceTier";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { Amenity, ClaimBadge } from "@/components/map/venueInspectorBits";
+import { derivedAmenityStatus, type AmenityStatus } from "@/lib/venueTruth";
+import { venueAmenityStatus, type VenueAmenityStatus } from "@/lib/venues";
 import {
   COMMUNITY_PRICE_NOTE,
   formatFreshness,
@@ -551,6 +553,110 @@ function VenuePriceSummary({
   ) : null;
 }
 
+/**
+ * The amenity chips this tab may print, in the order a drinker cares about.
+ *
+ * A curation mark is evidence when it is there and nothing at all when it is
+ * not, so it takes `derivedAmenityStatus` rather than a boolean; the pub's own
+ * columns take `venueAmenityStatus`, the ONE reading of them. Everything that
+ * comes back `unknown` is dropped here, so the row holds only what somebody
+ * stated.
+ */
+function amenityChipsFor(
+  venue: Venue,
+  status: VenueAmenityStatus,
+): Array<{ key: string; label: string; status: AmenityStatus }> {
+  return [
+    { key: "nearWater", label: "Near water", status: derivedAmenityStatus(Boolean(venue.curation.nearWater)) },
+    { key: "heritage", label: "Heritage", status: derivedAmenityStatus(venue.hasStory) },
+    { key: "writerPick", label: "Writer's pick", status: derivedAmenityStatus(Boolean(venue.curation.writerPick)) },
+    { key: "beerGarden", label: "Beer garden", status: status.beerGarden },
+    { key: "nonAlcoholic", label: "Alcohol-free beer", status: status.nonAlcoholic },
+    { key: "liveSports", label: "Live sports", status: status.liveSports },
+    { key: "food", label: "Serves food", status: status.food },
+    { key: "cocktails", label: "Cocktails", status: status.cocktails },
+    { key: "pubQuiz", label: "Pub quiz", status: status.pubQuiz },
+  ].filter((chip) => chip.status !== "unknown");
+}
+
+/**
+ * The amenity row, or nothing. A venue nobody stated an amenity for renders no
+ * row at all rather than an empty box.
+ *
+ * Labels are reader-facing words, not data keys: "0.0" alone read as a leaked
+ * number and lowercase one-worders read as raw tags (owner audit). Sentence
+ * case, self-explanatory, still chip-short.
+ */
+function amenityRow(
+  chips: ReadonlyArray<{ key: string; label: string; status: AmenityStatus }>,
+) {
+  if (chips.length === 0) return null;
+  return (
+    <div className="amenityRow">
+      {chips.map(({ key, label, status }) => (
+        <Amenity key={key} status={status} label={label} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * What the kitchen is known to do, or nothing. Same shape as the markup it
+ * replaces: the sentence prints when food is stated, the chips print when there
+ * are any, and a pub with neither renders no row.
+ */
+function cuisineRow(servesFood: boolean, cuisineTags: readonly string[]) {
+  if (!servesFood && cuisineTags.length === 0) return null;
+  return (
+    <div className="cuisineRow" aria-label="Food and cuisine">
+      {servesFood ? (
+        <p className="cuisineServes">
+          <strong>Serves food</strong>
+          {cuisineTags.length === 0
+            ? ". Plates available; check the board for tonight’s kitchen."
+            : null}
+        </p>
+      ) : null}
+      {cuisineTags.length > 0 ? (
+        <div className="cuisineTags">
+          {cuisineTags.map((tag) => (
+            <span key={tag} className="cuisineChip">
+              {tag}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Only publicly-confirmed access facts, shown as chips, plus the quiet-hours
+ * line when there is one. A pub with no confirmed access facts shows nothing
+ * here, never a "No", per the provenance-honesty rule.
+ */
+function accessibilityRow(accessChips: readonly string[], quietHours: string | null) {
+  if (accessChips.length === 0 && !quietHours) return null;
+  return (
+    <>
+      {accessChips.length > 0 ? (
+        <div className="accessibilityChips" aria-label="Confirmed accessibility">
+          {accessChips.map((label) => (
+            <span key={label} className="accessibilityChip">
+              {label}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {quietHours ? (
+        <p className="accessibilityQuietHours">
+          <strong>Quiet hours:</strong> {quietHours}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 export default function VenueOverviewTab({
   venue,
   tab,
@@ -648,6 +754,16 @@ export default function VenueOverviewTab({
   // facets render nothing — never a "No" — per the provenance-honesty rule.
   const accessChips = accessibilityChipLabels(venue);
   const quietHours = quietHoursLabel(venue);
+
+  const amenityStatus = useMemo(() => venueAmenityStatus(venue), [venue]);
+  const servesFood = amenityStatus.food === "known-true";
+  // The cuisine row below prints "Serves food" in words whenever it is known,
+  // so the chip would say it twice on one sheet. The shorter row makes that
+  // visible; drop the chip and let the sentence carry it.
+  const amenityChips = useMemo(
+    () => amenityChipsFor(venue, amenityStatus).filter((chip) => chip.key !== "food"),
+    [venue, amenityStatus],
+  );
 
   // Soft cuisine chips (Wave E) — curated id map ∪ searchText keywords.
   const cuisineTags = useMemo(
@@ -817,57 +933,9 @@ export default function VenueOverviewTab({
       {/* Fresh-facts layer (Cycle 15 Lane A): an engraved brass plaque when a
           venue-matched award fact exists for this pin. Renders nothing otherwise. */}
       <VenueAwardBadge venueId={venue.id} />
-      <div className="amenityRow">
-        {/* Labels are reader-facing words, not data keys: "0.0" alone read as
-            a leaked number and lowercase one-worders read as raw tags (owner
-            audit). Sentence case, self-explanatory, still chip-short. */}
-        <Amenity active={Boolean(venue.curation.nearWater)} label="Near water" />
-        <Amenity active={venue.hasStory} label="Heritage" />
-        <Amenity active={Boolean(venue.curation.writerPick)} label="Writer's pick" />
-        <Amenity active={venue.amenities.beerGarden} label="Beer garden" />
-        <Amenity active={venue.amenities.nonAlcoholic} label="Alcohol-free beer" />
-        <Amenity active={venue.amenities.liveSports} label="Live sports" />
-        <Amenity active={venue.amenities.food} label="Serves food" />
-        <Amenity active={venue.amenities.cocktails} label="Cocktails" />
-        <Amenity active={venue.amenities.pubQuiz} label="Pub quiz" />
-      </div>
-      {venue.amenities.food || cuisineTags.length > 0 ? (
-        <div className="cuisineRow" aria-label="Food and cuisine">
-          {venue.amenities.food ? (
-            <p className="cuisineServes">
-              <strong>Serves food</strong>
-              {cuisineTags.length === 0
-                ? ". Plates available; check the board for tonight’s kitchen."
-                : null}
-            </p>
-          ) : null}
-          {cuisineTags.length > 0 ? (
-            <div className="cuisineTags">
-              {cuisineTags.map((tag) => (
-                <span key={tag} className="cuisineChip">
-                  {tag}
-                </span>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-      {/* Accessibility — only publicly-confirmed facts, shown as chips. A pub
-          with no confirmed access facts shows nothing here (never a "No"). */}
-      {accessChips.length > 0 ? (
-        <div className="accessibilityChips" aria-label="Confirmed accessibility">
-          {accessChips.map((label) => (
-            <span key={label} className="accessibilityChip">
-              {label}
-            </span>
-          ))}
-        </div>
-      ) : null}
-      {quietHours ? (
-        <p className="accessibilityQuietHours">
-          <strong>Quiet hours:</strong> {quietHours}
-        </p>
-      ) : null}
+      {amenityRow(amenityChips)}
+      {cuisineRow(servesFood, cuisineTags)}
+      {accessibilityRow(accessChips, quietHours)}
           <VenueWeatherRecommendations
             key={`weather-recommendations-${venue.id}`}
             venueId={venue.id}

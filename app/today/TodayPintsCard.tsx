@@ -19,9 +19,11 @@ import { ArrowRight, Beer } from "lucide-react";
 
 import { formatPintDatasetSnapshot } from "@/lib/dataFreshness";
 import { readRememberedArea } from "@/lib/nightPatches";
+import { AREA_NEARBY_ROW_TAG } from "@/lib/venueTruth";
 
 import {
   resolveTodayPintsPatchId,
+  todayPintsHeading,
   type TodayPintsIndex,
   type TodayPintsModule,
 } from "./todayPints";
@@ -87,7 +89,7 @@ export default function TodayPintsCard({ index }: Props) {
             {eyebrow(hasRememberedLocality)}
           </p>
           <h2 className="todayCardTitle" id="today-pints-title">
-            The cheap ones in {pints.areaName}.
+            {todayPintsHeading(pints)}
           </h2>
         </div>
       </div>
@@ -96,7 +98,19 @@ export default function TodayPintsCard({ index }: Props) {
         {pints.rows.map((row) => (
           <li key={row.id} className="todayPintRow">
             <Link className="todayPintLink pressable" href={row.mapHref}>
-              <span className="todayPintName">{row.name}</span>
+              <span className="todayPintName">
+                {/* The name carries the hover underline on its own. Text
+                    decoration propagates to in-flow children and a child cannot
+                    cancel it, so underlining the whole row would drag the
+                    qualifier under with it. */}
+                <span className="todayPintNameText">{row.name}</span>
+                {/* The heading names one area. A row that only sits NEAR it says
+                    so on its own row rather than borrowing the heading's claim
+                    (lib/venueTruth.ts, "nearby is not inside"). */}
+                {row.areaRelation === "nearby" ? (
+                  <span className="todayPintNearby">{AREA_NEARBY_ROW_TAG}</span>
+                ) : null}
+              </span>
               <PriceBadge
                 className="todayPintPrice"
                 band={priceBand(row.price, priceBandAreaForVenue(row.id))}

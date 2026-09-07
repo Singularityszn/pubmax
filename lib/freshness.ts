@@ -75,6 +75,9 @@ export interface FreshnessRegistry {
  *  - stale     — a budget breach (owner-visible; never a build break).
  *  - untracked — intentionally not budgeted (static / episodic / user-cadence).
  *  - unknown   — expected a stamp but couldn't resolve one (missing/broken file).
+ *  - unmeasured — served per request from somewhere this spine cannot read, so
+ *                 it holds no observation of it at all. Never fresh, never
+ *                 stale, and never a breach: only a probe could say.
  */
 export type FreshnessStatus =
   | "live"
@@ -82,7 +85,8 @@ export type FreshnessStatus =
   | "snapshot"
   | "stale"
   | "untracked"
-  | "unknown";
+  | "unknown"
+  | "unmeasured";
 
 /**
  * How old a POINT-IN-TIME dataset may be before the spine names it a snapshot
@@ -369,8 +373,30 @@ export function evaluateDataset(
     observedAt,
   } as const;
 
+  // A LIVE LANE IS NOT A HEALTHY LANE UNTIL SOMETHING OBSERVED IT.
+  //
+  // This used to answer "live" unconditionally, which is a health claim about
+  // an upstream API nothing here has spoken to: all seven live lanes declare no
+  // artifact and no stamp, so the spine held zero evidence and reported them
+  // green for ever (finding F12). A live lane that DID resolve an observation
+  // keeps `live` and carries its age. One that resolved none is `unmeasured`,
+  // which is neither fresh nor stale and never a breach, so the release gate is
+  // untouched and the word stops promising something nobody measured.
   if (dataset.class === "live") {
-    return { ...base, ageHours: null, status: "live", detail: "Served live per request." };
+    if (observedAt === null) {
+      return {
+        ...base,
+        ageHours: null,
+        status: "unmeasured",
+        detail:
+          unresolvedReason ??
+          "Served live per request, and this spine holds no observation of it. Only a probe can call it healthy.",
+      };
+    }
+    // Still no age. A live lane is answered per request, so its DATA has no
+    // age to report; what a stamp says here is only that somebody observed the
+    // lane at all, which is the difference between `live` and `unmeasured`.
+    return { ...base, ageHours: null, status: "live", detail: "Served live per request, and observed." };
   }
 
   // A dataset that declares a stamp but couldn't produce one has a real
@@ -490,6 +516,17 @@ export function staleFeeds(results: readonly FreshnessResult[]): FreshnessResult
 /** Feeds that promised a stamp and could not produce one. Never "fresh". */
 export function unresolvedFeeds(results: readonly FreshnessResult[]): FreshnessResult[] {
   return results.filter((r) => r.status === "unknown");
+}
+
+/**
+ * Feeds this spine holds no observation of at all. A THIRD finding, kept apart
+ * from both of the above: a stale feed is late, an unresolved feed promised a
+ * stamp and broke, and an unmeasured one never promised one. Reporting an
+ * unmeasured lane as healthy is the older defect; failing the gate over it
+ * would be the mirror mistake, because nothing is owed.
+ */
+export function unmeasuredFeeds(results: readonly FreshnessResult[]): FreshnessResult[] {
+  return results.filter((r) => r.status === "unmeasured");
 }
 
 /**
