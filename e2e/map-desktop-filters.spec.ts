@@ -79,6 +79,12 @@ for (const viewport of DESKTOP) {
       });
       expect(order.filter).toBeGreaterThan(order.search);
 
+      // The toolbar's search field is a lazy chunk, so it can arrive after the
+      // toolbar does. Wait for it rather than measuring an absent box.
+      await expect(page.locator(".mapToolbar .mapToolbarSearch input")).toBeVisible({
+        timeout: 30_000,
+      });
+
       // Rendered geometry, not source order: a control the row squeezes to
       // nothing overlaps the search field beside it, and no source fence sees
       // that. The two boxes may not intersect.
@@ -97,12 +103,16 @@ for (const viewport of DESKTOP) {
               inputWidth: input.width,
               filterLeft: filter.left,
               filterWidth: filter.width,
+              filterHeight: filter.height,
             }
           : null;
       });
       expect(boxes, "search and Filters both rendered").not.toBeNull();
       expect(boxes!.filterLeft).toBeGreaterThanOrEqual(boxes!.inputRight - 0.5);
-      expect(boxes!.filterWidth).toBeGreaterThan(40);
+      // A control a thumb has to hit is 44px in both directions, and dropping
+      // the word under 900px leaves the icon and the count measuring 37px.
+      expect(boxes!.filterWidth).toBeGreaterThanOrEqual(44);
+      expect(boxes!.filterHeight).toBeGreaterThanOrEqual(44);
       // A field narrower than this reads a postcode and nothing else.
       expect(boxes!.inputWidth).toBeGreaterThan(120);
 

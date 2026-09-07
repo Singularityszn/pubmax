@@ -51,8 +51,13 @@ describe("desktop venue sheet chrome fit", () => {
   });
 
   it("lets the search field shrink with its cell instead of overflowing it", () => {
-    // The resting floors are real, and they are what the open sheet has to lift.
-    expect(searchCss).toMatch(/\.mapSearchSuggest--toolbar\s*{[^}]*min-width:\s*260px/);
+    // The resting floor is real, and it is what the open sheet has to lift. It
+    // came DOWN from 260px when the row grew one more control (PlanAstra item
+    // 9): measured at 1440, the cell the row gave the field was 234px, and a
+    // flex item cannot shrink past its own min-width, so the input overflowed
+    // by 26px and its text ran under the control beside it. 176px still reads a
+    // London venue name.
+    expect(searchCss).toMatch(/\.mapSearchSuggest--toolbar\s*{[^}]*min-width:\s*176px/);
 
     const suggest =
       toolbarCss.match(

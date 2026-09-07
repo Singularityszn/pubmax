@@ -11,6 +11,13 @@
   flex: 0 0 auto;
 }
 
+/* Icon and count alone measure 37px wide once the word is dropped, and a
+   control a thumb has to hit is 44px in BOTH directions. The row's family
+   gives the height; this gives the width. */
+.mapVenueKindFilterBtn {
+  min-width: 44px;
+}
+
 /* The button itself wears the toolbar row's own family
    (components/map/mapToolbar.css): one button system, so this file adds only
    what is this control's alone - the focus ring, the count, and the panel. */
