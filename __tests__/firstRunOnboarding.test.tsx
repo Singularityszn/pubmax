@@ -11,8 +11,11 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("next/image", () => ({
   default: (props: Record<string, unknown>) => {
-    const { fill, priority, sizes, ...rest } = props;
-    return createElement("img", rest);
+    const imageProps = { ...props };
+    delete imageProps.fill;
+    delete imageProps.priority;
+    delete imageProps.sizes;
+    return createElement("img", imageProps);
   },
 }));
 

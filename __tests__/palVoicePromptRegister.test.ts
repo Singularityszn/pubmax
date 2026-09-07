@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import {
   PAL_VOICE_GET_HOME_REGISTER_INTRO,

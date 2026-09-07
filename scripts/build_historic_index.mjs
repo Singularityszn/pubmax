@@ -415,25 +415,24 @@ export function buildHistoricPublication({
     const count = usedSlugs.get(base) ?? 0;
     usedSlugs.set(base, count + 1);
     const slug = count === 0 ? base : `${base}-${count + 1}`;
-    const { _eraSort, ...rest } = rec;
     // Emit keys in the documented schema order.
     return {
-      venueId: rest.venueId,
-      name: rest.name,
+      venueId: rec.venueId,
+      name: rec.name,
       slug,
-      borough: rest.borough,
-      lat: rest.lat,
-      lng: rest.lng,
-      hook: rest.hook,
-      facts: rest.facts,
-      era: rest.era,
-      dateValue: rest.dateValue,
-      datePrecision: rest.datePrecision,
-      dateType: rest.dateType,
-      dateLabel: rest.dateLabel,
-      listed: rest.listed,
-      sourced: rest.sourced,
-      ...(rest.venueStatus ? { venueStatus: rest.venueStatus } : {}),
+      borough: rec.borough,
+      lat: rec.lat,
+      lng: rec.lng,
+      hook: rec.hook,
+      facts: rec.facts,
+      era: rec.era,
+      dateValue: rec.dateValue,
+      datePrecision: rec.datePrecision,
+      dateType: rec.dateType,
+      dateLabel: rec.dateLabel,
+      listed: rec.listed,
+      sourced: rec.sourced,
+      ...(rec.venueStatus ? { venueStatus: rec.venueStatus } : {}),
     };
   });
 
