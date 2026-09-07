@@ -447,21 +447,139 @@ const REFUSED_HOSTS = new Set([
  * our own infrastructure a question in the name of a pub. The cloud metadata
  * address (169.254.169.254) is the sharpest case and the reason this is a
  * REFUSAL rather than an ordinary miss.
+ *
+ * THE FAMILY IS DECIDED FIRST, and an address is read as an ADDRESS rather than
+ * as a prefix. Reading the hostname as a string admitted the metadata address
+ * in the one spelling a crafted value would use - the WHATWG parser normalises
+ * `http://[::ffff:169.254.169.254]/` to `[::ffff:a9fe:a9fe]`, which is neither
+ * `::1` nor dotted-quad shaped - and it refused every real pub whose name began
+ * `fc` or `fd`, because a unique-local test written as `startsWith` was applied
+ * to ordinary domains.
+ *
+ * What this cannot do is resolve a name: a DNS host that ANSWERS with a private
+ * address is not covered by a pre-resolution check. The controls for that are
+ * `harvestRedirectLanding`, which re-asks this predicate about the page a chain
+ * landed on, and, if this gate ever guards a request-time route, an address
+ * check after resolution.
  */
 function namesOurOwnNetwork(hostname: string): boolean {
+  const bracketed = hostname.startsWith("[") && hostname.endsWith("]");
   const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
   if (host === "localhost" || host.endsWith(".localhost")) return true;
-  if (host === "::1" || host.startsWith("fc") || host.startsWith("fd")) return true;
   if (host.endsWith(".local") || host.endsWith(".internal")) return true;
+  // A colon is never part of a DNS name, so anything holding one is an IPv6
+  // literal and is judged as one - including a literal we cannot parse, which
+  // fails closed rather than walking through the dotted-quad regex below.
+  if (bracketed || host.includes(":")) return namesOurOwnIpv6Network(host);
+  return namesOurOwnIpv4Address(host);
+}
+
+/** The v4 rules, over a dotted quad. */
+function namesOurOwnIpv4Address(host: string): boolean {
   const octets = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
   if (!octets) return false;
   const [first, second] = octets.slice(1).map(Number);
   if (first === undefined || second === undefined) return false;
+  return namesOurOwnIpv4Octets(first, second);
+}
+
+function namesOurOwnIpv4Octets(first: number, second: number): boolean {
   if (first === 0 || first === 127) return true;
   if (first === 10) return true;
   if (first === 169 && second === 254) return true;
   if (first === 172 && second >= 16 && second <= 31) return true;
   if (first === 192 && second === 168) return true;
+  return false;
+}
+
+/**
+ * The eight hextets of an IPv6 literal, or null when the text is not one.
+ *
+ * Handles the spellings a URL can carry: zero compression (`::`), a trailing
+ * embedded dotted quad (`::ffff:169.254.169.254`), and a zone id (`%eth0`),
+ * which names an interface of THIS machine and is stripped before the address
+ * is read.
+ */
+function parseIpv6Hextets(value: string): number[] | null {
+  let text = value.split("%")[0] ?? "";
+  if (!text || !text.includes(":")) return null;
+
+  // A trailing dotted quad is rewritten as the two hextets it IS, so there is
+  // one parser rather than two shapes of one.
+  const lastColon = text.lastIndexOf(":");
+  const tail = text.slice(lastColon + 1);
+  if (tail.includes(".")) {
+    const octets = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(tail);
+    if (!octets) return null;
+    const parts = octets.slice(1).map(Number);
+    if (parts.some((part) => part > 255)) return null;
+    const [a = 0, b = 0, c = 0, d = 0] = parts;
+    const high = ((a << 8) | b).toString(16);
+    const low = ((c << 8) | d).toString(16);
+    text = `${text.slice(0, lastColon + 1)}${high}:${low}`;
+  }
+
+  const halves = text.split("::");
+  if (halves.length > 2) return null;
+
+  const readGroups = (part: string): number[] | null => {
+    if (!part) return [];
+    const groups: number[] = [];
+    for (const group of part.split(":")) {
+      if (!/^[0-9a-f]{1,4}$/.test(group)) return null;
+      groups.push(Number.parseInt(group, 16));
+    }
+    return groups;
+  };
+
+  const left = readGroups(halves[0] ?? "");
+  const right = halves.length === 2 ? readGroups(halves[1] ?? "") : [];
+  if (left === null || right === null) return null;
+
+  if (halves.length === 2) {
+    const zeros = 8 - left.length - right.length;
+    if (zeros < 1) return null;
+    return [...left, ...Array<number>(zeros).fill(0), ...right];
+  }
+  return left.length === 8 ? left : null;
+}
+
+/** The v4 address an IPv6 literal EMBEDS, as `[first, second]`, or null. */
+function embeddedIpv4Octets(hextets: number[]): number[] | null {
+  const at = (index: number): number => hextets[index] ?? 0;
+  const fromPair = (high: number, low: number): number[] => [
+    (high >> 8) & 0xff,
+    high & 0xff,
+    (low >> 8) & 0xff,
+    low & 0xff,
+  ];
+  const leadingZero = at(0) === 0 && at(1) === 0 && at(2) === 0 && at(3) === 0 && at(4) === 0;
+  // ::ffff:a.b.c.d (mapped) and ::a.b.c.d (deprecated compatible).
+  if (leadingZero && (at(5) === 0xffff || at(5) === 0)) return fromPair(at(6), at(7));
+  // 64:ff9b::/96, the well-known NAT64 prefix, which a gateway translates back
+  // to the v4 address it embeds.
+  if (at(0) === 0x0064 && at(1) === 0xff9b && at(2) === 0 && at(3) === 0
+    && at(4) === 0 && at(5) === 0) return fromPair(at(6), at(7));
+  // 2002::/16, 6to4, which embeds the v4 address in the next two hextets.
+  if (at(0) === 0x2002) return fromPair(at(1), at(2));
+  return null;
+}
+
+/** The v6 rules, by first-hextet RANGE rather than by string prefix. */
+function namesOurOwnIpv6Network(host: string): boolean {
+  const hextets = parseIpv6Hextets(host);
+  if (!hextets) return true;
+  const first = hextets[0] ?? 0;
+  const embedded = embeddedIpv4Octets(hextets);
+  if (embedded) {
+    const [a, b] = embedded;
+    if (namesOurOwnIpv4Octets(a ?? 0, b ?? 0)) return true;
+  }
+  // ::1 loopback and :: unspecified, which binds to every local interface.
+  if (hextets.every((hextet, index) => (index === 7 ? hextet <= 1 : hextet === 0))) return true;
+  if (first >= 0xfc00 && first <= 0xfdff) return true; // fc00::/7, unique local
+  if (first >= 0xfe80 && first <= 0xfebf) return true; // fe80::/10, link-local
+  if (first >= 0xfec0 && first <= 0xfeff) return true; // fec0::/10, site-local
   return false;
 }
 

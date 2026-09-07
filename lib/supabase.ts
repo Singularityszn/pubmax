@@ -58,24 +58,32 @@ export function isSupabaseConfigured(): boolean {
 }
 
 export function requiresSupabaseStore(): boolean {
+  // The production check comes FIRST, and every escape sits below it. A
+  // deployed Vercel Production process must refuse the in-memory store however
+  // it was started: NEXT_PHASE is an ordinary environment variable, a Vercel
+  // dashboard variable applies to Build and Runtime alike, and one operator
+  // setting it there used to return the whole app to the process-memory
+  // fallback #1569 exists to refuse - answering 200 to writes that evaporate on
+  // the next cold start. This ordering is the same rule PUBMAX_E2E_KEYLESS has
+  // always followed: an escape hatch may not opt production into ephemeral
+  // stores. A real Vercel Production build carries the keys, so
+  // isSupabaseConfigured() is true and lib/storeBackend never reaches here.
+  if (process.env.VERCEL_ENV === "production") return true;
   // A BUILD is not a runtime. `next build` sets NODE_ENV=production, so a
   // keyless runner satisfies isDeployedProduction() while it collects page data
   // and prerenders static pages - and lib/storeBackend's selectStore then threw
   // over /today, which reads the weather snapshot store at prerender. Nothing a
   // build writes can be lost, because no request exists yet. lib/serverEnv
   // already skips its startup assertions for exactly this reason and on exactly
-  // this signal; both now read it from the one leaf that owns it. Next never
-  // sets this phase on a server answering requests, so a real Vercel Production
-  // request with a misconfigured key still refuses.
+  // this signal; both now read it from the one leaf that owns it. No CI job
+  // here sets VERCEL_ENV at all, so a keyless build still falls through to this
+  // line.
   if (isProductionBuildPhase()) return false;
   // Keep the runtime store guard aligned with lib/serverEnv's startup guard:
   // Playwright's production-style keyless server deliberately runs with
   // PUBMAX_E2E_KEYLESS=1 so local/mobile QA can exercise real write paths
-  // against the in-memory stores. A real Vercel Production deploy ignores the
-  // escape hatch — setting it there must not opt production into ephemeral
-  // stores. This helper controls storage only; trusted signing has an
-  // independent fail-closed production policy.
-  if (process.env.VERCEL_ENV === "production") return true;
+  // against the in-memory stores. This helper controls storage only; trusted
+  // signing has an independent fail-closed production policy.
   if (process.env.PUBMAX_E2E_KEYLESS === "1") return false;
   return isDeployedProduction();
 }

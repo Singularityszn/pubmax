@@ -11,6 +11,41 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/**
+ * The wire carries `amenityStatus` and no amenity booleans, so every result is
+ * the payload PLUS the record this tree rebuilds from that status. The stub
+ * payloads below state nothing, so every answer is unknown and every boolean is
+ * false, which is the "not known to be true" every filter already reads.
+ */
+const UNKNOWN_AMENITIES = {
+  amenityStatus: {
+    food: "unknown",
+    cocktails: "unknown",
+    beerGarden: "unknown",
+    liveSports: "unknown",
+    liveMusic: "unknown",
+    pubQuiz: "unknown",
+    darts: "unknown",
+    pool: "unknown",
+    happyHour: "unknown",
+    karaoke: "unknown",
+    nonAlcoholic: "unknown",
+  },
+  amenities: {
+    food: false,
+    cocktails: false,
+    beerGarden: false,
+    liveSports: false,
+    liveMusic: false,
+    pubQuiz: false,
+    darts: false,
+    pool: false,
+    happyHour: false,
+    karaoke: false,
+    nonAlcoholic: false,
+  },
+};
+
 describe("warmVenueDetail", () => {
   it("caches a successful venue detail for the session", async () => {
     const venue = { id: "venue-1", name: "The Crown" };
@@ -23,9 +58,10 @@ describe("warmVenueDetail", () => {
     const first = await warmVenueDetail("venue-1");
     const second = await warmVenueDetail("venue-1");
 
-    expect(first).toEqual({ status: "found", venue });
-    expect(second).toEqual({ status: "found", venue });
-    expect(getWarmedVenue("venue-1")).toEqual(venue);
+    const rebuilt = { ...venue, ...UNKNOWN_AMENITIES };
+    expect(first).toEqual({ status: "found", venue: rebuilt });
+    expect(second).toEqual({ status: "found", venue: rebuilt });
+    expect(getWarmedVenue("venue-1")).toEqual(rebuilt);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -48,11 +84,11 @@ describe("warmVenueDetail", () => {
     const [ra, rb] = await Promise.all([a, b]);
     expect(ra).toEqual({
       status: "found",
-      venue: { id: "venue-2", name: "The Anchor" },
+      venue: { id: "venue-2", name: "The Anchor", ...UNKNOWN_AMENITIES },
     });
     expect(rb).toEqual({
       status: "found",
-      venue: { id: "venue-2", name: "The Anchor" },
+      venue: { id: "venue-2", name: "The Anchor", ...UNKNOWN_AMENITIES },
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -72,7 +108,7 @@ describe("warmVenueDetail", () => {
     expect(await warmVenueDetail("venue-3")).toEqual({ status: "failed" });
     expect(await warmVenueDetail("venue-3")).toEqual({
       status: "found",
-      venue: { id: "venue-3", name: "Retry Arms" },
+      venue: { id: "venue-3", name: "Retry Arms", ...UNKNOWN_AMENITIES },
     });
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
@@ -85,8 +121,9 @@ describe("warmVenueDetail", () => {
       json: async () => ({ venue }),
     }));
 
-    expect(await warmVenueDetail("venue-alias")).toEqual({ status: "found", venue });
-    expect(getWarmedVenue("venue-alias")).toEqual(venue);
-    expect(getWarmedVenue("venue-canonical")).toEqual(venue);
+    const rebuilt = { ...venue, ...UNKNOWN_AMENITIES };
+    expect(await warmVenueDetail("venue-alias")).toEqual({ status: "found", venue: rebuilt });
+    expect(getWarmedVenue("venue-alias")).toEqual(rebuilt);
+    expect(getWarmedVenue("venue-canonical")).toEqual(rebuilt);
   });
 });

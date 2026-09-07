@@ -11,6 +11,7 @@ import {
 import { resetVenueAliasesForTests } from "@/lib/venueAliases";
 import { resetUkPriceBundleForTests } from "@/lib/ukPriceBundle.server";
 import { isValidUkPriceBundleRow } from "@/lib/ukPriceBundle";
+import { venueFromDetailPayload } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
 const ROOT = path.resolve(__dirname, "..");
@@ -105,11 +106,41 @@ describe("GET /api/venue/[id]", () => {
     const body = await res.json();
     expect(body.venue.amenityStatus).toBeDefined();
     // Every column on this pub is blank, so every answer is unknown and not one
-    // is false. The booleans stay for the filter machinery that already reads a
-    // false as "not known to be true".
+    // is false.
     for (const [key, status] of Object.entries(body.venue.amenityStatus)) {
       expect(status, key).toBe("unknown");
     }
+    // AND THE BOOLEANS ARE NOT ON THE WIRE. They stay on the record for the
+    // filter machinery, which already reads a false as "not known to be true";
+    // an API caller has no such rule, so shipping `"food": false` beside
+    // `"food": "unknown"` published an invented negative about a blank column.
+    expect(body.venue).not.toHaveProperty("amenities");
+    expect(JSON.stringify(body)).not.toContain('"amenities"');
+  });
+
+  it("hands the browser back a record built from the status, never an invented No", async () => {
+    // The map's own filters and scores read a false as "not known to be true",
+    // so the browser rebuilds that record from the answer the wire carries.
+    // Only a stated presence becomes true, which is why nothing is invented on
+    // the way back in.
+    const res = await GET(
+      new Request("http://localhost/api/venue/venue-p7p18j"),
+      ctx("venue-p7p18j"),
+    );
+    const body = await res.json();
+    const venue = venueFromDetailPayload(body.venue);
+    expect(venue.amenityStatus).toEqual(body.venue.amenityStatus);
+    for (const [key, stated] of Object.entries(venue.amenities)) {
+      expect(stated, key).toBe(false);
+      expect(venue.amenityStatus?.[key as keyof typeof venue.amenities], key).toBe("unknown");
+    }
+    // And a stated presence survives the round trip as a true.
+    const stated = venueFromDetailPayload({
+      ...body.venue,
+      amenityStatus: { ...body.venue.amenityStatus, beerGarden: "known-true" },
+    });
+    expect(stated.amenities.beerGarden).toBe(true);
+    expect(stated.amenities.food).toBe(false);
   });
 
   it("will not say a group is likely to get in over an unknown door", async () => {

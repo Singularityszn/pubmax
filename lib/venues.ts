@@ -35,6 +35,7 @@ import type { VenueMenuCategoryTile } from "@/lib/venueMenuEnrichment";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import {
   amenityStatusFromValues,
+  contactValueIsPublishable,
   derivedAmenityStatus,
   venueContactContract,
   type AmenityStatus,
@@ -179,6 +180,15 @@ export type Venue = {
    * "this pub has no contacts": ask `venueContacts` for that.
    */
   contacts?: VenueContactContract;
+  /**
+   * WHAT THE SOURCE SAYS about each amenity. Stamped by the reader that
+   * publishes a venue over the wire, which is also the reader that strips the
+   * `amenities` booleans off it: a blank column is UNKNOWN, and a boolean
+   * cannot hold that, so a `false` on the wire read as a stated absence
+   * (finding F03). Absent means nobody asked, never "nothing is known": ask
+   * `venueAmenityStatus` for that.
+   */
+  amenityStatus?: VenueAmenityStatus;
   /** Curated menu page URL (detail enrichment overlay). */
   menuUrl?: string;
   /** Curated food-order URL (detail enrichment overlay; never invented). */
@@ -396,12 +406,21 @@ export type VenueAmenityStatus = Record<VenueAmenityKey, AmenityStatus>;
  * flag that only ever carries presence really means.
  */
 export function venueAmenityStatus(
-  venue: Pick<Venue, "amenities"> & { prices?: readonly VenuePrice[] },
+  venue: {
+    amenities?: Venue["amenities"];
+    amenityStatus?: VenueAmenityStatus;
+    prices?: readonly VenuePrice[];
+  },
 ): VenueAmenityStatus {
+  // A record the wire already stamped answers for itself, the way `contacts`
+  // does: that reader strips the booleans, so recomputing from an absent map
+  // would answer unknown over a pub whose columns it had already read.
+  if (venue.amenityStatus) return venue.amenityStatus;
   const rows = venue.prices ?? [];
+  const amenities = venue.amenities;
   const fromColumn = (key: Exclude<VenueAmenityKey, "nonAlcoholic">): AmenityStatus =>
     rows.length === 0
-      ? derivedAmenityStatus(venue.amenities[key])
+      ? derivedAmenityStatus(amenities?.[key] === true)
       : amenityStatusFromValues(rows.map((row) => row[AMENITY_SOURCE_COLUMNS[key]]));
   return {
     food: fromColumn("food"),
@@ -414,7 +433,51 @@ export function venueAmenityStatus(
     pool: fromColumn("pool"),
     happyHour: fromColumn("happyHour"),
     karaoke: fromColumn("karaoke"),
-    nonAlcoholic: derivedAmenityStatus(venue.amenities.nonAlcoholic),
+    nonAlcoholic: derivedAmenityStatus(amenities?.nonAlcoholic === true),
+  };
+}
+
+/**
+ * WHAT A VENUE DETAIL PAYLOAD IS, once it is back in the browser.
+ *
+ * `GET /api/venue/[id]` publishes `amenityStatus` and STRIPS the `amenities`
+ * booleans, because a blank column is unknown and a boolean cannot hold that:
+ * the body used to ship `"food": false` beside `"food": "unknown"` about one
+ * pub. Inside this tree a false is read as "not known to be true" by every
+ * filter and score, which is the right direction and is the rule those readers
+ * were written against, so the map's own record is rebuilt HERE from the
+ * status: `known-true` is the only answer that becomes true. Nothing is
+ * invented and nothing downstream changes; the invented negative simply never
+ * leaves the server.
+ *
+ * The status rides along, so a surface that PRINTS an amenity keeps the three
+ * answers rather than the two.
+ */
+export function venueFromDetailPayload(
+  payload: Omit<Venue, "amenities"> & {
+    amenities?: Venue["amenities"];
+    amenityStatus?: VenueAmenityStatus;
+  },
+): Venue {
+  const status = venueAmenityStatus(payload);
+  return { ...payload, amenityStatus: status, amenities: amenityBooleansFromStatus(status) };
+}
+
+/** The internal boolean map a status answers, where only a stated presence is true. */
+export function amenityBooleansFromStatus(status: VenueAmenityStatus): Venue["amenities"] {
+  const stated = (key: VenueAmenityKey): boolean => status[key] === "known-true";
+  return {
+    food: stated("food"),
+    cocktails: stated("cocktails"),
+    beerGarden: stated("beerGarden"),
+    liveSports: stated("liveSports"),
+    liveMusic: stated("liveMusic"),
+    pubQuiz: stated("pubQuiz"),
+    darts: stated("darts"),
+    pool: stated("pool"),
+    happyHour: stated("happyHour"),
+    karaoke: stated("karaoke"),
+    nonAlcoholic: stated("nonAlcoholic"),
   };
 }
 
@@ -432,12 +495,27 @@ export function venueContacts(
 ): VenueContactContract {
   if (venue.contacts) return venue.contacts;
   const rows = venue.prices ?? [];
+  // THE FIRST VALUE THAT PARSES, not the first non-blank one. A pub's rows are
+  // one pub, and 478 of the 852 pubs holding any phone value at all lead with
+  // something that is not a number ("\u{1F310} https://…", "\u{1F37D} Food
+  // available"); six of them carry a clean, dialable number in a later row, and
+  // taking the first non-blank value threw it away and answered null. Nothing
+  // is loosened: `venueContactContract` still refuses whatever it is handed
+  // unless the value parses as the thing its column claims to be.
   return venueContactContract({
-    phone: rows.find((row) => row.phone_number)?.phone_number ?? "",
-    email: rows.find((row) => row.email)?.email ?? "",
+    phone: rows.map((row) => row.phone_number).find(contactPhoneParses) ?? "",
+    email: rows.map((row) => row.email).find(contactEmailParses) ?? "",
     website: venue.website,
     bookingLink: venue.bookingLink,
   });
+}
+
+function contactPhoneParses(value: string | null | undefined): boolean {
+  return contactValueIsPublishable("phone", String(value ?? ""));
+}
+
+function contactEmailParses(value: string | null | undefined): boolean {
+  return contactValueIsPublishable("email", String(value ?? ""));
 }
 
 export function truthyFlag(value: string): boolean {

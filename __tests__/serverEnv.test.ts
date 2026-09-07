@@ -198,6 +198,20 @@ describe("assertProductionSecrets", () => {
     expect(requiresSupabaseStore()).toBe(true);
   });
 
+  it("ignores the build phase on a Vercel Production deploy", () => {
+    // NEXT_PHASE is an ordinary environment variable and a Vercel dashboard
+    // variable applies to Build and Runtime alike, so an operator setting it
+    // there must not skip the startup assertions or opt the process into the
+    // in-memory store. The production check comes first; every escape is below.
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "production");
+    process.env.NEXT_PHASE = "phase-production-build";
+
+    expect(() => assertProductionSecrets()).toThrow(/ADMIN_TOKEN/);
+    expect(() => assertServerEnv()).toThrow(/Supabase is not configured/);
+    expect(requiresSupabaseStore()).toBe(true);
+  });
+
   it("is a no-op on Vercel Preview even when NODE_ENV is production", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("VERCEL_ENV", "preview");

@@ -17,8 +17,10 @@ export const NEXT_PRODUCTION_BUILD_PHASE = "phase-production-build";
  * static page. A build is not a runtime: it sets NODE_ENV=production, so
  * isDeployedProduction() answers true on a runner that carries no keys, but no
  * request exists to serve and no write can be lost. Next never sets this phase
- * on a server answering requests, so a real Vercel Production request keeps the
- * full fail-closed policy.
+ * on a server answering requests, and both readers ask the production check
+ * FIRST anyway (lib/supabase's store guard, lib/serverEnv's startup guard), so
+ * a real Vercel Production process keeps the full fail-closed policy even when
+ * this variable is set on it by hand.
  */
 export function isProductionBuildPhase(): boolean {
   return process.env.NEXT_PHASE === NEXT_PRODUCTION_BUILD_PHASE;
