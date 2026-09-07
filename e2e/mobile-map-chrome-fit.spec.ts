@@ -1045,14 +1045,21 @@ for (const viewport of VIEWPORTS) {
 // Every case above opens /map with a stored Pub Pal, so the create action is
 // always measured at one of the map berths. The berth every OTHER phone route
 // uses - the bare one, above the tab bar - was never rendered anywhere in the
-// suite, and the one fixed control that shares it is mounted in the root layout
-// for any reader who has not answered the analytics question. Both specs that
-// could have caught that seeded the answer away, so the collision was excluded
-// by construction: an opaque 56px circle sat on the card's Allow / No thanks
-// column and took its taps.
+// suite, and the one fixed control that shares it is the docked consent card.
+// Both specs that could have caught that seeded the answer away, so the
+// collision was excluded by construction: an opaque 56px circle sat on the
+// card's Allow / No thanks column and took its taps.
 //
 // The assertion is hit-testing rather than geometry, because what the reader
 // needs is not clearance, it is that pressing Allow records Allow.
+//
+// THE CARD IS EARNED, NOT MET ON ARRIVAL (lib/consentAnswerMoment.ts). It no
+// longer mounts on first paint, so this case performs one real first-answer
+// event before it measures anything. /out carries no pin and no venue sheet,
+// and the surface under test has to STAY /out because that is where the map
+// members are absent and the berth is the default one, so the answer here is
+// the reader reaching a second route - which is what a list tap, a card link
+// and a tab all come out as.
 for (const viewport of VIEWPORTS) {
   test(`${viewport.width}px consent choices stay reachable in the default berth`, async ({
     page,
@@ -1068,6 +1075,19 @@ for (const viewport of VIEWPORTS) {
       window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
     });
 
+    // Route one. `domcontentloaded` returns before React has hydrated, so the
+    // first route is polled for rather than assumed: leaving too early would
+    // leave it unrecorded and /out would be read as the first route instead.
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect
+      .poll(
+        () => page.evaluate(() =>
+          window.sessionStorage.getItem("pubmax:consent-first-route:v1")),
+        { timeout: 30_000 },
+      )
+      .not.toBeNull();
+
+    // Route two, and the surface this case measures.
     const response = await page.goto("/out");
     expect(response?.status()).toBe(200);
 
@@ -1097,6 +1117,41 @@ for (const viewport of VIEWPORTS) {
         { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 },
       );
       expect(owner, `${label} receives its own tap`).toBe("prompt");
+    }
+
+    // DOCKED, above the tab bar and clear of the answer. The foot is measured
+    // against the RESERVED LANE rather than .mobileTabBar's own box: that
+    // element is a full-bleed padded container holding the pill, so its top
+    // edge sits above the lane the body reserves and measuring against it
+    // would call a flush card 10px adrift. --tabbar-h is the one number both
+    // the bar and the body's clearance read (components/nav/mobileNav.css).
+    const promptBox = await prompt.boundingBox();
+    expect(promptBox, "the consent card has a box").not.toBeNull();
+    expect(promptBox!.x, "the card is full bleed").toBeLessThanOrEqual(1);
+    expect(promptBox!.width, "the card is full bleed")
+      .toBeGreaterThanOrEqual(viewport.width - 1);
+    const lane = await page.evaluate(() =>
+      Number.parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue("--tabbar-h"),
+      ) || 0);
+    expect(
+      Math.abs(promptBox!.y + promptBox!.height - (viewport.height - lane)),
+      "the card sits on the reserved tab-bar lane",
+    ).toBeLessThanOrEqual(1);
+
+    // And it covers nothing the reader came for. /out leads with its own
+    // listings, so the first one is what the card may never stand over.
+    const firstListing = page.locator("main a").first();
+    if (await firstListing.count() > 0) {
+      const listingBox = await firstListing.boundingBox();
+      if (listingBox && listingBox.width > 0 && listingBox.height > 0) {
+        const overlaps =
+          promptBox!.x < listingBox.x + listingBox.width
+          && listingBox.x < promptBox!.x + promptBox!.width
+          && promptBox!.y < listingBox.y + listingBox.height
+          && listingBox.y < promptBox!.y + promptBox!.height;
+        expect(overlaps, "the docked card covers the first listing").toBe(false);
+      }
     }
 
     // Pressing it records the choice rather than opening the create sheet.

@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 
 import { trackEvent } from "@/lib/analytics";
 import type { VenueSheetLayer } from "@/lib/analyticsEvents";
+import { markConsentAnswerMoment } from "@/lib/consentAnswerMoment";
 
 /**
  * The ONE emitter of `venue_sheet_opened`.
@@ -18,12 +19,21 @@ import type { VenueSheetLayer } from "@/lib/analyticsEvents";
  * re-runs whenever the reader moves to another pub and must not re-fire for the
  * pub already on screen. `trackEvent` is the ordinary consent-gated beacon, so
  * nothing leaves the device without explicit analytics consent.
+ *
+ * A pub's own sheet on screen is ALSO the product having answered, so this is
+ * where the analytics consent card's wait ends for the map
+ * (`lib/consentAnswerMoment.ts`). It rides this hook rather than the pin-tap
+ * handler because the pin tap and the sheet open are the same moment for a
+ * reader, and this hook is already the ONE place both pub layers report it.
+ * The mark is a word in sessionStorage and never a beacon, so it runs whatever
+ * the consent decision is.
  */
 export function useVenueSheetOpened(venueId: string, layer: VenueSheetLayer): void {
   const reportedVenueId = useRef<string | null>(null);
   useEffect(() => {
     if (!venueId || reportedVenueId.current === venueId) return;
     reportedVenueId.current = venueId;
+    markConsentAnswerMoment("venue-sheet");
     trackEvent("venue_sheet_opened", { layer });
   }, [layer, venueId]);
 }

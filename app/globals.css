@@ -4424,26 +4424,36 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   --analytics-consent-mobile-clearance: 128px;
 }
 
+/* DOCKED, NEVER FLOATING. The card used to be an inset, blurred, shadowed
+   panel that hovered over whatever was under it; PlanAstra section 3 found it
+   standing over the answer on every route. It is a plain strip pinned to the
+   chrome now: full bleed, square, opaque, one hairline on the edge it meets
+   the page at, and no backdrop blur, no shadow and no scrim, so nothing it
+   covers is dimmed and nothing shows through it. Its lane is reserved from
+   the body below, so at rest the page ends above it rather than under it. */
 .analyticsConsentPrompt {
   position: fixed;
   z-index: 1000;
-  right: max(12px, env(safe-area-inset-right));
-  bottom: max(12px, env(safe-area-inset-bottom));
-  left: max(12px, env(safe-area-inset-left));
+  right: 0;
+  bottom: 0;
+  left: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  width: fit-content;
-  max-width: min(960px, calc(100vw - 24px));
-  margin-inline: auto;
-  padding: 8px 8px 8px 14px;
-  border: 1px solid var(--hairline, var(--line));
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--panel-raised) 96%, transparent);
+  width: auto;
+  max-width: none;
+  margin-inline: 0;
+  padding:
+    8px
+    max(14px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom))
+    max(14px, env(safe-area-inset-left));
+  border: 0;
+  border-top: 1px solid var(--hairline, var(--line));
+  border-radius: 0;
+  background: var(--panel-raised);
   color: var(--ink);
-  box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(14px) saturate(125%);
 }
 
 .analyticsConsentPrompt p {
@@ -4532,15 +4542,19 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
     );
   }
 
+  /* FLUSH TO THE TAB BAR, with no gap and no inset: the card is the bar's own
+     top edge rather than a panel hovering 8px above it. The bottom safe-area
+     inset belongs to the tab bar underneath, so the card's own bottom padding
+     is a plain 10px here. */
   .analyticsConsentPrompt {
-    bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom) + 8px);
+    bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom));
     display: grid;
     grid-template-columns: minmax(0, 1fr) 100px;
     align-items: center;
     gap: 10px;
     width: auto;
     max-height: 120px;
-    padding: 10px;
+    padding: 10px max(10px, env(safe-area-inset-right)) 10px max(10px, env(safe-area-inset-left));
   }
 
   /* AT A LARGE OS TEXT SIZE THE CARD GROWS INSTEAD OF CLIPPING. The 120px
@@ -4561,8 +4575,13 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  /* WITH NO TAB BAR THE CARD IS THE FOOT OF THE SCREEN. It still reaches the
+     edge, because a docked strip that stops short of it is the floating panel
+     again; the home-indicator inset is cleared by the card's OWN padding
+     instead, so the two buttons never sit under the system gesture area. */
   body:not(:has(.mobileTabBar, .mobileTabBarClearance)) .analyticsConsentPrompt {
-    bottom: max(12px, env(safe-area-inset-bottom));
+    bottom: 0;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
   }
 
   /* The first-run surface hides the tab bar (app/onboarding/onboarding.css)
@@ -4571,7 +4590,8 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
      On that surface the safe area IS the dock, and the surface reserves the
      lane the card then sits in. */
   body:has(.firstRunOnboarding) .analyticsConsentPrompt {
-    bottom: max(12px, env(safe-area-inset-bottom));
+    bottom: 0;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
   }
 
   .analyticsConsentPrompt p {
@@ -4598,7 +4618,13 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
 
   body:has(.mapArrivalCard) .analyticsConsentPrompt,
   body:has(.mobilePlanActivation) .analyticsConsentPrompt {
-    /* Sit above first-visit arrival or Describe the outing. */
+    /* The one place the card leaves its dock: a map surface already owns the
+       foot of the screen, so the card rides above first-visit arrival or
+       Describe the outing rather than under them. The opaque background, the
+       absent shadow and the absent blur are the base rule's now; they are
+       restated here as the belt to those braces, because this is the one
+       surface the card leaves its dock on and __tests__/mobileChromeFit.test.ts
+       reads them as this rule's own. */
     bottom: calc(var(--mobile-map-dock-clearance) + 86px);
     max-height: none;
     background: var(--panel-raised);

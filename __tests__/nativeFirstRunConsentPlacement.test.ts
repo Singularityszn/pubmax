@@ -274,15 +274,21 @@ describe("native first-run consent placement", () => {
     expect(lane).not.toMatch(/\b128px\b/);
   });
 
-  it("parks the card on the safe area, because the surface hides the tab bar", () => {
+  it("parks the card on the foot of the screen, because the surface hides the tab bar", () => {
     // .mobileTabBar is display:none on this surface but still in the document,
     // so the card's tab-bar berth would hold it 72px up over a bar nobody can
     // see, and the :not(:has()) rule beside it cannot tell.
     expect(onboardingCss).toMatch(
       /body:has\(\.firstRunOnboarding\)\s*\.mobileTabBar\s*{[^}]*display:\s*none/,
     );
-    expect(declarationsFor(globalCss, CARD_RULE, CARD_MEDIA).get("bottom")).toBe(
-      "max(12px, env(safe-area-inset-bottom))",
+    // The card is DOCKED now (PlanAstra section 3), so it reaches the screen
+    // edge rather than floating 12px off it. The home-indicator inset is
+    // cleared by the card's own bottom padding, so the two buttons still never
+    // sit under the system gesture area.
+    const card = declarationsFor(globalCss, CARD_RULE, CARD_MEDIA);
+    expect(card.get("bottom")).toBe("0");
+    expect(card.get("padding-bottom")).toBe(
+      "max(10px, env(safe-area-inset-bottom))",
     );
   });
 

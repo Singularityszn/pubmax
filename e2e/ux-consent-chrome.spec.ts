@@ -69,6 +69,12 @@ async function prepareFirstRunOnboarding(
     );
     window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
     window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
+    // The first-run surface is this spec's subject, not the card's wait, so
+    // the answer moment is seeded here too (see prepareUndecidedConsent).
+    window.sessionStorage.setItem(
+      "pubmax:consent-answer-moment:v1",
+      "venue-sheet",
+    );
   });
 }
 
@@ -96,6 +102,15 @@ async function prepareUndecidedConsent(
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
     window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
+    // THE CARD WAITS FOR THE PRODUCT TO ANSWER (lib/consentAnswerMoment.ts).
+    // Every test below is about the card's GEOMETRY once it is on screen, so
+    // each one seeds the answer that ends that wait rather than driving a pub
+    // sheet open first. The timing rule itself is
+    // e2e/consent-after-first-answer.spec.ts, which seeds nothing.
+    window.sessionStorage.setItem(
+      "pubmax:consent-answer-moment:v1",
+      "venue-sheet",
+    );
   });
 }
 
@@ -454,53 +469,58 @@ for (const viewport of ONBOARDING_VIEWPORTS) {
   });
 }
 
-// One decision per screen. /u/you carries the account settings block, which is
-// itself a live consent control, so the fixed arrival bar does not render
-// there; every other route keeps it. lib/consentSurfaceRoutes.ts is the rule.
+// ONE CONSENT CONTROL ON ANY SCREEN, and on the signed-out profile that count
+// is ZERO. `/u/you` used to print a second Allow / No thanks pair inside its
+// own "On this device" panel while the route rule already withheld the docked
+// card, so a stranger met the analytics question twice in one column of copy.
+// The pair is gone (components/profile/PubmaxxAccountHub.tsx); the settings
+// block is the SIGNED-IN control, where a decision can be reversed, and a
+// signed-out reader is caught by the docked card on the next route instead
+// (lib/consentSurfaceRoutes.ts, lib/consentAnswerMoment.ts).
 const CONSENT_ONCE_VIEWPORTS = [
   { width: 390, height: 844 },
   { width: 1440, height: 900 },
 ] as const;
 
 for (const viewport of CONSENT_ONCE_VIEWPORTS) {
-  test(`/u/you offers the analytics decision exactly once @${viewport.width}`, async ({ page }) => {
+  test(`/u/you asks for the analytics decision no more than once @${viewport.width}`, async ({ page }) => {
     test.setTimeout(60_000);
     await prepareUndecidedConsent(page, viewport);
     await page.goto("/u/you", { waitUntil: "domcontentloaded" });
 
-    // The settings block is the control this route owns. It is a dynamic
-    // import, so it is awaited rather than assumed: a bar found absent before
-    // the block had mounted would pass this test for the wrong reason.
-    const settings = page.locator("#analytics-settings");
-    await expect(settings).toBeVisible({ timeout: 30_000 });
-    await expect(settings.getByRole("button", { name: "Allow" })).toBeVisible();
-    await expect(settings.getByRole("button", { name: "No thanks" })).toBeVisible();
+    // The account hub is a dynamic import, so its own copy is awaited before
+    // anything is called absent: a page checked before the chunk landed would
+    // pass this test for the wrong reason.
+    await expect(
+      page.getByRole("heading", { name: "On this device" }),
+    ).toBeVisible({ timeout: 30_000 });
 
-    // Both controls carry the same pair of words, so the count is taken over
-    // the whole document rather than over one container.
-    await expect(page.getByRole("button", { name: "Allow", exact: true })).toHaveCount(1);
-    await expect(page.getByRole("button", { name: "No thanks", exact: true })).toHaveCount(1);
+    // Neither control is on this screen: the panel's pair is gone and the
+    // route rule withholds the docked card.
+    await expect(page.locator("#analytics-settings")).toHaveCount(0);
     await expect(page.getByLabel("Anonymous analytics choice")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Allow", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "No thanks", exact: true })).toHaveCount(0);
 
-    // The block still decides: the choice is the page's to make, and it is the
-    // stored answer that proves the surviving control is the live one.
-    await settings.getByRole("button", { name: "No thanks" }).click();
+    // The ask is DEFERRED rather than lost: nothing is stored here, so the
+    // next route still meets an undecided reader.
+    await expect
+      .poll(() => page.evaluate((key) => localStorage.getItem(key), CONSENT_KEY))
+      .toBe(null);
+  });
+
+  test(`the docked card still answers on the next route @${viewport.width}`, async ({ page }) => {
+    test.setTimeout(60_000);
+    await prepareUndecidedConsent(page, viewport);
+    await page.goto("/u/you", { waitUntil: "domcontentloaded" });
+    await page.goto("/tonight", { waitUntil: "domcontentloaded" });
+
+    const prompt = page.getByLabel("Anonymous analytics choice");
+    await expect(prompt).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("button", { name: "Allow", exact: true })).toHaveCount(1);
+    await prompt.getByRole("button", { name: "No thanks" }).click();
     await expect
       .poll(() => page.evaluate((key) => localStorage.getItem(key), CONSENT_KEY))
       .toBe("denied");
-  });
-
-  test(`the arrival bar still meets a reader off that route @${viewport.width}`, async ({ page }) => {
-    test.setTimeout(60_000);
-    // One preparation for both routes: the init script re-runs on every
-    // navigation, so each arrival is an undecided one with a free budget.
-    await prepareUndecidedConsent(page, viewport);
-    for (const route of ["/", "/tonight"]) {
-      await page.goto(route, { waitUntil: "domcontentloaded" });
-      await expect(page.getByLabel("Anonymous analytics choice")).toBeVisible({
-        timeout: 30_000,
-      });
-      await expect(page.locator("#analytics-settings")).toHaveCount(0);
-    }
   });
 }

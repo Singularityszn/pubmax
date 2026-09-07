@@ -11,6 +11,11 @@ import {
   subscribeAnalyticsConsent,
 } from "@/lib/analytics";
 import type { AnalyticsConsentDecision } from "@/lib/analyticsIdentity";
+import {
+  hasAnsweredThisSession,
+  noteConsentRouteVisited,
+  subscribeConsentAnswerMoment,
+} from "@/lib/consentAnswerMoment";
 import { routeCarriesConsentControl } from "@/lib/consentSurfaceRoutes";
 import {
   ANALYTICS_CONSENT_PROMPT_SURFACE,
@@ -46,10 +51,21 @@ export function AnalyticsConsentPromptContent({
 
 export default function AnalyticsConsentPrompt() {
   const [decision, setDecision] = useState<AnalyticsConsentDecision | null | "checking">("checking");
+  const pathname = usePathname();
   // One decision per screen: a route carrying its own live consent control owns
   // the ask, so the arrival bar neither paints there nor spends the session's
   // prompt budget on a moment nobody sees (lib/consentSurfaceRoutes.ts).
-  const pageOwnsConsent = routeCarriesConsentControl(usePathname());
+  const pageOwnsConsent = routeCarriesConsentControl(pathname);
+
+  // THE ROUTE IS RECORDED ON EVERY SCREEN, INCLUDING THE ONES THE BAR NEVER
+  // PAINTS ON. Reaching a second route is one of the answers that ends the
+  // wait (lib/consentAnswerMoment.ts), and a reader who arrives on /u/you and
+  // moves on has still been given somewhere to go; skipping the note there
+  // would make the profile family invisible to the count and delay the ask by
+  // a whole extra route.
+  useEffect(() => {
+    noteConsentRouteVisited(pathname);
+  }, [pathname]);
 
   useEffect(() => {
     if (pageOwnsConsent) return;
@@ -58,6 +74,14 @@ export default function AnalyticsConsentPrompt() {
       const nextDecision = analyticsConsentDecision();
       if (nextDecision !== null) {
         setDecision(nextDecision);
+        return;
+      }
+      // THE ANSWER COMES FIRST. Until the product has answered this reader the
+      // card neither paints nor CLAIMS the session's one interruptive slot:
+      // claiming it early would hold the slot open across the whole wait and
+      // starve whichever surface is genuinely next.
+      if (!hasAnsweredThisSession()) {
+        setDecision("checking");
         return;
       }
       const canShow = hasPromptBudgetFor(ANALYTICS_CONSENT_PROMPT_SURFACE);
@@ -70,10 +94,12 @@ export default function AnalyticsConsentPrompt() {
     });
     const unsubscribeConsent = subscribeAnalyticsConsent(refresh);
     const unsubscribeBudget = subscribePromptBudget(refresh);
+    const unsubscribeAnswer = subscribeConsentAnswerMoment(refresh);
     return () => {
       cancelled = true;
       unsubscribeConsent();
       unsubscribeBudget();
+      unsubscribeAnswer();
     };
   }, [pageOwnsConsent]);
 

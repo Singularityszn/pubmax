@@ -33,6 +33,7 @@ import { occupancyReceiptLine } from "@/lib/occupancy";
 import { confirmOccupancyProposal } from "@/components/map/useVenueOccupancy";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { writeAskPlanDraft } from "@/lib/conciergeAskClient";
+import { markConsentAnswerMoment } from "@/lib/consentAnswerMoment";
 import { useKeyboardInset } from "@/lib/keyboardInset";
 import {
   readSoftKeyboardOpen,
@@ -321,6 +322,11 @@ export default function PalChat() {
         result.status === "answered" || result.status === "empty"
           ? result.proposals ?? []
           : [];
+      // An answer in the transcript is the Pal having answered, which is one of
+      // the moments the analytics consent card waits behind
+      // (lib/consentAnswerMoment.ts). It rides the ANSWER rather than the ask,
+      // because a question nobody has replied to is still the reader waiting.
+      markConsentAnswerMoment("pal-reply");
       setEntries((prev) => [
         ...prev,
         { kind: "answer", id: nextId(), answer: result, locality, proposals, recall },
