@@ -30,7 +30,7 @@ afterEach(() => {
 describe("externally trusted signing keys", () => {
   it("injects one fresh strong signing key through Vitest config, never its command", async () => {
     vi.resetModules();
-    const firstConfig = (await import("../vitest.config")).default as {
+    const firstConfig = (await import("../vitest.config.mts")).default as {
       test?: { env?: Record<string, string> };
     };
     const firstSecret = firstConfig.test?.env?.PLAN_IDEMPOTENCY_SECRET;
@@ -38,7 +38,7 @@ describe("externally trusted signing keys", () => {
     expect(Buffer.from(firstSecret!, "base64url")).toHaveLength(32);
 
     vi.resetModules();
-    const secondConfig = (await import("../vitest.config")).default as {
+    const secondConfig = (await import("../vitest.config.mts")).default as {
       test?: { env?: Record<string, string> };
     };
     expect(secondConfig.test?.env?.PLAN_IDEMPOTENCY_SECRET).not.toBe(firstSecret);
