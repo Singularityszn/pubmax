@@ -997,10 +997,14 @@ export function buildPubs(ctx: SceneCtx) {
       // to their own pins, which is what keeps a UK-wide source legible.
       clusterMaxZoom: CLUSTER_MAX_ZOOM,
       // M5 — per-cluster price-band mix for the donut markers
-      // (components/map/canvas/donutClusters.ts). b0..b3 mirror
-      // priceBucket() in geojson.ts (≤£5.50 / >£5.50–≤£7 / >£7 / no price —
-      // the same order + colours as the legend/pin fill), accumulated by
-      // supercluster itself so no client-side aggregation pass is needed.
+      // (components/map/canvas/donutClusters.ts). b0..b3 mirror priceBucket()
+      // in geojson.ts: cheap / average / expensive / no price, in the same
+      // order and colours as the legend and the pin fill. The cuts are
+      // lib/priceBand.ts's city terciles, DERIVED into
+      // public/data/price_bands/thresholds.json and never typed here, so this
+      // comment names the bands rather than restating a figure that moves
+      // every time the prices are rebuilt. Accumulated by supercluster itself,
+      // so no client-side aggregation pass is needed.
       clusterProperties: {
         b0: ["+", ["case", ["==", ["get", "bucket"], 0], 1, 0]],
         b1: ["+", ["case", ["==", ["get", "bucket"], 1], 1, 0]],
