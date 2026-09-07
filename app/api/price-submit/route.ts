@@ -266,9 +266,9 @@ export async function POST(request: Request): Promise<Response> {
   // the Confirmed standing and the Pint Index all read this lane on the
   // assumption every row in it is a beer price. Pairing a non-beer submission
   // into it would hand those pint-only surfaces a coffee or wine figure with
-  // full pint authority, which is exactly what AGENTS.md's drink-lane rule
-  // forbids. Only a beer submission pairs; every other category still writes
-  // its community price above and stops there.
+  // full pint authority, which is exactly what the drink-lane rule in
+  // `lib/AGENTS.md` forbids. Only a beer submission pairs; every other
+  // category still writes its community price above and stops there.
   // What the second-reporter pass answered for this figure, when a paired
   // Pint Drop ran it. Absent when no drop was paired, because then nothing
   // about a confirmation was asked.
@@ -431,8 +431,8 @@ function submittedServing(
  * A BEER PRICE THAT IS NOT A PINT WRITES NO COMMUNITY PRICE (review finding
  * F-2, battle test D04).
  *
- * `community_prices` carries no measure column by design, and AGENTS.md states
- * why: its composer offers a closed category and no drink text, so its beer
+ * `community_prices` carries no measure column by design, and `lib/AGENTS.md`
+ * states why: its composer offers a closed category and no drink text, so its beer
  * chip MEANS a pint. That was true only while nobody could say otherwise. Now
  * that the door asks, the way to keep it true is to send a half down the lane
  * that can hold it: a dated Pint Drop carrying its own measure, held out of

@@ -4,8 +4,10 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { agentsMdFiles } from "./helpers/agentsMdTree";
+
 // AGENTS.md is a POINTER document, so a pointer that no longer resolves is the
-// one way it can rot silently. Nothing else reads this file: no test, script or
+// one way it can rot silently. Nothing else reads it: no test, script or
 // e2e spec opens it, so the suite cannot otherwise tell whether a law still
 // names a real module or a fence that was renamed a month ago.
 //
@@ -14,8 +16,14 @@ import { describe, expect, it } from "vitest";
 // what it CAN check is that every file, test and directory the prose sends a
 // reader to is still there.
 //
+// It reads the WHOLE tree rather than the root file. The document is a short
+// root index plus one area file per area, so every law, and with it every
+// pointer, now lives in an area file. `__tests__/agentsMdTree.test.ts` holds
+// the tree's own shape. This one holds what its prose points at.
 const ROOT = resolve(process.cwd());
-const DOC = readFileSync(join(ROOT, "AGENTS.md"), "utf8");
+const DOC = agentsMdFiles(ROOT)
+  .map((file) => readFileSync(join(ROOT, file), "utf8"))
+  .join("\n");
 const TRACKED_PATHS = new Set(
   execFileSync("git", ["ls-tree", "-r", "-z", "--name-only", "HEAD"], {
     cwd: ROOT,
@@ -285,7 +293,8 @@ describe("AGENTS.md pointers", () => {
     // commit that removes pointers on purpose, with the reason.
     // Raised from 549 with the law-by-law trim: the document lost 27 per cent of
     // its bytes and NO pointer, so the shipped count rose from 563 to 569 and the
-    // floor keeps the same slack under it.
+    // floor keeps the same slack under it. The split into an area tree moved
+    // every law and cost no pointer, so the count and the floor both stand.
     expect(pointers().length).toBeGreaterThan(555);
   });
 });

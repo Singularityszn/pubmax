@@ -264,7 +264,7 @@ const EMOJI_BULLET = /^\s*\p{Extended_Pictographic}/u;
  * (components/ratings) and the garden card's rating readout both opened a copy
  * string with one and read as emoji bullets. They are neither decoration nor a
  * list marker: they ARE the rating, drawn as glyphs, and the same star is the
- * one docs/AGENTS.md already names as out of the store-review fence's way. A
+ * one ios/AGENTS.md already names as out of the store-review fence's way. A
  * string whose only non-space characters are stars is that glyph; an emoji
  * followed by words is still an offence.
  */
