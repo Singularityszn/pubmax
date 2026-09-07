@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type SetStateAction } from "react";
 
 import { useAuth } from "@/components/auth/authContext";
 import { readActiveRoundCode } from "@/lib/activeRound";
@@ -80,6 +80,15 @@ export type DropWithPhotos = PintDrop & {
 export type { VenueDropReadStatus } from "@/lib/venueDropRead";
 
 export type PhotoSlot = { file: File; previewUrl: string };
+
+function useDraftState<T>(initial: T | (() => T), changed: () => void) {
+  const [value, setValue] = useState(initial);
+  const update = useCallback((next: SetStateAction<T>) => {
+    changed();
+    setValue(next);
+  }, [changed]);
+  return [value, update] as const;
+}
 
 function photoPreviewUrl(photo: PhotoSlot | null): string | null {
   return photo?.previewUrl ?? null;
@@ -281,8 +290,15 @@ export function usePintDrops(
         : captureRoundRequestIdentity(user?.id ?? null, session),
     [authLoading, session, user?.id],
   );
-  const [handle, setHandle] = useState(() =>
+  const draftRevision = useRef(0);
+  const [dropMsg, setDropMsg] = useState<DropMsg | null>(null);
+  const reviseDraft = useCallback(() => {
+    draftRevision.current += 1;
+    setDropMsg(null);
+  }, []);
+  const [handle, setHandle] = useDraftState(() =>
     typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? ""),
+    reviseDraft,
   );
   // WHERE EACH PER-VENUE DROP READ GOT TO (review finding F-8). Same three-way
   // shape as `venuePriceStatus` in useCommunityPrices: a surface may only word a
@@ -294,7 +310,7 @@ export function usePintDrops(
   const [dropsByVenueId, setDropsByVenueId] = useState<Map<string, DropWithPhotos[]>>(
     () => new Map(),
   );
-  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerOpen, setComposerOpen] = useDraftState(false, reviseDraft);
   // The second drinker's door (lib/pintDropSecondDrinker.ts). "Still £4.50?"
   // on the venue sheet seeds the composer with the figure the pub's lane
   // already prints, through the SAME hydration the log intent's `price=`
@@ -305,7 +321,7 @@ export function usePintDrops(
   const seedComposerPrice = useCallback((price: string | null) => {
     setConfirmSeed(price);
   }, []);
-  const [dropForm, setDropForm] = useState({
+  const [dropForm, setDropForm] = useDraftState({
     price: "",
     drink: "",
     // The SERVING the price is about (battle test D04). Defaults to the
@@ -316,20 +332,19 @@ export function usePintDrops(
     note: "",
     era: "",
     withWho: "",
-  });
+  }, reviseDraft);
   // Visibility (issue #29 backbone; this composer is the first writer of it).
   // Additive field — defaults to `public`, matching the server default exactly.
-  const [visibility, setVisibility] = useState<Visibility>(DEFAULT_VISIBILITY);
+  const [visibility, setVisibility] = useDraftState<Visibility>(DEFAULT_VISIBILITY, reviseDraft);
   // Selected vibe tags (client-side UX only — the server re-filters against its
   // own allowlist). Multi-select, capped at MAX_VIBE_TAGS by toggleVibeTag.
-  const [vibeTags, setVibeTags] = useState<VibeTag[]>([]);
-  const [pintPhoto, setPintPhoto] = useState<PhotoSlot | null>(null);
-  const [venuePhoto, setVenuePhoto] = useState<PhotoSlot | null>(null);
-  const [receiptPhoto, setReceiptPhoto] = useState<PhotoSlot | null>(null);
+  const [vibeTags, setVibeTags] = useDraftState<VibeTag[]>([], reviseDraft);
+  const [pintPhoto, setPintPhoto] = useDraftState<PhotoSlot | null>(null, reviseDraft);
+  const [venuePhoto, setVenuePhoto] = useDraftState<PhotoSlot | null>(null, reviseDraft);
+  const [receiptPhoto, setReceiptPhoto] = useDraftState<PhotoSlot | null>(null, reviseDraft);
   const [submitting, setSubmitting] = useState(false);
   const submitInFlight = useRef(false);
   const pendingSubmissionId = useRef<string | null>(null);
-  const [dropMsg, setDropMsg] = useState<DropMsg | null>(null);
   const pintInputRef = useRef<HTMLInputElement>(null);
   const venueInputRef = useRef<HTMLInputElement>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
@@ -470,7 +485,7 @@ export function usePintDrops(
   const resetComposer = useCallback(() => {
     const storage = localStorageSafe();
     const pendingId = pendingSubmissionId.current;
-    if (storage && pendingId) {
+    if (storage && pendingId && !submitInFlight.current) {
       writeOptimisticSpills(storage, readOptimisticSpills(storage).filter(
         (entry) => entry.clientRequestId !== pendingId || !entry.retry,
       ));
@@ -494,7 +509,7 @@ export function usePintDrops(
     if (pintInputRef.current) pintInputRef.current.value = "";
     if (venueInputRef.current) venueInputRef.current.value = "";
     if (receiptInputRef.current) receiptInputRef.current.value = "";
-  }, []);
+  }, [setPintPhoto, setVenuePhoto, setReceiptPhoto, setDropForm, setVibeTags, setVisibility]);
 
   // Each slot owns its preview. Changing one slot must not revoke another.
   useEffect(() => () => {
@@ -534,6 +549,7 @@ export function usePintDrops(
       [retained.pintPhotoUrl, retained.venuePhotoUrl, retained.receiptPhotoUrl]
         .forEach((url) => { if (url) URL.revokeObjectURL(url); });
     }
+    return saved ? retained : input;
   }
 
   function submitDrop(
@@ -555,11 +571,20 @@ export function usePintDrops(
     return submitDropRequest(venueId, options);
   }
 
-  function clearSubmittedDraft(clientRequestId: string, venueId: string) {
-    if (pendingSubmissionId.current !== clientRequestId) return;
+  function clearSubmittedDraft(clientRequestId: string, venueId: string, ownsDraft: () => boolean) {
+    const owned = ownsDraft();
+    if (pendingSubmissionId.current === clientRequestId) pendingSubmissionId.current = null;
+    if (!owned) return null;
     clearPintDropDraft(window.sessionStorage, venueId);
     resetComposer();
     setComposerOpen(false);
+    return draftRevision.current;
+  }
+
+  function announceSubmittedDrop(revision: number | null, accountId: string | null, message: DropMsg) {
+    if (revision !== null && draftRevision.current === revision && getCurrentUserId() === accountId) {
+      setDropMsg(message);
+    }
   }
 
   async function submitDropRequest(
@@ -611,6 +636,11 @@ export function usePintDrops(
     const trainFields = lastTrainComposeFields(lastTrainDecision);
     submitInFlight.current = true;
     pendingSubmissionId.current = clientRequestId;
+    const submittedRevision = draftRevision.current;
+    const submittedAccountId = getCurrentUserId();
+    const ownsDraft = () => pendingSubmissionId.current === clientRequestId
+      && draftRevision.current === submittedRevision
+      && getCurrentUserId() === submittedAccountId;
     const publishToFeed = shouldOptimisticallyAppearInFeed(visibility);
     const optimisticInput = {
       clientRequestId,
@@ -631,7 +661,7 @@ export function usePintDrops(
       ...(trainFields ?? {}),
     };
     const optimisticDrop = buildOptimisticSpillDrop(optimisticInput);
-    if (publishToFeed) retainOptimisticFeedDraft(optimisticInput);
+    const visibleInput = publishToFeed ? retainOptimisticFeedDraft(optimisticInput) : optimisticInput;
     const optimisticMapDrop: DropWithPhotos = {
       id: optimisticDrop.id,
       venueId,
@@ -648,12 +678,12 @@ export function usePintDrops(
       status: "visible",
       visibility,
       createdAt: optimisticDrop.createdAt,
-      pintPhotoUrl: optimisticDrop.pintPhotoUrl,
-      venuePhotoUrl: optimisticDrop.venuePhotoUrl,
+      pintPhotoUrl: visibleInput.pintPhotoUrl,
+      venuePhotoUrl: visibleInput.venuePhotoUrl,
       // The bill shows on the row the moment it is posted, from the same local
       // preview the other two use, so the drinker sees their own evidence
       // before the upload lands.
-      receiptPhotoUrl: optimisticInput.receiptPhotoUrl,
+      receiptPhotoUrl: visibleInput.receiptPhotoUrl,
       optimistic: optimisticDrop.optimistic,
       ...(trainFields
         ? { leaveByIso: trainFields.leaveByIso, lastTrainDecision: trainFields.lastTrainDecision }
@@ -714,7 +744,7 @@ export function usePintDrops(
         );
         return next;
       });
-      setDropMsg({ ok: false, text: message });
+      if (ownsDraft()) setDropMsg({ ok: false, text: message });
     };
 
     try {
@@ -774,7 +804,7 @@ export function usePintDrops(
         return next;
       });
 
-      clearSubmittedDraft(clientRequestId, venueId);
+      const clearedRevision = clearSubmittedDraft(clientRequestId, venueId, ownsDraft);
 
       // Loop 2: if a Round is open, append this pub as a stop (existing
       // addStop API). Fail-soft — the drop already landed.
@@ -804,7 +834,7 @@ export function usePintDrops(
       // report predates it, so the lane is re-read rather than patched by hand.
       const outcome = parseConfirmationOutcome(data.confirmationOutcome);
       rereadLaneOnMint(outcome, () => refreshVenueDrops(venueId));
-      setDropMsg({
+      announceSubmittedDrop(clearedRevision, submittedAccountId, {
         ok: true,
         text: dropReceiptText(addedToNight, outcome, submittedPrice),
         links,
@@ -885,7 +915,7 @@ export function usePintDrops(
     setDropMsg(null);
     setComposerOpen(false);
     setConfirmSeed(null);
-  }, []);
+  }, [setComposerOpen]);
 
   const mapDropsByVenueId = useMemo(
     () =>

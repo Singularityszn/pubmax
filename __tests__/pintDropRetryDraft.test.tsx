@@ -141,3 +141,75 @@ it("keeps the pending draft and refuses a second tap until the first request set
   expect(readOptimisticSpills(localStorage)).toEqual([]);
   expect(revoked).toHaveBeenCalledWith(retryUrl);
 });
+
+it.each(["price", "bill", "measure", "visibility", "vibes", "handle", "close/reopen"])("does not clear a newer %s change after an old success", async (change) => {
+  await act(async () => {
+    state.setComposerOpen(true);
+    state.setDropForm({ ...state.dropForm, price: "5.80" });
+    state.pickPhoto("receipt", file(), null);
+  });
+  let finish!: (response: unknown) => void;
+  post.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+  let pending: ReturnType<PintDropsState["submitDrop"]>;
+  await act(async () => { pending = state.submitDrop({ preventDefault() {} } as FormEvent, "venue-1"); });
+  const newerReceipt = file();
+  await act(async () => {
+    if (change === "price") state.setDropForm({ ...state.dropForm, price: "6.20" });
+    if (change === "bill") state.pickPhoto("receipt", newerReceipt, null);
+    if (change === "measure") state.setDropForm({ ...state.dropForm, measure: "half" });
+    if (change === "visibility") state.setVisibility("anonymous");
+    if (change === "vibes") state.toggleVibeTag("proper");
+    if (change === "handle") state.setHandle("other");
+    if (change === "close/reopen") {
+      state.closeComposer();
+      state.setComposerOpen(true);
+    }
+  });
+  const edited = state;
+  await act(async () => {
+    finish({ ok: true, json: async () => ({ drop: { id: "old-saved", venueId: "venue-1" } }) });
+    await pending;
+  });
+  expect(state.dropForm).toEqual(edited.dropForm);
+  expect(state.receiptPhoto?.file).toBe(edited.receiptPhoto?.file);
+  expect(state.visibility).toBe(edited.visibility);
+  expect(state.vibeTags).toEqual(edited.vibeTags);
+  expect(state.handle).toBe(edited.handle);
+  expect(state.composerOpen).toBe(true);
+  expect(state.dropMsg?.ok).not.toBe(true);
+});
+
+it.each([true, false])("keeps the old request record across a venue reset, success=%s", async (ok) => {
+  await act(async () => {
+    state.setComposerOpen(true);
+    state.setDropForm({ ...state.dropForm, price: "5.80" });
+    state.pickPhoto("receipt", file(), null);
+  });
+  let finish!: (response: unknown) => void;
+  post.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+  let pending: ReturnType<PintDropsState["submitDrop"]>;
+  await act(async () => { pending = state.submitDrop({ preventDefault() {} } as FormEvent, "venue-1"); });
+  const oldRecord = readOptimisticSpills(localStorage)[0];
+  await act(async () => {
+    state.closeComposer();
+    state.resetComposer();
+    state.setDropForm({ ...state.dropForm, price: "7.40", drink: "New venue" });
+    state.setComposerOpen(true);
+  });
+  expect(readOptimisticSpills(localStorage)[0]?.clientRequestId).toBe(oldRecord.clientRequestId);
+  expect(revoked).not.toHaveBeenCalledWith(oldRecord.retry!.receiptPhotoUrl);
+  await act(async () => {
+    finish({ ok, json: async () => ok ? { drop: { id: "old-saved", venueId: "venue-1" } } : { error: "Old venue failed" } });
+    await pending;
+  });
+  expect(state.dropForm.price).toBe("7.40");
+  expect(state.composerOpen).toBe(true);
+  expect(state.dropMsg).toBeNull();
+  const settled = readOptimisticSpills(localStorage)[0];
+  expect(settled.drop.id).toBe(ok ? "old-saved" : oldRecord.drop.id);
+  if (!ok) {
+    expect(settled.drop.optimistic?.state).toBe("failed");
+    expect(settled.retry?.receiptPhotoUrl).toBe(oldRecord.retry?.receiptPhotoUrl);
+    expect(revoked).not.toHaveBeenCalledWith(oldRecord.retry!.receiptPhotoUrl);
+  }
+});
