@@ -10,6 +10,7 @@ import {
   buildLandingPubCard,
   type LandingPubCardData,
 } from "@/lib/landingPubCard";
+import { pintPriceAverages, type PintPriceAverages } from "@/lib/pintSavings";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 
 /** What the landing hero ships: the anchor card, the archive index, the rail. */
@@ -17,6 +18,13 @@ export type LandingHeroData = {
   card: LandingPubCardData | null;
   archive: LandingArchiveIndex;
   rail: LandingRailRow[];
+  /**
+   * The city's two mean pint prices, taken over the very same read the card
+   * came from, so the landing's saving line and its answer card can never
+   * disagree about what the dataset holds. Null when the dataset is too small
+   * to mean anything (lib/pintSavings.ts).
+   */
+  averages: PintPriceAverages | null;
 };
 
 // The landing document is prerendered (app/page.tsx, force-static), so this
@@ -34,13 +42,18 @@ export function loadLandingHeroData(): Promise<LandingHeroData> {
       const card = buildLandingPubCard(venues, history, { collectedOn });
       const archive = buildLandingArchiveIndex(venues, history);
       const rail = card ? buildLandingAnchorRail(venues, card, archive) : [];
-      return { card, archive, rail };
+      const averages = pintPriceAverages(
+        venues.flatMap((venue) =>
+          typeof venue.cheapestPrice === "number" ? [venue.cheapestPrice] : [],
+        ),
+      );
+      return { card, archive, rail, averages };
     })
     .catch(() => {
       // A failed read renders no card rather than an invented one, and the
       // next build gets a fresh attempt.
       cached = null;
-      return { card: null, archive: {}, rail: [] };
+      return { card: null, archive: {}, rail: [], averages: null };
     });
   return cached;
 }

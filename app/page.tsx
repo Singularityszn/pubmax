@@ -2,17 +2,18 @@ import type { Metadata } from "next";
 
 import LandingPage from "@/components/landing/LandingPage";
 import AppEntryRoute from "@/components/native/AppEntryRoute";
+import { loadLandingAnswers } from "@/lib/landingAnswers.server";
 import { loadLandingHeroData } from "@/lib/landingPubCard.server";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 
 // The words a forwarded link shows beside the card. They say the same thing the
 // page itself says, because a referral link (/r/<code>) lands on /#referral=…
-// and so previews THIS head: the description is the landing's own "why" line
-// (components/landing/LandingPage), the same two sentences lib/homeOgCard.tsx
+// and so previews THIS head: the description is the landing's own saving-section
+// heading (components/landing/LandingPage), the same line lib/homeOgCard.tsx
 // prints on the share card.
 const HOME_TITLE = "PUBMAXXING: what a pint costs, pub by pub";
 const HOME_DESCRIPTION =
-  "You want somewhere that will not mug you on the first round. One map should answer that without the usual three-app shuffle.";
+  "The cheapest listed pint near you, on one map. Who listed it, and the day they did.";
 
 // Self-canonical for the homepage (Wave S1.4). Title/description inherit the
 // root layout defaults; this pins the canonical URL and the homepage's own
@@ -70,10 +71,12 @@ export const metadata: Metadata = {
 // redirects it before this route is reached. lib/posterLanding.ts still owns
 // where it lands.
 export const dynamic = "force-static";
-// Every input here (the shipped price dataset, the price archive, the flag
-// env) changes only on deploy, so an hour is a quiet ceiling rather than a
-// refresh the page needs: it bounds how long a stale copy can outlive a change
-// nobody redeployed for.
+// The shipped price dataset, the price archive and the flag env change only on
+// deploy. The two answer cards do not: they read the weather store and the
+// listing lanes, so an hour is what bounds how stale the front door's "today"
+// and "tonight" sentences can get. Each card stamps the London day it speaks
+// for, so a held copy says which day it is talking about rather than passing
+// itself off as now.
 export const revalidate = 3600;
 
 export default async function Home() {
@@ -82,7 +85,13 @@ export default async function Home() {
   // price archive. A null card renders no card and the plain receipt door,
   // never an invented pub. Passed as plain serialisable props into the client
   // LandingPage.
-  const { card, archive, rail } = await loadLandingHeroData();
+  const [{ card, archive, rail, averages }, answers] = await Promise.all([
+    loadLandingHeroData(),
+    // What is on today and what is on tonight, read at prerender from the same
+    // lanes /today and /tonight read. Both fail soft to an honest line, so a
+    // provider that is down cannot fail the build or invent a night.
+    loadLandingAnswers(),
+  ]);
   // Soft launch keeps friends-launch unset/off. Thread the same gate the Social
   // APIs use so Memory CTAs never promise "Open Social" while /social still
   // answers "not open yet."
@@ -99,6 +108,8 @@ export default async function Home() {
         card={card}
         archive={archive}
         rail={rail}
+        averages={averages}
+        answers={answers}
         socialFriendsLaunchEnabled={socialFriendsLaunchEnabled}
       />
     </>

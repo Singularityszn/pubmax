@@ -1,12 +1,14 @@
-// The landing hero: land on the answer, and make the first tap a receipt.
-// Pure: no fs, no React. Captain decision 2026-09-04 (issue #1357, map #1354),
-// picked as variant B off the prototype board: the answer card plus three
-// next-cheapest rows.
+// The landing hero: show London, then answer in one tap.
+// Pure: no fs, no React. Captain decision 2026-09-04 (issue #1357, map #1354)
+// gave the hero its answer card and three next-cheapest rows; the captain's
+// 7 September 2026 rebuild put a drawing of London above them and moved the one
+// filled action onto /near.
 //
-// The card is one real pub with its listed price, the standing that price has
-// earned, who listed it and when, and the archive's "then" line where the
-// archive holds one. The one filled action is "Still £6.50?", which opens the
-// Pint Drop door for that pub. The Pal stays the quiet second door.
+// The card under the picture is one real pub with its listed price, the
+// standing that price has earned, who listed it and when, and the archive's
+// "then" line where the archive holds one. Its "Still £6.50?" door is now the
+// first QUIET door rather than the primary, because it ends in a sign-in ask
+// and a stranger has to be given something first.
 //
 // "Near the visitor" is a browser fact the prerendered document cannot know,
 // so the document ships the anchor pub and the browser swaps in the cheapest
@@ -70,9 +72,22 @@ export function stillPriceLabel(priceGbp: number): string {
   return `Still ${formatGbp(priceGbp)}?`;
 }
 
-/** The receipt door when no card can back an answer: the same door as before. */
-export const LANDING_FALLBACK_PRIMARY_HREF = "/near?locate=1";
-export const LANDING_FALLBACK_PRIMARY_LABEL = "Log what you paid";
+/**
+ * THE ONE PRIMARY ON THE FRONT DOOR (captain 7 Sep 2026).
+ *
+ * It used to be "Still £6.50?", the Pint Drop door for a pub the reader had
+ * never seen, and that door ends in a sign-in ask before anybody has been given
+ * anything (the live walk's B3, and PlanAstra section 3 removes it by name).
+ * `/near` answers instead: it geolocates on this tap alone, and a reader who
+ * says no is answered from a London patch rather than a wall
+ * (components/nearme/NearMeNow.tsx). One tap, an answer, no account.
+ */
+export const LANDING_PRIMARY_HREF = "/near?locate=1";
+export const LANDING_PRIMARY_LABEL = "Cheapest pints near me";
+
+/** The receipt door when no card can back one: the plain price door. */
+export const LANDING_FALLBACK_RECEIPT_HREF = "/near";
+export const LANDING_FALLBACK_RECEIPT_LABEL = "Log what you paid";
 
 /**
  * The Pint Drop door for one pub: the map opens on that pub with the composer
@@ -110,14 +125,18 @@ export function railHeading(scope: LandingAnswerScope, area: string): string {
 }
 
 /**
- * The second quiet door on the hero's own row (#1488).
+ * The hero's quiet row (#1488, rebuilt 7 Sep 2026).
  *
  * Tonight had no tap at all on the phone's home screen: the landing bar hides
  * its link list under 960px, the six-tab dock carries Now rather than Tonight,
  * and the only rendered `/tonight` link sat in the footer about 3,500px down.
- * It rides the Pal door's row because the phone's first screen ends at the
- * consent bar a couple of dozen pixels under that row, so a row of its own
- * would be a door nobody sees.
+ * It keeps its place here.
+ *
+ * The Pint Drop door rides beside it as the FIRST quiet door. It was the
+ * landing's primary until the captain moved the front door onto `/near`, and it
+ * is dynamic (it carries the anchor pub's own id and price), so it cannot live
+ * in this table. `components/landing/LandingHero.tsx` renders it and this table
+ * holds the rest of the row.
  */
 export const TONIGHT_DOOR_HREF = "/tonight";
 export const TONIGHT_DOOR_LABEL = "Tonight";
@@ -126,21 +145,19 @@ export type LandingQuietDoor = {
   href: string;
   label: string;
   /** The `landing_cta_clicked` target this door reports. */
-  cta: "pal" | "tonight";
+  cta: "tonight";
   /** A class the door carries for its own width rule, where it has one. */
   className?: string;
 };
 
 /**
- * The hero's quiet row, in order: the Pal first, the way the captain set the
- * hero, then Tonight (#1488). This table is the ONE statement of that row.
- * `components/landing/LandingHero.tsx` renders it, the hierarchy test holds
- * it to two, and the browser spec counts the rendered anchors against it, so
- * a door added or dropped in one place fails the others rather than reading
- * as a number somebody typed (#1503).
+ * The static half of the quiet row. The Screen primitive caps that row at two
+ * doors, the receipt door takes the first place, so this table holds one.
+ * `__tests__/landingFindMyPintHierarchy.test.ts` counts the rendered anchors
+ * against it, so a door added or dropped in one place fails the other rather
+ * than reading as a number somebody typed (#1503).
  */
 export const LANDING_QUIET_DOORS: readonly LandingQuietDoor[] = [
-  { href: "/pal", label: "Meet your Pub Pal", cta: "pal" },
   {
     href: TONIGHT_DOOR_HREF,
     label: TONIGHT_DOOR_LABEL,

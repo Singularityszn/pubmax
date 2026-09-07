@@ -36,10 +36,14 @@ const planIntake = readFileSync(PLAN_INTAKE, "utf8");
 // a second filled button.
 
 describe("Lane H plan discoverability", () => {
-  it("keeps the Pub Pal as the landing's second door beside the price receipt primary", () => {
+  it("keeps the near-me answer the landing's one primary and the Pal a door in the footer", () => {
     const hero = renderedLanding.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
     expect(hero).toMatch(/data-primary-action=""><a[^>]*href="\/near\?locate=1"/);
-    expect(hero).toMatch(/class="screenSecondary"><a[^>]*href="\/pal"[^>]*>Meet your Pub Pal<\/a>/);
+    // The Pal moved off the hero's quiet row on 7 Sep 2026: the row caps at two
+    // and the receipt door took the first place. Its footer door is the one
+    // that must stay.
+    const footerNav = renderedLanding.match(/<nav class="lpFooterNav"[^>]*>[\s\S]*?<\/nav>/)?.[0];
+    expect(footerNav).toMatch(/href="\/pal"[^>]*>Pub Pal<\/a>/);
   });
 
   it("exposes Plan in the landing primary nav", () => {

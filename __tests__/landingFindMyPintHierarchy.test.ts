@@ -28,11 +28,14 @@ import LandingPage from "@/components/landing/LandingPage";
 import { LANDING_QUIET_DOORS } from "@/lib/landingHero";
 
 // The landing hierarchy is permanent and no flag decides it (captain
-// 2026-09-03, issue #1354; 2026-09-04, issue #1357): ONE primary action, the
-// price receipt door, with the Pal as the quiet second door. With a real pub
-// behind the document the door is "Still £X?" into that pub's Pint Drop
-// composer; with no card it is the plain receipt door. Every other route off
-// the page is a text link below the hero or a directory link in the footer.
+// 2026-09-03, issue #1354; 2026-09-04, issue #1357; rebuilt 2026-09-07): ONE
+// primary action, and it is now `/near`, which answers a stranger in one tap
+// and answers from a London patch when they say no to location. The price
+// receipt door is the FIRST QUIET door, because it ends in a sign-in ask and a
+// stranger has to be given something first. With a real pub behind the document
+// that quiet door is "Still £X?" into that pub's Pint Drop composer; with no
+// card it is the plain receipt door. Every other route off the page is a text
+// link below the hero or a directory link in the footer.
 
 const landingTsx = readFileSync(
   join(process.cwd(), "components/landing/LandingPage.tsx"),
@@ -89,56 +92,62 @@ describe("landing hierarchy: the price receipt door", () => {
     expect(landingTsx).not.toMatch(/PUBMAX_LANDING_FIND_MY_PINT/);
   });
 
-  it("uses the pub's own Pint Drop door as the only primary action, the Pal as the second door", () => {
+  it("uses the near-me answer as the only primary action, the receipt door as the first quiet one", () => {
     const h = hero(render());
     expect(h).toMatch(
-      /data-primary-action=""><a[^>]*href="\/map\?sel=venue-test&amp;log=1&amp;price=6\.50"[^>]*>Still £6\.50\?<\/a>/,
+      /data-primary-action=""><a[^>]*href="\/near\?locate=1"[^>]*>Cheapest pints near me<\/a>/,
     );
     expect(h.match(/data-primary-action/g)).toHaveLength(1);
-    expect(h).toMatch(/class="screenSecondary"><a[^>]*href="\/pal"[^>]*>Meet your Pub Pal<\/a>/);
-    // No card behind the document: the plain receipt door, still the one primary.
+    // The pub's own Pint Drop door, quiet, still carrying that pub's figure.
+    expect(h).toMatch(
+      /class="screenSecondary"><a[^>]*href="\/map\?sel=venue-test&amp;log=1&amp;price=6\.50"[^>]*>Still £6\.50\?<\/a>/,
+    );
+    // No card behind the document: the same primary, and the plain receipt door.
     const bare = hero(render(false));
     expect(bare).toMatch(
-      /data-primary-action=""><a[^>]*href="\/near\?locate=1"[^>]*>Log what you paid<\/a>/,
+      /data-primary-action=""><a[^>]*href="\/near\?locate=1"[^>]*>Cheapest pints near me<\/a>/,
     );
     expect(bare.match(/data-primary-action/g)).toHaveLength(1);
+    expect(bare).toMatch(/class="screenSecondary"><a[^>]*href="\/near"[^>]*>Log what you paid<\/a>/);
     expect(bare).not.toContain("lpPubCard");
     // The old landing button family is gone, so nothing else can wear coral.
     expect(h).not.toContain("lpButton");
     expect(landingTsx).not.toMatch(/lpHeroActions--mapFirst|lpHeroActions--findMyPint|lpButtonPrimary/);
   });
 
-  it("asks for location only from the receipt door, never the footer", () => {
-    const rendered = render(false);
-    const footerNav = rendered.match(/<nav class="lpFooterNav"[^>]*>[\s\S]*?<\/nav>/)?.[0];
-    expect(footerNav, "footer nav present").toBeTruthy();
-    expect(footerNav).toMatch(/href="\/near"/);
-    expect(footerNav).not.toMatch(/locate=1/);
-    expect(rendered.match(/href="\/near\?locate=1"/g)).toHaveLength(1);
-    // With a card the door is the pub's own, and the card's Near me control
-    // asks in the browser on a tap; nothing on the page carries locate=1.
-    expect(render()).not.toMatch(/locate=1/);
+  it("asks for location only from the one primary, never the footer", () => {
+    for (const rendered of [render(false), render()]) {
+      const footerNav = rendered.match(/<nav class="lpFooterNav"[^>]*>[\s\S]*?<\/nav>/)?.[0];
+      expect(footerNav, "footer nav present").toBeTruthy();
+      expect(footerNav).toMatch(/href="\/near"/);
+      expect(footerNav).not.toMatch(/locate=1/);
+      // Exactly one door on the whole page carries the geolocation ask, and it
+      // is the deliberate tap in the head. /near itself answers from a London
+      // patch when the reader says no, so this tap never ends at a wall.
+      expect(rendered.match(/href="\/near\?locate=1"/g)).toHaveLength(1);
+    }
   });
 
   it("counts the landing's own calls to action: one primary, one quiet row, one text link", () => {
     const rendered = render();
     expect(rendered.match(/data-primary-action/g)).toHaveLength(1);
-    // ONE quiet row, and #1488 gave it a second door: the Pal, then Tonight.
-    // Two is that row's cap (components/ui/screen.tsx, `secondary`), so a third
-    // way onward fails here rather than in a browser nobody opens.
+    // ONE quiet row: the receipt door, then Tonight (#1488). Two is that row's
+    // cap (components/ui/screen.tsx, `secondary`), so a third way onward fails
+    // here rather than in a browser nobody opens.
     expect(rendered.match(/class="screenSecondary"/g)).toHaveLength(1);
     const secondary = rendered.match(/<div class="screenSecondary">([\s\S]*?)<\/div>/)?.[1] ?? "";
     const quietDoors = [...secondary.matchAll(/<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map(
       (match) => [match[1], match[2]],
     );
     expect(quietDoors).toEqual([
-      ["/pal", "Meet your Pub Pal"],
+      ["/map?sel=venue-test&amp;log=1&amp;price=6.50", "Still £6.50?"],
       ["/tonight", "Tonight"],
     ]);
-    // The rendered row IS the table in lib/landingHero.ts, which is what
-    // e2e/mobile-button-system.spec.ts counts the painted anchors against, so
-    // the two cannot disagree about how many doors the hero carries (#1503).
-    expect(quietDoors).toEqual(LANDING_QUIET_DOORS.map((door) => [door.href, door.label]));
+    // The receipt door is dynamic, so the STATIC half of the row is the table
+    // in lib/landingHero.ts, which is what e2e/mobile-button-system.spec.ts
+    // counts the painted anchors against; the two cannot disagree about how
+    // many doors the hero carries (#1503).
+    expect(quietDoors.slice(1)).toEqual(LANDING_QUIET_DOORS.map((door) => [door.href, door.label]));
     const textLinks = [...rendered.matchAll(/<a[^>]*class="lpTextLink"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => m[1]);
     expect(textLinks).toEqual(["Open the map"]);
   });
@@ -179,6 +188,8 @@ describe("landing hierarchy: the price receipt door", () => {
     expect(landingCss).not.toMatch(/\.lpHero[^{]*{[^}]*\border:\s*-?\d/);
     // No decoration behind the copy, no glass, no dot grid, no photo card.
     expect(landingCss).not.toMatch(/orbit|scanline|backdrop-filter|radial-gradient|thamesHero|cinema/i);
+    // The picture holds its own box before it paints, so nothing under it moves.
+    expect(landingCss).toMatch(/\.lpMapSnapshot\s*{[^}]*aspect-ratio:\s*1200 \/ 851/);
   });
 
   it("preserves Pint Drop eight-second fail-soft hang path (do not rework)", () => {
