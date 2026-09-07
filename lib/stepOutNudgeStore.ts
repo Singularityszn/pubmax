@@ -192,7 +192,7 @@ export const memoryStepOutNudgeStore: StepOutNudgeStore = {
   },
   async markSent(ownerActor, sentAt) {
     const existing = memoryPrefs.get(ownerActor);
-    if (!existing) return;
+    if (!existing?.enabled) return;
     memoryPrefs.set(ownerActor, {
       ...existing,
       lastSentAt: sentAt,
@@ -215,7 +215,7 @@ export const memoryStepOutNudgeStore: StepOutNudgeStore = {
   },
   async markCheapPintSent(ownerActor, sentAt) {
     const existing = memoryPrefs.get(ownerActor);
-    if (!existing) return;
+    if (!existing?.cheapPintEnabled) return;
     memoryPrefs.set(ownerActor, {
       ...existing,
       cheapPintSentAt: sentAt,
