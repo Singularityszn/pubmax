@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
 /**
- * PlanAstra item 9 — the map's chrome overload at 768 and 1440.
+ * PlanAstra item 9, over the map's chrome overload at 768 and 1440.
  *
  * The five venue-type chips floated over the map as a permanent band at every
  * width from 641px up, so a tablet met 20 to 24 controls before it had tapped

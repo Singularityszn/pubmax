@@ -7,37 +7,16 @@
   display: inline-flex;
 }
 
-.mapVenueKindFilterBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: var(--control-height);
-  padding: 0 var(--control-pad-x);
-  border: 1px solid var(--line);
-  border-radius: var(--control-radius);
-  background: var(--panel-raised);
-  color: var(--ink);
-  font-size: var(--control-font-size);
-  font-weight: var(--control-font-weight);
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-/* Selection is the raised neutral fill, never the accent: coral on the map
-   belongs to the primary action, the selected pin ring and the active tab
-   glyph alone (design judgement 2026-08-01, finding 2.1). */
-.mapVenueKindFilterBtn.isActive {
-  border-color: var(--ink-soft);
-  color: var(--ink);
-  font-weight: 800;
-}
-
+/* The button itself wears the toolbar row's own family
+   (components/map/mapToolbar.css): one button system, so this file adds only
+   what is this control's alone - the focus ring, the count, and the panel. */
 .mapVenueKindFilterBtn:focus-visible {
   outline: 2px solid var(--brass-bright);
   outline-offset: 2px;
 }
 
+/* The count reads as a count: the same brass tint the active state carries,
+   never a second accent and never a red alarm dot. */
 .mapVenueKindFilterCount {
   display: inline-flex;
   align-items: center;
@@ -46,7 +25,8 @@
   height: 20px;
   padding: 0 6px;
   border-radius: 999px;
-  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--brass) 40%, var(--line));
+  background: color-mix(in srgb, var(--brass) 12%, transparent);
   color: var(--ink);
   font-size: 0.7rem;
   font-weight: 800;

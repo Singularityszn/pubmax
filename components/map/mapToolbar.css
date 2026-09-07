@@ -179,8 +179,12 @@
 /* Wave J declutter — Drinks is secondary/outline; Plan an outing stays primary.
    "Show me" shares that idiom: it opens the experience-lens panel, which is
    closed at rest (design judgement 2026-08-01, finding 2.15). */
+/* The row's one button family. A control that sits in this row wears this,
+   rather than restating a look of its own beside it (captain 7 Sep 2026: one
+   button system, one clear primary per screen). */
 .mapToolbarLensBtn,
 .mapToolbarDrinkLaneBtn,
+.mapVenueKindFilterBtn,
 .mapToolbarDrinksBtn {
   display: inline-flex;
   align-items: center;
@@ -206,6 +210,7 @@
 
 .mapToolbarLensBtn.isActive,
 .mapToolbarDrinkLaneBtn.isActive,
+.mapVenueKindFilterBtn.isActive,
 .mapToolbarDrinksBtn.isActive {
   border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
   background: color-mix(in srgb, var(--brass) 8%, transparent);
@@ -652,6 +657,7 @@ html[data-theme="dark"] .drinkShapeChipLabel {
 
   .mapToolbarLensBtn,
   .mapToolbarDrinkLaneBtn,
+  .mapVenueKindFilterBtn,
   .mapToolbarDrinksBtn {
     min-height: 44px;
     height: 44px;
