@@ -214,7 +214,7 @@ export default function MapLayersControl({
           <p className="mapLayersHint">{layersCopy.hint}</p>
 
           {cameraActions || conditions ? (
-            <div className="mapLayersView" role="group" aria-label="Map view">
+            <div className="mapLayersView" role="group" aria-label="Map position and conditions">
               {cameraActions}
               {conditions}
             </div>

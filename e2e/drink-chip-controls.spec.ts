@@ -31,6 +31,15 @@ async function openFilters(page: Page): Promise<Locator> {
 
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
   await expect(sheet).toBeVisible();
+  // The sheet SHELL paints before its content does: the venue types, the drink
+  // shapes and the fare zones are dynamic imports that arrive a chunk later.
+  // Returning on the shell alone let three tests read a sheet holding nothing
+  // but "Saved only" and "Open now", and report an empty fare-zone group and
+  // zero drink glyphs as if the controls had been deleted. Wait for the first
+  // content group, so the helper's promise matches its name.
+  await expect(sheet.getByRole("group", { name: "Map view" })).toBeVisible({
+    timeout: 45_000,
+  });
   return sheet;
 }
 
@@ -155,9 +164,20 @@ test("persisted favourite pint keeps All unselected after mobile and desktop rel
   await page.reload();
   const desktopToolbar = page.locator(".mapToolbar");
   await expect(desktopToolbar).toBeVisible({ timeout: 45_000 });
+
+  // Both controls moved behind the one control that names their subject
+  // (7 Sep 2026, walk finding B9). The brand is a pint refinement, so it is in
+  // the drink lane's own panel; the lens is a question about which pins the map
+  // draws, so it is in Filters beside the venue types and the fare zones. The
+  // reader opens each; neither sits on the arrival row any more.
+  await desktopToolbar
+    .getByRole("button", { name: /^Drink: / })
+    .click();
   await expect(
     desktopToolbar.getByLabel("Favourite pint or beer brand"),
   ).toHaveValue("guinness");
+
+  await desktopToolbar.getByRole("button", { name: /^Filters/ }).click();
   await expect(
     desktopToolbar
       .getByRole("group", { name: "Map view" })
@@ -180,7 +200,13 @@ test("390px fare-zone rows agree through selection and reset", async ({ page }) 
   expect(await pressedLabels(zoneGroup)).toEqual(["Zone 5"]);
   const pressedPriceLabels = await pressedLabels(zonePriceGroup);
   expect(pressedPriceLabels).toHaveLength(1);
-  expect(pressedPriceLabels[0]).toMatch(/^Zone 5£\d/);
+  // The zone, not the price. This pinned /^Zone 5£\d/ and read
+  // "Zone 50/10log more" on a build where zone 5 has fewer than ten priced
+  // pubs, which is an honest scarcity answer rather than a broken row. What the
+  // test is for is that the two lists agree on WHICH zone is selected.
+  // `\b` cannot help here: the row reads "Zone 5" then "0/10", so the character
+  // after the 5 is a digit and there is no word boundary to find.
+  expect(pressedPriceLabels[0]).toMatch(/^Zone 5(?![0-9])/);
 
   await zoneGroup.getByRole("button", { name: "All", exact: true }).click();
   expect(await pressedLabels(zoneGroup)).toEqual(["All"]);
@@ -243,7 +269,12 @@ for (const width of [390, 320]) {
     await expect(arc).toBeVisible({ timeout: 45_000 });
     const row = arc.locator(".tonightArcRow");
     const chips = row.locator(".tonightArcChip");
-    await expect(chips).toHaveCount(5);
+    // Four, not five. The `Clubs` chip is gone (7 Sep 2026, walk finding B9):
+    // it stood here permanently `aria-disabled`, explained by a `title` no
+    // phone shows, and it could never be enabled because `curatedVenueKind` in
+    // lib/venueKindFilters.ts answers null for a club, so `filterVenuesByKind`
+    // leaves clubs off the map entirely.
+    await expect(chips).toHaveCount(4);
 
     const layout = await row.evaluate((element) => {
       const rowRect = element.getBoundingClientRect();
@@ -269,7 +300,7 @@ for (const width of [390, 320]) {
 
     expect(
       new Set(layout.boxes.map(({ height }) => Math.round(height))).size,
-      "unavailable and available controls share one height",
+      "every venue-type control shares one height",
     ).toBe(1);
     expect(layout.boxes[0]?.height).toBeGreaterThanOrEqual(44);
     // In a sheet the row is plain content: it wraps rather than scrolling, so
@@ -283,84 +314,80 @@ for (const width of [390, 320]) {
 
     const pints = arc.getByRole("button", { name: "Pints", exact: true });
     const bars = arc.getByRole("button", { name: "Bars", exact: true });
-    const clubs = arc.getByRole("button", {
-      name: "Clubs are not mapped yet",
-    });
-    expect((await chips.allTextContents()).join("")).not.toContain("✓");
-    await expect(clubs).toHaveText("Clubs");
-    await expect(clubs).toHaveAttribute("aria-disabled", "true");
+    // Every kind is shown at arrival, and the tick is how selection reads
+    // without colour (design judgement 2026-08-01, finding 2.1). So all four
+    // carry one. This line demanded NO tick anywhere and passed only because
+    // the sheet's lazy content had not arrived yet and the list was empty.
+    expect(await chips.allTextContents()).toEqual([
+      "\u2713Pints",
+      "\u2713Bars",
+      "\u2713Food",
+      "\u2713Restaurants",
+    ]);
+    // Every chip here is pressable. A chip nobody can press is not a chip, so
+    // there is no `aria-disabled` control left in this group to allow for.
+    await expect(arc.locator('.tonightArcChip[aria-disabled="true"]')).toHaveCount(0);
 
+    // Measured 7 Sep 2026: `getComputedStyle(chip, "::before")` answers
+    // `content: none`, because no rule in components/map/tonightArcChips.css
+    // gives these chips a `::before` at all. So the old assertion compared
+    // "0px" with "0px" and could not tell a selected chip from an unselected
+    // one whatever the styles did. What actually marks selection here is the
+    // class, the weight and the tick (design judgement 2026-08-01, finding
+    // 2.1: selection reads without colour), so that is what this reads.
     const selectedStyle = await bars.evaluate((button) => ({
-      borderWidth: getComputedStyle(button, "::before").borderTopWidth,
+      selected: button.classList.contains("isOn"),
       fontWeight: Number(getComputedStyle(button).fontWeight),
     }));
     await bars.click();
     await expect(bars).toHaveAttribute("aria-pressed", "false");
     const unselectedStyle = await bars.evaluate((button) => ({
-      borderWidth: getComputedStyle(button, "::before").borderTopWidth,
+      selected: button.classList.contains("isOn"),
       fontWeight: Number(getComputedStyle(button).fontWeight),
     }));
-    expect(selectedStyle.borderWidth).not.toBe(unselectedStyle.borderWidth);
+    expect(selectedStyle.selected).toBe(true);
+    expect(unselectedStyle.selected).toBe(false);
     expect(selectedStyle.fontWeight).toBeGreaterThan(unselectedStyle.fontWeight);
     await expect(pints).toHaveAttribute("aria-pressed", "true");
 
-    const pressedBeforeUnavailableActivation = await chips.evaluateAll((buttons) =>
-      buttons.map((button) => button.getAttribute("aria-pressed")),
-    );
-    await clubs.focus();
-    await expect(clubs).toBeFocused();
-    await page.keyboard.press("Enter");
-    await expect(clubs).toHaveAttribute("aria-expanded", "true");
-    const reason = arc.getByRole("tooltip");
-    await expect(reason).toBeVisible();
-    await expect(reason).toHaveText("Clubs are not mapped yet");
-    expect(
-      await chips.evaluateAll((buttons) =>
-        buttons.map((button) => button.getAttribute("aria-pressed")),
-      ),
-      "asking why Clubs is unavailable never changes a venue filter",
-    ).toEqual(pressedBeforeUnavailableActivation);
+    // Nothing in this group explains itself through a tooltip any more: the one
+    // control that needed explaining is deleted rather than narrated.
+    await expect(arc.getByRole("tooltip")).toHaveCount(0);
   });
 }
 
-test("390px Tonight Arc hides Clubs reason outside the All lens", async ({
+test("390px the lens narrows which venue types the sheet offers", async ({
   page,
 }) => {
   test.setTimeout(90_000);
-  const response = await page.goto("/map");
-  expect(response?.status()).toBe(200);
-
-  await page
-    .locator(".mobileMapTopbar")
-    .getByRole("button", { name: /^Filters/ })
-    .click();
-  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+  // This test used to pin the `Clubs` chip's reason tooltip appearing and
+  // disappearing with the lens. The chip is deleted (walk finding B9), but what
+  // it was riding on is still worth holding: the experience lens decides WHICH
+  // venue types the sheet offers, and a kind the lens rules out must not be
+  // reachable behind it.
+  const sheet = await openFilters(page);
   const arc = sheet.getByRole("group", { name: "Venue types" });
   await expect(arc).toBeVisible({ timeout: 45_000 });
-  const clubs = arc.getByRole("button", {
-    name: "Clubs are not mapped yet",
-  });
-  await clubs.focus();
-  await page.keyboard.press("Enter");
-  await expect(arc.getByRole("tooltip")).toHaveText(
-    "Clubs are not mapped yet",
-  );
   const mapView = sheet.getByRole("group", { name: "Map view" });
 
-  await mapView.getByRole("button", { name: "Food", exact: true }).click();
-  await expect(arc.getByText("Clubs", { exact: true })).toHaveCount(0);
-  await expect(arc.getByRole("tooltip")).toHaveCount(0);
+  const labels = async () =>
+    (await arc.locator(".tonightArcChip").allTextContents()).map((text) =>
+      text.replace("\u2713", "").trim(),
+    );
 
-  await mapView
-    .getByRole("button", { name: "No alcohol", exact: true })
-    .click();
-  await expect(arc.getByText("Clubs", { exact: true })).toHaveCount(0);
-  await expect(arc.getByRole("tooltip")).toHaveCount(0);
+  expect(await labels()).toEqual(["Pints", "Bars", "Food", "Restaurants"]);
+
+  // The food view offers the two food kinds and nothing else, which is the
+  // same set `offeredVenueKinds` counts on the closed control.
+  await mapView.getByRole("button", { name: "Food", exact: true }).click();
+  await expect
+    .poll(async () => labels(), { timeout: 20_000 })
+    .toEqual(["Food", "Restaurants"]);
 
   await mapView.getByRole("button", { name: "All", exact: true }).click();
-  await expect(arc.getByRole("tooltip")).toHaveText(
-    "Clubs are not mapped yet",
-  );
+  await expect
+    .poll(async () => labels(), { timeout: 20_000 })
+    .toEqual(["Pints", "Bars", "Food", "Restaurants"]);
 });
 
 for (const width of [390, 320]) {
