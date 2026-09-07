@@ -67,12 +67,18 @@ Command:
 node node_modules/vitest/vitest.mjs run __tests__/imageProxy.test.ts __tests__/venueImages.test.ts __tests__/venueImageCard.test.tsx __tests__/venueImageHosts.test.ts __tests__/pubsGallery.test.ts --maxWorkers=1
 ```
 
-Local evidence directory: `/Users/karanmanoharan/Documents/projects/pubmaxx-pubs-images-evidence`.
+Portable review evidence:
+
+- [Phone comparison](pubs-image-budget/phone-browser-comparison.png): unchanged before/after browser screenshots.
+- [Browser measurements](pubs-image-budget/browser-patch.json): selected URLs, HTTP statuses, bytes, boxes, and decoded dimensions.
+
+The copied files contain public venue images and measurements. No private account data required redaction.
+
+Additional local evidence directory: `/Users/karanmanoharan/Documents/projects/pubmaxx-pubs-images-evidence`.
 
 - `production.json`, `production-retina.json`: actual selected production URLs, response headers, bytes, and viewport dimensions.
 - `candidates.json`: candidate transforms and original image metadata.
-- `browser-patch.json`: selected before/after URLs, HTTP statuses, bytes, boxes, and decoded dimensions.
-- `desktop-browser-comparison.png`, `phone-browser-comparison.png`: paired browser screenshots.
+- `desktop-browser-comparison.png`: paired desktop browser screenshots.
 - `candidate-contact-sheet.png`: uncropped and cropped alternatives at card size.
 - `measure-production.cjs`, `measure-retina.cjs`, `compare.cjs`, `browser-patch.cjs`: reproduction scripts.
 - `focused-tests.log`, `focused-lint.log`: focused check output.

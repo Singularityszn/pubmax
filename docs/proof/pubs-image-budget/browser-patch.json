@@ -1,0 +1,363 @@
+{
+  "mode": "Controlled browser replay: production HTML and CSS, actual patched VenueImage SSR and GET handler. Original upstream bytes retained from production. Scripts disabled; no full Next build or hydration.",
+  "base": {
+    "deploymentId": "dpl_88fiZ7i4Cgdfrmu5u1wjnRYCnzYq",
+    "gitCommitSha": "6a759e0ac191d99f10c5e658bc8f2c3a6d3dd419",
+    "gitCommitShaSource": "vercel-git",
+    "builtAt": "2026-09-07T21:27:03.621Z"
+  },
+  "profiles": [
+    {
+      "name": "desktop",
+      "phase": "before",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 2,
+      "images": [
+        {
+          "name": "The Blackfriar",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=640",
+          "srcset": "/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=384 384w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=640 640w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=640 750w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=640 828w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=640 1080w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=640 1200w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=640 1920w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=640 2048w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=640 3840w",
+          "box": {
+            "width": 262.5,
+            "height": 168
+          },
+          "bytes": 63522,
+          "status": 200,
+          "pixels": {
+            "width": 640,
+            "height": 428
+          }
+        },
+        {
+          "name": "The Clarence",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=640",
+          "srcset": "/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=384 384w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=640 640w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=640 750w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=640 828w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=640 1080w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=640 1200w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=640 1920w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=640 2048w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=640 3840w",
+          "box": {
+            "width": 262.5,
+            "height": 168
+          },
+          "bytes": 50202,
+          "status": 200,
+          "pixels": {
+            "width": 640,
+            "height": 411
+          }
+        },
+        {
+          "name": "The Coal Hole",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=640",
+          "srcset": "/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=384 384w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=640 640w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=640 750w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=640 828w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=640 1080w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=640 1200w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=640 1920w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=640 2048w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=640 3840w",
+          "box": {
+            "width": 262.5,
+            "height": 168
+          },
+          "bytes": 54514,
+          "status": 200,
+          "pixels": {
+            "width": 640,
+            "height": 426
+          }
+        },
+        {
+          "name": "The Dog & Duck",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=640",
+          "srcset": "/api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=384 384w, /api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=640 640w, /api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=640 750w, /api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=640 828w, /api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=640 1080w, /api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=640 1200w, /api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=640 1920w, /api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=640 2048w, /api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=640 3840w",
+          "box": {
+            "width": 262.5,
+            "height": 168
+          },
+          "bytes": 23104,
+          "status": 200,
+          "pixels": {
+            "width": 640,
+            "height": 249
+          }
+        },
+        {
+          "name": "The Elephant & Castle (Kensington)",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=640",
+          "srcset": "/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=384 384w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=640 640w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=640 750w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=640 828w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=640 1080w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=640 1200w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=640 1920w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=640 2048w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=640 3840w",
+          "box": {
+            "width": 262.5,
+            "height": 168
+          },
+          "bytes": 58160,
+          "status": 200,
+          "pixels": {
+            "width": 640,
+            "height": 426
+          }
+        }
+      ],
+      "totalBytes": 249502
+    },
+    {
+      "name": "desktop",
+      "phase": "after",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 2,
+      "images": [
+        {
+          "name": "The Blackfriar",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&variant=card",
+          "srcset": "",
+          "box": {
+            "width": 262.5,
+            "height": 168
+          },
+          "bytes": 20300,
+          "status": 200,
+          "pixels": {
+            "width": 384,
+            "height": 257
+          }
+        },
+        {
+          "name": "The Clarence",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&variant=card",
+          "srcset": "",
+          "box": {
+            "width": 262.5,
+            "height": 168
+          },
+          "bytes": 13610,
+          "status": 200,
+          "pixels": {
+            "width": 384,
+            "height": 247
+          }
+        },
+        {
+          "name": "The Coal Hole",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&variant=card",
+          "srcset": "",
+          "box": {
+            "width": 262.5,
+            "height": 168
+          },
+          "bytes": 16266,
+          "status": 200,
+          "pixels": {
+            "width": 384,
+            "height": 256
+          }
+        },
+        {
+          "name": "The Dog & Duck",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&variant=card",
+          "srcset": "",
+          "box": {
+            "width": 262.5,
+            "height": 168
+          },
+          "bytes": 7118,
+          "status": 200,
+          "pixels": {
+            "width": 384,
+            "height": 150
+          }
+        },
+        {
+          "name": "The Elephant & Castle (Kensington)",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&variant=card",
+          "srcset": "",
+          "box": {
+            "width": 262.5,
+            "height": 168
+          },
+          "bytes": 17476,
+          "status": 200,
+          "pixels": {
+            "width": 384,
+            "height": 256
+          }
+        }
+      ],
+      "totalBytes": 74770
+    },
+    {
+      "name": "phone",
+      "phase": "before",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 3,
+      "isMobile": true,
+      "hasTouch": true,
+      "images": [
+        {
+          "name": "The Blackfriar",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=640",
+          "srcset": "/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=384 384w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=640 640w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=640 750w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=640 828w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=640 1080w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=640 1200w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=640 1920w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=640 2048w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&w=640 3840w",
+          "box": {
+            "width": 344,
+            "height": 168
+          },
+          "bytes": 63522,
+          "status": 200,
+          "pixels": {
+            "width": 640,
+            "height": 428
+          }
+        },
+        {
+          "name": "The Clarence",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=640",
+          "srcset": "/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=384 384w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=640 640w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=640 750w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=640 828w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=640 1080w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=640 1200w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=640 1920w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=640 2048w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&w=640 3840w",
+          "box": {
+            "width": 344,
+            "height": 168
+          },
+          "bytes": 50202,
+          "status": 200,
+          "pixels": {
+            "width": 640,
+            "height": 411
+          }
+        },
+        {
+          "name": "The Coal Hole",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=640",
+          "srcset": "/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=384 384w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=640 640w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=640 750w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=640 828w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=640 1080w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=640 1200w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=640 1920w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=640 2048w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&w=640 3840w",
+          "box": {
+            "width": 344,
+            "height": 168
+          },
+          "bytes": 54514,
+          "status": 200,
+          "pixels": {
+            "width": 640,
+            "height": 426
+          }
+        },
+        {
+          "name": "The Dog & Duck",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=640",
+          "srcset": "/api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=384 384w, /api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=640 640w, /api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=640 750w, /api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=640 828w, /api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=640 1080w, /api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=640 1200w, /api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=640 1920w, /api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=640 2048w, /api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&w=640 3840w",
+          "box": {
+            "width": 344,
+            "height": 168
+          },
+          "bytes": 23104,
+          "status": 200,
+          "pixels": {
+            "width": 640,
+            "height": 249
+          }
+        },
+        {
+          "name": "The Elephant & Castle (Kensington)",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=640",
+          "srcset": "/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=384 384w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=640 640w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=640 750w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=640 828w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=640 1080w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=640 1200w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=640 1920w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=640 2048w, /api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&w=640 3840w",
+          "box": {
+            "width": 344,
+            "height": 168
+          },
+          "bytes": 58160,
+          "status": 200,
+          "pixels": {
+            "width": 640,
+            "height": 426
+          }
+        }
+      ],
+      "totalBytes": 249502
+    },
+    {
+      "name": "phone",
+      "phase": "after",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 3,
+      "isMobile": true,
+      "hasTouch": true,
+      "images": [
+        {
+          "name": "The Blackfriar",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOXXIp6r5fpWKN2mBYsL1Tm3OhWRVyWlA_kRu0o%3Ds680-w680-h510&variant=card",
+          "srcset": "",
+          "box": {
+            "width": 344,
+            "height": 168
+          },
+          "bytes": 20300,
+          "status": 200,
+          "pixels": {
+            "width": 384,
+            "height": 257
+          }
+        },
+        {
+          "name": "The Clarence",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipOepg3szL9EQ3961Eh6iRkSlgiSGMi2NCl_KLwY%3Ds680-w680-h510&variant=card",
+          "srcset": "",
+          "box": {
+            "width": 344,
+            "height": 168
+          },
+          "bytes": 13610,
+          "status": 200,
+          "pixels": {
+            "width": 384,
+            "height": 247
+          }
+        },
+        {
+          "name": "The Coal Hole",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipNNTCNJPWmDzjLsqQi3fX_uUexRWcIxuDnjsFuG%3Ds680-w680-h510&variant=card",
+          "srcset": "",
+          "box": {
+            "width": 344,
+            "height": 168
+          },
+          "bytes": 16266,
+          "status": 200,
+          "pixels": {
+            "width": 384,
+            "height": 256
+          }
+        },
+        {
+          "name": "The Dog & Duck",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Fwww.nicholsonspubs.co.uk%2Fcontent%2Fdam%2Fnicholsons%2Fimages%2F2023%2Fpub-banners%2Fnic-2023-150years-thedogandducksoholondon-banner.jpg.asset%2F1715691123500.jpg&variant=card",
+          "srcset": "",
+          "box": {
+            "width": 344,
+            "height": 168
+          },
+          "bytes": 7118,
+          "status": 200,
+          "pixels": {
+            "width": 384,
+            "height": 150
+          }
+        },
+        {
+          "name": "The Elephant & Castle (Kensington)",
+          "currentSrc": "https://pubmaxxing.com/api/image-proxy?src=https%3A%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPSE65SryUtQAIg_Gt73trI4JJQNyFX6Vpp1pxK%3Ds680-w680-h510&variant=card",
+          "srcset": "",
+          "box": {
+            "width": 344,
+            "height": 168
+          },
+          "bytes": 17476,
+          "status": 200,
+          "pixels": {
+            "width": 384,
+            "height": 256
+          }
+        }
+      ],
+      "totalBytes": 74770
+    }
+  ]
+}
