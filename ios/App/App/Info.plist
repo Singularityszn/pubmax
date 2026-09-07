@@ -67,17 +67,14 @@
 	     toolbar take roughly 55% of the height, and the phone sheet shell does
 	     not mount at all (sheetsEnabled, components/mobile/MobileMapShell.tsx),
 	     so tapping a pin behaves differently from portrait. Deleting a whole
-	     untested layout class is the honest fix. ~ipad below is untouched. -->
+	     untested layout class is the honest fix. There is no iPad orientation key because
+	     v1 is iPhone only (TARGETED_DEVICE_FAMILY = 1, firstmate decision of
+	     7 September 2026): iPad is a later release with its own layout pass and
+	     13-inch screenshots, and a universal binary would have made App Store
+	     Connect demand those and reviewers open the untested class. -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>

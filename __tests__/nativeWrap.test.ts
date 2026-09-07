@@ -115,10 +115,8 @@ describe("Capacitor wrapped-build contract", () => {
     // halves of one answer disagreed and the plist was the half a reviewer
     // acts on. iPad is a separate key and is deliberately untouched.
     const info = rootFile("ios/App/App/Info.plist");
-    const iphone = info.slice(
-      info.indexOf("<key>UISupportedInterfaceOrientations</key>"),
-      info.indexOf("<key>UISupportedInterfaceOrientations~ipad</key>"),
-    );
+    const start = info.indexOf("<key>UISupportedInterfaceOrientations</key>");
+    const iphone = info.slice(start, info.indexOf("</array>", start));
     expect(iphone).toContain("<string>UIInterfaceOrientationPortrait</string>");
     expect(iphone).not.toContain("Landscape");
     expect(iphone).not.toContain("PortraitUpsideDown");
@@ -127,10 +125,20 @@ describe("Capacitor wrapped-build contract", () => {
     };
     expect(manifest.orientation).toBe("portrait-primary");
 
-    // The iPad key still exists and still offers the full set: that surface is
-    // a separate decision (availability may be iPhone only) and this change is
-    // not it.
-    expect(info).toContain("<key>UISupportedInterfaceOrientations~ipad</key>");
+    // v1 is iPhone only (firstmate decision, 7 September 2026): a universal
+    // binary makes App Store Connect demand 13-inch screenshots and sends
+    // reviewers into the untested desktop class. So the device family is 1 on
+    // both configurations and the plist carries no iPad orientation key; iPad
+    // is a later release with its own layout pass. Android says the same
+    // through the documented Play screen filter.
+    expect(info).not.toContain("~ipad");
+    const project = rootFile("ios/App/App.xcodeproj/project.pbxproj");
+    expect(project.match(/TARGETED_DEVICE_FAMILY = 1;/g)?.length).toBe(2);
+    expect(project).not.toContain('TARGETED_DEVICE_FAMILY = "1,2"');
+    const androidManifest = rootFile("android/app/src/main/AndroidManifest.xml");
+    expect(androidManifest).toContain("<supports-screens");
+    expect(androidManifest).toContain('android:largeScreens="false"');
+    expect(androidManifest).toContain('android:xlargeScreens="false"');
   });
 
   it("declares the camera on BOTH platforms, not just the one that says it in words", () => {
