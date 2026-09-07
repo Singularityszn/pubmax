@@ -8,7 +8,7 @@
 // every surface asks THIS module for the state and reads its own words and
 // tone off the closed tables below.
 //
-// FIVE STATES, weakest last, and each is a READING at `now`, never a write.
+// SIX STATES, weakest last, and each is a READING at `now`, never a write.
 //
 //   confirmed     the server minted a confirmation and it is inside the window
 //                 lib/priceTier.ts owns (CONFIRMED_MAX_AGE_DAYS). Paints the
@@ -20,6 +20,15 @@
 //                 (corroboratedPriceDrop). Same authority as `confirmed` on the
 //                 map, because it IS the same agreement; it only lacks the
 //                 record the server writes. No badge, no pill.
+//   disputed      two or more in-window public reports about the same drink and
+//                 measure, holding DIFFERENT figures (disputedPintPrices).
+//                 Captain 7 Sept 2026, over Grok's reading of the 08:37 deploy:
+//                 Hatton held £4.50 and £4.70 and every surface said "Logged
+//                 once, needs a second drinker". The second drinker had already
+//                 arrived and disagreed, so the product says that instead:
+//                 "Two drinkers, two prices: £4.50 and £4.70". Paints the same
+//                 provisional MARK as one report, and no figure, because two
+//                 figures have no one band.
 //   logged-once   one in-window public report (provisionalPriceDrop). Paints
 //                 the pin's provisional MARK and nothing else; the sheet prints
 //                 the figure, dated, with PROVISIONAL_PRICE_LINE.
@@ -34,9 +43,10 @@
 // pair's drops are older than the confirmation, so the pub reads `aged-out`,
 // and nothing is deleted or rewritten to get there.
 //
-// This module DECIDES NOTHING OF ITS OWN. Each state is one of the four drop
-// lanes in lib/venues.ts asked in order, the window is lib/priceTier.ts's,
-// and the words are lib/venuePriceLane.ts's. It exists so the order and the
+// This module DECIDES NOTHING OF ITS OWN. Each state is one of the five drop
+// lanes in lib/venues.ts asked in order, the window is lib/priceTier.ts's, the
+// agreement bar is lib/pintDropAgreement.ts's and the words are
+// lib/venuePriceLane.ts's. It exists so the order and the
 // projection into a `VenueSignal` are written once.
 //
 // The Pint Index producer (lib/pintIndexFromConfirmations.ts) reads the SAME
@@ -49,14 +59,20 @@ import {
   AGED_PRICE_LINE,
   PROVISIONAL_PRICE_LINE,
   venuePriceLaneObservedGbp,
+  type DisputedPriceInput,
   type ProvisionalPriceInput,
   type VenuePriceLane,
 } from "@/lib/venuePriceLane";
 import { confirmPintActionLabel } from "@/lib/pintDropSecondDrinker";
 import {
+  pintPriceSplitLine,
+  type PintPriceSplit,
+} from "@/lib/pintDropAgreement";
+import {
   agedPriceDrop,
   confirmedPriceDrop,
   corroboratedPriceDrop,
+  disputedPintPrices,
   provisionalPriceDrop,
   type SummaryDrop,
 } from "@/lib/venues";
@@ -66,6 +82,7 @@ import type { PintDropConfirmation } from "@/lib/pintDropConfirmationRecord";
 export const PINT_TRUST_STATES = [
   "confirmed",
   "corroborated",
+  "disputed",
   "logged-once",
   "aged-out",
   "none",
@@ -88,6 +105,10 @@ export type PintTrustPinPaint = "authority" | "mark" | "none";
 export const PINT_TRUST_PIN_PAINT: Record<PintTrustState, PintTrustPinPaint> = {
   confirmed: "authority",
   corroborated: "authority",
+  // A split pub has reports but no agreed figure, so it wears the same mark one
+  // report wears and reaches no band. Painting either figure would publish a
+  // price half the reporters here did not pay.
+  disputed: "mark",
   "logged-once": "mark",
   "aged-out": "none",
   none: "none",
@@ -101,10 +122,19 @@ export const PINT_TRUST_PIN_PAINT: Record<PintTrustState, PintTrustPinPaint> = {
 export const PINT_TRUST_LINE: Record<PintTrustState, string | null> = {
   confirmed: null,
   corroborated: null,
+  // A split names its own figures, so its line is built from the reading rather
+  // than typed here (`pintTrustSplitLine`). A fixed string could not say which
+  // two prices a pub holds.
+  disputed: null,
   "logged-once": PROVISIONAL_PRICE_LINE,
   "aged-out": AGED_PRICE_LINE,
   none: null,
 };
+
+/** The line a split prints, or null on every state that is not one. */
+export function pintTrustSplitLine(split: PintPriceSplit | null | undefined): string | null {
+  return split ? pintPriceSplitLine(split) : null;
+}
 
 export type PintTrustReading<D extends SummaryDrop = SummaryDrop> = {
   state: PintTrustState;
@@ -119,6 +149,13 @@ export type PintTrustReading<D extends SummaryDrop = SummaryDrop> = {
    * the day the trust pill prints.
    */
   confirmedPrice: ConfirmedPriceInput | null;
+  /**
+   * The figures the pub's drinkers disagree about. Present on `disputed` alone,
+   * where `priceGbp` is deliberately null: a split has no one figure, and
+   * handing a surface either of them would publish a price half the reporters
+   * did not pay.
+   */
+  split: PintPriceSplit | null;
 };
 
 const NONE: PintTrustReading<never> = {
@@ -127,6 +164,7 @@ const NONE: PintTrustReading<never> = {
   priceGbp: null,
   observedAtMs: null,
   confirmedPrice: null,
+  split: null,
 };
 
 function epochOf(iso: string): number | null {
@@ -134,7 +172,7 @@ function epochOf(iso: string): number | null {
   return Number.isFinite(ms) ? ms : null;
 }
 
-/** THE reading. Four lanes asked in order, strongest first. */
+/** THE reading. Five lanes asked in order, strongest first. */
 export function pintTrustFor<D extends SummaryDrop>(
   drops: readonly D[],
   now: number = Date.now(),
@@ -150,6 +188,7 @@ export function pintTrustFor<D extends SummaryDrop>(
         priceGbp: confirmed.priceGbp as number,
         observedAt: (confirmed.confirmation as PintDropConfirmation).confirmedAt,
       },
+      split: null,
     };
   }
   const corroborated = corroboratedPriceDrop(drops, now);
@@ -160,6 +199,21 @@ export function pintTrustFor<D extends SummaryDrop>(
       priceGbp: corroborated.priceGbp as number,
       observedAtMs: epochOf(corroborated.createdAt),
       confirmedPrice: null,
+      split: null,
+    };
+  }
+  // ASKED BEFORE `logged-once`, because the provisional lane answers over a
+  // split pub too: it hands back the freshest of the disagreeing drops, and
+  // that is the reading that told Hatton's readers one drinker had spoken.
+  const disputed = disputedPintPrices(drops, now);
+  if (disputed) {
+    return {
+      state: "disputed",
+      drop: disputed.drops[0] ?? null,
+      priceGbp: null,
+      observedAtMs: Number.isFinite(disputed.observedAtMs) ? disputed.observedAtMs : null,
+      confirmedPrice: null,
+      split: disputed.split,
     };
   }
   const provisional = provisionalPriceDrop(drops, now);
@@ -170,6 +224,7 @@ export function pintTrustFor<D extends SummaryDrop>(
       priceGbp: provisional.priceGbp as number,
       observedAtMs: epochOf(provisional.createdAt),
       confirmedPrice: null,
+      split: null,
     };
   }
   const aged = agedPriceDrop(drops, now);
@@ -180,6 +235,7 @@ export function pintTrustFor<D extends SummaryDrop>(
       priceGbp: aged.priceGbp as number,
       observedAtMs: epochOf(aged.createdAt),
       confirmedPrice: null,
+      split: null,
     };
   }
   return NONE;
@@ -199,11 +255,16 @@ export type PintTrustSignalFields = {
   provisionalContributorAt: number | null;
   agedContributorPrice: number | null;
   agedContributorAt: number | null;
+  /** The disagreeing figures and how many drinkers reported them, or null. */
+  disputedPrices: PintPriceSplit | null;
+  /** Epoch ms of the freshest drop in the split, or null. */
+  disputedAt: number | null;
 };
 
 export function pintTrustSignalFields(reading: PintTrustReading): PintTrustSignalFields {
   const authority = PINT_TRUST_PIN_PAINT[reading.state] === "authority";
   const loggedOnce = reading.state === "logged-once";
+  const disputed = reading.state === "disputed";
   const aged = reading.state === "aged-out";
   return {
     pintTrust: reading.state,
@@ -214,7 +275,24 @@ export function pintTrustSignalFields(reading: PintTrustReading): PintTrustSigna
     provisionalContributorAt: loggedOnce ? reading.observedAtMs : null,
     agedContributorPrice: aged ? reading.priceGbp : null,
     agedContributorAt: aged ? reading.observedAtMs : null,
+    // A split reaches the two fields below and NOTHING else. It may not fill the
+    // provisional pair, which is what let one of two disagreeing figures print
+    // as the pub's one report.
+    disputedPrices: disputed ? reading.split : null,
+    disputedAt: disputed ? reading.observedAtMs : null,
   };
+}
+
+/**
+ * A split and the day it was last reported, as `venuePriceLane` takes them, or
+ * null. The split-lane twin of `dropLaneInput`, so the peek and the sheet build
+ * one input the same way.
+ */
+export function splitLaneInput(
+  split: PintPriceSplit | null | undefined,
+  observedAtMs: number | null | undefined,
+): DisputedPriceInput | null {
+  return split ? { split, observedAt: observedAtMs ?? null } : null;
 }
 
 /**
@@ -259,6 +337,8 @@ export function trustChipStateFor(
       return standing === "confirmed" ? "confirmed" : "corroborated";
     case "provisional":
       return "logged-once";
+    case "disputed":
+      return "disputed";
     case "aged":
       return "aged-out";
     default:
@@ -283,21 +363,28 @@ export function trustChipStateFor(
 //            already applies). The composer stays FOLDED until this door is
 //            taken, so its Log it and its chips are never a second primary.
 //   confirm  the second drinker's door (#1492): "Still £4.50?", seeding the
-//            Pint Drop composer with the figure the lane prints, on the two
-//            states that are owed a second drinker (lib/pintDropSecondDrinker.ts).
+//            Pint Drop composer with the figure the lane prints, on the states
+//            that are owed a second drinker (lib/pintDropSecondDrinker.ts).
+//   choose   the SPLIT's door (captain 7 Sept 2026): "Which did you pay?" over
+//            one button per recorded figure. A pub holding £4.50 and £4.70
+//            cannot be asked "Still £4.70?", because that names one of two
+//            answers and calls the other one a correction. Each button seeds
+//            the composer with its own figure through the same seam the confirm
+//            door uses, and the server decides what the answer was worth.
 //
 // Nothing here decides a figure, a colour or a standing: the label is worded
 // over the lane's own observed figure, and the door wears the brass action
 // treatment rather than a band, because a door is not a price.
 // ---------------------------------------------------------------------------
 
-/** The two door kinds. A surface renders the one it is handed and no other. */
-export type OverviewPriceDoorKind = "log" | "confirm";
+/** The three door kinds. A surface renders the one it is handed and no other. */
+export type OverviewPriceDoorKind = "log" | "confirm" | "choose";
 
 /** ONE door per state. Written once so the sheet, the tests and the PR body agree. */
 export const OVERVIEW_PRICE_DOOR_KIND: Record<PintTrustState, OverviewPriceDoorKind> = {
   confirmed: "log",
   corroborated: "log",
+  disputed: "choose",
   "logged-once": "confirm",
   "aged-out": "confirm",
   none: "log",
@@ -306,9 +393,13 @@ export const OVERVIEW_PRICE_DOOR_KIND: Record<PintTrustState, OverviewPriceDoorK
 /** The one label the log door prints, everywhere it prints. */
 export const LOG_PRICE_DOOR_LABEL = "Log tonight's price";
 
+/** The one question the split's door asks. */
+export const CHOOSE_PRICE_DOOR_LABEL = "Which did you pay?";
+
 export type OverviewPriceDoor =
   | { kind: "log"; label: string }
-  | { kind: "confirm"; label: string; priceGbp: number };
+  | { kind: "confirm"; label: string; priceGbp: number }
+  | { kind: "choose"; label: string; prices: number[] };
 
 /**
  * The door the Overview's price area offers over a decided lane, or null where
@@ -326,6 +417,9 @@ export function overviewPriceDoor(
 ): OverviewPriceDoor | null {
   if (lane?.lane === "anchor") return null;
   const kind = OVERVIEW_PRICE_DOOR_KIND[state ?? "none"];
+  if (kind === "choose" && lane?.lane === "disputed") {
+    return { kind: "choose", label: CHOOSE_PRICE_DOOR_LABEL, prices: lane.split.prices };
+  }
   if (kind === "confirm" && lane) {
     const figure = venuePriceLaneObservedGbp(lane);
     if (figure !== null) {

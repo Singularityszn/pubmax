@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { attachSpillBill } from "./helpers/priceBill";
 
 // The keyless half of the price-first Spill composer (report D2). The default
 // e2e server is auth-shaped (public Supabase env baked into the build), so a
@@ -71,6 +72,7 @@ test("keyless mobile submit posts a Pint Drop and inserts the story into the Pin
   await form.getByRole("button", { name: "Add a photo or story" }).click();
   await form.getByLabel("Story").fill(story);
 
+  await attachSpillBill(form);
   await form.getByRole("button", { name: "Log it" }).click();
 
   await expect(form).toHaveCount(0);

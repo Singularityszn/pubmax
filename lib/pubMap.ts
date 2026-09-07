@@ -24,6 +24,10 @@ import {
   priceStandingFor,
   priceStandingLabel,
 } from "@/lib/priceTier";
+import {
+  pintPriceSplitLine,
+  pintPriceSplitRange,
+} from "@/lib/pintDropAgreement";
 import { PINT_TRUST_LINE, trustChipStateFor, type PintTrustState } from "@/lib/pintTrust";
 import {
   AGED_PRICE_LINE,
@@ -838,6 +842,19 @@ export function peekPriceChip(
       trust: null,
     };
   }
+  // A SPLIT PRINTS THE RANGE AND THE SPLIT'S OWN LINE. It has no single figure,
+  // so `venuePriceLaneObservedGbp` answers null for it and the chip would
+  // otherwise fall through to nothing over a pub two drinkers have reported.
+  // `priceGbp` stays null with it: two prices have no one band.
+  if (lane.lane === "disputed") {
+    return {
+      figure: pintPriceSplitRange(lane.split),
+      priceGbp: null,
+      caption: pintPriceSplitLine(lane.split),
+      observed: true,
+      trust: "disputed",
+    };
+  }
   const observedGbp = venuePriceLaneObservedGbp(lane);
   if (observedGbp === null) return null;
   // The chip carries the same state the Overview chip carries, read from the
@@ -870,6 +887,10 @@ export const PEEK_LANE_CAPTION: Record<
   sourced: "sourced price on record",
   listed: "listed by the pub",
   provisional: PROVISIONAL_PRICE_LINE,
+  // Never reached: the split branch above answers before the table is asked,
+  // because its caption names the pub's own figures. The key is here so the
+  // closed lane set stays closed.
+  disputed: PROVISIONAL_PRICE_LINE,
   aged: AGED_PRICE_LINE,
   estimate: "estimate",
 };

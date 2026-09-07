@@ -13,7 +13,11 @@ import {
 } from "@/lib/drinkMeasure";
 import type { PintDrop } from "@/lib/pintDrops";
 import { normalizeViewerHandle } from "@/lib/pintDrops";
-import { pintDropsStore, type PintDropPhotos } from "@/lib/pintDropsStore";
+import {
+  PhotoRefusalError,
+  pintDropsStore,
+  type PintDropPhotos,
+} from "@/lib/pintDropsStore";
 import { profileStore } from "@/lib/profileStore";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import { reconcilePriceTrustForObservation } from "@/lib/priceTrustImpact.server";
@@ -200,7 +204,7 @@ export async function revertOneTapCommunityPricePairing(
  */
 export async function writeOneTapPintDrop(
   input: OneTapPintDropInput,
-  photos: PintDropPhotos = { pint: null, venue: null },
+  photos: PintDropPhotos = { pint: null, venue: null, receipt: null },
 ): Promise<OneTapPintDropOutcome> {
   // Pint Drops feed pint-only surfaces (pin colour, cheapest-pint buckets,
   // the Confirmed standing, the Pint Index). A non-beer price paired in here
@@ -237,7 +241,10 @@ export async function writeOneTapPintDrop(
     void ensureProfileForHandle(handle);
     return { ok: true, drop };
   } catch (err) {
-    if (err instanceof Error && err.message.startsWith("Photo must")) {
+    // The CLASS, not the sentence: an unreadable image is refused with words
+    // of its own, and asking about the words sent it down the storage branch
+    // as a retryable 503 (lib/pintDropsStore.ts, PhotoRefusalError).
+    if (err instanceof PhotoRefusalError) {
       return { ok: false, kind: "invalid_photo", message: err.message };
     }
     log("error", "one_tap_pint_drop.create_failed", {

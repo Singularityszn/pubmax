@@ -22,7 +22,7 @@ describe("parsePriceSubmitPostBody", () => {
         drinkCategory: "beer",
         priceGbp: 4.2,
       },
-      photos: { pint: null, venue: null },
+      photos: { pint: null, venue: null, receipt: null },
     });
   });
 

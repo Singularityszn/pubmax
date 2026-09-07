@@ -169,13 +169,44 @@ import {
   type PintDropReportIdentity,
   validatePintDrop,
 } from "@/lib/pintDrops";
-import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
+import {
+  memoryPintDropStore,
+  PhotoRefusalError,
+  supabasePintDropStore,
+  UNREADABLE_PHOTO_REFUSAL,
+} from "@/lib/pintDropsStore";
+import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { memoryProfileStore } from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/pint-drops";
 
+/** A tiny, real JPEG: the two markers the upload path's sniffer looks for. */
+function jpegFile(name: string): File {
+  return new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], name, { type: "image/jpeg" });
+}
+
+/**
+ * A POST as a real client makes it. A PRICED body goes multipart and carries
+ * the bill, because the route refuses a price without one (captain 7 Sept
+ * 2026, lib/pintDropReceipt.ts). An unpriced body stays JSON, which is what
+ * the note and memory lanes send.
+ */
 function post(body: unknown): Promise<Response> {
-  return POST(new Request(URL_BASE, { method: "POST", body: JSON.stringify(body) }));
+  const fields = (body ?? {}) as Record<string, unknown>;
+  if (!priceNeedsReceipt(fields.priceGbp)) {
+    return POST(new Request(URL_BASE, { method: "POST", body: JSON.stringify(body) }));
+  }
+  const form = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === undefined || value === null) continue;
+    // The route reads tags from repeated `vibe_tags` entries, which is what the
+    // real composer sends; every other field is a plain string.
+    const field = key === "vibeTags" ? "vibe_tags" : key;
+    if (Array.isArray(value)) for (const entry of value) form.append(field, String(entry));
+    else form.set(field, String(value));
+  }
+  form.set("receipt_photo", jpegFile("bill.jpg"));
+  return POST(new Request(URL_BASE, { method: "POST", body: form }));
 }
 
 function get(venueId?: string): Promise<Response> {
@@ -479,6 +510,33 @@ describe("POST /api/pint-drops (create)", () => {
     expect(stored.id).toBe(drop.id);
     expect(stored.authorityKey).toMatch(/^[a-f0-9]{64}$/);
     expect(stored.authorityKey).not.toContain("account-anon");
+  });
+
+  it("refuses a priced drop with no photo of the bill", async () => {
+    reportAuth.userId = "account-noproof";
+    await memoryProfileStore.createOwned("no_proof", reportAuth.userId);
+    // The bare JSON body a client that has not been updated would send.
+    const res = await POST(
+      new Request(URL_BASE, {
+        method: "POST",
+        body: JSON.stringify({ venueId: VENUE, handle: "no_proof", priceGbp: 4.5 }),
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error?: string }).error).toBe(RECEIPT_REQUIRED_LINE);
+  });
+
+  it("takes a drop that carries no price without asking for a bill", async () => {
+    // A Pint Drop can be a note or a bit of lore. Only a PRICE is a claim a
+    // reader needs to be able to check.
+    reportAuth.userId = "account-lore";
+    await memoryProfileStore.createOwned("lore_teller", reportAuth.userId);
+    const res = await post({
+      venueId: VENUE,
+      handle: "lore_teller",
+      passedDownNote: "The back bar is the original 1904 mahogany.",
+    });
+    expect(res.status).toBe(201);
   });
 
   it("confirms an anonymous price against a second account's public one", async () => {
@@ -876,12 +934,7 @@ describe("validatePintDrop — vibe tags (server-authoritative allowlist)", () =
   });
 
   it("threads valid tags through the route into the returned DTO", async () => {
-    const res = await POST(
-      new Request(URL_BASE, {
-        method: "POST",
-        body: JSON.stringify({ ...base, vibeTags: ["cheap", "nope", "hidden gem"] }),
-      }),
-    );
+    const res = await post({ ...base, vibeTags: ["cheap", "nope", "hidden gem"] });
     expect(res.status).toBe(201);
     const { drop } = await res.json();
     expect(drop.vibeTags).toEqual(["cheap", "hidden gem"]);
@@ -931,16 +984,11 @@ describe("validatePintDrop — Last Train compose fields (Wave G1)", () => {
   });
 
   it("threads live fields through the route into the returned DTO", async () => {
-    const res = await POST(
-      new Request(URL_BASE, {
-        method: "POST",
-        body: JSON.stringify({
-          ...base,
-          leaveByIso: leaveBy,
-          lastTrainDecision: "half_pint_only",
-        }),
-      }),
-    );
+    const res = await post({
+      ...base,
+      leaveByIso: leaveBy,
+      lastTrainDecision: "half_pint_only",
+    });
     expect(res.status).toBe(201);
     const { drop } = await res.json();
     expect(drop.leaveByIso).toBe(leaveBy);
@@ -1324,11 +1372,16 @@ describe("durable rate limiting (Supabase configured)", () => {
 
   it("keys the durable limiter on handle + hashed IP, never the raw IP", async () => {
     checkRateLimitDurableDetailed.mockResolvedValue({ verdict: false });
+    const form = new FormData();
+    form.set("venueId", VENUE);
+    form.set("handle", "Ale");
+    form.set("priceGbp", "4");
+    form.set("receipt_photo", jpegFile("bill.jpg"));
     const res = await POST(
       new Request(URL_BASE, {
         method: "POST",
         headers: { "x-forwarded-for": "203.0.113.7, 10.0.0.1" },
-        body: JSON.stringify({ venueId: VENUE, handle: "Ale", priceGbp: 4 }),
+        body: form,
       }),
     );
     expect(res.status).toBe(201);
@@ -1394,5 +1447,46 @@ describe("durable rate limiting (Supabase configured)", () => {
     const res = await post({ venueId: VENUE, handle: "strict", priceGbp: 4 });
     expect(res.status).toBe(429);
     expect(storeCreate).not.toHaveBeenCalled();
+  });
+});
+
+// ── A PHOTO WE CANNOT READ IS THE DRINKER'S TO FIX ────────────────────────────
+//
+// `uploadPhoto` refuses a file the normaliser cannot open, and it says so with
+// a PhotoRefusalError. The route used to tell a refusal from an outage by the
+// error's WORDS ("Photo must…"), so the one refusal whose sentence starts
+// differently, the unreadable image, fell through to a RETRYABLE 503: the app
+// invited a drinker to send the same bytes again, which can never work, and an
+// RLS suite reading 503 over a valid permission read it as a broken rule.
+//
+// The class is the answer, not the sentence.
+describe("a photo we cannot read", () => {
+  beforeEach(() => {
+    supaGuard.configured = true;
+    process.env.SUPABASE_URL = "https://stub.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "stub-key";
+    storeCreate.mockReset();
+  });
+
+  it("is refused in one line the drinker can act on, and never retried", async () => {
+    storeCreate.mockRejectedValue(new PhotoRefusalError(UNREADABLE_PHOTO_REFUSAL));
+
+    const res = await post({ venueId: VENUE, handle: "blurry", priceGbp: 4.2 });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      error: UNREADABLE_PHOTO_REFUSAL,
+      code: "INVALID_REQUEST",
+      retryable: false,
+    });
+  });
+
+  it("is still told apart from a storage outage, which IS ours and IS retryable", async () => {
+    storeCreate.mockRejectedValue(new Error("supabase storage exploded"));
+
+    const res = await post({ venueId: VENUE, handle: "unlucky", priceGbp: 4.2 });
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ retryable: true });
   });
 });

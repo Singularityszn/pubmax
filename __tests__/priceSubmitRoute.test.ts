@@ -173,6 +173,7 @@ import {
 } from "@/lib/ukBasePubs";
 import { getVenueIndex } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 
 type PriceBody = {
@@ -212,12 +213,33 @@ type PriceBody = {
   }>;
 };
 
+/** A tiny, real JPEG: the two markers `magicBytesOk` sniffs for. */
+function jpegFile(name: string): File {
+  return new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], name, { type: "image/jpeg" });
+}
+
+/**
+ * A POST as a real client makes it. A PRICED body goes multipart and carries
+ * the bill, because the route refuses a price without one (captain 7 Sept
+ * 2026, lib/pintDropReceipt.ts). Every other body - a report, a venue signal -
+ * stays JSON, which is what those doors send.
+ */
 function post(body: unknown): Request {
-  return new Request("http://localhost/api/price-submit", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const fields = (body ?? {}) as Record<string, unknown>;
+  if (!priceNeedsReceipt(fields.priceGbp)) {
+    return new Request("http://localhost/api/price-submit", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+  const form = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === undefined || value === null) continue;
+    form.set(key, String(value));
+  }
+  form.set("receipt_photo", jpegFile("bill.jpg"));
+  return new Request("http://localhost/api/price-submit", { method: "POST", body: form });
 }
 
 function get(query: string): Request {
@@ -1475,17 +1497,86 @@ describe("POST /api/price-submit second-drinker confirmation", () => {
     };
   };
 
-  it("tells the same account its repeat confirms nothing", async () => {
+  it("refuses a new price with no photo of the bill, and says why in one line", async () => {
+    // Captain 7 Sept 2026: "whenever a person is submitting a new price, they
+    // have to take a picture of the bill". The rule is the SERVER'S, so a
+    // client that forgets is refused rather than trusted.
+    const venueId = await realVenueId(22);
+    await authorizeContributor("user-noproof", "handle_noproof");
+    const res = await POST(
+      new Request("http://localhost/api/price-submit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ venueId, drinkCategory: "beer", priceGbp: 4.5 }),
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error?: string };
+    expect(body.error).toBe(RECEIPT_REQUIRED_LINE);
+    expect(listVisiblePintDrops(venueId)).toHaveLength(0);
+  });
+
+  it("takes the price when the bill rides with it, and keeps the pint photo optional", async () => {
+    const venueId = await realVenueId(23);
+    await authorizeContributor("user-withproof", "handle_withproof");
+    const form = new FormData();
+    form.set("venueId", venueId);
+    form.set("drinkCategory", "beer");
+    form.set("priceGbp", "4.5");
+    form.set("receipt_photo", jpegFile("bill.jpg"));
+    const res = await POST(
+      new Request("http://localhost/api/price-submit", { method: "POST", body: form }),
+    );
+    expect(res.status).toBe(201);
+    expect(listVisiblePintDrops(venueId)).toHaveLength(1);
+  });
+
+  it("tells one account reporting two figures that its pub now holds two prices", async () => {
     const venueId = await realVenueId(20);
-    // A second REPORT, not a second tap: a different figure inside the shared
-    // agreement tolerance, so the duplicate-tap window (D10) leaves it alone
-    // and the independence rule is what answers.
+    // A second REPORT, not a second tap: a different figure, so the
+    // duplicate-tap window (D10) leaves it alone. Since 7 Sept 2026 the drop
+    // lane's agreement is EXACT, so £4.50 and £4.60 are two prices rather than
+    // one repeated report, and the outcome says so - with ONE drinker behind
+    // them, because both carry this account's own authority key.
     await submitAs("solo", { venueId, drinkCategory: "beer", priceGbp: 4.5 });
     const res = await submitAs("solo", { venueId, drinkCategory: "beer", priceGbp: 4.6 });
     expect(res.status).toBe(201);
     const body = (await res.json()) as ConfirmationBody;
-    expect(body.confirmationOutcome).toEqual({ status: "same_reporter" });
+    expect(body.confirmationOutcome).toEqual({
+      status: "price_disagrees",
+      prices: [4.5, 4.6],
+      reporters: 1,
+    });
     expect(listVisiblePintDrops(venueId).every((row) => !row.confirmation)).toBe(true);
+  });
+
+  it("still tells the same account a REPEATED figure confirms nothing", async () => {
+    const venueId = await realVenueId(21);
+    await submitAs("solo", { venueId, drinkCategory: "beer", priceGbp: 4.5 });
+    // The daily cap refuses a same-day repeat at the route, so the earlier day's
+    // row is placed directly and the pass is asked as that account.
+    const { addPintDrop } = await import("@/lib/pintDrops");
+    const { pintDropAuthorityKey } = await import("@/lib/pintDropAuthority.server");
+    const key = pintDropAuthorityKey(venueId, "user-solo");
+    addPintDrop({
+      id: `repeat-${venueId}`,
+      venueId,
+      handle: "solo",
+      drink: "Beer",
+      priceGbp: 4.5,
+      passedDownNote: "",
+      era: "",
+      provenance: "contributor",
+      status: "visible",
+      visibility: "public",
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      authorityKey: key,
+    });
+    // Both £4.50 rows carry ONE key, so the pass has no independent pair.
+    const { runSecondReporterPass } = await import("@/lib/pintDropConfirm.server");
+    expect(await runSecondReporterPass(venueId, Date.now(), key)).toEqual({
+      status: "same_reporter",
+    });
   });
 
   // BATTLE TEST D10. Three taps on Log it in one tick sent three POSTs, all
@@ -1554,11 +1645,26 @@ describe("POST /api/price-submit second-drinker confirmation", () => {
 });
 
 describe("POST /api/price-submit report", () => {
+  /** As a device makes it: a priced body carries the bill, a report does not. */
   function reportAs(ip: string, body: unknown): Request {
+    const fields = (body ?? {}) as Record<string, unknown>;
+    if (!priceNeedsReceipt(fields.priceGbp)) {
+      return new Request("http://localhost/api/price-submit", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-forwarded-for": ip },
+        body: JSON.stringify(body),
+      });
+    }
+    const form = new FormData();
+    for (const [key, value] of Object.entries(fields)) {
+      if (value === undefined || value === null) continue;
+      form.set(key, String(value));
+    }
+    form.set("receipt_photo", jpegFile("bill.jpg"));
     return new Request("http://localhost/api/price-submit", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-forwarded-for": ip },
-      body: JSON.stringify(body),
+      headers: { "x-forwarded-for": ip },
+      body: form,
     });
   }
 

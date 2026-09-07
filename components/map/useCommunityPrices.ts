@@ -26,6 +26,10 @@ import {
   type ContributionGateStatus,
 } from "@/lib/contributionGateStatus";
 import type { DrinkCategory } from "@/lib/drinks";
+import {
+  parseConfirmationOutcome,
+  type PintDropConfirmationOutcome,
+} from "@/lib/pintDropSecondDrinker";
 import { PINT_TRUST_STATES, type PintTrustState } from "@/lib/pintTrust";
 import type {
   CategoryPriceIndexStatus,
@@ -86,6 +90,14 @@ export type CommunityPriceSubmitResult =
        * otherwise, and the receipt claims no trust without it.
        */
       pintTrust: PintTrustState | null;
+      /**
+       * What the second-reporter pass made of this write, in the closed
+       * vocabulary lib/pintDropSecondDrinker.ts owns. The composer's receipt
+       * PRINTS this rather than deciding a standing of its own, so a drinker
+       * who answered "Which did you pay?" with a third price is told the pub
+       * now holds two, not shown a line asking for a drinker who has been.
+       */
+      confirmationOutcome: PintDropConfirmationOutcome | null;
     }
   // `reason` is the coarse funnel bucket for the failure - the analytics enum,
   // not a second copy of the sentence. `error` stays the human sentence and is
@@ -189,6 +201,9 @@ export type CommunityPricesState = {
     measure?: DrinkMeasure;
     measureLabel?: string;
     pintPhoto?: File | null;
+    /** The photo of the bill. Required on every new price (captain 7 Sept
+     *  2026); the route refuses the write without it. */
+    receiptPhoto?: File | null;
   }, auth: AccountAuthSnapshot) => Promise<CommunityPriceSubmitResult>;
   /** Log one categorical pub observation through the same write seam. */
   submitVenueSignal: (input: {
@@ -949,6 +964,7 @@ export function useCommunityPrices(): CommunityPricesState {
       if (!parsed.ok) return { ok: false, error: parsed.error, reason: "invalid" };
       const { venueId, drinkCategory, priceGbp } = parsed.value;
       const pintPhoto = input.pintPhoto ?? null;
+      const receiptPhoto = input.receiptPhoto ?? null;
       // A measure only means anything on the beer lane, so it only travels
       // with one. `cleanDrinkMeasure` collapses anything else to `pint`, which
       // is what the lane already assumed of every submission before F-2.
@@ -1015,13 +1031,14 @@ export function useCommunityPrices(): CommunityPricesState {
               ? { measure, ...(measureLabel ? { measureLabel } : {}) }
               : {}),
           },
-          pintPhoto ? { pintPhoto } : undefined,
+          pintPhoto || receiptPhoto ? { pintPhoto, receiptPhoto } : undefined,
         );
         const data = (await res.json().catch(() => null)) as
           | {
               price?: CommunityPrice;
               attribution?: unknown;
               pintTrust?: unknown;
+              confirmationOutcome?: unknown;
               error?: unknown;
               status?: string;
             }
@@ -1060,6 +1077,7 @@ export function useCommunityPrices(): CommunityPricesState {
           attribution: readCommunityPriceAttribution(data?.attribution),
           price: stored ?? null,
           pintTrust: readPintTrustState(data?.pintTrust),
+          confirmationOutcome: parseConfirmationOutcome(data?.confirmationOutcome),
         };
       } catch {
         rollback();

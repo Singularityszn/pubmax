@@ -20,7 +20,7 @@ import type { JourneyPoint } from "@/lib/venueJourney";
 import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 import type { ConfirmedPriceInput } from "@/lib/priceTier";
-import type { ProvisionalPriceInput } from "@/lib/venuePriceLane";
+import type { DisputedPriceInput, ProvisionalPriceInput } from "@/lib/venuePriceLane";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { ZonePintIndex } from "@/lib/zones";
 import {
@@ -68,6 +68,9 @@ type VenueInspectorProps = {
   provisionalPrice?: ProvisionalPriceInput | null;
   /** A public pint report PAST the window, for the price area alone. */
   agedPrice?: ProvisionalPriceInput | null;
+  /** The figures this pub's in-window drinkers DISAGREE about, for the price
+   *  area alone. Two prices reach no band and no pin figure. */
+  disputedPrice?: DisputedPriceInput | null;
   /**
    * Map-authority people-logged pint for share copy: the merged signal the
    * pins already paint (corroborated community candidate and/or contributor
@@ -150,6 +153,7 @@ export default function VenueInspector({
   confirmedPrice,
   provisionalPrice,
   agedPrice,
+  disputedPrice,
   shareLoggedPintGbp = null,
   shareLoggedAt = null,
   onToggleStop,
@@ -442,6 +446,7 @@ export default function VenueInspector({
         confirmedPrice={confirmedPrice}
         provisionalPrice={provisionalPrice}
         agedPrice={agedPrice}
+        disputedPrice={disputedPrice}
         // Where this pub's own drop read got to, so the price area can tell a
         // pub nobody has logged from one we could not look at (F-8).
         dropReadStatus={pintDrops.venueDropStatus.get(venue.id)}

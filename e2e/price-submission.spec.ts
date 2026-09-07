@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { attachBill } from "./helpers/priceBill";
 
 // Community price submission E2E: the word-of-mouth moment end to end on a
 // phone - tap a pub, pick a drink, type tonight's price, and watch the venue
@@ -446,6 +447,7 @@ test("a drinker logs tonight's price after completing private signup", async ({
   // First valid contribution proceeds directly after completed signup. Date of
   // birth is a private profile field, not a contribution gate.
   await priceField.fill("4.20");
+  await attachBill(submit);
   await logButton.click();
   await expect(
     page.getByRole("dialog", { name: /18 or over|age/i }),
@@ -600,6 +602,7 @@ test("a person can log soft-drink, alcohol-free and coffee prices from the pub s
     await category.click();
     await expect(category).toHaveAttribute("aria-checked", "true");
     await priceField.fill(entry.price);
+    await attachBill(submit);
     await logButton.click();
     await expect(stamp).toContainText(`£${entry.price}`);
     await expect(stamp).toContainText("On this pub’s page");

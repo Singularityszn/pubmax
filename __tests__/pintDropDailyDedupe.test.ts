@@ -81,7 +81,7 @@ function drop(overrides: Record<string, unknown> = {}) {
   };
 }
 
-const NO_PHOTOS = { pint: null, venue: null };
+const NO_PHOTOS = { pint: null, venue: null, receipt: null };
 // The cap is a WRITE PATH's rule: POST /api/pint-drops opts in, the
 // community-price pairing lane does not. Every case here is the capped lane
 // unless it says otherwise.

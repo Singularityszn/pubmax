@@ -41,6 +41,8 @@ vi.mock("@/components/identity/ContributionGateDialog", () => ({
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/components/map/PriceContributionImpact", () => ({ default: () => null }));
 
+import { attachBill } from "./helpers/oneTapBill";
+
 import VenuePriceSubmit from "@/components/map/VenuePriceSubmit";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 
@@ -83,6 +85,7 @@ async function logPrice() {
   await act(async () => {
     quickPrice.click();
   });
+  await attachBill(container);
   const logButton = container.querySelector<HTMLButtonElement>(".vpsubLog");
   if (!logButton) throw new Error("Log it button did not render");
   await act(async () => {

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { attachBill } from "./helpers/priceBill";
 
 /**
  * Price evidence missions on the map sheet and /near.
@@ -200,11 +201,13 @@ test("signed-in /near shows one mission, submits, and prints the write-back rece
   await expect(page.locator(".pemSlot")).toHaveCount(1);
   await expect(page.locator(".nmnList")).toBeVisible();
 
+  await attachBill(slot);
   await slot.getByRole("button", { name: "Log it" }).click();
   const priceField = slot.getByRole("textbox");
   await expect(priceField).toHaveValue("");
   await expect(slot.locator(".vpsubQuick")).toHaveCount(0);
   await priceField.fill("4.20");
+  await attachBill(slot);
   await slot.getByRole("button", { name: "Log it" }).last().click();
 
   await expect(slot.getByRole("status")).toContainText(
@@ -221,8 +224,10 @@ test("a failed mission write stays on /near", async ({ page }) => {
   await page.goto("/near?patch=soho", { waitUntil: "domcontentloaded" });
   const slot = page.locator(".pemSlot");
   await expect(slot).toBeVisible();
+  await attachBill(slot);
   await slot.getByRole("button", { name: "Log it" }).click();
   await slot.getByRole("textbox").fill("4.20");
+  await attachBill(slot);
   await slot.getByRole("button", { name: "Log it" }).last().click();
   await expect(slot.getByRole("alert")).toBeVisible();
   expect(page.url()).toContain("/near");
@@ -245,6 +250,7 @@ test("map venue sheet shows the mission and prints the write-back receipt", asyn
   const submit = sheet.locator(".venuePriceSubmit");
   await expect(submit.locator(".vpsubQuick")).toHaveCount(0);
   await submit.getByRole("textbox").fill("4.20");
+  await attachBill(submit);
   await submit.getByRole("button", { name: "Log it" }).click();
   await expect(submit.getByRole("status")).toContainText(
     "Another independent check is still needed.",
@@ -266,6 +272,7 @@ test("a logged mission takes its own card away", async ({ page }) => {
 
   const submit = sheet.locator(".venuePriceSubmit");
   await submit.getByRole("textbox").fill("4.20");
+  await attachBill(submit);
   await submit.getByRole("button", { name: "Log it" }).click();
   await expect(submit.getByRole("status")).toBeVisible();
 
@@ -285,6 +292,7 @@ test("the credit sentence reads as one line of prose at 390", async ({
   const sheet = await openVenueSheet(page);
   const submit = sheet.locator(".venuePriceSubmit");
   await submit.getByRole("textbox").fill("4.20");
+  await attachBill(submit);
   await submit.getByRole("button", { name: "Log it" }).click();
   await expect(submit.getByRole("status")).toBeVisible();
 
@@ -325,6 +333,7 @@ test("the credit sentence and its link share one row on a desktop width", async 
   const submit = sheet.locator(".venuePriceSubmit");
   await expect(submit).toBeVisible({ timeout: 30_000 });
   await submit.getByRole("textbox").fill("4.20");
+  await attachBill(submit);
   await submit.getByRole("button", { name: "Log it" }).click();
   await expect(submit.getByRole("status")).toBeVisible();
 
@@ -382,6 +391,7 @@ test("the map sheet locks the mission's own drink, not the lane's", async ({ pag
   const submit = sheet.locator(".venuePriceSubmit");
   await expect(submit.locator(".vpsubLockedDrink")).toHaveText("Wine");
   await submit.getByRole("textbox").fill("6.80");
+  await attachBill(submit);
   await submit.getByRole("button", { name: "Log it" }).click();
   await expect(submit.getByRole("status")).toBeVisible();
   expect(boundary.submitted).toHaveLength(1);

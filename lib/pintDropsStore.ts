@@ -91,6 +91,7 @@ export const MAX_PUBLIC_DROPS = 500;
 export type PersistableDrop = PintDrop & {
   pintPhotoKey?: string;
   venuePhotoKey?: string;
+  receiptPhotoKey?: string;
 };
 
 // Public read shape. Storage keys never leave the server — they map to public
@@ -106,6 +107,8 @@ export type PintDropDTO = Omit<
 > & {
   pintPhotoUrl: string | null;
   venuePhotoUrl: string | null;
+  /** The bill behind this price, signed, or null (migration 0153). */
+  receiptPhotoUrl: string | null;
   reportCount?: number;
 };
 
@@ -123,9 +126,20 @@ export { ANON_HANDLE_LABEL };
 export type ModeratorDrop = PintDrop & {
   pintPhotoUrl: string | null;
   venuePhotoUrl: string | null;
+  receiptPhotoUrl: string | null;
 };
 
-export type PintDropPhotos = { pint: File | null; venue: File | null };
+export type PintDropPhotos = {
+  pint: File | null;
+  venue: File | null;
+  /**
+   * The photo of the BILL behind this price (captain 7 Sept 2026). A third
+   * slot rather than a use of `pint`, because the three are three different
+   * claims: the pint is what they drank, the venue is where, and the receipt is
+   * the evidence for the figure. lib/pintDropReceipt.ts owns when it is owed.
+   */
+  receipt: File | null;
+};
 
 /**
  * What a create says about the rule it is written under. Only the lane that
@@ -323,6 +337,7 @@ function toRow(drop: PersistableDrop, capDay: string | null = null) {
     visibility: visibilityOf(drop),
     pint_photo_key: drop.pintPhotoKey ?? null,
     venue_photo_key: drop.venuePhotoKey ?? null,
+    receipt_photo_key: drop.receiptPhotoKey ?? null,
     provenance: drop.provenance,
     status: drop.status,
     created_at: drop.createdAt,
@@ -428,6 +443,7 @@ function fromRow(row: Record<string, unknown>): PersistableDrop {
     confirmation: confirmationFromRow(row),
     pintPhotoKey: row.pint_photo_key ? String(row.pint_photo_key) : undefined,
     venuePhotoKey: row.venue_photo_key ? String(row.venue_photo_key) : undefined,
+    receiptPhotoKey: row.receipt_photo_key ? String(row.receipt_photo_key) : undefined,
     reportedAt: row.reported_at ? String(row.reported_at) : undefined,
     reportReason: row.report_reason ? String(row.report_reason) : undefined,
     reportCount: pintDropReportCountFromRow(row),
@@ -494,19 +510,21 @@ export async function resolveDropPhotoUrls(
   drop: PersistableDrop,
   grant: boolean,
   urlByKey?: Map<string, string>,
-): Promise<{ pint: string | null; venue: string | null }> {
-  if (!grant) return { pint: null, venue: null };
+): Promise<{ pint: string | null; venue: string | null; receipt: string | null }> {
+  if (!grant) return { pint: null, venue: null, receipt: null };
   if (urlByKey) {
     return {
       pint: drop.pintPhotoKey ? (urlByKey.get(drop.pintPhotoKey) ?? null) : null,
       venue: drop.venuePhotoKey ? (urlByKey.get(drop.venuePhotoKey) ?? null) : null,
+      receipt: drop.receiptPhotoKey ? (urlByKey.get(drop.receiptPhotoKey) ?? null) : null,
     };
   }
-  const [pint, venue] = await Promise.all([
+  const [pint, venue, receipt] = await Promise.all([
     resolveStorageUrl(drop.pintPhotoKey, true),
     resolveStorageUrl(drop.venuePhotoKey, true),
+    resolveStorageUrl(drop.receiptPhotoKey, true),
   ]);
-  return { pint, venue };
+  return { pint, venue, receipt };
 }
 
 /** Public DTO with signed photo URLs (Supabase path). */
@@ -528,14 +546,14 @@ export async function toModeratorDTOWithPhotos(
 
 async function toDTOsWithBatchedPhotos(drops: PersistableDrop[]): Promise<PintDropDTO[]> {
   const keys = drops.flatMap((d) =>
-    d.status === "visible" ? [d.pintPhotoKey, d.venuePhotoKey] : [],
+    d.status === "visible" ? [d.pintPhotoKey, d.venuePhotoKey, d.receiptPhotoKey] : [],
   );
   const urlByKey = await resolveStorageUrlsBatch(keys);
   return Promise.all(drops.map((d) => toDTOWithPhotos(d, urlByKey)));
 }
 
 async function toModeratorDTOsWithBatchedPhotos(drops: PersistableDrop[]): Promise<ModeratorDrop[]> {
-  const keys = drops.flatMap((d) => [d.pintPhotoKey, d.venuePhotoKey]);
+  const keys = drops.flatMap((d) => [d.pintPhotoKey, d.venuePhotoKey, d.receiptPhotoKey]);
   const urlByKey = await resolveStorageUrlsBatch(keys);
   return Promise.all(drops.map((d) => toModeratorDTOWithPhotos(d, urlByKey)));
 }
@@ -548,7 +566,7 @@ async function toModeratorDTOsWithBatchedPhotos(drops: PersistableDrop[]): Promi
  *  never exposed. Pass `photoUrls` from resolveDropPhotoUrls on the Supabase path. */
 export function toDTO(
   drop: PersistableDrop,
-  photoUrls?: { pint: string | null; venue: string | null },
+  photoUrls?: { pint: string | null; venue: string | null; receipt: string | null },
 ): PintDropDTO {
   const visible = drop.status === "visible";
   const visibility = visibilityOf(drop);
@@ -585,6 +603,7 @@ export function toDTO(
     createdAt: drop.createdAt,
     pintPhotoUrl: visible ? (photoUrls?.pint ?? null) : null,
     venuePhotoUrl: visible ? (photoUrls?.venue ?? null) : null,
+    receiptPhotoUrl: visible ? (photoUrls?.receipt ?? null) : null,
   };
   if (drop.measureLabel) dto.measureLabel = drop.measureLabel;
   // The authority key is a per-venue pseudonym for one verified account, so on
@@ -611,15 +630,17 @@ export function toDTO(
  *  the reviewer must see the evidence. Report metadata rides along. */
 export function toModeratorDTO(
   drop: PersistableDrop,
-  photoUrls?: { pint: string | null; venue: string | null },
+  photoUrls?: { pint: string | null; venue: string | null; receipt: string | null },
 ): ModeratorDrop {
-  const { pintPhotoKey, venuePhotoKey, ...rest } = drop;
+  const { pintPhotoKey, venuePhotoKey, receiptPhotoKey, ...rest } = drop;
   void pintPhotoKey;
   void venuePhotoKey;
+  void receiptPhotoKey;
   return {
     ...rest,
     pintPhotoUrl: photoUrls?.pint ?? null,
     venuePhotoUrl: photoUrls?.venue ?? null,
+    receiptPhotoUrl: photoUrls?.receipt ?? null,
   };
 }
 
@@ -910,6 +931,22 @@ function isMissingMeasureColumnError(error: {
   return (code === "42703" || code === "PGRST204") && mentions;
 }
 
+/**
+ * Additive-rollout guard for the receipt column (migration 0153).
+ *
+ * The RULE is the write door's (lib/pintDropReceipt.ts) and it reads no column,
+ * so a deploy that lands before the captain applies 0153 still refuses a price
+ * with no bill. What it must not do is refuse the price because it cannot store
+ * the key: the drop is saved without it, and a photo is lost where a price
+ * would have been.
+ */
+function isMissingReceiptColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const message = (error.message ?? "").toLowerCase();
+  return (code === "42703" || code === "PGRST204") && message.includes("receipt_photo_key");
+}
+
 // Additive-rollout guard for Wave G1 Last Train columns (migration 0021).
 function isMissingLastTrainColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
@@ -936,6 +973,30 @@ export const supabasePintDropStore: PintDropStore = {
       if (photos.venue) {
         persistable.venuePhotoKey = await uploadPhoto("venue", drop.venueId, drop.id, photos.venue);
         uploaded.push(persistable.venuePhotoKey);
+      }
+      if (photos.receipt) {
+        // A BILL WE COULD NOT STORE MAY NOT COST THE PRICE. The file is still
+        // refused when the file is the problem (PhotoRefusalError → 400), but a
+        // Storage outage is a fact about US, and this module's own law is that
+        // nothing here fails a Pint Drop over one. The drop lands with its
+        // figure and no receipt key, and the loss is logged rather than shown
+        // to a drinker who did exactly what was asked.
+        try {
+          persistable.receiptPhotoKey = await uploadPhoto(
+            "receipt",
+            drop.venueId,
+            drop.id,
+            photos.receipt,
+          );
+          uploaded.push(persistable.receiptPhotoKey);
+        } catch (err) {
+          if (err instanceof PhotoRefusalError) throw err;
+          log("warn", "pint_drops.receipt_upload_failed", {
+            venueId: drop.venueId,
+            dropId: drop.id,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
       }
       let row = toRow(persistable, dailyCapDay(drop, options));
       // EVERY insert attempt goes through here, because the daily cap is now a
@@ -989,6 +1050,17 @@ export const supabasePintDropStore: PintDropStore = {
         void _omitConfirmingDrop;
         delete persistable.confirmation;
         row = rowWithoutConfirmation as typeof row;
+        error = await insert(row);
+      }
+      if (error && isMissingReceiptColumnError(error)) {
+        console.warn(
+          "[pint-drops] receipt_photo_key missing - saving this drop without its bill photo (apply migration 0153):",
+          error.message,
+        );
+        const { receipt_photo_key: _omitReceipt, ...rowWithoutReceipt } = row;
+        void _omitReceipt;
+        delete persistable.receiptPhotoKey;
+        row = rowWithoutReceipt as typeof row;
         error = await insert(row);
       }
       if (error && isMissingMeasureColumnError(error)) {
@@ -1364,22 +1436,44 @@ async function normalizeImage(input: Uint8Array): Promise<Buffer> {
  * (trust boundary — the client is untrusted, so type/size are checked here, not
  * just in the browser).
  */
+/**
+ * A refusal ABOUT THE FILE, as against a failure about US.
+ *
+ * The two used to be one `Error`, told apart by the route only by the fact that
+ * both ended a create. They are not one thing: a mislabelled or corrupt image
+ * is the drinker's to fix and is worth a 400, and a Storage outage is ours and
+ * must never cost a price (`create` keeps a drop whose BILL could not be
+ * stored, and logs it).
+ */
+export class PhotoRefusalError extends Error {}
+
+/**
+ * What an image the normaliser cannot open is refused with.
+ *
+ * Its own sentence, because it is the one refusal that is not about a rule the
+ * drinker broke: the type was right and the size was fine, and the bytes still
+ * did not open. It says what to do rather than naming the encoder, and it never
+ * invites a retry of the same file.
+ */
+export const UNREADABLE_PHOTO_REFUSAL =
+  "That photo could not be read. Choose a different image.";
+
 export async function uploadPhoto(
-  slot: "pint" | "venue",
+  slot: "pint" | "venue" | "receipt",
   venueId: string,
   dropId: string,
   file: File,
   maxBytes = MAX_PHOTO_BYTES,
 ): Promise<string> {
   const invalid = validatePhoto(file.type, file.size, maxBytes);
-  if (invalid) throw new Error(invalid);
+  if (invalid) throw new PhotoRefusalError(invalid);
 
   // Read the bytes once, sniff the signature, then strip + normalize. A
-  // mislabelled/crafted file that passed the MIME check is rejected here with
-  // the same user-safe "Photo must…" error path (route → 400).
+  // mislabelled/crafted file that passed the MIME check is refused here as a
+  // PhotoRefusalError, which both write doors answer with a 400.
   const buffer = new Uint8Array(await file.arrayBuffer());
   if (!magicBytesOk(buffer, file.type)) {
-    throw new Error("Photo must be a JPEG, PNG, or WebP image.");
+    throw new PhotoRefusalError("Photo must be a JPEG, PNG, or WebP image.");
   }
 
   // Issue #33: pure-TypeScript, dependency-free metadata strip (JPEG segment /
@@ -1396,7 +1490,7 @@ export async function uploadPhoto(
     // Should be unreachable given magicBytesOk just passed, but keep the
     // fail-closed guarantee explicit rather than assuming the two checks can
     // never disagree.
-    throw new Error("Photo must be a JPEG, PNG, or WebP image.");
+    throw new PhotoRefusalError("Photo must be a JPEG, PNG, or WebP image.");
   }
   let stripped: Uint8Array;
   try {
@@ -1409,7 +1503,7 @@ export async function uploadPhoto(
       contentType: file.type,
       error: err instanceof Error ? err.message : String(err),
     });
-    throw new Error("Photo must be a valid, uncorrupted image.");
+    throw new PhotoRefusalError("Photo must be a valid, uncorrupted image.");
   }
 
   // PRD §7.2: strip EXIF (incl. GPS) + normalize BEFORE upload. A processing
@@ -1427,7 +1521,7 @@ export async function uploadPhoto(
       contentType: file.type,
       error: err instanceof Error ? err.message : String(err),
     });
-    throw new Error("Photo could not be processed. Choose a different image and try again.");
+    throw new PhotoRefusalError(UNREADABLE_PHOTO_REFUSAL);
   }
 
   const key = `${venueId}/${dropId}/${slot}.${NORMALIZED_EXT}`;

@@ -22,12 +22,6 @@ import { UPLOADED_IMAGE_MAX_BYTES } from "@/lib/uploadedImage.server";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
-/** What a browser-side photo cap is DEFINED as, read off the source. */
-function photoCapIn(file: string, name: string): string {
-  const match = new RegExp(`const ${name} = ([^;]+);`).exec(read(file));
-  return match ? match[1].trim() : "not found";
-}
-
 function sourceFiles(dir: string): string[] {
   const root = join(process.cwd(), dir);
   const out: string[] = [];
@@ -69,13 +63,25 @@ describe("every server photo cap reads the wire limit", () => {
     expect(UPLOADED_IMAGE_MAX_BYTES).toBe(UPLOAD_PHOTO_MAX_BYTES);
   });
 
-  it("through the map composers, which are the browser's own gate", async () => {
-    const [{ MAX_PHOTO_BYTES }, { PINT_PHOTO_MAX_BYTES }] = [
-      { MAX_PHOTO_BYTES: photoCapIn("components/map/usePintDrops.ts", "MAX_PHOTO_BYTES") },
-      { PINT_PHOTO_MAX_BYTES: photoCapIn("components/map/VenuePriceSubmit.tsx", "PINT_PHOTO_MAX_BYTES") },
-    ];
-    expect(MAX_PHOTO_BYTES).toBe("UPLOAD_PHOTO_MAX_BYTES");
-    expect(PINT_PHOTO_MAX_BYTES).toBe("UPLOAD_PHOTO_MAX_BYTES");
+  it("through the map composers, which are the browser's own gate", () => {
+    // ONE PLACE THAT ASKS. Each composer used to hold its own copy of the cap
+    // and its own list of accepted types, so the wire's figure was quoted
+    // twice and the words beside it could drift apart. `photoRefusal`
+    // (lib/pintDropReceipt.ts) is the browser's whole half of the rule now, so
+    // the fence is on the CALL, and on the leaf still reading the wire.
+    for (const file of [
+      "components/map/usePintDrops.ts",
+      "components/map/VenuePriceSubmit.tsx",
+    ]) {
+      const source = read(file);
+      expect(source, file).toContain('from "@/lib/pintDropReceipt"');
+      expect(source, file).toContain("photoRefusal(file)");
+      expect(source, file).not.toContain("UPLOAD_PHOTO_MAX_BYTES");
+    }
+    const leaf = read("lib/pintDropReceipt.ts");
+    expect(leaf).toContain('from "@/lib/uploadBodyLimit"');
+    expect(leaf).toContain("file.size > UPLOAD_PHOTO_MAX_BYTES");
+    expect(leaf).toContain("${UPLOAD_PHOTO_MAX_LABEL}.");
   });
 
   it("with no photo cap of any size typed beside a picker", () => {
