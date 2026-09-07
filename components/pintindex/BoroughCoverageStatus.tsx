@@ -45,7 +45,7 @@ export default function BoroughCoverageStatus({
           <ul className="boroughCoverageList boroughCoverageList--shared">
             {rows.map((row) => (
               <li key={row.slug}>
-                <Link
+                <Link prefetch={false}
                   className="boroughCoverageLink"
                   href={boroughCoverageMapHref(row.mapQuery)}
                 >
@@ -60,7 +60,7 @@ export default function BoroughCoverageStatus({
           {rows.map((row) => (
             <li key={row.slug} className="boroughCoverageRow">
               <p className="boroughCoverageCopy">{boroughCoverageStatusCopy(row)}</p>
-              <Link className="boroughCoverageLink" href={boroughCoverageMapHref(row.mapQuery)}>
+              <Link prefetch={false} className="boroughCoverageLink" href={boroughCoverageMapHref(row.mapQuery)}>
                 Open on the map
               </Link>
             </li>

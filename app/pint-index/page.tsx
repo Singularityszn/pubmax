@@ -149,7 +149,7 @@ export default async function PintIndexPage() {
           {rows.length === 0 ? (
             <EmptyState
               title="No borough league yet."
-              action={<Link href="/map">Find a pub and log a price</Link>}
+              action={<Link prefetch={false} href="/map">Find a pub and log a price</Link>}
             >
               The zone strip shows the wider price picture by fare zone. The league
               only ranks boroughs using dated prices with a public source.
@@ -204,7 +204,7 @@ export default async function PintIndexPage() {
           </div>
         </section>
 
-        <p className="pintIndexFootnote"><Link href="/historic">Explore cited historic pubs →</Link> · <Link href="/map">Open the map →</Link></p>
+        <p className="pintIndexFootnote"><Link href="/historic">Explore cited historic pubs →</Link> · <Link prefetch={false} href="/map">Open the map →</Link></p>
       </PintIndexScreen>
     </main>
   );

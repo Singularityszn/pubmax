@@ -102,7 +102,7 @@ export default function MusicTonightLane({ rows: providedRows, asOf: providedAsO
             : preferredCityMapHref();
           return (
             <li key={row.id}>
-              <Link
+              <Link prefetch={false}
                 href={mapHref}
                 className="dealsTonightCard"
                 onClick={() => trackEvent("lane_card_tap")}
@@ -119,7 +119,7 @@ export default function MusicTonightLane({ rows: providedRows, asOf: providedAsO
           );
         })}
       </ul>
-      <Link
+      <Link prefetch={false}
         className="dealsTonightMap"
         href="/map?src=whats-on-music"
         onClick={() => trackEvent("whats_on_filter")}

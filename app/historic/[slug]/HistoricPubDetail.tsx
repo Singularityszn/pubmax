@@ -63,9 +63,9 @@ export default function HistoricPubDetail({ pub }: { pub: HistoricPub }) {
         lede={pub.hook || undefined}
         primary={
           mapHref ? (
-            <Link href={mapHref}>Open on the map</Link>
+            <Link prefetch={false} href={mapHref}>Open on the map</Link>
           ) : (
-            <Link href="/map">Open the map</Link>
+            <Link prefetch={false} href="/map">Open the map</Link>
           )
         }
         secondary={
@@ -131,7 +131,7 @@ export default function HistoricPubDetail({ pub }: { pub: HistoricPub }) {
         <section className="hdActions" aria-label="Explore this pub">
           {mapHref ? (
             <div className="hdActionRow">
-              <Link className="hdAction pressable" href={mapHref}>
+              <Link prefetch={false} className="hdAction pressable" href={mapHref}>
                 <PubPalMascot size={14} circular lazy />
                 Ask your Pub Pal
               </Link>

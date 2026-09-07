@@ -132,7 +132,7 @@ export default function DealsTonightLane({
           const listingAge = dealListingAgeCaption(row, now);
           return (
             <li key={row.id}>
-              <Link
+              <Link prefetch={false}
                 href={mapHref}
                 className="dealsTonightCard"
                 onClick={() => trackEvent("lane_card_tap")}
@@ -156,7 +156,7 @@ export default function DealsTonightLane({
           );
         })}
       </ul>
-      <Link
+      <Link prefetch={false}
         className="dealsTonightMap"
         href="/map?src=whats-on-deal"
         onClick={() => trackEvent("whats_on_filter")}

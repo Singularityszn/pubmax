@@ -137,7 +137,7 @@ export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughP
       ) : handle ? (
         <p className="boroughPassportFoot">
           Nothing stamped in {boroughName} yet.{" "}
-          <Link href={`/map?q=${encodeURIComponent(boroughName)}`}>Log a pint on the map →</Link>
+          <Link prefetch={false} href={`/map?q=${encodeURIComponent(boroughName)}`}>Log a pint on the map →</Link>
         </p>
       ) : (
         <p className="boroughPassportFoot">

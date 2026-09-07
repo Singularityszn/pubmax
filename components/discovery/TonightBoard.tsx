@@ -34,7 +34,7 @@ export default function TonightBoard({
     return (
       <p className="discoverEmpty" role="status">
         No pints logged in the last 24h.{" "}
-        <Link href={cityAwareMapPath(DEFAULT_CITY_ID)}>Be the first tonight</Link>.
+        <Link prefetch={false} href={cityAwareMapPath(DEFAULT_CITY_ID)}>Be the first tonight</Link>.
       </p>
     );
   }
@@ -52,7 +52,7 @@ export default function TonightBoard({
             <span className="srOnly">Rank {entry.rank}</span>
 
             <span className="tonightMain">
-              <Link
+              <Link prefetch={false}
                 href={href}
                 className="tonightPub"
                 onPointerEnter={() => prefetchVenue(entry.venueId)}

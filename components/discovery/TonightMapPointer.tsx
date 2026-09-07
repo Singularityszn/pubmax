@@ -23,7 +23,7 @@ export default function TonightMapPointer() {
         Quiz, screens, deals, and live music live on the map Tonight lane, the
         same `/api/whats-on` spine, with pin badges and kind filters.
       </p>
-      <Link
+      <Link prefetch={false}
         className="dealsTonightMap"
         href="/map?src=discover-tonight"
         onClick={() => trackEvent("whats_on_filter")}

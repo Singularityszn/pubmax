@@ -152,7 +152,7 @@ export default function NightAreaCoverage() {
           <p className="nightAreaCoverage__eyebrow">Across London</p>
           <h2 id="night-area-coverage-title">Where you can plan a crawl tonight</h2>
         </div>
-        <Link className="nightAreaCoverage__plannerLink" href="/plan">
+        <Link prefetch={false} className="nightAreaCoverage__plannerLink" href="/plan">
           Open planner
         </Link>
       </header>

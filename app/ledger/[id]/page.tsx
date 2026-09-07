@@ -191,7 +191,7 @@ function NotInTheLedger() {
         <p className="ledgerEmptyBody">
           It may have moved, or the link is wrong. Every mapped pub still has a home.
         </p>
-        <Link className="ledgerPrimaryLink" href="/map">
+        <Link prefetch={false} className="ledgerPrimaryLink" href="/map">
           Back to the map
         </Link>
       </div>
@@ -320,7 +320,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
         ) : null}
 
         <div className="ledgerHeadActions">
-          <Link className="ledgerMapLink" href={venueMapUrl(canonicalId)}>
+          <Link prefetch={false} className="ledgerMapLink" href={venueMapUrl(canonicalId)}>
             Open on the map
           </Link>
           <Link className="ledgerMapLink" href={`/bar-tab/${encodeURIComponent(canonicalId)}`}>
@@ -465,7 +465,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
       <OperatorRailPanel venueId={canonicalId} venueName={venue.name} />
 
       <p className="ledgerFootnote">
-        Sources, reports and price history. <Link href={venueMapUrl(canonicalId)}>See {venue.name} on the map →</Link>
+        Sources, reports and price history. <Link prefetch={false} href={venueMapUrl(canonicalId)}>See {venue.name} on the map →</Link>
       </p>
     </main>
   );

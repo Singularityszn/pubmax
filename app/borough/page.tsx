@@ -65,7 +65,7 @@ export default async function BoroughIndexPage() {
           <EmptyState
             className="boroughEmpty"
             title="We couldn’t load the boroughs just now."
-            action={<Link href="/map">Open the map instead</Link>}
+            action={<Link prefetch={false} href="/map">Open the map instead</Link>}
           />
         ) : (
           <ul className="boroughGrid" aria-label="London boroughs">

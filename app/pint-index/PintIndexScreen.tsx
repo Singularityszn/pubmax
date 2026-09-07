@@ -27,7 +27,7 @@ export default function PintIndexScreen({
       title={title}
       titleId="pintIndexHeading"
       lede={lede}
-      primary={<Link href="/map">Open the map</Link>}
+      primary={<Link prefetch={false} href="/map">Open the map</Link>}
       secondary={
         <a href={csvHref} download>
           Download the CSV
