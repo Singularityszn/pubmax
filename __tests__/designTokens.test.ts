@@ -116,6 +116,28 @@ describe("launch tokens", () => {
     expect(undeclared).toEqual([]);
   });
 
+  it("keeps the radius table from sending a control back to 6px", () => {
+    // #1597 spent a night taking 6px corners off eleven control families, and
+    // the same document's radius table still read "--radius-sm 6px  tight
+    // corner (chips, small controls)" two hundred lines later. A lane building
+    // the next surface reads the table, not the Launch tokens section, and
+    // ships the defect back. The doc names ONE radius for a control.
+    const doc = read("docs/DESIGN_SYSTEM.md");
+    const radiusTable = doc.slice(doc.indexOf("## Spacing, radius, shadow"));
+    const smallRadiusLine = radiusTable
+      .split("\n")
+      .find((line) => line.startsWith("--radius-sm"));
+
+    expect(smallRadiusLine, "the radius table names --radius-sm").toBeDefined();
+    expect(
+      /control/i.test(smallRadiusLine ?? ""),
+      "--radius-sm may not be offered to a control; --control-radius is the one control corner",
+    ).toBe(false);
+    expect(radiusTable, "the table sends a control to --control-radius").toContain(
+      "--control-radius",
+    );
+  });
+
   for (const sheet of PRIMITIVE_STYLESHEETS) {
     it(`${sheet} paints with launch tokens only`, () => {
       const css = read(sheet).replace(/\/\*[\s\S]*?\*\//g, "");

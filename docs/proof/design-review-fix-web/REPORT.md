@@ -31,14 +31,16 @@ Method: a Playwright sweep (`chromium`, device scale 2, reduced motion) shoots e
 
 `e2e/mobile-map-chrome-fit.spec.ts` › `320px keeps the whole place name and the map-edge lane tappable` failed once on the Avrea runner (run 34064821878, attempt 1) and passed on retry. The attempt-1 log names the assertion: one animation frame after the CDP safe-area override, the TfL control still measured its default berth (308 against 288). The pin now waits, bounded, for the inset to land and asserts the same edges. Fixed in #1597.
 
-## Follow-ups this lane did not take
+## Follow-ups and decisions this lane did not take
 
-- The profile editor's own form buttons (`Rename handle`, `Save private details`, `Create private Memory`) wear 12px corners at weight 750: one editor family, recorded rather than moved, because PR #1591 is in the same component tree.
-- Number-square chips (the planner's stop count at 10px, the pubs zone picker at `--radius-sm`) want one family.
-- The five quick price chips wrap 4 + 1 at 390 (`lib/` ladder, a policy).
+This report is the record of one finished measurement. The three follow-ups it
+did not take and the two decisions it raised are OPEN work, so they moved to
+[`docs/design/BACKLOG.md`](../../design/BACKLOG.md), which is where a later
+lane looks: the profile editor's own button family, one family for number-square
+chips, the five quick price chips wrapping 4 + 1 at 390, `consent-before-answer`
+and `map-kind-chips-behind-filters`.
 
-## Decisions raised
-
-- `consent-before-answer`: the consent card is the first thing a new reader meets at 320 and 360, over the answer card on `/` and the first list on `/near` and `/tonight`. PlanAstra section 3 moves it to the third screen. Firstmate: its own lane after PR #1594.
-- `map-kind-chips-behind-filters`: PlanAstra item 9. Needs a desktop `Filters` control and moves the specs that click the chips. Firstmate: a map lane after #1597.
-- `head-primary-on-form-screens`: /login and /pal/chat painted a head door above the field and the form's submit under it. Firstmate: (a), the form's own submit is the painted primary; applied in #1597.
+The third decision raised here is closed: `head-primary-on-form-screens` was
+answered by the captain on 7 September 2026 - a form screen paints no head
+primary, and the form's own submit is the painted control - applied in #1597 and
+written into `docs/design/LAUNCH_SCREENS.md`'s rules list.
