@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   hypedPubCredit,
   hypedPubMapHref,
+  hypedPubsForPage,
   orderHypedPubs,
   parseHypedPubs,
+  HYPED_PUBS_PAGE_LIMIT,
   type HypedPub,
 } from "@/lib/hypedPubs";
 
@@ -108,6 +110,33 @@ describe("hyped pubs pack", () => {
       ],
     }).rows;
     expect(hypedPubCredit(entry as HypedPub)?.label).toBe("r/london");
+  });
+
+  it("hands the page the rows it prints and nothing else", () => {
+    // The pack carries 48 rows and three sources each. The document is
+    // prerendered, so every byte of it is served to every reader: the page
+    // takes the rows it can show and the ONE credit each of them prints.
+    const rows = parseHypedPubs({
+      rows: Array.from({ length: 30 }, (_, index) =>
+        row({
+          name: `Pub ${index}`,
+          score: 30 - index,
+          sources: [
+            {
+              label: "r/london",
+              url: "https://example.com/a",
+              observedAt: "2026-08-01T00:00:00.000Z",
+            },
+            { label: "Time Out", url: "https://example.com/b", observedAt: OBSERVED },
+          ],
+        }),
+      ),
+    }).rows;
+    const page = hypedPubsForPage(rows);
+    expect(page).toHaveLength(HYPED_PUBS_PAGE_LIMIT);
+    expect(page[0]?.name).toBe("Pub 0");
+    expect(page[0]?.sources).toHaveLength(1);
+    expect(page[0]?.sources[0]?.label).toBe("Time Out");
   });
 
   it("links a matched pub to the map, and an unmatched one nowhere", () => {

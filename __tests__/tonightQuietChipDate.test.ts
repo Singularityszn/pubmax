@@ -15,8 +15,10 @@ import { checkedLabel } from "@/lib/whatsOnBadges";
  * of ours rather than an absence of evidence.
  */
 
+const NOW = Date.parse("2026-09-07T18:00:00.000Z");
 const DEAL_DAY = "2026-09-07T08:43:37.191Z";
-const EVENT_DAY = "2026-09-06T21:00:00.000Z";
+const EVENT_DAY = "2026-09-07T02:00:00.000Z";
+const LAST_MONTH = "2026-08-22T03:00:00.000Z";
 
 function group(row: WhatsOnRow): TonightGroupedRow {
   return { row, venueCount: 1, alternates: [] } as TonightGroupedRow;
@@ -42,14 +44,45 @@ describe("the quiet night's own date", () => {
       renderedGroups: [],
       outEvents: [],
       kindObservedAt: { deal: DEAL_DAY, event: EVENT_DAY },
+      now: NOW,
     });
     expect(observed).toBe(EVENT_DAY);
     expect(checkedLabel(observed)).not.toBe("No date on this yet");
   });
 
+  it("refuses a read too old to be about tonight", () => {
+    // The 6 September defect: a quiet night dated "Checked 22 Aug". Evidence
+    // older than a day cannot say what is on tonight.
+    expect(
+      tonightWhatsOnObservedAt({
+        renderedGroups: [],
+        outEvents: [],
+        kindObservedAt: { event: LAST_MONTH },
+        now: NOW,
+      }),
+    ).toBeNull();
+  });
+
+  it("claims no What's-On day when every row on screen came from Out", () => {
+    const fromOut = whatsOnRow("music", DEAL_DAY);
+    expect(
+      tonightWhatsOnObservedAt({
+        renderedGroups: [group(fromOut)],
+        outEvents: [fromOut],
+        kindObservedAt: { deal: DEAL_DAY, music: DEAL_DAY },
+        now: NOW,
+      }),
+    ).toBeNull();
+  });
+
   it("still answers undated when the read dated nothing at all", () => {
     expect(
-      tonightWhatsOnObservedAt({ renderedGroups: [], outEvents: [], kindObservedAt: {} }),
+      tonightWhatsOnObservedAt({
+        renderedGroups: [],
+        outEvents: [],
+        kindObservedAt: {},
+        now: NOW,
+      }),
     ).toBeNull();
   });
 
@@ -58,6 +91,7 @@ describe("the quiet night's own date", () => {
       renderedGroups: [group(whatsOnRow("deal", DEAL_DAY))],
       outEvents: [],
       kindObservedAt: { deal: DEAL_DAY, event: EVENT_DAY },
+      now: NOW,
     });
     expect(observed).toBe(DEAL_DAY);
   });
@@ -67,6 +101,7 @@ describe("the quiet night's own date", () => {
       renderedGroups: [group(whatsOnRow("quiz", DEAL_DAY))],
       outEvents: [],
       kindObservedAt: { deal: DEAL_DAY },
+      now: NOW,
     });
     expect(observed).toBeNull();
   });

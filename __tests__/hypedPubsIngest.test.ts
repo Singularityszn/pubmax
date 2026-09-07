@@ -60,14 +60,28 @@ describe("hyped pubs ingest", () => {
     expect(report.published).toBe(1);
   });
 
-  it("refuses a stated venue id no venue answers to", () => {
+  it("keeps a pub whose stated venue id no curated venue answers to, unmatched", () => {
+    // The scout's 7 September file stated twelve `venue-uk-*` ids, which name
+    // rows in the UK BASE layer rather than the curated index the map opens by
+    // `?sel=`. The pub is real and the talk about it is real; only our own
+    // pin is missing, so the row shows and says so.
     const { file, report } = buildHypedPubsFile(
-      { rows: [row({ venueId: "venue-invented" })] },
+      { rows: [row({ name: "Ye Olde Mitre", venueId: "venue-uk-w420644092" })] },
       VENUES,
       NOW,
     );
-    expect(file.rows).toEqual([]);
-    expect(report.drops["unknown-venue-id"]).toBe(1);
+    expect(file.rows).toHaveLength(1);
+    expect(file.rows[0].venueId).toBeNull();
+    expect(report.unmatchedIds).toBe(1);
+    expect(report.matched).toBe(0);
+  });
+
+  it("keeps a long single sentence and refuses a second one", () => {
+    const long = `Named again and again as the Soho pub people queue for, with one review calling it ${"the best in London ".repeat(4)}and a video of its roast passing 482k views.`;
+    expect(long.length).toBeGreaterThan(200);
+    const { file, report } = buildHypedPubsFile({ rows: [row({ whyLine: long })] }, VENUES, NOW);
+    expect(file.rows).toHaveLength(1);
+    expect(report.drops["why-line-too-long"]).toBe(0);
   });
 
   it("refuses a row with no dated source, and counts it", () => {

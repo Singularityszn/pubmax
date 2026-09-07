@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 
 import { loadHistoricPubs } from "@/lib/historic";
+import { hypedPubsForPage } from "@/lib/hypedPubs";
+import { loadHypedPubs } from "@/lib/hypedPubs.server";
 import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
 import { buildQuietPint, isQuietPintWindow } from "@/lib/quietPint";
+import { tonightCheapPints } from "@/lib/tonightCheapPints";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import TonightClient from "./TonightClient";
 
@@ -45,10 +48,14 @@ export default async function TonightPage() {
   // Same fail-soft compose as /today: heritage-cited candidates joined to
   // verified pint prices. buildQuietPint returns null outside a quiet window
   // or when cited candidates are too few; the card then renders nothing.
-  const [pricedVenues, historicPubs, mapSelectableVenueIds] = await Promise.all([
+  const [pricedVenues, historicPubs, mapSelectableVenueIds, hyped] = await Promise.all([
     getPricedVenues(),
     loadHistoricPubs(),
     loadMapSelectableVenueIds(),
+    // The pubs people are talking about. Read here rather than in the browser:
+    // this document is prerendered, so the rows cost the reader no request and
+    // the route's byte ceiling is untouched.
+    loadHypedPubs(),
   ]);
   const priceById = new Map<string, number>();
   for (const venue of pricedVenues) {
@@ -82,6 +89,10 @@ export default async function TonightPage() {
       mapSelectableVenueIds={
         mapSelectableVenueIds ? [...mapSelectableVenueIds] : null
       }
+      hypedPubs={hypedPubsForPage(hyped.rows)}
+      // What a quiet night answers with: real pubs at a listed price, composed
+      // from the dataset this page already read for the quiet-pint module.
+      cheapPints={tonightCheapPints(pricedVenues)}
     />
   );
 }

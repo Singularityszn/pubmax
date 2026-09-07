@@ -19,17 +19,27 @@ import type { WhatsOnRow } from "@/lib/whatsOn";
 const NOW = Date.now();
 const SOON = new Date(NOW + 90 * 60_000).toISOString();
 const LATER = new Date(NOW + 180 * 60_000).toISOString();
-const DEAL_DAY = new Date(NOW - 24 * 60 * 60_000).toISOString();
-const EVENT_DAY = new Date(NOW - 36 * 60 * 60_000).toISOString();
+const DEAL_DAY = new Date(NOW - 9 * 60 * 60_000).toISOString();
+const EVENT_DAY = new Date(NOW - 6 * 60 * 60_000).toISOString();
+
+// The shape production serves: four syndicated offers, each running at 24
+// pubs. The grouping the main list already applies collapses each offer into
+// one row that says how many pubs run it.
+const JDW_OFFERS = [
+  "Small Plates Club",
+  "Curry club",
+  "Steak club",
+  "Afternoon deals",
+];
 
 const JDW_ROWS = Array.from({ length: 96 }, (_, index) => ({
-  id: `deal-jdw-curry-club-${index}`,
+  id: `deal-jdw-${index}`,
   venueId: `venue-jdw-${index}`,
-  placeName: "The Moon Under Water",
+  placeName: `The Moon Under Water ${index}`,
   kind: "deal",
   startsAt: SOON,
   endsAt: LATER,
-  title: "Small Plates Club",
+  title: JDW_OFFERS[index % JDW_OFFERS.length],
   detail: "A range of pub classics at better prices.",
   source: {
     label: "J D Wetherspoon - Food & drink",
@@ -163,7 +173,17 @@ describe("the tonight lede, hydrated", () => {
     expect(chains?.textContent).toContain("Wetherspoon deals tonight");
     expect(chains?.textContent).toContain("J D Wetherspoon - Food & drink");
     expect(chains?.textContent).toContain("Small Plates Club");
-    expect(container.querySelectorAll('[data-testid="tonight-chain-row"]').length).toBe(3);
+    // Three offers show and the fourth folds away, each row saying how many
+    // pubs run that offer rather than repeating itself 24 times.
+    expect(
+      chains?.querySelectorAll(
+        '.tonightChainList:not(.tonightChainMore .tonightChainList) [data-testid="tonight-chain-row"]',
+      ).length,
+    ).toBe(3);
+    expect(chains?.textContent).toContain("Same deal at 24 pubs");
+    expect(chains?.querySelector(".tonightChainMoreToggle")?.textContent).toContain(
+      "One more offer",
+    );
   });
 
   it("dates the quiet night from the read that produced it", async () => {
