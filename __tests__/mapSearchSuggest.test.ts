@@ -376,6 +376,7 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
           lat: 53.391,
           lng: -1.477,
           curatedVenueId: "",
+          kind: "pub",
         },
       ],
       userLocation: null,

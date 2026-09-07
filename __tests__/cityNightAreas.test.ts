@@ -25,6 +25,7 @@ import {
   haversineKm,
 } from "../scripts/build_city_night_areas.mjs";
 import { PLACE_NODE_CITIES } from "../scripts/fetch_city_place_nodes.mjs";
+import { isBasePubRow } from "../scripts/build_city_night_areas.mjs";
 
 const ROOT = path.resolve(__dirname, "..");
 
@@ -46,6 +47,7 @@ function loadBasePubs(): BasePub[] {
       pubs?: Array<[string, string, string, number, number, string]>;
     };
     for (const row of shard.pubs ?? []) {
+      if (!isBasePubRow(row)) continue;
       pubs.push({ osmId: String(row[0]), name: String(row[1]), lat: Number(row[3]), lng: Number(row[4]) });
     }
   }

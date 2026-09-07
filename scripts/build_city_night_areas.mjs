@@ -9,7 +9,7 @@
 // and an area that named one would be inventing it.
 //
 // Two committed inputs, both ODbL and both already in the tree:
-//   public/data/uk_base/packs/<hash>/*.json  the 38,215-pub base layer
+//   public/data/uk_base/packs/<hash>/*.json  the base layer, pub rows only
 //   data/osm/cities/place_nodes.json         OSM place=suburb nodes per city
 //
 // The names come from the place nodes rather than the base layer's own
@@ -84,6 +84,16 @@ function inBox(lat, lng, box) {
   return lat >= box.latMin && lat <= box.latMax && lng >= box.lonMin && lng <= box.lonMax;
 }
 
+/**
+ * Whether a base-layer row is a PUB. A seventh element says "bar"
+ * (public/data/uk_base/README.md). A Night Area is derived from where the pubs
+ * are, so a bar is not a member: folding one in would move a published area's
+ * centre, radius and count with nobody asking for a new area.
+ */
+export function isBasePubRow(row) {
+  return Array.isArray(row) && row.length === 6;
+}
+
 async function loadBasePubs() {
   const manifest = JSON.parse(await readFile(path.join(UK_BASE_DIR, "manifest.json"), "utf8"));
   const prefix = String(manifest.urlPrefix ?? "");
@@ -93,6 +103,7 @@ async function loadBasePubs() {
   for (const file of files) {
     const shard = JSON.parse(await readFile(path.join(packDir, file), "utf8"));
     for (const row of shard.pubs ?? []) {
+      if (!isBasePubRow(row)) continue;
       pubs.push({ osmId: String(row[0]), name: String(row[1]), lat: Number(row[3]), lng: Number(row[4]) });
     }
   }

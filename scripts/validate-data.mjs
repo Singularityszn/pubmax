@@ -1854,9 +1854,12 @@ const UK_PLACE_INDEX_BUDGET_BYTES = 512 * 1024;
 const UK_BASE_ID_PREFIX = "venue-uk-";
 
 function isUkBaseRow(row) {
+  // Six elements for a pub, plus "bar" as a seventh where OSM states a bar
+  // (scripts/build_uk_base_shards.mjs). Any other seventh element is a drifted
+  // build, not a kind.
   return (
     Array.isArray(row) &&
-    row.length === 6 &&
+    (row.length === 6 || (row.length === 7 && row[6] === "bar")) &&
     typeof row[0] === "string" &&
     row[0].length > 0 &&
     typeof row[1] === "string" &&
@@ -1864,8 +1867,11 @@ function isUkBaseRow(row) {
     typeof row[2] === "string" &&
     Number.isFinite(row[3]) &&
     Number.isFinite(row[4]) &&
-    typeof row[5] === "string" &&
-    (row[5] === "" || row[5].startsWith("venue-"))
+    // The owner is "" or a curated venue id. Which ids exist is answered by
+    // membership in validateUkBasePubIdentity, not by a prefix: London's
+    // curated bars carry `bar-…` ids, and a prefix rule would call a correct
+    // owner malformed.
+    typeof row[5] === "string"
   );
 }
 

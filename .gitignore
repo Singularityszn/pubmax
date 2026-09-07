@@ -15,7 +15,7 @@ dist/
 .env*
 !.env.example
 *.log
-tsconfig.tsbuildinfo
+*.tsbuildinfo
 scripts/__pycache__/
 .vercel
 .context/

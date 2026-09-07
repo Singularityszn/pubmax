@@ -81,6 +81,7 @@ describe("parseUkBaseShard", () => {
         lat: 51.42,
         lng: -0.18,
         curatedVenueId: "venue-owner",
+        kind: "pub",
       },
       {
         id: "venue-uk-w2",
@@ -89,6 +90,7 @@ describe("parseUkBaseShard", () => {
         lat: 51.44,
         lng: -0.12,
         curatedVenueId: "",
+        kind: "pub",
       },
     ]);
   });

@@ -142,5 +142,8 @@ export function nationalHitToUkBasePub(hit: UkNationalPubHit): UkBasePub {
     lat: hit.lat,
     lng: hit.lng,
     curatedVenueId: "",
+    // The national index is built from the pub pack alone
+    // (scripts/build_uk_pub_search_index.mjs), so every hit is a pub.
+    kind: "pub",
   };
 }

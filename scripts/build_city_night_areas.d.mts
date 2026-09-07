@@ -30,6 +30,9 @@ export function haversineKm(
 
 export function placeKindRank(place: { kind: string }): number;
 
+/** True for a base-layer row that states a pub. A bar row carries a seventh element. */
+export function isBasePubRow(row: unknown): boolean;
+
 export function nightAreaSlug(cityId: string, name: string): string;
 
 export function deriveCityAreas(

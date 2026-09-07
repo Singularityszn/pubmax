@@ -42,6 +42,7 @@ describe("MapVenueList", () => {
             lat: 53.8,
             lng: -1.55,
             curatedVenueId: "",
+            kind: "pub",
           },
         },
       ],
@@ -65,7 +66,7 @@ describe("MapVenueList", () => {
     );
 
     expect(html).toContain('aria-label="Listed pubs and venues"');
-    expect(html).toContain('aria-label="Other pubs with no listed price"');
+    expect(html).toContain('aria-label="Other pubs and bars with no listed price"');
     expect(html).toContain("Base Arms");
     expect(html).toContain("Other pub · no listed price");
   });

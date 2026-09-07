@@ -1,5 +1,11 @@
-// Build the UK BASE-PUB shards the map streams per viewport, from the UK-wide
-// OSM seed pack (data/osm/uk/uk_osm_pubs.json — see its README).
+// Build the UK BASE shards the map streams per viewport, from the two UK-wide
+// OSM seed packs: every `amenity=pub` (data/osm/uk/uk_osm_pubs.json) and every
+// `amenity=bar` (the `bar` kind of data/osm/uk/uk_osm_venues_drink.json,
+// see data/osm/uk/VENUES.md for what earns a row in each).
+//
+// A bar row carries "bar" as a seventh tuple element. A pub row carries six
+// elements exactly as before, so folding bars in leaves every pub row's bytes
+// untouched and no reader has to be taught a new shape to keep working.
 //
 // WHY SHARDS AND NOT THE SLIM INDEX. The slim index (venues_slim*.json) is the
 // CURATED experience: priced pins, search, filters, crawl routing. Folding
@@ -38,14 +44,21 @@ import {
   cellKey,
   cellBbox,
 } from "./lib/ukBaseGrid.mjs";
+import { outerLondonOwnerForPub } from "../lib/outerLondonOwnership.mjs";
 import { publishStagedDirectory } from "./lib/atomicDirectoryPublish.mjs";
 import { cityVenueIdForPub } from "./build_city_slim_index.mjs";
-import { outerLondonOwnerForPub } from "../lib/outerLondonOwnership.mjs";
 import { CITIES } from "./fetch_city_osm_pubs.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const PACK_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json");
+const DRINK_PACK_PATH = path.join(
+  ROOT,
+  "data",
+  "osm",
+  "uk",
+  "uk_osm_venues_drink.json",
+);
 const OUT_DIR = path.join(ROOT, "public", "data", SHARD_DIR_NAME);
 const LONDON_SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
 const OUTER_LONDON_PATH = path.join(ROOT, "data", "osm", "outer_london_osm_pubs.json");
@@ -55,6 +68,12 @@ const OUTER_LONDON_PATH = path.join(ROOT, "data", "osm", "outer_london_osm_pubs.
 // London) sits well under this; a refresh that crosses it means the grid needs
 // splitting, not a bigger allowance.
 const SHARD_BUDGET_BYTES = 150 * 1024;
+// A cell over the budget is CUT IN FOUR rather than shipped fat, and the cut
+// repeats at most this many times (0.25° → 0.125° → 0.0625°). The client never
+// derives a cell - it reads the manifest and intersects bboxes - so a cell may
+// carry its own finer grid without shipping that maths to the phone. Central
+// London is the one cell that needs it once bars join the layer.
+const MAX_CELL_SPLITS = 2;
 // Whole-layer ceiling, so a refresh that doubles the dataset fails CI rather
 // than quietly doubling the repository and the cache footprint.
 const TOTAL_BUDGET_BYTES = 5 * 1024 * 1024;
@@ -87,9 +106,12 @@ function isRenderablePub(pub) {
   );
 }
 
-/** One shard row: [osmRef, name, address, lat, lng, curatedVenueId]. */
-function toRow(pub, curatedVenueId) {
-  return [
+/**
+ * One shard row: `[osmRef, name, address, lat, lng, curatedVenueId]`, plus
+ * `"bar"` where OSM states a bar. A pub row stays six elements long.
+ */
+function toRow(pub, curatedVenueId, kind = "pub") {
+  const row = [
     compactOsmRef(pub.osmId),
     pub.name.trim(),
     typeof pub.address === "string" ? pub.address.trim() : "",
@@ -97,6 +119,7 @@ function toRow(pub, curatedVenueId) {
     round5(pub.lng),
     curatedVenueId,
   ];
+  return kind === "bar" ? [...row, "bar"] : row;
 }
 
 function ownerKey(source, id) {
@@ -107,6 +130,12 @@ async function loadCuratedVenueOwners() {
   const owners = new Map();
   /** OSM id → curated venue id, for city packs cut out of this base layer. */
   const ownersByOsmId = new Map();
+  /**
+   * Every curated venue, for the one dataset that carries no `curatedRef` and
+   * no city pack to key on: the bars. They are matched the way an outer-London
+   * pub is - same name, within 150 m - so a curated bar keeps one pin.
+   */
+  const curatedVenues = [];
   const londonSlim = JSON.parse(await readFile(LONDON_SLIM_PATH, "utf8"));
   const londonVenues = Array.isArray(londonSlim)
     ? londonSlim
@@ -117,6 +146,7 @@ async function loadCuratedVenueOwners() {
   for (const venue of londonVenues) {
     owners.set(ownerKey("curated-london-slim", venue.id), venue.id);
   }
+  curatedVenues.push(...londonVenues);
 
   const outerPack = JSON.parse(await readFile(OUTER_LONDON_PATH, "utf8"));
   for (const pub of Array.isArray(outerPack?.pubs) ? outerPack.pubs : []) {
@@ -147,6 +177,7 @@ async function loadCuratedVenueOwners() {
         ? citySlim.rows
         : [];
     const cityVenueIds = new Set(cityRows.map((venue) => venue.id));
+    curatedVenues.push(...cityRows);
     for (const pub of Array.isArray(cityPack?.pubs) ? cityPack.pubs : []) {
       const venueId = cityVenueIdForPub(city, pub);
       if (cityVenueIds.has(venueId)) {
@@ -156,7 +187,48 @@ async function loadCuratedVenueOwners() {
     }
   }
 
-  return { owners, ownersByOsmId };
+  return { owners, ownersByOsmId, curatedVenues };
+}
+
+/**
+ * The bars, from the drink pack's `bar` kind (`amenity=bar` and
+ * `amenity=biergarten`, data/osm/uk/VENUES.md). A bar already in the pub pack
+ * would be two pins for one place, so the pub pack wins on OSM id.
+ */
+function barsFromDrinkPack(drinkPack, pubOsmIds) {
+  const venues = Array.isArray(drinkPack?.venues) ? drinkPack.venues : [];
+  const bars = [];
+  for (const venue of venues) {
+    if (venue?.kind !== "bar") continue;
+    if (pubOsmIds.has(String(venue.osmId))) continue;
+    bars.push(venue);
+  }
+  return bars;
+}
+
+/**
+ * Cut one over-budget cell into four on a grid of half the step. The parts nest
+ * inside the parent because the origin is shared, and their ids carry one more
+ * decimal (`51.500_-0.250`), so they can never collide with a whole cell's id.
+ */
+function splitCell(cell) {
+  const grid = {
+    ...cell.grid,
+    latStep: cell.grid.latStep / 2,
+    lonStep: cell.grid.lonStep / 2,
+  };
+  const parts = new Map();
+  for (const row of cell.rows) {
+    const { latIndex, lonIndex } = cellIndexFor(row[3], row[4], grid);
+    const key = cellKey(latIndex, lonIndex, grid);
+    let part = parts.get(key);
+    if (!part) {
+      part = { latIndex, lonIndex, rows: [], grid, splits: cell.splits + 1 };
+      parts.set(key, part);
+    }
+    part.rows.push(row);
+  }
+  return [...parts.values()];
 }
 
 function formatBytes(bytes) {
@@ -175,23 +247,37 @@ async function main() {
   if (pubs.length === 0) {
     throw new Error(`${PACK_PATH} has no pubs — refresh it with npm run fetch:uk-pubs`);
   }
+  const drinkPack = JSON.parse(await readFile(DRINK_PACK_PATH, "utf8"));
+  const pubOsmIds = new Set(pubs.map((pub) => String(pub.osmId)));
+  const bars = barsFromDrinkPack(drinkPack, pubOsmIds);
+  if (bars.length === 0) {
+    throw new Error(
+      `${DRINK_PACK_PATH} has no bars - refresh it with npm run fetch:uk-venues`,
+    );
+  }
 
-  const { owners: curatedVenueOwners, ownersByOsmId } =
+  const { owners: curatedVenueOwners, ownersByOsmId, curatedVenues } =
     await loadCuratedVenueOwners();
   const renderable = pubs.filter(isRenderablePub);
-  const skipped = pubs.length - renderable.length;
+  const renderableBars = bars.filter(isRenderablePub);
+  const skipped =
+    pubs.length - renderable.length + (bars.length - renderableBars.length);
   let matchedOwners = 0;
 
   /** @type {Map<string, {latIndex: number, lonIndex: number, rows: unknown[][]}>} */
   const cells = new Map();
-  for (const pub of renderable) {
-    const { latIndex, lonIndex } = cellIndexFor(pub.lat, pub.lng);
+  const addRow = (venue, row) => {
+    const { latIndex, lonIndex } = cellIndexFor(venue.lat, venue.lng);
     const key = cellKey(latIndex, lonIndex);
     let cell = cells.get(key);
     if (!cell) {
       cell = { latIndex, lonIndex, rows: [] };
       cells.set(key, cell);
     }
+    cell.rows.push(row);
+  };
+
+  for (const pub of renderable) {
     const source = pub.curatedRef?.source;
     const id = pub.curatedRef?.id;
     const curatedVenueId =
@@ -201,7 +287,16 @@ async function main() {
       ownersByOsmId.get(String(pub.osmId)) ??
       "";
     if (curatedVenueId) matchedOwners += 1;
-    cell.rows.push(toRow(pub, curatedVenueId));
+    addRow(pub, toRow(pub, curatedVenueId));
+  }
+
+  // A bar carries neither a `curatedRef` nor a city pack, so ownership is the
+  // name-and-distance match the outer-London seed already uses. Without it a
+  // curated cocktail bar would get a second, unpriced pin beside itself.
+  for (const bar of renderableBars) {
+    const curatedVenueId = outerLondonOwnerForPub(bar, curatedVenues) ?? "";
+    if (curatedVenueId) matchedOwners += 1;
+    addRow(bar, toRow(bar, curatedVenueId, "bar"));
   }
 
   await mkdir(path.dirname(OUT_DIR), { recursive: true });
@@ -215,8 +310,17 @@ async function main() {
     let totalBytes = 0;
     let fattest = { id: "", bytes: 0, count: 0 };
 
-    for (const key of [...cells.keys()].sort()) {
-      const cell = cells.get(key);
+    const pending = [...cells.values()].map((cell) => ({
+      ...cell,
+      grid: UK_BASE_GRID,
+      splits: 0,
+    }));
+    /** @type {Array<{key: string, body: string, bytes: number, cell: object}>} */
+    const emitted = [];
+    let splitCells = 0;
+    while (pending.length > 0) {
+      const cell = pending.pop();
+      const key = cellKey(cell.latIndex, cell.lonIndex, cell.grid);
       cell.rows.sort((a, b) => a[3] - b[3] || a[4] - b[4] || String(a[0]).localeCompare(String(b[0])));
       const body = JSON.stringify({
         version: UK_BASE_SHARD_VERSION,
@@ -224,21 +328,32 @@ async function main() {
         pubs: cell.rows,
       });
       const bytes = Buffer.byteLength(body);
+      if (bytes <= SHARD_BUDGET_BYTES) {
+        emitted.push({ key, body, bytes, cell });
+        continue;
+      }
+      if (cell.splits >= MAX_CELL_SPLITS) {
+        throw new Error(
+          `Shard ${key} is ${formatBytes(bytes)} (${cell.rows.length} venues) after ` +
+            `${cell.splits} splits, still over the ${formatBytes(SHARD_BUDGET_BYTES)} ` +
+            `per-viewport budget. Cut the grid finer rather than raising it.`,
+        );
+      }
+      splitCells += 1;
+      pending.push(...splitCell(cell));
+    }
+
+    emitted.sort((a, b) => a.key.localeCompare(b.key));
+    for (const { key, body, bytes, cell } of emitted) {
       totalBytes += bytes;
       shardBytes.push(bytes);
       if (bytes > fattest.bytes) fattest = { id: key, bytes, count: cell.rows.length };
-      if (bytes > SHARD_BUDGET_BYTES) {
-        throw new Error(
-          `Shard ${key} is ${formatBytes(bytes)} (${cell.rows.length} pubs), over the ` +
-            `${formatBytes(SHARD_BUDGET_BYTES)} per-viewport budget. Split UK_BASE_GRID rather than raising it.`,
-        );
-      }
       await writeFile(path.join(stagedDir, `${key}.json`), body);
       shards.push({
         id: key,
         core: false,
         count: cell.rows.length,
-        bbox: cellBbox(cell.latIndex, cell.lonIndex),
+        bbox: cellBbox(cell.latIndex, cell.lonIndex, cell.grid),
       });
     }
 
@@ -246,7 +361,13 @@ async function main() {
       version: UK_BASE_SHARD_VERSION,
       urlPrefix: `/data/${SHARD_DIR_NAME}/`,
       grid: UK_BASE_GRID,
-      generatedFrom: { fetchedAt: pack.fetchedAt ?? null, count: pack.count ?? pubs.length },
+      generatedFrom: {
+        fetchedAt: pack.fetchedAt ?? null,
+        barsFetchedAt: drinkPack.fetchedAt ?? null,
+        count: renderable.length + renderableBars.length,
+        pubs: renderable.length,
+        bars: renderableBars.length,
+      },
       shards,
     });
     await writeFile(path.join(stagedDir, "manifest.json"), manifestBody);
@@ -261,14 +382,15 @@ async function main() {
 
     console.log(
       [
-        `UK base pubs → ${shards.length} shards in public/data/${SHARD_DIR_NAME}/`,
-        `  pack ................ ${pubs.length} pubs`,
+        `UK base venues → ${shards.length} shards in public/data/${SHARD_DIR_NAME}/`,
+        `  packs ............... ${pubs.length} pubs, ${bars.length} bars`,
         `  curated owners ...... ${matchedOwners}`,
         `  unusable (dropped) .. ${skipped}`,
-        `  shipped ............. ${renderable.length}`,
+        `  shipped ............. ${renderable.length} pubs, ${renderableBars.length} bars`,
+        `  cells split ......... ${splitCells}`,
         `  manifest ............ ${formatBytes(publication.manifestBytes)} (deferred until the zoom gate)`,
         `  shards total ........ ${formatBytes(totalBytes)}`,
-        `  fattest shard ....... ${fattest.id} — ${formatBytes(fattest.bytes)} (${fattest.count} pubs)`,
+        `  fattest shard ....... ${fattest.id} - ${formatBytes(fattest.bytes)} (${fattest.count} venues)`,
         `  median shard ........ ${formatBytes(median(shardBytes))}`,
       ].join("\n"),
     );

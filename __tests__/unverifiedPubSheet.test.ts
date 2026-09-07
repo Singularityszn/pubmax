@@ -28,6 +28,7 @@ const pub: UkBasePub = {
   lat: 53.8008,
   lng: -1.5491,
   curatedVenueId: "",
+  kind: "pub",
 };
 
 function state(

@@ -143,6 +143,83 @@ describe("review scope guard", () => {
     expect(summarizeReviewScope(curated).forbidden).toEqual([]);
   });
 
+  it("permits a regenerated lane when the diff carries its generator", () => {
+    const report = summarizeReviewScope([
+      "scripts/build_uk_base_shards.mjs",
+      "public/data/uk_base/manifest.json",
+      "public/data/uk_base/packs/520da468effa470f/51.50_-0.25.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.forbidden).toEqual([]);
+    expect(report.categoryCounts).toEqual({ source: 1, regenerated: 2 });
+    expect(report.regeneratedLanes).toEqual(["uk_base"]);
+  });
+
+  it("permits a regenerated lane when the diff carries its declared source input", () => {
+    const report = summarizeReviewScope([
+      "data/osm/uk/uk_osm_venues_drink.json",
+      "public/data/uk_base/packs/520da468effa470f/51.50_-0.25.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.categoryCounts.regenerated).toBe(1);
+  });
+
+  it("keeps a lane forbidden when nothing in the diff produced it", () => {
+    const report = summarizeReviewScope([
+      "public/data/uk_base/packs/520da468effa470f/51.50_-0.25.json",
+      "components/map/PubMap.tsx",
+    ]);
+
+    expect(report.ok).toBe(false);
+    expect(report.forbidden).toEqual([
+      {
+        category: "generated",
+        path: "public/data/uk_base/packs/520da468effa470f/51.50_-0.25.json",
+      },
+    ]);
+    expect(report.regeneratedLanes).toEqual([]);
+  });
+
+  it("permits one lane without permitting another", () => {
+    const report = summarizeReviewScope([
+      "scripts/build_uk_base_shards.mjs",
+      "public/data/uk_base/manifest.json",
+      "public/data/venues_slim.json",
+    ]);
+
+    expect(report.forbidden).toEqual([
+      { category: "generated", path: "public/data/venues_slim.json" },
+    ]);
+  });
+
+  it("never permits a skill pack, whatever else the diff carries", () => {
+    const report = summarizeReviewScope([
+      "scripts/build_uk_base_shards.mjs",
+      "public/data/uk_base/manifest.json",
+      "skills/example/SKILL.md",
+    ]);
+
+    expect(report.forbidden).toEqual([
+      { category: "skill-pack", path: "skills/example/SKILL.md" },
+    ]);
+  });
+
+  it("leaves a regenerated lane out of the human-review count", () => {
+    const shards = Array.from({ length: MAX_REVIEW_FILES + 1 }, (_, index) =>
+      `public/data/uk_base/packs/520da468effa470f/cell-${index}.json`,
+    );
+    const report = summarizeReviewScope([
+      "scripts/build_uk_base_shards.mjs",
+      ...shards,
+    ]);
+
+    expect(report.fileCount).toBe(shards.length + 1);
+    expect(report.reviewFileCount).toBe(1);
+    expect(report.warnings).toEqual([]);
+  });
+
   it("keeps deleted generated paths in the changed-file report", () => {
     const repo = mkdtempSync(join(tmpdir(), "pubmax-review-scope-"));
     const git = (...args: string[]) =>
