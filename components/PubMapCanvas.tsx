@@ -1073,7 +1073,14 @@ export default function PubMapCanvas({
 
   // Camera helpers (cinematic + fit*) — extracted to useMapCamera; empty-dep
   // callbacks over live refs (see the hook for why the deps must stay empty).
-  const { cinematic, fitRoute, fitCityBounds, fitQueryVenues, fitNearby } = useMapCamera({
+  const {
+    cinematic,
+    easeArrivalBearing,
+    fitRoute,
+    fitCityBounds,
+    fitQueryVenues,
+    fitNearby,
+  } = useMapCamera({
     mapRef,
     reducedRef,
     mapViewRef,
@@ -1082,6 +1089,25 @@ export default function PubMapCanvas({
     venuesRef,
     gestureCameraRef,
   })
+
+  // The map's opening turn (captain, 7 Sep 2026: "I also want the map to rotate
+  // slightly"). Once per mounted map, on the first ready, and never again: the
+  // ref is what makes it once, because `mapReady` flips back and forth across a
+  // WebGL context rebuild and a re-turn there would be the orbit by another
+  // name. A reader who reached a pub by link is excluded, because the fly-to
+  // into that pub owns the camera. lib/mapArrivalBearing.ts holds every other
+  // case, reduced motion included.
+  const arrivalBearingSpentRef = useRef(false);
+  // The deep link as it was on ARRIVAL. Reading the live prop would answer for
+  // a pin the reader tapped a moment ago, which is a different question.
+  const arrivalDeepLinkRef = useRef(
+    Boolean(selectedVenueId) || Boolean(initialLandmarkId),
+  );
+  useEffect(() => {
+    if (!mapReady || arrivalBearingSpentRef.current) return;
+    arrivalBearingSpentRef.current = true;
+    easeArrivalBearing(arrivalDeepLinkRef.current);
+  }, [mapReady, easeArrivalBearing]);
 
   // The parent owns the selection and renders the story (the phone's shared
   // sheet, the desktop's left drawer); the canvas only reports a pin tap here

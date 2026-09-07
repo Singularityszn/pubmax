@@ -4,6 +4,7 @@ import * as maplibregl from "maplibre-gl";
 import type { Venue } from "@/lib/venues";
 import { LONG_JUMP_CURVE, easeOutCubic } from "./easing";
 import { createCameraIntentCoordinator, type CameraIntentKind } from "@/lib/cameraIntent";
+import { mapArrivalBearingPlan } from "@/lib/mapArrivalBearing";
 import { cameraIntentBlocked, type GestureCameraState } from "@/lib/mapGestureGuard";
 import { mapVisibleBand, nearMeCameraFrame, nearestVenueKm } from "@/lib/nearMeMapFrame";
 
@@ -333,5 +334,33 @@ export function useMapCamera(refs: CameraRefs) {
     [mapRef, reducedRef, scheduleCamera],
   );
 
-  return { cinematic, fitRoute, fitCityBounds, fitQueryVenues, fitNearby };
+  // The map's opening turn. ONE eased move, once, and the camera is still
+  // afterwards; lib/mapArrivalBearing.ts holds the rule and every case where
+  // there is no move to make. It goes through the same lane as everything
+  // else, and it is a REACTIVE intent, so a reader who already has the map
+  // keeps the attitude they chose (lib/mapGestureGuard.ts).
+  const easeArrivalBearing = useCallback((deepLinkedVenue: boolean) => {
+    const map = mapRef.current;
+    if (!map) return;
+    const plan = mapArrivalBearingPlan({
+      currentBearing: map.getBearing(),
+      reducedMotion: reducedRef.current,
+      deepLinkedVenue,
+    });
+    if (!plan) return;
+    scheduleCamera("arrival", `arrival:${plan.bearing}`, (target) => target.easeTo({
+      bearing: plan.bearing,
+      duration: plan.duration,
+      easing: easeOutCubic,
+    }));
+  }, [mapRef, reducedRef, scheduleCamera]);
+
+  return {
+    cinematic,
+    easeArrivalBearing,
+    fitRoute,
+    fitCityBounds,
+    fitQueryVenues,
+    fitNearby,
+  };
 }

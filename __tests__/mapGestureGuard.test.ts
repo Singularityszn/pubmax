@@ -51,8 +51,15 @@ describe("cameraIntentBlocked — the hold after a gesture", () => {
 });
 
 describe("the reactive set is closed", () => {
-  it("names exactly the two fits that fire off changed data", () => {
-    expect([...REACTIVE_CAMERA_INTENTS].sort()).toEqual(["query", "route"]);
+  it("names exactly the moves no reader asked for", () => {
+    // `query` and `route` fire off changed data; `arrival` is the map's own
+    // opening turn (lib/mapArrivalBearing.ts). Nothing else joins this set
+    // without a reason written beside it.
+    expect([...REACTIVE_CAMERA_INTENTS].sort()).toEqual([
+      "arrival",
+      "query",
+      "route",
+    ]);
   });
 
   it("answers per kind", () => {
