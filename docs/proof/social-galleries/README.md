@@ -1,7 +1,8 @@
 # Social galleries and feed videos
 
-Status: local implementation. Initial browser checks passed 24 of 28 cases.
-Four cases need correction and a repeat check. Full repository checks are pending.
+Status: the 28-case browser pack passed on the feature source. A later review found one draft-clear defect.
+The corrections passed 20 composer tests. The new IndexedDB browser regression remains pending.
+The integration task owns the final combined repository gate and the new browser case on its production build.
 Branch: `codex/social-galleries`, after the preserved `a400d383f` release.
 No production migration or deployment ran.
 
@@ -32,9 +33,30 @@ The final migration check passed 27 tests across two suites, including the older
 Command: `npx vitest run __tests__/socialComposerMigration.test.ts __tests__/migrationVersions.test.ts --maxWorkers=1`.
 The temporary PostgreSQL cluster stopped after the check.
 
-The first browser run passed gallery upload retry, ordered publication, keyboard controls, phone swipe, and both themes.
-It also passed discovery, playback visibility, post interactions, and four invite-clearance cases.
-The remaining cases cover cross-tab drafts, restored legacy previews, video order, and signed-out access.
+The final 28-case browser run passed in 47.8 seconds, with one Chromium worker and no retries or tracing.
+It covers upload retry, ordered publication, horizontal photo swipe, vertical video swipe, focus, access, drafts, and post actions.
+Phone and desktop checks cover both themes, keyboard controls, overflow, and axe accessibility assertions.
+The invite-clearance cases passed at 390 and 430 pixels.
+
+The first run passed 24 cases. A later run passed 26 cases before two focused corrections passed.
+The legacy photo fixture used a host outside the Content Security Policy. It now uses a same-origin image.
+A cross-tab failure also remained in that run. Its exact trigger was not captured.
+The focused rerun and final full pack passed with navigation and storage-key diagnostics enabled.
+A separate rendered regression proved that same-account access revalidation unmounted the composer; that source defect is fixed.
+The retained [browser event log](first-tab-events.json) includes development Fast Refresh events. It is not production evidence.
+
+Source: `3e4d65c82`, plus the committed test corrections. Next.js 16.3.3, React 19.2.8, Playwright 1.62.1.
+The worktree owns its dependencies. It does not link the root dependency directory.
+TypeScript, ESLint, and Knip passed before the later draft-clear correction. ESLint reported 67 warnings and zero errors.
+
+The later review found a stale photo-storage error after successful draft deletion.
+The correction clears that error only after deletion succeeds. Failed deletion keeps posting blocked.
+Rendered regressions failed before the corrections. All 20 composer tests passed afterward.
+A refused gallery deletion now retains photos and caption, with a retry error. Text-only clear does not require photo storage.
+TypeScript and scoped ESLint passed again on source `2b80dca70`.
+The new real IndexedDB case covers quota refusal, deletion refusal, successful retry, and text-only publication.
+It must run against the integrated production build before merge; the earlier 28-case pass does not cover these later corrections.
+The test is `clearing a failed photo draft allows a text-only post` in `e2e/social-gallery.spec.ts`.
 
 The browser pack uses local API fixtures. Database authority is tested separately with real PostgreSQL.
 Screenshots use existing project photographs and a local video fixture. They are not published user posts.

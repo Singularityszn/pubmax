@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
 
@@ -77,9 +77,9 @@ async function mockVerified(page: Page) {
   await page.route("**/api/social/interactions?**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ items: [], nextCursor: null }) }));
   await page.route("**/api/social/outbox", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ posts: [{ id: "held-1", moderationState: "needs_review", revision: 1, createdAt: "2026-08-05T19:00:00.000Z" }] }) }));
   await page.route("**/api/social/venues?**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ venues: [{ id: "venue-a", name: "The Proof Arms", borough: "Camden" }] }) }));
-  await page.route("https://media.example.test/**", (route) => route.fulfill({ path: "e2e/fixtures/bill.jpg", contentType: "image/jpeg" }));
+  await page.route("**/social-composer-proof.jpg", (route) => route.fulfill({ path: "e2e/fixtures/bill.jpg", contentType: "image/jpeg" }));
   await page.route("**/api/social/media/**", (route) => new URL(route.request().url()).searchParams.get("format") === "json"
-    ? route.fulfill({ json: { url: "https://media.example.test/social-composer.jpg" } })
+    ? route.fulfill({ json: { url: "/social-composer-proof.jpg" } })
     : route.fulfill({ path: "e2e/fixtures/bill.jpg", contentType: "image/jpeg" }));
 }
 
@@ -289,6 +289,13 @@ test("verified composer preserves failed gallery draft, records consent choices,
 
 test("account-bound gallery drafts isolate text and photos while two tabs warn", async ({ context, page }, testInfo) => {
   let scope = "a".repeat(43);
+  const tabEvents: string[] = [];
+  page.on("framenavigated", frame => { if (frame === page.mainFrame()) tabEvents.push(`navigation:${frame.url()}`); });
+  page.on("console", message => { if (/reload|Fast Refresh|CSP/i.test(message.text())) tabEvents.push(message.text()); });
+  await page.exposeFunction("recordDraftStorageKey", (key: string | null) => tabEvents.push(`storage:${key}`));
+  await page.addInitScript(() => window.addEventListener("storage", event => {
+    void (window as Window & { recordDraftStorageKey: (key: string | null) => Promise<void> }).recordDraftStorageKey(event.key);
+  }));
   const uploadKeys = await mockPhotoUploads(context);
   await context.route("**/api/social/access", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ state: "verified", viewerHandle: "alice", draftScope: scope }) }));
   await context.route("**/api/social/interactions?**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ items: [], nextCursor: null }) }));
@@ -303,11 +310,6 @@ test("account-bound gallery drafts isolate text and photos while two tabs warn",
   await expect(dialog.getByText("Photo ready", { exact: true })).toBeVisible();
   await dialog.getByLabel("Photo 1 description").fill("Alice photo");
   await page.waitForTimeout(400);
-  await page.evaluate(() => {
-    const observed = window as Window & { socialDraftStorageKeys?: Array<string | null> };
-    observed.socialDraftStorageKeys = [];
-    window.addEventListener("storage", event => observed.socialDraftStorageKeys?.push(event.key));
-  });
   const second = await context.newPage();
   await second.goto("/social");
   await second.getByRole("button", { name: "Post", exact: true }).click();
@@ -315,11 +317,8 @@ test("account-bound gallery drafts isolate text and photos while two tabs warn",
   await expect(second.getByLabel("Photo 1 description")).toHaveValue("Alice photo");
   await expect(second.getByRole("img", { name: "Alice photo" })).toBeVisible();
   expect(uploadKeys).toHaveLength(1);
-  await testInfo.attach("first-tab-storage-keys", {
-    body: JSON.stringify(await page.evaluate(() =>
-      (window as Window & { socialDraftStorageKeys?: Array<string | null> }).socialDraftStorageKeys)),
-    contentType: "application/json",
-  });
+  writeFileSync(testInfo.outputPath("first-tab-events.json"), JSON.stringify(tabEvents, null, 2));
+
   await expect(page.getByText("This draft is open in another tab.")).toBeVisible();
   await expect(second.getByText("This draft is open in another tab.")).toBeVisible();
   await second.getByRole("button", { name: "Remove photo 1", exact: true }).click();

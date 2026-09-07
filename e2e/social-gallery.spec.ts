@@ -147,8 +147,12 @@ test("feed videos open a full-screen viewer with one active player and restored 
   await track.focus();
   await track.press("Home");
   await expect(dialog.locator(".socialVideoViewer__controls [role=status]")).toHaveText("Video 1 / 2");
-  await track.evaluate(element => element.scrollTo({ top: element.clientHeight, behavior: "instant" }));
+  const bounds = (await track.boundingBox())!;
+  const input = await page.context().newCDPSession(page);
+  await input.send("Input.synthesizeScrollGesture", { x: bounds.x + bounds.width * 0.5, y: bounds.y + bounds.height * 0.75,
+    xDistance: 0, yDistance: -bounds.height * 0.65, gestureSourceType: "touch", speed: 800 });
   await expect(dialog.locator(".socialVideoViewer__controls [role=status]")).toHaveText("Video 2 / 2");
+  await input.detach();
   expect((await new AxeBuilder({ page }).include(".socialVideoViewer").withTags(["wcag2a", "wcag2aa"]).analyze()).violations).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath("feed-video-phone.png"), fullPage: true });
   await page.keyboard.press("Escape");
@@ -171,4 +175,48 @@ test("signed-out phone visitors reach the Social access state before the control
   expect(positions.main).toBeLessThan(positions.rail);
   expect(positions.main).toBeLessThan(844);
   await page.screenshot({ path: testInfo.outputPath("social-signed-out-phone-1541.png"), fullPage: true });
+});
+
+
+test("clearing a failed photo draft allows a text-only post", async ({ page }) => {
+  await session(page);
+  await page.addInitScript(() => {
+    const put = IDBObjectStore.prototype.put;
+    const remove = IDBObjectStore.prototype.delete;
+    let refuseDeletion = true;
+    IDBObjectStore.prototype.delete = function (...args) {
+      if (this.transaction.db.name === "pubmaxx-social-gallery-drafts-v1" && refuseDeletion) {
+        refuseDeletion = false;
+        throw new DOMException("Photo storage is unavailable", "UnknownError");
+      }
+      return remove.apply(this, args);
+    };
+    IDBObjectStore.prototype.put = function (...args) {
+      if (this.transaction.db.name === "pubmaxx-social-gallery-drafts-v1") {
+        throw new DOMException("Photo storage is full", "QuotaExceededError");
+      }
+      return put.apply(this, args);
+    };
+  });
+  await page.route("**/api/social/posts?**", route => route.fulfill({ json: { posts: [], nextCursor: null } }));
+  let submitted: Record<string, unknown> | null = null;
+  await page.route("**/api/social/posts", route => {
+    submitted = route.request().postDataJSON();
+    return route.fulfill({ status: 201, json: { post: { ...post, body: "A walk by the river", photo: null, photos: undefined } } });
+  });
+  await page.goto("/social");
+  await page.getByRole("button", { name: "Post", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Add photos", { exact: true }).setInputFiles("public/landing/london/camden-lock-1280.webp");
+  await expect(dialog.getByText("Your photos could not be saved on this device. Retry before posting.", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "Clear draft", exact: true }).click();
+  await expect(dialog.getByText("Your photo draft could not be cleared. Try again.", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("Photo 1 description")).toBeVisible();
+  await dialog.getByRole("button", { name: "Clear draft", exact: true }).click();
+  await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("A walk by the river");
+  await expect(dialog.getByRole("button", { name: "Post", exact: true })).toBeEnabled();
+  await dialog.getByRole("button", { name: "Post", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(submitted).toMatchObject({ body: "A walk by the river" });
+  expect(submitted).not.toHaveProperty("gallery");
 });
