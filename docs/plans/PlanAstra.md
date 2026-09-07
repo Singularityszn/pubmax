@@ -8,6 +8,22 @@ Research children [#1577](https://github.com/Singularityszn/pubmax/issues/1577),
 [#1579](https://github.com/Singularityszn/pubmax/issues/1579) are closed.
 The decision interview remains [#1580](https://github.com/Singularityszn/pubmax/issues/1580).
 
+## Closeout checkpoint
+
+Rechecked against GitHub issue bodies and comments on 7 September 2026.
+The relationships below are written in issue bodies; GitHub's subissue list for #1576 currently returns no entries.
+
+- [x] #1577 research delivered and closed: report section 1, 312 screenshots, four viewport sizes, signed-in and signed-out journeys.
+- [x] #1578 research delivered and closed: report section 2, three-run route medians and source-level outage review.
+- [x] #1579 research delivered and closed: report section 3, 21 social families, reachability and category comparison.
+- [x] #1581 canonical draft authored locally: 70 feature rows; 38 previously empty acceptance cells now state criteria or explicit blockers.
+- [ ] Parent integrates the docs commit and records the canonical artifact on #1581. No GitHub issue was changed by this task.
+- [ ] #1580 interview: record the remaining scope decisions. Its three research prerequisites are complete, not still blocked.
+- [ ] #1576 owner review and remaining child disposition. A completed planning artifact does not prove its proposed features work.
+
+The research checks mean the research was delivered, not that every reported defect is fixed.
+The 116 passing inventory-fence tests validate the docs/source inventory, not product acceptance or the final browser gate.
+
 ## Evidence and status
 
 This document preserves the fleet draft dated 6 September 2026, updated at 17:10 BST.
@@ -48,7 +64,7 @@ Historical file references can name planned files or older source locations.
 | Price evidence | [pintDropAgreement.ts](../../lib/pintDropAgreement.ts), [pintDropConfirmation.ts](../../lib/pintDropConfirmation.ts), [pintDropSecondDrinker.ts](../../lib/pintDropSecondDrinker.ts). | Confirmation requires independent verified authority, agreement on the exact price and drink, and the valid measure/window. Self-rechecks and anonymous observations cannot supply independence. |
 | Founding Member numbers | [CONTEXT.md](../../CONTEXT.md) and [foundingMembers.ts](../../lib/foundingMembers.ts). | Numbers are never recycled. Removing test accounts leaves gaps. Reclaiming 9, 11 or 12 is not an option. |
 | Identity and age | [CONTEXT.md](../../CONTEXT.md), [contributionIdentity.server.ts](../../lib/contributionIdentity.server.ts), [socialLaunch.ts](../../lib/socialLaunch.ts). | Preserve each route's existing authority and adult rules. A plan document cannot waive them. |
-| Measurement | [METRICS.md](../analytics/METRICS.md) defines numbers; [TRACKING_PLAN.md](../analytics/TRACKING_PLAN.md) defines events and the release metric. | Keep the proposed 28-day group measure distinct from the available weekly device proxy. See 8.9. |
+| Measurement | #1576 explicitly adopts weekly groups that complete and repeat. The draft defines the 28-day window. [METRICS.md](../analytics/METRICS.md) documents the available proxy. | The group outcome is accepted. Its aggregate implementation and evidence remain missing; the weekly device proxy does not replace it. See 8.9. |
 | London first | [#1576](https://github.com/Singularityszn/pubmax/issues/1576) excludes new-city implementation. | Existing four-city supply belongs to #1522. Its reference below does not widen this plan. |
 
 The bill requirement does not prove production receipt persistence.
@@ -70,10 +86,15 @@ Recommendations from the original draft remain proposals.
 | D8 | Keep Rounds separate, fold it into a Planned Night spend diary, or retire its surface. | Original preference: fold it. Never introduce debt settlement or remove stored history implicitly. |
 | D9 | Select the canonical city picker and redirect policy. | Original preference: `/places`, with `/choose-city` redirecting there. No redirect approval is inferred. |
 | D10 | Keep the Pint Index hold or approve a separately labelled listed-price edition; decide its navigation placement. | Preserve the existing corroboration threshold unless explicitly changed. The draft recommends holding and hiding empty promotion. |
-| M1 | Reconcile the adopted 28-day group outcome with the canonical weekly device reporting contract. | Decide whether to retain the goal with a separately approved store aggregate, or explicitly replace it. Do not silently substitute a device rate. |
 | P1 | Define the native contact-matching privacy contract before accepting that feature. | Hashing contact data alone is not permission. Decide consent, matching visibility, retention and deletion. |
 | P2 | Define the unspecified `/r/<code>` face proposal, or remove it from scope. | Name the destination, consent and public fields. No acceptance behaviour can be inferred from a title alone. |
 | P3 | Set any Product Hunt or press campaign scope, launch date, approved copy and destination. | This remains outside the tree; a plan is not permission to publish or contact anyone. |
+
+M1 is an implementation and evidence gap, not a request to reselect the north star.
+The 6 September 17:15 comment on #1576 already adopted the group outcome and its store-side roll-up.
+Reconcile the canonical metrics documentation, implement the approved aggregate against real schema, and prove qualifying and excluded cohorts.
+A decision to replace that goal would need explicit approval; replacing it is not required for routine closeout.
+The supplemental median interval still needs a stated calculation rule before it can be reported.
 
 D7 is engineering work: remove avoidable whole-city payloads through the existing venue boundary.
 The draft prefers per-venue reads over compressed whole-city reads.
@@ -322,8 +343,8 @@ All unshipped scope remains proposed and subject to section 1. Existing routes r
 
 | Feature | Spec | Acceptance | Effort | Risk | Depends on |
 |---|---|---|---|---|---|
-| **London tonight lane, public** | `/social` opens signed out on a readable lane: the newest public Pint Drops with photos, open crews for tonight, who is out by area (counts, no names), three historic picks. Sign-in only on the first write. Files: `app/social/SocialPageClient.tsx`, `lib/socialFeed.ts`, `lib/socialShell.ts`. | a stranger at 390 sees at least one card with a photograph in the first screen; no sign-in wall; `e2e/social-open.spec.ts` extended | M | public visibility and moderation; preserve the current gate until D2 changes it | D2 and item 3 (photos) |
-| Handle claim inside the first kept action | the claim card appears after `Plan stop`, `Still £X?` or `Save for tonight`, never before. Files: `components/identity/AccountOnboarding.tsx`, `lib/accountClaimReturnTo.ts`. | the held action resumes after the claim in `e2e/arrival-journey.spec.ts` | S | none | section 3 |
+| **London tonight lane, public** | `/social` opens signed out on a readable lane: the newest public Pint Drops with photos, open crews for tonight, who is out by area (counts, no names), three historic picks. Sign-in only on the first write. Files: `app/social/SocialPageClient.tsx`, `lib/socialFeed.ts`, `lib/socialShell.ts`. | Blocked on D2. a stranger at 390 sees at least one card with a photograph in the first screen; no sign-in wall; `e2e/social-open.spec.ts` extended | M | public visibility and moderation; preserve the current gate until D2 changes it | D2 and item 3 (photos) |
+| Handle claim inside the first kept action | the claim card appears after `Plan stop`, `Still £X?` or `Save for tonight`, never before. Files: `components/identity/AccountOnboarding.tsx`, `lib/accountClaimReturnTo.ts`. | Blocked on D4. the held action resumes after the claim in `e2e/arrival-journey.spec.ts` | S | none | section 3 |
 | Find your lot by contacts (native) | on the shell, match phone contacts by hashed email to handles; web keeps handle search. Files: `components/social/FindYourLot.tsx`, `lib/nativePlatform.ts`, new `lib/contactMatch.server.ts`. | After P1 approval, only consented matching data follows the approved contract. A permitted match shows Follow; refusal leaves handle search usable. | M | contact privacy | P1 and native distribution |
 | One starter pack per area | packs are built from `homeCity` matches (exists); add one per London patch once the existing `starterPacks` member floor is met. Files: `lib/starterPacks.ts`. | A pack meets `STARTER_PACK_MEMBER_FLOOR` using eligible real accounts; no inferred borough membership. | S | none | accounts |
 | Profile as a card worth sharing | `/u/[handle]` OG card with the face, the cover, the number of pints logged and the home patch. Files: `app/u/[handle]/opengraph-image.tsx` (new), `lib/ogBrand.tsx`. | the unfurl shows the face and the patch | S | none | none |
@@ -368,7 +389,7 @@ All unshipped scope remains proposed and subject to section 1. Existing routes r
 
 | Feature | Spec | Acceptance | Effort | Risk | Depends on |
 |---|---|---|---|---|---|
-| **Friday 17:00 digest** | one push (or email) per week, opt-in at the first kept action: the cheapest pint near the reader's patch, who of the lot is out, one open crew tonight. Files: `lib/stepOutNudge*.ts`, `lib/cheapPintPing*.ts` folded into one `lib/fridayDigest.server.ts`, cron. | one message per week; nothing when the reader has no patch | M | push consent; email needs a sender | D5 |
+| **Friday 17:00 digest** | one push (or email) per week, opt-in at the first kept action: the cheapest pint near the reader's patch, who of the lot is out, one open crew tonight. Files: `lib/stepOutNudge*.ts`, `lib/cheapPintPing*.ts` folded into one `lib/fridayDigest.server.ts`, cron. | Blocked on D5. one message per week; nothing when the reader has no patch | M | push consent; email needs a sender | D5 |
 | Activity that is activity | the bell shows follows, cheers, plan invites, confirmations of your drops, replies. Files: `lib/notificationsStore.ts`, `app/activity`. | a confirmation of your drop is a notification | S | none | none |
 | Recap card, share-first | after every locked plan ends, the recap card is the first thing the host sees, with `Share` painted. Files: `components/plan/RecapShareButton.tsx`, `app/recap/[storyId]` (linked from the plan). | `/recap/[storyId]` is reachable from the plan | S | consent flow exists | none |
 | Year in pints (free forever) | the wrap: pints logged, cheapest, dearest, patches, the lot. Files: new `app/u/[handle]/year`, `lib/pintPassport.ts`. | The wrap derives each figure from stored evidence and remains free. Empty history produces no invented totals. | M | none | drops |
@@ -433,7 +454,7 @@ All unshipped scope remains proposed and subject to section 1. Existing routes r
 
 | Feature | Spec | Acceptance | Effort | Risk | Depends on |
 |---|---|---|---|---|---|
-| Store submission | the owner checklist in `docs/STORE_READINESS.md` | The owner records submission receipts from both stores. Enrollment and native QA remain prerequisites. | M | accounts, mailbox | captain |
+| Store submission | the owner checklist in `docs/STORE_READINESS.md` | Blocked on verified enrollment and native QA. The owner records submission receipts from both stores. Enrollment and native QA remain prerequisites. | M | accounts, mailbox | captain |
 | Share target | Wanted from a share | Use the Wanted-from-share criteria in 8.4. This is the native entry to that same work item. | M | none | none |
 | Push for the digest and the weekly ask | the rails exist | Only opted-in registered devices receive the accepted D5 messages. Refusal and withdrawal stop scheduling. | S | consent | D5 |
 
@@ -450,7 +471,7 @@ All unshipped scope remains proposed and subject to section 1. Existing routes r
 
 | Feature | Spec | Acceptance | Effort | Risk | Depends on |
 |---|---|---|---|---|---|
-| Vercel firewall rule | section 2 item 15 | `/api/*` never challenged | S | captain-side | D6 |
+| Vercel firewall rule | section 2 item 15 | Blocked on D6 and dashboard evidence. `/api/*` never challenged | S | captain-side | D6 |
 | Support mailbox | `support@pubmaxxing.com` answers | The owner records successful inbound delivery and reply from the published address; configuring a string alone does not pass. | S | captain-side | none |
 | CWV sweep on the merge bar | `npm run perf:cwv-sweep` before a map merge; production Slow 4G table recorded | The audit owner supplies release-labelled results against unchanged budgets. This docs task does not run the heavy sweep. | S | time | none |
 | `profiles.user_id` backfill | migration 0152, reported applied in Astra.md | Confirm the private thread admits participants and refuses non-members. | S: verification | access policy | existing migration and relevant proof |
@@ -470,11 +491,11 @@ The draft proposed store-side aggregation over completed Plans and participating
 
 | Proposed measure | Original definition | Status |
 |---|---|---|
-| `completed_group_outings_week` | Completed Plans in the ISO week with at least two non-revoked members at completion. | Proposed, not an implemented or validated query. |
-| `repeat_groups_week` | Qualifying completions with at least two shared members in a completion during the prior 28 days. | Proposed. Validate table/identity bindings and the membership-at-completion rule before implementation. |
+| `completed_group_outings_week` | Completed Plans in the ISO week with at least two non-revoked members at completion. | Blocked on implementation and schema validation; the group outcome is adopted. |
+| `repeat_groups_week` | Qualifying completions with at least two shared members in a completion during the prior 28 days. | Blocked on implementation. Validate table/identity bindings and the membership-at-completion rule. |
 | `groups_completed`, `groups_repeated` | Counts from those aggregates. | Unavailable as proven group outcomes in the current event stream. |
 | `repeat_rate` | `groups_repeated / groups_completed` for that completed-night cohort. | Undefined for an empty denominator; never replace it with a device ratio. |
-| `median_days_between_repeats` | Days between qualifying group completions. | Proposed; M1 must settle which prior qualifying completion supplies the interval. |
+| `median_days_between_repeats` | Days between qualifying group completions. | Blocked on a documented interval rule and query proof. This does not reopen the adopted core outcome. |
 
 The original view sketch named `plan_id`, `host_user_id`, `member_ids[]`, stops and city.
 It also proposed `plans` joined to `plan_crew_members`.
@@ -488,7 +509,8 @@ Its repeat proxy follows consenting `distinct_id` devices into the next ISO week
 It cannot join a guest's `crew_committed` event to another device's `plan_completed` for the same night.
 It cannot prove two shared members or 28-day group repetition.
 Even its proposed completion-receipt crew boolean would not close the group-identity repeat gap.
-M1 remains the owner decision between this reporting contract and the adopted outcome above.
+M1 remains the engineering reconciliation between the reporting proxy and the adopted outcome above.
+The completed-group measure needs its own store proof; adding words to this document cannot provide it.
 
 [TRACKING_PLAN.md](../analytics/TRACKING_PLAN.md) remains authoritative for event names, emitters and the release metric.
 The release metric is first meaningful action within 60 seconds, not Weekly Meaningful Nights.
@@ -502,8 +524,9 @@ Unattributed history cannot be called production. Product events have no `$sessi
 Use the verified outcome delivery contract for kept actions and retain each metric's denominator.
 The six loop-moment events remain supporting pairs, not additional meaningful core actions.
 
-Acceptance: M1 records the chosen outcome, population, repeat window and reporting limitations in the canonical metric document.
-Any approved store aggregate needs a reviewed schema query and known examples for qualifying, non-qualifying and empty cohorts.
+Acceptance remains blocked on M1 implementation and proof.
+Record the adopted outcome, population, repeat window and reporting limits in the canonical metric document.
+The adopted store aggregate needs a reviewed schema query and known examples for qualifying, non-qualifying and empty cohorts.
 Until then, report the current proxy by its actual name and mark the 28-day group measure unmeasured.
 Numeric D1/D7/D30 cohort targets and staged rollout thresholds remain within #1522; this plan supplies no invented targets.
 
@@ -546,7 +569,7 @@ Each accepted wave requires relevant proof and a captain-owned deploy. None of t
 **Wave 5: the stores and the city.** iOS and Android submission, the share target, the historic index as walks, drink pages for every brand, the P2 debt. Proves: the same product in the stores; the SEO front door has a photo.
 
 At each accepted wave, report the release metric and release-labelled performance against current budgets.
-Report the canonical weekly device proxy separately. The 28-day group measure remains unmeasured until M1 is resolved and implemented.
+Report the canonical weekly device proxy separately. The 28-day group measure remains unmeasured until M1 is implemented and validated.
 A count of accounts with another person in their lot also needs a defined store query; do not infer it from device events.
 
 ---

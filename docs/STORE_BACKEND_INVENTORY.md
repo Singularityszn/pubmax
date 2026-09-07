@@ -274,6 +274,18 @@ The maintainer must record the accepted pilot pair and disposition of the six ot
 Alternatively, the maintainer can explicitly replace the two-pilot scope and define the required evidence for that scope.
 Neither choice is inferred from the progress comments.
 
+### Closeout checks
+
+- [x] Correct current count: eight factory adopters, including `harvestOverlayStore`.
+- [x] Source-name and inline-reference inventory fences: 116 tests passed across the two inventory suites.
+- [x] Existing CI category-report integration is present; #1155/#1158 comments record its delivery.
+- [ ] Resolve the literal two-pilot scope and current additional adopters explicitly.
+- [ ] Complete the named per-store parity matrix, including healthy configured reads and durable-write failure results.
+- [ ] Complete the original inventory fields or record an accepted scope change.
+- [ ] Address the later local `npm run verify` integration requirement and supply the owner's required full-gate evidence.
+
+Checked entries record specific completed work. They do not close #727 or waive its unchecked requirements.
+
 ### Evidence available for the pilot contract
 
 The table separates evidence already present from missing parity proof. It does not claim a fresh full-suite pass.
