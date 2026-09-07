@@ -97,12 +97,20 @@ export type BudgetMethod = {
   resampleRuns?: number;
   /** Why the resample exists, kept beside the number for the next reader. */
   resampleWhy?: string;
+  /** And why the on-the-line half exists, and why its band reads both ways. */
+  resampleWithinCeilingWhy?: string;
   /**
    * And the second reason to spend them: a median this close to a ceiling, as a
    * percentage of the ceiling, is decided by one sample's jitter. The spread
    * rule asks whether the samples agreed with each other and is blind to where
    * they sit, so a route can agree with itself at 14 per cent and still read
    * 612 ms in one attempt and 956 ms in the next against a 900 ms ceiling.
+   *
+   * The band is SYMMETRIC about the ceiling - `|median - ceiling| <= ceiling *
+   * pct` - and `medianSitsOnTheLine` is the one owner of that arithmetic. It
+   * used to be one-sided, firing on everything from a hair under the line to a
+   * route three times over it, which spent extra samples exactly and only where
+   * they could turn a red green.
    */
   resampleWithinCeilingPct?: number;
   aggregate: "median";
@@ -464,6 +472,89 @@ export type SampleRow = Record<BudgetMetric, number> & {
   /** Connections still open when the run stopped waiting. Reported, never failed on. */
   stillOpen?: readonly string[];
 };
+
+/**
+ * The ceilings a resample decision reads: a budget row, or any subset of one.
+ * A metric with no ceiling here simply does not vote.
+ */
+export type RouteCeilings = Partial<Record<BudgetMetric, number>>;
+
+/**
+ * WHEN A ROUTE IS MEASURED AGAIN, AND THE ONE OWNER OF THAT DECISION.
+ *
+ * A median of three is only a median when the samples agree, and a verdict
+ * taken within a hair of a ceiling is decided by jitter rather than by the
+ * code. Both are reasons to spend more samples, and both are asked here rather
+ * than in the browser helper, so the rule is unit-tested without a browser and
+ * the two perf specs cannot drift apart on it.
+ *
+ * Nothing in this file decides pass or fail from these predicates. They only
+ * ever ADD samples; findBudgetBreaches still judges the median it is handed.
+ */
+
+/**
+ * True when a route's own samples sat further apart than the tracked width AND
+ * further apart than the metric's own floor - the same two tests
+ * findMethodWarnings applies when it reports a run as unmeasurable.
+ */
+export function samplesDisagree(
+  samples: readonly SampleRow[],
+  method: BudgetMethod,
+): boolean {
+  if (!method.resampleRuns || samples.length === 0) return false;
+  return BUDGET_METRICS.some((metric) => {
+    const spread = perfSampleSpread(samples.map((sample) => sample[metric]));
+    if (!Number.isFinite(spread.spreadPct) || spread.spreadPct <= method.sampleSpreadWarnPct) {
+      return false;
+    }
+    return spread.max - spread.min >= (method.sampleSpreadFloors[metric] ?? 0);
+  });
+}
+
+/**
+ * True when a median landed close enough to a ceiling that one sample's jitter
+ * decides the verdict. THE BAND IS SYMMETRIC AROUND THE CEILING, and that is
+ * the whole of this rule.
+ *
+ * The first cut fired on any median at or above `ceiling * (1 - margin)`, which
+ * has no upper edge: it bought extra samples on every figure from a hair under
+ * the line all the way out to a route three times over it, and never on one
+ * sitting comfortably under. Extra samples can only move a median, so a trigger
+ * shaped like that spends evidence exactly and only where it can turn a red
+ * into a green - it is a thumb on the scale rather than a measurement, and the
+ * captain's decision (7 September 2026) is that it be symmetric.
+ *
+ * So the band is `|median - ceiling| <= ceiling * margin`. A figure just under
+ * the line and a figure just over it buy the same evidence, and a route far
+ * over its ceiling buys none: that is a regression rather than jitter, and the
+ * spread rule above is still there for the run where a box genuinely stalled.
+ * The change makes the gate STRICTER, never looser: it removes rescue attempts
+ * and adds none.
+ */
+export function medianSitsOnTheLine(
+  samples: readonly SampleRow[],
+  ceilings: RouteCeilings,
+  method: BudgetMethod,
+): boolean {
+  const margin = method.resampleWithinCeilingPct;
+  if (!method.resampleRuns || !margin || samples.length === 0) return false;
+  return BUDGET_METRICS.some((metric) => {
+    const ceiling = ceilings[metric];
+    if (typeof ceiling !== "number" || !Number.isFinite(ceiling) || ceiling <= 0) return false;
+    const figure = median(samples.map((sample) => sample[metric]));
+    if (!Number.isFinite(figure)) return false;
+    return Math.abs(figure - ceiling) <= ceiling * (margin / 100);
+  });
+}
+
+/** Either reason to spend the resample budget, asked once. */
+export function routeNeedsMoreEvidence(
+  samples: readonly SampleRow[],
+  ceilings: RouteCeilings,
+  method: BudgetMethod,
+): boolean {
+  return samplesDisagree(samples, method) || medianSitsOnTheLine(samples, ceilings, method);
+}
 
 /**
  * Every sample of every route, printed beside the aggregate.
