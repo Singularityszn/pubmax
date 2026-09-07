@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 // The UI components render in the Playwright E2E suite, not in this Node-env
-// vitest run (see vitest.config.ts). These source-presence guards — mirroring
+// vitest run (see vitest.config.mts). These source-presence guards — mirroring
 // the migration-SQL assertion already in nightMemoryStore.test.ts — lock in that
 // the author-confirmed alt-text authoring field, its plain guidance, and the
 // clearly-marked "never auto-fill" AI seam stay wired on BOTH surfaces, and that

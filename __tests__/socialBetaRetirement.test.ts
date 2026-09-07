@@ -32,7 +32,7 @@ const RETIREMENT_SCAN_PATHS = [
   "postcss.config.mjs",
   "proxy.ts",
   "tsconfig.json",
-  "vitest.config.ts",
+  "vitest.config.mts",
   "vercel.json",
   ".github/workflows",
 ];
