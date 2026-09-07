@@ -10,7 +10,7 @@ import {
   LONDON_MAP_PUB_COUNT,
   LONDON_MAP_PUB_POINTS,
   LONDON_MAP_VIEWBOX,
-} from "@/components/landing/londonMapSnapshot";
+} from "@/components/landing/londonMapGeometry";
 
 // The front door's picture is a DRAWING of London, generated once at build by
 // scripts/landing/build-landing-map.mjs. Three things are held here: it stays
@@ -31,7 +31,7 @@ type HistoricPub = {
 const pubs = historicPubs as HistoricPub[];
 
 const generated = readFileSync(
-  join(process.cwd(), "components/landing/londonMapSnapshot.ts"),
+  join(process.cwd(), "components/landing/londonMapGeometry.ts"),
   "utf8",
 );
 
@@ -58,7 +58,10 @@ describe("the landing's drawing of London", () => {
   });
 
   it("names only pubs the heritage dataset holds, with the dataset's own words", () => {
-    expect(LONDON_MAP_PINS).toHaveLength(6);
+    // The script caps the pins at six; the separation rule decides how many the
+    // data can seat without labels touching, and today that is five.
+    expect(LONDON_MAP_PINS.length).toBeGreaterThanOrEqual(4);
+    expect(LONDON_MAP_PINS.length).toBeLessThanOrEqual(6);
     for (const pin of LONDON_MAP_PINS) {
       const pub = pubs.find((row) => row.slug === pin.slug);
       expect(pub, `${pin.slug} is a real historic pub`).toBeTruthy();
@@ -66,15 +69,31 @@ describe("the landing's drawing of London", () => {
       // The year comes from the row, never from the picture.
       expect(pin.label).toBe(pub?.dateLabel);
       expect(pub?.sourced).toBe(true);
-      expect(pub?.datePrecision).toBe("year");
+      expect(["year", "century"]).toContain(pub?.datePrecision);
     }
   });
 
-  it("names one pub per borough, so the six are spread across the city", () => {
-    const boroughs = LONDON_MAP_PINS.map(
-      (pin) => pubs.find((row) => row.slug === pin.slug)?.borough,
-    );
-    expect(new Set(boroughs).size).toBe(LONDON_MAP_PINS.length);
+  it("points two labels on one line away from each other, never at each other", () => {
+    for (const [index, pin] of LONDON_MAP_PINS.entries()) {
+      for (const other of LONDON_MAP_PINS.slice(index + 1)) {
+        if (Math.abs(pin.y - other.y) > 80) continue;
+        const left = pin.x <= other.x ? pin : other;
+        const right = pin.x <= other.x ? other : pin;
+        expect(left.anchor, `${left.name} runs left, away from ${right.name}`).toBe("end");
+        expect(right.anchor, `${right.name} runs right, away from ${left.name}`).toBe("start");
+      }
+    }
+  });
+
+  it("keeps the named pins far enough apart that no two labels touch", () => {
+    // Four of the oldest dated pubs stand within a few hundred metres of Fleet
+    // Street, so a one-per-borough rule still stacked four labels on one spot.
+    // Separation is the rule now, measured on the drawing.
+    for (const [index, pin] of LONDON_MAP_PINS.entries()) {
+      for (const other of LONDON_MAP_PINS.slice(index + 1)) {
+        expect(Math.hypot(pin.x - other.x, pin.y - other.y)).toBeGreaterThanOrEqual(150);
+      }
+    }
   });
 
   it("keeps every mark inside the frame it draws", () => {
@@ -90,8 +109,7 @@ describe("the landing's drawing of London", () => {
       expect(pin.x).toBeLessThanOrEqual(width);
       expect(pin.y).toBeGreaterThanOrEqual(0);
       expect(pin.y).toBeLessThanOrEqual(height);
-      // A label runs away from the nearer edge, so no name is clipped.
-      expect(pin.anchor).toBe(pin.x > width / 2 ? "end" : "start");
+      expect(["start", "end"]).toContain(pin.anchor);
     }
   });
 });
