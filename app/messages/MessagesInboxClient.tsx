@@ -266,7 +266,6 @@ export default function MessagesInboxClient({
     <Screen
       as="section"
       className="messagesScreen"
-      kicker="Messages"
       title="Messages"
       titleId="messages-title"
       // A new message opens recipient search without leaving Messages.
