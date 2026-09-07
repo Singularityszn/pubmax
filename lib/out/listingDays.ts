@@ -31,7 +31,7 @@ const LISTED_WINDOW_LABEL: Record<WhatsOnListedWindow, string> = {
   this_weekend: "This weekend",
 };
 
-const UNDATED_LABEL = "Date to come";
+const UNDATED_LABEL = "Date not published";
 
 function londonYmd(ms: number): string {
   return new Intl.DateTimeFormat("en-CA", {

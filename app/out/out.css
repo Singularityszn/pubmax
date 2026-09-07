@@ -173,6 +173,17 @@
   text-decoration: none;
 }
 
+/* The card is the row's route now, so it has to read as one. The title takes
+   the underline on hover rather than the whole box taking a colour: the row
+   already carries a credit link and a map link, and three highlighted boxes
+   inside one card is noise. */
+@media (hover: hover) and (pointer: fine) {
+  a.outCard:hover :is(h2, h4) {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
 .outCard h2,
 .outCard h4 {
   margin: 0;

@@ -209,10 +209,11 @@ describe("a night of unmatched listings renders rows, not an empty state", () =>
     await renderOut([unmatchedRow(0)]);
     const surface = container.querySelector('[data-testid="out-listing-surface"]');
     const credit = container.querySelector('[data-testid="out-listing-credit"]');
+    expect(surface).not.toBeNull();
+    expect(credit).not.toBeNull();
     expect(credit?.textContent).toContain("Ticketmaster");
-    expect(
-      surface?.compareDocumentPosition(credit as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    const position = (surface as Element).compareDocumentPosition(credit as Node);
+    expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 
