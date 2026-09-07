@@ -356,6 +356,88 @@ over, and the symmetric on-the-line band already buys that verdict its extra
 samples. A mark is for a route whose samples disagree with each other, not for
 one whose answer sits near its line.
 
+### Noise floor: what ten runs measured, 7 September 2026
+
+Ten CI runs on `avrea-ubuntu-latest-4-vcpu`, five per arm, dispatched in parallel
+on throwaway refs so no run cancelled another. Both arms sit on the same base
+(`563f51198`): the before arm is that commit unchanged, the after arm is this
+work, whose tree is byte-identical to the commit the runs measured.
+
+**False reds: 1 of 5 before, 0 of 5 after.** The one red is the defect this work
+is about, reproduced on code nobody had touched: `/crawls` LCP 320 against a
+300 ms ceiling, +7%, which is #1604's red to the millisecond.
+
+Per route, the median of each run's own LCP samples, and the spread of the
+samples behind it. `n` is how many samples each run took.
+
+| route | ceiling | before: medians | n | after: medians | n |
+| --- | --- | --- | --- | --- | --- |
+| `/crawls` | 300 | 236, 220, 220, 224, **320** | 5 | 220, 228, 240, 240, 272 | 7 |
+| `/today` | 300 | 212, 228, 208, 212, 216 | 5 | 224, 236, 216, 220, 208 | 7 |
+| `/discover` | 1000 | 308, 304, 308, 308, 336 | 5 | 332, 440, 336, 300, 332 | 7 |
+| `/drinks` | 1000 | 300, 308, 312, 336, 348 | 5 | 328, 336, 324, 312, 324 | 7 |
+| `/onboarding` | 900 | 788, 820, 676, 796, 700 | 5 | 724, 772, 672, 684, 692 | 5 |
+| `/pubs` | 600 | 260, 260, 252, 300, 296 | 5 | 284, 284, 272, 312, 264 | 5 |
+| `/map` | 900 | 220, 216, 200, 220, 192 | 3 | 256, 212, 200, 200, 196 | 3 |
+
+The `n` column is the floor working. The four marked routes take seven samples
+in the after arm and five in the before arm, so the second warm-up and the wider
+resample budget are really being spent on the runner and nowhere else.
+`/onboarding` and `/pubs` take five in both, which is the on-the-line band alone;
+`/map` takes three, having room either side and nothing to resample for.
+
+#### What the one red actually looked like
+
+`/crawls` samples, before arm, all five runs:
+
+```text
+216 / 244 / 236 / 244 / 212      median 236
+212 / 224 / 220 / 220 / 256      median 220
+220 / 216 / 220 / 224 / 224      median 220
+216 / 236 / 224 / 224 / 240      median 224
+320 / 268 / 308 / 656 / 356      median 320   <- RED against 300
+```
+
+And the same route, after arm:
+
+```text
+280 / 312 / 260 / 272 / 268 / 272 / 256      median 272
+236 / 240 / 248 / 240 / 280 / 224 / 256      median 240
+244 / 240 / 244 / 240 / 240 / 272 / 240      median 240
+220 / 224 / 280 / 232 / 228 / 216 / 228      median 228
+216 / 228 / 248 / 216 / 220 / 220 / 224      median 220
+```
+
+The red run is not one outlier against four good samples. Its FIRST counted
+sample is already 320 and four of its five sit at or above 308: that route had
+not settled when counting began. `/crawls` was already spending the resample
+budget in every before-arm run, which is why every before row shows five samples
+rather than three - the old on-the-line band fired every time and still landed
+at 320. Two more samples were not the missing thing. The second discarded
+navigation is, and no after-arm run drew a sample above 312.
+
+#### The spread gets WIDER, and that is arithmetic rather than a regression
+
+`/discover` and `/drinks` report a wider sample spread in the after arm, up from
+16% and 8% to 106% and 117%. Nothing got slower. `spreadPct` is
+`(max - min) / median` over the samples a run drew, and seven draws catch the
+tail more often than five do. `/discover`'s widest after-arm run is
+`364 / 656 / 304 / 332 / 324 / 336 / 328`: one 656 against six samples between
+304 and 364, median 332, against a 1000 ms ceiling.
+
+That is the floor doing its job rather than failing at it. It was never meant to
+narrow the spread; it is meant to stop one draw from the tail deciding a verdict,
+and a median of seven shrugs off the 656 that a median of three could not. The
+spread warning still prints, and still fails nothing.
+
+#### What this evidence does not show
+
+One red in five runs is a thin base. These ten runs show that the mechanism is
+spent where it was meant to be spent, that the reproduced red is real, and that
+no after-arm run of any route breached. They do not establish a false-red RATE to
+any precision, and a second red on a later sweep would not be a surprise. The
+honest claim is the mechanism and the direction, not a probability.
+
 ### Where counting stops, and whose clock stops it
 
 Counting stops at an APP-DEFINED moment, not a wall clock: the later of the
