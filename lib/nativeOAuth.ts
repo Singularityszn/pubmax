@@ -38,9 +38,18 @@ export type NativeOAuthDeps = {
   loadPlugin?: () => Promise<NativeBrowserPlugin>;
 };
 
+// A CAPACITOR PLUGIN IS A PROXY, AND IT ANSWERS "then" WITH A NATIVE CALL.
+// registerPlugin() hands back a Proxy whose every property is a method on the
+// native side, so returning it from an async function makes the await look
+// for a thenable, call the native "Browser.then()", and reject with
+// '"Browser.then()" is not implemented' (measured on the Pixel 7 emulator through
+// the WebView's console: docs/proof/mobile-app-design/android-emu-pixel7/share/).
+// The loader hands back a plain object that closes over the plugin instead.
+// __tests__/capacitorPluginProxy.test.ts holds every loader to this with a
+// proxy shaped like the real one.
 async function loadBrowserPlugin(): Promise<NativeBrowserPlugin> {
   const { Browser } = await import("@capacitor/browser");
-  return Browser;
+  return { open: (options) => Browser.open(options), close: () => Browser.close() };
 }
 
 /**
