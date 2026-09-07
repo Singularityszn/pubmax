@@ -822,7 +822,7 @@ export function AuthProvider({
       releaseBrowserAuthAttempt(attempt.id);
       return { error: "Sign-in could not be started. Try again." };
     }
-  }, []);
+  }, [handOffToSystemBrowser]);
 
   const startSupabaseAppleOAuth = useCallback(async (next?: string): Promise<{ error: string | null }> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
@@ -852,7 +852,7 @@ export function AuthProvider({
       releaseBrowserAuthAttempt(attempt.id);
       return { error: "Sign-in could not be started. Try again." };
     }
-  }, []);
+  }, [handOffToSystemBrowser]);
 
   const signInWithGoogle = useCallback(async (next?: string): Promise<{ error: string | null }> => {
     const guarded = await guardSocialAuthProvider(
