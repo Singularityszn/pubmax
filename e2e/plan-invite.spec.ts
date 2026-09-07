@@ -88,7 +88,7 @@ test("an unknown invite token renders the honest not-found state", async ({ page
 // browser has resolved a live capability AND fetched a real inviteToken
 // (components/plan/PlanHostInviteLink.tsx returns null until then) — there is
 // no Vitest render harness for UI components in this codebase
-// (vitest.config.ts), so this is the proof that the control's gating actually
+// (vitest.config.mts), so this is the proof that the control's gating actually
 // holds in a real browser. The host capability only lives in the creating
 // tab's in-memory session (lib/planSessionCapability.ts, set client-side at
 // plan creation), so the host must be driven through the actual composer UI —
