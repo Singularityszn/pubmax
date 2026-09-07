@@ -159,6 +159,7 @@ test.use({
 
 test.describe("returning drinker", () => {
   test("arrives with no identity sheet, on any tab", async ({ page }) => {
+    await page.clock.setFixedTime(new Date("2026-09-07T20:00:00Z"));
     // The founder's exact account: a claimed handle, no stored date of birth.
     await installSession(page, { complete: false, handle: HANDLE });
 
