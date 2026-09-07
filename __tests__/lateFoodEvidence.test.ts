@@ -223,4 +223,91 @@ describe("late-food evidence snapshot", () => {
     expect(errors).toMatch(/coordinates/i);
     expect(errors).toMatch(/dates are out of order/i);
   });
+
+  it.each([undefined, null, false, 0, "snapshot", []])(
+    "returns only the snapshot error for non-object input %j",
+    (value) => {
+      expect(validateLateFoodEvidence(value, [])).toEqual([
+        "snapshot must be an object",
+      ]);
+    },
+  );
+
+  it("reports the gazetteer and schema errors before the areas error", () => {
+    expect(validateLateFoodEvidence({}, null)).toEqual([
+      "a Greater London locality gazetteer is required to check anchor document coverage",
+      "schemaVersion must be 1",
+      "snapshotId is required",
+      "generatedAt must be an ISO date",
+      "coveragePolicy is required",
+      "areas must be an object",
+    ]);
+  });
+
+  it("keeps option errors ordered and detects duplicate IDs across areas", () => {
+    const invalid = structuredClone(fixture);
+    invalid.areas.clapham.options = [null, { id: "repeated" }];
+    invalid.areas.victoria.options[0].id = "repeated";
+
+    expect(validate(invalid)).toEqual([
+      "clapham option 0: must be an object",
+      "clapham option 1: identity, area, category and address are required",
+      "clapham option 1: coordinates need an operator location link and Greater London point",
+      "clapham option 1: explicit serviceHoursText is required",
+      "clapham option 1: weeklyHours must include every weekday",
+      "clapham option 1: verifyOnNight must be true",
+      "clapham option 1: invalid confidence",
+      "clapham option 1: a sourced anchor price is required",
+      "clapham option 1: eligible official-operator provenance is required",
+      "victoria option 0: id is missing or duplicated",
+    ]);
+  });
+
+  it("reports invalid service windows in weekday order", () => {
+    const invalid = structuredClone(fixture);
+    const hours = invalid.areas.clapham.options[0].weeklyHours;
+    hours.monday = null;
+    hours.tuesday = [];
+    hours.wednesday = [null];
+    hours.thursday = [{ open: "24:00", close: "02:00", closesNextDay: true }];
+    hours.friday = [{ open: "18:00", close: "02:00", closesNextDay: null }];
+
+    expect(validate(invalid)).toEqual([
+      "clapham option 0: monday has an invalid service window",
+      "clapham option 0: tuesday has an invalid service window",
+      "clapham option 0: wednesday has an invalid service window",
+      "clapham option 0: thursday has an invalid service window",
+      "clapham option 0: friday has an invalid service window",
+    ]);
+  });
+
+  it("continues after invalid supporting URLs but stops at invalid provenance dates", () => {
+    const invalid = structuredClone(fixture);
+    const source = invalid.areas.clapham.options[0].source;
+    source.supportingUrls = null;
+    source.observedAt = null;
+    source.expiresAt = source.reviewedAt;
+
+    expect(validate(invalid)).toEqual([
+      "clapham option 0: supportingUrls must contain only eligible official-operator URLs",
+      "clapham option 0: observedAt, reviewedAt and expiresAt must be ISO dates",
+    ]);
+
+    source.publisher = null;
+    expect(validate(invalid)).toEqual([
+      "clapham option 0: eligible official-operator provenance is required",
+    ]);
+  });
+
+  it("accepts overnight windows and optional non-PDF link evidence", () => {
+    const valid = structuredClone(fixture);
+    const option = valid.areas.clapham.options[0];
+    option.weeklyHours.monday = [
+      { open: "23:00", close: "00:00", closesNextDay: true },
+    ];
+    delete option.source.supportingUrls;
+    option.source.anchorDocumentLink = null;
+
+    expect(validate(valid)).toEqual([]);
+  });
 });
