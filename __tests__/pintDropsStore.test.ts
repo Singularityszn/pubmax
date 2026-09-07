@@ -1,8 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import sharp from "sharp";
 
 // Mock the Supabase admin so toDTO/deletePhotos exercise Storage without a live
 // project. createSignedUrl returns deterministic test URLs.
-const removeMock = vi.fn(async () => ({ data: [], error: null }));
+const objects = new Map<string, Blob>();
+const removeMock = vi.fn(async (keys: string[]): Promise<{ data: []; error: { message: string } | null }> => {
+  for (const key of keys) objects.delete(key);
+  return { data: [], error: null };
+});
+const uploadMock = vi.fn(async (key: string, body: Blob) => {
+  objects.set(key, body);
+  return { data: { path: key }, error: null };
+});
 const createSignedUrl = vi.fn(async (key: string) => ({
   data: { signedUrl: `https://cdn.test/signed/pint-drops/${key}` },
   error: null,
@@ -52,13 +61,17 @@ const mockAdmin = () => ({
     select: vi.fn(() => selectChain),
     update: updateMock,
   }),
-  storage: { from: () => ({ createSignedUrl, createSignedUrls, remove: removeMock }) },
+  storage: { from: () => ({ createSignedUrl, createSignedUrls, remove: removeMock,
+    upload: uploadMock,
+    download: async (key: string) => ({ data: objects.get(key) ?? null, error: null }),
+  }) },
   rpc: rpcMock,
 });
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => mockAdmin(),
   requireSupabaseAdmin: () => mockAdmin(),
   STORAGE_BUCKET: "pint-drops",
+  isSupabaseConfigured: () => true,
 }));
 
 import {
@@ -92,6 +105,12 @@ function anonymousReportIdentity(actorHash: string): PintDropReportIdentity {
 afterEach(() => {
   __resetPintDrops();
   reviewRowsRef.rows = [];
+  objects.clear();
+  removeMock.mockReset();
+  removeMock.mockImplementation(async (keys) => {
+    for (const key of keys) objects.delete(key);
+    return { data: [], error: null };
+  });
   vi.clearAllMocks();
 });
 
@@ -316,6 +335,22 @@ describe("moderator Pint Drop review queue", () => {
 });
 
 describe("deletePhotos", () => {
+  it.each(["returned", "thrown"])("logs a %s removal error without throwing", async (failure) => {
+    const output = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      if (failure === "returned") removeMock.mockResolvedValueOnce({ data: [], error: { message: "Storage unavailable" } });
+      else removeMock.mockRejectedValueOnce(new Error("Storage unavailable"));
+      await expect(deletePhotos(["the-crown/d1/receipt.jpg"])).resolves.toBeUndefined();
+      expect(output).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(output.mock.calls[0][0])).toEqual({
+        level: "warn", event: "pint_drops.photo_cleanup_failed", ts: expect.any(Number),
+        keyCount: 1, error: "Storage unavailable",
+      });
+    } finally {
+      output.mockRestore();
+    }
+  });
+
   it("removes the given keys and skips empty ones", async () => {
     removeMock.mockClear();
     await deletePhotos(["the-crown/d1/pint.jpg", "the-crown/d1/venue.png"]);
@@ -584,5 +619,102 @@ describe("supabasePintDropStore.create (vibe_tags rollout resilience)", () => {
       /handle/,
     );
     expect(insertMock).toHaveBeenCalledTimes(1); // no retry
+  });
+});
+
+
+describe("supabasePintDropStore.create receipt cleanup", () => {
+  const receiptKey = "the-crown/d1/receipt.jpg";
+  const missingReceipt = { code: "PGRST204", message: "receipt_photo_key missing from schema cache" };
+  async function photos() {
+    const png = await sharp({ create: { width: 1, height: 1, channels: 3, background: "white" } }).png().toBuffer();
+    const file = new File([new Uint8Array(png)], "photo.png", { type: "image/png" });
+    return { pint: file, venue: file, receipt: file };
+  }
+
+  it("deletes only the omitted receipt after the fallback insert confirms success", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    let confirm!: (value: { error: null }) => void;
+    const pending = new Promise<{ error: null }>((resolve) => { confirm = resolve; });
+    insertMock.mockReset();
+    insertMock.mockResolvedValueOnce({ error: missingReceipt }).mockReturnValueOnce(pending);
+    try {
+      const saving = supabasePintDropStore.create(drop(), await photos());
+      await vi.waitFor(() => expect(insertMock).toHaveBeenCalledTimes(2));
+      expect(removeMock).not.toHaveBeenCalled();
+      expect(objects.has(receiptKey)).toBe(true);
+      expect(insertMock.mock.calls[1][0]).not.toHaveProperty("receipt_photo_key");
+      confirm({ error: null });
+      const saved = await saving;
+      expect(saved.priceGbp).toBe(4.2);
+      expect(saved.receiptPhotoUrl).toBeNull();
+      expect(removeMock).toHaveBeenCalledExactlyOnceWith([receiptKey]);
+      expect([...objects.keys()].sort()).toEqual(["the-crown/d1/pint.jpg", "the-crown/d1/venue.jpg"]);
+      expect(saved.pintPhotoUrl).toContain("pint.jpg");
+      expect(saved.venuePhotoUrl).toContain("venue.jpg");
+    } finally {
+      confirm({ error: null });
+      warn.mockRestore();
+    }
+  });
+
+  it("cleans the omitted receipt after a later column fallback also succeeds", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    insertMock.mockReset();
+    insertMock.mockResolvedValueOnce({ error: missingReceipt })
+      .mockResolvedValueOnce({ error: { code: "42703", message: "vibe_tags does not exist" } })
+      .mockResolvedValueOnce({ error: null });
+    try {
+      const saved = await supabasePintDropStore.create(drop(), await photos());
+      expect(insertMock).toHaveBeenCalledTimes(3);
+      expect(saved.priceGbp).toBe(4.2);
+      expect(removeMock).toHaveBeenCalledExactlyOnceWith([receiptKey]);
+      expect(objects.size).toBe(2);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("keeps the saved price when omitted receipt cleanup returns an error", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const output = vi.spyOn(console, "log").mockImplementation(() => {});
+    insertMock.mockReset();
+    insertMock.mockResolvedValueOnce({ error: missingReceipt }).mockResolvedValueOnce({ error: null });
+    removeMock.mockResolvedValueOnce({ data: [], error: { message: "Storage unavailable" } });
+    try {
+      const saved = await supabasePintDropStore.create(drop(), await photos());
+      expect(saved.priceGbp).toBe(4.2);
+      expect(insertMock).toHaveBeenCalledTimes(2);
+      expect(removeMock).toHaveBeenCalledExactlyOnceWith([receiptKey]);
+      expect(objects.size).toBe(3);
+      expect(output).toHaveBeenCalledWith(expect.stringContaining('"event":"pint_drops.photo_cleanup_failed"'));
+    } finally {
+      warn.mockRestore();
+      output.mockRestore();
+    }
+  });
+
+  it("does not delete optional photos when the omitted receipt was never uploaded", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    insertMock.mockReset();
+    insertMock.mockResolvedValueOnce({ error: missingReceipt }).mockResolvedValueOnce({ error: null });
+    try {
+      const saved = await supabasePintDropStore.create(drop(), { ...await photos(), receipt: null });
+      expect(saved.priceGbp).toBe(4.2);
+      expect(removeMock).not.toHaveBeenCalled();
+      expect(objects.size).toBe(2);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("keeps every photo when the insert retains the receipt column", async () => {
+    insertMock.mockReset();
+    insertMock.mockResolvedValueOnce({ error: null });
+    const saved = await supabasePintDropStore.create(drop(), await photos());
+    expect(saved.priceGbp).toBe(4.2);
+    expect(insertMock.mock.calls[0][0].receipt_photo_key).toBe(receiptKey);
+    expect(removeMock).not.toHaveBeenCalled();
+    expect(objects.size).toBe(3);
   });
 });
