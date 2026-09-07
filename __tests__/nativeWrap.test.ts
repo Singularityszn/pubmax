@@ -14,6 +14,10 @@ const rootFile = (path: string) => readFileSync(join(process.cwd(), path), "utf8
 
 const ANDROID_RES = join(process.cwd(), "android/app/src/main/res");
 
+/** The page's own paper, light and dark — the canvas a launch must land on. */
+const LIGHT_PAPER = "#f8f2ec";
+const DARK_PAPER = "#0a0a0b";
+
 /** Every XML resource under android/app/src/main/res, path relative to it. */
 function androidResourceXml(dir = ANDROID_RES, prefix = ""): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -62,23 +66,14 @@ describe("Capacitor wrapped-build contract", () => {
     // scripts/gen-native-app-icons.mjs cuts LaunchBackground.colorset from, so
     // the two cannot drift and the app opens on ONE colour.
     expect(capacitorConfig.ios?.backgroundColor).toBe(BRAND_COLORS.inkDeep);
-    // ANDROID HAS THE SAME HOLE, AND THE WINDOW BACKGROUND DOES NOT FILL IT.
-    // That background (android/app/src/main/res/values*/colors.xml) paints the
-    // BANDS an older WebView is inset by, not the WebView's own rectangle, and
-    // the rectangle defaults to white. Measured on the API 36 emulator against
-    // a local production build on 7 September 2026: the paper bands sat under
-    // the clock and over the gesture pill exactly as PR #1599 intended, and
-    // between them the whole WebView was pure #FFFFFF at 1649ms
-    // (docs/proof/mobile-shells-refresh/).
-    //
-    // So both platforms take the launch field, from the one constant, and both
-    // shells open on ONE colour: the ink the Android system splash already uses
-    // (values/styles.xml windowSplashScreenBackground is colorPrimaryDark) and
-    // the ink iOS launches on.
-    expect(capacitorConfig.android?.backgroundColor).toBe(BRAND_COLORS.inkDeep);
-    expect(rootFile("android/app/src/main/res/values/colors.xml")).toContain(
-      `<color name="colorPrimaryDark">${BRAND_COLORS.inkDeep}</color>`,
-    );
+    // ANDROID HAS THE SAME HOLE AND THIS IS NOT ITS REMEDY. Its WebView is
+    // opaque, so the DOCUMENT's own white is painted over whatever colour the
+    // view carries, and `android.backgroundColor` is never seen. Proved on the
+    // API 36 emulator on 7 September 2026 by setting it to #FF00FF and
+    // capturing the whole launch: no frame was ever magenta, and the same white
+    // frame stood at 2861ms. Android's remedy is `public/theme-init.js`
+    // painting the canvas before the stylesheet arrives, fenced below.
+    expect(capacitorConfig.android?.backgroundColor).toBeUndefined();
     expect(capacitorConfig.backgroundColor).toBeUndefined();
 
     const launchField = rootFile(
@@ -477,6 +472,31 @@ describe("Capacitor wrapped-build contract", () => {
     // that raises the OS dialog, and only after a kept action.
     const manifest = rootFile("android/app/src/main/AndroidManifest.xml");
     expect(manifest).toContain('android.permission.POST_NOTIFICATIONS');
+  });
+
+  it("paints the page's own paper before a stylesheet can, so no white frame is left", () => {
+    // THE ANDROID HALF OF THE LAUNCH FIELD. Its WebView is opaque, so the
+    // document's default white covers the view colour iOS uses, and the shell
+    // showed a full-frame #FFFFFF between the ink system splash and the page.
+    // Measured on the API 36 emulator against a local production build on
+    // 7 September 2026: paper bands under the clock and over the gesture pill
+    // exactly as PR #1599 intended, and pure white between them at 1649ms
+    // (docs/proof/mobile-shells-refresh/).
+    //
+    // theme-init.js already resolves the theme render-blocking, ahead of every
+    // stylesheet link, which is the one moment early enough to matter. It
+    // paints the canvas the page's own paper there, so the field the reader
+    // crosses is the page arriving rather than a colour from no design.
+    const init = rootFile("public/theme-init.js");
+    expect(init).toContain(LIGHT_PAPER);
+    expect(init).toContain(DARK_PAPER);
+    // The literals are the page's, not a fourth copy: globals.css remaps the
+    // light page paper on `body`, and theme.css owns the dark one.
+    expect(rootFile("app/globals.css")).toContain(`--paper: ${LIGHT_PAPER};`);
+    expect(rootFile("app/theme.css")).toContain(`--paper: ${DARK_PAPER};`);
+    // The offline stub already carries the same pair, and this holds all three
+    // together rather than letting one drift alone.
+    expect(rootFile("native/web-stub/offline.html")).toContain(`--paper: ${LIGHT_PAPER};`);
   });
 
   it("names the origin the rig actually loaded, not the one it usually loads", () => {

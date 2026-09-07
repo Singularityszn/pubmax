@@ -63,11 +63,6 @@ const config: CapacitorConfig = {
     // the page are one colour and cannot drift. The launch field is
     // deliberately the same in light and dark (#523), which is why this is a
     // single value rather than a pair.
-    //
-    // Android is left alone on purpose: its window background is already the
-    // page's own paper in light and ink in dark (PR #1599,
-    // android/app/src/main/res/values*/), and a WebView field of a third colour
-    // would fight it.
     backgroundColor: BRAND_COLORS.inkDeep,
   },
   plugins: {
