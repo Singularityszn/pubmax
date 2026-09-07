@@ -177,6 +177,9 @@ export function parseUkBaseRestoreResponse(
     lng: row.lng,
     curatedVenueId:
       typeof row.curatedVenueId === "string" ? row.curatedVenueId : "",
+    // The route answers what OSM states. Anything else reads as a pub, the
+    // kind this layer held before bars joined it.
+    kind: row.kind === "bar" ? "bar" : "pub",
   };
 }
 
