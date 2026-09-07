@@ -90,7 +90,12 @@ export function OutCardBody({ row, onOpen, titleLevel = 2 }: OutCardBodyProps) {
           {content}
         </a>
       ) : (
-        <Link className="outCard" href={route.href} onClick={onOpen}>
+        // The internal route is /map?sel=<venueId>, one of the heavy routes
+        // __tests__/linkPrefetchFence.test.ts guards: a list of 63 of them would
+        // queue 63 server renders in front of the answer the reader is waiting
+        // for. The fence cannot see it through `route.href`, so the guard is
+        // stated here rather than left to it.
+        <Link className="outCard" prefetch={false} href={route.href} onClick={onOpen}>
           {content}
         </Link>
       )}

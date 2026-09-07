@@ -36,7 +36,11 @@ export function OutListingPubPair({ row }: OutListingPubPairProps) {
         <span className="outListingPubPairLabel">{OUT_LISTING_VENUE_BADGE_LABEL}</span>
       </div>
       <p className="outListingPubPairName">{pair.placeName}</p>
-      <Link className="outListingPubPairLink pressable" href={pair.mapHref}>
+      <Link
+        className="outListingPubPairLink pressable"
+        prefetch={false}
+        href={pair.mapHref}
+      >
         Open on map
       </Link>
     </div>

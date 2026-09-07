@@ -131,8 +131,6 @@ const PENDING_GUARD: ReadonlyArray<{ file: string }> = [
   { file: "components/moment/MomentCapture.tsx" },
   { file: "components/night/MorningReentryCard.tsx" },
   { file: "components/night/NightModeCard.tsx" },
-  { file: "components/out/OutCard.tsx" },
-  { file: "components/out/OutListingPubPair.tsx" },
   { file: "components/pal/PalChat.tsx" },
   { file: "components/pal/PalExperience.tsx" },
   { file: "components/plan/CompletedPlanUsualLot.tsx" },
