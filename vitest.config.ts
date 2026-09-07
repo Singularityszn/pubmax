@@ -48,7 +48,7 @@ export default defineConfig({
       // surfaces where a regression actually breaks the app. UI components are
       // excluded; they're covered by the Playwright E2E suite instead.
       include: ["lib/**", "app/api/**"],
-      exclude: ["**/*.d.ts", "**/*.d.mts"],
+      exclude: ["**/*.d.ts", "**/*.d.mts", "**/*.md"],
       // Regression gate, not a target. Thresholds sit ~2% under the measured
       // numbers so CI stays green today (2026-09-06, full suite, 1464 files:
       // statements 81.35%, branches 74.62%, functions 85.57%, lines 85.08% —
