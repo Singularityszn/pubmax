@@ -2,7 +2,7 @@ import {
   LONDON_MAP_OUTLINES,
   LONDON_MAP_PINS,
   LONDON_MAP_PUB_COUNT,
-  LONDON_MAP_PUB_POINTS,
+  LONDON_MAP_PUB_DOTS,
   LONDON_MAP_VIEWBOX,
 } from "./londonMapGeometry";
 
@@ -30,15 +30,10 @@ export default function LondonMapSnapshot({ className }: { className?: string })
       aria-label={`A map of London with ${LONDON_MAP_PUB_COUNT} historic pubs marked, ${LONDON_MAP_PINS.length} of them named.`}
       focusable="false"
     >
-      <defs>
-        <circle id="lpMapDot" r="4.5" />
-      </defs>
       <path className="lpMapOutline" d={LONDON_MAP_OUTLINES} />
-      <g className="lpMapDots">
-        {LONDON_MAP_PUB_POINTS.map(([x, y]) => (
-          <use key={`${x},${y}`} href="#lpMapDot" x={x} y={y} />
-        ))}
-      </g>
+      {/* Every pub dot in ONE path. One element each cost 293 layout objects
+          on a phone the landing is trying to paint in under a second. */}
+      <path className="lpMapDots" d={LONDON_MAP_PUB_DOTS} />
       <g className="lpMapPins">
         {LONDON_MAP_PINS.map((pin) => (
           <g key={pin.slug} transform={`translate(${pin.x} ${pin.y})`}>

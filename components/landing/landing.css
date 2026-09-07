@@ -607,7 +607,7 @@
   stroke-linejoin: round;
 }
 
-.lpMapDots { fill: var(--accent-price); opacity: .8; }
+.lpMapDots { fill: var(--accent-price); opacity: .8; fill-rule: nonzero; }
 
 .lpMapPinDot {
   fill: var(--brass-accessible);

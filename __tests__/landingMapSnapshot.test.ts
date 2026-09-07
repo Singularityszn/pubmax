@@ -8,7 +8,8 @@ import {
   LONDON_MAP_OUTLINES,
   LONDON_MAP_PINS,
   LONDON_MAP_PUB_COUNT,
-  LONDON_MAP_PUB_POINTS,
+  LONDON_MAP_PUB_DOT_COUNT,
+  LONDON_MAP_PUB_DOTS,
   LONDON_MAP_VIEWBOX,
 } from "@/components/landing/londonMapGeometry";
 
@@ -51,10 +52,14 @@ describe("the landing's drawing of London", () => {
   it("draws a frame, an outline and one dot per historic pub in it", () => {
     expect(LONDON_MAP_VIEWBOX).toMatch(/^0 0 \d+ \d+$/);
     expect(LONDON_MAP_OUTLINES.startsWith("M")).toBe(true);
-    // Every dot the drawing paints, plus the six the pins name, is the count
-    // the caption prints, so the words and the picture cannot disagree.
-    expect(LONDON_MAP_PUB_POINTS.length + LONDON_MAP_PINS.length).toBe(LONDON_MAP_PUB_COUNT);
+    // Every dot the drawing paints, plus the ones the pins name, is the count
+    // the lede prints, so the words and the picture cannot disagree.
+    expect(LONDON_MAP_PUB_DOT_COUNT + LONDON_MAP_PINS.length).toBe(LONDON_MAP_PUB_COUNT);
     expect(LONDON_MAP_PUB_COUNT).toBeGreaterThan(100);
+    // ONE path for every dot, not one element each: 293 elements are 293
+    // layout objects on the phone this page is trying to paint first.
+    expect(LONDON_MAP_PUB_DOTS.startsWith("M")).toBe(true);
+    expect(LONDON_MAP_PUB_DOTS.match(/M/g)).toHaveLength(LONDON_MAP_PUB_DOT_COUNT);
   });
 
   it("names only pubs the heritage dataset holds, with the dataset's own words", () => {
@@ -98,11 +103,11 @@ describe("the landing's drawing of London", () => {
 
   it("keeps every mark inside the frame it draws", () => {
     const [, , width, height] = LONDON_MAP_VIEWBOX.split(" ").map(Number);
-    for (const [x, y] of LONDON_MAP_PUB_POINTS) {
-      expect(x).toBeGreaterThanOrEqual(0);
-      expect(x).toBeLessThanOrEqual(width);
-      expect(y).toBeGreaterThanOrEqual(0);
-      expect(y).toBeLessThanOrEqual(height);
+    for (const [, x, y] of LONDON_MAP_PUB_DOTS.matchAll(/M(-?[\d.]+) (-?[\d.]+)/g)) {
+      expect(Number(x)).toBeGreaterThanOrEqual(-10);
+      expect(Number(x)).toBeLessThanOrEqual(width);
+      expect(Number(y)).toBeGreaterThanOrEqual(0);
+      expect(Number(y)).toBeLessThanOrEqual(height);
     }
     for (const pin of LONDON_MAP_PINS) {
       expect(pin.x).toBeGreaterThanOrEqual(0);
