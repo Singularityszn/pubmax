@@ -425,6 +425,32 @@ function NightModePill({
   );
 }
 
+type NightPlanReadState = "loading" | "ready" | "preview" | "unavailable";
+
+const NIGHT_PLAN_READ_LABEL: Record<NightPlanReadState, string> = {
+  loading: "Loading tonight’s route…",
+  ready: "This plan has no stops yet.",
+  preview: "Join the crew to see tonight's route.",
+  unavailable: "Could not load tonight's route.",
+};
+
+function NightPlanReadStatus({ state, planId, onRetry }: {
+  state: NightPlanReadState;
+  planId: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div>
+      <p className="nightCard__loading" role="status">{NIGHT_PLAN_READ_LABEL[state]}</p>
+      {state === "unavailable" ? (
+        <button type="button" className="nightCard__quietButton" onClick={onRetry}>Retry</button>
+      ) : state === "preview" ? (
+        <Link href={`/plan/${planId}`} className="nightCard__quietButton">Open plan</Link>
+      ) : null}
+    </div>
+  );
+}
+
 function NightModeSheet({
   entry,
   onCollapse,
@@ -434,6 +460,7 @@ function NightModeSheet({
 }) {
   const { id, stopIndex } = entry;
   const [plan, setPlan] = useState<PlanState | null>(null);
+  const [planReadState, setPlanReadState] = useState<NightPlanReadState>("loading");
   const [report, setReport] = useState<PlanGetInReportDTO | null>(null);
   const [coords, setCoords] = useState<VenueCoord[] | null>(null);
   const [lateFood, setLateFood] = useState<LateFoodTerminal[]>([]);
@@ -503,6 +530,7 @@ function NightModeSheet({
         if (!isActive()) return;
         if (body && Array.isArray(body.stops)) {
           setPlan(body);
+          setPlanReadState("ready");
           return;
         }
         // A READ THAT ANSWERS PREVIEW IS AN ANSWER (#1521), so the card puts
@@ -510,10 +538,9 @@ function NightModeSheet({
         // `stops`, the branch above was skipped, and a member whose capability
         // had been revoked kept the route and the get-in report on screen: the
         // server withheld the data and the client did not (F-33).
-        if (isPlanPreviewProjection(body)) {
-          setPlan(null);
-          setReport(null);
-        }
+        setPlan(null);
+        setReport(null);
+        setPlanReadState(isPlanPreviewProjection(body) ? "preview" : "unavailable");
       })
       .catch(() => undefined);
     void fetch(`/api/plans/${id}/getin`, { cache: "no-store" })
@@ -529,7 +556,7 @@ function NightModeSheet({
       })
       .catch(() => undefined);
   }, [id]);
-  usePlanMemberRead(id, readPlanState);
+  const retryPlanRead = usePlanMemberRead(id, readPlanState);
 
   useEffect(
     () =>
@@ -1002,7 +1029,10 @@ function NightModeSheet({
           </Link>
         </div>
       ) : (
-        <p className="nightCard__loading">Loading tonight&rsquo;s route…</p>
+        <NightPlanReadStatus state={planReadState} planId={id} onRetry={() => {
+          setPlanReadState("loading");
+          retryPlanRead();
+        }} />
       )}
 
       {lastTrainLeaveBy ? (
