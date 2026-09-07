@@ -388,7 +388,12 @@ test("shows Open plans when one sendable plan exists", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Ask to join", exact: true })).toBeVisible();
 });
 
-test("groups desktop listings and pairs a pub beside each gig", async ({ page }) => {
+// The venue used to be a GROUP HEADING, because the desktop list grouped by
+// resolved pub. It groups by the night now, so a listed pub is named on the row
+// itself: once in the meta line, once in the pub pair beside it, and once more
+// in the link that opens its pin. The heading that went is the venue's; the
+// night's own heading is the section title when one night is on screen.
+test("pairs a pub beside a gig, named on the row and linked to its pin", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.route(isOutListingsRequest, (route) =>
     route.fulfill({
@@ -412,8 +417,21 @@ test("groups desktop listings and pairs a pub beside each gig", async ({ page })
 
   await page.goto("/out");
   await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
-  await expect(page.getByRole("heading", { name: "Soho Theatre", exact: true })).toBeVisible();
-  await expect(page.getByText("No matching pub in PUBMAXX yet.")).toHaveCount(0);
+
+  const row = page.getByTestId("out-listing-row");
+  await expect(row).toHaveCount(1);
+  await expect(
+    row.getByRole("heading", { name: "A Night at the Playhouse", exact: true }),
+  ).toBeVisible();
+  // The venue is on the row's own meta line, where the gig, the place and the
+  // time read as one claim.
+  await expect(row.locator(".outCardPlace")).toHaveText("Soho Theatre");
+
+  // And beside it, badged as ours, with the way to its pin.
+  const pair = row.locator(".outListingPubPair--matched");
+  await expect(pair.locator(".outListingPubPairName")).toHaveText("Soho Theatre");
+  await expect(pair.locator(".outListingPubPairLabel")).toHaveText("On PUBMAXX");
+  await expect(page.getByText("Not on our map yet.")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Open on map", exact: true })).toHaveAttribute(
     "href",
     /\/map\?sel=venue-soho-theatre/,
