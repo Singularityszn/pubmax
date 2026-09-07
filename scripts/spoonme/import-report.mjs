@@ -40,6 +40,26 @@ import { CONTACT_EMAIL } from "../../lib/siteContact.mjs";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 export const SPOONME_REPORT_URL = "https://spoonme.vercel.app/report";
+
+/**
+ * A CREDIT URL IS AN https URL, and this is where that is first said.
+ *
+ * Three surfaces render the pack's `sourceUrl` as an `href`, so a value that is
+ * not an https address is not a credit: it is a link we would ask a reader to
+ * follow on our word. The reader half of this check lives in
+ * `lib/spoonsValue.ts` (`parseCredit`), because the pack is a committed file
+ * and a file can be older than the rule that wrote it. Neither check replaces
+ * the other.
+ */
+export function isCreditUrl(value) {
+  if (typeof value !== "string" || value === "" || /\s/.test(value)) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && Boolean(url.hostname);
+  } catch {
+    return false;
+  }
+}
 export const SPOONME_AUTHOR = "Oliver Clegg";
 export const SPOONME_PUBLISHED_AT = "2026-08-30";
 export const SPOONME_TITLE =
@@ -147,6 +167,38 @@ function jaccard(a, b) {
  * cost is a row we cannot vouch for, and publishing a corrected figure would be
  * publishing a number the source never stated.
  */
+/**
+ * The longest a text field on an imported row may be.
+ *
+ * A row's words are written verbatim from a third-party page into a COMMITTED
+ * file, so an unbounded string is a diff nobody can read and a table cell
+ * nobody can lay out. 120 characters clears the longest real pub name, town and
+ * address line in the shipped edition several times over.
+ */
+export const MAX_ROW_TEXT = 120;
+
+const ROW_TEXT_FIELDS = ["name", "town", "addressLine", "postcode", "county", "country"];
+
+/** A refusal reason for a row whose words are too long, or null. The reason
+ *  NAMES the field and never echoes the value: a quarantine note is a line in
+ *  our own log. */
+export function checkRowText(row) {
+  for (const field of ROW_TEXT_FIELDS) {
+    const value = row[field];
+    if (typeof value === "string" && value.length > MAX_ROW_TEXT) {
+      return `${field} is longer than ${MAX_ROW_TEXT} characters`;
+    }
+  }
+  return null;
+}
+
+/** A field as a quarantine note may print it. */
+function clip(value) {
+  return typeof value === "string" && value.length > MAX_ROW_TEXT
+    ? `${value.slice(0, MAX_ROW_TEXT)}...`
+    : value;
+}
+
 export function checkRowArithmetic(row, budgetPence) {
   if (!Array.isArray(row.lines) || row.lines.length === 0) return "no basket lines";
   let pence = 0;
@@ -229,16 +281,22 @@ function buildPack(report, directory, basePubs, retrievedAt, sourceSha256) {
     grid.get(key).push(pub);
   }
 
-  const ourRanks = rankByUnits(report.rows.filter((row) => !checkRowArithmetic(row, budgetPence)));
+  const refuse = (row) => checkRowText(row) ?? checkRowArithmetic(row, budgetPence);
+  const ourRanks = rankByUnits(report.rows.filter((row) => !refuse(row)));
 
   const rows = [];
   const quarantined = [];
   let rankAgreements = 0;
 
   for (const row of report.rows) {
-    const refusal = checkRowArithmetic(row, budgetPence);
+    const refusal = refuse(row);
     if (refusal) {
-      quarantined.push({ id: row.id, name: row.name, town: row.town, reason: refusal });
+      quarantined.push({
+        id: row.id,
+        name: clip(row.name),
+        town: clip(row.town),
+        reason: refusal,
+      });
       continue;
     }
 
@@ -416,6 +474,11 @@ async function main() {
   }
 
   const pack = buildPack(report, directory, basePubs, retrievedAt, sourceSha256);
+  if (!isCreditUrl(pack.provenance.sourceUrl)) {
+    throw new Error(
+      `The credit needs an https source URL, and this one is ${JSON.stringify(pack.provenance.sourceUrl)}. Nothing was written.`,
+    );
+  }
   const mapLane = buildMapLane(pack);
 
   const pinned = pack.rows.filter((row) => row.venueId).length;

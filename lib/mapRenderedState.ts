@@ -1,5 +1,5 @@
 export type MapRenderedPriceBucket = 0 | 1 | 2 | 3;
-export type MapRenderedPriceMeaning = "pint" | "type-relative";
+export type MapRenderedPriceMeaning = "pint" | "type-relative" | "spoons";
 export type MapRenderedPriceBand = Readonly<{
   meaning: MapRenderedPriceMeaning;
   bucket: MapRenderedPriceBucket;
@@ -38,6 +38,14 @@ export function deriveMapRenderedState<Tokens extends { brass: string }>(
 ): MapRenderedState {
   const renderedPairs = new Set(
     pubsData.features.flatMap((feature) => {
+      // THE BAND ON THE GLASS IS THE ONE THE KEY HAS TO EXPLAIN. A pin the
+      // Spoons value lens painted carries its own band property, and what it
+      // means is units in a £10 round rather than the price of a pint, so it
+      // is read as its own meaning and never folded into a price one. The
+      // property is absent on every pub while the lens is off, so the pint and
+      // type-relative answers below are untouched.
+      const spoonsBucket = feature.properties?.spoonsBucket;
+      if (isMapRenderedPriceBucket(spoonsBucket)) return [`spoons:${spoonsBucket}`];
       const meaning = priceMeaning(feature.properties?.kind);
       const bucket = feature.properties?.bucket;
       return meaning !== null && isMapRenderedPriceBucket(bucket)
@@ -45,7 +53,7 @@ export function deriveMapRenderedState<Tokens extends { brass: string }>(
         : [];
     }),
   );
-  const priceBands = (["pint", "type-relative"] as const).flatMap(
+  const priceBands = (["pint", "type-relative", "spoons"] as const).flatMap(
     (meaning) =>
       ([0, 1, 2, 3] as const).flatMap((bucket) =>
         renderedPairs.has(`${meaning}:${bucket}`)

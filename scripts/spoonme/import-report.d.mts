@@ -7,6 +7,21 @@ export const SPOONME_AUTHOR: string;
 export const SPOONME_PUBLISHED_AT: string;
 export const SPOONME_TITLE: string;
 
+/** The longest a text field on an imported row may be. */
+export const MAX_ROW_TEXT: number;
+
+/**
+ * True only for an absolute https URL. Three surfaces render the pack's credit
+ * as an `href`, so a value that is not one is not a credit.
+ */
+export function isCreditUrl(value: unknown): boolean;
+
+/**
+ * The reason a row's words are refused, or null. Deliberately loose for the
+ * same reason `checkRowArithmetic` is: it judges a row nobody has validated.
+ */
+export function checkRowText(row: unknown): string | null;
+
 export type SpoonmeRawLine = {
   name: string;
   servingLabel: string;

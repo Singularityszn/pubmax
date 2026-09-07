@@ -2770,14 +2770,28 @@ export default function PubMap({
     () => cityStoryBands.find((band) => band.id === activeBandId),
     [cityStoryBands, activeBandId],
   );
-  const activePriceLegend = mapPriceLegend(
-    priceLegendInput({
-      experienceLens,
+  const activePriceLegend = useMemo(
+    () =>
+      mapPriceLegend(
+        priceLegendInput({
+          experienceLens,
+          activeLensLabel,
+          activeLensNoun,
+          drinkIndexStatus,
+          renderedMapState,
+          // The key follows the pins: the lane that paints them is asked first,
+          // so a Spoons value map can never be explained by a pint price key.
+          spoonsValueLane,
+        }),
+      ),
+    [
       activeLensLabel,
       activeLensNoun,
       drinkIndexStatus,
+      experienceLens,
       renderedMapState,
-    }),
+      spoonsValueLane,
+    ],
   );
   const experienceSummary = useMemo(() => {
     if (experienceLens === "all") return "";
@@ -5767,7 +5781,12 @@ export default function PubMap({
   }
 
   function renderDesktopLayersPriceFilter() {
-    return !mobileViewport && experienceLens === "all" && activeLensLabel === null
+    // The cap filters on pint price. Under a lens whose pins are not painted by
+    // one, the key says so (`priceCapFilter`) and the control goes with it.
+    return !mobileViewport &&
+      experienceLens === "all" &&
+      activeLensLabel === null &&
+      activePriceLegend.priceCapFilter
       ? (close: () => void) => (
           <MapPriceFilterChips
             filters={filters}

@@ -203,25 +203,13 @@ describe("the ranking page", () => {
     expect(page).toContain("actionsAfterContent");
   });
 
-  it("scrolls a wide table inside its own box rather than the page", () => {
-    const css = readFileSync(
-      join(ROOT, "app", "spoons-value", "spoons-value.css"),
-      "utf8",
-    );
-    expect(css).toMatch(/\.spoonsTableScroll\s*\{[^}]*overflow-x:\s*auto/);
-  });
-
-  it("rails the cuts sideways on a phone so the first row survives the fold", () => {
-    const css = readFileSync(
-      join(ROOT, "app", "spoons-value", "spoons-value.css"),
-      "utf8",
-    );
-    // Nine chips wrapped to three 44px rows at 390 and pushed every listing off
-    // the screen. They scroll instead, and each keeps its own 44px box.
-    expect(css).toMatch(/\.spoonsTableCuts\s*\{[^}]*overflow-x:\s*auto/);
-    expect(css).toMatch(/\.spoonsTableCut\s*\{[^}]*min-height:\s*44px/);
-    expect(css).toMatch(/@media \(min-width: 768px\)[\s\S]*?\.spoonsTableCuts\s*\{[^}]*flex-wrap:\s*wrap/);
-  });
+  // The two stylesheet regexes that used to stand here (a scroll box on the
+  // table, a 44px box on each cut chip) are gone. RENDERED geometry proves a
+  // layout claim and a regex over a stylesheet does not, and
+  // `e2e/spoons-value.spec.ts` measures the real thing: no sideways page scroll
+  // at 320, and at 390 every cut chip's own box clears the 44px tap floor on
+  // one row. Two locks on one implementation of an answer already proved is how
+  // a stylesheet becomes un-editable.
 
   it("puts no lede in front of the answer", () => {
     // The Screen lede plus an opening paragraph left a phone meeting no table
@@ -239,9 +227,10 @@ describe("the lens costs a cold map nothing", () => {
     expect(pubMap).toMatch(
       /if \(!spoonsValueOn\) return;[\s\S]{0,200}?loadSpoonsValueLane\(\)/,
     );
-    // And the lens itself starts off, so a cold open never runs that effect's
-    // fetch at all.
-    expect(pubMap).toContain("useState(false)");
+    // The lens itself starting off is the other half, and it is not assertable
+    // here: `components/PubMap.tsx` holds 18 `useState(false)` calls, so that
+    // assertion could not fail. The effect's own guard above is the fence, and
+    // `e2e/spoons-value.spec.ts` opens a cold map and watches for the request.
   });
 
   it("answers both sheets from one route, so one row cannot drift into two", () => {

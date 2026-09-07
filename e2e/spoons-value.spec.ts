@@ -67,6 +67,27 @@ test.describe("the ranking a stranger opens", () => {
     );
     expect(overflow).toBe(0);
   });
+
+  test("keeps every cut chip a tap target on a phone", async ({ page }) => {
+    // RENDERED geometry rather than a regex over the stylesheet: nine chips
+    // wrapped to three rows at 390 and pushed every listing off the screen, and
+    // what proves they no longer do is their measured boxes.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/spoons-value");
+    const chips = page.locator(".spoonsTableCut");
+    await expect(chips.first()).toBeVisible();
+    const count = await chips.count();
+    expect(count).toBeGreaterThan(1);
+    const tops = new Set<number>();
+    for (let index = 0; index < count; index += 1) {
+      const box = await chips.nth(index).boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+      tops.add(Math.round(box!.y));
+    }
+    // One rail, one row: they scroll sideways rather than stacking.
+    expect(tops.size).toBe(1);
+  });
 });
 
 test.describe("the lens over the map", () => {

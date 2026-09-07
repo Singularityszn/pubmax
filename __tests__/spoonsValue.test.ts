@@ -3,7 +3,13 @@ import { join, relative } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { priceBucket, pubsToGeoJSON } from "@/components/map/canvas/geojson";
+import { readCounts } from "@/components/map/canvas/donutClusters";
+import { mapPriceLegend, type MapPriceLegendModel } from "@/lib/mapPriceLegend";
+import { deriveMapRenderedState } from "@/lib/mapRenderedState";
 import { priceBandThresholdsFrom } from "@/lib/priceBand";
+import { priceLegendInput } from "@/lib/pubMap";
+import type { Venue } from "@/lib/venues";
 import {
   SPOONS_VALUE_BANDS,
   applySpoonsValueCut,
@@ -23,12 +29,92 @@ import {
   spoonsValueCuts,
   spoonsValueMapHref,
   spoonsValuePinFor,
+  SPOONS_VALUE_RESPONSIBLE_LINE,
   toTableRow,
   type SpoonsValuePack,
   type SpoonsValueRow,
 } from "@/lib/spoonsValue";
 
 const ROOT = process.cwd();
+
+// The chain the map key rides: one ranked Wetherspoon well above the modal
+// round, and one ordinary London pub the ranking says nothing about.
+const MODAL_MILLIUNITS = 12_785;
+
+const SPOONS_LANE = {
+  byVenueId: new Map([["venue-spoons", { milliunits: 20_000, pence: 995 }]]),
+  modalMilliunits: MODAL_MILLIUNITS,
+};
+
+function mapVenue(overrides: Partial<Venue>): Venue {
+  return {
+    id: "venue-1",
+    name: "A pub",
+    address: "",
+    latitude: 51.5,
+    longitude: -0.1,
+    primaryBorough: "Southwark",
+    visibleBoroughs: [],
+    prices: [],
+    cheapestPrice: null,
+    cheapestPint: "",
+    averagePrice: null,
+    hasStory: false,
+    latestContributorPrice: null,
+    latestContributorAt: null,
+    amenities: {},
+    website: "",
+    bookingLink: "",
+    imageUrl: "",
+    description: "",
+    dataQualityNotes: [],
+    sourceDatasets: [],
+    curation: {},
+    kind: "pub",
+    ...overrides,
+  } as unknown as Venue;
+}
+
+function spoonsPubsGeoJSON(
+  { lane = SPOONS_LANE }: { lane?: typeof SPOONS_LANE | null } = {},
+): GeoJSON.FeatureCollection {
+  return pubsToGeoJSON(
+    [
+      mapVenue({ id: "venue-spoons", name: "A Wetherspoon", cheapestPrice: 8.2 }),
+      mapVenue({ id: "venue-london", name: "An ordinary pub", cheapestPrice: 5.1 }),
+    ],
+    new Map(),
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    lane,
+  );
+}
+
+function spoonsLegend(
+  drink: { activeLensLabel: string | null; activeLensNoun: string | null } = {
+    activeLensLabel: null,
+    activeLensNoun: null,
+  },
+): MapPriceLegendModel {
+  return mapPriceLegend(
+    priceLegendInput({
+      experienceLens: "all",
+      activeLensLabel: drink.activeLensLabel,
+      activeLensNoun: drink.activeLensNoun,
+      drinkIndexStatus: "ready",
+      renderedMapState: deriveMapRenderedState(
+        spoonsPubsGeoJSON(),
+        { brass: "#b" },
+        null,
+      ),
+      spoonsValueLane: SPOONS_LANE,
+    }),
+  );
+}
 
 function loadPack(): SpoonsValuePack {
   const raw = JSON.parse(
@@ -282,6 +368,34 @@ describe("a malformed body reads as absent, never as an empty ranking", () => {
     expect(parseSpoonsValuePack({ ...pack, provenance: { author: "" } })).toBeNull();
   });
 
+  it("refuses a credit whose source is not an https address", () => {
+    // Three surfaces render `sourceUrl` as an href, so a string that is not an
+    // https address is not a credit: it is a link this lane would ask a reader
+    // to follow on our word. A credit that will not parse fails the WHOLE pack.
+    const pack = loadPack();
+    for (const sourceUrl of [
+      "javascript:alert(1)",
+      "data:text/html,<script>alert(1)</script>",
+      "http://spoonme.vercel.app/report",
+      "spoonme.vercel.app/report",
+      "https://spoonme.vercel.app/report with a space",
+    ]) {
+      expect(
+        parseSpoonsValuePack({
+          ...pack,
+          provenance: { ...pack.provenance, sourceUrl },
+        }),
+        sourceUrl,
+      ).toBeNull();
+    }
+    expect(
+      parseSpoonsValuePack({
+        ...pack,
+        provenance: { ...pack.provenance, sourceUrl: "https://example.com/report" },
+      }),
+    ).not.toBeNull();
+  });
+
   it("refuses a pack with no rows rather than publishing an empty one", () => {
     const pack = loadPack();
     expect(parseSpoonsValuePack({ ...pack, rows: [] })).toBeNull();
@@ -340,20 +454,93 @@ describe("this is not a price lane, and the tree is held to it", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("reaches the map through its own seam and never through the price stack", () => {
-    const geojson = readFileSync(
-      join(ROOT, "components", "map", "canvas", "geojson.ts"),
-      "utf8",
+  // WHAT THE CHAIN ANSWERS, not what its source says. The test that used to
+  // stand here asserted `geojson.ts`'s own text and wrote the defect down as
+  // intent: the lens returned its units band AS `bucket`, the price property
+  // every downstream surface reads, and the map key then printed "£5.15 or
+  // less" over a Wetherspoon whose pint price this lane holds nothing about.
+  // Every module below is pure and importable, so the behaviour is the fence.
+  it("paints the lens's band and leaves the price bucket alone", () => {
+    const data = spoonsPubsGeoJSON();
+    const [ranked, ordinary] = data.features;
+    // The ranked pub is band 0 under the lens and keeps its own price bucket,
+    // because the two answers are two properties.
+    expect(ranked?.properties?.spoonsBucket).toBe(0);
+    expect(ranked?.properties?.bucket).toBe(priceBucket(8.2));
+    expect(ranked?.properties?.priceLabel).toBe(formatUnitsLabel(20_000));
+    // Nothing on a lens pin claims a price standing.
+    expect(ranked?.properties?.standing).toBeUndefined();
+    // A pub outside the ranking says nothing under the lens and keeps its own
+    // price bucket underneath.
+    expect(ordinary?.properties?.spoonsBucket).toBe(3);
+    expect(ordinary?.properties?.bucket).toBe(priceBucket(5.1));
+    expect(ordinary?.properties?.priceLabel).toBeUndefined();
+  });
+
+  it("says the band on the glass is a units band, never a price one", () => {
+    const rendered = deriveMapRenderedState(spoonsPubsGeoJSON(), { brass: "#b" }, null);
+    expect(rendered.priceBands).toEqual([
+      { meaning: "spoons", bucket: 0 },
+      { meaning: "spoons", bucket: 3 },
+    ]);
+  });
+
+  it("prints a key about units, and leaves the pint key alone with the lens off", () => {
+    const off = mapPriceLegend(
+      priceLegendInput({
+        experienceLens: "all",
+        activeLensLabel: null,
+        activeLensNoun: null,
+        drinkIndexStatus: "ready",
+        renderedMapState: deriveMapRenderedState(
+          spoonsPubsGeoJSON({ lane: null }),
+          { brass: "#b" },
+          null,
+        ),
+      }),
     );
-    // The lens owns the bucket and the tag when it is on, and it stamps no
-    // price standing: a round somebody else costed is not a claim about a pint.
-    expect(geojson).toContain("spoonsValuePinFor");
-    expect(geojson).toContain("tag: { label: pin.label, standing: null }");
-    // It answers FIRST and returns, so nothing below can put a price standing
-    // back on a pin the lens owns.
-    expect(geojson).toMatch(
-      /if \(args\.spoonsValue\) \{[\s\S]{0,240}?standing: null \} \};\n *\}/,
-    );
+    expect(off.title).toBe("Pint price key and filters");
+    expect(off.priceCapFilter).toBe(true);
+
+    const on = spoonsLegend();
+    expect(on.title).toBe("Spoons value key");
+    expect(on.hint).toContain("not a pint price");
+    expect(on.hint).toContain(SPOONS_VALUE_RESPONSIBLE_LINE);
+    expect(on.rows).toEqual([
+      { label: `More than ${formatUnitsLabel(MODAL_MILLIUNITS)}`, symbol: "More", tone: "green" },
+      { label: "Not in the ranking", symbol: "?", tone: "grey" },
+    ]);
+    // No row in this key names a pound figure or a pint.
+    for (const row of on.rows) {
+      expect(row.label).not.toMatch(/£|pint/i);
+    }
+    expect(on.clusterNote).toContain("value bands");
+    expect(on.clusterNote).not.toContain("price band");
+    // The cap chips filter on pint price, so the key stops offering them.
+    expect(on.priceCapFilter).toBe(false);
+  });
+
+  it("keeps the units key while a drink lane is also chosen", () => {
+    // `pinBucketAndTag` asks the lens FIRST and returns, so the pins are units
+    // whatever drink lane is selected. A wine price key beside them would be a
+    // second answer to one question.
+    const legend = spoonsLegend({
+      activeLensLabel: "Wine",
+      activeLensNoun: "wine",
+    });
+    expect(legend.title).toBe("Spoons value key");
+    expect(legend.rows.some((row) => /wine/i.test(row.label))).toBe(false);
+  });
+
+  it("counts the cluster ring by the band its own pins wear", () => {
+    // s0..s3 are all zero while the lens is off, so the ring keeps counting
+    // price bands; under the lens every curated pin carries one.
+    expect(readCounts({ b0: 4, b1: 1, b2: 0, b3: 9, s0: 0, s1: 0, s2: 0, s3: 0 })).toEqual([
+      4, 1, 0, 9,
+    ]);
+    expect(readCounts({ b0: 4, b1: 1, b2: 0, b3: 9, s0: 2, s1: 0, s2: 0, s3: 12 })).toEqual([
+      2, 0, 0, 12,
+    ]);
   });
 
   it("keeps the units figure out of every money formatter", () => {

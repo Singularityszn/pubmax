@@ -707,14 +707,30 @@ export function clusterCircleColorExpr(
   tokens: ClusterPriceTokens,
   dark: boolean,
 ): unknown {
-  const count = (key: "b0" | "b1" | "b2") => [
-    "coalesce",
-    ["get", key],
-    0,
+  const count = (key: string) => ["coalesce", ["get", key], 0];
+  // THE DISC COUNTS WHAT ITS OWN PINS ARE PAINTED BY. s0..s3 accumulate the
+  // Spoons value lens's band (buildScene's clusterProperties) and are all zero
+  // while the lens is off, because the feature property they read is absent
+  // then. Under the lens every curated pin carries one, so a non-zero s-total
+  // is the cluster saying which question its colours answer - the same rule
+  // `readCounts` (donutClusters.ts) applies to the donut that replaces this
+  // disc on a desktop.
+  const spoonsTotal = [
+    "+",
+    count("s0"),
+    count("s1"),
+    count("s2"),
+    count("s3"),
   ];
-  const cheap = count("b0");
-  const middle = count("b1");
-  const dear = count("b2");
+  const band = (spoonsKey: string, priceKey: string) => [
+    "case",
+    [">", spoonsTotal, 0],
+    count(spoonsKey),
+    count(priceKey),
+  ];
+  const cheap = band("s0", "b0");
+  const middle = band("s1", "b1");
+  const dear = band("s2", "b2");
   return [
     "case",
     ["all", [">", cheap, 0], [">=", cheap, middle], [">=", cheap, dear]],

@@ -21,7 +21,7 @@ export default function MobilePriceChoices({
   return (
     <>
       <MapKey legend={legend} />
-      {drinkLabel ? null : (
+      {drinkLabel || !legend.priceCapFilter ? null : (
         <fieldset className="mobilePriceChoices">
           <legend>Maximum pint price</legend>
           {/* The four caps are ONE choice, so they share one edge and are

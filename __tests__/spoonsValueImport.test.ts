@@ -4,11 +4,14 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  MAX_ROW_TEXT,
   SPOONME_AUTHOR,
   SPOONME_PUBLISHED_AT,
   SPOONME_REPORT_URL,
   checkRowArithmetic,
+  checkRowText,
   extractReportData,
+  isCreditUrl,
   rankByUnits,
 } from "@/scripts/spoonme/import-report.mjs";
 
@@ -179,5 +182,31 @@ describe("reading the report", () => {
     expect(() => extractReportData("<html><body>nothing</body></html>")).toThrow(
       /No ranking rows/,
     );
+  });
+});
+
+describe("what the importer refuses to write down", () => {
+  it("takes only an https credit URL, which is what three surfaces link to", () => {
+    expect(isCreditUrl(SPOONME_REPORT_URL)).toBe(true);
+    for (const value of [
+      "http://spoonme.vercel.app/report",
+      "javascript:alert(1)",
+      "data:text/html,<script>alert(1)</script>",
+      "spoonme.vercel.app/report",
+      "https://spoonme.vercel.app/report with a space",
+      "",
+      null,
+    ]) {
+      expect(isCreditUrl(value), String(value)).toBe(false);
+    }
+  });
+
+  it("quarantines a row whose words would bloat a committed file", () => {
+    const row = { name: "The Test", town: "Testbury", postcode: "T1 1TT" };
+    expect(checkRowText(row)).toBeNull();
+    const long = { ...row, name: "x".repeat(MAX_ROW_TEXT + 1) };
+    // The reason names the field and never echoes the value.
+    expect(checkRowText(long)).toBe(`name is longer than ${MAX_ROW_TEXT} characters`);
+    expect(checkRowText(long)).not.toContain("xxx");
   });
 });

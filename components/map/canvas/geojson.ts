@@ -192,12 +192,23 @@ function pinBucketAndTag(args: {
   spoonsValue: SpoonsValuePinLane | null;
 }): {
   bucket: number;
+  spoonsBucket: number | null;
   tag: { label: string | null; standing: PriceStanding | null };
 } {
   const { venue, signals, price, sourcedPrice, lensPrices, priceStandings } = args;
   if (args.spoonsValue) {
     const pin = spoonsValuePinFor(args.spoonsValue, venue.id);
-    return { bucket: pin.bucket, tag: { label: pin.label, standing: null } };
+    // The lens paints, and it paints through its OWN property. `bucket` stays
+    // the pub's price bucket, untouched, because every downstream price surface
+    // reads it: the map key, the cluster donut's own counts and the rendered
+    // state behind both. A units band arriving there is the product saying
+    // "£5.15 or less" over a pub whose pint price this lane holds nothing
+    // about. lib/ukBasePubs.ts stamps `spoonsBucket` for the same reason.
+    return {
+      bucket: venue.priceBand ?? priceBucket(price),
+      spoonsBucket: pin.bucket,
+      tag: { label: pin.label, standing: null },
+    };
   }
   const lensActive = lensPrices !== null;
   const lensPrice = lensPrices?.get(venue.id) ?? null;
@@ -216,6 +227,7 @@ function pinBucketAndTag(args: {
       : null;
   return {
     bucket,
+    spoonsBucket: null,
     tag: pinPriceTag(
       venue.id,
       priceStandings,
@@ -279,7 +291,7 @@ export function pubsToGeoJSON(
       );
       const lensActive = lensPrices !== null;
       const lensPrice = lensPrices?.get(venue.id) ?? null;
-      const { bucket, tag } = pinBucketAndTag({
+      const { bucket, spoonsBucket, tag } = pinBucketAndTag({
         venue,
         signals,
         price,
@@ -314,7 +326,13 @@ export function pubsToGeoJSON(
           serves,
           drinkKind,
           scraped,
-          icon: iconId("drink", venuePinIconKey(drinkKind, bucket)),
+          // The band the GLYPH wears. The lens owns the colour while it is on,
+          // and its band is the one property that decides it; `bucket` beside
+          // this is still the price bucket and never moves.
+          icon: iconId(
+            "drink",
+            venuePinIconKey(drinkKind, spoonsBucket ?? bucket),
+          ),
           // M7 pin entrance — a stable per-pub stagger bucket (hash of id, not
           // insertion order/coordinates) so the entrance cascade reads as a
           // pleasant scatter rather than left-to-right or dataset-order.
@@ -339,6 +357,11 @@ export function pubsToGeoJSON(
           // asked" from "we looked and there is nothing", the way `whatsOn`
           // and `priceLabel` above already do.
           ...(tag.standing ? { standing: tag.standing } : {}),
+          // The Spoons value band, ABSENT on every pub while the lens is off,
+          // the way `whatsOn` and `standing` above are. It is what the key, the
+          // cluster donut and the rendered state read to know the map is under
+          // the lens, and it is never a price.
+          ...(spoonsBucket === null ? {} : { spoonsBucket }),
         },
         geometry: {
           type: "Point" as const,
