@@ -1447,6 +1447,17 @@ async function normalizeImage(input: Uint8Array): Promise<Buffer> {
  */
 export class PhotoRefusalError extends Error {}
 
+/**
+ * What an image the normaliser cannot open is refused with.
+ *
+ * Its own sentence, because it is the one refusal that is not about a rule the
+ * drinker broke: the type was right and the size was fine, and the bytes still
+ * did not open. It says what to do rather than naming the encoder, and it never
+ * invites a retry of the same file.
+ */
+export const UNREADABLE_PHOTO_REFUSAL =
+  "That photo could not be read. Choose a different image.";
+
 export async function uploadPhoto(
   slot: "pint" | "venue" | "receipt",
   venueId: string,
@@ -1458,8 +1469,8 @@ export async function uploadPhoto(
   if (invalid) throw new PhotoRefusalError(invalid);
 
   // Read the bytes once, sniff the signature, then strip + normalize. A
-  // mislabelled/crafted file that passed the MIME check is rejected here with
-  // the same user-safe "Photo must…" error path (route → 400).
+  // mislabelled/crafted file that passed the MIME check is refused here as a
+  // PhotoRefusalError, which both write doors answer with a 400.
   const buffer = new Uint8Array(await file.arrayBuffer());
   if (!magicBytesOk(buffer, file.type)) {
     throw new PhotoRefusalError("Photo must be a JPEG, PNG, or WebP image.");
@@ -1510,9 +1521,7 @@ export async function uploadPhoto(
       contentType: file.type,
       error: err instanceof Error ? err.message : String(err),
     });
-    throw new PhotoRefusalError(
-      "Photo could not be processed. Choose a different image and try again.",
-    );
+    throw new PhotoRefusalError(UNREADABLE_PHOTO_REFUSAL);
   }
 
   const key = `${venueId}/${dropId}/${slot}.${NORMALIZED_EXT}`;

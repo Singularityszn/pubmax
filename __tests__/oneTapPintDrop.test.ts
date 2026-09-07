@@ -183,6 +183,7 @@ describe("a photo the normaliser cannot open", () => {
     handle: "karan",
     drinkCategory: "beer" as const,
     priceGbp: 4.2,
+    measure: "pint" as const,
   };
 
   it("is the drinker's to fix, and says so", async () => {

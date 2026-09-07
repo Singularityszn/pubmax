@@ -32,6 +32,7 @@ import {
 } from "@/lib/pintDrops";
 import {
   isPintDropDailyCapError,
+  PhotoRefusalError,
   pintDropsStore,
   type PintDropDTO,
   type PintDropPhotos,
@@ -551,11 +552,14 @@ export async function POST(request: Request): Promise<Response> {
     if (isPintDropDailyCapError(err)) {
       return publicApiError(DAILY_PRICE_CAP_REFUSAL, "CONFLICT", 409);
     }
-    // An invalid photo is the user's fault — surface as 400. The store has
-    // already cleaned up anything it uploaded (no orphans). We don't log this
-    // as an error: it's expected client input, and the store already logged
-    // any processing failure (§7.2) at its own boundary.
-    if (err instanceof Error && err.message.startsWith("Photo must")) {
+    // A REFUSED FILE IS THE DRINKER'S TO FIX, and the CLASS says which one it
+    // is. This asked whether the message started with "Photo must", so the one
+    // refusal worded differently, the image the normaliser cannot open, fell
+    // through to the 503 below and told a drinker to retry bytes that can never
+    // work. The store has already cleaned up anything it uploaded (no orphans).
+    // We do not log this as an error: it is expected client input, and the
+    // store already logged any processing failure (§7.2) at its own boundary.
+    if (err instanceof PhotoRefusalError) {
       return publicApiError(err.message, "INVALID_REQUEST", 400);
     }
     // A genuine storage/insert failure — the user gets a 503. Log it (message
