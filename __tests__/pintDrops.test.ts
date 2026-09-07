@@ -170,6 +170,7 @@ import {
   validatePintDrop,
 } from "@/lib/pintDrops";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
+import { RECEIPT_REQUIRED_LINE } from "@/lib/pintDropReceipt";
 import { memoryProfileStore } from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/pint-drops";
@@ -479,6 +480,27 @@ describe("POST /api/pint-drops (create)", () => {
     expect(stored.id).toBe(drop.id);
     expect(stored.authorityKey).toMatch(/^[a-f0-9]{64}$/);
     expect(stored.authorityKey).not.toContain("account-anon");
+  });
+
+  it("refuses a priced drop with no photo of the bill", async () => {
+    reportAuth.userId = "account-noproof";
+    await memoryProfileStore.createOwned("no_proof", reportAuth.userId);
+    const res = await post({ venueId: VENUE, handle: "no_proof", priceGbp: 4.5 });
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error?: string }).error).toBe(RECEIPT_REQUIRED_LINE);
+  });
+
+  it("takes a drop that carries no price without asking for a bill", async () => {
+    // A Pint Drop can be a note or a bit of lore. Only a PRICE is a claim a
+    // reader needs to be able to check.
+    reportAuth.userId = "account-lore";
+    await memoryProfileStore.createOwned("lore_teller", reportAuth.userId);
+    const res = await post({
+      venueId: VENUE,
+      handle: "lore_teller",
+      passedDownNote: "The back bar is the original 1904 mahogany.",
+    });
+    expect(res.status).toBe(201);
   });
 
   it("confirms an anonymous price against a second account's public one", async () => {

@@ -173,6 +173,7 @@ import {
 } from "@/lib/ukBasePubs";
 import { getVenueIndex } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { RECEIPT_REQUIRED_LINE } from "@/lib/pintDropReceipt";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 
 type PriceBody = {
@@ -211,6 +212,11 @@ type PriceBody = {
     corroborations?: number;
   }>;
 };
+
+/** A tiny, real JPEG: the two markers `magicBytesOk` sniffs for. */
+function jpegFile(name: string): File {
+  return new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], name, { type: "image/jpeg" });
+}
 
 function post(body: unknown): Request {
   return new Request("http://localhost/api/price-submit", {
@@ -1474,6 +1480,40 @@ describe("POST /api/price-submit second-drinker confirmation", () => {
       dropIds?: string[];
     };
   };
+
+  it("refuses a new price with no photo of the bill, and says why in one line", async () => {
+    // Captain 7 Sept 2026: "whenever a person is submitting a new price, they
+    // have to take a picture of the bill". The rule is the SERVER'S, so a
+    // client that forgets is refused rather than trusted.
+    const venueId = await realVenueId(22);
+    await authorizeContributor("user-noproof", "handle_noproof");
+    const res = await POST(
+      new Request("http://localhost/api/price-submit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ venueId, drinkCategory: "beer", priceGbp: 4.5 }),
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error?: string };
+    expect(body.error).toBe(RECEIPT_REQUIRED_LINE);
+    expect(listVisiblePintDrops(venueId)).toHaveLength(0);
+  });
+
+  it("takes the price when the bill rides with it, and keeps the pint photo optional", async () => {
+    const venueId = await realVenueId(23);
+    await authorizeContributor("user-withproof", "handle_withproof");
+    const form = new FormData();
+    form.set("venueId", venueId);
+    form.set("drinkCategory", "beer");
+    form.set("priceGbp", "4.5");
+    form.set("receipt_photo", jpegFile("bill.jpg"));
+    const res = await POST(
+      new Request("http://localhost/api/price-submit", { method: "POST", body: form }),
+    );
+    expect(res.status).toBe(201);
+    expect(listVisiblePintDrops(venueId)).toHaveLength(1);
+  });
 
   it("tells one account reporting two figures that its pub now holds two prices", async () => {
     const venueId = await realVenueId(20);
