@@ -679,6 +679,7 @@ export default function FeedPageClient({
       return;
     }
 
+    if (!entry.drop.optimistic?.canRetry) return;
     writeLocalEntries(markOptimisticSpillRetrying(stored, clientRequestId));
 
     try {
@@ -688,7 +689,7 @@ export default function FeedPageClient({
         drop?: PintDropDTO;
         error?: string;
       };
-      if (!response.ok || !data.drop) {
+      if (!response.ok || !data.drop || typeof data.drop.id !== "string" || !data.drop.id) {
         throw new Error(errorMessageFrom(data, "Could not save that Spill."));
       }
       const reconciledDrop: PintDropDTO = {
