@@ -45,7 +45,7 @@ export default function ThenVsNowCard({ item }: ThenVsNowCardProps) {
   return (
     <article className="tvnCard" data-reveal>
       <h3 className="tvnName">
-        <Link href={href} className="tvnLink">
+        <Link prefetch={false} href={href} className="tvnLink">
           {item.venueName}
         </Link>
       </h3>

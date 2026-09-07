@@ -104,7 +104,7 @@ export default async function SpoonsValuePage() {
           // is all the words a phone can afford above the first row.
           // The doors go under the table too (screen.tsx, actionsAfterContent).
           actionsAfterContent
-          primary={<Link href="/map">See it on the map</Link>}
+          primary={<Link prefetch={false} href="/map">See it on the map</Link>}
           secondary={
             <a href={pack.provenance.sourceUrl} rel="noopener noreferrer" target="_blank">
               Read the original report

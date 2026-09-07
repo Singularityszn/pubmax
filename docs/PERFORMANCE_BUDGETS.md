@@ -570,8 +570,9 @@ an unmeasured route reads as a pass and never fails again.
 
 ## Which routes are budgeted
 
-All 35 that the site serves a stranger, which is every `page.tsx` with no
-dynamic segment, less two:
+Every route the site serves a stranger. That is two lists.
+
+**The 35 with no dynamic segment**, which is every such `page.tsx` less two:
 
 - `/admin`, which answers 401 to an anonymous request and renders a token form
   rather than a route.
@@ -583,6 +584,33 @@ dynamic segment, less two:
 `/profile` measured a server redirect rather than a route, and the page clock
 said so by falling back to the harness clock - which is the fallback earning its
 place on its first sweep.
+
+**And ten routes that DO carry one**, added on 7 September 2026. A dynamic
+family is measured through ONE concrete instance, because that is what a browser
+can open: `/borough/westminster` (the heaviest borough, 200 priced pubs on a
+33,441px page), `/historic/prospect-of-whitby`, `/landmark/big-ben`,
+`/ledger/venue-eltcmh`, `/bar-tab/venue-eltcmh`, `/drink/guinness`,
+`/area/clapham/drink/guinness`, `/pint-index/2026-06`, plus the two static
+pages that had been missed, `/spoons-value` and `/account/delete`.
+
+The rule they close is that **a route the sitemap advertises carries a budget**,
+and `__tests__/sitemap.test.ts` enforces it per family. The gap it found was
+`/spoons-value`: crawlable, sitemap-listed and unmeasured while serving 683 KB
+of HTML over 806 server-rendered table rows, the heaviest document this site
+publishes. `scripts/check-budget-ratchet.mjs` already refuses the REMOVAL of a
+budgeted route, on the reasoning that an unmeasured route reads as a pass and
+never fails again; it had no rule for a crawlable route that was never added.
+
+`/map/{city}` is the one family with no row of its own, and deliberately: `/map`
+is budgeted, and a second ceiling over the same map would be two answers about
+one surface. `e2e/ux-lane-perf-verification.spec.ts` reports `/map/london`
+against `/map`'s own figure with the difference stated.
+
+These ten were seeded on a laptop under the tracked throttle rather than on the
+runner, so their ceilings are set in FAMILY with `/about` and `/pubs` the way
+`/webmcp`'s were, not at the measured figure: a request count taken on one box
+is not comparable to CI's. CI's sweep is the oracle. Take them DOWN at the next
+sweep, never up.
 
 ## The pin-ready record on /map
 

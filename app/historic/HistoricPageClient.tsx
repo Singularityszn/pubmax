@@ -72,12 +72,12 @@ export default function HistoricPageClient({
             invented.
           </>
         }
-        primary={<Link href="/map">Open the map</Link>}
+        primary={<Link prefetch={false} href="/map">Open the map</Link>}
         secondary={<Link href="/crawls">Start a crawl</Link>}
       >
         {totalPubs === 0 ? (
           <EmptyState title="The historic index isn’t loading just now.">
-            The <Link href="/map">map</Link> is still up, and it still knows where
+            The <Link prefetch={false} href="/map">map</Link> is still up, and it still knows where
             the cheap pints are.
           </EmptyState>
         ) : (
@@ -158,7 +158,7 @@ export default function HistoricPageClient({
                           <ArrowUpRight size={14} aria-hidden="true" />
                         </Link>
                         {pub.venueId ? (
-                          <Link
+                          <Link prefetch={false}
                             className="historicMapLink pressable"
                             href={`/map?sel=${pub.venueId}`}
                           >

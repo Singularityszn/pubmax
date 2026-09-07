@@ -78,7 +78,7 @@ export default function LeaderboardTable({
                   <span className="srOnly">Rank {entry.rank}</span>
                 </td>
                 <th scope="row" className="leaderboardName">
-                  <Link
+                  <Link prefetch={false}
                     href={href}
                     className="leaderboardPub"
                     onPointerEnter={() => prefetchVenue(entry.venue.id)}

@@ -184,7 +184,7 @@ export default async function AboutPage() {
             prices with honest source status. The outing in one place.
           </>
         }
-        primary={<Link href="/map">Open the map</Link>}
+        primary={<Link prefetch={false} href="/map">Open the map</Link>}
         secondary={<a href={`mailto:${CONTACT_EMAIL}`}>Contact</a>}
       >
 
@@ -510,7 +510,7 @@ export default async function AboutPage() {
         {/* The head owns the one filled control, so the closing row is two
             text links, never a second button pair. */}
         <p className="aboutBody aboutCtaRow">
-          <Link href="/map" className="aboutLink">
+          <Link prefetch={false} href="/map" className="aboutLink">
             Open the map
           </Link>
           {" · "}

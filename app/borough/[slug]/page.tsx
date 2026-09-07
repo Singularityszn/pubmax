@@ -297,7 +297,7 @@ export default async function BoroughPage({ params }: PageProps) {
         ) : null}
         {pubs.length > 0 ? (
           <div className="boroughMapLinks">
-            <Link className="boroughCrawlLink boroughCrawlLinkSecondary" href={boroughMapUrl(pubs)}>
+            <Link prefetch={false} className="boroughCrawlLink boroughCrawlLinkSecondary" href={boroughMapUrl(pubs)}>
               Start a crawl from cheapest pubs →
             </Link>
           </div>
@@ -348,7 +348,7 @@ export default async function BoroughPage({ params }: PageProps) {
                       <span className="boroughRankNum">{index + 1}</span>
                     </th>
                     <td className="boroughName">
-                      <Link href={venueMapUrl(pub.id)} className="boroughPub">
+                      <Link prefetch={false} href={venueMapUrl(pub.id)} className="boroughPub">
                         {pub.name}
                       </Link>
                       {pub.cheapestPint ? (
@@ -380,7 +380,7 @@ export default async function BoroughPage({ params }: PageProps) {
             <ul className="boroughChipList" aria-label={`Story pubs in ${name}`}>
               {storyPubs.map((pub) => (
                 <li key={pub.id}>
-                  <Link href={venueMapUrl(pub.id)} className="boroughChip">
+                  <Link prefetch={false} href={venueMapUrl(pub.id)} className="boroughChip">
                     {pub.name}
                   </Link>
                 </li>
@@ -404,7 +404,7 @@ export default async function BoroughPage({ params }: PageProps) {
                     <strong>{crawl.name}</strong>
                     <p>{crawl.blurb}</p>
                   </div>
-                  <Link
+                  <Link prefetch={false}
                     href={curatedCrawlMapHref(crawl)}
                     className="boroughCrawlPlanLink"
                     aria-label={`Plan the ${crawl.name} crawl on the map`}
@@ -460,7 +460,7 @@ export default async function BoroughPage({ params }: PageProps) {
                     </div>
                   ) : null}
                   {pub.venueId ? (
-                    <Link
+                    <Link prefetch={false}
                       className="boroughHeritageMapLink"
                       href={`/map?sel=${pub.venueId}`}
                       aria-label={`See ${pub.name} on the map`}
@@ -500,7 +500,7 @@ export default async function BoroughPage({ params }: PageProps) {
           </p>
           <ul className="factLinksList">
             <li>
-              <Link href={boroughBrowseMapUrl(name)}>{name} on the map</Link>
+              <Link prefetch={false} href={boroughBrowseMapUrl(name)}>{name} on the map</Link>
             </li>
             <li>
               <Link href="/pint-index">London Pint Index</Link>

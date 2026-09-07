@@ -45,8 +45,8 @@ export default function BoroughScreen({
       title={title}
       lede={lede}
       titleId={titleId}
-      primary={<Link href={mapHref}>{mapLabel}</Link>}
-      secondary={<Link href="/near">Find my pint</Link>}
+      primary={<Link prefetch={false} href={mapHref}>{mapLabel}</Link>}
+      secondary={<Link prefetch={false} href="/near">Find my pint</Link>}
     >
       {photo ? (
         <LandingPhoto

@@ -66,7 +66,7 @@ export default function DrinkBrandLandingContent({
             />
           </span>
         }
-        primary={<Link href={mapHref}>Open the map</Link>}
+        primary={<Link prefetch={false} href={mapHref}>Open the map</Link>}
         secondary={<Link href={contribution.href}>{contribution.label}</Link>}
       >
         <p className="drinkBrandDirectory__summary">

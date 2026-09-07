@@ -53,7 +53,7 @@ export default function DrinkBrandAreaLandingContent({
     <div className="drinkBrandDirectory">
       <header className="drinkBrandDirectory__head">
         <p className="drinkBrandDirectory__eyebrow">
-          <Link href="/map">London map</Link> <span aria-hidden="true">·</span>{" "}
+          <Link prefetch={false} href="/map">London map</Link> <span aria-hidden="true">·</span>{" "}
           <Link href={`/drink/${encodeURIComponent(landing.brandSlug)}`}>
             {landing.brandLabel}
           </Link>{" "}

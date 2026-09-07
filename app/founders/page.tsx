@@ -102,8 +102,8 @@ export default async function FoundersPage(): Promise<React.JSX.Element> {
         title={FOUNDERS_WALL_TITLE}
         titleId="founders-title"
         lede={FOUNDERS_WALL_LEDE}
-        primary={<Link href="/map">Open the map</Link>}
-        secondary={<Link href="/social">Find your lot</Link>}
+        primary={<Link prefetch={false} href="/map">Open the map</Link>}
+        secondary={<Link prefetch={false} href="/social">Find your lot</Link>}
       >
         {wall.status === "ready" && wall.members.length ? (
           <p className="foundersCount">

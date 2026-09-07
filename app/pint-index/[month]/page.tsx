@@ -192,7 +192,7 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
         </section>
 
         <p className="pintIndexFootnote">
-          <Link href="/pint-index">See the live index →</Link> · <Link href="/map">Open the map →</Link>
+          <Link href="/pint-index">See the live index →</Link> · <Link prefetch={false} href="/map">Open the map →</Link>
         </p>
       </PintIndexScreen>
     </main>

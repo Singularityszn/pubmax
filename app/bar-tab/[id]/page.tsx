@@ -93,7 +93,7 @@ function NotInTheTab() {
         <p className="barTabEmptyBody">
           It may have moved, or the link is wrong. Every mapped pub still has a home.
         </p>
-        <Link className="barTabPrimaryLink" href="/map">
+        <Link prefetch={false} className="barTabPrimaryLink" href="/map">
           Back to the map
         </Link>
       </div>
@@ -145,7 +145,7 @@ export default async function BarTabPage({ params }: PageProps) {
         </div>
 
         <div className="barTabHeadActions">
-          <Link className="barTabMapLink" href={venueMapUrl(canonicalId)}>
+          <Link prefetch={false} className="barTabMapLink" href={venueMapUrl(canonicalId)}>
             Open on the map
           </Link>
           <Link className="barTabLedgerLink" href={`/ledger/${encodeURIComponent(canonicalId)}`}>
@@ -168,7 +168,7 @@ export default async function BarTabPage({ params }: PageProps) {
         <EmptyState
           className="barTabEmpty"
           title="No pints on the tab yet."
-          action={<Link href={`${venueMapUrl(canonicalId)}&log=1`}>Drop a pint here</Link>}
+          action={<Link prefetch={false} href={`${venueMapUrl(canonicalId)}&log=1`}>Drop a pint here</Link>}
         >
           Be the first to drop one here. Snap your pint, log the price, pass down a story.
         </EmptyState>

@@ -1,5 +1,5 @@
 {
-  "note": "Per-route performance ceilings for every route the site serves a stranger, all 35 of them. Read docs/PERFORMANCE_BUDGETS.md before changing a number: down is free, up is a decision, and scripts/check-budget-ratchet.mjs refuses an undocumented raise against the base branch. Re-seeded 2026-09-04 from a five-sample sweep on a production build of main at 0eaa7c6f5, under the method block below. The margin is PER METRIC, because the four do not behave alike: bytes and requests take the p75 plus 15%, being identical across every sample of every route; server render takes the p75 plus 50% over a 150 ms floor, because single-digit milliseconds make a percentage meaningless; and LCP takes the WORST sample any sweep has produced plus 25%, because its spread is BETWEEN runs rather than within them and reached 3.17x one route's own p75. Seeding LCP from a single run's p75 would rebuild the gate this programme began by fixing. Every ceiling here is the same or lower than the one before it; nothing was raised, and no route's ceiling sits below a figure we have measured. CI's own sweep is the oracle and the ratchet check banks the slack.",
+  "note": "Per-route performance ceilings for every route the site serves a stranger, 45 of them: the 35 with no dynamic segment, plus ten concrete instances added on 7 September 2026 so that every family the sitemap advertises carries a ceiling (__tests__/sitemap.test.ts fails one that does not). Read docs/PERFORMANCE_BUDGETS.md before changing a number: down is free, up is a decision, and scripts/check-budget-ratchet.mjs refuses an undocumented raise against the base branch. Re-seeded 2026-09-04 from a five-sample sweep on a production build of main at 0eaa7c6f5, under the method block below. The margin is PER METRIC, because the four do not behave alike: bytes and requests take the p75 plus 15%, being identical across every sample of every route; server render takes the p75 plus 50% over a 150 ms floor, because single-digit milliseconds make a percentage meaningless; and LCP takes the WORST sample any sweep has produced plus 25%, because its spread is BETWEEN runs rather than within them and reached 3.17x one route's own p75. Seeding LCP from a single run's p75 would rebuild the gate this programme began by fixing. Every ceiling here is the same or lower than the one before it; nothing was raised, and no route's ceiling sits below a figure we have measured. CI's own sweep is the oracle and the ratchet check banks the slack.",
   "method": {
     "browser": "Desktop Chrome",
     "deviceScaleFactor": 1,
@@ -373,6 +373,96 @@
       "jsDecodedKB": 1000,
       "requests": 46,
       "lcpMs": 300
+    },
+    {
+      "path": "/borough/westminster",
+      "readySelector": "main.boroughPage",
+      "why": "The heaviest borough page and the heaviest crawlable landing this site publishes: 200 priced pubs over a 33,441px document with 534 controls. It is the instance that measures the /borough/{slug} family, because a family is measured through a page a browser can really open, and it is the WORST instance on purpose. Seeded 7 September 2026 on a laptop under the tracked throttle: 48 ms server render, 893 KB decoded, 47 requests, 804 ms LCP (samples 860/804/792). Its ceilings are set in family with /about and /pubs rather than at the measured figure, the way /webmcp's were, because a request count taken on one box is not comparable to CI's; CI's sweep is the oracle and these come DOWN at the next one.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1050,
+      "requests": 54,
+      "lcpMs": 1100
+    },
+    {
+      "path": "/historic/prospect-of-whitby",
+      "readySelector": "main.hdPage",
+      "why": "One cited historic pub, measuring the 342-page /historic/{slug} family: static, self-canonical SEO pages, the heritage moat. Seeded 7 September 2026: 11 ms, 891 KB, 43 requests, 584 ms LCP (samples 584/592/544). Ceilings in family with /historic, its own index.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1050,
+      "requests": 50,
+      "lcpMs": 800
+    },
+    {
+      "path": "/landmark/big-ben",
+      "readySelector": "main.landmarkChapterPage",
+      "why": "One landmark story chapter, measuring the /landmark/{id} family. It carries a Wikimedia hero photograph and its credit, so it is the crawlable landing most able to grow an image cost. Seeded 7 September 2026: 13 ms, 886 KB, 40 requests, 520 ms LCP (samples 516/520/548).",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1050,
+      "requests": 46,
+      "lcpMs": 700
+    },
+    {
+      "path": "/ledger/venue-eltcmh",
+      "readySelector": "main.ledgerPage",
+      "why": "The canonical token-free venue permalink, the price moat, and the largest family the sitemap advertises at 1,995 URLs. The Blackfriar is the instance because it is the landing hero's own anchor pub and therefore the one with prices, history and sources to draw. Seeded 7 September 2026: 11 ms, 912 KB, 42 requests, 552 ms LCP (samples 524/564/552).",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1050,
+      "requests": 48,
+      "lcpMs": 700
+    },
+    {
+      "path": "/bar-tab/venue-eltcmh",
+      "readySelector": "main.barTabPage",
+      "why": "The public bar tab for one pub. It is NOT sitemap-listed, being an app surface rather than a crawlable landing, and it is budgeted anyway: it is a page a stranger opens from a shared link and it renders one tile per visible Pint Drop, so it grows with the drops. Seeded 7 September 2026: 15 ms, 924 KB, 46 requests, 608 ms LCP (samples 580/660/608).",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1070,
+      "requests": 54,
+      "lcpMs": 850
+    },
+    {
+      "path": "/spoons-value",
+      "readySelector": "main.spoonsPage",
+      "why": "The imported Wetherspoon units-per-tenner ranking: 806 server-rendered table rows, unpaginated, and the heaviest document the site serves by identity bytes (683 KB of HTML). It was crawlable and sitemap-listed with no budget at all, which is the hole __tests__/sitemap.test.ts now closes. Seeded 7 September 2026: 33 ms, 892 KB, 41 requests, 672 ms LCP (samples 744/672/672).",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1050,
+      "requests": 48,
+      "lcpMs": 950
+    },
+    {
+      "path": "/drink/guinness",
+      "readySelector": "main.drinkBrandLanding",
+      "why": "One governed drink brand landing, measuring the /drink/{slug} family. Its rows come from the shared priced-venue index, so a per-render re-parse of the 6.7 MB dataset would show up here first. Seeded 7 September 2026: 27 ms, 884 KB, 42 requests, 568 ms LCP (samples 560/568/636).",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1050,
+      "requests": 48,
+      "lcpMs": 800
+    },
+    {
+      "path": "/area/clapham/drink/guinness",
+      "readySelector": "main.drinkBrandAreaLanding",
+      "why": "One governed brand-by-area landing, measuring the /area/{slug}/drink/{brand} family. The parent /area/{slug} page is HELD and 404s, so this is the only page that family publishes. Seeded 7 September 2026: 18 ms, 884 KB, 42 requests, 672 ms LCP (samples 572/672/680).",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1050,
+      "requests": 48,
+      "lcpMs": 900
+    },
+    {
+      "path": "/pint-index/2026-06",
+      "readySelector": "main.pintIndexPage",
+      "why": "One frozen Pint Index edition, measuring the /pint-index/{month} family. A published month never changes again, so this row measures the archive shell rather than a moving figure. Seeded 7 September 2026: 21 ms, 884 KB, 40 requests, 608 ms LCP (samples 552/608/608).",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1050,
+      "requests": 46,
+      "lcpMs": 800
+    },
+    {
+      "path": "/account/delete",
+      "readySelector": "main.legalPage",
+      "why": "The public account-deletion page. Play Console holds this URL in its Data safety form and expects to be able to open it, and it is sitemap-listed for that reason, so it is measured like the two legal pages it shares a shell with. Seeded 7 September 2026: 9 ms, 838 KB, 35 requests, 456 ms LCP (samples 456/448/484).",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 990,
+      "requests": 42,
+      "lcpMs": 600
     }
   ]
 }

@@ -14,6 +14,7 @@ import { loadHistoricPubs } from "@/lib/historic";
 import { loadPintIndexArchive } from "@/lib/pintIndexSnapshot.server";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
+import { PERFORMANCE_BUDGETS } from "@/lib/performanceBudgets";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { MetadataRoute } from "next";
 
@@ -219,6 +220,87 @@ describe("sitemap()", () => {
       const time = (entry.lastModified as Date).getTime();
       expect(time).toBeGreaterThan(0);
       expect(time).toBeLessThanOrEqual(now);
+    }
+  });
+});
+
+// A SITEMAP-LISTED ROUTE CARRIES A BUDGET.
+//
+// The sitemap is the list of pages we ASK a crawler and a stranger to open, and
+// perf/route-budgets.json is the only gate that measures what a page costs. A
+// family on the first list and off the second is a page that reads as a pass
+// and can never fail again: /spoons-value was crawlable, sitemap-listed and
+// unbudgeted while serving 683 KB of HTML over 806 server-rendered table rows,
+// the heaviest document the site publishes. scripts/check-budget-ratchet.mjs
+// already refuses the REMOVAL of a budgeted route on that reasoning; it has no
+// rule for a crawlable route that was never added, and this is that rule.
+//
+// A FAMILY is what is checked, not a URL: the sitemap lists 1,995 /ledger/{id}
+// pages and one of them is measured, which is the honest shape of the budget
+// (perf/route-budgets.json holds concrete instances, /map/london included).
+//
+// BUDGET_EXEMPT_FAMILIES is EMPTY, and it may only ever shrink back to empty: a
+// row there is a family we advertise and do not measure, and it has to argue
+// its own case in one sentence.
+const familyOf = (path: string): string => {
+  const segments = path.split("/").filter(Boolean);
+  return segments.length === 0 ? "/" : `/${segments[0]}`;
+};
+
+const BUDGET_EXEMPT_FAMILIES: ReadonlyArray<{ family: string; why: string }> = [
+];
+
+describe("every sitemap-listed family carries a performance budget", () => {
+  it("names a budgeted route in every family it advertises", async () => {
+    vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "1");
+    vi.resetModules();
+    const { default: liveSitemap } = await import("@/app/sitemap");
+    const families = new Set(
+      (await liveSitemap()).map((entry) => familyOf(new URL(entry.url).pathname)),
+    );
+    vi.unstubAllEnvs();
+
+    const budgeted = new Set(PERFORMANCE_BUDGETS.routes.map((route) => familyOf(route.path)));
+    const exempt = new Set(BUDGET_EXEMPT_FAMILIES.map((row) => row.family));
+
+    const unbudgeted = [...families]
+      .filter((family) => !budgeted.has(family) && !exempt.has(family))
+      .sort();
+    expect(
+      unbudgeted,
+      "add a measured row to perf/route-budgets.json (docs/PERFORMANCE_BUDGETS.md), or argue the family in BUDGET_EXEMPT_FAMILIES",
+    ).toEqual([]);
+  });
+
+  it("keeps the exemption list honest: every row is advertised and still unbudgeted", async () => {
+    vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "1");
+    vi.resetModules();
+    const { default: liveSitemap } = await import("@/app/sitemap");
+    const families = new Set(
+      (await liveSitemap()).map((entry) => familyOf(new URL(entry.url).pathname)),
+    );
+    vi.unstubAllEnvs();
+    const budgeted = new Set(PERFORMANCE_BUDGETS.routes.map((route) => familyOf(route.path)));
+
+    const stale = BUDGET_EXEMPT_FAMILIES.filter(
+      (row) => !families.has(row.family) || budgeted.has(row.family),
+    ).map((row) => row.family);
+    expect(
+      stale,
+      "delete these rows: the family is no longer advertised, or it now carries a budget",
+    ).toEqual([]);
+  });
+
+  it("measures the crawlable landings the map-deep-link rows live on", () => {
+    const paths = new Set(PERFORMANCE_BUDGETS.routes.map((route) => route.path));
+    for (const path of [
+      "/borough/westminster",
+      "/historic/prospect-of-whitby",
+      "/landmark/big-ben",
+      "/ledger/venue-eltcmh",
+      "/spoons-value",
+    ]) {
+      expect(paths.has(path), `${path} has no row in perf/route-budgets.json`).toBe(true);
     }
   });
 });
