@@ -77,6 +77,22 @@ export type RouteBudget = {
     why: string;
   }>;
   /**
+   * This route ANSWERS A REDIRECT rather than a document, and this is where it
+   * sends the reader.
+   *
+   * The sweep opens each route with `waitUntil: "load"` and a browser follows a
+   * 3xx, so without this a redirecting route's row silently measures the page it
+   * lands on, under a ceiling written for the page it used to be. /onboarding
+   * did exactly that: it answers 307 to "/" now and ships no document, and the
+   * next sweep read the homepage's 45 requests against the 41 that used to buy
+   * an almost empty first-run shell.
+   *
+   * A declared route is measured through the redirect itself, so its ceilings
+   * are the redirect's own cost. The target keeps its own row, which is what
+   * stops the page falling out of the budget altogether.
+   */
+  redirectsTo?: string;
+  /**
    * This route has been MEASURED wide on this rig, so the ordinary three
    * samples cannot decide it. See RouteNoiseRecord.
    */

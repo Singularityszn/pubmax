@@ -515,3 +515,56 @@ export async function runPerfRoute(
     },
   };
 }
+
+/**
+ * A route that answers a REDIRECT, measured as the redirect it is.
+ *
+ * `page.goto` follows a 3xx, so a redirecting route measured as a page reports
+ * the cost of whatever it lands on, under a ceiling written for the page it
+ * used to be. This asks for the route with redirects OFF, so the four figures
+ * describe the one thing the route now does.
+ *
+ * It asserts the redirect rather than tolerating its absence: a route declared
+ * as a redirect that has quietly started serving a document again must fail
+ * here, not slip through measuring one request and passing every ceiling.
+ */
+export async function measurePerfRedirect(
+  page: Page,
+  route: PerfRoute & { redirectsTo: string },
+): Promise<PerfSample> {
+  const startedAt = Date.now();
+  // ASK THE WAY A BROWSER ASKS. An APIRequestContext sends `Accept: */*`, and
+  // the /onboarding rule keys on a document request precisely so an RSC fetch
+  // is untouched, so a bare request here is answered with the document and this
+  // lane would report "it did not redirect" about a route that does.
+  const response = await page.request.get(route.path, {
+    maxRedirects: 0,
+    headers: {
+      accept:
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    },
+  });
+  const serverRenderMs = Date.now() - startedAt;
+
+  expect(
+    response.status(),
+    `${route.path} is budgeted as a redirect to ${route.redirectsTo}, so it must answer one.`,
+  ).toBeGreaterThanOrEqual(300);
+  expect(response.status(), `${route.path} answered ${response.status()}`).toBeLessThan(400);
+  expect(
+    new URL(response.headers().location ?? "", "http://localhost").pathname,
+    `${route.path} redirects somewhere other than its budgeted target.`,
+  ).toBe(route.redirectsTo);
+
+  return {
+    serverRenderMs,
+    // One request, no script, and no paint: there is no document to draw.
+    jsDecodedKB: 0,
+    requests: 1,
+    lcpMs: 0,
+    cls: 0,
+    boundarySource: "page-ready",
+    stillOpen: [],
+  };
+}
+

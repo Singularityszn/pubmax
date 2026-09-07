@@ -60,6 +60,11 @@ describe("perf/route-budgets.json", () => {
       expect(entry.why.trim().length, entry.path).toBeGreaterThan(0);
       for (const metric of BUDGET_METRICS) {
         expect(Number.isFinite(entry[metric]), `${entry.path} ${metric}`).toBe(true);
+        // A PAGE owes a positive ceiling on every metric. A route that answers
+        // a redirect draws nothing and runs no script, so its honest ceiling on
+        // those metrics is zero, and the shape it must keep instead is pinned
+        // by "a budgeted route that redirects" below.
+        if (entry.redirectsTo) continue;
         expect(entry[metric], `${entry.path} ${metric}`).toBeGreaterThan(0);
       }
     }

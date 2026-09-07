@@ -13,7 +13,7 @@ import {
   type RouteMeasurement,
   type SampleRow,
 } from "../lib/performanceBudgets";
-import { preparePerfPage, runPerfRoute } from "./helpers/perfMeasurement";
+import { measurePerfRedirect, preparePerfPage, runPerfRoute } from "./helpers/perfMeasurement";
 
 // The enforced site performance budget (docs/PERFORMANCE_BUDGETS.md).
 //
@@ -80,7 +80,20 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
   const measured = new Map<string, RouteMeasurement>();
   const samplesByPath = new Map<string, SampleRow[]>();
   for (const route of budgets.routes) {
-    const run = await runPerfRoute(page, route, budgets.method);
+    // A route that ANSWERS A REDIRECT is measured as one. `page.goto` follows a
+    // 3xx, so measuring it as a page reports the cost of whatever it lands on
+    // under a ceiling written for the page it used to be, and neither reading
+    // of that number is true (lib/performanceBudgets.ts, `redirectsTo`).
+    let run;
+    if (route.redirectsTo) {
+      const sample = await measurePerfRedirect(page, {
+        ...route,
+        redirectsTo: route.redirectsTo,
+      });
+      run = { samples: [sample], aggregate: sample };
+    } else {
+      run = await runPerfRoute(page, route, budgets.method);
+    }
     measured.set(route.path, {
       serverRenderMs: run.aggregate.serverRenderMs,
       jsDecodedKB: run.aggregate.jsDecodedKB,
