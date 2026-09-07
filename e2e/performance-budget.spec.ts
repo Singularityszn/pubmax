@@ -9,6 +9,7 @@ import {
   formatMeasurementTable,
   formatRatchetTable,
   formatSampleTable,
+  plannedNavigations,
   type RouteMeasurement,
   type SampleRow,
 } from "../lib/performanceBudgets";
@@ -61,8 +62,13 @@ test.describe.configure({ retries: 0 });
 
 // The whole sweep in one test: the server is shared, so the routes must be
 // measured one after another rather than raced by parallel workers.
-const SWEEP_TIMEOUT_MS =
-  60_000 * budgets.routes.length * (budgets.method.warmupRuns + budgets.method.measuredRuns);
+//
+// The budget is derived from the WORST CASE rather than from the routes alone,
+// because a route can spend a resample budget and a route marked noisy spends a
+// wider one: a timeout that did not count them would turn a route measuring
+// itself properly into a sweep that timed out, and an unmeasured route is
+// already reported as a breach of every metric.
+const SWEEP_TIMEOUT_MS = 60_000 * plannedNavigations(budgets.routes, budgets.method);
 
 test("every budgeted route stays inside its performance budget", async ({ page, baseURL }) => {
   test.skip(!process.env.PUBMAX_PERF_BUDGET, "Owned by the performance-budget CI job.");
