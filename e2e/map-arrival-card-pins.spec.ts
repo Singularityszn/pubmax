@@ -64,13 +64,18 @@ test.describe("the first-visit card and the pin field", () => {
       .toBeGreaterThan(0);
 
     // And the card is not sitting on the pin field: it is a strip at the top.
+    // `boundingBox()` answers x/y/width/height and NOTHING else: reading `.top`
+    // off it gave undefined, `undefined + height` gave NaN, and every
+    // comparison against NaN is false, so this pair of assertions passed on a
+    // card anywhere on the screen until the run of 7 Sep 2026 read them.
     const box = await card.boundingBox();
     expect(box).not.toBeNull();
-    expect(box!.top + box!.height).toBeLessThan(PHONE.height / 2);
+    const cardBottom = box!.y + box!.height;
+    expect(cardBottom).toBeLessThan(PHONE.height / 2);
 
     // Every reported mark is below it, so a tap on one reaches the map.
     for (const point of await paintedPoints(page)) {
-      expect(point.y).toBeGreaterThan(box!.top + box!.height);
+      expect(point.y).toBeGreaterThan(cardBottom);
     }
   });
 

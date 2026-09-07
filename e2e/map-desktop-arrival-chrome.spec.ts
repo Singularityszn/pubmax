@@ -59,7 +59,12 @@ async function arrivalChrome(page: Page): Promise<string[]> {
       ),
     ]
       .filter((element) => visible(element))
+      // The card's own three are the ask, and the ask goes.
       .filter((element) => !element.closest(".mapArrivalCard"))
+      // A cluster marker is the map's CONTENT, not its chrome. It is a button
+      // because it is tappable, and there are as many of them as London has
+      // clusters at this zoom.
+      .filter((element) => !element.closest(".donut-cluster-marker"))
       .map((element) =>
         (
           (element as HTMLElement).innerText ||
