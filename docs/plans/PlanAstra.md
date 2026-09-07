@@ -68,7 +68,10 @@ Historical file references can name planned files or older source locations.
 | London first | [#1576](https://github.com/Singularityszn/pubmax/issues/1576) excludes new-city implementation. | Existing four-city supply belongs to #1522. Its reference below does not widen this plan. |
 
 The bill requirement does not prove production receipt persistence.
-Migration [0153](../../supabase/migrations/20260907120000_0153_pint_drop_receipt_photo.sql) and a durable receipt read require owner evidence; the compatibility fallback can omit `receiptPhotoKey`.
+The parent verified migration [0153](../../supabase/migrations/20260907120000_0153_pint_drop_receipt_photo.sql) through read-only production inspection.
+The applied ledger entry is `20260907215709`; all three photo columns are present as nullable `text`.
+This records schema availability, not a successful end-to-end receipt write and later read.
+Durable end-to-end receipt proof remains pending. The availability-exception owner question remains pending too.
 A bill is evidence about a price, not a public wall photo or an independent reporter.
 
 ### 1.2 Remaining decisions for the interview owner
@@ -112,7 +115,7 @@ That answer remains pending. This plan neither repeats the request nor marks enr
 | Landing | #1628: answer-first `/near?locate=1` door, London illustration and fallback. | Keep existing performance ceilings; progressive onboarding remains D4. |
 | Historic defect fixes | #1591: price display, stamp, leaderboard and streak work. #1594: sheet, consent and Plan chrome. #1587: transport copy, quiet intent and Plan metadata. #1590: venue truth and freshness. | These map to historical rows below. A merge title alone does not close every row or failure path. |
 | Attribution and RLS | #1583 supplies release attribution; #1586 supplies RLS tests. | Dashboard leaked-password protection needs separate owner evidence. |
-| Receipt and confirmation | #1630 supplies receipt requirements and exact agreement. | Confirm migration 0153 and durable receipt recovery. Keep independent-account refusals. |
+| Receipt and confirmation | #1630 supplies receipt requirements and exact agreement. | Migration 0153 is verified applied. Prove durable end-to-end receipt recovery; the availability-exception owner question remains pending. Keep independent-account refusals. |
 | Native first run | [#1632](https://github.com/Singularityszn/pubmax/pull/1632), [mobile proof](../proof/mobile-app-design/README.md). | First launch measured 3,848 ms; later run 1,888 ms. Android flash and final integrated browser/native behaviour need owner evidence. |
 | Map and route polish | [#1631](https://github.com/Singularityszn/pubmax/pull/1631), [walk proof](../proof/walk-bugs-one-liners/README.md). | Do not equate individual fixes with the final integrated browser gate. |
 

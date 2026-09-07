@@ -270,6 +270,9 @@ It also requires a machine-readable inventory of interfaces, fallbacks, schema b
 | Current source | Eight adopters, including `harvestOverlayStore`; inventory and CI scope fences exist. | Satisfaction of the literal two-pilot clause. |
 
 The number is stale as an implementation description. The acceptance mismatch remains unresolved.
+The user's fix-all authorization permits maintenance tests, inventory completion and review-gate integration without another permission request.
+Those tasks do not require factory migrations, reverts or an accepted widening to eight pilots.
+The parent assigns the implementation after reviewing the issue body; the docs task does not start code work implicitly.
 The maintainer must record the accepted pilot pair and disposition of the six other current adopters.
 Alternatively, the maintainer can explicitly replace the two-pilot scope and define the required evidence for that scope.
 Neither choice is inferred from the progress comments.
