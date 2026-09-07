@@ -272,6 +272,28 @@ describe("Social composer galleries", () => {
     expect(host.querySelector<HTMLInputElement>('input[value="private"]')?.checked).toBe(true);
   });
 
+  it.each([false, true])("clears a photo storage error only after successful draft deletion (deletion fails: %s)", async (deletionFails) => {
+    mocks.save.mockRejectedValue(new DOMException("Quota exceeded", "QuotaExceededError"));
+    if (deletionFails) mocks.clear.mockRejectedValue(new Error("Storage unavailable"));
+    await mount();
+    await choose([photo("unsaved")]);
+    expect(host.textContent).toContain("Your photos could not be saved on this device.");
+    expect(uploads()).toHaveLength(0);
+    await click("Clear draft");
+    expect(mocks.clear).toHaveBeenCalledWith(key);
+    await act(async () => {
+      const textarea = host.querySelector("textarea")!;
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(textarea, "A walk by the river");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(button("Post").disabled).toBe(deletionFails);
+    if (!deletionFails) {
+      expect(host.textContent).not.toContain("Your photos could not be saved on this device.");
+      await click("Post");
+      expect(JSON.parse(commits()[0][1].body)).toMatchObject({ body: "A walk by the river" });
+    }
+  });
+
   it("restores ordered upload receipts without uploading again", async () => {
     const local = { ...createSocialGalleryDraftItem(photo("restored"), "Saved description"), mediaId: "saved-upload" };
     mocks.read.mockResolvedValue([local]);

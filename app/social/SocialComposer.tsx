@@ -227,6 +227,7 @@ function useComposerGallery(draftKey: string) {
     restore([]);
     await writes.current.catch(() => undefined);
     await clearSocialGalleryDraft(draftKey);
+    if (!controller.current.signal.aborted) setStorageError(null);
   }
 
   function reupload() {
