@@ -3531,6 +3531,41 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   outline-offset: 2px;
 }
 
+/* THE SPLIT'S DOOR asks a question and then offers the answers, so it is a
+   column where the other two doors are one button: the ask on its own line,
+   the recorded figures under it. Each figure keeps the `.priceDoor` treatment,
+   because each is the same door with a different answer written on it. */
+.priceDoorChoice {
+  display: flex;
+  flex: 1 1 100%;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.priceDoorAsk {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.priceDoorOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.contributorPrice .priceDoorOptions .priceDoor,
+.priceDoorOptions .priceDoor {
+  /* The row of answers starts at the thumb side and stays there. The
+     `margin-left: auto` below is for the ONE door that shares a row with the
+     line above it, and it would push the first figure away from the second. */
+  margin-left: 0;
+  font-variant-numeric: tabular-nums;
+}
+
 /* The line and the door share one row where the row can hold both, the way
    the eyebrow and the plaque share the block's first row: the claim on the
    left, the thing to do about it on the right. The standing line ("Logged

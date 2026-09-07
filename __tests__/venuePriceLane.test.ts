@@ -486,21 +486,27 @@ describe("VenueOverviewTab renders from the shared lane", () => {
     ]) {
       expect(args, `the lane call must be given ${argument}`).toContain(argument);
     }
-    // The two bundle lanes are here for the same reason the other five are: the
+    // The two bundle lanes are here for the same reason the others are: the
     // price area renders EVERY lane the precedence can answer with, so a lane
     // added in the module and missed in the component would show a pub nothing.
-    for (const lane of [
-      "anchor",
-      "contributor",
-      "sourced",
-      "listed",
-      "provisional",
-      "baseline",
-      "estimate",
-    ]) {
+    for (const lane of ["anchor", "contributor", "sourced", "listed", "baseline", "estimate"]) {
       expect(overview, `price area must branch on the ${lane} lane`).toContain(
         `if (lane?.lane === "${lane}") {`,
       );
+    }
+    // A DRINKER'S OWN LOG TAKES ONE BRANCH (captain 7 Sept 2026). `provisional`,
+    // `disputed` and `aged` are one claim said three ways, and three sibling
+    // branches is how a split arrived on the Overview worded as a lone report.
+    // The fence is the same promise in the new shape: every remaining lane
+    // answers `venuePriceLaneIsDrinkerLog`, and that predicate is what the
+    // component branches on.
+    expect(overview).toContain("venuePriceLaneIsDrinkerLog(lane)");
+    expect(overview).toContain("<DrinkerLogBlock");
+    for (const lane of ["provisional", "disputed", "aged"] as const) {
+      expect(
+        venuePriceLaneIsDrinkerLog({ lane } as unknown as VenuePriceLane),
+        `the ${lane} lane must render through the drinker-log block`,
+      ).toBe(true);
     }
   });
 

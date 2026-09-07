@@ -33,6 +33,7 @@ import {
   secondDrinkerDoorOffered,
 } from "@/lib/pintDropSecondDrinker";
 import {
+  CHOOSE_PRICE_DOOR_LABEL,
   LOG_PRICE_DOOR_LABEL,
   OVERVIEW_PRICE_DOOR_KIND,
   PINT_TRUST_STATES,
@@ -40,6 +41,7 @@ import {
   overviewPriceDoor,
   pintTrustFor,
   pintTrustSignalFields,
+  splitLaneInput,
   type PintTrustState,
 } from "@/lib/pintTrust";
 import {
@@ -142,6 +144,12 @@ const FIXTURES: Record<PintTrustState, () => SummaryDrop[]> = {
     drop({ authorityKey: "key-a" }),
     drop({ handle: "second", authorityKey: "key-b", createdAt: daysAgo(2) }),
   ],
+  // Two drinkers, two prices, one drink: the Hatton pub Grok read on the 08:37
+  // deploy (captain 7 Sept 2026).
+  disputed: () => [
+    drop({ priceGbp: 4.7 }),
+    drop({ handle: "second", priceGbp: 4.5, createdAt: daysAgo(2) }),
+  ],
   "logged-once": () => [drop()],
   "aged-out": () => [drop({ createdAt: daysAgo(90) })],
   none: () => [],
@@ -187,6 +195,7 @@ function renderOverview(
       confirmedPrice: signal.confirmedPrice,
       provisionalPrice: dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
       agedPrice: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
+      disputedPrice: splitLaneInput(signal.disputedPrices, signal.disputedAt),
       communityPrices: communityPrices(VENUE_ID),
       experienceLens: "all",
       drinkLensCategory: null,
@@ -221,22 +230,48 @@ const RETIRED_DOORS = [
 ];
 
 describe("overviewPriceDoor: one door per trust state", () => {
-  it("names a door for every state in the closed set, and only the two second-drinker states confirm", () => {
+  it("names a door for every state in the closed set, and only the second-drinker states ask one", () => {
     expect(Object.keys(OVERVIEW_PRICE_DOOR_KIND).sort()).toEqual([...PINT_TRUST_STATES].sort());
     expect(OVERVIEW_PRICE_DOOR_KIND).toEqual({
       confirmed: "log",
       corroborated: "log",
+      disputed: "choose",
       "logged-once": "confirm",
       "aged-out": "confirm",
       none: "log",
     });
-    // The confirm states are exactly the second-drinker states, so the two
-    // tables (this one and lib/pintDropSecondDrinker.ts) cannot drift apart.
+    // The states that ASK a second drinker something - one figure to confirm or
+    // a choice between the recorded ones - are exactly the second-drinker
+    // states, so the two tables (this one and lib/pintDropSecondDrinker.ts)
+    // cannot drift apart.
     for (const state of PINT_TRUST_STATES) {
-      expect(OVERVIEW_PRICE_DOOR_KIND[state] === "confirm", state).toBe(
-        secondDrinkerDoorOffered(state),
-      );
+      const asks =
+        OVERVIEW_PRICE_DOOR_KIND[state] === "confirm" ||
+        OVERVIEW_PRICE_DOOR_KIND[state] === "choose";
+      expect(asks, state).toBe(secondDrinkerDoorOffered(state));
     }
+  });
+
+  it("asks WHICH over a split, offering every recorded figure and naming none of them the answer", () => {
+    const split: VenuePriceLane = {
+      lane: "disputed",
+      split: { prices: [4.5, 4.7], reporters: 2 },
+      observedAt: null,
+    };
+    expect(overviewPriceDoor("disputed", split)).toEqual({
+      kind: "choose",
+      label: CHOOSE_PRICE_DOOR_LABEL,
+      prices: [4.5, 4.7],
+    });
+    const html = renderOverview(FIXTURES.disputed());
+    expect(html).toContain(CHOOSE_PRICE_DOOR_LABEL);
+    expect(html).toContain('data-price-door="choose"');
+    expect(html).toContain('data-price-gbp="4.50"');
+    expect(html).toContain('data-price-gbp="4.70"');
+    // "Still £4.70?" named one of two answers and called the other a
+    // correction. It may never stand over a split again.
+    expect(html).not.toContain(confirmPintActionLabel(4.7));
+    expect(html).not.toContain(confirmPintActionLabel(4.5));
   });
 
   it("words the confirm door over the lane's own figure (the #1492 door, kept as the primary)", () => {

@@ -61,6 +61,7 @@ import {
 } from "@/lib/spill";
 import type { LastPintDecision } from "@/lib/tfl";
 import { venueMapUrl } from "@/lib/venueMapUrl";
+import type { PintPriceSplit } from "@/lib/pintDropAgreement";
 import { pintTrustFor, pintTrustSignalFields, type PintTrustState } from "@/lib/pintTrust";
 
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base
@@ -855,6 +856,12 @@ export function usePintDrops(
         agedContributorPrice: number | null;
         /** Epoch ms that aged report was logged, or null. */
         agedContributorAt: number | null;
+        /** The figures this pub's drinkers disagree about, for the sheet and
+         *  the peek. Never a band, a bucket or a pin figure: two prices have
+         *  no one number (lib/pintDropAgreement.ts). */
+        disputedPrices: PintPriceSplit | null;
+        /** Epoch ms the freshest of those was logged, or null. */
+        disputedAt: number | null;
       }
     >();
     for (const [venueId, venueDrops] of mapDropsByVenueId) {

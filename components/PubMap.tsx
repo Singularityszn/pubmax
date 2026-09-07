@@ -53,7 +53,7 @@ import {
   venuePriceLane,
   venueSourcedPrice,
 } from "@/lib/venuePriceLane";
-import { dropLaneInput } from "@/lib/pintTrust";
+import { dropLaneInput, splitLaneInput } from "@/lib/pintTrust";
 import {
   isMapSearchField,
   typedSearchCameraMove,
@@ -5101,6 +5101,7 @@ export default function PubMap({
         peekDropSignal?.provisionalContributorAt,
       ),
       dropLaneInput(peekDropSignal?.agedContributorPrice, peekDropSignal?.agedContributorAt),
+      splitLaneInput(peekDropSignal?.disputedPrices, peekDropSignal?.disputedAt),
     );
     const peekPrice = peekPriceChip(peekLane, peekBundle, peekDropSignal?.pintTrust ?? null);
     return (
@@ -5253,6 +5254,10 @@ export default function PubMap({
           agedPrice={dropLaneInput(
             dropSignals.get(selectedVenue.id)?.agedContributorPrice,
             dropSignals.get(selectedVenue.id)?.agedContributorAt,
+          )}
+          disputedPrice={splitLaneInput(
+            dropSignals.get(selectedVenue.id)?.disputedPrices,
+            dropSignals.get(selectedVenue.id)?.disputedAt,
           )}
           // Share copy prefers the MERGED map-authority figure (same seam as
           // pins), dated — never a sheet-only uncorroborated report.

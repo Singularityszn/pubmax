@@ -5,6 +5,7 @@ import { MapPin, PlusCircle } from "lucide-react";
 import Disclosure from "@/components/Disclosure";
 import PriceBadge from "@/components/PriceBadge";
 import TrustPill from "@/components/ui/trust-pill";
+import { pintPriceSplitLine } from "@/lib/pintDropAgreement";
 import {
   LOG_PRICE_DOOR_LABEL,
   overviewPriceDoor,
@@ -12,7 +13,7 @@ import {
   type OverviewPriceDoor,
 } from "@/lib/pintTrust";
 import { priceStandingFor, type ConfirmedPriceInput } from "@/lib/priceTier";
-import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
+import { priceBand, priceBandAreaForVenue, type PriceBandArea } from "@/lib/priceBand";
 import { Amenity, ClaimBadge } from "@/components/map/venueInspectorBits";
 import { derivedAmenityStatus, type AmenityStatus } from "@/lib/venueTruth";
 import { venueAmenityStatus, type VenueAmenityStatus } from "@/lib/venues";
@@ -36,6 +37,8 @@ import {
   venueBundlePrices,
   venuePriceLane,
   venuePriceLaneIsDrinkerLog,
+  venuePriceLaneObservedGbp,
+  type DisputedPriceInput,
   type ProvisionalPriceInput,
   type VenuePriceLane,
 } from "@/lib/venuePriceLane";
@@ -196,6 +199,12 @@ function overviewPriceAreaReach(
  * and the confirm door (#1492) seeds the Pint Drop composer with the figure the
  * lane prints. Renders nothing on a venue that is not a pub, over an anchor
  * lane, or while the composer this door opens is already on screen.
+ *
+ * The third kind is the SPLIT'S door (captain 7 Sept 2026): a pub holding
+ * £4.50 and £4.70 cannot be asked "Still £4.70?", because that names one of two
+ * answers and calls the other a correction. It asks "Which did you pay?" and
+ * offers one button per recorded figure, each seeding the composer with its own
+ * price through the same seam the confirm door uses.
  */
 function PriceDoor({
   venue,
@@ -211,6 +220,28 @@ function PriceDoor({
   onConfirmPrice?: (priceGbp: number) => void;
 }) {
   if (!door || !isPubVenue(venue) || composerOpen) return null;
+  if (door.kind === "choose" && onConfirmPrice) {
+    return (
+      <div className="priceDoorChoice" data-price-door="choose">
+        <p className="priceDoorAsk">{door.label}</p>
+        <div className="priceDoorOptions">
+          {door.prices.map((priceGbp) => (
+            <button
+              key={priceGbp}
+              type="button"
+              className="priceDoor"
+              data-testid="choose-pint-cta"
+              data-price-gbp={priceGbp.toFixed(2)}
+              aria-label={confirmPintActionName(priceGbp, venue.name)}
+              onClick={() => onConfirmPrice(priceGbp)}
+            >
+              {formatPrice(priceGbp)}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
   if (door.kind === "confirm" && onConfirmPrice) {
     return (
       <button
@@ -262,6 +293,65 @@ function UnpricedPubBlock({
   return (
     <div className="firstDropNudge" role="note">
       <p className="firstDropNudgeLine">{DROP_READ_UNAVAILABLE_LINE}</p>
+      {door}
+    </div>
+  );
+}
+
+/**
+ * A DRINKER'S OWN LOG, printed with what it is still worth beside it.
+ *
+ * Three lanes, one block: `provisional` (one in-window report), `disputed`
+ * (two or more in-window reports that do not agree) and `aged` (every report
+ * past the window). They were three sibling branches in `VenuePriceSummary`,
+ * each with its own eyebrow, badge and line, and that is how the split arrived
+ * on the Overview worded as a lone report.
+ *
+ * The figure comes from the ONE reader of a lane's own figure
+ * (`venuePriceLaneObservedGbp`), which answers null on a split, so the badge
+ * and the band simply do not render there: two prices have no one number and no
+ * one colour. `priceStanding` is deliberately not consulted for any of the
+ * three, because a drinker's log is not a published price.
+ */
+function DrinkerLogBlock({
+  lane,
+  bandArea,
+  trustChipAttrs,
+  chromeRevealClass,
+  priceRevealMotionClass,
+  door,
+}: {
+  lane: VenuePriceLane;
+  bandArea: PriceBandArea;
+  trustChipAttrs: Record<string, string | undefined>;
+  chromeRevealClass: string | undefined;
+  priceRevealMotionClass: string;
+  door: ReactNode;
+}) {
+  const split = lane.lane === "disputed" ? lane.split : null;
+  const figure = venuePriceLaneObservedGbp(lane);
+  const observedAt = lane.lane === "aged" || lane.lane === "provisional" || lane.lane === "disputed"
+    ? lane.observedAt
+    : null;
+  const loggedAt = formatFreshness(observedAt);
+  const line = split
+    ? pintPriceSplitLine(split)
+    : lane.lane === "aged"
+      ? AGED_PRICE_LINE
+      : PROVISIONAL_PRICE_LINE;
+  return (
+    <div className="contributorPrice" {...trustChipAttrs}>
+      <span className={chromeRevealClass}>
+        <ClaimBadge kind="contributor" />{" "}
+        {split ? "Logged by Pubmaxxers" : "Logged by a Pubmaxxer"}
+      </span>
+      {figure !== null ? (
+        <PriceBadge variant="current" band={priceBand(figure, bandArea)}>
+          {formatPrice(figure)}
+        </PriceBadge>
+      ) : null}
+      {loggedAt ? <small className={chromeRevealClass}>{loggedAt}</small> : null}
+      <small className={`communityPriceStanding ${priceRevealMotionClass}`.trim()}>{line}</small>
       {door}
     </div>
   );
@@ -449,27 +539,20 @@ function VenuePriceSummary({
     );
   }
 
-  // ONE report, printed as one report. The figure is rendered directly rather
-  // than through TrustPill: `listed` in lib/priceTier.ts means a price the pub
-  // or its chain PUBLISHED, carrying a URL a reader can open, and this carries
-  // one drinker instead. The date and the one line are the whole claim, and
-  // `priceStanding` is deliberately not consulted here.
-  if (lane?.lane === "provisional") {
-    const loggedAt = formatFreshness(lane.observedAt);
+  // A DRINKER'S OWN LOG, in its three honest endings: one report, two reports
+  // that disagree, or a report past the window. One branch and one block,
+  // because it is one claim about one pub said three ways, and three sibling
+  // branches here is what let the split arrive worded as a lone report.
+  if (lane && venuePriceLaneIsDrinkerLog(lane)) {
     return (
-      <div className="contributorPrice" {...trustChipAttrs}>
-        <span className={chromeRevealClass}>
-          <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
-        </span>
-        <PriceBadge variant="current" band={priceBand(lane.provisionalPrice, bandArea)}>
-          {formatPrice(lane.provisionalPrice)}
-        </PriceBadge>
-        {loggedAt ? <small className={chromeRevealClass}>{loggedAt}</small> : null}
-        <small className={`communityPriceStanding ${priceRevealMotionClass}`.trim()}>
-          {PROVISIONAL_PRICE_LINE}
-        </small>
-        {door}
-      </div>
+      <DrinkerLogBlock
+        lane={lane}
+        bandArea={bandArea}
+        trustChipAttrs={trustChipAttrs}
+        chromeRevealClass={chromeRevealClass}
+        priceRevealMotionClass={priceRevealMotionClass}
+        door={door}
+      />
     );
   }
 
@@ -507,30 +590,6 @@ function VenuePriceSummary({
               tonight feed.
             </>
           )}
-        </small>
-        {door}
-      </div>
-    );
-  }
-
-  // A report PAST the window, printed as one. The drop list below prints this
-  // same drop, dated, so the price area may not word an absence above it
-  // (captain's cut, 5 Sept 2026). The day says how old it is and the one line
-  // says what it lacks; `priceStanding` is not consulted, as for the
-  // provisional row, because a drinker's log is not a published price.
-  if (lane?.lane === "aged") {
-    const loggedAt = formatFreshness(lane.observedAt);
-    return (
-      <div className="contributorPrice" {...trustChipAttrs}>
-        <span className={chromeRevealClass}>
-          <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
-        </span>
-        <PriceBadge variant="current" band={priceBand(lane.agedPrice, bandArea)}>
-          {formatPrice(lane.agedPrice)}
-        </PriceBadge>
-        {loggedAt ? <small className={chromeRevealClass}>{loggedAt}</small> : null}
-        <small className={`communityPriceStanding ${priceRevealMotionClass}`.trim()}>
-          {AGED_PRICE_LINE}
         </small>
         {door}
       </div>
@@ -670,6 +729,7 @@ export default function VenueOverviewTab({
   confirmedPrice,
   provisionalPrice,
   agedPrice,
+  disputedPrice,
   dropReadStatus,
   communityPrices,
   experienceLens,
@@ -716,6 +776,9 @@ export default function VenueOverviewTab({
   /** A public pint report PAST the window, for the price area alone, so the
    *  area never words an absence over a drop the list below still prints. */
   agedPrice?: ProvisionalPriceInput | null;
+  /** The figures this pub's in-window drinkers DISAGREE about, for the price
+   *  area alone. Two prices have no one band, so it reaches no pin figure. */
+  disputedPrice?: DisputedPriceInput | null;
   /** Where this pub's Pint Drop read got to (review finding F-8). */
   dropReadStatus?: VenueDropReadStatus;
   /** Community price layer - the dated submission row plus the submit card. */
@@ -854,6 +917,7 @@ export default function VenueOverviewTab({
     venueBundlePrices(venue),
     provisionalPrice,
     agedPrice,
+    disputedPrice,
   );
   const { showsPriceSummary, laneLoggedPriceShown } = overviewPriceAreaReach(
     venue,

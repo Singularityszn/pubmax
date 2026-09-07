@@ -72,7 +72,11 @@ describe("the door's words", () => {
 describe("where the door is offered", () => {
   it("is owed exactly to the two states that lack a second drinker, off the one trust reading", () => {
     for (const state of SECOND_DRINKER_STATES) expect(PINT_TRUST_STATES).toContain(state);
-    expect(PINT_TRUST_STATES.filter(secondDrinkerDoorOffered)).toEqual(["logged-once", "aged-out"]);
+    expect(PINT_TRUST_STATES.filter(secondDrinkerDoorOffered)).toEqual([
+      "disputed",
+      "logged-once",
+      "aged-out",
+    ]);
     expect(secondDrinkerDoorOffered(null)).toBe(false);
   });
 });

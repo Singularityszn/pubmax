@@ -40,8 +40,9 @@
 // reaches for and no importer had to move.
 
 import type { Provenance } from "@/lib/curation";
-import { agreesWithinTolerance, isWithinMaxAge } from "@/lib/communityPrice";
+import { isWithinMaxAge } from "@/lib/communityPrice";
 import { measureIsPint } from "@/lib/drinkMeasure";
+import { pintDropsAgree } from "@/lib/pintDropAgreement";
 import {
   confirmationIsLive,
   type PintDropConfirmation,
@@ -157,7 +158,8 @@ export function confirmedPriceInputFor(
  * at this pub is backed by the most distinct authority keys, and whether that
  * count reached the threshold. This adds the second half the Index needs - WHO
  * agreed - by picking the freshest in-window drop that carries a DIFFERENT
- * authority key and agrees within the shared tolerance.
+ * authority key and reports the SAME price for the SAME drink
+ * (`pintDropsAgree`, lib/pintDropAgreement.ts).
  *
  * Null when the venue already holds a live confirmation: a third drinker
  * agreeing with a confirmed price is welcome evidence, not a second event, and
@@ -173,8 +175,7 @@ export function findSecondReporterConfirmation(
   const confirmed = corroboratedPriceDrop(drops, now);
   if (!confirmed) return null;
   const confirmedKey = confirmed.authorityKey?.trim();
-  const confirmedPrice = confirmed.priceGbp;
-  if (!confirmedKey || typeof confirmedPrice !== "number") return null;
+  if (!confirmedKey || typeof confirmed.priceGbp !== "number") return null;
 
   let peer: ConfirmableDrop | null = null;
   for (const drop of drops) {
@@ -183,7 +184,10 @@ export function findSecondReporterConfirmation(
     if (!isWithinMaxAge({ submittedAt: Date.parse(drop.createdAt) }, now)) continue;
     const key = drop.authorityKey?.trim();
     if (!key || key === confirmedKey) continue;
-    if (!agreesWithinTolerance(confirmedPrice, drop.priceGbp as number)) continue;
+    // EXACT, AND ABOUT ONE DRINK (captain 7 Sept 2026). This asked
+    // `agreesWithinTolerance`, whose 50p floor let a £4.70 report mint a
+    // confirmation over a £4.50 one. A different price is a third drop.
+    if (!pintDropsAgree(confirmed, drop)) continue;
     if (!peer || Date.parse(drop.createdAt) > Date.parse(peer.createdAt)) peer = drop;
   }
 
@@ -249,9 +253,7 @@ export function readSecondReporter(
   const own = keyed.filter((drop) => drop.authorityKey?.trim() === callerKey);
   for (let i = 0; i < own.length; i += 1) {
     for (let j = i + 1; j < own.length; j += 1) {
-      if (!agreesWithinTolerance(own[i].priceGbp as number, own[j].priceGbp as number)) {
-        continue;
-      }
+      if (!pintDropsAgree(own[i], own[j])) continue;
       return { kind: "same_reporter" };
     }
   }

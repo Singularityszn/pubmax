@@ -1,9 +1,14 @@
 import {
-  agreesWithinTolerance,
   COMMUNITY_PRICE_CORROBORATION_THRESHOLD,
   isWithinMaxAge,
 } from "@/lib/communityPrice";
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
+import {
+  drinkAgreementKey,
+  pintDropsAgree,
+  pintPriceSplitOf,
+  type PintPriceSplit,
+} from "@/lib/pintDropAgreement";
 import { measureIsPint, type DrinkMeasure } from "@/lib/drinkMeasure";
 import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
@@ -788,9 +793,12 @@ export function corroboratedPriceDrop<D extends SummaryDrop>(
     for (const other of inWindow) {
       const authorityKey = other.authorityKey?.trim();
       if (!authorityKey) continue;
-      if (!agreesWithinTolerance(candidate.priceGbp as number, other.priceGbp as number)) {
-        continue;
-      }
+      // EXACT, AND ABOUT ONE DRINK (captain 7 Sept 2026, over Grok's reading of
+      // the 08:37 deploy). This asked `agreesWithinTolerance`, whose floor is
+      // 50p, so Hatton's £4.50 and £4.70 counted as one backed figure and the
+      // pub published a price neither drinker paid. `lib/pintDropAgreement.ts`
+      // is the one bar now: same drink, same measure, same pennies.
+      if (!pintDropsAgree(candidate, other)) continue;
       backers.add(authorityKey);
     }
     if (backers.size > bestBackers) {
@@ -884,6 +892,45 @@ export function provisionalPriceDrop<D extends SummaryDrop>(
     bestAt = at;
   }
   return best;
+}
+
+// WHAT THE PUB'S DRINKERS SAID WHEN THEY DID NOT SAY ONE THING, or null.
+//
+// Captain 7 Sept 2026, over Grok's reading of the 08:37 deploy: Hatton held two
+// public in-window drops, £4.50 and £4.70, and every surface said "Logged once,
+// needs a second drinker" above a door offering "Still £4.70?". One drinker had
+// been reported where two had spoken, and the second drinker the line asked for
+// had already arrived and disagreed.
+//
+// The reading is over the drink group the provisional lane would otherwise
+// print: the freshest in-window pint drop names the drink, and every other
+// in-window drop about that same drink and measure joins it
+// (`drinkAgreementKey`). Two distinct figures in that group is a SPLIT, and a
+// split is a fact to print rather than a tie to break — nothing here picks a
+// winner, averages, or takes the newer figure.
+//
+// Answers null the moment an authoritative lane is speaking, exactly as the
+// provisional lane does, so one pub can never offer two answers at once. A
+// corroboration now needs the same drink and the same pennies
+// (`corroboratedPriceDrop` above), so a corroborated pub and a split pub are
+// disjoint by construction rather than by ordering.
+export function disputedPintPrices<D extends SummaryDrop>(
+  drops: readonly D[],
+  now: number = Date.now(),
+): { split: PintPriceSplit; drops: D[]; observedAtMs: number } | null {
+  if (authoritativePriceDrop(drops, now)) return null;
+  const lead = provisionalPriceDrop(drops, now);
+  if (!lead) return null;
+  const key = drinkAgreementKey(lead);
+  const group = drops.filter(
+    (drop) =>
+      isPintPricedDrop(drop) &&
+      isWithinMaxAge({ submittedAt: Date.parse(drop.createdAt) }, now) &&
+      drinkAgreementKey(drop) === key,
+  );
+  const split = pintPriceSplitOf(group);
+  if (!split) return null;
+  return { split, drops: group, observedAtMs: Date.parse(lead.createdAt) };
 }
 
 // The freshest public priced organic drop that is PAST the window, or null.

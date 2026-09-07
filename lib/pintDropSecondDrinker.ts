@@ -22,13 +22,25 @@ import type { PintTrustState } from "@/lib/pintTrust";
 
 /**
  * The trust states (lib/pintTrust.ts) a pub is in when it is owed a second
- * drinker: one in-window report, or every report past the window. CLOSED, and
- * read off the ONE trust reading rather than off a lane branch, so the door
- * mounts against the same state the chip's `data-pint-trust` carries and the
- * two cannot disagree. `confirmed` and `corroborated` already have their
- * second drinker; `none` has nothing to confirm.
+ * drinker: one in-window report, two or more in-window reports that DISAGREE,
+ * or every report past the window. CLOSED, and read off the ONE trust reading
+ * rather than off a lane branch, so the door mounts against the same state the
+ * chip's `data-pint-trust` carries and the two cannot disagree. `confirmed` and
+ * `corroborated` already have their second drinker; `none` has nothing to
+ * confirm.
+ *
+ * `disputed` is here because a split pub is owed a second drinker MORE than a
+ * logged-once one, not less: two people have reported and neither has been
+ * matched. What differs is the question. A logged-once pub is asked "Still
+ * £4.50?"; a split pub is asked "Which did you pay?" over each recorded figure
+ * (`OVERVIEW_PRICE_DOOR_KIND`, lib/pintTrust.ts), because naming one of two
+ * answers would call the other a correction.
  */
-export const SECOND_DRINKER_STATES = ["logged-once", "aged-out"] as const satisfies readonly PintTrustState[];
+export const SECOND_DRINKER_STATES = [
+  "logged-once",
+  "disputed",
+  "aged-out",
+] as const satisfies readonly PintTrustState[];
 
 export function secondDrinkerDoorOffered(state: PintTrustState | null | undefined): boolean {
   return state !== null && state !== undefined && (SECOND_DRINKER_STATES as readonly string[]).includes(state);
