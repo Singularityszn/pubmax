@@ -19,7 +19,7 @@
 // decide exactly and navigates before the landing document is rendered at all.
 // This file holds it to lib/entryDecision.ts rather than trusting the copy.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -43,7 +43,9 @@ import {
 
 const rootFile = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
-const ENTRY_INIT_SOURCE = rootFile("public/native-entry-init.js");
+// The decision rides theme-init.js now: see the "costs the website nothing"
+// case below for why it is not a file of its own.
+const ENTRY_INIT_SOURCE = rootFile("public/theme-init.js");
 
 /** A memory Storage, so each case starts from a known device state. */
 function memoryStorage(seed: Record<string, string> = {}): Storage {
@@ -171,18 +173,38 @@ describe("the native shell's pre-render entry decision", () => {
     expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBeNull();
   });
 
-  it("is loaded render-blocking, ahead of the other pre-paint scripts", () => {
+  it("costs the website nothing, because it rides a script every route already loads", () => {
+    // A NATIVE-ONLY SCRIPT MAY NOT COST A WEB READER A REQUEST. Shipped as its
+    // own file in <head> it was fetched on every route, and the perf gate on
+    // PR 1632 caught it: /discover and /drinks each measured 57 requests
+    // against a budget of 56. The decision is a no-op in every browser, so the
+    // request bought a web reader nothing at all.
+    //
+    // public/map-first-paint-init.js is the house answer to a script only one
+    // surface needs, and it is loaded by that surface's own page. This one
+    // cannot follow it: the head is the layout's, the decision has to land
+    // before the browser does any work on the document, and a page-level script
+    // is already too late. So it rides theme-init.js, which every route loads
+    // render-blocking in that same head. NO CEILING MOVED.
     const layout = rootFile("app/layout.tsx");
-    const entry = layout.indexOf('<script src="/native-entry-init.js" />');
-    const theme = layout.indexOf('<script src="/theme-init.js" />');
+    expect(layout).not.toContain("native-entry-init");
+    expect(layout).toContain('<script src="/theme-init.js" />');
+    // No async/defer on the file that now carries it: the whole point is to
+    // navigate before the landing document is rendered.
+    expect(layout).not.toContain('<script async src="/theme-init.js"');
+    expect(layout).not.toContain('<script defer src="/theme-init.js"');
+    // The file it used to be is gone, not merely unreferenced.
+    expect(existsSync(join(process.cwd(), "public/native-entry-init.js"))).toBe(false);
+  });
 
-    expect(entry).toBeGreaterThan(-1);
-    expect(theme).toBeGreaterThan(-1);
-    expect(entry).toBeLessThan(theme);
-    // No async/defer: the whole point is to navigate before the landing
-    // document is rendered.
-    expect(layout).not.toContain('<script async src="/native-entry-init.js"');
-    expect(layout).not.toContain('<script defer src="/native-entry-init.js"');
+  it("runs before the theme work it now shares a file with", () => {
+    // It navigates away, so anything this file does after it is work on a
+    // document that is being replaced. First statement in, first decision out.
+    const capacitorProbe = ENTRY_INIT_SOURCE.indexOf("isNativePlatform");
+    const themeWork = ENTRY_INIT_SOURCE.indexOf("pubmax-theme");
+    expect(capacitorProbe).toBeGreaterThan(-1);
+    expect(themeWork).toBeGreaterThan(-1);
+    expect(capacitorProbe).toBeLessThan(themeWork);
   });
 
   it("reads the same keys and destination the TypeScript seams own", () => {
