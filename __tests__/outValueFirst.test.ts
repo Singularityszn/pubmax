@@ -54,7 +54,7 @@ const matchedRow: WhatsOnRow = {
 function renderedPubPair(): HTMLElement {
   const host = document.createElement("div");
   host.innerHTML = renderToStaticMarkup(
-    createElement(OutListingPubPair, { row: matchedRow }),
+    createElement(OutListingPubPair, { row: matchedRow, venueMatch: "ready" }),
   );
   return host;
 }
@@ -96,7 +96,7 @@ describe("no count stands in place of the listings it counts", () => {
   });
 
   it("renders the pub answer on every row, at a weight under the page's own copy", () => {
-    expect(outClient).toContain("<OutListingPubPair row={row} />");
+    expect(outClient).toContain("<OutListingPubPair row={row} venueMatch={body?.venueMatch} />");
     const status = outCss.match(/\.outStatus \{[^}]*font-size:\s*([\d.]+)rem/);
     const footnote = outCss.match(
       /\.outListingUnmatchedLine \{[^}]*font-size:\s*([\d.]+)rem/,

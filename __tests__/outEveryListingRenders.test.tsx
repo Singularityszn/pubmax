@@ -31,7 +31,10 @@ vi.mock("next/link", () => ({
     children?: unknown;
     href: string;
     prefetch?: boolean;
-  }) => createElement("a", { href, ...rest }, children as never),
+  }) => {
+    void _prefetch;
+    return createElement("a", { href, ...rest }, children as never);
+  },
 }));
 
 import OutClient from "@/app/out/OutClient";
@@ -82,11 +85,14 @@ function body(rows: WhatsOnRow[]): OutResponse {
 let container: HTMLDivElement;
 let root: Root | null = null;
 
-async function renderOut(rows: WhatsOnRow[]) {
+async function renderOut(
+  rows: WhatsOnRow[],
+  { venueMatch }: { venueMatch: OutResponse["venueMatch"] } = { venueMatch: "ready" },
+) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async () =>
-      new Response(JSON.stringify(body(rows)), {
+      new Response(JSON.stringify({ ...body(rows), venueMatch }), {
         status: 200,
         headers: { "content-type": "application/json" },
       }),
@@ -218,6 +224,16 @@ describe("a night of unmatched listings renders rows, not an empty state", () =>
 });
 
 describe("a matched listing keeps its pub link and its pin", () => {
+  it.each(["unavailable", undefined] as const)("keeps an unknown lookup distinct from absence: %s", async (venueMatch) => {
+    // Pass the full response explicitly so an omitted wire field stays unknown.
+    const rows = [unmatchedRow(0), { ...unmatchedRow(1), venueId: "venue-lexington" }];
+    await renderOut(rows, { venueMatch });
+    const pairs = container.querySelectorAll(".outListingPubPair");
+    expect(pairs[0]?.textContent).toBe("We could not check this place on our map.");
+    expect(pairs[1]?.querySelector("a")?.getAttribute("href")).toBe("/map?sel=venue-lexington");
+    expect(container.textContent).not.toContain("Not on our map yet.");
+  });
+
   it("names the pub, badges it, and links the map to that venue", async () => {
     const matched: WhatsOnRow = {
       ...unmatchedRow(0),

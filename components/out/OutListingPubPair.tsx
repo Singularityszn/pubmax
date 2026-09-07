@@ -6,9 +6,11 @@ import {
   outListingPubPair,
 } from "@/lib/outDesktopGrouping";
 import type { WhatsOnRow } from "@/lib/whatsOn";
+import type { OutVenueMatchStatus } from "@/lib/out/venueMatch";
 
 type OutListingPubPairProps = {
   row: WhatsOnRow;
+  venueMatch: OutVenueMatchStatus | undefined;
 };
 
 /**
@@ -18,11 +20,11 @@ type OutListingPubPairProps = {
  * the whole page. It is a footnote on the row now: the listing is real either
  * way, and the only thing missing is a pin of ours.
  */
-export function OutListingPubPair({ row }: OutListingPubPairProps) {
-  const pair = outListingPubPair(row);
-  if (pair.status === "absent") {
+export function OutListingPubPair({ row, venueMatch }: OutListingPubPairProps) {
+  const pair = outListingPubPair(row, venueMatch);
+  if (pair.status !== "matched") {
     return (
-      <p className="outListingPubPair outListingPubPair--absent">{pair.line}</p>
+      <p className={`outListingPubPair outListingPubPair--${pair.status}`}>{pair.line}</p>
     );
   }
   return (
