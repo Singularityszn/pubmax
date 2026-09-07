@@ -235,13 +235,15 @@ test.describe("returning drinker", () => {
     await expect(page.getByText(`Welcome back, @${HANDLE}.`)).toHaveCount(0);
   });
 
-  for (const { width, founding } of [
+  for (const { width, founding, reducedMotion = false } of [
     { width: 390, founding: false },
     { width: 1440, founding: false },
     { width: 390, founding: true },
+    { width: 390, founding: false, reducedMotion: true },
   ]) {
-    test(`the ${founding ? "founding " : ""}welcome leaves the Now selector visible and usable by keyboard at ${width}px`, async ({ page }) => {
+    test(`the ${founding ? "founding " : ""}welcome leaves the Now selector visible and usable by keyboard at ${width}px${reducedMotion ? " with reduced motion" : ""}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 844 });
+      await page.emulateMedia({ reducedMotion: reducedMotion ? "reduce" : "no-preference" });
       await installSession(
         page,
         { complete: false, handle: HANDLE },
