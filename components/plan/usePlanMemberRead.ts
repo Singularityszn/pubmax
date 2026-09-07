@@ -13,11 +13,9 @@
 //   M02 a guest who tapped "I'm in" got their crew row while the route beside
 //       it still said "The full route reveals once you join the crew".
 //
-// The rule is one sentence: read at mount, and read again each time the
-// capability is not the one the last read carried. The second half is the fix.
-// The last-read token is why it stays at one read for an ordinary member: a
-// naive dependency on the token would re-run the moment a mount-time restore
-// published its own answer, doubling every member's page load.
+// Read at mount and after each capability change. Share a pending request only
+// while its capability snapshot still matches. A preview requested before
+// restoration cannot answer the member read that restoration starts.
 //
 // Restoring the session is deliberately NOT this hook's job. It belongs to the
 // surfaces that own a session lane and gate it on `identityResolved`, because
@@ -31,7 +29,7 @@
 // (`lib/planInviteTokenClient.ts`), and it is the ONE place that fetch is
 // written down.
 
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useReducer, useSyncExternalStore } from "react";
 
 import {
   parsePlanCapabilitySnapshot,
@@ -40,7 +38,7 @@ import {
 } from "@/lib/planSessionCapability";
 import { discardBody } from "@/lib/responseBody";
 
-const inFlight = new Map<string, Promise<unknown>>();
+const inFlight = new Map<string, { snapshot: string; request: Promise<unknown> }>();
 
 /**
  * One capability-gated `GET /api/plans/[id]` shared by every surface asking
@@ -51,8 +49,9 @@ const inFlight = new Map<string, Promise<unknown>>();
  * drains (`lib/responseBody.ts`).
  */
 export function readPlanMemberProjection(planId: string): Promise<unknown> {
+  const snapshot = readPlanCapabilitySnapshot(planId);
   const pending = inFlight.get(planId);
-  if (pending) return pending;
+  if (pending?.snapshot === snapshot) return pending.request;
   const request = (async () => {
     try {
       const response = await fetch(`/api/plans/${planId}`, { cache: "no-store" });
@@ -65,9 +64,9 @@ export function readPlanMemberProjection(planId: string): Promise<unknown> {
       return null;
     }
   })().finally(() => {
-    if (inFlight.get(planId) === request) inFlight.delete(planId);
+    if (inFlight.get(planId)?.request === request) inFlight.delete(planId);
   });
-  inFlight.set(planId, request);
+  inFlight.set(planId, { snapshot, request });
   return request;
 }
 
@@ -78,8 +77,12 @@ export function clearPlanMemberProjectionRead(planId: string): void {
 
 /** The live capability token for one Plan, or "" while there is none. */
 export function usePlanCapabilityToken(planId: string): string {
+  return parsePlanCapabilitySnapshot(usePlanCapabilitySnapshot(planId)).token;
+}
+
+function usePlanCapabilitySnapshot(planId: string): string {
   const tokenEvent = planCapabilityEvent(planId);
-  const snapshot = useSyncExternalStore(
+  return useSyncExternalStore(
     (onChange) => {
       window.addEventListener(tokenEvent, onChange);
       return () => {
@@ -89,7 +92,6 @@ export function usePlanCapabilityToken(planId: string): string {
     () => readPlanCapabilitySnapshot(planId),
     () => "|0|",
   );
-  return parsePlanCapabilitySnapshot(snapshot).token;
 }
 
 /**
@@ -98,38 +100,22 @@ export function usePlanCapabilityToken(planId: string): string {
  * `read` is handed an `isActive` probe rather than an AbortSignal because both
  * callers own their own request and only need to know whether their answer is
  * still wanted. It must be stable (useCallback), or every render re-reads.
+ * The returned action retries a failed read through the same lifecycle.
  */
 export function usePlanMemberRead(
   planId: string,
   read: (isActive: () => boolean) => void,
-): void {
-  const capabilityToken = usePlanCapabilityToken(planId);
-  // null: no read has been made for this plan yet. Otherwise the token the last
-  // read actually carried, read live rather than from this render's closure,
-  // which is already stale by the time a mount-time restore has answered.
-  const lastReadToken = useRef<{ planId: string; token: string | null }>({
-    planId,
-    token: null,
-  });
+): () => void {
+  const snapshot = usePlanCapabilitySnapshot(planId);
+  const [attempt, retry] = useReducer((value: number) => value + 1, 0);
 
   useEffect(() => {
-    if (lastReadToken.current.planId !== planId) {
-      lastReadToken.current = { planId, token: null };
-    }
-    if (
-      lastReadToken.current.token !== null
-      && lastReadToken.current.token === capabilityToken
-    ) {
-      return;
-    }
     let active = true;
-    lastReadToken.current = {
-      planId,
-      token: parsePlanCapabilitySnapshot(readPlanCapabilitySnapshot(planId)).token,
-    };
-    read(() => active);
+    // Check live authority too: a response can settle before React runs cleanup.
+    read(() => active && readPlanCapabilitySnapshot(planId) === snapshot);
     return () => {
       active = false;
     };
-  }, [capabilityToken, planId, read]);
+  }, [snapshot, planId, read, attempt]);
+  return retry;
 }

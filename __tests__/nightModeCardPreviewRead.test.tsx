@@ -132,6 +132,20 @@ afterEach(async () => {
 });
 
 describe("the Night Mode card and a revoked capability", () => {
+  it("offers a fresh read after a failure and removes Retry after recovery", async () => {
+    planBody = null;
+    await act(async () => { root.render(createElement(NightModeCard)); });
+    await settle();
+    expect(container.textContent).toContain("Could not load tonight's route.");
+    const retry = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Retry");
+    expect(retry).toBeDefined();
+    planBody = memberBody;
+    await act(async () => { retry!.click(); });
+    await settle();
+    expect(container.querySelector(".nightCard__now")?.textContent).toBe("The George");
+    expect(container.textContent).not.toContain("Could not load tonight's route.");
+  });
+
   it("puts the route and the get-in report down when a read answers the preview", async () => {
     await act(async () => {
       root.render(createElement(NightModeCard));
@@ -153,5 +167,7 @@ describe("the Night Mode card and a revoked capability", () => {
     expect(container.querySelector(".nightCard__now")).toBeNull();
     expect(container.querySelector(".nightCard__busy")).toBeNull();
     expect(container.querySelector(".nightCard__loading")).not.toBeNull();
+    expect(container.textContent).toContain("Join the crew to see tonight's route.");
+    expect(container.textContent).not.toContain("Loading tonight");
   });
 });
