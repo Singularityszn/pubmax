@@ -158,7 +158,7 @@ describe("guest Plan account claim", () => {
     const recoveredCookie = response.headers.get("set-cookie")?.split(";")[0] ?? "";
     expect(recoveredCookie).toContain(`pubmax_plan_member_${guest.id}=`);
     expect(response.headers.get("set-cookie")).toContain("HttpOnly");
-    expect(
+    await expect(
       (await sessionRoute.GET(
         new Request(`${PLAN_URL}/${guest.id}/session`, {
           headers: { cookie: guest.cookie },
@@ -166,7 +166,7 @@ describe("guest Plan account claim", () => {
         ctx(guest.id),
       )).json(),
     ).resolves.toEqual({ active: false });
-    expect(
+    await expect(
       (await sessionRoute.GET(
         new Request(`${PLAN_URL}/${guest.id}/session`, {
           headers: { cookie: recoveredCookie },
