@@ -40,6 +40,7 @@ import {
 } from "@/lib/messages";
 import { normalizeHandle } from "@/lib/profiles";
 import { admin, errorMessage, missingTables, selectStore } from "@/lib/storeBackend";
+import { requiresSupabaseStore } from "@/lib/supabase";
 
 // Hard caps so one busy handle can't return an unbounded payload.
 export const MAX_CONVERSATIONS = 100;
@@ -428,7 +429,7 @@ export const supabaseMessagesStore: MessagesStore = {
       if (error) throw new Error(error.message);
       return data ? String((data as { id: unknown }).id) : null;
     } catch (err) {
-      if (isMissingMessagesSchema(err)) {
+      if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("openConversation", err);
         return memoryMessagesStore.openConversation(a, b);
       }
@@ -445,6 +446,7 @@ export const supabaseMessagesStore: MessagesStore = {
     const clean = attachment ? cleanAttachedBody(body) : cleanBody(body);
     if (!conversationId || !senderHandle || clean === null) return null;
     if (isMemoryConversationId(conversationId)) {
+      if (requiresSupabaseStore()) return null;
       return memoryMessagesStore.send(conversationId, senderHandle, clean, attachment, options);
     }
     const clientMessageId = readClientMessageId(options?.clientMessageId);
@@ -492,7 +494,7 @@ export const supabaseMessagesStore: MessagesStore = {
         pair,
       };
     } catch (err) {
-      if (isMissingMessagesSchema(err)) {
+      if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("send", err);
         return memoryMessagesStore.send(conversationId, senderHandle, clean, attachment, options);
       }
@@ -519,7 +521,7 @@ export const supabaseMessagesStore: MessagesStore = {
       if (error) throw new Error(error.message);
       rows = (data ?? []) as Array<Record<string, unknown>>;
     } catch (err) {
-      if (isMissingMessagesSchema(err)) {
+      if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("listConversations", err);
         return memoryMessagesStore.listConversations(me);
       }
