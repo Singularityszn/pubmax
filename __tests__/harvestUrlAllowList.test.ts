@@ -114,6 +114,66 @@ describe("hosts that name our own network", () => {
       expect(isHarvestableOperatorUrl(`https://${host}/menu`), host).toBe(true);
     }
   });
+
+  it("reads an IPv6 literal as an ADDRESS, in every spelling of it", () => {
+    // The predicate used to test the hostname as a string, so it saw only the
+    // spellings it enumerated. The WHATWG parser normalises
+    // `[::ffff:169.254.169.254]` to `[::ffff:a9fe:a9fe]`, which is neither
+    // `::1` nor dotted-quad shaped, so the cloud metadata address - the one
+    // this refusal names out loud - was admitted in the form a crafted OSM
+    // `website` tag would use.
+    for (const host of [
+      // Loopback and the unspecified address, compressed and written out.
+      "::1",
+      "0:0:0:0:0:0:0:1",
+      "::",
+      "0000:0000:0000:0000:0000:0000:0000:0000",
+      // IPv4-mapped: the metadata address, loopback and the private ranges,
+      // in the dotted form and in the hex form one normalises to.
+      "::ffff:169.254.169.254",
+      "::ffff:a9fe:a9fe",
+      "::FFFF:A9FE:A9FE",
+      "::ffff:127.0.0.1",
+      "::ffff:7f00:1",
+      "::ffff:10.1.2.3",
+      "::ffff:192.168.1.1",
+      "::ffff:172.16.0.1",
+      // The deprecated IPv4-compatible form, NAT64 and 6to4, each of which a
+      // gateway translates back to the v4 address it carries.
+      "::169.254.169.254",
+      "64:ff9b::169.254.169.254",
+      "2002:a9fe:a9fe::",
+      // Link-local, site-local and unique-local, by first-hextet range.
+      "fe80::1",
+      "fe80::1%25eth0",
+      "febf::1",
+      "fec0::1",
+      "fc00::1",
+      "fd12:3456:789a::1",
+      "FD00::1",
+      // A literal we cannot read is refused rather than walked past.
+      "::ffff:999.1.1.1",
+      "12345::1",
+    ]) {
+      expect(isHarvestableOperatorUrl(`http://[${host}]/latest/meta-data/`), host).toBe(false);
+      expect(isHarvestableOperatorUrl(`https://[${host}]/menu`), host).toBe(false);
+    }
+  });
+
+  it("still admits a public IPv6 address", () => {
+    for (const host of ["2001:4860:4860::8888", "2606:4700::1111"]) {
+      expect(isHarvestableOperatorUrl(`https://[${host}]/menu`), host).toBe(true);
+    }
+  });
+
+  it("judges a hostname that merely BEGINS fc or fd on its own permission", () => {
+    // `startsWith("fc")` / `startsWith("fd")` was applied to every hostname
+    // rather than to a parsed IPv6 literal, so ordinary pubs and clubs were
+    // refused as though they were unique-local addresses.
+    for (const host of ["fcbarcelona.com", "fdgreatpubs.co.uk", "fe80pub.co.uk", "feathersinn.co.uk"]) {
+      expect(isHarvestableOperatorUrl(`https://${host}/menu`), host).toBe(true);
+    }
+  });
 });
 
 describe("the page a redirect chain landed on", () => {
