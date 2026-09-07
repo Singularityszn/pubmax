@@ -530,6 +530,48 @@ The adopted store aggregate needs a reviewed schema query and known examples for
 Until then, report the current proxy by its actual name and mark the 28-day group measure unmeasured.
 Numeric D1/D7/D30 cohort targets and staged rollout thresholds remain within #1522; this plan supplies no invented targets.
 
+#### Measurement evidence checkpoint for #1522
+
+Source: coordinator handoff on 7 September 2026 from task `01a076b4-e017-70b2-b60a-d430b6aecd77`.
+The coordinator inspected PostHog project `219466` read-only. This docs task did not repeat that inspection.
+
+The [saved sample Retention insight](https://eu.posthog.com/project/219466/insights/fXaBWbD7)
+uses `$pageview` for both target and return, period `Week`, 11 intervals, and `date_from = -7d`.
+It has no property filters and includes test accounts.
+It does not measure London activated-user D1, D7 or D30 retention.
+
+The coordinator inspected all 13 saved insights.
+No named activated-core retention insight or accepted numeric targets were found in that inspected set.
+This is not proof that no separate cohort definitions exist.
+The warehouse-schema tool failed with `Tool read-data-warehouse-schema not found`; no guessed SQL was run.
+Separate cohort definitions therefore remain unverified.
+
+An unsaved aggregate query covered 8 August to 7 September 2026 UTC, through its query time.
+It returned these project-wide event counts, including test accounts:
+
+| Event | Count |
+|---|---|
+| `meaningful_core_action` | 3 |
+| `briefing_viewed` | 3 |
+| `plan_generated` | 8 |
+| `plan_saved` | 3 |
+| `plan_created` | 2 |
+| `venue_accepted` | 2 |
+| `concierge_ask` | 8 |
+| `night_description_submitted` | 9 |
+| `account_claimed` | 2 |
+| `tour_complete` | 5 |
+
+These are event counts, not unique customers, production-only figures or London activated-user cohorts.
+The returned `meaningful_core_action` action values contained only `plan_saved`.
+That result does not narrow the code-defined action set or prove the other actions unused.
+The returned taxonomy contained no explicit recap, food or voice event.
+Missing entries do not establish zero usage, missing emitters or a completed retention measurement.
+
+The #1522 cohort-and-target checkbox remains unchecked.
+Code-defined event names and emitted instrumentation do not establish accepted cohort definitions or numeric targets.
+The measured-core-loop gate remains in force. This evidence authorises no rollout and adds no product interview question.
+
 ---
 
 ## 9. Roadmap in waves
