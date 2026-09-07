@@ -1,6 +1,6 @@
 import type { PintTrustState } from "@/lib/pintTrust";
 import type { ConfirmedPriceInput } from "@/lib/priceTier";
-import type { Venue } from "@/lib/venues";
+import type { venueFromDetailPayload } from "@/lib/venues";
 
 export type VenueSignal = {
   hasPintDrops: boolean;
@@ -43,5 +43,11 @@ export type VenueSignal = {
   agedContributorAt?: number | null;
 };
 export type HoveredVenue = { id: string; name: string; x: number; y: number };
-export type VenueDetailResponse = { venue?: Venue | null };
+/**
+ * What `GET /api/venue/[id]` publishes: the amenity STATUS and no amenity
+ * booleans, so a payload is read through `venueFromDetailPayload` rather than
+ * used as a `Venue` directly.
+ */
+export type VenueDetailResponse = { venue?: VenueDetailPayload | null };
+export type VenueDetailPayload = Parameters<typeof venueFromDetailPayload>[0];
 export type FailedHoverImage = { venueId: string; url: string };

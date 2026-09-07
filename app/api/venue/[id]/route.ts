@@ -23,7 +23,7 @@ import { clientIp, hashIp } from "@/lib/supabase";
 import { BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceBundle";
 import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
-import { venueAmenityStatus, venueContacts, type VenuePrice } from "@/lib/venues";
+import { venueAmenityStatus, venueContacts, type Venue, type VenuePrice } from "@/lib/venues";
 
 export async function GET(
   request: Request,
@@ -65,7 +65,16 @@ export async function GET(
   // as the thing its column claims to be, and the raw columns are stripped here
   // so no caller can build a `tel:` out of one behind our back.
   const contacts = venueContacts(venue);
+  // THE STATUS IS THE ONLY AMENITY ANSWER ON THE WIRE. The ten amenity columns
+  // carry yes-shaped values and blanks over 3,760 rows, so `Venue.amenities`
+  // rounds a blank to `false` and the body shipped `"food": false` beside
+  // `"food": "unknown"` about one pub (finding F03's third claim). Every filter
+  // and score inside this tree reads a false as "not known to be true", which
+  // is why the record keeps its booleans; an API caller has no such rule and
+  // reads an invented negative. So the map is stripped here the way the raw
+  // contact columns are, and `venueAmenityStatus` prefers the stamped status.
   const amenityStatus = venueAmenityStatus(venue);
+  const publishedVenue = withoutAmenityBooleans(venue);
   const prices = venue.prices.map((row) => withoutRawContacts(row));
 
   const requestedGroupSize = Number(new URL(request.url).searchParams.get("groupSize") ?? 2);
@@ -90,7 +99,12 @@ export async function GET(
   };
 
   return NextResponse.json(
-    { venue: { ...venue, prices, contacts, amenityStatus, bundlePrices }, busyness, getIn, booking },
+    {
+      venue: { ...publishedVenue, prices, contacts, amenityStatus, bundlePrices },
+      busyness,
+      getIn,
+      booking,
+    },
     {
       status: 200,
       headers: {
@@ -106,6 +120,14 @@ export async function GET(
 /**
  * The four free-text columns nobody validated. Named once, so the strip and the
  * `Omit` below cannot drift apart.
+ *
+ * The row's other free-text URLs (`pub_url`, `constructed_pub_url`,
+ * `borough_urls`, `image_url`) deliberately stay. They are not a contact a
+ * reader would dial or write to, they are a page the drinks lane links and a
+ * photograph the sheet draws, and each is read through a validator at the point
+ * of use rather than trusted: `firstHttp` in `lib/drinks.ts`, the host
+ * allow-list in `lib/venueImageHosts.server.ts`. Stripping them would take the
+ * pub's own menu link off the sheet.
  */
 const RAW_CONTACT_COLUMNS = ["phone_number", "email", "website", "booking_link"] as const;
 
@@ -120,4 +142,14 @@ function withoutRawContacts(
   const rest: Record<string, unknown> = { ...row };
   for (const column of RAW_CONTACT_COLUMNS) delete rest[column];
   return rest as Omit<VenuePrice, (typeof RAW_CONTACT_COLUMNS)[number]>;
+}
+
+/**
+ * One venue with its amenity booleans removed. `amenityStatus` supersedes them
+ * and says the one thing a boolean cannot: that a blank column is UNKNOWN.
+ */
+function withoutAmenityBooleans(venue: Venue): Omit<Venue, "amenities"> {
+  const rest: Record<string, unknown> = { ...venue };
+  delete rest.amenities;
+  return rest as Omit<Venue, "amenities">;
 }

@@ -6,10 +6,15 @@
 // painting the sheet. This module keeps one in-flight Promise + resolved Venue
 // per id for the session so the sheet can open from memory when warm.
 
-import type { Venue } from "@/lib/venues";
+import { venueFromDetailPayload, type Venue } from "@/lib/venues";
 import { venueDetailUrl } from "@/lib/prefetchVenue";
 
-type VenueDetailResponse = { venue?: Venue | null };
+/**
+ * The wire carries `amenityStatus` and no amenity booleans, so the payload is
+ * read through the one seam that rebuilds this tree's own record from it.
+ */
+type VenueDetailPayload = Parameters<typeof venueFromDetailPayload>[0];
+type VenueDetailResponse = { venue?: VenueDetailPayload | null };
 
 export type VenueDetailLookupResult =
   | { status: "found"; venue: Venue }
@@ -41,8 +46,9 @@ export function warmVenueDetail(venueId: string): Promise<VenueDetailLookupResul
       if (response.status === 404) return { status: "missing" } as const;
       if (!response.ok) return { status: "failed" } as const;
       const data = (await response.json()) as VenueDetailResponse;
-      const venue = data.venue;
-      if (!venue?.id) return { status: "failed" } as const;
+      const payload = data.venue;
+      if (!payload?.id) return { status: "failed" } as const;
+      const venue = venueFromDetailPayload(payload);
       resolved.set(venueId, venue);
       resolved.set(venue.id, venue);
       return { status: "found", venue } as const;

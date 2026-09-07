@@ -62,7 +62,7 @@ import {
 } from "@/lib/mapGestureGuard";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { opportunitiesToGeoJSON } from "@/lib/thingsToDoMap";
-import { formatPrice, type Venue } from "@/lib/venues";
+import { formatPrice, venueFromDetailPayload, type Venue } from "@/lib/venues";
 import type {
   CategoryPriceIndexStatus,
   MapLensPrice,
@@ -1134,7 +1134,7 @@ export default function PubMapCanvas({
       .then(async (response) => {
         if (!response.ok) return null;
         const payload = (await response.json()) as VenueDetailResponse;
-        return payload.venue ?? null;
+        return payload.venue ? venueFromDetailPayload(payload.venue) : null;
       })
       .then((venue) => {
         rememberHoverDetail(id, venue);
