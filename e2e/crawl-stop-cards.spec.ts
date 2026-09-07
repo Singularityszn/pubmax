@@ -2,6 +2,9 @@ import { test, expect, type Page } from "@playwright/test";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
+// Network failure fixtures must own the reads, including worker fetches.
+test.use({ serviceWorkers: "block" });
+
 // D7 — a crawl stop card has to answer two questions on its own: which pub is
 // this, and how long is the walk to it.
 //
@@ -40,7 +43,7 @@ async function mockJourney(page: Page, modes: string[], minutes: number): Promis
   );
 }
 
-async function openSeededCrawl(page: Page) {
+async function openSeededCrawl(page: Page, waitForStops = true) {
   await installDeterministicMapBasemap(page);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -56,11 +59,55 @@ async function openSeededCrawl(page: Page) {
   const routePanel = page.locator(".routePanel");
   await expect(routePanel).toBeVisible({ timeout: 45_000 });
   const stops = routePanel.locator("ol.routeList > li");
-  await expect(stops).toHaveCount(SEEDED_STOP_COUNT, { timeout: 20_000 });
+  if (waitForStops) await expect(stops).toHaveCount(SEEDED_STOP_COUNT, { timeout: 20_000 });
   return { routePanel, stops };
 }
 
 test.describe("crawl stop cards (D7)", () => {
+  test("keeps loaded stops while a failed stop can be retried", async ({ page }, testInfo) => {
+    test.setTimeout(120_000);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let requests = 0;
+    let recovered = false;
+    // Keep the background map cells unavailable so they cannot answer the
+    // held stop's detail read before its explicit retry.
+    await page.route(/\/data\/venues_slim(?:\.cell\.|\.json(?:\?|$))/, (request) => request.abort("failed"));
+    await page.route(`**/api/venue/${QUEENS_HEAD_ACTON_ST}`, async (request) => {
+      requests += 1;
+      if (recovered) return request.continue();
+      await held;
+      await request.fulfill({ status: 503, contentType: "application/json", body: "{}" });
+    });
+    await mockJourney(page, ["walking"], 5);
+    const { routePanel, stops } = await openSeededCrawl(page, false);
+    const status = routePanel.getByTestId("crawl-stop-load-status");
+    try {
+      await expect.poll(() => requests).toBe(1);
+      await expect(stops).toHaveCount(2, { timeout: 20_000 });
+      await expect(status).toContainText("Loading 1 crawl stop");
+      await expect(routePanel.getByText("No stops yet.", { exact: false })).toHaveCount(0);
+      await expect(routePanel.getByTestId("add-to-calendar")).toHaveCount(0);
+      await expect(routePanel.getByTestId("plan-round-bridge")).toHaveCount(0);
+      await expect(routePanel.locator(".routeLeg")).toHaveCount(0);
+      await routePanel.screenshot({ path: testInfo.outputPath("held-stop.png") });
+      release();
+      await expect(stops).toHaveCount(2);
+      await expect(status).toContainText("1 crawl stop could not load");
+      await expect(routePanel.getByTestId("add-to-calendar")).toHaveCount(0);
+      await expect(routePanel.getByTestId("plan-round-bridge")).toHaveCount(0);
+      await routePanel.screenshot({ path: testInfo.outputPath("failed-stop.png") });
+      recovered = true;
+      await routePanel.getByRole("button", { name: "Retry", exact: true }).click();
+      await expect(stops).toHaveCount(SEEDED_STOP_COUNT);
+      await expect(status).toHaveCount(0);
+      await expect(routePanel.getByTestId("add-to-calendar")).toBeVisible();
+      await expect(stops.locator("strong").first()).toContainText("The Queens Head");
+      await routePanel.screenshot({ path: testInfo.outputPath("recovered-stops.png") });
+      expect(requests).toBe(2);
+    } finally { release(); }
+  });
+
   test("two stops sharing a name read as different places", async ({ page }) => {
     test.setTimeout(120_000);
     await mockJourney(page, ["walking"], 5);

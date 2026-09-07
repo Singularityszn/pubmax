@@ -424,7 +424,7 @@ import {
 } from "@/lib/logIntentReveal";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
-import { useBuiltVenueDetails } from "@/components/map/pubmap/useBuiltVenueDetails";
+import { hasUnresolvedBuiltStops, useBuiltVenueDetails } from "@/components/map/pubmap/useBuiltVenueDetails";
 import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   isCurrentMapResumeRefresh,
@@ -2683,7 +2683,8 @@ export default function PubMap({
         : next;
     });
   }, [setBuiltIds]);
-  useBuiltVenueDetails({ cityId, builtIds, venueById, onResolved: resolveBuiltVenueDetails });
+  const builtVenueDetails = useBuiltVenueDetails({ cityId, builtIds, venueById, onResolved: resolveBuiltVenueDetails });
+  const builtVenueDetailsPending = hasUnresolvedBuiltStops(mode, builtVenueDetails);
   // Zone pint index (nearest-station fare zone medians) for the zone picker.
   // Computed off the full venue set so the strip's numbers don't shift as the
   // user filters — it's a stable "here's the lay of the land" reference.
@@ -2960,7 +2961,7 @@ export default function PubMap({
   const { route, routeMappedActive, routeForMap, routeForMapLegs } = useMapPlanPresentation({
     mode,
     builtIds,
-    routeMapped,
+    routeMapped: routeMapped && !builtVenueDetailsPending,
     suggestedRoute,
     activePlanRoute,
     venueById,
@@ -5064,6 +5065,7 @@ export default function PubMap({
         route={route}
         filteredVenues={filteredPubVenues}
         builtIds={builtIds}
+        stopLoad={builtVenueDetails}
         activeVenueId={selectedVenueIdOrUndefined}
         venueSignals={venueSignals}
         crawlBlurb={activeCrawlBlurb}
