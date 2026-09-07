@@ -498,18 +498,18 @@
   min-height: 74px;
   flex-direction: column;
   gap: 6px;
-  border-color: var(--brass);
+  border-color: var(--brass-ink);
   background: rgba(176, 129, 58, 0.12);
-  color: var(--brass);
+  color: var(--ink);
 }
 
 .spillCameraBtn:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+  border-color: var(--ink);
+  color: var(--ink);
 }
 
 .spillCameraBtn:focus-within {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--brass-ink);
   outline-offset: 1px;
 }
 

@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import sharp from "sharp";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
@@ -201,6 +202,103 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   );
   expect(overflow).toBeLessThanOrEqual(1);
 }
+
+test.describe("receipt control contrast", () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    storageState: { cookies: [], origins: [] },
+  });
+
+  for (const theme of ["light", "dark"] as const) {
+    test(`${theme} receipt control keeps text, border and focus legible`, async ({
+      page,
+    }, testInfo) => {
+      await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+      await page.addInitScript((selectedTheme) => {
+        localStorage.setItem("pubmax-theme", selectedTheme);
+        localStorage.setItem("pubmax-tour-v1-done", "1");
+        localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+        localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+        sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+      }, theme);
+      await installDeterministicMapBasemap(page);
+      await page.goto("/map?sel=venue-eltcmh&log=1&price=6.50", {
+        waitUntil: "domcontentloaded",
+      });
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+
+      const control = page.getByTestId("spill-receipt-step").locator(".spillCameraBtn.primary");
+      await expect(control).toBeVisible();
+      await control.scrollIntoViewIfNeeded();
+      await expect(control).toBeInViewport({ ratio: 1 });
+
+      const measure = async (state: string) => {
+        const paint = await readPaintState(control);
+        const edges = await control.evaluate((node) => {
+          const style = getComputedStyle(node);
+          return {
+            border: style.borderTopColor,
+            outline: style.outlineColor,
+            outlineStyle: style.outlineStyle,
+            outlineWidth: Number.parseFloat(style.outlineWidth),
+            fontSize: style.fontSize,
+          };
+        });
+        const box = await control.boundingBox();
+        expect(box).not.toBeNull();
+        const screenshot = await page.screenshot({
+          path: testInfo.outputPath(`receipt-${theme}-${state}.png`),
+        });
+        const pixels = await sharp(screenshot).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+        const scale = pixels.info.width / 390;
+        const sample = (x: number, y: number): Rgba => {
+          const offset = (
+            Math.floor(y * scale) * pixels.info.width + Math.floor(x * scale)
+          ) * pixels.info.channels;
+          return [pixels.data[offset], pixels.data[offset + 1], pixels.data[offset + 2], 1];
+        };
+        // The sheet is translucent over a canvas and a sibling scrim. Sample
+        // empty painted areas because CSS ancestors alone omit both layers.
+        const background = sample(box!.x + 12, box!.y + box!.height / 2);
+        const surroundings = sample(box!.x + box!.width / 2, box!.y - 6);
+        return {
+          paint,
+          edges,
+          background,
+          surroundings,
+          textContrast: contrastRatio(composite(parseColour(paint.colour), background), background),
+          borderContrast: contrastRatio(composite(parseColour(edges.border), background), background),
+          borderSurroundingContrast: contrastRatio(composite(parseColour(edges.border), surroundings), surroundings),
+          outlineContrast: contrastRatio(composite(parseColour(edges.outline), surroundings), surroundings),
+        };
+      };
+
+      const resting = await measure("resting");
+      await control.hover();
+      const hovered = await measure("hover");
+      const picker = control.locator('input[type="file"]');
+      await picker.focus();
+      await expect(picker).toBeFocused();
+      const focused = await measure("focus");
+      await testInfo.attach("receipt-control-paint", {
+        contentType: "application/json",
+        body: JSON.stringify({ theme, resting, hovered, focused }, null, 2),
+      });
+
+      for (const [state, measurement] of Object.entries({ resting, hovered, focused })) {
+        expect(measurement.paint.backgroundImage, `${state} has a measurable flat fill`).toBe("none");
+        expect(measurement.paint.backgroundColour, `${state} preserves the fill`).toBe(resting.paint.backgroundColour);
+        expect.soft(measurement.textContrast, `${theme} ${state} text`).toBeGreaterThanOrEqual(4.5);
+        expect.soft(measurement.borderContrast, `${theme} ${state} control edge`).toBeGreaterThanOrEqual(3);
+        expect.soft(measurement.borderSurroundingContrast, `${theme} ${state} edge against its surroundings`).toBeGreaterThanOrEqual(3);
+      }
+      expect(hovered.edges.border, "hover changes the visible control edge").not.toBe(resting.edges.border);
+      expect(focused.edges.outlineStyle).toBe("solid");
+      expect(focused.edges.outlineWidth).toBeGreaterThanOrEqual(2);
+      expect.soft(focused.outlineContrast, `${theme} focus ring against its surroundings`).toBeGreaterThanOrEqual(3);
+    });
+  }
+});
 
 for (const viewport of VIEWPORTS) {
   test(`dark production landing, map, and venue sheet meet state contracts at ${viewport.width}px`, async ({
