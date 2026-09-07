@@ -324,7 +324,9 @@ describe("the words", () => {
   });
 
   it("opens a joined pub on the map and offers nothing for an unjoined one", () => {
-    expect(spoonsValueMapHref(toTableRow(row))).toBe("/map?sel=venue-uk-n9");
+    // The lens rides every door: a pub opened off this ranking arrives under the
+    // units lens, never on the ordinary pint map.
+    expect(spoonsValueMapHref(toTableRow(row))).toBe("/map?sel=venue-uk-n9&lens=spoons");
     expect(spoonsValueMapHref(toTableRow({ ...row, venueId: null }))).toBeNull();
   });
 });
