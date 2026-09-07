@@ -95,3 +95,74 @@ export function filterVenuesByKind(
     return kind !== null && visibility[kind];
   });
 }
+
+/**
+ * The venue kinds the map's own filter offers, in the order it draws them.
+ *
+ * The desktop chips live behind one Filters control, so the badge on the closed
+ * control and the chips inside it must count the SAME set: a badge that counted
+ * a kind the open panel never offers would say a filter is on over a control
+ * nobody can reach. `MAP_EXPERIENCE_LENS` narrows the offer, so the rule takes
+ * the lens rather than assuming all four.
+ */
+export const CURATED_VENUE_KIND_ORDER: readonly CuratedVenueKind[] = [
+  "pub",
+  "bar",
+  "food",
+  "restaurant",
+];
+
+export function offeredVenueKinds(
+  experienceLens: string,
+): readonly CuratedVenueKind[] {
+  return experienceLens === "food"
+    ? (["food", "restaurant"] as const)
+    : CURATED_VENUE_KIND_ORDER;
+}
+
+/** How many of the offered kinds the reader has switched off. */
+export function hiddenVenueKindCount(
+  visibility: VenueKindVisibility,
+  experienceLens: string,
+): number {
+  return offeredVenueKinds(experienceLens).filter((kind) => !visibility[kind])
+    .length;
+}
+
+/**
+ * Every offered kind back on. Under a narrowed lens the kinds it does not offer
+ * keep the answer they already had, because a reset may only ever change what
+ * the reader could see.
+ */
+export function showAllVenueKinds(
+  visibility: VenueKindVisibility,
+  experienceLens: string,
+): VenueKindVisibility {
+  const next = { ...visibility };
+  for (const kind of offeredVenueKinds(experienceLens)) next[kind] = true;
+  return next;
+}
+
+/** The word on the closed control. */
+export const VENUE_KIND_FILTER_WORD = "Filters";
+
+/**
+ * What the closed control reads. The count rides the word, so no filter the map
+ * is applying is invisible. Under 900px the word itself is dropped and the
+ * count stays, because the toolbar row is a budget there and the search field
+ * is what a longer label costs; the accessible name below carries the whole
+ * sentence at every width.
+ */
+export function venueKindFilterLabel(hiddenCount: number): string {
+  return hiddenCount > 0
+    ? `${VENUE_KIND_FILTER_WORD} · ${hiddenCount}`
+    : VENUE_KIND_FILTER_WORD;
+}
+
+/** What a reader hears. The visible label is a count; this one says what it counts. */
+export function venueKindFilterAriaLabel(hiddenCount: number): string {
+  if (hiddenCount === 0) return "Filters: venue types";
+  return `Filters: venue types, ${hiddenCount} ${
+    hiddenCount === 1 ? "type" : "types"
+  } hidden`;
+}

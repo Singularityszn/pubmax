@@ -5805,19 +5805,6 @@ export default function PubMap({
     ) : null;
   }
 
-  /* Desktop only. On a phone these toggles are a section of the Filters
-     sheet instead, so the map keeps the band the third chrome bar used
-     to take (design judgement 2026-08-01, finding 2.3). */
-  function renderDesktopVenueKindChips() {
-    return !baseLedChrome && !mobileViewport ? (
-      <TonightArcChips
-        visibility={venueKindVisibility}
-        experienceLens={experienceLens}
-        onChange={setVenueKindVisibility}
-      />
-    ) : null;
-  }
-
   /* Hold the pitched-London loading chrome until the canvas announces painted,
      tappable pins. A canvas error lifts it immediately so the fallback card is
      never hidden behind it. */
@@ -6045,6 +6032,10 @@ export default function PubMap({
         experienceLens={experienceLens}
         experienceSummary={experienceSummary}
         onExperienceLensChange={changeExperienceLens}
+        venueKindVisibility={baseLedChrome ? undefined : venueKindVisibility}
+        onVenueKindVisibilityChange={
+          baseLedChrome ? undefined : setVenueKindVisibility
+        }
       /> : null
     );
   }
@@ -6370,10 +6361,6 @@ export default function PubMap({
           canvas pins are pointer-only; List view provides their operable DOM
           parallel alongside search and the tonight lane). */}
       <section className="mapStage" aria-label={`Interactive pub map of ${mapDisplayName}`}>
-        {/* Desktop only. On a phone these toggles are a section of the Filters
-            sheet instead, so the map keeps the band the third chrome bar used
-            to take (design judgement 2026-08-01, finding 2.3). */}
-        {renderDesktopVenueKindChips()}
         {/* One toast at a time. A soft retry owns the surface outright, so the
             arrival and national-browse banners stand down with the selection
             note rather than stacking under it. */}

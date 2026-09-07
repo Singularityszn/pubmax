@@ -26,7 +26,7 @@ const CHIPS: ReadonlyArray<{
 export default function TonightArcChips({
   visibility,
   experienceLens = "all",
-  variant = "map",
+  variant = "popover",
   onChange,
 }: {
   visibility: VenueKindVisibility;
@@ -34,12 +34,14 @@ export default function TonightArcChips({
   /**
    * Where the toggles are read.
    *
-   * "map" floats them over the desktop map under the control bar. "sheet" is
-   * the phone home: the Filters sheet, beside "Show me". A phone gets ONE of
-   * the two, never both (design judgement 2026-08-01, finding 2.3) — a second
-   * copy in the chrome was the third stacked bar that buried the map.
+   * "popover" is the desktop home: inside the toolbar's own Filters panel,
+   * which the reader opens (PlanAstra item 9). They used to FLOAT over the
+   * desktop map as a permanent band, one of the 20 to 24 controls a tablet met
+   * before it had tapped a pin. "sheet" is the phone home: the Filters sheet,
+   * beside "Show me". A viewport gets ONE of the two, never both (design
+   * judgement 2026-08-01, finding 2.3).
    */
-  variant?: "map" | "sheet";
+  variant?: "popover" | "sheet";
   onChange: (next: VenueKindVisibility) => void;
 }) {
   const unavailableReasonId = useId();
@@ -58,7 +60,9 @@ export default function TonightArcChips({
   return (
     <div
       className={
-        variant === "sheet" ? "tonightArcChips tonightArcChipsSheet" : "tonightArcChips"
+        variant === "sheet"
+          ? "tonightArcChips tonightArcChipsSheet"
+          : "tonightArcChips tonightArcChipsPopover"
       }
       role="group"
       /* Reader words, not the component's name. "Tonight arc" is what this file

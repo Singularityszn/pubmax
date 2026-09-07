@@ -54,7 +54,7 @@ async function mockRailData(page: Page): Promise<void> {
 }
 
 test.describe("desktop map right-rail (D3.1/D3.2)", () => {
-  test("contains map chrome and separates the Tonight Arc from 641 to 900px", async ({
+  test("keeps the toolbar inside the centred boundary from 641 to 900px", async ({
     page,
   }) => {
     await seedDismissedChrome(page);
@@ -69,24 +69,23 @@ test.describe("desktop map right-rail (D3.1/D3.2)", () => {
 
       const toolbar = page.locator(".mapToolbar");
       const city = toolbar.locator(".citySwitcher");
-      const arc = page.locator(".tonightArcChips");
       await expect(toolbar).toBeVisible({ timeout: 20000 });
       await expect(city).toBeVisible();
-      await expect(arc).toBeVisible();
+      // PlanAstra item 9: the venue-type chips are behind the toolbar's own
+      // Filters control from 641px up, so nothing of theirs floats over the map.
+      await expect(page.locator(".tonightArcChips")).toHaveCount(0);
+      await expect(toolbar.locator(".mapVenueKindFilterBtn")).toBeVisible();
 
       const bounds = await page.evaluate(() => {
         const rect = (selector: string) =>
           document.querySelector<HTMLElement>(selector)!.getBoundingClientRect();
         const toolbarRect = rect(".mapToolbar");
         const cityRect = rect(".mapToolbar .citySwitcher");
-        const arcRect = rect(".tonightArcChips");
         return {
           toolbarLeft: toolbarRect.left,
           toolbarRight: toolbarRect.right,
           cityLeft: cityRect.left,
           cityRight: cityRect.right,
-          arcBottom: arcRect.bottom,
-          toolbarTop: toolbarRect.top,
         };
       });
 
@@ -98,14 +97,10 @@ test.describe("desktop map right-rail (D3.1/D3.2)", () => {
       expect(bounds.cityRight, `${width}px city inside toolbar right`).toBeLessThanOrEqual(
         bounds.toolbarRight,
       );
-      expect(
-        bounds.toolbarTop - bounds.arcBottom,
-        `${width}px Arc-to-toolbar gap`,
-      ).toBeGreaterThanOrEqual(16);
     }
   });
 
-  test("gives every desktop Tonight Arc chip a 44px floor and 8px gaps", async ({
+  test("gives every desktop venue-type chip a 44px floor and 8px gaps", async ({
     page,
   }) => {
     await seedDismissedChrome(page);
@@ -114,7 +109,10 @@ test.describe("desktop map right-rail (D3.1/D3.2)", () => {
     const response = await page.goto("/map", { waitUntil: "domcontentloaded" });
     expect(response?.status()).toBe(200);
     await expect(page.locator(".mapToolbar")).toBeVisible({ timeout: 20000 });
-    const arc = page.locator(".tonightArcChips");
+    await page
+      .locator(".mapToolbar .mapVenueKindFilterBtn")
+      .click();
+    const arc = page.locator(".mapVenueKindFilterPanel .tonightArcChips");
     await expect(arc).toBeVisible({ timeout: 20000 });
 
     const layout = await arc.evaluate((element) => {
@@ -153,7 +151,7 @@ test.describe("desktop map right-rail (D3.1/D3.2)", () => {
     }
   });
 
-  test("keeps Tonight arc venue chips clickable above the desktop toolbar", async ({
+  test("keeps venue-type chips clickable inside the desktop Filters popover", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -162,11 +160,19 @@ test.describe("desktop map right-rail (D3.1/D3.2)", () => {
     const response = await page.goto("/map", { waitUntil: "domcontentloaded" });
     expect(response?.status()).toBe(200);
 
-    const bars = page.getByRole("button", { name: "Bars", exact: true });
     await expect(page.locator(".mapToolbar")).toBeVisible({ timeout: 20000 });
+    const filters = page.locator(".mapToolbar .mapVenueKindFilterBtn");
+    await filters.click();
+    const bars = page.getByRole("button", { name: "Bars", exact: true });
     await expect(bars).toHaveAttribute("aria-pressed", "true");
     await bars.click();
     await expect(bars).toHaveAttribute("aria-pressed", "false");
+    // The count rides the closed control, so no filter is invisible.
+    await expect(filters.locator(".mapVenueKindFilterCount")).toHaveText("1");
+    await expect(filters).toHaveAttribute(
+      "aria-label",
+      "Filters: venue types, 1 type hidden",
+    );
   });
 
   test("shows the rail with Conditions + Area news at 1440, and hides the toolbar's duplicate chip", async ({

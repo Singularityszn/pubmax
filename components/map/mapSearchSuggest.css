@@ -54,9 +54,15 @@
   max-width: none;
 }
 
+/* The field asks for 388px and takes what the row can spare. Its floor used to
+   be 260px, which is WIDER than the cell the row gives it once another control
+   joins: a flex item cannot shrink past its own min-width, so the input
+   overflowed its cell and its text ran under the control beside it. 176px still
+   reads a London venue name and lets the row lay itself out honestly. */
 .mapSearchSuggest--toolbar {
   width: min(388px, 34vw);
-  min-width: 260px;
+  min-width: 176px;
+  max-width: 100%;
   gap: 0;
 }
 

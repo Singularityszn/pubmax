@@ -1,19 +1,19 @@
+/* The venue-type chips. They are content inside a surface the reader opened -
+   the desktop toolbar's Filters popover, or the phone's Filters sheet - and
+   never a band floating over the map (PlanAstra item 9). */
 .tonightArcChips {
   box-sizing: border-box;
-  position: absolute;
-  z-index: var(--z-map-toolbar);
-  top: 80px;
-  left: 50%;
+  position: relative;
   display: grid;
   gap: 8px;
-  max-width: calc(100vw - 24px);
-  padding: 6px 8px 7px;
+  width: 100%;
+  max-width: none;
+  padding: 0;
   border: 0;
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--panel) 90%, transparent);
-  box-shadow: var(--shadow-float);
-  backdrop-filter: blur(14px);
-  transform: translateX(-50%);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
 }
 
 .tonightArcRow {
@@ -92,28 +92,18 @@
   transform: translateX(-50%);
 }
 
-/* Map-floating copy only. The sheet copy is content the reader opened, so a
-   full sheet or an open venue may never fade it out. */
-.appShell.sheet-full .tonightArcChips:not(.tonightArcChipsSheet),
-.appShell.detail-open .tonightArcChips:not(.tonightArcChipsSheet),
-.appShell.onboarding-open .tonightArcChips:not(.tonightArcChipsSheet) {
-  opacity: 0;
-  pointer-events: none;
+/* Popover variant - the desktop home, inside the toolbar's Filters panel. The
+   panel owns the surface, so the group is plain content: the row wraps rather
+   than scrolling and every chip keeps the 44px tap floor. */
+.tonightArcChipsPopover .tonightArcRow {
+  flex-wrap: wrap;
+  /* Three chips, then two: five in a row would make the panel wider than the
+     toolbar control it hangs from at the tablet widths this lane is about. */
+  max-width: 268px;
 }
 
-@media (min-width: 641px) {
-  .tonightArcChips {
-    width: var(--desktop-map-surface-width);
-    max-width: none;
-    padding: 0;
-    background: transparent;
-    box-shadow: none;
-    backdrop-filter: none;
-  }
-
-  .tonightArcRow {
-    justify-content: center;
-  }
+.tonightArcChipsPopover .tonightArcChip {
+  min-height: 44px;
 }
 
 /* Sheet variant — the phone home for these toggles (design judgement
