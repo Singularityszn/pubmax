@@ -166,6 +166,40 @@ describe("venueContacts", () => {
     expect(venueContacts(stamped).websiteHref).toBe("https://stamped.example");
   });
 
+  it("takes the first value that PARSES, not the first non-blank one", () => {
+    // The three leading values below are real shapes out of the shipped
+    // dataset: 478 of the 852 pubs holding any phone value lead with something
+    // that is not a number, and six of them carry a clean one in a later row.
+    // Taking the first non-blank value threw that number away and answered null
+    // over a pub whose own rows hold a dialable one.
+    const [venue] = groupVenuePrices([
+      row({
+        app_price_id: "row-a",
+        phone_number: "🌐 https://www.theoldhatealing.co.uk/ 🍽️ Food available ☀️ Beer garden available",
+        email: "🍽️ Food available",
+      }),
+      row({ app_price_id: "row-b", phone_number: "🍽️ Food available 🍹 Cocktails available" }),
+      row({ app_price_id: "row-c", phone_number: "020 8840 9430", email: "hello@theoldhat.example" }),
+    ]);
+    expect(venueContacts(venue)).toMatchObject({
+      phoneNumber: "02088409430",
+      phoneHref: "tel:02088409430",
+      emailHref: "mailto:hello@theoldhat.example",
+    });
+  });
+
+  it("still answers null when no row holds a value that parses", () => {
+    const [venue] = groupVenuePrices([
+      row({ app_price_id: "row-a", phone_number: "🌐 https://www.theblueboat.co.uk/" }),
+      row({ app_price_id: "row-b", phone_number: "❓ Pub quiz available", email: "not an address" }),
+    ]);
+    expect(venueContacts(venue)).toMatchObject({
+      phoneNumber: null,
+      phoneHref: null,
+      emailHref: null,
+    });
+  });
+
   it("answers every field null for a venue holding nothing", () => {
     const [venue] = groupVenuePrices([row()]);
     expect(venueContacts(venue)).toEqual({

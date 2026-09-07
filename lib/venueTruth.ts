@@ -183,7 +183,9 @@ export function contactValueIsPublishable(kind: "phone" | "email" | "url", raw: 
 export type AmenityStatus = "known-true" | "known-false" | "unknown";
 
 const YES_SHAPED = /^(yes|y|true|1)\b/;
-const NO_SHAPED = /^(no|n|false|0|none)\b/;
+const NO_SHAPED = /^(no|n|false|0|none)\b(?!\/)/;
+/** Values that say the question was not answered. They are never an absence. */
+const NOT_APPLICABLE_SHAPED = /^(n\/a|na|n\.a\.?|not applicable|unknown|tbc|tbd|-|\?)$/;
 
 /**
  * Read ONE raw amenity value.
@@ -193,11 +195,20 @@ const NO_SHAPED = /^(no|n|false|0|none)\b/;
  * match made of them. A value that answers a DIFFERENT question ("Dog friendly"
  * in the cocktails column, one row in the bundled dataset) is `unknown`: it is
  * not a cocktails claim in either direction, and under-inclusive is the safe
- * side.
+ * side. A value saying the question was NOT ANSWERED ("N/A", "unknown", "-") is
+ * unknown too, and is read before the no-shaped rule, which used to match the
+ * `n` of "n/a" and turn it into its own opposite.
  */
 export function amenityStatusFromValue(raw: string | null | undefined): AmenityStatus {
   const value = String(raw ?? "").trim().toLowerCase();
   if (!value) return "unknown";
+  // "N/A" MEANS THE OPPOSITE OF NO. The no-shaped alternative `n` matched it,
+  // because `/` is a word boundary, so a value saying nobody answered read as a
+  // STATED absence - the invented negative this whole module exists to refuse.
+  // No such value is in the shipped dataset today (measured 6 September 2026);
+  // this is the harvest overlay and the next re-collection being asked the same
+  // question the columns already are.
+  if (NOT_APPLICABLE_SHAPED.test(value)) return "unknown";
   if (YES_SHAPED.test(value)) return "known-true";
   if (NO_SHAPED.test(value)) return "known-false";
   return "unknown";

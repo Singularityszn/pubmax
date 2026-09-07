@@ -141,6 +141,24 @@ describe("amenities: blank is unknown, never false", () => {
     ["   ", "unknown"],
     ["Dog friendly", "unknown"],
     ["every day", "unknown"],
+    // A value saying the question was NOT ANSWERED is unknown, never a stated
+    // absence: the no-shaped alternative `n` used to match the `n` of "n/a",
+    // because `/` is a word boundary, so "N/A" read as its own opposite.
+    ["N/A", "unknown"],
+    ["n/a", "unknown"],
+    ["N/a", "unknown"],
+    ["na", "unknown"],
+    ["n.a.", "unknown"],
+    ["Not applicable", "unknown"],
+    ["unknown", "unknown"],
+    ["TBC", "unknown"],
+    ["-", "unknown"],
+    ["?", "unknown"],
+    // And the words that really do state an absence still do.
+    ["no", "known-false"],
+    ["no food", "known-false"],
+    ["n", "known-false"],
+    ["none at all", "known-false"],
   ];
 
   it.each(CASES)("reads %s as %s", (raw, expected) => {
@@ -150,6 +168,12 @@ describe("amenities: blank is unknown, never false", () => {
   it("reads a missing value as unknown", () => {
     expect(amenityStatusFromValue(undefined)).toBe("unknown");
     expect(amenityStatusFromValue(null)).toBe("unknown");
+  });
+
+  it("lets a stated absence in one row stand while an N/A in another says nothing", () => {
+    expect(amenityStatusFromValues(["N/A", "no"])).toBe("known-false");
+    expect(amenityStatusFromValues(["N/A", ""])).toBe("unknown");
+    expect(amenityStatusFromValues(["N/A", "Yes"])).toBe("known-true");
   });
 
   it("lets one stated presence answer for the whole group", () => {

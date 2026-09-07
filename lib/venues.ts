@@ -35,6 +35,7 @@ import type { VenueMenuCategoryTile } from "@/lib/venueMenuEnrichment";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import {
   amenityStatusFromValues,
+  contactValueIsPublishable,
   derivedAmenityStatus,
   venueContactContract,
   type AmenityStatus,
@@ -494,12 +495,27 @@ export function venueContacts(
 ): VenueContactContract {
   if (venue.contacts) return venue.contacts;
   const rows = venue.prices ?? [];
+  // THE FIRST VALUE THAT PARSES, not the first non-blank one. A pub's rows are
+  // one pub, and 478 of the 852 pubs holding any phone value at all lead with
+  // something that is not a number ("\u{1F310} https://…", "\u{1F37D} Food
+  // available"); six of them carry a clean, dialable number in a later row, and
+  // taking the first non-blank value threw it away and answered null. Nothing
+  // is loosened: `venueContactContract` still refuses whatever it is handed
+  // unless the value parses as the thing its column claims to be.
   return venueContactContract({
-    phone: rows.find((row) => row.phone_number)?.phone_number ?? "",
-    email: rows.find((row) => row.email)?.email ?? "",
+    phone: rows.map((row) => row.phone_number).find(contactPhoneParses) ?? "",
+    email: rows.map((row) => row.email).find(contactEmailParses) ?? "",
     website: venue.website,
     bookingLink: venue.bookingLink,
   });
+}
+
+function contactPhoneParses(value: string | null | undefined): boolean {
+  return contactValueIsPublishable("phone", String(value ?? ""));
+}
+
+function contactEmailParses(value: string | null | undefined): boolean {
+  return contactValueIsPublishable("email", String(value ?? ""));
 }
 
 export function truthyFlag(value: string): boolean {
