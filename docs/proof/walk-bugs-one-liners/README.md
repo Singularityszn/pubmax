@@ -124,6 +124,19 @@ same count. The target is not met at either rig and the gap is honest: a 640px-w
 photograph is about 55 KB, and there is no quality left to give without the picture
 showing it.
 
+### What the cap costs
+
+Capping the card at 640 is a trade, and it is worth naming. A 344x168 CSS box on a 3x
+phone wants 1032 device pixels, and a large source used to be sent at its natural width
+and downsampled by the browser, so on that screen it was sharper than 640 can be. 640
+across a 344px box is 1.86x rather than 3x, which is the call this change makes for a
+picture that sits under a gradient wash, a glyph and a shelf at 0.88 opacity. It is one
+number in `components/pubs/PubsGallery.tsx` and the next step up is 1080, which costs
+about 120 KB a photograph against the 156 KB it replaced: nearly the whole saving.
+
+Rendered at 390x844 at 3x, the card is the same box, the same `object-fit: cover` and the
+same opacity as before. Nothing about the layout moved.
+
 The widths offered are next/image's own candidate widths, so a `srcset` descriptor and
 the width the proxy really answers name the same number. A set of our own invention made
 the desktop card ask for 384 and be handed 688: the first measured build served w=688 at
