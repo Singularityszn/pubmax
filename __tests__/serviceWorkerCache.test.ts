@@ -85,6 +85,7 @@ function rolloutWorkerHarness(input: {
   entries: Record<string, Array<[string, Response]>>;
   rejectCurrentWrites?: boolean;
   response?: Response;
+  openGate?: Promise<void>;
 }) {
   const listeners = new Map<string, Listener>();
   const records = new Map<
@@ -107,6 +108,7 @@ function rolloutWorkerHarness(input: {
   const deletedCaches: string[] = [];
   const fakeCaches = {
     async open(name: string) {
+      await input.openGate;
       let entries = records.get(name);
       if (!entries) {
         entries = new Map();
@@ -800,6 +802,22 @@ describe("service worker map cache", () => {
     expect(records.has("pubmax-sw-data-first")).toBe(false);
     expect(records.has("pubmax-sw-data-second")).toBe(false);
     expect(records.has("pubmax-sw-data-uncovered")).toBe(true);
+  });
+
+  it("caches an update after the caller consumes it while cache opening is delayed", async () => {
+    let release!: () => void;
+    const openGate = new Promise<void>((resolve) => { release = resolve; });
+    const body = '[{"price":5.2}]';
+    const fresh = await fetch(`data:application/json,${encodeURIComponent(body)}`);
+    const { listeners, records } = rolloutWorkerHarness({ entries: {}, response: fresh, openGate });
+    const request = new Request("https://pubmaxxing.com/data/price_updates/latest.json");
+    const event = dispatchFetch(listeners.get("fetch")!, request);
+    const response = await event.response as Response;
+    expect(await response.text()).toBe('[{"price":5.2}]');
+    release();
+    await Promise.all(event.lifetime);
+    const stored = records.get("pubmax-sw-data-target")?.get(request.url)?.response;
+    expect(await stored?.text()).toBe('[{"price":5.2}]');
   });
 
   it.each([

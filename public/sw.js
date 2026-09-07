@@ -475,9 +475,10 @@ async function networkFirstWithCache(event, request) {
   try {
     const response = await fetch(request);
     if (isCacheable(response)) {
+      const copy = response.clone();
       event.waitUntil(
         caches.open(DATA_CACHE)
-          .then((cache) => cachePutBestEffort(cache, request, response))
+          .then((cache) => cachePutBestEffort(cache, request, copy))
           .then(async (stored) => {
             if (stored) await migrateCacheFamily(DATA_CACHE_FAMILY);
           })
