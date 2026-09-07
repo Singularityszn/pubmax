@@ -28,7 +28,41 @@ function findEmptyAction(node: ReactNode): ReactElement<ButtonProps> | undefined
     .find((button) => button !== undefined);
 }
 
-describe("MenuCategoryGrid empty state", () => {
+describe("MenuCategoryGrid", () => {
+  it("shows populated menu labels and counts without repeated instructions", () => {
+    const html = renderToStaticMarkup(
+      MenuCategoryGrid({
+        tiles: [
+          {
+            id: "drinks",
+            kind: "drinks",
+            label: "Drinks",
+            hint: "3 on record",
+            count: 3,
+          },
+          {
+            id: "food-external",
+            kind: "food-external",
+            label: "Food menu",
+            hint: "Opens the pub site",
+            href: "https://pub.example/menu",
+          },
+        ],
+        onOpenDrinks: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain("Menus");
+    expect(html).toContain("Drinks");
+    expect(html).toContain("3 on record");
+    expect(html).toContain("Food menu");
+    expect(html).toContain("Opens the pub site");
+    expect(html).toContain('href="https://pub.example/menu"');
+    expect(html).not.toContain("menuHub__lede");
+    expect(html).not.toContain("Drinks first");
+    expect(html).not.toContain("Tap a tile");
+  });
+
   it("keeps the drinks contribution action working beside a food link", () => {
     const onAddDrink = vi.fn();
     const props = {
