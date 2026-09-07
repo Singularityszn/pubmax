@@ -290,6 +290,17 @@
       "stalenessBudgetHours": 2160,
       "refreshWorkflow": "manual (node scripts/build_persona_drinks.mjs)",
       "gate": "none to check (bundled static). A refresh crawl needs EXA_API_KEY and FIRECRAWL_API_KEY."
+    },
+    {
+      "id": "spoons_value",
+      "label": "Spoons value ranking (imported from SpoonMe)",
+      "class": "snapshot",
+      "artifact": "public/data/spoonme/rows.json",
+      "stamp": { "kind": "field", "pointer": "retrievedAt" },
+      "cadence": "one-off third-party analysis; re-imported by hand only when SpoonMe republishes",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "manual (node scripts/spoonme/import-report.mjs). The figures are SpoonMe's reading of Wetherspoon menus rather than ours, so nothing we run can lawfully advance them: the lane carries no budget and is named for the day it was retrieved, the same ruling drink_price_updates carries. See data/spoonme/README.md.",
+      "gate": "none to run (one public page fetch). The pack is credited and linked wherever it is printed and may never enter a price lane."
     }
   ]
 }

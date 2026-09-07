@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { initialFilters } from "@/components/map/ControlRail";
 import MapToolbar from "@/components/map/MapToolbar";
 import { getCity } from "@/lib/cities";
+import { SPOONS_VALUE_LENS_OFF } from "@/lib/spoonsValue";
 
 // "Map area: X" is the one sentence on this control that is literally a claim
 // about the area, so once a reader picks one it may not keep naming the city.
@@ -22,6 +23,9 @@ function toolbarProps(overrides: Record<string, unknown> = {}) {
     onDrinkBrandChange: vi.fn(),
     onDrinkLaneChange: vi.fn(),
     drinkLaneStatus: "ready" as const,
+    spoonsValueOn: false,
+    spoonsValueLens: SPOONS_VALUE_LENS_OFF,
+    onSpoonsValueChange: vi.fn(),
     personaId: null,
     onPersonaSelect: vi.fn(),
     personaTonightCategory: null,

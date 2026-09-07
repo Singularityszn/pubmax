@@ -34,6 +34,7 @@ import {
   parseShardManifest,
 } from "@/lib/slimShards";
 import { UK_BASE_ID_PREFIX } from "@/lib/cityVenueIds";
+import { spoonsValuePinFor, type SpoonsValuePinLane } from "@/lib/spoonsValue";
 import { discardBody } from "@/lib/responseBody";
 import { offlineCache } from "@/lib/offlineCache";
 
@@ -518,20 +519,33 @@ export function createUkBaseLoader(): UkBaseLoader {
 export function ukBasePubsToGeoJSON(
   pubs: UkBasePub[],
   provisionalVenueIds: ReadonlySet<string> | null = null,
+  // A non-null lane means the Spoons value lens owns the map. Most Wetherspoon
+  // pubs in the country are base pins rather than curated venues (676 of the
+  // 788 the ranking joins), so the lens would be nearly empty without this.
+  // The two stamped properties are ADDITIVE and absent on every other pub, so
+  // a pin outside the ranking is untouched and nothing here can reach a price
+  // surface: `spoonsBucket` is a value band, never a price bucket.
+  spoonsValue: SpoonsValuePinLane | null = null,
 ): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
-    features: pubs.map((pub) => ({
-      type: "Feature" as const,
-      properties: {
-        id: pub.id,
-        name: pub.name,
-        address: pub.address,
-        curatedVenueId: pub.curatedVenueId,
-        provisional: Boolean(provisionalVenueIds?.has(pub.id)),
-      },
-      geometry: { type: "Point" as const, coordinates: [pub.lng, pub.lat] },
-    })),
+    features: pubs.map((pub) => {
+      const spoons = spoonsValue ? spoonsValuePinFor(spoonsValue, pub.id) : null;
+      return {
+        type: "Feature" as const,
+        properties: {
+          id: pub.id,
+          name: pub.name,
+          address: pub.address,
+          curatedVenueId: pub.curatedVenueId,
+          provisional: Boolean(provisionalVenueIds?.has(pub.id)),
+          ...(spoons && spoons.label
+            ? { spoonsBucket: spoons.bucket, spoonsLabel: spoons.label }
+            : {}),
+        },
+        geometry: { type: "Point" as const, coordinates: [pub.lng, pub.lat] },
+      };
+    }),
   };
 }
 

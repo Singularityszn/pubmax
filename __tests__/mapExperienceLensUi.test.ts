@@ -92,9 +92,12 @@ describe("MapExperienceLens", () => {
     expect(overview).toMatch(
       /!drinkLensCategory &&[\s\S]*?experienceLens !== "no-alcohol" \|\|[\s\S]*?venue\.kind === "food"[\s\S]*?<VenuePriceSummary/,
     );
-    expect(overview).toMatch(
-      /experienceLens === "all" && !drinkLensCategory\s*\?\s*\([\s\S]*?<VenuePriceThen/,
+    // The resting pint view is ONE named derivation now, so the two blocks that
+    // ask it cannot drift apart, and the fence holds the name to the rule.
+    expect(overview).toContain(
+      'const restingPintView = experienceLens === "all" && !drinkLensCategory;',
     );
+    expect(overview).toMatch(/restingPintView \?\s*\([\s\S]*?<VenuePriceThen/);
   });
 
   it("keeps the inspector's no-alcohol empty state behind an answered read", () => {

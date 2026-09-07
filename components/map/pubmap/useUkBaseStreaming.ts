@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import type * as maplibregl from "maplibre-gl";
 
 import { UK_BASE_MIN_ZOOM } from "@/components/map/canvas/buildScene";
+import type { SpoonsValuePinLane } from "@/lib/spoonsValue";
 import {
   createUkBaseLoader,
   isUkBaseId,
@@ -51,6 +52,15 @@ type Options = {
   drawableVenueIds: ReadonlySet<string>;
   /** Visibility-only marks keyed by stable `venue-uk-*` ids. */
   provisionalVenueIds?: ReadonlySet<string> | null;
+  /**
+   * A non-null lane means the Spoons value lens owns the map, and THIS layer
+   * carries it. Most Wetherspoon pubs in the country are base pins rather than
+   * curated venues (676 of the 788 the ranking joins), so the lens would be
+   * nearly empty without it, which is also why the lens does not suspend this
+   * layer the way an experience view does. It stamps two additive properties
+   * on the pubs the ranking holds and touches no other pub and no price.
+   */
+  spoonsValue?: SpoonsValuePinLane | null;
   /**
    * An experience view owns the map. The base layer is UK-wide unpriced pubs,
    * so it answers neither "where can I drink without alcohol" nor "where can I
@@ -220,6 +230,7 @@ export function useUkBaseStreaming({
   ukBaseDataRef,
   drawableVenueIds,
   provisionalVenueIds = null,
+  spoonsValue = null,
   suspended = false,
   held = false,
   scopeKey = "",
@@ -255,7 +266,7 @@ export function useUkBaseStreaming({
       );
       const data =
         drawablePubs.length > 0
-          ? ukBasePubsToGeoJSON(drawablePubs, provisionalVenueIds)
+          ? ukBasePubsToGeoJSON(drawablePubs, provisionalVenueIds, spoonsValue)
           : EMPTY;
       ukBaseDataRef.current = data;
       setPublished({
@@ -278,6 +289,7 @@ export function useUkBaseStreaming({
       drawableVenueIds,
       provisionalVenueIds,
       scopeKey,
+      spoonsValue,
       ukBaseDataRef,
     ],
   );

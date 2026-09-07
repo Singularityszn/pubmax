@@ -203,7 +203,17 @@ describe("UK base layer (unpriced, visually subordinate, never clustered)", () =
   it("carries no price-driven paint at all", () => {
     const paint = (layers.get("uk-base-point")?.paint ?? {}) as Record<string, unknown>;
     expect(JSON.stringify(paint)).not.toContain("bucket");
-    expect(layout("uk-base-point")["icon-image"]).toBe("base:pub");
+    // The glyph is the layer's own unpriced silhouette unless the Spoons value
+    // lens has stamped a band on this pub. That band is a UNITS-per-tenner
+    // reading (lib/spoonsValue.ts), never a price bucket: the expression reads
+    // `spoonsBucket` and no price field at all, and its fallback is the plain
+    // base glyph, which is every pub on this layer while the lens is off.
+    const icon = layout("uk-base-point")["icon-image"] as unknown[];
+    expect(icon[0]).toBe("case");
+    expect(icon[1]).toEqual(["has", "spoonsBucket"]);
+    expect(icon[3]).toBe("base:pub");
+    expect(JSON.stringify(icon)).not.toContain('"bucket"');
+    expect(JSON.stringify(icon)).not.toContain("price");
   });
 });
 
@@ -588,7 +598,25 @@ describe("priced-pin price tag (collides, and yields before the pin does)", () =
 
   it("leaves the unpriced UK base pubs with no text of any kind", () => {
     // ~38k pubs we know nothing about. Never a placeholder, never a "£?".
-    expect(layout("uk-base-point")["text-field"]).toBeUndefined();
+    //
+    // The one pub that gets a tag is one the Spoons value lens holds a real,
+    // dated, credited figure for, and the expression is EMPTY for every other
+    // pub and for every pub while the lens is off. So the promise is unchanged:
+    // a pub we know nothing about still says nothing.
+    const text = layout("uk-base-point")["text-field"] as unknown[];
+    expect(text[0]).toBe("step");
+    expect(text[2]).toBe("");
+    expect(text[4]).toEqual(["coalesce", ["get", "spoonsLabel"], ""]);
+    expect(JSON.stringify(text)).not.toContain("£");
+  });
+
+  it("yields the base tag before the base pin, exactly as a priced pin does", () => {
+    // A tag outside the glyph is a real symbol in the collision index or a
+    // dense town turns to smear. Where it will not fit, the TAG goes.
+    const base = layout("uk-base-point");
+    expect(base["text-allow-overlap"]).toBe(false);
+    expect(base["text-ignore-placement"]).toBe(false);
+    expect(base["text-optional"]).toBe(true);
   });
 });
 

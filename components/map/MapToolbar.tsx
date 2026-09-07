@@ -14,6 +14,7 @@ import {
 import CitySwitcher from "@/components/map/CitySwitcher";
 import ConditionsChip from "@/components/desktop/ConditionsChip";
 import DrinkLanePicker from "@/components/map/DrinkLanePicker";
+import SpoonsValueLensControl from "@/components/map/SpoonsValueLensControl";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import MapExperienceLensControl, {
   MAP_EXPERIENCE_LENS_OPTIONS,
@@ -24,6 +25,7 @@ import ZonePicker from "@/components/map/ZonePicker";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { activeDrinkLane, drinkLaneLabel } from "@/lib/drinkLanes";
+import type { SpoonsValueLensState } from "@/lib/spoonsValue";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { PersonaDrink } from "@/lib/personaDrinks";
 import type { Filters } from "@/lib/venues";
@@ -147,6 +149,10 @@ type MapToolbarProps = {
   onDrinkLaneChange: (lane: DrinkCategory) => void;
   /** Completeness of the active lane's cross-venue read, for its own note. */
   drinkLaneStatus: CategoryPriceIndexStatus;
+  /** The Spoons value lens, which shares this panel with the drink lanes. */
+  spoonsValueOn: boolean;
+  spoonsValueLens: SpoonsValueLensState;
+  onSpoonsValueChange: (on: boolean) => void;
   /** Active "Drink like..." persona id, or null when the lens is off. */
   personaId: string | null;
   /** Select a persona (or null to clear); the parent rides the drink filter. */
@@ -206,6 +212,9 @@ export default function MapToolbar({
   onDrinkBrandChange,
   onDrinkLaneChange,
   drinkLaneStatus,
+  spoonsValueOn,
+  spoonsValueLens,
+  onSpoonsValueChange,
   personaId,
   onPersonaSelect,
   personaTonightCategory,
@@ -480,11 +489,18 @@ export default function MapToolbar({
       ) : null}
 
       {laneOpen && laneAvailable ? (
-        <DrinkLanePicker
-          lane={activeLane}
-          status={drinkLaneStatus}
-          onChange={onDrinkLaneChange}
-        />
+        <>
+          <DrinkLanePicker
+            lane={activeLane}
+            status={drinkLaneStatus}
+            onChange={onDrinkLaneChange}
+          />
+          <SpoonsValueLensControl
+            on={spoonsValueOn}
+            state={spoonsValueLens}
+            onChange={onSpoonsValueChange}
+          />
+        </>
       ) : null}
 
       {showNoSearchMatches ? (
