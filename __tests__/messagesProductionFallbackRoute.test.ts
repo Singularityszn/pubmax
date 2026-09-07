@@ -41,7 +41,10 @@ vi.mock("@/lib/messageVenueCards.server", () => ({ attachMessageVenueCards: asyn
 
 import { GET as inbox, POST as post } from "@/app/api/messages/route";
 import { GET as thread, POST as postThread } from "@/app/api/messages/[id]/route";
-import { __resetMemoryMessages, memoryMessagesStore } from "@/lib/messagesStore";
+import { __resetMemoryMessages, memoryMessagesStore, messagesStore } from "@/lib/messagesStore";
+import { GET as photo } from "@/app/api/messages/[id]/photo/[messageId]/route";
+import { __setMessagePhotoServeRouteDepsForTest } from "@/lib/messagePhotoServeRoute.server";
+import { messagePhotoServingKey } from "@/lib/messageAttachments";
 import { requiresSupabaseStore } from "@/lib/supabase";
 
 const BASE = "http://localhost/api/messages";
@@ -62,7 +65,11 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
 });
-afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
+afterEach(() => {
+  __setMessagePhotoServeRouteDepsForTest(null);
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+});
 
 describe("production message durability", () => {
   it("refuses an open when the production schema is missing", async () => {
@@ -97,6 +104,66 @@ describe("production message durability", () => {
     expect(await response.json()).toMatchObject({ code: "NOT_FOUND", error: "Conversation not found." });
     expect(await memoryMessagesStore.listMessages(id!, "ken")).toEqual([]);
   });
+  it("refuses production reads of a memory thread without marking it read", async () => {
+    const id = await memoryMessagesStore.openConversation("ken", "sam");
+    await memoryMessagesStore.send(id!, "sam", "Local message only");
+    const before = await memoryMessagesStore.listMessages(id!, "ken");
+    expect(before?.[0].read).toBe(false);
+    const response = await read(id!);
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: "NOT_FOUND" });
+    expect(await memoryMessagesStore.listMessages(id!, "ken")).toEqual(before);
+  });
+  it("refuses production reports of a memory message without flagging it", async () => {
+    const id = await memoryMessagesStore.openConversation("ken", "sam");
+    const sent = await memoryMessagesStore.send(id!, "sam", "Local message only");
+    const before = await memoryMessagesStore.listMessages(id!, "ken");
+    const response = await postThread(new Request(`${BASE}/${id}`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "report", messageId: sent!.message.id }),
+    }), { params: Promise.resolve({ id: id! }) });
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: "NOT_FOUND" });
+    expect(await memoryMessagesStore.listMessages(id!, "ken")).toEqual(before);
+  });
+  it("keeps memory read markers, reports, and participants out of production", async () => {
+    const id = await memoryMessagesStore.openConversation("ken", "sam");
+    const sent = await memoryMessagesStore.send(id!, "sam", "Local message only");
+    const before = await memoryMessagesStore.listMessages(id!, "ken");
+    const store = messagesStore();
+    expect(await store.markRead(id!, "ken")).toBe(0);
+    expect(await store.report(id!, sent!.message.id, "ken")).toBe(false);
+    expect(await store.participants(id!)).toBeNull();
+    expect(await memoryMessagesStore.listMessages(id!, "ken")).toEqual(before);
+  });
+  it("refuses a memory photo before reading its storage object", async () => {
+    const id = await memoryMessagesStore.openConversation("ken", "sam");
+    const messageId = "photo1";
+    const key = messagePhotoServingKey(id!, messageId);
+    await memoryMessagesStore.send(id!, "sam", "", {
+      kind: "photo", messageId, objectKey: key, width: 10, height: 10,
+    });
+    expect(await memoryMessagesStore.photoObjectKey(id!, messageId, "ken")).toBe(key);
+    const downloadObject = vi.fn();
+    __setMessagePhotoServeRouteDepsForTest({ downloadObject });
+    const response = await photo(new Request(`${BASE}/${id}/photo/${messageId}?handle=ken`), {
+      params: Promise.resolve({ id: id!, messageId }),
+    });
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: "NOT_FOUND" });
+    expect(downloadObject).not.toHaveBeenCalled();
+  });
+  it.each(["listMessages", "markRead", "participants", "report", "photoObjectKey"] as const)(
+    "never delegates a production schema failure to memory: %s", async (method) => {
+      const fallback = vi.spyOn(memoryMessagesStore, method);
+      const store = messagesStore();
+      const id = "11111111-1111-4111-8111-111111111111";
+      if (method === "participants") await store.participants(id);
+      else if (method === "report" || method === "photoObjectKey") await store[method](id, "m1", "ken");
+      else await store[method](id, "ken");
+      expect(fallback).not.toHaveBeenCalled();
+    },
+  );
   it.each(["test", "production"])("preserves schema fallback in the %s keyless demo", async (mode) => {
     vi.stubEnv("VERCEL_ENV", "");
     vi.stubEnv("NODE_ENV", mode);

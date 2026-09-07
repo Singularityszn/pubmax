@@ -5,8 +5,8 @@ import "server-only";
 // Database RLS denies direct client access; this store uses the service-role client.
 //
 // messagesStore() selects Supabase when configured, or memory for local/keyless
-// demos when permitted. Production requires durable storage. Open/send refuse
-// memory fallback when requiresSupabaseStore() is true.
+// demos when permitted. All selected store operations refuse memory fallback
+// when requiresSupabaseStore() is true.
 //
 // Failed inbox reads carry InboxRead.status = "degraded" in production.
 // Thread reads retain a legacy limitation: an outage can return an empty array
@@ -597,6 +597,7 @@ export const supabaseMessagesStore: MessagesStore = {
     const me = normalizeHandle(handle);
     if (!conversationId || !me) return null;
     if (isMemoryConversationId(conversationId)) {
+      if (requiresSupabaseStore()) return null;
       return memoryMessagesStore.listMessages(conversationId, me);
     }
     try {
@@ -619,7 +620,7 @@ export const supabaseMessagesStore: MessagesStore = {
       const rows = ((selected.data ?? []) as unknown as Array<Record<string, unknown>>).reverse();
       return rows.map((r) => rowToMessageDTO(r));
     } catch (err) {
-      if (isMissingMessagesSchema(err)) {
+      if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("listMessages", err);
         return memoryMessagesStore.listMessages(conversationId, me);
       }
@@ -637,6 +638,7 @@ export const supabaseMessagesStore: MessagesStore = {
     const me = normalizeHandle(handle);
     if (!conversationId || !me) return 0;
     if (isMemoryConversationId(conversationId)) {
+      if (requiresSupabaseStore()) return 0;
       return memoryMessagesStore.markRead(conversationId, me);
     }
     try {
@@ -652,7 +654,7 @@ export const supabaseMessagesStore: MessagesStore = {
       if (error) throw new Error(error.message);
       return Array.isArray(data) ? data.length : 0;
     } catch (err) {
-      if (isMissingMessagesSchema(err)) {
+      if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("markRead", err);
         return memoryMessagesStore.markRead(conversationId, me);
       }
@@ -664,12 +666,13 @@ export const supabaseMessagesStore: MessagesStore = {
   async participants(conversationId) {
     if (!conversationId) return null;
     if (isMemoryConversationId(conversationId)) {
+      if (requiresSupabaseStore()) return null;
       return memoryMessagesStore.participants(conversationId);
     }
     try {
       return await loadPair(conversationId);
     } catch (err) {
-      if (isMissingMessagesSchema(err)) {
+      if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("participants", err);
         return memoryMessagesStore.participants(conversationId);
       }
@@ -685,6 +688,7 @@ export const supabaseMessagesStore: MessagesStore = {
     const reporter = normalizeHandle(reporterHandle);
     if (!conversationId || !messageId || !reporter) return false;
     if (isMemoryConversationId(conversationId)) {
+      if (requiresSupabaseStore()) return false;
       return memoryMessagesStore.report(conversationId, messageId, reporter);
     }
     try {
@@ -698,7 +702,7 @@ export const supabaseMessagesStore: MessagesStore = {
       if (error) throw new Error(error.message);
       return Array.isArray(data) && data.length > 0;
     } catch (err) {
-      if (isMissingMessagesSchema(err)) {
+      if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("report", err);
         return memoryMessagesStore.report(conversationId, messageId, reporter);
       }
@@ -711,6 +715,7 @@ export const supabaseMessagesStore: MessagesStore = {
     const me = normalizeHandle(handle);
     if (!conversationId || !messageId || !me) return null;
     if (isMemoryConversationId(conversationId)) {
+      if (requiresSupabaseStore()) return null;
       return memoryMessagesStore.photoObjectKey(conversationId, messageId, me);
     }
     try {
@@ -729,7 +734,7 @@ export const supabaseMessagesStore: MessagesStore = {
       if (!data) return null;
       return photoKeyFromRow(data as unknown as Record<string, unknown>);
     } catch (err) {
-      if (isMissingMessagesSchema(err)) {
+      if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("photoObjectKey", err);
         return memoryMessagesStore.photoObjectKey(conversationId, messageId, me);
       }
