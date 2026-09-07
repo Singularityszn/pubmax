@@ -6,9 +6,14 @@ The inventory is descriptive, not a runtime registry.
 
 ## Current snapshot
 
+Source baseline: merged main `5a7c6eb1e27bcc65c038af141cf80a46b2cfd30a`, plus the reviewed #727 changes through `52fce5e64`.
+Counts below use `lib/*Store.ts`; the broader source fixture also includes `*Store*.ts`.
+Later Messages and Social changes require source and inventory reconciliation before their integration gate.
+This snapshot does not describe those later changes.
+
 - The repository has 52 `lib/*Store.ts` modules.
-- 32 modules call `selectStore` directly.
-- 7 modules use `createDualBackendStore`.
+- 37 modules contain a direct `selectStore(...)` call.
+- 8 modules use `createDualBackendStore`.
 - 6 modules keep memory state on `globalThis` so it survives a development
   server reload. That state pattern is separate from backend selection.
 - The remaining modules use an explicit backend, a file or static data path,
@@ -43,7 +48,7 @@ silently stale.
 | Store | Classification | Notes |
 |---|---|---|
 | adultSelfAssertionStore | factory-ready | Account assertion read and record; adult policy lives in `socialLaunch`. |
-| analyticsReceiptStore | legacy-exception | Inline Supabase configuration checks; needs one selector seam. |
+| analyticsReceiptStore | factory-ready | Receipt selection uses the shared seam after #1523. |
 | areaDemandStore | factory-ready | Demand signal with shared backend selection. |
 | checkInStore | factory-ready | Check-in rows with shared backend selection. |
 | commentsStore | factory-eligible, policy-heavy | Comment moderation and report flow. |
@@ -56,13 +61,13 @@ silently stale.
 | identityHandleStore | factory-eligible, policy-heavy | Handle ownership, rename, reservation, and tombstone policy. |
 | importNotesStore | not dual-backend | JSON-file store with memory fallback when the filesystem is unavailable. |
 | messagesStore | factory-eligible, policy-heavy | Conversation identity, membership, and message policy. |
-| nightMemoryStore | legacy-exception | Multiple inline Supabase configuration checks around private memory policy. |
+| nightMemoryStore | legacy-exception | The removal pair uses the seam; 24 per-operation configuration branches remain in the source fixture. |
 | nightProfileStore | factory-ready | Night Profile preference rows with shared backend selection. |
 | notificationsStore | factory-ready | Notification rows with shared backend selection. |
 | occupancyStore | factory-eligible, policy-heavy | Time window, retake, reporting, and moderation policy. |
 | operatorProposalsStore | factory-ready | Operator proposal state has one backend selector. |
 | pendingPlanRecapStore | factory-ready | Small pending-plan recap store. |
-| pintDropsStore | legacy-exception | Inline Supabase configuration branch around Pint Drop and Storage work. |
+| pintDropsStore | factory-eligible, policy-heavy | Shared selector after #1523; Pint Drop and Storage policy stays explicit. |
 | planCollaborationStore | factory-ready | Shared selector with `globalThis` memory state. |
 | planGroupPrefsStore | factory-ready | Shared selector with `globalThis` memory state. |
 | planInviteRsvpStore | factory-ready | Shared selector with `globalThis` memory state. |
@@ -78,7 +83,7 @@ silently stale.
 | reactionsStore | factory-ready | Pint Drop reactions with shared backend selection. |
 | referralStore | factory-eligible, policy-heavy | Referral identity, milestone, and proof-expiry policy. |
 | roundsStore | factory-eligible, policy-heavy | Round membership, spend-line provenance, and promotion policy. |
-| savedPubsStore | legacy-exception | Inline Supabase configuration branch plus profile bootstrap; needs its own selector refactor. |
+| savedPubsStore | factory-ready | Shared selector after #1523; profile bootstrap stays in the store. |
 | socialConnectionStore | factory-ready | Connected provider rows with one backend selector. |
 | socialCrewStore | not dual-backend | Supabase-only RPC store. |
 | socialInteractionStore | factory-eligible, policy-heavy | Social relationship, block, and interaction policy. |
@@ -99,25 +104,29 @@ silently stale.
 
 The following stores intentionally stay outside the factory-ready path:
 
-- **legacy-exception:** `analyticsReceiptStore`, `contributorLeaderboardStore`,
-  `crawlStoryStore`, `nightMemoryStore`, `pintDropsStore`, `planStore`,
-  `pubPalStore`, and `savedPubsStore`. Each needs a separate selector
-  refactor before a factory wrapper can preserve its behavior. Owner: the
-  next issue #727 store wave.
+- **legacy-exception:** `contributorLeaderboardStore`, `crawlStoryStore`,
+  `nightMemoryStore`, `planStore`, and `pubPalStore`. Per-operation branches remain explicit.
+  `planStore` already selects its main interface at the seam; that does not remove its remaining branches.
+  Owner: the maintainers reviewing the next issue #727 store slice.
 - **not dual-backend:** `importNotesStore`, `socialCrewStore`,
   `socialPostConsentStore`, and `whatsOnStore`. Their storage premise is not
   memory-or-Supabase. Owner: not applicable for this factory.
 - **policy-heavy:** `commentsStore`, `communityPriceStore`,
   `identityHandleStore`, `messagesStore`, `occupancyStore`,
-  `priceTrustEventStore`, `profileCoverPhotoStore`, `profileStore`, `referralStore`,
+  `pintDropsStore`, `profileStore`,
+  `priceTrustEventStore`, `profileCoverPhotoStore`, `referralStore`,
   `roundsStore`, `socialInteractionStore`, `socialPostStore`,
   `venueOperatorsStore`, `venuePhotoStore`, `visitReportsStore`, and
-  `weatherRecommendationStore`. Their explicit policy is the reason to defer
-  migration, not a claim that the selector is impossible to simplify later.
+  `weatherRecommendationStore`. Their explicit policy requires a separate review before further migration.
+  Some already use the factory; the label does not imply an unmigrated store.
+  Owner: the maintainers reviewing that store's issue #727 contract.
 
 ## Inline backend references
 
-Every production file with an inline `selectStore` or `isSupabaseConfigured` branch is listed here. This includes non-store modules such as `lib/messageAuth.ts`. The test compares this list with repository search results.
+This list records production files with textual `selectStore` or `isSupabaseConfigured` references, including imports and comments.
+It includes non-store modules such as `lib/messageAuth.ts`. The documentation test compares the list with repository search results.
+The separate machine-readable fixture in `__tests__/storeInventory.test.ts` counts actual calls through an AST scan.
+It records 55 store-related modules and 54 other production files. These counts describe different sets.
 
 <!-- inline-backend-references:start -->
 ```json
@@ -230,24 +239,104 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
 ```
 <!-- inline-backend-references:end -->
 
-## Existing pilot
+## Existing pilot and current adopters
 
 `feedFreshnessStore` was the first low-risk pilot. Its callers use the same
 zero-argument selector before and after the factory wrapper, and its memory
 and Supabase implementations keep their existing fail-soft behavior.
 
-The current branch also has `createDualBackendStore` in
-`adultSelfAssertionStore`, `feedFreshnessStore`, `occupancyStore`,
-`priceTrustEventStore`, `stepOutNudgeStore`, `walkRouteStore`, and
-`wantedStore`. This inventory records that current state; it does not require
-other stores to migrate.
+Current source has these eight factory adopters:
+
+1. `adultSelfAssertionStore`
+2. `feedFreshnessStore`
+3. `harvestOverlayStore`
+4. `occupancyStore`
+5. `priceTrustEventStore`
+6. `stepOutNudgeStore`
+7. `walkRouteStore`
+8. `wantedStore`
+
+The former seven-adopter list omitted `harvestOverlayStore`.
+This maintenance change retains all eight existing adopters and migrates none.
+The helper remains a narrow call to `selectStore(memory, supabase)`.
+The original pair, `feedFreshnessStore` and `occupancyStore`, has the contract matrix described below.
+The [boundary review](reviews/store-pilot-closeout.md) records policy, tests and disposition for each other adopter.
+These facts do not satisfy the issue's literal exactly-two wording.
+
+### Issue #727: scope reconciliation
+
+The [original issue](https://github.com/Singularityszn/pubmax/issues/727) requires exactly two low-risk pilots.
+Its contract matrix covers keyless reads, configured reads, missing schema, reset isolation and production strictness.
+It also requires a machine-readable inventory of interfaces, fallbacks, schema behaviour, authorization owners and reset helpers.
+
+| Record | What it establishes | What it does not establish |
+|---|---|---|
+| Original #727 acceptance | Exactly two pilots, with per-store parity evidence. Policy stays outside the factory. | Approval for every current adopter. |
+| First progress comment, after [#1155](https://github.com/Singularityszn/pubmax/pull/1155) | Calls the two-pilot count obsolete because seven stores already adopted the helper. Requests an acceptance update. | A completed scope update or waived parity matrix. |
+| Second progress comment, after [#1158](https://github.com/Singularityszn/pubmax/pull/1158) | Explicitly retains the named two-pilot matrix and disposition of the other five adopters. Records production strictness and reset work. | Acceptance of widening; the comment explicitly keeps the issue open. |
+| 5 September comment, [#1523](https://github.com/Singularityszn/pubmax/pull/1523) | Records selector cleanup and a source inventory. Lists remaining slices, ending with review scope in `npm run verify`. | Permission for a bulk factory rewrite or proof that all six slices landed. |
+| Current candidate | Retains eight existing narrow adopters, completes the original pair matrix, and adds inventory fields and local review scope. | Satisfaction of the literal exactly-two clause or a passed integrated full gate. |
+
+The number is stale as an implementation description. The issue wording still requires explicit reconciliation.
+The proposed acceptance is: retain eight existing narrow adopters, prove the original pair, and record the other six dispositions.
+The maintainer must record that replacement on #727 after reviewing this candidate.
+Routine inventory, parity and local-gate maintenance does not depend on further migration or reverting six adopters.
+The progress comments alone do not establish complete parity for all eight.
+
+### Closeout checks
+
+- [x] Correct current count: eight factory adopters, including `harvestOverlayStore`.
+- [x] Record all requested inventory fields for 55 store-related modules and 54 other production files with inline calls.
+- [x] Complete the original pair matrix: healthy configured paths, keyless paths, schema misses, write failures, resets and strictness.
+- [x] Record each other adopter's policy, tests, disposition and remaining durable-proof limits.
+- [x] Retain the existing CI category report and add local review scope before data generation in `npm run verify`.
+- [x] Prevent local snapshot cancellation and generated-output provenance bypasses; execute the CLI through canonical or aliased paths.
+- [ ] Reconcile #727 acceptance explicitly from exactly two adopters to the retained eight and original-pair matrix.
+- [ ] Supply the required full integrated gate evidence for the final combined candidate.
+
+Checked entries record specific completed work. They do not close #727 or waive its unchecked requirements.
+
+### Evidence for the pilot contract
+
+The [boundary review](reviews/store-pilot-closeout.md) records the matrix and limits for all eight adopters.
+The new pilot tests execute real store adapters and production guards with mocked Supabase responses.
+They do not prove a deployed schema or durable production writes.
+
+| Contract | Evidence in this candidate | Boundary |
+|---|---|---|
+| Keyless reads | `storePilotParity.test.ts` writes and reads both memory stores. Existing occupancy tests retain their memory contracts. | The named pair is feed freshness and occupancy. |
+| Healthy configured paths | The same matrix checks feed upsert/read projection, occupancy insert/retake/read projection, flag RPC and unhide update. | This exercises the actual adapters, beyond selector identity. |
+| Missing schema | The matrix checks preview/development memory fallback and each store's production read/write results. | Feed may return held metadata; occupancy returns a degraded read. Their existing policies differ. |
+| Reset isolation | The matrix clears each store without clearing its peer or issuing durable writes. It also resets occupancy column compatibility. | This is the original pair's reset contract. Other reset limits remain in the inventory. |
+| Production strictness | The matrix rejects unconfigured production. Feed write failure returns `failed: true`; occupancy write failure rejects. | Failed durable writes do not add memory rows. The helper and store policies remain unchanged. |
+| Inventory | `storeBackendInventory.test.ts` checks all 52 exact store names and textual references. `storeInventory.test.ts` records every requested field, discovers modules and calls, and checks exported interfaces and reset helpers. | Automated discovery cannot prove every policy description. Descriptions require source review against this baseline. |
+| CI and local review scope | CI passes base/head SHAs. The local verify command checks branch, index, working tree and untracked files before data generation. | Snapshot provenance, cancellation, alias execution and safe imports have real Git/subprocess regression coverage. |
+
+The two inventory suites passed 227 tests under Vitest 5 on 8 September 2026, with one worker and no cache.
+The original pair matrix passed 13 cases during focused validation before the Vitest 5 integration.
+The final guard and wiring tests passed 42 cases under Vitest 5 after the snapshot and alias fixes.
+These earlier focused results are not a full combined verification result.
+The three additional memory edge fixes and their focused proof remain separate in the boundary review.
+They do not establish complete parity for every operation in all eight stores.
+
+The original issue also requires lint, scoped typecheck, tests and verify evidence.
+A bounded inventory check cannot substitute for those gates.
+The final integrated gate remains required; this document supplies no blanket closure recommendation.
 
 ## Review-scope guard
 
-`scripts/check_review_scope.mjs` reports changed source, migration, generated,
-evidence, test, configuration, documentation, skill-pack, and other paths.
-It warns when a review crosses more than two runtime domains or more
-than 150 files. It fails only when generated or skill-pack paths are present.
-Migration files remain in their own category and do not add a runtime domain.
-CI passes the pull request base and head SHAs to the script, so the report
-matches the reviewed diff rather than the checkout's default range.
+`scripts/check_review_scope.mjs` reports source, migration, generated, regenerated, evidence, test, configuration, documentation, skill-pack and other paths.
+It warns when a review crosses more than two runtime domains or more than 150 files.
+It fails for unexplained generated paths and skill-pack paths.
+The existing regeneration rules allow recognised generator inputs and their output in the same snapshot.
+Migration files retain their own category and do not add a runtime domain.
+CI passes the pull request base and head SHAs to the script.
+
+Local verify runs `check:review-scope` before `validate-data` can generate files.
+The local check uses the branch merge base and unions branch, index, working tree and untracked changes.
+Each snapshot retains its regeneration provenance, so an unstaged generator change cannot excuse a generated-only commit.
+Restoring base bytes in the working tree cannot hide committed or staged forbidden paths.
+Canonical path comparison keeps CLI execution active through symlinks while imports remain safe on Node 22.
+
+The check does not validate regenerated bytes, every intermediate commit, or changes made after its snapshots.
+Those limits remain distinct from test, build and deployment evidence.

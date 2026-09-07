@@ -1,6 +1,8 @@
 # Store boundary closeout for #727
 
-Baseline: `6a759e0ac191d99f10c5e658bc8f2c3a6d3dd419`.
+Source review started at `6a759e0ac191d99f10c5e658bc8f2c3a6d3dd419`.
+The candidate includes merged main `5a7c6eb1e27bcc65c038af141cf80a46b2cfd30a` and the reviewed store changes.
+Later Messages and Social changes require inventory reconciliation before their integration gate.
 
 [Issue #727](https://github.com/Singularityszn/pubmax/issues/727) still states an exact two-adopter target.
 Its comments after [#1158](https://github.com/Singularityszn/pubmax/pull/1158) distinguish the pilot matrix from other adopters' disposition.
