@@ -95,7 +95,7 @@ describe("out listing grouping", () => {
       group.rows.map((item) => item.id),
     );
     expect(rows).toEqual(["padded-venue-row", "whitespace-venue-row"]);
-    expect(outListingPubPair(padded)).toMatchObject({ mapHref: "/map?sel=venue-123" });
+    expect(outListingPubPair(padded, "ready")).toMatchObject({ mapHref: "/map?sel=venue-123" });
     expect(outListingUnmatchedCount([padded, whitespaceOnly])).toBe(1);
   });
 
@@ -144,12 +144,12 @@ describe("out listing grouping", () => {
       placeName: "The O2",
     });
 
-    expect(outListingPubPair(matched)).toEqual({
+    expect(outListingPubPair(matched, "ready")).toEqual({
       status: "matched",
       placeName: "The Comedy Store",
       mapHref: "/map?sel=venue-123",
     });
-    expect(outListingPubPair(absent)).toEqual({
+    expect(outListingPubPair(absent, "ready")).toEqual({
       status: "absent",
       placeName: "The O2",
       line: OUT_LISTING_PUB_ABSENT_LINE,
@@ -173,6 +173,7 @@ describe("out listing grouping", () => {
   it("says the pub is missing on the row itself", () => {
     const html = renderToStaticMarkup(
       createElement(OutListingPubPair, {
+        venueMatch: "ready",
         row: row({ id: "absent-render", kind: "event", title: "Arena show" }),
       }),
     );
@@ -184,6 +185,7 @@ describe("out listing grouping", () => {
   it("labels a matched event place without naming a kind", () => {
     const html = renderToStaticMarkup(
       createElement(OutListingPubPair, {
+        venueMatch: "ready",
         row: row({
           id: "arena-render",
           kind: "event",

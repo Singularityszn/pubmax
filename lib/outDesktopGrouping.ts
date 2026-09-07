@@ -23,6 +23,7 @@ export const OUT_OPEN_PLANS_MIN_SENDABLE = 1;
  * - is how /out came to show a reader 148 sourced listings as an empty page.
  */
 export const OUT_LISTING_PUB_ABSENT_LINE = "Not on our map yet.";
+export const OUT_LISTING_PUB_UNAVAILABLE_LINE = "We could not check this place on our map.";
 
 export { OUT_UNMATCHED_PLACES_SHOWN } from "@/lib/out/types";
 
@@ -40,6 +41,11 @@ export type OutListingPubPair =
       status: "absent";
       placeName: string;
       line: typeof OUT_LISTING_PUB_ABSENT_LINE;
+    }
+  | {
+      status: "unavailable";
+      placeName: string;
+      line: typeof OUT_LISTING_PUB_UNAVAILABLE_LINE;
     };
 
 function normalizePlaceName(value: string): string {
@@ -69,7 +75,10 @@ export function groupOutListings(
 export const OUT_LISTING_VENUE_BADGE_LABEL = "On PUBMAXX";
 
 /** The pub beside a gig is the resolved venue on the row, or an honest absence. */
-export function outListingPubPair(row: WhatsOnRow): OutListingPubPair {
+export function outListingPubPair(
+  row: WhatsOnRow,
+  venueMatch: OutVenueMatchStatus | undefined,
+): OutListingPubPair {
   const venueId = canonicalOutVenueId(row.venueId);
   const placeName = row.placeName.trim();
   if (venueId) {
@@ -78,6 +87,9 @@ export function outListingPubPair(row: WhatsOnRow): OutListingPubPair {
       placeName: placeName || venueId,
       mapHref: `/map?sel=${encodeURIComponent(venueId)}`,
     };
+  }
+  if (venueMatch !== "ready") {
+    return { status: "unavailable", placeName, line: OUT_LISTING_PUB_UNAVAILABLE_LINE };
   }
   return { status: "absent", placeName, line: OUT_LISTING_PUB_ABSENT_LINE };
 }

@@ -295,7 +295,8 @@
   line-height: 1.45;
 }
 
-.outListingPubPair--absent {
+.outListingPubPair--absent,
+.outListingPubPair--unavailable {
   color: color-mix(in srgb, var(--ink-soft) 82%, transparent);
 }
 
@@ -436,7 +437,8 @@
     padding-left: 18px;
   }
 
-  .outListingPubPair--absent {
+  .outListingPubPair--absent,
+  .outListingPubPair--unavailable {
     border-left: 1px solid var(--line);
     padding-left: 18px;
     align-self: center;

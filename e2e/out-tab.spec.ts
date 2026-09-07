@@ -287,6 +287,8 @@ test.describe("out supply honesty @390", () => {
       "We couldn't check which of tonight's 4 listings are at a pub we list.",
     );
     await expect(notice).not.toContainText("don't list yet");
+    await expect(page.getByText("Not on our map yet.", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("We could not check this place on our map.", { exact: true })).toHaveCount(4);
     // The rows are still rows. The finding is about the LOOKUP, not about them.
     await expect(page.getByTestId("out-listing-row")).toHaveCount(4);
   });
