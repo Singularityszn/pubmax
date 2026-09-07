@@ -14,7 +14,7 @@
 // on the first screen a new person ever saw, before the product had answered
 // anything.
 //
-// public/native-entry-init.js is the fix: a render-blocking classic script,
+// The entry block at the top of public/theme-init.js is the fix: render-blocking,
 // same shape as public/theme-init.js, that takes the ONE entry case it can
 // decide exactly and navigates before the landing document is rendered at all.
 // This file holds it to lib/entryDecision.ts rather than trusting the copy.
@@ -201,7 +201,7 @@ describe("the native shell's pre-render entry decision", () => {
     // It navigates away, so anything this file does after it is work on a
     // document that is being replaced. First statement in, first decision out.
     const capacitorProbe = ENTRY_INIT_SOURCE.indexOf("isNativePlatform");
-    const themeWork = ENTRY_INIT_SOURCE.indexOf("pubmax-theme");
+    const themeWork = ENTRY_INIT_SOURCE.indexOf('getItem("pubmax-theme")');
     expect(capacitorProbe).toBeGreaterThan(-1);
     expect(themeWork).toBeGreaterThan(-1);
     expect(capacitorProbe).toBeLessThan(themeWork);

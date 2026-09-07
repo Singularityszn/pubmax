@@ -136,7 +136,7 @@ export function isStandaloneDisplay(): boolean {
  * the pure decision above stays hermetically testable. Mirrors the
  * resolveSessionStorage idiom in lib/nativeFirstRun.ts.
  *
- * The key itself is EXPORTED because public/native-entry-init.js takes the same
+ * The key itself is EXPORTED because the entry block in public/theme-init.js takes the same
  * decision one paint earlier, before React exists, and has to write the same
  * slot; __tests__/nativeShellEntry.test.ts holds the static file to it.
  */

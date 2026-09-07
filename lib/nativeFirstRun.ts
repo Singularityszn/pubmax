@@ -22,14 +22,15 @@ import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 
 /**
  * The device mark that says the one-time first-run redirect has already gone.
- * Exported because public/native-entry-init.js reads it before React exists,
+ * Exported because the entry block in public/theme-init.js reads it before
+ * React exists,
  * to tell a first launch from every later one.
  */
 export const NATIVE_FIRST_RUN_ROUTED_KEY = "pubmax:nativeFirstRun:routed:v1";
 const STORAGE_KEY = NATIVE_FIRST_RUN_ROUTED_KEY;
 /**
  * The one-time onboarding eligibility slot. Exported for the same reason as
- * NATIVE_FIRST_RUN_ROUTED_KEY: public/native-entry-init.js now takes the
+ * NATIVE_FIRST_RUN_ROUTED_KEY: the entry block in public/theme-init.js takes the
  * first-run branch itself and has to issue the same handoff the guarded route
  * consumes, one paint earlier.
  */

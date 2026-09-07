@@ -9,7 +9,8 @@ import { cityAwareMapPath, cityMapShareUrl } from "@/lib/cityMapHref";
 import { safeLocalStorage } from "@/lib/safeStorage";
 
 /**
- * The stored preferred-city slot. Exported because public/native-entry-init.js
+ * The stored preferred-city slot. Exported because the entry block in
+ * public/theme-init.js
  * reads whether it is PRESENT before React exists: the native first-run gate
  * needs `readPreferredCity()` to answer null, and with no value at all that
  * answer is null under every possible enabled-city table. The static file never

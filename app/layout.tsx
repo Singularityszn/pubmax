@@ -299,17 +299,11 @@ export default async function RootLayout({
           crossOrigin="anonymous"
         />
         <link rel="dns-prefetch" href="https://tiles.openfreemap.org" />
-        {/* THE SHELL'S ENTRY DECISION, BEFORE THE LANDING PAGE RENDERS. The
-            Capacitor wrap always opens the site root, and lib/entryDecision.ts
-            rewrites that to /tonight from a React effect — one paint too late,
-            so the landing was rendered and shown first and the rewrite counted
-            as the reader's second route. First in <head> and render-blocking
-            for the same reason theme-init.js is: the decision has to land
-            before the browser does any work on a document it is about to
-            leave. A no-op in every browser (public/native-entry-init.js). */}
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        <script src="/native-entry-init.js" />
-        {/* Set theme before paint to avoid a flash of the wrong theme. Served
+        {/* The pre-paint decisions, in one render-blocking file: the native
+            shell's entry route first, then the theme, so neither the shell nor
+            the page ever paints something it is about to replace. One file
+            because one request - a second pre-paint script cost every web
+            route a fetch for a decision only the shell uses. Served
             as a static file (public/theme-init.js) rather than inline so it is
             covered by CSP `script-src 'self'` with no per-build hash. It is a
             render-blocking classic script in <head> (NO async/defer on purpose)
