@@ -910,17 +910,12 @@ export function builtStopCountFor(input: {
   return input.mode === "build" && !input.routeMappedActive ? input.builtCount : 0;
 }
 
-/**
- * Which block leads the phone planner sheet. A crawl being built leads, so a
- * pub the reader just picked is named on the sheet's first screen rather than
- * a whole "Describe the outing" form below it (verify-preview-4, J04).
- */
-export function phonePlannerOrder(input: {
-  mobileViewport: boolean;
+/** Existing crawl stops lead the planner; discovery follows on every viewport. */
+export function plannerContentOrder(input: {
   mode: CrawlMode;
   builtCount: number;
-}): "build-first" | "describe-first" {
-  return input.mobileViewport && input.mode === "build" && input.builtCount > 0
+}): "build-first" | "discovery-first" {
+  return input.mode === "build" && input.builtCount > 0
     ? "build-first"
-    : "describe-first";
+    : "discovery-first";
 }

@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
@@ -43,14 +43,18 @@ async function mockJourney(page: Page, modes: string[], minutes: number): Promis
   );
 }
 
-async function openSeededCrawl(page: Page, waitForStops = true) {
+async function openSeededCrawl(
+  page: Page,
+  waitForStops = true,
+  viewport = { width: 1440, height: 900 },
+) {
   await installDeterministicMapBasemap(page);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize(viewport);
   // plan=1 opens the planner on arrival (lib/mapArrival), so the stop cards
   // mount without a click on the canvas.
   const response = await page.goto(`/map?mode=build&plan=1&pubs=${SEEDED_PUBS}`);
@@ -63,7 +67,46 @@ async function openSeededCrawl(page: Page, waitForStops = true) {
   return { routePanel, stops };
 }
 
+async function expectInFirstPlannerViewport(target: Locator) {
+  await expect(target).toBeInViewport({ ratio: 1 });
+  await expect.poll(() => target.evaluate((element) => {
+    const planner = element.closest<HTMLElement>(".mobileSharedSheetBody, .mapDrawer.left");
+    if (!planner) return null;
+    const bounds = element.getBoundingClientRect();
+    const clip = planner.getBoundingClientRect();
+    const button = element.matches("button") ? element : element.querySelector("button") ?? element;
+    const control = button.getBoundingClientRect();
+    const hit = document.elementFromPoint(control.left + control.width / 2, control.top + control.height / 2);
+    return {
+      inside: bounds.top >= Math.max(0, clip.top) &&
+        bounds.bottom <= Math.min(innerHeight, clip.bottom) &&
+        bounds.left >= Math.max(0, clip.left) &&
+        bounds.right <= Math.min(innerWidth, clip.right),
+      unscrolled: planner.scrollTop === 0 && window.scrollY === 0,
+      reachable: hit !== null && button.contains(hit),
+    };
+  })).toEqual({ inside: true, unscrolled: true, reachable: true });
+}
+
 test.describe("crawl stop cards (D7)", () => {
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) {
+    test(`existing stops lead the first planner viewport at ${viewport.width}px`, async ({ page }, testInfo) => {
+      test.setTimeout(120_000);
+      await mockJourney(page, ["walking"], 5);
+      const { routePanel, stops } = await openSeededCrawl(page, true, viewport);
+      await expect(routePanel).toHaveCount(1);
+      await expectInFirstPlannerViewport(stops.first());
+      const discovery = page.locator(viewport.width >= 1024 ? ".controlRail" : "#mobile-plan-intent-title");
+      await expect(discovery).toHaveCount(1);
+      const followsStops = await discovery.evaluate((element) => {
+        const stop = document.querySelector(".routeList > li");
+        return stop !== null && Boolean(stop.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING);
+      });
+      expect(followsStops, "discovery follows the existing crawl in keyboard order").toBe(true);
+      await page.screenshot({ path: testInfo.outputPath("first-planner-viewport.png") });
+    });
+  }
+
   test("keeps loaded stops while a failed stop can be retried", async ({ page }, testInfo) => {
     test.setTimeout(120_000);
     let release!: () => void;
@@ -80,7 +123,7 @@ test.describe("crawl stop cards (D7)", () => {
       await request.fulfill({ status: 503, contentType: "application/json", body: "{}" });
     });
     await mockJourney(page, ["walking"], 5);
-    const { routePanel, stops } = await openSeededCrawl(page, false);
+    const { routePanel, stops } = await openSeededCrawl(page, false, { width: 1280, height: 720 });
     const status = routePanel.getByTestId("crawl-stop-load-status");
     try {
       await expect.poll(() => requests).toBe(1);
@@ -90,20 +133,25 @@ test.describe("crawl stop cards (D7)", () => {
       await expect(routePanel.getByTestId("add-to-calendar")).toHaveCount(0);
       await expect(routePanel.getByTestId("plan-round-bridge")).toHaveCount(0);
       await expect(routePanel.locator(".routeLeg")).toHaveCount(0);
-      await routePanel.screenshot({ path: testInfo.outputPath("held-stop.png") });
+      await expectInFirstPlannerViewport(status);
+      await expectInFirstPlannerViewport(stops.first());
+      await page.screenshot({ path: testInfo.outputPath("held-stop.png") });
       release();
       await expect(stops).toHaveCount(2);
       await expect(status).toContainText("1 crawl stop could not load");
       await expect(routePanel.getByTestId("add-to-calendar")).toHaveCount(0);
       await expect(routePanel.getByTestId("plan-round-bridge")).toHaveCount(0);
-      await routePanel.screenshot({ path: testInfo.outputPath("failed-stop.png") });
+      await expectInFirstPlannerViewport(status);
+      await expectInFirstPlannerViewport(stops.first());
+      await page.screenshot({ path: testInfo.outputPath("failed-stop.png") });
       recovered = true;
       await routePanel.getByRole("button", { name: "Retry", exact: true }).click();
       await expect(stops).toHaveCount(SEEDED_STOP_COUNT);
       await expect(status).toHaveCount(0);
-      await expect(routePanel.getByTestId("add-to-calendar")).toBeVisible();
+      await expect(routePanel.getByTestId("add-to-calendar")).toHaveCount(1);
       await expect(stops.locator("strong").first()).toContainText("The Queens Head");
-      await routePanel.screenshot({ path: testInfo.outputPath("recovered-stops.png") });
+      await expectInFirstPlannerViewport(stops.first());
+      await page.screenshot({ path: testInfo.outputPath("recovered-stops.png") });
       expect(requests).toBe(2);
     } finally { release(); }
   });

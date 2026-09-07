@@ -31,7 +31,7 @@ import {
   mapSurfaceTitleFor,
   nightAreaSlugOf,
   openingViewportFrom,
-  phonePlannerOrder,
+  plannerContentOrder,
   priceLegendInput,
   reactiveLogIntentActive,
   restoredSessionFrame,
@@ -988,10 +988,10 @@ describe("the phone planner and the pill read the crawl being built", () => {
     expect(builtStopCountFor({ mode: "build", routeMappedActive: true, builtCount: 3 })).toBe(0);
   });
 
-  it("leads the phone planner with the built crawl, and the desktop never", () => {
-    expect(phonePlannerOrder({ mobileViewport: true, mode: "build", builtCount: 1 })).toBe("build-first");
-    expect(phonePlannerOrder({ mobileViewport: true, mode: "build", builtCount: 0 })).toBe("describe-first");
-    expect(phonePlannerOrder({ mobileViewport: true, mode: "suggest", builtCount: 2 })).toBe("describe-first");
-    expect(phonePlannerOrder({ mobileViewport: false, mode: "build", builtCount: 2 })).toBe("describe-first");
+  it("leads both planner surfaces with the built crawl", () => {
+    expect(plannerContentOrder({ mode: "build", builtCount: 1 })).toBe("build-first");
+    expect(plannerContentOrder({ mode: "build", builtCount: 0 })).toBe("discovery-first");
+    expect(plannerContentOrder({ mode: "suggest", builtCount: 2 })).toBe("discovery-first");
+    expect(plannerContentOrder({ mode: "build", builtCount: 2 })).toBe("build-first");
   });
 });
