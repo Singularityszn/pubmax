@@ -40,6 +40,14 @@ export function proxiedVenueImageUrl(url: string): string {
 export const VENUE_IMAGE_WIDTHS = [384, 640, 1080, 1920] as const;
 export type VenueImageWidth = (typeof VENUE_IMAGE_WIDTHS)[number];
 
+/** Fixed derivative for decorative card backgrounds, independent of screen density. */
+export const VENUE_IMAGE_CARD = { width: 384, quality: 45 } as const;
+
+export function venueImageCardUrl(proxyUrl: string): string {
+  const source = proxiedImageSource(proxyUrl);
+  return source ? `${proxiedVenueImageUrl(source)}&variant=card` : proxyUrl;
+}
+
 export function isVenueImageWidth(value: number): value is VenueImageWidth {
   return (VENUE_IMAGE_WIDTHS as readonly number[]).includes(value);
 }

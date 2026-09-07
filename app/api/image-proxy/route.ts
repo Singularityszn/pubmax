@@ -19,7 +19,7 @@ import sharp from "sharp";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { allowedVenueImageHosts } from "@/lib/venueImageHosts.server";
-import { directVenueImageUrl, isVenueImageWidth } from "@/lib/venueImages";
+import { directVenueImageUrl, isVenueImageWidth, VENUE_IMAGE_CARD } from "@/lib/venueImages";
 
 const MAX_BYTES = 8 * 1024 * 1024;
 // Per-IP rate limit (cursor bot, round 3): each request costs us an outbound
@@ -32,9 +32,7 @@ const RATE_WINDOW_MS = 60_000;
 const FETCH_TIMEOUT_MS = 8_000;
 const MAX_REDIRECTS = 1;
 const CACHE_CONTROL = "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400";
-// Quality for a resized answer. Measured on /pubs's own five photographs: the
-// five went from 792 KB at their natural size to well under a tenth of that at
-// the width the 344x168 card really draws.
+// Other surfaces retain the width-only derivative. Cards use one smaller preset.
 const RESIZE_QUALITY = 72;
 
 /**
@@ -65,12 +63,13 @@ function requestedWidth(params: URLSearchParams): number | null {
 async function resized(
   body: Uint8Array,
   width: number,
+  quality: number,
 ): Promise<{ bytes: Uint8Array; type: string } | null> {
   try {
     const out = await sharp(body)
       .rotate()
       .resize({ width, withoutEnlargement: true })
-      .webp({ quality: RESIZE_QUALITY })
+      .webp({ quality })
       .toBuffer();
     return { bytes: new Uint8Array(out), type: "image/webp" };
   } catch {
@@ -138,7 +137,9 @@ export async function GET(request: Request): Promise<Response> {
   const src = params.get("src") ?? "";
   const initial = validate(src);
   if (!initial) return new Response("Bad image source.", { status: 400 });
-  const width = requestedWidth(params);
+  const card = params.get("variant") === "card";
+  const width = card ? VENUE_IMAGE_CARD.width : requestedWidth(params);
+  const quality = card ? VENUE_IMAGE_CARD.quality : RESIZE_QUALITY;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -218,7 +219,7 @@ export async function GET(request: Request): Promise<Response> {
       original.set(chunk, offset);
       offset += chunk.byteLength;
     }
-    const answer = width ? await resized(original, width) : null;
+    const answer = width ? await resized(original, width, quality) : null;
     return new Response(new Blob([(answer?.bytes ?? original) as BlobPart]), {
       status: 200,
       headers: {
