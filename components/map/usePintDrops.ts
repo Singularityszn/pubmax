@@ -737,20 +737,7 @@ export function usePintDrops(
         const next = new Map(current);
         next.set(
           venueId,
-          (next.get(venueId) ?? []).map((drop) =>
-            drop.id === optimisticDrop.id
-              ? {
-                  ...drop,
-                  optimistic: {
-                    state: "failed",
-                    message,
-                    uploadProgress: null,
-                    canRetry: true,
-                    clientRequestId,
-                  },
-                }
-              : drop,
-          ),
+          (next.get(venueId) ?? []).filter((drop) => drop.id !== optimisticDrop.id),
         );
         return next;
       });
