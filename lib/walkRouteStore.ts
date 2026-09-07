@@ -53,7 +53,7 @@ export const memoryWalkRouteStore: WalkRouteStore = {
       memoryRows.delete(key);
       return null;
     }
-    return row.coordinates;
+    return coordsFromJson(row.coordinates);
   },
   async putLeg(key, coordinates) {
     memoryRows.set(key, { coordinates, expiresAtMs: Date.now() + WALK_ROUTE_LEG_TTL_MS });
