@@ -366,16 +366,31 @@ describe("persistent session snapshots", () => {
     expect(sessionStorage.getItem(`${SURFACE_CACHE_NAMESPACE}${key}`)).toBeNull();
   });
 
-  it("wipes persisted answers when a cross-tab storage event announces identity change", () => {
+  it.each(["pubmax_handle", "pubmax_account_owner", null])(
+    "wipes persisted answers on a cross-tab identity change: %s", (identityKey) => {
+      const sessionStorage = makeSessionStorage();
+      stubBrowserWithSessionStorage(sessionStorage);
+      const key = "/api/profiles/karan?viewer=karan";
+      writeSurfaceSnapshot(key, { profile: 1 });
+      window.dispatchEvent(Object.assign(new Event("storage"), { key: identityKey }));
+      expect(sessionStorage.length).toBe(0);
+      expect(surfaceCacheSize()).toBe(0);
+    },
+  );
+
+  it("keeps persisted answers when another tab writes or removes a composer draft", () => {
     const sessionStorage = makeSessionStorage();
     stubBrowserWithSessionStorage(sessionStorage);
     const key = "/api/profiles/karan?viewer=karan";
-
     writeSurfaceSnapshot(key, { profile: 1 });
-    window.dispatchEvent(new Event("storage"));
-
-    expect(sessionStorage.length).toBe(0);
-    expect(surfaceCacheSize()).toBe(0);
+    for (const newValue of ['{"body":"A good night"}', null]) {
+      window.dispatchEvent(Object.assign(new Event("storage"), {
+        key: "pubmaxx:social-composer:v1:alice:new", newValue,
+      }));
+      expect(sessionStorage.length).toBe(1);
+      expect(surfaceCacheSize()).toBe(1);
+      expect(readSurfaceSnapshot(key)).toEqual({ profile: 1 });
+    }
   });
 
   it("prunes a corrupt persisted answer", async () => {

@@ -156,14 +156,23 @@ export function emitDeviceIdentityChanged(): void {
   }
 }
 
+const DEVICE_IDENTITY_STORAGE_KEYS = new Set<string>([
+  ...DEVICE_IDENTITY_LOCAL_KEYS,
+  ...DEVICE_IDENTITY_SESSION_KEYS,
+  DEVICE_ACCOUNT_OWNER_KEY,
+]);
+
 /** Subscribe to same-tab writes plus the cross-tab `storage` event. */
 export function subscribeDeviceIdentity(onChange: () => void): () => void {
   if (typeof window === "undefined") return () => {};
   const handler = () => onChange();
+  const storageHandler = (event: StorageEvent) => {
+    if (event.key === null || DEVICE_IDENTITY_STORAGE_KEYS.has(event.key)) onChange();
+  };
   window.addEventListener(DEVICE_IDENTITY_CHANGED_EVENT, handler);
-  window.addEventListener("storage", handler);
+  window.addEventListener("storage", storageHandler);
   return () => {
     window.removeEventListener(DEVICE_IDENTITY_CHANGED_EVENT, handler);
-    window.removeEventListener("storage", handler);
+    window.removeEventListener("storage", storageHandler);
   };
 }
