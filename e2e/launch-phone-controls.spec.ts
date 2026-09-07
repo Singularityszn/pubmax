@@ -33,7 +33,7 @@ const REQUIRED_TARGETS: Partial<Record<LaunchRoute, readonly string[]>> = {
   "/about": [".aboutLogoLinks .aboutLink"],
   "/discover": [".discoverBrandChip", "a.leaderboardPub"],
   "/pubs": [".pubsJumpChip"],
-  "/social": [".findLot__ghost"],
+  "/social": ['.findLot__invite a[href="/login"]'],
   "/login": [".authSignIn.authMagicLinkButton"],
 };
 
@@ -137,6 +137,11 @@ test.describe("phone controls on the launch surfaces", () => {
         // run of this spec found the leaderboard link at 390 and not at 360.
         // Walk to the bottom, then wait for each named target before measuring.
         await settle(page, route, width, requiredSelectors);
+
+        // The skip link has a clipped 1px box until keyboard focus reveals it.
+        const skipLink = page.getByRole("link", { name: "Skip to main content", exact: true });
+        await skipLink.focus();
+        await expect(skipLink).toBeFocused();
 
         const report = await page.evaluate(
           ({ minHeight, minWidth, requiredSelectors }) => {
