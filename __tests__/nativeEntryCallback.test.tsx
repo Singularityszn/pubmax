@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { readAuthCallbackAttempt } from "@/lib/authRedirect";
 import { establishAuthCallbackSession } from "@/lib/authCallbackClient";
+import { SESSION_ENTRY_CONSUMED_KEY } from "@/lib/entryDecision";
+import { consumeNativeFirstRunHandoff } from "@/lib/nativeFirstRun";
 
 const { replace } = vi.hoisted(() => ({ replace: vi.fn() }));
 vi.mock("next/navigation", () => ({
@@ -30,6 +32,31 @@ afterEach(async () => {
   if (root) await act(() => root!.unmount());
   root = null;
   document.body.innerHTML = "";
+});
+
+it("keeps first-run entry for the client router after the startup script", async () => {
+  const documentReplace = vi.fn();
+  new Function("window", source)({
+    Capacitor: { isNativePlatform: () => true },
+    location: { pathname: "/", hash: "", search: "", replace: documentReplace },
+    localStorage,
+    sessionStorage,
+  });
+
+  expect(documentReplace).not.toHaveBeenCalled();
+  expect(localStorage.getItem(routedKey)).toBeNull();
+  expect(sessionStorage.getItem(SESSION_ENTRY_CONSUMED_KEY)).toBeNull();
+
+  const container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  await act(() => root!.render(createElement(AppEntryRoute)));
+
+  expect(replace).toHaveBeenCalledExactlyOnceWith("/onboarding");
+  expect(localStorage.getItem(routedKey)).toBe("1");
+  expect(sessionStorage.getItem(SESSION_ENTRY_CONSUMED_KEY)).toBe("1");
+  expect(consumeNativeFirstRunHandoff()).toBe(true);
+  expect(consumeNativeFirstRunHandoff()).toBe(false);
 });
 
 describe.each([false, true])("native callback, previously routed=%s", (routed) => {
@@ -105,7 +132,8 @@ describe.each([false, true])("native callback, previously routed=%s", (routed) =
       localStorage,
       sessionStorage,
     });
-    expect(replace).toHaveBeenCalledWith(routed ? "/tonight" : "/onboarding");
+    if (routed) expect(replace).toHaveBeenCalledWith("/tonight");
+    else expect(replace).not.toHaveBeenCalled();
     replace.mockClear();
     sessionStorage.clear();
     if (!routed) localStorage.removeItem(routedKey);
