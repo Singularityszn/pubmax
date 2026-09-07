@@ -13,6 +13,7 @@ const PUB: UkBasePub = {
   lat: 51.42,
   lng: -0.18,
   curatedVenueId: "",
+  kind: "pub",
 };
 
 function loader(restore: UkBasePub | null): UkBaseLoader {
