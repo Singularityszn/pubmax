@@ -46,6 +46,26 @@ If you're adding a new component: reach for a token below before writing a
 literal value. If the token you need does not exist, add it to the theme source
 first, then document its non-obvious role here.
 
+### Where each law is fenced
+
+A design law here is not advice: each one has a test that fails when a surface
+breaks it. This is the door - go to the fence to find out what a law actually
+refuses, and add your assertion there rather than minting a second gate.
+
+| Law | Where it is written | The fence |
+|---|---|---|
+| The token set a launch surface may paint with | Launch tokens, below; `app/globals.css` owns the values | `__tests__/designTokens.test.ts` |
+| A text button is one row of `--control-*` tokens, and `button.css` sits outside every cascade layer | Launch tokens > Text buttons | `__tests__/buttonPrimitive.test.tsx`, `e2e/mobile-button-system.spec.ts` |
+| One painted primary per screen, a quiet row of at most two ways onward, and a form screen paints no head primary | `docs/design/LAUNCH_SCREENS.md` | `__tests__/coreUiAudit.test.ts`, `__tests__/launchPrimitives.test.tsx` |
+| The accent as a WORD takes `--brass-ink`; opacity is never a muted token | Colour, below | `__tests__/accentInkContrast.test.ts` |
+| A price wears its band and no other colour | `docs/PRICE_BANDS.md` | `__tests__/priceBand.test.ts`, `__tests__/priceBandSurfaces.test.ts` |
+| The template-pattern ban list | `docs/VOICE.md` > Template patterns | `__tests__/templatePatterns.test.ts` |
+| Copy voice: no em dash, British spelling, no hedge line | `docs/VOICE.md` | `__tests__/emDashLaw.test.ts`, `__tests__/frictionVoice.test.ts` |
+
+Open design debt and raised design decisions live in
+[`docs/design/BACKLOG.md`](./design/BACKLOG.md), never in a `docs/proof/`
+directory: a proof records one finished measurement and nobody re-reads one.
+
 ## Launch tokens
 
 The September 2026 relaunch (issue #1354) builds every launch surface from
@@ -318,7 +338,9 @@ adding the class is optional, additive polish.
 ```
 --space-1 … --space-12   4px base scale (4/8/12/16/20/24/32/40/48)
 --radius        8px      default corner (cards, inputs)
---radius-sm     6px      tight corner (chips, small controls)
+--radius-sm     6px      tight corner (descriptive chips and pills)
+                         A TEXT BUTTON OR CONTROL CHIP TAKES --control-radius
+                         (14px), never this - see Launch tokens > Text buttons.
 --radius-lg    18px      sheets / bottom-drawer corners
 --radius-pill 999px      pills, avatar-style chips
 ```

@@ -1,0 +1,47 @@
+import SiteNav from "@/components/nav/SiteNav";
+import EmptyState from "@/components/ui/empty-state";
+
+/**
+ * A plan we could not READ, on every surface under /plan/[id].
+ *
+ * It is not the not-found surface: that one says the link expired and sends the
+ * reader off to start their own night, which over a live plan is the wrong
+ * sentence and the wrong door. `planStore().read` answers `absent` and
+ * `unavailable` apart precisely so those two are worded apart, and every entry
+ * point in the segment - the plan page, the recap page and their metadata -
+ * shares this one surface rather than each deciding again.
+ *
+ * IT CLAIMS NOTHING ABOUT THE PLAN. The first cut opened "The plan is still
+ * there", which is a fact about a plan the store had just failed to read, one
+ * clause before the sentence saying we could not read it. A read we could not
+ * run tells us nothing in EITHER direction, so this surface names only what we
+ * know: the failure was ours, and the answer is unknown.
+ *
+ * Its one way onward is the SAME address, as a plain anchor, so the reader gets
+ * a fresh document and a fresh server read rather than the held payload a soft
+ * navigation would serve back.
+ */
+export default function PlanReadUnavailable({
+  href,
+  title = "We could not load this plan",
+}: {
+  /** The address to retry: the reader's own, so the recap returns to the recap. */
+  href: string;
+  title?: string;
+}): React.JSX.Element {
+  return (
+    <main id="main" className="planPage planPage--composer pageHidesCreateFab">
+      <SiteNav />
+      <header className="planPage__masthead">
+        <span>Plan</span>
+        <span>London · Tonight</span>
+      </header>
+
+      <EmptyState title={title} action={<a href={href}>Try again</a>}>
+        Our end could not answer just now, so nothing here is a reading of your
+        night. Whether the plan is still there is a thing this page could not
+        find out.
+      </EmptyState>
+    </main>
+  );
+}

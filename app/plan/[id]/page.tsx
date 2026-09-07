@@ -7,10 +7,10 @@ import NightCrawlMode from "@/components/plan/NightCrawlMode";
 import PlanInviteOpened from "@/components/plan/PlanInviteOpened";
 import PlanCrew from "@/components/plan/PlanCrew";
 import PlanInviteNextStep from "@/components/plan/PlanInviteNextStep";
+import PlanReadUnavailable from "@/components/plan/PlanReadUnavailable";
 import CompletedPlanUsualLot from "@/components/plan/CompletedPlanUsualLot";
 import LastCrewInvite from "@/components/plan/LastCrewInvite";
 import SiteNav from "@/components/nav/SiteNav";
-import EmptyState from "@/components/ui/empty-state";
 import PlanSummary from "@/components/plan/PlanSummary";
 import Screen from "@/components/ui/screen";
 import PlanVibe from "@/components/plan/PlanVibe";
@@ -123,34 +123,6 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   };
 }
 
-/**
- * A plan we could not READ. It is not the not-found surface: that one says the
- * link expired and sends the reader off to start their own night, which over a
- * live plan is the wrong sentence and the wrong door. This one says what
- * happened, and its one way onward is the SAME address - a plain anchor, so
- * the reader gets a fresh document and a fresh server read rather than the
- * held payload a soft navigation would serve back.
- */
-function PlanReadUnavailable({ id }: { id: string }): React.JSX.Element {
-  return (
-    <main id="main" className="planPage planPage--composer pageHidesCreateFab">
-      <SiteNav />
-      <header className="planPage__masthead">
-        <span>Plan</span>
-        <span>London · Tonight</span>
-      </header>
-
-      <EmptyState
-        title="We could not load this plan"
-        action={<a href={`/plan/${id}`}>Try again</a>}
-      >
-        The plan is still there. Our end could not answer just now, so nothing
-        here is a reading of your night.
-      </EmptyState>
-    </main>
-  );
-}
-
 const ENDING_LABEL: Record<"food" | "get_home" | "keep_going", string> = {
   food: "found food after",
   get_home: "headed home",
@@ -165,7 +137,7 @@ export default async function PlanPage({ params }: Props) {
   // the not-found surface, so one Supabase blip told a host their own night
   // was over (PlanAstra, section 2.4). The two answers are now two surfaces,
   // and this one offers the way back rather than a way onward.
-  if (read.status === "unavailable") return <PlanReadUnavailable id={id} />;
+  if (read.status === "unavailable") return <PlanReadUnavailable href={`/plan/${id}`} />;
   if (read.status === "absent") notFound();
   const state = read.state;
   // Crew vibe (share loop): the picker's server-rendered starting tally, and

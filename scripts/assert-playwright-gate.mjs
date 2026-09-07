@@ -150,7 +150,7 @@ if (!report || typeof report !== "object" || !Array.isArray(report.suites)) {
   process.exit();
 }
 
-let arguedSkipFiles = [];
+const arguedSkips = [];
 if (skipsArguedPath) {
   let allowlist;
   try {
@@ -165,9 +165,30 @@ if (skipsArguedPath) {
     fail(`${skipsArguedPath} must hold an "allowed" array`);
     process.exit();
   }
-  arguedSkipFiles = allowlist.allowed
-    .map((row) => (row && typeof row.file === "string" ? row.file : null))
-    .filter(Boolean);
+  for (const row of allowlist.allowed) {
+    if (!row || typeof row.file !== "string" || !row.file) {
+      fail(`${skipsArguedPath} holds a row with no file`);
+      process.exit();
+    }
+    // A ROW ARGUES NAMED TESTS, NEVER A WHOLE FILE. Reading `file` alone made
+    // every skipped test in a named spec argued, so a new unargued test.skip
+    // in either allowlisted spec passed this gate in silence.
+    if (!Array.isArray(row.tests) || row.tests.length === 0) {
+      fail(`${skipsArguedPath} row ${row.file} must name the tests it argues in a "tests" array`);
+      process.exit();
+    }
+    arguedSkips.push({ file: row.file, tests: row.tests.map(String) });
+  }
+}
+
+/** True when the allowlist argues THIS test, by spec file and by title. */
+function skipIsArgued(test) {
+  const titles = test.titlePath ?? [];
+  return arguedSkips.some(
+    (row) =>
+      samePath(specFile(test), row.file) &&
+      row.tests.some((title) => titles.includes(title)),
+  );
 }
 
 const tests = collectTests(report.suites);
@@ -179,9 +200,7 @@ const allSkipped = tests.filter(
     test.expectedStatus === "skipped" ||
     (test.results ?? []).some((result) => result.status === "skipped"),
 );
-const argued = allSkipped.filter((test) =>
-  arguedSkipFiles.some((file) => samePath(specFile(test), file)),
-);
+const argued = allSkipped.filter((test) => skipIsArgued(test));
 const skipped = allSkipped.filter((test) => !argued.includes(test));
 const unexpected = tests.filter(
   (test) =>

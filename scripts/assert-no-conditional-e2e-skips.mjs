@@ -36,6 +36,15 @@ async function readAllowlist() {
       );
       process.exit(1);
     }
+    // A row argues NAMED TESTS. Without them the run gate
+    // (scripts/assert-playwright-gate.mjs) reads `file` alone and a new
+    // unargued test.skip in an allowlisted spec passes in silence.
+    if (!Array.isArray(row.tests) || row.tests.length === 0) {
+      console.error(
+        `conditional skip allowlist row ${row.file} must name the tests it argues in a "tests" array`,
+      );
+      process.exit(1);
+    }
   }
   return rows;
 }
@@ -207,6 +216,34 @@ const staleRows = allowlist.filter(
     row.file.startsWith(`${scannedRoot}/`) &&
     !allowlistHits.has(`${row.file}::${row.condition}`),
 );
+
+// A named test that the spec no longer holds is the same stale exception as a
+// condition that no longer matches: the run gate would argue a title nothing
+// can produce, and the row would outlive the skip it was written for.
+const missingTitles = [];
+for (const row of allowlist) {
+  if (!row.file.startsWith(`${scannedRoot}/`)) continue;
+  let source;
+  try {
+    source = await readFile(path.resolve(process.cwd(), row.file), "utf8");
+  } catch {
+    continue;
+  }
+  for (const title of row.tests) {
+    if (!source.includes(title)) missingTitles.push({ file: row.file, title });
+  }
+}
+if (missingTitles.length > 0) {
+  for (const missing of missingTitles) {
+    console.error(
+      `conditional skip allowlist names a test that spec no longer holds: ${missing.file} ("${missing.title}")`,
+    );
+  }
+  console.error(
+    `conditional skip scan failed: ${missingTitles.length} allowlist title(s) match no test. Update the row when a test is renamed.`,
+  );
+  process.exit(1);
+}
 if (staleRows.length > 0) {
   for (const row of staleRows) {
     console.error(

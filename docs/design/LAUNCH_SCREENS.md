@@ -18,6 +18,13 @@ Rules the table obeys:
 - British English, no em dashes, no exclamation marks.
 - A route that is a list (Out, Social, Messages) keeps its primary in the
   head; its empty state uses `EmptyState` with at most one quiet way onward.
+- A FORM SCREEN PAINTS NO HEAD PRIMARY (captain, 7 September 2026). Its one
+  painted control is the form's own submit, beside the field it submits,
+  carrying `data-primary-action` itself, so `Screen`'s `primary` is omitted.
+  `/login` painted "Send the link" above the email field with the form's own
+  disabled submit under it, and `/pal/chat` painted "Send" above the
+  transcript while the composer's Ask circle was the submit: two doors for one
+  action, and the painted one was the far one.
 - Routes another track owns (Map canvas, nav) are listed so the table is
   complete; the design track sends those owners a note rather than editing.
 

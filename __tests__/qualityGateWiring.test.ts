@@ -18,6 +18,8 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { AGENT_TOOLING_PATHS } from "@/lib/agentToolingPaths.mjs";
+
 const ROOT = process.cwd();
 
 function packageScripts(): Record<string, string> {
@@ -37,8 +39,8 @@ describe("the quality gates", () => {
       "npm run lint",
       "npm run typecheck",
       // A dead dependency is dead code no compiler sees, so knip is a static
-      // gate: `knip.json` scopes it to dependency findings alone and it runs in
-      // about three seconds.
+      // gate: `knip.config.ts` scopes it to dependency findings alone and it
+      // runs in about three seconds.
       "npm run deadcode",
       "npm run coverage",
       // The proofs that need a real cluster, and a skip is a failure there.
@@ -64,5 +66,59 @@ describe("the quality gates", () => {
     const browser = workflow("e2e.yml");
     expect(browser).toContain("PLAYWRIGHT_JSON_OUTPUT_NAME");
     expect(browser).toContain("scripts/assert-playwright-gate.mjs");
+  });
+});
+
+describe("the directories agent tooling writes into this checkout", () => {
+  // TWO HAND-WRITTEN COPIES OF ONE SET IS HOW `.gitnexus/` FELL BETWEEN THEM.
+  // eslint and knip each carried their own list; they disagreed in five
+  // entries, and neither named the MCP server's index, so `npm run lint` - and
+  // therefore `npm run verify` and the pre-push hook - exited 1 on a clean tree
+  // for three errors in a gitignored file nobody here wrote.
+  const configs: ReadonlyArray<readonly [string, string]> = [
+    ["eslint.config.mjs", "eslint"],
+    ["knip.config.ts", "knip"],
+  ];
+
+  it.each(configs)("has %s read the one shared list", (file) => {
+    const source = readFileSync(join(ROOT, file), "utf8");
+    expect(
+      source,
+      `${file} must import AGENT_TOOLING_PATHS rather than restate it`,
+    ).toContain("AGENT_TOOLING_PATHS");
+
+    for (const path of AGENT_TOOLING_PATHS) {
+      const literal = JSON.stringify(path);
+      expect(
+        source.includes(literal),
+        `${file} restates ${path}; read it from lib/agentToolingPaths.mjs`,
+      ).toBe(false);
+    }
+  });
+
+  it("names the MCP index, and never a directory this tree writes source into", () => {
+    // `.gitnexus/` is the entry the two lists both missed. It is gitignored and
+    // ships a CommonJS entry file full of require() calls, so an unignored copy is a red
+    // merge bar on every machine the tool has run against.
+    expect(AGENT_TOOLING_PATHS).toContain(".gitnexus/**");
+
+    // The list is a lint and dead-code exemption, so an app directory on it
+    // would silence both gates over real source rather than over tooling.
+    const appSource = [
+      "app",
+      "components",
+      "lib",
+      "__tests__",
+      "scripts",
+      "e2e",
+      "supabase",
+    ];
+    for (const path of AGENT_TOOLING_PATHS) {
+      const directory = path.replace(/\/\*\*$/, "").replace(/\/$/, "");
+      expect(
+        appSource.includes(directory),
+        `${path} names app source; the tooling list may only exempt directories tooling writes`,
+      ).toBe(false);
+    }
   });
 });

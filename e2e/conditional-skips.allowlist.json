@@ -5,20 +5,34 @@
     "scripts/assert-no-conditional-e2e-skips.mjs unless it is named here with a",
     "reason and the condition that ends it. This list may only ever shrink: a",
     "row whose spec, line region or condition no longer matches fails the gate,",
-    "so a stale exception cannot outlive the skip it was written for."
+    "so a stale exception cannot outlive the skip it was written for.",
+    "A ROW ARGUES NAMED TESTS, NEVER A WHOLE FILE. The run gate",
+    "(scripts/assert-playwright-gate.mjs) used to read `file` alone and treat",
+    "every skipped test in a named spec as argued, so a new unargued test.skip",
+    "added to either spec below passed the law-pins run silently. `tests` is the",
+    "titles this row argues, and both gates require it: the source gate refuses",
+    "a title the spec no longer holds, and the run gate refuses a skipped test",
+    "the row does not name."
   ],
   "allowed": [
     {
       "file": "e2e/cwv-baseline.spec.ts",
       "condition": "!RECORD && !SWEEP",
       "reason": "The Core Web Vitals lane is a three-hour throttled sweep over six routes, so it is owned by its own run rather than by every pull request. PUBMAX_CWV_RECORD writes perf/cwv-baseline.json; PUBMAX_CWV_SWEEP defends it.",
-      "ends": "A scheduled job (or npm script) that sets PUBMAX_CWV_SWEEP=1 on a cadence the team acts on."
+      "ends": "A scheduled job (or npm script) that sets PUBMAX_CWV_SWEEP=1 on a cadence the team acts on.",
+      "tests": [
+        "records or defends every route's LCP, INP, CLS and the product timings",
+        "every measured route names a primary action to interact with"
+      ]
     },
     {
       "file": "e2e/plan-capability-recovery.spec.ts",
       "condition": "true",
       "reason": "The keyless e2e server holds no service-role key, so verifyCallerAuth answers unavailable and both the claim PUT and the recovery PATCH answer 503 by design. The alternative was a test-only bypass inside production auth code, which was refused.",
-      "ends": "A real authenticated e2e lane with a service-role key (#1300). The journey is kept whole so it can be switched on that day."
+      "ends": "A real authenticated e2e lane with a service-role key (#1300). The journey is kept whole so it can be switched on that day.",
+      "tests": [
+        "a signed-in host who lost the capability cookie recovers it on the Plan page"
+      ]
     }
   ]
 }

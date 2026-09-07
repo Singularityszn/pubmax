@@ -18,6 +18,11 @@ function error(error: string, code: string, status: number, retryable = false): 
   return publicApiError(error, code, status, { retryable });
 }
 
+/** The same sentence and code the Plan route already spends for this outcome. */
+function planStoreUnavailable(): Response {
+  return error("Plan data is temporarily unavailable.", "PLAN_STORE_UNAVAILABLE", 503, true);
+}
+
 /**
  * §4.10: the full recap (route venue names, pints logged, the user title) is
  * returned ONLY to a viewer whose request carries a valid host/guest
@@ -27,15 +32,20 @@ function error(error: string, code: string, status: number, retryable = false): 
 export async function GET(request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
   if (!isPlanId(id)) return error("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
-  const state = await planStore().get(id);
-  if (!state) return error("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
+  // A read we could not RUN is not a plan that has gone, so it is a retryable
+  // 503 rather than the 404 that tells a crew their own night is over.
+  const read = await planStore().read(id);
+  if (read.status === "unavailable") return planStoreUnavailable();
+  if (read.status === "absent") return error("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
+  const state = read.state;
   const projection = await resolvePlanProjection({ request, planId: id, state });
   if (projection.visibility !== "member") {
     return jsonNoStore({ visibility: "preview", stopCount: state.stops.length }, { status: 200 });
   }
-  const assembly = await assembleMemberRecap(id);
-  if (!assembly) return error("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
-  return jsonNoStore({ visibility: "member", ...assembly }, { status: 200 });
+  const assembled = await assembleMemberRecap(id);
+  if (assembled.status === "unavailable") return planStoreUnavailable();
+  if (assembled.status === "absent") return error("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
+  return jsonNoStore({ visibility: "member", ...assembled.assembly }, { status: 200 });
 }
 
 export async function POST(request: Request, context: Context): Promise<Response> {

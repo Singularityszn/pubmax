@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 
 import SiteNav from "@/components/nav/SiteNav";
@@ -48,6 +49,10 @@ export const metadata: Metadata = {
 };
 
 export default async function SpoonsValuePage() {
+  // Per-request CSP nonce (proxy.ts) for the JSON-LD block, as every other
+  // JsonLd call site passes: see components/seo/JsonLd.tsx for why a data
+  // block takes one.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   const read = await readSpoonsValue();
 
   if (read.status !== "ready" || !read.pack) {
@@ -96,7 +101,7 @@ export default async function SpoonsValuePage() {
     <>
       <SiteNav />
       <main className="spoonsPage" id="main">
-        <JsonLd data={jsonLd} />
+        <JsonLd data={jsonLd} nonce={nonce} />
         <Screen
           kicker="Wetherspoons, everywhere"
           title={SPOONS_VALUE_PAGE_TITLE}

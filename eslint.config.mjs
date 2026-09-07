@@ -2,17 +2,15 @@ import tsParser from "@typescript-eslint/parser";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
+import { AGENT_TOOLING_PATHS } from "./lib/agentToolingPaths.mjs";
+
 const eslintConfig = [
   {
     ignores: [
-      // Claude stores complete (including detached) Git worktrees beneath the
-      // checkout. They are independent branches, never source owned by this
-      // tree, and must not be allowed to fail this tree's lint gate.
-      ".claude/worktrees/",
-      ".context/**",
-      ".firecrawl/**",
-      // Scout verification bundles contain vendored build output, not app source.
-      ".scout/**",
+      // The directories agent tooling writes into this checkout. One list,
+      // shared with knip: see lib/agentToolingPaths.mjs for why.
+      ...AGENT_TOOLING_PATHS,
+      // This tree's own build output and generated artifacts.
       ".next/**",
       ".next-*/**",
       ".vercel/**",
@@ -22,17 +20,11 @@ const eslintConfig = [
       // Copied from the pinned MapLibre package by predev/prebuild.
       "public/vendor/maplibre/**",
       "data/**",
-      // Vendored agent/design skill packs — not app source; upstream uses require() etc.
-      "skills/**",
-      // Skill-pack reference assets - not app code.
-      ".agents/**",
-      // Generated verification artifacts — never hand-authored source.
+      // Generated verification artifacts - never hand-authored source.
       "test-results/**",
       "playwright-report/**",
       // Local co-dev scratch probes (also gitignored); not part of the app.
       "scratch-*.mjs",
-      // Ephemeral local debug captures; not part of the app.
-      ".tmp-evidence/**",
     ],
   },
   ...nextVitals,

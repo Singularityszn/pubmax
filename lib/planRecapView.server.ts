@@ -65,17 +65,32 @@ export type RecapAssembly =
   | { completed: true; stopCount: number; view: RecapView; shareText: string };
 
 /**
+ * Three-way, for the same reason `planStore.read` is: a read we could not RUN
+ * is a fact about us, never a fact about the plan. `get` collapsed an absent
+ * plan and an unreachable store into one null and the route answered
+ * PLAN_NOT_FOUND to both, so one PostgREST blip told a crew their night had
+ * gone. `absent` keeps the 404; `unavailable` is a retryable 503.
+ */
+export type RecapAssemblyResult =
+  | { status: "ready"; assembly: RecapAssembly }
+  | { status: "absent" }
+  | { status: "unavailable" };
+
+/**
  * Assemble the full member recap. `completed: false` carries only the safe stop
  * count for the "not finished yet" shell; `completed: true` carries the full
  * RecapView (venue names, pints) — return it ONLY to a confirmed member.
  */
-export async function assembleMemberRecap(id: string): Promise<RecapAssembly | null> {
-  const state = await planStore().get(id);
-  if (!state) return null;
+export async function assembleMemberRecap(id: string): Promise<RecapAssemblyResult> {
+  const read = await planStore().read(id);
+  if (read.status !== "found") return { status: read.status };
+  const state = read.state;
 
   const completionLookup = await planCompletionResult(id);
   const completion = completionLookup.ok ? completionLookup.completion : null;
-  if (!completion) return { completed: false, stopCount: state.stops.length };
+  if (!completion) {
+    return { status: "ready", assembly: { completed: false, stopCount: state.stops.length } };
+  }
 
   const canonicalStops = completion.routeSnapshot.slice().sort((left, right) => left.position - right.position);
   const venueNames = new Map(canonicalStops.map((stop) => [stop.venueId, stop.venueName] as const));
@@ -103,5 +118,8 @@ export async function assembleMemberRecap(id: string): Promise<RecapAssembly | n
     totalGbp: view.stats.totalGbp,
   });
 
-  return { completed: true, stopCount: canonicalStops.length, view, shareText };
+  return {
+    status: "ready",
+    assembly: { completed: true, stopCount: canonicalStops.length, view, shareText },
+  };
 }
