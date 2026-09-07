@@ -1767,9 +1767,12 @@ const INLINE_BACKEND_INVENTORY: Record<string, Omit<StoreRow, "class">> = {
 // Existing adopters stay in place. These test links are evidence pointers, not a full coverage claim.
 const FACTORY_ADOPTIONS = {
   "lib/adultSelfAssertionStore.ts": {
-    tests: ["__tests__/adultSelfAssertionRoute.test.ts"],
+    tests: [
+      "__tests__/adultSelfAssertionRoute.test.ts",
+      "__tests__/adultSelfAssertionStore.test.ts",
+    ],
     disposition:
-      "Retain. Account checks and first-tap semantics remain outside the selector; blank-input adapter parity is unproved.",
+      "Retain. Account checks and first-tap semantics remain outside the selector; both adapters reject blank account IDs.",
   },
   "lib/feedFreshnessStore.ts": {
     tests: ["__tests__/storePilotParity.test.ts"],
@@ -1802,14 +1805,17 @@ const FACTORY_ADOPTIONS = {
       "Retain. Event reversals, credits and degraded reads remain domain policy.",
   },
   "lib/stepOutNudgeStore.ts": {
-    tests: ["__tests__/stepOutNudgeStore.test.ts"],
+    tests: [
+      "__tests__/stepOutNudgeStore.test.ts",
+      "__tests__/stepOutNudgeStoreParity.test.ts",
+    ],
     disposition:
-      "Retain. Opt-in, withdrawal and send stamps remain subscription policy; disabled-row send stamps differ between adapters.",
+      "Retain. Opt-in and withdrawal remain subscription policy; both adapters preserve disabled-lane send stamps.",
   },
   "lib/walkRouteStore.ts": {
     tests: ["__tests__/walkRouteStore.test.ts"],
     disposition:
-      "Retain. TTL and cache failures remain adapter policy; short coordinate arrays differ between adapters.",
+      "Retain. TTL and cache failures remain adapter policy; both adapters validate coordinate arrays with the existing decoder.",
   },
   "lib/wantedStore.ts": {
     tests: ["__tests__/wantedStore.test.ts"],
@@ -1907,7 +1913,7 @@ describe("backend inventory evidence (#727)", () => {
     for (const [path, evidence] of Object.entries(FACTORY_ADOPTIONS)) {
       expect(evidence.disposition.startsWith("Retain."), path).toBe(true);
       for (const test of evidence.tests)
-        expect(source(test), test).toContain("it(");
+        expect(source(test), test).toMatch(/\b(?:it|test)(?:\.each|\()/);
       const calls: ts.CallExpression[] = [];
       function visit(node: ts.Node): void {
         if (

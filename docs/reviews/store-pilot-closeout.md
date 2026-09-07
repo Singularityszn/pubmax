@@ -48,7 +48,8 @@ It mocks Supabase query responses. It does not start PostgreSQL or prove a deplo
 | Reset | Clears its memory stamps without touching occupancy | Clears its memory reports without touching feed stamps; resets column compatibility state |
 
 The production read difference is intentional in the current code and remains explicit in the matrix.
-No source helper, adapter, route, authorization rule or fallback policy changes.
+The shared helper, durable adapters, routes, authorization rules and fallback policies remain unchanged.
+Three memory edge contracts now match their existing durable implementations, as described below.
 
 ## Existing factory adopters
 
@@ -60,24 +61,27 @@ The inventory fence records each adopter and its test files.
 | --- | --- | --- | --- |
 | `feedFreshnessStore` | Failure results and held metadata reads | New pilot matrix | Retain as a named pilot |
 | `occupancyStore` | Retake window, moderation and column compatibility | New matrix; `occupancyStore.test.ts`; `occupancyStorePre0109.test.ts` | Retain as a named pilot |
-| `adultSelfAssertionStore` | Account admission, first assertion and strict missing-schema writes | `adultSelfAssertionRoute.test.ts` covers verified-account admission and first-tap semantics | Retain; route tests are not a complete durable matrix |
+| `adultSelfAssertionStore` | Account admission, first assertion and strict missing-schema writes | `adultSelfAssertionRoute.test.ts` covers account admission and first-tap semantics; `adultSelfAssertionStore.test.ts` checks blank IDs on both adapters | Retain; configured successful record/readback remains outside this matrix |
 | `harvestOverlayStore` | `requireDurable` guard, degraded reads and malformed rows | `harvestOverlayStore.test.ts`; `harvestOverlayStoreMalformed.test.ts` | Retain; the option stays outside the factory |
 | `priceTrustEventStore` | Credits, reversals and degraded read results | `priceTrustEventStore.test.ts`; `priceTrustEventStoreDurable.test.ts` | Retain; domain methods keep these rules |
-| `stepOutNudgeStore` | Opt-in, withdrawal and send stamps | `stepOutNudgeStore.test.ts` | Retain; these memory tests are not a complete durable matrix |
+| `stepOutNudgeStore` | Opt-in, withdrawal and send stamps | `stepOutNudgeStore.test.ts`; `stepOutNudgeStoreParity.test.ts` covers configured and memory send-stamp contracts | Retain; missing-schema and outage parity remain outside this matrix |
 | `walkRouteStore` | TTL, cache misses and ignored cache-write failures | `walkRouteStore.test.ts` covers both adapters and schema/error fallbacks | Retain as a cache policy exception |
 | `wantedStore` | Owner filtering and fulfilment | `wantedStore.test.ts` | Retain; these memory tests are not a complete durable matrix |
 
-## Source differences outside the pilot pair
+## Verified memory edge fixes outside the pilot pair
 
-These source findings do not prove a reachable production failure or a factory defect.
-They require focused reproductions before any adapter change.
+Three separate domain commits align memory behaviour with the existing durable implementation.
+They do not widen the factory or change durable storage policy.
 
-- `adultSelfAssertionStore.record("")` returns an unpersisted timestamp in memory; the durable adapter rejects the empty account.
-- `stepOutNudgeStore` memory send stamps update disabled rows. Durable updates require the corresponding enabled flag.
-- `walkRouteStore` memory reads return stored short coordinate arrays. Durable decoding returns `null` when fewer than two valid points remain.
+- `adultSelfAssertionStore.record` rejects blank account IDs in both adapters, without a database call.
+- `stepOutNudgeStore` leaves send stamps unchanged after withdrawal or decline. Enabled stamps still apply only to their owner.
+- `walkRouteStore` uses the existing decoder in both adapters. Fewer than two valid points produce a cache miss.
 
-The current tests do not establish complete parity for these inputs or transitions.
-Retaining the factory calls does not clear these store-level findings.
+The nudge proof executes the actual Supabase adapter and PostgREST client against a local fetch implementation.
+It checks owner isolation, delayed stamps, shared-token retention and absent-row no-ops.
+These changes neither prove an invalid-account browser bug nor cancel a notification already in flight.
+
+The focused tests prove these input and transition contracts. They do not establish complete parity for every adopter operation.
 
 ## Verification boundary
 
