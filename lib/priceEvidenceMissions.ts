@@ -225,6 +225,14 @@ function beerReceiptFromTrust(trust: PintTrustState): MissionReceipt {
         outcome: "needs_check",
         line: "Another independent check is still needed.",
       };
+    case "disputed":
+      // A split pub is not a pub nothing speaks for, and it is not one report
+      // short either: two drinkers have spoken and they differ. The receipt
+      // says which thing would settle it (captain 7 Sept 2026).
+      return {
+        outcome: "needs_check",
+        line: "Drinkers here report different prices. A second drinker reporting the same figure confirms it.",
+      };
     default:
       // `aged-out` and `none` are both "nothing here speaks for tonight yet",
       // and neither may be worded as a check that is nearly done.

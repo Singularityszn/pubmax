@@ -282,16 +282,40 @@ describe("the split reading", () => {
     expect(provisionalPriceDrop(twoDrinks, NOW)?.priceGbp).toBe(4.7);
   });
 
-  it("counts drinkers and prices apart: three reports, two figures", () => {
-    // The repeat carries the SECOND drinker's own key, so nothing is
-    // corroborated: one account saying £4.50 twice is one report.
+  it("counts drinkers and prices apart: three drinkers, two figures", () => {
+    // An unattributed drop carries no authority key, so it can corroborate
+    // nothing; it is still a report the pub's own sheet prints, so it counts as
+    // one drinker.
     const three = [
       ...hattonDrops(),
-      drop({ priceGbp: 4.5, handle: "second", authorityKey: "key-b", createdAt: daysAgo(3) }),
+      drop({ priceGbp: 4.5, handle: "quiet", createdAt: daysAgo(3) }),
     ];
     const split = disputedPintPrices(three, NOW)!.split;
     expect(split).toEqual({ prices: [4.5, 4.7], reporters: 3 });
     expect(pintPriceSplitLine(split)).toBe("Three drinkers, two prices: £4.50 and £4.70");
+  });
+
+  it("counts one account twice as ONE drinker", () => {
+    // The same key on both £4.50 rows. One account saying a figure twice is one
+    // report, and the line may not turn it into two people.
+    const repeated = [
+      ...hattonDrops(),
+      drop({ priceGbp: 4.5, handle: "second", authorityKey: "key-b", createdAt: daysAgo(3) }),
+    ];
+    const split = disputedPintPrices(repeated, NOW)!.split;
+    expect(split).toEqual({ prices: [4.5, 4.7], reporters: 2 });
+    expect(pintPriceSplitLine(split)).toBe("Two drinkers, two prices: £4.50 and £4.70");
+  });
+
+  it("reads a lane label as no drink, so the two price doors can still agree", () => {
+    // The one-tap composer writes the lane's own label ("Beer"); the full Pint
+    // Drop composer writes what the drinker typed. Those are not two drinks.
+    expect(
+      pintDropsAgree(drop({ drink: "Beer", priceGbp: 4.5 }), drop({ drink: "Guinness", priceGbp: 4.5 })),
+    ).toBe(true);
+    expect(
+      pintDropsAgree(drop({ drink: "Beer", priceGbp: 4.5 }), drop({ drink: "Guinness", priceGbp: 4.7 })),
+    ).toBe(false);
   });
 
   it("stands down the moment two independent drinkers agree exactly", () => {

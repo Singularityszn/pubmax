@@ -17,6 +17,7 @@
 // already prints, handed through unchanged.
 
 import { formatGbp } from "@/lib/formatGbp";
+import { pintPriceSplitLine } from "@/lib/pintDropAgreement";
 import type { PintDropConfirmation } from "@/lib/pintDropConfirmationRecord";
 import type { PintTrustState } from "@/lib/pintTrust";
 
@@ -75,6 +76,13 @@ export function confirmPintActionName(priceGbp: number, venueName: string): stri
  *    write changed nothing about its standing (a retry lands here).
  *  - `same_reporter`: the figure agrees with an earlier report, but every
  *    agreeing report carries one authority key, so nothing was confirmed.
+ *  - `price_disagrees`: this pub's in-window drinkers report DIFFERENT figures
+ *    for the same drink, so the write landed as a third price rather than as an
+ *    answer to an existing one (captain 7 Sept 2026). It carries the figures AND
+ *    the number of drinkers behind them, because the two counts come apart:
+ *    three reports holding two figures is three drinkers and two prices.
+ *    "Nothing was confirmed" is a fact about us; "£4.50 and £4.70" is the fact
+ *    about the pub the drinker came for.
  *  - `awaiting_second_drinker`: no independent agreement yet.
  *  - `unavailable`: the pass could not read or write; the drop still stands.
  */
@@ -82,6 +90,7 @@ export type PintDropConfirmationOutcome =
   | { status: "confirmed"; confirmation: PintDropConfirmation; dropIds: string[] }
   | { status: "already_confirmed"; confirmation: PintDropConfirmation }
   | { status: "same_reporter" }
+  | { status: "price_disagrees"; prices: number[]; reporters: number }
   | { status: "awaiting_second_drinker" }
   | { status: "unavailable" };
 
@@ -89,6 +98,7 @@ export const PINT_DROP_CONFIRMATION_OUTCOMES = [
   "confirmed",
   "already_confirmed",
   "same_reporter",
+  "price_disagrees",
   "awaiting_second_drinker",
   "unavailable",
 ] as const;
@@ -125,6 +135,20 @@ export function parseConfirmationOutcome(value: unknown): PintDropConfirmationOu
       return isConfirmationRecord(record.confirmation)
         ? { status: "already_confirmed", confirmation: record.confirmation }
         : null;
+    case "price_disagrees": {
+      // The figures are the whole of what this outcome says, so a body without
+      // them says nothing and is refused rather than shown as a bare status.
+      const prices = Array.isArray(record.prices)
+        ? record.prices.filter(
+            (price): price is number => typeof price === "number" && Number.isFinite(price),
+          )
+        : [];
+      const reporters =
+        typeof record.reporters === "number" && Number.isFinite(record.reporters)
+          ? record.reporters
+          : prices.length;
+      return prices.length > 1 ? { status: "price_disagrees", prices, reporters } : null;
+    }
     case "same_reporter":
     case "awaiting_second_drinker":
     case "unavailable":
@@ -156,6 +180,10 @@ export function confirmationOutcomeLine(
       return `${figure} was already confirmed here.`;
     case "same_reporter":
       return "That matches your own earlier report, so it still needs a second drinker.";
+    case "price_disagrees":
+      // The pub's own figures first, then the rule. A drinker who has just been
+      // asked "Which did you pay?" and answered with a third price is owed both.
+      return `${pintPriceSplitLine({ prices: outcome.prices, reporters: outcome.reporters })}. A price is confirmed when two drinkers report the same figure.`;
     default:
       return null;
   }

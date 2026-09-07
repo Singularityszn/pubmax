@@ -78,13 +78,14 @@ describe("a match confirms, and only a match", () => {
     ];
     expect(findSecondReporterConfirmation(third, NOW)).toBeNull();
     const reading = readSecondReporter(third, NOW, "key-c");
-    expect(reading).toEqual({ kind: "split", prices: [4.5, 4.7, 5.1] });
+    expect(reading).toEqual({ kind: "split", prices: [4.5, 4.7, 5.1], reporters: 3 });
   });
 
   it("names the split for the caller who has just joined one", () => {
     expect(readSecondReporter(splitLane(), NOW, "key-b")).toEqual({
       kind: "split",
       prices: [4.5, 4.7],
+      reporters: 2,
     });
     // One report is still one report: a lone drinker has joined no split.
     expect(readSecondReporter([drop({ authorityKey: "key-a" })], NOW, "key-a")).toEqual({
@@ -107,25 +108,36 @@ describe("a match confirms, and only a match", () => {
 describe("the closed vocabulary carries the answer to the browser", () => {
   it("names the split outcome and keeps the set closed", () => {
     expect(PINT_DROP_CONFIRMATION_OUTCOMES).toContain("price_disagrees");
-    expect(outcomeForUnmintedReading({ kind: "split", prices: [4.5, 4.7] })).toEqual({
-      status: "price_disagrees",
-      prices: [4.5, 4.7],
-    });
+    expect(
+      outcomeForUnmintedReading({ kind: "split", prices: [4.5, 4.7], reporters: 3 }),
+    ).toEqual({ status: "price_disagrees", prices: [4.5, 4.7], reporters: 3 });
   });
 
   it("reads the outcome back off a response body, and refuses a malformed one", () => {
-    expect(parseConfirmationOutcome({ status: "price_disagrees", prices: [4.5, 4.7] })).toEqual({
-      status: "price_disagrees",
-      prices: [4.5, 4.7],
-    });
+    expect(
+      parseConfirmationOutcome({ status: "price_disagrees", prices: [4.5, 4.7], reporters: 2 }),
+    ).toEqual({ status: "price_disagrees", prices: [4.5, 4.7], reporters: 2 });
     expect(parseConfirmationOutcome({ status: "price_disagrees" })).toBeNull();
     expect(parseConfirmationOutcome({ status: "price_disagrees", prices: [] })).toBeNull();
   });
 
   it("words it as a fact about the pub and a rule, never as a refusal", () => {
-    const line = confirmationOutcomeLine({ status: "price_disagrees", prices: [4.5, 4.7] }, 4.7);
+    const line = confirmationOutcomeLine(
+      { status: "price_disagrees", prices: [4.5, 4.7], reporters: 2 },
+      4.7,
+    );
     expect(line).toBe(
       "Two drinkers, two prices: £4.50 and £4.70. A price is confirmed when two drinkers report the same figure.",
+    );
+    // The two counts come apart, and the line says both: three reports holding
+    // two figures is three drinkers and two prices.
+    expect(
+      confirmationOutcomeLine(
+        { status: "price_disagrees", prices: [4.5, 4.7], reporters: 3 },
+        4.7,
+      ),
+    ).toBe(
+      "Three drinkers, two prices: £4.50 and £4.70. A price is confirmed when two drinkers report the same figure.",
     );
   });
 });

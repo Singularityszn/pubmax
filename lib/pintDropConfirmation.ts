@@ -52,6 +52,7 @@ import { type ConfirmedPriceInput } from "@/lib/priceTier";
 import {
   confirmedPriceDrop,
   corroboratedPriceDrop,
+  disputedPintPrices,
   type SummaryDrop,
 } from "@/lib/venues";
 
@@ -198,6 +199,12 @@ export function findSecondReporterConfirmation(
  * What the second-reporter pass found, as a READING rather than a write. This
  * is `findSecondReporterConfirmation` plus the honest name for each null.
  *
+ * `split` is what the "Which did you pay?" door produces when the answer is a
+ * THIRD price: the pub's in-window drinkers report different figures for one
+ * drink, so nothing is confirmed and the reading carries what the pub actually
+ * holds. It is asked after `same_reporter`, because that is a sentence about
+ * the caller and outranks a fact about the pub.
+ *
  * `same_reporter` is the case the door on the venue sheet exists to explain: a
  * figure that agrees with an earlier in-window report where every agreeing
  * report carries ONE authority key. Nothing is confirmed, because one account
@@ -211,6 +218,7 @@ export type SecondReporterReading =
   | { kind: "pair"; dropId: string; confirmingDropId: string }
   | { kind: "already_confirmed"; confirmation: PintDropConfirmation }
   | { kind: "same_reporter" }
+  | { kind: "split"; prices: number[]; reporters: number }
   | { kind: "awaiting" };
 
 export function readSecondReporter(
@@ -257,6 +265,12 @@ export function readSecondReporter(
       return { kind: "same_reporter" };
     }
   }
+  // A THIRD PRICE, NAMED (captain 7 Sept 2026). Asked AFTER `same_reporter`,
+  // which is a sentence about the caller and outranks a fact about the pub.
+  // The split is read over the caller's OWN drink group, because that is the
+  // question they answered, and it is the reading lib/venues.ts already owns.
+  const split = disputedPintPrices(drops, now);
+  if (split) return { kind: "split", ...split.split };
   return { kind: "awaiting" };
 }
 
@@ -273,6 +287,12 @@ export function outcomeForUnmintedReading(
       return { status: "already_confirmed", confirmation: reading.confirmation };
     case "same_reporter":
       return { status: "same_reporter" };
+    case "split":
+      return {
+        status: "price_disagrees",
+        prices: reading.prices,
+        reporters: reading.reporters,
+      };
     default:
       return { status: "awaiting_second_drinker" };
   }

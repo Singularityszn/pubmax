@@ -271,34 +271,6 @@ function PriceDoor({
 }
 
 /**
- * What the price area says over a pub with no lane to render.
- *
- * A READ WE COULD NOT RUN IS NOT AN EMPTY PUB (review finding F-8). Every
- * first-drop line claims nobody has logged a price here, and that claim needs
- * an answered read behind it. The one door still rides either way, so a reader
- * who came to log a price still can.
- */
-function UnpricedPubBlock({
-  venue,
-  dropReadStatus,
-  door,
-}: {
-  venue: Venue;
-  dropReadStatus?: VenueDropReadStatus;
-  door: ReactNode;
-}) {
-  if (firstDropNudgeMayClaimAbsence(dropReadStatus)) {
-    return <FirstDropNudge venueId={venue.id}>{door}</FirstDropNudge>;
-  }
-  return (
-    <div className="firstDropNudge" role="note">
-      <p className="firstDropNudgeLine">{DROP_READ_UNAVAILABLE_LINE}</p>
-      {door}
-    </div>
-  );
-}
-
-/**
  * A DRINKER'S OWN LOG, printed with what it is still worth beside it.
  *
  * Three lanes, one block: `provisional` (one in-window report), `disputed`
@@ -352,6 +324,34 @@ function DrinkerLogBlock({
       ) : null}
       {loggedAt ? <small className={chromeRevealClass}>{loggedAt}</small> : null}
       <small className={`communityPriceStanding ${priceRevealMotionClass}`.trim()}>{line}</small>
+      {door}
+    </div>
+  );
+}
+
+/**
+ * What the price area says over a pub with no lane to render.
+ *
+ * A READ WE COULD NOT RUN IS NOT AN EMPTY PUB (review finding F-8). Every
+ * first-drop line claims nobody has logged a price here, and that claim needs
+ * an answered read behind it. The one door still rides either way, so a reader
+ * who came to log a price still can.
+ */
+function UnpricedPubBlock({
+  venue,
+  dropReadStatus,
+  door,
+}: {
+  venue: Venue;
+  dropReadStatus?: VenueDropReadStatus;
+  door: ReactNode;
+}) {
+  if (firstDropNudgeMayClaimAbsence(dropReadStatus)) {
+    return <FirstDropNudge venueId={venue.id}>{door}</FirstDropNudge>;
+  }
+  return (
+    <div className="firstDropNudge" role="note">
+      <p className="firstDropNudgeLine">{DROP_READ_UNAVAILABLE_LINE}</p>
       {door}
     </div>
   );

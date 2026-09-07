@@ -4,7 +4,7 @@ import {
 } from "@/lib/communityPrice";
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
 import {
-  drinkAgreementKey,
+  drinksMayBeOne,
   pintDropsAgree,
   pintPriceSplitOf,
   type PintPriceSplit,
@@ -905,7 +905,7 @@ export function provisionalPriceDrop<D extends SummaryDrop>(
 // The reading is over the drink group the provisional lane would otherwise
 // print: the freshest in-window pint drop names the drink, and every other
 // in-window drop about that same drink and measure joins it
-// (`drinkAgreementKey`). Two distinct figures in that group is a SPLIT, and a
+// (`drinksMayBeOne`). Two distinct figures in that group is a SPLIT, and a
 // split is a fact to print rather than a tie to break — nothing here picks a
 // winner, averages, or takes the newer figure.
 //
@@ -921,12 +921,11 @@ export function disputedPintPrices<D extends SummaryDrop>(
   if (authoritativePriceDrop(drops, now)) return null;
   const lead = provisionalPriceDrop(drops, now);
   if (!lead) return null;
-  const key = drinkAgreementKey(lead);
   const group = drops.filter(
     (drop) =>
       isPintPricedDrop(drop) &&
       isWithinMaxAge({ submittedAt: Date.parse(drop.createdAt) }, now) &&
-      drinkAgreementKey(drop) === key,
+      drinksMayBeOne(lead, drop),
   );
   const split = pintPriceSplitOf(group);
   if (!split) return null;

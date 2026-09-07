@@ -26,6 +26,10 @@ import {
   type ContributionGateStatus,
 } from "@/lib/contributionGateStatus";
 import type { DrinkCategory } from "@/lib/drinks";
+import {
+  parseConfirmationOutcome,
+  type PintDropConfirmationOutcome,
+} from "@/lib/pintDropSecondDrinker";
 import { PINT_TRUST_STATES, type PintTrustState } from "@/lib/pintTrust";
 import type {
   CategoryPriceIndexStatus,
@@ -86,6 +90,14 @@ export type CommunityPriceSubmitResult =
        * otherwise, and the receipt claims no trust without it.
        */
       pintTrust: PintTrustState | null;
+      /**
+       * What the second-reporter pass made of this write, in the closed
+       * vocabulary lib/pintDropSecondDrinker.ts owns. The composer's receipt
+       * PRINTS this rather than deciding a standing of its own, so a drinker
+       * who answered "Which did you pay?" with a third price is told the pub
+       * now holds two, not shown a line asking for a drinker who has been.
+       */
+      confirmationOutcome: PintDropConfirmationOutcome | null;
     }
   // `reason` is the coarse funnel bucket for the failure - the analytics enum,
   // not a second copy of the sentence. `error` stays the human sentence and is
@@ -1022,6 +1034,7 @@ export function useCommunityPrices(): CommunityPricesState {
               price?: CommunityPrice;
               attribution?: unknown;
               pintTrust?: unknown;
+              confirmationOutcome?: unknown;
               error?: unknown;
               status?: string;
             }
@@ -1060,6 +1073,7 @@ export function useCommunityPrices(): CommunityPricesState {
           attribution: readCommunityPriceAttribution(data?.attribution),
           price: stored ?? null,
           pintTrust: readPintTrustState(data?.pintTrust),
+          confirmationOutcome: parseConfirmationOutcome(data?.confirmationOutcome),
         };
       } catch {
         rollback();

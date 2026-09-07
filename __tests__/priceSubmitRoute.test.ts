@@ -1475,17 +1475,52 @@ describe("POST /api/price-submit second-drinker confirmation", () => {
     };
   };
 
-  it("tells the same account its repeat confirms nothing", async () => {
+  it("tells one account reporting two figures that its pub now holds two prices", async () => {
     const venueId = await realVenueId(20);
-    // A second REPORT, not a second tap: a different figure inside the shared
-    // agreement tolerance, so the duplicate-tap window (D10) leaves it alone
-    // and the independence rule is what answers.
+    // A second REPORT, not a second tap: a different figure, so the
+    // duplicate-tap window (D10) leaves it alone. Since 7 Sept 2026 the drop
+    // lane's agreement is EXACT, so £4.50 and £4.60 are two prices rather than
+    // one repeated report, and the outcome says so - with ONE drinker behind
+    // them, because both carry this account's own authority key.
     await submitAs("solo", { venueId, drinkCategory: "beer", priceGbp: 4.5 });
     const res = await submitAs("solo", { venueId, drinkCategory: "beer", priceGbp: 4.6 });
     expect(res.status).toBe(201);
     const body = (await res.json()) as ConfirmationBody;
-    expect(body.confirmationOutcome).toEqual({ status: "same_reporter" });
+    expect(body.confirmationOutcome).toEqual({
+      status: "price_disagrees",
+      prices: [4.5, 4.6],
+      reporters: 1,
+    });
     expect(listVisiblePintDrops(venueId).every((row) => !row.confirmation)).toBe(true);
+  });
+
+  it("still tells the same account a REPEATED figure confirms nothing", async () => {
+    const venueId = await realVenueId(21);
+    await submitAs("solo", { venueId, drinkCategory: "beer", priceGbp: 4.5 });
+    // The daily cap refuses a same-day repeat at the route, so the earlier day's
+    // row is placed directly and the pass is asked as that account.
+    const { addPintDrop } = await import("@/lib/pintDrops");
+    const { pintDropAuthorityKey } = await import("@/lib/pintDropAuthority.server");
+    const key = pintDropAuthorityKey(venueId, "user-solo");
+    addPintDrop({
+      id: `repeat-${venueId}`,
+      venueId,
+      handle: "solo",
+      drink: "Beer",
+      priceGbp: 4.5,
+      passedDownNote: "",
+      era: "",
+      provenance: "contributor",
+      status: "visible",
+      visibility: "public",
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      authorityKey: key,
+    });
+    // Both £4.50 rows carry ONE key, so the pass has no independent pair.
+    const { runSecondReporterPass } = await import("@/lib/pintDropConfirm.server");
+    expect(await runSecondReporterPass(venueId, Date.now(), key)).toEqual({
+      status: "same_reporter",
+    });
   });
 
   // BATTLE TEST D10. Three taps on Log it in one tick sent three POSTs, all

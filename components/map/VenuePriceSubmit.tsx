@@ -17,6 +17,7 @@ import {
   type CommunityPriceMapReach,
 } from "@/lib/communityPrice";
 import { drinkLaneNoun, submitCategoriesForLane } from "@/lib/drinkLanes";
+import { confirmationOutcomeLine } from "@/lib/pintDropSecondDrinker";
 import {
   DEFAULT_DRINK_MEASURE,
   drinkMeasureName,
@@ -288,6 +289,14 @@ export default function VenuePriceSubmit({
     attribution: CommunityPriceAttribution;
     missionReceipt?: MissionReceipt;
     /**
+     * What the server's second-reporter pass made of this write, already worded
+     * (lib/pintDropSecondDrinker.ts). Null where the receipt above already says
+     * everything. The composer PRINTS it and decides nothing: a drinker who
+     * answered "Which did you pay?" with a third price is owed the pub's own
+     * figures rather than a line asking for a drinker who has already been.
+     */
+    outcomeLine?: string | null;
+    /**
      * A non-pint log has no community price to read back (the route writes the
      * dated Pint Drop alone), so the receipt carries the figure and the serving
      * this tap sent. Absent on every pint log, which reads the stamped record.
@@ -478,6 +487,10 @@ export default function VenuePriceSubmit({
           category,
           attribution: result.attribution,
           missionReceipt,
+          outcomeLine: confirmationOutcomeLine(
+            result.confirmationOutcome,
+            Number(price.replace(",", ".")),
+          ),
           ...(measureIsPint(submittedMeasure)
             ? {}
             : {
@@ -520,7 +533,7 @@ export default function VenuePriceSubmit({
   // call leaves the element tree identical where a component would add a fibre.
   function stampBlock() {
     if (!logged || logged.category !== category) return null;
-    if (!logged.missionReceipt && !logged.nonPint && !stamped) return null;
+    if (!logged.missionReceipt && !logged.nonPint && !stamped && !logged.outcomeLine) return null;
     return (
       <div className="vpsubStampBlock">
         <p className="vpsubStamp" role="status">
@@ -538,6 +551,9 @@ export default function VenuePriceSubmit({
             </>
           ) : null}
         </p>
+        {logged.outcomeLine ? (
+          <p className="vpsubStampHint">{logged.outcomeLine}</p>
+        ) : null}
         <PriceContributionImpact attribution={logged.attribution} />
         {/* Close the loop in-session: the mark the map just gained, named and
             coloured exactly as the map draws it, so the submitter can look up

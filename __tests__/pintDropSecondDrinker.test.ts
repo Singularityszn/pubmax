@@ -225,8 +225,13 @@ describe("the producer", () => {
         createdAt: new Date(NOW).toISOString(),
       }),
     );
+    // Alice is NOT told she repeated herself. What she is told is what the pub
+    // holds: her £6.50 landed beside Bob's £5.20, which is two prices, not a
+    // repeat (captain 7 Sept 2026).
     expect(await runSecondReporterPass(VENUE, NOW, "key-alice")).toEqual({
-      status: "awaiting_second_drinker",
+      status: "price_disagrees",
+      prices: [5.2, 6.5],
+      reporters: 2,
     });
     // And Bob, asking about the same pub, is still told the truth about his own
     // pair: the fix narrows who hears the sentence, never whether it is true.
