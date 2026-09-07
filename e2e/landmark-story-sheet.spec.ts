@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+
 // The landmark story, in the frame each width already owns.
 //
 // Captain's 390 shot, 2026-09-05: the story was a card the canvas pinned over
@@ -24,6 +26,7 @@ const LANDMARK_URL = "/map?landmark=covent-garden";
 const LANDMARK_NAME = "Covent Garden";
 
 async function preparePage(page: Page): Promise<void> {
+  await installDeterministicMapBasemap(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/_vercel/insights/script.js", (route) =>
     route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),

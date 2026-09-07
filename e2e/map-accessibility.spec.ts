@@ -1,5 +1,8 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { UK_BASE_MIN_ZOOM } from "@/components/map/canvas/buildScene";
+import type { MapCameraReading } from "@/components/map/canvas/cameraProbe";
+
 const DESKTOP = { width: 1440, height: 900 };
 const MOBILE = { width: 390, height: 844 };
 const ARNOS_ARMS_ID = "venue-xjf3n0";
@@ -120,6 +123,16 @@ async function tabTo(page: Page, target: Locator, maxTabs = 80): Promise<void> {
   await expect(target).toBeFocused();
 }
 
+async function readCamera(page: Page): Promise<MapCameraReading> {
+  return page.evaluate(() => {
+    const probe = (window as typeof window & {
+      __pubmaxMapCamera?: { read: () => MapCameraReading };
+    }).__pubmaxMapCamera;
+    if (!probe) throw new Error("Map camera probe is unavailable.");
+    return probe.read();
+  });
+}
+
 async function openVenueListFromLayers(page: Page): Promise<void> {
   const layers = page.getByRole("button", { name: /Map layers:/ });
   await expect(layers).toBeVisible({ timeout: 30_000 });
@@ -226,6 +239,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
       .not.toEqual(beforeMoveIds);
 
     const beforeFilter = await rows.count();
+    await page.getByRole("button", { name: "Filters: venue types", exact: true }).click();
     const bars = page.getByRole("button", { name: "Bars", exact: true });
     await expect(bars).toHaveAttribute("aria-pressed", "true");
     await bars.click();
@@ -286,11 +300,16 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     await expect.poll(() => baseRows.count(), { timeout: 20_000 }).toBeGreaterThan(0);
     await canvas.focus();
-    await page.keyboard.press("Minus");
-    await page.waitForTimeout(400);
-    await page.keyboard.press("Minus");
-    await page.waitForTimeout(400);
-    await page.keyboard.press("Minus");
+    // End below the layer floor, which is also the London opening zoom.
+    // Wait for each keyboard move so a pending animation cannot lose a step.
+    for (let step = 0; step < 6; step += 1) {
+      const before = await readCamera(page);
+      if (before.zoom < UK_BASE_MIN_ZOOM) break;
+      await page.keyboard.press("Minus");
+      await expect.poll(async () => (await readCamera(page)).zoom).toBeLessThan(before.zoom);
+      await expect.poll(async () => (await readCamera(page)).moving).toBe(false);
+    }
+    expect((await readCamera(page)).zoom).toBeLessThan(UK_BASE_MIN_ZOOM);
     // MapLibre has settled below the layer floor, but the base stream's 180 ms
     // clear may still be pending on a loaded runner. Poll rather than a tight
     // fixed-timeout assertion so runner variance can't race the clear.
@@ -317,13 +336,15 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect(drawer).toHaveAttribute("role", "dialog");
     await expect(drawer).toHaveAttribute("aria-modal", "true");
     await expect(closeButton).toBeFocused();
+    const backButton = drawer.getByRole("button", { name: "Back to List view", exact: true });
+    await expect(backButton).toBeVisible();
 
     const lastFocusable = drawer.locator(
       'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible',
     ).last();
     await lastFocusable.focus();
     await page.keyboard.press("Tab");
-    await expect(closeButton).toBeFocused();
+    await expect(backButton).toBeFocused();
 
     await page.keyboard.press("Shift+Tab");
     await expect(lastFocusable).toBeFocused();
@@ -341,13 +362,13 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     const search = page.locator("#mapSearchInput");
     await expect(search).toBeVisible({ timeout: 30_000 });
-    await search.fill("Dolphin");
+    await search.fill("The French House");
     const listbox = page.getByRole("listbox", { name: "Search suggestions" });
-    // Search suggestions can include area/place entries. Select a concrete
-    // venue option so the contract never depends on a mixed-result index.
+    // Use a named core London venue. Result counts change with the viewport.
     const highlightedVenue = listbox
       .locator('[role="option"][data-venue-id]')
-      .nth(2);
+      .filter({ hasText: "The French House" })
+      .first();
     await expect(highlightedVenue).toBeVisible();
     const highlightedVenueId = await highlightedVenue.getAttribute("data-venue-id");
     expect(highlightedVenueId).toBeTruthy();

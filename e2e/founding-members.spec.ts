@@ -3,9 +3,9 @@ import { expect, test, type Page } from "@playwright/test";
 // Founding members: a mark, a wall, and one door.
 //
 // The rule under test is the asymmetric half. A founding member is shown their
-// number and the founders' room. A person who is not one is shown NOTHING: no
-// greyed link, no "you missed it" line, no counter. So most of these cases are
-// negative, and the honest way to run them is on the real shipped UI with a
+// number and the founders' room. Other accounts can read the public wall,
+// without a member mark, private-room link, or slots-remaining message.
+// These cases run on the real shipped UI with a
 // signed-in session rather than on a component in isolation.
 //
 // The keyless Playwright server has no Supabase, so the session and the
@@ -173,7 +173,7 @@ test.describe("a founding member", () => {
 test.describe("an ordinary account", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("is shown no founding surface anywhere", async ({ page }) => {
+  test("can read the public wall without a member mark or private door", async ({ page }) => {
     await installSession(page, { foundingMemberNumber: null, arrival: "signin" });
 
     await page.goto("/today");
@@ -187,10 +187,14 @@ test.describe("an ordinary account", () => {
 
     await page.goto("/u/you");
     await page.waitForLoadState("domcontentloaded");
-    await page.waitForTimeout(2_500);
+    await expect(page.getByPlaceholder("night_owl")).toHaveValue(HANDLE);
     await expect(discordLink(page)).toHaveCount(0);
-    await expect(page.getByText(/Founding member/i)).toHaveCount(0);
+    await expect(page.locator(".accountHubFounding, .foundingMark")).toHaveCount(0);
     await expect(page.getByText(/Discord/i)).toHaveCount(0);
+    const wallLink = page.getByRole("link", { name: "Founding members", exact: true });
+    await expect(wallLink).toBeVisible();
+    await expect(wallLink).toHaveAttribute("href", "/founders");
+    await expect(page.locator(".accountHubFoundersWall")).not.toContainText(/left|remaining|hurry|claim yours/i);
     await page.screenshot({ path: `${SHOTS}/phone-5-ordinary-you.png`, fullPage: true });
   });
 });
