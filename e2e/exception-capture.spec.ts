@@ -12,6 +12,7 @@ async function consentedPage(page: Page): Promise<IngestEvent[]> {
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
   page.on("request", (request) => {
@@ -34,6 +35,11 @@ async function consentedPage(page: Page): Promise<IngestEvent[]> {
       body: "{}",
     });
   });
+  await page.goto("/about", { waitUntil: "domcontentloaded" });
+  await expect.poll(() => page.evaluate(() =>
+    sessionStorage.getItem("pubmax:consent-first-route:v1")),
+  { timeout: 30_000 }).toBe("/about");
+  await expect(page.getByLabel("Anonymous analytics choice")).toBeHidden();
   await page.goto("/", { waitUntil: "domcontentloaded" });
   const prompt = page.getByLabel("Anonymous analytics choice");
   await expect(prompt).toBeVisible();

@@ -9,6 +9,8 @@ test("mobile first-run tour leaves the map centre visible", async ({ page }) => 
     window.localStorage.removeItem("pubmax-tour-v1-done");
     window.localStorage.removeItem("pubmax-tour-v2-done");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
 

@@ -496,6 +496,7 @@ test("1440px loaded route opens its first venue without a deferred planner hando
       "denied",
     );
     window.sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
   });
   await stubCityStatus(page);
   await page.route("**/api/whats-on**", (route) =>
@@ -596,7 +597,7 @@ test("1440px reduced motion swaps desktop drawer ownership immediately", async (
 });
 
 for (const width of FIRST_RUN_BANNER_WIDTHS) {
-  test(`${width}px first-run location prompt owns centre while status yields to its left`, async ({
+  test(`${width}px first-run location prompt owns centre while status keeps a separate lane`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: DESKTOP.height });
@@ -646,13 +647,30 @@ for (const width of FIRST_RUN_BANNER_WIDTHS) {
       Math.abs(locationCentre - width / 2),
       "location prompt owns map centre",
     ).toBeLessThanOrEqual(1);
-    expect(statusBox.x, "status uses left map gutter").toBeCloseTo(
-      EDGE_GUTTER,
-      0,
-    );
-    expect(
-      statusRight + EDGE_GUTTER,
-      "status yields before location prompt's left edge",
-    ).toBeLessThanOrEqual(locationBox.x);
+    if (width < 1024) {
+      expect(
+        Math.abs(statusBox.x + statusBox.width / 2 - width / 2),
+        "tablet status stays centred below the location prompt",
+      ).toBeLessThanOrEqual(1);
+      expect(statusBox.x, "tablet status clears the left edge").toBeGreaterThanOrEqual(
+        EDGE_GUTTER,
+      );
+      expect(statusRight, "tablet status clears the right edge").toBeLessThanOrEqual(
+        width - EDGE_GUTTER,
+      );
+      expect(
+        statusBox.y - (locationBox.y + locationBox.height),
+        "tablet status clears the location prompt vertically",
+      ).toBeGreaterThanOrEqual(8 - SUBPIXEL_TOLERANCE);
+    } else {
+      expect(statusBox.x, "status uses left map gutter").toBeCloseTo(
+        EDGE_GUTTER,
+        0,
+      );
+      expect(
+        statusRight + EDGE_GUTTER,
+        "status yields before location prompt's left edge",
+      ).toBeLessThanOrEqual(locationBox.x);
+    }
   });
 }
