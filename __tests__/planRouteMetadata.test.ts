@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NIGHT_AREAS } from "@/lib/nightAreas";
 import type { PlanState } from "@/lib/plan";
+import type { PlanReadResult } from "@/lib/planStore";
 
 // Astra F09 (6 Sep 2026): /plan carried no metadata of its own beyond a title,
 // so every share of the planner unfurled as the homepage (og:url
@@ -14,11 +15,11 @@ import type { PlanState } from "@/lib/plan";
 const AREA = NIGHT_AREAS[0];
 const PLAN_ID = "11111111-1111-4111-8111-111111111111";
 
-const planGet = vi.fn<(id: string) => Promise<PlanState | null>>();
+const planRead = vi.fn<(id: string) => Promise<PlanReadResult>>();
 const vibeTally = vi.fn();
 
 vi.mock("@/lib/planStore", () => ({
-  planStore: () => ({ get: planGet }),
+  planStore: () => ({ read: planRead }),
 }));
 vi.mock("@/lib/planCollaborationStore", () => ({
   planCollaborationStore: () => ({ vibeTally }),
@@ -84,13 +85,13 @@ describe("/plan, the blank composer", () => {
 
 describe("/plan/[id], the public invitation card", () => {
   beforeEach(() => {
-    planGet.mockReset();
+    planRead.mockReset();
     vibeTally.mockReset();
     vibeTally.mockResolvedValue({ ok: false });
   });
 
   async function metadataFor(state: PlanState | null) {
-    planGet.mockResolvedValue(state);
+    planRead.mockResolvedValue(state ? { status: "found", state } : { status: "absent" });
     const { generateMetadata } = await import("@/app/plan/[id]/page");
     return generateMetadata({
       params: Promise.resolve({ id: PLAN_ID }),
