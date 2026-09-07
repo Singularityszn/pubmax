@@ -13,10 +13,24 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <!-- The paper token, so the inset band an older WebView leaves under
+             the clock is the page rather than the theme's white. -->
+        <item name="android:windowBackground">@color/pubmaxx_window_background</item>
     </style>
 
 
+    <!-- The Android 12+ system splash is drawn by the OS from THESE values, not
+         from drawable/splash.png: that drawable is only the window background
+         between the system splash and the WebView's first paint. Left at the
+         template defaults the OS painted the launcher icon in its white disc on
+         a light Material grey, which is neither the ink field the splash master
+         locks (#523) nor the frame iOS launches on. The field is the ink token
+         and the icon is the adaptive foreground, so the phone launches on the
+         same ink and coral mark both platforms share. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">@color/colorPrimaryDark</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_mark</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
     </style>
 </resources>

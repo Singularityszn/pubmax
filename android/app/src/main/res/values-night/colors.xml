@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The dark twin of values/colors.xml pubmaxx_window_background: the dark
+     theme's paper (app/theme.css, the value the offline stub also carries),
+     so the band under the clock on an old WebView is the page, not a grey. -->
+<resources>
+    <color name="pubmaxx_window_background">#0A0A0B</color>
+</resources>
