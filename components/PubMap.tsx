@@ -424,6 +424,7 @@ import {
 } from "@/lib/logIntentReveal";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
+import { useBuiltVenueDetails } from "@/components/map/pubmap/useBuiltVenueDetails";
 import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   isCurrentMapResumeRefresh,
@@ -2669,6 +2670,20 @@ export default function PubMap({
     [pubVenues, savedIds],
   );
   const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
+  const resolveBuiltVenueDetails = useCallback((resolved: ReadonlyMap<string, Venue>) => {
+    setDetailById((current) => {
+      const next = new Map(current);
+      for (const venue of resolved.values()) next.set(venue.id, venue);
+      return next;
+    });
+    setBuiltIds((current) => {
+      const next = [...new Set(current.map((id) => resolved.get(id)?.id ?? id))];
+      return next.length === current.length && next.every((id, index) => id === current[index])
+        ? current
+        : next;
+    });
+  }, [setBuiltIds]);
+  useBuiltVenueDetails({ cityId, builtIds, venueById, onResolved: resolveBuiltVenueDetails });
   // Zone pint index (nearest-station fare zone medians) for the zone picker.
   // Computed off the full venue set so the strip's numbers don't shift as the
   // user filters — it's a stable "here's the lay of the land" reference.

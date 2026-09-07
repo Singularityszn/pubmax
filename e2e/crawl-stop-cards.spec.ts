@@ -1,5 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+
 // D7 — a crawl stop card has to answer two questions on its own: which pub is
 // this, and how long is the walk to it.
 //
@@ -39,6 +41,7 @@ async function mockJourney(page: Page, modes: string[], minutes: number): Promis
 }
 
 async function openSeededCrawl(page: Page) {
+  await installDeterministicMapBasemap(page);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -53,9 +56,7 @@ async function openSeededCrawl(page: Page) {
   const routePanel = page.locator(".routePanel");
   await expect(routePanel).toBeVisible({ timeout: 45_000 });
   const stops = routePanel.locator("ol.routeList > li");
-  await expect
-    .poll(async () => await stops.count(), { timeout: 20_000 })
-    .toBe(SEEDED_STOP_COUNT);
+  await expect(stops).toHaveCount(SEEDED_STOP_COUNT, { timeout: 20_000 });
   return { routePanel, stops };
 }
 
