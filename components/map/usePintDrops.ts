@@ -11,7 +11,6 @@ import { trackEvent } from "@/lib/analytics";
 import type { CityId } from "@/lib/cities";
 import { unresolvedVenueLabel } from "@/lib/cityVenueIds";
 import type { PintDropDTO } from "@/lib/feed";
-import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
 import {
   buildOptimisticSpillDrop,
   buildOptimisticSpillRetryPayload,
@@ -62,7 +61,7 @@ import {
 import type { LastPintDecision } from "@/lib/tfl";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import type { PintPriceSplit } from "@/lib/pintDropAgreement";
-import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
+import { RECEIPT_REQUIRED_LINE, photoRefusal, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { pintTrustFor, pintTrustSignalFields, type PintTrustState } from "@/lib/pintTrust";
 
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base
@@ -95,13 +94,13 @@ export type DropMsg = {
   links?: Array<{ href: string; label: string }>;
 };
 
-// ONE NUMBER ON BOTH SIDES OF THE WIRE. This gate said 5 MB while the platform
-// refuses any body over 4.5 MB with a plain-text 413 before a handler runs, so
-// a 4.5 MB phone photo passed the check the browser made and came back as
-// "Could not save that drop." with nothing about its size (PlanAstra, section
-// 2.4). lib/uploadBodyLimit.ts is where that figure lives.
-const MAX_PHOTO_BYTES = UPLOAD_PHOTO_MAX_BYTES;
-const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+// ONE NUMBER ON BOTH SIDES OF THE WIRE, and ONE PLACE THAT ASKS. This gate
+// said 5 MB while the platform refuses any body over 4.5 MB with a plain-text
+// 413 before a handler runs, so a 4.5 MB phone photo passed the check the
+// browser made and came back as "Could not save that drop." with nothing about
+// its size (PlanAstra, section 2.4). `photoRefusal` (lib/pintDropReceipt.ts) is
+// the browser's whole half of that rule, quoting lib/uploadBodyLimit.ts's own
+// figure, and both composers ask it rather than each keeping a copy.
 const MAX_VIBE_TAGS = 4; // mirrors the server cap in lib/pintDrops.ts.
 
 function localStorageSafe(): Storage | null {
@@ -432,13 +431,9 @@ export function usePintDrops(
     const current = photoSlots[slot].value;
     const setSlot = photoSlots[slot].set;
     if (!file) return;
-    if (!ACCEPTED_PHOTO_TYPES.includes(file.type)) {
-      setDropMsg({ ok: false, text: "Photos must be JPEG, PNG, or WebP." });
-      if (inputEl) inputEl.value = "";
-      return;
-    }
-    if (file.size > MAX_PHOTO_BYTES) {
-      setDropMsg({ ok: false, text: `Each photo must be under ${UPLOAD_PHOTO_MAX_LABEL}.` });
+    const refusal = photoRefusal(file);
+    if (refusal) {
+      setDropMsg({ ok: false, text: refusal });
       if (inputEl) inputEl.value = "";
       return;
     }
