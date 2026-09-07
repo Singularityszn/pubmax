@@ -1,11 +1,10 @@
 import { expect, type Page, type Request } from "@playwright/test";
 
 import {
-  BUDGET_METRICS,
   PERFORMANCE_BUDGETS,
   median,
-  perfSampleSpread,
   resolveCountBoundary,
+  routeNeedsMoreEvidence,
   type BudgetMethod,
   type BudgetMetric,
   type PerfBoundarySource,
@@ -451,57 +450,6 @@ export async function measurePerfRoute(
 }
 
 /**
- * True when any metric's samples disagree past the tracked width AND its own
- * floor - the same two tests findMethodWarnings applies when it reports a run
- * as unmeasurable. Kept here rather than imported from the warning path so the
- * decision to spend another run is made on the samples in hand.
- */
-function routeCouldNotMeasureItself(
-  samples: readonly PerfSample[],
-  method: BudgetMethod,
-): boolean {
-  if (!method.resampleRuns || samples.length === 0) return false;
-  return BUDGET_METRICS.some((metric) => {
-    const spread = perfSampleSpread(samples.map((sample) => sample[metric]));
-    if (!Number.isFinite(spread.spreadPct) || spread.spreadPct <= method.sampleSpreadWarnPct) {
-      return false;
-    }
-    return spread.max - spread.min >= (method.sampleSpreadFloors[metric] ?? 0);
-  });
-}
-
-/**
- * True when a figure landed close enough to a ceiling that one sample's jitter
- * decides the verdict.
- *
- * The spread rule above asks whether the samples agreed with EACH OTHER, and it
- * is deliberately blind to where they sit. On 6 September /map's samples agreed
- * to 14 per cent and still read 612 ms in one attempt of the job and 956 ms in
- * the next against a 900 ms ceiling, while /pubs asked for 68 requests in one
- * attempt and 69 in the other against a ceiling of 68. Neither route could be
- * fixed by a route edit, and neither ceiling may move; what both needed was
- * more evidence exactly where the answer was close. So a median inside this
- * margin of its own ceiling, or over it, buys the same extra samples a
- * disagreeing route buys. It can only ever ADD runs, and it decides nothing:
- * lib/performanceBudgets still judges the median it is handed.
- */
-function routeLandedOnTheLine(
-  samples: readonly PerfSample[],
-  route: PerfRoute,
-  method: BudgetMethod,
-): boolean {
-  const margin = method.resampleWithinCeilingPct;
-  if (!method.resampleRuns || !margin || samples.length === 0) return false;
-  return BUDGET_METRICS.some((metric) => {
-    const ceiling = route[metric];
-    if (typeof ceiling !== "number" || !Number.isFinite(ceiling) || ceiling <= 0) return false;
-    const figure = median(samples.map((sample) => sample[metric]));
-    if (!Number.isFinite(figure)) return false;
-    return figure >= ceiling * (1 - margin / 100);
-  });
-}
-
-/**
  * The same run, with its individual samples kept.
  *
  * #1314 asked for exactly this before choosing a fix: a run that reports only
@@ -522,12 +470,14 @@ export async function runPerfRoute(
   for (let run = 0; run < method.measuredRuns; run += 1) {
     samples.push(await samplePerfRoute(page, route, method));
   }
-  // A median of 3 is only a median when the samples agree. Where they do not,
-  // the run says so itself through the same spread rule findMethodWarnings
-  // prints, and a route that cannot measure itself is measured again rather
-  // than judged on the disagreement. The extra samples are spent ONLY on such
-  // a route, so a quiet sweep costs exactly what it did before.
-  if (routeCouldNotMeasureItself(samples, method) || routeLandedOnTheLine(samples, route, method)) {
+  // A median of 3 is only a median when the samples agree, and a median sitting
+  // on a ceiling is decided by jitter rather than by the code. Both reasons to
+  // spend more samples are owned by lib/performanceBudgets.ts, which is pure
+  // and unit-tested without a browser, so the budget sweep and the UX lane
+  // report cannot drift apart on when a route is measured again. The extra
+  // samples are spent ONLY where one of those two rules fired, so a quiet
+  // sweep costs exactly what it did before.
+  if (routeNeedsMoreEvidence(samples, route, method)) {
     for (let run = 0; run < (method.resampleRuns ?? 0); run += 1) {
       samples.push(await samplePerfRoute(page, route, method));
     }
