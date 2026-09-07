@@ -434,3 +434,9 @@
     transition: none;
   }
 }
+
+/* The area's own photograph, under the head's figure and its one action
+   (components/landing/LandingPhoto.tsx, band variant). */
+.drinkBrandDirectory__photo {
+  margin: var(--space-5) 0 0;
+}

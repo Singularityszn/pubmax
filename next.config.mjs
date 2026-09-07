@@ -198,9 +198,11 @@ const nextConfig = {
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   images: {
     qualities: [75, 78],
-    // Serve AVIF first (then WebP) for every next/image — notably the landing
-    // hero-night.jpg (fill+priority). Next negotiates by Accept header; the
-    // source JPEGs stay the fallback.
+    // Serve AVIF first (then WebP) for every next/image. Next negotiates by
+    // Accept header; the source JPEGs stay the fallback. The landing
+    // photographs of London do NOT come through here: they are pre-encoded at
+    // both widths and both formats and served as a plain <picture>
+    // (components/landing/LandingPhoto.tsx says why).
     formats: ["image/avif", "image/webp"],
   },
   outputFileTracingIncludes: {

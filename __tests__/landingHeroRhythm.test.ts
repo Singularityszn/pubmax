@@ -83,7 +83,9 @@ describe("landing hero rhythm", () => {
     const order = positions(html, [
       '<p class="kicker">PUBMAXX</p>',
       '<h1 class="screenTitle" id="hero-title">What a pint costs, pub by pub.</h1>',
-      'class="lpPubCard lpAnswerCard"',
+      // The card carries its photograph class too (lib/landingImagery.ts), so
+      // the needle is the stable prefix rather than the whole attribute.
+      'class="lpPubCard lpAnswerCard',
       'data-primary-action=""',
       'class="screenSecondary"',
       'class="lpRail"',

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import PriceBadge from "@/components/PriceBadge";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
+import { slugifyBorough } from "@/lib/boroughs";
 import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 import type { LegacyPintPrice } from "@/lib/drinks";
@@ -31,6 +32,10 @@ import {
   type LandingRailRow,
 } from "@/lib/landingHero";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
+import {
+  landingPhotoFor,
+  type ResolvedLandingPhoto,
+} from "@/lib/landingImagery";
 import { NEAR_ME_LOCATION_OPTIONS } from "@/lib/nearMeLocation";
 import type { NearMeCard } from "@/lib/nearMeAnswer";
 import { priceMovementLine } from "@/lib/priceMovementLine";
@@ -40,12 +45,25 @@ import { discardBody } from "@/lib/responseBody";
 import { formatPrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
+import LandingPhoto, { LandingPhotoCredit, LandingPhotoPreload } from "./LandingPhoto";
+
 // The landing hero (issue #1357): kicker, the claim, then the ANSWER, then the
 // one filled action that acts on it, the quiet row of the Pal and Tonight
 // (#1488), then the three next-cheapest rows. The DOM order is the phone order; the desktop
 // seats the answer and the rail beside the copy. Everything the card prints is
 // a fact with its source beside it, and the browser only ever swaps the anchor
 // for a near-you answer built from the same slim index /near ranks.
+//
+// The card stands on a photograph of London (captain 6 Sep 2026): the pub
+// itself where we hold its picture, else its borough, else the city. The photo
+// is the card's BACKDROP rather than a band above it, because the landing's own
+// law is that the primary action sits above the fold at 390x844
+// (e2e/landing-find-my-pint.spec.ts) and a band would push it under. Nothing
+// the card prints moved, and lib/landingImagery.ts owns which picture, whose it
+// is, and the scrim that keeps every line over it inside WCAG AA.
+
+/** What the card really paints at: the answer column, capped at the card. */
+const ANSWER_PHOTO_SIZES = "(max-width: 959px) calc(100vw - 2rem), 480px";
 
 const LONDON_DAY = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
@@ -257,6 +275,20 @@ export default function LandingHero({
     };
   }, [collectedOn, locate]);
 
+  // Which picture the card stands on. It follows the ANSWER, so a near-you
+  // swap moves to that pub's own borough rather than keeping the anchor's.
+  const photo = landingPhotoFor(
+    answer
+      ? { venueId: answer.id, boroughSlug: slugifyBorough(answer.area) }
+      : {},
+  );
+  // Only the anchor's photograph is preloaded: it is the one this prerendered
+  // document already knows about, and a preload for a picture the browser may
+  // never ask for is bytes taken from the picture it will.
+  const anchorPhoto = card
+    ? landingPhotoFor({ venueId: card.id, boroughSlug: slugifyBorough(card.area) })
+    : null;
+
   const primary = answer ? (
     <Link
       prefetch={false}
@@ -277,12 +309,20 @@ export default function LandingHero({
   );
 
   return (
+    <>
+      {anchorPhoto ? (
+        <LandingPhotoPreload resolved={anchorPhoto} sizes={ANSWER_PHOTO_SIZES} />
+      ) : null}
     <Screen
       className="lpHero"
       kicker="PUBMAXX"
       title="What a pint costs, pub by pub."
       titleId="hero-title"
-      answer={answer ? <AnswerCard answer={answer} near={near} onLocate={locate} /> : undefined}
+      answer={
+        answer ? (
+          <AnswerCard answer={answer} near={near} onLocate={locate} photo={photo} />
+        ) : undefined
+      }
       primary={primary}
       secondary={
         // Two quiet doors on one row, read off the one table. The Pal stays
@@ -306,6 +346,7 @@ export default function LandingHero({
     >
       {answer && answer.rail.length > 0 ? <AnswerRail answer={answer} /> : null}
     </Screen>
+    </>
   );
 }
 
@@ -319,10 +360,12 @@ function AnswerCard({
   answer,
   near,
   onLocate,
+  photo,
 }: {
   answer: Answer;
   near: NearState;
   onLocate: () => void;
+  photo: ResolvedLandingPhoto;
 }) {
   const kicker = answerKicker(answer.scope, answer.area);
   const walk = answer.walkMinutes != null ? `${answer.walkMinutes} min walk` : null;
@@ -331,7 +374,11 @@ function AnswerCard({
   const publisher = typeof evidence === "object" ? evidence.publisher : null;
   const standing = typeof evidence === "object" ? evidence.standing : null;
   return (
-    <article className="lpPubCard lpAnswerCard" aria-labelledby="lp-answer-name">
+    <article
+      className="lpPubCard lpAnswerCard lpPubCard--photo"
+      aria-labelledby="lp-answer-name"
+    >
+      <LandingPhoto resolved={photo} sizes={ANSWER_PHOTO_SIZES} priority />
       <div className="lpAnswerHead">
         <Kicker tone="muted">
           {kicker}
@@ -401,6 +448,7 @@ function AnswerCard({
       <p className="lpNearLine" role="status" aria-live="polite">
         {near.kind === "failed" ? near.line : ""}
       </p>
+      <LandingPhotoCredit resolved={photo} className="lpPhotoCredit" />
     </article>
   );
 }

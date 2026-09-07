@@ -184,6 +184,15 @@
   --badge-border: color-mix(in srgb, var(--ink) 15%, var(--line));
   --badge-ink: var(--ink-soft);
 
+  /* The two inks a landing photograph is printed over (lib/landingImagery.ts).
+     They are literal and theme-independent by design: the contrast promise is
+     made against the PHOTOGRAPH under the scrim, not against the page, so one
+     pair is provable where a theme-following pair would be two promises with
+     only one of them proved. __tests__/landingImagery.test.ts spends the
+     arithmetic on the worst pixel a photograph could ever carry. */
+  --landing-photo-ink: #fbf9f6;
+  --landing-photo-ink-soft: #e4dfd8;
+
   /* Hairline system (signature) — one divider vocabulary across the app so
      edges read as a deliberate system, not per-component guesses.
        --hairline         standard divider / card edge

@@ -161,6 +161,81 @@
 
 .lpPubCard .kicker { margin-bottom: 0; }
 
+/* ── The card on a photograph (captain 6 Sep 2026) ───────────────────────── */
+/* The picture is the card's BACKDROP, not a band above it: the landing's own
+   law is that the primary action sits above the fold at 390x844, so a band
+   would push it under. The card's box is therefore unchanged and only its
+   surface and its ink move.
+
+   A photo card is dark in BOTH themes on purpose. The contrast promise is made
+   against the PHOTOGRAPH rather than against the page, so there is one scrim,
+   one ink pair, and one arithmetic that proves them (lib/landingImagery.ts,
+   __tests__/landingImagery.test.ts). A theme-following scrim would be two
+   promises and only one of them could ever be proved.
+
+   The price stamp is deliberately untouched: a figure wears its BAND and no
+   other colour (lib/priceBand.ts), and the band paints its own surface, so it
+   is readable over any photograph by its own rule. */
+.lpPubCard--photo {
+  position: relative;
+  isolation: isolate;
+  background: var(--ink-deep, #0c0a09);
+}
+
+/* The credit the licence requires, as the card's own last line rather than a
+   box floated over the line above it. */
+.lpPubCard--photo .lpPhotoCredit {
+  margin-top: var(--space-2);
+}
+
+/* The photograph is positioned, so every static sibling would paint UNDER it.
+   Lift the card's own content into the layer above it. */
+.lpPubCard--photo > *:not(.landingPhoto) {
+  position: relative;
+  z-index: 1;
+}
+
+.lpPubCard--photo,
+.lpPubCard--photo .lpPubThen {
+  color: var(--landing-photo-ink);
+}
+
+.lpPubCard--photo .kicker,
+.lpPubCard--photo .lpAnswerWalk,
+.lpPubCard--photo .lpPubPint,
+.lpPubCard--photo .lpPubSource,
+.lpPubCard--photo .lpPubThenSource,
+.lpPubCard--photo .lpNearLine {
+  color: var(--landing-photo-ink-soft);
+}
+
+.lpPubCard--photo .lpPubName a { color: var(--landing-photo-ink); }
+.lpPubCard--photo .lpPubName a:hover { color: var(--landing-photo-ink); }
+.lpPubCard--photo .lpPubSource a:hover,
+.lpPubCard--photo .lpPubThenSource a:hover { color: var(--landing-photo-ink); }
+
+.lpPubCard--photo .lpPubThen { border-top-color: rgb(251 249 246 / 0.22); }
+
+/* The standing chip and the location control carry their own surfaces so they
+   read against the photograph rather than against the page they came from. */
+.lpPubCard--photo .lpStanding {
+  background: rgb(251 249 246 / 0.14);
+  color: var(--landing-photo-ink);
+}
+.lpPubCard--photo .lpStandingDot { background: var(--landing-photo-ink-soft); }
+
+.lpPubCard--photo .lpNearMe {
+  border-color: rgb(251 249 246 / 0.4);
+  color: var(--landing-photo-ink);
+}
+.lpPubCard--photo .lpNearMe:hover {
+  border-color: var(--landing-photo-ink);
+  background: rgb(251 249 246 / 0.12);
+}
+.lpPubCard--photo .lpNearMe:disabled { color: var(--landing-photo-ink-soft); }
+.lpPubCard--photo .lpNearMe svg { color: var(--landing-photo-ink); }
+
+
 .lpPubName {
   margin: 0;
   font: 700 var(--text-xl)/1.1 var(--font-display);
