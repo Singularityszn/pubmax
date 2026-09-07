@@ -1,22 +1,16 @@
 import "server-only";
 
-// Durable 1:1 messaging store. ONE store interface, TWO implementations
-// (process-memory + Supabase public.conversations/messages), the same dual-backend
-// seam as notifications/reactions/comments: Supabase when env keys exist,
-// process-memory otherwise, chosen at the single messagesStore() seam.
+// Message routes bind caller identity through requireLinkedActor and
+// gateHandleAction. The store checks conversation participation using that handle.
+// Database RLS denies direct client access; this store uses the service-role client.
 //
-// ─────────────────────────────────────────────────────────────────────────────
-// COURTESY-CURTAIN, NOT PRIVACY. Identity is a self-asserted `handle` (no auth).
-// The store enforces the participant check on reads (a non-participant gets
-// nothing back), but that check trusts the asserted handle — it is a courtesy
-// curtain, not cryptographic privacy. Reads are DENY-ALL at the DB (RLS on, no
-// policy — migration 0019); ALL access goes through the service-role admin client
-// here. Keep content low-sensitivity by design; `report` is the abuse seam.
-// ─────────────────────────────────────────────────────────────────────────────
+// messagesStore() selects Supabase when configured, or memory for local/keyless
+// demos when permitted. Production requires durable storage. Open/send refuse
+// memory fallback when requiresSupabaseStore() is true.
 //
-// The WRITE path (send) surfaces real failures to the route (a dropped message
-// must not silently vanish). The READ path (list/messages) is fail-soft: an
-// outage renders as an empty inbox / empty thread, never a 500.
+// Failed inbox reads carry InboxRead.status = "degraded" in production.
+// Thread reads retain a legacy limitation: an outage can return an empty array
+// without a failure status. Callers cannot distinguish that answer from an empty thread.
 
 import {
   isMessagePhotoServingKey,
