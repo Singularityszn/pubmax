@@ -173,7 +173,7 @@ import {
 } from "@/lib/ukBasePubs";
 import { getVenueIndex } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
-import { RECEIPT_REQUIRED_LINE } from "@/lib/pintDropReceipt";
+import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 
 type PriceBody = {
@@ -218,12 +218,28 @@ function jpegFile(name: string): File {
   return new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], name, { type: "image/jpeg" });
 }
 
+/**
+ * A POST as a real client makes it. A PRICED body goes multipart and carries
+ * the bill, because the route refuses a price without one (captain 7 Sept
+ * 2026, lib/pintDropReceipt.ts). Every other body - a report, a venue signal -
+ * stays JSON, which is what those doors send.
+ */
 function post(body: unknown): Request {
-  return new Request("http://localhost/api/price-submit", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const fields = (body ?? {}) as Record<string, unknown>;
+  if (!priceNeedsReceipt(fields.priceGbp)) {
+    return new Request("http://localhost/api/price-submit", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+  const form = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === undefined || value === null) continue;
+    form.set(key, String(value));
+  }
+  form.set("receipt_photo", jpegFile("bill.jpg"));
+  return new Request("http://localhost/api/price-submit", { method: "POST", body: form });
 }
 
 function get(query: string): Request {
@@ -1629,11 +1645,26 @@ describe("POST /api/price-submit second-drinker confirmation", () => {
 });
 
 describe("POST /api/price-submit report", () => {
+  /** As a device makes it: a priced body carries the bill, a report does not. */
   function reportAs(ip: string, body: unknown): Request {
+    const fields = (body ?? {}) as Record<string, unknown>;
+    if (!priceNeedsReceipt(fields.priceGbp)) {
+      return new Request("http://localhost/api/price-submit", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-forwarded-for": ip },
+        body: JSON.stringify(body),
+      });
+    }
+    const form = new FormData();
+    for (const [key, value] of Object.entries(fields)) {
+      if (value === undefined || value === null) continue;
+      form.set(key, String(value));
+    }
+    form.set("receipt_photo", jpegFile("bill.jpg"));
     return new Request("http://localhost/api/price-submit", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-forwarded-for": ip },
-      body: JSON.stringify(body),
+      headers: { "x-forwarded-for": ip },
+      body: form,
     });
   }
 

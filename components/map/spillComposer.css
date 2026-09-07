@@ -1003,3 +1003,23 @@ html[data-legacy="1"] .spillPreviewNote {
     gap: 3px;
   }
 }
+
+/* THE BILL'S OWN ROW (captain 7 Sept 2026). On a phone the pour is the hero and
+   the bill sits under it, in its own block, because the two are different jobs:
+   one is the night, the other is the evidence. */
+.spillReceiptStep {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* The one line that says why the bill is asked for, in the composer's own
+   quiet voice. It never shouts: a rule a drinker can see the point of is a rule
+   they keep. */
+.spillCaptureWhy {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}

@@ -33,10 +33,13 @@ type CommunityContributionPayload =
 export function postCommunityContribution(
   auth: AccountAuthSnapshot,
   payload: CommunityContributionPayload,
-  options?: Readonly<{ pintPhoto?: File | null }>,
+  options?: Readonly<{ pintPhoto?: File | null; receiptPhoto?: File | null }>,
   request: AccountBoundRequest = fetch,
 ): Promise<Response> {
-  if (options?.pintPhoto) {
+  // A MULTIPART BODY WHENEVER A PHOTO RIDES. The bill is the one every new
+  // price carries (captain 7 Sept 2026, lib/pintDropReceipt.ts) and the pint
+  // photo is the optional one beside it; either sends the form.
+  if (options?.pintPhoto || options?.receiptPhoto) {
     const form = new FormData();
     if ("kind" in payload) {
       form.set("kind", payload.kind);
@@ -50,7 +53,8 @@ export function postCommunityContribution(
       if (payload.measure) form.set("measure", payload.measure);
       if (payload.measureLabel) form.set("measureLabel", payload.measureLabel);
     }
-    form.set("pint_photo", options.pintPhoto);
+    if (options.pintPhoto) form.set("pint_photo", options.pintPhoto);
+    if (options.receiptPhoto) form.set("receipt_photo", options.receiptPhoto);
     return accountBoundFetch(
       auth,
       "/api/price-submit",

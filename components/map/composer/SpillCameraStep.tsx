@@ -1,13 +1,18 @@
-import { Camera, SmilePlus, X } from "lucide-react";
+import { Camera, Receipt, SmilePlus, X } from "lucide-react";
 
 import type { PintDropsState } from "@/components/map/usePintDrops";
+import { PHOTO_ACCEPT, RECEIPT_REQUIRED_LINE } from "@/lib/pintDropReceipt";
 
 type SpillCameraStepProps = {
   pintPhoto: PintDropsState["pintPhoto"];
+  receiptPhoto: PintDropsState["receiptPhoto"];
   pintInputRef: PintDropsState["pintInputRef"];
   venueInputRef: PintDropsState["venueInputRef"];
+  receiptInputRef: PintDropsState["receiptInputRef"];
   pickPhoto: PintDropsState["pickPhoto"];
   removePhoto: PintDropsState["removePhoto"];
+  /** True while the composer holds a price, so the bill is asked for. */
+  priced: boolean;
 };
 
 // ── Compact photo action (mobile) ─────────────────────────────────────
@@ -16,10 +21,13 @@ type SpillCameraStepProps = {
 //   setup. Desktop renders the classic inline photo pair lower down.
 export function SpillCameraStep({
   pintPhoto,
+  receiptPhoto,
   pintInputRef,
   venueInputRef,
+  receiptInputRef,
   pickPhoto,
   removePhoto,
+  priced,
 }: SpillCameraStepProps) {
   return (
     <div className="spillCameraStep" data-testid="spill-camera-step">
@@ -91,6 +99,52 @@ export function SpillCameraStep({
           </div>
         </div>
       )}
+      {/* THE BILL, on the phone, where a drinker is standing with it in hand.
+          Its own row under the pour: the pour is the hero, and the bill is the
+          one the price cannot go without (captain 7 Sept 2026). */}
+      {priced ? (
+        <div className="spillReceiptStep">
+          {receiptPhoto ? (
+            <div className="spillCaptureRail hasShot">
+              <div className="spillCameraShot">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={receiptPhoto.previewUrl}
+                  alt="Preview of the bill behind your price"
+                  decoding="async"
+                />
+                <span className="spillShotStamp">Bill ready</span>
+              </div>
+              <button
+                type="button"
+                className="photoRemove"
+                onClick={() => removePhoto("receipt")}
+                aria-label="Remove the bill photo"
+              >
+                <X size={13} /> Retake
+              </button>
+            </div>
+          ) : (
+            <>
+              <label className="spillCameraBtn primary">
+                <Receipt size={22} />
+                <span>Snap the bill</span>
+                <input
+                  ref={receiptInputRef}
+                  type="file"
+                  accept={PHOTO_ACCEPT}
+                  capture="environment"
+                  aria-label="Snap the bill: snap or upload a photo of the bill"
+                  onChange={(event) =>
+                    pickPhoto("receipt", event.target.files?.[0], event.target)
+                  }
+                />
+              </label>
+              <p className="spillCaptureWhy">{RECEIPT_REQUIRED_LINE}</p>
+            </>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

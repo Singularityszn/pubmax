@@ -296,6 +296,16 @@
   margin-top: 10px;
 }
 
+/* The one line under the bill button, and the playful one under it once the
+   bill is in. Same size and colour as the composer's own note, because it is
+   the same voice: what to do, and why, said once. */
+.vpsubPhotoWhy {
+  margin: 6px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
 .vpsubPhotoInput {
   position: absolute;
   width: 1px;

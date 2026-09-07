@@ -19,6 +19,7 @@ import {
   resolveDestination,
   type SpillDestination,
 } from "@/lib/spillPreview";
+import { priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import type { LastPintDecision } from "@/lib/tfl";
 import type { PintDropsState } from "@/components/map/usePintDrops";
@@ -68,8 +69,10 @@ export default function PintDropComposer({
     setVisibility,
     pintPhoto,
     venuePhoto,
+    receiptPhoto,
     pintInputRef,
     venueInputRef,
+    receiptInputRef,
     pickPhoto,
     removePhoto,
     resetComposer,
@@ -332,10 +335,13 @@ export default function PintDropComposer({
           {mobile ? (
             <SpillCameraStep
               pintPhoto={pintPhoto}
+              receiptPhoto={receiptPhoto}
               pintInputRef={pintInputRef}
               venueInputRef={venueInputRef}
+              receiptInputRef={receiptInputRef}
               pickPhoto={pickPhoto}
               removePhoto={removePhoto}
+              priced={priceNeedsReceipt(dropForm.price)}
             />
           ) : null}
 
@@ -363,10 +369,13 @@ export default function PintDropComposer({
             <SpillDesktopCapture
               pintPhoto={pintPhoto}
               venuePhoto={venuePhoto}
+              receiptPhoto={receiptPhoto}
               pintInputRef={pintInputRef}
               venueInputRef={venueInputRef}
+              receiptInputRef={receiptInputRef}
               pickPhoto={pickPhoto}
               removePhoto={removePhoto}
+              priced={priceNeedsReceipt(dropForm.price)}
             />
           ) : null}
 

@@ -170,13 +170,38 @@ import {
   validatePintDrop,
 } from "@/lib/pintDrops";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
-import { RECEIPT_REQUIRED_LINE } from "@/lib/pintDropReceipt";
+import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { memoryProfileStore } from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/pint-drops";
 
+/** A tiny, real JPEG: the two markers the upload path's sniffer looks for. */
+function jpegFile(name: string): File {
+  return new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], name, { type: "image/jpeg" });
+}
+
+/**
+ * A POST as a real client makes it. A PRICED body goes multipart and carries
+ * the bill, because the route refuses a price without one (captain 7 Sept
+ * 2026, lib/pintDropReceipt.ts). An unpriced body stays JSON, which is what
+ * the note and memory lanes send.
+ */
 function post(body: unknown): Promise<Response> {
-  return POST(new Request(URL_BASE, { method: "POST", body: JSON.stringify(body) }));
+  const fields = (body ?? {}) as Record<string, unknown>;
+  if (!priceNeedsReceipt(fields.priceGbp)) {
+    return POST(new Request(URL_BASE, { method: "POST", body: JSON.stringify(body) }));
+  }
+  const form = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === undefined || value === null) continue;
+    // The route reads tags from repeated `vibe_tags` entries, which is what the
+    // real composer sends; every other field is a plain string.
+    const field = key === "vibeTags" ? "vibe_tags" : key;
+    if (Array.isArray(value)) for (const entry of value) form.append(field, String(entry));
+    else form.set(field, String(value));
+  }
+  form.set("receipt_photo", jpegFile("bill.jpg"));
+  return POST(new Request(URL_BASE, { method: "POST", body: form }));
 }
 
 function get(venueId?: string): Promise<Response> {
@@ -485,7 +510,13 @@ describe("POST /api/pint-drops (create)", () => {
   it("refuses a priced drop with no photo of the bill", async () => {
     reportAuth.userId = "account-noproof";
     await memoryProfileStore.createOwned("no_proof", reportAuth.userId);
-    const res = await post({ venueId: VENUE, handle: "no_proof", priceGbp: 4.5 });
+    // The bare JSON body a client that has not been updated would send.
+    const res = await POST(
+      new Request(URL_BASE, {
+        method: "POST",
+        body: JSON.stringify({ venueId: VENUE, handle: "no_proof", priceGbp: 4.5 }),
+      }),
+    );
     expect(res.status).toBe(400);
     expect(((await res.json()) as { error?: string }).error).toBe(RECEIPT_REQUIRED_LINE);
   });
@@ -898,12 +929,7 @@ describe("validatePintDrop — vibe tags (server-authoritative allowlist)", () =
   });
 
   it("threads valid tags through the route into the returned DTO", async () => {
-    const res = await POST(
-      new Request(URL_BASE, {
-        method: "POST",
-        body: JSON.stringify({ ...base, vibeTags: ["cheap", "nope", "hidden gem"] }),
-      }),
-    );
+    const res = await post({ ...base, vibeTags: ["cheap", "nope", "hidden gem"] });
     expect(res.status).toBe(201);
     const { drop } = await res.json();
     expect(drop.vibeTags).toEqual(["cheap", "hidden gem"]);
@@ -953,16 +979,11 @@ describe("validatePintDrop — Last Train compose fields (Wave G1)", () => {
   });
 
   it("threads live fields through the route into the returned DTO", async () => {
-    const res = await POST(
-      new Request(URL_BASE, {
-        method: "POST",
-        body: JSON.stringify({
-          ...base,
-          leaveByIso: leaveBy,
-          lastTrainDecision: "half_pint_only",
-        }),
-      }),
-    );
+    const res = await post({
+      ...base,
+      leaveByIso: leaveBy,
+      lastTrainDecision: "half_pint_only",
+    });
     expect(res.status).toBe(201);
     const { drop } = await res.json();
     expect(drop.leaveByIso).toBe(leaveBy);
@@ -1346,11 +1367,16 @@ describe("durable rate limiting (Supabase configured)", () => {
 
   it("keys the durable limiter on handle + hashed IP, never the raw IP", async () => {
     checkRateLimitDurableDetailed.mockResolvedValue({ verdict: false });
+    const form = new FormData();
+    form.set("venueId", VENUE);
+    form.set("handle", "Ale");
+    form.set("priceGbp", "4");
+    form.set("receipt_photo", jpegFile("bill.jpg"));
     const res = await POST(
       new Request(URL_BASE, {
         method: "POST",
         headers: { "x-forwarded-for": "203.0.113.7, 10.0.0.1" },
-        body: JSON.stringify({ venueId: VENUE, handle: "Ale", priceGbp: 4 }),
+        body: form,
       }),
     );
     expect(res.status).toBe(201);

@@ -2,6 +2,7 @@ import VenueImage from "@/components/media/VenueImage";
 import { ProvenanceChip } from "@/components/map/venueInspectorBits";
 import { Flag } from "lucide-react";
 
+import { RECEIPT_PHOTO_LABEL } from "@/lib/pintDropReceipt";
 import { drinkMeasureName, measureIsPint } from "@/lib/drinkMeasure";
 import { formatPrice, type Venue } from "@/lib/venues";
 import { lastTrainBadge } from "@/lib/lastTrainBadge";
@@ -36,7 +37,9 @@ export default function PintDropsList({
   return (
     <div className="dropList">
       {drops.map((drop) => {
-        const hasPhotos = Boolean(drop.pintPhotoUrl || drop.venuePhotoUrl);
+        const hasPhotos = Boolean(
+          drop.pintPhotoUrl || drop.venuePhotoUrl || drop.receiptPhotoUrl,
+        );
         // Honest transport-context stamp (IDEAS A5 / Wave G1): prefer
         // fields captured on the drop at compose time; fall back to the
         // live Getting-home session for older rows that never stored them.
@@ -88,6 +91,22 @@ export default function PintDropsList({
                       height={480}
                     />
                     <figcaption>at the bar</figcaption>
+                  </figure>
+                ) : null}
+                {/* THE BILL, on the row of the drop it backs (captain 7 Sept
+                    2026). It is evidence rather than a picture of the night, so
+                    it wears the plainest caption of the three: the word the
+                    reader is looking for. */}
+                {drop.receiptPhotoUrl ? (
+                  <figure className="instaShot">
+                    <VenueImage
+                      className="dropPhoto"
+                      sources={[{ url: drop.receiptPhotoUrl, provenance: "community" }]}
+                      alt={`The bill behind ${drop.handle}'s price at ${venue.name}`}
+                      width={480}
+                      height={480}
+                    />
+                    <figcaption>{RECEIPT_PHOTO_LABEL}</figcaption>
                   </figure>
                 ) : null}
               </div>

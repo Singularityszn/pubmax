@@ -78,6 +78,7 @@ import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import type { PintTrustState } from "@/lib/pintTrust";
 import { qualifyCheapPintForOwnerActor } from "@/lib/cheapPintPingQualify.server";
+import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
 import type { PintDropPhotos } from "@/lib/pintDropsStore";
 import { syncTrustAfterPriceWrite } from "@/lib/priceTrustImpact.server";
@@ -228,6 +229,14 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiErrorFromStatus(resolved.error, resolved.status);
   }
   const submission = { ...result.value, venueId: resolved.venueId };
+
+  // A NEW PRICE COMES WITH THE BILL (captain 7 Sept 2026). Asked BEFORE the
+  // rate limits and before anything is written, so a refusal spends no budget
+  // and leaves nothing behind. The rule and its one line belong to
+  // lib/pintDropReceipt.ts; this route only asks.
+  if (priceNeedsReceipt(submission.priceGbp) && !pintDropPhotos.receipt) {
+    return publicApiError(RECEIPT_REQUIRED_LINE, "RECEIPT_REQUIRED", 400);
+  }
 
   // Cap one account across every venue before applying the tighter per-venue
   // budget. The immutable profile id is stable across handle changes and

@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { attachBill } from "./helpers/priceBill";
 
 /**
  * ONE RULE (captain, 5 Sep 2026), the whole way through on a phone. A new
@@ -223,6 +224,7 @@ async function typeAndLog(sheet: Locator, price: string): Promise<void> {
     await expect(submit).toBeVisible({ timeout: 1_500 });
   }).toPass({ timeout: 20_000 });
   await submit.getByRole("textbox").fill(price);
+  await attachBill(submit);
   await submit.getByRole("button", { name: "Log it" }).click();
 }
 

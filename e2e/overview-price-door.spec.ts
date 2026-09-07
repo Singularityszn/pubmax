@@ -62,6 +62,23 @@ const STATES = {
   none: { venueId: UNPRICED, drops: [] as DropRow[], door: "log" },
   listed: { venueId: LISTED_ONLY, drops: [] as DropRow[], door: "log" },
   "logged-once": { venueId: HATTON, drops: [row()], door: "confirm" },
+  // TWO DRINKERS, TWO PRICES (captain 7 Sept 2026). The pub Grok read on the
+  // 08:37 deploy: it said "Logged once" over £4.50 and £4.70 and offered
+  // "Still £4.70?". Its door now asks which of the two the reader paid.
+  disputed: {
+    venueId: HATTON,
+    drops: [
+      row({ priceGbp: 4.7 }),
+      row({
+        id: "drop-2",
+        handle: "second_drinker",
+        authorityKey: "account-second",
+        priceGbp: 4.5,
+        createdAt: new Date(Date.now() - 5 * DAY_MS).toISOString(),
+      }),
+    ],
+    door: "choose",
+  },
   confirmed: {
     venueId: HATTON,
     drops: [

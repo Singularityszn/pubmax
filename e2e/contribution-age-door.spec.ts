@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
 import { installAuthDoubles } from "./helpers/authDoubles";
+import { attachBill } from "./helpers/priceBill";
 
 /**
  * ONE RULE (captain, 5 Sep 2026). The contribution gate takes the recorded
@@ -112,6 +113,7 @@ async function typeAndLog(page: Page): Promise<void> {
   }).toPass({ timeout: 20_000 });
   await sheet.getByRole("textbox", { name: /Price of a beer at/ }).fill("4.40");
   await expect(async () => {
+    await attachBill(sheet);
     await sheet.getByRole("button", { name: "Log it" }).click();
     await expect(page.locator(".contributionGate")).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 25_000 });

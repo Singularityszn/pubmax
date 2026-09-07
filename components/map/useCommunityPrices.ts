@@ -201,6 +201,9 @@ export type CommunityPricesState = {
     measure?: DrinkMeasure;
     measureLabel?: string;
     pintPhoto?: File | null;
+    /** The photo of the bill. Required on every new price (captain 7 Sept
+     *  2026); the route refuses the write without it. */
+    receiptPhoto?: File | null;
   }, auth: AccountAuthSnapshot) => Promise<CommunityPriceSubmitResult>;
   /** Log one categorical pub observation through the same write seam. */
   submitVenueSignal: (input: {
@@ -961,6 +964,7 @@ export function useCommunityPrices(): CommunityPricesState {
       if (!parsed.ok) return { ok: false, error: parsed.error, reason: "invalid" };
       const { venueId, drinkCategory, priceGbp } = parsed.value;
       const pintPhoto = input.pintPhoto ?? null;
+      const receiptPhoto = input.receiptPhoto ?? null;
       // A measure only means anything on the beer lane, so it only travels
       // with one. `cleanDrinkMeasure` collapses anything else to `pint`, which
       // is what the lane already assumed of every submission before F-2.
@@ -1027,7 +1031,7 @@ export function useCommunityPrices(): CommunityPricesState {
               ? { measure, ...(measureLabel ? { measureLabel } : {}) }
               : {}),
           },
-          pintPhoto ? { pintPhoto } : undefined,
+          pintPhoto || receiptPhoto ? { pintPhoto, receiptPhoto } : undefined,
         );
         const data = (await res.json().catch(() => null)) as
           | {

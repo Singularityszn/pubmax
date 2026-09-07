@@ -200,7 +200,7 @@ export async function revertOneTapCommunityPricePairing(
  */
 export async function writeOneTapPintDrop(
   input: OneTapPintDropInput,
-  photos: PintDropPhotos = { pint: null, venue: null },
+  photos: PintDropPhotos = { pint: null, venue: null, receipt: null },
 ): Promise<OneTapPintDropOutcome> {
   // Pint Drops feed pint-only surfaces (pin colour, cheapest-pint buckets,
   // the Confirmed standing, the Pint Index). A non-beer price paired in here

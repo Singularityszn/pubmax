@@ -190,16 +190,24 @@ function request(
     bearer?: string;
     key?: string;
     body?: Record<string, unknown>;
+    /** A multipart body, for the doors that carry a photo. Sets no content-type:
+     *  the runtime writes it with the boundary. */
+    form?: FormData;
     method?: string;
     headers?: Record<string, string>;
   } = {},
 ): Request {
-  const headers = new Headers({ "content-type": "application/json", ...(options.headers ?? {}) });
+  const headers = new Headers(
+    options.form
+      ? { ...(options.headers ?? {}) }
+      : { "content-type": "application/json", ...(options.headers ?? {}) },
+  );
   if (options.bearer) headers.set("authorization", `Bearer ${options.bearer}`);
   if (options.key) headers.set("idempotency-key", options.key);
   return new Request(`http://localhost${path}`, {
-    method: options.method ?? (options.body ? "POST" : "GET"),
+    method: options.method ?? (options.body || options.form ? "POST" : "GET"),
     headers,
+    ...(options.form ? { body: options.form } : {}),
     ...(options.body ? { body: JSON.stringify(options.body) } : {}),
   });
 }
@@ -1000,12 +1008,29 @@ type PriceSubmitBody = {
   price?: { priceGbp: number };
 };
 
-async function submitPrice(bearer: string | undefined, venueId: string, priceGbp: number): Promise<Response> {
+/**
+ * A price as a real client sends it since 7 Sept 2026: multipart, carrying the
+ * photo of the bill the route refuses a price without (lib/pintDropReceipt.ts).
+ * The bytes are a tiny real JPEG, which is what the upload path sniffs for.
+ */
+async function submitPrice(
+  bearer: string | undefined,
+  venueId: string,
+  priceGbp: number,
+  options: { receipt?: boolean } = {},
+): Promise<Response> {
+  const form = new FormData();
+  form.set("venueId", venueId);
+  form.set("drinkCategory", "beer");
+  form.set("priceGbp", String(priceGbp));
+  if (options.receipt !== false) {
+    form.set(
+      "receipt_photo",
+      new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], "bill.jpg", { type: "image/jpeg" }),
+    );
+  }
   return handlers.priceSubmit(
-    request("/api/price-submit", {
-      bearer,
-      body: { venueId, drinkCategory: "beer", priceGbp },
-    }),
+    request("/api/price-submit", { bearer, form }),
     context({}),
   );
 }

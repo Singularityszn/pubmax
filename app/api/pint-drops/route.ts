@@ -16,6 +16,7 @@ import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { enrichItemsWithAvatarUrls } from "@/lib/avatarResolve";
 import { parseCityId } from "@/lib/cities";
+import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { log } from "@/lib/log";
 import type { PintDropConfirmation } from "@/lib/pintDropConfirmationRecord";
@@ -153,7 +154,7 @@ async function parseBody(
     try {
       const form = await request.formData();
       const fields: Record<string, unknown> = {};
-      const photos: PintDropPhotos = { pint: null, venue: null };
+      const photos: PintDropPhotos = { pint: null, venue: null, receipt: null };
       // Vibe tags arrive as a form field: either repeated `vibe_tags` entries or
       // one comma-separated value. Collect into an array; validatePintDrop re-
       // filters against the server allowlist (the client value is never trusted).
@@ -161,6 +162,7 @@ async function parseBody(
       for (const [k, v] of form.entries()) {
         if (k === "pint_photo" && v instanceof File && v.size > 0) photos.pint = v;
         else if (k === "venue_photo" && v instanceof File && v.size > 0) photos.venue = v;
+        else if (k === "receipt_photo" && v instanceof File && v.size > 0) photos.receipt = v;
         else if (k === "vibe_tags" && typeof v === "string") {
           vibeTags.push(...v.split(",").map((t) => t.trim()).filter(Boolean));
         } else if (typeof v === "string") fields[k] = v;
@@ -180,7 +182,7 @@ async function parseBody(
   try {
     return {
       fields: (await request.json()) as Record<string, unknown>,
-      photos: { pint: null, venue: null },
+      photos: { pint: null, venue: null, receipt: null },
     };
   } catch (err) {
     // Malformed JSON body — the caller turns this into a 400. Log the parse
@@ -454,6 +456,13 @@ export async function POST(request: Request): Promise<Response> {
       "UNAUTHENTICATED",
       401,
     );
+  }
+  // AND A PRICE COMES WITH THE BILL (captain 7 Sept 2026). Asked before the
+  // rate limit and the daily cap, so a refusal spends neither. An unpriced
+  // drop - a note, a memory, a photo of the pub - is asked for nothing, for
+  // the same reason it keeps the demo path: no price lane reads it.
+  if (priceNeedsReceipt(canonicalDrop.priceGbp) && !photos.receipt) {
+    return publicApiError(RECEIPT_REQUIRED_LINE, "RECEIPT_REQUIRED", 400);
   }
   const dropPayload = {
     ...canonicalDrop,

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { attachBill } from "./helpers/priceBill";
 
 // The UK base layer's two load-bearing promises, asserted in a real browser
 // with a real MapLibre canvas (this spec runs in the `chromium-gl` project):
@@ -130,6 +131,7 @@ test("normal London entry paints UK base pubs and takes a price", async ({
 
   // The flywheel: an unpriced pub takes a community price like any other.
   await sheet.getByRole("textbox").fill("4.20");
+  await attachBill(sheet);
   await sheet.getByRole("button", { name: "Log it" }).click();
   await expect(sheet.locator(".vpsubStamp")).toContainText("£4.20", { timeout: 15_000 });
 
