@@ -49,6 +49,6 @@ test("mobile Rounds index explains link-based joining and routes to the map", as
   await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible();
 
   await page.getByRole("button", { name: "Search the map" }).click();
-  await expect(page.getByRole("searchbox", { name: "Search pubs" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Search pubs", exact: true })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
