@@ -41,7 +41,6 @@ vi.mock("@/components/profile/SavedPubList", () => ({ default: () => null }));
 vi.mock("@/components/profile/YourContributionsCard", () => ({ default: () => null }));
 vi.mock("@/components/profile/ProfileCoverPhotosEditor", () => ({ default: () => null }));
 vi.mock("@/components/profile/ProfileCoverCarousel", () => ({ default: () => null }));
-vi.mock("@/components/profile/ProfileSocialLinks", () => ({ default: () => null }));
 vi.mock("@/components/messages/ProfileMessageButton", () => ({ default: () => null }));
 vi.mock("@/components/wanted/WantedList", () => ({ default: () => null }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
@@ -79,9 +78,15 @@ it("keeps the uploaded header avatar when an older public read finishes", async 
   await act(async () => usePhoto.click());
   expect(state.upload).toHaveBeenCalledWith("/api/profiles/owner/avatar", expect.objectContaining({ method: "POST" }), { requiresIdentity: true });
   expect(host.querySelector("header.profileHeader img.profileAvatar")?.getAttribute("src")).toBe("/api/avatar/owner/new");
-  await act(async () => state.deliverProfile!({ profile }));
+  await act(async () => state.deliverProfile!({ profile,
+    counts: { followers: 7, following: 3 },
+    socialLinks: [{ provider: "website", profileUrl: "https://example.test/owner", label: "Website", mark: "W", username: "owner" }],
+  }));
   expect(host.querySelector("header.profileHeader img.profileAvatar")?.getAttribute("src")).toBe("/api/avatar/owner/new");
   expect(host.textContent).toContain("Editing your profile");
+  expect(host.querySelector('a[aria-label^="Followers: 7."]')).not.toBeNull();
+  expect(host.querySelector('a[aria-label^="Following: 3."]')).not.toBeNull();
+  expect(host.querySelector('a.profileSocialLink[href="https://example.test/owner"]')).not.toBeNull();
   state.auth.accountRevision += 1;
   await act(async () => root.render(<ProfilePageClient params={params} />));
   await act(async () => state.deliverProfile!({ profile: { ...profile, avatarUrl: "/api/avatar/owner/later" } }));
