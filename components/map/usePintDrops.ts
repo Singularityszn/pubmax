@@ -83,6 +83,49 @@ export type { VenueDropReadStatus } from "@/lib/venueDropRead";
 
 export type PhotoSlot = { file: File; previewUrl: string };
 
+type PintDropSubmissionIntent = Readonly<{
+  venueId: string;
+  priceGbp: string;
+  drink: string;
+  measure: DrinkMeasure;
+  measureLabel: string;
+  passedDownNote: string;
+  era: string;
+  visibility: Visibility;
+  vibeTags: VibeTag[];
+}>;
+
+type HeldPintDropSubmission = Readonly<{
+  clientRequestId: string;
+  accountId: string | null;
+  intent: PintDropSubmissionIntent;
+  files: readonly [File | null, File | null, File | null];
+  trainFields: ReturnType<typeof lastTrainComposeFields>;
+}>;
+
+function capturePintDropSubmission(
+  previous: HeldPintDropSubmission | null,
+  accountId: string | null,
+  intent: PintDropSubmissionIntent,
+  photos: readonly [PhotoSlot | null, PhotoSlot | null, PhotoSlot | null],
+  lastTrainDecision: LastPintDecision | null,
+): HeldPintDropSubmission {
+  const files: HeldPintDropSubmission["files"] = [
+    photos[0]?.file ?? null, photos[1]?.file ?? null, photos[2]?.file ?? null,
+  ];
+  if (previous && previous.accountId === accountId
+    && JSON.stringify(previous.intent) === JSON.stringify(intent)
+    && previous.files.every((file, index) => file === files[index])) return previous;
+  return {
+    clientRequestId: `pint-drop:${newOptimisticSpillClientId()}`,
+    accountId,
+    intent,
+    files,
+    // A retry keeps the transport context captured by the first attempt.
+    trainFields: lastTrainComposeFields(lastTrainDecision),
+  };
+}
+
 function useDraftState<T>(initial: T | (() => T), changed: () => void) {
   const [value, setValue] = useState(initial);
   const update = useCallback((next: SetStateAction<T>) => {
@@ -347,7 +390,7 @@ export function usePintDrops(
   const [receiptPhoto, setReceiptPhoto] = useDraftState<PhotoSlot | null>(null, reviseDraft);
   const [submitting, setSubmitting] = useState(false);
   const submitInFlight = useRef(false);
-  const pendingSubmissionId = useRef<string | null>(null);
+  const pendingSubmission = useRef<HeldPintDropSubmission | null>(null);
   const [draftAccountId, setDraftAccountId] = useState(user?.id ?? null);
   const pintInputRef = useRef<HTMLInputElement>(null);
   const venueInputRef = useRef<HTMLInputElement>(null);
@@ -488,7 +531,7 @@ export function usePintDrops(
 
   const resetComposer = useCallback(() => {
     const storage = localStorageSafe();
-    const pendingId = pendingSubmissionId.current;
+    const pendingId = pendingSubmission.current?.clientRequestId;
     if (storage && pendingId && !submitInFlight.current) {
       writeOptimisticSpills(storage, readOptimisticSpills(storage).filter(
         (entry) => entry.clientRequestId !== pendingId || !entry.retry,
@@ -505,7 +548,7 @@ export function usePintDrops(
         venueId, drops.filter((drop) => drop.optimistic?.clientRequestId !== pendingId),
       ])));
     }
-    pendingSubmissionId.current = null;
+    pendingSubmission.current = null;
     setPintPhoto(null);
     setVenuePhoto(null);
     setReceiptPhoto(null);
@@ -537,7 +580,7 @@ export function usePintDrops(
       if (!active || getCurrentUserId() !== accountId) return;
       clearPintDropDrafts(safeSessionStorage());
       const storage = localStorageSafe();
-      const pendingId = pendingSubmissionId.current;
+      const pendingId = pendingSubmission.current?.clientRequestId;
       if (storage && pendingId) {
         writeOptimisticSpills(storage, readOptimisticSpills(storage).filter(
           (entry) => entry.clientRequestId !== pendingId,
@@ -615,9 +658,9 @@ export function usePintDrops(
     return submitDropRequest(venueId, options);
   }
 
-  function clearSubmittedDraft(clientRequestId: string, venueId: string, ownsDraft: () => boolean) {
+  function clearSubmittedDraft(submission: HeldPintDropSubmission, venueId: string, ownsDraft: () => boolean) {
     const owned = ownsDraft();
-    if (pendingSubmissionId.current === clientRequestId) pendingSubmissionId.current = null;
+    if (pendingSubmission.current === submission) pendingSubmission.current = null;
     if (!owned) return null;
     clearPintDropDraft(window.sessionStorage, venueId);
     resetComposer();
@@ -647,7 +690,6 @@ export function usePintDrops(
     );
     setSubmitting(true);
     setDropMsg(null);
-    const clientRequestId = pendingSubmissionId.current ?? newOptimisticSpillClientId();
     const submittedAuthor = pintDropAuthorValue({
       accountHandle,
       draftHandle: handle,
@@ -674,33 +716,46 @@ export function usePintDrops(
       setDropMsg({ ok: false, text: RECEIPT_REQUIRED_LINE });
       return;
     }
-    const passedDownNote = appendWithSuffix(dropForm.note, dropForm.withWho);
-    // Wave G1: only stamp leave-by + decision when a LIVE Last Pint verdict is
-    // on screen — never attach live_data_unavailable or a missing leave-by.
-    const trainFields = lastTrainComposeFields(lastTrainDecision);
-    submitInFlight.current = true;
-    pendingSubmissionId.current = clientRequestId;
-    const submittedRevision = draftRevision.current;
     const submittedAccountId = getCurrentUserId();
-    const ownsDraft = () => pendingSubmissionId.current === clientRequestId
-      && draftRevision.current === submittedRevision
-      && getCurrentUserId() === submittedAccountId;
-    const publishToFeed = shouldOptimisticallyAppearInFeed(visibility);
-    const optimisticInput = {
-      clientRequestId,
+    if (submittedAccountId !== accountId || submittedAccountId !== draftAccountId) {
+      setSubmitting(false);
+      return;
+    }
+    const intent: PintDropSubmissionIntent = {
       venueId,
-      venueName: venueName,
-      handle: submittedAuthor.handle,
       priceGbp: dropForm.price,
       drink: dropForm.drink,
-      passedDownNote,
+      ...measureFieldsOf(dropForm),
+      passedDownNote: appendWithSuffix(dropForm.note, dropForm.withWho),
       era: dropForm.era,
       visibility,
-      vibeTags,
+      vibeTags: [...vibeTags].sort(),
+    };
+    const previous = pendingSubmission.current;
+    const submission = capturePintDropSubmission(
+      previous, submittedAccountId, intent, [pintPhoto, venuePhoto, receiptPhoto], lastTrainDecision,
+    );
+    if (previous && previous !== submission) {
+      updateOptimisticFeedStorage((current) => current.filter(
+        (entry) => entry.clientRequestId !== previous.clientRequestId || !entry.retry,
+      ));
+    }
+    submitInFlight.current = true;
+    pendingSubmission.current = submission;
+    const { clientRequestId, trainFields } = submission;
+    const submittedRevision = draftRevision.current;
+    const ownsDraft = () => pendingSubmission.current === submission
+      && draftRevision.current === submittedRevision
+      && getCurrentUserId() === submittedAccountId;
+    const publishToFeed = shouldOptimisticallyAppearInFeed(submission.intent.visibility);
+    const optimisticInput = {
+      ...submission.intent,
+      clientRequestId,
+      venueName,
+      handle: submittedAuthor.handle,
       pintPhotoUrl: photoPreviewUrl(pintPhoto),
       venuePhotoUrl: photoPreviewUrl(venuePhoto),
       receiptPhotoUrl: photoPreviewUrl(receiptPhoto),
-      ...measureFieldsOf(dropForm),
       createdAt: new Date().toISOString(),
       ...(trainFields ?? {}),
     };
@@ -743,15 +798,12 @@ export function usePintDrops(
 
     // Keep the draft and its Files until the server returns a saved drop.
     const submittedHandle = submittedAuthor.handle.trim();
-    const submittedDrink = dropForm.drink;
-    const submittedPrice = dropForm.price;
-    const submittedMeasure = measureFieldsOf(dropForm);
-    const submittedEra = dropForm.era;
-    const submittedVisibility = visibility;
-    const submittedVibeTags = [...vibeTags];
-    const submittedPintFile = pintPhoto?.file ?? null;
-    const submittedVenueFile = venuePhoto?.file ?? null;
-    const submittedReceiptFile = receiptPhoto?.file ?? null;
+    const {
+      drink: submittedDrink, priceGbp: submittedPrice, era: submittedEra,
+      visibility: submittedVisibility, vibeTags: submittedVibeTags, passedDownNote,
+    } = submission.intent;
+    const submittedMeasure = submission.intent;
+    const [submittedPintFile, submittedVenueFile, submittedReceiptFile] = submission.files;
     try {
       window.localStorage.setItem("pubmax_handle", submittedHandle);
     } catch {
@@ -807,7 +859,11 @@ export function usePintDrops(
       if (submittedVenueFile) body.set("venue_photo", submittedVenueFile);
       if (submittedReceiptFile) body.set("receipt_photo", submittedReceiptFile);
 
-      const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
+      const response = await authedActionFetch("/api/pint-drops", {
+        method: "POST",
+        body,
+        ...(submittedAccountId ? { headers: { "Idempotency-Key": clientRequestId } } : {}),
+      }, { requiresIdentity: true });
       const data = await response.json().catch(() => null);
       if (getCurrentUserId() !== submittedAccountId) return;
       if (!response.ok || !pintDropId(data?.drop)) {
@@ -831,12 +887,14 @@ export function usePintDrops(
         const next = new Map(current);
         next.set(venueId, [
           data.drop,
-          ...(next.get(venueId) ?? []).filter((drop) => drop.id !== optimisticDrop.id),
+          ...(next.get(venueId) ?? []).filter(
+            (drop) => drop.id !== optimisticDrop.id && drop.id !== data.drop.id,
+          ),
         ]);
         return next;
       });
 
-      const clearedRevision = clearSubmittedDraft(clientRequestId, venueId, ownsDraft);
+      const clearedRevision = clearSubmittedDraft(submission, venueId, ownsDraft);
 
       // Loop 2: if a Round is open, append this pub as a stop (existing
       // addStop API). Fail-soft — the drop already landed.
