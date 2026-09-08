@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import ArrivalWelcomePlacement from "./ArrivalWelcomePlacement";
 import FoundersDiscordLink from "@/components/founding/FoundersDiscordLink";
 import { useFoundingMembership } from "@/components/founding/useFoundingMembership";
 import {
@@ -172,11 +173,13 @@ export default function ArrivalWelcome(): React.JSX.Element | null {
   if (!line) return null;
 
   return (
-    <ArrivalWelcomeLine
-      line={line}
-      leaving={leaving}
-      onDismiss={dismiss}
-      door={door ? <FoundersDiscordLink onOpen={dismiss} /> : undefined}
-    />
+    <ArrivalWelcomePlacement>
+      <ArrivalWelcomeLine
+        line={line}
+        leaving={leaving}
+        onDismiss={dismiss}
+        door={door ? <FoundersDiscordLink onOpen={dismiss} /> : undefined}
+      />
+    </ArrivalWelcomePlacement>
   );
 }

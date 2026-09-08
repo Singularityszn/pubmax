@@ -92,6 +92,12 @@ for (const width of [390, 1440]) {
         await page.route("**/api/identity/handle/current", route => route.fulfill({ json: {
           handle: ACCOUNTS.A.handle, foundingMemberNumber: founding ? 1 : null,
         } }));
+        await page.route("**/api/profiles/search?**", route => route.fulfill({ json: { matches: [
+          { handle: "sam_patel", displayName: "Sam Patel" }, { handle: "sam_taylor", displayName: "Samantha Alexandra Taylor-Williams" },
+          { handle: "sam_jones", displayName: "Sam Jones" }, { handle: "sam_chen", displayName: "Sam Chen" },
+          { handle: "sam_brown", displayName: "Sam Brown" }, { handle: "sam_wilson", displayName: "Samuel Alexander Wilson-Clarke" },
+          { handle: "sam_clarke", displayName: "Sam Clarke" }, { handle: "sam_ali", displayName: "Sam Ali" },
+        ] } }));
         await page.goto("/messages/new", { waitUntil: "commit" });
         const welcome = page.locator(".arrivalWelcome");
         await expect.poll(async () => {
@@ -104,7 +110,6 @@ for (const width of [390, 1440]) {
         await page.evaluate(() => document.fonts.ready);
         const search = page.getByRole("searchbox", { name: "Search handles" });
         await search.focus();
-        const before = await search.boundingBox();
         const greeting = await welcome.boundingBox();
         expect(greeting).not.toBeNull();
         expect(greeting!.x).toBeGreaterThanOrEqual(0);
@@ -125,10 +130,32 @@ for (const width of [390, 1440]) {
           expect(overlap).toBe(0);
         }
         await page.screenshot({ path: testInfo.outputPath(`recipient-welcome-${founding}-${width}.png`), animations: "disabled" });
+        await search.fill("sam");
+        await page.getByRole("button", { name: "Search", exact: true }).click();
+        const rows = page.locator(".messageRecipientRow");
+        await expect(rows).toHaveCount(8);
+        await expect(welcome).toBeVisible();
+        for (let index = 0; index < 8; index++) {
+          const row = rows.nth(index);
+          await row.evaluate(element => element.scrollIntoView({ block: "center" }));
+          for (const target of [row.getByRole("link"), row.getByRole("button", { name: "Message", exact: true })]) {
+            expect(await target.evaluate(element => {
+              const box = element.getBoundingClientRect();
+              const toast = document.querySelector(".arrivalWelcome")!.getBoundingClientRect();
+              const overlap = Math.max(0, Math.min(box.right, toast.right) - Math.max(box.left, toast.left)) *
+                Math.max(0, Math.min(box.bottom, toast.bottom) - Math.max(box.top, toast.top));
+              const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+              return overlap === 0 && box.top >= 0 && box.bottom <= innerHeight && hit !== null && element.contains(hit);
+            })).toBe(true);
+          }
+        }
+        await search.focus();
+        await page.screenshot({ path: testInfo.outputPath(`recipient-eight-matches-${founding}-${width}.png`), animations: "disabled" });
+        const focusedBeforeDismiss = await search.boundingBox();
         await page.clock.runFor(13_000);
         await expect(welcome).toHaveCount(0);
         await expect(search).toBeFocused();
-        expect(await search.boundingBox()).toEqual(before);
+        expect(await search.boundingBox()).toEqual(focusedBeforeDismiss);
         await page.screenshot({ path: testInfo.outputPath(`recipient-no-welcome-${founding}-${width}.png`), animations: "disabled" });
       });
     }
