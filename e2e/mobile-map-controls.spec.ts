@@ -139,6 +139,12 @@ test("mobile map controls: top bar, drink filters, and coordinated layers are ta
   await expect(layers).toBeVisible();
   await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(1);
 
+  const layersTab = layers.getByRole("tab", { name: "Layers", exact: true });
+  await expectTapTarget(layersTab, "Layers section tab");
+  await layersTab.click();
+  await expect(layersTab).toHaveAttribute("aria-selected", "true");
+  await expect(layers.getByRole("tabpanel", { name: "Layers", exact: true })).toBeVisible();
+
   const poiGroup = layers.getByRole("group", { name: "Points of interest" });
   await expect(poiGroup).toBeVisible();
   const firstPoiToggle = poiGroup.locator("button.mapLayersChip").first();
