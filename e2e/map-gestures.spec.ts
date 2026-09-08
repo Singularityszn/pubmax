@@ -119,6 +119,24 @@ async function projectOnMap(
 const ARRIVAL_TIMEOUT_MS = 90_000;
 
 async function openMap(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const intents: { atMs: number; kind: string; sequence: number }[] = [];
+    let overflow = 0;
+    const record = (event: Event) => {
+      if (!(event instanceof CustomEvent)) return;
+      const { kind, sequence } = event.detail ?? {};
+      if (typeof kind !== "string" || typeof sequence !== "number") return;
+      if (intents.length < 64) intents.push({ atMs: performance.now(), kind, sequence });
+      else overflow += 1;
+    };
+    window.addEventListener("pubmax:camera-intent", record);
+    Object.assign(window, {
+      __gestureArrivalEvidence: () => {
+        window.removeEventListener("pubmax:camera-intent", record);
+        return { intents, overflow };
+      },
+    });
+  });
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
   await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: ARRIVAL_TIMEOUT_MS });
@@ -139,11 +157,44 @@ async function openMap(page: Page): Promise<void> {
   // holding a flat default while the opening-location answer is in flight, and
   // a gesture driven into that half-arrived camera is measuring the wrong map.
   // The city's own attitude is the honest signal that arrival is done.
-  await expect.poll(async () => {
-    const camera = await readCamera(page);
-    return Math.abs(camera.bearing - LONDON_ATTITUDE.bearing) < 0.5
-      && Math.abs(camera.pitch - LONDON_ATTITUDE.pitch) < 0.5;
-  }, { timeout: ARRIVAL_TIMEOUT_MS }).toBe(true);
+  const readings: { observedAtEpochMs: number; camera: CameraReading }[] = [];
+  let lastCamera: CameraReading | null = null;
+  let overflow = 0;
+  try {
+    await expect.poll(async () => {
+      const camera = await readCamera(page);
+      lastCamera = camera;
+      if (readings.length < 128) readings.push({ observedAtEpochMs: Date.now(), camera });
+      else overflow += 1;
+      return Math.abs(camera.bearing - LONDON_ATTITUDE.bearing) < 0.5
+        && Math.abs(camera.pitch - LONDON_ATTITUDE.pitch) < 0.5;
+    }, { timeout: ARRIVAL_TIMEOUT_MS }).toBe(true);
+  } finally {
+    const browser = await page.evaluate(() => {
+      const observedWindow = window as unknown as {
+        __gestureArrivalEvidence?: () => {
+          intents: { atMs: number; kind: string; sequence: number }[];
+          overflow: number;
+        };
+      };
+      const intentTrace = observedWindow.__gestureArrivalEvidence?.() ?? null;
+      delete observedWindow.__gestureArrivalEvidence;
+      const marks = performance.getEntriesByType("mark").filter((entry) =>
+        entry.name.startsWith("pubmax:camera-intent:")
+        || ["pubmax:map-constructed", "pubmax:map-style-load", "pubmax:map-scene-built"].includes(entry.name),
+      );
+      return {
+        timeOrigin: performance.timeOrigin,
+        intentTrace,
+        marks: marks.slice(0, 128).map(({ name, startTime }) => ({ name, startTime })),
+        marksOverflow: Math.max(0, marks.length - 128),
+      };
+    }).catch((error: unknown) => ({ captureError: String(error) }));
+    await test.info().attach("gesture-arrival-camera", {
+      contentType: "application/json",
+      body: JSON.stringify({ expected: LONDON_ATTITUDE, readings, lastCamera, overflow, browser }),
+    });
+  }
   // The probe polls above run queryRenderedFeatures, which occupies the render
   // thread. A gesture driven into a busy renderer has its moves coalesced, and
   // a coalesced two-finger turn arrives as one move below MapLibre's own
