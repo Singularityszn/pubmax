@@ -49,6 +49,8 @@ test.describe("Moment photo editor", () => {
     // boundary keeps a page-owned request that settles before or during the Edit
     // click out of the editor bucket without naming any provider.
     let captureEditorNetwork = false;
+    const accountPromptRequests: { url: string; method: string }[] = [];
+    let captureAccountPromptNetwork = false;
     const editorCrossOriginRequests: string[] = [];
     const editorExternalWrites: string[] = [];
     page.on("request", (request) => {
@@ -56,6 +58,7 @@ test.describe("Moment photo editor", () => {
       const appUrl = new URL(page.url());
       if (requestUrl.protocol === "blob:" || requestUrl.protocol === "data:") return;
       if (requestUrl.origin === appUrl.origin) return;
+      if (captureAccountPromptNetwork) accountPromptRequests.push({ url: request.url(), method: request.method() });
       if (!captureEditorNetwork) return;
       editorCrossOriginRequests.push(request.url());
       if (!["GET", "HEAD"].includes(request.method())) {
@@ -85,11 +88,30 @@ test.describe("Moment photo editor", () => {
     expect(editorCrossOriginRequests).toEqual([]);
     expect(editorExternalWrites).toEqual([]);
 
+    const identityPrompt = page.getByRole("dialog", { name: "Own your memories" });
+    await expect.poll(() => page.evaluate(
+      () => localStorage.getItem("pubmax:identityNudge:pending:v1"),
+    )).toBe("moment");
+    await expect(identityPrompt).toHaveCount(0);
+    expect(editorCrossOriginRequests).toEqual([]);
+    expect(editorExternalWrites).toEqual([]);
+
+    // Closing transfers ownership to the pending account prompt.
+    captureEditorNetwork = false;
+    captureAccountPromptNetwork = true;
     await page.getByRole("button", { name: "Close editor" }).click();
     await expect(dialog).toBeHidden();
+    await expect(identityPrompt).toBeVisible();
+    await identityPrompt.getByRole("button", { name: "Not now", exact: true }).click();
+    await expect(identityPrompt).toBeHidden();
+    await test.info().attach("account-prompt-cross-origin-requests", {
+      body: JSON.stringify(accountPromptRequests, null, 2), contentType: "application/json",
+    });
+    captureAccountPromptNetwork = false;
     await expect(page.getByRole("img", { name: "Moment preview" })).toBeVisible();
 
     await page.getByRole("button", { name: "Edit night.png" }).click();
+    captureEditorNetwork = true;
     await expect(dialog).toBeVisible();
     const usePhoto = page.getByRole("button", { name: "Use photo" });
     await expect(usePhoto).toBeEnabled();
