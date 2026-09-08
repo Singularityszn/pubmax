@@ -797,6 +797,12 @@ async function captureSurface(
   }
   if (surface === "map-consent-eligible") {
     await expect.poll(() => page.evaluate(() => sessionStorage.getItem("pubmax:consent-answer-moment:v1"))).toBe("second-route");
+    if (viewport.width > 640) {
+      const dismissCity = page.getByRole("button", { name: "Dismiss city suggestion", exact: true });
+      await expect(dismissCity).toBeVisible();
+      await dismissCity.click();
+      await expect(dismissCity).toBeHidden();
+    }
     await expect(page.locator(".analyticsConsentPrompt")).toBeVisible();
   }
 
