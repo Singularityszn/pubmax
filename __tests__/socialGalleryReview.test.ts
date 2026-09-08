@@ -52,10 +52,10 @@ describe("independent gallery review", () => {
     const key = "review-same-create-edit-key";
     const post = await store.create(alice, { ...fields, gallery }, key);
     await expect(store.edit(post.id, alice, { expectedMutationVersion: 0, visibility: "private", gallery }, key))
-      .resolves.toMatchObject({ id: post.id, visibility: "private", mutationVersion: 1 });
+      .resolves.toMatchObject({ post: { id: post.id, visibility: "private", mutationVersion: 1 } });
     await expect(store.create(alice, { ...fields, gallery }, key)).resolves.toMatchObject({ id: post.id, mutationVersion: 1 });
     await expect(store.edit(post.id, alice, { expectedMutationVersion: 0, visibility: "private", gallery }, key))
-      .resolves.toMatchObject({ id: post.id, mutationVersion: 1 });
+      .resolves.toMatchObject({ post: { id: post.id, mutationVersion: 1 } });
     await expect(store.edit(post.id, alice, { expectedMutationVersion: 0, visibility: "public", gallery }, key))
       .rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT" });
   });
@@ -70,7 +70,7 @@ describe("independent gallery review", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     vi.spyOn(supabaseSocialPhotoStorage, "remove").mockRejectedValueOnce(new Error("Storage cleanup unavailable"));
     await expect(store.edit(post.id, alice, { expectedMutationVersion: 0, gallery: [{ ...second, altText: "Second" }] }, "review-cleanup-replace"))
-      .resolves.toMatchObject({ id: post.id, mutationVersion: 1, photo: { mediaId: second.mediaId } });
+      .resolves.toMatchObject({ post: { id: post.id, mutationVersion: 1, photo: { mediaId: second.mediaId } } });
     expect(warn).toHaveBeenCalledExactlyOnceWith("social_photo.memory_cleanup_failed");
     await expect(posts.readOwned(post.id, alice)).resolves.toMatchObject({ mutationVersion: 1, photo: { mediaId: second.mediaId } });
     await store.edit(post.id, alice, { expectedMutationVersion: 1, gallery: [] }, "review-cleanup-remove");
@@ -150,10 +150,10 @@ describe("independent gallery review", () => {
     if (!parsed.ok) throw new Error(parsed.error);
     expect(parsed.payload).not.toHaveProperty("visibility");
     const edited = await store.edit(post.id, alice, parsed.payload, "review-primary-edit");
-    expect(edited.photo?.mediaId).toBe(second.mediaId);
-    expect(edited.photos).toHaveLength(1);
+    expect(edited.post.photo?.mediaId).toBe(second.mediaId);
+    expect(edited.post.photos).toHaveLength(1);
     now += SOCIAL_GALLERY_UPLOAD_LIFETIME_MS;
     await expect(store.create(alice, payload, "review-primary-post")).resolves.toMatchObject({ id: post.id, mutationVersion: 1 });
-    await expect(store.edit(post.id, alice, parsed.payload, "review-primary-edit")).resolves.toMatchObject({ id: post.id, mutationVersion: 1 });
+    await expect(store.edit(post.id, alice, parsed.payload, "review-primary-edit")).resolves.toMatchObject({ post: { id: post.id, mutationVersion: 1 } });
   });
 });

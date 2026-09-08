@@ -30,6 +30,8 @@ read_social_gallery_uploads(
 Both RPCs require the service role. Reservations remain `staged`; nullable `uploaded_at` records readiness.
 Readiness and commit require `created_at` within 24 hours. Marking readiness does not extend that lifetime. Re-reserving an expired ID also fails.
 Cleanup-state, expired, missing, foreign, and non-JPEG reservations cannot commit.
+Single-attempt cleanup cannot claim a ready upload. This protects a successful upload from a failed duplicate request.
+The batch cleanup still claims expired ready uploads after 24 hours.
 Lookup returns trusted metadata in request order. Commit independently checks and locks every item.
 
 ## Commit
@@ -41,12 +43,14 @@ create_social_post_gallery_idempotent(
 
 edit_social_post_gallery_idempotent(
   p_actor uuid, p_payload jsonb, p_idempotency_key text, p_request_digest text
-) returns setof public.social_posts
+) returns table(post jsonb, from_mutation_version integer, to_mutation_version integer)
 ```
 
 The create payload contains normalized `kind`, `visibility`, `body`, `area`, `venueId`, `hashtags`, `commentPolicy`, and `gallery`.
 The edit payload also requires `postId` and `expectedMutationVersion`. Absent ordinary edit fields retain their current values.
 Explicit null clears `area` or `venueId`. `gallery` always describes the entire desired ordered list.
+Edit receipts store the original result version. A replay returns the current post and the original version pair.
+A no-op keeps equal version values, even after a later edit changes the post.
 
 ```json
 {
@@ -127,3 +131,11 @@ Apply the confirmed migration before deploying this gallery release. Do not bypa
 Keep the previous release available for rollback until gallery-specific data can be removed safely.
 The matching `20260908010000_0155_social_galleries_rollback.sql` refuses while nonempty gallery relations remain.
 Use normal post removal and detached-media cleanup before removing gallery schema.
+Owner removal accepts `visible` and `hidden` posts. Hidden posts never need approval or public restoration before removal.
+The actor, expected version, removal key, audit, and detached-media lifecycle still apply.
+
+For an approved rollback, use the service role to read each remaining gallery post and its owner and mutation version.
+Call `remove_social_post_idempotent` with those values and a unique removal key for each post.
+Keep each key for retries. If the version changed, read the post again before removal.
+Check that `social_post_gallery` has no rows. Run the existing detached-media cleanup before applying the rollback.
+These steps delete posts. An operator must have approval for that rollback before running them.

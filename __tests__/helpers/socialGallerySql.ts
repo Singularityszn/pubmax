@@ -11,7 +11,7 @@ const sqlJson = (value: unknown) => `'${JSON.stringify(value).replaceAll("'", "'
 const items = (...numbers: number[]) => numbers.map((n) => ({ mediaId: media(n), altText: `Photo ${n}` }));
 const payload = (gallery = items(1, 2)) => ({ kind: "standard", visibility: "friends", body: "A walk with friends", area: null, venueId: null, hashtags: [], commentPolicy: "open", gallery });
 const create = (value: unknown, key = "gallery-create-key-155", actor = ALICE) => `select id from public.create_social_post_gallery_idempotent('${actor}',${sqlJson(value)},'${key}','${"a".repeat(64)}')`;
-const edit = (postId: string, version: number, gallery: ReturnType<typeof items>, key: string, fields = {}) => `select id from public.edit_social_post_gallery_idempotent('${ALICE}',${sqlJson({ postId, expectedMutationVersion: version, gallery, ...fields })},'${key}','${"b".repeat(64)}')`;
+const edit = (postId: string, version: number, gallery: ReturnType<typeof items>, key: string, fields = {}) => `select post->>'id' from public.edit_social_post_gallery_idempotent('${ALICE}',${sqlJson({ postId, expectedMutationVersion: version, gallery, ...fields })},'${key}','${"b".repeat(64)}')`;
 const forward = join(process.cwd(), "supabase/migrations/20260908010000_0155_social_galleries.sql");
 const rollback = join(process.cwd(), "supabase/migrations/rollback/20260908010000_0155_social_galleries_rollback.sql");
 const video = join(process.cwd(), "supabase/migrations/20260907160000_0154_social_video.sql");
@@ -39,7 +39,7 @@ export async function proveSocialGallerySql(db: PostgresSession): Promise<void> 
   db.applyFileTransactional(video);
   const restoredFunctions = `select jsonb_agg(jsonb_build_object('name',p.oid::regprocedure::text,'definition',pg_get_functiondef(p.oid),'grants',p.proacl::text) order by p.oid::regprocedure::text)
     from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in
-    ('edit_social_post','reserve_social_post_media_upload','social_post_digest','complete_social_post_moderation_job',
+    ('edit_social_post','claim_social_post_media_upload_cleanup','reserve_social_post_media_upload','social_post_digest','complete_social_post_moderation_job',
     'moderate_social_post_admin','moderate_social_post','remove_social_post_idempotent','read_social_post_media',
     'read_social_post_media_admin','read_social_post_moderation_queue_admin','guard_social_post_photo_owner','queue_social_post_moderation')`;
   const previousFunctions = db.sql(restoredFunctions);
@@ -177,7 +177,7 @@ export async function proveSocialGallerySql(db: PostgresSession): Promise<void> 
   expect(db.expectRefusal(`select * from public.reserve_social_post_media_upload('${ALICE}','${media(5)}','${"c".repeat(64)}',640,480,1024)`)).toMatch(/expired/);
   expect(db.sql(`select public.mark_social_gallery_upload_ready('${ALICE}','${media(5)}','${expired.generation}')`)).toBe("f");
   expect(db.sql(`select count(*) from public.read_social_gallery_uploads('${ALICE}',array['${media(5)}']::uuid[])`)).toBe("0");
-  const cleanupReady = reserve(db, 6);
+  const cleanupReady = reserve(db, 6, ALICE, false);
   db.sql(`select * from public.claim_social_post_media_upload_cleanup('${ALICE}','${media(6)}','${cleanupReady.generation}')`);
   expect(db.expectRefusal(create(payload(items(6)), "gallery-cleanup-key-155"))).toMatch(/reservation/);
   reserve(db, 7); reserve(db, 8);
@@ -208,6 +208,52 @@ export async function proveSocialGallerySql(db: PostgresSession): Promise<void> 
   const tenPost = db.sql(create(payload(items(...ten)), "gallery-ten-photos-155"));
   expect(db.sql(`select jsonb_array_length(gallery_photos) from public.social_posts where id='${tenPost}'`)).toBe("10");
   expect(db.sql(`select public.remove_social_post_idempotent('${tenPost}','${ALICE}',0,'gallery-ten-remove-155')`)).toBe("t");
+  // Two requests can reserve the same generation before either writes its bytes.
+  const winner = reserve(db, 21, ALICE, false);
+  const duplicate = reserve(db, 21, ALICE, false);
+  expect(duplicate.generation).toBe(winner.generation);
+  expect(db.sql(`select public.mark_social_gallery_upload_ready('${ALICE}','${media(21)}','${winner.generation}')`)).toBe("t");
+  const losingCleanup = db.sql(`select count(*) from public.claim_social_post_media_upload_cleanup('${ALICE}','${media(21)}','${duplicate.generation}')`);
+  expect(losingCleanup, "a failed duplicate must not claim the ready winner").toBe("0");
+  expect(db.sql(`select count(*) from public.read_social_gallery_uploads('${ALICE}',array['${media(21)}']::uuid[])`)).toBe("1");
+
+  const winnerPost = db.sql(create(payload(items(21)), "gallery-winner-create-155"));
+  expect(db.sql(`select public.remove_social_post_idempotent('${winnerPost}','${ALICE}',0,'gallery-winner-remove-155')`)).toBe("t");
+  const expiredClaims = JSON.parse(db.sql(`select coalesce(json_agg(x),'[]') from public.claim_social_post_media_upload_cleanup_batch(100,now()-interval '24 hours') x where media_id='${media(5)}'`));
+  expect(expiredClaims).toHaveLength(1);
+  const expiredClaim = expiredClaims[0];
+  expect(db.sql(`select public.finalize_social_post_media_upload_cleanup('${media(5)}','${expiredClaim.generation}','${expiredClaim.cleanup_token}')`)).toBe("t");
+
+  reserve(db, 22); reserve(db, 23);
+  const hiddenPost = db.sql(create(payload(items(22, 23)), "gallery-hidden-drain-155"));
+  const hiddenJob = claim(db, hiddenPost);
+  manifest(db, hiddenPost, hiddenJob);
+  expect(complete(db, hiddenPost, hiddenJob, "needs_review")).toBe("t");
+  expect(db.sql(`select public.moderate_social_post_gallery_admin('${STAFF}','${hiddenPost}','${media(22)}',0,'hide',null)`)).toBe("t");
+  expect(db.sql(`select status from public.social_posts where id='${hiddenPost}'`)).toBe("hidden");
+  expect(db.sql(`select count(*) from public.read_social_post_media('${ALICE}','${media(22)}')`)).toBe("0");
+  expect(db.sql(`select public.remove_social_post_idempotent('${hiddenPost}','${BOB}',0,'gallery-hidden-foreign-155')`)).toBe("f");
+  expect(db.sql(`select public.remove_social_post_idempotent('${hiddenPost}','${ALICE}',1,'gallery-hidden-stale-155')`)).toBe("f");
+  expect(db.sql(`select public.remove_social_post_idempotent('${hiddenPost}','${ALICE}',0,'gallery-hidden-remove-155')`), "a hidden gallery must support removal without restore").toBe("t");
+  expect(db.sql(`select count(*) from public.social_post_gallery where post_id='${hiddenPost}'`)).toBe("0");
+  expect(db.sql(`select count(*) from public.read_social_post_media('${ALICE}','${media(22)}')`)).toBe("0");
+
+  reserve(db, 24);
+  const receiptPost = db.sql(create(payload(items(24)), "gallery-receipt-create-155"));
+  const receiptA = edit(receiptPost, 0, items(24), "gallery-receipt-a-155", { body: "First caption" });
+  const receiptNoOp = edit(receiptPost, 1, items(24), "gallery-receipt-noop-155", { body: "First caption" });
+  db.sql(receiptA);
+  db.sql(receiptNoOp);
+  db.sql(edit(receiptPost, 1, items(24), "gallery-receipt-b-155", { body: "Later caption" }));
+  for (const [request, from, to] of [[receiptA, 0, 1], [receiptNoOp, 1, 1]] as const) {
+    const receipt = JSON.parse(db.sql(request.replace(/^select post->>'id' from /, "select to_jsonb(x) from ") + " x"));
+    expect(receipt, "replay must keep the original edit receipt with the current post").toMatchObject({
+      post: { id: receiptPost, body: "Later caption", mutation_version: 2 },
+      from_mutation_version: from, to_mutation_version: to,
+    });
+  }
+  expect(db.sql(`select public.remove_social_post_idempotent('${receiptPost}','${ALICE}',2,'gallery-receipt-remove-155')`)).toBe("t");
+
   db.sql(`update public.social_post_media set retention_expires_at=now()-interval '1 day' where id::text like '15500000-%'`);
   const cleanupRows = JSON.parse(db.sql(`select coalesce(json_agg(x),'[]') from public.claim_social_post_media_cleanup_batch(100) x where media_id::text like '15500000-%'`));
   for (const row of cleanupRows) expect(db.sql(`select public.finalize_social_post_media_cleanup('${row.media_id}','${row.generation}','${row.cleanup_token}')`)).toBe("t");

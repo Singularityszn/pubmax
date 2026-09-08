@@ -23,13 +23,18 @@ vi.mock("@/lib/supabase", () => ({
     if (state.missing) return { data: null, error: { code: "PGRST202", message: "RPC missing" } };
     if (name === "read_social_gallery_uploads") return { data: state.ready ? [{ media_id: "22222222-2222-4222-8222-222222222222" }] : [], error: null };
     if (name === "mark_social_gallery_upload_ready") return { data: state.readyWrite, error: null };
-    if (name.endsWith("gallery_idempotent")) return { error: null, data: [{
-      id: "44444444-4444-4444-8444-444444444444", author_profile_id: input.p_actor, author_handle: "alice",
-      kind: "standard", visibility: "friends", status: "visible", body: "A day out", area_slug: null, venue_id: null,
-      hashtags: [], comment_policy: "open", photo_media_id: "22222222-2222-4222-8222-222222222222", photo_alt_text: "Canal",
-      gallery_photos: [{ mediaId: "22222222-2222-4222-8222-222222222222", altText: "Canal" }],
-      moderation_state: "pending", revision: 1, mutation_version: 1, created_at: "2026-09-07T12:00:00Z", updated_at: "2026-09-07T12:00:00Z",
-    }] };
+    if (name.endsWith("gallery_idempotent")) {
+      const post = {
+        id: "44444444-4444-4444-8444-444444444444", author_profile_id: input.p_actor, author_handle: "alice",
+        kind: "standard", visibility: "friends", status: "visible", body: "A day out", area_slug: null, venue_id: null,
+        hashtags: [], comment_policy: "open", photo_media_id: "22222222-2222-4222-8222-222222222222", photo_alt_text: "Canal",
+        gallery_photos: [{ mediaId: "22222222-2222-4222-8222-222222222222", altText: "Canal" }],
+        moderation_state: "pending", revision: 1, mutation_version: 1, created_at: "2026-09-07T12:00:00Z", updated_at: "2026-09-07T12:00:00Z",
+      };
+      return { error: null, data: name.startsWith("edit_")
+        ? [{ post, from_mutation_version: 0, to_mutation_version: 0 }]
+        : [post] };
+    }
     throw new Error(`Unexpected RPC ${name}`);
   } }),
 }));
@@ -65,10 +70,12 @@ describe("durable gallery upload and mutation protocol", () => {
   });
   it("submits partial edit intent and projects only public gallery metadata", async () => {
     const payload = { expectedMutationVersion: 0, gallery: [{ mediaId, altText: "Canal" }] };
-    const post = await socialGalleryStore().edit("44444444-4444-4444-8444-444444444444", actor, payload, "edit-key-123456");
+    const { post, audit } = await socialGalleryStore().edit("44444444-4444-4444-8444-444444444444", actor, payload, "edit-key-123456");
     expect(state.calls[0]).toMatchObject({ name: "edit_social_post_gallery_idempotent", input: { p_actor: actor.profileId,
       p_payload: { ...payload, postId: "44444444-4444-4444-8444-444444444444" }, p_idempotency_key: "edit-key-123456" } });
     expect(state.calls[0].input.p_payload).not.toHaveProperty("visibility");
+    expect(audit).toEqual({ fromMutationVersion: 0, toMutationVersion: 0 });
+    expect(post.mutationVersion).toBe(1);
     expect(post.photos).toEqual([{ mediaId, altText: "Canal", kind: "photo", contentType: "image/jpeg" }]);
     expect(JSON.stringify(post)).not.toContain("objectKey");
     expect(JSON.stringify(post)).not.toContain("authorProfileId");

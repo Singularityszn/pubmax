@@ -64,20 +64,37 @@ describe("gallery publication and edit authority", () => {
     advance();
     const payload = { expectedMutationVersion: 0, gallery: [...gallery].reverse() };
     const edited = await store.edit(post.id, alice, payload, "edit-reorder-123456");
-    expect(edited).toMatchObject({ mutationVersion: 1, revision: 1, photo: { mediaId: gallery[1].mediaId } });
-    expect(edited.photos?.map(item => item.mediaId)).toEqual([...gallery].reverse().map(item => item.mediaId));
-    await expect(store.edit(post.id, alice, payload, "edit-reorder-123456")).resolves.toMatchObject({ mutationVersion: 1 });
+    expect(edited.post).toMatchObject({ mutationVersion: 1, revision: 1, photo: { mediaId: gallery[1].mediaId } });
+    expect(edited.post.photos?.map(item => item.mediaId)).toEqual([...gallery].reverse().map(item => item.mediaId));
+    await expect(store.edit(post.id, alice, payload, "edit-reorder-123456")).resolves.toMatchObject({ post: { mutationVersion: 1 } });
     await expect(store.edit(post.id, alice, { ...payload, gallery }, "edit-reorder-123456")).rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT" });
     await expect(store.edit(post.id, alice, { ...payload, visibility: "public" }, "edit-stale-123456")).rejects.toMatchObject({ code: "EDIT_CONFLICT" });
     await posts.processModerationQueue({ moderate: async () => ({ decision: "approved" }) });
     for (const item of gallery) await expect(posts.mediaObjectKey!(alice, item.mediaId)).resolves.toBeTruthy();
   });
 
+  it("keeps each edit receipt after later edits, including a no-op", async () => {
+    const { store, gallery } = await setup();
+    const post = await store.create(alice, { ...fields, gallery }, "receipt-create-123456");
+    const first = { expectedMutationVersion: 0, gallery: [...gallery].reverse() };
+    await store.edit(post.id, alice, first, "receipt-first-123456");
+    const noOp = { expectedMutationVersion: 1, gallery: first.gallery };
+    await store.edit(post.id, alice, noOp, "receipt-noop-123456");
+    await store.edit(post.id, alice, { ...noOp, body: "A later caption" }, "receipt-later-123456");
+    await expect(store.edit(post.id, alice, first, "receipt-first-123456")).resolves.toMatchObject({
+      post: { mutationVersion: 2, body: "A later caption" },
+      audit: { fromMutationVersion: 0, toMutationVersion: 1 },
+    });
+    await expect(store.edit(post.id, alice, noOp, "receipt-noop-123456")).resolves.toMatchObject({
+      post: { mutationVersion: 2 }, audit: { fromMutationVersion: 1, toMutationVersion: 1 },
+    });
+  });
+
   it("removes all gallery media while allowing the remaining text to pass moderation", async () => {
     const { posts, store, gallery } = await setup();
     const post = await store.create(alice, { ...fields, gallery }, "create-post-123456");
     const edited = await store.edit(post.id, alice, { expectedMutationVersion: 0, gallery: [] }, "edit-remove-123456");
-    expect(edited).toMatchObject({ photo: null, photos: [], revision: 1 });
+    expect(edited.post).toMatchObject({ photo: null, photos: [], revision: 1 });
     await posts.processModerationQueue({ moderate: async ({ imageUrl }) => { expect(imageUrl).toBeUndefined(); return { decision: "approved" }; } });
     await expect(posts.read(post.id, bob)).resolves.toMatchObject({ photos: [] });
     for (const item of gallery) await expect(posts.mediaObjectKey!(alice, item.mediaId)).resolves.toBeNull();

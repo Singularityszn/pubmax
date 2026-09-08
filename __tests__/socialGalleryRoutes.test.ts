@@ -66,7 +66,7 @@ beforeEach(() => {
   state.limit.mockImplementation(async () => state.limited);
   state.upload.mockResolvedValue({ mediaId });
   state.create.mockResolvedValue(post);
-  state.edit.mockResolvedValue(post);
+  state.edit.mockResolvedValue({ post, audit: { fromMutationVersion: 2, toMutationVersion: 3 } });
   state.legacyCreate.mockResolvedValue(post);
   state.legacyEdit.mockResolvedValue(post);
   state.venue.mockResolvedValue({ status: "found", canonicalId: "pub-canonical", venue: { kind: "pub", name: "The Pub" } });
@@ -152,6 +152,15 @@ describe("gallery JSON dispatch", () => {
     expect(state.edit).toHaveBeenCalledWith(postId, actor, expect.objectContaining({ expectedMutationVersion: 2, gallery, venueId: "pub-canonical" }), key);
     expect(state.limit).toHaveBeenCalledWith(`social-post-edit:${hashActor(actor.profileId)}`, expect.any(String));
     expect(state.legacyEdit).not.toHaveBeenCalled();
+  });
+
+  it("returns the original receipt with the current post on edit replay", async () => {
+    state.edit.mockResolvedValue({ post, audit: { fromMutationVersion: 0, toMutationVersion: 1 } });
+    const response = await patch({ expectedMutationVersion: 0, gallery });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      post: { mutationVersion: 3 }, audit: { fromMutationVersion: 0, toMutationVersion: 1 },
+    });
   });
 
   it("permits explicit removal of every gallery photo", async () => {

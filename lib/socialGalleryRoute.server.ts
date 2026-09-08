@@ -59,10 +59,10 @@ export async function handleSocialGallerySubmission(
     }
     const store = socialGalleryStore();
     if (postId && "expectedMutationVersion" in payload) {
-      const post = await store.edit(postId, actor, payload, key);
+      const { post, audit } = await store.edit(postId, actor, payload, key);
       return Response.json({
         post: await projectSocialVenueName(post, resolvedVenue),
-        audit: { fromMutationVersion: payload.expectedMutationVersion, toMutationVersion: post.mutationVersion },
+        audit,
       }, { headers: privateHeaders });
     }
     if (!("expectedMutationVersion" in payload)) {

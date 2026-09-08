@@ -81,3 +81,17 @@ Native device gallery and video proof remains separate from desktop browser emul
 The messaging recipient-entry change belongs to the separate messaging task.
 
 See the [gallery contract](../../social/SOCIAL_GALLERY_CONTRACT.md) and [invite clearance proof](../social-invite-clearance/README.md).
+
+## Server review corrections
+
+The unchanged migration reproduced three failures in a real PostgreSQL cluster.
+A failed duplicate claimed a ready upload. Hidden gallery removal returned false. Edit replay lost its original version receipt.
+The [baseline log](server-review-sql-red.txt) records those failures. Later teardown failures follow the intentionally retained hidden gallery.
+
+The corrected migration passed 27 checks across the composer migration and migration-version suites.
+The [passing log](server-review-sql-green.txt) includes the command result.
+The checks cover changed and unchanged edit receipts after a later edit, ready-upload publication, and expired ready-upload cleanup.
+They also cover hidden-post removal, actor and version refusal, media denial, and exact rollback function definitions and grants.
+No production database was changed.
+
+Four focused store and route suites also passed 48 tests. The combined production build and browser gate remain separate.

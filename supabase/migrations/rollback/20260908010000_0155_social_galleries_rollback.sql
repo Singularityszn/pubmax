@@ -9,6 +9,20 @@ drop trigger social_gallery_item_guard on public.social_post_gallery;
 drop trigger social_gallery_projection_consistent on public.social_post_gallery;
 drop trigger social_gallery_post_consistent on public.social_posts;
 
+create or replace function public.claim_social_post_media_upload_cleanup(
+  p_owner_profile_id uuid,p_media_id uuid,p_generation uuid
+)
+returns table(generation uuid,object_key text,cleanup_token uuid)
+language plpgsql security definer set search_path=public as $$
+begin
+  return query update public.social_post_media_uploads upload set
+    state='cleanup',cleanup_token=gen_random_uuid(),cleanup_lease_until=now()+interval '5 minutes'
+  where upload.media_id=p_media_id and upload.owner_profile_id=p_owner_profile_id
+    and upload.generation=p_generation
+    and (upload.state='staged' or (upload.state='cleanup' and upload.cleanup_lease_until<now()))
+  returning upload.generation,upload.object_key,upload.cleanup_token;
+end; $$;
+
 create or replace function public.reserve_social_post_media_upload(
   p_owner_profile_id uuid,p_media_id uuid,p_sha256 text,p_width integer,p_height integer,p_byte_size integer
 )

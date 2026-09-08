@@ -23,6 +23,7 @@ create table public.social_post_gallery_edit_requests (
   request_digest text not null check(request_digest ~ '^[0-9a-f]{64}$'),
   payload_digest text not null check(payload_digest ~ '^[0-9a-f]{64}$'),
   post_id uuid not null references public.social_posts(id) on delete cascade,
+  to_mutation_version integer not null check(to_mutation_version>=0),
   created_at timestamptz not null default now(),
   primary key(author_profile_id,idempotency_key)
 );
@@ -97,6 +98,21 @@ create constraint trigger social_gallery_projection_consistent after insert or u
 deferrable initially deferred for each row execute function public.check_social_gallery_projection();
 create constraint trigger social_gallery_post_consistent after insert or update on public.social_posts
 deferrable initially deferred for each row execute function public.check_social_gallery_projection();
+
+create or replace function public.claim_social_post_media_upload_cleanup(
+  p_owner_profile_id uuid,p_media_id uuid,p_generation uuid
+)
+returns table(generation uuid,object_key text,cleanup_token uuid)
+language plpgsql security definer set search_path=public as $$
+begin
+  perform pg_advisory_xact_lock(hashtextextended('social-media-upload:' || p_media_id::text,0));
+  return query update public.social_post_media_uploads upload set
+    state='cleanup',cleanup_token=gen_random_uuid(),cleanup_lease_until=now()+interval '5 minutes'
+  where upload.media_id=p_media_id and upload.owner_profile_id=p_owner_profile_id
+    and upload.generation=p_generation and upload.uploaded_at is null
+    and (upload.state='staged' or (upload.state='cleanup' and upload.cleanup_lease_until<now()))
+  returning upload.generation,upload.object_key,upload.cleanup_token;
+end; $$;
 
 create function public.mark_social_gallery_upload_ready(p_owner_profile_id uuid,p_media_id uuid,p_generation uuid)
 returns boolean language plpgsql security definer set search_path=public as $$
@@ -430,7 +446,7 @@ as $$
 $$;
 
 create function public.edit_social_post_gallery_idempotent(p_actor uuid,p_payload jsonb,p_idempotency_key text,p_request_digest text)
-returns setof public.social_posts language plpgsql security definer set search_path=public,extensions as $$
+returns table(post jsonb,from_mutation_version integer,to_mutation_version integer) language plpgsql security definer set search_path=public,extensions as $$
 declare v_old public.social_posts; v_post public.social_posts; v_request public.social_post_gallery_edit_requests;
   v_payload_digest text; v_first record; v_kind text; v_body text; v_hashtags text[];
 begin
@@ -444,7 +460,8 @@ begin
   if found then
     if v_request.request_digest<>p_request_digest or v_request.payload_digest<>v_payload_digest
       then raise exception 'idempotency conflict'; end if;
-    return query select * from public.social_posts where id=v_request.post_id; return;
+    return query select to_jsonb(p),(p_payload->>'expectedMutationVersion')::integer,v_request.to_mutation_version
+      from public.social_posts p where p.id=v_request.post_id; return;
   end if;
   select * into v_old from public.social_posts where id=(p_payload->>'postId')::uuid
     and author_profile_id=p_actor and status='visible'
@@ -463,9 +480,9 @@ begin
     v_kind is distinct from v_old.kind or v_body is distinct from v_old.body or v_hashtags is distinct from v_old.hashtags,
     p_payload->'gallery');
   if v_post.id is null then raise exception 'edit conflict'; end if;
-  insert into public.social_post_gallery_edit_requests(author_profile_id,idempotency_key,request_digest,payload_digest,post_id)
-    values(p_actor,p_idempotency_key,p_request_digest,v_payload_digest,v_post.id);
-  return next v_post;
+  insert into public.social_post_gallery_edit_requests(author_profile_id,idempotency_key,request_digest,payload_digest,post_id,to_mutation_version)
+    values(p_actor,p_idempotency_key,p_request_digest,v_payload_digest,v_post.id,v_post.mutation_version);
+  return query select to_jsonb(v_post),v_old.mutation_version,v_post.mutation_version;
 end; $$;
 
 create function public.read_social_gallery_moderation_manifest(p_post_id uuid,p_revision integer,p_lease_token uuid)
@@ -688,7 +705,7 @@ begin
     raise exception 'idempotency conflict';
   end if;
   select * into v_post from public.social_posts where id=p_post_id and author_profile_id=p_author_profile_id
-    and status='visible' and mutation_version=p_expected_mutation_version for update;
+    and status in ('visible','hidden') and mutation_version=p_expected_mutation_version for update;
   if v_post.id is null then return false; end if;
   select array_agg(media_id) into v_media_ids from public.social_post_current_media(v_post.id);
   delete from public.social_post_gallery where post_id=v_post.id;
