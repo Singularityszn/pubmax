@@ -2634,6 +2634,11 @@ export default function PubMapCanvas({
         message || "Tile source failure after style load",
       );
     };
+    const recheckTileFailureAfterMotion = () => {
+      if (mapRef.current !== map || tileSpend.surfaced || map.isMoving()) return;
+      evaluateTileFailure(performance.now(), false, "", true);
+    };
+    map.on("moveend", recheckTileFailureAfterMotion);
     map.on("error", (event) => {
       if (!styleLoaded) {
         swapToBasemapFallback();
@@ -2667,6 +2672,9 @@ export default function PubMapCanvas({
         sourceType: mapError.source?.type,
         tilePresent: mapError.tile !== undefined,
       });
+      // An old successful frame cannot retire errors from this camera move.
+      // A fresh tile success can still retire them when the new viewport loads.
+      if (documentVisible && mapError.tile) basemapTileReadyForPaint = false;
       if (
         documentVisible &&
         !cameraInFlight
@@ -3136,6 +3144,7 @@ export default function PubMapCanvas({
       clearBasemapDeadline();
       clearTileFailureRecheck();
       clearSilentTileRetryTimer();
+      map.off("moveend", recheckTileFailureAfterMotion);
       clearPinRetryWait();
       styleGeneration += 1;
       cancelDeferredWork();
