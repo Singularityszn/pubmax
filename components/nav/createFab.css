@@ -91,6 +91,23 @@
     pointer-events: none;
   }
 
+  /* Story controls keep their final position while Create fades. */
+  body:has(.appShell .bandOnboardingChip) .createFabRoot {
+    transform: none;
+    transition:
+      opacity var(--duration-base) var(--ease-out),
+      visibility 0s;
+  }
+
+  /* Preserve the existing hidden-state visibility delay without moving the control. */
+  body:has(.appShell .bandOnboardingChip):has(
+    .analyticsConsentPrompt, .planComposer__lock, .nightCard, .mapArrivalCard,
+    .appShell.detail-open, .appShell.planning-open
+  ) .createFabRoot,
+  body:has(.appShell .bandOnboardingChip) .createFabRoot.isKeyboardHidden {
+    transition-delay: 0s, var(--duration-base);
+  }
+
   .createFab {
     display: inline-flex;
     align-items: center;
@@ -195,5 +212,11 @@
   body:has(.appShell.detail-open) .createFabRoot,
   body:has(.appShell.planning-open) .createFabRoot {
     transition: none;
+  }
+}
+
+@media (max-width: 640px) and (prefers-reduced-motion: reduce) {
+  body:has(.appShell .bandOnboardingChip) .createFabRoot {
+    transition-property: none;
   }
 }
