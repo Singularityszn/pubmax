@@ -25,7 +25,7 @@ type Seed = {
   poisonStorage?: boolean;
 };
 
-type StateFixture = { name: string; seed: Seed };
+type StateFixture = { name: string; seed: Seed; restoresIntent?: true };
 
 function validIntentJson(): string {
   const now = Date.now();
@@ -59,7 +59,7 @@ function expiredIntentJson(): string {
 
 const STATES: StateFixture[] = [
   { name: "clean signed-out storage", seed: {} },
-  { name: "valid restored PlanningIntent", seed: { session: { [INTENT_KEY]: validIntentJson() } } },
+  { name: "valid restored PlanningIntent", restoresIntent: true, seed: { session: { [INTENT_KEY]: validIntentJson() } } },
   { name: "expired PlanningIntent", seed: { session: { [INTENT_KEY]: expiredIntentJson() } } },
   { name: "malformed PlanningIntent (bad JSON)", seed: { session: { [INTENT_KEY]: "{not json" } } },
   { name: "oversized PlanningIntent (>4KB)", seed: { session: { [INTENT_KEY]: `{"version":1,"pad":"${"x".repeat(5000)}"}` } } },
@@ -111,9 +111,22 @@ for (const viewport of [
       await applySeed(page, state.seed);
       await page.goto("/plan");
 
-      // The composer always resolves — the arbitration/parsers absorb every
-      // enumerated storage state instead of throwing.
-      await expect(page.getByRole("heading", { name: COMPOSER_HEADING })).toBeVisible();
+      // A valid acceptance opens the full composer without asking for the outing again.
+      if (state.restoresIntent) {
+        const accepted = page.getByRole("region", { name: "Accepted plan context", exact: true });
+        await expect(accepted).toBeVisible();
+        await expect(accepted).toContainText("The pub you kept");
+        await expect(accepted).toContainText("Piccadilly & Soho");
+        await expect(accepted.getByRole("button", { name: "Release this pub" })).toBeVisible();
+        await expect(page.getByRole("heading", {
+          name: "Say what you need. Get a route you can stand behind.", exact: true,
+        })).toBeVisible();
+        await expect(page.getByRole("heading", { name: COMPOSER_HEADING })).toHaveCount(0);
+        // A stored intent alone cannot authorize locking an unresolved venue.
+        await expect(page.getByRole("button", { name: "Lock it in", exact: true })).toBeDisabled();
+      } else {
+        await expect(page.getByRole("heading", { name: COMPOSER_HEADING })).toBeVisible();
+      }
       expect(pageErrors, `${state.name} must not raise a page error`).toEqual([]);
     });
   }
