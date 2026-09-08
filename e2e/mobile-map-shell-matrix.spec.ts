@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
+import type { MapCameraReading } from "@/components/map/canvas/cameraProbe";
 
 const VIEWPORTS = [
   { width: 320, height: 568 },
@@ -51,6 +52,34 @@ async function waitForMapPaint(page: Page): Promise<void> {
   await canvas.evaluate(() => new Promise<void>((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   }));
+}
+
+async function readCamera(page: Page): Promise<MapCameraReading> {
+  return page.evaluate(() => {
+    const probe = (window as Window & {
+      __pubmaxMapCamera?: { read: () => MapCameraReading };
+    }).__pubmaxMapCamera;
+    if (!probe) throw new Error("Live map camera probe missing");
+    return probe.read();
+  });
+}
+
+async function zoomWithKeyboard(page: Page, target: number): Promise<void> {
+  const canvas = page.locator(".maplibregl-canvas");
+  await expect(canvas).toBeVisible();
+  await canvas.focus();
+  await expect(canvas).toBeFocused();
+  await expect.poll(async () => (await readCamera(page)).moving).toBe(false);
+  for (let step = 0; step < 12; step += 1) {
+    const before = await readCamera(page);
+    if (Math.abs(before.zoom - target) < 0.05) break;
+    // MapLibre's keyboard handler changes zoom by one while keeping the centre.
+    await expect(canvas).toBeFocused();
+    await page.keyboard.press(before.zoom < target ? "=" : "-");
+    await expect.poll(async () => Math.abs((await readCamera(page)).zoom - before.zoom)).toBeGreaterThan(0.05);
+    await expect.poll(async () => (await readCamera(page)).moving).toBe(false);
+  }
+  await expect.poll(async () => (await readCamera(page)).zoom).toBeCloseTo(target, 1);
 }
 
 for (const viewport of VIEWPORTS) {
@@ -264,7 +293,7 @@ for (const width of [320, 390]) {
 }
 
 for (const theme of THEMES) {
-  test(`London basemap hierarchy at z10 z12 z14 z16 ${theme}`, async ({ page }) => {
+  test(`London basemap hierarchy at z10 z12 z14 z16 ${theme}`, async ({ page }, testInfo) => {
     test.setTimeout(180_000);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.addInitScript((initialTheme) => {
@@ -280,20 +309,22 @@ for (const theme of THEMES) {
       window.localStorage.getItem("pubmaxx.mobile-map-session.v1"),
     )).not.toBeNull();
 
-    for (const [zoom, pitch] of [[10, 0], [12, 22], [14, 40], [16, 50]] as const) {
-      await page.evaluate(({ nextZoom, nextPitch }) => {
-        const key = "pubmaxx.mobile-map-session.v1";
-        const raw = JSON.parse(window.localStorage.getItem(key) ?? "null") as Record<string, unknown> | null;
-        if (!raw) throw new Error("mobile map session missing");
-        raw.viewport = { center: [-0.102, 51.513], zoom: nextZoom, pitch: nextPitch, bearing: 0 };
-        raw.selectedVenueId = null;
-        raw.openSheet = null;
-        window.localStorage.setItem(key, JSON.stringify(raw));
-      }, { nextZoom: zoom, nextPitch: pitch });
-      await page.reload();
-      await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+    await waitForMapPaint(page);
+    await expect.poll(() => page.evaluate(() => "__pubmaxMapCamera" in window)).toBe(true);
+
+    // A second resume store can supersede a rewritten mobile-session seed.
+    // Move the live camera instead, then check both camera and persisted zoom.
+    for (const zoom of [10, 12, 14, 16] as const) {
+      await zoomWithKeyboard(page, zoom);
       await waitForMapPaint(page);
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+      const camera = await readCamera(page);
+      expect(camera.moving).toBe(false);
+      expect(camera.zoom).toBeCloseTo(zoom, 1);
+      await testInfo.attach(`camera-z${zoom}-${theme}`, {
+        body: JSON.stringify({ targetZoom: zoom, theme, viewport: page.viewportSize(), camera }),
+        contentType: "application/json",
+      });
       await expect.poll(() => page.evaluate(() => {
         const raw = JSON.parse(window.localStorage.getItem("pubmaxx.mobile-map-session.v1") ?? "null") as { viewport?: { zoom?: number } } | null;
         return raw?.viewport?.zoom ?? -1;
