@@ -725,7 +725,7 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
   "lib/stepOutNudgeStore.ts": {
     interface: ["StepOutNudgeStore"],
     fallback:
-      "Keyless preference/send-stamp maps; durable failures follow the operation contract.",
+      "Keyless preference/send-stamp maps; durable failures follow the operation contract. Durable qualification writes only owner_actor, updated_at and cheap_pint_qualified, preserving concurrent consent, token and send changes.",
     schemaMissing:
       "Missing reads use memory; writes refuse production memory through onMissingDurableWrite.",
     authorizationOwner:
@@ -1861,9 +1861,10 @@ const FACTORY_ADOPTIONS = {
     tests: [
       "__tests__/stepOutNudgeStore.test.ts",
       "__tests__/stepOutNudgeStoreParity.test.ts",
+      "__tests__/cheapPintQualificationRace.test.ts",
     ],
     disposition:
-      "Retain. Opt-in and withdrawal remain subscription policy; both adapters preserve disabled-lane send stamps.",
+      "Retain. Opt-in and withdrawal remain subscription policy; both adapters preserve disabled-lane send stamps. Separate controlled races cover the field-scoped durable qualification write.",
   },
   "lib/walkRouteStore.ts": {
     tests: ["__tests__/walkRouteStore.test.ts"],

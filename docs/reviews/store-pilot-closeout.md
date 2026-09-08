@@ -86,7 +86,7 @@ The inventory fence records each adopter and its test files.
 | `adultSelfAssertionStore` | Account admission, first assertion and strict missing-schema writes | `adultSelfAssertionRoute.test.ts` covers account admission and first-tap semantics; `adultSelfAssertionStore.test.ts` checks blank IDs on both adapters | Retain; configured successful record/readback remains outside this matrix |
 | `harvestOverlayStore` | `requireDurable` guard, degraded reads and malformed rows | `harvestOverlayStore.test.ts`; `harvestOverlayStoreMalformed.test.ts` | Retain; the option stays outside the factory |
 | `priceTrustEventStore` | Credits, reversals and degraded read results | `priceTrustEventStore.test.ts`; `priceTrustEventStoreDurable.test.ts` | Retain; domain methods keep these rules |
-| `stepOutNudgeStore` | Opt-in, withdrawal and send stamps | `stepOutNudgeStore.test.ts`; `stepOutNudgeStoreParity.test.ts` covers configured and memory send-stamp contracts | Retain; missing-schema and outage parity remain outside this matrix. A separate durable qualification race fix is pending integration. |
+| `stepOutNudgeStore` | Opt-in, withdrawal and send stamps | `stepOutNudgeStore.test.ts`; `stepOutNudgeStoreParity.test.ts` covers send stamps; `cheapPintQualificationRace.test.ts` covers concurrent decline and send during durable qualification | Retain; the separate durable qualification fix is integrated. Missing-schema and outage parity remain outside this matrix. |
 | `walkRouteStore` | TTL, cache misses and ignored cache-write failures | `walkRouteStore.test.ts` covers both adapters and schema/error fallbacks | Retain as a cache policy exception |
 | `wantedStore` | Owner filtering and fulfilment | `wantedStore.test.ts` | Retain; these memory tests are not a complete durable matrix |
 
@@ -99,15 +99,29 @@ They do not widen the factory or change durable storage policy.
 - `stepOutNudgeStore` leaves send stamps unchanged after withdrawal or decline. Enabled stamps still apply only to their owner.
 - `walkRouteStore` uses the existing decoder in both adapters. Fewer than two valid points produce a cache miss.
 
-A separate review found that durable `qualifyCheapPintForAccountId` can overwrite concurrent decline or send-stamp changes.
-Its read and whole-row upsert are outside these memory fixes. The field-scoped correction and race proof remain pending integration.
-Do not treat the disabled-stamp matrix as proof against that durable lost update.
-
 The nudge proof executes the actual Supabase adapter and PostgREST client against a local fetch implementation.
 It checks owner isolation, delayed stamps, shared-token retention and absent-row no-ops.
 These changes neither prove an invalid-account browser bug nor cancel a notification already in flight.
 
 The focused tests prove these input and transition contracts. They do not establish complete parity for every adopter operation.
+
+## Durable qualification race
+
+The separate fix `d92020aa2408ad64e43c39f840e5248de8889a84` is integrated here as `d70bc200f2e9f80bfae85e358b61298e7c95a7e4`.
+Independent review cleared that exact source commit. This qualification finding is separate from the memory disabled-stamp fixes.
+
+Previously, account qualification read a preference row and upserted the whole snapshot.
+A concurrent decline or completed send could lose its consent, token or send state.
+Durable qualification now writes only `owner_actor`, `updated_at` and `cheap_pint_qualified`.
+PostgREST updates only supplied fields on conflict; migrations 0094 and 0111 provide defaults for a new row.
+The returned row drives eligibility. Already declined or sent rows keep their existing no-write path.
+
+`cheapPintQualificationRace.test.ts` exercises the account helper and preference routes with controlled database ordering.
+It covers decline and send races, a competing first-row decline, default-off creation, existing subscriptions and repeated terminal qualification.
+The source worker recorded three failing races before the fix and 29 passing tests across seven files afterward.
+The independent reviewer inspected the seven focused cases and that log, without running them again.
+This proves the controlled route/store cases, not live PostgreSQL or the separate 0157 replay route.
+No runtime test was repeated during this integration. The final combined gate remains required.
 
 ## Verification boundary
 

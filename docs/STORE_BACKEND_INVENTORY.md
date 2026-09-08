@@ -297,7 +297,7 @@ The progress comments alone do not establish complete parity for all eight.
 - [x] Retain the existing CI category report and add local review scope before data generation in `npm run verify`.
 - [x] Prevent local snapshot cancellation and generated-output provenance bypasses; execute the CLI through canonical or aliased paths.
 - [ ] Reconcile #727 acceptance explicitly from exactly two adopters to the retained eight and original-pair matrix.
-- [ ] Reconcile the separately reviewed durable nudge qualification race fix after integration.
+- [x] Integrate the reviewed durable nudge qualification fix and record its controlled race proof in this candidate.
 - [ ] Supply the required full integrated gate evidence for the final combined candidate.
 
 Checked entries record specific completed work. They do not close #727 or waive its unchecked requirements.
