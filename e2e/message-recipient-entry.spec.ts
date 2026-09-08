@@ -19,6 +19,18 @@ for (const width of [390, 1440]) {
 
     test("inbox opens recipient search, retries a failed read, and opens the existing conversation", async ({ page }, testInfo) => {
       await installInbox(page);
+      await page.addInitScript(() => {
+        const runtime = window as typeof window & { recipientErrorResponse?: Response };
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = async (input, init) => {
+          const response = await originalFetch(input, init);
+          const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+          if (url.pathname === "/api/profiles/search" && !response.ok) {
+            runtime.recipientErrorResponse = response;
+          }
+          return response;
+        };
+      });
       let searches = 0;
       const actions: unknown[] = [];
       await page.route("**/api/profiles/search?**", route => {
@@ -39,6 +51,10 @@ for (const width of [390, 1440]) {
       await page.getByRole("searchbox", { name: "Search handles" }).fill("sam");
       await page.getByRole("button", { name: "Search", exact: true }).click();
       await expect(page.getByRole("status").filter({ hasText: "Could not search. Try again." })).toBeVisible();
+      // The actual failed fetch body is released before another action aborts it.
+      await expect.poll(() => page.evaluate(() => (
+        window as typeof window & { recipientErrorResponse?: Response }
+      ).recipientErrorResponse?.bodyUsed)).toBe(true);
       await page.getByRole("button", { name: "Search", exact: true }).click();
       const result = page.locator(".messageRecipientRow");
       await expect(result).toHaveCount(1);
