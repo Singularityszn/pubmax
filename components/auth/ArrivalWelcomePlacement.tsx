@@ -3,7 +3,7 @@
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
-import { useArrivalWelcomeHost } from "./ArrivalWelcomeSlot";
+import { retainArrivalWelcomeSpace, useArrivalWelcomeHost } from "./ArrivalWelcomeSlot";
 
 export default function ArrivalWelcomePlacement({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -16,9 +16,8 @@ export default function ArrivalWelcomePlacement({ children }: { children: ReactN
     let live = true;
     const retainSpace = () => {
       const node = content.current;
-      if (!live || !node || !host.contains(node)) return;
-      // The page owns this slot, so its occupied space survives the greeting's dismissal.
-      host.style.minHeight = `${Math.max(parseFloat(host.style.minHeight) || 0, Math.ceil(node.getBoundingClientRect().height))}px`;
+      if (!live || !node) return;
+      retainArrivalWelcomeSpace(node);
     };
     retainSpace();
     void document.fonts.ready.then(retainSpace);

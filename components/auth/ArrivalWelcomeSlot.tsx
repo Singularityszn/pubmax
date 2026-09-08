@@ -22,6 +22,12 @@ function registerHost(node: HTMLDivElement | null) {
   };
 }
 
+export function retainArrivalWelcomeSpace(content: HTMLElement) {
+  if (!host || !host.contains(content)) return;
+  // The slot owns its height, including after its greeting leaves.
+  host.style.minHeight = `${Math.max(parseFloat(host.style.minHeight) || 0, Math.ceil(content.getBoundingClientRect().height))}px`;
+}
+
 export function useArrivalWelcomeHost() {
   return useSyncExternalStore(subscribe, snapshot, serverSnapshot);
 }
