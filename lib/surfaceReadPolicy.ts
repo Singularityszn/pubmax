@@ -16,6 +16,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "app/admin/AdminClient.tsx", fetchCount: 29, reason: "admin moderation reads and writes use the admin lane" },
   { path: "app/discover/DiscoverPageClient.tsx", fetchCount: 2, reason: "Social discover access and feed reads are explicit no-store" },
   { path: "app/feed/FeedPageClient.tsx", fetchCount: 6, reason: "Social feed and optimistic post actions keep their no-store and retry semantics" },
+  { path: "app/messages/MessageRecipientSearch.tsx", fetchCount: 1, reason: "recipient search is an explicit no-store query; edits and account changes discard its results" },
   { path: "app/rounds/[code]/RoundPageClient.tsx", fetchCount: 2, reason: "shared round view and report actions use their own lifecycle" },
   { path: "app/social/SocialComposer.tsx", fetchCount: 1, reason: "Social composer venue search is no-store; mutations use the shared auth transport" },
   { path: "app/social/crews/[crewId]/CrewDetailClient.tsx", fetchCount: 3, reason: "Social crew access and actions are no-store by policy" },

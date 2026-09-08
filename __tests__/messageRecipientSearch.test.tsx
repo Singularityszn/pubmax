@@ -44,6 +44,31 @@ it("shows a recoverable search error", async () => {
   expect(host.textContent).toContain("Could not search. Try again.");
   expect(host.querySelector('button[type="submit"]')).not.toBeNull();
 });
+it.each([429, 503])("releases an unread %s search body before another action", async (status) => {
+  const cancel = vi.fn();
+  const response = new Response(new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode('{"error":"Unavailable"}'));
+    },
+    cancel,
+  }), { status });
+  const fetcher = vi.fn()
+    .mockResolvedValueOnce(response)
+    .mockResolvedValueOnce(new Response(JSON.stringify({ matches: [{ handle: "sam" }] })));
+  vi.stubGlobal("fetch", fetcher);
+
+  await search();
+  expect(host.textContent).toContain("Could not search. Try again.");
+  expect(cancel).toHaveBeenCalledTimes(1);
+  expect(response.bodyUsed).toBe(true);
+  expect(fetcher.mock.calls[0][0]).toBe("/api/profiles/search?q=sam");
+  expect(fetcher.mock.calls[0][1].signal.aborted).toBe(false);
+
+  await search();
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  expect(host.textContent).toContain("Message sam");
+  expect(host.textContent).not.toContain("Could not search. Try again.");
+});
 it("returns signed-out users to recipient search after login", async () => {
   auth.signedOut = true;
   await act(async () => root.render(<MessageRecipientSearch />));
