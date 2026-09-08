@@ -368,17 +368,12 @@ export const supabaseStepOutNudgeStore: StepOutNudgeStore = {
         const now = new Date().toISOString();
         const existing = (await readRow(ownerActor)) ?? blankRow(ownerActor, now);
         if (existing.cheapPintDeclined || existing.cheapPintSentAt) return existing;
+        // Qualification must not replay consent, subscription, or send state.
+        // Database defaults supply those fields only when the row is new.
         return writeRow({
           owner_actor: ownerActor,
-          enabled: existing.enabled,
-          subscription_token: existing.subscriptionToken,
-          last_sent_at: existing.lastSentAt,
-          created_at: existing.createdAt,
           updated_at: now,
           cheap_pint_qualified: true,
-          cheap_pint_enabled: existing.cheapPintEnabled,
-          cheap_pint_declined: existing.cheapPintDeclined,
-          cheap_pint_sent_at: existing.cheapPintSentAt,
         });
       },
     });
