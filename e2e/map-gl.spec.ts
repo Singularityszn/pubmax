@@ -669,7 +669,9 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
           reading: { zoom: number; moving: boolean } | null;
         }>;
       }).__pubmaxOutageCameraTrace;
-      return since !== null && trace.filter((sample) => sample.at >= since)
+      if (since === null) return false;
+      const samples = trace.filter((sample) => sample.at >= since);
+      return samples.length > 0 && samples
         .every((sample) => sample.reading?.zoom === 13 && !sample.reading.moving);
     }, cameraSettledAt);
     expect(cameraStayedSettled, "the camera stays settled after fault release").toBe(true);
