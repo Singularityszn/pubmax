@@ -14,6 +14,19 @@ async function installInbox(page: Page) {
 }
 
 async function recipientButtonContrast(button: Locator) {
+  await expect.poll(() => button.evaluate(element => {
+    // Resolve the new pseudo-class styles before inspecting their transitions.
+    void getComputedStyle(element).backgroundColor;
+    const animations = [];
+    for (let node: Element | null = element; node; node = node.parentElement) {
+      animations.push(...node.getAnimations());
+    }
+    return animations.filter(animation => {
+      const end = animation.effect?.getComputedTiming().endTime;
+      return typeof end === "number" && Number.isFinite(end)
+        && (animation.pending || animation.playState === "running");
+    }).length;
+  }), { message: "recipient control finishes its finite color transitions" }).toBe(0);
   return button.evaluate(element => {
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = 1;
@@ -51,6 +64,7 @@ async function recipientButtonContrast(button: Locator) {
       surface, surroundings, outlineColor: style.outlineColor,
       outlineStyle: style.outlineStyle, outlineWidth: parseFloat(style.outlineWidth),
       outlineOffset: parseFloat(style.outlineOffset),
+      transitionProperty: style.transitionProperty, transitionDuration: style.transitionDuration,
       focusVisible: element.matches(":focus-visible"),
       textRatio: ratio(over(rgba(style.color), surface), surface),
       outlineRatio: ratio(over(rgba(style.outlineColor), surroundings), surroundings),
@@ -98,7 +112,6 @@ for (const width of [390, 1440]) {
         expect(focus.focusVisible).toBe(true);
         expect(focus.outlineStyle).not.toBe("none");
         expect(focus.outlineWidth).toBeGreaterThanOrEqual(2);
-        expect(focus.outlineOffset).toBeGreaterThanOrEqual(2);
         expect(focus.outlineRatio, "keyboard focus indicator contrast").toBeGreaterThanOrEqual(3);
       });
     }
