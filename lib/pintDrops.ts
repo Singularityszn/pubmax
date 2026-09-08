@@ -234,6 +234,15 @@ export function validatePintDrop(input: unknown): ValidationResult {
 // for the Supabase adapter (lib/pintDropsStore) when keys exist; the
 // validation/provenance/moderation logic above is storage-agnostic and unchanged.
 const drops = new Map<string, PintDrop[]>();
+const creationRequests = new Map<string, { requestDigest: string; drop: PintDrop }>();
+
+export function findMemoryPintDropCreation(actorKeyHash: string) {
+  return creationRequests.get(actorKeyHash) ?? null;
+}
+
+export function recordMemoryPintDropCreation(actorKeyHash: string, requestDigest: string, drop: PintDrop): void {
+  creationRequests.set(actorKeyHash, { requestDigest, drop });
+}
 
 // Naive per-handle rate limit (in-memory), enough to stop one actor flooding a
 // demo. Move to Redis/Supabase counters if this ever ships.
@@ -665,6 +674,7 @@ export function keepHiddenPintDrop(id: string, note?: string): boolean {
 // Test-only: reset process state between cases.
 export function __resetPintDrops(): void {
   drops.clear();
+  creationRequests.clear();
   rateWindow.clear();
   reportedActorsByDrop.clear();
   verifiedReportCountsByDrop.clear();

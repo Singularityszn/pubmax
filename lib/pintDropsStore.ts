@@ -8,6 +8,15 @@ import "server-only";
 // throw, we don't silently no-op, so the route can 503 deliberately.
 
 import { createHash } from "node:crypto";
+import {
+  createStoredPintDrop,
+  findStoredPintDropCreation,
+  PintDropCommitUncertainError,
+  PintDropCreateConflictError,
+  PintDropDailyCapError,
+  type PintDropCreateRequest,
+} from "@/lib/pintDropCreate.server";
+export { PintDropDailyCapError } from "@/lib/pintDropCreate.server";
 
 import sharp from "sharp";
 
@@ -37,6 +46,8 @@ import {
 } from "@/lib/retiredContributor";
 import {
   addPintDrop,
+  findMemoryPintDropCreation,
+  recordMemoryPintDropCreation,
   ANON_HANDLE_LABEL,
   canViewOnPublicSurface,
   confirmPintDrop,
@@ -155,10 +166,19 @@ export type PintDropPhotos = {
  */
 export type PintDropCreateOptions = {
   readonly underDailyPriceCap?: boolean;
+  readonly request?: PintDropCreateRequest;
+};
+
+export type PintDropCreation = {
+  drop: PintDropDTO;
+  authorHandle: string;
+  authorityKey: string | undefined;
 };
 
 /** The one seam the API route talks to. Both implementations below. */
 export type PintDropStore = {
+  /** Read the current DTO for an authenticated submission, including moderated status. */
+  findCreation(request: PintDropCreateRequest): Promise<PintDropCreation | null>;
   /**
    * Persist a validated drop (photos where supported); returns the public DTO.
    * Throws on storage failure, and throws PintDropDailyCapError when the write
@@ -671,8 +691,26 @@ function withVerifiedReportCount(drop: PersistableDrop): PersistableDrop {
 // ── In-memory implementation ─────────────────────────────────────────────────
 // Wraps the process-memory primitives in lib/pintDrops.ts. Resets on restart —
 // right for dev/demo; production refuses it at the route.
+function findMemoryCreation(request: PintDropCreateRequest): PintDropCreation | null {
+  const prior = findMemoryPintDropCreation(request.actorKeyHash);
+  if (!prior) return null;
+  if (prior.requestDigest !== request.requestDigest) throw new PintDropCreateConflictError();
+  return {
+    drop: toDTO(withVerifiedReportCount(prior.drop)),
+    authorHandle: prior.drop.handle,
+    authorityKey: prior.drop.authorityKey,
+  };
+}
+
 export const memoryPintDropStore: PintDropStore = {
+  async findCreation(request) {
+    return findMemoryCreation(request);
+  },
   async create(drop, _photos, options) {
+    if (options?.request) {
+      const prior = findMemoryCreation(options.request);
+      if (prior) return prior.drop;
+    }
     // The same hard guard the Supabase backend gets from
     // pint_drops_priced_day_unique_idx (0141), over the same writes: the route's
     // pre-check and this create sit either side of an await, so two in-flight
@@ -685,6 +723,9 @@ export const memoryPintDropStore: PintDropStore = {
       throw new PintDropDailyCapError();
     }
     addPintDrop(drop); // photos ignored: there is no Storage without Supabase
+    if (options?.request) {
+      recordMemoryPintDropCreation(options.request.actorKeyHash, options.request.requestDigest, drop);
+    }
     return toDTO(drop);
   },
   async listVisible(venueId, viewer, authorHandle, cityId) {
@@ -885,14 +926,6 @@ function dailyCapDay(
  * same sentence the pre-check gives, so a drinker cannot tell which enforcer
  * turned them away.
  */
-export class PintDropDailyCapError extends Error {
-  readonly code = "PINT_DROP_DAILY_PRICE_CAP";
-  constructor() {
-    super("A priced Pint Drop for this venue, handle and London day already exists.");
-    this.name = "PintDropDailyCapError";
-  }
-}
-
 /** The one question a caller asks about that refusal. */
 export function isPintDropDailyCapError(error: unknown): error is PintDropDailyCapError {
   return error instanceof PintDropDailyCapError;
@@ -966,8 +999,146 @@ function isMissingLastTrainColumnError(error: { code?: string; message?: string 
 
 
 // ── Supabase implementation ──────────────────────────────────────────────────
+async function insertUnkeyedPintDrop(
+  persistable: PersistableDrop,
+  capDay: string | null,
+  uploaded: readonly string[],
+): Promise<string | undefined> {
+  let omittedReceiptKey: string | undefined;
+  let row = toRow(persistable, capDay);
+  // EVERY insert attempt goes through here, because the daily cap is now a
+  // unique index (0141) and a retry can hit it just as the first attempt
+  // can. A cap violation leaves the try immediately: it is the rule working,
+  // not a storage fault, and the catch below tells the two apart.
+  const insert = async (candidate: typeof row) => {
+    const { error: insertError } = await admin().from(TABLE).insert(candidate);
+    if (isDailyPriceCapViolation(insertError)) throw new PintDropDailyCapError();
+    return insertError;
+  };
+  // First attempt includes vibe_tags + Last Train columns. Once migrations
+  // 0005 / 0021 are applied this is the only path that ever runs.
+  let error = await insert(row);
+  if (error && isMissingPriceDayColumnError(error)) {
+    console.warn(
+      "[pint-drops] price_day missing - the daily cap is the pre-check alone until migration 0141 is applied:",
+      error.message,
+    );
+    const { price_day: _omitPriceDay, ...rowWithoutPriceDay } = row;
+    void _omitPriceDay;
+    row = rowWithoutPriceDay as typeof row;
+    error = await insert(row);
+  }
+  if (error && isMissingAuthorityKeyColumnError(error)) {
+    console.warn(
+      "[pint-drops] authority_key missing - saving this drop as provisional (apply migration 0117):",
+      error.message,
+    );
+    const { authority_key: _omitAuthority, ...rowWithoutAuthority } = row;
+    void _omitAuthority;
+    delete persistable.authorityKey;
+    row = rowWithoutAuthority as typeof row;
+    error = await insert(row);
+  }
+  if (error && isMissingConfirmationColumnError(error)) {
+    console.warn(
+      "[pint-drops] confirmation columns missing - saving this drop unconfirmed (apply migration 0140):",
+      error.message,
+    );
+    const {
+      confirmation_id: _omitConfirmationId,
+      confirmed_at: _omitConfirmedAt,
+      confirmation_basis: _omitBasis,
+      confirming_drop_id: _omitConfirmingDrop,
+      ...rowWithoutConfirmation
+    } = row;
+    void _omitConfirmationId;
+    void _omitConfirmedAt;
+    void _omitBasis;
+    void _omitConfirmingDrop;
+    delete persistable.confirmation;
+    row = rowWithoutConfirmation as typeof row;
+    error = await insert(row);
+  }
+  if (error && isMissingReceiptColumnError(error)) {
+    console.warn(
+      "[pint-drops] receipt_photo_key missing - saving this drop without its bill photo (apply migration 0153):",
+      error.message,
+    );
+    const { receipt_photo_key: omittedReceipt, ...rowWithoutReceipt } = row;
+    if (omittedReceipt && uploaded.includes(omittedReceipt)) omittedReceiptKey = omittedReceipt;
+    delete persistable.receiptPhotoKey;
+    row = rowWithoutReceipt as typeof row;
+    error = await insert(row);
+  }
+  if (error && isMissingMeasureColumnError(error)) {
+    if (!measureIsPint(persistable.measure)) {
+      // The one retry this ladder refuses. See the guard's own note: a half
+      // stored without its measure is a half published as a pint.
+      throw new Error(
+        "This pub's price store cannot record a measure yet (apply migration 0147).",
+      );
+    }
+    console.warn(
+      "[pint-drops] measure columns missing - inserting this pint without them (apply migration 0147):",
+      error.message,
+    );
+    const {
+      measure: _omitMeasure,
+      measure_label: _omitMeasureLabel,
+      ...rowWithoutMeasure
+    } = row;
+    void _omitMeasure;
+    void _omitMeasureLabel;
+    row = rowWithoutMeasure as typeof row;
+    error = await insert(row);
+  }
+  if (error && isMissingLastTrainColumnError(error)) {
+    console.warn(
+      "[pint-drops] leave_by_iso/last_train_decision missing — inserting without them (apply migration 0021):",
+      error.message,
+    );
+    const {
+      leave_by_iso: _omitLeave,
+      last_train_decision: _omitDecision,
+      ...rowWithoutLastTrain
+    } = row;
+    void _omitLeave;
+    void _omitDecision;
+    row = rowWithoutLastTrain as typeof row;
+    error = await insert(row);
+  }
+  if (error) {
+    if (!isMissingVibeTagsColumnError(error)) throw new Error(error.message);
+    // Migration 0005 (vibe_tags column) is not applied to this DB yet.
+    // Retry the insert WITHOUT vibe_tags so the drop still persists — the
+    // rest of the drop is fully valid; only the tags are lost until the
+    // migration lands. One-line warning so the pending migration is visible
+    // in logs (not silent), then re-throw only if the retry genuinely fails.
+    console.warn(
+      "[pint-drops] vibe_tags column missing — inserting without it (apply migration 0005):",
+      error.message,
+    );
+    const { vibe_tags: _omit, ...rowWithoutVibeTags } = row;
+    void _omit;
+    const retryError = await insert(rowWithoutVibeTags as typeof row);
+    if (retryError) throw new Error(retryError.message);
+  }
+  return omittedReceiptKey;
+}
+
 export const supabasePintDropStore: PintDropStore = {
+  async findCreation(request) {
+    const prior = await findStoredPintDropCreation(request);
+    if (!prior) return null;
+    const stored = fromRow(prior);
+    return { drop: await toDTOWithPhotos(stored), authorHandle: stored.handle, authorityKey: stored.authorityKey };
+  },
   async create(drop, photos, options) {
+    if (options?.request) {
+      const prior = await findStoredPintDropCreation(options.request);
+      if (prior) return toDTOWithPhotos(fromRow(prior));
+    }
+    let committed: PersistableDrop | null = null;
     const persistable: PersistableDrop = { ...drop };
     const uploaded: string[] = [];
     let omittedReceiptKey: string | undefined;
@@ -1006,125 +1177,15 @@ export const supabasePintDropStore: PintDropStore = {
           });
         }
       }
-      let row = toRow(persistable, dailyCapDay(drop, options));
-      // EVERY insert attempt goes through here, because the daily cap is now a
-      // unique index (0141) and a retry can hit it just as the first attempt
-      // can. A cap violation leaves the try immediately: it is the rule working,
-      // not a storage fault, and the catch below tells the two apart.
-      const insert = async (candidate: typeof row) => {
-        const { error: insertError } = await admin().from(TABLE).insert(candidate);
-        if (isDailyPriceCapViolation(insertError)) throw new PintDropDailyCapError();
-        return insertError;
-      };
-      // First attempt includes vibe_tags + Last Train columns. Once migrations
-      // 0005 / 0021 are applied this is the only path that ever runs.
-      let error = await insert(row);
-      if (error && isMissingPriceDayColumnError(error)) {
-        console.warn(
-          "[pint-drops] price_day missing - the daily cap is the pre-check alone until migration 0141 is applied:",
-          error.message,
-        );
-        const { price_day: _omitPriceDay, ...rowWithoutPriceDay } = row;
-        void _omitPriceDay;
-        row = rowWithoutPriceDay as typeof row;
-        error = await insert(row);
-      }
-      if (error && isMissingAuthorityKeyColumnError(error)) {
-        console.warn(
-          "[pint-drops] authority_key missing - saving this drop as provisional (apply migration 0117):",
-          error.message,
-        );
-        const { authority_key: _omitAuthority, ...rowWithoutAuthority } = row;
-        void _omitAuthority;
-        delete persistable.authorityKey;
-        row = rowWithoutAuthority as typeof row;
-        error = await insert(row);
-      }
-      if (error && isMissingConfirmationColumnError(error)) {
-        console.warn(
-          "[pint-drops] confirmation columns missing - saving this drop unconfirmed (apply migration 0140):",
-          error.message,
-        );
-        const {
-          confirmation_id: _omitConfirmationId,
-          confirmed_at: _omitConfirmedAt,
-          confirmation_basis: _omitBasis,
-          confirming_drop_id: _omitConfirmingDrop,
-          ...rowWithoutConfirmation
-        } = row;
-        void _omitConfirmationId;
-        void _omitConfirmedAt;
-        void _omitBasis;
-        void _omitConfirmingDrop;
-        delete persistable.confirmation;
-        row = rowWithoutConfirmation as typeof row;
-        error = await insert(row);
-      }
-      if (error && isMissingReceiptColumnError(error)) {
-        console.warn(
-          "[pint-drops] receipt_photo_key missing - saving this drop without its bill photo (apply migration 0153):",
-          error.message,
-        );
-        const { receipt_photo_key: omittedReceipt, ...rowWithoutReceipt } = row;
-        if (omittedReceipt && uploaded.includes(omittedReceipt)) omittedReceiptKey = omittedReceipt;
-        delete persistable.receiptPhotoKey;
-        row = rowWithoutReceipt as typeof row;
-        error = await insert(row);
-      }
-      if (error && isMissingMeasureColumnError(error)) {
-        if (!measureIsPint(persistable.measure)) {
-          // The one retry this ladder refuses. See the guard's own note: a half
-          // stored without its measure is a half published as a pint.
-          throw new Error(
-            "This pub's price store cannot record a measure yet (apply migration 0147).",
-          );
-        }
-        console.warn(
-          "[pint-drops] measure columns missing - inserting this pint without them (apply migration 0147):",
-          error.message,
-        );
-        const {
-          measure: _omitMeasure,
-          measure_label: _omitMeasureLabel,
-          ...rowWithoutMeasure
-        } = row;
-        void _omitMeasure;
-        void _omitMeasureLabel;
-        row = rowWithoutMeasure as typeof row;
-        error = await insert(row);
-      }
-      if (error && isMissingLastTrainColumnError(error)) {
-        console.warn(
-          "[pint-drops] leave_by_iso/last_train_decision missing — inserting without them (apply migration 0021):",
-          error.message,
-        );
-        const {
-          leave_by_iso: _omitLeave,
-          last_train_decision: _omitDecision,
-          ...rowWithoutLastTrain
-        } = row;
-        void _omitLeave;
-        void _omitDecision;
-        row = rowWithoutLastTrain as typeof row;
-        error = await insert(row);
-      }
-      if (error) {
-        if (!isMissingVibeTagsColumnError(error)) throw new Error(error.message);
-        // Migration 0005 (vibe_tags column) is not applied to this DB yet.
-        // Retry the insert WITHOUT vibe_tags so the drop still persists — the
-        // rest of the drop is fully valid; only the tags are lost until the
-        // migration lands. One-line warning so the pending migration is visible
-        // in logs (not silent), then re-throw only if the retry genuinely fails.
-        console.warn(
-          "[pint-drops] vibe_tags column missing — inserting without it (apply migration 0005):",
-          error.message,
-        );
-        const { vibe_tags: _omit, ...rowWithoutVibeTags } = row;
-        void _omit;
-        const retryError = await insert(rowWithoutVibeTags as typeof row);
-        if (retryError) throw new Error(retryError.message);
+      const row = toRow(persistable, dailyCapDay(drop, options));
+      if (options?.request) {
+        committed = fromRow(await createStoredPintDrop(row, options.request));
+        if (committed.id !== drop.id) await deletePhotos(uploaded);
+      } else {
+        omittedReceiptKey = await insertUnkeyedPintDrop(persistable, dailyCapDay(drop, options), uploaded);
       }
     } catch (err) {
+      if (err instanceof PintDropCommitUncertainError) throw err;
       // A cap refusal is the rule holding, not an outage, so it may not be
       // logged as one: an error line per refused duplicate would read as a
       // storage failure in every dashboard. It still cleans up its photos and
@@ -1152,7 +1213,7 @@ export const supabasePintDropStore: PintDropStore = {
     }
     // The insert succeeded. Only the omitted bill is unreferenced; optional photos remain attached.
     if (omittedReceiptKey) await deletePhotos([omittedReceiptKey]);
-    return toDTOWithPhotos(persistable);
+    return toDTOWithPhotos(committed ?? persistable);
   },
 
   /** Demo seeds (in-repo, never written to Supabase) merge with the organic
