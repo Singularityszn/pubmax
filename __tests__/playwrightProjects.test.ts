@@ -22,4 +22,29 @@ describe("Playwright project registration", () => {
     vi.stubEnv(FIREFOX_OPT_IN, "1");
     expect(await loadProjectNames()).toContain(FIREFOX_PROJECT);
   });
+
+  it("runs tile and WebGL recovery only in the project that blocks service workers", async () => {
+    const config = (await import("../playwright.config")).default;
+    const chromium = config.projects?.find((project) => project.name === "chromium");
+    const gl = config.projects?.find((project) => project.name === "chromium-gl");
+    expect(gl?.use?.serviceWorkers).toBe("block");
+    for (const file of ["**/map-tile-retry.spec.ts", "**/map-webgl-recovery.spec.ts"]) {
+      expect(chromium?.testIgnore).toContain(file);
+      expect(gl?.testMatch).toContain(file);
+    }
+  });
+
+  it("keeps a host provider key out of both keyless browser servers", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "test-provider-key");
+    vi.stubEnv("PUBMAX_E2E_LOGIN", "0");
+    vi.stubEnv("PW_SKIP_WEBSERVER", "");
+    vi.stubEnv("PW_SKIP_KEYLESS_WEBSERVER", "");
+    vi.stubEnv("PW_SCREENSHOTS", "");
+    vi.stubEnv(FIREFOX_OPT_IN, "");
+    const config = (await import("../playwright.config")).default;
+    const servers = Array.isArray(config.webServer) ? config.webServer : [];
+    const keyless = servers.filter((server) => server.env?.PUBMAX_E2E_KEYLESS === "1");
+    expect(keyless).toHaveLength(2);
+    for (const server of keyless) expect(server.env?.OPENROUTER_API_KEY).toBe("");
+  });
 });
