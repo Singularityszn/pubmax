@@ -505,15 +505,6 @@ async function measureSurfaceAssertions(
     const topbar = panels.find(
       (candidate) => candidate.name === "mobile map topbar",
     );
-    const notice = panels.find(
-      (candidate) => candidate.name === "analytics notice",
-    );
-    const planAction = panels.find(
-      (candidate) => candidate.name === "Describe the outing",
-    );
-    const credit = panels.find(
-      (candidate) => candidate.name === "map credit",
-    );
     // The phone map chrome is ONE bar (design judgement 2026-08-01, finding
     // 2.3), so the whole stack is the bar's own height, not a three-row band.
     const chromeHeight = topbar ? round(topbar.bottom - topbar.top) : Number.NaN;
@@ -538,6 +529,29 @@ async function measureSurfaceAssertions(
       "phone controls stay in one uncut row",
       barMetrics.scrollWidth <= barMetrics.clientWidth,
       `scroll ${barMetrics.scrollWidth}px; client ${barMetrics.clientWidth}px; bar ${topbar?.left}-${topbar?.right}px`,
+    );
+    const answerState = await page.evaluate(() => ({
+      firstRoute: sessionStorage.getItem("pubmax:consent-first-route:v1"),
+      answer: sessionStorage.getItem("pubmax:consent-answer-moment:v1"),
+    }));
+    assertMeasured(
+      assertions, surface, viewport.width,
+      "first-visit consent waits for a real answer",
+      answerState.firstRoute !== null && answerState.answer === null &&
+        await page.locator(".analyticsConsentPrompt").count() === 0,
+      JSON.stringify(answerState),
+    );
+  }
+
+  if (surface === "map-consent-eligible" && viewport.width === 390) {
+    const notice = panels.find(
+      (candidate) => candidate.name === "analytics notice",
+    );
+    const planAction = panels.find(
+      (candidate) => candidate.name === "Describe the outing",
+    );
+    const credit = panels.find(
+      (candidate) => candidate.name === "map credit",
     );
     const overlap =
       notice && credit
@@ -632,7 +646,7 @@ async function verifyPostCaptureInteractions(
 ): Promise<void> {
   if (
     !ASSERT_LAYOUT ||
-    surface !== "map-first-visit" ||
+    (surface !== "map-first-visit" && surface !== "map-consent-eligible") ||
     viewport.width !== 390
   ) {
     return;
@@ -668,16 +682,22 @@ async function captureSurface(
   surface: string,
   pathname: string,
   readySelector: string,
-  options: { firstVisit?: boolean; signedIn?: boolean } = {},
+  options: { firstVisit?: boolean; signedIn?: boolean; priorRoute?: string } = {},
 ): Promise<SurfaceMeasurement> {
   await page.setViewportSize(viewport);
   await preparePage(page, options);
+  if (options.priorRoute) {
+    await page.goto(options.priorRoute, { waitUntil: "domcontentloaded" });
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem("pubmax:consent-first-route:v1"))).not.toBeNull();
+    await expect(page.locator(".analyticsConsentPrompt")).toHaveCount(0);
+    expect(await page.evaluate(() => sessionStorage.getItem("pubmax:consent-answer-moment:v1"))).toBeNull();
+  }
   const response = await page.goto(pathname, { waitUntil: "domcontentloaded" });
   expect(response?.status(), `${surface} ${pathname}`).toBe(200);
   await expect(page.locator(readySelector).first()).toBeVisible({
     timeout: 45_000,
   });
-  if (surface === "map-first-visit" || surface === "venue-sheet") {
+  if (surface === "map-first-visit" || surface === "map-consent-eligible" || surface === "venue-sheet") {
     await expect(
       page.locator(
         viewport.width <= 640 ? ".mobileMapChrome" : ".mapToolbar",
@@ -695,7 +715,7 @@ async function captureSurface(
   if (options.firstVisit) {
     await page.waitForTimeout(1_000);
   }
-  if (options.firstVisit && surface === "map-first-visit") {
+  if (options.firstVisit && (surface === "map-first-visit" || surface === "map-consent-eligible")) {
     // Every berth this spec measures has a lifted variant under
     // `body:has(.mapArrivalCard)`, so the card MUST be gone before a single box
     // is read or the lifted state is recorded as the default. A best-effort
@@ -707,6 +727,17 @@ async function captureSurface(
     await expect(arrivalCard).toHaveCount(0, { timeout: 15_000 });
   }
   await settle(page);
+  if (surface === "map-first-visit" || surface === "map-consent-eligible") {
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem("pubmax:consent-first-route:v1"))).not.toBeNull();
+  }
+  if (surface === "map-first-visit") {
+    expect(await page.evaluate(() => sessionStorage.getItem("pubmax:consent-answer-moment:v1"))).toBeNull();
+    await expect(page.locator(".analyticsConsentPrompt")).toHaveCount(0);
+  }
+  if (surface === "map-consent-eligible") {
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem("pubmax:consent-answer-moment:v1"))).toBe("second-route");
+    await expect(page.locator(".analyticsConsentPrompt")).toBeVisible();
+  }
 
   const firstVisitPromptLocator = page
     .locator('.analyticsConsentPrompt:visible, [role="dialog"]:visible')
@@ -1025,6 +1056,13 @@ test("capture UI consistency evidence", async ({ browser }) => {
         firstVisit: true,
       },
       {
+        surface: "map-consent-eligible",
+        pathname: "/map",
+        readySelector: ".mapCanvasWrap",
+        firstVisit: true,
+        priorRoute: "/about",
+      },
+      {
         surface: "venue-sheet",
         pathname: `/map?sel=${VENUE_ID}`,
         readySelector: ".venueInspector",
@@ -1046,7 +1084,7 @@ test("capture UI consistency evidence", async ({ browser }) => {
           spec.surface,
           spec.pathname,
           spec.readySelector,
-          { firstVisit: spec.firstVisit },
+          { firstVisit: spec.firstVisit, priorRoute: spec.priorRoute },
         ),
       );
       await context.close();
