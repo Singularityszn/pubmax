@@ -188,7 +188,12 @@ export async function signVenuePhotoObject(
   objectKey: string,
   storage: VenuePhotoStorage = supabaseVenuePhotoStorage,
 ): Promise<string | null> {
-  return storage.sign(objectKey, VENUE_PHOTO_SIGNED_TTL_SECONDS);
+  try {
+    return await storage.sign(objectKey, VENUE_PHOTO_SIGNED_TTL_SECONDS);
+  } catch {
+    // The shared advisory scan logs a missing URL and permits the upload.
+    return null;
+  }
 }
 
 export type DownloadedVenuePhoto = DownloadedUploadedImage;
