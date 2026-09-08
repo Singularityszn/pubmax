@@ -71,20 +71,53 @@ async function selectToolbarPub(page: Page, query: string, name: RegExp) {
 async function armDrawerExchangeProbe(page: Page) {
   return page.evaluateHandle(() => {
     const startedAt = performance.now();
+    const startedAtEpochMs = performance.timeOrigin + startedAt;
+    const describeElement = (element: Element | null) => element ? {
+      tag: element.tagName,
+      id: element.id,
+      className: element.getAttribute("class"),
+      role: element.getAttribute("role"),
+      label: element.getAttribute("aria-label"),
+    } : null;
     const measure = () => {
+      const atMs = performance.now() - startedAt;
       const box = (selector: string) => {
         const element = document.querySelector(selector);
         if (!element) throw new Error(`Missing ${selector}`);
         const { x, y, width, height } = element.getBoundingClientRect();
         return { x, y, width, height };
       };
-      return {
-        atMs: performance.now() - startedAt,
+      const retarget = [...document.querySelectorAll<HTMLElement>(
+        '[role="option"][data-venue-id]',
+      )].find((option) => /^Swift Soho\b/.test(option.textContent?.trim() ?? ""));
+      const retargetBox = retarget?.getBoundingClientRect();
+      const retargetStyle = retarget ? getComputedStyle(retarget) : null;
+      const hit = retargetBox ? document.elementFromPoint(
+        retargetBox.x + retargetBox.width / 2,
+        retargetBox.y + retargetBox.height / 2,
+      ) : null;
+      const frame = {
+        atMs,
         planner: box(".mapDrawer.left.springDrawer"),
         venue: box(".mapDrawer.right.springDrawer"),
         toolbar: box(".mapToolbar"),
         map: box(".mapStage"),
+        activeElement: describeElement(document.activeElement),
+        retargetOption: retarget && retargetBox && retargetStyle ? {
+          venueId: retarget.dataset.venueId,
+          box: { x: retargetBox.x, y: retargetBox.y, width: retargetBox.width, height: retargetBox.height },
+          display: retargetStyle.display,
+          visibility: retargetStyle.visibility,
+          opacity: retargetStyle.opacity,
+          pointerEvents: retargetStyle.pointerEvents,
+          inert: Boolean(retarget.closest("[inert]")),
+          ariaHidden: Boolean(retarget.closest('[aria-hidden="true"]')),
+          ariaDisabled: retarget.getAttribute("aria-disabled"),
+          hitOwner: describeElement(hit),
+          ownsCentreHit: hit !== null && retarget.contains(hit),
+        } : null,
       };
+      return { ...frame, measureDurationMs: performance.now() - startedAt - atMs };
     };
     type Frame = ReturnType<typeof measure>;
     type Click = {
@@ -100,6 +133,7 @@ async function armDrawerExchangeProbe(page: Page) {
     const clickEvents = new WeakMap<MouseEvent, Click>();
     type StopReason = "settled" | "deadline" | "frame-limit";
     const observation = {
+      startedAtEpochMs,
       firstSettledAtMs: null as number | null,
       terminal: null as { reason: StopReason; atMs: number } | null,
     };
@@ -443,22 +477,33 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   );
   await captureDrawerExchange(page, "planner-open");
   const probe = await armDrawerExchangeProbe(page);
+  // Runner epoch timestamps locate each existing call without another browser round trip.
+  // Per-frame option evidence is observational, not Playwright's actionability verdict.
+  const actionCalls: { name: string; phase: "start" | "end"; atEpochMs: number }[] = [];
+  actionCalls.push({ name: "Three Sheets click", phase: "start", atEpochMs: Date.now() });
   await firstVenueOption.click();
+  actionCalls.push({ name: "Three Sheets click", phase: "end", atEpochMs: Date.now() });
+  actionCalls.push({ name: "mid-frame read", phase: "start", atEpochMs: Date.now() });
   const mid = await probe.evaluate((state) => state.mid);
+  actionCalls.push({ name: "mid-frame read", phase: "end", atEpochMs: Date.now() });
   expect(mid, "one sampled frame contains both moving drawers").not.toBeNull();
   if (!mid) throw new Error("No simultaneous mid-spring frame within the observation bound");
 
   // The venue list is hidden while a drawer owns the map. Use toolbar search.
   // Actionability may outlast the spring. Keep the timing failure until browser verification.
+  actionCalls.push({ name: "Search pubs focus", phase: "start", atEpochMs: Date.now() });
   await toolbar.getByRole("combobox", { name: "Search pubs" }).focus();
+  actionCalls.push({ name: "Search pubs focus", phase: "end", atEpochMs: Date.now() });
+  actionCalls.push({ name: "Swift click", phase: "start", atEpochMs: Date.now() });
   await page.getByRole("option", { name: /^Swift Soho\b/ }).first().click();
+  actionCalls.push({ name: "Swift click", phase: "end", atEpochMs: Date.now() });
   const settled = await probe.evaluate((state) => state.done);
   const { frames, clicks, observation } = await probe.evaluate(
     ({ frames, clicks, observation }) => ({ frames, clicks, observation }),
   );
   await probe.dispose();
   await test.info().attach("drawer-exchange-frames", {
-    body: JSON.stringify({ frames, clicks, observation }), contentType: "application/json",
+    body: JSON.stringify({ frames, clicks, observation, actionCalls }), contentType: "application/json",
   });
   expect(settled, "drawer exchange settles within the observation bound").toBe(true);
   expect(clicks, "both venue selections use trusted clicks").toHaveLength(2);
