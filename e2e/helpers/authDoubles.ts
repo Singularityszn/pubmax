@@ -290,15 +290,24 @@ export async function readDeviceAccounts(
   page: Page,
 ): Promise<Array<{ userId: string; refreshToken: string | null; handle: string | null }>> {
   return page.evaluate((key) => {
+    let parsed: unknown;
     try {
       const raw = window.localStorage.getItem(key);
-      return raw ? (JSON.parse(raw) as Array<Record<string, never>>) : [];
+      parsed = raw ? JSON.parse(raw) : [];
     } catch {
       return [];
     }
-  }, DEVICE_ACCOUNTS_KEY) as Promise<
-    Array<{ userId: string; refreshToken: string | null; handle: string | null }>
-  >;
+    if (!Array.isArray(parsed)) throw new Error("Remembered accounts must be an array.");
+    return parsed.map((row: unknown) => {
+      if (
+        !row || typeof row !== "object"
+        || !("userId" in row) || typeof row.userId !== "string"
+        || !("refreshToken" in row) || (row.refreshToken !== null && typeof row.refreshToken !== "string")
+        || !("handle" in row) || (row.handle !== null && typeof row.handle !== "string")
+      ) throw new Error("Remembered account fields do not match the fixture contract.");
+      return { userId: row.userId, refreshToken: row.refreshToken, handle: row.handle };
+    });
+  }, DEVICE_ACCOUNTS_KEY);
 }
 
 export async function readDeviceIdentity(page: Page): Promise<Record<string, string | null>> {
