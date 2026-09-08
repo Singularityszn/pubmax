@@ -244,10 +244,36 @@ test("repaints a cached profile fallback when the network answer adds an avatar"
     .toBeGreaterThan(0);
 });
 
-test("retries a failed avatar after the browser reconnects", async ({ page }) => {
+test("retries a failed avatar after the browser reconnects", async ({ page }, testInfo) => {
   const avatarUrl = `/api/avatar/${REPAINT_PROFILE_ID}/${REPAINT_GENERATION}`;
   let avatarRequests = 0;
   let profileRequests = 0;
+  const startedAt = Date.now();
+  let phase = "before-online";
+  const requests = new WeakMap<object, number>();
+  const events: Array<Record<string, string | number>> = [];
+  let requestId = 0;
+  const relevant = (url: URL) => url.pathname.startsWith(`/api/profiles/${REPAINT_HANDLE}`)
+    || url.pathname.startsWith(avatarUrl);
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (!relevant(url)) return;
+    const id = ++requestId;
+    requests.set(request, id);
+    events.push({ event: "request", id, atMs: Date.now() - startedAt, phase,
+      path: url.pathname, query: url.search, method: request.method(), resourceType: request.resourceType() });
+  });
+  page.on("response", (response) => {
+    const id = requests.get(response.request());
+    if (id === undefined) return;
+    events.push({ event: "response", id, atMs: Date.now() - startedAt, phase, status: response.status() });
+  });
+  page.on("requestfailed", (request) => {
+    const id = requests.get(request);
+    if (id === undefined) return;
+    events.push({ event: "failed", id, atMs: Date.now() - startedAt, phase,
+      error: request.failure()?.errorText ?? "Unknown request failure" });
+  });
 
   await page.route("**/api/pint-drops**", async (route) => {
     await route.fulfill({
@@ -286,19 +312,27 @@ test("retries a failed avatar after the browser reconnects", async ({ page }) =>
     });
   });
 
-  await page.goto(`/u/${REPAINT_HANDLE}`);
-  await expect(page.locator(".profileAvatarFallback")).toBeVisible();
-  await expect.poll(() => profileRequests).toBe(1);
+  try {
+    await page.goto(`/u/${REPAINT_HANDLE}`);
+    await expect(page.locator(".profileAvatarFallback")).toBeVisible();
+    await expect.poll(() => profileRequests).toBe(1);
 
-  await page.evaluate(() => window.dispatchEvent(new Event("online")));
-  await expect(page.locator("img.profileAvatar")).toHaveAttribute(
-    "src",
-    expect.stringContaining(avatarUrl),
-  );
-  await expect
-    .poll(() => page.locator("img.profileAvatar").evaluate((image) => image.naturalWidth))
-    .toBeGreaterThan(0);
-  expect(avatarRequests).toBeGreaterThanOrEqual(2);
+    phase = "after-online";
+    await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    await expect(page.locator("img.profileAvatar")).toHaveAttribute(
+      "src",
+      expect.stringContaining(avatarUrl),
+    );
+    await expect
+      .poll(() => page.locator("img.profileAvatar").evaluate((image) => image.naturalWidth))
+      .toBeGreaterThan(0);
+    expect(avatarRequests).toBeGreaterThanOrEqual(2);
+  } finally {
+    await testInfo.attach("avatar-reconnect-requests", {
+      body: JSON.stringify({ profileRequests, avatarRequests, events }, null, 2),
+      contentType: "application/json",
+    });
+  }
 });
 
 test("upload → render → report → hide dress rehearsal", async ({ page }) => {
