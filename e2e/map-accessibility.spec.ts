@@ -280,7 +280,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
       .not.toEqual(beforeMoveIds);
 
     const beforeFilter = await rows.count();
-    await page.getByRole("button", { name: "Filters: venue types", exact: true }).click();
+    await page.getByRole("button", { name: "Filters: venue types, view and zone", exact: true }).click();
     const bars = page.getByRole("button", { name: "Bars", exact: true });
     await expect(bars).toHaveAttribute("aria-pressed", "true");
     await bars.click();
