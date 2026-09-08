@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { attachBill } from "./helpers/priceBill";
+import { attachBill, installPriceUploadCapture } from "./helpers/priceBill";
 
 /**
  * Price evidence missions on the map sheet and /near.
@@ -63,6 +63,7 @@ async function installContributorBoundary(
   submitted: Array<{ venueId: string; drinkCategory: string; priceGbp: number; corroborations: number }>;
 }> {
   await seedSignedInSession(page);
+  const readUpload = await installPriceUploadCapture(page, "/api/price-submit");
   const submitted: Array<{
     venueId: string;
     drinkCategory: string;
@@ -126,6 +127,8 @@ async function installContributorBoundary(
       });
       return;
     }
+    expect(route.request().headers().authorization).toBe("Bearer pubmaxx-e2e-access-token");
+    const body = await readUpload(route.request());
     if (options.failWrite) {
       await route.fulfill({
         status: 500,
@@ -137,15 +140,10 @@ async function installContributorBoundary(
       });
       return;
     }
-    const body = route.request().postDataJSON() as {
-      venueId: string;
-      drinkCategory: string;
-      priceGbp: number;
-    };
     const price = {
       venueId: body.venueId,
       drinkCategory: body.drinkCategory,
-      priceGbp: body.priceGbp,
+      priceGbp: Number(body.priceGbp),
       submittedAt: Date.now(),
       source: "community",
       corroborations: 1,
@@ -201,7 +199,6 @@ test("signed-in /near shows one mission, submits, and prints the write-back rece
   await expect(page.locator(".pemSlot")).toHaveCount(1);
   await expect(page.locator(".nmnList")).toBeVisible();
 
-  await attachBill(slot);
   await slot.getByRole("button", { name: "Log it" }).click();
   const priceField = slot.getByRole("textbox");
   await expect(priceField).toHaveValue("");
@@ -224,7 +221,6 @@ test("a failed mission write stays on /near", async ({ page }) => {
   await page.goto("/near?patch=soho", { waitUntil: "domcontentloaded" });
   const slot = page.locator(".pemSlot");
   await expect(slot).toBeVisible();
-  await attachBill(slot);
   await slot.getByRole("button", { name: "Log it" }).click();
   await slot.getByRole("textbox").fill("4.20");
   await attachBill(slot);

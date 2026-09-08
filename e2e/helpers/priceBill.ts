@@ -1,6 +1,7 @@
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import type { Locator, Page } from "@playwright/test";
+import { expect, type Locator, type Page, type Request } from "@playwright/test";
 
 // THE BILL EVERY LOGGED PRICE CARRIES (captain 7 Sept 2026).
 //
@@ -34,4 +35,59 @@ export async function attachSpillBill(scope: Page | Locator): Promise<void> {
   await scope
     .getByLabel(/Snap the bill|The bill: snap or upload/i)
     .setInputFiles(BILL_FIXTURE);
+}
+
+
+type PriceUpload = {
+  fields: Record<string, string>;
+  receipt: { name: string; type: string; bytes: number[] } | null;
+};
+
+/** Capture the Files passed to fetch. Chromium omits their bytes from request events. */
+export async function installPriceUploadCapture(page: Page, endpoint: string) {
+  const uploads: PriceUpload[] = [];
+  const originalBill = await readFile(BILL_FIXTURE);
+  await page.exposeFunction("__capturePriceUpload", (upload: PriceUpload) => {
+    uploads.push(upload);
+  });
+  await page.addInitScript((path) => {
+    const originalFetch = window.fetch;
+    window.fetch = async (input, init) => {
+      if (String(input) === path && init?.method === "POST" && init.body instanceof FormData) {
+        const fields: Record<string, string> = {};
+        init.body.forEach((value, key) => {
+          if (typeof value === "string") fields[key] = value;
+        });
+        const receipt = init.body.get("receipt_photo");
+        await (window as Window & {
+          __capturePriceUpload: (upload: PriceUpload) => Promise<void>;
+        }).__capturePriceUpload({
+          fields,
+          receipt: receipt instanceof File ? {
+            name: receipt.name,
+            type: receipt.type,
+            bytes: Array.from(new Uint8Array(await receipt.arrayBuffer())),
+          } : null,
+        });
+      }
+      return originalFetch(input, init);
+    };
+  }, endpoint);
+
+  return async (request: Request): Promise<Record<string, string>> => {
+    expect(new URL(request.url()).pathname).toBe(endpoint);
+    const contentType = request.headers()["content-type"];
+    expect(contentType).toContain("multipart/form-data");
+    const form = await new Response(Uint8Array.from(request.postDataBuffer() ?? []), {
+      headers: { "content-type": contentType },
+    }).formData();
+    const fields = Object.fromEntries([...form].filter((entry) => typeof entry[1] === "string"));
+    const upload = uploads.shift();
+    expect(upload, "the actual fetch must carry this multipart submission").toBeDefined();
+    expect(upload!.fields).toEqual(fields);
+    expect(upload!.receipt).toMatchObject({ name: "bill.jpg", type: "image/jpeg" });
+    expect(Buffer.from(upload!.receipt!.bytes)).toEqual(originalBill);
+    expect(form.get("receipt_photo")).toMatchObject({ name: "bill.jpg", type: "image/jpeg" });
+    return upload!.fields;
+  };
 }

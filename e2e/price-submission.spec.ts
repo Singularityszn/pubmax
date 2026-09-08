@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { attachBill } from "./helpers/priceBill";
+import { attachBill, installPriceUploadCapture } from "./helpers/priceBill";
 
 // Community price submission E2E: the word-of-mouth moment end to end on a
 // phone - tap a pub, pick a drink, type tonight's price, and watch the venue
@@ -120,6 +120,7 @@ async function installContributorBoundary(
   submittedSignals: SubmittedSignal[];
 }> {
   await seedSignedInSession(page);
+  const readUpload = await installPriceUploadCapture(page, "/api/price-submit");
   let onboardingComplete = !options.requireOnboarding;
   let lastSubmittedAt = Date.now();
   const submittedPrices: SubmittedPrice[] = [];
@@ -200,14 +201,14 @@ async function installContributorBoundary(
     expect(route.request().headers().authorization).toBe(
       "Bearer pubmaxx-e2e-access-token",
     );
-    const body = route.request().postDataJSON() as {
-      venueId: string;
-      drinkCategory: string;
-      priceGbp: number;
-      kind?: string;
-      signalKey?: string;
-      signalValue?: string;
-    };
+    const request = route.request();
+    // Venue signals still use JSON. A logged price carries multipart bill evidence.
+    const body = request.headers()["content-type"]?.includes("application/json")
+      ? request.postDataJSON() as Record<string, string>
+      : await readUpload(request);
+    if (request.headers()["content-type"]?.includes("application/json")) {
+      expect(body.kind).toBe("venue-signal");
+    }
     if (
       body.kind === "venue-signal" &&
       body.signalKey &&
@@ -234,7 +235,7 @@ async function installContributorBoundary(
       id: `price-e2e-${submittedPrices.length + 1}`,
       venueId: body.venueId,
       drinkCategory: body.drinkCategory,
-      priceGbp: body.priceGbp,
+      priceGbp: Number(body.priceGbp),
       submittedAt: nextSubmittedAt(),
       source: "community",
       corroborations: 1,
