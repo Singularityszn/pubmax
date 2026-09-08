@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
-import type { MapCameraReading } from "../components/map/canvas/cameraProbe";
+import type { MapCameraReading, MapProjectedPoint } from "../components/map/canvas/cameraProbe";
 import type { PaintedMapTapPoint } from "../components/map/canvas/paintedPinProbe";
 import { UNPRICED_PIN_FILL } from "../lib/mapIcons";
 
@@ -82,10 +82,10 @@ async function openVenueSheet(page: Page) {
   return venueSheet;
 }
 
-async function readPinCaptureFrame(page: Page) {
-  return page.evaluate((id) => {
+async function readPinCaptureFrame(page: Page, target?: PaintedMapTapPoint) {
+  return page.evaluate(({ id, target }) => {
     const map = window as typeof window & {
-      __pubmaxMapCamera: { read: () => MapCameraReading };
+      __pubmaxMapCamera: { read: () => MapCameraReading; project: (lngLat: [number, number]) => MapProjectedPoint };
       __pubmaxPaintedMapTapPoints: () => PaintedMapTapPoint[];
     };
     const state = {
@@ -107,16 +107,33 @@ async function readPinCaptureFrame(page: Page) {
     };
     return {
       state,
+      targetProjection: (() => {
+        const original = target ?? state.point;
+        if (!original) return null;
+        try {
+          const point = map.__pubmaxMapCamera.project([original.lng, original.lat]);
+          const owner = document.elementFromPoint(point.x, point.y);
+          return {
+            id: original.id, lng: original.lng, lat: original.lat, point,
+            hitOwner: owner ? {
+              tagName: owner.tagName, id: owner.id, className: owner.getAttribute("class"),
+              isMapCanvas: owner.matches(".maplibreMap canvas"),
+            } : null,
+          };
+        } catch (error) {
+          return { observationError: String(error) };
+        }
+      })(),
       at: performance.now(),
       timeOrigin: performance.timeOrigin,
       viewport: { width: innerWidth, height: innerHeight, scrollX, scrollY },
       canvas: Array.from(document.querySelectorAll(".mapCanvasWrap, .maplibreMap, .maplibreMap canvas")).map(elementFrame),
       loading: Array.from(document.querySelectorAll(".mapLoading")).map(elementFrame),
       marks: performance.getEntriesByType("mark")
-        .filter((entry) => /pubmax:(map-|pins-visible|pin-entrance-settled)/.test(entry.name))
+        .filter((entry) => /pubmax:(map-|camera-intent:|pins-visible|pin-entrance-settled)/.test(entry.name))
         .map(({ name, startTime }) => ({ name, startTime })),
     };
-  }, UNPRICED);
+  }, { id: UNPRICED, target });
 }
 
 async function captureUnpricedPin(page: Page, testInfo: TestInfo, name: string) {
@@ -136,7 +153,7 @@ async function captureUnpricedPin(page: Page, testInfo: TestInfo, name: string) 
   expect(state.camera.moving).toBe(false);
   const clip = { x: Math.floor(state.point.x) - 12, y: Math.floor(state.point.y) - 12, width: 24, height: 24 };
   const screenshot = await page.screenshot({ clip, scale: "device" });
-  const afterScreenshot = await readPinCaptureFrame(page)
+  const afterScreenshot = await readPinCaptureFrame(page, state.point)
     .catch((error) => ({ observationError: String(error) }));
   const captureStable = "state" in afterScreenshot
     && JSON.stringify(afterScreenshot.state) === JSON.stringify(state);
@@ -170,7 +187,7 @@ async function captureUnpricedPin(page: Page, testInfo: TestInfo, name: string) 
           resolve();
         }));
       }));
-      const laterBefore = await readPinCaptureFrame(page);
+      const laterBefore = await readPinCaptureFrame(page, state.point);
       diagnostic.laterBefore = laterBefore;
       const geometry = (sample: typeof state) => ({
         point: sample.point, camera: sample.camera, dpr: sample.dpr,
@@ -180,7 +197,7 @@ async function captureUnpricedPin(page: Page, testInfo: TestInfo, name: string) 
         throw new Error("Diagnostic crop unavailable: original pin geometry or selection changed");
       }
       const laterCrop = await page.screenshot({ clip, scale: "device", timeout: 2_000 });
-      diagnostic.laterAfter = await readPinCaptureFrame(page);
+      diagnostic.laterAfter = await readPinCaptureFrame(page, state.point);
       await testInfo.attach(`${name}-later-diagnostic.png`, {
         body: laterCrop, contentType: "image/png",
       });
