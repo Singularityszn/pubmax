@@ -178,13 +178,28 @@ test("signed-out phone visitors reach the Social access state before the control
 });
 
 
-test("clearing a failed photo draft allows a text-only post", async ({ page }) => {
+test("clearing a failed photo draft allows a text-only post", async ({ page }, testInfo) => {
   await session(page);
   await page.addInitScript(() => {
+    const events: Array<Record<string, unknown>> = [];
+    Object.assign(window, { socialClearEvents: events });
+    document.addEventListener("input", event => {
+      if (event.target instanceof HTMLTextAreaElement) events.push({ action: "type", value: event.target.value, at: performance.now() });
+    });
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key.startsWith("pubmaxx:social-composer:v1:")) {
+        const draft = JSON.parse(value);
+        events.push({ action: "save-draft", body: draft.body, galleryMode: draft.galleryMode, at: performance.now() });
+      }
+      return setItem.call(this, key, value);
+    };
     const put = IDBObjectStore.prototype.put;
     const remove = IDBObjectStore.prototype.delete;
     let refuseDeletion = true;
     IDBObjectStore.prototype.delete = function (...args) {
+      events.push({ action: "delete", database: this.transaction.db.name, at: performance.now() });
+      this.transaction.addEventListener("complete", () => events.push({ action: "delete-transaction-complete", database: this.transaction.db.name, at: performance.now() }), { once: true });
       if (this.transaction.db.name === "pubmaxx-social-gallery-drafts-v1" && refuseDeletion) {
         refuseDeletion = false;
         throw new DOMException("Photo storage is unavailable", "UnknownError");
@@ -214,7 +229,17 @@ test("clearing a failed photo draft allows a text-only post", async ({ page }) =
   await expect(dialog.getByLabel("Photo 1 description")).toBeVisible();
   await dialog.getByRole("button", { name: "Clear draft", exact: true }).click();
   await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("A walk by the river");
-  await expect(dialog.getByRole("button", { name: "Post", exact: true })).toBeEnabled();
+  try {
+    await expect(dialog.getByRole("button", { name: "Post", exact: true })).toBeEnabled();
+  } finally {
+    await testInfo.attach("draft-clear-state", { contentType: "application/json", body: JSON.stringify(await page.evaluate(() => ({
+      events: (window as Window & { socialClearEvents?: unknown[] }).socialClearEvents,
+      body: document.querySelector<HTMLTextAreaElement>(".socialComposer textarea")?.value,
+      feedback: document.querySelector(".socialComposerFeedback")?.textContent,
+      disabled: document.querySelector<HTMLFieldSetElement>(".socialComposerFields")?.disabled,
+      drafts: Object.keys(localStorage).filter(key => key.startsWith("pubmaxx:social-composer:v1:")).map(key => JSON.parse(localStorage.getItem(key)!)),
+    })), null, 2) });
+  }
   await dialog.getByRole("button", { name: "Post", exact: true }).click();
   await expect(dialog).not.toBeVisible();
   expect(submitted).toMatchObject({ body: "A walk by the river" });
