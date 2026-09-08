@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 const globalsCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
 const themeCss = readFileSync(join(process.cwd(), "app/theme.css"), "utf8");
 const socialCss = readFileSync(join(process.cwd(), "app/social/social.css"), "utf8");
+const composerCss = readFileSync(join(process.cwd(), "app/social/socialComposer.css"), "utf8");
 const composerSource = readFileSync(
   join(process.cwd(), "app/social/SocialComposer.tsx"),
   "utf8",
@@ -82,21 +83,6 @@ function shippedControlBorderWeight(): number {
   return Number(match![1]);
 }
 
-function shippedPhotoWeights(): { surface: number; ink: number } {
-  const picker = block(socialCss, ".socialComposer .socialPhotoPicker");
-  const surface =
-    /background:\s*color-mix\(in srgb, var\(--river\) (\d+)%, var\(--panel-raised\)\)/.exec(
-      picker,
-    );
-  const ink =
-    /color:\s*color-mix\(in srgb, var\(--river\) (\d+)%, var\(--ink\)\)/.exec(
-      picker,
-    );
-  expect(surface, "photo action must ship a restrained river surface").toBeTruthy();
-  expect(ink, "photo action must ship a readable river action colour").toBeTruthy();
-  return { surface: Number(surface![1]), ink: Number(ink![1]) };
-}
-
 describe("Social composer visual contract", () => {
   it("keeps every unfocused form boundary at 3:1 in both shipped themes", () => {
     const lightRoot = block(globalsCss, ":root");
@@ -128,34 +114,14 @@ describe("Social composer visual contract", () => {
     }
   });
 
-  it("keeps Add photo action text at 4.5:1 on its shipped tint", () => {
+  it("keeps media action text at 4.5:1 on its neutral surface", () => {
     const lightRoot = block(globalsCss, ":root");
-    const lightBody = block(
-      globalsCss,
-      'html:not([data-theme="dark"]) body',
-    );
     const dark = block(themeCss, 'html[data-theme="dark"]');
-    const weights = shippedPhotoWeights();
-    const themes = [
-      {
-        name: "light",
-        river: token(lightRoot, "--river"),
-        ink: token(lightRoot, "--ink"),
-        panel: token(lightBody, "--panel-raised"),
-      },
-      {
-        name: "dark",
-        river: token(dark, "--river"),
-        ink: token(dark, "--ink"),
-        panel: token(dark, "--panel-raised"),
-      },
-    ];
-
-    for (const theme of themes) {
-      const surface = mixSrgb(theme.river, theme.panel, weights.surface);
-      const ink = mixSrgb(theme.river, theme.ink, weights.ink);
-      expect(contrast(ink, surface), theme.name).toBeGreaterThanOrEqual(4.5);
-    }
+    const picker = block(composerCss, ".socialComposerCreate .socialPhotoPicker");
+    expect(picker).toMatch(/background:\s*var\(--panel\)/);
+    expect(picker).toMatch(/color:\s*var\(--ink\)/);
+    expect(contrast(token(lightRoot, "--ink"), token(lightRoot, "--panel"))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(token(dark, "--ink"), token(dark, "--panel"))).toBeGreaterThanOrEqual(4.5);
   });
 
   it("ships one focus ring, a dedicated body label, safe spacing, and legible actions", () => {
@@ -163,9 +129,9 @@ describe("Social composer visual contract", () => {
       /<label className="socialComposerBody">\s*Write post\s*<textarea/,
     );
     expect(composerSource).toMatch(
-      /<span className="socialPhotoCue" aria-hidden="true">\+<\/span>\s*<span>\{photo \?/,
+      /<span className="socialPhotoCue" aria-hidden="true">\s*\+\s*<\/span>\s*<span>\s*\{photo\s*\?/,
     );
-    expect(composerSource).toMatch(/<input[^>]+aria-label="Add photo"[^>]+type="file"/);
+    expect(composerSource).toMatch(/<input[^>]+aria-label="Add photos"[^>]+type="file"[^>]+multiple/);
     expect(socialCss).toMatch(
       /padding:[\s\S]*?calc\(24px \+ env\(safe-area-inset-bottom, 0px\)\)/,
     );
@@ -186,7 +152,7 @@ describe("Social composer visual contract", () => {
     );
   });
 
-  it("keeps the body text-first after shared control rules at every viewport", () => {
+  it("keeps the inherited body usable and scopes the compact media-first override", () => {
     const sharedControls = socialCss.indexOf(
       ".socialComposer textarea,\n.socialComposer input,\n.socialComposer select",
     );
@@ -205,6 +171,9 @@ describe("Social composer visual contract", () => {
     expect(
       block(phone, ".socialComposer .socialComposerBody textarea"),
     ).toMatch(/min-height:\s*96px/);
+    expect(composerSource).toContain('import "./socialComposer.css"');
+    expect(block(composerCss, ".socialComposerCreate .socialComposerBody textarea")).toMatch(/min-height:\s*96px/);
+    expect(block(composerCss, ".socialComposerCreate .socialComposerPhotoPreview :is(img, video)")).toMatch(/object-fit:\s*contain/);
     expect(block(socialCss, ".socialComposer label > select")).toMatch(
       /padding-right:\s*(?:3[2-9]|[4-9]\d)px/,
     );

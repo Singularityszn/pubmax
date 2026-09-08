@@ -388,6 +388,7 @@ export function securityProxy(request: NextRequest) {
     // a first-party ACCOUNT image, not a third-party venue photo, so the
     // "proxy-or-nothing" rule above is untouched: no venue imagery may join it.
     `img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://thumb.wikimedia.org https://*.supabase.co https://*.googleusercontent.com https://gkbr-p-001.sitecorecontenthub.cloud${clerk.img.map((origin) => ` ${origin}`).join("")}`,
+    "media-src 'self' blob: https://*.supabase.co",
     "font-src 'self' data: https://tiles.openfreemap.org",
     // Clerk adds its Frontend API host (session, sign-in and sign-up calls) and
     // its abuse-protection hosts. Supabase's entries stay: both auth systems

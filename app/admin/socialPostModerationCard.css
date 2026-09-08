@@ -1,0 +1,29 @@
+.adminSocialPreviews {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: var(--space-4);
+  margin-block: var(--space-3);
+}
+
+.adminSocialPreviews figure {
+  min-width: 0;
+  margin: 0;
+}
+
+.adminSocialPreviews img,
+.adminSocialPreviews video {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 480px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-panel);
+}
+
+.adminSocialPreviews figcaption {
+  margin-top: var(--space-2);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}

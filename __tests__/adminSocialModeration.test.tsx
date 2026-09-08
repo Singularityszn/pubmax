@@ -27,6 +27,8 @@ const state = vi.hoisted(() => ({
     staffDisplayName: string;
     postId: string;
     mediaId: string | null;
+    media?: { kind: "video"; contentType: "video/mp4" };
+    photos?: Array<{ mediaId: string; altText: string }>;
     revision: number;
     authorHandle: string;
     body: string;
@@ -230,6 +232,36 @@ describe("Admin Social post moderation queue", () => {
     createdAt: "2026-08-29T12:00:00.000Z",
     updatedAt: "2026-08-29T12:05:00.000Z",
   };
+
+  it("plays held videos behind the moderator route and refuses approval without a loaded preview", async () => {
+    state.socialPosts = [{ ...heldPost, media: { kind: "video", contentType: "video/mp4" } }];
+    await loadAdmin();
+    const video = host.querySelector("video")!;
+    expect(video).toBeTruthy();
+    expect(video.getAttribute("src")).toBe(`/api/admin/social-posts/media/${heldPost.mediaId}?revision=4&attempt=0`);
+    expect(video.controls).toBe(true);
+    const approve = [...host.querySelectorAll("button")].find((button) => button.textContent === "Approve")!;
+    const hide = [...host.querySelectorAll("button")].find((button) => button.textContent === "Hide")!;
+    expect(approve.disabled).toBe(true);
+    expect(hide.disabled).toBe(false);
+    await act(async () => { video.dispatchEvent(new Event("loadeddata")); });
+    expect(approve.disabled).toBe(false);
+    await act(async () => { video.dispatchEvent(new Event("error")); });
+    expect(approve.disabled).toBe(true);
+    expect(hide.disabled).toBe(false);
+    expect(host.textContent).toContain("Video preview failed.");
+  });
+
+  it.each(["duplicate", "primary mismatch", "empty mismatch", "invalid alt"])("refuses an invalid gallery response: %s", async (scenario) => {
+    const photo = { mediaId: heldPost.mediaId, altText: heldPost.photoAltText };
+    const photos = scenario === "duplicate" ? [photo, photo]
+      : scenario === "primary mismatch" ? [{ ...photo, mediaId: "33333333-3333-4333-8333-333333333333" }]
+      : scenario === "empty mismatch" ? [] : [{ ...photo, altText: "" }];
+    state.socialResponsePosts = [{ ...heldPost, photos }];
+    await loadAdmin();
+    expect(host.querySelector(".adminSocialPreviews")).toBeNull();
+    expect(host.textContent).toContain("Could not load Social posts.");
+  });
 
   it("removes legacy raw tokens when an authenticated console mounts", async () => {
     localStorage.setItem("pubmax_admin_token", "legacy-local-token");
@@ -578,7 +610,7 @@ describe("Admin Social post moderation queue", () => {
     expect(host.querySelector('time[datetime="2026-08-29T12:00:00.000Z"]')).toBeTruthy();
     expect(host.querySelector('time[datetime="2026-08-29T12:05:00.000Z"]')).toBeTruthy();
     const image = host.querySelector(
-      'img[src="/api/admin/social-posts/media/22222222-2222-4222-8222-222222222222"]',
+      'img[src="/api/admin/social-posts/media/22222222-2222-4222-8222-222222222222?revision=4&attempt=0"]',
     );
     expect(image?.getAttribute("alt")).toBe("Two pints beside the window");
     expect([...host.querySelectorAll("button")].some((button) => button.textContent === "Approve")).toBe(true);
@@ -625,6 +657,32 @@ describe("Admin Social post moderation queue", () => {
     }]);
     expect(host.textContent).toContain("Social post hidden.");
     expect(host.textContent).not.toContain("Friday at the Pineapple.");
+  });
+
+  it.each(["photo", "video", "gallery", "empty gallery"])("serializes approval with a manifest only for gallery posts: %s", async kind => {
+    const photos = kind === "empty gallery" ? [] : [
+      { mediaId: heldPost.mediaId, altText: heldPost.photoAltText },
+      { mediaId: "33333333-3333-4333-8333-333333333333", altText: "The pub garden" },
+    ];
+    const hasGallery = kind === "gallery" || kind === "empty gallery";
+    const mediaId = kind === "empty gallery" ? null : heldPost.mediaId;
+    state.socialPosts = [{
+      ...heldPost, mediaId,
+      ...(hasGallery ? { photos } : {}),
+      ...(kind === "video" ? { media: { kind: "video", contentType: "video/mp4" } } : {}),
+    }];
+    await loadAdmin();
+    await act(async () => {
+      host.querySelectorAll(".adminSocialPreviews img").forEach(image => image.dispatchEvent(new Event("load")));
+      host.querySelectorAll(".adminSocialPreviews video").forEach(video => video.dispatchEvent(new Event("loadeddata")));
+    });
+    const approve = [...host.querySelectorAll("button")].find(button => button.textContent === "Approve")!;
+    expect(approve.disabled).toBe(false);
+    await act(async () => { approve.click(); });
+    expect(state.socialActionBodies).toEqual([{
+      postId: heldPost.postId, mediaId, expectedRevision: heldPost.revision, action: "approve",
+      ...(hasGallery ? { reviewedMediaIds: photos.map(photo => photo.mediaId) } : {}),
+    }]);
   });
 
   it("keeps the held row and shows an error when a decision fails", async () => {

@@ -6,9 +6,9 @@ The inventory is descriptive, not a runtime registry.
 
 ## Current snapshot
 
-- The repository has 52 `lib/*Store.ts` modules.
-- 32 modules call `selectStore` directly.
-- 7 modules use `createDualBackendStore`.
+- The repository has 53 `lib/*Store.ts` modules.
+- 39 modules call `selectStore` directly.
+- 8 modules use `createDualBackendStore`.
 - 6 modules keep memory state on `globalThis` so it survives a development
   server reload. That state pattern is separate from backend selection.
 - The remaining modules use an explicit backend, a file or static data path,
@@ -82,7 +82,8 @@ silently stale.
 | socialConnectionStore | factory-ready | Connected provider rows with one backend selector. |
 | socialCrewStore | not dual-backend | Supabase-only RPC store. |
 | socialInteractionStore | factory-eligible, policy-heavy | Social relationship, block, and interaction policy. |
-| socialPostConsentStore | not dual-backend | Supabase-only RPC store. |
+| socialGalleryStore | factory-eligible, policy-heavy | Owned staged uploads, ordered publication, and gallery edit replay. |
+| socialPostConsentStore | factory-eligible, policy-heavy | Media and approved-tag reads select memory or Supabase; consent and admin operations remain durable. |
 | socialPostStore | factory-eligible, policy-heavy | Moderation, visibility, consent, and relationship policy. |
 | stepOutNudgeStore | factory-ready | Nudge preference and send-stamp rows with shared backend selection. |
 | venueOperatorsStore | factory-eligible, policy-heavy | Venue claim ownership and operator moderation policy. |
@@ -105,12 +106,12 @@ The following stores intentionally stay outside the factory-ready path:
   refactor before a factory wrapper can preserve its behavior. Owner: the
   next issue #727 store wave.
 - **not dual-backend:** `importNotesStore`, `socialCrewStore`,
-  `socialPostConsentStore`, and `whatsOnStore`. Their storage premise is not
+  and `whatsOnStore`. Their storage premise is not
   memory-or-Supabase. Owner: not applicable for this factory.
 - **policy-heavy:** `commentsStore`, `communityPriceStore`,
   `identityHandleStore`, `messagesStore`, `occupancyStore`,
   `priceTrustEventStore`, `profileCoverPhotoStore`, `referralStore`,
-  `roundsStore`, `socialInteractionStore`, `socialPostStore`,
+  `roundsStore`, `socialGalleryStore`, `socialInteractionStore`, `socialPostConsentStore`, `socialPostStore`,
   `venueOperatorsStore`, `venuePhotoStore`, `visitReportsStore`, and
   `weatherRecommendationStore`. Their explicit policy is the reason to defer
   migration, not a claim that the selector is impossible to simplify later.
@@ -143,6 +144,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "app/api/pub-pal/llm/route.ts",
     "app/api/pub-pal/voice-token/route.ts",
     "app/api/saved-pubs/list-follows/route.ts",
+    "app/api/social/media/[mediaId]/route.ts",
     "app/api/starter-packs/[slug]/follow/route.ts",
     "app/api/starter-packs/route.ts",
     "app/bar-tab/[id]/opengraph-image.tsx",
@@ -204,8 +206,10 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/savedPubsStore.ts",
     "lib/serverEnv.ts",
     "lib/socialConnectionStore.ts",
+    "lib/socialGalleryStore.ts",
     "lib/socialInteractionStore.ts",
     "lib/socialOAuth.ts",
+    "lib/socialPostConsentStore.ts",
     "lib/socialPostCreateRequest.server.ts",
     "lib/socialPostMedia.server.ts",
     "lib/socialPostStore.ts",

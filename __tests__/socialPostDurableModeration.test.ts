@@ -75,6 +75,7 @@ vi.mock("@/lib/supabase", () => ({
             ? { data: null, error: new Error("completion unavailable") }
             : { data: true, error: null };
         }
+        if (name === "read_social_gallery_moderation_manifest") return { data: { gallery: false, items: [] }, error: null };
         throw new Error(`Unexpected RPC ${name}`);
       },
     };

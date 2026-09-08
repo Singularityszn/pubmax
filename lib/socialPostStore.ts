@@ -15,7 +15,9 @@ import { requireSupabaseAdmin, requiresSupabaseStore } from "@/lib/supabase";
 import { isMissingTableSchema, onMissingDurableWrite, selectStore } from "@/lib/storeBackend";
 import { moderationJobShouldRetry, moderationRetryBackoffMs } from "@/lib/moderationRetry";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
-import { signSocialPhotoObject } from "@/lib/socialPostMedia.server";
+import { socialMediaMetadata } from "@/lib/socialMediaPolicy";
+import { galleryPhotosFromRow, socialPostPhotos } from "@/lib/socialGallery";
+import { signSocialPhotoObject, supabaseSocialPhotoStorage } from "@/lib/socialPostMedia.server";
 import { socialMemoryBlockedProfiles } from "@/lib/socialBlockMemory";
 
 export type SocialPostActor = {
@@ -81,6 +83,7 @@ export type SocialPostWriteMedia = {
 
 export type SocialPostCreateOptions = {
   media?: SocialPostWriteMedia;
+  galleryMedia?: SocialPostWriteMedia[];
   tagHandles?: string[];
   idempotencyKey?: string;
   requestDigest?: string;
@@ -96,6 +99,7 @@ export class SocialPostStoreError extends Error {
       | "FORBIDDEN"
       | "EDIT_CONFLICT"
       | "IDEMPOTENCY_CONFLICT"
+      | "GALLERY_UPLOAD_UNAVAILABLE"
       | "INVALID_POST",
     message: string,
   ) {
@@ -113,6 +117,8 @@ type Cursor = {
 };
 
 export type SocialPostStore = {
+  mediaObjectKey?(viewer: SocialPostActor, mediaId: string): Promise<string | null>;
+  moderateMedia?(postId: string, mediaId: string | null, revision: number, action: "approve" | "hide"): Promise<boolean>;
   create(actor: SocialPostActor, fields: SocialPostFields, options?: SocialPostCreateOptions): Promise<SocialPostDTO>;
   edit(
     id: string,
@@ -173,8 +179,9 @@ export function socialPostFromRow(value: unknown): SocialPost {
       ? row.comment_policy
       : "open",
     photo: row.photo_media_id && row.photo_alt_text
-      ? { mediaId: String(row.photo_media_id), altText: String(row.photo_alt_text) }
+      ? { mediaId: String(row.photo_media_id), altText: String(row.photo_alt_text), ...(row.photo_content_type === "video/mp4" ? socialMediaMetadata("video/mp4") : {}) }
       : null,
+    ...(row.gallery_photos != null ? { photos: galleryPhotosFromRow(row.gallery_photos) } : {}),
     moderationState: row.moderation_state === "approved" || row.moderation_state === "needs_review"
       ? row.moderation_state
       : "pending",
@@ -341,7 +348,55 @@ function contentActuallyChanged(current: SocialPost, next: SocialPostFields): bo
     current.hashtags.length !== next.hashtags.length ||
     current.hashtags.some((tag, index) => tag !== next.hashtags[index]) ||
     current.photo?.mediaId !== next.photo?.mediaId ||
-    current.photo?.altText !== next.photo?.altText;
+    current.photo?.altText !== next.photo?.altText ||
+    JSON.stringify(current.photos) !== JSON.stringify(next.photos);
+}
+
+function mergedPostPhoto(current: SocialPost, changes: Partial<SocialPostFields>, options?: SocialPostEditOptions) {
+  if (current.photos !== undefined && !("photos" in changes) && ("photo" in changes || options?.existingPhotoAltText)) {
+    throw new SocialPostStoreError("INVALID_POST", "Use the gallery editor for these photos.");
+  }
+  if (options?.existingPhotoAltText && !current.photo) throw new SocialPostStoreError("INVALID_POST", "That post has no photo description to edit.");
+  if ("photo" in changes) return changes.photo ?? null;
+  return options?.existingPhotoAltText && current.photo ? { ...current.photo, altText: options.existingPhotoAltText } : current.photo;
+}
+
+function mergePostFields(current: SocialPost, changes: Partial<SocialPostFields>, options?: SocialPostEditOptions): SocialPostFields {
+  const photos = changes.photos ?? current.photos;
+  const merged: SocialPostFields = {
+    kind: changes.kind ?? current.kind,
+    visibility: changes.visibility ?? current.visibility,
+    body: changes.body ?? current.body,
+    area: "area" in changes ? changes.area ?? null : current.area,
+    venueId: "venueId" in changes ? changes.venueId ?? null : current.venueId,
+    hashtags: changes.hashtags ?? current.hashtags,
+    commentPolicy: changes.commentPolicy ?? current.commentPolicy,
+    photo: mergedPostPhoto(current, changes, options),
+    ...(photos !== undefined ? { photos } : {}),
+  };
+  if (!merged.body && !merged.photo) throw new SocialPostStoreError("INVALID_POST", "Add some words or a photo.");
+  if (merged.kind === "feature_request" && !merged.body) throw new SocialPostStoreError("INVALID_POST", "Add words to a feature request.");
+  return merged;
+}
+
+async function moderateSocialMedia(
+  adapter: SocialPostModerationAdapter,
+  postId: string,
+  text: string,
+  video: boolean,
+  items: Array<{ imageUrl?: string; objectKey?: string; altText?: string }>,
+): Promise<{ decision: "approved" | "needs_review" }> {
+  if (video) return { decision: "needs_review" };
+  let decision: "approved" | "needs_review" = "approved";
+  for (const item of items) {
+    const imageUrl = item.objectKey ? await signSocialPhotoObject(item.objectKey) : item.imageUrl;
+    if (item.objectKey && !imageUrl) throw new Error("Social photo could not be authorised for moderation.");
+    const result = await adapter.moderate({ postId,
+      text: item.altText ? `${text}\nPhoto description: ${item.altText}` : text,
+      ...(imageUrl ? { imageUrl } : {}) });
+    if (result.decision !== "approved") decision = "needs_review";
+  }
+  return { decision };
 }
 
 function makePage(
@@ -393,11 +448,31 @@ export function createMemorySocialPostStore(options: {
   const rows = new Map<string, SocialPost>();
   const jobs = new Map<string, MemoryJob>();
   const removeRequests = new Map<string, string>();
+  const createRequests = new Map<string, { digest: string; postId: string }>();
+  const editRequests = new Map<string, { digest: string; postId: string }>();
+  const mediaKeys = new Map<string, string>();
+  const consumedMediaIds = new Set<string>();
   const now = options.now ?? (() => new Date());
   const relationships = options.relationships ?? defaultRelationships;
+  async function removeMemoryObjects(keys: string[]) {
+    if (!keys.length) return;
+    try { await supabaseSocialPhotoStorage.remove(keys); }
+    catch { console.warn("social_photo.memory_cleanup_failed"); }
+  }
 
   return {
     async create(actor, fields, createOptions = {}) {
+      const requestKey = createOptions.idempotencyKey ? `${actor.profileId}:${createOptions.idempotencyKey}` : null;
+      const prior = requestKey ? createRequests.get(requestKey) : null;
+      if (prior) {
+        if (prior.digest !== createOptions.requestDigest) throw new SocialPostStoreError("IDEMPOTENCY_CONFLICT", "That post request key was already used for different content.");
+        const existing = rows.get(prior.postId)!;
+        const incomingKey = createOptions.media?.objectKey;
+        if (incomingKey && incomingKey !== mediaKeys.get(existing.photo?.mediaId ?? "")) await supabaseSocialPhotoStorage.remove([incomingKey]);
+        return socialPostDTO(existing, { exactVenue: true, viewerProfileId: actor.profileId });
+      }
+      if (fields.photo?.kind === "video" && createOptions.tagHandles?.length) throw new SocialPostStoreError("INVALID_POST", "Tags are not available for videos.");
+      if (createOptions.galleryMedia?.some(media => consumedMediaIds.has(media.mediaId))) throw new SocialPostStoreError("GALLERY_UPLOAD_UNAVAILABLE", "A photo is no longer available. Upload it again.");
       const timestamp = now().toISOString();
       const post: SocialPost = {
         id: randomUUID(),
@@ -417,6 +492,10 @@ export function createMemorySocialPostStore(options: {
         updatedAt: timestamp,
       };
       rows.set(post.id, post);
+      for (const photo of socialPostPhotos(post)) consumedMediaIds.add(photo.mediaId);
+      if (requestKey && createOptions.requestDigest) createRequests.set(requestKey, { digest: createOptions.requestDigest, postId: post.id });
+      if (fields.photo && createOptions.media) mediaKeys.set(fields.photo.mediaId, createOptions.media.objectKey);
+      for (const media of createOptions.galleryMedia ?? []) mediaKeys.set(media.mediaId, media.objectKey);
       jobs.set(post.id, {
         postId: post.id,
         revision: 0,
@@ -431,35 +510,24 @@ export function createMemorySocialPostStore(options: {
       const current = rows.get(id);
       if (!current || current.status !== "visible") throw new SocialPostStoreError("NOT_FOUND", "Post not found.");
       if (current.authorProfileId !== actor.profileId) throw new SocialPostStoreError("FORBIDDEN", "That post is not yours.");
+      const requestKey = editOptions?.idempotencyKey ? `${actor.profileId}:${editOptions.idempotencyKey}` : null;
+      const prior = requestKey ? editRequests.get(requestKey) : null;
+      if (prior) {
+        if (prior.postId !== id || prior.digest !== editOptions?.requestDigest) throw new SocialPostStoreError("IDEMPOTENCY_CONFLICT", "That edit key was already used for different content.");
+        return socialPostDTO(current, { exactVenue: true, viewerProfileId: actor.profileId });
+      }
+      if (editOptions?.galleryMedia?.some(media => consumedMediaIds.has(media.mediaId) && !socialPostPhotos(current).some(photo => photo.mediaId === media.mediaId))) throw new SocialPostStoreError("GALLERY_UPLOAD_UNAVAILABLE", "A photo is no longer available. Upload it again.");
       if (current.mutationVersion !== expectedMutationVersion) {
         throw new SocialPostStoreError("EDIT_CONFLICT", "This post changed before your edit was saved. Reload it and try again.");
       }
-      const mergedFields: SocialPostFields = {
-        kind: changes.kind ?? current.kind,
-        visibility: changes.visibility ?? current.visibility,
-        body: changes.body ?? current.body,
-        area: "area" in changes ? changes.area ?? null : current.area,
-        venueId: "venueId" in changes ? changes.venueId ?? null : current.venueId,
-        hashtags: changes.hashtags ?? current.hashtags,
-        commentPolicy: changes.commentPolicy ?? current.commentPolicy,
-        photo: "photo" in changes
-          ? changes.photo ?? null
-          : editOptions?.existingPhotoAltText && current.photo
-            ? { ...current.photo, altText: editOptions.existingPhotoAltText }
-            : current.photo,
-      };
-      if (editOptions?.existingPhotoAltText && !current.photo) throw new SocialPostStoreError("INVALID_POST", "That post has no photo description to edit.");
-      if (!mergedFields.body && !mergedFields.photo) throw new SocialPostStoreError("INVALID_POST", "Add some words or a photo.");
-      if (mergedFields.kind === "feature_request" && !mergedFields.body) throw new SocialPostStoreError("INVALID_POST", "Add words to a feature request.");
-      const anyChange = current.kind !== mergedFields.kind ||
-        current.visibility !== mergedFields.visibility || current.body !== mergedFields.body ||
-        current.area !== mergedFields.area || current.venueId !== mergedFields.venueId ||
-        current.commentPolicy !== mergedFields.commentPolicy ||
-        current.hashtags.length !== mergedFields.hashtags.length ||
-        current.hashtags.some((tag, index) => tag !== mergedFields.hashtags[index]) ||
-        current.photo?.mediaId !== mergedFields.photo?.mediaId ||
-        current.photo?.altText !== mergedFields.photo?.altText;
-      if (!anyChange) return socialPostDTO(current, { exactVenue: true, viewerProfileId: actor.profileId });
+      const mergedFields = mergePostFields(current, changes, editOptions);
+      const anyChange = contentActuallyChanged(current, mergedFields) ||
+        current.visibility !== mergedFields.visibility || current.area !== mergedFields.area ||
+        current.venueId !== mergedFields.venueId || current.commentPolicy !== mergedFields.commentPolicy;
+      if (!anyChange) {
+        if (requestKey && editOptions?.requestDigest) editRequests.set(requestKey, { digest: editOptions.requestDigest, postId: id });
+        return socialPostDTO(current, { exactVenue: true, viewerProfileId: actor.profileId });
+      }
       const actualContentChange = moderationSensitive && contentActuallyChanged(current, mergedFields);
       const timestamp = now().toISOString();
       const post: SocialPost = {
@@ -475,17 +543,29 @@ export function createMemorySocialPostStore(options: {
         moderatedAt: actualContentChange ? null : current.moderatedAt,
         updatedAt: timestamp,
       };
+      const removedKeys: string[] = [];
+      for (const photo of socialPostPhotos(current)) {
+        if (socialPostPhotos(post).some(next => next.mediaId === photo.mediaId)) continue;
+        const key = mediaKeys.get(photo.mediaId);
+        if (key) removedKeys.push(key);
+        mediaKeys.delete(photo.mediaId);
+      }
+      if (post.photo && editOptions?.media) mediaKeys.set(post.photo.mediaId, editOptions.media.objectKey);
+      for (const media of editOptions?.galleryMedia ?? []) mediaKeys.set(media.mediaId, media.objectKey);
       rows.set(id, post);
+      for (const photo of socialPostPhotos(post)) consumedMediaIds.add(photo.mediaId);
+      if (requestKey && editOptions?.requestDigest) editRequests.set(requestKey, { digest: editOptions.requestDigest, postId: id });
       if (actualContentChange) {
         jobs.set(id, {
           postId: id,
           revision: post.revision,
           mediaId: post.photo?.mediaId ?? null,
-          objectKey: null,
+          objectKey: post.photo ? mediaKeys.get(post.photo.mediaId) ?? null : null,
           nextAttemptAt: 0,
           attempts: 0,
         });
       }
+      await removeMemoryObjects(removedKeys);
       return socialPostDTO(post, { exactVenue: true, viewerProfileId: actor.profileId });
     },
     async remove(id, actor, expectedMutationVersion, idempotencyKey) {
@@ -500,15 +580,35 @@ export function createMemorySocialPostStore(options: {
       if (post.authorProfileId !== actor.profileId) throw new SocialPostStoreError("FORBIDDEN", "That post is not yours.");
       if (post.status === "removed") return false;
       if (post.mutationVersion !== expectedMutationVersion) return false;
+      const removedKeys: string[] = [];
+      for (const photo of socialPostPhotos(post)) {
+        const key = mediaKeys.get(photo.mediaId);
+        if (key) removedKeys.push(key);
+        mediaKeys.delete(photo.mediaId);
+      }
       rows.set(id, { ...post, status: "removed", mutationVersion: post.mutationVersion + 1, updatedAt: now().toISOString() });
       jobs.delete(id);
       removeRequests.set(requestKey, id);
+      await removeMemoryObjects(removedKeys);
+      return true;
+    },
+    async mediaObjectKey(viewer, mediaId) {
+      const graph = await relationships(viewer);
+      const post = [...rows.values()].find((row) => socialPostPhotos(row).some(photo => photo.mediaId === mediaId));
+      if (!post || post.moderationState !== "approved") return null;
+      return canRead(post, viewer, graph) ? mediaKeys.get(mediaId) ?? null : null;
+    },
+    async moderateMedia(postId, mediaId, revision, action) {
+      const post = rows.get(postId);
+      if (!post || post.revision !== revision || post.photo?.mediaId !== mediaId || post.status !== "visible") return false;
+      rows.set(postId, { ...post, moderationState: action === "approve" ? "approved" : "needs_review", status: action === "hide" ? "hidden" : post.status });
+      jobs.delete(postId);
       return true;
     },
     async read(id, viewer) {
+      const graph = await relationships(viewer);
       const post = rows.get(id);
       if (!post) return null;
-      const graph = await relationships(viewer);
       return canRead(post, viewer, graph) ? projectedPost(post, viewer, graph) : null;
     },
     async readOwned(id, owner) {
@@ -518,9 +618,9 @@ export function createMemorySocialPostStore(options: {
         : null;
     },
     async readServerProjection(id, viewer) {
+      const graph = await relationships(viewer);
       const post = rows.get(id);
       if (!post) return null;
-      const graph = await relationships(viewer);
       return canRead(post, viewer, graph) ? serverProjection(post) : null;
     },
     async feed(viewer, input) {
@@ -558,11 +658,13 @@ export function createMemorySocialPostStore(options: {
         }
         result.processed += 1;
         try {
-          const moderation = await adapter.moderate({
-            postId: post.id,
-            text: socialPostModerationClaim(post),
-            ...(job.objectKey ? { imageUrl: job.objectKey } : {}),
-          });
+          const moderation = await moderateSocialMedia(adapter, post.id, socialPostModerationClaim(post),
+            post.photo?.kind === "video", post.photos?.length
+              ? post.photos.map(photo => {
+                  const objectKey = mediaKeys.get(photo.mediaId);
+                  if (!objectKey) throw new Error("Social gallery moderation media is unavailable.");
+                  return { imageUrl: objectKey, altText: photo.altText };
+                }) : [{ ...(job.objectKey ? { imageUrl: job.objectKey } : {}) }]);
           const currentPost = rows.get(post.id);
           const currentJob = jobs.get(post.id);
           if (
@@ -710,23 +812,7 @@ export const supabaseSocialPostStore: SocialPostStore = {
       if (currentError) throw currentError;
       if (!currentData) throw new SocialPostStoreError("NOT_FOUND", "Post not found.");
       const current = socialPostFromRow(currentData);
-      const merged: SocialPostFields = {
-        kind: changes.kind ?? current.kind,
-        visibility: changes.visibility ?? current.visibility,
-        body: changes.body ?? current.body,
-        area: "area" in changes ? changes.area ?? null : current.area,
-        venueId: "venueId" in changes ? changes.venueId ?? null : current.venueId,
-        hashtags: changes.hashtags ?? current.hashtags,
-        commentPolicy: changes.commentPolicy ?? current.commentPolicy,
-        photo: "photo" in changes
-          ? changes.photo ?? null
-          : options?.existingPhotoAltText && current.photo
-            ? { ...current.photo, altText: options.existingPhotoAltText }
-            : current.photo,
-      };
-      if (options?.existingPhotoAltText && !current.photo) throw new SocialPostStoreError("INVALID_POST", "That post has no photo description to edit.");
-      if (!merged.body && !merged.photo) throw new SocialPostStoreError("INVALID_POST", "Add some words or a photo.");
-      if (merged.kind === "feature_request" && !merged.body) throw new SocialPostStoreError("INVALID_POST", "Add words to a feature request.");
+      const merged = mergePostFields(current, changes, options);
       if (current.mutationVersion !== expectedMutationVersion) {
         throw new SocialPostStoreError("EDIT_CONFLICT", "This post changed before your edit was saved. Reload it and try again.");
       }
@@ -893,16 +979,30 @@ export const supabaseSocialPostStore: SocialPostStore = {
         result.processed += 1;
         let moderation: Awaited<ReturnType<SocialPostModerationAdapter["moderate"]>>;
         try {
-          const objectKey = typeof job.object_key === "string" ? job.object_key : null;
-          const imageUrl = objectKey ? await signSocialPhotoObject(objectKey) : null;
-          if (objectKey && !imageUrl) {
-            throw new Error("Social photo could not be authorised for moderation.");
-          }
-          moderation = await adapter.moderate({
-            postId,
-            text: typeof job.moderation_claim === "string" ? job.moderation_claim : "",
-            ...(imageUrl ? { imageUrl } : {}),
+          const manifestResult = await requireSupabaseAdmin().rpc("read_social_gallery_moderation_manifest", {
+            p_post_id: postId, p_revision: revision, p_lease_token: leaseToken,
           });
+          if (manifestResult.error) throw manifestResult.error;
+          const manifest = rowObject(manifestResult.data);
+          if (typeof manifest.gallery !== "boolean" || !Array.isArray(manifest.items)) throw new Error("Social gallery moderation manifest is unavailable.");
+          const items: Array<{ imageUrl?: string; objectKey?: string; altText?: string }> = [];
+          const objectKey = typeof job.object_key === "string" ? job.object_key : null;
+          const video = objectKey?.endsWith("/video.mp4") === true;
+          if (manifest.gallery) {
+            if (!manifest.items.length || manifest.items.length > 10 || video) throw new Error("Social gallery moderation manifest is not valid.");
+            for (const value of manifest.items) {
+              const item = rowObject(value);
+              if (typeof item.objectKey !== "string" || typeof item.altText !== "string") throw new Error("Social gallery moderation manifest is not valid.");
+              items.push({ objectKey: item.objectKey, altText: item.altText });
+            }
+          } else {
+            if (manifest.items.length) throw new Error("Social gallery moderation manifest is not valid.");
+            const imageUrl = objectKey && !video ? await signSocialPhotoObject(objectKey) : null;
+            if (objectKey && !video && !imageUrl) throw new Error("Social photo could not be authorised for moderation.");
+            items.push({ ...(imageUrl ? { imageUrl } : {}) });
+          }
+          moderation = await moderateSocialMedia(adapter, postId,
+            typeof job.moderation_claim === "string" ? job.moderation_claim : "", video, items);
         } catch (moderationError) {
           const attempts = Number(job.attempts ?? 1);
           const retryable = moderationJobShouldRetry(moderationError, attempts);

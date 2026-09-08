@@ -1,3 +1,4 @@
+import { createServer } from "node:http";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -6,6 +7,66 @@ import {
 } from "@/lib/socialPostModeration";
 
 describe("OpenAI Social post moderation adapter", () => {
+  it("times out a real HTTP response that flushes headers but never finishes its JSON body", async () => {
+    const server = createServer((_request, response) => {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.flushHeaders();
+      response.write('{"results":[');
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("Missing local server address.");
+    let headersReceived = false;
+    let signal: AbortSignal | null | undefined;
+    const adapter = new OpenAISocialPostModerationAdapter({
+      apiKey: "local-test-key",
+      timeoutMs: 250,
+      fetcher: async (_url, init) => {
+        signal = init?.signal;
+        const response = await fetch(`http://127.0.0.1:${address.port}`, init);
+        headersReceived = true;
+        return response;
+      },
+    });
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
+    const outcome = adapter.moderate({ postId: "post-1", text: "Evening" })
+      .then(value => value, (error: unknown) => error);
+    try {
+      const result = await Promise.race([
+        outcome,
+        new Promise(resolve => { watchdog = setTimeout(() => resolve("body still pending"), 2_000); }),
+      ]);
+      expect(headersReceived).toBe(true);
+      expect(result).toMatchObject({ message: "OpenAI moderation request timed out.", retryable: true });
+      expect(signal?.aborted).toBe(true);
+    } finally {
+      clearTimeout(watchdog);
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+      await outcome;
+    }
+  });
+
+  it.each([
+    ["invalid JSON", "{", { message: "OpenAI moderation returned invalid JSON.", retryable: false }],
+    ["invalid schema", '{"results":[]}', { message: "OpenAI moderation returned no decision.", retryable: false }],
+    ["valid decision", '{"results":[{"flagged":false}]}', null],
+  ])("cleans up the deadline after %s", async (_label, body, expectedError) => {
+    vi.useFakeTimers();
+    try {
+      const adapter = new OpenAISocialPostModerationAdapter({
+        apiKey: "test-key",
+        fetcher: async () => new Response(body),
+      });
+      const result = adapter.moderate({ postId: "post-1", text: "Evening" });
+      if (expectedError) await expect(result).rejects.toMatchObject(expectedError);
+      else await expect(result).resolves.toEqual({ decision: "approved" });
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("reports whether the cron moderation key is present", () => {
     expect(isOpenAISocialModerationConfigured("")).toBe(false);
     expect(isOpenAISocialModerationConfigured("  ")).toBe(false);

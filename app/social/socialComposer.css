@@ -1,0 +1,251 @@
+.socialComposerBackdrop.socialComposerCreateBackdrop {
+  z-index: var(--z-splash);
+  height: 100dvh;
+}
+
+.socialComposer.socialComposerCreate {
+  max-height: 100dvh;
+  padding-top: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  scrollbar-gutter: stable;
+}
+
+.socialComposerCreate > header {
+  top: 0;
+  padding-block: var(--space-3);
+  padding-top: max(var(--space-3), env(safe-area-inset-top));
+  border-bottom: 1px solid var(--line);
+  gap: var(--space-2);
+}
+
+.socialComposerCreate > header h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+}
+
+.socialComposerCreate > header button {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.socialComposerCreate > header .socialComposerSubmit:not(:disabled) {
+  background: var(--brass);
+  color: var(--color-on-accent);
+}
+
+.socialComposerCreate .socialComposerFields,
+.socialComposerCreate .socialComposerAudience {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.socialComposerCreate .socialComposerMedia {
+  padding-block: var(--space-4);
+}
+
+.socialComposerCreate .socialComposerMedia > .socialComposerMedia {
+  padding-block: var(--space-3) 0;
+}
+
+.socialComposerCreate .socialComposerMedia > .socialComposerMedia .socialPhotoPicker {
+  min-height: 44px;
+  padding-block: var(--space-2);
+}
+
+.socialComposerCreate .socialPhotoPicker {
+  min-height: 88px;
+  margin-top: 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.socialComposerCreate .socialPhotoPicker:has(~ .socialComposerPhotoPreview) {
+  min-height: 44px;
+  padding-block: var(--space-2);
+}
+
+.socialComposerCreate .socialPhotoPicker > span:last-of-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(55vw, 360px);
+}
+
+.socialComposerCreate .socialComposerPhotoPreview {
+  margin-top: var(--space-3);
+  background: var(--panel);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.socialComposerCreate .socialComposerPhotoPreview :is(img, video) {
+  display: block;
+  width: 100%;
+  max-height: min(36dvh, 320px);
+  border-radius: 0;
+  object-fit: contain;
+}
+
+.socialComposerCreate label {
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+.socialComposerCreate .socialComposerBody {
+  margin-top: 0;
+}
+
+.socialComposerCreate .socialComposerBody textarea {
+  min-height: 96px;
+  resize: none;
+}
+
+.socialComposerCreate .socialComposerAudience {
+  margin-block: var(--space-5);
+}
+
+.socialComposerCreate .socialComposerAudience legend {
+  margin-bottom: var(--space-2);
+  color: var(--ink-soft);
+}
+
+.socialComposerAudience > div {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.socialComposerCreate .socialComposerAudience label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  margin: 0;
+  padding-inline: var(--space-2);
+  border: 1px solid var(--social-control-border);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.socialComposerCreate .socialComposerAudience input {
+  width: var(--space-4);
+  min-height: var(--space-4);
+  margin: 0;
+  padding: 0;
+  accent-color: var(--ink);
+}
+
+.socialComposerAudience label:has(:checked) {
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.socialComposerCreate .socialComposerDetails {
+  padding-block: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+
+.socialComposerDetails > summary {
+  min-height: 44px;
+  align-content: center;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.socialComposerCreate
+  :is(button, summary, input, select, textarea):focus-visible,
+.socialComposerCreate .socialPhotoPicker:focus-within {
+  outline: 2px solid var(--brass-ink);
+  outline-offset: 2px;
+}
+
+.socialComposerCreate .socialClearDraft,
+.socialComposerCreate .socialRemovePhoto {
+  margin-top: var(--space-2);
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+@media (min-width: 700px) {
+  .socialComposerBackdrop.socialComposerCreateBackdrop {
+    padding: var(--space-6);
+  }
+
+  .socialComposer.socialComposerCreate {
+    max-height: calc(100dvh - var(--space-12));
+    border-radius: var(--radius-lg);
+  }
+}
+
+@media (max-width: 640px) {
+  .socialComposer.socialComposerCreate {
+    width: 100%;
+    height: 100dvh;
+    border-radius: 0;
+  }
+}
+
+.socialComposerCreate .socialComposerMediaLimits {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.socialComposerGallery ol {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.socialComposerGallery li {
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--paper);
+}
+
+.socialComposerGallery figure {
+  display: grid;
+  place-items: center;
+  min-height: 6rem;
+  margin: 0 0 0.75rem;
+}
+
+.socialComposerGallery figure img {
+  display: block;
+  width: 100%;
+  max-height: 20rem;
+  object-fit: contain;
+}
+
+.socialComposerGalleryActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.socialComposerGalleryActions button {
+  min-height: 44px;
+  flex: 1 1 auto;
+}
+
+.socialComposerGallery p[role="status"] {
+  margin: 0.5rem 0 0;
+  color: var(--ink-soft);
+}

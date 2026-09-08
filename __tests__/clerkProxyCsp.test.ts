@@ -681,3 +681,14 @@ describe("the proxy export Next.js actually runs", () => {
     ).toBe(true);
   });
 });
+
+
+describe("Social video delivery CSP", () => {
+  it.each(["/social", "/admin"])("allows private storage video and local previews on %s", (path) => {
+    const policy = policyFor(path);
+    expect(directive(policy, "media-src")).toBe("media-src 'self' blob: https://*.supabase.co");
+    expect(directive(policy, "default-src")).toBe("default-src 'self'");
+    expect(directive(policy, "script-src")).toContain("'nonce-");
+    expect(directive(policy, "script-src")).not.toContain("'unsafe-inline'");
+  });
+});

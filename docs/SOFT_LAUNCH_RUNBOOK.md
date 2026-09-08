@@ -46,6 +46,9 @@ curl -sSIL 'https://www.pubmaxxing.com/map?sel=venue-xjf3n0'
 
 The owner applies migrations. Agents ship SQL only.
 
+Social short video requires migration `0154` before durable uploads are enabled. Photos remain compatible before migration.
+See [Social media contract](social/SOCIAL_MEDIA_CONTRACT.md) for upload limits, authenticated playback, moderation, and rollback prerequisites.
+
 `FABLE_HANDOFF.md` is not a current ledger. Its latest entry is dated 2026-07-23 and covers migrations only up to roughly `0053`. Do not use it to decide what is applied.
 
 To check the live ledger, compare `supabase/migrations/` against the Supabase dashboard's migration history for the project (Database → Migrations), or run:
