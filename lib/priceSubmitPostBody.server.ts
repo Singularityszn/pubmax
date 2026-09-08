@@ -34,8 +34,10 @@ export async function parsePriceSubmitPostBody(
     }
   }
   try {
+    const fields: unknown = await request.json();
+    if (fields === null || typeof fields !== "object" || Array.isArray(fields)) return null;
     return {
-      fields: (await request.json()) as Record<string, unknown>,
+      fields: fields as Record<string, unknown>,
       photos: { pint: null, venue: null, receipt: null },
     };
   } catch {

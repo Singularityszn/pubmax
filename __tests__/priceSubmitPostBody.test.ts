@@ -3,6 +3,25 @@ import { describe, expect, it } from "vitest";
 import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
 
 describe("parsePriceSubmitPostBody", () => {
+  it.each(["null", "[]", "[1]", '"text"', "42", "true", "false"])(
+    "refuses non-object JSON %s",
+    async (body) => {
+      const request = new Request("http://localhost/api/price-submit", {
+        method: "POST", headers: { "content-type": "application/json" }, body,
+      });
+      expect(await parsePriceSubmitPostBody(request)).toBeNull();
+    },
+  );
+
+  it("preserves an empty object for field validation", async () => {
+    const request = new Request("http://localhost/api/price-submit", {
+      method: "POST", headers: { "content-type": "application/json" }, body: "{}",
+    });
+    expect(await parsePriceSubmitPostBody(request)).toEqual({
+      fields: {}, photos: { pint: null, venue: null, receipt: null },
+    });
+  });
+
   it("reads JSON price submissions", async () => {
     const parsed = await parsePriceSubmitPostBody(
       new Request("http://localhost/api/price-submit", {

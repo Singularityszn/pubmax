@@ -303,6 +303,29 @@ afterEach(async () => {
 });
 
 describe("POST /api/price-submit", () => {
+  it.each(["null", "[]", "[1]", '"text"', "42", "true", "false"])(
+    "returns the malformed-body response for JSON %s",
+    async (body) => {
+      const response = await POST(new Request("http://localhost/api/price-submit", {
+        method: "POST", headers: { "content-type": "application/json" }, body,
+      }));
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        error: "Malformed request body.", code: "MALFORMED_REQUEST",
+      });
+    },
+  );
+
+  it("keeps empty-object field validation separate from malformed JSON", async () => {
+    const response = await POST(new Request("http://localhost/api/price-submit", {
+      method: "POST", headers: { "content-type": "application/json" }, body: "{}",
+    }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: "Choose a venue.", code: "INVALID_REQUEST",
+    });
+  });
+
   it("records an account-bound submission (201) stamped community", async () => {
     const res = await POST(
       post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
