@@ -2381,6 +2381,9 @@ export default function PubMapCanvas({
       armStyleLoadProtection();
       styleStructureReadyRef.current = false;
       try {
+        // transformStyle waits for the previous style to load. A failed or held
+        // request cannot release that wait, so retire it before fallback.
+        if (supersede) map.setStyle(null);
         map.setStyle(style, {
           diff: false,
           transformStyle: (_previousStyle, nextStyle) => tameNumericShieldFilters(nextStyle),

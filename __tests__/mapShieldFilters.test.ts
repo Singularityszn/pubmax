@@ -101,8 +101,9 @@ it("loads initial and replacement styles through the protected pre-compilation t
   const options = constructors[0].arguments?.[0];
   if (!options || !ts.isObjectLiteralExpression(options)) throw new Error("Expected map options.");
   expect(options.properties.some((property) => property.name?.getText(source) === "style")).toBe(false);
-  expect(replacements).toHaveLength(1);
-  expect(replacements[0].arguments[1].getText(source)).toContain("transformStyle: (_previousStyle, nextStyle) => tameNumericShieldFilters(nextStyle)");
+  const loads = replacements.filter((call) => call.arguments[0].kind !== ts.SyntaxKind.NullKeyword);
+  expect(loads).toHaveLength(1);
+  expect(loads[0].arguments[1].getText(source)).toContain("transformStyle: (_previousStyle, nextStyle) => tameNumericShieldFilters(nextStyle)");
   expect(code).toContain("setProtectedStyle(MAP_STYLES[themeRef.current], false)");
   expect(code).toContain("setProtectedStyle(MAP_STYLES[next], false)");
   expect(code).toContain("setProtectedStyle(FALLBACK_STYLES[themeRef.current], true, true)");
