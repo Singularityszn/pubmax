@@ -265,16 +265,24 @@ async function main() {
     assert.equal(result.objects.filter(row => [result.drop.pintKey, result.drop.receiptKey].includes(row.name)).length, 2);
     return result;
   }
-  await page.route(`${app.origin}/api/pint-drops`, async route => {
-    if (route.request().method() !== "POST") return route.fallback();
+  const cdp = await context.newCDPSession(page);
+  const dropUrl = `${app.origin}/api/pint-drops`;
+  evidence.transport = "Original browser multipart; Chromium CDP response-stage interception";
+  cdp.on("Fetch.requestPaused", async event => {
+    const { requestId } = event;
     try {
+      // Fetch patterns cannot filter methods. Continue other responses without changes.
+      if (event.request.url !== dropUrl || event.request.method !== "POST") {
+        await cdp.send("Fetch.continueResponse", { requestId });
+        return;
+      }
       attempts += 1;
       assert(attempts <= 2);
       const captured = await page.evaluate(() => window.receiptProofUploads);
       assert.equal(captured.length, attempts);
       const upload = captured.at(-1);
       assert(/^[A-Za-z0-9._:-]{16,128}$/.test(upload.key));
-      assert.equal(route.request().headers()["idempotency-key"], upload.key);
+      assert.equal(new Headers(event.request.headers).get("Idempotency-Key"), upload.key);
       assert.deepEqual(upload.files.map(file => file.field).sort(), ["pint_photo", "receipt_photo"]);
       for (const file of upload.files) assert.deepEqual(Buffer.from(file.bytes), original);
       if (attempts === 1) firstUpload = upload;
@@ -283,13 +291,18 @@ async function main() {
         files: upload.files.map(({ field, identity, name, type, size, lastModified, bytes }) =>
           ({ field, identity, name, type, size, lastModified, sha256: sha(Buffer.from(bytes)) })) });
       stage = attempts === 1 ? "first upstream 201 and independent SQL before abort" : "real retry upstream and persistence";
-      const upstream = await route.fetch({ maxRetries: 0, maxRedirects: 0, timeout: 30_000 });
-      assert.equal(upstream.status(), 201);
-      const reply = await upstream.json();
+      assert.equal(event.responseErrorReason, undefined);
+      assert.equal(event.redirectedRequestId, undefined);
+      assert.equal(event.responseStatusCode, 201);
+      // Read the actual upstream body while delivery is paused. Never reconstruct a request or response.
+      const upstream = await cdp.send("Fetch.getResponseBody", { requestId });
+      const replyBytes = Buffer.from(upstream.body, upstream.base64Encoded ? "base64" : "utf8");
+      assert(replyBytes.length > 0 && replyBytes.length <= 256_000);
+      const reply = JSON.parse(replyBytes.toString("utf8"));
       assert(/^[0-9a-f-]{36}$/.test(reply.drop?.id));
       if (attempts === 1) dropId = reply.drop.id;
       else assert.equal(reply.drop.id, dropId);
-      evidence.replies.push({ status: 201, drop: { id: reply.drop.id, venueId: reply.drop.venueId,
+      evidence.replies.push({ status: 201, bodySha256: sha(replyBytes), drop: { id: reply.drop.id, venueId: reply.drop.venueId,
         priceGbp: reply.drop.priceGbp, drink: reply.drop.drink, measure: reply.drop.measure },
         photoUrlHashes: [reply.drop.pintPhotoUrl, reply.drop.receiptPhotoUrl].map(url => {
           assert(typeof url === "string" && url.length > 0); return sha(url);
@@ -313,7 +326,7 @@ async function main() {
           assert.equal(newWrites.filter(row => row.method === "POST" && row.path === `/object/${bucket}/${key}` && row.status >= 200 && row.status < 300).length, 1);
         }
         evidence.stages.push("Upstream 201, one ledger/drop, and readable stored photos proved before abort");
-        await route.abort("failed");
+        await cdp.send("Fetch.failRequest", { requestId, errorReason: "Failed" });
       } else {
         assert.deepEqual(saved, firstSql);
         assert.deepEqual(readBack, firstPhotos);
@@ -322,14 +335,15 @@ async function main() {
         assert.deepEqual(writes(finalLog), writes(firstLog));
         evidence.storage = { photos: readBack, firstUploads: 2, retryWrites: 0,
           writeEvents: writes(finalLog).slice(writes(beforeLog).length) };
-        await route.fulfill({ response: upstream });
+        await cdp.send("Fetch.continueResponse", { requestId });
       }
       delivered += 1;
     } catch {
       interceptionError = stage;
-      await route.abort("failed").catch(() => {});
+      await cdp.send("Fetch.failRequest", { requestId, errorReason: "Failed" }).catch(() => {});
     }
   });
+  await cdp.send("Fetch.enable", { patterns: [{ urlPattern: dropUrl, requestStage: "Response" }] });
 
   await form.getByRole("button", { name: "Log it", exact: true }).click();
   await expect.poll(() => interceptionError || delivered, { timeout: 60_000 }).toBe(1);

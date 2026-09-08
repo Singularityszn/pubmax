@@ -77,13 +77,18 @@ node --import tsx artifacts/pint-drop-integration/lost-response-proof.mjs /absol
 
 The driver signs in through the actual handle-password form.
 It checks the issued session against local GoTrue and the independently read SQL profile owner.
-Only POST `/api/pint-drops` receives an interception. All other application requests use their real handlers.
-Each intercepted POST calls `route.fetch` with `maxRetries: 0` and redirects disabled.
+Chromium CDP pauses responses for the exact local `/api/pint-drops` URL at the Response stage.
+CDP patterns cannot filter methods. Non-POST responses continue unchanged; only POST responses receive proof checks.
+The browser sends both original multipart requests directly to Next. No request bytes or headers are reconstructed.
+The driver uses no `page.route`, `route.fetch`, response fulfillment, forwarding client, or proxy.
+Redirects and upstream errors fail the proof. There is no automatic driver retry.
 
 Before aborting the first delivery, the driver requires the actual upstream 201 and drop ID.
+`Fetch.getResponseBody` reads the completed upstream body while browser delivery remains paused.
+The evidence retains its hash and a redacted reply projection.
 Independent SQL must show one ledger row, one account drop, matching price, and both stored photo keys.
 Both photos must download through real Storage and decode. Initial upload log records must match their keys.
-Only then does the driver abort delivery of that committed success.
+Only then does `Fetch.failRequest` abort delivery of that committed success.
 
 The composer must retain the price, drink, and decoded bill preview, with no premature map row.
 One real `Log it` click performs the retry. No API retry substitutes for that action.
@@ -91,6 +96,7 @@ The driver compares the request key, every FormData field, original File identit
 Both attached Files must equal the original `BILL_FIXTURE` bytes before fetch.
 
 The retry must return another real 201 with the same drop ID.
+After the same response-stage checks, `Fetch.continueResponse` releases that original response without overrides.
 SQL ledger, drop, and Storage object snapshots must remain unchanged.
 Downloaded photos must retain their hashes and dimensions. Stored JPEGs need not equal original upload bytes.
 Storage logs must show no further upload or delete request. Final object counts alone do not satisfy this condition.
@@ -109,6 +115,7 @@ Failures retain the fixed stage label and completed evidence. Raw errors are del
 Do not interpret a failed log reader, missing prerequisite, or local CSP exception as successful proof.
 The driver neither proves receipt moderation nor synthesizes an accepted receipt verdict.
 This case proves one committed-response loss and replay. It does not establish broader production availability.
+The response-stage correction has source checks only. Chromium compatibility and durable execution remain pending.
 
 The driver closes its own browser. The runtime owner stops the owned app, log capture, and local stack.
 Keep protected inputs and raw logs outside Git. Remove them after review and the required evidence capture.
