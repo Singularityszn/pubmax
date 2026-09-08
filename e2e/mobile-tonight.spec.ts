@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { mockTonightListings } from "./helpers/tonightListings";
+
 const VIEWPORT = { width: 390, height: 844 };
 
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
@@ -36,24 +38,26 @@ test("mobile Tonight screen keeps share, filters, and rows tappable", async ({ p
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
 
+  await mockTonightListings(page);
   const response = await page.goto("/tonight");
   expect(response?.status()).toBe(200);
 
   const screen = page.getByTestId("tonight-screen");
   await expect(screen).toBeVisible();
-  await expect(page.getByRole("heading", { name: /what.?s on near you/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What’s on across London tonight.", exact: true })).toBeVisible();
   await expectTappable(page.locator(".tonightShare"), "Tonight share");
 
-  await expect(page.locator(".tonightStatus, .tonightList")).toHaveCount(1, {
-    timeout: 10_000,
-  });
+  await expect(screen).toHaveAttribute("data-listings-status", "ready");
+  await expect(page.getByTestId("tonight-list").locator(".tonightRow")).toHaveCount(2);
 
   const chips = page.locator(".tonightChip");
+  expect(await chips.count()).toBeGreaterThanOrEqual(3);
   for (let index = 0; index < await chips.count(); index += 1) {
     await expectTappable(chips.nth(index), `Tonight filter chip ${index + 1}`);
   }
 
-  const rowLinks = page.locator(".tonightRowLink[href]");
+  const rowLinks = page.getByTestId("tonight-list").locator(".tonightRowLink[href]");
+  await expect(rowLinks).toHaveCount(2);
   for (let index = 0; index < Math.min(await rowLinks.count(), 3); index += 1) {
     await expectTappable(rowLinks.nth(index), `Tonight row link ${index + 1}`);
   }

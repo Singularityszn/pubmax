@@ -675,9 +675,16 @@ test("a night of only excluded rows reads as the honest quiet night", async ({ p
   // Scoped to the first-screen spine on purpose. The secondary Deals lane
   // below it still carries the JDW row, and taking it off the page would drop
   // a real deal; what the contract forbids is leading with one.
-  await expect(page.locator(".tonightPrimary")).not.toContainText("Curry Club");
-  await expect(page.locator(".tonightPrimary")).not.toContainText(
+  await expect(page.getByTestId("tonight-lede")).not.toContainText("Curry Club");
+  await expect(page.getByTestId("tonight-lede")).not.toContainText(
     "A Night at the Playhouse",
   );
   await expect(page.getByTestId("tonight-list")).toHaveCount(0);
+  const chain = page.getByTestId("tonight-chain-lanes");
+  await expect(chain).toContainText("Curry Club");
+  expect(await page.evaluate(() => {
+    const lede = document.querySelector('[data-testid="tonight-lede"]')!;
+    const chain = document.querySelector('[data-testid="tonight-chain-lanes"]')!;
+    return Boolean(lede.compareDocumentPosition(chain) & Node.DOCUMENT_POSITION_FOLLOWING);
+  })).toBe(true);
 });
