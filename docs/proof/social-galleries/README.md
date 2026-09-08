@@ -95,3 +95,17 @@ They also cover hidden-post removal, actor and version refusal, media denial, an
 No production database was changed.
 
 Four focused store and route suites also passed 48 tests. The combined production build and browser gate remain separate.
+
+## Clear draft timing correction
+
+The locked production build at `a88c86d1f127ee9833a00e3754be13a64fde4ace` reproduced a clear-and-type race twice.
+The [browser event record](clear-race-before.json) shows text entered at 388.9 ms and saved at 389.4 ms.
+Cleanup finished afterward. The clear operation replaced that text with an empty draft at 393 ms.
+The storage error did not return. Post stayed disabled because cleanup erased the new text.
+
+The composer now blocks editing, posting, and dismissal while either draft store is being cleared.
+Controls return after cleanup succeeds or fails. Successful cleanup restores focus after the controls become available.
+Two component regressions delay the gallery store and the older attachment store separately.
+All 27 composer tests pass. Scoped lint is clean.
+The browser case keeps its immediate fill. It now records input and storage events for later failures.
+The corrected production browser check remains assigned to the main integration task. No new build ran in this worktree.

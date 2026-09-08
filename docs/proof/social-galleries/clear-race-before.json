@@ -1,0 +1,93 @@
+{
+  "events": [
+    {
+      "action": "save-draft",
+      "body": "",
+      "galleryMode": false,
+      "at": 218.5
+    },
+    {
+      "action": "delete",
+      "database": "pubmaxx-social-drafts-v1",
+      "at": 218.7999999821186
+    },
+    {
+      "action": "deleted",
+      "database": "pubmaxx-social-drafts-v1",
+      "at": 219
+    },
+    {
+      "action": "save-draft",
+      "body": "",
+      "galleryMode": true,
+      "at": 297.89999997615814
+    },
+    {
+      "action": "delete",
+      "database": "pubmaxx-social-gallery-drafts-v1",
+      "at": 334.89999997615814
+    },
+    {
+      "action": "deleted",
+      "database": "pubmaxx-social-gallery-drafts-v1",
+      "at": 340.19999998807907
+    },
+    {
+      "action": "type",
+      "value": "A walk by the river",
+      "at": 388.89999997615814
+    },
+    {
+      "action": "save-draft",
+      "body": "A walk by the river",
+      "galleryMode": true,
+      "at": 389.39999997615814
+    },
+    {
+      "action": "delete",
+      "database": "pubmaxx-social-gallery-drafts-v1",
+      "at": 390.5
+    },
+    {
+      "action": "deleted",
+      "database": "pubmaxx-social-gallery-drafts-v1",
+      "at": 390.7999999821186
+    },
+    {
+      "action": "delete",
+      "database": "pubmaxx-social-drafts-v1",
+      "at": 391.39999997615814
+    },
+    {
+      "action": "deleted",
+      "database": "pubmaxx-social-drafts-v1",
+      "at": 391.5
+    },
+    {
+      "action": "save-draft",
+      "body": "",
+      "galleryMode": false,
+      "at": 393
+    }
+  ],
+  "body": "",
+  "disabled": false,
+  "drafts": [
+    {
+      "requestKey": "22f263c2-9b26-4bfe-97f8-4847097d73b6",
+      "body": "",
+      "altText": "",
+      "area": "",
+      "venueId": null,
+      "venueName": "",
+      "visibility": "friends",
+      "commentPolicy": "open",
+      "kind": "standard",
+      "hashtags": "",
+      "tagHandles": "",
+      "galleryMode": false,
+      "removePhoto": false,
+      "baseMutationVersion": 0
+    }
+  ]
+}
