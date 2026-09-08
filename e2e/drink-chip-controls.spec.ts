@@ -185,16 +185,52 @@ test("persisted favourite pint keeps All unselected after mobile and desktop rel
   ).toHaveAttribute("aria-pressed", "false");
 });
 
-test("390px fare-zone rows agree through selection and reset", async ({ page }) => {
+test("390px fare-zone rows agree through selection and reset", async ({ page }, info) => {
   test.setTimeout(90_000);
   const sheet = await openFilters(page);
   const zoneGroup = sheet.getByRole("group", { name: "Filter by fare zone" });
   const zonePriceGroup = sheet.getByRole("list", {
     name: "Median pint price by fare zone",
   });
+  const zoneFivePrice = zonePriceGroup.locator('button[title^="Zone 5:"]');
+  const zoneFiveChip = zoneGroup.getByRole("button", {
+    name: /^Zone 5(?: \(selected\))?$/,
+  });
+  async function renderedState() {
+    // Compare each control with its own neutral style, outside pointer hover.
+    await page.mouse.move(0, 0);
+    for (const control of [zoneFivePrice, zoneFiveChip]) {
+      await expect.poll(() => control.evaluate((button) => {
+        let active = 0;
+        for (let node: Element | null = button; node; node = node.parentElement) {
+          void getComputedStyle(node).color;
+          active += node.getAnimations().filter((animation) =>
+            Number.isFinite(Number(animation.effect?.getComputedTiming().endTime)) &&
+            (animation.pending || animation.playState === "running"),
+          ).length;
+        }
+        return active;
+      }), { message: "fare-zone style transitions finish" }).toBe(0);
+    }
+    return Promise.all([zoneFivePrice, zoneFiveChip].map((control) =>
+      control.evaluate((button) => {
+        const css = getComputedStyle(button);
+        return {
+          background: css.backgroundColor,
+          color: css.color,
+          borders: ["top", "right", "bottom", "left"].map((side) => ({
+            width: css.getPropertyValue(`border-${side}-width`),
+            style: css.getPropertyValue(`border-${side}-style`),
+            color: css.getPropertyValue(`border-${side}-color`),
+          })),
+        };
+      }),
+    ));
+  }
 
   expect(await pressedLabels(zoneGroup)).toEqual(["All"]);
   expect(await pressedLabels(zonePriceGroup)).toEqual([]);
+  const neutral = await renderedState();
 
   await zoneGroup.getByRole("button", { name: "Zone 5", exact: true }).click();
   expect(await pressedLabels(zoneGroup)).toEqual(["Zone 5"]);
@@ -202,21 +238,21 @@ test("390px fare-zone rows agree through selection and reset", async ({ page }) 
   expect(pressedPriceLabels).toHaveLength(1);
   await expect(zonePriceGroup.locator('button[aria-pressed="true"] .zonePintCellZone'))
     .toHaveText("Zone 5");
+  const selected = await renderedState();
 
   await zoneGroup.getByRole("button", { name: "All", exact: true }).click();
   expect(await pressedLabels(zoneGroup)).toEqual(["All"]);
   expect(await pressedLabels(zonePriceGroup)).toEqual([]);
-
-  const zoneFivePrice = zonePriceGroup.locator('button[title^="Zone 5:"]');
-  const zoneFiveChip = zoneGroup.getByRole("button", {
-    name: "Zone 5",
-    exact: true,
+  const reset = await renderedState();
+  await info.attach("fare-zone-rendered-states", {
+    body: JSON.stringify({ controls: ["price row", "zone chip"], neutral, selected, reset }, null, 2),
+    contentType: "application/json",
   });
-  expect(
-    await zoneFivePrice.evaluate((button) => getComputedStyle(button).borderColor),
-  ).toBe(
-    await zoneFiveChip.evaluate((button) => getComputedStyle(button).borderColor),
-  );
+  for (const [index, label] of ["price row", "zone chip"].entries()) {
+    expect.soft(selected[index].background, `${label} shows its selected fill`)
+      .not.toBe(neutral[index].background);
+    expect.soft(reset[index], `${label} restores its exact neutral style`).toEqual(neutral[index]);
+  }
 });
 
 test("390px zone figures state their calculation and assignment basis", async ({

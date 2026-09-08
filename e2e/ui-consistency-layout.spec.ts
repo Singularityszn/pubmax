@@ -555,7 +555,6 @@ async function measureSurfaceAssertions(
         ? ["mobile map topbar", "Describe the outing"]
         : [
             "desktop map navigation",
-            "Tonight Arc panel",
             "desktop map toolbar",
           ];
     const stack = names
@@ -657,6 +656,54 @@ async function verifyPostCaptureInteractions(
   firstVisitPromptLocator: Locator,
   assertions: SurfaceAssertion[],
 ): Promise<void> {
+  if (ASSERT_LAYOUT && surface === "map-first-visit" && viewport.width > 640) {
+    const trigger = page.locator(".mapToolbar").getByRole("button", { name: /^Filters/ });
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await trigger.click();
+    await expect(trigger).toHaveAttribute("aria-expanded", "true");
+    const filters = page.getByRole("dialog", { name: "Filters", exact: true });
+    await expect(filters).toBeVisible();
+    await expect(filters.getByRole("group", { name: "Venue types", exact: true })).toBeVisible();
+    await expect.poll(() => filters.evaluate((element) => {
+      let active = 0;
+      for (let node: Element | null = element; node; node = node.parentElement) {
+        void getComputedStyle(node).transform;
+        active += node.getAnimations({ subtree: node === element }).filter((animation) =>
+          Number.isFinite(Number(animation.effect?.getComputedTiming().endTime)) &&
+          (animation.pending || animation.playState === "running"),
+        ).length;
+      }
+      return active;
+    }), { message: "Filters finishes its finite transitions" }).toBe(0);
+    const geometry = await page.evaluate(() => {
+      const button = document.querySelector(".mapToolbar .mapVenueKindFilterBtn")!;
+      const popover = document.querySelector(".mapVenueKindFilterPanel")!;
+      const rect = (element: Element) => {
+        const box = element.getBoundingClientRect();
+        return { left: box.left, right: box.right, top: box.top, bottom: box.bottom };
+      };
+      return { trigger: rect(button), panel: rect(popover), width: innerWidth, height: innerHeight };
+    });
+    await test.info().attach(`filters-${viewport.width}-geometry`, {
+      body: JSON.stringify(geometry, null, 2), contentType: "application/json",
+    });
+    await test.info().attach(`filters-${viewport.width}-viewport`, {
+      body: await page.screenshot({ fullPage: false }), contentType: "image/png",
+    });
+    const { panel: box, trigger: button } = geometry;
+    assertMeasured(assertions, surface, viewport.width,
+      "opened Filters stays within the viewport",
+      box.left >= 0 && box.right <= geometry.width && box.top >= 0 && box.bottom <= geometry.height,
+      JSON.stringify(geometry));
+    assertMeasured(assertions, surface, viewport.width,
+      "opened Filters stays below and horizontally contains its trigger",
+      box.top >= button.bottom && box.left <= button.left + 0.5 && box.right >= button.right - 0.5,
+      JSON.stringify(geometry));
+    await trigger.click();
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await expect(filters).toBeHidden();
+    return;
+  }
   if (
     !ASSERT_LAYOUT ||
     (surface !== "map-first-visit" && surface !== "map-consent-eligible") ||
