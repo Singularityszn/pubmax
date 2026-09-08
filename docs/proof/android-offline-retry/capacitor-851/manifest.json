@@ -1,0 +1,22 @@
+{
+  "source": "41fa0274c96c7c859e9e470966a37c0cb7fb3577",
+  "apkSha256": "3222c422ce9b2252c8d55cc98b2e7052a834b8e1bfade73b8696c88bb7771763",
+  "dependencies": {
+    "core": "8.5.1",
+    "android": "8.5.1",
+    "camera": "8.2.4"
+  },
+  "lockSha256": "ef823eaab285a36ee30b146619b341dbcaa303a0c41ee32dbc6fcacf756f8557",
+  "files": {
+    "TEST-com.getcapacitor.myapp.ExampleUnitTest.xml": "45f2e31bfca05194e13a3eb6913fa45dcf3416f2ea9050575e9df33ae6a64103",
+    "navigation.jsonl": "1bb01b20c8de8ffbb3916c02ee0830c912c16ccee82f262ed743c4a45c1d1a55",
+    "01-venue.png": "e918e66633ade1c1b475bd4f4a941e45a0693891f494b68e230248506a7c8aed",
+    "02-offline.png": "1904aea522fe8268555f856d1611ed3af4928931e0ea631c340fd0a162c5bf61",
+    "offline.jsonl": "8659d43a95c5db603817c0d3f0e1e4aa46196b87ca8423634cc8a45ef895f180",
+    "live-version.json": "b9472115e1407590181a3910e2dd78a466be2cd2e3a399981e5776cf6b65f4ae",
+    "TEST-com.pubmaxx.app.OfflineRetryDestinationTest.xml": "168908feec97e01071cfe708c8237a241e20c2acd847672b448a83eef8db741b",
+    "recovery.jsonl": "a009bed987738a30f92b083e8a7354b9e6bf6737b6d00925d8164e48c0858419",
+    "03-recovered.png": "5a632a7998d3e4241bfa3d1367872a68311d1eab4103aa9008def9e95833bfa6",
+    "build.log": "ecaa32a7b50b615d10126966272760ca32428fbc8a2a6fe52e98a2230b81ebd3"
+  }
+}
