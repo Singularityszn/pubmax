@@ -347,7 +347,7 @@ it("refuses a retained draft submit after the live account changes but before Re
   expect(post).toHaveBeenCalledTimes(1);
 });
 
-it("retains the same account's draft across a token refresh", async () => {
+it.each(["authenticated", "unresolved", "unavailable"] as const)("retains the same account's draft across a %s token refresh", async (authState) => {
   currentAccount = "A";
   await act(async () => root.render(createElement(AccountBoundary, { accountId: "A", hydrate: true })));
   const receipt = file();
@@ -357,7 +357,7 @@ it("retains the same account's draft across a token refresh", async () => {
     state.pickPhoto("receipt", receipt, null);
   });
   const url = state.receiptPhoto!.previewUrl;
-  await act(async () => root.render(createElement(AccountBoundary, { accountId: "A", hydrate: true, token: "refreshed" })));
+  await act(async () => root.render(createElement(AccountBoundary, { accountId: "A", hydrate: true, token: "refreshed", authState })));
   expect(container.querySelector("input")?.value).toBe("5.80");
   expect(state.receiptPhoto?.file).toBe(receipt);
   expect(state.composerOpen).toBe(true);
@@ -432,7 +432,7 @@ it("does not hydrate A's saved fields when B returns to an earlier venue", async
   expect(sessionStorage.getItem("unrelated")).toBe("keep");
 });
 
-it("hides A's draft in B's first committed render before passive cleanup", async () => {
+it.each(["authenticated", "unresolved", "unavailable"] as const)("hides A's draft in known B's first %s render before passive cleanup", async (authState) => {
   currentAccount = "A";
   await act(async () => root.render(createElement(AccountBoundary, { accountId: "A", hydrate: true })));
   await act(async () => {
@@ -443,13 +443,14 @@ it("hides A's draft in B's first committed render before passive cleanup", async
     state.pickPhoto("pint", file(), null);
     state.pickPhoto("venue", file(), null);
   });
+  const urls = [state.receiptPhoto!.previewUrl, state.pintPhoto!.previewUrl, state.venuePhoto!.previewUrl];
   let finish!: (response: unknown) => void;
   post.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
   let pending: ReturnType<PintDropsState["submitDrop"]>;
   await act(async () => { pending = state.submitDrop({ preventDefault() {} } as FormEvent, "venue-1"); });
   committedDraft.mockClear();
   currentAccount = "B";
-  await act(async () => root.render(createElement(AccountBoundary, { accountId: "B", hydrate: true })));
+  await act(async () => root.render(createElement(AccountBoundary, { accountId: "B", hydrate: true, authState })));
   // Layout effects observe each committed tree before passive owner cleanup.
   const first = committedDraft.mock.calls.find(([account]) => account === "B")!;
   expect(first[2]).toBe("");
@@ -460,6 +461,7 @@ it("hides A's draft in B's first committed render before passive cleanup", async
   expect(draft.pintPhoto).toBeNull();
   expect(draft.venuePhoto).toBeNull();
   expect(draft.dropsByVenueId.get("venue-1") ?? []).toEqual([]);
+  for (const url of urls) expect(revoked).toHaveBeenCalledWith(url);
   await act(async () => {
     finish({ ok: false, json: async () => ({ error: "A's outage" }) });
     await pending;

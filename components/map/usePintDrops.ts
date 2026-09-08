@@ -526,9 +526,10 @@ export function usePintDrops(
   }, [setPintPhoto, setVenuePhoto, setReceiptPhoto, setDropForm, setVibeTags, setVisibility]);
 
   const accountId = user?.id ?? null;
-  const draftVisible = !providerHasAnswered(providerAuthState) || draftAccountId === accountId;
+  const accountKnown = accountId !== null || providerHasAnswered(providerAuthState);
+  const draftVisible = !accountKnown || draftAccountId === accountId;
   useEffect(() => {
-    if (!providerHasAnswered(providerAuthState)) return;
+    if (!accountKnown) return;
     if (draftAccountId === accountId) return;
     let active = true;
     // The render guard hides the old draft while this account cleanup settles.
@@ -550,7 +551,7 @@ export function usePintDrops(
       setDraftAccountId(accountId);
     });
     return () => { active = false; };
-  }, [accountId, draftAccountId, getCurrentUserId, providerAuthState, resetComposer, setComposerOpen, setHandle]);
+  }, [accountId, accountKnown, draftAccountId, getCurrentUserId, resetComposer, setComposerOpen, setHandle]);
 
   // Each slot owns its preview. Changing one slot must not revoke another.
   useEffect(() => () => {
