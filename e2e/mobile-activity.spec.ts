@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 const MOBILE = { width: 390, height: 844 };
 
@@ -31,7 +32,6 @@ test.describe("mobile Activity", () => {
     await page.addInitScript(() => {
       window.localStorage.setItem("pubmax-tour-v1-done", "1");
       window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-      window.localStorage.setItem("pubmax_handle", "mobileqa");
     });
     await page.route("**/api/notifications**", async (route) => {
       if (route.request().method() === "POST") {
@@ -51,6 +51,10 @@ test.describe("mobile Activity", () => {
         body: JSON.stringify({ quests: [] }),
       });
     });
+    const auth = await installAuthDoubles(page);
+    await seedSignedIn(page, "A");
+    await auth.signedInAs("A");
+    auth.setServerHandle("mobileqa");
   });
 
   test("keeps the empty retention state and nav utilities thumb-safe", async ({ page }) => {
