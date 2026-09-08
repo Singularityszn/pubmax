@@ -37,7 +37,7 @@ test("legacy /feed opens signed-out Social, not the retired feed", async ({
   expect(response?.status()).toBe(200);
   await expect(page).toHaveURL(/\/social\/?$/);
   await expect(
-    page.getByRole("heading", { name: "Crews and people who are already here." }),
+    page.getByRole("heading", { name: "Good times, shared." }),
   ).toBeVisible();
   await expect(page.getByText("Sign in to use Social.")).toBeVisible();
   await expect(
@@ -441,7 +441,7 @@ test("mobile Social keeps the sign-in door thumb-sized without page overflow", a
   const response = await page.goto("/social");
   expect(response?.status()).toBe(200);
   await expect(
-    page.getByRole("heading", { name: "Crews and people who are already here." }),
+    page.getByRole("heading", { name: "Good times, shared." }),
   ).toBeVisible();
   await expect(page.locator(".feedCard")).toHaveCount(0);
   await expect(page.locator(".feedFilters")).toHaveCount(0);

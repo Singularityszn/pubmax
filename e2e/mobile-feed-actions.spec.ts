@@ -41,7 +41,7 @@ test.describe("mobile Social actions", () => {
     expect(response?.status()).toBe(200);
     await expect(page).toHaveURL(/\/social\/?$/);
     await expect(
-      page.getByRole("heading", { name: "Crews and people who are already here." }),
+      page.getByRole("heading", { name: "Good times, shared." }),
     ).toBeVisible();
     await expect(page.locator(".feedTitle")).toHaveCount(0);
     await expect(page.locator(".feedFilterChip")).toHaveCount(0);
