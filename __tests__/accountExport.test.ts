@@ -240,6 +240,8 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
     savedPubs: async () => ({ status: "ready" as const, rows: [savedPub] }),
     wanted: async () => ({ status: "ready" as const, wanteds: [wantedRow] }),
     socialLinks: async () => [socialLink],
+    socialPosts: async () => [],
+    socialMedia: async () => [],
     nightProfile: async () => nightProfileRow,
     prices: async () => ({ observations: [price], degraded: false }),
     pintDrops: async () => [drop],
@@ -250,6 +252,33 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
 }
 
 describe("buildAccountExport", () => {
+  it("distinguishes a failed owner lookup from an account with no profile", async () => {
+    const posts = vi.fn(async () => []);
+    const media = vi.fn(async () => []);
+    const failed = await buildAccountExport(USER, fakeDeps({
+      profileForUser: async () => { throw new Error("unavailable"); }, socialPosts: posts, socialMedia: media,
+    }), NOW);
+    expect(failed.socialPosts.status).toBe("unavailable");
+    expect(failed.socialMedia.status).toBe("unavailable");
+    const absent = await buildAccountExport(USER, fakeDeps({ profileForUser: async () => null, socialPosts: posts, socialMedia: media }), NOW);
+    expect(absent.socialPosts).toEqual(boundedLane([]));
+    expect(absent.socialMedia).toEqual(boundedLane([]));
+    expect(posts).not.toHaveBeenCalled();
+    expect(media).not.toHaveBeenCalled();
+  });
+
+  it("passes the verified profile to both Social readers and reports their caps", async () => {
+    const item = { mediaId: "m", objectKey: "social/m/image.jpg", contentType: "image/jpeg", width: 1,
+      height: 1, byteSize: 1, state: "staged", createdAt: "2026-09-08", uploadedAt: null, retentionExpiresAt: null };
+    const media = vi.fn(async () => Array.from({ length: 1001 }, () => item));
+    const posts = vi.fn(async () => []);
+    const document = await buildAccountExport(USER, fakeDeps({ socialPosts: posts, socialMedia: media }), NOW);
+    expect(posts).toHaveBeenCalledWith(PROFILE);
+    expect(media).toHaveBeenCalledWith(PROFILE);
+    expect(document.socialMedia.items).toHaveLength(1000);
+    expect(document.socialMedia.truncated).toBe(true);
+  });
+
   it("carries every lane the promise names, with the caller's own rows", async () => {
     const document = await buildAccountExport(USER, fakeDeps(), NOW);
 
@@ -339,6 +368,8 @@ describe("buildAccountExport", () => {
       savedPubs: { savedPubs: async () => ({ status: "unavailable" as const }) },
       wanted: { wanted: async () => ({ status: "degraded" as const, wanteds: [] }) },
       socialLinks: { socialLinks: async () => { throw new Error("connections unreadable"); } },
+      socialPosts: { socialPosts: async () => { throw new Error("posts unreadable"); } },
+      socialMedia: { socialMedia: async () => { throw new Error("media unreadable"); } },
       nightProfile: { nightProfile: async () => { throw new Error("night profile unreadable"); } },
       coverPhotos: { coverPhotos: async () => { throw new Error("covers unreadable"); } },
       checkIns: { checkIns: async () => { throw new Error("check-ins unreadable"); } },
@@ -591,9 +622,8 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   "lib/socialPostConsentStore.ts": {
     excluded: "One consent stamp per post, read back through the post itself.",
   },
-  "lib/socialPostStore.ts": {
-    gap: "The account's own posts. `readOwned` answers one post by id and `feed` is a viewer read, so there is no owner-keyed list to export.",
-  },
+  "lib/socialPostStore.ts": { lane: "socialPosts" },
+  "lib/socialGalleryStore.ts": { lane: "socialMedia" },
   "lib/stepOutNudgeStore.ts": {
     excluded: "Push preferences and the day each nudge was last sent: a delivery record we keep, changed from the account's own settings surface.",
   },
@@ -617,7 +647,6 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
 const NAMED_GAPS = [
   "lib/occupancyStore.ts",
   "lib/socialInteractionStore.ts",
-  "lib/socialPostStore.ts",
   "lib/weatherRecommendationStore.ts",
 ];
 

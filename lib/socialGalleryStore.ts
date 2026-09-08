@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { AccountExportSocialMedia } from "@/lib/accountExport";
+
 import { createHash } from "node:crypto";
 import { galleryPhotosFromRow, SOCIAL_GALLERY_UPLOAD_LIFETIME_MS } from "@/lib/socialGallery";
 import type { SocialGalleryCreate, SocialGalleryEdit } from "@/lib/socialGallerySubmission";
@@ -18,6 +20,7 @@ export type SocialGalleryEditResult = {
 };
 
 export type SocialGalleryStore = {
+  exportMedia?(owner: string): Promise<AccountExportSocialMedia[]>;
   upload(actor: SocialPostActor, file: File, key: string): Promise<{ mediaId: string }>;
   create(actor: SocialPostActor, payload: SocialGalleryCreate, key: string): Promise<SocialPostDTO>;
   edit(postId: string, actor: SocialPostActor, payload: SocialGalleryEdit, key: string): Promise<SocialGalleryEditResult>;
@@ -52,6 +55,7 @@ async function writeGallery(actor: SocialPostActor, payload: SocialGalleryCreate
 }
 
 const durableSocialGalleryStore: SocialGalleryStore = {
+  async exportMedia(owner) { return (await import("@/lib/socialAccountExport.server")).readSocialMediaForExport(owner); },
   async upload(actor, file, key) {
     const prepared = await prepareSocialPhoto(file);
     const mediaId = socialPhotoMediaId(actor.profileId, key, prepared.sha256);
@@ -121,6 +125,17 @@ export function createMemorySocialGalleryStore(posts: SocialPostStore = memorySo
     }
   }
   return {
+    async exportMedia(owner) {
+      if (!posts.exportMedia) throw new Error("Social media export unavailable.");
+      const items = await posts.exportMedia(owner);
+      for (const item of ready.values()) {
+        if (item.owner !== owner || item.attached) continue;
+        items.push({ mediaId: item.media.mediaId, objectKey: item.media.objectKey, contentType: "image/jpeg",
+          width: item.media.width, height: item.media.height, byteSize: item.media.byteSize, state: "staged",
+          createdAt: new Date(item.createdAt).toISOString(), uploadedAt: new Date(item.createdAt).toISOString(), retentionExpiresAt: null });
+      }
+      return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.mediaId.localeCompare(a.mediaId));
+    },
     async upload(actor, file, key) {
       const prepared = await prepareSocialPhoto(file);
       const mediaId = socialPhotoMediaId(actor.profileId, key, prepared.sha256);

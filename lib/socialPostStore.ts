@@ -1,5 +1,8 @@
 import "server-only";
 
+import type { AccountExportSocialPost, AccountExportSocialMedia } from "@/lib/accountExport";
+import { exportSocialPost } from "@/lib/socialAccountExport";
+
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
 import { followStore } from "@/lib/followStore";
@@ -117,6 +120,8 @@ type Cursor = {
 };
 
 export type SocialPostStore = {
+  exportPosts?(owner: string): Promise<AccountExportSocialPost[]>;
+  exportMedia?(owner: string): Promise<AccountExportSocialMedia[]>;
   mediaObjectKey?(viewer: SocialPostActor, mediaId: string): Promise<string | null>;
   moderateMedia?(postId: string, mediaId: string | null, revision: number, action: "approve" | "hide"): Promise<boolean>;
   create(actor: SocialPostActor, fields: SocialPostFields, options?: SocialPostCreateOptions): Promise<SocialPostDTO>;
@@ -451,6 +456,13 @@ export function createMemorySocialPostStore(options: {
   const createRequests = new Map<string, { digest: string; postId: string }>();
   const editRequests = new Map<string, { digest: string; postId: string }>();
   const mediaKeys = new Map<string, string>();
+  const exportMedia = new Map<string, { owner: string; item: AccountExportSocialMedia }>();
+  function rememberMedia(owner: string, media: SocialPostWriteMedia, contentType = "image/jpeg") {
+    exportMedia.set(media.mediaId, { owner, item: {
+      mediaId: media.mediaId, objectKey: media.objectKey, contentType, width: media.width, height: media.height,
+      byteSize: media.byteSize, state: "active", createdAt: now().toISOString(), uploadedAt: null, retentionExpiresAt: null,
+    } });
+  }
   const consumedMediaIds = new Set<string>();
   const now = options.now ?? (() => new Date());
   const relationships = options.relationships ?? defaultRelationships;
@@ -461,6 +473,14 @@ export function createMemorySocialPostStore(options: {
   }
 
   return {
+    async exportPosts(owner) {
+      return [...rows.values()].filter(post => post.authorProfileId === owner)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id)).map(exportSocialPost);
+    },
+    async exportMedia(owner) {
+      return [...exportMedia.values()].filter(entry => entry.owner === owner)
+        .map(entry => ({ ...entry.item, state: mediaKeys.has(entry.item.mediaId) ? "active" : "detached" }));
+    },
     async create(actor, fields, createOptions = {}) {
       const requestKey = createOptions.idempotencyKey ? `${actor.profileId}:${createOptions.idempotencyKey}` : null;
       const prior = requestKey ? createRequests.get(requestKey) : null;
@@ -492,6 +512,8 @@ export function createMemorySocialPostStore(options: {
         updatedAt: timestamp,
       };
       rows.set(post.id, post);
+      if (createOptions.media) rememberMedia(actor.profileId, createOptions.media, fields.photo?.contentType);
+      for (const media of createOptions.galleryMedia ?? []) rememberMedia(actor.profileId, media);
       for (const photo of socialPostPhotos(post)) consumedMediaIds.add(photo.mediaId);
       if (requestKey && createOptions.requestDigest) createRequests.set(requestKey, { digest: createOptions.requestDigest, postId: post.id });
       if (fields.photo && createOptions.media) mediaKeys.set(fields.photo.mediaId, createOptions.media.objectKey);
@@ -552,6 +574,8 @@ export function createMemorySocialPostStore(options: {
       }
       if (post.photo && editOptions?.media) mediaKeys.set(post.photo.mediaId, editOptions.media.objectKey);
       for (const media of editOptions?.galleryMedia ?? []) mediaKeys.set(media.mediaId, media.objectKey);
+      if (editOptions?.media) rememberMedia(actor.profileId, editOptions.media, post.photo?.contentType);
+      for (const media of editOptions?.galleryMedia ?? []) rememberMedia(actor.profileId, media);
       rows.set(id, post);
       for (const photo of socialPostPhotos(post)) consumedMediaIds.add(photo.mediaId);
       if (requestKey && editOptions?.requestDigest) editRequests.set(requestKey, { digest: editOptions.requestDigest, postId: id });
@@ -757,6 +781,8 @@ async function durableOrMemory<T>(operation: () => Promise<T>, fallback: () => P
 }
 
 export const supabaseSocialPostStore: SocialPostStore = {
+  async exportPosts(owner) { return (await import("@/lib/socialAccountExport.server")).readSocialPostsForExport(owner); },
+  async exportMedia(owner) { return (await import("@/lib/socialAccountExport.server")).readSocialMediaForExport(owner); },
   async create(actor, fields, createOptions = {}) {
     return durableOrMemory(async () => {
       const media = createOptions.media;

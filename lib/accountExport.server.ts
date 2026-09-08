@@ -25,7 +25,11 @@ import "server-only";
 // The two are different findings and only the store can tell them apart, so
 // the seams below carry the store's own degraded flag where it has one.
 
+import { socialPostStore } from "@/lib/socialPostStore";
+import { socialGalleryStore } from "@/lib/socialGalleryStore";
 import {
+  type AccountExportSocialPost,
+  type AccountExportSocialMedia,
   ACCOUNT_EXPORT_LANE_CAP,
   ACCOUNT_EXPORT_VERSION,
   boundedLane,
@@ -100,6 +104,8 @@ export type AccountExportDeps = {
   follows(handle: string): Promise<string[]>;
   savedPubs(handle: string): Promise<SavedPubsRead>;
   wanted(ownerActor: string): Promise<{ status: "ready" | "degraded"; wanteds: WantedDTO[] }>;
+  socialPosts(profileId: string): Promise<AccountExportSocialPost[]>;
+  socialMedia(profileId: string): Promise<AccountExportSocialMedia[]>;
   socialLinks(userId: string): Promise<PublicSocialConnection[]>;
   nightProfile(userId: string): Promise<NightProfile | null>;
   prices(
@@ -133,6 +139,16 @@ function storeDeps(): AccountExportDeps {
     follows: (handle) => followStore().listFollowing(handle),
     savedPubs: (handle) => savedPubsStore().readSaved({ handle }),
     wanted: (ownerActor) => wantedStore().listForOwner(ownerActor),
+    async socialPosts(profileId) {
+      const store = socialPostStore();
+      if (!store.exportPosts) throw new Error("Social posts export unavailable.");
+      return store.exportPosts(profileId);
+    },
+    async socialMedia(profileId) {
+      const store = socialGalleryStore();
+      if (!store.exportMedia) throw new Error("Social media export unavailable.");
+      return store.exportMedia(profileId);
+    },
     async socialLinks(userId) {
       return (await socialConnectionStore().list(userId)).map(publicSocialConnection);
     },
@@ -242,7 +258,8 @@ export async function buildAccountExport(
   now: Date = new Date(),
 ): Promise<AccountExport> {
   const exportedAt = now.toISOString();
-  const profile = await deps.profileForUser(userId).catch(() => null);
+  let profileUnavailable = false;
+  const profile = await deps.profileForUser(userId).catch(() => { profileUnavailable = true; return null; });
   const handle = profile ? normalizeHandle(profile.handle) || null : null;
 
   const memories = await (async () => {
@@ -369,6 +386,13 @@ export async function buildAccountExport(
     return { degraded: read.status === "degraded", items: read.wanteds };
   });
 
+  const socialPosts = await lane<AccountExportSocialPost>(async () => ({
+    degraded: profileUnavailable, items: profile ? await deps.socialPosts(profile.id) : [],
+  }));
+  const socialMedia = await lane<AccountExportSocialMedia>(async () => ({
+    degraded: profileUnavailable, items: profile ? await deps.socialMedia(profile.id) : [],
+  }));
+
   const socialLinks = await lane<PublicSocialConnection>(async () => ({
     degraded: false,
     items: await deps.socialLinks(userId),
@@ -399,6 +423,8 @@ export async function buildAccountExport(
     savedPubs,
     wanted,
     socialLinks,
+    socialPosts,
+    socialMedia,
     nightProfile,
     messages,
   };
