@@ -62,7 +62,7 @@ test("mobile city chooser keeps choices tappable and opens the selected city map
     expect(link.right, `${link.label} should stay inside the viewport`).toBeLessThanOrEqual(390);
   }
 
-  const manchester = page.getByRole("link", { name: /Manchester .* Open map\./ });
+  const manchester = page.getByRole("link", { name: /Manchester: .* Open map\./ });
   await expect(manchester).toHaveAttribute("href", "/map/manchester");
   await Promise.all([
     page.waitForURL(/\/map\/manchester$/),
