@@ -106,6 +106,9 @@
 
 body {
   --float-stack-top-create: calc(var(--create-fab-bottom) + var(--create-fab-h));
+  --float-stack-top-pal: calc(
+    var(--pal-summon-bottom) + var(--pal-summon-rendered-h, var(--pal-summon-h))
+  );
   --float-stack-top-map-corner: calc(
     var(--map-corner-bottom) + var(--map-corner-locate-size)
   );
@@ -113,7 +116,6 @@ body {
 
 body:has(.mapStage) {
   --pal-summon-bottom: calc(var(--float-stack-top-plan) + var(--float-stack-gap));
-  --float-stack-top-pal: calc(var(--pal-summon-bottom) + var(--pal-summon-h));
 }
 
 /* A story replaces the planning pill. Reuse its free lower band for Near me;
@@ -139,6 +141,12 @@ body:has(.mapStage):has(.palSummon) {
     --map-story-control-bottom: var(--float-stack-base);
     --pal-summon-bottom: var(--map-story-control-bottom);
     --map-corner-bottom: var(--map-story-control-bottom);
+    --map-story-row-top: var(--float-stack-top-map-corner);
+    --create-fab-bottom: calc(var(--map-story-row-top) + var(--float-stack-gap));
+  }
+
+  body:has(.mapStage):has(.bandOnboardingChip):has(.palSummon) {
+    --map-story-row-top: max(var(--float-stack-top-map-corner), var(--float-stack-top-pal));
   }
 
   body:has(.mapStage):has(.bandOnboardingChip):has(.analyticsConsentPrompt) {
