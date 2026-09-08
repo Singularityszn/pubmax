@@ -51,6 +51,9 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(nav).toHaveCSS("opacity", "1");
 
     await page.getByRole("button", { name: "More map controls" }).click();
+    const layers = page.getByRole("tab", { name: "Layers", exact: true });
+    await layers.click();
+    await expect(layers).toHaveAttribute("aria-selected", "true");
     await page.getByRole("button", { name: "Plan an outing" }).click();
     await expect(page.locator(".appShell")).toHaveClass(/planning-open/);
     await expect(page.locator(".mapDrawer.left")).toHaveClass(/open/);
@@ -93,7 +96,7 @@ test.describe("mobile bottom-tab navigation", () => {
 
     await expect(page).toHaveURL(/\/out$/);
     await expect(page.getByTestId("out-screen")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Out", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "What’s on, sourced.", exact: true })).toBeVisible();
   });
 
   test("create action opens Moment with the live return path", async ({ page }) => {
@@ -108,10 +111,24 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(page.getByRole("link", { name: "Back", exact: true })).toHaveAttribute("href", "/map");
   });
 
-  test("gated Social stays out of the primary tab row", async ({ page }) => {
+  test("Social tab opens the signed-out Social door", async ({ page }) => {
     await page.goto("/map");
 
-    await expect(primaryNav(page).locator('a[href="/social"]')).toHaveCount(0);
+    const social = primaryNav(page).getByRole("link", { name: "Social", exact: true });
+    await expect(social).toBeVisible();
+    await expect(social).toHaveAttribute("href", "/social");
+    const box = await social.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width).toBeGreaterThanOrEqual(44);
+    expect(box!.height).toBeGreaterThanOrEqual(44);
+    await social.click();
+
+    await expect(page).toHaveURL(/\/social$/);
+    await expect(social).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("heading", { name: "Good times, shared.", exact: true })).toBeVisible();
+    await expect(page.getByText("Sign in to use Social.", { exact: true })).toBeVisible();
+    await expect(page.locator("[data-primary-action]").getByRole("link", { name: "Sign in", exact: true }))
+      .toHaveAttribute("href", "/login?mode=signin&from=%2Fsocial");
   });
 
   test("You tab routes to the owned profile surface", async ({ page }) => {
