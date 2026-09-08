@@ -521,6 +521,7 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
   // Diagnostic evidence only. Requests can be cancelled by later zooms;
   // they are not proof that MapLibre delivered a tile error to the app.
   const network: Array<Record<string, unknown>> = [];
+  const failedOutageTileUrls = new Set<string>();
   const outageRequestIds = new WeakMap<Request, number>();
   const consoleMessages: Array<{ at: number; type: string; text: string }> = [];
   page.on("console", (message) => {
@@ -534,7 +535,12 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
   };
   page.on("requestfailed", (request) => {
     if (/\.pbf(?:\?|$)/.test(request.url())) {
-      record("requestfailed", request.url(), { requestNumber: outageRequestIds.get(request), failure: request.failure()?.errorText });
+      const requestNumber = outageRequestIds.get(request);
+      const failure = request.failure()?.errorText;
+      record("requestfailed", request.url(), { requestNumber, failure });
+      if (requestNumber !== undefined && failure === "net::ERR_FAILED") {
+        failedOutageTileUrls.add(request.url());
+      }
     }
   });
   page.on("requestfinished", (request) => {
@@ -566,7 +572,10 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
   });
   let failTiles = false;
   let outageRequests = 0;
-  await page.route(/\.pbf(?:\?|$)/, async (route) => {
+  let releaseTiles!: () => void;
+  const cameraSettled = new Promise<void>((resolve) => { releaseTiles = resolve; });
+  page.once("close", releaseTiles);
+  await page.route(/^https:\/\/tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/, async (route) => {
     if (!failTiles) {
       await route.continue();
       return;
@@ -575,6 +584,7 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
     const requestNumber = outageRequests;
     outageRequestIds.set(route.request(), requestNumber);
     record("outage-request", route.request().url(), { requestNumber });
+    await cameraSettled;
     await new Promise((resolve) =>
       setTimeout(resolve, requestNumber === 5 ? 1_250 : 1_000),
     );
@@ -627,13 +637,43 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
     contentType: "image/png",
   });
 
+  const readCamera = () => page.evaluate(() => (
+    window as typeof window & {
+      __pubmaxMapCamera?: { read: () => { zoom: number; moving: boolean } };
+    }
+  ).__pubmaxMapCamera?.read() ?? null);
+  await expect.poll(readCamera).toMatchObject({ zoom: 12, moving: false });
   failTiles = true;
   const outageStartedAt = Date.now();
+  let cameraSettledAt: number | null = null;
+  let successfulOutageTile: { url: string; status: number; bytes: number } | null = null;
   try {
-    // This programmatic hidden-button call forces fresh tile requests. It tests
-    // outage recovery, not user input or the reachability of phone controls.
-    await zoomThroughHiddenMobileControl(page);
+    // One real keyboard zoom keeps the chosen success in the final viewport.
+    // Release fault responses only after that camera transition has ended.
+    const [successfulRequest] = await Promise.all([
+      page.waitForEvent("requestfinished", {
+        predicate: (request) => outageRequestIds.get(request) === 5,
+        timeout: 20_000,
+      }),
+      (async () => {
+        await page.locator(".maplibreMap canvas").first().press("Equal");
+        await expect.poll(readCamera).toMatchObject({ zoom: 13, moving: false });
+        cameraSettledAt = Date.now();
+        releaseTiles();
+      })(),
+    ]);
+    const successfulResponse = await successfulRequest.response();
+    expect(successfulResponse).not.toBeNull();
+    successfulOutageTile = {
+      url: successfulRequest.url(),
+      status: successfulResponse!.status(),
+      bytes: (await successfulResponse!.body()).byteLength,
+    };
+    expect(successfulOutageTile.status).toBe(200);
+    expect(successfulOutageTile.bytes).toBeGreaterThan(0);
     await expect.poll(() => outageRequests).toBeGreaterThanOrEqual(5);
+    // Actual failed transport outcomes, not cancelled requests or route counts.
+    await expect.poll(() => failedOutageTileUrls.size).toBeGreaterThanOrEqual(4);
 
     const notice = page.locator(".mapSoftRetry");
     await expect(notice).toContainText("Map background couldn't load", {
@@ -641,7 +681,20 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
     });
     await expect(notice.getByRole("button", { name: "Retry" })).toBeVisible();
     await expect(page.locator(".mapFallback")).toHaveCount(0);
+    await expect.poll(readCamera).toMatchObject({ zoom: 13, moving: false });
+    const cameraStayedSettled = await page.evaluate((since) => {
+      const trace = (window as typeof window & {
+        __pubmaxOutageCameraTrace: Array<{
+          at: number;
+          reading: { zoom: number; moving: boolean } | null;
+        }>;
+      }).__pubmaxOutageCameraTrace;
+      return since !== null && trace.filter((sample) => sample.at >= since)
+        .every((sample) => sample.reading?.zoom === 13 && !sample.reading.moving);
+    }, cameraSettledAt);
+    expect(cameraStayedSettled, "the camera stays settled after fault release").toBe(true);
   } finally {
+    releaseTiles();
     const browser = await page.evaluate(() => {
       const tracedWindow = window as typeof window & {
         __pubmaxOutageCameraTrace?: unknown;
@@ -656,8 +709,10 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
     });
     await test.info().attach("postpaint-outage-diagnostic", {
       body: JSON.stringify({
-        startedAt, outageStartedAt, outageRequests, network, consoleMessages, browser,
-        scope: "Original three programmatic zooms. Network outcomes and camera readings only; no delivered MapLibre error or source-generation proof.",
+        startedAt, outageStartedAt, cameraSettledAt, outageRequests,
+        successfulOutageTile, failedOutageTileUrls: [...failedOutageTileUrls],
+        network, consoleMessages, browser,
+        scope: "One keyboard zoom from 12 to 13. Faults released after camera settlement. Completed success and failed transport outcomes are required; delivered MapLibre event identities remain unobserved.",
       }, null, 2),
       contentType: "application/json",
     });
