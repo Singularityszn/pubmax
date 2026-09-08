@@ -16,15 +16,19 @@ function row(value: unknown): Row {
   return value as Row;
 }
 
-// Small pages preserve the extra row used to detect truncation under PostgREST's row limit.
+// Keyset pages survive deleted reservations and preserve the extra row used to detect truncation.
 async function ownedRows(client: SupabaseClient, table: string, columns: string, ownerColumn: string, owner: string, id: string): Promise<Row[]> {
   const rows: Row[] = [];
   const limit = ACCOUNT_EXPORT_LANE_CAP + 1;
   while (rows.length < limit) {
     const count = Math.min(500, limit - rows.length);
-    const { data, error } = await client.from(table).select(columns).eq(ownerColumn, owner)
-      .order("created_at", { ascending: false }).order(id, { ascending: false })
-      .range(rows.length, rows.length + count - 1);
+    let query = client.from(table).select(columns).eq(ownerColumn, owner)
+      .order("created_at", { ascending: false }).order(id, { ascending: false });
+    const last = rows.at(-1);
+    if (last) {
+      query = query.or(`created_at.lt.${last.created_at},and(created_at.eq.${last.created_at},${id}.lt.${last[id]})`);
+    }
+    const { data, error } = await query.range(0, count - 1);
     if (error || !Array.isArray(data)) throw new Error("Social export read unavailable.");
     const page = data.map(row);
     if (page.some(item => item[ownerColumn] !== owner)) throw new Error("Social export owner mismatch.");
@@ -59,8 +63,9 @@ export async function readSocialPostsForExport(owner: string, client = requireSu
 }
 
 export async function readSocialMediaForExport(owner: string, client = requireSupabaseAdmin()): Promise<AccountExportSocialMedia[]> {
-  const media = await ownedRows(client, "social_post_media", MEDIA_COLUMNS, "owner_profile_id", owner, "id");
+  // Attachment moves a reservation into media. Read the source first so that move cannot disappear between reads.
   const uploads = await ownedRows(client, "social_post_media_uploads", UPLOAD_COLUMNS, "owner_profile_id", owner, "media_id");
+  const media = await ownedRows(client, "social_post_media", MEDIA_COLUMNS, "owner_profile_id", owner, "id");
   const project = (item: Row, upload: boolean): AccountExportSocialMedia => ({
     mediaId: String(upload ? item.media_id : item.id), objectKey: String(item.object_key),
     contentType: String(item.content_type),

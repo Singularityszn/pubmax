@@ -8,19 +8,28 @@ import { createMemorySocialPostStore } from "@/lib/socialPostStore";
 import { boundedLane } from "@/lib/accountExport";
 
 type Row = Record<string, unknown>;
-function database(tables: Record<string, Row[]>, failed?: string, wrongOwner = false) {
+function database(tables: Record<string, Row[]>, failed?: string, wrongOwner = false, afterRead?: (table: string) => void) {
   const calls: Array<{ table: string; column: string; owner: string; start: number; end: number }> = [];
   const client = { from(table: string) {
-    let column = "", owner = "";
+    let column = "", owner = "", cursor = "", orderId = "";
     const query = {
       select() { return query; },
       eq(key: string, value: string) { column = key; owner = value; return query; },
-      order() { return query; },
+      order(key: string) { if (key !== "created_at") orderId = key; return query; },
+      or(value: string) { cursor = value; return query; },
       async range(start: number, end: number) {
         calls.push({ table, column, owner, start, end });
         if (failed === table) return { data: null, error: { message: "schema unavailable" } };
-        const rows = (tables[table] ?? []).filter(item => wrongOwner || item[column] === owner);
-        return { data: rows.slice(start, Math.min(end + 1, start + 1000)), error: null };
+        let rows = (tables[table] ?? []).filter(item => wrongOwner || item[column] === owner)
+          .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)) || String(b[orderId]).localeCompare(String(a[orderId])));
+        if (cursor) {
+          const match = cursor.match(/^created_at.lt.(.*),and\(created_at.eq.*?,[^.]+.lt.(.*)\)$/)!;
+          rows = rows.filter(item => String(item.created_at) < match[1] ||
+            (item.created_at === match[1] && String(item[orderId]) < match[2]));
+        }
+        const data = rows.slice(start, Math.min(end + 1, start + 1000));
+        afterRead?.(table);
+        return { data, error: null };
       },
     };
     return query;
@@ -66,7 +75,8 @@ describe("Social account export", () => {
       post("removed", { status: "removed" }), post("pending", { status: "visible", moderation_state: "pending" }),
       post("foreign", { author_profile_id: "other" })] });
     const items = await readSocialPostsForExport(owner, db.client);
-    expect(items.map(item => item.id)).toEqual(["gallery", "removed", "pending"]);
+    expect(items.map(item => item.id).sort()).toEqual(["gallery", "pending", "removed"]);
+    items.sort((a, b) => a.id.localeCompare(b.id));
     expect(items[0].photos.map(item => item.mediaId)).toEqual(["00000000-0000-4000-8000-000000000001", "00000000-0000-4000-8000-000000000002"]);
     expect(items[0].visibility).toBe("private");
     expect(items[0].status).toBe("hidden");
@@ -98,7 +108,42 @@ describe("Social account export", () => {
     const result = boundedLane(await readSocialPostsForExport(owner, db.client));
     expect(result.items).toHaveLength(1000);
     expect(result.truncated).toBe(true);
-    expect(db.calls.map(call => [call.start, call.end])).toEqual([[0, 499], [500, 999], [1000, 1000]]);
+    expect(db.calls.map(call => [call.start, call.end])).toEqual([[0, 499], [0, 499], [0, 0]]);
+  });
+
+  it("keeps an upload that becomes attached between the two reads", async () => {
+    const tables: Record<string, Row[]> = {
+      social_post_media: [],
+      social_post_media_uploads: [media("moving", { media_id: "moving", state: "staged" })],
+    };
+    let transferred = false;
+    const db = database(tables, undefined, false, () => {
+      if (transferred) return;
+      transferred = true;
+      tables.social_post_media = [media("moving", { attachment_state: "active" })];
+      tables.social_post_media_uploads = [];
+    });
+    const items = await readSocialMediaForExport(owner, db.client);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ mediaId: "moving", state: "active" });
+  });
+
+  it("does not skip a staged upload when attachment deletes an earlier page row", async () => {
+    const tables: Record<string, Row[]> = { social_post_media: [], social_post_media_uploads:
+      Array.from({ length: 700 }, (_, i) => media(`u${String(i).padStart(3, "0")}`, {
+        media_id: `u${String(i).padStart(3, "0")}`, state: "staged",
+      })) };
+    let transferred = false;
+    const db = database(tables, undefined, false, table => {
+      if (table !== "social_post_media_uploads" || transferred) return;
+      transferred = true;
+      tables.social_post_media_uploads = tables.social_post_media_uploads.filter(item => item.media_id !== "u699");
+      tables.social_post_media = [media("u699", { attachment_state: "active" })];
+    });
+    const items = await readSocialMediaForExport(owner, db.client);
+    expect(items).toHaveLength(700);
+    expect(new Set(items.map(item => item.mediaId)).size).toBe(700);
+    expect(items.find(item => item.mediaId === "u199")?.state).toBe("staged");
   });
 
   it("caps the combined media lane without losing the truncation signal", async () => {
