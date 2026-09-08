@@ -192,9 +192,16 @@ test("native first run hands one useful Plan to the contextual push ask", async 
   await expect(page.getByText("Get a ping when a fresh London night signal goes live.")).toBeVisible();
 
   // The next native root boot is still the owner-locked /tonight cold start.
-  await page.goto("/");
-  await expect(page).toHaveURL(/\/tonight$/);
-  await expect(page.getByRole("dialog", { name: "Know when tonight changes" })).toHaveCount(0);
+  // A fresh page preserves local state and starts a new session and document.
+  const reboot = await page.context().newPage();
+  try {
+    await installNativeShell(reboot);
+    await reboot.goto("/");
+    await expect(reboot).toHaveURL(/\/tonight$/);
+    await expect(reboot.getByRole("dialog", { name: "Know when tonight changes" })).toHaveCount(0);
+  } finally {
+    await reboot.close();
+  }
 });
 
 test("direct web onboarding redirects home without mutating onboarding state", async ({ page }) => {
@@ -281,7 +288,14 @@ test("Skip releases onboarding budget for the next Plan but never prompts on reb
   await page.getByRole("button", { name: "Make a plan" }).click();
   await expect(page.getByRole("dialog", { name: "Know when tonight changes" })).toBeVisible();
 
-  await page.goto("/");
-  await expect(page).toHaveURL(/\/tonight$/);
-  await expect(page.getByRole("dialog", { name: "Know when tonight changes" })).toHaveCount(0);
+  // A fresh page preserves local state and starts a new session and document.
+  const reboot = await page.context().newPage();
+  try {
+    await installNativeShell(reboot);
+    await reboot.goto("/");
+    await expect(reboot).toHaveURL(/\/tonight$/);
+    await expect(reboot.getByRole("dialog", { name: "Know when tonight changes" })).toHaveCount(0);
+  } finally {
+    await reboot.close();
+  }
 });
