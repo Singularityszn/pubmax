@@ -514,9 +514,58 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   actionCalls.push({ name: "Search pubs focus", phase: "start", atEpochMs: Date.now() });
   await toolbar.getByRole("combobox", { name: "Search pubs" }).focus();
   actionCalls.push({ name: "Search pubs focus", phase: "end", atEpochMs: Date.now() });
-  const retargetAim = await probe.evaluate((state) => state.measure());
+  const { retargetAim, failureDiagnostics } = await probe.evaluate((state) => {
+    const retargetAim = state.measure();
+    if (retargetAim.retargetOption?.canClick) return { retargetAim, failureDiagnostics: null };
+    const elements: HTMLElement[] = [];
+    let element = document.querySelector<HTMLElement>(
+      '.mapToolbar [role="option"][data-venue-id="bar-swift-soho"]',
+    );
+    while (element) {
+      elements.push(element);
+      element = element.parentElement;
+    }
+    const ancestors = elements.map((element) => {
+      const style = getComputedStyle(element);
+      return {
+        tag: element.tagName,
+        id: element.id,
+        className: element.getAttribute("class"),
+        display: style.display,
+        visibility: style.visibility,
+        opacity: style.opacity,
+        contentVisibility: style.contentVisibility,
+        animationName: style.animationName,
+        animationDuration: style.animationDuration,
+        animationDelay: style.animationDelay,
+        animationFillMode: style.animationFillMode,
+        animations: element.getAnimations()
+          .filter((animation) => animation.playState !== "finished" && animation.playState !== "idle")
+          .map((animation) => ({
+            currentTime: animation.currentTime,
+            playState: animation.playState,
+            pending: animation.pending,
+            progress: animation.effect?.getComputedTiming().progress ?? null,
+          })),
+      };
+    });
+    return {
+      retargetAim,
+      failureDiagnostics: {
+        ancestors,
+        initialOptions: state.initialOptions,
+        frames: state.frames,
+        clicks: state.clicks,
+        observation: state.observation,
+      },
+    };
+  });
   const option = retargetAim.retargetOption;
   if (!option?.canClick) {
+    await test.info().attach("drawer-exchange-retarget-failure", {
+      body: JSON.stringify({ retargetAim, ...failureDiagnostics, actionCalls }),
+      contentType: "application/json",
+    });
     throw new Error(`Swift Soho must own its current centre before clicking: ${JSON.stringify(retargetAim)}`);
   }
   actionCalls.push({ name: "Swift click", phase: "start", atEpochMs: Date.now() });
