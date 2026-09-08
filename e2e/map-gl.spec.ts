@@ -279,6 +279,11 @@ async function expectNoticeContrast(page: Page, phase: string) {
           context.fillRect(0, 0, 1, 1);
         };
         const pixel = () => [...context.getImageData(0, 0, 1, 1).data].slice(0, 3);
+        const alpha = (colour: string) => {
+          context.clearRect(0, 0, 1, 1);
+          paint(colour);
+          return context.getImageData(0, 0, 1, 1).data[3];
+        };
         return {
           surface: { background: surface.backgroundColor, opacity: surface.opacity },
           controls: [".mapSoftRetryMessage", ".mapSoftRetryBtn"].map((selector) => {
@@ -287,7 +292,8 @@ async function expectNoticeContrast(page: Page, phase: string) {
             const style = getComputedStyle(element);
             return {
               selector, foreground: style.color, background: style.backgroundColor, opacity: style.opacity,
-              outline: { colour: style.outlineColor, width: style.outlineWidth, style: style.outlineStyle },
+              foregroundAlpha: alpha(style.color),
+              outline: { colour: style.outlineColor, alpha: alpha(style.outlineColor), width: style.outlineWidth, style: style.outlineStyle },
               // The canvas behind the translucent notice is not a DOM background.
               // Bound every possible backdrop with opaque black and white.
               bounds: ["#000", "#fff"].map((backdrop) => {
@@ -313,6 +319,7 @@ async function expectNoticeContrast(page: Page, phase: string) {
       expect(colours.surface.opacity).toBe("1");
       for (const control of colours.controls) {
         expect(control.opacity).toBe("1");
+        expect(control.foregroundAlpha, "backdrop bounds require opaque text").toBe(255);
         const differences = control.bounds.map(({ foreground, background }) => (
           relativeLuminance(foreground) - relativeLuminance(background)
         ));
@@ -323,6 +330,7 @@ async function expectNoticeContrast(page: Page, phase: string) {
             .toBeGreaterThanOrEqual(4.5);
         }
         if (state === "focus" && control.selector === ".mapSoftRetryBtn") {
+          expect(control.outline.alpha, "backdrop bounds require an opaque focus ring").toBe(255);
           expect(control.outline.style).not.toBe("none");
           expect(parseFloat(control.outline.width)).toBeGreaterThanOrEqual(2);
           const ringDifferences = control.bounds.map(({ outlineForeground, outlineBackground }) => (
