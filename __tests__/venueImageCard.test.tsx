@@ -47,15 +47,37 @@ describe("decorative venue card images", () => {
   });
 
   it("selects the fixed preset from the real gallery", () => {
-    const tag = imageTag(renderToStaticMarkup(
+    const html = renderToStaticMarkup(
       <PubsGallery
-        pubs={[{ id: "test", name: "The Pub", borough: "Westminster", source: "other", sourceLabel: "Other", photoUrl: photo, drinkAccent: "beer", drinkShelf: [], cheapestPrice: null, zone: 1 }]}
+        pubs={[{ id: "test", name: "The Pub", borough: "Westminster", source: "other", sourceLabel: "Other", photoUrl: photo, drinkAccent: "beer", drinkShelf: ["wine", "gin"], cheapestPrice: null, zone: 1 }]}
         matchingPubs={1} filter="all" zone="all"
         counts={{ all: 1, "nicholsonspubs.co.uk": 0, "greene-king.co.uk": 0, "youngs.co.uk": 0, other: 1 }}
         zonesPresent={[1]} page={1} totalPages={1} complete
       />,
-    ));
+    );
+    const tag = imageTag(html);
     expect(tag).toContain("&amp;variant=card");
     expect(tag).not.toContain("srcSet=");
+    expect(html).not.toContain('class="pubsCardGlyphHero"');
+    expect(html).not.toContain('class="pubsCardShelf"');
+    expect(html).toContain('class="pubsCardArtLabel">Beer</span>');
+    expect(html).toContain('class="venueImage__provenance"');
+    expect(html).toContain('class="pubsCardMeta"');
+    expect(html).toContain('class="pubsBorough">Westminster</span>');
+  });
+
+  it("preserves the drink glyph and label on a card without a photo", () => {
+    const html = renderToStaticMarkup(
+      <PubsGallery
+        pubs={[{ id: "no-photo", name: "The Pub", borough: "Westminster", source: "other", sourceLabel: "Other", drinkAccent: "beer", drinkShelf: ["wine"], cheapestPrice: null, zone: 1 }]}
+        matchingPubs={1} filter="all" zone="all"
+        counts={{ all: 1, "nicholsonspubs.co.uk": 0, "greene-king.co.uk": 0, "youngs.co.uk": 0, other: 1 }}
+        zonesPresent={[1]} page={1} totalPages={1} complete
+      />,
+    );
+    expect(html).toContain('class="pubsCard pubsCard--no-art"');
+    expect(html).toMatch(/class="pubsCardDrink"><svg\b.*?<span>Beer<\/span><\/p>/);
+    expect(html).not.toContain('class="pubsCardArt"');
+    expect(html).not.toContain("<img");
   });
 });

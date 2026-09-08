@@ -51,6 +51,66 @@ test.describe("mobile Pubs gallery", () => {
     });
   });
 
+  for (const viewport of [MOBILE, { width: 1440, height: 900 }]) {
+    test(`photo card bounds, credit, and metadata at ${viewport.width}px`, async ({ page }, testInfo) => {
+      await page.setViewportSize(viewport);
+      const response = await page.goto("/pubs");
+      expect(response?.status()).toBe(200);
+
+      const card = page.locator(".pubsCard:has(.pubsCardPhoto img)").first();
+      await expect(card).toBeVisible();
+      await card.scrollIntoViewIfNeeded();
+      const image = card.locator(".pubsCardPhoto img");
+      await expect.poll(() => image.evaluate((node: HTMLImageElement) =>
+        node.complete && node.naturalWidth > 0 && node.naturalHeight > 0,
+      )).toBe(true);
+      await expect(card.locator(".pubsCardGlyphHero, .pubsCardShelf")).toHaveCount(0);
+      await expect(card.locator(".venueImage__provenance")).toHaveText("Photo: pub website");
+      await expect(card.locator(".pubsCardArtLabel")).not.toBeEmpty();
+
+      const selectors = {
+        art: ".pubsCardArt",
+        photo: ".pubsCardPhoto",
+        image: ".pubsCardPhoto img",
+        credit: ".venueImage__provenance",
+        label: ".pubsCardArtLabel",
+        body: ".pubsCardBody",
+        meta: ".pubsCardMeta",
+      };
+      for (const selector of Object.values(selectors)) {
+        await expect(card.locator(selector)).toBeVisible();
+      }
+      const boxes = await card.evaluate((node, selectors) => Object.fromEntries(
+        Object.entries(selectors).map(([name, selector]) => {
+          const element = node.querySelector(selector);
+          if (!element) throw new Error(`Missing photo card element: ${selector}`);
+          return [name, element.getBoundingClientRect().toJSON()];
+        }),
+      ) as Record<keyof typeof selectors, DOMRect>, selectors);
+
+      expect(boxes.art.height).toBe(viewport.width === MOBILE.width ? 140 : 168);
+      expect(boxes.art.bottom).toBeLessThanOrEqual(boxes.body.top + 1);
+      for (const name of ["photo", "image", "credit", "label"] as const) {
+        expect(boxes[name].left, `${name} left edge`).toBeGreaterThanOrEqual(boxes.art.left - 1);
+        expect(boxes[name].right, `${name} right edge`).toBeLessThanOrEqual(boxes.art.right + 1);
+        expect(boxes[name].top, `${name} top edge`).toBeGreaterThanOrEqual(boxes.art.top - 1);
+        expect(boxes[name].bottom, `${name} bottom edge`).toBeLessThanOrEqual(boxes.art.bottom + 1);
+      }
+      expect(boxes.label.bottom).toBeLessThanOrEqual(boxes.credit.top);
+      expect(boxes.meta.top).toBeGreaterThanOrEqual(boxes.body.top);
+      expect(boxes.meta.bottom).toBeLessThanOrEqual(boxes.body.bottom);
+      expect(boxes.meta.left).toBeGreaterThanOrEqual(boxes.body.left);
+      expect(boxes.meta.right).toBeLessThanOrEqual(boxes.body.right);
+      for (const meta of await card.locator(".pubsCardMeta > span").all()) {
+        await expect(meta).toBeVisible();
+        await expect(meta).not.toBeEmpty();
+      }
+      await testInfo.attach(`photo-card-${viewport.width}`, {
+        body: await card.screenshot(), contentType: "image/png",
+      });
+    });
+  }
+
   test("filters, cards, and card actions stay thumb-safe and navigable", async ({ page }) => {
     const errors = watchPageErrors(page);
     const response = await page.goto("/pubs");
