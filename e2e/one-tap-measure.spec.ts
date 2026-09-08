@@ -130,12 +130,16 @@ async function captureUnpricedPin(page: Page, testInfo: TestInfo, name: string) 
   }, UNPRICED)).toBe(true);
   const beforeScreenshot = await readPinCaptureFrame(page);
   const { state } = beforeScreenshot;
-  expect(state.point).toBeDefined();
+  expect(state.point, "the intended venue must have a current painted pin").toMatchObject({
+    kind: "pin", id: UNPRICED,
+  });
   expect(state.camera.moving).toBe(false);
   const clip = { x: Math.floor(state.point.x) - 12, y: Math.floor(state.point.y) - 12, width: 24, height: 24 };
   const screenshot = await page.screenshot({ clip, scale: "device" });
   const afterScreenshot = await readPinCaptureFrame(page)
     .catch((error) => ({ observationError: String(error) }));
+  const captureStable = "state" in afterScreenshot
+    && JSON.stringify(afterScreenshot.state) === JSON.stringify(state);
   await testInfo.attach(`${name}.png`, { body: screenshot, contentType: "image/png" });
   const { data, info } = await sharp(screenshot).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const rgb = UNPRICED_PIN_FILL.slice(1).match(/../g)!.map((channel) => parseInt(channel, 16));
@@ -149,7 +153,7 @@ async function captureUnpricedPin(page: Page, testInfo: TestInfo, name: string) 
   await testInfo.attach(`${name}.json`, {
     body: Buffer.from(JSON.stringify(witness, null, 2)), contentType: "application/json",
   });
-  if (fillPixels.length === 0) {
+  if (fillPixels.length === 0 || !captureStable) {
     const diagnostic: Record<string, unknown> = { beforeScreenshot, afterScreenshot };
     try {
       await testInfo.attach(`${name}-viewport.png`, {
@@ -187,6 +191,13 @@ async function captureUnpricedPin(page: Page, testInfo: TestInfo, name: string) 
       body: Buffer.from(JSON.stringify(diagnostic, null, 2)), contentType: "application/json",
     });
   }
+  expect("state" in afterScreenshot, "the pin state must remain readable after the screenshot").toBe(true);
+  if ("state" in afterScreenshot) {
+    expect(afterScreenshot.state.point, "the intended pin must remain painted after the screenshot").toMatchObject({
+      kind: "pin", id: UNPRICED,
+    });
+    expect(afterScreenshot.state, "the pin and camera must not change across the screenshot").toEqual(state);
+  }
   expect(fillPixels.length, "the actual pin must contain unpriced fill pixels").toBeGreaterThan(0);
   return witness;
 }
@@ -215,6 +226,10 @@ test("a half logged through the one-tap door travels as a half and moves no pin 
 
   await page.goto(`/map?sel=${UNPRICED}`);
   const sheet = await openVenueSheet(page);
+  await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 30_000 });
+  await expect.poll(() => page.evaluate(() =>
+    performance.getEntriesByName("pubmax:pin-entrance-settled").length,
+  ), { timeout: 30_000 }).toBeGreaterThan(0);
   await sheet.getByRole("button", { name: "Close pub detail" }).click();
   await expect(sheet).toBeHidden();
   const before = await captureUnpricedPin(page, testInfo, "half-pin-before");
