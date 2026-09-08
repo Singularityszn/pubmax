@@ -42,8 +42,8 @@ async function pointOwner(
   );
 }
 
-// A real venue answer precedes this first onboarding visit. The root then
-// issues its own handoff; no test writes first-run eligibility or consent answers.
+// These informational routes earn consent without choosing a city.
+// The real root handoff then clears the second-route answer by policy.
 async function prepareFirstRunOnboarding(
   page: import("@playwright/test").Page,
   viewport: { width: number; height: number },
@@ -51,21 +51,23 @@ async function prepareFirstRunOnboarding(
   await page.setViewportSize(viewport);
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
   await installNativeShell(page);
-  await page.addInitScript(() => {
-    window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
-  });
-  await page.goto("/map?sel=venue-1r4e6my");
-  const closeVenue = page.getByRole("button", { name: "Close pub detail", exact: true });
-  await expect(closeVenue).toBeVisible();
+  await page.goto("/about");
+  await expect.poll(() => page.evaluate(
+    () => sessionStorage.getItem("pubmax:consent-first-route:v1"),
+  )).toBe("/about");
+  await page.goto("/privacy");
   await expect.poll(() => page.evaluate(
     () => sessionStorage.getItem("pubmax:consent-answer-moment:v1"),
-  )).toBe("venue-sheet");
-  await closeVenue.click();
-  await expect(page.locator(".mobileSheetPortal")).toHaveCount(0);
+  )).toBe("second-route");
   await expect(page.getByLabel("Anonymous analytics choice")).toBeVisible({ timeout: 30_000 });
   expect(await page.evaluate(() => localStorage.getItem("pubmax:preferredCity:v1"))).toBeNull();
+  expect(await page.evaluate(() => sessionStorage.getItem("pubmax:nativeFirstRun:handoff:v1"))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem("pubmax:nativeFirstRun:routed:v1"))).toBeNull();
   await page.goto("/");
   await expect(page).toHaveURL(/\/onboarding$/);
+  await expect.poll(() => page.evaluate(
+    () => sessionStorage.getItem("pubmax:consent-answer-moment:v1"),
+  )).toBeNull();
 }
 
 type Box = { x: number; y: number; width: number; height: number };
@@ -377,7 +379,7 @@ const ONBOARDING_VIEWPORTS = [
 ] as const;
 
 for (const viewport of ONBOARDING_VIEWPORTS) {
-  test(`consent never covers first-run onboarding after a venue answer @${viewport.width}x${viewport.height}`, async ({ page }) => {
+  test(`second-route consent is withheld during first-run onboarding @${viewport.width}x${viewport.height}`, async ({ page }) => {
     test.setTimeout(60_000);
     await prepareFirstRunOnboarding(page, viewport);
     await expect.poll(() => page.locator(".firstRunLondonPhoto img").evaluate(
@@ -387,67 +389,38 @@ for (const viewport of ONBOARDING_VIEWPORTS) {
     expect(await page.locator(".firstRunOnboarding").evaluate((surface) => surface.scrollTop)).toBe(0);
 
     const prompt = page.getByLabel("Anonymous analytics choice");
-    await expect(prompt).toBeVisible({ timeout: 30_000 });
+    await expect(prompt).toHaveCount(0);
 
     const rows = page.locator(".firstRunAreaList article");
     await expect(rows.first()).toBeVisible();
     const primary = page.getByRole("button", { name: "Use London" });
     await expect(primary).toBeVisible();
 
-    const promptBox = await prompt.boundingBox();
-    expect(promptBox).not.toBeNull();
-
-    // The card may share no area with a reviewed row or with the ONE primary
-    // action. Geometry rather than a tap probe, because a row is a passive
-    // block: a probe that only asked who owns a point would pass over a row
-    // half-hidden behind the card.
-    const rowBoxes = await rows.evaluateAll((nodes) =>
-      nodes.map((node) => {
-        const rect = node.getBoundingClientRect();
-        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-      }),
-    );
-    expect(rowBoxes.length).toBeGreaterThan(0);
-    for (const rowBox of rowBoxes) {
-      expect(boxesOverlap(promptBox!, rowBox)).toBe(false);
-    }
-    const primaryBox = await primary.boundingBox();
-    expect(primaryBox).not.toBeNull();
-    expect(boxesOverlap(promptBox!, primaryBox!)).toBe(false);
-
-    // Not-covered is not the whole promise. The surface holds its own scroller
-    // while the card is up, so an action laid out past its end is off screen
-    // with nothing saying so: on a 390pt phone the button sat at 768px inside
-    // a 704px surface and no reviewer would ever have found it.
+    // Check initial action geometry before any locator can scroll the surface.
     await expect(primary).toBeInViewport({ ratio: 1 });
-    // On a short phone the action row is sticky to the surface's foot and the
-    // rows scroll up behind it (app/onboarding/onboarding.css, the short
-    // phone), so a row is owed reachability by scroll and a box clear of the
-    // card, never a place under the action at rest.
+    const firstPrimaryBox = await primary.boundingBox();
+    expect(firstPrimaryBox).not.toBeNull();
+    expect(firstPrimaryBox!.width).toBeGreaterThanOrEqual(44);
+    expect(firstPrimaryBox!.height).toBeGreaterThanOrEqual(44);
+    expect(await pointOwner(page, firstPrimaryBox!, ".firstRunPrimary")).toBe("control");
+    // Each row remains reachable and clear of the sticky action.
     for (const row of await rows.all()) {
       await row.scrollIntoViewIfNeeded();
       await expect(row).toBeInViewport({ ratio: 1 });
       const rowBox = await row.boundingBox();
       expect(rowBox).not.toBeNull();
-      expect(boxesOverlap(promptBox!, rowBox!)).toBe(false);
       expect(boxesOverlap((await primary.boundingBox())!, rowBox!)).toBe(false);
     }
     await expect(primary).toBeInViewport({ ratio: 1 });
 
     // The tap at the button's own centre reaches the button.
     expect(await pointOwner(page, (await primary.boundingBox())!, ".firstRunPrimary")).toBe("control");
-    // ...and the probe is one this card can lose: its own centre is its own.
-    expect(await pointOwner(page, promptBox!, ".firstRunPrimary")).toBe("prompt");
-
-    // Return to the initial position before dismissal. Never scroll the CTA
-    // into view to make this assertion pass after the consent lane disappears.
     await page.locator(".firstRunOnboarding").evaluate((surface) => surface.scrollTo(0, 0));
-    await prompt.getByRole("button", { name: "No thanks" }).click();
-    await expect(prompt).toBeHidden();
+    await expect(prompt).toHaveCount(0);
     await expect(primary).toBeInViewport({ ratio: 1 });
-    const dismissedPrimaryBox = await primary.boundingBox();
-    expect(dismissedPrimaryBox).not.toBeNull();
-    expect(await pointOwner(page, dismissedPrimaryBox!, ".firstRunPrimary")).toBe("control");
+    const initialPrimaryBox = await primary.boundingBox();
+    expect(initialPrimaryBox).not.toBeNull();
+    expect(await pointOwner(page, initialPrimaryBox!, ".firstRunPrimary")).toBe("control");
     await primary.focus();
     await expect(primary).toBeFocused();
     await expect(primary).toBeInViewport({ ratio: 1 });
@@ -516,3 +489,30 @@ for (const viewport of CONSENT_ONCE_VIEWPORTS) {
       .toBe("denied");
   });
 }
+
+
+test("a real venue answer keeps its city on the returning root visit", async ({ page }) => {
+  await page.setViewportSize(VIEWPORT);
+  await installNativeShell(page);
+  await page.goto("/map?sel=venue-1r4e6my");
+  const closeVenue = page.getByRole("button", { name: "Close pub detail", exact: true });
+  await expect(closeVenue).toBeVisible();
+  await expect.poll(() => page.evaluate(
+    () => sessionStorage.getItem("pubmax:consent-answer-moment:v1"),
+  )).toBe("venue-sheet");
+  await expect.poll(() => page.evaluate(
+    () => localStorage.getItem("pubmax:preferredCity:v1"),
+  )).toBe("london");
+  await expect.poll(() => page.evaluate(
+    () => sessionStorage.getItem("pubmax:entryDecision:consumed:v1"),
+  )).toBe("1");
+  await closeVenue.click();
+  await expect(page.locator(".mobileSheetPortal")).toHaveCount(0);
+  await expect(page.getByLabel("Anonymous analytics choice")).toBeVisible({ timeout: 30_000 });
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator("html")).toHaveAttribute("data-native-shell", "ios");
+  await expect(page.getByRole("heading", { name: "London is ready." })).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem("pubmax:preferredCity:v1"))).toBe("london");
+  expect(await page.evaluate(() => sessionStorage.getItem("pubmax:consent-answer-moment:v1"))).toBe("venue-sheet");
+});
