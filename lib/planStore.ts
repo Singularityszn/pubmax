@@ -9,6 +9,7 @@ import type { NightContext } from "@/lib/nightPlanning";
 import { selectStore } from "@/lib/storeBackend";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { isPlanStopCount } from "@/lib/planStopCount";
+import { currentAnalyticsAttribution } from "@/lib/analyticsAttribution.mjs";
 
 const PLANS = "plans";
 const STOPS = "plan_stops";
@@ -508,7 +509,8 @@ export const supabasePlanStore: PlanStore = {
     if (!identityResult.ok) return { ok: false, error: "error" };
     if (identityResult.identity?.role !== "host") return { ok: false, error: "forbidden" };
     try {
-      const { data, error } = await requireSupabaseAdmin().rpc("complete_plan_atomic", {
+      const attribution = currentAnalyticsAttribution();
+      const { data, error } = await requireSupabaseAdmin().rpc("complete_plan_with_group_outcome_atomic", {
         p_plan_id: id,
         p_token_hash: hashPlanMemberToken(rawToken),
         p_expected_route_revision: input.expectedRouteRevision,
@@ -518,6 +520,8 @@ export const supabasePlanStore: PlanStore = {
         p_terminal_venue_id: input.terminalVenueId ?? null,
         p_ending_selection: input.endingSelection,
         p_completed_at: new Date().toISOString(),
+        p_environment: attribution.environment,
+        p_release: attribution.release,
       });
       if (error) throw new Error(error.message);
       if (data !== "completed" && data !== "already_completed") return { ok: false, error: data === "forbidden" ? "forbidden" : data === "conflict" ? "conflict" : data === "not_found" ? "not_found" : data === "arrival_required" ? "arrival_required" : "invalid" };

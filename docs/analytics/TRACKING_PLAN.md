@@ -305,7 +305,7 @@ vocabularies. The column here is the question the event exists to answer.
 | `story_published` | The night became a public story. |
 | `meaningful_core_action` | The roll-up denominator for Weekly Meaningful Pubmaxxers. |
 | `crew_committed` | A plan reached two committed humans. |
-| `next_night_committed` | A finished night turned into the next one. The crew night loop's north star. |
+| `next_night_committed` | A finished night turned into the next one. This event does not prove the M1 two-account repeat outcome. |
 | `venue_accepted` | A pub was accepted into a plan, and what context came with it. |
 | `planning_handoff_opened` | A surface handed the planner a pub. |
 | `planning_handoff_preserved` | What survived that handoff. |
