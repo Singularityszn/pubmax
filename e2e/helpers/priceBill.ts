@@ -59,7 +59,7 @@ export async function installPriceUploadCapture(page: Page, endpoint: string) {
           if (typeof value === "string") fields[key] = value;
         });
         const receipt = init.body.get("receipt_photo");
-        await (window as Window & {
+        await (window as typeof window & {
           __capturePriceUpload: (upload: PriceUpload) => Promise<void>;
         }).__capturePriceUpload({
           fields,
