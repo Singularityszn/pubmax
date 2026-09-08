@@ -39,11 +39,13 @@ export async function attachSpillBill(scope: Page | Locator): Promise<void> {
 
 
 type PriceUpload = {
+  contentType: string | null;
+  serializedBody: number[];
   fields: Record<string, string>;
   receipt: { name: string; type: string; bytes: number[] } | null;
 };
 
-/** Capture the Files passed to fetch. Chromium omits their bytes from request events. */
+/** Capture the native Request sent by fetch. Chromium can omit multipart bytes from request events. */
 export async function installPriceUploadCapture(page: Page, endpoint: string) {
   const uploads: PriceUpload[] = [];
   const originalBill = await readFile(BILL_FIXTURE);
@@ -54,6 +56,8 @@ export async function installPriceUploadCapture(page: Page, endpoint: string) {
     const originalFetch = window.fetch;
     window.fetch = async (input, init) => {
       if (String(input) === path && init?.method === "POST" && init.body instanceof FormData) {
+        const submission = new window.Request(input, init);
+        const serializedBody = Array.from(new Uint8Array(await submission.clone().arrayBuffer()));
         const fields: Record<string, string> = {};
         init.body.forEach((value, key) => {
           if (typeof value === "string") fields[key] = value;
@@ -62,6 +66,8 @@ export async function installPriceUploadCapture(page: Page, endpoint: string) {
         await (window as typeof window & {
           __capturePriceUpload: (upload: PriceUpload) => Promise<void>;
         }).__capturePriceUpload({
+          contentType: submission.headers.get("content-type"),
+          serializedBody,
           fields,
           receipt: receipt instanceof File ? {
             name: receipt.name,
@@ -69,6 +75,7 @@ export async function installPriceUploadCapture(page: Page, endpoint: string) {
             bytes: Array.from(new Uint8Array(await receipt.arrayBuffer())),
           } : null,
         });
+        return originalFetch(submission);
       }
       return originalFetch(input, init);
     };
@@ -78,12 +85,14 @@ export async function installPriceUploadCapture(page: Page, endpoint: string) {
     expect(new URL(request.url()).pathname).toBe(endpoint);
     const contentType = request.headers()["content-type"];
     expect(contentType).toContain("multipart/form-data");
-    const form = await new Response(Uint8Array.from(request.postDataBuffer() ?? []), {
+    const index = uploads.findIndex(upload => upload.contentType === contentType);
+    expect(index, "the observed multipart boundary must identify the captured native Request").toBeGreaterThanOrEqual(0);
+    const [upload] = uploads.splice(index, 1);
+    expect(upload, "the actual fetch must carry this multipart submission").toBeDefined();
+    const form = await new Response(Uint8Array.from(upload!.serializedBody), {
       headers: { "content-type": contentType },
     }).formData();
     const fields = Object.fromEntries([...form].filter((entry) => typeof entry[1] === "string"));
-    const upload = uploads.shift();
-    expect(upload, "the actual fetch must carry this multipart submission").toBeDefined();
     expect(upload!.fields).toEqual(fields);
     expect(upload!.receipt).toMatchObject({ name: "bill.jpg", type: "image/jpeg" });
     expect(Buffer.from(upload!.receipt!.bytes)).toEqual(originalBill);
