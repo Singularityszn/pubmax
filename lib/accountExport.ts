@@ -25,6 +25,7 @@
 // private card, the visit reports, the wall photos, the saved pubs, the Wanted
 // list, the linked socials and the Night Profile out of it.
 
+import type { SocialPost } from "@/lib/socialPosts";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { CheckIn } from "@/lib/checkIn";
 import type { NightMemory, NightMoment } from "@/lib/nightMemory";
@@ -152,6 +153,23 @@ export type AccountExportLane<T> = {
   items: T[];
 };
 
+export type AccountExportSocialPost = Omit<SocialPost, "authorProfileId" | "authorHandle" | "photo" | "photos"> & {
+  photos: Array<{ mediaId: string; altText: string; contentType: string }>;
+};
+
+export type AccountExportSocialMedia = {
+  mediaId: string;
+  objectKey: string;
+  contentType: string;
+  width: number;
+  height: number;
+  byteSize: number;
+  state: string;
+  createdAt: string;
+  uploadedAt: string | null;
+  retentionExpiresAt: string | null;
+};
+
 export type AccountExport = {
   version: typeof ACCOUNT_EXPORT_VERSION;
   /** ISO 8601, server clock. */
@@ -175,6 +193,8 @@ export type AccountExport = {
   savedPubs: AccountExportLane<SavedPubDTO>;
   wanted: AccountExportLane<WantedDTO>;
   socialLinks: AccountExportLane<PublicSocialConnection>;
+  socialPosts: AccountExportLane<AccountExportSocialPost>;
+  socialMedia: AccountExportLane<AccountExportSocialMedia>;
   /** At most one row, the same way `identity` is. */
   nightProfile: AccountExportLane<NightProfile>;
   messages: AccountExportLane<AccountExportConversation>;
@@ -194,6 +214,8 @@ export const ACCOUNT_EXPORT_LANES = [
   "savedPubs",
   "wanted",
   "socialLinks",
+  "socialPosts",
+  "socialMedia",
   "nightProfile",
   "messages",
 ] as const;
