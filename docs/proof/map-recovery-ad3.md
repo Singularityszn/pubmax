@@ -57,3 +57,22 @@ ESLint reported no errors and the existing complexity warning.
 Logs are `deferred-tile-green.log` and `deferred-tile-lint.log` in the proof directory named above.
 This reproduces a concrete source sequence; the retained browser failure has no event trace confirming that sequence.
 Root must rerun the permanent-outage case against this follow-up. No browser or build ran here.
+
+## Basemap deadline after early phone pins
+
+The ad3 `map-gl.spec.ts:345` failure received `pins`, while the fixture expected `timeout`.
+Its held tile requests also left no basemap notice in the saved snapshot.
+An early reveal clears the coordinator's ceiling. Held requests emit no error for the tile classifier.
+
+The caller regression runs the component's actual coordinator options and its real render listeners.
+It reveals phone pins once at 500ms, holds the basemap, then advances to the existing 12-second ceiling.
+The red run had one failure and eight passes: the expected notice was absent.
+The component now retains a separate phone basemap deadline within its existing tile generation.
+This timer uses the existing notice, yields to error and pin notices, and does not repeat the reveal.
+Successful tiles, a replacement style, and teardown cancel it.
+
+The focused run passed 89 tests across four files with one worker.
+Cases cover late-success retirement, error ownership, style replacement, teardown, and the original reveal timeout without duplicate notices.
+ESLint reported no errors and the existing complexity warning.
+Logs are `phone-deadline-red.log`, `phone-deadline-green.log`, and `phone-deadline-lint.log` in the same proof directory.
+No browser or native result is claimed for this deadline change.
