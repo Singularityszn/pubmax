@@ -64,6 +64,9 @@ export async function POST(request: Request, context: Context): Promise<Response
   if (!isPlanId(id)) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
   let body: Record<string, unknown>;
   try { body = await request.json() as Record<string, unknown>; } catch { return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400); }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  }
   const ending = typeof body.ending === "string" && ENDINGS.includes(body.ending as CrawlEnding) ? body.ending as CrawlEnding : null;
   const memberToken = planMemberCapability(request, body.memberToken);
   const terminalVenueId = cleanText(body.terminalVenueId, 80);
