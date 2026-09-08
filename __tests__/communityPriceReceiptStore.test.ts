@@ -1,17 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const rpc = vi.hoisted(() => vi.fn());
+const remove = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/pintDropsStore", () => ({ deletePhotos: remove }));
 vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: () => true,
   requireSupabaseAdmin: () => ({ rpc }),
 }));
 
-import { supabaseCommunityPriceStore } from "@/lib/communityPriceStore";
+import { supabaseCommunityPriceStore, submitCommunityPrice } from "@/lib/communityPriceStore";
 
 const input = { venueId: "pub", drinkCategory: "coffee" as const, priceGbp: 3, actor: "actor" };
 const saved = { id: "observation", price_pennies: 300, submitted_at: "2026-09-07T18:00:00Z" };
 
-beforeEach(() => rpc.mockReset());
+beforeEach(() => { rpc.mockReset(); remove.mockReset(); remove.mockResolvedValue(undefined); });
 
 describe("durable community receipt contract", () => {
   it("refuses an unattributed receipt instead of dropping its key on insert", async () => {
@@ -51,4 +53,43 @@ describe("durable community receipt contract", () => {
     expect(result.failed).toBe(true);
     expect(result.receiptWrite).toBeUndefined();
   });
+});
+
+
+describe("community receipt replacement cleanup", () => {
+  it.each([undefined, "pub/new/receipt.jpg"])("cleans the replaced receipt for a caller using key %s", async (receiptPhotoKey) => {
+    rpc.mockResolvedValue({ data: [{ ...saved, write_applied: true,
+      receipt_photo_key: receiptPhotoKey ?? null, replaced_receipt_photo_key: "pub/old/receipt.jpg" }], error: null });
+    await submitCommunityPrice({ ...input, ...(receiptPhotoKey ? { receiptPhotoKey } : {}) });
+    expect(remove).toHaveBeenCalledExactlyOnceWith(["pub/old/receipt.jpg"]);
+    expect(Object.keys(rpc.mock.calls[0][1])).toHaveLength(receiptPhotoKey ? 9 : 8);
+  });
+
+  it.each([
+    { ...saved },
+    { ...saved, write_applied: true, replaced_receipt_photo_key: "pub/old/receipt.jpg" },
+    { ...saved, write_applied: false, receipt_photo_key: "pub/kept/receipt.jpg", replaced_receipt_photo_key: null },
+    { ...saved, write_applied: true, receipt_photo_key: "pub/kept/receipt.jpg", replaced_receipt_photo_key: "pub/kept/receipt.jpg" },
+  ])("retains photos when no distinct replaced key is proved", async (row) => {
+    rpc.mockResolvedValue({ data: [row], error: null });
+    await submitCommunityPrice(input);
+    expect(remove).not.toHaveBeenCalled();
+  });
+});
+
+
+it("retains receipt objects when the accepted key contradicts the submitted key", async () => {
+  rpc.mockResolvedValue({ data: [{ ...saved, write_applied: true,
+    receipt_photo_key: null, replaced_receipt_photo_key: "pub/old/receipt.jpg" }], error: null });
+  await submitCommunityPrice({ ...input, receiptPhotoKey: "pub/new/receipt.jpg" });
+  expect(remove).not.toHaveBeenCalled();
+});
+
+it("cleans the receipt displaced by an eight-argument Round promotion", async () => {
+  rpc.mockResolvedValue({ data: [{ ...saved, write_applied: true, source_became_owner: true,
+    receipt_photo_key: null, replaced_receipt_photo_key: "pub/old/receipt.jpg" }], error: null });
+  const result = await submitCommunityPrice({ ...input, roundSource: { spendId: "round-spend", lineIndex: 0 } });
+  expect(result.sourceBecameOwner).toBe(true);
+  expect(Object.keys(rpc.mock.calls[0][1])).toHaveLength(8);
+  expect(remove).toHaveBeenCalledExactlyOnceWith(["pub/old/receipt.jpg"]);
 });

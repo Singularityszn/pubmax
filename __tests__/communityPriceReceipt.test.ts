@@ -2,9 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const media = vi.hoisted(() => ({ upload: vi.fn(), remove: vi.fn() }));
 const writes = vi.hoisted(() => ({ submit: vi.fn() }));
-vi.mock("@/lib/pintDropsStore", () => ({ uploadPhoto: media.upload, deletePhotos: media.remove }));
+vi.mock("@/lib/pintDropsStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/pintDropsStore")>();
+  return { ...actual, uploadPhoto: media.upload, deletePhotos: media.remove };
+});
 vi.mock("@/lib/communityPriceStore", () => ({ submitCommunityPrice: writes.submit }));
 
+import { PhotoRefusalError } from "@/lib/pintDropsStore";
 import { submitCommunityPriceWithReceipt } from "@/lib/communityPriceReceipt.server";
 
 const input = { venueId: "pub", drinkCategory: "coffee" as const, priceGbp: 3, actor: "owner" };
@@ -23,7 +27,7 @@ describe("community price receipt attachment", () => {
     expect(media.upload).not.toHaveBeenCalled();
     expect(writes.submit).not.toHaveBeenCalled();
   });
-  it("sends price and key together, then cleans the replaced receipt", async () => {
+  it("sends price and key together through the shared replacement writer", async () => {
     writes.submit.mockResolvedValue({
       price: { priceGbp: 3 },
       receiptWrite: { applied: true, key: candidateKey, replacedKey: "pub/old/receipt.jpg" },
@@ -32,7 +36,7 @@ describe("community price receipt attachment", () => {
     expect(media.upload).toHaveBeenCalledWith("receipt", "pub", expect.any(String), file);
     expect(writes.submit).toHaveBeenCalledWith({ ...input, receiptPhotoKey: candidateKey }, 1234);
     expect(result.receiptStatus).toBe("stored");
-    expect(media.remove).toHaveBeenCalledExactlyOnceWith(["pub/old/receipt.jpg"]);
+    expect(media.remove).not.toHaveBeenCalled();
   });
 
   it("cleans only the unused candidate when a newer observation wins", async () => {
@@ -64,7 +68,7 @@ describe("community price receipt attachment", () => {
   });
 
   it("does not write a price when image preparation refuses its bytes", async () => {
-    media.upload.mockRejectedValue(new Error("invalid image"));
+    media.upload.mockRejectedValue(new PhotoRefusalError("invalid image"));
     await expect(submitCommunityPriceWithReceipt(input, file)).rejects.toThrow("invalid image");
     expect(writes.submit).not.toHaveBeenCalled();
     expect(media.remove).not.toHaveBeenCalled();
