@@ -38,6 +38,7 @@
 
 # Design evidence and handoff documents are kept in GitHub, not deployed.
 /docs/
+/.lavish/
 
 # The native shells are built by Xcode and Gradle, never by the web build, and
 # they are the two largest directories in the tree after node_modules.

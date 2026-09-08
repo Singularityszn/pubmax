@@ -124,7 +124,7 @@ describe("finding 2.3 — the category toggles have exactly one home per viewpor
     expect(filter).toMatch(/aria-controls=\{panelId\}/);
     // Escape closes it and hands focus back to the control that opened it.
     expect(filter).toMatch(
-      /event\.key !== "Escape"[\s\S]*?setOpen\(false\)[\s\S]*?buttonRef\.current\?\.focus\(\)/,
+      /useDismissOnEscape\(open,\s*\(\) => \{\s*setOpen\(false\);\s*buttonRef\.current\?\.focus\(\)/,
     );
     // A closed panel may not hide which kinds the map is leaving out. The word
     // is what the 641 to 900px toolbar budget drops; the count is what stays,
