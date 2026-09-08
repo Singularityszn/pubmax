@@ -61,7 +61,7 @@ test("mobile top-bar search filters the map and clears only the query", async ({
     })
     .toEqual({ food: "1", query: null });
 
-  await search.fill("Arnos Arms");
-  await expect(page).toHaveURL(/q=Arnos\+Arms/);
+  await search.fill("Brewmaster");
+  await expect(page).toHaveURL(/q=Brewmaster/);
   await expect(page.locator(".mapCanvasWrap")).not.toHaveAttribute("data-venue-count", "0");
 });
