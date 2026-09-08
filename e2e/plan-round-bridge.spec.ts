@@ -115,17 +115,29 @@ test("an active Plan starts a Round with its ordered stops", async ({ page, plan
 
       const starterRect = starter.getBoundingClientRect();
       const railRects = Array.from(stops, (stop) => {
-        const rect = stop.getBoundingClientRect();
         const style = getComputedStyle(stop, "::before");
-        const left = Number.parseFloat(style.left);
-        const top = Number.parseFloat(style.top);
-        const width = Number.parseFloat(style.width);
-        const height = Number.parseFloat(style.height);
-        if (style.content === "none" || ![left, top, width, height].every(Number.isFinite)
-          || width <= 0 || height <= 0) {
-          throw new Error("Plan route rail has no painted geometry");
+        if (style.content !== '""' || style.position !== "absolute" || style.display === "none") {
+          throw new Error("Plan route rail must be an empty absolute box");
         }
-        return new DOMRect(rect.left + left, rect.top + top, width, height);
+        // Resolve percentages and auto sizing in the rail's own containing block.
+        // Copy computed styles because CSSOM need not return pixel insets.
+        const probe = document.createElement("span");
+        for (const property of style) {
+          probe.style.setProperty(property, style.getPropertyValue(property), "important");
+        }
+        probe.style.setProperty("visibility", "hidden", "important");
+        probe.setAttribute("aria-hidden", "true");
+        stop.append(probe);
+        try {
+          const rect = probe.getBoundingClientRect();
+          if (![rect.left, rect.top, rect.width, rect.height].every(Number.isFinite)
+            || rect.width <= 0 || rect.height <= 0) {
+            throw new Error("Plan route rail has no painted geometry");
+          }
+          return rect;
+        } finally {
+          probe.remove();
+        }
       });
       const actionRect = action.getBoundingClientRect();
       const overlaps = (first: DOMRect, second: DOMRect) =>
