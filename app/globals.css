@@ -2567,6 +2567,20 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   transform: translateX(-50%);
   backdrop-filter: blur(8px);
 }
+
+@media (min-width: 1024px) {
+  .appShell.detail-open .mapSoftRetry {
+    left: calc((100% - var(--desktop-venue-drawer-width)) / 2);
+    max-width: min(360px, calc(100% - var(--desktop-venue-drawer-width) - 32px));
+  }
+
+  .appShell.planning-open .mapSoftRetry,
+  .appShell.story-open .mapSoftRetry {
+    left: calc((100% + var(--desktop-planner-rail-width)) / 2);
+    max-width: min(360px, calc(100% - var(--desktop-planner-rail-width) - 32px));
+  }
+}
+
 [data-theme="light"] .mapSoftRetry {
   background: color-mix(in srgb, var(--paper, #faf8f5) 94%, transparent);
   color: var(--ink, #1a1814);
