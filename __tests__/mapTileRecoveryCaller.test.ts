@@ -36,6 +36,7 @@ function installedTilesLoaded(states: Map<string, string>): () => boolean {
 
 function recoveryCaller(phoneFirstImpression = false) {
   const states = new Map<string, string>();
+  let moving = false;
   const listeners = new Map<string, Set<(event?: unknown) => void>>();
   const emit = (name: string, event?: unknown) => {
     for (const handler of [...(listeners.get(name) ?? [])]) handler(event);
@@ -48,7 +49,9 @@ function recoveryCaller(phoneFirstImpression = false) {
     getSource: () => ({ setTiles }),
     areTilesLoaded: installedTilesLoaded(states),
     isSourceLoaded: () => true,
-    isMoving: () => false,
+    isMoving: () => moving,
+    getBearing: () => -8,
+    getPitch: () => 38,
     getLayer: () => true,
     setLayoutProperty: vi.fn(),
     triggerRepaint: vi.fn(),
@@ -97,6 +100,10 @@ function recoveryCaller(phoneFirstImpression = false) {
     markPubmaxTiming: vi.fn(),
     startPinEntrance: vi.fn(),
     setSoftRetry,
+    setMapBearing: vi.fn(),
+    setMapPitch: vi.fn(),
+    publishCurrentViewport: vi.fn(),
+    gestureCameraRef: { current: { active: false, endedAt: null } },
     window: { setTimeout, clearTimeout, dispatchEvent },
     CustomEvent: class { constructor(public type: string, public options: unknown) {} },
     MAP_PIN_REVEAL_EVENT: "pubmax:pin-reveal",
@@ -107,6 +114,8 @@ function recoveryCaller(phoneFirstImpression = false) {
     let styleGeneration = 0, protectedStyleInFlight = false, queuedProtectedStyle = null;
     ${callerBlock("const PIN_REVEAL_TIMEOUT_MS =", "// First-painted-frame watchdog.")}
     const styleStructureReadyRef = { current: false };
+    const liveGestures = new Set();
+    ${callerBlock('map.on("moveend", () => {', "// Pure rotation or tilt")}
     ${callerBlock("const areBasemapTilesLoaded =", "const hasPinsPaintable =")}
     ${callerBlock("let pinNoticeActive =", "const retireTilesNotice =")}
     ${callerBlock("armPinNoticeRef.current =", "// The pin Retry spends")}
@@ -145,6 +154,9 @@ function recoveryCaller(phoneFirstImpression = false) {
     },
     recoverVenues: () => { scope.venueDataFailedRef.current = false; },
     styleLoaded: () => emit("style.load"),
+    startMoving: () => { moving = true; },
+    leaveViewport: (...ids: string[]) => { for (const id of ids) states.delete(id); },
+    stopMoving: () => { moving = false; emit("moveend"); },
     fail(id: string) {
       states.set(id, "errored");
       emit("error", tileEvent(id));
@@ -164,6 +176,75 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe("component basemap recovery with MapLibre settled errors", () => {
+  it("rechecks delivered tile failures after motion stops without another error", async () => {
+    const caller = recoveryCaller();
+    caller.load("initial");
+    caller.render();
+    caller.startMoving();
+    for (const id of ["a", "b", "c", "d"]) caller.fail(id);
+    caller.render();
+    await vi.advanceTimersByTimeAsync(tilePolicy.TILE_FAILURE_SUSTAIN_MS);
+    expect(caller.setTiles).not.toHaveBeenCalled();
+    caller.stopMoving();
+    caller.render();
+    await vi.advanceTimersByTimeAsync(
+      tilePolicy.TILE_FAILURE_SUSTAIN_MS + tilePolicy.TILE_SILENT_RETRY_BASE_DELAY_MS,
+    );
+    expect(caller.setTiles).toHaveBeenCalledOnce();
+  });
+
+  it("revisits a sustain check that expires during later camera motion", async () => {
+    const caller = recoveryCaller();
+    caller.load("initial");
+    caller.render();
+    const failViewport = () => {
+      for (const id of ["a", "b", "c", "d"]) caller.fail(id);
+    };
+    failViewport();
+    await vi.advanceTimersByTimeAsync(tilePolicy.silentTileRetryDelayMs(0));
+    failViewport();
+    await vi.advanceTimersByTimeAsync(tilePolicy.silentTileRetryDelayMs(1));
+    failViewport();
+    caller.startMoving();
+    await vi.advanceTimersByTimeAsync(tilePolicy.TILE_FAILURE_SUSTAIN_MS);
+    expect(caller.setProtectedStyle).not.toHaveBeenCalled();
+    caller.stopMoving();
+    caller.render();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(caller.setProtectedStyle).toHaveBeenCalledOnce();
+  });
+
+  it("does not retry failures left behind when the final viewport loads", async () => {
+    const caller = recoveryCaller();
+    caller.load("initial");
+    caller.render();
+    caller.startMoving();
+    for (const id of ["a", "b", "c", "d"]) caller.fail(id);
+    caller.leaveViewport("initial", "a", "b", "c", "d");
+    caller.load("healthy-final-viewport");
+    caller.stopMoving();
+    caller.render();
+    await vi.advanceTimersByTimeAsync(tilePolicy.TILE_FAILURE_WINDOW_MS);
+    expect(caller.setTiles).not.toHaveBeenCalled();
+    expect(caller.setProtectedStyle).not.toHaveBeenCalled();
+    expect(caller.surfaceBasemapFailure).not.toHaveBeenCalled();
+  });
+
+  it.each(["replacement", "disposal"])("discards motion recovery after %s", async (end) => {
+    const caller = recoveryCaller();
+    caller.load("initial");
+    caller.render();
+    caller.startMoving();
+    for (const id of ["a", "b", "c", "d"]) caller.fail(id);
+    if (end === "replacement") caller.styleLoaded();
+    else caller.dispose();
+    caller.stopMoving();
+    await vi.advanceTimersByTimeAsync(tilePolicy.TILE_FAILURE_WINDOW_MS);
+    expect(caller.setTiles).not.toHaveBeenCalled();
+    expect(caller.setProtectedStyle).not.toHaveBeenCalled();
+    expect(caller.surfaceBasemapFailure).not.toHaveBeenCalled();
+  });
+
   it("hands an expired basemap deadline the notice after the pub list recovers", async () => {
     const caller = recoveryCaller(true);
     caller.styleLoaded();

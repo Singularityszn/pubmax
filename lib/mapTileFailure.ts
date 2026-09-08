@@ -349,8 +349,8 @@ export function classifyTileFailure(input: TileFailureInput): TileFailureDecisio
   // A hidden tab aborts ordinary tile fetches as a matter of course.
   if (!documentVisible) return "ignore";
   // Mid-flight misses are the tile stream catching up to the camera, not a
-  // failure. Stamps keep accumulating in the caller, so a genuine outage
-  // escalates on the first post-flight error.
+  // failure. The caller retains stamps and evaluates them when motion ends,
+  // even when no further error arrives.
   if (cameraInFlight) return "ignore";
 
   const recent = pruneTileFailures(errorTimestamps, now, windowMs);
