@@ -1053,10 +1053,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       label: "Analytics choices",
       description: "Review optional usage analytics",
       onSelect: () => {
-        const target = document.getElementById("analytics-settings");
-        if (!target) return;
         window.history.replaceState(null, "", "#analytics-settings");
-        target.scrollIntoView({ block: "start" });
+        document.getElementById("analytics-settings")?.scrollIntoView({ block: "start" });
       },
     },
     {
