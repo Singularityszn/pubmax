@@ -195,6 +195,8 @@ test("native first run hands one useful Plan to the contextual push ask", async 
   // A fresh page preserves local state and starts a new session and document.
   const reboot = await page.context().newPage();
   try {
+    await reboot.setViewportSize(VIEWPORT);
+    await reboot.emulateMedia({ reducedMotion: "reduce" });
     await installNativeShell(reboot);
     await reboot.goto("/");
     await expect(reboot).toHaveURL(/\/tonight$/);
@@ -291,6 +293,7 @@ test("Skip releases onboarding budget for the next Plan but never prompts on reb
   // A fresh page preserves local state and starts a new session and document.
   const reboot = await page.context().newPage();
   try {
+    await reboot.setViewportSize(VIEWPORT);
     await installNativeShell(reboot);
     await reboot.goto("/");
     await expect(reboot).toHaveURL(/\/tonight$/);
