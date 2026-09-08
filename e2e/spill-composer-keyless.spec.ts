@@ -1,13 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
-import { attachSpillBill } from "./helpers/priceBill";
+import { attachSpillBill, installPriceUploadCapture } from "./helpers/priceBill";
 
-// The keyless half of the price-first Spill composer (report D2). The default
-// e2e server is auth-shaped (public Supabase env baked into the build), so a
-// signed-out reader meets the sign-in gate there and the typed-handle submit
-// path never renders. THIS project runs against the keyless build
-// (chromium-keyless, port 3101), where the demo handle lane exists, so the
-// submit round trip is provable end to end: price chip, drink, optional story,
-// one Log it, story lands in the Pints panel.
+// Keyless prices require a verified account. An unpriced note keeps the demo path.
+// Both requests reach the real keyless route and store. No POST response is stubbed.
 
 function watchPageErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -39,10 +34,11 @@ const ARNOS_ARMS_ID = stableVenueIdFromKey(
   ].join("|"),
 );
 
-test("keyless mobile submit posts a Pint Drop and inserts the story into the Pints panel", async ({
+test("keyless composer retains a refused price draft and saves an unpriced note", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
+  const readUpload = await installPriceUploadCapture(page, "/api/pint-drops");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -73,8 +69,37 @@ test("keyless mobile submit posts a Pint Drop and inserts the story into the Pin
   await form.getByLabel("Story").fill(story);
 
   await attachSpillBill(form);
+  const refusedResponse = page.waitForResponse((response) =>
+    response.url().endsWith("/api/pint-drops") && response.request().method() === "POST",
+  );
   await form.getByRole("button", { name: "Log it" }).click();
+  const refused = await refusedResponse;
+  expect(refused.status()).toBe(401);
+  expect(await refused.json()).toMatchObject({
+    error: "Sign in to post a price under your name.", code: "UNAUTHENTICATED",
+  });
+  const submitted = await readUpload(refused.request());
+  expect(submitted).toMatchObject({
+    venueId: ARNOS_ARMS_ID, handle: `@${handle}`, drink: "Codex test pint", measure: "pint", priceGbp: "4.00",
+  });
+  await expect(form.getByRole("alert")).toHaveText("Sign in to post a price under your name.");
+  await expect(form.getByLabel("What did it cost?")).toHaveValue("4.00");
+  await expect(form.getByLabel("Story")).toHaveValue(story);
+  await expect(form.getByRole("img", { name: "Preview of the bill behind your price" })).toBeVisible();
+  await expect(pintsPanel.locator("article.dropCard").filter({ hasText: story })).toHaveCount(0);
 
+  // Removing the price changes the intent. The note still reaches the real store.
+  await form.getByLabel("What did it cost?").fill("");
+  const savedResponse = page.waitForResponse((response) =>
+    response.url().endsWith("/api/pint-drops") && response.request().method() === "POST",
+  );
+  await form.getByRole("button", { name: "Log it" }).click();
+  const saved = await savedResponse;
+  expect(saved.status()).toBe(201);
+  const { drop } = await saved.json();
+  expect(drop).toMatchObject({
+    venueId: ARNOS_ARMS_ID, handle, priceGbp: null, passedDownNote: story,
+  });
   await expect(form).toHaveCount(0);
   await expect(pintsPanel).toContainText(story);
 

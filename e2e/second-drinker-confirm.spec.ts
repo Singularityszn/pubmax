@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { ACCOUNTS, installAuthDoubles } from "./helpers/authDoubles";
-import { attachBill } from "./helpers/priceBill";
+import { ACCOUNTS, accountForBearer, installAuthDoubles } from "./helpers/authDoubles";
+import { attachSpillBill, installPriceUploadCapture } from "./helpers/priceBill";
 
 /**
  * The second drinker's door, at 390 (Fable51Fix section 1, 5 Sept 2026).
@@ -72,6 +72,7 @@ function firstReport(): DropRow {
 
 /** The Pint Drop lane as a double: one logged-once row until a second drinker posts. */
 async function installPintDropLane(page: Page): Promise<{ posts: URLSearchParams[] }> {
+  const readUpload = await installPriceUploadCapture(page, "/api/pint-drops");
   const rows: DropRow[] = [firstReport()];
   const posts: URLSearchParams[] = [];
   await page.route("**/api/pint-drops**", async (route) => {
@@ -87,12 +88,11 @@ async function installPintDropLane(page: Page): Promise<{ posts: URLSearchParams
       });
       return;
     }
-    // The composer sends multipart; only the fields matter here.
-    const raw = request.postData() ?? "";
-    const fields = new URLSearchParams();
-    for (const match of raw.matchAll(/name="([^"]+)"\r\n\r\n([^\r]*)\r\n/g)) {
-      fields.set(match[1], match[2]);
-    }
+    expect(request.method()).toBe("POST");
+    expect(accountForBearer(request.headers().authorization)).toEqual(ACCOUNTS.B);
+    const fields = new URLSearchParams(await readUpload(request));
+    expect(fields.get("handle")).toBe(ACCOUNTS.B.handle);
+    expect(fields.get("measure")).toBe("pint");
     posts.push(fields);
     const priceGbp = Number(fields.get("priceGbp"));
     const drop: DropRow = {
@@ -188,7 +188,7 @@ test("a second drinker confirms £4.50 and the Overview flips from logged-once t
   await expect(priceInput).toBeInViewport();
 
   // The kept action, as the second drinker.
-  await attachBill(page);
+  await attachSpillBill(page.locator("form.dropComposer"));
   await page.getByRole("button", { name: "Log it" }).click();
   await expect
     .poll(() => lane.posts.length, { timeout: 15_000 })

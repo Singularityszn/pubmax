@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { installAuthDoubles } from "./helpers/authDoubles";
-import { attachBill } from "./helpers/priceBill";
+import { ACCOUNTS, accountForBearer, installAuthDoubles } from "./helpers/authDoubles";
+import { attachBill, installPriceUploadCapture } from "./helpers/priceBill";
 
 /**
  * THE ONE-TAP PRICE DOOR ASKS THE MEASURE (review finding F-2, battle test D04).
@@ -42,16 +42,19 @@ async function serveNoDrops(page: Page): Promise<void> {
 
 /** Records what the door sent, and answers as the route answers a half. */
 async function captureSubmission(page: Page, sent: Submitted[]): Promise<void> {
+  const readUpload = await installPriceUploadCapture(page, "/api/price-submit");
   await page.route("**/api/price-submit", async (route) => {
     if (route.request().method() !== "POST") return route.fallback();
-    const body = route.request().postDataJSON() as Submitted;
+    expect(accountForBearer(route.request().headers().authorization)).toEqual(ACCOUNTS.A);
+    const fields = await readUpload(route.request());
+    const body: Submitted = { ...fields, priceGbp: Number(fields.priceGbp) };
     sent.push(body);
     await route.fulfill({
       status: 201,
       contentType: "application/json",
       body: JSON.stringify({
         ok: true,
-        attribution: { status: "credited", handle: "tester" },
+        attribution: { status: "credited", handle: ACCOUNTS.A.handle },
         // A half writes no community price: the lane carries no measure column.
         price: null,
         measure: body.measure,
