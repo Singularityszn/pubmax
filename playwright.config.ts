@@ -425,6 +425,8 @@ export default defineConfig({
                 E2E_POSTHOG_PROJECT_TOKEN,
               NEXT_PUBLIC_SUPABASE_URL: "",
               NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "",
+              SUPABASE_URL: "",
+              SUPABASE_SERVICE_ROLE_KEY: "",
               OPENROUTER_API_KEY: "",
               NEXT_PUBLIC_DISCORD_INVITE_URL: E2E_DISCORD_INVITE_URL,
               PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
