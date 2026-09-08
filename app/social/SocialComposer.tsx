@@ -665,9 +665,9 @@ function composerHasContent(draft: Draft, basePost: SocialPostDTO | undefined, p
 function composerCanSubmit(
   draft: Draft, basePost: SocialPostDTO | undefined, photo: File | null, removePhoto: boolean,
   gallery: ReturnType<typeof useComposerGallery>,
-  state: { conflict: boolean; busy: boolean; mediaBusy: boolean; galleryExpired: boolean },
+  state: { conflict: boolean; busy: boolean; mediaBusy: boolean; galleryExpired: boolean; savedDraftNeedsCleanup: boolean },
 ) {
-  return !state.conflict && !state.busy && !state.mediaBusy && !state.galleryExpired
+  return !state.savedDraftNeedsCleanup && !state.conflict && !state.busy && !state.mediaBusy && !state.galleryExpired
     && !gallery.working && !gallery.storageError && !gallery.getSignal().aborted
     && composerHasContent(draft, basePost, photo, removePhoto, gallery.items);
 }
@@ -698,6 +698,7 @@ function SocialComposerSession({
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [draftReady, setDraftReady] = useState(false);
+  const [savedDraftNeedsCleanup, setSavedDraftNeedsCleanup] = useState(false);
   const [removePhoto, setRemovePhoto] = useState(false);
   const [mutationVersion, setMutationVersion] = useState<number | null>(
     post?.mutationVersion ?? 0,
@@ -827,12 +828,14 @@ function SocialComposerSession({
   async function clearDraft() {
     intakeVersion.current += 1;
     setMediaBusy(false);
-    if (draft.galleryMode || gallery.items.length > 0 || gallery.storageError) {
+    if (savedDraftNeedsCleanup || draft.galleryMode || gallery.items.length > 0 || gallery.storageError) {
       try {
         await gallery.clear();
       } catch {
-        setFeedback("Your photo draft could not be cleared. Try again.");
-        setFeedbackIsStatus(false);
+        setFeedback(savedDraftNeedsCleanup
+          ? "Post saved. The saved draft could not be cleared. Try again."
+          : "Your photo draft could not be cleared. Try again.");
+        setFeedbackIsStatus(savedDraftNeedsCleanup);
         return;
       }
     }
@@ -840,6 +843,7 @@ function SocialComposerSession({
     await saveSocialDraftPhoto(draftKey, null).catch(() => undefined);
     gallery.restore(retainedGallery(initialPostRef.current));
     setGalleryExpired(false);
+    setSavedDraftNeedsCleanup(false);
     setDraft(initialDraft(initialPostRef.current));
     setMutationVersion(initialPostRef.current?.mutationVersion ?? 0);
     setPhoto(null);
@@ -876,7 +880,18 @@ function SocialComposerSession({
           const savedDraft = JSON.parse(saved) as Partial<Draft> & {
             removePhoto?: boolean;
             baseMutationVersion?: number;
+            submitted?: boolean;
           };
+          if (savedDraft.submitted === true) {
+            if (active) {
+              setSavedDraftNeedsCleanup(true);
+              setDraft({ ...nextDraft, requestKey: savedDraft.requestKey ?? nextDraft.requestKey });
+              setFeedback("Post saved. Clear the saved draft before starting another.");
+              setFeedbackIsStatus(true);
+              setDraftReady(true);
+            }
+            return;
+          }
           nextDraft = { ...nextDraft, ...savedDraft };
           if (active) {
             savedVersionFound = Number.isInteger(savedDraft.baseMutationVersion);
@@ -928,7 +943,7 @@ function SocialComposerSession({
   }, [draftKey, restoreGallery]);
 
   useEffect(() => {
-    if (!draftReady) return;
+    if (!draftReady || savedDraftNeedsCleanup) return;
     try {
       localStorage.setItem(draftKey, JSON.stringify({ ...draft, removePhoto, baseMutationVersion: mutationVersion }));
     } catch {
@@ -940,7 +955,7 @@ function SocialComposerSession({
       }, 0);
       return () => window.clearTimeout(timer);
     }
-  }, [draft, draftKey, draftReady, removePhoto, mutationVersion]);
+  }, [draft, draftKey, draftReady, removePhoto, mutationVersion, savedDraftNeedsCleanup]);
 
   useEffect(() => {
     if (draftReady) {
@@ -1168,13 +1183,29 @@ function SocialComposerSession({
         }
         throw new Error(errorMessageFrom(result, "Post was not saved."));
       }
-      try { localStorage.removeItem(draftKey); } catch { /* The post was saved. */ }
-      void saveSocialDraftPhoto(draftKey, null).catch(() => undefined);
-      await gallery.clear().catch(() => undefined);
+      // Keep this receipt until photo deletion commits. Autosave must not replace it.
+      try { localStorage.setItem(draftKey, JSON.stringify({ submitted: true, requestKey: draft.requestKey })); }
+      catch { /* Keep the original request key if storage has become unavailable. */ }
+      let cleared = true;
+      try {
+        if (draft.galleryMode || gallery.items.length) await gallery.clear();
+      } catch { cleared = false; }
       if (gallery.getSignal().aborted) return;
       const savedPost = editing ? (result.post ?? basePost) : undefined;
       initialPostRef.current = savedPost;
       setBasePost(savedPost);
+      if (!cleared) {
+        setSavedDraftNeedsCleanup(true);
+        gallery.restore([]);
+        setPhoto(null);
+        setFeedback("Post saved. Clear the saved draft before starting another.");
+        setFeedbackIsStatus(true);
+        onSaved(result.post);
+        return;
+      }
+      try { localStorage.removeItem(draftKey); } catch { /* The post was saved. */ }
+      void saveSocialDraftPhoto(draftKey, null).catch(() => undefined);
+      if (gallery.getSignal().aborted) return;
       gallery.restore(retainedGallery(savedPost));
       setGalleryExpired(false);
       setDraft(initialDraft(savedPost));
@@ -1200,7 +1231,7 @@ function SocialComposerSession({
   const previewSource = photo ? photoPreviewUrl : null;
   const hasDraftChanges = draft.galleryMode || draftHasChanges(draft, basePost, photo, removePhoto);
 
-  const canSubmit = composerCanSubmit(draft, basePost, photo, removePhoto, gallery, { conflict, busy, mediaBusy, galleryExpired });
+  const canSubmit = composerCanSubmit(draft, basePost, photo, removePhoto, gallery, { conflict, busy, mediaBusy, galleryExpired, savedDraftNeedsCleanup });
 
   return (
     <>
@@ -1259,6 +1290,9 @@ function SocialComposerSession({
                 tabIndex={feedbackIsStatus ? undefined : -1}
               >
                 <p>{feedback}</p>
+                {savedDraftNeedsCleanup ? (
+                  <button type="button" onClick={() => void clearDraft()}>Clear saved draft</button>
+                ) : null}
                 {conflict ? (
                   <button type="button" onClick={() => void loadLatest()}>
                     Load latest
@@ -1277,7 +1311,7 @@ function SocialComposerSession({
                 void submit();
               }}
             >
-              <fieldset className="socialComposerFields" disabled={busy}>
+              <fieldset className="socialComposerFields" disabled={busy || savedDraftNeedsCleanup} hidden={savedDraftNeedsCleanup}>
                 {draft.galleryMode ? (
                   <GalleryEditor gallery={gallery} approved={basePost?.moderationState === "approved"}
                     onFiles={selectGallery} onChange={changeGallery} />

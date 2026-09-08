@@ -192,6 +192,80 @@ describe("Social composer galleries", () => {
     expect(mocks.clear).toHaveBeenCalledWith(key);
   });
 
+  it("does not restore a posted gallery when draft deletion fails, and retries cleanup without posting again", async () => {
+    let stored: SocialGalleryDraftItem[] | null = null;
+    mocks.read.mockImplementation(async () => stored);
+    mocks.save.mockImplementation(async (_key, items) => { stored = items; });
+    mocks.clear.mockRejectedValue(new Error("Delete unavailable"));
+    await mount();
+    await choose([photo("posted")]);
+    await change("Photo 1 description", "Friends by the canal");
+    await changeBody("A saved night");
+    mocks.action.mockResolvedValueOnce(response({ post }, 202));
+    await click("Post");
+    expect(saved).toHaveBeenCalledExactlyOnceWith(post);
+    expect(stored).toHaveLength(1);
+    expect(JSON.parse(localStorage.getItem(key)!)).toMatchObject({ submitted: true });
+    const submittedKey = commits()[0][1].headers["Idempotency-Key"];
+    await act(async () => { root.unmount(); });
+    root = createRoot(host);
+    await mount();
+    expect(host.querySelector('input[value="Friends by the canal"]')).toBeNull();
+    expect(host.textContent).toContain("Post saved.");
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+    expect(button("Post").disabled).toBe(true);
+    await click("Clear saved draft");
+    expect(host.textContent).toContain("Post saved.");
+    expect(commits()).toHaveLength(1);
+    mocks.clear.mockImplementation(async () => { stored = null; });
+    await click("Clear saved draft");
+    await changeBody("A different night");
+    await click("Post");
+    expect(commits()).toHaveLength(2);
+    expect(commits()[1][1].headers["Idempotency-Key"]).not.toBe(submittedKey);
+    expect(JSON.parse(commits()[1][1].body)).not.toHaveProperty("gallery");
+  });
+
+  it.each(["pubmaxx:social-composer:v1:other-account:new", "pubmaxx:social-composer:v1:opaque-account:post-17"])(
+    "keeps a submitted receipt isolated from another draft: %s", async (otherKey) => {
+      const receipt = JSON.stringify({ submitted: true, requestKey: "submitted-key" });
+      localStorage.setItem(otherKey, receipt);
+      await mount();
+      expect(host.textContent).not.toContain("Post saved.");
+      await changeBody("My own draft");
+      expect(button("Post").disabled).toBe(false);
+      expect(localStorage.getItem(otherKey)).toBe(receipt);
+      expect(mocks.read).toHaveBeenCalledWith(key);
+    },
+  );
+
+  it("confirms a text post when photo storage is unavailable", async () => {
+    mocks.clear.mockRejectedValue(new Error("Photo storage unavailable"));
+    await mount();
+    await changeBody("A walk together");
+    mocks.action.mockResolvedValueOnce(response({ post }));
+    await click("Post");
+    expect(saved).toHaveBeenCalledExactlyOnceWith(post);
+    expect(mocks.clear).not.toHaveBeenCalled();
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it("keeps the confirmed edit version when saved-draft cleanup succeeds later", async () => {
+    await mount(post);
+    await changeBody("The saved edit");
+    const edited = { ...post, body: "The saved edit", mutationVersion: 6 };
+    mocks.action.mockResolvedValueOnce(response({ post: edited }));
+    mocks.clear.mockRejectedValueOnce(new Error("Delete unavailable"));
+    await click("Save");
+    expect(saved).toHaveBeenCalledExactlyOnceWith(edited);
+    expect(button("Save").disabled).toBe(true);
+    await click("Clear saved draft");
+    expect(host.querySelector("textarea")?.value).toBe("The saved edit");
+    await changeBody("Another edit");
+    await click("Save");
+    expect(JSON.parse(commits()[1][1].body).expectedMutationVersion).toBe(6);
+  });
+
   it("retries only failed uploads with their original keys and keeps successful receipts", async () => {
     mocks.action.mockResolvedValueOnce(response({ upload: { mediaId: "first-upload" } }))
       .mockRejectedValueOnce(new TypeError("offline"));

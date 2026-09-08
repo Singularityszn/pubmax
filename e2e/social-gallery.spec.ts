@@ -220,3 +220,53 @@ test("clearing a failed photo draft allows a text-only post", async ({ page }) =
   expect(submitted).toMatchObject({ body: "A walk by the river" });
   expect(submitted).not.toHaveProperty("gallery");
 });
+
+
+test("a saved gallery stays saved after draft deletion fails and the page reloads", async ({ page }) => {
+  await session(page);
+  await page.addInitScript(() => {
+    const remove = IDBObjectStore.prototype.delete;
+    IDBObjectStore.prototype.delete = function (...args) {
+      if (this.transaction.db.name === "pubmaxx-social-gallery-drafts-v1"
+        && sessionStorage.getItem("allow-saved-draft-cleanup") !== "1") {
+        throw new DOMException("Photo storage is unavailable", "UnknownError");
+      }
+      return remove.apply(this, args);
+    };
+  });
+  await page.route("**/api/social/posts?**", route => route.fulfill({ json: { posts: [], nextCursor: null } }));
+  await page.route("**/api/social/uploads/photos", route => route.fulfill({ json: { upload: { mediaId: ids[0] } } }));
+  const commits: Array<{ key: string; body: Record<string, unknown> }> = [];
+  await page.route("**/api/social/posts", route => {
+    commits.push({ key: route.request().headers()["idempotency-key"], body: route.request().postDataJSON() });
+    return route.fulfill({ status: 202, json: { post: { ...post, moderationState: "needs_review", ownedByViewer: true } } });
+  });
+  await page.goto("/social");
+  await page.getByRole("button", { name: "Post", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Add photos", { exact: true }).setInputFiles("public/landing/london/camden-lock-1280.webp");
+  await expect(dialog.getByText("Photo ready", { exact: true })).toBeVisible();
+  await dialog.getByLabel("Photo 1 description").fill("Our canal walk");
+  await dialog.getByRole("button", { name: "Post", exact: true }).click();
+  await expect.poll(() => commits.length).toBe(1);
+  await expect.poll(() => page.evaluate(() => Object.keys(localStorage).some(key =>
+    key.startsWith("pubmaxx:social-composer:v1:") && JSON.parse(localStorage.getItem(key)!).submitted === true,
+  ))).toBe(true);
+  await page.reload();
+  await page.getByRole("button", { name: "Post", exact: true }).click();
+  await expect(dialog.getByText("Post saved. Clear the saved draft before starting another.", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("Photo 1 description")).toHaveCount(0);
+  await expect(dialog.getByRole("alert")).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Post", exact: true })).toBeDisabled();
+  await dialog.getByRole("button", { name: "Clear saved draft", exact: true }).click();
+  await expect(dialog.getByText("Post saved. The saved draft could not be cleared. Try again.", { exact: true })).toBeVisible();
+  expect(commits).toHaveLength(1);
+  await page.evaluate(() => sessionStorage.setItem("allow-saved-draft-cleanup", "1"));
+  await dialog.getByRole("button", { name: "Clear saved draft", exact: true }).click();
+  await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("A different night");
+  await dialog.getByRole("button", { name: "Post", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(commits).toHaveLength(2);
+  expect(commits[1].key).not.toBe(commits[0].key);
+  expect(commits[1].body).not.toHaveProperty("gallery");
+});
