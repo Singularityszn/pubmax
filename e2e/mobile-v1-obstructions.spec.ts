@@ -39,6 +39,18 @@ async function expectTabFullyInsideRail(page: Page) {
     tabBox!.x + tabBox!.width,
     "Last train is not clipped by the tab rail",
   ).toBeLessThanOrEqual(railBox!.x + railBox!.width + 0.5);
+  expect(tabBox!.y).toBeGreaterThanOrEqual(railBox!.y - 0.5);
+  expect(tabBox!.y + tabBox!.height).toBeLessThanOrEqual(railBox!.y + railBox!.height + 0.5);
+  expect(tabBox!.width).toBeGreaterThanOrEqual(44);
+  expect(tabBox!.height).toBeGreaterThanOrEqual(44);
+  expect(await lastTrain.evaluate((tab) => {
+    const box = tab.getBoundingClientRect();
+    const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+    return hit !== null && tab.contains(hit);
+  })).toBe(true);
+  await lastTrain.click();
+  await expect(lastTrain).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#venuePanel-getting-home")).toBeVisible();
   return { tablist, lastTrain, railBox: railBox!, tabBox: tabBox! };
 }
 
@@ -122,7 +134,7 @@ test.describe("Android install prompt", () => {
   async function openInstallCard(page: Page, legacyMode: boolean = false) {
     await page.addInitScript(({ legacy }) => {
       localStorage.setItem("pubmax-tour-v1-done", "1");
-      localStorage.setItem("pubmax:analytics-consent:v1", "denied");
+      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
       localStorage.setItem("pubmax-legacy", legacy ? "1" : "0");
       if (legacy) {
         const applyLegacy = () => document.documentElement?.setAttribute("data-legacy", "1");
@@ -321,7 +333,7 @@ test.describe("iOS install instructions", () => {
   test("retains the full modal Safari instruction sheet", async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem("pubmax-tour-v1-done", "1");
-      localStorage.setItem("pubmax:analytics-consent:v1", "denied");
+      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
       localStorage.setItem(
         "pubmax:a2hs:v1",
         JSON.stringify({
@@ -348,27 +360,14 @@ test.describe("iOS install instructions", () => {
 });
 
 test.describe("Venue detail tab reachability", () => {
-  test("320px exposes real trailing overflow, then removes fade at the reachable end", async ({
-    page,
-  }) => {
+  test("320px wraps the tab rail and keeps Last train directly reachable", async ({ page }) => {
     await page.setViewportSize(PHONE_VIEWPORTS[0]);
-    const { tablist, lastTrain } = await openVenueTabs(page);
-    await expect(tablist).toHaveAttribute("data-trailing-fade", "on");
+    const { tablist } = await expectTabFullyInsideRail(page);
+    await expect(tablist).toHaveAttribute("data-trailing-fade", "off");
+    await expect(tablist).toHaveCSS("overflow-x", "visible");
     expect(
       await tablist.evaluate((rail) => rail.scrollWidth - rail.clientWidth),
-    ).toBeGreaterThan(28);
-
-    await lastTrain.evaluate((tab) => tab.scrollIntoView({ block: "nearest", inline: "end" }));
-    await expect(tablist).toHaveAttribute("data-trailing-fade", "off");
-    const [railBox, tabBox] = await Promise.all([
-      tablist.boundingBox(),
-      lastTrain.boundingBox(),
-    ]);
-    expect(railBox).not.toBeNull();
-    expect(tabBox).not.toBeNull();
-    expect(tabBox!.x + tabBox!.width).toBeLessThanOrEqual(railBox!.x + railBox!.width + 0.5);
-    expect(tabBox!.width).toBeGreaterThanOrEqual(44);
-    expect(tabBox!.height).toBeGreaterThanOrEqual(44);
+    ).toBeLessThanOrEqual(1);
   });
 
   for (const viewport of PHONE_VIEWPORTS.slice(1)) {
@@ -377,7 +376,7 @@ test.describe("Venue detail tab reachability", () => {
       const { tablist, tabBox } = await expectTabFullyInsideRail(page);
       expect(tabBox.width).toBeGreaterThanOrEqual(44);
       expect(tabBox.height).toBeGreaterThanOrEqual(44);
-      await expect(tablist).toHaveCSS("overflow-x", "auto");
+      await expect(tablist).toHaveCSS("overflow-x", "visible");
       await expect(tablist).toHaveAttribute("data-trailing-fade", "off");
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
