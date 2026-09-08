@@ -37,3 +37,23 @@ It excludes these specs from default `chromium`; their existing `chromium-gl` pr
 That project provides SwiftShader and blocks service workers, which can bypass tile interception.
 After root releases its window, run both browser specs with `--project=chromium-gl --workers=1` against the integrated build.
 Do not treat the source tests as completed browser or native recovery proof.
+
+## Deferred scene follow-up
+
+Root ran seven GL cases against integrated commit `605249b97`.
+Six passed, including transient tile recovery at both widths and all three context cases.
+Permanent tile failure showed the Retry notice but failed the style-reload assertion.
+Root retained `/tmp/pubmaxx-audit-recovery-gl.log` and `/tmp/pubmaxx-audit-recovery-gl.json`.
+
+The source regression runs `style.load`, four tile errors, deferred scene completion, then the retry backoff.
+Before this change, scene completion cleared the queued retry, although the style had not changed.
+The red result was one failure and five passes in `deferred-tile-red.log`.
+Generation reset now runs in the accepted `style.load` handler, before scene work yields.
+The source retry can then spend its two attempts and the single style reload.
+Separate cases retain successful tile readiness and cancel old retries when a replacement style loads.
+
+The focused follow-up passed 58 tests across three files with one worker.
+ESLint reported no errors and the existing complexity warning.
+Logs are `deferred-tile-green.log` and `deferred-tile-lint.log` in the proof directory named above.
+This reproduces a concrete source sequence; the retained browser failure has no event trace confirming that sequence.
+Root must rerun the permanent-outage case against this follow-up. No browser or build ran here.

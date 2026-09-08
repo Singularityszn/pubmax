@@ -45,7 +45,10 @@ function recoveryCaller() {
     areTilesLoaded: installedTilesLoaded(states),
     isSourceLoaded: () => true,
     isMoving: () => false,
-    on: (name: string, handler: (event?: unknown) => void) => listeners.set(name, handler),
+    on: (name: string, handler: (event?: unknown) => void) => {
+      const previous = listeners.get(name);
+      listeners.set(name, (event) => { previous?.(event); handler(event); });
+    },
   };
   const setProtectedStyle = vi.fn();
   const surfaceBasemapFailure = vi.fn();
@@ -68,24 +71,36 @@ function recoveryCaller() {
     themeRef: { current: "light" },
     MAP_STYLES: { light: "primary" },
     FALLBACK_STYLES: { light: "fallback" },
+    cancelDeferredWork: vi.fn(),
+    clearStyleLoadProtection: vi.fn(),
+    buildScene: vi.fn(),
+    pinRevealCoordinator: { arm: vi.fn() },
   };
   const emitted = ts.transpileModule(`
     let styleLoaded = true, usingFallback = false, recoverySpent = 0;
+    let styleGeneration = 0, protectedStyleInFlight = false, queuedProtectedStyle = null;
+    const styleStructureReadyRef = { current: false };
     ${callerBlock("const areBasemapTilesLoaded =", "const hasPinsPaintable =")}
     ${callerBlock("const markBasemapRecovered =", '// The moment the venue rows are paintable:')}
+    ${callerBlock('map.on("style.load", () => {', '// Initial load shares theme/fallback')}
     ${callerBlock("const evaluateTileFailure =", "// --- Post-init context loss")}
     return {
       pending: () => initialBasemapPending,
       showTimeout: () => { tileNoticeOwner = "timeout"; },
+      finishSceneBuild: () => {
+        ${callerBlock("      // --- Tile-paint gate (D2).", "      // Flush any mutations")}
+      },
     };
   `, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
   const caller = new Function(...Object.keys(scope), emitted)(...Object.values(scope)) as {
     pending: () => boolean;
     showTimeout: () => void;
+    finishSceneBuild: () => void;
   };
   const tileEvent = (id: string) => ({ sourceId: "basemap", source: { type: "raster" }, tile: { state: states.get(id), tileID: { key: id } }, error: new Error("Tile fetch failed") });
   return {
     ...caller, setTiles, setProtectedStyle, surfaceBasemapFailure, retireTilesNotice,
+    styleLoaded: () => listeners.get("style.load")!(),
     fail(id: string) {
       states.set(id, "errored");
       listeners.get("error")!(tileEvent(id));
@@ -105,6 +120,46 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe("component basemap recovery with MapLibre settled errors", () => {
+  it("cancels a queued source retry when a replacement style loads", async () => {
+    const caller = recoveryCaller();
+    caller.styleLoaded();
+    for (const id of ["a", "b", "c", "d"]) caller.fail(id);
+    caller.styleLoaded();
+    caller.finishSceneBuild();
+    await vi.advanceTimersByTimeAsync(tilePolicy.silentTileRetryDelayMs(0));
+    expect(caller.setTiles).not.toHaveBeenCalled();
+    expect(caller.setProtectedStyle).not.toHaveBeenCalled();
+  });
+
+  it("keeps successful basemap paint across deferred scene work", () => {
+    const caller = recoveryCaller();
+    caller.styleLoaded();
+    caller.load("a");
+    caller.finishSceneBuild();
+    caller.showTimeout();
+    caller.render();
+    expect(caller.pending()).toBe(false);
+    expect(caller.retireTilesNotice).toHaveBeenCalledOnce();
+  });
+
+  it("keeps fast tile errors when the deferred app scene finishes", async () => {
+    const caller = recoveryCaller();
+    caller.styleLoaded();
+    const failViewport = () => {
+      for (const id of ["a", "b", "c", "d"]) caller.fail(id);
+    };
+    failViewport();
+    caller.finishSceneBuild();
+    await vi.advanceTimersByTimeAsync(tilePolicy.silentTileRetryDelayMs(0));
+    expect(caller.setTiles).toHaveBeenCalledOnce();
+    failViewport();
+    await vi.advanceTimersByTimeAsync(tilePolicy.silentTileRetryDelayMs(1));
+    expect(caller.setTiles).toHaveBeenCalledTimes(2);
+    failViewport();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(caller.setProtectedStyle).toHaveBeenCalledOnce();
+  });
+
   it("keeps the initial silent retry when an all-errored viewport renders", () => {
     const caller = recoveryCaller();
     for (const id of ["a", "b", "c", "d"]) caller.fail(id);
