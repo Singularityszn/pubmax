@@ -1024,6 +1024,41 @@ async function openSignedInProfileOptions(browser: Browser) {
   return { context, menu, page, trigger };
 }
 
+test("Analytics choices retains its destination while account controls load", async ({ browser }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  let releaseControls: () => void = () => {};
+  const controlsHeld = new Promise<void>((resolve) => { releaseControls = resolve; });
+  let heldChunk: string | null = null;
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await preparePage(page, { signedIn: true });
+  await page.route(/\/_next\/static\/.*\.js(?:\?.*)?$/, async (route) => {
+    const response = await route.fetch();
+    const body = await response.text();
+    if (body.includes("Optional usage analytics")) {
+      heldChunk = route.request().url();
+      await controlsHeld;
+    }
+    await route.fulfill({ response, body });
+  });
+  try {
+    await page.goto(`/u/${PROFILE_HANDLE}`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("#account-settings")).toBeAttached();
+    await expect.poll(() => heldChunk).not.toBeNull();
+    await expect(page.locator("#analytics-settings")).toHaveCount(0);
+    await page.getByRole("button", { name: "Profile options" }).click();
+    await page.getByRole("menuitem", { name: /^Analytics choices/ }).click();
+    await expect(page).toHaveURL(/#analytics-settings$/);
+    await expect(page.locator("#analytics-settings")).toHaveCount(0);
+    releaseControls();
+    await expect(page.locator("#analytics-settings")).toBeInViewport();
+    await expect(page).toHaveURL(/#analytics-settings$/);
+  } finally {
+    releaseControls();
+    await context.close();
+  }
+});
+
 test("profile Options expose working existing actions", async ({ browser }) => {
   test.setTimeout(120_000);
   const firstVisit = await openSignedInProfileOptions(browser);

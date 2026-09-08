@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
 import SignInButton from "@/components/auth/SignInButton";
@@ -425,8 +425,13 @@ export default function PubmaxxAccountHub() {
 
   // Undecided: the full choice card. Decided: the card collapses to a
   // one-line status with a small affordance to reverse it (defect 6).
+  const attachAnalyticsSettings = useCallback((target: HTMLDivElement | null) => {
+    if (target && window.location.hash === "#analytics-settings") {
+      target.scrollIntoView({ block: "start" });
+    }
+  }, []);
   const analyticsControls = (
-    <div id="analytics-settings">
+    <div id="analytics-settings" ref={attachAnalyticsSettings}>
       <h3>Optional usage analytics</h3>
       {analyticsConsent === null ? (
         <>
