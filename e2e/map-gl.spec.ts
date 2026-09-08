@@ -776,6 +776,37 @@ test("/map surfaces Retry when the automatic style reload also fails", async ({
 }) => {
   test.setTimeout(75_000);
   await page.setViewportSize({ width: 390, height: 844 });
+  const styleTransport: Array<{
+    event: string; at: number; url: string; startedAt: number; detail?: string;
+  }> = [];
+  const consoleMessages: Array<{ at: number; type: string; text: string }> = [];
+  const isStyleRequest = (request: Request) =>
+    /tiles\.openfreemap\.org\/styles\/|basemaps\.cartocdn\.com\/gl\/.*\/style\.json/.test(request.url());
+  for (const event of ["request", "requestfinished", "requestfailed"] as const) {
+    page.on(event, (request) => {
+      if (!isStyleRequest(request)) return;
+      styleTransport.push({
+        event, at: Date.now(), url: request.url(),
+        startedAt: request.timing().startTime,
+        detail: request.failure()?.errorText,
+      });
+    });
+  }
+  page.on("response", (response) => {
+    if (!isStyleRequest(response.request())) return;
+    styleTransport.push({
+      event: "response", at: Date.now(), url: response.url(),
+      startedAt: response.request().timing().startTime,
+      detail: `HTTP ${response.status()}`,
+    });
+  });
+  page.on("console", (message) => {
+    if (!message.text().includes("[pubmap]")) return;
+    consoleMessages.push({ at: Date.now(), type: message.type(), text: message.text() });
+  });
+  page.on("pageerror", (error) => {
+    consoleMessages.push({ at: Date.now(), type: "pageerror", text: error.message });
+  });
   await page.addInitScript(() => {
     const trace: Array<{ reason: string; generation: number }> = [];
     Object.defineProperty(window, "__pubmaxPinRevealTrace", { value: trace });
@@ -790,6 +821,11 @@ test("/map surfaces Retry when the automatic style reload also fails", async ({
   await page.route(
     /tiles\.openfreemap\.org\/styles\/|basemaps\.cartocdn\.com\/gl\/.*\/style\.json/,
     async (route) => {
+      styleTransport.push({
+        event: failStyles ? "abort-requested" : "continue-requested",
+        at: Date.now(), url: route.request().url(),
+        startedAt: route.request().timing().startTime,
+      });
       if (failStyles) {
         await route.abort("failed");
         return;
@@ -845,16 +881,44 @@ test("/map surfaces Retry when the automatic style reload also fails", async ({
     contentType: "image/png",
   });
 
-  failTiles = true;
-  failStyles = true;
-  await zoomThroughHiddenMobileControl(page);
+  const outageStartedAt = Date.now();
+  try {
+    failTiles = true;
+    failStyles = true;
+    await zoomThroughHiddenMobileControl(page);
 
-  const notice = page.locator(".mapSoftRetry");
-  await expect(notice).toContainText("Map background couldn't load", {
-    timeout: 30_000,
-  });
-  await expect(notice.getByRole("button", { name: "Retry" })).toBeVisible();
-  await expect(page.locator(".mapFallback")).toHaveCount(0);
+    const notice = page.locator(".mapSoftRetry");
+    await expect(notice).toContainText("Map background couldn't load", {
+      timeout: 30_000,
+    });
+    await expect(notice.getByRole("button", { name: "Retry" })).toBeVisible();
+    await expect(page.locator(".mapFallback")).toHaveCount(0);
+  } finally {
+    let fallbackText: string | null = null;
+    let fallbackDetail: string | null = null;
+    let observationError: string | null = null;
+    try {
+      const fallback = page.locator(".mapFallback");
+      if (await fallback.isVisible()) {
+        fallbackText = await fallback.innerText();
+        // Observe the existing disclosure only after the acceptance assertion.
+        await fallback.getByRole("button", { name: "Technical details", exact: true })
+          .click({ timeout: 1_000 });
+        fallbackDetail = await fallback.locator(".mapFallbackDetail")
+          .textContent({ timeout: 1_000 });
+      }
+    } catch (error) {
+      observationError = String(error);
+    }
+    await test.info().attach("failed-style-reload-observation", {
+      body: JSON.stringify({
+        outageStartedAt, initialTile, styleTransport, consoleMessages,
+        fallbackText, fallbackDetail, observationError,
+        scope: "Existing three synthetic hidden-control zooms and fault timing. Style transport and terminal disclosure only; caller flags are not observed.",
+      }, null, 2),
+      contentType: "application/json",
+    });
+  }
 });
 
 // Acceptance criterion 2 (v0 map reliability), half one: lib/mapTileFailure.ts
