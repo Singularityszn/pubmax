@@ -368,7 +368,6 @@
 .mapLayersView .mapCompassBtn {
   position: static;
   width: auto;
-  min-height: 40px;
   flex: 0 0 auto;
 }
 
