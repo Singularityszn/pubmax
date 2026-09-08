@@ -73,22 +73,57 @@ for (const width of [390, 1440]) {
       }
       await expect(page.getByRole("heading", { name: "New message", exact: true })).toHaveClass("screenTitle");
       await expect(page.getByRole("button", { name: "Search", exact: true })).toHaveClass(/uiButton--primary/);
-      expect(await page.evaluate(() => {
-        const greeting = document.querySelector(".arrivalWelcome");
-        if (!greeting) return true;
-        const bounds = greeting.getBoundingClientRect();
-        return Array.from(document.querySelectorAll(".messagesMainRecipient a, .messagesMainRecipient h1, .messagesMainRecipient input, .messagesMainRecipient button"))
-          .every(element => {
-            const target = element.getBoundingClientRect();
-            return target.top >= bounds.bottom || target.bottom <= bounds.top || target.right <= bounds.left || target.left >= bounds.right;
-          });
-      })).toBe(true);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       await page.screenshot({ path: testInfo.outputPath(`recipients-${width}.png`), fullPage: true });
       await result.getByRole("button", { name: "Message", exact: true }).click();
       await expect(page).toHaveURL(/\/messages\/c1$/);
       expect(actions).toEqual([{ action: "open", handle: ACCOUNTS.A.handle, other: "sam" }]);
     });
+
+    for (const founding of [false, true]) {
+      test(`keeps recipient controls clear of the ${founding ? "founding" : "plain"} greeting without a dismissal jump`, async ({ page }, testInfo) => {
+        await installInbox(page);
+        const time = new Date();
+        await page.clock.install({ time });
+        await page.clock.pauseAt(new Date(time.getTime() + 60_000));
+        await page.addInitScript(() => {
+          sessionStorage.setItem("pubmax:arrival-welcome:v1", JSON.stringify({ intent: "signin", at: Date.now() }));
+        });
+        await page.route("**/api/identity/handle/current", route => route.fulfill({ json: {
+          handle: ACCOUNTS.A.handle, foundingMemberNumber: founding ? 1 : null,
+        } }));
+        await page.goto("/messages/new", { waitUntil: "commit" });
+        const welcome = page.locator(".arrivalWelcome");
+        await expect.poll(async () => {
+          await page.clock.runFor(50);
+          if (!await welcome.isVisible()) return false;
+          return !founding || await welcome.getAttribute("data-founding") === "";
+        }).toBe(true);
+        await expect(welcome).toBeVisible();
+        const search = page.getByRole("searchbox", { name: "Search handles" });
+        await search.focus();
+        const before = await search.boundingBox();
+        const greeting = await welcome.boundingBox();
+        expect(greeting).not.toBeNull();
+        for (const control of [
+          page.getByRole("link", { name: "Back to messages", exact: true }),
+          page.getByRole("heading", { name: "New message", exact: true }), search,
+          page.getByRole("button", { name: "Search", exact: true }),
+        ]) {
+          const box = await control.boundingBox();
+          expect(box).not.toBeNull();
+          const overlap = Math.max(0, Math.min(box!.x + box!.width, greeting!.x + greeting!.width) - Math.max(box!.x, greeting!.x)) *
+            Math.max(0, Math.min(box!.y + box!.height, greeting!.y + greeting!.height) - Math.max(box!.y, greeting!.y));
+          expect(overlap).toBe(0);
+        }
+        await page.screenshot({ path: testInfo.outputPath(`recipient-welcome-${founding}-${width}.png`), animations: "disabled" });
+        await page.clock.runFor(13_000);
+        await expect(welcome).toHaveCount(0);
+        await expect(search).toBeFocused();
+        expect(await search.boundingBox()).toEqual(before);
+        await page.screenshot({ path: testInfo.outputPath(`recipient-no-welcome-${founding}-${width}.png`), animations: "disabled" });
+      });
+    }
 
     test("does not offer a handle claim while canonical identity is pending", async ({ page }) => {
       await installInbox(page);
