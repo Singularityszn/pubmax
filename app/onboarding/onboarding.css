@@ -9,24 +9,7 @@
   min-height: 100dvh;
 }
 
-/* THE CONSENT LANE.
-   ---------------------------------------------------------------------------
-   The analytics choice outranks every other prompt (analyticsChoiceHasPriority,
-   lib/promptBudget.ts), so on a first launch its card is on screen over this
-   surface. That priority is right and is not what changes here. The geometry
-   was wrong: .firstRunStage is sized to the viewport, so its last rows sit
-   exactly where a fixed bottom card lands, and the foot padding globals.css
-   reserves on an ordinary page cannot lift a block that is explicitly
-   viewport-height. On the iPhone 17 Pro simulator that put the card across the
-   reviewed-area rows and the "Use London" button.
-
-   The fix is containment, not a nudge: while the card is mounted this surface
-   becomes its own scroller, ending where the card's lane begins. Nothing can
-   pass under the card at any scroll position, which a nudge alone cannot
-   promise. The lane is the length globals.css publishes plus the same bottom
-   berth the card itself takes, so the two cannot drift; nothing here restates
-   either number. Take the card away and every declaration below stops
-   matching, so the surface is byte-identical to before. */
+/* Keep onboarding above the consent card. Use the clearance token from globals.css. */
 :root {
   --first-run-consent-lane: calc(
     var(--analytics-consent-clearance) + max(12px, env(safe-area-inset-bottom, 0px))
@@ -259,9 +242,7 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   color: var(--state-active-ink);
 }
 
-/* Name over the way home, the reviewed stamp centred on the right across
-   both lines. The stamp is inside this block so the short phone below can
-   fold it onto the second line; the picture at rest is unchanged. */
+/* Keep the review stamp inside the row so narrow layouts can place it below the name. */
 .firstRunAreaList article div {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -462,17 +443,12 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
     display: none;
   }
 
-  /* The surface is its own scroller now, so the foot padding globals.css adds
-     for the card would be dead space below a page that no longer scrolls. It
-     needs the second :has() to outrank that rule, which carries one of its
-     own. */
+  /* The second :has() overrides the consent padding in globals.css. */
   body:has(.firstRunOnboarding):has(.analyticsConsentPrompt) {
     padding-bottom: 0;
   }
 
-  /* The card is taller on a phone, where the sentence wraps and the two
-     buttons stack, so the lane is the phone length globals.css publishes.
-     Only the token is restated; every rule above reads it. */
+  /* Use the mobile clearance token when consent controls wrap. */
   :root {
     --first-run-consent-lane: calc(
       var(--analytics-consent-mobile-clearance)
@@ -486,27 +462,14 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
     );
   }
 
-  /* THE PHOTOGRAPH IS WHAT YIELDS.
-     Containment alone only promises that nothing passes UNDER the card. It
-     does not promise the reader can still SEE the rows and the one action,
-     and on a 390pt phone it did not: the surface ended at 704px with the
-     "Use London" button laid out at 768px, inside a scroller a phone draws no
-     bar for. So the stage stops giving the picture a share of the viewport
-     and gives it the space the panel does not need, floored at nothing. The
-     panel keeps its own height at every width, which is what puts the
-     reviewed areas and the primary action back on screen at rest.
-     The clean first-run layout below also lets the photograph yield. */
+  /* Let the photograph shrink before the panel loses space. */
   body:has(.analyticsConsentPrompt) .firstRunStage,
   body:has(.analyticsConsentPrompt)
     .firstRunOnboarding[data-stage="companion"] .firstRunStage {
     grid-template-rows: minmax(0, 1fr) auto;
   }
 
-  /* The narrowest phones stack each reviewed row onto three lines, so the
-     panel alone is within about 50px of the whole lane-reduced stage and the
-     picture would be a sliver. These four are the panel's own rhythm, trimmed
-     only while the card is up, so the band stays a photograph rather than a
-     stripe. Nothing here changes a designed length once consent is answered. */
+  /* Reduce panel spacing while the consent card is present. */
   body:has(.analyticsConsentPrompt) .firstRunPanel {
     padding-top: 18px;
     padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
@@ -617,18 +580,7 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   }
 }
 
-/* THE SHORT PHONE.
-   Containment and a yielding photograph put the rows and the one action back
-   on screen at 844 tall. At 568 and 640 tall (verify-preview-4 check 7: the
-   first-generation SE height, and the 360x640 tier) the lane-reduced surface
-   is 428 and 500px tall against a panel laid out at 553px, so "Use London"
-   sat past the surface's end, at y 545 under a card at y 440 to 556, inside
-   a scroller a phone draws no bar for. Two things change while the card is
-   up on a short phone, and only then. The panel's rhythm compresses: one-line
-   heading, tighter lead and list, two-line rows. And the action row is STICKY
-   to the surface's foot, so the one primary action is on screen at every
-   scroll position and the rows scroll up behind it, never under the card.
-   Answer the card and every rule here stops matching. */
+/* Keep actions visible above consent on short screens. */
 @media (max-width: 760px) and (max-height: 700px) {
   body:has(.analyticsConsentPrompt) .firstRunPanel {
     padding-top: 8px;
@@ -655,10 +607,7 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
     gap: 4px;
   }
 
-  /* A row is TWO lines: the name, then the way home and the reviewed stamp
-     on one line with a middle dot between them. The three-column row wrapped
-     "Home via Clapham Common" beside the stamp at 320px and stood 69 to 87px
-     tall; the stamp on a line of its own was 87px. Nothing is dropped. */
+  /* Keep the travel and review details together on the second line. */
   body:has(.analyticsConsentPrompt) .firstRunAreaList article {
     min-height: 0;
     padding: 6px 11px;
