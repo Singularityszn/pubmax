@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type CDPSession, type Locator, type Page } from "@playwright/test";
 
 const DESKTOP = { width: 1440, height: 900 };
 const DESKTOP_WIDTHS = [1024, 1280, 1440, 1600] as const;
@@ -68,8 +68,123 @@ async function selectToolbarPub(page: Page, query: string, name: RegExp) {
   await option.click();
 }
 
-async function armDrawerExchangeProbe(page: Page) {
-  return page.evaluateHandle(() => {
+async function startRetargetPerformance(page: Page) {
+  const errors: string[] = [];
+  let session: CDPSession | undefined;
+  let closed = false;
+  let started = false;
+  let stopRequested = false;
+  let stopped: Promise<unknown> | undefined;
+  let watchdog: ReturnType<typeof setTimeout> | undefined;
+  let stream: string | undefined;
+  let resolveComplete!: () => void;
+  const complete = new Promise<void>((resolve) => { resolveComplete = resolve; });
+  const recordError = (error: unknown) => { errors.push(String(error)); };
+  const bounded = async <T,>(operation: Promise<T>, ms: number): Promise<T> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        operation,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error("Performance observation deadline exceeded")), ms);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  const stop = () => {
+    stopRequested = true;
+    if (started && !stopped) {
+      clearTimeout(watchdog);
+      stopped = session!.send("Tracing.end").catch(recordError);
+    }
+  };
+  try {
+    session = await bounded(page.context().newCDPSession(page).then((created) => {
+      if (closed) {
+        void created.detach().catch(() => {});
+        throw new Error("Performance session arrived after startup deadline");
+      }
+      return created;
+    }), 3_000);
+    session.on("Tracing.tracingComplete", (event) => {
+      stream = event.stream;
+      if (closed && stream) void session!.send("IO.close", { handle: stream }).catch(() => {});
+      if (event.dataLossOccurred) errors.push("Performance trace lost events");
+      resolveComplete();
+    });
+    watchdog = setTimeout(() => {
+      errors.push("Performance capture reached its five-second limit");
+      stop();
+    }, 5_000);
+    await bounded(session.send("Tracing.start", {
+      categories: "devtools.timeline,v8.execute,blink.user_timing,disabled-by-default-devtools.timeline",
+      transferMode: "ReturnAsStream",
+      streamFormat: "json",
+    }).then(() => {
+      started = true;
+      if (closed || stopRequested) stop();
+    }), 3_000);
+  } catch (error) {
+    closed = true;
+    clearTimeout(watchdog);
+    recordError(error);
+  }
+  return {
+    active: started && !closed,
+    stop,
+    async finish(probeFinished: boolean) {
+      const chunks: Buffer[] = [];
+      let bytes = 0;
+      let drained = false;
+      let draining = true;
+      try {
+        await bounded((async () => {
+          stop();
+          if (!started) return;
+          await complete;
+          if (!stream) throw new Error("Performance trace returned no stream");
+          if (!probeFinished) throw new Error("Performance drain skipped because the frame probe did not finish");
+          while (draining) {
+            const part = await session!.send("IO.read", { handle: stream, size: 65_536 });
+            if (!draining) return;
+            const chunk = Buffer.from(part.data, part.base64Encoded ? "base64" : "utf8");
+            bytes += chunk.length;
+            if (bytes > 16 * 1024 * 1024) throw new Error("Performance trace exceeded 16 MiB");
+            chunks.push(chunk);
+            if (part.eof) {
+              drained = true;
+              return;
+            }
+          }
+        })(), 2_500);
+      } catch (error) {
+        recordError(error);
+      } finally {
+        draining = false;
+        closed = true;
+        clearTimeout(watchdog);
+        if (stream) await bounded(session!.send("IO.close", { handle: stream }), 250).catch(recordError);
+        if (session) await bounded(session.detach(), 250).catch(recordError);
+      }
+      try {
+        if (drained) await test.info().attach("drawer-exchange-performance", {
+          body: Buffer.concat(chunks), contentType: "application/json",
+        });
+        await test.info().attach("drawer-exchange-performance-status", {
+          body: JSON.stringify({ started, drained, probeFinished, bytes, errors, complete: drained && errors.length === 0 }),
+          contentType: "application/json",
+        });
+      } catch (error) {
+        console.warn("Performance observation attachment failed", String(error));
+      }
+    },
+  };
+}
+
+async function armDrawerExchangeProbe(page: Page, performanceCapture = false) {
+  return page.evaluateHandle((capture) => {
     const describeElement = (element: Element | null) => element ? {
       tag: element.tagName,
       id: element.id,
@@ -121,6 +236,7 @@ async function armDrawerExchangeProbe(page: Page) {
       throw new Error(`Both Swift options must be reachable before exchange: ${JSON.stringify(initialOptions)}`);
     }
     const startedAt = performance.now();
+    if (capture) performance.mark("pubmaxx-retarget-observation", { startTime: startedAt });
     const startedAtEpochMs = performance.timeOrigin + startedAt;
     const measure = () => {
       const atMs = performance.now() - startedAt;
@@ -224,7 +340,7 @@ async function armDrawerExchangeProbe(page: Page) {
     };
     request = requestAnimationFrame(sample);
     return { initialOptions, measure, frames, clicks, mid, done, observation };
-  });
+  }, performanceCapture);
 }
 
 async function captureDrawerExchange(page: Page, name: string) {
@@ -460,7 +576,7 @@ for (const width of DESKTOP_WIDTHS) {
 }
 
 test("1440px planner hands ownership to venue and Back restores composed state", async ({
-  page,
+  page, browserName,
 }) => {
   test.setTimeout(60_000);
   await prepareDesktopMap(page);
@@ -501,165 +617,175 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     "toolbar before ownership change",
   );
   await captureDrawerExchange(page, "planner-open");
-  const probe = await armDrawerExchangeProbe(page);
-  // Runner epoch timestamps locate each existing call without another browser round trip.
-  // Per-frame option evidence is observational, not Playwright's actionability verdict.
-  const actionCalls: { name: string; phase: "start" | "end"; atEpochMs: number }[] = [];
-  actionCalls.push({ name: "Swift Borough click", phase: "start", atEpochMs: Date.now() });
-  await firstVenueOption.click();
-  actionCalls.push({ name: "Swift Borough click", phase: "end", atEpochMs: Date.now() });
+  const performanceCapture = browserName === "chromium" && process.env.PUBMAX_CAPTURE_RETARGET_PERFORMANCE === "1"
+    ? await startRetargetPerformance(page)
+    : undefined;
+  let probeFinished = false;
+  try {
+    const probe = await armDrawerExchangeProbe(page, performanceCapture?.active);
+    // Runner epoch timestamps locate each existing call without another browser round trip.
+    // Per-frame option evidence is observational, not Playwright's actionability verdict.
+    const actionCalls: { name: string; phase: "start" | "end"; atEpochMs: number }[] = [];
+    actionCalls.push({ name: "Swift Borough click", phase: "start", atEpochMs: Date.now() });
+    await firstVenueOption.click();
+    actionCalls.push({ name: "Swift Borough click", phase: "end", atEpochMs: Date.now() });
 
-  // The venue list is hidden while a drawer owns the map. Use toolbar search.
-  // A pointer can hit a moving option. The captured click must prove its identity and timing.
-  actionCalls.push({ name: "Search pubs focus", phase: "start", atEpochMs: Date.now() });
-  await toolbar.getByRole("combobox", { name: "Search pubs" }).focus();
-  actionCalls.push({ name: "Search pubs focus", phase: "end", atEpochMs: Date.now() });
-  const { retargetAim, failureDiagnostics } = await probe.evaluate((state) => {
-    const retargetAim = state.measure();
-    if (retargetAim.retargetOption?.canClick) return { retargetAim, failureDiagnostics: null };
-    const elements: HTMLElement[] = [];
-    let element = document.querySelector<HTMLElement>(
-      '.mapToolbar [role="option"][data-venue-id="bar-swift-soho"]',
-    );
-    while (element) {
-      elements.push(element);
-      element = element.parentElement;
-    }
-    const ancestors = elements.map((element) => {
-      const style = getComputedStyle(element);
+    // The venue list is hidden while a drawer owns the map. Use toolbar search.
+    // A pointer can hit a moving option. The captured click must prove its identity and timing.
+    actionCalls.push({ name: "Search pubs focus", phase: "start", atEpochMs: Date.now() });
+    await toolbar.getByRole("combobox", { name: "Search pubs" }).focus();
+    actionCalls.push({ name: "Search pubs focus", phase: "end", atEpochMs: Date.now() });
+    const { retargetAim, failureDiagnostics } = await probe.evaluate((state) => {
+      const retargetAim = state.measure();
+      if (retargetAim.retargetOption?.canClick) return { retargetAim, failureDiagnostics: null };
+      const elements: HTMLElement[] = [];
+      let element = document.querySelector<HTMLElement>(
+        '.mapToolbar [role="option"][data-venue-id="bar-swift-soho"]',
+      );
+      while (element) {
+        elements.push(element);
+        element = element.parentElement;
+      }
+      const ancestors = elements.map((element) => {
+        const style = getComputedStyle(element);
+        return {
+          tag: element.tagName,
+          id: element.id,
+          className: element.getAttribute("class"),
+          display: style.display,
+          visibility: style.visibility,
+          opacity: style.opacity,
+          contentVisibility: style.contentVisibility,
+          animationName: style.animationName,
+          animationDuration: style.animationDuration,
+          animationDelay: style.animationDelay,
+          animationFillMode: style.animationFillMode,
+          animations: element.getAnimations()
+            .filter((animation) => animation.playState !== "finished" && animation.playState !== "idle")
+            .map((animation) => ({
+              currentTime: animation.currentTime,
+              playState: animation.playState,
+              pending: animation.pending,
+              progress: animation.effect?.getComputedTiming().progress ?? null,
+            })),
+        };
+      });
       return {
-        tag: element.tagName,
-        id: element.id,
-        className: element.getAttribute("class"),
-        display: style.display,
-        visibility: style.visibility,
-        opacity: style.opacity,
-        contentVisibility: style.contentVisibility,
-        animationName: style.animationName,
-        animationDuration: style.animationDuration,
-        animationDelay: style.animationDelay,
-        animationFillMode: style.animationFillMode,
-        animations: element.getAnimations()
-          .filter((animation) => animation.playState !== "finished" && animation.playState !== "idle")
-          .map((animation) => ({
-            currentTime: animation.currentTime,
-            playState: animation.playState,
-            pending: animation.pending,
-            progress: animation.effect?.getComputedTiming().progress ?? null,
-          })),
+        retargetAim,
+        failureDiagnostics: {
+          ancestors,
+          initialOptions: state.initialOptions,
+          frames: state.frames,
+          clicks: state.clicks,
+          observation: state.observation,
+        },
       };
     });
-    return {
-      retargetAim,
-      failureDiagnostics: {
-        ancestors,
-        initialOptions: state.initialOptions,
-        frames: state.frames,
-        clicks: state.clicks,
-        observation: state.observation,
-      },
-    };
-  });
-  const option = retargetAim.retargetOption;
-  if (!option?.canClick) {
-    await test.info().attach("drawer-exchange-retarget-failure", {
-      body: JSON.stringify({ retargetAim, ...failureDiagnostics, actionCalls }),
-      contentType: "application/json",
+    const option = retargetAim.retargetOption;
+    if (!option?.canClick) {
+      await test.info().attach("drawer-exchange-retarget-failure", {
+        body: JSON.stringify({ retargetAim, ...failureDiagnostics, actionCalls }),
+        contentType: "application/json",
+      });
+      throw new Error(`Swift Soho must own its current centre before clicking: ${JSON.stringify(retargetAim)}`);
+    }
+    actionCalls.push({ name: "Swift click", phase: "start", atEpochMs: Date.now() });
+    await page.mouse.click(option.point.x, option.point.y);
+    actionCalls.push({ name: "Swift click", phase: "end", atEpochMs: Date.now() });
+    performanceCapture?.stop();
+    actionCalls.push({ name: "mid-frame read", phase: "start", atEpochMs: Date.now() });
+    const mid = await probe.evaluate((state) => state.mid);
+    actionCalls.push({ name: "mid-frame read", phase: "end", atEpochMs: Date.now() });
+    const settled = await probe.evaluate((state) => state.done);
+    probeFinished = true;
+    const { initialOptions, frames, clicks, observation } = await probe.evaluate(
+      ({ initialOptions, frames, clicks, observation }) => ({ initialOptions, frames, clicks, observation }),
+    );
+    await probe.dispose();
+    await test.info().attach("drawer-exchange-frames", {
+      body: JSON.stringify({ initialOptions, retargetAim, frames, clicks, observation, actionCalls }), contentType: "application/json",
     });
-    throw new Error(`Swift Soho must own its current centre before clicking: ${JSON.stringify(retargetAim)}`);
+    expect(mid, "one sampled frame contains both moving drawers").not.toBeNull();
+    if (!mid) throw new Error("No simultaneous mid-spring frame within the observation bound");
+    expect(settled, "drawer exchange settles within the observation bound").toBe(true);
+    expect(clicks, "both venue selections use trusted clicks").toHaveLength(2);
+    expect(clicks[0].venueId, "first trusted selection is Swift Borough").toBe("bar-swift-borough");
+    expect(clicks[1].venueId, "sampled retarget identity matches the trusted click")
+      .toBe(observation.retargetVenueId);
+    expect(clicks[0].after, "first selection reaches the document").toBeDefined();
+    expect(
+      Math.abs(clicks[0].after!.toolbar.x - clicks[0].before.toolbar.x),
+    ).toBeLessThan(16);
+    const { planner: plannerMid, venue: venueMid, toolbar: toolbarMid } = mid;
+    expect(plannerMid.x).toBeLessThan(0);
+    expect(plannerMid.x).toBeGreaterThan(-plannerMid.width);
+    expect(venueMid.x).toBeGreaterThan(800);
+    expect(venueMid.x).toBeLessThan(DESKTOP.width);
+    const retarget = clicks[1];
+    expect(
+      retarget.before.venue.x, "real retarget click lands before the spring settles",
+    ).toBeGreaterThan(800);
+    expect(retarget.before.venue.x).toBeLessThan(DESKTOP.width);
+    expect(retarget.next, "retarget has a following animation frame").toBeDefined();
+    expect(retarget.next!.venue.x).toBeLessThanOrEqual(retarget.before.venue.x + 10);
+    for (const frame of frames) expect(frame.map).toEqual(mapBefore);
+    await expect(planner).toHaveAttribute("aria-hidden", "true");
+    await expect(venue).toHaveAttribute("aria-hidden", "false");
+    await expect(page.getByRole("region", {
+      name: "Interactive pub map of London", exact: true,
+    })).toBeVisible();
+
+    await expect
+      .poll(() => page.locator(".mapDrawer.springDrawer.open").count(), {
+        message: "one desktop drawer owns the surface after exchange",
+      })
+      .toBe(1);
+    await expect(
+      venue.getByRole("heading", { name: "Swift Soho", exact: true }).first(),
+    ).toBeVisible({ timeout: 20_000 });
+
+    const [mapAfter, venueOpen, toolbarOpen] = await Promise.all([
+      renderedBox(mapStage, "map stage after exchange"),
+      renderedBox(venue, "open venue drawer"),
+      renderedBox(toolbar, "toolbar beside venue"),
+    ]);
+    expect((await renderedBox(planner, "closed planner")).x).toBeCloseTo(
+      -EXPECTED_PLANNER_RAIL_WIDTHS[1440], 0,
+    );
+    expect(venueOpen.x).toBeCloseTo(800, 0);
+    expect(toolbarOpen.x + toolbarOpen.width).toBeLessThanOrEqual(
+      venueOpen.x - EDGE_GUTTER + SUBPIXEL_TOLERANCE,
+    );
+    expect(toolbarMid.x).toBeLessThan(toolbarBeforeOwnershipChange.x);
+    expect(toolbarMid.x).toBeGreaterThan(toolbarOpen.x);
+    expect(mapAfter).toEqual(mapBefore);
+    await captureDrawerExchange(page, "venue-open");
+    await expect(
+      venue.getByRole("button", { name: "Back to Plan an outing" }),
+    ).toBeVisible();
+    await expect(
+      venue.getByRole("button", { name: "Close and return to the London map" }),
+    ).toBeVisible();
+
+    await venue
+      .getByRole("button", { name: "Back to Plan an outing" })
+      .click();
+    await expect(planner).toHaveAttribute("aria-hidden", "false");
+    await expect(planner.locator("#railSearchInput")).toHaveValue(
+      "Swift",
+    );
+    await expect
+      .poll(() => page.locator(".mapDrawer.springDrawer.open").count(), {
+        message: "Back restores planner as sole desktop drawer",
+      })
+      .toBe(1);
+    await expect
+      .poll(async () => (await renderedBox(planner, "restored planner")).x)
+      .toBeCloseTo(0, 0);
+    await captureDrawerExchange(page, "back-restored-planner");
+  } finally {
+    await performanceCapture?.finish(probeFinished);
   }
-  actionCalls.push({ name: "Swift click", phase: "start", atEpochMs: Date.now() });
-  await page.mouse.click(option.point.x, option.point.y);
-  actionCalls.push({ name: "Swift click", phase: "end", atEpochMs: Date.now() });
-  actionCalls.push({ name: "mid-frame read", phase: "start", atEpochMs: Date.now() });
-  const mid = await probe.evaluate((state) => state.mid);
-  actionCalls.push({ name: "mid-frame read", phase: "end", atEpochMs: Date.now() });
-  const settled = await probe.evaluate((state) => state.done);
-  const { initialOptions, frames, clicks, observation } = await probe.evaluate(
-    ({ initialOptions, frames, clicks, observation }) => ({ initialOptions, frames, clicks, observation }),
-  );
-  await probe.dispose();
-  await test.info().attach("drawer-exchange-frames", {
-    body: JSON.stringify({ initialOptions, retargetAim, frames, clicks, observation, actionCalls }), contentType: "application/json",
-  });
-  expect(mid, "one sampled frame contains both moving drawers").not.toBeNull();
-  if (!mid) throw new Error("No simultaneous mid-spring frame within the observation bound");
-  expect(settled, "drawer exchange settles within the observation bound").toBe(true);
-  expect(clicks, "both venue selections use trusted clicks").toHaveLength(2);
-  expect(clicks[0].venueId, "first trusted selection is Swift Borough").toBe("bar-swift-borough");
-  expect(clicks[1].venueId, "sampled retarget identity matches the trusted click")
-    .toBe(observation.retargetVenueId);
-  expect(clicks[0].after, "first selection reaches the document").toBeDefined();
-  expect(
-    Math.abs(clicks[0].after!.toolbar.x - clicks[0].before.toolbar.x),
-  ).toBeLessThan(16);
-  const { planner: plannerMid, venue: venueMid, toolbar: toolbarMid } = mid;
-  expect(plannerMid.x).toBeLessThan(0);
-  expect(plannerMid.x).toBeGreaterThan(-plannerMid.width);
-  expect(venueMid.x).toBeGreaterThan(800);
-  expect(venueMid.x).toBeLessThan(DESKTOP.width);
-  const retarget = clicks[1];
-  expect(
-    retarget.before.venue.x, "real retarget click lands before the spring settles",
-  ).toBeGreaterThan(800);
-  expect(retarget.before.venue.x).toBeLessThan(DESKTOP.width);
-  expect(retarget.next, "retarget has a following animation frame").toBeDefined();
-  expect(retarget.next!.venue.x).toBeLessThanOrEqual(retarget.before.venue.x + 10);
-  for (const frame of frames) expect(frame.map).toEqual(mapBefore);
-  await expect(planner).toHaveAttribute("aria-hidden", "true");
-  await expect(venue).toHaveAttribute("aria-hidden", "false");
-  await expect(page.getByRole("region", {
-    name: "Interactive pub map of London", exact: true,
-  })).toBeVisible();
-
-  await expect
-    .poll(() => page.locator(".mapDrawer.springDrawer.open").count(), {
-      message: "one desktop drawer owns the surface after exchange",
-    })
-    .toBe(1);
-  await expect(
-    venue.getByRole("heading", { name: "Swift Soho", exact: true }).first(),
-  ).toBeVisible({ timeout: 20_000 });
-
-  const [mapAfter, venueOpen, toolbarOpen] = await Promise.all([
-    renderedBox(mapStage, "map stage after exchange"),
-    renderedBox(venue, "open venue drawer"),
-    renderedBox(toolbar, "toolbar beside venue"),
-  ]);
-  expect((await renderedBox(planner, "closed planner")).x).toBeCloseTo(
-    -EXPECTED_PLANNER_RAIL_WIDTHS[1440], 0,
-  );
-  expect(venueOpen.x).toBeCloseTo(800, 0);
-  expect(toolbarOpen.x + toolbarOpen.width).toBeLessThanOrEqual(
-    venueOpen.x - EDGE_GUTTER + SUBPIXEL_TOLERANCE,
-  );
-  expect(toolbarMid.x).toBeLessThan(toolbarBeforeOwnershipChange.x);
-  expect(toolbarMid.x).toBeGreaterThan(toolbarOpen.x);
-  expect(mapAfter).toEqual(mapBefore);
-  await captureDrawerExchange(page, "venue-open");
-  await expect(
-    venue.getByRole("button", { name: "Back to Plan an outing" }),
-  ).toBeVisible();
-  await expect(
-    venue.getByRole("button", { name: "Close and return to the London map" }),
-  ).toBeVisible();
-
-  await venue
-    .getByRole("button", { name: "Back to Plan an outing" })
-    .click();
-  await expect(planner).toHaveAttribute("aria-hidden", "false");
-  await expect(planner.locator("#railSearchInput")).toHaveValue(
-    "Swift",
-  );
-  await expect
-    .poll(() => page.locator(".mapDrawer.springDrawer.open").count(), {
-      message: "Back restores planner as sole desktop drawer",
-    })
-    .toBe(1);
-  await expect
-    .poll(async () => (await renderedBox(planner, "restored planner")).x)
-    .toBeCloseTo(0, 0);
-  await captureDrawerExchange(page, "back-restored-planner");
 });
 
 test("1440px Plan an outing takes ownership from an open venue", async ({
