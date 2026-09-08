@@ -192,6 +192,10 @@
   margin-top: var(--space-2);
 }
 
+.lpPubCard .lpPhotoCredit {
+  font-size: var(--text-xs);
+}
+
 /* The photograph is positioned, so every static sibling would paint UNDER it.
    Lift the card's own content into the layer above it. */
 .lpPubCard--photo > *:not(.landingPhoto) {
@@ -268,6 +272,15 @@
   line-height: var(--leading-normal);
 }
 .lpPubSource a, .lpPubThenSource a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.lpPubSource a,
+.lpPubThenSource a,
+.lpPubCard .lpPhotoCredit a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--control-height, 44px);
+  min-inline-size: var(--control-height, 44px);
+  vertical-align: middle;
+}
 .lpPubSource a:hover, .lpPubThenSource a:hover { color: var(--ink); }
 
 /* The standing chip: the word lib/priceTier.ts gives the row, and the word
