@@ -75,8 +75,10 @@ describe("publisher menu heading policies", () => {
 
   it("keeps invalid inputs outside the string-only parser boundary", () => {
     for (const heading of [null, undefined, 42, {}]) {
-      expect(() => greeneKing(heading)).toThrow(TypeError);
-      expect(() => mbplc(heading)).toThrow(TypeError);
+      // Deliberately cross the declared boundary to test untyped runtime callers.
+      const invalidHeading = heading as unknown as string;
+      expect(() => greeneKing(invalidHeading)).toThrow(TypeError);
+      expect(() => mbplc(invalidHeading)).toThrow(TypeError);
     }
   });
 });
