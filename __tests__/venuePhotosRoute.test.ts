@@ -74,7 +74,7 @@ import {
   memoryProfileStore,
   profileStore,
 } from "@/lib/profileStore";
-import type { VenuePhotoStorage } from "@/lib/venuePhotoMedia.server";
+import { VenuePhotoError, type VenuePhotoStorage } from "@/lib/venuePhotoMedia.server";
 import {
   __resetVenuePhotos,
   venuePhotoStore,
@@ -336,6 +336,50 @@ describe("a photo the safety scan refuses", () => {
   // Only a real negative verdict refuses. A scanner nobody configured, or one
   // that is down, is a fact about us: the wall still takes the photo and the
   // moderator report/hide lane is the safety net.
+  it("still publishes the wall photo when the staging URL signer rejects", async () => {
+    const storage = memoryStorage();
+    storage.sign = vi.fn(async () => { throw new Error("Signing unavailable"); });
+    const moderation = vi.fn(() => ({ moderate: async () => ({ decision: "approved" as const }) }));
+    __setVenuePhotoRouteDepsForTest({ storage, moderation });
+
+    const response = await POST(upload(await jpeg()));
+
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(storage.sign).toHaveBeenCalledOnce();
+    expect(moderation).not.toHaveBeenCalled();
+    expect(storage.uploads).toHaveLength(2);
+    expect(storage.uploads[0].path).toMatch(/\.staging\.jpg$/);
+    expect(storage.keys()).toEqual([venuePhotoServingKey(VENUE, body.photo.id)]);
+    const page = await (await GET(wall())).json();
+    expect(page.photos.map((photo: { id: string }) => photo.id)).toEqual([body.photo.id]);
+  });
+
+  it.each(["staging", "promotion"] as const)("still refuses a %s write failure when signing is unavailable", async (phase) => {
+    const storage = memoryStorage();
+    const write = storage.upload;
+    storage.upload = vi.fn(async (path, bytes, contentType) => {
+      if (path.endsWith(".staging.jpg") === (phase === "staging")) {
+        throw new VenuePhotoError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
+      }
+      await write(path, bytes, contentType);
+    });
+    storage.sign = vi.fn(async () => { throw new Error("Signing unavailable"); });
+    const moderation = vi.fn(() => ({ moderate: async () => ({ decision: "approved" as const }) }));
+    __setVenuePhotoRouteDepsForTest({ storage, moderation });
+
+    const response = await POST(upload(await jpeg()));
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "STORAGE_UNAVAILABLE", retryable: true });
+    expect(storage.upload).toHaveBeenCalledTimes(phase === "staging" ? 1 : 2);
+    expect(storage.sign).toHaveBeenCalledTimes(phase === "staging" ? 0 : 1);
+    expect(moderation).not.toHaveBeenCalled();
+    expect(storage.keys()).toEqual([]);
+    const page = await (await GET(wall())).json();
+    expect(page.photos).toEqual([]);
+  });
+
   it("still takes the photo when no scan provider is configured", async () => {
     const storage = memoryStorage();
     __setVenuePhotoRouteDepsForTest({
