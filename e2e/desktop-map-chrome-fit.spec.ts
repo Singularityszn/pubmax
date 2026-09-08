@@ -70,6 +70,7 @@ async function selectToolbarPub(page: Page, query: string, name: RegExp) {
 
 async function armDrawerExchangeProbe(page: Page) {
   return page.evaluateHandle(() => {
+    const startedAt = performance.now();
     const measure = () => {
       const box = (selector: string) => {
         const element = document.querySelector(selector);
@@ -78,6 +79,7 @@ async function armDrawerExchangeProbe(page: Page) {
         return { x, y, width, height };
       };
       return {
+        atMs: performance.now() - startedAt,
         planner: box(".mapDrawer.left.springDrawer"),
         venue: box(".mapDrawer.right.springDrawer"),
         toolbar: box(".mapToolbar"),
@@ -85,31 +87,59 @@ async function armDrawerExchangeProbe(page: Page) {
       };
     };
     type Frame = ReturnType<typeof measure>;
+    type Click = {
+      atMs: number;
+      target: string;
+      venueId: string | null;
+      before: Frame;
+      after?: Frame;
+      next?: Frame;
+    };
     const frames: Frame[] = [];
-    const clicks: { before: Frame; after?: Frame; next?: Frame }[] = [];
+    const clicks: Click[] = [];
+    const clickEvents = new WeakMap<MouseEvent, Click>();
+    type StopReason = "settled" | "deadline" | "frame-limit";
+    const observation = {
+      firstSettledAtMs: null as number | null,
+      terminal: null as { reason: StopReason; atMs: number } | null,
+    };
+    let stableFrames = 0;
     let resolveMid!: (frame: Frame | null) => void;
     let resolveDone!: (settled: boolean) => void;
     const mid = new Promise<Frame | null>((resolve) => { resolveMid = resolve; });
     const done = new Promise<boolean>((resolve) => { resolveDone = resolve; });
     const beforeClick = (event: MouseEvent) => {
-      if (event.isTrusted) clicks.push({ before: measure() });
+      const target = event.target instanceof Element
+        ? event.target.closest('[role="option"][data-venue-id]')
+        : null;
+      if (!event.isTrusted || !target) return;
+      const click: Click = {
+        atMs: event.timeStamp - startedAt,
+        target: target.textContent?.trim() ?? "",
+        venueId: target.getAttribute("data-venue-id"),
+        before: measure(),
+      };
+      clicks.push(click);
+      clickEvents.set(event, click);
+      stableFrames = 0;
     };
     const afterClick = (event: MouseEvent) => {
-      if (event.isTrusted && clicks.length) clicks[clicks.length - 1].after = measure();
+      const click = clickEvents.get(event);
+      if (click) click.after = measure();
     };
     document.addEventListener("click", beforeClick, true);
     document.addEventListener("click", afterClick);
     let request = 0;
-    let stableFrames = 0;
-    const finish = (settled: boolean) => {
+    const finish = (reason: StopReason) => {
+      observation.terminal = { reason, atMs: performance.now() - startedAt };
       cancelAnimationFrame(request);
       clearTimeout(deadline);
       document.removeEventListener("click", beforeClick, true);
       document.removeEventListener("click", afterClick);
       resolveMid(null);
-      resolveDone(settled);
+      resolveDone(reason === "settled");
     };
-    const deadline = window.setTimeout(() => finish(false), 5_000);
+    const deadline = window.setTimeout(() => finish("deadline"), 5_000);
     const sample = () => {
       const frame = measure();
       frames.push(frame);
@@ -125,12 +155,18 @@ async function armDrawerExchangeProbe(page: Page) {
           && Math.abs(frame[key].width - previous[key].width) <= 0.1,
       );
       stableFrames = atEnd && stable ? stableFrames + 1 : 0;
-      if (stableFrames >= 3) finish(true);
-      else if (frames.length >= 360) finish(false);
+      if (stableFrames >= 3) {
+        observation.firstSettledAtMs ??= frame.atMs;
+        if (clicks.length >= 2) {
+          finish("settled");
+          return;
+        }
+      }
+      if (frames.length >= 360) finish("frame-limit");
       else request = requestAnimationFrame(sample);
     };
     request = requestAnimationFrame(sample);
-    return { frames, clicks, mid, done };
+    return { frames, clicks, mid, done, observation };
   });
 }
 
@@ -417,12 +453,12 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   await toolbar.getByRole("combobox", { name: "Search pubs" }).focus();
   await page.getByRole("option", { name: /^Swift Soho\b/ }).first().click();
   const settled = await probe.evaluate((state) => state.done);
-  const { frames, clicks } = await probe.evaluate(
-    ({ frames, clicks }) => ({ frames, clicks }),
+  const { frames, clicks, observation } = await probe.evaluate(
+    ({ frames, clicks, observation }) => ({ frames, clicks, observation }),
   );
   await probe.dispose();
   await test.info().attach("drawer-exchange-frames", {
-    body: JSON.stringify({ frames, clicks }), contentType: "application/json",
+    body: JSON.stringify({ frames, clicks, observation }), contentType: "application/json",
   });
   expect(settled, "drawer exchange settles within the observation bound").toBe(true);
   expect(clicks, "both venue selections use trusted clicks").toHaveLength(2);
