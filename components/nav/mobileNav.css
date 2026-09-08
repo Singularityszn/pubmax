@@ -111,6 +111,15 @@ body:has(.mapStage) {
   --float-stack-top-pal: calc(var(--pal-summon-bottom) + var(--pal-summon-h));
 }
 
+/* A story replaces the planning pill. Reuse its free lower band for Near me;
+   the shared stack then places Create above it and the story above both. */
+body:has(.bandOnboardingChip) {
+  --map-corner-bottom: var(--float-stack-base);
+  --float-stack-top-map-corner: calc(
+    var(--map-corner-bottom) + var(--map-corner-locate-size)
+  );
+}
+
 /* When a member lifts the map-edge column, its published top edge must move
    with it or the create action reads a stale berth and lands on Near me. */
 body:has(.mapStage):has(.palSummon) {
