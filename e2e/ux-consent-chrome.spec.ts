@@ -1,3 +1,4 @@
+import { installNativeShell } from "./helpers/nativeShell";
 import { expect, test } from "@playwright/test";
 
 import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
@@ -41,41 +42,24 @@ async function pointOwner(
   );
 }
 
-// The first-run surface is native-only and every one of its blocks is sized to
-// the viewport, so the ordinary body foot padding cannot lift it out of a fixed
-// bottom card's way. prepareUndecidedConsent below dismisses onboarding on
-// purpose; this route is the one place that marker may not be set, so it gets
-// its own preparation: a Capacitor bridge (the ONE probe lib/nativePlatform.ts
-// reads) plus the one-time eligibility handoff the native root issues before
-// it replaces `/` with /onboarding. The handoff is written here rather than
-// earned by booting `/` because the ROOT decision is another spec's subject
-// (e2e/mobile-first-run-onboarding.spec.ts) and a redirect that has not landed
-// yet would fail this one for a reason it does not own. The surface the gate
-// then mounts is the same surface either way.
+// A real venue answer precedes this first onboarding visit. The root then
+// issues its own handoff; no test writes first-run eligibility or consent answers.
 async function prepareFirstRunOnboarding(
   page: import("@playwright/test").Page,
   viewport: { width: number; height: number },
 ) {
   await page.setViewportSize(viewport);
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
+  await installNativeShell(page);
   await page.addInitScript(() => {
-    Object.defineProperty(window, "Capacitor", {
-      configurable: true,
-      value: { isNativePlatform: () => true, getPlatform: () => "ios" },
-    });
-    window.sessionStorage.setItem(
-      "pubmax:nativeFirstRun:handoff:v1",
-      String(Date.now()),
-    );
     window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
-    window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
-    // The first-run surface is this spec's subject, not the card's wait, so
-    // the answer moment is seeded here too (see prepareUndecidedConsent).
-    window.sessionStorage.setItem(
-      "pubmax:consent-answer-moment:v1",
-      "venue-sheet",
-    );
   });
+  await page.goto("/map?sel=venue-1r4e6my");
+  await expect(page.getByLabel("Anonymous analytics choice")).toBeVisible({ timeout: 30_000 });
+  expect(await page.evaluate(() => sessionStorage.getItem("pubmax:consent-answer-moment:v1"))).toBe("venue-sheet");
+  expect(await page.evaluate(() => localStorage.getItem("pubmax:preferredCity:v1"))).toBeNull();
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/onboarding$/);
 }
 
 type Box = { x: number; y: number; width: number; height: number };
@@ -387,10 +371,14 @@ const ONBOARDING_VIEWPORTS = [
 ] as const;
 
 for (const viewport of ONBOARDING_VIEWPORTS) {
-  test(`consent never covers first-run onboarding @${viewport.width}x${viewport.height}`, async ({ page }) => {
+  test(`consent never covers first-run onboarding after a venue answer @${viewport.width}x${viewport.height}`, async ({ page }) => {
     test.setTimeout(60_000);
     await prepareFirstRunOnboarding(page, viewport);
-    await page.goto("/onboarding", { waitUntil: "domcontentloaded" });
+    await expect.poll(() => page.locator(".firstRunLondonPhoto img").evaluate(
+      (image: HTMLImageElement) => image.complete && image.naturalWidth > 0,
+    )).toBe(true);
+    await page.locator(".firstRunLondonPhoto img").evaluate((image: HTMLImageElement) => image.decode());
+    expect(await page.locator(".firstRunOnboarding").evaluate((surface) => surface.scrollTop)).toBe(0);
 
     const prompt = page.getByLabel("Anonymous analytics choice");
     await expect(prompt).toBeVisible({ timeout: 30_000 });
@@ -436,36 +424,34 @@ for (const viewport of ONBOARDING_VIEWPORTS) {
       const rowBox = await row.boundingBox();
       expect(rowBox).not.toBeNull();
       expect(boxesOverlap(promptBox!, rowBox!)).toBe(false);
-      expect(boxesOverlap(primaryBox!, rowBox!)).toBe(false);
+      expect(boxesOverlap((await primary.boundingBox())!, rowBox!)).toBe(false);
     }
     await expect(primary).toBeInViewport({ ratio: 1 });
 
     // The tap at the button's own centre reaches the button.
-    expect(await pointOwner(page, primaryBox!, ".firstRunPrimary")).toBe("control");
+    expect(await pointOwner(page, (await primary.boundingBox())!, ".firstRunPrimary")).toBe("control");
     // ...and the probe is one this card can lose: its own centre is its own.
     expect(await pointOwner(page, promptBox!, ".firstRunPrimary")).toBe("prompt");
 
-    // Answering the card gives the surface its full height back, so the lane
-    // stops being reserved and the designed photograph band returns. At the
-    // narrowest widths that pushes the action below the fold again, which is
-    // the surface's own composition rather than anything this card does: what
-    // is owed here is that the action is still REACHABLE once the card is
-    // gone, on a surface that scrolls to it.
+    // Return to the initial position before dismissal. Never scroll the CTA
+    // into view to make this assertion pass after the consent lane disappears.
+    await page.locator(".firstRunOnboarding").evaluate((surface) => surface.scrollTo(0, 0));
     await prompt.getByRole("button", { name: "No thanks" }).click();
     await expect(prompt).toBeHidden();
-    // The SCROLL is retried beside the assertion, not taken once in front of
-    // it. Answering the card releases the reserved lane and brings the
-    // photograph band back, and that reflow can land AFTER a one-shot
-    // scrollIntoViewIfNeeded has already settled: the button then drifts back
-    // under the fold and toBeInViewport, which re-reads but never re-scrolls,
-    // waits out its whole budget against a stale offset. That is what made
-    // this case fail at 360 about one run in three.
-    // scrollIntoViewIfNeeded settles on a fractional offset, so the last half
-    // pixel is the scroller's rounding rather than a covered control.
-    await expect(async () => {
-      await primary.scrollIntoViewIfNeeded();
-      await expect(primary).toBeInViewport({ ratio: 0.99, timeout: 1_000 });
-    }).toPass({ timeout: 20_000 });
+    await expect(primary).toBeInViewport({ ratio: 1 });
+    const dismissedPrimaryBox = await primary.boundingBox();
+    expect(dismissedPrimaryBox).not.toBeNull();
+    expect(await pointOwner(page, dismissedPrimaryBox!, ".firstRunPrimary")).toBe("control");
+    await primary.focus();
+    await expect(primary).toBeFocused();
+    await expect(primary).toBeInViewport({ ratio: 1 });
+    const lastRow = rows.last();
+    await lastRow.scrollIntoViewIfNeeded();
+    await expect(lastRow).toBeInViewport({ ratio: 1 });
+    const lastRowBox = await lastRow.boundingBox();
+    const finalPrimaryBox = await primary.boundingBox();
+    expect(boxesOverlap(lastRowBox!, finalPrimaryBox!)).toBe(false);
+    await expect(primary).toBeInViewport({ ratio: 1 });
   });
 }
 

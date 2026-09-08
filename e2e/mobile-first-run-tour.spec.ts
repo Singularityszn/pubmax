@@ -23,6 +23,8 @@ test.describe("mobile first-run tour", () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.addInitScript(() => {
+      // Scheduling only: the tour still reads its real eligibility and budget.
+      window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
       window.localStorage.removeItem("pubmax-tour-v1-done");
       window.localStorage.removeItem("pubmax-tour-v2-done");
       window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -30,7 +32,7 @@ test.describe("mobile first-run tour", () => {
     });
   });
 
-  test("presents thumb-safe onboarding controls before first value", async ({ page }) => {
+  test("presents thumb-safe tour controls when the deferred shell is released", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     // Map-only gate (lib/firstRunTour.ts); /pubs is a gallery, not the map.
     await page.goto("/map");
@@ -76,4 +78,14 @@ test.describe("mobile first-run tour", () => {
     expect(geometry.overflow).toBeLessThanOrEqual(1);
     expect(geometry.actionsRight).toBeLessThanOrEqual(390);
   });
+});
+
+// Keep the real web scheduling path covered separately from focused UI checks.
+test("real deferred shell eventually presents the eligible map tour", async ({ page }) => {
+  test.setTimeout(50_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/map");
+  expect(await page.evaluate(() => localStorage.getItem("pubmax:e2e-defer-shell:v1"))).toBeNull();
+  await expect(page.getByRole("dialog", { name: "Pint price colours" })).toBeVisible({ timeout: 40_000 });
 });

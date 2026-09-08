@@ -2,6 +2,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { installNativeShell } from "./helpers/nativeShell";
+
 const VIEWPORT = { width: 390, height: 844 };
 
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
@@ -26,18 +28,6 @@ async function saveShot(page: Page, name: string): Promise<void> {
     `docs/screenshots/onboarding/${name}.png`,
     await page.screenshot({ fullPage: false }),
   );
-}
-
-async function installNativeShell(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    Object.defineProperty(window, "Capacitor", {
-      configurable: true,
-      value: {
-        isNativePlatform: () => true,
-        getPlatform: () => "ios",
-      },
-    });
-  });
 }
 
 async function installSuccessfulPlanRoute(page: Page): Promise<void> {
@@ -125,13 +115,31 @@ for (const theme of ["light", "dark"] as const) {
     await expect(page.getByText("Piccadilly & Soho", { exact: true })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeHidden();
     await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toHaveCount(0);
-    await expectTouchTarget(page.getByRole("button", { name: "Use London" }));
+    await expect.poll(() => page.locator(".firstRunLondonPhoto img").evaluate(
+      (image: HTMLImageElement) => image.complete && image.naturalWidth > 0,
+    )).toBe(true);
+    await page.locator(".firstRunLondonPhoto img").evaluate((image: HTMLImageElement) => image.decode());
+    expect(await page.locator(".firstRunOnboarding").evaluate((surface) => surface.scrollTop)).toBe(0);
+    const london = page.getByRole("button", { name: "Use London" });
+    await expect(london).toBeInViewport({ ratio: 1 });
+    expect(await london.evaluate((button) => {
+      const box = button.getBoundingClientRect();
+      return button.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+    })).toBe(true);
+    await expectTouchTarget(london);
     await expectTouchTarget(page.getByRole("button", { name: "Skip" }));
     await expectNoHorizontalOverflow(page);
     await saveShot(page, `london-${theme}-390`);
 
     await page.getByRole("button", { name: "Use London" }).click();
     await expect(page.getByRole("heading", { name: "Pick your Pub Pal." })).toBeVisible();
+    const initialPlanAction = page.getByRole("button", { name: "Plan my night" });
+    expect(await page.locator(".firstRunOnboarding").evaluate((surface) => surface.scrollTop)).toBe(0);
+    await expect(initialPlanAction).toBeInViewport({ ratio: 1 });
+    expect(await initialPlanAction.evaluate((button) => {
+      const box = button.getBoundingClientRect();
+      return button.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+    })).toBe(true);
     const cat = page.getByRole("button", { name: /Black Cat/ });
     await expectTouchTarget(cat);
     await cat.click();

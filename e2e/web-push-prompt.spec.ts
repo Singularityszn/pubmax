@@ -2,6 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 
 async function installPwaPushRuntime(page: Page): Promise<void> {
   await page.addInitScript(() => {
+    // Release the host only. Runtime, real plan action, and prompt budget still decide eligibility.
+    window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
     const originalMatchMedia = window.matchMedia.bind(window);
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
