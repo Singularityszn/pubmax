@@ -404,7 +404,7 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
 for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
   test(`mobile map renders story qualifier and attribution at ${viewport.width}px`, async ({
     page,
-  }) => {
+  }, testInfo) => {
     await page.setViewportSize(viewport);
     await page.addInitScript(() => {
       window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -454,6 +454,54 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     await expect(attribution).toBeVisible();
     const attributionInner = attribution.locator(".maplibregl-ctrl-attrib-inner");
     if (!(await attributionInner.isVisible())) {
+      const attributionDiagnostic = await page.evaluate(() => {
+        const describe = (element: Element | null) => {
+          if (!element) return null;
+          const rect = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return {
+            tag: element.tagName.toLowerCase(),
+            id: element.id,
+            className: element.getAttribute("class"),
+            label: element.getAttribute("aria-label") ?? element.getAttribute("title"),
+            rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height, bottom: rect.bottom, right: rect.right },
+            position: style.position,
+            zIndex: style.zIndex,
+            pointerEvents: style.pointerEvents,
+          };
+        };
+        const toggle = document.querySelector(".maplibregl-ctrl-attrib-button");
+        const rect = toggle?.getBoundingClientRect();
+        const center = rect ? { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 } : null;
+        const hit = center ? document.elementFromPoint(center.x, center.y) : null;
+        const ancestors = [];
+        for (let element = hit; element; element = element.parentElement) {
+          ancestors.push(describe(element));
+        }
+        return {
+          capturedAt: performance.now(),
+          viewport: { width: innerWidth, height: innerHeight, scrollX, scrollY },
+          toggle: describe(toggle),
+          center,
+          centerHitsToggle: toggle !== null && hit !== null && toggle.contains(hit),
+          hit: describe(hit),
+          hitAncestors: ancestors,
+          intro: describe(document.querySelector(".bandOnboardingChip")),
+          introButtons: [...document.querySelectorAll(".bandOnboardingChip button")].map(describe),
+          utilityCorner: describe(document.querySelector(".mobileMapUtilityCorner")),
+          utilityButtons: [...document.querySelectorAll(".mobileMapUtilityCorner button")].map(describe),
+          attribution: describe(document.querySelector(".maplibregl-ctrl-attrib")),
+          tabBar: describe(document.querySelector(".mobileTabBar")),
+        };
+      });
+      await testInfo.attach("attribution-before-click-geometry", {
+        body: JSON.stringify(attributionDiagnostic, null, 2),
+        contentType: "application/json",
+      });
+      await testInfo.attach("attribution-before-click", {
+        body: await page.screenshot({ fullPage: false, animations: "allow" }),
+        contentType: "image/png",
+      });
       await attribution.locator(".maplibregl-ctrl-attrib-button").click();
     }
     await expect(attributionInner).toBeVisible();
