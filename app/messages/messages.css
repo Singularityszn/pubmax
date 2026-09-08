@@ -1596,3 +1596,7 @@ html[data-theme="dark"] .messageBubbleTheirs {
 .messageRecipientRow .profileMessageBtn {
   color: var(--brass-ink);
 }
+
+.messageRecipientRow .profileMessageBtn:focus-visible {
+  outline-color: var(--brass-ink);
+}
