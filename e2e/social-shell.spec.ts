@@ -479,7 +479,7 @@ test("feed retry repeats only the failed chronological read", async ({
   await expect(
     page.locator(".socialFeedError").getByText("Social posts are unavailable right now.", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Retry" }).click();
+  await page.locator(".socialFeedError").getByRole("button", { name: "Retry", exact: true }).click();
   await expect(page.getByText("Back in order")).toBeVisible();
   expect(feedReads).toBe(2);
   expect(accessReads).toBe(1);
@@ -496,7 +496,10 @@ test("verified Activity rail shows reauthorised generic notifications only", asy
     ]);
   });
   let activityReads = 0;
-  await page.route("**/api/social/interactions?**", async (route) => {
+  await page.route((url) => url.pathname === "/api/social/interactions" && url.searchParams.get("view") === "summary", async (route) => {
+    await route.fulfill({ json: { summary: { cheered: false, saved: false, reposted: false, cheerCount: 0, repostCount: 0 } } });
+  });
+  await page.route((url) => url.pathname === "/api/social/interactions" && url.searchParams.get("view") === "notifications", async (route) => {
     activityReads += 1;
     await route.fulfill({
       contentType: "application/json",
