@@ -483,11 +483,11 @@ export function markTileFailureSurfaced(
 /**
  * After the one bounded style reload is spent, which surface the caller
  * shows. A MapLibre `render` event is not a loaded style: empty frames fire
- * while both style URLs refuse. Toast is only honest when a style actually
- * loaded and later lost tiles. Otherwise the tiles card.
+ * while both style URLs refuse. A successful style remains evidence for this
+ * map mount when replacement styles fail. Otherwise show the tiles card.
  */
 export function basemapFailureSurface(
-  styleLoaded: boolean,
+  hasLoadedStyle: boolean,
 ): "toast" | "card" {
-  return styleLoaded ? "toast" : "card";
+  return hasLoadedStyle ? "toast" : "card";
 }
