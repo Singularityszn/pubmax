@@ -27,10 +27,11 @@ async function captureNoticeLayout(page: Page, phase: string) {
     const describe = (element: Element | null) => {
       if (!element) return null;
       const style = getComputedStyle(element);
+      const { x, y, width, height, top, right, bottom, left } = element.getBoundingClientRect();
       return {
         className: element.getAttribute("class"),
         text: element.textContent,
-        box: element.getBoundingClientRect().toJSON(),
+        box: { x, y, width, height, top, right, bottom, left },
         width: style.width,
         minWidth: style.minWidth,
         maxWidth: style.maxWidth,
@@ -83,6 +84,7 @@ async function captureNoticeLayout(page: Page, phase: string) {
       hostChildren: host ? [...host.children].map(describe) : [],
       status: describe(document.querySelector(".cityStatusStack")),
       retry: describe(retry),
+      retryMessage: describe(document.querySelector(".mapSoftRetryMessage")),
       retryAnimations: retry?.getAnimations().map((animation) => ({
         id: animation.id,
         playState: animation.playState,
@@ -114,24 +116,45 @@ async function captureNoticeLayout(page: Page, phase: string) {
   await test.info().attach(`notice-layout-${phase}-screenshot`, {
     body: await page.screenshot(), contentType: "image/png",
   });
+  return geometry;
 }
 
 async function expectDesktopNoticeStack(page: Page, phase: string) {
-  await captureNoticeLayout(page, phase);
-  const status = await noticeBox(page.locator(".cityStatusStack"));
-  const retry = await noticeBox(page.locator(".mapSoftRetry"));
-  const drawer = page.locator(".mapDrawer.open");
-  const drawerBox = await noticeBox(drawer);
-  const rightDrawer = await drawer.evaluate((node) => node.classList.contains("right"));
-  const viewport = page.viewportSize()!;
+  const observed = await captureNoticeLayout(page, phase);
+  // Assert the captured frame. A screenshot can let a broken transition settle.
+  expect(observed.status).not.toBeNull();
+  expect(observed.retry).not.toBeNull();
+  expect(observed.drawer).not.toBeNull();
+  const status = observed.status!.box;
+  const retry = observed.retry!.box;
+  const drawerBox = observed.drawer!.box;
+  const rightDrawer = observed.drawer!.className?.split(" ").includes("right");
+  const viewport = observed.viewport;
   for (const box of [status, retry]) {
     expect(box.x).toBeGreaterThanOrEqual(rightDrawer ? 16 : drawerBox.x + drawerBox.width + 16 - 0.5);
     expect(box.x + box.width).toBeLessThanOrEqual(rightDrawer ? drawerBox.x - 16 + 0.5 : viewport.width - 16);
     expect(box.y).toBeGreaterThanOrEqual(0);
     expect(box.y + box.height).toBeLessThanOrEqual(viewport.height - 16 + 0.5);
   }
-  expect(status.y + status.height + 8 - 0.5, "status and Retry have an unobstructed gap")
-    .toBeLessThanOrEqual(retry.y);
+  const [upper, lower] = status.y <= retry.y ? [status, retry] : [retry, status];
+  expect(upper.bottom + 8 - 0.5, "status and Retry have an unobstructed gap in either order")
+    .toBeLessThanOrEqual(lower.top);
+  expect(observed.retryMessage?.text).toBe("Map background couldn't load. Tap Retry to try again.");
+  const retryButton = observed.controls.find(({ selector }) => selector === ".mapSoftRetryBtn")?.control;
+  for (const content of [observed.retryMessage, retryButton]) {
+    expect(content).toBeTruthy();
+    expect(content!.box.left, "Retry content stays inside its wrapper").toBeGreaterThanOrEqual(retry.left - 0.5);
+    expect(content!.box.right).toBeLessThanOrEqual(retry.right + 0.5);
+    expect(content!.box.top).toBeGreaterThanOrEqual(retry.top - 0.5);
+    expect(content!.box.bottom).toBeLessThanOrEqual(retry.bottom + 0.5);
+  }
+  for (const selector of [".cityStatusBannerDismiss", ".mapSoftRetryBtn"]) {
+    const observedControl = observed.controls.find((item) => item.selector === selector)!;
+    expect(observedControl.control).not.toBeNull();
+    expect(observedControl.control!.box.width).toBeGreaterThanOrEqual(44);
+    expect(observedControl.control!.box.height).toBeGreaterThanOrEqual(44);
+    expect(observedControl.centreHitOwned, `${selector} owns its captured centre hit`).toBe(true);
+  }
   await expectNoticeControlHit(page.locator(".cityStatusBannerDismiss"));
   await expectNoticeControlHit(page.locator(".mapSoftRetryBtn"));
 }
