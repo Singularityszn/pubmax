@@ -60,9 +60,12 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(nav).toHaveCSS("opacity", "0");
     await expect(nav).toHaveCSS("pointer-events", "none");
 
-    await page.getByRole("button", { name: "Close planner" }).click();
+    await page.getByRole("button", { name: "Close and return to the map", exact: true }).click();
     await expect(page.locator(".appShell")).not.toHaveClass(/planning-open/);
+    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="planner"]')).toHaveCount(0);
+    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="layers"]')).toHaveCount(0);
     await expect(nav).toHaveCSS("opacity", "1");
+    await expect(nav).not.toHaveCSS("pointer-events", "none");
   });
 
   test("Map tab routes to /map and exposes the map search control", async ({ page }) => {
