@@ -391,6 +391,33 @@ function assertMeasured(
   );
 }
 
+async function assertLandingActions(
+  page: Page,
+  viewportWidth: number,
+  assertions: SurfaceAssertion[],
+): Promise<void> {
+  const primary = page.locator(".lpHero .screenPrimary > a");
+  const secondary = page.locator(".lpHero .screenSecondary > a");
+  await expect(primary).toHaveCount(1);
+  await expect(secondary).toHaveCount(2);
+  const primaryBox = await primary.boundingBox();
+  const secondaryBoxes = await controlRects(secondary);
+  assertMeasured(
+    assertions,
+    "landing",
+    viewportWidth,
+    "landing primary keeps its larger control height",
+    primaryBox !== null && primaryBox.height >= 51.9
+      && secondaryBoxes.every((box) => primaryBox.height > box.height),
+    `primary ${primaryBox?.height}px; secondary ${secondaryBoxes.map((box) => box.height).join(", ")}px`,
+  );
+  const scroll = await page.evaluate(() => ({ x: scrollX, y: scrollY }));
+  for (const action of await page.locator(".lpHero .screenActions a").all()) {
+    await action.click({ trial: true });
+  }
+  await page.evaluate(({ x, y }) => window.scrollTo(x, y), scroll);
+}
+
 async function measureSurfaceAssertions(
   page: Page,
   viewport: (typeof VIEWPORTS)[number],
@@ -433,6 +460,10 @@ async function measureSurfaceAssertions(
       spread <= 0.1,
       `${heights.join(", ")}px; spread ${spread}px`,
     );
+  }
+
+  if (surface === "landing") {
+    await assertLandingActions(page, viewport.width, assertions);
   }
 
   if (surface === "map-first-visit") {
@@ -733,7 +764,8 @@ async function captureSurface(
         ".citySwitcherTrigger",
       ].join(", "),
     ),
-    await row(page, "landing hero actions", ".lpHero .screenActions a"),
+    await row(page, "landing hero actions", ".lpHero .screenActions a", "tap-floor"),
+    await row(page, "landing secondary actions", ".lpHero .screenSecondary a"),
     await row(page, "Plan stop count choices", ".planStopCount__choices > button"),
     await row(page, "profile header actions", ".profileActions > a, .profileActions > button"),
     await row(page, "profile owner utilities", ".profileOwnerUtilities .siteNavMoreBtn"),
