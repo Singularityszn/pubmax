@@ -98,7 +98,7 @@ for (const width of [390, 1440]) {
           { handle: "sam_brown", displayName: "Sam Brown" }, { handle: "sam_wilson", displayName: "Samuel Alexander Wilson-Clarke" },
           { handle: "sam_clarke", displayName: "Sam Clarke" }, { handle: "sam_ali", displayName: "Sam Ali" },
         ] } }));
-        await page.goto("/messages/new", { waitUntil: "commit" });
+        await page.goto(founding ? "/messages" : "/messages/new", { waitUntil: "commit" });
         const welcome = page.locator(".arrivalWelcome");
         await expect.poll(async () => {
           await page.clock.runFor(50);
@@ -106,6 +106,17 @@ for (const width of [390, 1440]) {
           return !founding || await welcome.getAttribute("data-founding") === "";
         }).toBe(true);
         await expect(welcome).toBeVisible();
+        if (founding) {
+          await page.getByRole("link", { name: "New message", exact: true }).click();
+          await expect(page).toHaveURL(/\/messages\/new$/);
+        }
+        await expect(page.locator(".messageRecipientArrival .arrivalWelcome")).toBeVisible();
+        await page.getByRole("link", { name: "Back to messages", exact: true }).click();
+        await expect(page).toHaveURL(/\/messages$/);
+        await expect(page.locator(".messageRecipientArrival .arrivalWelcome")).toHaveCount(0);
+        await expect(welcome).toBeVisible();
+        await page.getByRole("link", { name: "New message", exact: true }).click();
+        await expect(page.locator(".messageRecipientArrival .arrivalWelcome")).toBeVisible();
         if (founding) await expect(welcome).toHaveAttribute("data-founding", "");
         await page.evaluate(() => document.fonts.ready);
         const search = page.getByRole("searchbox", { name: "Search handles" });

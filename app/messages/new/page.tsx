@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import ArrivalWelcomeSlot from "@/components/auth/ArrivalWelcomeSlot";
 import Screen from "@/components/ui/screen";
 import { Button } from "@/components/ui/button";
 import SiteNav from "@/components/nav/SiteNav";
@@ -15,7 +16,7 @@ export default function NewMessagePage() {
   return <div className="lp messagesPage">
     <SiteNav />
     <main id="main" className="container messagesMain messagesMainRecipient">
-      <div id="message-recipient-arrival" className="messageRecipientArrival" />
+      <ArrivalWelcomeSlot />
       <Button asChild variant="ghost" className="messageRecipientBack">
         <Link href="/messages">Back to messages</Link>
       </Button>

@@ -1,21 +1,15 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
+import { useArrivalWelcomeHost } from "./ArrivalWelcomeSlot";
 
 export default function ArrivalWelcomePlacement({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const [host, setHost] = useState<HTMLElement | null>(null);
+  const host = useArrivalWelcomeHost();
   const content = useRef<HTMLDivElement>(null);
   const recipientPage = pathname === "/messages/new";
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setHost(recipientPage ? document.getElementById("message-recipient-arrival") : null);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [pathname, recipientPage]);
 
   useLayoutEffect(() => {
     if (!recipientPage || !host) return;
