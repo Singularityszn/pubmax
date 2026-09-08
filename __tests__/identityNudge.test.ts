@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // same way __tests__/activePlan.test.ts does, and stub dispatchEvent so the
 // same-tab notify() never throws.
 import {
+  deferIdentityNudgeForMomentEditor,
   IDENTITY_NUDGE_COOLDOWN_MS,
   IDENTITY_NUDGE_PENDING_TTL_MS,
   getIdentityNudgeClientSnapshot,
@@ -137,6 +138,25 @@ describe("identity nudge store (localStorage-backed)", () => {
     installWindow();
     resetIdentityNudge();
     vi.spyOn(Date, "now").mockReturnValue(NOW);
+  });
+
+  it("retains a prompt armed during editing until every editor releases it", () => {
+    const releaseFirst = deferIdentityNudgeForMomentEditor();
+    const releaseSecond = deferIdentityNudgeForMomentEditor();
+    try {
+      recordMomentNudgeTrigger();
+      expect(isIdentityNudgePending()).toBe(true);
+      expect(getIdentityNudgeClientSnapshot()).toBeNull();
+      releaseFirst();
+      releaseFirst();
+      expect(getIdentityNudgeClientSnapshot()).toBeNull();
+      releaseSecond();
+      expect(getIdentityNudgeClientSnapshot()).toBe("moment");
+      expect(isIdentityNudgePending()).toBe(true);
+    } finally {
+      releaseFirst();
+      releaseSecond();
+    }
   });
 
   it("arms the plan trigger and surfaces it in the client snapshot", () => {

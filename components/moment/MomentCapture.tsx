@@ -27,7 +27,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import { safeMomentReturnTo } from "@/components/nav/navigationModel";
 import { trackEvent } from "@/lib/analytics";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
-import { recordMomentNudgeTrigger } from "@/lib/identityNudge";
+import { deferIdentityNudgeForMomentEditor, recordMomentNudgeTrigger } from "@/lib/identityNudge";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { captureNativePhoto } from "@/lib/nativeCamera";
@@ -171,6 +171,11 @@ export default function MomentCapture(): React.JSX.Element {
   const [editorSession, setEditorSession] = useState<EditorSession | null>(null);
   const editorSessionRef = useRef<EditorSession | null>(null);
   const editorOpenerRef = useRef<HTMLElement | null>(null);
+  const releaseEditorNudgeRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => {
+    releaseEditorNudgeRef.current?.();
+    releaseEditorNudgeRef.current = null;
+  }, []);
   const previewUrls = useRef<Set<string>>(new Set());
   // Arm the identity nudge once per composer visit, the first time a signed-out
   // guest has a Moment draft worth keeping. The server save path requires auth,
@@ -383,10 +388,7 @@ export default function MomentCapture(): React.JSX.Element {
 
   function removeMedia(id: string) {
     const target = draft.media.find((item) => item.id === id);
-    if (editingMediaId === id) {
-      editorSessionRef.current = null;
-      setEditorSession(null);
-    }
+    if (editingMediaId === id) closePhotoEditor();
     if (target?.objectUrl) {
       URL.revokeObjectURL(target.objectUrl);
       previewUrls.current.delete(target.objectUrl);
@@ -404,6 +406,7 @@ export default function MomentCapture(): React.JSX.Element {
         lastModified: 0,
       });
     const session = { mediaId, file };
+    releaseEditorNudgeRef.current ??= deferIdentityNudgeForMomentEditor();
     editorSessionRef.current = session;
     setEditorSession(session);
     editorOpenerRef.current = opener;
@@ -411,6 +414,8 @@ export default function MomentCapture(): React.JSX.Element {
   }
 
   function closePhotoEditor() {
+    releaseEditorNudgeRef.current?.();
+    releaseEditorNudgeRef.current = null;
     editorSessionRef.current = null;
     setEditorSession(null);
     setEditingMediaId(null);
