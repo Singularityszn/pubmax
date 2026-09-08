@@ -638,7 +638,19 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
       (async () => {
         await page.locator(".maplibreMap canvas").first().press("Equal");
         await expect.poll(readCamera).toMatchObject({ zoom: 13, moving: false });
-        cameraSettledAt = Date.now();
+        const boundary = await page.evaluate(() => {
+          const tracedWindow = window as typeof window & {
+            __pubmaxMapCamera: { read: () => { zoom: number; moving: boolean } };
+            __pubmaxOutageCameraTrace: Array<Record<string, unknown>>;
+          };
+          const reading = tracedWindow.__pubmaxMapCamera.read();
+          const at = Date.now();
+          const notice = document.querySelector(".mapSoftRetry")?.textContent ?? null;
+          tracedWindow.__pubmaxOutageCameraTrace.push({ at, reading, notice });
+          return { at, reading };
+        });
+        expect(boundary.reading).toMatchObject({ zoom: 13, moving: false });
+        cameraSettledAt = boundary.at;
         releaseTiles();
       })(),
     ]);
