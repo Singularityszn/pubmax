@@ -435,7 +435,7 @@ const PIN_REVEAL_TIMEOUT_MS = 3000;
 // Phone still requires a confirmed visible frame before a successful reveal.
 // Keep the ceiling above the measured slow stream. The phone can reveal local
 // pins from their own painted source before basemap tiles settle; this ceiling
-// remains only for the honest parent loading handoff when that signal fails.
+// also bounds the basemap wait after an early phone pin reveal.
 const PIN_READY_CEILING_MS = 12_000;
 // How long a spent pin Retry is given before it reports back. Long enough for a
 // re-fetched venue index plus a MapLibre source settle, short enough that the
@@ -1602,7 +1602,12 @@ export default function PubMapCanvas({
     let tileFailureGeneration = 0;
     let tileFailureRecheckTimer: ReturnType<typeof setTimeout> | undefined;
     let silentTileRetryTimer: ReturnType<typeof setTimeout> | undefined;
+    let basemapDeadlineTimer: ReturnType<typeof setTimeout> | undefined;
     const failedBasemapTiles = createBasemapTileFailureTracker();
+    const clearBasemapDeadline = () => {
+      if (basemapDeadlineTimer !== undefined) clearTimeout(basemapDeadlineTimer);
+      basemapDeadlineTimer = undefined;
+    };
     const clearTileFailureRecheck = () => {
       if (tileFailureRecheckTimer !== undefined) {
         clearTimeout(tileFailureRecheckTimer);
@@ -1617,6 +1622,7 @@ export default function PubMapCanvas({
     };
     const beginTileFailureGeneration = () => {
       tileFailureGeneration += 1;
+      clearBasemapDeadline();
       clearTileFailureRecheck();
       clearSilentTileRetryTimer();
       tileSpend = releaseQueuedSilentTileRetry(tileSpend);
@@ -1751,6 +1757,7 @@ export default function PubMapCanvas({
       if (!basemapTileReadyForPaint || !areBasemapTilesLoaded()) return;
       if (tileFailureRecheckTimer !== undefined) return;
       if (failedBasemapTiles.hasFailures()) return;
+      clearBasemapDeadline();
       initialBasemapPending = false;
       tileFailureStamps = [];
       clearSilentTileRetryTimer();
@@ -1891,6 +1898,25 @@ export default function PubMapCanvas({
         map.triggerRepaint();
       },
     });
+    const armBasemapDeadline = () => {
+      clearBasemapDeadline();
+      if (!phoneFirstImpression) return;
+      const generation = tileFailureGeneration;
+      basemapDeadlineTimer = setTimeout(() => {
+        basemapDeadlineTimer = undefined;
+        if (
+          generation !== tileFailureGeneration ||
+          mapRef.current !== map ||
+          basemapTileReadyForPaint ||
+          tileNoticeOwner !== "none" ||
+          pinNoticeActive
+        ) return;
+        // Early pins cancel the reveal ceiling. Held tile requests emit no
+        // error, so the basemap keeps its own deadline and existing notice.
+        tileNoticeOwner = "timeout";
+        setSoftRetry(BASEMAP_RETRY_NOTICE);
+      }, PIN_READY_CEILING_MS);
+    };
     const buildScene = () => {
       // This listener runs after the readiness listener below. MapLibre 6
       // detaches a replaced Style from the Map before loading its replacement,
@@ -2123,6 +2149,7 @@ export default function PubMapCanvas({
       // degrades to usable pins over the themed container when community tiles
       // are partial/offline instead of leaving the product invisible.
       pinRevealCoordinator.arm();
+      armBasemapDeadline();
 
       // Flush any mutations that arrived while the style was mid-load (initial
       // load or a theme swap). buildScene has just re-seeded every source/layer
@@ -3096,6 +3123,7 @@ export default function PubMapCanvas({
       clearPinEntranceCeiling();
       clearTimeout(hangFailTimer);
       pinRevealCoordinator.dispose();
+      clearBasemapDeadline();
       clearTileFailureRecheck();
       clearSilentTileRetryTimer();
       clearPinRetryWait();

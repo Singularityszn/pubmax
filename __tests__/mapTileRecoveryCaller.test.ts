@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as tilePolicy from "@/lib/mapTileFailure";
+import * as pinReveal from "@/components/map/canvas/pinRevealCoordinator";
 import { appDataPackSourceId } from "@/lib/mapDataPackFailure";
 import { PAINT_WATCHDOG_MAX_RETRIES } from "@/lib/mapPaintWatchdog";
 
@@ -33,9 +34,12 @@ function installedTilesLoaded(states: Map<string, string>): () => boolean {
   return () => manager.areTilesLoaded();
 }
 
-function recoveryCaller() {
+function recoveryCaller(phoneFirstImpression = false) {
   const states = new Map<string, string>();
-  const listeners = new Map<string, (event?: unknown) => void>();
+  const listeners = new Map<string, Set<(event?: unknown) => void>>();
+  const emit = (name: string, event?: unknown) => {
+    for (const handler of [...(listeners.get(name) ?? [])]) handler(event);
+  };
   const setTiles = vi.fn(() => {
     for (const id of states.keys()) states.set(id, "loading");
   });
@@ -45,17 +49,24 @@ function recoveryCaller() {
     areTilesLoaded: installedTilesLoaded(states),
     isSourceLoaded: () => true,
     isMoving: () => false,
+    getLayer: () => true,
+    setLayoutProperty: vi.fn(),
+    triggerRepaint: vi.fn(),
     on: (name: string, handler: (event?: unknown) => void) => {
-      const previous = listeners.get(name);
-      listeners.set(name, (event) => { previous?.(event); handler(event); });
+      if (!listeners.has(name)) listeners.set(name, new Set());
+      listeners.get(name)!.add(handler);
     },
+    off: (name: string, handler: (event?: unknown) => void) => listeners.get(name)?.delete(handler),
   };
   const setProtectedStyle = vi.fn();
   const surfaceBasemapFailure = vi.fn();
   const retireTilesNotice = vi.fn();
+  const setSoftRetry = vi.fn();
+  const dispatchEvent = vi.fn();
   const { areBasemapTilesLoaded: readBasemapTilesLoaded, ...tileImports } = tilePolicy;
   const scope = {
     ...tileImports,
+    ...pinReveal,
     readBasemapTilesLoaded,
     appDataPackSourceId,
     PAINT_WATCHDOG_MAX_RETRIES,
@@ -74,19 +85,37 @@ function recoveryCaller() {
     cancelDeferredWork: vi.fn(),
     clearStyleLoadProtection: vi.fn(),
     buildScene: vi.fn(),
-    pinRevealCoordinator: { arm: vi.fn() },
+    phoneFirstImpression,
+    hasPinsPaintable: () => true,
+    venueDataFailedRef: { current: false },
+    venueDataReadyRef: { current: true },
+    onMapReadyRef: { current: vi.fn() },
+    markPubmaxTiming: vi.fn(),
+    startPinEntrance: vi.fn(),
+    setSoftRetry,
+    window: { setTimeout, clearTimeout, dispatchEvent },
+    CustomEvent: class { constructor(public type: string, public options: unknown) {} },
+    MAP_PIN_REVEAL_EVENT: "pubmax:pin-reveal",
+    PUB_PIN_LAYERS: ["pubs-point"],
   };
   const emitted = ts.transpileModule(`
     let styleLoaded = true, usingFallback = false, recoverySpent = 0;
     let styleGeneration = 0, protectedStyleInFlight = false, queuedProtectedStyle = null;
+    let pinNoticeActive = false;
+    ${callerBlock("const PIN_REVEAL_TIMEOUT_MS =", "// First-painted-frame watchdog.")}
     const styleStructureReadyRef = { current: false };
     ${callerBlock("const areBasemapTilesLoaded =", "const hasPinsPaintable =")}
     ${callerBlock("const markBasemapRecovered =", '// The moment the venue rows are paintable:')}
+    ${callerBlock("const pinRevealCoordinator =", "const buildScene =")}
     ${callerBlock('map.on("style.load", () => {', '// Initial load shares theme/fallback')}
     ${callerBlock("const evaluateTileFailure =", "// --- Post-init context loss")}
     return {
       pending: () => initialBasemapPending,
       showTimeout: () => { tileNoticeOwner = "timeout"; },
+      showError: () => { tileNoticeOwner = "errors"; },
+      dispose: () => {
+        ${callerBlock("      pinRevealCoordinator.dispose();", "      clearPinRetryWait();")}
+      },
       finishSceneBuild: () => {
         ${callerBlock("      // --- Tile-paint gate (D2).", "      // Flush any mutations")}
       },
@@ -95,21 +124,24 @@ function recoveryCaller() {
   const caller = new Function(...Object.keys(scope), emitted)(...Object.values(scope)) as {
     pending: () => boolean;
     showTimeout: () => void;
+    showError: () => void;
+    dispose: () => void;
     finishSceneBuild: () => void;
   };
   const tileEvent = (id: string) => ({ sourceId: "basemap", source: { type: "raster" }, tile: { state: states.get(id), tileID: { key: id } }, error: new Error("Tile fetch failed") });
   return {
     ...caller, setTiles, setProtectedStyle, surfaceBasemapFailure, retireTilesNotice,
-    styleLoaded: () => listeners.get("style.load")!(),
+    setSoftRetry, dispatchEvent,
+    styleLoaded: () => emit("style.load"),
     fail(id: string) {
       states.set(id, "errored");
-      listeners.get("error")!(tileEvent(id));
+      emit("error", tileEvent(id));
     },
     load(id: string) {
       states.set(id, "loaded");
-      listeners.get("sourcedata")!(tileEvent(id));
+      emit("sourcedata", tileEvent(id));
     },
-    render: () => listeners.get("render")!(),
+    render: () => emit("render"),
   };
 }
 
@@ -120,6 +152,53 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe("component basemap recovery with MapLibre settled errors", () => {
+  it("reports a held basemap after phone pins reveal without revealing them twice", async () => {
+    const caller = recoveryCaller(true);
+    caller.styleLoaded();
+    caller.finishSceneBuild();
+    caller.render();
+    caller.render();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(caller.dispatchEvent).toHaveBeenCalledOnce();
+    expect(caller.dispatchEvent.mock.calls[0][0].options.detail.reason).toBe("pins");
+    expect(caller.setSoftRetry).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(11_500);
+    expect(caller.setSoftRetry).toHaveBeenCalledExactlyOnceWith(pinReveal.BASEMAP_RETRY_NOTICE);
+    expect(caller.dispatchEvent).toHaveBeenCalledOnce();
+    caller.load("a");
+    caller.render();
+    expect(caller.retireTilesNotice).toHaveBeenCalledOnce();
+  });
+
+  it.each(["loaded", "error", "replacement", "disposed"] as const)(
+    "does not publish a phone deadline after %s",
+    async (outcome) => {
+      const caller = recoveryCaller(true);
+      caller.styleLoaded();
+      caller.finishSceneBuild();
+      caller.render();
+      caller.render();
+      await vi.advanceTimersByTimeAsync(500);
+      if (outcome === "loaded") caller.load("a");
+      if (outcome === "error") caller.showError();
+      if (outcome === "replacement") caller.styleLoaded();
+      if (outcome === "disposed") caller.dispose();
+      await vi.advanceTimersByTimeAsync(12_000);
+      expect(caller.setSoftRetry).not.toHaveBeenCalled();
+      expect(caller.dispatchEvent).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("publishes only one notice when the phone reveal itself reaches its ceiling", async () => {
+    const caller = recoveryCaller(true);
+    caller.styleLoaded();
+    caller.finishSceneBuild();
+    await vi.advanceTimersByTimeAsync(12_000);
+    expect(caller.setSoftRetry).toHaveBeenCalledExactlyOnceWith(pinReveal.BASEMAP_RETRY_NOTICE);
+    expect(caller.dispatchEvent).toHaveBeenCalledOnce();
+    expect(caller.dispatchEvent.mock.calls[0][0].options.detail.reason).toBe("timeout");
+  });
+
   it("cancels a queued source retry when a replacement style loads", async () => {
     const caller = recoveryCaller();
     caller.styleLoaded();
