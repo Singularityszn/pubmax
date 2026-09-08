@@ -144,12 +144,13 @@ describe("an upload keeps the editor open", () => {
   });
 
   it("closes the editor only from the save handler", () => {
-    expect(page).toContain("function handleProfileChanged(next: PublicProfile) {\n    setStored(next);\n  }");
+    expect(page).toContain("function handleProfileChanged(next: PublicProfile) {");
     expect(page).toContain("setEditing(false);\n    setSavedNotice(true);");
     const changed = page.slice(
       page.indexOf("function handleProfileChanged"),
       page.indexOf("function handleSaved"),
     );
+    expect(changed).toContain("setStored(next)");
     expect(changed).not.toContain("setEditing(false)");
     expect(changed).not.toContain("router.");
   });

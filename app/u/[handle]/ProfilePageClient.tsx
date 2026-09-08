@@ -432,6 +432,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // Durable profile row + follow graph, fetched from /api/profiles/[handle].
   // Null profile → fall back to the synthesized-from-drops identity.
   const [stored, setStored] = useState<PublicProfile | null>(null);
+  const profileWriteRevision = useRef(0);
   // Whether that read has ANSWERED yet. Separate from `stored`, because
   // "nobody owns this handle" and "we could not find out" are two answers and
   // only the first one may offer a stranger the claim (`handleIsAdoptable`).
@@ -749,6 +750,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     if (!routeHandle) return;
     const controller = new AbortController();
     const requestRevision = accountRevision;
+    const requestWriteRevision = profileWriteRevision.current;
     async function loadProfile() {
       const qs = viewerHandle
         ? `?viewer=${encodeURIComponent(viewerHandle)}`
@@ -768,6 +770,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         { signal: controller.signal },
         (body) => {
           if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
+          // A completed edit supersedes any public read started before it.
+          if (profileWriteRevision.current !== requestWriteRevision) return;
+
           const socialData = profileSocialDataForLaunch(socialFriendsLaunchEnabled, {
             socialLinks: body.socialLinks ?? [],
             counts: body.counts ?? null,
@@ -953,12 +958,14 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // a phone threw the owner out to the read-only profile, and somebody there to
   // change five things had to re-open the editor after the first.
   function handleProfileChanged(next: PublicProfile) {
+    profileWriteRevision.current += 1;
     setStored(next);
   }
 
   // The FORM was saved, which is the end of an editing session: apply the row,
   // return to view mode, and say so.
   function handleSaved(saved: PublicProfile) {
+    profileWriteRevision.current += 1;
     setStored(saved);
     setEditing(false);
     setSavedNotice(true);
