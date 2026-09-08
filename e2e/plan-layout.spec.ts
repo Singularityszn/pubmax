@@ -38,11 +38,24 @@ test("the lock explains its current refusal and phone controls show their values
   } }));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/plan");
-  await describeFirstQuery(page).fill("Clapham with friends");
+  const stopCount = page.getByRole("group", { name: "Number of pub stops" });
+  const fourStops = stopCount.getByRole("button", { name: "4", exact: true });
+  // Retry only a local selection until React handles it, never a generation.
   await expect(async () => {
-    await describeFirstSubmit(page).click();
-    await expect(page.locator("#plan-context-budget")).toBeVisible({ timeout: 1000 });
+    await fourStops.click();
+    await expect(fourStops).toHaveAttribute("aria-pressed", "true", { timeout: 1000 });
   }).toPass({ timeout: 20_000 });
+  const threeStops = stopCount.getByRole("button", { name: "3", exact: true });
+  await threeStops.click();
+  await expect(threeStops).toHaveAttribute("aria-pressed", "true", { timeout: 1000 });
+  await describeFirstQuery(page).fill("Clapham with friends");
+  const [generated] = await Promise.all([
+    page.waitForResponse((response) => response.request().method() === "POST"
+      && new URL(response.url()).pathname === "/api/plans/generate", { timeout: 1000 }),
+    describeFirstSubmit(page).click(),
+  ]);
+  expect(generated.status()).toBe(200);
+  await expect(page.locator("#plan-context-budget")).toBeVisible({ timeout: 1000 });
 
   const lock = page.getByRole("button", { name: "Lock it in", exact: true });
   const reason = page.locator("#plan-lock-reason");
