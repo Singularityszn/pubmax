@@ -2598,7 +2598,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   color: var(--ink-deep, #090806);
 }
 .mapSoftRetryBtn:focus-visible {
-  outline: 2px solid var(--brass, #c4a35a);
+  outline: 2px solid var(--brass-ink, #b43b1d);
   outline-offset: 2px;
 }
 
