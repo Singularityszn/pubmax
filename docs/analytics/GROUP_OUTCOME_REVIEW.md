@@ -103,7 +103,9 @@ Prepared regression schedules cover all three wrappers:
 - Completion-first and deletion-first orderings, for host and non-host accounts.
 - The waiter's observed auth lock and absence of Plan/crew row-lock modes before release.
 - Real profile tombstone and private Social account suspension paths during deletion.
-- Late active-seat, revoked-seat, and owner binding changes, with exactly two attempted writes and one committed ending.
+- Direct legacy active-seat, revoked-seat, owner, and same-cardinality replacement writes, with two attempts and one committed ending.
+- Bound revoked-seat reactivation with one attempt, proving the existing account was already locked.
+- Capability, revision, arrival, ending refusal, and immutable replay boundaries across all three wrappers.
 - Three real roster mismatches, with sequence-based attempt counts and no committed ending, snapshot, or seat stamp.
 - Injected `40P01` and unrelated SQL errors, each with one attempt and no partial writes.
 - Private helper permissions and helper removal during rollback.

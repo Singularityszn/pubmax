@@ -91,7 +91,7 @@ function snapshot(p: Plan) {
 }
 
 /** Hold the first transaction after its write, then prove the second waits on a lock. */
-async function orderedWrites(firstSql: string, secondSql: string) {
+async function orderedWrites(firstSql: string, secondSql: string, secondWaitRelation?: "plans" | "plan_crew_members") {
   const label = `m1-${randomUUID()}`;
   const names = ["gate", "first", "second"].map(part => `${label}-${part}`);
   const key = `hashtextextended(${literal(label)},0)`;
@@ -113,7 +113,13 @@ async function orderedWrites(firstSql: string, secondSql: string) {
     await waitFor(names[1], "wait_event_type='Lock'");
     pending.push(db().attempt(`begin; set local application_name=${literal(names[2])}; set local statement_timeout='8s';
       ${secondSql}; commit`));
-    await waitFor(names[2], "wait_event_type='Lock'");
+    await waitFor(names[2], `wait_event_type='Lock' and exists (
+      select 1 from pg_stat_activity blocker where blocker.pid=any(pg_blocking_pids(pg_stat_activity.pid))
+        and blocker.application_name=${literal(names[1])})`);
+    if (secondWaitRelation) {
+      await waitFor(names[2], `exists (select 1 from pg_locks l where l.pid=pg_stat_activity.pid
+        and l.relation=${literal(`public.${secondWaitRelation}`)}::regclass and l.mode='RowShareLock' and l.granted)`);
+    }
     db().sql(`select pg_terminate_backend(pid) from pg_stat_activity
       where datname=current_database() and application_name=${literal(names[0])}`);
     const results = await Promise.all(pending);
@@ -266,29 +272,49 @@ function expectNoCompletion(p: Plan) {
 }
 
 const lateBindingCases = ([8, 9, 14] as const).flatMap(overload =>
-  (["seat", "revoked-seat", "owner"] as const).map(binding => ({ overload, binding })));
+  (["seat", "replacement", "revoked-seat", "owner"] as const).map(binding => ({ overload, binding })));
 test.each(lateBindingCases)("restarts late $binding binding for overload $overload with one committed ending", async ({ overload, binding }) => {
-  const p = plan([users[0], null]);
+  const p = plan([users[0], binding === "replacement" ? users[1] : null]);
+  const bound = binding === "replacement" ? users[2] : users[1];
+  const participates = binding === "seat" || binding === "replacement";
   if (binding === "revoked-seat") {
     db().sql(`update public.plan_crew_members set membership_revoked_at='2020-01-02'
       where plan_id=${literal(p.id)} and user_id is null`);
   }
   const stamp = binding === "owner"
-    ? `update public.plans set owner_user_id=${literal(users[1])} where id=${literal(p.id)} and owner_user_id is null`
-    : `update public.plan_crew_members set user_id=${literal(users[1])} where plan_id=${literal(p.id)} and user_id is null`;
+    ? `update public.plans set owner_user_id=${literal(bound)} where id=${literal(p.id)} and owner_user_id is null`
+    : `update public.plan_crew_members set user_id=${literal(bound)} where plan_id=${literal(p.id)}
+        and ${binding === "replacement" ? `user_id=${literal(users[1])}` : "user_id is null"}`;
   installCompletionAttemptProbe();
   try {
     // The first writer's uncommitted stamp is absent from the auth prelock read.
-    // Completion then waits on its Plan lock before seeing the committed binding.
-    await orderedWrites(`select id from public.plans where id=${literal(p.id)} for update; ${stamp}`,
-      complete(p, undefined, undefined, overload));
+    // Seat writers take no Plan lock, matching the direct legacy write path.
+    await orderedWrites(stamp, complete(p, undefined, undefined, overload),
+      binding === "owner" ? "plans" : "plan_crew_members");
     expect(completionAttempts()).toBe("2");
     expect(db().sql(`select count(*) from public.plan_completions where plan_id=${literal(p.id)}`)).toBe("1");
     expect(db().sql(`select count(*) from public.plan_actions where plan_id=${literal(p.id)} and type='ending'`)).toBe("1");
     expect(db().sql("select count(*) from public.plan_group_outcomes")).toBe("1");
-    expect(JSON.parse(snapshot(p)).metadata.participant_count).toBe(binding === "seat" ? 2 : 1);
-    expect(db().sql(`select count(*) from public.plan_group_outcome_accounts where user_id=${literal(users[1])}`))
-      .toBe(binding === "seat" ? "1" : "0");
+    expect(JSON.parse(snapshot(p)).metadata.participant_count).toBe(participates ? 2 : 1);
+    expect(db().sql(`select count(*) from public.plan_group_outcome_accounts where user_id=${literal(bound)}`))
+      .toBe(participates ? "1" : "0");
+    if (binding === "replacement") expect(snapshot(p)).not.toContain(users[1]);
+  } finally {
+    removeCompletionAttemptProbe();
+  }
+}, 20_000);
+
+test.each([8, 9, 14] as const)("prelocks an existing revoked account before direct reactivation for overload %s", async overload => {
+  const p = plan();
+  db().sql(`update public.plan_crew_members set membership_revoked_at='2020-01-02'
+    where plan_id=${literal(p.id)} and user_id=${literal(users[1])}`);
+  installCompletionAttemptProbe();
+  try {
+    await orderedWrites(`update public.plan_crew_members set membership_revoked_at=null
+      where plan_id=${literal(p.id)} and user_id=${literal(users[1])}`,
+    complete(p, undefined, undefined, overload), "plan_crew_members");
+    expect(completionAttempts()).toBe("1");
+    expect(JSON.parse(snapshot(p)).metadata.participant_count).toBe(2);
   } finally {
     removeCompletionAttemptProbe();
   }
@@ -564,6 +590,33 @@ test("rolls the ending back if snapshot insertion fails", () => {
   expect(db().sql(`select count(*) from public.plan_completions where plan_id=${literal(p.id)}`)).toBe("0");
   expect(db().sql(`select status from public.plans where id=${literal(p.id)}`)).toBe("active");
   expect(db().sql(`select count(*) from public.plan_actions where plan_id=${literal(p.id)} and type='ending'`)).toBe("0");
+});
+
+test.each([8, 9, 14] as const)("preserves refusal, revision and replay boundaries for overload %s", overload => {
+  const p = plan();
+  installCompletionAttemptProbe();
+  try {
+    expect(db().sql(complete({ ...p, token: "0".repeat(64) }, undefined, undefined, overload))).toBe("forbidden");
+    db().sql(`update public.plans set route_revision=2 where id=${literal(p.id)}`);
+    expect(db().sql(complete(p, undefined, undefined, overload))).toBe("conflict");
+    db().sql(`update public.plans set route_revision=1 where id=${literal(p.id)}`);
+    expect(db().sql(complete(p, undefined, undefined, overload).replace("'get_home'", "'invalid'"))).toBe("invalid");
+    const missingArrival = plan();
+    db().sql(`delete from public.plan_actions where plan_id=${literal(missingArrival.id)}`);
+    expect(db().sql(complete(missingArrival, undefined, undefined, overload))).toBe("arrival_required");
+    expect(completionAttempts()).toBe("0");
+    expectNoCompletion(p);
+    expect(db().sql(complete(p, undefined, undefined, overload))).toBe("completed");
+    const before = snapshot(p);
+    db().sql(`update public.plan_crew_members set user_id=${literal(users[2])}
+      where plan_id=${literal(p.id)} and user_id=${literal(users[1])}`);
+    expect(db().sql(complete(p, undefined, undefined, overload))).toBe("already_completed");
+    expect(completionAttempts()).toBe("1");
+    expect(snapshot(p)).toBe(before);
+    expect(db().sql(`select count(*) from public.plan_actions where plan_id=${literal(p.id)} and type='ending'`)).toBe("1");
+  } finally {
+    removeCompletionAttemptProbe();
+  }
 });
 
 test("preserves host, arrival and Social completion guards", () => {
