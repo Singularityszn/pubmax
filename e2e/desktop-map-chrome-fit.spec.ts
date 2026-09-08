@@ -68,22 +68,70 @@ async function selectToolbarPub(page: Page, query: string, name: RegExp) {
   await option.click();
 }
 
-async function indexedToolbarPubOption(
-  page: Page,
-  query: string,
-  index: number,
-) {
-  const search = page
-    .locator(".mapToolbar")
-    .getByRole("combobox", { name: "Search pubs" });
-  await search.fill(query);
-  await search.focus();
-  const option = page
-    .getByRole("group", { name: "Venues" })
-    .getByRole("option")
-    .nth(index);
-  await expect(option).toBeVisible({ timeout: 20_000 });
-  return option;
+async function armDrawerExchangeProbe(page: Page) {
+  return page.evaluateHandle(() => {
+    const measure = () => {
+      const box = (selector: string) => {
+        const element = document.querySelector(selector);
+        if (!element) throw new Error(`Missing ${selector}`);
+        const { x, y, width, height } = element.getBoundingClientRect();
+        return { x, y, width, height };
+      };
+      return {
+        planner: box(".mapDrawer.left.springDrawer"),
+        venue: box(".mapDrawer.right.springDrawer"),
+        toolbar: box(".mapToolbar"),
+        map: box(".mapStage"),
+      };
+    };
+    type Frame = ReturnType<typeof measure>;
+    const frames: Frame[] = [];
+    const clicks: { before: Frame; after?: Frame; next?: Frame }[] = [];
+    let resolveMid!: (frame: Frame | null) => void;
+    let resolveDone!: (settled: boolean) => void;
+    const mid = new Promise<Frame | null>((resolve) => { resolveMid = resolve; });
+    const done = new Promise<boolean>((resolve) => { resolveDone = resolve; });
+    const beforeClick = (event: MouseEvent) => {
+      if (event.isTrusted) clicks.push({ before: measure() });
+    };
+    const afterClick = (event: MouseEvent) => {
+      if (event.isTrusted && clicks.length) clicks[clicks.length - 1].after = measure();
+    };
+    document.addEventListener("click", beforeClick, true);
+    document.addEventListener("click", afterClick);
+    let request = 0;
+    let stableFrames = 0;
+    const finish = (settled: boolean) => {
+      cancelAnimationFrame(request);
+      clearTimeout(deadline);
+      document.removeEventListener("click", beforeClick, true);
+      document.removeEventListener("click", afterClick);
+      resolveMid(null);
+      resolveDone(settled);
+    };
+    const deadline = window.setTimeout(() => finish(false), 5_000);
+    const sample = () => {
+      const frame = measure();
+      frames.push(frame);
+      for (const click of clicks) click.next ??= frame;
+      if (clicks.length && frame.planner.x < -1 && frame.planner.x > -frame.planner.width
+        && frame.venue.x > 800 && frame.venue.x < 1440) resolveMid(frame);
+      const previous = frames[frames.length - 2];
+      const atEnd = clicks.length > 0
+        && Math.abs(frame.planner.x + frame.planner.width) <= 0.5
+        && Math.abs(frame.venue.x - 800) <= 0.5;
+      const stable = previous && (["planner", "venue", "toolbar"] as const).every(
+        (key) => Math.abs(frame[key].x - previous[key].x) <= 0.1
+          && Math.abs(frame[key].width - previous[key].width) <= 0.1,
+      );
+      stableFrames = atEnd && stable ? stableFrames + 1 : 0;
+      if (stableFrames >= 3) finish(true);
+      else if (frames.length >= 360) finish(false);
+      else request = requestAnimationFrame(sample);
+    };
+    request = requestAnimationFrame(sample);
+    return { frames, clicks, mid, done };
+  });
 }
 
 async function captureDrawerExchange(page: Page, name: string) {
@@ -256,7 +304,9 @@ for (const width of DESKTOP_WIDTHS) {
 
     const rail = page.locator(".mapDrawer.left.open");
     const searchCell = toolbar.locator(".mapToolbarSearch");
-    const clearSearch = toolbar.getByRole("button", { name: "Clear search" });
+    const clearSearch = searchCell.getByRole("button", {
+      name: "Clear search", exact: true,
+    });
     await expect(rail).toBeVisible({ timeout: 20_000 });
     await expect(clearSearch).toBeVisible();
     await expect
@@ -305,6 +355,14 @@ for (const width of DESKTOP_WIDTHS) {
       toolbarBox.x + toolbarBox.width,
       "desktop toolbar remains inside viewport",
     ).toBeLessThanOrEqual(width - EDGE_GUTTER);
+    expect(await clearSearch.evaluate((button) => {
+      const box = button.getBoundingClientRect();
+      return button.contains(document.elementFromPoint(
+        box.x + box.width / 2, box.y + box.height / 2,
+      ));
+    }), "Clear search receives its centre hit").toBe(true);
+    await clearSearch.click();
+    await expect(search).toHaveValue("");
   });
 }
 
@@ -322,16 +380,9 @@ test("1440px planner hands ownership to venue and Back restores composed state",
 
   const toolbar = page.locator(".mapToolbar");
   await expect(toolbar).toBeVisible({ timeout: 20_000 });
-  await page.getByRole("button", { name: /Map layers:/ }).click();
-  await page.getByRole("button", { name: "List view" }).click();
-  const retargetVenue = page
-    .locator(".mapVenueListItem")
-    .filter({ hasNotText: "Three Sheets Soho" })
-    .first();
-  await expect(retargetVenue).toHaveCount(1, { timeout: 20_000 });
   await toolbar
     .getByRole("button", { name: "Plan an outing" })
-    .evaluate((button) => (button as HTMLElement).click());
+    .click();
 
   const planner = page.locator(".mapDrawer.left.springDrawer");
   const venue = page.locator(".mapDrawer.right.springDrawer");
@@ -344,66 +395,59 @@ test("1440px planner hands ownership to venue and Back restores composed state",
 
   const mapBefore = await renderedBox(mapStage, "map stage before exchange");
 
-  const firstVenueOption = await indexedToolbarPubOption(page, "Soho", 0);
+  const firstVenueOption = await toolbarPubOption(
+    page, "Soho", /^Three Sheets Soho\b/,
+  );
+  await expect(page.getByRole("region", {
+    name: "Interactive pub map of London", exact: true,
+  })).toBeVisible();
   const toolbarBeforeOwnershipChange = await renderedBox(
     toolbar,
     "toolbar before ownership change",
   );
   await captureDrawerExchange(page, "planner-open");
-  const ownershipChange = await firstVenueOption.evaluate((option) => {
-    const toolbar = document.querySelector<HTMLElement>(".mapToolbar");
-    if (!toolbar) throw new Error("desktop toolbar is missing");
-    const before = toolbar.getBoundingClientRect().x;
-    (option as HTMLElement).click();
-    return {
-      before,
-      after: toolbar.getBoundingClientRect().x,
-    };
-  });
-  expect(
-    Math.abs(ownershipChange.after - ownershipChange.before),
-  ).toBeLessThan(16);
+  const probe = await armDrawerExchangeProbe(page);
+  await firstVenueOption.click();
+  const mid = await probe.evaluate((state) => state.mid);
+  expect(mid, "one sampled frame contains both moving drawers").not.toBeNull();
+  if (!mid) throw new Error("No simultaneous mid-spring frame within the observation bound");
 
-  await expect
-    .poll(async () => (await renderedBox(planner, "moving planner")).x, {
-      intervals: [16, 16, 16, 16],
-      timeout: 5_000,
-    })
-    .toBeLessThan(-1);
-  const [plannerMid, venueMid, toolbarMid] = await Promise.all([
-    renderedBox(planner, "planner during exchange"),
-    renderedBox(venue, "venue during exchange"),
-    renderedBox(toolbar, "toolbar during exchange"),
-  ]);
+  // The venue list is hidden while a drawer owns the map. Use toolbar search.
+  // Actionability may outlast the spring. Keep the timing failure until browser verification.
+  await toolbar.getByRole("combobox", { name: "Search pubs" }).focus();
+  await page.getByRole("option", { name: /^Swift Soho\b/ }).first().click();
+  const settled = await probe.evaluate((state) => state.done);
+  const { frames, clicks } = await probe.evaluate(
+    ({ frames, clicks }) => ({ frames, clicks }),
+  );
+  await probe.dispose();
+  await test.info().attach("drawer-exchange-frames", {
+    body: JSON.stringify({ frames, clicks }), contentType: "application/json",
+  });
+  expect(settled, "drawer exchange settles within the observation bound").toBe(true);
+  expect(clicks, "both venue selections use trusted clicks").toHaveLength(2);
+  expect(clicks[0].after, "first selection reaches the document").toBeDefined();
+  expect(
+    Math.abs(clicks[0].after!.toolbar.x - clicks[0].before.toolbar.x),
+  ).toBeLessThan(16);
+  const { planner: plannerMid, venue: venueMid, toolbar: toolbarMid } = mid;
   expect(plannerMid.x).toBeLessThan(0);
   expect(plannerMid.x).toBeGreaterThan(-plannerMid.width);
   expect(venueMid.x).toBeGreaterThan(800);
   expect(venueMid.x).toBeLessThan(DESKTOP.width);
-  await captureDrawerExchange(page, "mid-exchange");
-
+  const retarget = clicks[1];
+  expect(
+    retarget.before.venue.x, "real retarget click lands before the spring settles",
+  ).toBeGreaterThan(800);
+  expect(retarget.before.venue.x).toBeLessThan(DESKTOP.width);
+  expect(retarget.next, "retarget has a following animation frame").toBeDefined();
+  expect(retarget.next!.venue.x).toBeLessThanOrEqual(retarget.before.venue.x + 10);
+  for (const frame of frames) expect(frame.map).toEqual(mapBefore);
   await expect(planner).toHaveAttribute("aria-hidden", "true");
   await expect(venue).toHaveAttribute("aria-hidden", "false");
-
-  const venueBeforeRetarget = await renderedBox(
-    venue,
-    "venue before mid-spring retarget",
-  );
-  const retargetVenueName = await retargetVenue.evaluate((button) => {
-    const name = button
-      .querySelector<HTMLElement>(".mapVenueListItemName")
-      ?.innerText.trim();
-    if (!name) throw new Error("retarget venue name is missing");
-    (button as HTMLElement).click();
-    return name;
-  });
-  await page.waitForTimeout(16);
-  const venueAfterRetarget = await renderedBox(
-    venue,
-    "venue after mid-spring retarget",
-  );
-  expect(venueAfterRetarget.x).toBeLessThanOrEqual(
-    venueBeforeRetarget.x + 10,
-  );
+  await expect(page.getByRole("region", {
+    name: "Interactive pub map of London", exact: true,
+  })).toBeVisible();
 
   await expect
     .poll(() => page.locator(".mapDrawer.springDrawer.open").count(), {
@@ -411,7 +455,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     })
     .toBe(1);
   await expect(
-    venue.getByRole("heading", { name: retargetVenueName }).first(),
+    venue.getByRole("heading", { name: "Swift Soho", exact: true }).first(),
   ).toBeVisible({ timeout: 20_000 });
 
   const [mapAfter, venueOpen, toolbarOpen] = await Promise.all([
@@ -419,6 +463,9 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     renderedBox(venue, "open venue drawer"),
     renderedBox(toolbar, "toolbar beside venue"),
   ]);
+  expect((await renderedBox(planner, "closed planner")).x).toBeCloseTo(
+    -EXPECTED_PLANNER_RAIL_WIDTHS[1440], 0,
+  );
   expect(venueOpen.x).toBeCloseTo(800, 0);
   expect(toolbarOpen.x + toolbarOpen.width).toBeLessThanOrEqual(
     venueOpen.x - EDGE_GUTTER + SUBPIXEL_TOLERANCE,
