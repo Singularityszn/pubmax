@@ -139,6 +139,7 @@ test.describe("Android install prompt", () => {
 
   async function openInstallCard(page: Page, legacyMode: boolean = false) {
     await page.addInitScript(({ legacy }) => {
+      localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
       localStorage.setItem("pubmax-tour-v1-done", "1");
       localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
       localStorage.setItem("pubmax-legacy", legacy ? "1" : "0");
@@ -338,6 +339,7 @@ test.describe("iOS install instructions", () => {
 
   test("retains the full modal Safari instruction sheet", async ({ page }) => {
     await page.addInitScript(() => {
+      localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
       localStorage.setItem("pubmax-tour-v1-done", "1");
       localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
       localStorage.setItem(
