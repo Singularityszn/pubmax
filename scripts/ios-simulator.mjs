@@ -1,8 +1,7 @@
 #!/usr/bin/env node
-// Build, and optionally boot, the iOS shell against a local simulator with no
-// signing and no Apple account. This is the local verification path for the
-// native wrap. Every signing, team-id, provisioning and entitlement step stays
-// a manual owner step (docs/STORE_READINESS.md section 8).
+// Build, and optionally boot, the iOS shell with Xcode's normal simulator signing.
+// Simulator signing needs no Apple account. Store signing, provisioning, and
+// entitlement verification remain owner steps (docs/STORE_READINESS.md section 8).
 //
 // Usage:
 //   npm run ios:build                            build the App scheme for the simulator SDK
@@ -132,7 +131,7 @@ function buildForSimulator(simulator) {
   console.log("\n> npx cap sync ios");
   run("npx", ["cap", "sync", "ios"]);
 
-  console.log(`\n> xcodebuild (${SCHEME}, Debug, ${simulator.name}, no signing)`);
+  console.log(`\n> xcodebuild (${SCHEME}, Debug, ${simulator.name}, simulator signing)`);
   run("xcodebuild", [
     "-project",
     PROJECT,
@@ -148,9 +147,6 @@ function buildForSimulator(simulator) {
     `platform=iOS Simulator,id=${simulator.udid}`,
     "-derivedDataPath",
     DERIVED_DATA,
-    // A simulator build needs no identity, and asking for one is how this check
-    // starts needing the Apple account it exists to stay clear of.
-    "CODE_SIGNING_ALLOWED=NO",
     "build",
   ]);
 
