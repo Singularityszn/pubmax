@@ -16,13 +16,12 @@ The relationships below are written in issue bodies; GitHub's subissue list for 
 - [x] #1577 research delivered and closed: report section 1, 312 screenshots, four viewport sizes, signed-in and signed-out journeys.
 - [x] #1578 research delivered and closed: report section 2, three-run route medians and source-level outage review.
 - [x] #1579 research delivered and closed: report section 3, 21 social families, reachability and category comparison.
-- [x] #1581 canonical draft authored locally: 70 feature rows; 38 previously empty acceptance cells now state criteria or explicit blockers.
-- [ ] Parent integrates the docs commit and records the canonical artifact on #1581. No GitHub issue was changed by this task.
+- [x] #1581 canonical draft recorded: 70 feature rows; 38 previously empty acceptance cells now state criteria or explicit blockers.
 - [ ] #1580 interview: record the remaining scope decisions. Its three research prerequisites are complete, not still blocked.
 - [ ] #1576 owner review and remaining child disposition. A completed planning artifact does not prove its proposed features work.
 
 The research checks mean the research was delivered, not that every reported defect is fixed.
-The 116 passing inventory-fence tests validate the docs/source inventory, not product acceptance or the final browser gate.
+Store inventory verification belongs to #727. It does not establish product acceptance.
 
 ## Evidence and status
 
@@ -41,8 +40,8 @@ Fleet evidence paths remain relative to `~/karan-agent-workspace`, not this repo
 The fleet evidence is referenced, not copied or asserted to exist in Git.
 Historical screenshots and measurements do not describe every current route.
 
-Current source baseline is `6a759e0ac191d99f10c5e658bc8f2c3a6d3dd419`.
-Production `/api/version` reports this commit, deployment `dpl_88fiZ7i4Cgdfrmu5u1wjnRYCnzYq`, built at `2026-09-07T21:27:03.621Z`.
+The reconciliation source baseline is `6a759e0ac191d99f10c5e658bc8f2c3a6d3dd419`.
+Production `/api/version` verified this commit and deployment `dpl_88fiZ7i4Cgdfrmu5u1wjnRYCnzYq`, built at `2026-09-07T21:27:03.621Z`.
 The feature stack through #1632 is deployed. Deployment alone does not prove acceptance.
 The main audit owner is preparing the final browser run after #1631 and #1632 integration.
 This document does not claim that run passed.
@@ -103,8 +102,8 @@ D7 is engineering work: remove avoidable whole-city payloads through the existin
 The draft prefers per-venue reads over compressed whole-city reads.
 It needs measured regression evidence, not a new product interview or a raised performance ceiling.
 
-Store enrollment is a separate owner dependency under [#390](https://github.com/Singularityszn/pubmax/issues/390)
-and [#1358](https://github.com/Singularityszn/pubmax/issues/1358).
+Store enrollment is a separate owner dependency under [#1358](https://github.com/Singularityszn/pubmax/issues/1358).
+[#390](https://github.com/Singularityszn/pubmax/issues/390) was consolidated there as a duplicate, not completed enrollment.
 The parent already requested verified Apple/Google enrollment, account names and credential-storage locations, without secrets.
 That answer remains pending. This plan neither repeats the request nor marks enrollment complete.
 
