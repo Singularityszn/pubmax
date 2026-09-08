@@ -418,10 +418,13 @@ test("audited labels keep readable contrast in reachable states", async ({ baseU
       ? page.locator(`${tonightSelector} a`).first()
       : listingsState === "genuinely_empty"
         ? page.locator(tonightSelector)
-        : page.locator(`${tonightSelector} .tonightRetry`);
+        : (await page.locator(`${tonightSelector} .tonightRetry`).count()) > 0
+          ? page.locator(`${tonightSelector} .tonightRetry`)
+          : tonightScreen.locator(".tonightAlternatives a[href]").first();
     await tonightControl.hover();
     const tonight = await new AxeBuilder({ page })
-      .include(tonightSelector)
+      .include(listingsState === "temporarily_unavailable"
+        ? ".tonightStatusError, .tonightAlternatives" : tonightSelector)
       .withRules(["color-contrast"])
       .analyze();
     expect(tonight.violations, `${theme} Tonight contrast`).toEqual([]);
