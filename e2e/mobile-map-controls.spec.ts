@@ -42,7 +42,10 @@ test("mobile map controls: top bar, drink filters, and coordinated layers are ta
   const topbar = page.locator(".mobileMapTopbar");
   await expect(topbar).toBeVisible();
   const city = topbar.getByRole("button", { name: "Map area: London. Change city", exact: true });
-  await expect(city).toHaveText("London");
+  const cityLabel = city.locator(".citySwitcherLabelFull");
+  await expect(cityLabel).toBeVisible();
+  await expect(cityLabel).toHaveText("London");
+  await expect(city.locator(".citySwitcherLabelShort")).toBeHidden();
   await expectTapTarget(city, "city chooser");
   await expectTapTarget(topbar.getByRole("button", { name: "Search the map" }), "map search action");
   await topbar.getByRole("button", { name: "Search the map" }).click();
