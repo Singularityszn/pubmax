@@ -133,6 +133,35 @@ body:has(.mapStage):has(.palSummon) {
   --map-corner-bottom: calc(var(--float-stack-top-pal) + var(--float-stack-gap));
 }
 
+@media (max-width: 640px) {
+  /* The story replaces the plan lane. Pal and Near me share its free row. */
+  body:has(.mapStage):has(.bandOnboardingChip) {
+    --map-story-control-bottom: var(--float-stack-base);
+    --pal-summon-bottom: var(--map-story-control-bottom);
+    --map-corner-bottom: var(--map-story-control-bottom);
+  }
+
+  body:has(.mapStage):has(.bandOnboardingChip):has(.analyticsConsentPrompt) {
+    --map-story-control-bottom: var(--map-corner-bottom-consent);
+  }
+
+  body:has(.mapStage):has(.bandOnboardingChip) .palSummon {
+    left: auto;
+    right: calc(var(--mobile-map-corner-inset) + var(--map-corner-locate-size) + var(--float-stack-gap));
+    min-width: 0;
+    max-width: calc(
+      100vw - var(--mobile-map-corner-inset) - var(--map-corner-locate-size) -
+      var(--float-stack-gap) - max(12px, env(safe-area-inset-left, 0px))
+    );
+  }
+
+  /* Keep complete names when the available width requires another line. */
+  body:has(.mapStage):has(.bandOnboardingChip) .palSummon > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
 /* First of the four, because source order is what settles a tie and every
    member below it parks higher: the Night pill never shares a screen with the
    two map members (NightModeCard stands down on /map), and where it does share
