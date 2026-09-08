@@ -129,6 +129,29 @@
     bottom: calc(var(--mobile-map-dock-clearance) + 206px);
   }
 
+  /* The story clears the existing floating stack, including Create.
+     Credit stays beside the utility lane, so expanded text cannot cover Near me. */
+  .appShell:has(.bandOnboardingChip) {
+    --mobile-map-story-utility-lane: calc(
+      var(--mobile-map-corner-inset) + var(--map-corner-locate-size) + var(--float-stack-gap)
+    );
+  }
+
+  .appShell .bandOnboardingChip {
+    bottom: calc(
+      max(var(--float-stack-top-create), var(--float-stack-top-map-corner)) + var(--float-stack-gap)
+    );
+  }
+
+  .appShell:has(.bandOnboardingChip) .mapStage .maplibregl-ctrl-bottom-right {
+    bottom: var(--float-stack-base);
+    right: var(--mobile-map-story-utility-lane);
+  }
+
+  .appShell:has(.bandOnboardingChip) .mapStage .maplibregl-ctrl-attrib.maplibregl-compact {
+    max-width: calc(100vw - var(--mobile-map-story-utility-lane) - 24px);
+  }
+
   /* The first-visit ask is a STRIP under this bar now, not a panel at the foot
      of the screen, so nothing in the bottom band steps around it and nothing
      stands down for it. It used to hide the chip row, the plan pill, the
