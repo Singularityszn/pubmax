@@ -770,8 +770,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         { signal: controller.signal },
         (body) => {
           if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
-          // A completed edit supersedes any public read started before it.
-          if (profileWriteRevision.current !== requestWriteRevision) return;
+          // An edit replaces the profile row, but not its separate social metadata.
+          const profileReadCurrent = profileWriteRevision.current === requestWriteRevision;
 
           const socialData = profileSocialDataForLaunch(socialFriendsLaunchEnabled, {
             socialLinks: body.socialLinks ?? [],
@@ -780,13 +780,14 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
             followsViewer: Boolean(body.followsViewer),
           });
           if (body.status === "gone") {
+            if (!profileReadCurrent) return;
             setStored(null);
             setSocialLinks([...socialData.socialLinks]);
             setState("gone");
             setCounts(socialData.counts);
             return;
           }
-          setStored(body.profile ?? null);
+          if (profileReadCurrent) setStored(body.profile ?? null);
           setSocialLinks([...socialData.socialLinks]);
           setCounts(socialData.counts);
           setFollowing(socialData.following);
