@@ -27,6 +27,58 @@ test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
 });
 
+for (const closeSearch of [true, false]) {
+  test(`mobile Search ${closeSearch ? "explicit close removes" : "direct Filters preserves"} its navigation parent`, async ({ page }) => {
+    test.setTimeout(90_000);
+    const errors = watchPageErrors(page);
+    const response = await page.goto("/map");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+
+    const topbar = page.locator(".mobileMapTopbar");
+    const search = topbar.getByRole("button", { name: "Search the map", exact: true });
+    const input = page.getByRole("combobox", { name: "Search pubs", exact: true });
+    await expectTapTarget(search, "map search action");
+    await search.click();
+    await expect(search).toHaveAttribute("aria-expanded", "true");
+    await expect(input).toBeVisible();
+
+    if (closeSearch) {
+      await search.click();
+      await expect(search).toHaveAttribute("aria-expanded", "false");
+      await expect(input).toBeHidden();
+    }
+
+    const filtersAction = topbar.getByRole("button", { name: "Filters", exact: true });
+    await expectTapTarget(filtersAction, "drink filters button");
+    await filtersAction.click();
+    const filters = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+    await expect(filters).toBeVisible();
+    await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(1);
+    const back = filters.getByRole("button", { name: "Back to Search", exact: true });
+
+    if (closeSearch) {
+      await expect(back).toHaveCount(0);
+      const close = filters.getByRole("button", { name: "Close Prices and places", exact: true });
+      await expectTapTarget(close, "close filters");
+      await close.click();
+    } else {
+      await expectTapTarget(back, "return to Search");
+      await expect(filters.getByRole("button", { name: "Close and return to the map", exact: true })).toBeVisible();
+      await back.click();
+      await expect(search).toHaveAttribute("aria-expanded", "true");
+      await expect(input).toBeVisible();
+      await search.click();
+    }
+
+    await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(0);
+    await expect(search).toHaveAttribute("aria-expanded", "false");
+    await expect(input).toBeHidden();
+    expect(errors).toEqual([]);
+  });
+}
+
 test("mobile map controls: top bar, drink filters, and coordinated layers are tappable", async ({
   page,
 }) => {
