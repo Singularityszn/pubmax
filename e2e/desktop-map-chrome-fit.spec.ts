@@ -70,8 +70,6 @@ async function selectToolbarPub(page: Page, query: string, name: RegExp) {
 
 async function armDrawerExchangeProbe(page: Page) {
   return page.evaluateHandle(() => {
-    const startedAt = performance.now();
-    const startedAtEpochMs = performance.timeOrigin + startedAt;
     const describeElement = (element: Element | null) => element ? {
       tag: element.tagName,
       id: element.id,
@@ -79,6 +77,51 @@ async function armDrawerExchangeProbe(page: Page) {
       role: element.getAttribute("role"),
       label: element.getAttribute("aria-label"),
     } : null;
+    const readOption = (venueId: string) => {
+      const matches = document.querySelectorAll<HTMLElement>(
+        `.mapToolbar [role="option"][data-venue-id="${venueId}"]`,
+      );
+      if (matches.length !== 1) return null;
+      const option = matches[0];
+      const rect = option.getBoundingClientRect();
+      const style = getComputedStyle(option);
+      const point = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+      const hit = document.elementFromPoint(point.x, point.y);
+      const scrollport = option.closest('[role="listbox"]')?.getBoundingClientRect();
+      const withinScrollport = Boolean(scrollport && rect.top >= scrollport.top
+        && rect.bottom <= scrollport.bottom && rect.left >= scrollport.left
+        && rect.right <= scrollport.right);
+      const visible = option.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+      const inert = Boolean(option.closest("[inert]"));
+      const ariaHidden = Boolean(option.closest('[aria-hidden="true"]'));
+      const disabled = Boolean(option.closest(':disabled, [aria-disabled="true"]'));
+      const ownsCentreHit = hit !== null && option.contains(hit);
+      return {
+        venueId: option.dataset.venueId,
+        box: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+        point,
+        display: style.display,
+        visibility: style.visibility,
+        opacity: style.opacity,
+        pointerEvents: style.pointerEvents,
+        inert,
+        ariaHidden,
+        ariaDisabled: option.getAttribute("aria-disabled"),
+        disabled,
+        visible,
+        withinScrollport,
+        hitOwner: describeElement(hit),
+        ownsCentreHit,
+        canClick: visible && !inert && !ariaHidden && !disabled && ownsCentreHit
+          && withinScrollport && style.pointerEvents !== "none" && rect.width > 0 && rect.height > 0,
+      };
+    };
+    const initialOptions = ["bar-swift-borough", "bar-swift-soho"].map(readOption);
+    if (initialOptions.some((option) => !option?.canClick)) {
+      throw new Error(`Both Swift options must be reachable before exchange: ${JSON.stringify(initialOptions)}`);
+    }
+    const startedAt = performance.now();
+    const startedAtEpochMs = performance.timeOrigin + startedAt;
     const measure = () => {
       const atMs = performance.now() - startedAt;
       const box = (selector: string) => {
@@ -87,15 +130,6 @@ async function armDrawerExchangeProbe(page: Page) {
         const { x, y, width, height } = element.getBoundingClientRect();
         return { x, y, width, height };
       };
-      const retarget = document.querySelector<HTMLElement>(
-        '.mapToolbar [role="option"][data-venue-id="bar-swift-soho"]',
-      );
-      const retargetBox = retarget?.getBoundingClientRect();
-      const retargetStyle = retarget ? getComputedStyle(retarget) : null;
-      const hit = retargetBox ? document.elementFromPoint(
-        retargetBox.x + retargetBox.width / 2,
-        retargetBox.y + retargetBox.height / 2,
-      ) : null;
       const frame = {
         atMs,
         planner: box(".mapDrawer.left.springDrawer"),
@@ -103,19 +137,7 @@ async function armDrawerExchangeProbe(page: Page) {
         toolbar: box(".mapToolbar"),
         map: box(".mapStage"),
         activeElement: describeElement(document.activeElement),
-        retargetOption: retarget && retargetBox && retargetStyle ? {
-          venueId: retarget.dataset.venueId,
-          box: { x: retargetBox.x, y: retargetBox.y, width: retargetBox.width, height: retargetBox.height },
-          display: retargetStyle.display,
-          visibility: retargetStyle.visibility,
-          opacity: retargetStyle.opacity,
-          pointerEvents: retargetStyle.pointerEvents,
-          inert: Boolean(retarget.closest("[inert]")),
-          ariaHidden: Boolean(retarget.closest('[aria-hidden="true"]')),
-          ariaDisabled: retarget.getAttribute("aria-disabled"),
-          hitOwner: describeElement(hit),
-          ownsCentreHit: hit !== null && retarget.contains(hit),
-        } : null,
+        retargetOption: readOption("bar-swift-soho"),
       };
       return { ...frame, measureDurationMs: performance.now() - startedAt - atMs };
     };
@@ -201,7 +223,7 @@ async function armDrawerExchangeProbe(page: Page) {
       else request = requestAnimationFrame(sample);
     };
     request = requestAnimationFrame(sample);
-    return { frames, clicks, mid, done, observation };
+    return { initialOptions, measure, frames, clicks, mid, done, observation };
   });
 }
 
@@ -467,8 +489,10 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   const mapBefore = await renderedBox(mapStage, "map stage before exchange");
 
   const firstVenueOption = await toolbarPubOption(
-    page, "Soho", /^Three Sheets Soho\b/,
+    page, "Swift", /^Swift Borough\b/,
   );
+  await expect(toolbar.getByRole("combobox", { name: "Search pubs" }))
+    .toHaveAttribute("aria-busy", "false");
   await expect(page.getByRole("region", {
     name: "Interactive pub map of London", exact: true,
   })).toBeVisible();
@@ -481,33 +505,39 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   // Runner epoch timestamps locate each existing call without another browser round trip.
   // Per-frame option evidence is observational, not Playwright's actionability verdict.
   const actionCalls: { name: string; phase: "start" | "end"; atEpochMs: number }[] = [];
-  actionCalls.push({ name: "Three Sheets click", phase: "start", atEpochMs: Date.now() });
+  actionCalls.push({ name: "Swift Borough click", phase: "start", atEpochMs: Date.now() });
   await firstVenueOption.click();
-  actionCalls.push({ name: "Three Sheets click", phase: "end", atEpochMs: Date.now() });
-  actionCalls.push({ name: "mid-frame read", phase: "start", atEpochMs: Date.now() });
-  const mid = await probe.evaluate((state) => state.mid);
-  actionCalls.push({ name: "mid-frame read", phase: "end", atEpochMs: Date.now() });
-  expect(mid, "one sampled frame contains both moving drawers").not.toBeNull();
-  if (!mid) throw new Error("No simultaneous mid-spring frame within the observation bound");
+  actionCalls.push({ name: "Swift Borough click", phase: "end", atEpochMs: Date.now() });
 
   // The venue list is hidden while a drawer owns the map. Use toolbar search.
-  // Actionability may outlast the spring. Keep the timing failure until browser verification.
+  // A pointer can hit a moving option. The captured click must prove its identity and timing.
   actionCalls.push({ name: "Search pubs focus", phase: "start", atEpochMs: Date.now() });
   await toolbar.getByRole("combobox", { name: "Search pubs" }).focus();
   actionCalls.push({ name: "Search pubs focus", phase: "end", atEpochMs: Date.now() });
+  const retargetAim = await probe.evaluate((state) => state.measure());
+  const option = retargetAim.retargetOption;
+  if (!option?.canClick) {
+    throw new Error(`Swift Soho must own its current centre before clicking: ${JSON.stringify(retargetAim)}`);
+  }
   actionCalls.push({ name: "Swift click", phase: "start", atEpochMs: Date.now() });
-  await page.getByRole("option", { name: /^Swift Soho\b/ }).first().click();
+  await page.mouse.click(option.point.x, option.point.y);
   actionCalls.push({ name: "Swift click", phase: "end", atEpochMs: Date.now() });
+  actionCalls.push({ name: "mid-frame read", phase: "start", atEpochMs: Date.now() });
+  const mid = await probe.evaluate((state) => state.mid);
+  actionCalls.push({ name: "mid-frame read", phase: "end", atEpochMs: Date.now() });
   const settled = await probe.evaluate((state) => state.done);
-  const { frames, clicks, observation } = await probe.evaluate(
-    ({ frames, clicks, observation }) => ({ frames, clicks, observation }),
+  const { initialOptions, frames, clicks, observation } = await probe.evaluate(
+    ({ initialOptions, frames, clicks, observation }) => ({ initialOptions, frames, clicks, observation }),
   );
   await probe.dispose();
   await test.info().attach("drawer-exchange-frames", {
-    body: JSON.stringify({ frames, clicks, observation, actionCalls }), contentType: "application/json",
+    body: JSON.stringify({ initialOptions, retargetAim, frames, clicks, observation, actionCalls }), contentType: "application/json",
   });
+  expect(mid, "one sampled frame contains both moving drawers").not.toBeNull();
+  if (!mid) throw new Error("No simultaneous mid-spring frame within the observation bound");
   expect(settled, "drawer exchange settles within the observation bound").toBe(true);
   expect(clicks, "both venue selections use trusted clicks").toHaveLength(2);
+  expect(clicks[0].venueId, "first trusted selection is Swift Borough").toBe("bar-swift-borough");
   expect(clicks[1].venueId, "sampled retarget identity matches the trusted click")
     .toBe(observation.retargetVenueId);
   expect(clicks[0].after, "first selection reaches the document").toBeDefined();
@@ -570,7 +600,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     .click();
   await expect(planner).toHaveAttribute("aria-hidden", "false");
   await expect(planner.locator("#railSearchInput")).toHaveValue(
-    "Soho",
+    "Swift",
   );
   await expect
     .poll(() => page.locator(".mapDrawer.springDrawer.open").count(), {
