@@ -1230,6 +1230,7 @@ export default function PubMap({
   // A recovery toast on the canvas owns the surface: the map keeps search plus
   // ONE toast, so the arrival card stands down while a failure is on screen.
   const [mapSoftRetryActive, setMapSoftRetryActive] = useState(false);
+  const [desktopNoticeTarget, setDesktopNoticeTarget] = useState<HTMLDivElement | null>(null);
   const showMapArrivalCard = useSyncExternalStore(
     subscribeMapFirstVisitArrival,
     () =>
@@ -6013,6 +6014,7 @@ export default function PubMap({
         onListOpenChange={setMapListOpen}
         listCount={mapVenueListModel.total + ukBasePubListModel.total}
         onSoftRetryChange={setMapSoftRetryActive}
+        softRetryTarget={mobileViewport ? null : desktopNoticeTarget}
         focusPoint={openingLocationFocus ?? areaFocus}
         onViewportChange={setMapViewport}
         onReaderTouchedMap={dismissMapFirstVisitArrivalOnMapUse}
@@ -6101,9 +6103,11 @@ export default function PubMap({
           onLocationFound={setUserLocation}
         />
       ) : null}
-      {ambientBannerLaneOpen && isLondon ? (
-        <CityStatusBanner cityId={cityId} />
-      ) : null}
+      <div className="mapDesktopNotices" ref={setDesktopNoticeTarget}>
+        {ambientBannerLaneOpen && isLondon ? (
+          <CityStatusBanner cityId={cityId} />
+        ) : null}
+      </div>
       {/* F3: concierge as map home — a first-class grounded ask affordance in
           the bottom map-home lane. Rendered before the Tonight lane so its
           sibling CSS lifts the lane above the collapsed pill (no collision). */}

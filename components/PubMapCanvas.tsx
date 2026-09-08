@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { createPortal } from "react-dom";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./map/mapColor.css";
 import "./map/mapCameraControls.css";
@@ -399,6 +400,7 @@ type PubMapCanvasProps = {
   onListOpenChange?: (open: boolean) => void;
   listCount?: number;
   onSoftRetryChange?: (active: boolean) => void;
+  softRetryTarget?: HTMLElement | null;
   /**
    * Area button fly-to: bump `token` to fly the camera to `center` (a Night
    * Area centre). Reduced-motion is honoured by the shared `cinematic` helper
@@ -564,6 +566,7 @@ export default function PubMapCanvas({
   onListOpenChange,
   listCount = 0,
   onSoftRetryChange,
+  softRetryTarget = null,
   focusPoint = null,
   onViewportChange,
   onUserCameraMove,
@@ -3855,6 +3858,35 @@ export default function PubMapCanvas({
     );
   }
 
+  const softRetryNotice = softRetry ? (
+    <div className="mapSoftRetry" role="status" data-kind={softRetry.kind}>
+      <span className="mapSoftRetryMessage">{softRetry.message}</span>
+      <button
+        type="button"
+        className="mapSoftRetryBtn"
+        onClick={() => {
+          if (softRetry.kind === "pins" || softRetry.kind === "venues") {
+            // The background drew; only the pubs are missing. A full
+            // re-init would throw away a healthy basemap, so spend the lane
+            // the notice named and let ITS outcome write over this notice.
+            // Clearing here first is what left a failed refetch with no
+            // message to replace.
+            pinRetryRef.current?.(softRetry.kind);
+            return;
+          }
+          setSoftRetry(null);
+          setMapError(null);
+          publishMapErrored(false);
+          publishMapReady(false);
+          contextAutoReinitSpentRef.current = false;
+          setInitAttempt((a) => a + 1);
+        }}
+      >
+        Retry
+      </button>
+    </div>
+  ) : null;
+
   const canRecenter = route.length >= 2;
   const cityDisplayName = getCity(cityId).displayName;
 
@@ -3936,34 +3968,7 @@ export default function PubMapCanvas({
           data-user-location="shown"
         />
       ) : null}
-      {softRetry ? (
-        <div className="mapSoftRetry" role="status" data-kind={softRetry.kind}>
-          <span className="mapSoftRetryMessage">{softRetry.message}</span>
-          <button
-            type="button"
-            className="mapSoftRetryBtn"
-            onClick={() => {
-              if (softRetry.kind === "pins" || softRetry.kind === "venues") {
-                // The background drew; only the pubs are missing. A full
-                // re-init would throw away a healthy basemap, so spend the lane
-                // the notice named and let ITS outcome write over this notice.
-                // Clearing here first is what left a failed refetch with no
-                // message to replace.
-                pinRetryRef.current?.(softRetry.kind);
-                return;
-              }
-              setSoftRetry(null);
-              setMapError(null);
-              publishMapErrored(false);
-              publishMapReady(false);
-              contextAutoReinitSpentRef.current = false;
-              setInitAttempt((a) => a + 1);
-            }}
-          >
-            Retry
-          </button>
-        </div>
-      ) : null}
+      {softRetryTarget ? createPortal(softRetryNotice, softRetryTarget) : softRetryNotice}
       {/* What is left on the map edge: the route recenter, and only while a
           route exists. "Show all" and the compass moved into the Layers
           popover (captain, 7 Sep 2026, walk finding B9): a reader met eighteen
