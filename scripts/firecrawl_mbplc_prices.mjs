@@ -28,6 +28,7 @@ import {
   discoverRefreshPages,
   fetchRefreshPage,
 } from "./lib/localRefreshProviders.mjs";
+import { mapMbplcSectionToCategory } from "./lib/publisherDrinkCategories.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -65,56 +66,6 @@ const SUB_SECTION = /^###\s+(.+)$/;
 const ITEM_HEADING = /^####\s+(.+)$/;
 const POUND_PRICE = /£\s*(\d+(?:\.\d{2})?)/;
 const BARE_PRICE = /^\s*(\d+\.\d{2})\s*$/;
-
-function mapMbplcSectionToCategory(section) {
-  const s = section.toLowerCase();
-  if (
-    s.includes("fever-tree") ||
-    s.includes("mixer") ||
-    s.includes("tonic") ||
-    s.includes("main menu") ||
-    s.includes("sandwich") ||
-    s.includes("buffet") ||
-    s.includes("breakfast") ||
-    s.includes("food")
-  ) {
-    return null;
-  }
-  if (s.includes("wine") || s.includes("champagne") || s.includes("spark")) return "wine";
-  if (s.includes("cocktail") || s.includes("spritz")) return "cocktail";
-  if (s.includes("coffee") || s.includes("hot drink")) return "coffee";
-  if (
-    s.includes("alcohol-free") ||
-    s.includes("alcohol free") ||
-    s.includes("non-alcoholic") ||
-    s.includes("low and no") ||
-    s.includes("no & low") ||
-    s.includes("no and low") ||
-    s.includes("0.0")
-  ) {
-    return "alcohol-free";
-  }
-  if (s.includes("soft drink") || s.includes("soda")) return "soft-drink";
-  if (
-    s.includes("beer") ||
-    s.includes("lager") ||
-    s.includes("ale") ||
-    s.includes("cider") ||
-    s.includes("draught") ||
-    s.includes("craft")
-  ) {
-    return "beer";
-  }
-  if (s.includes("whisk") || s.includes("whiskey")) return "whisky";
-  if (s.includes("gin")) return "gin";
-  if (s.includes("vodka")) return "vodka";
-  if (s.includes("rum")) return "rum";
-  if (s.includes("tequila")) return "shot";
-  if (s.includes("spirit") || s.includes("shot")) return "shot";
-  // Unrecognised section: DROP (null), never coerce into "other".
-  if (s.includes("other")) return "other";
-  return null;
-}
 
 function priceFromLines(lines) {
   for (const line of lines) {
