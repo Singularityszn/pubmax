@@ -145,6 +145,75 @@ describe.skipIf(skipReason !== null)("0157 Pint Drop creation on PostgreSQL", ()
     }
     expect(create(input).outcome).toBe("created");
   });
+  it("rolls back the drop when the ledger insert fails after the drop insert", async () => {
+    const input = await candidate({ fields: { priceGbp: 5.8 } });
+    db().sql(`
+      create function public.fixture_refuse_pint_drop_ledger() returns trigger
+      language plpgsql as $$
+      begin
+        if exists (select 1 from public.pint_drops where id = new.drop_id) then
+          raise exception 'fixture-ledger-write-refused-after-drop';
+        end if;
+        raise exception 'fixture-drop-was-not-inserted';
+      end;
+      $$;
+      create trigger fixture_refuse_pint_drop_ledger before insert on public.pint_drop_create_requests
+        for each row execute function public.fixture_refuse_pint_drop_ledger();
+    `);
+    try {
+      expect(db().expectRefusal(call(input))).toContain("fixture-ledger-write-refused-after-drop");
+      expect(db().sql(`select count(*) from public.pint_drops where id = ${literal(input.row.id)}`)).toBe("0");
+      expect(db().sql(`select count(*) from public.pint_drop_create_requests where actor_key_hash = ${literal(input.request.actorKeyHash)}`)).toBe("0");
+    } finally {
+      db().sql(`drop trigger fixture_refuse_pint_drop_ledger on public.pint_drop_create_requests;
+        drop function public.fixture_refuse_pint_drop_ledger();`);
+    }
+    expect(create(input)).toMatchObject({ outcome: "created", drop: { id: input.row.id } });
+    expect(db().sql(`select drop_id from public.pint_drop_create_requests where actor_key_hash = ${literal(input.request.actorKeyHash)}`)).toBe(input.row.id);
+  });
+  it("keeps one intact drop and digest when different contents race under the same key", async () => {
+    const venue = randomUUID();
+    const key = randomUUID();
+    const a = await candidate({ venue, key, fields: { passedDownNote: "The piano stood beside the door." } });
+    const b = await candidate({ venue, key, fields: { passedDownNote: "The piano stood beside the window." } });
+    const attempts = [a, b];
+    const results = await db().concurrentResults(attempts.map(input => call(input)));
+    const replies = results.map(result => JSON.parse(result) as { outcome: string; drop?: { id: string } });
+    expect(replies.map(reply => reply.outcome).sort()).toEqual(["conflict", "created"]);
+    const winner = attempts[replies.findIndex(reply => reply.outcome === "created")];
+    expect(db().sql(`select count(*) from public.pint_drops where venue_id = ${literal(venue)}`)).toBe("1");
+    expect(db().sql(`select count(*) from public.pint_drop_create_requests where actor_key_hash = ${literal(a.request.actorKeyHash)}`)).toBe("1");
+    const storedPair = JSON.parse(db().sql(`
+      select jsonb_build_object('id', d.id, 'note', d.passed_down_note, 'digest', r.request_digest)
+      from public.pint_drop_create_requests r join public.pint_drops d on d.id = r.drop_id
+      where r.actor_key_hash = ${literal(a.request.actorKeyHash)}
+    `));
+    expect(storedPair).toEqual({ id: winner.row.id, note: winner.row.passed_down_note, digest: winner.request.requestDigest });
+    expect(create(winner)).toMatchObject({ outcome: "replayed", drop: { id: winner.row.id } });
+  });
+  it("denies browser ledger inserts, updates and deletes without changing stored data", async () => {
+    const input = await candidate();
+    expect(create(input).outcome).toBe("created");
+    const attempted = await candidate();
+    const ledgerSnapshot = () => db().sql("select jsonb_agg(to_jsonb(r) order by actor_key_hash) from public.pint_drop_create_requests r");
+    const dropSnapshot = () => db().sql("select jsonb_agg(to_jsonb(d) order by id) from public.pint_drops d");
+    const beforeLedger = ledgerSnapshot();
+    const beforeDrops = dropSnapshot();
+    for (const role of ["anon", "authenticated"]) {
+      const statements = [
+        `insert into public.pint_drop_create_requests(actor_key_hash, request_digest, drop_id)
+          values (${literal(attempted.request.actorKeyHash)}, ${literal(attempted.request.requestDigest)}, ${literal(input.row.id)})`,
+        `update public.pint_drop_create_requests set request_digest = repeat('0', 64)
+          where actor_key_hash = ${literal(input.request.actorKeyHash)}`,
+        `delete from public.pint_drop_create_requests where actor_key_hash = ${literal(input.request.actorKeyHash)}`,
+      ];
+      for (const statement of statements) {
+        expect(db().expectRefusal(`set role ${role}; ${statement}`)).toMatch(/permission denied/i);
+        expect(ledgerSnapshot()).toBe(beforeLedger);
+        expect(dropSnapshot()).toBe(beforeDrops);
+      }
+    }
+  });
   it("rolls back replay identity without deleting contributions or their photo keys", async () => {
     const input = await candidate({ fields: { priceGbp: 5.8 } });
     create(input);
