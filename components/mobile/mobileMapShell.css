@@ -1,7 +1,7 @@
 @media (max-width: 480px) {
   /* Save vertical space without changing story text or action sizes. */
   .appShell .bandOnboardingChip {
-    padding-block: 4px;
+    padding-block: 3px;
     row-gap: 2px;
   }
 }
