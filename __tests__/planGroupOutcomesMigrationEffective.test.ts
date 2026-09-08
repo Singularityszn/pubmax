@@ -126,6 +126,107 @@ async function orderedWrites(firstSql: string, secondSql: string) {
   }
 }
 
+/** Pause after crew locks but before the first snapshot-account FK check. */
+async function midCaptureAuthDeletion(p: Plan, user: string, deletionRelation: "plans" | "plan_crew_members") {
+  const label = `m1-delete-${randomUUID()}`;
+  const names = ["gate", "capture", "delete"].map(part => `${label}-${part}`);
+  const key = `hashtextextended(${literal(label)},0)`;
+  const pending: Array<ReturnType<PostgresSession["attempt"]>> = [];
+  const sessions = `datname=current_database() and application_name in (${names.map(literal).join(",")})`;
+  async function observe(predicate: string) {
+    for (let attempt = 0; attempt < 100; attempt++) {
+      if (await db().sqlAsync(`select ${predicate}`) === "t") return;
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    const state = db().sql(`select jsonb_agg(jsonb_build_object('name',application_name,'pid',pid,
+      'wait_type',wait_event_type,'wait',wait_event,'blockers',pg_blocking_pids(pid)))
+      from pg_stat_activity where ${sessions}`);
+    throw new Error(`Mid-capture schedule did not reach its required lock state: ${state}`);
+  }
+  const blockedBy = (waiter: string, blocker: string) => `exists (
+    select 1 from pg_stat_activity w join pg_stat_activity b on b.pid=any(pg_blocking_pids(w.pid))
+    where w.datname=current_database() and b.datname=current_database()
+      and w.application_name=${literal(waiter)} and b.application_name=${literal(blocker)} and w.wait_event_type='Lock')`;
+  try {
+    // Test-cluster DDL only. No production function or migration body changes.
+    db().sql(`create function public._test_0158_pause_snapshot_insert() returns trigger
+      language plpgsql set search_path='' as $pause$
+      begin perform pg_advisory_xact_lock(${key}); return null; end;
+      $pause$;
+      create trigger test_0158_pause_snapshot_insert before insert on public.plan_group_outcome_accounts
+      for each statement execute function public._test_0158_pause_snapshot_insert()`);
+    pending.push(db().attempt(`set application_name=${literal(names[0])}; set statement_timeout='20s';
+      select pg_advisory_lock(${key}); select pg_sleep(18)`));
+    await observe(`exists (select 1 from pg_stat_activity where datname=current_database()
+      and application_name=${literal(names[0])} and wait_event='PgSleep')`);
+
+    pending.push(db().attempt(`begin; set local application_name=${literal(names[1])};
+      set local statement_timeout='12s'; set local deadlock_timeout='200ms'; ${complete(p)}; commit`));
+    await observe(blockedBy(names[1], names[0]));
+    await observe(`exists (select 1 from pg_locks l join pg_stat_activity a on a.pid=l.pid
+      where a.datname=current_database() and a.application_name=${literal(names[1])}
+        and l.relation='public.plan_crew_members'::regclass and l.mode='RowShareLock' and l.granted)`);
+
+    // SELECT FOR UPDATE establishes the auth lock before DELETE reaches its
+    // existing SET NULL action. A host waits on Plan; a non-host waits on crew.
+    pending.push(db().attempt(`begin; set local application_name=${literal(names[2])};
+      set local statement_timeout='12s'; set local deadlock_timeout='200ms';
+      select id from auth.users where id=${literal(user)} for update;
+      delete from auth.users where id=${literal(user)}; commit`));
+    await observe(blockedBy(names[2], names[1]));
+    await observe(`exists (select 1 from pg_locks l join pg_stat_activity a on a.pid=l.pid
+      where a.datname=current_database() and a.application_name=${literal(names[2])}
+        and l.relation=${literal(`public.${deletionRelation}`)}::regclass and l.mode='RowExclusiveLock' and l.granted)`);
+
+    // Both required wait edges are observed before opening the FK insertion.
+    db().sql(`select pg_terminate_backend(pid) from pg_stat_activity
+      where datname=current_database() and application_name=${literal(names[0])}`);
+    const replies = await Promise.all(pending);
+    return { capture: replies[1], deletion: replies[2] };
+  } finally {
+    try {
+      db().sql(`select pg_terminate_backend(pid) from pg_stat_activity where ${sessions}`);
+    } finally {
+      await Promise.all(pending);
+      db().sql(`drop trigger if exists test_0158_pause_snapshot_insert on public.plan_group_outcome_accounts;
+        drop function if exists public._test_0158_pause_snapshot_insert()`);
+    }
+    expect(db().sql(`select count(*) from pg_stat_activity where ${sessions}`)).toBe("0");
+  }
+}
+
+test.each(["non-host", "host"] as const)("mid-capture auth deletion: %s must not deadlock", async (actor) => {
+  const deleted = randomUUID();
+  db().sql(`insert into auth.users(id) values (${literal(deleted)})`);
+  classify(deleted);
+  const p = plan(actor === "host" ? [deleted, users[0]] : [users[0], deleted]);
+  db().sql(`update public.plans set owner_user_id=${literal(actor === "host" ? deleted : users[0])} where id=${literal(p.id)}`);
+  try {
+    const replies = await midCaptureAuthDeletion(p, deleted, actor === "host" ? "plans" : "plan_crew_members");
+    const diagnostic = JSON.stringify({ actor, ...replies });
+    console.info(`[0158 mid-capture auth deletion] ${diagnostic}`);
+    const errors = [replies.capture, replies.deletion].filter(reply => !reply.ok);
+    // A timeout or SQL setup error is not proof of the alleged deadlock.
+    expect(errors.filter(reply => !/40P01/.test(reply.said)), diagnostic).toEqual([]);
+    expect(db().sql(`select count(*) from public.plan_completions where plan_id=${literal(p.id)}`))
+      .toBe(replies.capture.ok ? "1" : "0");
+    expect(db().sql(`select count(*) from public.plan_actions where plan_id=${literal(p.id)} and type='ending'`))
+      .toBe(replies.capture.ok ? "1" : "0");
+    expect(db().sql(`select status from public.plans where id=${literal(p.id)}`))
+      .toBe(replies.capture.ok ? "completed" : "active");
+    expect(db().sql(`select count(*) from auth.users where id=${literal(deleted)}`))
+      .toBe(replies.deletion.ok ? "0" : "1");
+    if (!replies.capture.ok) {
+      expect(db().sql("select count(*) from public.plan_group_outcomes")).toBe("0");
+      expect(db().sql("select count(*) from public.plan_group_outcome_accounts")).toBe("0");
+    }
+    // Deliberately red on 40P01. Do not mark this as an expected failure.
+    expect(errors, diagnostic).toEqual([]);
+  } finally {
+    db().sql(`delete from auth.users where id=${literal(deleted)}`);
+  }
+}, 30_000);
+
 test("counts one repeated outing despite several earlier matching groups", () => {
   db().sql(complete(plan(), "2020-01-20T12:00:00Z"));
   db().sql(complete(plan(), "2020-01-27T12:00:00Z"));

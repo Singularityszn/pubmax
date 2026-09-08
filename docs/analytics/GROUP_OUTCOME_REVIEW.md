@@ -33,7 +33,43 @@ The service response projects aggregate fields only. No new endpoint, scheduler,
 
 The prepared PostgreSQL cases include controlled join, reactivation, revocation, and deletion orderings.
 They use a temporary test-cluster lock barrier. Every barrier connection is terminated and awaited in cleanup.
-These are prepared cases, not execution results. No PostgreSQL window has been used.
+Those whole-write ordering cases remain unrun. The separate mid-capture reproduction below has now run.
+
+## Confirmed deletion deadlock
+
+One authorized temporary PostgreSQL cluster ran the two mid-capture cases against source `a923efacd` plus the test-only driver.
+The run took 7.26 seconds. Both selected tests failed with SQLSTATE `40P01`; the other 57 tests were not selected.
+Neither failure came from a timeout or setup error.
+
+The driver installs a test-only statement trigger before snapshot-account insertion, after the completion has acquired crew locks.
+A gate connection holds the advisory lock. The completion waits in the trigger.
+A second writer first locks the auth account, then deletes it.
+The driver observes both wait edges before releasing the gate: completion waits on gate; deletion waits on completion.
+Snapshot-account insertion then needs the auth key held by deletion and completes the lock cycle.
+
+| Case | Deletion wait | Result |
+|---|---|---|
+| Non-host | Clear `plan_crew_members.user_id` | `40P01`; deletion aborted, completion committed |
+| Host, also the stored Plan owner | Clear `plans.owner_user_id` | `40P01`; deletion aborted, completion committed |
+
+The tests verified committed completion state and rolled-back deletion state before failing the no-deadlock assertion.
+They remain ordinary failing regressions. They are not marked as expected failures.
+No production lock-order or retry change was made for this reproduction.
+
+Run from the isolated `pubmaxx-group-outcome` worktree, only within an explicitly released PostgreSQL window:
+
+```sh
+PUBMAX_PG_MAX_CLUSTERS=1 PUBMAX_RLS_NO_PG=0 node node_modules/vitest/vitest.mjs run __tests__/planGroupOutcomesMigrationEffective.test.ts --maxWorkers=1 --no-file-parallelism --no-cache --configLoader runner --reporter=verbose -t 'mid-capture auth deletion'
+```
+
+Each writer has a 12-second statement timeout. The gate has a 20-second timeout; each test has a 30-second ceiling.
+Cleanup terminated and awaited gate, completion, and deletion connections, then removed the test trigger and function.
+The suite stopped its cluster and returned the slot. Process, cluster-directory, and slot-directory checks found no remainder.
+Main and parent received the result and immediate slot release.
+The full local run log is `/tmp/pubmaxx-0158-deadlock-repro.log`.
+
+The auth/crew and auth/Plan lock cycles remain confirmed source blockers.
+Any correction must retain account deletion and completion authorization without waiting for auth keys under conflicting Plan or crew locks.
 
 ## Trusted production classification
 
@@ -151,6 +187,7 @@ Prepare known London, known other-city, mixed-city, missing-pack, ambiguous-ID, 
 Cover a route revision change between location resolution and completion.
 Retain atomic failure, replay immutability, authorization, concurrent claim, grants, and rollback cases from the initial candidate.
 
-No runtime verification has run for this correction. Independent source review must precede a separately approved runtime window.
+Only the two red deadlock cases above have run. Other prepared tests and full verification remain pending.
+Independent source review and a separately approved runtime window must precede further verification.
 The evidence mechanism still needs an approved production specification and its trusted classification source.
 This source candidate must not be reported as measured London retention or as M1-ready.
