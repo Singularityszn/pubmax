@@ -41,7 +41,9 @@ test("mobile map controls: top bar, drink filters, and coordinated layers are ta
 
   const topbar = page.locator(".mobileMapTopbar");
   await expect(topbar).toBeVisible();
-  await expect(topbar.locator(".mobileMapCity")).toHaveText("London");
+  const city = topbar.getByRole("button", { name: "Map area: London. Change city", exact: true });
+  await expect(city).toHaveText("London");
+  await expectTapTarget(city, "city chooser");
   await expectTapTarget(topbar.getByRole("button", { name: "Search the map" }), "map search action");
   await topbar.getByRole("button", { name: "Search the map" }).click();
   const searchInput = page.getByRole("searchbox", { name: "Search pubs" });
@@ -49,7 +51,7 @@ test("mobile map controls: top bar, drink filters, and coordinated layers are ta
   await expectTapTarget(searchInput.locator(".."), "map search field");
 
   await topbar.getByRole("button", { name: "Search the map" }).click();
-  const drinks = page.getByRole("button", { name: "Drinks", exact: true });
+  const drinks = topbar.getByRole("button", { name: "Filters", exact: true });
   await expectTapTarget(drinks, "drink filters button");
   await drinks.click();
   const filters = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
@@ -65,11 +67,14 @@ test("mobile map controls: top bar, drink filters, and coordinated layers are ta
   await expect(wine).toHaveAttribute("aria-pressed", "true");
   await expect(drinkGroup.getByRole("button", { name: "Wine (selected)" })).toBeVisible();
 
-  const category = filters.getByLabel("Drink category");
-  await expect(category).toBeVisible();
-  await category.selectOption("gin");
-  await expect(filters.getByLabel("Gin brand")).toBeVisible();
-  await filters.getByRole("button", { name: "Close Drinks and price" }).click();
+  const gin = drinkGroup.getByRole("button", { name: "Gin", exact: true });
+  await expectTapTarget(gin, "Gin drink-shape chip");
+  await gin.click();
+  await expect(drinkGroup.getByRole("button", { name: "Gin (selected)", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(drinkGroup.getByRole("button", { name: "Wine", exact: true })).toHaveAttribute("aria-pressed", "false");
+  // Non-beer categories have no brand evidence. They offer no refinements.
+  await expect(filters.getByRole("group", { name: "Refine Gin", exact: true })).toHaveCount(0);
+  await filters.getByRole("button", { name: "Close Prices and places", exact: true }).click();
 
   const layersFab = topbar.getByRole("button", { name: "More map controls" });
   await expectTapTarget(layersFab, "layers button");
@@ -98,7 +103,7 @@ test("mobile map controls: top bar, drink filters, and coordinated layers are ta
   await riverHistory.click();
   await expect(riverHistory).toHaveAttribute("aria-pressed", "true");
 
-  await layers.getByRole("button", { name: "Close Map layers" }).click();
+  await layers.getByRole("button", { name: "Close Map controls", exact: true }).click();
   await expect(layers).toHaveCount(0);
 
   expect(errors).toEqual([]);
