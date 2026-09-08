@@ -687,7 +687,8 @@ async function captureSurface(
   await page.setViewportSize(viewport);
   await preparePage(page, options);
   if (options.priorRoute) {
-    await page.goto(options.priorRoute, { waitUntil: "domcontentloaded" });
+    const priorResponse = await page.goto(options.priorRoute, { waitUntil: "domcontentloaded" });
+    expect(priorResponse?.status(), "the first route is a successful document").toBe(200);
     await expect.poll(() => page.evaluate(() => sessionStorage.getItem("pubmax:consent-first-route:v1"))).not.toBeNull();
     await expect(page.locator(".analyticsConsentPrompt")).toHaveCount(0);
     expect(await page.evaluate(() => sessionStorage.getItem("pubmax:consent-answer-moment:v1"))).toBeNull();
