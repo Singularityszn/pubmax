@@ -126,8 +126,8 @@ async function orderedWrites(firstSql: string, secondSql: string) {
   }
 }
 
-/** Pause after crew locks but before the first snapshot-account FK check. */
-async function midCaptureAuthDeletion(p: Plan, user: string, deletionRelation: "plans" | "plan_crew_members") {
+/** The original crew-first red driver remains at commit 2a8bc66e071f929a25e00a5d1e9ba19237da5c07. */
+async function authDeletionSchedule(p: Plan, user: string, overload: 8 | 9 | 14, deletionFirst: boolean) {
   const label = `m1-delete-${randomUUID()}`;
   const names = ["gate", "capture", "delete"].map(part => `${label}-${part}`);
   const key = `hashtextextended(${literal(label)},0)`;
@@ -141,91 +141,192 @@ async function midCaptureAuthDeletion(p: Plan, user: string, deletionRelation: "
     const state = db().sql(`select jsonb_agg(jsonb_build_object('name',application_name,'pid',pid,
       'wait_type',wait_event_type,'wait',wait_event,'blockers',pg_blocking_pids(pid)))
       from pg_stat_activity where ${sessions}`);
-    throw new Error(`Mid-capture schedule did not reach its required lock state: ${state}`);
+    throw new Error(`Auth deletion schedule did not reach its required lock state: ${state}`);
   }
   const blockedBy = (waiter: string, blocker: string) => `exists (
     select 1 from pg_stat_activity w join pg_stat_activity b on b.pid=any(pg_blocking_pids(w.pid))
     where w.datname=current_database() and b.datname=current_database()
       and w.application_name=${literal(waiter)} and b.application_name=${literal(blocker)} and w.wait_event_type='Lock')`;
+  const relationLock = (name: string, relation: string, modes: string[]) => `exists (
+    select 1 from pg_locks l join pg_stat_activity a on a.pid=l.pid
+    where a.datname=current_database() and a.application_name=${literal(name)}
+      and l.relation=${literal(relation)}::regclass and l.mode in (${modes.map(literal).join(",")}) and l.granted)`;
+  const triggerTable = deletionFirst ? "auth.users" : "public.plan_group_outcome_accounts";
   try {
-    // Test-cluster DDL only. No production function or migration body changes.
-    db().sql(`create function public._test_0158_pause_snapshot_insert() returns trigger
+    // The zzz name pauses deletion after the existing profile/Social BEFORE triggers.
+    db().sql(`create function public._test_0158_pause_auth_schedule() returns trigger
       language plpgsql set search_path='' as $pause$
-      begin perform pg_advisory_xact_lock(${key}); return null; end;
+      begin perform pg_advisory_xact_lock(${key}); return ${deletionFirst ? "old" : "null"}; end;
       $pause$;
-      create trigger test_0158_pause_snapshot_insert before insert on public.plan_group_outcome_accounts
-      for each statement execute function public._test_0158_pause_snapshot_insert()`);
+      create trigger zzz_test_0158_pause_auth_schedule before ${deletionFirst ? "delete" : "insert"} on ${triggerTable}
+      for each ${deletionFirst ? "row" : "statement"} execute function public._test_0158_pause_auth_schedule()`);
     pending.push(db().attempt(`set application_name=${literal(names[0])}; set statement_timeout='20s';
       select pg_advisory_lock(${key}); select pg_sleep(18)`));
     await observe(`exists (select 1 from pg_stat_activity where datname=current_database()
       and application_name=${literal(names[0])} and wait_event='PgSleep')`);
-
-    pending.push(db().attempt(`begin; set local application_name=${literal(names[1])};
-      set local statement_timeout='12s'; set local deadlock_timeout='200ms'; ${complete(p)}; commit`));
-    await observe(blockedBy(names[1], names[0]));
-    await observe(`exists (select 1 from pg_locks l join pg_stat_activity a on a.pid=l.pid
-      where a.datname=current_database() and a.application_name=${literal(names[1])}
-        and l.relation='public.plan_crew_members'::regclass and l.mode='RowShareLock' and l.granted)`);
-
-    // SELECT FOR UPDATE establishes the auth lock before DELETE reaches its
-    // existing SET NULL action. A host waits on Plan; a non-host waits on crew.
-    pending.push(db().attempt(`begin; set local application_name=${literal(names[2])};
+    const capture = () => db().attempt(`begin; set local application_name=${literal(names[1])};
+      set local statement_timeout='12s'; set local deadlock_timeout='200ms';
+      ${complete(p, undefined, undefined, overload)}; commit`);
+    const deletion = () => db().attempt(`begin; set local application_name=${literal(names[2])};
       set local statement_timeout='12s'; set local deadlock_timeout='200ms';
       select id from auth.users where id=${literal(user)} for update;
-      delete from auth.users where id=${literal(user)}; commit`));
-    await observe(blockedBy(names[2], names[1]));
-    await observe(`exists (select 1 from pg_locks l join pg_stat_activity a on a.pid=l.pid
-      where a.datname=current_database() and a.application_name=${literal(names[2])}
-        and l.relation=${literal(`public.${deletionRelation}`)}::regclass and l.mode='RowExclusiveLock' and l.granted)`);
-
-    // Both required wait edges are observed before opening the FK insertion.
+      delete from auth.users where id=${literal(user)}; commit`);
+    const firstName = names[deletionFirst ? 2 : 1];
+    const secondName = names[deletionFirst ? 1 : 2];
+    pending.push(deletionFirst ? deletion() : capture());
+    await observe(blockedBy(firstName, names[0]));
+    if (!deletionFirst) {
+      await observe(relationLock(firstName, "public.plan_crew_members", ["RowShareLock"]));
+    }
+    pending.push(deletionFirst ? capture() : deletion());
+    await observe(blockedBy(secondName, firstName));
+    await observe(relationLock(secondName, "auth.users", ["RowShareLock"]));
+    // The waiter has not reached any Plan/crew row lock or write.
+    for (const relation of ["public.plans", "public.plan_crew_members"]) {
+      await observe(`not (${relationLock(secondName, relation, ["RowShareLock", "RowExclusiveLock"])})`);
+    }
     db().sql(`select pg_terminate_backend(pid) from pg_stat_activity
       where datname=current_database() and application_name=${literal(names[0])}`);
     const replies = await Promise.all(pending);
-    return { capture: replies[1], deletion: replies[2] };
+    // Setup failures, statement timeouts and deadlocks all fail these assertions.
+    expect(replies[1]).toEqual({ ok: true, said: "" });
+    expect(replies[2]).toEqual({ ok: true, said: "" });
   } finally {
     try {
       db().sql(`select pg_terminate_backend(pid) from pg_stat_activity where ${sessions}`);
     } finally {
       await Promise.all(pending);
-      db().sql(`drop trigger if exists test_0158_pause_snapshot_insert on public.plan_group_outcome_accounts;
-        drop function if exists public._test_0158_pause_snapshot_insert()`);
+      db().sql(`drop trigger if exists zzz_test_0158_pause_auth_schedule on ${triggerTable};
+        drop function if exists public._test_0158_pause_auth_schedule()`);
     }
     expect(db().sql(`select count(*) from pg_stat_activity where ${sessions}`)).toBe("0");
   }
 }
 
-test.each(["non-host", "host"] as const)("mid-capture auth deletion: %s must not deadlock", async (actor) => {
+const authDeletionCases = ([8, 9, 14] as const).flatMap(overload =>
+  (["non-host", "host"] as const).flatMap(actor => [false, true].map(deletionFirst => ({ overload, actor, deletionFirst }))));
+test.each(authDeletionCases)("auth-first deletion order: $actor overload $overload deletionFirst=$deletionFirst", async ({ actor, overload, deletionFirst }) => {
   const deleted = randomUUID();
-  db().sql(`insert into auth.users(id) values (${literal(deleted)})`);
+  const profile = randomUUID();
+  db().sql(`insert into auth.users(id) values (${literal(deleted)});
+    insert into public.profiles(id,handle,user_id) values (${literal(profile)},${literal(`fixture_${profile.replace(/-/g, "").slice(0, 16)}`)},${literal(deleted)});
+    insert into public.private_social_accounts(clerk_user_id,supabase_user_id,profile_id)
+      values (${literal(`fixture-${deleted}`)},${literal(deleted)},${literal(profile)})`);
   classify(deleted);
   const p = plan(actor === "host" ? [deleted, users[0]] : [users[0], deleted]);
   db().sql(`update public.plans set owner_user_id=${literal(actor === "host" ? deleted : users[0])} where id=${literal(p.id)}`);
   try {
-    const replies = await midCaptureAuthDeletion(p, deleted, actor === "host" ? "plans" : "plan_crew_members");
-    const diagnostic = JSON.stringify({ actor, ...replies });
-    console.info(`[0158 mid-capture auth deletion] ${diagnostic}`);
-    const errors = [replies.capture, replies.deletion].filter(reply => !reply.ok);
-    // A timeout or SQL setup error is not proof of the alleged deadlock.
-    expect(errors.filter(reply => !/40P01/.test(reply.said)), diagnostic).toEqual([]);
-    expect(db().sql(`select count(*) from public.plan_completions where plan_id=${literal(p.id)}`))
-      .toBe(replies.capture.ok ? "1" : "0");
-    expect(db().sql(`select count(*) from public.plan_actions where plan_id=${literal(p.id)} and type='ending'`))
-      .toBe(replies.capture.ok ? "1" : "0");
-    expect(db().sql(`select status from public.plans where id=${literal(p.id)}`))
-      .toBe(replies.capture.ok ? "completed" : "active");
-    expect(db().sql(`select count(*) from auth.users where id=${literal(deleted)}`))
-      .toBe(replies.deletion.ok ? "0" : "1");
-    if (!replies.capture.ok) {
-      expect(db().sql("select count(*) from public.plan_group_outcomes")).toBe("0");
-      expect(db().sql("select count(*) from public.plan_group_outcome_accounts")).toBe("0");
-    }
-    // Deliberately red on 40P01. Do not mark this as an expected failure.
-    expect(errors, diagnostic).toEqual([]);
+    await authDeletionSchedule(p, deleted, overload, deletionFirst);
+    expect(db().sql(`select count(*) from public.plan_completions where plan_id=${literal(p.id)}`)).toBe("1");
+    expect(db().sql(`select count(*) from public.plan_actions where plan_id=${literal(p.id)} and type='ending'`)).toBe("1");
+    expect(db().sql(`select status from public.plans where id=${literal(p.id)}`)).toBe("completed");
+    expect(db().sql(`select count(*) from auth.users where id=${literal(deleted)}`)).toBe("0");
+    expect(JSON.parse(snapshot(p)).metadata).toMatchObject({ participant_count: deletionFirst ? 1 : 2,
+      eligible_account_count: deletionFirst ? 1 : 2 });
+    expect(snapshot(p)).not.toContain(deleted);
+    expect(db().sql(`select count(*) from public.plan_group_outcome_classifications where user_id=${literal(deleted)}`)).toBe("0");
+    expect(db().sql(`select tombstoned_at is not null from public.profiles where id=${literal(profile)}`)).toBe("t");
+    expect(db().sql(`select ownership_state='suspended' and supabase_user_id is null
+      from public.private_social_accounts where profile_id=${literal(profile)}`)).toBe("t");
   } finally {
-    db().sql(`delete from auth.users where id=${literal(deleted)}`);
+    db().sql(`delete from auth.users where id=${literal(deleted)};
+      delete from public.private_social_accounts where profile_id=${literal(profile)};
+      delete from public.profiles where id=${literal(profile)}`);
   }
 }, 30_000);
+
+// A sequence survives subtransaction rollback, so it records attempted writes.
+function installCompletionAttemptProbe(body = "") {
+  db().sql(`create sequence public._test_0158_completion_attempts;
+    create function public._test_0158_completion_attempt() returns trigger
+    language plpgsql set search_path='' as $probe$
+    begin
+      perform nextval('public._test_0158_completion_attempts');
+      ${body}
+      return new;
+    end;
+    $probe$;
+    create trigger test_0158_completion_attempt after insert on public.plan_completions
+      for each row execute function public._test_0158_completion_attempt()`);
+}
+function removeCompletionAttemptProbe() {
+  db().sql(`drop trigger if exists test_0158_completion_attempt on public.plan_completions;
+    drop function if exists public._test_0158_completion_attempt();
+    drop sequence if exists public._test_0158_completion_attempts`);
+}
+function completionAttempts() {
+  return db().sql("select case when is_called then last_value else 0 end from public._test_0158_completion_attempts");
+}
+function expectNoCompletion(p: Plan) {
+  expect(db().sql(`select status from public.plans where id=${literal(p.id)}`)).toBe("active");
+  expect(db().sql(`select count(*) from public.plan_actions where plan_id=${literal(p.id)} and type='ending'`)).toBe("0");
+  expect(db().sql(`select count(*) from public.plan_completions where plan_id=${literal(p.id)}`)).toBe("0");
+  expect(db().sql("select count(*) from public.plan_group_outcomes")).toBe("0");
+  expect(db().sql("select count(*) from public.plan_group_outcome_accounts")).toBe("0");
+}
+
+const lateBindingCases = ([8, 9, 14] as const).flatMap(overload =>
+  (["seat", "revoked-seat", "owner"] as const).map(binding => ({ overload, binding })));
+test.each(lateBindingCases)("restarts late $binding binding for overload $overload with one committed ending", async ({ overload, binding }) => {
+  const p = plan([users[0], null]);
+  if (binding === "revoked-seat") {
+    db().sql(`update public.plan_crew_members set membership_revoked_at='2020-01-02'
+      where plan_id=${literal(p.id)} and user_id is null`);
+  }
+  const stamp = binding === "owner"
+    ? `update public.plans set owner_user_id=${literal(users[1])} where id=${literal(p.id)} and owner_user_id is null`
+    : `update public.plan_crew_members set user_id=${literal(users[1])} where plan_id=${literal(p.id)} and user_id is null`;
+  installCompletionAttemptProbe();
+  try {
+    // The first writer's uncommitted stamp is absent from the auth prelock read.
+    // Completion then waits on its Plan lock before seeing the committed binding.
+    await orderedWrites(`select id from public.plans where id=${literal(p.id)} for update; ${stamp}`,
+      complete(p, undefined, undefined, overload));
+    expect(completionAttempts()).toBe("2");
+    expect(db().sql(`select count(*) from public.plan_completions where plan_id=${literal(p.id)}`)).toBe("1");
+    expect(db().sql(`select count(*) from public.plan_actions where plan_id=${literal(p.id)} and type='ending'`)).toBe("1");
+    expect(db().sql("select count(*) from public.plan_group_outcomes")).toBe("1");
+    expect(JSON.parse(snapshot(p)).metadata.participant_count).toBe(binding === "seat" ? 2 : 1);
+    expect(db().sql(`select count(*) from public.plan_group_outcome_accounts where user_id=${literal(users[1])}`))
+      .toBe(binding === "seat" ? "1" : "0");
+  } finally {
+    removeCompletionAttemptProbe();
+  }
+}, 20_000);
+
+test.each([8, 9, 14] as const)("exhausts only three roster-change subtransactions for overload %s", async overload => {
+  const p = plan([users[0], null]);
+  // Each attempt introduces a real new binding after the initial auth read.
+  // Its rollback restores the NULL seat, so all three attempts detect P0158.
+  installCompletionAttemptProbe(`update public.plan_crew_members set user_id=${literal(users[1])}
+    where plan_id=new.plan_id and user_id is null;`);
+  try {
+    const reply = await db().attempt(`set statement_timeout='5s'; ${complete(p, undefined, undefined, overload)}`);
+    expect(reply.ok).toBe(false);
+    expect(reply.said).toMatch(/40001.*Plan account bindings kept changing/s);
+    expect(completionAttempts()).toBe("3");
+    expectNoCompletion(p);
+    expect(db().sql(`select count(*) from public.plan_crew_members where plan_id=${literal(p.id)} and user_id is null`)).toBe("1");
+  } finally {
+    removeCompletionAttemptProbe();
+  }
+});
+
+const terminalFailureCases = ([8, 9, 14] as const).flatMap(overload =>
+  ["40P01", "23514"].map(code => ({ overload, code })));
+test.each(terminalFailureCases)("does not retry $code for overload $overload", async ({ overload, code }) => {
+  const p = plan();
+  installCompletionAttemptProbe(`raise exception 'Fixture completion failure' using errcode='${code}';`);
+  try {
+    const reply = await db().attempt(`set statement_timeout='5s'; ${complete(p, undefined, undefined, overload)}`);
+    expect(reply.ok).toBe(false);
+    expect(reply.said).toContain(code);
+    expect(completionAttempts()).toBe("1");
+    expectNoCompletion(p);
+  } finally {
+    removeCompletionAttemptProbe();
+  }
+});
 
 test("counts one repeated outing despite several earlier matching groups", () => {
   db().sql(complete(plan(), "2020-01-20T12:00:00Z"));
@@ -609,7 +710,10 @@ test("refuses browser reads, writes and execution, including private helper call
     expect(db().expectRefusal(`set role ${role}; select * from public.read_plan_group_outcomes('${from}','${until}')`)).toMatch(/permission denied/i);
     expect(db().expectRefusal(`set role ${role}; ${complete(p)}`)).toMatch(/permission denied/i);
   }
-  expect(db().expectRefusal(`set role service_role; select public._0158_capture_plan_group_outcome('${p.id}',null,null,'unknown')`)).toMatch(/permission denied/i);
+  for (const role of ["anon", "authenticated", "service_role"]) {
+    expect(db().expectRefusal(`set role ${role}; select public._0158_lock_group_completion_accounts('${p.id}')`)).toMatch(/permission denied/i);
+  }
+  expect(db().expectRefusal(`set role service_role; select public._0158_capture_plan_group_outcome('${p.id}',null,null,'unknown','{}'::uuid[])`)).toMatch(/permission denied/i);
   expect(db().expectRefusal("set role service_role; update public.plan_group_outcomes set participant_count=20")).toMatch(/permission denied/i);
   expect(db().expectRefusal("set role service_role; update public.plan_group_outcome_specifications set mixed_roster_policy='eligible_accounts_only'")).toMatch(/permission denied/i);
   expect(db().expectRefusal("set role service_role; select * from public.plan_group_outcome_classifications")).toMatch(/permission denied/i);
@@ -624,6 +728,8 @@ test("rolls back both overloads without changing completed Plans", () => {
   expect(db().sql("select jsonb_agg(to_jsonb(c)) from public.plan_completions c")).toBe(before);
   expect(db().sql(complete(p, undefined, undefined, 9))).toBe("already_completed");
   expect(db().sql(complete(plan(), undefined, undefined, 8))).toBe("completed");
+  expect(db().sql("select to_regprocedure('public._0158_lock_group_completion_accounts(uuid)') is null")).toBe("t");
+  expect(db().sql("select to_regprocedure('public._0158_capture_plan_group_outcome(uuid,text,text,text,uuid[])') is null")).toBe("t");
   expect(db().sql("select to_regclass('public.plan_group_outcomes') is null")).toBe("t");
   expect(db().sql("select to_regclass('public.plan_group_outcome_specifications') is null")).toBe("t");
   for (const signature of ["uuid,text,integer,uuid,uuid,text,text,timestamptz", "uuid,text,integer,uuid,uuid,text,text,jsonb,timestamptz"]) {

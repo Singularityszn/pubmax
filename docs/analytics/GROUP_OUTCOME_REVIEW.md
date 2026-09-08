@@ -53,10 +53,11 @@ Snapshot-account insertion then needs the auth key held by deletion and complete
 | Host, also the stored Plan owner | Clear `plans.owner_user_id` | `40P01`; deletion aborted, completion committed |
 
 The tests verified committed completion state and rolled-back deletion state before failing the no-deadlock assertion.
-They remain ordinary failing regressions. They are not marked as expected failures.
+The historical driver remains at commit `2a8bc66e071f929a25e00a5d1e9ba19237da5c07`.
+Its two ordinary failing regressions are not marked as expected failures.
 No production lock-order or retry change was made for this reproduction.
 
-Run from the isolated `pubmaxx-group-outcome` worktree, only within an explicitly released PostgreSQL window:
+The following command applies to that historical commit, within an explicitly released PostgreSQL window:
 
 ```sh
 PUBMAX_PG_MAX_CLUSTERS=1 PUBMAX_RLS_NO_PG=0 node node_modules/vitest/vitest.mjs run __tests__/planGroupOutcomesMigrationEffective.test.ts --maxWorkers=1 --no-file-parallelism --no-cache --configLoader runner --reporter=verbose -t 'mid-capture auth deletion'
@@ -68,8 +69,49 @@ The suite stopped its cluster and returned the slot. Process, cluster-directory,
 Main and parent received the result and immediate slot release.
 The full local run log is `/tmp/pubmaxx-0158-deadlock-repro.log`.
 
-The auth/crew and auth/Plan lock cycles remain confirmed source blockers.
-Any correction must retain account deletion and completion authorization without waiting for auth keys under conflicting Plan or crew locks.
+The auth/crew and auth/Plan lock cycles are confirmed defects in that historical source.
+The source repair below awaits independent review and runtime proof.
+
+## Prepared lock-order repair
+
+The private helper locks existing owner and crew auth keys in UUID order before calling the original completion body.
+It includes revoked crew bindings. It does not lock Plan or crew rows during that first read.
+Each original overload retains its capability, Social, revision, arrival, ending, and replay checks.
+Only a `completed` result reaches snapshot validation. Refusals and replays return their original results.
+
+The original body holds the Plan row before capture validates its current owner.
+Capture then freezes every crew row, including NULL guest seats and revoked seats, in seat-ID order.
+It checks actual bound UUIDs against the prelocked set. Equal cardinality alone cannot pass this check.
+Only those already locked auth keys may reach snapshot foreign-key checks.
+The completion's existing ending action references a crew seat, not an auth account.
+The repair adds no profile or Social row lock and preserves existing account-deletion triggers.
+
+Legacy direct seat and owner stamps can change the binding set between reads.
+A missing auth key raises private SQLSTATE `P0158` before snapshot insertion.
+Each wrapper catches only that signal inside an exception subtransaction.
+The failed subtransaction releases its auth, Plan, and crew locks and rolls back its completion writes.
+The next attempt starts with a fresh auth read. It never acquires a new auth key under a failed attempt's locks.
+There are at most three attempts. Exhaustion raises `40001` with `Plan account bindings kept changing`.
+No handler retries `40P01`, `40001`, or arbitrary failures. No app retry was added.
+
+`lib/planStore.ts` maps the SQL error to its existing `{ ok: false, error: "error" }` result.
+`app/api/plans/[id]/complete/route.ts` returns the existing retryable 503 `PLAN_COMPLETION_UNAVAILABLE` response.
+Its existing message remains `Plan completion is temporarily unavailable.`
+
+Prepared regression schedules cover all three wrappers:
+
+- Completion-first and deletion-first orderings, for host and non-host accounts.
+- The waiter's observed auth lock and absence of Plan/crew row-lock modes before release.
+- Real profile tombstone and private Social account suspension paths during deletion.
+- Late active-seat, revoked-seat, and owner binding changes, with exactly two attempted writes and one committed ending.
+- Three real roster mismatches, with sequence-based attempt counts and no committed ending, snapshot, or seat stamp.
+- Injected `40P01` and unrelated SQL errors, each with one attempt and no partial writes.
+- Private helper permissions and helper removal during rollback.
+
+Sequence increments survive rollback, so restart tests measure attempts separately from committed state.
+Setup errors, statement timeouts, missing wait edges, and deadlocks fail the new schedules.
+All connections and test-only triggers are removed in `finally` blocks; suite cleanup stops the owned cluster.
+These new schedules have not run. The historical red result is not green proof for this repair.
 
 ## Trusted production classification
 

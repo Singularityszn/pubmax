@@ -5,7 +5,8 @@ drop function public.read_plan_group_outcomes(timestamptz,timestamptz,text);
 drop function public.complete_plan_with_group_outcome_atomic(uuid,text,integer,uuid,uuid,text,text,jsonb,timestamptz,text,text,text,integer,text[]);
 drop function public.complete_plan_atomic(uuid,text,integer,uuid,uuid,text,text,timestamptz);
 drop function public.complete_plan_atomic(uuid,text,integer,uuid,uuid,text,text,jsonb,timestamptz);
-drop function public._0158_capture_plan_group_outcome(uuid,text,text,text);
+drop function public._0158_capture_plan_group_outcome(uuid,text,text,text,uuid[]);
+drop function public._0158_lock_group_completion_accounts(uuid);
 alter function public._0158_complete_plan_atomic_8(uuid,text,integer,uuid,uuid,text,text,timestamptz)
   rename to complete_plan_atomic;
 alter function public._0158_complete_plan_atomic_9(uuid,text,integer,uuid,uuid,text,text,jsonb,timestamptz)

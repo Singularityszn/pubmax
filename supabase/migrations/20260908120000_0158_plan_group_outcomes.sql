@@ -87,14 +87,36 @@ revoke all on sequence public.plan_group_outcome_classifications_id_seq from pub
 grant select on public.plan_group_outcome_capture, public.plan_group_outcomes,
   public.plan_group_outcome_accounts, public.plan_group_outcome_specifications to service_role;
 
+-- Account deletion owns auth before its Plan/crew SET NULL actions. Match that
+-- order before entering either original completion overload. Legacy account
+-- stamps can change the set during the initial read, so validate actual keys,
+-- not counts, after acquiring Plan and crew authority.
+create function public._0158_lock_group_completion_accounts(p_plan_id uuid)
+returns uuid[] language plpgsql security definer set search_path = '' as $$
+declare v_locked uuid[];
+begin
+  select coalesce(array_agg(id), '{}'::uuid[]) into v_locked from (
+    select u.id from auth.users u where u.id in (
+      select owner_user_id from public.plans where id = p_plan_id
+      union
+      select user_id from public.plan_crew_members where plan_id = p_plan_id
+    ) order by u.id for key share of u
+  ) locked_accounts;
+  return v_locked;
+end;
+$$;
+revoke all on function public._0158_lock_group_completion_accounts(uuid) from public, anon, authenticated, service_role;
+
 -- Only the completion wrappers call this owner-only helper. Their Plan row
 -- lock remains held until the snapshot and completion commit together.
 create function public._0158_capture_plan_group_outcome(
-  p_plan_id uuid, p_environment text, p_release text, p_route_scope text
+  p_plan_id uuid, p_environment text, p_release text, p_route_scope text, p_locked_accounts uuid[]
 ) returns void language plpgsql security definer set search_path = '' as $$
 declare
   v_completion_id uuid;
   v_accounts uuid[];
+  v_all_accounts uuid[];
+  v_owner uuid;
   v_completed_at timestamptz;
   v_spec public.plan_group_outcome_specifications%rowtype;
   v_spec_count integer;
@@ -106,14 +128,23 @@ declare
 begin
   select id, completed_at into strict v_completion_id, v_completed_at
     from public.plan_completions where plan_id = p_plan_id;
-  -- Lock participating rows against a concurrent claim/revocation. Guest seats
-  -- count only if an account is bound when this transaction takes the snapshot.
-  select coalesce(array_agg(distinct m.user_id order by m.user_id), '{}'::uuid[])
-    into v_accounts
+  -- The original completion call owns the Plan row. Refusal and replay never
+  -- reach this validation. A changed owner must not introduce an auth wait.
+  select owner_user_id into v_owner from public.plans where id = p_plan_id;
+  if v_owner is not null and not (v_owner = any(p_locked_accounts)) then
+    raise exception 'Plan account bindings changed' using errcode = 'P0158';
+  end if;
+  -- Freeze every existing seat, including legacy direct-stamp targets and
+  -- revoked seats. Validate full IDs even when eligible cardinality is equal.
+  select coalesce(array_agg(distinct m.user_id order by m.user_id)
+        filter (where m.user_id is not null and m.membership_revoked_at is null), '{}'::uuid[]),
+      coalesce(array_agg(distinct m.user_id order by m.user_id) filter (where m.user_id is not null), '{}'::uuid[])
+    into v_accounts, v_all_accounts
     from (select user_id, membership_revoked_at from public.plan_crew_members
-      where plan_id = p_plan_id
-      for share) m
-    where m.user_id is not null and m.membership_revoked_at is null;
+      where plan_id = p_plan_id order by id for share) m;
+  if not (v_all_accounts <@ p_locked_accounts) then
+    raise exception 'Plan account bindings changed' using errcode = 'P0158';
+  end if;
   -- Lock the applicable specification rows. Do not lock the classification
   -- table: unrelated account deletion must not wait behind every completion.
   select count(*), min(reference) into v_spec_count, v_spec_reference from (
@@ -159,7 +190,7 @@ begin
     where completion_id = v_completion_id;
 end;
 $$;
-revoke all on function public._0158_capture_plan_group_outcome(uuid,text,text,text)
+revoke all on function public._0158_capture_plan_group_outcome(uuid,text,text,text,uuid[])
   from public, anon, authenticated, service_role;
 
 -- Retain the exact existing authorization, arrival and Social guards behind
@@ -177,13 +208,23 @@ create function public.complete_plan_atomic(
   p_completion_id uuid, p_action_id uuid, p_ending text,
   p_terminal_venue_id text, p_completed_at timestamptz
 ) returns text language plpgsql security definer set search_path = '' as $$
-declare v_result text;
+declare v_result text; v_attempt integer; v_locked_accounts uuid[];
 begin
-  v_result := public._0158_complete_plan_atomic_8($1,$2,$3,$4,$5,$6,$7,$8);
-  if v_result = 'completed' then
-    perform public._0158_capture_plan_group_outcome(p_plan_id, null, null, 'unknown');
-  end if;
-  return v_result;
+  for v_attempt in 1..3 loop
+    begin
+      v_locked_accounts := public._0158_lock_group_completion_accounts(p_plan_id);
+      v_result := public._0158_complete_plan_atomic_8($1,$2,$3,$4,$5,$6,$7,$8);
+      if v_result = 'completed' then
+        perform public._0158_capture_plan_group_outcome(p_plan_id, null, null, 'unknown', v_locked_accounts);
+      end if;
+      return v_result;
+    exception when sqlstate 'P0158' then
+      -- This block has rolled back, including all auth, Plan and crew locks.
+      if v_attempt = 3 then
+        raise exception 'Plan account bindings kept changing' using errcode = '40001';
+      end if;
+    end;
+  end loop;
 end;
 $$;
 
@@ -192,13 +233,22 @@ create function public.complete_plan_atomic(
   p_completion_id uuid, p_action_id uuid, p_ending text,
   p_terminal_venue_id text, p_ending_selection jsonb, p_completed_at timestamptz
 ) returns text language plpgsql security definer set search_path = '' as $$
-declare v_result text;
+declare v_result text; v_attempt integer; v_locked_accounts uuid[];
 begin
-  v_result := public._0158_complete_plan_atomic_9($1,$2,$3,$4,$5,$6,$7,$8,$9);
-  if v_result = 'completed' then
-    perform public._0158_capture_plan_group_outcome(p_plan_id, null, null, 'unknown');
-  end if;
-  return v_result;
+  for v_attempt in 1..3 loop
+    begin
+      v_locked_accounts := public._0158_lock_group_completion_accounts(p_plan_id);
+      v_result := public._0158_complete_plan_atomic_9($1,$2,$3,$4,$5,$6,$7,$8,$9);
+      if v_result = 'completed' then
+        perform public._0158_capture_plan_group_outcome(p_plan_id, null, null, 'unknown', v_locked_accounts);
+      end if;
+      return v_result;
+    exception when sqlstate 'P0158' then
+      if v_attempt = 3 then
+        raise exception 'Plan account bindings kept changing' using errcode = '40001';
+      end if;
+    end;
+  end loop;
 end;
 $$;
 
@@ -209,19 +259,28 @@ create function public.complete_plan_with_group_outcome_atomic(
   p_environment text, p_release text, p_route_scope text, p_scope_route_revision integer,
   p_scope_venue_ids text[]
 ) returns text language plpgsql security definer set search_path = '' as $$
-declare v_result text;
+declare v_result text; v_attempt integer; v_locked_accounts uuid[];
 begin
-  v_result := public._0158_complete_plan_atomic_9($1,$2,$3,$4,$5,$6,$7,$8,$9);
-  if v_result = 'completed' then
-    perform public._0158_capture_plan_group_outcome(p_plan_id, p_environment, p_release,
-      case when p_scope_route_revision = p_expected_route_revision and p_scope_venue_ids = (
-        select array_agg(stop->>'venueId' order by ordinal)
-        from public.plan_completions c,
-          jsonb_array_elements(c.route_snapshot) with ordinality as stops(stop, ordinal)
-        where c.plan_id = p_plan_id
-      ) then p_route_scope else 'unknown' end);
-  end if;
-  return v_result;
+  for v_attempt in 1..3 loop
+    begin
+      v_locked_accounts := public._0158_lock_group_completion_accounts(p_plan_id);
+      v_result := public._0158_complete_plan_atomic_9($1,$2,$3,$4,$5,$6,$7,$8,$9);
+      if v_result = 'completed' then
+        perform public._0158_capture_plan_group_outcome(p_plan_id, p_environment, p_release,
+          case when p_scope_route_revision = p_expected_route_revision and p_scope_venue_ids = (
+            select array_agg(stop->>'venueId' order by ordinal)
+            from public.plan_completions c,
+              jsonb_array_elements(c.route_snapshot) with ordinality as stops(stop, ordinal)
+            where c.plan_id = p_plan_id
+          ) then p_route_scope else 'unknown' end, v_locked_accounts);
+      end if;
+      return v_result;
+    exception when sqlstate 'P0158' then
+      if v_attempt = 3 then
+        raise exception 'Plan account bindings kept changing' using errcode = '40001';
+      end if;
+    end;
+  end loop;
 end;
 $$;
 

@@ -62,3 +62,13 @@ it("passes the read revision separately from a newer expected revision", async (
   })).toEqual({ ok: false, error: "conflict" });
   expect(fixtures.rpc.mock.calls[0][1]).toMatchObject({ p_expected_route_revision: 4, p_scope_route_revision: 3 });
 });
+
+it.each(["40001", "40P01"])("keeps SQL %s on the existing error path without an app retry", async code => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  fixtures.rpc.mockResolvedValue({ data: null, error: { code, message: "Fixture transaction failure" } });
+  expect(await supabasePlanStore.complete(id, token, {
+    expectedRouteRevision: 3, ending: "get_home", endingSelection: selection,
+  })).toEqual({ ok: false, error: "error" });
+  expect(fixtures.rpc).toHaveBeenCalledTimes(1);
+  expect(supabasePlanStore.getCompletion).not.toHaveBeenCalled();
+});
