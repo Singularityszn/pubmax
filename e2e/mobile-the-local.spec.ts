@@ -18,7 +18,7 @@ test("mobile Describe the outing builds one grounded route without camera flicke
 
   await page.goto("/map");
   await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
-  await page.getByRole("button", { name: "Describe the outing" }).click();
+  await page.getByRole("button", { name: "Describe the outing", exact: true }).click();
   const planner = page.locator(".mapDrawer.left");
   await expect(planner).toHaveClass(/sheet-half/);
   await planner.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Four of us in Barnes, under £24 each and quiet");
@@ -63,7 +63,11 @@ test("mobile Describe the outing builds one grounded route without camera flicke
     (window as Window & { __cameraIntents?: Array<{ kind: string }> }).__cameraIntents ?? []
   ).filter((intent) => intent.kind === "route").length);
   expect(routeIntents).toBeLessThanOrEqual(1);
-  await expect(page.getByRole("button", { name: "Describe the outing" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Describe the outing", exact: true })).toHaveCount(0);
+  await expect(page.locator(".mobilePlanActivation")).toHaveCount(0);
+  const primary = planner.getByRole("button", { name: "Make a plan", exact: true });
+  await expect(primary).toHaveCount(1);
+  await expect(primary).toBeVisible();
 
   if (process.env.PUBMAX_GATE_Z_SHOTS) {
     const directory = "docs/screenshots/the-local-gate-z";
