@@ -10,7 +10,7 @@ import { test, expect } from "@playwright/test";
 //      depend on a rendered page.
 //   2. Browser assertions on the four public read surfaces' CSP header, and on
 //      the two map filter toggles the user can actually flip without touching the
-//      WebGL canvas (the non-alcoholic filter in the planner's control rail; the
+//      WebGL canvas (the phone Drink sheet's alcohol-free lane; the
 //      POI category toggles, which are canvas-adjacent overlays and so guarded).
 //
 // House style (e2e/social-loop.spec.ts): read-only, `.count()`-guarded for
@@ -150,9 +150,9 @@ for (const path of ["/", "/map", "/feed", "/discover"]) {
 }
 
 // ---------------------------------------------------------------------------
-// Non-alcoholic filter toggle — flips a real control inside the one coordinated
-// planner sheet. This is WebGL-agnostic and never writes location or voice data.
-test("quality floor: the non-alcoholic filter checkbox flips its checked state", async ({
+// The phone Drink sheet selects alcohol-free prices and restores the pint view.
+// This is WebGL-agnostic and never writes location or voice data.
+test("quality floor: the phone alcohol-free drink lane changes and restores the map key", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -171,32 +171,51 @@ test("quality floor: the non-alcoholic filter checkbox flips its checked state",
   await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".maplibreMap, .mapFallback").first()).toBeVisible();
 
-  // Open the planner so the control rail's filter toggles become visible.
-  const planBtn = page.getByRole("button", { name: "Describe the outing" });
-  await expect(planBtn).toBeVisible();
-  await planBtn.click();
-  const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
-  await expect(planner).toBeVisible();
-  await planner.getByRole("button", { name: "Expand sheet" }).click();
-  await expect(planner.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
+  const pintDoor = page.getByRole("button", {
+    name: "Drink shown on the map: Pints. Choose another drink", exact: true,
+  });
+  await expect(pintDoor).toBeVisible();
+  await pintDoor.click();
+  const drink = page.locator('.mobileSheetPortal[data-sheet-kind="drink"]');
+  await expect(drink).toBeVisible();
+  const lanes = drink.getByRole("group", { name: "Drink prices shown on the map", exact: true });
+  const alcoholFree = lanes.getByRole("button", { name: "Alcohol-free", exact: true });
+  const pints = lanes.getByRole("button", { name: "Pints", exact: true });
+  await expect(alcoholFree).toHaveAttribute("aria-pressed", "false");
+  await expect(pints).toHaveAttribute("aria-pressed", "true");
 
-  // The control rail is now revealed; find the "Non-alcoholic" filter checkbox
-  // by its label text (components/map/ControlRail.tsx wraps the input in a
-  // <label> reading "Non-alcoholic"). It defaults to off.
-  const nonAlc = planner
-    .locator(".controlRail label", { hasText: "Non-alcoholic" })
-    .locator('input[type="checkbox"]');
-  await expect(nonAlc).toHaveCount(1);
-  await expect(nonAlc).toBeVisible();
-  await expect(nonAlc).not.toBeChecked();
+  await alcoholFree.click();
+  await expect(alcoholFree).toHaveAttribute("aria-pressed", "true");
+  await expect(pints).toHaveAttribute("aria-pressed", "false");
+  await expect(lanes.locator('button[aria-pressed="true"]')).toHaveCount(1);
+  await expect(page).toHaveURL(/[?&]drink=alcohol-free(?:&|$)/);
+  await drink.getByRole("button", { name: "Close Drink", exact: true }).click();
+  const alcoholFreeDoor = page.getByRole("button", {
+    name: "Drink shown on the map: Alcohol-free. Choose another drink", exact: true,
+  });
+  await expect(alcoholFreeDoor).toBeVisible();
 
-  // Flipping it must move the visible checked state — the user-facing contract.
-  await nonAlc.check();
-  await expect(nonAlc).toBeChecked();
+  // The map key must project this drink, including an honest unavailable read.
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
+  const filters = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+  const key = filters.getByLabel("Map key", { exact: true });
+  await expect(key.locator("#mapKeyPriceHeading")).toHaveText(/^Alcohol-free (?:price bands|prices unavailable)$/);
+  await expect(key.locator(".mapKeySection > p").first()).toContainText("alcohol-free drink prices");
+  await expect(key.locator(".mapKeyPriceRows")).not.toContainText("pint");
+  await filters.getByRole("button", { name: "Close Prices and places", exact: true }).click();
 
-  // …and it toggles back off (idempotent, no stuck state).
-  await nonAlc.uncheck();
-  await expect(nonAlc).not.toBeChecked();
+  await alcoholFreeDoor.click();
+  await expect(alcoholFree).toHaveAttribute("aria-pressed", "true");
+  await pints.click();
+  await expect(pints).toHaveAttribute("aria-pressed", "true");
+  await expect(alcoholFree).toHaveAttribute("aria-pressed", "false");
+  await expect(lanes.locator('button[aria-pressed="true"]')).toHaveCount(1);
+  await expect.poll(() => new URL(page.url()).searchParams.get("drink")).toBeNull();
+  await drink.getByRole("button", { name: "Close Drink", exact: true }).click();
+  await expect(pintDoor).toBeVisible();
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
+  await expect(key.locator("#mapKeyPriceHeading")).toHaveText("Pint prices and other venue price bands");
+  expect(page.viewportSize()).toEqual({ width: 390, height: 844 });
 });
 
 // ---------------------------------------------------------------------------
