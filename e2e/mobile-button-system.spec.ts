@@ -2,7 +2,11 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { LANDING_QUIET_DOORS } from "@/lib/landingHero";
 
-import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
+import {
+  LANDING_PRIMARY_NAME,
+  LANDING_RECEIPT_HREF,
+  LANDING_RECEIPT_NAME,
+} from "./helpers/landingHero";
 
 const DEVICES = [
   { width: 390, height: 844 },
@@ -31,17 +35,17 @@ for (const viewport of DEVICES) {
       await setTheme(page, theme);
       await page.goto("/");
 
-      // ONE painted primary plus the quiet row, which is the table in
-      // lib/landingHero.ts rather than a number typed here: the row carried two
-      // doors from #1488 while this spec still counted for one (#1503).
+      // The quiet row starts with the receipt door, followed by the shared list.
       const heroActions = page.locator(".lpHero .screenActions a");
-      await expect(heroActions).toHaveCount(1 + LANDING_QUIET_DOORS.length);
+      await expect(heroActions).toHaveCount(2 + LANDING_QUIET_DOORS.length);
       await expect(page.getByRole("link", { name: LANDING_PRIMARY_NAME }).first()).toBeVisible();
       const quietDoors = page.locator(".lpHero .screenSecondary > a");
-      await expect(quietDoors).toHaveCount(LANDING_QUIET_DOORS.length);
+      await expect(quietDoors).toHaveCount(1 + LANDING_QUIET_DOORS.length);
+      await expect(quietDoors.first()).toHaveAccessibleName(LANDING_RECEIPT_NAME);
+      await expect(quietDoors.first()).toHaveAttribute("href", LANDING_RECEIPT_HREF);
       for (const [index, door] of LANDING_QUIET_DOORS.entries()) {
-        await expect(quietDoors.nth(index)).toHaveAttribute("href", door.href);
-        await expect(quietDoors.nth(index)).toHaveText(door.label);
+        await expect(quietDoors.nth(index + 1)).toHaveAttribute("href", door.href);
+        await expect(quietDoors.nth(index + 1)).toHaveText(door.label);
       }
 
       const actionGeometry = await heroActions.evaluateAll((elements) =>
@@ -383,7 +387,12 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
   await page.goto("/map");
   const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
   await expect(zoomIn).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator(".mapFitLondonBtn")).toBeVisible();
+  await page.getByRole("button", { name: /^Map layers:/ }).click();
+  const layers = page.getByRole("dialog", { name: "Map layers", exact: true });
+  await expect(layers).toBeVisible();
+  await expect(layers.getByRole("button", { name: /^Show all of / })).toBeVisible();
+  await layers.getByRole("button", { name: "Close layers", exact: true }).click();
+  await expect(layers).toBeHidden();
   const findings = await page.evaluate(() => {
     const owns = (selector: string) => {
       const element = document.querySelector(selector);
