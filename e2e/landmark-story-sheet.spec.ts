@@ -368,8 +368,19 @@ test("desktop 1440: the story takes the left drawer and the chrome leaves its la
   const toolbar = await boxOf(page, ".mapToolbar");
   expect(toolbar.left).toBeGreaterThanOrEqual(drawerBox.right - 0.5);
   expect(drawerBox.bottom).toBeLessThanOrEqual(900.5);
-  const camera = await boxOf(page, ".mapCameraControls");
-  expect(camera.left).toBeGreaterThanOrEqual(drawerBox.right - 0.5);
+  // Camera actions now live in Layers. Its entry must clear the story drawer.
+  const layersSelector = ".mapLayersControl > .mapLayersFab";
+  const layersButton = page.locator(layersSelector);
+  await expect(layersButton).toBeVisible();
+  const layersBox = await boxOf(page, layersSelector);
+  expect(layersBox.left).toBeGreaterThanOrEqual(drawerBox.right - 0.5);
+  expect(await ownsItsCentre(page, layersSelector)).toBe(true);
+  await layersButton.click();
+  const layers = page.getByRole("dialog", { name: "Map layers", exact: true });
+  await expect(layers).toBeVisible();
+  await expect(layers.getByRole("button", { name: /^Reset the map view of / })).toBeVisible();
+  await layers.getByRole("button", { name: "Close layers", exact: true }).click();
+  await expect(layers).toBeHidden();
 
   await expectStoryBodyHonest(page, ".storyDrawer.open");
 
