@@ -137,7 +137,11 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await expect(
       page.getByRole("button", { name: "Describe the outing" }),
     ).toHaveCount(0);
-    await page.getByRole("button", { name: "Close venue list" }).click();
+    const venueList = page.getByRole("region", { name: "London venue list", exact: true });
+    await venueList.getByRole("button", {
+      name: "Close and return to the London map", exact: true,
+    }).click();
+    await expect(venueList).toHaveCount(0);
     const plannerAction = page.getByRole("button", {
       name: "Describe the outing",
     });
