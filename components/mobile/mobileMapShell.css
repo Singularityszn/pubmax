@@ -1,3 +1,11 @@
+@media (max-width: 480px) {
+  /* Save vertical space without changing story text or action sizes. */
+  .appShell .bandOnboardingChip {
+    padding-block: 4px;
+    row-gap: 2px;
+  }
+}
+
 @media (min-width: 641px) {
   .mobileMapChrome,
   .mobileMapUtilityCorner,
