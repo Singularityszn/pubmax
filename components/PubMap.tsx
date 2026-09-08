@@ -90,7 +90,6 @@ import {
 import { UK_BOUNDS } from "@/components/map/canvas/tokens";
 import MapFallbackCard from "@/components/map/MapFallbackCard";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
-import { useFocusTrap } from "@/lib/useFocusTrap";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 const SpringDrawer = dynamic(() => import("@/components/map/SpringDrawer"), {
   ssr: false,
@@ -4932,17 +4931,6 @@ export default function PubMap({
     }
   }, [detailOpen]);
 
-  // Desktop accessibility contract: drawer is modal for its full open lifetime. Desktop
-  // never changes detent, so gating trap on mobile-oriented `sheetSnap` left it
-  // inactive at its permanent `half` state.
-  const detailDrawerRef = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(
-    !mobileViewport && detailOpen,
-    detailDrawerRef,
-    "map-surface",
-    preSheetFocusRef,
-  );
-
   // G3: Place story deep-link chip when `?band=` resolves. Takes priority over
   // curated onboarding so the two never fight.
   const showBandChip = shouldShowBandOnboardingChip({
@@ -6327,8 +6315,9 @@ export default function PubMap({
 
   /* Right drawer: the selected pub's detail, opened only on an explicit pick. Desktop only. */
   function renderVenueDrawer() {
+    // The drawer is non-modal: toolbar search can select another venue while it is open.
+    // Entry and return focus stay with the detailOpen effect.
     return !mobileViewport ? <SpringDrawer
-          ref={detailDrawerRef}
           open={detailOpen}
           side="right"
           snap={sheetSnap}
@@ -6342,7 +6331,6 @@ export default function PubMap({
             (sheetDragY !== null ? " sheet-dragging" : "")
           }
           aria-hidden={!detailOpen}
-          aria-modal={detailOpen ? true : undefined}
           role={detailOpen ? "dialog" : undefined}
           aria-label={detailOpen ? selectedVenueLabels.detailLabel : undefined}
         >
