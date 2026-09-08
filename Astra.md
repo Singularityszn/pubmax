@@ -1,5 +1,8 @@
 # Astra.md: PUBMAXX, everything built from 3 to 7 September 2026, and what comes next
 
+Current PlanAstra: [docs/plans/PlanAstra.md](docs/plans/PlanAstra.md). It reconciles the fleet draft with the deployed 7 September baseline.
+Its decision table supersedes the older PlanAstra recommendations below. Historical measurements and deployment statements below retain their original dates.
+
 Written 7 September 2026, 13:30 BST, by the firstmate orchestrator (Claude Fable 5.1) for Astra. This file is the complete handoff: why the product exists, what was built, how the work was run, which skills and tools were used, what the live site does today, and what to build next. Read it top to bottom once, then use section 14 as the index.
 
 The captain is Karan. He talks to one orchestrator, the firstmate, which delegates every piece of project work to workers and merges their pull requests. Nothing in this file was written from memory alone; every figure has a source in the repository, a pull request, or a report named in section 14.
