@@ -334,7 +334,11 @@ test.describe("Core Web Vitals baseline", () => {
     const artifact = path.join(testInfo.outputDir, "cwv-run.json");
     await writeFile(
       artifact,
-      `${JSON.stringify({ routes: routeRecords, productTimings: productRecords }, null, 2)}\n`,
+      `${JSON.stringify({
+        method: { primaryInteractions: PRIMARY_INTERACTIONS },
+        routes: routeRecords,
+        productTimings: productRecords,
+      }, null, 2)}\n`,
       "utf8",
     );
 
