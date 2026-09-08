@@ -46,7 +46,7 @@ test("mobile map controls: top bar, drink filters, and coordinated layers are ta
   await expectTapTarget(city, "city chooser");
   await expectTapTarget(topbar.getByRole("button", { name: "Search the map" }), "map search action");
   await topbar.getByRole("button", { name: "Search the map" }).click();
-  const searchInput = page.getByRole("searchbox", { name: "Search pubs" });
+  const searchInput = page.getByRole("combobox", { name: "Search pubs", exact: true });
   await expect(searchInput).toBeVisible();
   await expectTapTarget(searchInput.locator(".."), "map search field");
 
