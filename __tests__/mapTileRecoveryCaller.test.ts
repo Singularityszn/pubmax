@@ -269,10 +269,15 @@ describe("component basemap recovery with MapLibre settled errors", () => {
     expect(caller.setTiles).not.toHaveBeenCalled();
     caller.stopMoving();
     caller.render();
-    await vi.advanceTimersByTimeAsync(
-      tilePolicy.TILE_FAILURE_SUSTAIN_MS + tilePolicy.TILE_SILENT_RETRY_BASE_DELAY_MS,
-    );
+    await vi.advanceTimersByTimeAsync(tilePolicy.silentTileRetryDelayMs(0));
     expect(caller.setTiles).toHaveBeenCalledOnce();
+    expect(caller.setProtectedStyle).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(tilePolicy.silentTileRetryDelayMs(1));
+    expect(caller.setTiles).toHaveBeenCalledTimes(2);
+    expect(caller.setProtectedStyle).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(tilePolicy.TILE_FAILURE_WINDOW_MS);
+    expect(caller.setTiles).toHaveBeenCalledTimes(2);
+    expect(caller.setProtectedStyle).toHaveBeenCalledOnce();
   });
 
   it("revisits a sustain check that expires during later camera motion", async () => {
