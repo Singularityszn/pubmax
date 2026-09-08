@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { ExternalLink, Landmark as LandmarkIcon } from "lucide-react";
 
 import LandmarkHeroPhoto from "@/components/LandmarkHeroPhoto";
@@ -54,7 +55,7 @@ export function LandmarkStoryHead({
 export default function LandmarkStoryBody({
   landmark,
   areaLine,
-  nearby,
+  nearby: incomingNearby,
   showChapterLink = false,
   onOpenVenue,
   onStartCrawl,
@@ -70,6 +71,14 @@ export default function LandmarkStoryBody({
   onStartCrawl?: (pubIds: string[]) => void;
   onAskPubmaxxer?: (venueId: string) => void;
 }) {
+  // Keep the choices stable while this story is open. Late venue shards must
+  // not remove a button between pointer-down and click or move keyboard focus.
+  const [held, setHeld] = useState(() => ({ landmarkId: landmark.id, rows: incomingNearby }));
+  let nearby = held.rows;
+  if (held.landmarkId !== landmark.id || (held.rows.length === 0 && incomingNearby.length > 0)) {
+    nearby = incomingNearby;
+    setHeld({ landmarkId: landmark.id, rows: nearby });
+  }
   const nearbyIds = nearby.map((row) => row.venue.id);
   return (
     <div className="landmarkStory">
