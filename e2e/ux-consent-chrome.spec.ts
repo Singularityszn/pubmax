@@ -30,16 +30,36 @@ async function pointOwner(
   box: { x: number; y: number; width: number; height: number },
   controlSelector: string,
 ) {
-  return page.evaluate(
+  const evidence = await page.evaluate(
     ({ x, y, controlSelector }) => {
       const hit = document.elementFromPoint(x, y);
-      if (!hit) return "nothing";
-      if (hit.closest(".analyticsConsentPrompt")) return "prompt";
-      if (hit.closest(controlSelector)) return "control";
-      return hit.tagName.toLowerCase();
+      const owner = !hit ? "nothing"
+        : hit.closest(".analyticsConsentPrompt") ? "prompt"
+          : hit.closest(controlSelector) ? "control" : hit.tagName.toLowerCase();
+      const prompt = document.querySelector(".analyticsConsentPrompt");
+      const describe = (element: Element) => ({
+        html: element.outerHTML.slice(0, 1200),
+        rect: element.getBoundingClientRect().toJSON(),
+      });
+      const ancestors = [];
+      for (let node = hit; node; node = node.parentElement) {
+        ancestors.push({ tag: node.tagName, class: node.className, inert: node.hasAttribute("inert") });
+      }
+      return {
+        owner, point: { x, y }, hit: hit ? describe(hit) : null,
+        prompt: prompt ? describe(prompt) : null, ancestors,
+        stack: document.elementsFromPoint(x, y).map(describe),
+      };
     },
     { x: box.x + box.width / 2, y: box.y + box.height / 2, controlSelector },
   );
+  if (evidence.owner !== "prompt" && evidence.owner !== "control") {
+    await test.info().attach("consent-point-owner", {
+      body: JSON.stringify({ requestedBox: box, ...evidence }, null, 2),
+      contentType: "application/json",
+    });
+  }
+  return evidence.owner;
 }
 
 // These informational routes earn consent without choosing a city.
