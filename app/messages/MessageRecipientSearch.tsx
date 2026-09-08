@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import ProfileMessageButton from "@/components/messages/ProfileMessageButton";
@@ -25,12 +26,12 @@ function RecipientSearch() {
   useEffect(() => () => request.current?.abort(), []);
 
   if (session.unresolved) return <p role="status">Checking your account…</p>;
-  if (session.signedOut) return <Link href="/login?mode=signin&from=%2Fmessages%2Fnew">Sign in to message</Link>;
+  if (session.signedOut) return <Button asChild><Link href="/login?mode=signin&from=%2Fmessages%2Fnew">Sign in to message</Link></Button>;
   if (!identityResolved) return <p role="status">Checking your account…</p>;
-  if (!handle) return <Link href="/u/you">Claim a handle to message</Link>;
+  if (!handle) return <Button asChild><Link href="/u/you">Claim a handle to message</Link></Button>;
 
   return (
-    <section aria-label="Find someone to message">
+    <section className="messageRecipientSection" aria-label="Find someone to message">
       <form onSubmit={async (event) => {
         event.preventDefault();
         request.current?.abort();
@@ -60,17 +61,17 @@ function RecipientSearch() {
         <div className="messageRecipientSearch">
           <input id="message-recipient" type="search" autoComplete="off" value={query}
             onChange={event => { request.current?.abort(); setQuery(event.target.value); setMatches([]); setStatus("idle"); }} />
-          <button type="submit">Search</button>
+          <Button type="submit">Search</Button>
         </div>
       </form>
-      <p role="status">
+      <p className="messageRecipientStatus" role="status">
         {status === "loading" ? "Searching…" : status === "error" ? "Could not search. Try again."
           : status === "short" ? "Enter at least two characters."
           : status === "ready" && matches.length === 0 ? "No matching handles." : ""}
       </p>
       <ul className="conversationList">
         {matches.map(match => <li className="messageRecipientRow" key={match.handle}>
-          <Link href={`/u/${encodeURIComponent(match.handle)}`}>{match.displayName ? <>{match.displayName}<span> @{match.handle}</span></> : `@${match.handle}`}</Link>
+          <Link className="messageRecipientIdentity" href={`/u/${encodeURIComponent(match.handle)}`}>{match.displayName ? <>{match.displayName}<span> @{match.handle}</span></> : `@${match.handle}`}</Link>
           <ProfileMessageButton targetHandle={match.handle} viewerHandle={handle} />
         </li>)}
       </ul>

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Screen from "@/components/ui/screen";
+import { Button } from "@/components/ui/button";
 import SiteNav from "@/components/nav/SiteNav";
 import MessageRecipientSearch from "../MessageRecipientSearch";
 import "../messages.css";
@@ -12,10 +14,13 @@ export const metadata: Metadata = {
 export default function NewMessagePage() {
   return <div className="lp messagesPage">
     <SiteNav />
-    <main id="main" className="container messagesMain">
-      <Link href="/messages">Back to messages</Link>
-      <h1>New message</h1>
-      <MessageRecipientSearch />
+    <main id="main" className="container messagesMain messagesMainRecipient">
+      <Button asChild variant="ghost" className="messageRecipientBack">
+        <Link href="/messages">Back to messages</Link>
+      </Button>
+      <Screen title="New message" titleId="message-recipient-title" className="messagesScreen">
+        <MessageRecipientSearch />
+      </Screen>
     </main>
   </div>;
 }

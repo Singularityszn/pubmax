@@ -59,6 +59,30 @@ for (const width of [390, 1440]) {
       const result = page.locator(".messageRecipientRow");
       await expect(result).toHaveCount(1);
       await expect(result.getByRole("link")).toHaveText("@sam");
+      for (const control of [
+        page.getByRole("link", { name: "Back to messages", exact: true }),
+        page.getByRole("searchbox", { name: "Search handles" }),
+        page.getByRole("button", { name: "Search", exact: true }),
+        result.getByRole("link"),
+        result.getByRole("button", { name: "Message", exact: true }),
+      ]) {
+        const box = await control.boundingBox();
+        expect(box).not.toBeNull();
+        expect(box!.height).toBeGreaterThanOrEqual(44);
+        expect(box!.width).toBeGreaterThanOrEqual(44);
+      }
+      await expect(page.getByRole("heading", { name: "New message", exact: true })).toHaveClass("screenTitle");
+      await expect(page.getByRole("button", { name: "Search", exact: true })).toHaveClass(/uiButton--primary/);
+      expect(await page.evaluate(() => {
+        const greeting = document.querySelector(".arrivalWelcome");
+        if (!greeting) return true;
+        const bounds = greeting.getBoundingClientRect();
+        return Array.from(document.querySelectorAll(".messagesMainRecipient a, .messagesMainRecipient h1, .messagesMainRecipient input, .messagesMainRecipient button"))
+          .every(element => {
+            const target = element.getBoundingClientRect();
+            return target.top >= bounds.bottom || target.bottom <= bounds.top || target.right <= bounds.left || target.left >= bounds.right;
+          });
+      })).toBe(true);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       await page.screenshot({ path: testInfo.outputPath(`recipients-${width}.png`), fullPage: true });
       await result.getByRole("button", { name: "Message", exact: true }).click();

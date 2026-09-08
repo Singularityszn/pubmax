@@ -1490,9 +1490,97 @@ html[data-theme="dark"] .messageBubbleTheirs {
   }
 }
 
-.messageRecipientSearch { display: flex; gap: 12px; margin-top: 8px; }
-.messageRecipientSearch input { min-width: 0; flex: 1; min-height: 44px; font-size: 1rem; }
-.messageRecipientSearch button { min-height: 44px; padding: 8px 16px; }
-.messageRecipientRow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--line); }
-.messageRecipientRow a { min-width: 0; overflow-wrap: anywhere; }
-.messageRecipientRow span { color: var(--ink-soft); }
+.messagesMainRecipient {
+  max-width: 720px;
+}
+
+/* Only this form reserves the greeting lane; the shared greeting does not move. */
+body:has(.arrivalWelcome) .messagesMainRecipient {
+  padding-block-start: calc(1.5rem + var(--space-16, 64px));
+}
+
+.messageRecipientBack {
+  padding-inline: 0;
+  margin-bottom: var(--space-3);
+}
+
+.messageRecipientSection {
+  color: var(--color-text);
+}
+
+.messageRecipientSection label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.messageRecipientSearch {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.messageRecipientSearch input {
+  min-width: 0;
+  flex: 1;
+  min-height: var(--control-height, 44px);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  background: var(--panel-raised);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.messageRecipientSearch input:focus-visible,
+.messageRecipientIdentity:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.messageRecipientStatus {
+  margin: var(--space-3) 0;
+  color: var(--color-text-soft);
+}
+
+.messageRecipientStatus:empty {
+  margin: 0;
+}
+
+.messageRecipientRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.messageRecipientIdentity {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
+  min-width: 0;
+  min-height: 44px;
+  color: var(--color-text);
+  font-weight: 700;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.messageRecipientIdentity:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.messageRecipientIdentity span {
+  color: var(--color-text-soft);
+  font-weight: 400;
+}
+
+.messageRecipientRow .profileMessageError {
+  flex-basis: 100%;
+}
