@@ -266,15 +266,12 @@ async function settledStoryPubNames(storyPortal: Locator): Promise<string[]> {
   return settled.split("|");
 }
 
-/** Open a story pub by name, re-resolving the row on every attempt. */
+/** Open the displayed pub once. A missing handoff must remain a failure. */
 async function openStoryPub(storyPortal: Locator, venuePortal: Locator, pubName: string): Promise<void> {
-  await expect(async () => {
-    if ((await venuePortal.count()) === 0) {
-      const row = storyPortal.locator(".landmarkStoryPubs button").filter({ hasText: pubName }).first();
-      await row.click();
-    }
-    await expect(venuePortal).toBeVisible({ timeout: 4_000 });
-  }).toPass({ timeout: 45_000 });
+  const row = storyPortal.locator(".landmarkStoryPubs button").filter({ hasText: pubName });
+  await expect(row).toHaveCount(1);
+  await row.click();
+  await expect(venuePortal).toBeVisible({ timeout: 45_000 });
 }
 
 test("phone 390: a pub opened from the story has the story as its Back", async ({ page }) => {
@@ -314,11 +311,17 @@ test("phone 390: a pub opened from the story has the story as its Back", async (
   await expect.poll(() => new URL(page.url()).searchParams.get("landmark")).toBe("covent-garden");
 
   // And so is the browser's Back, from the pub opened a second time.
-  await settledStoryPubNames(storyPortal);
-  await openStoryPub(storyPortal, venuePortal, pubName);
+  const reopenedPubName = (await settledStoryPubNames(storyPortal))[0]!;
+  await openStoryPub(storyPortal, venuePortal, reopenedPubName);
+  await expect(venuePortal.locator(".mobileSharedSheetHeader h2")).toHaveText(reopenedPubName);
+  await expect(venuePortal).toHaveAttribute("data-surface-back", `Back to ${LANDMARK_NAME}`);
+  await expect.poll(() => new URL(page.url()).searchParams.get("sel")).not.toBeNull();
+  await expect(storyPortal).toHaveCount(0);
   await page.goBack();
   await expect(storyPortal).toBeVisible({ timeout: 30_000 });
   await expect(storyPortal.locator(".mobileSharedSheetHeader h2")).toHaveText(LANDMARK_NAME);
+  await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBeNull();
+  await expect.poll(() => new URL(page.url()).searchParams.get("landmark")).toBe("covent-garden");
 
   expect(errors).toEqual([]);
 });
