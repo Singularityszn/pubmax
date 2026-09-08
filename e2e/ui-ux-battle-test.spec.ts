@@ -403,9 +403,25 @@ test("audited labels keep readable contrast in reachable states", async ({ baseU
 
     const tonightRoute = AUDITED_ROUTES.find((route) => route.name === "tonight")!;
     await navigateToAuditedRoute(page, baseURL!, tonightRoute);
-    await page.locator(".tonightFootLink").hover();
+    const tonightScreen = page.getByTestId("tonight-screen");
+    await expect(tonightScreen).toHaveAttribute(
+      "data-picks-state", /^(ready|genuinely_empty|temporarily_unavailable)$/,
+    );
+    const listingsState = await tonightScreen.getAttribute("data-picks-state");
+    const tonightSelector = listingsState === "ready"
+      ? ".tonightList"
+      : listingsState === "genuinely_empty"
+        ? ".tonightStatusLink"
+        : ".tonightStatusError";
+    await expect(page.locator(tonightSelector)).toBeVisible();
+    const tonightControl = listingsState === "ready"
+      ? page.locator(`${tonightSelector} a`).first()
+      : listingsState === "genuinely_empty"
+        ? page.locator(tonightSelector)
+        : page.locator(`${tonightSelector} .tonightRetry`);
+    await tonightControl.hover();
     const tonight = await new AxeBuilder({ page })
-      .include(".tonightFootLink")
+      .include(tonightSelector)
       .withRules(["color-contrast"])
       .analyze();
     expect(tonight.violations, `${theme} Tonight contrast`).toEqual([]);
@@ -434,12 +450,32 @@ test.describe("UI UX battle-test guardrails", () => {
     await page.addInitScript(() => {
       localStorage.removeItem("pubmaxx:analytics-consent:v1");
     });
-    await page.goto("/today");
+    await page.goto("/about", { waitUntil: "domcontentloaded" });
+    await expect.poll(() => page.evaluate(() =>
+      sessionStorage.getItem("pubmax:consent-first-route:v1")),
+    ).toBe("/about");
+    await expect(page.getByLabel("Anonymous analytics choice")).toBeHidden();
+    await page.goto("/today", { waitUntil: "domcontentloaded" });
     const privacy = page.locator(".analyticsConsentPrompt a");
     await expect(privacy).toBeVisible();
     const box = await privacy.boundingBox();
     expect(box?.width).toBeGreaterThanOrEqual(44);
     expect(box?.height).toBeGreaterThanOrEqual(44);
+  });
+
+  test("clipped skip link restores its target and focus indicator on Tab", async ({ page }) => {
+    await page.goto("/");
+    const skip = page.getByRole("link", { name: "Skip to main content", exact: true });
+    await expect(skip).toHaveCSS("clip-path", "inset(50%)");
+    await page.keyboard.press("Tab");
+    await expect(skip).toBeFocused();
+    await expect(skip).toHaveCSS("clip-path", "none");
+    await expect(skip).toHaveCSS("clip", "auto");
+    await assertUiUxVisibleFocusIndicator(skip, "Skip to main content");
+    const box = await skip.boundingBox();
+    expect(box?.width).toBeGreaterThanOrEqual(44);
+    expect(box?.height).toBeGreaterThanOrEqual(44);
+    await skip.click({ trial: true });
   });
 
   test("audited mobile routes keep tap targets and page width within contract", async ({
@@ -461,7 +497,13 @@ test.describe("UI UX battle-test guardrails", () => {
         const visible = (element: Element) => {
           const style = getComputedStyle(element);
           const rect = element.getBoundingClientRect();
+          const clippedUnfocusedLink = element.matches("a.skipLink:not(:focus)")
+            && rect.width <= 1 && rect.height <= 1
+            && style.overflow === "hidden"
+            && style.clip === "rect(0px, 0px, 0px, 0px)"
+            && style.clipPath === "inset(50%)";
           return (
+            !clippedUnfocusedLink &&
             style.display !== "none" &&
             style.visibility !== "hidden" &&
             style.pointerEvents !== "none" &&
