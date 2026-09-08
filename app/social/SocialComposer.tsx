@@ -322,6 +322,7 @@ function draftHasChanges(
   removePhoto: boolean,
 ): boolean {
   return Boolean(
+    draft.galleryMode ||
     photo ||
     removePhoto ||
     draft.body !== (post?.body ?? "") ||
@@ -699,11 +700,13 @@ function SocialComposerSession({
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [draftReady, setDraftReady] = useState(false);
   const [savedDraftNeedsCleanup, setSavedDraftNeedsCleanup] = useState(false);
+  const [clearingDraft, setClearingDraft] = useState(false);
   const [removePhoto, setRemovePhoto] = useState(false);
   const [mutationVersion, setMutationVersion] = useState<number | null>(
     post?.mutationVersion ?? 0,
   );
   const [busy, setBusy] = useState(false);
+  const interactionBusy = busy || clearingDraft;
   const [mediaBusy, setMediaBusy] = useState(false);
   const intakeVersion = useRef(0);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -726,7 +729,7 @@ function SocialComposerSession({
   const formId = useId();
 
   function closeComposer() {
-    if (busy) return;
+    if (interactionBusy) return;
     setOpen(false);
     window.requestAnimationFrame(() => triggerRef.current?.focus());
   }
@@ -826,34 +829,43 @@ function SocialComposerSession({
   }
 
   async function clearDraft() {
-    intakeVersion.current += 1;
-    setMediaBusy(false);
-    if (savedDraftNeedsCleanup || draft.galleryMode || gallery.items.length > 0 || gallery.storageError) {
-      try {
-        await gallery.clear();
-      } catch {
-        setFeedback(savedDraftNeedsCleanup
-          ? "Post saved. The saved draft could not be cleared. Try again."
-          : "Your photo draft could not be cleared. Try again.");
-        setFeedbackIsStatus(savedDraftNeedsCleanup);
-        return;
+    if (interactionBusy) return;
+    setClearingDraft(true);
+    try {
+      intakeVersion.current += 1;
+      setMediaBusy(false);
+      if (savedDraftNeedsCleanup || draft.galleryMode || gallery.items.length > 0 || gallery.storageError) {
+        try {
+          await gallery.clear();
+        } catch {
+          setFeedback(savedDraftNeedsCleanup
+            ? "Post saved. The saved draft could not be cleared. Try again."
+            : "Your photo draft could not be cleared. Try again.");
+          setFeedbackIsStatus(savedDraftNeedsCleanup);
+          return;
+        }
       }
+      try { localStorage.removeItem(draftKey); } catch { /* Keep the in-page clear available. */ }
+      await saveSocialDraftPhoto(draftKey, null).catch(() => undefined);
+      if (gallery.getSignal().aborted) return;
+      gallery.restore(retainedGallery(initialPostRef.current));
+      setGalleryExpired(false);
+      setSavedDraftNeedsCleanup(false);
+      setDraft(initialDraft(initialPostRef.current));
+      setMutationVersion(initialPostRef.current?.mutationVersion ?? 0);
+      setPhoto(null);
+      setRemovePhoto(false);
+      setFeedback(null);
+      setConflict(false);
+      setVenueResults([]);
+      setVenueAnnouncement("Draft cleared.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      window.requestAnimationFrame(() => {
+        if (!gallery.getSignal().aborted) bodyRef.current?.focus();
+      });
+    } finally {
+      if (!gallery.getSignal().aborted) setClearingDraft(false);
     }
-    try { localStorage.removeItem(draftKey); } catch { /* Keep the in-page clear available. */ }
-    await saveSocialDraftPhoto(draftKey, null).catch(() => undefined);
-    gallery.restore(retainedGallery(initialPostRef.current));
-    setGalleryExpired(false);
-    setSavedDraftNeedsCleanup(false);
-    setDraft(initialDraft(initialPostRef.current));
-    setMutationVersion(initialPostRef.current?.mutationVersion ?? 0);
-    setPhoto(null);
-    setRemovePhoto(false);
-    setFeedback(null);
-    setConflict(false);
-    setVenueResults([]);
-    setVenueAnnouncement("Draft cleared.");
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    bodyRef.current?.focus();
   }
 
   function selectVenue(venue: VenueChoice) {
@@ -1229,9 +1241,9 @@ function SocialComposerSession({
   }
 
   const previewSource = photo ? photoPreviewUrl : null;
-  const hasDraftChanges = draft.galleryMode || draftHasChanges(draft, basePost, photo, removePhoto);
+  const hasDraftChanges = draftHasChanges(draft, basePost, photo, removePhoto);
 
-  const canSubmit = composerCanSubmit(draft, basePost, photo, removePhoto, gallery, { conflict, busy, mediaBusy, galleryExpired, savedDraftNeedsCleanup });
+  const canSubmit = composerCanSubmit(draft, basePost, photo, removePhoto, gallery, { conflict, busy: interactionBusy, mediaBusy, galleryExpired, savedDraftNeedsCleanup });
 
   return (
     <>
@@ -1268,7 +1280,7 @@ function SocialComposerSession({
             aria-labelledby={composerId}
           >
             <header>
-              <button type="button" disabled={busy} onClick={closeComposer}>
+              <button type="button" disabled={interactionBusy} onClick={closeComposer}>
                 Cancel
               </button>
               <h2 id={composerId}>{editing ? "Edit post" : "New post"}</h2>
@@ -1291,27 +1303,28 @@ function SocialComposerSession({
               >
                 <p>{feedback}</p>
                 {savedDraftNeedsCleanup ? (
-                  <button type="button" onClick={() => void clearDraft()}>Clear saved draft</button>
+                  <button type="button" disabled={interactionBusy} onClick={() => void clearDraft()}>Clear saved draft</button>
                 ) : null}
                 {conflict ? (
-                  <button type="button" onClick={() => void loadLatest()}>
+                  <button type="button" disabled={interactionBusy} onClick={() => void loadLatest()}>
                     Load latest
                   </button>
                 ) : null}
                 {galleryExpired && gallery.items.some((item) => item.source === "local") ? (
-                  <button type="button" onClick={retryExpiredGallery}>Upload photos again</button>
+                  <button type="button" disabled={interactionBusy} onClick={retryExpiredGallery}>Upload photos again</button>
                 ) : null}
               </div>
             ) : null}
 
             <form
               id={formId}
+              aria-busy={interactionBusy}
               onSubmit={(event) => {
                 event.preventDefault();
                 void submit();
               }}
             >
-              <fieldset className="socialComposerFields" disabled={busy || savedDraftNeedsCleanup} hidden={savedDraftNeedsCleanup}>
+              <fieldset className="socialComposerFields" disabled={interactionBusy || savedDraftNeedsCleanup} hidden={savedDraftNeedsCleanup}>
                 {draft.galleryMode ? (
                   <GalleryEditor gallery={gallery} approved={basePost?.moderationState === "approved"}
                     onFiles={selectGallery} onChange={changeGallery} />

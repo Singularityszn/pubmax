@@ -377,6 +377,30 @@ describe("Social composer galleries", () => {
     }
   });
 
+  it.each(["gallery", "legacy"])("blocks editing until %s draft cleanup completes", async (phase) => {
+    await mount();
+    await changeBody("Original caption");
+    await choose([photo("to-clear")]);
+    let release!: () => void;
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    if (phase === "gallery") mocks.clear.mockImplementationOnce(() => pending);
+    else mocks.saveLegacy.mockImplementationOnce(() => pending);
+    await click("Clear draft");
+    try {
+      expect(host.querySelector("textarea")?.matches(":disabled")).toBe(true);
+      expect(button("Post").disabled).toBe(true);
+      expect(button("Cancel").disabled).toBe(true);
+    } finally {
+      await act(async () => { release(); await pending; });
+    }
+    expect(host.querySelector("textarea")?.matches(":disabled")).toBe(false);
+    expect(host.querySelector("textarea")?.value).toBe("");
+    await changeBody("A walk by the river");
+    expect(button("Post").disabled).toBe(false);
+    await click("Post");
+    expect(JSON.parse(commits()[0][1].body)).toMatchObject({ body: "A walk by the river" });
+  });
+
   it("clears a text draft without requiring photo storage", async () => {
     mocks.clear.mockRejectedValue(new Error("Photo storage unavailable"));
     await mount();
