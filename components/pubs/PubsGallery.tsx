@@ -74,21 +74,25 @@ function DrinkArt({
         />
       ) : null}
       <div className="pubsCardArtWash" aria-hidden="true" />
-      <div className="pubsCardGlyphHero" aria-hidden="true">
-        <DrinkGlyph category={accent} size={72} inheritColor />
-      </div>
-      <ul className="pubsCardShelf" aria-label={`${categoryLabel(accent)} and more`}>
-        <li>
-          <DrinkGlyph category={accent} size={22} inheritColor />
-          <span>{categoryLabel(accent)}</span>
-        </li>
-        {shelf.map((category) => (
-          <li key={category}>
-            <DrinkGlyph category={category} size={18} inheritColor />
-            <span>{categoryLabel(category)}</span>
-          </li>
-        ))}
-      </ul>
+      {!photoUrl ? (
+        <>
+          <div className="pubsCardGlyphHero" aria-hidden="true">
+            <DrinkGlyph category={accent} size={72} inheritColor />
+          </div>
+          <ul className="pubsCardShelf" aria-label={`${categoryLabel(accent)} and more`}>
+            <li>
+              <DrinkGlyph category={accent} size={22} inheritColor />
+              <span>{categoryLabel(accent)}</span>
+            </li>
+            {shelf.map((category) => (
+              <li key={category}>
+                <DrinkGlyph category={category} size={18} inheritColor />
+                <span>{categoryLabel(category)}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
       <span className="pubsCardArtLabel">{name}</span>
     </div>
   );
