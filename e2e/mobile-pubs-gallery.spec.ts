@@ -54,16 +54,49 @@ test.describe("mobile Pubs gallery", () => {
   for (const viewport of [MOBILE, { width: 1440, height: 900 }]) {
     test(`photo card bounds, credit, and metadata at ${viewport.width}px`, async ({ page }, testInfo) => {
       await page.setViewportSize(viewport);
+      const imageRequests: { event: string; url: string }[] = [];
+      const recordImageRequest = (event: string, url: string) => {
+        if (new URL(url).pathname === "/api/image-proxy" && imageRequests.length < 32) {
+          imageRequests.push({ event, url });
+        }
+      };
+      page.on("request", (request) => recordImageRequest("request", request.url()));
+      page.on("response", (response) => recordImageRequest(`status ${response.status()}`, response.url()));
+      page.on("requestfailed", (request) => recordImageRequest(
+        request.failure()?.errorText ?? "request failed", request.url(),
+      ));
       const response = await page.goto("/pubs");
       expect(response?.status()).toBe(200);
 
-      const card = page.locator(".pubsCard:has(.pubsCardPhoto img)").first();
+      // Keep the venue fixed when an image error replaces its photo with a fallback.
+      const card = page.locator("#pubsCard-venue-eltcmh");
       await expect(card).toBeVisible();
       await card.scrollIntoViewIfNeeded();
-      const image = card.locator(".pubsCardPhoto img");
-      await expect.poll(() => image.evaluate((node: HTMLImageElement) =>
-        node.complete && node.naturalWidth > 0 && node.naturalHeight > 0,
-      )).toBe(true);
+      try {
+        await expect.poll(() => card.evaluate((node) => {
+          const image = node.querySelector<HTMLImageElement>(".pubsCardPhoto img");
+          return Boolean(image?.complete && image.naturalWidth > 0 && image.naturalHeight > 0);
+        }), { message: "The Blackfriar photo must decode without a fallback" }).toBe(true);
+      } catch (error) {
+        const photo = await card.evaluate((node) => {
+          const image = node.querySelector<HTMLImageElement>(".pubsCardPhoto img");
+          return {
+            cardId: node.id,
+            fallback: Boolean(node.querySelector(".venueImage--empty")),
+            src: image?.src,
+            currentSrc: image?.currentSrc,
+            loading: image?.loading,
+            complete: image?.complete,
+            naturalWidth: image?.naturalWidth,
+            naturalHeight: image?.naturalHeight,
+          };
+        });
+        await testInfo.attach("blackfriar-photo-failure", {
+          body: JSON.stringify({ photo, imageRequests }, null, 2),
+          contentType: "application/json",
+        });
+        throw error;
+      }
       await expect(card.locator(".pubsCardGlyphHero, .pubsCardShelf")).toHaveCount(0);
       await expect(card.locator(".venueImage__provenance")).toHaveText("Photo: pub website");
       await expect(card.locator(".pubsCardArtLabel")).not.toBeEmpty();
