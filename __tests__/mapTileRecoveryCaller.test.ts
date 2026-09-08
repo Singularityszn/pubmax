@@ -110,7 +110,7 @@ function recoveryCaller(phoneFirstImpression = false) {
     PUB_PIN_LAYERS: ["pubs-point"],
   };
   const emitted = ts.transpileModule(`
-    let styleLoaded = true, usingFallback = false, recoverySpent = 0;
+    let styleLoaded = true, hasLoadedStyle = true, usingFallback = false, recoverySpent = 0;
     let styleGeneration = 0, protectedStyleInFlight = false, queuedProtectedStyle = null;
     ${callerBlock("const PIN_REVEAL_TIMEOUT_MS =", "// First-painted-frame watchdog.")}
     const styleStructureReadyRef = { current: false };

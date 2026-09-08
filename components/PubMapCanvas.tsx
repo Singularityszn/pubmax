@@ -2184,6 +2184,8 @@ export default function PubMapCanvas({
     // CARTO's keyless styles; if that also fails, surface the same graceful
     // notice as a WebGL failure rather than a blank map.
     let styleLoaded = false;
+    // Surface choice remembers success for this map mount across replacements.
+    let hasLoadedStyle = false;
     let usingFallback = false;
     let sceneSettled = false;
     let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
@@ -2359,7 +2361,7 @@ export default function PubMapCanvas({
       sceneSettled = true;
       clearTimeout(hangFailTimer);
       queueMicrotask(() => {
-        if (basemapFailureSurface(styleLoaded) === "toast") {
+        if (basemapFailureSurface(hasLoadedStyle) === "toast") {
           tileNoticeOwner = "errors";
           setSoftRetry(BASEMAP_RETRY_NOTICE);
           return;
@@ -2457,6 +2459,7 @@ export default function PubMapCanvas({
       initialBasemapPending = true;
       styleStructureReadyRef.current = true;
       styleLoaded = true;
+      hasLoadedStyle = true;
       clearStyleLoadProtection();
       if (!protectedStyleInFlight) return;
       protectedStyleInFlight = false;
