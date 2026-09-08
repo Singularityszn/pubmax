@@ -420,6 +420,87 @@ async function assertLandingActions(
   await page.evaluate(({ x, y }) => window.scrollTo(x, y), scroll);
 }
 
+async function assertMapConsentState(
+  page: Page,
+  viewport: (typeof VIEWPORTS)[number],
+  surface: string,
+  panels: PanelMeasurement[],
+  assertions: SurfaceAssertion[],
+): Promise<void> {
+  if (surface === "map-first-visit" && viewport.width === 390) {
+    const answerState = await page.evaluate(() => ({
+      firstRoute: sessionStorage.getItem("pubmax:consent-first-route:v1"),
+      answer: sessionStorage.getItem("pubmax:consent-answer-moment:v1"),
+    }));
+    assertMeasured(
+      assertions, surface, viewport.width,
+      "first-visit consent waits for a real answer",
+      answerState.firstRoute !== null && answerState.answer === null &&
+        await page.locator(".analyticsConsentPrompt").count() === 0,
+      JSON.stringify(answerState),
+    );
+  }
+
+  if (surface === "map-consent-eligible" && viewport.width === 390) {
+    const notice = panels.find(
+      (candidate) => candidate.name === "analytics notice",
+    );
+    const planAction = panels.find(
+      (candidate) => candidate.name === "Describe the outing",
+    );
+    const credit = panels.find(
+      (candidate) => candidate.name === "map credit",
+    );
+    const overlap =
+      notice && credit
+        ? round(
+            Math.max(
+              0,
+              Math.min(notice.bottom, credit.bottom) -
+                Math.max(notice.top, credit.top),
+            ),
+          )
+        : Number.NaN;
+    assertMeasured(
+      assertions,
+      surface,
+      viewport.width,
+      "analytics notice leaves map credit reachable",
+      Number.isFinite(overlap) && overlap === 0,
+      `notice ${notice?.top}-${notice?.bottom}px; credit ${credit?.top}-${credit?.bottom}px; overlap ${overlap}px`,
+    );
+    const planOverlap =
+      notice && planAction
+        ? round(
+            Math.max(
+              0,
+              Math.min(notice.bottom, planAction.bottom) -
+                Math.max(notice.top, planAction.top),
+            ),
+          )
+        : Number.NaN;
+    assertMeasured(
+      assertions,
+      surface,
+      viewport.width,
+      "analytics notice leaves primary map action clear",
+      Number.isFinite(planOverlap) && planOverlap === 0,
+      `notice ${notice?.top}-${notice?.bottom}px; action ${planAction?.top}-${planAction?.bottom}px; overlap ${planOverlap}px`,
+    );
+    const noticeShare = notice
+      ? round((notice.height / viewport.height) * 100)
+      : Number.NaN;
+    assertMeasured(
+      assertions,
+      surface,
+      viewport.width,
+      "analytics notice stays below 24 percent of phone height",
+      Number.isFinite(noticeShare) && noticeShare < 24,
+      `${noticeShare}%`,
+    );
+  }
+}
+
 async function measureSurfaceAssertions(
   page: Page,
   viewport: (typeof VIEWPORTS)[number],
@@ -530,77 +611,9 @@ async function measureSurfaceAssertions(
       barMetrics.scrollWidth <= barMetrics.clientWidth,
       `scroll ${barMetrics.scrollWidth}px; client ${barMetrics.clientWidth}px; bar ${topbar?.left}-${topbar?.right}px`,
     );
-    const answerState = await page.evaluate(() => ({
-      firstRoute: sessionStorage.getItem("pubmax:consent-first-route:v1"),
-      answer: sessionStorage.getItem("pubmax:consent-answer-moment:v1"),
-    }));
-    assertMeasured(
-      assertions, surface, viewport.width,
-      "first-visit consent waits for a real answer",
-      answerState.firstRoute !== null && answerState.answer === null &&
-        await page.locator(".analyticsConsentPrompt").count() === 0,
-      JSON.stringify(answerState),
-    );
   }
 
-  if (surface === "map-consent-eligible" && viewport.width === 390) {
-    const notice = panels.find(
-      (candidate) => candidate.name === "analytics notice",
-    );
-    const planAction = panels.find(
-      (candidate) => candidate.name === "Describe the outing",
-    );
-    const credit = panels.find(
-      (candidate) => candidate.name === "map credit",
-    );
-    const overlap =
-      notice && credit
-        ? round(
-            Math.max(
-              0,
-              Math.min(notice.bottom, credit.bottom) -
-                Math.max(notice.top, credit.top),
-            ),
-          )
-        : Number.NaN;
-    assertMeasured(
-      assertions,
-      surface,
-      viewport.width,
-      "analytics notice leaves map credit reachable",
-      Number.isFinite(overlap) && overlap === 0,
-      `notice ${notice?.top}-${notice?.bottom}px; credit ${credit?.top}-${credit?.bottom}px; overlap ${overlap}px`,
-    );
-    const planOverlap =
-      notice && planAction
-        ? round(
-            Math.max(
-              0,
-              Math.min(notice.bottom, planAction.bottom) -
-                Math.max(notice.top, planAction.top),
-            ),
-          )
-        : Number.NaN;
-    assertMeasured(
-      assertions,
-      surface,
-      viewport.width,
-      "analytics notice leaves primary map action clear",
-      Number.isFinite(planOverlap) && planOverlap === 0,
-      `notice ${notice?.top}-${notice?.bottom}px; action ${planAction?.top}-${planAction?.bottom}px; overlap ${planOverlap}px`,
-    );
-    const noticeShare = notice
-      ? round((notice.height / viewport.height) * 100)
-      : Number.NaN;
-    assertMeasured(
-      assertions,
-      surface,
-      viewport.width,
-      "analytics notice stays below 24 percent of phone height",
-      Number.isFinite(noticeShare) && noticeShare < 24,
-      `${noticeShare}%`,
-    );
-  }
+  await assertMapConsentState(page, viewport, surface, panels, assertions);
 
   if (surface === "venue-sheet" && viewport.width === 390) {
     const captionChecks = await page
