@@ -3,6 +3,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { storyBandsForCity } from "@/lib/cityStoryBands";
 import { listEnabledCities } from "@/lib/cities";
+import { installNativeShell } from "./helpers/nativeShell";
 
 const VIEWPORTS = [
   { width: 360, height: 800 },
@@ -357,7 +358,7 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     await expect(hook).toContainText("since 1583");
     const provenance = card.locator(".historicProvenance");
     await expect(provenance).toBeVisible();
-    await expect(card.locator(".historicEra")).toHaveText("1583");
+    await expect(card.locator(".historicEra")).toHaveText("Founded 1583");
     await expect(card.locator(".historicCite")).toBeVisible();
     const [hookBox, provenanceBox] = await Promise.all([
       disclosure.boundingBox(),
@@ -386,7 +387,7 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     await expect(boroughHook).toContainText("since 1583");
     const boroughLink = boroughCard.locator(".boroughHeritageMapLink");
     await expect(boroughLink).toBeVisible();
-    await expect(boroughCard.locator(".boroughHeritageEra")).toHaveText("1583");
+    await expect(boroughCard.locator(".boroughHeritageEra")).toHaveText("Founded 1583");
     const [boroughHookBox, boroughLinkBox] = await Promise.all([
       boroughDisclosure.boundingBox(),
       boroughLink.boundingBox(),
@@ -500,15 +501,7 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
   }) => {
     await page.setViewportSize(viewport);
     await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.addInitScript(() => {
-      Object.defineProperty(window, "Capacitor", {
-        configurable: true,
-        value: {
-          isNativePlatform: () => true,
-          getPlatform: () => "ios",
-        },
-      });
-    });
+    await installNativeShell(page);
 
     const response = await page.goto("/");
     expect(response?.status()).toBe(200);
