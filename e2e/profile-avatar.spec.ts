@@ -313,8 +313,17 @@ test("retries a failed avatar after the browser reconnects", async ({ page }, te
   });
 
   try {
-    await page.goto(`/u/${REPAINT_HANDLE}`);
+    await Promise.all([
+      page.waitForResponse((response) =>
+        new URL(response.url()).pathname === avatarUrl && response.status() === 503,
+      ),
+      page.goto(`/u/${REPAINT_HANDLE}`),
+    ]);
+    // The loading placeholder is also a fallback. Wait for the actual image failure.
+    await expect(page.getByRole("heading", { name: "Avatar recovery", exact: true })).toBeVisible();
+    await expect(page.locator("img.profileAvatar")).toHaveCount(0);
     await expect(page.locator(".profileAvatarFallback")).toBeVisible();
+    expect(avatarRequests).toBe(1);
     await expect.poll(() => profileRequests).toBe(1);
 
     phase = "after-online";
