@@ -114,7 +114,7 @@ for (const theme of ["light", "dark"] as const) {
     await expect(page.getByText("Victoria", { exact: true })).toBeVisible();
     await expect(page.getByText("Piccadilly & Soho", { exact: true })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeHidden();
-    await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "Know when tonight changes" })).toHaveCount(0);
     await expect.poll(() => page.locator(".firstRunLondonPhoto img").evaluate(
       (image: HTMLImageElement) => image.complete && image.naturalWidth > 0,
     )).toBe(true);
@@ -176,7 +176,7 @@ test("native first run hands one useful Plan to the contextual push ask", async 
 
   await page.goto("/");
   await expect(page).toHaveURL(/\/onboarding$/);
-  await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Know when tonight changes" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Use London" }).click();
   await page.getByRole("button", { name: /Pigeon/ }).click();
@@ -185,16 +185,16 @@ test("native first run hands one useful Plan to the contextual push ask", async 
 
   await expect(page).toHaveURL(/\/map\?plan=1$/);
   await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Know when tonight changes" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Make a plan" }).click();
-  await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toBeVisible();
-  await expect(page.getByText("Get pinged when your crew votes or the get-in closes.")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Know when tonight changes" })).toBeVisible();
+  await expect(page.getByText("Get a ping when a fresh London night signal goes live.")).toBeVisible();
 
   // The next native root boot is still the owner-locked /tonight cold start.
   await page.goto("/");
   await expect(page).toHaveURL(/\/tonight$/);
-  await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Know when tonight changes" })).toHaveCount(0);
 });
 
 test("direct web onboarding redirects home without mutating onboarding state", async ({ page }) => {
@@ -253,9 +253,9 @@ test("Skip releases onboarding budget for the next Plan but never prompts on reb
   await page.goto("/map?plan=1");
   await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Make a plan" }).click();
-  await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Know when tonight changes" })).toBeVisible();
 
   await page.goto("/");
   await expect(page).toHaveURL(/\/tonight$/);
-  await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Know when tonight changes" })).toHaveCount(0);
 });

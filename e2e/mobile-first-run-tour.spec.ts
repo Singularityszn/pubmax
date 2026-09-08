@@ -40,7 +40,7 @@ test.describe("mobile first-run tour", () => {
     const tour = page.getByRole("dialog", { name: "Pint price colours" });
     await expect(tour).toBeVisible();
     await expect(tour.getByText(priceBandLegendLabel("cheap"))).toBeVisible();
-    await expect(tour.getByText("Over £7")).toBeVisible();
+    await expect(tour.getByText(priceBandLegendLabel("expensive"))).toBeVisible();
     await expectTappable(tour.getByRole("button", { name: "Skip the tour" }), "tour close");
     await expectTappable(tour.getByRole("button", { name: "Skip", exact: true }), "tour skip");
     await expectTappable(tour.getByRole("button", { name: "Got it", exact: true }), "tour confirm");
