@@ -12,7 +12,7 @@ const DESKTOP_CASES = [
 ] as const;
 
 const SIGNED_OUT_FITTED_SELECTOR =
-  ".messagesInboxPane .emptyStateTitle, .messagesInboxPane .emptyStateLine, .messagesInboxPane .emptyStateAction a";
+  ".messagesInboxPane .emptyStateTitle, .messagesInboxPane .emptyStateLine, .messagesInboxPane .screenPrimary a";
 
 async function expectDesktopSplit(page: Page): Promise<void> {
   const split = page.locator(".messagesSplit");
@@ -55,13 +55,15 @@ async function expectSignedOutCardFitsInbox(page: Page): Promise<void> {
   const fitted = page.locator(SIGNED_OUT_FITTED_SELECTOR);
 
   await expect(heading).toBeVisible();
-  // Title, one line, one quiet door to /login: the email-link flow lives on
-  // that page, so the inbox never carries a second painted form.
+  // The title and line stay in the card. The header owns the single sign-in door.
   await expect(fitted).toHaveCount(3);
-  await expect(page.locator(".messagesInboxPane .emptyStateAction a")).toHaveAttribute(
+  const signIn = page.locator(".messagesInboxPane .screenPrimary").getByRole("link", { name: "Sign in", exact: true });
+  await expect(signIn).toHaveAttribute(
     "href",
     "/login?mode=signin&from=%2Fmessages",
   );
+  await expect(page.locator(".messagesInboxPane .emptyStateAction")).toHaveCount(0);
+  await signIn.click({ trial: true });
   const geometry = await page.evaluate((fittedSelector) => {
     const inboxNode = document.querySelector<HTMLElement>(".messagesInboxPane");
     const cardNode = document.querySelector<HTMLElement>(".messagesInboxPane .emptyState");
@@ -77,6 +79,7 @@ async function expectSignedOutCardFitsInbox(page: Page): Promise<void> {
       cardFits: cardNode.scrollWidth <= cardNode.clientWidth,
       fitted: fittedNodes.map((node) => ({
         className: node.className,
+        insideCard: cardNode.contains(node),
         left: node.getBoundingClientRect().left,
         right: node.getBoundingClientRect().right,
         fits: node.scrollWidth <= node.clientWidth,
@@ -89,12 +92,14 @@ async function expectSignedOutCardFitsInbox(page: Page): Promise<void> {
   expect(geometry.cardFits).toBe(true);
   // The EmptyState idiom is start-aligned under its heading (de-box rule in
   // docs/DESIGN_SYSTEM.md), so the check is that every line fits inside the
-  // card and the inbox, never that it sits on a centre line.
+  // card or header, and inside the inbox, without requiring a centre line.
   for (const item of geometry.fitted) {
     expect(item.fits, `${item.className} should fit its own box`).toBe(true);
-    expect(item.right, `${item.className} should stay inside card`).toBeLessThanOrEqual(
-      geometry.cardRight + 1,
-    );
+    if (item.insideCard) {
+      expect(item.right, `${item.className} should stay inside card`).toBeLessThanOrEqual(
+        geometry.cardRight + 1,
+      );
+    }
     expect(item.right, `${item.className} should stay inside inbox`).toBeLessThanOrEqual(
       geometry.inboxRight + 1,
     );
@@ -130,6 +135,8 @@ for (const viewport of DESKTOP_CASES) {
     await expect(page.locator(".messagesThreadEyebrow")).toHaveCSS("text-transform", "none");
     await expectDesktopSplit(page);
     await expectSignedOutCardFitsInbox(page);
+    await page.locator(".messagesInboxPane .screenPrimary").getByRole("link", { name: "Sign in", exact: true }).click();
+    await expect(page).toHaveURL(/\/login\?mode=signin&from=%2Fmessages$/);
 
     await page.goto("/messages/nonexistent");
     await expect(page.getByText(/sign in to read and send messages/i)).toBeVisible();
