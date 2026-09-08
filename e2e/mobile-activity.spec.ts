@@ -63,8 +63,8 @@ test.describe("mobile Activity", () => {
     expect(response?.status()).toBe(200);
 
     await expect(page.getByRole("heading", { name: "Activity", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Nothing's landed yet.", exact: true })).toBeVisible();
-    await expectTappable(page.getByRole("link", { name: "Browse the feed" }), "Browse the feed CTA");
+    await expect(page.locator("main .emptyStateTitle").filter({ hasText: "Nothing's landed yet." })).toBeVisible();
+    await expectTappable(page.getByRole("link", { name: "Open Social", exact: true }), "Open Social CTA");
 
     const siteNav = page.getByRole("navigation", { name: "Site navigation" });
     await expectTappable(siteNav.getByLabel("Open PUBMAXX landing page"), "mobile site wordmark");
@@ -86,8 +86,8 @@ test.describe("mobile Activity", () => {
   test("empty state feeds the growth loop without clipping", async ({ page }) => {
     await page.goto("/activity");
 
-    await page.getByRole("link", { name: "Browse the feed" }).click();
-    await expect(page).toHaveURL(/\/feed$/);
+    await page.getByRole("link", { name: "Open Social", exact: true }).click();
+    await expect(page).toHaveURL(/\/social$/);
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
