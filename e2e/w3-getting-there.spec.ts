@@ -64,6 +64,9 @@ test("keeps location private, supports forgetting, and shows useful routes", asy
     "true",
   );
 
+  const details = venueSheet.locator("details.venueOverviewMore");
+  await details.getByText("Details and practical info", { exact: true }).click();
+  await expect(details).toHaveAttribute("open", "");
   const gettingThere = venueSheet.getByRole("region", { name: "Getting there" });
   const shareLocation = page.getByRole("button", {
     name: "Share location for travel times",
@@ -133,6 +136,9 @@ test("announces location progress and retries a failed route request", async ({ 
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
   const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
   await expect(venueSheet).toBeVisible({ timeout: 45_000 });
+  const details = venueSheet.locator("details.venueOverviewMore");
+  await details.getByText("Details and practical info", { exact: true }).click();
+  await expect(details).toHaveAttribute("open", "");
   const gettingThere = venueSheet.getByRole("region", { name: "Getting there" });
   await gettingThere
     .getByRole("button", { name: "Share location for travel times" })
