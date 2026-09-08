@@ -150,12 +150,12 @@ for (const path of ["/", "/map", "/feed", "/discover"]) {
 }
 
 // ---------------------------------------------------------------------------
-// Non-alcoholic filter toggle — flips a real control inside the one coordinated
-// planner sheet. This is WebGL-agnostic and never writes location or voice data.
-test("quality floor: the non-alcoholic filter checkbox flips its checked state", async ({
+// Non-alcoholic filter toggle in the desktop planner's ControlRail.
+// The phone planner renders MobilePlanActivation instead of these map filters.
+test("quality floor: the desktop non-alcoholic filter checkbox flips its checked state", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -171,21 +171,12 @@ test("quality floor: the non-alcoholic filter checkbox flips its checked state",
   await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".maplibreMap, .mapFallback").first()).toBeVisible();
 
-  // Open the planner so the control rail's filter toggles become visible.
-  const planBtn = page.getByRole("button", { name: "Describe the outing" });
-  await expect(planBtn).toBeVisible();
-  await planBtn.click();
-  const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
+  await page.locator(".mapToolbar")
+    .getByRole("button", { name: "Plan an outing", exact: true }).click();
+  const planner = page.locator(".mapDrawer.left.open");
   await expect(planner).toBeVisible();
-  await planner.getByRole("button", { name: "Expand sheet" }).click();
-  await expect(planner.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
-
-  // The control rail is now revealed; find the "Non-alcoholic" filter checkbox
-  // by its label text (components/map/ControlRail.tsx wraps the input in a
-  // <label> reading "Non-alcoholic"). It defaults to off.
-  const nonAlc = planner
-    .locator(".controlRail label", { hasText: "Non-alcoholic" })
-    .locator('input[type="checkbox"]');
+  const nonAlc = planner.locator(".controlRail")
+    .getByRole("checkbox", { name: "Non-alcoholic", exact: true });
   await expect(nonAlc).toHaveCount(1);
   await expect(nonAlc).toBeVisible();
   await expect(nonAlc).not.toBeChecked();
