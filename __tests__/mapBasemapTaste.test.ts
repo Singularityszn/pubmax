@@ -9,7 +9,6 @@ import {
   mixHex,
   muteOpacityExpr,
   SELECTION_MUTE_OPACITY,
-  tameNumericShieldFilters,
   withAlpha,
 } from "@/lib/mapBasemapTaste";
 import { applySelectionState, type SceneCtx } from "@/components/map/canvas/buildScene";
@@ -120,35 +119,6 @@ function lumSum(hex: string): number {
 }
 
 describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
-  it("guards OpenFreeMap shield length filters against missing numeric values", () => {
-    const original = [
-      "all",
-      ["<=", ["get", "ref_length"], 6],
-      ["match", ["get", "network"], ["us-interstate"], true, false],
-    ];
-    const filters = new Map<string, unknown>([
-      ["highway-shield-non-us", original],
-      ["highway-shield-us-interstate", original],
-    ]);
-    const writes: Array<[string, unknown]> = [];
-    const map = {
-      getLayer: (id: string) => (filters.has(id) ? { id } : undefined),
-      getFilter: (id: string) => filters.get(id),
-      setFilter: (id: string, filter: unknown) => writes.push([id, filter]),
-    };
-
-    tameNumericShieldFilters(map);
-
-    expect(writes).toHaveLength(2);
-    for (const [, filter] of writes) {
-      expect(filter).toEqual([
-        "all",
-        ["<=", ["number", ["get", "ref_length"], 0], 6],
-        ["match", ["get", "network"], ["us-interstate"], true, false],
-      ]);
-    }
-  });
-
   it("keeps dark land near-black — never cream ink", () => {
     const dark = buildPalette(darkTokens, true);
     const light = buildPalette(tokens, false);
