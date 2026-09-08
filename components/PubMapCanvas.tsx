@@ -2648,7 +2648,8 @@ export default function PubMapCanvas({
 
     // --- Post-init context loss (iOS Safari P0).
     // iOS kills WebGL on app-switch / restores bfcache pages with a dead canvas.
-    // MapLibre does not auto-recover → blank basemap + live DOM overlays.
+    // MapLibre restores its style after the browser restores the context.
+    // App scene work must pause while that replacement is still loading.
     // Policy (all inside the canvas module so #601's code-split stays intact):
     //   (a) canvas `webglcontextlost` → preventDefault + schedule recovery;
     //       `webglcontextrestored` → resize + triggerRepaint
@@ -2730,9 +2731,22 @@ export default function PubMapCanvas({
       }
     };
     const canvasEl = map.getCanvas();
+    const cancelSceneForContextLoss = () => {
+      if (!styleStructureReadyRef.current) return;
+      // MapLibre destroys the style on loss and restores it asynchronously.
+      // Both event paths cancel old scene work before the next style.load.
+      styleStructureReadyRef.current = false;
+      styleLoaded = false;
+      styleGeneration += 1;
+      initialBasemapPending = true;
+      cancelDeferredWork();
+      pinRevealCoordinator.cancel();
+      beginTileFailureGeneration();
+    };
     const onCanvasContextLost = (event: Event) => {
       // preventDefault keeps the browser willing to restore the context.
       event.preventDefault();
+      cancelSceneForContextLoss();
       scheduleContextRecovery("webglcontextlost");
     };
     const onCanvasContextRestored = () => {
@@ -2756,6 +2770,7 @@ export default function PubMapCanvas({
     // (some builds only fire one path). preventDefault only works on the DOM
     // event above — map events are already past that.
     map.on("webglcontextlost", () => {
+      cancelSceneForContextLoss();
       scheduleContextRecovery("map-webglcontextlost");
     });
     map.on("webglcontextrestored", () => {
