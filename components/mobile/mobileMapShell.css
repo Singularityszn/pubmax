@@ -858,7 +858,7 @@
     transform: none;
   }
   .mobileSheetPortal .tonightLane { inset: auto; box-shadow: none; }
-  .mobileSheetPortal .mapLayersPanel { border: 0; padding: 0; background: transparent; box-shadow: none; }
+  .mobileSheetPortal .mapLayersPanel { border: 0; padding: 0; background: transparent; box-shadow: none; animation: none; }
   .mobileSheetPortal .logIntentFallback { position: static; inset: auto; width: 100%; max-width: none; margin: 0; box-shadow: none; }
   .mobileLayersPanel { display: grid; gap: 16px; }
   .mobileMapControlTabs > [role="tab"] {
