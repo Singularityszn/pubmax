@@ -1227,6 +1227,14 @@ test("/map paints optimistic pins from the slim index quickly", async ({ page })
   expect(fullDatasetRequests).toEqual([]);
 });
 
+type NoticeMapReveal = {
+  reason: string;
+  generation: number;
+  atEpochMs: number;
+  constructionCount: number;
+  constructionAtEpochMs: number;
+};
+
 for (const width of [1024, 1440]) {
   for (const theme of ["light", "dark"] as const) {
     test(`/map notice stack keeps status and Retry reachable at ${width} in ${theme}`, async ({ page }) => {
@@ -1237,7 +1245,22 @@ for (const width of [1024, 1440]) {
         window.localStorage.setItem("pubmax-theme", theme);
         window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
         window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+        const trace: NoticeMapReveal[] = [];
+        Object.assign(window, { __pubmaxNoticeReveals: trace });
+        window.addEventListener("pubmax:pin-reveal", (event) => {
+          const { reason, generation } = (event as CustomEvent<{ reason: string; generation: number }>).detail;
+          const constructions = performance.getEntriesByName("pubmax:map-constructed");
+          trace.push({
+            reason, generation,
+            atEpochMs: performance.timeOrigin + performance.now(),
+            constructionCount: constructions.length,
+            constructionAtEpochMs: performance.timeOrigin + (constructions.at(-1)?.startTime ?? 0),
+          });
+        });
       }, theme);
+      const readLatestReveal = () => page.evaluate(() => (
+        window as typeof window & { __pubmaxNoticeReveals: NoticeMapReveal[] }
+      ).__pubmaxNoticeReveals.at(-1) ?? null);
 
       // Reuse the real MapLibre raster fixture. Only transport fails; no notice
       // or recovery state is injected into React or the document.
@@ -1275,7 +1298,23 @@ for (const width of [1024, 1440]) {
         });
       });
 
+      const initialTileResponse = page.waitForResponse(
+        (response) => response.url().includes("/__empty/") && response.status() === 200,
+        { timeout: 30_000 },
+      );
       await page.goto("/map", { waitUntil: "domcontentloaded" });
+      const initialTile = await initialTileResponse;
+      expect(await initialTile.finished()).toBeNull();
+      const initialTileBytes = (await initialTile.body()).byteLength;
+      expect(initialTileBytes).toBeGreaterThan(0);
+      // Desktop tiles/idle reveal requires a loaded basemap tile and a map frame.
+      // A visible canvas element or fulfilled route alone cannot answer this.
+      await expect.poll(readLatestReveal, { timeout: 30_000 }).toMatchObject({
+        reason: expect.stringMatching(/^(tiles|idle)$/),
+      });
+      const initialReveal = (await readLatestReveal())!;
+      expect(initialReveal.constructionCount).toBeGreaterThan(0);
+      expect(initialTile.request().timing().startTime).toBeGreaterThanOrEqual(initialReveal.constructionAtEpochMs);
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
       await expect.poll(() => requests.servedPrimaryRaster, { timeout: 30_000 }).toBeGreaterThan(0);
       await expect(page.locator(".maplibreMap canvas").first()).toBeVisible();
@@ -1346,9 +1385,31 @@ for (const width of [1024, 1440]) {
       }
 
       const servedBeforeRetry = requests.servedPrimaryRaster;
-      failTiles = false;
       await expectNoticeControlHit(notice.getByRole("button", { name: "Retry" }));
+      const retryBoundary = await page.evaluate(() => ({
+        atEpochMs: performance.timeOrigin + performance.now(),
+        constructionCount: performance.getEntriesByName("pubmax:map-constructed").length,
+      }));
+      // Arm before the click. Exclude requests that began before this attempt.
+      const recoveredTileResponse = page.waitForResponse(
+        (response) => response.url().includes("/__empty/") && response.status() === 200
+          && response.request().timing().startTime >= retryBoundary.atEpochMs,
+        { timeout: 30_000 },
+      );
+      failTiles = false;
       await notice.getByRole("button", { name: "Retry" }).click();
+      const recoveredTile = await recoveredTileResponse;
+      expect(await recoveredTile.finished()).toBeNull();
+      const recoveredTileBytes = (await recoveredTile.body()).byteLength;
+      expect(recoveredTileBytes).toBeGreaterThan(0);
+      await expect.poll(readLatestReveal, { timeout: 30_000 }).toMatchObject({
+        reason: expect.stringMatching(/^(tiles|idle)$/),
+        constructionCount: retryBoundary.constructionCount + 1,
+      });
+      const recoveredReveal = (await readLatestReveal())!;
+      expect(recoveredReveal.constructionAtEpochMs).toBeGreaterThanOrEqual(retryBoundary.atEpochMs);
+      expect(recoveredTile.request().timing().startTime).toBeGreaterThanOrEqual(recoveredReveal.constructionAtEpochMs);
+      expect(recoveredReveal.atEpochMs).toBeGreaterThanOrEqual(recoveredReveal.constructionAtEpochMs);
       await expect.poll(() => requests.servedPrimaryRaster, { timeout: 30_000 }).toBeGreaterThan(servedBeforeRetry);
       await expect(notice).toHaveCount(0, { timeout: 30_000 });
       await expect(page.locator(".mapLoading, .mapFallback")).toHaveCount(0);
@@ -1361,7 +1422,15 @@ for (const width of [1024, 1440]) {
       }
       await originalHost?.dispose();
       await test.info().attach(`notice-stack-transport-${width}-${theme}`, {
-        body: JSON.stringify({ abortedTiles, servedBeforeRetry, servedAfterRetry: requests.servedPrimaryRaster }),
+        body: JSON.stringify({
+          abortedTiles, servedBeforeRetry, servedAfterRetry: requests.servedPrimaryRaster,
+          initial: { url: initialTile.url(), status: initialTile.status(), bytes: initialTileBytes, reveal: initialReveal },
+          recovered: {
+            url: recoveredTile.url(), status: recoveredTile.status(), bytes: recoveredTileBytes,
+            requestStartedAtEpochMs: recoveredTile.request().timing().startTime,
+            retryBoundary, reveal: recoveredReveal,
+          },
+        }),
         contentType: "application/json",
       });
     });
