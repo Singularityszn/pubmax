@@ -43,11 +43,64 @@ async function expectTabFullyInsideRail(page: Page) {
   expect(tabBox!.y + tabBox!.height).toBeLessThanOrEqual(railBox!.y + railBox!.height + 0.5);
   expect(tabBox!.width).toBeGreaterThanOrEqual(44);
   expect(tabBox!.height).toBeGreaterThanOrEqual(44);
-  expect(await lastTrain.evaluate((tab) => {
+  const hitEvidence = await lastTrain.evaluate((tab) => {
+    const rect = (element: Element) => element.getBoundingClientRect().toJSON();
+    const identity = (element: Element | null) => element ? {
+      tag: element.tagName, id: element.id, className: element.getAttribute("class"),
+      role: element.getAttribute("role"), label: element.getAttribute("aria-label"),
+    } : null;
     const box = tab.getBoundingClientRect();
-    const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
-    return hit !== null && tab.contains(hit);
-  })).toBe(true);
+    const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    const hit = document.elementFromPoint(center.x, center.y);
+    const ancestors = [];
+    for (let node: Element | null = tab; node; node = node.parentElement) {
+      const style = getComputedStyle(node);
+      const nodeBox = node.getBoundingClientRect();
+      const scrollport = {
+        left: nodeBox.left + node.clientLeft, top: nodeBox.top + node.clientTop,
+        right: nodeBox.left + node.clientLeft + node.clientWidth,
+        bottom: nodeBox.top + node.clientTop + node.clientHeight,
+      };
+      ancestors.push({
+        element: identity(node), rect: rect(node), scrollport,
+        overflowX: style.overflowX, overflowY: style.overflowY,
+        scrollTop: node.scrollTop, scrollLeft: node.scrollLeft,
+        scrollHeight: node.scrollHeight, clientHeight: node.clientHeight,
+        transform: style.transform, opacity: style.opacity,
+        centerClippedX: /^(auto|scroll|hidden|clip)$/.test(style.overflowX)
+          && (center.x < scrollport.left || center.x >= scrollport.right),
+        centerClippedY: /^(auto|scroll|hidden|clip)$/.test(style.overflowY)
+          && (center.y < scrollport.top || center.y >= scrollport.bottom),
+        animations: node.getAnimations().flatMap(animation => {
+          const timing = animation.effect?.getComputedTiming();
+          if (!timing || typeof timing.endTime !== "number" || !Number.isFinite(timing.endTime)
+            || (!animation.pending && animation.playState !== "running")) return [];
+          return [{
+            playState: animation.playState, pending: animation.pending,
+            currentTime: String(animation.currentTime), startTime: String(animation.startTime),
+            endTime: timing.endTime, progress: timing.progress,
+          }];
+        }),
+      });
+    }
+    const sheet = tab.closest(".mobileSharedSheet");
+    return {
+      ownsCenter: hit !== null && tab.contains(hit), timestamp: performance.now(),
+      viewport: { width: innerWidth, height: innerHeight },
+      target: rect(tab), center, hit: identity(hit), hitRect: hit ? rect(hit) : null,
+      sheet: sheet ? { element: identity(sheet), rect: rect(sheet) } : null,
+      ancestors,
+    };
+  });
+  await test.info().attach("venue-tab-first-open-hit", {
+    body: JSON.stringify(hitEvidence), contentType: "application/json",
+  });
+  if (!hitEvidence.ownsCenter) {
+    await test.info().attach("venue-tab-first-open-obstruction", {
+      body: await page.screenshot(), contentType: "image/png",
+    });
+  }
+  expect(hitEvidence.ownsCenter).toBe(true);
   await lastTrain.click();
   await expect(lastTrain).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#venuePanel-getting-home")).toBeVisible();
