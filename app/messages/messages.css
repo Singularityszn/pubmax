@@ -1494,22 +1494,17 @@ html[data-theme="dark"] .messageBubbleTheirs {
   max-width: 720px;
 }
 
-/* This form keeps its position when either greeting variant retires. */
-body:has(.messagesMainRecipient) .arrivalWelcome {
-  top: auto;
-  bottom: max(var(--space-6, 24px), env(safe-area-inset-bottom));
-  left: auto;
-  right: max(var(--space-6, 24px), env(safe-area-inset-right));
-  margin-inline: 0;
+/* The page keeps the slot's measured height after the greeting retires. */
+.messageRecipientArrivalContent {
+  display: flow-root;
+  padding-bottom: var(--space-3);
 }
 
-@media (max-width: 640px) {
-  body:has(.messagesMainRecipient) .arrivalWelcome {
-    bottom: var(--create-fab-bottom, calc(var(--tabbar-h, 64px) + var(--space-2, 8px)));
-    left: max(var(--space-3, 12px), env(safe-area-inset-left));
-    right: var(--create-fab-lane, 80px);
-    max-width: calc(100vw - var(--create-fab-lane, 80px) - max(var(--space-3, 12px), env(safe-area-inset-left)));
-  }
+.messageRecipientArrival .arrivalWelcome {
+  position: static;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
 }
 
 .messageRecipientBack {

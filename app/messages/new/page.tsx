@@ -15,6 +15,7 @@ export default function NewMessagePage() {
   return <div className="lp messagesPage">
     <SiteNav />
     <main id="main" className="container messagesMain messagesMainRecipient">
+      <div id="message-recipient-arrival" className="messageRecipientArrival" />
       <Button asChild variant="ghost" className="messageRecipientBack">
         <Link href="/messages">Back to messages</Link>
       </Button>
