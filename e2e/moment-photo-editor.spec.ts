@@ -7,8 +7,16 @@ const PHOTO = readFileSync(resolve(process.cwd(), "docs/proof/night-mode-mid-cra
 
 async function momentPreviewDigest(page: Page): Promise<string> {
   return page.getByRole("img", { name: "Moment preview" }).evaluate(async (image) => {
-    const response = await fetch((image as HTMLImageElement).src);
-    const digest = await crypto.subtle.digest("SHA-256", await response.arrayBuffer());
+    const preview = image as HTMLImageElement;
+    await preview.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = preview.naturalWidth;
+    canvas.height = preview.naturalHeight;
+    const context = canvas.getContext("2d");
+    if (!context || !canvas.width || !canvas.height) throw new Error("Moment preview could not be decoded.");
+    context.drawImage(preview, 0, 0);
+    const pixels = new Uint8Array(context.getImageData(0, 0, canvas.width, canvas.height).data);
+    const digest = await crypto.subtle.digest("SHA-256", pixels);
     return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
   });
 }

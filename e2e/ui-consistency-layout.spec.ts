@@ -7,6 +7,7 @@ import {
 } from "@playwright/test";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { SOCIAL_PROVIDER_CAPABILITIES } from "../lib/socialProviderCapabilities";
 
 const EVIDENCE_PHASE = process.env.UI_EVIDENCE_PHASE ?? "verify";
 const CAPTURE_EVIDENCE =
@@ -273,6 +274,11 @@ async function preparePage(
     });
   });
   await page.route(`**/api/profiles/${PROFILE_HANDLE}*`, async (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    if (pathname === `/api/profiles/${PROFILE_HANDLE}/covers` && route.request().method() === "GET") {
+      return route.fulfill({ json: { status: "ready", covers: [] } });
+    }
+    if (pathname !== `/api/profiles/${PROFILE_HANDLE}` || route.request().method() !== "GET") return route.fallback();
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -297,11 +303,7 @@ async function preparePage(
       contentType: "application/json",
       body: JSON.stringify({
         connections: [],
-        providers: {
-          x: { oauth: false, manual: false },
-          instagram: { oauth: false, manual: false },
-          tiktok: { oauth: false, manual: false },
-        },
+        providers: SOCIAL_PROVIDER_CAPABILITIES,
       }),
     });
   });
