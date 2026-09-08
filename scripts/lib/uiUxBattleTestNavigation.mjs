@@ -26,7 +26,7 @@ export const AUDITED_ROUTES = [
     pendingSelectors: ["[data-testid='listings-skeleton']"],
     waitForAuthResolution: true,
   },
-  { name: "near", path: "/near", readySelector: ".nmnIntro", waitForAuthResolution: true },
+  { name: "near", path: "/near", readySelector: ".nmnScreen", waitForAuthResolution: true },
   {
     name: "add",
     path: "/add/karan",
