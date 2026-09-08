@@ -1603,10 +1603,12 @@ export default function PubMapCanvas({
     let tileFailureRecheckTimer: ReturnType<typeof setTimeout> | undefined;
     let silentTileRetryTimer: ReturnType<typeof setTimeout> | undefined;
     let basemapDeadlineTimer: ReturnType<typeof setTimeout> | undefined;
+    let basemapDeadlineExpired = false;
     const failedBasemapTiles = createBasemapTileFailureTracker();
     const clearBasemapDeadline = () => {
       if (basemapDeadlineTimer !== undefined) clearTimeout(basemapDeadlineTimer);
       basemapDeadlineTimer = undefined;
+      basemapDeadlineExpired = false;
     };
     const clearTileFailureRecheck = () => {
       if (tileFailureRecheckTimer !== undefined) {
@@ -1701,6 +1703,7 @@ export default function PubMapCanvas({
       setSoftRetry((current) =>
         current?.kind === "pins" || current?.kind === "venues" ? null : current,
       );
+      publishBasemapDeadline();
     };
     const retireTilesNotice = () => {
       setSoftRetry((current) =>
@@ -1898,23 +1901,30 @@ export default function PubMapCanvas({
         map.triggerRepaint();
       },
     });
+    const publishBasemapDeadline = () => {
+      if (
+        !basemapDeadlineExpired ||
+        mapRef.current !== map ||
+        basemapTileReadyForPaint ||
+        tileNoticeOwner !== "none" ||
+        pinNoticeActive
+      ) return;
+      tileNoticeOwner = "timeout";
+      setSoftRetry(BASEMAP_RETRY_NOTICE);
+    };
     const armBasemapDeadline = () => {
       clearBasemapDeadline();
       if (!phoneFirstImpression) return;
       const generation = tileFailureGeneration;
       basemapDeadlineTimer = setTimeout(() => {
         basemapDeadlineTimer = undefined;
-        if (
-          generation !== tileFailureGeneration ||
-          mapRef.current !== map ||
-          basemapTileReadyForPaint ||
-          tileNoticeOwner !== "none" ||
-          pinNoticeActive
-        ) return;
+        if (generation !== tileFailureGeneration || mapRef.current !== map) return;
         // Early pins cancel the reveal ceiling. Held tile requests emit no
         // error, so the basemap keeps its own deadline and existing notice.
-        tileNoticeOwner = "timeout";
-        setSoftRetry(BASEMAP_RETRY_NOTICE);
+        // Keep an expired deadline while a pin notice owns the surface.
+        // Pin recovery hands it back without starting another wait.
+        basemapDeadlineExpired = true;
+        publishBasemapDeadline();
       }, PIN_READY_CEILING_MS);
     };
     const buildScene = () => {

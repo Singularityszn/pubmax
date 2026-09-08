@@ -61,7 +61,10 @@ function recoveryCaller(phoneFirstImpression = false) {
   const setProtectedStyle = vi.fn();
   const surfaceBasemapFailure = vi.fn();
   const retireTilesNotice = vi.fn();
-  const setSoftRetry = vi.fn();
+  let notice: { kind: string; message: string } | null = null;
+  const setSoftRetry = vi.fn((update) => {
+    notice = typeof update === "function" ? update(notice) : update;
+  });
   const dispatchEvent = vi.fn();
   const { areBasemapTilesLoaded: readBasemapTilesLoaded, ...tileImports } = tilePolicy;
   const scope = {
@@ -73,7 +76,6 @@ function recoveryCaller(phoneFirstImpression = false) {
     map,
     mapRef: { current: map },
     document: { visibilityState: "visible" },
-    markPinsRecovered: vi.fn(),
     retireTilesNotice,
     setProtectedStyle,
     surfaceBasemapFailure,
@@ -89,6 +91,8 @@ function recoveryCaller(phoneFirstImpression = false) {
     hasPinsPaintable: () => true,
     venueDataFailedRef: { current: false },
     venueDataReadyRef: { current: true },
+    venueRetrySpentRef: { current: false },
+    armPinNoticeRef: { current: null },
     onMapReadyRef: { current: vi.fn() },
     markPubmaxTiming: vi.fn(),
     startPinEntrance: vi.fn(),
@@ -101,10 +105,11 @@ function recoveryCaller(phoneFirstImpression = false) {
   const emitted = ts.transpileModule(`
     let styleLoaded = true, usingFallback = false, recoverySpent = 0;
     let styleGeneration = 0, protectedStyleInFlight = false, queuedProtectedStyle = null;
-    let pinNoticeActive = false;
     ${callerBlock("const PIN_REVEAL_TIMEOUT_MS =", "// First-painted-frame watchdog.")}
     const styleStructureReadyRef = { current: false };
     ${callerBlock("const areBasemapTilesLoaded =", "const hasPinsPaintable =")}
+    ${callerBlock("let pinNoticeActive =", "const retireTilesNotice =")}
+    ${callerBlock("armPinNoticeRef.current =", "// The pin Retry spends")}
     ${callerBlock("const markBasemapRecovered =", '// The moment the venue rows are paintable:')}
     ${callerBlock("const pinRevealCoordinator =", "const buildScene =")}
     ${callerBlock('map.on("style.load", () => {', '// Initial load shares theme/fallback')}
@@ -132,6 +137,13 @@ function recoveryCaller(phoneFirstImpression = false) {
   return {
     ...caller, setTiles, setProtectedStyle, surfaceBasemapFailure, retireTilesNotice,
     setSoftRetry, dispatchEvent,
+    notice: () => notice,
+    failVenues: () => {
+      scope.venueDataFailedRef.current = true;
+      (scope.armPinNoticeRef.current as (() => void) | null)?.();
+      setSoftRetry(pinReveal.VENUE_DATA_RETRY_NOTICE);
+    },
+    recoverVenues: () => { scope.venueDataFailedRef.current = false; },
     styleLoaded: () => emit("style.load"),
     fail(id: string) {
       states.set(id, "errored");
@@ -152,6 +164,42 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe("component basemap recovery with MapLibre settled errors", () => {
+  it("hands an expired basemap deadline the notice after the pub list recovers", async () => {
+    const caller = recoveryCaller(true);
+    caller.styleLoaded();
+    caller.finishSceneBuild();
+    caller.render();
+    caller.render();
+    await vi.advanceTimersByTimeAsync(500);
+    caller.failVenues();
+    await vi.advanceTimersByTimeAsync(11_500);
+    expect(caller.notice()).toEqual(pinReveal.VENUE_DATA_RETRY_NOTICE);
+    caller.recoverVenues();
+    caller.render();
+    expect(caller.notice()).toEqual(pinReveal.BASEMAP_RETRY_NOTICE);
+    expect(caller.dispatchEvent).toHaveBeenCalledOnce();
+  });
+
+  it.each(["loaded", "replacement", "disposed"] as const)(
+    "does not hand off an expired deadline after %s",
+    async (outcome) => {
+      const caller = recoveryCaller(true);
+      caller.styleLoaded();
+      caller.finishSceneBuild();
+      caller.render();
+      caller.render();
+      await vi.advanceTimersByTimeAsync(500);
+      caller.failVenues();
+      await vi.advanceTimersByTimeAsync(11_500);
+      if (outcome === "loaded") caller.load("a");
+      if (outcome === "replacement") caller.styleLoaded();
+      if (outcome === "disposed") caller.dispose();
+      caller.recoverVenues();
+      caller.render();
+      expect(caller.notice()).toBeNull();
+    },
+  );
+
   it("reports a held basemap after phone pins reveal without revealing them twice", async () => {
     const caller = recoveryCaller(true);
     caller.styleLoaded();

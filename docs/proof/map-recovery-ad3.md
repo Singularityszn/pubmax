@@ -76,3 +76,20 @@ Cases cover late-success retirement, error ownership, style replacement, teardow
 ESLint reported no errors and the existing complexity warning.
 Logs are `phone-deadline-red.log`, `phone-deadline-green.log`, and `phone-deadline-lint.log` in the same proof directory.
 No browser or native result is claimed for this deadline change.
+
+## Deadline handoff after pin recovery
+
+Parent review found a missing handoff in `9cf6e0b0a`.
+An active pin notice suppressed the deadline at 12 seconds, then pin recovery cleared the notice without restoring the missing-basemap notice.
+No existing caller guaranteed another notice.
+
+The regression now executes the actual `markPinsRecovered` block and applies its functional notice updates.
+The red run returned `null` after pin recovery: one failure and 14 passes.
+The deadline now retains its expired state while a pin notice owns the surface.
+Pin recovery publishes that overdue notice immediately, using the original deadline and existing notice priorities.
+Successful tiles, style replacement, and teardown discard the expired state.
+
+The final focused run passed 93 tests across four files with one worker.
+ESLint reported no errors and the existing complexity warning.
+Logs: `phone-deadline-handoff-{red,green,lint}.log` in the same proof directory.
+No browser, build, PostgreSQL, or native runtime ran during the iOS baseline window.
