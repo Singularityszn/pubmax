@@ -372,7 +372,10 @@ test("map sheet keeps one-tap prices when the mission is missing", async ({
   }
   await expect(submit).toBeVisible();
   await expect(submit.locator(".vpsubQuick")).toBeVisible();
-  await expect(submit.getByRole("radiogroup")).toBeVisible();
+  await expect(submit.getByRole("radiogroup", {
+    name: `What are you drinking at ${SEED_VENUE_NAME}?`, exact: true,
+  })).toBeVisible();
+  await expect(submit.getByRole("radiogroup", { name: "What measure?", exact: true })).toBeVisible();
 });
 
 test("the map sheet locks the mission's own drink, not the lane's", async ({ page }) => {
