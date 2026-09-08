@@ -68,7 +68,38 @@ async function expectSheetInsideViewport(
   const geometry = await sheet.evaluate((element) => {
     const rect = element.getBoundingClientRect();
     const style = getComputedStyle(element);
+    const portal = element.closest(".mobileSheetPortal");
+    const tabs = document.querySelector('nav[aria-label="Primary"]');
+    if (!portal || !tabs) throw new Error("Sheet portal or primary tabs are missing");
+    const portalRect = portal.getBoundingClientRect();
+    const tabsRect = tabs.getBoundingClientRect();
+    const targets = Array.from(element.querySelectorAll(
+      ".mobileSharedSheetHeader button, .mobileSharedSheetFooter button",
+    )).map((button) => {
+      const box = button.getBoundingClientRect();
+      return {
+        name: button.getAttribute("aria-label") ?? button.textContent,
+        top: box.top, bottom: box.bottom, left: box.left, right: box.right,
+        hit: button.contains(document.elementFromPoint(
+          box.x + box.width / 2, box.y + box.height / 2,
+        )),
+      };
+    });
     return {
+      portal: {
+        position: getComputedStyle(portal).position,
+        bottomInset: Number.parseFloat(getComputedStyle(portal).bottom),
+        top: portalRect.top, bottom: portalRect.bottom,
+        left: portalRect.left, right: portalRect.right,
+      },
+      tabs: { top: tabsRect.top, bottom: tabsRect.bottom },
+      tabHits: Array.from(tabs.querySelectorAll("a")).map((link) => {
+        const box = link.getBoundingClientRect();
+        return link.contains(document.elementFromPoint(
+          box.x + box.width / 2, box.y + box.height / 2,
+        ));
+      }),
+      targets,
       top: rect.top,
       right: rect.right,
       bottom: rect.bottom,
@@ -80,13 +111,32 @@ async function expectSheetInsideViewport(
   });
   const viewport = page.viewportSize();
   expect(viewport).not.toBeNull();
-  expect(geometry.position).toBe("fixed");
+  expect(geometry.portal.position).toBe("fixed");
+  expect(geometry.position).toBe("absolute");
+  expect(geometry.portal.top).toBeCloseTo(0, 0);
+  expect(geometry.portal.left).toBeCloseTo(0, 0);
+  expect(geometry.portal.right).toBeCloseTo(viewport!.width, 0);
+  expect(geometry.tabs.bottom).toBeCloseTo(viewport!.height, 0);
+  expect(geometry.portal.bottom).toBeCloseTo(viewport!.height - geometry.portal.bottomInset, 0);
+  expect(geometry.portal.bottomInset).toBeGreaterThan(0);
+  expect(geometry.portal.bottom).toBeLessThanOrEqual(geometry.tabs.top);
+  expect(geometry.tabHits.length).toBeGreaterThan(0);
+  expect(geometry.tabHits.every(Boolean), "primary tabs receive their centre hits").toBe(true);
   expect(["none", "matrix(1, 0, 0, 1, 0, 0)"]).toContain(geometry.transform);
   expect(geometry.left).toBeGreaterThanOrEqual(0);
   expect(geometry.top).toBeGreaterThanOrEqual(0);
   expect(geometry.right).toBeLessThanOrEqual(viewport!.width + 1);
   expect(geometry.bottom).toBeLessThanOrEqual(viewport!.height + 1);
-  expect(geometry.bottom).toBeGreaterThanOrEqual(viewport!.height - 1);
+  expect(geometry.bottom).toBeCloseTo(geometry.portal.bottom, 0);
+  expect(geometry.bottom).toBeLessThanOrEqual(geometry.tabs.top + 1);
+  expect(geometry.targets.length).toBeGreaterThan(0);
+  for (const target of geometry.targets) {
+    expect(target.top).toBeGreaterThanOrEqual(geometry.top);
+    expect(target.bottom).toBeLessThanOrEqual(geometry.bottom);
+    expect(target.left).toBeGreaterThanOrEqual(geometry.left);
+    expect(target.right).toBeLessThanOrEqual(geometry.right);
+    expect(target.hit, `${target.name} receives its centre hit`).toBe(true);
+  }
   expect(geometry.height).toBeLessThanOrEqual(viewport!.height);
 
   if (!footer) return;
@@ -94,7 +144,8 @@ async function expectSheetInsideViewport(
   const footerBox = await footer.boundingBox();
   expect(footerBox).not.toBeNull();
   expect(footerBox!.y).toBeGreaterThanOrEqual(0);
-  expect(footerBox!.y + footerBox!.height).toBeLessThanOrEqual(viewport!.height + 1);
+  expect(footerBox!.y + footerBox!.height).toBeLessThanOrEqual(geometry.bottom);
+  expect(footerBox!.y + footerBox!.height).toBeGreaterThanOrEqual(geometry.bottom - 1);
 }
 
 async function attachViewportShot(page: Page, testInfo: TestInfo, name: string): Promise<void> {
@@ -108,6 +159,16 @@ test.setTimeout(90_000);
 test("mobile venue footer stays pinned and actionable at every sheet detent", async ({ page }) => {
   await prepareMobilePage(page);
   const browserErrors = watchBrowserErrors(page);
+  const shares: ShareData[] = [];
+  await page.exposeFunction("recordVenueShare", (data: ShareData) => { shares.push(data); });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: (data: ShareData) => (
+        window as typeof window & { recordVenueShare: (data: ShareData) => Promise<void> }
+      ).recordVenueShare(data),
+    });
+  });
 
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
   expect(response?.status()).toBe(200);
@@ -119,11 +180,11 @@ test("mobile venue footer stays pinned and actionable at every sheet detent", as
   // The footer carries no price action (the Overview's one price door owns
   // that); Share is the command every pub sheet keeps, so it is the one held
   // in view at every detent.
-  const addPrice = portal.getByRole("button", { name: "Share Arnos Arms" });
+  const share = portal.getByRole("button", { name: "Share Arnos Arms" });
 
   await expect(sheet).toHaveClass(/sheet-half/);
   await expectSheetInsideViewport(page, sheet, footer);
-  await expect(addPrice).toBeInViewport();
+  await expect(share).toBeInViewport();
 
   const footerBeforeScroll = await footer.boundingBox();
   await body.evaluate((element) => {
@@ -136,7 +197,7 @@ test("mobile venue footer stays pinned and actionable at every sheet detent", as
   await sheet.getByRole("button", { name: "Expand sheet" }).click();
   await expect(sheet).toHaveClass(/sheet-full/);
   await expectSheetInsideViewport(page, sheet, footer);
-  await expect(addPrice).toBeInViewport();
+  await expect(share).toBeInViewport();
 
   await sheet.getByRole("button", { name: "Collapse sheet" }).click();
   await expect(sheet).toHaveClass(/sheet-half/);
@@ -153,9 +214,11 @@ test("mobile venue footer stays pinned and actionable at every sheet detent", as
 
   await expect(sheet).toHaveClass(/sheet-peek/);
   await expectSheetInsideViewport(page, sheet, footer);
-  await expect(addPrice).toBeInViewport();
-  await addPrice.click();
-  await expect(page.locator(".venuePriceSubmit")).toBeVisible();
+  await expect(share).toBeInViewport();
+  await share.click();
+  await expect.poll(() => shares.length).toBe(1);
+  expect(shares[0].title).toBe("Arnos Arms");
+  expect(new URL(shares[0].url!).searchParams.get("sel")).toBe(ARNOS_ARMS_ID);
 
   expect(browserErrors).toEqual([]);
 });
