@@ -248,6 +248,13 @@ test("retries a failed avatar after the browser reconnects", async ({ page }, te
   const avatarUrl = `/api/avatar/${REPAINT_PROFILE_ID}/${REPAINT_GENERATION}`;
   let avatarRequests = 0;
   let profileRequests = 0;
+  let releaseBootstrap!: () => void;
+  const bootstrapGate = new Promise<void>(resolve => { releaseBootstrap = resolve; });
+  // Let the first public read and failed image finish before auth resolves.
+  await page.route("**/api/auth/session", async (route) => {
+    if (route.request().method() === "GET") await bootstrapGate;
+    await route.continue();
+  });
   const startedAt = Date.now();
   let phase = "before-online";
   const requests = new WeakMap<object, number>();
@@ -324,7 +331,14 @@ test("retries a failed avatar after the browser reconnects", async ({ page }, te
     await expect(page.locator("img.profileAvatar")).toHaveCount(0);
     await expect(page.locator(".profileAvatarFallback")).toBeVisible();
     expect(avatarRequests).toBe(1);
-    await expect.poll(() => profileRequests).toBe(1);
+    expect(profileRequests).toBe(1);
+    const resolvedProfile = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === `/api/profiles/${REPAINT_HANDLE}` && response.status() === 200,
+    );
+    releaseBootstrap();
+    await resolvedProfile;
+    await expect(page.getByRole("link", { name: "Sign in to follow", exact: true })).toBeVisible();
+    await expect.poll(() => profileRequests).toBe(2);
 
     phase = "after-online";
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
@@ -336,7 +350,9 @@ test("retries a failed avatar after the browser reconnects", async ({ page }, te
       .poll(() => page.locator("img.profileAvatar").evaluate((image) => image.naturalWidth))
       .toBeGreaterThan(0);
     expect(avatarRequests).toBeGreaterThanOrEqual(2);
+    expect(profileRequests).toBe(2);
   } finally {
+    releaseBootstrap();
     await testInfo.attach("avatar-reconnect-requests", {
       body: JSON.stringify({ profileRequests, avatarRequests, events }, null, 2),
       contentType: "application/json",
