@@ -1,0 +1,62 @@
+{
+  "original": {
+    "appSHA256": "bb56875a3bf6b92241ed000317eb72b1530aa547fe1f3966025811b2c3fab67f",
+    "signatures": [
+      {
+        "path": "ios/build/Build/Products/Debug-iphonesimulator/App.app",
+        "exitCode": 1,
+        "output": "ios/build/Build/Products/Debug-iphonesimulator/App.app: code has no resources but signature indicates they must be present\n"
+      },
+      {
+        "path": "ios/build/Build/Products/Debug-iphonesimulator/App.app/Frameworks/Capacitor.framework",
+        "exitCode": 1,
+        "output": "ios/build/Build/Products/Debug-iphonesimulator/App.app/Frameworks/Capacitor.framework: a sealed resource is missing or invalid\n"
+      },
+      {
+        "path": "ios/build/Build/Products/Debug-iphonesimulator/App.app/Frameworks/IONCameraLib.framework",
+        "exitCode": 1,
+        "output": "ios/build/Build/Products/Debug-iphonesimulator/App.app/Frameworks/IONCameraLib.framework: code has no resources but signature indicates they must be present\n"
+      },
+      {
+        "path": "ios/build/Build/Products/Debug-iphonesimulator/App.app/Frameworks/Cordova.framework",
+        "exitCode": 1,
+        "output": "ios/build/Build/Products/Debug-iphonesimulator/App.app/Frameworks/Cordova.framework: a sealed resource is missing or invalid\n"
+      }
+    ],
+    "config": {
+      "url": "http://localhost:3811",
+      "cleartext": true,
+      "errorPath": "offline.html"
+    }
+  },
+  "normal-sign": {
+    "appSHA256": "b0cf61054250e89ba472c0231a80e585ecf0bdac26c118d6d89d0a8f929819ca",
+    "signatures": [
+      {
+        "path": "ios/build-normal-sign/Build/Products/Debug-iphonesimulator/App.app",
+        "exitCode": 0,
+        "output": ""
+      },
+      {
+        "path": "ios/build-normal-sign/Build/Products/Debug-iphonesimulator/App.app/Frameworks/Capacitor.framework",
+        "exitCode": 0,
+        "output": ""
+      },
+      {
+        "path": "ios/build-normal-sign/Build/Products/Debug-iphonesimulator/App.app/Frameworks/IONCameraLib.framework",
+        "exitCode": 0,
+        "output": ""
+      },
+      {
+        "path": "ios/build-normal-sign/Build/Products/Debug-iphonesimulator/App.app/Frameworks/Cordova.framework",
+        "exitCode": 0,
+        "output": ""
+      }
+    ],
+    "config": {
+      "url": "http://localhost:3811",
+      "cleartext": true,
+      "errorPath": "offline.html"
+    }
+  }
+}
