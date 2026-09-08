@@ -196,7 +196,7 @@ test("quality floor: the phone alcohol-free drink lane changes and restores the 
   await expect(alcoholFreeDoor).toBeVisible();
 
   // The map key must project this drink, including an honest unavailable read.
-  await page.getByRole("button", { name: "Filters", exact: true }).click();
+  await page.getByRole("button", { name: "Filters: drinks active", exact: true }).click();
   const filters = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
   const key = filters.getByLabel("Map key", { exact: true });
   await expect(key.locator("#mapKeyPriceHeading")).toHaveText(/^Alcohol-free (?:price bands|prices unavailable)$/);
