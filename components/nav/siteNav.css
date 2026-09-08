@@ -80,6 +80,9 @@
 }
 
 .siteNavBar:not(.siteNavBarFloating) {
+  /* Keep account menus above page content and below full-screen backdrops. */
+  position: relative;
+  z-index: var(--z-float);
   margin-top: env(safe-area-inset-top, 0px);
 }
 
