@@ -1451,15 +1451,42 @@ for (const width of [1024, 1440]) {
         atEpochMs: performance.timeOrigin + performance.now(),
         constructionCount: performance.getEntriesByName("pubmax:map-constructed").length,
       }));
-      // Arm before the click. Exclude requests that began before this attempt.
+      const retryTileCandidates: {
+        requestStartedAtEpochMs: number;
+        constructionCount: number;
+        constructionAtEpochMs: number | null;
+        accepted: boolean;
+      }[] = [];
+      // Arm before the click. The old map can still request tiles until replacement.
       const recoveredTileResponse = page.waitForResponse(
-        (response) => response.url().includes("/__empty/") && response.status() === 200
-          && response.request().timing().startTime >= retryBoundary.atEpochMs,
+        async (response) => {
+          if (!response.url().includes("/__empty/") || response.status() !== 200) return false;
+          const construction = await page.evaluate(() => {
+            const marks = performance.getEntriesByName("pubmax:map-constructed");
+            const latest = marks.at(-1);
+            return {
+              constructionCount: marks.length,
+              constructionAtEpochMs: latest ? performance.timeOrigin + latest.startTime : null,
+            };
+          });
+          const requestStartedAtEpochMs = response.request().timing().startTime;
+          const accepted = construction.constructionCount === retryBoundary.constructionCount + 1
+            && construction.constructionAtEpochMs !== null
+            && construction.constructionAtEpochMs >= retryBoundary.atEpochMs
+            && requestStartedAtEpochMs >= construction.constructionAtEpochMs;
+          retryTileCandidates.push({ requestStartedAtEpochMs, ...construction, accepted });
+          return accepted;
+        },
         { timeout: 30_000 },
       );
       failTiles = false;
       await notice.getByRole("button", { name: "Retry" }).click();
-      const recoveredTile = await recoveredTileResponse;
+      const recoveredTile = await recoveredTileResponse.finally(async () => {
+        await test.info().attach(`notice-retry-tile-candidates-${width}-${theme}`, {
+          body: JSON.stringify({ retryBoundary, candidates: retryTileCandidates }),
+          contentType: "application/json",
+        });
+      });
       expect(await recoveredTile.finished()).toBeNull();
       const recoveredTileBytes = (await recoveredTile.body()).byteLength;
       expect(recoveredTileBytes).toBeGreaterThan(0);
