@@ -73,9 +73,9 @@ function DrinkArt({
           variant="card"
         />
       ) : null}
-      <div className="pubsCardArtWash" aria-hidden="true" />
       {!photoUrl ? (
         <>
+          <div className="pubsCardArtWash" aria-hidden="true" />
           <div className="pubsCardGlyphHero" aria-hidden="true">
             <DrinkGlyph category={accent} size={72} inheritColor />
           </div>

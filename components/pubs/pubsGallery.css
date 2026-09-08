@@ -230,7 +230,6 @@
   min-height: var(--pubs-card-art-height);
   border-radius: 0;
   background: none;
-  opacity: 0.88;
 }
 
 .pubsCardPhoto .venueImage__img {
