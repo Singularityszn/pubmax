@@ -100,15 +100,23 @@ for (const width of [390, 1440]) {
           return !founding || await welcome.getAttribute("data-founding") === "";
         }).toBe(true);
         await expect(welcome).toBeVisible();
+        if (founding) await expect(welcome).toHaveAttribute("data-founding", "");
+        await page.evaluate(() => document.fonts.ready);
         const search = page.getByRole("searchbox", { name: "Search handles" });
         await search.focus();
         const before = await search.boundingBox();
         const greeting = await welcome.boundingBox();
         expect(greeting).not.toBeNull();
+        expect(greeting!.x).toBeGreaterThanOrEqual(0);
+        expect(greeting!.y).toBeGreaterThanOrEqual(0);
+        expect(greeting!.x + greeting!.width).toBeLessThanOrEqual(width);
+        expect(greeting!.y + greeting!.height).toBeLessThanOrEqual(900);
+        const mobileChrome = width <= 640 ? [page.locator(".createFab"), page.locator(".mobileTabBar")] : [];
+        for (const chrome of mobileChrome) await expect(chrome).toBeVisible();
         for (const control of [
           page.getByRole("link", { name: "Back to messages", exact: true }),
           page.getByRole("heading", { name: "New message", exact: true }), search,
-          page.getByRole("button", { name: "Search", exact: true }),
+          page.getByRole("button", { name: "Search", exact: true }), ...mobileChrome,
         ]) {
           const box = await control.boundingBox();
           expect(box).not.toBeNull();
