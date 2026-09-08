@@ -154,6 +154,7 @@ async function installContributorBoundary(
       contentType: "application/json",
       body: JSON.stringify({
         price,
+        ...(body.drinkCategory === "beer" ? { pintTrust: "logged-once" } : {}),
         attribution: { status: "credited", handle: "night_owl" },
       }),
     });
