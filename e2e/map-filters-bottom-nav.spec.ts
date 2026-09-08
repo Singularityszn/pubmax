@@ -5,7 +5,6 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
   });
 });
 
@@ -33,7 +32,11 @@ test.describe("map filters sheet and bottom navigation", () => {
     await page.addInitScript(() => {
       window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
     });
-    await page.goto("/map");
+    // A real venue answer earns consent. A fresh map alone does not.
+    await page.goto("/map?sel=venue-16pnwmm");
+    await expect(page.locator(".venueInspector")).toBeVisible();
+    await page.getByRole("button", { name: "Close pub detail", exact: true }).click();
+    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue"]')).toHaveCount(0);
 
     const consent = page.locator(".analyticsConsentPrompt");
     await expect(consent).toBeVisible();
@@ -42,5 +45,8 @@ test.describe("map filters sheet and bottom navigation", () => {
     await expect(page.locator('.mobileSheetPortal[data-sheet-kind="filters"]')).toBeVisible();
 
     await expect(consent).toBeHidden();
+    await page.getByRole("button", { name: "Close Prices and places", exact: true }).click();
+    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="filters"]')).toHaveCount(0);
+    await expect(consent).toBeVisible();
   });
 });

@@ -40,19 +40,15 @@ test("/map initial load uses slim pins without full or detail datasets", async (
   expect(requested(requests, "/api/citymcp/journey")).toBe(false);
 });
 
-test("landing night choice reaches a usable filtered mobile map", async ({ page }) => {
-  test.setTimeout(45_000);
+async function prepareMobileMap(page: Page) {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
-  const requests = watchRequests(page);
+}
 
-  await page.goto("/#signals");
-  await page.getByRole("link", { name: /Beer at .*open on the map/ }).click();
-
-  await expect(page).toHaveURL(/\/map\?drink=beer&style=cheapest$/);
+async function expectUsablePintMap(page: Page) {
   await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
   await expect
     .poll(
@@ -61,9 +57,32 @@ test("landing night choice reaches a usable filtered mobile map", async ({ page 
     )
     .toBeGreaterThan(0);
   await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 20_000 });
-  await page.getByRole("button", { name: "Drinks" }).click();
-  await expect(page.getByLabel("Drink category")).toHaveValue("beer");
+  await page.getByRole("button", { name: "Drink shown on the map: Pints. Choose another drink", exact: true }).click();
+  await expect(page.getByRole("group", { name: "Drink prices shown on the map" })
+    .getByRole("button", { name: "Pints", exact: true })).toHaveAttribute("aria-pressed", "true");
+}
 
+test("landing map link reaches a usable mobile pint map", async ({ page }) => {
+  test.setTimeout(45_000);
+  await prepareMobileMap(page);
+  const requests = watchRequests(page);
+  await page.goto("/");
+  const mapLink = page.getByRole("link", { name: "Open the map", exact: true });
+  await expect(mapLink).toHaveAttribute("href", "/map");
+  await mapLink.click();
+  await expect(page).toHaveURL(/\/map$/);
+  await expectUsablePintMap(page);
+  await page.waitForTimeout(1_500);
+  expect(requested(requests, "/api/citymcp/journey")).toBe(false);
+});
+
+test("the existing beer and cheapest deep link keeps a usable filtered mobile map", async ({ page }) => {
+  test.setTimeout(45_000);
+  await prepareMobileMap(page);
+  const requests = watchRequests(page);
+  await page.goto("/map?drink=beer&style=cheapest");
+  await expect(page).toHaveURL(/\/map\?drink=beer&style=cheapest$/);
+  await expectUsablePintMap(page);
   await page.waitForTimeout(1_500);
   expect(requested(requests, "/api/citymcp/journey")).toBe(false);
 });
