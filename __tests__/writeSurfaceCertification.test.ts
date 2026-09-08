@@ -188,10 +188,8 @@ describe("mutating API surface certification", () => {
   it("keeps the reviewed inventory explicit", () => {
     // Each mutation method is one coordination point. Exact path and method
     // pairs live in docs/WRITE_SURFACE_CERTIFICATION.md.
-    // 150: 146 (main's 147 less POST /api/price-confirm, which contribution
-    // battle test L03 retired) plus the four mutation methods of the API tree's
-    // own 404, `app/api/[[...unmatched]]`, which refuses and writes nothing.
-    expect(mutationHandlers).toHaveLength(150);
+    // Gallery photo upload adds one reviewed handler to the 150-handler inventory.
+    expect(mutationHandlers).toHaveLength(151);
     expect(certifiedMutationHandlers()).toEqual(
       mutationHandlers.map(mutationHandlerKey),
     );

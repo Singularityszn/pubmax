@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 150 mutating handlers across 118 route files.** Each exported
+> **Inventory: 151 mutating handlers across 119 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -155,6 +155,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/social/interactions`
 - `POST app/api/social/posts`
 - `POST app/api/social/tags`
+- `POST app/api/social/uploads/photos`
 - `POST app/api/starter-packs/[slug]/follow`
 - `POST app/api/venue-operators/claim`
 - `POST app/api/venue-photos`
@@ -256,8 +257,8 @@ bodies.
 - **Validation:** Kind, visibility, text, listed area, hashtags and comment
   policy use `validateSocialPostCreate`. Public posts cannot carry an exact
   venue. Raw object keys and every client-supplied ownership, timestamp,
-  revision or moderation field are rejected. Photo references remain closed
-  until the ownership-checked upload task ships.
+  revision or moderation field are rejected. Gallery submissions accept owned upload receipts through
+  `handleSocialGallerySubmission`; raw storage keys remain forbidden.
 - **Moderation:** Durable creation starts in pending moderation and the same
   database write queues an OpenAI moderation job carrying body plus normalised
   hashtags. Pending content cannot reach direct reads or any feed. A protected
@@ -292,6 +293,19 @@ bodies.
   work for edits and removals.
 - **Failure:** A post outside stable profile ownership returns 403 or 404. A
   hidden, removed or moderation-held post never appears through the item read.
+
+### `app/api/social/uploads/photos` - verified Social gallery photo upload
+
+- **Route / method:** `POST app/api/social/uploads/photos/route.ts`.
+- **Authority:** `requireVerifiedSocialActor` supplies the verified Social actor and stable profile ID. The body cannot select an account ID.
+- **Freeze:** `socialFreezeResponse` runs before identity, rate limits, body parsing, or storage.
+- **Abuse control:** `isLimited` allows 30 attempts per 60 seconds for `social-gallery-upload:${hashActor(actor.profileId)}`.
+- **Idempotency:** `Idempotency-Key` must match `validSocialPostIdempotencyKey`, with 16 to 128 allowed characters. The media ID binds the profile, key, and prepared photo digest.
+- **Validation:** `boundedFormData` enforces the photo byte limit plus the field allowance, including streamed bodies. Exactly one `photo` File is accepted. Extra fields, empty files, files above 4 MiB, and unsupported declared types are refused.
+- **Media:** `prepareSocialPhoto` checks the image bytes and dimensions, applies orientation, and produces a JPEG without source metadata. `socialGalleryStore` reserves owner-bound storage and confirms readiness before returning `{ upload: { mediaId } }`.
+- **Publication:** An upload receipt does not publish a post. Gallery creation or editing checks upload ownership and availability before attachment.
+- **Failure:** Identity refusals retain their status. Rate limits return 429; oversized streams return 413; invalid files return 400. Unavailable storage returns 503. Responses use `private, no-store`; internal errors are not returned.
+- **Evidence:** `__tests__/socialGalleryRoutes.test.ts` covers authority, freeze, budgets, malformed bodies, streaming limits, and failure responses. `lib/socialGalleryStore.ts` owns receipt binding and storage readiness.
 
 ### `app/api/plans/[id]/group-prefs` - shared Plan group preferences (route 78)
 
