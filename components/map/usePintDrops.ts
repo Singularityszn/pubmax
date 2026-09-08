@@ -41,7 +41,7 @@ import {
   type VenueDropRead,
   type VenueDropReadStatus,
 } from "@/lib/venueDropRead";
-import { clearPintDropDraft, clearPintDropDrafts } from "@/lib/pintDropDraft";
+import { clearPintDropDraft, clearPintDropDrafts, emptyPintDropDraftForm } from "@/lib/pintDropDraft";
 import { safeSessionStorage } from "@/lib/safeStorage";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
 import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
@@ -348,7 +348,7 @@ export function usePintDrops(
   const [submitting, setSubmitting] = useState(false);
   const submitInFlight = useRef(false);
   const pendingSubmissionId = useRef<string | null>(null);
-  const draftAccountId = useRef(user?.id ?? null);
+  const [draftAccountId, setDraftAccountId] = useState(user?.id ?? null);
   const pintInputRef = useRef<HTMLInputElement>(null);
   const venueInputRef = useRef<HTMLInputElement>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
@@ -526,24 +526,31 @@ export function usePintDrops(
   }, [setPintPhoto, setVenuePhoto, setReceiptPhoto, setDropForm, setVibeTags, setVisibility]);
 
   const accountId = user?.id ?? null;
+  const draftVisible = !providerHasAnswered(providerAuthState) || draftAccountId === accountId;
   useEffect(() => {
     if (!providerHasAnswered(providerAuthState)) return;
-    if (draftAccountId.current === accountId) return;
-    clearPintDropDrafts(safeSessionStorage());
-    const storage = localStorageSafe();
-    const pendingId = pendingSubmissionId.current;
-    if (storage && pendingId) {
-      writeOptimisticSpills(storage, readOptimisticSpills(storage).filter(
-        (entry) => entry.clientRequestId !== pendingId,
-      ));
-      emitOptimisticSpillChange();
-    }
-    resetComposer();
-    setComposerOpen(false);
-    setHandle("");
-    setConfirmSeed(null);
-    draftAccountId.current = accountId;
-  }, [accountId, providerAuthState, resetComposer, setComposerOpen, setHandle]);
+    if (draftAccountId === accountId) return;
+    let active = true;
+    // The render guard hides the old draft while this account cleanup settles.
+    queueMicrotask(() => {
+      if (!active || getCurrentUserId() !== accountId) return;
+      clearPintDropDrafts(safeSessionStorage());
+      const storage = localStorageSafe();
+      const pendingId = pendingSubmissionId.current;
+      if (storage && pendingId) {
+        writeOptimisticSpills(storage, readOptimisticSpills(storage).filter(
+          (entry) => entry.clientRequestId !== pendingId,
+        ));
+        emitOptimisticSpillChange();
+      }
+      resetComposer();
+      setComposerOpen(false);
+      setHandle("");
+      setConfirmSeed(null);
+      setDraftAccountId(accountId);
+    });
+    return () => { active = false; };
+  }, [accountId, draftAccountId, getCurrentUserId, providerAuthState, resetComposer, setComposerOpen, setHandle]);
 
   // Each slot owns its preview. Changing one slot must not revoke another.
   useEffect(() => () => {
@@ -593,7 +600,7 @@ export function usePintDrops(
     options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
   ) {
     event.preventDefault();
-    if (accountId !== draftAccountId.current || accountId !== getCurrentUserId()) return;
+    if (accountId !== draftAccountId || accountId !== getCurrentUserId()) return;
     if (
       !spillHasSubmissionEvidence({
         price: dropForm.price,
@@ -941,13 +948,12 @@ export function usePintDrops(
     setConfirmSeed(null);
   }, [setComposerOpen]);
 
-  const mapDropsByVenueId = useMemo(
-    () =>
-      mapVenues
-        ? filterMapPintDropEntries(mapVenues, dropsByVenueId)
-        : dropsByVenueId,
-    [dropsByVenueId, mapVenues],
-  );
+  const mapDropsByVenueId = useMemo(() => {
+    const visibleDrops = draftVisible ? dropsByVenueId : new Map([...dropsByVenueId].map(
+      ([venueId, drops]) => [venueId, drops.filter((drop) => !drop.optimistic)],
+    ));
+    return mapVenues ? filterMapPintDropEntries(mapVenues, visibleDrops) : visibleDrops;
+  }, [draftVisible, dropsByVenueId, mapVenues]);
 
   const venueSignals = useMemo(() => {
     const signals = new Map<
@@ -1022,27 +1028,27 @@ export function usePintDrops(
     venueSignals,
     refreshVenueDrops,
     refreshAllDrops,
-    handle,
+    handle: draftVisible ? handle : "",
     setHandle,
     accountHandle,
     authConfigured,
     signedIn,
     identityReady,
-    composerOpen,
+    composerOpen: draftVisible && composerOpen,
     setComposerOpen,
     closeComposer,
-    priceSeed: priceSeed ?? confirmSeed,
+    priceSeed: draftVisible ? priceSeed ?? confirmSeed : null,
     seedComposerPrice,
-    dropForm,
+    dropForm: draftVisible ? dropForm : emptyPintDropDraftForm(),
     setDropForm,
-    vibeTags,
+    vibeTags: draftVisible ? vibeTags : [],
     setVibeTags,
     toggleVibeTag,
-    visibility,
+    visibility: draftVisible ? visibility : DEFAULT_VISIBILITY,
     setVisibility,
-    pintPhoto,
-    venuePhoto,
-    receiptPhoto,
+    pintPhoto: draftVisible ? pintPhoto : null,
+    venuePhoto: draftVisible ? venuePhoto : null,
+    receiptPhoto: draftVisible ? receiptPhoto : null,
     pintInputRef,
     venueInputRef,
     receiptInputRef,
@@ -1050,7 +1056,7 @@ export function usePintDrops(
     removePhoto,
     resetComposer,
     submitting,
-    dropMsg,
+    dropMsg: draftVisible ? dropMsg : null,
     submitDrop,
     reportDrop,
   };
