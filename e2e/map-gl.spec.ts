@@ -31,25 +31,67 @@ async function captureNoticeLayout(page: Page, phase: string) {
         className: element.getAttribute("class"),
         text: element.textContent,
         box: element.getBoundingClientRect().toJSON(),
+        width: style.width,
+        minWidth: style.minWidth,
+        maxWidth: style.maxWidth,
+        boxSizing: style.boxSizing,
         position: style.position,
         display: style.display,
         order: style.order,
         flexDirection: style.flexDirection,
+        flex: style.flex,
         flexGrow: style.flexGrow,
         flexShrink: style.flexShrink,
         flexBasis: style.flexBasis,
         gap: style.gap,
         transform: style.transform,
+        transition: style.transition,
+        animation: style.animation,
+        inlineStyle: element.getAttribute("style"),
       };
     };
     const host = document.querySelector(".mapDesktopNotices");
+    const retry = document.querySelector(".mapSoftRetry");
+    const matchedRetryRules: { sheet: string; context: string[]; selector: string; declarations: string }[] = [];
+    const unreadableSheets: string[] = [];
+    const inspectRules = (rules: CSSRuleList, sheet: string, context: string[]) => {
+      for (const rule of rules) {
+        if (rule instanceof CSSStyleRule) {
+          if (retry?.matches(rule.selectorText) && /(?:^|;)\s*(?:all|position|display|width|min-width|max-width|flex(?:-[\w-]+)?|transform|transition(?:-[\w-]+)?|animation(?:-[\w-]+)?|box-sizing|padding(?:-[\w-]+)?|margin(?:-[\w-]+)?)\s*:/.test(rule.style.cssText)) {
+            matchedRetryRules.push({ sheet, context, selector: rule.selectorText, declarations: rule.style.cssText });
+          }
+        } else if ("cssRules" in rule) {
+          if (rule instanceof CSSMediaRule && !matchMedia(rule.conditionText).matches) continue;
+          if (rule instanceof CSSSupportsRule && !CSS.supports(rule.conditionText)) continue;
+          inspectRules((rule as CSSGroupingRule).cssRules, sheet, [...context, rule.cssText.split("{")[0].trim()]);
+        }
+      }
+    };
+    for (const [index, sheet] of [...document.styleSheets].entries()) {
+      const name = sheet.href ?? `inline-${index}`;
+      if (sheet.disabled || (sheet.media.mediaText && !matchMedia(sheet.media.mediaText).matches)) continue;
+      try {
+        inspectRules(sheet.cssRules, name, sheet.media.mediaText ? [sheet.media.mediaText] : []);
+      } catch {
+        unreadableSheets.push(name);
+      }
+    }
     return {
       viewport: { width: innerWidth, height: innerHeight },
       theme: document.documentElement.dataset.theme,
       host: describe(host),
       hostChildren: host ? [...host.children].map(describe) : [],
       status: describe(document.querySelector(".cityStatusStack")),
-      retry: describe(document.querySelector(".mapSoftRetry")),
+      retry: describe(retry),
+      retryAnimations: retry?.getAnimations().map((animation) => ({
+        id: animation.id,
+        playState: animation.playState,
+        currentTime: animation.currentTime,
+        timing: animation.effect?.getComputedTiming(),
+        keyframes: animation.effect instanceof KeyframeEffect ? animation.effect.getKeyframes() : null,
+      })) ?? [],
+      matchedRetryRules,
+      unreadableSheets,
       details: describe(document.querySelector(".cityStatusSignalSheet")),
       location: describe(document.querySelector(".citySuggestBanner")),
       drawer: describe(document.querySelector(".mapDrawer.open")),
