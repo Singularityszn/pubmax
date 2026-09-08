@@ -54,7 +54,7 @@ import { gateHandleAction, gateHasVerifiedActor } from "@/lib/profileOwnership";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
-import { clientIp, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
+import { clientIp, hashActor, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import { getVenueIndex, lookupCanonicalVenue, venueMapUrl } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
@@ -432,6 +432,21 @@ async function createPintDropResponse(
   }
 }
 
+async function checkedCreationKey(request: Request, userId: string | null): Promise<string | null | Response> {
+  const key = request.headers.get("Idempotency-Key");
+  if (key === null) return null;
+  if (!validPintDropCreateKey(key)) {
+    return publicApiError("Invalid submission key.", "INVALID_REQUEST", 400);
+  }
+  if (!userId) return publicApiError("Sign in to retry a Pint Drop.", "UNAUTHENTICATED", 401);
+  // Match authenticated Social reads. Replays leave the separate creation quota untouched.
+  const accountKey = `pint-drop-request:${hashActor(userId)}`;
+  if (await isLimited(accountKey, accountKey, 60, 60_000)) {
+    return publicApiError("Too many Pint Drop requests. Slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+  return key;
+}
+
 export async function POST(request: Request): Promise<Response> {
   const parsed = await parseBody(request);
   if (!parsed) {
@@ -490,15 +505,8 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const creationKey = request.headers.get("Idempotency-Key");
-  if (creationKey !== null) {
-    if (!validPintDropCreateKey(creationKey)) {
-      return publicApiError("Invalid submission key.", "INVALID_REQUEST", 400);
-    }
-    if (!verifiedUserId) {
-      return publicApiError("Sign in to retry a Pint Drop.", "UNAUTHENTICATED", 401);
-    }
-  }
+  const creationKey = await checkedCreationKey(request, verifiedUserId);
+  if (creationKey instanceof Response) return creationKey;
 
   const canonicalResult = await validateCanonicalPintDrop(fields);
   if (!canonicalResult.ok) return canonicalResult.response;
