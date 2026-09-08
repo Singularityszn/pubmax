@@ -22,7 +22,60 @@ async function expectNoticeControlHit(control: Locator) {
   }), "the control owns its centre hit").toBe(true);
 }
 
-async function expectDesktopNoticeStack(page: Page) {
+async function captureNoticeLayout(page: Page, phase: string) {
+  const geometry = await page.evaluate(() => {
+    const describe = (element: Element | null) => {
+      if (!element) return null;
+      const style = getComputedStyle(element);
+      return {
+        className: element.getAttribute("class"),
+        text: element.textContent,
+        box: element.getBoundingClientRect().toJSON(),
+        position: style.position,
+        display: style.display,
+        order: style.order,
+        flexDirection: style.flexDirection,
+        flexGrow: style.flexGrow,
+        flexShrink: style.flexShrink,
+        flexBasis: style.flexBasis,
+        gap: style.gap,
+        transform: style.transform,
+      };
+    };
+    const host = document.querySelector(".mapDesktopNotices");
+    return {
+      viewport: { width: innerWidth, height: innerHeight },
+      theme: document.documentElement.dataset.theme,
+      host: describe(host),
+      hostChildren: host ? [...host.children].map(describe) : [],
+      status: describe(document.querySelector(".cityStatusStack")),
+      retry: describe(document.querySelector(".mapSoftRetry")),
+      details: describe(document.querySelector(".cityStatusSignalSheet")),
+      location: describe(document.querySelector(".citySuggestBanner")),
+      drawer: describe(document.querySelector(".mapDrawer.open")),
+      controls: [".mapSoftRetryBtn", ".cityStatusBannerDismiss", ".cityStatusBannerLink"].map((selector) => {
+        const control = document.querySelector(selector);
+        const box = control?.getBoundingClientRect();
+        const hit = box ? document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2) : null;
+        return {
+          selector,
+          control: describe(control),
+          centreHitOwned: control !== null && hit !== null && control.contains(hit),
+          hitOwner: describe(hit),
+        };
+      }),
+    };
+  });
+  await test.info().attach(`notice-layout-${phase}`, {
+    body: JSON.stringify(geometry), contentType: "application/json",
+  });
+  await test.info().attach(`notice-layout-${phase}-screenshot`, {
+    body: await page.screenshot(), contentType: "image/png",
+  });
+}
+
+async function expectDesktopNoticeStack(page: Page, phase: string) {
+  await captureNoticeLayout(page, phase);
   const status = await noticeBox(page.locator(".cityStatusStack"));
   const retry = await noticeBox(page.locator(".mapSoftRetry"));
   const drawer = page.locator(".mapDrawer.open");
@@ -1283,7 +1336,7 @@ for (const width of [1024, 1440]) {
       releaseStatus();
       await expect(page.locator(".cityStatusStack")).toBeVisible();
       expect(await host.evaluate((node, original) => node === original, originalHost)).toBe(true);
-      await expectDesktopNoticeStack(page);
+      await expectDesktopNoticeStack(page, "late-status-arrival");
       await expectNoticeControlHit(page.locator(".cityStatusBannerLink"));
       await page.locator(".cityStatusBannerLink").click();
       const details = page.getByRole("region", { name: "Tonight in London: all signals" });
@@ -1292,7 +1345,7 @@ for (const width of [1024, 1440]) {
       expect(await details.evaluate((node) => node.scrollHeight > node.clientHeight), "long status details scroll within their existing sheet").toBe(true);
       await details.getByText(disruptions.at(-1)!, { exact: true }).scrollIntoViewIfNeeded();
       await expect(details.getByText(disruptions.at(-1)!, { exact: true })).toBeInViewport();
-      await expectDesktopNoticeStack(page);
+      await expectDesktopNoticeStack(page, "expanded-status");
       await test.info().attach(`notice-stack-expanded-${width}-${theme}`, {
         body: await page.screenshot(), contentType: "image/png",
       });
@@ -1300,12 +1353,13 @@ for (const width of [1024, 1440]) {
       // The same notices must also clear the mirrored planner drawer.
       await toolbar.getByRole("button", { name: "Plan an outing", exact: true }).click();
       await expect(page.locator(".mapDrawer.left.open")).toBeVisible();
-      await expectDesktopNoticeStack(page);
+      await expectDesktopNoticeStack(page, "planner-status");
 
       if (theme === "dark") {
         await page.getByRole("button", { name: "Dismiss city status", exact: true }).click();
         await expect(page.locator(".cityStatusStack")).toHaveCount(0);
         await expect(notice).toHaveCount(1);
+        await captureNoticeLayout(page, "status-dismissed");
         expect(await host.evaluate((node, original) => node === original, originalHost)).toBe(true);
         await expectNoticeControlHit(notice.getByRole("button", { name: "Retry" }));
       }
@@ -1355,12 +1409,14 @@ for (const width of [1024, 1440]) {
       await expect.poll(() => requests.servedPrimaryRaster, { timeout: 30_000 }).toBeGreaterThan(servedBeforeRetry);
       await expect(notice).toHaveCount(0, { timeout: 30_000 });
       await expect(page.locator(".mapLoading, .mapFallback")).toHaveCount(0);
+      await captureNoticeLayout(page, "retry-recovered");
       expect(await host.evaluate((node, original) => node === original, originalHost)).toBe(true);
       if (theme === "light") {
         await expect(page.locator(".cityStatusStack")).toBeVisible();
         await expectNoticeControlHit(page.locator(".cityStatusBannerDismiss"));
         await page.getByRole("button", { name: "Dismiss city status", exact: true }).click();
         await expect(page.locator(".cityStatusStack")).toHaveCount(0);
+        await captureNoticeLayout(page, "status-dismissed");
       }
       await originalHost?.dispose();
       await test.info().attach(`notice-stack-transport-${width}-${theme}`, {
