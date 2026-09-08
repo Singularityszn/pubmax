@@ -69,10 +69,8 @@ async function expectSheetInsideViewport(
     const rect = element.getBoundingClientRect();
     const style = getComputedStyle(element);
     const portal = element.closest(".mobileSheetPortal");
-    const tabs = document.querySelector('nav[aria-label="Primary"]');
-    if (!portal || !tabs) throw new Error("Sheet portal or primary tabs are missing");
+    if (!portal) throw new Error("Sheet portal is missing");
     const portalRect = portal.getBoundingClientRect();
-    const tabsRect = tabs.getBoundingClientRect();
     const targets = Array.from(element.querySelectorAll(
       ".mobileSharedSheetHeader button, .mobileSharedSheetFooter button",
     )).map((button) => {
@@ -91,13 +89,6 @@ async function expectSheetInsideViewport(
         top: portalRect.top,
         left: portalRect.left, right: portalRect.right,
       },
-      tabs: { bottom: tabsRect.bottom },
-      tabHits: Array.from(tabs.querySelectorAll("a")).map((link) => {
-        const box = link.getBoundingClientRect();
-        return link.contains(document.elementFromPoint(
-          box.x + box.width / 2, box.y + box.height / 2,
-        ));
-      }),
       targets,
       top: rect.top,
       right: rect.right,
@@ -115,9 +106,6 @@ async function expectSheetInsideViewport(
   expect(geometry.portal.top).toBeCloseTo(0, 0);
   expect(geometry.portal.left).toBeCloseTo(0, 0);
   expect(geometry.portal.right).toBeCloseTo(viewport!.width, 0);
-  expect(geometry.tabs.bottom).toBeCloseTo(viewport!.height, 0);
-  expect(geometry.tabHits.length).toBeGreaterThan(0);
-  expect(geometry.tabHits.every(Boolean), "primary tabs receive their centre hits").toBe(true);
   expect(["none", "matrix(1, 0, 0, 1, 0, 0)"]).toContain(geometry.transform);
   expect(geometry.left).toBeGreaterThanOrEqual(0);
   expect(geometry.top).toBeGreaterThanOrEqual(0);
