@@ -114,8 +114,9 @@ function styleFailureCaller() {
   });
   const setSoftRetry = vi.fn();
   const reportMapError = vi.fn();
+  const { areBasemapTilesLoaded: readBasemapTilesLoaded, ...tileImports } = tilePolicy;
   const scope = {
-    ...tilePolicy, map, tameNumericShieldFilters, setSoftRetry, reportMapError,
+    ...tileImports, readBasemapTilesLoaded, map, tameNumericShieldFilters, setSoftRetry, reportMapError,
     MAP_STYLES: { light: "https://primary.invalid/style.json" },
     FALLBACK_STYLES: { light: "https://fallback.invalid/style.json" },
     BASEMAP_RETRY_NOTICE, STYLE_LOAD_TIMEOUT_MS,
