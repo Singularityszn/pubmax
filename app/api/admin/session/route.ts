@@ -70,6 +70,9 @@ export async function POST(request: Request): Promise<Response> {
   } catch {
     return publicApiError("Invalid JSON.", "INVALID_REQUEST", 400);
   }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return publicApiError("Invalid JSON.", "INVALID_REQUEST", 400);
+  }
 
   const token = typeof body.token === "string" ? body.token : "";
   if (!token || !verifyAdminToken(token)) {

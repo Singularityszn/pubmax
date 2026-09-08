@@ -5,6 +5,7 @@ import {
   handleClaimRouteAfterSignIn,
   identityHandleForOwner,
   resolveCanonicalIdentity,
+  syncDeviceHandle,
 } from "@/lib/identityClient";
 
 describe("identity handle events", () => {
@@ -237,5 +238,50 @@ describe("post-callback handle claim routing", () => {
     await expect(
       handleClaimRouteAfterSignIn(null, "/map", storageWith(new Map()), failing),
     ).resolves.toBeNull();
+  });
+});
+
+describe("canonical handle synchronization", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("does not write or announce the same canonical handle again", () => {
+    const dispatchEvent = vi.fn();
+    vi.stubGlobal("window", { dispatchEvent });
+    const storage = { getItem: () => "alice", setItem: vi.fn() };
+    syncDeviceHandle(storage, "@Alice");
+    expect(storage.setItem).not.toHaveBeenCalled();
+    expect(dispatchEvent).not.toHaveBeenCalled();
+  });
+
+  it("corrects stored spelling without announcing an unchanged identity", () => {
+    const dispatchEvent = vi.fn();
+    vi.stubGlobal("window", { dispatchEvent });
+    const storage = { getItem: () => "@Alice", setItem: vi.fn() };
+    syncDeviceHandle(storage, "alice");
+    expect(storage.setItem).toHaveBeenCalledWith("pubmax_handle", "alice");
+    expect(dispatchEvent).not.toHaveBeenCalled();
+  });
+
+  it.each([null, "bob", "!"])("announces a newly established handle from %s", (previous) => {
+    const dispatchEvent = vi.fn();
+    vi.stubGlobal("window", { dispatchEvent });
+    const storage = { getItem: () => previous, setItem: vi.fn() };
+    syncDeviceHandle(storage, "Alice");
+    expect(storage.setItem).toHaveBeenCalledWith("pubmax_handle", "alice");
+    expect(dispatchEvent).toHaveBeenCalledOnce();
+    expect(dispatchEvent.mock.calls[0][0].type).toBe("pubmax:device-identity-changed");
+  });
+
+  it("still tries the write after a failed read, but never announces a failed write", () => {
+    const dispatchEvent = vi.fn();
+    vi.stubGlobal("window", { dispatchEvent });
+    const storage = { getItem: () => { throw new Error("Read unavailable"); }, setItem: vi.fn() };
+    syncDeviceHandle(storage, "alice");
+    expect(storage.setItem).toHaveBeenCalledOnce();
+    expect(dispatchEvent).toHaveBeenCalledOnce();
+    dispatchEvent.mockClear();
+    storage.setItem.mockImplementation(() => { throw new Error("Write unavailable"); });
+    expect(() => syncDeviceHandle(storage, "bob")).not.toThrow();
+    expect(dispatchEvent).not.toHaveBeenCalled();
   });
 });

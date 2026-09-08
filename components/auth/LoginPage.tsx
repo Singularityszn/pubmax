@@ -27,6 +27,7 @@ import {
   ARRIVAL_FROM_PARAM,
   ARRIVAL_INTENT_PARAM,
   LOGIN_ADD_ACCOUNT_PARAM,
+  arrivalDestination,
   rememberChosenIntent,
   type ArrivalIntent,
 } from "@/lib/arrivalWelcome";
@@ -639,7 +640,7 @@ export default function LoginPage({
         ) : null}
 
         <footer className="loginPageFoot">
-          <Link href="/map" className="loginPageQuietLink">
+          <Link href={arrivalDestination("signin", from, "/map")} className="loginPageQuietLink">
             <LogIn size={14} aria-hidden="true" />
             Browse without signing in
           </Link>

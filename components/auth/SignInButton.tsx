@@ -35,6 +35,7 @@ import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
 import { handleOnly } from "@/lib/handleDisplay";
 import { authAvatarInitials } from "@/lib/authAvatarInitials";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import {
   ARRIVAL_FROM_PARAM,
   LOGIN_ADD_ACCOUNT_PARAM,
@@ -200,6 +201,8 @@ export default function SignInButton({
     return () => window.removeEventListener("pageshow", onPageShow);
   }, [cancelAuthAttempt]);
 
+  useDismissOnEscape(menuOpen, () => setMenuOpen(false));
+
   // Light-dismiss for the compact popover: outside pointer-down or Escape.
   // Listeners only exist while the menu is open, so this costs nothing when
   // closed and never runs for the non-compact (standalone) variant. Tab/
@@ -215,10 +218,7 @@ export default function SignInButton({
       }
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setMenuOpen(false);
-        return;
-      }
+      if (event.defaultPrevented) return;
       if (event.key === "Tab") {
         const focusables = menuRef.current?.querySelectorAll<HTMLElement>(
           AUTH_MENU_FOCUSABLE_SELECTOR,

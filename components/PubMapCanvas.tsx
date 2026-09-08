@@ -59,6 +59,7 @@ import {
   mapIsOffHouseAttitude,
 } from "@/lib/mapCompass";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
+import { tameNumericShieldFilters } from "@/lib/mapBasemapTaste";
 import {
   idleGestureCameraState,
   type GestureCameraState,
@@ -1336,7 +1337,6 @@ export default function PubMapCanvas({
       }
       map = new maplibregl.Map({
         container,
-        style: MAP_STYLES[themeRef.current],
         ...mapViewRef.current,
         maxBounds: maxBoundsRef.current,
         // ODbL credit for the pub layers we draw ourselves. Set on the map, not
@@ -2381,7 +2381,13 @@ export default function PubMapCanvas({
       armStyleLoadProtection();
       styleStructureReadyRef.current = false;
       try {
-        map.setStyle(style, { diff: false });
+        // transformStyle waits for the previous style to load. A failed or held
+        // request cannot release that wait, so retire it before fallback.
+        if (supersede) map.setStyle(null);
+        map.setStyle(style, {
+          diff: false,
+          transformStyle: (_previousStyle, nextStyle) => tameNumericShieldFilters(nextStyle),
+        });
       } catch (error) {
         protectedStyleInFlight = false;
         const detail =
@@ -2428,7 +2434,8 @@ export default function PubMapCanvas({
       }
     });
     map.on("style.load", buildScene);
-    armStyleLoadProtection();
+    // Initial load shares theme/fallback normalization before layer compilation.
+    setProtectedStyle(MAP_STYLES[themeRef.current], false);
     // ONE recovery budget per mount, shared by both recovery nets (the tile
     // classifier here and the paint watchdog below), so the two can never
     // compound into more than PAINT_WATCHDOG_MAX_RETRIES total actions.

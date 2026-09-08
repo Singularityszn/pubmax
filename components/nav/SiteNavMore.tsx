@@ -24,6 +24,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 export const SITE_NAV_MORE_LINKS = [
   { href: "/plan", label: "Plan", description: "Build a night out" },
@@ -87,6 +88,11 @@ export default function SiteNavMore({
     setOpen(false);
   }, []);
 
+  useDismissOnEscape(open, () => {
+    close();
+    buttonRef.current?.focus();
+  });
+
   const measure = useCallback(() => {
     const btn = buttonRef.current;
     if (!btn) return;
@@ -124,24 +130,15 @@ export default function SiteNavMore({
       if (menuRef.current?.contains(target)) return;
       setOpen(false);
     }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setOpen(false);
-        buttonRef.current?.focus();
-      }
-    }
     function onReposition() {
       measure();
     }
     document.addEventListener("mousedown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown);
     window.addEventListener("resize", onReposition);
     // Capture scroll from any ancestor so fixed coords stay aligned.
     window.addEventListener("scroll", onReposition, true);
     return () => {
       document.removeEventListener("mousedown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", onReposition);
       window.removeEventListener("scroll", onReposition, true);
     };

@@ -266,10 +266,9 @@ export default function MessagesInboxClient({
     <Screen
       as="section"
       className="messagesScreen"
-      kicker="Messages"
       title="Messages"
       titleId="messages-title"
-      // A new message starts from a person, and the people are on Social.
+      // A new message opens recipient search without leaving Messages.
       // Signed out, the one painted control is the door that WORKS: a
       // painted New message led to a sign-in wall, and the reader met two
       // doors for one step. The sign-in door carries the way back here.
@@ -277,7 +276,7 @@ export default function MessagesInboxClient({
         viewerSession.signedOut ? (
           <Link href="/login?mode=signin&from=%2Fmessages">Sign in</Link>
         ) : (
-          <Link href="/social">New message</Link>
+          <Link href="/messages/new">New message</Link>
         )
       }
     >
@@ -307,10 +306,9 @@ export default function MessagesInboxClient({
       ) : conversations.length === 0 ? (
         <EmptyState
           title="Nobody in here yet."
-          action={<Link href="/social">Find someone to message</Link>}
+          action={<Link href="/messages/new">Find someone to message</Link>}
         >
-          Find someone worth a pint on the feed, open their profile, and tap
-          Message. That&rsquo;s how a round starts.
+          Search a handle and open a conversation.
         </EmptyState>
       ) : (
         <>

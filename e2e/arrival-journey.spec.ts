@@ -18,7 +18,6 @@ import { expect, test, type Page } from "@playwright/test";
 const E2E_AUTH_USER_ID = "00000000-0000-4000-8000-0000000000a1";
 const E2E_AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
 const HANDLE = "karan";
-const SHOTS = "/tmp/pubmax-arrival";
 
 type OnboardingBody = { complete: boolean; handle?: string; dateOfBirth?: string };
 
@@ -26,6 +25,7 @@ type SessionOptions = {
   /** Reproduce the state a completed sign-in leaves in the landing tab. */
   arrival?: "signin" | "signup";
   deviceHandle?: string;
+  foundingMemberNumber?: number;
 };
 
 async function installSession(
@@ -43,7 +43,8 @@ async function installSession(
         // and clears it (lib/deviceAccountIdentity.ts).
         window.localStorage.setItem("pubmax_account_owner", userId);
       }
-      if (arrival) {
+      if (arrival && !window.sessionStorage.getItem("pubmax:e2e:arrival-seeded")) {
+        window.sessionStorage.setItem("pubmax:e2e:arrival-seeded", "true");
         window.sessionStorage.setItem(
           "pubmax:arrival-welcome:v1",
           JSON.stringify({ intent: arrival, at: Date.now() }),
@@ -77,6 +78,20 @@ async function installSession(
     },
   );
 
+  // This journey does not assert the resume cookie. Keep fake sessions out of
+  // the real route's shared persistence budget.
+  await page.route("**/api/auth/session", async (route) => {
+    const request = route.request();
+    if (
+      request.method() === "POST" &&
+      request.postDataJSON()?.action === "persist"
+    ) {
+      await route.fulfill({ json: { ok: true } });
+      return;
+    }
+    await route.fallback();
+  });
+
   await page.route("https://pubmaxx-e2e.supabase.co/**", async (route) => {
     await route.fulfill({
       status: 200,
@@ -101,13 +116,40 @@ async function installSession(
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ handle: onboarding.handle ?? null }),
+      body: JSON.stringify({
+        handle: onboarding.handle ?? null,
+        foundingMemberNumber: options.foundingMemberNumber,
+      }),
     });
   });
 }
 
 function identityDialog(page: Page) {
   return page.locator(".accountOnboardingBackdrop");
+}
+
+async function capture(page: Page, name: string): Promise<void> {
+  const options = { path: test.info().outputPath(name), animations: "disabled" as const };
+  try {
+    await page.screenshot(options);
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes("Protocol error (Page.captureScreenshot): Unable to capture screenshot")
+    ) {
+      throw error;
+    }
+    // Chromium can refuse the first composited frame while a sheet enters.
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+    await page.screenshot(options);
+  }
+}
+
+async function expectAccountReady(page: Page): Promise<void> {
+  await expect(page.getByRole("link", { name: "You", exact: true })).toHaveAttribute(
+    "href",
+    `/u/${HANDLE}`,
+  );
 }
 
 test.use({
@@ -117,33 +159,40 @@ test.use({
 
 test.describe("returning drinker", () => {
   test("arrives with no identity sheet, on any tab", async ({ page }) => {
+    await page.clock.setFixedTime(new Date("2026-09-07T20:00:00Z"));
     // The founder's exact account: a claimed handle, no stored date of birth.
     await installSession(page, { complete: false, handle: HANDLE });
 
-    await page.goto("/today");
-    await page.waitForLoadState("domcontentloaded");
-    await page.waitForTimeout(2500);
-    await page.screenshot({ path: `${SHOTS}/returning-1-today.png` });
+    await page.goto("/today", { waitUntil: "domcontentloaded" });
+    await expectAccountReady(page);
+    await capture(page, "returning-1-today.png");
 
     await expect(identityDialog(page)).toHaveCount(0);
     await expect(page.getByText("Rename handle")).toHaveCount(0);
 
     // The original report: "the same tab keeps opening everywhere". Walk the
     // tabs the way a phone does, through the bottom bar, not a fresh load.
-    for (const tab of ["Map", "Plan", "You"]) {
+    for (const [tab, path] of [
+      ["Map", "/map"],
+      ["Now", "/tonight"],
+      ["Places", "/places"],
+      ["Out", "/out"],
+      ["Social", "/social"],
+      ["You", `/u/${HANDLE}`],
+    ]) {
       const link = page.getByRole("link", { name: tab, exact: true }).first();
-      if ((await link.count()) === 0) continue;
       await link.click();
-      await page.waitForTimeout(1200);
+      await expect(page).toHaveURL(new RegExp(`${path}$`));
+      await expectAccountReady(page);
       await expect(identityDialog(page)).toHaveCount(0);
     }
-    await page.screenshot({ path: `${SHOTS}/returning-2-after-tabs.png` });
+    await capture(page, "returning-2-after-tabs.png");
 
     // A hard reload discarded the old React-only dismissal. It must stay quiet.
-    await page.reload();
-    await page.waitForTimeout(2500);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expectAccountReady(page);
     await expect(identityDialog(page)).toHaveCount(0);
-    await page.screenshot({ path: `${SHOTS}/returning-3-after-reload.png` });
+    await capture(page, "returning-3-after-reload.png");
   });
 
   test("is welcomed back by name, then left alone", async ({ page }) => {
@@ -153,15 +202,21 @@ test.describe("returning drinker", () => {
       { arrival: "signin", deviceHandle: HANDLE },
     );
 
-    await page.goto("/today");
+    await page.goto("/today", { waitUntil: "domcontentloaded" });
     const welcome = page.getByText(`Welcome back, @${HANDLE}.`);
     await expect(welcome).toBeVisible({ timeout: 10_000 });
-    await page.screenshot({ path: `${SHOTS}/returning-4-welcome-back.png` });
+    await capture(page, "returning-4-welcome-back.png");
+    const selector = page.getByRole("navigation", { name: "Now", exact: true });
+    const welcomeSpacing = await selector.boundingBox();
 
     // A greeting, not a gate: no dialog, and it retires itself.
     await expect(identityDialog(page)).toHaveCount(0);
     await expect(welcome).toBeHidden({ timeout: 15_000 });
-    await page.screenshot({ path: `${SHOTS}/returning-5-welcome-gone.png` });
+    const restingSpacing = await selector.boundingBox();
+    expect(welcomeSpacing).not.toBeNull();
+    expect(restingSpacing).not.toBeNull();
+    expect(restingSpacing!.y).toBeCloseTo(welcomeSpacing!.y, 1);
+    await capture(page, "returning-5-welcome-gone.png");
   });
 
   test("is greeted once, not again on the next page", async ({ page }) => {
@@ -170,15 +225,75 @@ test.describe("returning drinker", () => {
       { complete: false, handle: HANDLE },
       { arrival: "signin", deviceHandle: HANDLE },
     );
-    await page.goto("/today");
+    await page.goto("/today", { waitUntil: "domcontentloaded" });
     await expect(page.getByText(`Welcome back, @${HANDLE}.`)).toBeVisible({
       timeout: 10_000,
     });
 
-    await page.goto("/map");
-    await page.waitForTimeout(3000);
+    await page.goto("/map", { waitUntil: "domcontentloaded" });
+    await expectAccountReady(page);
     await expect(page.getByText(`Welcome back, @${HANDLE}.`)).toHaveCount(0);
   });
+
+  for (const { width, founding, reducedMotion = false } of [
+    { width: 390, founding: false },
+    { width: 1440, founding: false },
+    { width: 390, founding: true },
+    { width: 390, founding: false, reducedMotion: true },
+  ]) {
+    test(`the ${founding ? "founding " : ""}welcome leaves the Now selector visible and usable by keyboard at ${width}px${reducedMotion ? " with reduced motion" : ""}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await page.emulateMedia({ reducedMotion: reducedMotion ? "reduce" : "no-preference" });
+      await installSession(
+        page,
+        { complete: false, handle: HANDLE },
+        { arrival: "signin", deviceHandle: HANDLE, foundingMemberNumber: founding ? 1 : undefined },
+      );
+      await page.goto("/today", { waitUntil: "commit" });
+
+      const welcome = page.locator(".arrivalWelcome");
+      const selector = page.getByRole("navigation", { name: "Now", exact: true });
+      await expect(welcome).toBeVisible();
+      if (founding) await expect(welcome).toHaveAttribute("data-founding", "");
+      await expect(selector).toBeVisible();
+      await capture(page, "welcome-selector.png");
+
+      const welcomeBox = await welcome.boundingBox();
+      const selectorBox = await selector.boundingBox();
+      expect(welcomeBox).not.toBeNull();
+      expect(selectorBox).not.toBeNull();
+      if (!welcomeBox || !selectorBox) throw new Error("Arrival controls must be visible.");
+      const overlapWidth = Math.max(0,
+        Math.min(welcomeBox.x + welcomeBox.width, selectorBox.x + selectorBox.width) -
+        Math.max(welcomeBox.x, selectorBox.x));
+      const overlapHeight = Math.max(0,
+        Math.min(welcomeBox.y + welcomeBox.height, selectorBox.y + selectorBox.height) -
+        Math.max(welcomeBox.y, selectorBox.y));
+      const overlap = overlapWidth * overlapHeight;
+      await test.info().attach("welcome-selector-geometry", {
+        body: JSON.stringify({ welcomeBox, selectorBox, overlap }, null, 2),
+        contentType: "application/json",
+      });
+      expect(overlap, "the welcome must leave both selector labels visible").toBe(0);
+      if (width <= 640) {
+        const create = page.locator(".createFab");
+        await expect(create).toBeVisible();
+        const createBox = await create.boundingBox();
+        expect(createBox).not.toBeNull();
+        expect(welcomeBox.x + welcomeBox.width).toBeLessThanOrEqual(createBox!.x);
+      }
+
+      await expect(welcome.getByRole("status")).toHaveAttribute("aria-live", "polite");
+      const day = selector.getByRole("link", { name: "Day", exact: true });
+      const tonight = selector.getByRole("link", { name: "Tonight", exact: true });
+      await day.focus();
+      await page.keyboard.press("Tab");
+      await expect(tonight).toBeFocused();
+      await expect(welcome).toBeVisible();
+      await page.keyboard.press("Enter");
+      await expect(page).toHaveURL(/\/tonight$/);
+    });
+  }
 });
 
 test.describe("first-timer", () => {
@@ -186,10 +301,10 @@ test.describe("first-timer", () => {
     // A brand-new account: signed in, no handle yet.
     await installSession(page, { complete: false });
 
-    await page.goto("/today");
+    await page.goto("/today", { waitUntil: "domcontentloaded" });
     const sheet = page.locator(".accountOnboarding").first();
     await expect(sheet).toBeVisible({ timeout: 10_000 });
-    await page.screenshot({ path: `${SHOTS}/first-timer-1-welcome.png` });
+    await capture(page, "first-timer-1-welcome.png");
 
     // Beat one is the place. Beat two is the only thing it cannot start without.
     await expect(sheet.getByText("Welcome to PUBMAXX")).toBeVisible();
@@ -210,8 +325,7 @@ test.describe("first-timer", () => {
 
     await sheet.locator('input[autocomplete="username"]').fill("newdrinker");
     await sheet.locator('input[type="date"]').fill("1996-04-11");
-    await page.waitForTimeout(1200);
-    await page.screenshot({ path: `${SHOTS}/first-timer-2-filled.png` });
+    await capture(page, "first-timer-2-filled.png");
   });
 });
 
@@ -221,7 +335,7 @@ test.describe("the two doors", () => {
       window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     });
 
-    await page.goto("/login?from=%2Fmap");
+    await page.goto("/login?from=%2Fmap", { waitUntil: "domcontentloaded" });
     await expect(
       page.getByRole("heading", { name: "Sign in or create your account", level: 1 }),
     ).toBeVisible();
@@ -229,17 +343,17 @@ test.describe("the two doors", () => {
       "aria-selected",
       "true",
     );
-    await page.screenshot({ path: `${SHOTS}/doors-1-signin.png` });
+    await capture(page, "doors-1-signin.png");
 
     await page.getByRole("tab", { name: "New here" }).click();
     await expect(
       page.getByRole("heading", { name: "Let's get you in", level: 1 }),
     ).toBeVisible();
     await expect(page).toHaveURL(/mode=signup/);
-    await page.screenshot({ path: `${SHOTS}/doors-2-signup.png` });
+    await capture(page, "doors-2-signup.png");
 
     // A direct link opens the right door on first paint.
-    await page.goto("/login?mode=signup");
+    await page.goto("/login?mode=signup", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("tab", { name: "New here" })).toHaveAttribute(
       "aria-selected",
       "true",

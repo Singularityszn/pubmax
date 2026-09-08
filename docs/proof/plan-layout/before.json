@@ -1,0 +1,78 @@
+{
+  "version": {
+    "deploymentId": "local",
+    "gitCommitSha": "1ad2e0a7a7b4000341fc96a9bf6fa57e0a88162c",
+    "gitCommitShaSource": "working-tree",
+    "builtAt": "2026-09-07T21:33:08.967Z"
+  },
+  "inputs": [
+    {
+      "id": "plan-context-area",
+      "width": 290.203125,
+      "value": "piccadilly-soho",
+      "text": "Piccadilly & Soho"
+    },
+    {
+      "id": "plan-context-time",
+      "width": 111.515625,
+      "value": "evening",
+      "text": "Evening"
+    },
+    {
+      "id": "plan-context-group",
+      "width": 88,
+      "value": "friends",
+      "text": "Friends"
+    },
+    {
+      "id": "plan-context-people",
+      "width": 54,
+      "value": "4"
+    },
+    {
+      "id": "plan-context-stops",
+      "width": 39,
+      "value": "3",
+      "text": "3"
+    },
+    {
+      "id": "plan-context-budget",
+      "width": 96.984375,
+      "value": "standard",
+      "text": "Standard"
+    },
+    {
+      "id": "plan-context-budget-limit",
+      "width": 49.90625,
+      "value": "50"
+    },
+    {
+      "id": "plan-context-zero-proof",
+      "width": 101.375,
+      "value": "any",
+      "text": "Any drinks"
+    }
+  ],
+  "lock": {
+    "disabled": true,
+    "text": "Lock it in\n\nAnyone with the link can see the plan. Joining only asks for a name."
+  },
+  "nightSpacer": 206.21875,
+  "rail": {
+    "rail": {
+      "top": -1240.515625,
+      "bottom": 914.796875,
+      "x": 66
+    },
+    "route": {
+      "top": -913.625,
+      "bottom": -456.625,
+      "x": 43
+    },
+    "collaboration": {
+      "top": -101.625,
+      "bottom": 944.796875,
+      "x": 43
+    }
+  }
+}

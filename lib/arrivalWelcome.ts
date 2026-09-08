@@ -210,8 +210,16 @@ export function arrivalDestination(
   if (!candidate.startsWith("/") || candidate.startsWith("//") || candidate.includes("\\")) {
     return accountPath;
   }
-  // A sign-in page is never a destination: landing back on it is the dead end
-  // this whole change exists to remove.
-  if (/^\/(login|signin)(\/|\?|$)/.test(candidate)) return accountPath;
-  return candidate;
+  try {
+    const origin = "https://pubmaxx.invalid";
+    const destination = new URL(candidate, origin);
+    if (destination.origin !== origin) return accountPath;
+    // Check the resolved path so aliases and dot segments cannot return to sign-in.
+    if (/^\/(login|sign-in|signin|auth\/callback)(\/|$)/.test(destination.pathname)) {
+      return accountPath;
+    }
+    return `${destination.pathname}${destination.search}${destination.hash}`;
+  } catch {
+    return accountPath;
+  }
 }

@@ -14,6 +14,8 @@ export type SocialPostCommentPolicy = (typeof SOCIAL_POST_COMMENT_POLICIES)[numb
 export type SocialPostModerationState = "pending" | "approved" | "needs_review";
 
 export type SocialPostPhoto = {
+  kind?: "photo" | "video";
+  contentType?: "image/jpeg" | "video/mp4";
   mediaId: string;
   altText: string;
   tags?: Array<{ handle: string }>;
@@ -28,6 +30,7 @@ export type SocialPostFields = {
   hashtags: string[];
   commentPolicy: SocialPostCommentPolicy;
   photo: SocialPostPhoto | null;
+  photos?: SocialPostPhoto[];
 };
 
 export type SocialPostFeatureRequest = {
@@ -248,6 +251,7 @@ export function socialPostDTO(
     photo: post.photo
       ? { ...post.photo, ...(post.photo.tags ? { tags: post.photo.tags.map((tag) => ({ ...tag })) } : {}) }
       : null,
+    ...(post.photos ? { photos: post.photos.map(photo => ({ ...photo })) } : {}),
     moderationState: post.moderationState,
     featureRequest: post.featureRequest ? { ...post.featureRequest } : null,
     revision: post.revision,
@@ -265,7 +269,7 @@ export function socialPostModerationClaim(
 ): string {
   const sections = [post.body];
   if (post.hashtags.length > 0) sections.push(post.hashtags.map((tag) => `#${tag}`).join(" "));
-  if (post.photo) sections.push(`Photo: ${post.photo.altText}`);
+  if (post.photo) sections.push(`${post.photo.kind === "video" ? "Video" : "Photo"}: ${post.photo.altText}`);
   return sections.filter(Boolean).join("\n\n");
 }
 

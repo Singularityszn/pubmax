@@ -64,4 +64,17 @@ describe("what the cheap pub is worth", () => {
     expect(line).toContain(`${gap.toFixed(2)} a pint you keep`);
     expect(line).not.toContain("!");
   });
+
+  it("counts only pint measures, including legacy rows with no measure", () => {
+    expect(readerSavings([
+      { priceGbp: 4, measure: "pint" },
+      { priceGbp: 4 },
+      { priceGbp: 2, measure: "half" },
+      { priceGbp: 1, measure: "other" },
+      { priceGbp: 0, measure: "pint" },
+      { priceGbp: Number.NaN, measure: "pint" },
+      { priceGbp: Number.POSITIVE_INFINITY, measure: "pint" },
+    ], { averageGbp: 6, cheapAverageGbp: 4, sampleSize: 100 }))
+      .toEqual({ pints: 2, savedGbp: 4 });
+  });
 });

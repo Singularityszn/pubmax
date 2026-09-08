@@ -681,6 +681,7 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     class: "policy-heavy",
     selector: "selectStore",
   },
+  "lib/socialGalleryStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/socialPostConsentStore.ts": {
     interface: ["SocialPostConsentStore"],
     fallback:

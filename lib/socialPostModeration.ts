@@ -2,7 +2,7 @@ import type { SocialPostModerationAdapter } from "@/lib/socialPostStore";
 
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
-const DEFAULT_MODERATION_TIMEOUT_MS = 10_000;
+export const SOCIAL_POST_MODERATION_TIMEOUT_MS = 10_000;
 
 /** Social post/interaction moderation crons read this before claiming jobs. */
 export function isOpenAISocialModerationConfigured(apiKey = process.env.OPENAI_API_KEY): boolean {
@@ -26,7 +26,7 @@ export class OpenAISocialPostModerationAdapter implements SocialPostModerationAd
       throw new SocialPostModerationError("OpenAI moderation is not configured.", false);
     }
     this.fetcher = options.fetcher ?? fetch;
-    this.timeoutMs = options.timeoutMs ?? DEFAULT_MODERATION_TIMEOUT_MS;
+    this.timeoutMs = options.timeoutMs ?? SOCIAL_POST_MODERATION_TIMEOUT_MS;
   }
 
   async moderate(input: { postId: string; text: string; imageUrl?: string }): Promise<{
@@ -34,9 +34,8 @@ export class OpenAISocialPostModerationAdapter implements SocialPostModerationAd
   }> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
-    let response: Response;
     try {
-      response = await this.fetcher("https://api.openai.com/v1/moderations", {
+      const response = await this.fetcher("https://api.openai.com/v1/moderations", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
@@ -53,33 +52,42 @@ export class OpenAISocialPostModerationAdapter implements SocialPostModerationAd
         }),
         signal: controller.signal,
       });
-    } catch {
-      throw new SocialPostModerationError("OpenAI moderation request failed.", true);
+      if (!response.ok) {
+        const retryable = response.status === 408 || response.status === 429 || response.status >= 500;
+        throw new SocialPostModerationError(
+          `OpenAI moderation returned ${response.status}.`,
+          retryable,
+        );
+      }
+      let payload: unknown;
+      try {
+        payload = await response.json();
+      } catch {
+        if (controller.signal.aborted) {
+          throw new SocialPostModerationError("OpenAI moderation request timed out.", true);
+        }
+        throw new SocialPostModerationError("OpenAI moderation returned invalid JSON.", false);
+      }
+      const result = payload && typeof payload === "object" &&
+        Array.isArray((payload as { results?: unknown }).results)
+        ? (payload as { results: unknown[] }).results[0]
+        : null;
+      if (!result || typeof result !== "object" || typeof (result as { flagged?: unknown }).flagged !== "boolean") {
+        throw new SocialPostModerationError("OpenAI moderation returned no decision.", false);
+      }
+      return {
+        decision: (result as { flagged: boolean }).flagged ? "needs_review" : "approved",
+      };
+    } catch (error) {
+      if (error instanceof SocialPostModerationError) throw error;
+      throw new SocialPostModerationError(
+        controller.signal.aborted
+          ? "OpenAI moderation request timed out."
+          : "OpenAI moderation request failed.",
+        true,
+      );
     } finally {
       clearTimeout(timeout);
     }
-    if (!response.ok) {
-      const retryable = response.status === 408 || response.status === 429 || response.status >= 500;
-      throw new SocialPostModerationError(
-        `OpenAI moderation returned ${response.status}.`,
-        retryable,
-      );
-    }
-    let payload: unknown;
-    try {
-      payload = await response.json();
-    } catch {
-      throw new SocialPostModerationError("OpenAI moderation returned invalid JSON.", false);
-    }
-    const result = payload && typeof payload === "object" &&
-      Array.isArray((payload as { results?: unknown }).results)
-      ? (payload as { results: unknown[] }).results[0]
-      : null;
-    if (!result || typeof result !== "object" || typeof (result as { flagged?: unknown }).flagged !== "boolean") {
-      throw new SocialPostModerationError("OpenAI moderation returned no decision.", false);
-    }
-    return {
-      decision: (result as { flagged: boolean }).flagged ? "needs_review" : "approved",
-    };
   }
 }

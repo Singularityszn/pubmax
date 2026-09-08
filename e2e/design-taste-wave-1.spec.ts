@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
+
 async function setTheme(page: Page, theme: "light" | "dark"): Promise<void> {
   await page.addInitScript((nextTheme) => {
     window.localStorage.setItem("pubmax-theme", nextTheme);
@@ -101,11 +103,18 @@ test.describe("desktop taste wave 1", () => {
       await page.goto("/today");
 
       await expectSentenceCase(page.locator(".todayCardEyebrow").first());
-      // Standing lives on the TrustPill. The figure itself is --ink so an
-      // estimate cannot speak with authority through a price hue (#1044, #1366).
-      const semanticColours = await page.locator(".todayPintPrice").first().evaluate((price) => {
+      const price = page.locator(".todayPintPrice").first();
+      await expect(price).toBeVisible();
+      const figure = await price.evaluate((node) => ({
+        amount: Number(node.textContent?.replace(/[^\d.]/g, "")),
+        venueId: new URL(node.closest("a")!.href).searchParams.get("sel"),
+      }));
+      const band = priceBand(figure.amount, priceBandAreaForVenue(figure.venueId));
+      expect(band).not.toBeNull();
+      await expect(price).toHaveClass(new RegExp(`\\bpriceBand-${band}\\b`));
+      const semanticColours = await price.evaluate((price, expectedBand) => {
         const probe = document.createElement("span");
-        probe.style.color = "var(--ink)";
+        probe.style.color = `var(--price-band-${expectedBand}-ink)`;
         document.body.append(probe);
         const result = {
           price: getComputedStyle(price).color,
@@ -113,7 +122,7 @@ test.describe("desktop taste wave 1", () => {
         };
         probe.remove();
         return result;
-      });
+      }, band);
       expect(semanticColours.price).toBe(semanticColours.expected);
 
       await page.goto("/tonight");

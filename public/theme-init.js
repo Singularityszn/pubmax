@@ -4,10 +4,8 @@
 // instead of an inline <script>, so it needs no per-build hash, and loaded
 // render-blocking from the layout's head on every route.
 //
-// Everything here is a no-flash guarantee of some kind: the page never shows
-// the wrong theme, and the shell never shows a route it is about to leave. One
-// file because one request: a second pre-paint script cost every web route a
-// fetch for a decision only the shell uses (see the entry block below).
+// Apply the theme before paint and send returning native launches to Tonight.
+// One file avoids an extra request on every web route.
 //
 // Keep the theme half in sync with the ThemeToggle storage key ("pubmax-theme").
 // ---------------------------------------------------------------------------
@@ -37,22 +35,10 @@
 // is already too late. This file is the one that is already render-blocking in
 // the layout's head on every route, so the decision rides it and costs nothing.
 //
-// WHAT IT DECIDES, AND WHAT IT DELIBERATELY DOES NOT. Both routing branches of
-// lib/entryDecision.ts's `decideEntry` are decidable from storage alone:
-//
-//   - rule 4, `shell-cold-start`: the first-run mark is present, so this is an
-//     ordinary later launch and it lands on /tonight.
-//   - rule 2, `native-first-run`: NEITHER the first-run mark NOR a stored city
-//     value exists. `shouldRouteNativeFirstRun` needs `readPreferredCity()` to
-//     answer null, and with no stored value at all that answer is null under
-//     every possible enabled-city table in lib/cities.ts. So this reads the
-//     ABSENCE of the key and never its contents, and forks no table.
-//
-// The ONE case left to the client is a stored city value with the first-run
-// mark absent. Whether that value counts depends on whether lib/cities.ts still
-// has that city enabled, and a second copy of the city list here would be a
-// second place for it to be wrong. AppEntryRoute decides that one exactly as
-// before, one paint later.
+// Only returning launches route here. AppEntryRoute owns first-run navigation
+// through router.replace: proxy.ts redirects /onboarding document requests
+// home, while client navigation can consume the session handoff. A hard
+// redirect would spend both entry markers and return home without onboarding.
 //
 // __tests__/nativeShellEntry.test.ts runs THIS FILE against a window of its
 // own, which is why every reference below goes through `window`.
@@ -71,6 +57,15 @@
     // never rewritten.
     if (window.location.pathname !== "/") return;
 
+    // AuthProvider must consume root callbacks before any entry redirect.
+    // Supabase can clamp the callback destination to the site root.
+    var callbackHash = new URLSearchParams((window.location.hash || "").slice(1));
+    var callbackQuery = new URLSearchParams(window.location.search || "");
+    if (
+      callbackQuery.get("_authCallback") === "1" ||
+      (callbackHash.get("access_token") && callbackHash.get("refresh_token"))
+    ) return;
+
     var session = window.sessionStorage;
     var local = window.localStorage;
     if (!session || !local) return;
@@ -79,19 +74,7 @@
     // an in-app tap on the wordmark and it stays on the landing page.
     if (session.getItem("pubmax:entryDecision:consumed:v1") === "1") return;
 
-    if (local.getItem("pubmax:nativeFirstRun:routed:v1") !== "1") {
-      // A stored city is the one thing this file may not judge (see above).
-      if (local.getItem("pubmax:preferredCity:v1") !== null) return;
-      // Rule 2. The onboarding route is guarded by a session handoff, so the
-      // same eligibility AppEntryRoute would have issued is issued here. Both
-      // marks are stamped BEFORE navigating, exactly as that component does, so
-      // a slow transition can never leave a flag unset and fire twice.
-      session.setItem("pubmax:nativeFirstRun:handoff:v1", String(Date.now()));
-      local.setItem("pubmax:nativeFirstRun:routed:v1", "1");
-      session.setItem("pubmax:entryDecision:consumed:v1", "1");
-      window.location.replace("/onboarding");
-      return;
-    }
+    if (local.getItem("pubmax:nativeFirstRun:routed:v1") !== "1") return;
 
     // Rule 4. Stamp before navigating, exactly as AppEntryRoute does, so a slow
     // transition cannot leave the flag unset and bounce the next arrival.

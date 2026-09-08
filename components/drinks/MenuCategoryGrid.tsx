@@ -47,16 +47,11 @@ export default function MenuCategoryGrid({
       <section className="menuHub" aria-label="Menus">
         <header className="menuHub__head">
           <h3 className="menuHub__title">Menus</h3>
-          <p className="menuHub__lede">
-            {hasDrinkTiles ? (
-              <>
-                Drinks first. Tap a tile. Food opens the {venueNoun}&apos;s own menu
-                when we have a link.
-              </>
-            ) : (
-              <>Food opens the {venueNoun}&rsquo;s own menu.</>
-            )}
-          </p>
+          {!hasDrinkTiles ? (
+            <p className="menuHub__lede">
+              Food opens the {venueNoun}&rsquo;s own menu.
+            </p>
+          ) : null}
         </header>
         <ul className="menuHub__grid">
           {tiles.map((tile) => {

@@ -61,7 +61,7 @@ export function parseSocialShellSearch(
 
   if (feed === null) {
     if (area !== null) return { ...SAFE_DEFAULT };
-    return { valid: true, tab: "posts", feed: "following", area: null };
+    return { valid: true, tab: "posts", feed: "discover", area: null };
   }
 
   if (feed === "following" || feed === "discover") {
@@ -83,7 +83,7 @@ export function socialShellHref(
     | Omit<SocialDiscoverShellState, "valid">,
 ): string {
   if (state.tab === "discover") return "/social?tab=discover";
-  if (state.feed === "following") return "/social";
+  if (state.feed === "discover") return "/social";
   const params = new URLSearchParams({ feed: state.feed });
   if (state.feed === "nearby" && state.area) params.set("area", state.area);
   return `/social?${params.toString()}`;

@@ -23,6 +23,7 @@ const bucket = vi.hoisted(() => ({
   downloadError: null as { message: string } | null,
   /** Every body the adapter handed storage-js, in call order. */
   bodies: [] as unknown[],
+  uploadOptions: [] as unknown[],
   /** Mangle even a correctly wrapped write, to drive the write-side proof. */
   corruptWrites: false,
 }));
@@ -40,8 +41,9 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
       // Blob; anything else is handed to `fetch` raw, and there the bytes were
       // string-decoded. So a non-Blob body mangles here exactly as it did on
       // Vercel - which is what makes every assertion below a real fence.
-      async upload(path: string, body: unknown) {
+      async upload(path: string, body: unknown, options: unknown) {
         bucket.bodies.push(body);
+        bucket.uploadOptions.push(options);
         let bytes =
           body instanceof Blob
             ? Buffer.from(await body.arrayBuffer())
@@ -96,6 +98,8 @@ import {
 import { profileImageServingKey } from "@/lib/profileImageSlots";
 import type { ProfileRecord } from "@/lib/profileStore";
 import { STORAGE_BUCKET } from "@/lib/supabase";
+import { uploadPhoto } from "@/lib/pintDropsStore";
+import { downloadUploadedImageObject } from "@/lib/uploadedImage.server";
 
 const PROFILE_ID = "562db223-41d1-424b-8127-e9eaecb41c5f";
 const GENERATION = "e3c3a014-5702-43ab-bc1c-8d6d827fd95b";
@@ -163,6 +167,7 @@ beforeEach(() => {
   limitState.limited = false;
   bucket.objects.clear();
   bucket.bodies.length = 0;
+  bucket.uploadOptions.length = 0;
   bucket.downloadError = null;
   bucket.corruptWrites = false;
   __setAvatarServeRouteDepsForTest(null);
@@ -198,6 +203,33 @@ describe("owned image: upload then serve, over one bucket", () => {
     const downloaded = await downloadProfileImageObject(objectKey);
     expect(downloaded?.contentType).toBe("image/jpeg");
     expect(downloaded?.bytes.subarray(0, 3)).toEqual(Buffer.from([0xff, 0xd8, 0xff]));
+  });
+});
+
+describe("Pint Drop photos: upload then read, over one bucket", () => {
+  it.each(["pint", "venue", "receipt"] as const)("keeps the %s photo readable after upload", async (slot) => {
+    const key = await uploadPhoto(slot, "test-venue", "test-drop", await iphoneShapedPhoto());
+    const downloaded = await downloadUploadedImageObject(key);
+    expect(downloaded).not.toBeNull();
+    const uploaded = bucket.bodies[0] as Blob;
+    expect(downloaded?.bytes.equals(Buffer.from(await uploaded.arrayBuffer()))).toBe(true);
+    expect(bucket.uploadOptions[0]).toEqual({ contentType: "image/jpeg", upsert: false });
+    expect((await sharp(downloaded!.bytes).metadata()).format).toBe("jpeg");
+  });
+
+  it("refuses and removes a photo when storage corrupts its bytes", async () => {
+    captureLog();
+    bucket.corruptWrites = true;
+    await expect(uploadPhoto("receipt", "test-venue", "test-drop", await iphoneShapedPhoto()))
+      .rejects.toThrow("Photo storage could not preserve this image.");
+    expect(bucket.objects.size).toBe(0);
+  });
+
+  it("keeps a photo when the read-back is unavailable", async () => {
+    captureLog();
+    bucket.downloadError = { message: "Temporary storage outage" };
+    const key = await uploadPhoto("receipt", "test-venue", "test-drop", await iphoneShapedPhoto());
+    expect(bucket.objects.has(`${STORAGE_BUCKET}/${key}`)).toBe(true);
   });
 });
 

@@ -18,6 +18,7 @@ import { useState } from "react";
 import {
   isProxiedVenueImageUrl,
   resolveVenueImage,
+  venueImageCardUrl,
   venueImageLoader,
   VENUE_IMAGE_PROVENANCE_LABEL,
   type VenueImageSource,
@@ -49,6 +50,8 @@ type VenueImageProps = {
    * high-density phone stops asking for a sheet-header's worth of pixels.
    */
   maxWidth?: VenueImageWidth;
+  /** Use the fixed derivative for a decorative card background. */
+  variant?: "card";
 };
 
 export default function VenueImage({
@@ -62,6 +65,7 @@ export default function VenueImage({
   fill = false,
   sizes,
   maxWidth,
+  variant,
 }: VenueImageProps) {
   // Per-candidate failure tracking: a resolved URL whose <img> errored is
   // excluded on the next resolution pass, so the next source in priority
@@ -97,8 +101,10 @@ export default function VenueImage({
   const provenanceLabel = VENUE_IMAGE_PROVENANCE_LABEL[provenance];
   // Only a proxied photo can be resized: a community photo is a signed Storage
   // URL we do not re-encode, so it keeps the unoptimized path exactly as it was.
-  const resizable = isProxiedVenueImageUrl(src);
-  const sizing = resizable
+  const resizable = provenance === "chain" && isProxiedVenueImageUrl(src);
+  const card = resizable && variant === "card";
+  const imageSrc = card ? venueImageCardUrl(src) : src;
+  const sizing = resizable && !card
     ? { loader: venueImageLoader(maxWidth) }
     : { unoptimized: true as const };
   const markFailed = () =>
@@ -108,7 +114,7 @@ export default function VenueImage({
     <figure className={`venueImage ${className}`.trim()}>
       {fill ? (
         <Image
-          src={src}
+          src={imageSrc}
           alt={alt}
           fill
           sizes={sizes ?? "(max-width: 640px) 100vw, 420px"}
@@ -119,7 +125,7 @@ export default function VenueImage({
         />
       ) : (
         <Image
-          src={src}
+          src={imageSrc}
           alt={alt}
           width={width}
           height={height}

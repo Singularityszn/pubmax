@@ -19,10 +19,9 @@ import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
  * source-level laws sit beside them in __tests__/buttonPrimitive.test.tsx,
  * __tests__/chipPrimitive.test.tsx and __tests__/priceChipLadder.test.ts.
  *
- * Proof shots land in docs/proof/design-review-followups/.
+ * Proof shots use the current test output directory.
  */
 
-const PROOF = "docs/proof/design-review-followups";
 const WIDTHS = [
   { name: "390", width: 390, height: 844 },
   { name: "1280", width: 1280, height: 800 },
@@ -68,7 +67,7 @@ async function quietPage(page: Page): Promise<void> {
 for (const viewport of WIDTHS) {
   test(`${viewport.name}px: the profile editor's form buttons are the one button family`, async ({
     page,
-  }) => {
+  }, testInfo) => {
     test.slow();
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await quietPage(page);
@@ -142,10 +141,10 @@ for (const viewport of WIDTHS) {
       (document.activeElement as HTMLElement | null)?.blur();
       window.scrollTo(0, 0);
     });
-    await shoot(hub, `${PROOF}/after-profile-editor-${viewport.name}.png`);
+    await shoot(hub, testInfo.outputPath(`after-profile-editor-${viewport.name}.png`));
   });
 
-  test(`${viewport.name}px: the planner and /pubs number squares are one chip`, async ({ page }) => {
+  test(`${viewport.name}px: the planner and /pubs number squares are one chip`, async ({ page }, testInfo) => {
     test.slow();
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await quietPage(page);
@@ -169,7 +168,7 @@ for (const viewport of WIDTHS) {
     const plannerBoxes = await settledBoxes(plannerChips);
     await shoot(
       page.locator(".planStopCount"),
-      `${PROOF}/after-plan-stop-count-${viewport.name}.png`,
+      testInfo.outputPath(`after-plan-stop-count-${viewport.name}.png`),
     );
 
     await page.goto("/pubs?zone=1", { waitUntil: "domcontentloaded" });
@@ -178,7 +177,7 @@ for (const viewport of WIDTHS) {
     const zoneBoxes = await settledBoxes(zoneChips);
     await shoot(
       page.locator(".pubsZoneChips"),
-      `${PROOF}/after-pubs-zone-chips-${viewport.name}.png`,
+      testInfo.outputPath(`after-pubs-zone-chips-${viewport.name}.png`),
     );
 
     // ONE SELECTOR reaches both rows, and both rows measure the same square.
@@ -198,7 +197,7 @@ for (const viewport of WIDTHS) {
 for (const viewport of WIDTHS) {
   test(`${viewport.name}px: the five quick price chips wrap four and one, aligned to the first column`, async ({
     page,
-  }) => {
+  }, testInfo) => {
     test.slow();
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await quietPage(page);
@@ -210,10 +209,9 @@ for (const viewport of WIDTHS) {
     const nearby = page.locator(".logIntentNearbyBtn").first();
     await expect(nearby).toBeVisible({ timeout: 45_000 });
     const priceStep = page.getByTestId("spill-price-step");
-    // A control painted on the server is tappable before React attaches, so the
-    // tap is retried rather than the assertion after it made harder.
+    // Selection closes the picker before the composer chunk has loaded.
     await expect(async () => {
-      await nearby.click();
+      if (await nearby.isVisible()) await nearby.click();
       await expect(priceStep).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 25_000 });
 
@@ -264,6 +262,6 @@ for (const viewport of WIDTHS) {
     });
     expect(overflow).toBeLessThanOrEqual(1);
 
-    await shoot(priceStep, `${PROOF}/after-price-chips-${viewport.name}.png`);
+    await shoot(priceStep, testInfo.outputPath(`after-price-chips-${viewport.name}.png`));
   });
 }

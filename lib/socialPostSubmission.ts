@@ -89,14 +89,16 @@ function base(
 export function parseSocialCreateSubmission(
   input: unknown,
   hasPhoto: boolean,
+  mediaContentType?: string,
 ): SocialCreateSubmission {
   const raw = record(input);
   if (!raw || Object.keys(raw).some((key) => !CREATE_KEYS.has(key) && !CREATE_EXTRA_KEYS.has(key))) {
     return { ok: false, code: "INVALID_POST", error: "Post details are not valid." };
   }
   const tagHandles = tags(raw.tagHandles);
-  if (!tagHandles || (!hasPhoto && tagHandles.length > 0)) {
-    return { ok: false, code: "INVALID_TAGS", error: "Photo tags need an attached photo." };
+  const tagsAllowed = hasPhoto && mediaContentType !== "video/mp4";
+  if (!tagHandles || (!tagsAllowed && tagHandles.length > 0)) {
+    return { ok: false, code: "INVALID_TAGS", error: mediaContentType === "video/mp4" ? "Tags are not available for videos." : "Photo tags need an attached photo." };
   }
   const photoAltText = cleanAlt(raw.photoAltText);
   if (hasPhoto && !photoAltText) {
@@ -129,6 +131,7 @@ export function parseSocialCreateSubmission(
 export function parseSocialEditSubmission(
   input: unknown,
   hasPhoto: boolean,
+  mediaContentType?: string,
 ): SocialEditSubmission {
   const raw = record(input);
   if (!raw || Object.keys(raw).some((key) => !EDIT_KEYS.has(key) && !EDIT_EXTRA_KEYS.has(key))) {
@@ -139,8 +142,9 @@ export function parseSocialEditSubmission(
     return { ok: false, code: "INVALID_POST", error: "Post changes are not valid." };
   }
   const tagHandles = tags(raw.tagHandles);
-  if (!tagHandles || (!hasPhoto && tagHandles.length > 0)) {
-    return { ok: false, code: "INVALID_TAGS", error: "Photo tags need an attached photo." };
+  const tagsAllowed = hasPhoto && mediaContentType !== "video/mp4";
+  if (!tagHandles || (!tagsAllowed && tagHandles.length > 0)) {
+    return { ok: false, code: "INVALID_TAGS", error: mediaContentType === "video/mp4" ? "Tags are not available for videos." : "Photo tags need an attached photo." };
   }
   const photoAltText = cleanAlt(raw.photoAltText);
   if (hasPhoto && !photoAltText) {
@@ -151,7 +155,7 @@ export function parseSocialEditSubmission(
   }
   const baseInput = base(raw, EDIT_KEYS);
   const validation = validateSocialPostEdit(baseInput);
-  const altOnly = !hasPhoto && Boolean(photoAltText) && Object.keys(baseInput).every((key) => key === "expectedMutationVersion") &&
+  const altOnly = (hasPhoto || removePhoto || Boolean(photoAltText)) && Object.keys(baseInput).every((key) => key === "expectedMutationVersion") &&
     Number.isInteger(raw.expectedMutationVersion) && Number(raw.expectedMutationVersion) >= 0;
   if (!validation.ok && !altOnly) return validation;
   return {

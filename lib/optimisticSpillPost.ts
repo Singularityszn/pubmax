@@ -3,6 +3,7 @@ import type { Visibility } from "@/lib/spill";
 import type { LastPintDecisionKind } from "@/lib/tfl";
 import { discardBody } from "@/lib/responseBody";
 import { venueMapUrl } from "@/lib/venueMapUrl";
+import type { DrinkMeasure } from "@/lib/drinkMeasure";
 
 export const OPTIMISTIC_SPILL_STORAGE_KEY = "pubmax:optimistic-spill-posts:v1";
 export const OPTIMISTIC_SPILL_EVENT = "pubmax:optimistic-spill-posts-changed";
@@ -26,6 +27,9 @@ export type OptimisticSpillInput = {
   vibeTags: string[];
   pintPhotoUrl: string | null;
   venuePhotoUrl: string | null;
+  receiptPhotoUrl?: string | null;
+  measure?: DrinkMeasure;
+  measureLabel?: string;
   createdAt: string;
   /** Wave G1: optional Last Train context when a live decision was on screen. */
   leaveByIso?: string;
@@ -44,6 +48,9 @@ export type OptimisticSpillRetryPayload = {
   vibeTags: string[];
   pintPhotoUrl: string | null;
   venuePhotoUrl: string | null;
+  receiptPhotoUrl?: string | null;
+  measure?: DrinkMeasure;
+  measureLabel?: string;
   leaveByIso?: string;
   lastTrainDecision?: LastPintDecisionKind;
 };
@@ -75,7 +82,7 @@ export function shouldOptimisticallyAppearInFeed(visibility: Visibility): boolea
 
 export function buildOptimisticSpillDrop(input: OptimisticSpillInput): PintDropDTO {
   const priceGbp = parsePrice(input.priceGbp);
-  const hasPhoto = Boolean(input.pintPhotoUrl || input.venuePhotoUrl);
+  const hasPhoto = Boolean(input.pintPhotoUrl || input.venuePhotoUrl || input.receiptPhotoUrl);
   const handle =
     input.visibility === "anonymous" ? "a PUBMAXXER" : cleanString(input.handle) || "PUBMAXXER";
 
@@ -121,6 +128,8 @@ export function buildOptimisticSpillRetryPayload(
     vibeTags: input.vibeTags,
     pintPhotoUrl: input.pintPhotoUrl,
     venuePhotoUrl: input.venuePhotoUrl,
+    receiptPhotoUrl: input.receiptPhotoUrl,
+    ...(input.measure ? { measure: input.measure, measureLabel: input.measureLabel ?? "" } : {}),
     ...(input.leaveByIso ? { leaveByIso: input.leaveByIso } : {}),
     ...(input.lastTrainDecision ? { lastTrainDecision: input.lastTrainDecision } : {}),
   };
@@ -175,7 +184,7 @@ export function markOptimisticSpillRetrying(
 ): StoredOptimisticSpill[] {
   return stored.map((entry) => {
     if (entry.clientRequestId !== clientRequestId) return entry;
-    const hasPhoto = Boolean(entry.drop.pintPhotoUrl || entry.drop.venuePhotoUrl);
+    const hasPhoto = Boolean(entry.drop.pintPhotoUrl || entry.drop.venuePhotoUrl || entry.retry?.receiptPhotoUrl);
     return {
       ...entry,
       drop: {
@@ -203,8 +212,8 @@ async function resolveBlobPreview(url: string): Promise<Blob> {
 
 async function appendRetryPhoto(
   body: FormData,
-  field: "pint_photo" | "venue_photo",
-  url: string | null,
+  field: "pint_photo" | "venue_photo" | "receipt_photo",
+  url: string | null | undefined,
   resolvePhotoPreview: ResolvePhotoPreview,
 ) {
   if (!url) return;
@@ -223,6 +232,8 @@ export async function buildOptimisticSpillRetryFormData(
   body.set("handle", payload.handle);
   body.set("drink", payload.drink);
   body.set("priceGbp", payload.priceGbp);
+  if (payload.measure) body.set("measure", payload.measure);
+  if (payload.measureLabel) body.set("measureLabel", payload.measureLabel);
   body.set("passedDownNote", payload.passedDownNote);
   body.set("era", payload.era);
   body.set("visibility", payload.visibility);
@@ -231,6 +242,7 @@ export async function buildOptimisticSpillRetryFormData(
   if (payload.lastTrainDecision) body.set("lastTrainDecision", payload.lastTrainDecision);
   await appendRetryPhoto(body, "pint_photo", payload.pintPhotoUrl, resolvePhotoPreview);
   await appendRetryPhoto(body, "venue_photo", payload.venuePhotoUrl, resolvePhotoPreview);
+  await appendRetryPhoto(body, "receipt_photo", payload.receiptPhotoUrl, resolvePhotoPreview);
   return body;
 }
 
@@ -277,16 +289,31 @@ export function readOptimisticSpills(storage: StorageLike): StoredOptimisticSpil
 export function writeOptimisticSpills(
   storage: StorageLike,
   entries: StoredOptimisticSpill[],
-): void {
+): boolean {
   try {
-    if (entries.length === 0) {
+    const previous = optimisticPhotoUrls(readOptimisticSpills(storage));
+    const kept = entries.slice(0, 10);
+    if (kept.length === 0) {
       storage.removeItem(OPTIMISTIC_SPILL_STORAGE_KEY);
-      return;
+    } else {
+      storage.setItem(OPTIMISTIC_SPILL_STORAGE_KEY, JSON.stringify(kept));
     }
-    storage.setItem(OPTIMISTIC_SPILL_STORAGE_KEY, JSON.stringify(entries.slice(0, 10)));
+    const retained = optimisticPhotoUrls(kept);
+    for (const url of previous) {
+      if (!retained.has(url)) URL.revokeObjectURL(url);
+    }
+    return true;
   } catch {
     // Storage can be full or disabled; the in-memory submit path still proceeds.
+    return false;
   }
+}
+
+function optimisticPhotoUrls(entries: StoredOptimisticSpill[]): Set<string> {
+  return new Set(entries.flatMap(({ drop, retry }) => [
+    drop.pintPhotoUrl, drop.venuePhotoUrl,
+    retry?.pintPhotoUrl, retry?.venuePhotoUrl, retry?.receiptPhotoUrl,
+  ]).filter((url): url is string => typeof url === "string" && url.startsWith("blob:")));
 }
 
 export function emitOptimisticSpillChange(): void {

@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const PLAN = "6ab5ca40-836b-4970-9477-d1779fdd31ab";
 
-const capability = vi.hoisted(() => ({ token: "member-token" }));
+const capability = vi.hoisted(() => ({ token: "member-token", role: "host" }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ user: null, session: null, identityResolved: true }),
@@ -35,14 +35,16 @@ vi.mock("@/lib/planSessionCapability", () => ({
   parsePlanCapabilitySnapshot: () => ({
     token: capability.token,
     collaborationAuthorized: true,
-    role: "host",
+    role: capability.role,
   }),
   planCapabilityEvent: (id: string) => `pubmax:plan-capability:${id}`,
-  readPlanCapabilitySnapshot: () => `${capability.token}|1|host`,
+  readPlanCapabilitySnapshot: () => `${capability.token}|1|${capability.role}`,
   restorePlanCapability: vi.fn().mockResolvedValue(null),
   writePlanCapability: vi.fn(),
 }));
-vi.mock("@/components/plan/PlanRoute", () => ({ default: () => null }));
+vi.mock("@/components/plan/PlanRoute", () => ({
+  default: ({ stops }: { stops: { venueName: string }[] }) => createElement("p", null, stops.map((stop) => stop.venueName).join(", ")),
+}));
 vi.mock("@/components/plan/PlanCollaborationPanel", () => ({ default: () => null }));
 vi.mock("@/components/round/RoundStarter", () => ({ default: () => null }));
 
@@ -107,6 +109,7 @@ async function settle(): Promise<void> {
 beforeEach(() => {
   planReads = 0;
   capability.token = "member-token";
+  capability.role = "host";
   clearPlanMemberProjectionRead(PLAN);
   vi.stubGlobal("fetch", vi.fn(planFetch));
   container = document.createElement("div");
@@ -123,6 +126,35 @@ afterEach(async () => {
 });
 
 describe("the member read on one plan page", () => {
+  it.each(["upgrade", "revocation", "role change"])("does not reuse a pending read after %s", async (transition) => {
+    capability.token = transition === "upgrade" ? "" : "member-token";
+    let finishEarlier!: (response: Response) => void;
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
+      if (String(input) !== `/api/plans/${PLAN}`) return planFetch(input);
+      planReads += 1;
+      if (planReads === 1) return new Promise<Response>((resolve) => { finishEarlier = resolve; });
+      return Promise.resolve(new Response(JSON.stringify(transition === "revocation" ? preview : memberBody)));
+    }));
+    await act(async () => {
+      root.render(createElement("div", null,
+        createElement(PlanSummary, { planId: PLAN, initialPreview: preview }),
+        createElement(PlanCrew, { planId: PLAN, hostName: "Sam" }),
+      ));
+    });
+    expect(planReads).toBe(1);
+    capability.token = transition === "revocation" ? "" : "member-token";
+    if (transition === "role change") capability.role = "guest";
+    await act(async () => { window.dispatchEvent(new Event(`pubmax:plan-capability:${PLAN}`)); });
+    await settle();
+    expect(planReads).toBe(2);
+    await act(async () => {
+      finishEarlier(new Response(JSON.stringify(transition === "upgrade" ? preview : memberBody)));
+    });
+    await settle();
+    expect(container.querySelector(".planSummary")?.textContent.includes("The George")).toBe(transition !== "revocation");
+    if (transition === "role change") expect(container.querySelector(".planSummary__edit")?.textContent).toBe("Propose swap");
+  });
+
   it("costs one request across the route and the crew, and one more per capability change", async () => {
     await act(async () => {
       root.render(createElement(

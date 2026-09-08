@@ -49,10 +49,6 @@ vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: transport.authedActionFetch,
 }));
 
-vi.mock("@/lib/deviceAccountIdentity", () => ({
-  subscribeDeviceIdentity: () => () => undefined,
-}));
-
 vi.mock("@/components/nav/SiteNav", () => ({
   default: () => createElement("nav", null, "Navigation"),
 }));
@@ -257,6 +253,86 @@ async function flushAccountA(): Promise<void> {
 }
 
 describe("Social account boundary", () => {
+  it("keeps the composer mounted during a same-account cross-tab access recheck", async () => {
+    await flushAccountA();
+    const composer = host.querySelector('button[data-compose="new"]');
+    expect(composer).not.toBeNull();
+    const pendingAccess = deferred<Response>();
+    const originalFetch = transport.authedActionFetch.getMockImplementation()!;
+    transport.authedActionFetch.mockImplementation((input, ...args) =>
+      input === "/api/social/access" ? pendingAccess.promise : originalFetch(input, ...args));
+
+    await act(async () => {
+      window.dispatchEvent(new StorageEvent("storage", {
+        key: "pubmax-badge-event-opt-ins", oldValue: "[]", newValue: '["event-1"]',
+      }));
+    });
+    expect(transport.authedActionFetch.mock.calls.filter(([input]) => input === "/api/social/access")).toHaveLength(2);
+    expect(host.querySelector('button[data-compose="new"]')).toBe(composer);
+    expect(host.textContent).toContain(A_FEED_POST.body);
+    await act(async () => {
+      pendingAccess.resolve(json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" }));
+    });
+    expect(host.querySelector('button[data-compose="new"]')).toBe(composer);
+  });
+
+  it.each(["suspended", "unavailable"])("closes the composer when the access recheck returns %s", async state => {
+    await flushAccountA();
+    transport.authedActionFetch.mockImplementation(async () => {
+      if (state === "unavailable") throw new Error("Access unavailable");
+      return json({ state });
+    });
+    await act(async () => {
+      window.dispatchEvent(new StorageEvent("storage", { key: "pubmax_handle", newValue: "alice" }));
+    });
+    expect(host.querySelector('button[data-compose="new"]')).toBeNull();
+    expect(host.textContent).not.toContain(A_FEED_POST.body);
+  });
+
+  it("masks access on account revision change and ignores a superseded verified reply", async () => {
+    await flushAccountA();
+    const staleAccess = deferred<Response>();
+    const nextAccess = deferred<Response>();
+    transport.authedActionFetch.mockImplementationOnce(() => staleAccess.promise);
+    await act(async () => {
+      window.dispatchEvent(new StorageEvent("storage", { key: "pubmax_handle", newValue: "alice" }));
+    });
+    const staleSignal = transport.authedActionFetch.mock.calls.at(-1)?.[1]?.signal;
+    transport.authedActionFetch.mockImplementation(() => nextAccess.promise);
+    authState.accountRevision += 1;
+    act(() => root.render(createElement(SocialPageClient, { initialState, rivalry: [], heritageCrawls: [] })));
+    expect(host.querySelector('button[data-compose="new"]')).toBeNull();
+    expect(host.textContent).not.toContain(A_FEED_POST.body);
+    expect(staleSignal?.aborted).toBe(true);
+    await act(async () => {
+      nextAccess.resolve(json({ state: "suspended" }));
+    });
+    await act(async () => {
+      staleAccess.resolve(json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" }));
+    });
+    expect(host.querySelector('button[data-compose="new"]')).toBeNull();
+    expect(host.textContent).not.toContain(A_FEED_POST.body);
+  });
+
+  it("ignores an older same-account reply after a newer access refusal", async () => {
+    await flushAccountA();
+    const staleAccess = deferred<Response>();
+    transport.authedActionFetch.mockImplementationOnce(() => staleAccess.promise);
+    await act(async () => {
+      window.dispatchEvent(new StorageEvent("storage", { key: "pubmax_handle", newValue: "alice" }));
+    });
+    transport.authedActionFetch.mockImplementation(async () => json({ state: "suspended" }));
+    await act(async () => {
+      window.dispatchEvent(new StorageEvent("storage", { key: "pubmax_handle", newValue: "alice" }));
+    });
+    expect(host.querySelector('button[data-compose="new"]')).toBeNull();
+    await act(async () => {
+      staleAccess.resolve(json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" }));
+    });
+    expect(host.querySelector('button[data-compose="new"]')).toBeNull();
+    expect(host.textContent).not.toContain(A_FEED_POST.body);
+  });
+
   it("keeps Social neutral while the viewer session is unavailable", async () => {
     authState.user = null;
     authState.identityResolved = true;

@@ -137,25 +137,15 @@ describe("the native shell's pre-render entry decision", () => {
     expect(replaced).toEqual([]);
   });
 
-  it("takes the genuine first run to onboarding, with its eligibility already issued", () => {
-    // A GENUINE FIRST LAUNCH IS THE ONE LAUNCH THE READER JUDGES THE APP ON,
-    // and it was the launch that still painted the landing page first. Measured
-    // on the iPhone 17 Pro simulator against a local production build on
-    // 7 September 2026: the landing painted at 2951ms and the first-run screen
-    // replaced it at 4403ms (docs/proof/mobile-shells-refresh/).
-    //
-    // The branch is decidable here after all. It needs `readPreferredCity()`
-    // to answer null, and with NO stored city value at all that answer is null
-    // under every possible enabled-city table — so this reads the ABSENCE of
-    // the key, never its contents, and forks no table.
+  it("leaves first-run navigation and its handoff to AppEntryRoute", () => {
+    // A document request to /onboarding redirects home. First-run entry must
+    // use the client router before either entry marker is spent.
     const { replaced, session, local } = runEntryInit({ local: {} });
 
-    expect(replaced).toEqual([ONBOARDING_PATH]);
-    expect(session.getItem(SESSION_ENTRY_CONSUMED_KEY)).toBe("1");
-    // The onboarding route is guarded by a session handoff, so the script has
-    // to issue the same eligibility AppEntryRoute would have issued.
-    expect(session.getItem(NATIVE_FIRST_RUN_HANDOFF_KEY)).toMatch(/^\d+$/);
-    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBe("1");
+    expect(replaced).toEqual([]);
+    expect(session.getItem(SESSION_ENTRY_CONSUMED_KEY)).toBeNull();
+    expect(session.getItem(NATIVE_FIRST_RUN_HANDOFF_KEY)).toBeNull();
+    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBeNull();
   });
 
   it("leaves a stored city to the client, which owns the enabled-city table", () => {
@@ -211,10 +201,7 @@ describe("the native shell's pre-render entry decision", () => {
     for (const literal of [
       SESSION_ENTRY_CONSUMED_KEY,
       NATIVE_FIRST_RUN_ROUTED_KEY,
-      NATIVE_FIRST_RUN_HANDOFF_KEY,
-      PREFERRED_CITY_KEY,
       SHELL_START_PATH,
-      ONBOARDING_PATH,
     ]) {
       expect(ENTRY_INIT_SOURCE).toContain(literal);
     }

@@ -44,8 +44,8 @@ import {
 } from "@/lib/messagePhotoMedia.server";
 import { messagePhotoRouteDeps } from "@/lib/messagePhotoRoute.server";
 import { attachMessageVenueCards } from "@/lib/messageVenueCards.server";
-import type { HandlePair } from "@/lib/messages";
-import { messagesStore } from "@/lib/messagesStore";
+import type { HandlePair, MessageDTO } from "@/lib/messages";
+import { MessageReadUnavailableError, messagesStore } from "@/lib/messagesStore";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
@@ -107,6 +107,19 @@ function serverTiming(marks: Array<[string, number]>): string {
   return marks.map(([name, ms]) => `${name};dur=${Math.max(0, Math.round(ms))}`).join(", ");
 }
 
+async function readThread(
+  store: ReturnType<typeof messagesStore>,
+  id: string,
+  handle: string,
+): Promise<MessageDTO[] | null | Response> {
+  try {
+    return await store.listMessages(id, handle);
+  } catch (error) {
+    if (!(error instanceof MessageReadUnavailableError)) throw error;
+    return publicApiError(error.message, "UNAVAILABLE", 503, { retryable: true });
+  }
+}
+
 export async function GET(request: Request, { params }: Ctx): Promise<Response> {
   const started = performance.now();
   const { id } = await params;
@@ -131,7 +144,8 @@ export async function GET(request: Request, { params }: Ctx): Promise<Response> 
   const gateDone = performance.now();
 
   const store = messagesStore();
-  const messages = await store.listMessages(id, handle);
+  const messages = await readThread(store, id, handle);
+  if (messages instanceof Response) return messages;
   if (messages === null) {
     return publicApiError("Conversation not found.", "NOT_FOUND", 404);
   }
@@ -202,7 +216,8 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
   if (!multipart && action === "report") {
     const messageId = readString(body.messageId);
     if (!messageId) return publicApiError("Missing message id.", "INVALID_REQUEST", 400);
-    const thread = await store.listMessages(id, handle);
+    const thread = await readThread(store, id, handle);
+    if (thread instanceof Response) return thread;
     if (thread === null) {
       return publicApiError("Conversation not found.", "NOT_FOUND", 404);
     }
@@ -299,7 +314,8 @@ async function sendPhoto(
   // Nothing is prepared, staged or scanned before the courtesy check has said
   // this is the sender's own conversation: a stranger must not be able to spend
   // a scan on an id they guessed.
-  const thread = await store.listMessages(conversationId, handle);
+  const thread = await readThread(store, conversationId, handle);
+  if (thread instanceof Response) return thread;
   if (thread === null) {
     return publicApiError("Conversation not found.", "NOT_FOUND", 404);
   }

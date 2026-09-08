@@ -12,6 +12,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import ZonePintIndexStrip from "@/components/zones/ZonePintIndexStrip";
 import { ZONE_IDS, parseZoneParam, type ZonePintIndex } from "@/lib/zones";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 import "./zonePicker.css";
 
@@ -77,7 +78,8 @@ export default function ZonePicker({
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
 
-  // Close the toolbar popover on outside click / Escape.
+  useDismissOnEscape(variant === "toolbar" && open, () => setOpen(false));
+
   useEffect(() => {
     if (variant !== "toolbar" || !open) return;
     function onDown(event: MouseEvent) {
@@ -85,18 +87,9 @@ export default function ZonePicker({
         setOpen(false);
       }
     }
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        // Claim the key so the map-level Escape (close drawer) doesn't also fire.
-        event.preventDefault();
-        setOpen(false);
-      }
-    }
     document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
     };
   }, [open, variant]);
 

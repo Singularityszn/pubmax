@@ -722,7 +722,6 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
 
   return (
     <section className="planSummary" aria-labelledby="plan-stops-title">
-      <div className="planSummary__rail" aria-hidden="true" />
       <div className="planSummary__heading">
         <p className="planPage__eyebrow">First pint · {view.startLabel}</p>
         <div className="planSummary__headingRow">

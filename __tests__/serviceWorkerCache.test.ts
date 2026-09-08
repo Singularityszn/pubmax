@@ -17,6 +17,8 @@ function workerHarness(input: {
   fetchError?: Error;
   cached?: FakeResponse | null;
   putError?: Error;
+  openError?: Error;
+  matchError?: Error;
   trimError?: Error;
   activeWorker?: string;
   cacheNames?: string[];
@@ -28,7 +30,10 @@ function workerHarness(input: {
     if (input.putError) throw input.putError;
   });
   const cache = {
-    match: vi.fn(async () => input.cached ?? null),
+    match: vi.fn(async () => {
+      if (input.matchError) throw input.matchError;
+      return input.cached ?? null;
+    }),
     put,
     keys: vi.fn(async () => {
       if (input.trimError) throw input.trimError;
@@ -59,7 +64,10 @@ function workerHarness(input: {
     },
   };
   const fakeCaches = {
-    open: vi.fn(async () => cache),
+    open: vi.fn(async () => {
+      if (input.openError) throw input.openError;
+      return cache;
+    }),
     keys: vi.fn(async () => input.cacheNames ?? []),
     delete: vi.fn(async () => true),
   };
@@ -77,6 +85,7 @@ function rolloutWorkerHarness(input: {
   entries: Record<string, Array<[string, Response]>>;
   rejectCurrentWrites?: boolean;
   response?: Response;
+  openGate?: Promise<void>;
 }) {
   const listeners = new Map<string, Listener>();
   const records = new Map<
@@ -99,6 +108,7 @@ function rolloutWorkerHarness(input: {
   const deletedCaches: string[] = [];
   const fakeCaches = {
     async open(name: string) {
+      await input.openGate;
       let entries = records.get(name);
       if (!entries) {
         entries = new Map();
@@ -767,6 +777,91 @@ describe("service worker map cache", () => {
     const response = (await tile.response) as Response;
     expect(response.type).toBe("error");
     expect(response).not.toBe(poisoned);
+  });
+
+  it("retires covered venue caches across deployment query revisions", async () => {
+    const fresh = new Response(JSON.stringify({ revision: "target", rows: [] }));
+    Object.defineProperty(fresh, "type", { value: "basic" });
+    const { listeners, records } = rolloutWorkerHarness({
+      response: fresh,
+      entries: {
+        "pubmax-sw-data-first": [["/data/venues_slim.core.json?v=first", new Response("first")]],
+        "pubmax-sw-data-second": [["/data/venues_slim.core.json?v=second", new Response("second")]],
+        "pubmax-sw-data-uncovered": [["/data/venues_slim.cell.other.json?v=second", new Response("other cell")]],
+      },
+    });
+    await Promise.all(dispatchLifecycle(listeners.get("activate")!));
+    expect(records.has("pubmax-sw-data-first")).toBe(true);
+
+    const event = dispatchFetch(listeners.get("fetch")!, new Request(
+      "https://pubmaxxing.com/data/venues_slim.core.json?v=target",
+    ));
+    await expect(event.response).resolves.toBe(fresh);
+    await Promise.all(event.lifetime);
+
+    expect(records.has("pubmax-sw-data-first")).toBe(false);
+    expect(records.has("pubmax-sw-data-second")).toBe(false);
+    expect(records.has("pubmax-sw-data-uncovered")).toBe(true);
+  });
+
+  it("caches an update after the caller consumes it while cache opening is delayed", async () => {
+    let release!: () => void;
+    const openGate = new Promise<void>((resolve) => { release = resolve; });
+    const body = '[{"price":5.2}]';
+    const fresh = await fetch(`data:application/json,${encodeURIComponent(body)}`);
+    const { listeners, records } = rolloutWorkerHarness({ entries: {}, response: fresh, openGate });
+    const request = new Request("https://pubmaxxing.com/data/price_updates/latest.json");
+    const event = dispatchFetch(listeners.get("fetch")!, request);
+    const response = await event.response as Response;
+    expect(await response.text()).toBe('[{"price":5.2}]');
+    release();
+    await Promise.all(event.lifetime);
+    const stored = records.get("pubmax-sw-data-target")?.get(request.url)?.response;
+    expect(await stored?.text()).toBe('[{"price":5.2}]');
+  });
+
+  it.each([
+    TILE_URL,
+    "https://pubmaxxing.com/_next/static/chunks/app.js",
+    "https://pubmaxxing.com/data/venues_slim.core.json?v=test",
+    "https://pubmaxxing.com/data/price_updates/latest.json",
+  ])("keeps the network available when opening the cache fails for %s", async (url) => {
+    const networkResponse = fakeResponse("cors");
+    const { listeners, doFetch } = workerHarness({
+      response: networkResponse,
+      openError: new DOMException("Storage unavailable", "SecurityError"),
+    });
+    const event = dispatchFetch(listeners.get("fetch")!, new Request(url));
+
+    await expect(event.response).resolves.toBe(networkResponse);
+    await expect(Promise.all(event.lifetime)).resolves.toBeDefined();
+    expect(doFetch).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the network available when reading the cache fails", async () => {
+    const networkResponse = fakeResponse("cors");
+    const { listeners } = workerHarness({
+      response: networkResponse,
+      matchError: new DOMException("Cache read failed", "InvalidStateError"),
+    });
+    const event = dispatchFetch(listeners.get("fetch")!, new Request(TILE_URL));
+
+    await expect(event.response).resolves.toBe(networkResponse);
+    await expect(Promise.all(event.lifetime)).resolves.toBeDefined();
+  });
+
+  it("still refuses a wrong venue revision when the cache cannot open", async () => {
+    const networkResponse = fakeResponse("cors");
+    networkResponse.json?.mockResolvedValue({ revision: "wrong", rows: [] });
+    const { listeners } = workerHarness({
+      response: networkResponse,
+      openError: new DOMException("Storage unavailable", "SecurityError"),
+    });
+    const event = dispatchFetch(listeners.get("fetch")!, new Request(
+      "https://pubmaxxing.com/data/venues_slim.core.json?v=test",
+    ));
+
+    await expect(event.response).resolves.toMatchObject({ status: 0, type: "error" });
   });
 
   it("returns a successful tile when Cache Storage rejects the write", async () => {

@@ -68,3 +68,21 @@ test("a moderator session cookie opens /admin", async ({
     page.getByRole("heading", { name: "Moderator sign-in" }),
   ).toHaveCount(0);
 });
+
+test("the token form reloads the guarded document after session confirmation", async ({ page }) => {
+  const initial = await page.goto("/admin");
+  expect(initial?.status()).toBe(401);
+  await page.getByLabel("Admin token").fill(ADMIN_TOKEN);
+
+  const [document] = await Promise.all([
+    page.waitForResponse((response) =>
+      response.request().isNavigationRequest()
+      && new URL(response.url()).pathname === "/admin"
+      && response.status() === 200),
+    page.getByRole("button", { name: "Open console", exact: true }).click(),
+  ]);
+
+  expect(document.status()).toBe(200);
+  await expect(page.getByRole("tablist", { name: "Admin sections" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Moderator sign-in" })).toHaveCount(0);
+});

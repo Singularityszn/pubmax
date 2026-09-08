@@ -33,6 +33,7 @@ async function prepareFirstVisit(page: Page): Promise<ObservedIngest[]> {
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
   page.on("request", (request) => {
@@ -51,14 +52,23 @@ async function prepareFirstVisit(page: Page): Promise<ObservedIngest[]> {
   return observed;
 }
 
+async function openAfterFirstAnswer(page: Page, path: string): Promise<void> {
+  await page.goto("/about", { waitUntil: "domcontentloaded" });
+  await expect.poll(() => page.evaluate(() =>
+    sessionStorage.getItem("pubmax:consent-first-route:v1")),
+  { timeout: 30_000 }).toBe("/about");
+  await expect(page.getByLabel("Anonymous analytics choice")).toBeHidden();
+  await page.goto(path, { waitUntil: "domcontentloaded" });
+}
+
 test("declining is remembered and sends nothing", async ({ page }) => {
   test.setTimeout(60_000);
   const ingestRequests = await prepareFirstVisit(page);
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await openAfterFirstAnswer(page, "/");
 
   const prompt = page.getByLabel("Anonymous analytics choice");
   await expect(prompt).toBeVisible();
-  await expect(prompt.getByText("PUBMAXXING uses optional analytics")).toBeVisible();
+  await expect(prompt.getByText("PUBMAXX uses optional analytics")).toBeVisible();
 
   for (const name of ["Allow", "No thanks"]) {
     const button = prompt.getByRole("button", { name, exact: true });
@@ -81,7 +91,7 @@ test("declining is remembered and sends nothing", async ({ page }) => {
 test("accepting starts ingest, captures a route change, and does not ask again", async ({ page }) => {
   test.setTimeout(60_000);
   const ingestRequests = await prepareFirstVisit(page);
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await openAfterFirstAnswer(page, "/");
 
   const prompt = page.getByLabel("Anonymous analytics choice");
   await prompt.getByRole("button", { name: "Allow" }).click();
@@ -146,7 +156,7 @@ test("rechecks consent when another prompt releases the budget", async ({ page }
   await page.addInitScript(() => {
     window.sessionStorage.setItem("pubmax:prompt-budget:v1", "identity-nudge");
   });
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await openAfterFirstAnswer(page, "/");
 
   const prompt = page.getByLabel("Anonymous analytics choice");
   await page.evaluate(() => new Promise<void>((resolve) => {
@@ -165,7 +175,7 @@ test("rechecks consent when another prompt releases the budget", async ({ page }
 test("map prompt leaves the primary planning control usable", async ({ page }) => {
   test.setTimeout(60_000);
   await prepareFirstVisit(page);
-  await page.goto("/map", { waitUntil: "domcontentloaded" });
+  await openAfterFirstAnswer(page, "/map");
 
   const prompt = page.getByLabel("Anonymous analytics choice");
   const planControl = page.getByRole("button", { name: "Describe the outing" });

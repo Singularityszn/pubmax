@@ -150,6 +150,8 @@ describe("no surface puts the raw coral back on a light word", () => {
     ],
     ["components/map/venueOccupancy.css", ".venueOccupancySignIn a {"],
     ["components/plan/nightCrawl.css", ".nightCrawl__enterKicker {"],
+    ["app/tonight/tonightLede.css", ".tonightHypedSource {"],
+    ["app/tonight/tonightLede.css", ".tonightChainRowMap {"],
   ];
 
   for (const [file, selector] of HOLD_TO_INK) {

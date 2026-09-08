@@ -29,6 +29,7 @@
 // Pure: no fs, no React, no dataset import. The server hands it figures.
 
 import { formatGbp } from "@/lib/formatGbp";
+import { measureIsPint, type DrinkMeasure } from "@/lib/drinkMeasure";
 
 /** The city's own two figures, both derived from the priced dataset. */
 export type PintPriceAverages = {
@@ -78,8 +79,8 @@ export function strangerSavingLine(averages: PintPriceAverages | null): string |
   return `The average listed pint across ${averages.sampleSize.toLocaleString("en-GB")} London pubs is ${formatGbp(averages.averageGbp)}. In the cheapest third it is ${formatGbp(averages.cheapAverageGbp)}. That is ${formatGbp(gap)} a pint you keep.`;
 }
 
-/** One price a reader logged, with the pub it was logged at. */
-export type LoggedPrice = { priceGbp: number };
+/** One logged price with its serving measure. */
+export type LoggedPrice = { priceGbp: number; measure?: DrinkMeasure | null };
 
 export type ReaderSavings = {
   /** How many logged prices came in under the city average. */
@@ -89,7 +90,7 @@ export type ReaderSavings = {
 };
 
 /**
- * What the reader themselves saved: for every price they logged under the city
+ * What the reader themselves saved: for every pint price logged under the city
  * average, the gap it beat the average by. A price at or over the average
  * counts for nothing.
  */
@@ -101,6 +102,7 @@ export function readerSavings(
   let pints = 0;
   let savedGbp = 0;
   for (const row of logged) {
+    if (!measureIsPint(row.measure)) continue;
     if (!Number.isFinite(row.priceGbp) || row.priceGbp <= 0) continue;
     const gap = averages.averageGbp - row.priceGbp;
     if (gap <= 0) continue;

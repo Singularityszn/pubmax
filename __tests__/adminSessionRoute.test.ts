@@ -34,6 +34,18 @@ afterEach(() => {
 });
 
 describe("POST /api/admin/session", () => {
+  it.each([null, [], "token", 42, true].map((body) => [body]))("refuses a non-object JSON body: %j", async (body) => {
+    const { POST } = await import("@/app/api/admin/session/route");
+    const response = await POST(new Request("http://localhost/api/admin/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Invalid JSON.", code: "INVALID_REQUEST", retryable: false });
+    expect(response.headers.get("set-cookie")).toBeNull();
+  });
+
   it("sets an httpOnly session cookie when the token matches", async () => {
     const { POST } = await import("@/app/api/admin/session/route");
     const res = await POST(
@@ -91,6 +103,15 @@ describe("POST /api/admin/session", () => {
 });
 
 describe("GET /api/admin/session", () => {
+  it.each(["%", "%ZZ", "%E0%A4%A"])("treats malformed cookie %s as absent", async (value) => {
+    const { GET } = await import("@/app/api/admin/session/route");
+    const response = await GET(new Request("http://localhost/api/admin/session", {
+      headers: { cookie: `pubmax_admin_session=${value}` },
+    }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ authenticated: false });
+  });
+
   it("returns authenticated true when a valid session cookie is present", async () => {
     const { hashAdminSession } = await import("@/lib/adminAuth");
     const { GET } = await import("@/app/api/admin/session/route");

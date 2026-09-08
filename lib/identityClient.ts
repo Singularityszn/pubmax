@@ -68,18 +68,25 @@ export const DEVICE_HANDLE_KEY = "pubmax_handle";
  * whole session and only a full page load ever corrected it.
  */
 export function syncDeviceHandle(
-  storage: Pick<Storage, "setItem"> | null | undefined,
+  storage: Pick<Storage, "getItem" | "setItem"> | null | undefined,
   handle: string,
 ): void {
   const normalised = normalizeHandle(handle);
   if (!storage || !normalised) return;
+  let previous: string | null = null;
+  try {
+    previous = storage.getItem(DEVICE_HANDLE_KEY);
+  } catch {
+    // A failed read does not prevent a write from establishing the handle.
+  }
+  if (previous === normalised) return;
   try {
     storage.setItem(DEVICE_HANDLE_KEY, normalised);
   } catch {
     // Account ownership is durable even when browser storage is blocked.
     return;
   }
-  emitDeviceIdentityChanged();
+  if (normalizeHandle(previous ?? "") !== normalised) emitDeviceIdentityChanged();
 }
 
 /** Read the device-local handle, or "" when absent or unreadable. */

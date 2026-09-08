@@ -424,6 +424,7 @@ import {
 } from "@/lib/logIntentReveal";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
+import { hasUnresolvedBuiltStops, useBuiltVenueDetails } from "@/components/map/pubmap/useBuiltVenueDetails";
 import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   isCurrentMapResumeRefresh,
@@ -607,7 +608,7 @@ import {
   type MapSelectionNotice,
   type VenueDetailStatus,
   builtStopCountFor,
-  phonePlannerOrder,
+  plannerContentOrder,
 } from "@/lib/pubMap";
 import { explicitMapIntent } from "@/lib/explicitMapIntent";
 import {
@@ -2681,6 +2682,21 @@ export default function PubMap({
     [pubVenues, savedIds],
   );
   const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
+  const resolveBuiltVenueDetails = useCallback((resolved: ReadonlyMap<string, Venue>) => {
+    setDetailById((current) => {
+      const next = new Map(current);
+      for (const venue of resolved.values()) next.set(venue.id, venue);
+      return next;
+    });
+    setBuiltIds((current) => {
+      const next = [...new Set(current.map((id) => resolved.get(id)?.id ?? id))];
+      return next.length === current.length && next.every((id, index) => id === current[index])
+        ? current
+        : next;
+    });
+  }, [setBuiltIds]);
+  const builtVenueDetails = useBuiltVenueDetails({ cityId, builtIds, venueById, onResolved: resolveBuiltVenueDetails });
+  const builtVenueDetailsPending = hasUnresolvedBuiltStops(mode, builtVenueDetails);
   // Zone pint index (nearest-station fare zone medians) for the zone picker.
   // Computed off the full venue set so the strip's numbers don't shift as the
   // user filters — it's a stable "here's the lay of the land" reference.
@@ -2957,7 +2973,7 @@ export default function PubMap({
   const { route, routeMappedActive, routeForMap, routeForMapLegs } = useMapPlanPresentation({
     mode,
     builtIds,
-    routeMapped,
+    routeMapped: routeMapped && !builtVenueDetailsPending,
     suggestedRoute,
     activePlanRoute,
     venueById,
@@ -3176,7 +3192,6 @@ export default function PubMap({
       setSheetSnap,
       setSheetDragY,
       selectedVenueId,
-      venueById,
       setVenueRevealSettleSequence,
     ],
   );
@@ -5008,86 +5023,82 @@ export default function PubMap({
     activeCrawl ?? EMPTY_CRAWL_FIELDS;
   const selectedVenueIdOrUndefined = selectedVenue ? selectedVenue.id : undefined;
 
-  // The phone planner opens on what the reader has IN HAND. With a pub picked
-  // as a stop, the sheet used to open on the "Describe the outing" form and
-  // the picked pub sat a whole form below the fold, unnamed on the first
-  // screen (verify-preview-4, J04); a crawl being built now leads the sheet.
+  // Existing crawl stops lead both planners; discovery follows.
   const phoneDescribeForm =
     mobileViewport && isLondon && suggestedPlanArea ? (
       <MobilePlanActivation
+        key="planner-discovery"
         cityId={cityId}
         initialNightArea={suggestedPlanArea.slug}
         venuesById={venuesById}
         onGenerated={applyGeneratedMobilePlan}
       />
     ) : null;
-  const plannerOrder = phonePlannerOrder({ mobileViewport, mode, builtCount: builtIds.length });
-  const builtCrawlLeads = plannerOrder === "build-first";
+  const builtCrawlLeads = plannerContentOrder({ mode, builtCount: builtIds.length }) === "build-first";
+  const plannerDiscovery = mobileViewport ? phoneDescribeForm : (
+    <ControlRail
+      key="planner-discovery"
+      mode={mode}
+      onModeChange={setMode}
+      filters={filters}
+      onFiltersChange={setFilters}
+      filteredVenues={filteredPubVenues}
+      builtCount={builtIds.length}
+      onClearBuilt={clearBuilt}
+      onLoadCrawl={loadCuratedCrawl}
+      onNearbyCrawl={startNearbyCrawl}
+      nearbyLoading={nearbyLoading}
+      nearbyError={nearbyError}
+      savedOnly={savedOnly}
+      onSavedOnlyChange={changeSavedOnly}
+      curatedCrawls={cityCuratedCrawls}
+      cityDisplayName={city.displayName}
+      cityId={cityId}
+    />
+  );
+  const plannedCrawl = (
+    <RoutePanel
+      key="planner-crawl"
+      mode={mode}
+      crawlStyle={filters.crawlStyle}
+      altStyle={altStyle}
+      onAltStyleChange={setAltStyle}
+      route={route}
+      filteredVenues={filteredPubVenues}
+      builtIds={builtIds}
+      stopLoad={builtVenueDetails}
+      activeVenueId={selectedVenueIdOrUndefined}
+      venueSignals={venueSignals}
+      crawlBlurb={activeCrawlBlurb}
+      crawlName={activeCrawlName}
+      crawlId={activeCrawlId}
+      routeMapped={routeMappedActive}
+      stopsFirst={builtCrawlLeads}
+      originDistanceKm={distanceFromUserKm}
+      onMapRoute={mapCurrentRoute}
+      onHideRoute={hideMappedRoute}
+      onCheckLastTrain={checkLastTrainAtRouteEnd}
+      onSelectVenue={selectVenue}
+      onToggleStop={toggleBuiltStop}
+      onReverseRoute={reverseRoute}
+      journeyByToIndex={journeyByToIndex}
+      journeyLoading={journeyLoading}
+      journeyTotalMinutes={journeyTotalMinutes}
+      cityDisplayName={city.displayName}
+      cityId={cityId}
+      poisPath={city.poisPath}
+      onRoundStarted={setActiveRoundStartedCode}
+    >
+      {renderPlannerEmptyState()}
+    </RoutePanel>
+  );
   const [plannerHead, plannerFoot] = builtCrawlLeads
-    ? [null, phoneDescribeForm]
-    : [phoneDescribeForm, null];
+    ? [plannedCrawl, plannerDiscovery]
+    : [plannerDiscovery, plannedCrawl];
   const plannerPanel = planningOpen ? (
     <>
-      {plannerHead}
       {renderPlannerMapButton()}
-      {/* One planner per surface. The rail is the DESKTOP planner: brand block,
-          mode toggle, search box, featured routes and the full filter stack. The
-          phone already owns every one of those in its own chrome (the one-bar
-          search overlay, the Filters sheet, the Near me control) and opens its
-          own "Describe the outing" form above, so mounting the rail here stacked
-          a second planner under the first inside one bottom sheet. */}
-      {!mobileViewport ? (
-        <ControlRail
-          mode={mode}
-          onModeChange={setMode}
-          filters={filters}
-          onFiltersChange={setFilters}
-          filteredVenues={filteredPubVenues}
-          builtCount={builtIds.length}
-          onClearBuilt={clearBuilt}
-          onLoadCrawl={loadCuratedCrawl}
-          onNearbyCrawl={startNearbyCrawl}
-          nearbyLoading={nearbyLoading}
-          nearbyError={nearbyError}
-          savedOnly={savedOnly}
-          onSavedOnlyChange={changeSavedOnly}
-          curatedCrawls={cityCuratedCrawls}
-          cityDisplayName={city.displayName}
-          cityId={cityId}
-        />
-      ) : null}
-      <RoutePanel
-        mode={mode}
-        crawlStyle={filters.crawlStyle}
-        altStyle={altStyle}
-        onAltStyleChange={setAltStyle}
-        route={route}
-        filteredVenues={filteredPubVenues}
-        builtIds={builtIds}
-        activeVenueId={selectedVenueIdOrUndefined}
-        venueSignals={venueSignals}
-        crawlBlurb={activeCrawlBlurb}
-        crawlName={activeCrawlName}
-        crawlId={activeCrawlId}
-        routeMapped={routeMappedActive}
-        stopsFirst={builtCrawlLeads}
-        originDistanceKm={distanceFromUserKm}
-        onMapRoute={mapCurrentRoute}
-        onHideRoute={hideMappedRoute}
-        onCheckLastTrain={checkLastTrainAtRouteEnd}
-        onSelectVenue={selectVenue}
-        onToggleStop={toggleBuiltStop}
-        onReverseRoute={reverseRoute}
-        journeyByToIndex={journeyByToIndex}
-        journeyLoading={journeyLoading}
-        journeyTotalMinutes={journeyTotalMinutes}
-        cityDisplayName={city.displayName}
-        cityId={cityId}
-        poisPath={city.poisPath}
-        onRoundStarted={setActiveRoundStartedCode}
-      >
-        {renderPlannerEmptyState()}
-      </RoutePanel>
+      {plannerHead}
       {plannerFoot}
     </>
   ) : null;
@@ -5779,6 +5790,7 @@ export default function PubMap({
         ukBaseStatus={ukBaseStatus}
         cityName={mapContextName}
         open={mapListOpen}
+        active={mapSurfaceId === "venue-list"}
         onOpenChange={setMapListOpen}
         loaded={
           loaded &&

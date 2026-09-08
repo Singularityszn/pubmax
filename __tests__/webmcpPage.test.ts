@@ -53,7 +53,7 @@ describe("WebMCP Agent Night Board", () => {
     // Typed with fetch's own parameters so mock.calls carries them: a bare
     // `async () =>` infers a zero-argument call tuple, and reading the request
     // back off it is what this test is for.
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify(generatedVictoriaRoute()), {
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response(JSON.stringify(generatedVictoriaRoute()), {
       status: 200,
       headers: { "content-type": "application/json" },
     }));

@@ -87,7 +87,8 @@ silently stale.
 | socialConnectionStore | factory-ready | Connected provider rows with one backend selector. |
 | socialCrewStore | not dual-backend | Supabase-only RPC store. |
 | socialInteractionStore | factory-eligible, policy-heavy | Social relationship, block, and interaction policy. |
-| socialPostConsentStore | not dual-backend | Supabase-only RPC store. |
+| socialGalleryStore | factory-eligible, policy-heavy | Owned staged uploads, ordered publication, and gallery edit replay. |
+| socialPostConsentStore | factory-eligible, policy-heavy | Media and approved-tag reads select memory or Supabase; consent and admin operations remain durable. |
 | socialPostStore | factory-eligible, policy-heavy | Moderation, visibility, consent, and relationship policy. |
 | stepOutNudgeStore | factory-ready | Nudge preference and send-stamp rows with shared backend selection. |
 | venueOperatorsStore | factory-eligible, policy-heavy | Venue claim ownership and operator moderation policy. |
@@ -109,13 +110,13 @@ The following stores intentionally stay outside the factory-ready path:
   `planStore` already selects its main interface at the seam; that does not remove its remaining branches.
   Owner: the maintainers reviewing the next issue #727 store slice.
 - **not dual-backend:** `importNotesStore`, `socialCrewStore`,
-  `socialPostConsentStore`, and `whatsOnStore`. Their storage premise is not
+  and `whatsOnStore`. Their storage premise is not
   memory-or-Supabase. Owner: not applicable for this factory.
 - **policy-heavy:** `commentsStore`, `communityPriceStore`,
   `identityHandleStore`, `messagesStore`, `occupancyStore`,
   `pintDropsStore`, `profileStore`,
   `priceTrustEventStore`, `profileCoverPhotoStore`, `referralStore`,
-  `roundsStore`, `socialInteractionStore`, `socialPostStore`,
+  `roundsStore`, `socialGalleryStore`, `socialInteractionStore`, `socialPostConsentStore`, `socialPostStore`,
   `venueOperatorsStore`, `venuePhotoStore`, `visitReportsStore`, and
   `weatherRecommendationStore`. Their explicit policy requires a separate review before further migration.
   Some already use the factory; the label does not imply an unmigrated store.
@@ -152,6 +153,7 @@ It records 55 store-related modules and 54 other production files. These counts 
     "app/api/pub-pal/llm/route.ts",
     "app/api/pub-pal/voice-token/route.ts",
     "app/api/saved-pubs/list-follows/route.ts",
+    "app/api/social/media/[mediaId]/route.ts",
     "app/api/starter-packs/[slug]/follow/route.ts",
     "app/api/starter-packs/route.ts",
     "app/bar-tab/[id]/opengraph-image.tsx",
@@ -201,6 +203,7 @@ It records 55 store-related modules and 54 other production files. These counts 
     "lib/profileImageMedia.server.ts",
     "lib/profileImageRoute.server.ts",
     "lib/profileImageServe.server.ts",
+    "lib/profileOwnership.ts",
     "lib/profileStore.ts",
     "lib/pubPalStore.ts",
     "lib/pushTokenStore.ts",
@@ -212,8 +215,10 @@ It records 55 store-related modules and 54 other production files. These counts 
     "lib/savedPubsStore.ts",
     "lib/serverEnv.ts",
     "lib/socialConnectionStore.ts",
+    "lib/socialGalleryStore.ts",
     "lib/socialInteractionStore.ts",
     "lib/socialOAuth.ts",
+    "lib/socialPostConsentStore.ts",
     "lib/socialPostCreateRequest.server.ts",
     "lib/socialPostMedia.server.ts",
     "lib/socialPostStore.ts",

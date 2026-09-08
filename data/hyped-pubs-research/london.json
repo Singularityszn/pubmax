@@ -1,724 +1,333 @@
 [
   {
-    "name": "The Devonshire",
-    "area": "Soho",
-    "venueId": "venue-s2ppfm",
-    "whyLine": "Named again and again as the Soho pub people queue for, with @beli_eats calling it \"considered by many to be the top gastropub in London, if not the entire UK\" and Mark Wiens filming its roast for 482k views.",
-    "sources": [
-      {
-        "label": "r/london",
-        "url": "https://www.reddit.com/r/london/comments/1vo4ak1/comment/p3mla48/",
-        "observedAt": "2026-08-14"
-      },
-      {
-        "label": "TikTok @beli_eats",
-        "url": "https://www.tiktok.com/@beli_eats/video/7669613233245916430",
-        "observedAt": "2026-08-03"
-      },
-      {
-        "label": "Time Out / Estrella Damm Top 50 Gastropubs 2026",
-        "url": "https://www.morningadvertiser.co.uk/Article/2026/01/27/devonshire-in-soho-named-no1-on-2026-estrella-damm-top-50-gastropubs-list/",
-        "observedAt": "2026-01-27"
-      }
-    ],
-    "score": 88,
-    "mentions": 25
-  },
-  {
     "name": "Duke of Edinburgh",
     "area": "Brixton",
     "venueId": "venue-6yj07d",
-    "whyLine": "Brixton beer garden that r/LondonSocialClub keeps booking for open meet-ups, and that @missjonesgroup lists among its ten London beer gardens.",
+    "whyLine": "Brixton drinkers are organising open group visits to its beer garden.",
     "sources": [
       {
         "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vo2dgd/comment/p44sabj/",
+        "publishedAt": "2026-08-17",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vo2dgd/comment/p46bmbf/",
+        "publishedAt": "2026-08-17",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vo2dgd/comment/p410xta/",
+        "publishedAt": "2026-08-16",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vo2dgd/comment/p3tzo4c/",
+        "publishedAt": "2026-08-15",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vo2dgd/comment/p3udc6o/",
+        "publishedAt": "2026-08-15",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vo2dgd/comment/p3uf58g/",
+        "publishedAt": "2026-08-15",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vo2dgd/comment/p3v0lv6/",
+        "publishedAt": "2026-08-15",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vo2dgd/comment/p3voh3k/",
+        "publishedAt": "2026-08-15",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vo2dgd/comment/p3vrrkv/",
+        "publishedAt": "2026-08-15",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vhi7gj/comment/p3sv6l4/",
+        "publishedAt": "2026-08-15",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vo2dgd/290826_beer_garden_drinks_duke_of_edinburgh/",
+        "publishedAt": "2026-08-14",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonSocialClub",
         "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vo2dgd/comment/p3m9ajf/",
-        "observedAt": "2026-08-14"
+        "publishedAt": "2026-08-14",
+        "observedAt": "2026-09-07"
       },
       {
-        "label": "TikTok @missjonesgroup",
-        "url": "https://www.tiktok.com/@missjonesgroup/photo/7660068224175705366",
-        "observedAt": "2026-07-08"
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vo2dgd/comment/p3q4o2u/",
+        "publishedAt": "2026-08-14",
+        "observedAt": "2026-09-07"
       },
       {
-        "label": "Instagram @dukebrixton",
-        "url": "https://www.instagram.com/reel/DXZURwLCMAv/",
-        "observedAt": "2026-04-21"
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vo2dgd/comment/p3q4xhc/",
+        "publishedAt": "2026-08-14",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vo2dgd/comment/p3qpl5g/",
+        "publishedAt": "2026-08-14",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vhi7gj/comment/p33e17m/",
+        "publishedAt": "2026-08-11",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vhi7gj/comment/p2v4rap/",
+        "publishedAt": "2026-08-10",
+        "observedAt": "2026-09-07"
       }
     ],
-    "score": 86,
-    "mentions": 20
+    "score": 73,
+    "mentions": 17
   },
   {
-    "name": "Ye Olde Cheshire Cheese",
-    "area": "Fleet Street",
-    "venueId": "venue-alrti6",
-    "whyLine": "The Fleet Street pub every London history creator films, with @thosepubguys reaching 321k views on its cellars and Dickens connection.",
+    "name": "The Devonshire",
+    "area": "Soho",
+    "venueId": "venue-s2ppfm",
+    "whyLine": "Recent Soho posts recommend its pub atmosphere and Guinness.",
     "sources": [
+      {
+        "label": "TikTok amiet",
+        "url": "https://www.tiktok.com/@amiet/video/7680115217233202465",
+        "publishedAt": "2026-08-31",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "TikTok _happihour",
+        "url": "https://www.tiktok.com/@_happihour/video/7682180308325649678",
+        "publishedAt": "2026-09-05",
+        "observedAt": "2026-09-07"
+      },
       {
         "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1u8fpgt/comment/os7u2wh/",
-        "observedAt": "2026-06-17"
+        "url": "https://www.reddit.com/r/LondonFood/comments/1w60g1o/comment/p7j9xuw/",
+        "publishedAt": "2026-09-03",
+        "observedAt": "2026-09-07"
       },
       {
-        "label": "TikTok @thosepubguys",
-        "url": "https://www.tiktok.com/@thosepubguys/video/7612929649449995542",
-        "observedAt": "2026-03-07"
+        "label": "TikTok thehandbooknews",
+        "url": "https://www.tiktok.com/@thehandbooknews/video/7673838126426524950",
+        "publishedAt": "2026-08-20",
+        "observedAt": "2026-09-07"
       },
-      {
-        "label": "Instagram @volga_londonstories",
-        "url": "https://www.instagram.com/reel/DTqa3APDQ8F/",
-        "observedAt": "2026-01-18"
-      }
-    ],
-    "score": 85,
-    "mentions": 20
-  },
-  {
-    "name": "Simmons",
-    "area": "Soho (Greek St) and City",
-    "venueId": null,
-    "whyLine": "Cited across TikTok and r/cheaplondon for a £4 Guinness, with u/TheBaneofNewHaven noting \"Simmons on Greek Street does £4 Guinness all day plus £3 Camden Hells til 7\".",
-    "sources": [
       {
         "label": "r/london",
-        "url": "https://www.reddit.com/r/london/comments/1t4i41o/comment/ok3p812/",
-        "observedAt": "2026-05-05"
+        "url": "https://www.reddit.com/r/london/comments/1vo4ak1/comment/p3mla48/",
+        "publishedAt": "2026-08-14",
+        "observedAt": "2026-09-07"
       },
-      {
-        "label": "TikTok @guinnessgirlz",
-        "url": "https://www.tiktok.com/@guinnessgirlz/video/7666131977975778582",
-        "observedAt": "2026-07-24"
-      },
-      {
-        "label": "Instagram @guinnessgirlz",
-        "url": "https://www.instagram.com/reel/DbLLm1TtADy/",
-        "observedAt": "2026-07-24"
-      }
-    ],
-    "score": 84,
-    "mentions": 14
-  },
-  {
-    "name": "Ye Olde Mitre",
-    "area": "Holborn",
-    "venueId": "venue-uk-w420644092",
-    "whyLine": "Repeatedly framed as the hidden pub down an alley, with @tans.pantry posting \"everyone walks past this alley and has no idea london's oldest pub was hiding in it\".",
-    "sources": [
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p392gcd/",
-        "observedAt": "2026-08-12"
-      },
-      {
-        "label": "TikTok @volga_londonstories",
-        "url": "https://www.tiktok.com/@volga_londonstories/video/7609067397072358658",
-        "observedAt": "2026-02-20"
-      },
-      {
-        "label": "Instagram @russogioacchino",
-        "url": "https://www.instagram.com/reel/DTdkDyiDMeu/",
-        "observedAt": "2026-01-13"
-      }
-    ],
-    "score": 80,
-    "mentions": 15
-  },
-  {
-    "name": "The Seven Stars",
-    "area": "Holborn",
-    "venueId": "venue-11n82fd",
-    "whyLine": "Holborn pub whose cat drove a 1.0m-view TikTok, and which u/AndJohnson4All followed up on in person: \"Currently sat in the Seven Stars after I saw your post.\"",
-    "sources": [
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1vpzdcu/comment/p41ko9m/",
-        "observedAt": "2026-08-16"
-      },
-      {
-        "label": "TikTok @a.curious.way",
-        "url": "https://www.tiktok.com/@a.curious.way/video/7611954530279886102",
-        "observedAt": "2026-02-28"
-      },
-      {
-        "label": "Instagram @lovely.pubs",
-        "url": "https://www.instagram.com/reel/DVB3LJziL-E/",
-        "observedAt": "2026-02-21"
-      }
-    ],
-    "score": 72,
-    "mentions": 10
-  },
-  {
-    "name": "The Churchill Arms",
-    "area": "Kensington",
-    "venueId": "venue-17h8293",
-    "whyLine": "Kensington pub used as the photo stop on London pub routes, named by @aladyinlondon and on @lesleyhauler's 26.5-mile pub crawl.",
-    "sources": [
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p38vtfl/",
-        "observedAt": "2026-08-12"
-      },
-      {
-        "label": "TikTok @aladyinlondon",
-        "url": "https://www.tiktok.com/@aladyinlondon/video/7608976878078135574",
-        "observedAt": "2026-02-20"
-      },
-      {
-        "label": "Instagram @volga_londonstories",
-        "url": "https://www.instagram.com/reel/DTqa3APDQ8F/",
-        "observedAt": "2026-01-18"
-      }
-    ],
-    "score": 71,
-    "mentions": 11
-  },
-  {
-    "name": "The Mayflower",
-    "area": "Rotherhithe",
-    "venueId": "venue-1lcgpd9",
-    "whyLine": "Rotherhithe riverside pub given as the anchor of a three-pub walk by u/maddypadden: \"Rotherhithe - do the Mayflower, the Ship and the Angel.\"",
-    "sources": [
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1u8fpgt/comment/os7szuf/",
-        "observedAt": "2026-06-17"
-      },
-      {
-        "label": "TikTok @therunawaydodo",
-        "url": "https://www.tiktok.com/@therunawaydodo/video/7664637668617162017",
-        "observedAt": "2026-07-20"
-      },
-      {
-        "label": "Instagram @volga_londonstories",
-        "url": "https://www.instagram.com/reel/DTqa3APDQ8F/",
-        "observedAt": "2026-01-18"
-      }
-    ],
-    "score": 63,
-    "mentions": 7
-  },
-  {
-    "name": "Princess Louise",
-    "area": "Holborn",
-    "venueId": "venue-4xlgb0",
-    "whyLine": "Holborn pub described by @historicpubcrawls as \"a total time capsule, complete with gorgeous wood panelling\", and listed by Londoners as the one to show a first-time visitor.",
-    "sources": [
-      {
-        "label": "r/LondonPubCrawl",
-        "url": "https://www.reddit.com/r/LondonPubCrawl/comments/1qorbxr/comment/o26o4w5/",
-        "observedAt": "2026-01-28"
-      },
-      {
-        "label": "TikTok @historicpubcrawls",
-        "url": "https://www.tiktok.com/@historicpubcrawls/video/7656510631687752993",
-        "observedAt": "2026-06-28"
-      },
-      {
-        "label": "Instagram @historicpubcrawls",
-        "url": "https://www.instagram.com/reel/DXKKhBtgBS3/",
-        "observedAt": "2026-04-15"
-      }
-    ],
-    "score": 62,
-    "mentions": 9
-  },
-  {
-    "name": "Coach & Horses",
-    "area": "Soho / Covent Garden",
-    "venueId": "venue-phqazo",
-    "whyLine": "Put forward as the alternative to the Devonshire by u/Big_Lavishness_6823: \"I'd go to the Coach and Horses in Covent Garden for a more authentic experience instead.\"",
-    "sources": [
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1qq8pim/comment/o2eqjzi/",
-        "observedAt": "2026-01-29"
-      },
-      {
-        "label": "TikTok @volga_londonstories",
-        "url": "https://www.tiktok.com/@volga_londonstories/video/7609067397072358658",
-        "observedAt": "2026-02-20"
-      },
-      {
-        "label": "Instagram @volga_londonstories",
-        "url": "https://www.instagram.com/reel/DUd5edDjUhN/",
-        "observedAt": "2026-02-07"
-      }
-    ],
-    "score": 62,
-    "mentions": 8
-  },
-  {
-    "name": "The White Cross",
-    "area": "Richmond",
-    "venueId": "venue-j7ktuq",
-    "whyLine": "Richmond pub whose tidal beer garden carried a 2.0m-view TikTok, with @secret.london noting \"the staff are prepared with a stash of wellies\".",
-    "sources": [
-      {
-        "label": "r/LondonTravel",
-        "url": "https://www.reddit.com/r/LondonTravel/comments/1vxwe57/comment/p5s5emv/",
-        "observedAt": "2026-08-25"
-      },
-      {
-        "label": "TikTok @loulouexplores",
-        "url": "https://www.tiktok.com/@loulouexplores/video/7633191757898910998",
-        "observedAt": "2026-04-26"
-      },
-      {
-        "label": "Instagram @russogioacchino",
-        "url": "https://www.instagram.com/reel/DTdkDyiDMeu/",
-        "observedAt": "2026-01-13"
-      }
-    ],
-    "score": 62,
-    "mentions": 6
-  },
-  {
-    "name": "The Roebuck",
-    "area": "Richmond",
-    "venueId": "venue-uk-w477667819",
-    "whyLine": "Richmond Hill pub named in several 2026 recommendation threads, including u/lunchbox3's \"the Roebuck in Richmond is fab\".",
-    "sources": [
-      {
-        "label": "r/visitlondon",
-        "url": "https://www.reddit.com/r/visitlondon/comments/1u876eh/comment/os6czsd/",
-        "observedAt": "2026-06-17"
-      },
-      {
-        "label": "TikTok @lesleyhauler",
-        "url": "https://www.tiktok.com/@lesleyhauler/video/7640415744701844749",
-        "observedAt": "2026-05-16"
-      },
-      {
-        "label": "Instagram @volga_londonstories",
-        "url": "https://www.instagram.com/reel/DTqa3APDQ8F/",
-        "observedAt": "2026-01-18"
-      }
-    ],
-    "score": 61,
-    "mentions": 8
-  },
-  {
-    "name": "The Dickens Inn",
-    "area": "St Katharine Docks",
-    "venueId": "venue-xvusrx",
-    "whyLine": "St Katharine Docks pub that r/LondonTravel keeps giving as the Sunday roast after the Tower, with u/Wordwoman50 reporting \"The roast was delicious!\"",
-    "sources": [
       {
         "label": "r/london",
-        "url": "https://www.reddit.com/r/london/comments/1v1mnj9/comment/oyommjw/",
-        "observedAt": "2026-07-20"
-      },
-      {
-        "label": "TikTok @volga_londonstories",
-        "url": "https://www.tiktok.com/@volga_londonstories/video/7609067397072358658",
-        "observedAt": "2026-02-20"
-      },
-      {
-        "label": "Instagram @volga_londonstories",
-        "url": "https://www.instagram.com/reel/DTqa3APDQ8F/",
-        "observedAt": "2026-01-18"
+        "url": "https://www.reddit.com/r/london/comments/1vo4ak1/comment/p3mle3l/",
+        "publishedAt": "2026-08-14",
+        "observedAt": "2026-09-07"
       }
     ],
     "score": 60,
     "mentions": 6
   },
   {
-    "name": "The World's End",
-    "area": "Camden",
-    "venueId": "venue-uk-n296891969",
-    "whyLine": "Camden pub at the centre of an August thread on a 12% service charge for bar orders, where u/Mundane-Occasion-386 wrote \"service charge on pub counter ordering is outrageous\".",
+    "name": "Ye Olde Mitre",
+    "area": "Holborn",
+    "venueId": "venue-lkjwk4",
+    "whyLine": "A recent Guinness review recommends this Holborn pub, while preferring Sheephaven Bay for a quieter pint.",
     "sources": [
       {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1vz5hvz/comment/p626sml/",
-        "observedAt": "2026-08-26"
+        "label": "TikTok tubemerchant",
+        "url": "https://www.tiktok.com/@tubemerchant/video/7682274930897014030",
+        "publishedAt": "2026-09-06",
+        "observedAt": "2026-09-07"
       },
       {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1vz5hvz/worlds_end_camden/",
-        "observedAt": "2026-08-26"
+        "label": "Instagram sunny_in_london",
+        "url": "https://www.instagram.com/reel/Dcy8Pu2gGQU/",
+        "publishedAt": "2026-09-02",
+        "observedAt": "2026-09-07"
       },
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1vz5hvz/comment/p629r09/",
-        "observedAt": "2026-08-26"
-      }
-    ],
-    "score": 58,
-    "mentions": 10
-  },
-  {
-    "name": "Prince of Peckham",
-    "area": "Peckham",
-    "venueId": "venue-uk-w35428104",
-    "whyLine": "Peckham community pub that drew a royal visit in June 2026 and its founder's own post: \"our pubs are here to disrupt the industry in a way that's never been done before.\"",
-    "sources": [
-      {
-        "label": "r/london",
-        "url": "https://www.reddit.com/r/london/comments/1twh0lr/comment/opobhd1/",
-        "observedAt": "2026-06-04"
-      },
-      {
-        "label": "TikTok @myroyalnews",
-        "url": "https://www.tiktok.com/@myroyalnews/video/7647240904922746134",
-        "observedAt": "2026-06-03"
-      },
-      {
-        "label": "Instagram @secret.london",
-        "url": "https://www.instagram.com/reel/DZcbcVNk4JG/",
-        "observedAt": "2026-06-11"
-      }
-    ],
-    "score": 58,
-    "mentions": 8
-  },
-  {
-    "name": "The Holly Bush",
-    "area": "Hampstead",
-    "venueId": "venue-agudyf",
-    "whyLine": "Hampstead pub given for roasts and winter drinking, named in u/CURSEtheseMETALhandz's nine-pub list and by u/TheBaneofNewHaven for a Sunday roast.",
-    "sources": [
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p39yfqh/",
-        "observedAt": "2026-08-12"
-      },
-      {
-        "label": "TikTok @lesleyhauler",
-        "url": "https://www.tiktok.com/@lesleyhauler/video/7640415744701844749",
-        "observedAt": "2026-05-16"
-      },
-      {
-        "label": "Instagram @volga_londonstories",
-        "url": "https://www.instagram.com/reel/DTqa3APDQ8F/",
-        "observedAt": "2026-01-18"
-      }
-    ],
-    "score": 58,
-    "mentions": 6
-  },
-  {
-    "name": "The Prospect of Whitby",
-    "area": "Wapping",
-    "venueId": "venue-16pnwmm",
-    "whyLine": "Wapping riverside pub carried by history accounts, with @londonlayers1 posting \"It's got history pouring from the walls and I love it.\"",
-    "sources": [
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p38tnp4/",
-        "observedAt": "2026-08-12"
-      },
-      {
-        "label": "TikTok @londonlayers1",
-        "url": "https://www.tiktok.com/@londonlayers1/video/7679332964391537942",
-        "observedAt": "2026-08-29"
-      },
-      {
-        "label": "Instagram @volga_londonstories",
-        "url": "https://www.instagram.com/reel/DTqa3APDQ8F/",
-        "observedAt": "2026-01-18"
-      }
-    ],
-    "score": 54,
-    "mentions": 5
-  },
-  {
-    "name": "The Faltering Fullback",
-    "area": "Finsbury Park",
-    "venueId": "venue-2dy2xw",
-    "whyLine": "Finsbury Park pub named for its garden, which @aleks_london_diary describes as \"a huge multi-level beer garden covered in plants and fairy lights\".",
-    "sources": [
       {
         "label": "r/LondonFood",
         "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p392gcd/",
-        "observedAt": "2026-08-12"
-      },
-      {
-        "label": "TikTok @missjonesgroup",
-        "url": "https://www.tiktok.com/@missjonesgroup/photo/7660068224175705366",
-        "observedAt": "2026-07-08"
-      },
-      {
-        "label": "Instagram @aleks_london_diary",
-        "url": "https://www.instagram.com/reel/DYotBY5seC_/",
-        "observedAt": "2026-05-22"
-      }
-    ],
-    "score": 53,
-    "mentions": 7
-  },
-  {
-    "name": "The Albion",
-    "area": "Islington",
-    "venueId": "venue-1wgjxs6",
-    "whyLine": "Islington pub named for its garden and roast, with @beyondthefork posting \"Such a gorgeous pub with the prettiest beer garden\".",
-    "sources": [
-      {
-        "label": "r/islington",
-        "url": "https://www.reddit.com/r/islington/comments/1vcyc02/comment/p18q4ic/",
-        "observedAt": "2026-08-02"
-      },
-      {
-        "label": "TikTok @beyondthefork",
-        "url": "https://www.tiktok.com/@beyondthefork/video/7659305368354393367",
-        "observedAt": "2026-07-06"
-      },
-      {
-        "label": "Instagram @aleks_london_diary",
-        "url": "https://www.instagram.com/reel/DYotBY5seC_/",
-        "observedAt": "2026-05-22"
-      }
-    ],
-    "score": 52,
-    "mentions": 5
-  },
-  {
-    "name": "The Golden Tooth",
-    "area": "Newington Green / Canonbury",
-    "venueId": null,
-    "whyLine": "New Newington Green pub from the Papi team, with u/CandidMoment reporting \"Newly opened but I recently had an excellent roast at the Golden Tooth\".",
-    "sources": [
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1tr0z1h/comment/ool9pbl/",
-        "observedAt": "2026-05-29"
-      },
-      {
-        "label": "TikTok @eat.snack.repeat",
-        "url": "https://www.tiktok.com/@eat.snack.repeat/video/7636359979498212630",
-        "observedAt": "2026-05-05"
-      },
-      {
-        "label": "Londonist: London's Best New Pubs 2026",
-        "url": "https://londonist.com/london/drink/london-s-best-new-pubs-of-2026",
+        "publishedAt": "2026-08-12",
         "observedAt": "2026-09-07"
       }
     ],
-    "score": 52,
-    "mentions": 5
-  },
-  {
-    "name": "The Crabtree",
-    "area": "Fulham",
-    "venueId": "venue-rurec8",
-    "whyLine": "Fulham riverside pub that appears both in beer-garden round-ups and in Fulham FC matchday threads about £5 pints before kick-off.",
-    "sources": [
-      {
-        "label": "r/fulhamfc",
-        "url": "https://www.reddit.com/r/fulhamfc/comments/1r7b700/comment/o5zcyi2/",
-        "observedAt": "2026-02-18"
-      },
-      {
-        "label": "TikTok @lesleyhauler",
-        "url": "https://www.tiktok.com/@lesleyhauler/video/7640415744701844749",
-        "observedAt": "2026-05-16"
-      },
-      {
-        "label": "Instagram @aleks_london_diary",
-        "url": "https://www.instagram.com/reel/DYotBY5seC_/",
-        "observedAt": "2026-05-22"
-      }
-    ],
-    "score": 50,
-    "mentions": 6
-  },
-  {
-    "name": "The Blues Kitchen",
-    "area": "Shoreditch / Brixton",
-    "venueId": "venue-1pfnt71",
-    "whyLine": "Shoreditch and Brixton venue named for its live music nights, and included in @london_lines's ten Thursday drinking spots.",
-    "sources": [
-      {
-        "label": "r/AlternativeLondon",
-        "url": "https://www.reddit.com/r/AlternativeLondon/comments/1vweon1/hootananny_or_the_blues_kitchen_brixton/",
-        "observedAt": "2026-08-23"
-      },
-      {
-        "label": "TikTok @heystasia_",
-        "url": "https://www.tiktok.com/@heystasia_/video/7665677049423564054",
-        "observedAt": "2026-07-23"
-      },
-      {
-        "label": "Instagram @russogioacchino",
-        "url": "https://www.instagram.com/reel/DTdkDyiDMeu/",
-        "observedAt": "2026-01-13"
-      }
-    ],
-    "score": 50,
-    "mentions": 4
-  },
-  {
-    "name": "Hackney Church Brew Co",
-    "area": "Hackney",
-    "venueId": null,
-    "whyLine": "Hackney taproom carried by its Hendl rotisserie residency on TikTok and listed at £3.50 a pint on DesignMyNight's cheap-pint guide.",
-    "sources": [
-      {
-        "label": "r/cheaplondon",
-        "url": "https://www.reddit.com/r/cheaplondon/comments/1tdfex3/350_pints_hackney_church_brew_co/",
-        "observedAt": "2026-05-14"
-      },
-      {
-        "label": "TikTok @aton_of_food",
-        "url": "https://www.tiktok.com/@aton_of_food/video/7608915440076721430",
-        "observedAt": "2026-02-20"
-      },
-      {
-        "label": "DesignMyNight: cheapest pints in London",
-        "url": "https://www.designmynight.com/london/blog/cheapest-pint-london",
-        "observedAt": "2026-05-26"
-      }
-    ],
-    "score": 49,
-    "mentions": 4
-  },
-  {
-    "name": "The Blackfriar",
-    "area": "Blackfriars",
-    "venueId": "venue-eltcmh",
-    "whyLine": "Blackfriars pub recommended for its interior with a caveat from u/Coprinuslurking: \"have a look, its quite the sight, i'd not stay there for long though\".",
-    "sources": [
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p392gcd/",
-        "observedAt": "2026-08-12"
-      },
-      {
-        "label": "Instagram @russogioacchino",
-        "url": "https://www.instagram.com/reel/DTdkDyiDMeu/",
-        "observedAt": "2026-01-13"
-      },
-      {
-        "label": "YouTube @Postcard And A Pint",
-        "url": "https://www.youtube.com/watch?v=bu8zhdLFYpk",
-        "observedAt": "2026-06-07"
-      }
-    ],
-    "score": 48,
-    "mentions": 6
-  },
-  {
-    "name": "Talli Queen",
-    "area": "Shepherd's Bush",
-    "venueId": null,
-    "whyLine": "Indian pub taking over the former Queen Adelaide on Uxbridge Road, documenting its own build on TikTok and YouTube before opening.",
-    "sources": [
-      {
-        "label": "TikTok @thetalliqueen",
-        "url": "https://www.tiktok.com/@thetalliqueen/video/7673486237214330144",
-        "observedAt": "2026-08-13"
-      },
-      {
-        "label": "YouTube @The Talli Queen",
-        "url": "https://www.youtube.com/watch?v=M-C87_N_k3w",
-        "observedAt": "2026-08-27"
-      },
-      {
-        "label": "Time Out: new London openings, September 2026",
-        "url": "https://www.timeout.com/london/news/best-new-restaurants-september-2026-083026",
-        "observedAt": "2026-08-30"
-      }
-    ],
-    "score": 48,
-    "mentions": 2
-  },
-  {
-    "name": "Mother Kelly's",
-    "area": "Bethnal Green",
-    "venueId": "venue-uk-n2831429756",
-    "whyLine": "Bethnal Green taproom that r/LondonSocialClub used as its East London craft beer meeting point in August 2026.",
-    "sources": [
-      {
-        "label": "r/LondonSocialClub",
-        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vh1pbq/comment/p25llat/",
-        "observedAt": "2026-08-06"
-      },
-      {
-        "label": "r/LondonSocialClub",
-        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vh1pbq/070826_east_london_craft_beer_mother_kellys/",
-        "observedAt": "2026-08-06"
-      },
-      {
-        "label": "r/LondonSocialClub",
-        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vh1pbq/comment/p24emlo/",
-        "observedAt": "2026-08-06"
-      }
-    ],
-    "score": 47,
-    "mentions": 7
-  },
-  {
-    "name": "Trafalgar Tavern",
-    "area": "Greenwich",
-    "venueId": "venue-1clnw4x",
-    "whyLine": "Greenwich riverside pub carried by the London-history reel format and named in Reddit's Greenwich pub lists.",
-    "sources": [
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p3anx1m/",
-        "observedAt": "2026-08-12"
-      },
-      {
-        "label": "TikTok @volga_londonstories",
-        "url": "https://www.tiktok.com/@volga_londonstories/video/7609067397072358658",
-        "observedAt": "2026-02-20"
-      },
-      {
-        "label": "Instagram @volga_londonstories",
-        "url": "https://www.instagram.com/reel/DTqa3APDQ8F/",
-        "observedAt": "2026-01-18"
-      }
-    ],
-    "score": 47,
+    "score": 55,
     "mentions": 3
   },
   {
-    "name": "Effra Social",
-    "area": "Brixton",
-    "venueId": "venue-1jy17e7",
-    "whyLine": "Brixton venue whose Jurkish pop-up kitchen drove its 2026 TikTok coverage, described by @allthingzree as \"the new resident pop-up kitchen at Effra Social in Brixton\".",
+    "name": "The Mayflower",
+    "area": "Rotherhithe",
+    "venueId": "venue-1lcgpd9",
+    "whyLine": "Visitors recommend a Rotherhithe riverside stop and lunch near the Brunel Museum.",
     "sources": [
       {
-        "label": "r/LondonSocialClub",
-        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1w1sfcn/290826_brixton_drinks_effra/",
-        "observedAt": "2026-08-29"
+        "label": "r/LondonTravel",
+        "url": "https://www.reddit.com/r/LondonTravel/comments/1w7ro1u/comment/p7xg6ox/",
+        "publishedAt": "2026-09-05",
+        "observedAt": "2026-09-07"
       },
       {
-        "label": "TikTok @explorewithrc",
-        "url": "https://www.tiktok.com/@explorewithrc/video/7662338956813438210",
-        "observedAt": "2026-07-14"
+        "label": "r/uktravel",
+        "url": "https://www.reddit.com/r/uktravel/comments/1vxnyo7/comment/p5rhg1s/",
+        "publishedAt": "2026-08-25",
+        "observedAt": "2026-09-07"
       },
       {
-        "label": "Instagram @bestofbrixtonldn",
-        "url": "https://www.instagram.com/reel/DbC0pVDsZfs/",
-        "observedAt": "2026-07-21"
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p38tnp4/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p39kd3p/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p39kefm/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p3anx1m/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
       }
     ],
-    "score": 46,
-    "mentions": 5
+    "score": 50,
+    "mentions": 6
   },
   {
-    "name": "The Grenadier",
-    "area": "Belgravia",
-    "venueId": "venue-1ha28jc",
-    "whyLine": "Belgravia mews pub named by @aladyinlondon as \"tucked away down winding mews\", and cited on Reddit for food over pure history.",
+    "name": "Ye Olde Cheshire Cheese",
+    "area": "Fleet Street",
+    "venueId": "venue-alrti6",
+    "whyLine": "Recent videos show its Fleet Street rooms and literary history.",
+    "sources": [
+      {
+        "label": "Instagram russelledwards_jacktheripper",
+        "url": "https://www.instagram.com/reel/Dc-g6cbDFEa/",
+        "publishedAt": "2026-09-07",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "TikTok insidelondon.uk",
+        "url": "https://www.tiktok.com/@insidelondon.uk/video/7681702226003266838",
+        "publishedAt": "2026-09-04",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "Instagram historicpubcrawls",
+        "url": "https://www.instagram.com/reel/DczADPsASv8/",
+        "publishedAt": "2026-09-02",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "Instagram russelledwards_jacktheripper",
+        "url": "https://www.instagram.com/reel/DcRMeEaEkP_/",
+        "publishedAt": "2026-08-20",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 50,
+    "mentions": 4
+  },
+  {
+    "name": "The Churchill Arms",
+    "area": "Kensington",
+    "venueId": "venue-17h8293",
+    "whyLine": "Recent visitors highlight the Kensington pub’s flower-covered exterior.",
+    "sources": [
+      {
+        "label": "TikTok gabriela_swartwood",
+        "url": "https://www.tiktok.com/@gabriela_swartwood/video/7680258055744916749",
+        "publishedAt": "2026-08-31",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "TikTok fun_station3",
+        "url": "https://www.tiktok.com/@fun_station3/video/7677234178877885718",
+        "publishedAt": "2026-08-23",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p38vtfl/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "TikTok my_floraldays_london",
+        "url": "https://www.tiktok.com/@my_floraldays_london/video/7671945026410122518",
+        "publishedAt": "2026-08-09",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 48,
+    "mentions": 4
+  },
+  {
+    "name": "The Seven Stars",
+    "area": "Holborn",
+    "venueId": "venue-11n82fd",
+    "whyLine": "A visitor reports choosing this Holborn pub after reading another drinker's recommendation.",
     "sources": [
       {
         "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1u8fpgt/comment/os8j9rm/",
-        "observedAt": "2026-06-17"
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vpzdcu/comment/p4nw1aq/",
+        "publishedAt": "2026-08-19",
+        "observedAt": "2026-09-07"
       },
       {
-        "label": "TikTok @aladyinlondon",
-        "url": "https://www.tiktok.com/@aladyinlondon/video/7615272217869356310",
-        "observedAt": "2026-03-09"
+        "label": "TikTok thegreedydick",
+        "url": "https://www.tiktok.com/@thegreedydick/video/7674607046716574998",
+        "publishedAt": "2026-08-16",
+        "observedAt": "2026-09-07"
       },
       {
-        "label": "Instagram @volga_londonstories",
-        "url": "https://www.instagram.com/reel/DUd5edDjUhN/",
-        "observedAt": "2026-02-07"
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vpzdcu/my_favourite_pub_in_central_london/",
+        "publishedAt": "2026-08-16",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vpzdcu/comment/p41ko9m/",
+        "publishedAt": "2026-08-16",
+        "observedAt": "2026-09-07"
       }
     ],
     "score": 44,
@@ -727,461 +336,589 @@
   {
     "name": "Hope and Anchor",
     "area": "Brixton",
-    "venueId": "venue-uk-n274268703",
-    "whyLine": "Brixton pub used for an open r/LondonSocialClub drinks meet in August 2026 that filled from strangers replying in the thread.",
+    "venueId": null,
+    "whyLine": "An August Brixton drinks invitation attracted people asking to join the group.",
     "sources": [
       {
         "label": "r/LondonSocialClub",
-        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vytwmq/comment/p5zi8f3/",
-        "observedAt": "2026-08-26"
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vytwmq/comment/p6mm0yf/",
+        "publishedAt": "2026-08-29",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vytwmq/comment/p66latb/",
+        "publishedAt": "2026-08-27",
+        "observedAt": "2026-09-07"
       },
       {
         "label": "r/LondonSocialClub",
         "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vytwmq/290826_drinks_hope_and_anchor_brixton/",
-        "observedAt": "2026-08-26"
+        "publishedAt": "2026-08-26",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vytwmq/comment/p5zi8f3/",
+        "publishedAt": "2026-08-26",
+        "observedAt": "2026-09-07"
       },
       {
         "label": "r/LondonSocialClub",
         "url": "https://www.reddit.com/r/LondonSocialClub/comments/1vytwmq/comment/p5zpykq/",
-        "observedAt": "2026-08-26"
-      }
-    ],
-    "score": 43,
-    "mentions": 6
-  },
-  {
-    "name": "The Parakeet",
-    "area": "Kentish Town",
-    "venueId": "venue-1u13yzn",
-    "whyLine": "Kentish Town gastropub named for its roast, with @whatgabyate calling it \"most definitely a strong contender\" in a search for London's best roast.",
-    "sources": [
-      {
-        "label": "r/camdentown",
-        "url": "https://www.reddit.com/r/camdentown/comments/1q6lpyv/comment/ny8uxg1/",
-        "observedAt": "2026-01-07"
-      },
-      {
-        "label": "TikTok @whatgabyate",
-        "url": "https://www.tiktok.com/@whatgabyate/video/7595587201128336662",
-        "observedAt": "2026-01-15"
-      },
-      {
-        "label": "Instagram @russogioacchino",
-        "url": "https://www.instagram.com/reel/DTdkDyiDMeu/",
-        "observedAt": "2026-01-13"
+        "publishedAt": "2026-08-26",
+        "observedAt": "2026-09-07"
       }
     ],
     "score": 42,
-    "mentions": 4
+    "mentions": 5
   },
   {
-    "name": "People's Park Tavern",
-    "area": "Victoria Park",
-    "venueId": "venue-uk-w95243702",
-    "whyLine": "Victoria Park pub named as a summer venue by @london_lines and included in Hackney pub round-ups.",
+    "name": "The Prospect of Whitby",
+    "area": "Wapping",
+    "venueId": "venue-16pnwmm",
+    "whyLine": "Recent posts recommend this historic Wapping pub for its riverside views.",
     "sources": [
       {
-        "label": "TikTok @london_lines",
-        "url": "https://www.tiktok.com/@london_lines/video/7620491148448107798",
-        "observedAt": "2026-03-23"
+        "label": "TikTok londonlayers1",
+        "url": "https://www.tiktok.com/@londonlayers1/video/7679332964391537942",
+        "publishedAt": "2026-08-29",
+        "observedAt": "2026-09-07"
       },
       {
-        "label": "Instagram @aleks_london_diary",
-        "url": "https://www.instagram.com/reel/DYotBY5seC_/",
-        "observedAt": "2026-05-22"
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p38tnp4/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
       },
       {
-        "label": "TikTok @missjonesgroup",
-        "url": "https://www.tiktok.com/@missjonesgroup/photo/7660068224175705366",
-        "observedAt": "2026-07-08"
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p3anx1m/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
       }
     ],
-    "score": 40,
-    "mentions": 5
+    "score": 42,
+    "mentions": 3
+  },
+  {
+    "name": "The White Cross",
+    "area": "Richmond",
+    "venueId": "venue-j7ktuq",
+    "whyLine": "Recent visitors discuss the Richmond beer garden that floods at high tide.",
+    "sources": [
+      {
+        "label": "r/LondonTravel",
+        "url": "https://www.reddit.com/r/LondonTravel/comments/1vxwe57/comment/p5s5emv/",
+        "publishedAt": "2026-08-25",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "TikTok secret.london",
+        "url": "https://www.tiktok.com/@secret.london/video/7677257647271185697",
+        "publishedAt": "2026-08-23",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p3anx1m/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 41,
+    "mentions": 3
   },
   {
     "name": "Saint Monday",
     "area": "Hackney",
-    "venueId": "venue-uk-w293285859",
-    "whyLine": "Hackney brewery taproom used for r/LondonSocialClub's East London craft beer meet on 4 September 2026.",
+    "venueId": null,
+    "whyLine": "London drinkers arranged a September craft-beer meeting at this Hackney taproom.",
     "sources": [
       {
         "label": "r/LondonSocialClub",
-        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1w689zn/comment/p7kz84e/",
-        "observedAt": "2026-09-03"
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1w689zn/comment/p7u19n2/",
+        "publishedAt": "2026-09-04",
+        "observedAt": "2026-09-07"
       },
       {
         "label": "r/LondonSocialClub",
         "url": "https://www.reddit.com/r/LondonSocialClub/comments/1w689zn/04092026_east_london_craft_beer_saint_monday/",
-        "observedAt": "2026-09-03"
+        "publishedAt": "2026-09-03",
+        "observedAt": "2026-09-07"
       },
       {
         "label": "r/LondonSocialClub",
-        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1urw8gk/10072026_east_london_craft_beer_saint_monday/",
-        "observedAt": "2026-07-09"
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1w689zn/comment/p7kz84e/",
+        "publishedAt": "2026-09-03",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1w689zn/comment/p7ls451/",
+        "publishedAt": "2026-09-03",
+        "observedAt": "2026-09-07"
       }
     ],
     "score": 39,
-    "mentions": 6
-  },
-  {
-    "name": "The Old Bank of England",
-    "area": "Fleet Street",
-    "venueId": "venue-lrlyh8",
-    "whyLine": "Fleet Street pub carried by history accounts, with @thosepubguys noting \"This pub used to be the home of the Crown Jewels!\"",
-    "sources": [
-      {
-        "label": "TikTok @thosepubguys",
-        "url": "https://www.tiktok.com/@thosepubguys/video/7615515096105733398",
-        "observedAt": "2026-03-10"
-      },
-      {
-        "label": "Instagram @volga_londonstories",
-        "url": "https://www.instagram.com/reel/DTqa3APDQ8F/",
-        "observedAt": "2026-01-18"
-      },
-      {
-        "label": "TikTok @ldncharacter",
-        "url": "https://www.tiktok.com/@ldncharacter/video/7619761069396954390",
-        "observedAt": "2026-03-21"
-      }
-    ],
-    "score": 38,
     "mentions": 4
   },
   {
-    "name": "The Cadogan Arms",
-    "area": "Chelsea",
-    "venueId": "venue-uk-n280835217",
-    "whyLine": "Chelsea pub reviewed on YouTube as \"London's Most Expensive Pub\" for 317k views, then revisited by a second channel in September 2026.",
+    "name": "Princess Louise",
+    "area": "Holborn",
+    "venueId": "venue-4xlgb0",
+    "whyLine": "A recent Holborn pub list highlights its Victorian interior.",
     "sources": [
       {
-        "label": "YouTube @Danny & Gary",
-        "url": "https://www.youtube.com/watch?v=L6mYMxlDDe0",
-        "observedAt": "2026-06-13"
+        "label": "TikTok louie.travels",
+        "url": "https://www.tiktok.com/@louie.travels/video/7680924883462737174",
+        "publishedAt": "2026-09-02",
+        "observedAt": "2026-09-07"
       },
       {
-        "label": "YouTube @Paul & Cathryn Eat & Explore",
-        "url": "https://www.youtube.com/watch?v=jsuB_uHVHZA",
-        "observedAt": "2026-09-06"
+        "label": "Instagram somedaylist.app",
+        "url": "https://www.instagram.com/reel/DcjWBxzgRwf/",
+        "publishedAt": "2026-08-27",
+        "observedAt": "2026-09-07"
       }
     ],
-    "score": 38,
+    "score": 39,
     "mentions": 2
+  },
+  {
+    "name": "The Wenlock Arms",
+    "area": "Hoxton",
+    "venueId": "venue-1yexvrp",
+    "whyLine": "A recent cask-beer discussion recommends this pub near Old Street.",
+    "sources": [
+      {
+        "label": "r/uktravel",
+        "url": "https://www.reddit.com/r/uktravel/comments/1vxnyo7/comment/p5rwy3a/",
+        "publishedAt": "2026-08-25",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "Time Out",
+        "url": "https://www.timeout.com/london/news/camra-best-pub-2026-cockpit-chislehurst-081026",
+        "publishedAt": "2026-08-10",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "mentions": 2,
+    "score": 36
+  },
+  {
+    "name": "The Dickens Inn",
+    "area": "St Katharine Docks",
+    "venueId": "venue-xvusrx",
+    "whyLine": "Visitors recommend its Sunday roast and views over St Katharine Docks.",
+    "sources": [
+      {
+        "label": "r/LondonTravel",
+        "url": "https://www.reddit.com/r/LondonTravel/comments/1w7ro1u/comment/p7ym9tn/",
+        "publishedAt": "2026-09-05",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonTravel",
+        "url": "https://www.reddit.com/r/LondonTravel/comments/1w7ro1u/comment/p7x7mt6/",
+        "publishedAt": "2026-09-05",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonTravel",
+        "url": "https://www.reddit.com/r/LondonTravel/comments/1w7ro1u/comment/p7ykrkq/",
+        "publishedAt": "2026-09-05",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 35,
+    "mentions": 3
   },
   {
     "name": "Sheephaven Bay",
     "area": "Camden",
     "venueId": "venue-d6icqd",
-    "whyLine": "Camden Irish pub given without hesitation for Guinness, with u/atjw writing \"the Guinness is better than many pubs at home\".",
+    "whyLine": "Recent recommendations praise the Camden pub’s Guinness and Irish atmosphere.",
     "sources": [
       {
         "label": "r/AskIreland",
         "url": "https://www.reddit.com/r/AskIreland/comments/1vlmkv4/comment/p32gtj6/",
-        "observedAt": "2026-08-11"
-      },
-      {
-        "label": "r/LDN",
-        "url": "https://www.reddit.com/r/LDN/comments/1sblaq9/comment/oe4jz29/",
-        "observedAt": "2026-04-03"
+        "publishedAt": "2026-08-11",
+        "observedAt": "2026-09-07"
       },
       {
         "label": "r/AskIreland",
         "url": "https://www.reddit.com/r/AskIreland/comments/1vlmkv4/comment/p32l5nz/",
-        "observedAt": "2026-08-11"
-      }
-    ],
-    "score": 37,
-    "mentions": 6
-  },
-  {
-    "name": "The Spaniards Inn",
-    "area": "Hampstead",
-    "venueId": "venue-1snxfi3",
-    "whyLine": "Hampstead pub given as a Heath walk stop, named alongside the Flask and Holly Bush in roast threads.",
-    "sources": [
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1u8fpgt/comment/os7t2pb/",
-        "observedAt": "2026-06-17"
+        "publishedAt": "2026-08-11",
+        "observedAt": "2026-09-07"
       },
       {
-        "label": "Instagram @volga_londonstories",
-        "url": "https://www.instagram.com/reel/DTqa3APDQ8F/",
-        "observedAt": "2026-01-18"
+        "label": "r/AskIreland",
+        "url": "https://www.reddit.com/r/AskIreland/comments/1vlmkv4/comment/p32pz2w/",
+        "publishedAt": "2026-08-11",
+        "observedAt": "2026-09-07"
       },
       {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p3anx1m/",
-        "observedAt": "2026-08-12"
-      }
-    ],
-    "score": 35,
-    "mentions": 6
-  },
-  {
-    "name": "Vinegar Yard",
-    "area": "London Bridge",
-    "venueId": "venue-pof9vf",
-    "whyLine": "London Bridge yard named for group bookings and screens, listed by @designmynight and @missjonesgroup in 2026 round-ups.",
-    "sources": [
-      {
-        "label": "TikTok @designmynight",
-        "url": "https://www.tiktok.com/@designmynight/photo/7647505085525724438",
-        "observedAt": "2026-06-04"
-      },
-      {
-        "label": "TikTok @thehandbooknews",
-        "url": "https://www.tiktok.com/@thehandbooknews/video/7673838126426524950",
-        "observedAt": "2026-08-20"
-      },
-      {
-        "label": "TikTok @missjonesgroup",
-        "url": "https://www.tiktok.com/@missjonesgroup/photo/7660068224175705366",
-        "observedAt": "2026-07-08"
-      }
-    ],
-    "score": 34,
-    "mentions": 3
-  },
-  {
-    "name": "The Nag's Head",
-    "area": "Peckham",
-    "venueId": "venue-19vregq",
-    "whyLine": "Peckham pub named in the r/london £5-pint thread at \"£4.40 for a Guinness\", and separately as a Walthamstow no-children policy example.",
-    "sources": [
-      {
-        "label": "r/london",
-        "url": "https://www.reddit.com/r/london/comments/1t4i41o/comment/ok3yxmw/",
-        "observedAt": "2026-05-05"
-      },
-      {
-        "label": "r/london",
-        "url": "https://www.reddit.com/r/london/comments/1t4i41o/comment/ok42p69/",
-        "observedAt": "2026-05-05"
-      },
-      {
-        "label": "r/walthamstow",
-        "url": "https://www.reddit.com/r/walthamstow/comments/1qwzyir/comment/o44ue9l/",
-        "observedAt": "2026-02-07"
-      }
-    ],
-    "score": 32,
-    "mentions": 5
-  },
-  {
-    "name": "Southampton Arms",
-    "area": "Gospel Oak",
-    "venueId": "venue-uk-w117861610",
-    "whyLine": "Gospel Oak cask pub named as a personal favourite by u/robfurnell and u/Revolutionary-Dark21 in cask-beer threads.",
-    "sources": [
-      {
-        "label": "r/uktravel",
-        "url": "https://www.reddit.com/r/uktravel/comments/1vxnyo7/comment/p5qwcsa/",
-        "observedAt": "2026-08-25"
-      },
-      {
-        "label": "r/islington",
-        "url": "https://www.reddit.com/r/islington/comments/1sttjbb/comment/ohw23zd/",
-        "observedAt": "2026-04-23"
-      },
-      {
-        "label": "r/uktravel",
-        "url": "https://www.reddit.com/r/uktravel/comments/1vxnyo7/comment/p5rwy3a/",
-        "observedAt": "2026-08-25"
+        "label": "r/AskIreland",
+        "url": "https://www.reddit.com/r/AskIreland/comments/1vlmkv4/comment/p32wgf5/",
+        "publishedAt": "2026-08-11",
+        "observedAt": "2026-09-07"
       }
     ],
     "score": 31,
-    "mentions": 5
-  },
-  {
-    "name": "The Ship Tavern",
-    "area": "Holborn",
-    "venueId": "venue-182tgmc",
-    "whyLine": "Holborn pub that r/LondonTravel books for Sunday roast, with one poster reporting it was already full at Easter.",
-    "sources": [
-      {
-        "label": "r/LondonTravel",
-        "url": "https://www.reddit.com/r/LondonTravel/comments/1s2wgfm/comment/ocdi8ym/",
-        "observedAt": "2026-03-25"
-      },
-      {
-        "label": "r/LondonTravel",
-        "url": "https://www.reddit.com/r/LondonTravel/comments/1s2wgfm/best_place_for_sunday_roast/",
-        "observedAt": "2026-03-25"
-      },
-      {
-        "label": "r/LondonTravel",
-        "url": "https://www.reddit.com/r/LondonTravel/comments/1vh5jk6/comment/p23r0tv/",
-        "observedAt": "2026-08-06"
-      }
-    ],
-    "score": 30,
-    "mentions": 5
-  },
-  {
-    "name": "The Bricklayers Arms",
-    "area": "Putney / Shoreditch",
-    "venueId": "venue-1tkmwtp",
-    "whyLine": "Putney cask pub named for its Timothy Taylor line and used by away fans on Fulham matchdays.",
-    "sources": [
-      {
-        "label": "r/uktravel",
-        "url": "https://www.reddit.com/r/uktravel/comments/1vxnyo7/comment/p5rwy3a/",
-        "observedAt": "2026-08-25"
-      },
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p3awppx/",
-        "observedAt": "2026-08-12"
-      },
-      {
-        "label": "r/avfc",
-        "url": "https://www.reddit.com/r/avfc/comments/1st48c2/comment/ohs1sna/",
-        "observedAt": "2026-04-23"
-      }
-    ],
-    "score": 29,
-    "mentions": 5
-  },
-  {
-    "name": "The Dog & Bell",
-    "area": "Deptford",
-    "venueId": "venue-nft9hu",
-    "whyLine": "Deptford pub named in historic-pub and comfiest-pub threads, usually with no more than its own name as the argument.",
-    "sources": [
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1u8fpgt/comment/os7wma3/",
-        "observedAt": "2026-06-17"
-      },
-      {
-        "label": "r/london",
-        "url": "https://www.reddit.com/r/london/comments/1vdk92d/comment/p1bhoe9/",
-        "observedAt": "2026-08-02"
-      },
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p3anx1m/",
-        "observedAt": "2026-08-12"
-      }
-    ],
-    "score": 29,
     "mentions": 4
-  },
-  {
-    "name": "The Harp",
-    "area": "Covent Garden",
-    "venueId": "venue-1bz7oic",
-    "whyLine": "Covent Garden cask pub named in cask lists and short recommendations such as u/debvil's \"The Harp in Covent Garden!\"",
-    "sources": [
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p38tv3l/",
-        "observedAt": "2026-08-12"
-      },
-      {
-        "label": "r/uktravel",
-        "url": "https://www.reddit.com/r/uktravel/comments/1vxnyo7/comment/p5rwy3a/",
-        "observedAt": "2026-08-25"
-      },
-      {
-        "label": "r/LondonPubCrawl",
-        "url": "https://www.reddit.com/r/LondonPubCrawl/comments/1qorbxr/comment/o27fuya/",
-        "observedAt": "2026-01-28"
-      }
-    ],
-    "score": 29,
-    "mentions": 3
   },
   {
     "name": "The Pelton Arms",
     "area": "Greenwich",
     "venueId": "venue-v42x21",
-    "whyLine": "Greenwich pub named for free live music, described by u/r99c as \"a magnificent pub\" with music every Friday and Saturday.",
+    "whyLine": "Greenwich residents recommend its live music and note a drinks surcharge during performances.",
     "sources": [
-      {
-        "label": "r/RoyalGreenwich",
-        "url": "https://www.reddit.com/r/RoyalGreenwich/comments/1w56r5k/comment/p7cwvbd/",
-        "observedAt": "2026-09-02"
-      },
-      {
-        "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1rarse2/comment/o6tfjgo/",
-        "observedAt": "2026-02-22"
-      },
       {
         "label": "r/RoyalGreenwich",
         "url": "https://www.reddit.com/r/RoyalGreenwich/comments/1w56r5k/comment/p7cs1kz/",
-        "observedAt": "2026-09-02"
-      }
-    ],
-    "score": 28,
-    "mentions": 3
-  },
-  {
-    "name": "The Market Porter",
-    "area": "Borough",
-    "venueId": "venue-uk-w82770869",
-    "whyLine": "Borough pub named for its early licence, with u/crypticchris noting it \"lets you drink at 0600-0830 on weekdays\".",
-    "sources": [
-      {
-        "label": "r/london",
-        "url": "https://www.reddit.com/r/london/comments/1s5gsjm/comment/ocvgl93/",
-        "observedAt": "2026-03-28"
+        "publishedAt": "2026-09-02",
+        "observedAt": "2026-09-07"
       },
       {
-        "label": "r/beer",
-        "url": "https://www.reddit.com/r/beer/comments/1su26di/comment/oi4cj1d/",
-        "observedAt": "2026-04-25"
+        "label": "r/RoyalGreenwich",
+        "url": "https://www.reddit.com/r/RoyalGreenwich/comments/1w56r5k/comment/p7cwvbd/",
+        "publishedAt": "2026-09-02",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 29,
+    "mentions": 2
+  },
+  {
+    "name": "The Holly Bush",
+    "area": "Hampstead",
+    "venueId": "venue-agudyf",
+    "whyLine": "Drinkers include this Hampstead pub in recent local recommendations.",
+    "sources": [
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vo7law/comment/p3no4as/",
+        "publishedAt": "2026-08-14",
+        "observedAt": "2026-09-07"
       },
       {
         "label": "r/LondonFood",
-        "url": "https://www.reddit.com/r/LondonFood/comments/1re7vhi/comment/o7bdyde/",
-        "observedAt": "2026-02-25"
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p39yfqh/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p3anx1m/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
       }
     ],
-    "score": 17,
+    "score": 27,
     "mentions": 3
   },
   {
-    "name": "The Pocket",
-    "area": "Islington",
+    "name": "Southampton Arms",
+    "area": "Gospel Oak",
     "venueId": null,
-    "whyLine": "Islington pub from the Southampton Arms team, with u/whatdoesnot calling it \"one of our fav pubs in London\" and u/Kaurblimey noting \"some may call that a gastro rebrand\".",
+    "whyLine": "Drinkers recommend this Gospel Oak pub for cask beer.",
     "sources": [
       {
-        "label": "r/islington",
-        "url": "https://www.reddit.com/r/islington/comments/1sttjbb/comment/ohw23zd/",
-        "observedAt": "2026-04-23"
+        "label": "r/uktravel",
+        "url": "https://www.reddit.com/r/uktravel/comments/1vxnyo7/comment/p5qwcsa/",
+        "publishedAt": "2026-08-25",
+        "observedAt": "2026-09-07"
       },
       {
-        "label": "r/islington",
-        "url": "https://www.reddit.com/r/islington/comments/1tdtq4j/comment/olxtkbu/",
-        "observedAt": "2026-05-15"
+        "label": "r/uktravel",
+        "url": "https://www.reddit.com/r/uktravel/comments/1vxnyo7/comment/p5rwy3a/",
+        "publishedAt": "2026-08-25",
+        "observedAt": "2026-09-07"
       }
     ],
-    "score": 15,
+    "score": 26,
     "mentions": 2
+  },
+  {
+    "name": "The Bricklayers Arms",
+    "area": "Putney",
+    "venueId": null,
+    "whyLine": "Drinkers recommend the Putney pub for cask beer and a nearby river walk.",
+    "sources": [
+      {
+        "label": "r/uktravel",
+        "url": "https://www.reddit.com/r/uktravel/comments/1vxnyo7/comment/p5rwy3a/",
+        "publishedAt": "2026-08-25",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p3awppx/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 26,
+    "mentions": 2
+  },
+  {
+    "name": "The Harp",
+    "area": "Covent Garden",
+    "venueId": "venue-1bz7oic",
+    "whyLine": "Recent recommendations name this Covent Garden pub for cask beer.",
+    "sources": [
+      {
+        "label": "r/uktravel",
+        "url": "https://www.reddit.com/r/uktravel/comments/1vxnyo7/comment/p5rwy3a/",
+        "publishedAt": "2026-08-25",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p38tv3l/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 26,
+    "mentions": 2
+  },
+  {
+    "name": "The Cadogan Arms",
+    "area": "Chelsea",
+    "venueId": null,
+    "whyLine": "A September video reviews a Saturday pub lunch at this Chelsea venue.",
+    "sources": [
+      {
+        "label": "YouTube Paul & Cathryn Eat & Explore",
+        "url": "https://www.youtube.com/watch?v=jsuB_uHVHZA",
+        "publishedAt": "2026-09-06",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 25,
+    "mentions": 1
+  },
+  {
+    "name": "The Grenadier",
+    "area": "Belgravia",
+    "venueId": "venue-1ha28jc",
+    "whyLine": "A recent London video includes this Belgravia pub among easily missed places.",
+    "sources": [
+      {
+        "label": "Instagram sunny_in_london",
+        "url": "https://www.instagram.com/reel/Dcy8Pu2gGQU/",
+        "publishedAt": "2026-09-02",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 24,
+    "mentions": 1
+  },
+  {
+    "name": "Coach & Horses",
+    "area": "Soho",
+    "venueId": null,
+    "whyLine": "Drinkers recommend the Greek Street pub’s interior and outdoor seating.",
+    "sources": [
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p392gcd/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p38tv3l/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 22,
+    "mentions": 2
+  },
+  {
+    "name": "The Roebuck",
+    "area": "Richmond",
+    "venueId": null,
+    "whyLine": "Drinkers recommend this Richmond pub in a recent London pub discussion.",
+    "sources": [
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p3anx1m/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
+      },
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p3awppx/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 22,
+    "mentions": 2
+  },
+  {
+    "name": "Effra Social",
+    "area": "Brixton",
+    "venueId": "venue-1jy17e7",
+    "whyLine": "An August invitation asked new London drinkers to join a group at this Brixton venue.",
+    "sources": [
+      {
+        "label": "r/LondonSocialClub",
+        "url": "https://www.reddit.com/r/LondonSocialClub/comments/1w1sfcn/290826_brixton_drinks_effra/",
+        "publishedAt": "2026-08-29",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 22,
+    "mentions": 1
+  },
+  {
+    "name": "The Blues Kitchen",
+    "area": "Brixton",
+    "venueId": null,
+    "whyLine": "Visitors are comparing the Brixton venue with Hootananny for a group night out.",
+    "sources": [
+      {
+        "label": "r/AlternativeLondon",
+        "url": "https://www.reddit.com/r/AlternativeLondon/comments/1vweon1/hootananny_or_the_blues_kitchen_brixton/",
+        "publishedAt": "2026-08-23",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 20,
+    "mentions": 1
+  },
+  {
+    "name": "The Golden Tooth",
+    "area": "Canonbury",
+    "venueId": null,
+    "whyLine": "A recent restaurant discussion includes this Canonbury pub among places that impressed its contributors.",
+    "sources": [
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vpsgp3/banging_london_restaurant_recommendations/",
+        "publishedAt": "2026-08-16",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 18,
+    "mentions": 1
+  },
+  {
+    "name": "The Blackfriar",
+    "area": "Blackfriars",
+    "venueId": "venue-eltcmh",
+    "whyLine": "A recent recommendation highlights the Blackfriars interior, while suggesting a short visit.",
+    "sources": [
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p392gcd/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 17,
+    "mentions": 1
+  },
+  {
+    "name": "The Dog & Bell",
+    "area": "Deptford",
+    "venueId": "venue-nft9hu",
+    "whyLine": "A recent London recommendation includes this Deptford pub.",
+    "sources": [
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p3anx1m/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 17,
+    "mentions": 1
+  },
+  {
+    "name": "The Faltering Fullback",
+    "area": "Finsbury Park",
+    "venueId": "venue-2dy2xw",
+    "whyLine": "A recent London recommendation names this Finsbury Park Irish pub alongside Skehans.",
+    "sources": [
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p392gcd/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 17,
+    "mentions": 1
+  },
+  {
+    "name": "The Ship Tavern",
+    "area": "Holborn",
+    "venueId": "venue-182tgmc",
+    "whyLine": "A recent recommendation names this Holborn pub alongside the Ship & Shovell and the Lyric.",
+    "sources": [
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p3c32io/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 17,
+    "mentions": 1
+  },
+  {
+    "name": "The Spaniards Inn",
+    "area": "Hampstead",
+    "venueId": "venue-1snxfi3",
+    "whyLine": "Drinkers include this Hampstead pub in recent London recommendations.",
+    "sources": [
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p3anx1m/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 17,
+    "mentions": 1
+  },
+  {
+    "name": "Trafalgar Tavern",
+    "area": "Greenwich",
+    "venueId": "venue-1clnw4x",
+    "whyLine": "Drinkers include this Greenwich riverside pub in recent London recommendations.",
+    "sources": [
+      {
+        "label": "r/LondonFood",
+        "url": "https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p3anx1m/",
+        "publishedAt": "2026-08-12",
+        "observedAt": "2026-09-07"
+      }
+    ],
+    "score": 17,
+    "mentions": 1
   },
   {
     "name": "The Auld Shillelagh",
     "area": "Stoke Newington",
-    "venueId": "venue-uk-n262443436",
-    "whyLine": "Stoke Newington Irish pub named in Guinness threads, including the Harp Guide list and u/powertone45's \"I really enjoyed my pints at The Auld Shillelagh\".",
+    "venueId": null,
+    "whyLine": "A recent Irish-pub discussion recommends this Stoke Newington venue.",
     "sources": [
       {
-        "label": "r/LondonPubCrawl",
-        "url": "https://www.reddit.com/r/LondonPubCrawl/comments/1qmvyvy/comment/o1sezde/",
-        "observedAt": "2026-01-26"
-      },
-      {
-        "label": "r/Guinness",
-        "url": "https://www.reddit.com/r/Guinness/comments/1rdw8gj/comment/o85lfy2/",
-        "observedAt": "2026-03-02"
+        "label": "r/AskIreland",
+        "url": "https://www.reddit.com/r/AskIreland/comments/1vlmkv4/comment/p32jx9u/",
+        "publishedAt": "2026-08-11",
+        "observedAt": "2026-09-07"
       }
     ],
-    "score": 13,
-    "mentions": 2
+    "score": 16,
+    "mentions": 1
   }
 ]

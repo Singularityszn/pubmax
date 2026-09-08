@@ -485,15 +485,9 @@ export async function runPerfRoute(
   for (let run = 0; run < method.measuredRuns; run += 1) {
     samples.push(await samplePerfRoute(page, route, method));
   }
-  // A median of 3 is only a median when the samples agree, and a median sitting
-  // on a ceiling is decided by jitter rather than by the code. Both reasons to
-  // spend more samples are owned by lib/performanceBudgets.ts, which is pure
-  // and unit-tested without a browser, so the budget sweep and the UX lane
-  // report cannot drift apart on when a route is measured again. The extra
-  // samples are spent ONLY where one of those two rules fired, and how many
-  // there are to spend is this route's own plan: a marked route is judged on
-  // the median of seven, an unmarked one on three or five exactly as before.
-  if (routeNeedsMoreEvidence(samples, route, method, plan.resampleRuns)) {
+  // Marked routes always spend their full sample budget. Ordinary routes add
+  // samples only when the shared spread or ceiling rules need more evidence.
+  if (plan.noisy || routeNeedsMoreEvidence(samples, route, method, plan.resampleRuns)) {
     for (let run = 0; run < plan.resampleRuns; run += 1) {
       samples.push(await samplePerfRoute(page, route, method));
     }

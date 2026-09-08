@@ -228,7 +228,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
                     <div className="outListingGig">
                       <OutCardBody row={row} onOpen={() => onOpen(row)} titleLevel={4} />
                     </div>
-                    <OutListingPubPair row={row} />
+                    <OutListingPubPair row={row} venueMatch={body?.venueMatch} />
                   </li>
                 ))}
               </ul>

@@ -18,11 +18,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // a production build (Vercel CI presets NODE_ENV=production and the route 503s
 // before the ownership gate). Mock the seam itself instead: deterministic in
 // every environment, and the 503 guard case flips the same switch explicitly.
-const prodGuard = vi.hoisted(() => ({ requiresSupabase: false }));
+const prodGuard = vi.hoisted(() => ({ requiresSupabase: false, configured: false }));
 const authState = vi.hoisted(() => ({ userId: null as string | null }));
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
-  return { ...actual, requiresSupabaseStore: () => prodGuard.requiresSupabase };
+  return {
+    ...actual,
+    isSupabaseConfigured: () => prodGuard.configured,
+    requiresSupabaseStore: () => prodGuard.requiresSupabase,
+  };
+});
+vi.mock("@/lib/profileStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/profileStore")>();
+  return { ...actual, profileStore: () => actual.memoryProfileStore };
 });
 vi.mock("@/lib/authServer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/authServer")>();
@@ -61,6 +69,7 @@ beforeEach(() => {
   // production-store guard open (see the vi.mock above for why NODE_ENV
   // stubbing can't do this). The 503 guard case flips prodGuard itself.
   prodGuard.requiresSupabase = false;
+  prodGuard.configured = false;
   authState.userId = null;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -72,6 +81,26 @@ afterEach(() => {
 });
 
 describe("PATCH /api/profiles/[handle] — ownership gate", () => {
+  it("refuses anonymous creation in a durable store and leaves the handle claimable", async () => {
+    prodGuard.configured = true;
+    const refused = await patch("fresh_name", { displayName: "Reserved" });
+    expect(refused.status).toBe(401);
+    expect(await memoryProfileStore.getByHandle("fresh_name")).toBeNull();
+
+    authState.userId = "new-owner";
+    const claimed = await patch("fresh_name", { displayName: "My name" });
+    expect(claimed.status).toBe(200);
+    expect((await memoryProfileStore.getByHandle("fresh_name"))?.userId).toBe("new-owner");
+  });
+
+  it("keeps an existing legacy profile editable in a durable store", async () => {
+    await memoryProfileStore.ensure("legacy_name");
+    prodGuard.configured = true;
+    const response = await patch("legacy_name", { displayName: "Legacy name" });
+    expect(response.status).toBe(200);
+    expect((await memoryProfileStore.getByHandle("legacy_name"))?.userId).toBeUndefined();
+  });
+
   it("allows an anonymous edit of an UNLINKED handle (demo path stands)", async () => {
     const res = await patch("ken", { displayName: "Cheap Pint Ken" });
     expect(res.status).toBe(200);

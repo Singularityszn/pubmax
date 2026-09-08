@@ -31,6 +31,12 @@ const claim = {
   reviewAuthority: "operations",
 };
 
+const independentSource = {
+  sourceUrl: "https://news.example/opening-hours",
+  publisher: "Independent News",
+  publishedAt: claim.publishedAt,
+};
+
 describe("scheduled Night Signal claims", () => {
   it("skips timestamp-only refreshes and gives reruns distinct branch names", () => {
     expect(approvedClaimsUnchanged({ version: 1, generatedAt: "old", claims: [claim] }, [claim])).toBe(true);
@@ -100,7 +106,59 @@ describe("scheduled Night Signal claims", () => {
     expect(isValidNightSignalClaim(manual)).toBe(false);
   });
 
+  it("preserves source order when at least one source is independent", () => {
+    const corroboratingSources = [
+      { sourceUrl: claim.sourceUrl, publisher: claim.publisher, publishedAt: claim.publishedAt },
+      independentSource,
+    ];
+    const safe = validateNightSignalClaim({
+      ...claim, verification: "corroborated", reviewAuthority: "automated", corroboratingSources,
+    });
+    expect(safe?.corroboratingSources).toEqual(corroboratingSources);
+    expect(safe && canAffectRoute(safe)).toBe(true);
+  });
+
+  it.each([
+    undefined,
+    null,
+    {},
+    [independentSource, {}],
+    [independentSource, { ...independentSource, publisher: "independent news" }],
+    [{ ...independentSource, publisher: claim.publisher }],
+    [{ ...independentSource, publishedAt: "2026-07-15T10:00:00.001Z" }],
+  ])("rejects absent, invalid, duplicate, or dependent corroboration: %j", (corroboratingSources) => {
+    expect(validateNightSignalClaim({ ...claim, corroboratingSources })).toBeNull();
+  });
+
+  it("accepts five corroborating sources and refuses a sixth", () => {
+    const corroboratingSources = Array.from({ length: 5 }, (_, index) => ({
+      ...independentSource, sourceUrl: `https://news.example/report-${index}`,
+    }));
+    expect(validateNightSignalClaim({ ...claim, corroboratingSources })?.corroboratingSources).toEqual(corroboratingSources);
+    expect(validateNightSignalClaim({
+      ...claim, corroboratingSources: [...corroboratingSources, independentSource],
+    })).toBeNull();
+  });
+
+  it.each(["venue", "night_area", "transport"])("normalizes the id of a %s entity", (type) => {
+    expect(validateNightSignalClaim({ ...claim, entity: { type, id: " entity-1 " } })?.entity).toEqual({
+      type, id: "entity-1",
+    });
+  });
+
+  it.each([null, { type: "other", id: "entity-1" }, { type: "venue", id: " " }])("rejects an invalid entity: %j", (entity) => {
+    expect(validateNightSignalClaim({ ...claim, entity })).toBeNull();
+  });
+
+  it.each([undefined, null, "invalid"])("keeps absent review details null on pending claims: %j", (review) => {
+    expect(validateNightSignalClaim({
+      ...claim, reviewState: "pending", verification: "single_source", routeEffect: "none",
+      reviewedAt: review, reviewAuthority: review,
+    })).toMatchObject({ reviewedAt: null, reviewAuthority: null });
+  });
+
   it("rejects impossible future provenance and review ordering", () => {
+    expect(validateNightSignalClaim({ ...claim, expiresAt: claim.observedAt })).toBeNull();
     expect(validateNightSignalClaim({ ...claim, publishedAt: "2026-07-15T10:30:00.000Z" })).toBeNull();
     expect(validateNightSignalClaim({ ...claim, reviewedAt: "2026-07-15T09:30:00.000Z" })).toBeNull();
     expect(validateNightSignalSnapshot({

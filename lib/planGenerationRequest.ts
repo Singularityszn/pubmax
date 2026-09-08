@@ -151,6 +151,11 @@ function strictList(value: unknown): string[] | null {
   return new Set(cleaned).size === cleaned.length ? cleaned : null;
 }
 
+function isNullableContextInteger(value: unknown, min: number, max: number): value is number | null {
+  return value === null
+    || (typeof value === "number" && Number.isSafeInteger(value) && value >= min && value <= max);
+}
+
 function parseContext(value: unknown): Partial<NightContext> | null | undefined {
   if (value === undefined || value === null) return null;
   if (!isPlainRecord(value) || !hasOnlyKeys(value, CONTEXT_KEYS)) return undefined;
@@ -171,10 +176,8 @@ function parseContext(value: unknown): Partial<NightContext> | null | undefined 
         result.partyType = item;
         break;
       case "groupSize":
-        if (item !== null && !(typeof item === "number" && Number.isSafeInteger(item) && item >= 1 && item <= 30)) {
-          return undefined;
-        }
-        result.groupSize = item as number | null;
+        if (!isNullableContextInteger(item, 1, 30)) return undefined;
+        result.groupSize = item;
         break;
       case "stopCount":
         if (!isPlanStopCount(item)) return undefined;
@@ -185,10 +188,8 @@ function parseContext(value: unknown): Partial<NightContext> | null | undefined 
         result.budget = item;
         break;
       case "budgetLimitPence":
-        if (item !== null && !(typeof item === "number" && Number.isSafeInteger(item) && item >= 500 && item <= 50_000)) {
-          return undefined;
-        }
-        result.budgetLimitPence = item as number | null;
+        if (!isNullableContextInteger(item, 500, 50_000)) return undefined;
+        result.budgetLimitPence = item;
         break;
       case "zeroProof":
         if (typeof item !== "boolean") return undefined;

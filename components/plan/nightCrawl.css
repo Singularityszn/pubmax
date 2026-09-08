@@ -178,12 +178,8 @@
 
 /* HERO — the next stop owns the screen. */
 .nightCrawl__hero {
-  /* Grows into the stack's spare room but never shrinks below its own
-     content: on a 568px-tall phone `flex: 1; min-height: 0` squeezed the card
-     until its check-in slab painted over the upcoming rows beneath it, and
-     the centre of "We are here" belonged to "2 The Crown" (verify-preview-4
-     RED 2). The stack scrolls instead. */
-  flex: 1 0 auto;
+  /* Keep the actions beside the stop. Short screens scroll the stack. */
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   border-radius: 22px;
@@ -299,7 +295,7 @@
 .nightCrawl__who[data-tone="late"] .nightCrawl__ava { background: var(--nc-amber); }
 .nightCrawl__who[data-tone="late"] .nightCrawl__whoState { color: var(--nc-amber); }
 
-.nightCrawl__spacer { flex: 1; min-height: 12px; }
+.nightCrawl__spacer { flex: 0 0 12px; }
 
 /* Upcoming stops — compact, waiting their turn. */
 .nightCrawl__upcoming {

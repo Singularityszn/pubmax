@@ -33,12 +33,29 @@ import CrawlProgressSection from "@/components/map/route/CrawlProgressSection";
 import VenuePicker from "@/components/map/route/VenuePicker";
 import { useRoutePois } from "@/components/map/route/useRoutePois";
 import { useCrawlProgress } from "@/components/map/route/useCrawlProgress";
+import { hasUnresolvedBuiltStops, type BuiltVenueDetailsState } from "@/components/map/pubmap/useBuiltVenueDetails";
 import "@/components/map/routePanel.css";
 
 type VenueSignals = Map<
   string,
   { hasPintDrops: boolean; dropCount?: number; latestContributorPrice: number | null }
 >;
+
+function StopLoadNotice({ loadingCount, failedCount, missingCount, retry }: BuiltVenueDetailsState) {
+  const message = [
+    loadingCount > 0 ? `Loading ${loadingCount} crawl stop${loadingCount === 1 ? "" : "s"}.` : null,
+    failedCount > 0 ? `${failedCount} crawl stop${failedCount === 1 ? "" : "s"} could not load.` : null,
+    missingCount > 0 ? `${missingCount} crawl stop${missingCount === 1 ? " is" : "s are"} unavailable.` : null,
+  ].filter(Boolean).join(" ");
+  return (
+    <div role="status" className="emptyRoute" data-testid="crawl-stop-load-status">
+      <p>{message}</p>
+      {failedCount + missingCount > 0 ? (
+        <button type="button" className="addStopBtn" onClick={retry}>Retry</button>
+      ) : null}
+    </div>
+  );
+}
 
 type RoutePanelProps = {
   mode: CrawlMode;
@@ -50,6 +67,7 @@ type RoutePanelProps = {
   route: Venue[];
   filteredVenues: Venue[];
   builtIds: string[];
+  stopLoad?: BuiltVenueDetailsState;
   activeVenueId: string | undefined;
   venueSignals: VenueSignals;
   crawlBlurb?: string;
@@ -93,6 +111,7 @@ export default function RoutePanel({
   route,
   filteredVenues,
   builtIds,
+  stopLoad,
   activeVenueId,
   venueSignals,
   crawlBlurb,
@@ -116,6 +135,7 @@ export default function RoutePanel({
   journeyLoading = false,
   journeyTotalMinutes = null,
 }: RoutePanelProps) {
+  const unresolvedStops = hasUnresolvedBuiltStops(mode, stopLoad);
   const summary = useMemo(() => crawlSummary(route), [route]);
   const routeWaterCount = route.filter((venue) => venue.curation.nearWater).length;
   const routeHeritageCount = route.filter((venue) => venue.hasStory).length;
@@ -125,7 +145,10 @@ export default function RoutePanel({
   // lib/routeLegs, honestly labelled "straight-line" throughout.
   const [pace, setPace] = useState<RoutePace>("walk");
   const paceLabel = pace === "run" ? "Running" : "Walking";
-  const legSummary = useMemo(() => buildRouteLegs(route, pace), [route, pace]);
+  const legSummary = useMemo(
+    () => buildRouteLegs(unresolvedStops ? [] : route, pace),
+    [route, pace, unresolvedStops],
+  );
 
   // "On the way" POI threading (story 26): garden/market/historic/viewpoint
   // POIs within ~250m of a leg. Loaded independently of the map canvas — a
@@ -153,7 +176,7 @@ export default function RoutePanel({
     crawlDone,
     handleStartCrawl,
     handleMarkComplete,
-  } = useCrawlProgress(progressKey, route, placeStoryBandId);
+  } = useCrawlProgress(progressKey, unresolvedStops ? [] : route, placeStoryBandId);
 
   const lastStopId = route.length > 0 ? route[route.length - 1]!.id : "";
   const dropHrefCity =
@@ -207,41 +230,47 @@ export default function RoutePanel({
         onAltStyleChange={onAltStyleChange}
       />
 
+      {unresolvedStops && stopLoad ? <StopLoadNotice {...stopLoad} /> : null}
+
       {stopsFirst ? stopsList : null}
 
-      <RouteMetrics
-        summaryTotal={summary.total}
-        summaryDistance={summary.distance}
-        legSummary={legSummary}
-        pace={pace}
-        journeyTotalMinutes={journeyTotalMinutes}
-        journeyLoading={journeyLoading}
-        routeLength={route.length}
-        stopNoun={stopNoun}
-        routeHeritageCount={routeHeritageCount}
-        routeWaterCount={routeWaterCount}
-        routeWriterCount={routeWriterCount}
-      />
+      {!unresolvedStops ? (
+        <>
+          <RouteMetrics
+            summaryTotal={summary.total}
+            summaryDistance={summary.distance}
+            legSummary={legSummary}
+            pace={pace}
+            journeyTotalMinutes={journeyTotalMinutes}
+            journeyLoading={journeyLoading}
+            routeLength={route.length}
+            stopNoun={stopNoun}
+            routeHeritageCount={routeHeritageCount}
+            routeWaterCount={routeWaterCount}
+            routeWriterCount={routeWriterCount}
+          />
 
-      <RouteActions
-        mode={mode}
-        route={route}
-        legSummary={legSummary}
-        pace={pace}
-        setPace={setPace}
-        routeMapped={routeMapped}
-        cityDisplayName={cityDisplayName}
-        originDistanceKm={originDistanceKm}
-        onMapRoute={onMapRoute}
-        onHideRoute={onHideRoute}
-        onReverseRoute={onReverseRoute}
-        onCheckLastTrain={onCheckLastTrain}
-        crawlTitle={crawlTitle}
-        onRoundStarted={onRoundStarted}
-        addToCalendar={addToCalendar}
-      />
+          <RouteActions
+            mode={mode}
+            route={route}
+            legSummary={legSummary}
+            pace={pace}
+            setPace={setPace}
+            routeMapped={routeMapped}
+            cityDisplayName={cityDisplayName}
+            originDistanceKm={originDistanceKm}
+            onMapRoute={onMapRoute}
+            onHideRoute={onHideRoute}
+            onReverseRoute={onReverseRoute}
+            onCheckLastTrain={onCheckLastTrain}
+            crawlTitle={crawlTitle}
+            onRoundStarted={onRoundStarted}
+            addToCalendar={addToCalendar}
+          />
+        </>
+      ) : null}
 
-      {route.length >= 2 ? (
+      {!unresolvedStops && route.length >= 2 ? (
         <CrawlProgressSection
           crawlProgress={crawlProgress}
           crawlDone={crawlDone}
@@ -256,7 +285,7 @@ export default function RoutePanel({
         />
       ) : null}
 
-      {route.length >= 2 ? (
+      {!unresolvedStops && route.length >= 2 ? (
         <SaveCrawlStory
           stops={route.map((venue) => ({
             venueId: venue.id,

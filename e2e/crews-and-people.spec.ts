@@ -1,9 +1,10 @@
 import { expect, test } from "@playwright/test";
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 // The gate, from the browser's side.
 //
 // Signed-out Social still hides protected crew and directory data. Handle
-// search and invite-link actions remain available in the control rail.
+// search stays available. Invite links require a signed-in account.
 
 const PHONE = { width: 390, height: 844 };
 
@@ -11,7 +12,7 @@ test.describe("Signed-out Social", () => {
   test("offers no crew surface anywhere on the page", async ({ page }) => {
     await page.goto("/social");
     await expect(
-      page.getByRole("heading", { name: "Social", exact: true }),
+      page.getByRole("heading", { name: "Crews and people who are already here.", exact: true }),
     ).toBeVisible();
 
     await expect(page.getByRole("heading", { name: "Your crews" })).toHaveCount(0);
@@ -33,23 +34,10 @@ test.describe("Signed-out Social", () => {
     await expect(page.locator(".peopleDir")).toHaveCount(0);
   });
 
-  test("structured invite failures render fallback copy", async ({ page }) => {
-    await page.route("**/api/referrals/invite-link", async (route) => {
-      await route.fulfill({
-        status: 502,
-        contentType: "application/json",
-        body: JSON.stringify({ error: { code: "X" } }),
-      });
-    });
+  test("requires sign-in before minting an invite link", async ({ page }) => {
     await page.goto("/social");
-
-    const inviteButton = page.getByRole("button", { name: "Get invite link" }).first();
-    await expect(inviteButton).toBeVisible();
-    await inviteButton.click();
-
-    const notice = page.locator(".findLot__error").filter({ hasText: "Could not mint an invite link." }).first();
-    await expect(notice).toBeVisible();
-    await expect(page.getByText("[object Object]", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Sign in to invite" })).toHaveAttribute("href", "/login");
+    await expect(page.getByRole("button", { name: "Get invite link" })).toHaveCount(0);
   });
 
   test("signed-out Social does not request or render a directory empty state", async ({
@@ -63,7 +51,7 @@ test.describe("Signed-out Social", () => {
     });
     await page.goto("/social");
     await expect(
-      page.getByRole("heading", { name: "Social", exact: true }),
+      page.getByRole("heading", { name: "Crews and people who are already here.", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Find your lot" }).first(),
@@ -97,6 +85,27 @@ test.describe("Signed-out Social", () => {
     await expect(page.getByRole("heading", { name: "Who is in" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Leave this crew/ })).toHaveCount(0);
   });
+});
+
+test("structured invite failures render fallback copy for a signed-in account", async ({ page }) => {
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
+  await page.route("**/api/referrals/invite-link", async (route) => {
+    await route.fulfill({
+      status: 502,
+      contentType: "application/json",
+      body: JSON.stringify({ error: { code: "X" } }),
+    });
+  });
+  await page.goto("/social");
+
+  const inviteButton = page.getByRole("button", { name: "Get invite link" }).first();
+  await expect(inviteButton).toBeVisible();
+  await inviteButton.click();
+
+  const notice = page.locator(".findLot__error").filter({ hasText: "Could not mint an invite link." }).first();
+  await expect(notice).toBeVisible();
+  await expect(page.getByText("[object Object]", { exact: true })).toHaveCount(0);
 });
 
 test.describe("A profile statistic is a way in", () => {

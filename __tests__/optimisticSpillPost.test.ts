@@ -9,6 +9,8 @@ import {
   mergeOptimisticSpillDrops,
   reconcileOptimisticSpill,
   upsertOptimisticSpill,
+  readOptimisticSpills,
+  writeOptimisticSpills,
   type StoredOptimisticSpill,
 } from "@/lib/optimisticSpillPost";
 import type { PintDropDTO } from "@/lib/feed";
@@ -34,6 +36,56 @@ function serverDrop(overrides: Partial<PintDropDTO> = {}): PintDropDTO {
 }
 
 describe("optimistic Spill posting", () => {
+  it("retries the bill bytes and stated measure after a failed post", async () => {
+    const bytes = new Uint8Array([255, 216, 255, 0, 128, 42]);
+    const url = URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }));
+    try {
+      const payload = buildOptimisticSpillRetryPayload({
+        clientRequestId: "receipt-retry", venueId: "venue-1", handle: "karan",
+        priceGbp: "2.60", drink: "Pale ale", measure: "half", measureLabel: "",
+        passedDownNote: "By the dartboard", era: "", visibility: "public",
+        vibeTags: [], pintPhotoUrl: null, venuePhotoUrl: null,
+        receiptPhotoUrl: url, createdAt: new Date().toISOString(),
+      });
+      const body = await buildOptimisticSpillRetryFormData(payload);
+      const receipt = body.get("receipt_photo");
+      expect(receipt).toBeInstanceOf(Blob);
+      expect(new Uint8Array(await (receipt as Blob).arrayBuffer())).toEqual(bytes);
+      expect(body.get("priceGbp")).toBe("2.60");
+      expect(body.get("measure")).toBe("half");
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  });
+
+  it.each(["success", "dismissal"])("keeps every retry photo until %s", async (ending) => {
+    const urls = [1, 2, 3].map((byte) => URL.createObjectURL(new Blob([new Uint8Array([byte])])));
+    let value: string | null = null;
+    const storage = {
+      getItem: () => value,
+      setItem: (_key: string, next: string) => { value = next; },
+      removeItem: () => { value = null; },
+    };
+    const input = {
+      clientRequestId: "photos", venueId: "venue-1", handle: "karan",
+      priceGbp: "5.80", drink: "Pale ale", passedDownNote: "", era: "",
+      visibility: "public" as const, vibeTags: [], createdAt: new Date().toISOString(),
+      pintPhotoUrl: urls[0], venuePhotoUrl: urls[1], receiptPhotoUrl: urls[2],
+    };
+    try {
+      writeOptimisticSpills(storage, upsertOptimisticSpill([], buildOptimisticSpillDrop(input), buildOptimisticSpillRetryPayload(input)));
+      writeOptimisticSpills(storage, failOptimisticSpill(readOptimisticSpills(storage), "photos", "Temporary outage"));
+      for (const url of urls) expect((await fetch(url)).ok).toBe(true);
+      writeOptimisticSpills(storage, ending === "success"
+        ? reconcileOptimisticSpill(readOptimisticSpills(storage), "photos", serverDrop())
+        : []);
+      for (const url of urls) await expect(fetch(url)).rejects.toThrow();
+      expect(readOptimisticSpills(storage).every((entry) => !entry.retry)).toBe(true);
+    } finally {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    }
+  });
+
   it("builds a final-card-shaped uploading draft with local photo previews", () => {
     const draft = buildOptimisticSpillDrop({
       clientRequestId: "client-1",

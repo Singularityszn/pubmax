@@ -1,10 +1,12 @@
 // Map signature style-layer overrides on OpenFreeMap / CARTO basemaps.
-// Pure helpers: apply after style.load. Never invents a new tile host.
+// Palette helpers apply after style.load; shield filters normalize before load.
+// Never invents a new tile host.
 //
 // Dark-mode contract: land must stay night-dark (`inkDeep` / `paper`), never the
 // cream `--ink` text token. Roads stay readable without outranking pub marks.
 
 import { clamp } from "@/lib/mathClamp";
+import type { StyleSpecification } from "maplibre-gl";
 
 export type BasemapTasteTokens = {
   paper: string;
@@ -39,9 +41,7 @@ type PaintMap = {
   setLayoutProperty?(layerId: string, name: string, value: unknown): void;
   getLayoutProperty?(layerId: string, name: string): unknown;
   getPaintProperty?(layerId: string, name: string): unknown;
-  setFilter?(layerId: string, filter: unknown): void;
   getLayer: (layerId: string) => unknown;
-  getFilter?: (layerId: string) => unknown;
   getStyle: () => { layers?: Array<{ id: string; type?: string }> };
 };
 
@@ -165,10 +165,11 @@ function isBasemapPubPoiLabel(id: string): boolean {
   return tokens.some((token) => PUB_POI_LABEL_TOKENS.has(token));
 }
 
-const NUMERIC_SHIELD_FILTER_LAYERS = [
+const NUMERIC_SHIELD_FILTER_LAYERS = new Set([
   "highway-shield-non-us",
   "highway-shield-us-interstate",
-] as const;
+  "road_shield_us",
+]);
 
 function guardRefLengthGet(value: unknown): unknown {
   if (!Array.isArray(value)) return value;
@@ -182,19 +183,18 @@ function guardRefLengthGet(value: unknown): unknown {
 /**
  * MapLibre 6 validates numeric filter operands per feature. OpenFreeMap's
  * light style compares a sometimes-missing ref_length directly, which logs on
- * every affected road shield. Preserve its filter and add a numeric fallback.
+ * every affected road shield. Guard before MapLibre compiles the style layers.
  */
-export function tameNumericShieldFilters(map: Pick<
-  PaintMap,
-  "getLayer" | "getFilter" | "setFilter"
->): void {
-  if (!map.getFilter || !map.setFilter) return;
-  for (const id of NUMERIC_SHIELD_FILTER_LAYERS) {
-    if (!map.getLayer(id)) continue;
-    const filter = map.getFilter(id);
-    if (!filter) continue;
-    map.setFilter(id, guardRefLengthGet(filter));
-  }
+export function tameNumericShieldFilters(style: StyleSpecification): StyleSpecification {
+  return {
+    ...style,
+    layers: style.layers.map((layer) => {
+      if (!NUMERIC_SHIELD_FILTER_LAYERS.has(layer.id) || !("filter" in layer) || !layer.filter) {
+        return layer;
+      }
+      return { ...layer, filter: guardRefLengthGet(layer.filter) as typeof layer.filter };
+    }),
+  };
 }
 
 // ── Wave A · DARK basemap palette (owner: "fix the map in dark mode") ────────
@@ -549,7 +549,6 @@ export function applyBasemapTaste(
   tokens: BasemapTasteTokens,
   dark: boolean,
 ): void {
-  tameNumericShieldFilters(map);
   const palette = buildPalette(tokens, dark);
   paintKnownLayers(map, palette, dark);
   paintDiscoveredLayers(map, palette, tokens, dark);

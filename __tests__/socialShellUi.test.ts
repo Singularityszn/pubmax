@@ -200,7 +200,7 @@ describe("verified Social post card", () => {
     expect(html).toContain("Camden");
     expect(html).toContain("#quietpint");
     expect(html).toContain('href="/map?sel=venue-a"');
-    expect(html).toContain("Open venue");
+    expect(html).toContain("The Test Arms");
     expect(html).not.toContain("Open pub");
     expect(html).not.toContain("Cheers");
     expect(html).not.toContain("Comment");
@@ -218,7 +218,7 @@ describe("verified Social post card", () => {
 
     expect(html).toContain(protectedPost.body);
     expect(html).toContain("Camden");
-    expect(html).not.toContain("Open venue");
+    expect(html).not.toContain("The Test Arms");
     expect(html).not.toContain('href="/map?sel=venue-a"');
   });
 
@@ -229,7 +229,7 @@ describe("verified Social post card", () => {
       }),
     );
 
-    expect(html).toContain("Open venue");
+    expect(html).toContain("The Test Arms");
     expect(html).toContain('href="/map?sel=venue-a"');
   });
 });

@@ -35,6 +35,9 @@ import {
 } from "@/lib/communityVenueSignals";
 import SiteNav from "@/components/nav/SiteNav";
 import AdminSessionEntry from "./AdminSessionEntry";
+import SocialPostModerationCard, { socialPostReviewKey } from "./SocialPostModerationCard";
+import type { SocialPostAdminHeldItem } from "@/lib/socialPostConsentStore";
+import { parseSocialGallery } from "@/lib/socialGallery";
 
 import "./admin.css";
 
@@ -213,23 +216,7 @@ type ImportNoteRow = {
   dismissedAt?: string;
 };
 
-type ModeratorSocialPost = {
-  staffDisplayName: string;
-  postId: string;
-  mediaId: string | null;
-  revision: number;
-  authorHandle: string;
-  body: string;
-  photoAltText: string | null;
-  area: string | null;
-  venueId: string | null;
-  visibility: "public" | "friends" | "private";
-  commentPolicy: "open" | "friends" | "locked";
-  moderationClaim: string;
-  moderationState: "needs_review" | "approved";
-  createdAt: string;
-  updatedAt: string;
-};
+type ModeratorSocialPost = SocialPostAdminHeldItem;
 
 const MODERATOR_SOCIAL_POST_VISIBILITIES = new Set(["public", "friends", "private"]);
 const MODERATOR_SOCIAL_POST_COMMENT_POLICIES = new Set(["open", "friends", "locked"]);
@@ -242,10 +229,16 @@ function isNullableString(value: unknown): value is string | null {
 function isModeratorSocialPost(value: unknown): value is ModeratorSocialPost {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const row = value as Record<string, unknown>;
+  if (row.photos !== undefined) {
+    const photos = parseSocialGallery(row.photos, true);
+    if (!photos || (photos[0]?.mediaId ?? null) !== row.mediaId) return false;
+  }
   return (
     typeof row.staffDisplayName === "string" &&
     typeof row.postId === "string" &&
     isNullableString(row.mediaId) &&
+    (row.media === undefined || (row.media !== null && typeof row.media === "object" &&
+      ["image/jpeg", "video/mp4"].includes(String((row.media as Record<string, unknown>).contentType)))) &&
     Number.isSafeInteger(row.revision) &&
     (row.revision as number) >= 0 &&
     typeof row.authorHandle === "string" &&
@@ -267,22 +260,6 @@ function isModeratorSocialPost(value: unknown): value is ModeratorSocialPost {
 
 type SocialPostsState = "idle" | "loading" | "ready" | "unavailable";
 type SocialPostAction = { postId: string; action: "approve" | "hide" };
-
-function socialPostPolicyLabel(value: string): string {
-  const words = value.replaceAll("_", " ");
-  return `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
-}
-
-function socialPostActionLabel(
-  pending: SocialPostAction | null,
-  postId: string,
-  action: "approve" | "hide",
-): string {
-  if (pending?.postId === postId && pending.action === action) {
-    return action === "approve" ? "Approving…" : "Hiding…";
-  }
-  return action === "approve" ? "Approve" : "Hide";
-}
 
 function SocialPostModerationQueue({
   posts,
@@ -354,56 +331,7 @@ function SocialPostModerationQueue({
       ) : state === "ready" ? (
         <div className="admin-list">
           {posts.map((post) => (
-            <article className="admin-card" key={post.postId}>
-              <div className="admin-card-head">
-                <span className="admin-handle">@{post.authorHandle}</span>
-                <span className="admin-report">Revision {post.revision}</span>
-              </div>
-              <p className="admin-note">{post.body}</p>
-              {post.mediaId ? (
-                <div className="admin-photos">
-                  <Image
-                    src={`/api/admin/social-posts/media/${post.mediaId}`}
-                    alt={post.photoAltText ?? "Social post photo"}
-                    width={160}
-                    height={160}
-                    unoptimized
-                  />
-                </div>
-              ) : null}
-              <div className="admin-meta">
-                <span>Area: {post.area ?? "None"}</span>
-                <span>Venue: {post.venueId ?? "None"}</span>
-                <span>Visibility: {socialPostPolicyLabel(post.visibility)}</span>
-                <span>Comments: {socialPostPolicyLabel(post.commentPolicy)}</span>
-                <span>State: {socialPostPolicyLabel(post.moderationState)}</span>
-              </div>
-              <p className="admin-note">Reason: {post.moderationClaim}</p>
-              <div className="admin-meta">
-                <span>
-                  Created: <time dateTime={post.createdAt}>{new Date(post.createdAt).toLocaleString()}</time>
-                </span>
-                <span>
-                  Updated: <time dateTime={post.updatedAt}>{new Date(post.updatedAt).toLocaleString()}</time>
-                </span>
-              </div>
-              <div className="admin-actions">
-                <button
-                  className="admin-btn admin-restore"
-                  onClick={() => onDecision(post, "approve")}
-                  disabled={pendingAction !== null}
-                >
-                  {socialPostActionLabel(pendingAction, post.postId, "approve")}
-                </button>
-                <button
-                  className="admin-btn admin-keep"
-                  onClick={() => onDecision(post, "hide")}
-                  disabled={pendingAction !== null}
-                >
-                  {socialPostActionLabel(pendingAction, post.postId, "hide")}
-                </button>
-              </div>
-            </article>
+            <SocialPostModerationCard key={socialPostReviewKey(post)} post={post} pendingAction={pendingAction} onDecision={onDecision} />
           ))}
         </div>
       ) : null}
@@ -938,6 +866,7 @@ export default function AdminClient() {
               mediaId: post.mediaId,
               expectedRevision: post.revision,
               action,
+              ...(post.photos === undefined ? {} : { reviewedMediaIds: post.photos.map(photo => photo.mediaId) }),
             }),
           }),
         );

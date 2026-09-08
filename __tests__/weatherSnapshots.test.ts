@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   planningWeatherForArea,
+  validateWeatherObservation,
   validateWeatherSnapshot,
   type WeatherSnapshot,
 } from "@/lib/weatherSnapshots";
@@ -44,6 +45,34 @@ describe("cached weather snapshots", () => {
     expect(validateWeatherSnapshot({
       ...snapshot,
       observations: [{ ...snapshot.observations[0], source: { ...snapshot.observations[0].source, sourceUrl: "javascript:bad" } }],
+    })).toBeNull();
+  });
+
+  it.each([
+    null,
+    [],
+    { ...snapshot.observations[0].source, publisher: " " },
+    { ...snapshot.observations[0].source, publishedAt: "invalid" },
+    { ...snapshot.observations[0].source, sourceUrl: "https://user:secret@example.com/weather" },
+    { ...snapshot.observations[0].source, sourceUrl: "https://example.com/weather#forecast" },
+  ])("rejects incomplete or unsafe weather provenance: %j", (source) => {
+    expect(validateWeatherObservation({ ...snapshot.observations[0], source })).toBeNull();
+  });
+
+  it("normalizes source fields and keeps the publication time within the observation", () => {
+    const source = {
+      sourceUrl: " http://example.com/weather?area=clapham ",
+      publisher: " Open-Meteo ",
+      publishedAt: "2026-07-16T18:55:00+01:00",
+    };
+    expect(validateWeatherObservation({ ...snapshot.observations[0], source })?.source).toEqual({
+      sourceUrl: "http://example.com/weather?area=clapham",
+      publisher: "Open-Meteo",
+      publishedAt: snapshot.observations[0].observedAt,
+    });
+    expect(validateWeatherObservation({
+      ...snapshot.observations[0],
+      source: { ...source, publishedAt: "2026-07-16T17:55:00.001Z" },
     })).toBeNull();
   });
 

@@ -7,16 +7,16 @@ import {
 } from "@/lib/socialShell";
 
 describe("Social shell URL state", () => {
-  it("defaults to chronological Following posts", () => {
+  it("opens discovery before a new account follows anyone", () => {
     expect(parseSocialShellSearch("")).toEqual({
       valid: true,
       tab: "posts",
-      feed: "following",
+      feed: "discover",
       area: null,
     });
     expect(
       socialShellHref({ tab: "posts", feed: "following", area: null }),
-    ).toBe("/social");
+    ).toBe("/social?feed=following");
   });
 
   it("round-trips each canonical surface without cursor or identity state", () => {
@@ -41,7 +41,7 @@ describe("Social shell URL state", () => {
 
     expect(
       socialShellHref({ tab: "posts", feed: "discover", area: null }),
-    ).toBe("/social?feed=discover");
+    ).toBe("/social");
     expect(
       socialShellHref({ tab: "posts", feed: "nearby", area: "camden" }),
     ).toBe("/social?feed=nearby&area=camden");

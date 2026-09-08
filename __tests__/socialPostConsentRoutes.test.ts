@@ -7,6 +7,8 @@ const state = vi.hoisted(() => ({
   adminModerationKind: null as "conflict" | "unavailable" | null,
 }));
 
+vi.mock("@/lib/pintDrops", () => ({ isLimited: async () => false }));
+
 vi.mock("@/lib/socialAccessServer", () => ({
   requireVerifiedSocialActor: async () => ({
     ok: true,
@@ -234,6 +236,80 @@ describe("Social consent API contracts", () => {
         args: ["99999999-9999-4999-8999-999999999999", postId, null, 0, "hide"],
       },
     ]);
+  });
+
+  it.each([
+    null, {}, "not-an-array", [null], [123], [[proposalId]], ["-".repeat(36)],
+    ["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"],
+    Array.from({ length: 11 }, (_, index) => `${String(index).padStart(8, "0")}-aaaa-4aaa-8aaa-aaaaaaaaaaaa`),
+  ].map(reviewedMediaIds => ({ reviewedMediaIds })))("rejects malformed reviewed media manifests: $reviewedMediaIds", async ({ reviewedMediaIds }) => {
+    const response = await moderate(new Request("http://localhost/api/admin/social-posts", {
+      method: "POST", headers: { "Content-Type": "application/json", "x-admin-token": "admin-token" },
+      body: JSON.stringify({ postId, mediaId: proposalId, expectedRevision: 4, action: "approve", reviewedMediaIds }),
+    }));
+    expect(response.status).toBe(400);
+    expect(state.calls).toEqual([]);
+  });
+
+  it.each([
+    {},
+    { mediaId: null, expectedRevision: 4, action: "approve", reviewedMediaIds: [] },
+    { postId, expectedRevision: 4, action: "approve", reviewedMediaIds: [] },
+    { postId, mediaId: null, action: "approve", reviewedMediaIds: [] },
+    { postId, mediaId: null, expectedRevision: 4, reviewedMediaIds: [] },
+    { postId, mediaId: null, expectedRevision: 4, action: "approve", unknown: [] },
+    { postId, mediaId: null, expectedRevision: 4, action: "approve", reviewedMediaIds: [], unknown: true },
+  ])("rejects missing or unknown moderation fields: %j", async input => {
+    const response = await moderate(new Request("http://localhost/api/admin/social-posts", {
+      method: "POST", headers: { "Content-Type": "application/json", "x-admin-token": "admin-token" },
+      body: JSON.stringify(input),
+    }));
+    expect(response.status).toBe(400);
+    expect(state.calls).toEqual([]);
+  });
+
+  it.each(["approve", "hide"])("forwards the exact ordered gallery manifest for %s", async action => {
+    const reviewedMediaIds = ["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"];
+    const response = await moderate(new Request("http://localhost/api/admin/social-posts", {
+      method: "POST", headers: { "Content-Type": "application/json", "x-admin-token": "admin-token" },
+      body: JSON.stringify({ postId, mediaId: reviewedMediaIds[0], expectedRevision: 4, action, reviewedMediaIds }),
+    }));
+    expect(response.status).toBe(200);
+    expect(state.calls).toEqual([{
+      name: "moderateHeldForAdmin",
+      args: ["99999999-9999-4999-8999-999999999999", postId, reviewedMediaIds[0], 4, action, reviewedMediaIds],
+    }]);
+  });
+
+  it.each([0, 10])("accepts a %i-item manifest without dropping the gallery contract", async length => {
+    const ids = Array.from({ length }, (_, index) => `${String(index).padStart(8, "0")}-aaaa-4aaa-8aaa-aaaaaaaaaaaa`);
+    const response = await moderate(new Request("http://localhost/api/admin/social-posts", {
+      method: "POST", headers: { "Content-Type": "application/json", "x-admin-token": "admin-token" },
+      body: JSON.stringify({ postId, mediaId: ids[0] ?? null, expectedRevision: 4, action: "approve", reviewedMediaIds: ids }),
+    }));
+    expect(response.status).toBe(200);
+    expect(state.calls[0]?.args[5]).toEqual(ids);
+  });
+
+  it("keeps the five-argument legacy store call when no manifest was supplied", async () => {
+    const response = await moderate(new Request("http://localhost/api/admin/social-posts", {
+      method: "POST", headers: { "Content-Type": "application/json", "x-admin-token": "admin-token" },
+      body: JSON.stringify({ postId, mediaId: proposalId, expectedRevision: 4, action: "approve" }),
+    }));
+    expect(response.status).toBe(200);
+    expect(state.calls).toEqual([{
+      name: "moderateHeldForAdmin", args: ["99999999-9999-4999-8999-999999999999", postId, proposalId, 4, "approve"],
+    }]);
+  });
+
+  it("returns a conflict when the gallery manifest no longer matches", async () => {
+    state.adminModerationKind = "conflict";
+    const response = await moderate(new Request("http://localhost/api/admin/social-posts", {
+      method: "POST", headers: { "Content-Type": "application/json", "x-admin-token": "admin-token" },
+      body: JSON.stringify({ postId, mediaId: proposalId, expectedRevision: 4, action: "approve", reviewedMediaIds: [proposalId] }),
+    }));
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: "CONFLICT" });
   });
 
   it("reports an unavailable admin queue instead of an empty queue", async () => {

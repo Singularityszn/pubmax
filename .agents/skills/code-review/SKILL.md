@@ -16,7 +16,9 @@ The issue tracker should have been provided to you — run `/setup-matt-pocock-s
 
 ### 1. Pin the fixed point
 
-Whatever the user said is the fixed point — a commit SHA, branch name, tag, `main`, `HEAD~5`, etc. If they didn't specify one, ask for it.
+Use the fixed point that the user supplied. Otherwise, use the established task baseline or verified PR base branch.
+State the resolved commit before reviewing. Ask only when different baselines would materially change the requested review.
+For a repository audit, inspect the current tree first. Compare audit fixes against the commit where that work started.
 
 Capture the diff command once: `git diff <fixed-point>...HEAD` (three-dot, so the comparison is against the merge-base). Also note the list of commits via `git log <fixed-point>..HEAD --oneline`.
 

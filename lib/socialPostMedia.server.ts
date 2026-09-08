@@ -3,6 +3,8 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 
 import sharp from "sharp";
+import { inspectSocialVideo, stripSocialVideoMetadata, SOCIAL_VIDEO_MAX_BYTES, SOCIAL_VIDEO_REQUIREMENTS, socialMediaFileName, type SocialMediaContentType } from "@/lib/socialMediaPolicy";
+import { UPLOAD_PHOTO_MAX_BYTES } from "@/lib/uploadBodyLimit";
 
 import { magicBytesOk } from "@/lib/imageSafety";
 import {
@@ -12,7 +14,7 @@ import {
 } from "@/lib/supabase";
 import { uploadUploadedImageObject } from "@/lib/uploadedImage.server";
 
-export const SOCIAL_PHOTO_MAX_BYTES = 10 * 1024 * 1024;
+export const SOCIAL_PHOTO_MAX_BYTES = UPLOAD_PHOTO_MAX_BYTES;
 export const SOCIAL_PHOTO_MAX_DIMENSION = 12_000;
 export const SOCIAL_PHOTO_MAX_PIXELS = 20_000_000;
 export const SOCIAL_PHOTO_OUTPUT_DIMENSION = 1_200;
@@ -22,7 +24,8 @@ const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export type PreparedSocialPhoto = {
   bytes: Buffer;
-  contentType: "image/jpeg";
+  contentType: SocialMediaContentType;
+  durationSeconds?: number;
   width: number;
   height: number;
   byteSize: number;
@@ -55,6 +58,7 @@ export class SocialPhotoError extends Error {
       | "TOO_LARGE"
       | "INVALID_DIMENSIONS"
       | "PROCESSING_FAILED"
+      | "UPLOAD_UNAVAILABLE"
       | "STORAGE_UNAVAILABLE",
     message: string,
   ) {
@@ -71,7 +75,7 @@ export async function prepareSocialPhoto(file: File): Promise<PreparedSocialPhot
     throw new SocialPhotoError("INVALID_TYPE", "Photo must be a JPEG, PNG, or WebP image.");
   }
   if (!Number.isFinite(file.size) || file.size < 1 || file.size > SOCIAL_PHOTO_MAX_BYTES) {
-    throw new SocialPhotoError("TOO_LARGE", "Photo must be 10 MB or smaller.");
+    throw new SocialPhotoError("TOO_LARGE", "Photo must be 4 MB or smaller.");
   }
   const input = Buffer.from(await file.arrayBuffer());
   if (input.byteLength !== file.size || !magicBytesOk(input, file.type)) {
@@ -125,10 +129,37 @@ export async function prepareSocialPhoto(file: File): Promise<PreparedSocialPhot
   }
 }
 
+export async function prepareSocialVideo(file: File): Promise<PreparedSocialPhoto> {
+  if (file.type !== "video/mp4") throw new SocialPhotoError("INVALID_TYPE", SOCIAL_VIDEO_REQUIREMENTS);
+  if (!file.size || file.size > SOCIAL_VIDEO_MAX_BYTES) throw new SocialPhotoError("TOO_LARGE", SOCIAL_VIDEO_REQUIREMENTS);
+  const input = Buffer.from(await file.arrayBuffer());
+  try {
+    if (input.length !== file.size) throw new Error();
+    const info = inspectSocialVideo(input);
+    const bytes = Buffer.from(stripSocialVideoMetadata(input));
+    return { bytes, contentType: "video/mp4", ...info, byteSize: bytes.length,
+      sha256: createHash("sha256").update(bytes).digest("hex") };
+  } catch {
+    throw new SocialPhotoError("PROCESSING_FAILED", "Video is damaged or unsupported. " + SOCIAL_VIDEO_REQUIREMENTS);
+  }
+}
+
+const memoryMedia = new Map<string, { bytes: Buffer; contentType: string }>();
+const MEMORY_MEDIA_MAX_BYTES = 32 * 1024 * 1024;
+
+export function readMemorySocialMedia(key: string): { bytes: Buffer; contentType: string } | null {
+  return memoryMedia.get(key) ?? null;
+}
+
 export const supabaseSocialPhotoStorage: SocialPhotoStorage = {
   async upload(path, bytes, contentType) {
     if (!isSupabaseConfigured()) {
-      throw new SocialPhotoError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
+      const used = [...memoryMedia.values()].reduce((total, item) => total + item.bytes.length, 0);
+      if (used - (memoryMedia.get(path)?.bytes.length ?? 0) + bytes.length > MEMORY_MEDIA_MAX_BYTES) {
+        throw new SocialPhotoError("STORAGE_UNAVAILABLE", "Demo media storage is full.");
+      }
+      memoryMedia.set(path, { bytes: Buffer.from(bytes), contentType });
+      return;
     }
     // Through the shared writer: a feed photo is the same bytes taking the same
     // storage-js branch, so it had the same corrupted write.
@@ -136,7 +167,8 @@ export const supabaseSocialPhotoStorage: SocialPhotoStorage = {
     if (error) throw new SocialPhotoError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
   },
   async remove(paths) {
-    if (paths.length === 0 || !isSupabaseConfigured()) return;
+    if (!isSupabaseConfigured()) { paths.forEach((path) => memoryMedia.delete(path)); return; }
+    if (paths.length === 0) return;
     const { error } = await requireSupabaseAdmin().storage.from(STORAGE_BUCKET).remove(paths);
     if (error) throw new SocialPhotoError("STORAGE_UNAVAILABLE", "Photo cleanup is unavailable.");
   },
@@ -160,8 +192,8 @@ export async function uploadPreparedSocialPhoto(
   const mediaId = requestedMediaId ?? randomUUID();
   const generation = requestedGeneration ?? randomUUID();
   void ownerProfileId;
-  const objectKey = requestedObjectKey ?? `social/${mediaId}/${generation}/image.jpg`;
-  if (objectKey !== `social/${mediaId}/${generation}/image.jpg`) {
+  const objectKey = requestedObjectKey ?? `social/${mediaId}/${generation}/${socialMediaFileName(prepared.contentType)}`;
+  if (objectKey !== `social/${mediaId}/${generation}/${socialMediaFileName(prepared.contentType)}`) {
     throw new SocialPhotoError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
   }
   await storage.upload(objectKey, prepared.bytes, prepared.contentType);
@@ -175,17 +207,21 @@ export async function reserveSocialPhotoUpload(
 ): Promise<UploadedSocialPhoto> {
   const mediaId = requestedMediaId ?? randomUUID();
   const generation = randomUUID();
-  const upload = { ...prepared, mediaId, generation, objectKey: `social/${mediaId}/${generation}/image.jpg` };
+  const upload = { ...prepared, mediaId, generation, objectKey: `social/${mediaId}/${generation}/${socialMediaFileName(prepared.contentType)}` };
   if (!isSupabaseConfigured()) return upload;
-  const { data, error } = await requireSupabaseAdmin().rpc("reserve_social_post_media_upload", {
+  const { data, error } = await requireSupabaseAdmin().rpc(prepared.contentType === "video/mp4" ? "reserve_social_post_video_upload" : "reserve_social_post_media_upload", {
     p_owner_profile_id: ownerProfileId,
     p_media_id: mediaId,
     p_sha256: prepared.sha256,
     p_width: prepared.width,
     p_height: prepared.height,
     p_byte_size: prepared.byteSize,
+    ...(prepared.contentType === "video/mp4" ? { p_duration_seconds: prepared.durationSeconds } : {}),
   });
   const row = Array.isArray(data) ? data[0] : null;
+  if (error && /reservation expired|already attached|cleanup in progress/i.test(error.message)) {
+    throw new SocialPhotoError("UPLOAD_UNAVAILABLE", "This photo upload is no longer available. Choose it again.");
+  }
   if (error || !row || typeof row.media_id !== "string" || typeof row.generation !== "string" ||
     typeof row.object_key !== "string") {
     throw new SocialPhotoError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
@@ -199,7 +235,10 @@ export async function reconcileSocialPhotoUpload(
   generation: string,
   storage: SocialPhotoStorage = supabaseSocialPhotoStorage,
 ): Promise<boolean> {
-  if (!isSupabaseConfigured()) return false;
+  if (!isSupabaseConfigured()) {
+    await storage.remove([`social/${mediaId}/${generation}/image.jpg`, `social/${mediaId}/${generation}/video.mp4`]);
+    return true;
+  }
   const admin = requireSupabaseAdmin();
   const { data: claimRows, error: claimError } = await admin.rpc(
     "claim_social_post_media_upload_cleanup",

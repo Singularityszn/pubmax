@@ -1,22 +1,16 @@
 import "server-only";
 
-// Durable 1:1 messaging store. ONE store interface, TWO implementations
-// (process-memory + Supabase public.conversations/messages), the same dual-backend
-// seam as notifications/reactions/comments: Supabase when env keys exist,
-// process-memory otherwise, chosen at the single messagesStore() seam.
+// Message routes bind caller identity through requireLinkedActor and
+// gateHandleAction. The store checks conversation participation using that handle.
+// Database RLS denies direct client access; this store uses the service-role client.
 //
-// ─────────────────────────────────────────────────────────────────────────────
-// COURTESY-CURTAIN, NOT PRIVACY. Identity is a self-asserted `handle` (no auth).
-// The store enforces the participant check on reads (a non-participant gets
-// nothing back), but that check trusts the asserted handle — it is a courtesy
-// curtain, not cryptographic privacy. Reads are DENY-ALL at the DB (RLS on, no
-// policy — migration 0019); ALL access goes through the service-role admin client
-// here. Keep content low-sensitivity by design; `report` is the abuse seam.
-// ─────────────────────────────────────────────────────────────────────────────
+// messagesStore() selects Supabase when configured, or memory for local/keyless
+// demos when permitted. All selected store operations refuse memory fallback
+// when requiresSupabaseStore() is true.
 //
-// The WRITE path (send) surfaces real failures to the route (a dropped message
-// must not silently vanish). The READ path (list/messages) is fail-soft: an
-// outage renders as an empty inbox / empty thread, never a 500.
+// Failed inbox reads carry InboxRead.status = "degraded" in production.
+// Failed thread reads throw MessageReadUnavailableError. Routes return a retryable
+// failure so the thread can keep its loaded messages or show its retry control.
 
 import {
   isMessagePhotoServingKey,
@@ -40,6 +34,7 @@ import {
 } from "@/lib/messages";
 import { normalizeHandle } from "@/lib/profiles";
 import { admin, errorMessage, missingTables, selectStore } from "@/lib/storeBackend";
+import { requiresSupabaseStore } from "@/lib/supabase";
 
 // Hard caps so one busy handle can't return an unbounded payload.
 export const MAX_CONVERSATIONS = 100;
@@ -88,6 +83,13 @@ export type InboxRead = Readonly<{
   status: InboxReadStatus;
 }>;
 
+export class MessageReadUnavailableError extends Error {
+  constructor() {
+    super("Messages are unavailable right now.");
+    this.name = "MessageReadUnavailableError";
+  }
+}
+
 export type MessagesStore = {
   /** Find-or-create the conversation for an unordered pair. Returns the
    *  conversation id, or null when the pair is invalid (blank / self-pair). */
@@ -126,8 +128,8 @@ export type MessagesStore = {
    *  that into a 404 so a thread never leaks. A READ and nothing else: marking
    *  what the viewer received as read is `markRead`, asked by the thread route
    *  alone, so a photo send or a report (which read the thread to prove
-   *  participation) cannot mark anything read. Never throws on a valid
-   *  participant read. */
+   *  participation) cannot mark anything read. Failed reads throw
+   *  MessageReadUnavailableError; a healthy empty thread returns []. */
   listMessages(conversationId: string, handle: string): Promise<MessageDTO[] | null>;
   /** Mark the viewer's RECEIVED unread messages read. Returns how many rows
    *  changed, so the route can tell the sender's thread only when something did.
@@ -428,7 +430,7 @@ export const supabaseMessagesStore: MessagesStore = {
       if (error) throw new Error(error.message);
       return data ? String((data as { id: unknown }).id) : null;
     } catch (err) {
-      if (isMissingMessagesSchema(err)) {
+      if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("openConversation", err);
         return memoryMessagesStore.openConversation(a, b);
       }
@@ -445,6 +447,7 @@ export const supabaseMessagesStore: MessagesStore = {
     const clean = attachment ? cleanAttachedBody(body) : cleanBody(body);
     if (!conversationId || !senderHandle || clean === null) return null;
     if (isMemoryConversationId(conversationId)) {
+      if (requiresSupabaseStore()) return null;
       return memoryMessagesStore.send(conversationId, senderHandle, clean, attachment, options);
     }
     const clientMessageId = readClientMessageId(options?.clientMessageId);
@@ -492,7 +495,7 @@ export const supabaseMessagesStore: MessagesStore = {
         pair,
       };
     } catch (err) {
-      if (isMissingMessagesSchema(err)) {
+      if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("send", err);
         return memoryMessagesStore.send(conversationId, senderHandle, clean, attachment, options);
       }
@@ -519,7 +522,7 @@ export const supabaseMessagesStore: MessagesStore = {
       if (error) throw new Error(error.message);
       rows = (data ?? []) as Array<Record<string, unknown>>;
     } catch (err) {
-      if (isMissingMessagesSchema(err)) {
+      if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("listConversations", err);
         return memoryMessagesStore.listConversations(me);
       }
@@ -601,6 +604,7 @@ export const supabaseMessagesStore: MessagesStore = {
     const me = normalizeHandle(handle);
     if (!conversationId || !me) return null;
     if (isMemoryConversationId(conversationId)) {
+      if (requiresSupabaseStore()) return null;
       return memoryMessagesStore.listMessages(conversationId, me);
     }
     try {
@@ -623,7 +627,7 @@ export const supabaseMessagesStore: MessagesStore = {
       const rows = ((selected.data ?? []) as unknown as Array<Record<string, unknown>>).reverse();
       return rows.map((r) => rowToMessageDTO(r));
     } catch (err) {
-      if (isMissingMessagesSchema(err)) {
+      if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("listMessages", err);
         return memoryMessagesStore.listMessages(conversationId, me);
       }
@@ -631,9 +635,7 @@ export const supabaseMessagesStore: MessagesStore = {
         "[messages] listMessages failed:",
         err instanceof Error ? err.message : err,
       );
-      // A participant we already verified hitting a transient read error gets an
-      // empty thread, not a leak and not a 500.
-      return [];
+      throw new MessageReadUnavailableError();
     }
   },
 
@@ -641,6 +643,7 @@ export const supabaseMessagesStore: MessagesStore = {
     const me = normalizeHandle(handle);
     if (!conversationId || !me) return 0;
     if (isMemoryConversationId(conversationId)) {
+      if (requiresSupabaseStore()) return 0;
       return memoryMessagesStore.markRead(conversationId, me);
     }
     try {
@@ -656,7 +659,7 @@ export const supabaseMessagesStore: MessagesStore = {
       if (error) throw new Error(error.message);
       return Array.isArray(data) ? data.length : 0;
     } catch (err) {
-      if (isMissingMessagesSchema(err)) {
+      if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("markRead", err);
         return memoryMessagesStore.markRead(conversationId, me);
       }
@@ -668,12 +671,13 @@ export const supabaseMessagesStore: MessagesStore = {
   async participants(conversationId) {
     if (!conversationId) return null;
     if (isMemoryConversationId(conversationId)) {
+      if (requiresSupabaseStore()) return null;
       return memoryMessagesStore.participants(conversationId);
     }
     try {
       return await loadPair(conversationId);
     } catch (err) {
-      if (isMissingMessagesSchema(err)) {
+      if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("participants", err);
         return memoryMessagesStore.participants(conversationId);
       }
@@ -689,6 +693,7 @@ export const supabaseMessagesStore: MessagesStore = {
     const reporter = normalizeHandle(reporterHandle);
     if (!conversationId || !messageId || !reporter) return false;
     if (isMemoryConversationId(conversationId)) {
+      if (requiresSupabaseStore()) return false;
       return memoryMessagesStore.report(conversationId, messageId, reporter);
     }
     try {
@@ -702,7 +707,7 @@ export const supabaseMessagesStore: MessagesStore = {
       if (error) throw new Error(error.message);
       return Array.isArray(data) && data.length > 0;
     } catch (err) {
-      if (isMissingMessagesSchema(err)) {
+      if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("report", err);
         return memoryMessagesStore.report(conversationId, messageId, reporter);
       }
@@ -715,6 +720,7 @@ export const supabaseMessagesStore: MessagesStore = {
     const me = normalizeHandle(handle);
     if (!conversationId || !messageId || !me) return null;
     if (isMemoryConversationId(conversationId)) {
+      if (requiresSupabaseStore()) return null;
       return memoryMessagesStore.photoObjectKey(conversationId, messageId, me);
     }
     try {
@@ -733,7 +739,7 @@ export const supabaseMessagesStore: MessagesStore = {
       if (!data) return null;
       return photoKeyFromRow(data as unknown as Record<string, unknown>);
     } catch (err) {
-      if (isMissingMessagesSchema(err)) {
+      if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("photoObjectKey", err);
         return memoryMessagesStore.photoObjectKey(conversationId, messageId, me);
       }

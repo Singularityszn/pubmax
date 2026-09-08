@@ -4,6 +4,7 @@ import { MapPin } from "lucide-react";
 import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { SearchField } from "@/components/ui/search-field";
+import { Button } from "@/components/ui/button";
 import { trackEvent } from "@/lib/analytics";
 import { listEnabledCities, type CityId } from "@/lib/cities";
 import {
@@ -148,25 +149,27 @@ export default function MapSearchSuggest({
   const deferredQuery = useDeferredValue(debouncedQuery);
   const [searchIndex, setSearchIndex] = useState<MapSearchIndex | null>(null);
   const [searchIndexLoading, setSearchIndexLoading] = useState(false);
+  const [searchIndexFailed, setSearchIndexFailed] = useState(false);
   const searchIndexPromiseRef = useRef<Promise<MapSearchIndex | null> | null>(null);
   const ensureSearchIndex = useCallback(() => {
     if (searchIndex || searchIndexPromiseRef.current) return;
     setSearchIndexLoading(true);
-    const pending = loadMapSearchIndex({
-      currentCityId: cityId,
-      currentVenues: venues,
-    })
+    setSearchIndexFailed(false);
+    const pending = loadMapSearchIndex()
       .then((index) => {
         setSearchIndex(index);
         return index;
       })
-      .catch(() => null)
+      .catch(() => {
+        setSearchIndexFailed(true);
+        return null;
+      })
       .finally(() => {
         searchIndexPromiseRef.current = null;
         setSearchIndexLoading(false);
       });
     searchIndexPromiseRef.current = pending;
-  }, [cityId, searchIndex, venues]);
+  }, [searchIndex]);
 
   useEffect(() => {
     if (mode === "overlay") ensureSearchIndex();
@@ -289,6 +292,7 @@ export default function MapSearchSuggest({
     trimmed.length > 0 &&
     querySettled &&
     !searchIndexLoading &&
+    !searchIndexFailed &&
     !hasResults;
 
   useEffect(() => {
@@ -413,7 +417,14 @@ export default function MapSearchSuggest({
     showEmptyLine && announcedQuery === deferredTrimmed.toLocaleLowerCase() ? NO_RESULTS_MESSAGE : "";
 
   return (
-    <div className={`mapSearchSuggest mapSearchSuggest--${mode}`}>
+    <div
+      className={`mapSearchSuggest mapSearchSuggest--${mode}`}
+      onBlur={(event) => {
+        if (mode === "toolbar" && !event.currentTarget.contains(event.relatedTarget)) {
+          setToolbarFocused(false);
+        }
+      }}
+    >
       <SearchField
         id={id}
         role="combobox"
@@ -427,9 +438,6 @@ export default function MapSearchSuggest({
         onFocus={() => {
           setToolbarFocused(true);
           ensureSearchIndex();
-        }}
-        onBlur={() => {
-          if (mode === "toolbar") setToolbarFocused(false);
         }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
@@ -685,6 +693,19 @@ export default function MapSearchSuggest({
               </div>
             ) : null}
           </div>
+          {searchIndexFailed && !searchIndexLoading ? (
+            <div className="mapSearchSuggestEmpty">
+              <p className="mapSearchSuggestEmptyTitle" role="status">Some venues could not load.</p>
+              <Button
+                type="button"
+                variant="secondary"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={ensureSearchIndex}
+              >
+                Try again
+              </Button>
+            </div>
+          ) : null}
         </div>
       ) : null}
       <p
