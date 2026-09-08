@@ -605,7 +605,18 @@ test("/map surfaces Retry when the automatic style reload also fails", async ({
     await route.abort("failed");
   });
 
+  // This response comes from the browser's live basemap request, not a probe fetch.
+  const initialTileResponse = page.waitForResponse(
+    (response) =>
+      /^https:\/\/tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/.test(response.url()) &&
+      response.status() === 200,
+    { timeout: 30_000 },
+  );
   await page.goto("/map");
+  const initialTile = await initialTileResponse;
+  expect(await initialTile.finished()).toBeNull();
+  const initialTileBytes = (await initialTile.body()).byteLength;
+  expect(initialTileBytes, "a real basemap tile completed before the outage").toBeGreaterThan(0);
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
     timeout: 20_000,
   });
@@ -625,7 +636,21 @@ test("/map surfaces Retry when the automatic style reload also fails", async ({
         ),
       { timeout: 30_000 },
     )
-    .toMatch(/^(tiles|idle)$/);
+    .toMatch(/^(pins|idle)$/);
+
+  // The phone event proves pins only. Retain the successful tile response
+  // and the composed canvas for independent review before injecting failure.
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
+  await test.info().attach("initial-basemap-response", {
+    body: JSON.stringify({ url: initialTile.url(), status: initialTile.status(), bytes: initialTileBytes }),
+    contentType: "application/json",
+  });
+  await test.info().attach("initial-basemap-before-outage", {
+    body: await page.locator(".maplibreMap canvas").first().screenshot(),
+    contentType: "image/png",
+  });
 
   failTiles = true;
   failStyles = true;
@@ -681,7 +706,18 @@ test("/map spends exactly one style reload on a tile-source failure, then surfac
     });
   });
 
+  // This response comes from the browser's live basemap request, not a probe fetch.
+  const initialTileResponse = page.waitForResponse(
+    (response) =>
+      /^https:\/\/tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/.test(response.url()) &&
+      response.status() === 200,
+    { timeout: 30_000 },
+  );
   await page.goto("/map");
+  const initialTile = await initialTileResponse;
+  expect(await initialTile.finished()).toBeNull();
+  const initialTileBytes = (await initialTile.body()).byteLength;
+  expect(initialTileBytes, "a real basemap tile completed before the outage").toBeGreaterThan(0);
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
     timeout: 20_000,
   });
@@ -701,7 +737,21 @@ test("/map spends exactly one style reload on a tile-source failure, then surfac
         ),
       { timeout: 30_000 },
     )
-    .toMatch(/^(tiles|idle)$/);
+    .toMatch(/^(pins|idle)$/);
+
+  // The phone event proves pins only. Retain the successful tile response
+  // and the composed canvas for independent review before injecting failure.
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
+  await test.info().attach("initial-basemap-response", {
+    body: JSON.stringify({ url: initialTile.url(), status: initialTile.status(), bytes: initialTileBytes }),
+    contentType: "application/json",
+  });
+  await test.info().attach("initial-basemap-before-outage", {
+    body: await page.locator(".maplibreMap canvas").first().screenshot(),
+    contentType: "image/png",
+  });
 
   const styleRequestsBeforeOutage = styleRequests;
   failTiles = true;
@@ -909,8 +959,12 @@ test("/map keeps Manchester cluster markers mounted after granted location settl
     timeout: 20_000,
   });
   await page.waitForTimeout(2_000);
-  const showAll = page.getByRole("button", {
+  await page.getByRole("button", { name: /^Map layers:/ }).click();
+  const layers = page.getByRole("dialog", { name: "Map layers", exact: true });
+  await expect(layers).toBeVisible();
+  const showAll = layers.getByRole("button", {
     name: "Show all of Manchester",
+    exact: true,
   });
   await expect(showAll).toBeVisible({ timeout: 20_000 });
   await showAll.click();
