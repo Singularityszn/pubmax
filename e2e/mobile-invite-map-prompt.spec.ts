@@ -1,4 +1,5 @@
-import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { test } from "./helpers/planFixtureCaller";
+import { expect, type APIRequestContext, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
 type Venue = {
@@ -34,13 +35,14 @@ function contrastRatio(foreground: Rgb, background: Rgb): number {
 
 async function createInvite(
   request: APIRequestContext,
+  headers: Record<string, string>,
   stopCount = 3,
 ): Promise<{ token: string; venues: Venue[] }> {
-  const venues = ((await (await request.get("/data/venues_slim.json")).json()) as Venue[]).slice(0, stopCount);
+  const venues = ((await (await request.get("/data/venues_slim.json")).json()) as { rows: Venue[] }).rows.slice(0, stopCount);
   expect(venues).toHaveLength(stopCount);
 
   const created = await request.post("/api/plans", {
-    headers: { "idempotency-key": randomUUID() },
+    headers: { ...headers, "idempotency-key": randomUUID() },
     data: {
       title: "Mobile invite map handoff",
       startTime: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
@@ -67,14 +69,14 @@ async function captureAnalytics(page: Page): Promise<unknown[]> {
   return payloads;
 }
 
-test("guest RSVP reveals one ordered map handoff that fits mobile", async ({ request, page }) => {
+test("guest RSVP reveals one ordered map handoff that fits mobile", async ({ request, page, planFixtureHeaders }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: "dark" });
   await page.addInitScript(() => {
     localStorage.setItem("pubmaxx:analytics-consent:v1", "granted");
   });
   const analytics = await captureAnalytics(page);
-  const { token, venues } = await createInvite(request);
+  const { token, venues } = await createInvite(request, planFixtureHeaders);
 
   await page.goto(`/invite/${token}`);
   // Exactly one map link on the page, and it is the RSVP island's. The stops
@@ -208,9 +210,9 @@ test("guest RSVP reveals one ordered map handoff that fits mobile", async ({ req
   await stranger.close();
 });
 
-test("Maybe RSVP reveals the canonical one-stop map handoff", async ({ request, page }) => {
+test("Maybe RSVP reveals the canonical one-stop map handoff", async ({ request, page, planFixtureHeaders }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  const { token, venues } = await createInvite(request, 1);
+  const { token, venues } = await createInvite(request, planFixtureHeaders, 1);
 
   await page.goto(`/invite/${token}`);
   await page.locator(".inviteRsvp__nameInput").fill("Sam");
@@ -222,9 +224,9 @@ test("Maybe RSVP reveals the canonical one-stop map handoff", async ({ request, 
   await expect(handoff).toHaveAttribute("href", `/map?sel=${encodeURIComponent(venues[0]!.id)}`);
 });
 
-test("failed guest RSVP stays on invite without a map handoff", async ({ request, page }) => {
+test("failed guest RSVP stays on invite without a map handoff", async ({ request, page, planFixtureHeaders }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  const { token } = await createInvite(request);
+  const { token } = await createInvite(request, planFixtureHeaders);
 
   await page.route(/\/api\/invite\/[^/]+\/rsvp$/, async (route) => {
     await route.fulfill({
@@ -247,9 +249,9 @@ test("failed guest RSVP stays on invite without a map handoff", async ({ request
   await expect(page.locator(".inviteRsvp__guest", { hasText: "Priya" })).toHaveCount(0);
 });
 
-test("guest RSVP rejects a success response without a valid summary", async ({ request, page }) => {
+test("guest RSVP rejects a success response without a valid summary", async ({ request, page, planFixtureHeaders }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  const { token } = await createInvite(request);
+  const { token } = await createInvite(request, planFixtureHeaders);
 
   await page.route(/\/api\/invite\/[^/]+\/rsvp$/, async (route) => {
     await route.fulfill({

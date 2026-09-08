@@ -1,6 +1,7 @@
+import { test } from "./helpers/planFixtureCaller";
 import { randomUUID } from "node:crypto";
 
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 type PlanCreateResponse = {
   memberToken: string;
@@ -14,7 +15,7 @@ const MOBILE_VIEWPORTS = [
   { width: 430, height: 932 },
 ] as const;
 
-test("an active Plan starts a Round with its ordered stops", async ({ page }) => {
+test("an active Plan starts a Round with its ordered stops", async ({ page, planFixtureHeaders }) => {
   const stops = [
     { venueId: "venue-xjf3n0", venueName: "Arnos Arms" },
     { venueId: "venue-1f5ygjb", venueName: "The Bohemia" },
@@ -25,7 +26,7 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
   const handle = `bridge_${Date.now().toString(36)}`;
   const api = page.context().request;
   const created = await api.post("/api/plans", {
-    headers: { "idempotency-key": randomUUID() },
+    headers: { ...planFixtureHeaders, "idempotency-key": randomUUID() },
     data: {
       title: "Active Plan bridge",
       startTime,
@@ -105,15 +106,27 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
     });
     const geometry = await page.locator(".planSummary").evaluate((summary) => {
       const starter = summary.querySelector<HTMLElement>(".roundStarter");
-      const rail = summary.querySelector<HTMLElement>(".planSummary__rail");
+      const stops = summary.querySelectorAll<HTMLElement>(".planSummary__stops > li");
       const input = summary.querySelector<HTMLInputElement>(".roundStarterRow input");
       const action = summary.querySelector<HTMLButtonElement>(".roundStarterRow button");
-      if (!starter || !rail || !input || !action) {
+      if (!starter || stops.length !== 3 || !input || !action) {
         throw new Error("Plan RoundStarter geometry is incomplete");
       }
 
       const starterRect = starter.getBoundingClientRect();
-      const railRect = rail.getBoundingClientRect();
+      const railRects = Array.from(stops, (stop) => {
+        const rect = stop.getBoundingClientRect();
+        const style = getComputedStyle(stop, "::before");
+        const left = Number.parseFloat(style.left);
+        const top = Number.parseFloat(style.top);
+        const width = Number.parseFloat(style.width);
+        const height = Number.parseFloat(style.height);
+        if (style.content === "none" || ![left, top, width, height].every(Number.isFinite)
+          || width <= 0 || height <= 0) {
+          throw new Error("Plan route rail has no painted geometry");
+        }
+        return new DOMRect(rect.left + left, rect.top + top, width, height);
+      });
       const actionRect = action.getBoundingClientRect();
       const overlaps = (first: DOMRect, second: DOMRect) =>
         first.left < second.right &&
@@ -122,8 +135,8 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
         first.bottom > second.top;
 
       return {
-        starterRailOverlap: overlaps(starterRect, railRect),
-        actionRailOverlap: overlaps(actionRect, railRect),
+        starterRailOverlap: railRects.some((rail) => overlaps(starterRect, rail)),
+        actionRailOverlap: railRects.some((rail) => overlaps(actionRect, rail)),
       };
     });
 

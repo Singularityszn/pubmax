@@ -9,6 +9,8 @@ type RoundState = {
 test("mobile Round lifecycle: join, copy code, add a pub, and host closes", async ({
   page,
   request,
+  browser,
+  baseURL,
 }) => {
   const suffix = Date.now().toString(36);
   const host = `codexhost_${suffix}`;
@@ -25,11 +27,10 @@ test("mobile Round lifecycle: join, copy code, add a pub, and host closes", asyn
   const code = created.round.code;
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript((initialMate) => {
+  await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-    window.localStorage.setItem("pubmax_handle", initialMate);
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: {
@@ -38,7 +39,7 @@ test("mobile Round lifecycle: join, copy code, add a pub, and host closes", asyn
         },
       },
     });
-  }, mate);
+  });
 
   const response = await page.goto(`/rounds/${code}`);
   expect(response?.status()).toBe(200);
@@ -52,6 +53,7 @@ test("mobile Round lifecycle: join, copy code, add a pub, and host closes", asyn
   await expect(page.getByRole("status").filter({ hasText: "Code copied." })).toBeVisible();
 
   await expect(page.getByRole("heading", { name: "Join this Round" })).toBeVisible();
+  await page.getByLabel("Your handle", { exact: true }).fill(mate);
   await page.getByRole("button", { name: "I'm out too. Join the Round" }).click();
   await expect(page.getByRole("status").filter({ hasText: "2 out · still going" })).toBeVisible();
   await expect(page.getByRole("link", { name: `@${mate}` })).toBeVisible();
@@ -104,17 +106,20 @@ test("mobile Round lifecycle: join, copy code, add a pub, and host closes", asyn
   }));
   expect(Math.max(overflow.body, overflow.document)).toBeLessThanOrEqual(overflow.viewport);
 
-  const hostPage = await page.context().newPage();
+  const hostContext = await browser.newContext({ baseURL });
+  const hostPage = await hostContext.newPage();
   await hostPage.setViewportSize({ width: 390, height: 844 });
-  await hostPage.addInitScript((hostHandle) => {
+  await hostPage.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-    window.localStorage.setItem("pubmax_handle", hostHandle);
-  }, host);
+  });
 
   await hostPage.goto(`/rounds/${code}`);
   await expect(hostPage.locator(".roundBoard")).toBeVisible();
+  await hostPage.getByLabel("Your handle", { exact: true }).fill(host);
+  await hostPage.getByRole("button", { name: "I'm out too. Join the Round" }).click();
+  await expect(hostPage.getByRole("status").filter({ hasText: "2 out · still going" })).toBeVisible();
   // Closing is a two-tap confirm (irreversible, crew-wide): arm, then commit.
   await hostPage.getByRole("button", { name: "Call the Round (close it)" }).click();
   await hostPage.getByRole("button", { name: "Yes, call it" }).click();
@@ -123,5 +128,5 @@ test("mobile Round lifecycle: join, copy code, add a pub, and host closes", asyn
       .getByRole("status")
       .filter({ hasText: "This Round has been called. It's closed." }),
   ).toBeVisible();
-  await hostPage.close();
+  await hostContext.close();
 });

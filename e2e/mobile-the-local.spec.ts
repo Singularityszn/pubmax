@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { test } from "./helpers/planFixtureCaller";
+import { expect } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 
 test("mobile Describe the outing builds one grounded route without camera flicker", async ({ page }) => {
@@ -20,7 +21,7 @@ test("mobile Describe the outing builds one grounded route without camera flicke
   await page.getByRole("button", { name: "Describe the outing" }).click();
   const planner = page.locator(".mapDrawer.left");
   await expect(planner).toHaveClass(/sheet-half/);
-  await planner.getByLabel("Describe the outing").fill("Four of us in Barnes, under £24 each and quiet");
+  await planner.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Four of us in Barnes, under £24 each and quiet");
   const generateRequest = page.waitForRequest((request) => request.method() === "POST" && request.url().endsWith("/api/plans/generate"));
   await planner.getByRole("button", { name: "Make a plan" }).click();
   const submitted = (await generateRequest).postDataJSON() as { context: Record<string, unknown> };

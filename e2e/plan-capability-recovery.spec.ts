@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { test } from "./helpers/planFixtureCaller";
+import { generatePlanRoute } from "./helpers/planGeneratedRoute";
+import { expect, type Page } from "@playwright/test";
 
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
@@ -67,12 +69,10 @@ async function lockInAPlan(
 ): Promise<string> {
   await openHydratedPlanComposer(page);
   await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
-  await describeFirstSubmit(page).click();
-  await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
+  await generatePlanRoute(page, describeFirstSubmit(page));
   await page.getByLabel("Your name").fill("Karan");
   await page.getByLabel("First pint").fill(futureLondonFirstPint());
-  await page.getByRole("button", { name: "Regenerate route" }).click();
-  await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
+  await generatePlanRoute(page, page.getByRole("button", { name: "Regenerate route" }));
   await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
   const claim = options.waitForAccountClaim
     ? page.waitForResponse(

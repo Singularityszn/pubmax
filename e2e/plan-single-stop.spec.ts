@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { test } from "./helpers/planFixtureCaller";
+import { expect, type Page } from "@playwright/test";
 
 /**
  * F09 / J09: a single-destination outing and a two-stop outing must have an
@@ -49,7 +50,9 @@ for (const stopCount of [1, 2] as const) {
       && response.url().endsWith("/api/plans/generate")
     ));
     await page.getByRole("button", { name: "Sort it", exact: true }).click();
-    const generated = await (await generation).json() as {
+    const response = await generation;
+    expect(response.status(), await response.text()).toBe(200);
+    const generated = await response.json() as {
       stops?: Array<{ venueId?: string }>;
       inferredContext?: { stopCount?: number };
     };

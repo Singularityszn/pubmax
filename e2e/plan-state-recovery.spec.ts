@@ -1,20 +1,21 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { test } from "./helpers/planFixtureCaller";
+import { expect, type APIRequestContext, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
 test.use({ viewport: { width: 390, height: 844 }, colorScheme: "dark" });
 
-async function prepareNight(page: Page, request: APIRequestContext) {
+async function prepareNight(page: Page, request: APIRequestContext, headers: Record<string, string>) {
   const response = await request.get("/data/venues_slim.json");
   const venues = (await response.json()).rows.slice(0, 3) as { id: string; name: string }[];
   const startTime = new Date().toISOString();
   const created = await request.post("/api/plans", {
-    headers: { "idempotency-key": randomUUID() },
+    headers: { ...headers, "idempotency-key": randomUUID() },
     data: {
       title: "Phone state recovery", creatorName: "Phone host", startTime,
       stops: venues.map((venue) => ({ venueId: venue.id, venueName: venue.name })),
     },
   });
-  expect(created.ok()).toBe(true);
+  expect(created.status(), await created.text()).toBe(201);
   const body = await created.json();
   const id = body.plan.plan.id as string;
   await page.addInitScript(({ id, startTime, token }) => {
@@ -26,8 +27,8 @@ async function prepareNight(page: Page, request: APIRequestContext) {
   return { id, firstStop: venues[0].name, memberToken: body.memberToken as string };
 }
 
-test("an in-flight anonymous route cannot replace the restored host route or Night card", async ({ page, request }) => {
-  const { id, firstStop } = await prepareNight(page, request);
+test("an in-flight anonymous route cannot replace the restored host route or Night card", async ({ page, request, planFixtureHeaders }) => {
+  const { id, firstStop } = await prepareNight(page, request, planFixtureHeaders);
   let releaseSession!: () => void;
   let releasePreview!: () => void;
   const sessionGate = new Promise<void>((resolve) => { releaseSession = resolve; });
@@ -67,8 +68,8 @@ test("an in-flight anonymous route cannot replace the restored host route or Nig
   await expect.soft(page.locator(".planSummary")).toContainText(firstStop);
 });
 
-test("Night offers Retry after a failed read and withdraws compose only while expanded", async ({ page, request }, testInfo) => {
-  const { id, firstStop, memberToken } = await prepareNight(page, request);
+test("Night offers Retry after a failed read and withdraws compose only while expanded", async ({ page, request, planFixtureHeaders }, testInfo) => {
+  const { id, firstStop, memberToken } = await prepareNight(page, request, planFixtureHeaders);
   // Establish the real path-scoped cookie in the browser context.
   const session = await page.request.post(`/api/plans/${id}/session`, {
     headers: { authorization: `Bearer ${memberToken}` },
