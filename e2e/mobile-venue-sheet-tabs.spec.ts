@@ -103,36 +103,6 @@ async function openTouchSession(page: Page) {
   return session;
 }
 
-async function swipeLeftWithTouch(page: Page, target: Locator): Promise<void> {
-  const box = await target.boundingBox();
-  expect(box, "touch target should have a box").not.toBeNull();
-
-  const session = await openTouchSession(page);
-
-  const y = Math.round(box!.y + box!.height / 2);
-  const startX = Math.round(box!.x + box!.width - 24);
-  const endX = Math.round(box!.x + 24);
-  try {
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchStart",
-      touchPoints: [{ x: startX, y }],
-    });
-    for (let step = 1; step <= 5; step += 1) {
-      const x = Math.round(startX + ((endX - startX) * step) / 5);
-      await session.send("Input.dispatchTouchEvent", {
-        type: "touchMove",
-        touchPoints: [{ x, y }],
-      });
-    }
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchEnd",
-      touchPoints: [],
-    });
-  } finally {
-    await session.detach();
-  }
-}
-
 async function tapWithTouch(page: Page, target: Locator): Promise<void> {
   const box = await target.boundingBox();
   expect(box, "touch target should have a box").not.toBeNull();
@@ -382,7 +352,7 @@ for (const width of [320, 390] as const) {
   });
 }
 
-test("a real 390px touch swipe reaches the final Venue tab", async ({ page }) => {
+test("a real 390px touch reaches the final Venue tab on first open", async ({ page }) => {
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
   expect(response?.status()).toBe(200);
 
@@ -393,22 +363,20 @@ test("a real 390px touch swipe reaches the final Venue tab", async ({ page }) =>
   const tablist = portal.getByRole("tablist", { name: "Venue detail sections" });
   const finalTab = tablist.getByRole("tab", { name: "Last train", exact: true });
 
-  await expect(tablist).toHaveAttribute("data-trailing-fade", "on");
-  const before = await tablist.evaluate((element) => element.scrollLeft);
-  const finalRightBefore = await finalTab.evaluate(
-    (element) => element.getBoundingClientRect().right,
-  );
-  expect(finalRightBefore).toBeGreaterThan(VIEWPORT.width);
-
-  await swipeLeftWithTouch(page, tablist);
-
-  await expect
-    .poll(() => tablist.evaluate((element) => element.scrollLeft))
-    .toBeGreaterThan(before);
   await expect(tablist).toHaveAttribute("data-trailing-fade", "off");
+  await expect(tablist).toHaveCSS("overflow-x", "visible");
+  expect(await tablist.evaluate((element) => element.scrollWidth - element.clientWidth))
+    .toBeLessThanOrEqual(1);
   await expect(sheet).toHaveClass(/sheet-half/);
-  await expectInViewport(finalTab, "Last train tab after touch swipe", page);
-  await expectTapTarget(finalTab, "Last train tab after touch swipe");
+  await expectInViewport(finalTab, "Last train tab on first open", page);
+  await expectTapTarget(finalTab, "Last train tab on first open");
+  expect(await finalTab.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const hit = document.elementFromPoint(
+      Math.round(box.x + box.width / 2), Math.round(box.y + box.height / 2),
+    );
+    return hit !== null && element.contains(hit);
+  }), "Last train owns its touch point on first open").toBe(true);
 
   await tapWithTouch(page, finalTab);
   await expect(finalTab).toHaveAttribute("aria-selected", "true");
