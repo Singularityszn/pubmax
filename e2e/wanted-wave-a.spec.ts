@@ -50,7 +50,7 @@ test.describe("Wanted Wave A phone chrome", () => {
       }
     });
     await page.goto("/plan", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: /What.?s the plan/i })).toBeVisible({
+    await expect(page.getByRole("heading", { name: "Describe the outing. We’ll put it in order.", exact: true })).toBeVisible({
       timeout: 20_000,
     });
     await expect(page.getByLabel("Your Wanted list")).toHaveCount(0);
