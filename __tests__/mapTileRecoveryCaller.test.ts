@@ -169,6 +169,31 @@ function recoveryCaller(phoneFirstImpression = false) {
   };
 }
 
+// Replay the two batches from the retained 5145 browser caller trace.
+// A source retry can select parent tiles, so the second batch uses new keys.
+async function settledOutageThroughSilentRetries() {
+  const caller = recoveryCaller();
+  const first = ["da77hdd", "da77gdd", "dadj1dd", "da0vxdd", "da0vwdd"];
+  const next = ["3bj0ecc", "3bm66cc", "dadj0dd"];
+  const parents = ["tvcvbb", "twxrbb"];
+  caller.load("initial");
+  caller.render();
+  for (const id of first) caller.fail(id);
+  await vi.advanceTimersByTimeAsync(340);
+  caller.load("dadj0dd");
+  caller.render();
+  await vi.advanceTimersByTimeAsync(tilePolicy.silentTileRetryDelayMs(0) - 340);
+  expect(caller.setTiles).toHaveBeenCalledOnce();
+  await vi.advanceTimersByTimeAsync(1_030);
+  for (const id of next) caller.fail(id);
+  await vi.advanceTimersByTimeAsync(1_019);
+  for (const id of parents) caller.fail(id);
+  await vi.advanceTimersByTimeAsync(tilePolicy.silentTileRetryDelayMs(1) - 1_019);
+  expect(caller.setTiles).toHaveBeenCalledTimes(2);
+  expect(caller.setProtectedStyle).not.toHaveBeenCalled();
+  return { caller, oldKeys: ["initial", ...first, ...next, ...parents] };
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
   vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -176,6 +201,63 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe("component basemap recovery with MapLibre settled errors", () => {
+  it("retains a settled outage when the last silent reload emits no more errors", async () => {
+    const { caller } = await settledOutageThroughSilentRetries();
+    // No new error, render, or loaded event may be needed to resume recovery.
+    await vi.advanceTimersByTimeAsync(tilePolicy.TILE_FAILURE_SUSTAIN_MS);
+    expect(caller.setProtectedStyle).toHaveBeenCalledOnce();
+    caller.styleLoaded();
+    for (const id of ["a", "b", "c", "d"]) caller.fail(id);
+    await vi.advanceTimersByTimeAsync(tilePolicy.TILE_FAILURE_WINDOW_MS);
+    expect(caller.surfaceBasemapFailure).toHaveBeenCalled();
+    expect(caller.setTiles).toHaveBeenCalledTimes(2);
+    expect(caller.setProtectedStyle).toHaveBeenCalledOnce();
+  });
+
+  it("retires retained evidence when the final source attempt succeeds", async () => {
+    const { caller, oldKeys } = await settledOutageThroughSilentRetries();
+    for (const id of oldKeys) caller.load(id);
+    caller.render();
+    await vi.advanceTimersByTimeAsync(tilePolicy.TILE_FAILURE_WINDOW_MS);
+    expect(caller.setProtectedStyle).not.toHaveBeenCalled();
+    expect(caller.surfaceBasemapFailure).not.toHaveBeenCalled();
+    // A real recovery restores the existing silent budget for a later miss.
+    caller.fail("later-miss");
+    await vi.advanceTimersByTimeAsync(tilePolicy.silentTileRetryDelayMs(0));
+    expect(caller.setTiles).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not require abandoned tile keys after a healthy viewport replaces them", async () => {
+    const { caller, oldKeys } = await settledOutageThroughSilentRetries();
+    caller.startMoving();
+    caller.leaveViewport(...oldKeys);
+    caller.load("healthy-final-viewport");
+    caller.stopMoving();
+    caller.render();
+    await vi.advanceTimersByTimeAsync(tilePolicy.TILE_FAILURE_WINDOW_MS);
+    expect(caller.setTiles).toHaveBeenCalledTimes(2);
+    expect(caller.setProtectedStyle).not.toHaveBeenCalled();
+    expect(caller.surfaceBasemapFailure).not.toHaveBeenCalled();
+  });
+
+  it("keeps the sustain check when one retry tile loads but the source stays pending", async () => {
+    const { caller } = await settledOutageThroughSilentRetries();
+    caller.load("unrelated-retry-success");
+    caller.render();
+    await vi.advanceTimersByTimeAsync(tilePolicy.TILE_FAILURE_SUSTAIN_MS);
+    expect(caller.setProtectedStyle).toHaveBeenCalledOnce();
+  });
+
+  it.each(["replacement", "disposal"])("cancels a silent-attempt recheck after %s", async (end) => {
+    const { caller } = await settledOutageThroughSilentRetries();
+    if (end === "replacement") caller.styleLoaded();
+    else caller.dispose();
+    await vi.advanceTimersByTimeAsync(tilePolicy.TILE_FAILURE_WINDOW_MS);
+    expect(caller.setTiles).toHaveBeenCalledTimes(2);
+    expect(caller.setProtectedStyle).not.toHaveBeenCalled();
+    expect(caller.surfaceBasemapFailure).not.toHaveBeenCalled();
+  });
+
   it("rechecks delivered tile failures after motion stops without another error", async () => {
     const caller = recoveryCaller();
     caller.load("initial");
