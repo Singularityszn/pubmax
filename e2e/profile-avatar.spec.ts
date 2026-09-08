@@ -320,7 +320,7 @@ test("retries a failed avatar after the browser reconnects", async ({ page }, te
       page.goto(`/u/${REPAINT_HANDLE}`),
     ]);
     // The loading placeholder is also a fallback. Wait for the actual image failure.
-    await expect(page.getByRole("heading", { name: "Avatar recovery", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Avatar recovery", exact: true })).toBeVisible();
     await expect(page.locator("img.profileAvatar")).toHaveCount(0);
     await expect(page.locator(".profileAvatarFallback")).toBeVisible();
     expect(avatarRequests).toBe(1);
