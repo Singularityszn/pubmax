@@ -468,7 +468,9 @@ test.describe("profile photo picker and crop", () => {
     await pick(page, "avatar", "IMG_2206.png");
     await page.getByRole("button", { name: "Use photo" }).click();
     await expect(page.getByRole("heading", { name: "Editing your profile" })).toBeVisible();
-    expect(record.calls).toBe(2);
+    await expect.poll(() => record.calls).toBe(2);
+    await expect(page.locator(".profileCropStep")).toHaveCount(0);
+    await expect(page.locator("#pe-avatar-file")).toBeEnabled();
   });
 
   test("a photo this browser cannot open says where to go instead", async ({ page }) => {

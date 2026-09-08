@@ -105,7 +105,7 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(page).toHaveURL(/\/moment\?returnTo=%2Fmap$/);
     await expect(page.getByRole("heading", { name: "Keep this one." })).toBeVisible();
     await expect(page.getByRole("link", { name: "Log a Pint Drop" })).toHaveAttribute("href", "/map?log=1");
-    await expect(page.getByRole("link", { name: "Cancel" })).toHaveAttribute("href", "/map");
+    await expect(page.getByRole("link", { name: "Back", exact: true })).toHaveAttribute("href", "/map");
   });
 
   test("gated Social stays out of the primary tab row", async ({ page }) => {
