@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.pubmaxx.app.OfflineRetryDestinationTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-09-08T03:33:28.689Z" hostname="Karans-MBP" time="0.019">
+  <properties/>
+  <testcase name="defaultHttpsPortAndHostnameCaseStillIdentifyTheSameOrigin" classname="com.pubmaxx.app.OfflineRetryDestinationTest" time="0.01"/>
+  <testcase name="localReviewBuildRetriesOnlyItsConfiguredOrigin" classname="com.pubmaxx.app.OfflineRetryDestinationTest" time="0.001"/>
+  <testcase name="retryRestoresTheFailedVenueIncludingItsQueryAndFragment" classname="com.pubmaxx.app.OfflineRetryDestinationTest" time="0.001"/>
+  <testcase name="callbackAndCredentialUrlsAreNeverRetainedForReplay" classname="com.pubmaxx.app.OfflineRetryDestinationTest" time="0.002"/>
+  <testcase name="retryAlsoRestoresAnAreaOrPlanDestination" classname="com.pubmaxx.app.OfflineRetryDestinationTest" time="0.001"/>
+  <testcase name="aRepeatedOfflineFailureCanBeRetriedAgain" classname="com.pubmaxx.app.OfflineRetryDestinationTest" time="0.0"/>
+  <testcase name="loadingTheErrorDocumentKeepsTheFailureAvailable" classname="com.pubmaxx.app.OfflineRetryDestinationTest" time="0.001"/>
+  <testcase name="subresourceFailureDoesNotReplaceTheMainFrameDestination" classname="com.pubmaxx.app.OfflineRetryDestinationTest" time="0.0"/>
+  <testcase name="untrustedMainFrameFailureCannotReplayAnEarlierVenue" classname="com.pubmaxx.app.OfflineRetryDestinationTest" time="0.001"/>
+  <testcase name="retryIsLimitedToTheErrorDocumentAndItsMainFrameButtonNavigation" classname="com.pubmaxx.app.OfflineRetryDestinationTest" time="0.0"/>
+  <testcase name="startingAnotherNavigationClearsTheOldFailure" classname="com.pubmaxx.app.OfflineRetryDestinationTest" time="0.001"/>
+  <testcase name="missingOrConsumedDestinationUsesTheConfiguredRoot" classname="com.pubmaxx.app.OfflineRetryDestinationTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
