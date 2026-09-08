@@ -143,6 +143,11 @@
     );
   }
 
+  /* Create is hidden during consent and reserves no story space. */
+  body:has(.analyticsConsentPrompt) .appShell .bandOnboardingChip {
+    bottom: calc(var(--float-stack-top-map-corner) + var(--float-stack-gap));
+  }
+
   .appShell:has(.bandOnboardingChip) .mapStage .maplibregl-ctrl-bottom-right {
     bottom: var(--float-stack-base);
     right: var(--mobile-map-story-utility-lane);
@@ -496,18 +501,6 @@
     pointer-events: auto;
     cursor: pointer;
   }
-  /* The first-visit analytics disclosure owns the same bottom lane, so the
-     map-edge column steps above it rather than putting a 52px FAB on top of a
-     consent choice. Same offset the OSM credit already uses. */
-  body:has(.analyticsConsentPrompt) .mobileMapUtilityCorner {
-    bottom: var(--map-corner-bottom-consent);
-  }
-  /* When the Pub Pal pill is on screen it parks above the plan pill; lift the
-     map-edge column so Near me never paints underneath it. */
-  body:has(.palSummon) .mobileMapUtilityCorner {
-    bottom: calc(var(--float-stack-top-pal) + var(--float-stack-gap));
-  }
-
   .mobileMapLocateFab[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); }
   .mobileMapLocateFab:disabled { cursor: wait; opacity: .72; }
   .mobileMapLocateFab:active { transform: scale(.97); --shared-press-scale: 1; }
