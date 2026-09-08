@@ -124,6 +124,34 @@ function pressEscape(): KeyboardEvent {
 }
 
 describe("the phone sheet lane belongs to the phone", () => {
+  describe.each([false, true])("limited coverage: %s", (limitedCoverage) => {
+    it("closes the active Search through navigation Home", () => {
+      const props = mount({ limitedCoverage, overlay: "search" });
+      const search = container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Search the map"]',
+      );
+      expect(search).not.toBeNull();
+      act(() => search!.click());
+      expect(props.onHome).toHaveBeenCalledTimes(1);
+      expect(props.onOverlayChange).not.toHaveBeenCalled();
+      expect(props.onBack).not.toHaveBeenCalled();
+      expect(props.onClearQuery).not.toHaveBeenCalled();
+    });
+
+    it.each(["none", "filters"])("opens Search from %s without leaving the navigation trail", (overlay) => {
+      const props = mount({ limitedCoverage, overlay, sheetsEnabled: false });
+      const search = container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Search the map"]',
+      );
+      expect(search).not.toBeNull();
+      act(() => search!.click());
+      expect(props.onOverlayChange).toHaveBeenCalledTimes(1);
+      expect(props.onOverlayChange).toHaveBeenCalledWith("search");
+      expect(props.onHome).not.toHaveBeenCalled();
+      expect(props.onBack).not.toHaveBeenCalled();
+    });
+  });
+
   it("mounts the sheet and answers Escape when the shell owns the lane", () => {
     const props = mount({ sheetsEnabled: true, onBack: vi.fn() });
     expect(document.body.querySelector(".mobileSheetPortal")).not.toBeNull();

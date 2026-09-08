@@ -309,13 +309,14 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   sheetsEnabled?: boolean;
 }) {
   usePublishedChromeHeight();
+  const set = (next: MapOverlay) => {
+    if (overlay === next) onHome();
+    else onOverlayChange(next);
+  };
   // The glyph is half the claim. LocateFixed is this map's "you are here" mark
   // (the Near me chip wears it), so it may appear only when a granted location
   // sits inside the named area. Otherwise the chip wears the map itself.
   if (limitedCoverage) {
-    const setLimitedOverlay = (next: MapOverlay) =>
-      onOverlayChange(overlay === next ? "none" : next);
-
     return (
       <div
         className="mobileMapChrome"
@@ -334,7 +335,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           <IconButton
             aria-label="Search the map"
             aria-expanded={overlay === "search"}
-            onClick={() => setLimitedOverlay("search")}
+            onClick={() => set("search")}
           >
             <Search size={19} />
           </IconButton>
@@ -352,7 +353,6 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
     );
   }
 
-  const set = (next: MapOverlay) => onOverlayChange(overlay === next ? "none" : next);
   const nearMe = buildNearMeChip(nearMeStatus, nearbyCount);
   const filtersChip = buildFiltersChip({
     drinkFiltersActive,
