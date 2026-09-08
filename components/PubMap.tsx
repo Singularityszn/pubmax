@@ -987,7 +987,8 @@ export default function PubMap({
       }),
     [arrivalSearchNow, ukPlaceArrival, ukNationalBrowse, cityId, city.displayName],
   );
-  const mapOpeningNeedsResolution = arrival.needsOpeningResolution;
+  // Closing a deep link changes live framing, but does not create a new arrival.
+  const [mapOpeningNeedsResolution] = useState(arrival.needsOpeningResolution);
   const [initialMapView] = useState<MapViewportSnapshot>(() => {
     if (ukPlaceArrival) return ukPlaceMapView(ukPlaceArrival, city.mapView);
     if (ukNationalBrowse) {
@@ -1103,7 +1104,7 @@ export default function PubMap({
     currentSearch() ? null : readMapResumeSync(cityId),
   );
   const shouldResolveOpeningLocation = shouldResolveOpeningLocationFor({
-    needsOpeningResolution: arrival.needsOpeningResolution,
+    needsOpeningResolution: mapOpeningNeedsResolution,
     mapResumeSeed,
     restoredMobileSession,
   });
