@@ -10,7 +10,7 @@ export async function generatePlanRoute(page: Page, action: Locator): Promise<vo
   expect(response.status(), await response.text()).toBe(200);
   const body = await response.json() as { stops: Array<{ venueName: string }> };
   expect(body.stops.length).toBeGreaterThan(0);
-  const inputs = page.getByRole("textbox", { name: "Venue name", exact: true });
+  const inputs = page.getByRole("combobox", { name: "Venue name", exact: true });
   await expect(inputs).toHaveCount(body.stops.length);
   for (const [index, stop] of body.stops.entries()) {
     await expect(inputs.nth(index)).toHaveValue(stop.venueName);
