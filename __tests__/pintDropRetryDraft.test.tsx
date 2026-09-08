@@ -188,7 +188,7 @@ it.each(["price", "bill", "measure", "visibility", "vibes", "handle", "close/reo
     if (change === "bill") state.pickPhoto("receipt", newerReceipt, null);
     if (change === "measure") state.setDropForm({ ...state.dropForm, measure: "half" });
     if (change === "visibility") state.setVisibility("anonymous");
-    if (change === "vibes") state.toggleVibeTag("proper");
+    if (change === "vibes") state.toggleVibeTag("cheap");
     if (change === "handle") state.setHandle("other");
     if (change === "close/reopen") {
       state.closeComposer();
@@ -330,6 +330,9 @@ it.each(["pending", "failed"])("clears A's %s receipt draft when the mounted acc
   expect(body.get("handle")).toBe("b");
   expect(body.get("receipt_photo")).toBe(newBill);
   expect(body.get("pint_photo")).toBeNull();
+  expect(requestAt(0).key).toBeTruthy();
+  expect(requestAt(1).key).toBeTruthy();
+  expect(requestAt(1).key).not.toBe(requestAt(0).key);
 });
 
 it("refuses a retained draft submit after the live account changes but before React effects run", async () => {
@@ -466,4 +469,157 @@ it.each(["authenticated", "unresolved", "unavailable"] as const)("hides A's draf
     finish({ ok: false, json: async () => ({ error: "A's outage" }) });
     await pending;
   });
+});
+
+async function prepareOwnedSubmission() {
+  currentAccount = "A";
+  await act(async () => root.render(createElement(AccountBoundary, { accountId: "A" })));
+  await act(async () => {
+    state.setComposerOpen(true);
+    state.setDropForm({ ...state.dropForm, price: "5.80", drink: "Ale", measure: "other", measureLabel: "330ml" });
+    state.pickPhoto("receipt", file(), null);
+    state.pickPhoto("pint", file(), null);
+    state.pickPhoto("venue", file(), null);
+  });
+  post.mockResolvedValue({ ok: false, json: async () => ({ error: "Outage" }) });
+}
+
+function requestAt(index: number) {
+  const init = post.mock.calls[index][1] as RequestInit;
+  return { key: new Headers(init.headers).get("Idempotency-Key"), body: init.body as FormData };
+}
+
+function submitHeld(venueId = "venue-1", lastTrainDecision?: Parameters<PintDropsState["submitDrop"]>[2]) {
+  return state.submitDrop({ preventDefault() {} } as FormEvent, venueId, lastTrainDecision);
+}
+
+it("retries a lost response with the same key, original Files and captured last-train fields", async () => {
+  await prepareOwnedSubmission();
+  const train = {
+    decision: "order_one_more" as const, leaveByIso: "2026-09-08T23:10:00.000Z",
+    stationName: "Bank", lineNames: [], disruptionSummary: null, walkMinutesEstimate: 5,
+    bufferMinutes: 5, destinationLabel: null, live: true,
+  };
+  post.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+  await act(async () => submitHeld("venue-1", { lastTrainDecision: train }));
+  const first = requestAt(0);
+  expect(first.key).toMatch(/^[A-Za-z0-9._:-]{16,128}$/);
+  const urls = [state.pintPhoto!, state.venuePhoto!, state.receiptPhoto!].map((photo) => photo.previewUrl);
+  await act(async () => { state.closeComposer(); state.setComposerOpen(true); });
+  await act(async () => root.render(createElement(AccountBoundary, { accountId: "A", token: "refreshed" })));
+  await act(async () => submitHeld("venue-1", { lastTrainDecision: { ...train, leaveByIso: "2026-09-08T23:20:00.000Z" } }));
+  const retry = requestAt(1);
+  expect(retry.key).toBe(first.key);
+  expect([...retry.body.entries()]).toEqual([...first.body.entries()]);
+  for (const slot of ["pint_photo", "venue_photo", "receipt_photo"]) {
+    expect(retry.body.get(slot)).toBe(first.body.get(slot));
+  }
+  for (const url of urls) expect(revoked).not.toHaveBeenCalledWith(url);
+  expect(readOptimisticSpills(localStorage)).toHaveLength(1);
+});
+
+it.each(["price", "drink", "measure", "measureLabel", "note", "withWho", "era", "visibility", "vibes", "venue", "receipt", "pint", "venuePhoto", "removePhoto"])(
+  "assigns a new key to changed %s intent and retires the old retry record", async (change) => {
+    await prepareOwnedSubmission();
+    await act(async () => submitHeld());
+    const first = requestAt(0);
+    const oldRetry = readOptimisticSpills(localStorage)[0].retry!;
+    await act(async () => {
+      if (change === "price") state.setDropForm({ ...state.dropForm, price: "6.20" });
+      if (change === "drink") state.setDropForm({ ...state.dropForm, drink: "Cider" });
+      if (change === "measure") state.setDropForm({ ...state.dropForm, measure: "half" });
+      if (change === "measureLabel") state.setDropForm({ ...state.dropForm, measureLabel: "500ml" });
+      if (change === "note") state.setDropForm({ ...state.dropForm, note: "Changed note" });
+      if (change === "withWho") state.setDropForm({ ...state.dropForm, withWho: "sam" });
+      if (change === "era") state.setDropForm({ ...state.dropForm, era: "1990s" });
+      if (change === "visibility") state.setVisibility("legacy");
+      if (change === "vibes") state.toggleVibeTag("cheap");
+      if (change === "receipt") state.pickPhoto("receipt", file(), null);
+      if (change === "pint") state.pickPhoto("pint", file(), null);
+      if (change === "venuePhoto") state.pickPhoto("venue", file(), null);
+      if (change === "removePhoto") state.removePhoto("pint");
+    });
+    await act(async () => submitHeld(change === "venue" ? "venue-2" : "venue-1"));
+    expect(first.key).toBeTruthy();
+    expect(requestAt(1).key).toBeTruthy();
+    expect(requestAt(1).key).not.toBe(first.key);
+    expect(readOptimisticSpills(localStorage).some((entry) => entry.clientRequestId === first.key)).toBe(false);
+    for (const url of [oldRetry.pintPhotoUrl, oldRetry.venuePhotoUrl, oldRetry.receiptPhotoUrl]) {
+      expect(revoked).toHaveBeenCalledWith(url);
+    }
+  },
+);
+
+it.each(["reset", "success"])("retires the held key after %s even when the next payload matches", async (ending) => {
+  await prepareOwnedSubmission();
+  await act(async () => {
+    state.setDropForm({ ...state.dropForm, price: "", note: "A note" });
+    state.removePhoto("pint"); state.removePhoto("venue"); state.removePhoto("receipt");
+  });
+  const originalForm = state.dropForm;
+  if (ending === "success") post.mockResolvedValueOnce({ ok: true, json: async () => ({ drop: { id: "saved", venueId: "venue-1" } }) });
+  await act(async () => submitHeld());
+  const first = requestAt(0);
+  if (ending === "reset") await act(async () => state.resetComposer());
+  await act(async () => state.setDropForm(originalForm));
+  await act(async () => submitHeld());
+  expect(first.key).toBeTruthy();
+  expect(requestAt(1).key).toBeTruthy();
+  expect(requestAt(1).key).not.toBe(first.key);
+});
+
+it("keeps demo submissions unkeyed without a verified account", async () => {
+  await act(async () => state.setDropForm({ ...state.dropForm, note: "Demo note" }));
+  post.mockResolvedValue({ ok: false, json: async () => ({ error: "Outage" }) });
+  await act(async () => submitHeld());
+  expect(requestAt(0).key).toBeNull();
+});
+
+it("keeps absent train context absent on retry and captures new context for edited intent", async () => {
+  await prepareOwnedSubmission();
+  await act(async () => submitHeld());
+  const first = requestAt(0);
+  const train = {
+    decision: "settle_up_now" as const, leaveByIso: "2026-09-08T23:10:00.000Z",
+    stationName: "Bank", lineNames: [], disruptionSummary: null, walkMinutesEstimate: 5,
+    bufferMinutes: 5, destinationLabel: null, live: true,
+  };
+  await act(async () => submitHeld("venue-1", { lastTrainDecision: train }));
+  expect(requestAt(1).key).toBe(first.key);
+  expect(requestAt(1).body.get("leaveByIso")).toBeNull();
+  await act(async () => state.setDropForm({ ...state.dropForm, note: "A new note" }));
+  await act(async () => submitHeld("venue-1", { lastTrainDecision: train }));
+  expect(requestAt(2).key).not.toBe(first.key);
+  expect(requestAt(2).body.get("leaveByIso")).toBe(train.leaveByIso);
+});
+
+it("keeps the same key after equivalent tag order and temporary unresolved auth", async () => {
+  await prepareOwnedSubmission();
+  await act(async () => { state.toggleVibeTag("cheap"); state.toggleVibeTag("quiet pint"); });
+  await act(async () => submitHeld());
+  const first = requestAt(0);
+  await act(async () => state.toggleVibeTag("cheap"));
+  await act(async () => state.toggleVibeTag("cheap"));
+  currentAccount = null;
+  await act(async () => root.render(createElement(AccountBoundary, { authState: "unresolved" })));
+  await act(async () => submitHeld());
+  expect(post).toHaveBeenCalledTimes(1);
+  currentAccount = "A";
+  await act(async () => root.render(createElement(AccountBoundary, { accountId: "A", token: "restored" })));
+  await act(async () => submitHeld());
+  expect(requestAt(1).key).toBe(first.key);
+  expect([...requestAt(1).body.entries()]).toEqual([...first.body.entries()]);
+});
+
+it("reconciles a replay with the same saved row already found by a venue refresh", async () => {
+  await prepareOwnedSubmission();
+  await act(async () => submitHeld());
+  const saved = { id: "committed-before-response-loss", venueId: "venue-1" };
+  vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => ({ drops: [saved] }) } as Response);
+  await act(async () => state.refreshVenueDrops("venue-1"));
+  expect(state.dropsByVenueId.get("venue-1")).toEqual([saved]);
+  post.mockResolvedValueOnce({ ok: true, json: async () => ({ drop: saved }) });
+  await act(async () => submitHeld());
+  expect(requestAt(1).key).toBe(requestAt(0).key);
+  expect(state.dropsByVenueId.get("venue-1")).toEqual([saved]);
 });
