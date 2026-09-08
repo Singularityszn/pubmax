@@ -188,7 +188,7 @@ it.each(["price", "bill", "measure", "visibility", "vibes", "handle", "close/reo
     if (change === "bill") state.pickPhoto("receipt", newerReceipt, null);
     if (change === "measure") state.setDropForm({ ...state.dropForm, measure: "half" });
     if (change === "visibility") state.setVisibility("anonymous");
-    if (change === "vibes") state.toggleVibeTag("proper");
+    if (change === "vibes") state.toggleVibeTag("quiet pint");
     if (change === "handle") state.setHandle("other");
     if (change === "close/reopen") {
       state.closeComposer();

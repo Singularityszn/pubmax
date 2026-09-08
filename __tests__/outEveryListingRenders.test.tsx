@@ -86,7 +86,7 @@ let root: Root | null = null;
 
 async function renderOut(
   rows: WhatsOnRow[],
-  { venueMatch }: { venueMatch: OutResponse["venueMatch"] } = { venueMatch: "ready" },
+  { venueMatch }: { venueMatch: OutResponse["venueMatch"] | undefined } = { venueMatch: "ready" },
 ) {
   vi.stubGlobal(
     "fetch",
