@@ -5,7 +5,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
   viewerHandle: "owner",
-  auth: { accountRevision: 1, user: { id: "owner" }, identityResolved: true, signOut: vi.fn() },
+  unresolved: false,
+  profileReads: [] as string[],
+  auth: { accountRevision: 1, user: { id: "owner" } as { id: string } | null, identityResolved: true, signOut: vi.fn() },
   deliverProfile: null as null | ((body: unknown) => void),
   upload: vi.fn(),
   router: { replace: vi.fn(), push: vi.fn() },
@@ -16,11 +18,12 @@ vi.mock("next/link", () => ({ default: ({ href, children, ...props }: { href: st
 vi.mock("next/image", () => ({ default: (props: Record<string, unknown>) => { const imageProps = { ...props }; delete imageProps.unoptimized; return createElement("img", imageProps); } }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => state.auth }));
 vi.mock("@/components/auth/useViewerHandle", () => ({ useViewerHandle: () => state.viewerHandle }));
-vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => ({ unresolved: false, signedOut: false }) }));
+vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => ({ unresolved: state.unresolved, signedOut: !state.unresolved && state.auth.user === null }) }));
 vi.mock("@/lib/useSocialFriendsLaunch", () => ({ useSocialFriendsLaunch: () => true }));
 vi.mock("@/lib/authedFetch", () => ({ authedFetch: (...args: Parameters<typeof fetch>) => fetch(...args), authedActionFetch: (...args: unknown[]) => state.upload(...args), AuthActionSessionError: class extends Error {} }));
 vi.mock("@/lib/surfaceDataCache", () => ({ loadSurfaceJson: async (url: string, _options: unknown, publish: (value: unknown) => void) => {
   if (url.startsWith("/api/profiles/")) {
+    state.profileReads.push(url);
     await new Promise<void>(resolve => { state.deliverProfile = body => { publish(body); resolve(); }; });
   } else { publish({ drops: [] }); }
   return "fresh";
@@ -52,7 +55,7 @@ let root: Root;
 const profile = { id: "owner", handle: "owner", displayName: "Owner", createdAt: "2026-01-01", updatedAt: "2026-01-01" };
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  state.deliverProfile = null;
+  state.deliverProfile = null; state.unresolved = false; state.profileReads = [];
   state.auth.accountRevision = 1; state.auth.user = { id: "owner" }; state.viewerHandle = "owner";
   state.upload.mockReset().mockResolvedValue({ ok: true, json: async () => ({ profile: { ...profile, avatarUrl: "/api/avatar/owner/new" } }) });
   vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ crawls: [], saved: [], lists: [] }) })));
@@ -104,4 +107,30 @@ it("rejects an old account read after the viewer changes", async () => {
   await act(async () => state.deliverProfile!({ profile: { ...profile, avatarUrl: "/api/avatar/owner/public" } }));
   expect(host.querySelector("header.profileHeader img.profileAvatar")?.getAttribute("src")).toBe("/api/avatar/owner/public");
   expect(Array.from(host.querySelectorAll("button")).some(button => button.textContent === "Edit profile")).toBe(false);
+});
+
+it("revalidates the anonymous profile when auth resolves, then retries only the image on reconnect", async () => {
+  state.auth.user = null; state.viewerHandle = ""; state.unresolved = true;
+  const params = Promise.resolve({ handle: "owner" });
+  const body = { profile: { ...profile, avatarUrl: "/api/avatar/owner/current" } };
+  await act(async () => root.render(<ProfilePageClient params={params} />));
+  await act(async () => state.deliverProfile!(body));
+  const image = host.querySelector("header.profileHeader img.profileAvatar")!;
+  expect(image).not.toBeNull();
+  await act(async () => image.dispatchEvent(new Event("error")));
+  expect(host.querySelector("header.profileHeader img.profileAvatar")).toBeNull();
+  expect(state.profileReads).toEqual(["/api/profiles/owner"]);
+
+  state.auth.accountRevision += 1; state.unresolved = false;
+  await act(async () => root.render(<ProfilePageClient params={params} />));
+  await act(async () => state.deliverProfile!(body));
+  expect(state.profileReads).toEqual(["/api/profiles/owner", "/api/profiles/owner"]);
+  expect(host.querySelector("header.profileHeader img.profileAvatar")).toBeNull();
+
+  await act(async () => {
+    window.dispatchEvent(new Event("online"));
+    await new Promise(resolve => setTimeout(resolve, 180));
+  });
+  expect(host.querySelector("header.profileHeader img.profileAvatar")?.getAttribute("src")).toBe("/api/avatar/owner/current");
+  expect(state.profileReads).toEqual(["/api/profiles/owner", "/api/profiles/owner"]);
 });
