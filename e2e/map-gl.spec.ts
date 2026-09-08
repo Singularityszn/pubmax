@@ -509,7 +509,18 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
     await route.abort("failed");
   });
 
+  // This response comes from the browser's live basemap request, not a probe fetch.
+  const initialTileResponse = page.waitForResponse(
+    (response) =>
+      /^https:\/\/tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/.test(response.url()) &&
+      response.status() === 200,
+    { timeout: 30_000 },
+  );
   await page.goto("/map");
+  const initialTile = await initialTileResponse;
+  expect(await initialTile.finished()).toBeNull();
+  const initialTileBytes = (await initialTile.body()).byteLength;
+  expect(initialTileBytes, "a real basemap tile completed before the outage").toBeGreaterThan(0);
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
     timeout: 20_000,
   });
@@ -529,12 +540,25 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
         ),
       { timeout: 30_000 },
     )
-    .toMatch(/^(tiles|idle)$/);
+    .toMatch(/^(pins|idle)$/);
+
+  // The phone event proves pins only. Retain the successful tile response
+  // and the composed canvas for independent review before injecting failure.
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
+  await test.info().attach("initial-basemap-response", {
+    body: JSON.stringify({ url: initialTile.url(), status: initialTile.status(), bytes: initialTileBytes }),
+    contentType: "application/json",
+  });
+  await test.info().attach("initial-basemap-before-outage", {
+    body: await page.locator(".maplibreMap canvas").first().screenshot(),
+    contentType: "image/png",
+  });
 
   failTiles = true;
-  // Mobile CSS deliberately hides MapLibre's built-in control group. Invoke
-  // its real button handler in place so this outage test can force fresh tile
-  // requests without weakening the phone chrome contract.
+  // This programmatic hidden-button call forces fresh tile requests. It tests
+  // outage recovery, not user input or the reachability of phone controls.
   await zoomThroughHiddenMobileControl(page);
   await expect.poll(() => outageRequests).toBeGreaterThanOrEqual(5);
 
