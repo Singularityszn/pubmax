@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import ProfileMessageButton from "@/components/messages/ProfileMessageButton";
 import { normalizeHandle } from "@/lib/profiles";
+import { discardBody } from "@/lib/responseBody";
 
 type Match = { handle: string; displayName?: string };
 
@@ -43,7 +44,10 @@ function RecipientSearch() {
           const response = await fetch(`/api/profiles/search?q=${encodeURIComponent(q)}`, {
             cache: "no-store", signal: controller.signal,
           });
-          if (!response.ok) throw new Error("search failed");
+          if (!response.ok) {
+            discardBody(response);
+            throw new Error("search failed");
+          }
           const body = await response.json() as { matches?: Match[] };
           if (controller.signal.aborted) return;
           setMatches((Array.isArray(body.matches) ? body.matches : []).filter(match => match.handle !== handle));
