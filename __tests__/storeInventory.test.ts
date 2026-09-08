@@ -281,11 +281,11 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
   "lib/messagesStore.ts": {
     interface: ["MessagesStore"],
     fallback:
-      "Keyless message maps; durable inbox failures degrade, and failed thread reads return empty. Memory-format conversation IDs route directly to memory.",
+      "Keyless message maps when permitted; requiresSupabaseStore blocks memory IDs and schema fallback across selected operations. Inbox failures degrade; thread read failures throw MessageReadUnavailableError, mapped to retryable 503.",
     schemaMissing:
-      "Missing message tables can use memory, including production writes. Missing client_message_id retries the durable insert without its idempotency key.",
+      "Missing message tables use memory only when requiresSupabaseStore is false. Otherwise operation-specific null/zero/false, degraded inbox, thrown write errors or MessageReadUnavailableError apply. Missing client_message_id retains its durable retry without the key.",
     authorizationOwner:
-      "messageAuth binds the viewer; store checks conversation membership and sender participation.",
+      "requireLinkedActor and gateHandleAction bind the viewer; store checks conversation membership and sender participation. Service-role writes bypass direct-client deny-all RLS.",
     resetHelper: ["__resetMemoryMessages"],
     class: "policy-heavy",
     selector: "selectStore",
@@ -417,7 +417,7 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     fallback:
       "Keyless memory delegates to pintDrops. Durable database errors normally throw; optional columns have explicit retries.",
     schemaMissing:
-      "Durable retries can omit receipt or visibility columns. Missing measure columns refuse non-pints. No generic table-to-memory fallback.",
+      "Durable retries can omit receipt or visibility columns; a successful receipt-column retry cleans the omitted bill object. Missing measure columns refuse non-pints. No generic table-to-memory fallback.",
     authorizationOwner:
       "Pint Drop routes derive and gate the actor; priced drops require verified contribution identity. Admin routes gate moderation.",
     resetHelper: null,
@@ -681,20 +681,34 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     class: "policy-heavy",
     selector: "selectStore",
   },
-  "lib/socialGalleryStore.ts": { class: "policy-heavy", selector: "selectStore" },
+  "lib/socialGalleryStore.ts": {
+    interface: ["SocialGalleryStore"],
+    fallback:
+      "selectStore permits keyless gallery state; configured RPC or Storage errors propagate without memory fallback. Memory instances hold upload reservations and request replay receipts.",
+    schemaMissing:
+      "No schema fallback. Durable upload, create and edit require gallery RPCs; reservation, replay and mutation-version errors retain their typed contracts.",
+    authorizationOwner:
+      "Verified Social routes supply the actor. Gallery RPCs and memory owner checks enforce upload ownership, attachment, expiry, replay and edit versions; post policy owns visibility and moderation.",
+    resetHelper: null,
+    class: "policy-heavy",
+    selector: "selectStore",
+    reason:
+      "Gallery reservation, edit replay and media ownership remain in this store; createMemorySocialGalleryStore creates isolated instances without a shared reset export.",
+  },
   "lib/socialPostConsentStore.ts": {
     interface: ["SocialPostConsentStore"],
     fallback:
-      "Supabase RPC store only; typed SocialPostConsentStoreError failures.",
+      "approvedTags and mediaObjectKey select memory or Supabase per call. Keyless approved tags are empty; media reads use the shared memory post store. All other consent and admin methods stay durable.",
     schemaMissing:
-      "No memory fallback; schema/RPC failures remain typed errors.",
+      "No configured schema fallback. Consent/RPC failures remain typed errors; selected reads keep the production selector guard.",
     authorizationOwner:
       "Consent RPCs and caller-derived profile IDs enforce contributor, owner and moderator actions.",
     resetHelper: null,
 
-    class: "not-dual-backend",
-    selector: "none",
-    reason: "RPC-only durable store; no memory implementation.",
+    class: "policy-heavy",
+    selector: "selectStore",
+    reason:
+      "Only approved-tag and media-key reads select memory. Consent and admin operations still require durable RPCs.",
   },
   "lib/socialPostStore.ts": {
     interface: ["SocialPostStore"],
@@ -703,7 +717,7 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     schemaMissing:
       "Missing social_posts or moderation-job tables permit memory reads only when requiresSupabaseStore is false. Writes also pass onMissingDurableWrite.",
     authorizationOwner:
-      "Verified Social actors and social post policy/RPCs own visibility, edits, consent and moderation.",
+      "Verified Social actors and post policy/RPCs own visibility, gallery media, replay, edit versions and consent. Gallery moderation checks every manifest photo; videos remain held for staff review.",
     resetHelper: null,
     class: "policy-heavy",
     selector: "selectStore",
@@ -1114,6 +1128,20 @@ const INLINE_BACKEND_INVENTORY: Record<string, Omit<StoreRow, "class">> = {
     resetHelper: null,
     reason:
       "Required but unconfigured durable storage returns 503; keyless development retains its existing path.",
+  },
+  "app/api/social/media/[mediaId]/route.ts": {
+    interface: ["GET"],
+    selector: "inline",
+    inlineBranches: 1,
+    fallback:
+      "After the consent-store read authorizes the media key, unconfigured requests return memory bytes or metadata; configured requests sign durable media. Unavailable media returns 404; invalid byte ranges return 416.",
+    schemaMissing:
+      "No schema fallback in the route; failed consent or signing reads return the same missing-media response.",
+    authorizationOwner:
+      "requireVerifiedSocialActor, actor rate limits and socialPostConsentStore.mediaObjectKey enforce access before either delivery path.",
+    resetHelper: null,
+    reason:
+      "Media delivery chooses local bytes or a signed Storage URL after the shared consent read.",
   },
   "app/api/starter-packs/[slug]/follow/route.ts": {
     interface: ["POST"],
@@ -1529,6 +1557,28 @@ const INLINE_BACKEND_INVENTORY: Record<string, Omit<StoreRow, "class">> = {
     reason:
       "Required but unconfigured production storage fails startup validation.",
   },
+  "lib/profileOwnership.ts": {
+    interface: [
+      "OwnershipDecision",
+      "HandleActionGate",
+      "HandleActionIntent",
+      "handleActionIntent",
+      "decideProfileWrite",
+      "gateHasVerifiedActor",
+      "gateHandleAction",
+    ],
+    selector: "inline",
+    inlineBranches: 1,
+    fallback:
+      "Unconfigured demos may use an unlinked handle; configured anonymous writes cannot create an absent profile. Store failures return 503.",
+    schemaMissing:
+      "No local schema fallback; profileStore keeps its own read policy and thrown errors fail the gate closed.",
+    authorizationOwner:
+      "callerUserId verifies identity unless the caller supplied it; gateHandleAction enforces linked ownership, reserved handles and frozen legacy rows.",
+    resetHelper: null,
+    reason:
+      "The configuration check gates anonymous profile creation; it does not select a second profile store.",
+  },
   "lib/socialOAuth.ts": {
     interface: [
       "socialProviderAvailability",
@@ -1574,6 +1624,8 @@ const INLINE_BACKEND_INVENTORY: Record<string, Omit<StoreRow, "class">> = {
       "SocialPhotoStorage",
       "SocialPhotoError",
       "prepareSocialPhoto",
+      "prepareSocialVideo",
+      "readMemorySocialMedia",
       "supabaseSocialPhotoStorage",
       "uploadPreparedSocialPhoto",
       "reserveSocialPhotoUpload",
@@ -1586,14 +1638,14 @@ const INLINE_BACKEND_INVENTORY: Record<string, Omit<StoreRow, "class">> = {
     selector: "inline",
     inlineBranches: 7,
     fallback:
-      "Unconfigured uploads fail; storage cleanup and signing skip work; reservation and claim results remain operation-specific.",
+      "Unconfigured upload/remove use a bounded memory media map; signing returns null, reservations stay local and reconciliation removes both media formats. Configured storage and cleanup retain their RPC contracts.",
     schemaMissing:
       "This configuration guard adds no schema fallback; configured operations keep their own error handling.",
     authorizationOwner:
       "Social post routes verify the author; cleanup RPCs enforce the claimed generation and cleanup token.",
     resetHelper: null,
     reason:
-      "Unconfigured uploads fail; storage cleanup and signing skip work; reservation and claim results remain operation-specific.",
+      "Unconfigured upload/remove use a bounded memory media map; signing returns null, reservations stay local and reconciliation removes both media formats. Configured storage and cleanup retain their RPC contracts.",
   },
   "lib/stepOutNudgeSelect.server.ts": {
     interface: [

@@ -6,13 +6,13 @@ The inventory is descriptive, not a runtime registry.
 
 ## Current snapshot
 
-Source baseline: merged main `5a7c6eb1e27bcc65c038af141cf80a46b2cfd30a`, plus the reviewed #727 changes through `52fce5e64`.
+Source baseline: audit integration `7d393b87c45dfbd4662d22cb5c27b90051f51505` and Social `786a5672b83414bb47a9cda5baacbb4230cdc72b`, plus this #727 candidate.
 Counts below use `lib/*Store.ts`; the broader source fixture also includes `*Store*.ts`.
-Later Messages and Social changes require source and inventory reconciliation before their integration gate.
-This snapshot does not describe those later changes.
+The source includes the Messages production boundary and Social gallery/media changes.
+This inventory records source policy, not a passed integration gate or production rollout.
 
-- The repository has 52 `lib/*Store.ts` modules.
-- 37 modules contain a direct `selectStore(...)` call.
+- The repository has 53 `lib/*Store.ts` modules.
+- 39 modules contain a direct `selectStore(...)` call.
 - 8 modules use `createDualBackendStore`.
 - 6 modules keep memory state on `globalThis` so it survives a development
   server reload. That state pattern is separate from backend selection.
@@ -60,7 +60,7 @@ silently stale.
 | harvestOverlayStore | factory-ready | Fold-written UK harvest overlays; one shared selector, with a `requireDurable` guard for the non-dry fold CLI. |
 | identityHandleStore | factory-eligible, policy-heavy | Handle ownership, rename, reservation, and tombstone policy. |
 | importNotesStore | not dual-backend | JSON-file store with memory fallback when the filesystem is unavailable. |
-| messagesStore | factory-eligible, policy-heavy | Conversation identity, membership, and message policy. |
+| messagesStore | factory-eligible, policy-heavy | Verified actor and membership policy; production refuses memory fallback. Failed thread reads throw a retryable unavailable error. |
 | nightMemoryStore | legacy-exception | The removal pair uses the seam; 24 per-operation configuration branches remain in the source fixture. |
 | nightProfileStore | factory-ready | Night Profile preference rows with shared backend selection. |
 | notificationsStore | factory-ready | Notification rows with shared backend selection. |
@@ -89,7 +89,7 @@ silently stale.
 | socialInteractionStore | factory-eligible, policy-heavy | Social relationship, block, and interaction policy. |
 | socialGalleryStore | factory-eligible, policy-heavy | Owned staged uploads, ordered publication, and gallery edit replay. |
 | socialPostConsentStore | factory-eligible, policy-heavy | Media and approved-tag reads select memory or Supabase; consent and admin operations remain durable. |
-| socialPostStore | factory-eligible, policy-heavy | Moderation, visibility, consent, and relationship policy. |
+| socialPostStore | factory-eligible, policy-heavy | Moderation, visibility, gallery media, replay, edit versions, consent, and relationship policy. |
 | stepOutNudgeStore | factory-ready | Nudge preference and send-stamp rows with shared backend selection. |
 | venueOperatorsStore | factory-eligible, policy-heavy | Venue claim ownership and operator moderation policy. |
 | venuePhotoStore | factory-eligible, policy-heavy | Photo cap, author projection, reports, and moderation policy. |
@@ -127,7 +127,7 @@ The following stores intentionally stay outside the factory-ready path:
 This list records production files with textual `selectStore` or `isSupabaseConfigured` references, including imports and comments.
 It includes non-store modules such as `lib/messageAuth.ts`. The documentation test compares the list with repository search results.
 The separate machine-readable fixture in `__tests__/storeInventory.test.ts` counts actual calls through an AST scan.
-It records 55 store-related modules and 54 other production files. These counts describe different sets.
+It records 56 store-related modules and 56 other production files. These counts describe different sets.
 
 <!-- inline-backend-references:start -->
 ```json
@@ -291,12 +291,13 @@ The progress comments alone do not establish complete parity for all eight.
 ### Closeout checks
 
 - [x] Correct current count: eight factory adopters, including `harvestOverlayStore`.
-- [x] Record all requested inventory fields for 55 store-related modules and 54 other production files with inline calls.
+- [x] Record all requested inventory fields for 56 store-related modules and 56 other production files with inline calls.
 - [x] Complete the original pair matrix: healthy configured paths, keyless paths, schema misses, write failures, resets and strictness.
 - [x] Record each other adopter's policy, tests, disposition and remaining durable-proof limits.
 - [x] Retain the existing CI category report and add local review scope before data generation in `npm run verify`.
 - [x] Prevent local snapshot cancellation and generated-output provenance bypasses; execute the CLI through canonical or aliased paths.
 - [ ] Reconcile #727 acceptance explicitly from exactly two adopters to the retained eight and original-pair matrix.
+- [ ] Reconcile the separately reviewed durable nudge qualification race fix after integration.
 - [ ] Supply the required full integrated gate evidence for the final combined candidate.
 
 Checked entries record specific completed work. They do not close #727 or waive its unchecked requirements.
@@ -314,10 +315,11 @@ They do not prove a deployed schema or durable production writes.
 | Missing schema | The matrix checks preview/development memory fallback and each store's production read/write results. | Feed may return held metadata; occupancy returns a degraded read. Their existing policies differ. |
 | Reset isolation | The matrix clears each store without clearing its peer or issuing durable writes. It also resets occupancy column compatibility. | This is the original pair's reset contract. Other reset limits remain in the inventory. |
 | Production strictness | The matrix rejects unconfigured production. Feed write failure returns `failed: true`; occupancy write failure rejects. | Failed durable writes do not add memory rows. The helper and store policies remain unchanged. |
-| Inventory | `storeBackendInventory.test.ts` checks all 52 exact store names and textual references. `storeInventory.test.ts` records every requested field, discovers modules and calls, and checks exported interfaces and reset helpers. | Automated discovery cannot prove every policy description. Descriptions require source review against this baseline. |
+| Inventory | `storeBackendInventory.test.ts` checks all 53 exact store names and textual references. `storeInventory.test.ts` records every requested field, discovers modules and calls, and checks exported interfaces and reset helpers. | Automated discovery cannot prove every policy description. Descriptions require source review against this baseline. |
 | CI and local review scope | CI passes base/head SHAs. The local verify command checks branch, index, working tree and untracked files before data generation. | Snapshot provenance, cancellation, alias execution and safe imports have real Git/subprocess regression coverage. |
 
-The two inventory suites passed 227 tests under Vitest 5 on 8 September 2026, with one worker and no cache.
+The reconciled inventory suites passed 232 tests under Vitest 5 on 8 September 2026, with one worker and no cache.
+These source-discovery checks cover the integrated Messages/Social files. They execute no store, route or database runtime.
 The original pair matrix passed 13 cases during focused validation before the Vitest 5 integration.
 The final guard and wiring tests passed 42 cases under Vitest 5 after the snapshot and alias fixes.
 These earlier focused results are not a full combined verification result.

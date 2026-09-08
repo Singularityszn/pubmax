@@ -1,8 +1,8 @@
 # Store boundary closeout for #727
 
 Source review started at `6a759e0ac191d99f10c5e658bc8f2c3a6d3dd419`.
-The candidate includes merged main `5a7c6eb1e27bcc65c038af141cf80a46b2cfd30a` and the reviewed store changes.
-Later Messages and Social changes require inventory reconciliation before their integration gate.
+The reconciled candidate includes audit source `7d393b87c45dfbd4662d22cb5c27b90051f51505` and Social `786a5672b83414bb47a9cda5baacbb4230cdc72b`.
+Those source integrations do not establish a passed full gate or production rollout.
 
 [Issue #727](https://github.com/Singularityszn/pubmax/issues/727) still states an exact two-adopter target.
 Its comments after [#1158](https://github.com/Singularityszn/pubmax/pull/1158) distinguish the pilot matrix from other adopters' disposition.
@@ -15,8 +15,8 @@ The issue's literal count requires a maintainer reconciliation comment after bou
 [`storeInventory.test.ts`](../../__tests__/storeInventory.test.ts) contains the machine-readable fixture.
 It records interfaces, selectors, fallback policy, schema-missing policy, authorization owners and exported reset helpers.
 
-The fixture covers all 52 `lib/*Store.ts` files and three additional store-related modules.
-It also covers 54 production files with inline configuration calls outside those modules.
+The fixture covers all 53 `lib/*Store.ts` files and three additional store-related modules.
+It also covers 56 production files with inline configuration calls outside those modules.
 An AST scan counts calls, excluding comments and declarations.
 The separate documentation fence counts textual references, which include imports and comments.
 These counts describe different sets.
@@ -24,13 +24,33 @@ These counts describe different sets.
 The fixture checks exported names, reset helpers, branch counts, exception reasons and factory adoption evidence.
 Policy descriptions still require source review. A passing inventory test does not prove every policy description.
 
-The eight policy-heavy store rows received a separate source review at an identical store-file baseline.
+The original eight policy-heavy store rows received a separate source review at the original store-file baseline.
 It corrected the identity classification and named operation-specific retries, fallback exceptions and caller ownership checks.
 
 Reset fields name exports from the inventoried module only.
 Pint Drop memory resets through `lib/pintDrops.ts.__resetPintDrops`.
 Identity reset does not reset profiles. Message and profile resets do not clear their warning latches.
 Social Post tests can create isolated state through `createMemorySocialPostStore`.
+
+## Messages and Social source reconciliation
+
+The fixture now describes the actual integrated source, including the following changes.
+
+- Messages permits schema fallback and memory-format IDs only when `requiresSupabaseStore()` is false.
+- Failed inbox reads remain degraded. Failed durable thread reads throw `MessageReadUnavailableError`; routes map this to retryable 503.
+- Healthy empty threads remain empty successes. Membership refusals remain distinct from failed reads.
+- `socialGalleryStore` is the 53rd exact store. Its direct selector is not a ninth factory adopter.
+- Gallery upload ownership, reservation expiry, replay and mutation-version checks remain in the store and RPCs.
+- Social consent selects memory for approved-tag and media-key reads only. Its consent and admin methods remain durable.
+- Social media stores local bytes when unconfigured. Delivery still asks the verified actor and consent-store authorization first.
+- The inventory also records the new configuration checks in Social media delivery and profile ownership.
+- Pint Drop receipt-column fallback now cleans an omitted bill object after the insert succeeds; it does not add memory fallback.
+
+`messagesProductionFallbackRoute.test.ts` and `messageThreadReadFailureRoute.test.tsx` contain the integrated Messages regression proof.
+`socialGalleryStore.test.ts`, `socialGalleryDurable.test.ts`, `socialPostConsentStore.test.ts` and `socialPostMedia.test.tsx` cover the new Social boundaries.
+These are evidence references, not a claim that those runtime or database suites ran in this reconciliation.
+New gallery instances can isolate their request maps. No reset export clears the shared Social media byte map.
+Social `786a5672` adds draft-cleanup UI proof and does not add another store or inline backend module.
 
 ## Pilot contract matrix
 
@@ -66,7 +86,7 @@ The inventory fence records each adopter and its test files.
 | `adultSelfAssertionStore` | Account admission, first assertion and strict missing-schema writes | `adultSelfAssertionRoute.test.ts` covers account admission and first-tap semantics; `adultSelfAssertionStore.test.ts` checks blank IDs on both adapters | Retain; configured successful record/readback remains outside this matrix |
 | `harvestOverlayStore` | `requireDurable` guard, degraded reads and malformed rows | `harvestOverlayStore.test.ts`; `harvestOverlayStoreMalformed.test.ts` | Retain; the option stays outside the factory |
 | `priceTrustEventStore` | Credits, reversals and degraded read results | `priceTrustEventStore.test.ts`; `priceTrustEventStoreDurable.test.ts` | Retain; domain methods keep these rules |
-| `stepOutNudgeStore` | Opt-in, withdrawal and send stamps | `stepOutNudgeStore.test.ts`; `stepOutNudgeStoreParity.test.ts` covers configured and memory send-stamp contracts | Retain; missing-schema and outage parity remain outside this matrix |
+| `stepOutNudgeStore` | Opt-in, withdrawal and send stamps | `stepOutNudgeStore.test.ts`; `stepOutNudgeStoreParity.test.ts` covers configured and memory send-stamp contracts | Retain; missing-schema and outage parity remain outside this matrix. A separate durable qualification race fix is pending integration. |
 | `walkRouteStore` | TTL, cache misses and ignored cache-write failures | `walkRouteStore.test.ts` covers both adapters and schema/error fallbacks | Retain as a cache policy exception |
 | `wantedStore` | Owner filtering and fulfilment | `wantedStore.test.ts` | Retain; these memory tests are not a complete durable matrix |
 
@@ -78,6 +98,10 @@ They do not widen the factory or change durable storage policy.
 - `adultSelfAssertionStore.record` rejects blank account IDs in both adapters, without a database call.
 - `stepOutNudgeStore` leaves send stamps unchanged after withdrawal or decline. Enabled stamps still apply only to their owner.
 - `walkRouteStore` uses the existing decoder in both adapters. Fewer than two valid points produce a cache miss.
+
+A separate review found that durable `qualifyCheapPintForAccountId` can overwrite concurrent decline or send-stamp changes.
+Its read and whole-row upsert are outside these memory fixes. The field-scoped correction and race proof remain pending integration.
+Do not treat the disabled-stamp matrix as proof against that durable lost update.
 
 The nudge proof executes the actual Supabase adapter and PostgREST client against a local fetch implementation.
 It checks owner isolation, delayed stamps, shared-token retention and absent-row no-ops.
