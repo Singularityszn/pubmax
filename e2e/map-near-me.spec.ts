@@ -149,6 +149,12 @@ test("keeps the expanded city-status feed inside an 800px viewport", async ({
   });
   expect(response?.status()).toBe(200);
 
+  // The first-visit card owns the banner space until the visitor closes it.
+  const arrival = page.getByRole("complementary", { name: "First visit", exact: true });
+  await expect(arrival).toBeVisible();
+  await arrival.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(arrival).toBeHidden();
+
   const statusToggle = page.locator(".cityStatusBannerLink");
   await expect(statusToggle).toBeVisible({ timeout: 20_000 });
   await statusToggle.click();
