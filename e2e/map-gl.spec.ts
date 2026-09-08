@@ -255,19 +255,38 @@ async function expectNoticeContrast(page: Page, phase: string) {
   const button = notice.getByRole("button", { name: "Retry", exact: true });
   const previousFocus = await page.evaluateHandle(() => document.activeElement);
   try {
+    const measurements = [];
     for (const state of ["normal", "hover", "focus"] as const) {
       await page.mouse.move(0, 0);
-      if (state === "normal") expect(await button.evaluate((node) => node.matches(":hover, :focus-visible"))).toBe(false);
       if (state === "hover") await button.hover();
+      let keyboardTabs = 0;
       if (state === "focus") {
-        await page.keyboard.press("Tab");
-        await button.focus();
-        await expect(button).toBeFocused();
-        expect(await button.evaluate((node) => node.matches(":focus-visible"))).toBe(true);
+        for (; keyboardTabs < 80; keyboardTabs += 1) {
+          await page.keyboard.press("Tab");
+          if (await button.evaluate((node) => document.activeElement === node)) {
+            keyboardTabs += 1;
+            break;
+          }
+        }
       }
-      await expect.poll(() => notice.evaluate((node) => node.getAnimations({ subtree: true })
-        .filter((animation) => animation instanceof CSSTransition && animation.playState === "running").length))
-        .toBe(0);
+      await expect.poll(() => notice.evaluate((node) => {
+        // Resolve pseudo-class styles before inspecting finite transitions.
+        for (const element of [node, ...node.querySelectorAll(".mapSoftRetryMessage, .mapSoftRetryBtn")]) {
+          const style = getComputedStyle(element);
+          void style.color;
+          void style.backgroundColor;
+          void style.outlineColor;
+        }
+        const animations = node.getAnimations({ subtree: true });
+        for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+          animations.push(...parent.getAnimations());
+        }
+        return animations.filter((animation) => {
+          const end = animation.effect?.getComputedTiming().endTime;
+          return typeof end === "number" && Number.isFinite(end)
+            && (animation.pending || animation.playState === "running");
+        }).length;
+      }), { message: "notice and ancestors finish finite colour transitions" }).toBe(0);
       const colours = await notice.evaluate((node) => {
         const surface = getComputedStyle(node);
         const canvas = document.createElement("canvas");
@@ -292,6 +311,9 @@ async function expectNoticeContrast(page: Page, phase: string) {
             const style = getComputedStyle(element);
             return {
               selector, foreground: style.color, background: style.backgroundColor, opacity: style.opacity,
+              hovered: element.matches(":hover"),
+              focused: document.activeElement === element,
+              focusVisible: element.matches(":focus-visible"),
               foregroundAlpha: alpha(style.color),
               outline: { colour: style.outlineColor, alpha: alpha(style.outlineColor), width: style.outlineWidth, style: style.outlineStyle },
               // The canvas behind the translucent notice is not a DOM background.
@@ -314,10 +336,19 @@ async function expectNoticeContrast(page: Page, phase: string) {
         };
       });
       await test.info().attach(`notice-contrast-${phase}-${state}`, {
-        body: JSON.stringify(colours), contentType: "application/json",
+        body: JSON.stringify({ state, keyboardTabs, ...colours }), contentType: "application/json",
       });
+      measurements.push({ state, colours });
+    }
+    // Keep every state's evidence when the baseline fails its first colour.
+    for (const { state, colours } of measurements) {
       expect(colours.surface.opacity).toBe("1");
       for (const control of colours.controls) {
+        if (control.selector === ".mapSoftRetryBtn") {
+          expect(control.hovered).toBe(state === "hover");
+          expect(control.focusVisible).toBe(state === "focus");
+          if (state === "focus") expect(control.focused).toBe(true);
+        }
         expect(control.opacity).toBe("1");
         expect(control.foregroundAlpha, "backdrop bounds require opaque text").toBe(255);
         const differences = control.bounds.map(({ foreground, background }) => (
