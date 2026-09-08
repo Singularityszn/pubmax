@@ -3,7 +3,7 @@ import sharp from "sharp";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
-test.describe.configure({ mode: "serial" });
+test.describe.configure({ mode: "default" });
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
