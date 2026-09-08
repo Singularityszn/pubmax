@@ -82,6 +82,43 @@ async function openVenueSheet(page: Page) {
   return venueSheet;
 }
 
+async function readPinCaptureFrame(page: Page) {
+  return page.evaluate((id) => {
+    const map = window as typeof window & {
+      __pubmaxMapCamera: { read: () => MapCameraReading };
+      __pubmaxPaintedMapTapPoints: () => PaintedMapTapPoint[];
+    };
+    const state = {
+      point: map.__pubmaxPaintedMapTapPoints().find((point) => point.kind === "pin" && point.id === id)!,
+      camera: map.__pubmaxMapCamera.read(),
+      dpr: devicePixelRatio,
+      theme: document.documentElement.getAttribute("data-theme"),
+      lens: document.querySelector('button[aria-label^="Drink shown on the map:"]')?.getAttribute("aria-label"),
+      selected: new URL(location.href).searchParams.get("sel"),
+    };
+    const elementFrame = (node: Element) => {
+      const style = getComputedStyle(node);
+      return {
+        className: node.className,
+        box: node.getBoundingClientRect().toJSON(),
+        opacity: style.opacity, display: style.display, visibility: style.visibility,
+        pointerEvents: style.pointerEvents, transform: style.transform,
+      };
+    };
+    return {
+      state,
+      at: performance.now(),
+      timeOrigin: performance.timeOrigin,
+      viewport: { width: innerWidth, height: innerHeight, scrollX, scrollY },
+      canvas: Array.from(document.querySelectorAll(".mapCanvasWrap, .maplibreMap, .maplibreMap canvas")).map(elementFrame),
+      loading: Array.from(document.querySelectorAll(".mapLoading")).map(elementFrame),
+      marks: performance.getEntriesByType("mark")
+        .filter((entry) => /pubmax:(map-|pins-visible|pin-entrance-settled)/.test(entry.name))
+        .map(({ name, startTime }) => ({ name, startTime })),
+    };
+  }, UNPRICED);
+}
+
 async function captureUnpricedPin(page: Page, testInfo: TestInfo, name: string) {
   await expect.poll(() => page.evaluate((id) => {
     const map = window as typeof window & {
@@ -91,24 +128,14 @@ async function captureUnpricedPin(page: Page, testInfo: TestInfo, name: string) 
     return map.__pubmaxMapCamera?.read().moving === false &&
       map.__pubmaxPaintedMapTapPoints?.().some((point) => point.kind === "pin" && point.id === id);
   }, UNPRICED)).toBe(true);
-  const state = await page.evaluate((id) => {
-    const map = window as typeof window & {
-      __pubmaxMapCamera: { read: () => MapCameraReading };
-      __pubmaxPaintedMapTapPoints: () => PaintedMapTapPoint[];
-    };
-    return {
-      point: map.__pubmaxPaintedMapTapPoints().find((point) => point.kind === "pin" && point.id === id)!,
-      camera: map.__pubmaxMapCamera.read(),
-      dpr: devicePixelRatio,
-      theme: document.documentElement.getAttribute("data-theme"),
-      lens: document.querySelector('button[aria-label^="Drink shown on the map:"]')?.getAttribute("aria-label"),
-      selected: new URL(location.href).searchParams.get("sel"),
-    };
-  }, UNPRICED);
+  const beforeScreenshot = await readPinCaptureFrame(page);
+  const { state } = beforeScreenshot;
   expect(state.point).toBeDefined();
   expect(state.camera.moving).toBe(false);
   const clip = { x: Math.floor(state.point.x) - 12, y: Math.floor(state.point.y) - 12, width: 24, height: 24 };
   const screenshot = await page.screenshot({ clip, scale: "device" });
+  const afterScreenshot = await readPinCaptureFrame(page)
+    .catch((error) => ({ observationError: String(error) }));
   await testInfo.attach(`${name}.png`, { body: screenshot, contentType: "image/png" });
   const { data, info } = await sharp(screenshot).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const rgb = UNPRICED_PIN_FILL.slice(1).match(/../g)!.map((channel) => parseInt(channel, 16));
@@ -122,6 +149,44 @@ async function captureUnpricedPin(page: Page, testInfo: TestInfo, name: string) 
   await testInfo.attach(`${name}.json`, {
     body: Buffer.from(JSON.stringify(witness, null, 2)), contentType: "application/json",
   });
+  if (fillPixels.length === 0) {
+    const diagnostic: Record<string, unknown> = { beforeScreenshot, afterScreenshot };
+    try {
+      await testInfo.attach(`${name}-viewport.png`, {
+        body: await page.screenshot({ scale: "device", timeout: 2_000 }), contentType: "image/png",
+      });
+      await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 2_000 });
+      await expect.poll(() => page.evaluate(() =>
+        performance.getEntriesByName("pubmax:pin-entrance-settled").length,
+      ), { timeout: 2_000 }).toBeGreaterThan(0);
+      await page.evaluate(() => new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("Diagnostic frame wait unavailable")), 1_000);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          clearTimeout(timer);
+          resolve();
+        }));
+      }));
+      const laterBefore = await readPinCaptureFrame(page);
+      diagnostic.laterBefore = laterBefore;
+      const geometry = (sample: typeof state) => ({
+        point: sample.point, camera: sample.camera, dpr: sample.dpr,
+        theme: sample.theme, selected: sample.selected,
+      });
+      if (JSON.stringify(geometry(laterBefore.state)) !== JSON.stringify(geometry(state))) {
+        throw new Error("Diagnostic crop unavailable: original pin geometry or selection changed");
+      }
+      const laterCrop = await page.screenshot({ clip, scale: "device", timeout: 2_000 });
+      diagnostic.laterAfter = await readPinCaptureFrame(page);
+      await testInfo.attach(`${name}-later-diagnostic.png`, {
+        body: laterCrop, contentType: "image/png",
+      });
+    } catch (error) {
+      diagnostic.observationError = String(error);
+    }
+    await testInfo.attach(`${name}-capture-diagnostic.json`, {
+      body: Buffer.from(JSON.stringify(diagnostic, null, 2)), contentType: "application/json",
+    });
+  }
   expect(fillPixels.length, "the actual pin must contain unpriced fill pixels").toBeGreaterThan(0);
   return witness;
 }
