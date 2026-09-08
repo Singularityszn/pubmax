@@ -13,7 +13,6 @@ import { readPreferredCity, subscribePreferredCity } from "@/lib/cityPreference"
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import {
   NEAR_MODE_QUERY,
-  parseNearModeParam,
   resolveNearMode,
   shouldSwitchNearMode,
   type NearMode,
@@ -66,12 +65,9 @@ function NearPageBody() {
     () => false,
   );
   const modeParam = searchParams.get(NEAR_MODE_QUERY);
-  const explicitMode = parseNearModeParam(modeParam);
-  // Pint is what an unresolved device answers, so the default /near still
-  // server-renders the pint surface and the switch above it. A remembered
-  // Desk swaps in once the browser answers.
-  const mode: NearMode = explicitMode
-    ?? (modeResolved ? resolveNearMode(null, rememberedMode) : "pint");
+  // The cached document has no search params. Its first client render must
+  // also show Pint before an explicit or remembered Desk mode takes effect.
+  const mode: NearMode = modeResolved ? resolveNearMode(modeParam, rememberedMode) : "pint";
 
   const setMode = useCallback((next: NearMode) => {
     if (!shouldSwitchNearMode(mode, next)) return;
