@@ -87,9 +87,9 @@ async function armDrawerExchangeProbe(page: Page) {
         const { x, y, width, height } = element.getBoundingClientRect();
         return { x, y, width, height };
       };
-      const retarget = [...document.querySelectorAll<HTMLElement>(
-        '[role="option"][data-venue-id]',
-      )].find((option) => /^Swift Soho\b/.test(option.textContent?.trim() ?? ""));
+      const retarget = document.querySelector<HTMLElement>(
+        '.mapToolbar [role="option"][data-venue-id="bar-swift-soho"]',
+      );
       const retargetBox = retarget?.getBoundingClientRect();
       const retargetStyle = retarget ? getComputedStyle(retarget) : null;
       const hit = retargetBox ? document.elementFromPoint(
@@ -134,6 +134,7 @@ async function armDrawerExchangeProbe(page: Page) {
     type StopReason = "settled" | "deadline" | "frame-limit";
     const observation = {
       startedAtEpochMs,
+      retargetVenueId: "bar-swift-soho",
       firstSettledAtMs: null as number | null,
       terminal: null as { reason: StopReason; atMs: number } | null,
     };
@@ -507,6 +508,8 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   });
   expect(settled, "drawer exchange settles within the observation bound").toBe(true);
   expect(clicks, "both venue selections use trusted clicks").toHaveLength(2);
+  expect(clicks[1].venueId, "sampled retarget identity matches the trusted click")
+    .toBe(observation.retargetVenueId);
   expect(clicks[0].after, "first selection reaches the document").toBeDefined();
   expect(
     Math.abs(clicks[0].after!.toolbar.x - clicks[0].before.toolbar.x),
