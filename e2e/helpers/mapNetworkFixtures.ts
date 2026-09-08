@@ -63,7 +63,8 @@ export async function installDeterministicMapBasemap(
     /** Refuse every style request, primary and fallback alike. */
     failStyle?: boolean;
   } = {},
-): Promise<void> {
+): Promise<{ failedPrimaryRaster: number; servedPrimaryRaster: number }> {
+  const requests = { failedPrimaryRaster: 0, servedPrimaryRaster: 0 };
   const emptyVectorTile = (route: Route) =>
     route.fulfill({
       status: 200,
@@ -92,6 +93,7 @@ export async function installDeterministicMapBasemap(
     if (primaryRasterFailuresLeft > 0) {
       primaryRasterFailuresLeft -= 1;
       await route.abort("failed");
+      requests.failedPrimaryRaster += 1;
       return;
     }
     if (options.primaryRasterDelayMs) {
@@ -104,6 +106,7 @@ export async function installDeterministicMapBasemap(
       contentType: "image/png",
       body: EMPTY_RASTER_TILE,
     });
+    requests.servedPrimaryRaster += 1;
   });
   if (options.stallSecondaryRaster) {
     await page.route("**/__pending/**/*.png", async (route) => {
@@ -125,4 +128,5 @@ export async function installDeterministicMapBasemap(
     /^https:\/\/basemaps\.cartocdn\.com\/gl\/(?:dark-matter|positron)-gl-style\/style\.json$/,
     fulfillStyle,
   );
+  return requests;
 }
