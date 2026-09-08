@@ -215,9 +215,29 @@ test("direct web onboarding redirects home without mutating onboarding state", a
   }))).toEqual({ city: "london", companion: "fox", tour: "1" });
 });
 
-test("returning native direct onboarding redirects to Tonight without mutation", async ({ page }) => {
+test("returning native direct onboarding redirects to Tonight without mutation", async ({ page }, testInfo) => {
+  async function attachEntryState(checkpoint: string) {
+    const state = await page.evaluate(() => {
+      const native = (window as typeof window & {
+        Capacitor?: { isNativePlatform?: () => boolean; getPlatform?: () => string };
+      }).Capacitor;
+      return {
+        path: location.pathname,
+        consumed: sessionStorage.getItem("pubmax:entryDecision:consumed:v1"),
+        handoff: sessionStorage.getItem("pubmax:nativeFirstRun:handoff:v1"),
+        routed: localStorage.getItem("pubmax:nativeFirstRun:routed:v1"),
+        city: localStorage.getItem("pubmax:preferredCity:v1"),
+        isNative: native?.isNativePlatform?.(),
+        platform: native?.getPlatform?.(),
+      };
+    });
+    await testInfo.attach(checkpoint, {
+      body: JSON.stringify(state), contentType: "application/json",
+    });
+  }
   await installNativeShell(page);
   await page.goto("/about");
+  await attachEntryState("about-before-clear");
   await page.evaluate(() => {
     window.localStorage.setItem("pubmax:nativeFirstRun:routed:v1", "1");
     window.localStorage.setItem("pubmax:preferredCity:v1", "london");
@@ -226,8 +246,14 @@ test("returning native direct onboarding redirects to Tonight without mutation",
     window.sessionStorage.clear();
   });
 
+  await attachEntryState("before-onboarding-navigation");
   await page.goto("/onboarding");
-  await expect(page).toHaveURL(/\/tonight$/);
+  await attachEntryState("after-onboarding-navigation");
+  try {
+    await expect(page).toHaveURL(/\/tonight$/);
+  } finally {
+    await attachEntryState("after-entry-assertion");
+  }
   await expect(page.getByRole("heading", { name: "London is ready." })).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => ({
     city: window.localStorage.getItem("pubmax:preferredCity:v1"),
