@@ -53,13 +53,23 @@ async function main() {
   assert(typeof cfg.serviceRoleKey === "string" && cfg.serviceRoleKey.length > 20);
   assert(/^[0-9a-f]{40}$/.test(cfg.expectedCommit));
   assert(typeof cfg.bypassCSP === "boolean");
-  assert(!cfg.bypassCSP || (typeof cfg.cspException === "string" && cfg.cspException.length > 10));
+  const cspReason = cfg.bypassCSP && typeof cfg.cspException === "string" ? cfg.cspException.trim() : null;
+  if (cfg.bypassCSP) {
+    assert(cspReason && cspReason.length > 10 && cspReason.length <= 400 && !/[\u0000-\u001f\u007f]/.test(cspReason));
+    for (const secret of [cfg.password, cfg.anonKey, cfg.serviceRoleKey, db.password, decodeURIComponent(db.password)]) {
+      assert(!secret || !cspReason.includes(secret));
+    }
+  }
   assert(isAbsolute(cfg.outputDirectory));
   const storageInfo = await protectedFile(cfg.storageLogFile);
   await mkdir(cfg.outputDirectory, { mode: 0o700 }); // Refuse reuse of an old proof directory.
   output = cfg.outputDirectory;
   evidence.localOnly = { app: app.origin, api: api.origin, databaseHost: db.hostname, databasePort: db.port };
-  evidence.csp = cfg.bypassCSP ? "Local transport exception: bypassCSP enabled; production CSP is not proved." : "CSP enforced";
+  evidence.csp = {
+    bypassed: cfg.bypassCSP,
+    boundary: cfg.bypassCSP ? "Local transport exception; production CSP is not proved." : "CSP enforced",
+    reason: cspReason,
+  };
   evidence.source = JSON.parse((await run("git", ["log", "-1", "--format={\"commit\":\"%H\"}"])).stdout);
   evidence.bill = { path: "e2e/fixtures/bill.jpg", sha256: sha(await readFile(BILL_FIXTURE)) };
 

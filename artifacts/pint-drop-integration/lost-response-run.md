@@ -54,7 +54,7 @@ Set these fields without printing their values:
 | `storageLogFile` | Absolute path to the protected live Storage log |
 | `outputDirectory` | New absolute path outside Git; it must not exist |
 | `bypassCSP` | Boolean; normally false |
-| `cspException` | Required explanation when `bypassCSP` is true |
+| `cspException` | Required single-line explanation, 11-400 characters, when `bypassCSP` is true |
 
 Only `127.0.0.1`, `::1`, and `localhost` endpoints are accepted. DNS results must also be loopback.
 Endpoint queries and fragments are refused. API and app origins cannot contain credentials or path prefixes.
@@ -63,7 +63,8 @@ No configuration is read from the linked Supabase project or the repository's en
 
 The local production CSP may refuse local GoTrue transport. If necessary, explicitly set `bypassCSP: true`.
 Record the reason in `cspException` and the run ledger. This exception does not prove production CSP behavior.
-The output labels bypassed CSP. It never changes application policy.
+The output labels bypassed CSP and retains the trimmed reason in `proof.json` under `csp.reason`.
+Reasons containing supplied credentials are refused. The driver never changes application policy.
 
 ## Execute later
 
