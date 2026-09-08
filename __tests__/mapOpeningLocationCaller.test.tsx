@@ -7,6 +7,7 @@ import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useCrawlUrlSync } from "@/components/map/useCrawlUrl";
+import { EMPTY_MAP_SURFACE_STATE, useMapSurfaceNavigation } from "@/components/map/pubmap/useMapSurfaceNavigation";
 import { getCity, pointInCityBounds } from "@/lib/cities";
 import type { MapCameraFocus } from "@/lib/mapCameraFocus";
 import { resolveMapOpeningView, type MapOpeningLocation } from "@/lib/mapOpeningLocation";
@@ -77,12 +78,21 @@ const useOpeningCaller = new Function(...Object.keys(scope), emitted)(...Object.
 let reading: Reading;
 function Harness({ resumed = false }: { resumed?: boolean }) {
   const value = useOpeningCaller(resumed);
+  const [arrivalSearch] = useState(() => window.location.search);
   const urlState = useMemo(() => ({
     mode: "suggest" as const, filters: initialFilters, builtIds: [], selectedVenueId: value.selectedVenueId,
   }), [value.selectedVenueId]);
   useCrawlUrlSync(urlState);
+  const surfaceState = useMemo(() => ({
+    ...EMPTY_MAP_SURFACE_STATE, venueId: value.selectedVenueId,
+  }), [value.selectedVenueId]);
+  const navigation = useMapSurfaceNavigation({
+    arrivalSearch, surfaceId: value.selectedVenueId ? "venue" : "none",
+    surfaceTitle: "Pub detail", surfaceState, selectionHint: "",
+    onRestore: noop, onHome: value.closeEverySurface,
+  });
   useEffect(() => { reading = value; });
-  return createElement("button", { onClick: value.closeEverySurface }, "Close pub detail");
+  return createElement("button", { onClick: navigation.home }, "Close pub detail");
 }
 
 let root: Root;
