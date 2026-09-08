@@ -18,6 +18,24 @@ const hash = (source: string) => createHash("sha256").update(source).digest("hex
 type Phase = "before" | "after";
 type FrameRead = <T>(phase: Phase, read: () => Promise<T>) => Promise<T>;
 type Sample = { at?: number; timeOrigin?: number; observationError?: string; [key: string]: unknown };
+type BoundaryRecord = { boundary: Phase | null; sample: Sample };
+type FrameTimings = Partial<Record<Phase, { at?: number; timeOrigin?: number }>>;
+
+function hasCompleteHalfPinPair(
+  records: BoundaryRecord[], frames: FrameTimings, overflow: number, scriptCount: number,
+): boolean {
+  const [before, after] = records;
+  const matched = (entry: BoundaryRecord | undefined, expected: Phase) => {
+    const frame = frames[expected];
+    return entry?.boundary === expected && !entry.sample.observationError &&
+      Number.isFinite(entry.sample.at) && Number.isFinite(entry.sample.timeOrigin) &&
+      entry.sample.timeOrigin === frame?.timeOrigin && Number.isFinite(frame?.at) &&
+      entry.sample.at! <= frame!.at!;
+  };
+  return !(records.length !== 2 || overflow || !matched(before, "before") || !matched(after, "after") ||
+    before.sample.timeOrigin !== after.sample.timeOrigin || before.sample.at! >= after.sample.at! ||
+    after.sample.at! < frames.before!.at! || scriptCount !== 1);
+}
 
 // The reviewed false condition reads the pinned engine's immediate GeoJSON input.
 // Source readiness and rendered queries do not prove successful compositing.
@@ -121,8 +139,8 @@ export async function observeHalfPinCapture4a3<T>(
     if (stopped) return Promise.reject<R>(new Error("Half-pin observation has stopped"));
     return bounded(work, Math.min(operationDeadline, Date.now() + 5_000), label);
   };
-  const records: { boundary: Phase | null; sample: Sample }[] = [];
-  const frames: Partial<Record<Phase, { at?: number; timeOrigin?: number }>> = {};
+  const records: BoundaryRecord[] = [];
+  const frames: FrameTimings = {};
   const errors: string[] = [];
   const scripts = new Map<string, string>();
   let overflow = 0;
@@ -263,16 +281,7 @@ export async function observeHalfPinCapture4a3<T>(
   }
 
   const [before, after] = records;
-  const matched = (entry: typeof before | undefined, expected: Phase) => {
-    const frame = frames[expected];
-    return entry?.boundary === expected && !entry.sample.observationError &&
-      Number.isFinite(entry.sample.at) && Number.isFinite(entry.sample.timeOrigin) &&
-      entry.sample.timeOrigin === frame?.timeOrigin && Number.isFinite(frame?.at) &&
-      entry.sample.at! <= frame!.at!;
-  };
-  if (records.length !== 2 || overflow || !matched(before, "before") || !matched(after, "after") ||
-    before.sample.timeOrigin !== after.sample.timeOrigin || before.sample.at! >= after.sample.at! ||
-    after.sample.at! < frames.before!.at! || scripts.size !== 1) {
+  if (!hasCompleteHalfPinPair(records, frames, overflow, scripts.size)) {
     errors.push("Refused before/after attribution: expected exactly two ordered records at the existing frame boundaries");
   }
   evidence.overflow = overflow;
