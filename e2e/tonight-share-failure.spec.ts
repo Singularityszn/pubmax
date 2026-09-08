@@ -35,7 +35,7 @@ test(`${viewport.label} Tonight share failure keeps status below its action`, as
   await expect(share).toBeVisible();
   await share.click();
 
-  const status = page.locator('.tonightEyebrowRow [role="status"]');
+  const status = page.locator('.tonightShareControl [role="status"]');
   await expect(status).toHaveText("Could not share tonight. Try again.");
   await expect(status).toHaveAttribute("aria-live", "polite");
   await expect(status).toHaveAttribute("aria-atomic", "true");
@@ -43,11 +43,11 @@ test(`${viewport.label} Tonight share failure keeps status below its action`, as
 
   const actionBox = await share.boundingBox();
   const statusBox = await status.boundingBox();
-  const eyebrowBox = await page.locator(".tonightEyebrow").boundingBox();
+  const controlBox = await page.locator(".tonightShareControl").boundingBox();
   expect(actionBox).not.toBeNull();
   expect(statusBox).not.toBeNull();
-  expect(eyebrowBox).not.toBeNull();
-  expect(Math.abs(eyebrowBox!.y - actionBox!.y)).toBeLessThanOrEqual(1);
+  expect(controlBox).not.toBeNull();
+  expect(Math.abs(controlBox!.y - actionBox!.y)).toBeLessThanOrEqual(1);
   expect(statusBox!.y, "share failure status should start below its action").toBeGreaterThanOrEqual(
     actionBox!.y + actionBox!.height,
   );

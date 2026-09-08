@@ -188,11 +188,11 @@ test.describe("Tonight trusted UI", () => {
     ))).toBe(false);
   });
 
-  test("keeps the main list before Deals/Music and above the mobile tab bar", async ({ page }) => {
+  test("keeps the first answer above the mobile tab bar and listings before Deals/Music", async ({ page }) => {
     await mockWhatsOn(page);
     await openTonight(page);
-    // Every user gets the primary confirmed listings first, including the
-    // installed-app cold-start path.
+    // The lede starts with researched pubs, then independent listings.
+    // Secondary Deals/Music still follow the independent list.
     const deals = page.locator(".dealsTonight").first();
     await expect(deals).toBeVisible();
     const order = await page.evaluate(() => {
@@ -200,13 +200,16 @@ test.describe("Tonight trusted UI", () => {
       const l = document.querySelector('[data-testid="tonight-list"]');
       return d && l ? l.compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING : 0;
     });
-    expect(order).toBeTruthy(); // list FOLLOWS deals → list above
+    expect(order).toBeTruthy(); // Deals follow the independent list.
 
-    const firstRow = await page.locator(".tonightRow").first().boundingBox();
+    const firstAnswer = page.getByTestId("tonight-lede").locator(".tonightHypedRow, .tonightRow").first();
+    await expect(firstAnswer).toBeInViewport();
+    const firstRow = await firstAnswer.boundingBox();
     const mobileTabBar = await page.locator(".mobileTabBar").boundingBox();
     expect(firstRow).not.toBeNull();
     expect(mobileTabBar).not.toBeNull();
-    expect(firstRow!.y).toBeLessThan(mobileTabBar!.y);
+    expect(firstRow!.y).toBeGreaterThanOrEqual(0);
+    expect(firstRow!.y + firstRow!.height, "the whole first answer must clear the tab bar").toBeLessThanOrEqual(mobileTabBar!.y);
     await shoot(page, "acceptance");
   });
 
