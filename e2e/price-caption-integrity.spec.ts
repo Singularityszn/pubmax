@@ -426,7 +426,7 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     ).toBeVisible();
     await expect(page.locator(".mobilePlanActivation")).toHaveCount(0);
 
-    const geometry = await page.evaluate(() => {
+    const readGeometry = () => page.evaluate(() => {
       const chipElement = document.querySelector(".bandOnboardingChip");
       const mapElement = document.querySelector(".mapStage");
       const tabElement = document.querySelector(".mobileTabBar");
@@ -434,11 +434,43 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
       const chip = chipElement.getBoundingClientRect();
       const map = mapElement.getBoundingClientRect();
       const tab = tabElement.getBoundingClientRect();
+      const describe = (element: Element | null) => {
+        if (!element) return null;
+        const rect = element.getBoundingClientRect();
+        const css = getComputedStyle(element);
+        const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        return {
+          x: rect.x, y: rect.y, width: rect.width, height: rect.height,
+          top: rect.top, bottom: rect.bottom, right: rect.right,
+          text: element.textContent, display: css.display, visibility: css.visibility,
+          textOverflow: css.textOverflow, whiteSpace: css.whiteSpace,
+          lineClamp: css.getPropertyValue("-webkit-line-clamp"),
+          opacity: css.opacity, scrollWidth: element.scrollWidth, clientWidth: element.clientWidth,
+          scrollHeight: element.scrollHeight, clientHeight: element.clientHeight,
+          centerOwned: hit !== null && element.contains(hit),
+          hit: hit?.getAttribute("class") ?? hit?.tagName ?? null,
+        };
+      };
       return {
+        capturedAt: performance.now(),
+        viewport: { width: innerWidth, height: innerHeight, scrollX, scrollY },
         chip: { x: chip.x, y: chip.y, width: chip.width, height: chip.height, bottom: chip.bottom },
         map: { x: map.x, y: map.y, width: map.width, height: map.height },
         tab: { x: tab.x, y: tab.y, width: tab.width, height: tab.height },
+        prose: describe(chipElement.querySelector("span")),
+        actions: [...chipElement.querySelectorAll("button")].map(describe),
+        credit: describe(document.querySelector(".maplibregl-ctrl-attrib-inner")),
+        attribution: describe(document.querySelector(".maplibregl-ctrl-attrib")),
+        toggle: describe(document.querySelector(".maplibregl-ctrl-attrib-button")),
+        create: describe(document.querySelector(".createFab")),
       };
+    });
+    const geometry = await readGeometry();
+    await testInfo.attach("story-initial-geometry", {
+      body: JSON.stringify(geometry, null, 2), contentType: "application/json",
+    });
+    await testInfo.attach("story-initial-viewport", {
+      body: await page.screenshot({ fullPage: false, animations: "allow" }), contentType: "image/png",
     });
     expect(geometry).not.toBeNull();
     expect(geometry!.chip.height).toBeGreaterThan(120);
@@ -506,24 +538,54 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     }
     await expect(attributionInner).toBeVisible();
     await expect(attributionInner).toContainText(OSM_PUB_ATTRIBUTION);
-    const attributionState = await attributionInner.evaluate((element) => {
-      const style = getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return {
-        text: element.textContent,
-        display: style.display,
-        visibility: style.visibility,
-        opacity: style.opacity,
-        top: rect.top,
-        bottom: rect.bottom,
-      };
+    // Every expanded bound comes from this one read, never the initial frame.
+    const expanded = await readGeometry();
+    await testInfo.attach("story-expanded-geometry", {
+      body: JSON.stringify(expanded, null, 2), contentType: "application/json",
     });
+    await testInfo.attach("story-expanded-viewport", {
+      body: await page.screenshot({ fullPage: false, animations: "allow" }), contentType: "image/png",
+    });
+    expect(expanded).not.toBeNull();
+    expect(expanded!.chip.height).toBeGreaterThan(120);
+    expect(expanded!.chip.x).toBeGreaterThanOrEqual(expanded!.map.x);
+    expect(expanded!.chip.x + expanded!.chip.width).toBeLessThanOrEqual(expanded!.map.x + expanded!.map.width);
+    expect(expanded!.chip.y).toBeGreaterThanOrEqual(expanded!.map.y);
+    expect(expanded!.chip.bottom).toBeLessThanOrEqual(expanded!.tab.y);
+    expect(expanded!.chip.height / expanded!.map.height).toBeLessThan(0.3);
+    expect(expanded!.prose).not.toBeNull();
+    expect(expanded!.prose!.text).toBe(LONGEST_STORY_BAND.copy);
+    expect(expanded!.prose!.scrollWidth - expanded!.prose!.clientWidth).toBeLessThanOrEqual(1);
+    expect(expanded!.prose!.clientHeight).toBe(expanded!.prose!.scrollHeight);
+    expect(expanded!.prose!.textOverflow).not.toBe("ellipsis");
+    expect(expanded!.prose!.whiteSpace).not.toBe("nowrap");
+    expect(expanded!.prose!.lineClamp).toBe("none");
+    expect(expanded!.credit).not.toBeNull();
+    const attributionState = expanded!.credit!;
     expect(attributionState.text).toContain(OSM_PUB_ATTRIBUTION);
     expect(attributionState.display).not.toBe("none");
     expect(attributionState.visibility).toBe("visible");
     expect(Number(attributionState.opacity)).toBeGreaterThan(0);
-    expect(attributionState.top).toBeGreaterThanOrEqual(geometry!.chip.bottom);
-    expect(attributionState.bottom).toBeLessThanOrEqual(geometry!.tab.y);
+    expect(attributionState.top).toBeGreaterThanOrEqual(expanded!.chip.bottom);
+    expect(attributionState.bottom).toBeLessThanOrEqual(expanded!.tab.y);
+    expect(attributionState.x).toBeGreaterThanOrEqual(0);
+    expect(attributionState.right).toBeLessThanOrEqual(expanded!.viewport.width);
+    for (const frame of [geometry!, expanded!]) {
+      expect(frame.actions).toHaveLength(2);
+      for (const control of [...frame.actions, frame.toggle]) {
+        expect(control).not.toBeNull();
+        expect(control!.width).toBeGreaterThanOrEqual(44);
+        expect(control!.height).toBeGreaterThanOrEqual(44);
+        expect(control!.x).toBeGreaterThanOrEqual(0);
+        expect(control!.right).toBeLessThanOrEqual(frame.viewport.width);
+        expect(control!.top).toBeGreaterThanOrEqual(0);
+        expect(control!.bottom).toBeLessThanOrEqual(frame.tab.y);
+        expect(control!.centerOwned, JSON.stringify(control)).toBe(true);
+      }
+      expect(frame.attribution).not.toBeNull();
+      expect(frame.attribution!.top).toBeGreaterThanOrEqual(frame.chip.bottom);
+      expect(frame.attribution!.bottom).toBeLessThanOrEqual(frame.tab.y);
+    }
 
     await page.getByRole("button", { name: "More map controls" }).click();
     const layersSheet = page.locator(
@@ -537,7 +599,8 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     await expect(listShortcut).toBeVisible();
     await listShortcut.click();
     await expect(page.locator(".mapVenueListPanel")).toBeVisible();
-    await expect(chip).toHaveCount(0);
+    await expect(chip).toBeAttached();
+    await expect(chip).toBeHidden();
 
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
