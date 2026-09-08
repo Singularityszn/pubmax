@@ -19,8 +19,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/dynamic", () => ({
-  default: () => ({ onCancel }: { onCancel: () => void }) =>
+  default: () => ({ onCancel, onSave, onError }: {
+    onCancel: () => void;
+    onSave: (result: { blob: Blob }) => void;
+    onError: (reason: "open" | "save") => void;
+  }) => createElement("div", null,
     createElement("button", { onClick: onCancel, "aria-label": "Close editor" }, "Close"),
+    createElement("button", {
+      onClick: () => onSave({ blob: new Blob(["edited pixels"], { type: "image/jpeg" }) }),
+      "aria-label": "Save edit",
+    }, "Save"),
+    createElement("button", { onClick: () => onError("save"), "aria-label": "Fail edit" }, "Fail"),
+  ),
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ prefetch: () => Promise.resolve(), push: () => undefined, replace: () => undefined }),
@@ -185,6 +195,25 @@ describe("what the composer admits", () => {
     await act(async () => root!.unmount());
     root = null;
     expect(getIdentityNudgeClientSnapshot()).toBe("plan");
+    resetIdentityNudge();
+  });
+
+  it.each([
+    ["Save edit", "Edited photo ready."],
+    ["Fail edit", "Edited photo could not be saved. Original photo kept."],
+    ["Remove night.jpg", null],
+  ])("releases prompt ownership after %s", async (label, message) => {
+    resetIdentityNudge();
+    recordPlanNudgeTrigger();
+    await mount();
+    await choose(jpegFile("night.jpg"));
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Edit night.jpg"]')!.click());
+    expect(getIdentityNudgeClientSnapshot()).toBeNull();
+    await act(async () => container.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)!.click());
+    expect(getIdentityNudgeClientSnapshot()).toBe("plan");
+    expect(container.querySelector('[aria-label="Close editor"]')).toBeNull();
+    if (message) expect(status()).toBe(message);
+    else expect(previews()).toBe(0);
     resetIdentityNudge();
   });
 
