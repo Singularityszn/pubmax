@@ -1,4 +1,6 @@
-import { test, expect, type Page } from "@playwright/test";
+import { generatePlanRoute } from "./helpers/planGeneratedRoute";
+import { test } from "./helpers/planFixtureCaller";
+import { expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
 import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
@@ -13,7 +15,7 @@ import { setFirstPintIn } from "./helpers/planFirstPint";
 const PLAN_TITLE = "Karan invite spec crawl";
 const HOST_NAME = "Karan";
 
-test("public invite page renders a Plan and accepts a handle-free RSVP", async ({ request, page }) => {
+test("public invite page renders a Plan and accepts a handle-free RSVP", async ({ request, page, planFixtureHeaders }) => {
   const venues = ((await (await request.get("/data/venues_slim.json")).json() as { rows: Array<{
     id: string;
     name: string;
@@ -22,7 +24,7 @@ test("public invite page renders a Plan and accepts a handle-free RSVP", async (
   expect(venues.length).toBe(3);
 
   const created = await request.post("/api/plans", {
-    headers: { "idempotency-key": randomUUID() },
+    headers: { ...planFixtureHeaders, "idempotency-key": randomUUID() },
     data: {
       title: PLAN_TITLE,
       startTime: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
@@ -127,16 +129,14 @@ test("Copy invite link shows for the host's own session and never for an anonymo
   });
   await openHydratedPlanComposer(page);
   await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
-  await describeFirstSubmit(page).click();
+  await generatePlanRoute(page, describeFirstSubmit(page));
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
-  await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
   // Evening defaults can land in the past after ~19:00 London; a past First
   // pint keeps Lock disabled. Setting a future time marks the route stale, so
   // regenerate before locking.
   await setFirstPintIn(page, 3 * 60);
-  await page.getByRole("button", { name: "Regenerate route" }).click();
-  await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
+  await generatePlanRoute(page, page.getByRole("button", { name: "Regenerate route" }));
   await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
   await page.getByRole("button", { name: "Lock it in" }).click();
   await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}(?:#share)?$/);
@@ -199,13 +199,11 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
   });
   await openHydratedPlanComposer(page);
   await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
-  await describeFirstSubmit(page).click();
+  await generatePlanRoute(page, describeFirstSubmit(page));
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
-  await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
   await setFirstPintIn(page, 3 * 60);
-  await page.getByRole("button", { name: "Regenerate route" }).click();
-  await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
+  await generatePlanRoute(page, page.getByRole("button", { name: "Regenerate route" }));
   await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
   await page.getByRole("button", { name: "Lock it in" }).click();
   await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}/);

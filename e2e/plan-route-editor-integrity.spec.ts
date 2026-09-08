@@ -1,6 +1,7 @@
+import { test } from "./helpers/planFixtureCaller";
 import { randomUUID } from "node:crypto";
 
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
 // Core-loop battle test, 5 Sep 2026: D02 (silent data loss in the route
 // editor) and M03 (a triple-clicked Save sent two PATCHes and printed two
@@ -39,9 +40,9 @@ const GENERATED = {
 
 const PENDING_KEY_PREFIX = "pubmaxx:plan-pending-route:v1:";
 
-async function createPlan(api: APIRequestContext): Promise<{ planId: string; memberToken: string }> {
+async function createPlan(api: APIRequestContext, headers: Record<string, string>): Promise<{ planId: string; memberToken: string }> {
   const created = await api.post("/api/plans", {
-    headers: { "idempotency-key": randomUUID() },
+    headers: { ...headers, "idempotency-key": randomUUID() },
     data: {
       title: "Route editor integrity",
       startTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
@@ -113,9 +114,9 @@ async function pendingDraft(page: Page, planId: string): Promise<string | null> 
   return page.evaluate((key) => window.localStorage.getItem(key), `${PENDING_KEY_PREFIX}${planId}`);
 }
 
-test("the editor opens on the stored route, a save clears the draft, and a second save never loses a stop", async ({ page }) => {
+test("the editor opens on the stored route, a save clears the draft, and a second save never loses a stop", async ({ page, planFixtureHeaders }) => {
   const api = page.context().request;
-  const { planId } = await createPlan(api);
+  const { planId } = await createPlan(api, planFixtureHeaders);
   await preparePage(page);
   await page.goto(`/plan/${planId}`);
   await expect(routeRegion(page)).toBeVisible();
@@ -159,9 +160,9 @@ test("the editor opens on the stored route, a save clears the draft, and a secon
   expect(final.revision).toBe(3);
 });
 
-test("a draft older than the stored route never opens the editor and is cleared", async ({ page }) => {
+test("a draft older than the stored route never opens the editor and is cleared", async ({ page, planFixtureHeaders }) => {
   const api = page.context().request;
-  const { planId, memberToken } = await createPlan(api);
+  const { planId, memberToken } = await createPlan(api, planFixtureHeaders);
   // Another tab moves the route to revision 2.
   const moved = await api.patch(`/api/plans/${planId}`, {
     data: { memberToken, stops: [ARNOS, BOHEMIA, GEORGE], expectedRouteRevision: 1 },
@@ -194,9 +195,9 @@ test("a draft older than the stored route never opens the editor and is cleared"
   await expect.poll(() => pendingDraft(page, planId)).toBeNull();
 });
 
-test("a stale save re-seeds the editor from the stored route and prints one line", async ({ page }) => {
+test("a stale save re-seeds the editor from the stored route and prints one line", async ({ page, planFixtureHeaders }) => {
   const api = page.context().request;
-  const { planId, memberToken } = await createPlan(api);
+  const { planId, memberToken } = await createPlan(api, planFixtureHeaders);
   await preparePage(page);
   await page.goto(`/plan/${planId}`);
   await expect(routeRegion(page)).toBeVisible();
@@ -227,9 +228,9 @@ test("a stale save re-seeds the editor from the stored route and prints one line
   await expect(editorStops(page)).toHaveText([ARNOS.venueName, BOHEMIA.venueName, HAZINE.venueName]);
 });
 
-test("a triple-clicked Save sends one PATCH and leaves one line on screen", async ({ page }) => {
+test("a triple-clicked Save sends one PATCH and leaves one line on screen", async ({ page, planFixtureHeaders }) => {
   const api = page.context().request;
-  const { planId } = await createPlan(api);
+  const { planId } = await createPlan(api, planFixtureHeaders);
   await preparePage(page);
   const patches: string[] = [];
   await page.route(`**/api/plans/${planId}`, async (route) => {

@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { generatePlanRoute } from "./helpers/planGeneratedRoute";
+import { test } from "./helpers/planFixtureCaller";
+import { expect, type Page } from "@playwright/test";
 
 import { ACCOUNTS, AUTH_STORAGE_KEY, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
@@ -26,8 +28,7 @@ async function describeAPlan(page: Page): Promise<void> {
   await page
     .getByRole("textbox", { name: "Describe the outing" })
     .fill("Quiet in Clapham for 4, not pricey");
-  await page.getByRole("button", { name: "Sort it" }).click();
-  await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
+  await generatePlanRoute(page, page.getByRole("button", { name: "Sort it", exact: true }));
 }
 
 test("L05: the composer's Your name is the public handle, never the email", async ({ page }) => {

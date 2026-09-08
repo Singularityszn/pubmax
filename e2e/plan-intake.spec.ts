@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { test } from "./helpers/planFixtureCaller";
+import { expect, type Page } from "@playwright/test";
 
 // #1402 seated /plan's opening question on the Screen primitive, which
 // renders the head this asserts. The old "What’s the plan?" h2 went with it.

@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { generatePlanRoute } from "./helpers/planGeneratedRoute";
+import { test } from "./helpers/planFixtureCaller";
+import { expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
 // The invite surface on a Plan page. Neither case needs the member projection,
@@ -51,8 +53,7 @@ async function describeAPlan(page: Page): Promise<void> {
   await page
     .getByRole("textbox", { name: "Describe the outing" })
     .fill("Quiet in Clapham for 4, not pricey");
-  await page.getByRole("button", { name: "Sort it" }).click();
-  await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
+  await generatePlanRoute(page, page.getByRole("button", { name: "Sort it", exact: true }));
 }
 
 test("M04: rotating the invite link re-points the WhatsApp share href", async ({ page }) => {
@@ -65,8 +66,7 @@ test("M04: rotating the invite link re-points the WhatsApp share href", async ({
   await describeAPlan(page);
   await page.getByLabel("Your name").fill("Karan");
   await page.getByLabel("First pint").fill(futureLondonFirstPint());
-  await page.getByRole("button", { name: "Regenerate route" }).click();
-  await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
+  await generatePlanRoute(page, page.getByRole("button", { name: "Regenerate route" }));
   await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
   await page.getByRole("button", { name: "Lock it in" }).click();
   await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}/);
@@ -102,12 +102,13 @@ test("M04: rotating the invite link re-points the WhatsApp share href", async ({
 test("the invitee teaser draws no route rail over its own copy at 390", async ({
   page,
   request,
+  planFixtureHeaders,
 }) => {
   const venues = ((await (await request.get("/data/venues_slim.json")).json() as {
     rows: Array<{ id: string; name: string }>;
   }).rows).slice(0, 3);
   const created = await request.post("/api/plans", {
-    headers: { "idempotency-key": randomUUID() },
+    headers: { ...planFixtureHeaders, "idempotency-key": randomUUID() },
     data: {
       title: "Teaser rail",
       startTime: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),

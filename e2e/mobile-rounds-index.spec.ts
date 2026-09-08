@@ -34,10 +34,11 @@ test("mobile Rounds index explains link-based joining and routes to the map", as
   const response = await page.goto("/rounds");
   expect(response?.status()).toBe(200);
 
-  await expect(page.getByRole("heading", { name: "Join with a link" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Who bought the last round." })).toBeVisible();
+  await expect(page.getByText("Join with a link", { exact: true })).toBeVisible();
   await expect(page.getByText(/A round opens from the link/i)).toBeVisible();
 
-  const startOnMap = page.getByRole("link", { name: "Start a round on the map" });
+  const startOnMap = page.getByRole("link", { name: "Start a round", exact: true });
   await expect(startOnMap).toHaveAttribute("href", "/map");
   await expectTapTarget(startOnMap, "start round map link");
   await expectNoHorizontalOverflow(page);
