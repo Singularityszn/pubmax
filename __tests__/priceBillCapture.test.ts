@@ -12,7 +12,7 @@ async function capture() {
       submissions.push(this);
     }
   }
-  const fetch = vi.fn(async (_request: Request) => new Response(null, { status: 201 }));
+  const fetch = vi.fn<(request: Request) => Promise<Response>>(async () => new Response(null, { status: 201 }));
   const browser: Record<string, unknown> = { fetch, Request: BrowserRequest };
   vi.stubGlobal("window", browser);
   const page = {
