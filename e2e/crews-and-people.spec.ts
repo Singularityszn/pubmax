@@ -12,7 +12,7 @@ test.describe("Signed-out Social", () => {
   test("offers no crew surface anywhere on the page", async ({ page }) => {
     await page.goto("/social");
     await expect(
-      page.getByRole("heading", { name: "Crews and people who are already here.", exact: true }),
+      page.getByRole("heading", { name: "Good times, shared.", exact: true }),
     ).toBeVisible();
 
     await expect(page.getByRole("heading", { name: "Your crews" })).toHaveCount(0);
@@ -51,7 +51,7 @@ test.describe("Signed-out Social", () => {
     });
     await page.goto("/social");
     await expect(
-      page.getByRole("heading", { name: "Crews and people who are already here.", exact: true }),
+      page.getByRole("heading", { name: "Good times, shared.", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Find your lot" }).first(),
