@@ -27,12 +27,28 @@ test("desktop map camera and favourite-pint controls meet the tap floor", async 
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
 
-  await expect(page.locator(".mapToolbar")).toBeVisible({ timeout: 45_000 });
+  const toolbar = page.locator(".mapToolbar");
+  await expect(toolbar).toBeVisible({ timeout: 45_000 });
+  const drink = toolbar.getByRole("button", { name: "Drink: Pints", exact: true });
+  await drink.click();
+  await expect(drink).toHaveAttribute("aria-expanded", "true");
   await expectTapTarget(
-    page.locator(".mapToolbarDesktopExtras .favoritePintControl"),
+    toolbar.locator(".mapToolbarDrinks.isOpen .favoritePintControl"),
     "favourite pint control",
   );
-  await expectTapTarget(page.locator(".mapFitLondonBtn"), "map fit control");
+  await expect(toolbar.getByRole("combobox", {
+    name: "Favourite pint or beer brand", exact: true,
+  })).toBeVisible();
+  await drink.click();
+  await expect(drink).toHaveAttribute("aria-expanded", "false");
+
+  await page.getByRole("button", { name: /^Map layers:/ }).click();
+  const layers = page.getByRole("dialog", { name: "Map layers", exact: true });
+  await expect(layers).toBeVisible();
+  await expectTapTarget(
+    layers.getByRole("button", { name: "Show all of London", exact: true }),
+    "map fit control",
+  );
 });
 
 test("existing Last Train destinations keep Cancel at the tap floor", async ({ page }) => {
