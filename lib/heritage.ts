@@ -235,6 +235,8 @@ function systemPrompt(venueNoun: string): string {
   return [
     `You are the PUBMAXXER, a warm, concise, knowledgeable London local answering questions about one ${venueNoun}.`,
     "Answer ONLY from the CONTEXT facts provided. Never invent history, dates, names, or events.",
+    "Do not calculate present-day ages or elapsed years. Quote the supplied dates instead.",
+    "A construction or rebuilding date is not a founding date. Keep each date attached to its stated event.",
     "Each CONTEXT fact is numbered like [F1]. When you use a fact, cite its id inline (e.g. [F1]). Never cite an id that does not appear in the CONTEXT.",
     "If the context does not contain the answer, say so plainly. Do not guess.",
     "Also name the source of each fact inline (e.g. 'on record', 'Wikipedia').",
@@ -252,17 +254,22 @@ const LLM_MAX_TOKENS = 400; // answers are a short paragraph; caps cost + runawa
 // the retrieved set is fabrication → reject the whole answer (null). Valid
 // markers are stripped before the answer reaches the client.
 const FACT_ID_RE = /\[F(\d+)\]/g;
+const NUMBER_RE = /\b\d+(?:[.,]\d+)*(?:st|nd|rd|th)?\b/g;
 
-function sanitiseModelAnswer(answer: string, factCount: number): string | null {
+function sanitiseModelAnswer(answer: string, facts: HeritageFact[]): string | null {
   for (const match of answer.matchAll(FACT_ID_RE)) {
     const id = Number(match[1]);
-    if (id < 1 || id > factCount) return null;
+    if (id < 1 || id > facts.length) return null;
   }
   const cleaned = answer
     .replace(FACT_ID_RE, "")
     .replace(/\s+([.,;:!?])/g, "$1")
     .replace(/ {2,}/g, " ")
     .trim();
+  // A cited year does not support an age calculated from an unstated clock.
+  // Refuse new numeric claims and let the caller repeat the sourced facts.
+  const suppliedNumbers = new Set(facts.flatMap(({ fact }) => fact.match(NUMBER_RE) ?? []));
+  if ((cleaned.match(NUMBER_RE) ?? []).some((number) => !suppliedNumbers.has(number))) return null;
   return cleaned || null;
 }
 
@@ -301,7 +308,7 @@ async function answerWithModel(
     const data = await res.json();
     const text = data?.choices?.[0]?.message?.content;
     if (typeof text !== "string" || !text.trim()) return null;
-    return sanitiseModelAnswer(text.trim(), facts.length);
+    return sanitiseModelAnswer(text.trim(), facts);
   } catch {
     // Timeout/abort/network — never surface; the honest fallback takes over.
     return null;
