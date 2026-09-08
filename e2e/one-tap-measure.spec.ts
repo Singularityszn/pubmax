@@ -7,6 +7,7 @@ import { UNPRICED_PIN_FILL } from "../lib/mapIcons";
 
 import { ACCOUNTS, accountForBearer, installAuthDoubles } from "./helpers/authDoubles";
 import { attachBill, installPriceUploadCapture } from "./helpers/priceBill";
+import { observeHalfPinCapture4a3 } from "./helpers/halfPinLayerObservation4a3";
 
 /**
  * THE ONE-TAP PRICE DOOR ASKS THE MEASURE (review finding F-2, battle test D04).
@@ -145,16 +146,20 @@ async function captureUnpricedPin(page: Page, testInfo: TestInfo, name: string) 
     return map.__pubmaxMapCamera?.read().moving === false &&
       map.__pubmaxPaintedMapTapPoints?.().some((point) => point.kind === "pin" && point.id === id);
   }, UNPRICED)).toBe(true);
-  const beforeScreenshot = await readPinCaptureFrame(page);
-  const { state } = beforeScreenshot;
-  expect(state.point, "the intended venue must have a current painted pin").toMatchObject({
-    kind: "pin", id: UNPRICED,
+  const { value: capture, observationError } = await observeHalfPinCapture4a3(page, testInfo, name, async (read) => {
+    const beforeScreenshot = await read("before", () => readPinCaptureFrame(page));
+    const { state } = beforeScreenshot;
+    expect(state.point, "the intended venue must have a current painted pin").toMatchObject({
+      kind: "pin", id: UNPRICED,
+    });
+    expect(state.camera.moving).toBe(false);
+    const clip = { x: Math.floor(state.point.x) - 12, y: Math.floor(state.point.y) - 12, width: 24, height: 24 };
+    const screenshot = await page.screenshot({ clip, scale: "device" });
+    const afterScreenshot = await read("after", () => readPinCaptureFrame(page, state.point)
+      .catch((error) => ({ observationError: String(error) })));
+    return { beforeScreenshot, state, clip, screenshot, afterScreenshot };
   });
-  expect(state.camera.moving).toBe(false);
-  const clip = { x: Math.floor(state.point.x) - 12, y: Math.floor(state.point.y) - 12, width: 24, height: 24 };
-  const screenshot = await page.screenshot({ clip, scale: "device" });
-  const afterScreenshot = await readPinCaptureFrame(page, state.point)
-    .catch((error) => ({ observationError: String(error) }));
+  const { beforeScreenshot, state, clip, screenshot, afterScreenshot } = capture;
   const captureStable = "state" in afterScreenshot
     && JSON.stringify(afterScreenshot.state) === JSON.stringify(state);
   await testInfo.attach(`${name}.png`, { body: screenshot, contentType: "image/png" });
@@ -216,6 +221,7 @@ async function captureUnpricedPin(page: Page, testInfo: TestInfo, name: string) 
     expect(afterScreenshot.state, "the pin and camera must not change across the screenshot").toEqual(state);
   }
   expect(fillPixels.length, "the actual pin must contain unpriced fill pixels").toBeGreaterThan(0);
+  if (observationError) throw observationError;
   return witness;
 }
 
