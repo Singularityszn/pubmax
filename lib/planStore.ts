@@ -10,6 +10,7 @@ import { selectStore } from "@/lib/storeBackend";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { isPlanStopCount } from "@/lib/planStopCount";
 import { currentAnalyticsAttribution } from "@/lib/analyticsAttribution.mjs";
+import { planGroupOutcomeScope } from "@/lib/planGroupOutcomeScope.server";
 
 const PLANS = "plans";
 const STOPS = "plan_stops";
@@ -510,6 +511,7 @@ export const supabasePlanStore: PlanStore = {
     if (identityResult.identity?.role !== "host") return { ok: false, error: "forbidden" };
     try {
       const attribution = currentAnalyticsAttribution();
+      const routeScope = await planGroupOutcomeScope(legacyLookup.plan.stops);
       const { data, error } = await requireSupabaseAdmin().rpc("complete_plan_with_group_outcome_atomic", {
         p_plan_id: id,
         p_token_hash: hashPlanMemberToken(rawToken),
@@ -522,6 +524,9 @@ export const supabasePlanStore: PlanStore = {
         p_completed_at: new Date().toISOString(),
         p_environment: attribution.environment,
         p_release: attribution.release,
+        p_route_scope: routeScope,
+        p_scope_route_revision: routeRevisionOf(legacyLookup.plan.plan),
+        p_scope_venue_ids: legacyLookup.plan.stops.map(stop => stop.venueId),
       });
       if (error) throw new Error(error.message);
       if (data !== "completed" && data !== "already_completed") return { ok: false, error: data === "forbidden" ? "forbidden" : data === "conflict" ? "conflict" : data === "not_found" ? "not_found" : data === "arrival_required" ? "arrival_required" : "invalid" };

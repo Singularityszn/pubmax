@@ -88,22 +88,27 @@ The optional median interval remains unimplemented. Its interval-selection rule 
 
 Migration 0158 captures private account snapshots in the completion transaction. Existing endings receive no historical roster backfill.
 Both older completion overloads retain their behavior and capture unattributed snapshots. Only the attributed writer names its environment and release.
-Account deletion clears snapshot account references. Affected history becomes unresolved; no permanent identity hash survives deletion.
+Account deletion must clear snapshot account references without reducing original eligible-account cardinality or known completed-group counts.
+Surviving overlap can prove repeat. Missing identity leaves other comparisons unresolved; no permanent identity hash may survive deletion.
 The aggregate never sends Plan IDs, account IDs, member IDs, handles, coordinates, or messages to analytics.
 
 **Production classification is unresolved.** The source has no authoritative exclusion list for production test accounts.
 A production environment stamp identifies the deployment. It does not identify a valid customer or London retention cohort.
-The private query requires an explicit, reviewed exclusion specification and account list. No list is inferred from names or email patterns.
-Any listed account excludes its whole outing, including potential earlier matches. An empty list is an explicit assertion, never the default.
-Without that specification, `cohort_unresolved` returns no product counts or rate.
-The specification must cover the requested window and its preceding 28 days. No production specification ships with this change.
+The specification must establish trusted provenance, approval and effective times, classification coverage, and an explicit mixed-roster policy.
+Whole-outing exclusion is not an accepted default. A reference string and arbitrary account list do not establish trust.
+The same rules must qualify target and prior completions. Unknown classification must remain unresolved.
+Coverage must include the target window and each full preceding 672-hour interval. No production specification ships with this change.
+London ISO bucketing does not establish London population scope. Actual Plan route evidence needs a trusted scope rule.
+Unknown or ambiguous location evidence must remain unresolved. All-production counts are not London's retention cohort.
 
 `lib/planGroupOutcomes.server.ts` reads the service-only aggregate. No endpoint, scheduler, or PostHog event is added.
-Known counts under `partial` are lower bounds. Missing snapshots, cleared account identity, or incomplete capture history prevent an exact rate.
+Known counts under `partial` are lower bounds. Unresolved qualification, comparison, or interval coverage prevents an exact rate.
 A failed read returns `unavailable`, not zero. With complete history, an empty cohort returns zero counts and a null rate.
 Capture coverage starts when migration 0158 is applied; its first 28 days cannot establish complete prior history.
 
-The source candidate and its prepared tests are not runtime proof. Deployment, SQL proof, and the exclusion specification remain release dependencies.
+**Source review remains open.** The follow-up to `efe0f58` revises classification, deletion, coverage, and London scope together.
+[The review correction contract](GROUP_OUTCOME_REVIEW.md) records the implementation and the missing internal specification.
+The prepared tests are not runtime proof. Independent review, SQL proof, and the specification remain release dependencies.
 Until then, the 28-day group outcome remains unmeasured. The following existing queries retain their device-proxy meaning.
 
 ### 2.1 What the stream can answer today

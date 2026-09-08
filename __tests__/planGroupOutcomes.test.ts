@@ -6,7 +6,7 @@ import { readPlanGroupOutcomes } from "@/lib/planGroupOutcomes.server";
 
 const from = "2020-02-03T00:00:00Z";
 const until = "2020-02-10T00:00:00Z";
-const specification = { specification: "fixture-reviewed-exclusions", excludedUserIds: [] };
+const specification = "fixture-reviewed";
 const row = {
   week_start: "2020-02-03", status: "ready", groups_completed: 2, groups_repeated: 1,
   repeat_rate: 0.5, unresolved_completions: 0, capture_started_at: "2020-01-01T00:00:00Z",
@@ -17,16 +17,15 @@ it("requires explicit account exclusions instead of treating a production build 
   rpc.mockResolvedValue({ data: [{ ...row, status: "cohort_unresolved", groups_completed: null, groups_repeated: null, repeat_rate: null }], error: null });
   const result = await readPlanGroupOutcomes(from, until);
   expect(rpc).toHaveBeenCalledWith("read_plan_group_outcomes", {
-    p_from: from, p_until: until, p_excluded_user_ids: null, p_exclusion_specification: null,
+    p_from: from, p_until: until, p_specification_reference: null,
   });
   expect(result).toMatchObject({ status: "available", weeks: [{ status: "cohort_unresolved", groupsCompleted: null, repeatRate: null }] });
 });
 
-it("passes only the operator's explicit specification and projects aggregate fields", async () => {
+it("selects stored trusted evidence by reference and projects only aggregate fields", async () => {
   rpc.mockResolvedValue({ data: [{ ...row, plan_id: "private-plan", user_id: "private-account", handle: "private-handle", coordinates: [1, 2] }], error: null });
-  const exclusions = { specification: "fixture-reviewed-exclusions", excludedUserIds: ["11111111-1111-4111-8111-111111111111"] };
-  const result = await readPlanGroupOutcomes(from, until, exclusions);
-  expect(rpc.mock.calls[0][1]).toMatchObject({ p_excluded_user_ids: exclusions.excludedUserIds, p_exclusion_specification: exclusions.specification });
+  const result = await readPlanGroupOutcomes(from, until, specification);
+  expect(rpc.mock.calls[0][1]).toMatchObject({ p_specification_reference: specification });
   expect(result).toEqual({ status: "available", weeks: [{
     weekStart: row.week_start, status: "ready", groupsCompleted: 2, groupsRepeated: 1,
     repeatRate: 0.5, unresolvedCompletions: 0, captureStartedAt: row.capture_started_at,

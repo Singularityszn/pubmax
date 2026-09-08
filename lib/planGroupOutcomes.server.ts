@@ -2,12 +2,6 @@ import "server-only";
 
 import { admin } from "@/lib/storeBackend";
 
-/** Operator-supplied, reviewed specification. No account classification is inferred. */
-export type PlanGroupExclusions = {
-  specification: string;
-  excludedUserIds: readonly string[];
-};
-
 export type PlanGroupOutcomeWeek = {
   weekStart: string;
   status: "ready" | "partial" | "cohort_unresolved";
@@ -61,7 +55,7 @@ function readWeek(value: unknown): PlanGroupOutcomeWeek | null {
 export async function readPlanGroupOutcomes(
   from: string,
   until: string,
-  exclusions?: PlanGroupExclusions,
+  specificationReference?: string,
 ): Promise<PlanGroupOutcomeRead> {
   if (!Number.isFinite(Date.parse(from)) || !Number.isFinite(Date.parse(until)) || Date.parse(from) >= Date.parse(until)) {
     return { status: "unavailable" };
@@ -70,13 +64,12 @@ export async function readPlanGroupOutcomes(
     const { data, error } = await admin().rpc("read_plan_group_outcomes", {
       p_from: from,
       p_until: until,
-      p_excluded_user_ids: exclusions?.excludedUserIds ?? null,
-      p_exclusion_specification: exclusions?.specification ?? null,
+      p_specification_reference: specificationReference ?? null,
     });
     if (error || !Array.isArray(data) || data.length === 0) return { status: "unavailable" };
     const weeks = data.map(readWeek);
     if (weeks.some(week => week === null)) return { status: "unavailable" };
-    if (!exclusions?.specification.trim() && weeks.some(week => week?.status !== "cohort_unresolved")) {
+    if (!specificationReference?.trim() && weeks.some(week => week?.status !== "cohort_unresolved")) {
       return { status: "unavailable" };
     }
     return { status: "available", weeks: weeks as PlanGroupOutcomeWeek[] };
