@@ -21,6 +21,10 @@
       only when eligible and UNMOUNTS it on dismissal, so removing both higher
       siblings releases Tonight normally. */
 
+.mapDesktopNotices {
+  display: contents;
+}
+
 @media (min-width: 641px) {
   /* 1. Onboarding open — suppress ambient status and Tonight. */
   .appShell.onboarding-open .cityStatusStack,
@@ -93,6 +97,17 @@
    the sheet. Re-centre them on the map lane that is left, the same way the
    toolbar above them does (mapToolbar.css). */
 @media (min-width: 1024px) {
+  .appShell.detail-open .mapSoftRetry {
+    left: calc((100% - var(--desktop-venue-drawer-width)) / 2);
+    max-width: min(360px, calc(100% - var(--desktop-venue-drawer-width) - 32px));
+  }
+
+  .appShell.planning-open .mapSoftRetry,
+  .appShell.story-open .mapSoftRetry {
+    left: calc((100% + var(--desktop-planner-rail-width)) / 2);
+    max-width: min(360px, calc(100% - var(--desktop-planner-rail-width) - 32px));
+  }
+
   .appShell.detail-open .cityStatusStack,
   .appShell.detail-open .citySuggestBanner {
     left: calc((100% - var(--desktop-venue-drawer-width)) / 2);
@@ -117,7 +132,8 @@
   /* A drawer leaves too little horizontal room for both prompts. Keep the
      location prompt in the drawer-aware centre and move status to the bottom
      of that same free lane instead of rebuilding the first-load stack. */
-  .appShell.detail-open .mapStage:has(.citySuggestBanner) .cityStatusStack {
+  .appShell.detail-open .mapStage:has(.citySuggestBanner) .cityStatusStack,
+  .appShell.detail-open .mapStage:has(.citySuggestBanner) .mapDesktopNotices:has(.cityStatusStack):has(.mapSoftRetry) {
     top: auto;
     bottom: 16px;
     left: 16px;
@@ -126,11 +142,45 @@
   }
 
   .appShell.planning-open .mapStage:has(.citySuggestBanner) .cityStatusStack,
-  .appShell.story-open .mapStage:has(.citySuggestBanner) .cityStatusStack {
+  .appShell.story-open .mapStage:has(.citySuggestBanner) .cityStatusStack,
+  .appShell.planning-open .mapStage:has(.citySuggestBanner) .mapDesktopNotices:has(.cityStatusStack):has(.mapSoftRetry),
+  .appShell.story-open .mapStage:has(.citySuggestBanner) .mapDesktopNotices:has(.cityStatusStack):has(.mapSoftRetry) {
     top: auto;
     bottom: 16px;
     left: calc(var(--desktop-planner-rail-width) + 16px);
     width: min(460px, calc(100% - var(--desktop-planner-rail-width) - 32px));
     transform: none;
+  }
+
+  /* These notices share the existing bottom berth only while both are present.
+     Their natural heights keep Retry clear of the status and its open details. */
+  .appShell:is(.detail-open, .planning-open, .story-open) .mapStage:has(.citySuggestBanner) .mapDesktopNotices:has(.cityStatusStack):has(.mapSoftRetry) {
+    position: absolute;
+    z-index: var(--z-map-camera);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    max-height: calc(100dvh - var(--city-status-desktop-top) - 16px);
+    pointer-events: none;
+  }
+
+  .appShell:is(.detail-open, .planning-open, .story-open) .mapStage:has(.citySuggestBanner) .mapDesktopNotices:has(.cityStatusStack):has(.mapSoftRetry) > .cityStatusStack {
+    position: static;
+    flex: 0 1 auto;
+    min-height: 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+    transform: none;
+    pointer-events: auto;
+  }
+
+  .appShell:is(.detail-open, .planning-open, .story-open) .mapStage:has(.citySuggestBanner) .mapDesktopNotices:has(.cityStatusStack):has(.mapSoftRetry) > .mapSoftRetry {
+    position: static;
+    flex: 0 0 auto;
+    max-width: min(360px, 100%);
+    transform: none;
+    pointer-events: auto;
   }
 }
