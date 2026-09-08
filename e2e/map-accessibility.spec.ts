@@ -357,7 +357,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect.poll(() => baseRows.count(), { timeout: 5_000 }).toBe(0);
   });
 
-  test("keeps desktop drawer focus inside and restores chosen venue on Escape", async ({
+  test("keeps desktop toolbar accessible and restores chosen venue on Escape", async ({
     page,
   }) => {
     test.setTimeout(180_000);
@@ -375,21 +375,31 @@ test.describe("map keyboard and screen-reader venue path", () => {
     const closeButton = drawer.getByRole("button", { name: /Close/ });
     await expect(drawer).toBeVisible();
     await expect(drawer).toHaveAttribute("role", "dialog");
-    await expect(drawer).toHaveAttribute("aria-modal", "true");
+    await expect(drawer).not.toHaveAttribute("aria-modal", "true");
     await expect(closeButton).toBeFocused();
     const backButton = drawer.getByRole("button", { name: "Back to List view", exact: true });
     await expect(backButton).toBeVisible();
 
-    const lastFocusable = drawer.locator(
-      'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible',
-    ).last();
-    await lastFocusable.focus();
-    await page.keyboard.press("Tab");
-    await expect(backButton).toBeFocused();
-
+    await backButton.focus();
     await page.keyboard.press("Shift+Tab");
-    await expect(lastFocusable).toBeFocused();
+    await expect.poll(() => drawer.evaluate(
+      (node) => node.contains(document.activeElement),
+    ), { message: "keyboard focus can leave the non-modal venue drawer" }).toBe(false);
 
+    const search = page.locator(".mapToolbar").getByRole("combobox", {
+      name: "Search pubs",
+    });
+    const originalQuery = await search.inputValue();
+    await search.click();
+    await expect(search).toBeFocused();
+    await search.fill("Soho");
+    await expect(search).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByRole("option", { name: /^Swift Soho\b/ }).first()).toBeVisible();
+    await expect(drawer).toBeVisible();
+
+    // Restore the list filter before checking focus on its original venue row.
+    await search.fill(originalQuery);
+    await closeButton.focus();
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();
     await expect(chosenVenueAfterClose).toBeFocused();
