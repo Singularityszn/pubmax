@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/authContext";
 import { readActiveRoundCode } from "@/lib/activeRound";
 import { getAnonId } from "@/lib/anonId";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { providerHasAnswered } from "@/lib/authProviderRevision";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { trackEvent } from "@/lib/analytics";
 import type { CityId } from "@/lib/cities";
@@ -40,7 +41,8 @@ import {
   type VenueDropRead,
   type VenueDropReadStatus,
 } from "@/lib/venueDropRead";
-import { clearPintDropDraft } from "@/lib/pintDropDraft";
+import { clearPintDropDraft, clearPintDropDrafts } from "@/lib/pintDropDraft";
+import { safeSessionStorage } from "@/lib/safeStorage";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
 import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
 import type { PintDrop, VibeTag } from "@/lib/pintDropShared";
@@ -279,6 +281,7 @@ export function usePintDrops(
     configured: authConfigured,
     handle: accountHandle,
     identityResolved,
+    providerAuthState,
     getCurrentUserId,
   } = useAuth();
   const signedIn = Boolean(user && session);
@@ -345,6 +348,7 @@ export function usePintDrops(
   const [submitting, setSubmitting] = useState(false);
   const submitInFlight = useRef(false);
   const pendingSubmissionId = useRef<string | null>(null);
+  const draftAccountId = useRef(user?.id ?? null);
   const pintInputRef = useRef<HTMLInputElement>(null);
   const venueInputRef = useRef<HTMLInputElement>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
@@ -521,6 +525,26 @@ export function usePintDrops(
     if (receiptInputRef.current) receiptInputRef.current.value = "";
   }, [setPintPhoto, setVenuePhoto, setReceiptPhoto, setDropForm, setVibeTags, setVisibility]);
 
+  const accountId = user?.id ?? null;
+  useEffect(() => {
+    if (!providerHasAnswered(providerAuthState)) return;
+    if (draftAccountId.current === accountId) return;
+    clearPintDropDrafts(safeSessionStorage());
+    const storage = localStorageSafe();
+    const pendingId = pendingSubmissionId.current;
+    if (storage && pendingId) {
+      writeOptimisticSpills(storage, readOptimisticSpills(storage).filter(
+        (entry) => entry.clientRequestId !== pendingId,
+      ));
+      emitOptimisticSpillChange();
+    }
+    resetComposer();
+    setComposerOpen(false);
+    setHandle("");
+    setConfirmSeed(null);
+    draftAccountId.current = accountId;
+  }, [accountId, providerAuthState, resetComposer, setComposerOpen, setHandle]);
+
   // Each slot owns its preview. Changing one slot must not revoke another.
   useEffect(() => () => {
     if (pintPhoto) URL.revokeObjectURL(pintPhoto.previewUrl);
@@ -544,6 +568,7 @@ export function usePintDrops(
   }
 
   function retainOptimisticFeedDraft(input: OptimisticSpillInput) {
+    if (!shouldOptimisticallyAppearInFeed(input.visibility)) return input;
     // The record owns separate URLs over the original File bytes.
     const retain = (photo: PhotoSlot | null) => photo ? URL.createObjectURL(photo.file) : null;
     const retained = {
@@ -568,6 +593,7 @@ export function usePintDrops(
     options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
   ) {
     event.preventDefault();
+    if (accountId !== draftAccountId.current || accountId !== getCurrentUserId()) return;
     if (
       !spillHasSubmissionEvidence({
         price: dropForm.price,
@@ -671,7 +697,7 @@ export function usePintDrops(
       ...(trainFields ?? {}),
     };
     const optimisticDrop = buildOptimisticSpillDrop(optimisticInput);
-    const visibleInput = publishToFeed ? retainOptimisticFeedDraft(optimisticInput) : optimisticInput;
+    const visibleInput = retainOptimisticFeedDraft(optimisticInput);
     const optimisticMapDrop: DropWithPhotos = {
       id: optimisticDrop.id,
       venueId,
@@ -775,6 +801,7 @@ export function usePintDrops(
 
       const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
       const data = await response.json().catch(() => null);
+      if (getCurrentUserId() !== submittedAccountId) return;
       if (!response.ok || !pintDropId(data?.drop)) {
         markFailed(errorMessageFrom(data, "Could not save that drop."));
         return;

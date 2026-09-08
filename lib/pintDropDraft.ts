@@ -190,3 +190,18 @@ export function clearPintDropDraft(
     // Same storage-failure posture as writes: fail soft.
   }
 }
+
+/** Discard every venue draft when a confirmed account transition ends its ownership. */
+export function clearPintDropDrafts(
+  storage: Pick<Storage, "length" | "key" | "removeItem"> | null | undefined,
+): void {
+  if (!storage) return;
+  try {
+    for (let index = storage.length - 1; index >= 0; index -= 1) {
+      const key = storage.key(index);
+      if (key?.startsWith(DRAFT_KEY_PREFIX)) storage.removeItem(key);
+    }
+  } catch {
+    // Match the existing draft storage failure policy.
+  }
+}
