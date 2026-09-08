@@ -150,10 +150,10 @@ test("preview shows one safe boundary and never requests or leaks protected post
   const response = await page.goto("/social");
   expect(response?.status()).toBe(200);
   await expect(
-    page.getByRole("heading", { name: "Social preview", exact: true }),
+    page.getByRole("heading", { name: "Good times, shared.", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Social preview is invite-only for now. It opens more widely soon." }),
+    page.locator(".socialBoundary").getByText("Social is invite-only for now. It opens more widely soon.", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Posts", exact: true }),
@@ -233,7 +233,7 @@ test("verified lanes stay chronological, wait for Nearby area, paginate explicit
     ]);
   });
 
-  await page.goto("/social");
+  await page.goto("/social?feed=following");
   await expect(page.locator(".socialPostCard")).toHaveCount(2);
   await expect(
     page.locator(".socialPostBody").allTextContents(),
@@ -284,8 +284,8 @@ test("Nearby area survives refresh and browser Back restores its exact URL state
   await expect(page.getByLabel("Nearby area")).toHaveValue("camden");
   await expect(page.getByText("nearby restored")).toBeVisible();
 
-  await page.getByRole("link", { name: "Across town", exact: true }).click();
-  await expect(page).toHaveURL(/\/social\?feed=discover$/);
+  await page.getByRole("link", { name: "Discover", exact: true }).click();
+  await expect(page).toHaveURL(/\/social$/);
   await expect(page.getByText("discover restored")).toBeVisible();
 
   await page.goBack();
@@ -294,7 +294,7 @@ test("Nearby area survives refresh and browser Back restores its exact URL state
   await expect(page.getByText("nearby restored")).toBeVisible();
 });
 
-test("stale lane responses cannot replace the active Across town lane", async ({
+test("stale lane responses cannot replace the active Discover lane", async ({
   page,
 }) => {
   await mockAccess(page, "verified");
@@ -316,9 +316,10 @@ test("stale lane responses cannot replace the active Across town lane", async ({
     ]);
   });
 
-  await page.goto("/social");
-  await page.getByRole("link", { name: "Across town", exact: true }).click();
-  await expect(page).toHaveURL(/feed=discover/);
+  await page.goto("/social?feed=following");
+  await expect.poll(() => Boolean(releaseFollowing)).toBe(true);
+  await page.getByRole("link", { name: "Discover", exact: true }).click();
+  await expect(page).toHaveURL(/\/social$/);
   await expect(page.getByText("Across town current")).toBeVisible();
   releaseFollowing?.();
   await page.waitForTimeout(100);
@@ -476,9 +477,7 @@ test("feed retry repeats only the failed chronological read", async ({
 
   await page.goto("/social");
   await expect(
-    page.getByRole("heading", {
-      name: "Social preview posts are unavailable right now.",
-    }),
+    page.locator(".socialFeedError").getByText("Social posts are unavailable right now.", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Retry" }).click();
   await expect(page.getByText("Back in order")).toBeVisible();
@@ -557,7 +556,7 @@ test("invalid Social URL state resolves to the safe canonical route", async ({
   await expect(page).toHaveURL(/\/social$/);
   expect(page.url()).not.toContain("cursor");
   await expect(
-    page.getByRole("heading", { name: "Social preview is invite-only for now. It opens more widely soon." }),
+    page.locator(".socialBoundary").getByText("Social is invite-only for now. It opens more widely soon.", { exact: true }),
   ).toBeVisible();
 });
 
@@ -660,12 +659,21 @@ test("Social shell fits target viewports in light and dark themes", async ({
           page.locator(".socialFeed").boundingBox(),
           page.locator(".socialContextRail").boundingBox(),
         ]);
-        expect(controlRail?.width).toBeGreaterThanOrEqual(220);
-        expect(controlRail?.width).toBeLessThanOrEqual(240);
+        expect(controlRail?.width).toBeGreaterThanOrEqual(240);
+        expect(controlRail?.width).toBeLessThanOrEqual(300);
         expect(feed?.width).toBeGreaterThanOrEqual(560);
-        expect(feed?.width).toBeLessThanOrEqual(640);
-        expect(contextRail?.width).toBeGreaterThanOrEqual(260);
+        expect(feed?.width).toBeLessThanOrEqual(660);
+        expect(contextRail?.width).toBeGreaterThanOrEqual(240);
         expect(contextRail?.width).toBeLessThanOrEqual(300);
+        expect(controlRail).not.toBeNull();
+        expect(feed).not.toBeNull();
+        expect(contextRail).not.toBeNull();
+        if (controlRail && feed && contextRail) {
+          expect(controlRail.x).toBeGreaterThanOrEqual(feed.x + feed.width);
+          expect(contextRail.x).toBeCloseTo(controlRail.x, 0);
+          expect(contextRail.y).toBeGreaterThanOrEqual(controlRail.y + controlRail.height);
+          expect(contextRail.x + contextRail.width).toBeLessThanOrEqual(target.width);
+        }
       }
 
       await expect(
