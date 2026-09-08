@@ -104,6 +104,34 @@ async function zoomThroughHiddenMobileControl(page: Page, steps = 3): Promise<vo
   }
 }
 
+type CompletedBasemapTile = { url: string; status: number; bytes: number };
+
+async function waitForCompletedBasemapTile(page: Page): Promise<CompletedBasemapTile> {
+  const witnesses = new WeakMap<Request, CompletedBasemapTile>();
+  const request = await page.waitForEvent("requestfinished", {
+    timeout: 30_000,
+    predicate: async (candidate) => {
+      if (!/^https:\/\/tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/.test(candidate.url())) return false;
+      const response = await candidate.response();
+      if (response?.status() !== 200) return false;
+      // A header-only or unreadable response cannot prove completed tile delivery.
+      // Keep body validation inside the same bounded event wait.
+      let bytes: number;
+      try {
+        bytes = (await response.body()).byteLength;
+      } catch {
+        return false;
+      }
+      if (bytes === 0) return false;
+      witnesses.set(candidate, { url: response.url(), status: response.status(), bytes });
+      return true;
+    },
+  });
+  const witness = witnesses.get(request);
+  if (!witness) throw new Error("The completed basemap tile has no body witness.");
+  return witness;
+}
+
 // GPU-present contract. Runs only under the `chromium-gl` project, which launches
 // Chromium with SwiftShader (a software GL implementation) so a real WebGL2
 // context exists even on a GPU-less CI box. Where smoke.spec.ts asserts
@@ -560,18 +588,10 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
     record("outage-aborted", route.request().url(), { requestNumber });
   });
 
-  // This response comes from the browser's live basemap request, not a probe fetch.
-  const initialTileResponse = page.waitForResponse(
-    (response) =>
-      /^https:\/\/tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/.test(response.url()) &&
-      response.status() === 200,
-    { timeout: 30_000 },
-  );
-  await page.goto("/map");
-  const initialTile = await initialTileResponse;
-  expect(await initialTile.finished()).toBeNull();
-  const initialTileBytes = (await initialTile.body()).byteLength;
-  expect(initialTileBytes, "a real basemap tile completed before the outage").toBeGreaterThan(0);
+  const [initialTile] = await Promise.all([
+    waitForCompletedBasemapTile(page),
+    page.goto("/map"),
+  ]);
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
     timeout: 20_000,
   });
@@ -599,7 +619,7 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   }));
   await test.info().attach("initial-basemap-response", {
-    body: JSON.stringify({ url: initialTile.url(), status: initialTile.status(), bytes: initialTileBytes }),
+    body: JSON.stringify(initialTile),
     contentType: "application/json",
   });
   await test.info().attach("initial-basemap-before-outage", {
@@ -679,18 +699,10 @@ test("/map surfaces Retry when the automatic style reload also fails", async ({
     await route.abort("failed");
   });
 
-  // This response comes from the browser's live basemap request, not a probe fetch.
-  const initialTileResponse = page.waitForResponse(
-    (response) =>
-      /^https:\/\/tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/.test(response.url()) &&
-      response.status() === 200,
-    { timeout: 30_000 },
-  );
-  await page.goto("/map");
-  const initialTile = await initialTileResponse;
-  expect(await initialTile.finished()).toBeNull();
-  const initialTileBytes = (await initialTile.body()).byteLength;
-  expect(initialTileBytes, "a real basemap tile completed before the outage").toBeGreaterThan(0);
+  const [initialTile] = await Promise.all([
+    waitForCompletedBasemapTile(page),
+    page.goto("/map"),
+  ]);
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
     timeout: 20_000,
   });
@@ -718,7 +730,7 @@ test("/map surfaces Retry when the automatic style reload also fails", async ({
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   }));
   await test.info().attach("initial-basemap-response", {
-    body: JSON.stringify({ url: initialTile.url(), status: initialTile.status(), bytes: initialTileBytes }),
+    body: JSON.stringify(initialTile),
     contentType: "application/json",
   });
   await test.info().attach("initial-basemap-before-outage", {
@@ -780,18 +792,10 @@ test("/map spends exactly one style reload on a tile-source failure, then surfac
     });
   });
 
-  // This response comes from the browser's live basemap request, not a probe fetch.
-  const initialTileResponse = page.waitForResponse(
-    (response) =>
-      /^https:\/\/tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/.test(response.url()) &&
-      response.status() === 200,
-    { timeout: 30_000 },
-  );
-  await page.goto("/map");
-  const initialTile = await initialTileResponse;
-  expect(await initialTile.finished()).toBeNull();
-  const initialTileBytes = (await initialTile.body()).byteLength;
-  expect(initialTileBytes, "a real basemap tile completed before the outage").toBeGreaterThan(0);
+  const [initialTile] = await Promise.all([
+    waitForCompletedBasemapTile(page),
+    page.goto("/map"),
+  ]);
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
     timeout: 20_000,
   });
@@ -819,7 +823,7 @@ test("/map spends exactly one style reload on a tile-source failure, then surfac
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   }));
   await test.info().attach("initial-basemap-response", {
-    body: JSON.stringify({ url: initialTile.url(), status: initialTile.status(), bytes: initialTileBytes }),
+    body: JSON.stringify(initialTile),
     contentType: "application/json",
   });
   await test.info().attach("initial-basemap-before-outage", {
