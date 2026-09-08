@@ -92,6 +92,8 @@ async function prepareUndecidedConsent(
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // Geometry checks start after the first-visit card was dismissed.
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
     window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
     window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
     // THE CARD WAITS FOR THE PRODUCT TO ANSWER (lib/consentAnswerMoment.ts).

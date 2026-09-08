@@ -76,7 +76,9 @@ test("Venue actions fit 320px and 390px", async ({ page }) => {
     const heights = await toolbar.getByRole("button").evaluateAll((buttons) =>
       buttons.map((button) => button.getBoundingClientRect().height),
     );
-    expect(heights.length).toBeGreaterThanOrEqual(3);
+    await expect(toolbar.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1`, exact: true })).toBeVisible();
+    await expect(toolbar.getByRole("button", { name: `Share ${VENUE_NAME}`, exact: true })).toBeVisible();
+    expect(heights).toHaveLength(2);
     expect(heights.every((height) => height >= 44)).toBe(true);
     const overflow = await page.evaluate(() =>
       document.documentElement.scrollWidth - document.documentElement.clientWidth,

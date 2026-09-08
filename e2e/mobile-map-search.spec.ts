@@ -32,7 +32,7 @@ test("mobile top-bar search filters the map and clears only the query", async ({
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 
   await page.getByRole("button", { name: "Search the map" }).click();
-  const search = page.getByRole("searchbox", { name: "Search pubs" });
+  const search = page.getByRole("combobox", { name: "Search pubs" });
   await expect(search).toBeVisible({ timeout: 20_000 });
   await search.fill("Definitely no such London pub 987654");
 

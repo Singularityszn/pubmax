@@ -73,8 +73,8 @@ test("mobile unknown Pint Drop permalink has a tappable empty-state action and n
 
   const primaryAction = page
     .locator(".permalink--empty")
-    .getByRole("link", { name: "Go to the feed" });
-  await expect(primaryAction).toHaveAttribute("href", "/feed");
+    .getByRole("link", { name: "Browse pubs & pints", exact: true });
+  await expect(primaryAction).toHaveAttribute("href", "/social?tab=discover");
   await expectTappable(primaryAction, "empty-state primary action");
   await expectNoHorizontalOverflow(page);
   expect(errors).toEqual([]);

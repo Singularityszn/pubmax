@@ -200,13 +200,8 @@ test("390px fare-zone rows agree through selection and reset", async ({ page }) 
   expect(await pressedLabels(zoneGroup)).toEqual(["Zone 5"]);
   const pressedPriceLabels = await pressedLabels(zonePriceGroup);
   expect(pressedPriceLabels).toHaveLength(1);
-  // The zone, not the price. This pinned /^Zone 5£\d/ and read
-  // "Zone 50/10log more" on a build where zone 5 has fewer than ten priced
-  // pubs, which is an honest scarcity answer rather than a broken row. What the
-  // test is for is that the two lists agree on WHICH zone is selected.
-  // `\b` cannot help here: the row reads "Zone 5" then "0/10", so the character
-  // after the 5 is a digit and there is no word boundary to find.
-  expect(pressedPriceLabels[0]).toMatch(/^Zone 5(?![0-9])/);
+  await expect(zonePriceGroup.locator('button[aria-pressed="true"] .zonePintCellZone'))
+    .toHaveText("Zone 5");
 
   await zoneGroup.getByRole("button", { name: "All", exact: true }).click();
   expect(await pressedLabels(zoneGroup)).toEqual(["All"]);
