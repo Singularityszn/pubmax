@@ -82,6 +82,7 @@ import {
   markRoundPriceSourceSuperseded,
   roundPriceSourceStatus,
 } from "@/lib/roundsStore";
+import { deletePhotos } from "@/lib/pintDropsStore";
 import { MAX_PROVISIONAL_BASE_VENUE_IDS } from "@/lib/ukBasePubs";
 import {
   admin,
@@ -1458,7 +1459,9 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
             ),
             ...(id ? { id } : {}),
           },
-          ...(typeof saved.write_applied === "boolean"
+          ...(typeof saved.write_applied === "boolean" &&
+            (saved.receipt_photo_key === null || typeof saved.receipt_photo_key === "string") &&
+            (saved.replaced_receipt_photo_key === null || typeof saved.replaced_receipt_photo_key === "string")
             ? {
                 receiptWrite: {
                   applied: saved.write_applied,
@@ -1975,13 +1978,20 @@ export function communityPriceStore(): CommunityPriceStore {
  * envelope input resolves to `{ price: null }` so the optimistic UI can stand
  * on its own, and a hard durable failure comes back flagged.
  */
-export function submitCommunityPrice(
+export async function submitCommunityPrice(
   input: CommunityPriceWrite,
   now: number = Date.now(),
 ): Promise<CommunityPriceWriteResult> {
-  return droppingCategoryIndexMemo(() =>
+  const result = await droppingCategoryIndexMemo(() =>
     communityPriceStore().submit(input, now),
   );
+  const write = result.receiptWrite;
+  if (result.price && !result.failed && write?.applied &&
+    write.key === (input.receiptPhotoKey ?? null) &&
+    write.replacedKey && write.replacedKey !== write.key) {
+    await deletePhotos([write.replacedKey]);
+  }
+  return result;
 }
 
 export function submitCommunityVenueSignal(

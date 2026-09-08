@@ -93,6 +93,9 @@ import {
   resolveWritableVenueId,
   type VenueWriteTarget,
 } from "@/lib/venueWriteTarget.server";
+import { submitCommunityPriceWithReceipt } from "@/lib/communityPriceReceipt.server";
+import { PhotoRefusalError } from "@/lib/pintDropsStore";
+import type { CommunityPriceWrite, CommunityPriceWriteResult } from "@/lib/communityPriceStore";
 import { readString } from "@/lib/textClean";
 
 /**
@@ -114,6 +117,30 @@ const PROVISIONAL_BASE_READ_WINDOW_MS = 60_000;
 
 function resolvePubVenueId(venueId: string): Promise<VenueWriteTarget> {
   return resolveWritableVenueId(venueId, { pubsOnly: true });
+}
+
+async function writeSubmittedPrice(
+  input: CommunityPriceWrite & { actor: string },
+  receipt: File | null,
+): Promise<NonNullable<CommunityPriceWriteResult["price"]> | Response> {
+  try {
+    const write = input.drinkCategory !== "beer" && receipt
+      ? await submitCommunityPriceWithReceipt(input, receipt)
+      : await submitCommunityPrice(input);
+    if (write.failed || !write.price) {
+      return publicApiError("Could not log that price right now.", "UNAVAILABLE", 503, { retryable: true });
+    }
+    return write.price;
+  } catch (error) {
+    if (error instanceof PhotoRefusalError) {
+      return publicApiError(error.message, "INVALID_REQUEST", 400);
+    }
+    log("warn", "community_price.submit_unavailable", {
+      venueId: input.venueId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return publicApiError("Could not log that price right now.", "UNAVAILABLE", 503, { retryable: true });
+  }
 }
 
 async function communityWriteIsLimited(
@@ -260,16 +287,12 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
 
-  // submitCommunityPrice never throws; a hard durable-write failure comes back
-  // flagged so we answer 503 (degraded dependency) rather than a fake success.
-  const { price, failed } = await submitCommunityPrice({
+  const price = await writeSubmittedPrice({
     ...submission,
     actor: contributor.actor,
     contributorHandle: contributor.handle,
-  });
-  if (failed || !price) {
-    return publicApiError("Could not log that price right now.", "UNAVAILABLE", 503, { retryable: true });
-  }
+  }, pintDropPhotos.receipt);
+  if (price instanceof Response) return price;
 
   // Pint Drops are a pint-priced surface: pin colour, cheapest-pint buckets,
   // the Confirmed standing and the Pint Index all read this lane on the

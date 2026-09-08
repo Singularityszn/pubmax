@@ -79,6 +79,11 @@ const readBackState = vi.hoisted(() => ({
     degraded: boolean;
   } | null,
 }));
+const receiptMedia = vi.hoisted(() => ({ upload: vi.fn(), remove: vi.fn() }));
+vi.mock("@/lib/pintDropsStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/pintDropsStore")>();
+  return { ...actual, uploadPhoto: receiptMedia.upload, deletePhotos: receiptMedia.remove };
+});
 const oneTapState = vi.hoisted(() => ({
   forcedOutcome: undefined as
     | import("@/lib/oneTapPintDrop.server").OneTapPintDropOutcome
@@ -122,6 +127,7 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   return {
     ...actual,
     moderateCommunityPrice: vi.fn(actual.moderateCommunityPrice),
+    submitCommunityPrice: vi.fn(actual.submitCommunityPrice),
     readCommunityPrices: async (venueId: string, now?: number) =>
       readBackState.override ?? actual.readCommunityPrices(venueId, now),
     readCommunityPricesWithStatus: async (venueId: string, now?: number) =>
@@ -133,9 +139,11 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
 });
 
 import { GET, POST } from "@/app/api/price-submit/route";
+import { PhotoRefusalError } from "@/lib/pintDropsStore";
 import {
   __resetCommunityPrices,
   memoryCommunityPriceStore,
+  submitCommunityPrice,
   moderateCommunityPrice,
   readCommunityPrices,
 } from "@/lib/communityPriceStore";
@@ -263,6 +271,11 @@ async function authorizeContributor(
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
 const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 beforeEach(async () => {
+  receiptMedia.upload.mockReset();
+  receiptMedia.remove.mockReset();
+  receiptMedia.remove.mockResolvedValue(undefined);
+  receiptMedia.upload.mockImplementation(async (slot: string, venue: string, generation: string) => `${venue}/${generation}/${slot}.jpg`);
+  vi.mocked(submitCommunityPrice).mockClear();
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   venueIndexState.unavailable = false;
@@ -303,6 +316,74 @@ afterEach(async () => {
 });
 
 describe("POST /api/price-submit", () => {
+  it.each(["coffee", "soft-drink", "alcohol-free"])(
+    "persists a non-beer receipt for %s without creating a Pint Drop",
+    async (drinkCategory) => {
+      const venueId = "venue-xjf3n0";
+      const response = await POST(post({ venueId, drinkCategory, priceGbp: 3 }));
+      expect(response.status).toBe(201);
+      expect(receiptMedia.upload).toHaveBeenCalledExactlyOnceWith(
+        "receipt", venueId, expect.any(String), expect.any(File),
+      );
+      const write = vi.mocked(submitCommunityPrice).mock.calls[0][0];
+      expect(write.receiptPhotoKey).toMatch(new RegExp(`^${venueId}/[^/]+/receipt\\.jpg$`));
+      const stored = await vi.mocked(submitCommunityPrice).mock.results[0].value;
+      expect(stored.receiptWrite).toMatchObject({ applied: true, key: write.receiptPhotoKey });
+      expect(listVisiblePintDrops(venueId)).toHaveLength(0);
+      expect((await readCommunityPrices(venueId))[0].drinkCategory).toBe(drinkCategory);
+    },
+  );
+
+  it("refuses malformed nonbeer receipt bytes before saving a price", async () => {
+    receiptMedia.upload.mockRejectedValueOnce(new PhotoRefusalError("Photo must be a valid, uncorrupted image."));
+    const response = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "coffee", priceGbp: 3 }));
+    expect(response.status).toBe(400);
+    expect(vi.mocked(submitCommunityPrice)).not.toHaveBeenCalled();
+    expect(await readCommunityPrices("venue-xjf3n0")).toEqual([]);
+  });
+
+  it("keeps the existing price-only success during a receipt upload outage", async () => {
+    receiptMedia.upload.mockRejectedValueOnce(new Error("Storage unavailable"));
+    const response = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "coffee", priceGbp: 3 }));
+    expect(response.status).toBe(201);
+    expect(receiptMedia.upload).toHaveBeenCalledOnce();
+    expect(vi.mocked(submitCommunityPrice).mock.calls[0][0]).not.toHaveProperty("receiptPhotoKey");
+    expect((await readCommunityPrices("venue-xjf3n0"))[0].priceGbp).toBe(3);
+    expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(0);
+  });
+
+  it("returns unavailable and retains receipt bytes after an unconfirmed price write", async () => {
+    vi.mocked(submitCommunityPrice).mockResolvedValueOnce({ price: null, failed: true });
+    const response = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "coffee", priceGbp: 3 }));
+    expect(response.status).toBe(503);
+    expect(receiptMedia.upload).toHaveBeenCalledOnce();
+    expect(receiptMedia.remove).not.toHaveBeenCalled();
+  });
+
+  it("cleans the previous bill when the same actor corrects a nonbeer price", async () => {
+    const first = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "coffee", priceGbp: 3 }));
+    expect(first.status).toBe(201);
+    const firstKey = vi.mocked(submitCommunityPrice).mock.calls[0][0].receiptPhotoKey;
+    const second = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "coffee", priceGbp: 4 }));
+    expect(second.status).toBe(201);
+    const secondKey = vi.mocked(submitCommunityPrice).mock.calls[1][0].receiptPhotoKey;
+    expect(secondKey).not.toBe(firstKey);
+    expect(receiptMedia.remove).toHaveBeenCalledExactlyOnceWith([firstKey]);
+    expect((await readCommunityPrices("venue-xjf3n0"))[0].priceGbp).toBe(4);
+    expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(0);
+  });
+
+  it("retains an uncertain receipt attachment without claiming its key in the response", async () => {
+    vi.mocked(submitCommunityPrice).mockResolvedValueOnce({
+      price: { venueId: "venue-xjf3n0", drinkCategory: "coffee", priceGbp: 3, submittedAt: Date.now(), source: "community" },
+    });
+    const response = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "coffee", priceGbp: 3 }));
+    expect(response.status).toBe(201);
+    expect(receiptMedia.upload).toHaveBeenCalledOnce();
+    expect(receiptMedia.remove).not.toHaveBeenCalled();
+    expect(await response.json()).not.toHaveProperty("receiptPhotoKey");
+  });
+
   it("records an account-bound submission (201) stamped community", async () => {
     const res = await POST(
       post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
