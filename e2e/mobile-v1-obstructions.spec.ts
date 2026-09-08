@@ -67,23 +67,26 @@ test.describe("Today mobile block geometry", () => {
       const mobileTabBar = page.getByRole("navigation", { name: "Primary" });
       await expect(pageMain).toBeVisible({ timeout: 45_000 });
       await expect(mobileTabBar).toBeVisible();
+      await expect(page.getByTestId("create-fab")).toBeVisible();
 
       const geometry = await page.evaluate(() => {
         const main = document.querySelector<HTMLElement>(".todayPage")!;
         const entry = document.querySelector<HTMLElement>(".todayNearEntry")!;
         const tabBar = document.querySelector<HTMLElement>(".mobileTabBar")!;
-        const rootStyle = getComputedStyle(document.documentElement);
+        const create = document.querySelector<HTMLElement>(".createFabRoot")!;
         return {
           bodyPaddingBottom: Number.parseFloat(getComputedStyle(document.body).paddingBottom),
           mainPaddingBottom: Number.parseFloat(getComputedStyle(main).paddingBottom),
           nearEntryMargin: Number.parseFloat(getComputedStyle(entry).marginBlockStart),
-          tabBarHeight: Number.parseFloat(rootStyle.getPropertyValue("--tabbar-h")),
+          fixedControlClearance: Number.parseFloat(getComputedStyle(create).bottom)
+            + create.getBoundingClientRect().height,
           horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth,
           tabBarTop: tabBar.getBoundingClientRect().top,
         };
       });
 
-      expect(geometry.bodyPaddingBottom).toBeCloseTo(geometry.tabBarHeight, 0);
+      // The body clears Create above the tab bar. Today adds only content spacing.
+      expect(geometry.bodyPaddingBottom).toBeCloseTo(geometry.fixedControlClearance, 0);
       expect(
         geometry.mainPaddingBottom,
         "Today must not reserve the fixed tab bar a second time",
@@ -97,13 +100,16 @@ test.describe("Today mobile block geometry", () => {
       await nearEntry.scrollIntoViewIfNeeded();
       await expect(nearEntry).toBeVisible();
       await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-      const [footBox, tabBox] = await Promise.all([
+      const [footBox, tabBox, createBox] = await Promise.all([
         page.locator(".todayFoot").boundingBox(),
         mobileTabBar.boundingBox(),
+        page.getByTestId("create-fab").boundingBox(),
       ]);
       expect(footBox).not.toBeNull();
       expect(tabBox).not.toBeNull();
+      expect(createBox).not.toBeNull();
       expect(footBox!.y + footBox!.height).toBeLessThanOrEqual(tabBox!.y + 0.5);
+      expect(footBox!.y + footBox!.height).toBeLessThanOrEqual(createBox!.y + 0.5);
     });
   }
 
