@@ -250,6 +250,101 @@ function rgbChannels(cssColour: string): [number, number, number] {
   return [channels[0], channels[1], channels[2]];
 }
 
+async function expectNoticeContrast(page: Page, phase: string) {
+  const notice = page.locator(".mapSoftRetry");
+  const button = notice.getByRole("button", { name: "Retry", exact: true });
+  const previousFocus = await page.evaluateHandle(() => document.activeElement);
+  try {
+    for (const state of ["normal", "hover", "focus"] as const) {
+      await page.mouse.move(0, 0);
+      if (state === "normal") expect(await button.evaluate((node) => node.matches(":hover, :focus-visible"))).toBe(false);
+      if (state === "hover") await button.hover();
+      if (state === "focus") {
+        await page.keyboard.press("Tab");
+        await button.focus();
+        await expect(button).toBeFocused();
+        expect(await button.evaluate((node) => node.matches(":focus-visible"))).toBe(true);
+      }
+      await expect.poll(() => notice.evaluate((node) => node.getAnimations({ subtree: true })
+        .filter((animation) => animation instanceof CSSTransition && animation.playState === "running").length))
+        .toBe(0);
+      const colours = await notice.evaluate((node) => {
+        const surface = getComputedStyle(node);
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 1;
+        const context = canvas.getContext("2d", { colorSpace: "srgb" });
+        if (!context) throw new Error("Cannot measure notice colours");
+        const paint = (colour: string) => {
+          context.fillStyle = colour;
+          context.fillRect(0, 0, 1, 1);
+        };
+        const pixel = () => [...context.getImageData(0, 0, 1, 1).data].slice(0, 3);
+        return {
+          surface: { background: surface.backgroundColor, opacity: surface.opacity },
+          controls: [".mapSoftRetryMessage", ".mapSoftRetryBtn"].map((selector) => {
+            const element = node.querySelector(selector);
+            if (!element) throw new Error(`Missing notice content: ${selector}`);
+            const style = getComputedStyle(element);
+            return {
+              selector, foreground: style.color, background: style.backgroundColor, opacity: style.opacity,
+              outline: { colour: style.outlineColor, width: style.outlineWidth, style: style.outlineStyle },
+              // The canvas behind the translucent notice is not a DOM background.
+              // Bound every possible backdrop with opaque black and white.
+              bounds: ["#000", "#fff"].map((backdrop) => {
+                paint(backdrop);
+                paint(surface.backgroundColor);
+                const outlineBackground = pixel();
+                paint(style.backgroundColor);
+                const background = pixel();
+                paint(style.color);
+                const foreground = pixel();
+                paint(backdrop);
+                paint(surface.backgroundColor);
+                paint(style.outlineColor);
+                return { backdrop, background, foreground, outlineBackground, outlineForeground: pixel() };
+              }),
+            };
+          }),
+        };
+      });
+      await test.info().attach(`notice-contrast-${phase}-${state}`, {
+        body: JSON.stringify(colours), contentType: "application/json",
+      });
+      expect(colours.surface.opacity).toBe("1");
+      for (const control of colours.controls) {
+        expect(control.opacity).toBe("1");
+        const differences = control.bounds.map(({ foreground, background }) => (
+          relativeLuminance(foreground) - relativeLuminance(background)
+        ));
+        expect(differences[0] * differences[1], "text stays on one side of the entire backdrop luminance range")
+          .toBeGreaterThan(0);
+        for (const bound of control.bounds) {
+          expect(contrastRatio(bound.foreground, bound.background), `${control.selector} ${state} over ${bound.backdrop}`)
+            .toBeGreaterThanOrEqual(4.5);
+        }
+        if (state === "focus" && control.selector === ".mapSoftRetryBtn") {
+          expect(control.outline.style).not.toBe("none");
+          expect(parseFloat(control.outline.width)).toBeGreaterThanOrEqual(2);
+          const ringDifferences = control.bounds.map(({ outlineForeground, outlineBackground }) => (
+            relativeLuminance(outlineForeground) - relativeLuminance(outlineBackground)
+          ));
+          expect(ringDifferences[0] * ringDifferences[1]).toBeGreaterThan(0);
+          for (const bound of control.bounds) {
+            expect(contrastRatio(bound.outlineForeground, bound.outlineBackground), `Retry focus ring over ${bound.backdrop}`)
+              .toBeGreaterThanOrEqual(3);
+          }
+        }
+      }
+    }
+  } finally {
+    await page.mouse.move(0, 0);
+    await previousFocus.evaluate((node) => {
+      if (node instanceof HTMLElement && node.isConnected) node.focus();
+    });
+    await previousFocus.dispose();
+  }
+}
+
 async function zoomThroughHiddenMobileControl(page: Page, steps = 3): Promise<void> {
   const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
   for (let step = 0; step < steps; step += 1) {
@@ -1533,6 +1628,7 @@ for (const width of [1024, 1440]) {
       await details.getByText(disruptions.at(-1)!, { exact: true }).scrollIntoViewIfNeeded();
       await expect(details.getByText(disruptions.at(-1)!, { exact: true })).toBeInViewport();
       await expectDesktopNoticeStack(page, "expanded-status");
+      await expectNoticeContrast(page, "expanded-status");
       await test.info().attach(`notice-stack-expanded-${width}-${theme}`, {
         body: await page.screenshot(), contentType: "image/png",
       });
@@ -1559,6 +1655,7 @@ for (const width of [1024, 1440]) {
         await expect(page.locator(".mapCanvasWrap > .mapSoftRetry")).toHaveCount(1);
         await expect(host.locator(":scope > .mapSoftRetry")).toHaveCount(0);
         await expectNoticeControlHit(notice.getByRole("button", { name: "Retry" }));
+        await expectNoticeContrast(page, "phone-inline-390");
         await test.info().attach("notice-stack-phone-inline-390", {
           body: await page.screenshot(), contentType: "image/png",
         });
