@@ -327,7 +327,10 @@ test.describe("Android install prompt", () => {
     await expect(card).toHaveAttribute("role", "region");
     await expect(card).toHaveAttribute("aria-labelledby", "a2hsTitle");
     await expect(page.locator(".a2hsScrim")).toHaveCount(0);
-    await expect(page.locator('[role="dialog"][aria-modal="true"]')).toHaveCount(0);
+    // The selected pub already owns a modal sheet. Installing adds no modal.
+    await expect(page.locator('.mobileSharedSheet[role="dialog"][aria-modal="true"]')).toHaveCount(1);
+    await expect(page.locator('[role="dialog"][aria-modal="true"]:not(.mobileSharedSheet)')).toHaveCount(0);
+    await expect(card).not.toHaveAttribute("aria-modal", "true");
     await expect(map).toBeVisible();
 
     const cardBox = await card.boundingBox();
