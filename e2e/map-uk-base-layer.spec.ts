@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { UK_PLACE_INDEX_PATH } from "@/lib/ukPlaceSearch";
 import { attachBill } from "./helpers/priceBill";
 
 // The UK base layer's two load-bearing promises, asserted in a real browser
@@ -21,7 +22,11 @@ function ukBaseRequests(page: Page): string[] {
   const urls: string[] = [];
   page.on("request", (request) => {
     const path = new URL(request.url()).pathname;
-    if (path.startsWith("/data/uk_base/")) urls.push(path);
+    // National place search can prefetch below the map layer's zoom gate.
+    // Exclude only that catalogue; every other UK base request still counts.
+    if (path.startsWith("/data/uk_base/") && path !== UK_PLACE_INDEX_PATH) {
+      urls.push(path);
+    }
   });
   return urls;
 }
