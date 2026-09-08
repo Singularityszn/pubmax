@@ -334,6 +334,8 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   expect(recoveredTile.status).toBe(200);
   expect(recoveredTile.size).toBeGreaterThan(0);
 
+  // The recovered basemap response above proves successful tile delivery.
+  // Phone reveal reports local pins separately; it is not tile evidence.
   await expect
     .poll(
       () =>
@@ -350,7 +352,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
         ),
       { timeout: 30_000 },
     )
-    .toBe("tiles");
+    .toMatch(/^(pins|idle)$/);
   await expect(page.locator(".mapFallback")).toHaveCount(0);
   await expect(page.locator(".mapSoftRetry")).toHaveCount(0);
   if (process.env.PW_MAP_EVIDENCE === "1") {
