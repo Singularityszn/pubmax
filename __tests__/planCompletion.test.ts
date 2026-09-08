@@ -77,6 +77,33 @@ afterEach(() => {
 });
 
 describe("Plan Completion", () => {
+  it.each([
+    { body: "null", code: "MALFORMED_REQUEST" },
+    { body: "[]", code: "MALFORMED_REQUEST" },
+    { body: '"plan"', code: "MALFORMED_REQUEST" },
+    { body: "42", code: "MALFORMED_REQUEST" },
+    { body: "true", code: "MALFORMED_REQUEST" },
+    { body: "{", code: "MALFORMED_REQUEST" },
+    { body: "{}", code: "PLAN_COMPLETION_INVALID" },
+  ])("refuses invalid body $body before reading or completing a Plan", async ({ body, code }) => {
+    const store = planStore();
+    const read = vi.spyOn(store, "get");
+    const readCompletion = vi.spyOn(store, "getCompletion");
+    const complete = vi.spyOn(store, "complete");
+    const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const response = await COMPLETE(new Request(`http://localhost/api/plans/${id}/complete`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+    }), ctx(id));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code });
+    expect(read).not.toHaveBeenCalled();
+    expect(readCompletion).not.toHaveBeenCalled();
+    expect(complete).not.toHaveBeenCalled();
+  });
+
   it("pins the durable RPC to the canonical host and an in-route arrival", () => {
     const sql = readFileSync(join(process.cwd(), "supabase/migrations/20260717071841_plan_completion_arrival_ending_selection.sql"), "utf8");
     expect(sql).toContain("order by joined_at, id limit 1");
