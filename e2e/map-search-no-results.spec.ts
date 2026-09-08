@@ -45,15 +45,19 @@ async function openMapSearch(page: Page, width: number) {
   await expect(page.locator(".maplibreMap canvas, .mapCanvasWrap").first()).toBeVisible({
     timeout: 45_000,
   });
-  await page.locator(".mapLoading").waitFor({ state: "hidden", timeout: 45_000 }).catch(() => {});
+  await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+  const search = page.getByRole("combobox", { name: "Search pubs" });
   if (width < 768) {
     const open = page.getByRole("button", { name: "Search the map" });
-    if (await open.count()) await open.click();
+    // Retry the real tap after hydration. Do not toggle an open search closed
+    // while its lazy input loads. Keep the existing 20-second opening budget.
+    await expect(async () => {
+      if (await open.getAttribute("aria-expanded") !== "true") await open.click();
+      await expect(search).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+  } else {
+    await expect(search).toBeVisible({ timeout: 20_000 });
   }
-  const search = page
-    .locator('#mapSearchInput, #mobileMapSearchInput, input[type="search"][aria-label="Search pubs"]')
-    .first();
-  await expect(search).toBeVisible({ timeout: 20_000 });
   await search.click();
   return search;
 }

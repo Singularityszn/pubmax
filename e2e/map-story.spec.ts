@@ -137,7 +137,10 @@ test.describe("map / venue sheet tabs", () => {
     const menu = page.locator("#venuePanel-menu");
     await menu.getByRole("button", { name: /^Drinks/ }).click();
 
-    const asahi = menu.locator(".drinkRow").filter({ hasText: /Asahi/i });
+    const asahi = menu.locator(".drinkRow")
+      .filter({ hasText: /Asahi/i })
+      .filter({ has: page.getByRole("link", { name: "Pint Prices", exact: true }) });
+    await expect(asahi).toHaveCount(1);
     await expect(asahi).toContainText("£7.25");
     await expect(
       asahi.getByRole("link", { name: "Pint Prices", exact: true }),

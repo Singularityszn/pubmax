@@ -69,7 +69,7 @@ test.describe("mobile bottom-tab navigation", () => {
 
     await expect(page).toHaveURL(/\/map$/);
     await page.getByRole("button", { name: "Search the map" }).click();
-    await expect(page.getByRole("searchbox", { name: "Search pubs" })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible();
   });
 
   test("Now tab routes to the live /today or /tonight surface", async ({ page }) => {
