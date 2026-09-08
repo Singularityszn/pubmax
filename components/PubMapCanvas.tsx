@@ -2122,8 +2122,6 @@ export default function PubMapCanvas({
       // after tile readiness crosses a paint frame. The timeout deliberately
       // degrades to usable pins over the themed container when community tiles
       // are partial/offline instead of leaving the product invisible.
-      beginTileFailureGeneration();
-      initialBasemapPending = true;
       pinRevealCoordinator.arm();
 
       // Flush any mutations that arrived while the style was mid-load (initial
@@ -2418,6 +2416,10 @@ export default function PubMapCanvas({
     map.on("style.load", () => {
       styleGeneration += 1;
       cancelDeferredWork();
+      // Tile requests can fail before the deferred app scene runs. Start the
+      // generation here so that scene work cannot erase their queued retry.
+      beginTileFailureGeneration();
+      initialBasemapPending = true;
       styleStructureReadyRef.current = true;
       styleLoaded = true;
       clearStyleLoadProtection();
