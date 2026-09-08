@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type Request } from "@playwright/test";
 import sharp from "sharp";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
@@ -490,6 +490,52 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
       trace.push((event as CustomEvent<{ reason: string; generation: number }>).detail);
     });
   });
+  // Diagnostic evidence only. Requests can be cancelled by later zooms;
+  // they are not proof that MapLibre delivered a tile error to the app.
+  const network: Array<Record<string, unknown>> = [];
+  const outageRequestIds = new WeakMap<Request, number>();
+  const consoleMessages: Array<{ at: number; type: string; text: string }> = [];
+  page.on("console", (message) => {
+    if (message.text().includes("[pubmap]") && consoleMessages.length < 200) {
+      consoleMessages.push({ at: Date.now(), type: message.type(), text: message.text() });
+    }
+  });
+  const startedAt = Date.now();
+  const record = (event: string, url: string, extra = {}) => {
+    if (network.length < 2_000) network.push({ at: Date.now(), event, url, ...extra });
+  };
+  page.on("requestfailed", (request) => {
+    if (/\.pbf(?:\?|$)/.test(request.url())) {
+      record("requestfailed", request.url(), { requestNumber: outageRequestIds.get(request), failure: request.failure()?.errorText });
+    }
+  });
+  page.on("requestfinished", (request) => {
+    if (/\.pbf(?:\?|$)/.test(request.url())) {
+      record("requestfinished", request.url(), { requestNumber: outageRequestIds.get(request) });
+    }
+  });
+  page.on("response", (response) => {
+    if (/\.pbf(?:\?|$)/.test(response.url())) {
+      record("response", response.url(), { requestNumber: outageRequestIds.get(response.request()), status: response.status() });
+    }
+  });
+  await page.addInitScript(() => {
+    const camera: Array<Record<string, unknown>> = [];
+    Object.defineProperty(window, "__pubmaxOutageCameraTrace", { value: camera });
+    let previous = "";
+    const timer = window.setInterval(() => {
+      const probe = (window as typeof window & {
+        __pubmaxMapCamera?: { read: () => unknown };
+      }).__pubmaxMapCamera;
+      const reading = probe?.read() ?? null;
+      const notice = document.querySelector(".mapSoftRetry")?.textContent ?? null;
+      const current = JSON.stringify({ reading, notice });
+      if (current === previous) return;
+      previous = current;
+      if (camera.length < 1_200) camera.push({ at: Date.now(), reading, notice });
+    }, 50);
+    window.addEventListener("pagehide", () => window.clearInterval(timer), { once: true });
+  });
   let failTiles = false;
   let outageRequests = 0;
   await page.route(/\.pbf(?:\?|$)/, async (route) => {
@@ -499,14 +545,19 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
     }
     outageRequests += 1;
     const requestNumber = outageRequests;
+    outageRequestIds.set(route.request(), requestNumber);
+    record("outage-request", route.request().url(), { requestNumber });
     await new Promise((resolve) =>
       setTimeout(resolve, requestNumber === 5 ? 1_250 : 1_000),
     );
     if (requestNumber === 5) {
+      record("outage-continue", route.request().url(), { requestNumber });
       await route.continue();
       return;
     }
+    record("outage-abort-requested", route.request().url(), { requestNumber });
     await route.abort("failed");
+    record("outage-aborted", route.request().url(), { requestNumber });
   });
 
   // This response comes from the browser's live basemap request, not a probe fetch.
@@ -557,17 +608,40 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
   });
 
   failTiles = true;
-  // This programmatic hidden-button call forces fresh tile requests. It tests
-  // outage recovery, not user input or the reachability of phone controls.
-  await zoomThroughHiddenMobileControl(page);
-  await expect.poll(() => outageRequests).toBeGreaterThanOrEqual(5);
+  const outageStartedAt = Date.now();
+  try {
+    // This programmatic hidden-button call forces fresh tile requests. It tests
+    // outage recovery, not user input or the reachability of phone controls.
+    await zoomThroughHiddenMobileControl(page);
+    await expect.poll(() => outageRequests).toBeGreaterThanOrEqual(5);
 
-  const notice = page.locator(".mapSoftRetry");
-  await expect(notice).toContainText("Map background couldn't load", {
-    timeout: 20_000,
-  });
-  await expect(notice.getByRole("button", { name: "Retry" })).toBeVisible();
-  await expect(page.locator(".mapFallback")).toHaveCount(0);
+    const notice = page.locator(".mapSoftRetry");
+    await expect(notice).toContainText("Map background couldn't load", {
+      timeout: 20_000,
+    });
+    await expect(notice.getByRole("button", { name: "Retry" })).toBeVisible();
+    await expect(page.locator(".mapFallback")).toHaveCount(0);
+  } finally {
+    const browser = await page.evaluate(() => {
+      const tracedWindow = window as typeof window & {
+        __pubmaxOutageCameraTrace?: unknown;
+        __pubmaxPinRevealTrace?: unknown;
+      };
+      return {
+        camera: tracedWindow.__pubmaxOutageCameraTrace,
+        reveal: tracedWindow.__pubmaxPinRevealTrace,
+        constructions: performance.getEntriesByName("pubmax:map-constructed")
+          .map((entry) => entry.startTime),
+      };
+    });
+    await test.info().attach("postpaint-outage-diagnostic", {
+      body: JSON.stringify({
+        startedAt, outageStartedAt, outageRequests, network, consoleMessages, browser,
+        scope: "Original three programmatic zooms. Network outcomes and camera readings only; no delivered MapLibre error or source-generation proof.",
+      }, null, 2),
+      contentType: "application/json",
+    });
+  }
 });
 
 test("/map surfaces Retry when the automatic style reload also fails", async ({
