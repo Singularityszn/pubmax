@@ -2,6 +2,9 @@ import { test, expect, type ConsoleMessage } from "@playwright/test";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
+// A service worker can bypass page.route after the first navigation.
+test.use({ serviceWorkers: "block" });
+
 // Map console-health regression (review issue #5). Runs under the `chromium-gl`
 // project (SwiftShader software WebGL2) so a real GL context exists and the map
 // genuinely constructs — the only condition under which the style-load /
