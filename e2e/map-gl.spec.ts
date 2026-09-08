@@ -1,7 +1,45 @@
-import { test, expect, type Page, type Request } from "@playwright/test";
+import { test, expect, type Locator, type Page, type Request } from "@playwright/test";
 import sharp from "sharp";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+
+async function noticeBox(locator: Locator) {
+  const box = await locator.boundingBox();
+  expect(box).not.toBeNull();
+  if (!box) throw new Error("Map notice has no rendered box");
+  return box;
+}
+
+async function expectNoticeControlHit(control: Locator) {
+  await expect(control).toBeVisible();
+  const box = await noticeBox(control);
+  expect(box.width).toBeGreaterThanOrEqual(44);
+  expect(box.height).toBeGreaterThanOrEqual(44);
+  expect(await control.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+    return hit !== null && element.contains(hit);
+  }), "the control owns its centre hit").toBe(true);
+}
+
+async function expectDesktopNoticeStack(page: Page) {
+  const status = await noticeBox(page.locator(".cityStatusStack"));
+  const retry = await noticeBox(page.locator(".mapSoftRetry"));
+  const drawer = page.locator(".mapDrawer.open");
+  const drawerBox = await noticeBox(drawer);
+  const rightDrawer = await drawer.evaluate((node) => node.classList.contains("right"));
+  const viewport = page.viewportSize()!;
+  for (const box of [status, retry]) {
+    expect(box.x).toBeGreaterThanOrEqual(rightDrawer ? 16 : drawerBox.x + drawerBox.width + 16 - 0.5);
+    expect(box.x + box.width).toBeLessThanOrEqual(rightDrawer ? drawerBox.x - 16 + 0.5 : viewport.width - 16);
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(viewport.height - 16 + 0.5);
+  }
+  expect(status.y + status.height + 8 - 0.5, "status and Retry have an unobstructed gap")
+    .toBeLessThanOrEqual(retry.y);
+  await expectNoticeControlHit(page.locator(".cityStatusBannerDismiss"));
+  await expectNoticeControlHit(page.locator(".mapSoftRetryBtn"));
+}
 
 test.describe.configure({ mode: "default" });
 
@@ -1188,6 +1226,147 @@ test("/map paints optimistic pins from the slim index quickly", async ({ page })
   expect(startTime).toBeLessThan(10000);
   expect(fullDatasetRequests).toEqual([]);
 });
+
+for (const width of [1024, 1440]) {
+  for (const theme of ["light", "dark"] as const) {
+    test(`/map notice stack keeps status and Retry reachable at ${width} in ${theme}`, async ({ page }) => {
+      test.setTimeout(120_000);
+      await page.setViewportSize({ width, height: 900 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.addInitScript((theme) => {
+        window.localStorage.setItem("pubmax-theme", theme);
+        window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+        window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      }, theme);
+
+      // Reuse the real MapLibre raster fixture. Only transport fails; no notice
+      // or recovery state is injected into React or the document.
+      const requests = await installDeterministicMapBasemap(page);
+      let failTiles = false;
+      let abortedTiles = 0;
+      await page.route("**/__empty/**/*.png", async (route) => {
+        if (failTiles) {
+          await route.abort("failed");
+          abortedTiles += 1;
+        } else {
+          await route.fallback();
+        }
+      });
+
+      // The status response arrives after Retry. The host must already exist.
+      let releaseStatus!: () => void;
+      const statusReady = new Promise<void>((resolve) => { releaseStatus = resolve; });
+      page.once("close", releaseStatus);
+      const lines = ["Central", "District", "Circle", "Jubilee", "Northern", "Piccadilly", "Victoria", "Bakerloo"];
+      const disruptions = lines.map((line) => `${line}: fixture engineering work suspends service between central stations. Use the published alternative route before travel.`);
+      await page.route("**/api/citymcp/status**", async (route) => {
+        await statusReady;
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            asOf: "2026-08-03T08:00:00.000Z",
+            weather: null,
+            tubeLines: lines.map((line, index) => ({
+              line, status: "Severe delays", disruption: disruptions[index],
+            })),
+            signals: [],
+          }),
+        });
+      });
+
+      await page.goto("/map", { waitUntil: "domcontentloaded" });
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+      await expect.poll(() => requests.servedPrimaryRaster, { timeout: 30_000 }).toBeGreaterThan(0);
+      await expect(page.locator(".maplibreMap canvas").first()).toBeVisible();
+      await expect(page.locator(".mapLoading, .mapFallback")).toHaveCount(0, { timeout: 30_000 });
+      await expect(page.locator(".citySuggestBanner")).toBeVisible();
+      const host = page.locator(".mapDesktopNotices");
+      const originalHost = await host.elementHandle();
+      expect(originalHost).not.toBeNull();
+      await expect(page.locator(".cityStatusStack")).toHaveCount(0);
+
+      failTiles = true;
+      const toolbar = page.locator(".mapToolbar");
+      await toolbar.getByRole("combobox", { name: "Search pubs" }).fill("Three Sheets Soho");
+      await page.getByRole("option", { name: /^Three Sheets Soho\b/ }).first().click();
+      await expect(page.locator(".mapDrawer.right.open")).toBeVisible();
+      await expect.poll(() => abortedTiles, { timeout: 30_000 }).toBeGreaterThanOrEqual(4);
+      const notice = page.locator(".mapSoftRetry");
+      await expect(notice).toHaveAttribute("data-kind", "tiles", { timeout: 30_000 });
+      await expect(notice.locator(".mapSoftRetryMessage"))
+        .toHaveText("Map background couldn't load. Tap Retry to try again.");
+      await expect(host.locator(":scope > .mapSoftRetry")).toHaveCount(1);
+      await expectNoticeControlHit(notice.getByRole("button", { name: "Retry" }));
+
+      releaseStatus();
+      await expect(page.locator(".cityStatusStack")).toBeVisible();
+      expect(await host.evaluate((node, original) => node === original, originalHost)).toBe(true);
+      await expectDesktopNoticeStack(page);
+      await expectNoticeControlHit(page.locator(".cityStatusBannerLink"));
+      await page.locator(".cityStatusBannerLink").click();
+      const details = page.getByRole("region", { name: "Tonight in London: all signals" });
+      await expect(details).toBeVisible();
+      for (const disruption of disruptions) await expect(details).toContainText(disruption);
+      expect(await details.evaluate((node) => node.scrollHeight > node.clientHeight), "long status details scroll within their existing sheet").toBe(true);
+      await details.getByText(disruptions.at(-1)!, { exact: true }).scrollIntoViewIfNeeded();
+      await expect(details.getByText(disruptions.at(-1)!, { exact: true })).toBeInViewport();
+      await expectDesktopNoticeStack(page);
+      await test.info().attach(`notice-stack-expanded-${width}-${theme}`, {
+        body: await page.screenshot(), contentType: "image/png",
+      });
+
+      // The same notices must also clear the mirrored planner drawer.
+      await toolbar.getByRole("button", { name: "Plan an outing", exact: true }).click();
+      await expect(page.locator(".mapDrawer.left.open")).toBeVisible();
+      await expectDesktopNoticeStack(page);
+
+      if (theme === "dark") {
+        await page.getByRole("button", { name: "Dismiss city status", exact: true }).click();
+        await expect(page.locator(".cityStatusStack")).toHaveCount(0);
+        await expect(notice).toHaveCount(1);
+        expect(await host.evaluate((node, original) => node === original, originalHost)).toBe(true);
+        await expectNoticeControlHit(notice.getByRole("button", { name: "Retry" }));
+      }
+
+      if (width === 1440 && theme === "dark") {
+        await page.locator(".mapDrawer.left.open")
+          .getByRole("button", { name: "Close and return to the London map", exact: true }).click();
+        await expect(page.locator(".mapDrawer.open")).toHaveCount(0);
+        await page.setViewportSize({ width: 390, height: 844 });
+        await expect(page.locator(".mapCanvasWrap > .mapSoftRetry")).toHaveCount(1);
+        await expect(host.locator(":scope > .mapSoftRetry")).toHaveCount(0);
+        await expectNoticeControlHit(notice.getByRole("button", { name: "Retry" }));
+        await test.info().attach("notice-stack-phone-inline-390", {
+          body: await page.screenshot(), contentType: "image/png",
+        });
+        await page.setViewportSize({ width, height: 900 });
+        await expect(host.locator(":scope > .mapSoftRetry")).toHaveCount(1);
+        expect(await host.evaluate((node, original) => node === original, originalHost)).toBe(true);
+      }
+
+      const servedBeforeRetry = requests.servedPrimaryRaster;
+      failTiles = false;
+      await expectNoticeControlHit(notice.getByRole("button", { name: "Retry" }));
+      await notice.getByRole("button", { name: "Retry" }).click();
+      await expect.poll(() => requests.servedPrimaryRaster, { timeout: 30_000 }).toBeGreaterThan(servedBeforeRetry);
+      await expect(notice).toHaveCount(0, { timeout: 30_000 });
+      await expect(page.locator(".mapLoading, .mapFallback")).toHaveCount(0);
+      expect(await host.evaluate((node, original) => node === original, originalHost)).toBe(true);
+      if (theme === "light") {
+        await expect(page.locator(".cityStatusStack")).toBeVisible();
+        await expectNoticeControlHit(page.locator(".cityStatusBannerDismiss"));
+        await page.getByRole("button", { name: "Dismiss city status", exact: true }).click();
+        await expect(page.locator(".cityStatusStack")).toHaveCount(0);
+      }
+      await originalHost?.dispose();
+      await test.info().attach(`notice-stack-transport-${width}-${theme}`, {
+        body: JSON.stringify({ abortedTiles, servedBeforeRetry, servedAfterRetry: requests.servedPrimaryRaster }),
+        contentType: "application/json",
+      });
+    });
+  }
+}
 
 test("desktop area search resolves a gazetteer locality and fits the map", async ({ page }) => {
   test.setTimeout(120_000);
