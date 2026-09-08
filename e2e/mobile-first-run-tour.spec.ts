@@ -81,11 +81,36 @@ test.describe("mobile first-run tour", () => {
 });
 
 // Keep the real web scheduling path covered separately from focused UI checks.
-test("real deferred shell eventually presents the eligible map tour", async ({ page }) => {
+// The default context has answered consent and dismissed map arrival, but has
+// no tour marker. This is an eligible orientation visit, not virgin consent proof.
+test("real deferred shell waits before presenting the eligible map tour", async ({ page }) => {
   test.setTimeout(50_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    const timing = window as Window & { __e2eTourPresentedAt?: number };
+    const observer = new MutationObserver(() => {
+      const card = document.querySelector<HTMLElement>(".tourCard");
+      if (!card || card.getClientRects().length === 0) return;
+      const style = getComputedStyle(card);
+      if (style.visibility === "hidden" || style.display === "none") return;
+      timing.__e2eTourPresentedAt = performance.now();
+      observer.disconnect();
+    });
+    observer.observe(document, { childList: true, subtree: true, attributes: true });
+  });
   await page.goto("/map");
-  expect(await page.evaluate(() => localStorage.getItem("pubmax:e2e-defer-shell:v1"))).toBeNull();
+  expect(await page.evaluate(() => ({
+    scheduling: localStorage.getItem("pubmax:e2e-defer-shell:v1"),
+    oldTour: localStorage.getItem("pubmax-tour-v1-done"),
+    tour: localStorage.getItem("pubmax-tour-v2-done"),
+    consent: localStorage.getItem("pubmaxx:analytics-consent:v1"),
+    arrival: localStorage.getItem("pubmax:map-first-visit-arrival:v1"),
+  }))).toEqual({ scheduling: null, oldTour: null, tour: null, consent: "denied", arrival: "dismissed" });
   await expect(page.getByRole("dialog", { name: "Pint price colours" })).toBeVisible({ timeout: 40_000 });
+  const presentedAt = await page.evaluate(() => (
+    window as Window & { __e2eTourPresentedAt?: number }
+  ).__e2eTourPresentedAt);
+  expect(presentedAt).toBeDefined();
+  expect(presentedAt!).toBeGreaterThanOrEqual(30_000);
 });
