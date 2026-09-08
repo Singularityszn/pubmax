@@ -49,7 +49,7 @@ for (const viewport of [
     // Six aborts is past TILE_FAILURE_BURST (4), so the old classifier reached
     // its style reload on the cold load. Everything after them serves, which is
     // what a transient outage means. The delay stands in for a throttled link.
-    await installDeterministicMapBasemap(page, {
+    const requests = await installDeterministicMapBasemap(page, {
       failPrimaryRasterRequests: 6,
       primaryRasterDelayMs: 120,
     });
@@ -62,6 +62,8 @@ for (const viewport of [
     // everything this spec forbids has had its chance to arrive.
     await page.waitForTimeout(16_000);
 
+    expect(requests.failedPrimaryRaster).toBe(6);
+    expect(requests.servedPrimaryRaster).toBeGreaterThan(0);
     expect(
       warnings.filter((line) => STYLE_RELOAD_WARNING.test(line)),
       `no style reload for a transient tile outage: ${warnings.join(" | ")}`,
@@ -101,7 +103,7 @@ test("/map still shows the banner when tiles never come back", async ({
   // The genuine failure: the style loads, and every tile request refuses for
   // good. The silent lane spends its two attempts, the mount spends its one
   // style reload, and only then is the reader told.
-  await installDeterministicMapBasemap(page, {
+  const requests = await installDeterministicMapBasemap(page, {
     failPrimaryRasterRequests: Number.MAX_SAFE_INTEGER,
   });
 
@@ -121,4 +123,6 @@ test("/map still shows the banner when tiles never come back", async ({
       message: "the style reload is kept for a real outage",
     })
     .toBe(true);
+  expect(requests.failedPrimaryRaster).toBeGreaterThan(0);
+  expect(requests.servedPrimaryRaster).toBe(0);
 });

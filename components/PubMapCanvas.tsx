@@ -1748,7 +1748,7 @@ export default function PubMapCanvas({
     };
     const markBasemapRecovered = () => {
       markPinsRecovered();
-      if (!areBasemapTilesLoaded()) return;
+      if (!basemapTileReadyForPaint || !areBasemapTilesLoaded()) return;
       if (tileFailureRecheckTimer !== undefined) return;
       if (failedBasemapTiles.hasFailures()) return;
       initialBasemapPending = false;
@@ -2630,8 +2630,7 @@ export default function PubMapCanvas({
       });
       if (
         documentVisible &&
-        !cameraInFlight &&
-        !initialBasemapPending
+        !cameraInFlight
       ) {
         failedBasemapTiles.recordFailure({
           sourceId: mapError.sourceId,
