@@ -1592,3 +1592,7 @@ html[data-theme="dark"] .messageBubbleTheirs {
 .messageRecipientRow .profileMessageError {
   flex-basis: 100%;
 }
+
+.messageRecipientRow .profileMessageBtn {
+  color: var(--brass-ink);
+}
