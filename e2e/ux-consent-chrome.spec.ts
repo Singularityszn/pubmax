@@ -55,8 +55,14 @@ async function prepareFirstRunOnboarding(
     window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
   });
   await page.goto("/map?sel=venue-1r4e6my");
+  const closeVenue = page.getByRole("button", { name: "Close pub detail", exact: true });
+  await expect(closeVenue).toBeVisible();
+  await expect.poll(() => page.evaluate(
+    () => sessionStorage.getItem("pubmax:consent-answer-moment:v1"),
+  )).toBe("venue-sheet");
+  await closeVenue.click();
+  await expect(page.locator(".mobileSheetPortal")).toHaveCount(0);
   await expect(page.getByLabel("Anonymous analytics choice")).toBeVisible({ timeout: 30_000 });
-  expect(await page.evaluate(() => sessionStorage.getItem("pubmax:consent-answer-moment:v1"))).toBe("venue-sheet");
   expect(await page.evaluate(() => localStorage.getItem("pubmax:preferredCity:v1"))).toBeNull();
   await page.goto("/");
   await expect(page).toHaveURL(/\/onboarding$/);
