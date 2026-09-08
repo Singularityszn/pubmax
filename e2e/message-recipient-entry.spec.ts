@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 async function installInbox(page: Page) {
@@ -13,9 +13,95 @@ async function installInbox(page: Page) {
   } }));
 }
 
+async function recipientButtonContrast(button: Locator) {
+  return button.evaluate(element => {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 1;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) throw new Error("Color measurement needs a canvas context");
+    const rgba = (color: string) => {
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = color;
+      context.fillRect(0, 0, 1, 1);
+      return Array.from(context.getImageData(0, 0, 1, 1).data).map(value => value / 255);
+    };
+    const over = (front: number[], back: number[]) =>
+      front.slice(0, 3).map((value, index) => value * front[3] + back[index] * (1 - front[3]));
+    const background = (node: Element | null): number[] => {
+      if (!node) throw new Error("No opaque background found for recipient control");
+      const style = getComputedStyle(node);
+      if (style.backgroundImage !== "none" || Number(style.opacity) !== 1) {
+        throw new Error("Recipient contrast measurement needs flat, fully opaque layers");
+      }
+      const color = rgba(style.backgroundColor);
+      return color[3] === 1 ? color.slice(0, 3) : over(color, background(node.parentElement));
+    };
+    const luminance = (color: number[]) => color.map(value =>
+      value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4,
+    ).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+    const ratio = (first: number[], second: number[]) => {
+      const values = [luminance(first), luminance(second)];
+      return (Math.max(...values) + 0.05) / (Math.min(...values) + 0.05);
+    };
+    const style = getComputedStyle(element);
+    const surface = background(element);
+    const surroundings = background(element.parentElement);
+    return {
+      color: style.color, backgroundColor: style.backgroundColor,
+      surface, surroundings, outlineColor: style.outlineColor,
+      outlineStyle: style.outlineStyle, outlineWidth: parseFloat(style.outlineWidth),
+      outlineOffset: parseFloat(style.outlineOffset),
+      focusVisible: element.matches(":focus-visible"),
+      textRatio: ratio(over(rgba(style.color), surface), surface),
+      outlineRatio: ratio(over(rgba(style.outlineColor), surroundings), surroundings),
+    };
+  });
+}
+
 for (const width of [390, 1440]) {
   test.describe(`recipient entry at ${width}px`, () => {
     test.use({ viewport: { width, height: 900 } });
+
+    for (const theme of ["light", "dark"] as const) {
+      test(`recipient Message contrast in normal, hover and keyboard focus states in ${theme}`, async ({ page }, testInfo) => {
+        await installInbox(page);
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+        await page.addInitScript(value => localStorage.setItem("pubmax-theme", value), theme);
+        await page.route("**/api/profiles/search?**", route => route.fulfill({
+          json: { matches: [{ handle: "sam", displayName: "Sam Patel" }] },
+        }));
+        await page.goto("/messages/new");
+        await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+        await page.getByRole("searchbox", { name: "Search handles" }).fill("sam");
+        await page.getByRole("button", { name: "Search", exact: true }).click();
+        const row = page.locator(".messageRecipientRow");
+        await expect(row).toHaveCount(1);
+        const button = row.getByRole("button", { name: "Message", exact: true });
+        await expect(button).toBeVisible();
+        await page.mouse.move(0, 0);
+        const normal = await recipientButtonContrast(button);
+        await button.hover();
+        const hover = await recipientButtonContrast(button);
+        await page.mouse.move(0, 0);
+        await row.getByRole("link").focus();
+        await page.keyboard.press("Tab");
+        await expect(button).toBeFocused();
+        const focus = await recipientButtonContrast(button);
+        await testInfo.attach("recipient-message-contrast", {
+          body: JSON.stringify({ width, theme, normal, hover, focus }),
+          contentType: "application/json",
+        });
+        await page.screenshot({ path: testInfo.outputPath(`recipient-message-focus-${theme}-${width}.png`) });
+        for (const [state, measured] of Object.entries({ normal, hover, focus })) {
+          expect.soft(measured.textRatio, `${state} Message text contrast`).toBeGreaterThanOrEqual(4.5);
+        }
+        expect(focus.focusVisible).toBe(true);
+        expect(focus.outlineStyle).not.toBe("none");
+        expect(focus.outlineWidth).toBeGreaterThanOrEqual(2);
+        expect(focus.outlineOffset).toBeGreaterThanOrEqual(2);
+        expect(focus.outlineRatio, "keyboard focus indicator contrast").toBeGreaterThanOrEqual(3);
+      });
+    }
 
     test("inbox opens recipient search, retries a failed read, and opens the existing conversation", async ({ page }, testInfo) => {
       await installInbox(page);
