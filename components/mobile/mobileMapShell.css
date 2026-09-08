@@ -177,6 +177,12 @@
     white-space: normal;
   }
 
+  /* Reserve the 44px toggle and the existing 4px text gap. */
+  .appShell .mapStage .maplibregl-ctrl-bottom-right >
+    .maplibregl-ctrl-attrib.maplibregl-compact-show {
+    padding-right: 48px;
+  }
+
   /* COLLAPSED, the credit is one control and it takes this lane's own shape:
      a 44px circle on the raised surface, exactly like the compass below it.
      MapLibre ships it as a 24x20 white sliver, so a button raised to the tap
