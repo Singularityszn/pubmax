@@ -1641,12 +1641,11 @@ export default function PubMapCanvas({
     const reloadBasemapSources = () => {
       const sources = map.getStyle()?.sources;
       if (!sources) return;
-      // A silent retry is a FRESH attempt, so the stamps and the failed-tile
-      // set it was decided from - both about the attempt that just failed -
-      // go with it. The generation is NOT bumped: no style is being rebuilt.
+      // A new source attempt replaces tile identities, which can become parents.
+      // Keep the outage timestamps until recovery or a new style generation.
       clearTileFailureRecheck();
-      tileFailureStamps = [];
       failedBasemapTiles.reset();
+      basemapTileReadyForPaint = false;
       for (const [sourceId, spec] of Object.entries(sources)) {
         if (appDataPackSourceId(sourceId)) continue;
         const plan = basemapSourceReloadPlan(spec);
@@ -1758,8 +1757,8 @@ export default function PubMapCanvas({
     const markBasemapRecovered = () => {
       markPinsRecovered();
       if (!basemapTileReadyForPaint || !areBasemapTilesLoaded()) return;
-      if (tileFailureRecheckTimer !== undefined) return;
       if (failedBasemapTiles.hasFailures()) return;
+      clearTileFailureRecheck();
       clearBasemapDeadline();
       initialBasemapPending = false;
       tileFailureStamps = [];
@@ -1796,15 +1795,11 @@ export default function PubMapCanvas({
       }
       initialBasemapPending = false;
       basemapTileReadyForPaint = true;
-      const recoveredFailures = failedBasemapTiles.recordSuccess({
+      failedBasemapTiles.recordSuccess({
         sourceId: dataEvent.sourceId,
         sourceType: dataEvent.source?.type,
         tileKey: dataEvent.tile.tileID?.key,
       });
-      if (failedBasemapTiles.hasFailures()) return;
-      if (!recoveredFailures && tileFailureRecheckTimer !== undefined) return;
-      clearTileFailureRecheck();
-      tileFailureStamps = [];
       markBasemapRecovered();
     };
     map.on("sourcedata", onBasemapTileLoaded);
@@ -2603,6 +2598,11 @@ export default function PubMapCanvas({
           }
           tileSpend = markSilentTileRetrySpent(tileSpend);
           reloadBasemapSources();
+          // A reload may emit no further errors. Keep the existing sustain check
+          // alive for a previously painted basemap until this attempt recovers.
+          if (!initialBasemapPending) {
+            evaluateTileFailure(performance.now(), false, "", true);
+          }
         }, silentTileRetryDelayMs(tileSpend.silentSpent));
         return;
       }
