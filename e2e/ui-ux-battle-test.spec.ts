@@ -481,6 +481,53 @@ test.describe("UI UX battle-test guardrails", () => {
     await skip.click({ trial: true });
   });
 
+  test("landing card attribution links have separate usable tap targets", async ({ page, baseURL }, testInfo) => {
+    await page.addInitScript(() => localStorage.setItem("pubmax-theme", "light"));
+    await navigateToAuditedRoute(page, baseURL!, AUDITED_ROUTES[0]);
+    const card = page.locator(".lpPubCard").filter({
+      has: page.getByRole("link", { name: "Pint Prices", exact: true }),
+    });
+    await expect(card).toHaveCount(1);
+    const links = card.locator(".lpPubSource a, .lpPubThenSource a, .lpPhotoCredit a");
+    await expect(links).toHaveCount(4);
+    const labels = ["Pint Prices", "beerintheevening.com", "Love Art Nouveau", "CC BY 2.0"];
+    const evidence = [];
+    for (const label of labels) {
+      const link = card.getByRole("link", { name: label, exact: true });
+      await expect(link).toBeVisible();
+      await link.scrollIntoViewIfNeeded();
+      await expect(link).toBeInViewport({ ratio: 1 });
+      const measured = await link.evaluate(element => {
+        const box = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+        const peers = element.closest(".lpPubCard")!.querySelectorAll(
+          ".lpPubSource a, .lpPubThenSource a, .lpPhotoCredit a",
+        );
+        const overlaps = Array.from(peers).filter(peer => peer !== element).some(peer => {
+          const other = peer.getBoundingClientRect();
+          return Math.min(box.right, other.right) > Math.max(box.left, other.left)
+            && Math.min(box.bottom, other.bottom) > Math.max(box.top, other.top);
+        });
+        return {
+          label: element.textContent?.trim(), href: element.getAttribute("href"),
+          width: box.width, height: box.height,
+          centerHit: hit !== null && element.contains(hit), overlaps,
+        };
+      });
+      evidence.push(measured);
+      expect.soft(measured.width, `${label} target width`).toBeGreaterThanOrEqual(44);
+      expect.soft(measured.height, `${label} target height`).toBeGreaterThanOrEqual(44);
+      expect.soft(measured.centerHit, `${label} receives its center hit`).toBe(true);
+      expect.soft(measured.overlaps, `${label} has a separate target`).toBe(false);
+    }
+    await testInfo.attach("landing-attribution-targets", {
+      body: JSON.stringify(evidence), contentType: "application/json",
+    });
+    expect(await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth)
+      - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+    await card.screenshot({ path: testInfo.outputPath("landing-attribution-card.png") });
+  });
+
   test("audited mobile routes keep tap targets and page width within contract", async ({
     baseURL,
     page,
