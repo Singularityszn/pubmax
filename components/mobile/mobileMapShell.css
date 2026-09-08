@@ -129,8 +129,7 @@
     bottom: calc(var(--mobile-map-dock-clearance) + 206px);
   }
 
-  /* The story clears the existing floating stack, including Create.
-     Credit stays beside the utility lane, so expanded text cannot cover Near me. */
+  /* The story clears the floating controls. Credit uses the same reserved base. */
   .appShell:has(.bandOnboardingChip) {
     --mobile-map-story-utility-lane: calc(
       var(--mobile-map-corner-inset) + var(--map-corner-locate-size) + var(--float-stack-gap)
@@ -148,8 +147,8 @@
     bottom: calc(var(--float-stack-top-map-corner) + var(--float-stack-gap));
   }
 
-  .appShell:has(.bandOnboardingChip) .mapStage .maplibregl-ctrl-bottom-right {
-    bottom: var(--float-stack-base);
+  body:has(.bandOnboardingChip) .appShell .mapStage .maplibregl-ctrl-bottom-right {
+    bottom: var(--map-story-control-bottom);
     right: var(--mobile-map-story-utility-lane);
   }
 
