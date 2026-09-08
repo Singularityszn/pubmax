@@ -57,12 +57,12 @@ export async function installPriceUploadCapture(page: Page, endpoint: string) {
     window.fetch = async (input, init) => {
       if (String(input) === path && init?.method === "POST" && init.body instanceof FormData) {
         const submission = new window.Request(input, init);
-        const serializedBody = Array.from(new Uint8Array(await submission.clone().arrayBuffer()));
         const fields: Record<string, string> = {};
         init.body.forEach((value, key) => {
           if (typeof value === "string") fields[key] = value;
         });
         const receipt = init.body.get("receipt_photo");
+        const serializedBody = Array.from(new Uint8Array(await submission.clone().arrayBuffer()));
         await (window as typeof window & {
           __capturePriceUpload: (upload: PriceUpload) => Promise<void>;
         }).__capturePriceUpload({
@@ -96,7 +96,10 @@ export async function installPriceUploadCapture(page: Page, endpoint: string) {
     expect(upload!.fields).toEqual(fields);
     expect(upload!.receipt).toMatchObject({ name: "bill.jpg", type: "image/jpeg" });
     expect(Buffer.from(upload!.receipt!.bytes)).toEqual(originalBill);
-    expect(form.get("receipt_photo")).toMatchObject({ name: "bill.jpg", type: "image/jpeg" });
+    const parsedReceipt = form.get("receipt_photo");
+    expect(parsedReceipt).toMatchObject({ name: "bill.jpg", type: "image/jpeg" });
+    if (!parsedReceipt || typeof parsedReceipt === "string") throw new Error("The serialized request must carry the receipt file.");
+    expect(Buffer.from(await parsedReceipt.arrayBuffer())).toEqual(originalBill);
     return upload!.fields;
   };
 }
