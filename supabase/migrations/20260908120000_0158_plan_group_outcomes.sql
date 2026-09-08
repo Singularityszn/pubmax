@@ -276,7 +276,9 @@ begin
     left join public.plan_group_outcomes o on o.completion_id = c.id
     where c.completed_at >= p_from - interval '672 hours' and c.completed_at < p_until
   ), comparisons as materialized (
-    select c.id, prior.id as prior_id, c.lost_identity + prior.lost_identity as lost_identity,
+    -- Deletion clears an account everywhere. A hidden match therefore needs
+    -- a cleared eligible position on BOTH sides, never a surviving identity.
+    select c.id, prior.id as prior_id, least(c.lost_identity, prior.lost_identity) as possible_hidden_matches,
       least(c.eligible_account_count, prior.eligible_account_count) as possible_accounts,
       (select count(*) from public.plan_group_outcome_accounts a
         join public.plan_group_outcome_accounts b on b.user_id = a.user_id
@@ -285,7 +287,7 @@ begin
       on prior.completed_at < c.completed_at
       and prior.completed_at >= c.completed_at - interval '672 hours'
     where c.eligibility = 'qualified' and prior.eligibility = 'qualified'
-      and c.lost_identity + prior.lost_identity > 0
+      and c.lost_identity > 0 and prior.lost_identity > 0
   ), repeated as (
     select distinct c.id from observations c
     join public.plan_group_outcome_accounts a on a.completion_id = c.id and a.eligible
@@ -299,8 +301,8 @@ begin
     select c.id from observations c
     where c.eligibility = 'qualified' and not exists (select 1 from repeated r where r.id = c.id)
       and (
-        exists (select 1 from comparisons pair where pair.id = c.id and pair.lost_identity > 0
-          and least(pair.possible_accounts, pair.shared + pair.lost_identity) >= 2)
+        exists (select 1 from comparisons pair where pair.id = c.id
+          and least(pair.possible_accounts, pair.shared + pair.possible_hidden_matches) >= 2)
         or exists (select 1 from observations prior where prior.eligibility = 'unknown'
           and prior.completed_at < c.completed_at and prior.completed_at >= c.completed_at - interval '672 hours')
       )

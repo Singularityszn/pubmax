@@ -80,6 +80,8 @@ The snapshot's original cardinality, qualification, and specification facts rema
 Two surviving shared eligible accounts prove repeat, even when another reference has cleared.
 Without a known match, missing identity can leave repeat unresolved. It must not become a false result.
 An exact negative needs sufficient retained evidence to rule out two shared accounts in every qualifying prior candidate.
+Deletion clears an account from every snapshot. Hidden overlap is bounded by the smaller cleared eligible-position count.
+A missing account cannot match a surviving account on the other side.
 Keep a known repeat in the numerator even when another comparison remains unknown.
 
 ## Qualification and interval coverage

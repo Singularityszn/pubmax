@@ -329,6 +329,32 @@ test("proves a negative when even the missing identity cannot produce two shared
   expect(outcome()[0]).toMatchObject({ status: "ready", groups_completed: 1, groups_repeated: 0, repeat_rate: 0 });
 });
 
+test.each([true, false])("a one-sided deletion cannot match a surviving account, missing prior=%s", (missingPrior) => {
+  const deleted = randomUUID();
+  db().sql(`insert into auth.users(id) values ('${deleted}')`);
+  classify(deleted);
+  const missing = [users[0], deleted];
+  const surviving = users.slice(0, 2);
+  db().sql(complete(plan(missingPrior ? missing : surviving), "2020-01-20T12:00:00Z"));
+  db().sql(complete(plan(missingPrior ? surviving : missing)));
+  db().sql(`delete from auth.users where id='${deleted}'`);
+  expect(outcome()[0]).toMatchObject({ status: "ready", groups_completed: 1, groups_repeated: 0,
+    repeat_rate: 0, unresolved_completions: 0 });
+});
+
+test("two separate missing accounts can conceal at most one match", () => {
+  const deleted = [randomUUID(), randomUUID()];
+  for (const user of deleted) {
+    db().sql(`insert into auth.users(id) values ('${user}')`);
+    classify(user);
+  }
+  db().sql(complete(plan([users[0], deleted[0]]), "2020-01-20T12:00:00Z"));
+  db().sql(complete(plan([users[1], deleted[1]])));
+  db().sql(`delete from auth.users where id in (${deleted.map(literal).join(",")})`);
+  expect(outcome()[0]).toMatchObject({ status: "ready", groups_completed: 1, groups_repeated: 0,
+    repeat_rate: 0, unresolved_completions: 0 });
+});
+
 test("rolls the ending back if snapshot insertion fails", () => {
   const p = plan();
   // The snapshot constraint fails after the existing RPC has saved the ending.
