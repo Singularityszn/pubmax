@@ -1,4 +1,6 @@
-import { test, expect, type ConsoleMessage } from "@playwright/test";
+import { test, expect, type ConsoleMessage, type Page } from "@playwright/test";
+
+import type { MapCameraReading } from "@/components/map/canvas/cameraProbe";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
@@ -78,6 +80,16 @@ function isCritical(text: string): boolean {
   return !BENIGN_PATTERNS.some((re) => re.test(text));
 }
 
+async function readCamera(page: Page): Promise<MapCameraReading> {
+  return page.evaluate(() => {
+    const probe = (window as typeof window & {
+      __pubmaxMapCamera?: { read: () => MapCameraReading };
+    }).__pubmaxMapCamera;
+    if (!probe) throw new Error("Map camera probe is unavailable.");
+    return probe.read();
+  });
+}
+
 test("/map stays console-healthy across repeated /map↔/feed navigation", async ({
   page,
 }) => {
@@ -132,23 +144,33 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
   // the initial load would already have thrown by now.
   await page.waitForTimeout(2_000);
 
-  // One compass, and it is the app's own: MapLibre's reset flattened the pitch
-  // to nothing, which is not a view this map ever opens on (lib/mapCompass.ts).
-  const compass = page.locator(".mapCompassBtn");
-  await expect(compass).toHaveCount(1);
+  // Read the live camera. The app's reset control now lives inside Layers.
   await expect(page.locator(".maplibregl-ctrl-compass")).toHaveCount(0);
-  const compassNeedle = compass.locator("svg");
-  const bearingBeforeIdle = await compassNeedle.evaluate(
-    (element) => getComputedStyle(element).transform,
-  );
+  await expect.poll(async () => (await readCamera(page)).moving).toBe(false);
+  const bearingBeforeIdle = (await readCamera(page)).bearing;
   await page.waitForTimeout(7_500);
-  const bearingAfterIdle = await compassNeedle.evaluate(
-    (element) => getComputedStyle(element).transform,
-  );
+  const bearingAfterIdle = (await readCamera(page)).bearing;
   expect(
     bearingAfterIdle,
     "interactive map bearing must stay still without a gesture",
   ).toBe(bearingBeforeIdle);
+
+  const resetView = page.getByRole("button", {
+    name: /^Reset the map view of /,
+  });
+  await expect(resetView).toHaveCount(0);
+  await page.getByRole("button", { name: /^Map layers:/ }).click();
+  const layers = page.getByRole("dialog", { name: "Map layers", exact: true });
+  await expect(layers).toBeVisible();
+  await expect(resetView).toHaveCount(1);
+  await expect(
+    layers.getByRole("button", { name: /^Reset the map view of / }),
+  ).toBeVisible();
+  await expect(
+    layers.getByRole("button", { name: /^Show all of / }),
+  ).toBeVisible();
+  await layers.getByRole("button", { name: "Close layers", exact: true }).click();
+  await expect(layers).toBeHidden();
 
   // Exercise the normal theme path in both directions. Page errors are
   // recorded above, so the historical MapLibre `sources` exception fails this
@@ -161,7 +183,10 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
     await page.waitForTimeout(2_000);
   }
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(compass).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "More map controls", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".maplibregl-ctrl-compass")).toHaveCount(0);
   await expect(page.locator(".maplibregl-ctrl-zoom-in")).toBeHidden();
   await expect(page.locator(".maplibregl-ctrl-zoom-out")).toBeHidden();
 

@@ -336,9 +336,12 @@ export const PRIMARY_INTERACTIONS: Record<string, PrimaryInteraction> = {
     label: "typing the outing into describe-first",
   },
   "/map": {
-    selector: ".mapCompassBtn, .mapFitLondonBtn",
+    // Previously this clicked reset/show-all. Desktop now opens Layers;
+    // phone opens More map controls. Both wait for a painted venue mark.
+    // These INP samples measure different work from the previous action.
+    selector: '.mapLayersFab:visible, button[aria-label="More map controls"]:visible',
     kind: "click",
-    label: "a map chrome control",
+    label: "opening Layers (desktop) or More map controls (phone) after venues paint",
   },
   "/map?sel=venue-1vle947": {
     selector: ".venueInspector [role='tab']",
@@ -410,7 +413,17 @@ export async function exercisePrimaryAction(page: Page, routePath: string): Prom
   if (!interaction) return false;
   const control = page.locator(interaction.selector).first();
   try {
-    await control.waitFor({ state: "visible", timeout: 20_000 });
+    if (routePath === "/map") {
+      // The control can paint before the renderer. Wait for a tappable pub mark.
+      await page.waitForFunction(() => {
+        const probe = (
+          window as Window & { __pubmaxPaintedMapTapPoints?: () => unknown[] }
+        ).__pubmaxPaintedMapTapPoints;
+        return typeof probe === "function" && probe().length > 0;
+      }, undefined, { timeout: PRIMARY_ACTION_TIMEOUT_MS, polling: 250 });
+    } else {
+      await control.waitFor({ state: "visible", timeout: PRIMARY_ACTION_TIMEOUT_MS });
+    }
   } catch {
     return false;
   }
