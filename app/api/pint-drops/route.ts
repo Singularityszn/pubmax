@@ -1,3 +1,9 @@
+import {
+  PintDropCreateConflictError,
+  pintDropCreateRequest,
+  validPintDropCreateKey,
+  type PintDropCreateRequest,
+} from "@/lib/pintDropCreate.server";
 import { isModerator } from "@/lib/adminAuth";
 import { callerUserId } from "@/lib/authServer";
 
@@ -28,13 +34,16 @@ import {
   isLimited,
   validatePintDrop,
   type PintDropReviewStatus,
+  type PintDrop,
   type PintDropStatus,
 } from "@/lib/pintDrops";
 import {
   isPintDropDailyCapError,
   PhotoRefusalError,
+  validatePhoto,
   pintDropsStore,
   type PintDropDTO,
+  type PintDropCreation,
   type PintDropPhotos,
 } from "@/lib/pintDropsStore";
 import {
@@ -343,7 +352,7 @@ async function settleConfirmation(
   confirmation: PintDropConfirmation | null;
   confirmationOutcome: PintDropConfirmationOutcome | null;
 }> {
-  if (priceGbp === null) return { confirmation: null, confirmationOutcome: null };
+  if (priceGbp === null || drop.status !== "visible") return { confirmation: null, confirmationOutcome: null };
   const confirmationOutcome = await runSecondReporterPass(
     drop.venueId,
     Date.now(),
@@ -356,6 +365,71 @@ async function settleConfirmation(
     drop.confirmation = confirmationOutcome.confirmation;
   }
   return { confirmation: confirmationOutcome.confirmation, confirmationOutcome };
+}
+
+/** Replays finish the same repeat-safe work after a commit whose response was lost. */
+async function finishPintDropCreation(saved: PintDropCreation, userId: string | null | undefined): Promise<Response> {
+  const { drop, authorHandle, authorityKey } = saved;
+  const { confirmation, confirmationOutcome } = await settleConfirmation(drop, drop.priceGbp, authorityKey);
+  void ensureProfileForHandle(authorHandle);
+  if (userId) void qualifyCheapPintForAccountId(userId);
+  return jsonNoStore({
+    drop,
+    ...((confirmation ?? drop.confirmation) ? { confirmation: confirmation ?? drop.confirmation } : {}),
+    ...(confirmationOutcome ? { confirmationOutcome } : {}),
+  }, { status: 201 });
+}
+
+async function createPintDropResponse(
+  dropPayload: PintDrop,
+  photos: PintDropPhotos,
+  creationRequest: PintDropCreateRequest | undefined,
+  userId: string | null | undefined,
+): Promise<Response> {
+  try {
+    // This lane is the one that STATES the daily cap, so it is the one that
+    // opts into it: the store then claims the London day for this drop and the
+    // unique index behind it (0141) refuses the burst the pre-check above
+    // cannot see. The community-price pairing lane writes without this and
+    // keeps its own rule.
+    const drop = await pintDropsStore().create(dropPayload, photos, {
+      underDailyPriceCap: true,
+      ...(creationRequest ? { request: creationRequest } : {}),
+    });
+    const saved = creationRequest ? await pintDropsStore().findCreation(creationRequest) : {
+      drop, authorHandle: dropPayload.handle, authorityKey: dropPayload.authorityKey,
+    };
+    if (!saved) return storageUnavailable();
+    return finishPintDropCreation(saved, userId);
+  } catch (err) {
+    // The daily cap, refused by the database (migration 0141). A drinker who
+    // hits the hard guard and one who hits the pre-check above did the same
+    // thing, so they are told the same thing: one sentence, one status, no way
+    // to tell which enforcer answered.
+    if (err instanceof PintDropCreateConflictError) {
+      return publicApiError(err.message, "CONFLICT", 409);
+    }
+    if (isPintDropDailyCapError(err)) {
+      return publicApiError(DAILY_PRICE_CAP_REFUSAL, "CONFLICT", 409);
+    }
+    // A REFUSED FILE IS THE DRINKER'S TO FIX, and the CLASS says which one it
+    // is. This asked whether the message started with "Photo must", so the one
+    // refusal worded differently, the image the normaliser cannot open, fell
+    // through to the 503 below and told a drinker to retry bytes that can never
+    // work. The store has already cleaned up anything it uploaded (no orphans).
+    // We do not log this as an error: it is expected client input, and the
+    // store already logged any processing failure (§7.2) at its own boundary.
+    if (err instanceof PhotoRefusalError) {
+      return publicApiError(err.message, "INVALID_REQUEST", 400);
+    }
+    // A genuine storage/insert failure — the user gets a 503. Log it (message
+    // only) so the outage is observable instead of a silent 503.
+    log("error", "pint_drops.create_failed", {
+      route: "POST /api/pint-drops",
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return storageUnavailable();
+  }
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -414,6 +488,16 @@ export async function POST(request: Request): Promise<Response> {
       "UNAUTHENTICATED",
       401,
     );
+  }
+
+  const creationKey = request.headers.get("Idempotency-Key");
+  if (creationKey !== null) {
+    if (!validPintDropCreateKey(creationKey)) {
+      return publicApiError("Invalid submission key.", "INVALID_REQUEST", 400);
+    }
+    if (!verifiedUserId) {
+      return publicApiError("Sign in to retry a Pint Drop.", "UNAUTHENTICATED", 401);
+    }
   }
 
   const canonicalResult = await validateCanonicalPintDrop(fields);
@@ -479,6 +563,26 @@ export async function POST(request: Request): Promise<Response> {
     ),
   };
 
+  let creationRequest: PintDropCreateRequest | undefined;
+  if (creationKey !== null && verifiedUserId) {
+    for (const photo of Object.values(photos)) {
+      if (!photo) continue;
+      const error = validatePhoto(photo.type, photo.size);
+      if (error) return publicApiError(error, "INVALID_REQUEST", 400);
+    }
+    try {
+      creationRequest = await pintDropCreateRequest(verifiedUserId, creationKey, canonicalDrop, photos);
+      const prior = await pintDropsStore().findCreation(creationRequest);
+      if (prior) return finishPintDropCreation(prior, verifiedUserId);
+    } catch (error) {
+      if (error instanceof PintDropCreateConflictError) return publicApiError(error.message, "CONFLICT", 409);
+      log("error", "pint_drops.replay_failed", {
+        error: String(error),
+      });
+      return storageUnavailable();
+    }
+  }
+
   // Durable key = handle + hashed IP (PRD P3.9); in-memory fallback stays
   // keyed on handle alone, exactly as before.
   const submitKey = `drop:${ownership.handle.toLowerCase()}:${hashIp(clientIp(request))}`;
@@ -498,7 +602,7 @@ export async function POST(request: Request): Promise<Response> {
   // before any row lands, which is exactly how the cap was walked through. The
   // HARD guard is the store's own (pint_drops_priced_day_unique_idx, migration
   // 0141), and its refusal lands in the catch below wearing this same sentence.
-  if (dropPayload.priceGbp !== null) {
+  if (dropPayload.priceGbp !== null && !creationRequest) {
     try {
       if (await pintDropsStore().hasPricedDropToday(dropPayload.venueId, ownership.handle)) {
         return publicApiError(DAILY_PRICE_CAP_REFUSAL, "CONFLICT", 409);
@@ -511,65 +615,7 @@ export async function POST(request: Request): Promise<Response> {
     }
   }
 
-  try {
-    // This lane is the one that STATES the daily cap, so it is the one that
-    // opts into it: the store then claims the London day for this drop and the
-    // unique index behind it (0141) refuses the burst the pre-check above
-    // cannot see. The community-price pairing lane writes without this and
-    // keeps its own rule.
-    const drop = await pintDropsStore().create(dropPayload, photos, {
-      underDailyPriceCap: true,
-    });
-    // The second-reporter pass, awaited so the drinker's own answer carries the
-    // standing their report just earned. It never throws and never fails the
-    // drop: when it cannot read or write, the pill stays grey and the drop
-    // stands. Only a priced drop can complete a pair.
-    const { confirmation, confirmationOutcome } = await settleConfirmation(
-      drop,
-      dropPayload.priceGbp,
-      dropPayload.authorityKey,
-    );
-    // Fire-and-forget: the profile bootstrap must never delay or fail the drop
-    // response (an awaited Supabase upsert here blocks every submission and hangs
-    // unmocked tests). It never rejects — the inner try/catch swallows failures.
-    void ensureProfileForHandle(ownership.handle);
-    if (ownership.callerUserId) {
-      void qualifyCheapPintForAccountId(ownership.callerUserId);
-    }
-    return jsonNoStore(
-      {
-        drop,
-        ...(confirmation ? { confirmation } : {}),
-        ...(confirmationOutcome ? { confirmationOutcome } : {}),
-      },
-      { status: 201 },
-    );
-  } catch (err) {
-    // The daily cap, refused by the database (migration 0141). A drinker who
-    // hits the hard guard and one who hits the pre-check above did the same
-    // thing, so they are told the same thing: one sentence, one status, no way
-    // to tell which enforcer answered.
-    if (isPintDropDailyCapError(err)) {
-      return publicApiError(DAILY_PRICE_CAP_REFUSAL, "CONFLICT", 409);
-    }
-    // A REFUSED FILE IS THE DRINKER'S TO FIX, and the CLASS says which one it
-    // is. This asked whether the message started with "Photo must", so the one
-    // refusal worded differently, the image the normaliser cannot open, fell
-    // through to the 503 below and told a drinker to retry bytes that can never
-    // work. The store has already cleaned up anything it uploaded (no orphans).
-    // We do not log this as an error: it is expected client input, and the
-    // store already logged any processing failure (§7.2) at its own boundary.
-    if (err instanceof PhotoRefusalError) {
-      return publicApiError(err.message, "INVALID_REQUEST", 400);
-    }
-    // A genuine storage/insert failure — the user gets a 503. Log it (message
-    // only) so the outage is observable instead of a silent 503.
-    log("error", "pint_drops.create_failed", {
-      route: "POST /api/pint-drops",
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return storageUnavailable();
-  }
+  return createPintDropResponse(dropPayload, photos, creationRequest, ownership.callerUserId);
 }
 
 export async function GET(request: Request): Promise<Response> {
