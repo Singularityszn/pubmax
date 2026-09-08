@@ -25,6 +25,12 @@
   display: contents;
 }
 
+/* A containing-block change must not interpolate the old width or translation.
+   The shared reduced-motion duration can otherwise start an implicit transition. */
+.mapDesktopNotices > .mapSoftRetry {
+  transition-property: none;
+}
+
 @media (min-width: 641px) {
   /* 1. Onboarding open — suppress ambient status and Tonight. */
   .appShell.onboarding-open .cityStatusStack,
