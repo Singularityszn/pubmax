@@ -31,28 +31,28 @@ function plannerPanelSource(): string {
 describe("finding M4 - one planner per surface", () => {
   it("keeps the desktop rail out of the phone sheet", () => {
     const panel = plannerPanelSource();
-    // The rail mounts once, and only above the phone breakpoint.
-    expect((panel.match(/<ControlRail\b/g) ?? []).length).toBe(1);
-    expect(panel, "the rail waits for a desktop viewport").toMatch(
-      /\{!mobileViewport \? \(\s*<ControlRail\b/,
+    // Discovery selects exactly one form before the panel orders its content.
+    expect((pubMap.match(/<ControlRail\b/g) ?? []).length).toBe(1);
+    expect(pubMap, "only desktop discovery mounts the rail").toMatch(
+      /const plannerDiscovery = mobileViewport \? phoneDescribeForm : \(\s*<ControlRail\b/,
     );
+    expect(panel).not.toMatch(/<ControlRail\b/);
   });
 
   it("leaves the phone its own intake form, mounted once, under the same guard", () => {
-    // The form moved out of the panel tree into `phoneDescribeForm` so the
-    // panel can seat it at the head or the foot: a crawl the reader is
-    // BUILDING leads the phone sheet, and the describe form follows it
-    // (verify-preview-4, J04). The guard and the one mount are the invariant.
+    // Phone discovery retains its viewport, city and area guards.
     expect((pubMap.match(/<MobilePlanActivation\b/g) ?? []).length).toBe(1);
     expect(pubMap, "the phone form waits for a phone, London and an area").toMatch(
       /const phoneDescribeForm =\s*\n?\s*mobileViewport && isLondon && suggestedPlanArea \? \(\s*<MobilePlanActivation\b/,
     );
-    // One slot at a time: the other is null, so the form can never be twice on
-    // one sheet.
+    expect((pubMap.match(/\bphoneDescribeForm\b/g) ?? []).length).toBe(2);
+    // Each order contains discovery once and the planned crawl once.
     expect(pubMap).toMatch(
-      /\[plannerHead, plannerFoot\] = builtCrawlLeads\s*\n?\s*\? \[null, phoneDescribeForm\]\s*\n?\s*: \[phoneDescribeForm, null\];/,
+      /\[plannerHead, plannerFoot\] = builtCrawlLeads\s*\? \[plannedCrawl, plannerDiscovery\]\s*: \[plannerDiscovery, plannedCrawl\];/,
     );
+    expect((pubMap.match(/\bplannerDiscovery\b/g) ?? []).length).toBe(3);
     const panel = plannerPanelSource();
+    expect(panel).not.toMatch(/<MobilePlanActivation\b/);
     expect((panel.match(/\{plannerHead\}/g) ?? []).length).toBe(1);
     expect((panel.match(/\{plannerFoot\}/g) ?? []).length).toBe(1);
   });
