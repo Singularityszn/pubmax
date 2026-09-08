@@ -55,19 +55,22 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page })
   await expect(accept).toHaveText("Keep for tonight");
   const appearance = await accept.evaluate((button) => {
     const probe = document.createElement("span");
-    probe.style.cssText = "position:fixed;background:var(--state-active-surface);border:1px solid var(--state-active-border);color:var(--state-active-ink)";
+    probe.style.cssText = "position:fixed;height:var(--control-height);background:var(--control-tint-surface);border:1px solid var(--control-tint-border);color:var(--state-active-ink)";
     document.body.appendChild(probe);
     const actual = getComputedStyle(button);
     const expected = getComputedStyle(probe);
     const result = {
       height: button.getBoundingClientRect().height,
+      controlHeight: Number.parseFloat(expected.height),
       actual: [actual.backgroundColor, actual.borderColor, actual.color],
       expected: [expected.backgroundColor, expected.borderColor, expected.color],
     };
     probe.remove();
     return result;
   });
-  expect(appearance.height).toBeGreaterThanOrEqual(48);
+  // The accepted secondary treatment uses the shared control row (#1508).
+  expect(appearance.controlHeight).toBeGreaterThanOrEqual(44);
+  expect(appearance.height).toBeGreaterThanOrEqual(appearance.controlHeight);
   expect(appearance.actual).toEqual(appearance.expected);
 
   // The permanent Keep action may not take the pub name's width. At 390px the
