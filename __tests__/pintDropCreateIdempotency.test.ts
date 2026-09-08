@@ -18,6 +18,7 @@ vi.mock('@/lib/venueIndex', () => ({
   venueMapUrl: (id: string) => `/map?sel=${id}`,
 }));
 import * as confirmation from '@/lib/pintDropConfirm.server';
+import * as creationModule from '@/lib/pintDropCreate.server';
 import { pintDropCreateRequest } from '@/lib/pintDropCreate.server';
 import { __resetStepOutNudgeStore, __listMemoryStepOutNudgePrefs } from '@/lib/stepOutNudgeStore';
 import { POST } from '@/app/api/pint-drops/route';
@@ -155,6 +156,10 @@ it('replays without spending the new-submission rate budget', async () => {
     expect(response.status).toBe(201);
     expect((await response.json()).drop.id).toBe(first.drop.id);
   }
+  for (let i = 0; i < 7; i++) {
+    expect((await POST(request(false, alice, {}, `new-submission-${i}-key`))).status).toBe(201);
+  }
+  expect((await POST(request(false, alice, {}, 'ninth-submission-key'))).status).toBe(429);
 });
 
 it('finishes a commit interrupted before confirmation and qualification, using original attribution', async () => {
@@ -199,4 +204,33 @@ it('replays the original attribution when the same account now has another handl
   expect(result.drop).toMatchObject({ id: first.drop.id, handle: 'fixturealice' });
   expect(ensure).toHaveBeenCalledWith('fixturealice');
   expect(await memoryPintDropStore.listVisible(venue)).toHaveLength(1);
+});
+
+it('bounds an authenticated replay burst before hashing, projection, or settlement', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-09-08T12:00:00Z'));
+  const digest = vi.spyOn(creationModule, 'pintDropCreateRequest');
+  const read = vi.spyOn(memoryPintDropStore, 'findCreation');
+  const settle = vi.spyOn(confirmation, 'runSecondReporterPass');
+  const first = await (await POST(request(true))).json();
+  for (let i = 1; i < 60; i++) {
+    const replay = await POST(request(true));
+    expect(replay.status).toBe(201);
+    expect((await replay.json()).drop.id).toBe(first.drop.id);
+  }
+  const calls = { digest: digest.mock.calls.length, read: read.mock.calls.length, settle: settle.mock.calls.length };
+  const refused = await POST(request(true));
+  expect(refused.status).toBe(429);
+  expect((await refused.json()).retryable).toBe(true);
+  expect(digest).toHaveBeenCalledTimes(calls.digest);
+  expect(read).toHaveBeenCalledTimes(calls.read);
+  expect(settle).toHaveBeenCalledTimes(calls.settle);
+  // Neither a changed asserted handle nor a rotated request key grants another account budget.
+  expect((await POST(request(true, alice, { handle: 'differenthandle' }, 'rotated-submission-key'))).status).toBe(429);
+  expect(digest).toHaveBeenCalledTimes(calls.digest);
+  expect((await POST(request(true, bob))).status).toBe(201);
+  vi.setSystemTime(new Date('2026-09-08T12:01:01Z'));
+  const recovered = await POST(request(true));
+  expect(recovered.status).toBe(201);
+  expect((await recovered.json()).drop.id).toBe(first.drop.id);
 });
