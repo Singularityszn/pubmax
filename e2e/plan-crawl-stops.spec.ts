@@ -26,9 +26,19 @@ async function clearPlannerDrafts(page: Page): Promise<void> {
   });
 }
 
-for (const scenario of SCENARIOS) {
-  test(`real ${scenario.stopCount}-stop crawl reaches every map stop at ${scenario.width}px`, async ({ page }, testInfo) => {
+for (const [scenarioIndex, scenario] of SCENARIOS.entries()) {
+  test(`real ${scenario.stopCount}-stop crawl reaches every map stop at ${scenario.width}px`, async ({ page, baseURL }, testInfo) => {
     test.setTimeout(180_000);
+    const origin = `http://localhost:${process.env.PW_PORT ?? 3100}`;
+    expect(baseURL).toBe(origin);
+    // One fixed fixture caller per scenario. The real quotas still apply.
+    const address = `192.0.2.${100 + scenarioIndex}`;
+    await page.route(
+      (url) => url.origin === origin && url.pathname === "/api/plans/generate",
+      (route) => route.request().method() === "POST"
+        ? route.continue({ headers: { ...route.request().headers(), "x-vercel-forwarded-for": address } })
+        : route.fallback(),
+    );
     await page.setViewportSize({ width: scenario.width, height: scenario.height });
     await clearPlannerDrafts(page);
     const errors = watchPageErrors(page);
