@@ -337,15 +337,9 @@ test("/map reveals pins only for the final rapid theme style generation", async 
   ).toEqual([]);
 });
 
-// Phone readiness-ceiling contract when the BASEMAP is the signal that missed.
-// The ceiling never unmounts the canvas: the 3s fallback has already un-gated
-// the pin layers on the live style, so tearing it down here would replace pubs
-// that were about to paint with a "Map couldn't draw" card. What the reader
-// gets instead is the pins plus ONE toast that names the background.
-test("/map keeps its pins and names the basemap when tiles miss the phone readiness ceiling", async ({
-  page,
-}) => {
-  test.setTimeout(60_000);
+// Phone pins reveal before remote tiles. A held background still owes one
+// notice, with manual Retry and automatic late-tile recovery tested separately.
+async function holdPhoneBasemapTiles(page: Page) {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     const trace: Array<{ reason: string; generation: number }> = [];
@@ -355,6 +349,8 @@ test("/map keeps its pins and names the basemap when tiles miss the phone readin
     });
   });
   let holdTiles = true;
+  const release = () => { holdTiles = false; };
+  page.once("close", release);
   await page.route(/\.pbf(?:\?|$)/, async (route) => {
     // Hold every vector tile until THIS SPEC releases it, not for a fixed
     // window: once tiles land, `markBasemapRecovered` retires the timeout-owned
@@ -364,29 +360,41 @@ test("/map keeps its pins and names the basemap when tiles miss the phone readin
     while (holdTiles) {
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
-    await route.continue();
+    if (!page.isClosed()) await route.continue();
   });
 
-  await page.goto("/map");
-  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
   const trace = () => page.evaluate(() => (
     window as typeof window & {
       __pubmaxPinRevealTrace: Array<{ reason: string; generation: number }>;
     }
   ).__pubmaxPinRevealTrace);
+  const constructions = () => page.evaluate(() =>
+    performance.getEntriesByName("pubmax:map-constructed").length,
+  );
+  return { release, trace, constructions };
+}
 
-  // The ceiling reveals rather than reporting a dead map.
+test("/map keeps its pins and names the basemap when tiles miss the phone readiness ceiling", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  const { release, trace, constructions } = await holdPhoneBasemapTiles(page);
+  await page.goto("/map");
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
+
+  // Local pins reveal before the held basemap reaches its deadline.
   await expect
     .poll(async () => (await trace()).at(-1)?.reason ?? null, { timeout: 25_000 })
-    .toBe("timeout");
+    .toBe("pins");
   await expect(page.locator(".mapFallback")).toHaveCount(0);
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible();
   await expect(page.locator(".mapLoading")).toHaveCount(0);
 
   // The background is what never painted, so the background is what the toast
-  // names — and it is the only toast on the surface.
+  // names, and it is the only toast on the surface.
   const notice = page.locator(".mapSoftRetry");
-  await expect(notice).toHaveAttribute("data-kind", "tiles");
+  await expect(notice).toHaveAttribute("data-kind", "tiles", { timeout: 15_000 });
+  await expect(notice).toHaveCount(1);
   await expect(notice).toContainText("Map background couldn't load");
   await expect(page.locator(".ukPlaceArrival")).toHaveCount(0);
 
@@ -402,18 +410,50 @@ test("/map keeps its pins and names the basemap when tiles miss the phone readin
   // last control that may fall under it.
   expect(retryBox!.height).toBeGreaterThanOrEqual(44);
   expect(retryBox!.y + retryBox!.height).toBeLessThanOrEqual(tabBarBox!.y);
-  // One toast owns the surface: the first-visit arrival card is 256px of opaque
-  // panel over this exact band and stands down while a failure is on screen.
+  // First-visit arrival chrome stands down while the failure owns the surface.
   await expect(page.locator(".mapArrivalCard")).toHaveCount(0);
 
-  // A dead background is worth a full re-init, and the recovered map settles on
-  // a real painted reveal.
-  holdTiles = false;
+  // Keep tiles held until the actual Retry has constructed a replacement map.
+  const beforeRetry = await constructions();
+  const revealsBeforeRetry = (await trace()).length;
   await retry.click();
-  await expect
-    .poll(async () => (await trace()).at(-1)?.reason, { timeout: 25_000 })
-    .toMatch(/^(tiles|idle)$/);
+  await expect.poll(constructions).toBe(beforeRetry + 1);
+  release();
+  await expect.poll(async () => (await trace()).length, { timeout: 25_000 })
+    .toBeGreaterThan(revealsBeforeRetry);
+  expect((await trace()).at(-1)?.reason).toMatch(/^(pins|idle)$/);
+  // A cleared notice on click alone proves no recovery. Give the new map's
+  // basemap deadline time to report if the background remains unavailable.
+  await page.waitForTimeout(12_500);
+  await expect(page.locator(".mapSoftRetry, .mapFallback")).toHaveCount(0);
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible();
+});
+
+test("/map retires the held-basemap notice after early phone pins without remounting", async ({ page }) => {
+  test.setTimeout(60_000);
+  const { release, trace, constructions } = await holdPhoneBasemapTiles(page);
+  await page.goto("/map");
+  await expect.poll(async () => (await trace()).at(-1)?.reason, { timeout: 25_000 })
+    .toBe("pins");
+  const initialConstructions = await constructions();
+  const initialReveals = await trace();
+  expect(initialReveals).toHaveLength(1);
+  expect(initialConstructions).toBe(1);
+  await expect(page.locator(".mapLoading, .mapFallback")).toHaveCount(0);
+  const notice = page.locator(".mapSoftRetry");
+  await expect(notice).toHaveAttribute("data-kind", "tiles", { timeout: 15_000 });
+  await expect(notice).toHaveCount(1);
+  await expect(notice).toContainText("Map background couldn't load");
+  await expect(notice.getByRole("button", { name: "Retry" })).toBeVisible();
+
+  // Successful tiles retire this same notice through the existing recovery
+  // listener. No Retry, new map, or second pin reveal may account for it.
+  release();
+  await expect(notice).toHaveCount(0, { timeout: 25_000 });
   await expect(page.locator(".mapFallback")).toHaveCount(0);
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible();
+  expect(await constructions()).toBe(initialConstructions);
+  expect(await trace()).toEqual(initialReveals);
 });
 
 test("/map keeps the honest retry visible while basemap tiles keep failing", async ({

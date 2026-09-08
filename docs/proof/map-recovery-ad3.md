@@ -93,3 +93,16 @@ The final focused run passed 93 tests across four files with one worker.
 ESLint reported no errors and the existing complexity warning.
 Logs: `phone-deadline-handoff-{red,green,lint}.log` in the same proof directory.
 No browser, build, PostgreSQL, or native runtime ran during the iOS baseline window.
+
+## Pending browser acceptance
+
+The original phone readiness case still clicks the actual Retry and retains its 44px and tab-bar clearance checks.
+Tiles remain held until the existing construction mark proves that Retry replaced the map.
+It then releases tiles, requires a new phone reveal, and waits beyond the replacement map's basemap deadline without a notice.
+The former `timeout` and `tiles` reveal expectations now follow the actual phone pin behavior.
+
+A separate case retains the same map while tiles are held.
+It requires early pins, one basemap notice, release of held tiles, and automatic notice retirement.
+Construction marks and reveal events must remain unchanged across that recovery.
+Both cases release pending route handlers when the page closes.
+The fixture passed ESLint and diff checks only. Neither case ran during the iOS baseline window.
