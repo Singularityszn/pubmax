@@ -146,13 +146,13 @@
 
   .appShell .bandOnboardingChip {
     bottom: calc(
-      max(var(--float-stack-top-create), var(--float-stack-top-map-corner)) + var(--float-stack-gap)
+      max(var(--float-stack-top-create), var(--map-story-row-top)) + var(--float-stack-gap)
     );
   }
 
   /* Create is hidden during consent and reserves no story space. */
   body:has(.analyticsConsentPrompt) .appShell .bandOnboardingChip {
-    bottom: calc(var(--float-stack-top-map-corner) + var(--float-stack-gap));
+    bottom: calc(var(--map-story-row-top) + var(--float-stack-gap));
   }
 
   body:has(.bandOnboardingChip) .appShell .mapStage .maplibregl-ctrl-bottom-right {

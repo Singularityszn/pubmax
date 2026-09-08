@@ -156,6 +156,9 @@
   display: grid;
   gap: 1px;
 }
+.palSummon > .palAvatar.isCompact {
+  flex-shrink: 0;
+}
 .palSummon strong {
   font: 700 11px var(--font-display);
 }
