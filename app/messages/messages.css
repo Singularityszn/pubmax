@@ -1494,9 +1494,22 @@ html[data-theme="dark"] .messageBubbleTheirs {
   max-width: 720px;
 }
 
-/* Only this form reserves the greeting lane; the shared greeting does not move. */
-body:has(.arrivalWelcome) .messagesMainRecipient {
-  padding-block-start: calc(1.5rem + var(--space-16, 64px));
+/* This form keeps its position when either greeting variant retires. */
+body:has(.messagesMainRecipient) .arrivalWelcome {
+  top: auto;
+  bottom: max(var(--space-6, 24px), env(safe-area-inset-bottom));
+  left: auto;
+  right: max(var(--space-6, 24px), env(safe-area-inset-right));
+  margin-inline: 0;
+}
+
+@media (max-width: 640px) {
+  body:has(.messagesMainRecipient) .arrivalWelcome {
+    bottom: var(--create-fab-bottom, calc(var(--tabbar-h, 64px) + var(--space-2, 8px)));
+    left: max(var(--space-3, 12px), env(safe-area-inset-left));
+    right: var(--create-fab-lane, 80px);
+    max-width: calc(100vw - var(--create-fab-lane, 80px) - max(var(--space-3, 12px), env(safe-area-inset-left)));
+  }
 }
 
 .messageRecipientBack {
