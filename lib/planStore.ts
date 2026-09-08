@@ -828,6 +828,7 @@ export const memoryPlanStore: PlanStore = {
     if (plan.completion) {
       return { ok: true, plan: publicState(plan), completion: publicCompletion(plan.completion), created: false };
     }
+    if (plan.plan.status === "abandoned") return { ok: false, error: "invalid" };
     const qualifyingArrival = plan.actions.find((action) => (
       action.type === "arrived"
       && action.stopPosition !== null

@@ -273,4 +273,35 @@ describe("Plan Completion", () => {
     );
     expect(await plan.json()).toMatchObject({ plan: { status: "draft", routeRevision: 1 }, actions: [] });
   });
+
+  it("keeps an arrived Plan abandoned when its host submits an ending", async () => {
+    const created = await createPlan();
+    const id = created.plan.plan.id;
+    const store = planStore();
+    const arrived = await store.addAction(id, created.memberToken, {
+      type: "arrived", stopPosition: 0, idempotencyKey: "abandoned-plan-arrival",
+    });
+    expect(arrived.ok).toBe(true);
+    const abandoned = await store.update(id, created.memberToken, { status: "abandoned" });
+    expect(abandoned.ok).toBe(true);
+    const before = await store.get(id);
+
+    const response = await COMPLETE(new Request(`http://localhost/api/plans/${id}/complete`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${created.memberToken}` },
+      body: JSON.stringify({
+        expectedRouteRevision: 1,
+        ending: "get_home",
+        endingSelection: {
+          kind: "get_home", optionId: "transport:nearest-station",
+          evidenceSnapshot: { label: "Nearest station", confidence: "unknown" },
+        },
+      }),
+    }), ctx(id));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "PLAN_COMPLETION_INVALID" });
+    expect(await store.get(id)).toEqual(before);
+    expect(await store.getCompletion(id)).toBeNull();
+  });
 });

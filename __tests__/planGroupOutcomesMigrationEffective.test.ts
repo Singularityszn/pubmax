@@ -6,6 +6,13 @@ import { postgresSkipReason, startPostgres, type PostgresSession } from "./helpe
 
 const skip = postgresSkipReason();
 const migration = "20260908120000_0158_plan_group_outcomes.sql";
+const terminalMigration = "20260908130000_0159_plan_completion_terminal_status.sql";
+const terminalRollback = "rollback/20260908130000_0159_plan_completion_terminal_status_rollback.sql";
+const completionDefinitionsSql = `select jsonb_agg(pg_get_functiondef(oid) order by proname)
+  from pg_proc where oid in (
+    'public._0075_complete_plan_atomic_8(uuid,text,integer,uuid,uuid,text,text,timestamptz)'::regprocedure,
+    'public._0075_complete_plan_atomic_9(uuid,text,integer,uuid,uuid,text,text,jsonb,timestamptz)'::regprocedure)`;
+let originalCompletionDefinitions = "";
 const root = join(process.cwd(), "supabase/migrations");
 let database: PostgresSession | null = null;
 function db() {
@@ -27,6 +34,8 @@ beforeAll(async () => {
       db().applyFile(join(root, name));
     }
     db().applyFile(join(root, migration));
+    originalCompletionDefinitions = db().sql(completionDefinitionsSql);
+    db().applyFile(join(root, terminalMigration));
     expect(db().sql("select count(*) from public.plan_group_outcome_specifications")).toBe("0");
     expect(db().sql("select count(*) from public.plan_group_outcome_classifications")).toBe("0");
     db().sql("update public.plan_group_outcome_capture set started_at = '2000-01-01'");
@@ -590,6 +599,90 @@ test("rolls the ending back if snapshot insertion fails", () => {
   expect(db().sql(`select count(*) from public.plan_completions where plan_id=${literal(p.id)}`)).toBe("0");
   expect(db().sql(`select status from public.plans where id=${literal(p.id)}`)).toBe("active");
   expect(db().sql(`select count(*) from public.plan_actions where plan_id=${literal(p.id)} and type='ending'`)).toBe("0");
+});
+
+test.each([8, 9, 14] as const)("keeps an arrived Plan abandoned for overload %s", overload => {
+  const p = plan();
+  expect(db().sql(`select public.update_legacy_plan_status_context_atomic(
+    ${literal(p.id)},${literal(p.token)},'abandoned',null)`)).toBe("ok");
+  expect(db().sql(complete({ ...p, token: "0".repeat(64) }, undefined, undefined, overload))).toBe("forbidden");
+  db().sql(`update public.plans set route_revision=2 where id=${literal(p.id)}`);
+  expect(db().sql(complete(p, undefined, undefined, overload))).toBe("conflict");
+  db().sql(`update public.plans set route_revision=1 where id=${literal(p.id)}`);
+  expect(db().sql(complete(p, undefined, undefined, overload))).toBe("invalid");
+  expect(db().sql(`select status from public.plans where id=${literal(p.id)}`)).toBe("abandoned");
+  expect(db().sql(`select count(*) from public.plan_actions where plan_id=${literal(p.id)} and type='ending'`)).toBe("0");
+  expect(db().sql(`select count(*) from public.plan_completions where plan_id=${literal(p.id)}`)).toBe("0");
+  expect(db().sql("select count(*) from public.plan_group_outcomes")).toBe("0");
+  expect(db().sql("select count(*) from public.plan_group_outcome_accounts")).toBe("0");
+});
+
+const abandonmentOrderings = ([8, 9, 14] as const).flatMap(overload =>
+  [true, false].map(abandonFirst => ({ overload, abandonFirst })));
+test.each(abandonmentOrderings)("serializes abandonment for overload $overload, abandon first=$abandonFirst", async ({ overload, abandonFirst }) => {
+  const p = plan();
+  const abandonSql = `do $test$ begin
+    if public.update_legacy_plan_status_context_atomic(${literal(p.id)},${literal(p.token)},'abandoned',null)
+      is distinct from '${abandonFirst ? "ok" : "invalid"}' then
+      raise exception 'Unexpected abandonment result';
+    end if;
+  end; $test$`;
+  const completionSql = `do $test$ begin
+    if (${complete(p, undefined, undefined, overload)}) is distinct from '${abandonFirst ? "invalid" : "completed"}' then
+      raise exception 'Unexpected completion result';
+    end if;
+  end; $test$`;
+  await orderedWrites(abandonFirst ? abandonSql : completionSql, abandonFirst ? completionSql : abandonSql, "plans");
+  expect(db().sql(`select status from public.plans where id=${literal(p.id)}`)).toBe(abandonFirst ? "abandoned" : "completed");
+  const count = abandonFirst ? "0" : "1";
+  expect(db().sql(`select count(*) from public.plan_actions where plan_id=${literal(p.id)} and type='ending'`)).toBe(count);
+  expect(db().sql(`select count(*) from public.plan_completions where plan_id=${literal(p.id)}`)).toBe(count);
+  expect(db().sql("select count(*) from public.plan_group_outcomes")).toBe(count);
+});
+
+test.each([8, 9, 14] as const)("replays an existing completion before its historical status for overload %s", overload => {
+  const p = plan();
+  expect(db().sql(complete(p, undefined, undefined, overload))).toBe("completed");
+  const before = snapshot(p);
+  // A direct historical status stamp must not make a saved completion mutable.
+  db().sql(`update public.plans set status='abandoned' where id=${literal(p.id)}`);
+  expect(db().sql(complete({ ...p, token: "0".repeat(64) }, undefined, undefined, overload))).toBe("forbidden");
+  expect(db().sql(complete(p, undefined, undefined, overload))).toBe("already_completed");
+  expect(snapshot(p)).toBe(before);
+  expect(db().sql(`select status from public.plans where id=${literal(p.id)}`)).toBe("abandoned");
+  expect(db().sql(`select count(*) from public.plan_actions where plan_id=${literal(p.id)} and type='ending'`)).toBe("1");
+});
+
+test("rolls back 0159 without changing saved completions or 0158 wrappers", () => {
+  const saved = plan();
+  expect(db().sql(complete(saved))).toBe("completed");
+  const before = snapshot(saved);
+  const wrappersSql = `select jsonb_agg(jsonb_build_object('definition',pg_get_functiondef(oid),'acl',proacl) order by oid)
+    from pg_proc where pronamespace='public'::regnamespace
+      and proname in ('complete_plan_atomic','complete_plan_with_group_outcome_atomic')`;
+  const wrappers = db().sql(wrappersSql);
+  try {
+    db().applyFile(join(root, terminalRollback));
+    expect(db().sql(completionDefinitionsSql)).toBe(originalCompletionDefinitions);
+    expect(db().sql(wrappersSql)).toBe(wrappers);
+    expect(snapshot(saved)).toBe(before);
+    expect(db().sql(complete(saved))).toBe("already_completed");
+    for (const overload of [8, 9, 14] as const) {
+      const abandoned = plan();
+      db().sql(`update public.plans set status='abandoned' where id=${literal(abandoned.id)}`);
+      expect(db().sql(complete(abandoned, undefined, undefined, overload))).toBe("completed");
+    }
+  } finally {
+    db().applyFile(join(root, terminalMigration));
+  }
+  expect(db().sql(wrappersSql)).toBe(wrappers);
+  expect(snapshot(saved)).toBe(before);
+  expect(db().sql(complete(saved))).toBe("already_completed");
+  for (const overload of [8, 9, 14] as const) {
+    const abandoned = plan();
+    db().sql(`update public.plans set status='abandoned' where id=${literal(abandoned.id)}`);
+    expect(db().sql(complete(abandoned, undefined, undefined, overload))).toBe("invalid");
+  }
 });
 
 test.each([8, 9, 14] as const)("preserves refusal, revision and replay boundaries for overload %s", overload => {
