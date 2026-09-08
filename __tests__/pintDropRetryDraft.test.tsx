@@ -21,6 +21,7 @@ const revoked = vi.fn();
 const file = () => new File([new Uint8Array([255, 216, 255, 42])], "bill.jpg", { type: "image/jpeg" });
 let currentAccount: string | null = null;
 const getCurrentUserId = () => currentAccount;
+const committedDraft = vi.fn();
 
 function DraftLifecycle({ current, venueId }: { current: PintDropsState; venueId: string }) {
   useVenueDraft({ ...current, venueId, transientVoiceNoteBaseline: null });
@@ -45,7 +46,10 @@ function AccountBoundary({ accountId = null, hydrate = false, token = "initial",
 
 function Harness({ hydrate = false, venueId = "venue-1" }: { hydrate?: boolean; venueId?: string }) {
   const current = usePintDrops();
-  useLayoutEffect(() => { state = current; }, [current]);
+  useLayoutEffect(() => {
+    state = current;
+    committedDraft(currentAccount, current, container.querySelector("input")?.value);
+  }, [current]);
   return hydrate ? createElement(DraftLifecycle, { current, venueId }) : null;
 }
 
@@ -57,6 +61,7 @@ beforeEach(async () => {
   localStorage.setItem("pubmax_handle", "karan");
   post.mockReset();
   revoked.mockClear();
+  committedDraft.mockClear();
   vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ drops: [] }) })));
   vi.stubGlobal("URL", class extends URL {
     static createObjectURL() { return `blob:retry-${++nextUrl}`; }
@@ -425,4 +430,38 @@ it("does not hydrate A's saved fields when B returns to an earlier venue", async
   expect(container.querySelector("input")?.value).toBe("");
   expect(state.dropForm.note).toBe("");
   expect(sessionStorage.getItem("unrelated")).toBe("keep");
+});
+
+it("hides A's draft in B's first committed render before passive cleanup", async () => {
+  currentAccount = "A";
+  await act(async () => root.render(createElement(AccountBoundary, { accountId: "A", hydrate: true })));
+  await act(async () => {
+    state.setComposerOpen(true);
+    state.setVisibility("legacy");
+    state.setDropForm({ ...state.dropForm, price: "5.80", note: "A's note" });
+    state.pickPhoto("receipt", file(), null);
+    state.pickPhoto("pint", file(), null);
+    state.pickPhoto("venue", file(), null);
+  });
+  let finish!: (response: unknown) => void;
+  post.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+  let pending: ReturnType<PintDropsState["submitDrop"]>;
+  await act(async () => { pending = state.submitDrop({ preventDefault() {} } as FormEvent, "venue-1"); });
+  committedDraft.mockClear();
+  currentAccount = "B";
+  await act(async () => root.render(createElement(AccountBoundary, { accountId: "B", hydrate: true })));
+  // Layout effects observe each committed tree before passive owner cleanup.
+  const first = committedDraft.mock.calls.find(([account]) => account === "B")!;
+  expect(first[2]).toBe("");
+  const draft = first[1] as PintDropsState;
+  expect(draft.composerOpen).toBe(false);
+  expect(draft.dropForm.note).toBe("");
+  expect(draft.receiptPhoto).toBeNull();
+  expect(draft.pintPhoto).toBeNull();
+  expect(draft.venuePhoto).toBeNull();
+  expect(draft.dropsByVenueId.get("venue-1") ?? []).toEqual([]);
+  await act(async () => {
+    finish({ ok: false, json: async () => ({ error: "A's outage" }) });
+    await pending;
+  });
 });
