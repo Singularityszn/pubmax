@@ -129,6 +129,21 @@ function notify(): void {
   }
 }
 
+let momentEditorOwners = 0;
+
+/** Keep the pending account prompt behind a photo edit until its owner releases it. */
+export function deferIdentityNudgeForMomentEditor(): () => void {
+  momentEditorOwners += 1;
+  notify();
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    momentEditorOwners -= 1;
+    notify();
+  };
+}
+
 /** True for a web crawler / prerender agent — never nudge those. SSR-safe. */
 export function isWebCrawler(): boolean {
   if (typeof navigator === "undefined") return false;
@@ -251,6 +266,7 @@ export function isIdentityNudgePending(): boolean {
  * returns a stable primitive ("plan" | "moment" | null) safe for re-render.
  */
 export function getIdentityNudgeClientSnapshot(): IdentityNudgeTrigger | null {
+  if (momentEditorOwners > 0) return null;
   const pendingTrigger = readPending();
   const offer = shouldOfferIdentityNudge({
     pendingTrigger,

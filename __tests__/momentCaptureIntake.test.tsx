@@ -18,7 +18,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock("server-only", () => ({}));
-vi.mock("next/dynamic", () => ({ default: () => () => null }));
+vi.mock("next/dynamic", () => ({
+  default: () => ({ onCancel }: { onCancel: () => void }) =>
+    createElement("button", { onClick: onCancel, "aria-label": "Close editor" }, "Close"),
+}));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ prefetch: () => Promise.resolve(), push: () => undefined, replace: () => undefined }),
   useSearchParams: () => new URLSearchParams(),
@@ -44,7 +47,10 @@ vi.mock("@/components/auth/useViewerSession", () => ({
   useViewerSession: () => ({ phase: "authenticated", signedIn: true, signedOut: false, unresolved: false }),
 }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: () => undefined }));
-vi.mock("@/lib/identityNudge", () => ({ recordMomentNudgeTrigger: () => undefined }));
+vi.mock("@/lib/identityNudge", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/identityNudge")>(),
+  recordMomentNudgeTrigger: () => undefined,
+}));
 vi.mock("@/lib/nativePlatform", () => ({ isNativeApp: () => false }));
 vi.mock("@/lib/nativeCamera", () => ({ captureNativePhoto: async () => null }));
 vi.mock("@/lib/momentDraft", async () => {
@@ -70,6 +76,8 @@ vi.mock("@/lib/authedFetch", () => ({
     return answer(call);
   },
 }));
+
+import { getIdentityNudgeClientSnapshot, recordPlanNudgeTrigger, resetIdentityNudge } from "@/lib/identityNudge";
 
 import MomentCapture from "@/components/moment/MomentCapture";
 
@@ -161,6 +169,25 @@ afterEach(() => {
 });
 
 describe("what the composer admits", () => {
+  it("defers a pending prompt until editor close or composer unmount", async () => {
+    resetIdentityNudge();
+    recordPlanNudgeTrigger();
+    await mount();
+    await choose(jpegFile("night.jpg"));
+    const edit = container.querySelector<HTMLButtonElement>('[aria-label="Edit night.jpg"]');
+    expect(edit).not.toBeNull();
+    await act(async () => edit!.click());
+    expect(getIdentityNudgeClientSnapshot()).toBeNull();
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Close editor"]')!.click());
+    expect(getIdentityNudgeClientSnapshot()).toBe("plan");
+    await act(async () => edit!.click());
+    expect(getIdentityNudgeClientSnapshot()).toBeNull();
+    await act(async () => root!.unmount());
+    root = null;
+    expect(getIdentityNudgeClientSnapshot()).toBe("plan");
+    resetIdentityNudge();
+  });
+
   it("refuses a text file named .jpg by its bytes, before it reaches the draft", async () => {
     await mount();
     await choose(textFileNamedJpeg());
