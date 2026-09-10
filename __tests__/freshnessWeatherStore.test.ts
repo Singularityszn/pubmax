@@ -72,33 +72,23 @@ describe("the weather freshness measurement", () => {
   });
 
   it("never reports the weather row fresh without credentials, whatever the rest of the registry does", async () => {
+    // vitest.setup.ts deletes SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before
+    // any test runs, so the keyless baseline is the setup file's contract and
+    // this case calls the checker directly.
     const { version, datasets } = registry();
     const weather = datasets.find((dataset) => dataset.id === "weather");
     expect(weather).toBeDefined();
-    const saved = {
-      SUPABASE_URL: process.env.SUPABASE_URL,
-      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    };
-    delete process.env.SUPABASE_URL;
-    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-    try {
-      const { results } = await evaluateFreshness({
-        rootDir: ROOT,
-        registry: { version, datasets: [weather as Dataset] },
-      });
+    const { results } = await evaluateFreshness({
+      rootDir: ROOT,
+      registry: { version, datasets: [weather as Dataset] },
+    });
 
-      expect(results).toHaveLength(1);
-      expect(results[0].id).toBe("weather");
-      expect(results[0].status).toBe("unknown");
-      expect(results[0].status).not.toBe("fresh");
-      expect(results[0].status).not.toBe("stale");
-      expect(results[0].detail).toContain('Durable store for "weather" is unmeasurable without credentials');
-    } finally {
-      for (const [key, value] of Object.entries(saved)) {
-        if (value === undefined) delete process.env[key];
-        else process.env[key] = value;
-      }
-    }
+    expect(results).toHaveLength(1);
+    expect(results[0].id).toBe("weather");
+    expect(results[0].status).toBe("unknown");
+    expect(results[0].status).not.toBe("fresh");
+    expect(results[0].status).not.toBe("stale");
+    expect(results[0].detail).toContain('Durable store for "weather" is unmeasurable without credentials');
   });
 
   it("fails where the store was supposed to be reachable", () => {
