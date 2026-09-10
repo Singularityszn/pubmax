@@ -195,11 +195,17 @@ export function selectRecapCardData(source: RecapCardSource): RecapCardData {
 //    must flip back to the fallback quickly, so it gets a short shared-cache TTL
 //    with a longer stale-while-revalidate window (fast propagation, no thundering
 //    origin load).
+//  • UNAVAILABLE - the fallback card painted because the store could not run
+//    the read, not because the Story is absent or private. An outage is a fact
+//    about us, not the Story, so it is never pinned: the next crawl reads again.
 export const RECAP_OG_CACHE_HEADERS = {
   fallback: "public, s-maxage=86400, stale-while-revalidate=604800",
   rich: "public, s-maxage=60, stale-while-revalidate=600",
+  unavailable: "no-store",
 } as const;
 
-export function recapOgCacheHeaders(variant: RecapCardData["variant"]): { "cache-control": string } {
-  return { "cache-control": RECAP_OG_CACHE_HEADERS[variant] };
+export type RecapOgCacheProfile = keyof typeof RECAP_OG_CACHE_HEADERS;
+
+export function recapOgCacheHeaders(profile: RecapOgCacheProfile): { "cache-control": string } {
+  return { "cache-control": RECAP_OG_CACHE_HEADERS[profile] };
 }

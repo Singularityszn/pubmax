@@ -836,28 +836,45 @@ export async function getNightStory(
     // public projection is redacted at the same choke so the OG card + any
     // public API read never carries a departed person's identity (5.5).
     if (membership) return story;
-    const publicStory: PublicNightStory = {
-      id: story.id,
-      title: story.title,
-      summary: story.summary,
-      status: story.status,
-      visibility: story.visibility,
-      legacyCrawlStoryId: story.legacyCrawlStoryId,
-      publishedMomentIds: story.publishedMomentIds,
-      publishedAt: story.publishedAt,
-      createdAt: story.createdAt,
-      updatedAt: story.updatedAt,
-    };
-    const consentsRead = await readConsents(storyId);
-    if (consentsRead.status !== "found") return null;
-    const departed = await resolveDepartedContributors(contributorsList, consentsRead.rows);
-    return redactPublicStoryFields(publicStory, departed);
+    const read = await readPublicProjection(story, contributorsList);
+    return read.status === "found" ? read.story : null;
   }
   if (!actorId) return null;
   const membership = (await getContributors(storyId)).some(
     (item) => item.profileId === actorId && item.status === "accepted",
   );
   return membership ? story : null;
+}
+
+export type PublicNightStoryReadResult =
+  | { status: "found"; story: PublicNightStory }
+  | { status: "absent" }
+  | { status: "unavailable" };
+
+async function readPublicProjection(
+  story: NightStory,
+  contributorsList: StoryContributor[],
+): Promise<PublicNightStoryReadResult> {
+  const consentsRead = await readConsents(story.id);
+  if (consentsRead.status !== "found") return { status: "unavailable" };
+  const departed = await resolveDepartedContributors(contributorsList, consentsRead.rows);
+  return { status: "found", story: redactPublicStoryFields(safeNightStory(story), departed) };
+}
+
+/**
+ * The public projection of a Story, three ways, for a surface that must tell
+ * an outage apart from a Story that is absent or private: the OG card caches
+ * its not-shared answer for a day, and a read we could not run must not be
+ * pinned as one. `getNightStory(storyId, null)` is the two-way reading.
+ */
+export async function readPublicNightStory(storyId: string): Promise<PublicNightStoryReadResult> {
+  const storyRead = await readStoryRaw(storyId);
+  if (storyRead.status !== "found") return storyRead;
+  const { story } = storyRead;
+  if (story.status !== "published" || story.visibility === "private") return { status: "absent" };
+  const contributorsRead = await readContributors(storyId);
+  if (contributorsRead.status !== "found") return { status: "unavailable" };
+  return readPublicProjection(story, contributorsRead.rows);
 }
 
 export type PublishedRecapSource = { story: PublicNightStory; moments: NightMoment[] };

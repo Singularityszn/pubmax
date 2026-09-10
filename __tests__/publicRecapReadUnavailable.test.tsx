@@ -8,7 +8,7 @@
 // and `absent` apart (#1594, #1602); this file holds the public recap to the
 // same three answers, rendered rather than read off the source.
 
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -19,6 +19,17 @@ vi.mock("next/navigation", () => ({
   },
 }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
+vi.mock("next/og", () => ({
+  ImageResponse: class ImageResponse {
+    element: unknown;
+    headers: Record<string, string>;
+
+    constructor(element: unknown, options: { headers?: Record<string, string> }) {
+      this.element = element;
+      this.headers = options.headers ?? {};
+    }
+  },
+}));
 
 type TableAnswer = { data: unknown; error: { message: string } | null };
 
@@ -51,8 +62,10 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   };
 });
 
+import OpenGraphImage from "@/app/recap/[storyId]/opengraph-image";
 import PublicRecapPage, { generateMetadata } from "@/app/recap/[storyId]/page";
-import { getNightStory, readPublishedRecapSource } from "@/lib/nightMemoryStore";
+import { getNightStory, readPublicNightStory, readPublishedRecapSource } from "@/lib/nightMemoryStore";
+import { RECAP_OG_CACHE_HEADERS } from "@/lib/recapCard";
 
 const STORY_ID = "0b6d6f4e-3f6f-4d0a-9d2e-3c1f0d2a5b7c";
 const MEMORY_ID = "memory-1";
@@ -114,6 +127,13 @@ function seedWithdrawnContributorWithMoment() {
     ],
     error: null,
   });
+}
+
+type OgResponse = { element: ReactNode; headers: Record<string, string> };
+
+async function renderOgCard(): Promise<{ markup: string; cacheControl: string }> {
+  const response = (await OpenGraphImage({ params: Promise.resolve({ storyId: STORY_ID }) })) as unknown as OgResponse;
+  return { markup: renderToStaticMarkup(response.element), cacheControl: response.headers["cache-control"] };
 }
 
 async function renderPage(): Promise<string> {
@@ -210,6 +230,60 @@ describe("the public Story projection behind the OG card", () => {
     seedWithdrawnContributorWithMoment();
     store.answers.set("night_moment_consents", { data: null, error: OUTAGE });
     await expect(getNightStory(STORY_ID, null)).resolves.toBeNull();
+  });
+});
+
+describe("the OG card never pins an outage as a not-shared Story", () => {
+  it("reads the public Story three ways", async () => {
+    seedPublishedStory();
+    seedWithdrawnContributorWithMoment();
+    const found = await readPublicNightStory(STORY_ID);
+    expect(found.status).toBe("found");
+
+    store.answers.set("night_story_contributors", { data: null, error: OUTAGE });
+    await expect(readPublicNightStory(STORY_ID)).resolves.toEqual({ status: "unavailable" });
+
+    store.answers.set("night_stories", { data: null, error: null });
+    await expect(readPublicNightStory(STORY_ID)).resolves.toEqual({ status: "absent" });
+  });
+
+  it("paints the fallback card with no-store when the contributors read failed", async () => {
+    seedPublishedStory();
+    seedWithdrawnContributorWithMoment();
+    store.answers.set("night_story_contributors", { data: null, error: OUTAGE });
+    const { markup, cacheControl } = await renderOgCard();
+    expect(markup).not.toContain("Friday orbit");
+    expect(cacheControl).toBe("no-store");
+  });
+
+  it("paints the fallback card with no-store when the consents read failed", async () => {
+    seedPublishedStory();
+    seedWithdrawnContributorWithMoment();
+    store.answers.set("night_moment_consents", { data: null, error: OUTAGE });
+    const { markup, cacheControl } = await renderOgCard();
+    expect(markup).not.toContain("Friday orbit");
+    expect(cacheControl).toBe("no-store");
+  });
+
+  it("keeps the day-long fallback header for a Story that is absent or private", async () => {
+    store.answers.set("night_stories", { data: null, error: null });
+    let card = await renderOgCard();
+    expect(card.markup).not.toContain("Friday orbit");
+    expect(card.cacheControl).toBe(RECAP_OG_CACHE_HEADERS.fallback);
+
+    seedPublishedStory();
+    store.answers.set("night_stories", { data: publishedStoryRow({ visibility: "private" }), error: null });
+    card = await renderOgCard();
+    expect(card.markup).not.toContain("Friday orbit");
+    expect(card.cacheControl).toBe(RECAP_OG_CACHE_HEADERS.fallback);
+  });
+
+  it("keeps the short rich header when every read ran", async () => {
+    seedPublishedStory();
+    seedWithdrawnContributorWithMoment();
+    const { markup, cacheControl } = await renderOgCard();
+    expect(markup).toContain("Friday orbit");
+    expect(cacheControl).toBe(RECAP_OG_CACHE_HEADERS.rich);
   });
 });
 
