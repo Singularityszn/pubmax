@@ -25,6 +25,7 @@ import OperatorRailPanel from "@/components/operators/OperatorRailPanel";
 import ReadLedgerButton from "@/components/ledger/ReadLedgerButton";
 import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
 import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
+import VenueReadUnavailable from "@/components/venue/VenueReadUnavailable";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
 
 import "./ledger.css";
@@ -32,9 +33,9 @@ import "./ledger.css";
 // The Ledger (issue #25, PRD_FOR_FABLE.md § "The Spill"): a large-text,
 // high-contrast, voice-friendly rendering of a venue's story for the
 // Boomer/Gen-X reading surface. Same seams as the map's venue sheet and the
-// /p/[id] permalink — the FULL venue detail (same cheap read path as
+// /p/[id] permalink: the FULL venue detail (same cheap read path as
 // app/api/venue/[id]) plus the same Pint Drop store the API route reads
-// (lib/pintDropsStore) — reused, not rebuilt.
+// (lib/pintDropsStore), reused, not rebuilt.
 //
 // A server component: no client fetch, so the first paint already carries the
 // whole logbook. The only client-side sliver is the optional "Read this page"
@@ -47,33 +48,50 @@ type PageProps = {
 };
 
 // Mirrors app/api/venue/[id]'s memoized read: group the bundled dataset once
-// per process and look venues up by id. Never throws — a read/parse failure
-// yields an empty map so an unknown id 404s (friendly) instead of 500-ing.
+// per process and look venues up by id. Never throws, and never words a failed
+// read as an absence (astra-review P1-2): the catch used to memoise the EMPTY
+// map, so one unreadable dataset made every Ledger URL say the pub is not in
+// the ledger until the instance recycled. Only a successful parse is cached; a
+// failed read is its own answer, and the next request reads the file again.
 let cachedVenues: Map<string, Venue> | null = null;
 
-async function getVenue(id: string): Promise<Venue | null> {
-  if (!cachedVenues) {
+type VenueReadResult =
+  | { status: "found"; venue: Venue }
+  | { status: "absent" }
+  | { status: "unavailable" };
+
+async function readVenueDataset(): Promise<Map<string, Venue> | null> {
+  if (cachedVenues) return cachedVenues;
+  try {
+    await getVenueIndex(); // keeps the shared dataset read warm/memoized
+    const { promises: fs } = await import("fs");
+    const path = await import("path");
+    const file = path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json");
+    const rows = JSON.parse(await fs.readFile(file, "utf8")) as unknown;
+    if (!Array.isArray(rows)) return null;
     const index = new Map<string, Venue>();
-    try {
-      await getVenueIndex(); // keeps the shared dataset read warm/memoized
-      const { promises: fs } = await import("fs");
-      const path = await import("path");
-      const file = path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json");
-      const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
-      for (const venue of groupVenuePrices(Array.isArray(rows) ? rows : [])) {
-        index.set(venue.id, venue);
-      }
-    } catch {
-      // leave `index` empty — degrade to notFound(), never a 500
+    for (const venue of groupVenuePrices(rows as VenuePrice[])) {
+      index.set(venue.id, venue);
     }
+    // An empty index is a dataset we could not read, not a London with no pubs.
+    if (index.size === 0) return null;
     cachedVenues = index;
+    return index;
+  } catch {
+    return null;
   }
-  const direct = cachedVenues.get(id);
-  if (direct) return direct;
+}
+
+async function readVenue(id: string): Promise<VenueReadResult> {
+  const venues = await readVenueDataset();
+  if (!venues) return { status: "unavailable" };
+  const direct = venues.get(id);
+  if (direct) return { status: "found", venue: direct };
   // Resolve a merged duplicate id (D1) so a Ledger link to a losing id still
   // opens the surviving canonical venue.
   const canonical = await resolveCanonicalVenueId(id);
-  return canonical === id ? null : cachedVenues.get(canonical) ?? null;
+  const aliased = canonical === id ? null : venues.get(canonical);
+  return aliased ? { status: "found", venue: aliased } : { status: "absent" };
 }
 
 function pintDropStoreFor() {
@@ -104,14 +122,17 @@ function isFullFamilyEntry(
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const venue = await getVenue(id);
+  const read = await readVenue(id);
 
-  if (!venue) {
+  // A read we could not run claims nothing in the unfurl: the same bare title
+  // an absent pub gets, because the answer is unknown, not "no".
+  if (read.status !== "found") {
     return {
       title: "The Ledger: PUBMAXXING",
       robots: { index: false, follow: false },
     };
   }
+  const { venue } = read;
 
   const title = `The Ledger: ${venue.name}. PUBMAXXING`;
   const description = `The story of ${venue.name} in ${venue.primaryBorough || "London"}. Heritage notes and the pub's logbook of visits, in large print.`;
@@ -131,7 +152,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 const SITE_URL = "https://pubmaxxing.com";
 
 // BarOrPub structured data for the venue permalink (Wave S1.3). ONLY fields the
-// dataset actually carries — name, geo (lat/lng), postal address, canonical url.
+// dataset actually carries: name, geo (lat/lng), postal address, canonical url.
 // No invented cuisine/priceRange/rating: provenance rule. lat/lng and address
 // are omitted when absent rather than guessed. When the pub is on the official
 // register (Historic England NHLE) we add a factual `description` + a
@@ -199,22 +220,39 @@ function NotInTheLedger() {
   );
 }
 
+function LedgerReadUnavailable({ id }: { id: string }) {
+  return (
+    <main id="main" className="ledgerPage ledgerPage--empty">
+      <div className="ledgerEmptyCard">
+        <Link className="ledgerHomeLink" href="/">
+          PUBMAXXING
+        </Link>
+        <VenueReadUnavailable eyebrow="The Ledger" href={`/ledger/${encodeURIComponent(id)}`} />
+      </div>
+    </main>
+  );
+}
+
 export default async function LedgerPage({ params, searchParams }: PageProps) {
   const { id } = await params;
   const viewer = await resolveViewer(searchParams);
-  const venue = await getVenue(id);
-  if (!venue) return <NotInTheLedger />;
+  // Three answers, and the order is the rule: a read we could not run is
+  // answered BEFORE the not-found card, or the card swallows it.
+  const read = await readVenue(id);
+  if (read.status === "unavailable") return <LedgerReadUnavailable id={id} />;
+  if (read.status === "absent") return <NotInTheLedger />;
+  const { venue } = read;
   // Per-request CSP nonce (proxy.ts) for the JSON-LD block.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   // Everything below reads/links off the canonical venue id (D1) so a merged
   // alias URL and the surviving canonical URL share the same logbook, Family
-  // Table, and ratings — never the raw route param, which may be a losing
+  // Table, and ratings, never the raw route param, which may be a losing
   // duplicate id.
   const canonicalId = venue.id;
 
   const curation = getVenueCuration(venue.prices);
   // Official listed-building record (Historic England NHLE), keyed by canonical
-  // venue id — feeds the BarOrPub JSON-LD description below. null for the many
+  // venue id, feeds the BarOrPub JSON-LD description below. null for the many
   // pubs that are not listed.
   const listedBuilding = await getListedBuilding(canonicalId);
   const drops = await pintDropStoreFor().listVisible(canonicalId);
@@ -245,7 +283,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
   );
 
   // The Family Table (issue #27): LEGACY drops, read via the ledger-only
-  // listLegacyForVenue capability (issue #29) — deliberately a SEPARATE store
+  // listLegacyForVenue capability (issue #29), deliberately a SEPARATE store
   // call from listVisible above, never a filter over `drops`, so a legacy row
   // can never accidentally end up rendered in the public logbook above.
   const legacyDrops = await pintDropStoreFor().listLegacyForVenue(canonicalId);
@@ -261,7 +299,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
   }));
   // F4: public page redacts legacy rows unless the self-asserted viewer is the
   // drop's author (?viewer=, same courtesy curtain as /p/[id]). Everyone else
-  // sees initials-style attribution and a generic family-table line — no price
+  // sees initials-style attribution and a generic family-table line, no price
   // or note body.
   const familyEntries = resolveFamilyTableDisplay(
     buildFamilyTableEntries(legacySources),
@@ -269,14 +307,14 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
     viewer?.handle,
   );
   // The Ledger's own canonical link, for the share actions below. Relative,
-  // like every other in-app link on this page (venueMapUrl) — the deployed
+  // like every other in-app link on this page (venueMapUrl), because the deployed
   // origin is added by the browser/mail client itself. A future "email this
   // digest" project (see ShareWithFamilyButton's ponytail-ceiling note) would
   // want an absolute URL and should add a proper site-origin helper then.
   const ledgerUrl = `/ledger/${encodeURIComponent(canonicalId)}`;
 
   // Text handed to the "Read this page" button: name, heritage note, then the
-  // newest few entries — kept short and skimmable for a screen reader / TTS
+  // newest few entries, kept short and skimmable for a screen reader / TTS
   // pass rather than reading the entire ledger aloud.
   const speechParts = [
     `The Ledger for ${venue.name}, ${venue.primaryBorough || "London"}.`,
