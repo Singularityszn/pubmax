@@ -32,7 +32,11 @@ brand-by-area page's parent crumb is the brand's own London page.
 
 ## Which pages exist
 
-- Brands come from `DRINK_BRANDS.beer`. Areas come from `NIGHT_AREAS`.
+- Brands come from `DRINK_BRAND_LANDING_CATALOG` in `lib/drinkBrandLanding.ts`:
+  the map lens beers (`DRINK_BRANDS.beer`) first, then every canonical draught
+  pint in `lib/beers.ts` the lens lacks, because the landing card names its
+  pint through `lib/beers.ts` and links it only when a page publishes.
+  Areas come from `NIGHT_AREAS`.
 - A brand page needs 20 pubs with a valid matching row. A brand-by-area page
   needs 10.
 - One pub counts once, at its own cheapest matching row.
