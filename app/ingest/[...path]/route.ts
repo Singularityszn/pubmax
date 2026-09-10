@@ -1,15 +1,19 @@
-import { isLimited } from "@/lib/pintDrops";
+import { isRateLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 
 const POSTHOG_EU_INGEST_ORIGIN = "https://eu.i.posthog.com";
 const POSTHOG_EU_ASSET_ORIGIN = "https://eu-assets.i.posthog.com";
 const MAX_REQUEST_BYTES = 1024 * 1024;
-// Per-address budget (Astra P2-1). Every request through here lands in the
-// billed EU project, and nothing but the origin pin stood between a scripted
-// loop and 1 MB a request. One device's SDK flushes events about every three
-// seconds and replay about as often, so a phone spends under 40 a minute; 240
-// covers a table of phones sharing one carrier address and walls a loop. Not
-// paid spend, so the limiter's default fail-open degradation is fine here.
+// Per-instance in-memory budget, keyed on the hashed address (Astra P2-1).
+// Every request through here lands in the billed EU project, and nothing but
+// the origin pin stood between a scripted loop and 1 MB a request. One device's
+// SDK flushes events about every three seconds and replay about as often, so a
+// phone spends under 40 a minute; 240 covers a table of phones sharing one
+// carrier address and walls a loop. The durable limiter (`isLimited`) is NOT
+// used on purpose: this route must carry no Supabase dependency, and the
+// durable limiter's degraded mode tightens to 3 a minute during a Supabase
+// outage, which would wall the error telemetry that reports that outage. Not
+// paid spend, so a per-instance budget that resets on a cold start is enough.
 // `__tests__/posthogProxyRoute.test.ts` names the same number.
 const RATE_LIMIT = 240;
 const RATE_WINDOW_MS = 60_000;
@@ -116,7 +120,7 @@ function refusal(status: number): Response {
 
 async function forward(request: Request, context: Context): Promise<Response> {
   const limiterKey = `ingest:${hashIp(clientIp(request))}`;
-  if (await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS)) {
+  if (isRateLimited(limiterKey, Date.now(), RATE_LIMIT, RATE_WINDOW_MS)) {
     return refusal(429);
   }
 

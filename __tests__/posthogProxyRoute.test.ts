@@ -104,7 +104,7 @@ describe("/ingest owned PostHog proxy", () => {
     await expect(response.text()).resolves.toBe("export {};");
   });
 
-  it("walls a 1 MB POST burst from one address once the budget is spent, before the body is read", async () => {
+  it("walls a 1 MB POST burst from one address once the budget is spent, before the body is read, and a neighbour still gets through", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response("{}", {
       status: 200,
       headers: { "content-type": "application/json" },
@@ -147,17 +147,9 @@ describe("/ingest owned PostHog proxy", () => {
     expect(walled.headers.get("cache-control")).toBe("no-store");
     expect(fetchMock).toHaveBeenCalledTimes(INGEST_BUDGET_PER_MINUTE);
     expect(bodyRead).toBe(false);
-  });
-
-  it("keys the budget on the address, so a neighbour still gets through", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    }));
-    vi.stubGlobal("fetch", fetchMock);
 
     const neighbour = await capturePost("198.51.100.8", JSON.stringify({ event: "$pageview" }));
     expect(neighbour.status).toBe(200);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(INGEST_BUDGET_PER_MINUTE + 1);
   });
 });
