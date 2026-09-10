@@ -52,7 +52,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 });
 
 import PublicRecapPage, { generateMetadata } from "@/app/recap/[storyId]/page";
-import { readPublishedRecapSource } from "@/lib/nightMemoryStore";
+import { getNightStory, readPublishedRecapSource } from "@/lib/nightMemoryStore";
 
 const STORY_ID = "0b6d6f4e-3f6f-4d0a-9d2e-3c1f0d2a5b7c";
 const MEMORY_ID = "memory-1";
@@ -187,6 +187,29 @@ describe("the store read has three answers", () => {
     await expect(readPublishedRecapSource(STORY_ID)).resolves.toEqual({ status: "absent" });
     // The gate refuses before it reads a single Moment, so nothing private leaks.
     expect(store.asked).not.toContain("night_moments");
+  });
+});
+
+describe("the public Story projection behind the OG card", () => {
+  it("answers the redacted Story when every read ran", async () => {
+    seedPublishedStory();
+    seedWithdrawnContributorWithMoment();
+    const story = await getNightStory(STORY_ID, null);
+    expect(story?.title).toBe("Friday orbit");
+  });
+
+  it("answers null when the contributors read failed, never an un-redacted Story", async () => {
+    seedPublishedStory();
+    seedWithdrawnContributorWithMoment();
+    store.answers.set("night_story_contributors", { data: null, error: OUTAGE });
+    await expect(getNightStory(STORY_ID, null)).resolves.toBeNull();
+  });
+
+  it("answers null when the consents read failed, never an un-redacted Story", async () => {
+    seedPublishedStory();
+    seedWithdrawnContributorWithMoment();
+    store.answers.set("night_moment_consents", { data: null, error: OUTAGE });
+    await expect(getNightStory(STORY_ID, null)).resolves.toBeNull();
   });
 });
 

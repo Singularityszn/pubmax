@@ -826,7 +826,9 @@ export async function getNightStory(
   const story = await getStoryRaw(storyId);
   if (!story) return null;
   if (story.status === "published" && story.visibility !== "private") {
-    const contributorsList = await getContributors(storyId);
+    const contributorsRead = await readContributors(storyId);
+    if (contributorsRead.status !== "found") return null;
+    const contributorsList = contributorsRead.rows;
     const membership = actorId
       ? contributorsList.some((item) => item.profileId === actorId && item.status === "accepted")
       : false;
@@ -846,7 +848,9 @@ export async function getNightStory(
       createdAt: story.createdAt,
       updatedAt: story.updatedAt,
     };
-    const departed = await resolveDepartedContributors(contributorsList, await getConsents(storyId));
+    const consentsRead = await readConsents(storyId);
+    if (consentsRead.status !== "found") return null;
+    const departed = await resolveDepartedContributors(contributorsList, consentsRead.rows);
     return redactPublicStoryFields(publicStory, departed);
   }
   if (!actorId) return null;
