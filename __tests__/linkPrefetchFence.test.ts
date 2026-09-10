@@ -115,7 +115,6 @@ const PENDING_GUARD: ReadonlyArray<{ file: string }> = [
   { file: "app/rounds/[code]/RoundPageClient.tsx" },
   { file: "app/rounds/page.tsx" },
   { file: "app/social/crews/[crewId]/CrewDetailClient.tsx" },
-  { file: "app/social/SocialPageClient.tsx" },
   { file: "app/today/TodayGetThereStrip.tsx" },
   { file: "app/today/TodayPintsCard.tsx" },
   { file: "app/today/TodayQuietPintCard.tsx" },

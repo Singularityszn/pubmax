@@ -268,7 +268,7 @@ export function SocialPostCard({ post, canEdit = false, draftScope, onEdited }: 
         <p className="socialPostPlace">
           {area ? <span>{area.name}</span> : null}
           {exactVenueId ? (
-            <Link href={venueMapUrl(exactVenueId)}>Open venue</Link>
+            <Link prefetch={false} href={venueMapUrl(exactVenueId)}>Open venue</Link>
           ) : null}
         </p>
       ) : null}
@@ -296,18 +296,21 @@ function PostsControls({
     <>
       <nav className="socialLaneNav" aria-label="Post lanes">
         <Link
+          prefetch={false}
           href="/social"
           aria-current={state.feed === "following" ? "page" : undefined}
         >
           Following
         </Link>
         <Link
+          prefetch={false}
           href="/social?feed=nearby"
           aria-current={state.feed === "nearby" ? "page" : undefined}
         >
           Nearby
         </Link>
         <Link
+          prefetch={false}
           href="/social?feed=discover"
           aria-current={state.feed === "discover" ? "page" : undefined}
         >
@@ -725,7 +728,7 @@ function SocialPageAccountState({
   ) : viewerPhase === "signed-out" ? (
     <Link href={SOCIAL_SIGN_IN_HREF}>Sign in</Link>
   ) : !isPosts && viewerPhase === "resolved" ? (
-    <Link href="/social">Post</Link>
+    <Link prefetch={false} href="/social">Post</Link>
   ) : (
     <button type="button" disabled>
       Post
@@ -757,10 +760,11 @@ function SocialPageAccountState({
               setFeedAttempt((value) => value + 1);
             }} /> : null}
             <nav className="socialSwitcher" aria-label={`${surfaceName} view`}>
-              <Link href="/social" aria-current={isPosts ? "page" : undefined}>
+              <Link prefetch={false} href="/social" aria-current={isPosts ? "page" : undefined}>
                 Posts
               </Link>
               <Link
+                prefetch={false}
                 href="/social?tab=discover"
                 aria-current={!isPosts ? "page" : undefined}
               >
