@@ -819,35 +819,13 @@ async function getStoryRaw(storyId: string): Promise<NightStory | null> {
   return read.status === "found" ? read.story : null;
 }
 
-export async function getNightStory(
-  storyId: string,
-  actorId: string | null,
-): Promise<NightStory | PublicNightStory | null> {
-  const story = await getStoryRaw(storyId);
-  if (!story) return null;
-  if (story.status === "published" && story.visibility !== "private") {
-    const contributorsRead = await readContributors(storyId);
-    if (contributorsRead.status !== "found") return null;
-    const contributorsList = contributorsRead.rows;
-    const membership = actorId
-      ? contributorsList.some((item) => item.profileId === actorId && item.status === "accepted")
-      : false;
-    // A member gets the unredacted Story (their own workspace projection); the
-    // public projection is redacted at the same choke so the OG card + any
-    // public API read never carries a departed person's identity (5.5).
-    if (membership) return story;
-    const read = await readPublicProjection(story, contributorsList);
-    return read.status === "found" ? read.story : null;
-  }
-  if (!actorId) return null;
-  const membership = (await getContributors(storyId)).some(
-    (item) => item.profileId === actorId && item.status === "accepted",
-  );
-  return membership ? story : null;
-}
-
 export type PublicNightStoryReadResult =
   | { status: "found"; story: PublicNightStory }
+  | { status: "absent" }
+  | { status: "unavailable" };
+
+export type NightStoryReadResult =
+  | { status: "found"; story: NightStory | PublicNightStory }
   | { status: "absent" }
   | { status: "unavailable" };
 
@@ -862,19 +840,47 @@ async function readPublicProjection(
 }
 
 /**
- * The public projection of a Story, three ways, for a surface that must tell
- * an outage apart from a Story that is absent or private: the OG card caches
- * its not-shared answer for a day, and a read we could not run must not be
- * pinned as one. `getNightStory(storyId, null)` is the two-way reading.
+ * A Story as one caller may see it, three ways. A member gets the unredacted
+ * Story (their own workspace projection); anyone else gets the public
+ * projection, redacted at the same choke so the OG card and any public API
+ * read never carries a departed person's identity (5.5). A read we could not
+ * run is `unavailable`, never `absent`, so no surface turns an outage into a
+ * 404 or a day-long not-shared card. `getNightStory` is the two-way reading.
  */
-export async function readPublicNightStory(storyId: string): Promise<PublicNightStoryReadResult> {
+export async function readNightStory(storyId: string, actorId: null): Promise<PublicNightStoryReadResult>;
+export async function readNightStory(storyId: string, actorId: string | null): Promise<NightStoryReadResult>;
+export async function readNightStory(storyId: string, actorId: string | null): Promise<NightStoryReadResult> {
   const storyRead = await readStoryRaw(storyId);
   if (storyRead.status !== "found") return storyRead;
   const { story } = storyRead;
-  if (story.status !== "published" || story.visibility === "private") return { status: "absent" };
+  const shared = story.status === "published" && story.visibility !== "private";
+  if (!actorId && !shared) return { status: "absent" };
   const contributorsRead = await readContributors(storyId);
   if (contributorsRead.status !== "found") return { status: "unavailable" };
+  const membership = actorId
+    ? contributorsRead.rows.some((item) => item.profileId === actorId && item.status === "accepted")
+    : false;
+  if (membership) return { status: "found", story };
+  if (!shared) return { status: "absent" };
   return readPublicProjection(story, contributorsRead.rows);
+}
+
+export async function getNightStory(
+  storyId: string,
+  actorId: string | null,
+): Promise<NightStory | PublicNightStory | null> {
+  const read = await readNightStory(storyId, actorId);
+  return read.status === "found" ? read.story : null;
+}
+
+/**
+ * The public projection of a Story, three ways, for a surface that must tell
+ * an outage apart from a Story that is absent or private: the OG card caches
+ * its not-shared answer for a day, and a read we could not run must not be
+ * pinned as one.
+ */
+export function readPublicNightStory(storyId: string): Promise<PublicNightStoryReadResult> {
+  return readNightStory(storyId, null);
 }
 
 export type PublishedRecapSource = { story: PublicNightStory; moments: NightMoment[] };

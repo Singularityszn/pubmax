@@ -19,6 +19,7 @@ vi.mock("next/navigation", () => ({
   },
 }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
+vi.mock("@/lib/authServer", () => ({ callerUserId: async () => null }));
 vi.mock("next/og", () => ({
   ImageResponse: class ImageResponse {
     element: unknown;
@@ -62,6 +63,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   };
 });
 
+import { GET as GET_STORY } from "@/app/api/night-stories/[id]/route";
 import OpenGraphImage from "@/app/recap/[storyId]/opengraph-image";
 import PublicRecapPage, { generateMetadata } from "@/app/recap/[storyId]/page";
 import { getNightStory, readPublicNightStory, readPublishedRecapSource } from "@/lib/nightMemoryStore";
@@ -284,6 +286,51 @@ describe("the OG card never pins an outage as a not-shared Story", () => {
     const { markup, cacheControl } = await renderOgCard();
     expect(markup).toContain("Friday orbit");
     expect(cacheControl).toBe(RECAP_OG_CACHE_HEADERS.rich);
+  });
+});
+
+describe("the public Story API answers an outage apart from an absence", () => {
+  const getStory = () =>
+    GET_STORY(new Request(`http://localhost/api/night-stories/${STORY_ID}`), {
+      params: Promise.resolve({ id: STORY_ID }),
+    });
+
+  it("serves the redacted Story when every read ran", async () => {
+    seedPublishedStory();
+    seedWithdrawnContributorWithMoment();
+    const response = await getStory();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ story: { id: STORY_ID, title: "Friday orbit" } });
+  });
+
+  it("answers 503 retryable when the contributors read failed, never 404", async () => {
+    seedPublishedStory();
+    seedWithdrawnContributorWithMoment();
+    store.answers.set("night_story_contributors", { data: null, error: OUTAGE });
+    const response = await getStory();
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "STORY_STORE_UNAVAILABLE", retryable: true });
+  });
+
+  it("answers 503 retryable when the consents read failed, never 404", async () => {
+    seedPublishedStory();
+    seedWithdrawnContributorWithMoment();
+    store.answers.set("night_moment_consents", { data: null, error: OUTAGE });
+    const response = await getStory();
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "STORY_STORE_UNAVAILABLE", retryable: true });
+  });
+
+  it("keeps 404 for a Story that is missing or private", async () => {
+    store.answers.set("night_stories", { data: null, error: null });
+    let response = await getStory();
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: "NOT_FOUND", retryable: false });
+
+    seedPublishedStory();
+    store.answers.set("night_stories", { data: publishedStoryRow({ visibility: "private" }), error: null });
+    response = await getStory();
+    expect(response.status).toBe(404);
   });
 });
 
