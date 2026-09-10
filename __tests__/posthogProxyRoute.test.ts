@@ -119,6 +119,8 @@ describe("/ingest owned PostHog proxy", () => {
     }
     expect(fetchMock).toHaveBeenCalledTimes(INGEST_BUDGET_PER_MINUTE);
 
+    // A zero high-water mark, so the stream pulls only when somebody reads it
+    // rather than filling its queue the moment the Request is built.
     let bodyRead = false;
     const unreadBody = new ReadableStream<Uint8Array>({
       pull(controller) {
@@ -126,7 +128,7 @@ describe("/ingest owned PostHog proxy", () => {
         controller.enqueue(oneMegabyte);
         controller.close();
       },
-    });
+    }, { highWaterMark: 0 });
     const walled = await POST(
       new Request("https://pubmaxxing.com/ingest/e/?ip=1&ver=1.407.2", {
         method: "POST",

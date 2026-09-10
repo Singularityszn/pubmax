@@ -235,24 +235,6 @@ export function derivedAmenityStatus(found: boolean): AmenityStatus {
   return found ? "known-true" : "unknown";
 }
 
-/**
- * Whether a HARD constraint may be treated as satisfied. Only a stated presence
- * counts, so an unknown fails a positive filter exactly as an absence does.
- * What separates them is what the reader is TOLD, which is the sentence below.
- */
-export function hardConstraintSatisfied(status: AmenityStatus): boolean {
-  return status === "known-true";
-}
-
-/**
- * The sentence a surface owes a reader when a hard constraint (alcohol-free,
- * step-free) narrowed a list. Without it a short list reads as "these are the
- * only pubs that qualify" when it means "these are the only ones we know of".
- */
-export function hardConstraintNotice(thing: string): string {
-  return `Only pubs we hold a confirmed ${thing} fact for are listed. Others may qualify and we have not checked.`;
-}
-
 /* ------------------------------------------------------------------ *
  * Suitability and getting in                                          *
  * ------------------------------------------------------------------ */

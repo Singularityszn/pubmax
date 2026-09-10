@@ -1,6 +1,18 @@
+import { isLimited } from "@/lib/pintDrops";
+import { clientIp, hashIp } from "@/lib/supabase";
+
 const POSTHOG_EU_INGEST_ORIGIN = "https://eu.i.posthog.com";
 const POSTHOG_EU_ASSET_ORIGIN = "https://eu-assets.i.posthog.com";
 const MAX_REQUEST_BYTES = 1024 * 1024;
+// Per-address budget (Astra P2-1). Every request through here lands in the
+// billed EU project, and nothing but the origin pin stood between a scripted
+// loop and 1 MB a request. One device's SDK flushes events about every three
+// seconds and replay about as often, so a phone spends under 40 a minute; 240
+// covers a table of phones sharing one carrier address and walls a loop. Not
+// paid spend, so the limiter's default fail-open degradation is fine here.
+// `__tests__/posthogProxyRoute.test.ts` names the same number.
+const RATE_LIMIT = 240;
+const RATE_WINDOW_MS = 60_000;
 const SAFE_REQUEST_CONTENT_TYPES = new Set([
   "application/json",
   "application/octet-stream",
@@ -92,7 +104,22 @@ async function boundedBody(request: Request): Promise<ArrayBuffer | null> {
   return body.buffer;
 }
 
+function refusal(status: number): Response {
+  return new Response(null, {
+    status,
+    headers: {
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+    },
+  });
+}
+
 async function forward(request: Request, context: Context): Promise<Response> {
+  const limiterKey = `ingest:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS)) {
+    return refusal(429);
+  }
+
   const { path } = await context.params;
   const url = upstreamUrl(request, path);
   if (!url) return new Response(null, { status: 404 });
@@ -122,13 +149,7 @@ async function forward(request: Request, context: Context): Promise<Response> {
       headers: downstreamResponseHeaders(upstream),
     });
   } catch {
-    return new Response(null, {
-      status: 502,
-      headers: {
-        "cache-control": "no-store",
-        "x-content-type-options": "nosniff",
-      },
-    });
+    return refusal(502);
   }
 }
 
