@@ -537,6 +537,7 @@ export function DiscoverBody({
               brandsForCategory(category).map((brand) => (
                 <li key={`${category}-${brand.id}`}>
                   <Link
+                    prefetch={false}
                     className="discoverBrandChip"
                     href={exploreHref(category, preferredCity, brand.id)}
                   >
@@ -565,6 +566,7 @@ export function DiscoverBody({
             {DISCOVER_CUISINE_CHIPS.map((tag) => (
               <li key={tag}>
                 <Link
+                  prefetch={false}
                   className="discoverCuisineChip"
                   href={hungryCuisineHref(tag, preferredCity)}
                 >

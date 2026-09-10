@@ -105,6 +105,7 @@ function VenueLink({
   const href = target.href;
   return (
     <Link
+      prefetch={false}
       className="palChatCardMain palChatCardBody--link"
       href={href}
       onClick={(event) => {
@@ -212,6 +213,7 @@ export function AnswerCard({
       </div>
       {card.venueId ? (
         <Link
+          prefetch={false}
           className="palChatCardAccept pressable"
           href={venueAcceptUrl(card.venueId, "pal")}
           onClick={() => acceptPalVenue(card, locality)}
