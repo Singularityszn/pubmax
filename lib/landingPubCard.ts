@@ -16,6 +16,8 @@
 // carry both a listed price and a history row. Deterministic, so the
 // prerendered document and its share card agree.
 
+import { normalizeBeer } from "@/lib/beers";
+import { buildDrinkBrandLanding } from "@/lib/drinkBrandLanding";
 import {
   answerEvidenceFor,
   HERO_RAIL_SIZE,
@@ -51,6 +53,12 @@ export type LandingPubCardData = {
   priceGbp: number;
   /** The pint the price is for, as the dataset names it. */
   pintName: string;
+  /**
+   * `/drink/<slug>` when the drink-brand landing family publishes a page for
+   * that pint over its floor, else null and the name prints as plain text.
+   * The same loader decides both, so the card can never link a 404.
+   */
+  drinkHref: string | null;
   /** Who listed it, or null when the row names no publisher. */
   publisher: { label: string; url: string } | null;
   /** ISO day the bundled dataset was collected. */
@@ -80,6 +88,12 @@ function pintLabel(venue: Venue): string {
   // Dataset pint names arrive shouted ("PRAVHA"); print them as a name.
   const cased = raw === raw.toUpperCase() ? raw.charAt(0) + raw.slice(1).toLowerCase() : raw;
   return `a pint of ${cased}`;
+}
+
+function drinkHrefFor(venue: Venue, venues: readonly Venue[]): string | null {
+  const beerId = normalizeBeer(venue.cheapestPint ?? "");
+  if (!beerId || !buildDrinkBrandLanding(beerId, venues)) return null;
+  return `/drink/${encodeURIComponent(beerId)}`;
 }
 
 /**
@@ -118,6 +132,7 @@ export function buildLandingPubCard(
     area: chosen.primaryBorough,
     priceGbp: arc.nowGbp,
     pintName: pintLabel(chosen),
+    drinkHref: drinkHrefFor(chosen, venues),
     publisher,
     collectedOn: opts.collectedOn,
     standing,

@@ -112,6 +112,8 @@ describe("landing pub card", () => {
       area: "City of London",
       priceGbp: 6.5,
       pintName: "a pint of Pravha",
+      // One pub is under the drink-brand floor, so the pint stays plain text.
+      drinkHref: null,
       // The house publisher label for that host (lib/drinks.ts), never the URL.
       publisher: { label: "Pint Prices", url: "https://www.pint-prices.com/pub/x" },
       collectedOn: "2026-07-03",

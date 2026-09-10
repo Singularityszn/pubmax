@@ -1,5 +1,6 @@
+import { BEERS } from "@/lib/beers";
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
-import { DRINK_BRANDS, haystackMatchesBrand } from "@/lib/drinkBrands";
+import { DRINK_BRANDS, haystackMatchesBrand, type DrinkBrand } from "@/lib/drinkBrands";
 import { namedLegacyPintPriceSource } from "@/lib/drinks";
 import {
   PRICED_LANDING_PUBLICATION_FLOORS,
@@ -12,6 +13,23 @@ import type { Venue, VenuePrice } from "@/lib/venues";
 
 export const DRINK_BRAND_LANDING_PUBLICATION_FLOOR =
   PRICED_LANDING_PUBLICATION_FLOORS["drink-brand"];
+
+/**
+ * The beers a priced landing may publish. The map lens catalogue comes first,
+ * with its own aliases, so no page it already publishes changes a row; then
+ * every canonical draught pint lib/beers.ts can name that the lens lacks. The
+ * landing card names its pint through lib/beers.ts, so a brand outside this
+ * list is a door onto a 404 (Astra plan lane 1.5: /drink/pravha). The floor
+ * still decides what publishes; the list only decides what may.
+ */
+export const DRINK_BRAND_LANDING_CATALOG: readonly DrinkBrand[] = [
+  ...DRINK_BRANDS.beer,
+  ...BEERS.filter((beer) => !DRINK_BRANDS.beer.some((brand) => brand.id === beer.id)),
+];
+
+export function findDrinkBrandLandingBrand(slug: string): DrinkBrand | null {
+  return DRINK_BRAND_LANDING_CATALOG.find((brand) => brand.id === slug) ?? null;
+}
 
 export type DrinkBrandLanding = {
   slug: string;
@@ -30,7 +48,7 @@ function comparePriceRows(left: VenuePrice, right: VenuePrice): number {
   );
 }
 
-function validMatchingPriceRows(venue: Venue, brand: (typeof DRINK_BRANDS.beer)[number]): VenuePrice[] {
+function validMatchingPriceRows(venue: Venue, brand: DrinkBrand): VenuePrice[] {
   return venue.prices.filter(
     (row) =>
       typeof row.pint_name === "string" &&
@@ -44,7 +62,7 @@ function validMatchingPriceRows(venue: Venue, brand: (typeof DRINK_BRANDS.beer)[
 /** Select the one exact, cheapest matching beer-brand row owned by a venue. */
 export function selectDrinkBrandPriceForVenue(
   venue: Venue,
-  brand: (typeof DRINK_BRANDS.beer)[number],
+  brand: DrinkBrand,
 ): VenuePrice | null {
   return validMatchingPriceRows(venue, brand).sort(comparePriceRows)[0] ?? null;
 }
@@ -52,7 +70,7 @@ export function selectDrinkBrandPriceForVenue(
 /** One venue's candidate row for a brand, or nothing when it has no such price. */
 export function drinkBrandCandidateForVenue(
   venue: Venue,
-  brand: (typeof DRINK_BRANDS.beer)[number],
+  brand: DrinkBrand,
 ): PricedLandingCandidate | null {
   if (!isPubVenueKind(venue.kind)) return null;
   const selected = selectDrinkBrandPriceForVenue(venue, brand);
@@ -71,7 +89,7 @@ export function buildDrinkBrandLanding(
   slug: string,
   venues: readonly Venue[],
 ): DrinkBrandLanding | null {
-  const brand = DRINK_BRANDS.beer.find((candidate) => candidate.id === slug);
+  const brand = findDrinkBrandLandingBrand(slug);
   if (!brand) return null;
 
   const candidates = venues.flatMap((venue) => {
@@ -92,7 +110,7 @@ export function buildDrinkBrandLanding(
 }
 
 export function listDrinkBrandLandings(venues: readonly Venue[]): DrinkBrandLanding[] {
-  return DRINK_BRANDS.beer.flatMap((brand) => {
+  return DRINK_BRAND_LANDING_CATALOG.flatMap((brand) => {
     const landing = buildDrinkBrandLanding(brand.id, venues);
     return landing ? [landing] : [];
   });

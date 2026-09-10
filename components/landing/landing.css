@@ -215,6 +215,7 @@
 
 .lpPubCard--photo .lpPubName a { color: var(--landing-photo-ink); }
 .lpPubCard--photo .lpPubName a:hover { color: var(--landing-photo-ink); }
+.lpPubCard--photo a.lpPubPint:hover,
 .lpPubCard--photo .lpPubSource a:hover,
 .lpPubCard--photo .lpPubThenSource a:hover { color: var(--landing-photo-ink); }
 
@@ -260,6 +261,8 @@
    row because it is the one figure on the first screen. */
 .lpPubPrice .priceBadge { font-size: var(--text-lg); min-block-size: 2.4rem; padding-inline: .7rem; }
 .lpPubPint { color: var(--ink-soft); font-size: var(--text-base); }
+a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
+a.lpPubPint:hover { color: var(--ink); }
 
 .lpPubSource {
   margin: 0;

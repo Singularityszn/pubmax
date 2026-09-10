@@ -25,7 +25,10 @@ import {
   isNightAreaRouteReady,
   type NightArea,
 } from "@/lib/nightAreas";
-import { selectDrinkBrandPriceForVenue } from "@/lib/drinkBrandLanding";
+import {
+  DRINK_BRAND_LANDING_CATALOG,
+  selectDrinkBrandPriceForVenue,
+} from "@/lib/drinkBrandLanding";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { type Venue, type VenuePrice } from "@/lib/venues";
 
@@ -531,7 +534,7 @@ describe("governed drink brand by Night Area landings", () => {
     const venues = await realVenues();
     const everyPair = listDrinkBrandAreaLandings(venues, NIGHT_AREAS);
 
-    for (const brand of DRINK_BRANDS.beer) {
+    for (const brand of DRINK_BRAND_LANDING_CATALOG) {
       expect(listDrinkBrandAreaLandingsForBrand(brand.id, venues, NIGHT_AREAS)).toEqual(
         everyPair.filter((landing) => landing.brandSlug === brand.id),
       );
@@ -554,7 +557,7 @@ describe("governed drink brand by Night Area landings", () => {
     expect(landings.length).toBeGreaterThan(0);
 
     const pairOrder = NIGHT_AREAS.filter(nightAreaPublishesPrices).flatMap((area) =>
-      DRINK_BRANDS.beer.map((brand) => `${area.slug}/${brand.id}`),
+      DRINK_BRAND_LANDING_CATALOG.map((brand) => `${area.slug}/${brand.id}`),
     );
     const published = landings.map(
       (landing) => `${landing.areaSlug}/${landing.brandSlug}`,

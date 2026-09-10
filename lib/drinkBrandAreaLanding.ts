@@ -1,6 +1,10 @@
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
-import { DRINK_BRANDS } from "@/lib/drinkBrands";
-import { drinkBrandCandidateForVenue } from "@/lib/drinkBrandLanding";
+import {
+  DRINK_BRAND_LANDING_CATALOG,
+  drinkBrandCandidateForVenue,
+  findDrinkBrandLandingBrand,
+} from "@/lib/drinkBrandLanding";
+import type { DrinkBrand } from "@/lib/drinkBrands";
 import { NIGHT_AREAS, type NightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import {
   PRICED_LANDING_PUBLICATION_FLOORS,
@@ -27,7 +31,7 @@ export type DrinkBrandAreaLanding = {
 
 function areaBrandCandidates(
   area: NightArea,
-  brand: (typeof DRINK_BRANDS.beer)[number],
+  brand: DrinkBrand,
   venues: readonly Venue[],
   areas: readonly NightArea[],
 ): PricedLandingCandidate[] {
@@ -45,7 +49,7 @@ export function buildDrinkBrandAreaLanding(
   areas: readonly NightArea[] = NIGHT_AREAS,
 ): DrinkBrandAreaLanding | null {
   const area = areas.find((candidate) => candidate.slug === areaSlug);
-  const brand = DRINK_BRANDS.beer.find((candidate) => candidate.id === brandSlug);
+  const brand = findDrinkBrandLandingBrand(brandSlug);
   if (!area || !brand || !nightAreaPublishesPrices(area)) return null;
 
   const published = publishablePricedRows(
@@ -95,7 +99,7 @@ export function listDrinkBrandAreaLandings(
   areas: readonly NightArea[] = NIGHT_AREAS,
 ): DrinkBrandAreaLanding[] {
   return areas.flatMap((area) =>
-    DRINK_BRANDS.beer.flatMap((brand) =>
+    DRINK_BRAND_LANDING_CATALOG.flatMap((brand) =>
       areaBrandLanding(area, brand.id, venues, areas),
     ),
   );
