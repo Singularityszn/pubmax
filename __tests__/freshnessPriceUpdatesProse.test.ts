@@ -19,6 +19,7 @@ type Dataset = {
   class: string;
   artifact: string | null;
   refreshWorkflow: string;
+  gate: string;
   stalenessBudgetHours: number | null;
   stamp: { kind: string; value?: string } | null;
 };
@@ -66,5 +67,24 @@ describe("price_updates prose and envelope agree", () => {
     expect(new Date(envelope.generatedAt).toISOString().slice(0, 10)).toBe(
       new Date(pintStamp?.value as string).toISOString().slice(0, 10),
     );
+  });
+});
+
+describe("food_price_updates carries no budget nobody can keep", () => {
+  // The row promised a 1440h refresh while no script in the tree writes its
+  // artifact, so it reported stale for ageing exactly as designed and took the
+  // merge bar red with it (astra-review P0-1). The night_signals shape holds:
+  // a null budget, and the reason in the registry's own prose.
+  const food = dataset("food_price_updates");
+
+  it("declares a null budget, the night_signals shape", () => {
+    expect(food.class).toBe("episodic");
+    expect(food.stalenessBudgetHours).toBeNull();
+  });
+
+  it("says in its gate why no budget is owed, and names no fixed collection day", () => {
+    expect(food.gate).toMatch(/no staleness budget/i);
+    expect(food.gate).toMatch(/never reported fresh/i);
+    expect(food.refreshWorkflow).not.toMatch(/\b20\d\d-\d\d-\d\d\b/);
   });
 });

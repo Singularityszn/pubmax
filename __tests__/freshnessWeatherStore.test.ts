@@ -54,14 +54,19 @@ describe("the weather freshness measurement", () => {
     expect(script).toContain("DURABLE_FEED_SOURCES");
   });
 
-  it("passes with no store credentials, and never calls an unmeasured feed fresh", () => {
+  it("names the weather store unmeasurable with no credentials, and never reports it fresh", () => {
+    // The credential case asserts the weather lines and the honesty sentence,
+    // never the exit code of the whole check. It once asserted `status === 0`
+    // and the absence of FRESHNESS CHECK FAILED, so a food-menu snapshot ageing
+    // past its budget took this weather proof red with it (astra-review P0-1).
+    // The exit code has its own case below, where the store is REQUIRED.
     const result = checkFreshness([]);
 
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain("UNRESOLVED");
-    expect(result.stdout).toContain('Durable store for "weather" is unmeasurable');
+    expect(result.stdout).toContain("UNRESOLVED (the age could not be determined):");
+    expect(result.stdout).toContain(
+      '? weather: Durable store for "weather" is unmeasurable without credentials in this runtime.',
+    );
     expect(result.stdout).toContain("They are NOT reported fresh");
-    expect(result.stdout).not.toContain("FRESHNESS CHECK FAILED");
   });
 
   it("fails where the store was supposed to be reachable", () => {
