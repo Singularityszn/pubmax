@@ -13,6 +13,8 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { evaluateFreshness } from "@/scripts/check_freshness.mjs";
+
 const ROOT = process.cwd();
 
 type Dataset = {
@@ -54,19 +56,47 @@ describe("the weather freshness measurement", () => {
     expect(script).toContain("DURABLE_FEED_SOURCES");
   });
 
-  it("names the weather store unmeasurable with no credentials, and never reports it fresh", () => {
-    // The credential case asserts the weather lines and the honesty sentence,
-    // never the exit code of the whole check. It once asserted `status === 0`
-    // and the absence of FRESHNESS CHECK FAILED, so a food-menu snapshot ageing
-    // past its budget took this weather proof red with it (astra-review P0-1).
-    // The exit code has its own case below, where the store is REQUIRED.
+  it("names the weather store unmeasurable with no credentials", () => {
+    // The credential case asserts only the weather lines, which print on both
+    // branches of the check, never the exit code or the summary sentence of
+    // the whole run. It once asserted `status === 0` and the absence of
+    // FRESHNESS CHECK FAILED, so a food-menu snapshot ageing past its budget
+    // took this weather proof red with it (astra-review P0-1). The exit code
+    // has its own case below, where the store is REQUIRED.
     const result = checkFreshness([]);
 
     expect(result.stdout).toContain("UNRESOLVED (the age could not be determined):");
     expect(result.stdout).toContain(
       '? weather: Durable store for "weather" is unmeasurable without credentials in this runtime.',
     );
-    expect(result.stdout).toContain("They are NOT reported fresh");
+  });
+
+  it("never reports the weather row fresh without credentials, whatever the rest of the registry does", async () => {
+    const weather = registry().datasets.find((dataset) => dataset.id === "weather");
+    const saved = {
+      SUPABASE_URL: process.env.SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    };
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    try {
+      const { results } = await evaluateFreshness({
+        rootDir: ROOT,
+        registry: { datasets: [weather] },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].id).toBe("weather");
+      expect(results[0].status).toBe("unknown");
+      expect(results[0].status).not.toBe("fresh");
+      expect(results[0].status).not.toBe("stale");
+      expect(results[0].detail).toContain('Durable store for "weather" is unmeasurable without credentials');
+    } finally {
+      for (const [key, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
   });
 
   it("fails where the store was supposed to be reachable", () => {
