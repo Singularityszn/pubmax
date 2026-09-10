@@ -1,8 +1,11 @@
 # Greene King menu scrape drops
 
-Local-only staging area for first-party Greene King menu payloads.
-`scripts/merge_greene_king_menus.mjs` reads these files — **no network** in the
-merge step. Never commit API keys (`FIRECRAWL_API_KEY` etc.).
+Local-only staging area for first-party Greene King menu payloads. No script
+in this tree merges these drops today: `scripts/merge_greene_king_menus.mjs` is
+not in the tree, so `public/data/food_price_updates/latest.json` advances only
+by hand and carries no staleness budget. The row `food_price_updates` in
+`data/freshness_registry.json` owns that contract. Never commit API keys
+(`FIRECRAWL_API_KEY` etc.).
 
 ## Layout
 
@@ -21,13 +24,10 @@ data/greene_king/
 
 1. Scrape a pub menu page (outside this repo / with your own key) into markdown.
 2. Drop the JSON under `raw/` (drinks) and/or interact text under `food/`.
-3. Run: `node scripts/merge_greene_king_menus.mjs`
-4. That writes `public/data/drink_price_updates/` + `public/data/food_price_updates/`.
-
-Without any scrape drops, the merge script still converts the London pubmaxxing
-beverage CSV (`data/pubmaxxing/london_pub_all_beverages_expanded.csv`) for pubs
-whose Greene King website slug matches a row in
-`public/data/pint_prices_app_dataset.json`.
+3. Publish the rows into `public/data/food_price_updates/` by hand, in
+   the schema `public/data/food_price_updates/README.md` names. The merge
+   script this step once named is not in the tree; adding one is a captain
+   decision, not a budget change.
 
 ## Firecrawl notes
 
