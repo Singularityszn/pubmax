@@ -17,10 +17,12 @@ export const DRINK_BRAND_LANDING_PUBLICATION_FLOOR =
 /**
  * The beers a priced landing may publish. The map lens catalogue comes first,
  * with its own aliases, so no page it already publishes changes a row; then
- * every canonical draught pint lib/beers.ts can name that the lens lacks. The
- * landing card names its pint through lib/beers.ts, so a brand outside this
- * list is a door onto a 404 (Astra plan lane 1.5: /drink/pravha). The floor
- * still decides what publishes; the list only decides what may.
+ * every canonical draught pint lib/beers.ts can name that the lens lacks, so a
+ * landing card whose cheapest pint is one of those (Pravha, Astra plan lane
+ * 1.5) has a page to link. The card matches its pint against this list with
+ * haystackMatchesBrand, the matcher the page itself uses, and links only when
+ * buildDrinkBrandLanding publishes (lib/landingPubCard.ts). The floor still
+ * decides what publishes; the list only decides what may.
  */
 export const DRINK_BRAND_LANDING_CATALOG: readonly DrinkBrand[] = [
   ...DRINK_BRANDS.beer,
