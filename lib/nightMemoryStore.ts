@@ -756,18 +756,41 @@ export async function markContributorsDepartedByProfileId(profileId: string): Pr
   return (data ?? []).length;
 }
 
-async function getStoryRaw(storyId: string): Promise<NightStory | null> {
-  if (!isSupabaseConfigured()) return stories.get(storyId) ?? null;
+type StoryReadResult =
+  | { status: "found"; story: NightStory }
+  | { status: "absent" }
+  | { status: "unavailable" };
+
+/**
+ * The Story row, three ways. A read we could not RUN is a fact about us and
+ * never a fact about the Story, so it is its own answer here; `getStoryRaw`
+ * below is the two-way reading for callers that already treat both absences
+ * alike.
+ */
+async function readStoryRaw(storyId: string): Promise<StoryReadResult> {
+  if (!isSupabaseConfigured()) {
+    const story = stories.get(storyId);
+    return story ? { status: "found", story } : { status: "absent" };
+  }
   const admin = requireSupabaseAdmin();
-  const [{ data, error }, { data: links }] = await Promise.all([
+  const [{ data, error }, { data: links, error: linksError }] = await Promise.all([
     admin.from("night_stories").select("*").eq("id", storyId).maybeSingle(),
     admin.from("night_story_moments").select("moment_id").eq("story_id", storyId),
   ]);
-  if (error || !data) return null;
-  return storyFromRow(
-    data as Record<string, unknown>,
-    (links ?? []).map((row) => String(row.moment_id)),
-  );
+  if (error || linksError) return { status: "unavailable" };
+  if (!data) return { status: "absent" };
+  return {
+    status: "found",
+    story: storyFromRow(
+      data as Record<string, unknown>,
+      (links ?? []).map((row) => String(row.moment_id)),
+    ),
+  };
+}
+
+async function getStoryRaw(storyId: string): Promise<NightStory | null> {
+  const read = await readStoryRaw(storyId);
+  return read.status === "found" ? read.story : null;
 }
 
 export async function getNightStory(
@@ -807,19 +830,38 @@ export async function getNightStory(
   return membership ? story : null;
 }
 
+export type PublishedRecapSource = { story: PublicNightStory; moments: NightMoment[] };
+
 /**
- * Read-only public recap source. Returns the story plus ONLY the moments that
- * cleared the full consent gate — the story is published and non-private, and
- * each moment is in `publishedMomentIds` (which the publish flow only ever fills
- * from owner-approved consents, and a later withdrawal empties). No auth account
- * or memory identifiers are exposed; nothing pending, withdrawn, or unlisted-off
- * leaks. Anything short of the gate returns null.
+ * What a public recap read really answered (astra-review P1-1).
+ *
+ * `getPublishedRecapSource` collapses three outcomes into `null`, and the page
+ * above it turns a null into `notFound()`, so a PostgREST error from
+ * `night_stories` or `night_moments` told a crew standing on a published Story
+ * that it does not exist. A read we could not RUN is a fact about us, never a
+ * fact about the Story, so it is its own answer and the surface words it as
+ * one. The twin is `PlanReadResult` in `lib/planStore.ts`.
  */
-export async function getPublishedRecapSource(
-  storyId: string,
-): Promise<{ story: PublicNightStory; moments: NightMoment[] } | null> {
-  const story = await getStoryRaw(storyId);
-  if (!story || story.status !== "published" || story.visibility === "private") return null;
+export type PublishedRecapReadResult =
+  | { status: "found"; source: PublishedRecapSource }
+  | { status: "absent" }
+  | { status: "unavailable" };
+
+/**
+ * Read-only public recap source, three ways. `found` carries the story plus
+ * ONLY the moments that cleared the full consent gate: the story is published
+ * and non-private, and each moment is in `publishedMomentIds` (which the
+ * publish flow only ever fills from owner-approved consents, and a later
+ * withdrawal empties). No auth account or memory identifiers are exposed;
+ * nothing pending, withdrawn, or unlisted-off leaks. Anything short of the gate
+ * is `absent`; a read the store could not run is `unavailable`, and nothing is
+ * read past the gate, so a refusal costs no Moment query.
+ */
+export async function readPublishedRecapSource(storyId: string): Promise<PublishedRecapReadResult> {
+  const storyRead = await readStoryRaw(storyId);
+  if (storyRead.status !== "found") return storyRead;
+  const { story } = storyRead;
+  if (story.status !== "published" || story.visibility === "private") return { status: "absent" };
 
   // The one-choke redaction (Wayfinder 5.5): a departing person's content and
   // identity are erased here, at the single public-emission gate, so every
@@ -834,7 +876,10 @@ export async function getPublishedRecapSource(
 
   const allow = new Set(story.publishedMomentIds);
   if (allow.size === 0) {
-    return redactStoryView({ story: safeNightStory(story), moments: [], departed });
+    return {
+      status: "found",
+      source: redactStoryView({ story: safeNightStory(story), moments: [], departed }),
+    };
   }
   let storyMoments: NightMoment[];
   if (!isSupabaseConfigured()) {
@@ -845,7 +890,9 @@ export async function getPublishedRecapSource(
       .select("*")
       .eq("memory_id", story.memoryId)
       .order("occurred_at", { ascending: true });
-    if (error) return null;
+    // A Moment read that failed is not a Story with no Moments, and it is not
+    // a Story that has gone. It is unavailable, and the page says so.
+    if (error) return { status: "unavailable" };
     storyMoments = (data ?? []).map((row) => momentFromRow(row as Record<string, unknown>));
   }
   // Two emission belts, composed in order — never one overwriting the other.
@@ -864,11 +911,24 @@ export async function getPublishedRecapSource(
     departed,
   });
   return {
-    story: redacted.story,
-    moments: redacted.moments.map((moment) =>
-      hasConfirmedAltText(moment) ? moment : { ...moment, altText: null },
-    ),
+    status: "found",
+    source: {
+      story: redacted.story,
+      moments: redacted.moments.map((moment) =>
+        hasConfirmedAltText(moment) ? moment : { ...moment, altText: null },
+      ),
+    },
   };
+}
+
+/**
+ * Found or not, for callers that already treat both absences alike (the recap
+ * card and its stats, which draw nothing either way). A surface that WORDS an
+ * absence to a reader asks `readPublishedRecapSource` instead.
+ */
+export async function getPublishedRecapSource(storyId: string): Promise<PublishedRecapSource | null> {
+  const read = await readPublishedRecapSource(storyId);
+  return read.status === "found" ? read.source : null;
 }
 
 export type NightStoryWorkspace = {
