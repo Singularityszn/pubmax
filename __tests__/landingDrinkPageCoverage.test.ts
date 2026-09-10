@@ -136,6 +136,22 @@ describe("every pint the landing card can name has a drink page or no link", () 
     }
   });
 
+  it("does not link a pint the page's own matcher would not list", () => {
+    const crowd = Array.from({ length: DRINK_BRAND_LANDING_PUBLICATION_FLOOR }, (_, i) =>
+      pub(`venue-hells-${i}`, "CAMDEN HELLS", 5.5),
+    );
+    const paleAle = pub("venue-pale", "CAMDEN PALE ALE", 5.2);
+    const venues = [paleAle, ...crowd];
+
+    expect(buildDrinkBrandLanding("camden-hells", venues)?.rows.map((row) => row.venueId)).not.toContain(
+      "venue-pale",
+    );
+
+    const card = buildLandingPubCard(venues, history("venue-pale"), { collectedOn: "2026-07-03", now: NOW });
+    expect(card?.pintName).toBe("a pint of Camden pale ale");
+    expect(card?.drinkHref).toBeNull();
+  });
+
   it("publishes /drink/pravha from the shipped dataset, and links the anchor card to it", async () => {
     const raw = JSON.parse(await readFile(DATASET_FILE, "utf8")) as VenuePrice[];
     const venues = groupVenuePrices(raw);

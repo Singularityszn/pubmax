@@ -16,8 +16,8 @@
 // carry both a listed price and a history row. Deterministic, so the
 // prerendered document and its share card agree.
 
-import { normalizeBeer } from "@/lib/beers";
-import { buildDrinkBrandLanding } from "@/lib/drinkBrandLanding";
+import { buildDrinkBrandLanding, DRINK_BRAND_LANDING_CATALOG } from "@/lib/drinkBrandLanding";
+import { haystackMatchesBrand } from "@/lib/drinkBrands";
 import {
   answerEvidenceFor,
   HERO_RAIL_SIZE,
@@ -91,9 +91,10 @@ function pintLabel(venue: Venue): string {
 }
 
 function drinkHrefFor(venue: Venue, venues: readonly Venue[]): string | null {
-  const beerId = normalizeBeer(venue.cheapestPint ?? "");
-  if (!beerId || !buildDrinkBrandLanding(beerId, venues)) return null;
-  return `/drink/${encodeURIComponent(beerId)}`;
+  const pint = venue.cheapestPint ?? "";
+  const brand = DRINK_BRAND_LANDING_CATALOG.find((candidate) => haystackMatchesBrand(pint, candidate));
+  if (!brand || !buildDrinkBrandLanding(brand.id, venues)) return null;
+  return `/drink/${encodeURIComponent(brand.id)}`;
 }
 
 /**
