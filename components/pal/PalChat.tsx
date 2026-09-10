@@ -512,7 +512,7 @@ export default function PalChat() {
         title={"What's the night?"}
         titleId="pal-chat-title"
         lede="Straight answers from what we have actually seen. Every card keeps its source. No made-up venues, prices, or events."
-        secondary={<Link href="/pal">Back to your Pub Pal</Link>}
+        secondary={<Link prefetch={false} href="/pal">Back to your Pub Pal</Link>}
       >
 
       <div className="palChatScroll" ref={scrollRef}>
@@ -666,7 +666,7 @@ export default function PalChat() {
             </span>
             <p className="palGlanceLine">
               {GLANCE_QUIET_LINE}{" "}
-              <Link className="palGlanceExit" href={`/map/${DEFAULT_CITY_ID}`}>
+              <Link prefetch={false} className="palGlanceExit" href={`/map/${DEFAULT_CITY_ID}`}>
                 {GLANCE_QUIET_EXIT}
               </Link>
             </p>
@@ -682,7 +682,7 @@ export default function PalChat() {
             </span>
             <p className="palGlanceLine">
               {cheapestLine}{" "}
-              <Link className="palGlanceExit" href="/near">
+              <Link prefetch={false} className="palGlanceExit" href="/near">
                 See the list.
               </Link>
             </p>
