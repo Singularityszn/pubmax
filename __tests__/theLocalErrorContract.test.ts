@@ -165,6 +165,15 @@ const LIMITER_EXEMPT_REFUSAL_ROUTES = new Set([
   "app/api/[[...unmatched]]/route.ts",
 ]);
 
+// A MUTATING ROUTE OUTSIDE app/api IS STILL A MUTATING ROUTE. `/ingest` is the
+// owned PostHog proxy: anyone may POST up to 1 MB into the billed EU project
+// through it, and it sits outside `app/api` so the sweep above never saw it
+// (Astra P2-1). It is named here so the limiter sweep reads it too. It is NOT
+// an envelope route: a browser SDK reads its status, never a JSON body.
+const MUTATING_ROUTES_OUTSIDE_API = [
+  "app/ingest/[...path]/route.ts",
+];
+
 describe("app/api rate limiting (tree-wide)", () => {
   it("gates every cron route with assertCronRequest instead of a limiter", () => {
     for (const file of ALL_ROUTES.filter((path) => path.includes("/cron/"))) {
@@ -179,9 +188,22 @@ describe("app/api rate limiting (tree-wide)", () => {
     }
   });
 
+  it("keeps the outside-api list honest: every entry still exists and mutates", () => {
+    for (const file of MUTATING_ROUTES_OUTSIDE_API) {
+      expect(existsSync(join(ROOT, file)), file).toBe(true);
+      expect(readFileSync(join(ROOT, file), "utf8"), file).toMatch(
+        /export (?:async )?(?:function|const) (?:POST|PUT|PATCH|DELETE)\b/,
+      );
+    }
+  });
+
   it("references a rate limiter (or a named delegation) in every non-cron mutating route", () => {
     const failures: string[] = [];
-    for (const file of ALL_ROUTES) {
+    const routes = [
+      ...ALL_ROUTES,
+      ...MUTATING_ROUTES_OUTSIDE_API.map((file) => join(ROOT, file)),
+    ];
+    for (const file of routes) {
       if (file.includes("/cron/")) continue;
       if (LIMITER_EXEMPT_REFUSAL_ROUTES.has(relative(ROOT, file))) continue;
       const source = readFileSync(file, "utf8");

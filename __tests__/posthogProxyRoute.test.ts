@@ -2,9 +2,31 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GET, POST } from "@/app/ingest/[...path]/route";
 
+// THE BUDGET ONE ADDRESS MAY SPEND ON /ingest IN A MINUTE (Astra P2-1). The
+// route cannot export the number (Next holds a route module to its handlers),
+// so this test names it: raising the budget means editing this line.
+const INGEST_BUDGET_PER_MINUTE = 240;
+const ONE_MEGABYTE = 1024 * 1024;
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
+
+function capturePost(ip: string, body: BodyInit): Promise<Response> {
+  return POST(
+    new Request("https://pubmaxxing.com/ingest/e/?ip=1&ver=1.407.2", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://pubmaxxing.com",
+        "x-forwarded-for": ip,
+        "x-real-ip": ip,
+      },
+      body,
+    }),
+    { params: Promise.resolve({ path: ["e"] }) },
+  );
+}
 
 describe("/ingest owned PostHog proxy", () => {
   it("forwards capture body with only fixed safe headers", async () => {
@@ -80,5 +102,60 @@ describe("/ingest owned PostHog proxy", () => {
     expect(Object.fromEntries(new Headers(init.headers))).toEqual({ accept: "*/*" });
     expect(response.headers.get("cache-control")).toBe("public, max-age=3600");
     await expect(response.text()).resolves.toBe("export {};");
+  });
+
+  it("walls a 1 MB POST burst from one address once the budget is spent, before the body is read", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const address = "198.51.100.7";
+    const oneMegabyte = new Uint8Array(ONE_MEGABYTE);
+
+    for (let i = 0; i < INGEST_BUDGET_PER_MINUTE; i += 1) {
+      const response = await capturePost(address, oneMegabyte);
+      expect(response.status, `request ${i + 1}`).toBe(200);
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(INGEST_BUDGET_PER_MINUTE);
+
+    let bodyRead = false;
+    const unreadBody = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        bodyRead = true;
+        controller.enqueue(oneMegabyte);
+        controller.close();
+      },
+    });
+    const walled = await POST(
+      new Request("https://pubmaxxing.com/ingest/e/?ip=1&ver=1.407.2", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-forwarded-for": address,
+        },
+        body: unreadBody,
+        // @ts-expect-error Node's fetch needs the duplex hint for a stream body.
+        duplex: "half",
+      }),
+      { params: Promise.resolve({ path: ["e"] }) },
+    );
+
+    expect(walled.status).toBe(429);
+    expect(walled.headers.get("cache-control")).toBe("no-store");
+    expect(fetchMock).toHaveBeenCalledTimes(INGEST_BUDGET_PER_MINUTE);
+    expect(bodyRead).toBe(false);
+  });
+
+  it("keys the budget on the address, so a neighbour still gets through", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const neighbour = await capturePost("198.51.100.8", JSON.stringify({ event: "$pageview" }));
+    expect(neighbour.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
