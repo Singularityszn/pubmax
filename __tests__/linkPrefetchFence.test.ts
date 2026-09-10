@@ -339,6 +339,18 @@ describe("a heavy-route Link is never prefetched on sight", () => {
       "app/crawls/[slug]/page.tsx",
       "app/crawls/[slug]/CrawlStoryPoster.tsx",
       "app/crawls/[slug]/not-found.tsx",
+      // astra-review P1-3, batch one (10 Sep 2026): the two hubs, the map
+      // canvas, the Pal chat, the profile, and five single-link surfaces.
+      "app/discover/DiscoverPageClient.tsx",
+      "app/social/SocialPageClient.tsx",
+      "components/PubMap.tsx",
+      "components/pal/PalChat.tsx",
+      "app/u/[handle]/ProfilePageClient.tsx",
+      "app/admin/AdminTokenForm.tsx",
+      "app/plan/[id]/not-found.tsx",
+      "app/plan/[id]/page.tsx",
+      "app/rounds/page.tsx",
+      "app/tonight/TonightListingsNotice.tsx",
     ]) {
       expect(guarded.has(file), `${file} carries an unguarded heavy link`).toBe(false);
     }
