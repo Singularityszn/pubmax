@@ -106,7 +106,6 @@ const PENDING_GUARD: ReadonlyArray<{ file: string }> = [
   { file: "app/activity/ActivityClient.tsx" },
   { file: "app/admin/AdminClient.tsx" },
   { file: "app/admin/AdminTokenForm.tsx" },
-  { file: "app/discover/DiscoverPageClient.tsx" },
   { file: "app/feed/FeedPageClient.tsx" },
   { file: "app/messages/MessagesInboxClient.tsx" },
   { file: "app/p/[id]/page.tsx" },
