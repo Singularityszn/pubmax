@@ -2,7 +2,7 @@
 name: protocol-browser-anti-stall
 description: >-
   Prevent browser automation from freezing, stalling, or colliding between parallel agents, and
-  enforce manual, headed, real-user driving (never scripted). Standardizes on the playwright-cli
+  support manual visual walkthroughs alongside automated regression tests. Includes playwright-cli
   (`npx --yes @playwright/cli@latest`) with named sessions (`-s=<name>`) so multiple agents each get
   their own isolated browser — replacing the single-instance Playwright MCP, where one shared
   profile could only be locked by one process at a time. Covers session naming, headed mode,
@@ -14,9 +14,17 @@ license: MIT
 
 # Browser Anti-Stall Protocol (playwright-cli)
 
-**Apply these rules to EVERY browser action. No exceptions.**
+## Runtime and test scope
 
-This repo drives browsers with **`playwright-cli`**, not the Playwright MCP. The MCP exposes one
+Use the browser selected by the user and the tools available in the current session.
+Codex CUA and `chrome-devtools-axi` are supported. Read their live documentation before use.
+The commands below apply when the selected runtime is `playwright-cli`.
+Keep session isolation, fresh observations, bounded retries, and evidence rules with every runtime.
+
+Use the manual walkthrough rules for visual inspection. Keep automated regression tests and required project checks enabled.
+A skill does not replace user instructions or the repository verification requirements.
+
+When using **`playwright-cli`**, give each task its own named session. The MCP exposes one
 browser per server and a persistent profile can only be locked by one process at a time, so
 parallel agents on the same repo fight over tabs and profile locks. The CLI gives every agent its
 own isolated browser via `-s=<session>`, costs far fewer tokens (no tool schemas or verbose trees
@@ -41,7 +49,7 @@ $PW -s=<session> <command> [args]
   per-shell and disappears; `npx` always resolves.
 - `--json` / `--raw` are available when you need machine-readable output.
 
-## 0. Manual & headed — never scripted (read first)
+## 0. Manual visual walkthrough (read first)
 
 You are driving a **real, visible browser** to feel what a user feels. A green script proves
 nothing about UX — *see the screen* and *watch the logs*.
@@ -53,8 +61,7 @@ nothing about UX — *see the screen* and *watch the logs*.
 3. **`eval` / `run-code` are inspection-only.** Use them ONLY to *read* state (DOM, computed
    styles, storage, perf) or to wait for an element — never to click, type, navigate, or submit.
    Driving the UI through code bypasses real events and hides the bug you are hunting.
-4. **No test files, no runner.** Do not write `*.spec.ts`, run `npx playwright test`, or use
-   codegen. You are here to *experience* the flow, not automate past it.
+4. Inspect the visible flow first. Use regression tests separately to verify fixes and satisfy project checks.
 5. **Look after every action.** Fresh `snapshot` + `screenshot` + `console` + `requests`, plus the
    dev-server terminal. Real pain surfaces on screen and in logs, not in an assertion.
 

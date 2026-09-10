@@ -121,7 +121,7 @@ test.describe("signed-in Plan capability recovery", () => {
     // it can be switched on the day a real authenticated e2e lane exists.
     // See #1300 for what would actually prove it.
     test.skip(
-      true,
+      !process.env.SUPABASE_SERVICE_ROLE_KEY,
       "No service-role key in the keyless e2e server: verifyCallerAuth answers \"unavailable\", so the claim PUT and the recovery PATCH both answer 503 by design.",
     );
     // This test asserts the recovery PATCH, not the resume cookie, so it leaves
