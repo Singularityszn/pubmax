@@ -670,22 +670,48 @@ export async function listNightStoryInbox(actorId: string): Promise<NightStorySt
   }
 }
 
-async function getContributors(storyId: string): Promise<StoryContributor[]> {
-  if (!isSupabaseConfigured()) return contributors.get(storyId) ?? [];
+type RowsReadResult<T> = { status: "found"; rows: T[] } | { status: "unavailable" };
+
+/**
+ * The contributor rows, two ways. A read we could not RUN is not an empty
+ * crew: the publish gate redacts by who has withdrawn, so an error read as
+ * "nobody" would emit a departed person's content. `getContributors` below is
+ * the fail-soft reading for callers that only ever narrow on the list.
+ */
+async function readContributors(storyId: string): Promise<RowsReadResult<StoryContributor>> {
+  if (!isSupabaseConfigured()) return { status: "found", rows: contributors.get(storyId) ?? [] };
   const { data, error } = await requireSupabaseAdmin()
     .from("night_story_contributors")
     .select("*")
     .eq("story_id", storyId);
-  return error ? [] : (data ?? []).map((row) => contributorFromRow(row as Record<string, unknown>));
+  if (error) return { status: "unavailable" };
+  return {
+    status: "found",
+    rows: (data ?? []).map((row) => contributorFromRow(row as Record<string, unknown>)),
+  };
 }
 
-async function getConsents(storyId: string): Promise<MomentConsent[]> {
-  if (!isSupabaseConfigured()) return consents.get(storyId) ?? [];
+async function getContributors(storyId: string): Promise<StoryContributor[]> {
+  const read = await readContributors(storyId);
+  return read.status === "found" ? read.rows : [];
+}
+
+async function readConsents(storyId: string): Promise<RowsReadResult<MomentConsent>> {
+  if (!isSupabaseConfigured()) return { status: "found", rows: consents.get(storyId) ?? [] };
   const { data, error } = await requireSupabaseAdmin()
     .from("night_moment_consents")
     .select("*")
     .eq("story_id", storyId);
-  return error ? [] : (data ?? []).map((row) => consentFromRow(row as Record<string, unknown>));
+  if (error) return { status: "unavailable" };
+  return {
+    status: "found",
+    rows: (data ?? []).map((row) => consentFromRow(row as Record<string, unknown>)),
+  };
+}
+
+async function getConsents(storyId: string): Promise<MomentConsent[]> {
+  const read = await readConsents(storyId);
+  return read.status === "found" ? read.rows : [];
 }
 
 /**
@@ -868,11 +894,17 @@ export async function readPublishedRecapSource(storyId: string): Promise<Publish
   // downstream surface (recap page, recap OG, feed) inherits the erase with no
   // second gate. Redaction is emission-time — the private source Moments below
   // are never mutated; only this projected copy is.
-  const [contributorsList, consentsList] = await Promise.all([
-    getContributors(storyId),
-    getConsents(storyId),
+  // The departed set is read three ways too: a contributors or consents read
+  // that failed is not "nobody has withdrawn", so it is unavailable, and it is
+  // answered before a single Moment is read.
+  const [contributorsRead, consentsRead] = await Promise.all([
+    readContributors(storyId),
+    readConsents(storyId),
   ]);
-  const departed = await resolveDepartedContributors(contributorsList, consentsList);
+  if (contributorsRead.status !== "found" || consentsRead.status !== "found") {
+    return { status: "unavailable" };
+  }
+  const departed = await resolveDepartedContributors(contributorsRead.rows, consentsRead.rows);
 
   const allow = new Set(story.publishedMomentIds);
   if (allow.size === 0) {

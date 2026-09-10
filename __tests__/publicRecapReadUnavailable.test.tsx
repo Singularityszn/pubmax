@@ -75,11 +75,11 @@ function publishedStoryRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function momentRow(id: string) {
+function momentRow(id: string, ownerId = "host") {
   return {
     id,
     memory_id: MEMORY_ID,
-    owner_id: "host",
+    owner_id: ownerId,
     kind: "quote",
     caption: "One more side quest",
     occurred_at: "2026-09-04T20:00:00.000Z",
@@ -92,6 +92,28 @@ function seedPublishedStory() {
   store.answers.set("night_stories", { data: publishedStoryRow(), error: null });
   store.answers.set("night_story_moments", { data: [{ moment_id: "m1" }], error: null });
   store.answers.set("night_moments", { data: [momentRow("m1")], error: null });
+}
+
+/** A crew member who deleted their account: their contributor row is withdrawn,
+ * and by design their published Moment still sits in the source, so only the
+ * emission gate stands between it and the public page. */
+function seedWithdrawnContributorWithMoment() {
+  store.answers.set("night_story_moments", { data: [{ moment_id: "m1" }, { moment_id: "m2" }], error: null });
+  store.answers.set("night_moments", { data: [momentRow("m1"), momentRow("m2", "departed")], error: null });
+  store.answers.set("night_story_contributors", {
+    data: [
+      { story_id: STORY_ID, profile_id: "host", role: "host", status: "accepted", joined_at: "2026-09-04T18:00:00.000Z" },
+      { story_id: STORY_ID, profile_id: "departed", role: "contributor", status: "withdrawn", joined_at: "2026-09-04T18:30:00.000Z" },
+    ],
+    error: null,
+  });
+  store.answers.set("night_moment_consents", {
+    data: [
+      { story_id: STORY_ID, moment_id: "m1", owner_id: "host", status: "approved", decided_at: "2026-09-04T21:00:00.000Z" },
+      { story_id: STORY_ID, moment_id: "m2", owner_id: "departed", status: "approved", decided_at: "2026-09-04T21:00:00.000Z" },
+    ],
+    error: null,
+  });
 }
 
 async function renderPage(): Promise<string> {
@@ -125,6 +147,32 @@ describe("the store read has three answers", () => {
     seedPublishedStory();
     store.answers.set("night_stories", { data: null, error: OUTAGE });
     await expect(readPublishedRecapSource(STORY_ID)).resolves.toEqual({ status: "unavailable" });
+  });
+
+  it("redacts a withdrawn contributor's Moment when every read ran", async () => {
+    seedPublishedStory();
+    seedWithdrawnContributorWithMoment();
+    const read = await readPublishedRecapSource(STORY_ID);
+    expect(read.status).toBe("found");
+    if (read.status !== "found") return;
+    expect(read.source.moments.map((moment) => moment.id)).toEqual(["m1"]);
+  });
+
+  it("answers unavailable when the contributors read failed, never a found source with the departed Moment", async () => {
+    seedPublishedStory();
+    seedWithdrawnContributorWithMoment();
+    store.answers.set("night_story_contributors", { data: null, error: OUTAGE });
+    await expect(readPublishedRecapSource(STORY_ID)).resolves.toEqual({ status: "unavailable" });
+    // Refused before a single Moment was read.
+    expect(store.asked).not.toContain("night_moments");
+  });
+
+  it("answers unavailable when the consents read failed, never a found source with the departed Moment", async () => {
+    seedPublishedStory();
+    seedWithdrawnContributorWithMoment();
+    store.answers.set("night_moment_consents", { data: null, error: OUTAGE });
+    await expect(readPublishedRecapSource(STORY_ID)).resolves.toEqual({ status: "unavailable" });
+    expect(store.asked).not.toContain("night_moments");
   });
 
   it("still answers absent for a Story that is missing, private or unpublished", async () => {
