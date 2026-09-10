@@ -28,7 +28,7 @@ type Dataset = {
 
 const registry = JSON.parse(
   readFileSync(path.join(ROOT, "data", "freshness_registry.json"), "utf8"),
-) as { datasets: Dataset[] };
+) as { version: number; datasets: Dataset[] };
 
 function dataset(id: string): Dataset {
   const found = registry.datasets.find((entry) => entry.id === id);

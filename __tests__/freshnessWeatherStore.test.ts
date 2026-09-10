@@ -25,7 +25,7 @@ type Dataset = {
   stalenessBudgetHours: number | null;
 };
 
-function registry(): { datasets: Dataset[] } {
+function registry(): { version: number; datasets: Dataset[] } {
   return JSON.parse(readFileSync(join(ROOT, "data/freshness_registry.json"), "utf8"));
 }
 
@@ -72,7 +72,9 @@ describe("the weather freshness measurement", () => {
   });
 
   it("never reports the weather row fresh without credentials, whatever the rest of the registry does", async () => {
-    const weather = registry().datasets.find((dataset) => dataset.id === "weather");
+    const { version, datasets } = registry();
+    const weather = datasets.find((dataset) => dataset.id === "weather");
+    expect(weather).toBeDefined();
     const saved = {
       SUPABASE_URL: process.env.SUPABASE_URL,
       SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -82,7 +84,7 @@ describe("the weather freshness measurement", () => {
     try {
       const { results } = await evaluateFreshness({
         rootDir: ROOT,
-        registry: { datasets: [weather] },
+        registry: { version, datasets: [weather as Dataset] },
       });
 
       expect(results).toHaveLength(1);
