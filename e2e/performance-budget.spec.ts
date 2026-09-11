@@ -140,12 +140,11 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
   // 103319591915 and its re-run on the IDENTICAL commit 3ebac98ac shared three
   // of their eleven breached routes. `judgeBudgets` is the one owner of the
   // rule (lib/performanceBudgets.ts), and it is pure, so it is unit-tested with
-  // no browser: a run in which no sample ever met a ceiling is over budget
-  // however wide it was, and a run that disagrees past the tracked width while
-  // STRADDLING the ceiling did not measure it. Every route and metric is asked,
-  // not only the rows already over, so a straddling run is named whichever side
-  // of its ceiling the median fell on. Only a clock is ever excused: a count
-  // that disagrees is a route doing different work (CLOCK_METRICS).
+  // no browser. A clock is reported unmeasured only when all three hold: at
+  // least one sample met the ceiling and at least one went past it, the samples
+  // disagree past the tracked width, and the median sits over the ceiling by no
+  // more than half the spread. It is judged on its median otherwise, and only a
+  // clock is ever excused (CLOCK_METRICS). The module carries the reasoning.
   const { breaches, unmeasured } = judgeBudgets(
     budgets.routes,
     measured,
@@ -177,13 +176,14 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
     unmeasured.length === 0
       ? ""
       : `\n[perf-budget][unmeasured] ${unmeasured.length} ceiling(s) this run could NOT decide. ` +
-        `Their samples disagreed past the tracked ${budgets.method.sampleSpreadWarnPct}% width ` +
-        `and STRADDLED the ceiling, so which side the median fell was whichever way the runner ` +
-        `leaned. They are left off the breach list rather than failed, and off the ratchet table, ` +
-        `and a row whose median landed UNDER its ceiling is named here too, because the same ` +
-        `evidence may not read as a clean pass one way and as undecided the other. Only a clock ` +
-        `is ever undecided: a count that disagrees is a route doing different work. None of them ` +
-        `is green:\n` +
+        `One sample met the ceiling and another went past it, they disagreed past the tracked ` +
+        `${budgets.method.sampleSpreadWarnPct}% width, and the median sat over the ceiling by no ` +
+        `more than half the spread, so which side it fell was whichever way the runner leaned. A ` +
+        `median further over than that is a breach, however wide the run. These are left off the ` +
+        `breach list rather than failed, and off the ratchet table, and a row whose median landed ` +
+        `UNDER its ceiling is named here too, because the same evidence may not read as a clean ` +
+        `pass one way and as undecided the other. Only a clock is ever undecided: a count that ` +
+        `disagrees is a route doing different work. None of them is green:\n` +
         `${formatUnmeasuredTable(unmeasured)}\n`;
   if (unmeasuredReport) console.log(unmeasuredReport);
 
