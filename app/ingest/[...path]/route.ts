@@ -130,15 +130,15 @@ async function forward(request: Request, context: Context): Promise<Response> {
 
   const { path } = await context.params;
   const url = upstreamUrl(request, path);
-  if (!url) return new Response(null, { status: 404 });
+  if (!url) return refusal(404);
 
   const headers = upstreamRequestHeaders(request);
-  if (!headers) return new Response(null, { status: 415 });
+  if (!headers) return refusal(415);
 
   let body: ArrayBuffer | undefined;
   if (request.method === "POST") {
     const bounded = await boundedBody(request);
-    if (!bounded) return new Response(null, { status: 413 });
+    if (!bounded) return refusal(413);
     body = bounded;
   }
 

@@ -10,6 +10,7 @@ const ONE_MEGABYTE = 1024 * 1024;
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 function capturePost(ip: string, body: BodyInit): Promise<Response> {
@@ -110,17 +111,23 @@ describe("/ingest owned PostHog proxy", () => {
       headers: { "content-type": "application/json" },
     }));
     vi.stubGlobal("fetch", fetchMock);
+    // The route reads its own clock, and 240 sequential 1 MB body reads on a
+    // loaded runner could outlast the real 60 s window and expire the earliest
+    // hits, so the burst would stop being a burst.
+    vi.spyOn(Date, "now").mockReturnValue(Date.now());
     const address = "198.51.100.7";
     const oneMegabyte = new Uint8Array(ONE_MEGABYTE);
 
+    // Count each forwarded call and drop it again, so the peak holds one 1 MB
+    // body rather than the whole burst.
+    let forwarded = 0;
     for (let i = 0; i < INGEST_BUDGET_PER_MINUTE; i += 1) {
       const response = await capturePost(address, oneMegabyte);
       expect(response.status, `request ${i + 1}`).toBe(200);
+      forwarded += fetchMock.mock.calls.length;
+      fetchMock.mockClear();
     }
-    expect(fetchMock).toHaveBeenCalledTimes(INGEST_BUDGET_PER_MINUTE);
-    // Drop the recorded calls, and with them the 1 MB body each one holds: the
-    // burst is proved, and the counts below read from a clean mock.
-    fetchMock.mockClear();
+    expect(forwarded).toBe(INGEST_BUDGET_PER_MINUTE);
 
     // A zero high-water mark, so the stream pulls only when somebody reads it
     // rather than filling its queue the moment the Request is built.

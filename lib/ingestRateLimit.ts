@@ -2,9 +2,13 @@
  * The sliding-window budget the `/ingest` PostHog proxy spends, and nothing
  * else (Astra P2-1).
  *
- * It is a LEAF on purpose: it imports nothing, so the busiest public route does
- * not pull the Supabase client, the demo Pint Drop seeds and the rest of that
- * graph into its bundle to reach a counter.
+ * It is a LEAF on purpose: it imports nothing, so reaching a counter no longer
+ * pulls `@/lib/pintDrops` and its Pint Drop seeds, cities, drink measures and
+ * logging into the route's graph. It does NOT remove `@supabase/supabase-js`:
+ * the route still imports `clientIp` and `hashIp` from `@/lib/supabase`, which
+ * imports `createClient` at the top level. What holds is the request-time
+ * claim: nothing on this path makes a Supabase CALL, so a Supabase outage
+ * cannot wall the error telemetry that reports it.
  *
  * It differs from the shared limiter in `lib/pintDrops.ts` in the two ways the
  * flood it exists for makes reachable:
