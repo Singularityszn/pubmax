@@ -153,16 +153,17 @@ describe("app/api public error envelope (tree-wide)", () => {
 // only NAMES a limiter in prose cannot answer for a call it does not make.
 //
 // The stripper tracks quote state and drops `//` and `/* */`. It does NOT model
-// regex literals, and it does not need to: a block-comment opener cannot start
-// a regex literal. A `/` inside a character class, as in `[/]`, can therefore be
-// mis-read as the start of a comment.
+// regex literals, so a `/` inside a character class can be read as the start of
+// a comment, and a regex holding an odd number of quote characters opens a
+// quote that never closes.
 //
-// THAT MIS-READ FAILS RED. The stripper only ever deletes characters, and the
-// sweep asks whether a limiter token is PRESENT in what is left, while
-// `mutating` is decided on the raw source. So a mis-strip can only take a token
-// away and report a compliant route as an offender. It can never let a route
-// with no limiter pass, and it can never make the offender list shorter.
-function codeWithoutComments(source: string): string {
+// IT IS RED BY CONSTRUCTION. A source it cannot read to the end in a balanced
+// state is a source it FAILED to strip, and it answers null rather than handing
+// back text it did not understand. The sweep then reports that route as an
+// offender. Everything else it does is deletion, and the sweep asks whether a
+// limiter token is PRESENT in what is left, so no route with no limiter can
+// pass, whether the stripper understood it or gave up.
+function codeWithoutComments(source: string): string | null {
   let out = "";
   let quote: string | null = null;
   let i = 0;
@@ -207,12 +208,13 @@ function codeWithoutComments(source: string): string {
     i += 1;
   }
 
-  return out;
+  return quote === null ? out : null;
 }
 
 /** True when the CODE of `source` consults a limiter or a named delegation. */
 function consultsLimiter(source: string): boolean {
-  return LIMITER_TOKENS.test(codeWithoutComments(source));
+  const code = codeWithoutComments(source);
+  return code !== null && LIMITER_TOKENS.test(code);
 }
 
 const LIMITER_TOKENS =
@@ -233,26 +235,19 @@ const LIMITER_EXEMPT_REFUSAL_ROUTES = new Set([
 
 // A MUTATING ROUTE OUTSIDE app/api IS STILL A MUTATING ROUTE. `/ingest` is the
 // owned PostHog proxy: anyone may POST up to 1 MB into the billed EU project
-// through it, and it shipped unlimited because the sweep above reads `app/api`
-// and nothing else, so no fence ever looked at it. It is named here so the
-// limiter sweep reads it too. It is NOT an envelope route: a browser SDK reads
-// its status, never a JSON body.
+// through it, and it shipped unlimited because the sweep read `app/api` and
+// nothing else, so no fence ever looked at it. The sweep now walks the whole
+// `app` tree, so a mutating route cannot escape it by living outside `app/api`
+// and nothing has to be listed by hand. `/ingest` is NOT an envelope route: a
+// browser SDK reads its status, never a JSON body.
 const MUTATING_METHODS = ["POST", "PUT", "PATCH", "DELETE"] as const;
 
 // ONE ANSWER TO "DOES THIS ROUTE MUTATE": the handlers the module really
-// exports. A source scan would miss a handler exported indirectly, and the
-// outside-api list and the limiter sweep must not disagree about one route.
+// exports. A source scan would miss a handler exported indirectly.
 async function exportsMutatingHandler(load: () => Promise<unknown>): Promise<boolean> {
   const mod = (await load()) as Record<string, unknown>;
   return MUTATING_METHODS.some((method) => typeof mod[method] === "function");
 }
-
-const MUTATING_ROUTES_OUTSIDE_API = [
-  {
-    file: "app/ingest/[...path]/route.ts",
-    load: () => import("@/app/ingest/[...path]/route"),
-  },
-];
 
 describe("app/api rate limiting (tree-wide)", () => {
   it("gates every cron route with assertCronRequest instead of a limiter", () => {
@@ -268,36 +263,9 @@ describe("app/api rate limiting (tree-wide)", () => {
     }
   });
 
-  it("keeps the outside-api list honest: every entry still exists and mutates", async () => {
-    for (const { file, load } of MUTATING_ROUTES_OUTSIDE_API) {
-      expect(existsSync(join(ROOT, file)), file).toBe(true);
-      await expect(exportsMutatingHandler(load)).resolves.toBe(true);
-    }
-  });
-
-  it("keeps the outside-api list complete: no mutating route outside app/api is unlisted", async () => {
-    const listed = new Set(MUTATING_ROUTES_OUTSIDE_API.map(({ file }) => join(ROOT, file)));
-    const inspected: string[] = [];
-    const unlisted: string[] = [];
-
-    for (const file of routeFiles(join(ROOT, "app"))) {
-      if (file.startsWith(join(ROOT, "app/api"))) continue;
-      if (listed.has(file)) continue;
-      inspected.push(relative(ROOT, file));
-      if (await exportsMutatingHandler(() => import(file))) unlisted.push(relative(ROOT, file));
-    }
-
-    expect(inspected.length).toBeGreaterThan(0);
-    expect(unlisted, unlisted.join("\n")).toEqual([]);
-  });
-
   it("references a rate limiter (or a named delegation) in every non-cron mutating route", async () => {
     const failures: string[] = [];
-    const routes = [
-      ...ALL_ROUTES,
-      ...MUTATING_ROUTES_OUTSIDE_API.map(({ file }) => join(ROOT, file)),
-    ];
-    for (const file of routes) {
+    for (const file of routeFiles(join(ROOT, "app"))) {
       if (file.includes("/cron/")) continue;
       if (LIMITER_EXEMPT_REFUSAL_ROUTES.has(relative(ROOT, file))) continue;
       if (!(await exportsMutatingHandler(() => import(file)))) continue;
@@ -305,6 +273,26 @@ describe("app/api rate limiting (tree-wide)", () => {
       failures.push(relative(ROOT, file));
     }
     expect(failures, failures.join("\n")).toEqual([]);
+  });
+
+  it("refuses a route whose regex literal leaves the stripper mid-quote", () => {
+    const quotesInClass = [
+      "// The durable limiter (`isLimited`) is NOT used on purpose.",
+      'const quoted = /["\']/;',
+      "export async function POST(): Promise<Response> {",
+      "  return new Response(null, { status: 204 });",
+      "}",
+    ].join("\n");
+    const apostrophe = [
+      "// The durable limiter (`isLimited`) is NOT used on purpose.",
+      "const contraction = /don't/;",
+      "export async function POST(): Promise<Response> {",
+      "  return new Response(null, { status: 204 });",
+      "}",
+    ].join("\n");
+
+    expect(consultsLimiter(quotesInClass)).toBe(false);
+    expect(consultsLimiter(apostrophe)).toBe(false);
   });
 
   it("keeps a real call and a URL inside a string readable to the sweep", () => {

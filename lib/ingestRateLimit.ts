@@ -43,8 +43,11 @@ function sweepExpiredKeys(store: LimiterWindows, now: number, windowMs: number):
 
 /**
  * True when `key` has already spent `limit` hits inside `windowMs`. `store`
- * defaults to the per-instance window every caller shares; a caller may pass
- * its own so a budget can be spent and inspected in isolation.
+ * defaults to the per-instance window every caller shares, and every caller
+ * uses that default; a caller may pass its own window instead. The seam exists
+ * because dropping an expired key is a memory property with no return value to
+ * observe, and the alternative was exporting an introspection surface that only
+ * a test would ever call.
  */
 export function ingestRateLimited(
   key: string,
