@@ -348,34 +348,34 @@ export type BudgetVerdict = {
  * behind both spreading past 90 per cent. The sweep already SAID so - the
  * warning simply changed nothing.
  *
- * So the samples decide whether their own median may be converted into a
- * breach, and the test is unanimity:
+ * So the samples decide whether their own median may be read as a verdict, and
+ * the test is unanimity:
  *
- *   - samples whose FASTEST is clear of the ceiling by more than jitter are over
- *     budget however wide they are, because no median that evidence allows is
- *     under. This is the half that keeps a genuinely slow route failing, and it
- *     is why a wide spread is never a licence.
- *   - samples that disagree past `sampleSpreadWarnPct` while their fastest sits
- *     on the line did not measure the ceiling. The verdict came from which
- *     samples happened to land, so the run is reported UNMEASURED.
- *   - samples that AGREE with each other have measured a route that really does
- *     sit on its line, and that is a breach however small the excess.
+ *   - samples of which NOT ONE met the ceiling are over budget however wide
+ *     they are, because no median that evidence allows is under. This is the
+ *     half that keeps a genuinely slow route failing, and it is why a wide
+ *     spread is never a licence.
+ *   - samples that disagree past `sampleSpreadWarnPct` while at least one of
+ *     them met the ceiling did not measure that ceiling. Which side the median
+ *     fell is down to which samples happened to land, so the run is reported
+ *     UNMEASURED.
+ *   - samples that AGREE with each other have measured the route, and their
+ *     median is the verdict however close to the line it sits.
  *
- * "On the line" is the band the method already tracks, `resampleWithinCeilingPct`
- * either side of the ceiling, and `medianSitsOnTheLine` says the same thing
- * about the median: a figure that close is decided by jitter. Reusing it here
- * means no new number, and it is what separates `/crawls` in the second run of
- * 3ebac98ac - seven samples from 308 to 408 against a 300 ms ceiling, its
- * fastest 2.7 per cent over - from a route running 400 to 1200 against the same
- * ceiling, whose fastest sample is a third over it and whose verdict the width
- * does not touch.
+ * The anchor is THE CEILING ITSELF rather than a band around it. The first cut
+ * let the fastest sample sit `resampleWithinCeilingPct` over the line, which
+ * excluded samples of 320, 800 and 1200 against a 300 ms ceiling: a median two
+ * thirds over budget, laundered by a fastest sample 10 ms inside the band. A
+ * run in which no sample ever met the ceiling is a breach whatever its spread.
+ * `medianSitsOnTheLine` still owns that band, because how many samples to BUY
+ * is a different question from what the samples already bought may say.
  *
  * The metric's `sampleSpreadFloors` entry is deliberately NOT asked here. It
  * exists so `findMethodWarnings` does not fire on every route on every run,
- * where a percentage alone is not information; a spread that reaches the jitter
- * band around the ceiling already supplies that relevance. Asking the floor as
- * well would leave `/rounds` red at 308 against 300 off samples running 240 to
- * 328, which is the shape of red this whole rule exists to stop.
+ * where a percentage alone is not information; a spread wide enough to straddle
+ * the ceiling already supplies that relevance. Asking the floor as well would
+ * leave `/rounds` red at 308 against 300 off samples running 240 to 328, which
+ * is the shape of red this whole rule exists to stop.
  *
  * WHY EXCLUDE RATHER THAN RESAMPLE UNTIL THE SPREAD CLOSES. Extra samples can
  * only move a median, so a loop that stops when the spread closes stops exactly
@@ -399,20 +399,28 @@ function undecidedMetric(
   if (!Number.isFinite(spread.spreadPct) || spread.spreadPct <= method.sampleSpreadWarnPct) {
     return null;
   }
-  // The fastest sample is clear of the ceiling AND of the jitter band around
-  // it, so the wide part of this evidence changes no verdict.
-  const jitterBand = budget * (1 + (method.resampleWithinCeilingPct ?? 0) / 100);
-  if (spread.min > jitterBand) return null;
+  // Not one sample in the run met the ceiling, so no median this evidence
+  // allows is under it and the wide part of it changes no verdict.
+  if (spread.min > budget) return null;
   return { median: median(values), min: spread.min, max: spread.max, spreadPct: spread.spreadPct };
 }
 
 /**
  * The sweep's verdict: what went past a ceiling, and what could not say.
  *
- * Every breach `findBudgetBreaches` finds is kept unless the samples behind it
- * could not decide that ceiling. A route with no samples at all is untouched:
- * it is still a breach of every metric, because a budget nothing checked is not
- * a budget.
+ * THE REPORT READS BOTH WAYS. Every route and every metric is asked whether its
+ * own samples decided their ceiling, rather than only the rows
+ * `findBudgetBreaches` already flagged, so a wide straddling run is named
+ * whichever side of the line its median happened to fall on. The same evidence
+ * may not read as a clean pass in one run and as undecided in the next: that
+ * one-sided shape is what the captain refused on 7 September for the resample
+ * band, and it is refused here too.
+ *
+ * NO VERDICT MOVES WITH IT. A metric whose median is under its ceiling still
+ * passes, and the gate can still only ever fail on a breach. An undecided
+ * ceiling is reported and left off the breach list. A route with no samples at
+ * all is untouched: it is still a breach of every metric, because a budget
+ * nothing checked is not a budget.
  */
 export function judgeBudgets(
   budgets: readonly RouteBudget[],
@@ -420,22 +428,21 @@ export function judgeBudgets(
   samplesByPath: ReadonlyMap<string, readonly SampleRow[]>,
   method: BudgetMethod = PERFORMANCE_BUDGETS.method,
 ): BudgetVerdict {
-  const breaches: BudgetBreach[] = [];
   const unmeasured: UnmeasuredMetric[] = [];
-  for (const breach of findBudgetBreaches(budgets, measured)) {
-    const samples = samplesByPath.get(breach.path) ?? [];
-    const undecided = undecidedMetric(samples, breach.metric, breach.budget, method);
-    if (undecided) {
-      unmeasured.push({
-        path: breach.path,
-        metric: breach.metric,
-        budget: breach.budget,
-        ...undecided,
-      });
-      continue;
+  const undecided = new Set<string>();
+  for (const route of budgets) {
+    const samples = samplesByPath.get(route.path) ?? [];
+    for (const metric of BUDGET_METRICS) {
+      const budget = route[metric];
+      const figures = undecidedMetric(samples, metric, budget, method);
+      if (!figures) continue;
+      undecided.add(`${route.path}\u0000${metric}`);
+      unmeasured.push({ path: route.path, metric, budget, ...figures });
     }
-    breaches.push(breach);
   }
+  const breaches = findBudgetBreaches(budgets, measured).filter(
+    (breach) => !undecided.has(`${breach.path}\u0000${breach.metric}`),
+  );
   return { breaches, unmeasured };
 }
 
@@ -504,6 +511,24 @@ function figure(value: number): string {
 }
 
 /**
+ * One report table, rendered the one way: every column padded to its widest
+ * cell, a rule under the header and no trailing space. Every table this module
+ * prints goes through here, so a new one cannot drift from the others.
+ */
+function table(header: readonly string[], rows: readonly string[][]): string {
+  const widths = header.map((cell, column) =>
+    Math.max(cell.length, ...rows.map((row) => row[column].length)),
+  );
+  const line = (cells: readonly string[]) =>
+    cells.map((cell, column) => pad(cell, widths[column])).join("  ").trimEnd();
+  return [
+    line(header),
+    widths.map((width) => "-".repeat(width)).join("  "),
+    ...rows.map(line),
+  ].join("\n");
+}
+
+/**
  * The ratchet table a green run prints when there is slack to bank. Empty
  * string when every ceiling is snug, so a quiet sweep stays quiet.
  */
@@ -516,17 +541,7 @@ export function formatRatchetTable(candidates: readonly RatchetCandidate[]): str
     figure(candidate.budget),
     `-${candidate.underBy}%`,
   ]);
-  const header = ["route", "metric", "measured", "budget", "under by"];
-  const widths = header.map((cell, column) =>
-    Math.max(cell.length, ...rows.map((row) => row[column].length)),
-  );
-  const line = (cells: string[]) =>
-    cells.map((cell, column) => pad(cell, widths[column])).join("  ").trimEnd();
-  return [
-    line(header),
-    widths.map((width) => "-".repeat(width)).join("  "),
-    ...rows.map(line),
-  ].join("\n");
+  return table(["route", "metric", "measured", "budget", "under by"], rows);
 }
 
 /** The over-budget table a failing run prints. Empty string when nothing broke. */
@@ -539,17 +554,7 @@ export function formatBreachTable(breaches: readonly BudgetBreach[]): string {
     figure(breach.budget),
     Number.isFinite(breach.overBy) ? `+${breach.overBy}%` : "-",
   ]);
-  const header = ["route", "metric", "measured", "budget", "over by"];
-  const widths = header.map((cell, column) =>
-    Math.max(cell.length, ...rows.map((row) => row[column].length)),
-  );
-  const line = (cells: string[]) =>
-    cells.map((cell, column) => pad(cell, widths[column])).join("  ").trimEnd();
-  return [
-    line(header),
-    widths.map((width) => "-".repeat(width)).join("  "),
-    ...rows.map(line),
-  ].join("\n");
+  return table(["route", "metric", "measured", "budget", "over by"], rows);
 }
 
 /**
@@ -570,17 +575,7 @@ export function formatUnmeasuredTable(unmeasured: readonly UnmeasuredMetric[]): 
     `${figure(entry.min)} to ${figure(entry.max)}`,
     `${entry.spreadPct}%`,
   ]);
-  const header = ["route", "metric", "median", "budget", "samples ran", "spread"];
-  const widths = header.map((cell, column) =>
-    Math.max(cell.length, ...rows.map((row) => row[column].length)),
-  );
-  const line = (cells: string[]) =>
-    cells.map((cell, column) => pad(cell, widths[column])).join("  ").trimEnd();
-  return [
-    line(header),
-    widths.map((width) => "-".repeat(width)).join("  "),
-    ...rows.map(line),
-  ].join("\n");
+  return table(["route", "metric", "median", "budget", "samples ran", "spread"], rows);
 }
 
 /** The full pass line a green run prints, so the numbers are in the log either way. */
@@ -600,17 +595,7 @@ export function formatMeasurementTable(
       ]);
     }
   }
-  const header = ["route", "metric", "measured", "budget"];
-  const widths = header.map((cell, column) =>
-    Math.max(cell.length, ...rows.map((row) => row[column].length)),
-  );
-  const line = (cells: string[]) =>
-    cells.map((cell, column) => pad(cell, widths[column])).join("  ").trimEnd();
-  return [
-    line(header),
-    widths.map((width) => "-".repeat(width)).join("  "),
-    ...rows.map(line),
-  ].join("\n");
+  return table(["route", "metric", "measured", "budget"], rows);
 }
 
 /**
@@ -855,17 +840,7 @@ export function formatSampleTable(
     }
   }
   if (rows.length === 0) return "";
-  const header = ["route", "metric", "samples", "median", "spread"];
-  const widths = header.map((cell, column) =>
-    Math.max(cell.length, ...rows.map((row) => row[column].length)),
-  );
-  const line = (cells: string[]) =>
-    cells.map((cell, column) => pad(cell, widths[column])).join("  ").trimEnd();
-  return [
-    line(header),
-    widths.map((width) => "-".repeat(width)).join("  "),
-    ...rows.map(line),
-  ].join("\n");
+  return table(["route", "metric", "samples", "median", "spread"], rows);
 }
 
 /**

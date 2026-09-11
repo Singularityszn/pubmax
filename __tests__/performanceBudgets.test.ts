@@ -394,12 +394,14 @@ describe("a budgeted route that redirects", () => {
 // the identical commit 3ebac98ac shared three of their eleven breached routes,
 // and every route unique to one of them straddled its own ceiling.
 //
-// So the samples now decide whether the median may be converted into a breach:
-// a metric whose samples disagree past `sampleSpreadWarnPct` AND fall on both
-// sides of the ceiling did not measure the ceiling, and is reported unmeasured
-// rather than failed. A metric whose samples all sit over the ceiling is over
-// budget however wide they are, because every median that evidence allows is
-// over: that is the half that keeps a genuinely slow route failing.
+// So the samples now decide whether their own median is a verdict at all: a
+// metric whose samples disagree past `sampleSpreadWarnPct` while at least one
+// of them met the ceiling did not measure that ceiling, and is reported
+// unmeasured rather than failed. A metric of which NOT ONE sample met the
+// ceiling is over budget however wide the run was, because every median that
+// evidence allows is over: that is the half that keeps a genuinely slow route
+// failing. The report reads both ways, so a wide run is named whichever side
+// of its ceiling the median fell on, and only the breach list is ever gated.
 describe("judgeBudgets", () => {
   const method: BudgetMethod = { ...PERFORMANCE_BUDGETS.method, sampleSpreadWarnPct: 12 };
   const lcps = (...values: number[]): SampleRow[] =>
@@ -437,10 +439,10 @@ describe("judgeBudgets", () => {
     ]);
   });
 
-  it("still fails a wide run whose fastest sample is clear of the ceiling", () => {
+  it("still fails a wide run in which no sample met the ceiling", () => {
     // Wide is not a licence. /today's first run of 3ebac98ac spread 103 per
     // cent, and its fastest of seven samples was 352 ms against a 300 ms
-    // ceiling: past the line and past the jitter band around it.
+    // ceiling: not one of the seven ever met the line.
     const verdict = judge(lcps(392, 744, 480, 848, 680, 372, 352));
     expect(verdict.unmeasured).toEqual([]);
     expect(verdict.breaches.map((breach) => breach.metric)).toEqual(["lcpMs"]);
@@ -454,17 +456,30 @@ describe("judgeBudgets", () => {
     expect(verdict.breaches.map((breach) => breach.metric)).toEqual(["lcpMs"]);
   });
 
-  it("draws the line at the jitter band the method already tracks", () => {
-    // resampleWithinCeilingPct is 10, so a 300 ms ceiling carries a 330 ms
-    // band. A fastest sample inside it decided nothing; one outside it did.
-    expect(judge(lcps(330, 600, 900)).breaches).toEqual([]);
-    expect(judge(lcps(331, 600, 900)).breaches).toHaveLength(1);
+  it("fails a median two thirds over its ceiling whose fastest sample only grazed it", () => {
+    // The hole a band around the ceiling would have left: 320 is over a 300 ms
+    // ceiling by less than the resample band, so a rule anchored on that band
+    // excluded a median of 800. The anchor is the ceiling itself.
+    const verdict = judge(lcps(320, 800, 1200));
+    expect(verdict.unmeasured).toEqual([]);
+    expect(verdict.breaches.map((breach) => breach.metric)).toEqual(["lcpMs"]);
+    expect(verdict.breaches[0].measured).toBe(800);
   });
 
-  it("says nothing about a wide run that passed, because the method block already did", () => {
+  it("draws the line at the ceiling itself", () => {
+    // A sample that met the 300 ms ceiling leaves the run undecided; a run
+    // whose fastest sample missed it by one millisecond is a breach.
+    expect(judge(lcps(300, 600, 900)).breaches).toEqual([]);
+    expect(judge(lcps(300, 600, 900)).unmeasured).toHaveLength(1);
+    expect(judge(lcps(301, 600, 900)).breaches).toHaveLength(1);
+    expect(judge(lcps(301, 600, 900)).unmeasured).toEqual([]);
+  });
+
+  it("names a wide run that passed as unmeasured too, and still passes it", () => {
     // /tonight, second run of 3ebac98ac: 133 per cent apart, median 256 under a
-    // 900 ms ceiling. Wide and green is a fact about the measurement, and
-    // findMethodWarnings owns it.
+    // 900 ms ceiling. The same evidence may not read as a clean pass on one
+    // side of a ceiling and as undecided on the other, so it is named either
+    // way. Naming it fails nothing: the gate reads the breach list alone.
     const verdict = judgeBudgets(
       [route({ lcpMs: 900 })],
       new Map([["/x", measurement({ lcpMs: 256 })]]),
@@ -472,7 +487,8 @@ describe("judgeBudgets", () => {
       method,
     );
     expect(verdict.breaches).toEqual([]);
-    expect(verdict.unmeasured).toEqual([]);
+    expect(verdict.unmeasured.map((entry) => entry.metric)).toEqual(["lcpMs"]);
+    expect(verdict.unmeasured[0].median).toBe(256);
   });
 
   it("fails a straddling run whose samples agreed, because that is the line rather than the noise", () => {
@@ -570,29 +586,45 @@ describe("the disjoint breach sets of 3ebac98ac", () => {
     ["/choose-city", 300, [476, 336, 356, 408, 256], "unmeasured"],
     ["/moment", 300, [372, 308, 324, 348, 260], "unmeasured"],
     ["/rounds", 300, [328, 260, 240, 312, 308], "unmeasured"],
-    ["/crawls", 300, [328, 320, 408, 308, 376, 336, 308], "unmeasured"],
-    // The second of the two that stay red, and the one no spread rule can help:
-    // 9 per cent apart is a run that agreed with itself, and what it agreed on
-    // was 408 against a 400 ms ceiling. The first run measured the same route
-    // at 392 and passed. A route sitting ON its line is a product decision.
+    // The second of the three that stay red. Its seven samples ran 308 to 408
+    // and NOT ONE of them met the 300 ms ceiling, so no median this evidence
+    // allows is under it. The route already carries a `noisy` record and spent
+    // the extra samples, so the evidence is bought and spent: the answer is the
+    // route or a deliberate decision, never a wider band.
+    ["/crawls", 300, [328, 320, 408, 308, 376, 336, 308], "breach"],
+    // The third, and the one no spread rule can help: 9 per cent apart is a run
+    // that agreed with itself, and what it agreed on was 408 against a 400 ms
+    // ceiling. The first run measured the same route at 392 and passed. A route
+    // sitting ON its line is a product decision.
     ["/historic", 400, [408, 384, 400, 420, 420], "breach"],
   ];
 
   for (const [path, ceiling, samples, expected] of rows) {
     it(`reads ${path} at ${median(samples)} against ${ceiling} as ${expected}`, () => {
       const verdict = verdictFor(path, ceiling, samples);
-      const answer = verdict.breaches.length > 0 ? "breach" : "unmeasured";
-      expect(answer).toBe(expected);
+      const lcpBreach = verdict.breaches.filter((breach) => breach.metric === "lcpMs");
+      const lcpUnmeasured = verdict.unmeasured.filter((entry) => entry.metric === "lcpMs");
+      if (expected === "breach") {
+        expect(lcpBreach).toHaveLength(1);
+        expect(lcpUnmeasured).toEqual([]);
+      } else {
+        expect(lcpBreach).toEqual([]);
+        expect(lcpUnmeasured).toHaveLength(1);
+        expect(lcpUnmeasured[0].median).toBe(median(samples));
+      }
     });
   }
 
-  it("keeps /today red on the run whose fastest sample was clear of the ceiling", () => {
-    // Twelve of the fourteen rows above stop being breaches. This is one of the
-    // two that must not: the first run's seven samples spread 103 per cent and
-    // the FASTEST of them was 352 ms against a 300 ms ceiling, outside the
-    // 330 ms jitter band. The second run measured the same route at 272 and did
-    // not report it at all, which is the honest answer for that run's evidence.
+  it("keeps /today red on the run in which no sample met the ceiling", () => {
+    // Eleven of the fourteen rows above stop being breaches. This is one of the
+    // three that must not: the first run's seven samples spread 103 per cent
+    // and the FASTEST of them was 352 ms against a 300 ms ceiling. The second
+    // run measured the same route at 272, with samples that did meet the line,
+    // so that run reports the ceiling as undecided rather than breached, which
+    // is the honest answer for its evidence.
     expect(verdictFor("/today", 300, [392, 744, 480, 848, 680, 372, 352]).breaches).toHaveLength(1);
-    expect(verdictFor("/today", 300, [248, 276, 276, 264, 248, 496, 272]).breaches).toEqual([]);
+    const second = verdictFor("/today", 300, [248, 276, 276, 264, 248, 496, 272]);
+    expect(second.breaches).toEqual([]);
+    expect(second.unmeasured.map((entry) => entry.metric)).toEqual(["lcpMs"]);
   });
 });

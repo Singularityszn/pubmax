@@ -152,9 +152,11 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
   // 103319591915 and its re-run on the IDENTICAL commit 3ebac98ac shared three
   // of their eleven breached routes. `judgeBudgets` is the one owner of the
   // rule (lib/performanceBudgets.ts), and it is pure, so it is unit-tested with
-  // no browser: samples that all sit over a ceiling are over budget however
-  // wide they are, and samples that straddle one while disagreeing past the
-  // tracked width did not measure it.
+  // no browser: a run in which no sample ever met a ceiling is over budget
+  // however wide it was, and a run that disagrees past the tracked width while
+  // at least one sample met the ceiling did not measure it. Every route and
+  // metric is asked, not only the rows already over, so a wide run is named
+  // whichever side of its ceiling the median fell on.
   const { breaches, unmeasured } = judgeBudgets(
     budgets.routes,
     measured,
@@ -162,15 +164,17 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
     budgets.method,
   );
 
-  // An excluded ceiling is not a pass, so it is said out loud whether the sweep
-  // goes red or green, and it is said again in the failure message below.
+  // An undecided ceiling is not a pass, so it is said out loud whether the
+  // sweep goes red or green, and it is said again in the failure message below.
   const unmeasuredReport =
     unmeasured.length === 0
       ? ""
       : `\n[perf-budget][unmeasured] ${unmeasured.length} ceiling(s) this run could NOT decide. ` +
-        `Their samples disagreed past the tracked ${budgets.method.sampleSpreadWarnPct}% width AND ` +
-        `fell on both sides of the ceiling, so the median was whichever way the runner leaned. ` +
-        `They are excluded from the breach list rather than failed, and they are not green:\n` +
+        `Their samples disagreed past the tracked ${budgets.method.sampleSpreadWarnPct}% width ` +
+        `while at least one of them met the ceiling, so which side the median fell was whichever ` +
+        `way the runner leaned. They are left off the breach list rather than failed, and a row ` +
+        `whose median landed UNDER its ceiling is named here too, because the same evidence may ` +
+        `not read as a clean pass one way and as undecided the other. None of them is green:\n` +
         `${formatUnmeasuredTable(unmeasured)}\n`;
   if (unmeasuredReport) console.log(unmeasuredReport);
 
