@@ -235,6 +235,57 @@ describe("the public Story projection behind the OG card", () => {
   });
 });
 
+describe("the departed profile read fails closed, and only for a Story with someone to protect", () => {
+  it("answers unavailable when the profile read failed, never a Story carrying the departed handle", async () => {
+    seedPublishedStory();
+    seedWithdrawnContributorWithMoment();
+    store.answers.set("night_stories", {
+      data: publishedStoryRow({ title: "Friday orbit with @departed" }),
+      error: null,
+    });
+    store.answers.set("profiles", { data: null, error: OUTAGE });
+
+    await expect(readPublishedRecapSource(STORY_ID)).resolves.toEqual({ status: "unavailable" });
+    const markup = await renderPage();
+    expect(markup).toContain("We could not load this recap");
+    expect(markup).not.toContain("@departed");
+
+    const card = await renderOgCard();
+    expect(card.markup).not.toContain("@departed");
+    expect(card.cacheControl).not.toBe("public, s-maxage=86400, stale-while-revalidate=604800");
+    expect(card.cacheControl).toBe("no-store");
+  });
+
+  it("keeps a Story with nobody to protect out of the profiles outage entirely", async () => {
+    seedPublishedStory();
+    store.answers.set("profiles", { data: null, error: OUTAGE });
+
+    const read = await readPublishedRecapSource(STORY_ID);
+    expect(read.status).toBe("found");
+    const markup = await renderPage();
+    expect(markup).toContain("Friday orbit");
+    // No withdrawn contributor and no withdrawn consent, so no profile is ever
+    // asked for: the blast radius stays with the Stories that have a departed
+    // person. Move the empty-set return below the profile read and this fails.
+    expect(store.asked).not.toContain("profiles");
+
+    const card = await renderOgCard();
+    expect(card.markup).toContain("Friday orbit");
+    expect(card.cacheControl).toBe(RECAP_OG_CACHE_HEADERS.rich);
+  });
+
+  it("still redacts the owned Moments when a departed profile row is simply missing", async () => {
+    seedPublishedStory();
+    seedWithdrawnContributorWithMoment();
+    store.answers.set("profiles", { data: [], error: null });
+
+    const read = await readPublishedRecapSource(STORY_ID);
+    expect(read.status).toBe("found");
+    if (read.status !== "found") return;
+    expect(read.source.moments.map((moment) => moment.id)).toEqual(["m1"]);
+  });
+});
+
 describe("the OG card never pins an outage as a not-shared Story", () => {
   it("reads the public Story three ways", async () => {
     seedPublishedStory();
@@ -271,13 +322,13 @@ describe("the OG card never pins an outage as a not-shared Story", () => {
     store.answers.set("night_stories", { data: null, error: null });
     let card = await renderOgCard();
     expect(card.markup).not.toContain("Friday orbit");
-    expect(card.cacheControl).toBe(RECAP_OG_CACHE_HEADERS.fallback);
+    expect(card.cacheControl).toBe("public, s-maxage=86400, stale-while-revalidate=604800");
 
     seedPublishedStory();
     store.answers.set("night_stories", { data: publishedStoryRow({ visibility: "private" }), error: null });
     card = await renderOgCard();
     expect(card.markup).not.toContain("Friday orbit");
-    expect(card.cacheControl).toBe(RECAP_OG_CACHE_HEADERS.fallback);
+    expect(card.cacheControl).toBe("public, s-maxage=86400, stale-while-revalidate=604800");
   });
 
   it("keeps the short rich header when every read ran", async () => {

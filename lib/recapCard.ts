@@ -188,7 +188,7 @@ export function selectRecapCardData(source: RecapCardSource): RecapCardData {
 // ── Cache headers ────────────────────────────────────────────────────────────
 // Mirrors #330's OG cache-header pattern (unmerged at time of writing). When
 // #330 lands its shared `OG_CACHE_HEADERS`, collapse these onto it — this is the
-// dedupe note. Two profiles, because a recap card is privacy-sensitive:
+// dedupe note. Three profiles, because a recap card is privacy-sensitive:
 //
 //  • FALLBACK — brand-generic, carries no night data, safe to cache hard.
 //  • RICH — carries approved night details. If a host revokes approval the card

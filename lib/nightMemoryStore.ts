@@ -722,13 +722,21 @@ async function getConsents(storyId: string): Promise<MomentConsent[]> {
  *     existing per-owner consents API writes status "withdrawn").
  *   • ACCOUNT DELETED — the profile-delete hook marked their contributor rows
  *     "withdrawn" across every Story (markContributorsDepartedByProfileId).
- * Each departed id is resolved to its handle + display name (fail-soft: a lookup
- * miss still redacts the owned Moments, it just cannot scrub free-text mentions).
+ * Each departed id is resolved to its handle + display name. A profile row that
+ * is genuinely MISSING stays fail-soft: that id keeps a null handle, so its
+ * owned Moments are still dropped and only free-text mentions go unscrubbed. A
+ * profile read we could not RUN is a different fact, so it is `unavailable` and
+ * fails closed - scoped to a Story that actually has a departed contributor,
+ * because a Story with nobody to protect returns before any profile is read.
  */
+type DepartedReadResult =
+  | { status: "found"; departed: DepartedContributor[] }
+  | { status: "unavailable" };
+
 async function resolveDepartedContributors(
   contributorsList: StoryContributor[],
   consentsList: MomentConsent[],
-): Promise<DepartedContributor[]> {
+): Promise<DepartedReadResult> {
   const departedIds = new Set<string>();
   for (const contributor of contributorsList) {
     if (contributor.status === "withdrawn") departedIds.add(contributor.profileId);
@@ -736,14 +744,19 @@ async function resolveDepartedContributors(
   for (const consent of consentsList) {
     if (consent.status === "withdrawn") departedIds.add(consent.ownerId);
   }
-  if (departedIds.size === 0) return [];
+  if (departedIds.size === 0) return { status: "found", departed: [] };
   const store = profileStore();
-  return Promise.all(
-    [...departedIds].sort().map(async (profileId) => {
-      const profile = await store.getByUserId(profileId).catch(() => null);
-      return { profileId, handle: profile?.handle ?? null, displayName: profile?.displayName ?? null };
-    }),
-  );
+  try {
+    const departed = await Promise.all(
+      [...departedIds].sort().map(async (profileId) => {
+        const profile = await store.getByUserId(profileId);
+        return { profileId, handle: profile?.handle ?? null, displayName: profile?.displayName ?? null };
+      }),
+    );
+    return { status: "found", departed };
+  } catch {
+    return { status: "unavailable" };
+  }
 }
 
 /**
@@ -835,8 +848,12 @@ async function readPublicProjection(
 ): Promise<PublicNightStoryReadResult> {
   const consentsRead = await readConsents(story.id);
   if (consentsRead.status !== "found") return { status: "unavailable" };
-  const departed = await resolveDepartedContributors(contributorsList, consentsRead.rows);
-  return { status: "found", story: redactPublicStoryFields(safeNightStory(story), departed) };
+  const departedRead = await resolveDepartedContributors(contributorsList, consentsRead.rows);
+  if (departedRead.status !== "found") return { status: "unavailable" };
+  return {
+    status: "found",
+    story: redactPublicStoryFields(safeNightStory(story), departedRead.departed),
+  };
 }
 
 /**
@@ -921,9 +938,9 @@ export async function readPublishedRecapSource(storyId: string): Promise<Publish
   // downstream surface (recap page, recap OG, feed) inherits the erase with no
   // second gate. Redaction is emission-time — the private source Moments below
   // are never mutated; only this projected copy is.
-  // The departed set is read three ways too: a contributors or consents read
-  // that failed is not "nobody has withdrawn", so it is unavailable, and it is
-  // answered before a single Moment is read.
+  // The departed set is read three ways too: a contributors, consents or
+  // profile read that failed is not "nobody has withdrawn", so it is
+  // unavailable, and it is answered before a single Moment is read.
   const [contributorsRead, consentsRead] = await Promise.all([
     readContributors(storyId),
     readConsents(storyId),
@@ -931,7 +948,9 @@ export async function readPublishedRecapSource(storyId: string): Promise<Publish
   if (contributorsRead.status !== "found" || consentsRead.status !== "found") {
     return { status: "unavailable" };
   }
-  const departed = await resolveDepartedContributors(contributorsRead.rows, consentsRead.rows);
+  const departedRead = await resolveDepartedContributors(contributorsRead.rows, consentsRead.rows);
+  if (departedRead.status !== "found") return { status: "unavailable" };
+  const { departed } = departedRead;
 
   const allow = new Set(story.publishedMomentIds);
   if (allow.size === 0) {

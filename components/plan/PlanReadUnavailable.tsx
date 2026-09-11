@@ -2,14 +2,16 @@ import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
 
 /**
- * A plan we could not READ, on every surface under /plan/[id].
+ * A read we could not RUN, on every surface under /plan/[id] and on the public
+ * recap at app/recap/[storyId]/page.tsx, which passes its own title so the
+ * masthead names the Story rather than the plan.
  *
  * It is not the not-found surface: that one says the link expired and sends the
  * reader off to start their own night, which over a live plan is the wrong
  * sentence and the wrong door. `planStore().read` answers `absent` and
  * `unavailable` apart precisely so those two are worded apart, and every entry
- * point in the segment - the plan page, the recap page and their metadata -
- * shares this one surface rather than each deciding again.
+ * point - the plan page, the plan recap page and their metadata, plus the
+ * public recap page - shares this one surface rather than each deciding again.
  *
  * IT CLAIMS NOTHING ABOUT THE PLAN. The first cut opened "The plan is still
  * there", which is a fact about a plan the store had just failed to read, one
