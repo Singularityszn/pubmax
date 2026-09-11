@@ -1,7 +1,8 @@
-/* The night seal — a hand-pressed stamp. Tilt is identity (a static -8°), not
-   motion, so it holds under reduced motion; the only motion is the Strike inside,
-   which honours reduced motion in its own family CSS. Monochrome: ring + mark
-   both inherit the seal's `currentColor`. */
+/* The night seal — a hand-pressed stamp, standing upright: the tilt belongs
+   to the /about stamp alone, so no second element competes for the one
+   signature. The only motion is the Strike inside, which honours reduced
+   motion in its own family CSS. Monochrome: ring + mark both inherit the
+   seal's `currentColor`. */
 
 .nightSeal {
   position: relative;
@@ -9,7 +10,6 @@
   width: var(--seal-size, 72px);
   height: var(--seal-size, 72px);
   flex: none;
-  transform: rotate(-8deg);
 }
 
 /* Tone selection. `auto` follows the theme; `ink` / `coral` force a tone. */

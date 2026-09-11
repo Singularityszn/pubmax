@@ -102,7 +102,6 @@ html[data-theme="dark"] {
   --river-bright: #9ac0da; /* muted light blue (was #7dd3fc) */
   --spritz: #d8c48f; /* muted gold (was #ffd166) */
   --neon: #78bd97; /* muted green (was #5cff99) */
-  --grape: #9b90c0; /* muted violet (was #a78bfa) — no purple mesh */
   --pink: #cf8bb6; /* muted pink (was #ff7ac8) */
   --color-on-accent: var(--ink-deep);
 

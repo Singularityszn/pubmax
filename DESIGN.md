@@ -161,7 +161,7 @@ Tactile and decisive — Plan actions read louder than chrome.
 ### Chips
 
 - **Style:** Hairline border, optional brass/pint/river tint by job.
-- **Stamps:** `.ink-stamp` pressed border + inset shadow; tilt is price-only.
+- **Stamps:** `.ink-stamp` pressed border + inset shadow; the tilt appears once, on the `/about` seal.
 
 ### Cards / Containers
 

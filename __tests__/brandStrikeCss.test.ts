@@ -64,9 +64,13 @@ describe("The loading ember CSS conformance", () => {
 });
 
 describe("The night seal CSS conformance", () => {
-  it("presses the stamp at a static -8deg tilt (identity, holds under reduced motion)", () => {
+  it("stands upright: the tilt belongs to the /about stamp alone (one signature)", () => {
+    // The seal pressed at a static -8deg until the one-signature rule was
+    // enforced: a second tilted stamp competed with the /about seal. The
+    // recap mark keeps its ring and Strike; it does not lean.
     const rule = sealCss.match(/\.nightSeal\s*{([\s\S]*?)}/)?.[1] ?? "";
-    expect(rule).toMatch(/transform:\s*rotate\(-8deg\)/);
+    expect(rule).not.toMatch(/transform\s*:/);
+    expect(rule).not.toMatch(/rotate\(/);
   });
 
   it("selects tone by theme for the auto variant", () => {

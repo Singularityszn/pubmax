@@ -102,7 +102,8 @@
   min-height: 128px;
 }
 
-/* The pressed brass price stamp — the signature element. */
+/* The pressed brass price seal. It stands upright: the tilt is the /about
+   stamp's alone, so no second element competes for the one signature. */
 .permalink__stamp {
   display: flex;
   flex-direction: column;
@@ -114,7 +115,6 @@
   border: 3px solid var(--brass);
   color: var(--brass);
   background: color-mix(in srgb, var(--panel-raised) 88%, transparent);
-  transform: rotate(-9deg);
   text-align: center;
   line-height: 1;
 }

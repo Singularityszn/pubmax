@@ -88,7 +88,6 @@
   --river-bright: #29b6f6;
   --spritz: #ffb000;
   --neon: #31d158;
-  --grape: #7c3aed;
   --pink: #ff4fa3;
   /* Dark-only accent alias (overridden in theme.css); defined here so
      components can reference var(--night-amber) safely in both themes. */

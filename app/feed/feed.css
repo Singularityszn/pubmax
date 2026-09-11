@@ -609,26 +609,6 @@
   display: block;
 }
 
-.feedPriceStamp {
-  /* Wave I3: DESIGN_SYSTEM ink-stamp — brass price stamp, not a glass pill. */
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  padding: 6px 12px;
-  border: 1.5px solid color-mix(in srgb, var(--brass) 55%, var(--ink));
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--panel-raised) 92%, var(--brass) 8%);
-  color: color-mix(in srgb, var(--pint) 72%, var(--ink));
-  font-family: var(--font-data, var(--font-display), ui-monospace, monospace);
-  font-size: 1.05rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-  box-shadow: var(--shadow, 0 4px 12px rgba(22, 18, 42, 0.12));
-  transform: rotate(-2deg);
-  /* view-transition-name must be unique per card — set inline on FeedCard. */
-}
-
 /* Receipt fallback — a typographic card when there is no photo. Taste fix
    (feed card slim): the price used to be the ONLY thing you saw at a glance
    (3.05rem, centre stage); the pub identity now anchors the header above, so
@@ -789,7 +769,6 @@
   padding: 5px 10px 5px 8px;
   border-radius: 999px;
   background: var(--spill-veil);
-  backdrop-filter: blur(3px);
   color: var(--brass-bright, #d8ab55);
   font-size: 0.75rem;
   font-weight: 700;
@@ -1956,8 +1935,7 @@
   padding: 4px 10px 4px 8px;
   border-radius: 999px;
   color: color-mix(in srgb, var(--feed-cat) 72%, #ffffff);
-  background: rgba(12, 11, 8, 0.5);
-  backdrop-filter: blur(2px);
+  background: var(--spill-veil);
   border: 1px solid color-mix(in srgb, var(--feed-cat) 55%, transparent);
   font-size: 0.75rem;
   font-weight: 700;

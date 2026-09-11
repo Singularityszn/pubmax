@@ -256,7 +256,7 @@ function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?:
   );
 }
 
-// The pressed brass price stamp — the one bold signature element (rotated badge).
+// The pressed brass price seal — flat, because the tilt belongs to the /about stamp alone.
 function PriceStamp({ price }: { price: string }) {
   return (
     <div className="permalink__stamp" aria-label={`Paid ${price} a pint`}>

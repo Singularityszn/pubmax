@@ -447,8 +447,8 @@ stacking contexts) stays as literals.
 
 **Rule:** CSS animation belongs behind the reduced-motion media contract in
 `app/globals.css`; JavaScript animation must read the same preference and jump
-to its target. Static price-stamp tilt is a shape, not travel, and remains
-visible in reduced motion.
+to its target. The /about seal's static stamp tilt is a shape, not travel, and
+remains visible in reduced motion.
 
 ## Pressed-ink / bar-mat tactility
 
@@ -463,16 +463,18 @@ component, so `components/map/canvas/tokens.ts` resolves the same plaque roles
 and `buildScene.ts` applies them inside the existing collision-indexed symbol
 layers.
 
-Word-based provenance and vibe chips may use the flat pressed treatment, but
-the tilt remains price-only.
+Word-based provenance and vibe chips may use the flat pressed treatment. The
+tilt belongs to the /about seal alone; a price wears the flat `.price-plaque`
+and never leans.
 
 ## The signature element
 
-**One thing held with restraint: the brass price stamp.** It's the only
-place the press-tilt (`.ink-stamp--tilt`) treatment should appear. The
-candle-lit map is the second memory hook (see `components/map/canvas/`), but it is a
-*mode*, not a stampable UI element, so it doesn't compete with the price
-stamp for the "one signature" slot.
+**One thing held with restraint: the tilted ink stamp.** It appears once, on
+the `/about` seal, which reads `--ink-stamp-tilt`. A price wears the flat
+`.price-plaque` and never leans (captain, 6 Sep 2026). The candle-lit map is
+the second memory hook (see `components/map/canvas/`), but it is a *mode*,
+not a stampable UI element, so it doesn't compete with the stamp for the
+"one signature" slot.
 
 Do not add a second tilted/stamped element elsewhere in the UI. If a new
 surface needs emphasis, reach for the brass border/accent colour, not a
