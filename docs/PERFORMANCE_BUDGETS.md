@@ -456,7 +456,26 @@ is not a verdict:
 | --- | --- |
 | agreed with each other | the median is the verdict, pass or fail |
 | disagreed past `sampleSpreadWarnPct`, and NOT ONE sample met the ceiling | a breach, because no median that evidence allows is under |
-| disagreed past `sampleSpreadWarnPct`, and at least one sample met the ceiling | UNMEASURED: reported in its own table and left off the breach list |
+| disagreed past `sampleSpreadWarnPct`, and NOT ONE sample went past the ceiling | a pass, for the same reason read the other way |
+| disagreed past `sampleSpreadWarnPct` and STRADDLED the ceiling | UNMEASURED: reported in its own table, and left off the breach list and the ratchet table |
+
+ONLY A CLOCK IS EVER UNDECIDED. `CLOCK_METRICS` names the two: `serverRenderMs`
+and `lcpMs` read the machine the sweep ran on, and a loaded box moves them with
+no line of the route changing. `requests` and `jsDecodedKB` count work the page
+CHOSE to do, so samples that disagree there measured a route loading different
+things on different navigations, which is the finding rather than the noise.
+They are judged on their median always: an extra chunk on some loads reads as
+requests 44, 60 and 62 against a ceiling of 46, and that stays red. The second
+run of `3ebac98ac` measured `/pubs` JS decoded 929 to 1185 and `/plan` 782 to
+1106, so those rows may go red on the next sweep. That is conditional loading on
+two routes, and it gets the same answer as `/crawls`: named for the captain,
+never rescued by a wider width or a bigger number.
+
+Both edges are asked, because a run has to STRADDLE its ceiling to leave it
+undecided. Server render sits at 3 to 19 ms against a 150 ms ceiling on every
+route here, so one millisecond of scheduler jitter reads as a wide spread on a
+row nothing could put in doubt; naming those would bury the straddling rows the
+table exists for.
 
 The anchor is the ceiling itself rather than a band around it. An earlier cut
 let the fastest sample sit `resampleWithinCeilingPct` over the line, which
@@ -469,12 +488,19 @@ different question from what the samples already bought may say. The metric's
 method warning does not fire on every route on every run, and a spread wide
 enough to straddle the ceiling already carries that relevance.
 
-THE REPORT READS BOTH WAYS. `judgeBudgets` asks every route and every metric,
-not only the rows already over their ceilings, so a wide run is named in the
+THE REPORT READS BOTH WAYS. `judgeBudgets` asks every route and every clock, not
+only the rows already over their ceilings, so a straddling run is named in the
 unmeasured table whichever side of its line the median fell on. The same
 evidence may not read as a clean pass in one run and as undecided in the next.
 No verdict moves with it: a median under its ceiling still passes, and the gate
 still fails on the breach list alone.
+
+AN UNDECIDED CEILING IS NOT BANKABLE EITHER. The ratchet table names ceilings
+with slack worth taking down, and a run may not refuse a median and bank it in
+the same log: lowering a ceiling off samples the run itself would not trust
+makes the fast ones the next sweep's red. `bankableRatchetCandidates` drops
+every undecided row, so `findRatchetCandidates` stays blind to the verdict and
+pure, and the two are put together in exactly one place.
 
 Replaying every breached row those two runs printed, eleven of fourteen stop
 being breaches. The three that remain are the point of the rule rather than a
@@ -602,9 +628,9 @@ Three tables, in this order:
   any sample that fell back to the harness clock. Reported, never failed on.
 - `[perf-budget][unmeasured]` - printed only when there is one: a ceiling this
   run could not decide, with the median it would have judged, the range the
-  samples ran over and how far apart they sat. It is left off the breach list,
-  it is reported whichever side of the ceiling the median fell on, and it is NOT
-  green. See below.
+  samples ran over and how far apart they sat. It is left off the breach list
+  and off the ratchet table, it is reported whichever side of the ceiling the
+  median fell on, and it is NOT green. See below.
 
 ### What the page clock actually fixed, and what it did not
 

@@ -6,7 +6,9 @@ import { describe, expect, it } from "vitest";
 import {
   BUDGET_METRICS,
   PERFORMANCE_BUDGETS,
+  bankableRatchetCandidates,
   findBudgetBreaches,
+  findRatchetCandidates,
   formatBreachTable,
   formatUnmeasuredTable,
   judgeBudgets,
@@ -395,13 +397,14 @@ describe("a budgeted route that redirects", () => {
 // and every route unique to one of them straddled its own ceiling.
 //
 // So the samples now decide whether their own median is a verdict at all: a
-// metric whose samples disagree past `sampleSpreadWarnPct` while at least one
-// of them met the ceiling did not measure that ceiling, and is reported
-// unmeasured rather than failed. A metric of which NOT ONE sample met the
-// ceiling is over budget however wide the run was, because every median that
-// evidence allows is over: that is the half that keeps a genuinely slow route
-// failing. The report reads both ways, so a wide run is named whichever side
-// of its ceiling the median fell on, and only the breach list is ever gated.
+// clock whose samples disagree past `sampleSpreadWarnPct` and STRADDLE the
+// ceiling did not measure that ceiling, and is reported unmeasured rather than
+// failed. A run of which NOT ONE sample met the ceiling is over budget however
+// wide it was, because every median that evidence allows is over: that is the
+// half that keeps a genuinely slow route failing. A run entirely under its
+// ceiling decided a pass the same way. The report reads both ways, so a
+// straddling run is named whichever side its median fell on, and only the
+// breach list is ever gated. Counts are never excused: see CLOCK_METRICS.
 describe("judgeBudgets", () => {
   const method: BudgetMethod = { ...PERFORMANCE_BUDGETS.method, sampleSpreadWarnPct: 12 };
   const lcps = (...values: number[]): SampleRow[] =>
@@ -475,11 +478,27 @@ describe("judgeBudgets", () => {
     expect(judge(lcps(301, 600, 900)).unmeasured).toEqual([]);
   });
 
-  it("names a wide run that passed as unmeasured too, and still passes it", () => {
-    // /tonight, second run of 3ebac98ac: 133 per cent apart, median 256 under a
-    // 900 ms ceiling. The same evidence may not read as a clean pass on one
-    // side of a ceiling and as undecided on the other, so it is named either
-    // way. Naming it fails nothing: the gate reads the breach list alone.
+  it("names a straddling run that passed as unmeasured too, and still passes it", () => {
+    // Median 290 under a 300 ms ceiling off samples running 250 to 600. The
+    // same evidence may not read as a clean pass on one side of a ceiling and
+    // as undecided on the other, so it is named either way. Naming it fails
+    // nothing: the gate reads the breach list alone.
+    const verdict = judgeBudgets(
+      [route({ lcpMs: 300 })],
+      new Map([["/x", measurement({ lcpMs: 290 })]]),
+      new Map([["/x", lcps(250, 260, 290, 500, 600)]]),
+      method,
+    );
+    expect(verdict.breaches).toEqual([]);
+    expect(verdict.unmeasured.map((entry) => entry.metric)).toEqual(["lcpMs"]);
+    expect(verdict.unmeasured[0].median).toBe(290);
+  });
+
+  it("says nothing about a wide run that never reached its ceiling", () => {
+    // /tonight, second run of 3ebac98ac: 133 per cent apart, and its SLOWEST
+    // sample 588 ms against a 900 ms ceiling. Nothing about that run is in
+    // doubt, and naming it would bury the straddling rows the table exists for.
+    // Server render is the same shape on every route: 3 to 19 ms against 150.
     const verdict = judgeBudgets(
       [route({ lcpMs: 900 })],
       new Map([["/x", measurement({ lcpMs: 256 })]]),
@@ -487,8 +506,29 @@ describe("judgeBudgets", () => {
       method,
     );
     expect(verdict.breaches).toEqual([]);
-    expect(verdict.unmeasured.map((entry) => entry.metric)).toEqual(["lcpMs"]);
-    expect(verdict.unmeasured[0].median).toBe(256);
+    expect(verdict.unmeasured).toEqual([]);
+  });
+
+  it("never excuses a count, however wide and however it straddled", () => {
+    // The hole a clock-shaped rule may not leave: an extra chunk on some
+    // navigations reads as requests 44, 60 and 62 against a ceiling of 46. That
+    // is a route doing different work rather than a loaded box, so the median
+    // is judged and the sweep goes red.
+    const samples: SampleRow[] = [44, 60, 62].map((requests) => ({
+      serverRenderMs: 0,
+      jsDecodedKB: 0,
+      requests,
+      lcpMs: 0,
+    }));
+    const verdict = judgeBudgets(
+      [route({ requests: 46 })],
+      new Map([["/x", measurement({ requests: 60 })]]),
+      new Map([["/x", samples]]),
+      method,
+    );
+    expect(verdict.unmeasured).toEqual([]);
+    expect(verdict.breaches.map((breach) => breach.metric)).toEqual(["requests"]);
+    expect(verdict.breaches[0].measured).toBe(60);
   });
 
   it("fails a straddling run whose samples agreed, because that is the line rather than the noise", () => {
@@ -526,6 +566,39 @@ describe("judgeBudgets", () => {
     );
     expect(verdict.breaches.map((breach) => breach.metric)).toEqual(["serverRenderMs"]);
     expect(verdict.unmeasured.map((entry) => entry.metric)).toEqual(["lcpMs"]);
+  });
+});
+
+// A RUN MAY NOT REFUSE A MEDIAN AND BANK IT IN THE SAME LOG.
+//
+// The ratchet table names ceilings with slack worth taking down. A metric this
+// run could not decide has no slack worth taking down: the fast samples that
+// made its median look generous are the next sweep's red, and lowering the
+// ceiling off them recreates the flake this change fixes.
+describe("bankableRatchetCandidates", () => {
+  const method: BudgetMethod = { ...PERFORMANCE_BUDGETS.method, sampleSpreadWarnPct: 12 };
+  const budgets = [route({ lcpMs: 900, serverRenderMs: 150 })];
+  const measured = new Map([["/x", measurement({ lcpMs: 115, serverRenderMs: 10 })]]);
+  const samples: SampleRow[] = [100, 110, 120, 1000].map((lcpMs) => ({
+    serverRenderMs: 10,
+    jsDecodedKB: 100,
+    requests: 5,
+    lcpMs,
+  }));
+
+  it("drops a metric this run could not decide, and keeps the rest", () => {
+    const { unmeasured } = judgeBudgets(budgets, measured, new Map([["/x", samples]]), method);
+    expect(unmeasured.map((entry) => entry.metric)).toEqual(["lcpMs"]);
+    const candidates = findRatchetCandidates(budgets, measured);
+    expect(candidates.map((candidate) => candidate.metric)).toContain("lcpMs");
+    const bankable = bankableRatchetCandidates(candidates, unmeasured);
+    expect(bankable.map((candidate) => candidate.metric)).not.toContain("lcpMs");
+    expect(bankable.map((candidate) => candidate.metric)).toContain("serverRenderMs");
+  });
+
+  it("offers every candidate when the run decided every ceiling", () => {
+    const candidates = findRatchetCandidates(budgets, measured);
+    expect(bankableRatchetCandidates(candidates, [])).toEqual(candidates);
   });
 });
 

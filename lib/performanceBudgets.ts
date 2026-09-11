@@ -336,6 +336,27 @@ export type BudgetVerdict = {
 };
 
 /**
+ * THE CLOCKS, and the only metrics an undecided verdict may ever cover.
+ *
+ * `serverRenderMs` and `lcpMs` read the machine the sweep ran on. A loaded box
+ * moves them without a line of the route changing, which is the whole of the
+ * flake this rule exists for.
+ *
+ * `requests` and `jsDecodedKB` are COUNTS of work the page chose to do, and
+ * they are judged on their median always. Samples that disagree there did not
+ * measure a busy runner: they measured a route that loaded different things on
+ * different navigations, and that is the finding rather than the noise. A
+ * change pulling an extra chunk on some loads reads as requests 44, 60 and 62
+ * against a ceiling of 46, and a gate that excused it would ship the
+ * regression. So a count is never excluded, however wide it ran.
+ */
+export const CLOCK_METRICS: readonly BudgetMetric[] = ["serverRenderMs", "lcpMs"];
+
+function metricKey(path: string, metric: BudgetMetric): string {
+  return `${path}\u0000${metric}`;
+}
+
+/**
  * A VERDICT IS UNANIMOUS OR IT IS NOT A VERDICT.
  *
  * `findBudgetBreaches` judges the median it is handed, which is right when the
@@ -355,12 +376,20 @@ export type BudgetVerdict = {
  *     they are, because no median that evidence allows is under. This is the
  *     half that keeps a genuinely slow route failing, and it is why a wide
  *     spread is never a licence.
- *   - samples that disagree past `sampleSpreadWarnPct` while at least one of
- *     them met the ceiling did not measure that ceiling. Which side the median
- *     fell is down to which samples happened to land, so the run is reported
- *     UNMEASURED.
+ *   - samples that disagree past `sampleSpreadWarnPct` and STRADDLE the ceiling,
+ *     one of them meeting it and another past it, did not measure that ceiling.
+ *     Which side the median fell is down to which samples happened to land, so
+ *     the run is reported UNMEASURED.
  *   - samples that AGREE with each other have measured the route, and their
  *     median is the verdict however close to the line it sits.
+ *   - samples that all sit UNDER the ceiling have decided it, however far apart
+ *     they are. Server render runs 3 to 19 ms against a 150 ms ceiling here, so
+ *     a millisecond of scheduler jitter reads as a wide spread on a row nothing
+ *     could put in doubt: naming those would bury the straddling rows this
+ *     report exists for.
+ *
+ * And only a CLOCK is ever asked. See `CLOCK_METRICS`: a count that disagrees
+ * across samples is a route doing different work, not a loaded box.
  *
  * The anchor is THE CEILING ITSELF rather than a band around it. The first cut
  * let the fastest sample sit `resampleWithinCeilingPct` over the line, which
@@ -393,15 +422,17 @@ function undecidedMetric(
   budget: number,
   method: BudgetMethod,
 ): Omit<UnmeasuredMetric, "path" | "metric" | "budget"> | null {
-  if (samples.length < 2) return null;
+  if (samples.length < 2 || !CLOCK_METRICS.includes(metric)) return null;
   const values = samples.map((sample) => sample[metric]);
   const spread = perfSampleSpread(values);
   if (!Number.isFinite(spread.spreadPct) || spread.spreadPct <= method.sampleSpreadWarnPct) {
     return null;
   }
-  // Not one sample in the run met the ceiling, so no median this evidence
-  // allows is under it and the wide part of it changes no verdict.
-  if (spread.min > budget) return null;
+  // The samples have to STRADDLE the ceiling to leave it undecided: one of them
+  // met it, and another went past it. A run with nothing over the line decided
+  // a pass, and a run with nothing under it decided a breach, because no median
+  // either allows is on the other side.
+  if (spread.min > budget || spread.max <= budget) return null;
   return { median: median(values), min: spread.min, max: spread.max, spreadPct: spread.spreadPct };
 }
 
@@ -436,12 +467,12 @@ export function judgeBudgets(
       const budget = route[metric];
       const figures = undecidedMetric(samples, metric, budget, method);
       if (!figures) continue;
-      undecided.add(`${route.path}\u0000${metric}`);
+      undecided.add(metricKey(route.path, metric));
       unmeasured.push({ path: route.path, metric, budget, ...figures });
     }
   }
   const breaches = findBudgetBreaches(budgets, measured).filter(
-    (breach) => !undecided.has(`${breach.path}\u0000${breach.metric}`),
+    (breach) => !undecided.has(metricKey(breach.path, breach.metric)),
   );
   return { breaches, unmeasured };
 }
@@ -500,6 +531,28 @@ export function findRatchetCandidates(
     }
   }
   return candidates;
+}
+
+/**
+ * The candidates a run is ALLOWED to offer for banking.
+ *
+ * One log may not call a ceiling unreadable and offer its slack in the same
+ * breath. Banking takes a ceiling DOWN off the very median the run refused to
+ * trust, and the fast samples that made it look generous become the next
+ * sweep's red: `/tonight` ran 248 to 588 ms against a 900 ms ceiling in one run
+ * of 3ebac98ac, which reads as 72 per cent of slack to bank and as a 133 per
+ * cent spread at the same time. So every undecided metric is dropped here.
+ * `findRatchetCandidates` stays blind to the verdict and pure, and this is the
+ * one place the two are put together.
+ */
+export function bankableRatchetCandidates(
+  candidates: readonly RatchetCandidate[],
+  unmeasured: readonly UnmeasuredMetric[],
+): RatchetCandidate[] {
+  const undecided = new Set(unmeasured.map((entry) => metricKey(entry.path, entry.metric)));
+  return candidates.filter(
+    (candidate) => !undecided.has(metricKey(candidate.path, candidate.metric)),
+  );
 }
 
 function pad(value: string, width: number): string {

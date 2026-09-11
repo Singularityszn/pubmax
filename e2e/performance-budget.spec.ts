@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   PERFORMANCE_BUDGETS,
+  bankableRatchetCandidates,
   findMethodWarnings,
   findRatchetCandidates,
   formatBreachTable,
@@ -131,19 +132,6 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
     );
   }
 
-  // Slack does not stay slack (#1296): a ceiling set generously is a ceiling a
-  // route quietly grows back into. A sweep that beats one by a clear margin
-  // names the candidate here so the margin gets banked as a lower number rather
-  // than spent. It is a WARNING - it edits nothing and fails nothing.
-  const ratchet = findRatchetCandidates(budgets.routes, measured);
-  if (ratchet.length > 0) {
-    console.log(
-      `\n[perf-budget][ratchet] ceilings with slack to bank ` +
-        `(docs/PERFORMANCE_BUDGETS.md: down is free, up is a decision):\n` +
-        `${formatRatchetTable(ratchet)}\n`,
-    );
-  }
-
   // A VERDICT IS UNANIMOUS OR IT IS NOT A VERDICT.
   //
   // The method warning above says a route could not measure itself, and until
@@ -154,15 +142,34 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
   // rule (lib/performanceBudgets.ts), and it is pure, so it is unit-tested with
   // no browser: a run in which no sample ever met a ceiling is over budget
   // however wide it was, and a run that disagrees past the tracked width while
-  // at least one sample met the ceiling did not measure it. Every route and
-  // metric is asked, not only the rows already over, so a wide run is named
-  // whichever side of its ceiling the median fell on.
+  // STRADDLING the ceiling did not measure it. Every route and metric is asked,
+  // not only the rows already over, so a straddling run is named whichever side
+  // of its ceiling the median fell on. Only a clock is ever excused: a count
+  // that disagrees is a route doing different work (CLOCK_METRICS).
   const { breaches, unmeasured } = judgeBudgets(
     budgets.routes,
     measured,
     samplesByPath,
     budgets.method,
   );
+
+  // Slack does not stay slack (#1296): a ceiling set generously is a ceiling a
+  // route quietly grows back into. A sweep that beats one by a clear margin
+  // names the candidate here so the margin gets banked as a lower number rather
+  // than spent. It is a WARNING - it edits nothing and fails nothing. An
+  // undecided ceiling is left out of it: a run may not refuse to trust a median
+  // and offer its slack in the same log.
+  const ratchet = bankableRatchetCandidates(
+    findRatchetCandidates(budgets.routes, measured),
+    unmeasured,
+  );
+  if (ratchet.length > 0) {
+    console.log(
+      `\n[perf-budget][ratchet] ceilings with slack to bank ` +
+        `(docs/PERFORMANCE_BUDGETS.md: down is free, up is a decision):\n` +
+        `${formatRatchetTable(ratchet)}\n`,
+    );
+  }
 
   // An undecided ceiling is not a pass, so it is said out loud whether the
   // sweep goes red or green, and it is said again in the failure message below.
@@ -171,10 +178,12 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
       ? ""
       : `\n[perf-budget][unmeasured] ${unmeasured.length} ceiling(s) this run could NOT decide. ` +
         `Their samples disagreed past the tracked ${budgets.method.sampleSpreadWarnPct}% width ` +
-        `while at least one of them met the ceiling, so which side the median fell was whichever ` +
-        `way the runner leaned. They are left off the breach list rather than failed, and a row ` +
-        `whose median landed UNDER its ceiling is named here too, because the same evidence may ` +
-        `not read as a clean pass one way and as undecided the other. None of them is green:\n` +
+        `and STRADDLED the ceiling, so which side the median fell was whichever way the runner ` +
+        `leaned. They are left off the breach list rather than failed, and off the ratchet table, ` +
+        `and a row whose median landed UNDER its ceiling is named here too, because the same ` +
+        `evidence may not read as a clean pass one way and as undecided the other. Only a clock ` +
+        `is ever undecided: a count that disagrees is a route doing different work. None of them ` +
+        `is green:\n` +
         `${formatUnmeasuredTable(unmeasured)}\n`;
   if (unmeasuredReport) console.log(unmeasuredReport);
 
