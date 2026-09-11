@@ -149,8 +149,9 @@ describe("app/api public error envelope (tree-wide)", () => {
 // `handleProfileCoverPhoto*` is that same delegation for the cover ROTATION:
 // lib/profileCoverPhotoRoute.server.ts spends a per-actor budget on every add,
 // remove and reorder, and a per-actor budget on every reader flag.
-// A COMMENT IS NOT A LIMITER. The sweep below decides on code, so a route that
-// only NAMES a limiter in prose cannot answer for a call it does not make.
+// A COMMENT IS NOT A LIMITER AND NEITHER IS AN IMPORT. The sweep below decides
+// on code, and on a CALL, so a route that only NAMES a limiter in prose or on
+// its import line cannot answer for a call it does not make.
 //
 // The stripper tracks quote state and drops `//` and `/* */`. It does NOT model
 // regex literals, so a `/` inside a character class can be read as the start of
@@ -161,7 +162,7 @@ describe("app/api public error envelope (tree-wide)", () => {
 // state is a source it FAILED to strip, and it answers null rather than handing
 // back text it did not understand. The sweep then reports that route as an
 // offender. Everything else it does is deletion, and the sweep asks whether a
-// limiter token is PRESENT in what is left, so no route with no limiter can
+// limiter CALL is present in what is left, so no route with no limiter can
 // pass, whether the stripper understood it or gave up.
 function codeWithoutComments(source: string): string | null {
   let out = "";
@@ -218,7 +219,7 @@ function consultsLimiter(source: string): boolean {
 }
 
 const LIMITER_TOKENS =
-  /\bisLimited\b|[a-zA-Z]+RateLimited\b|\bis[A-Z][a-zA-Z]*Limited\b|\bpreparePlanGeneration\b|\bsocialCrewActor\b|\bhandleProfileImage(?:Upload|Delete|Report)\b|\bhandleProfileCoverPhoto(?:Upload|Delete|Move|Report)\b/;
+  /(?:\bisLimited|[a-zA-Z]+RateLimited|\bis[A-Z][a-zA-Z]*Limited|\bpreparePlanGeneration|\bsocialCrewActor|\bhandleProfileImage(?:Upload|Delete|Report)|\bhandleProfileCoverPhoto(?:Upload|Delete|Move|Report))\s*\(/;
 
 // A ROUTE THAT ONLY EVER REFUSES SPENDS NO BUDGET.
 //
@@ -316,6 +317,9 @@ describe("app/api rate limiting (tree-wide)", () => {
     ];
 
     expect(consultsLimiter(lines.join("\n"))).toBe(true);
+    // An IMPORT IS NOT A CALL either: the proxy below still names the limiter
+    // on its import line and never spends a budget, so it must be refused.
+    expect(consultsLimiter(lines.filter((line) => !line.includes("if (")).join("\n"))).toBe(false);
     expect(consultsLimiter(lines.filter((line) => !line.includes("ingestRateLimited")).join("\n")))
       .toBe(false);
   });
