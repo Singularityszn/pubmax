@@ -118,7 +118,10 @@
 }
 
 .vpsBarFillNow {
-  background: var(--accent-price);
+  /* Ink, never the amber accent: colour on a price is its band and nothing
+     else (captain's law 2026-09-05), and a bar whose length encodes the figure
+     is a price. Now reads darker than the ink-soft Then bar, not warmer. */
+  background: color-mix(in srgb, var(--ink) 72%, transparent);
 }
 
 .vpsBarValue {

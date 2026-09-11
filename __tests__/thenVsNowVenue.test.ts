@@ -182,6 +182,20 @@ describe("computeVenuePriceStory", () => {
     expect(story.baseline?.provenance).toBe("demo");
   });
 
+  it("chips the dataset baseline Sourced even when the venue's story is an anecdote", () => {
+    // `curation.provenance` marks the venue's STORY: a keyword-inferred
+    // heritage note reads "anecdote" (lib/curation.ts). The baseline price is
+    // the dataset record, so it must not inherit the story's mark.
+    const venue = v({
+      id: "v4b",
+      name: "Inferred Tale",
+      cheapestPrice: 2.59,
+      curation: { provenance: "anecdote" },
+    });
+    const story = computeVenuePriceStory(venue, []);
+    expect(story.baseline?.provenance).toBe("sourced");
+  });
+
   it("skips the inflation line when no drop carries both a price and a dated era", () => {
     const venue = v({ id: "v5", name: "Undated", cheapestPrice: 4 });
     const drops = [

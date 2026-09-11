@@ -292,9 +292,12 @@ export function computeVenuePriceStory(
   const baseline: VenuePriceStamp | null = isFiniteNumber(baselineGbp)
     ? {
         gbp: baselineGbp,
-        // The dataset baseline is editorial/sourced record, unless the venue's
-        // curation explicitly marks its provenance otherwise (e.g. demo).
-        provenance: venue.curation.provenance ?? "sourced",
+        // The dataset baseline is the sourced price on record, and only a demo
+        // seed keeps its own mark. `curation.provenance` is the venue STORY's
+        // mark — a keyword-inferred heritage note reads "anecdote" — so letting
+        // it through chipped a listed Pint Prices figure "Anecdote" on the same
+        // sheet that names the price's publisher.
+        provenance: venue.curation.provenance === "demo" ? "demo" : "sourced",
         label: "Baseline on record",
       }
     : null;
