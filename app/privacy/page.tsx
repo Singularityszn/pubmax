@@ -169,7 +169,7 @@ export default function PrivacyPage() {
           report joins a private review queue and does not hide the picture on
           its own. A named staff member must hide or restore it, and that
           decision keeps a private audit record. Hiding stops public delivery
-          and never deletes the stored file or the report provenance. Removing
+          and never deletes the stored file or the record of the report. Removing
           the picture yourself, or deleting your account, removes the stored
           file from our storage. If you connect an external social profile (X,
           Instagram, TikTok) we store the account details you connected and any
@@ -273,7 +273,7 @@ export default function PrivacyPage() {
           server took it, and your account&rsquo;s stable private profile key.
           The server derives the handle and private key from your authenticated
           account and ignores any handle sent by the browser. The private key
-          is used for rate limits and audit provenance and is never shown.
+          is used for rate limits and the audit trail and is never shown.
           A visible Recommendation counts on the public contributor record
           under its public handle. Historic Recommendations written under an
           unlinked, self-asserted handle can remain visible. They are excluded
@@ -804,7 +804,7 @@ export default function PrivacyPage() {
             handle and private profile key for as long as it is up, or until you
             delete your account. The handle
             attributes the opinion publicly; the private key stays hidden and
-            supports rate limits and audit provenance. Writing another under
+            supports rate limits and the audit trail. Writing another under
             the same handle for the same pub and condition replaces the one you
             already had. There is no one-tap delete for a single Recommendation
             yet, so ask us and we&rsquo;ll take it down, the same as anything

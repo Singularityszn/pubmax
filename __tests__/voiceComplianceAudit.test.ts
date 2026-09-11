@@ -206,6 +206,11 @@ describe("VOICE.md compliance audit", () => {
     expect(privacy).not.toContain("not a queue");
     expect(privacy).not.toContain("community observation rows");
     expect(privacy).not.toContain("A row is one observation");
+    expect(privacy).not.toContain("audit provenance");
+    expect(privacy).not.toContain("report provenance");
+
+    const accountDelete = read("app/account/delete/page.tsx");
+    expect(accountDelete).not.toContain("an observation other drinkers");
 
     expect(terms).not.toContain("optional anonymous analytics");
     expect(terms).not.toContain("account identity boundary");
@@ -316,6 +321,16 @@ describe("VOICE.md compliance audit", () => {
     expect(weatherRoute).not.toContain("contributor provenance");
     expect(planRoute).not.toContain("Crawl Route");
     expect(planComplete).not.toContain("Crawl Route");
+
+    // The WebMCP demo board is a reader surface too: it drafts a pub crawl,
+    // and its search lane reads the pub index, never a "curated" one.
+    const webmcpPage = read("app/webmcp/page.tsx");
+    const webmcpBoard = read("components/webmcp/WebMcpNightBoard.tsx");
+    for (const source of [webmcpPage, webmcpBoard]) {
+      expect(source).not.toContain("Crawl Route");
+      expect(source).not.toContain("curated index");
+      expect(source).not.toContain("curated venue");
+    }
     expect(operatorProposals).toContain(
       "Only an approved operator of this venue can propose an update.",
     );

@@ -92,8 +92,8 @@ export default function AccountDeletePage() {
           ))}
         </ul>
         <p className="legalBody">
-          A price is an observation other drinkers rely on, so it stays on the
-          map under the handle that logged it. The handle itself is reserved for
+          Other drinkers rely on a price staying put, so it stays on the map
+          under the handle that logged it. The handle itself is reserved for
           good, which is what stops the record naming somebody else later.
         </p>
       </section>
