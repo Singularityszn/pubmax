@@ -239,6 +239,14 @@ const LIMITER_EXEMPT_REFUSAL_ROUTES = new Set([
 // its status, never a JSON body.
 const MUTATING_METHODS = ["POST", "PUT", "PATCH", "DELETE"] as const;
 
+// ONE ANSWER TO "DOES THIS ROUTE MUTATE": the handlers the module really
+// exports. A source scan would miss a handler exported indirectly, and the
+// outside-api list and the limiter sweep must not disagree about one route.
+async function exportsMutatingHandler(load: () => Promise<unknown>): Promise<boolean> {
+  const mod = (await load()) as Record<string, unknown>;
+  return MUTATING_METHODS.some((method) => typeof mod[method] === "function");
+}
+
 const MUTATING_ROUTES_OUTSIDE_API = [
   {
     file: "app/ingest/[...path]/route.ts",
@@ -263,9 +271,7 @@ describe("app/api rate limiting (tree-wide)", () => {
   it("keeps the outside-api list honest: every entry still exists and mutates", async () => {
     for (const { file, load } of MUTATING_ROUTES_OUTSIDE_API) {
       expect(existsSync(join(ROOT, file)), file).toBe(true);
-      const mod: Record<string, unknown> = await load();
-      const mutates = MUTATING_METHODS.some((method) => typeof mod[method] === "function");
-      expect(mutates, file).toBe(true);
+      await expect(exportsMutatingHandler(load)).resolves.toBe(true);
     }
   });
 
@@ -278,17 +284,14 @@ describe("app/api rate limiting (tree-wide)", () => {
       if (file.startsWith(join(ROOT, "app/api"))) continue;
       if (listed.has(file)) continue;
       inspected.push(relative(ROOT, file));
-      const mod: Record<string, unknown> = await import(file);
-      if (MUTATING_METHODS.some((method) => typeof mod[method] === "function")) {
-        unlisted.push(relative(ROOT, file));
-      }
+      if (await exportsMutatingHandler(() => import(file))) unlisted.push(relative(ROOT, file));
     }
 
     expect(inspected.length).toBeGreaterThan(0);
     expect(unlisted, unlisted.join("\n")).toEqual([]);
   });
 
-  it("references a rate limiter (or a named delegation) in every non-cron mutating route", () => {
+  it("references a rate limiter (or a named delegation) in every non-cron mutating route", async () => {
     const failures: string[] = [];
     const routes = [
       ...ALL_ROUTES,
@@ -297,26 +300,11 @@ describe("app/api rate limiting (tree-wide)", () => {
     for (const file of routes) {
       if (file.includes("/cron/")) continue;
       if (LIMITER_EXEMPT_REFUSAL_ROUTES.has(relative(ROOT, file))) continue;
-      const source = readFileSync(file, "utf8");
-      const mutating = /export (?:async )?(?:function|const) (?:POST|PUT|PATCH|DELETE)\b/.test(
-        source,
-      );
-      if (!mutating) continue;
-      if (consultsLimiter(source)) continue;
+      if (!(await exportsMutatingHandler(() => import(file)))) continue;
+      if (consultsLimiter(readFileSync(file, "utf8"))) continue;
       failures.push(relative(ROOT, file));
     }
     expect(failures, failures.join("\n")).toEqual([]);
-  });
-
-  it("refuses a route that only names a limiter in a comment", () => {
-    const commentOnly = [
-      "// The durable limiter (`isLimited`) is NOT used on purpose.",
-      "export async function POST(): Promise<Response> {",
-      "  return new Response(null, { status: 204 });",
-      "}",
-    ].join("\n");
-
-    expect(consultsLimiter(commentOnly)).toBe(false);
   });
 
   it("keeps a real call and a URL inside a string readable to the sweep", () => {

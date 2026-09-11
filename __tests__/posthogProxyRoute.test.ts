@@ -119,12 +119,14 @@ describe("/ingest owned PostHog proxy", () => {
     vi.spyOn(Date, "now").mockReturnValue(Date.now());
     const address = "198.51.100.7";
     const oneMegabyte = new Uint8Array(ONE_MEGABYTE);
+    // The warm-up requests exist to spend the count, so they carry a small
+    // body. The walled request below is the one that needs a 1 MB streaming
+    // body, because its bodyRead assertion is what proves the order.
+    const smallCapture = JSON.stringify({ event: "$pageview" });
 
-    // Count each forwarded call and drop it again, so the peak holds one 1 MB
-    // body rather than the whole burst.
     let forwarded = 0;
     for (let i = 0; i < INGEST_BUDGET_PER_MINUTE; i += 1) {
-      const response = await capturePost(address, oneMegabyte);
+      const response = await capturePost(address, smallCapture);
       expect(response.status, `request ${i + 1}`).toBe(200);
       forwarded += fetchMock.mock.calls.length;
       fetchMock.mockClear();
