@@ -15,7 +15,7 @@ import {
   type RecapOgCacheProfile,
 } from "@/lib/recapCard";
 import { recapCardStats } from "@/lib/recapCardStats.server";
-import { readPublicNightStory } from "@/lib/nightMemoryStore";
+import { readNightStory } from "@/lib/nightMemoryStore";
 
 // The shared-recap OG image — the WhatsApp/iMessage preview that makes people
 // tap. Co-located with the public recap page (app/recap/[storyId], owned by
@@ -50,7 +50,7 @@ async function loadCardData(storyId: string): Promise<CardResponse> {
   try {
     // The public accessor only answers a story once it is approved-shared
     // (published + not private); private/draft/missing → absent.
-    const read = await readPublicNightStory(storyId);
+    const read = await readNightStory(storyId, null);
     if (read.status === "unavailable") return UNAVAILABLE;
     const story = read.status === "found" ? read.story : null;
     const stats = story ? await recapCardStats(storyId).catch(() => null) : null;

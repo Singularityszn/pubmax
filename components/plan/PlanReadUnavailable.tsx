@@ -3,8 +3,10 @@ import EmptyState from "@/components/ui/empty-state";
 
 /**
  * A read we could not RUN, on every surface under /plan/[id] and on the public
- * recap at app/recap/[storyId]/page.tsx, which passes its own title so the
- * masthead names the Story rather than the plan.
+ * recap at app/recap/[storyId]/page.tsx. The recap passes its own title, which
+ * reaches the EmptyState heading and nothing else, so the masthead below still
+ * says Plan there and the body copy is the same copy. That reuse is deliberate
+ * and ruled, not an oversight: one surface words a read we could not run once.
  *
  * It is not the not-found surface: that one says the link expired and sends the
  * reader off to start their own night, which over a live plan is the wrong

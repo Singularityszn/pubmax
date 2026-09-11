@@ -66,7 +66,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 import { GET as GET_STORY } from "@/app/api/night-stories/[id]/route";
 import OpenGraphImage from "@/app/recap/[storyId]/opengraph-image";
 import PublicRecapPage, { generateMetadata } from "@/app/recap/[storyId]/page";
-import { getNightStory, readPublicNightStory, readPublishedRecapSource } from "@/lib/nightMemoryStore";
+import { getNightStory, readNightStory, readPublishedRecapSource } from "@/lib/nightMemoryStore";
 import { RECAP_OG_CACHE_HEADERS } from "@/lib/recapCard";
 
 const STORY_ID = "0b6d6f4e-3f6f-4d0a-9d2e-3c1f0d2a5b7c";
@@ -290,14 +290,14 @@ describe("the OG card never pins an outage as a not-shared Story", () => {
   it("reads the public Story three ways", async () => {
     seedPublishedStory();
     seedWithdrawnContributorWithMoment();
-    const found = await readPublicNightStory(STORY_ID);
+    const found = await readNightStory(STORY_ID, null);
     expect(found.status).toBe("found");
 
     store.answers.set("night_story_contributors", { data: null, error: OUTAGE });
-    await expect(readPublicNightStory(STORY_ID)).resolves.toEqual({ status: "unavailable" });
+    await expect(readNightStory(STORY_ID, null)).resolves.toEqual({ status: "unavailable" });
 
     store.answers.set("night_stories", { data: null, error: null });
-    await expect(readPublicNightStory(STORY_ID)).resolves.toEqual({ status: "absent" });
+    await expect(readNightStory(STORY_ID, null)).resolves.toEqual({ status: "absent" });
   });
 
   it("paints the fallback card with no-store when the contributors read failed", async () => {

@@ -832,11 +832,6 @@ async function getStoryRaw(storyId: string): Promise<NightStory | null> {
   return read.status === "found" ? read.story : null;
 }
 
-export type PublicNightStoryReadResult =
-  | { status: "found"; story: PublicNightStory }
-  | { status: "absent" }
-  | { status: "unavailable" };
-
 export type NightStoryReadResult =
   | { status: "found"; story: NightStory | PublicNightStory }
   | { status: "absent" }
@@ -845,7 +840,7 @@ export type NightStoryReadResult =
 async function readPublicProjection(
   story: NightStory,
   contributorsList: StoryContributor[],
-): Promise<PublicNightStoryReadResult> {
+): Promise<NightStoryReadResult> {
   const consentsRead = await readConsents(story.id);
   if (consentsRead.status !== "found") return { status: "unavailable" };
   const departedRead = await resolveDepartedContributors(contributorsList, consentsRead.rows);
@@ -863,9 +858,13 @@ async function readPublicProjection(
  * read never carries a departed person's identity (5.5). A read we could not
  * run is `unavailable`, never `absent`, so no surface turns an outage into a
  * 404 or a day-long not-shared card. `getNightStory` is the two-way reading.
+ *
+ * A null actor is the public branch: it takes the public projection below, and
+ * that is what a surface with no reader passes. DO NOT READ THE RETURN TYPE AS
+ * THE GUARANTEE. `NightStory | PublicNightStory` cannot keep a full Story off a
+ * public surface; the `safeNightStory` projection inside `readPublicProjection`
+ * is what does, by building a fresh literal of exactly the public fields.
  */
-export async function readNightStory(storyId: string, actorId: null): Promise<PublicNightStoryReadResult>;
-export async function readNightStory(storyId: string, actorId: string | null): Promise<NightStoryReadResult>;
 export async function readNightStory(storyId: string, actorId: string | null): Promise<NightStoryReadResult> {
   const storyRead = await readStoryRaw(storyId);
   if (storyRead.status !== "found") return storyRead;
@@ -888,16 +887,6 @@ export async function getNightStory(
 ): Promise<NightStory | PublicNightStory | null> {
   const read = await readNightStory(storyId, actorId);
   return read.status === "found" ? read.story : null;
-}
-
-/**
- * The public projection of a Story, three ways, for a surface that must tell
- * an outage apart from a Story that is absent or private: the OG card caches
- * its not-shared answer for a day, and a read we could not run must not be
- * pinned as one.
- */
-export function readPublicNightStory(storyId: string): Promise<PublicNightStoryReadResult> {
-  return readNightStory(storyId, null);
 }
 
 export type PublishedRecapSource = { story: PublicNightStory; moments: NightMoment[] };
