@@ -8,6 +8,7 @@ import { DiscoverBody } from "@/app/discover/DiscoverPageClient";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import FoundersWallLink from "@/components/founding/FoundersWallLink";
+import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import CrewsPanel from "@/components/social/CrewsPanel";
@@ -295,27 +296,24 @@ function PostsControls({
   return (
     <>
       <nav className="socialLaneNav" aria-label="Post lanes">
-        <Link
-          prefetch={false}
+        <IntentLink
           href="/social"
           aria-current={state.feed === "following" ? "page" : undefined}
         >
           Following
-        </Link>
-        <Link
-          prefetch={false}
+        </IntentLink>
+        <IntentLink
           href="/social?feed=nearby"
           aria-current={state.feed === "nearby" ? "page" : undefined}
         >
           Nearby
-        </Link>
-        <Link
-          prefetch={false}
+        </IntentLink>
+        <IntentLink
           href="/social?feed=discover"
           aria-current={state.feed === "discover" ? "page" : undefined}
         >
           Across town
-        </Link>
+        </IntentLink>
       </nav>
       {state.feed === "nearby" ? (
         <label className="socialAreaField">
@@ -760,16 +758,15 @@ function SocialPageAccountState({
               setFeedAttempt((value) => value + 1);
             }} /> : null}
             <nav className="socialSwitcher" aria-label={`${surfaceName} view`}>
-              <Link prefetch={false} href="/social" aria-current={isPosts ? "page" : undefined}>
+              <IntentLink href="/social" aria-current={isPosts ? "page" : undefined}>
                 Posts
-              </Link>
-              <Link
-                prefetch={false}
+              </IntentLink>
+              <IntentLink
                 href="/social?tab=discover"
                 aria-current={!isPosts ? "page" : undefined}
               >
                 Pubs &amp; pints
-              </Link>
+              </IntentLink>
             </nav>
             {showPostsControls ? <PostsControls state={initialState} /> : null}
             {/* Crews render their own neutral identity state before the
