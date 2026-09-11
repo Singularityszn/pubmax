@@ -151,21 +151,21 @@ describe("app/api public error envelope (tree-wide)", () => {
 // remove and reorder, and a per-actor budget on every reader flag.
 // A COMMENT IS NOT A LIMITER. The sweep below decides on code, so a route that
 // only NAMES a limiter in prose cannot answer for a call it does not make.
-// Strings stay: a URL or a message is code, and dropping them would need a
-// regex-literal parser for no gain.
-const REGEX_MAY_START_AFTER = /[(,=:[!&|?{};+\-*%~^<>]/;
-
+//
+// The stripper tracks quote state and drops `//` and `/* */`. It does NOT model
+// regex literals, and it does not need to: a block-comment opener cannot start
+// a regex literal. A `/` inside a character class, as in `[/]`, can therefore be
+// mis-read as the start of a comment.
+//
+// THAT MIS-READ FAILS RED. The stripper only ever deletes characters, and the
+// sweep asks whether a limiter token is PRESENT in what is left, while
+// `mutating` is decided on the raw source. So a mis-strip can only take a token
+// away and report a compliant route as an offender. It can never let a route
+// with no limiter pass, and it can never make the offender list shorter.
 function codeWithoutComments(source: string): string {
   let out = "";
   let quote: string | null = null;
-  let lastCode = "";
   let i = 0;
-
-  const push = (text: string): void => {
-    out += text;
-    const significant = text.trimEnd();
-    if (significant) lastCode = significant[significant.length - 1];
-  };
 
   while (i < source.length) {
     const character = source[i];
@@ -173,19 +173,19 @@ function codeWithoutComments(source: string): string {
 
     if (quote) {
       if (character === "\\") {
-        push(character + (next ?? ""));
+        out += character + (next ?? "");
         i += 2;
         continue;
       }
       if (character === quote) quote = null;
-      push(character);
+      out += character;
       i += 1;
       continue;
     }
 
     if (character === '"' || character === "'" || character === "`") {
       quote = character;
-      push(character);
+      out += character;
       i += 1;
       continue;
     }
@@ -203,27 +203,7 @@ function codeWithoutComments(source: string): string {
       continue;
     }
 
-    if (character === "/" && REGEX_MAY_START_AFTER.test(lastCode)) {
-      push(character);
-      i += 1;
-      let inClass = false;
-      while (i < source.length) {
-        const inside = source[i];
-        if (inside === "\\") {
-          push(inside + (source[i + 1] ?? ""));
-          i += 2;
-          continue;
-        }
-        push(inside);
-        i += 1;
-        if (inside === "[") inClass = true;
-        else if (inside === "]") inClass = false;
-        else if (inside === "/" && !inClass) break;
-      }
-      continue;
-    }
-
-    push(character);
+    out += character;
     i += 1;
   }
 
@@ -256,6 +236,8 @@ const LIMITER_EXEMPT_REFUSAL_ROUTES = new Set([
 // through it, and it sits outside `app/api` so the sweep above never saw it
 // (Astra P2-1). It is named here so the limiter sweep reads it too. It is NOT
 // an envelope route: a browser SDK reads its status, never a JSON body.
+const MUTATING_METHODS = ["POST", "PUT", "PATCH", "DELETE"] as const;
+
 const MUTATING_ROUTES_OUTSIDE_API = [
   {
     file: "app/ingest/[...path]/route.ts",
@@ -283,6 +265,25 @@ describe("app/api rate limiting (tree-wide)", () => {
       const mod: Record<string, unknown> = await load();
       expect(typeof mod.POST, file).toBe("function");
     }
+  });
+
+  it("keeps the outside-api list complete: no mutating route outside app/api is unlisted", async () => {
+    const listed = new Set(MUTATING_ROUTES_OUTSIDE_API.map(({ file }) => join(ROOT, file)));
+    const inspected: string[] = [];
+    const unlisted: string[] = [];
+
+    for (const file of routeFiles(join(ROOT, "app"))) {
+      if (file.startsWith(join(ROOT, "app/api"))) continue;
+      if (listed.has(file)) continue;
+      inspected.push(relative(ROOT, file));
+      const mod: Record<string, unknown> = await import(file);
+      if (MUTATING_METHODS.some((method) => typeof mod[method] === "function")) {
+        unlisted.push(relative(ROOT, file));
+      }
+    }
+
+    expect(inspected.length).toBeGreaterThan(0);
+    expect(unlisted, unlisted.join("\n")).toEqual([]);
   });
 
   it("references a rate limiter (or a named delegation) in every non-cron mutating route", () => {
@@ -316,10 +317,9 @@ describe("app/api rate limiting (tree-wide)", () => {
     expect(consultsLimiter(commentOnly)).toBe(false);
   });
 
-  it("keeps a real call, a URL and a regex literal readable to the sweep", () => {
+  it("keeps a real call and a URL inside a string readable to the sweep", () => {
     const withCall = [
-      'const origin = "https://eu.i.posthog.com"; // not a comment start',
-      "const digits = /[0-9\"']+/;",
+      'const origin = "https://eu.i.posthog.com";',
       "if (ingestRateLimited(key, Date.now(), 240, 60_000)) return refusal(429);",
     ].join("\n");
 

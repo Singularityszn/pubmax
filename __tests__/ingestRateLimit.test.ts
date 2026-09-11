@@ -8,7 +8,7 @@ const WINDOW_MS = 60_000;
 const LIMIT = 3;
 
 describe("the /ingest sliding-window budget", () => {
-  it("keeps a refused address at the limit instead of growing its window", () => {
+  it("lets a refused address back in on time, because refusals do not extend its window", () => {
     const start = 1_000_000;
     const address = "ingest:refused";
 
@@ -19,7 +19,7 @@ describe("the /ingest sliding-window budget", () => {
       expect(ingestRateLimited(address, start + 100 + refusal, LIMIT, WINDOW_MS)).toBe(true);
     }
 
-    expect(ingestLimiterSnapshot()[address]).toBe(LIMIT);
+    expect(ingestRateLimited(address, start + WINDOW_MS + 1, LIMIT, WINDOW_MS)).toBe(false);
   });
 
   it("drops a key once every hit in its window has expired", () => {
