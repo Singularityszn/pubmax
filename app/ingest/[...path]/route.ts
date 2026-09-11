@@ -10,8 +10,8 @@ const MAX_REQUEST_BYTES = 1024 * 1024;
 // SDK flushes events about every three seconds and replay about as often, so a
 // phone spends under 40 a minute; 240 covers a table of phones sharing one
 // carrier address and walls a loop. The durable limiter (`isLimited`) is NOT
-// used on purpose: this route must carry no Supabase dependency, and the
-// durable limiter's degraded mode tightens to 3 a minute during a Supabase
+// used on purpose: this route must make no Supabase call at request time, and
+// the durable limiter's degraded mode tightens to 3 a minute during a Supabase
 // outage, which would wall the error telemetry that reports that outage. Not
 // paid spend, so a per-instance budget that resets on a cold start is enough.
 // `__tests__/posthogProxyRoute.test.ts` names the same number.
