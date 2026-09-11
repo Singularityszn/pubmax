@@ -4,10 +4,13 @@ import { dirname } from "node:path";
 import { test, type Browser, type Page } from "@playwright/test";
 
 import {
-  PERF_AB_BREACH_FILE,
+  abArmOrder,
   compareArms,
+  formatAbScopeLines,
   formatAbTable,
   formatAbVerdictLines,
+  selectAbBreaches,
+  type AbBreach,
   type AbBreachHandover,
   type AbRoutePair,
 } from "../lib/performanceAbEvidence";
@@ -63,13 +66,14 @@ const reportPath = process.env.PUBMAX_PERF_AB_REPORT ?? "";
 
 type Arm = { name: "branch" | "base"; origin: string; page: Page };
 
-// WHERE THE BREACH LIST IS READ FROM, AND WHY IT IS NOT ALWAYS THE SWEEP'S OWN
-// PATH. The sweep writes `test-results/perf-budget-breaches.json`, and
-// Playwright CLEARS `test-results/` at the START of every run - including this
-// one, which is a second Playwright run in the same job. So scripts/perf-ab.mjs
-// takes its own copy before it runs this spec and names it here.
-function readBreaches(): AbBreachHandover | null {
-  const handoverPath = process.env.PUBMAX_PERF_AB_BREACHES || PERF_AB_BREACH_FILE;
+// WHERE THE BREACH LIST IS READ FROM, AND WHY IT IS NEVER THE SWEEP'S OWN PATH.
+// The sweep writes `test-results/perf-budget-breaches.json`, and Playwright
+// CLEARS `test-results/` at the START of every run - including this one, which
+// is a second Playwright run in the same job, so that file is already gone by
+// the time this line runs. scripts/perf-ab.mjs takes its own copy before it
+// starts this spec and names it in PUBMAX_PERF_AB_BREACHES, which is the only
+// place this spec reads.
+function readBreaches(handoverPath: string): AbBreachHandover | null {
   try {
     return JSON.parse(readFileSync(handoverPath, "utf8")) as AbBreachHandover;
   } catch {
@@ -77,10 +81,10 @@ function readBreaches(): AbBreachHandover | null {
   }
 }
 
-/** The breached metrics per route, in budget-file order so the table reads like the sweep's. */
-function breachedMetricsByRoute(handover: AbBreachHandover): Map<string, BudgetMetric[]> {
+/** The breached metrics per route, each route's metrics in budget-file order. */
+function breachedMetricsByRoute(breaches: readonly AbBreach[]): Map<string, BudgetMetric[]> {
   const byRoute = new Map<string, BudgetMetric[]>();
-  for (const breach of handover.breaches) {
+  for (const breach of breaches) {
     const metrics = byRoute.get(breach.path) ?? [];
     if (!metrics.includes(breach.metric)) metrics.push(breach.metric);
     byRoute.set(breach.path, metrics);
@@ -149,25 +153,22 @@ async function warmArm(arm: Arm, route: RouteBudget, warmupRuns: number): Promis
   }
 }
 
-// The same worst case the sweep's own timeout reads, doubled because two arms
-// take it. A timeout that did not count both arms would time the A/B out on the
-// evidence it exists to gather.
-const AB_TIMEOUT_MS = 60_000 * 2 * plannedNavigations(budgets.routes, budgets.method);
-
 test("a breached route is measured against its merge base on this box", async ({ browser }) => {
   test.skip(!process.env.PUBMAX_PERF_AB, "Owned by the Performance budget CI job.");
-  test.setTimeout(AB_TIMEOUT_MS);
 
   // A green sweep never reaches here: scripts/perf-ab.mjs reads the same breach
   // list first and stops before it builds anything, which is what keeps the
   // second build off the critical path. So an EMPTY list at this point is a
   // broken invocation rather than a quiet pass, and it is refused rather than
   // skipped: a skipped lane is a lane nobody proves.
-  const handover = readBreaches();
+  const handoverPath = process.env.PUBMAX_PERF_AB_BREACHES ?? "";
+  const handover = handoverPath ? readBreaches(handoverPath) : null;
   if (!handover || handover.breaches.length === 0) {
     throw new Error(
-      `The A/B was asked to run with no breach list at ${PERF_AB_BREACH_FILE}. ` +
-        "It is driven by scripts/perf-ab.mjs, which only runs it on a red sweep.",
+      "The A/B was asked to run with no breach list in PUBMAX_PERF_AB_BREACHES " +
+        `(${handoverPath || "unset"}). It is driven by scripts/perf-ab.mjs, which copies the ` +
+        "sweep's list out of test-results before this run clears that directory, and only " +
+        "runs this spec on a red sweep.",
     );
   }
   if (!branchOrigin || !baseOrigin) {
@@ -177,8 +178,23 @@ test("a breached route is measured against its merge base on this box", async ({
     );
   }
 
-  const metricsByRoute = breachedMetricsByRoute(handover);
-  const routes = budgets.routes.filter((route) => metricsByRoute.has(route.path));
+  // THE CAP, AND WHY IT IS NOT A TRUNCATION. A mass breach is the signature of
+  // a slow box, and measuring forty routes twice walks this job into its wall,
+  // where GitHub cancels the upload step and the evidence is lost in exactly
+  // the case it exists for. The worst breaches are measured first and the
+  // report says how many breached before it says how many were measured.
+  const selection = selectAbBreaches(handover.breaches);
+  const metricsByRoute = breachedMetricsByRoute(selection.breaches);
+  const budgetedByPath = new Map(budgets.routes.map((route) => [route.path, route]));
+  const routes = [...metricsByRoute.keys()]
+    .map((path) => budgetedByPath.get(path))
+    .filter((route): route is RouteBudget => route !== undefined);
+
+  // The worst case for THESE routes, doubled because two arms take it. Reading
+  // every budgeted route here would put the timeout hours past the job's own
+  // wall, so a stuck arm would burn the whole job instead of failing its test
+  // and leaving time for the artifact.
+  test.setTimeout(60_000 * 2 * plannedNavigations(routes, budgets.method));
 
   const branch = await openArm(browser, "branch", branchOrigin, routes);
   const base = await openArm(browser, "base", baseOrigin, routes);
@@ -189,14 +205,13 @@ test("a breached route is measured against its merge base on this box", async ({
     await warmArm(branch, route, plan.warmupRuns);
     await warmArm(base, route, plan.warmupRuns);
 
+    const arms: Record<Arm["name"], Arm> = { branch, base };
     const samples = { branch: [] as PerfSample[], base: [] as PerfSample[] };
     for (let run = 0; run < budgets.method.measuredRuns; run += 1) {
-      // A, B, then B, A, then A, B: interleaved so drift during the run falls
-      // on both arms, and alternated so a drift that only moves one way does
-      // not settle on whichever arm is always second.
-      const order: Arm[] = run % 2 === 0 ? [branch, base] : [base, branch];
-      for (const arm of order) {
-        samples[arm.name].push(await sampleArm(arm, route));
+      // A, B, then B, A, then A, B. The rule itself lives in the pure module,
+      // so it is unit-tested with no browser.
+      for (const name of abArmOrder(run)) {
+        samples[name].push(await sampleArm(arms[name], route));
       }
     }
 
@@ -218,6 +233,7 @@ test("a breached route is measured against its merge base on this box", async ({
   const report = [
     "[perf-ab] the branch against its merge base: same box, same job, navigations interleaved",
     `[perf-ab] branch ${branchOrigin}  base ${baseOrigin}  head ${handover.head || "local"}`,
+    ...formatAbScopeLines(selection).map((line) => `[perf-ab] ${line}`),
     "",
     formatAbTable(rows),
     "",

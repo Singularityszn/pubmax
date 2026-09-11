@@ -27,12 +27,24 @@
  * two different products.
  *
  * USAGE
- *   node scripts/perf-ab.mjs [--base-ref origin/main] [--branch-port 3500]
- *                            [--base-port 3501] [--report <file>]
+ *   node scripts/perf-ab.mjs
+ *
+ * It takes no options. One instrument wired into one job needs one set of
+ * values, and a flag nobody passes is surface that looks supported and does
+ * nothing. The base branch arrives the one way the job already names it,
+ * BUDGET_BASE_BRANCH.
  */
 
 import { execFileSync, spawn } from "node:child_process";
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -44,34 +56,12 @@ const BREACH_FILE = "test-results/perf-budget-breaches.json";
 
 const REPO_ROOT = process.cwd();
 
-function parseArgs(argv) {
-  const args = {
-    baseRef: process.env.BUDGET_BASE_BRANCH
-      ? `origin/${process.env.BUDGET_BASE_BRANCH}`
-      : "origin/main",
-    branchPort: 3500,
-    basePort: 3501,
-    report: "test-results/perf-budget-ab.txt",
-  };
-  for (let index = 2; index < argv.length; index += 1) {
-    const flag = argv[index];
-    const value = argv[index + 1];
-    if (flag === "--base-ref" && value) {
-      args.baseRef = value;
-      index += 1;
-    } else if (flag === "--branch-port" && value) {
-      args.branchPort = Number(value);
-      index += 1;
-    } else if (flag === "--base-port" && value) {
-      args.basePort = Number(value);
-      index += 1;
-    } else if (flag === "--report" && value) {
-      args.report = value;
-      index += 1;
-    }
-  }
-  return args;
-}
+const BASE_REF = process.env.BUDGET_BASE_BRANCH
+  ? `origin/${process.env.BUDGET_BASE_BRANCH}`
+  : "origin/main";
+const BRANCH_PORT = 3500;
+const BASE_PORT = 3501;
+const REPORT_FILE = "test-results/perf-budget-ab.txt";
 
 function say(message) {
   console.log(`[perf-ab] ${message}`);
@@ -132,13 +122,12 @@ function startServer({ cwd, port, env }) {
 }
 
 async function main() {
-  const args = parseArgs(process.argv);
-
   if (!existsSync(path.join(REPO_ROOT, BREACH_FILE))) {
     say("the sweep left no breach list, so there is nothing to explain. Nothing was built.");
     return;
   }
-  const handover = JSON.parse(readFileSync(path.join(REPO_ROOT, BREACH_FILE), "utf8"));
+  const handoverText = readFileSync(path.join(REPO_ROOT, BREACH_FILE), "utf8");
+  const handover = JSON.parse(handoverText);
   if (!Array.isArray(handover.breaches) || handover.breaches.length === 0) {
     say("the breach list is empty. Nothing was built.");
     return;
@@ -153,7 +142,7 @@ async function main() {
     return;
   }
 
-  const mergeBase = git(["merge-base", args.baseRef, "HEAD"]);
+  const mergeBase = git(["merge-base", BASE_REF, "HEAD"]);
   say(
     `${handover.breaches.length} breached metric(s), measured again against merge base ` +
       `${mergeBase.slice(0, 9)}`,
@@ -186,19 +175,19 @@ async function main() {
       env: { ...serverEnv, NEXT_DIST_DIR: baseDistDir },
     });
 
-    const branchOrigin = `http://localhost:${args.branchPort}`;
-    const baseOrigin = `http://localhost:${args.basePort}`;
+    const branchOrigin = `http://localhost:${BRANCH_PORT}`;
+    const baseOrigin = `http://localhost:${BASE_PORT}`;
     servers.push(
       startServer({
         cwd: REPO_ROOT,
-        port: args.branchPort,
+        port: BRANCH_PORT,
         env: { ...serverEnv, NEXT_DIST_DIR: branchDistDir },
       }),
     );
     servers.push(
       startServer({
         cwd: worktree,
-        port: args.basePort,
+        port: BASE_PORT,
         env: { ...serverEnv, NEXT_DIST_DIR: baseDistDir },
       }),
     );
@@ -237,12 +226,21 @@ async function main() {
           PUBMAX_PERF_AB_BRANCH_URL: branchOrigin,
           PUBMAX_PERF_AB_BASE_URL: baseOrigin,
           PUBMAX_PERF_AB_BREACHES: handoverCopy,
-          PUBMAX_PERF_AB_REPORT: args.report,
+          PUBMAX_PERF_AB_REPORT: REPORT_FILE,
         },
       },
     );
   } finally {
     for (const server of servers) server.kill("SIGTERM");
+
+    // THE BREACH LIST IS PUT BACK BEFORE ANYTHING UPLOADS IT. The A/B's own
+    // Playwright run cleared test-results/ at its start, and the sweep's
+    // handover went with it, so without this the job uploads an artifact with
+    // no breach list beside the comparison - on exactly the red run the
+    // artifact exists for.
+    mkdirSync(path.join(REPO_ROOT, path.dirname(BREACH_FILE)), { recursive: true });
+    writeFileSync(path.join(REPO_ROOT, BREACH_FILE), handoverText);
+
     try {
       git(["worktree", "remove", "--force", worktree]);
     } catch {

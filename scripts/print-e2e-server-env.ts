@@ -20,4 +20,19 @@ const servers = Array.isArray(config.webServer)
     ? [config.webServer]
     : [];
 
-process.stdout.write(JSON.stringify(servers[0]?.env ?? {}));
+const env = servers[0]?.env;
+
+// AN EMPTY ENVIRONMENT IS REFUSED RATHER THAN PRINTED. `{}` would build the
+// merge base with none of the keyless, Supabase-shaped or pinned service-worker
+// values the branch build was given, which is the very drift this file exists
+// to stop, and the difference would arrive wearing the branch's name.
+// PW_SKIP_WEBSERVER=1 in the calling shell is the way to get here.
+if (!env || Object.keys(env).length === 0) {
+  throw new Error(
+    "playwright.config.ts declared no web server environment to read, so the merge base " +
+      "cannot be built with the environment the branch was built with. PW_SKIP_WEBSERVER " +
+      "removes that declaration: run the A/B without it.",
+  );
+}
+
+process.stdout.write(JSON.stringify(env));

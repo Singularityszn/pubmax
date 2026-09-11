@@ -3,7 +3,7 @@ import { dirname } from "node:path";
 
 import { expect, test } from "@playwright/test";
 
-import { PERF_AB_BREACH_FILE, type AbBreachHandover } from "../lib/performanceAbEvidence";
+import { PERF_AB_BREACH_FILE, abHandoverForBreaches } from "../lib/performanceAbEvidence";
 import {
   PERFORMANCE_BUDGETS,
   findBudgetBreaches,
@@ -160,17 +160,8 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
   //
   // Nothing is written on a green sweep, so the A/B finds no work, never
   // builds the second tree and costs nothing.
-  if (breaches.length > 0) {
-    const handover: AbBreachHandover = {
-      head: process.env.GITHUB_SHA ?? "",
-      measuredAt: new Date().toISOString(),
-      breaches: breaches.map((breach) => ({
-        path: breach.path,
-        metric: breach.metric,
-        measured: breach.measured,
-        budget: breach.budget,
-      })),
-    };
+  const handover = abHandoverForBreaches(breaches, process.env.GITHUB_SHA ?? "");
+  if (handover) {
     mkdirSync(dirname(PERF_AB_BREACH_FILE), { recursive: true });
     writeFileSync(PERF_AB_BREACH_FILE, `${JSON.stringify(handover, null, 2)}\n`);
   }
