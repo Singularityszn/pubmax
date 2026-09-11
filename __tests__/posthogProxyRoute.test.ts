@@ -2,9 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GET, POST } from "@/app/ingest/[...path]/route";
 
-// THE BUDGET ONE ADDRESS MAY SPEND ON /ingest IN A MINUTE (Astra P2-1). The
-// route cannot export the number (Next holds a route module to its handlers),
-// so this test names it: raising the budget means editing this line.
+// THE BUDGET ONE ADDRESS MAY SPEND ON /ingest IN A MINUTE. The proxy is
+// unauthenticated and every capture request it forwards is billed, so one
+// address may spend 240 requests a minute and no more. The route cannot export
+// the number (Next holds a route module to its handlers), so this test names
+// it: raising the budget means editing this line.
 const INGEST_BUDGET_PER_MINUTE = 240;
 const ONE_MEGABYTE = 1024 * 1024;
 

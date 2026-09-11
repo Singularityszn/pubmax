@@ -1,6 +1,12 @@
 /**
  * The sliding-window budget the `/ingest` PostHog proxy spends, and nothing
- * else (Astra P2-1).
+ * else.
+ *
+ * WHY IT EXISTS: `/ingest` was an unauthenticated PostHog proxy with no budget
+ * at all, so a scripted loop could post 1 MB a request into the billed EU
+ * project for as long as it liked. (Astra P2-1. The Astra plan and its review
+ * live in the captain's workspace and are not files in this repository, so
+ * every site that acted on a finding says what the finding was, in words.)
  *
  * It is a LEAF on purpose: it imports nothing, so reaching a counter no longer
  * pulls `@/lib/pintDrops` and its Pint Drop seeds, cities, drink measures and

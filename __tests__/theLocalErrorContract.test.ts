@@ -233,9 +233,10 @@ const LIMITER_EXEMPT_REFUSAL_ROUTES = new Set([
 
 // A MUTATING ROUTE OUTSIDE app/api IS STILL A MUTATING ROUTE. `/ingest` is the
 // owned PostHog proxy: anyone may POST up to 1 MB into the billed EU project
-// through it, and it sits outside `app/api` so the sweep above never saw it
-// (Astra P2-1). It is named here so the limiter sweep reads it too. It is NOT
-// an envelope route: a browser SDK reads its status, never a JSON body.
+// through it, and it shipped unlimited because the sweep above reads `app/api`
+// and nothing else, so no fence ever looked at it. It is named here so the
+// limiter sweep reads it too. It is NOT an envelope route: a browser SDK reads
+// its status, never a JSON body.
 const MUTATING_METHODS = ["POST", "PUT", "PATCH", "DELETE"] as const;
 
 const MUTATING_ROUTES_OUTSIDE_API = [
@@ -263,7 +264,8 @@ describe("app/api rate limiting (tree-wide)", () => {
     for (const { file, load } of MUTATING_ROUTES_OUTSIDE_API) {
       expect(existsSync(join(ROOT, file)), file).toBe(true);
       const mod: Record<string, unknown> = await load();
-      expect(typeof mod.POST, file).toBe("function");
+      const mutates = MUTATING_METHODS.some((method) => typeof mod[method] === "function");
+      expect(mutates, file).toBe(true);
     }
   });
 

@@ -4,9 +4,10 @@ import { clientIp, hashIp } from "@/lib/supabase";
 const POSTHOG_EU_INGEST_ORIGIN = "https://eu.i.posthog.com";
 const POSTHOG_EU_ASSET_ORIGIN = "https://eu-assets.i.posthog.com";
 const MAX_REQUEST_BYTES = 1024 * 1024;
-// Per-instance in-memory budget, keyed on the hashed address (Astra P2-1).
-// A capture request through here lands in the billed EU project, and nothing
-// but the origin pin stood between a scripted loop and 1 MB a request. An asset
+// Per-instance in-memory budget, keyed on the hashed address. This proxy was
+// unauthenticated and unlimited: a capture request through here lands in the
+// billed EU project, and nothing but the origin pin stood between a scripted
+// loop and 1 MB a request. An asset
 // GET whose path starts `static` or `array` goes to the eu-assets CDN instead
 // and bills no event, and it still spends the same budget, because the budget
 // is spent before the path is resolved: a flood must be walled before it is
