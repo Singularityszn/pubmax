@@ -8,6 +8,8 @@ import {
   PERFORMANCE_BUDGETS,
   findBudgetBreaches,
   formatBreachTable,
+  formatUnmeasuredTable,
+  judgeBudgets,
   median,
   medianSitsOnTheLine,
   plannedNavigations,
@@ -382,3 +384,132 @@ describe("a budgeted route that redirects", () => {
   });
 });
 
+
+// A VERDICT IS UNANIMOUS OR IT IS NOT A VERDICT.
+//
+// The sweep already resampled, took the median and WARNED when a route's own
+// samples sat further apart than the tracked width. The warning changed
+// nothing: a route whose samples spread 133 per cent still failed on its
+// median, so a loaded runner read as a breach. Two runs of job 103319591915 on
+// the identical commit 3ebac98ac shared three of their eleven breached routes,
+// and every route unique to one of them straddled its own ceiling.
+//
+// So the samples now decide whether the median may be converted into a breach:
+// a metric whose samples disagree past `sampleSpreadWarnPct` AND fall on both
+// sides of the ceiling did not measure the ceiling, and is reported unmeasured
+// rather than failed. A metric whose samples all sit over the ceiling is over
+// budget however wide they are, because every median that evidence allows is
+// over: that is the half that keeps a genuinely slow route failing.
+describe("judgeBudgets", () => {
+  const method: BudgetMethod = { ...PERFORMANCE_BUDGETS.method, sampleSpreadWarnPct: 12 };
+  const lcps = (...values: number[]): SampleRow[] =>
+    values.map((lcpMs) => ({ serverRenderMs: 0, jsDecodedKB: 0, requests: 0, lcpMs }));
+  const judge = (samples: SampleRow[], lcpMs = 300) =>
+    judgeBudgets(
+      [route({ lcpMs })],
+      new Map([["/x", measurement({ lcpMs: median(samples.map((s) => s.lcpMs)) })]]),
+      new Map([["/x", samples]]),
+      method,
+    );
+
+  it("fails a route whose tight samples all sit over the ceiling", () => {
+    const verdict = judge(lcps(392, 400, 408));
+    expect(verdict.unmeasured).toEqual([]);
+    expect(verdict.breaches.map((breach) => breach.metric)).toEqual(["lcpMs"]);
+    expect(verdict.breaches[0].measured).toBe(400);
+  });
+
+  it("reports a wide run that straddles its ceiling as unmeasured rather than breached", () => {
+    // /choose-city, second run of 3ebac98ac: 62 per cent apart around a 300 ms
+    // ceiling, and the first run of the same commit measured it 336.
+    const verdict = judge(lcps(476, 336, 356, 408, 256));
+    expect(verdict.breaches).toEqual([]);
+    expect(verdict.unmeasured).toEqual([
+      {
+        path: "/x",
+        metric: "lcpMs",
+        budget: 300,
+        median: 356,
+        min: 256,
+        max: 476,
+        spreadPct: 62,
+      },
+    ]);
+  });
+
+  it("still fails a wide run whose every sample sits over the ceiling", () => {
+    // Wide is not a licence. /today's first run of 3ebac98ac spread 103 per
+    // cent and never once painted under its 300 ms ceiling.
+    const verdict = judge(lcps(392, 744, 480, 848, 680, 372, 352));
+    expect(verdict.unmeasured).toEqual([]);
+    expect(verdict.breaches.map((breach) => breach.metric)).toEqual(["lcpMs"]);
+  });
+
+  it("says nothing about a wide run that passed, because the method block already did", () => {
+    // /tonight, second run of 3ebac98ac: 133 per cent apart, median 256 under a
+    // 900 ms ceiling. Wide and green is a fact about the measurement, and
+    // findMethodWarnings owns it.
+    const verdict = judgeBudgets(
+      [route({ lcpMs: 900 })],
+      new Map([["/x", measurement({ lcpMs: 256 })]]),
+      new Map([["/x", lcps(588, 304, 256, 256, 248)]]),
+      method,
+    );
+    expect(verdict.breaches).toEqual([]);
+    expect(verdict.unmeasured).toEqual([]);
+  });
+
+  it("fails a straddling run whose samples agreed, because that is the line rather than the noise", () => {
+    // 4 per cent apart: the route really does sit on its ceiling, and a run
+    // that agrees with itself has measured that.
+    const verdict = judge(lcps(296, 304, 308));
+    expect(verdict.unmeasured).toEqual([]);
+    expect(verdict.breaches.map((breach) => breach.metric)).toEqual(["lcpMs"]);
+  });
+
+  it("fails a route nobody measured, exactly as before", () => {
+    const verdict = judgeBudgets([route()], new Map(), new Map(), method);
+    expect(verdict.unmeasured).toEqual([]);
+    expect(verdict.breaches.map((breach) => breach.metric)).toEqual([...BUDGET_METRICS]);
+  });
+
+  it("fails a one-sample row, because one sample cannot disagree with itself", () => {
+    // A route that answers a redirect is measured once, deterministically.
+    const verdict = judge(lcps(420));
+    expect(verdict.unmeasured).toEqual([]);
+    expect(verdict.breaches.map((breach) => breach.metric)).toEqual(["lcpMs"]);
+  });
+
+  it("judges each metric on its own samples", () => {
+    const samples: SampleRow[] = [
+      { serverRenderMs: 200, jsDecodedKB: 100, requests: 5, lcpMs: 100 },
+      { serverRenderMs: 210, jsDecodedKB: 100, requests: 5, lcpMs: 900 },
+      { serverRenderMs: 205, jsDecodedKB: 100, requests: 5, lcpMs: 500 },
+    ];
+    const verdict = judgeBudgets(
+      [route({ serverRenderMs: 100, lcpMs: 300 })],
+      new Map([["/x", measurement({ serverRenderMs: 205, lcpMs: 500 })]]),
+      new Map([["/x", samples]]),
+      method,
+    );
+    expect(verdict.breaches.map((breach) => breach.metric)).toEqual(["serverRenderMs"]);
+    expect(verdict.unmeasured.map((entry) => entry.metric)).toEqual(["lcpMs"]);
+  });
+});
+
+describe("formatUnmeasuredTable", () => {
+  it("is empty when every figure decided itself", () => {
+    expect(formatUnmeasuredTable([])).toBe("");
+  });
+
+  it("names the route, the spread and the ceiling the run could not decide", () => {
+    const table = formatUnmeasuredTable([
+      { path: "/activity", metric: "lcpMs", budget: 300, median: 396, min: 212, max: 512, spreadPct: 76 },
+    ]);
+    expect(table).toContain("/activity");
+    expect(table).toContain("LCP (ms)");
+    expect(table).toContain("212 to 512");
+    expect(table).toContain("76%");
+    expect(table).toContain("300");
+  });
+});
