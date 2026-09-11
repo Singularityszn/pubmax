@@ -149,6 +149,92 @@ describe("app/api public error envelope (tree-wide)", () => {
 // `handleProfileCoverPhoto*` is that same delegation for the cover ROTATION:
 // lib/profileCoverPhotoRoute.server.ts spends a per-actor budget on every add,
 // remove and reorder, and a per-actor budget on every reader flag.
+// A COMMENT IS NOT A LIMITER. The sweep below decides on code, so a route that
+// only NAMES a limiter in prose cannot answer for a call it does not make.
+// Strings stay: a URL or a message is code, and dropping them would need a
+// regex-literal parser for no gain.
+const REGEX_MAY_START_AFTER = /[(,=:[!&|?{};+\-*%~^<>]/;
+
+function codeWithoutComments(source: string): string {
+  let out = "";
+  let quote: string | null = null;
+  let lastCode = "";
+  let i = 0;
+
+  const push = (text: string): void => {
+    out += text;
+    const significant = text.trimEnd();
+    if (significant) lastCode = significant[significant.length - 1];
+  };
+
+  while (i < source.length) {
+    const character = source[i];
+    const next = source[i + 1];
+
+    if (quote) {
+      if (character === "\\") {
+        push(character + (next ?? ""));
+        i += 2;
+        continue;
+      }
+      if (character === quote) quote = null;
+      push(character);
+      i += 1;
+      continue;
+    }
+
+    if (character === '"' || character === "'" || character === "`") {
+      quote = character;
+      push(character);
+      i += 1;
+      continue;
+    }
+
+    if (character === "/" && next === "/") {
+      while (i < source.length && source[i] !== "\n") i += 1;
+      continue;
+    }
+
+    if (character === "/" && next === "*") {
+      i += 2;
+      while (i < source.length && !(source[i] === "*" && source[i + 1] === "/")) i += 1;
+      i += 2;
+      out += " ";
+      continue;
+    }
+
+    if (character === "/" && REGEX_MAY_START_AFTER.test(lastCode)) {
+      push(character);
+      i += 1;
+      let inClass = false;
+      while (i < source.length) {
+        const inside = source[i];
+        if (inside === "\\") {
+          push(inside + (source[i + 1] ?? ""));
+          i += 2;
+          continue;
+        }
+        push(inside);
+        i += 1;
+        if (inside === "[") inClass = true;
+        else if (inside === "]") inClass = false;
+        else if (inside === "/" && !inClass) break;
+      }
+      continue;
+    }
+
+    push(character);
+    i += 1;
+  }
+
+  return out;
+}
+
+/** True when the CODE of `source` consults a limiter or a named delegation. */
+function consultsLimiter(source: string): boolean {
+  return LIMITER_TOKENS.test(codeWithoutComments(source));
+}
+
 const LIMITER_TOKENS =
   /\bisLimited\b|[a-zA-Z]+RateLimited\b|\bis[A-Z][a-zA-Z]*Limited\b|\bpreparePlanGeneration\b|\bsocialCrewActor\b|\bhandleProfileImage(?:Upload|Delete|Report)\b|\bhandleProfileCoverPhoto(?:Upload|Delete|Move|Report)\b/;
 
@@ -213,10 +299,44 @@ describe("app/api rate limiting (tree-wide)", () => {
         source,
       );
       if (!mutating) continue;
-      if (LIMITER_TOKENS.test(source)) continue;
+      if (consultsLimiter(source)) continue;
       failures.push(relative(ROOT, file));
     }
     expect(failures, failures.join("\n")).toEqual([]);
+  });
+
+  it("refuses a route that only names a limiter in a comment", () => {
+    const commentOnly = [
+      "// The durable limiter (`isLimited`) is NOT used on purpose.",
+      "export async function POST(): Promise<Response> {",
+      "  return new Response(null, { status: 204 });",
+      "}",
+    ].join("\n");
+
+    expect(consultsLimiter(commentOnly)).toBe(false);
+  });
+
+  it("keeps a real call, a URL and a regex literal readable to the sweep", () => {
+    const withCall = [
+      'const origin = "https://eu.i.posthog.com"; // not a comment start',
+      "const digits = /[0-9\"']+/;",
+      "if (ingestRateLimited(key, Date.now(), 240, 60_000)) return refusal(429);",
+    ].join("\n");
+
+    expect(consultsLimiter(withCall)).toBe(true);
+  });
+
+  it("fails for /ingest once its limiter call is gone, comment and all", () => {
+    const file = join(ROOT, MUTATING_ROUTES_OUTSIDE_API[0].file);
+    const source = readFileSync(file, "utf8");
+    const withoutLimiter = source
+      .split("\n")
+      .filter((line) => !line.includes("ingestRateLimited"))
+      .join("\n");
+
+    expect(consultsLimiter(source)).toBe(true);
+    expect(source).toMatch(/isLimited/);
+    expect(consultsLimiter(withoutLimiter)).toBe(false);
   });
 });
 

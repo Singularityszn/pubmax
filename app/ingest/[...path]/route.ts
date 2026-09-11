@@ -5,12 +5,16 @@ const POSTHOG_EU_INGEST_ORIGIN = "https://eu.i.posthog.com";
 const POSTHOG_EU_ASSET_ORIGIN = "https://eu-assets.i.posthog.com";
 const MAX_REQUEST_BYTES = 1024 * 1024;
 // Per-instance in-memory budget, keyed on the hashed address (Astra P2-1).
-// Every request through here lands in the billed EU project, and nothing but
-// the origin pin stood between a scripted loop and 1 MB a request. One device's
-// SDK flushes events about every three seconds and replay about as often, so a
-// phone spends under 40 a minute; 240 covers a table of phones sharing one
-// carrier address and walls a loop. The budget lives in the leaf
-// `lib/ingestRateLimit.ts`, which imports nothing, compares before it records
+// A capture request through here lands in the billed EU project, and nothing
+// but the origin pin stood between a scripted loop and 1 MB a request. An asset
+// GET whose path starts `static` or `array` goes to the eu-assets CDN instead
+// and bills no event, and it still spends the same budget, because the budget
+// is spent before the path is resolved: a flood must be walled before it is
+// read, not sorted first. One device's SDK flushes events about every three
+// seconds and replay about as often, so a phone spends under 40 a minute on
+// capture alone; 240 leaves a table of phones sharing one carrier address room
+// for their cold-load asset fetches too, and walls a loop. The budget lives in
+// the leaf `lib/ingestRateLimit.ts`, which imports nothing, compares before it records
 // so a refused address cannot grow its own window, and drops a key once every
 // hit in it has expired so a flood of distinct addresses leaves no entry
 // behind. The durable limiter (`isLimited`) is NOT used on purpose: this route
