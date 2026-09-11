@@ -509,6 +509,26 @@ describe("judgeBudgets", () => {
     expect(verdict.unmeasured).toEqual([]);
   });
 
+  it("fails a parked regression that one warm sample happened to straddle", () => {
+    // Six of seven samples at 1200 ms against a 300 ms ceiling, with one warm
+    // 290 ms sample. It straddles and it is wide, but the median is 900 ms over
+    // the line against a half-spread of 455: noise that size did not put the
+    // median there, so the excess does not fit inside the spread that is
+    // supposed to explain it.
+    const verdict = judge(lcps(290, 1200, 1200, 1200, 1200, 1200, 1200));
+    expect(verdict.unmeasured).toEqual([]);
+    expect(verdict.breaches.map((breach) => breach.metric)).toEqual(["lcpMs"]);
+  });
+
+  it("draws the line at half the spread", () => {
+    // Samples 300 to 900 give a half-spread of 300. A median 300 ms over the
+    // ceiling is exactly what that much noise can account for; one millisecond
+    // further over it is not.
+    expect(judge(lcps(300, 600, 900)).unmeasured).toHaveLength(1);
+    expect(judge(lcps(300, 601, 900)).unmeasured).toEqual([]);
+    expect(judge(lcps(300, 601, 900)).breaches).toHaveLength(1);
+  });
+
   it("never excuses a count, however wide and however it straddled", () => {
     // The hole a clock-shaped rule may not leave: an extra chunk on some
     // navigations reads as requests 44, 60 and 62 against a ceiling of 46. That

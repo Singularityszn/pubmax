@@ -450,14 +450,26 @@ them, while the method block reported `/tonight` LCP spreading 133 per cent and
 
 `judgeBudgets` in `lib/performanceBudgets.ts` is the one owner of the rule, and
 it is pure, so it is unit-tested with no browser. A verdict is unanimous or it
-is not a verdict:
+is not a verdict. A clock is UNMEASURED when all three of these hold, and is
+judged on its median otherwise:
 
-| what the samples did | what the run says |
-| --- | --- |
-| agreed with each other | the median is the verdict, pass or fail |
-| disagreed past `sampleSpreadWarnPct`, and NOT ONE sample met the ceiling | a breach, because no median that evidence allows is under |
-| disagreed past `sampleSpreadWarnPct`, and NOT ONE sample went past the ceiling | a pass, for the same reason read the other way |
-| disagreed past `sampleSpreadWarnPct` and STRADDLED the ceiling | UNMEASURED: reported in its own table, and left off the breach list and the ratchet table |
+a. its samples STRADDLE the ceiling: at least one met it, and at least one went
+   past it;
+b. they disagree past `sampleSpreadWarnPct`;
+c. the excess fits inside the spread that is supposed to explain it:
+   `median - budget <= (max - min) / 2`.
+
+An unmeasured row is reported in its own table, and left off the breach list and
+off the ratchet table. Read the three the other way: samples of which not one met
+the ceiling are a breach, because no median that evidence allows is under;
+samples of which not one went past it are a pass for the same reason; samples
+that agree with each other are judged on their median however close to the line
+it sits; and a median further over the line than half the spread is a breach,
+because noise that size did not put it there. A route running 1200 ms on six of
+seven samples with one warm 290 ms sample straddles a 300 ms ceiling and is far
+wider than the tracked width, but its median is 900 ms over against a half-spread
+of 455, so it stays red. Condition (c) compares two figures the run already
+measured and adds no tracked number.
 
 ONLY A CLOCK IS EVER UNDECIDED. `CLOCK_METRICS` names the two: `serverRenderMs`
 and `lcpMs` read the machine the sweep ran on, and a loaded box moves them with
@@ -471,11 +483,11 @@ run of `3ebac98ac` measured `/pubs` JS decoded 929 to 1185 and `/plan` 782 to
 two routes, and it gets the same answer as `/crawls`: named for the captain,
 never rescued by a wider width or a bigger number.
 
-Both edges are asked, because a run has to STRADDLE its ceiling to leave it
-undecided. Server render sits at 3 to 19 ms against a 150 ms ceiling on every
-route here, so one millisecond of scheduler jitter reads as a wide spread on a
-row nothing could put in doubt; naming those would bury the straddling rows the
-table exists for.
+Both edges are asked in condition (a), because a run has to STRADDLE its ceiling
+to leave it undecided. Server render sits at 3 to 19 ms against a 150 ms ceiling
+on every route here, so one millisecond of scheduler jitter reads as a wide
+spread on a row nothing could put in doubt; naming those would bury the
+straddling rows the table exists for.
 
 The anchor is the ceiling itself rather than a band around it. An earlier cut
 let the fastest sample sit `resampleWithinCeilingPct` over the line, which
@@ -616,7 +628,7 @@ it waits for was already in the cache. Two rules follow:
 
 ### What a run prints
 
-Three tables, in this order:
+Four tables, in this order:
 
 - `[perf-budget]` - every route and metric against its ceiling.
 - `[perf-budget][samples]` - every individual sample beside its median and the

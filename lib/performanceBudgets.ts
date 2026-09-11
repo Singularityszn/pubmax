@@ -369,24 +369,29 @@ function metricKey(path: string, metric: BudgetMetric): string {
  * behind both spreading past 90 per cent. The sweep already SAID so - the
  * warning simply changed nothing.
  *
- * So the samples decide whether their own median may be read as a verdict, and
- * the test is unanimity:
+ * So the samples decide whether their own median may be read as a verdict. THE
+ * WHOLE RULE, and the one place it is written down: a CLOCK is undecided when
+ * all three of these hold, and judged on its median otherwise.
  *
- *   - samples of which NOT ONE met the ceiling are over budget however wide
- *     they are, because no median that evidence allows is under. This is the
- *     half that keeps a genuinely slow route failing, and it is why a wide
- *     spread is never a licence.
- *   - samples that disagree past `sampleSpreadWarnPct` and STRADDLE the ceiling,
- *     one of them meeting it and another past it, did not measure that ceiling.
- *     Which side the median fell is down to which samples happened to land, so
- *     the run is reported UNMEASURED.
- *   - samples that AGREE with each other have measured the route, and their
- *     median is the verdict however close to the line it sits.
- *   - samples that all sit UNDER the ceiling have decided it, however far apart
- *     they are. Server render runs 3 to 19 ms against a 150 ms ceiling here, so
- *     a millisecond of scheduler jitter reads as a wide spread on a row nothing
- *     could put in doubt: naming those would bury the straddling rows this
- *     report exists for.
+ *   a. ITS SAMPLES STRADDLE THE CEILING: at least one met it and at least one
+ *      went past it. Samples of which NOT ONE met the ceiling are over budget
+ *      however wide they are, because no median that evidence allows is under,
+ *      and that is the half that keeps a genuinely slow route failing. Samples
+ *      that all sit under it have decided a pass the same way: server render
+ *      runs 3 to 19 ms against a 150 ms ceiling here, so a millisecond of
+ *      scheduler jitter reads as a wide spread on a row nothing could put in
+ *      doubt, and naming those would bury the straddling rows this report
+ *      exists for.
+ *   b. THEY DISAGREE PAST `sampleSpreadWarnPct`. Samples that agree with each
+ *      other have measured the route, and their median is the verdict however
+ *      close to the line it sits.
+ *   c. THE EXCESS FITS INSIDE THE SPREAD THAT IS SUPPOSED TO EXPLAIN IT:
+ *      `median - budget <= (max - min) / 2`. A route running 1200 ms on six of
+ *      seven samples with one warm 290 ms sample straddles a 300 ms ceiling and
+ *      is far wider than the tracked width, but its median is 900 ms over
+ *      against a half-spread of 455: noise that size did not put that median
+ *      there, so it is a breach. This compares two figures the run already
+ *      measured and adds no tracked number.
  *
  * And only a CLOCK is ever asked. See `CLOCK_METRICS`: a count that disagrees
  * across samples is a route doing different work, not a loaded box.
@@ -428,12 +433,10 @@ function undecidedMetric(
   if (!Number.isFinite(spread.spreadPct) || spread.spreadPct <= method.sampleSpreadWarnPct) {
     return null;
   }
-  // The samples have to STRADDLE the ceiling to leave it undecided: one of them
-  // met it, and another went past it. A run with nothing over the line decided
-  // a pass, and a run with nothing under it decided a breach, because no median
-  // either allows is on the other side.
   if (spread.min > budget || spread.max <= budget) return null;
-  return { median: median(values), min: spread.min, max: spread.max, spreadPct: spread.spreadPct };
+  const middle = median(values);
+  if (middle - budget > (spread.max - spread.min) / 2) return null;
+  return { median: middle, min: spread.min, max: spread.max, spreadPct: spread.spreadPct };
 }
 
 /**
