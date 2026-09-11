@@ -14,11 +14,14 @@ type ChooseCityPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
+// The canonical moved to /places with the sitemap row, and proxy.ts 308s this
+// address there, so nothing in the app links here any more. The route keeps no
+// canonical of its own: a canonical on a page that redirects points a crawler
+// back at the address it just left.
 export const metadata: Metadata = {
   title: "Choose your city",
   description:
     "Pick your PUBMAXXING city map: London, Manchester, Glasgow, and more. Listed pint prices, crawls, and the last way home.",
-  alternates: { canonical: "/choose-city" },
 };
 
 /**

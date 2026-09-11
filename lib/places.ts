@@ -10,6 +10,7 @@
 // no listed prices is not a city with no areas, and a reader who is told one
 // while the other is true has been misled about which half is missing.
 
+import { PLACES_PATH } from "@/lib/cityPickerRoute";
 import { getCity, listEnabledCities, parseCityId, type CityId } from "@/lib/cities";
 import { getCityCapabilityProfile } from "@/lib/cityCapabilities";
 import { getNightAreasForCity, type NightArea } from "@/lib/nightAreas";
@@ -18,7 +19,7 @@ import {
   UK_NATIONAL_MAP_HREF,
 } from "@/lib/ukNationalBrowse";
 
-export const PLACES_PATH = "/places";
+export { PLACES_PATH };
 export const PLACES_CITY_PARAM = "city";
 
 /** Kicker above the heading, per the shell's kicker-then-heading rhythm. */

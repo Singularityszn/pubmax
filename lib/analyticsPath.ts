@@ -16,6 +16,7 @@ const PAGEVIEW_STATIC_SURFACES = new Set([
   "/pal",
   "/pal/chat",
   "/pint-index",
+  "/places",
   "/plan",
   "/privacy",
   "/profile",

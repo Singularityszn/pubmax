@@ -16,8 +16,17 @@ export const UK_NATIONAL_MAP_VIEW = {
 
 export const UK_NATIONAL_MAP_HREF = `/map?${UK_NATIONAL_PARAM}=${UK_NATIONAL_PARAM_VALUE}`;
 
-/** City chooser with the town search field focused. */
-export const UK_CHOOSE_CITY_SEARCH_HREF = "/choose-city?focus=search";
+/**
+ * Where a reader searches for a UK town by name.
+ *
+ * The chooser's own route is retired: /choose-city 308s to /places, and /places
+ * searches the cities we ship rather than the UK place index. So this points at
+ * the ONE surface that still mounts CityChooser, the landing's #cities section,
+ * which reads `public/data/uk_base/places.json` and answers an unpriced town
+ * with its honest base-map arrival. The field is not focused on arrival there;
+ * the anchor puts it on screen.
+ */
+export const UK_TOWN_SEARCH_HREF = "/#cities";
 
 export const UK_NATIONAL_BROWSE_COPY = {
   title: "Pubs across the UK",

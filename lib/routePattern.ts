@@ -37,6 +37,7 @@ export const ROUTE_PATTERNS = [
   "/pal",
   "/pal/chat",
   "/pint-index",
+  "/places",
   "/plan",
   "/plan/[id]",
   "/plan/[id]/recap",
