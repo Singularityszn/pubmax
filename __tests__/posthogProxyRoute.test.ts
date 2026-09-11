@@ -118,6 +118,9 @@ describe("/ingest owned PostHog proxy", () => {
       expect(response.status, `request ${i + 1}`).toBe(200);
     }
     expect(fetchMock).toHaveBeenCalledTimes(INGEST_BUDGET_PER_MINUTE);
+    // Drop the recorded calls, and with them the 1 MB body each one holds: the
+    // burst is proved, and the counts below read from a clean mock.
+    fetchMock.mockClear();
 
     // A zero high-water mark, so the stream pulls only when somebody reads it
     // rather than filling its queue the moment the Request is built.
@@ -145,11 +148,11 @@ describe("/ingest owned PostHog proxy", () => {
 
     expect(walled.status).toBe(429);
     expect(walled.headers.get("cache-control")).toBe("no-store");
-    expect(fetchMock).toHaveBeenCalledTimes(INGEST_BUDGET_PER_MINUTE);
+    expect(fetchMock).toHaveBeenCalledTimes(0);
     expect(bodyRead).toBe(false);
 
     const neighbour = await capturePost("198.51.100.8", JSON.stringify({ event: "$pageview" }));
     expect(neighbour.status).toBe(200);
-    expect(fetchMock).toHaveBeenCalledTimes(INGEST_BUDGET_PER_MINUTE + 1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

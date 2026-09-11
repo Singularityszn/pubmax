@@ -1,4 +1,4 @@
-import { isRateLimited } from "@/lib/pintDrops";
+import { ingestRateLimited } from "@/lib/ingestRateLimit";
 import { clientIp, hashIp } from "@/lib/supabase";
 
 const POSTHOG_EU_INGEST_ORIGIN = "https://eu.i.posthog.com";
@@ -9,11 +9,15 @@ const MAX_REQUEST_BYTES = 1024 * 1024;
 // the origin pin stood between a scripted loop and 1 MB a request. One device's
 // SDK flushes events about every three seconds and replay about as often, so a
 // phone spends under 40 a minute; 240 covers a table of phones sharing one
-// carrier address and walls a loop. The durable limiter (`isLimited`) is NOT
-// used on purpose: this route must make no Supabase call at request time, and
-// the durable limiter's degraded mode tightens to 3 a minute during a Supabase
-// outage, which would wall the error telemetry that reports that outage. Not
-// paid spend, so a per-instance budget that resets on a cold start is enough.
+// carrier address and walls a loop. The budget lives in the leaf
+// `lib/ingestRateLimit.ts`, which imports nothing, compares before it records
+// so a refused address cannot grow its own window, and drops a key once every
+// hit in it has expired so a flood of distinct addresses leaves no entry
+// behind. The durable limiter (`isLimited`) is NOT used on purpose: this route
+// must make no Supabase call at request time, and the durable limiter's
+// degraded mode tightens to 3 a minute during a Supabase outage, which would
+// wall the error telemetry that reports that outage. Not paid spend, so a
+// per-instance budget that resets on a cold start is enough.
 // `__tests__/posthogProxyRoute.test.ts` names the same number.
 const RATE_LIMIT = 240;
 const RATE_WINDOW_MS = 60_000;
@@ -120,7 +124,7 @@ function refusal(status: number): Response {
 
 async function forward(request: Request, context: Context): Promise<Response> {
   const limiterKey = `ingest:${hashIp(clientIp(request))}`;
-  if (isRateLimited(limiterKey, Date.now(), RATE_LIMIT, RATE_WINDOW_MS)) {
+  if (ingestRateLimited(limiterKey, Date.now(), RATE_LIMIT, RATE_WINDOW_MS)) {
     return refusal(429);
   }
 
