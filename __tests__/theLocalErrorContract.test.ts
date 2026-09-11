@@ -328,17 +328,20 @@ describe("app/api rate limiting (tree-wide)", () => {
     expect(consultsLimiter(withCall)).toBe(true);
   });
 
-  it("fails for /ingest once its limiter call is gone, comment and all", () => {
-    const file = join(ROOT, MUTATING_ROUTES_OUTSIDE_API[0].file);
-    const source = readFileSync(file, "utf8");
-    const withoutLimiter = source
-      .split("\n")
-      .filter((line) => !line.includes("ingestRateLimited"))
-      .join("\n");
+  it("refuses a proxy whose limiter call is gone but whose comment still names one", () => {
+    const lines = [
+      "// The durable limiter (`isLimited`) is NOT used on purpose: this route",
+      "// must make no Supabase call at request time.",
+      'import { ingestRateLimited } from "@/lib/ingestRateLimit";',
+      "export async function POST(request: Request): Promise<Response> {",
+      "  if (ingestRateLimited(key(request), Date.now(), 240, 60_000)) return refusal(429);",
+      "  return forward(request);",
+      "}",
+    ];
 
-    expect(consultsLimiter(source)).toBe(true);
-    expect(source).toMatch(/isLimited/);
-    expect(consultsLimiter(withoutLimiter)).toBe(false);
+    expect(consultsLimiter(lines.join("\n"))).toBe(true);
+    expect(consultsLimiter(lines.filter((line) => !line.includes("ingestRateLimited")).join("\n")))
+      .toBe(false);
   });
 });
 

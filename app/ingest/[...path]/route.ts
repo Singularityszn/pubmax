@@ -1,5 +1,6 @@
+import { resolveClientIp } from "@/lib/clientIpTrust";
 import { ingestRateLimited } from "@/lib/ingestRateLimit";
-import { clientIp, hashIp } from "@/lib/supabase";
+import { hashIp } from "@/lib/rateLimitHash";
 
 const POSTHOG_EU_INGEST_ORIGIN = "https://eu.i.posthog.com";
 const POSTHOG_EU_ASSET_ORIGIN = "https://eu-assets.i.posthog.com";
@@ -128,7 +129,8 @@ function refusal(status: number): Response {
 }
 
 async function forward(request: Request, context: Context): Promise<Response> {
-  const limiterKey = `ingest:${hashIp(clientIp(request))}`;
+  const address = resolveClientIp((name) => request.headers.get(name));
+  const limiterKey = `ingest:${hashIp(address)}`;
   if (ingestRateLimited(limiterKey, Date.now(), RATE_LIMIT, RATE_WINDOW_MS)) {
     return refusal(429);
   }

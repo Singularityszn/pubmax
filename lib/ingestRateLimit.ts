@@ -10,10 +10,11 @@
  *
  * It is a LEAF on purpose: it imports nothing, so reaching a counter no longer
  * pulls `@/lib/pintDrops` and its Pint Drop seeds, cities, drink measures and
- * logging into the route's graph. It does NOT remove `@supabase/supabase-js`:
- * the route still imports `clientIp` and `hashIp` from `@/lib/supabase`, which
- * imports `createClient` at the top level. What holds is the request-time
- * claim: nothing on this path makes a Supabase CALL, so a Supabase outage
+ * logging into the route's graph. The route reads its caller's address through
+ * `@/lib/clientIpTrust` and hashes it through `@/lib/rateLimitHash`, both pure
+ * leaves, so `@supabase/supabase-js` is no longer traced into the bundle of the
+ * route every browser event and asset fetch hits. Nothing on this path makes a
+ * Supabase CALL either, so a Supabase outage
  * cannot wall the error telemetry that reports it.
  *
  * It differs from the shared limiter in `lib/pintDrops.ts` in the two ways the
