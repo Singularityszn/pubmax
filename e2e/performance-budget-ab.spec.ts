@@ -63,9 +63,15 @@ const reportPath = process.env.PUBMAX_PERF_AB_REPORT ?? "";
 
 type Arm = { name: "branch" | "base"; origin: string; page: Page };
 
+// WHERE THE BREACH LIST IS READ FROM, AND WHY IT IS NOT ALWAYS THE SWEEP'S OWN
+// PATH. The sweep writes `test-results/perf-budget-breaches.json`, and
+// Playwright CLEARS `test-results/` at the START of every run - including this
+// one, which is a second Playwright run in the same job. So scripts/perf-ab.mjs
+// takes its own copy before it runs this spec and names it here.
 function readBreaches(): AbBreachHandover | null {
+  const handoverPath = process.env.PUBMAX_PERF_AB_BREACHES || PERF_AB_BREACH_FILE;
   try {
-    return JSON.parse(readFileSync(PERF_AB_BREACH_FILE, "utf8")) as AbBreachHandover;
+    return JSON.parse(readFileSync(handoverPath, "utf8")) as AbBreachHandover;
   } catch {
     return null;
   }

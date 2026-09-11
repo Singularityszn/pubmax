@@ -20,11 +20,11 @@
  * list this script stops before it creates a worktree or starts a build, so a
  * green run pays nothing at all.
  *
- * HOW THE SECOND BUILD IS MADE. A detached git worktree at the merge base, the
- * repository's own node_modules where the lockfile has not moved, and the same
- * environment playwright.config.ts builds the branch with, read from that file
- * rather than copied (scripts/print-e2e-server-env.ts). Two builds made with
- * two environments are two different products.
+ * HOW THE SECOND BUILD IS MADE. A detached git worktree at the merge base, its
+ * own package install, and the same environment playwright.config.ts builds the
+ * branch with, read from that file rather than copied
+ * (scripts/print-e2e-server-env.ts). Two builds made with two environments are
+ * two different products.
  *
  * USAGE
  *   node scripts/perf-ab.mjs [--base-ref origin/main] [--branch-port 3500]
@@ -32,7 +32,7 @@
  */
 
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -167,23 +167,18 @@ async function main() {
   try {
     git(["worktree", "add", "--detach", worktree, mergeBase]);
 
-    // The lockfile decides whether the base tree can borrow this one's
-    // node_modules. Where it has not moved they are the same packages by
-    // definition; where it has, the base gets its own install, because a build
-    // made against the wrong dependency tree is not the base's build.
-    let lockfileMoved = true;
-    try {
-      git(["diff", "--quiet", mergeBase, "HEAD", "--", "package-lock.json"]);
-      lockfileMoved = false;
-    } catch {
-      lockfileMoved = true;
-    }
-    if (lockfileMoved) {
-      say("the lockfile moved since the merge base, so the base tree installs its own packages");
-      await run("npm", ["ci"], { cwd: worktree });
-    } else {
-      symlinkSync(path.join(REPO_ROOT, "node_modules"), path.join(worktree, "node_modules"));
-    }
+    // THE BASE TREE INSTALLS ITS OWN PACKAGES, AND A SYMLINK IS NOT A SHORTCUT
+    // HERE. Borrowing this checkout's node_modules through a symlink is what a
+    // first version did, and Turbopack refuses it outright: "Symlink
+    // [project]/node_modules is invalid, it points out of the filesystem root".
+    // It is also the honest thing: the base is built against the packages its
+    // own lockfile names, and a build made against the wrong dependency tree is
+    // not the base's build. The install is cached on the runner and only ever
+    // paid on a red sweep.
+    say("installing the merge base's own packages");
+    await run("npm", ["ci", "--prefer-offline", "--no-audit", "--fund=false"], {
+      cwd: worktree,
+    });
 
     say("building the merge base with the same environment the branch was built with");
     await run("npm", ["run", "build"], {
@@ -217,6 +212,12 @@ async function main() {
       return;
     }
 
+    // THE BREACH LIST IS COPIED OUT OF test-results FIRST. Playwright clears
+    // that directory at the START of a run, so the sweep's own handover would
+    // be deleted by the very run that needs to read it.
+    const handoverCopy = path.join(worktree, "perf-budget-breaches.json");
+    copyFileSync(path.join(REPO_ROOT, BREACH_FILE), handoverCopy);
+
     // PW_SKIP_WEBSERVER=1: both arms are already serving, and Playwright
     // starting its own would build the branch a second time and measure it on
     // a third port.
@@ -235,6 +236,7 @@ async function main() {
           PUBMAX_PERF_AB: "1",
           PUBMAX_PERF_AB_BRANCH_URL: branchOrigin,
           PUBMAX_PERF_AB_BASE_URL: baseOrigin,
+          PUBMAX_PERF_AB_BREACHES: handoverCopy,
           PUBMAX_PERF_AB_REPORT: args.report,
         },
       },
