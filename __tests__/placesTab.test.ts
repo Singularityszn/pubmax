@@ -330,6 +330,34 @@ describe("Places is a durable destination", () => {
 });
 
 // ---------------------------------------------------------------------------
+// The crawlable city list
+// ---------------------------------------------------------------------------
+
+describe("Places is the one indexable city list", () => {
+  it("carries the canonical for the city question", async () => {
+    const { metadata } = await import("@/app/places/page");
+
+    expect(metadata.alternates?.canonical).toBe(PLACES_PATH);
+  });
+
+  it("asks to be indexed, because the sitemap now names it", async () => {
+    // A sitemap row on a noindex page tells a crawler two opposite things, and
+    // the city list is the page a stranger reaches the map through.
+    const { metadata } = await import("@/app/places/page");
+
+    expect(metadata.robots).toBeUndefined();
+  });
+
+  it("leaves /choose-city with no canonical of its own", async () => {
+    // /choose-city 308s here. A canonical on the redirecting page would keep
+    // pointing a crawler at the address it just left.
+    const { metadata } = await import("@/app/choose-city/page");
+
+    expect(metadata.alternates?.canonical).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Rendered surface
 // ---------------------------------------------------------------------------
 
