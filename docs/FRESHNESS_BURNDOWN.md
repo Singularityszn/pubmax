@@ -41,6 +41,13 @@
 > [`docs/WAYFINDER_LIVE_DATA.md`](./WAYFINDER_LIVE_DATA.md). The area-news row
 > below remains the 2026-08-07 historical inventory.
 
+> **Update 2026-09-10 (does not rewrite the inventory below).** `food_price_updates`
+> is now **UNTRACKED** in the spine: `class: episodic`, budget `null`. No script
+> in the tree writes its artifact, so the 1440-hour budget in the row below was
+> a promise nobody could keep. The current contract is owned by
+> [`data/freshness_registry.json`](../data/freshness_registry.json) and
+> [`docs/WAYFINDER_LIVE_DATA.md`](./WAYFINDER_LIVE_DATA.md).
+
 This is a scoping pass. It lists every feed in the freshness spine, its
 2026-08-07 verdict, and its fix class. It proposes no code change. Class (c)
 rows carry a follow-up diff sketch only. A later task must decide and apply
