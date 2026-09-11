@@ -358,11 +358,6 @@
   --duration-cinema-settle: 480ms; /* hero-cinema state-change settle — mirrors motionDuration.cinemaSettle in lib/motionVocabulary.ts; never for the scroll-scrubbed transform */
   --duration-lift: 0.18s; /* hover lift / colour transitions (landing buttons, hero pins) */
   --duration-entrance: 640ms; /* staggered element entrance (landing hero pins) */
-  /* Ambient atmosphere presence (landing orbit drift / scanline breathe):
-     slow decorative loops, always gated on prefers-reduced-motion. */
-  --duration-drift: 22s;
-  --duration-drift-slow: 28s;
-  --duration-breathe: 7s;
   --press-scale: 0.97; /* default pressed scale — subtle, "the UI heard you" */
   --press-scale-firm: 0.94; /* small icon buttons can press a touch firmer */
 
