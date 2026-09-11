@@ -670,7 +670,7 @@ describe("formatUnmeasuredTable", () => {
     const table = formatUnmeasuredTable([
       { path: "/rounds", metric: "lcpMs", budget: 300, median: 310, min: 286, max: 334, spreadPct: 15 },
     ]);
-    expect(table).toContain("over by");
+    expect(table).toContain("excess");
     expect(table).toContain("+10");
   });
 

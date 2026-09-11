@@ -647,7 +647,7 @@ export function formatUnmeasuredTable(unmeasured: readonly UnmeasuredMetric[]): 
     `${entry.spreadPct}%`,
   ]);
   return table(
-    ["route", "metric", "median", "budget", "over by", "samples ran", "spread"],
+    ["route", "metric", "median", "budget", "excess", "samples ran", "spread"],
     rows,
   );
 }
