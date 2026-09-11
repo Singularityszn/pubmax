@@ -459,9 +459,12 @@ b. they disagree past `sampleSpreadWarnPct`;
 c. the excess fits inside the spread that is supposed to explain it:
    `median - budget <= (max - min) / 2`.
 
-**The known limit.** A route whose excess over its ceiling is smaller than its own jitter cannot be decided by a single sweep, so it is reported unmeasured every time rather than failed, and a row that keeps appearing there is the signal to spend real evidence on that route. Every unmeasured row prints its median, its ceiling and
-its excess over that ceiling beside the range its samples ran over, so the same row
-returning is visible sweep after sweep.
+**The known limit.** A route whose excess over its ceiling is smaller than its
+own jitter cannot be decided by a single sweep, so it is reported unmeasured
+every time rather than failed, and a row that keeps appearing there is the
+signal to spend real evidence on that route. Every unmeasured row prints its
+median, its ceiling and its excess over that ceiling beside the range its
+samples ran over, so the same row returning is visible sweep after sweep.
 
 An unmeasured row is reported in its own table, and left off the breach list and
 off the ratchet table. Read the three the other way: samples of which not one met
@@ -632,7 +635,7 @@ it waits for was already in the cache. Two rules follow:
 
 ### What a run prints
 
-Four tables, in this order:
+Five tables, in this order:
 
 - `[perf-budget]` - every route and metric against its ceiling.
 - `[perf-budget][samples]` - every individual sample beside its median and the
@@ -642,11 +645,15 @@ Four tables, in this order:
 - `[perf-budget][method]` - facts about the MEASUREMENT rather than about the
   code: a route whose samples sat further apart than `sampleSpreadWarnPct`, and
   any sample that fell back to the harness clock. Reported, never failed on.
+- `[perf-budget][ratchet]` - printed only when there is slack worth banking: a
+  ceiling a route beat by a clear margin, which an undecided ceiling is never
+  offered as. "Banking the slack" above owns it.
 - `[perf-budget][unmeasured]` - printed only when there is one: a ceiling this
-  run could not decide, with the median it would have judged, the range the
-  samples ran over and how far apart they sat. It is left off the breach list
-  and off the ratchet table, it is reported whichever side of the ceiling the
-  median fell on, and it is NOT green. See below.
+  run could not decide, with the median it would have judged, that ceiling, the
+  median's excess over it in the metric's own units, the range the samples ran
+  over and how far apart they sat. It is left off the breach list and off the
+  ratchet table, it is reported whichever side of the ceiling the median fell
+  on, and it is NOT green. See below.
 
 ### What the page clock actually fixed, and what it did not
 
