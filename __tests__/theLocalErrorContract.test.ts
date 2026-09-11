@@ -149,8 +149,77 @@ describe("app/api public error envelope (tree-wide)", () => {
 // `handleProfileCoverPhoto*` is that same delegation for the cover ROTATION:
 // lib/profileCoverPhotoRoute.server.ts spends a per-actor budget on every add,
 // remove and reorder, and a per-actor budget on every reader flag.
+// A COMMENT IS NOT A LIMITER AND NEITHER IS AN IMPORT. The sweep below decides
+// on code, and on a CALL, so a route that only NAMES a limiter in prose or on
+// its import line cannot answer for a call it does not make.
+//
+// The stripper tracks quote state and drops `//` and `/* */`. It does NOT model
+// regex literals, so a `/` inside a character class can be read as the start of
+// a comment, and a regex holding an odd number of quote characters opens a
+// quote that never closes.
+//
+// IT IS RED BY CONSTRUCTION. A source it cannot read to the end in a balanced
+// state is a source it FAILED to strip, and it answers null rather than handing
+// back text it did not understand. The sweep then reports that route as an
+// offender. Everything else it does is deletion, and the sweep asks whether a
+// limiter CALL is present in what is left, so no route with no limiter can
+// pass, whether the stripper understood it or gave up.
+function codeWithoutComments(source: string): string | null {
+  let out = "";
+  let quote: string | null = null;
+  let i = 0;
+
+  while (i < source.length) {
+    const character = source[i];
+    const next = source[i + 1];
+
+    if (quote) {
+      if (character === "\\") {
+        out += character + (next ?? "");
+        i += 2;
+        continue;
+      }
+      if (character === quote) quote = null;
+      out += character;
+      i += 1;
+      continue;
+    }
+
+    if (character === '"' || character === "'" || character === "`") {
+      quote = character;
+      out += character;
+      i += 1;
+      continue;
+    }
+
+    if (character === "/" && next === "/") {
+      while (i < source.length && source[i] !== "\n") i += 1;
+      continue;
+    }
+
+    if (character === "/" && next === "*") {
+      i += 2;
+      while (i < source.length && !(source[i] === "*" && source[i + 1] === "/")) i += 1;
+      i += 2;
+      out += " ";
+      continue;
+    }
+
+    out += character;
+    i += 1;
+  }
+
+  return quote === null ? out : null;
+}
+
+/** True when the CODE of `source` consults a limiter or a named delegation. */
+function consultsLimiter(source: string): boolean {
+  const code = codeWithoutComments(source);
+  return code !== null && LIMITER_TOKENS.test(code);
+}
+
 const LIMITER_TOKENS =
-  /\bisLimited\b|[a-zA-Z]+RateLimited\b|\bis[A-Z][a-zA-Z]*Limited\b|\bpreparePlanGeneration\b|\bsocialCrewActor\b|\bhandleProfileImage(?:Upload|Delete|Report)\b|\bhandleProfileCoverPhoto(?:Upload|Delete|Move|Report)\b/;
+  /(?:\bisLimited|[a-zA-Z]+RateLimited|\bis[A-Z][a-zA-Z]*Limited|\bpreparePlanGeneration|\bsocialCrewActor|\bhandleProfileImage(?:Upload|Delete|Report)|\bhandleProfileCoverPhoto(?:Upload|Delete|Move|Report))\s*\(/;
 
 // A ROUTE THAT ONLY EVER REFUSES SPENDS NO BUDGET.
 //
@@ -164,6 +233,22 @@ const LIMITER_TOKENS =
 const LIMITER_EXEMPT_REFUSAL_ROUTES = new Set([
   "app/api/[[...unmatched]]/route.ts",
 ]);
+
+// A MUTATING ROUTE OUTSIDE app/api IS STILL A MUTATING ROUTE. `/ingest` is the
+// owned PostHog proxy: anyone may POST up to 1 MB into the billed EU project
+// through it, and it shipped unlimited because the sweep read `app/api` and
+// nothing else, so no fence ever looked at it. The sweep now walks the whole
+// `app` tree, so a mutating route cannot escape it by living outside `app/api`
+// and nothing has to be listed by hand. `/ingest` is NOT an envelope route: a
+// browser SDK reads its status, never a JSON body.
+const MUTATING_METHODS = ["POST", "PUT", "PATCH", "DELETE"] as const;
+
+// ONE ANSWER TO "DOES THIS ROUTE MUTATE": the handlers the module really
+// exports. A source scan would miss a handler exported indirectly.
+async function exportsMutatingHandler(load: () => Promise<unknown>): Promise<boolean> {
+  const mod = (await load()) as Record<string, unknown>;
+  return MUTATING_METHODS.some((method) => typeof mod[method] === "function");
+}
 
 describe("app/api rate limiting (tree-wide)", () => {
   it("gates every cron route with assertCronRequest instead of a limiter", () => {
@@ -179,20 +264,64 @@ describe("app/api rate limiting (tree-wide)", () => {
     }
   });
 
-  it("references a rate limiter (or a named delegation) in every non-cron mutating route", () => {
+  it("references a rate limiter (or a named delegation) in every non-cron mutating route", async () => {
     const failures: string[] = [];
-    for (const file of ALL_ROUTES) {
+    for (const file of routeFiles(join(ROOT, "app"))) {
       if (file.includes("/cron/")) continue;
       if (LIMITER_EXEMPT_REFUSAL_ROUTES.has(relative(ROOT, file))) continue;
-      const source = readFileSync(file, "utf8");
-      const mutating = /export (?:async )?(?:function|const) (?:POST|PUT|PATCH|DELETE)\b/.test(
-        source,
-      );
-      if (!mutating) continue;
-      if (LIMITER_TOKENS.test(source)) continue;
+      if (!(await exportsMutatingHandler(() => import(file)))) continue;
+      if (consultsLimiter(readFileSync(file, "utf8"))) continue;
       failures.push(relative(ROOT, file));
     }
     expect(failures, failures.join("\n")).toEqual([]);
+  });
+
+  it("refuses a route whose regex literal leaves the stripper mid-quote", () => {
+    const quotesInClass = [
+      "// The durable limiter (`isLimited`) is NOT used on purpose.",
+      'const quoted = /["\']/;',
+      "export async function POST(): Promise<Response> {",
+      "  return new Response(null, { status: 204 });",
+      "}",
+    ].join("\n");
+    const apostrophe = [
+      "// The durable limiter (`isLimited`) is NOT used on purpose.",
+      "const contraction = /don't/;",
+      "export async function POST(): Promise<Response> {",
+      "  return new Response(null, { status: 204 });",
+      "}",
+    ].join("\n");
+
+    expect(consultsLimiter(quotesInClass)).toBe(false);
+    expect(consultsLimiter(apostrophe)).toBe(false);
+  });
+
+  it("keeps a real call and a URL inside a string readable to the sweep", () => {
+    const withCall = [
+      'const origin = "https://eu.i.posthog.com";',
+      "if (ingestRateLimited(key, Date.now(), 240, 60_000)) return refusal(429);",
+    ].join("\n");
+
+    expect(consultsLimiter(withCall)).toBe(true);
+  });
+
+  it("refuses a proxy whose limiter call is gone but whose comment still names one", () => {
+    const lines = [
+      "// The durable limiter (`isLimited`) is NOT used on purpose: this route",
+      "// must make no Supabase call at request time.",
+      'import { ingestRateLimited } from "@/lib/ingestRateLimit";',
+      "export async function POST(request: Request): Promise<Response> {",
+      "  if (ingestRateLimited(key(request), Date.now(), 240, 60_000)) return refusal(429);",
+      "  return forward(request);",
+      "}",
+    ];
+
+    expect(consultsLimiter(lines.join("\n"))).toBe(true);
+    // An IMPORT IS NOT A CALL either: the proxy below still names the limiter
+    // on its import line and never spends a budget, so it must be refused.
+    expect(consultsLimiter(lines.filter((line) => !line.includes("if (")).join("\n"))).toBe(false);
+    expect(consultsLimiter(lines.filter((line) => !line.includes("ingestRateLimited")).join("\n")))
+      .toBe(false);
   });
 });
 

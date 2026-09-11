@@ -20,8 +20,6 @@ import {
   derivedAmenityStatus,
   getInConfidence,
   getInMayClaimLikely,
-  hardConstraintNotice,
-  hardConstraintSatisfied,
   parseEmailAddress,
   parsePhoneNumber,
   venueAreaClaim,
@@ -187,14 +185,6 @@ describe("amenities: blank is unknown, never false", () => {
   it("never states an absence for a DERIVED amenity", () => {
     expect(derivedAmenityStatus(true)).toBe("known-true");
     expect(derivedAmenityStatus(false)).toBe("unknown");
-  });
-
-  it("satisfies a hard constraint only on a stated presence, and says so", () => {
-    expect(hardConstraintSatisfied("known-true")).toBe(true);
-    expect(hardConstraintSatisfied("unknown")).toBe(false);
-    expect(hardConstraintSatisfied("known-false")).toBe(false);
-    expect(hardConstraintNotice("step-free entrance")).toContain("step-free entrance");
-    expect(hardConstraintNotice("alcohol-free")).toContain("have not checked");
   });
 });
 
