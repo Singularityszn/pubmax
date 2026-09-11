@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { BEERS } from "@/lib/beers";
+import { seedCrawlState } from "@/lib/crawlUrl";
 import {
   DRINK_BRAND_LANDING_CATALOG,
   DRINK_BRAND_LANDING_PUBLICATION_FLOOR,
@@ -14,6 +15,7 @@ import {
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { DRINK_BRANDS } from "@/lib/drinkBrands";
 import { buildLandingPubCard } from "@/lib/landingPubCard";
+import { pricedLandingMapHref } from "@/lib/pricedLanding";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 
 // Astra plan lane 1.5. The landing card printed "£6.50 a pint of Pravha" and
@@ -174,5 +176,35 @@ describe("every pint the landing card can name has a drink page or no link", () 
         expect(card?.drinkHref ?? null).toBeNull();
       }
     }
+  });
+});
+
+// Astra plan lane 1.5, second half. A published page's primary action is
+// `/map?brand=<slug>`, and the map lens resolved only its own eight beers, so
+// twelve of the new pages opened an unchanged map and said nothing about it.
+describe("the map arrival every published drink page offers", () => {
+  it("selects the brand the page names, for every page the shipped dataset publishes", async () => {
+    for (const { slug, brandLabel } of await loadDrinkBrandLandings()) {
+      const href = pricedLandingMapHref({ brandSlug: slug });
+      const seeded = seedCrawlState(href.slice(href.indexOf("?")));
+
+      expect(seeded.filters.drinkBrand, `${brandLabel} arrives on an unrepriced map`).toBe(slug);
+      expect(seeded.filters.drinkCategory).toBe("beer");
+    }
+  });
+
+  it("seeds the favourite pint from a bare beer deep-link", () => {
+    // The same condition PubMap reads to seed favoritePint from the URL.
+    const seeded = seedCrawlState("?brand=pravha");
+    expect(seeded.filters.drinkCategory === "beer" && seeded.filters.drinkBrand).toBe("pravha");
+  });
+
+  it("keeps the lens catalogue in front, so its own aliases still decide", () => {
+    // camden-hells is in BOTH catalogues; the lens row owns the id.
+    const seeded = seedCrawlState("?brand=camden-hells");
+    expect(seeded.filters.drinkBrand).toBe("camden-hells");
+    expect(seeded.filters.drinkCategory).toBe("beer");
+    // A non-beer lens brand keeps its own category rather than becoming a beer.
+    expect(seedCrawlState("?brand=sipsmith").filters.drinkCategory).toBe("gin");
   });
 });

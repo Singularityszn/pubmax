@@ -38,7 +38,8 @@ brand-by-area page's parent crumb is the brand's own London page.
   against that catalogue with the page's own matcher and links it only when
   the page publishes. Areas come from `NIGHT_AREAS`.
 - A brand page needs 20 pubs with a valid matching row. A brand-by-area page
-  needs 10.
+  needs 10, AND its brand's own London page must publish: that page is its
+  parent crumb, so a pair without one would link a reader to a 404.
 - One pub counts once, at its own cheapest matching row.
 - Only pub venue kinds, only finite positive prices.
 - Ranked cheapest first, then pub name, then pub id. At most 20 rows printed.
@@ -49,7 +50,9 @@ brand-by-area page's parent crumb is the brand's own London page.
 
 - `/drink/{brand}` primary: `/map?brand={brand}`. `decodeDrinkLens` already
   fills the category from the brand, and `PubMap` excludes beer from the
-  selected lens, so `?drink=beer` would not select a lens.
+  selected lens, so `?drink=beer` would not select a lens. `findBrand` resolves
+  the whole of `lib/beers.ts` after the map lens catalogue, so every brand this
+  family publishes re-prices the map it opens.
 - `/drink/{brand}` secondary: `/map?sel={venueId}&brand={brand}&log=1`, because
   `log=1` arms the composer for a RESOLVED venue and has nothing to open without
   one.

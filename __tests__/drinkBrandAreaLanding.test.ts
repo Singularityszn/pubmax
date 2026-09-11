@@ -27,6 +27,8 @@ import {
 } from "@/lib/nightAreas";
 import {
   DRINK_BRAND_LANDING_CATALOG,
+  DRINK_BRAND_LANDING_PUBLICATION_FLOOR,
+  buildDrinkBrandLanding,
   selectDrinkBrandPriceForVenue,
 } from "@/lib/drinkBrandLanding";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
@@ -161,6 +163,28 @@ function enoughVenues(
   );
 }
 
+/**
+ * Pubs outside every Night Area, carrying the same brand.
+ *
+ * An area page's parent crumb is the brand's own London page, and the area
+ * floor (10) is lower than the London floor (20), so a pair only publishes once
+ * that parent does. These lift the brand over the London floor without joining
+ * the area under test, which keeps each case about the thing it names.
+ */
+function londonOnlyVenues(
+  count: number = DRINK_BRAND_LANDING_PUBLICATION_FLOOR,
+): Venue[] {
+  return Array.from({ length: count }, (_, index) =>
+    venueAt(`london-only-${String(index).padStart(2, "0")}`, 52.48 + index / 500, -1.9, [
+      priceRow({
+        app_price_id: `london-only-price-${index}`,
+        pub_name: `london-only-${index}`,
+        price_gbp: 9 + index / 100,
+      }),
+    ]),
+  );
+}
+
 describe("governed drink brand by Night Area landings", () => {
   it("keeps pair model signatures, tuple rows, and publication constants fixed", () => {
     expect(DRINK_BRAND_AREA_PUBLICATION_FLOOR).toBe(10);
@@ -194,7 +218,7 @@ describe("governed drink brand by Night Area landings", () => {
       buildDrinkBrandAreaLanding(
         readyArea.slug,
         "guinness",
-        enoughVenues(readyArea, DRINK_BRAND_AREA_PUBLICATION_FLOOR - 1),
+        [...enoughVenues(readyArea, DRINK_BRAND_AREA_PUBLICATION_FLOOR - 1), ...londonOnlyVenues()],
         [readyArea],
       ),
     ).toBeNull();
@@ -202,7 +226,7 @@ describe("governed drink brand by Night Area landings", () => {
       buildDrinkBrandAreaLanding(
         notReadyArea.slug,
         "guinness",
-        enoughVenues(notReadyArea, DRINK_BRAND_AREA_PUBLICATION_FLOOR),
+        [...enoughVenues(notReadyArea, DRINK_BRAND_AREA_PUBLICATION_FLOOR), ...londonOnlyVenues()],
         [notReadyArea],
       ),
     ).toBeNull();
@@ -225,7 +249,7 @@ describe("governed drink brand by Night Area landings", () => {
       buildDrinkBrandAreaLanding(
         lapsed.slug,
         "guinness",
-        enoughVenues(lapsed, DRINK_BRAND_AREA_PUBLICATION_FLOOR),
+        [...enoughVenues(lapsed, DRINK_BRAND_AREA_PUBLICATION_FLOOR), ...londonOnlyVenues()],
         [lapsed],
       )?.rows,
     ).toHaveLength(DRINK_BRAND_AREA_PUBLICATION_FLOOR);
@@ -233,7 +257,10 @@ describe("governed drink brand by Night Area landings", () => {
 
   it("still requires the gate version and completeness predicates after dropping expiry", () => {
     const area = getNightArea("clapham");
-    const venues = enoughVenues(area, DRINK_BRAND_AREA_PUBLICATION_FLOOR);
+    const venues = [
+      ...enoughVenues(area, DRINK_BRAND_AREA_PUBLICATION_FLOOR),
+      ...londonOnlyVenues(),
+    ];
 
     const wrongVersion: NightArea = {
       ...area,
@@ -283,7 +310,7 @@ describe("governed drink brand by Night Area landings", () => {
       buildDrinkBrandAreaLanding(
         area.slug,
         "guinness",
-        [...nineUnique, duplicate, duplicate],
+        [...nineUnique, duplicate, duplicate, ...londonOnlyVenues()],
         [area],
       ),
     ).toBeNull();
@@ -295,7 +322,7 @@ describe("governed drink brand by Night Area landings", () => {
     const landing = buildDrinkBrandAreaLanding(
       area.slug,
       "guinness",
-      [...tenUnique, duplicate],
+      [...tenUnique, duplicate, ...londonOnlyVenues()],
       [area],
     );
 
@@ -403,7 +430,7 @@ describe("governed drink brand by Night Area landings", () => {
     const landing = buildDrinkBrandAreaLanding(
       area.slug,
       "guinness",
-      [...valid, ...ignored],
+      [...valid, ...ignored, ...londonOnlyVenues()],
       [area],
     );
 
@@ -442,6 +469,7 @@ describe("governed drink brand by Night Area landings", () => {
       sameNameA,
       pricedVenue("cheap", area, 3, { pub_name: "Cheap Name", app_price_id: "cheap-price" }),
       ...enoughVenues(area, 6, 5),
+      ...londonOnlyVenues(),
     ];
     nameFirst.prices.push(
       priceRow({ app_price_id: "a-row", pint_name: "Guinness A", price_gbp: 4, pub_name: "Same Name" }),
@@ -481,7 +509,10 @@ describe("governed drink brand by Night Area landings", () => {
 
   it("uses one shared collection date and the exact displayed-row publisher", () => {
     const area = getNightArea("clapham");
-    const venues = enoughVenues(area, DRINK_BRAND_AREA_PUBLICATION_FLOOR);
+    const venues = [
+      ...enoughVenues(area, DRINK_BRAND_AREA_PUBLICATION_FLOOR),
+      ...londonOnlyVenues(),
+    ];
     venues[0]!.prices = [
       priceRow({
         app_price_id: "missing-expensive",
@@ -581,5 +612,38 @@ describe("governed drink brand by Night Area landings", () => {
         buildDrinkBrandAreaLanding(areaSlug!, brandSlug!, venues, NIGHT_AREAS),
       ).toBeNull();
     }
+  });
+
+  // The page's parent crumb is /drink/{brand}, and that route sets
+  // dynamicParams = false, so a pair whose brand misses the London floor of 20
+  // would render a crumb onto a 404.
+  it("publishes no pair whose parent brand page does not publish", async () => {
+    const venues = await realVenues();
+
+    for (const landing of listDrinkBrandAreaLandings(venues, NIGHT_AREAS)) {
+      expect(
+        buildDrinkBrandLanding(landing.brandSlug, venues),
+        `/area/${landing.areaSlug}/drink/${landing.brandSlug} crumbs onto a 404`,
+      ).not.toBeNull();
+    }
+  });
+
+  it("withholds a pair over the area floor while its brand misses the London floor", () => {
+    const area = getNightArea("clapham");
+    const areaOnly = enoughVenues(area, DRINK_BRAND_AREA_PUBLICATION_FLOOR);
+
+    // Ten in the area is over the area floor, and ten in all of London is under
+    // the brand floor, so the parent page does not exist.
+    expect(buildDrinkBrandLanding("guinness", areaOnly)).toBeNull();
+    expect(buildDrinkBrandAreaLanding(area.slug, "guinness", areaOnly, [area])).toBeNull();
+    expect(listDrinkBrandAreaLandings(areaOnly, [area])).toEqual([]);
+    expect(listDrinkBrandAreaLandingsForBrand("guinness", areaOnly, [area])).toEqual([]);
+
+    // The same ten publish once the brand clears London elsewhere.
+    const withParent = [...areaOnly, ...londonOnlyVenues()];
+    expect(buildDrinkBrandLanding("guinness", withParent)).not.toBeNull();
+    expect(
+      buildDrinkBrandAreaLanding(area.slug, "guinness", withParent, [area])?.totalPricedVenues,
+    ).toBe(DRINK_BRAND_AREA_PUBLICATION_FLOOR);
   });
 });

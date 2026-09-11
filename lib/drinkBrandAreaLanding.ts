@@ -1,8 +1,9 @@
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import {
-  DRINK_BRAND_LANDING_CATALOG,
+  buildDrinkBrandLanding,
   drinkBrandCandidateForVenue,
   findDrinkBrandLandingBrand,
+  listDrinkBrandLandings,
 } from "@/lib/drinkBrandLanding";
 import type { DrinkBrand } from "@/lib/drinkBrands";
 import { NIGHT_AREAS, type NightArea, type NightAreaSlug } from "@/lib/nightAreas";
@@ -42,15 +43,21 @@ function areaBrandCandidates(
   });
 }
 
-export function buildDrinkBrandAreaLanding(
-  areaSlug: string,
-  brandSlug: string,
+/**
+ * One pair, for a brand whose own London page is already known to publish.
+ *
+ * The area floor is 10 and the brand floor is 20, so a brand can clear an area
+ * and miss London. This page's parent crumb is that London page, and the route
+ * sets `dynamicParams = false`, so publishing the pair anyway would render a
+ * crumb onto a 404. Every caller answers the parent question first.
+ */
+function publishedBrandAreaLanding(
+  area: NightArea,
+  brand: DrinkBrand,
   venues: readonly Venue[],
-  areas: readonly NightArea[] = NIGHT_AREAS,
+  areas: readonly NightArea[],
 ): DrinkBrandAreaLanding | null {
-  const area = areas.find((candidate) => candidate.slug === areaSlug);
-  const brand = findDrinkBrandLandingBrand(brandSlug);
-  if (!area || !brand || !nightAreaPublishesPrices(area)) return null;
+  if (!nightAreaPublishesPrices(area)) return null;
 
   const published = publishablePricedRows(
     "drink-brand-area",
@@ -69,14 +76,18 @@ export function buildDrinkBrandAreaLanding(
   };
 }
 
-function areaBrandLanding(
-  area: NightArea,
+export function buildDrinkBrandAreaLanding(
+  areaSlug: string,
   brandSlug: string,
   venues: readonly Venue[],
-  areas: readonly NightArea[],
-): DrinkBrandAreaLanding[] {
-  const landing = buildDrinkBrandAreaLanding(area.slug, brandSlug, venues, areas);
-  return landing ? [landing] : [];
+  areas: readonly NightArea[] = NIGHT_AREAS,
+): DrinkBrandAreaLanding | null {
+  const area = areas.find((candidate) => candidate.slug === areaSlug);
+  const brand = findDrinkBrandLandingBrand(brandSlug);
+  if (!area || !brand) return null;
+  if (!buildDrinkBrandLanding(brand.id, venues)) return null;
+
+  return publishedBrandAreaLanding(area, brand, venues, areas);
 }
 
 /**
@@ -91,16 +102,31 @@ export function listDrinkBrandAreaLandingsForBrand(
   venues: readonly Venue[],
   areas: readonly NightArea[] = NIGHT_AREAS,
 ): DrinkBrandAreaLanding[] {
-  return areas.flatMap((area) => areaBrandLanding(area, brandSlug, venues, areas));
+  const brand = findDrinkBrandLandingBrand(brandSlug);
+  if (!brand || !buildDrinkBrandLanding(brand.id, venues)) return [];
+  return areas.flatMap((area) => {
+    const landing = publishedBrandAreaLanding(area, brand, venues, areas);
+    return landing ? [landing] : [];
+  });
 }
 
+/**
+ * Every pair that publishes, brand page by brand page. The brands come from
+ * the published London pages rather than the catalogue, so the parent question
+ * is asked once per brand instead of once per pair.
+ */
 export function listDrinkBrandAreaLandings(
   venues: readonly Venue[],
   areas: readonly NightArea[] = NIGHT_AREAS,
 ): DrinkBrandAreaLanding[] {
+  const publishedBrands = listDrinkBrandLandings(venues).flatMap((landing) => {
+    const brand = findDrinkBrandLandingBrand(landing.slug);
+    return brand ? [brand] : [];
+  });
   return areas.flatMap((area) =>
-    DRINK_BRAND_LANDING_CATALOG.flatMap((brand) =>
-      areaBrandLanding(area, brand.id, venues, areas),
-    ),
+    publishedBrands.flatMap((brand) => {
+      const landing = publishedBrandAreaLanding(area, brand, venues, areas);
+      return landing ? [landing] : [];
+    }),
   );
 }
