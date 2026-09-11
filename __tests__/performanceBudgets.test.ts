@@ -437,12 +437,28 @@ describe("judgeBudgets", () => {
     ]);
   });
 
-  it("still fails a wide run whose every sample sits over the ceiling", () => {
+  it("still fails a wide run whose fastest sample is clear of the ceiling", () => {
     // Wide is not a licence. /today's first run of 3ebac98ac spread 103 per
-    // cent and never once painted under its 300 ms ceiling.
+    // cent, and its fastest of seven samples was 352 ms against a 300 ms
+    // ceiling: past the line and past the jitter band around it.
     const verdict = judge(lcps(392, 744, 480, 848, 680, 372, 352));
     expect(verdict.unmeasured).toEqual([]);
     expect(verdict.breaches.map((breach) => breach.metric)).toEqual(["lcpMs"]);
+  });
+
+  it("fails a route three times over its ceiling however wide the run was", () => {
+    // The case the rule may never launder: 400 to 1200 against 300 is a
+    // regression, and no amount of spread makes its fastest sample innocent.
+    const verdict = judge(lcps(400, 800, 1200));
+    expect(verdict.unmeasured).toEqual([]);
+    expect(verdict.breaches.map((breach) => breach.metric)).toEqual(["lcpMs"]);
+  });
+
+  it("draws the line at the jitter band the method already tracks", () => {
+    // resampleWithinCeilingPct is 10, so a 300 ms ceiling carries a 330 ms
+    // band. A fastest sample inside it decided nothing; one outside it did.
+    expect(judge(lcps(330, 600, 900)).breaches).toEqual([]);
+    expect(judge(lcps(331, 600, 900)).breaches).toHaveLength(1);
   });
 
   it("says nothing about a wide run that passed, because the method block already did", () => {
@@ -511,5 +527,72 @@ describe("formatUnmeasuredTable", () => {
     expect(table).toContain("212 to 512");
     expect(table).toContain("76%");
     expect(table).toContain("300");
+  });
+});
+
+// THE TWO RUNS THAT PROVED THE SWEEP UNSTABLE, REPLAYED.
+//
+// Job 103319591915 and its re-run, both on commit 3ebac98ac, both on the same
+// runner label, with nothing in the tree changing between them. They printed 8
+// and 6 breached routes and shared only three, and the routes unique to one of
+// them are the ones whose samples straddled their own ceiling. These are the
+// figures off those two logs, replayed through the decision.
+describe("the disjoint breach sets of 3ebac98ac", () => {
+  const method: BudgetMethod = { ...PERFORMANCE_BUDGETS.method, sampleSpreadWarnPct: 12 };
+  const verdictFor = (path: string, ceiling: number, samples: number[]) => {
+    const rows: SampleRow[] = samples.map((lcpMs) => ({
+      serverRenderMs: 0,
+      jsDecodedKB: 0,
+      requests: 0,
+      lcpMs,
+    }));
+    return judgeBudgets(
+      [route({ path, lcpMs: ceiling })],
+      new Map([[path, measurement({ lcpMs: median(samples) })]]),
+      new Map([[path, rows]]),
+      method,
+    );
+  };
+
+  // Every LCP row the two runs printed as a breach, with the samples behind it.
+  const rows: Array<[string, number, number[], "breach" | "unmeasured"]> = [
+    // First run.
+    ["/today", 300, [392, 744, 480, 848, 680, 372, 352], "breach"],
+    ["/feed", 400, [444, 348, 360, 428, 436], "unmeasured"],
+    ["/messages", 800, [836, 744, 936, 920, 1004], "unmeasured"],
+    ["/activity", 300, [292, 356, 336, 316, 264], "unmeasured"],
+    ["/choose-city", 300, [348, 488, 292, 312, 336], "unmeasured"],
+    ["/crawls", 300, [276, 376, 332, 644, 408, 392, 348], "unmeasured"],
+    ["/borough", 400, [400, 516, 416, 352, 408], "unmeasured"],
+    ["/places", 300, [284, 224, 452, 344, 368], "unmeasured"],
+    // Second run, same commit.
+    ["/activity", 300, [212, 396, 512, 392, 444], "unmeasured"],
+    ["/choose-city", 300, [476, 336, 356, 408, 256], "unmeasured"],
+    ["/moment", 300, [372, 308, 324, 348, 260], "unmeasured"],
+    ["/rounds", 300, [328, 260, 240, 312, 308], "unmeasured"],
+    ["/crawls", 300, [328, 320, 408, 308, 376, 336, 308], "unmeasured"],
+    // The second of the two that stay red, and the one no spread rule can help:
+    // 9 per cent apart is a run that agreed with itself, and what it agreed on
+    // was 408 against a 400 ms ceiling. The first run measured the same route
+    // at 392 and passed. A route sitting ON its line is a product decision.
+    ["/historic", 400, [408, 384, 400, 420, 420], "breach"],
+  ];
+
+  for (const [path, ceiling, samples, expected] of rows) {
+    it(`reads ${path} at ${median(samples)} against ${ceiling} as ${expected}`, () => {
+      const verdict = verdictFor(path, ceiling, samples);
+      const answer = verdict.breaches.length > 0 ? "breach" : "unmeasured";
+      expect(answer).toBe(expected);
+    });
+  }
+
+  it("keeps /today red on the run whose fastest sample was clear of the ceiling", () => {
+    // Twelve of the fourteen rows above stop being breaches. This is one of the
+    // two that must not: the first run's seven samples spread 103 per cent and
+    // the FASTEST of them was 352 ms against a 300 ms ceiling, outside the
+    // 330 ms jitter band. The second run measured the same route at 272 and did
+    // not report it at all, which is the honest answer for that run's evidence.
+    expect(verdictFor("/today", 300, [392, 744, 480, 848, 680, 372, 352]).breaches).toHaveLength(1);
+    expect(verdictFor("/today", 300, [248, 276, 276, 264, 248, 496, 272]).breaches).toEqual([]);
   });
 });

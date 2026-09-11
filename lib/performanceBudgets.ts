@@ -311,6 +311,135 @@ export function findBudgetBreaches(
 }
 
 /**
+ * A metric whose samples could not decide its own ceiling.
+ *
+ * It is reported and excluded from the breach list rather than failed, and the
+ * figures that made it undecidable travel with it, so a reader can argue with
+ * the call instead of taking it on trust.
+ */
+export type UnmeasuredMetric = {
+  path: string;
+  metric: BudgetMetric;
+  budget: number;
+  /** The median that would have been judged. */
+  median: number;
+  min: number;
+  max: number;
+  /** How far the samples sat apart, as a whole percentage. */
+  spreadPct: number;
+};
+
+/** What one sweep decided, and what it could not. */
+export type BudgetVerdict = {
+  breaches: BudgetBreach[];
+  unmeasured: UnmeasuredMetric[];
+};
+
+/**
+ * A VERDICT IS UNANIMOUS OR IT IS NOT A VERDICT.
+ *
+ * `findBudgetBreaches` judges the median it is handed, which is right when the
+ * samples behind that median agree. When they do not, the median is whichever
+ * way the runner happened to lean, and converting it into a breach turns a
+ * loaded box into a red build on a diff that did not touch the route. Job
+ * 103319591915 and its re-run on the IDENTICAL commit 3ebac98ac shared three of
+ * their eleven breached routes: `/today` measured 480 ms in one and 272 ms in
+ * the other against a 300 ms ceiling, and the method block reported the samples
+ * behind both spreading past 90 per cent. The sweep already SAID so - the
+ * warning simply changed nothing.
+ *
+ * So the samples decide whether their own median may be converted into a
+ * breach, and the test is unanimity:
+ *
+ *   - samples whose FASTEST is clear of the ceiling by more than jitter are over
+ *     budget however wide they are, because no median that evidence allows is
+ *     under. This is the half that keeps a genuinely slow route failing, and it
+ *     is why a wide spread is never a licence.
+ *   - samples that disagree past `sampleSpreadWarnPct` while their fastest sits
+ *     on the line did not measure the ceiling. The verdict came from which
+ *     samples happened to land, so the run is reported UNMEASURED.
+ *   - samples that AGREE with each other have measured a route that really does
+ *     sit on its line, and that is a breach however small the excess.
+ *
+ * "On the line" is the band the method already tracks, `resampleWithinCeilingPct`
+ * either side of the ceiling, and `medianSitsOnTheLine` says the same thing
+ * about the median: a figure that close is decided by jitter. Reusing it here
+ * means no new number, and it is what separates `/crawls` in the second run of
+ * 3ebac98ac - seven samples from 308 to 408 against a 300 ms ceiling, its
+ * fastest 2.7 per cent over - from a route running 400 to 1200 against the same
+ * ceiling, whose fastest sample is a third over it and whose verdict the width
+ * does not touch.
+ *
+ * The metric's `sampleSpreadFloors` entry is deliberately NOT asked here. It
+ * exists so `findMethodWarnings` does not fire on every route on every run,
+ * where a percentage alone is not information; a spread that reaches the jitter
+ * band around the ceiling already supplies that relevance. Asking the floor as
+ * well would leave `/rounds` red at 308 against 300 off samples running 240 to
+ * 328, which is the shape of red this whole rule exists to stop.
+ *
+ * WHY EXCLUDE RATHER THAN RESAMPLE UNTIL THE SPREAD CLOSES. Extra samples can
+ * only move a median, so a loop that stops when the spread closes stops exactly
+ * when the noise stopped showing: it launders the measurement rather than
+ * taking it, which is the objection the captain upheld on 7 September against
+ * the one-sided rescue band. It is also a retry with extra steps, and this
+ * sweep declares `retries: 0` for that reason. And the sweep's timeout is
+ * derived from `plannedNavigations`, a worst case no until-condition has.
+ * The route still spends its ordinary resample budget first: this decides only
+ * what the evidence it bought is allowed to say.
+ */
+function undecidedMetric(
+  samples: readonly SampleRow[],
+  metric: BudgetMetric,
+  budget: number,
+  method: BudgetMethod,
+): Omit<UnmeasuredMetric, "path" | "metric" | "budget"> | null {
+  if (samples.length < 2) return null;
+  const values = samples.map((sample) => sample[metric]);
+  const spread = perfSampleSpread(values);
+  if (!Number.isFinite(spread.spreadPct) || spread.spreadPct <= method.sampleSpreadWarnPct) {
+    return null;
+  }
+  // The fastest sample is clear of the ceiling AND of the jitter band around
+  // it, so the wide part of this evidence changes no verdict.
+  const jitterBand = budget * (1 + (method.resampleWithinCeilingPct ?? 0) / 100);
+  if (spread.min > jitterBand) return null;
+  return { median: median(values), min: spread.min, max: spread.max, spreadPct: spread.spreadPct };
+}
+
+/**
+ * The sweep's verdict: what went past a ceiling, and what could not say.
+ *
+ * Every breach `findBudgetBreaches` finds is kept unless the samples behind it
+ * could not decide that ceiling. A route with no samples at all is untouched:
+ * it is still a breach of every metric, because a budget nothing checked is not
+ * a budget.
+ */
+export function judgeBudgets(
+  budgets: readonly RouteBudget[],
+  measured: ReadonlyMap<string, RouteMeasurement>,
+  samplesByPath: ReadonlyMap<string, readonly SampleRow[]>,
+  method: BudgetMethod = PERFORMANCE_BUDGETS.method,
+): BudgetVerdict {
+  const breaches: BudgetBreach[] = [];
+  const unmeasured: UnmeasuredMetric[] = [];
+  for (const breach of findBudgetBreaches(budgets, measured)) {
+    const samples = samplesByPath.get(breach.path) ?? [];
+    const undecided = undecidedMetric(samples, breach.metric, breach.budget, method);
+    if (undecided) {
+      unmeasured.push({
+        path: breach.path,
+        metric: breach.metric,
+        budget: breach.budget,
+        ...undecided,
+      });
+      continue;
+    }
+    breaches.push(breach);
+  }
+  return { breaches, unmeasured };
+}
+
+/**
  * How far under a ceiling a route has to sit before the slack is worth banking.
  *
  * Slack does not stay slack. #1296 is the record of what happens otherwise: a
@@ -411,6 +540,37 @@ export function formatBreachTable(breaches: readonly BudgetBreach[]): string {
     Number.isFinite(breach.overBy) ? `+${breach.overBy}%` : "-",
   ]);
   const header = ["route", "metric", "measured", "budget", "over by"];
+  const widths = header.map((cell, column) =>
+    Math.max(cell.length, ...rows.map((row) => row[column].length)),
+  );
+  const line = (cells: string[]) =>
+    cells.map((cell, column) => pad(cell, widths[column])).join("  ").trimEnd();
+  return [
+    line(header),
+    widths.map((width) => "-".repeat(width)).join("  "),
+    ...rows.map(line),
+  ].join("\n");
+}
+
+/**
+ * The table naming every ceiling the run could not decide. Empty string when
+ * every figure decided itself, so a clean sweep stays quiet.
+ *
+ * It is LOUD on purpose. An excluded metric is not a pass: it is a ceiling this
+ * run did not measure, and the next reader has to be able to see which one and
+ * how wide the evidence was.
+ */
+export function formatUnmeasuredTable(unmeasured: readonly UnmeasuredMetric[]): string {
+  if (unmeasured.length === 0) return "";
+  const rows = unmeasured.map((entry) => [
+    entry.path,
+    BUDGET_METRIC_LABELS[entry.metric],
+    figure(entry.median),
+    figure(entry.budget),
+    `${figure(entry.min)} to ${figure(entry.max)}`,
+    `${entry.spreadPct}%`,
+  ]);
+  const header = ["route", "metric", "median", "budget", "samples ran", "spread"];
   const widths = header.map((cell, column) =>
     Math.max(cell.length, ...rows.map((row) => row[column].length)),
   );

@@ -2,13 +2,14 @@ import { expect, test } from "@playwright/test";
 
 import {
   PERFORMANCE_BUDGETS,
-  findBudgetBreaches,
   findMethodWarnings,
   findRatchetCandidates,
   formatBreachTable,
   formatMeasurementTable,
   formatRatchetTable,
   formatSampleTable,
+  formatUnmeasuredTable,
+  judgeBudgets,
   plannedNavigations,
   type RouteMeasurement,
   type SampleRow,
@@ -143,11 +144,40 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
     );
   }
 
-  const breaches = findBudgetBreaches(budgets.routes, measured);
+  // A VERDICT IS UNANIMOUS OR IT IS NOT A VERDICT.
+  //
+  // The method warning above says a route could not measure itself, and until
+  // now it changed nothing: the median was judged anyway, so a loaded runner
+  // read as a breach on a diff that had not touched the route. Job
+  // 103319591915 and its re-run on the IDENTICAL commit 3ebac98ac shared three
+  // of their eleven breached routes. `judgeBudgets` is the one owner of the
+  // rule (lib/performanceBudgets.ts), and it is pure, so it is unit-tested with
+  // no browser: samples that all sit over a ceiling are over budget however
+  // wide they are, and samples that straddle one while disagreeing past the
+  // tracked width did not measure it.
+  const { breaches, unmeasured } = judgeBudgets(
+    budgets.routes,
+    measured,
+    samplesByPath,
+    budgets.method,
+  );
+
+  // An excluded ceiling is not a pass, so it is said out loud whether the sweep
+  // goes red or green, and it is said again in the failure message below.
+  const unmeasuredReport =
+    unmeasured.length === 0
+      ? ""
+      : `\n[perf-budget][unmeasured] ${unmeasured.length} ceiling(s) this run could NOT decide. ` +
+        `Their samples disagreed past the tracked ${budgets.method.sampleSpreadWarnPct}% width AND ` +
+        `fell on both sides of the ceiling, so the median was whichever way the runner leaned. ` +
+        `They are excluded from the breach list rather than failed, and they are not green:\n` +
+        `${formatUnmeasuredTable(unmeasured)}\n`;
+  if (unmeasuredReport) console.log(unmeasuredReport);
+
   expect(
     breaches,
     breaches.length === 0
       ? "no breach"
-      : `Over the performance budget. Fix the route or take the ceiling up deliberately (docs/PERFORMANCE_BUDGETS.md).\n\n${formatBreachTable(breaches)}\n`,
+      : `Over the performance budget. Fix the route or take the ceiling up deliberately (docs/PERFORMANCE_BUDGETS.md).\n\n${formatBreachTable(breaches)}\n${unmeasuredReport}`,
   ).toEqual([]);
 });

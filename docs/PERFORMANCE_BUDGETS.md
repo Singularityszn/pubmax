@@ -438,6 +438,54 @@ no after-arm run of any route breached. They do not establish a false-red RATE t
 any precision, and a second red on a later sweep would not be a surprise. The
 honest claim is the mechanism and the direction, not a probability.
 
+### A ceiling a wide run cannot decide
+
+The three tables above said a route could not measure itself, and until 11
+September 2026 saying so changed nothing: the median was judged anyway. So a
+loaded runner read as a breach on a pull request whose diff had not touched the
+route. Job 103319591915 and its re-run on the IDENTICAL commit `3ebac98ac`,
+same label, same tree, printed eight and six breached routes and shared three of
+them, while the method block reported `/tonight` LCP spreading 133 per cent and
+`/activity` server render 400 per cent against a tracked width of 12.
+
+`judgeBudgets` in `lib/performanceBudgets.ts` is the one owner of the rule, and
+it is pure, so it is unit-tested with no browser. A verdict is unanimous or it
+is not a verdict:
+
+| what the samples did | what the run says |
+| --- | --- |
+| agreed with each other | the median is the verdict, pass or fail |
+| disagreed past `sampleSpreadWarnPct`, fastest sample clear of the ceiling and of the jitter band around it | a breach, because no median that evidence allows is under |
+| disagreed past `sampleSpreadWarnPct`, fastest sample inside that band | UNMEASURED: reported in its own table and left off the breach list |
+
+"On the line" is the band the method already tracks, `resampleWithinCeilingPct`
+either side of the ceiling, which is what `medianSitsOnTheLine` already means by
+a figure decided by jitter. Reusing it means no new number. The metric's
+`sampleSpreadFloors` entry is deliberately not asked: it exists so the method
+warning does not fire on every route on every run, and a spread that reaches the
+jitter band already carries that relevance.
+
+Replaying every breached row those two runs printed, twelve of fourteen stop
+being breaches. The two that remain are the point of the rule rather than a gap
+in it: `/today`'s first run spread 103 per cent and its FASTEST of seven samples
+was 352 ms against a 300 ms ceiling, outside the 330 ms band; `/historic` agreed
+with itself to 9 per cent on 408 ms against 400, which is a route sitting on its
+line rather than a runner having a bad morning, and the answer to that is the
+route or a deliberate decision, never a wider width.
+
+Nothing is loosened anywhere else. No ceiling moved, `sampleSpreadWarnPct` did
+not widen, the sweep still declares `retries: 0`, and the resample budget is
+spent exactly as before - this decides only what the evidence it bought is
+allowed to say.
+
+**Why exclude rather than resample until the spread closes.** Extra samples can
+only move a median, so a loop that stops when the spread closes stops exactly
+when the noise stopped SHOWING: it launders the measurement rather than taking
+it, which is the objection upheld on 7 September against the one-sided rescue
+band. It is also a retry with extra steps, and this sweep declares zero retries
+for that reason. And the sweep's timeout is derived from `plannedNavigations`, a
+worst case that no until-condition has.
+
 ### A route that redirects is measured as a redirect
 
 `page.goto` follows a 3xx, so the moment a budgeted route starts redirecting its row
@@ -539,6 +587,10 @@ Three tables, in this order:
 - `[perf-budget][method]` - facts about the MEASUREMENT rather than about the
   code: a route whose samples sat further apart than `sampleSpreadWarnPct`, and
   any sample that fell back to the harness clock. Reported, never failed on.
+- `[perf-budget][unmeasured]` - printed only when there is one: a ceiling this
+  run could not decide, with the median it would have judged, the range the
+  samples ran over and how far apart they sat. It is excluded from the breach
+  list and it is NOT green. See below.
 
 ### What the page clock actually fixed, and what it did not
 
