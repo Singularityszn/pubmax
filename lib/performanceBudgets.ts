@@ -542,11 +542,12 @@ export function findRatchetCandidates(
  * One log may not call a ceiling unreadable and offer its slack in the same
  * breath. Banking takes a ceiling DOWN off the very median the run refused to
  * trust, and the fast samples that made it look generous become the next
- * sweep's red: `/tonight` ran 248 to 588 ms against a 900 ms ceiling in one run
- * of 3ebac98ac, which reads as 72 per cent of slack to bank and as a 133 per
- * cent spread at the same time. So every undecided metric is dropped here.
- * `findRatchetCandidates` stays blind to the verdict and pure, and this is the
- * one place the two are put together.
+ * sweep's red. LCP samples of 200, 250 and 1000 ms against a 300 ms ceiling are
+ * the shape: they straddle the line, so the run could not decide it, while
+ * their median of 250 reads as 17 per cent of slack worth banking. Take that
+ * ceiling to 250 and the 1000 ms sample is the next red. So every undecided
+ * metric is dropped here. `findRatchetCandidates` stays blind to the verdict
+ * and pure, and this is the one place the two are put together.
  */
 export function bankableRatchetCandidates(
   candidates: readonly RatchetCandidate[],
@@ -564,6 +565,12 @@ function pad(value: string, width: number): string {
 
 function figure(value: number): string {
   return Number.isFinite(value) ? String(Math.round(value)) : "not measured";
+}
+
+function excess(value: number): string {
+  if (!Number.isFinite(value)) return "not measured";
+  const rounded = Math.round(value);
+  return rounded > 0 ? `+${rounded}` : String(rounded);
 }
 
 /**
@@ -620,6 +627,13 @@ export function formatBreachTable(breaches: readonly BudgetBreach[]): string {
  * It is LOUD on purpose. An excluded metric is not a pass: it is a ceiling this
  * run did not measure, and the next reader has to be able to see which one and
  * how wide the evidence was.
+ *
+ * It carries the EXCESS beside the range, because a route whose excess over its
+ * ceiling is smaller than its own jitter cannot be decided by a single sweep,
+ * so it is reported unmeasured every time rather than failed, and a row that
+ * keeps appearing there is the signal to spend real evidence on that route. The
+ * figure a reader needs to see returning is how far over the line the median
+ * sat, so it is printed rather than left to be worked out.
  */
 export function formatUnmeasuredTable(unmeasured: readonly UnmeasuredMetric[]): string {
   if (unmeasured.length === 0) return "";
@@ -628,10 +642,14 @@ export function formatUnmeasuredTable(unmeasured: readonly UnmeasuredMetric[]): 
     BUDGET_METRIC_LABELS[entry.metric],
     figure(entry.median),
     figure(entry.budget),
+    excess(entry.median - entry.budget),
     `${figure(entry.min)} to ${figure(entry.max)}`,
     `${entry.spreadPct}%`,
   ]);
-  return table(["route", "metric", "median", "budget", "samples ran", "spread"], rows);
+  return table(
+    ["route", "metric", "median", "budget", "over by", "samples ran", "spread"],
+    rows,
+  );
 }
 
 /** The full pass line a green run prints, so the numbers are in the log either way. */

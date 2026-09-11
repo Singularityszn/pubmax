@@ -616,6 +616,32 @@ describe("bankableRatchetCandidates", () => {
     expect(bankable.map((candidate) => candidate.metric)).toContain("serverRenderMs");
   });
 
+  it("drops a straddling row whose median reads as slack worth banking", () => {
+    // The shape the guard exists for: LCP 200, 250 and 1000 ms against a 300 ms
+    // ceiling. The run could not decide the ceiling, and the same median offers
+    // 17 per cent of slack. Bank it and the 1000 ms sample is the next red.
+    const straddling = [route({ lcpMs: 300 })];
+    const measuredHere = new Map([["/x", measurement({ lcpMs: 250 })]]);
+    const rows: SampleRow[] = [200, 250, 1000].map((lcpMs) => ({
+      serverRenderMs: 10,
+      jsDecodedKB: 100,
+      requests: 5,
+      lcpMs,
+    }));
+    const { unmeasured } = judgeBudgets(
+      straddling,
+      measuredHere,
+      new Map([["/x", rows]]),
+      method,
+    );
+    expect(unmeasured.map((entry) => entry.metric)).toContain("lcpMs");
+    const candidates = findRatchetCandidates(straddling, measuredHere);
+    expect(candidates.map((candidate) => candidate.metric)).toContain("lcpMs");
+    expect(
+      bankableRatchetCandidates(candidates, unmeasured).map((candidate) => candidate.metric),
+    ).not.toContain("lcpMs");
+  });
+
   it("offers every candidate when the run decided every ceiling", () => {
     const candidates = findRatchetCandidates(budgets, measured);
     expect(bankableRatchetCandidates(candidates, [])).toEqual(candidates);
@@ -636,6 +662,23 @@ describe("formatUnmeasuredTable", () => {
     expect(table).toContain("212 to 512");
     expect(table).toContain("76%");
     expect(table).toContain("300");
+  });
+
+  it("prints how far over its ceiling the median sat, so a parked route is visible every sweep", () => {
+    // A route whose excess is smaller than its own jitter reads unmeasured on
+    // every run, so the excess is the figure a reader watches for a return.
+    const table = formatUnmeasuredTable([
+      { path: "/rounds", metric: "lcpMs", budget: 300, median: 310, min: 286, max: 334, spreadPct: 15 },
+    ]);
+    expect(table).toContain("over by");
+    expect(table).toContain("+10");
+  });
+
+  it("prints a median under its ceiling as the negative excess it is", () => {
+    const table = formatUnmeasuredTable([
+      { path: "/rounds", metric: "lcpMs", budget: 300, median: 250, min: 200, max: 1000, spreadPct: 320 },
+    ]);
+    expect(table).toContain("-50");
   });
 });
 

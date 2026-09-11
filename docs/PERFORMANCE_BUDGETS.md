@@ -459,6 +459,10 @@ b. they disagree past `sampleSpreadWarnPct`;
 c. the excess fits inside the spread that is supposed to explain it:
    `median - budget <= (max - min) / 2`.
 
+**The known limit.** A route whose excess over its ceiling is smaller than its own jitter cannot be decided by a single sweep, so it is reported unmeasured every time rather than failed, and a row that keeps appearing there is the signal to spend real evidence on that route. Every unmeasured row prints its median, its ceiling and
+its excess over that ceiling beside the range its samples ran over, so the same row
+returning is visible sweep after sweep.
+
 An unmeasured row is reported in its own table, and left off the breach list and
 off the ratchet table. Read the three the other way: samples of which not one met
 the ceiling are a breach, because no median that evidence allows is under;
