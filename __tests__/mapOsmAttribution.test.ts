@@ -40,6 +40,22 @@ describe("OpenStreetMap attribution", () => {
     );
   });
 
+  it("ships the ODbL header on the UK base manifest itself, with the fetch day", () => {
+    // The gazetteer and places.json headers are fenced elsewhere; the base
+    // layer's own header is the manifest every shard reader opens first, so
+    // the licence and the fetch day ride it rather than the hand-written
+    // README alone. scripts/validate-data.mjs holds the same line in CI.
+    const manifest = JSON.parse(read("public/data/uk_base/manifest.json")) as {
+      license?: unknown;
+      attribution?: unknown;
+      generatedFrom?: { fetchedAt?: unknown };
+    };
+    expect(manifest.license).toBe("ODbL 1.0");
+    expect(manifest.attribution).toBe("© OpenStreetMap contributors");
+    expect(typeof manifest.generatedFrom?.fetchedAt).toBe("string");
+    expect(manifest.generatedFrom?.fetchedAt).not.toBe("");
+  });
+
   it("also credits the wholly-OSM UK base source on the source itself", () => {
     const sources = new Map<string, Record<string, unknown>>();
     const map = {

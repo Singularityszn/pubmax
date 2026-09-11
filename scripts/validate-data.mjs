@@ -1965,6 +1965,24 @@ function validateUkBaseManifestShape(manifest) {
       ? manifest.urlPrefix
       : "";
   if (!urlPrefix) errors.push("manifest has no usable shard URL prefix");
+  // ODbL requires the credit to travel with the data. The gazetteer and
+  // places.json headers are held to this above; the base layer's own header
+  // is the manifest, so it carries the same licence and the fetch day.
+  if (typeof manifest.license !== "string" || !/odbl/i.test(manifest.license)) {
+    errors.push("manifest has no ODbL licence header");
+  }
+  if (
+    typeof manifest.attribution !== "string" ||
+    !/openstreetmap/i.test(manifest.attribution)
+  ) {
+    errors.push("manifest has no OpenStreetMap attribution header");
+  }
+  if (
+    typeof manifest.generatedFrom?.fetchedAt !== "string" ||
+    !manifest.generatedFrom.fetchedAt
+  ) {
+    errors.push("manifest has no fetchedAt timestamp");
+  }
   return { errors, shards, urlPrefix };
 }
 

@@ -361,6 +361,12 @@ async function main() {
       version: UK_BASE_SHARD_VERSION,
       urlPrefix: `/data/${SHARD_DIR_NAME}/`,
       grid: UK_BASE_GRID,
+      // The licence rides the manifest because this header is the file every
+      // reader opens first; the README's prose survives rebuilds but a JSON
+      // consumer never reads it. Same three fields london_venues carries.
+      source: "OpenStreetMap Overpass",
+      license: "ODbL 1.0",
+      attribution: "© OpenStreetMap contributors",
       generatedFrom: {
         fetchedAt: pack.fetchedAt ?? null,
         barsFetchedAt: drinkPack.fetchedAt ?? null,
