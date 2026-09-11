@@ -1,5 +1,9 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
+
 import { expect, test } from "@playwright/test";
 
+import { PERF_AB_BREACH_FILE, type AbBreachHandover } from "../lib/performanceAbEvidence";
 import {
   PERFORMANCE_BUDGETS,
   findBudgetBreaches,
@@ -144,6 +148,33 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
   }
 
   const breaches = findBudgetBreaches(budgets.routes, measured);
+
+  // THE BREACH LIST IS HANDED ON, AND IT IS STILL THE GATE.
+  //
+  // A breach fails this test exactly as it did before. What the file adds is
+  // the second question an author asks the moment a route goes red: did this
+  // branch make it slower, or is this box slower than the one that set the
+  // ceiling? The job's next step re-measures ONLY these routes against the
+  // merge-base build, on this same box, and prints the answer
+  // (scripts/perf-ab.mjs, e2e/performance-budget-ab.spec.ts).
+  //
+  // Nothing is written on a green sweep, so the A/B finds no work, never
+  // builds the second tree and costs nothing.
+  if (breaches.length > 0) {
+    const handover: AbBreachHandover = {
+      head: process.env.GITHUB_SHA ?? "",
+      measuredAt: new Date().toISOString(),
+      breaches: breaches.map((breach) => ({
+        path: breach.path,
+        metric: breach.metric,
+        measured: breach.measured,
+        budget: breach.budget,
+      })),
+    };
+    mkdirSync(dirname(PERF_AB_BREACH_FILE), { recursive: true });
+    writeFileSync(PERF_AB_BREACH_FILE, `${JSON.stringify(handover, null, 2)}\n`);
+  }
+
   expect(
     breaches,
     breaches.length === 0

@@ -26,7 +26,10 @@ describe("clean-main CI release gate", () => {
     expect(workflow).toMatch(
       /name: Typecheck[\s\S]*NODE_OPTIONS: "--max-old-space-size=6144"[\s\S]*run: npx tsc --noEmit/,
     );
-    expect(workflow.match(/NODE_OPTIONS: "--max-old-space-size=6144"/g)).toHaveLength(5);
+    // Six: the fifth is the budget sweep and the sixth is the interleaved A/B
+    // that runs after it on a red run, which builds the merge base and so needs
+    // the same heap as any other production build in this workflow.
+    expect(workflow.match(/NODE_OPTIONS: "--max-old-space-size=6144"/g)).toHaveLength(6);
   });
 
   it("gates coverage and freshness independently", () => {

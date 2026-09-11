@@ -1,7 +1,11 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { PERFORMANCE_BUDGETS } from "@/lib/performanceBudgets";
 import {
+  PERF_AB_BREACH_FILE,
   abNoiseBandPct,
   compareArms,
   formatAbTable,
@@ -127,5 +131,48 @@ describe("formatAbTable", () => {
   it("is empty when nothing was compared, so a green sweep stays quiet", () => {
     expect(formatAbTable([])).toBe("");
     expect(formatAbVerdictLines([])).toEqual([]);
+  });
+});
+
+describe("the handover between the sweep and the A/B", () => {
+  const root = process.cwd();
+
+  it("names one file, and the script that reads it names the same one", () => {
+    // scripts/perf-ab.mjs is plain Node and cannot import this constant, so the
+    // two are held together here. A handover written to one path and read from
+    // another is an A/B that silently never runs.
+    const script = readFileSync(path.join(root, "scripts", "perf-ab.mjs"), "utf8");
+    expect(script).toContain(PERF_AB_BREACH_FILE);
+  });
+
+  it("is written by the sweep only when the sweep has a breach", () => {
+    // The second build must stay off the critical path of a green run.
+    const spec = readFileSync(
+      path.join(root, "e2e", "performance-budget.spec.ts"),
+      "utf8",
+    );
+    expect(spec).toContain("if (breaches.length > 0) {");
+    expect(spec).toContain("writeFileSync(PERF_AB_BREACH_FILE");
+  });
+
+  it("leaves the breach list itself as the gate", () => {
+    // The A/B may print anything it likes; the expect below it is what fails
+    // the build, and it is still judging findBudgetBreaches.
+    const spec = readFileSync(
+      path.join(root, "e2e", "performance-budget.spec.ts"),
+      "utf8",
+    );
+    expect(spec).toContain("const breaches = findBudgetBreaches(budgets.routes, measured);");
+    expect(spec).toContain(").toEqual([]);");
+  });
+
+  it("interleaves the two arms rather than running one after the other", () => {
+    // A sequential A-then-B on a drifting box measures the drift, so the
+    // alternating pair is pinned here rather than left to a reviewer's memory.
+    const spec = readFileSync(
+      path.join(root, "e2e", "performance-budget-ab.spec.ts"),
+      "utf8",
+    );
+    expect(spec).toContain("run % 2 === 0 ? [branch, base] : [base, branch]");
   });
 });
