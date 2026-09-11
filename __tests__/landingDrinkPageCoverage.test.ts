@@ -7,6 +7,7 @@ vi.mock("server-only", () => ({}));
 
 import { BEERS } from "@/lib/beers";
 import { seedCrawlState } from "@/lib/crawlUrl";
+import { DEFAULT_DRINK_LANE, activeDrinkLane } from "@/lib/drinkLanes";
 import {
   DRINK_BRAND_LANDING_CATALOG,
   DRINK_BRAND_LANDING_PUBLICATION_FLOOR,
@@ -14,8 +15,15 @@ import {
 } from "@/lib/drinkBrandLanding";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { DRINK_BRANDS } from "@/lib/drinkBrands";
+import { isMapLensDrinkCategory } from "@/lib/drinks";
+import { filterMapVenues } from "@/lib/filterMapVenues";
 import { buildLandingPubCard } from "@/lib/landingPubCard";
+import { filtersForDrinkPriceLens } from "@/lib/mapExperienceLens";
 import { pricedLandingMapHref } from "@/lib/pricedLanding";
+import { mapDrinkLensSelection } from "@/lib/pubMap";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { slimVenuesToPins } from "@/lib/slimPins";
+import type { SlimVenue } from "@/lib/venuesSlim";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 
 // Astra plan lane 1.5. The landing card printed "£6.50 a pint of Pravha" and
@@ -25,6 +33,7 @@ import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 // publishes, so a brand the card can name is never a door onto a 404.
 
 const DATASET_FILE = path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json");
+const SLIM_FILE = path.join(process.cwd(), "public", "data", "venues_slim.json");
 
 function priceRow(venueId: string, pintName: string, price: number): VenuePrice {
   return {
@@ -180,16 +189,61 @@ describe("every pint the landing card can name has a drink page or no link", () 
 });
 
 // Astra plan lane 1.5, second half. A published page's primary action is
-// `/map?brand=<slug>`, and the map lens resolved only its own eight beers, so
-// twelve of the new pages opened an unchanged map and said nothing about it.
-describe("the map arrival every published drink page offers", () => {
-  it("selects the brand the page names, for every page the shipped dataset publishes", async () => {
-    for (const { slug, brandLabel } of await loadDrinkBrandLandings()) {
-      const href = pricedLandingMapHref({ brandSlug: slug });
-      const seeded = seedCrawlState(href.slice(href.indexOf("?")));
+// `/map?brand=<slug>`, and the arrival has to show that brand's pubs. Deciding
+// the brand is not enough: the map paints SLIM pins, which carry no price rows,
+// so a brand the filter cannot see on a pin empties the map instead of
+// repricing it.
+//
+// public/data/venues_slim.json is the generated artifact the map actually
+// fetches, so the fence reads it and runs the real pin pipeline over it.
+async function londonMapPins(): Promise<Venue[]> {
+  const payload = JSON.parse(await readFile(SLIM_FILE, "utf8")) as unknown;
+  const rows = (rowsFromSlimPayload(payload) ?? []) as SlimVenue[];
+  return slimVenuesToPins(rows);
+}
 
+// The filters PubMap hands filterMapVenues for this arrival: the URL seed,
+// then the drink-price lens, which stands brand refinements down for a
+// non-beer lens and leaves them alone for beer.
+function arrivalFilters(brandSlug: string) {
+  const href = pricedLandingMapHref({ brandSlug });
+  const seeded = seedCrawlState(href.slice(href.indexOf("?")));
+  const { mapDrinkLensCategory } = mapDrinkLensSelection({
+    drinkCategory: seeded.filters.drinkCategory,
+    experienceLens: "all",
+    isMapLensDrinkCategory,
+    activeDrinkLane,
+    defaultDrinkLane: DEFAULT_DRINK_LANE,
+  });
+  return {
+    seeded,
+    effective: filtersForDrinkPriceLens(seeded.filters, mapDrinkLensCategory),
+  };
+}
+
+describe("the map arrival every published drink page offers", () => {
+  it("shows that brand's pubs, for every page the shipped dataset publishes", async () => {
+    const pins = await londonMapPins();
+    expect(pins.length).toBeGreaterThan(0);
+
+    for (const { slug, brandLabel } of await loadDrinkBrandLandings()) {
+      const { seeded, effective } = arrivalFilters(slug);
       expect(seeded.filters.drinkBrand, `${brandLabel} arrives on an unrepriced map`).toBe(slug);
-      expect(seeded.filters.drinkCategory).toBe("beer");
+
+      const shown = filterMapVenues(pins, effective, () => false);
+      expect(shown.length, `${brandLabel} arrives on an empty map`).toBeGreaterThan(0);
+    }
+  });
+
+  it("narrows the map rather than passing every pin through", async () => {
+    // A brand filter that matched everything would satisfy the count above
+    // without repricing anything.
+    const pins = await londonMapPins();
+    const shown = filterMapVenues(pins, arrivalFilters("pravha").effective, () => false);
+
+    expect(shown.length).toBeLessThan(pins.length);
+    for (const pin of shown) {
+      expect(pin.filterHints?.drinkText ?? "").toContain("pravha");
     }
   });
 
