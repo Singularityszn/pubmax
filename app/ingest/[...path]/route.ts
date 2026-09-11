@@ -12,10 +12,12 @@ const MAX_REQUEST_BYTES = 1024 * 1024;
 // GET whose path starts `static` or `array` goes to the eu-assets CDN instead
 // and bills no event, and it still spends the same budget, because the budget
 // is spent before the path is resolved: a flood must be walled before it is
-// read, not sorted first. One device's SDK flushes events about every three
-// seconds and replay about as often, so a phone spends under 40 a minute on
-// capture alone; 240 leaves a table of phones sharing one carrier address room
-// for their cold-load asset fetches too, and walls a loop. The budget lives in
+// read, not sorted first. The browser config this proxy serves
+// (`lib/posthogClient.ts`) turns off autocapture, pageview, pageleave, heatmaps
+// and dead clicks, and disables session replay, so a device sends only the
+// events the product captures on purpose; batching is off, so each one is its
+// own request. 240 leaves a table of phones sharing one carrier address room
+// for those captures and their cold-load asset fetches, and walls a loop. The budget lives in
 // the leaf `lib/ingestRateLimit.ts`, which imports nothing, compares before it records
 // so a refused address cannot grow its own window, and drops a key once every
 // hit in it has expired so a flood of distinct addresses leaves no entry

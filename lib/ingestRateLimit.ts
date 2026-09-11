@@ -28,36 +28,38 @@
  *      at most once a window, so it costs one pass a window rather than one a
  *      request.
  */
-const windows = new Map<string, number[]>();
-let sweptAt = 0;
+type LimiterWindows = Map<string, number[]>;
 
-function sweepExpiredKeys(now: number, windowMs: number): void {
-  if (now - sweptAt < windowMs) return;
-  sweptAt = now;
-  for (const [key, hits] of windows) {
-    if (hits.every((hit) => now - hit >= windowMs)) windows.delete(key);
+const windows: LimiterWindows = new Map();
+const sweptAt = new WeakMap<LimiterWindows, number>();
+
+function sweepExpiredKeys(store: LimiterWindows, now: number, windowMs: number): void {
+  if (now - (sweptAt.get(store) ?? 0) < windowMs) return;
+  sweptAt.set(store, now);
+  for (const [key, hits] of store) {
+    if (hits.every((hit) => now - hit >= windowMs)) store.delete(key);
   }
 }
 
-/** True when `key` has already spent `limit` hits inside `windowMs`. */
+/**
+ * True when `key` has already spent `limit` hits inside `windowMs`. `store`
+ * defaults to the per-instance window every caller shares; a caller may pass
+ * its own so a budget can be spent and inspected in isolation.
+ */
 export function ingestRateLimited(
   key: string,
   now: number,
   limit: number,
   windowMs: number,
+  store: LimiterWindows = windows,
 ): boolean {
-  sweepExpiredKeys(now, windowMs);
-  const hits = (windows.get(key) ?? []).filter((hit) => now - hit < windowMs);
+  sweepExpiredKeys(store, now, windowMs);
+  const hits = (store.get(key) ?? []).filter((hit) => now - hit < windowMs);
   if (hits.length >= limit) {
-    windows.set(key, hits);
+    store.set(key, hits);
     return true;
   }
   hits.push(now);
-  windows.set(key, hits);
+  store.set(key, hits);
   return false;
-}
-
-/** Tracked keys and the hits each one still holds, for the fences to read. */
-export function ingestLimiterSnapshot(): Record<string, number> {
-  return Object.fromEntries([...windows].map(([key, hits]) => [key, hits.length]));
 }

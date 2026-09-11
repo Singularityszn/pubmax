@@ -1,9 +1,13 @@
+import "server-only";
+
 import { createHash } from "node:crypto";
 
 /**
  * sha256(salt:ip) - raw IPs never reach the database or logs.
  *
- * A PURE LEAF: `node:crypto` and one environment read, nothing else. It lives
+ * A PURE LEAF: `node:crypto`, one environment read and the `server-only`
+ * marker, which pulls no dependency and only makes a client component that
+ * reaches for the salt fail fast with the framework's own error. It lives
  * here rather than in `lib/supabase.ts` so a route that only needs a limiter
  * key does not trace `@supabase/supabase-js` into its bundle. `lib/supabase.ts`
  * re-exports it, so there is ONE definition and ONE salt: two salted hashes
