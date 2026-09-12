@@ -11,7 +11,11 @@ import { listEnabledCities } from "@/lib/cities";
 import { listBoroughs } from "@/lib/boroughs";
 import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
-import { buildLeagueTable, pintIndexMeetsAdmissionFloor } from "@/lib/pintIndex";
+import {
+  PINT_INDEX_BOROUGH_ADMISSION_FLOOR,
+  buildLeagueTable,
+  pintIndexMeetsAdmissionFloor,
+} from "@/lib/pintIndex";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
@@ -323,6 +327,64 @@ describe("every sitemap-listed family carries a performance budget", () => {
     ]) {
       expect(paths.has(path), `${path} has no row in perf/route-budgets.json`).toBe(true);
     }
+  });
+});
+
+// D10, the restore path. A month that reaches the admission floor puts the hub
+// back with NO code change, so the proof is a fixture snapshot rather than an
+// edit to the published file: nothing about this run touches
+// public/data/pint_index_snapshot.json.
+describe("sitemap Pint Index admission gate", () => {
+  const boroughsAtFloor = (codes: readonly [string, string][]) =>
+    codes.flatMap(([code, name]) =>
+      Array.from({ length: PINT_INDEX_BOROUGH_ADMISSION_FLOOR }, (_, offset) => ({
+        venueId: `${code}-${offset}`,
+        pubName: `${name} pub ${offset}`,
+        boroughCode: code,
+        boroughName: name,
+        pricePence: 500 + offset,
+        observedAt: "2026-07-10T12:00:00.000Z",
+        sourceId: "community-1",
+      })),
+    );
+
+  async function sitemapWithSnapshot(observations: unknown[]): Promise<string[]> {
+    vi.resetModules();
+    vi.doMock("@/lib/pintIndexSnapshot.server", async (importOriginal) => ({
+      ...(await importOriginal<Record<string, unknown>>()),
+      loadPublicPintIndexSnapshot: async () => ({
+        schemaVersion: 1,
+        snapshotId: "admission-floor-fixture",
+        status: observations.length === 0 ? "empty" : "published",
+        generatedAt: "2026-07-16T00:00:00.000Z",
+        observationWindow: null,
+        classification: {
+          version: "london-borough-point-v1",
+          method: "point_in_polygon",
+          sourceArtifact: "data/london_boroughs_simplified.json",
+          licence: "Open Government Licence v3.0",
+        },
+        sources: [],
+        observations,
+        excluded: [],
+      }),
+    }));
+    const { default: gated } = await import("@/app/sitemap");
+    const listed = (await gated()).map((entry) => entry.url);
+    vi.doUnmock("@/lib/pintIndexSnapshot.server");
+    vi.resetModules();
+    return listed;
+  }
+
+  it("holds the hub while the thinnest borough is one pub short", async () => {
+    const thin = boroughsAtFloor([["hackney", "Hackney"], ["westminster", "Westminster"]])
+      .filter((row) => row.venueId !== "westminster-0");
+    expect(await sitemapWithSnapshot(thin)).not.toContain(`${SITE}/pint-index`);
+  });
+
+  it("advertises the hub again once every named borough reaches the floor", async () => {
+    const atFloor = boroughsAtFloor([["hackney", "Hackney"], ["westminster", "Westminster"]]);
+    expect(await sitemapWithSnapshot(atFloor)).toContain(`${SITE}/pint-index`);
   });
 });
 

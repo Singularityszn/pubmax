@@ -5,6 +5,7 @@ import { listBoroughs } from "@/lib/boroughs";
 import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
 import { loadPintPriceLandingVenuesOrThrow } from "@/lib/pintPriceLandingDataset.server";
+import { buildLeagueTable, pintIndexMeetsAdmissionFloor } from "@/lib/pintIndex";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { readSpoonsValue } from "@/lib/spoonsValue.server";
@@ -113,6 +114,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const pintIndexPublished = pintIndexSnapshot
     ? new Date(pintIndexSnapshot.generatedAt)
     : new Date("2026-07-16T00:00:00.000Z");
+  // Captain decision D10: the live Index is not ADVERTISED until a month carries
+  // the admission floor in every borough it names. lib/pintIndex.ts owns that
+  // rule and the figure behind it. /pint-index stays live and still answers with
+  // its honest empty; what is held is this row, and the dated editions below -
+  // real citations, frozen - are never held.
+  const pintIndexPromoted = pintIndexSnapshot !== null
+    && pintIndexMeetsAdmissionFloor(buildLeagueTable(pintIndexSnapshot));
 
   // loadHistoricPubs() swallows read errors to [] (shared lib contract), and the
   // historic index is never empty in practice (346 cited pubs), so an empty read
@@ -138,7 +146,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/", priority: 1.0, changeFrequency: "daily", lastModified: now },
     { path: "/map", priority: 0.9, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/borough", priority: 0.8, changeFrequency: "weekly", lastModified: pricesModified },
-    { path: "/pint-index", priority: 0.8, changeFrequency: "monthly", lastModified: pintIndexPublished },
+    ...(pintIndexPromoted
+      ? [{
+          path: "/pint-index",
+          priority: 0.8,
+          changeFrequency: "monthly" as const,
+          lastModified: pintIndexPublished,
+        }]
+      : []),
     { path: "/historic", priority: 0.8, changeFrequency: "weekly", lastModified: historicModified },
     // The Spoons value ranking. Its own content dates it: the figures are an
     // imported edition and nothing we run advances them, so it changes when a

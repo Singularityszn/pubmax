@@ -4,6 +4,7 @@
 // Index observation is publishable only when its source and observed-at date
 // survive this validator. File mtimes are never evidence of observation time.
 
+import { SEED_BOROUGH_MONTHLY_TARGET } from "@/lib/boroughCoverageStatus";
 import { LONDON_BOROUGH_CLASSIFIER_VERSION } from "@/lib/londonBoroughPoint.mjs";
 
 export const LONDON_BOROUGH_NAMES = [
@@ -213,6 +214,37 @@ export function buildLeagueTable(snapshot: PintIndexSnapshot): LeagueRow[] {
       maxPubName: rows.find((row) => row.pricePence === max)!.pubName,
     };
   }).sort((a, b) => a.averageGbp - b.averageGbp || a.name.localeCompare(b.name));
+}
+
+/**
+ * Priced pubs one borough must carry before the Index may be PROMOTED.
+ *
+ * It is the flywheel's own per-borough monthly target, imported rather than
+ * restated: `SEED_BOROUGH_MONTHLY_TARGET` already counts distinct corroborated
+ * (venue, category) pairs attributed to a borough, which is the same thing a
+ * league row counts, so one number moves both or neither. Typing it a second
+ * time here would let the two drift in silence, and typing it onto a surface
+ * would let it drift from both.
+ */
+export const PINT_INDEX_BOROUGH_ADMISSION_FLOOR = SEED_BOROUGH_MONTHLY_TARGET;
+
+/**
+ * Whether a month has enough behind it to be advertised (captain decision D10).
+ *
+ * EVERY borough the month names must be at the floor, not just the best one,
+ * because promotion advertises the whole league table and a three-pub row in it
+ * is exactly the thin figure the hold exists to keep off a crawler's list. A
+ * month naming no borough at all is never promoted.
+ *
+ * This decides PROMOTION and nothing else. `/pint-index` stays live and answers
+ * with its honest empty whatever this returns; the surfaces it governs are the
+ * sitemap row (`app/sitemap.ts`) and the map's zone pint index strip
+ * (`components/map/ZonePicker.tsx`). A month that reaches the floor restores
+ * both with no code change.
+ */
+export function pintIndexMeetsAdmissionFloor(rows: readonly LeagueRow[]): boolean {
+  return rows.length > 0
+    && rows.every((row) => row.pubCount >= PINT_INDEX_BOROUGH_ADMISSION_FLOOR);
 }
 
 /**
