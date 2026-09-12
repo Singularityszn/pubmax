@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
-import { cache } from "react";
 
 import EmptyState from "@/components/ui/empty-state";
 import SiteNav from "@/components/nav/SiteNav";
@@ -45,7 +44,7 @@ type VenueReadResult =
   | { status: "absent" }
   | { status: "unavailable" };
 
-const readVenueDataset = cache(async (): Promise<Map<string, Venue> | null> => {
+async function readVenueDataset(): Promise<Map<string, Venue> | null> {
   if (cachedVenues) return cachedVenues;
   try {
     await getVenueIndex(); // keeps the shared dataset read warm/memoized
@@ -63,7 +62,7 @@ const readVenueDataset = cache(async (): Promise<Map<string, Venue> | null> => {
   } catch {
     return null;
   }
-});
+}
 
 async function readVenue(id: string): Promise<VenueReadResult> {
   const venues = await readVenueDataset();
