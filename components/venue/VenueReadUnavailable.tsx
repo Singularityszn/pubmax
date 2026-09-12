@@ -1,5 +1,3 @@
-import EmptyState from "@/components/ui/empty-state";
-
 /**
  * A pub we could not READ, on the Bar Tab and the Ledger.
  *
@@ -19,23 +17,29 @@ import EmptyState from "@/components/ui/empty-state";
 export default function VenueReadUnavailable({
   href,
   eyebrow,
-  eyebrowClassName,
+  classNames,
 }: {
   /** The address to retry: the reader's own. */
   href: string;
   /** The surface's own name, so the card reads as part of the page it sits on. */
   eyebrow: string;
-  /** The surface's own eyebrow rule, so this card and the not-found card beside
-   * it read at one size, weight and colour. */
-  eyebrowClassName: string;
+  /**
+   * The surface's own empty-card rules, so this card and the not-found card
+   * beside it carry one heading structure, one size, one weight, one colour.
+   */
+  classNames: { eyebrow: string; title: string; body: string; action: string };
 }): React.JSX.Element {
   return (
     <>
-      <p className={eyebrowClassName}>{eyebrow}</p>
-      <EmptyState title="We could not load this pub" action={<a href={href}>Try again</a>}>
+      <p className={classNames.eyebrow}>{eyebrow}</p>
+      <h1 className={classNames.title}>We could not load this pub</h1>
+      <p className={classNames.body}>
         Our end could not answer just now, so nothing here is a reading of this
         pub. Whether it is here is a thing this page could not find out.
-      </EmptyState>
+      </p>
+      <a className={classNames.action} href={href}>
+        Try again
+      </a>
     </>
   );
 }

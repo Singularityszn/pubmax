@@ -95,6 +95,7 @@ describe.each([
     metadata: barTabMetadata,
     href: `/bar-tab/${encodeURIComponent(venue.id)}`,
     notFoundLine: "on the tab",
+    titleClass: "barTabEmptyTitle",
   },
   {
     surface: "the Ledger",
@@ -102,13 +103,19 @@ describe.each([
     metadata: ledgerMetadata,
     href: `/ledger/${encodeURIComponent(venue.id)}`,
     notFoundLine: "in the ledger",
+    titleClass: "ledgerEmptyTitle",
   },
-])("$surface over a dataset read that threw", ({ page, metadata, href, notFoundLine }) => {
+])("$surface over a dataset read that threw", ({ page, metadata, href, notFoundLine, titleClass }) => {
   it("answers unavailable, reads again on the next request, and caches only a successful parse", async () => {
     // 1. The read throws: the unavailable surface, never the not-found document.
     dataset.fail = true;
     const markup = await render(page, venue.id);
     expect(markup).toContain("We could not load this pub");
+    // One route family, one heading structure: the not-found card on these two
+    // routes ships an h1, and this document must ship one too.
+    expect(markup).toMatch(
+      new RegExp(`<h1 class="${titleClass}">We could not load this pub</h1>`),
+    );
     expect(markup).toContain("could not answer just now");
     expect(markup).toContain(`href="${href}"`);
     expect(markup).toContain("Try again");

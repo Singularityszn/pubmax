@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
+import { cache } from "react";
 
 import { getVenueCuration } from "@/lib/curation";
 import { getListedBuilding, type ListedBuilding } from "@/lib/heritageListings";
@@ -60,7 +61,7 @@ type VenueReadResult =
   | { status: "absent" }
   | { status: "unavailable" };
 
-async function readVenueDataset(): Promise<Map<string, Venue> | null> {
+const readVenueDataset = cache(async (): Promise<Map<string, Venue> | null> => {
   if (cachedVenues) return cachedVenues;
   try {
     await getVenueIndex(); // keeps the shared dataset read warm/memoized
@@ -78,7 +79,7 @@ async function readVenueDataset(): Promise<Map<string, Venue> | null> {
   } catch {
     return null;
   }
-}
+});
 
 async function readVenue(id: string): Promise<VenueReadResult> {
   const venues = await readVenueDataset();
@@ -230,7 +231,12 @@ function LedgerReadUnavailable({ id }: { id: string }) {
         </Link>
         <VenueReadUnavailable
           eyebrow="The Ledger"
-          eyebrowClassName="ledgerEyebrow"
+          classNames={{
+            eyebrow: "ledgerEyebrow",
+            title: "ledgerEmptyTitle",
+            body: "ledgerEmptyBody",
+            action: "ledgerPrimaryLink",
+          }}
           href={`/ledger/${encodeURIComponent(id)}`}
         />
       </div>
@@ -244,7 +250,13 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
   // Three answers, and the order is the rule: a read we could not run is
   // answered BEFORE the not-found card, or the card swallows it.
   const read = await readVenue(id);
-  if (read.status === "unavailable") return <LedgerReadUnavailable id={id} />;
+  if (read.status === "unavailable") {
+    // A read we could not run may never be held as a fact: this dynamic read
+    // keeps the unavailable document out of the full route cache, so the next
+    // request opens the dataset again instead of being served this answer.
+    await headers();
+    return <LedgerReadUnavailable id={id} />;
+  }
   if (read.status === "absent") return <NotInTheLedger />;
   const { venue } = read;
   // Per-request CSP nonce (proxy.ts) for the JSON-LD block.
