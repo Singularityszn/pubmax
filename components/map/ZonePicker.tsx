@@ -2,25 +2,15 @@
 
 // Zone picker — the map's fare-zone lens. Sits alongside the existing filter
 // chips (Drinks / Plan) and matches that idiom: a compact control that filters
-// the pins. Opens a small selector (All + zones 1–6) and, while the London Pint
-// Index is promoted, the honest "Zone pint index" strip (median pint per zone,
-// low-observation gate) as a tappable detail. Selecting a zone sets
-// filters.zone; the pins re-filter via venueMatchesZone (lib/venues → lib/zones).
-//
-// THE STRIP IS A PROMOTION OF THE INDEX, so captain decision D10 holds it with
-// the sitemap row: while the published month is below the admission floor the
-// map shows the chips alone. The rule and the figure behind it are read from
-// lib/pintIndex.ts, never typed here. The answer rides the Pint Index league
-// loader the venue sheet already uses, so the strip costs the map one shared,
-// deferred read of a public asset rather than a snapshot in its bundle, and it
-// FAILS CLOSED: an unread snapshot promotes nothing.
+// the pins. Opens a small selector (All + zones 1–6) and, as a tappable detail,
+// the honest "Zone pint index" strip (median pint per zone, low-observation
+// gate). Selecting a zone sets filters.zone; the pins re-filter via
+// venueMatchesZone (lib/venues → lib/zones).
 
 import { MapPin } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import ZonePintIndexStrip from "@/components/zones/ZonePintIndexStrip";
-import { pintIndexMeetsAdmissionFloor } from "@/lib/pintIndex";
-import { loadPintIndexLeagueRows } from "@/lib/pintIndexLeagueLoader";
 import { ZONE_IDS, parseZoneParam, type ZonePintIndex } from "@/lib/zones";
 
 import "./zonePicker.css";
@@ -84,23 +74,8 @@ export default function ZonePicker({
   const parsed = parseZoneParam(zone);
   const active = parsed === "all" || parsed === null ? null : parsed;
   const [open, setOpen] = useState(false);
-  const [pintIndexPromoted, setPintIndexPromoted] = useState(false);
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
-
-  // Deferred, shared and fail-soft: an unreadable snapshot leaves the strip off
-  // rather than promoting a month nobody could check.
-  useEffect(() => {
-    let cancelled = false;
-    loadPintIndexLeagueRows()
-      .then((rows) => {
-        if (!cancelled) setPintIndexPromoted(pintIndexMeetsAdmissionFloor(rows));
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // Close the toolbar popover on outside click / Escape.
   useEffect(() => {
@@ -128,14 +103,12 @@ export default function ZonePicker({
   const body = (
     <>
       <ZoneChips active={active} onPick={onZoneChange} />
-      {pintIndexPromoted ? (
-        <ZonePintIndexStrip
-          index={index}
-          activeZone={active}
-          compact
-          onPickZone={(zoneId) => onZoneChange(String(zoneId))}
-        />
-      ) : null}
+      <ZonePintIndexStrip
+        index={index}
+        activeZone={active}
+        compact
+        onPickZone={(zoneId) => onZoneChange(String(zoneId))}
+      />
     </>
   );
 

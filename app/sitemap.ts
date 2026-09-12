@@ -115,10 +115,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ? new Date(pintIndexSnapshot.generatedAt)
     : new Date("2026-07-16T00:00:00.000Z");
   // Captain decision D10: the live Index is not ADVERTISED until a month carries
-  // the admission floor in every borough it names. lib/pintIndex.ts owns that
-  // rule and the figure behind it. /pint-index stays live and still answers with
-  // its honest empty; what is held is this row, and the dated editions below -
-  // real citations, frozen - are never held.
+  // the admission floor in at least one borough. lib/pintIndex.ts owns that rule
+  // and the figure behind it.
+  //
+  // WHAT IS HELD IS THIS ROW AND INDEXING, never the route and never the links
+  // to it. /pint-index still answers 200 with its honest empty, and the borough,
+  // About and method pages still link there, because a reader who follows one
+  // gets a truthful page. A crawler that arrives through those links is turned
+  // away by the hub's own robots directive (app/pint-index/page.tsx), which
+  // reads this same rule: dropping a sitemap row deindexes nothing on its own.
+  // The dated editions below are real citations, frozen, and are never held.
   const pintIndexPromoted = pintIndexSnapshot !== null
     && pintIndexMeetsAdmissionFloor(buildLeagueTable(pintIndexSnapshot));
 

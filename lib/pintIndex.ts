@@ -217,34 +217,30 @@ export function buildLeagueTable(snapshot: PintIndexSnapshot): LeagueRow[] {
 }
 
 /**
- * Priced pubs one borough must carry before the Index may be PROMOTED.
- *
- * It is the flywheel's own per-borough monthly target, imported rather than
- * restated: `SEED_BOROUGH_MONTHLY_TARGET` already counts distinct corroborated
- * (venue, category) pairs attributed to a borough, which is the same thing a
- * league row counts, so one number moves both or neither. Typing it a second
- * time here would let the two drift in silence, and typing it onto a surface
- * would let it drift from both.
- */
-export const PINT_INDEX_BOROUGH_ADMISSION_FLOOR = SEED_BOROUGH_MONTHLY_TARGET;
-
-/**
  * Whether a month has enough behind it to be advertised (captain decision D10).
  *
- * EVERY borough the month names must be at the floor, not just the best one,
- * because promotion advertises the whole league table and a three-pub row in it
- * is exactly the thin figure the hold exists to keep off a crawler's list. A
- * month naming no borough at all is never promoted.
+ * AT LEAST ONE borough must carry `SEED_BOROUGH_MONTHLY_TARGET` priced pubs. The
+ * figure is the flywheel's own per-borough monthly target, read from its owning
+ * module rather than restated here: it already counts distinct corroborated
+ * (venue, category) pairs attributed to a borough, which is what a league row
+ * counts, so one number moves both or neither. A month naming no borough at all
+ * is never promoted.
+ *
+ * A row BELOW the floor is ignored rather than disqualifying, because requiring
+ * every named borough meant one confirmed drop in a thin borough demoted a
+ * mature month: coverage growing hid the Index. Under this rule growth can only
+ * help. The league table still renders every row it has, thin ones included -
+ * showing partial coverage honestly is a different thing from advertising the
+ * hub.
  *
  * This decides PROMOTION and nothing else. `/pint-index` stays live and answers
- * with its honest empty whatever this returns; the surfaces it governs are the
- * sitemap row (`app/sitemap.ts`) and the map's zone pint index strip
- * (`components/map/ZonePicker.tsx`). A month that reaches the floor restores
- * both with no code change.
+ * with its honest empty whatever this returns; what it governs is the sitemap
+ * row (`app/sitemap.ts`) and the hub's own `robots` directive
+ * (`app/pint-index/page.tsx`). A month that reaches the floor restores both with
+ * no code change.
  */
 export function pintIndexMeetsAdmissionFloor(rows: readonly LeagueRow[]): boolean {
-  return rows.length > 0
-    && rows.every((row) => row.pubCount >= PINT_INDEX_BOROUGH_ADMISSION_FLOOR);
+  return rows.some((row) => row.pubCount >= SEED_BOROUGH_MONTHLY_TARGET);
 }
 
 /**

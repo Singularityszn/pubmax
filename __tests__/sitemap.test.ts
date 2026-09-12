@@ -11,12 +11,8 @@ import { listEnabledCities } from "@/lib/cities";
 import { listBoroughs } from "@/lib/boroughs";
 import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
-import {
-  PINT_INDEX_BOROUGH_ADMISSION_FLOOR,
-  buildLeagueTable,
-  pintIndexMeetsAdmissionFloor,
-} from "@/lib/pintIndex";
-import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
+import { SEED_BOROUGH_MONTHLY_TARGET } from "@/lib/boroughCoverageStatus";
+import { loadPintIndexArchive } from "@/lib/pintIndexSnapshot.server";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
 import { PERFORMANCE_BUDGETS } from "@/lib/performanceBudgets";
@@ -32,10 +28,12 @@ import type { MetadataRoute } from "next";
 // Console holds in its Data safety form and expects to be able to open, and
 // /spoons-value, the national Wetherspoon units-per-tenner ranking.
 //
-// /pint-index is NOT here. Captain decision D10 holds the Index off every
-// promotion surface until a month carries the admission floor of priced pubs in
-// every borough it names, so the hub row follows the live snapshot and is
-// counted by expectedCounts() below. The ROUTE is unaffected either way.
+// /pint-index is NOT here. Captain decision D10 holds its row until a month
+// carries the admission floor of priced pubs in at least one borough, and the
+// shipped snapshot carries none, so the generator emits no hub row today. The
+// row returning is a conscious test edit, the same as a change to the list
+// above; the gate itself is proved in both directions by the fixture-driven
+// describe at the foot of this file. The ROUTE is unaffected either way.
 const STATIC_HUB_COUNT = 14;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
@@ -74,8 +72,6 @@ type ExpectedCounts = {
   historic: number;
   venues: number;
   editions: number;
-  /** 1 while the live Index clears its admission floor, 0 while it is held. */
-  pintIndexHub: number;
   drinkBrands: number;
   drinkBrandAreas: number;
   total: number;
@@ -96,9 +92,6 @@ async function expectedCounts(): Promise<ExpectedCounts> {
   // One URL per dated Pint Index edition actually published. A frozen month is
   // a real citation whatever the live month holds, so D10 never touches these.
   const editions = (await loadPintIndexArchive()).length;
-  // The live hub, read through the SAME rule the generator applies.
-  const liveSnapshot = await loadPublicPintIndexSnapshot();
-  const pintIndexHub = liveSnapshot && pintIndexMeetsAdmissionFloor(buildLeagueTable(liveSnapshot)) ? 1 : 0;
   // Governed landing pages come from the SAME loaders the routes render, so a
   // page the sitemap advertises is a page that exists.
   const drinkBrands = (await loadDrinkBrandLandings()).length;
@@ -110,7 +103,6 @@ async function expectedCounts(): Promise<ExpectedCounts> {
     historic,
     venues: venues.length,
     editions,
-    pintIndexHub,
     drinkBrands,
     drinkBrandAreas,
   };
@@ -124,7 +116,6 @@ async function expectedCounts(): Promise<ExpectedCounts> {
       counts.historic +
       counts.venues +
       counts.editions +
-      counts.pintIndexHub +
       counts.drinkBrands +
       counts.drinkBrandAreas,
   };
@@ -158,13 +149,12 @@ describe("sitemap()", () => {
     expect(expected.editions).toBeGreaterThan(0);
   });
 
-  // D10: while the live snapshot is below the admission floor the hub is not
-  // ADVERTISED. It is still SERVED - app/pint-index/page.tsx is untouched and
-  // answers with its honest empty - so this asserts the sitemap row alone.
-  it("advertises the live Pint Index hub only once it clears the admission floor", async () => {
-    const snapshot = await loadPublicPintIndexSnapshot();
-    const cleared = Boolean(snapshot) && pintIndexMeetsAdmissionFloor(buildLeagueTable(snapshot!));
-    expect(urls.includes(`${SITE}/pint-index`)).toBe(cleared);
+  // D10: the shipped snapshot is empty, so the hub row is held. The route is
+  // still SERVED and still linked; only its row and its index directive follow
+  // the floor. Both directions of the rule are proved by the fixture-driven
+  // describe at the foot of this file.
+  it("holds the live Pint Index hub while the shipped month is empty", () => {
+    expect(urls).not.toContain(`${SITE}/pint-index`);
   });
 
   it("includes the core static hubs", () => {
@@ -335,9 +325,9 @@ describe("every sitemap-listed family carries a performance budget", () => {
 // edit to the published file: nothing about this run touches
 // public/data/pint_index_snapshot.json.
 describe("sitemap Pint Index admission gate", () => {
-  const boroughsAtFloor = (codes: readonly [string, string][]) =>
-    codes.flatMap(([code, name]) =>
-      Array.from({ length: PINT_INDEX_BOROUGH_ADMISSION_FLOOR }, (_, offset) => ({
+  const observationsFor = (boroughs: readonly [string, string, number][]) =>
+    boroughs.flatMap(([code, name, pubCount]) =>
+      Array.from({ length: pubCount }, (_, offset) => ({
         venueId: `${code}-${offset}`,
         pubName: `${name} pub ${offset}`,
         boroughCode: code,
@@ -376,14 +366,25 @@ describe("sitemap Pint Index admission gate", () => {
     return listed;
   }
 
-  it("holds the hub while the thinnest borough is one pub short", async () => {
-    const thin = boroughsAtFloor([["hackney", "Hackney"], ["westminster", "Westminster"]])
-      .filter((row) => row.venueId !== "westminster-0");
+  it("holds the hub while every named borough sits below the floor", async () => {
+    const thin = observationsFor([
+      ["hackney", "Hackney", SEED_BOROUGH_MONTHLY_TARGET - 1],
+      ["westminster", "Westminster", 1],
+    ]);
     expect(await sitemapWithSnapshot(thin)).not.toContain(`${SITE}/pint-index`);
   });
 
-  it("advertises the hub again once every named borough reaches the floor", async () => {
-    const atFloor = boroughsAtFloor([["hackney", "Hackney"], ["westminster", "Westminster"]]);
+  it("holds the hub for an empty month", async () => {
+    expect(await sitemapWithSnapshot([])).not.toContain(`${SITE}/pint-index`);
+  });
+
+  // Coverage growing may never hide the Index: a thin borough beside a mature
+  // one is partial coverage, not a reason to stop advertising the hub.
+  it("advertises the hub once one borough reaches the floor, thin rows beside it", async () => {
+    const atFloor = observationsFor([
+      ["hackney", "Hackney", SEED_BOROUGH_MONTHLY_TARGET],
+      ["westminster", "Westminster", 1],
+    ]);
     expect(await sitemapWithSnapshot(atFloor)).toContain(`${SITE}/pint-index`);
   });
 });

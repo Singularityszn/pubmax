@@ -13,7 +13,7 @@ import PintIndexLeagueTable from "@/components/pintindex/PintIndexLeagueTable";
 import ZonePintIndexStrip from "@/components/zones/ZonePintIndexStrip";
 import { loadSeedBoroughCoverage } from "@/lib/boroughCoverageStatus.server";
 import { citableNationalBenchmarks, NATIONAL_PINT_BENCHMARKS } from "@/lib/nationalPintBenchmarks";
-import { buildLeagueTable, dearestFirst, formatPintIndexDate, indexSummary, type PintIndexSnapshot } from "@/lib/pintIndex";
+import { buildLeagueTable, dearestFirst, formatPintIndexDate, indexSummary, pintIndexMeetsAdmissionFloor, type PintIndexSnapshot } from "@/lib/pintIndex";
 import { londonMonthOf, pintIndexMonthCloseDay, pintIndexMonthLabel } from "@/lib/pintIndexArchive";
 import { arrivalAreas } from "@/lib/pintIndexArrival";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
@@ -26,22 +26,36 @@ import "./pint-index.css";
 
 const SITE_URL = "https://pubmaxxing.com";
 
-export const metadata: Metadata = {
-  title: "The London Pint Index public data status · PUBMAXX",
-  description: "The public London Pint Index, with named sources, licences and price dates. Older map-only prices stay out.",
-  alternates: { canonical: "/pint-index" },
-  openGraph: {
-    title: "The London Pint Index public data status",
-    description: "A London pint-price dataset built from prices with named sources and dates.",
-    type: "website",
-    url: "/pint-index",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "The London Pint Index public data status",
-    description: "Only pint prices with named sources and dates are published.",
-  },
-};
+// LIVE IS NOT THE SAME AS INDEXED (captain decision D10). This route always
+// answers 200 with whatever the snapshot honestly holds, and the borough, About
+// and method pages keep linking here. What follows the admission floor is the
+// INDEX directive: a sitemap row is an invitation rather than an instruction, so
+// dropping that row leaves a crawler free to arrive through any of those links
+// and index a month with nothing behind it. `pintIndexMeetsAdmissionFloor`
+// (lib/pintIndex.ts) is the one rule, read here over the live snapshot, and
+// `follow` stays on so the dated editions - real citations - are still reached.
+export async function generateMetadata(): Promise<Metadata> {
+  const snapshot = await loadPublicPintIndexSnapshot();
+  const promoted = snapshot !== null
+    && pintIndexMeetsAdmissionFloor(buildLeagueTable(snapshot));
+  return {
+    title: "The London Pint Index public data status · PUBMAXX",
+    description: "The public London Pint Index, with named sources, licences and price dates. Older map-only prices stay out.",
+    alternates: { canonical: "/pint-index" },
+    robots: { index: promoted, follow: true },
+    openGraph: {
+      title: "The London Pint Index public data status",
+      description: "A London pint-price dataset built from prices with named sources and dates.",
+      type: "website",
+      url: "/pint-index",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "The London Pint Index public data status",
+      description: "Only pint prices with named sources and dates are published.",
+    },
+  };
+}
 
 function datasetJsonLd(snapshot: PintIndexSnapshot, boroughCount: number, pubCount: number) {
   if (!snapshot.observationWindow || snapshot.observations.length === 0) return null;
