@@ -348,13 +348,6 @@ describe("Places is the one indexable city list", () => {
     expect(metadata.robots).toBeUndefined();
   });
 
-  it("leaves /choose-city with no canonical of its own", async () => {
-    // /choose-city 308s here. A canonical on the redirecting page would keep
-    // pointing a crawler at the address it just left.
-    const { metadata } = await import("@/app/choose-city/page");
-
-    expect(metadata.alternates?.canonical).toBeUndefined();
-  });
 });
 
 // ---------------------------------------------------------------------------

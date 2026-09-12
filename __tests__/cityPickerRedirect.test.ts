@@ -32,7 +32,9 @@ describe("/choose-city is the old address of the city picker", () => {
     expect(new URL(response.headers.get("location") ?? "").pathname).toBe(PLACES_PATH);
   });
 
-  it("carries the query through, so a focused search is not lost on the way", () => {
+  it("carries the query through rather than dropping it at the door", () => {
+    // /places reads no `focus` param; the 308 preserves the query because a
+    // permanent redirect must not edit the address a reader asked for.
     const response = ask("/choose-city?focus=search");
 
     expect(new URL(response.headers.get("location") ?? "").search).toBe("?focus=search");

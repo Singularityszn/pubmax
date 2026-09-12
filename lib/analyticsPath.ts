@@ -3,7 +3,6 @@ const PAGEVIEW_STATIC_SURFACES = new Set([
   "/about",
   "/activity",
   "/borough",
-  "/choose-city",
   "/contributors",
   "/crawls",
   "/historic",

@@ -21,8 +21,8 @@
   font-optical-sizing: auto;
 }
 
-/* ── Body variant: the chooser under a route's own launch Screen ────────
-   (/choose-city). It keeps the section's light-ground styling and gives up
+/* ── Body variant: the chooser under a route's own launch Screen. No route
+   mounts it today. It keeps the section's light-ground styling and gives up
    the section's padding and ground: the route around it owns both, and the
    list lines up with the head above it. */
 .cityChooser--body {

@@ -22,11 +22,11 @@ export type PrimaryNavItem = {
 export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
   { key: "now", href: "/today", label: "Now", match: ["/today", "/tonight"] },
   { key: "map", href: "/map", label: "Map", match: ["/map"] },
-  // /choose-city is the picker's retired address: it 308s to /places (proxy.ts)
-  // and nothing links there any more. Kept in the match set like the retired
-  // Social aliases below, so a soft client lights the canonical destination
-  // while a bookmark's permanent redirect settles.
-  { key: "places", href: "/places", label: "Places", match: ["/places", "/choose-city"] },
+  // The picker's retired address, /choose-city, is NOT in the match set: it has
+  // no page any more and 308s at the edge (proxy.ts), so no client is ever on
+  // that pathname. Unlike the retired Social aliases below, which are still
+  // rendered routes.
+  { key: "places", href: "/places", label: "Places", match: ["/places"] },
   { key: "out", href: "/out", label: "Out", match: ["/out"] },
   {
     key: "social",

@@ -15,7 +15,6 @@ export const ROUTE_PATTERNS = [
   "/bar-tab/[id]",
   "/borough",
   "/borough/[slug]",
-  "/choose-city",
   "/crawls",
   "/crawls/[slug]",
   "/discover",

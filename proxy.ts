@@ -225,8 +225,9 @@ export function securityProxy(request: NextRequest) {
   // from the page carrying the canonical to a page shipping `noindex` takes the
   // city list out of the index rather than moving it.
   //
-  // The query rides along, so an entry that asked for the search field keeps
-  // asking for it.
+  // The query rides along because a 308 must not silently drop what a reader
+  // asked for, not because /places reads any of it: the old `focus=search`
+  // param has no reader there, and the retired address has no page at all.
   if (pathname === CHOOSE_CITY_PATH) {
     const target = new URL(request.url);
     target.pathname = PLACES_PATH;
