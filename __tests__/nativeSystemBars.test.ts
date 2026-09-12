@@ -50,6 +50,7 @@ describe("syncNativeSystemBars", () => {
     await expect(syncNativeSystemBars(theme)).resolves.toBe(true);
     expect(setTheme).toHaveBeenCalledWith({ theme });
     expect(setStyle).toHaveBeenCalledOnce();
+    expect(setTheme.mock.invocationCallOrder[0]).toBeGreaterThan(show.mock.invocationCallOrder[0]);
   });
 
   it("keeps the existing system-bar path usable in an older Android shell", async () => {

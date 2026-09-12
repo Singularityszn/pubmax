@@ -17,16 +17,16 @@ export async function syncNativeSystemBars(theme: NativeTheme): Promise<boolean>
   if (!isNativeApp()) return false;
   try {
     const { SystemBars, SystemBarsStyle, registerPlugin } = await import("@capacitor/core");
-    let backgroundApplied = true;
-    if (nativePlatform() === "android") {
-      windowTheme ??= registerPlugin<WindowThemePlugin>("WindowTheme");
-      // Older shells keep their existing icon path until the app is updated.
-      backgroundApplied = await windowTheme.setTheme({ theme }).then(() => true, () => false);
-    }
     await SystemBars.setStyle({
       style: theme === "dark" ? SystemBarsStyle.Dark : SystemBarsStyle.Light,
     });
     await SystemBars.show();
+    let backgroundApplied = true;
+    if (nativePlatform() === "android") {
+      windowTheme ??= registerPlugin<WindowThemePlugin>("WindowTheme");
+      // SystemBars resets the window background, so apply the app color last.
+      backgroundApplied = await windowTheme.setTheme({ theme }).then(() => true, () => false);
+    }
     return backgroundApplied;
   } catch {
     return false;

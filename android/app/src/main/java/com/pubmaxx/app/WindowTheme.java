@@ -29,7 +29,7 @@ public class WindowTheme extends Plugin {
     @Override
     protected void handleOnConfigurationChanged(Configuration configuration) {
         super.handleOnConfigurationChanged(configuration);
-        if (theme != null) applyTheme();
+        if (theme != null) getActivity().getWindow().getDecorView().post(this::applyTheme);
     }
 
     private void applyTheme() {
