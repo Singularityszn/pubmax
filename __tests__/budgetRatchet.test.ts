@@ -209,11 +209,11 @@ describe("check-budget-ratchet", () => {
 
 describe("the shipped budget file", () => {
   it("budgets every route the site serves a stranger", () => {
-    // 35 routes with no dynamic segment, plus ten concrete instances of the
+    // 35 paths, one Social query variant, plus ten concrete instances of the
     // dynamic and static families the sitemap advertises (7 September 2026).
     // docs/PERFORMANCE_BUDGETS.md "Which routes are budgeted" holds the list;
     // __tests__/sitemap.test.ts fails a family that is advertised and unmeasured.
-    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(45);
+    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(46);
   });
 
   it("gives every route a readiness selector and a reason", () => {
