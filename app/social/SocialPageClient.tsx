@@ -46,9 +46,10 @@ import type { SocialPostDTO } from "@/lib/socialPosts";
 
 import "./social.css";
 import "./socialDiscovery.css";
-import SocialComposer from "./SocialComposer";
 import SocialTagInbox from "./SocialTagInbox";
-import SocialOutbox from "./SocialOutbox";
+
+const SocialComposer = dynamic(() => import("./SocialComposer"));
+const SocialOutbox = dynamic(() => import("./SocialOutbox"));
 
 const StarterPacks = dynamic(() => import("@/components/social/StarterPacks"));
 const FoundersWallLink = dynamic(() => import("@/components/founding/FoundersWallLink"));
