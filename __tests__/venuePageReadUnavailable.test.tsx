@@ -1,21 +1,11 @@
-// A DATASET WE COULD NOT READ IS NOT A PUB THAT DOES NOT EXIST.
-//
-// astra-review P1-2. `/bar-tab/[id]` and `/ledger/[id]` each parse
-// `public/data/pint_prices_app_dataset.json` once per process. When that read
-// threw, the catch left the index empty AND memoised it, so every Bar Tab and
-// Ledger URL answered "This pub isn't on the tab" until the instance recycled.
-// `app/AGENTS.md` already forbids collapsing a failed venue-detail read into an
-// unknown pub on `/api/venue/[id]`; these two pages never joined that rule.
-//
-// Held here as behaviour: a throwing `fs.readFile` renders the unavailable
-// surface, the next request reads the file again, and only a successful parse
-// is ever cached.
+// Failed detail reads must remain unavailable and retry on the next request.
 
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({
@@ -23,7 +13,7 @@ vi.mock("next/headers", () => ({
 }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 
-const dataset = vi.hoisted(() => ({
+const details = vi.hoisted(() => ({
   fail: false,
   reads: 0,
 }));
@@ -36,13 +26,17 @@ const aliases = vi.hoisted(() => ({
 vi.mock("fs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs")>();
   const readFile = actual.promises.readFile;
+  const open = actual.promises.open;
   const promises = {
     ...actual.promises,
-    readFile: async (file: unknown, ...rest: unknown[]) => {
-      if (typeof file === "string" && file.endsWith("pint_prices_app_dataset.json")) {
-        dataset.reads += 1;
-        if (dataset.fail) throw new Error("EIO: i/o error, read");
+    open: async (...args: Parameters<typeof open>) => {
+      if (String(args[0]).endsWith("venue_details.jsonl")) {
+        details.reads += 1;
+        if (details.fail) throw new Error("EIO: i/o error, read");
       }
+      return open(...args);
+    },
+    readFile: async (file: unknown, ...rest: unknown[]) => {
       if (typeof file === "string" && file.endsWith("venue_id_aliases.json")) {
         aliases.reads += 1;
         if (aliases.fail) throw new Error("EIO: i/o error, read");
@@ -56,17 +50,17 @@ vi.mock("fs", async (importOriginal) => {
 import BarTabPage, { generateMetadata as barTabMetadata } from "@/app/bar-tab/[id]/page";
 import LedgerPage, { generateMetadata as ledgerMetadata } from "@/app/ledger/[id]/page";
 import { resetVenueAliasesForTests } from "@/lib/venueAliases";
-import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
+import { resetVenueDetailCachesForTests, setVenueDetailIndexFileForTests, setVenueDetailRowsFileForTests } from "@/lib/venueDetailIndex";
+import { resetVenueIndexForTests } from "@/lib/venueIndex";
+import { groupVenuePrices, stableVenueIdFromKey, venueGroupingKey, type VenuePrice } from "@/lib/venues";
 
 const ROOT = process.cwd();
 const read = (file: string): string => readFileSync(join(ROOT, file), "utf8");
 
 const rows = JSON.parse(read("public/data/pint_prices_app_dataset.json")) as VenuePrice[];
-const venue = groupVenuePrices(rows)[0];
+const venue = groupVenuePrices(rows).find((venue) => venue.id === "venue-16pnwmm")!;
 
-// A real merged duplicate id (D1): the only id whose page read must consult the
-// alias artifact, so it is the id that proves an unreadable alias file is not an
-// absent pub.
+// A stored duplicate ID must resolve to its canonical venue after alias recovery.
 const aliasDoc = JSON.parse(read("public/data/venue_id_aliases.json")) as {
   aliases: Record<string, string>;
 };
@@ -80,12 +74,35 @@ async function render(page: (props: { params: Promise<{ id: string }> }) => Prom
   return renderToStaticMarkup(createElement(() => element as React.ReactElement));
 }
 
+let fixtureDir: string;
+beforeAll(() => {
+  fixtureDir = mkdtempSync(join(tmpdir(), "venue-page-read-"));
+  const artifacts = [venue, mergedCanonical].map((item) => ({
+    id: item.id,
+    rows: rows.filter((row) => stableVenueIdFromKey(venueGroupingKey(row)) === item.id),
+  }));
+  const venues: Record<string, { offset: number; length: number; rowCount: number }> = {};
+  let contents = "";
+  for (const artifact of artifacts) {
+    const line = `${JSON.stringify(artifact)}\n`;
+    venues[artifact.id] = { offset: Buffer.byteLength(contents), length: Buffer.byteLength(line), rowCount: artifact.rows.length };
+    contents += line;
+  }
+  writeFileSync(join(fixtureDir, "venue_details.jsonl"), contents);
+  writeFileSync(join(fixtureDir, "venue_detail_index.json"), JSON.stringify({ version: 1, detailsFile: "venue_details.jsonl", count: artifacts.length, venues }));
+});
+afterAll(() => rmSync(fixtureDir, { recursive: true, force: true }));
+
 beforeEach(() => {
-  dataset.fail = false;
-  dataset.reads = 0;
+  details.fail = false;
+  details.reads = 0;
   aliases.fail = false;
   aliases.reads = 0;
   resetVenueAliasesForTests();
+  resetVenueIndexForTests();
+  resetVenueDetailCachesForTests();
+  setVenueDetailIndexFileForTests(join(fixtureDir, "venue_detail_index.json"));
+  setVenueDetailRowsFileForTests(join(fixtureDir, "venue_details.jsonl"));
 });
 
 describe.each([
@@ -105,10 +122,10 @@ describe.each([
     notFoundLine: "in the ledger",
     titleClass: "ledgerEmptyTitle",
   },
-])("$surface over a dataset read that threw", ({ page, metadata, href, notFoundLine, titleClass }) => {
-  it("answers unavailable, reads again on the next request, and caches only a successful parse", async () => {
+])("$surface over a detail read that threw", ({ page, metadata, href, notFoundLine, titleClass }) => {
+  it("answers unavailable, reads again on the next request, and caches only a successful detail", async () => {
     // 1. The read throws: the unavailable surface, never the not-found document.
-    dataset.fail = true;
+    details.fail = true;
     const markup = await render(page, venue.id);
     expect(markup).toContain("We could not load this pub");
     // One route family, one heading structure: the not-found card on these two
@@ -123,48 +140,53 @@ describe.each([
     expect(markup).not.toContain("moved");
     // docs/VOICE.md: never a closed door.
     expect(markup).not.toMatch(/check back later|try again later|please try again/i);
-    expect(dataset.reads).toBe(1);
+    expect(details.reads).toBe(1);
 
     // The unfurl claims nothing either way.
     const failed = await metadata({ params: Promise.resolve({ id: venue.id }) });
     expect(JSON.stringify(failed)).not.toContain(venue.name);
     expect(failed.robots).toEqual({ index: false, follow: false });
-    expect(dataset.reads).toBe(2);
+    expect(details.reads).toBe(2);
 
     // 2. The file is readable again: the next request reads it and finds the pub.
-    dataset.fail = false;
+    details.fail = false;
     const found = await metadata({ params: Promise.resolve({ id: venue.id }) });
     expect(String(found.title)).toContain(venue.name);
-    expect(dataset.reads).toBe(3);
+    expect(details.reads).toBe(3);
 
-    // 3. Only that successful parse is cached: a later failure changes nothing
+    // 3. Only that successful detail is cached: a later failure changes nothing
     //    and the file is not opened again.
-    dataset.fail = true;
+    details.fail = true;
     const held = await metadata({ params: Promise.resolve({ id: venue.id }) });
     expect(String(held.title)).toContain(venue.name);
-    expect(dataset.reads).toBe(3);
+    expect(details.reads).toBe(3);
   });
 
-  it("answers unavailable when the alias read throws over a merged duplicate id, and reads again", async () => {
-    // The dataset parses; only the alias artifact fails. A merged duplicate id
-    // is not in the dataset under its own key, so the alias read decides, and a
-    // read we could not run may not be worded as a pub that is not here.
+  it.each(["venue-unknown123", "invalid/id"])("keeps a missing venue distinct for %s", async (id) => {
+    const markup = await render(page, id);
+    expect(markup).toContain(notFoundLine);
+    expect(markup).not.toContain("We could not load this pub");
+    expect((await metadata({ params: Promise.resolve({ id }) })).robots).toEqual({ index: false, follow: false });
+    expect(details.reads).toBe(0);
+  });
+
+  it.each([mergedId, venue.id])("retries a failed alias read for %s", async (requestedId) => {
     aliases.fail = true;
-    const markup = await render(page, mergedId);
+    const markup = await render(page, requestedId);
     expect(markup).toContain("We could not load this pub");
     expect(markup).not.toContain(notFoundLine);
     expect(markup).not.toContain("moved");
     expect(aliases.reads).toBe(1);
 
     // Nothing was cached from that failure: the next request opens the file.
-    const again = await render(page, mergedId);
+    const again = await render(page, requestedId);
     expect(again).toContain("We could not load this pub");
     expect(aliases.reads).toBe(2);
 
     // The file is readable again: the losing id opens its surviving pub.
     aliases.fail = false;
-    const resolved = await render(page, mergedId);
+    const resolved = await render(page, requestedId);
     expect(resolved).not.toContain("We could not load this pub");
-    expect(resolved).toContain(mergedCanonical.name);
+    expect(resolved).toContain(requestedId === mergedId ? mergedCanonical.name : venue.name);
   });
 });

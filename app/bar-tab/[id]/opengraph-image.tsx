@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { ImageResponse } from "next/og";
 
 import { buildBarTab, normalizePintDrop, type PintDropDTO } from "@/lib/feed";
@@ -12,9 +13,7 @@ import {
 import { clampOgText } from "@/lib/ogCardText";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
-import { resolveCanonicalVenueId } from "@/lib/venueAliases";
-import { getVenueIndex } from "@/lib/venueIndex";
-import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
+import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 
 // Per-venue Bar Tab OG share card (Next `opengraph-image` convention) — the
 // last shared night-object URL that had no card (WhatsApp-native share
@@ -34,35 +33,6 @@ export const runtime = "nodejs";
 export const alt = "Recent pints dropped at this London pub. PUBMAXX";
 export const size = OG_SIZE;
 export const contentType = "image/png";
-
-// Same loader shape the Bar Tab page uses: warm the memoized index, read the
-// full price rows, group into Venue[], look up by id with merged-duplicate
-// (D1) alias resolution. Never throws — a read failure yields null so the
-// card still renders (generic poster).
-async function getVenue(id: string): Promise<Venue | null> {
-  try {
-    await getVenueIndex();
-    const { promises: fs } = await import("fs");
-    const path = await import("path");
-    const file = path.join(
-      process.cwd(),
-      "public",
-      "data",
-      "pint_prices_app_dataset.json",
-    );
-    const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
-    const index = new Map<string, Venue>();
-    for (const venue of groupVenuePrices(Array.isArray(rows) ? rows : [])) {
-      index.set(venue.id, venue);
-    }
-    const direct = index.get(id);
-    if (direct) return direct;
-    const canonical = await resolveCanonicalVenueId(id);
-    return canonical === id ? null : index.get(canonical) ?? null;
-  } catch {
-    return null;
-  }
-}
 
 // The same public read the page makes — anonymous surface, visibility applied.
 async function loadBarTab(venueId: string) {
@@ -123,7 +93,9 @@ export default async function Image({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const venue = await getVenue(id);
+  const read = await lookupVenueDetail(id);
+  const venue = read.status === "found" ? read.venue : null;
+  if (!venue) await headers();
   const barTab = venue ? await loadBarTab(venue.id) : { tileCount: 0, cheapestGbp: null };
 
   const name = clampOgText(venue?.name, 36, "A London pub", {
@@ -316,6 +288,6 @@ export default async function Image({
         </div>
       </CardShell>
     ),
-    { ...size, fonts: loadOgFonts() },
+    { ...size, fonts: loadOgFonts(), ...(!venue ? { headers: { "Cache-Control": "no-store" } } : {}) },
   );
 }
