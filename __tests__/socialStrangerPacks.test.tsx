@@ -174,6 +174,10 @@ async function renderSocial(state: SocialRenderState = initialState): Promise<vo
 describe("Social viewer surfaces", () => {
   it("renders public pack cards beside one sign-in action without follow controls", async () => {
     await renderSocial();
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.querySelectorAll(".starterPacks__card")).toHaveLength(1);
+    });
 
     expect(host.querySelector(".socialBoundary")?.textContent).toContain(
       "Sign in to use Social.",

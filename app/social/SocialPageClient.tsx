@@ -8,11 +8,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
-import FoundersWallLink from "@/components/founding/FoundersWallLink";
 import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
 import CreatorListsLane from "@/components/social/CreatorListsLane";
-import StarterPacks from "@/components/social/StarterPacks";
 import {
   SOCIAL_SIGN_IN_HREF,
   SocialViewerState,
@@ -52,6 +50,8 @@ import SocialComposer from "./SocialComposer";
 import SocialTagInbox from "./SocialTagInbox";
 import SocialOutbox from "./SocialOutbox";
 
+const StarterPacks = dynamic(() => import("@/components/social/StarterPacks"));
+const FoundersWallLink = dynamic(() => import("@/components/founding/FoundersWallLink"));
 const CrewsPanel = dynamic(() => import("@/components/social/CrewsPanel"));
 const SocialFeedPosts = dynamic(() => import("./SocialFeedPosts").then((module) => module.SocialFeedPosts));
 const FindYourLot = dynamic(() => import("@/components/social/FindYourLot"));
