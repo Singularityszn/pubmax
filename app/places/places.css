@@ -93,7 +93,13 @@
 
 /* ── The city list ────────────────────────────────────────────────────────── */
 
-.placesCityList {
+/* The town fallback paints the SAME SHAPE as the city list: same target size,
+   same mark, same two lines. SHAPE ONLY. The two kinds of row deliberately
+   answer differently, a city row opening the /places city panel and a curated
+   town row opening that city's map, and the badge on each row is what carries
+   that difference. */
+.placesCityList,
+.placesTownList {
   display: grid;
   gap: 0;
   max-width: var(--content-max);
@@ -161,6 +167,39 @@
   color: var(--color-text-soft);
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
+}
+
+/* The town answer's ODbL credit. Quiet provenance under the list, never a
+   second voice beside it: /places draws no map canvas, so the credit MapLibre
+   would carry rides the answer itself. */
+.placesTownSource {
+  max-width: var(--content-max);
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
+/* The 44px tap floor rides PADDING on an inline box, not a 44px flex line:
+   inside a credit that wraps, a 44px line box grew the paragraph by the best
+   part of thirty pixels and printed its last line under the tab bar at 390. */
+.placesTownSource a {
+  padding-block: 15px;
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+/* The postcode area that tells two towns of one name apart. Quiet metadata
+   beside the name, deliberately NOT a pill: the row already wears one badge for
+   its kind, and a second bordered mark would read as a second fact about the
+   place rather than as part of its name. */
+.placesCityContext {
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 /* A pill states one fact about the city beside it and WRAPS rather than

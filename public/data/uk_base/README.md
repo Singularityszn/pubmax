@@ -64,8 +64,10 @@ the curated slim manifest keeps its required per-shard URLs and validation.
 `addr:village`, `addr:place`, and `addr:suburb` tags already attached to pubs
 in the committed UK Overpass snapshots. Equal names more than 30 km apart stay
 separate, and each result points at a real source pub nearest the locality
-median. The chooser loads the file only after someone searches. No pub count or
-price claim is derived from it.
+median. The two city pickers load the file only after someone searches, through
+the one shared reader `lib/useUkPlaceIndex.ts`: the landing's chooser, and
+`/places`, which falls back to this index when no city row matches the query. No
+pub count or price claim is derived from it.
 
 National **pub name** search is a separate server index
 (`data/generated/uk_pub_search.json`, built by
@@ -98,7 +100,7 @@ Enforced by both the builder and `scripts/validate-data.mjs`, which also checks
 that every pub sits inside its own cell's bbox (a pub outside it would be
 invisible rather than loudly broken), that ids are unique, and that no base id
 collides with a `venues_slim` id. `places.json` is held to its own smaller
-budget in the same two places, because the chooser fetches it whole. The
+budget in the same two places, because a picker fetches it whole. The
 manifest and generated files own current counts and sizes;
 `npm run build:uk-base` prints the payload summary.
 
@@ -112,4 +114,6 @@ credits OpenStreetMap contributors for all OSM-derived pub data
 `__tests__/mapOsmAttribution.test.ts`).
 
 The place-search index uses the same OpenStreetMap snapshots and ODbL 1.0
-licence. It adds no geography provider or runtime geocoding request.
+licence. It adds no geography provider or runtime geocoding request. Neither city
+picker draws a map, so each one prints the credit under the place names it shows
+(`components/city/PlaceIndexCredit.tsx`), the way `/near` does for its desk pack.

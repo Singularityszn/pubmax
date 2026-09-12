@@ -59,12 +59,13 @@ describe("PUBMAXX primary navigation", () => {
     expect(navPathMatches("/social", social!.match)).toBe(true);
   });
 
-  it("lights Places for the tab and for the older city picker it replaces", () => {
+  it("lights Places for the tab, and claims no address the picker has left", () => {
     const places = PRIMARY_NAV_ITEMS.find((item) => item.key === "places");
-    expect(places?.match).toEqual(["/places", "/choose-city"]);
+    expect(places?.match).toEqual(["/places"]);
     expect(primaryNavKeyForPath("/places")).toBe("places");
     expect(primaryNavKeyForPath("/places?city=manchester".split("?")[0])).toBe("places");
-    expect(primaryNavKeyForPath("/choose-city")).toBe("places");
+    // /choose-city has no page and 308s at the edge, so no client is on it.
+    expect(primaryNavKeyForPath("/choose-city")).toBeUndefined();
     // Map and Places are separate destinations: neither may claim the other.
     expect(primaryNavKeyForPath("/map")).toBe("map");
     expect(primaryNavKeyForPath("/map/manchester")).toBe("map");

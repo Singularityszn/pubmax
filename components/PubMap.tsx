@@ -951,7 +951,7 @@ export default function PubMap({
   const [ukNationalBrowse] = useState(
     () => nationalBrowse || isUkNationalBrowse(currentSearch()),
   );
-  // National gazetteer for map search (same places.json as /choose-city).
+  // National gazetteer for map search (same places.json as CityChooser).
   // Loaded once when the reader types two characters or arrives on a national
   // / uncovered surface — never on every keystroke.
   const [ukPlaces, setUkPlaces] = useState<readonly UkPlace[]>([]);
