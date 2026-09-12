@@ -55,13 +55,35 @@ describe("Social access boundary", () => {
     expect(html.match(/href="/g)).toHaveLength(1);
   });
 
-  it("uses a compact boundary so preview does not leave a large empty panel", () => {
+  it("keeps reserved height for loading and access boundaries", () => {
     const boundary =
       socialCss.match(
         /\.socialBoundary,\s*\.socialFeedError,\s*\.socialFeedEmpty\s*\{([^}]*)\}/,
       )?.[1] ?? "";
     expect(boundary).toMatch(/min-height:\s*200px/);
     expect(socialCss).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.socialBoundary\s*\{[^}]*min-height:\s*220px/);
+  });
+
+  it("lets the settled signed-out boundary use its content height", () => {
+    const html = renderToStaticMarkup(createElement(SocialAccessBoundary, {
+      state: "sign_in_required", friendsLaunchEnabled: true, doorAbove: true,
+    }));
+    expect(html).toContain('class="socialBoundary socialBoundary--signedOut"');
+    expect(html).toContain("Sign in to use Social.");
+    expect(html).not.toContain("href=");
+    expect(socialCss).toMatch(/\.socialBoundary\.socialBoundary--signedOut\s*\{\s*min-height:\s*0;/);
+  });
+
+  it.each([
+    ["sign_in_required", true, false],
+    ["sign_in_required", false, true],
+    ["preview", true, true],
+    ["age_verification_required", true, true],
+    ["suspended", true, true],
+    ["unavailable", true, true],
+  ] as const)("keeps normal height for %s with launch=%s and door=%s", (state, friendsLaunchEnabled, doorAbove) => {
+    const html = renderToStaticMarkup(createElement(SocialAccessBoundary, { state, friendsLaunchEnabled, doorAbove }));
+    expect(html).not.toContain("socialBoundary--signedOut");
   });
 
   it.each([

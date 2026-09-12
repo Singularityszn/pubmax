@@ -226,7 +226,9 @@ export function SocialAccessBoundary({
     ) : undefined;
   return (
     <section
-      className="socialBoundary"
+      className={friendsLaunchEnabled && state === "sign_in_required" && doorAbove
+        ? "socialBoundary socialBoundary--signedOut"
+        : "socialBoundary"}
       role={state === "unavailable" ? "alert" : "status"}
     >
       <EmptyState title={asking ? assertionLine : boundaryCopy} action={action}>

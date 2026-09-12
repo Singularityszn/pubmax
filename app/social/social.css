@@ -138,6 +138,10 @@
   min-height: 200px;
 }
 
+.socialBoundary.socialBoundary--signedOut {
+  min-height: 0;
+}
+
 .socialBoundary h2 {
   margin: 0;
   font-family: var(--font-display, var(--serif));
