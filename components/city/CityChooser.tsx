@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
-  useEffect,
   useId,
   useMemo,
   useRef,
@@ -37,16 +36,7 @@ import {
 import "./cityChooser.css";
 
 export type CityChooserProps = {
-  /**
-   * `section`: a titled section of a longer page (the landing), with its own
-   * h2. `body`: the search, the locate control and the city list alone, for a
-   * route whose head is a launch Screen and prints the heading and the way
-   * onward itself.
-   */
-  variant?: "section" | "body";
   onSelect?: (cityId: CityId) => void;
-  /** When true, focus the town search field on mount (national browse entry). */
-  focusSearch?: boolean;
 };
 
 type LocateState = "idle" | "pending" | "error";
@@ -59,11 +49,7 @@ type PlaceIndexState =
  * City picker: enabled cities as map links, optional geolocation, and
  * preferred-city persistence for Map nav / landing CTAs.
  */
-export default function CityChooser({
-  variant = "section",
-  onSelect,
-  focusSearch = false,
-}: CityChooserProps) {
+export default function CityChooser({ onSelect }: CityChooserProps) {
   const cities = listEnabledCities();
   const listId = useId();
   const router = useRouter();
@@ -179,47 +165,31 @@ export default function CityChooser({
     [loadPlaceIndex],
   );
 
-  // National browse / deep link: put the caret in town search without scrolling past the cities.
-  useEffect(() => {
-    if (!focusSearch) return;
-    const input = searchInputRef.current;
-    if (!input) return;
-    input.focus();
-  }, [focusSearch]);
-
-  // The body variant borrows the section's light-ground styling and drops the
-  // section's own padding and ground; the route around it owns both.
-  const rootClass =
-    variant === "section"
-      ? "cityChooser cityChooser--section"
-      : "cityChooser cityChooser--section cityChooser--body";
-
-  const Root = variant === "section" ? "section" : "div";
-
   return (
-    <Root
-      className={rootClass}
-      aria-labelledby={variant === "section" ? listId + "-title" : undefined}
+    <section
+      className="cityChooser cityChooser--section"
+      aria-labelledby={listId + "-title"}
     >
       <div className="cityChooserInner">
-        {variant === "section" ? (
-          <header className="cityChooserHead">
-            <p className="cityChooserEyebrow">Cities</p>
-            <h2
-              id={listId + "-title"}
-              className="cityChooserTitle cityChooserSerif"
-            >
-              Choose your city
-            </h2>
-            <p className="cityChooserLede">
-              Open a price-aware pub map. Crawls and drink-shaped pins for the
-              night you want.
-            </p>
-          </header>
-        ) : null}
+        <header className="cityChooserHead">
+          <p className="cityChooserEyebrow">Cities</p>
+          <h2
+            id={listId + "-title"}
+            className="cityChooserTitle cityChooserSerif"
+          >
+            Choose your city
+          </h2>
+          <p className="cityChooserLede">
+            Open a price-aware pub map. Crawls and drink-shaped pins for the
+            night you want.
+          </p>
+        </header>
 
         <div className="cityChooserSearch">
-          <label htmlFor={`${listId}-search`} className="cityChooserSearchLabel">
+          <label
+            htmlFor={`${listId}-search`}
+            className="cityChooserSearchLabel"
+          >
             Find your town
           </label>
           <div className="cityChooserSearchField">
@@ -234,7 +204,11 @@ export default function CityChooser({
               placeholder="Search for a town or city"
               autoComplete="off"
               spellCheck="false"
-              aria-controls={normalizedQuery.length >= 2 ? `${listId}-search-results` : undefined}
+              aria-controls={
+                normalizedQuery.length >= 2
+                  ? `${listId}-search-results`
+                  : undefined
+              }
               aria-describedby={`${listId}-search-help`}
             />
           </div>
@@ -249,7 +223,9 @@ export default function CityChooser({
             className="cityChooserLocate"
             onClick={useMyLocation}
             disabled={locateState === "pending"}
-            aria-describedby={locateMessage ? `${listId}-locate-status` : undefined}
+            aria-describedby={
+              locateMessage ? `${listId}-locate-status` : undefined
+            }
           >
             <LocateFixed size={16} strokeWidth={1.75} aria-hidden="true" />
             {locateState === "pending" ? "Locating…" : "Use my location"}
@@ -267,15 +243,11 @@ export default function CityChooser({
           ) : null}
         </div>
 
-        {/* The route head already offers the national map as its way onward,
-            so only the section prints the link here. */}
-        {variant === "section" ? (
-          <p className="cityChooserNational">
-            <Link href={UK_NATIONAL_MAP_HREF} className="cityChooserNationalLink">
-              {UK_NATIONAL_ENTRY_LABEL}
-            </Link>
-          </p>
-        ) : null}
+        <p className="cityChooserNational">
+          <Link href={UK_NATIONAL_MAP_HREF} className="cityChooserNationalLink">
+            {UK_NATIONAL_ENTRY_LABEL}
+          </Link>
+        </p>
 
         {normalizedQuery.length >= 2 ? (
           <section
@@ -377,7 +349,9 @@ export default function CityChooser({
                     aria-label={`${city.displayName}${isPreview ? ", Preview" : ""}: ${city.tagline}. Open map.`}
                   >
                     <span className="cityChooserNameRow">
-                      <span className="cityChooserName">{city.displayName}</span>
+                      <span className="cityChooserName">
+                        {city.displayName}
+                      </span>
                       {isPreview ? (
                         <span className="cityChooserReleaseBadge">Preview</span>
                       ) : null}
@@ -390,6 +364,6 @@ export default function CityChooser({
           </ul>
         </nav>
       </div>
-    </Root>
+    </section>
   );
 }

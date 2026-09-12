@@ -154,7 +154,7 @@ export default function LandingPage({
         <LandingFaq />
 
         <div id="cities" className="lpCityChooser">
-          <CityChooser variant="section" />
+          <CityChooser />
         </div>
       </main>
 

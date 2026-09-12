@@ -16,6 +16,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "app/admin/AdminClient.tsx", fetchCount: 29, reason: "admin moderation reads and writes use the admin lane" },
   { path: "app/discover/DiscoverPageClient.tsx", fetchCount: 2, reason: "Social discover access and feed reads are explicit no-store" },
   { path: "app/feed/FeedPageClient.tsx", fetchCount: 6, reason: "Social feed and optimistic post actions keep their no-store and retry semantics" },
+  { path: "app/places/PlacesClient.tsx", fetchCount: 1, reason: "the town fallback reads the UK place index, the map's own base layer, and only after a city search found nothing; it shares CityChooser's lifecycle rather than painting a reloadable surface" },
   { path: "app/rounds/[code]/RoundPageClient.tsx", fetchCount: 2, reason: "shared round view and report actions use their own lifecycle" },
   { path: "app/social/SocialComposer.tsx", fetchCount: 1, reason: "Social composer venue search is no-store; mutations use the shared auth transport" },
   { path: "app/social/crews/[crewId]/CrewDetailClient.tsx", fetchCount: 3, reason: "Social crew access and actions are no-store by policy" },

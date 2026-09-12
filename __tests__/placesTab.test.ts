@@ -33,7 +33,10 @@ import {
   placesPricesLine,
   placesPricesPill,
   placesSearchEmptyLine,
+  placesShouldSearchTowns,
+  placesTownResults,
 } from "@/lib/places";
+import { normaliseUkPlaceQuery, type UkPlace } from "@/lib/ukPlaceSearch";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => PLACES_PATH,
@@ -326,6 +329,54 @@ describe("Places is a durable destination", () => {
       "You",
     ]);
     expect(primaryNavKeyForPath("/places")).toBe("places");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The town fallback
+// ---------------------------------------------------------------------------
+
+describe("Places answers a town the city list does not hold", () => {
+  const place = (row: Omit<UkPlace, "search">): UkPlace => ({
+    ...row,
+    search: normaliseUkPlaceQuery(row.name),
+  });
+  const TOWNS: UkPlace[] = [
+    place({ name: "Sheffield", lat: 53.3800941, lng: -1.4789213, kind: "city", context: "S" }),
+    place({ name: "Didsbury", lat: 53.4181794, lng: -2.23144, kind: "suburb", context: "M" }),
+  ];
+
+  it("looks for towns only once no city row answers", () => {
+    // A query a city answered is already answered, and a second list under it
+    // would offer the same night twice.
+    expect(placesShouldSearchTowns(3, "man")).toBe(false);
+    expect(placesShouldSearchTowns(0, "d")).toBe(false);
+    expect(placesShouldSearchTowns(0, "Didsbury")).toBe(true);
+  });
+
+  it("opens an unpriced town on its own base-map arrival", () => {
+    const [result] = placesTownResults("Sheffield", TOWNS);
+
+    expect(result.kind).toBe("uncovered");
+    expect(result.href).toBe("/map?place=Sheffield&lat=53.3800941&lng=-1.4789213");
+  });
+
+  it("sends a place inside a city we ship to that city's guide", () => {
+    // Didsbury is Manchester. The retired /choose-city address answered it that
+    // way, and the picker may not start calling it an unpriced elsewhere.
+    const [result] = placesTownResults("Didsbury", TOWNS);
+
+    expect(result.kind).toBe("curated");
+    expect(result.href).toBe(mapHrefForCity("manchester"));
+  });
+
+  it("keeps the city rows as the answer when the query matched one", () => {
+    // Bath is a city we ship, so the gate never opens and the town lookup
+    // never runs, whatever the index would have said about the name.
+    expect(filterPlacesCityRows(placesCityRows(), "Bath")).not.toHaveLength(0);
+    expect(placesShouldSearchTowns(filterPlacesCityRows(placesCityRows(), "Bath").length, "Bath")).toBe(
+      false,
+    );
   });
 });
 

@@ -2,13 +2,25 @@
 
 import Link from "next/link";
 import { ArrowLeft, MapPin, Search } from "lucide-react";
-import { useCallback, useId, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
 import type { CityId } from "@/lib/cities";
+import {
+  cityGuidesSearchUnavailableLine,
+  type CityChooserSearchResult,
+} from "@/lib/cityChooserSearch";
 import {
   mapHrefForCity,
   readPreferredCity,
@@ -30,6 +42,7 @@ import {
   PLACES_SEARCH_PLACEHOLDER,
   PLACES_SET_CITY_LABEL,
   PLACES_TITLE,
+  PLACES_TOWN_SEARCH_PENDING,
   filterPlacesCityRows,
   placesAreasEmptyLine,
   placesAreasForCity,
@@ -41,7 +54,14 @@ import {
   placesPricesLine,
   placesPricesPill,
   placesSearchEmptyLine,
+  placesShouldSearchTowns,
+  placesTownResults,
 } from "@/lib/places";
+import {
+  UK_PLACE_INDEX_PATH,
+  parseUkPlaceIndex,
+  type UkPlace,
+} from "@/lib/ukPlaceSearch";
 
 import "./places.css";
 
@@ -81,11 +101,63 @@ export default function PlacesClient({ cityId }: { cityId: CityId | null }) {
   );
 }
 
+type TownIndexState = {
+  status: "idle" | "loading" | "ready" | "error";
+  places: UkPlace[];
+};
+
+/**
+ * The UK place index, read once, and only when a city search found nothing.
+ *
+ * The index is the map's own base layer (two megabytes of place names), so the
+ * picker never asks for it to paint its list: a reader who typed a city is
+ * already answered. It is fetched the first time a query falls through, and
+ * the promise is held so a second fall-through reuses it.
+ */
+function useTownIndex(active: boolean): TownIndexState {
+  const [state, setState] = useState<TownIndexState>({
+    status: "idle",
+    places: [],
+  });
+  const pending = useRef<Promise<void> | null>(null);
+
+  useEffect(() => {
+    if (!active || pending.current) return;
+    setState({ status: "loading", places: [] });
+    pending.current = fetch(UK_PLACE_INDEX_PATH)
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        setState({
+          status: "ready",
+          places: parseUkPlaceIndex(await response.json()),
+        });
+      })
+      .catch(() => {
+        pending.current = null;
+        setState({ status: "error", places: [] });
+      });
+  }, [active]);
+
+  return state;
+}
+
 function CityList({ preferredCity }: { preferredCity: CityId | null }) {
   const searchId = useId();
   const [query, setQuery] = useState("");
   const rows = useMemo(() => placesCityRows(), []);
   const shown = useMemo(() => filterPlacesCityRows(rows, query), [rows, query]);
+  // A query no city row answers is not automatically a query with no answer:
+  // the retired /choose-city address read the UK place index and offered the
+  // base map where that town is, and that capability rides on here.
+  const searchTowns = placesShouldSearchTowns(shown.length, query);
+  const townIndex = useTownIndex(searchTowns);
+  const towns = useMemo(
+    () =>
+      searchTowns && townIndex.status === "ready"
+        ? placesTownResults(query, townIndex.places)
+        : ([] as CityChooserSearchResult[]),
+    [searchTowns, townIndex, query],
+  );
 
   return (
     <Screen
@@ -123,8 +195,44 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
         </div>
       </div>
 
-      {shown.length === 0 ? (
-        <EmptyState title={placesSearchEmptyLine(query)}>
+      {shown.length === 0 && towns.length > 0 ? (
+        <ul className="placesTownList" aria-label="Places">
+          {towns.map((town) => (
+            <li
+              key={`${town.kind}-${town.name}-${town.href}`}
+              className="placesCityItem"
+            >
+              <Link
+                prefetch={false}
+                href={town.href}
+                className="placesCityLink"
+              >
+                <span className="placesCityMark" aria-hidden="true">
+                  <MapPin size={18} strokeWidth={1.65} />
+                </span>
+                <span className="placesCityCopy">
+                  <span className="placesCityNameRow">
+                    <span className="placesCityName">{town.name}</span>
+                    <span className="placesPill">
+                      {town.kind === "curated" ? "City guide" : "No prices yet"}
+                    </span>
+                  </span>
+                  <span className="placesCityTagline">{town.description}</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : shown.length === 0 ? (
+        <EmptyState
+          title={
+            searchTowns && townIndex.status === "loading"
+              ? PLACES_TOWN_SEARCH_PENDING
+              : searchTowns && townIndex.status === "error"
+                ? cityGuidesSearchUnavailableLine(rows.length)
+                : placesSearchEmptyLine(query)
+          }
+        >
           <button type="button" onClick={() => setQuery("")}>
             Show every city
           </button>
@@ -170,7 +278,8 @@ function CityPanel({
   preferredCity: CityId | null;
 }) {
   const row = useMemo(
-    () => placesCityRows().find((candidate) => candidate.cityId === cityId) ?? null,
+    () =>
+      placesCityRows().find((candidate) => candidate.cityId === cityId) ?? null,
     [cityId],
   );
   const areas = useMemo(() => placesAreasForCity(cityId), [cityId]);
@@ -207,7 +316,11 @@ function CityPanel({
               {actions.primary.label}
             </Link>
           ) : (
-            <button type="button" onClick={setCity} data-testid="places-set-city">
+            <button
+              type="button"
+              onClick={setCity}
+              data-testid="places-set-city"
+            >
               {PLACES_SET_CITY_LABEL}
             </button>
           )
@@ -220,15 +333,22 @@ function CityPanel({
       >
         {isYours ? (
           <p className="placesConfirm" role="status">
-            <span className="placesConfirmLabel">{PLACES_CURRENT_CITY_LABEL}</span>{" "}
+            <span className="placesConfirmLabel">
+              {PLACES_CURRENT_CITY_LABEL}
+            </span>{" "}
             {placesCurrentCityLine(cityId)}
           </p>
         ) : null}
 
-        <section className="placesSection" aria-labelledby="places-prices-title">
+        <section
+          className="placesSection"
+          aria-labelledby="places-prices-title"
+        >
           <Kicker tone="muted">Prices</Kicker>
           <h2 id="places-prices-title" className="placesSectionTitle">
-            {row.pricesListed ? "Listed pint prices" : "No pint prices here yet"}
+            {row.pricesListed
+              ? "Listed pint prices"
+              : "No pint prices here yet"}
           </h2>
           <p className="placesSectionLine">{placesPricesLine(cityId)}</p>
         </section>
