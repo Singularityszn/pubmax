@@ -1,8 +1,12 @@
 import {
   BUDGET_METRIC_LABELS,
   median,
+  plannedNavigations,
+  resolveRouteRunPlan,
   type BudgetMethod,
   type BudgetMetric,
+  type RouteBudget,
+  type RouteNoiseRecord,
 } from "./performanceBudgets";
 
 /**
@@ -91,26 +95,100 @@ export function abHandoverForBreaches(
 }
 
 /**
- * HOW MANY BREACHED METRICS ONE A/B MEASURES, AND WHY THERE IS A CEILING ON IT.
+ * WHAT ONE A/B IS ALLOWED TO SPEND, AND WHY IT IS COUNTED IN NAVIGATIONS.
  *
  * A mass breach is the very signature of a slow box: on 11 September 2026 one
  * job measured 43 of 44 budgeted routes about a third slower. Measuring every
- * one of them against a second build costs two arms times eight navigations a
- * route, which walks the job into its own wall - and a job cancelled at the
- * wall uploads nothing, so the evidence is lost in exactly the case it was
- * built for. A partial answer that arrives beats a whole one that does not.
+ * one of them against a second build walks the job into its own wall, and a
+ * job cancelled at the wall uploads nothing, so the evidence is lost in exactly
+ * the case it was built for. A partial answer that arrives beats a whole one
+ * that does not.
+ *
+ * The budget counts NAVIGATIONS across both arms rather than routes, because
+ * routes do not cost the same: a route carrying a noise record takes two
+ * discarded navigations and seven counted samples, more than twice what a quiet
+ * route takes, so eight of them would spend more than twice what eight quiet
+ * ones spend. The figure is read off the method block through
+ * `plannedNavigations` rather than typed here: it is what eight ordinary routes
+ * cost, on both arms.
  */
-export const PERF_AB_BREACH_CAP = 8;
+const PERF_AB_BUDGET_ROUTES = 8;
+
+/** Branch and base. Every A/B cost is paid twice, once on each. */
+export const PERF_AB_ARMS = 2;
+
+/**
+ * What one navigation is allowed before the test gives up on the whole run.
+ *
+ * The sweep's own timeout allows 60 seconds a navigation, which is the worst
+ * case for a gate that must never time out on a route measuring itself. This
+ * one has the opposite duty: it has to fire INSIDE the job's wall so the
+ * evidence still uploads, and the sweep's recorded rate on this pool is about
+ * four seconds a navigation. Three times the observed cost is the room a real
+ * run needs; a run slower than that has already lost the job.
+ */
+export const PERF_AB_NAVIGATION_MS = 12_000;
+
+/** A route as this module costs it: its path and whatever noise record it carries. */
+export type AbRoutePlan = Pick<RouteBudget, "path"> & { noisy?: RouteNoiseRecord };
+
+/**
+ * COUNTED SAMPLES PER ARM, HONOURING THE ROUTE'S OWN NOISE FLOOR.
+ *
+ * A route marked noisy is judged on the median of seven here exactly as the
+ * sweep judges it, because three samples cannot decide a route whose samples
+ * were recorded 37 to 51 per cent apart: the two arms would differ by the
+ * spread rather than by the code, and the A/B would answer its one question
+ * wrongly on the very routes it was built to explain. An unmarked route keeps
+ * its three, because the resample budget is spent where a run said it could not
+ * measure, and a quiet route never said that.
+ */
+export function abSamplesPerArm(route: AbRoutePlan, method: BudgetMethod): number {
+  const plan = resolveRouteRunPlan(route, method);
+  return method.measuredRuns + (plan.noisy ? plan.resampleRuns : 0);
+}
+
+/** What measuring one route costs the A/B, in navigations across both arms. */
+export function abNavigationsForRoute(route: AbRoutePlan, method: BudgetMethod): number {
+  const plan = resolveRouteRunPlan(route, method);
+  return PERF_AB_ARMS * (plan.warmupRuns + abSamplesPerArm(route, method));
+}
+
+/** The navigation budget one A/B may spend across both arms. */
+export function abNavigationBudget(method: BudgetMethod): number {
+  return (
+    PERF_AB_ARMS *
+    plannedNavigations(
+      Array.from({ length: PERF_AB_BUDGET_ROUTES }, () => ({})),
+      method,
+    )
+  );
+}
+
+/**
+ * The test's own deadline, from the navigations it will actually spend.
+ *
+ * Read off the selection rather than off every budgeted route: a timeout hours
+ * past the job's wall never fires, so a stuck arm burns the whole job and the
+ * artifact step never runs.
+ */
+export function abTimeoutMs(navigations: number): number {
+  return Math.max(navigations, 1) * PERF_AB_NAVIGATION_MS;
+}
 
 export type AbBreachSelection = {
   /** Distinct routes the sweep breached. */
   breachedRoutes: number;
   /** Distinct routes this A/B measures against the merge base. */
   measuredRoutes: number;
-  /** The breached metrics it measures, worst first. */
+  /** The breached metrics it measures, worst-first by route. */
   breaches: AbBreach[];
-  /** Breached metrics the cap left unmeasured. Zero when the cap did not bite. */
-  skipped: number;
+  /** Routes the budget could not reach, worst first, named in the report. */
+  unreached: string[];
+  /** Navigations across both arms this selection spends. */
+  navigations: number;
+  /** The budget it was filled against. */
+  budget: number;
 };
 
 /** How far one measured figure sits past its own ceiling, against that ceiling. */
@@ -120,34 +198,66 @@ function excessOverCeiling(breach: AbBreach): number {
   return breach.measured;
 }
 
-function countRoutes(breaches: readonly AbBreach[]): number {
-  return new Set(breaches.map((breach) => breach.path)).size;
-}
-
 /**
- * The breached metrics this A/B measures, worst first, capped.
+ * The breached routes this A/B measures, worst first, inside its budget.
  *
- * Worst first because a cap that bites has to leave out the breaches that
+ * Worst first because a budget that bites has to leave out the breaches that
  * explain least, and because a job killed part way through has by then measured
- * the ones an author asks about first.
+ * the ones an author asks about first. A route is measured only when its WHOLE
+ * plan fits in what remains: half a route's samples is a median nobody can
+ * defend, so the route is left out and named instead.
  */
 export function selectAbBreaches(
   breaches: readonly AbBreach[],
-  cap: number = PERF_AB_BREACH_CAP,
+  routes: readonly AbRoutePlan[],
+  method: BudgetMethod,
+  budget: number = abNavigationBudget(method),
 ): AbBreachSelection {
-  const worstFirst = breaches
-    .map((breach, order) => ({ breach, order }))
-    .sort((left, right) => {
-      const difference = excessOverCeiling(right.breach) - excessOverCeiling(left.breach);
-      return difference !== 0 ? difference : left.order - right.order;
-    })
-    .map((entry) => entry.breach);
-  const measured = worstFirst.slice(0, Math.max(cap, 0));
+  const byPath = new Map(routes.map((route) => [route.path, route]));
+  const groups = new Map<string, { breaches: AbBreach[]; worst: number; order: number }>();
+  for (const breach of breaches) {
+    const group = groups.get(breach.path) ?? {
+      breaches: [],
+      worst: Number.NEGATIVE_INFINITY,
+      order: groups.size,
+    };
+    group.breaches.push(breach);
+    group.worst = Math.max(group.worst, excessOverCeiling(breach));
+    groups.set(breach.path, group);
+  }
+
+  const worstFirst = [...groups.entries()].sort(
+    ([, left], [, right]) => right.worst - left.worst || left.order - right.order,
+  );
+
+  const measured: AbBreach[] = [];
+  const unreached: string[] = [];
+  let navigations = 0;
+  let measuredRoutes = 0;
+  for (const [path, group] of worstFirst) {
+    const route = byPath.get(path);
+    // A breached path with no budgeted route cannot be opened, let alone costed.
+    if (!route) {
+      unreached.push(path);
+      continue;
+    }
+    const cost = abNavigationsForRoute(route, method);
+    if (navigations + cost > budget) {
+      unreached.push(path);
+      continue;
+    }
+    navigations += cost;
+    measuredRoutes += 1;
+    measured.push(...group.breaches);
+  }
+
   return {
-    breachedRoutes: countRoutes(breaches),
-    measuredRoutes: countRoutes(measured),
+    breachedRoutes: groups.size,
+    measuredRoutes,
     breaches: measured,
-    skipped: worstFirst.length - measured.length,
+    unreached,
+    navigations,
+    budget,
   };
 }
 
@@ -155,22 +265,20 @@ export function selectAbBreaches(
  * What the report says about its own scope, before any figure.
  *
  * The breached count comes FIRST and the measured count second, so nobody reads
- * eight A/B rows as eight breaches. A cap that bit says so on its own line
- * rather than truncating in silence.
+ * six A/B rows as six breaches. A budget that bit says so on its own line and
+ * NAMES what it could not reach: a truncated diagnosis that says so is useful,
+ * one that hides its truncation is not.
  */
-export function formatAbScopeLines(
-  selection: AbBreachSelection,
-  cap: number = PERF_AB_BREACH_CAP,
-): string[] {
+export function formatAbScopeLines(selection: AbBreachSelection): string[] {
   const lines = [
     `${selection.breachedRoutes} route(s) breached; ${selection.measuredRoutes} measured ` +
       "against the merge base.",
   ];
-  if (selection.skipped > 0) {
+  if (selection.unreached.length > 0) {
     lines.push(
-      `The A/B measures at most ${cap} breached metrics, worst first by how far each figure ` +
-        `sits past its own ceiling, so ${selection.skipped} more went unmeasured. A mass breach ` +
-        "is itself the signature of a slow box.",
+      `The A/B may spend ${selection.budget} navigations across both arms and spent ` +
+        `${selection.navigations}, so it did not reach ${selection.unreached.join(", ")}. ` +
+        "A mass breach is itself the signature of a slow box.",
     );
   }
   return lines;

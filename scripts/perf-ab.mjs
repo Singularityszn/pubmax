@@ -143,6 +143,20 @@ async function main() {
   }
 
   const mergeBase = git(["merge-base", BASE_REF, "HEAD"]);
+
+  // BOTH ARMS THE SAME COMMIT IS A COMPARISON OF NOTHING. On a push to main the
+  // merge base IS this head, so the second build would be the branch build under
+  // another name and any run-to-run noise past the band would print BRANCH
+  // SLOWER against a build that IS the base. Stopping here is also what keeps
+  // the install, the build and the doubled measurement off that run's wall.
+  if (mergeBase === git(["rev-parse", "HEAD"])) {
+    say(
+      `the merge base against ${BASE_REF} IS this head, so both arms would be the same ` +
+        "commit. There is no branch to compare and nothing was built.",
+    );
+    return;
+  }
+
   say(
     `${handover.breaches.length} breached metric(s), measured again against merge base ` +
       `${mergeBase.slice(0, 9)}`,

@@ -5,6 +5,8 @@ import { test, type Browser, type Page } from "@playwright/test";
 
 import {
   abArmOrder,
+  abSamplesPerArm,
+  abTimeoutMs,
   compareArms,
   formatAbScopeLines,
   formatAbTable,
@@ -17,7 +19,6 @@ import {
 import {
   BUDGET_METRICS,
   PERFORMANCE_BUDGETS,
-  plannedNavigations,
   resolveRouteRunPlan,
   type BudgetMetric,
   type RouteBudget,
@@ -153,6 +154,12 @@ async function warmArm(arm: Arm, route: RouteBudget, warmupRuns: number): Promis
   }
 }
 
+// A MEASUREMENT THAT IS RETRIED IS NOT A MEASUREMENT, the same declaration the
+// sweep makes for the same reason. A second pass would re-measure both arms
+// against the job's wall and overwrite the first pass's report with the second
+// draw, which is the coin flip the sweep already refuses.
+test.describe.configure({ retries: 0 });
+
 test("a breached route is measured against its merge base on this box", async ({ browser }) => {
   test.skip(!process.env.PUBMAX_PERF_AB, "Owned by the Performance budget CI job.");
 
@@ -178,23 +185,20 @@ test("a breached route is measured against its merge base on this box", async ({
     );
   }
 
-  // THE CAP, AND WHY IT IS NOT A TRUNCATION. A mass breach is the signature of
-  // a slow box, and measuring forty routes twice walks this job into its wall,
-  // where GitHub cancels the upload step and the evidence is lost in exactly
-  // the case it exists for. The worst breaches are measured first and the
-  // report says how many breached before it says how many were measured.
-  const selection = selectAbBreaches(handover.breaches);
+  // THE BUDGET, AND WHY IT IS NOT A TRUNCATION. A mass breach is the signature
+  // of a slow box, and measuring forty routes twice walks this job into its
+  // wall, where GitHub cancels the upload step and the evidence is lost in
+  // exactly the case it exists for. The worst routes are measured first, a
+  // route is measured only when its whole plan fits, and the report names what
+  // the budget could not reach.
+  const selection = selectAbBreaches(handover.breaches, budgets.routes, budgets.method);
   const metricsByRoute = breachedMetricsByRoute(selection.breaches);
   const budgetedByPath = new Map(budgets.routes.map((route) => [route.path, route]));
   const routes = [...metricsByRoute.keys()]
     .map((path) => budgetedByPath.get(path))
     .filter((route): route is RouteBudget => route !== undefined);
 
-  // The worst case for THESE routes, doubled because two arms take it. Reading
-  // every budgeted route here would put the timeout hours past the job's own
-  // wall, so a stuck arm would burn the whole job instead of failing its test
-  // and leaving time for the artifact.
-  test.setTimeout(60_000 * 2 * plannedNavigations(routes, budgets.method));
+  test.setTimeout(abTimeoutMs(selection.navigations));
 
   const branch = await openArm(browser, "branch", branchOrigin, routes);
   const base = await openArm(browser, "base", baseOrigin, routes);
@@ -207,7 +211,11 @@ test("a breached route is measured against its merge base on this box", async ({
 
     const arms: Record<Arm["name"], Arm> = { branch, base };
     const samples = { branch: [] as PerfSample[], base: [] as PerfSample[] };
-    for (let run = 0; run < budgets.method.measuredRuns; run += 1) {
+    // The route's OWN plan on both arms: a marked route is judged on the median
+    // of seven here exactly as the sweep judges it, because three samples cannot
+    // decide a route whose samples were recorded 37 to 51 per cent apart.
+    const countedRuns = abSamplesPerArm(route, budgets.method);
+    for (let run = 0; run < countedRuns; run += 1) {
       // A, B, then B, A, then A, B. The rule itself lives in the pure module,
       // so it is unit-tested with no browser.
       for (const name of abArmOrder(run)) {

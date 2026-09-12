@@ -6,11 +6,16 @@ import { describe, expect, it } from "vitest";
 
 import { PERFORMANCE_BUDGETS } from "@/lib/performanceBudgets";
 import {
-  PERF_AB_BREACH_CAP,
+  PERF_AB_ARMS,
   PERF_AB_BREACH_FILE,
+  PERF_AB_NAVIGATION_MS,
   abArmOrder,
   abHandoverForBreaches,
+  abNavigationBudget,
+  abNavigationsForRoute,
   abNoiseBandPct,
+  abSamplesPerArm,
+  abTimeoutMs,
   compareArms,
   formatAbScopeLines,
   formatAbTable,
@@ -18,6 +23,7 @@ import {
   selectAbBreaches,
   type AbBreach,
   type AbRoutePair,
+  type AbRoutePlan,
 } from "@/lib/performanceAbEvidence";
 
 // THE INSTRUMENT THAT TELLS A RED ROUTE APART FROM A SLOW BOX.
@@ -178,7 +184,56 @@ describe("abHandoverForBreaches", () => {
   });
 });
 
+describe("what the A/B spends", () => {
+  const quiet: AbRoutePlan = { path: "/messages" };
+  const marked: AbRoutePlan = {
+    path: "/crawls",
+    noisy: { metrics: ["lcpMs"], measuredSpreadPct: 51, why: "recorded wide on this rig" },
+  };
+
+  it("judges a marked route on the median of seven, exactly as the sweep judges it", () => {
+    // Three samples cannot decide a route whose samples were recorded 51 per
+    // cent apart: the arms would differ by the spread rather than by the code.
+    expect(abSamplesPerArm(marked, method)).toBe(
+      method.measuredRuns + (method.noisyResampleRuns ?? 0),
+    );
+    expect(abSamplesPerArm(marked, method)).toBe(7);
+  });
+
+  it("leaves a quiet route on its three, because it never said it could not measure", () => {
+    expect(abSamplesPerArm(quiet, method)).toBe(3);
+  });
+
+  it("costs a marked route more than twice a quiet one, which is why routes are not the unit", () => {
+    expect(abNavigationsForRoute(quiet, method)).toBe(PERF_AB_ARMS * (1 + 3));
+    expect(abNavigationsForRoute(marked, method)).toBe(PERF_AB_ARMS * (2 + 7));
+    expect(abNavigationsForRoute(marked, method)).toBeGreaterThan(
+      2 * abNavigationsForRoute(quiet, method),
+    );
+  });
+
+  it("reads its budget off the method block rather than a number typed beside it", () => {
+    const wider = { ...method, measuredRuns: method.measuredRuns + 1 };
+    expect(abNavigationBudget(wider)).toBeGreaterThan(abNavigationBudget(method));
+    expect(abNavigationBudget(method) % PERF_AB_ARMS).toBe(0);
+  });
+
+  it("times the run out on what it will actually spend, not on every budgeted route", () => {
+    expect(abTimeoutMs(16)).toBe(16 * PERF_AB_NAVIGATION_MS);
+    // Two ordinary breached routes, both arms: minutes, not hours.
+    expect(abTimeoutMs(2 * abNavigationsForRoute(quiet, method))).toBeLessThan(60 * 60_000);
+  });
+});
+
 describe("selectAbBreaches", () => {
+  const plan = (path: string, noisy = false): AbRoutePlan =>
+    noisy
+      ? {
+          path,
+          noisy: { metrics: ["lcpMs"], measuredSpreadPct: 51, why: "recorded wide on this rig" },
+        }
+      : { path };
+
   const breach = (over: Partial<AbBreach> = {}): AbBreach => ({
     path: "/messages",
     metric: "lcpMs",
@@ -187,21 +242,30 @@ describe("selectAbBreaches", () => {
     ...over,
   });
 
-  it("measures every breach when the sweep breached fewer than the cap", () => {
-    const selection = selectAbBreaches([breach({ path: "/a" }), breach({ path: "/b" })]);
+  it("measures every breach when the sweep breached less than the budget", () => {
+    const selection = selectAbBreaches(
+      [breach({ path: "/a" }), breach({ path: "/b" })],
+      [plan("/a"), plan("/b")],
+      method,
+    );
     expect(selection.breachedRoutes).toBe(2);
     expect(selection.measuredRoutes).toBe(2);
-    expect(selection.skipped).toBe(0);
+    expect(selection.unreached).toEqual([]);
+    expect(selection.navigations).toBe(2 * abNavigationsForRoute(plan("/a"), method));
   });
 
-  it("orders the breaches worst first, by how far each figure sits past its OWN ceiling", () => {
+  it("orders the routes worst first, by how far each figure sits past its OWN ceiling", () => {
     // 220 against 200 is 10 per cent over; 700 against 500 is 40, and the
     // bigger absolute figure is not the worse breach.
-    const selection = selectAbBreaches([
-      breach({ path: "/small-margin", measured: 220, budget: 200 }),
-      breach({ path: "/worst", measured: 700, budget: 500 }),
-      breach({ path: "/middle", measured: 600, budget: 500 }),
-    ]);
+    const selection = selectAbBreaches(
+      [
+        breach({ path: "/small-margin", measured: 220, budget: 200 }),
+        breach({ path: "/worst", measured: 700, budget: 500 }),
+        breach({ path: "/middle", measured: 600, budget: 500 }),
+      ],
+      [plan("/small-margin"), plan("/worst"), plan("/middle")],
+      method,
+    );
     expect(selection.breaches.map((entry) => entry.path)).toEqual([
       "/worst",
       "/middle",
@@ -209,59 +273,115 @@ describe("selectAbBreaches", () => {
     ]);
   });
 
-  it("caps a mass breach at the worst few, and says how many it left out", () => {
-    // The shape the cap exists for: on 11 September 2026 one job measured 43 of
-    // 44 budgeted routes about a third slower, which is the signature of a slow
-    // box. Measuring all of them twice walks the job into its wall, and a
-    // cancelled job uploads nothing.
-    const many = Array.from({ length: 40 }, (_unused, index) =>
-      breach({ path: `/route-${index}`, measured: 500 + index, budget: 500 }),
+  it("leaves a route whose whole plan does not fit UNMEASURED rather than half-measuring it", () => {
+    // Half a route's samples is a median nobody can defend.
+    const quietCost = abNavigationsForRoute(plan("/a"), method);
+    const selection = selectAbBreaches(
+      [
+        breach({ path: "/a", measured: 900, budget: 500 }),
+        breach({ path: "/b", measured: 600, budget: 500 }),
+      ],
+      [plan("/a"), plan("/b")],
+      method,
+      quietCost,
     );
-    const selection = selectAbBreaches(many);
-    expect(selection.breaches).toHaveLength(PERF_AB_BREACH_CAP);
-    expect(selection.breaches[0].path).toBe("/route-39");
-    expect(selection.breachedRoutes).toBe(40);
-    expect(selection.measuredRoutes).toBe(PERF_AB_BREACH_CAP);
-    expect(selection.skipped).toBe(40 - PERF_AB_BREACH_CAP);
+    expect(selection.measuredRoutes).toBe(1);
+    expect(selection.breaches.map((entry) => entry.path)).toEqual(["/a"]);
+    expect(selection.unreached).toEqual(["/b"]);
+    expect(selection.navigations).toBe(quietCost);
   });
 
-  it("counts routes rather than metrics, so two breached metrics on one route are one route", () => {
-    const selection = selectAbBreaches([
-      breach({ path: "/pubs", metric: "jsDecodedKB", measured: 1275, budget: 1200 }),
-      breach({ path: "/pubs", metric: "requests", measured: 73, budget: 68 }),
-    ]);
+  it("fits a cheaper route the budget still has room for after an expensive one is skipped", () => {
+    const marked = plan("/crawls", true);
+    const quiet = plan("/messages");
+    const selection = selectAbBreaches(
+      [
+        breach({ path: "/crawls", measured: 900, budget: 500 }),
+        breach({ path: "/messages", measured: 600, budget: 500 }),
+      ],
+      [marked, quiet],
+      method,
+      abNavigationsForRoute(quiet, method),
+    );
+    expect(selection.unreached).toEqual(["/crawls"]);
+    expect(selection.breaches.map((entry) => entry.path)).toEqual(["/messages"]);
+  });
+
+  it("costs a marked route its noise floor, so fewer of them fit than quiet ones", () => {
+    const marked = [plan("/today", true), plan("/crawls", true), plan("/discover", true)];
+    const budget = abNavigationsForRoute(marked[0], method) * 2;
+    const selection = selectAbBreaches(
+      marked.map((route, index) => breach({ path: route.path, measured: 900 - index, budget: 500 })),
+      marked,
+      method,
+      budget,
+    );
+    expect(selection.measuredRoutes).toBe(2);
+    expect(selection.unreached).toHaveLength(1);
+    expect(selection.navigations).toBe(budget);
+  });
+
+  it("keeps both breached metrics of one route together, and counts it as one route", () => {
+    const selection = selectAbBreaches(
+      [
+        breach({ path: "/pubs", metric: "jsDecodedKB", measured: 1275, budget: 1200 }),
+        breach({ path: "/pubs", metric: "requests", measured: 73, budget: 68 }),
+      ],
+      [plan("/pubs")],
+      method,
+    );
     expect(selection.breachedRoutes).toBe(1);
     expect(selection.measuredRoutes).toBe(1);
     expect(selection.breaches).toHaveLength(2);
+    expect(selection.navigations).toBe(abNavigationsForRoute(plan("/pubs"), method));
+  });
+
+  it("cannot measure a breached path that carries no budgeted route, and names it", () => {
+    const selection = selectAbBreaches([breach({ path: "/gone" })], [], method);
+    expect(selection.measuredRoutes).toBe(0);
+    expect(selection.unreached).toEqual(["/gone"]);
   });
 });
 
 describe("formatAbScopeLines", () => {
-  const breach = (index: number): AbBreach => ({
-    path: `/route-${index}`,
+  const plan = (path: string): AbRoutePlan => ({ path });
+  const breach = (path: string, measured: number): AbBreach => ({
+    path,
     metric: "lcpMs",
-    measured: 500 + index,
+    measured,
     budget: 500,
   });
 
   it("says how many routes breached BEFORE how many were measured", () => {
-    const [line] = formatAbScopeLines(selectAbBreaches([breach(1), breach(2)]));
+    const selection = selectAbBreaches(
+      [breach("/a", 600), breach("/b", 700)],
+      [plan("/a"), plan("/b")],
+      method,
+    );
+    const [line] = formatAbScopeLines(selection);
     expect(line.indexOf("2 route(s) breached")).toBe(0);
     expect(line).toContain("2 measured");
   });
 
-  it("says on its own line when the cap bit, rather than truncating in silence", () => {
-    const lines = formatAbScopeLines(
-      selectAbBreaches(Array.from({ length: 12 }, (_unused, index) => breach(index))),
+  it("names the routes the budget could not reach, on its own line", () => {
+    const selection = selectAbBreaches(
+      [breach("/a", 900), breach("/b", 700), breach("/c", 600)],
+      [plan("/a"), plan("/b"), plan("/c")],
+      method,
+      abNavigationsForRoute(plan("/a"), method),
     );
+    const lines = formatAbScopeLines(selection);
     expect(lines).toHaveLength(2);
-    expect(lines[0]).toContain("12 route(s) breached");
-    expect(lines[0]).toContain(`${PERF_AB_BREACH_CAP} measured`);
-    expect(lines[1]).toContain(`${12 - PERF_AB_BREACH_CAP} more went unmeasured`);
+    expect(lines[0]).toContain("3 route(s) breached");
+    expect(lines[0]).toContain("1 measured");
+    expect(lines[1]).toContain("/b");
+    expect(lines[1]).toContain("/c");
   });
 
-  it("stays one line when every breach was measured", () => {
-    expect(formatAbScopeLines(selectAbBreaches([breach(1)]))).toHaveLength(1);
+  it("stays one line when every breached route was measured", () => {
+    expect(
+      formatAbScopeLines(selectAbBreaches([breach("/a", 600)], [plan("/a")], method)),
+    ).toHaveLength(1);
   });
 });
 

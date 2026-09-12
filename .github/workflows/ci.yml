@@ -379,10 +379,11 @@ jobs:
       #
       # It costs nothing on a green run: `if: failure()` keeps it off the happy
       # path, and the script stops before it builds anything when the sweep left
-      # no breach list. On a red run it measures at most the eight worst
-      # breaches, so a mass breach cannot walk this job into its own wall and
-      # lose the upload below. It exits 0 whatever it finds, because the verdict
-      # on this branch belongs to the sweep.
+      # no breach list, and again when the merge base is this head. On a red run
+      # it spends a navigation budget worth about eight ordinary routes, so a
+      # mass breach cannot walk this job into its own wall and lose the upload
+      # below. It exits 0 whatever it finds, because the verdict on this branch
+      # belongs to the sweep.
       - name: Tell a red route apart from a slow box
         if: failure()
         env:
