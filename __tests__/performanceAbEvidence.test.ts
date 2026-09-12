@@ -8,7 +8,10 @@ import { PERFORMANCE_BUDGETS } from "@/lib/performanceBudgets";
 import {
   PERF_AB_ARMS,
   PERF_AB_BREACH_FILE,
+  PERF_AB_JOB_WALL_MS,
   abArmOrder,
+  abDeadlineReached,
+  abMeasuringDeadlineMs,
   abHandoverForBreaches,
   abNavigationBudget,
   abNavigationsForRoute,
@@ -273,6 +276,22 @@ describe("what the A/B spends", () => {
     );
   });
 
+  it("keeps its measuring deadline inside the job's wall, with room for the upload", () => {
+    // A run bounded only by the job's wall is a run GitHub cancels, and a
+    // cancelled job never reaches the step that uploads the report.
+    expect(abMeasuringDeadlineMs()).toBeLessThan(PERF_AB_JOB_WALL_MS);
+    expect(abMeasuringDeadlineMs()).toBeLessThanOrEqual(PERF_AB_JOB_WALL_MS / 2);
+    // Derived from the wall, so moving `timeout-minutes` moves this with it.
+    expect(abMeasuringDeadlineMs(2 * PERF_AB_JOB_WALL_MS)).toBe(2 * abMeasuringDeadlineMs());
+  });
+
+  it("stops the run when the deadline has passed and not before", () => {
+    const started = 1_000;
+    expect(abDeadlineReached(started, started + 60_000, 120_000)).toBe(false);
+    expect(abDeadlineReached(started, started + 120_000, 120_000)).toBe(true);
+    expect(abDeadlineReached(started, started + 600_000, 120_000)).toBe(true);
+  });
+
   it("times the run out on what it will actually spend, not on every budgeted route", () => {
     const routeReady = 120_000;
     const everyBudgetedRoute = abTimeoutMs(
@@ -450,7 +469,11 @@ describe("formatAbScopeLines", () => {
 });
 
 describe("formatAbReport", () => {
-  const report = (routesMeasured: number, routesSelected: number) =>
+  const report = (
+    routesMeasured: number,
+    routesSelected: number,
+    deadlineStopped: string[] = [],
+  ) =>
     formatAbReport({
       branchOrigin: "http://localhost:3500",
       baseOrigin: "http://localhost:3501",
@@ -459,7 +482,21 @@ describe("formatAbReport", () => {
       rows: compareArms([pair()], method),
       routesMeasured,
       routesSelected,
+      deadlineStopped,
+      deadlineMs: 600_000,
     });
+
+  it("blames the DEADLINE rather than the budget, and names what it did not reach", () => {
+    const stopped = report(1, 3, ["/crawls", "/today"]);
+    expect(stopped).toContain("DEADLINE ended this run, not the navigation budget");
+    expect(stopped).toContain("10 minute(s)");
+    expect(stopped).toContain("/crawls, /today");
+    expect(stopped).toContain("/messages");
+  });
+
+  it("says nothing about a deadline on a run the deadline never stopped", () => {
+    expect(report(3, 3)).not.toContain("DEADLINE");
+  });
 
   it("says it is PARTIAL while routes are still unmeasured, and carries the rows it has", () => {
     // The run cut short is the run whose evidence matters most, and it is

@@ -5,6 +5,8 @@ import { test, type Browser, type Page } from "@playwright/test";
 
 import {
   abArmOrder,
+  abDeadlineReached,
+  abMeasuringDeadlineMs,
   abSamplesPerArm,
   abTimeoutMs,
   compareArms,
@@ -206,6 +208,16 @@ test("a breached route is measured against its merge base on this box", async ({
   const pairs: AbRoutePair[] = [];
   let routesMeasured = 0;
 
+  // THE MEASURING CARRIES ITS OWN WALL-CLOCK DEADLINE, a share of the job's
+  // wall owned by the pure module. Playwright's own timeout allows each
+  // navigation what the harness allows it, which is right for one navigation
+  // and cannot bound the run: a run bounded only by the job's wall is a run
+  // GitHub cancels, and a cancelled job never reaches the step that uploads
+  // this report.
+  const deadlineMs = abMeasuringDeadlineMs();
+  const startedAt = Date.now();
+  const deadlineStopped: string[] = [];
+
   // THE REPORT IS WRITTEN AFTER EVERY ROUTE, NOT ONCE AT THE END. The box slow
   // enough to abort this run is the box whose evidence matters most, and the
   // selection is ordered worst first precisely so a run cut short has already
@@ -220,6 +232,8 @@ test("a breached route is measured against its merge base on this box", async ({
       rows: compareArms(pairs, budgets.method),
       routesMeasured,
       routesSelected: routes.length,
+      deadlineStopped,
+      deadlineMs,
     });
     if (reportPath) {
       mkdirSync(dirname(reportPath), { recursive: true });
@@ -229,6 +243,11 @@ test("a breached route is measured against its merge base on this box", async ({
   };
 
   for (const route of routes) {
+    if (abDeadlineReached(startedAt, Date.now(), deadlineMs)) {
+      deadlineStopped.push(route.path);
+      continue;
+    }
+
     const plan = resolveRouteRunPlan(route, budgets.method);
     await warmArm(branch, route, plan.warmupRuns);
     await warmArm(base, route, plan.warmupRuns);

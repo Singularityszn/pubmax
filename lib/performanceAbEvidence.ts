@@ -173,6 +173,47 @@ export function abTimeoutMs(
   return Math.max(navigations, 1) * (routeReadyTimeoutMs + method.network.drainCeilingMs);
 }
 
+/**
+ * THE JOB'S OWN WALL, MIRRORED. `timeout-minutes` on the `performance-budget`
+ * job in `.github/workflows/ci.yml`. Move that number and this one moves with
+ * it, because everything below is a share of it.
+ */
+export const PERF_AB_JOB_WALL_MS = 55 * 60_000;
+
+/**
+ * HOW LONG THE A/B MAY SPEND MEASURING, AND WHY IT IS A QUARTER OF THE WALL.
+ *
+ * The per-navigation allowance above is what ONE navigation may take, and it
+ * stays generous on purpose: cutting a slow navigation short turns the thing
+ * being measured into a timeout. What that allowance cannot do is bound the
+ * whole run, and a run bounded only by the job's wall is a run GitHub cancels,
+ * and a cancelled job never reaches the step that uploads the evidence. So the
+ * measuring carries its own wall-clock deadline.
+ *
+ * The wall carries FOUR things in order: the branch build and the sweep, the
+ * merge-base install and its build, this measurement, and the artifact upload.
+ * One quarter is this measurement's share, which leaves the upload the room it
+ * needs on a box slow enough for any of this to matter. It is derived from the
+ * wall rather than typed beside it, so the next person changing
+ * `timeout-minutes` changes this with it.
+ */
+export function abMeasuringDeadlineMs(jobWallMs: number = PERF_AB_JOB_WALL_MS): number {
+  return Math.floor(jobWallMs / 4);
+}
+
+/**
+ * Whether the measuring deadline has passed, asked before each route rather
+ * than during one: a route measured half way is a median nobody can defend, and
+ * the rows already taken are what the run hands over.
+ */
+export function abDeadlineReached(
+  startedAt: number,
+  now: number,
+  deadlineMs: number = abMeasuringDeadlineMs(),
+): boolean {
+  return now - startedAt >= deadlineMs;
+}
+
 export type AbBreachSelection = {
   /** Distinct routes the sweep breached. */
   breachedRoutes: number;
@@ -331,8 +372,6 @@ export type AbComparison = {
   branchSamples: number;
   baseSamples: number;
   plannedSamples: number;
-  /** Branch minus base, in the metric's own units. */
-  delta: number;
   /**
    * The same difference against the base figure, as a whole percentage, for
    * display. The verdict below reads the UNROUNDED ratio, so 12.4 per cent
@@ -400,7 +439,6 @@ export function compareArms(
     const complete =
       branchSamples.length >= pair.plannedSamples && baseSamples.length >= pair.plannedSamples;
     const compared = complete && Number.isFinite(branchMedian) && Number.isFinite(baseMedian);
-    const delta = compared ? branchMedian - baseMedian : Number.NaN;
     const exactPct = compared ? relativeDeltaPct(branchMedian, baseMedian) : Number.NaN;
     const deltaPct = compared ? Math.round(exactPct) : Number.NaN;
     const verdict: AbVerdict = !compared
@@ -417,7 +455,6 @@ export function compareArms(
       branchSamples: branchSamples.length,
       baseSamples: baseSamples.length,
       plannedSamples: pair.plannedSamples,
-      delta,
       deltaPct,
       verdict,
       runnerDrift:
@@ -526,8 +563,12 @@ export function formatAbReport(input: {
   rows: readonly AbComparison[];
   routesMeasured: number;
   routesSelected: number;
+  /** Routes the measuring deadline stopped this run from reaching. */
+  deadlineStopped?: readonly string[];
+  deadlineMs?: number;
 }): string {
   const partial = input.routesMeasured < input.routesSelected;
+  const stopped = input.deadlineStopped ?? [];
   return [
     "[perf-ab] the branch against its merge base: same box, same job, navigations interleaved",
     `[perf-ab] branch ${input.branchOrigin}  base ${input.baseOrigin}  head ${input.head || "local"}`,
@@ -536,6 +577,14 @@ export function formatAbReport(input: {
       ? [
           `[perf-ab] PARTIAL: ${input.routesMeasured} of ${input.routesSelected} selected ` +
             "route(s) measured when this was written.",
+        ]
+      : []),
+    ...(stopped.length > 0
+      ? [
+          `[perf-ab] The DEADLINE ended this run, not the navigation budget: ` +
+            `${Math.round((input.deadlineMs ?? abMeasuringDeadlineMs()) / 60_000)} minute(s) of ` +
+            `measuring fits inside the job's wall with room for the upload, so it did not reach ` +
+            `${stopped.join(", ")}.`,
         ]
       : []),
     "",

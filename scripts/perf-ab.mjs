@@ -98,15 +98,26 @@ function e2eServerEnv() {
   return JSON.parse(printed);
 }
 
-async function waitForServer(origin, timeoutMs) {
+/** Whether ANYTHING answers that origin right now. */
+async function originAnswers(origin) {
+  try {
+    const response = await fetch(origin, { redirect: "manual" });
+    return response.status > 0;
+  } catch {
+    return false;
+  }
+}
+
+// AN ARM IS THE SERVER THIS SCRIPT STARTED, OR IT IS NOT AN ARM. A listener
+// this run did not spawn - a leftover `next start` from an interrupted run, or
+// a hand-started server on the same port - answers the origin just as happily,
+// and the report would then read BRANCH SLOWER off somebody else's build. So
+// the wait fails when the arm's own process has exited.
+async function waitForServer(origin, child, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    try {
-      const response = await fetch(origin, { redirect: "manual" });
-      if (response.status > 0) return true;
-    } catch {
-      // Not listening yet.
-    }
+    if (child.exitCode !== null || child.signalCode !== null) return false;
+    if (await originAnswers(origin)) return true;
     await new Promise((resolve) => setTimeout(resolve, 1_000));
   }
   return false;
@@ -157,6 +168,20 @@ async function main() {
     return;
   }
 
+  // FAIL CLOSED ON A PORT SOMEONE ELSE HOLDS, before the worktree, the install
+  // and the build. A second server on this port would be measured and labelled
+  // as this branch, which is the silent mislabelling the instrument exists to
+  // remove.
+  for (const port of [BRANCH_PORT, BASE_PORT]) {
+    if (await originAnswers(`http://localhost:${port}`)) {
+      say(
+        `something already answers on port ${port}, so this run would measure a server it did ` +
+          "not start. Stop that process and run again. Nothing was built.",
+      );
+      return;
+    }
+  }
+
   say(
     `${handover.breaches.length} breached metric(s), measured again against merge base ` +
       `${mergeBase.slice(0, 9)}`,
@@ -191,27 +216,24 @@ async function main() {
 
     const branchOrigin = `http://localhost:${BRANCH_PORT}`;
     const baseOrigin = `http://localhost:${BASE_PORT}`;
-    servers.push(
-      startServer({
-        cwd: REPO_ROOT,
-        port: BRANCH_PORT,
-        env: { ...serverEnv, NEXT_DIST_DIR: branchDistDir },
-      }),
-    );
-    servers.push(
-      startServer({
-        cwd: worktree,
-        port: BASE_PORT,
-        env: { ...serverEnv, NEXT_DIST_DIR: baseDistDir },
-      }),
-    );
+    const branchServer = startServer({
+      cwd: REPO_ROOT,
+      port: BRANCH_PORT,
+      env: { ...serverEnv, NEXT_DIST_DIR: branchDistDir },
+    });
+    const baseServer = startServer({
+      cwd: worktree,
+      port: BASE_PORT,
+      env: { ...serverEnv, NEXT_DIST_DIR: baseDistDir },
+    });
+    servers.push(branchServer, baseServer);
 
     const answered = await Promise.all([
-      waitForServer(branchOrigin, 180_000),
-      waitForServer(baseOrigin, 180_000),
+      waitForServer(branchOrigin, branchServer, 180_000),
+      waitForServer(baseOrigin, baseServer, 180_000),
     ]);
     if (answered.some((up) => !up)) {
-      say("one arm never answered, so there is no comparison to make");
+      say("one arm never answered on its own process, so there is no comparison to make");
       return;
     }
 

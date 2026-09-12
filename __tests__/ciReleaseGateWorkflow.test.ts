@@ -3,6 +3,8 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { PERF_AB_JOB_WALL_MS } from "@/lib/performanceAbEvidence";
+
 const HEAP = "--max-old-space-size=6144";
 
 type WorkflowStep = { job: string; name: string; run: string; env: Record<string, string> };
@@ -62,6 +64,22 @@ function parseSteps(yaml: string): WorkflowStep[] {
   return steps;
 }
 
+/** Each job's own wall, in minutes, as GitHub reads it. */
+function parseJobWalls(yaml: string): Record<string, number> {
+  const walls: Record<string, number> = {};
+  let job = "";
+  for (const line of yaml.split("\n")) {
+    const jobHeader = /^ {2}([A-Za-z0-9_-]+):$/.exec(line);
+    if (jobHeader) {
+      job = jobHeader[1];
+      continue;
+    }
+    const wall = /^ {4}timeout-minutes: (\d+)$/.exec(line);
+    if (wall && job) walls[job] = Number(wall[1]);
+  }
+  return walls;
+}
+
 describe("clean-main CI release gate", () => {
   const workflow = readFileSync(join(process.cwd(), ".github/workflows/ci.yml"), "utf8");
   const steps = parseSteps(workflow);
@@ -99,6 +117,13 @@ describe("clean-main CI release gate", () => {
     }
     expect(needsHeap.map((step) => step.name)).toContain("Tell a red route apart from a slow box");
     expect(needsHeap.map((step) => step.name)).toContain("Typecheck");
+  });
+
+  it("holds the A/B's mirrored wall to the Performance budget job's own timeout", () => {
+    // The A/B stops measuring at a share of this wall so the artifact step
+    // still runs. Two numbers that must move together are held together here
+    // rather than by a comment asking the next person to remember.
+    expect(parseJobWalls(workflow)["performance-budget"]).toBe(PERF_AB_JOB_WALL_MS / 60_000);
   });
 
   it("gates coverage and freshness independently", () => {
