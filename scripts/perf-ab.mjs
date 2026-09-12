@@ -118,11 +118,36 @@ function git(args, options = {}) {
   }).trim();
 }
 
+/** A bound that names a real quantity, whether it is minutes or the last seconds. */
+function humanMs(milliseconds) {
+  if (milliseconds >= 60_000) return `${Math.round(milliseconds / 60_000)} minute(s)`;
+  return `${Math.round(milliseconds / 1_000)} second(s)`;
+}
+
+/**
+ * Kills the phase AND everything it forked.
+ *
+ * `npm` and `npx` are wrappers: the work is `next build`, the Playwright runner
+ * and its browser. A signal to the wrapper alone leaves that work holding the
+ * processor and the step's inherited output open, so the job still dies at the
+ * wall, which is the cancellation the bound exists to prevent. Each bounded
+ * phase is therefore its own process group and the group is what is signalled.
+ */
+function killGroup(child) {
+  if (child.exitCode !== null || child.signalCode !== null || child.pid === undefined) return;
+  try {
+    process.kill(-child.pid, "SIGKILL");
+  } catch {
+    // Already gone, or never became a group leader. Nothing left to stop.
+  }
+}
+
 function run(command, args, options = {}) {
   const child = spawn(command, args, {
     cwd: options.cwd ?? REPO_ROOT,
     env: { ...process.env, ...(options.env ?? {}) },
     stdio: "inherit",
+    detached: true,
   });
   // A SUBPROCESS UPSTREAM OF A DEADLINE MUST BE BOUNDED OR THE DEADLINE IS
   // DECORATIVE. A hung install or build eats the job's wall on its own and the
@@ -134,12 +159,11 @@ function run(command, args, options = {}) {
     const timer =
       timeoutMs > 0
         ? setTimeout(() => {
-            child.kill("SIGKILL");
+            killGroup(child);
             reject(
               new Error(
-                `${command} ${args.join(" ")} outlasted the ${Math.round(timeoutMs / 60_000)} ` +
-                  "minute(s) the job's wall had left over the upload's share, so no A/B was " +
-                  "measured",
+                `${command} ${args.join(" ")} outlasted the ${humanMs(timeoutMs)} the job's ` +
+                  "wall had left over the upload's share, so no A/B was measured",
               ),
             );
           }, timeoutMs)

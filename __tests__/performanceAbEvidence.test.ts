@@ -15,6 +15,7 @@ import {
   abNavigationAllowanceMs,
   abNoiseFloor,
   abRouteFitsDeadline,
+  abTeardownMarginMs,
   abUploadReserveMs,
   abHandoverForBreaches,
   abNavigationBudget,
@@ -358,7 +359,9 @@ describe("what the A/B spends", () => {
     // A run bounded only by the job's wall is a run GitHub cancels, and a
     // cancelled job never reaches the step that uploads the report.
     expect(abMeasuringDeadlineMs()).toBeLessThan(PERF_AB_JOB_WALL_MS);
-    expect(abMeasuringDeadlineMs()).toBe(PERF_AB_JOB_WALL_MS - abUploadReserveMs());
+    expect(abMeasuringDeadlineMs()).toBe(
+      PERF_AB_JOB_WALL_MS - abUploadReserveMs() - abTeardownMarginMs(),
+    );
     // Derived from the wall, so moving `timeout-minutes` moves this with it.
     expect(abMeasuringDeadlineMs(0, 2 * PERF_AB_JOB_WALL_MS)).toBeGreaterThan(
       abMeasuringDeadlineMs(),
@@ -389,7 +392,21 @@ describe("what the A/B spends", () => {
 
   it("always keeps the upload a share of the wall, whatever the measuring wants", () => {
     expect(abUploadReserveMs()).toBeGreaterThan(0);
-    expect(abMeasuringDeadlineMs(0) + abUploadReserveMs()).toBe(PERF_AB_JOB_WALL_MS);
+    expect(abMeasuringDeadlineMs(0) + abUploadReserveMs() + abTeardownMarginMs()).toBe(
+      PERF_AB_JOB_WALL_MS,
+    );
+  });
+
+  it("stops the measuring BEFORE the script that would kill it, so the last write survives", () => {
+    // scripts/perf-ab.mjs bounds the measuring at the wall less the upload's
+    // share. Equal to the millisecond, its kill can land on the graceful stop
+    // and take the final report write, both arms closing and the print with it.
+    const scriptBound = PERF_AB_JOB_WALL_MS - abUploadReserveMs();
+    expect(abMeasuringDeadlineMs(0)).toBeLessThan(scriptBound);
+    expect(scriptBound - abMeasuringDeadlineMs(0)).toBe(abTeardownMarginMs());
+    expect(abTeardownMarginMs()).toBeGreaterThan(0);
+    // A share of a share: one `timeout-minutes` still moves every figure.
+    expect(abTeardownMarginMs(2 * PERF_AB_JOB_WALL_MS)).toBeGreaterThan(abTeardownMarginMs());
   });
 
   it("hands back nothing once only the upload's share is left, never a negative bound", () => {
@@ -400,8 +417,11 @@ describe("what the A/B spends", () => {
     const reserveHalfEaten = PERF_AB_JOB_WALL_MS - Math.floor(abUploadReserveMs() / 2);
     expect(abMeasuringDeadlineMs(reserveHalfEaten)).toBe(0);
     expect(abMeasuringDeadlineMs(PERF_AB_JOB_WALL_MS - abUploadReserveMs())).toBe(0);
-    // One millisecond earlier there is exactly one millisecond to spend.
-    expect(abMeasuringDeadlineMs(PERF_AB_JOB_WALL_MS - abUploadReserveMs() - 1)).toBe(1);
+    // One millisecond earlier than the last spendable instant there is exactly
+    // one millisecond to spend.
+    const lastSpendable = PERF_AB_JOB_WALL_MS - abUploadReserveMs() - abTeardownMarginMs();
+    expect(abMeasuringDeadlineMs(lastSpendable - 1)).toBe(1);
+    expect(abMeasuringDeadlineMs(lastSpendable)).toBe(0);
   });
 
   it("stops the run when the deadline has passed and not before", () => {
@@ -817,11 +837,12 @@ describe("the handover between the sweep and the A/B", () => {
       });
       expect(spent).toContain("only the upload's share left");
 
-      // A little over it: the script must carry on, so its own reserve cannot
-      // be larger than the module's either.
+      // Well over it: the script must carry on, so its own reserve cannot be
+      // larger than the module's either. The margin is thirty seconds because a
+      // cold Node start must never be what decides this assertion.
       const roomLeft = runPerfAb({
         PUBMAX_PERF_AB_JOB_WALL_MS: String(wallMs),
-        PUBMAX_PERF_AB_JOB_STARTED_MS: startedWith(reserve + 2_000),
+        PUBMAX_PERF_AB_JOB_STARTED_MS: startedWith(reserve + 30_000),
       });
       expect(roomLeft).not.toContain("only the upload's share left");
       expect(roomLeft).toContain("the branch build is not on disk");

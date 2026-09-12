@@ -206,6 +206,25 @@ export function abUploadReserveMs(jobWallMs: number = PERF_AB_JOB_WALL_MS): numb
 }
 
 /**
+ * WHAT THE MEASURING KEEPS BACK SO ITS OWN STOP ALWAYS BEATS THE KILL.
+ *
+ * `scripts/perf-ab.mjs` bounds the measuring subprocess at the wall less the
+ * upload's share, and the spec inside it stops its loop on the same wall and
+ * the same share. Equal to the millisecond, the outer kill can land ON the
+ * graceful stop rather than behind it, and everything after the loop dies with
+ * it: the final report write that alone records the routes the deadline never
+ * started, both arms closing, and the print. The graceful path has to win, so
+ * the spec stops this much earlier than the process that would kill it.
+ *
+ * A fifth of the upload's share, which is about a minute of fifty-five, and a
+ * share of a share rather than a second unrelated number: one `timeout-minutes`
+ * still moves every figure in this module.
+ */
+export function abTeardownMarginMs(jobWallMs: number = PERF_AB_JOB_WALL_MS): number {
+  return Math.floor(abUploadReserveMs(jobWallMs) / 5);
+}
+
+/**
  * HOW LONG THE A/B MAY SPEND MEASURING: WHAT IS LEFT, NEVER A FIXED SHARE.
  *
  * The per-navigation allowance above is what ONE navigation may take, and it
@@ -221,12 +240,18 @@ export function abUploadReserveMs(jobWallMs: number = PERF_AB_JOB_WALL_MS): numb
  * a share of a wall somebody else has spent is not a share. An elapsed time
  * past the wall yields no measuring at all rather than a negative deadline,
  * which is the honest answer, because the run has nothing left to spend.
+ *
+ * The teardown margin above comes off as well, so the spec's own stop always
+ * arrives before the script's kill and the report it writes last survives.
  */
 export function abMeasuringDeadlineMs(
   elapsedMs: number = 0,
   jobWallMs: number = PERF_AB_JOB_WALL_MS,
 ): number {
-  return Math.max(0, jobWallMs - elapsedMs - abUploadReserveMs(jobWallMs));
+  return Math.max(
+    0,
+    jobWallMs - elapsedMs - abUploadReserveMs(jobWallMs) - abTeardownMarginMs(jobWallMs),
+  );
 }
 
 /**
