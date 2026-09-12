@@ -468,6 +468,14 @@ redirect, with the `Accept` header a browser sends, rather than tolerating its a
 route declared as a redirect that quietly starts serving a document again fails here
 instead of passing every ceiling on one request.
 
+The 12 September sweep found the same accounting gap on `/feed`, `/discover` and `/drinks`.
+Their redirect rows now measure one request, zero script and zero paint.
+The full destination URL must match, including its origin and query. A missing `Location` fails.
+`/social?tab=discover` has its own row, separate from `/social`.
+It retains the former Discover limits: 1,130 KB, 56 requests and 1,000 ms LCP.
+The earlier 1,132 KB and 63-request failure remains a failure under that destination row.
+The seven-sample policy follows the destination. Redirects cannot remove its measurement or raise its limits.
+
 Owner: `redirectsTo` in `lib/performanceBudgets.ts`, `measurePerfRedirect` in
 `e2e/helpers/perfMeasurement.ts`. Pin: `__tests__/performanceBudgets.test.ts`, "a budgeted
 route that redirects".

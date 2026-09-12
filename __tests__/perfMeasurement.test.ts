@@ -1,7 +1,7 @@
 import type { Page, Request } from "@playwright/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { aggregatePerfMetric, waitForQuietNetwork } from "../e2e/helpers/perfMeasurement";
+import { aggregatePerfMetric, measurePerfRedirect, waitForQuietNetwork } from "../e2e/helpers/perfMeasurement";
 import { PERFORMANCE_BUDGETS, type BudgetMethod } from "../lib/performanceBudgets";
 
 // The quiet window is scaled to the tracked network profile, so these cases
@@ -19,6 +19,40 @@ const LOOPBACK: BudgetMethod = {
 };
 
 type RequestEvent = "request" | "requestfinished" | "requestfailed";
+
+describe("measurePerfRedirect", () => {
+  const route = { path: "/discover", readySelector: "main", redirectsTo: "/social?tab=discover" };
+  const pageFor = (location?: string, status = 308) => ({
+    request: { get: vi.fn().mockResolvedValue({
+      status: () => status,
+      headers: () => location === undefined ? {} : { location },
+      url: () => "http://localhost:3410/discover",
+    }) },
+  });
+
+  it.each(["/social?tab=discover", "http://localhost:3410/social?tab=discover"])(
+    "counts a valid redirect to %s without loading the page",
+    async (location) => {
+      const page = pageFor(location);
+      const result = await measurePerfRedirect(page as unknown as Page, route);
+      expect(result).toMatchObject({ requests: 1, jsDecodedKB: 0, lcpMs: 0 });
+      expect(page.request.get).toHaveBeenCalledWith("/discover", expect.objectContaining({
+        maxRedirects: 0, headers: { accept: expect.stringContaining("text/html") },
+      }));
+    },
+  );
+
+  it.each([undefined, "", "/social", "/social?tab=posts", "https://example.com/social?tab=discover"])(
+    "rejects an absent or different destination: %s",
+    async (location) => {
+      await expect(measurePerfRedirect(pageFor(location) as unknown as Page, route)).rejects.toThrow();
+    },
+  );
+
+  it("rejects a document response even when it carries the expected Location", async () => {
+    await expect(measurePerfRedirect(pageFor(route.redirectsTo, 200) as unknown as Page, route)).rejects.toThrow();
+  });
+});
 
 function fakePage() {
   const listeners = new Map<RequestEvent, Array<(request: Request) => void>>();

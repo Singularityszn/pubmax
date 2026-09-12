@@ -545,10 +545,14 @@ export async function measurePerfRedirect(
     `${route.path} is budgeted as a redirect to ${route.redirectsTo}, so it must answer one.`,
   ).toBeGreaterThanOrEqual(300);
   expect(response.status(), `${route.path} answered ${response.status()}`).toBeLessThan(400);
+  const location = response.headers().location;
+  expect(location, `${route.path} must provide a redirect destination.`).toBeTruthy();
+  const destination = new URL(location!, response.url());
+  const expected = new URL(route.redirectsTo, response.url());
   expect(
-    new URL(response.headers().location ?? "", "http://localhost").pathname,
+    destination.href,
     `${route.path} redirects somewhere other than its budgeted target.`,
-  ).toBe(route.redirectsTo);
+  ).toBe(expected.href);
 
   return {
     serverRenderMs,
@@ -561,4 +565,3 @@ export async function measurePerfRedirect(
     stillOpen: [],
   };
 }
-

@@ -1,5 +1,5 @@
 {
-  "note": "Per-route performance ceilings for every route the site serves a stranger, 45 of them: the 35 with no dynamic segment, plus ten concrete instances added on 7 September 2026 so that every family the sitemap advertises carries a ceiling (__tests__/sitemap.test.ts fails one that does not). Read docs/PERFORMANCE_BUDGETS.md before changing a number: down is free, up is a decision, and scripts/check-budget-ratchet.mjs refuses an undocumented raise against the base branch. Re-seeded 2026-09-04 from a five-sample sweep on a production build of main at 0eaa7c6f5, under the method block below. The margin is PER METRIC, because the four do not behave alike: bytes and requests take the p75 plus 15%, being identical across every sample of every route; server render takes the p75 plus 50% over a 150 ms floor, because single-digit milliseconds make a percentage meaningless; and LCP takes the WORST sample any sweep has produced plus 25%, because its spread is BETWEEN runs rather than within them and reached 3.17x one route's own p75. Seeding LCP from a single run's p75 would rebuild the gate this programme began by fixing. Every ceiling here is the same or lower than the one before it; nothing was raised, and no route's ceiling sits below a figure we have measured. CI's own sweep is the oracle and the ratchet check banks the slack.",
+  "note": "Per-route performance ceilings for every route the site serves a stranger, 46 entries: the 35 with no dynamic segment, one Social query variant, plus ten concrete instances added on 7 September 2026 so that every family the sitemap advertises carries a ceiling (__tests__/sitemap.test.ts fails one that does not). Read docs/PERFORMANCE_BUDGETS.md before changing a number: down is free, up is a decision, and scripts/check-budget-ratchet.mjs refuses an undocumented raise against the base branch. Re-seeded 2026-09-04 from a five-sample sweep on a production build of main at 0eaa7c6f5, under the method block below. The margin is PER METRIC, because the four do not behave alike: bytes and requests take the p75 plus 15%, being identical across every sample of every route; server render takes the p75 plus 50% over a 150 ms floor, because single-digit milliseconds make a percentage meaningless; and LCP takes the WORST sample any sweep has produced plus 25%, because its spread is BETWEEN runs rather than within them and reached 3.17x one route's own p75. Seeding LCP from a single run's p75 would rebuild the gate this programme began by fixing. Every ceiling here is the same or lower than the one before it; nothing was raised, and no route's ceiling sits below a figure we have measured. CI's own sweep is the oracle and the ratchet check banks the slack.",
   "method": {
     "browser": "Desktop Chrome",
     "deviceScaleFactor": 1,
@@ -197,18 +197,9 @@
       "lcpMs": 400
     },
     {
-      "path": "/feed",
+      "path": "/social?tab=discover",
       "readySelector": "main.socialPage",
-      "why": "Social Posts, and the heaviest of the shared social shells.",
-      "serverRenderMs": 150,
-      "jsDecodedKB": 1130,
-      "requests": 56,
-      "lcpMs": 400
-    },
-    {
-      "path": "/discover",
-      "readySelector": "main.socialPage",
-      "why": "Discovery, on the same shell, budgeted apart so a change to one cannot hide inside the other.",
+      "why": "The Discover tab has its own full page budget. Legacy redirects cannot hide its resource cost.",
       "serverRenderMs": 150,
       "jsDecodedKB": 1130,
       "requests": 56,
@@ -222,13 +213,33 @@
       }
     },
     {
+      "path": "/feed",
+      "readySelector": "main.socialPage",
+      "why": "Legacy route. Measure its redirect; the destination keeps a separate page budget.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 0,
+      "requests": 1,
+      "lcpMs": 0,
+      "redirectsTo": "/social"
+    },
+    {
+      "path": "/discover",
+      "readySelector": "main.socialPage",
+      "why": "Legacy route. Measure its redirect; the destination keeps a separate page budget.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 0,
+      "requests": 1,
+      "lcpMs": 0,
+      "redirectsTo": "/social?tab=discover"
+    },
+    {
       "path": "/drinks",
       "readySelector": "main.socialPage",
-      "why": "The drink lanes surface, same shell again.",
+      "why": "Legacy route. Measure its redirect; the destination keeps a separate page budget.",
       "serverRenderMs": 150,
-      "jsDecodedKB": 1130,
-      "requests": 56,
-      "lcpMs": 1000,
+      "jsDecodedKB": 0,
+      "requests": 1,
+      "lcpMs": 0,
       "ceilingRaises": [
         {
           "metric": "lcpMs",
@@ -238,13 +249,7 @@
           "why": "This path is not a surface any more. app/drinks/page.tsx has been a permanentRedirect to /social?tab=discover since #765 (6 August), so the row measures the discover tab plus one redirect round trip, and /discover is budgeted 1000 for exactly that content and passes at 688. The 400 here was written for the drink lanes page that no longer exists. Measured on the Avrea runner at 684 ms (samples 708/684/488), and locally against a production build under the tracked throttle at 856 ms against /social's 692 ms on the same run, the two carrying identical decoded JS. The captain ruled the raise on 6 September 2026. It goes to /discover's own figure and no further, so the redirect can never cost more than the page it lands on."
         }
       ],
-      "noisy": {
-        "metrics": [
-          "lcpMs"
-        ],
-        "measuredSpreadPct": 37,
-        "why": "The same social shell as /discover plus a redirect round trip, and named by the same method check. Its samples on the Avrea runner were 708/684/488, which is a 32 percent spread on a route judged by a median of three."
-      }
+      "redirectsTo": "/social?tab=discover"
     },
     {
       "path": "/messages",

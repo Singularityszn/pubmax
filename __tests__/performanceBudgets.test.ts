@@ -339,6 +339,21 @@ describe("the routes the budget file marks noisy", () => {
 describe("a budgeted route that redirects", () => {
   const redirecting = PERFORMANCE_BUDGETS.routes.filter((entry) => entry.redirectsTo);
 
+  it("keeps the Discover query target budgeted when legacy routes redirect", () => {
+    for (const path of ["/discover", "/drinks"]) {
+      expect(PERFORMANCE_BUDGETS.routes.find((row) => row.path === path)?.redirectsTo)
+        .toBe("/social?tab=discover");
+    }
+    expect(PERFORMANCE_BUDGETS.routes.find((row) => row.path === "/feed")?.redirectsTo)
+      .toBe("/social");
+    const target = PERFORMANCE_BUDGETS.routes.find((row) => row.path === "/social?tab=discover");
+    expect(target).toMatchObject({ jsDecodedKB: 1130, requests: 56, lcpMs: 1000 });
+    expect(target?.redirectsTo).toBeUndefined();
+    expect(findBudgetBreaches([target!], new Map([[target!.path, measurement({
+      jsDecodedKB: 1132, requests: 63,
+    })]]))).toHaveLength(2);
+  });
+
   it("is declared, so the sweep can tell it from a page", () => {
     const onboarding = PERFORMANCE_BUDGETS.routes.find((entry) => entry.path === "/onboarding");
     expect(onboarding?.redirectsTo).toBe("/");
@@ -381,4 +396,3 @@ describe("a budgeted route that redirects", () => {
     expect(breaches.map((breach) => breach.metric)).toContain("requests");
   });
 });
-
