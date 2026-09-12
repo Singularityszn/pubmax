@@ -9,7 +9,7 @@ vi.mock("@/components/social/SocialPostGallery", () => ({
   default: ({ photos }: { photos: readonly SocialPostPhoto[] }) => { gallery(photos); return createElement("div", { "data-gallery": true }); },
 }));
 
-import { SocialFeedPosts, SocialPostCard } from "@/app/social/SocialPageClient";
+import { SocialFeedPosts, SocialPostCard } from "@/app/social/SocialFeedPosts";
 
 const primary: SocialPostPhoto = { mediaId: "photo-a", altText: "Outside", tags: [{ handle: "bob" }] };
 const post: SocialPostDTO = {

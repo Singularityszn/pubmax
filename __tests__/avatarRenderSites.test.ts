@@ -15,7 +15,7 @@ describe("avatar render fan-out (representative surfaces)", () => {
   });
 
   it("SocialPostCard and ContributorRecord show handle avatars with fallback", () => {
-    const social = read("app/social/SocialPageClient.tsx");
+    const social = read("app/social/SocialFeedPosts.tsx");
     expect(social).toContain("avatarUrl={post.author.avatarUrl}");
 
     const contributors = read("components/contributors/ContributorRecord.tsx");

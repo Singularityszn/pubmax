@@ -12,8 +12,8 @@ vi.mock("next/navigation", () => ({
 import {
   SocialAccessBoundary,
   SocialContextRail,
-  SocialPostCard,
 } from "@/app/social/SocialPageClient";
+import { SocialPostCard } from "@/app/social/SocialFeedPosts";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 
 const protectedPost: SocialPostDTO = {

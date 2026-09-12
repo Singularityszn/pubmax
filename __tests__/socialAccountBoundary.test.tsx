@@ -250,6 +250,10 @@ async function flushAccountA(): Promise<void> {
     await Promise.resolve();
     await Promise.resolve();
   });
+  await vi.waitFor(async () => {
+    await act(async () => {});
+    expect(host.textContent).toContain(A_FEED_POST.body);
+  });
 }
 
 describe("Social account boundary", () => {
