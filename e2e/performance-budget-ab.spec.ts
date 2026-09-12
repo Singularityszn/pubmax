@@ -359,7 +359,6 @@ test("a breached route is measured against its merge base on this box", async ({
         metric,
         budget: route[metric],
         sweepMeasured: sweptFigure.get(`${route.path} ${metric}`) ?? Number.NaN,
-        noisy: route.noisy,
         branch: samples.branch.map((sample) => sample[metric]),
         base: samples.base.map((sample) => sample[metric]),
         plannedSamples: countedRuns,
