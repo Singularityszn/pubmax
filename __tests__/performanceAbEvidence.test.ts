@@ -24,6 +24,7 @@ import {
   abNoiseBandPct,
   abSamplesPerArm,
   abTimeoutMs,
+  abWorkUnitsForRoute,
   abWorstSampleAllowanceMs,
   compareArms,
   formatAbReport,
@@ -106,17 +107,42 @@ describe("compareArms", () => {
     expect(row.verdict).toBe("NOT SLOWER THAN BASE");
   });
 
-  it("refuses BRANCH SLOWER on a gap past the band but under the metric's own floor", () => {
-    // /today carries an LCP ceiling of 300 and is marked noisy for 51 per cent
-    // spreads. Base 320 against branch 360 is 12.5 per cent off 40 ms, which
-    // the method itself calls unmeasurable on this box (lcpMs floor 250).
+  it("refuses BRANCH SLOWER on a gap past the band but under the floor for that route", () => {
+    // /today carries an LCP ceiling of 300. Base 200 against branch 225 is 12.5
+    // per cent off 25 ms, inside the band this method already treats as jitter
+    // about that very ceiling, so it is not evidence of a regression.
     const [row] = compareArms(
-      [pair({ budget: 300, branch: [360, 360, 360], base: [320, 320, 320] })],
+      [pair({ budget: 300, branch: [225, 225, 225], base: [200, 200, 200] })],
       method,
     );
     expect(row.deltaPct).toBe(13);
-    expect(abNoiseFloor("lcpMs", method)).toBe(250);
+    expect(abNoiseFloor("lcpMs", method, 300)).toBe(30);
     expect(row.verdict).toBe("NOT SLOWER THAN BASE");
+  });
+
+  it("never exonerates a real regression because the METRIC floor outsizes the ceiling", () => {
+    // The branch adds 220 ms of LCP on /crawls, whose whole ceiling is 300. The
+    // uncapped 250 ms lcpMs floor read that as NOT SLOWER THAN BASE and then
+    // named it runner drift, which is the phrase the standing law uses to
+    // re-run a red check: the instrument exonerating the branch it convicted.
+    const [row] = compareArms(
+      [
+        pair({
+          budget: 300,
+          sweepMeasured: 520,
+          branch: [520, 520, 520],
+          base: [300, 300, 300],
+        }),
+      ],
+      method,
+    );
+    expect(row.deltaPct).toBe(73);
+    expect(abNoiseFloor("lcpMs", method, 300)).toBeLessThan(
+      method.sampleSpreadFloors.lcpMs,
+    );
+    expect(row.verdict).toBe("BRANCH SLOWER");
+    expect(row.runnerDrift).toBe(false);
+    expect(formatAbVerdictLines([row]).join("\n")).not.toContain("runner drift");
   });
 
   it("refuses BRANCH SLOWER on a millisecond of server render, which is scheduler jitter", () => {
@@ -134,7 +160,7 @@ describe("compareArms", () => {
     );
     expect(row.deltaPct).toBe(50);
     expect(row.branchMedian - row.baseMedian).toBeGreaterThanOrEqual(
-      abNoiseFloor("lcpMs", method),
+      abNoiseFloor("lcpMs", method, 300),
     );
     expect(row.verdict).toBe("BRANCH SLOWER");
   });
@@ -331,6 +357,20 @@ describe("what the A/B spends", () => {
     expect(abNavigationsForRoute(quiet, method)).toBeGreaterThan(0);
   });
 
+  it("still charges that redirect the CLOCK, so it cannot blind the admission check", () => {
+    // Six requests take real seconds. Priced at nothing the run kept no pace at
+    // all, and the route after a redirect was admitted however little time
+    // remained, which skips never begin what cannot finish.
+    const redirect: AbRoutePlan = { path: "/onboarding", redirectsTo: "/" };
+    expect(abWorkUnitsForRoute(redirect, method)).toBe(
+      PERF_AB_ARMS * abSamplesPerArm(redirect, method),
+    );
+    expect(abWorkUnitsForRoute(redirect, method)).toBeGreaterThan(0);
+    // A page route pays for its warm-ups too, so its clock cost is its
+    // navigation cost.
+    expect(abWorkUnitsForRoute(quiet, method)).toBe(abNavigationsForRoute(quiet, method));
+  });
+
   it("costs a marked route more than twice a quiet one, which is why routes are not the unit", () => {
     expect(abNavigationsForRoute(quiet, method)).toBe(PERF_AB_ARMS * (1 + 3));
     expect(abNavigationsForRoute(marked, method)).toBe(PERF_AB_ARMS * (2 + 7));
@@ -410,9 +450,9 @@ describe("what the A/B spends", () => {
     // And with nothing left, no route is ever admitted.
     expect(
       abRouteFitsDeadline({
-        navigations: 8,
+        workUnits: 8,
         remainingMs: deadline(PERF_AB_JOB_WALL_MS),
-        observedMsPerNavigation: null,
+        observedMsPerWorkUnit: null,
       }),
     ).toBe(false);
   });
@@ -467,16 +507,16 @@ describe("what the A/B spends", () => {
     const marked = abNavigationsForRoute(plan("/crawls", true), method);
     expect(
       abRouteFitsDeadline({
-        navigations: marked,
+        workUnits: marked,
         remainingMs: marked * 20_000,
-        observedMsPerNavigation: 20_000,
+        observedMsPerWorkUnit: 20_000,
       }),
     ).toBe(true);
     expect(
       abRouteFitsDeadline({
-        navigations: marked,
+        workUnits: marked,
         remainingMs: marked * 20_000 - 1,
-        observedMsPerNavigation: 20_000,
+        observedMsPerWorkUnit: 20_000,
       }),
     ).toBe(false);
   });
@@ -485,26 +525,26 @@ describe("what the A/B spends", () => {
     const quiet = abNavigationsForRoute(plan("/messages"), method);
     const remainingMs = quiet * 10_000;
     expect(
-      abRouteFitsDeadline({ navigations: quiet, remainingMs, observedMsPerNavigation: 5_000 }),
+      abRouteFitsDeadline({ workUnits: quiet, remainingMs, observedMsPerWorkUnit: 5_000 }),
     ).toBe(true);
     expect(
-      abRouteFitsDeadline({ navigations: quiet, remainingMs, observedMsPerNavigation: 20_000 }),
+      abRouteFitsDeadline({ workUnits: quiet, remainingMs, observedMsPerWorkUnit: 20_000 }),
     ).toBe(false);
   });
 
   it("admits the first route, because a run with no pace yet has measured nothing to report", () => {
     expect(
       abRouteFitsDeadline({
-        navigations: 999,
+        workUnits: 999,
         remainingMs: 60_000,
-        observedMsPerNavigation: null,
+        observedMsPerWorkUnit: null,
       }),
     ).toBe(true);
   });
 
   it("admits nothing once the deadline is spent, whatever the pace", () => {
     expect(
-      abRouteFitsDeadline({ navigations: 1, remainingMs: 0, observedMsPerNavigation: null }),
+      abRouteFitsDeadline({ workUnits: 1, remainingMs: 0, observedMsPerWorkUnit: null }),
     ).toBe(false);
   });
 

@@ -8,10 +8,10 @@ import {
   abDeadlineReached,
   abMeasuringDeadlineMs,
   abNavigationAllowanceMs,
-  abNavigationsForRoute,
   abRouteFitsDeadline,
   abSamplesPerArm,
   abTimeoutMs,
+  abWorkUnitsForRoute,
   compareArms,
   formatAbReport,
   selectAbBreaches,
@@ -269,6 +269,7 @@ test("a breached route is measured against its merge base on this box", async ({
   const deadlineNotStarted: string[] = [];
   const deadlineStoppedPartWay: string[] = [];
   let navigationsSpent = 0;
+  let workSpent = 0;
 
   // THE REPORT IS WRITTEN AFTER EVERY ROUTE, NOT ONCE AT THE END. The box slow
   // enough to abort this run is the box whose evidence matters most, and the
@@ -301,12 +302,14 @@ test("a breached route is measured against its merge base on this box", async ({
     // its own plan costs spends that time and still hands over NOT COMPARED.
     // The price is this run's own measured pace, so the check describes the box
     // it is running on rather than a figure typed beside it.
-    const cost = abNavigationsForRoute(route, budgets.method);
+    // The pace comes from WORK DONE rather than navigations spent. A redirect
+    // makes no navigation, so pricing the pace off navigations left the run in
+    // its first-route state for as long as redirects kept coming and admitted
+    // the route after one however little time remained.
     const fits = abRouteFitsDeadline({
-      navigations: cost,
+      workUnits: abWorkUnitsForRoute(route, budgets.method),
       remainingMs: deadlineMs - (Date.now() - startedAt),
-      observedMsPerNavigation:
-        navigationsSpent > 0 ? (Date.now() - startedAt) / navigationsSpent : null,
+      observedMsPerWorkUnit: workSpent > 0 ? (Date.now() - startedAt) / workSpent : null,
     });
     if (!fits) {
       deadlineNotStarted.push(route.path);
@@ -319,6 +322,7 @@ test("a breached route is measured against its merge base on this box", async ({
     for (const arm of [branch, base]) {
       const warmed = await warmArm(arm, route, plan.warmupRuns, deadlinePassed);
       navigationsSpent += warmed.loads;
+      workSpent += warmed.loads;
       if (warmed.stopped) stoppedMidRoute = true;
     }
 
@@ -345,6 +349,7 @@ test("a breached route is measured against its merge base on this box", async ({
         // the whole run below what a real load costs and admit a route whose
         // plan cannot finish.
         if (!route.redirectsTo) navigationsSpent += 1;
+        workSpent += 1;
       }
     }
 
@@ -364,8 +369,13 @@ test("a breached route is measured against its merge base on this box", async ({
     writeReport();
   }
 
+  // THE LAST WRITE COMES BEFORE THE TEARDOWN. It is the only one that records
+  // the routes the deadline never started, and on a run whose deadline was
+  // spent before the first route it is the only write at all, so it must not
+  // sit behind two closes that nothing bounds.
+  const report = writeReport();
   await branch.page.context().close();
   await base.page.context().close();
 
-  console.log(writeReport());
+  console.log(report);
 });

@@ -162,6 +162,24 @@ export function abNavigationsForRoute(route: AbRoutePlan, method: BudgetMethod):
 }
 
 /**
+ * WHAT ONE ROUTE COSTS THE CLOCK, which is not what it costs the budget.
+ *
+ * The budget counts navigations and a redirect makes none, so it is priced at
+ * nothing there and rightly so. The admission check asks a different question:
+ * how long this route will take at the pace this run has actually managed. A
+ * redirect still takes six requests and real seconds, and pricing that at zero
+ * left the run with no pace at all, so the route AFTER a redirect was admitted
+ * however little time remained, which is the rule NEVER BEGIN WHAT CANNOT
+ * FINISH being skipped. Work units count every request and every load the route
+ * will make, on both arms.
+ */
+export function abWorkUnitsForRoute(route: AbRoutePlan, method: BudgetMethod): number {
+  const plan = resolveRouteRunPlan(route, method);
+  const perArm = (route.redirectsTo ? 0 : plan.warmupRuns) + abSamplesPerArm(route, method);
+  return PERF_AB_ARMS * perArm;
+}
+
+/**
  * The navigation budget one A/B may spend across both arms.
  *
  * It is eight ordinary routes priced at what the A/B ITSELF spends on one,
@@ -351,16 +369,16 @@ export function abDeadlineReached(startedAt: number, now: number, deadlineMs: nu
  * nothing has nothing to report.
  */
 export function abRouteFitsDeadline(input: {
-  /** What this route costs, in navigations across both arms. */
-  navigations: number;
+  /** What this route costs, in work units across both arms. */
+  workUnits: number;
   /** Milliseconds left on the measuring deadline. */
   remainingMs: number;
   /** This run's own pace so far, or null before it has measured anything. */
-  observedMsPerNavigation: number | null;
+  observedMsPerWorkUnit: number | null;
 }): boolean {
   if (input.remainingMs <= 0) return false;
-  if (input.observedMsPerNavigation === null) return true;
-  return input.navigations * input.observedMsPerNavigation <= input.remainingMs;
+  if (input.observedMsPerWorkUnit === null) return true;
+  return input.workUnits * input.observedMsPerWorkUnit <= input.remainingMs;
 }
 
 export type AbBreachSelection = {
@@ -600,9 +618,28 @@ export function abNoiseBandPct(method: BudgetMethod): number {
  * the question is the one the floors were made for, whether a GAP between two
  * arms is wide enough to mean anything at all. Do not "fix" one to match the
  * other.
+ *
+ * THE FLOOR IS CAPPED AGAINST THE ROUTE'S OWN CEILING, and that cap is the one
+ * fraction this method already states about a ceiling:
+ * `resampleWithinCeilingPct`, the symmetric band `medianSitsOnTheLine` treats
+ * as jitter on either side of a ceiling. A gap SMALLER than the band a ceiling
+ * is already judged jitter within cannot be evidence of a regression against
+ * that same ceiling; a gap LARGER than it plainly can. Uncapped, the 250 ms
+ * lcpMs floor sat above the whole 300 ms ceiling of /crawls and /today, so a
+ * real 220 ms regression read NOT SLOWER THAN BASE and was then named runner
+ * drift, which exonerates the branch in the very words the standing law uses to
+ * re-run a red check. No floor and no ceiling moved for this: the cap is taken
+ * per route, at the moment of the comparison.
  */
-export function abNoiseFloor(metric: BudgetMetric, method: BudgetMethod): number {
-  return method.sampleSpreadFloors[metric] ?? 0;
+export function abNoiseFloor(
+  metric: BudgetMetric,
+  method: BudgetMethod,
+  ceiling: number,
+): number {
+  const metricFloor = method.sampleSpreadFloors[metric] ?? 0;
+  const ceilingShare = ((method.resampleWithinCeilingPct ?? 0) / 100) * ceiling;
+  if (!Number.isFinite(ceiling) || ceiling <= 0 || ceilingShare <= 0) return metricFloor;
+  return Math.min(metricFloor, ceilingShare);
 }
 
 /**
@@ -652,7 +689,8 @@ export function compareArms(
     const exactPct = compared ? relativeDeltaPct(branchMedian, baseMedian) : Number.NaN;
     const deltaPct = compared ? Math.round(exactPct) : Number.NaN;
     const slower =
-      exactPct > band && branchMedian - baseMedian >= abNoiseFloor(pair.metric, method);
+      exactPct > band &&
+      branchMedian - baseMedian >= abNoiseFloor(pair.metric, method, pair.budget);
     const verdict: AbVerdict = !compared
       ? "NOT COMPARED"
       : slower
