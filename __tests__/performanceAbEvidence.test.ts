@@ -13,6 +13,7 @@ import {
   abDeadlineReached,
   abMeasuringDeadlineMs,
   abNavigationAllowanceMs,
+  abNoiseFloor,
   abRouteFitsDeadline,
   abHandoverForBreaches,
   abNavigationBudget,
@@ -84,7 +85,7 @@ describe("compareArms", () => {
     // first read it as 12, failed `> 12`, and printed NOT SLOWER THAN BASE over
     // a real regression.
     const [row] = compareArms(
-      [pair({ branch: [112.4, 112.4, 112.4], base: [100, 100, 100] })],
+      [pair({ branch: [11_240, 11_240, 11_240], base: [10_000, 10_000, 10_000] })],
       method,
     );
     expect(row.verdict).toBe("BRANCH SLOWER");
@@ -92,9 +93,45 @@ describe("compareArms", () => {
   });
 
   it("leaves a difference exactly the width of the band inside it", () => {
-    const [row] = compareArms([pair({ branch: [112, 112, 112], base: [100, 100, 100] })], method);
+    const [row] = compareArms(
+      [pair({ branch: [11_200, 11_200, 11_200], base: [10_000, 10_000, 10_000] })],
+      method,
+    );
     expect(row.deltaPct).toBe(12);
     expect(row.verdict).toBe("NOT SLOWER THAN BASE");
+  });
+
+  it("refuses BRANCH SLOWER on a gap past the band but under the metric's own floor", () => {
+    // /today carries an LCP ceiling of 300 and is marked noisy for 51 per cent
+    // spreads. Base 320 against branch 360 is 12.5 per cent off 40 ms, which
+    // the method itself calls unmeasurable on this box (lcpMs floor 250).
+    const [row] = compareArms(
+      [pair({ budget: 300, branch: [360, 360, 360], base: [320, 320, 320] })],
+      method,
+    );
+    expect(row.deltaPct).toBe(13);
+    expect(abNoiseFloor("lcpMs", method)).toBe(250);
+    expect(row.verdict).toBe("NOT SLOWER THAN BASE");
+  });
+
+  it("refuses BRANCH SLOWER on a millisecond of server render, which is scheduler jitter", () => {
+    const [row] = compareArms(
+      [pair({ metric: "serverRenderMs", budget: 150, branch: [9, 9, 9], base: [8, 8, 8] })],
+      method,
+    );
+    expect(row.verdict).toBe("NOT SLOWER THAN BASE");
+  });
+
+  it("reads BRANCH SLOWER once the gap clears BOTH the band and the floor", () => {
+    const [row] = compareArms(
+      [pair({ budget: 300, branch: [900, 900, 900], base: [600, 600, 600] })],
+      method,
+    );
+    expect(row.deltaPct).toBe(50);
+    expect(row.branchMedian - row.baseMedian).toBeGreaterThanOrEqual(
+      abNoiseFloor("lcpMs", method),
+    );
+    expect(row.verdict).toBe("BRANCH SLOWER");
   });
 
   it("reads a branch faster than base as NOT SLOWER THAN BASE however far both sit over the ceiling", () => {
@@ -394,6 +431,7 @@ describe("selectAbBreaches", () => {
     );
     expect(selection.breachedRoutes).toBe(2);
     expect(selection.unreached).toEqual([]);
+    expect(selection.unbudgeted).toEqual([]);
     expect(selection.navigations).toBe(2 * abNavigationsForRoute(plan("/a"), method));
   });
 
@@ -480,7 +518,8 @@ describe("selectAbBreaches", () => {
   it("cannot measure a breached path that carries no budgeted route, and names it", () => {
     const selection = selectAbBreaches([breach({ path: "/gone" })], [], method);
     expect(selection.breaches).toEqual([]);
-    expect(selection.unreached).toEqual(["/gone"]);
+    expect(selection.unbudgeted).toEqual(["/gone"]);
+    expect(selection.unreached).toEqual([]);
   });
 });
 
@@ -531,7 +570,7 @@ describe("formatAbScopeLines", () => {
     expect(lines[1]).toContain("/c");
   });
 
-  it("prints the navigations the run SPENT, never the number the selection planned", () => {
+  it("prints the navigations the run SPENT beside what it measured", () => {
     // The route count was fixed one round earlier and this number was left
     // behind, so one sentence carried an honest count and a dishonest one.
     const selection = selectAbBreaches(
@@ -541,9 +580,22 @@ describe("formatAbScopeLines", () => {
       abNavigationsForRoute(plan("/a"), method),
     );
     const planned = selection.navigations;
-    const line = formatAbScopeLines(selection, 1, planned / 2)[1];
-    expect(line).toContain(`spent ${planned / 2}`);
-    expect(line).not.toContain(`spent ${planned}`);
+    const lines = formatAbScopeLines(selection, 1, planned / 2);
+    expect(lines[0]).toContain(`spending ${planned / 2} navigation(s)`);
+    // The budget is a PLAN and keeps its own sentence: joined to the spend, a
+    // deadline-stopped run read as a budget of 64 leaving a route out while 12
+    // were spent.
+    expect(lines[1]).toContain(`planned ${planned}`);
+    expect(lines[1]).not.toContain(`spent ${planned / 2}`);
+  });
+
+  it("blames an unbudgeted breached path on the budget files disagreeing, not on spend", () => {
+    const selection = selectAbBreaches([breach("/gone", 900)], [], method);
+    const lines = formatAbScopeLines(selection, 0, 0);
+    expect(lines).toHaveLength(2);
+    expect(lines[1]).toContain("/gone");
+    expect(lines[1]).toContain("perf/route-budgets.json");
+    expect(lines[1]).not.toContain("budget left out");
   });
 
   it("stays one line when every breached route was measured", () => {

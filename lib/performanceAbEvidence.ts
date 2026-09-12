@@ -263,6 +263,12 @@ export type AbBreachSelection = {
   breaches: AbBreach[];
   /** Routes the budget could not reach, worst first, named in the report. */
   unreached: string[];
+  /**
+   * Breached paths carrying no row in the budget file. They were not left out
+   * by any budget: they could not be opened or costed at all, and the breach
+   * list disagreeing with `perf/route-budgets.json` is a finding of its own.
+   */
+  unbudgeted: string[];
   /** Navigations across both arms this selection spends. */
   navigations: number;
   /** The budget it was filled against. */
@@ -310,12 +316,13 @@ export function selectAbBreaches(
 
   const measured: AbBreach[] = [];
   const unreached: string[] = [];
+  const unbudgeted: string[] = [];
   let navigations = 0;
   for (const [path, group] of worstFirst) {
     const route = byPath.get(path);
     // A breached path with no budgeted route cannot be opened, let alone costed.
     if (!route) {
-      unreached.push(path);
+      unbudgeted.push(path);
       continue;
     }
     const cost = abNavigationsForRoute(route, method);
@@ -331,6 +338,7 @@ export function selectAbBreaches(
     breachedRoutes: groups.size,
     breaches: measured,
     unreached,
+    unbudgeted,
     navigations,
     budget,
   };
@@ -357,13 +365,24 @@ export function formatAbScopeLines(
 ): string[] {
   const lines = [
     `${selection.breachedRoutes} route(s) breached; ${routesMeasured} measured ` +
-      "against the merge base.",
+      `against the merge base, spending ${navigationsSpent} navigation(s) across both arms.`,
   ];
+  // The planned budget is its OWN sentence. Joined to the spend with a "so", a
+  // deadline-stopped run read as though a budget of 64 had left a route out
+  // while the run spent 12, which is two accountings in one clause.
   if (selection.unreached.length > 0) {
     lines.push(
-      `The A/B may spend ${selection.budget} navigations across both arms and spent ` +
-        `${navigationsSpent}, so the budget left out ${selection.unreached.join(", ")}. ` +
-        "A mass breach is itself the signature of a slow box.",
+      `The navigation budget is ${selection.budget} across both arms and the selection ` +
+        `planned ${selection.navigations}, so the budget left out ` +
+        `${selection.unreached.join(", ")}. A mass breach is itself the signature of a ` +
+        "slow box.",
+    );
+  }
+  if (selection.unbudgeted.length > 0) {
+    lines.push(
+      `${selection.unbudgeted.join(", ")} breached with no row in perf/route-budgets.json, ` +
+        "so no arm could open or cost it. The breach list and the budget file disagree, " +
+        "which is a finding of its own.",
     );
   }
   return lines;
@@ -447,6 +466,31 @@ export function abNoiseBandPct(method: BudgetMethod): number {
 }
 
 /**
+ * HOW BIG THE GAP MUST BE IN THE METRIC'S OWN UNITS, AND WHY THIS IS NOT THE
+ * REFUSAL OF 7 SEPTEMBER TURNED ROUND.
+ *
+ * A percentage alone is not information at these magnitudes. Server render sits
+ * in single-digit milliseconds on this rig, so 8 ms against 9 ms is 12 per cent
+ * and BRANCH SLOWER off one millisecond of scheduler jitter, and /today at LCP
+ * 320 against 360 is 12.5 per cent off 40 ms on a route the method itself marks
+ * as measuring 51 per cent wide. A WRONG BRANCH SLOWER is the most expensive
+ * thing this instrument can print, because somebody then hunts a regression
+ * that is not there. `samplesDisagree` pairs the same percentage with the same
+ * floors for the same reason.
+ *
+ * The floors were REFUSED for a different question and that refusal stands. On
+ * the CEILING question, a 250 ms floor against a 300 ms ceiling would have
+ * demanded that samples disagree by 83 per cent of the ceiling before a run
+ * could admit it was unsure: the right constant asked the wrong question. Here
+ * the question is the one the floors were made for, whether a GAP between two
+ * arms is wide enough to mean anything at all. Do not "fix" one to match the
+ * other.
+ */
+export function abNoiseFloor(metric: BudgetMetric, method: BudgetMethod): number {
+  return method.sampleSpreadFloors[metric] ?? 0;
+}
+
+/**
  * The exact difference as a percentage of the base figure.
  *
  * It is NOT rounded here: rounding before the band is tested reads 12.4 per
@@ -467,6 +511,10 @@ function relativeDeltaPct(branchMedian: number, baseMedian: number): number {
  * The ceiling is deliberately absent from every test below. A route three times
  * over its budget on both arms is NOT SLOWER THAN BASE, and it still fails the
  * build, because the breach list is a different question judged elsewhere.
+ *
+ * BRANCH SLOWER costs BOTH tests: the gap has to clear the method's relative
+ * band AND the metric's own absolute floor (`abNoiseFloor`). Either alone
+ * convicts a branch on noise.
  */
 export function compareArms(
   pairs: readonly AbRoutePair[],
@@ -488,9 +536,11 @@ export function compareArms(
     const compared = complete && Number.isFinite(branchMedian) && Number.isFinite(baseMedian);
     const exactPct = compared ? relativeDeltaPct(branchMedian, baseMedian) : Number.NaN;
     const deltaPct = compared ? Math.round(exactPct) : Number.NaN;
+    const slower =
+      exactPct > band && branchMedian - baseMedian >= abNoiseFloor(pair.metric, method);
     const verdict: AbVerdict = !compared
       ? "NOT COMPARED"
-      : exactPct > band
+      : slower
         ? "BRANCH SLOWER"
         : "NOT SLOWER THAN BASE";
     return {

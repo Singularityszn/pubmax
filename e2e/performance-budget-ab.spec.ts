@@ -4,7 +4,6 @@ import { dirname } from "node:path";
 import { test, type Browser, type Page } from "@playwright/test";
 
 import {
-  PERF_AB_ARMS,
   abArmOrder,
   abDeadlineReached,
   abMeasuringDeadlineMs,
@@ -151,19 +150,27 @@ async function sampleArm(arm: Arm, route: RouteBudget): Promise<PerfSample> {
   }
 }
 
-async function warmArm(arm: Arm, route: RouteBudget, warmupRuns: number): Promise<void> {
+/** The warm-ups this arm really performed, which is what the run is charged for. */
+async function warmArm(arm: Arm, route: RouteBudget, warmupRuns: number): Promise<number> {
   await resetPerfState(arm.page);
-  if (route.redirectsTo) return;
+  // A redirect is measured with one request rather than a page load, so it
+  // warms nothing and must not be charged for loads it never made: the pace
+  // those phantom navigations imply would admit the next route however little
+  // time is left.
+  if (route.redirectsTo) return 0;
+  let loads = 0;
   for (let run = 0; run < warmupRuns; run += 1) {
     try {
       await loadPerfRoute(arm.page, route);
       await waitForQuietNetwork(arm.page, budgets.method);
+      loads += 1;
     } catch {
       // A warm-up that failed is not a measurement. The counted samples below
       // report the failure if the route really cannot answer on this arm.
-      return;
+      return loads;
     }
   }
+  return loads;
 }
 
 // A MEASUREMENT THAT IS RETRIED IS NOT A MEASUREMENT, the same declaration the
@@ -274,9 +281,8 @@ test("a breached route is measured against its merge base on this box", async ({
     }
 
     const plan = resolveRouteRunPlan(route, budgets.method);
-    await warmArm(branch, route, plan.warmupRuns);
-    await warmArm(base, route, plan.warmupRuns);
-    navigationsSpent += PERF_AB_ARMS * plan.warmupRuns;
+    navigationsSpent += await warmArm(branch, route, plan.warmupRuns);
+    navigationsSpent += await warmArm(base, route, plan.warmupRuns);
 
     const arms: Record<Arm["name"], Arm> = { branch, base };
     const samples = { branch: [] as PerfSample[], base: [] as PerfSample[] };
