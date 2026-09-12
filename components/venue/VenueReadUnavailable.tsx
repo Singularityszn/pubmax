@@ -19,19 +19,23 @@ import EmptyState from "@/components/ui/empty-state";
 export default function VenueReadUnavailable({
   href,
   eyebrow,
+  eyebrowClassName,
 }: {
   /** The address to retry: the reader's own. */
   href: string;
   /** The surface's own name, so the card reads as part of the page it sits on. */
   eyebrow: string;
+  /** The surface's own eyebrow rule, so this card and the not-found card beside
+   * it read at one size, weight and colour. */
+  eyebrowClassName: string;
 }): React.JSX.Element {
   return (
-    <div className="venueReadUnavailable">
-      <p className="type-meta venueReadUnavailable__eyebrow">{eyebrow}</p>
+    <>
+      <p className={eyebrowClassName}>{eyebrow}</p>
       <EmptyState title="We could not load this pub" action={<a href={href}>Try again</a>}>
         Our end could not answer just now, so nothing here is a reading of this
         pub. Whether it is here is a thing this page could not find out.
       </EmptyState>
-    </div>
+    </>
   );
 }

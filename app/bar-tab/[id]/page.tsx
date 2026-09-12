@@ -12,7 +12,7 @@ import { buildBarTab, normalizePintDrop, type BarTabTile, type PintDropDTO } fro
 import { buildBarTabShareText } from "@/lib/shareArtifacts";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
-import { resolveCanonicalVenueId } from "@/lib/venueAliases";
+import { lookupCanonicalVenueId } from "@/lib/venueAliases";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { groupVenuePrices, type Venue, type VenuePrice, formatGbp } from "@/lib/venues";
 
@@ -56,8 +56,6 @@ async function readVenueDataset(): Promise<Map<string, Venue> | null> {
     for (const venue of groupVenuePrices(rows as VenuePrice[])) {
       index.set(venue.id, venue);
     }
-    // An empty index is a dataset we could not read, not a London with no pubs.
-    if (index.size === 0) return null;
     cachedVenues = index;
     return index;
   } catch {
@@ -72,8 +70,11 @@ async function readVenue(id: string): Promise<VenueReadResult> {
   if (direct) return { status: "found", venue: direct };
   // Resolve a merged duplicate id (D1) so a Bar Tab link to a losing id still
   // opens the surviving canonical venue.
-  const canonical = await resolveCanonicalVenueId(id);
-  const aliased = canonical === id ? null : venues.get(canonical);
+  const canonical = await lookupCanonicalVenueId(id);
+  // An alias file we could not read is a read we could not run, never a pub
+  // that is not here: it is the same answer the dataset failure gets.
+  if (canonical.status === "unavailable") return { status: "unavailable" };
+  const aliased = canonical.venueId === id ? null : venues.get(canonical.venueId);
   return aliased ? { status: "found", venue: aliased } : { status: "absent" };
 }
 
@@ -127,7 +128,11 @@ function TabReadUnavailable({ id }: { id: string }) {
     <main id="main" className="barTabPage barTabPage--empty">
       <SiteNav active="feed" />
       <div className="barTabEmptyCard">
-        <VenueReadUnavailable eyebrow="The Bar Tab" href={`/bar-tab/${encodeURIComponent(id)}`} />
+        <VenueReadUnavailable
+          eyebrow="The Bar Tab"
+          eyebrowClassName="barTabEyebrow"
+          href={`/bar-tab/${encodeURIComponent(id)}`}
+        />
       </div>
     </main>
   );

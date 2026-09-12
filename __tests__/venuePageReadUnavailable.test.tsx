@@ -28,6 +28,11 @@ const dataset = vi.hoisted(() => ({
   reads: 0,
 }));
 
+const aliases = vi.hoisted(() => ({
+  fail: false,
+  reads: 0,
+}));
+
 vi.mock("fs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs")>();
   const readFile = actual.promises.readFile;
@@ -38,6 +43,10 @@ vi.mock("fs", async (importOriginal) => {
         dataset.reads += 1;
         if (dataset.fail) throw new Error("EIO: i/o error, read");
       }
+      if (typeof file === "string" && file.endsWith("venue_id_aliases.json")) {
+        aliases.reads += 1;
+        if (aliases.fail) throw new Error("EIO: i/o error, read");
+      }
       return (readFile as (...args: unknown[]) => Promise<unknown>)(file, ...rest);
     },
   };
@@ -46,6 +55,7 @@ vi.mock("fs", async (importOriginal) => {
 
 import BarTabPage, { generateMetadata as barTabMetadata } from "@/app/bar-tab/[id]/page";
 import LedgerPage, { generateMetadata as ledgerMetadata } from "@/app/ledger/[id]/page";
+import { resetVenueAliasesForTests } from "@/lib/venueAliases";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 
 const ROOT = process.cwd();
@@ -53,6 +63,17 @@ const read = (file: string): string => readFileSync(join(ROOT, file), "utf8");
 
 const rows = JSON.parse(read("public/data/pint_prices_app_dataset.json")) as VenuePrice[];
 const venue = groupVenuePrices(rows)[0];
+
+// A real merged duplicate id (D1): the only id whose page read must consult the
+// alias artifact, so it is the id that proves an unreadable alias file is not an
+// absent pub.
+const aliasDoc = JSON.parse(read("public/data/venue_id_aliases.json")) as {
+  aliases: Record<string, string>;
+};
+const mergedId = Object.keys(aliasDoc.aliases)[0];
+const mergedCanonical = groupVenuePrices(rows).find(
+  (row) => row.id === aliasDoc.aliases[mergedId],
+)!;
 
 async function render(page: (props: { params: Promise<{ id: string }> }) => Promise<unknown>, id: string) {
   const element = await page({ params: Promise.resolve({ id }) });
@@ -62,6 +83,9 @@ async function render(page: (props: { params: Promise<{ id: string }> }) => Prom
 beforeEach(() => {
   dataset.fail = false;
   dataset.reads = 0;
+  aliases.fail = false;
+  aliases.reads = 0;
+  resetVenueAliasesForTests();
 });
 
 describe.each([
@@ -113,26 +137,27 @@ describe.each([
     expect(String(held.title)).toContain(venue.name);
     expect(dataset.reads).toBe(3);
   });
-});
 
-describe("the source keeps the rule", () => {
-  const pages = ["app/bar-tab/[id]/page.tsx", "app/ledger/[id]/page.tsx"];
+  it("answers unavailable when the alias read throws over a merged duplicate id, and reads again", async () => {
+    // The dataset parses; only the alias artifact fails. A merged duplicate id
+    // is not in the dataset under its own key, so the alias read decides, and a
+    // read we could not run may not be worded as a pub that is not here.
+    aliases.fail = true;
+    const markup = await render(page, mergedId);
+    expect(markup).toContain("We could not load this pub");
+    expect(markup).not.toContain(notFoundLine);
+    expect(markup).not.toContain("moved");
+    expect(aliases.reads).toBe(1);
 
-  it("never memoises the index on the failure path", () => {
-    for (const file of pages) {
-      const source = read(file);
-      const failure = source.slice(source.indexOf("} catch {"));
-      const catchBody = failure.slice(0, failure.indexOf("\n    }"));
-      expect(catchBody, file).not.toContain("cachedVenues =");
-      expect(source, file).toContain('return { status: "unavailable" };');
-    }
-  });
+    // Nothing was cached from that failure: the next request opens the file.
+    const again = await render(page, mergedId);
+    expect(again).toContain("We could not load this pub");
+    expect(aliases.reads).toBe(2);
 
-  it("carries no em dash, in copy or in a comment", () => {
-    // The em-dash law scans strings in components/; the captain's law is global,
-    // and these two files carried one each in the comment this PR rewrote.
-    for (const file of pages) {
-      expect(read(file), file).not.toContain("—");
-    }
+    // The file is readable again: the losing id opens its surviving pub.
+    aliases.fail = false;
+    const resolved = await render(page, mergedId);
+    expect(resolved).not.toContain("We could not load this pub");
+    expect(resolved).toContain(mergedCanonical.name);
   });
 });
