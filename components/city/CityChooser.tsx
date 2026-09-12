@@ -40,8 +40,8 @@ export type CityChooserProps = {
   /**
    * `section`: a titled section of a longer page (the landing), with its own
    * h2. `body`: the search, the locate control and the city list alone, for a
-   * route whose head is a launch Screen and prints the heading
-   * and the way onward itself.
+   * route whose head is a launch Screen and prints the heading and the way
+   * onward itself.
    */
   variant?: "section" | "body";
   onSelect?: (cityId: CityId) => void;
