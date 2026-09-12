@@ -10,12 +10,16 @@ import {
 } from "@/lib/ukPlaceSearch";
 
 /**
- * The ONE browser read of the UK place index.
+ * The UK place index read the two CITY PICKERS share.
  *
  * The index is the map's own base layer, two megabytes of place names, so it is
  * never part of a surface's first paint: a caller asks for it only once its own
- * answer has run out. Both surfaces that search it ask the same question, so
- * they ask it through one loader rather than one four-state machine each.
+ * answer has run out. The landing's chooser and the Places tab ask it the same
+ * question, so they ask through one loader rather than one four-state machine
+ * each. It is NOT the only browser read of that file: the map's own search
+ * (`components/PubMap.tsx`) and its suggestion banner
+ * (`components/map/CitySuggestBanner.tsx`) read it on their own lanes, with
+ * their own lifecycles, and converging those is a separate piece of work.
  *
  * `load` is IDEMPOTENT while a read is in flight or done, and it hands back the
  * parsed rows, because the chooser's geolocation lane needs the places

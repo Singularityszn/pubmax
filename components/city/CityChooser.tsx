@@ -6,7 +6,6 @@ import {
   useCallback,
   useId,
   useMemo,
-  useRef,
   useState,
   useTransition,
 } from "react";
@@ -49,7 +48,6 @@ export default function CityChooser({ onSelect }: CityChooserProps) {
   const cities = listEnabledCities();
   const listId = useId();
   const router = useRouter();
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const [locateState, setLocateState] = useState<LocateState>("idle");
   const [locateMessage, setLocateMessage] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -168,7 +166,6 @@ export default function CityChooser({ onSelect }: CityChooserProps) {
           <div className="cityChooserSearchField">
             <Search size={18} strokeWidth={1.75} aria-hidden="true" />
             <input
-              ref={searchInputRef}
               id={`${listId}-search`}
               className="cityChooserSearchInput"
               type="search"
