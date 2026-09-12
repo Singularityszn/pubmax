@@ -164,13 +164,26 @@ export function abNavigationBudget(method: BudgetMethod): number {
  * slow route is allowed to cost. A smaller allowance would fire on exactly the
  * kind of route this instrument is ever asked about, which is the one that has
  * something to say.
+ *
+ * The A/B binds EACH of its own navigations at `abNavigationAllowanceMs` as
+ * well, because a `page.goto` bounded only by the test's total is a single hung
+ * load free to eat the job's whole wall and take the upload with it. Bounded,
+ * that load fails ITS SAMPLE, the arm reads NOT COMPARED under the rule already
+ * in force, and the run carries on and still reports.
  */
+export function abNavigationAllowanceMs(
+  method: BudgetMethod,
+  routeReadyTimeoutMs: number,
+): number {
+  return routeReadyTimeoutMs + method.network.drainCeilingMs;
+}
+
 export function abTimeoutMs(
   navigations: number,
   method: BudgetMethod,
   routeReadyTimeoutMs: number,
 ): number {
-  return Math.max(navigations, 1) * (routeReadyTimeoutMs + method.network.drainCeilingMs);
+  return Math.max(navigations, 1) * abNavigationAllowanceMs(method, routeReadyTimeoutMs);
 }
 
 /**
@@ -246,8 +259,6 @@ export function abRouteFitsDeadline(input: {
 export type AbBreachSelection = {
   /** Distinct routes the sweep breached. */
   breachedRoutes: number;
-  /** Distinct routes this A/B measures against the merge base. */
-  measuredRoutes: number;
   /** The breached metrics it measures, worst-first by route. */
   breaches: AbBreach[];
   /** Routes the budget could not reach, worst first, named in the report. */
@@ -300,7 +311,6 @@ export function selectAbBreaches(
   const measured: AbBreach[] = [];
   const unreached: string[] = [];
   let navigations = 0;
-  let measuredRoutes = 0;
   for (const [path, group] of worstFirst) {
     const route = byPath.get(path);
     // A breached path with no budgeted route cannot be opened, let alone costed.
@@ -314,13 +324,11 @@ export function selectAbBreaches(
       continue;
     }
     navigations += cost;
-    measuredRoutes += 1;
     measured.push(...group.breaches);
   }
 
   return {
     breachedRoutes: groups.size,
-    measuredRoutes,
     breaches: measured,
     unreached,
     navigations,
@@ -336,14 +344,16 @@ export function selectAbBreaches(
  * NAMES what it could not reach: a truncated diagnosis that says so is useful,
  * one that hides its truncation is not.
  *
- * The measured count is what the run ACTUALLY measured, never what the budget
- * admitted. A run the deadline stopped after two of eight routes said "eight
- * measured" two lines above "PARTIAL: 2 of 8", and the first sentence is the
- * one an author quotes.
+ * Both counts are what the run ACTUALLY did, never what the selection planned.
+ * A run the deadline stopped after two of eight routes said "eight measured"
+ * two lines above "PARTIAL: 2 of 8", and reported its whole navigation budget
+ * as spent when it had spent a quarter of it. The first sentence is the one an
+ * author quotes.
  */
 export function formatAbScopeLines(
   selection: AbBreachSelection,
   routesMeasured: number,
+  navigationsSpent: number,
 ): string[] {
   const lines = [
     `${selection.breachedRoutes} route(s) breached; ${routesMeasured} measured ` +
@@ -352,7 +362,7 @@ export function formatAbScopeLines(
   if (selection.unreached.length > 0) {
     lines.push(
       `The A/B may spend ${selection.budget} navigations across both arms and spent ` +
-        `${selection.navigations}, so it did not reach ${selection.unreached.join(", ")}. ` +
+        `${navigationsSpent}, so the budget left out ${selection.unreached.join(", ")}. ` +
         "A mass breach is itself the signature of a slow box.",
     );
   }
@@ -600,28 +610,46 @@ export function formatAbReport(input: {
   rows: readonly AbComparison[];
   routesMeasured: number;
   routesSelected: number;
-  /** Routes the measuring deadline stopped this run from reaching. */
-  deadlineStopped?: readonly string[];
+  /** Navigations this run actually spent across both arms. */
+  navigationsSpent: number;
+  /** Routes the deadline never let start. */
+  deadlineNotStarted?: readonly string[];
+  /** Routes the deadline stopped part way through, whose rows read NOT COMPARED. */
+  deadlineStoppedPartWay?: readonly string[];
   deadlineMs?: number;
 }): string {
   const partial = input.routesMeasured < input.routesSelected;
-  const stopped = input.deadlineStopped ?? [];
+  const notStarted = input.deadlineNotStarted ?? [];
+  const stoppedPartWay = input.deadlineStoppedPartWay ?? [];
+  const deadlineMinutes = Math.round(
+    (input.deadlineMs ?? abMeasuringDeadlineMs()) / 60_000,
+  );
   return [
     "[perf-ab] the branch against its merge base: same box, same job, navigations interleaved",
     `[perf-ab] branch ${input.branchOrigin}  base ${input.baseOrigin}  head ${input.head || "local"}`,
-    ...formatAbScopeLines(input.selection, input.routesMeasured).map((line) => `[perf-ab] ${line}`),
+    ...formatAbScopeLines(input.selection, input.routesMeasured, input.navigationsSpent).map(
+      (line) => `[perf-ab] ${line}`,
+    ),
     ...(partial
       ? [
           `[perf-ab] PARTIAL: ${input.routesMeasured} of ${input.routesSelected} selected ` +
             "route(s) measured when this was written.",
         ]
       : []),
-    ...(stopped.length > 0
+    // A route never opened and a route stopped half way are different facts. One
+    // heading over both puts "did not reach" above a table carrying that very
+    // route's partial rows.
+    ...(notStarted.length > 0
       ? [
           `[perf-ab] The DEADLINE ended this run, not the navigation budget: ` +
-            `${Math.round((input.deadlineMs ?? abMeasuringDeadlineMs()) / 60_000)} minute(s) of ` +
-            `measuring fits inside the job's wall with room for the upload, so it did not reach ` +
-            `${stopped.join(", ")}.`,
+            `${deadlineMinutes} minute(s) of measuring fits inside the job's wall with room ` +
+            `for the upload, so it NEVER STARTED ${notStarted.join(", ")}.`,
+        ]
+      : []),
+    ...(stoppedPartWay.length > 0
+      ? [
+          `[perf-ab] The DEADLINE STOPPED ${stoppedPartWay.join(", ")} PART WAY THROUGH, so ` +
+            "those rows carry fewer samples than the plan asked for and read NOT COMPARED.",
         ]
       : []),
     "",

@@ -8,6 +8,7 @@ import {
   abArmOrder,
   abDeadlineReached,
   abMeasuringDeadlineMs,
+  abNavigationAllowanceMs,
   abNavigationsForRoute,
   abRouteFitsDeadline,
   abSamplesPerArm,
@@ -111,6 +112,13 @@ async function openArm(
 ): Promise<Arm> {
   const context = await browser.newContext({ baseURL: origin });
   const page = await context.newPage();
+  // EVERY NAVIGATION IS BOUND AT ITS OWN ALLOWANCE, which the config leaves
+  // unbounded. A server that stalls without closing its socket hangs one
+  // `page.goto` for as long as the whole test is allowed, which is the job's
+  // wall and the upload with it. Bounded, that load fails its sample, the arm
+  // reads NOT COMPARED, and the run carries on and still reports. It is set on
+  // the A/B's own pages, so the sweep's method is untouched.
+  page.setDefaultNavigationTimeout(abNavigationAllowanceMs(budgets.method, ROUTE_READY_TIMEOUT_MS));
   // The SAME preparation on both arms: the same viewport, the same CPU
   // throttle, the same network profile, the same third-party block and the same
   // in-page readiness gate. An arm prepared differently is not an arm.
@@ -218,7 +226,8 @@ test("a breached route is measured against its merge base on this box", async ({
   // this report.
   const deadlineMs = abMeasuringDeadlineMs();
   const startedAt = Date.now();
-  const deadlineStopped: string[] = [];
+  const deadlineNotStarted: string[] = [];
+  const deadlineStoppedPartWay: string[] = [];
   let navigationsSpent = 0;
 
   // THE REPORT IS WRITTEN AFTER EVERY ROUTE, NOT ONCE AT THE END. The box slow
@@ -235,7 +244,9 @@ test("a breached route is measured against its merge base on this box", async ({
       rows: compareArms(pairs, budgets.method),
       routesMeasured,
       routesSelected: routes.length,
-      deadlineStopped,
+      navigationsSpent,
+      deadlineNotStarted,
+      deadlineStoppedPartWay,
       deadlineMs,
     });
     if (reportPath) {
@@ -258,7 +269,7 @@ test("a breached route is measured against its merge base on this box", async ({
         navigationsSpent > 0 ? (Date.now() - startedAt) / navigationsSpent : null,
     });
     if (!fits) {
-      deadlineStopped.push(route.path);
+      deadlineNotStarted.push(route.path);
       continue;
     }
 
@@ -300,7 +311,7 @@ test("a breached route is measured against its merge base on this box", async ({
         plannedSamples: countedRuns,
       });
     }
-    if (stoppedMidRoute) deadlineStopped.push(route.path);
+    if (stoppedMidRoute) deadlineStoppedPartWay.push(route.path);
     else routesMeasured += 1;
     writeReport();
   }

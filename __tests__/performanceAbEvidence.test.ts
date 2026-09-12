@@ -12,6 +12,7 @@ import {
   abArmOrder,
   abDeadlineReached,
   abMeasuringDeadlineMs,
+  abNavigationAllowanceMs,
   abRouteFitsDeadline,
   abHandoverForBreaches,
   abNavigationBudget,
@@ -266,6 +267,16 @@ describe("what the A/B spends", () => {
     expect(abNavigationBudget(wider)).toBeGreaterThan(abNavigationBudget(method));
   });
 
+  it("bounds ONE navigation at the same allowance the whole run is priced from", () => {
+    // A page.goto bounded only by the test total is one hung load free to eat
+    // the job's wall and the upload with it.
+    const routeReady = 120_000;
+    expect(abNavigationAllowanceMs(method, routeReady)).toBe(
+      routeReady + method.network.drainCeilingMs,
+    );
+    expect(abTimeoutMs(5, method, routeReady)).toBe(5 * abNavigationAllowanceMs(method, routeReady));
+  });
+
   it("allows one navigation what the harness itself allows it", () => {
     // The readiness gate may wait its whole ceiling and the network its own
     // drain ceiling, so a smaller allowance fires on precisely the slow route
@@ -382,7 +393,6 @@ describe("selectAbBreaches", () => {
       method,
     );
     expect(selection.breachedRoutes).toBe(2);
-    expect(selection.measuredRoutes).toBe(2);
     expect(selection.unreached).toEqual([]);
     expect(selection.navigations).toBe(2 * abNavigationsForRoute(plan("/a"), method));
   });
@@ -418,7 +428,6 @@ describe("selectAbBreaches", () => {
       method,
       quietCost,
     );
-    expect(selection.measuredRoutes).toBe(1);
     expect(selection.breaches.map((entry) => entry.path)).toEqual(["/a"]);
     expect(selection.unreached).toEqual(["/b"]);
     expect(selection.navigations).toBe(quietCost);
@@ -449,7 +458,7 @@ describe("selectAbBreaches", () => {
       method,
       budget,
     );
-    expect(selection.measuredRoutes).toBe(2);
+    expect(selection.breaches.map((entry) => entry.path)).toHaveLength(2);
     expect(selection.unreached).toHaveLength(1);
     expect(selection.navigations).toBe(budget);
   });
@@ -464,14 +473,13 @@ describe("selectAbBreaches", () => {
       method,
     );
     expect(selection.breachedRoutes).toBe(1);
-    expect(selection.measuredRoutes).toBe(1);
     expect(selection.breaches).toHaveLength(2);
     expect(selection.navigations).toBe(abNavigationsForRoute(plan("/pubs"), method));
   });
 
   it("cannot measure a breached path that carries no budgeted route, and names it", () => {
     const selection = selectAbBreaches([breach({ path: "/gone" })], [], method);
-    expect(selection.measuredRoutes).toBe(0);
+    expect(selection.breaches).toEqual([]);
     expect(selection.unreached).toEqual(["/gone"]);
   });
 });
@@ -491,7 +499,7 @@ describe("formatAbScopeLines", () => {
       [plan("/a"), plan("/b")],
       method,
     );
-    const [line] = formatAbScopeLines(selection, 2);
+    const [line] = formatAbScopeLines(selection, 2, 16);
     expect(line.indexOf("2 route(s) breached")).toBe(0);
     expect(line).toContain("2 measured");
   });
@@ -504,8 +512,8 @@ describe("formatAbScopeLines", () => {
       [plan("/a"), plan("/b"), plan("/c")],
       method,
     );
-    expect(selection.measuredRoutes).toBe(3);
-    expect(formatAbScopeLines(selection, 1)[0]).toContain("1 measured");
+    expect(selection.breaches).toHaveLength(3);
+    expect(formatAbScopeLines(selection, 1, 8)[0]).toContain("1 measured");
   });
 
   it("names the routes the budget could not reach, on its own line", () => {
@@ -515,7 +523,7 @@ describe("formatAbScopeLines", () => {
       method,
       abNavigationsForRoute(plan("/a"), method),
     );
-    const lines = formatAbScopeLines(selection, 1);
+    const lines = formatAbScopeLines(selection, 1, 8);
     expect(lines).toHaveLength(2);
     expect(lines[0]).toContain("3 route(s) breached");
     expect(lines[0]).toContain("1 measured");
@@ -523,9 +531,24 @@ describe("formatAbScopeLines", () => {
     expect(lines[1]).toContain("/c");
   });
 
+  it("prints the navigations the run SPENT, never the number the selection planned", () => {
+    // The route count was fixed one round earlier and this number was left
+    // behind, so one sentence carried an honest count and a dishonest one.
+    const selection = selectAbBreaches(
+      [breach("/a", 900), breach("/b", 700), breach("/c", 600)],
+      [plan("/a"), plan("/b"), plan("/c")],
+      method,
+      abNavigationsForRoute(plan("/a"), method),
+    );
+    const planned = selection.navigations;
+    const line = formatAbScopeLines(selection, 1, planned / 2)[1];
+    expect(line).toContain(`spent ${planned / 2}`);
+    expect(line).not.toContain(`spent ${planned}`);
+  });
+
   it("stays one line when every breached route was measured", () => {
     expect(
-      formatAbScopeLines(selectAbBreaches([breach("/a", 600)], [plan("/a")], method), 1),
+      formatAbScopeLines(selectAbBreaches([breach("/a", 600)], [plan("/a")], method), 1, 8),
     ).toHaveLength(1);
   });
 });
@@ -544,7 +567,7 @@ describe("formatAbReport", () => {
   const report = (
     routesMeasured: number,
     routesSelected: number,
-    deadlineStopped: string[] = [],
+    deadlineNotStarted: string[] = [],
   ) =>
     formatAbReport({
       branchOrigin: "http://localhost:3500",
@@ -554,7 +577,8 @@ describe("formatAbReport", () => {
       rows: compareArms([pair()], method),
       routesMeasured,
       routesSelected,
-      deadlineStopped,
+      navigationsSpent: 16,
+      deadlineNotStarted,
       deadlineMs: 600_000,
     });
 
@@ -563,6 +587,27 @@ describe("formatAbReport", () => {
     expect(stopped).toContain("3 route(s) breached; 1 measured");
     expect(stopped).toContain("PARTIAL: 1 of 3");
     expect(stopped).not.toContain("3 measured");
+  });
+
+  it("separates a route it NEVER STARTED from one it stopped PART WAY THROUGH", () => {
+    // One heading over both put "did not reach /crawls" above a table carrying
+    // /crawls rows.
+    const mixed = formatAbReport({
+      branchOrigin: "http://localhost:3500",
+      baseOrigin: "http://localhost:3501",
+      head: "abc123",
+      selection,
+      rows: compareArms([pair()], method),
+      routesMeasured: 1,
+      routesSelected: 3,
+      navigationsSpent: 16,
+      deadlineNotStarted: ["/today"],
+      deadlineStoppedPartWay: ["/crawls"],
+      deadlineMs: 600_000,
+    });
+    expect(mixed).toContain("NEVER STARTED /today");
+    expect(mixed).toContain("STOPPED /crawls PART WAY THROUGH");
+    expect(mixed).toContain("read NOT COMPARED");
   });
 
   it("blames the DEADLINE rather than the budget, and names what it did not reach", () => {
