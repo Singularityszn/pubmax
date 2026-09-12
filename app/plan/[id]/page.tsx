@@ -204,7 +204,7 @@ export default async function PlanPage({ params }: Props) {
             <a href="#share">Send to the crew</a>
           )
         }
-        secondary={<Link href="/plan">Make another plan</Link>}
+        secondary={<Link prefetch={false} href="/plan">Make another plan</Link>}
       />
       {/* Night-crawl mode (U7): while this plan's night is on, it becomes the
           default full-screen surface on mobile and offers an inline entry
