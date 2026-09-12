@@ -3,6 +3,7 @@ import { storyBandsForCity } from "@/lib/cityStoryBands";
 
 const NAME = "W".repeat(32);
 const STORY = storyBandsForCity("glasgow").find((band) => band.id === "subcrawl")!;
+test.use({ storageState: { cookies: [], origins: [] } });
 
 async function checkRow(page: Page, info: TestInfo, phase: string, consent: boolean) {
   await expect.poll(() => page.evaluate(() => {
@@ -90,10 +91,11 @@ async function checkRow(page: Page, info: TestInfo, phase: string, consent: bool
 
 for (const consent of [false, true]) {
   test(`long Pal height reserves the story row, consent=${consent}`, async ({ page }, info) => {
+    // The deferred shell mounts after 30 seconds. Keep its real lifecycle.
+    test.setTimeout(60_000);
     await page.setViewportSize({ width: 320, height: 568 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.addInitScript(({ consent, name }) => {
-      localStorage.clear(); sessionStorage.clear();
       localStorage.setItem("pubmax_onboarding_dismissed", "1");
       sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
       localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
