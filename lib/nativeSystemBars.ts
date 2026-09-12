@@ -2,9 +2,12 @@
 // import it only after the canonical native-platform guard so plain web/SSR
 // callers never execute a native plugin path.
 
-import { isNativeApp } from "@/lib/nativePlatform";
+import { isNativeApp, nativePlatform } from "@/lib/nativePlatform";
 
 export type NativeTheme = "light" | "dark";
+
+type WindowThemePlugin = { setTheme(options: { theme: NativeTheme }): Promise<void> };
+let windowTheme: WindowThemePlugin | undefined;
 
 /**
  * Keep status/navigation-bar content legible against the active app theme.
@@ -13,12 +16,18 @@ export type NativeTheme = "light" | "dark";
 export async function syncNativeSystemBars(theme: NativeTheme): Promise<boolean> {
   if (!isNativeApp()) return false;
   try {
-    const { SystemBars, SystemBarsStyle } = await import("@capacitor/core");
+    const { SystemBars, SystemBarsStyle, registerPlugin } = await import("@capacitor/core");
+    let backgroundApplied = true;
+    if (nativePlatform() === "android") {
+      windowTheme ??= registerPlugin<WindowThemePlugin>("WindowTheme");
+      // Older shells keep their existing icon path until the app is updated.
+      backgroundApplied = await windowTheme.setTheme({ theme }).then(() => true, () => false);
+    }
     await SystemBars.setStyle({
       style: theme === "dark" ? SystemBarsStyle.Dark : SystemBarsStyle.Light,
     });
     await SystemBars.show();
-    return true;
+    return backgroundApplied;
   } catch {
     return false;
   }
