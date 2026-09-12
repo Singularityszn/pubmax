@@ -212,6 +212,11 @@ test("a breached route is measured against its merge base on this box", async ({
   // route is measured only when its whole plan fits, and the report names what
   // the budget could not reach.
   const selection = selectAbBreaches(handover.breaches, budgets.routes, budgets.method);
+  // The sweep's own figure per route and metric. Runner drift is a fact about
+  // THAT figure rather than about anything the A/B measures later.
+  const sweptFigure = new Map(
+    handover.breaches.map((breach) => [`${breach.path} ${breach.metric}`, breach.measured]),
+  );
   const metricsByRoute = breachedMetricsByRoute(selection.breaches);
   const budgetedByPath = new Map(budgets.routes.map((route) => [route.path, route]));
   const routes = [...metricsByRoute.keys()]
@@ -324,6 +329,7 @@ test("a breached route is measured against its merge base on this box", async ({
         path: route.path,
         metric,
         budget: route[metric],
+        sweepMeasured: sweptFigure.get(`${route.path} ${metric}`) ?? Number.NaN,
         branch: samples.branch.map((sample) => sample[metric]),
         base: samples.base.map((sample) => sample[metric]),
         plannedSamples: countedRuns,

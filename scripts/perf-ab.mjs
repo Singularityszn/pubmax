@@ -214,6 +214,19 @@ async function main() {
     return;
   }
 
+  // A WALL ALREADY SPENT BUYS NOTHING. The sweep and this job's own build come
+  // first, and on the slow box this instrument exists for they are what
+  // overruns: starting an install and a second build with no wall left only
+  // costs the run the upload step that carries the evidence.
+  const remaining = wallRemainingMs();
+  if (remaining !== null && remaining <= 0) {
+    say(
+      "the job's wall has only the upload's share left, so there is no room to build the merge " +
+        "base and still hand the evidence over. Nothing was built.",
+    );
+    return;
+  }
+
   const branchDistDir = process.env.PW_NEXT_DIST_DIR ?? ".next-e2e";
   if (!existsSync(path.join(REPO_ROOT, branchDistDir, "BUILD_ID"))) {
     say(
@@ -234,19 +247,6 @@ async function main() {
     say(
       `the merge base against ${BASE_REF} IS this head, so both arms would be the same ` +
         "commit. There is no branch to compare and nothing was built.",
-    );
-    return;
-  }
-
-  // A WALL ALREADY SPENT BUYS NOTHING. The sweep and this job's own build come
-  // first, and on the slow box this instrument exists for they are what
-  // overruns: starting an install and a second build with no wall left only
-  // costs the run the upload step that carries the evidence.
-  const remaining = wallRemainingMs();
-  if (remaining !== null && remaining <= 0) {
-    say(
-      "the job's wall has only the upload's share left, so there is no room to build the merge " +
-        "base and still hand the evidence over. Nothing was built.",
     );
     return;
   }
@@ -313,9 +313,12 @@ async function main() {
     });
     servers.push(branchServer, baseServer);
 
+    // The wait is drawn from the same remainder rather than fixed, so two arms
+    // that never answer cannot spend minutes the upload needs.
+    const serverWaitMs = Math.min(180_000, phaseBoundMs("waiting for both arms") ?? 180_000);
     const answered = await Promise.all([
-      waitForServer(branchOrigin, branchServer, 180_000),
-      waitForServer(baseOrigin, baseServer, 180_000),
+      waitForServer(branchOrigin, branchServer, serverWaitMs),
+      waitForServer(baseOrigin, baseServer, serverWaitMs),
     ]);
     if (answered.some((up) => !up)) {
       say("one arm never answered on its own process, so there is no comparison to make");
@@ -341,6 +344,13 @@ async function main() {
         "--workers=1",
       ],
       {
+        // The measuring is bounded like every other phase. Browser launch, the
+        // two arms' CDP preparation and the two context closes all sit OUTSIDE
+        // the spec's own deadline-checked loop, so one that never resolves
+        // would eat the wall and take the upload with it. A kill here costs
+        // nothing: the report is rewritten after every route and the breach
+        // list is restored below.
+        timeoutMs: phaseBoundMs("the measuring") ?? 0,
         env: {
           PW_SKIP_WEBSERVER: "1",
           PUBMAX_PERF_AB: "1",

@@ -422,6 +422,12 @@ export type AbRoutePair = {
   metric: BudgetMetric;
   /** This route's ceiling. Reported beside the figures, never read by the verdict. */
   budget: number;
+  /**
+   * What the SWEEP measured for this route and metric, which is the figure that
+   * put it on the breach list. The verdict never reads it; the runner-drift
+   * label does, because drift is a fact about THAT figure.
+   */
+  sweepMeasured: number;
   /** The samples this branch's build took, in the order they were taken. */
   branch: readonly number[];
   /** The samples the merge-base build took, interleaved with the branch's. */
@@ -449,6 +455,8 @@ export type AbComparison = {
   budget: number;
   branchMedian: number;
   baseMedian: number;
+  /** The sweep's own figure for this route and metric, printed beside the rest. */
+  sweepMeasured: number;
   /** Samples that survived on each arm, and what the plan asked of each. */
   branchSamples: number;
   baseSamples: number;
@@ -564,15 +572,21 @@ export function compareArms(
       budget: pair.budget,
       branchMedian,
       baseMedian,
+      sweepMeasured: pair.sweepMeasured,
       branchSamples: branchSamples.length,
       baseSamples: baseSamples.length,
       plannedSamples: pair.plannedSamples,
       deltaPct,
       verdict,
+      // RUNNER DRIFT IS A FACT ABOUT THE SWEEP'S FIGURE, not about the A/B's.
+      // The clearest drift there is reads /messages at 888 against a 572
+      // ceiling in the sweep and 540 against a base of 545 minutes later in the
+      // same job: judged on the A/B's own median that case could never be
+      // named, which is the one reading the words exist for.
       runnerDrift:
         verdict === "NOT SLOWER THAN BASE" &&
         Number.isFinite(pair.budget) &&
-        branchMedian > pair.budget,
+        pair.sweepMeasured > pair.budget,
     };
   });
 }
@@ -649,8 +663,9 @@ export function formatAbVerdictLines(rows: readonly AbComparison[]): string[] {
     }
     if (row.runnerDrift) {
       return (
-        `${row.path} ${metric}: breached its ceiling and measured no slower than the merge base ` +
-        `on this box (${figures}, ${signedPct(row.deltaPct)}): runner drift.`
+        `${row.path} ${metric}: the sweep measured ${figure(row.sweepMeasured)} past this ` +
+        `ceiling and the A/B measured no slower than the merge base on this box ` +
+        `(${figures}, ${signedPct(row.deltaPct)}): runner drift.`
       );
     }
     return `${row.path} ${metric}: ${signedPct(row.deltaPct)} against the merge base on this box (${figures}): NOT SLOWER THAN BASE.`;

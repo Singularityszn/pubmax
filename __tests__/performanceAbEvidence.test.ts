@@ -51,6 +51,7 @@ const pair = (over: Partial<AbRoutePair> = {}): AbRoutePair => ({
   path: "/messages",
   metric: "lcpMs",
   budget: 572,
+  sweepMeasured: 888,
   branch: [880, 888, 896],
   base: [870, 875, 884],
   plannedSamples: 3,
@@ -156,6 +157,31 @@ describe("compareArms", () => {
     expect(row.branchMedian).toBeGreaterThan(row.budget);
     expect(row.runnerDrift).toBe(true);
     expect(formatAbVerdictLines([row]).join("\n")).toContain("runner drift");
+  });
+
+  it("names runner drift off the SWEEP's figure, on the clearest reading there is", () => {
+    // The sweep measured /messages at 888 against a 572 ceiling and breached.
+    // The A/B, minutes later on a quieter stretch of the same pool, measures
+    // 540 against a base of 545. Judged on the A/B's own median that case could
+    // never be named, and it is the one the words exist for.
+    const [row] = compareArms(
+      [pair({ sweepMeasured: 888, branch: [540, 540, 540], base: [545, 545, 545] })],
+      method,
+    );
+    expect(row.branchMedian).toBeLessThan(row.budget);
+    expect(row.verdict).toBe("NOT SLOWER THAN BASE");
+    expect(row.runnerDrift).toBe(true);
+    expect(formatAbVerdictLines([row]).join("\n")).toContain("runner drift");
+    expect(formatAbVerdictLines([row]).join("\n")).toContain("888");
+  });
+
+  it("never calls a route the sweep measured inside its ceiling runner drift", () => {
+    const [row] = compareArms(
+      [pair({ sweepMeasured: 500, branch: [540, 540, 540], base: [545, 545, 545] })],
+      method,
+    );
+    expect(row.verdict).toBe("NOT SLOWER THAN BASE");
+    expect(row.runnerDrift).toBe(false);
   });
 
   it("never calls a branch slower than base runner drift", () => {
@@ -750,13 +776,57 @@ describe("the handover between the sweep and the A/B", () => {
   const breachFile = path.join(root, PERF_AB_BREACH_FILE);
 
   /** The script, stopped early: it refuses to compare without a branch build on disk. */
-  function runPerfAb(): string {
+  function runPerfAb(over: Record<string, string> = {}): string {
     return execFileSync("node", ["scripts/perf-ab.mjs"], {
       cwd: root,
       encoding: "utf8",
-      env: { ...process.env, PW_NEXT_DIST_DIR: ".next-perf-ab-absent" },
+      env: { ...process.env, PW_NEXT_DIST_DIR: ".next-perf-ab-absent", ...over },
     });
   }
+
+  function withBreachList(body: () => void): void {
+    const saved = existsSync(breachFile) ? readFileSync(breachFile, "utf8") : null;
+    try {
+      const handover = abHandoverForBreaches(
+        [{ path: "/messages", metric: "lcpMs", measured: 888, budget: 572 }],
+        "abc123",
+      );
+      mkdirSync(path.dirname(breachFile), { recursive: true });
+      writeFileSync(breachFile, `${JSON.stringify(handover, null, 2)}\n`);
+      body();
+    } finally {
+      if (saved === null) rmSync(breachFile, { force: true });
+      else writeFileSync(breachFile, saved);
+    }
+  }
+
+  it("keeps the upload's share of the wall back from the script, not just from the module", () => {
+    // The script mirrors `abUploadReserveMs` because a plain Node script cannot
+    // import it, so the two are held together here by behaviour: a wall with
+    // less than the module's reserve left must stop the script, and a wall with
+    // more than it must not.
+    const wallMs = 110_000;
+    const reserve = abUploadReserveMs(wallMs);
+    const startedWith = (wallLeftMs: number) => String(Date.now() - (wallMs - wallLeftMs));
+    withBreachList(() => {
+      // A hair under the module's reserve: the script must stop, so its own
+      // reserve cannot be smaller than the module's.
+      const spent = runPerfAb({
+        PUBMAX_PERF_AB_JOB_WALL_MS: String(wallMs),
+        PUBMAX_PERF_AB_JOB_STARTED_MS: startedWith(reserve - 1),
+      });
+      expect(spent).toContain("only the upload's share left");
+
+      // A little over it: the script must carry on, so its own reserve cannot
+      // be larger than the module's either.
+      const roomLeft = runPerfAb({
+        PUBMAX_PERF_AB_JOB_WALL_MS: String(wallMs),
+        PUBMAX_PERF_AB_JOB_STARTED_MS: startedWith(reserve + 2_000),
+      });
+      expect(roomLeft).not.toContain("only the upload's share left");
+      expect(roomLeft).toContain("the branch build is not on disk");
+    });
+  });
 
   it("reads the list from the path the module names, and does nothing without one", () => {
     // scripts/perf-ab.mjs is plain Node and cannot import PERF_AB_BREACH_FILE,
