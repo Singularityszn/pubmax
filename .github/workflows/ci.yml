@@ -298,6 +298,13 @@ jobs:
     runs-on: avrea-ubuntu-latest-4-vcpu
     timeout-minutes: 55
     steps:
+      # THE JOB'S OWN CLOCK, for the A/B at the bottom of this job. It sizes its
+      # measuring deadline from the wall MINUS what the sweep and the merge-base
+      # build have already spent, because a share of a wall that is gone is not
+      # a share. `date +%s%3N` is epoch milliseconds.
+      - name: Record the job start
+        run: echo "PUBMAX_PERF_AB_JOB_STARTED_MS=$(date +%s%3N)" >> "$GITHUB_ENV"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -392,6 +399,11 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=6144"
           PUBMAX_E2E_KEYLESS: "1"
           BUDGET_BASE_BRANCH: ${{ github.base_ref || 'main' }}
+          # This job's own `timeout-minutes` in milliseconds. The install, the
+          # merge-base build and the measuring are each bounded by what is LEFT
+          # of it. __tests__/ciReleaseGateWorkflow.test.ts holds the two figures
+          # together so neither can move alone.
+          PUBMAX_PERF_AB_JOB_WALL_MS: "3300000"
         run: node scripts/perf-ab.mjs
 
       - name: Keep the A/B evidence with the run

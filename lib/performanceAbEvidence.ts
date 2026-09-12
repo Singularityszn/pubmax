@@ -194,24 +194,39 @@ export function abTimeoutMs(
 export const PERF_AB_JOB_WALL_MS = 55 * 60_000;
 
 /**
- * HOW LONG THE A/B MAY SPEND MEASURING, AND WHY IT IS A QUARTER OF THE WALL.
+ * WHAT THE ARTIFACT UPLOAD KEEPS OF THE WALL, whatever the measuring wants.
+ *
+ * A job cancelled at the wall never runs the step that uploads this report, so
+ * evidence gathered with no room to hand it over is evidence lost. A share of
+ * the wall rather than a figure typed beside it, so the next person changing
+ * `timeout-minutes` changes this with it: about five minutes of fifty-five.
+ */
+export function abUploadReserveMs(jobWallMs: number = PERF_AB_JOB_WALL_MS): number {
+  return Math.floor(jobWallMs / 11);
+}
+
+/**
+ * HOW LONG THE A/B MAY SPEND MEASURING: WHAT IS LEFT, NEVER A FIXED SHARE.
  *
  * The per-navigation allowance above is what ONE navigation may take, and it
  * stays generous on purpose: cutting a slow navigation short turns the thing
  * being measured into a timeout. What that allowance cannot do is bound the
- * whole run, and a run bounded only by the job's wall is a run GitHub cancels,
- * and a cancelled job never reaches the step that uploads the evidence. So the
- * measuring carries its own wall-clock deadline.
+ * whole run, and a run bounded only by the job's wall is a run GitHub cancels.
  *
  * The wall carries FOUR things in order: the branch build and the sweep, the
  * merge-base install and its build, this measurement, and the artifact upload.
- * One quarter is this measurement's share, which leaves the upload the room it
- * needs on a box slow enough for any of this to matter. It is derived from the
- * wall rather than typed beside it, so the next person changing
- * `timeout-minutes` changes this with it.
+ * The first three are not bounded by anything this module can see, and on the
+ * slow box this instrument exists for they are exactly what overruns, so the
+ * measuring takes THE TIME LEFT rather than a quarter that may already be gone:
+ * a share of a wall somebody else has spent is not a share. An elapsed time
+ * past the wall yields no measuring at all rather than a negative deadline,
+ * which is the honest answer, because the run has nothing left to spend.
  */
-export function abMeasuringDeadlineMs(jobWallMs: number = PERF_AB_JOB_WALL_MS): number {
-  return Math.floor(jobWallMs / 4);
+export function abMeasuringDeadlineMs(
+  elapsedMs: number = 0,
+  jobWallMs: number = PERF_AB_JOB_WALL_MS,
+): number {
+  return Math.max(0, jobWallMs - elapsedMs - abUploadReserveMs(jobWallMs));
 }
 
 /**

@@ -120,10 +120,21 @@ describe("clean-main CI release gate", () => {
   });
 
   it("holds the A/B's mirrored wall to the Performance budget job's own timeout", () => {
-    // The A/B stops measuring at a share of this wall so the artifact step
-    // still runs. Two numbers that must move together are held together here
-    // rather than by a comment asking the next person to remember.
-    expect(parseJobWalls(workflow)["performance-budget"]).toBe(PERF_AB_JOB_WALL_MS / 60_000);
+    // The A/B measures on what is LEFT of this wall so the artifact step still
+    // runs. Three numbers that must move together are held together here rather
+    // than by a comment asking the next person to remember: the job's timeout,
+    // the figure handed to the script, and the module's own mirror.
+    const wallMinutes = parseJobWalls(workflow)["performance-budget"];
+    expect(wallMinutes).toBe(PERF_AB_JOB_WALL_MS / 60_000);
+
+    const abStep = steps.find((step) => step.name === "Tell a red route apart from a slow box");
+    expect(abStep?.env.PUBMAX_PERF_AB_JOB_WALL_MS).toBe(String(wallMinutes * 60_000));
+  });
+
+  it("records the job's start before anything can spend the wall", () => {
+    const [first] = steps.filter((step) => step.job === "performance-budget");
+    expect(first.run).toContain("PUBMAX_PERF_AB_JOB_STARTED_MS");
+    expect(first.run).toContain("GITHUB_ENV");
   });
 
   it("gates coverage and freshness independently", () => {

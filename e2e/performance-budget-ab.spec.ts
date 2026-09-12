@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { test, type Browser, type Page } from "@playwright/test";
 
 import {
+  PERF_AB_JOB_WALL_MS,
   abArmOrder,
   abDeadlineReached,
   abMeasuringDeadlineMs,
@@ -231,7 +232,14 @@ test("a breached route is measured against its merge base on this box", async ({
   // and cannot bound the run: a run bounded only by the job's wall is a run
   // GitHub cancels, and a cancelled job never reaches the step that uploads
   // this report.
-  const deadlineMs = abMeasuringDeadlineMs();
+  // THE DEADLINE IS WHAT IS LEFT OF THE JOB'S WALL, not a share of a wall the
+  // sweep and the merge-base build may already have spent. scripts/perf-ab.mjs
+  // passes the job's own start and its wall; without them (a hand run outside
+  // the job) the clock starts here against the mirrored wall, because nothing
+  // is racing a wall then.
+  const jobWallMs = Number(process.env.PUBMAX_PERF_AB_JOB_WALL_MS) || PERF_AB_JOB_WALL_MS;
+  const jobStartedMs = Number(process.env.PUBMAX_PERF_AB_JOB_STARTED_MS) || Date.now();
+  const deadlineMs = abMeasuringDeadlineMs(Date.now() - jobStartedMs, jobWallMs);
   const startedAt = Date.now();
   const deadlineNotStarted: string[] = [];
   const deadlineStoppedPartWay: string[] = [];
@@ -303,7 +311,11 @@ test("a breached route is measured against its merge base on this box", async ({
           break;
         }
         samples[name].push(await sampleArm(arms[name], route));
-        navigationsSpent += 1;
+        // A redirect is measured with one request rather than a page load, so
+        // it is not charged as a navigation: six near-free entries would price
+        // the whole run below what a real load costs and admit a route whose
+        // plan cannot finish.
+        if (!route.redirectsTo) navigationsSpent += 1;
       }
     }
 

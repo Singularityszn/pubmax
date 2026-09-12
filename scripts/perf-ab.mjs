@@ -63,6 +63,21 @@ const BRANCH_PORT = 3500;
 const BASE_PORT = 3501;
 const REPORT_FILE = "test-results/perf-budget-ab.txt";
 
+// THE JOB'S CLOCK, AS THE JOB ITSELF KNOWS IT. The Performance budget job
+// records its start and passes its own `timeout-minutes` here, so the install,
+// the build and the measuring are all bounded by what is LEFT of that wall
+// rather than by a share of it that the sweep may already have spent. Outside
+// the job neither is set: nothing is racing a wall then, so nothing is bounded
+// and the A/B takes as long as it takes.
+const JOB_WALL_MS = Number(process.env.PUBMAX_PERF_AB_JOB_WALL_MS) || 0;
+const JOB_STARTED_MS = Number(process.env.PUBMAX_PERF_AB_JOB_STARTED_MS) || Date.now();
+
+/** What is left of the job's wall, or null when no wall was handed over. */
+function wallRemainingMs() {
+  if (JOB_WALL_MS <= 0) return null;
+  return JOB_WALL_MS - (Date.now() - JOB_STARTED_MS);
+}
+
 function say(message) {
   console.log(`[perf-ab] ${message}`);
 }
@@ -81,11 +96,37 @@ function run(command, args, options = {}) {
     env: { ...process.env, ...(options.env ?? {}) },
     stdio: "inherit",
   });
+  // A SUBPROCESS UPSTREAM OF A DEADLINE MUST BE BOUNDED OR THE DEADLINE IS
+  // DECORATIVE. A hung install or build eats the job's wall on its own and the
+  // step that uploads the evidence never runs. Killed, it reports what it was
+  // and the run ends with no A/B, which still exits 0: the verdict on this
+  // branch belongs to the sweep either way.
+  const timeoutMs = options.timeoutMs ?? 0;
   return new Promise((resolve, reject) => {
-    child.on("error", reject);
-    child.on("exit", (code) =>
-      code === 0 ? resolve() : reject(new Error(`${command} ${args.join(" ")} exited ${code}`)),
-    );
+    const timer =
+      timeoutMs > 0
+        ? setTimeout(() => {
+            child.kill("SIGKILL");
+            reject(
+              new Error(
+                `${command} ${args.join(" ")} outlasted the ${Math.round(timeoutMs / 60_000)} ` +
+                  "minute(s) left on the job's wall",
+              ),
+            );
+          }, timeoutMs)
+        : null;
+    const done = () => {
+      if (timer) clearTimeout(timer);
+    };
+    child.on("error", (error) => {
+      done();
+      reject(error);
+    });
+    child.on("exit", (code) => {
+      done();
+      if (code === 0) resolve();
+      else reject(new Error(`${command} ${args.join(" ")} exited ${code}`));
+    });
   });
 }
 
@@ -168,6 +209,19 @@ async function main() {
     return;
   }
 
+  // A WALL ALREADY SPENT BUYS NOTHING. The sweep and this job's own build come
+  // first, and on the slow box this instrument exists for they are what
+  // overruns: starting an install and a second build with no wall left only
+  // costs the run the upload step that carries the evidence.
+  const remaining = wallRemainingMs();
+  if (remaining !== null && remaining <= 0) {
+    say(
+      "the job's wall is already spent, so there is no room to build the merge base and still " +
+        "hand the evidence over. Nothing was built.",
+    );
+    return;
+  }
+
   // FAIL CLOSED ON A PORT SOMEONE ELSE HOLDS, before the worktree, the install
   // and the build. A second server on this port would be measured and labelled
   // as this branch, which is the silent mislabelling the instrument exists to
@@ -206,12 +260,14 @@ async function main() {
     say("installing the merge base's own packages");
     await run("npm", ["ci", "--prefer-offline", "--no-audit", "--fund=false"], {
       cwd: worktree,
+      timeoutMs: wallRemainingMs() ?? 0,
     });
 
     say("building the merge base with the same environment the branch was built with");
     await run("npm", ["run", "build"], {
       cwd: worktree,
       env: { ...serverEnv, NEXT_DIST_DIR: baseDistDir },
+      timeoutMs: wallRemainingMs() ?? 0,
     });
 
     const branchOrigin = `http://localhost:${BRANCH_PORT}`;
@@ -263,6 +319,8 @@ async function main() {
           PUBMAX_PERF_AB_BASE_URL: baseOrigin,
           PUBMAX_PERF_AB_BREACHES: handoverCopy,
           PUBMAX_PERF_AB_REPORT: REPORT_FILE,
+          PUBMAX_PERF_AB_JOB_STARTED_MS: String(JOB_STARTED_MS),
+          PUBMAX_PERF_AB_JOB_WALL_MS: String(JOB_WALL_MS),
         },
       },
     );

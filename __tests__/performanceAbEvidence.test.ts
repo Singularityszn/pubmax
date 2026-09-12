@@ -15,6 +15,7 @@ import {
   abNavigationAllowanceMs,
   abNoiseFloor,
   abRouteFitsDeadline,
+  abUploadReserveMs,
   abHandoverForBreaches,
   abNavigationBudget,
   abNavigationsForRoute,
@@ -331,9 +332,38 @@ describe("what the A/B spends", () => {
     // A run bounded only by the job's wall is a run GitHub cancels, and a
     // cancelled job never reaches the step that uploads the report.
     expect(abMeasuringDeadlineMs()).toBeLessThan(PERF_AB_JOB_WALL_MS);
-    expect(abMeasuringDeadlineMs()).toBeLessThanOrEqual(PERF_AB_JOB_WALL_MS / 2);
+    expect(abMeasuringDeadlineMs()).toBe(PERF_AB_JOB_WALL_MS - abUploadReserveMs());
     // Derived from the wall, so moving `timeout-minutes` moves this with it.
-    expect(abMeasuringDeadlineMs(2 * PERF_AB_JOB_WALL_MS)).toBe(2 * abMeasuringDeadlineMs());
+    expect(abMeasuringDeadlineMs(0, 2 * PERF_AB_JOB_WALL_MS)).toBeGreaterThan(
+      abMeasuringDeadlineMs(),
+    );
+  });
+
+  it("shrinks the deadline by what the sweep and the merge-base build already spent", () => {
+    // The sweep, the install and the build are not bounded by anything this
+    // module can see, and on a slow box they are what overruns. A quarter of a
+    // wall that is already gone is not a share.
+    const spentMost = abMeasuringDeadlineMs(PERF_AB_JOB_WALL_MS - 6 * 60_000);
+    expect(spentMost).toBeLessThan(6 * 60_000);
+    expect(spentMost).toBeLessThan(abMeasuringDeadlineMs(10 * 60_000));
+  });
+
+  it("yields no measuring at all once the wall is spent, never a negative deadline", () => {
+    expect(abMeasuringDeadlineMs(PERF_AB_JOB_WALL_MS)).toBe(0);
+    expect(abMeasuringDeadlineMs(PERF_AB_JOB_WALL_MS * 2)).toBe(0);
+    // And with nothing left, no route is ever admitted.
+    expect(
+      abRouteFitsDeadline({
+        navigations: 8,
+        remainingMs: abMeasuringDeadlineMs(PERF_AB_JOB_WALL_MS),
+        observedMsPerNavigation: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("always keeps the upload a share of the wall, whatever the measuring wants", () => {
+    expect(abUploadReserveMs()).toBeGreaterThan(0);
+    expect(abMeasuringDeadlineMs(0) + abUploadReserveMs()).toBe(PERF_AB_JOB_WALL_MS);
   });
 
   it("stops the run when the deadline has passed and not before", () => {
