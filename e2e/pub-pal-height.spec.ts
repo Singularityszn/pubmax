@@ -119,8 +119,12 @@ for (const consent of [false, true]) {
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
     const narrowHeight = await checkRow(page, info, "320-row", consent);
     await page.setViewportSize({ width: 430, height: 932 });
-    const wideHeight = await checkRow(page, info, "430-row", consent);
+    await checkRow(page, info, "430-row", consent);
+    await page.setViewportSize({ width: 640, height: 932 });
+    const wideHeight = await checkRow(page, info, "640-row", consent);
     expect(wideHeight).toBeLessThan(narrowHeight);
+    await page.setViewportSize({ width: 320, height: 568 });
+    expect(await checkRow(page, info, "320-return", consent)).toBeCloseTo(narrowHeight, 1);
     if (consent) {
       await page.getByRole("button", { name: "No thanks", exact: true }).click();
       await expect(page.getByLabel("Anonymous analytics choice")).toBeHidden();
