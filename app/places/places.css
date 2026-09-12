@@ -93,9 +93,11 @@
 
 /* ── The city list ────────────────────────────────────────────────────────── */
 
-/* The town fallback paints the SAME list as the cities: same target size, same
-   mark, same two lines, because a town a reader typed is the same kind of
-   answer as a city they picked. */
+/* The town fallback paints the SAME SHAPE as the city list: same target size,
+   same mark, same two lines. SHAPE ONLY. The two kinds of row deliberately
+   answer differently, a city row opening the /places city panel and a curated
+   town row opening that city's map, and the badge on each row is what carries
+   that difference. */
 .placesCityList,
 .placesTownList {
   display: grid;

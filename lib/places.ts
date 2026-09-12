@@ -24,7 +24,11 @@ import {
 } from "@/lib/cities";
 import { getCityCapabilityProfile } from "@/lib/cityCapabilities";
 import { getNightAreasForCity, type NightArea } from "@/lib/nightAreas";
-import { normaliseUkPlaceQuery, type UkPlace } from "@/lib/ukPlaceSearch";
+import {
+  normaliseUkPlaceQuery,
+  type UkPlace,
+  type UkPlaceIndexStatus,
+} from "@/lib/ukPlaceSearch";
 import {
   UK_NATIONAL_ENTRY_LABEL,
   UK_NATIONAL_MAP_HREF,
@@ -161,6 +165,23 @@ export function placesShouldSearchTowns(
   query: string,
 ): boolean {
   return shownCityCount === 0 && normaliseUkPlaceQuery(query).length >= 2;
+}
+
+/**
+ * True while a town lookup this surface has already decided to run is still
+ * unanswered.
+ *
+ * `idle` counts as pending, and that is the whole point. The read is asked for
+ * from an effect, so the commit that first opens the gate still holds the index
+ * at `idle`, and a picker that treated it as a finished read would print the
+ * city-not-found line for that commit and then replace it with the answer. The
+ * two states that END a lookup are the only two that stop it being pending.
+ */
+export function placesTownLookupPending(
+  searchTowns: boolean,
+  status: UkPlaceIndexStatus,
+): boolean {
+  return searchTowns && status !== "ready" && status !== "error";
 }
 
 /**

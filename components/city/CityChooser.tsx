@@ -28,12 +28,8 @@ import {
   UK_NATIONAL_ENTRY_LABEL,
   UK_NATIONAL_MAP_HREF,
 } from "@/lib/ukNationalBrowse";
-import {
-  normaliseUkPlaceQuery,
-  parseUkPlaceIndex,
-  UK_PLACE_INDEX_PATH,
-  type UkPlace,
-} from "@/lib/ukPlaceSearch";
+import { normaliseUkPlaceQuery } from "@/lib/ukPlaceSearch";
+import { useUkPlaceIndex } from "@/lib/useUkPlaceIndex";
 
 import PlaceIndexCredit from "./PlaceIndexCredit";
 
@@ -44,10 +40,6 @@ export type CityChooserProps = {
 };
 
 type LocateState = "idle" | "pending" | "error";
-type PlaceIndexState =
-  | { status: "idle" | "loading"; places: UkPlace[] }
-  | { status: "ready"; places: UkPlace[] }
-  | { status: "error"; places: UkPlace[] };
 
 /**
  * City picker: enabled cities as map links, optional geolocation, and
@@ -61,17 +53,16 @@ export default function CityChooser({ onSelect }: CityChooserProps) {
   const [locateState, setLocateState] = useState<LocateState>("idle");
   const [locateMessage, setLocateMessage] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [placeIndex, setPlaceIndex] = useState<PlaceIndexState>({
-    status: "idle",
-    places: [],
-  });
-  const placeIndexRequested = useRef(false);
-  const placeIndexPromiseRef = useRef<Promise<UkPlace[]> | null>(null);
+  const {
+    status: placeIndexStatus,
+    places: placeIndexPlaces,
+    load: loadPlaceIndex,
+  } = useUkPlaceIndex();
   const [, startTransition] = useTransition();
   const normalizedQuery = normaliseUkPlaceQuery(query);
   const results = useMemo(
-    () => buildCityChooserSearchResults(query, cities, placeIndex.places),
-    [cities, placeIndex.places, query],
+    () => buildCityChooserSearchResults(query, cities, placeIndexPlaces),
+    [cities, placeIndexPlaces, query],
   );
 
   const selectCity = useCallback(
@@ -81,28 +72,6 @@ export default function CityChooser({ onSelect }: CityChooserProps) {
     },
     [onSelect],
   );
-
-  const loadPlaceIndex = useCallback((): Promise<UkPlace[]> => {
-    if (placeIndexPromiseRef.current) return placeIndexPromiseRef.current;
-    placeIndexRequested.current = true;
-    setPlaceIndex({ status: "loading", places: [] });
-    const pending = fetch(UK_PLACE_INDEX_PATH)
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const raw: unknown = await response.json();
-        const places = parseUkPlaceIndex(raw);
-        setPlaceIndex({ status: "ready", places });
-        return places;
-      })
-      .catch(() => {
-        placeIndexRequested.current = false;
-        placeIndexPromiseRef.current = null;
-        setPlaceIndex({ status: "error", places: [] });
-        return [] as UkPlace[];
-      });
-    placeIndexPromiseRef.current = pending;
-    return pending;
-  }, []);
 
   const useMyLocation = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -303,11 +272,11 @@ export default function CityChooser({ onSelect }: CityChooserProps) {
                   </li>
                 ))}
               </ul>
-            ) : placeIndex.status === "loading" ? (
+            ) : placeIndexStatus === "loading" ? (
               <p className="cityChooserSearchStatus" role="status">
                 {PLACE_INDEX_PENDING_LINE}
               </p>
-            ) : placeIndex.status === "error" ? (
+            ) : placeIndexStatus === "error" ? (
               <p className="cityChooserSearchStatus" role="status">
                 {cityGuidesSearchUnavailableLine(cities.length)}
               </p>
@@ -316,7 +285,7 @@ export default function CityChooser({ onSelect }: CityChooserProps) {
                 Can’t find that name yet. Try a nearby town.
               </p>
             )}
-            {placeIndex.status === "ready" ? (
+            {placeIndexStatus === "ready" ? (
               <PlaceIndexCredit className="cityChooserSearchSource" />
             ) : null}
           </section>

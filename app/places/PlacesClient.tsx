@@ -7,7 +7,6 @@ import {
   useEffect,
   useId,
   useMemo,
-  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -57,14 +56,11 @@ import {
   placesPricesPill,
   placesSearchEmptyLine,
   placesShouldSearchTowns,
+  placesTownLookupPending,
   placesTownResults,
   placesTownSearchUnavailableLine,
 } from "@/lib/places";
-import {
-  UK_PLACE_INDEX_PATH,
-  parseUkPlaceIndex,
-  type UkPlace,
-} from "@/lib/ukPlaceSearch";
+import { useUkPlaceIndex } from "@/lib/useUkPlaceIndex";
 
 import "./places.css";
 
@@ -104,53 +100,6 @@ export default function PlacesClient({ cityId }: { cityId: CityId | null }) {
   );
 }
 
-type TownIndexState = {
-  status: "idle" | "loading" | "ready" | "error";
-  places: UkPlace[];
-};
-
-/**
- * The UK place index, read once, and only when a city search found nothing.
- *
- * The index is the map's own base layer (two megabytes of place names), so the
- * picker never asks for it to paint its list: a reader who typed a city is
- * already answered. It is fetched the first time a query falls through, and
- * the promise is held so a second fall-through reuses it.
- *
- * A FAILED read re-arms, which is why the query is a dependency rather than
- * the gate alone. The gate stays true for every further character that matches
- * no city row, so an effect keyed on it would fire once and leave a reader who
- * lost the network mid-word stuck on the failure line however they retyped.
- * The held promise still makes a SUCCESSFUL read happen once: it is cleared on
- * the failure path alone, so the next keystroke is the retry.
- */
-function useTownIndex(active: boolean, query: string): TownIndexState {
-  const [state, setState] = useState<TownIndexState>({
-    status: "idle",
-    places: [],
-  });
-  const pending = useRef<Promise<void> | null>(null);
-
-  useEffect(() => {
-    if (!active || pending.current) return;
-    setState({ status: "loading", places: [] });
-    pending.current = fetch(UK_PLACE_INDEX_PATH)
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        setState({
-          status: "ready",
-          places: parseUkPlaceIndex(await response.json()),
-        });
-      })
-      .catch(() => {
-        pending.current = null;
-        setState({ status: "error", places: [] });
-      });
-  }, [active, query]);
-
-  return state;
-}
-
 function CityList({ preferredCity }: { preferredCity: CityId | null }) {
   const searchId = useId();
   const [query, setQuery] = useState("");
@@ -160,13 +109,24 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
   // the retired /choose-city address read the UK place index and offered the
   // base map where that town is, and that capability rides on here.
   const searchTowns = placesShouldSearchTowns(shown.length, query);
-  const townIndex = useTownIndex(searchTowns, query);
+  const {
+    status: indexStatus,
+    places: indexPlaces,
+    load: loadPlaceIndex,
+  } = useUkPlaceIndex();
+
+  const townLookupPending = placesTownLookupPending(searchTowns, indexStatus);
+
+  useEffect(() => {
+    if (searchTowns) void loadPlaceIndex();
+  }, [searchTowns, query, loadPlaceIndex]);
+
   const towns = useMemo(
     () =>
-      searchTowns && townIndex.status === "ready"
-        ? placesTownResults(query, townIndex.places)
+      searchTowns && indexStatus === "ready"
+        ? placesTownResults(query, indexPlaces)
         : ([] as CityChooserSearchResult[]),
-    [searchTowns, townIndex, query],
+    [searchTowns, indexStatus, indexPlaces, query],
   );
   const showTowns = shown.length === 0 && towns.length > 0;
 
@@ -243,9 +203,9 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
         ) : shown.length === 0 ? (
           <EmptyState
             title={
-              searchTowns && townIndex.status === "loading"
+              townLookupPending
                 ? PLACE_INDEX_PENDING_LINE
-                : searchTowns && townIndex.status === "error"
+                : searchTowns && indexStatus === "error"
                   ? placesTownSearchUnavailableLine()
                   : placesSearchEmptyLine(query)
             }

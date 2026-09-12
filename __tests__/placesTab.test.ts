@@ -41,6 +41,7 @@ import {
   placesPricesPill,
   placesSearchEmptyLine,
   placesShouldSearchTowns,
+  placesTownLookupPending,
   placesTownResults,
   placesTownSearchUnavailableLine,
 } from "@/lib/places";
@@ -385,6 +386,24 @@ describe("Places answers a town the city list does not hold", () => {
     expect(placesShouldSearchTowns(filterPlacesCityRows(placesCityRows(), "Bath").length, "Bath")).toBe(
       false,
     );
+  });
+
+  it("calls a lookup it has decided to run pending, from the first commit on", () => {
+    // The index read is asked for from an effect, so the commit that opens the
+    // gate still holds it at "idle". Reading that as a finished read printed
+    // "No city here called Didsbury" for one commit, under a polite live
+    // region, before the pending line and then the town rows replaced it.
+    expect(placesTownLookupPending(true, "idle")).toBe(true);
+    expect(placesTownLookupPending(true, "loading")).toBe(true);
+
+    // Only the two states that END a lookup stop it being pending.
+    expect(placesTownLookupPending(true, "ready")).toBe(false);
+    expect(placesTownLookupPending(true, "error")).toBe(false);
+
+    // A query a city row answered never opened the gate, so nothing is pending
+    // however far a read for some earlier query got.
+    expect(placesTownLookupPending(false, "idle")).toBe(false);
+    expect(placesTownLookupPending(false, "loading")).toBe(false);
   });
 
   it("wears the badge the chooser wears, off one shared reading of the kind", () => {
