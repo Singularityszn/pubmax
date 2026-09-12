@@ -4,14 +4,16 @@ import { dirname } from "node:path";
 import { test, type Browser, type Page } from "@playwright/test";
 
 import {
+  PERF_AB_ARMS,
   abArmOrder,
   abDeadlineReached,
   abMeasuringDeadlineMs,
+  abNavigationsForRoute,
+  abRouteFitsDeadline,
   abSamplesPerArm,
   abTimeoutMs,
   compareArms,
   formatAbReport,
-  formatAbScopeLines,
   selectAbBreaches,
   type AbBreach,
   type AbBreachHandover,
@@ -217,6 +219,7 @@ test("a breached route is measured against its merge base on this box", async ({
   const deadlineMs = abMeasuringDeadlineMs();
   const startedAt = Date.now();
   const deadlineStopped: string[] = [];
+  let navigationsSpent = 0;
 
   // THE REPORT IS WRITTEN AFTER EVERY ROUTE, NOT ONCE AT THE END. The box slow
   // enough to abort this run is the box whose evidence matters most, and the
@@ -228,7 +231,7 @@ test("a breached route is measured against its merge base on this box", async ({
       branchOrigin,
       baseOrigin,
       head: handover.head,
-      scope: formatAbScopeLines(selection),
+      selection,
       rows: compareArms(pairs, budgets.method),
       routesMeasured,
       routesSelected: routes.length,
@@ -243,7 +246,18 @@ test("a breached route is measured against its merge base on this box", async ({
   };
 
   for (const route of routes) {
-    if (abDeadlineReached(startedAt, Date.now(), deadlineMs)) {
+    // NEVER BEGIN WHAT CANNOT FINISH. A route started with less time left than
+    // its own plan costs spends that time and still hands over NOT COMPARED.
+    // The price is this run's own measured pace, so the check describes the box
+    // it is running on rather than a figure typed beside it.
+    const cost = abNavigationsForRoute(route, budgets.method);
+    const fits = abRouteFitsDeadline({
+      navigations: cost,
+      remainingMs: deadlineMs - (Date.now() - startedAt),
+      observedMsPerNavigation:
+        navigationsSpent > 0 ? (Date.now() - startedAt) / navigationsSpent : null,
+    });
+    if (!fits) {
       deadlineStopped.push(route.path);
       continue;
     }
@@ -251,6 +265,7 @@ test("a breached route is measured against its merge base on this box", async ({
     const plan = resolveRouteRunPlan(route, budgets.method);
     await warmArm(branch, route, plan.warmupRuns);
     await warmArm(base, route, plan.warmupRuns);
+    navigationsSpent += PERF_AB_ARMS * plan.warmupRuns;
 
     const arms: Record<Arm["name"], Arm> = { branch, base };
     const samples = { branch: [] as PerfSample[], base: [] as PerfSample[] };
@@ -258,11 +273,20 @@ test("a breached route is measured against its merge base on this box", async ({
     // of seven here exactly as the sweep judges it, because three samples cannot
     // decide a route whose samples were recorded 37 to 51 per cent apart.
     const countedRuns = abSamplesPerArm(route, budgets.method);
-    for (let run = 0; run < countedRuns; run += 1) {
+    let stoppedMidRoute = false;
+    for (let run = 0; run < countedRuns && !stoppedMidRoute; run += 1) {
       // A, B, then B, A, then A, B. The rule itself lives in the pure module,
       // so it is unit-tested with no browser.
       for (const name of abArmOrder(run)) {
+        // Belt and braces for a route running slower than its plan predicted:
+        // the run stops here, the route keeps fewer samples than it planned,
+        // and the rule already in force reads that as NOT COMPARED.
+        if (abDeadlineReached(startedAt, Date.now(), deadlineMs)) {
+          stoppedMidRoute = true;
+          break;
+        }
         samples[name].push(await sampleArm(arms[name], route));
+        navigationsSpent += 1;
       }
     }
 
@@ -276,7 +300,8 @@ test("a breached route is measured against its merge base on this box", async ({
         plannedSamples: countedRuns,
       });
     }
-    routesMeasured += 1;
+    if (stoppedMidRoute) deadlineStopped.push(route.path);
+    else routesMeasured += 1;
     writeReport();
   }
 

@@ -202,9 +202,10 @@ export function abMeasuringDeadlineMs(jobWallMs: number = PERF_AB_JOB_WALL_MS): 
 }
 
 /**
- * Whether the measuring deadline has passed, asked before each route rather
- * than during one: a route measured half way is a median nobody can defend, and
- * the rows already taken are what the run hands over.
+ * Whether the measuring deadline has passed. Asked before each route, between
+ * the two arms and between samples, because a deadline consulted only at the
+ * top of a route bounds when the LAST ROUTE STARTS rather than when the run
+ * ends, and one slow route can outlast the job's whole wall on its own.
  */
 export function abDeadlineReached(
   startedAt: number,
@@ -212,6 +213,34 @@ export function abDeadlineReached(
   deadlineMs: number = abMeasuringDeadlineMs(),
 ): boolean {
   return now - startedAt >= deadlineMs;
+}
+
+/**
+ * NEVER BEGIN WHAT CANNOT FINISH.
+ *
+ * A route admitted with minutes left and a plan worth more than that spends
+ * them and hands over NOT COMPARED, so the time buys nothing at all. This asks
+ * the other way round: what this route's WHOLE plan costs against what is left.
+ *
+ * The price per navigation is THIS RUN'S OWN measured pace rather than a figure
+ * typed here or the harness's worst case. The worst case would admit nothing at
+ * all (one quiet route's eight navigations at the per-navigation allowance
+ * outlasts the deadline by itself), and a typed figure is a guess that drifts
+ * from the box it is meant to describe. Before anything has been measured there
+ * is no pace to read, so the first route is admitted: a run that measures
+ * nothing has nothing to report.
+ */
+export function abRouteFitsDeadline(input: {
+  /** What this route costs, in navigations across both arms. */
+  navigations: number;
+  /** Milliseconds left on the measuring deadline. */
+  remainingMs: number;
+  /** This run's own pace so far, or null before it has measured anything. */
+  observedMsPerNavigation: number | null;
+}): boolean {
+  if (input.remainingMs <= 0) return false;
+  if (input.observedMsPerNavigation === null) return true;
+  return input.navigations * input.observedMsPerNavigation <= input.remainingMs;
 }
 
 export type AbBreachSelection = {
@@ -306,10 +335,18 @@ export function selectAbBreaches(
  * six A/B rows as six breaches. A budget that bit says so on its own line and
  * NAMES what it could not reach: a truncated diagnosis that says so is useful,
  * one that hides its truncation is not.
+ *
+ * The measured count is what the run ACTUALLY measured, never what the budget
+ * admitted. A run the deadline stopped after two of eight routes said "eight
+ * measured" two lines above "PARTIAL: 2 of 8", and the first sentence is the
+ * one an author quotes.
  */
-export function formatAbScopeLines(selection: AbBreachSelection): string[] {
+export function formatAbScopeLines(
+  selection: AbBreachSelection,
+  routesMeasured: number,
+): string[] {
   const lines = [
-    `${selection.breachedRoutes} route(s) breached; ${selection.measuredRoutes} measured ` +
+    `${selection.breachedRoutes} route(s) breached; ${routesMeasured} measured ` +
       "against the merge base.",
   ];
   if (selection.unreached.length > 0) {
@@ -559,7 +596,7 @@ export function formatAbReport(input: {
   branchOrigin: string;
   baseOrigin: string;
   head: string;
-  scope: readonly string[];
+  selection: AbBreachSelection;
   rows: readonly AbComparison[];
   routesMeasured: number;
   routesSelected: number;
@@ -572,7 +609,7 @@ export function formatAbReport(input: {
   return [
     "[perf-ab] the branch against its merge base: same box, same job, navigations interleaved",
     `[perf-ab] branch ${input.branchOrigin}  base ${input.baseOrigin}  head ${input.head || "local"}`,
-    ...input.scope.map((line) => `[perf-ab] ${line}`),
+    ...formatAbScopeLines(input.selection, input.routesMeasured).map((line) => `[perf-ab] ${line}`),
     ...(partial
       ? [
           `[perf-ab] PARTIAL: ${input.routesMeasured} of ${input.routesSelected} selected ` +

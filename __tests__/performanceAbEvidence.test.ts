@@ -12,6 +12,7 @@ import {
   abArmOrder,
   abDeadlineReached,
   abMeasuringDeadlineMs,
+  abRouteFitsDeadline,
   abHandoverForBreaches,
   abNavigationBudget,
   abNavigationsForRoute,
@@ -232,6 +233,8 @@ describe("what the A/B spends", () => {
     path: "/crawls",
     noisy: { metrics: ["lcpMs"], measuredSpreadPct: 51, why: "recorded wide on this rig" },
   };
+  const plan = (path: string, noisy = false): AbRoutePlan =>
+    noisy ? { ...marked, path } : { path };
 
   it("judges a marked route on the median of seven, exactly as the sweep judges it", () => {
     // Three samples cannot decide a route whose samples were recorded 51 per
@@ -290,6 +293,53 @@ describe("what the A/B spends", () => {
     expect(abDeadlineReached(started, started + 60_000, 120_000)).toBe(false);
     expect(abDeadlineReached(started, started + 120_000, 120_000)).toBe(true);
     expect(abDeadlineReached(started, started + 600_000, 120_000)).toBe(true);
+  });
+
+  it("never starts a route whose whole plan does not fit what is left", () => {
+    // A route started with less time left than its plan costs spends the time
+    // and still hands over NOT COMPARED, so the time buys nothing.
+    const marked = abNavigationsForRoute(plan("/crawls", true), method);
+    expect(
+      abRouteFitsDeadline({
+        navigations: marked,
+        remainingMs: marked * 20_000,
+        observedMsPerNavigation: 20_000,
+      }),
+    ).toBe(true);
+    expect(
+      abRouteFitsDeadline({
+        navigations: marked,
+        remainingMs: marked * 20_000 - 1,
+        observedMsPerNavigation: 20_000,
+      }),
+    ).toBe(false);
+  });
+
+  it("prices the route at THIS run's own pace, so a fast box fits more routes", () => {
+    const quiet = abNavigationsForRoute(plan("/messages"), method);
+    const remainingMs = quiet * 10_000;
+    expect(
+      abRouteFitsDeadline({ navigations: quiet, remainingMs, observedMsPerNavigation: 5_000 }),
+    ).toBe(true);
+    expect(
+      abRouteFitsDeadline({ navigations: quiet, remainingMs, observedMsPerNavigation: 20_000 }),
+    ).toBe(false);
+  });
+
+  it("admits the first route, because a run with no pace yet has measured nothing to report", () => {
+    expect(
+      abRouteFitsDeadline({
+        navigations: 999,
+        remainingMs: 60_000,
+        observedMsPerNavigation: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("admits nothing once the deadline is spent, whatever the pace", () => {
+    expect(
+      abRouteFitsDeadline({ navigations: 1, remainingMs: 0, observedMsPerNavigation: null }),
+    ).toBe(false);
   });
 
   it("times the run out on what it will actually spend, not on every budgeted route", () => {
@@ -441,9 +491,21 @@ describe("formatAbScopeLines", () => {
       [plan("/a"), plan("/b")],
       method,
     );
-    const [line] = formatAbScopeLines(selection);
+    const [line] = formatAbScopeLines(selection, 2);
     expect(line.indexOf("2 route(s) breached")).toBe(0);
     expect(line).toContain("2 measured");
+  });
+
+  it("counts what the run MEASURED, never what the budget admitted", () => {
+    // A deadline-stopped run said "8 measured" two lines above "PARTIAL: 2 of
+    // 8", and the first sentence is the one an author quotes.
+    const selection = selectAbBreaches(
+      [breach("/a", 900), breach("/b", 700), breach("/c", 600)],
+      [plan("/a"), plan("/b"), plan("/c")],
+      method,
+    );
+    expect(selection.measuredRoutes).toBe(3);
+    expect(formatAbScopeLines(selection, 1)[0]).toContain("1 measured");
   });
 
   it("names the routes the budget could not reach, on its own line", () => {
@@ -453,7 +515,7 @@ describe("formatAbScopeLines", () => {
       method,
       abNavigationsForRoute(plan("/a"), method),
     );
-    const lines = formatAbScopeLines(selection);
+    const lines = formatAbScopeLines(selection, 1);
     expect(lines).toHaveLength(2);
     expect(lines[0]).toContain("3 route(s) breached");
     expect(lines[0]).toContain("1 measured");
@@ -463,12 +525,22 @@ describe("formatAbScopeLines", () => {
 
   it("stays one line when every breached route was measured", () => {
     expect(
-      formatAbScopeLines(selectAbBreaches([breach("/a", 600)], [plan("/a")], method)),
+      formatAbScopeLines(selectAbBreaches([breach("/a", 600)], [plan("/a")], method), 1),
     ).toHaveLength(1);
   });
 });
 
 describe("formatAbReport", () => {
+  const selection = selectAbBreaches(
+    [
+      { path: "/messages", metric: "lcpMs", measured: 888, budget: 572 },
+      { path: "/crawls", metric: "lcpMs", measured: 700, budget: 500 },
+      { path: "/today", metric: "lcpMs", measured: 600, budget: 500 },
+    ],
+    [{ path: "/messages" }, { path: "/crawls" }, { path: "/today" }],
+    method,
+  );
+
   const report = (
     routesMeasured: number,
     routesSelected: number,
@@ -478,13 +550,20 @@ describe("formatAbReport", () => {
       branchOrigin: "http://localhost:3500",
       baseOrigin: "http://localhost:3501",
       head: "abc123",
-      scope: ["2 route(s) breached; 2 measured against the merge base."],
+      selection,
       rows: compareArms([pair()], method),
       routesMeasured,
       routesSelected,
       deadlineStopped,
       deadlineMs: 600_000,
     });
+
+  it("never claims more measured routes in its scope line than it measured", () => {
+    const stopped = report(1, 3, ["/crawls", "/today"]);
+    expect(stopped).toContain("3 route(s) breached; 1 measured");
+    expect(stopped).toContain("PARTIAL: 1 of 3");
+    expect(stopped).not.toContain("3 measured");
+  });
 
   it("blames the DEADLINE rather than the budget, and names what it did not reach", () => {
     const stopped = report(1, 3, ["/crawls", "/today"]);
