@@ -16,20 +16,13 @@
  *
  *   FATAL:  could not create shared memory segment: No space left on device
  *
- * A slot is a directory, because `mkdir` is the atomic primitive every
- * filesystem already has, and it records the pid that owns it so a killed run
- * frees its budget at once rather than after a timeout.
+ * Each slot is an exclusive IPv4 loopback listener. The kernel grants the
+ * slot atomically and releases it when its worker exits. No stale-file reaper
+ * can remove another worker's lease.
  */
 import { execFileSync } from "node:child_process";
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync } from "node:fs";
+import { createServer } from "node:net";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
@@ -128,7 +121,9 @@ export function postgresSkipReason() {
 /* The host-wide cluster budget                                        */
 /* ------------------------------------------------------------------ */
 
-export const POSTGRES_SLOT_ROOT = join(tmpdir(), "pubmax-postgres-slots");
+// All concurrent proof runners must use this protocol and the same budget.
+// Older directory-based runners cannot share this semaphore.
+export const POSTGRES_SLOT_PORT_BASE = 58330;
 /**
  * Six live clusters against a macOS default of 32 SysV segments leaves room for
  * everything else on the machine. Raise it only with `ipcs -m` in front of you.
@@ -139,83 +134,51 @@ const SLOT_WAIT_CEILING_MS = 150_000;
 
 export function maxPostgresClusters() {
   const stated = Number.parseInt(process.env.PUBMAX_PG_MAX_CLUSTERS ?? "", 10);
-  return Number.isFinite(stated) && stated > 0 ? stated : DEFAULT_MAX_CLUSTERS;
+  const budget = Number.isFinite(stated) && stated > 0 ? stated : DEFAULT_MAX_CLUSTERS;
+  if (POSTGRES_SLOT_PORT_BASE + budget - 1 > 65535) {
+    throw new RangeError("PostgreSQL cluster limit exceeds the available slot ports.");
+  }
+  return budget;
 }
 
-function ownerIsAlive(slot) {
-  try {
-    const pid = Number.parseInt(readFileSync(join(slot, "owner"), "utf8").trim(), 10);
-    if (!Number.isFinite(pid) || pid <= 0) return false;
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function releaseSlotDirectory(slot) {
-  try {
-    rmSync(slot, { recursive: true, force: true });
-  } catch {
-    /* another reaper got there first */
-  }
-}
-
-function reapDeadSlots() {
-  let entries = [];
-  try {
-    entries = readdirSync(POSTGRES_SLOT_ROOT);
-  } catch {
-    return;
-  }
-  for (const entry of entries) {
-    const slot = join(POSTGRES_SLOT_ROOT, entry);
-    if (!ownerIsAlive(slot)) releaseSlotDirectory(slot);
-  }
-}
-
-function claimSlot() {
-  mkdirSync(POSTGRES_SLOT_ROOT, { recursive: true });
-  const budget = maxPostgresClusters();
-  for (let index = 0; index < budget; index += 1) {
-    const slot = join(POSTGRES_SLOT_ROOT, `slot-${index}`);
-    try {
-      mkdirSync(slot); // atomic: the winner is whoever creates the directory
-    } catch {
-      continue;
-    }
-    writeFileSync(join(slot, "owner"), String(process.pid));
-    return slot;
-  }
-  return null;
-}
-
-/**
- * Takes one of the host's cluster slots and answers how to give it back.
- * Every caller that runs `initdb` must hold one first.
- */
-export async function acquireClusterSlot(label = "proof") {
-  const deadline = Date.now() + SLOT_WAIT_CEILING_MS;
-  for (;;) {
-    const slot = claimSlot();
-    if (slot) {
+function claimPort(port) {
+  return new Promise((resolve, reject) => {
+    const server = createServer((socket) => socket.destroy());
+    const acquisitionError = (error) => {
+      server.close(() => {});
+      if (error.code === "EADDRINUSE") resolve(null);
+      else reject(error);
+    };
+    server.once("error", acquisitionError);
+    server.listen({ host: "127.0.0.1", port, exclusive: true }, () => {
+      // A held-listener error remains fatal. Never free its slot silently.
+      server.removeListener("error", acquisitionError);
+      server.unref();
       let released = false;
-      const release = () => {
+      resolve(() => {
         if (released) return;
         released = true;
-        process.off("exit", release);
-        releaseSlotDirectory(slot);
-      };
-      process.once("exit", release);
-      return release;
+        server.close();
+      });
+    });
+  });
+}
+
+/** Hold one host slot before starting a PostgreSQL cluster. */
+export async function acquireClusterSlot(label = "proof") {
+  const deadline = Date.now() + SLOT_WAIT_CEILING_MS;
+  const budget = maxPostgresClusters();
+  for (;;) {
+    for (let index = 0; index < budget; index += 1) {
+      const release = await claimPort(POSTGRES_SLOT_PORT_BASE + index);
+      if (release) return release;
     }
-    reapDeadSlots();
     if (Date.now() > deadline) {
       throw new Error(
         `Waited ${Math.round(SLOT_WAIT_CEILING_MS / 1000)}s for one of ` +
-          `${maxPostgresClusters()} PostgreSQL cluster slots and none came free ` +
-          `(starting "${label}"). Live slots are directories under ` +
-          `${POSTGRES_SLOT_ROOT}; each holds the pid that owns it.`,
+          `${budget} PostgreSQL cluster slots and none came free ` +
+          `(starting "${label}"). Slot listeners use 127.0.0.1 ports ` +
+          `${POSTGRES_SLOT_PORT_BASE}-${POSTGRES_SLOT_PORT_BASE + budget - 1}.`,
       );
     }
     await sleep(SLOT_POLL_MS);

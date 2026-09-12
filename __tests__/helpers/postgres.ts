@@ -36,7 +36,6 @@ import {
   findPostgresBinary,
   missingPostgresReason,
   postgresSkipReason,
-  POSTGRES_SLOT_ROOT,
   type PostgresBinaryName,
 } from "../../scripts/rls/postgresHost.mjs";
 
@@ -46,7 +45,6 @@ export {
   findPostgresBinary,
   missingPostgresReason,
   postgresSkipReason,
-  POSTGRES_SLOT_ROOT,
   type PostgresBinaryName,
 };
 

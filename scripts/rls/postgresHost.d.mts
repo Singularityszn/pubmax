@@ -1,5 +1,5 @@
 export declare const REQUIRED_POSTGRES_MAJOR: number;
-export declare const POSTGRES_SLOT_ROOT: string;
+export declare const POSTGRES_SLOT_PORT_BASE: number;
 
 export type PostgresBinaryName = "initdb" | "postgres" | "psql";
 
