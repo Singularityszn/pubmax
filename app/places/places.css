@@ -188,6 +188,19 @@
   text-underline-offset: 3px;
 }
 
+/* The postcode area that tells two towns of one name apart. Quiet metadata
+   beside the name, deliberately NOT a pill: the row already wears one badge for
+   its kind, and a second bordered mark would read as a second fact about the
+   place rather than as part of its name. */
+.placesCityContext {
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
 /* A pill states one fact about the city beside it and WRAPS rather than
    truncating: whether a city has listed prices is the thing a reader picks on,
    so it may never be cut to an ellipsis. Neutral metadata tokens, because this

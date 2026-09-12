@@ -16,6 +16,7 @@ import { getCityCapabilityProfile } from "@/lib/cityCapabilities";
 import {
   buildCityChooserSearchResults,
   cityChooserResultBadge,
+  cityChooserResultContext,
   cityGuidesCoverageLine,
   cityGuidesSearchUnavailableLine,
   PLACE_INDEX_PENDING_LINE,
@@ -249,9 +250,9 @@ export default function CityChooser({ onSelect }: CityChooserProps) {
                           <strong className="cityChooserResultName">
                             {result.name}
                           </strong>
-                          {result.kind === "uncovered" && result.context ? (
+                          {cityChooserResultContext(result) ? (
                             <span className="cityChooserResultContext">
-                              {result.context}
+                              {cityChooserResultContext(result)}
                             </span>
                           ) : null}
                           <span

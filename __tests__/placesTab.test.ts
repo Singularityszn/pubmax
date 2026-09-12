@@ -15,6 +15,7 @@ import {
 import PlaceIndexCredit from "@/components/city/PlaceIndexCredit";
 import {
   cityChooserResultBadge,
+  cityChooserResultContext,
   cityGuidesSearchUnavailableLine,
   TOWN_SEARCH_UNAVAILABLE_LEAD,
 } from "@/lib/cityChooserSearch";
@@ -353,6 +354,9 @@ describe("Places answers a town the city list does not hold", () => {
   const TOWNS: UkPlace[] = [
     place({ name: "Sheffield", lat: 53.3800941, lng: -1.4789213, kind: "city", context: "S" }),
     place({ name: "Didsbury", lat: 53.4181794, lng: -2.23144, kind: "suburb", context: "M" }),
+    // The index holds two Alresfords, one in Essex and one in Hampshire.
+    place({ name: "Alresford", lat: 51.8528593, lng: 0.9966437, kind: "village", context: "CO" }),
+    place({ name: "Alresford", lat: 51.080371, lng: -1.1707111, kind: "town", context: "SO" }),
   ];
 
   it("looks for towns only once no city row answers", () => {
@@ -414,6 +418,28 @@ describe("Places answers a town the city list does not hold", () => {
 
     expect(cityChooserResultBadge(didsbury.kind)).toBe("City guide");
     expect(cityChooserResultBadge(sheffield.kind)).toBe("No prices yet");
+  });
+
+  it("tells two places of one name apart by their postcode area", () => {
+    // Both Alresfords sit outside every city we ship, so both come back
+    // uncovered, with the same name, the same badge and the same sentence. The
+    // row printed those three alone, so a reader choosing between them could
+    // open a map a county away from the town they meant.
+    const results = placesTownResults("Alresford", TOWNS);
+    expect(results).toHaveLength(2);
+
+    const contexts = results.map((result) => cityChooserResultContext(result));
+    expect([...contexts].sort()).toEqual(["CO", "SO"]);
+    expect(new Set(results.map((result) => result.href)).size).toBe(2);
+  });
+
+  it("leaves a curated row unmarked, its description naming the city instead", () => {
+    // Didsbury is Manchester, and the membership line says so, so there is
+    // nothing for a postcode area to disambiguate.
+    const [didsbury] = placesTownResults("Didsbury", TOWNS);
+
+    expect(didsbury.kind).toBe("curated");
+    expect(cityChooserResultContext(didsbury)).toBeNull();
   });
 
   it("answers a failed index read by naming the button, not a list that is gone", () => {

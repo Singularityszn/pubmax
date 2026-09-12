@@ -19,6 +19,7 @@ import Screen from "@/components/ui/screen";
 import type { CityId } from "@/lib/cities";
 import {
   cityChooserResultBadge,
+  cityChooserResultContext,
   PLACE_INDEX_PENDING_LINE,
   type CityChooserSearchResult,
 } from "@/lib/cityChooserSearch";
@@ -190,6 +191,11 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
                   <span className="placesCityCopy">
                     <span className="placesCityNameRow">
                       <span className="placesCityName">{town.name}</span>
+                      {cityChooserResultContext(town) ? (
+                        <span className="placesCityContext">
+                          {cityChooserResultContext(town)}
+                        </span>
+                      ) : null}
                       <span className="placesPill">
                         {cityChooserResultBadge(town.kind)}
                       </span>
