@@ -12,14 +12,10 @@ import FoundersWallLink from "@/components/founding/FoundersWallLink";
 import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
 import HandleAvatar from "@/components/profile/HandleAvatar";
-import CrewsPanel from "@/components/social/CrewsPanel";
-import SocialPostActions from "@/components/social/SocialPostActions";
 import SocialPostGallery from "@/components/social/SocialPostGallery";
 import SocialVideoViewer, { socialFeedVideos } from "@/components/social/SocialVideoViewer";
 import { socialPostPhotos } from "@/lib/socialGallery";
 import CreatorListsLane from "@/components/social/CreatorListsLane";
-import FindYourLot from "@/components/social/FindYourLot";
-import PeopleDirectory from "@/components/social/PeopleDirectory";
 import StarterPacks from "@/components/social/StarterPacks";
 import {
   SOCIAL_SIGN_IN_HREF,
@@ -61,6 +57,11 @@ import "./socialDiscovery.css";
 import SocialComposer from "./SocialComposer";
 import SocialTagInbox from "./SocialTagInbox";
 import SocialOutbox from "./SocialOutbox";
+
+const CrewsPanel = dynamic(() => import("@/components/social/CrewsPanel"));
+const SocialPostActions = dynamic(() => import("@/components/social/SocialPostActions"));
+const FindYourLot = dynamic(() => import("@/components/social/FindYourLot"));
+const PeopleDirectory = dynamic(() => import("@/components/social/PeopleDirectory"));
 
 const DiscoverBody = dynamic(() => import("@/app/discover/DiscoverPageClient").then((module) => module.DiscoverBody));
 
