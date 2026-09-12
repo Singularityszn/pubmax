@@ -88,7 +88,7 @@ describe("mobile tab bar contract", () => {
     expect(activeLabel("/tonight")).toBe("Now");
     expect(activeLabel("/out")).toBe("Out");
     expect(activeLabel("/places")).toBe("Places");
-    expect(activeLabel("/choose-city")).toBe("Places");
+    expect(activeLabel("/choose-city")).toBeUndefined();
     expect(activeLabel("/social")).toBe("Social");
     expect(activeLabel("/feed")).toBe("Social");
     expect(activeLabel("/moment")).toBeUndefined();

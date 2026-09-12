@@ -12,6 +12,8 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { evaluateFreshness } from "@/scripts/check_freshness.mjs";
+
 const ROOT = path.resolve(__dirname, "..");
 
 type Dataset = {
@@ -19,13 +21,14 @@ type Dataset = {
   class: string;
   artifact: string | null;
   refreshWorkflow: string;
+  gate: string;
   stalenessBudgetHours: number | null;
   stamp: { kind: string; value?: string } | null;
 };
 
 const registry = JSON.parse(
   readFileSync(path.join(ROOT, "data", "freshness_registry.json"), "utf8"),
-) as { datasets: Dataset[] };
+) as { version: number; datasets: Dataset[] };
 
 function dataset(id: string): Dataset {
   const found = registry.datasets.find((entry) => entry.id === id);
@@ -66,5 +69,39 @@ describe("price_updates prose and envelope agree", () => {
     expect(new Date(envelope.generatedAt).toISOString().slice(0, 10)).toBe(
       new Date(pintStamp?.value as string).toISOString().slice(0, 10),
     );
+  });
+});
+
+describe("food_price_updates carries no budget nobody can keep", () => {
+  // The row promised a 1440h refresh while no script in the tree writes its
+  // artifact, so it reported stale for ageing exactly as designed and took the
+  // merge bar red with it (astra-review P0-1). The night_signals shape holds:
+  // a null budget, and the reason in the registry's own prose.
+  const food = dataset("food_price_updates");
+
+  it("declares a null budget, the night_signals shape", () => {
+    expect(food.class).toBe("episodic");
+    expect(food.stalenessBudgetHours).toBeNull();
+  });
+
+  it("evaluates as untracked against the committed artifact: never fresh, never stale", async () => {
+    // The row is run through the real checker on its own, with the shipped
+    // artifact on disk and a clock far past the old 1440h budget, so the
+    // proof is the classification and not a sentence in the registry.
+    const { results, breached } = await evaluateFreshness({
+      now: new Date("2030-01-01T00:00:00Z"),
+      rootDir: ROOT,
+      registry: { ...registry, datasets: [food] },
+    });
+    expect(results).toHaveLength(1);
+    expect(results[0].id).toBe("food_price_updates");
+    expect(results[0].status).toBe("untracked");
+    expect(results[0].status).not.toBe("fresh");
+    expect(results[0].status).not.toBe("stale");
+    expect(breached).toBe(false);
+  });
+
+  it("names no fixed collection day", () => {
+    expect(food.refreshWorkflow).not.toMatch(/\b20\d\d-\d\d-\d\d\b/);
   });
 });

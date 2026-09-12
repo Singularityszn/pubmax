@@ -366,7 +366,7 @@ export function YouSignedOutSurface({
           already open. */}
       <div className="youIdentityActions">
         <Link href={YOU_SIGN_IN_HREF} data-primary-action="">Claim your @handle</Link>
-        <Link href="/pal">Meet your Pub Pal</Link>
+        <Link prefetch={false} href="/pal">Meet your Pub Pal</Link>
       </div>
     </section>
   );
@@ -1014,7 +1014,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       >
         {editing ? "Close editor" : "Edit profile"}
       </button>
-      <Link className="profilePalLink" href="/pal">Meet your Pub Pal</Link>
+      <Link prefetch={false} className="profilePalLink" href="/pal">Meet your Pub Pal</Link>
     </>
   ) : profileClaimOfferVisible({ isAnonymous, isYouRoute, canAdoptHandle }) ? (
     <ProfileClaimOffer onClaim={claimHandle} />
@@ -1118,7 +1118,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           there is no live profile here any more.
         </p>
         <p className="profileEmpty">
-          <Link href="/map" data-primary-action="">Back to the map</Link>
+          <Link prefetch={false} href="/map" data-primary-action="">Back to the map</Link>
         </p>
       </section>
     );

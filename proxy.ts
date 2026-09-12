@@ -2,6 +2,7 @@ import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import type { NextFetchEvent, NextRequest, ProxyConfig } from "next/server";
 
+import { CHOOSE_CITY_PATH, PLACES_PATH } from "@/lib/cityPickerRoute";
 import { clerkCspSources, isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
 import { assertE2ELoginSafe } from "@/lib/e2eReviewAuth";
 import { ONBOARDING_PATH } from "@/lib/firstRunRoute";
@@ -217,6 +218,20 @@ export function securityProxy(request: NextRequest) {
     return applyNonProductionRobotsTag(
       NextResponse.redirect(canonicalUrl, 308),
     );
+  }
+  // The city picker is ONE page, and it is /places. /choose-city is the address
+  // it used to have. The canonical and the sitemap row moved to /places in the
+  // same commit as this redirect (app/places/page.tsx, app/sitemap.ts): a 308
+  // from the page carrying the canonical to a page shipping `noindex` takes the
+  // city list out of the index rather than moving it.
+  //
+  // The query rides along because a 308 must not silently drop what a reader
+  // asked for, not because /places reads any of it: the old `focus=search`
+  // param has no reader there, and the retired address has no page at all.
+  if (pathname === CHOOSE_CITY_PATH) {
+    const target = new URL(request.url);
+    target.pathname = PLACES_PATH;
+    return applyNonProductionRobotsTag(NextResponse.redirect(target, 308));
   }
   // Hyphenated alias of /login. /signin stays the existing page redirect.
   if (pathname === "/sign-in") {

@@ -2,9 +2,34 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GET, POST } from "@/app/ingest/[...path]/route";
 
+// THE BUDGET ONE ADDRESS MAY SPEND ON /ingest IN A MINUTE. The proxy is
+// unauthenticated and every capture request it forwards is billed, so one
+// address may spend 240 requests a minute and no more. The route cannot export
+// the number (Next holds a route module to its handlers), so this test names
+// it: raising the budget means editing this line.
+const INGEST_BUDGET_PER_MINUTE = 240;
+const ONE_MEGABYTE = 1024 * 1024;
+
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
+
+function capturePost(ip: string, body: BodyInit): Promise<Response> {
+  return POST(
+    new Request("https://pubmaxxing.com/ingest/e/?ip=1&ver=1.407.2", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://pubmaxxing.com",
+        "x-forwarded-for": ip,
+        "x-real-ip": ip,
+      },
+      body,
+    }),
+    { params: Promise.resolve({ path: ["e"] }) },
+  );
+}
 
 describe("/ingest owned PostHog proxy", () => {
   it("forwards capture body with only fixed safe headers", async () => {
@@ -80,5 +105,65 @@ describe("/ingest owned PostHog proxy", () => {
     expect(Object.fromEntries(new Headers(init.headers))).toEqual({ accept: "*/*" });
     expect(response.headers.get("cache-control")).toBe("public, max-age=3600");
     await expect(response.text()).resolves.toBe("export {};");
+  });
+
+  it("walls a 1 MB POST burst from one address once the budget is spent, before the body is read, and a neighbour still gets through", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    // The route reads its own clock, and 240 sequential 1 MB body reads on a
+    // loaded runner could outlast the real 60 s window and expire the earliest
+    // hits, so the burst would stop being a burst.
+    vi.spyOn(Date, "now").mockReturnValue(Date.now());
+    const address = "198.51.100.7";
+    const oneMegabyte = new Uint8Array(ONE_MEGABYTE);
+    // The warm-up requests exist to spend the count, so they carry a small
+    // body. The walled request below is the one that needs a 1 MB streaming
+    // body, because its bodyRead assertion is what proves the order.
+    const smallCapture = JSON.stringify({ event: "$pageview" });
+
+    let forwarded = 0;
+    for (let i = 0; i < INGEST_BUDGET_PER_MINUTE; i += 1) {
+      const response = await capturePost(address, smallCapture);
+      expect(response.status, `request ${i + 1}`).toBe(200);
+      forwarded += fetchMock.mock.calls.length;
+      fetchMock.mockClear();
+    }
+    expect(forwarded).toBe(INGEST_BUDGET_PER_MINUTE);
+
+    // A zero high-water mark, so the stream pulls only when somebody reads it
+    // rather than filling its queue the moment the Request is built.
+    let bodyRead = false;
+    const unreadBody = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        bodyRead = true;
+        controller.enqueue(oneMegabyte);
+        controller.close();
+      },
+    }, { highWaterMark: 0 });
+    const walled = await POST(
+      new Request("https://pubmaxxing.com/ingest/e/?ip=1&ver=1.407.2", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-forwarded-for": address,
+        },
+        body: unreadBody,
+        // @ts-expect-error Node's fetch needs the duplex hint for a stream body.
+        duplex: "half",
+      }),
+      { params: Promise.resolve({ path: ["e"] }) },
+    );
+
+    expect(walled.status).toBe(429);
+    expect(walled.headers.get("cache-control")).toBe("no-store");
+    expect(fetchMock).toHaveBeenCalledTimes(0);
+    expect(bodyRead).toBe(false);
+
+    const neighbour = await capturePost("198.51.100.8", JSON.stringify({ event: "$pageview" }));
+    expect(neighbour.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -455,8 +455,8 @@ export function DiscoverBody({
           title="Pint prices, pub stories and routes worth walking."
           titleId="discover-title"
           lede={discoverDrinkBrowseLede()}
-          primary={<Link href={openMapHref}>Open the map</Link>}
-          secondary={<Link href="/near">Find my pint</Link>}
+          primary={<Link prefetch={false} href={openMapHref}>Open the map</Link>}
+          secondary={<Link prefetch={false} href="/near">Find my pint</Link>}
         >
           {/* Hub rule (docs/MOBILE_FLOW_SPEC.md, section 1): Tonight, Feed and
               Crawls have no tab of their own on mobile, so this page is their
@@ -465,7 +465,7 @@ export function DiscoverBody({
             <Link href="/tonight" className="discoverHubLink">
               What&rsquo;s on tonight
             </Link>
-            <Link href="/social" className="discoverHubLink">
+            <Link prefetch={false} href="/social" className="discoverHubLink">
               Social
             </Link>
             <Link href="/crawls" className="discoverHubLink">
@@ -498,6 +498,7 @@ export function DiscoverBody({
               style={{ ["--cat" as string]: "var(--pint)" } as React.CSSProperties}
             >
               <Link
+                prefetch={false}
                 className="catShowcase__link discoverLowNoLink"
                 href={lowNoMapHref}
                 aria-label="Explore low and no alcohol drinks"
@@ -536,6 +537,7 @@ export function DiscoverBody({
               brandsForCategory(category).map((brand) => (
                 <li key={`${category}-${brand.id}`}>
                   <Link
+                    prefetch={false}
                     className="discoverBrandChip"
                     href={exploreHref(category, preferredCity, brand.id)}
                   >
@@ -557,13 +559,14 @@ export function DiscoverBody({
           the map already filtered, or jump to a plate style.
         </p>
         <div className="discoverHungryRow">
-          <Link className="discoverHungryCta" href={hungryMapHref}>
+          <Link prefetch={false} className="discoverHungryCta" href={hungryMapHref}>
             Show pubs that serve food
           </Link>
           <ul className="discoverCuisineChips" aria-label="Cuisine filters">
             {DISCOVER_CUISINE_CHIPS.map((tag) => (
               <li key={tag}>
                 <Link
+                  prefetch={false}
                   className="discoverCuisineChip"
                   href={hungryCuisineHref(tag, preferredCity)}
                 >
@@ -631,7 +634,7 @@ export function DiscoverBody({
           ) : status === "error" ? (
             <p className="discoverEmpty" role="status">
               Couldn&rsquo;t load tonight&rsquo;s prices just now.{" "}
-              <Link href={openMapHref}>Open the map</Link>{" "}
+              <Link prefetch={false} href={openMapHref}>Open the map</Link>{" "}
               instead.
             </p>
           ) : (
@@ -671,7 +674,7 @@ export function DiscoverBody({
           ) : status === "error" ? (
             <p className="discoverEmpty" role="status">
               Couldn&rsquo;t load the leaderboard just now.{" "}
-              <Link href={openMapHref}>Open the map</Link>{" "}
+              <Link prefetch={false} href={openMapHref}>Open the map</Link>{" "}
               instead.
             </p>
           ) : (
@@ -703,7 +706,7 @@ export function DiscoverBody({
           ) : status === "error" ? (
             <p className="discoverEmpty" role="status">
               Couldn&rsquo;t load price comparisons just now.{" "}
-              <Link href={openMapHref}>Open the map</Link>{" "}
+              <Link prefetch={false} href={openMapHref}>Open the map</Link>{" "}
               instead.
             </p>
           ) : (

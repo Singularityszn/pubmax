@@ -14,7 +14,7 @@ import { writePreferredCity } from "@/lib/cityPreference";
 import { cityMapShareUrl } from "@/lib/cityShare";
 import { trackEvent } from "@/lib/analytics";
 import {
-  UK_CHOOSE_CITY_SEARCH_HREF,
+  UK_TOWN_SEARCH_HREF,
   UK_NATIONAL_ENTRY_LABEL,
   UK_NATIONAL_MAP_HREF,
 } from "@/lib/ukNationalBrowse";
@@ -132,7 +132,7 @@ function CitySwitcherList({
           {UK_NATIONAL_ENTRY_LABEL}
         </Link>
         <Link
-          href={UK_CHOOSE_CITY_SEARCH_HREF}
+          href={UK_TOWN_SEARCH_HREF}
           className="citySwitcherLink citySwitcherNationalLink"
           onClick={() => onClose?.()}
         >

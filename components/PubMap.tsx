@@ -951,7 +951,7 @@ export default function PubMap({
   const [ukNationalBrowse] = useState(
     () => nationalBrowse || isUkNationalBrowse(currentSearch()),
   );
-  // National gazetteer for map search (same places.json as /choose-city).
+  // National gazetteer for map search (same places.json as CityChooser).
   // Loaded once when the reader types two characters or arrives on a national
   // / uncovered surface — never on every keystroke.
   const [ukPlaces, setUkPlaces] = useState<readonly UkPlace[]>([]);
@@ -5400,7 +5400,7 @@ export default function PubMap({
               variant="secondary"
               className="w-full uiButton--start"
             >
-              <Link href="/pal">
+              <Link prefetch={false} href="/pal">
                 <PubPalMascot size={18} circular />
                 Ask your Pub Pal
               </Link>
@@ -5704,7 +5704,7 @@ export default function PubMap({
             <PubPalMascot size={64} circular />
             <h3>Your Pub Pal is ready</h3>
             <p>Ask for a grounded pub pick, a bit of lore, or help shaping tonight.</p>
-            <Link href="/pal">Open Pub Pal</Link>
+            <Link prefetch={false} href="/pal">Open Pub Pal</Link>
             <small><ShieldCheck size={14} aria-hidden="true" /> It never changes a plan or posts a memory without confirmation.</small>
           </div>
         }

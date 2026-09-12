@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import FoundersWallLink from "@/components/founding/FoundersWallLink";
+import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import CrewsPanel from "@/components/social/CrewsPanel";
@@ -276,7 +277,7 @@ export function SocialPostCard({ post, canEdit = false, canInteract = false, dra
         <p className="socialPostPlace">
           {area ? <span>{area.name}</span> : null}
           {exactVenueId ? (
-            <Link href={venueMapUrl(exactVenueId)}>{post.venueName || "Open venue"}</Link>
+            <Link prefetch={false} href={venueMapUrl(exactVenueId)}>{post.venueName || "Open venue"}</Link>
           ) : null}
         </p>
       ) : null}
@@ -320,15 +321,15 @@ function PostsControls({
   return (
     <>
       <nav className="socialLaneNav" aria-label="Post lanes">
-        <Link href="/social" aria-current={state.feed === "discover" ? "page" : undefined}>
+        <IntentLink href="/social" aria-current={state.feed === "discover" ? "page" : undefined}>
           Discover
-        </Link>
-        <Link href="/social?feed=following" aria-current={state.feed === "following" ? "page" : undefined}>
+        </IntentLink>
+        <IntentLink href="/social?feed=following" aria-current={state.feed === "following" ? "page" : undefined}>
           Following
-        </Link>
-        <Link href="/social?feed=nearby" aria-current={state.feed === "nearby" ? "page" : undefined}>
+        </IntentLink>
+        <IntentLink href="/social?feed=nearby" aria-current={state.feed === "nearby" ? "page" : undefined}>
           Nearby
-        </Link>
+        </IntentLink>
       </nav>
       {state.feed === "nearby" ? (
         <label className="socialAreaField">
@@ -754,7 +755,7 @@ function SocialPageAccountState({
   ) : viewerPhase === "signed-out" ? (
     <Link href={SOCIAL_SIGN_IN_HREF}>Sign in</Link>
   ) : !isPosts && viewerPhase === "resolved" ? (
-    <Link href="/social">Post</Link>
+    <Link prefetch={false} href="/social">Post</Link>
   ) : (
     <button type="button" disabled>
       Post
@@ -895,8 +896,8 @@ function SocialPageAccountState({
                   <EmptyState
                     title={initialState.feed === "following" ? "Your people, your next good night." : "Be the first to share a moment."}
                     action={initialState.feed === "following"
-                      ? <Link href="/social">Discover moments</Link>
-                      : <Link href="/social?tab=discover">Find somewhere to go</Link>}
+                      ? <IntentLink href="/social">Discover moments</IntentLink>
+                      : <IntentLink href="/social?tab=discover">Find somewhere to go</IntentLink>}
                   />
                   {/* The search-and-invite surface is the rail's, once. */}
                   <PeopleDirectory myHandle={viewerHandle} />
@@ -928,15 +929,15 @@ function SocialPageAccountState({
               setFeedAttempt((value) => value + 1);
             }} /> : null}
             <nav className="socialSwitcher" aria-label={`${surfaceName} view`}>
-              <Link href="/social" aria-current={isPosts ? "page" : undefined}>
+              <IntentLink href="/social" aria-current={isPosts ? "page" : undefined}>
                 Posts
-              </Link>
-              <Link
+              </IntentLink>
+              <IntentLink
                 href="/social?tab=discover"
                 aria-current={!isPosts ? "page" : undefined}
               >
                 Pubs &amp; pints
-              </Link>
+              </IntentLink>
             </nav>
             {/* Crews render their own neutral identity state before the
                 verified gate answers. Protected crew data still stays behind

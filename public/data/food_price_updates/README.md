@@ -6,7 +6,9 @@ Versioned, provenance-stamped price files for food dishes on the venue Menu tab
 
 ## File naming
 
-`prices_YYYYMMDD.json` — one file per merge run (`scripts/merge_greene_king_menus.mjs`).
+`prices_YYYYMMDD.json` - one file per hand harvest. No script in this tree
+writes these files, so the lane carries no staleness budget; the row
+`food_price_updates` in `data/freshness_registry.json` owns that contract.
 `latest.json` is a stable alias.
 
 ## Schema

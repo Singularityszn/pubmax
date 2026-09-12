@@ -12,7 +12,10 @@ test("mobile city chooser keeps choices tappable and opens the selected city map
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
 
-  const response = await page.goto("/choose-city");
+  // The chooser's own route is gone: /choose-city 308s to /places, and the ONE
+  // surface that still mounts CityChooser is the landing's #cities section. So
+  // the tap targets it paints are measured where a reader now meets them.
+  const response = await page.goto("/#cities");
   expect(response?.status()).toBe(200);
 
   await expect(page.getByRole("heading", { name: "Choose your city" })).toBeVisible();
