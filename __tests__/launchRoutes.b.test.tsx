@@ -1,3 +1,4 @@
+import { buildDiscoverEditorial } from "@/app/discover/editorial.server";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -124,7 +125,7 @@ describe("launch routes (group b) carry one primary action", () => {
       createElement(SocialPageClient, {
         initialState: { valid: true, tab: "posts", feed: "following", area: null },
         rivalry: [],
-        heritageCrawls: [],
+        editorialCards: [], heritageCards: [],
         friendsLaunchEnabled: true,
       }),
     );
@@ -145,7 +146,7 @@ describe("launch routes (group b) carry one primary action", () => {
 
   it("/discover carries one primary action", () => {
     const rendered = renderToStaticMarkup(
-      createElement(DiscoverPageClient, { rivalry: [], heritageCrawls: [] }),
+      createElement(DiscoverPageClient, { rivalry: [], editorialCards: buildDiscoverEditorial(), heritageCards: [] }),
     );
     expect(primaryCount(rendered)).toBe(1);
     expect(rendered).toMatch(/data-primary-action=""><a[^>]*>Open the map<\/a>/);

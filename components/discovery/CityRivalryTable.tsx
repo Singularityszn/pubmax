@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import { writePreferredCity } from "@/lib/cityPreference";
-import { cityMapShareUrl } from "@/lib/cityShare";
+import { cityMapShareUrl } from "@/lib/cityMapHref";
 
 type CityRivalryTableProps = {
   entries: CityRivalryEntry[];

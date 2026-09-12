@@ -43,13 +43,7 @@ import {
   subscribePreferredCity,
   preferredCityMapHref,
 } from "@/lib/cityPreference";
-import {
-  cityAwareMapPath,
-  curatedCrawlById,
-  curatedCrawlMapHref,
-  type CuratedCrawl,
-} from "@/lib/curatedCrawls";
-import { getRoutePack, routePackPrimaryCrawl } from "@/lib/routePacks";
+import { cityAwareMapPath } from "@/lib/cityMapHref";
 import NightAreaCoverage from "@/components/night/NightAreaCoverage";
 import "./discover.css";
 import "@/components/night/nightAreaCoverage.css";
@@ -120,69 +114,6 @@ function lowNoHref(cityId: CityId): string {
   );
 }
 
-/** Map-first crawl href, or city map if the curated id is missing. */
-function crawlMapHref(crawlId: string, cityId: CityId): string {
-  const crawl = curatedCrawlById(crawlId);
-  return crawl
-    ? curatedCrawlMapHref(crawl, cityId)
-    : cityAwareMapPath(cityId);
-}
-
-/** Map-first pack lead crawl, or city map if the pack is empty. */
-function packMapHref(packId: string, cityId: CityId): string {
-  const pack = getRoutePack(packId);
-  if (!pack) return cityAwareMapPath(cityId);
-  const primary = routePackPrimaryCrawl(pack);
-  return primary
-    ? curatedCrawlMapHref(primary, cityId)
-    : cityAwareMapPath(cityId);
-}
-
-// Static editorial lanes. Each CTA opens /map with a real crawl polyline
-// (curatedCrawlMapHref / routePackMapHref) — not a bare filter or list page.
-// These crawls are London editorial (Soho / Barbican / packs). Always omit an
-// explicit preferredCity so venue-derived city wins — never ship Victorian Soho
-// onto `/map/manchester` just because the viewer last chose Manchester.
-function buildEditorial(): EditorialCardData[] {
-  return [
-    {
-      id: "golden-days",
-      eyebrow: "Golden days",
-      title: "The old guard, still standing",
-      dek: "Victorian gin palaces, listed snugs, and the bar Dickens leaned on.",
-      href: crawlMapHref("victorian-soho", DEFAULT_CITY_ID),
-      cta: "Walk Victorian Soho",
-    },
-    {
-      id: "coding-pint",
-      eyebrow: "Coding pint",
-      title: "A quiet table and a slow pint",
-      dek: "Pubs with sockets, listed Wi-Fi and quieter afternoon notes.",
-      href: crawlMapHref("barbican-coding-pint", DEFAULT_CITY_ID),
-      cta: "Find a working pint",
-    },
-    {
-      id: "then-vs-now",
-      eyebrow: "Then vs now",
-      title: "What a pint used to cost",
-      dek: "Listed pints around £4, mapped into a walk.",
-      href: packMapHref("cheap-chaos", DEFAULT_CITY_ID),
-      cta: "Build a cheap crawl",
-    },
-    {
-      id: "tonights-crawl",
-      eyebrow: "Tonight",
-      title: "Tonight's crawl, sorted",
-      dek: "Pick a borough and set your price before opening the route on the map.",
-      href: packMapHref("late-train", DEFAULT_CITY_ID),
-      cta: "Plan an outing",
-    },
-  ];
-}
-
-/** Exported for unit tests — Discover editorial CTAs must stay map-first. */
-export const DISCOVER_EDITORIAL = buildEditorial();
-
 // Narrow the public /api/pint-drops payload to the drop shape our compute
 // helpers read. The returned TonightDrop carries {venueId, priceGbp, createdAt}
 // (all computeThenVsNow needs) PLUS the optional {handle, venueName} the tonight
@@ -211,37 +142,17 @@ function pickDrops(raw: unknown): TonightDrop[] {
   return out;
 }
 
-// Generated heritage crawls → EditorialCard shape. Each card opens the SAME
-// map deep-link the curated crawls use (curatedCrawlMapHref), so the polyline +
-// stops hydrate identically — no parallel map-link format. London-authored, so
-// (like buildEditorial) we omit an explicit city and let the venue-derived city
-// win via DEFAULT_CITY_ID.
-const HERITAGE_CTA_LABELS: Readonly<Record<string, string>> = {
-  "heritage-oldest-pubs": "Start with the oldest",
-  "heritage-riverside-taverns": "Walk the Thames taverns",
-  "heritage-grade-listed": "See the listed classics",
-};
-
-function heritageCrawlCards(crawls: CuratedCrawl[]): EditorialCardData[] {
-  return crawls.map((crawl) => ({
-    id: `heritage-${crawl.id}`,
-    eyebrow: "Historic London",
-    title: crawl.name,
-    dek: crawl.blurb,
-    href: curatedCrawlMapHref(crawl, DEFAULT_CITY_ID),
-    cta: HERITAGE_CTA_LABELS[crawl.id] ?? "Open this heritage route",
-  }));
-}
-
 type DiscoverPageClientProps = {
   rivalry: CityRivalryEntry[];
-  heritageCrawls: CuratedCrawl[];
+  editorialCards: EditorialCardData[];
+  heritageCards: EditorialCardData[];
   embedded?: boolean;
 };
 
 export function DiscoverBody({
   rivalry,
-  heritageCrawls,
+  editorialCards: editorial,
+  heritageCards,
   embedded = false,
 }: DiscoverPageClientProps) {
   const preferredCity = useSyncExternalStore(
@@ -269,10 +180,6 @@ export function DiscoverBody({
     revealRootRef.current = node;
   }, []);
 
-  // Editorial stays London-authored; drink/food chips still follow preferred city.
-  const editorial = buildEditorial();
-  // Generated heritage routes render in the additive "Historic London" section.
-  const heritageCards = heritageCrawlCards(heritageCrawls);
   const hungryMapHref = hungryHref(preferredCity);
   const lowNoMapHref = lowNoHref(preferredCity);
   const openMapHref = preferredCityMapHref();

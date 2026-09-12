@@ -84,7 +84,7 @@ function renderRollback(initialState: typeof postsState | typeof discoverState):
     createElement(SocialPageClient, {
       initialState,
       rivalry: [],
-      heritageCrawls: [],
+      editorialCards: [], heritageCards: [],
       friendsLaunchEnabled: false,
     }),
   );

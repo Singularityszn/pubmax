@@ -244,7 +244,7 @@ async function flushAccountA(): Promise<void> {
     root.render(createElement(SocialPageClient, {
       initialState,
       rivalry: [],
-      heritageCrawls: [],
+      editorialCards: [], heritageCards: [],
     }));
     await Promise.resolve();
     await Promise.resolve();
@@ -300,7 +300,7 @@ describe("Social account boundary", () => {
     const staleSignal = transport.authedActionFetch.mock.calls.at(-1)?.[1]?.signal;
     transport.authedActionFetch.mockImplementation(() => nextAccess.promise);
     authState.accountRevision += 1;
-    act(() => root.render(createElement(SocialPageClient, { initialState, rivalry: [], heritageCrawls: [] })));
+    act(() => root.render(createElement(SocialPageClient, { initialState, rivalry: [], editorialCards: [], heritageCards: [] })));
     expect(host.querySelector('button[data-compose="new"]')).toBeNull();
     expect(host.textContent).not.toContain(A_FEED_POST.body);
     expect(staleSignal?.aborted).toBe(true);
@@ -347,7 +347,7 @@ describe("Social account boundary", () => {
       root.render(createElement(SocialPageClient, {
         initialState,
         rivalry: [],
-        heritageCrawls: [],
+        editorialCards: [], heritageCards: [],
       }));
       await Promise.resolve();
       await Promise.resolve();
@@ -376,7 +376,7 @@ describe("Social account boundary", () => {
       root.render(createElement(SocialPageClient, {
         initialState,
         rivalry: [],
-        heritageCrawls: [],
+        editorialCards: [], heritageCards: [],
       }));
     });
 
@@ -472,7 +472,7 @@ describe("Social account boundary", () => {
       root.render(createElement(SocialPageClient, {
         initialState,
         rivalry: [],
-        heritageCrawls: [],
+        editorialCards: [], heritageCards: [],
       }));
       await Promise.resolve();
       await Promise.resolve();
@@ -496,7 +496,7 @@ describe("Social account boundary", () => {
       root.render(createElement(SocialPageClient, {
         initialState,
         rivalry: [],
-        heritageCrawls: [],
+        editorialCards: [], heritageCards: [],
       }));
       await Promise.resolve();
       await Promise.resolve();

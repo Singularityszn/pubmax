@@ -1,3 +1,4 @@
+import { buildDiscoverEditorial, buildDiscoverHeritageCards } from "@/app/discover/editorial.server";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
@@ -65,7 +66,8 @@ export default async function SocialPage({
     <SocialPageClient
       initialState={state}
       rivalry={rivalry}
-      heritageCrawls={heritageCrawls}
+      editorialCards={friendsLaunchEnabled && state.tab === "discover" ? buildDiscoverEditorial() : []}
+      heritageCards={friendsLaunchEnabled && state.tab === "discover" ? buildDiscoverHeritageCards(heritageCrawls) : []}
       friendsLaunchEnabled={friendsLaunchEnabled}
     />
   );

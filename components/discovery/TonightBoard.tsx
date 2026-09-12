@@ -5,7 +5,7 @@ import PriceBadge from "@/components/PriceBadge";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
-import { cityAwareMapPath } from "@/lib/curatedCrawls";
+import { cityAwareMapPath } from "@/lib/cityMapHref";
 import { displayHandle } from "@/lib/handleDisplay";
 import { relativeTime } from "@/lib/relativeTime";
 import { venueMapUrl } from "@/lib/venueMapUrl";

@@ -293,7 +293,7 @@ const LAUNCH_SURFACES: ReadonlyArray<[string, () => string]> = [
         createElement(SocialPageClient, {
           initialState: { valid: true, tab: "posts", feed: "following", area: null },
           rivalry: [],
-          heritageCrawls: [],
+          editorialCards: [], heritageCards: [],
           friendsLaunchEnabled: true,
         }),
       ),

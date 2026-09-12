@@ -33,7 +33,7 @@ import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/adultGate";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
-import type { CuratedCrawl } from "@/lib/curatedCrawls";
+import type { EditorialCardData } from "@/components/discovery/EditorialCard";
 import { discardBody } from "@/lib/responseBody";
 import { getCity } from "@/lib/cities";
 import { getNightArea, nightAreasByCity } from "@/lib/nightAreas";
@@ -88,7 +88,8 @@ type SocialActivityItem = {
 type SocialPageClientProps = {
   initialState: SocialShellState;
   rivalry: CityRivalryEntry[];
-  heritageCrawls: CuratedCrawl[];
+  editorialCards: EditorialCardData[];
+  heritageCards: EditorialCardData[];
   friendsLaunchEnabled?: boolean;
 };
 
@@ -425,7 +426,8 @@ export function SocialContextRail({
 function SocialPageAccountState({
   initialState,
   rivalry,
-  heritageCrawls,
+  editorialCards,
+  heritageCards,
   friendsLaunchEnabled = true,
 }: SocialPageClientProps) {
   const surfaceName = socialSurfaceName(friendsLaunchEnabled);
@@ -794,7 +796,8 @@ function SocialPageAccountState({
               <CreatorListsLane />
               <DiscoverBody
                 rivalry={rivalry}
-                heritageCrawls={heritageCrawls}
+                editorialCards={editorialCards}
+                heritageCards={heritageCards}
                 embedded
               />
             </div>

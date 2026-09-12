@@ -164,7 +164,7 @@ async function renderSocial(state: SocialRenderState = initialState): Promise<vo
       createElement(SocialPageClient, {
         initialState: state,
         rivalry: [],
-        heritageCrawls: [],
+        editorialCards: [], heritageCards: [],
       }),
     );
     for (let index = 0; index < 6; index += 1) await Promise.resolve();

@@ -14,7 +14,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowUpRight, MapPin, Sun } from "lucide-react";
 
-import { cityAwareMapPath } from "@/lib/curatedCrawls";
+import { cityAwareMapPath } from "@/lib/cityMapHref";
 import {
   gardenWeatherHeadline,
   isGardenWeather,

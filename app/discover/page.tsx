@@ -1,3 +1,4 @@
+import { buildDiscoverEditorial, buildDiscoverHeritageCards } from "./editorial.server";
 import type { Metadata } from "next";
 
 import { buildCityRivalrySnapshot } from "@/lib/cityRivalry";
@@ -15,5 +16,5 @@ export default async function DiscoverPage() {
   // Deterministic, provenance-honest heritage routes built server-side from the
   // cited historic-pub data, passed down for the "Historic London" section.
   const heritageCrawls = await loadHeritageCrawls();
-  return <DiscoverPageClient rivalry={rivalry} heritageCrawls={heritageCrawls} />;
+  return <DiscoverPageClient rivalry={rivalry} editorialCards={buildDiscoverEditorial()} heritageCards={buildDiscoverHeritageCards(heritageCrawls)} />;
 }

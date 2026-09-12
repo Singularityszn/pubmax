@@ -1,3 +1,4 @@
+import { buildDiscoverEditorial } from "@/app/discover/editorial.server";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -9,7 +10,7 @@ describe("embedded Social discovery", () => {
     const html = renderToStaticMarkup(
       createElement(DiscoverBody, {
         rivalry: [],
-        heritageCrawls: [],
+        editorialCards: buildDiscoverEditorial(), heritageCards: [],
         embedded: true,
       }),
     );
