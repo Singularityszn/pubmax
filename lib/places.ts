@@ -12,6 +12,7 @@
 
 import {
   buildCityChooserSearchResults,
+  TOWN_SEARCH_UNAVAILABLE_LEAD,
   type CityChooserSearchResult,
 } from "@/lib/cityChooserSearch";
 import { PLACES_PATH } from "@/lib/cityPickerRoute";
@@ -47,8 +48,8 @@ export const PLACES_LEDE = "Set one and the map, Out and Near all open there.";
 export const PLACES_LIST_PRIMARY_LABEL = "Open London";
 export const PLACES_LIST_SECONDARY_LABEL = UK_NATIONAL_ENTRY_LABEL;
 
-/** What the picker says while it reads the UK place index for a typed town. */
-export const PLACES_TOWN_SEARCH_PENDING = "Looking across the UK pub map…";
+/** The one way back to the full list while a query stands. */
+export const PLACES_SHOW_ALL_LABEL = "Show every city";
 
 export const PLACES_SEARCH_LABEL = "Find a city";
 export const PLACES_SEARCH_PLACEHOLDER = "Search a city";
@@ -160,6 +161,19 @@ export function placesShouldSearchTowns(
   query: string,
 ): boolean {
   return shownCityCount === 0 && normaliseUkPlaceQuery(query).length >= 2;
+}
+
+/**
+ * What the picker says when the place index will not answer.
+ *
+ * The chooser's own line ends "The five city maps are below", which is true
+ * THERE: its full city list always renders under the search panel. Here the
+ * list is filtered out while a query stands, so a reader told the maps are
+ * below would be looking at a screen holding none. The lead is shared and this
+ * surface finishes it by naming the button that brings its list back.
+ */
+export function placesTownSearchUnavailableLine(): string {
+  return `${TOWN_SEARCH_UNAVAILABLE_LEAD} ${PLACES_SHOW_ALL_LABEL} to pick one.`;
 }
 
 /** The one line a search that matched nothing prints. */

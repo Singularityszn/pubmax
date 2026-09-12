@@ -12,6 +12,12 @@ import {
   readPreferredCity,
   writePreferredCity,
 } from "@/lib/cityPreference";
+import PlaceIndexCredit from "@/components/city/PlaceIndexCredit";
+import {
+  cityChooserResultBadge,
+  cityGuidesSearchUnavailableLine,
+  TOWN_SEARCH_UNAVAILABLE_LEAD,
+} from "@/lib/cityChooserSearch";
 import { getNightAreasForCity } from "@/lib/nightAreas";
 import {
   PLACES_AREAS_COMING_PILL,
@@ -20,6 +26,7 @@ import {
   PLACES_PRICES_COMING_PILL,
   PLACES_PRICES_LISTED_PILL,
   PLACES_SET_CITY_LABEL,
+  PLACES_SHOW_ALL_LABEL,
   PLACES_TITLE,
   filterPlacesCityRows,
   parsePlacesCityParam,
@@ -35,6 +42,7 @@ import {
   placesSearchEmptyLine,
   placesShouldSearchTowns,
   placesTownResults,
+  placesTownSearchUnavailableLine,
 } from "@/lib/places";
 import { normaliseUkPlaceQuery, type UkPlace } from "@/lib/ukPlaceSearch";
 
@@ -377,6 +385,41 @@ describe("Places answers a town the city list does not hold", () => {
     expect(placesShouldSearchTowns(filterPlacesCityRows(placesCityRows(), "Bath").length, "Bath")).toBe(
       false,
     );
+  });
+
+  it("wears the badge the chooser wears, off one shared reading of the kind", () => {
+    // Both surfaces render the same result kinds, so the words belong to the
+    // kind. A second copy beside this caller could be reworded alone.
+    const [didsbury] = placesTownResults("Didsbury", TOWNS);
+    const [sheffield] = placesTownResults("Sheffield", TOWNS);
+
+    expect(cityChooserResultBadge(didsbury.kind)).toBe("City guide");
+    expect(cityChooserResultBadge(sheffield.kind)).toBe("No prices yet");
+  });
+
+  it("answers a failed index read by naming the button, not a list that is gone", () => {
+    // The chooser's line ends "the five city maps are below", which holds there
+    // because its full list always renders under the panel. On /places the list
+    // is filtered out while a query stands, so the borrowed sentence pointed at
+    // a screen carrying no city map at all.
+    const line = placesTownSearchUnavailableLine();
+
+    expect(line.startsWith(TOWN_SEARCH_UNAVAILABLE_LEAD)).toBe(true);
+    expect(line).toContain(PLACES_SHOW_ALL_LABEL);
+    expect(line).not.toMatch(/below/i);
+    expect(cityGuidesSearchUnavailableLine(5)).toMatch(/below/i);
+  });
+
+  it("credits OpenStreetMap for the place names it publishes", () => {
+    // public/data/uk_base/places.json is ODbL 1.0, and /places draws no map
+    // canvas, so the credit MapLibre carries elsewhere rides the answer here.
+    const markup = renderToStaticMarkup(
+      createElement(PlaceIndexCredit, { className: "placesTownSource" }),
+    );
+
+    expect(markup).toContain("OpenStreetMap contributors");
+    expect(markup).toContain("ODbL");
+    expect(markup).toContain("https://www.openstreetmap.org/copyright");
   });
 });
 

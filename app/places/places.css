@@ -167,6 +167,25 @@
   line-height: var(--leading-normal);
 }
 
+/* The town answer's ODbL credit. Quiet provenance under the list, never a
+   second voice beside it: /places draws no map canvas, so the credit MapLibre
+   would carry rides the answer itself. */
+.placesTownSource {
+  max-width: var(--content-max);
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
+.placesTownSource a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
 /* A pill states one fact about the city beside it and WRAPS rather than
    truncating: whether a city has listed prices is the thing a reader picks on,
    so it may never be cut to an ellipsis. Neutral metadata tokens, because this

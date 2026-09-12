@@ -12,13 +12,15 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import PlaceIndexCredit from "@/components/city/PlaceIndexCredit";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
 import type { CityId } from "@/lib/cities";
 import {
-  cityGuidesSearchUnavailableLine,
+  cityChooserResultBadge,
+  PLACE_INDEX_PENDING_LINE,
   type CityChooserSearchResult,
 } from "@/lib/cityChooserSearch";
 import {
@@ -41,8 +43,8 @@ import {
   PLACES_SEARCH_LABEL,
   PLACES_SEARCH_PLACEHOLDER,
   PLACES_SET_CITY_LABEL,
+  PLACES_SHOW_ALL_LABEL,
   PLACES_TITLE,
-  PLACES_TOWN_SEARCH_PENDING,
   filterPlacesCityRows,
   placesAreasEmptyLine,
   placesAreasForCity,
@@ -56,6 +58,7 @@ import {
   placesSearchEmptyLine,
   placesShouldSearchTowns,
   placesTownResults,
+  placesTownSearchUnavailableLine,
 } from "@/lib/places";
 import {
   UK_PLACE_INDEX_PATH,
@@ -113,8 +116,15 @@ type TownIndexState = {
  * picker never asks for it to paint its list: a reader who typed a city is
  * already answered. It is fetched the first time a query falls through, and
  * the promise is held so a second fall-through reuses it.
+ *
+ * A FAILED read re-arms, which is why the query is a dependency rather than
+ * the gate alone. The gate stays true for every further character that matches
+ * no city row, so an effect keyed on it would fire once and leave a reader who
+ * lost the network mid-word stuck on the failure line however they retyped.
+ * The held promise still makes a SUCCESSFUL read happen once: it is cleared on
+ * the failure path alone, so the next keystroke is the retry.
  */
-function useTownIndex(active: boolean): TownIndexState {
+function useTownIndex(active: boolean, query: string): TownIndexState {
   const [state, setState] = useState<TownIndexState>({
     status: "idle",
     places: [],
@@ -136,7 +146,7 @@ function useTownIndex(active: boolean): TownIndexState {
         pending.current = null;
         setState({ status: "error", places: [] });
       });
-  }, [active]);
+  }, [active, query]);
 
   return state;
 }
@@ -150,7 +160,7 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
   // the retired /choose-city address read the UK place index and offered the
   // base map where that town is, and that capability rides on here.
   const searchTowns = placesShouldSearchTowns(shown.length, query);
-  const townIndex = useTownIndex(searchTowns);
+  const townIndex = useTownIndex(searchTowns, query);
   const towns = useMemo(
     () =>
       searchTowns && townIndex.status === "ready"
@@ -158,6 +168,7 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
         : ([] as CityChooserSearchResult[]),
     [searchTowns, townIndex, query],
   );
+  const showTowns = shown.length === 0 && towns.length > 0;
 
   return (
     <Screen
@@ -195,49 +206,63 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
         </div>
       </div>
 
-      {shown.length === 0 && towns.length > 0 ? (
-        <ul className="placesTownList" aria-label="Places">
-          {towns.map((town) => (
-            <li
-              key={`${town.kind}-${town.name}-${town.href}`}
-              className="placesCityItem"
-            >
-              <Link
-                prefetch={false}
-                href={town.href}
-                className="placesCityLink"
+      {/* The town answer and the empty state swap under one another a keystroke
+          at a time, so the region that holds them is always mounted and polite:
+          a live region that arrives WITH its content is announced by only some
+          screen readers. The city list stays outside it, because re-reading
+          every city on each character is noise rather than an answer. */}
+      <div className="placesResults" aria-live="polite">
+        {showTowns ? (
+          <ul className="placesTownList" aria-label="Places">
+            {towns.map((town) => (
+              <li
+                key={`${town.kind}-${town.name}-${town.href}`}
+                className="placesCityItem"
               >
-                <span className="placesCityMark" aria-hidden="true">
-                  <MapPin size={18} strokeWidth={1.65} />
-                </span>
-                <span className="placesCityCopy">
-                  <span className="placesCityNameRow">
-                    <span className="placesCityName">{town.name}</span>
-                    <span className="placesPill">
-                      {town.kind === "curated" ? "City guide" : "No prices yet"}
-                    </span>
+                <Link
+                  prefetch={false}
+                  href={town.href}
+                  className="placesCityLink"
+                >
+                  <span className="placesCityMark" aria-hidden="true">
+                    <MapPin size={18} strokeWidth={1.65} />
                   </span>
-                  <span className="placesCityTagline">{town.description}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : shown.length === 0 ? (
-        <EmptyState
-          title={
-            searchTowns && townIndex.status === "loading"
-              ? PLACES_TOWN_SEARCH_PENDING
-              : searchTowns && townIndex.status === "error"
-                ? cityGuidesSearchUnavailableLine(rows.length)
-                : placesSearchEmptyLine(query)
-          }
-        >
-          <button type="button" onClick={() => setQuery("")}>
-            Show every city
-          </button>
-        </EmptyState>
-      ) : (
+                  <span className="placesCityCopy">
+                    <span className="placesCityNameRow">
+                      <span className="placesCityName">{town.name}</span>
+                      <span className="placesPill">
+                        {cityChooserResultBadge(town.kind)}
+                      </span>
+                    </span>
+                    <span className="placesCityTagline">{town.description}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : shown.length === 0 ? (
+          <EmptyState
+            title={
+              searchTowns && townIndex.status === "loading"
+                ? PLACE_INDEX_PENDING_LINE
+                : searchTowns && townIndex.status === "error"
+                  ? placesTownSearchUnavailableLine()
+                  : placesSearchEmptyLine(query)
+            }
+          >
+            <button type="button" onClick={() => setQuery("")}>
+              {PLACES_SHOW_ALL_LABEL}
+            </button>
+          </EmptyState>
+        ) : null}
+      </div>
+
+      {/* These rows are OpenStreetMap's place names, and this surface draws no
+          map canvas to carry the credit MapLibre would. It sits outside the
+          live region: it is provenance for the list, not a result to announce. */}
+      {showTowns ? <PlaceIndexCredit className="placesTownSource" /> : null}
+
+      {shown.length > 0 ? (
         <ul className="placesCityList" aria-label="Cities">
           {shown.map((row) => (
             <li key={row.cityId} className="placesCityItem">
@@ -265,7 +290,7 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
     </Screen>
   );
 }

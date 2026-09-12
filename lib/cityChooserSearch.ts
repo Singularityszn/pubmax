@@ -111,8 +111,33 @@ export function cityGuidesCoverageLine(
   return `${mapSummary}${previewSummary}. ${priceSummary}; ${crawlSummary}.`;
 }
 
+/**
+ * The badge one result wears, and the line a surface prints while it reads the
+ * place index.
+ *
+ * Both surfaces that render a `CityChooserSearchResult` read these, because the
+ * words belong to the RESULT KIND rather than to the page showing it: a second
+ * copy beside the second caller lets one surface be reworded and not the other.
+ */
+export function cityChooserResultBadge(
+  kind: CityChooserSearchResult["kind"],
+): string {
+  return kind === "curated" ? "City guide" : "No prices yet";
+}
+
+export const PLACE_INDEX_PENDING_LINE = "Looking across the UK pub map…";
+
+/**
+ * What a failed place-index read says, before a surface names its own way back.
+ *
+ * The lead is the only half that travels: what is on screen under it differs by
+ * surface, so each one finishes the sentence about the list IT still shows.
+ */
+export const TOWN_SEARCH_UNAVAILABLE_LEAD =
+  "Town search isn’t available right now.";
+
 export function cityGuidesSearchUnavailableLine(count: number): string {
-  return `Town search isn’t available right now. The ${cityGuideCountWord(count)} city maps are below.`;
+  return `${TOWN_SEARCH_UNAVAILABLE_LEAD} The ${cityGuideCountWord(count)} city maps are below.`;
 }
 
 /**

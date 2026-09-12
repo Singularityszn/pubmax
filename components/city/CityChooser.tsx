@@ -16,8 +16,10 @@ import { listEnabledCities, type CityId } from "@/lib/cities";
 import { getCityCapabilityProfile } from "@/lib/cityCapabilities";
 import {
   buildCityChooserSearchResults,
+  cityChooserResultBadge,
   cityGuidesCoverageLine,
   cityGuidesSearchUnavailableLine,
+  PLACE_INDEX_PENDING_LINE,
 } from "@/lib/cityChooserSearch";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { cityMapShareUrl } from "@/lib/cityShare";
@@ -32,6 +34,8 @@ import {
   UK_PLACE_INDEX_PATH,
   type UkPlace,
 } from "@/lib/ukPlaceSearch";
+
+import PlaceIndexCredit from "./PlaceIndexCredit";
 
 import "./cityChooser.css";
 
@@ -288,9 +292,7 @@ export default function CityChooser({ onSelect }: CityChooserProps) {
                             className="cityChooserResultBadge"
                             data-kind={result.kind}
                           >
-                            {result.kind === "curated"
-                              ? "City guide"
-                              : "No prices yet"}
+                            {cityChooserResultBadge(result.kind)}
                           </span>
                         </span>
                         <span className="cityChooserResultDescription">
@@ -303,7 +305,7 @@ export default function CityChooser({ onSelect }: CityChooserProps) {
               </ul>
             ) : placeIndex.status === "loading" ? (
               <p className="cityChooserSearchStatus" role="status">
-                Looking across the UK pub map…
+                {PLACE_INDEX_PENDING_LINE}
               </p>
             ) : placeIndex.status === "error" ? (
               <p className="cityChooserSearchStatus" role="status">
@@ -315,17 +317,7 @@ export default function CityChooser({ onSelect }: CityChooserProps) {
               </p>
             )}
             {placeIndex.status === "ready" ? (
-              <p className="cityChooserSearchSource">
-                Place names from{" "}
-                <a
-                  href="https://www.openstreetmap.org/copyright"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  OpenStreetMap contributors
-                </a>
-                , ODbL.
-              </p>
+              <PlaceIndexCredit className="cityChooserSearchSource" />
             ) : null}
           </section>
         ) : null}

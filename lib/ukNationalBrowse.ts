@@ -19,12 +19,15 @@ export const UK_NATIONAL_MAP_HREF = `/map?${UK_NATIONAL_PARAM}=${UK_NATIONAL_PAR
 /**
  * Where a reader searches for a UK town by name.
  *
- * The chooser's own route is retired: /choose-city 308s to /places, and /places
- * searches the cities we ship rather than the UK place index. So this points at
- * the ONE surface that still mounts CityChooser, the landing's #cities section,
- * which reads `public/data/uk_base/places.json` and answers an unpriced town
- * with its honest base-map arrival. The field is not focused on arrival there;
- * the anchor puts it on screen.
+ * The chooser's own route is retired: /choose-city 308s to /places. TWO
+ * surfaces now answer a town, and both read `public/data/uk_base/places.json`
+ * through the same policy: the landing's #cities section, which is the one
+ * remaining mount of CityChooser, and the picker itself, where
+ * `placesTownResults` falls back to that index when no city row matches. This
+ * link still points at the landing, whose search field IS the section it lands
+ * on; whether it should move to the picker now that /places answers a town is
+ * the author's call and sits with the captain. The field is not focused on
+ * arrival either way; the anchor puts it on screen.
  */
 export const UK_TOWN_SEARCH_HREF = "/#cities";
 
