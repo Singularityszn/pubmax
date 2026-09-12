@@ -4,7 +4,6 @@ import { dirname } from "node:path";
 import { test, type Browser, type Page } from "@playwright/test";
 
 import {
-  PERF_AB_JOB_WALL_MS,
   abArmOrder,
   abDeadlineReached,
   abMeasuringDeadlineMs,
@@ -252,17 +251,20 @@ test("a breached route is measured against its merge base on this box", async ({
   // this report.
   // THE DEADLINE IS WHAT IS LEFT OF THE JOB'S WALL, not a share of a wall the
   // sweep and the merge-base build may already have spent. scripts/perf-ab.mjs
-  // passes the job's own start and its wall; without them (a hand run outside
-  // the job) the clock starts here against the mirrored wall, because nothing
-  // is racing a wall then.
-  const jobWallMs = Number(process.env.PUBMAX_PERF_AB_JOB_WALL_MS) || PERF_AB_JOB_WALL_MS;
-  const jobStartedMs = Number(process.env.PUBMAX_PERF_AB_JOB_STARTED_MS) || Date.now();
-  const deadlineMs = abMeasuringDeadlineMs({
-    elapsedMs: Date.now() - jobStartedMs,
-    method: budgets.method,
-    routeReadyTimeoutMs: ROUTE_READY_TIMEOUT_MS,
-    jobWallMs,
-  });
+  // passes the job's own start and its wall ONLY when the job handed it one;
+  // with neither, this is a hand run racing no wall at all, so it measures
+  // unbounded rather than against a wall nobody set.
+  const jobWallMs = Number(process.env.PUBMAX_PERF_AB_JOB_WALL_MS) || 0;
+  const jobStartedMs = Number(process.env.PUBMAX_PERF_AB_JOB_STARTED_MS) || 0;
+  const deadlineMs =
+    jobWallMs > 0 && jobStartedMs > 0
+      ? abMeasuringDeadlineMs({
+          elapsedMs: Date.now() - jobStartedMs,
+          method: budgets.method,
+          routeReadyTimeoutMs: ROUTE_READY_TIMEOUT_MS,
+          jobWallMs,
+        })
+      : Number.POSITIVE_INFINITY;
   const startedAt = Date.now();
   const deadlineNotStarted: string[] = [];
   const deadlineStoppedPartWay: string[] = [];
@@ -285,7 +287,7 @@ test("a breached route is measured against its merge base on this box", async ({
       navigationsSpent,
       deadlineNotStarted,
       deadlineStoppedPartWay,
-      deadlineMs,
+      deadlineMs: Number.isFinite(deadlineMs) ? deadlineMs : undefined,
     });
     if (reportPath) {
       mkdirSync(dirname(reportPath), { recursive: true });

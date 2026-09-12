@@ -15,6 +15,7 @@ import {
   abNavigationAllowanceMs,
   abNoiseFloor,
   abRouteFitsDeadline,
+  abSampleAllowanceMs,
   abTeardownMarginMs,
   abUploadReserveMs,
   abHandoverForBreaches,
@@ -23,6 +24,7 @@ import {
   abNoiseBandPct,
   abSamplesPerArm,
   abTimeoutMs,
+  abWorstSampleAllowanceMs,
   compareArms,
   formatAbReport,
   formatAbScopeLines,
@@ -320,6 +322,15 @@ describe("what the A/B spends", () => {
     expect(abSamplesPerArm(quiet, method)).toBe(3);
   });
 
+  it("charges a budgeted redirect nothing, because it makes no navigation at all", () => {
+    // /onboarding is measured with one request. Priced at eight navigations it
+    // could be dropped from the diagnosis for a cost it never pays, which is
+    // the instrument refusing to look at a route it was built for.
+    const redirect: AbRoutePlan = { path: "/onboarding", redirectsTo: "/" };
+    expect(abNavigationsForRoute(redirect, method)).toBe(0);
+    expect(abNavigationsForRoute(quiet, method)).toBeGreaterThan(0);
+  });
+
   it("costs a marked route more than twice a quiet one, which is why routes are not the unit", () => {
     expect(abNavigationsForRoute(quiet, method)).toBe(PERF_AB_ARMS * (1 + 3));
     expect(abNavigationsForRoute(marked, method)).toBe(PERF_AB_ARMS * (2 + 7));
@@ -337,26 +348,41 @@ describe("what the A/B spends", () => {
     expect(abNavigationBudget(wider)).toBeGreaterThan(abNavigationBudget(method));
   });
 
-  it("bounds ONE navigation at the same allowance the whole run is priced from", () => {
+  it("bounds ONE navigation at what the harness allows one navigation", () => {
     // A page.goto bounded only by the test total is one hung load free to eat
     // the job's wall and the upload with it.
-    const routeReady = 120_000;
-    expect(abNavigationAllowanceMs(method, routeReady)).toBe(
-      routeReady + method.network.drainCeilingMs,
+    expect(abNavigationAllowanceMs(method, routeReadyMs)).toBe(
+      routeReadyMs + method.network.drainCeilingMs,
     );
-    expect(abTimeoutMs(5, method, routeReady)).toBe(5 * abNavigationAllowanceMs(method, routeReady));
   });
 
-  it("allows one navigation what the harness itself allows it", () => {
-    // The readiness gate may wait its whole ceiling and the network its own
-    // drain ceiling, so a smaller allowance fires on precisely the slow route
-    // this instrument exists to explain.
-    const routeReady = 120_000;
-    expect(abTimeoutMs(1, method, routeReady)).toBe(
-      routeReady + method.network.drainCeilingMs,
+  it("prices ONE SAMPLE at the load, the gates it waits on and the drain", () => {
+    // A counted sample is not one navigation: it loads, waits for the readiness
+    // gate, waits again for a loading affordance on a route that declares one,
+    // and only then waits for the network to go quiet.
+    const quietSample = abSampleAllowanceMs({}, method, routeReadyMs);
+    const gatedSample = abSampleAllowanceMs(
+      { settledSelectorHidden: ".mapLoading" },
+      method,
+      routeReadyMs,
     );
-    expect(abTimeoutMs(16, method, routeReady)).toBe(
-      16 * (routeReady + method.network.drainCeilingMs),
+    expect(quietSample).toBe(
+      abNavigationAllowanceMs(method, routeReadyMs) + routeReadyMs + method.network.drainCeilingMs,
+    );
+    expect(gatedSample).toBe(quietSample + routeReadyMs);
+    expect(abWorstSampleAllowanceMs(method, routeReadyMs)).toBe(gatedSample);
+    expect(quietSample).toBeGreaterThan(abNavigationAllowanceMs(method, routeReadyMs));
+  });
+
+  it("times the whole run out on what a SAMPLE costs, not on what one load costs", () => {
+    // Charging navigations at the load alone gave a one-route selection half
+    // the time its samples can really take, and a timeout there kills the test
+    // rather than letting it stop and write its report.
+    expect(abTimeoutMs(8, method, routeReadyMs)).toBe(
+      8 * abWorstSampleAllowanceMs(method, routeReadyMs),
+    );
+    expect(abTimeoutMs(8, method, routeReadyMs)).toBeGreaterThan(
+      8 * abNavigationAllowanceMs(method, routeReadyMs),
     );
   });
 
@@ -405,11 +431,11 @@ describe("what the A/B spends", () => {
     expect(scriptBound - deadline(0)).toBe(teardown());
   });
 
-  it("keeps the margin longer than the sample that may be in flight when it stops", () => {
-    // The deadline is asked BEFORE a sample, and that sample may then take a
-    // whole navigation allowance, so a margin shorter than one allowance lets
-    // the kill land while a load is still in flight.
-    expect(teardown()).toBeGreaterThan(abNavigationAllowanceMs(method, routeReadyMs));
+  it("keeps the margin longer than the WHOLE sample that may be in flight", () => {
+    // The deadline is asked BEFORE a sample, and that sample may then spend the
+    // load, both gates and the drain, so a margin sized off the load alone lets
+    // the kill land while that sample is still running.
+    expect(teardown()).toBeGreaterThan(abWorstSampleAllowanceMs(method, routeReadyMs));
     // Read off the method rather than typed: a slower gate widens the margin.
     expect(abTeardownMarginMs(method, routeReadyMs * 2)).toBeGreaterThan(teardown());
   });
@@ -760,6 +786,24 @@ describe("formatAbReport", () => {
     expect(stopped).toContain("10 minute(s)");
     expect(stopped).toContain("/crawls, /today");
     expect(stopped).toContain("/messages");
+  });
+
+  it("says a run with no job wall measured unbounded, rather than naming a deadline", () => {
+    // Run by hand, nothing is racing a wall. A report that names a deadline
+    // nobody set describes a run that did not happen.
+    const unbounded = formatAbReport({
+      branchOrigin: "http://localhost:3500",
+      baseOrigin: "http://localhost:3501",
+      head: "abc123",
+      selection,
+      rows: compareArms([pair()], method),
+      routesMeasured: 3,
+      routesSelected: 3,
+      navigationsSpent: 24,
+    });
+    expect(unbounded).toContain("No job wall was handed over");
+    expect(unbounded).not.toContain("DEADLINE");
+    expect(report(3, 3)).not.toContain("No job wall was handed over");
   });
 
   it("names the deadline in seconds when a nearly spent wall left less than a minute", () => {

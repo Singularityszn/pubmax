@@ -116,8 +116,19 @@ const PERF_AB_BUDGET_ROUTES = 8;
 /** Branch and base. Every A/B cost is paid twice, once on each. */
 export const PERF_AB_ARMS = 2;
 
-/** A route as this module costs it: its path and whatever noise record it carries. */
-export type AbRoutePlan = Pick<RouteBudget, "path"> & { noisy?: RouteNoiseRecord };
+/**
+ * A route as this module COSTS it.
+ *
+ * The noise record decides how many samples it takes, `redirectsTo` decides
+ * whether it loads a page at all, and `settledSelectorHidden` decides whether
+ * one sample waits on a second readiness gate. All three change what the route
+ * really costs, so all three are read here rather than assumed away.
+ */
+export type AbRoutePlan = Pick<RouteBudget, "path"> & {
+  noisy?: RouteNoiseRecord;
+  redirectsTo?: string;
+  settledSelectorHidden?: string;
+};
 
 /**
  * COUNTED SAMPLES PER ARM, HONOURING THE ROUTE'S OWN NOISE FLOOR.
@@ -135,8 +146,17 @@ export function abSamplesPerArm(route: AbRoutePlan, method: BudgetMethod): numbe
   return method.measuredRuns + (plan.noisy ? plan.resampleRuns : 0);
 }
 
-/** What measuring one route costs the A/B, in navigations across both arms. */
+/**
+ * What measuring one route costs the A/B, in navigations across both arms.
+ *
+ * A REDIRECT COSTS NONE. It is measured with a single request rather than a
+ * page load, which is why neither the warm-ups nor the counted samples charge
+ * it one, and pricing it at eight here would let the budget drop a budgeted
+ * redirect for a cost it never pays: the instrument refusing to look at a route
+ * it was built for. The plan and the spend say the same thing in one place.
+ */
 export function abNavigationsForRoute(route: AbRoutePlan, method: BudgetMethod): number {
+  if (route.redirectsTo) return 0;
   const plan = resolveRouteRunPlan(route, method);
   return PERF_AB_ARMS * (plan.warmupRuns + abSamplesPerArm(route, method));
 }
@@ -178,12 +198,42 @@ export function abNavigationAllowanceMs(
   return routeReadyTimeoutMs + method.network.drainCeilingMs;
 }
 
+/**
+ * WHAT ONE COUNTED SAMPLE MAY TAKE, WHICH IS MORE THAN ONE NAVIGATION.
+ *
+ * `abNavigationAllowanceMs` bounds the `page.goto` and nothing else. A sample
+ * then waits for the readiness gate to hold, waits AGAIN for a loading
+ * affordance to clear on a route that declares one, and only then waits for the
+ * network to go quiet. Every bound sized off the navigation alone is therefore
+ * half the work it is waiting on, which is how a kill lands mid-sample.
+ */
+export function abSampleAllowanceMs(
+  route: Pick<AbRoutePlan, "settledSelectorHidden">,
+  method: BudgetMethod,
+  routeReadyTimeoutMs: number,
+): number {
+  return (
+    abNavigationAllowanceMs(method, routeReadyTimeoutMs) +
+    routeReadyTimeoutMs +
+    (route.settledSelectorHidden ? routeReadyTimeoutMs : 0) +
+    method.network.drainCeilingMs
+  );
+}
+
+/** The worst one sample can cost on any budgeted route, gates and drain included. */
+export function abWorstSampleAllowanceMs(
+  method: BudgetMethod,
+  routeReadyTimeoutMs: number,
+): number {
+  return abSampleAllowanceMs({ settledSelectorHidden: "declared" }, method, routeReadyTimeoutMs);
+}
+
 export function abTimeoutMs(
   navigations: number,
   method: BudgetMethod,
   routeReadyTimeoutMs: number,
 ): number {
-  return Math.max(navigations, 1) * abNavigationAllowanceMs(method, routeReadyTimeoutMs);
+  return Math.max(navigations, 1) * abWorstSampleAllowanceMs(method, routeReadyTimeoutMs);
 }
 
 /**
@@ -217,13 +267,15 @@ export function abUploadReserveMs(jobWallMs: number = PERF_AB_JOB_WALL_MS): numb
  * the spec stops this much earlier than the process that would kill it.
  *
  * THE MARGIN CANNOT BE SHORTER THAN THE WORK IT WAITS ON. The deadline is asked
- * BEFORE a sample, and that sample may then take a whole navigation allowance,
- * so a margin shorter than one allowance lets the kill land while a load is
- * still in flight, which is the very loss it was added to prevent. It is
- * therefore ONE navigation allowance, for the sample that may be in flight,
- * plus a fifth of the upload's share for the two arms closing and the last
- * report write. Both terms are read off the method rather than typed here, so
- * the method and `timeout-minutes` still move every figure between them.
+ * BEFORE a sample, and that sample may then take a whole SAMPLE allowance, not
+ * merely a navigation: the load, the readiness gate, a second gate on a route
+ * that declares one, and the drain. A margin sized off the navigation alone is
+ * half of that, so the kill lands while the load is still in flight, which is
+ * the very loss it was added to prevent. It is therefore the WORST sample this
+ * suite can take, plus a fifth of the upload's share for the two arms closing
+ * and the last report write. Both terms are read off the method rather than
+ * typed here, so the method and `timeout-minutes` still move every figure
+ * between them.
  */
 export function abTeardownMarginMs(
   method: BudgetMethod,
@@ -231,7 +283,7 @@ export function abTeardownMarginMs(
   jobWallMs: number = PERF_AB_JOB_WALL_MS,
 ): number {
   return (
-    abNavigationAllowanceMs(method, routeReadyTimeoutMs) +
+    abWorstSampleAllowanceMs(method, routeReadyTimeoutMs) +
     Math.floor(abUploadReserveMs(jobWallMs) / 5)
   );
 }
@@ -748,6 +800,7 @@ export function formatAbReport(input: {
   const partial = input.routesMeasured < input.routesSelected;
   const notStarted = input.deadlineNotStarted ?? [];
   const stoppedPartWay = input.deadlineStoppedPartWay ?? [];
+  const bounded = Number.isFinite(input.deadlineMs ?? Number.POSITIVE_INFINITY);
   const deadlineSpent = formatAbDuration(input.deadlineMs ?? 0);
   return [
     "[perf-ab] the branch against its merge base: same box, same job, navigations interleaved",
@@ -761,6 +814,10 @@ export function formatAbReport(input: {
             "route(s) measured when this was written.",
         ]
       : []),
+    // A hand run races no wall, so it must not be told a deadline it never had.
+    ...(bounded
+      ? []
+      : ["[perf-ab] No job wall was handed over, so this run measured unbounded."]),
     // A route never opened and a route stopped half way are different facts. One
     // heading over both puts "did not reach" above a table carrying that very
     // route's partial rows.

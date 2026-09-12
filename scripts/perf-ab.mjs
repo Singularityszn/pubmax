@@ -388,8 +388,16 @@ async function main() {
           PUBMAX_PERF_AB_BASE_URL: baseOrigin,
           PUBMAX_PERF_AB_BREACHES: handoverCopy,
           PUBMAX_PERF_AB_REPORT: REPORT_FILE,
-          PUBMAX_PERF_AB_JOB_STARTED_MS: String(JOB_STARTED_MS),
-          PUBMAX_PERF_AB_JOB_WALL_MS: String(JOB_WALL_MS),
+          // ONLY when the job handed a wall over. Outside the job nothing here
+          // is bounded, and handing the spec a wall of zero and this script's
+          // own start had it charge the install and the build as elapsed
+          // against a wall nobody was racing.
+          ...(JOB_WALL_MS > 0
+            ? {
+                PUBMAX_PERF_AB_JOB_STARTED_MS: String(JOB_STARTED_MS),
+                PUBMAX_PERF_AB_JOB_WALL_MS: String(JOB_WALL_MS),
+              }
+            : {}),
         },
       },
     );
