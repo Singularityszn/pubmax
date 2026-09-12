@@ -72,10 +72,38 @@ const REPORT_FILE = "test-results/perf-budget-ab.txt";
 const JOB_WALL_MS = Number(process.env.PUBMAX_PERF_AB_JOB_WALL_MS) || 0;
 const JOB_STARTED_MS = Number(process.env.PUBMAX_PERF_AB_JOB_STARTED_MS) || Date.now();
 
-/** What is left of the job's wall, or null when no wall was handed over. */
+// Mirrors `abUploadReserveMs` in lib/performanceAbEvidence.ts, which a plain
+// Node script cannot import: the wall over eleven, about five minutes of
+// fifty-five. It is kept back from EVERY phase here, because a subprocess
+// killed at the wall is killed at the same instant GitHub cancels the job, so
+// the step never prints why and the step that uploads the evidence never runs.
+const UPLOAD_RESERVE_SHARE = 11;
+
+/**
+ * What is left of the job's wall for this script to spend, with the upload's
+ * share already kept back. Null when no wall was handed over, which is a hand
+ * run: nothing is racing a wall then.
+ */
 function wallRemainingMs() {
   if (JOB_WALL_MS <= 0) return null;
-  return JOB_WALL_MS - (Date.now() - JOB_STARTED_MS);
+  const uploadReserve = Math.floor(JOB_WALL_MS / UPLOAD_RESERVE_SHARE);
+  return JOB_WALL_MS - (Date.now() - JOB_STARTED_MS) - uploadReserve;
+}
+
+/**
+ * The bound for one phase, or null when no wall was handed over. Says so and
+ * spends nothing when the reserve is all that is left: a phase begun with no
+ * room to finish costs the run the very artifact it exists to produce.
+ */
+function phaseBoundMs(phase) {
+  const remaining = wallRemainingMs();
+  if (remaining === null) return null;
+  if (remaining <= 0) {
+    throw new Error(
+      `${phase} had only the upload's share of the job's wall left, so no A/B was measured`,
+    );
+  }
+  return remaining;
 }
 
 function say(message) {
@@ -110,7 +138,8 @@ function run(command, args, options = {}) {
             reject(
               new Error(
                 `${command} ${args.join(" ")} outlasted the ${Math.round(timeoutMs / 60_000)} ` +
-                  "minute(s) left on the job's wall",
+                  "minute(s) the job's wall had left over the upload's share, so no A/B was " +
+                  "measured",
               ),
             );
           }, timeoutMs)
@@ -216,8 +245,8 @@ async function main() {
   const remaining = wallRemainingMs();
   if (remaining !== null && remaining <= 0) {
     say(
-      "the job's wall is already spent, so there is no room to build the merge base and still " +
-        "hand the evidence over. Nothing was built.",
+      "the job's wall has only the upload's share left, so there is no room to build the merge " +
+        "base and still hand the evidence over. Nothing was built.",
     );
     return;
   }
@@ -260,14 +289,14 @@ async function main() {
     say("installing the merge base's own packages");
     await run("npm", ["ci", "--prefer-offline", "--no-audit", "--fund=false"], {
       cwd: worktree,
-      timeoutMs: wallRemainingMs() ?? 0,
+      timeoutMs: phaseBoundMs("the merge base's install") ?? 0,
     });
 
     say("building the merge base with the same environment the branch was built with");
     await run("npm", ["run", "build"], {
       cwd: worktree,
       env: { ...serverEnv, NEXT_DIST_DIR: baseDistDir },
-      timeoutMs: wallRemainingMs() ?? 0,
+      timeoutMs: phaseBoundMs("the merge base's build") ?? 0,
     });
 
     const branchOrigin = `http://localhost:${BRANCH_PORT}`;

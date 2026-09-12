@@ -366,6 +366,18 @@ describe("what the A/B spends", () => {
     expect(abMeasuringDeadlineMs(0) + abUploadReserveMs()).toBe(PERF_AB_JOB_WALL_MS);
   });
 
+  it("hands back nothing once only the upload's share is left, never a negative bound", () => {
+    // Every phase of the A/B - the merge base's install, its build and the
+    // measuring - reads this figure. A phase bounded at the WHOLE wall left is
+    // killed at the instant GitHub cancels the job, so it never prints why and
+    // the upload step never runs.
+    const reserveHalfEaten = PERF_AB_JOB_WALL_MS - Math.floor(abUploadReserveMs() / 2);
+    expect(abMeasuringDeadlineMs(reserveHalfEaten)).toBe(0);
+    expect(abMeasuringDeadlineMs(PERF_AB_JOB_WALL_MS - abUploadReserveMs())).toBe(0);
+    // One millisecond earlier there is exactly one millisecond to spend.
+    expect(abMeasuringDeadlineMs(PERF_AB_JOB_WALL_MS - abUploadReserveMs() - 1)).toBe(1);
+  });
+
   it("stops the run when the deadline has passed and not before", () => {
     const started = 1_000;
     expect(abDeadlineReached(started, started + 60_000, 120_000)).toBe(false);
