@@ -85,6 +85,8 @@
 .tonightHypedSource {
   display: inline-flex;
   align-items: center;
+  min-block-size: var(--control-height, 44px);
+  min-inline-size: var(--control-height, 44px);
   gap: 4px;
   color: var(--color-accent-ink);
   text-decoration: none;
