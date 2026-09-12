@@ -67,7 +67,7 @@ describe("abNoiseBandPct", () => {
     // A band typed here would be a second opinion about the same noise. The
     // sweep already records how far apart one route's samples may sit before
     // the run is called wide; the A/B reads that.
-    expect(abNoiseBandPct(method)).toBe(method.sampleSpreadWarnPct);
+    expect(abNoiseBandPct({}, method)).toBe(method.sampleSpreadWarnPct);
   });
 });
 
@@ -118,6 +118,55 @@ describe("compareArms", () => {
     expect(row.deltaPct).toBe(13);
     expect(abNoiseFloor("lcpMs", method, 300)).toBe(30);
     expect(row.verdict).toBe("NOT SLOWER THAN BASE");
+  });
+
+  it("judges a MARKED route on its own recorded spread, so its documented jitter is not a verdict", () => {
+    // /today is marked noisy BECAUSE its samples were recorded 51 per cent
+    // apart on this rig, so base 320 against branch 360 is the spread the
+    // record documents rather than the code. Judged on the generic 12 the A/B
+    // would convict a branch on the four routes least able to measure
+    // themselves, one of which a docs-only change breached on 11 September.
+    const wide = {
+      metrics: ["lcpMs"] as const,
+      measuredSpreadPct: 51,
+      why: "recorded wide on this rig",
+    };
+    const [row] = compareArms(
+      [
+        pair({
+          budget: 300,
+          noisy: { ...wide, metrics: [...wide.metrics] },
+          branch: [360, 360, 360],
+          base: [320, 320, 320],
+        }),
+      ],
+      method,
+    );
+    expect(abNoiseBandPct({ noisy: { ...wide, metrics: [...wide.metrics] } }, method)).toBe(51);
+    expect(row.deltaPct).toBe(13);
+    expect(row.verdict).toBe("NOT SLOWER THAN BASE");
+  });
+
+  it("still convicts a MARKED route on a gap past its own recorded spread", () => {
+    // The other half: 220 ms on a 300 ms ceiling is 73 per cent, past the
+    // route's own 51, and 220 ms clears the capped floor, so the branch is
+    // named and never called runner drift.
+    const [row] = compareArms(
+      [
+        pair({
+          budget: 300,
+          sweepMeasured: 520,
+          noisy: { metrics: ["lcpMs"], measuredSpreadPct: 51, why: "recorded wide" },
+          branch: [520, 520, 520],
+          base: [300, 300, 300],
+        }),
+      ],
+      method,
+    );
+    expect(row.deltaPct).toBe(73);
+    expect(row.verdict).toBe("BRANCH SLOWER");
+    expect(row.runnerDrift).toBe(false);
+    expect(formatAbVerdictLines([row]).join("\n")).not.toContain("runner drift");
   });
 
   it("never exonerates a real regression because the METRIC floor outsizes the ceiling", () => {

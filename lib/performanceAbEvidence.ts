@@ -538,6 +538,11 @@ export type AbRoutePair = {
    * label does, because drift is a fact about THAT figure.
    */
   sweepMeasured: number;
+  /**
+   * This route's own noise record, when it carries one. It sets the relative
+   * band: a route recorded as swinging 51 per cent is not convicted on 12.
+   */
+  noisy?: RouteNoiseRecord;
   /** The samples this branch's build took, in the order they were taken. */
   branch: readonly number[];
   /** The samples the merge-base build took, interleaved with the branch's. */
@@ -593,9 +598,20 @@ export type AbComparison = {
  * here: the sweep already records how far one route's samples may spread before
  * the run is called wide, and a separate band would be a second opinion about
  * the same noise, free to drift away from it.
+ *
+ * A ROUTE THAT CARRIES A NOISE RECORD IS JUDGED ON ITS OWN RECORDED SPREAD.
+ * /today and /crawls were measured 51 per cent wide on this rig and /discover
+ * and /drinks 37, which is why they carry the record at all. Judged on the
+ * method's generic 12 the A/B would convict a branch on 40 ms of /today, the
+ * very swing the record documents, on the four routes least able to measure
+ * themselves. `measuredSpreadPct` already states how far that route swings, so
+ * nothing new is invented and no ceiling moves.
  */
-export function abNoiseBandPct(method: BudgetMethod): number {
-  return method.sampleSpreadWarnPct;
+export function abNoiseBandPct(
+  route: Pick<AbRoutePlan, "noisy">,
+  method: BudgetMethod,
+): number {
+  return route.noisy?.measuredSpreadPct ?? method.sampleSpreadWarnPct;
 }
 
 /**
@@ -664,16 +680,34 @@ function relativeDeltaPct(branchMedian: number, baseMedian: number): number {
  * over its budget on both arms is NOT SLOWER THAN BASE, and it still fails the
  * build, because the breach list is a different question judged elsewhere.
  *
- * BRANCH SLOWER costs BOTH tests: the gap has to clear the method's relative
- * band AND the metric's own absolute floor (`abNoiseFloor`). Either alone
- * convicts a branch on noise.
+ * THE WHOLE RULE, IN PLAIN WORDS. BRANCH SLOWER costs BOTH tests and neither
+ * one alone.
+ *
+ * The RELATIVE test asks whether the gap is wide as a proportion. Its band is
+ * the ROUTE'S OWN recorded spread when the route carries a noise record
+ * (`measuredSpreadPct`, 51 per cent on /today and /crawls, 37 on /discover and
+ * /drinks) and the method's `sampleSpreadWarnPct` otherwise. A route the method
+ * has already recorded as swinging 51 per cent must clear 51 per cent to be
+ * convicted.
+ *
+ * The ABSOLUTE test asks whether the gap is wide in the metric's own units. Its
+ * floor is the smaller of the method's `sampleSpreadFloors` entry and the
+ * route's own ceiling times `resampleWithinCeilingPct` (`abNoiseFloor`),
+ * because a gap smaller than the band a ceiling is already judged jitter within
+ * cannot be evidence against that ceiling, and because the uncapped 250 ms
+ * lcpMs floor sits above the whole 300 ms ceiling of /crawls.
+ *
+ * Together they close both halves of one false-verdict class: the floor's cap
+ * stops a 220 ms regression on a 300 ms ceiling being exonerated, and the
+ * route's own band stops 40 ms of documented jitter on that same route being
+ * convicted. Do not take one half for the other.
  */
 export function compareArms(
   pairs: readonly AbRoutePair[],
   method: BudgetMethod,
 ): AbComparison[] {
-  const band = abNoiseBandPct(method);
   return pairs.map((pair) => {
+    const band = abNoiseBandPct(pair, method);
     const branchSamples = pair.branch.filter((value) => Number.isFinite(value));
     const baseSamples = pair.base.filter((value) => Number.isFinite(value));
     const branchMedian = branchSamples.length > 0 ? median(branchSamples) : Number.NaN;
