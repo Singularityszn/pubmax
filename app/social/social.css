@@ -138,7 +138,7 @@
   min-height: 200px;
 }
 
-.socialBoundary.socialBoundary--signedOut {
+.socialBoundary.socialBoundary--signedOut:has(+ .starterPacks) {
   min-height: 0;
 }
 

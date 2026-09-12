@@ -64,14 +64,14 @@ describe("Social access boundary", () => {
     expect(socialCss).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.socialBoundary\s*\{[^}]*min-height:\s*220px/);
   });
 
-  it("lets the settled signed-out boundary use its content height", () => {
+  it("uses content height when public packs join the signed-out boundary", () => {
     const html = renderToStaticMarkup(createElement(SocialAccessBoundary, {
       state: "sign_in_required", friendsLaunchEnabled: true, doorAbove: true,
     }));
     expect(html).toContain('class="socialBoundary socialBoundary--signedOut"');
     expect(html).toContain("Sign in to use Social.");
     expect(html).not.toContain("href=");
-    expect(socialCss).toMatch(/\.socialBoundary\.socialBoundary--signedOut\s*\{\s*min-height:\s*0;/);
+    expect(socialCss).toMatch(/\.socialBoundary\.socialBoundary--signedOut:has\(\+ \.starterPacks\)\s*\{\s*min-height:\s*0;/);
   });
 
   it.each([
