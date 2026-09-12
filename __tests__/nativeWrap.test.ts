@@ -44,7 +44,7 @@ describe("Capacitor wrapped-build contract", () => {
     expect(capacitorConfig.server?.errorPath).toBe("offline.html");
 
     const offline = rootFile("native/web-stub/offline.html");
-    expect(offline).toContain("Nothing stale is being shown.");
+    expect(offline).toContain("Check your connection, or try again in a moment.");
     expect(offline).toContain("prefers-color-scheme: dark");
     expect(offline).toContain("env(safe-area-inset-top, 0px)");
     expect(offline).toContain("https://pubmaxxing.com");
@@ -480,7 +480,8 @@ describe("Capacitor wrapped-build contract", () => {
     expect(offline).toContain(">Try again<");
     expect(offline).not.toContain(">Try again.<");
     // The heading beside it is a sentence and keeps its full stop.
-    expect(offline).toContain("<h1>Nothing to show yet.</h1>");
+    expect(offline).toContain("<h1>The app could not load.</h1>");
+    expect(offline).not.toContain(">No connection<");
   });
 
   it("names the origin the rig actually loaded, not the one it usually loads", () => {
