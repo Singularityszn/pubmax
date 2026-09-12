@@ -217,7 +217,7 @@ describe("one consent control on any screen", () => {
   });
 
   it("keeps the settings block where a decision can be REVERSED", () => {
-    expect(hub).toContain('<div id="analytics-settings">');
+    expect(hub).toMatch(/<div id="analytics-settings"(?:\s|>)/);
     expect(hub).toContain("{analyticsControls}");
   });
 });
