@@ -225,8 +225,13 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
 
       {/* These rows are OpenStreetMap's place names, and this surface draws no
           map canvas to carry the credit MapLibre would. It sits outside the
-          live region: it is provenance for the list, not a result to announce. */}
-      {showTowns ? <PlaceIndexCredit className="placesTownSource" /> : null}
+          live region: it is provenance for the list, not a result to announce.
+          It takes the create action's own lane, because a licence line is the
+          one line that may never be painted under a floating button
+          (components/nav/createFab.css). */}
+      {showTowns ? (
+        <PlaceIndexCredit className="placesTownSource createFabLane" />
+      ) : null}
 
       {shown.length > 0 ? (
         <ul className="placesCityList" aria-label="Cities">

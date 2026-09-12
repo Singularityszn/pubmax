@@ -180,10 +180,11 @@
   line-height: var(--leading-normal);
 }
 
+/* The 44px tap floor rides PADDING on an inline box, not a 44px flex line:
+   inside a credit that wraps, a 44px line box grew the paragraph by the best
+   part of thirty pixels and printed its last line under the tab bar at 390. */
 .placesTownSource a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
+  padding-block: 15px;
   color: inherit;
   text-underline-offset: 3px;
 }
