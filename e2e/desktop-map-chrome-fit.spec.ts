@@ -635,9 +635,16 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     actionCalls.push({ name: "Search pubs focus", phase: "start", atEpochMs: Date.now() });
     await toolbar.getByRole("combobox", { name: "Search pubs" }).focus();
     actionCalls.push({ name: "Search pubs focus", phase: "end", atEpochMs: Date.now() });
-    const { retargetAim, failureDiagnostics } = await probe.evaluate((state) => {
+    actionCalls.push({ name: "moving-entry read", phase: "start", atEpochMs: Date.now() });
+    const { mid, retargetAim, movingEntry, failureDiagnostics } = await probe.evaluate(async (state) => {
+      const mid = await state.mid;
       const retargetAim = state.measure();
-      if (retargetAim.retargetOption?.canClick) return { retargetAim, failureDiagnostics: null };
+      const { planner, venue } = retargetAim;
+      const movingEntry = mid !== null && planner.x > -planner.width && planner.x < -1
+        && venue.x > 800 && venue.x < 1440;
+      if (movingEntry && retargetAim.retargetOption?.canClick) {
+        return { mid, retargetAim, movingEntry, failureDiagnostics: null };
+      }
       const elements: HTMLElement[] = [];
       let element = document.querySelector<HTMLElement>(
         '.mapToolbar [role="option"][data-venue-id="bar-swift-soho"]',
@@ -671,7 +678,9 @@ test("1440px planner hands ownership to venue and Back restores composed state",
         };
       });
       return {
+        mid,
         retargetAim,
+        movingEntry,
         failureDiagnostics: {
           ancestors,
           initialOptions: state.initialOptions,
@@ -681,21 +690,19 @@ test("1440px planner hands ownership to venue and Back restores composed state",
         },
       };
     });
+    actionCalls.push({ name: "moving-entry read", phase: "end", atEpochMs: Date.now() });
     const option = retargetAim.retargetOption;
-    if (!option?.canClick) {
+    if (!movingEntry || !option?.canClick) {
       await test.info().attach("drawer-exchange-retarget-failure", {
-        body: JSON.stringify({ retargetAim, ...failureDiagnostics, actionCalls }),
+        body: JSON.stringify({ mid, retargetAim, movingEntry, ...failureDiagnostics, actionCalls }),
         contentType: "application/json",
       });
-      throw new Error(`Swift Soho must own its current centre before clicking: ${JSON.stringify(retargetAim)}`);
+      throw new Error(`Both drawers must be moving and Swift Soho must own its centre: ${JSON.stringify(retargetAim)}`);
     }
     actionCalls.push({ name: "Swift click", phase: "start", atEpochMs: Date.now() });
     await page.mouse.click(option.point.x, option.point.y);
     actionCalls.push({ name: "Swift click", phase: "end", atEpochMs: Date.now() });
     performanceCapture?.stop();
-    actionCalls.push({ name: "mid-frame read", phase: "start", atEpochMs: Date.now() });
-    const mid = await probe.evaluate((state) => state.mid);
-    actionCalls.push({ name: "mid-frame read", phase: "end", atEpochMs: Date.now() });
     const settled = await probe.evaluate((state) => state.done);
     probeFinished = true;
     const { initialOptions, frames, clicks, observation } = await probe.evaluate(
@@ -703,7 +710,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     );
     await probe.dispose();
     await test.info().attach("drawer-exchange-frames", {
-      body: JSON.stringify({ initialOptions, retargetAim, frames, clicks, observation, actionCalls }), contentType: "application/json",
+      body: JSON.stringify({ initialOptions, mid, retargetAim, frames, clicks, observation, actionCalls }), contentType: "application/json",
     });
     expect(mid, "one sampled frame contains both moving drawers").not.toBeNull();
     if (!mid) throw new Error("No simultaneous mid-spring frame within the observation bound");
