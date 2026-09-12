@@ -117,6 +117,7 @@ function CoverageRow({ area, now }: { area: NightArea; now: Date }) {
         <p>{state.detail}</p>
       </div>
       <Link
+        prefetch={false}
         className={`nightAreaCoverage__action${routeReady ? " nightAreaCoverage__action--ready" : ""}`}
         href={state.href}
         aria-label={areaMapLabel(area, state)}
