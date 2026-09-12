@@ -894,12 +894,18 @@ export type PublishedRecapSource = { story: PublicNightStory; moments: NightMome
 /**
  * What a public recap read really answered (astra-review P1-1).
  *
- * `getPublishedRecapSource` collapses three outcomes into `null`, and the page
- * above it turns a null into `notFound()`, so a PostgREST error from
+ * `getPublishedRecapSource` collapsed three outcomes into `null`, and the page
+ * above it turned a null into `notFound()`, so a PostgREST error from
  * `night_stories` or `night_moments` told a crew standing on a published Story
  * that it does not exist. A read we could not RUN is a fact about us, never a
  * fact about the Story, so it is its own answer and the surface words it as
  * one. The twin is `PlanReadResult` in `lib/planStore.ts`.
+ *
+ * The public recap page at app/recap/[storyId]/page.tsx:83 now reads the
+ * three-way `readPublishedRecapSource` and answers unavailable before it ever
+ * reaches `notFound()`. The two-way wrapper is retained and still collapses
+ * three outcomes into null, but its only production caller is
+ * lib/recapCardStats.server.ts:163, which draws nothing either way.
  */
 export type PublishedRecapReadResult =
   | { status: "found"; source: PublishedRecapSource }
