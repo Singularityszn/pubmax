@@ -301,6 +301,11 @@ describe("what the A/B spends", () => {
   };
   const plan = (path: string, noisy = false): AbRoutePlan =>
     noisy ? { ...marked, path } : { path };
+  const routeReadyMs = 120_000;
+  const teardown = (jobWallMs: number = PERF_AB_JOB_WALL_MS) =>
+    abTeardownMarginMs(method, routeReadyMs, jobWallMs);
+  const deadline = (elapsedMs = 0, jobWallMs: number = PERF_AB_JOB_WALL_MS) =>
+    abMeasuringDeadlineMs({ elapsedMs, method, routeReadyTimeoutMs: routeReadyMs, jobWallMs });
 
   it("judges a marked route on the median of seven, exactly as the sweep judges it", () => {
     // Three samples cannot decide a route whose samples were recorded 51 per
@@ -358,33 +363,29 @@ describe("what the A/B spends", () => {
   it("keeps its measuring deadline inside the job's wall, with room for the upload", () => {
     // A run bounded only by the job's wall is a run GitHub cancels, and a
     // cancelled job never reaches the step that uploads the report.
-    expect(abMeasuringDeadlineMs()).toBeLessThan(PERF_AB_JOB_WALL_MS);
-    expect(abMeasuringDeadlineMs()).toBe(
-      PERF_AB_JOB_WALL_MS - abUploadReserveMs() - abTeardownMarginMs(),
-    );
+    expect(deadline()).toBeLessThan(PERF_AB_JOB_WALL_MS);
+    expect(deadline()).toBe(PERF_AB_JOB_WALL_MS - abUploadReserveMs() - teardown());
     // Derived from the wall, so moving `timeout-minutes` moves this with it.
-    expect(abMeasuringDeadlineMs(0, 2 * PERF_AB_JOB_WALL_MS)).toBeGreaterThan(
-      abMeasuringDeadlineMs(),
-    );
+    expect(deadline(0, 2 * PERF_AB_JOB_WALL_MS)).toBeGreaterThan(deadline());
   });
 
   it("shrinks the deadline by what the sweep and the merge-base build already spent", () => {
     // The sweep, the install and the build are not bounded by anything this
-    // module can see, and on a slow box they are what overruns. A quarter of a
+    // module can see, and on a slow box they are what overruns. A share of a
     // wall that is already gone is not a share.
-    const spentMost = abMeasuringDeadlineMs(PERF_AB_JOB_WALL_MS - 6 * 60_000);
-    expect(spentMost).toBeLessThan(6 * 60_000);
-    expect(spentMost).toBeLessThan(abMeasuringDeadlineMs(10 * 60_000));
+    const spentMost = deadline(PERF_AB_JOB_WALL_MS - 12 * 60_000);
+    expect(spentMost).toBeLessThan(12 * 60_000);
+    expect(spentMost).toBeLessThan(deadline(10 * 60_000));
   });
 
   it("yields no measuring at all once the wall is spent, never a negative deadline", () => {
-    expect(abMeasuringDeadlineMs(PERF_AB_JOB_WALL_MS)).toBe(0);
-    expect(abMeasuringDeadlineMs(PERF_AB_JOB_WALL_MS * 2)).toBe(0);
+    expect(deadline(PERF_AB_JOB_WALL_MS)).toBe(0);
+    expect(deadline(PERF_AB_JOB_WALL_MS * 2)).toBe(0);
     // And with nothing left, no route is ever admitted.
     expect(
       abRouteFitsDeadline({
         navigations: 8,
-        remainingMs: abMeasuringDeadlineMs(PERF_AB_JOB_WALL_MS),
+        remainingMs: deadline(PERF_AB_JOB_WALL_MS),
         observedMsPerNavigation: null,
       }),
     ).toBe(false);
@@ -392,9 +393,7 @@ describe("what the A/B spends", () => {
 
   it("always keeps the upload a share of the wall, whatever the measuring wants", () => {
     expect(abUploadReserveMs()).toBeGreaterThan(0);
-    expect(abMeasuringDeadlineMs(0) + abUploadReserveMs() + abTeardownMarginMs()).toBe(
-      PERF_AB_JOB_WALL_MS,
-    );
+    expect(deadline(0) + abUploadReserveMs() + teardown()).toBe(PERF_AB_JOB_WALL_MS);
   });
 
   it("stops the measuring BEFORE the script that would kill it, so the last write survives", () => {
@@ -402,26 +401,31 @@ describe("what the A/B spends", () => {
     // share. Equal to the millisecond, its kill can land on the graceful stop
     // and take the final report write, both arms closing and the print with it.
     const scriptBound = PERF_AB_JOB_WALL_MS - abUploadReserveMs();
-    expect(abMeasuringDeadlineMs(0)).toBeLessThan(scriptBound);
-    expect(scriptBound - abMeasuringDeadlineMs(0)).toBe(abTeardownMarginMs());
-    expect(abTeardownMarginMs()).toBeGreaterThan(0);
-    // A share of a share: one `timeout-minutes` still moves every figure.
-    expect(abTeardownMarginMs(2 * PERF_AB_JOB_WALL_MS)).toBeGreaterThan(abTeardownMarginMs());
+    expect(deadline(0)).toBeLessThan(scriptBound);
+    expect(scriptBound - deadline(0)).toBe(teardown());
   });
 
-  it("hands back nothing once only the upload's share is left, never a negative bound", () => {
+  it("keeps the margin longer than the sample that may be in flight when it stops", () => {
+    // The deadline is asked BEFORE a sample, and that sample may then take a
+    // whole navigation allowance, so a margin shorter than one allowance lets
+    // the kill land while a load is still in flight.
+    expect(teardown()).toBeGreaterThan(abNavigationAllowanceMs(method, routeReadyMs));
+    // Read off the method rather than typed: a slower gate widens the margin.
+    expect(abTeardownMarginMs(method, routeReadyMs * 2)).toBeGreaterThan(teardown());
+  });
+
+  it("hands back nothing once only the upload's share and the margin are left", () => {
     // Every phase of the A/B - the merge base's install, its build and the
     // measuring - reads this figure. A phase bounded at the WHOLE wall left is
     // killed at the instant GitHub cancels the job, so it never prints why and
     // the upload step never runs.
-    const reserveHalfEaten = PERF_AB_JOB_WALL_MS - Math.floor(abUploadReserveMs() / 2);
-    expect(abMeasuringDeadlineMs(reserveHalfEaten)).toBe(0);
-    expect(abMeasuringDeadlineMs(PERF_AB_JOB_WALL_MS - abUploadReserveMs())).toBe(0);
+    expect(deadline(PERF_AB_JOB_WALL_MS - Math.floor(abUploadReserveMs() / 2))).toBe(0);
+    expect(deadline(PERF_AB_JOB_WALL_MS - abUploadReserveMs())).toBe(0);
     // One millisecond earlier than the last spendable instant there is exactly
     // one millisecond to spend.
-    const lastSpendable = PERF_AB_JOB_WALL_MS - abUploadReserveMs() - abTeardownMarginMs();
-    expect(abMeasuringDeadlineMs(lastSpendable - 1)).toBe(1);
-    expect(abMeasuringDeadlineMs(lastSpendable)).toBe(0);
+    const lastSpendable = PERF_AB_JOB_WALL_MS - abUploadReserveMs() - teardown();
+    expect(deadline(lastSpendable - 1)).toBe(1);
+    expect(deadline(lastSpendable)).toBe(0);
   });
 
   it("stops the run when the deadline has passed and not before", () => {
@@ -756,6 +760,25 @@ describe("formatAbReport", () => {
     expect(stopped).toContain("10 minute(s)");
     expect(stopped).toContain("/crawls, /today");
     expect(stopped).toContain("/messages");
+  });
+
+  it("names the deadline in seconds when a nearly spent wall left less than a minute", () => {
+    // The nearly-spent run is the one whose artifact gets read, and "0
+    // minute(s) of measuring fits inside the job's wall" names no quantity.
+    const seconds = formatAbReport({
+      branchOrigin: "http://localhost:3500",
+      baseOrigin: "http://localhost:3501",
+      head: "abc123",
+      selection,
+      rows: compareArms([pair()], method),
+      routesMeasured: 1,
+      routesSelected: 3,
+      navigationsSpent: 8,
+      deadlineNotStarted: ["/today"],
+      deadlineMs: 20_000,
+    });
+    expect(seconds).toContain("20 second(s) of measuring");
+    expect(seconds).not.toContain("0 minute(s)");
   });
 
   it("says nothing about a deadline on a run the deadline never stopped", () => {

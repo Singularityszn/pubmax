@@ -133,10 +133,10 @@ function humanMs(milliseconds) {
  * wall, which is the cancellation the bound exists to prevent. Each bounded
  * phase is therefore its own process group and the group is what is signalled.
  */
-function killGroup(child) {
+function killGroup(child, signal = "SIGKILL") {
   if (child.exitCode !== null || child.signalCode !== null || child.pid === undefined) return;
   try {
-    process.kill(-child.pid, "SIGKILL");
+    process.kill(-child.pid, signal);
   } catch {
     // Already gone, or never became a group leader. Nothing left to stop.
   }
@@ -218,10 +218,16 @@ async function waitForServer(origin, child, timeoutMs) {
 }
 
 function startServer({ cwd, port, env }) {
+  // Its own process group, for the same reason every bounded phase has one:
+  // `npm run start` is a wrapper and `next start` is the server. A signal to
+  // the wrapper alone leaves that server holding this step's inherited stderr,
+  // the runner never sees the step finish, and the job burns to its wall with
+  // the upload behind it.
   const child = spawn("npm", ["run", "start", "--", "--port", String(port)], {
     cwd,
     env: { ...process.env, ...env },
     stdio: ["ignore", "ignore", "inherit"],
+    detached: true,
   });
   return child;
 }
@@ -388,7 +394,7 @@ async function main() {
       },
     );
   } finally {
-    for (const server of servers) server.kill("SIGTERM");
+    for (const server of servers) killGroup(server, "SIGTERM");
 
     // THE BREACH LIST IS PUT BACK BEFORE ANYTHING UPLOADS IT. The A/B's own
     // Playwright run cleared test-results/ at its start, and the sweep's

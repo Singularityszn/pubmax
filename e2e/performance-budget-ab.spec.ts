@@ -151,16 +151,29 @@ async function sampleArm(arm: Arm, route: RouteBudget): Promise<PerfSample> {
   }
 }
 
-/** The warm-ups this arm really performed, which is what the run is charged for. */
-async function warmArm(arm: Arm, route: RouteBudget, warmupRuns: number): Promise<number> {
+/**
+ * The warm-ups this arm really performed, and whether the deadline stopped it.
+ *
+ * The deadline is asked before EVERY warm-up load, not only before the counted
+ * samples: a route is admitted on the pace this run has observed, the first one
+ * is admitted with no pace to go on at all, and four warm-up navigations spent
+ * without asking can outlast the stop by minutes and take the upload with them.
+ */
+async function warmArm(
+  arm: Arm,
+  route: RouteBudget,
+  warmupRuns: number,
+  deadlinePassed: () => boolean,
+): Promise<{ loads: number; stopped: boolean }> {
   await resetPerfState(arm.page);
   // A redirect is measured with one request rather than a page load, so it
   // warms nothing and must not be charged for loads it never made: the pace
   // those phantom navigations imply would admit the next route however little
   // time is left.
-  if (route.redirectsTo) return 0;
+  if (route.redirectsTo) return { loads: 0, stopped: false };
   let loads = 0;
   for (let run = 0; run < warmupRuns; run += 1) {
+    if (deadlinePassed()) return { loads, stopped: true };
     try {
       await loadPerfRoute(arm.page, route);
       await waitForQuietNetwork(arm.page, budgets.method);
@@ -168,10 +181,10 @@ async function warmArm(arm: Arm, route: RouteBudget, warmupRuns: number): Promis
     } catch {
       // A warm-up that failed is not a measurement. The counted samples below
       // report the failure if the route really cannot answer on this arm.
-      return loads;
+      return { loads, stopped: false };
     }
   }
-  return loads;
+  return { loads, stopped: false };
 }
 
 // A MEASUREMENT THAT IS RETRIED IS NOT A MEASUREMENT, the same declaration the
@@ -244,7 +257,12 @@ test("a breached route is measured against its merge base on this box", async ({
   // is racing a wall then.
   const jobWallMs = Number(process.env.PUBMAX_PERF_AB_JOB_WALL_MS) || PERF_AB_JOB_WALL_MS;
   const jobStartedMs = Number(process.env.PUBMAX_PERF_AB_JOB_STARTED_MS) || Date.now();
-  const deadlineMs = abMeasuringDeadlineMs(Date.now() - jobStartedMs, jobWallMs);
+  const deadlineMs = abMeasuringDeadlineMs({
+    elapsedMs: Date.now() - jobStartedMs,
+    method: budgets.method,
+    routeReadyTimeoutMs: ROUTE_READY_TIMEOUT_MS,
+    jobWallMs,
+  });
   const startedAt = Date.now();
   const deadlineNotStarted: string[] = [];
   const deadlineStoppedPartWay: string[] = [];
@@ -294,8 +312,13 @@ test("a breached route is measured against its merge base on this box", async ({
     }
 
     const plan = resolveRouteRunPlan(route, budgets.method);
-    navigationsSpent += await warmArm(branch, route, plan.warmupRuns);
-    navigationsSpent += await warmArm(base, route, plan.warmupRuns);
+    const deadlinePassed = () => abDeadlineReached(startedAt, Date.now(), deadlineMs);
+    let stoppedMidRoute = false;
+    for (const arm of [branch, base]) {
+      const warmed = await warmArm(arm, route, plan.warmupRuns, deadlinePassed);
+      navigationsSpent += warmed.loads;
+      if (warmed.stopped) stoppedMidRoute = true;
+    }
 
     const arms: Record<Arm["name"], Arm> = { branch, base };
     const samples = { branch: [] as PerfSample[], base: [] as PerfSample[] };
@@ -303,7 +326,6 @@ test("a breached route is measured against its merge base on this box", async ({
     // of seven here exactly as the sweep judges it, because three samples cannot
     // decide a route whose samples were recorded 37 to 51 per cent apart.
     const countedRuns = abSamplesPerArm(route, budgets.method);
-    let stoppedMidRoute = false;
     for (let run = 0; run < countedRuns && !stoppedMidRoute; run += 1) {
       // A, B, then B, A, then A, B. The rule itself lives in the pure module,
       // so it is unit-tested with no browser.
@@ -311,7 +333,7 @@ test("a breached route is measured against its merge base on this box", async ({
         // Belt and braces for a route running slower than its plan predicted:
         // the run stops here, the route keeps fewer samples than it planned,
         // and the rule already in force reads that as NOT COMPARED.
-        if (abDeadlineReached(startedAt, Date.now(), deadlineMs)) {
+        if (deadlinePassed()) {
           stoppedMidRoute = true;
           break;
         }

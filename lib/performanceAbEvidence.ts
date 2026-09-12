@@ -216,12 +216,24 @@ export function abUploadReserveMs(jobWallMs: number = PERF_AB_JOB_WALL_MS): numb
  * started, both arms closing, and the print. The graceful path has to win, so
  * the spec stops this much earlier than the process that would kill it.
  *
- * A fifth of the upload's share, which is about a minute of fifty-five, and a
- * share of a share rather than a second unrelated number: one `timeout-minutes`
- * still moves every figure in this module.
+ * THE MARGIN CANNOT BE SHORTER THAN THE WORK IT WAITS ON. The deadline is asked
+ * BEFORE a sample, and that sample may then take a whole navigation allowance,
+ * so a margin shorter than one allowance lets the kill land while a load is
+ * still in flight, which is the very loss it was added to prevent. It is
+ * therefore ONE navigation allowance, for the sample that may be in flight,
+ * plus a fifth of the upload's share for the two arms closing and the last
+ * report write. Both terms are read off the method rather than typed here, so
+ * the method and `timeout-minutes` still move every figure between them.
  */
-export function abTeardownMarginMs(jobWallMs: number = PERF_AB_JOB_WALL_MS): number {
-  return Math.floor(abUploadReserveMs(jobWallMs) / 5);
+export function abTeardownMarginMs(
+  method: BudgetMethod,
+  routeReadyTimeoutMs: number,
+  jobWallMs: number = PERF_AB_JOB_WALL_MS,
+): number {
+  return (
+    abNavigationAllowanceMs(method, routeReadyTimeoutMs) +
+    Math.floor(abUploadReserveMs(jobWallMs) / 5)
+  );
 }
 
 /**
@@ -244,13 +256,20 @@ export function abTeardownMarginMs(jobWallMs: number = PERF_AB_JOB_WALL_MS): num
  * The teardown margin above comes off as well, so the spec's own stop always
  * arrives before the script's kill and the report it writes last survives.
  */
-export function abMeasuringDeadlineMs(
-  elapsedMs: number = 0,
-  jobWallMs: number = PERF_AB_JOB_WALL_MS,
-): number {
+export function abMeasuringDeadlineMs(input: {
+  /** What the sweep and the merge-base build have already spent of the wall. */
+  elapsedMs?: number;
+  method: BudgetMethod;
+  routeReadyTimeoutMs: number;
+  jobWallMs?: number;
+}): number {
+  const jobWallMs = input.jobWallMs ?? PERF_AB_JOB_WALL_MS;
   return Math.max(
     0,
-    jobWallMs - elapsedMs - abUploadReserveMs(jobWallMs) - abTeardownMarginMs(jobWallMs),
+    jobWallMs -
+      (input.elapsedMs ?? 0) -
+      abUploadReserveMs(jobWallMs) -
+      abTeardownMarginMs(input.method, input.routeReadyTimeoutMs, jobWallMs),
   );
 }
 
@@ -260,11 +279,7 @@ export function abMeasuringDeadlineMs(
  * top of a route bounds when the LAST ROUTE STARTS rather than when the run
  * ends, and one slow route can outlast the job's whole wall on its own.
  */
-export function abDeadlineReached(
-  startedAt: number,
-  now: number,
-  deadlineMs: number = abMeasuringDeadlineMs(),
-): boolean {
+export function abDeadlineReached(startedAt: number, now: number, deadlineMs: number): boolean {
   return now - startedAt >= deadlineMs;
 }
 
@@ -624,6 +639,12 @@ function figure(value: number): string {
   return Number.isFinite(value) ? String(Math.round(value)) : "not measured";
 }
 
+/** A duration that names a real quantity, whether it is minutes or the last seconds. */
+export function formatAbDuration(milliseconds: number): string {
+  if (milliseconds >= 60_000) return `${Math.round(milliseconds / 60_000)} minute(s)`;
+  return `${Math.round(milliseconds / 1_000)} second(s)`;
+}
+
 function signedPct(value: number): string {
   if (!Number.isFinite(value)) return "-";
   return `${value > 0 ? "+" : ""}${value}%`;
@@ -721,14 +742,13 @@ export function formatAbReport(input: {
   deadlineNotStarted?: readonly string[];
   /** Routes the deadline stopped part way through, whose rows read NOT COMPARED. */
   deadlineStoppedPartWay?: readonly string[];
+  /** What the measuring was given, for the sentence that names the deadline. */
   deadlineMs?: number;
 }): string {
   const partial = input.routesMeasured < input.routesSelected;
   const notStarted = input.deadlineNotStarted ?? [];
   const stoppedPartWay = input.deadlineStoppedPartWay ?? [];
-  const deadlineMinutes = Math.round(
-    (input.deadlineMs ?? abMeasuringDeadlineMs()) / 60_000,
-  );
+  const deadlineSpent = formatAbDuration(input.deadlineMs ?? 0);
   return [
     "[perf-ab] the branch against its merge base: same box, same job, navigations interleaved",
     `[perf-ab] branch ${input.branchOrigin}  base ${input.baseOrigin}  head ${input.head || "local"}`,
@@ -747,7 +767,7 @@ export function formatAbReport(input: {
     ...(notStarted.length > 0
       ? [
           `[perf-ab] The DEADLINE ended this run, not the navigation budget: ` +
-            `${deadlineMinutes} minute(s) of measuring fits inside the job's wall with room ` +
+            `${deadlineSpent} of measuring fits inside the job's wall with room ` +
             `for the upload, so it NEVER STARTED ${notStarted.join(", ")}.`,
         ]
       : []),
