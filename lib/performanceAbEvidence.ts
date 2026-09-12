@@ -1,7 +1,6 @@
 import {
   BUDGET_METRIC_LABELS,
   median,
-  plannedNavigations,
   resolveRouteRunPlan,
   type BudgetMethod,
   type BudgetMetric,
@@ -108,26 +107,14 @@ export function abHandoverForBreaches(
  * routes do not cost the same: a route carrying a noise record takes two
  * discarded navigations and seven counted samples, more than twice what a quiet
  * route takes, so eight of them would spend more than twice what eight quiet
- * ones spend. The figure is read off the method block through
- * `plannedNavigations` rather than typed here: it is what eight ordinary routes
- * cost, on both arms.
+ * ones spend. The figure is read off the method block through the A/B's own
+ * per-route cost rather than typed here: it is what eight ordinary routes cost,
+ * on both arms.
  */
 const PERF_AB_BUDGET_ROUTES = 8;
 
 /** Branch and base. Every A/B cost is paid twice, once on each. */
 export const PERF_AB_ARMS = 2;
-
-/**
- * What one navigation is allowed before the test gives up on the whole run.
- *
- * The sweep's own timeout allows 60 seconds a navigation, which is the worst
- * case for a gate that must never time out on a route measuring itself. This
- * one has the opposite duty: it has to fire INSIDE the job's wall so the
- * evidence still uploads, and the sweep's recorded rate on this pool is about
- * four seconds a navigation. Three times the observed cost is the room a real
- * run needs; a run slower than that has already lost the job.
- */
-export const PERF_AB_NAVIGATION_MS = 12_000;
 
 /** A route as this module costs it: its path and whatever noise record it carries. */
 export type AbRoutePlan = Pick<RouteBudget, "path"> & { noisy?: RouteNoiseRecord };
@@ -154,26 +141,36 @@ export function abNavigationsForRoute(route: AbRoutePlan, method: BudgetMethod):
   return PERF_AB_ARMS * (plan.warmupRuns + abSamplesPerArm(route, method));
 }
 
-/** The navigation budget one A/B may spend across both arms. */
+/**
+ * The navigation budget one A/B may spend across both arms.
+ *
+ * It is eight ordinary routes priced at what the A/B ITSELF spends on one,
+ * rather than at what `plannedNavigations` charges the sweep: the sweep buys a
+ * resample wherever a run said it could not measure, and the A/B never buys one
+ * on a quiet route, so reading the sweep's figure made the budget half again
+ * the size its own sentence claimed.
+ */
 export function abNavigationBudget(method: BudgetMethod): number {
-  return (
-    PERF_AB_ARMS *
-    plannedNavigations(
-      Array.from({ length: PERF_AB_BUDGET_ROUTES }, () => ({})),
-      method,
-    )
-  );
+  return PERF_AB_BUDGET_ROUTES * abNavigationsForRoute({ path: "" }, method);
 }
 
 /**
- * The test's own deadline, from the navigations it will actually spend.
+ * The test's own deadline, from the navigations it will actually spend and what
+ * ONE navigation may legitimately take in this harness.
  *
- * Read off the selection rather than off every budgeted route: a timeout hours
- * past the job's wall never fires, so a stuck arm burns the whole job and the
- * artifact step never runs.
+ * The allowance is not a figure typed here. A navigation waits up to the
+ * harness's route-ready ceiling for the gate to hold and up to the method's own
+ * drain ceiling for the network to go quiet, so those two numbers are what a
+ * slow route is allowed to cost. A smaller allowance would fire on exactly the
+ * kind of route this instrument is ever asked about, which is the one that has
+ * something to say.
  */
-export function abTimeoutMs(navigations: number): number {
-  return Math.max(navigations, 1) * PERF_AB_NAVIGATION_MS;
+export function abTimeoutMs(
+  navigations: number,
+  method: BudgetMethod,
+  routeReadyTimeoutMs: number,
+): number {
+  return Math.max(navigations, 1) * (routeReadyTimeoutMs + method.network.drainCeilingMs);
 }
 
 export type AbBreachSelection = {
@@ -307,13 +304,20 @@ export type AbRoutePair = {
   branch: readonly number[];
   /** The samples the merge-base build took, interleaved with the branch's. */
   base: readonly number[];
+  /**
+   * What each arm's plan asked for. A verdict needs the WHOLE plan on BOTH
+   * arms: a median of one sample wearing the same label as a median of seven is
+   * the laundering this lane exists to stop.
+   */
+  plannedSamples: number;
 };
 
 /**
  * BRANCH SLOWER is a regression this run can defend. NOT SLOWER THAN BASE is
  * the evidence that a red route is the box rather than the branch. NOT COMPARED
- * is an arm that never measured: absence of evidence convicts nobody and clears
- * nobody.
+ * is an arm that did not complete its plan, whether it measured nothing or
+ * measured some of it: absence of evidence convicts nobody and clears nobody,
+ * and the next run measures again.
  */
 export type AbVerdict = "BRANCH SLOWER" | "NOT SLOWER THAN BASE" | "NOT COMPARED";
 
@@ -323,6 +327,10 @@ export type AbComparison = {
   budget: number;
   branchMedian: number;
   baseMedian: number;
+  /** Samples that survived on each arm, and what the plan asked of each. */
+  branchSamples: number;
+  baseSamples: number;
+  plannedSamples: number;
   /** Branch minus base, in the metric's own units. */
   delta: number;
   /**
@@ -384,7 +392,14 @@ export function compareArms(
     const baseSamples = pair.base.filter((value) => Number.isFinite(value));
     const branchMedian = branchSamples.length > 0 ? median(branchSamples) : Number.NaN;
     const baseMedian = baseSamples.length > 0 ? median(baseSamples) : Number.NaN;
-    const compared = Number.isFinite(branchMedian) && Number.isFinite(baseMedian);
+    // A VERDICT COSTS THE WHOLE PLAN ON BOTH ARMS. An arm that lost samples is
+    // not a smaller version of an arm that did not: two of three on the
+    // noisiest route in the table can print runner drift off one surviving
+    // figure, which is the phrase the standing law asks for before a red check
+    // is re-run. No answer said out loud beats a confident wrong one.
+    const complete =
+      branchSamples.length >= pair.plannedSamples && baseSamples.length >= pair.plannedSamples;
+    const compared = complete && Number.isFinite(branchMedian) && Number.isFinite(baseMedian);
     const delta = compared ? branchMedian - baseMedian : Number.NaN;
     const exactPct = compared ? relativeDeltaPct(branchMedian, baseMedian) : Number.NaN;
     const deltaPct = compared ? Math.round(exactPct) : Number.NaN;
@@ -399,6 +414,9 @@ export function compareArms(
       budget: pair.budget,
       branchMedian,
       baseMedian,
+      branchSamples: branchSamples.length,
+      baseSamples: baseSamples.length,
+      plannedSamples: pair.plannedSamples,
       delta,
       deltaPct,
       verdict,
@@ -423,6 +441,11 @@ function signedPct(value: number): string {
   return `${value > 0 ? "+" : ""}${value}%`;
 }
 
+/** What backed each median, on every row, whatever the verdict. */
+function sampleCounts(row: AbComparison): string {
+  return `${row.branchSamples}/${row.plannedSamples} vs ${row.baseSamples}/${row.plannedSamples}`;
+}
+
 /**
  * The A/B table. Empty string when nothing was compared, so a green sweep never
  * prints a header with no rows under it.
@@ -435,10 +458,11 @@ export function formatAbTable(rows: readonly AbComparison[]): string {
     figure(row.budget),
     figure(row.branchMedian),
     figure(row.baseMedian),
+    sampleCounts(row),
     signedPct(row.deltaPct),
     row.verdict,
   ]);
-  const header = ["route", "metric", "ceiling", "branch", "base", "delta", "verdict"];
+  const header = ["route", "metric", "ceiling", "branch", "base", "samples", "delta", "verdict"];
   const widths = header.map((cell, column) =>
     Math.max(cell.length, ...body.map((line) => line[column].length)),
   );
@@ -462,10 +486,14 @@ export function formatAbVerdictLines(rows: readonly AbComparison[]): string[] {
   return rows.map((row) => {
     const metric = BUDGET_METRIC_LABELS[row.metric];
     const figures =
-      `branch ${figure(row.branchMedian)}, base ${figure(row.baseMedian)}, ` +
+      `branch ${figure(row.branchMedian)} from ${row.branchSamples} of ${row.plannedSamples} ` +
+      `samples, base ${figure(row.baseMedian)} from ${row.baseSamples} of ${row.plannedSamples}, ` +
       `ceiling ${figure(row.budget)}`;
     if (row.verdict === "NOT COMPARED") {
-      return `${row.path} ${metric}: one arm never measured (${figures}), so this run says nothing about it.`;
+      return (
+        `${row.path} ${metric}: an arm did not complete its plan (${figures}), so this run ` +
+        "says nothing about it."
+      );
     }
     if (row.verdict === "BRANCH SLOWER") {
       return `${row.path} ${metric}: ${signedPct(row.deltaPct)} against the merge base on this box (${figures}): BRANCH SLOWER.`;
@@ -478,4 +506,43 @@ export function formatAbVerdictLines(rows: readonly AbComparison[]): string[] {
     }
     return `${row.path} ${metric}: ${signedPct(row.deltaPct)} against the merge base on this box (${figures}): NOT SLOWER THAN BASE.`;
   });
+}
+
+/**
+ * THE WHOLE REPORT, BUILT FROM WHAT HAS BEEN MEASURED SO FAR.
+ *
+ * The A/B writes it after EVERY route rather than once at the end, because the
+ * box slow enough to abort the run is the box whose evidence matters most: a
+ * report assembled only after the last route discards the routes that did
+ * measure, and the selection is ordered worst first precisely so a run cut
+ * short has already measured the ones an author asks about. A report that is
+ * still partial says so in its own first lines.
+ */
+export function formatAbReport(input: {
+  branchOrigin: string;
+  baseOrigin: string;
+  head: string;
+  scope: readonly string[];
+  rows: readonly AbComparison[];
+  routesMeasured: number;
+  routesSelected: number;
+}): string {
+  const partial = input.routesMeasured < input.routesSelected;
+  return [
+    "[perf-ab] the branch against its merge base: same box, same job, navigations interleaved",
+    `[perf-ab] branch ${input.branchOrigin}  base ${input.baseOrigin}  head ${input.head || "local"}`,
+    ...input.scope.map((line) => `[perf-ab] ${line}`),
+    ...(partial
+      ? [
+          `[perf-ab] PARTIAL: ${input.routesMeasured} of ${input.routesSelected} selected ` +
+            "route(s) measured when this was written.",
+        ]
+      : []),
+    "",
+    formatAbTable(input.rows),
+    "",
+    ...formatAbVerdictLines(input.rows).map((line) => `  - ${line}`),
+    "",
+    "[perf-ab] This moves no ceiling and fails nothing: the breach table is still the gate.",
+  ].join("\n");
 }

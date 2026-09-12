@@ -8,9 +8,8 @@ import {
   abSamplesPerArm,
   abTimeoutMs,
   compareArms,
+  formatAbReport,
   formatAbScopeLines,
-  formatAbTable,
-  formatAbVerdictLines,
   selectAbBreaches,
   type AbBreach,
   type AbBreachHandover,
@@ -24,6 +23,7 @@ import {
   type RouteBudget,
 } from "../lib/performanceBudgets";
 import {
+  ROUTE_READY_TIMEOUT_MS,
   loadPerfRoute,
   measurePerfRedirect,
   preparePerfPage,
@@ -198,12 +198,36 @@ test("a breached route is measured against its merge base on this box", async ({
     .map((path) => budgetedByPath.get(path))
     .filter((route): route is RouteBudget => route !== undefined);
 
-  test.setTimeout(abTimeoutMs(selection.navigations));
+  test.setTimeout(abTimeoutMs(selection.navigations, budgets.method, ROUTE_READY_TIMEOUT_MS));
 
   const branch = await openArm(browser, "branch", branchOrigin, routes);
   const base = await openArm(browser, "base", baseOrigin, routes);
 
   const pairs: AbRoutePair[] = [];
+  let routesMeasured = 0;
+
+  // THE REPORT IS WRITTEN AFTER EVERY ROUTE, NOT ONCE AT THE END. The box slow
+  // enough to abort this run is the box whose evidence matters most, and the
+  // selection is ordered worst first precisely so a run cut short has already
+  // measured the routes an author asks about. A report assembled only after the
+  // last route throws all of that away.
+  const writeReport = (): string => {
+    const report = formatAbReport({
+      branchOrigin,
+      baseOrigin,
+      head: handover.head,
+      scope: formatAbScopeLines(selection),
+      rows: compareArms(pairs, budgets.method),
+      routesMeasured,
+      routesSelected: routes.length,
+    });
+    if (reportPath) {
+      mkdirSync(dirname(reportPath), { recursive: true });
+      writeFileSync(reportPath, `${report}\n`);
+    }
+    return report;
+  };
+
   for (const route of routes) {
     const plan = resolveRouteRunPlan(route, budgets.method);
     await warmArm(branch, route, plan.warmupRuns);
@@ -230,29 +254,15 @@ test("a breached route is measured against its merge base on this box", async ({
         budget: route[metric],
         branch: samples.branch.map((sample) => sample[metric]),
         base: samples.base.map((sample) => sample[metric]),
+        plannedSamples: countedRuns,
       });
     }
+    routesMeasured += 1;
+    writeReport();
   }
 
   await branch.page.context().close();
   await base.page.context().close();
 
-  const rows = compareArms(pairs, budgets.method);
-  const report = [
-    "[perf-ab] the branch against its merge base: same box, same job, navigations interleaved",
-    `[perf-ab] branch ${branchOrigin}  base ${baseOrigin}  head ${handover.head || "local"}`,
-    ...formatAbScopeLines(selection).map((line) => `[perf-ab] ${line}`),
-    "",
-    formatAbTable(rows),
-    "",
-    ...formatAbVerdictLines(rows).map((line) => `  - ${line}`),
-    "",
-    "[perf-ab] This moves no ceiling and fails nothing: the breach table is still the gate.",
-  ].join("\n");
-  console.log(report);
-
-  if (reportPath) {
-    mkdirSync(dirname(reportPath), { recursive: true });
-    writeFileSync(reportPath, `${report}\n`);
-  }
+  console.log(writeReport());
 });

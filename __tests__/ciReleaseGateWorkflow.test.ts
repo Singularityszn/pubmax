@@ -3,8 +3,68 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+const HEAP = "--max-old-space-size=6144";
+
+type WorkflowStep = { job: string; name: string; run: string; env: Record<string, string> };
+
+/**
+ * The workflow's steps as GitHub reads them: which job, which step, what it
+ * runs and what environment it declares.
+ *
+ * Counting matches of a string over the file cannot say WHICH step carries the
+ * heap, so a heap moved off the merge-base build onto an unrelated step keeps
+ * the count and loses the build.
+ */
+function parseSteps(yaml: string): WorkflowStep[] {
+  const steps: WorkflowStep[] = [];
+  let job = "";
+  let step: WorkflowStep | null = null;
+  let block: { key: "run"; indent: number } | null = null;
+  let inEnv = false;
+  for (const line of yaml.split("\n")) {
+    const indent = line.length - line.trimStart().length;
+    const text = line.trim();
+
+    if (block && line.trim() !== "" && indent > block.indent) {
+      if (step) step.run = `${step.run}\n${text}`;
+      continue;
+    }
+    if (block) block = null;
+
+    const jobHeader = /^ {2}([A-Za-z0-9_-]+):$/.exec(line);
+    if (jobHeader) {
+      job = jobHeader[1];
+      step = null;
+      inEnv = false;
+      continue;
+    }
+    if (/^\s*- /.test(line) && indent >= 4) {
+      step = { job, name: "", run: "", env: {} };
+      steps.push(step);
+      inEnv = false;
+    }
+    if (!step) continue;
+
+    const entry = /^\s*(?:- )?([A-Za-z0-9_-]+):\s?(.*)$/.exec(line);
+    if (!entry) continue;
+    const [, key, value] = entry;
+    if (inEnv && !["name", "run", "uses", "with", "if", "env", "id"].includes(key)) {
+      step.env[key] = value.replace(/^"|"$/g, "");
+      continue;
+    }
+    inEnv = key === "env";
+    if (key === "name") step.name = value;
+    if (key === "run") {
+      step.run = value === ">-" || value === "|" ? "" : value;
+      if (value === ">-" || value === "|") block = { key: "run", indent };
+    }
+  }
+  return steps;
+}
+
 describe("clean-main CI release gate", () => {
   const workflow = readFileSync(join(process.cwd(), ".github/workflows/ci.yml"), "utf8");
+  const steps = parseSteps(workflow);
 
   it("runs a dedicated production build", () => {
     expect(workflow).toContain("name: Production build");
@@ -22,14 +82,23 @@ describe("clean-main CI release gate", () => {
     expect(protectedCheckouts).toHaveLength(checkouts.length);
   });
 
-  it("gives TypeScript and production Playwright builds enough heap", () => {
-    expect(workflow).toMatch(
-      /name: Typecheck[\s\S]*NODE_OPTIONS: "--max-old-space-size=6144"[\s\S]*run: npx tsc --noEmit/,
+  it("gives every step that builds or typechecks enough heap", () => {
+    // A step that runs a production build, the typecheck or a Playwright suite
+    // that builds its own server needs the heap. The interleaved A/B is one of
+    // them: it builds the merge base in a worktree.
+    const needsHeap = steps.filter(
+      (step) =>
+        /npm run build|next build|npx tsc --noEmit|playwright test|scripts\/perf-ab\.mjs/.test(
+          step.run,
+        ) && !/npm run build:slim/.test(step.run),
     );
-    // Six: the fifth is the budget sweep and the sixth is the interleaved A/B
-    // that runs after it on a red run, which builds the merge base and so needs
-    // the same heap as any other production build in this workflow.
-    expect(workflow.match(/NODE_OPTIONS: "--max-old-space-size=6144"/g)).toHaveLength(6);
+
+    expect(needsHeap.length).toBeGreaterThan(0);
+    for (const step of needsHeap) {
+      expect(step.env.NODE_OPTIONS ?? "", `${step.job} / ${step.name}`).toContain(HEAP);
+    }
+    expect(needsHeap.map((step) => step.name)).toContain("Tell a red route apart from a slow box");
+    expect(needsHeap.map((step) => step.name)).toContain("Typecheck");
   });
 
   it("gates coverage and freshness independently", () => {

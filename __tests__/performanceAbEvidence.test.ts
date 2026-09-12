@@ -8,7 +8,6 @@ import { PERFORMANCE_BUDGETS } from "@/lib/performanceBudgets";
 import {
   PERF_AB_ARMS,
   PERF_AB_BREACH_FILE,
-  PERF_AB_NAVIGATION_MS,
   abArmOrder,
   abHandoverForBreaches,
   abNavigationBudget,
@@ -17,6 +16,7 @@ import {
   abSamplesPerArm,
   abTimeoutMs,
   compareArms,
+  formatAbReport,
   formatAbScopeLines,
   formatAbTable,
   formatAbVerdictLines,
@@ -46,6 +46,7 @@ const pair = (over: Partial<AbRoutePair> = {}): AbRoutePair => ({
   budget: 572,
   branch: [880, 888, 896],
   base: [870, 875, 884],
+  plannedSamples: 3,
   ...over,
 });
 
@@ -126,6 +127,44 @@ describe("compareArms", () => {
     const [row] = compareArms([pair({ base: [Number.NaN, Number.NaN, Number.NaN] })], method);
     expect(row.verdict).toBe("NOT COMPARED");
     expect(row.runnerDrift).toBe(false);
+  });
+
+  it("refuses a verdict on an arm that did not complete its plan", () => {
+    // Two of three samples threw on the branch arm and the third read 340
+    // against a base median of 305: 11.5 per cent, inside the band, which
+    // printed runner drift off ONE figure on the noisiest route in the table.
+    // A median of one wearing the same label as a median of seven is the
+    // laundering this lane exists to stop.
+    const [row] = compareArms(
+      [pair({ budget: 300, branch: [Number.NaN, Number.NaN, 340], base: [300, 305, 310] })],
+      method,
+    );
+    expect(row.branchSamples).toBe(1);
+    expect(row.baseSamples).toBe(3);
+    expect(row.verdict).toBe("NOT COMPARED");
+    expect(row.runnerDrift).toBe(false);
+    expect(formatAbVerdictLines([row]).join("\n")).not.toContain("runner drift");
+  });
+
+  it("gives a marked route's seven samples a verdict when both arms complete them", () => {
+    const seven = (from: number) => Array.from({ length: 7 }, (_unused, index) => from + index);
+    const [row] = compareArms(
+      [pair({ branch: seven(900), base: seven(600), plannedSamples: 7 })],
+      method,
+    );
+    expect(row.branchSamples).toBe(7);
+    expect(row.plannedSamples).toBe(7);
+    expect(row.verdict).toBe("BRANCH SLOWER");
+  });
+
+  it("says what backed each median on every row, whatever the verdict", () => {
+    const rows = compareArms(
+      [pair(), pair({ path: "/crawls", branch: [Number.NaN, Number.NaN, 340] })],
+      method,
+    );
+    expect(formatAbTable(rows)).toContain("3/3 vs 3/3");
+    expect(formatAbTable(rows)).toContain("1/3 vs 3/3");
+    expect(formatAbVerdictLines(rows)[1]).toContain("from 1 of 3 samples");
   });
 
   it("judges a count metric the same way it judges a clock", () => {
@@ -212,16 +251,41 @@ describe("what the A/B spends", () => {
     );
   });
 
-  it("reads its budget off the method block rather than a number typed beside it", () => {
+  it("budgets EIGHT ordinary routes at what the A/B itself spends on one", () => {
+    // Pricing the budget off the sweep's own worst case bought a resample the
+    // A/B never spends on a quiet route, so the budget admitted twelve routes
+    // while every sentence describing it said eight.
+    expect(abNavigationBudget(method)).toBe(8 * abNavigationsForRoute(quiet, method));
     const wider = { ...method, measuredRuns: method.measuredRuns + 1 };
     expect(abNavigationBudget(wider)).toBeGreaterThan(abNavigationBudget(method));
-    expect(abNavigationBudget(method) % PERF_AB_ARMS).toBe(0);
+  });
+
+  it("allows one navigation what the harness itself allows it", () => {
+    // The readiness gate may wait its whole ceiling and the network its own
+    // drain ceiling, so a smaller allowance fires on precisely the slow route
+    // this instrument exists to explain.
+    const routeReady = 120_000;
+    expect(abTimeoutMs(1, method, routeReady)).toBe(
+      routeReady + method.network.drainCeilingMs,
+    );
+    expect(abTimeoutMs(16, method, routeReady)).toBe(
+      16 * (routeReady + method.network.drainCeilingMs),
+    );
   });
 
   it("times the run out on what it will actually spend, not on every budgeted route", () => {
-    expect(abTimeoutMs(16)).toBe(16 * PERF_AB_NAVIGATION_MS);
-    // Two ordinary breached routes, both arms: minutes, not hours.
-    expect(abTimeoutMs(2 * abNavigationsForRoute(quiet, method))).toBeLessThan(60 * 60_000);
+    const routeReady = 120_000;
+    const everyBudgetedRoute = abTimeoutMs(
+      PERFORMANCE_BUDGETS.routes.length * abNavigationsForRoute(quiet, method),
+      method,
+      routeReady,
+    );
+    const twoBreachedRoutes = abTimeoutMs(
+      2 * abNavigationsForRoute(quiet, method),
+      method,
+      routeReady,
+    );
+    expect(twoBreachedRoutes).toBeLessThan(everyBudgetedRoute);
   });
 });
 
@@ -382,6 +446,31 @@ describe("formatAbScopeLines", () => {
     expect(
       formatAbScopeLines(selectAbBreaches([breach("/a", 600)], [plan("/a")], method)),
     ).toHaveLength(1);
+  });
+});
+
+describe("formatAbReport", () => {
+  const report = (routesMeasured: number, routesSelected: number) =>
+    formatAbReport({
+      branchOrigin: "http://localhost:3500",
+      baseOrigin: "http://localhost:3501",
+      head: "abc123",
+      scope: ["2 route(s) breached; 2 measured against the merge base."],
+      rows: compareArms([pair()], method),
+      routesMeasured,
+      routesSelected,
+    });
+
+  it("says it is PARTIAL while routes are still unmeasured, and carries the rows it has", () => {
+    // The run cut short is the run whose evidence matters most, and it is
+    // written after every route rather than once at the end.
+    expect(report(1, 3)).toContain("PARTIAL: 1 of 3");
+    expect(report(1, 3)).toContain("/messages");
+  });
+
+  it("says nothing about being partial once every selected route is measured", () => {
+    expect(report(3, 3)).not.toContain("PARTIAL");
+    expect(report(3, 3)).toContain("the breach table is still the gate");
   });
 });
 
