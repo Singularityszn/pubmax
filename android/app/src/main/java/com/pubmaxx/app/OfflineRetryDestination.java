@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /** Holds one failed document in memory. Callback credentials must never be replayed. */
 final class OfflineRetryDestination {
@@ -19,6 +20,7 @@ final class OfflineRetryDestination {
     private final String root;
     private final String errorPage;
     private String failedDestination;
+    private String navigationUrl;
 
     OfflineRetryDestination(String serverUrl, String errorPage) {
         origin = parse(serverUrl);
@@ -27,7 +29,9 @@ final class OfflineRetryDestination {
     }
 
     void recordFailure(String url, boolean mainFrame) {
-        if (mainFrame) failedDestination = isSafe(url) ? url : null;
+        if (!mainFrame) return;
+        String destination = sameDocument(url, navigationUrl) ? navigationUrl : url;
+        failedDestination = isSafe(destination) ? destination : null;
     }
 
     String retryTarget(String currentUrl, String requestedUrl, boolean mainFrame) {
@@ -40,7 +44,22 @@ final class OfflineRetryDestination {
     }
 
     void pageStarted(String url) {
-        if (errorPage == null || !errorPage.equals(url)) failedDestination = null;
+        if (errorPage != null && errorPage.equals(url)) return;
+        // An HTTP failure can commit before the error page replaces it.
+        if (sameDocument(url, failedDestination)) {
+            navigationUrl = failedDestination;
+            return;
+        }
+        failedDestination = null;
+        navigationUrl = url;
+    }
+
+    private static boolean sameDocument(String left, String right) {
+        URI a = parse(left);
+        URI b = parse(right);
+        return sameOrigin(a, b)
+            && Objects.equals(a.getRawPath(), b.getRawPath())
+            && Objects.equals(a.getRawQuery(), b.getRawQuery());
     }
 
     private boolean isSafe(String url) {

@@ -84,6 +84,36 @@ public class OfflineRetryDestinationTest {
     }
 
     @Test
+    public void anHttpErrorCommitDoesNotDiscardTheFailedDestination() {
+        OfflineRetryDestination policy = policy();
+        String requestUrl = ORIGIN + "/map?sel=venue-122cuu1";
+        policy.pageStarted(VENUE);
+        policy.recordFailure(requestUrl, true);
+        policy.pageStarted(requestUrl);
+        policy.pageStarted(ERROR_PAGE);
+        assertEquals(VENUE, policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+    }
+
+    @Test
+    public void aFailureAtAnotherDocumentNeverBorrowsThePreviousFragment() {
+        OfflineRetryDestination policy = policy();
+        policy.pageStarted(VENUE);
+        policy.recordFailure(ORIGIN + "/near?patch=soho", true);
+        policy.pageStarted(ORIGIN + "/near?patch=soho");
+        policy.pageStarted(ERROR_PAGE);
+        assertEquals(ORIGIN + "/near?patch=soho", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+    }
+
+    @Test
+    public void strippedRequestFragmentsCannotHideCallbackCredentials() {
+        OfflineRetryDestination policy = policy();
+        policy.pageStarted(ORIGIN + "/map#access_token=secret");
+        policy.recordFailure(ORIGIN + "/map", true);
+        policy.pageStarted(ERROR_PAGE);
+        assertEquals(ORIGIN + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+    }
+
+    @Test
     public void untrustedMainFrameFailureCannotReplayAnEarlierVenue() {
         for (String url : new String[] {
             "https://pubmaxxing.com.evil.example/map",
