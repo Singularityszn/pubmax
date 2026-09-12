@@ -5,8 +5,8 @@ import { listBoroughs } from "@/lib/boroughs";
 import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
 import { loadPintPriceLandingVenuesOrThrow } from "@/lib/pintPriceLandingDataset.server";
-import { buildLeagueTable, pintIndexMeetsAdmissionFloor } from "@/lib/pintIndex";
-import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
+import { pintIndexMeetsAdmissionFloor } from "@/lib/pintIndexArchive";
+import { loadPintIndexArchive, loadPublicPintIndexSnapshotOrThrow } from "@/lib/pintIndexSnapshot.server";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { readSpoonsValue } from "@/lib/spoonsValue.server";
 import {
@@ -99,7 +99,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     loadHistoricPubs(),
     dataFileModified("pint_prices_app_dataset.json", now),
     dataFileModified("historic_pubs.json", now),
-    loadPublicPintIndexSnapshot(),
+    loadPublicPintIndexSnapshotOrThrow(),
     loadPintIndexArchive(),
     loadDrinkBrandLandings(),
     loadDrinkBrandAreaLandings(),
@@ -111,11 +111,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const spoonsValueModified = spoonsValueRead.pack
     ? new Date(spoonsValueRead.pack.provenance.retrievedAt)
     : now;
-  const pintIndexPublished = pintIndexSnapshot
-    ? new Date(pintIndexSnapshot.generatedAt)
-    : new Date("2026-07-16T00:00:00.000Z");
+  const pintIndexPublished = new Date(pintIndexSnapshot.generatedAt);
   // Captain decision D10: the live Index is not ADVERTISED until a month carries
-  // the admission floor in at least one borough. lib/pintIndex.ts owns that rule
+  // the admission floor in at least one borough. lib/pintIndexArchive.ts owns that rule
   // and the figure behind it.
   //
   // WHAT IS HELD IS THIS ROW AND INDEXING, never the route and never the links
@@ -125,8 +123,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // away by the hub's own robots directive (app/pint-index/page.tsx), which
   // reads this same rule: dropping a sitemap row deindexes nothing on its own.
   // The dated editions below are real citations, frozen, and are never held.
-  const pintIndexPromoted = pintIndexSnapshot !== null
-    && pintIndexMeetsAdmissionFloor(buildLeagueTable(pintIndexSnapshot));
+  const pintIndexPromoted = pintIndexMeetsAdmissionFloor(pintIndexSnapshot);
 
   // loadHistoricPubs() swallows read errors to [] (shared lib contract), and the
   // historic index is never empty in practice (346 cited pubs), so an empty read

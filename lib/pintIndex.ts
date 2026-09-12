@@ -4,7 +4,6 @@
 // Index observation is publishable only when its source and observed-at date
 // survive this validator. File mtimes are never evidence of observation time.
 
-import { SEED_BOROUGH_MONTHLY_TARGET } from "@/lib/boroughCoverageStatus";
 import { LONDON_BOROUGH_CLASSIFIER_VERSION } from "@/lib/londonBoroughPoint.mjs";
 
 export const LONDON_BOROUGH_NAMES = [
@@ -214,33 +213,6 @@ export function buildLeagueTable(snapshot: PintIndexSnapshot): LeagueRow[] {
       maxPubName: rows.find((row) => row.pricePence === max)!.pubName,
     };
   }).sort((a, b) => a.averageGbp - b.averageGbp || a.name.localeCompare(b.name));
-}
-
-/**
- * Whether a month has enough behind it to be advertised (captain decision D10).
- *
- * AT LEAST ONE borough must carry `SEED_BOROUGH_MONTHLY_TARGET` priced pubs. The
- * figure is the flywheel's own per-borough monthly target, read from its owning
- * module rather than restated here: it already counts distinct corroborated
- * (venue, category) pairs attributed to a borough, which is what a league row
- * counts, so one number moves both or neither. A month naming no borough at all
- * is never promoted.
- *
- * A row BELOW the floor is ignored rather than disqualifying, because requiring
- * every named borough meant one confirmed drop in a thin borough demoted a
- * mature month: coverage growing hid the Index. Under this rule growth can only
- * help. The league table still renders every row it has, thin ones included -
- * showing partial coverage honestly is a different thing from advertising the
- * hub.
- *
- * This decides PROMOTION and nothing else. `/pint-index` stays live and answers
- * with its honest empty whatever this returns; what it governs is the sitemap
- * row (`app/sitemap.ts`) and the hub's own `robots` directive
- * (`app/pint-index/page.tsx`). A month that reaches the floor restores both with
- * no code change.
- */
-export function pintIndexMeetsAdmissionFloor(rows: readonly LeagueRow[]): boolean {
-  return rows.some((row) => row.pubCount >= SEED_BOROUGH_MONTHLY_TARGET);
 }
 
 /**

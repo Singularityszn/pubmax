@@ -12,6 +12,7 @@ import { listBoroughs } from "@/lib/boroughs";
 import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
 import { SEED_BOROUGH_MONTHLY_TARGET } from "@/lib/boroughCoverageStatus";
+import { validatePintIndexSnapshot, type PintIndexSnapshot } from "@/lib/pintIndex";
 import { loadPintIndexArchive } from "@/lib/pintIndexSnapshot.server";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
@@ -331,33 +332,45 @@ describe("sitemap Pint Index admission gate", () => {
         venueId: `${code}-${offset}`,
         pubName: `${name} pub ${offset}`,
         boroughCode: code,
-        boroughName: name,
+        boroughName: name as PintIndexSnapshot["observations"][number]["boroughName"],
         pricePence: 500 + offset,
         observedAt: "2026-07-10T12:00:00.000Z",
         sourceId: "community-1",
       })),
     );
 
-  async function sitemapWithSnapshot(observations: unknown[]): Promise<string[]> {
+  async function sitemapWithSnapshot(observations: PintIndexSnapshot["observations"]): Promise<string[]> {
     vi.resetModules();
+    const snapshot: PintIndexSnapshot = {
+      schemaVersion: 1,
+      snapshotId: "admission-floor-fixture",
+      status: observations.length === 0 ? "empty" : "published",
+      generatedAt: "2026-07-16T00:00:00.000Z",
+      observationWindow: observations.length === 0
+        ? null
+        : { start: "2026-07-01T00:00:00.000Z", end: "2026-07-31T23:59:59.999Z" },
+      classification: {
+        version: "london-borough-point-v1",
+        method: "point_in_polygon",
+        sourceArtifact: "data/london_boroughs_simplified.json",
+        licence: "Open Government Licence v3.0",
+      },
+      sources: [{
+        id: "community-1",
+        kind: "confirmed_pint_drop",
+        publisher: "PUBMAXX contributor",
+        sourceUrl: "https://pubmaxxing.com/evidence/1",
+        licence: null,
+        confirmationId: "drop-confirmation-1",
+        reviewState: "confirmed",
+      }],
+      observations,
+      excluded: [],
+    };
+    expect(validatePintIndexSnapshot(snapshot)).toMatchObject({ ok: true });
     vi.doMock("@/lib/pintIndexSnapshot.server", async (importOriginal) => ({
       ...(await importOriginal<Record<string, unknown>>()),
-      loadPublicPintIndexSnapshot: async () => ({
-        schemaVersion: 1,
-        snapshotId: "admission-floor-fixture",
-        status: observations.length === 0 ? "empty" : "published",
-        generatedAt: "2026-07-16T00:00:00.000Z",
-        observationWindow: null,
-        classification: {
-          version: "london-borough-point-v1",
-          method: "point_in_polygon",
-          sourceArtifact: "data/london_boroughs_simplified.json",
-          licence: "Open Government Licence v3.0",
-        },
-        sources: [],
-        observations,
-        excluded: [],
-      }),
+      loadPublicPintIndexSnapshotOrThrow: async () => snapshot,
     }));
     const { default: gated } = await import("@/app/sitemap");
     const listed = (await gated()).map((entry) => entry.url);
@@ -409,6 +422,22 @@ describe("sitemap Social gate", () => {
 // follow, and both are pinned here: an empty pack has to fail the BUILD, and no
 // include may be declared for a route that can never receive one.
 describe("sitemap() is generated at build, not per request", () => {
+  it("rejects a failed Pint Index read instead of publishing a missing hub", async () => {
+    vi.resetModules();
+    const failure = new Error("Public Pint Index snapshot is unavailable");
+    vi.doMock("@/lib/pintIndexSnapshot.server", async (importOriginal) => ({
+      ...(await importOriginal<Record<string, unknown>>()),
+      loadPublicPintIndexSnapshotOrThrow: async () => { throw failure; },
+    }));
+    try {
+      const { default: failedSitemap } = await import("@/app/sitemap");
+      await expect(failedSitemap()).rejects.toBe(failure);
+    } finally {
+      vi.doUnmock("@/lib/pintIndexSnapshot.server");
+      vi.resetModules();
+    }
+  });
+
   it("declares no route-segment config that would make it dynamic", async () => {
     const route = (await import("@/app/sitemap")) as Record<string, unknown>;
 

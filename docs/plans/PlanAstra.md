@@ -65,7 +65,7 @@ Historical file references can name planned files or older source locations.
 | Identity and age | [CONTEXT.md](../../CONTEXT.md), [contributionIdentity.server.ts](../../lib/contributionIdentity.server.ts), [socialLaunch.ts](../../lib/socialLaunch.ts). | Preserve each route's existing authority and adult rules. A plan document cannot waive them. |
 | Measurement | #1576 explicitly adopts weekly groups that complete and repeat. The draft defines the 28-day window. [METRICS.md](../analytics/METRICS.md) documents the available proxy. | The group outcome is accepted. Its aggregate implementation and evidence remain missing; the weekly device proxy does not replace it. See 8.9. |
 | London first | [#1576](https://github.com/Singularityszn/pubmax/issues/1576) excludes new-city implementation. | Existing four-city supply belongs to #1522. Its reference below does not widen this plan. |
-| D10 Pint Index | The captain kept the hold on 10 September 2026. `pintIndexMeetsAdmissionFloor` in [pintIndex.ts](../../lib/pintIndex.ts) is the rule, and [lib/AGENTS.md](../../lib/AGENTS.md) records it. | A month is advertised once at least one borough carries the per-borough monthly target. The hold covers the sitemap row and the hub's `robots` index directive alone; the route, its links and the dated editions stay. |
+| D10 Pint Index | The captain kept the hold on 10 September 2026. `pintIndexMeetsAdmissionFloor` in [pintIndexArchive.ts](../../lib/pintIndexArchive.ts) is the rule, and [lib/AGENTS.md](../../lib/AGENTS.md) records it. | Main's bounded interpretation admits any single UTC month represented in the validated snapshot. One borough must reach the monthly target through unique pubs. Counts never pool across months; no freshness condition applies. The hold covers the sitemap row and the hub's `robots` index directive alone; the route, its links and the dated editions stay. |
 
 The bill requirement does not prove production receipt persistence.
 The parent verified migration [0153](../../supabase/migrations/20260907120000_0153_pint_drop_receipt_photo.sql) through read-only production inspection.
@@ -422,7 +422,7 @@ All unshipped scope remains proposed and subject to section 1. Existing routes r
 
 | Feature | Spec | Acceptance | Effort | Risk | Depends on |
 |---|---|---|---|---|---|
-| Advertise only with figures (D10, settled) | `pintIndexMeetsAdmissionFloor` in [pintIndex.ts](../../lib/pintIndex.ts) owns the rule and the figure behind it | Delivered. The sitemap row and the hub's `robots` index directive stand down below the floor. No empty or listed-price month is called confirmed. | S | none | none |
+| Advertise only with figures (D10, settled) | `pintIndexMeetsAdmissionFloor` in [pintIndexArchive.ts](../../lib/pintIndexArchive.ts) owns the rule and the figure behind it | Delivered. The sitemap row and the hub's `robots` index directive stand down below the floor. No empty or listed-price month is called confirmed. | S | none | none |
 | Drink pages for every landing brand | `/drink/pravha` and every brand the answer card can name | no 404 from the landing | S | none | none |
 | Price history on every sheet | the then-line exists on 50 pubs; grow the curated file | Every added then-line cites a curated dated source. Missing history remains absent rather than interpolated. | M | curation | none |
 | Estimates for four cities | supply, not a switch (AGENTS.md) | Track supply and coverage under #1522. Estimates stay labelled and never gain confirmation from being seeded. | L | evidence | harvest |
