@@ -11,23 +11,28 @@ import { listEnabledCities } from "@/lib/cities";
 import { listBoroughs } from "@/lib/boroughs";
 import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
-import { loadPintIndexArchive } from "@/lib/pintIndexSnapshot.server";
+import { buildLeagueTable, pintIndexMeetsAdmissionFloor } from "@/lib/pintIndex";
+import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
 import { PERFORMANCE_BUDGETS } from "@/lib/performanceBudgets";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { MetadataRoute } from "next";
 
-// The number of static hub URLs the generator emits while Social is gated
-// (the fixed list in app/sitemap.ts minus /social). Kept here so a change to
-// that list is a conscious test edit. Includes /pint-index (Wave S3.3 — the
-// London Pint Index hub), /about (founder story + press kit hub), /founders
-// (the numbered public wall of the first hundred claimed handles), the two legal
-// content pages (/privacy, /terms) linked from the site footer, and
-// /account/delete, the public account-deletion page Play Console holds in its
-// Data safety form and expects to be able to open, and /spoons-value, the
-// national Wetherspoon units-per-tenner ranking.
-const STATIC_HUB_COUNT = 15;
+// The number of UNCONDITIONAL static hub URLs the generator emits while Social
+// is gated (the fixed list in app/sitemap.ts minus /social). Kept here so a
+// change to that list is a conscious test edit. Includes /about (founder story
+// + press kit hub), /founders (the numbered public wall of the first hundred
+// claimed handles), the two legal content pages (/privacy, /terms) linked from
+// the site footer, and /account/delete, the public account-deletion page Play
+// Console holds in its Data safety form and expects to be able to open, and
+// /spoons-value, the national Wetherspoon units-per-tenner ranking.
+//
+// /pint-index is NOT here. Captain decision D10 holds the Index off every
+// promotion surface until a month carries the admission floor of priced pubs in
+// every borough it names, so the hub row follows the live snapshot and is
+// counted by expectedCounts() below. The ROUTE is unaffected either way.
+const STATIC_HUB_COUNT = 14;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is
@@ -65,6 +70,8 @@ type ExpectedCounts = {
   historic: number;
   venues: number;
   editions: number;
+  /** 1 while the live Index clears its admission floor, 0 while it is held. */
+  pintIndexHub: number;
   drinkBrands: number;
   drinkBrandAreas: number;
   total: number;
@@ -82,8 +89,12 @@ async function expectedCounts(): Promise<ExpectedCounts> {
   const cities = listEnabledCities().filter((c) => c.id !== "london").length;
   const boroughs = listBoroughs(venues).length;
   const historic = (await loadHistoricPubs()).length;
-  // One URL per dated Pint Index edition actually published.
+  // One URL per dated Pint Index edition actually published. A frozen month is
+  // a real citation whatever the live month holds, so D10 never touches these.
   const editions = (await loadPintIndexArchive()).length;
+  // The live hub, read through the SAME rule the generator applies.
+  const liveSnapshot = await loadPublicPintIndexSnapshot();
+  const pintIndexHub = liveSnapshot && pintIndexMeetsAdmissionFloor(buildLeagueTable(liveSnapshot)) ? 1 : 0;
   // Governed landing pages come from the SAME loaders the routes render, so a
   // page the sitemap advertises is a page that exists.
   const drinkBrands = (await loadDrinkBrandLandings()).length;
@@ -95,6 +106,7 @@ async function expectedCounts(): Promise<ExpectedCounts> {
     historic,
     venues: venues.length,
     editions,
+    pintIndexHub,
     drinkBrands,
     drinkBrandAreas,
   };
@@ -108,6 +120,7 @@ async function expectedCounts(): Promise<ExpectedCounts> {
       counts.historic +
       counts.venues +
       counts.editions +
+      counts.pintIndexHub +
       counts.drinkBrands +
       counts.drinkBrandAreas,
   };
@@ -136,10 +149,18 @@ describe("sitemap()", () => {
     expect(entries.length).toBe(expected.total);
   });
 
-  it("lists every dated Pint Index edition, and the live index too", () => {
-    expect(urls).toContain(`${SITE}/pint-index`);
+  it("lists every dated Pint Index edition, whatever the live month holds", () => {
     expect(familyCount("/pint-index/")).toBe(expected.editions);
     expect(expected.editions).toBeGreaterThan(0);
+  });
+
+  // D10: while the live snapshot is below the admission floor the hub is not
+  // ADVERTISED. It is still SERVED - app/pint-index/page.tsx is untouched and
+  // answers with its honest empty - so this asserts the sitemap row alone.
+  it("advertises the live Pint Index hub only once it clears the admission floor", async () => {
+    const snapshot = await loadPublicPintIndexSnapshot();
+    const cleared = Boolean(snapshot) && pintIndexMeetsAdmissionFloor(buildLeagueTable(snapshot!));
+    expect(urls.includes(`${SITE}/pint-index`)).toBe(cleared);
   });
 
   it("includes the core static hubs", () => {
