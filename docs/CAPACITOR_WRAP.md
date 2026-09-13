@@ -32,8 +32,10 @@ What holds the mark now:
 3. `lib/nativeSplash.ts` hides the splash sooner. After the shell chrome
    mounts, it waits for a painted frame, announces `pubmax:first-paint` on
    `window` and hides the splash once per document.
-4. `native/web-stub/offline.html` hides the splash itself, because it has no
-   app bundle.
+4. `native/web-stub/offline.html` hides the splash itself on iOS, because it
+   has no app bundle. Android serves that error page without the Capacitor
+   bridge (`window.Capacitor` is `undefined` there), so on Android the 12 s
+   ceiling lifts the splash over the offline page.
 
 Measured on the local build rig (`PUBMAX_NATIVE_SERVER_URL=http://localhost:3811`)
 on 13 September 2026: launch screen to 1.0 s, splash mark to 3.4 s, the page
