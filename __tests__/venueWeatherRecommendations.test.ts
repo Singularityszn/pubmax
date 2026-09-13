@@ -100,6 +100,10 @@ describe("WeatherRecommendationList", () => {
 
     expect(html).toContain("We couldn’t check the weather here just now.");
     expect(html).toContain("shown without a weather match");
+    // Brand casing (captain's law, site audit 13 Sep 2026, D21).
+    expect(html).toContain("These are PUBMAXXERS’ recommendations");
+    expect(html).toContain("PUBMAXXERS recommend");
+    expect(html).not.toContain("Pubmaxxers");
     expect(html).toContain("The back garden catches the evening light.");
   });
 

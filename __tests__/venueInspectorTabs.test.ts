@@ -4,6 +4,8 @@ import { CITIES } from "@/lib/cities";
 import {
   BASE_TABS,
   DEFAULT_TAB,
+  gettingHomeLabel,
+  resolveVenueTab,
   tabsForCity,
   tabsForVenue,
 } from "@/lib/venueInspectorTabs";
@@ -17,33 +19,41 @@ describe("venueInspectorTabs", () => {
       "Drinks",
       "Stories",
       "Lore",
-      "Ask",
     ]);
   });
 
-  it("appends a getting-home tab after the base tabs for London", () => {
-    const tabs = tabsForCity("london");
-    expect(tabs.slice(0, BASE_TABS.length).map((t) => t.key)).toEqual(
-      BASE_TABS.map((t) => t.key),
-    );
-    const last = tabs[tabs.length - 1];
-    expect(last.key).toBe("getting-home");
-    expect(last.label).toBe("Last train");
-    expect(last.shortLabel).toBe("Train");
+  /**
+   * Captain, 5 Sep 2026: "The alignment, buttons and ui is fucking ugly." The
+   * site audit of 13 Sep (D10) measured seven tabs wrapping into two rows on a
+   * 390px phone (rows at y=556 and y=602, a 98px tablist). A scrolling strip
+   * hid the last tabs past the edge, which is worse. Five tabs share one row,
+   * so every section is one tap away and none is hidden.
+   */
+  it("never asks a phone row to hold more than five tabs, for any city or kind", () => {
+    for (const cityId of Object.keys(CITIES) as (keyof typeof CITIES)[]) {
+      expect(tabsForCity(cityId).length, cityId).toBeLessThanOrEqual(5);
+      expect(tabsForVenue(cityId, "pub").length, cityId).toBeLessThanOrEqual(5);
+    }
   });
 
-  it("uses a city-specific last-ride label for the getting-home tab", () => {
-    const london = tabsForCity("london");
-    const manchester = tabsForCity("manchester");
-    const londonRide = london[london.length - 1];
-    const manchesterRide = manchester[manchester.length - 1];
-    // Both cities expose a getting-home tab; the label is provider-driven per
-    // city, with London's branded "Last Pint" card surfaced as an actionable
-    // "Last train" tab so it does not collide with Pint Drops/Pints.
-    expect(londonRide.key).toBe("getting-home");
-    expect(manchesterRide.key).toBe("getting-home");
-    expect(londonRide).toMatchObject({ label: "Last train", shortLabel: "Train" });
-    expect(manchesterRide).toMatchObject({ label: "Last Tram", shortLabel: "Tram" });
+  it("folds Ask into Lore and the getting-home card into Overview", () => {
+    const keys = tabsForCity("london").map((tab) => tab.key);
+    expect(keys).not.toContain("ask");
+    expect(keys).not.toContain("getting-home");
+    // A held trail entry or an old caller may still name a retired tab; it
+    // lands on the tab that now carries that section.
+    expect(resolveVenueTab("ask")).toBe("story");
+    expect(resolveVenueTab("getting-home")).toBe("overview");
+    expect(resolveVenueTab("menu")).toBe("menu");
+    expect(resolveVenueTab("")).toBe(DEFAULT_TAB);
+    expect(resolveVenueTab("nonsense")).toBe(DEFAULT_TAB);
+  });
+
+  it("names the getting-home section by the city's own last-ride mode", () => {
+    // London's card is branded "Last Pint", so the section names the transport
+    // mode instead, and does not collide with Pint Drops.
+    expect(gettingHomeLabel("london")).toBe("Last train");
+    expect(gettingHomeLabel("manchester")).toBe("Last Tram");
   });
 
   it("never renders two tabs with the same short label, for any city", () => {
