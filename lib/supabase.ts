@@ -98,13 +98,11 @@ export const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET ?? "pint-drops
 export const RATE_LIMIT_MAX = 8;
 export const RATE_LIMIT_WINDOW_MS = 60_000;
 
-/** sha256(salt:ip) — raw IPs never reach the database or logs. */
-export function hashIp(ip: string): string {
-  // Default salt keeps dev working without env; set RATE_LIMIT_SALT in
-  // production so hashes aren't computable from public code alone.
-  const salt = process.env.RATE_LIMIT_SALT ?? "pubmax-rate-limit";
-  return createHash("sha256").update(`${salt}:${ip}`).digest("hex");
-}
+/**
+ * sha256(salt:ip), defined in the pure leaf `lib/rateLimitHash.ts` and
+ * re-exported here so every existing caller keeps one import and one salt.
+ */
+export { hashIp } from "@/lib/rateLimitHash";
 
 /**
  * sha256(salt:actorId) — the stable, unauthenticated actor identity stored as

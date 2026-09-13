@@ -20,7 +20,7 @@ export default function AdminTokenForm(): React.JSX.Element {
 
       <h1>Moderator sign-in</h1>
       <p className="admin-sub">Enter the admin token to open the console.</p>
-      <Link className="adminMapCallout" href="/map">
+      <Link prefetch={false} className="adminMapCallout" href="/map">
         Back to the map
       </Link>
       <AdminSessionEntry onOpened={() => window.location.assign("/admin")} />

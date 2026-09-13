@@ -28,7 +28,7 @@ export default function RoundsIndex(): React.JSX.Element {
         kicker="Rounds"
         title="Who bought the last round."
         titleId="rounds-title"
-        primary={<Link href="/map">Start a round</Link>}
+        primary={<Link prefetch={false} href="/map">Start a round</Link>}
       >
         <EmptyState title="Join with a link">
           A round opens from the link whoever started it sent you

@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 // docs/design/LAUNCH_SCREENS.md: every launch route carries ONE primary
 // action, painted by the Screen primitive (components/ui/screen.tsx) and
 // marked `data-primary-action`. Group b of the wave-2 surface audit (issue
-// #1354): /plan, /pal, /social, /places, /choose-city, /discover and /pubs.
+// #1354): /plan, /pal, /social, /places, /discover and /pubs.
 //
 // Each surface renders the way a first-time visitor meets it: signed out, with
 // the live session answered, every network read settled, and the chrome
@@ -86,7 +86,6 @@ import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import { PalMeetingScreen } from "@/components/pal/PalExperience";
 import SocialPageClient from "@/app/social/SocialPageClient";
 import PlacesClient from "@/app/places/PlacesClient";
-import ChooseCityPage from "@/app/choose-city/page";
 import DiscoverPageClient from "@/app/discover/DiscoverPageClient";
 import PubsPage from "@/app/pubs/page";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
@@ -142,15 +141,6 @@ describe("launch routes (group b) carry one primary action", () => {
   it("/places carries one primary action", () => {
     const rendered = renderToStaticMarkup(createElement(PlacesClient, { cityId: null }));
     expect(primaryCount(rendered)).toBe(1);
-  });
-
-  it("/choose-city carries one primary action", async () => {
-    const rendered = renderToStaticMarkup(await ChooseCityPage({}));
-    expect(primaryCount(rendered)).toBe(1);
-    expect(rendered).toMatch(/data-primary-action=""><a[^>]*href="\/map"[^>]*>London<\/a>/);
-    // The body under the head prints no heading of its own.
-    expect(rendered.match(/<h[12][^>]*>/g)).toHaveLength(1);
-    expect(rendered).toContain("cityChooserLocate");
   });
 
   it("/discover carries one primary action", () => {

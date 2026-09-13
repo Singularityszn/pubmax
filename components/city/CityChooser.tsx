@@ -4,10 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
-  useEffect,
   useId,
   useMemo,
-  useRef,
   useState,
   useTransition,
 } from "react";
@@ -17,8 +15,11 @@ import { listEnabledCities, type CityId } from "@/lib/cities";
 import { getCityCapabilityProfile } from "@/lib/cityCapabilities";
 import {
   buildCityChooserSearchResults,
+  cityChooserResultBadge,
+  cityChooserResultContext,
   cityGuidesCoverageLine,
   cityGuidesSearchUnavailableLine,
+  PLACE_INDEX_PENDING_LINE,
 } from "@/lib/cityChooserSearch";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { cityMapShareUrl } from "@/lib/cityShare";
@@ -27,61 +28,40 @@ import {
   UK_NATIONAL_ENTRY_LABEL,
   UK_NATIONAL_MAP_HREF,
 } from "@/lib/ukNationalBrowse";
-import {
-  normaliseUkPlaceQuery,
-  parseUkPlaceIndex,
-  UK_PLACE_INDEX_PATH,
-  type UkPlace,
-} from "@/lib/ukPlaceSearch";
+import { normaliseUkPlaceQuery } from "@/lib/ukPlaceSearch";
+import { useUkPlaceIndex } from "@/lib/useUkPlaceIndex";
+
+import PlaceIndexCredit from "./PlaceIndexCredit";
 
 import "./cityChooser.css";
 
 export type CityChooserProps = {
-  /**
-   * `section`: a titled section of a longer page (the landing), with its own
-   * h2. `body`: the search, the locate control and the city list alone, for a
-   * route whose head is a launch Screen (/choose-city) and prints the heading
-   * and the way onward itself.
-   */
-  variant?: "section" | "body";
   onSelect?: (cityId: CityId) => void;
-  /** When true, focus the town search field on mount (national browse entry). */
-  focusSearch?: boolean;
 };
 
 type LocateState = "idle" | "pending" | "error";
-type PlaceIndexState =
-  | { status: "idle" | "loading"; places: UkPlace[] }
-  | { status: "ready"; places: UkPlace[] }
-  | { status: "error"; places: UkPlace[] };
 
 /**
  * City picker: enabled cities as map links, optional geolocation, and
  * preferred-city persistence for Map nav / landing CTAs.
  */
-export default function CityChooser({
-  variant = "section",
-  onSelect,
-  focusSearch = false,
-}: CityChooserProps) {
+export default function CityChooser({ onSelect }: CityChooserProps) {
   const cities = listEnabledCities();
   const listId = useId();
   const router = useRouter();
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const [locateState, setLocateState] = useState<LocateState>("idle");
   const [locateMessage, setLocateMessage] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [placeIndex, setPlaceIndex] = useState<PlaceIndexState>({
-    status: "idle",
-    places: [],
-  });
-  const placeIndexRequested = useRef(false);
-  const placeIndexPromiseRef = useRef<Promise<UkPlace[]> | null>(null);
+  const {
+    status: placeIndexStatus,
+    places: placeIndexPlaces,
+    load: loadPlaceIndex,
+  } = useUkPlaceIndex();
   const [, startTransition] = useTransition();
   const normalizedQuery = normaliseUkPlaceQuery(query);
   const results = useMemo(
-    () => buildCityChooserSearchResults(query, cities, placeIndex.places),
-    [cities, placeIndex.places, query],
+    () => buildCityChooserSearchResults(query, cities, placeIndexPlaces),
+    [cities, placeIndexPlaces, query],
   );
 
   const selectCity = useCallback(
@@ -91,28 +71,6 @@ export default function CityChooser({
     },
     [onSelect],
   );
-
-  const loadPlaceIndex = useCallback((): Promise<UkPlace[]> => {
-    if (placeIndexPromiseRef.current) return placeIndexPromiseRef.current;
-    placeIndexRequested.current = true;
-    setPlaceIndex({ status: "loading", places: [] });
-    const pending = fetch(UK_PLACE_INDEX_PATH)
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const raw: unknown = await response.json();
-        const places = parseUkPlaceIndex(raw);
-        setPlaceIndex({ status: "ready", places });
-        return places;
-      })
-      .catch(() => {
-        placeIndexRequested.current = false;
-        placeIndexPromiseRef.current = null;
-        setPlaceIndex({ status: "error", places: [] });
-        return [] as UkPlace[];
-      });
-    placeIndexPromiseRef.current = pending;
-    return pending;
-  }, []);
 
   const useMyLocation = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -179,53 +137,36 @@ export default function CityChooser({
     [loadPlaceIndex],
   );
 
-  // National browse / deep link: put the caret in town search without scrolling past the cities.
-  useEffect(() => {
-    if (!focusSearch) return;
-    const input = searchInputRef.current;
-    if (!input) return;
-    input.focus();
-  }, [focusSearch]);
-
-  // The body variant borrows the section's light-ground styling and drops the
-  // section's own padding and ground; the route around it owns both.
-  const rootClass =
-    variant === "section"
-      ? "cityChooser cityChooser--section"
-      : "cityChooser cityChooser--section cityChooser--body";
-
-  const Root = variant === "section" ? "section" : "div";
-
   return (
-    <Root
-      className={rootClass}
-      aria-labelledby={variant === "section" ? listId + "-title" : undefined}
+    <section
+      className="cityChooser cityChooser--section"
+      aria-labelledby={listId + "-title"}
     >
       <div className="cityChooserInner">
-        {variant === "section" ? (
-          <header className="cityChooserHead">
-            <p className="cityChooserEyebrow">Cities</p>
-            <h2
-              id={listId + "-title"}
-              className="cityChooserTitle cityChooserSerif"
-            >
-              Choose your city
-            </h2>
-            <p className="cityChooserLede">
-              Open a price-aware pub map. Crawls and drink-shaped pins for the
-              night you want.
-            </p>
-          </header>
-        ) : null}
+        <header className="cityChooserHead">
+          <p className="cityChooserEyebrow">Cities</p>
+          <h2
+            id={listId + "-title"}
+            className="cityChooserTitle cityChooserSerif"
+          >
+            Choose your city
+          </h2>
+          <p className="cityChooserLede">
+            Open a price-aware pub map. Crawls and drink-shaped pins for the
+            night you want.
+          </p>
+        </header>
 
         <div className="cityChooserSearch">
-          <label htmlFor={`${listId}-search`} className="cityChooserSearchLabel">
+          <label
+            htmlFor={`${listId}-search`}
+            className="cityChooserSearchLabel"
+          >
             Find your town
           </label>
           <div className="cityChooserSearchField">
             <Search size={18} strokeWidth={1.75} aria-hidden="true" />
             <input
-              ref={searchInputRef}
               id={`${listId}-search`}
               className="cityChooserSearchInput"
               type="search"
@@ -234,7 +175,11 @@ export default function CityChooser({
               placeholder="Search for a town or city"
               autoComplete="off"
               spellCheck="false"
-              aria-controls={normalizedQuery.length >= 2 ? `${listId}-search-results` : undefined}
+              aria-controls={
+                normalizedQuery.length >= 2
+                  ? `${listId}-search-results`
+                  : undefined
+              }
               aria-describedby={`${listId}-search-help`}
             />
           </div>
@@ -249,7 +194,9 @@ export default function CityChooser({
             className="cityChooserLocate"
             onClick={useMyLocation}
             disabled={locateState === "pending"}
-            aria-describedby={locateMessage ? `${listId}-locate-status` : undefined}
+            aria-describedby={
+              locateMessage ? `${listId}-locate-status` : undefined
+            }
           >
             <LocateFixed size={16} strokeWidth={1.75} aria-hidden="true" />
             {locateState === "pending" ? "Locating…" : "Use my location"}
@@ -267,15 +214,11 @@ export default function CityChooser({
           ) : null}
         </div>
 
-        {/* The route head already offers the national map as its way onward,
-            so only the section prints the link here. */}
-        {variant === "section" ? (
-          <p className="cityChooserNational">
-            <Link href={UK_NATIONAL_MAP_HREF} className="cityChooserNationalLink">
-              {UK_NATIONAL_ENTRY_LABEL}
-            </Link>
-          </p>
-        ) : null}
+        <p className="cityChooserNational">
+          <Link href={UK_NATIONAL_MAP_HREF} className="cityChooserNationalLink">
+            {UK_NATIONAL_ENTRY_LABEL}
+          </Link>
+        </p>
 
         {normalizedQuery.length >= 2 ? (
           <section
@@ -307,18 +250,16 @@ export default function CityChooser({
                           <strong className="cityChooserResultName">
                             {result.name}
                           </strong>
-                          {result.kind === "uncovered" && result.context ? (
+                          {cityChooserResultContext(result) ? (
                             <span className="cityChooserResultContext">
-                              {result.context}
+                              {cityChooserResultContext(result)}
                             </span>
                           ) : null}
                           <span
                             className="cityChooserResultBadge"
                             data-kind={result.kind}
                           >
-                            {result.kind === "curated"
-                              ? "City guide"
-                              : "No prices yet"}
+                            {cityChooserResultBadge(result.kind)}
                           </span>
                         </span>
                         <span className="cityChooserResultDescription">
@@ -329,11 +270,11 @@ export default function CityChooser({
                   </li>
                 ))}
               </ul>
-            ) : placeIndex.status === "loading" ? (
+            ) : placeIndexStatus === "loading" ? (
               <p className="cityChooserSearchStatus" role="status">
-                Looking across the UK pub map…
+                {PLACE_INDEX_PENDING_LINE}
               </p>
-            ) : placeIndex.status === "error" ? (
+            ) : placeIndexStatus === "error" ? (
               <p className="cityChooserSearchStatus" role="status">
                 {cityGuidesSearchUnavailableLine(cities.length)}
               </p>
@@ -342,18 +283,8 @@ export default function CityChooser({
                 Can’t find that name yet. Try a nearby town.
               </p>
             )}
-            {placeIndex.status === "ready" ? (
-              <p className="cityChooserSearchSource">
-                Place names from{" "}
-                <a
-                  href="https://www.openstreetmap.org/copyright"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  OpenStreetMap contributors
-                </a>
-                , ODbL.
-              </p>
+            {placeIndexStatus === "ready" ? (
+              <PlaceIndexCredit className="cityChooserSearchSource" />
             ) : null}
           </section>
         ) : null}
@@ -377,7 +308,9 @@ export default function CityChooser({
                     aria-label={`${city.displayName}${isPreview ? ", Preview" : ""}: ${city.tagline}. Open map.`}
                   >
                     <span className="cityChooserNameRow">
-                      <span className="cityChooserName">{city.displayName}</span>
+                      <span className="cityChooserName">
+                        {city.displayName}
+                      </span>
                       {isPreview ? (
                         <span className="cityChooserReleaseBadge">Preview</span>
                       ) : null}
@@ -390,6 +323,6 @@ export default function CityChooser({
           </ul>
         </nav>
       </div>
-    </Root>
+    </section>
   );
 }

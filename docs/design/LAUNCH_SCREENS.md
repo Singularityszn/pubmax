@@ -43,7 +43,7 @@ Rules the table obeys:
 | `/pal/chat` | Your Pub Pal | (the Pal's name) | the composer's own submit (Ask), beside the field; the head paints none | Back to your Pub Pal |
 | `/u/you` and `/u/[handle]` | You (or the handle) | (the display name) | Edit profile (owner) or Follow (visitor) | Share |
 | `/login` | Sign in | Welcome back (or: Make an account) | the email form's own submit (Email me a sign-in link), beside the field; the head paints none while the form is on screen | Use a password |
-| `/choose-city` | Places | Pick a city. | London | Browse pubs across the UK |
+| `/places` | Places | Pick a city. | Open London | Browse pubs across the UK |
 | `/discover` | Discover | Pint prices, pub stories and routes worth walking. | Open the map | Find my pint |
 | `/pubs` | Pubs | Every pub on record. | Open the map | Find my pint |
 | `/borough` | London | London, by the area you drink in. | Open the map | Find my pint |
