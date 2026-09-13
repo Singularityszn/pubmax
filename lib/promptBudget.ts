@@ -15,6 +15,7 @@ import {
   ANALYTICS_CONSENT_STORAGE_KEY,
   isAnalyticsConsentDecision,
 } from "@/lib/analyticsIdentity";
+import { MOBILE_MAX_WIDTH } from "@/lib/breakpoints";
 import {
   getMapLocationControlAvailable,
   subscribeMapLocationControl,
@@ -174,55 +175,27 @@ export function releasePromptBudget(surface: PromptSurface, storage?: Storage | 
   }
 }
 
-// ONE PROMPT CLAIMS THE FOOT OF THE SCREEN AT A TIME, AND SOME ROUTES ALREADY
-// USE IT. Site audit 13 Sep 2026 (D3): on the phone map the analytics card was
-// lifted above "Describe the outing", so the top chrome, the card, the pill and
-// the dock took 38 percent of the map. The map's own foot is its answer, so an
-// interruptive prompt waits for the next route there. A wait is not a claim and
-// a stand-down is not a release: the slot stays unspent, or stays with the
-// surface that already spent it, and that surface comes back on the next route
-// that does not own its foot.
-
-/** Route families whose own chrome owns the foot of the screen. */
-const SCREEN_FOOT_ROUTE_FAMILIES = ["/map"] as const;
+// ON A PHONE THE MAP OWNS THE FOOT OF THE SCREEN. Site audit 13 Sep 2026 (D3):
+// the analytics card was lifted above "Describe the outing", so the top chrome,
+// the card, the pill and the dock took 38 percent of the map. Two surfaces go
+// through this gate: NativePushPrompt and CreatePasswordPrompt neither claim
+// the budget nor paint on a phone-width map route, and come back on the next
+// route. The analytics card does not use it: on the phone map it takes the
+// outing pill's slot instead (components/mobile/mobileMapShell.css).
 
 /**
- * Whether the page at `pathname` owns the foot of the screen, so no prompt may
- * claim it there. A pathname we cannot read answers false, which is how every
- * other route behaves.
+ * Whether the page at `pathname` owns the foot of the screen at `viewportWidth`:
+ * the map family at phone width (MOBILE_MAX_WIDTH). A pathname we cannot read
+ * answers false, which is how every other route behaves.
  */
-export function routeOwnsScreenFoot(pathname: string | null | undefined): boolean {
+export function routeOwnsScreenFoot(
+  pathname: string | null | undefined,
+  viewportWidth: number,
+): boolean {
+  if (!(viewportWidth <= MOBILE_MAX_WIDTH)) return false;
   if (typeof pathname !== "string") return false;
   const path = pathname.split(/[?#]/)[0].replace(/\/+$/, "");
-  if (path === "") return false;
-  return SCREEN_FOOT_ROUTE_FAMILIES.some(
-    (family) => path === family || path.startsWith(`${family}/`),
-  );
-}
-
-/** `hasPromptBudgetFor`, refused on a route that owns the screen foot. */
-export function hasScreenFootFor(
-  surface: PromptSurface,
-  pathname: string | null | undefined,
-  storage?: Storage | null,
-  consentStorage?: Storage | null,
-): boolean {
-  if (routeOwnsScreenFoot(pathname)) return false;
-  return hasPromptBudgetFor(surface, storage, consentStorage);
-}
-
-/**
- * `claimPromptBudget`, refused on a route that owns the screen foot. The refusal
- * writes nothing, so the session's one slot is still there on the next route.
- */
-export function claimScreenFoot(
-  surface: PromptSurface,
-  pathname: string | null | undefined,
-  storage?: Storage | null,
-  consentStorage?: Storage | null,
-): boolean {
-  if (routeOwnsScreenFoot(pathname)) return false;
-  return claimPromptBudget(surface, storage, consentStorage);
+  return path === "/map" || path.startsWith("/map/");
 }
 
 /**

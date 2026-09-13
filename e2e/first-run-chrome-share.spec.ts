@@ -27,6 +27,8 @@ const CONSENT_ROW_HEIGHT = 56;
 const HOME_INDICATOR_INSET = 34;
 /** The dock's own base clearance under the pill (components/nav/mobileNav.css). */
 const DOCK_BASE_CLEARANCE = 6;
+/** A seed pub, opened by id so the first action needs no canvas pin tap. */
+const ARNOS_ARMS_ID = "venue-xjf3n0";
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
@@ -146,6 +148,28 @@ async function footBars(page: Page): Promise<string[]> {
   });
 }
 
+/** The visible controls that share the foot of the phone map with the card. */
+async function footControlBoxes(page: Page) {
+  return page.evaluate(() =>
+    Array.from(
+      document.querySelectorAll(
+        ".mobileTabList, .mobilePlanActivation, .palSummon, .mobileMapLocateFab, .maplibregl-ctrl-bottom-right",
+      ),
+    )
+      .filter((el) => el.checkVisibility({ opacityProperty: true, visibilityProperty: true }))
+      .map((el) => {
+        const rect = el.getBoundingClientRect();
+        return {
+          name: el.classList[0] ?? el.tagName.toLowerCase(),
+          top: rect.top,
+          right: rect.right,
+          bottom: rect.bottom,
+          left: rect.left,
+        };
+      })
+      .filter((box) => box.bottom > box.top && box.right > box.left));
+}
+
 function percent(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
 }
@@ -185,37 +209,61 @@ test("the phone map with its sheet closed spends under 30 percent on chrome @390
   ).toBeLessThan(MAP_CHROME_CEILING);
 });
 
-test("the consent card never stacks on the phone map, and the ask arrives on the next route @390x844", async ({ page }) => {
+// On the phone map the card never greets a stranger, and once the reader has
+// taken a first action it takes the outing pill's slot on the dock rather than
+// stacking above it (components/mobile/mobileMapShell.css).
+test("on the phone map the consent card waits for a first action, then takes the outing pill's slot @390x844", async ({ page }) => {
   test.setTimeout(180_000);
   await prepareStranger(page);
   await installDeterministicMapBasemap(page);
 
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await firstRouteRecorded(page);
-
-  // Reaching the map is the reader's second route, so the product has answered.
   await page.goto("/map", { waitUntil: "domcontentloaded" });
   await openedPhoneMap(page);
-  await expect
-    .poll(() => page.evaluate(() => window.sessionStorage.getItem("pubmax:consent-answer-moment:v1")))
-    .toBe("second-route");
-  await page.waitForTimeout(2_000);
+  await firstRouteRecorded(page);
+  await page.waitForTimeout(1_500);
 
   const prompt = page.getByLabel("Anonymous analytics choice");
+  const pill = page.locator(".mobilePlanActivation");
   await expect(prompt).toHaveCount(0);
-  // Standing down costs the session nothing: the slot is unspent.
+  await expect(pill).toBeVisible();
+  // The wait costs the session nothing: the slot is unspent until the card paints.
   expect(
     await page.evaluate(() => window.sessionStorage.getItem("pubmax:prompt-budget:v1")),
   ).toBeNull();
+
+  // The first action: the reader opens a pub, which is the product answering.
+  await page.goto(`/map?sel=${ARNOS_ARMS_ID}`, { waitUntil: "domcontentloaded" });
+  const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(venueSheet).toBeVisible({ timeout: 45_000 });
+  await expect
+    .poll(() => page.evaluate(() => window.sessionStorage.getItem("pubmax:consent-answer-moment:v1")))
+    .toBe("venue-sheet");
+  await expect(async () => {
+    await venueSheet.getByRole("button", { name: "Close pub detail" }).click();
+    await expect(venueSheet).toHaveCount(0, { timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+
+  // One element at the foot: the pill has stepped down and the card overlaps nothing.
+  await expect(prompt).toBeVisible({ timeout: 30_000 });
+  await expect(pill).toHaveCount(1);
+  await expect(pill).toBeHidden();
+  const card = await prompt.boundingBox();
+  expect(card).not.toBeNull();
+  for (const control of await footControlBoxes(page)) {
+    const rows = Math.min(card!.y + card!.height, control.bottom) - Math.max(card!.y, control.top);
+    const columns = Math.min(card!.x + card!.width, control.right) - Math.max(card!.x, control.left);
+    expect(rows > 0.5 && columns > 0.5, `the card overlaps ${control.name}`).toBe(false);
+  }
   const reading = await chromeShare(page);
   expect(
     reading.share,
-    `map chrome after the answer ${percent(reading.share)} from ${reading.members.join(", ")}`,
+    `map chrome with the card up ${percent(reading.share)} from ${reading.members.join(", ")}`,
   ).toBeLessThan(MAP_CHROME_CEILING);
 
-  // Deferred, not lost.
-  await page.goto("/tonight", { waitUntil: "domcontentloaded" });
-  await expect(prompt).toBeVisible({ timeout: 30_000 });
+  // The choice gives the pill back.
+  await prompt.getByRole("button", { name: "No thanks", exact: true }).click();
+  await expect(prompt).toHaveCount(0);
+  await expect(pill).toBeVisible();
 });
 
 for (const width of [320, 360, 390] as const) {

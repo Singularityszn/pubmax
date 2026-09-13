@@ -4608,32 +4608,18 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
     padding: 5px max(10px, env(safe-area-inset-right)) 6px max(10px, env(safe-area-inset-left));
   }
 
-  /* AT A LARGE OS TEXT SIZE THE CARD GROWS INSTEAD OF CLIPPING. The 56px
-     ceiling above holds because the copy fits it at every phone width at an
-     ordinary size; at the 2.0x the native shells apply (lib/nativeTextScale.ts,
-     which publishes the bucket on <html>) the sentence, the Privacy link and
-     the second word of "No thanks" all fell below the ceiling, measured on
-     both rigs (docs/proof/mobile-app-design, either rig's textscale folder;
-     a glob here would end this comment). The card is
-     bottom-anchored above the tab bar, so it grows upward, and the two
-     buttons share one row under the sentence. */
-  html[data-text-scale="large"] .analyticsConsentPrompt {
-    grid-template-columns: minmax(0, 1fr);
-    max-height: none;
-  }
-
-  html[data-text-scale="large"] .analyticsConsentPromptActions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   /* WITH NO TAB BAR THE CARD IS THE FOOT OF THE SCREEN. It still reaches the
      edge, because a docked strip that stops short of it is the floating panel
      again; the home-indicator inset is cleared by the card's OWN padding
-     instead, so the two buttons never sit under the system gesture area. */
+     instead, so the two buttons never sit under the system gesture area. The
+     ceiling grows by that same padding, so the row is never cut short and no
+     control hangs below the card into the gesture strip. */
   body:not(:has(.mobileTabBar, .mobileTabBarClearance)) .analyticsConsentPrompt {
     bottom: 0;
-    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    max-height: calc(
+      var(--analytics-consent-mobile-clearance, 56px) - 6px + max(6px, env(safe-area-inset-bottom))
+    );
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
   }
 
   /* The first-run surface hides the tab bar (app/onboarding/onboarding.css)
@@ -4643,7 +4629,37 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
      lane the card then sits in. */
   body:has(.firstRunOnboarding) .analyticsConsentPrompt {
     bottom: 0;
-    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    max-height: calc(
+      var(--analytics-consent-mobile-clearance, 56px) - 6px + max(6px, env(safe-area-inset-bottom))
+    );
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+  }
+
+  /* AT A LARGE OS TEXT SIZE THE CARD GROWS INSTEAD OF CLIPPING. The 56px
+     ceiling above holds because the copy fits it at every phone width at an
+     ordinary size; at the 2.0x the native shells apply (lib/nativeTextScale.ts,
+     which publishes the bucket on <html>) the sentence, the Privacy link and
+     the second word of "No thanks" all fell below the ceiling, measured on
+     both rigs (docs/proof/mobile-app-design, either rig's textscale folder;
+     a glob here would end this comment). The card is
+     bottom-anchored above the tab bar, so it grows upward, and the two
+     buttons share one row under the sentence. These rules come after the two
+     berths above, so no ceiling there wins over this one. The lane the page
+     reserves grows with the card, and the first-run lane reads the same
+     token: a 1px hairline, 5px, four 29px lines of the sentence at 320px, 8px,
+     the 44px choices and 6px make 180px. */
+  html[data-text-scale="large"] {
+    --analytics-consent-mobile-clearance: 184px;
+  }
+
+  html[data-text-scale="large"] .analyticsConsentPrompt {
+    grid-template-columns: minmax(0, 1fr);
+    max-height: none;
+  }
+
+  html[data-text-scale="large"] .analyticsConsentPromptActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .analyticsConsentPrompt p {
@@ -4668,10 +4684,9 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
     font-size: 0.78rem;
   }
 
-  /* NO MAP BERTH. The card used to leave its dock on the phone map and ride
-     above Describe the outing; it does not render on the map family at all
-     now (routeOwnsScreenFoot in lib/promptBudget.ts), so there is nothing to
-     lift. */
+  /* NO MAP BERTH. On the phone map the card keeps this dock, and the outing
+     pill steps down while it is up (components/mobile/mobileMapShell.css), so
+     one element owns the foot and nothing is lifted over another. */
 
 }
 

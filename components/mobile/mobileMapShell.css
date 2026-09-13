@@ -623,6 +623,13 @@
   .mobilePlanActivation.isActive { background: var(--color-surface-raised); color: var(--color-accent); }
   .mobilePlanActivation:disabled { cursor: wait; opacity: .72; }
 
+  /* ONE ELEMENT AT THE FOOT. Site audit 13 Sep 2026 (D3): the analytics card
+     used to ride above this pill, and with the top chrome and the dock the map
+     was 38 percent chrome. The card now takes the pill's slot on the dock once
+     the reader has taken a first action, and the pill steps down until Allow
+     or No thanks is tapped. */
+  body:has(.analyticsConsentPrompt) .mobilePlanActivation { display: none; }
+
   /* Stop above the primary tab bar so bottom-nav taps are never swallowed by
      the scrim or sheet body (QA H02). --z-tabbar still lifts the bar when a
      modal shares the band; this clip is what makes hit-testing honest. */

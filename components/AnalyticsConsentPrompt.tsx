@@ -19,9 +19,8 @@ import {
 import { routeCarriesConsentControl } from "@/lib/consentSurfaceRoutes";
 import {
   ANALYTICS_CONSENT_PROMPT_SURFACE,
-  claimScreenFoot,
-  hasScreenFootFor,
-  routeOwnsScreenFoot,
+  claimPromptBudget,
+  hasPromptBudgetFor,
   subscribePromptBudget,
 } from "@/lib/promptBudget";
 
@@ -33,7 +32,7 @@ type AnalyticsConsentPromptContentProps = {
 // short enough to wrap inside that row on a 320px phone
 // (__tests__/analyticsConsentRow.test.ts). It still names the brand
 // (lib/brandNaming.ts), says what is collected and why, and that it is never
-// sold; the rest is one tap away on /privacy.
+// sold and carries no ads; the rest is one tap away on /privacy.
 export function AnalyticsConsentPromptContent({
   onDecision,
 }: AnalyticsConsentPromptContentProps) {
@@ -43,7 +42,7 @@ export function AnalyticsConsentPromptContent({
       aria-label="Anonymous analytics choice"
     >
       <p>
-        {BRAND_NAME} optional analytics: what people use. Never sold.{" "}
+        {BRAND_NAME} analytics show us what people use. Never sold, no ads.{" "}
         <Link href="/privacy">Privacy</Link>
       </p>
       <div className="analyticsConsentPromptActions">
@@ -61,12 +60,6 @@ export default function AnalyticsConsentPrompt() {
   // the ask, so the arrival bar neither paints there nor spends the session's
   // prompt budget on a moment nobody sees (lib/consentSurfaceRoutes.ts).
   const pageOwnsConsent = routeCarriesConsentControl(pathname);
-  // A route whose own chrome owns the foot of the screen (the map: its outing
-  // pill and the dock) is never stacked on. The ask waits for the next route
-  // and the session's slot stays unspent (lib/promptBudget.ts). Read in render
-  // as well as in the effect, so the card cannot paint for one frame on the
-  // way into the map.
-  const routeOwnsFoot = routeOwnsScreenFoot(pathname);
 
   // THE ROUTE IS RECORDED ON EVERY SCREEN, INCLUDING THE ONES THE BAR NEVER
   // PAINTS ON. Reaching a second route is one of the answers that ends the
@@ -95,9 +88,9 @@ export default function AnalyticsConsentPrompt() {
         setDecision("checking");
         return;
       }
-      const canShow = hasScreenFootFor(ANALYTICS_CONSENT_PROMPT_SURFACE, pathname);
+      const canShow = hasPromptBudgetFor(ANALYTICS_CONSENT_PROMPT_SURFACE);
       const claimed = canShow
-        && claimScreenFoot(ANALYTICS_CONSENT_PROMPT_SURFACE, pathname);
+        && claimPromptBudget(ANALYTICS_CONSENT_PROMPT_SURFACE);
       setDecision(claimed ? null : "checking");
     };
     void Promise.resolve().then(() => {
@@ -112,10 +105,9 @@ export default function AnalyticsConsentPrompt() {
       unsubscribeBudget();
       unsubscribeAnswer();
     };
-  }, [pageOwnsConsent, pathname]);
+  }, [pageOwnsConsent]);
 
   if (pageOwnsConsent) return null;
-  if (routeOwnsFoot) return null;
   if (decision !== null) return null;
 
   function decide(granted: boolean) {

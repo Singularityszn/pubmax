@@ -118,12 +118,10 @@ async function prepareUndecidedConsent(
   });
 }
 
-// On /tonight rather than the map: the map family owns the foot of the screen
-// and the card does not render there at all (lib/promptBudget.ts).
 test("mobile consent never covers the tab bar, before or after dismiss", async ({ page }) => {
   test.setTimeout(60_000);
   await prepareUndecidedConsent(page);
-  await page.goto("/tonight", { waitUntil: "domcontentloaded" });
+  await page.goto("/map/london", { waitUntil: "domcontentloaded" });
 
   const prompt = page.getByLabel("Anonymous analytics choice");
   await expect(prompt).toBeVisible({ timeout: 30_000 });
@@ -353,7 +351,7 @@ for (const width of PHONE_WIDTHS) {
     // __tests__/analyticsConsentPrompt.test.ts owns that wording.
     const copy = prompt.locator("p");
     await expect(copy).toContainText(
-      "PUBMAXX optional analytics: what people use. Never sold.",
+      "PUBMAXX analytics show us what people use. Never sold, no ads.",
     );
 
     // The banner is the one consent surface, so its route to /privacy may never

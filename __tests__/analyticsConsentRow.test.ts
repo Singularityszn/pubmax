@@ -11,7 +11,7 @@ import { AnalyticsConsentPromptContent } from "@/components/AnalyticsConsentProm
 // 320px phone. e2e/first-run-chrome-share.spec.ts measures the rendered row;
 // this reads the words it is built from.
 
-/** Longest sentence, Privacy link included, that wraps inside the row at 320px. */
+/** Longest sentence, the Privacy link left out, that wraps inside the row at 320px. */
 const ROW_SENTENCE_MAX_CHARS = 64;
 
 function render(): string {
@@ -27,16 +27,18 @@ function textOf(html: string): string {
 describe("analytics consent row", () => {
   it("keeps the sentence short enough to share one row with both choices", () => {
     const paragraph = render().match(/<p[^>]*>([\s\S]*?)<\/p>/)?.[1] ?? "";
-    const sentence = textOf(paragraph);
+    const sentence = textOf(paragraph.replace(/<a[\s\S]*?<\/a>/, ""));
     expect(sentence.length).toBeGreaterThan(0);
+    expect(sentence).not.toContain("Privacy");
     expect(sentence.length).toBeLessThanOrEqual(ROW_SENTENCE_MAX_CHARS);
   });
 
-  it("still says what is collected, why, and that it is never sold", () => {
+  it("still says what is collected, why, and that it is never sold or used for ads", () => {
     const copy = textOf(render()).toLowerCase();
-    expect(copy).toContain("optional analytics");
+    expect(copy).toContain("analytics");
     expect(copy).toContain("what people use");
     expect(copy).toContain("never sold");
+    expect(copy).toContain("no ads");
   });
 
   it("keeps the route to the privacy notice and both equal choices", () => {

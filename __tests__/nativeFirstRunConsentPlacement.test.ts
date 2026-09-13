@@ -288,7 +288,7 @@ describe("native first-run consent placement", () => {
     const card = declarationsFor(globalCss, CARD_RULE, CARD_MEDIA);
     expect(card.get("bottom")).toBe("0");
     expect(card.get("padding-bottom")).toBe(
-      "max(10px, env(safe-area-inset-bottom))",
+      "max(6px, env(safe-area-inset-bottom))",
     );
   });
 
