@@ -787,8 +787,7 @@
 .tonightDesktopGrid,
 .tonightWeather,
 .tonightAfterPrimary,
-.tonightContext,
-.tonightContextLater {
+.tonightContext {
   display: contents;
 }
 
@@ -805,8 +804,6 @@
    rail holds the soft plans and the area news, which do not wait on that
    read, so it waits with the rest. */
 .tonightPage[data-listings-status="idle"] .tonightContext,
-.tonightPage[data-listings-status="idle"] .tonightEditorial,
-.tonightPage[data-listings-status="idle"] .tonightContextLater,
 .tonightPage[data-listings-status="idle"] .tonightAfterPrimary {
   visibility: hidden;
 }
@@ -814,23 +811,21 @@
 /* WIDE TONIGHT IS A COLUMN AND A RAIL (site audit D8, 13 Sep 2026). The rail
    held one 81px weather card beside 3,800px of column. It now holds what a
    reader turns to after the lede: the rail summary, the cheapest listed
-   pints, the chain blocks, the vibe chips, the soft plans and the area news.
+   pints, the chain blocks, the vibe chips, the editorial rail, the soft plans
+   and the area news.
 
-   THE RAIL IS TWO PARTS, because a phone reads the editorial rail between
-   them and the desktop keeps it in the main column. The later part spans
-   down to a flexible last row. A grid item that spans a flexible track is left
-   out of auto-row sizing, so a tall later part grows only that last row.
+   THE RAIL IS ONE ELEMENT, AND THE TWO COLUMNS SHARE NO ROW HEIGHT. Every
+   column item takes its own row, and the rail spans every row down to a
+   flexible last row. A grid item that spans a flexible track is left out of
+   auto-row sizing, so a tall rail grows only that last row and can never push
+   the lede down, and a long column never opens a gap in the rail. A rail split
+   around the column opened about 1,000px of empty rail beside the lede, the
+   defect D8 was filed for, so the editorial rail lives in the rail too.
 
-   THE SPLIT COSTS ONE THING. The first part spans rows 1 to 5, which are auto
-   rows, so a rail taller than the head, weather, lede, credits and editorial
-   rail together stretches those rows. The 1440 fence in e2e/tonight.spec.ts
-   (lede top within 160px of the head bottom) catches a rail that pushes the
-   lede down.
-
-   Below 1100px every wrapper but the editorial one contributes no box, and
-   that one is a plain block with no padding or border, so a phone and a tablet read
-   one column in DOM order: head, weather, lede, credits, rail blocks, the
-   editorial rail, the later rail blocks, the rest, and the way-onward row. */
+   Below 1100px the rail contributes no box, so a phone and a tablet read one
+   column in DOM order: head, weather, lede, credits, cheap pints, chain
+   blocks, vibe chips, the full Deals and Music lanes, the editorial rail, the
+   soft plans, the area news, the rest, and the way-onward row. */
 @media (min-width: 1100px) {
   .tonightPage {
     max-width: var(--content-max-wide, 1240px);
@@ -839,7 +834,7 @@
   .tonightDesktopGrid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
-    grid-template-rows: repeat(7, auto) 1fr;
+    grid-template-rows: repeat(6, auto) 1fr;
     column-gap: 40px;
     align-items: start;
   }
@@ -868,16 +863,10 @@
     min-width: 0;
   }
 
-  .tonightDesktopGrid > .tonightEditorial {
-    grid-column: 1;
-    grid-row: 5;
-    min-width: 0;
-  }
-
   .tonightDesktopGrid > .tonightAfterPrimary {
     display: block;
     grid-column: 1;
-    grid-row: 6;
+    grid-row: 5;
     min-width: 0;
   }
 
@@ -886,33 +875,26 @@
      with the paint order. */
   .tonightDesktopGrid > .screenActions {
     grid-column: 1;
-    grid-row: 7;
+    grid-row: 6;
   }
 
-  .tonightDesktopGrid > .tonightContext,
-  .tonightDesktopGrid > .tonightContextLater {
+  .tonightDesktopGrid > .tonightContext {
     grid-column: 2;
+    grid-row: 1 / -1;
     display: flex;
     flex-direction: column;
     gap: 28px;
     min-width: 0;
-  }
-
-  .tonightDesktopGrid > .tonightContext {
-    grid-row: 1 / 6;
     /* Level with the head's kicker, under the Now segment. */
     padding-top: var(--space-3);
   }
 
-  .tonightDesktopGrid > .tonightContextLater {
-    grid-row: 6 / -1;
-  }
-
   /* The rail's gap is its only rhythm, so a block keeps none of the column
-     margins it wears on a phone. */
+     margins it wears on a phone, and neither does the editorial rail inside
+     its wrapper. */
   .tonightContext > *,
   .tonightContext > .tonightChains > :last-child,
-  .tonightContextLater > * {
+  .tonightContext > .tonightEditorial > * {
     margin-top: 0;
     margin-bottom: 0;
   }

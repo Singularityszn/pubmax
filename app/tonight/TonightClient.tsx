@@ -864,14 +864,14 @@ export default function TonightClient({
         <TonightShareButton />
       </div>
 
-      {/* THE RAIL (site audit D8), in two parts AFTER the lede in the DOM. A
-          phone reads them under the lede in the order it always had: vibe
+      {/* THE RAIL (site audit D8) is ONE element AFTER the lede in the DOM. A
+          phone reads its blocks under the lede in the order it always had: vibe
           chips, the full Deals and Music lanes, the editorial rail, the soft
-          plans and the area news. From 1100px both parts form the column beside
-          the lede and the editorial rail stays in the main column, which is why
-          it sits between them. `.tonightPrimary` above holds the lede and
-          nothing else, so no chain row can stand inside it. From 1100px the full
-          lanes hide and the rail summary stands in for them. */}
+          plans and the area news. From 1100px the same element is the column
+          beside the lede, in the same order and with no gap. `.tonightPrimary`
+          above holds the lede and nothing else, so no chain row can stand
+          inside it. From 1100px the full lanes hide and the rail summary stands
+          in for them. */}
       <aside className="tonightContext" aria-label="Tonight at a glance">
         {ready ? (
           <TonightOnTonightSummary
@@ -950,13 +950,11 @@ export default function TonightClient({
       ) : null}
 
       {mobileLanes}
-      </aside>
 
-      <div className="tonightEditorial">
-        <EditorialRail />
-      </div>
+        <div className="tonightEditorial">
+          <EditorialRail />
+        </div>
 
-      <aside className="tonightContextLater" aria-label="More for tonight">
         {softPlansWindow ? (
           <TonightSoftPlansModule hasQuietPint={Boolean(quietPint)} />
         ) : null}
