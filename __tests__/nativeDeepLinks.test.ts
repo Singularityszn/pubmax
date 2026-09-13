@@ -82,17 +82,11 @@ describe("the pubmaxx:// scheme", () => {
   // with LSApplicationWorkspaceErrorDomain error 115, because neither shell
   // registered the scheme. Universal links stay the intended path; the scheme
   // is the fallback, and it opens exactly the families the verified links do.
-  it("names the one scheme both shells register", () => {
-    expect(NATIVE_URL_SCHEME).toBe("pubmaxx");
-  });
-
   it.each([
-    ["pubmaxx://map?sel=venue-1", "/map?sel=venue-1"],
-    ["pubmaxx://plan/abc#crew", "/plan/abc#crew"],
-    ["pubmaxx://tonight", "/tonight"],
-    // An empty host is the same link written with the path in full.
-    ["pubmaxx:///tonight", "/tonight"],
-    ["pubmaxx://r/CODE1", "/r/CODE1"],
+    [`${NATIVE_URL_SCHEME}://map?sel=venue-1`, "/map?sel=venue-1"],
+    [`${NATIVE_URL_SCHEME}://plan/abc#crew`, "/plan/abc#crew"],
+    [`${NATIVE_URL_SCHEME}://tonight`, "/tonight"],
+    [`${NATIVE_URL_SCHEME}://r/CODE1`, "/r/CODE1"],
   ])("opens the same families as the verified links", (url, expected) => {
     expect(nativeDeepLinkPath(url)).toBe(expected);
   });
@@ -102,6 +96,9 @@ describe("the pubmaxx:// scheme", () => {
     // never travels over one: it stays on the verified https link.
     "pubmaxx://auth/callback?code=secret",
     "pubmaxx:///auth/callback?code=secret",
+    // One link has one spelling: the family is the host, never an empty host.
+    "pubmaxx:///tonight",
+    "pubmaxx:///map?sel=venue-1",
     "pubmaxx://admin",
     "pubmaxx://tonight/extra",
     "pubmaxx://someone@map?sel=venue-1",

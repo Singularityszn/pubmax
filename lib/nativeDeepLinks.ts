@@ -66,8 +66,8 @@ export const NATIVE_DEEP_LINK_EXACT_PATHS: readonly string[] = ALLOWED_EXACT_PAT
  * on a signed build with the real Team ID or signing fingerprint; the scheme
  * opens on any build, so it is the fallback a rig can open today.
  *
- * It opens the same families as the verified links, written
- * `pubmaxx://map?sel=<id>` or `pubmaxx:///map?sel=<id>`. It NEVER carries the
+ * It opens the same families as the verified links, written only as
+ * `pubmaxx://map?sel=<id>`, the family in the host. It NEVER carries the
  * sign-in return: any app on a phone can register a custom scheme, so an OAuth
  * code sent over one could be read by an app that is not this one.
  */
@@ -81,12 +81,11 @@ function isAllowedPath(pathname: string): boolean {
   );
 }
 
-// `pubmaxx://map?sel=x` parses with the family as its host and an empty path;
-// `pubmaxx:///map?sel=x` carries it in the path. Both name one in-app path.
+// `pubmaxx://map?sel=x` parses with the family as its host. An empty host is
+// refused, so one link has one spelling.
 function schemeLinkPath(url: URL): string | null {
-  if (url.username || url.password || url.port) return null;
-  const pathname = url.hostname ? `/${url.hostname}${url.pathname}` : url.pathname;
-  if (!pathname.startsWith("/")) return null;
+  if (url.username || url.password || url.port || !url.hostname) return null;
+  const pathname = `/${url.hostname}${url.pathname}`;
   if (SCHEME_REFUSED_PATHS.includes(pathname)) return null;
   if (!isAllowedPath(pathname)) return null;
   return `${pathname}${url.search}${url.hash}`;
