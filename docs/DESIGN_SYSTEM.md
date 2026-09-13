@@ -37,7 +37,7 @@ same **name** (values may retune within the A/B decision).
 | `PRODUCT.md` | Strategic brief: vocabulary, A/B lock, taste dials, anti-refs |
 | `DESIGN.md` | Impeccable visual spec (colors, type, components, do/don't) |
 | `app/globals.css` | `:root` token definitions (light/default values), sheet material, resets, shared press feedback, and the pressed-ink utility |
-| `app/theme.css` | `html[data-theme="dark"]` token overrides, dark-first sheet material, Plan CTA contrast, theme-toggle |
+| `app/theme.css` | `html[data-theme="dark"]` token overrides, dark-first sheet material, active Plan fill, theme-toggle |
 | `app/layout.tsx` | `next/font` wiring — loads the three type-trio fonts as CSS variables on `<html>` |
 | `lib/springMotion.ts` + `lib/useSpringValue.ts` | Interruptible spring integration, reduced-motion jumps, and React animation ownership |
 | `components/map/canvas/` + `lib/mapBasemapTaste.ts` | Scene marks and label ink read live tokens; the map-owned basemap palette and label hierarchy stay in `lib/mapBasemapTaste.ts` |
