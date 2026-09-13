@@ -19,16 +19,23 @@ const budgetState = vi.hoisted(() => ({
   listeners: new Set<() => void>(),
 }));
 const releasePromptBudget = vi.hoisted(() => vi.fn());
+const navigation = vi.hoisted(() => ({ pathname: "/tonight" }));
 
 vi.mock("next/link", () => ({
   default: ({ children, ...props }: { children: ReactNode; href: string }) =>
     createElement("a", props, children),
 }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => navigation.pathname,
+}));
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => authState.current,
 }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch }));
-vi.mock("@/lib/promptBudget", () => ({
+vi.mock("@/lib/promptBudget", async (importOriginal) => ({
+  // The route rule is the real one: it is the answer this card is asked about.
+  routeOwnsScreenFoot: (await importOriginal<typeof import("@/lib/promptBudget")>())
+    .routeOwnsScreenFoot,
   // The real module WRITES a holder and publishes it; a mock that only answered
   // "did the claim succeed" could not model the question the card actually
   // asks, which is whether IT holds the budget right now.
@@ -97,6 +104,8 @@ beforeEach(() => {
   budgetState.listeners.clear();
   budgetState.holder = null;
   releasePromptBudget.mockReset();
+  navigation.pathname = "/tonight";
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
   window.localStorage.clear();
   window.sessionStorage.clear();
   window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
@@ -127,6 +136,25 @@ describe("CreatePasswordPrompt rendered behavior", () => {
     await settle();
 
     expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+  });
+
+  it("neither claims nor paints on a phone-width map route", async () => {
+    navigation.pathname = "/map/london";
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    await renderPrompt();
+
+    expect(authedActionFetch).toHaveBeenCalled();
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(budgetState.holder).toBeNull();
+  });
+
+  it("still shows on the desktop map, which has no outing pill or dock at its foot", async () => {
+    navigation.pathname = "/map/london";
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1280 });
+    await renderPrompt();
+
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(budgetState.holder).not.toBeNull();
   });
 
   it("rechecks after another prompt releases the budget", async () => {

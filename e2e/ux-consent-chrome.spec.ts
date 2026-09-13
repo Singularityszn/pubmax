@@ -4,15 +4,19 @@ import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
 
 const CONSENT_KEY = "pubmaxx:analytics-consent:v1";
 const VIEWPORT = { width: 390, height: 844 };
+// The card is one row (site audit 13 Sep 2026, D3): the sentence beside both
+// choices, 44px controls in a 56px strip. e2e/first-run-chrome-share.spec.ts
+// owns the row's own shape; every coverage case below re-asks the ceiling.
+const CONSENT_ROW_CEILING = 56;
 // Every phone width this repo sweeps. The text column is the viewport minus the
-// card insets, its padding, the fixed action column and the gap, so 320 is
-// where the disclosure has the least room to wrap inside the 120px ceiling.
+// card insets, its padding, both inline choices and the gap, so 320 is where
+// the disclosure has the least room to wrap inside the 56px ceiling.
 const PHONE_WIDTHS = [320, 360, 390] as const;
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
 // max-height alone caps what boundingBox() reports, so the box height can never
-// exceed 120 while that declaration stands. scrollHeight is the laid-out
+// exceed the ceiling while that declaration stands. scrollHeight is the laid-out
 // content, so it is what actually answers whether the card fits its ceiling.
 async function consentFit(prompt: import("@playwright/test").Locator) {
   const box = await prompt.boundingBox();
@@ -122,8 +126,8 @@ test("mobile consent never covers the tab bar, before or after dismiss", async (
   const prompt = page.getByLabel("Anonymous analytics choice");
   await expect(prompt).toBeVisible({ timeout: 30_000 });
   const fit = await consentFit(prompt);
-  expect(fit.boxHeight).toBeLessThanOrEqual(120);
-  expect(fit.scrollHeight).toBeLessThanOrEqual(120);
+  expect(fit.boxHeight).toBeLessThanOrEqual(CONSENT_ROW_CEILING);
+  expect(fit.scrollHeight).toBeLessThanOrEqual(CONSENT_ROW_CEILING);
 
   const mapTab = page.getByRole("navigation", { name: "Primary" }).getByRole("link", {
     name: "Map",
@@ -133,7 +137,7 @@ test("mobile consent never covers the tab bar, before or after dismiss", async (
 
   // WHILE the banner is up. Dismissing it unmounts the card, so an ownership
   // check that only runs afterwards is asking whether an absent element covers
-  // anything: the offset shrinking or the card outgrowing its 120px ceiling
+  // anything: the offset shrinking or the card outgrowing its 56px ceiling
   // would put it over the tab bar with nothing failing.
   const coveredBox = await mapTab.boundingBox();
   expect(coveredBox).not.toBeNull();
@@ -161,8 +165,8 @@ test("mobile consent never covers the landing CTA, before or after dismiss", asy
   const prompt = page.getByLabel("Anonymous analytics choice");
   await expect(prompt).toBeVisible();
   const fit = await consentFit(prompt);
-  expect(fit.boxHeight).toBeLessThanOrEqual(120);
-  expect(fit.scrollHeight).toBeLessThanOrEqual(120);
+  expect(fit.boxHeight).toBeLessThanOrEqual(CONSENT_ROW_CEILING);
+  expect(fit.scrollHeight).toBeLessThanOrEqual(CONSENT_ROW_CEILING);
 
   const planTonight = page.locator(".lpHero .screenActions").getByRole("link", { name: LANDING_PRIMARY_NAME });
   await expect(planTonight).toBeVisible();
@@ -272,8 +276,8 @@ for (const height of PHONE_HEIGHTS) {
     // card that wrapped to a fifth line on a short phone would take the lane
     // the foot reserve was sized against.
     const fit = await consentFit(prompt);
-    expect(fit.boxHeight).toBeLessThanOrEqual(120);
-    expect(fit.scrollHeight).toBeLessThanOrEqual(120);
+    expect(fit.boxHeight).toBeLessThanOrEqual(CONSENT_ROW_CEILING);
+    expect(fit.scrollHeight).toBeLessThanOrEqual(CONSENT_ROW_CEILING);
     // The rail is the row the report found under the card, so it has to exist
     // before the sweep below can mean anything.
     await expect(page.locator(".lpRailLink").last()).toBeVisible({ timeout: 30_000 });
@@ -347,7 +351,7 @@ for (const width of PHONE_WIDTHS) {
     // __tests__/analyticsConsentPrompt.test.ts owns that wording.
     const copy = prompt.locator("p");
     await expect(copy).toContainText(
-      "PUBMAXX uses optional analytics to see what people use. Never sold, no ads.",
+      "PUBMAXX analytics show us what people use. Never sold, no ads.",
     );
 
     // The banner is the one consent surface, so its route to /privacy may never
@@ -365,8 +369,8 @@ for (const width of PHONE_WIDTHS) {
     );
 
     const fit = await consentFit(prompt);
-    expect(fit.boxHeight).toBeLessThanOrEqual(120);
-    expect(fit.scrollHeight).toBeLessThanOrEqual(120);
+    expect(fit.boxHeight).toBeLessThanOrEqual(CONSENT_ROW_CEILING);
+    expect(fit.scrollHeight).toBeLessThanOrEqual(CONSENT_ROW_CEILING);
   });
 }
 

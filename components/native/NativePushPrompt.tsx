@@ -8,6 +8,7 @@
 // in lib/nativePushPrompt.ts (shouldOfferPushPrompt), this component is pure
 // presentation + the two button actions.
 
+import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { registerNativePush } from "@/lib/nativePush";
@@ -20,20 +21,27 @@ import {
   NATIVE_PUSH_PROMPT_COPY,
   subscribePushPrompt,
 } from "@/lib/nativePushPrompt";
-import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
+import {
+  claimPromptBudget,
+  hasPromptBudgetFor,
+  routeOwnsScreenFoot,
+} from "@/lib/promptBudget";
 
 const PUSH_SURFACE = "native-push";
 import "./nativePushPrompt.css";
 
 export default function NativePushPrompt(): React.JSX.Element | null {
   const [enabling, setEnabling] = useState(false);
+  const pathname = usePathname();
   const visible = useSyncExternalStore(
     subscribePushPrompt,
     getPushPromptVisibleSnapshot,
     getPushPromptServerSnapshot,
   );
 
-  const canShow = visible && hasPromptBudgetFor(PUSH_SURFACE);
+  const canShow = visible
+    && !routeOwnsScreenFoot(pathname, window.innerWidth)
+    && hasPromptBudgetFor(PUSH_SURFACE);
 
   // Claim the shared one-prompt-per-session budget at the moment it shows
   // (docs/PROMPT_ORCHESTRATION.md).

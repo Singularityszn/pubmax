@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -16,6 +17,7 @@ import {
   hasPromptBudgetFor,
   promptBudgetHolder,
   releasePromptBudget,
+  routeOwnsScreenFoot,
   subscribePromptBudget,
 } from "@/lib/promptBudget";
 import {
@@ -124,9 +126,11 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
     return () => controller.abort();
   }, [accountId, configured, identityResolved, user]);
 
+  const pathname = usePathname();
   const hasBudget = useSyncExternalStore(
     subscribePromptBudget,
-    () => hasPromptBudgetFor(PASSWORD_PROMPT_SURFACE),
+    () => !routeOwnsScreenFoot(pathname, window.innerWidth)
+      && hasPromptBudgetFor(PASSWORD_PROMPT_SURFACE),
     () => false,
   );
   const budgetHolder = useSyncExternalStore(

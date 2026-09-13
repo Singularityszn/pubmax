@@ -44,6 +44,11 @@ The review proved two independent defects:
      asks for location itself, so a consent card over it would put two first
      questions on one screen. It is one tap and one time per device, so the
      surface behind it is not starved.
+   - Native push and create password stand down on a phone-width map route,
+     where the map owns the foot of the screen (`routeOwnsScreenFoot`,
+     `lib/promptBudget.ts`). They do not claim there and come back on the next
+     route. The analytics card is the exception: on the phone map it takes the
+     outing pill's slot (`components/mobile/mobileMapShell.css`).
    - **Respect** the budget before it interrupts:
      `if (!hasPromptBudgetFor(SURFACE)) return;` (early-return / gate off it).
    - **Claim** the budget *at the moment it actually shows*, not when merely
