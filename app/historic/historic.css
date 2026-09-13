@@ -137,7 +137,7 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  color: var(--brass);
+  color: var(--color-accent-ink);
   font-weight: 700;
 }
 
@@ -203,7 +203,7 @@
   border: 1px solid color-mix(in srgb, var(--brass) 30%, transparent);
   font-size: 0.72rem;
   font-weight: 700;
-  color: var(--brass);
+  color: var(--color-accent-ink);
 }
 
 .historicGrade {
@@ -256,10 +256,13 @@
   font-weight: 600;
 }
 
+/* 44 px tall so a thumb lands the citation (13 Sep audit D12 measured 14 px);
+   the words keep the provenance line's small size. */
 .historicCite {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  min-height: 44px;
   font-weight: 700;
   color: var(--river);
   text-decoration: none;
@@ -376,7 +379,7 @@
 .historicBoroughLink {
   font-weight: 700;
   font-size: 15px;
-  color: var(--brass);
+  color: var(--color-accent-ink);
   text-decoration: none;
 }
 
