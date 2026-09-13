@@ -62,7 +62,7 @@ async function expectNoHorizontalOverflow(page: Page, width = MOBILE.width): Pro
 
 // #1488. Tonight had no tap on the phone's home screen: the landing bar hides
 // its link list under 960px (`.lpPrimaryNav { display: none }`), the six-tab
-// dock carries Now rather than Tonight, and the only rendered /tonight link on
+// dock carried Now rather than Tonight, and the only rendered /tonight link on
 // `/` sat in the footer about 3,500px down. This is the contract that replaces
 // it, measured on the RENDERED box at the four phone widths the shell is held
 // to elsewhere, because a link that exists and is 0x0 is what the old nav was.

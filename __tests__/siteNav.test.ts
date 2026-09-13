@@ -61,30 +61,52 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
     expect(markup).toContain(">More</span>");
   });
 
-  it("exposes only live secondary destinations in More", async () => {
+  it("exposes only live secondary destinations in More, Social last", async () => {
     const { SITE_NAV_MORE_LINKS } = await import("@/components/nav/SiteNavMore");
+    // Plan is a primary destination now, so it is not repeated here; Social
+    // left the primary row and lives here instead.
     expect(SITE_NAV_MORE_LINKS.map((link) => link.href)).toEqual([
-      "/plan",
       "/near",
       "/historic",
       "/pal",
+      "/social",
     ]);
     expect(SITE_NAV_MORE_LINKS.map((link) => link.label)).toEqual([
-      "Plan",
       "Near",
       "Historic",
       "Pal",
+      "Social",
     ]);
   });
 
   it("explains what every More destination is for", async () => {
     const { SITE_NAV_MORE_LINKS } = await import("@/components/nav/SiteNavMore");
     expect(SITE_NAV_MORE_LINKS.map((link) => link.description)).toEqual([
-      "Build a night out",
       "Find priced pubs close to you",
       "Read the stories behind old pubs",
       "Ask for a pub that fits tonight",
+      "Pub-night posts and crews",
     ]);
+  });
+
+  it("names Social in More the way the launch state names it", async () => {
+    const { siteNavMoreItems } = await import("@/components/nav/SiteNavMore");
+    const { socialSurfaceName } = await import("@/lib/socialLaunch");
+    expect(siteNavMoreItems(socialSurfaceName(true)).at(-1)).toMatchObject({
+      href: "/social",
+      label: "Social",
+    });
+    expect(siteNavMoreItems(socialSurfaceName(false)).at(-1)).toMatchObject({
+      href: "/social",
+      label: "Social preview",
+    });
+  });
+
+  it("renders no Social link and exactly one Plan link in the primary row", async () => {
+    const markup = await renderSiteNav();
+    const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
+    expect(row).not.toContain('href="/social"');
+    expect(row.match(/href="\/plan"/g)).toHaveLength(1);
   });
 
   it("keeps More markup free of em dashes", async () => {

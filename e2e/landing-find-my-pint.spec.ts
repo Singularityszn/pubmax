@@ -30,16 +30,15 @@ async function openLanding(page: Page, viewport: { width: number; height: number
   ).toBeVisible();
 }
 
-// The landing document is CDN-held, so its Social label is the first one most
-// strangers read: it has to agree with the site nav, the palette and /social.
-test("landing nav and footer name Social", async ({ page }) => {
+// The landing bar is the first navigation most strangers read, so it speaks the
+// app's own vocabulary (PRIMARY_NAV_ITEMS) and leads with the loop. Social is
+// not a front door: the bar carries none, and the footer keeps one link.
+test("landing nav speaks the app's vocabulary and the footer keeps Social", async ({ page }) => {
   await openLanding(page, { width: 1440, height: 900 });
 
   const nav = page.getByRole("navigation", { name: "Landing navigation" });
-  await expect(
-    nav.getByRole("link", { name: "Social", exact: true }),
-  ).toBeVisible();
-  await expect(nav.getByRole("link", { name: "Social preview", exact: true })).toHaveCount(0);
+  await expect(nav.getByRole("link")).toHaveText(["Tonight", "Map", "Places", "Out", "Plan", "You"]);
+  await expect(nav.locator('a[href^="/social"], a[href^="/moment"]')).toHaveCount(0);
 
   const footerSocial = page
     .locator(".lpFooterCol")

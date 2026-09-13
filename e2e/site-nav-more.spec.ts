@@ -11,18 +11,18 @@ test("More menu stays usable in a short desktop viewport", async ({ page }) => {
   const menu = page.getByRole("menu", { name: "More pages" });
   await expect(menu).toBeVisible();
   await expect(menu.getByRole("menuitem")).toHaveText([
-    "PlanBuild a three-stop outing",
     "NearFind priced pubs close to you",
     "HistoricRead the stories behind old pubs",
     "PalAsk for a pub that fits tonight",
+    "SocialPub-night posts and crews",
   ]);
 
   const menuBox = await menu.boundingBox();
   expect(menuBox).not.toBeNull();
   expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(312);
 
-  const firstItem = page.getByRole("menuitem", { name: /Plan/ });
-  const lastItem = page.getByRole("menuitem", { name: /Pal/ });
+  const firstItem = page.getByRole("menuitem", { name: /Near/ });
+  const lastItem = page.getByRole("menuitem", { name: /Social/ });
   await expect(firstItem).toBeFocused();
   await page.keyboard.press("End");
   await expect(lastItem).toBeFocused();

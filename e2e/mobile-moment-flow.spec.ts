@@ -32,10 +32,10 @@ test.describe("mobile Moment journey", () => {
     await expect(page.getByText("Your unfinished Moment is back.")).toBeVisible();
   });
 
-  test("Social sits in Moment primary navigation", async ({ page }) => {
+  test("Moment keeps the loop dock, with no Social tab", async ({ page }) => {
     await page.goto("/moment");
-    await expect(
-      page.getByRole("navigation", { name: "Primary" }).locator('a[href="/social"]'),
-    ).toHaveCount(1);
+    const primary = page.getByRole("navigation", { name: "Primary" });
+    await expect(primary.locator('a[href="/social"]')).toHaveCount(0);
+    await expect(primary.getByRole("link", { name: "Plan", exact: true })).toHaveAttribute("href", "/plan");
   });
 });

@@ -55,7 +55,10 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
 vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
-vi.mock("@/components/nav/SiteNavMore", () => ({ default: () => null }));
+vi.mock("@/components/nav/SiteNavMore", () => ({
+  default: () => null,
+  siteNavMoreItems: () => [],
+}));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("@/components/ThemeToggle", () => ({ default: () => null }));
 vi.mock("@/components/command/CommandPaletteProvider", () => ({
@@ -263,7 +266,7 @@ describe("Places sets the one city Map, Out and Near follow", () => {
     expect(readPreferredCity()).toBe("manchester");
     expect(window.localStorage.getItem(STORAGE_KEY)).toBe("manchester");
     expect(preferredCityMapHref()).toBe("/map/manchester");
-    expect(buildTabs("/u/you", "/today", true, preferredCityMapHref()).find(
+    expect(buildTabs("/u/you", preferredCityMapHref()).find(
       (tab) => tab.label === "Map",
     )?.href).toBe("/map/manchester");
   });
@@ -327,15 +330,15 @@ describe("Places is a durable destination", () => {
       "map",
       "places",
       "out",
-      "social",
+      "plan",
       "you",
     ]);
     expect(buildTabs().map((tab) => tab.label)).toEqual([
-      "Now",
+      "Tonight",
       "Map",
       "Places",
       "Out",
-      "Social",
+      "Plan",
       "You",
     ]);
     expect(primaryNavKeyForPath("/places")).toBe("places");
