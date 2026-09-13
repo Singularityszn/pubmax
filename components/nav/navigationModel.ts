@@ -22,10 +22,11 @@ export type PrimaryNavItem = {
 export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
   { key: "now", href: "/today", label: "Now", match: ["/today", "/tonight"] },
   { key: "map", href: "/map", label: "Map", match: ["/map"] },
-  // /choose-city is the older picker the landing page and the national browse
-  // entry still link. It lights Places too, so a reader who lands there from
-  // either is not left with no tab marked.
-  { key: "places", href: "/places", label: "Places", match: ["/places", "/choose-city"] },
+  // The picker's retired address, /choose-city, is NOT in the match set: it has
+  // no page any more and 308s at the edge (proxy.ts), so no client is ever on
+  // that pathname. Unlike the retired Social aliases below, which are still
+  // rendered routes.
+  { key: "places", href: "/places", label: "Places", match: ["/places"] },
   { key: "out", href: "/out", label: "Out", match: ["/out"] },
   {
     key: "social",

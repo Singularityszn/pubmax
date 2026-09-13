@@ -12,6 +12,13 @@ import {
   readPreferredCity,
   writePreferredCity,
 } from "@/lib/cityPreference";
+import PlaceIndexCredit from "@/components/city/PlaceIndexCredit";
+import {
+  cityChooserResultBadge,
+  cityChooserResultContext,
+  cityGuidesSearchUnavailableLine,
+  TOWN_SEARCH_UNAVAILABLE_LEAD,
+} from "@/lib/cityChooserSearch";
 import { getNightAreasForCity } from "@/lib/nightAreas";
 import {
   PLACES_AREAS_COMING_PILL,
@@ -20,6 +27,7 @@ import {
   PLACES_PRICES_COMING_PILL,
   PLACES_PRICES_LISTED_PILL,
   PLACES_SET_CITY_LABEL,
+  PLACES_SHOW_ALL_LABEL,
   PLACES_TITLE,
   filterPlacesCityRows,
   parsePlacesCityParam,
@@ -33,7 +41,12 @@ import {
   placesPricesLine,
   placesPricesPill,
   placesSearchEmptyLine,
+  placesShouldSearchTowns,
+  placesTownLookupPending,
+  placesTownResults,
+  placesTownSearchUnavailableLine,
 } from "@/lib/places";
+import { normaliseUkPlaceQuery, type UkPlace } from "@/lib/ukPlaceSearch";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => PLACES_PATH,
@@ -327,6 +340,153 @@ describe("Places is a durable destination", () => {
     ]);
     expect(primaryNavKeyForPath("/places")).toBe("places");
   });
+});
+
+// ---------------------------------------------------------------------------
+// The town fallback
+// ---------------------------------------------------------------------------
+
+describe("Places answers a town the city list does not hold", () => {
+  const place = (row: Omit<UkPlace, "search">): UkPlace => ({
+    ...row,
+    search: normaliseUkPlaceQuery(row.name),
+  });
+  const TOWNS: UkPlace[] = [
+    place({ name: "Sheffield", lat: 53.3800941, lng: -1.4789213, kind: "city", context: "S" }),
+    place({ name: "Didsbury", lat: 53.4181794, lng: -2.23144, kind: "suburb", context: "M" }),
+    // The index holds two Alresfords, one in Essex and one in Hampshire.
+    place({ name: "Alresford", lat: 51.8528593, lng: 0.9966437, kind: "village", context: "CO" }),
+    place({ name: "Alresford", lat: 51.080371, lng: -1.1707111, kind: "town", context: "SO" }),
+  ];
+
+  it("looks for towns only once no city row answers", () => {
+    // A query a city answered is already answered, and a second list under it
+    // would offer the same night twice.
+    expect(placesShouldSearchTowns(3, "man")).toBe(false);
+    expect(placesShouldSearchTowns(0, "d")).toBe(false);
+    expect(placesShouldSearchTowns(0, "Didsbury")).toBe(true);
+  });
+
+  it("opens an unpriced town on its own base-map arrival", () => {
+    const [result] = placesTownResults("Sheffield", TOWNS);
+
+    expect(result.kind).toBe("uncovered");
+    expect(result.href).toBe("/map?place=Sheffield&lat=53.3800941&lng=-1.4789213");
+  });
+
+  it("sends a place inside a city we ship to that city's guide", () => {
+    // Didsbury is Manchester. The retired /choose-city address answered it that
+    // way, and the picker may not start calling it an unpriced elsewhere.
+    const [result] = placesTownResults("Didsbury", TOWNS);
+
+    expect(result.kind).toBe("curated");
+    expect(result.href).toBe(mapHrefForCity("manchester"));
+  });
+
+  it("keeps the city rows as the answer when the query matched one", () => {
+    // Bath is a city we ship, so the gate never opens and the town lookup
+    // never runs, whatever the index would have said about the name.
+    expect(filterPlacesCityRows(placesCityRows(), "Bath")).not.toHaveLength(0);
+    expect(placesShouldSearchTowns(filterPlacesCityRows(placesCityRows(), "Bath").length, "Bath")).toBe(
+      false,
+    );
+  });
+
+  it("calls a lookup it has decided to run pending, from the first commit on", () => {
+    // The index read is asked for from an effect, so the commit that opens the
+    // gate still holds it at "idle". Reading that as a finished read printed
+    // "No city here called Didsbury" for one commit, under a polite live
+    // region, before the pending line and then the town rows replaced it.
+    expect(placesTownLookupPending(true, "idle")).toBe(true);
+    expect(placesTownLookupPending(true, "loading")).toBe(true);
+
+    // Only the two states that END a lookup stop it being pending.
+    expect(placesTownLookupPending(true, "ready")).toBe(false);
+    expect(placesTownLookupPending(true, "error")).toBe(false);
+
+    // A query a city row answered never opened the gate, so nothing is pending
+    // however far a read for some earlier query got.
+    expect(placesTownLookupPending(false, "idle")).toBe(false);
+    expect(placesTownLookupPending(false, "loading")).toBe(false);
+  });
+
+  it("wears the badge the chooser wears, off one shared reading of the kind", () => {
+    // Both surfaces render the same result kinds, so the words belong to the
+    // kind. A second copy beside this caller could be reworded alone.
+    const [didsbury] = placesTownResults("Didsbury", TOWNS);
+    const [sheffield] = placesTownResults("Sheffield", TOWNS);
+
+    expect(cityChooserResultBadge(didsbury.kind)).toBe("City guide");
+    expect(cityChooserResultBadge(sheffield.kind)).toBe("No prices yet");
+  });
+
+  it("tells two places of one name apart by their postcode area", () => {
+    // Both Alresfords sit outside every city we ship, so both come back
+    // uncovered, with the same name, the same badge and the same sentence. The
+    // row printed those three alone, so a reader choosing between them could
+    // open a map a county away from the town they meant.
+    const results = placesTownResults("Alresford", TOWNS);
+    expect(results).toHaveLength(2);
+
+    const contexts = results.map((result) => cityChooserResultContext(result));
+    expect([...contexts].sort()).toEqual(["CO", "SO"]);
+    expect(new Set(results.map((result) => result.href)).size).toBe(2);
+  });
+
+  it("leaves a curated row unmarked, its description naming the city instead", () => {
+    // Didsbury is Manchester, and the membership line says so, so there is
+    // nothing for a postcode area to disambiguate.
+    const [didsbury] = placesTownResults("Didsbury", TOWNS);
+
+    expect(didsbury.kind).toBe("curated");
+    expect(cityChooserResultContext(didsbury)).toBeNull();
+  });
+
+  it("answers a failed index read by naming the button, not a list that is gone", () => {
+    // The chooser's line ends "the five city maps are below", which holds there
+    // because its full list always renders under the panel. On /places the list
+    // is filtered out while a query stands, so the borrowed sentence pointed at
+    // a screen carrying no city map at all.
+    const line = placesTownSearchUnavailableLine();
+
+    expect(line.startsWith(TOWN_SEARCH_UNAVAILABLE_LEAD)).toBe(true);
+    expect(line).toContain(PLACES_SHOW_ALL_LABEL);
+    expect(line).not.toMatch(/below/i);
+    expect(cityGuidesSearchUnavailableLine(5)).toMatch(/below/i);
+  });
+
+  it("credits OpenStreetMap for the place names it publishes", () => {
+    // public/data/uk_base/places.json is ODbL 1.0, and /places draws no map
+    // canvas, so the credit MapLibre carries elsewhere rides the answer here.
+    const markup = renderToStaticMarkup(
+      createElement(PlaceIndexCredit, { className: "placesTownSource" }),
+    );
+
+    expect(markup).toContain("OpenStreetMap contributors");
+    expect(markup).toContain("ODbL");
+    expect(markup).toContain("https://www.openstreetmap.org/copyright");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The crawlable city list
+// ---------------------------------------------------------------------------
+
+describe("Places is the one indexable city list", () => {
+  it("carries the canonical for the city question", async () => {
+    const { metadata } = await import("@/app/places/page");
+
+    expect(metadata.alternates?.canonical).toBe(PLACES_PATH);
+  });
+
+  it("asks to be indexed, because the sitemap now names it", async () => {
+    // A sitemap row on a noindex page tells a crawler two opposite things, and
+    // the city list is the page a stranger reaches the map through.
+    const { metadata } = await import("@/app/places/page");
+
+    expect(metadata.robots).toBeUndefined();
+  });
+
 });
 
 // ---------------------------------------------------------------------------

@@ -48,7 +48,7 @@ export function resolveLocateMapDestination(
   const place = nearestUkPlace(lat, lng, places);
   if (!place) return { kind: "none" };
   // Centre near the reader, name the nearest known place — same arrival shape
-  // as choose-city search, so UkPlaceArrivalBanner / server resolve stay
+  // as CityChooser search, so UkPlaceArrivalBanner / server resolve stay
   // shared. The arrival lands in a URL (server logs, history, shareable), so
   // the reader's fix MUST cross the one viewer-coordinate egress seam
   // (lib/geo.ts) first — a raw building-level fix never leaves the browser.

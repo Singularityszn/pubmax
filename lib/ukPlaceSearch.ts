@@ -8,6 +8,15 @@ export { isPublishableUkPlaceName };
 
 export const UK_PLACE_INDEX_PATH = "/data/uk_base/places.json";
 
+/**
+ * How far a browser's read of that index has got.
+ *
+ * It lives here, beside the path and the parser, so a surface deciding what to
+ * SAY about a lookup reads the same four words as the hook running it, without
+ * a server module having to reach into a client one for the vocabulary.
+ */
+export type UkPlaceIndexStatus = "idle" | "loading" | "ready" | "error";
+
 export type UkPlaceKind = "city" | "town" | "village" | "place" | "suburb";
 
 export type UkPlace = {

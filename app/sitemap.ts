@@ -25,7 +25,7 @@ import {
 //
 //  Included:
 //   - static hubs: /, /map, /borough, /historic, /pubs, /tonight,
-//     /choose-city, /crawls, /social while Social is live by default.
+//     /places, /crawls, /social while Social is live by default.
 //   - /map/{city} for every enabled non-London city (London is /map)
 //   - /borough/{slug} for every borough present in the price dataset
 //   - /drink/{slug} and /area/{slug}/drink/{brand} for every governed drink
@@ -170,7 +170,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/pubs", priority: 0.7, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/tonight", priority: 0.6, changeFrequency: "daily", lastModified: now },
     { path: "/crawls", priority: 0.6, changeFrequency: "weekly", lastModified: now },
-    { path: "/choose-city", priority: 0.5, changeFrequency: "monthly", lastModified: now },
+    // The city picker. /choose-city held this row until the picker was made
+    // one page: it now 308s to /places (proxy.ts), and the canonical moved in
+    // the same commit, so the list keeps its place in the index.
+    { path: "/places", priority: 0.5, changeFrequency: "monthly", lastModified: now },
     { path: "/about", priority: 0.5, changeFrequency: "monthly", lastModified: now },
     { path: "/founders", priority: 0.4, changeFrequency: "weekly", lastModified: now },
     // Static, token-free content pages a reader (or a crawler checking the site
