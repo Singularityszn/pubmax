@@ -10,12 +10,16 @@
   display: none;
 }
 
-.venueOverviewMore {
+/* The Overview's folds: Details and practical info, and the getting-home fold
+   (venueSheet.css joins the two into one list). */
+.venueOverviewMore,
+.venueGettingHome {
   margin: 12px 0;
   border-block: 1px solid var(--line);
 }
 
-.venueOverviewMore > summary {
+.venueOverviewMore > summary,
+.venueGettingHome > summary {
   min-height: 44px;
   display: flex;
   align-items: center;

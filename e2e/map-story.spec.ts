@@ -110,8 +110,8 @@ test.describe("map / story bands (#15)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Venue sheet tabs (components/map/VenueInspector.tsx). Seven tabs (Overview,
-// Photos, Drinks, Stories, Lore, Ask, Last train) behind
+// Venue sheet tabs (components/map/VenueInspector.tsx). Five tabs (Overview,
+// Photos, Drinks, Stories, Lore) behind
 // role="tablist"/role="tab", with
 // roving-tabindex arrow-key navigation per the APG tabs pattern. Deep-link
 // straight to a known seed venue (mirrors smoke.spec's sel= precedent) so this
@@ -167,7 +167,7 @@ test.describe("map / venue sheet tabs", () => {
     await expect(page.getByRole("form", { name: "Pint Drop composer" })).toBeVisible();
   });
 
-  test("all seven tabs render; each switches its panel; Stories shows the price block", async ({
+  test("all five tabs render; each switches its panel; Stories shows the price block", async ({
     page,
   }) => {
     const errors = watchPageErrors(page);
@@ -184,8 +184,6 @@ test.describe("map / venue sheet tabs", () => {
       "Drinks",
       "Stories",
       "Lore",
-      "Ask",
-      "Last train",
     ];
     const tabs = tablist.getByRole("tab");
     await expect(tabs).toHaveCount(expectedTabs.length);

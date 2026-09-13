@@ -371,7 +371,9 @@ test.describe("Venue detail tab reachability", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     const { tablist, tabBox } = await expectTabFullyInsideRail(page);
     await expect(tablist).toHaveCSS("overflow-x", "visible");
-    expect(tabBox.width).toBeGreaterThan(80);
+    // The last tab is Lore now (D10), a short word, so the floor is the tap
+    // target rather than the width "Last train" used to need.
+    expect(tabBox.width).toBeGreaterThanOrEqual(44);
     expect(await tablist.evaluate((rail) => rail.scrollWidth - rail.clientWidth)).toBeLessThanOrEqual(1);
   });
 });

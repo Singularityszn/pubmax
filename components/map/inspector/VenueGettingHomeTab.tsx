@@ -55,7 +55,7 @@ export default function VenueGettingHomeSection({
     <details
       ref={foldRef}
       id="venueSection-getting-home"
-      className="contentDisclosure venueOverviewMore venueGettingHome"
+      className="contentDisclosure venueGettingHome"
       open={open}
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >

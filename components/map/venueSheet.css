@@ -1155,6 +1155,19 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   }
 }
 
+/* A 320px phone gives the strip 248px, and five labels at 7px a side with 2px
+   gaps asked 281px, so "Overview" ran 6px past its own pill. At 3px a side and
+   no gap the row asks about 243px, and every label keeps its whole word. */
+@media (max-width: 360px) {
+  .venueTabs {
+    gap: 0;
+  }
+
+  .venueTab {
+    padding-inline: 3px;
+  }
+}
+
 /* ── Tab content crossfade (signature-surface motion polish) ──────────────────
    Each tab panel is display:none via [hidden] until selected; the moment it
    becomes the shown panel it settles in with a short rise + fade. Because the
