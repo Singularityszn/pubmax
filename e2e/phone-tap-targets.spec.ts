@@ -140,6 +140,10 @@ test.describe("phone tap targets @390", () => {
       // The family the audit named has to be ON the page, or an empty page
       // would pass by measuring nothing.
       expect(await page.locator(`main ${route.family}`).count()).toBeGreaterThan(0);
+      // /tonight swaps its screen while the listings refresh, and for a moment
+      // the outgoing and incoming <main> are both attached. Measure the one
+      // that stays, or the strict locator below throws on the swap.
+      await expect(page.locator("main")).toHaveCount(1);
 
       expect(await undersizedTargets(page)).toEqual([]);
     });
