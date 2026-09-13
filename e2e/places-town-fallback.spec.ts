@@ -27,6 +27,16 @@ test("a town typed at the picker still opens its own arrival", async ({ page }) 
   await expect(didsbury).toHaveAttribute("href", "/map/manchester");
   await expect(didsbury).toContainText("Didsbury");
 
+  // Chester is not a substring shortcut to Manchester. The town remains a result.
+  await field.fill("Chester");
+  const chester = townList.locator("a").filter({
+    has: page.locator(".placesCityName", { hasText: /^Chester$/ }),
+  });
+  await expect(chester).toHaveCount(1);
+  await expect(chester).toHaveAttribute(
+    "href", "/map?place=Chester&lat=53.1923027&lng=-2.8882727",
+  );
+
   // Sheffield is nobody's city pack, so it lands on the base map at its own
   // coordinates with the honest line about prices.
   await field.fill("Sheffield");

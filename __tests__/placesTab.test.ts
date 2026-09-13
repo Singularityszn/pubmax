@@ -152,6 +152,15 @@ describe("Places city chooser", () => {
     expect(placesSearchEmptyLine("Reykjavik")).not.toMatch(/try again later/i);
   });
 
+  it("matches city names from word starts rather than inside another name", () => {
+    const rows = placesCityRows();
+    expect(filterPlacesCityRows(rows, "Chester")).toEqual([]);
+    const row = { ...rows[0], name: "New Chester", tagline: "A city guide" };
+    expect(filterPlacesCityRows([row], "  CHEST  ")).toEqual([row]);
+    expect(filterPlacesCityRows([row], "new chest")).toEqual([row]);
+    expect(filterPlacesCityRows([row], "ester")).toEqual([]);
+  });
+
   it("reads ?city= as a closed id, and never as free text", () => {
     expect(parsePlacesCityParam("manchester")).toBe("manchester");
     expect(parsePlacesCityParam("MANCHESTER")).toBe("manchester");
@@ -354,6 +363,7 @@ describe("Places answers a town the city list does not hold", () => {
   const TOWNS: UkPlace[] = [
     place({ name: "Sheffield", lat: 53.3800941, lng: -1.4789213, kind: "city", context: "S" }),
     place({ name: "Didsbury", lat: 53.4181794, lng: -2.23144, kind: "suburb", context: "M" }),
+    place({ name: "Chester", lat: 53.1923027, lng: -2.8882727, kind: "city", context: "CH" }),
     // The index holds two Alresfords, one in Essex and one in Hampshire.
     place({ name: "Alresford", lat: 51.8528593, lng: 0.9966437, kind: "village", context: "CO" }),
     place({ name: "Alresford", lat: 51.080371, lng: -1.1707111, kind: "town", context: "SO" }),
@@ -372,6 +382,25 @@ describe("Places answers a town the city list does not hold", () => {
 
     expect(result.kind).toBe("uncovered");
     expect(result.href).toBe("/map?place=Sheffield&lat=53.3800941&lng=-1.4789213");
+  });
+
+  it("offers Chester without letting Manchester suppress or precede the town", () => {
+    const shown = filterPlacesCityRows(placesCityRows(), "Chester");
+    expect(shown).toEqual([]);
+    expect(placesShouldSearchTowns(shown.length, "Chester")).toBe(true);
+    expect(placesTownResults("Chester", TOWNS)).toEqual([
+      expect.objectContaining({
+        name: "Chester",
+        kind: "uncovered",
+        href: "/map?place=Chester&lat=53.1923027&lng=-2.8882727",
+      }),
+    ]);
+  });
+
+  it("keeps a matching city tagline from opening the town lookup", () => {
+    const shown = filterPlacesCityRows(placesCityRows(), "northern quarter");
+    expect(shown.map(row => row.cityId)).toEqual(["manchester"]);
+    expect(placesShouldSearchTowns(shown.length, "northern quarter")).toBe(false);
   });
 
   it("sends a place inside a city we ship to that city's guide", () => {

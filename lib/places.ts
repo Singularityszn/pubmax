@@ -120,12 +120,16 @@ function normalisePlacesQuery(raw: string | null | undefined): string {
   return (raw ?? "").trim().toLocaleLowerCase().replace(/\s+/g, " ");
 }
 
+function cityNameMatchesQuery(name: string, query: string): boolean {
+  return ` ${normalisePlacesQuery(name)}`.includes(` ${query}`);
+}
+
 /**
  * Rows a typed query keeps.
  *
- * The name and the tagline are both searched, so "harbour" finds Bristol and
- * "subway" finds Glasgow. An empty query keeps everything: a picker that hides
- * its own list until somebody types is a dead end.
+ * Names match from a word's start, so Chester does not match Manchester.
+ * Taglines still answer queries such as "northern quarter" and "subway".
+ * An empty query keeps every city.
  */
 export function filterPlacesCityRows(
   rows: readonly PlacesCityRow[],
@@ -134,7 +138,7 @@ export function filterPlacesCityRows(
   const needle = normalisePlacesQuery(query);
   if (!needle) return [...rows];
   return rows.filter((row) =>
-    `${row.name} ${row.tagline}`.toLocaleLowerCase().includes(needle),
+    cityNameMatchesQuery(row.name, needle) || normalisePlacesQuery(row.tagline).includes(needle),
   );
 }
 
@@ -156,7 +160,9 @@ export function placesTownResults(
   query: string,
   places: readonly UkPlace[],
 ): CityChooserSearchResult[] {
-  return buildCityChooserSearchResults(query, listEnabledCities(), places);
+  const needle = normalisePlacesQuery(query);
+  const cities = listEnabledCities().filter((city) => cityNameMatchesQuery(city.displayName, needle));
+  return buildCityChooserSearchResults(query, cities, places);
 }
 
 /** True when a query has earned the town lookup: no city row, and enough typed. */
