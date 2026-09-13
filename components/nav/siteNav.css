@@ -588,6 +588,13 @@ button.siteNavMoreItem {
     padding: 0 5px;
   }
 
+  /* The filled pill needs more room than the bare label. A three-letter "Now"
+     got it from the 44px min-width; "Tonight" is wider than that, so 5px of
+     fill sat each side of the word. The lit pill alone gets it back. */
+  .siteNavLink.isActive {
+    padding-inline: 10px;
+  }
+
   .siteNavActions {
     gap: 4px;
   }

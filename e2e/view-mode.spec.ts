@@ -15,7 +15,7 @@ test("legacy view-mode state cannot replace the current mobile navigation", asyn
   await page.goto("/feed");
 
   const nav = page.getByRole("navigation", { name: "Primary" });
-  for (const label of ["Now", "Map", "Out", "You"]) {
+  for (const label of ["Tonight", "Map", "Out", "You"]) {
     await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
   }
   await expect(nav.locator('a[href="/social"]')).toHaveCount(0);

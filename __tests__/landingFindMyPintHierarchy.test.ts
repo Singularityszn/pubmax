@@ -155,7 +155,7 @@ describe("landing hierarchy: the price receipt door", () => {
 
   it("gives Tonight a tap on the phone's home screen that the dead nav never had", () => {
     // The landing bar hides its link list under 960px and the six-tab dock
-    // carries Now rather than Tonight, so before #1488 the only rendered
+    // carried Now rather than Tonight, so before #1488 the only rendered
     // /tonight link on `/` sat in the footer, thousands of pixels down.
     const hero = render().match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
     expect(hero).toMatch(/href="\/tonight"/);
