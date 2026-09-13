@@ -5,7 +5,8 @@ import { listBoroughs } from "@/lib/boroughs";
 import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
 import { loadPintPriceLandingVenuesOrThrow } from "@/lib/pintPriceLandingDataset.server";
-import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
+import { pintIndexMeetsAdmissionFloor } from "@/lib/pintIndexArchive";
+import { loadPintIndexArchive, loadPublicPintIndexSnapshotOrThrow } from "@/lib/pintIndexSnapshot.server";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { readSpoonsValue } from "@/lib/spoonsValue.server";
 import {
@@ -98,7 +99,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     loadHistoricPubs(),
     dataFileModified("pint_prices_app_dataset.json", now),
     dataFileModified("historic_pubs.json", now),
-    loadPublicPintIndexSnapshot(),
+    loadPublicPintIndexSnapshotOrThrow(),
     loadPintIndexArchive(),
     loadDrinkBrandLandings(),
     loadDrinkBrandAreaLandings(),
@@ -110,9 +111,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const spoonsValueModified = spoonsValueRead.pack
     ? new Date(spoonsValueRead.pack.provenance.retrievedAt)
     : now;
-  const pintIndexPublished = pintIndexSnapshot
-    ? new Date(pintIndexSnapshot.generatedAt)
-    : new Date("2026-07-16T00:00:00.000Z");
+  const pintIndexPublished = new Date(pintIndexSnapshot.generatedAt);
+  // Captain decision D10: the live Index is not ADVERTISED until a month carries
+  // the admission floor in at least one borough. lib/pintIndexArchive.ts owns that rule
+  // and the figure behind it.
+  //
+  // WHAT IS HELD IS THIS ROW AND INDEXING, never the route and never the links
+  // to it. /pint-index still answers 200 with its honest empty, and the borough,
+  // About and method pages still link there, because a reader who follows one
+  // gets a truthful page. A crawler that arrives through those links is turned
+  // away by the hub's own robots directive (app/pint-index/page.tsx), which
+  // reads this same rule: dropping a sitemap row deindexes nothing on its own.
+  // The dated editions below are real citations, frozen, and are never held.
+  const pintIndexPromoted = pintIndexMeetsAdmissionFloor(pintIndexSnapshot);
 
   // loadHistoricPubs() swallows read errors to [] (shared lib contract), and the
   // historic index is never empty in practice (346 cited pubs), so an empty read
@@ -138,7 +149,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/", priority: 1.0, changeFrequency: "daily", lastModified: now },
     { path: "/map", priority: 0.9, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/borough", priority: 0.8, changeFrequency: "weekly", lastModified: pricesModified },
-    { path: "/pint-index", priority: 0.8, changeFrequency: "monthly", lastModified: pintIndexPublished },
+    ...(pintIndexPromoted
+      ? [{
+          path: "/pint-index",
+          priority: 0.8,
+          changeFrequency: "monthly" as const,
+          lastModified: pintIndexPublished,
+        }]
+      : []),
     { path: "/historic", priority: 0.8, changeFrequency: "weekly", lastModified: historicModified },
     // The Spoons value ranking. Its own content dates it: the figures are an
     // imported edition and nothing we run advances them, so it changes when a

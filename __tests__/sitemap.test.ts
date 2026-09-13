@@ -11,23 +11,35 @@ import { listEnabledCities } from "@/lib/cities";
 import { listBoroughs } from "@/lib/boroughs";
 import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
+import { SEED_BOROUGH_MONTHLY_TARGET } from "@/lib/boroughCoverageStatus";
+import { validatePintIndexSnapshot, type PintIndexSnapshot } from "@/lib/pintIndex";
 import { loadPintIndexArchive } from "@/lib/pintIndexSnapshot.server";
+import {
+  DRINK_BRAND_LANDING_CATALOG,
+  buildDrinkBrandLanding,
+} from "@/lib/drinkBrandLanding";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
 import { PERFORMANCE_BUDGETS } from "@/lib/performanceBudgets";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { MetadataRoute } from "next";
 
-// The number of static hub URLs the generator emits while Social is gated
-// (the fixed list in app/sitemap.ts minus /social). Kept here so a change to
-// that list is a conscious test edit. Includes /pint-index (Wave S3.3 — the
-// London Pint Index hub), /about (founder story + press kit hub), /founders
-// (the numbered public wall of the first hundred claimed handles), the two legal
-// content pages (/privacy, /terms) linked from the site footer, and
-// /account/delete, the public account-deletion page Play Console holds in its
-// Data safety form and expects to be able to open, and /spoons-value, the
-// national Wetherspoon units-per-tenner ranking.
-const STATIC_HUB_COUNT = 15;
+// The number of UNCONDITIONAL static hub URLs the generator emits while Social
+// is gated (the fixed list in app/sitemap.ts minus /social). Kept here so a
+// change to that list is a conscious test edit. Includes /about (founder story
+// + press kit hub), /founders (the numbered public wall of the first hundred
+// claimed handles), the two legal content pages (/privacy, /terms) linked from
+// the site footer, and /account/delete, the public account-deletion page Play
+// Console holds in its Data safety form and expects to be able to open, and
+// /spoons-value, the national Wetherspoon units-per-tenner ranking.
+//
+// /pint-index is NOT here. Captain decision D10 holds its row until a month
+// carries the admission floor of priced pubs in at least one borough, and the
+// shipped snapshot carries none, so the generator emits no hub row today. The
+// row returning is a conscious test edit, the same as a change to the list
+// above; the gate itself is proved in both directions by the fixture-driven
+// describe at the foot of this file. The ROUTE is unaffected either way.
+const STATIC_HUB_COUNT = 14;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is
@@ -82,7 +94,8 @@ async function expectedCounts(): Promise<ExpectedCounts> {
   const cities = listEnabledCities().filter((c) => c.id !== "london").length;
   const boroughs = listBoroughs(venues).length;
   const historic = (await loadHistoricPubs()).length;
-  // One URL per dated Pint Index edition actually published.
+  // One URL per dated Pint Index edition actually published. A frozen month is
+  // a real citation whatever the live month holds, so D10 never touches these.
   const editions = (await loadPintIndexArchive()).length;
   // Governed landing pages come from the SAME loaders the routes render, so a
   // page the sitemap advertises is a page that exists.
@@ -136,10 +149,17 @@ describe("sitemap()", () => {
     expect(entries.length).toBe(expected.total);
   });
 
-  it("lists every dated Pint Index edition, and the live index too", () => {
-    expect(urls).toContain(`${SITE}/pint-index`);
+  it("lists every dated Pint Index edition, whatever the live month holds", () => {
     expect(familyCount("/pint-index/")).toBe(expected.editions);
     expect(expected.editions).toBeGreaterThan(0);
+  });
+
+  // D10: the shipped snapshot is empty, so the hub row is held. The route is
+  // still SERVED and still linked; only its row and its index directive follow
+  // the floor. Both directions of the rule are proved by the fixture-driven
+  // describe at the foot of this file.
+  it("holds the live Pint Index hub while the shipped month is empty", () => {
+    expect(urls).not.toContain(`${SITE}/pint-index`);
   });
 
   it("includes the core static hubs", () => {
@@ -182,6 +202,52 @@ describe("sitemap()", () => {
     expect(expected.boroughs).toBeGreaterThan(0);
     expect(expected.historic).toBeGreaterThan(0);
     expect(expected.venues).toBeGreaterThan(0);
+  });
+
+  it("advertises only the catalogue brands that clear their own floor", async () => {
+    // The catalogue decides what MAY publish; PRICED_LANDING_PUBLICATION_FLOORS
+    // decides what does. Both halves matter, so walk every catalogue brand and
+    // check the sitemap against the loader's own verdict for it.
+    const venues = groupVenuePrices(
+      JSON.parse(
+        await fs.readFile(
+          path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json"),
+          "utf8",
+        ),
+      ) as VenuePrice[],
+    );
+    let below = 0;
+
+    for (const brand of DRINK_BRAND_LANDING_CATALOG) {
+      const url = `${SITE}/drink/${encodeURIComponent(brand.id)}`;
+      if (buildDrinkBrandLanding(brand.id, venues)) {
+        expect(urls, `${brand.id} publishes but is unadvertised`).toContain(url);
+        continue;
+      }
+      below += 1;
+      expect(urls, `${brand.id} is below the floor but advertised`).not.toContain(url);
+      // A brand with no London page has no area children either, so its crumb
+      // can never point at a 404 under dynamicParams = false.
+      expect(
+        urls.filter((candidate) => candidate.endsWith(`/drink/${brand.id}`)),
+      ).toEqual([]);
+    }
+
+    // A catalogue that published everything would make the two halves above
+    // indistinguishable.
+    expect(below).toBeGreaterThan(0);
+  });
+
+  it("gives every advertised brand-by-area page an advertised parent brand page", () => {
+    const areaUrls = urls.filter((url) => /\/area\/[^/]+\/drink\/[^/]+$/.test(url));
+    expect(areaUrls.length).toBeGreaterThan(0);
+
+    for (const url of areaUrls) {
+      const brandSlug = url.slice(url.lastIndexOf("/") + 1);
+      expect(urls, `${url} crumbs onto an unpublished /drink/${brandSlug}`).toContain(
+        `${SITE}/drink/${brandSlug}`,
+      );
+    }
   });
 
   it("advertises no /area/{slug} page, because that family is held", () => {
@@ -313,6 +379,87 @@ describe("every sitemap-listed family carries a performance budget", () => {
   });
 });
 
+// D10, the restore path. A month that reaches the admission floor puts the hub
+// back with NO code change, so the proof is a fixture snapshot rather than an
+// edit to the published file: nothing about this run touches
+// public/data/pint_index_snapshot.json.
+describe("sitemap Pint Index admission gate", () => {
+  const observationsFor = (boroughs: readonly [string, string, number][]) =>
+    boroughs.flatMap(([code, name, pubCount]) =>
+      Array.from({ length: pubCount }, (_, offset) => ({
+        venueId: `${code}-${offset}`,
+        pubName: `${name} pub ${offset}`,
+        boroughCode: code,
+        boroughName: name as PintIndexSnapshot["observations"][number]["boroughName"],
+        pricePence: 500 + offset,
+        observedAt: "2026-07-10T12:00:00.000Z",
+        sourceId: "community-1",
+      })),
+    );
+
+  async function sitemapWithSnapshot(observations: PintIndexSnapshot["observations"]): Promise<string[]> {
+    vi.resetModules();
+    const snapshot: PintIndexSnapshot = {
+      schemaVersion: 1,
+      snapshotId: "admission-floor-fixture",
+      status: observations.length === 0 ? "empty" : "published",
+      generatedAt: "2026-07-16T00:00:00.000Z",
+      observationWindow: observations.length === 0
+        ? null
+        : { start: "2026-07-01T00:00:00.000Z", end: "2026-07-31T23:59:59.999Z" },
+      classification: {
+        version: "london-borough-point-v1",
+        method: "point_in_polygon",
+        sourceArtifact: "data/london_boroughs_simplified.json",
+        licence: "Open Government Licence v3.0",
+      },
+      sources: [{
+        id: "community-1",
+        kind: "confirmed_pint_drop",
+        publisher: "PUBMAXX contributor",
+        sourceUrl: "https://pubmaxxing.com/evidence/1",
+        licence: null,
+        confirmationId: "drop-confirmation-1",
+        reviewState: "confirmed",
+      }],
+      observations,
+      excluded: [],
+    };
+    expect(validatePintIndexSnapshot(snapshot)).toMatchObject({ ok: true });
+    vi.doMock("@/lib/pintIndexSnapshot.server", async (importOriginal) => ({
+      ...(await importOriginal<Record<string, unknown>>()),
+      loadPublicPintIndexSnapshotOrThrow: async () => snapshot,
+    }));
+    const { default: gated } = await import("@/app/sitemap");
+    const listed = (await gated()).map((entry) => entry.url);
+    vi.doUnmock("@/lib/pintIndexSnapshot.server");
+    vi.resetModules();
+    return listed;
+  }
+
+  it("holds the hub while every named borough sits below the floor", async () => {
+    const thin = observationsFor([
+      ["hackney", "Hackney", SEED_BOROUGH_MONTHLY_TARGET - 1],
+      ["westminster", "Westminster", 1],
+    ]);
+    expect(await sitemapWithSnapshot(thin)).not.toContain(`${SITE}/pint-index`);
+  });
+
+  it("holds the hub for an empty month", async () => {
+    expect(await sitemapWithSnapshot([])).not.toContain(`${SITE}/pint-index`);
+  });
+
+  // Coverage growing may never hide the Index: a thin borough beside a mature
+  // one is partial coverage, not a reason to stop advertising the hub.
+  it("advertises the hub once one borough reaches the floor, thin rows beside it", async () => {
+    const atFloor = observationsFor([
+      ["hackney", "Hackney", SEED_BOROUGH_MONTHLY_TARGET],
+      ["westminster", "Westminster", 1],
+    ]);
+    expect(await sitemapWithSnapshot(atFloor)).toContain(`${SITE}/pint-index`);
+  });
+});
+
 describe("sitemap Social gate", () => {
   it("lists /social when the friends launch flag is on", async () => {
     vi.resetModules();
@@ -333,6 +480,22 @@ describe("sitemap Social gate", () => {
 // follow, and both are pinned here: an empty pack has to fail the BUILD, and no
 // include may be declared for a route that can never receive one.
 describe("sitemap() is generated at build, not per request", () => {
+  it("rejects a failed Pint Index read instead of publishing a missing hub", async () => {
+    vi.resetModules();
+    const failure = new Error("Public Pint Index snapshot is unavailable");
+    vi.doMock("@/lib/pintIndexSnapshot.server", async (importOriginal) => ({
+      ...(await importOriginal<Record<string, unknown>>()),
+      loadPublicPintIndexSnapshotOrThrow: async () => { throw failure; },
+    }));
+    try {
+      const { default: failedSitemap } = await import("@/app/sitemap");
+      await expect(failedSitemap()).rejects.toBe(failure);
+    } finally {
+      vi.doUnmock("@/lib/pintIndexSnapshot.server");
+      vi.resetModules();
+    }
+  });
+
   it("declares no route-segment config that would make it dynamic", async () => {
     const route = (await import("@/app/sitemap")) as Record<string, unknown>;
 

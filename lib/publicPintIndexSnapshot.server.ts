@@ -26,3 +26,12 @@ export async function loadPublicPintIndexSnapshot(): Promise<PintIndexSnapshot |
     return null;
   }
 }
+
+/** Publication callers must distinguish a failed read from a valid empty snapshot. */
+export async function loadPublicPintIndexSnapshotOrThrow(): Promise<PintIndexSnapshot> {
+  const snapshot = await loadPublicPintIndexSnapshot();
+  if (snapshot === null) {
+    throw new Error("Public Pint Index snapshot is unavailable");
+  }
+  return snapshot;
+}

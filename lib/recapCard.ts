@@ -188,18 +188,24 @@ export function selectRecapCardData(source: RecapCardSource): RecapCardData {
 // ── Cache headers ────────────────────────────────────────────────────────────
 // Mirrors #330's OG cache-header pattern (unmerged at time of writing). When
 // #330 lands its shared `OG_CACHE_HEADERS`, collapse these onto it — this is the
-// dedupe note. Two profiles, because a recap card is privacy-sensitive:
+// dedupe note. Three profiles, because a recap card is privacy-sensitive:
 //
 //  • FALLBACK — brand-generic, carries no night data, safe to cache hard.
 //  • RICH — carries approved night details. If a host revokes approval the card
 //    must flip back to the fallback quickly, so it gets a short shared-cache TTL
 //    with a longer stale-while-revalidate window (fast propagation, no thundering
 //    origin load).
+//  • UNAVAILABLE - the fallback card painted because the store could not run
+//    the read, not because the Story is absent or private. An outage is a fact
+//    about us, not the Story, so it is never pinned: the next crawl reads again.
 export const RECAP_OG_CACHE_HEADERS = {
   fallback: "public, s-maxage=86400, stale-while-revalidate=604800",
   rich: "public, s-maxage=60, stale-while-revalidate=600",
+  unavailable: "no-store",
 } as const;
 
-export function recapOgCacheHeaders(variant: RecapCardData["variant"]): { "cache-control": string } {
-  return { "cache-control": RECAP_OG_CACHE_HEADERS[variant] };
+export type RecapOgCacheProfile = keyof typeof RECAP_OG_CACHE_HEADERS;
+
+export function recapOgCacheHeaders(profile: RecapOgCacheProfile): { "cache-control": string } {
+  return { "cache-control": RECAP_OG_CACHE_HEADERS[profile] };
 }
