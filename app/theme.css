@@ -320,18 +320,6 @@ html[data-theme="dark"] .lpNav {
   transform: translateY(-1px);
 }
 
-/* Plan CTA keeps the locked coral gradient in both themes. Dark ink owns label
-   contrast; --night-amber remains a route and price signal. */
-html[data-theme="dark"] .planBtn {
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  box-shadow: var(--shadow-btn); /* D3: tighter, darker layered stack (dark tokens) */
-  color: var(--color-on-accent-strong);
-}
-
-html[data-theme="dark"] .planBtn:hover {
-  box-shadow: var(--shadow-btn-hover);
-}
-
 html[data-theme="dark"] .planBtn.active {
   background: linear-gradient(135deg, var(--ink-deep), color-mix(in srgb, var(--ink-deep) 70%, var(--pint)));
   color: var(--color-on-inverse);

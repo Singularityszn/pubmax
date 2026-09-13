@@ -671,17 +671,6 @@ html[data-theme="dark"] .drinkShapeChipLabel {
     display: none;
   }
 
-  .planBtn {
-    /* Primary CTA on the map — WCAG 44px touch target at phone widths. */
-    min-height: 44px;
-    height: 44px;
-    min-width: 4.25rem;
-    padding: 0 12px;
-    line-height: 1;
-    flex: 0 0 auto;
-    box-sizing: border-box;
-  }
-
   .planBtnFull {
     display: none;
   }

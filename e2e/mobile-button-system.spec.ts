@@ -554,6 +554,21 @@ for (const surface of FAMILY_SURFACES) {
   });
 }
 
+// The toolbar's Plan control is desktop chrome: a phone plans from its own
+// stack pill, so no phone width may paint a toolbar Plan outside the family
+// measurement above, which runs at 1440.
+for (const width of [320, 390] as const) {
+  test(`${width}px: /map paints no toolbar Plan control`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width, height: 844 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await setTheme(page, "light");
+    await page.goto("/map");
+    await expect(page.locator(".mobilePlanActivation")).toBeVisible({ timeout: 90_000 });
+    await expect(page.locator(".mapToolbar .planBtn")).toHaveCount(0);
+  });
+}
+
 // "Pick an area instead" follows the manual prompt in the get-there column, so
 // as a ghost it may not step its label 16px in from the prompt's text edge.
 for (const width of [390, 1440] as const) {
