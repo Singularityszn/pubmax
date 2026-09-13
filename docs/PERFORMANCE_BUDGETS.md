@@ -4,13 +4,14 @@ Speed is the promise this product makes. A promise nobody counts is a wish, so
 every budgeted route has a number, the number is tracked in the repository, and
 CI refuses a change that goes past it.
 
-- The ceilings: [`perf/route-budgets.json`](../perf/route-budgets.json). Every route the site serves a stranger, all 34
+- The ceilings: [`perf/route-budgets.json`](../perf/route-budgets.json). Every route the site serves a stranger, all 45 rows
 - The pawl on the ratchet: [`scripts/check-budget-ratchet.mjs`](../scripts/check-budget-ratchet.mjs), which refuses a ceiling taken up against the base branch without a record
 - The rules and the failure table: [`lib/performanceBudgets.ts`](../lib/performanceBudgets.ts)
 - The measuring: [`e2e/performance-budget.spec.ts`](../e2e/performance-budget.spec.ts)
-- The method both perf specs share: [`e2e/helpers/perfMeasurement.ts`](../e2e/helpers/perfMeasurement.ts)
+- The method every perf spec shares: [`e2e/helpers/perfMeasurement.ts`](../e2e/helpers/perfMeasurement.ts)
 - The UX lane report: [`e2e/ux-lane-perf-verification.spec.ts`](../e2e/ux-lane-perf-verification.spec.ts). Four arrival routes (`/`, `/near`, `/map/london`, `/out`) with LCP and CLS beside decoded JS, written as a markdown table for the PR body. It REPORTS: a route over a ceiling here is a warning, and the only failure is a route it could not measure at all
 - The gate: the `performance-budget` job in `.github/workflows/ci.yml`; the UX lane report is its own `ux-lane-performance` job, because one 15-minute wall cannot hold two full sweeps
+- The evidence behind a RED run: [`scripts/perf-ab.mjs`](../scripts/perf-ab.mjs), an `if: failure()` step in that same job. It rebuilds the merge base, re-measures the breached routes against it on the same box with the navigations interleaved, and prints whether the branch or the box is slower. It gates nothing and moves no ceiling; the rule is [`perf/AGENTS.md`](../perf/AGENTS.md)
 - The API gate: the `api-latency-budget` job in `.github/workflows/api-performance.yml` probes a successful main deployment
 
 ## What each metric means

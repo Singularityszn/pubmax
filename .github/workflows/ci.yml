@@ -289,11 +289,22 @@ jobs:
   # ceiling when the number under it is repeatable. The ceilings themselves do
   # not move for this, and docs/PERFORMANCE_BUDGETS.md carries the rule that
   # they come DOWN at the next sweep wherever the quieter box measures lower.
+  # The wall is 55 rather than 35 because a RED run now gathers evidence after
+  # the sweep: the merge base is built and the breached routes are measured
+  # against it on this same box. A green run is unchanged and still finishes
+  # inside the old wall, since that work only happens on `if: failure()`.
   performance-budget:
     name: Performance budget
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 35
+    timeout-minutes: 55
     steps:
+      # THE JOB'S OWN CLOCK, for the A/B at the bottom of this job. It sizes its
+      # measuring deadline from the wall MINUS what the sweep and the merge-base
+      # build have already spent, because a share of a wall that is gone is not
+      # a share. `date +%s%3N` is epoch milliseconds.
+      - name: Record the job start
+        run: echo "PUBMAX_PERF_AB_JOB_STARTED_MS=$(date +%s%3N)" >> "$GITHUB_ENV"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -362,6 +373,53 @@ jobs:
           PUBMAX_E2E_KEYLESS: "1"
           PW_SKIP_KEYLESS_WEBSERVER: "1"
         run: npx playwright test e2e/performance-budget.spec.ts --project=chromium --workers=1
+
+      # WAS IT THE BRANCH, OR WAS IT THE BOX?
+      #
+      # The step above is the gate and stays the gate: a route past its ceiling
+      # has already failed this job by the time this runs, and nothing here
+      # reads, moves or excuses a ceiling. What it adds is the evidence the
+      # standing law asks for before a red check is re-run - the MERGE BASE
+      # measured on THIS box, in THIS job, on the breached routes alone, with
+      # the navigations interleaved so drift during the run cancels rather than
+      # landing on one arm.
+      #
+      # It costs nothing on a green run: `if: failure()` keeps it off the happy
+      # path, and the script stops before it builds anything when the sweep left
+      # no breach list, and again when the merge base is this head. On a red run
+      # it spends a navigation budget worth eight ordinary routes, and every
+      # phase after the sweep - the merge base's install, its build and the
+      # measuring itself - is bounded by what is LEFT of this job's own
+      # `timeout-minutes` once the upload's share is kept back
+      # (lib/performanceAbEvidence.ts, abMeasuringDeadlineMs and
+      # abUploadReserveMs). `Record the job start` above is where that
+      # subtraction begins, so a sweep or a build that overran shrinks the
+      # measuring rather than walking the job into its wall and losing the
+      # upload below. Move `timeout-minutes` and PUBMAX_PERF_AB_JOB_WALL_MS
+      # moves with it, and every bound follows. It exits 0 whatever it finds,
+      # because the verdict on this branch belongs to the sweep.
+      - name: Tell a red route apart from a slow box
+        if: failure()
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
+          PUBMAX_E2E_KEYLESS: "1"
+          BUDGET_BASE_BRANCH: ${{ github.base_ref || 'main' }}
+          # This job's own `timeout-minutes` in milliseconds. The install, the
+          # merge-base build and the measuring are each bounded by what is LEFT
+          # of it. __tests__/ciReleaseGateWorkflow.test.ts holds the two figures
+          # together so neither can move alone.
+          PUBMAX_PERF_AB_JOB_WALL_MS: "3300000"
+        run: node scripts/perf-ab.mjs
+
+      - name: Keep the A/B evidence with the run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-budget-ab
+          path: |
+            test-results/perf-budget-ab.txt
+            test-results/perf-budget-breaches.json
+          if-no-files-found: ignore
 
   # UX lane 13: four arrival routes (/, /near, /map/london, /out) reported with
   # LCP and CLS beside decoded JS, attached as a markdown table for the PR body.
