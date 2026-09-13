@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -11,11 +8,11 @@ import type { Venue } from "@/lib/venues";
 
 /**
  * The venue sheet's head, as the site audit of 13 Sep 2026 measured it (D10,
- * D21): a kicker that read "Venue Detail", a label rather than brand; a 220px
- * "No photo yet" box that was the largest thing on the sheet of a pub with no
- * photo; and seven tabs in two rows on a 390px phone. Captain's law: kickers
- * above headings are brand and stay, so the kicker says where the pub is and
- * what it is.
+ * D21): a kicker that read "Venue Detail", a label rather than brand, and seven
+ * tabs in two rows on a 390px phone. Captain's law: kickers above headings are
+ * brand and stay, so the kicker says where the pub is and what it is. The
+ * rendered row and the slim empty photo are measured in the browser, in
+ * e2e/mobile-venue-sheet-tabs.spec.ts and e2e/venue-tabs-fit.spec.ts.
  */
 
 const hatton = {
@@ -30,7 +27,7 @@ const hatton = {
 } as unknown as Venue;
 
 function renderHeader(venue: Venue): string {
-  const tabs = tabsForVenue("london", venue.kind);
+  const tabs = tabsForVenue(venue.kind);
   return renderToStaticMarkup(
     createElement(VenueInspectorHeader, {
       venue,
@@ -41,32 +38,6 @@ function renderHeader(venue: Venue): string {
       onTabKeyDown: () => {},
     }),
   );
-}
-
-const sheetCss = readFileSync(
-  path.join(__dirname, "..", "components/map/venueSheet.css"),
-  "utf8",
-);
-
-/** Every rule body for `selector` inside a `@media (max-width: <width>px)` block. */
-function phoneRules(selector: string): string[] {
-  const bodies: string[] = [];
-  const media = /@media \(max-width: (640|430)px\)\s*{/g;
-  while (media.exec(sheetCss) !== null) {
-    let depth = 1;
-    let index = media.lastIndex;
-    while (depth > 0 && index < sheetCss.length) {
-      if (sheetCss[index] === "{") depth += 1;
-      if (sheetCss[index] === "}") depth -= 1;
-      index += 1;
-    }
-    const block = sheetCss.slice(media.lastIndex, index - 1);
-    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const rule = new RegExp(`(?:^|[\\s,}])${escaped}\\s*{([^}]*)}`, "g");
-    let found: RegExpExecArray | null;
-    while ((found = rule.exec(block))) bodies.push(found[1]);
-  }
-  return bodies;
 }
 
 describe("the venue sheet kicker is brand, not a label", () => {
@@ -82,41 +53,9 @@ describe("the venue sheet kicker is brand, not a label", () => {
   });
 });
 
-describe("the tab strip is one row of five", () => {
+describe("the tab strip holds five tabs", () => {
   it("renders five tabs for a pub", () => {
     const html = renderHeader(hatton);
     expect(html.match(/role="tab"/g)).toHaveLength(5);
-  });
-
-  it("never wraps the strip into a second row on a phone", () => {
-    const strips = phoneRules(".venueTabs");
-    expect(strips.length).toBeGreaterThan(0);
-    for (const body of strips) expect(body).not.toMatch(/flex-wrap:\s*wrap/);
-  });
-
-  it("shares the row's spare space so no tab hangs past the edge or cuts its label", () => {
-    // A zero basis made every cell equal and cut "Overview" to a pill
-    // narrower than its own label, 4.8px off centre at 390.
-    expect(phoneRules(".venueTab").some((body) => /flex:\s*1 1 auto/.test(body))).toBe(true);
-  });
-});
-
-describe("a pub with no photo gets a row, not a box", () => {
-  it("renders the empty header photo as a 56px row", () => {
-    const rule = sheetCss.match(/\.venueBaselinePhoto\.venueImage--empty\s*{([^}]*)}/)?.[1] ?? "";
-    expect(rule).toMatch(/aspect-ratio:\s*auto/);
-    expect(rule).toMatch(/height:\s*56px/);
-  });
-
-  it("keeps the desktop photo height off the empty row", () => {
-    const imageCss = readFileSync(
-      path.join(__dirname, "..", "components/media/venueImage.css"),
-      "utf8",
-    );
-    const desktop = imageCss.slice(imageCss.indexOf("@media (min-width: 1024px)"));
-    for (const [, selector, body] of desktop.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
-      if (!/height:\s*220px/.test(body)) continue;
-      expect(selector).toContain(":not(.venueImage--empty)");
-    }
   });
 });

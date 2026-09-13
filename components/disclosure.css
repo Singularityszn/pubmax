@@ -29,18 +29,21 @@
   cursor: pointer;
 }
 
-.venueOverviewMore > summary::after {
+.venueOverviewMore > summary::after,
+.venueGettingHome > summary::after {
   content: "+";
   margin-left: auto;
   color: var(--muted);
   font-size: 1.1rem;
 }
 
-.venueOverviewMore[open] > summary::after {
+.venueOverviewMore[open] > summary::after,
+.venueGettingHome[open] > summary::after {
   content: "−";
 }
 
-.venueOverviewMoreBody {
+.venueOverviewMoreBody,
+.venueGettingHomeBody {
   padding: 2px 0 14px;
 }
 

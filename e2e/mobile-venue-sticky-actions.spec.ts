@@ -81,7 +81,7 @@ test("mobile venue sticky Share and Crawl actions stay tappable in build mode", 
 
 });
 
-test("mobile sticky Train action opens Last train and the sheet reopens cleanly", async ({
+test("mobile sticky actions stay reachable across content tabs and the sheet reopens cleanly", async ({
   page,
 }) => {
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);

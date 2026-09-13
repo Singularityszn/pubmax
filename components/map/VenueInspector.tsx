@@ -273,7 +273,7 @@ export default function VenueInspector({
   }>({ venueId: null, count: 0 });
   const drops = useMemo(() => dropsByVenueId.get(venue.id) ?? [], [dropsByVenueId, venue.id]);
   const pubVenue = isPubVenue(venue);
-  const TABS = useMemo(() => tabsForVenue(cityId, venue.kind), [cityId, venue.kind]);
+  const TABS = useMemo(() => tabsForVenue(venue.kind), [venue.kind]);
   const requestedTab = resolveVenueTab(initialTab);
   const safeInitialTab = pubVenue || requestedTab !== "pints" ? requestedTab : DEFAULT_TAB;
 

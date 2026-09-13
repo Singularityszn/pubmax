@@ -48,15 +48,8 @@ export function gettingHomeLabel(cityId: CityId): string {
   return city.lastRideLabel === "Last Pint" ? "Last train" : city.lastRideLabel;
 }
 
-export function tabsForCity(cityId: CityId): { key: TabKey; label: string; shortLabel: string }[] {
-  void cityId;
-  return BASE_TABS;
-}
-
 export function tabsForVenue(
-  cityId: CityId,
   kind: VenueKind | undefined,
 ): { key: TabKey; label: string; shortLabel: string }[] {
-  const tabs = tabsForCity(cityId);
-  return isPubVenueKind(kind) ? tabs : tabs.filter((tab) => tab.key !== "pints");
+  return isPubVenueKind(kind) ? BASE_TABS : BASE_TABS.filter((tab) => tab.key !== "pints");
 }

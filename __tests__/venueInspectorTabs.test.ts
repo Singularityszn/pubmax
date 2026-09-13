@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { CITIES } from "@/lib/cities";
 import {
   BASE_TABS,
   DEFAULT_TAB,
   gettingHomeLabel,
   resolveVenueTab,
-  tabsForCity,
   tabsForVenue,
 } from "@/lib/venueInspectorTabs";
 
@@ -29,15 +27,14 @@ describe("venueInspectorTabs", () => {
    * hid the last tabs past the edge, which is worse. Five tabs share one row,
    * so every section is one tap away and none is hidden.
    */
-  it("never asks a phone row to hold more than five tabs, for any city or kind", () => {
-    for (const cityId of Object.keys(CITIES) as (keyof typeof CITIES)[]) {
-      expect(tabsForCity(cityId).length, cityId).toBeLessThanOrEqual(5);
-      expect(tabsForVenue(cityId, "pub").length, cityId).toBeLessThanOrEqual(5);
-    }
+  it("never asks a phone row to hold more than five tabs, for any kind", () => {
+    expect(tabsForVenue("pub").length).toBeLessThanOrEqual(5);
+    expect(tabsForVenue(undefined).length).toBeLessThanOrEqual(5);
+    expect(tabsForVenue("bar").length).toBeLessThanOrEqual(5);
   });
 
   it("folds Ask into Lore and the getting-home card into Overview", () => {
-    const keys = tabsForCity("london").map((tab) => tab.key);
+    const keys = tabsForVenue("pub").map((tab) => tab.key);
     expect(keys).not.toContain("ask");
     expect(keys).not.toContain("getting-home");
     // A held trail entry or an old caller may still name a retired tab; it
@@ -56,20 +53,16 @@ describe("venueInspectorTabs", () => {
     expect(gettingHomeLabel("manchester")).toBe("Last Tram");
   });
 
-  it("never renders two tabs with the same short label, for any city", () => {
-    for (const cityId of Object.keys(CITIES) as (keyof typeof CITIES)[]) {
-      const tabs = tabsForCity(cityId);
-      const shortLabels = tabs.map((t) => t.shortLabel);
-      const unique = new Set(shortLabels);
-      expect(unique.size, `duplicate shortLabel for city "${cityId}": ${shortLabels.join(", ")}`).toBe(
-        shortLabels.length,
-      );
-    }
+  it("never renders two tabs with the same short label", () => {
+    const shortLabels = BASE_TABS.map((t) => t.shortLabel);
+    expect(new Set(shortLabels).size, `duplicate shortLabel: ${shortLabels.join(", ")}`).toBe(
+      shortLabels.length,
+    );
   });
 
   it("removes Pint Drop stories from non-pub venue tabs", () => {
-    expect(tabsForVenue("london", "bar").map((tab) => tab.key)).not.toContain("pints");
-    expect(tabsForVenue("london", "food").map((tab) => tab.key)).not.toContain("pints");
-    expect(tabsForVenue("london", undefined).map((tab) => tab.key)).toContain("pints");
+    expect(tabsForVenue("bar").map((tab) => tab.key)).not.toContain("pints");
+    expect(tabsForVenue("food").map((tab) => tab.key)).not.toContain("pints");
+    expect(tabsForVenue(undefined).map((tab) => tab.key)).toContain("pints");
   });
 });

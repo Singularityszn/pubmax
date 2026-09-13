@@ -371,6 +371,7 @@ test("mobile venue sheet reaches Train, holds no price action in the strip, and 
   const gettingHome = page.locator("#venueSection-getting-home");
   await gettingHome.locator("summary").click();
   await expect(gettingHome).toHaveAttribute("open", "");
+  await expect(gettingHome.getByLabel("Last Pint")).toBeVisible();
   await page.getByRole("tab", { name: "Stories", exact: true }).click();
   await expect(sheet).toHaveClass(/sheet-full/);
 

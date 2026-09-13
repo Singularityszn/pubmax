@@ -1,16 +1,19 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// EVERY VENUE SECTION IS ON SCREEN, IN ONE ROW. verify-preview-4 (5 Sep 2026,
-// section 6): the venue sheet's tab strip scrolled sideways under a fade, and
-// at 390 the seventh tab (Train) sat at x 368 to 412 past the viewport edge,
-// while 320 hid Lore, Ask and Train. The wrap that fixed it drew two rows (site
-// audit 13 Sep 2026, D10), so the sheet has five tabs now, in one row of equal
-// cells (components/map/venueSheet.css). This reads the RENDERED boxes at both
-// widths: no overflow, one row, every tab inside the viewport, every tab owning
-// the point at its own centre.
+// EVERY VENUE SECTION IS ON SCREEN. verify-preview-4 (5 Sep 2026, section 6):
+// the venue sheet's tab strip scrolled sideways under a fade, and at 390 the
+// seventh tab (Train) sat at x 368 to 412 past the viewport edge, while 320
+// hid Lore, Ask and Train. The wrap that fixed it drew two rows (site audit 13
+// Sep 2026, D10), so the sheet has five tabs now, in one row at default text
+// size, and large text wraps the strip rather than clipping a label
+// (components/map/venueSheet.css). This reads the RENDERED boxes: no overflow,
+// one row, every tab inside the viewport, every tab owning the point at its own
+// centre; and at 200% text, a wrapped strip with every label inside its own tab
+// and no two tabs overlapping.
 
 const WIDTHS = [320, 390] as const;
 const VENUE_URL = "/map?sel=venue-1vle947";
+const PORTAL = '.mobileSheetPortal[data-sheet-kind="venue"]';
 
 async function preparePage(page: Page): Promise<void> {
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -31,7 +34,7 @@ for (const width of WIDTHS) {
     await preparePage(page);
     await page.goto(VENUE_URL);
 
-    const strip = page.locator('.mobileSheetPortal[data-sheet-kind="venue"] .venueTabs');
+    const strip = page.locator(`${PORTAL} .venueTabs`);
     await expect(strip).toBeVisible({ timeout: 30_000 });
     const tabs = strip.locator(".venueTab");
     await expect(tabs).toHaveCount(5);
@@ -74,5 +77,99 @@ for (const width of WIDTHS) {
       expect(tab.ownsCentre, `${tab.label} owns its own centre`).toBe(true);
       expect(tab.bottom - tab.top, `${tab.label} keeps the 44px floor`).toBeGreaterThanOrEqual(44);
     }
+  });
+}
+
+test("phone 390 at 200% text: the tab strip wraps with every label whole inside its own tab", async ({
+  page,
+}) => {
+  test.slow();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await preparePage(page);
+  await page.goto(VENUE_URL);
+
+  const strip = page.locator(`${PORTAL} .venueTabs`);
+  await expect(strip).toBeVisible({ timeout: 30_000 });
+  await expect(strip.locator(".venueTab")).toHaveCount(5);
+  // The user's own text size: the tab labels are sized in rem, so doubling the
+  // root doubles every label.
+  await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
+  await strip.scrollIntoViewIfNeeded();
+
+  const geometry = await strip.evaluate((el) => {
+    const strip = el.getBoundingClientRect();
+    return {
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+      stripLeft: strip.left,
+      stripRight: strip.right,
+      tabs: [...el.querySelectorAll<HTMLElement>(".venueTab")].map((tab) => {
+        const r = tab.getBoundingClientRect();
+        const label = [...tab.children].find(
+          (child) => getComputedStyle(child).display !== "none",
+        );
+        const range = document.createRange();
+        if (label) range.selectNodeContents(label);
+        const text = range.getBoundingClientRect();
+        return {
+          label: tab.getAttribute("aria-label"),
+          left: r.left,
+          right: r.right,
+          top: r.top,
+          bottom: r.bottom,
+          textLeft: text.left,
+          textRight: text.right,
+          textWidth: text.width,
+        };
+      }),
+    };
+  });
+
+  // Large text wraps rather than shrinking a label past its pill.
+  expect(new Set(geometry.tabs.map((tab) => Math.round(tab.top))).size).toBeGreaterThan(1);
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
+  for (const tab of geometry.tabs) {
+    expect(tab.textWidth, `${tab.label} label is painted`).toBeGreaterThan(0);
+    expect(tab.left, `${tab.label} starts inside the strip`).toBeGreaterThanOrEqual(geometry.stripLeft - 0.5);
+    expect(tab.right, `${tab.label} ends inside the strip`).toBeLessThanOrEqual(geometry.stripRight + 0.5);
+    expect(tab.textLeft, `${tab.label} label is not cut on the left`).toBeGreaterThanOrEqual(tab.left - 0.5);
+    expect(tab.textRight, `${tab.label} label is not cut on the right`).toBeLessThanOrEqual(tab.right + 0.5);
+  }
+  for (let i = 0; i < geometry.tabs.length; i += 1) {
+    for (let j = i + 1; j < geometry.tabs.length; j += 1) {
+      const a = geometry.tabs[i];
+      const b = geometry.tabs[j];
+      const overlapX = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+      const overlapY = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      expect(overlapX > 0.5 && overlapY > 0.5, `${a.label} and ${b.label} do not overlap`).toBe(false);
+    }
+  }
+});
+
+// A PUB WITH NO PHOTO GETS A ROW, NOT A BOX (site audit 13 Sep 2026, D10): the
+// 16:9 frame drew a 220px "No photo yet" panel, the largest thing on the sheet.
+// The Sir Christopher Hatton has no photo.
+for (const viewport of [
+  { width: 390, height: 844, scope: PORTAL },
+  { width: 1440, height: 900, scope: ".venueInspector" },
+] as const) {
+  test(`${viewport.width}: the empty header photo is a 56px row`, async ({ page }) => {
+    test.slow();
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await preparePage(page);
+    await page.goto(VENUE_URL);
+
+    const photo = page
+      .locator(`${viewport.scope} .venueBaselinePhoto.venueImage--empty`)
+      .filter({ visible: true })
+      .first();
+    await expect(photo).toBeVisible({ timeout: 30_000 });
+    const box = await photo.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      const column = (element.parentElement as HTMLElement).getBoundingClientRect();
+      return { width: rect.width, height: rect.height, columnWidth: column.width };
+    });
+    expect(box.height).toBeCloseTo(56, 0);
+    expect(box.width).toBeGreaterThan(box.columnWidth / 2);
   });
 }
