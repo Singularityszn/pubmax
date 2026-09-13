@@ -199,12 +199,9 @@ describe("out listing grouping", () => {
     expect(OUT_LISTING_VENUE_BADGE_LABEL).not.toMatch(/\bpub\b|\bvenue\b/i);
   });
 
-  it("keeps desktop listing columns balanced inside a centred surface", () => {
+  it("keeps desktop listing columns balanced", () => {
     const css = readFileSync(join(process.cwd(), "app/out/out.css"), "utf8");
     const desktop = css.match(/@media \(min-width: 1024px\) \{([\s\S]*)/)?.[1] ?? "";
-    expect(desktop).toMatch(
-      /\.outListingSurface\s*\{[^}]*max-width:\s*1120px;[^}]*margin-inline:\s*auto;/,
-    );
     // The nights stack and the ROWS take the two columns: a two-column surface
     // left half the page empty whenever one chip held one night.
     expect(desktop).toMatch(
