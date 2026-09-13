@@ -1,7 +1,8 @@
 # AstraFix
 
-Status of the PlanAstra repair work, written 12 September 2026. It records what
-is merged, what is open and why, and what the next session picks up.
+Status of the PlanAstra repair work, written 12 September 2026 and corrected
+13 September 2026. It records what is merged, what is open and why, and what the
+next session picks up.
 
 Read `docs/plans/PlanAstra.md` for the plan this executes, and
 `Astra.md` for the earlier audit it answers.
@@ -18,14 +19,18 @@ Read `docs/plans/PlanAstra.md` for the plan this executes, and
 
 ## What is open, and the one decision that unblocks it
 
-Five pull requests are finished work. Each one is 14 to 16 checks green with
-only `Performance budget` red.
+Six pull requests are finished work. Before the 13 September sweep, each one was
+green on every check except `Performance budget`. On 13 September each branch
+took a merge of main, so no force push was needed.
 
 - **#1648** the interleaved A/B instrument
 - **#1640** the rule that a wide run cannot decide a ceiling
 - **#1644** a failed Story read answers unavailable
 - **#1645** the empty Pint Index stops being advertised
 - **#1636** the WhatsApp invite carries its host, and landing pints reach a drink page
+- **#1651** "Chester" offers Chester, not Manchester (fixes issue #1649)
+
+This record itself is #1650.
 
 ### Why they are blocked
 
@@ -39,6 +44,10 @@ evidence:
   third slower on the shared `avrea-ubuntu-latest-2-vcpu` pool.
 
 No ceiling was moved for any of this, and none may be.
+
+On 13 September #1652 (`aa6470eec`) moved every workflow to Blacksmith runners.
+The two measuring jobs now run on `blacksmith-4vcpu-ubuntu-2404`. The next
+`Performance budget` runs on the open pull requests are the first on that pool.
 
 ### The instrument, and the decision it waits on
 
@@ -61,19 +70,21 @@ A/B evidence may be re-run once on the captain's word. That re-run is spent.
 
 **The captain decides one of two things.** Either that law extends, so a red
 perf check proven to be drift by the A/B may be MERGED on the captain's word, or
-#1648 merges as a one-off. Until then all five wait, and the four that predate
-the instrument have no A/B evidence of their own until they rebase onto it.
+#1648 merges as a one-off. Until then the others wait, and the four that predate
+the instrument have no A/B evidence of their own until they take a merge of it.
 
 ## What the next session does
 
-1. Take the decision above. It unblocks five pull requests.
-2. Merge #1648, then rebase #1636, #1640, #1644 and #1645 onto it so a red perf
-   check on any of them carries its own A/B verdict. All four rebase cleanly.
-3. Close issue #1649. `/places` still suppresses the town fallback when a query
-   substring-matches a city tagline, so typing "Chester" answers Manchester. The
-   name test must anchor at the start of a word, because "manchester" contains
-   "chester". This shipped in #1643 because the pull request merged while the
-   rule was still with the lane.
+1. Take the decision above. It unblocks the open pull requests.
+2. Merge #1648, then merge main into #1636, #1640, #1644 and #1645 so a red perf
+   check on any of them carries its own A/B verdict. On 13 September #1645
+   conflicted with main in `docs/plans/PlanAstra.md` and #1648 conflicted in
+   `.github/workflows/ci.yml`; both conflicts are resolved on their branches.
+3. Merge #1651 to close issue #1649. On main, `/places` still suppresses the
+   town fallback when a query substring-matches a city name, so typing "Chester"
+   answers Manchester. #1651 anchors the name test at the start of a word,
+   because "manchester" contains "chester". The fault shipped in #1643 because
+   that pull request merged while the rule was still with the lane.
 4. Finish lane 1.13 on `fm/wave1-venue-bundles`, which holds one red-test commit
    and no implementation. Two things are missing: the Drinks tab reading its two
    overlays per venue through `/api/venue/[id]`, and the MapLibre worker named
