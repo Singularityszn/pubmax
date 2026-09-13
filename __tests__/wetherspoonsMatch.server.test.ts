@@ -15,6 +15,30 @@ describe("wetherspoons directory match", () => {
     expect(normalizeWetherspoonsMatchName("The Hamilton Hall")).toBe("hamilton hall");
   });
 
+  // The directory names every Moon Under Water after its town ("The Moon Under
+  // Water, Enfield"), and the price dataset names the pub alone. The town is
+  // the directory's own disambiguation, which the 250 m window already does,
+  // so it never decides the name (site audit D17, 13 Sep 2026).
+  it("reads a directory name's trailing town as the directory's own label", () => {
+    expect(normalizeWetherspoonsMatchName("The Moon Under Water, Enfield")).toBe(
+      "moon under water",
+    );
+    expect(normalizeWetherspoonsMatchName("The Moon Under Water")).toBe("moon under water");
+  });
+
+  it("matches the Enfield Moon Under Water the directory names after its town", async () => {
+    const pubs = await loadWetherspoonsDirectoryPubs();
+    const match = matchWetherspoonsDirectoryPub(
+      {
+        name: "The Moon Under Water",
+        lat: 51.6588,
+        lng: -0.087759,
+      },
+      pubs,
+    );
+    expect(match?.name).toBe("The Moon Under Water, Enfield");
+  });
+
   it("matches Ice Wharf despite the venue-dataset JD Wetherspoon suffix", async () => {
     const pubs = await loadWetherspoonsDirectoryPubs();
     const match = matchWetherspoonsDirectoryPub(
