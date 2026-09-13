@@ -15,6 +15,71 @@ load cannot reach production, Capacitor serves the bundled
 stale prices or times, and offers a retry. The site's service worker remains the
 later-session fallback after at least one healthy remote load.
 
+## Cold start
+
+The shell opens on the launch mark and keeps it until the page has painted.
+Before 13 September 2026 it did not. A clean install against production on the
+`pubmaxx-390x844` simulator showed the bare ink field for 20 seconds: the first
+document committed 21.5 s after launch, and nothing native held the mark over
+the wait.
+
+What holds the mark now:
+
+1. iOS draws the `UILaunchScreen` dictionary in `ios/App/App/Info.plist`.
+2. `@capacitor/splash-screen` takes over with the same field and mark
+   (`plugins.SplashScreen` in `capacitor.config.ts`). Auto-hide stays on at a
+   12 s ceiling, so a dead network still reaches `offline.html`.
+3. `lib/nativeSplash.ts` hides the splash sooner. After the shell chrome
+   mounts, it waits for a painted frame, announces `pubmax:first-paint` on
+   `window` and hides the splash once per document.
+4. `native/web-stub/offline.html` hides the splash itself, because it has no
+   app bundle.
+
+Measured on the local build rig (`PUBMAX_NATIVE_SERVER_URL=http://localhost:3811`)
+on 13 September 2026: launch screen to 1.0 s, splash mark to 3.4 s, the page
+painted at 3.4 s and the splash gone by 3.65 s. No frame showed the bare field.
+
+Three facts to keep:
+
+- **The plugin's iOS half loads a storyboard.** It instantiates the storyboard
+  that `UILaunchStoryboardName` names, else one called `LaunchScreen`, and the
+  app aborts at launch when none is in the bundle. So
+  `ios/App/App/Base.lproj/LaunchScreen.storyboard` ships as an in-app view only.
+  Do not name it in `Info.plist`: the iOS 26 runtime draws a launch storyboard
+  as a black frame, which is why the launch screen is the dictionary.
+- **Ship the web before the binary.** The release on first paint lives in the
+  site, and the shell loads the site. A binary with the plugin against a site
+  without `lib/nativeSplash.ts` holds the mark for the full 12 s on every
+  launch.
+- **The launch screen and the splash draw the coral differently.** The
+  `UILaunchScreen` mark measures `(255, 73, 88)` and the in-app mark
+  `(255, 91, 95)`, the brand coral. The launch PNGs carry no colour profile.
+  The cross-fade at about 1 s hides most of it, but it is not yet one colour.
+
+### The first-document wait
+
+The 20 s wait was the network, not the app. From this Mac on the same morning,
+`curl` to `https://pubmaxxing.com` stalled for 7 to 20 s on some requests and
+answered in 0.1 s on others. The stalls hit a `curl/8` user agent as often as
+an iPhone one, and they hit `/offline.html` served as an edge `HIT` too. So the
+evidence does not point at a bot challenge for an unknown user agent.
+
+The shell appends `PUBMAXXING-App` to its user agent (`appendUserAgent` in
+`capacitor.config.ts`), so an edge rule can match the app without matching
+every iPhone. Changing Vercel settings is the captain's decision; this
+repository changes none.
+
+### Judging a shell build
+
+Before you judge what a simulator or an emulator shows, read the origin the
+installed binary loads: `App.app/capacitor.config.json` on iOS, and the
+`capacitor.config.json` under `android/app/src/main/assets/` on Android. The
+13 September audit saw `/tonight` drawn with its actions before its listings.
+The binary under audit was a 5 September build that loaded a preview deployment
+from before that layout change, and a clean build of main drew the web's
+layout. `e2e/native-shell-tonight-parity.spec.ts` holds the shell's `/tonight`
+to a plain fetch of the same URL.
+
 ## What's in the repo
 
 | Piece | File(s) |

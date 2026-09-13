@@ -46,10 +46,14 @@ async function orderInDom(page: Page): Promise<Order> {
   });
 }
 
-/** The Capacitor probe lib/nativePlatform.ts and public/theme-init.js read, past first run. */
+/**
+ * The Capacitor probe lib/nativePlatform.ts and public/theme-init.js read, past
+ * first run. Installed on the CONTEXT, so a relaunch in a new page is the shell
+ * too.
+ */
 async function bootAsShell(page: Page) {
   await page.setViewportSize(VIEWPORT);
-  await page.addInitScript(() => {
+  await page.context().addInitScript(() => {
     Object.defineProperty(window, "Capacitor", {
       configurable: true,
       value: { isNativePlatform: () => true, getPlatform: () => "ios" },

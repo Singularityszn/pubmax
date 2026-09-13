@@ -85,10 +85,10 @@ const config: CapacitorConfig = {
     //
     // What is left is the frame Android's WebView paints while it swaps
     // documents, which the entry rewrite makes every launch cross. Holding the
-    // system splash until the page has painted (@capacitor/splash-screen with
-    // launchAutoHide false, hidden from the web side on first paint) is the
-    // remedy that fits the evidence, and it is a plugin and a web-side call
-    // rather than a config value, so it is its own change.
+    // system splash until the page has painted is the remedy that fits the
+    // evidence, and it is the SplashScreen block under `plugins` below: the
+    // plugin holds the Android 12+ system splash until lib/nativeSplash.ts
+    // hides it on first paint, or the ceiling does.
     backgroundColor: BRAND_COLORS.inkDeep,
   },
   // THE EDGE CAN TELL THE APP FROM A STRANGER. The WKWebView's own user agent
