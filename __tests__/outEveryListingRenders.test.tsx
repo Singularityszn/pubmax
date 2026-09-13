@@ -25,13 +25,16 @@ vi.mock("next/link", () => ({
   default: ({
     children,
     href,
-    prefetch: _prefetch,
     ...rest
   }: {
     children?: unknown;
     href: string;
     prefetch?: boolean;
-  }) => createElement("a", { href, ...rest }, children as never),
+  }) => {
+    const attrs: Record<string, unknown> = { ...rest };
+    delete attrs.prefetch;
+    return createElement("a", { href, ...attrs }, children as never);
+  },
 }));
 
 import OutClient from "@/app/out/OutClient";

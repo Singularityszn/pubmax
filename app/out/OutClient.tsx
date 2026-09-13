@@ -22,7 +22,7 @@ import {
   outVenueMatchNotice,
   sendableOpenPlans,
 } from "@/lib/outDesktopGrouping";
-import { outPrimaryListingWay } from "@/lib/out/listingRoute";
+import { OUT_NOT_ON_MAP_HEADING, outListingLead } from "@/lib/out/listingRoute";
 import {
   OUT_DAY_WINDOWS,
   OUT_OPEN_PLANS_WAY_LABEL,
@@ -68,16 +68,12 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
   }, []);
 
   const listingRows = body?.events ?? [];
-  const listingGroups = groupOutListings(listingRows);
-  // The primary is the first listing in the order the page prints them, so the
-  // button and the top of the list cannot name two different nights.
-  const primaryListing = outPrimaryListingWay(
-    listingGroups.flatMap((group) => group.rows),
-  );
+  // Listings at a pub of ours lead; the rest follow under their own heading. On
+  // a night the match placed none, the honest line leads instead of a listing.
+  const lead = outListingLead(listingRows, body?.venueMatch, day);
   // Credit is owed for every row on screen, matched or not, so it is read off
   // the answer's own attribution rather than off the rows we could not place.
   const credits = body?.attribution ?? [];
-  const showGroupTitles = listingGroups.length > 1;
   const venueMatchNotice = outVenueMatchNotice(
     listingRows,
     day,
@@ -100,16 +96,55 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
     !openPlansDegraded &&
     outOpenPlansSectionVisible(body?.openPlans ?? []);
 
+  // One night under a heading that already names it printed "What's on
+  // tonight" over "Tonight". The night is named once: by the heading above
+  // when the rows cover one night, by the group headings when they cover
+  // several.
+  function listingGroups(
+    rows: readonly WhatsOnRow[],
+    idPrefix: string,
+    GroupTitle: "h3" | "h4",
+  ) {
+    const groups = groupOutListings(rows);
+    const showGroupTitles = groups.length > 1;
+    return groups.map((group) => (
+      <section
+        key={`${idPrefix}${group.key}`}
+        className="outGroup"
+        {...(showGroupTitles
+          ? { "aria-labelledby": `${idPrefix}${group.key}` }
+          : { "aria-label": group.label })}
+      >
+        {showGroupTitles ? (
+          <GroupTitle id={`${idPrefix}${group.key}`} className="outGroupTitle">
+            {group.label}
+          </GroupTitle>
+        ) : null}
+        <ul className="outGroupList">
+          {group.rows.map((row) => (
+            <li key={row.id} className="outListingRow" data-testid="out-listing-row">
+              <div className="outListingGig">
+                <OutCardBody row={row} onOpen={() => onOpen(row)} titleLevel={4} />
+              </div>
+              <OutListingPubPair row={row} />
+            </li>
+          ))}
+        </ul>
+      </section>
+    ));
+  }
+
   return (
     <main id="main" className="outPage" data-testid="out-screen">
       <SiteNav active="out" />
 
       {/* The head is the Screen primitive (docs/design/LAUNCH_SCREENS.md). The
           kicker names the city the listings follow: London on the server and
-          on first paint, then the city Places set. The primary is the FIRST
-          LISTING: a reader who came to see what is on should not have to leave
-          the list to find out. The map is the quiet second door, and it takes
-          the primary back only on a night with nothing to lead with. */}
+          on first paint, then the city Places set. The primary is a PRODUCT
+          ACTION on every night, listed or quiet: a listing is a publisher's
+          sale, and on 13 Sep 2026 the first one ("Burlesque") wore the fill on
+          a night none of 25 listings was at a pub we list. Each listing opens
+          from its own card. */}
       <Screen
         as="div"
         className="outScreen"
@@ -117,43 +152,14 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
         title="What’s on, sourced."
         titleId="out-title"
         primary={
-          primaryListing ? (
-            primaryListing.external ? (
-              <a
-                className="outPrimaryListing"
-                href={primaryListing.href}
-                rel="noopener noreferrer"
-                target="_blank"
-                onClick={() => trackEvent("out_card_opened", { source: outCardSource(primaryListing.sourceLabel) })}
-              >
-                <span className="outPrimaryListingLabel">{primaryListing.label}</span>
-              </a>
-            ) : (
-              <Link
-                prefetch={false}
-                className="outPrimaryListing"
-                href={primaryListing.href}
-                onClick={() => trackEvent("out_card_opened", { source: outCardSource(primaryListing.sourceLabel) })}
-              >
-                <span className="outPrimaryListingLabel">{primaryListing.label}</span>
-              </Link>
-            )
-          ) : (
-            <Link prefetch={false} href={OUT_MAP_WAY.href}>
-              {OUT_MAP_WAY.label}
-            </Link>
-          )
+          <Link prefetch={false} href={OUT_MAP_WAY.href}>
+            {OUT_MAP_WAY.label}
+          </Link>
         }
         secondary={
-          primaryListing ? (
-            <Link prefetch={false} href={OUT_MAP_WAY.href}>
-              {OUT_MAP_WAY.label}
-            </Link>
-          ) : (
-            <Link prefetch={false} href="/plan">
-              Plan a night
-            </Link>
-          )
+          <Link prefetch={false} href="/plan">
+            Plan a night
+          </Link>
         }
       >
       <nav className="outDayChips" aria-label="When">
@@ -205,35 +211,35 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
           ))
         )}
         <div className="outListingSurface" data-testid="out-listing-surface">
-          {listingGroups.map((group) => (
-            <section
-              key={group.key}
-              className="outGroup"
-              {...(showGroupTitles
-                ? { "aria-labelledby": `out-group-${group.key}` }
-                : { "aria-label": group.label })}
-            >
-              {/* One night under a heading that already names it printed
-                  "What's on tonight" over "Tonight". The night is named once:
-                  by the section title when there is one night, by the group
-                  headings when the chip covers several. */}
-              {showGroupTitles ? (
-                <h3 id={`out-group-${group.key}`} className="outGroupTitle">
-                  {group.label}
-                </h3>
+          {lead.honestEmpty ? (
+            <div className="outHonestEmpty" data-testid="out-honest-empty">
+              <EmptyState
+                title={lead.honestEmpty.line}
+                action={
+                  lead.honestEmpty.way ? (
+                    <Link prefetch={false} href={lead.honestEmpty.way.href}>
+                      {lead.honestEmpty.way.label}
+                    </Link>
+                  ) : null
+                }
+              />
+            </div>
+          ) : null}
+          {lead.split ? (
+            <>
+              {listingGroups(lead.matched, "out-group-", "h3")}
+              {lead.unmatched.length > 0 ? (
+                <section className="outUnmatchedBlock" aria-labelledby="out-unmatched-heading">
+                  <h3 id="out-unmatched-heading" className="outUnmatchedTitle">
+                    {OUT_NOT_ON_MAP_HEADING}
+                  </h3>
+                  {listingGroups(lead.unmatched, "out-group-unmatched-", "h4")}
+                </section>
               ) : null}
-              <ul className="outGroupList">
-                {group.rows.map((row) => (
-                  <li key={row.id} className="outListingRow" data-testid="out-listing-row">
-                    <div className="outListingGig">
-                      <OutCardBody row={row} onOpen={() => onOpen(row)} titleLevel={4} />
-                    </div>
-                    <OutListingPubPair row={row} />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
+            </>
+          ) : (
+            listingGroups(lead.unmatched, "out-group-", "h3")
+          )}
         </div>
         {/* Two footnotes under the list, in this order, and never above it.
 

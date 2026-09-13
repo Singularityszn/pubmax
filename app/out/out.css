@@ -124,19 +124,28 @@
   line-height: 1.45;
 }
 
-/* The primary NAMES the listing it opens, and a gig title is as long as its
-   promoter made it. The button holds one line and clips the tail rather than
-   growing past the column; the whole title stays in the DOM, so the link's
-   accessible name is never the truncated one. */
-.outPrimaryListing {
-  max-width: min(100%, 26rem);
+/* The honest line leads the list on a night with nothing at a pub of ours. The
+   section title already sits above it, so the empty state gives up its top
+   padding rather than opening a gap between the heading and its answer. Its
+   one way onward stays the bordered secondary: the head owns the filled one. */
+.outHonestEmpty > .emptyState {
+  padding-block: 0 var(--space-2);
 }
 
-.outPrimaryListingLabel {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* Listings at no pub of ours follow under their own quieter heading, after the
+   listings at our pubs and after the honest line. */
+.outUnmatchedBlock {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.outUnmatchedTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink-soft);
 }
 
 .outListingUnmatchedCredit a {
