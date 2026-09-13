@@ -1,10 +1,9 @@
 // Shared browser-only fetch for the public JSON assets the venue sheet's
-// loaders pull in on demand (price history, price-update overlays, the Pint
-// Index snapshot). Every caller wants the same contract: browser-only (a
-// server render never blocks on it), fail-soft to null on a non-2xx or a
-// thrown fetch, and a drained body either way so an unread stream never
-// leaves the request open. Previously duplicated verbatim across
-// lib/priceHistoryLoader.ts, lib/priceUpdatesLoader.ts and
+// loaders pull in on demand (price history, the Pint Index snapshot). Every
+// caller wants the same contract: browser-only (a server render never blocks
+// on it), fail-soft to null on a non-2xx or a thrown fetch, and a drained body
+// either way so an unread stream never leaves the request open. Previously
+// duplicated verbatim across lib/priceHistoryLoader.ts and
 // lib/pintIndexLeagueLoader.ts.
 
 import { discardBody } from "@/lib/responseBody";

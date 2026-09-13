@@ -8,17 +8,11 @@ import {
   loadPriceHistory,
   resetPriceHistoryLoader,
 } from "@/lib/priceHistoryLoader";
-import {
-  loadDrinkPriceUpdates,
-  loadFoodPriceUpdates,
-  resetPriceUpdatesLoader,
-} from "@/lib/priceUpdatesLoader";
 
 type GlobalWithOptionalWindow = { window?: unknown };
 const testGlobal = globalThis as GlobalWithOptionalWindow;
 
 afterEach(() => {
-  resetPriceUpdatesLoader();
   resetPriceHistoryLoader();
   resetPintIndexLeagueLoader();
   delete testGlobal.window;
@@ -35,8 +29,6 @@ function twoAttemptFetch(): ReturnType<typeof vi.fn> {
 
 describe("public JSON loader retries", () => {
   it.each([
-    ["drink updates", loadDrinkPriceUpdates],
-    ["food updates", loadFoodPriceUpdates],
     ["price history", loadPriceHistory],
     ["Pint Index league", loadPintIndexLeagueRows],
   ])("retries %s after a temporary failed read", async (_label, load) => {
@@ -51,8 +43,6 @@ describe("public JSON loader retries", () => {
   });
 
   it.each([
-    ["drink updates", loadDrinkPriceUpdates],
-    ["food updates", loadFoodPriceUpdates],
     ["price history", loadPriceHistory],
     ["Pint Index league", loadPintIndexLeagueRows],
   ])("retries %s after a 200 response with an invalid body", async (_label, load) => {

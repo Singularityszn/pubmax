@@ -12,6 +12,12 @@ import {
   firstSearchParam,
   stopCountFromPubsParam,
 } from "@/lib/cityShare";
+import {
+  MAPLIBRE_WORKER_META,
+  MAPLIBRE_WORKER_SHARED_META,
+  MAPLIBRE_WORKER_SHARED_URL,
+  MAPLIBRE_WORKER_URL,
+} from "@/lib/maplibreWorkerAssets";
 
 type CityMapPageProps = {
   params: Promise<{ city: string }>;
@@ -50,6 +56,9 @@ export default async function CityMapPage({ params }: CityMapPageProps) {
   if (!cityId || !getCity(cityId).enabled) notFound();
   return (
     <>
+      {/* Named, never fetched, for the reason app/map/page.tsx states. */}
+      <meta name={MAPLIBRE_WORKER_META} content={MAPLIBRE_WORKER_URL} />
+      <meta name={MAPLIBRE_WORKER_SHARED_META} content={MAPLIBRE_WORKER_SHARED_URL} />
       {cityId === "london" ? (
         // Deferred for the reason app/map/page.tsx states beside its own copy.
         <script defer src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />

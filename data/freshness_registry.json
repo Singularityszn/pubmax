@@ -44,7 +44,7 @@
       "stamp": { "kind": "field", "pointer": "generatedAt" },
       "cadence": "episodic snapshot, harvested by hand; no script in the tree writes it",
       "stalenessBudgetHours": null,
-      "refreshWorkflow": "None. No script in this tree writes public/data/food_price_updates/latest.json: lib/priceUpdatesLoader.ts and lib/venueFoodMenu.ts only read it, and the Greene King rendered lane (scripts/harvest/uk-prices/render.mjs) writes the uk-prices overlay, not this file. A 1440h budget here was a promise nobody could keep: the lane reported stale for ageing exactly as designed and took the merge bar red with it (astra-review P0-1). Every row carries its own observedAt and lib/priceUpdates.ts never presents one as live. Adding a generator is a separate captain decision, not a budget change.",
+      "refreshWorkflow": "None. No script in this tree writes public/data/food_price_updates/latest.json: lib/priceUpdates.server.ts only reads it, and the Greene King rendered lane (scripts/harvest/uk-prices/render.mjs) writes the uk-prices overlay, not this file. A 1440h budget here was a promise nobody could keep: the lane reported stale for ageing exactly as designed and took the merge bar red with it (astra-review P0-1). Every row carries its own observedAt and lib/priceUpdates.ts never presents one as live. Adding a generator is a separate captain decision, not a budget change.",
       "gate": "FIRECRAWL_API_KEY plus a generator that does not yet exist in the tree. Until both exist this snapshot advances only by hand, so it carries no staleness budget and is never reported fresh."
     },
     {

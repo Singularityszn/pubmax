@@ -22,7 +22,9 @@ import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceBundle";
 import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
+import { venuePriceUpdatesFor } from "@/lib/priceUpdates.server";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
+import { venueMenuLookupKeys } from "@/lib/venueMenu";
 import { venueAmenityStatus, venueContacts, type Venue, type VenuePrice } from "@/lib/venues";
 
 export async function GET(
@@ -57,6 +59,16 @@ export async function GET(
     bundle.status === "unavailable"
       ? null
       : bundlePricesForCategory(bundle.rows, BUNDLE_DEFAULT_CATEGORY);
+
+  // WHAT THE TWO OBSERVED PACKS HOLD ABOUT THIS PUB, scoped here for the same
+  // reason the bundle is: the Drinks tab drew a handful of rows about one pub
+  // and the packs are national. Measured cold on the audit's phone rig, opening
+  // the tab on /map?sel= fetched 1862 KB of drink rows and 1519 KB of food rows
+  // for those few. The keys a row may target are the venue's own
+  // (lib/venueMenu.ts), and a pack the server could not read publishes null
+  // rather than an empty answer.
+  const priceUpdatesRead = await venuePriceUpdatesFor(venueMenuLookupKeys(venue));
+  const priceUpdates = priceUpdatesRead.updates;
 
   // THE CONTACT CONTRACT IS THE ONLY CONTACT ON THE WIRE. The source rows hold
   // four free-text columns nobody validated, and one of them shipped
@@ -100,7 +112,14 @@ export async function GET(
 
   return NextResponse.json(
     {
-      venue: { ...publishedVenue, prices, contacts, amenityStatus, bundlePrices },
+      venue: {
+        ...publishedVenue,
+        prices,
+        contacts,
+        amenityStatus,
+        bundlePrices,
+        priceUpdates,
+      },
       busyness,
       getIn,
       booking,

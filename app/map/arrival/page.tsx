@@ -4,6 +4,12 @@ import PintIndexMapArrival from "@/components/pintindex/PintIndexMapArrival";
 import PubMaxingShell from "@/components/PubMaxingShell";
 import { firstSearchParam, stopCountFromPubsParam } from "@/lib/cityShare";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
+import {
+  MAPLIBRE_WORKER_META,
+  MAPLIBRE_WORKER_SHARED_META,
+  MAPLIBRE_WORKER_SHARED_URL,
+  MAPLIBRE_WORKER_URL,
+} from "@/lib/maplibreWorkerAssets";
 import { resolveUkPlaceMapArrival } from "@/lib/ukPlaceIndex.server";
 import {
   UK_NATIONAL_BROWSE_COPY,
@@ -121,6 +127,9 @@ export default async function MapArrivalPage({
   const placeArrival = placeArrivalFor(sp);
   return (
     <>
+      {/* Named, never fetched, for the reason app/map/page.tsx states. */}
+      <meta name={MAPLIBRE_WORKER_META} content={MAPLIBRE_WORKER_URL} />
+      <meta name={MAPLIBRE_WORKER_SHARED_META} content={MAPLIBRE_WORKER_SHARED_URL} />
       <PubMaxingShell
         cityId="london"
         placeArrival={placeArrival}
