@@ -55,7 +55,10 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
 vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
-vi.mock("@/components/nav/SiteNavMore", () => ({ default: () => null }));
+vi.mock("@/components/nav/SiteNavMore", () => ({
+  default: () => null,
+  siteNavMoreItems: () => [],
+}));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("@/components/ThemeToggle", () => ({ default: () => null }));
 vi.mock("@/components/command/CommandPaletteProvider", () => ({

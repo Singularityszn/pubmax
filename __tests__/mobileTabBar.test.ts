@@ -35,6 +35,10 @@ describe("mobile tab bar contract", () => {
     ]);
   });
 
+  it("names every tab on the link itself, so hiding the word at large text costs nothing", () => {
+    for (const tab of buildTabs()) expect(tab.ariaLabel).toBe(tab.label);
+  });
+
   it("keeps Social and Moment out of the dock", () => {
     const tabs = buildTabs();
     expect(tabs.some((tab) => tab.label === "Social")).toBe(false);

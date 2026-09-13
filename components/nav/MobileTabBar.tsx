@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Map, UserRound, Images, CalendarClock, Signpost, DoorOpen } from "lucide-react";
+import { Map, UserRound, Route, CalendarClock, Signpost, DoorOpen } from "lucide-react";
 import { useCallback, useMemo, useSyncExternalStore, type CSSProperties } from "react";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { warmNavRoute } from "@/lib/mapWarmup";
@@ -14,7 +14,6 @@ import {
   subscribeNowTabHref,
   type PrimaryNavKey,
 } from "@/components/nav/navigationModel";
-import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 import { requestMobileSheetDismiss } from "@/lib/mobileShell";
 import {
   preferredCityMapHref,
@@ -37,8 +36,9 @@ import "./mobileNav.css";
 // (see mobileNav.css). On desktop it is display:none, leaving existing desktop
 // navs untouched.
 //
-// Six durable destinations. Gated Social stays visible with preview metadata.
-// Compose lives on the floating + action, never in this row.
+// Six durable destinations in the order of the loop (navigationModel). None of
+// them asks a stranger to sign in, which is why Social is not one. Compose lives
+// on the floating + action, never in this row.
 //
 // Path active-state is pure (usePathname). Route warming starts only from
 // pointer, hover, touch, or focus intent.
@@ -48,20 +48,20 @@ type Tab = {
   href: string;
   label: string;
   Icon: typeof Map;
-  preview?: boolean;
-  ariaLabel?: string;
+  /** The link's accessible name. The large text bucket hides the tab word
+   *  (mobileNav.css), so the name must live on the link, not in that word. */
+  ariaLabel: string;
   /** Path prefixes that should mark this tab active (defaults to href). */
   match?: string[];
 };
 
 const warmedTabs = new Set<string>();
 
-// Map follows preferred city after mount, with /map as the server fallback. Now follows London wall clock.
-// Exported for the launch-aware tab contract test.
+// Map follows preferred city after mount, with /map as the server fallback. The
+// Tonight tab follows the London wall clock. Exported for the tab contract test.
 export function buildTabs(
   youHref = "/u/you",
   nowHref: "/today" | "/tonight" = "/today",
-  socialFriendsLaunchEnabled = true,
   mapHref = "/map",
 ): Tab[] {
   const icons = {
@@ -69,14 +69,13 @@ export function buildTabs(
     map: Map,
     places: Signpost,
     out: DoorOpen,
-    social: Images,
+    plan: Route,
     you: UserRound,
   };
   return PRIMARY_NAV_ITEMS
     .map((item) => ({
       ...item,
-      preview: item.key === "social" && !socialFriendsLaunchEnabled,
-      ariaLabel: item.key === "social" && !socialFriendsLaunchEnabled ? "Social preview" : undefined,
+      ariaLabel: item.label,
       href:
         item.key === "now"
           ? nowHref
@@ -112,9 +111,10 @@ export default function MobileTabBar() {
 
 function MobileTabBarContent({ pathname }: { pathname: string }) {
   const router = useRouter();
-  // Now flips at 17:00 London. The SERVER snapshot is a constant, not a clock
-  // read: a prerendered document held by the CDN would otherwise hydrate against
-  // an href the browser had already moved past. See navigationModel.
+  // The Tonight tab flips between /today and /tonight at 17:00 London. The
+  // SERVER snapshot is a constant, not a clock read: a prerendered document held
+  // by the CDN would otherwise hydrate against an href the browser had already
+  // moved past. See navigationModel.
   const nowHref = useSyncExternalStore(
     subscribeNowTabHref,
     nowTabHref,
@@ -147,10 +147,9 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     readStrictModalFocusTrap,
     serverStrictModalFocusTrap,
   );
-  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const tabs = useMemo(
-    () => buildTabs(youHref, nowHref, socialFriendsLaunchEnabled, mapHref),
-    [socialFriendsLaunchEnabled, youHref, nowHref, mapHref],
+    () => buildTabs(youHref, nowHref, mapHref),
+    [youHref, nowHref, mapHref],
   );
   // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
   // route none of the tabs own) hides it via CSS rather than pinning it to a
@@ -232,7 +231,6 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                 </span>
                 <span className="mobileTabLabel">
                   <span className="mobileTabLabelText">{tab.label}</span>
-                  {tab.preview ? <span className="mobileTabPreviewDot" aria-hidden="true" /> : null}
                 </span>
               </Link>
             </li>

@@ -25,6 +25,12 @@ import {
   readPreferredCity,
   subscribePreferredCity,
 } from "@/lib/cityPreference";
+import {
+  PRIMARY_NAV_ITEMS,
+  nowTabHref,
+  serverNowTabHref,
+  subscribeNowTabHref,
+} from "@/components/nav/navigationModel";
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { CONTACT_MAILTO } from "@/lib/siteContact";
 import { trackEvent } from "@/lib/analytics";
@@ -87,6 +93,14 @@ export default function LandingPage({
     : {};
 
   const socialLabel = socialSurfaceName(socialFriendsLaunchEnabled);
+  // Same constant server snapshot, then the London clock, as the app bars: this
+  // document is prerendered and CDN-held, so it must not hydrate against a
+  // Tonight href the browser has since moved past (navigationModel).
+  const nowHref = useSyncExternalStore(
+    subscribeNowTabHref,
+    nowTabHref,
+    serverNowTabHref,
+  );
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -101,13 +115,25 @@ export default function LandingPage({
           <PubmaxxWordmark />
         </Link>
 
+        {/* The app's own primary destinations (PRIMARY_NAV_ITEMS), so the
+            front door and every app page name the product the same way. Social
+            and Moment are not front doors and are not in that list. */}
         <nav className="lpPrimaryNav" aria-label="Landing navigation">
-          <Link prefetch={false} href={mapCtaHref} {...warmProps}>Map</Link>
-          <Link prefetch={false} href="/plan">Plan</Link>
-          <Link prefetch={false} href="/tonight">Tonight</Link>
-          <Link prefetch={false} href="/moment">Moment</Link>
-          <Link prefetch={false} href="/social">{socialLabel}</Link>
-          <Link prefetch={false} href="/u/you">You</Link>
+          {PRIMARY_NAV_ITEMS.map((item) =>
+            item.key === "map" ? (
+              <Link key={item.key} prefetch={false} href={mapCtaHref} {...warmProps}>
+                {item.label}
+              </Link>
+            ) : (
+              <Link
+                key={item.key}
+                prefetch={false}
+                href={item.key === "now" ? nowHref : item.href}
+              >
+                {item.label}
+              </Link>
+            ),
+          )}
         </nav>
 
         <div className="lpNavActions">

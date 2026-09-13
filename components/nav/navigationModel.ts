@@ -1,6 +1,6 @@
 import { LONDON_DAY_MS, londonHour, londonMsSinceMidnight } from "@/lib/londonHour";
 
-export type PrimaryNavKey = "now" | "map" | "places" | "out" | "social" | "you";
+export type PrimaryNavKey = "now" | "map" | "places" | "out" | "plan" | "you";
 
 export type PrimaryNavItem = {
   key: PrimaryNavKey;
@@ -10,9 +10,19 @@ export type PrimaryNavItem = {
 };
 
 /**
- * The six durable destinations in the PUBMAXX shell. Moment is deliberately
- * modelled separately below because it is a compose action, never a location.
- * The time-aware Now href is applied at render time; Map stays canonical /map.
+ * The six durable destinations in the PUBMAXX shell, and the ONE vocabulary for
+ * every bar that names them: the phone dock, the desktop SiteNav and the landing
+ * bar all render this list, so their labels cannot drift apart again.
+ *
+ * The row follows the loop: find (Tonight, Map, Places, Out), plan (Plan), and
+ * You. Social and Moment are not front doors. Social answers a stranger with
+ * "Sign in to use Social.", so it lives in the desktop More menu; Moment is a
+ * compose action, never a location, and is modelled separately below.
+ *
+ * The `now` key reads "Tonight". The destination spans /today and /tonight, and
+ * its href flips between them at render time (nowTabHref), but a night out is
+ * what it is for, and one word for it everywhere beats a vaguer "Now" that the
+ * page itself never uses. Map stays canonical /map.
  *
  * Places sits beside Map because the two answer the same question in opposite
  * order: Map opens ONE city, and Places is where a reader chooses WHICH. It is a
@@ -20,22 +30,15 @@ export type PrimaryNavItem = {
  * by Out and Near as well, so it was never the map's own setting to own.
  */
 export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
-  { key: "now", href: "/today", label: "Now", match: ["/today", "/tonight"] },
+  { key: "now", href: "/today", label: "Tonight", match: ["/today", "/tonight"] },
   { key: "map", href: "/map", label: "Map", match: ["/map"] },
   // The picker's retired address, /choose-city, is NOT in the match set: it has
   // no page any more and 308s at the edge (proxy.ts), so no client is ever on
-  // that pathname. Unlike the retired Social aliases below, which are still
-  // rendered routes.
+  // that pathname.
   { key: "places", href: "/places", label: "Places", match: ["/places"] },
   { key: "out", href: "/out", label: "Out", match: ["/out"] },
-  {
-    key: "social",
-    href: "/social",
-    label: "Social",
-    // Keep retired aliases in the match set so soft clients light the canonical
-    // destination while a permanent redirect settles.
-    match: ["/social", "/discover", "/drinks", "/feed", "/stories", "/crawls"],
-  },
+  // Plan owns the composer and a shared plan at /plan/[id].
+  { key: "plan", href: "/plan", label: "Plan", match: ["/plan"] },
   // You owns the profile surfaces under /u only. /pal (Pub Pal, the AI
   // concierge) is its OWN destination with no primary tab — it used to sit in
   // this match set and wrongly lit "You" on both the mobile tab bar and the

@@ -8,7 +8,7 @@ import { useSyncExternalStore } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
 import MessagesLink from "@/components/nav/MessagesLink";
 import NotificationBell from "@/components/nav/NotificationBell";
-import SiteNavMore from "@/components/nav/SiteNavMore";
+import SiteNavMore, { siteNavMoreItems } from "@/components/nav/SiteNavMore";
 import SignInButton from "@/components/auth/SignInButton";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { useCommandPalette } from "@/components/command/CommandPaletteProvider";
@@ -30,7 +30,7 @@ import "./siteNavMoment.css";
 // drifts page-to-page.
 //
 // The mobile fix: at ≤640px the app already renders a fixed bottom tab bar
-// (MobileTabBar: Now/Map/Places/Out/Social/You). Repeating the full link list up
+// (MobileTabBar: Tonight/Map/Places/Out/Plan/You). Repeating the full link list up
 // top there caused the old `.appNav` pill to overflow the viewport (Admin +
 // theme toggle clipped off-screen) on /map. So on mobile this renders a COMPACT
 // bar — just the wordmark + theme toggle + sign-in — and hides the full link
@@ -80,7 +80,11 @@ function matchesPath(pathname: string, link: NavLink): boolean {
 }
 
 function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
-  if (active === "feed" || active === "discover" || active === "crawls") return "social";
+  // Social and its aliases are not in the primary row (they live under More),
+  // so a Social page lights no primary link.
+  if (active === "social" || active === "feed" || active === "discover" || active === "crawls") {
+    return undefined;
+  }
   if (active === "today" || active === "tonight") return "now";
   // Borough pages are data/discovery, not Social. There is no primary tab for
   // them, so they light nothing on the desktop nav rather than wrongly lighting
@@ -109,11 +113,7 @@ export default function SiteNav({
   );
   const socialSurfaceLabel = useSocialSurfaceName();
   const links = LINKS
-    .map((link) => {
-      if (link.key === "social") return { ...link, label: socialSurfaceLabel };
-      if (link.key === "now") return { ...link, href: nowHref };
-      return link;
-    });
+    .map((link) => (link.key === "now" ? { ...link, href: nowHref } : link));
 
   // The map is full-bleed with an overflow-hidden shell, so the bar floats
   // (fixed) over it. Every other page keeps the bar in normal flow.
@@ -160,9 +160,10 @@ export default function SiteNav({
       </ul>
 
       <div className="siteNavActions">
-        {/* D2.2: secondary destinations (Plan/Near/Historic/Pal). Desktop
-            only — siteNav.css hides .siteNavMore at ≤640 so mobile is unchanged. */}
-        <SiteNavMore />
+        {/* D2.2: secondary destinations (Near/Historic/Pal/Social), with Social
+            named for the launch state. Desktop only — siteNav.css hides
+            .siteNavMore at ≤640 so mobile is unchanged. */}
+        <SiteNavMore items={siteNavMoreItems(socialSurfaceLabel)} />
         {/* Moment compose (desktop). On phones the bottom tab bar's raised
             centre FAB owns this; the top bar has no such affordance, so desktop
             users reach /moment here. Carries the same returnTo the mobile FAB
