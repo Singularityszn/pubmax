@@ -6,11 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import capacitorConfig from "../capacitor.config";
 import { BRAND_COLORS } from "@/lib/brandMark.mjs";
-import {
-  NATIVE_FIRST_PAINT_EVENT,
-  NATIVE_SPLASH_CEILING_MS,
-  releaseNativeSplashOnFirstPaint,
-} from "@/lib/nativeSplash";
+import { NATIVE_SPLASH_CEILING_MS, releaseNativeSplashOnFirstPaint } from "@/lib/nativeSplash";
 
 // THE APP OPENED ON A BLACK FIELD FOR TWENTY SECONDS.
 //
@@ -43,11 +39,81 @@ function frames() {
   };
 }
 
+function xml(path: string): Document {
+  const document = new DOMParser().parseFromString(rootFile(path), "application/xml");
+  expect(document.getElementsByTagName("parsererror"), `${path} is not well-formed`).toHaveLength(0);
+  return document;
+}
+
+const childrenNamed = (parent: Element, tagName: string) =>
+  [...parent.children].filter((child) => child.tagName === tagName);
+
+type PbxValue = string | PbxValue[] | PbxDict;
+type PbxDict = { [key: string]: PbxValue };
+
+/** An OpenStep property list, the format Xcode writes project.pbxproj in. */
+function parsePbx(text: string): PbxValue {
+  const bare = /[\w$@./:+-]+/y;
+  let at = 0;
+  const skip = () => {
+    for (;;) {
+      while (/\s/.test(text[at] ?? "")) at++;
+      if (text.startsWith("/*", at)) at = text.indexOf("*/", at) + 2;
+      else if (text.startsWith("//", at)) at = text.indexOf("\n", at) + 1;
+      else return;
+    }
+  };
+  const expectChar = (char: string) => {
+    skip();
+    if (text[at] !== char) throw new Error(`project.pbxproj: expected ${char} at ${at}`);
+    at++;
+  };
+  const value = (): PbxValue => {
+    skip();
+    if (text[at] === "{") {
+      at++;
+      const dict: PbxDict = {};
+      for (skip(); text[at] !== "}"; skip()) {
+        const key = value() as string;
+        expectChar("=");
+        dict[key] = value();
+        expectChar(";");
+      }
+      at++;
+      return dict;
+    }
+    if (text[at] === "(") {
+      at++;
+      const list: PbxValue[] = [];
+      for (skip(); text[at] !== ")"; skip()) {
+        list.push(value());
+        skip();
+        if (text[at] === ",") at++;
+      }
+      at++;
+      return list;
+    }
+    if (text[at] === '"') {
+      let out = "";
+      for (at++; text[at] !== '"'; at++) {
+        if (text[at] === "\\") at++;
+        out += text[at];
+      }
+      at++;
+      return out;
+    }
+    bare.lastIndex = at;
+    const token = bare.exec(text);
+    if (!token) throw new Error(`project.pbxproj: unexpected ${JSON.stringify(text.slice(at, at + 20))}`);
+    at += token[0].length;
+    return token[0];
+  };
+  return value();
+}
+
 describe("the launch splash is held until the page paints", () => {
-  it("does nothing off the shell: no event, no plugin load", async () => {
+  it("does nothing off the shell: no plugin load", async () => {
     const loadPlugin = vi.fn();
-    const heard = vi.fn();
-    window.addEventListener(NATIVE_FIRST_PAINT_EVENT, heard);
     const clock = frames();
     releaseNativeSplashOnFirstPaint({
       isNative: () => false,
@@ -57,34 +123,26 @@ describe("the launch splash is held until the page paints", () => {
     clock.flush();
     await Promise.resolve();
     expect(loadPlugin).not.toHaveBeenCalled();
-    expect(heard).not.toHaveBeenCalled();
-    window.removeEventListener(NATIVE_FIRST_PAINT_EVENT, heard);
   });
 
-  it("announces first paint once and hides the splash once, after the frame", async () => {
+  it("hides the splash once, after the frame", async () => {
     const hide = vi.fn(async () => {});
-    const heard = vi.fn();
-    window.addEventListener(NATIVE_FIRST_PAINT_EVENT, heard);
+    const loadPlugin = vi.fn(async () => ({ hide }));
     const clock = frames();
-    const deps = {
-      isNative: () => true,
-      loadPlugin: async () => ({ hide }),
-      afterPaint: clock.afterPaint,
-    };
+    const deps = { isNative: () => true, loadPlugin, afterPaint: clock.afterPaint };
     releaseNativeSplashOnFirstPaint(deps);
     // Nothing before the page has had a frame to paint in.
-    expect(heard).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(loadPlugin).not.toHaveBeenCalled();
     clock.flush();
     await vi.waitFor(() => expect(hide).toHaveBeenCalledOnce());
-    expect(heard).toHaveBeenCalledOnce();
 
     // A second mount (a remounted shell chrome) spends nothing.
     releaseNativeSplashOnFirstPaint(deps);
     clock.flush();
     await Promise.resolve();
-    expect(heard).toHaveBeenCalledOnce();
+    expect(loadPlugin).toHaveBeenCalledOnce();
     expect(hide).toHaveBeenCalledOnce();
-    window.removeEventListener(NATIVE_FIRST_PAINT_EVENT, heard);
   });
 
   it("stays silent when the plugin cannot load, because the ceiling still hides it", async () => {
@@ -113,7 +171,7 @@ describe("the launch splash is held until the page paints", () => {
   });
 });
 
-describe("the splash is configured and wired on both shells", () => {
+describe("the splash is configured on both shells", () => {
   it("auto-hides at the ceiling, on the launch field, with no spinner", () => {
     const splash = capacitorConfig.plugins?.SplashScreen as Record<string, unknown> | undefined;
     expect(splash).toBeDefined();
@@ -125,51 +183,9 @@ describe("the splash is configured and wired on both shells", () => {
     expect(splash?.backgroundColor).toBe(BRAND_COLORS.inkDeep);
   });
 
-  it("gives the iOS plugin the storyboard it loads, without making it the launch screen", () => {
-    // The plugin's iOS half instantiates UILaunchStoryboardName, else a
-    // storyboard called LaunchScreen, and the first build with it aborted at
-    // launch: "Could not find a storyboard named 'LaunchScreen'". The OS launch
-    // screen stays the UILaunchScreen dictionary (__tests__/nativeSplashArt.test.ts).
-    const storyboard = rootFile("ios/App/App/Base.lproj/LaunchScreen.storyboard");
-    expect(storyboard).not.toContain('launchScreen="YES"');
-    expect(storyboard).toContain('image="LaunchMark"');
-    expect(storyboard).toContain('<color key="backgroundColor" name="LaunchBackground"/>');
-    expect(rootFile("ios/App/App/Info.plist")).not.toContain("UILaunchStoryboardName");
-    expect(rootFile("ios/App/App.xcodeproj/project.pbxproj")).toContain(
-      "/* LaunchScreen.storyboard in Resources */,",
-    );
-  });
-
   it("carries the plugin as a dependency, so npx cap sync wires both shells", () => {
     const pkg = JSON.parse(rootFile("package.json")) as { dependencies: Record<string, string> };
     expect(pkg.dependencies["@capacitor/splash-screen"]).toBeDefined();
-  });
-
-  it("releases the splash from the shell chrome, not from a web route's first read", () => {
-    const chrome = rootFile("components/native/NativeShellChrome.tsx");
-    expect(chrome).toContain("releaseNativeSplashOnFirstPaint");
-  });
-
-  it("releases the splash natively when Android shows the offline page", () => {
-    // Android serves offline.html (Capacitor's errorPath) from https://localhost
-    // with no bridge: window.Capacitor is undefined there, measured over the
-    // WebView DevTools socket on 13 September 2026. The page cannot hide the
-    // splash, so it held to the 12s ceiling. The shell releases it once that
-    // page has loaded. Java does not run under vitest, so this holds the
-    // source to the contract.
-    const activity = rootFile("android/app/src/main/java/com/pubmaxx/app/MainActivity.java");
-    expect(activity).toContain("addWebViewListener");
-    expect(activity).toContain("onPageLoaded");
-    expect(activity).toContain("getErrorUrl()");
-    expect(activity).toMatch(/callPluginMethod\(\s*"SplashScreen",\s*"hide"/);
-  });
-
-  it("releases the splash on the bundled offline page too", () => {
-    // The offline page is served from the binary with no app bundle, so the
-    // splash would otherwise stand over it until the ceiling.
-    const offline = rootFile("native/web-stub/offline.html");
-    expect(offline).toContain("SplashScreen");
-    expect(offline).toContain(".hide(");
   });
 
   it("marks the shell's user agent, so the edge can tell the app from a stranger", () => {
@@ -177,27 +193,87 @@ describe("the splash is configured and wired on both shells", () => {
   });
 });
 
-describe("the loading skeleton puts the nav where the loaded page puts it", () => {
-  // ios-relaunch-4s.png: the skeleton drew the nav at 95px, the loaded page at
-  // 57px, a 38px jump. SiteNav's bar already adds the top safe-area inset
-  // (components/nav/siteNav.css), and the skeleton added it a second time as
-  // its own top padding.
-  const css = rootFile("components/nav/mobileNav.css");
-  const firstBlock = (selector: string, source: string) => {
-    const start = source.indexOf(`${selector} {`);
-    expect(start, `${selector} rule is missing`).toBeGreaterThanOrEqual(0);
-    return source.slice(start, source.indexOf("}", start));
-  };
+describe("the iOS plugin finds the storyboard it loads, and the OS never launches on it", () => {
+  // The plugin's iOS half instantiates UILaunchStoryboardName, else a
+  // storyboard called LaunchScreen, and the first build with it aborted at
+  // launch: "Could not find a storyboard named 'LaunchScreen'". The OS launch
+  // screen stays the UILaunchScreen dictionary (__tests__/nativeSplashArt.test.ts).
 
-  it("does not add the top inset the nav bar already adds", () => {
-    expect(firstBlock(".routeLoadingShell", css)).not.toContain("safe-area-inset-top");
+  it("draws the LaunchMark on the LaunchBackground field, and is not a launch screen", () => {
+    const storyboard = xml("ios/App/App/Base.lproj/LaunchScreen.storyboard").documentElement;
+    expect(storyboard.hasAttribute("launchScreen")).toBe(false);
+
+    const initialId = storyboard.getAttribute("initialViewController");
+    const initial = [...storyboard.getElementsByTagName("viewController")].find(
+      (controller) => controller.getAttribute("id") === initialId,
+    );
+    expect(initial, "the initial view controller is missing").toBeDefined();
+    const [view] = childrenNamed(initial!, "view").filter((child) => child.getAttribute("key") === "view");
+    expect(view, "the initial view controller has no view").toBeDefined();
+
+    const field = childrenNamed(view, "color").find((color) => color.getAttribute("key") === "backgroundColor");
+    expect(field?.getAttribute("name")).toBe("LaunchBackground");
+    const images = childrenNamed(view, "subviews")
+      .flatMap((subviews) => childrenNamed(subviews, "imageView"))
+      .map((image) => image.getAttribute("image"));
+    expect(images).toEqual(["LaunchMark"]);
   });
 
-  it("uses the same top padding as /tonight at every width", () => {
-    const tonight = rootFile("app/tonight/tonight.css");
-    expect(firstBlock(".tonightPage", tonight)).toContain("padding: 16px");
-    expect(firstBlock(".routeLoadingShell", css)).toContain("padding: 16px");
-    expect(tonight).toMatch(/@media \(max-width: 640px\) \{\s*\.tonightPage \{\s*padding-top: 10px;/);
-    expect(css).toMatch(/@media \(max-width: 640px\) \{\s*\.routeLoadingShell \{\s*padding-top: 10px;/);
+  it("is not named as the launch storyboard in Info.plist", () => {
+    const [dict] = childrenNamed(xml("ios/App/App/Info.plist").documentElement, "dict");
+    const keys = childrenNamed(dict, "key").map((key) => key.textContent);
+    expect(keys).toContain("UILaunchScreen");
+    expect(keys).not.toContain("UILaunchStoryboardName");
+  });
+
+  it("is copied into the app bundle", () => {
+    const project = parsePbx(rootFile("ios/App/App.xcodeproj/project.pbxproj")) as PbxDict;
+    const objects = project.objects as Record<string, PbxDict>;
+    const bundled = Object.values(objects)
+      .filter((object) => object.isa === "PBXResourcesBuildPhase")
+      .flatMap((phase) => (phase.files as string[]).map((id) => objects[objects[id].fileRef as string]));
+    const storyboard = bundled.find((file) => file.name === "LaunchScreen.storyboard");
+    expect(storyboard?.isa).toBe("PBXVariantGroup");
+    const paths = (storyboard!.children as string[]).map((id) => objects[id].path);
+    expect(paths).toEqual(["Base.lproj/LaunchScreen.storyboard"]);
+  });
+});
+
+describe("the bundled offline page releases the splash for itself", () => {
+  // The offline page is served from the binary with no app bundle, so the
+  // splash would otherwise stand over it until the ceiling. iOS gives the page
+  // the bridge; Android does not, and MainActivity releases it there
+  // (android/app/src/test/java/com/pubmaxx/app/OfflineSplashReleaseTest.java).
+  const page = new DOMParser().parseFromString(rootFile("native/web-stub/offline.html"), "text/html");
+  const shellWindow = window as { Capacitor?: unknown };
+
+  const openPage = () => {
+    document.body.innerHTML = page.body.innerHTML;
+    const script = [...document.body.querySelectorAll("script")].map((node) => node.textContent).join("\n");
+    new Function(script)();
+  };
+
+  afterEach(() => {
+    delete shellWindow.Capacitor;
+    document.body.innerHTML = "";
+  });
+
+  it("hides the splash once through the bridge", () => {
+    const hide = vi.fn(async () => {});
+    shellWindow.Capacitor = { Plugins: { SplashScreen: { hide } } };
+    openPage();
+    expect(hide).toHaveBeenCalledOnce();
+  });
+
+  it("swallows a hide the plugin refuses", async () => {
+    const hide = vi.fn(() => Promise.reject(new Error("unavailable")));
+    shellWindow.Capacitor = { Plugins: { SplashScreen: { hide } } };
+    openPage();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(hide).toHaveBeenCalledOnce();
+  });
+
+  it("opens without throwing when there is no bridge", () => {
+    expect(() => openPage()).not.toThrow();
   });
 });

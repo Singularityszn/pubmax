@@ -26,14 +26,15 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (bridge == null) return;
+        OfflineSplashRelease release = new OfflineSplashRelease(
+            bridge::getErrorUrl,
+            () -> bridge.callPluginMethod("SplashScreen", "hide", new ShellCall("SplashScreen", "hide"))
+        );
         bridge.addWebViewListener(
             new WebViewListener() {
                 @Override
                 public void onPageLoaded(WebView webView) {
-                    String errorUrl = bridge.getErrorUrl();
-                    String loadedUrl = webView.getUrl();
-                    if (errorUrl == null || loadedUrl == null || !loadedUrl.equals(errorUrl)) return;
-                    bridge.callPluginMethod("SplashScreen", "hide", new ShellCall("SplashScreen", "hide"));
+                    release.onPageLoaded(webView.getUrl());
                 }
             }
         );

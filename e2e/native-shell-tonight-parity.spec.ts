@@ -79,7 +79,68 @@ async function plantStaleTonight(page: Page) {
   }, PARITY_VERSION);
 }
 
+/**
+ * How far below the top of its own page each frame draws the site nav: the
+ * loaded /tonight, and a loading skeleton built around a clone of that nav.
+ */
+async function navOffsets(page: Page) {
+  return page.evaluate(() => {
+    const offset = (frame: Element) => {
+      const nav = frame.querySelector("nav.siteNavBar");
+      if (!nav) throw new Error(`${frame.className} carries no site nav`);
+      const box = nav.getBoundingClientRect();
+      return { top: Math.round(box.top - frame.getBoundingClientRect().top), drawn: box.height > 0 };
+    };
+    const loaded = document.querySelector(".tonightPage");
+    if (!loaded) throw new Error("the /tonight page is not on screen");
+    let skeleton = document.querySelector("main.routeLoadingShell");
+    if (!skeleton) {
+      skeleton = document.createElement("main");
+      skeleton.className = "routeLoadingShell";
+      skeleton.append(loaded.querySelector("nav.siteNavBar")!.cloneNode(true));
+      document.body.append(skeleton);
+    }
+    return { loaded: offset(loaded), skeleton: offset(skeleton) };
+  });
+}
+
 test.describe.configure({ mode: "serial" });
+
+test("the loading skeleton draws the nav where the loaded /tonight draws it", async ({ page }) => {
+  // ios-relaunch-4s.png: the skeleton drew the nav 38px below the loaded page,
+  // because SiteNav's bar adds the top safe-area inset and the skeleton added
+  // it a second time as its own top padding.
+  test.setTimeout(90_000);
+  await bootAsShell(page);
+  await page.goto("/tonight");
+  await expect(page.getByTestId("tonight-lede")).toBeAttached({ timeout: 30_000 });
+  const chromium = await page.context().newCDPSession(page);
+  await chromium.send("Emulation.setSafeAreaInsetsOverride", {
+    insets: { top: 47, right: 0, bottom: 34, left: 0 },
+  });
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const probe = document.createElement("div");
+        probe.style.paddingTop = "env(safe-area-inset-top)";
+        document.body.append(probe);
+        const top = getComputedStyle(probe).paddingTop;
+        probe.remove();
+        return top;
+      }),
+    )
+    .toBe("47px");
+
+  for (const width of [390, 768, 1440]) {
+    await page.setViewportSize({ width, height: VIEWPORT.height });
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+    );
+    const offsets = await navOffsets(page);
+    expect(offsets.loaded.drawn, `${width}px: the loaded nav is not drawn`).toBe(true);
+    expect(offsets.skeleton, `${width}px`).toEqual(offsets.loaded);
+  }
+});
 
 test("a shell cold start lands on the same /tonight a plain fetch serves", async ({
   page,

@@ -12,16 +12,13 @@
 // with no route to the origin still reaches the bundled offline page, which
 // releases the splash at once (the page itself on iOS, MainActivity on Android,
 // where that page gets no bridge). This seam is the SOONER release. Once the
-// shell chrome has mounted it waits for a frame the page has painted in,
-// announces `pubmax:first-paint` and hides the splash, once per document.
+// shell chrome has mounted it waits for a frame the page has painted in and
+// hides the splash, once per document.
 //
 // Off the shell it is a no-op, and the plugin loader hands back a plain object
 // rather than the plugin proxy: see __tests__/capacitorPluginProxy.test.ts.
 
 import { isNativeApp } from "@/lib/nativePlatform";
-
-/** Announced on window once the page has painted inside the shell. */
-export const NATIVE_FIRST_PAINT_EVENT = "pubmax:first-paint";
 
 /**
  * The longest the splash may stand, whatever the page does. The same figure is
@@ -71,7 +68,6 @@ export function releaseNativeSplashOnFirstPaint(deps: NativeSplashDeps = {}): ()
   (deps.afterPaint ?? afterNextPaint)(() => {
     if (cancelled || target.__pubmaxFirstPaint) return;
     target.__pubmaxFirstPaint = true;
-    window.dispatchEvent(new Event(NATIVE_FIRST_PAINT_EVENT));
     // A failed load is silent on purpose: the ceiling still hides the splash.
     Promise.resolve()
       .then(loadPlugin)

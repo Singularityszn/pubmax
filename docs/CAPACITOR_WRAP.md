@@ -17,8 +17,8 @@ later-session fallback after at least one healthy remote load.
 
 ## Cold start
 
-The shell opens on the launch mark and keeps it until the page has painted.
-Before 13 September 2026 it did not. A clean install against production on the
+The shell opens on the launch mark and keeps it until the page has painted or
+the 12 s ceiling, whichever comes first. Before 13 September 2026 it did not. A clean install against production on the
 `pubmaxx-390x844` simulator showed the bare ink field for 20 seconds: the first
 document committed 21.5 s after launch, and nothing native held the mark over
 the wait.
@@ -30,8 +30,8 @@ What holds the mark now:
    (`plugins.SplashScreen` in `capacitor.config.ts`). Auto-hide stays on at a
    12 s ceiling, so a dead network still reaches `offline.html`.
 3. `lib/nativeSplash.ts` hides the splash sooner. After the shell chrome
-   mounts, it waits for a painted frame, announces `pubmax:first-paint` on
-   `window` and hides the splash once per document.
+   mounts, it waits for a painted frame and hides the splash once per
+   document.
 4. When the first load fails, the offline page releases the splash at once.
    On iOS, `native/web-stub/offline.html` calls the plugin itself. Android
    serves that error page without the Capacitor bridge (`window.Capacitor` is

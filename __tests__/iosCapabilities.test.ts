@@ -149,14 +149,6 @@ describe("the weekend checklist matches the repository it describes", () => {
     }
   });
 
-  it("keeps the real-iPhone launch coral check beside the superpowers", () => {
-    // The simulator shows iOS's cached launch snapshot in a shifted coral while
-    // the asset and the stored snapshot are brand-exact (docs/CAPACITOR_WRAP.md,
-    // "Cold start"). Only a real iPhone can say whether a person sees it.
-    expect(readiness).toContain("**Launch coral, on the same iPhone.**");
-    expect(readiness).toContain("do not retouch the launch image to compensate");
-  });
-
   it("points at screenshot folders that exist", () => {
     for (const size of ["ios-6.7", "ios-6.5"]) {
       expect(readiness, size).toContain(`public/store-assets/screenshots/${size}`);

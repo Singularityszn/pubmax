@@ -37,7 +37,7 @@ With the origin unreachable, iOS released the splash from `offline.html` between
 
 Before the follow-up fix, Android held the splash to the 12 s ceiling. Capacitor serves the Android error page without its bridge: `window.Capacitor` is `undefined` there, so the page cannot reach the plugin. `MainActivity` now hides the splash through the bridge when the loaded page is the error URL.
 
-That Android fix was verified by code review and a successful `npm run android:build`, not on the emulator: `memory_pressure` reported 39 percent free, under the 45 percent rule for starting it. The review covered Capacitor 8's `Bridge.getErrorUrl`, `addWebViewListener`, `callPluginMethod`, `PluginCall` and `SplashScreenPlugin.hide`. `__tests__/nativeSplash.test.ts` holds the source to the contract.
+That Android fix was verified by code review and a successful `npm run android:build`, not on the emulator: `memory_pressure` reported 39 percent free, under the 45 percent rule for starting it. The review covered Capacitor 8's `Bridge.getErrorUrl`, `addWebViewListener`, `callPluginMethod`, `PluginCall` and `SplashScreenPlugin.hide`. `android/app/src/test/java/com/pubmaxx/app/OfflineSplashReleaseTest.java` holds the decision to the contract: the splash hides for the error URL and for no other page.
 
 ## On the Vercel preview
 
