@@ -19,6 +19,10 @@ export function normalizeWetherspoonsMatchName(value: string): string {
     .replace(/[’']/g, "")
     .replace(/\([^)]*\)/g, " ")
     .replace(/\bjd wetherspoons?\b/g, " ")
+    // The directory names a pub it holds more than once after its town ("The
+    // Moon Under Water, Enfield"). The 250 m window already tells those apart,
+    // so the part after a comma never decides the name.
+    .replace(/,.*$/, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim()
     .replace(/^the\s+/, "");
