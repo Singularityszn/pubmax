@@ -11,11 +11,15 @@ export function useInspectorTabs(
   onTabSelect?: (key: TabKey) => void,
   resetRequest = 0,
 ) {
-  // Active tab is local state (Pints is the primary content, so the default).
+  // Active tab is local state, seeded from the resolved request.
   // Like presence above, the panel isn't remounted between venues, so a stale
-  // tab could linger — React's adjust-state-during-render pattern resets it when
-  // the venue id changes (mirrors presenceVenueId). NEVER setState in an effect
-  // here (react-hooks/set-state-in-effect is an error in this repo).
+  // tab could linger - React's adjust-state-during-render pattern resets it when
+  // the venue id, the resolved tab or `resetRequest` changes (mirrors
+  // presenceVenueId). `resetRequest` is the getting-home request count: that
+  // request resolves to "overview", the same tab a plain open resolves to, so
+  // only a new count lands a sheet already open on another tab back on the
+  // Overview. An ordinary re-render keeps the reader's tab. NEVER setState in an
+  // effect here (react-hooks/set-state-in-effect is an error in this repo).
   const [tab, setTab] = useState<TabKey>(initialTab);
   const tabKey = `${venueId}:${initialTab}:${resetRequest}`;
   const [tabResetKey, setTabResetKey] = useState(tabKey);
