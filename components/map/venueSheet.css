@@ -1158,10 +1158,13 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 
 /* A 320px phone gives the strip 248px, and five labels at 7px a side with 2px
    gaps asked 281px, so "Overview" ran 6px past its own pill. At 3px a side and
-   no gap the row asks about 243px, and every label keeps its whole word. */
+   no gap the row asks 242.4px, because the 44px floor lifts Drinks and Lore.
+   A 3px strip inset left 242px and wrapped Lore to a second row; a 2px inset
+   leaves 244px, so the five tabs keep one row. */
 @media (max-width: 360px) {
   .venueTabs {
     gap: 0;
+    padding: 2px;
   }
 
   .venueTab {

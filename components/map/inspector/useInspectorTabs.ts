@@ -9,6 +9,7 @@ export function useInspectorTabs(
   venueId: string,
   TABS: TabDef[],
   onTabSelect?: (key: TabKey) => void,
+  resetRequest = 0,
 ) {
   // Active tab is local state (Pints is the primary content, so the default).
   // Like presence above, the panel isn't remounted between venues, so a stale
@@ -16,7 +17,7 @@ export function useInspectorTabs(
   // the venue id changes (mirrors presenceVenueId). NEVER setState in an effect
   // here (react-hooks/set-state-in-effect is an error in this repo).
   const [tab, setTab] = useState<TabKey>(initialTab);
-  const tabKey = `${venueId}:${initialTab}`;
+  const tabKey = `${venueId}:${initialTab}:${resetRequest}`;
   const [tabResetKey, setTabResetKey] = useState(tabKey);
   if (tabResetKey !== tabKey) {
     setTabResetKey(tabKey);

@@ -1366,6 +1366,7 @@ export default function PubMap({
   const [acceptanceError, setAcceptanceError] = useState<string | null>(null);
   const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<VenueTabRequest>("overview");
+  const [gettingHomeRequestId, setGettingHomeRequestId] = useState(0);
   const [filters, setFilters] = useState<Filters>(restoredSession.filters);
   // First-party Wetherspoon directory for Open now hours. Loaded once; match is
   // name+distance only and never invents hours for unmatched pubs.
@@ -3142,6 +3143,7 @@ export default function PubMap({
       setMapOverlay("none");
       claimMapDrawer("venue");
       setVenueInitialTab(initialTab);
+      if (initialTab === "getting-home") setGettingHomeRequestId((current) => current + 1);
       setSelectedVenueId(id);
       closeComposer();
       const reducedMotion = venueRevealPrefersReducedMotion();
@@ -5283,6 +5285,7 @@ export default function PubMap({
           onAcceptStop1={selectedVenueIsPub ? acceptStop1 : undefined}
           acceptanceError={acceptanceError}
           initialTab={venueInitialTab}
+          gettingHomeRequestId={gettingHomeRequestId}
           pintDrops={pintDrops}
           communityPrices={communityPrices}
           experienceLens={experienceLens}

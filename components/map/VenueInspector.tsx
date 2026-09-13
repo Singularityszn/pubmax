@@ -92,6 +92,11 @@ type VenueInspectorProps = {
   acceptanceError?: string | null;
   /** A tab, or the "getting-home" fold on Overview. */
   initialTab?: VenueTabRequest;
+  /**
+   * Counts getting-home requests. A new count lands the sheet on Overview with
+   * the fold open, even when the same pub is already open on another tab.
+   */
+  gettingHomeRequestId?: number;
   pintDrops: PintDropsState;
   /**
    * Community price layer - backs the fast "What's it tonight?" submission on
@@ -168,6 +173,7 @@ export default function VenueInspector({
   onAcceptStop1,
   acceptanceError = null,
   initialTab = DEFAULT_TAB,
+  gettingHomeRequestId = 0,
   pintDrops,
   communityPrices,
   onGrabDragStart,
@@ -295,6 +301,7 @@ export default function VenueInspector({
     venue.id,
     TABS,
     onTabSelect,
+    gettingHomeRequestId,
   );
   const { currentShareFeedback, shareVenue } = useVenueShare(venue, {
     priceGbp: shareLoggedPintGbp,
@@ -486,7 +493,7 @@ export default function VenueInspector({
         revealRecordLate={revealRecordLate}
         gettingHome={
           <VenueGettingHomeSection
-            key={`${venue.id}:${initialTab}`}
+            key={`${venue.id}:${initialTab}:${gettingHomeRequestId}`}
             venue={venue}
             cityId={cityId}
             openRequest={initialTab === "getting-home"}
