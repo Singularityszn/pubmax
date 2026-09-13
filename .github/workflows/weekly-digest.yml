@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   send:
-    runs-on: avrea-ubuntu-latest-2-vcpu
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -16,7 +16,7 @@ jobs:
       (github.event.deployment.ref == 'main' ||
       github.event.deployment.ref == 'refs/heads/main') &&
       github.event.deployment_status.target_url != ''
-    runs-on: avrea-ubuntu-latest-2-vcpu
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 15
     steps:
       # PR previews are excluded because this job executes deployed source; the main-only gate keeps that source trusted.
