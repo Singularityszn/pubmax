@@ -133,16 +133,20 @@
   text-align: center;
 }
 
+/* 44 px each way: "Next" alone is 32 px wide. The words hug the edge they
+   sit on, so the extra width is hit area, not a shifted label. */
 .historicPagination a {
   display: inline-flex;
   align-items: center;
+  min-width: 44px;
   min-height: 44px;
-  color: var(--brass);
+  color: var(--color-accent-ink);
   font-weight: 700;
 }
 
 .historicPagination > :last-child {
   justify-self: end;
+  justify-content: flex-end;
 }
 
 /* Card grid */
@@ -203,7 +207,7 @@
   border: 1px solid color-mix(in srgb, var(--brass) 30%, transparent);
   font-size: 0.72rem;
   font-weight: 700;
-  color: var(--brass);
+  color: var(--color-accent-ink);
 }
 
 .historicGrade {
@@ -217,6 +221,10 @@
   font-weight: 700;
   letter-spacing: 0.01em;
   color: var(--river);
+}
+
+html:not([data-theme="dark"]) .historicGrade {
+  color: #2459c4;
 }
 
 .historicCardName {
@@ -256,10 +264,13 @@
   font-weight: 600;
 }
 
+/* 44 px tall so a thumb lands the citation (13 Sep audit D12 measured 14 px);
+   the words keep the provenance line's small size. */
 .historicCite {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  min-height: 44px;
   font-weight: 700;
   color: var(--river);
   text-decoration: none;
@@ -376,7 +387,7 @@
 .historicBoroughLink {
   font-weight: 700;
   font-size: 15px;
-  color: var(--brass);
+  color: var(--color-accent-ink);
   text-decoration: none;
 }
 
