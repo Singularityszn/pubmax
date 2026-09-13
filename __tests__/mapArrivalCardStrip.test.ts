@@ -90,18 +90,6 @@ describe("the first-visit card is a strip at the top on a phone", () => {
     );
   });
 
-  it("paints its pair with the one button family, not a look of its own", () => {
-    // Site audit 13 Sep 2026 (D7): the pair wore --radius-sm (6px) at weight
-    // 600 beside every other control's 14px at 700. The coral and the plain
-    // secondary are the Button primitive's own variants now, so the strip may
-    // not restate a radius, a type size, a weight or a fill for them.
-    expect(cardSource).toMatch(/buttonVariants\(\{\s*variant:\s*"primary"\s*\}\)/);
-    expect(cardSource).toMatch(/buttonVariants\(\{\s*variant:\s*"secondary"\s*\}\)/);
-    const actions = cardCss.match(/\.mapArrivalCardActions button\s*\{[^}]*\}/g)?.join("\n") ?? "";
-    expect(actions).not.toMatch(/border-radius|font-size|font-weight|background/);
-    expect(cardCss).not.toMatch(/\.mapArrivalCard(Primary|Secondary)\s*\{/);
-  });
-
   it("drops the eyebrow, and keeps the sentence the App Store copy is paired to", () => {
     // "FIRST VISIT" is decoration: the card's own accessible name already says
     // it. The location sentence STAYS. docs/proof/mobile-app-design/

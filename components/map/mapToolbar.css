@@ -677,11 +677,8 @@ html[data-theme="dark"] .drinkShapeChipLabel {
     height: 44px;
     min-width: 4.25rem;
     padding: 0 12px;
-    font-size: 0.78rem;
-    font-weight: 900;
     line-height: 1;
     flex: 0 0 auto;
-    box-shadow: 0 6px 14px color-mix(in srgb, var(--brass) 28%, transparent);
     box-sizing: border-box;
   }
 

@@ -554,6 +554,30 @@ for (const surface of FAMILY_SURFACES) {
   });
 }
 
+// "Pick an area instead" follows the manual prompt in the get-there column, so
+// as a ghost it may not step its label 16px in from the prompt's text edge.
+for (const width of [390, 1440] as const) {
+  test(`${width}px: /today keeps the area action's label on the prompt's edge`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width > 640 ? 900 : 844 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await setTheme(page, "light");
+    await page.goto("/today");
+    const action = page.locator(".todayGetThere > .todayTextButton");
+    await expect(action).toBeVisible();
+    const delta = await page.evaluate(() => {
+      const contentLeft = (element: Element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        return range.getBoundingClientRect().left;
+      };
+      const prompt = document.querySelector(".todayGetThere > .todayManualPrompt")!;
+      const button = document.querySelector(".todayGetThere > .todayTextButton")!;
+      return contentLeft(button) - contentLeft(prompt);
+    });
+    expect(Math.abs(delta)).toBeLessThanOrEqual(1);
+  });
+}
+
 // (8) /activity at 1440: the sign-in form sat 112px in from the heading it
 // answers (heading x 180, form x 292), because the form's own column centres
 // itself inside the empty state.
