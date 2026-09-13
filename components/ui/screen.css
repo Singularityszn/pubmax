@@ -98,11 +98,14 @@
   gap: var(--space-2) var(--space-5);
 }
 
-/* The quieter way onward reads as a link, not as a second button. */
+/* The quieter way onward reads as a link, not as a second button. A one-word
+   door ("Back") is narrower than a thumb, so the box is 44 px each way; the
+   words stay at the start edge, so they still line up with the heading. */
 .screenSecondary > :is(a, button) {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  min-width: 44px;
   min-height: 44px;
   padding: 0;
   border: 0;
