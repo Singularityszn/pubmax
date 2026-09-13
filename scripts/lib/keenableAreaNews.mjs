@@ -49,6 +49,7 @@ const AREA_BOROUGH_BY_SLUG = new Map(Object.entries({
   brixton: "lambeth",
   streatham: "lambeth",
   peckham: "southwark",
+  bermondsey: "southwark",
   camberwell: "southwark",
   dulwich: "southwark",
   "tulse-hill": "lambeth",
