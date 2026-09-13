@@ -419,10 +419,11 @@
 
   /* The nights stack; the ROWS inside one night take the two columns. A
      two-column surface put Tonight in the left half and left the right half
-     of the page empty on every single-night chip. */
+     of the page empty on every single-night chip. The surface keeps the
+     column the section title and the day chips use: a narrower centred box
+     set the honest line, the block heading and every row 28px in from the
+     title above them at 1440. */
   .outListingSurface {
-    max-width: 1120px;
-    margin-inline: auto;
     row-gap: 28px;
   }
 

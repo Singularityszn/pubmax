@@ -199,12 +199,14 @@ describe("out listing grouping", () => {
     expect(OUT_LISTING_VENUE_BADGE_LABEL).not.toMatch(/\bpub\b|\bvenue\b/i);
   });
 
-  it("keeps desktop listing columns balanced inside a centred surface", () => {
+  it("keeps desktop listing columns balanced on the section title's own edge", () => {
     const css = readFileSync(join(process.cwd(), "app/out/out.css"), "utf8");
     const desktop = css.match(/@media \(min-width: 1024px\) \{([\s\S]*)/)?.[1] ?? "";
-    expect(desktop).toMatch(
-      /\.outListingSurface\s*\{[^}]*max-width:\s*1120px;[^}]*margin-inline:\s*auto;/,
-    );
+    // A narrower centred surface set the honest line, the block heading and
+    // every row 28px in from "What's on tonight" at 1440 (13 Sep 2026).
+    const surface = desktop.match(/\.outListingSurface\s*\{([^}]*)\}/)?.[1];
+    expect(surface).toBeDefined();
+    expect(surface).not.toMatch(/max-width|margin-inline/);
     // The nights stack and the ROWS take the two columns: a two-column surface
     // left half the page empty whenever one chip held one night.
     expect(desktop).toMatch(
