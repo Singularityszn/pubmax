@@ -174,6 +174,57 @@ export function releasePromptBudget(surface: PromptSurface, storage?: Storage | 
   }
 }
 
+// ONE PROMPT CLAIMS THE FOOT OF THE SCREEN AT A TIME, AND SOME ROUTES ALREADY
+// USE IT. Site audit 13 Sep 2026 (D3): on the phone map the analytics card was
+// lifted above "Describe the outing", so the top chrome, the card, the pill and
+// the dock took 38 percent of the map. The map's own foot is its answer, so an
+// interruptive prompt waits for the next route there. A wait is not a claim and
+// a stand-down is not a release: the slot stays unspent, or stays with the
+// surface that already spent it, and that surface comes back on the next route
+// that does not own its foot.
+
+/** Route families whose own chrome owns the foot of the screen. */
+const SCREEN_FOOT_ROUTE_FAMILIES = ["/map"] as const;
+
+/**
+ * Whether the page at `pathname` owns the foot of the screen, so no prompt may
+ * claim it there. A pathname we cannot read answers false, which is how every
+ * other route behaves.
+ */
+export function routeOwnsScreenFoot(pathname: string | null | undefined): boolean {
+  if (typeof pathname !== "string") return false;
+  const path = pathname.split(/[?#]/)[0].replace(/\/+$/, "");
+  if (path === "") return false;
+  return SCREEN_FOOT_ROUTE_FAMILIES.some(
+    (family) => path === family || path.startsWith(`${family}/`),
+  );
+}
+
+/** `hasPromptBudgetFor`, refused on a route that owns the screen foot. */
+export function hasScreenFootFor(
+  surface: PromptSurface,
+  pathname: string | null | undefined,
+  storage?: Storage | null,
+  consentStorage?: Storage | null,
+): boolean {
+  if (routeOwnsScreenFoot(pathname)) return false;
+  return hasPromptBudgetFor(surface, storage, consentStorage);
+}
+
+/**
+ * `claimPromptBudget`, refused on a route that owns the screen foot. The refusal
+ * writes nothing, so the session's one slot is still there on the next route.
+ */
+export function claimScreenFoot(
+  surface: PromptSurface,
+  pathname: string | null | undefined,
+  storage?: Storage | null,
+  consentStorage?: Storage | null,
+): boolean {
+  if (routeOwnsScreenFoot(pathname)) return false;
+  return claimPromptBudget(surface, storage, consentStorage);
+}
+
 /**
  * Subscribe to budget changes (same-tab writes + cross-tab `storage`). For
  * `useSyncExternalStore` in prompt clients that want to re-evaluate when a

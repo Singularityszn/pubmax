@@ -34,6 +34,10 @@ async function prepareFirstVisit(page: Page): Promise<ObservedIngest[]> {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // THE CARD WAITS FOR THE PRODUCT TO ANSWER (lib/consentAnswerMoment.ts).
+    // These cases are about what the choice DOES, so the answer that ends the
+    // wait is seeded; e2e/consent-after-first-answer.spec.ts owns the wait.
+    window.sessionStorage.setItem("pubmax:consent-answer-moment:v1", "venue-sheet");
   });
   page.on("request", (request) => {
     if (new URL(request.url()).pathname.startsWith("/ingest/")) {
@@ -58,7 +62,7 @@ test("declining is remembered and sends nothing", async ({ page }) => {
 
   const prompt = page.getByLabel("Anonymous analytics choice");
   await expect(prompt).toBeVisible();
-  await expect(prompt.getByText("PUBMAXXING uses optional analytics")).toBeVisible();
+  await expect(prompt.getByText("PUBMAXX optional analytics")).toBeVisible();
 
   for (const name of ["Allow", "No thanks"]) {
     const button = prompt.getByRole("button", { name, exact: true });
@@ -162,27 +166,23 @@ test("rechecks consent when another prompt releases the budget", async ({ page }
   await expect(prompt).toBeVisible();
 });
 
-test("map prompt leaves the primary planning control usable", async ({ page }) => {
+// The map owns the foot of the screen (routeOwnsScreenFoot in
+// lib/promptBudget.ts): an answered, undecided reader meets no card there, so
+// nothing stands between them and the planning control, and the session's one
+// prompt slot is still unspent for the next route.
+test("the map asks nothing and leaves the primary planning control usable", async ({ page }) => {
   test.setTimeout(60_000);
   await prepareFirstVisit(page);
   await page.goto("/map", { waitUntil: "domcontentloaded" });
 
   const prompt = page.getByLabel("Anonymous analytics choice");
   const planControl = page.getByRole("button", { name: "Describe the outing" });
-  await expect(prompt).toBeVisible();
   await expect(planControl).toBeVisible({ timeout: 30_000 });
-
-  const promptBox = await prompt.boundingBox();
-  const controlBox = await planControl.boundingBox();
-  expect(promptBox).not.toBeNull();
-  expect(controlBox).not.toBeNull();
+  await page.waitForTimeout(1_000);
+  await expect(prompt).toHaveCount(0);
   expect(
-    Math.max(
-      0,
-      Math.min(promptBox!.y + promptBox!.height, controlBox!.y + controlBox!.height)
-        - Math.max(promptBox!.y, controlBox!.y),
-    ),
-  ).toBe(0);
+    await page.evaluate(() => window.sessionStorage.getItem("pubmax:prompt-budget:v1")),
+  ).toBeNull();
 
   await planControl.click();
   await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible();

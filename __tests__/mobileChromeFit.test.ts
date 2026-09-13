@@ -70,11 +70,11 @@ describe("mobile chrome fit at 390px", () => {
     expect(buttons).toMatch(/min-height:\s*44px/);
     expect(buttons).toMatch(/background:\s*var\(--panel\)/);
     expect(globalCss).not.toMatch(/\.analyticsConsentPromptActions button:first-child/);
-    expect(globalCss).toMatch(
-      /body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt\s*{[^}]*bottom:\s*calc\(var\(--mobile-map-dock-clearance\) \+ 86px\)/,
-    );
-    expect(globalCss).toMatch(
-      /body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt\s*{[^}]*box-shadow:\s*none/,
+    // The card no longer renders on the map family (routeOwnsScreenFoot in
+    // lib/promptBudget.ts, site audit 13 Sep 2026 D3), so there is no berth
+    // lifting it above Describe the outing to stack on the map's own foot.
+    expect(globalCss).not.toMatch(
+      /body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt\s*{/,
     );
     // PR #1017 removed map-only consent action overrides. Map activation now
     // inherits the same full-size, equal choice controls as every mobile page.

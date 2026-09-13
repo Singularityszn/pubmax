@@ -266,7 +266,7 @@ describe("native first-run consent placement", () => {
   it("publishes the consent lane once so the surface does not restate it", () => {
     const roots = rootVariables();
     expect(roots.get("--analytics-consent-clearance")).toBe("72px");
-    expect(roots.get("--analytics-consent-mobile-clearance")).toBe("128px");
+    expect(roots.get("--analytics-consent-mobile-clearance")).toBe("56px");
 
     // The first-run surface must READ those, never carry its own copy.
     const lane = rootVariables(PHONE_MEDIA).get("--first-run-consent-lane") ?? "";

@@ -240,9 +240,16 @@ body:has(.mobileMapUtilityCorner) {
     bottom: 0;
     /* Above map sheets; below modal/dialog layers. */
     z-index: var(--z-tabbar);
+    /* THE STRIP UNDER THE PILL IS THE DOCK'S OWN. Site audit 13 Sep 2026
+       (D19): in the iOS shell the dock sat 34px up on the home-indicator inset
+       over an 88 percent gradient, and page content showed through the strip
+       beneath it. The paper is solid from the bottom edge to the pill's middle
+       (6px + the inset + half the 50px pill) and fades above that, so the
+       pill's top half still floats and nothing of the page reads under it. */
     background: linear-gradient(
       to top,
-      color-mix(in srgb, var(--paper) 88%, transparent),
+      var(--paper) 0,
+      var(--paper) calc(31px + env(safe-area-inset-bottom, 0px)),
       transparent
     );
     /* 6px base clearance + the home-indicator inset, so the pill never reads
@@ -408,14 +415,6 @@ body:has(.mobileMapUtilityCorner) {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .mobileTabPreviewDot {
-    flex: 0 0 auto;
-    width: 0.35rem;
-    height: 0.35rem;
-    border-radius: 50%;
-    background: var(--brass, currentcolor);
   }
 
   /* Idle tabs share one quiet ink — no rainbow per-slot hues that fight dark mode. */

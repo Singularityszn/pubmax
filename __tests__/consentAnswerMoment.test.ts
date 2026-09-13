@@ -187,7 +187,7 @@ describe("the card waits for that answer", () => {
     // Claiming the session's one interruptive slot during the wait would hold
     // it open and starve whichever surface is genuinely next.
     const gate = prompt.indexOf("if (!hasAnsweredThisSession())");
-    const claim = prompt.indexOf("claimPromptBudget(ANALYTICS_CONSENT_PROMPT_SURFACE)");
+    const claim = prompt.indexOf("claimScreenFoot(ANALYTICS_CONSENT_PROMPT_SURFACE");
     expect(gate).toBeGreaterThan(-1);
     expect(claim).toBeGreaterThan(gate);
   });

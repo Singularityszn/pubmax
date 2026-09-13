@@ -29,18 +29,25 @@ test.describe("map filters sheet and bottom navigation", () => {
     await expect(sheet).toHaveCount(0);
   });
 
-  test("analytics consent stays hidden behind an open filters sheet", async ({ page }) => {
+  // The map owns the foot of the screen (lib/promptBudget.ts), so an undecided
+  // reader who has already been answered still meets no consent card here, with
+  // the filters sheet closed or open. e2e/first-run-chrome-share.spec.ts owns
+  // the ask arriving on the next route.
+  test("analytics consent stays off the map, before and behind an open filters sheet", async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
+      window.sessionStorage.setItem("pubmax:consent-answer-moment:v1", "venue-sheet");
     });
     await page.goto("/map");
 
     const consent = page.locator(".analyticsConsentPrompt");
-    await expect(consent).toBeVisible();
+    await expect(page.getByRole("button", { name: /Filters/i })).toBeVisible();
+    await page.waitForTimeout(1_000);
+    await expect(consent).toHaveCount(0);
 
     await page.getByRole("button", { name: /Filters/i }).click();
     await expect(page.locator('.mobileSheetPortal[data-sheet-kind="filters"]')).toBeVisible();
 
-    await expect(consent).toBeHidden();
+    await expect(consent).toHaveCount(0);
   });
 });
