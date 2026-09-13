@@ -52,8 +52,7 @@ const sheetCss = readFileSync(
 function phoneRules(selector: string): string[] {
   const bodies: string[] = [];
   const media = /@media \(max-width: (640|430)px\)\s*{/g;
-  let match: RegExpExecArray | null;
-  while ((match = media.exec(sheetCss))) {
+  while (media.exec(sheetCss) !== null) {
     let depth = 1;
     let index = media.lastIndex;
     while (depth > 0 && index < sheetCss.length) {

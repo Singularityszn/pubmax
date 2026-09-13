@@ -264,7 +264,15 @@
    placeholder they painted a gradient band that read as an image that had
    failed to load; the placeholder keeps the flat surface venueImage.css
    gives it. */
+/* A pub with no photo gets a ROW, not a picture-sized box. The 16:9 frame drew
+   a 220px "No photo yet" panel on a 390px phone, the largest thing on the sheet
+   of a pub with nothing to show (site audit 13 Sep 2026, D10). */
 .venueBaselinePhoto.venueImage--empty {
+  aspect-ratio: auto;
+  height: 56px;
+  min-height: 0;
+  padding: 0 1rem;
+  border-radius: var(--radius);
   background: var(--panel, var(--paper));
   box-shadow: none;
 }
@@ -406,8 +414,8 @@
 }
 
 /* The portal sheet's own header (.mobileSharedSheetHeader > h2) already shows
-   the venue name as the centred sheet title, so the in-panel "Venue Detail"
-   eyebrow and the duplicate <h3> name are redundant there — the name rendered
+   the venue name as the centred sheet title, so the in-panel area and kind
+   kicker and the duplicate <h3> name are redundant there — the name rendered
    twice, once in the sheet header and once in the panel. Trim both on the
    portal path ONLY: the desktop legacy drawer has no titled head, so its
    unscoped .inspectorTitle + <h3> stay the single source of the name. Scoped to
@@ -651,24 +659,23 @@
    user's font size instead of clipping. */
 @media (max-width: 640px) {
   .venueTabs {
-    /* EVERY SECTION IS ON SCREEN. The strip used to scroll sideways under a
-       fade, and on a 390px phone the seventh tab (Train) sat at x 368 to 412,
-       past the viewport edge, while a 320px phone hid Lore, Ask and Train
-       (measured 5 Sep 2026: scrollWidth 379 against a clientWidth of 318 and
-       248). A hidden tab is a section a reader cannot find. Seven word-tabs
-       cannot share one 248px row, so the strip WRAPS: two rows of the same
-       pills, no overflow, no fade, and large text wraps to a third rather than
-       clipping. The trailing-edge fade and its hook stay for the widths that
-       still scroll. */
-    flex-wrap: wrap;
+    /* EVERY SECTION IS ON SCREEN, IN ONE ROW. The strip used to scroll
+       sideways under a fade, which hid the last tabs past the edge (5 Sep
+       2026), and then wrapped seven tabs into two rows of a 98px strip on a
+       390px phone (site audit 13 Sep 2026, D10). Five tabs now share the row in
+       equal cells, so nothing hangs past the edge and nothing needs a second
+       row. The row never scrolls. */
     max-height: none;
-    overflow-x: visible;
-    overflow-y: visible;
+    overflow: hidden;
   }
 
   .venueTab {
+    flex: 1 1 0;
+    min-width: 0;
     min-height: 2.75rem;
     height: auto;
+    justify-content: center;
+    text-align: center;
   }
 }
 
@@ -1066,18 +1073,10 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   font-variant-numeric: tabular-nums;
 }
 
-#venuePanel-getting-home {
-  border-color: color-mix(in srgb, var(--river) 30%, var(--line));
-  background:
-    radial-gradient(
-      280px 150px at 100% 0%,
-      color-mix(in srgb, var(--river) 9%, transparent),
-      transparent 70%
-    ),
-    var(--panel-raised);
-}
-
-#venuePanel-getting-home > section {
+/* The getting-home fold on the Overview (it was the seventh tab, D10). The fold
+   itself wears the same plain disclosure as "Details and practical info"; the
+   river tint stays on the transport cards inside it. */
+.venueGettingHomeBody > section {
   --line: color-mix(in srgb, var(--river) 36%, var(--line-soft));
   --panel-raised: color-mix(in srgb, var(--river) 7%, var(--paper));
 

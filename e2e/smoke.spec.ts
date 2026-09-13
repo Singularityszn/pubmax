@@ -364,12 +364,15 @@ test("mobile venue sheet reaches Train, holds no price action in the strip, and 
   const stickyActions = sheetFooter.getByRole("toolbar", { name: "Venue actions" });
   await expect(stickyActions).toBeVisible();
 
-  // The tab row is the single Train entry point (the sticky strip holds
-  // actions, not navigation — owner-reported duplicate removed).
-  const gettingHomeTab = page.getByRole("tab", { name: "Last train", exact: true });
-  await gettingHomeTab.click();
-  await expect(gettingHomeTab).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#venuePanel-getting-home")).toBeVisible();
+  // The Overview's getting-home fold is the single Train entry point (the
+  // sticky strip holds actions, not navigation — owner-reported duplicate
+  // removed). Back to a content tab after, so the sheet is full again.
+  await page.getByRole("tab", { name: "Overview", exact: true }).click();
+  const gettingHome = page.locator("#venueSection-getting-home");
+  await gettingHome.locator("summary").click();
+  await expect(gettingHome).toHaveAttribute("open", "");
+  await page.getByRole("tab", { name: "Stories", exact: true }).click();
+  await expect(sheet).toHaveClass(/sheet-full/);
 
   // Full snap prioritises the scroll body. Collapse through the real detent
   // control before using the footer command bar, proving the mobile action is

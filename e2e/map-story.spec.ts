@@ -210,8 +210,6 @@ test.describe("map / venue sheet tabs", () => {
       ["Photos", "venuePanel-photos"],
       ["Drinks", "venuePanel-menu"],
       ["Lore", "venuePanel-story"],
-      ["Ask", "venuePanel-ask"],
-      ["Last train", "venuePanel-getting-home"],
     ] as const) {
       const tab = tablist.getByRole("tab", { name: label, exact: true });
       await expect(tab).toBeVisible();
@@ -245,11 +243,11 @@ test.describe("map / venue sheet tabs", () => {
     await expect(overviewTab).toBeFocused();
 
     // Wrap-around: ArrowLeft from the first tab (Overview) wraps to the last
-    // (Last train).
+    // (Lore).
     await overviewTab.click();
     await page.keyboard.press("ArrowLeft");
-    const gettingHomeTab = tablist.getByRole("tab", { name: "Last train", exact: true });
-    await expect(gettingHomeTab).toHaveAttribute("aria-selected", "true");
+    const loreTab = tablist.getByRole("tab", { name: "Lore", exact: true });
+    await expect(loreTab).toHaveAttribute("aria-selected", "true");
   });
 
   test("the community-price freshness note renders when a contributor price exists, and Overview stays well-formed when absent", async ({

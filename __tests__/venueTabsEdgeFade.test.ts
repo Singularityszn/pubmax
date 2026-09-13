@@ -80,17 +80,19 @@ describe("B1 - the venue tab strip fades only what is really hidden", () => {
     for (const width of widths) expect(width).toBe(TRAILING_EDGE_FADE_PX);
   });
 
-  it("wraps the strip on a phone, so every tab is on screen and nothing hides past the edge", () => {
+  it("keeps every phone tab in one row, so nothing hides past the edge or wraps", () => {
     // verify-preview-4, section 6 (5 Sep 2026): at 390 the seventh tab sat at
-    // x 368 to 412, past the viewport, and 320 hid three. The ≤640 block wraps
-    // the strip; e2e/venue-tabs-fit.spec.ts reads the rendered boxes.
+    // x 368 to 412, past the viewport, and 320 hid three. The wrap that fixed
+    // it drew two rows (site audit 13 Sep 2026, D10). Five tabs now share one
+    // row in equal cells, and the strip does not scroll;
+    // e2e/mobile-venue-sheet-tabs.spec.ts reads the rendered boxes.
     const phoneBlocks = [...sheetCss.matchAll(/@media \(max-width: 640px\)\s*{([\s\S]*?)\n}/g)].map((m) => m[1]!);
-    const wraps = phoneBlocks.some((block) =>
-      /\.venueTabs\s*{[^}]*flex-wrap:\s*wrap/.test(block),
+    const shares = phoneBlocks.some((block) =>
+      /\.venueTab\s*{[^}]*flex:\s*1 1 0/.test(block),
     );
-    expect(wraps).toBe(true);
+    expect(shares).toBe(true);
     for (const block of phoneBlocks) {
-      expect(block).not.toMatch(/\.venueTabs\s*{[^}]*flex-wrap:\s*nowrap/);
+      expect(block).not.toMatch(/\.venueTabs\s*{[^}]*flex-wrap:\s*wrap/);
     }
   });
 });

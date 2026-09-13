@@ -31,8 +31,6 @@ export function useInspectorTabs(
     pints: null,
     menu: null,
     story: null,
-    ask: null,
-    "getting-home": null,
   });
 
   const selectTab = useCallback(

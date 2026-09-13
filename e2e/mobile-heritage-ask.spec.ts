@@ -3,7 +3,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 const VIEWPORT = { width: 390, height: 844 };
 const STORY_VENUE_ID = "venue-xiesdn"; // The Dog & Duck, Soho — has shipped heritage facts.
 
-const TAB_LABELS = ["Overview", "Drinks", "Stories", "Lore", "Ask", "Last train"] as const;
+const TAB_LABELS = ["Overview", "Photos", "Drinks", "Stories", "Lore"] as const;
 
 test.setTimeout(120_000);
 
@@ -91,11 +91,9 @@ test("mobile venue Lore and Ask surfaces stay reachable and thumb-safe keyless",
   );
   await expectNoPageHorizontalOverflow(page);
 
-  const askTab = tablist.getByRole("tab", { name: "Ask", exact: true });
-  await askTab.scrollIntoViewIfNeeded();
-  await askTab.click();
-
-  const askPanel = page.locator("#venuePanel-ask");
+  // Ask is a section of Lore now, not a tab (site audit 13 Sep 2026, D10).
+  const askPanel = storyPanel.locator("#venueSection-ask");
+  await askPanel.scrollIntoViewIfNeeded();
   await expect(askPanel).toBeVisible();
   await expectNoPageHorizontalOverflow(page);
 
