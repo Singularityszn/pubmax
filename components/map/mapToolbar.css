@@ -243,10 +243,6 @@
   display: flex;
 }
 
-.mapToolbarDrinksLens {
-  display: none;
-}
-
 .drinkShapeChips {
   display: flex;
   flex-wrap: nowrap;
@@ -677,10 +673,6 @@ html[data-theme="dark"] .drinkShapeChipLabel {
 
   .planBtnShort {
     display: inline;
-  }
-
-  .mapToolbarDrinksLens {
-    display: block;
   }
 
   .drinkShapeChip {

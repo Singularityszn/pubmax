@@ -19,6 +19,15 @@ async function expectTapTarget(locator: Locator, label: string): Promise<void> {
   expect(box.height, `${label} height`).toBeGreaterThanOrEqual(44);
 }
 
+// A tap that lands before React attaches is dropped, so the tap is retried
+// until the control says it is open (same idiom as e2e/plan-invite.spec.ts).
+async function openDisclosure(trigger: Locator): Promise<void> {
+  await expect(async () => {
+    if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click();
+    await expect(trigger).toHaveAttribute("aria-expanded", "true", { timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+}
+
 test.setTimeout(90_000);
 
 test("desktop map camera and favourite-pint controls meet the tap floor", async ({ page }) => {
@@ -28,11 +37,16 @@ test("desktop map camera and favourite-pint controls meet the tap floor", async 
   expect(response?.status()).toBe(200);
 
   await expect(page.locator(".mapToolbar")).toBeVisible({ timeout: 45_000 });
+  // Since #1631 the arrival row carries eight controls. The pint brand moved
+  // behind the control that names the drink, and Show all moved into the
+  // Layers popover, so each is measured in the home a reader opens.
+  await openDisclosure(page.getByRole("button", { name: "Drink: Pints" }));
   await expectTapTarget(
-    page.locator(".mapToolbarDesktopExtras .favoritePintControl"),
+    page.locator(".mapToolbarDrinks .favoritePintControl"),
     "favourite pint control",
   );
-  await expectTapTarget(page.locator(".mapFitLondonBtn"), "map fit control");
+  await openDisclosure(page.locator(".mapLayersFab"));
+  await expectTapTarget(page.locator(".mapLayersPanel .mapFitLondonBtn"), "map fit control");
 });
 
 test("existing Last Train destinations keep Cancel at the tap floor", async ({ page }) => {

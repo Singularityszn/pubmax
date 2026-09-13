@@ -12,8 +12,10 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 const toolbarSource = read("components/map/MapToolbar.tsx");
+const toolbarCss = read("components/map/mapToolbar.css");
 const kindFilterSource = read("components/map/MapVenueKindFilter.tsx");
 const layersSource = read("components/map/MapLayersControl.tsx");
+const layersCss = read("components/map/mapLayersControl.css");
 const canvasSource = read("components/PubMapCanvas.tsx");
 const bannerStagingCss = read("components/map/mapBannerStaging.css");
 const chipsSource = read("components/map/TonightArcChips.tsx");
@@ -28,6 +30,14 @@ describe("the toolbar row carries the arrival set only", () => {
 
   it("hands the drink filters to the control that already names the drink", () => {
     expect(toolbarSource).not.toContain("mapToolbarDrinksBtn");
+  });
+
+  it("shows the pint-brand slot in the drink lane's panel at every width", () => {
+    // The panel's slot kept a desktop `display: none` from when the row carried
+    // its own brand copy. Once that copy moved into the panel, a reader from
+    // 641px up opened Drink and met no brand picker at all.
+    expect(toolbarSource).toContain('className="mapToolbarDrinksLens"');
+    expect(toolbarCss).not.toMatch(/\.mapToolbarDrinksLens\s*\{\s*display:\s*none/);
   });
 
   it("keeps its own weather chip off the map", () => {
@@ -53,6 +63,17 @@ describe("the camera actions live in the Layers popover", () => {
     // Both are inside the Layers popover instead.
     expect(canvasSource).toContain("cameraActions={mapViewActions}");
     expect(layersSource).toContain("cameraActions");
+  });
+
+  it("keeps both at the 44px tap floor they had on the map edge", () => {
+    // The popover's layout rule set 40px, below the floor the map edge held
+    // (e2e/qa-button-sizing.spec.ts measures Show all in the open popover).
+    const viewActions =
+      layersCss.match(
+        /\.mapLayersView \.mapFitLondonBtn,\s*\.mapLayersView \.mapCompassBtn\s*\{([^}]*)\}/,
+      )?.[1] ?? "";
+    expect(viewActions).not.toBe("");
+    expect(viewActions).toMatch(/min-height:\s*44px/);
   });
 });
 

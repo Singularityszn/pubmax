@@ -363,12 +363,13 @@
 }
 
 /* Both actions sit in a row here rather than in the map-edge column, so their
-   own stylesheet's stacking geometry does not apply. */
+   own stylesheet's stacking geometry does not apply. The 44px tap floor they
+   held on the map edge still does. */
 .mapLayersView .mapFitLondonBtn,
 .mapLayersView .mapCompassBtn {
   position: static;
   width: auto;
-  min-height: 40px;
+  min-height: 44px;
   flex: 0 0 auto;
 }
 
