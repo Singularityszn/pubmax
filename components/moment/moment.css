@@ -45,8 +45,11 @@
 /* The head is the shared Screen primitive (components/ui/screen.css) and the
    main is the Screen itself. The column keeps its width and its top padding,
    so the head pays none of its own. */
+/* The column is inset by the shared page gutter at every width. The phone rule
+   below used to take 12px a side where every other route takes 22px at 390
+   (site audit 13 Sep 2026, D15). */
 .momentPage .momentMain {
-  width: min(760px, calc(100% - 32px));
+  width: min(760px, calc(100% - 2 * var(--page-gutter, 22px)));
   margin: 0 auto;
   padding: clamp(48px, 8vw, 96px) 0 120px;
 }
@@ -285,7 +288,7 @@
 .momentSaved a:first-child { border-color: var(--brass); background: var(--brass); color: var(--color-on-accent); }
 
 @media (max-width: 640px) {
-  .momentPage .momentMain { width: min(100% - 24px, 760px); padding-top: 32px; }
+  .momentPage .momentMain { padding-top: 32px; }
   .momentIntent { grid-template-columns: 1fr; }
   .momentComposer { padding: 12px; border-radius: 18px; }
   .momentMediaGrid { grid-template-columns: 1fr 1fr; }

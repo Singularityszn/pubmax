@@ -66,34 +66,16 @@
   color: var(--ink-soft);
 }
 
+/* The Button primitive's ghost paints this action; the sheet only places it
+   (same rule as today.css, because /tonight loads this sheet alone). */
 .todayTextButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 44px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ink-soft);
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-decoration: none;
-  cursor: pointer;
+  align-self: flex-start;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
-.todayTextButton:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-  border-radius: var(--control-radius, 14px);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .todayTextButton:hover {
-    color: var(--brass);
-  }
+.todayTextButton:first-child {
+  margin-inline-start: calc(-1 * var(--control-pad-x, 16px));
 }
 
 .todayProvChip {
