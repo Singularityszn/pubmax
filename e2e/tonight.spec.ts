@@ -713,37 +713,42 @@ test("desktop Tonight seats the quiet-night blocks in the rail beside the lede",
     await expect(rail.getByTestId("tonight-soft-plans")).toBeVisible();
   }
 
-  // Read from the DOM: the editorial wrapper and the soft plans can have no
-  // height, or be absent, on a run with no editorial items or no quiet hour.
+  // Read from the DOM. In the rail the editorial wrapper contributes no box,
+  // so the editorial rail is read through its own first child, which is
+  // absent in a week with no editorial items. The soft plans are absent
+  // outside a quiet hour.
   const boxes = await page.evaluate(() => {
-    const rect = (selector: string) => {
-      const el = document.querySelector(selector);
+    const rect = (el: Element | null) => {
       if (!el) return null;
-      const { left, right, top, bottom } = el.getBoundingClientRect();
-      return { left, right, top, bottom };
+      const { left, right, top, bottom, height } = el.getBoundingClientRect();
+      return { left, right, top, bottom, height };
     };
     return {
-      head: rect(".screenHead"),
-      lede: rect('[data-testid="tonight-lede"]'),
-      rail: rect("aside.tonightContext"),
-      vibes: rect(".tonightVibes"),
-      editorial: rect(".tonightEditorial"),
-      softPlans: rect('[data-testid="tonight-soft-plans"]'),
+      head: rect(document.querySelector(".screenHead")),
+      lede: rect(document.querySelector('[data-testid="tonight-lede"]')),
+      rail: rect(document.querySelector("aside.tonightContext")),
+      vibes: rect(document.querySelector(".tonightVibes")),
+      editorial: rect(document.querySelector(".tonightEditorial > *")),
+      softPlans: rect(document.querySelector('[data-testid="tonight-soft-plans"]')),
     };
   });
   const { head, lede, rail: railBox, vibes, editorial, softPlans } = boxes;
-  expect(head && lede && railBox && vibes && editorial).toBeTruthy();
-  if (!head || !lede || !railBox || !vibes || !editorial) return;
+  expect(head && lede && railBox && vibes).toBeTruthy();
+  if (!head || !lede || !railBox || !vibes) return;
   // Beside the lede, not under it, and level with the head.
   expect(railBox.left).toBeGreaterThanOrEqual(lede.right);
-  expect(editorial.left).toBeGreaterThanOrEqual(lede.right);
   expect(railBox.top).toBeLessThan(head.bottom);
   // THE RAIL HAS NO GAP. A rail split around the column opened about 1,000px
-  // of empty rail beside the lede, the defect D8 was filed for. Each block
-  // follows the one before it at the rail's own rhythm.
-  expect(editorial.top - vibes.bottom).toBeLessThan(60);
+  // of empty rail beside the lede, the defect D8 was filed for, and an empty
+  // editorial wrapper once doubled the rail's 28px rhythm. Each block follows
+  // the one before it at that rhythm.
+  const afterVibes = editorial && editorial.height > 0 ? editorial : null;
+  if (afterVibes) {
+    expect(afterVibes.left).toBeGreaterThanOrEqual(lede.right);
+    expect(afterVibes.top - vibes.bottom).toBeLessThan(40);
+  }
   if (softPlans) {
-    expect(softPlans.top - editorial.bottom).toBeLessThan(60);
+    expect(softPlans.top - (afterVibes ?? vibes).bottom).toBeLessThan(40);
   }
   // The rail never pushes the lede down. Only the weather line may stand
   // between the head and the lede.

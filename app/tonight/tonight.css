@@ -889,6 +889,14 @@
     padding-top: var(--space-3);
   }
 
+  /* The editorial wrapper is a plain block on a phone, where it marks the
+     editorial rail's place in the column. In the rail it contributes no box,
+     so a week with no editorial items adds no empty flex item and no second
+     28px gap between the vibe chips and the soft plans. */
+  .tonightContext > .tonightEditorial {
+    display: contents;
+  }
+
   /* The rail's gap is its only rhythm, so a block keeps none of the column
      margins it wears on a phone, and neither does the editorial rail inside
      its wrapper. */
