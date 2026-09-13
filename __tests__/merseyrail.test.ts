@@ -12,7 +12,6 @@ import {
   lastRideApiPath,
   lastRideFetchUrl,
   lastRideProviderForCity,
-  lastRideTabLabel,
 } from "@/lib/lastRide";
 
 beforeEach(() => {
@@ -32,7 +31,6 @@ describe("lastRide routing (Liverpool)", () => {
     expect(lastRideFetchUrl("liverpool", 53.41, -2.98)).toBe(
       "/api/last-merseyrail?lat=53.41&lng=-2.98",
     );
-    expect(lastRideTabLabel("Last Train")).toBe("Train");
   });
 });
 

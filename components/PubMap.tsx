@@ -248,6 +248,7 @@ const ActiveRoundChip = dynamic(() => import("@/components/map/ActiveRoundChip")
   ssr: false,
 });
 import type { TabKey } from "@/components/map/VenueInspector";
+import type { VenueTabRequest } from "@/lib/venueInspectorTabs";
 import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
 // The panel is its own chunk, and on a throttled phone that chunk lands seconds
 // after the sheet opens. Without a fallback the sheet held the peek summary
@@ -1364,7 +1365,8 @@ export default function PubMap({
   }, [selectionNotice]);
   const [acceptanceError, setAcceptanceError] = useState<string | null>(null);
   const preSheetFocusRef = useRef<HTMLElement | null>(null);
-  const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("overview");
+  const [venueInitialTab, setVenueInitialTab] = useState<VenueTabRequest>("overview");
+  const [gettingHomeRequestId, setGettingHomeRequestId] = useState(0);
   const [filters, setFilters] = useState<Filters>(restoredSession.filters);
   // First-party Wetherspoon directory for Open now hours. Loaded once; match is
   // name+distance only and never invents hours for unmatched pubs.
@@ -3101,7 +3103,7 @@ export default function PubMap({
   const selectVenue = useCallback(
     (
       id: string,
-      initialTab: TabKey = "overview",
+      initialTab: VenueTabRequest = "overview",
     ) => {
       if (!id) return;
       setArrivalSelectionNotice(null);
@@ -3141,6 +3143,7 @@ export default function PubMap({
       setMapOverlay("none");
       claimMapDrawer("venue");
       setVenueInitialTab(initialTab);
+      if (initialTab === "getting-home") setGettingHomeRequestId((current) => current + 1);
       setSelectedVenueId(id);
       closeComposer();
       const reducedMotion = venueRevealPrefersReducedMotion();
@@ -4664,7 +4667,7 @@ export default function PubMap({
       const held = entry.state ?? EMPTY_MAP_SURFACE_STATE;
       if (entry.id === "venue") {
         // Restore the tab the reader left on, not the overview default.
-        setVenueInitialTab((held.venueTab || "overview") as TabKey);
+        setVenueInitialTab((held.venueTab || "overview") as VenueTabRequest);
         setSelectedVenueId(held.venueId);
         return;
       }
@@ -5282,6 +5285,7 @@ export default function PubMap({
           onAcceptStop1={selectedVenueIsPub ? acceptStop1 : undefined}
           acceptanceError={acceptanceError}
           initialTab={venueInitialTab}
+          gettingHomeRequestId={gettingHomeRequestId}
           pintDrops={pintDrops}
           communityPrices={communityPrices}
           experienceLens={experienceLens}

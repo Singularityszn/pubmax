@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/last-subway/route";
-import { lastRideApiPath, lastRideFetchUrl, lastRideTabLabel } from "@/lib/lastRide";
+import { lastRideApiPath, lastRideFetchUrl } from "@/lib/lastRide";
 import {
   computeSptSubwayLastRide,
   loadSptSubwayStations,
@@ -26,7 +26,6 @@ describe("lastRide routing (Glasgow)", () => {
     expect(lastRideFetchUrl("glasgow", 55.86, -4.25)).toBe(
       "/api/last-subway?lat=55.86&lng=-4.25",
     );
-    expect(lastRideTabLabel("Last Subway")).toBe("Subway");
   });
 });
 

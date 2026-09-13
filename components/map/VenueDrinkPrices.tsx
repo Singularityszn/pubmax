@@ -130,7 +130,7 @@ export default function VenueDrinkPrices({
       {lead ? (
         <div className="contributorPrice communityPriceRow">
           <span className={priceRevealMotionClass || undefined}>
-            <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
+            <ClaimBadge kind="contributor" /> Logged by a PUBMAXXER
           </span>
           <PriceBadge variant="current" band={beerBand(lead.category, lead.price.priceGbp)}>
             {formatPrice(lead.price.priceGbp)}

@@ -142,7 +142,7 @@ describe("UnverifiedPubSheet", () => {
 
     expect(html).toContain("£4.60");
     expect(html).toContain("today · community");
-    expect(html).toContain("Logged by a Pubmaxxer");
+    expect(html).toContain("Logged by a PUBMAXXER");
     expect(html).not.toContain("No price yet");
     expect(html).not.toContain("Nobody has logged");
   });

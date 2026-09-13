@@ -64,14 +64,3 @@ export function lastRideFetchUrl(cityId: CityId, lat: number, lng: number): stri
   params.set("lng", String(lng));
   return `${path}?${params.toString()}`;
 }
-
-/** Short tab label derived from the city's lastRideLabel ("Last Tram" → "Tram"). */
-export function lastRideTabLabel(lastRideLabel: string): string {
-  const trimmed = lastRideLabel.trim();
-  if (trimmed.toLowerCase().startsWith("last ")) {
-    const mode = trimmed.slice(5).trim();
-    if (!mode) return trimmed;
-    return mode.charAt(0).toUpperCase() + mode.slice(1);
-  }
-  return trimmed;
-}

@@ -193,7 +193,7 @@ describe("GetHomeHandoffRow mounts", () => {
     const html = renderToStaticMarkup(
       createElement(VenueGettingHomeTab, {
         venue: venue(),
-        tab: "getting-home",
+        openRequest: true,
         cityId: "london",
         onDecision: () => {},
       }),

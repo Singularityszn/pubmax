@@ -81,7 +81,7 @@ test("mobile venue sticky Share and Crawl actions stay tappable in build mode", 
 
 });
 
-test("mobile sticky Train action opens Last train and the sheet reopens cleanly", async ({
+test("mobile sticky actions stay reachable across content tabs and the sheet reopens cleanly", async ({
   page,
 }) => {
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
@@ -97,11 +97,12 @@ test("mobile sticky Train action opens Last train and the sheet reopens cleanly"
   const stickyActions = portal.getByRole("toolbar", { name: "Venue actions" });
   await expect(stickyActions).toBeVisible();
 
-  // Tab row is the single Train entry point; the strip holds actions only.
-  const lastTrainTab = portal.getByRole("tab", { name: "Last train", exact: true });
-  await lastTrainTab.click();
-  await expect(lastTrainTab).toHaveAttribute("aria-selected", "true");
-  await expect(portal.locator("#venuePanel-getting-home")).toBeVisible();
+  // The tab row is navigation; the strip holds actions only. A second content
+  // tab keeps the sheet full.
+  const loreTab = portal.getByRole("tab", { name: "Lore", exact: true });
+  await loreTab.click();
+  await expect(loreTab).toHaveAttribute("aria-selected", "true");
+  await expect(portal.locator("#venuePanel-story")).toBeVisible();
   await expect(sheet).toHaveClass(/sheet-full/);
 
   // Trusted-handoff §4.6: a reload while the Venue is selected retains it (the

@@ -67,7 +67,7 @@ test("existing Last Train destinations keep Cancel at the tap floor", async ({ p
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
   expect(response?.status()).toBe(200);
 
-  await page.getByRole("tab", { name: "Last train", exact: true }).click();
+  await page.locator("#venueSection-getting-home summary").click();
   const card = page.getByLabel("Last Pint");
   await expect(card).toBeVisible();
   await card.getByRole("button", { name: "Change", exact: true }).click();

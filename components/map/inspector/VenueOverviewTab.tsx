@@ -315,7 +315,7 @@ function DrinkerLogBlock({
     <div className="contributorPrice" {...trustChipAttrs}>
       <span className={chromeRevealClass}>
         <ClaimBadge kind="contributor" />{" "}
-        {split ? "Logged by Pubmaxxers" : "Logged by a Pubmaxxer"}
+        {split ? "Logged by PUBMAXXERS" : "Logged by a PUBMAXXER"}
       </span>
       {figure !== null ? (
         <PriceBadge variant="current" band={priceBand(figure, bandArea)}>
@@ -754,6 +754,7 @@ export default function VenueOverviewTab({
   revealRecord = false,
   revealRecordLate = false,
   now,
+  gettingHome = null,
 }: {
   venue: Venue;
   tab: TabKey;
@@ -793,6 +794,8 @@ export default function VenueOverviewTab({
   locationRequestStatus: LocationRequestStatus;
   onRequestLocation: () => void;
   onClearLocation: () => void;
+  /** The getting-home fold, beside getting there. It was the seventh tab. */
+  gettingHome?: ReactNode;
   /** The log door: the community price path, soft-gated by the sheet, which
    *  answers by raising `priceFocusRequest` or `priceSignInRequested`. */
   onLogTonightPrice: () => void;
@@ -1014,6 +1017,7 @@ export default function VenueOverviewTab({
               decision about this venue. Keep them with the optional detail. */}
           <NextBadgeChips />
       </Disclosure>
+      {gettingHome}
       {/* Read-first community observations: character, access and eating sit
           here so drinkers see them without opening price submit. Authoring
           stays on the price-entry path below (VenuePriceEntryPanel). The same

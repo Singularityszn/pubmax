@@ -177,8 +177,11 @@ const DECISION_COPY: Record<LastPintDecisionKind, string> = {
 async function openGettingHomeTab(page: Page): Promise<void> {
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
   expect(response?.status()).toBe(200);
-  await page.getByRole("tab", { name: "Last train", exact: true }).click();
-  await expect(page.locator("#venuePanel-getting-home")).toBeVisible();
+  // Getting home is a fold on the Overview now, not a tab (site audit 13 Sep
+  // 2026, D10), and its body mounts only once the fold is open.
+  const fold = page.locator("#venuePanel-overview #venueSection-getting-home");
+  await fold.locator("summary").click();
+  await expect(fold).toHaveAttribute("open", "");
 }
 
 const DECISION_STATES: LastPintDecisionKind[] = [

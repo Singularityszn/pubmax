@@ -31,6 +31,7 @@ export default function VenueStoryTab({
   cityCuratedCrawls,
   revealRecord = false,
   revealRecordLate = false,
+  ask = null,
 }: {
   venue: Venue;
   tab: TabKey;
@@ -41,6 +42,8 @@ export default function VenueStoryTab({
   cityCuratedCrawls?: CuratedCrawl[];
   revealRecord?: boolean;
   revealRecordLate?: boolean;
+  /** The Ask section: a question about the pub sits with its history. */
+  ask?: React.ReactNode;
 }) {
   // The distinct, provenance-stamped claim list for the inspected venue.
   // Editorial Sourced claims and contributor/anecdote drops stay separate.
@@ -198,6 +201,8 @@ export default function VenueStoryTab({
           ))}
         </div>
       ) : null}
+
+      {ask}
 
       {/* Place stories / Around here (Wave D) — user-facing copy uses
           "Place stories", never internal corridor jargon. */}

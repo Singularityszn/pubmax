@@ -89,7 +89,10 @@
      the drawer at 1440 printed a photograph over a grey band with the
      credit pinned to the band (measured 6 Sep 2026). The frame takes the
      height ceiling and the picture fills whatever frame it is given. */
-  .venueInspector .venueImage--header {
+  /* The empty fallback is excluded by name: at equal specificity this later
+     rule beat the slim row above and drew a 220px "No photo yet" box at 1440
+     (site audit 13 Sep 2026, D10). */
+  .venueInspector .venueImage--header:not(.venueImage--empty) {
     /* A fixed height rather than a ceiling on the 16:9 ratio: Chromium
        transfers a max-height through aspect-ratio into the WIDTH, so the
        capped frame shrank to 391px inside a 603px column and sat left of

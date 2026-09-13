@@ -10,12 +10,16 @@
   display: none;
 }
 
-.venueOverviewMore {
+/* The Overview's folds: Details and practical info, and the getting-home fold
+   (venueSheet.css joins the two into one list). */
+.venueOverviewMore,
+.venueGettingHome {
   margin: 12px 0;
   border-block: 1px solid var(--line);
 }
 
-.venueOverviewMore > summary {
+.venueOverviewMore > summary,
+.venueGettingHome > summary {
   min-height: 44px;
   display: flex;
   align-items: center;
@@ -25,18 +29,21 @@
   cursor: pointer;
 }
 
-.venueOverviewMore > summary::after {
+.venueOverviewMore > summary::after,
+.venueGettingHome > summary::after {
   content: "+";
   margin-left: auto;
   color: var(--muted);
   font-size: 1.1rem;
 }
 
-.venueOverviewMore[open] > summary::after {
+.venueOverviewMore[open] > summary::after,
+.venueGettingHome[open] > summary::after {
   content: "−";
 }
 
-.venueOverviewMoreBody {
+.venueOverviewMoreBody,
+.venueGettingHomeBody {
   padding: 2px 0 14px;
 }
 

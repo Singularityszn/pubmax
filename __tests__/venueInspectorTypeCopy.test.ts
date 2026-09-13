@@ -63,8 +63,6 @@ describe("shared inspector venue copy", () => {
             pints: null,
             menu: null,
             story: null,
-            ask: null,
-            "getting-home": null,
           },
         },
         selectTab: () => {},
@@ -133,7 +131,7 @@ describe("shared inspector venue copy", () => {
     const html = renderToStaticMarkup(
       createElement(VenueGettingHomeTab, {
         venue: venue("food"),
-        tab: "getting-home",
+        openRequest: true,
         cityId: "london",
         onDecision: () => {},
       }),
@@ -150,7 +148,7 @@ describe("shared inspector venue copy", () => {
     const html = renderToStaticMarkup(
       createElement(VenueGettingHomeTab, {
         venue: venue("pub"),
-        tab: "getting-home",
+        openRequest: true,
         cityId: "manchester",
         onDecision: () => {},
       }),

@@ -194,7 +194,7 @@ export default function UnverifiedPubSheet({
           </p>
           <div className="contributorPrice communityPriceRow">
             <span>
-              <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
+              <ClaimBadge kind="contributor" /> Logged by a PUBMAXXER
             </span>
             <PriceBadge
               variant="current"

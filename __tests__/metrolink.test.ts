@@ -12,7 +12,6 @@ import {
   lastRideApiPath,
   lastRideFetchUrl,
   lastRideProviderForCity,
-  lastRideTabLabel,
 } from "@/lib/lastRide";
 
 beforeEach(() => {
@@ -36,9 +35,6 @@ describe("lastRide routing", () => {
     expect(lastRideFetchUrl("manchester", 53.48, -2.24)).toBe(
       "/api/last-tram?lat=53.48&lng=-2.24",
     );
-    expect(lastRideTabLabel("Last Tram")).toBe("Tram");
-    expect(lastRideTabLabel("Last Pint")).toBe("Pint");
-    expect(lastRideTabLabel("Last Subway")).toBe("Subway");
   });
 });
 

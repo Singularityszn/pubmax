@@ -156,11 +156,11 @@ test("a checkable snapshot surfaces only the matching opinion, and an uncheckabl
   weatherCheckable = false;
   const unmatched = await openVenueCard(page);
   await expect(unmatched.getByRole("note")).toContainText(
-    "We couldn’t check the weather here just now. These are Pubmaxxers’ recommendations, shown without a weather match.",
+    "We couldn’t check the weather here just now. These are PUBMAXXERS’ recommendations, shown without a weather match.",
   );
   // Unconditional, not empty: both authored opinions still show.
   await expect(
-    unmatched.getByRole("heading", { level: 4, name: "Pubmaxxers recommend" }),
+    unmatched.getByRole("heading", { level: 4, name: "PUBMAXXERS recommend" }),
   ).toBeVisible();
   await expect(unmatched.locator(".weatherRecOpinion")).toHaveCount(2);
   await shot(

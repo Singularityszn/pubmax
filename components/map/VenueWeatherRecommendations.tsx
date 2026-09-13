@@ -171,7 +171,7 @@ export function WeatherRecommendationList({
           {empty ? null : (
             <>
               {" "}
-              These are Pubmaxxers&rsquo; recommendations, shown without a
+              These are PUBMAXXERS&rsquo; recommendations, shown without a
               weather match.
             </>
           )}
@@ -196,7 +196,7 @@ export function WeatherRecommendationList({
           <h4 className="weatherRecListTitle">
             {weatherStatus === "available"
               ? "Fits tonight"
-              : "Pubmaxxers recommend"}
+              : "PUBMAXXERS recommend"}
           </h4>
           <div className="weatherRecList">
             {recommendations.map((recommendation) => (
@@ -415,7 +415,7 @@ export default function VenueWeatherRecommendations({
         />
       ) : loadFailed ? null : (
         <p className="weatherRecLoading" aria-live="polite">
-          Checking Pubmaxxers&rsquo; recommendations for tonight.
+          Checking PUBMAXXERS&rsquo; recommendations for tonight.
         </p>
       )}
 
