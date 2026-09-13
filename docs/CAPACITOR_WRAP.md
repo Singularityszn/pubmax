@@ -142,7 +142,7 @@ npx cap open ios            # open ios/App in Xcode (requires full Xcode, not ju
 npm run ios:build           # cap sync ios, then build the App scheme, unsigned
 npm run ios:run             # the same build, then boot a simulator and launch it
 
-npm run android:build       # cap sync android, then assembleDebug
+npm run android:build       # cap sync android, assembleDebug, then testDebugUnitTest
 npm run android:run         # the same APK, on a headless emulator, with a screenshot
 ```
 
