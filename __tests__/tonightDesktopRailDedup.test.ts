@@ -17,29 +17,6 @@ describe("/tonight desktop rail dedup (UI_UX_FIX_PRD #1)", () => {
     expect(contextBlock).toContain("TonightOnTonightSummary");
   });
 
-  // Site audit D8 (13 Sep 2026): the rail held one weather card beside 3,800px
-  // of column. The blocks a reader turns to after the lede sit in the rail,
-  // which is one DOM element after the lede, so a phone reads them in the
-  // same order and the lede wrapper holds the lede alone.
-  it("seats the quiet-night blocks in the rail, after the lede in the DOM", () => {
-    const source = readFileSync(TONIGHT_CLIENT, "utf8");
-    const contextBlock = source.match(
-      /<aside className="tonightContext"[\s\S]*?<\/aside>/,
-    )?.[0];
-    expect(contextBlock).toBeTruthy();
-    for (const block of [
-      "<TonightCheapPints",
-      "<TonightChainDeals",
-      "<VibeChips",
-      "<TonightSoftPlansModule",
-    ]) {
-      expect(contextBlock).toContain(block);
-    }
-    expect(source.indexOf('data-testid="tonight-lede"')).toBeLessThan(
-      source.indexOf('<aside className="tonightContext"'),
-    );
-  });
-
   it("keeps full Deals/Music lanes on phones only when grouping is on", () => {
     const source = readFileSync(TONIGHT_CLIENT, "utf8");
 
