@@ -128,7 +128,7 @@ function linksContaining(text: string): HTMLAnchorElement[] {
 describe("landing and mobile Map navigation", () => {
   it("uses the same preferred-city destination in both navs", async () => {
     const server = serverNavigation();
-    expect(server.querySelector<HTMLAnchorElement>(".lpPrimaryNav a")?.getAttribute("href")).toBe(
+    expect(server.querySelector<HTMLAnchorElement>(".lpPrimaryNav a[href^='/map']")?.getAttribute("href")).toBe(
       "/map",
     );
     expect(
@@ -138,7 +138,7 @@ describe("landing and mobile Map navigation", () => {
     preferredCityState.current = "glasgow";
     await renderNavigation();
 
-    expect(href(".lpPrimaryNav a")).toBe("/map/glasgow");
+    expect(href(".lpPrimaryNav a[href^='/map']")).toBe("/map/glasgow");
     expect(href(".mobileTabBar a[href^='/map']")).toBe("/map/glasgow");
     expect(href(".lpFooterNav a")).toBe("/map/glasgow");
   });
@@ -146,7 +146,7 @@ describe("landing and mobile Map navigation", () => {
   it("starts at root Map and updates both navs after the city resolves", async () => {
     await renderNavigation();
 
-    expect(href(".lpPrimaryNav a")).toBe("/map");
+    expect(href(".lpPrimaryNav a[href^='/map']")).toBe("/map");
     expect(href(".mobileTabBar a[href^='/map']")).toBe("/map");
 
     preferredCityState.current = "glasgow";
@@ -154,7 +154,7 @@ describe("landing and mobile Map navigation", () => {
       for (const listener of [...preferredCityState.listeners]) listener();
     });
 
-    expect(href(".lpPrimaryNav a")).toBe("/map/glasgow");
+    expect(href(".lpPrimaryNav a[href^='/map']")).toBe("/map/glasgow");
     expect(href(".mobileTabBar a[href^='/map']")).toBe("/map/glasgow");
   });
 

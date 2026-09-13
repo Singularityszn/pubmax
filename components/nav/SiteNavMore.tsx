@@ -1,7 +1,8 @@
 "use client";
 
 // Desktop SiteNav "More" overflow (Wave D2.2). Secondary destinations that are
-// not in the primary Now/Map/Places/Out/Social/You row. Desktop ≥641 only -
+// not in the primary Tonight/Map/Places/Out/Plan/You row. Social lives here
+// rather than in that row: it is not a front door. Desktop ≥641 only -
 // CSS hides this entire control on phones so the compact bar stays unchanged.
 // Link and action items share one implementation. Esc closes; ArrowUp/Down
 // move focus.
@@ -25,17 +26,39 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-export const SITE_NAV_MORE_LINKS = [
-  { href: "/plan", label: "Plan", description: "Build a night out" },
+import { SOCIAL_NAV_MATCH, navPathMatches } from "@/components/nav/navigationModel";
+
+export const SITE_NAV_MORE_LINKS: readonly SiteNavMoreLinkItem[] = [
   { href: "/near", label: "Near", description: "Find priced pubs close to you" },
   { href: "/historic", label: "Historic", description: "Read the stories behind old pubs" },
   { href: "/pal", label: "Pal", description: "Ask for a pub that fits tonight" },
-] as const;
+  {
+    href: "/social",
+    label: "Social",
+    description: "Pub-night posts and crews",
+    // Social owns its aliases too, so a reader on /feed or /crawls/soho is
+    // told where they are, as the dock tabs tell them.
+    match: SOCIAL_NAV_MATCH,
+  },
+];
+
+/**
+ * The More links with Social named for the launch state ("Social preview" while
+ * the friends launch is rolled back), so the menu never names it more plainly
+ * than the page it opens.
+ */
+export function siteNavMoreItems(socialLabel: string): SiteNavMoreItem[] {
+  return SITE_NAV_MORE_LINKS.map((link) =>
+    link.href === "/social" ? { ...link, label: socialLabel } : { ...link },
+  );
+}
 
 type SiteNavMoreLinkItem = {
   href: string;
   label: string;
   description: string;
+  /** Path prefixes that mark this item current (defaults to href). */
+  match?: readonly string[];
   id?: never;
   onSelect?: never;
 };
@@ -58,10 +81,6 @@ type SiteNavMoreProps = {
   ariaLabel?: string;
   className?: string;
 };
-
-function pathMatches(pathname: string, href: string): boolean {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
 
 type MenuCoords = { top: number; right: number; maxHeight: number };
 
@@ -229,7 +248,7 @@ export default function SiteNavMore({
                 </>
               );
               if (item.href) {
-                const active = pathMatches(pathname, item.href);
+                const active = navPathMatches(pathname, item.match ?? [item.href]);
                 return (
                 <Link
                   key={item.href}

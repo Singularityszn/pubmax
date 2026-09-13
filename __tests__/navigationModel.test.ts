@@ -10,25 +10,29 @@ import {
 } from "@/components/nav/navigationModel";
 
 describe("PUBMAXX primary navigation", () => {
-  it("keeps six destinations and models Moment separately", () => {
+  it("keeps six destinations on the loop and models Moment separately", () => {
     expect(PRIMARY_NAV_ITEMS.map(({ label }) => label)).toEqual([
-      "Now",
+      "Tonight",
       "Map",
       "Places",
       "Out",
-      "Social",
+      "Plan",
       "You",
     ]);
     expect(MOMENT_NAV_ACTION).toMatchObject({ label: "Moment", href: "/moment" });
+    // Social and Moment are not front doors: neither is a primary destination.
+    const keys: string[] = PRIMARY_NAV_ITEMS.map(({ key }) => key);
+    expect(keys).not.toContain("social");
+    expect(keys).not.toContain("moment");
   });
 
-  it("keeps capture separate from the map and sends Social to its canonical shell", () => {
+  it("sends every destination to its own shell", () => {
     expect(PRIMARY_NAV_ITEMS.map(({ href }) => href)).toEqual([
-      "/today",
+      "/tonight",
       "/map",
       "/places",
       "/out",
-      "/social",
+      "/plan",
       "/u/you",
     ]);
     expect(PRIMARY_NAV_ITEMS.find((item) => item.key === "now")?.match).toEqual([
@@ -37,26 +41,19 @@ describe("PUBMAXX primary navigation", () => {
     ]);
   });
 
-  it("lights Social for its canonical route and aliases, not for borough pages", () => {
-    const social = PRIMARY_NAV_ITEMS.find((item) => item.key === "social");
-    expect(social?.match).toEqual([
-      "/social",
-      "/discover",
-      "/drinks",
-      "/feed",
-      "/stories",
-      "/crawls",
-    ]);
-    expect(primaryNavKeyForPath("/social")).toBe("social");
-    expect(primaryNavKeyForPath("/feed")).toBe("social");
-    expect(primaryNavKeyForPath("/feed/friends")).toBe("social");
-    expect(primaryNavKeyForPath("/stories")).toBe("social");
-    expect(primaryNavKeyForPath("/discover")).toBe("social");
-    expect(primaryNavKeyForPath("/drinks")).toBe("social");
-    expect(primaryNavKeyForPath("/crawls/soho")).toBe("social");
+  it("lights Plan for the composer and a shared plan, and no tab for Social", () => {
+    const plan = PRIMARY_NAV_ITEMS.find((item) => item.key === "plan");
+    expect(plan?.match).toEqual(["/plan"]);
+    expect(primaryNavKeyForPath("/plan")).toBe("plan");
+    expect(primaryNavKeyForPath("/plan/abc123")).toBe("plan");
+    expect(navPathMatches("/plan", plan!.match)).toBe(true);
+    // Social lives under More now, so its routes and aliases light no tab.
+    for (const path of ["/social", "/discover", "/drinks", "/feed", "/stories", "/crawls/soho"]) {
+      expect(primaryNavKeyForPath(path)).toBeUndefined();
+    }
     expect(primaryNavKeyForPath("/borough")).toBeUndefined();
     expect(primaryNavKeyForPath("/borough/soho")).toBeUndefined();
-    expect(navPathMatches("/social", social!.match)).toBe(true);
+    expect(primaryNavKeyForPath("/moment")).toBeUndefined();
   });
 
   it("lights Places for the tab, and claims no address the picker has left", () => {

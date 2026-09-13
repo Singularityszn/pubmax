@@ -1,8 +1,8 @@
 /* First-actions row: the genuine missing piece on a fresh owner's own
-   profile - three plain links to the map, the log flow, and a plan, placed
+   profile - plain links to the map, the log flow, a plan and Social, placed
    above the tabs so a fresh owner sees them before anything else. Tokens
    only, per docs/DESIGN_SYSTEM.md. Pill geometry matches the identity-action
-   links in profile.css, but all three sit at equal weight - this is a set of
+   links in profile.css, but all of them sit at equal weight - this is a set of
    entry points, not a single call to action. */
 
 .firstActionsRow {
