@@ -147,20 +147,22 @@ test.describe("phone tap targets @390", () => {
 });
 
 test.describe("coral words in light @390", () => {
-  test("/tonight has no text below AA contrast", async ({ page }, testInfo) => {
-    await prepare(page);
-    await page.goto("/tonight");
-    await expect(page.getByTestId("tonight-hyped-row").first()).toBeVisible({ timeout: 20_000 });
-    await expect(page.locator("html")).not.toHaveAttribute("data-theme", "dark");
+  for (const route of ROUTES.filter((candidate) => candidate.path !== "/moment")) {
+    test(`${route.path} has no text below AA contrast`, async ({ page }, testInfo) => {
+      await prepare(page);
+      await page.goto(route.path);
+      await expect(route.ready(page)).toBeVisible({ timeout: 20_000 });
+      await expect(page.locator("html")).not.toHaveAttribute("data-theme", "dark");
 
-    const results = await new AxeBuilder({ page }).withRules(["color-contrast"]).analyze();
-    await testInfo.attach("axe color-contrast /tonight light", {
-      body: JSON.stringify(results.violations, null, 2),
-      contentType: "application/json",
+      const results = await new AxeBuilder({ page }).withRules(["color-contrast"]).analyze();
+      await testInfo.attach(`axe color-contrast ${route.path} light`, {
+        body: JSON.stringify(results.violations, null, 2),
+        contentType: "application/json",
+      });
+      const offenders = results.violations.flatMap((violation) =>
+        violation.nodes.map((node) => `${node.target.join(" ")}: ${node.any[0]?.message ?? ""}`),
+      );
+      expect(offenders).toEqual([]);
     });
-    const offenders = results.violations.flatMap((violation) =>
-      violation.nodes.map((node) => `${node.target.join(" ")}: ${node.any[0]?.message ?? ""}`),
-    );
-    expect(offenders).toEqual([]);
-  });
+  }
 });
