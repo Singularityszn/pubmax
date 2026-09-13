@@ -28,6 +28,11 @@ type AnalyticsConsentPromptContentProps = {
   onDecision: (granted: boolean) => void;
 };
 
+// ONE ROW. The sentence sits beside both choices in a 56px strip, so it is kept
+// short enough to wrap inside that row on a 320px phone
+// (__tests__/analyticsConsentRow.test.ts). It still names the brand
+// (lib/brandNaming.ts), says what is collected and why, and that it is never
+// sold and carries no ads; the rest is one tap away on /privacy.
 export function AnalyticsConsentPromptContent({
   onDecision,
 }: AnalyticsConsentPromptContentProps) {
@@ -37,8 +42,7 @@ export function AnalyticsConsentPromptContent({
       aria-label="Anonymous analytics choice"
     >
       <p>
-        {BRAND_NAME} uses optional analytics to see what people use. Never sold,
-        no ads.{" "}
+        {BRAND_NAME} analytics show us what people use. Never sold, no ads.{" "}
         <Link href="/privacy">Privacy</Link>
       </p>
       <div className="analyticsConsentPromptActions">

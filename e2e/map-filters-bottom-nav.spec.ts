@@ -29,14 +29,22 @@ test.describe("map filters sheet and bottom navigation", () => {
     await expect(sheet).toHaveCount(0);
   });
 
-  test("analytics consent stays hidden behind an open filters sheet", async ({ page }) => {
+  // Once the reader has been answered, the consent card takes the outing pill's
+  // slot on the phone map (components/mobile/mobileMapShell.css), and an open
+  // filters sheet still covers it. e2e/first-run-chrome-share.spec.ts owns the
+  // stranger's first paint and the pill coming back.
+  test("analytics consent takes the pill's slot and hides behind an open filters sheet", async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
+      window.sessionStorage.setItem("pubmax:consent-answer-moment:v1", "venue-sheet");
     });
     await page.goto("/map");
 
     const consent = page.locator(".analyticsConsentPrompt");
-    await expect(consent).toBeVisible();
+    const pill = page.locator(".mobilePlanActivation");
+    await expect(consent).toBeVisible({ timeout: 30_000 });
+    await expect(pill).toHaveCount(1, { timeout: 30_000 });
+    await expect(pill).toBeHidden();
 
     await page.getByRole("button", { name: /Filters/i }).click();
     await expect(page.locator('.mobileSheetPortal[data-sheet-kind="filters"]')).toBeVisible();

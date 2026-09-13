@@ -34,6 +34,10 @@ async function prepareFirstVisit(page: Page): Promise<ObservedIngest[]> {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // THE CARD WAITS FOR THE PRODUCT TO ANSWER (lib/consentAnswerMoment.ts).
+    // These cases are about what the choice DOES, so the answer that ends the
+    // wait is seeded; e2e/consent-after-first-answer.spec.ts owns the wait.
+    window.sessionStorage.setItem("pubmax:consent-answer-moment:v1", "venue-sheet");
   });
   page.on("request", (request) => {
     if (new URL(request.url()).pathname.startsWith("/ingest/")) {
@@ -58,7 +62,7 @@ test("declining is remembered and sends nothing", async ({ page }) => {
 
   const prompt = page.getByLabel("Anonymous analytics choice");
   await expect(prompt).toBeVisible();
-  await expect(prompt.getByText("PUBMAXXING uses optional analytics")).toBeVisible();
+  await expect(prompt.getByText("PUBMAXX analytics show us what people use")).toBeVisible();
 
   for (const name of ["Allow", "No thanks"]) {
     const button = prompt.getByRole("button", { name, exact: true });
@@ -162,27 +166,54 @@ test("rechecks consent when another prompt releases the budget", async ({ page }
   await expect(prompt).toBeVisible();
 });
 
-test("map prompt leaves the primary planning control usable", async ({ page }) => {
+// A desktop map has no outing pill or dock at its foot, so it shows the same
+// one-line row as any other route.
+test("desktop map shows the one-line row", async ({ page }) => {
   test.setTimeout(60_000);
   await prepareFirstVisit(page);
+  // The desktop map's own location suggestion holds interruptive prompts until
+  // it is answered (lib/mapLocationPrompt.ts), so it is answered here.
+  await page.addInitScript(() => {
+    window.sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
+  });
+  await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/map", { waitUntil: "domcontentloaded" });
 
   const prompt = page.getByLabel("Anonymous analytics choice");
-  const planControl = page.getByRole("button", { name: "Describe the outing" });
-  await expect(prompt).toBeVisible();
-  await expect(planControl).toBeVisible({ timeout: 30_000 });
+  await expect(prompt).toBeVisible({ timeout: 30_000 });
+  const card = await prompt.boundingBox();
+  const sentence = await prompt.locator("p").boundingBox();
+  const allow = await prompt.getByRole("button", { name: "Allow" }).boundingBox();
+  const decline = await prompt.getByRole("button", { name: "No thanks" }).boundingBox();
+  expect(card && sentence && allow && decline).toBeTruthy();
+  expect(card!.height).toBeLessThanOrEqual(56.5);
+  expect(Math.abs(allow!.y - decline!.y)).toBeLessThanOrEqual(1);
+  expect(Math.min(allow!.x, decline!.x)).toBeGreaterThanOrEqual(sentence!.x + sentence!.width - 1);
+});
 
-  const promptBox = await prompt.boundingBox();
-  const controlBox = await planControl.boundingBox();
-  expect(promptBox).not.toBeNull();
-  expect(controlBox).not.toBeNull();
-  expect(
-    Math.max(
-      0,
-      Math.min(promptBox!.y + promptBox!.height, controlBox!.y + controlBox!.height)
-        - Math.max(promptBox!.y, controlBox!.y),
-    ),
-  ).toBe(0);
+// ON THE PHONE MAP THE CARD TAKES THE OUTING PILL'S SLOT
+// (components/mobile/mobileMapShell.css): one element at the foot, never a
+// stack, and the planning control comes back the moment the choice is made.
+test("the phone map card takes the outing pill's slot until the choice is made", async ({ page }) => {
+  test.setTimeout(60_000);
+  await prepareFirstVisit(page);
+  // The map's first-visit arrival holds interruptive prompts while it is up
+  // (lib/mapFirstVisitArrival.ts), so it is answered here.
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+  });
+  await page.goto("/map", { waitUntil: "domcontentloaded" });
+
+  const prompt = page.getByLabel("Anonymous analytics choice");
+  const pill = page.locator(".mobilePlanActivation");
+  await expect(prompt).toBeVisible({ timeout: 30_000 });
+  await expect(pill).toHaveCount(1, { timeout: 30_000 });
+  await expect(pill).toBeHidden();
+
+  await prompt.getByRole("button", { name: "No thanks", exact: true }).click();
+  await expect(prompt).toHaveCount(0);
+  const planControl = page.getByRole("button", { name: "Describe the outing" });
+  await expect(planControl).toBeVisible();
 
   await planControl.click();
   await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible();
