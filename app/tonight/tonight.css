@@ -799,6 +799,11 @@
   min-height: min(640px, 75vh);
 }
 
+/* While the listings read runs, nothing after the lede may paint: the lede
+   answer lands above it and would push it down the page (a layout shift). The
+   rail holds the soft plans and the area news, which do not wait on that
+   read, so it waits with the rest. */
+.tonightPage[data-listings-status="idle"] .tonightContext,
 .tonightPage[data-listings-status="idle"] .tonightSecondaryLanes--mobile,
 .tonightPage[data-listings-status="idle"] .tonightAfterPrimary {
   visibility: hidden;
