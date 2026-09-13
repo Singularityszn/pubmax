@@ -130,6 +130,17 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="pubmaxxing.com" android:path="/auth/callback" />
             </intent-filter>
+            <!-- The pubmaxx:// scheme, the FALLBACK beside the verified links
+                 above. It is never autoVerify: verification belongs to https,
+                 and App Links need the real signing fingerprint in
+                 assetlinks.json. The families it opens, and the sign-in return
+                 it refuses, are lib/nativeDeepLinks.ts's own. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="pubmaxx" />
+            </intent-filter>
         </activity>
 
         <!-- Android renders a notification's small icon as a SILHOUETTE of its

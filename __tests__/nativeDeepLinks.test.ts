@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { isNativeApp } from "@/lib/nativePlatform";
-import { activateNativeDeepLinks, nativeDeepLinkPath } from "@/lib/nativeDeepLinks";
+import {
+  NATIVE_URL_SCHEME,
+  activateNativeDeepLinks,
+  nativeDeepLinkPath,
+} from "@/lib/nativeDeepLinks";
 
 const appMocks = vi.hoisted(() => ({
   addListener: vi.fn(),
@@ -73,6 +77,39 @@ describe("nativeDeepLinkPath", () => {
   });
 });
 
+describe("the pubmaxx:// scheme", () => {
+  // D20, 13 Sep 2026 audit: `xcrun simctl openurl <udid> pubmaxx://...` failed
+  // with LSApplicationWorkspaceErrorDomain error 115, because neither shell
+  // registered the scheme. Universal links stay the intended path; the scheme
+  // is the fallback, and it opens exactly the families the verified links do.
+  it.each([
+    [`${NATIVE_URL_SCHEME}://map?sel=venue-1`, "/map?sel=venue-1"],
+    [`${NATIVE_URL_SCHEME}://plan/abc#crew`, "/plan/abc#crew"],
+    [`${NATIVE_URL_SCHEME}://tonight`, "/tonight"],
+    [`${NATIVE_URL_SCHEME}://r/CODE1`, "/r/CODE1"],
+  ])("opens the same families as the verified links", (url, expected) => {
+    expect(nativeDeepLinkPath(url)).toBe(expected);
+  });
+
+  it.each([
+    // Any app on a phone can register a custom scheme, so the sign-in return
+    // never travels over one: it stays on the verified https link.
+    "pubmaxx://auth/callback?code=secret",
+    "pubmaxx:///auth/callback?code=secret",
+    // One link has one spelling: the family is the host, never an empty host.
+    "pubmaxx:///tonight",
+    "pubmaxx:///map?sel=venue-1",
+    "pubmaxx://admin",
+    "pubmaxx://tonight/extra",
+    "pubmaxx://someone@map?sel=venue-1",
+    "pubmaxx://map:8080?sel=venue-1",
+    "pubmaxx:tonight",
+    "pubmaxxx://tonight",
+  ])("refuses what the verified links would refuse, and the sign-in return", (url) => {
+    expect(nativeDeepLinkPath(url)).toBeNull();
+  });
+});
+
 describe("activateNativeDeepLinks", () => {
   it("is a plugin-free no-op on the web", async () => {
     native.mockReturnValue(false);
@@ -102,6 +139,12 @@ describe("activateNativeDeepLinks", () => {
     onOpen?.({ url: "https://evil.example/p/nope" });
     expect(navigate).toHaveBeenCalledWith("/rounds/warm");
     expect(navigate).toHaveBeenCalledTimes(2);
+
+    // The custom scheme reaches the same listener on both shells.
+    onOpen?.({ url: "pubmaxx://tonight" });
+    onOpen?.({ url: "pubmaxx://auth/callback?code=secret" });
+    expect(navigate).toHaveBeenLastCalledWith("/tonight");
+    expect(navigate).toHaveBeenCalledTimes(3);
 
     cleanup();
     expect(appMocks.remove).toHaveBeenCalledOnce();
