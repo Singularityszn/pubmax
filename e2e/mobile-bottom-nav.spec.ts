@@ -72,10 +72,10 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(page.getByRole("searchbox", { name: "Search pubs" })).toBeVisible();
   });
 
-  test("Now tab routes to the live /today or /tonight surface", async ({ page }) => {
+  test("Tonight tab routes to the live /today or /tonight surface", async ({ page }) => {
     await page.goto("/map");
 
-    await primaryNav(page).getByRole("link", { name: "Now", exact: true }).click();
+    await primaryNav(page).getByRole("link", { name: "Tonight", exact: true }).click();
 
     await expect(page).toHaveURL(/\/(today|tonight)$/);
     const onToday = /\/today$/.test(page.url());

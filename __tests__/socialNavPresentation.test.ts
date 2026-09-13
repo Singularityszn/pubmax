@@ -45,9 +45,11 @@ import MobileTabBar from "@/components/nav/MobileTabBar";
 import SiteNav from "@/components/nav/SiteNav";
 import { SocialFriendsLaunchProvider } from "@/lib/useSocialFriendsLaunch";
 
-// The SERVER render is what this file is about: the flag is known when the root
-// layout renders, so the HTML a stranger receives (including the two CDN-cached
-// prerendered documents) already names Social correctly.
+// Social is not a front door. It answers "Sign in to use Social." to a stranger,
+// so it has left the primary chrome whatever the launch flag says, and lives in
+// the desktop More menu (see siteNav.test.ts for its honest label there). The
+// SERVER render is the one asserted: the flag is known when the root layout
+// renders, so the HTML a stranger receives is the one that matters.
 function serverRender(
   component: ComponentType,
   friendsLaunchEnabled: boolean,
@@ -69,39 +71,19 @@ function serverRender(
   return host;
 }
 
-function socialTab(host: HTMLElement): HTMLAnchorElement {
-  const tab = host.querySelector<HTMLAnchorElement>('a[href="/social"]');
-  if (!tab) throw new Error("no Social tab rendered");
-  return tab;
-}
-
-describe("the phone Social tab", () => {
-  it("keeps Social visible as a preview destination while launch is gated", () => {
-    const tab = socialTab(serverRender(MobileTabBar, false));
-
-    expect(tab.textContent).toBe("Social");
-    expect(tab.getAttribute("aria-label")).toBe("Social preview");
-    expect(tab.querySelector(".mobileTabPreviewDot")).not.toBeNull();
-  });
-
-  it("renders Social on the first paint when launch is on", () => {
-    const tab = socialTab(serverRender(MobileTabBar, true));
-
-    expect(tab.textContent).toBe("Social");
-    expect(tab.getAttribute("aria-label")).toBeNull();
+describe("the phone dock", () => {
+  it.each([true, false])("carries no Social tab when the friends launch is %s", (enabled) => {
+    const host = serverRender(MobileTabBar, enabled);
+    expect(host.querySelector('a[href^="/social"]')).toBeNull();
+    expect(host.textContent).not.toContain("Social");
+    expect(host.querySelector(".mobileTabPreviewDot")).toBeNull();
   });
 });
 
-describe("the desktop Social nav link", () => {
-  it("names the gated desktop destination Social preview", () => {
-    const tab = serverRender(SiteNav, false).querySelector<HTMLAnchorElement>('a[href="/social"]');
-    expect(tab?.textContent).toBe("Social preview");
-    expect(tab?.getAttribute("aria-label")).toBe("Social preview");
-  });
-
-  it("names Social in the served HTML when the launch is on", () => {
-    const tab = socialTab(serverRender(SiteNav, true));
-    expect(tab.textContent).toContain("Social");
-    expect(tab.textContent).not.toContain("preview");
+describe("the desktop primary link row", () => {
+  it.each([true, false])("carries no Social link when the friends launch is %s", (enabled) => {
+    const host = serverRender(SiteNav, enabled);
+    expect(host.querySelector('.siteNavLinks a[href^="/social"]')).toBeNull();
+    expect(host.querySelector(".siteNavLinks")?.textContent).not.toContain("Social");
   });
 });
