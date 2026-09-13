@@ -297,7 +297,7 @@ export async function preparePerfPage(
  * the method already discards, warm on the three it measures, and identical for
  * every route in the sweep.
  */
-async function resetPerfState(page: Page): Promise<void> {
+export async function resetPerfState(page: Page): Promise<void> {
   await page.context().clearCookies();
   try {
     await page.evaluate(() => {
