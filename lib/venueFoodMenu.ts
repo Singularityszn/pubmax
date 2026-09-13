@@ -6,9 +6,9 @@ import { isFoodCategory, type FoodItem } from "@/lib/food";
 import { venueMenuLookupKeys, type VenueMenuVenue } from "@/lib/venueMenu";
 
 // Like lib/venueMenu.ts, the observed food-price updates
-// (public/data/food_price_updates/latest.json, ~1.5 MB) are loaded at runtime
-// via lib/priceUpdatesLoader.ts and passed in, never statically imported —
-// a static import bundled the whole file into the map's client JS.
+// (public/data/food_price_updates/latest.json, ~1.5 MB) are scoped to one pub
+// by GET /api/venue/[id] and passed in, never statically imported: a static
+// import bundled the whole file into the map's client JS.
 
 function applyFoodUpdatesForKeys(
   base: FoodItem[],

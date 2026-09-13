@@ -1,6 +1,6 @@
 // Runtime loader for the price-archaeology file.
 //
-// Mirrors lib/priceUpdatesLoader.ts: the file is already a public asset, so the
+// Mirrors lib/pintIndexLeagueLoader.ts: the file is already a public asset, so the
 // browser fetches it as data once per session (module-level promise cache,
 // shared by every venue sheet open) instead of it being bundled into the map's
 // client JS. Fails soft to an empty map — a missing file renders the sheet

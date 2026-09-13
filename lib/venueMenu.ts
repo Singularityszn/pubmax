@@ -17,9 +17,10 @@ import {
 //
 // The observed drink-price updates (public/data/drink_price_updates/latest.json,
 // ~2 MB) are NOT imported here: a static import bundled the whole file into the
-// map's client JS. Callers load them at runtime via lib/priceUpdatesLoader.ts
-// and pass them in; the menu renders seed/app-dataset rows immediately and the
-// update overlay lands when the fetch resolves.
+// map's client JS. GET /api/venue/[id] scopes them to one pub
+// (lib/priceUpdates.server.ts) and the Drinks tab passes that venue's own rows
+// in (lib/venuePriceUpdates.ts); the menu renders seed/app-dataset rows until
+// the detail lands.
 
 function applyDrinkUpdatesForKeys(
   base: Drink[],

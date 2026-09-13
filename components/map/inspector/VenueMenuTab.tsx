@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import type { Venue } from "@/lib/venues";
 import DrinkMenu from "@/components/drinks/DrinkMenu";
@@ -7,12 +7,7 @@ import MenuCategoryGrid from "@/components/drinks/MenuCategoryGrid";
 import VenueActionStrip from "@/components/map/VenueActionStrip";
 import { venueMenuForInspector } from "@/lib/venueMenu";
 import { venueFoodMenuForInspector } from "@/lib/venueFoodMenu";
-import {
-  loadDrinkPriceUpdates,
-  loadFoodPriceUpdates,
-} from "@/lib/priceUpdatesLoader";
-import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
-import type { FoodPriceUpdate } from "@/lib/foodPriceUpdates";
+import { venuePriceUpdatesOf } from "@/lib/venuePriceUpdates";
 import { menuHubTiles } from "@/lib/menuHub";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { TabKey } from "@/lib/venueInspectorTabs";
@@ -34,34 +29,22 @@ export default function VenueMenuTab({
   pintDrops?: readonly PintDrop[];
   onAddDrink?: () => void;
 }) {
-  // Observed price-update overlays, fetched once per session as data instead of
-  // being bundled into the map chunk (~3 MB of JSON — see priceUpdatesLoader).
-  // The menu renders its seed/app-dataset rows immediately; the overlay applies
-  // when the fetch resolves.
+  // Observed price-update overlays, PER VENUE, off the detail the sheet already
+  // fetched. `/api/venue/[id]` scopes both packs to this pub's own keys and
+  // carries them beside `bundlePrices` (lib/venuePriceUpdates.ts).
   //
-  // ASKED FOR BY THE TAB THAT DRAWS THEM. Every venue tab is MOUNTED on every
-  // sheet open and hides itself with `hidden` (see the panel below), so this
-  // effect used to run for a reader who never opened Drinks: measured on the
-  // audit's phone rig, `/map?sel=` spent 1862 KB on the drink overlay and
-  // 1519 KB on the food one before the sheet had finished opening, 3381 KB of
-  // the route's 15032 KB. The loader caches per session, so opening the tab a
-  // second time still costs nothing.
-  const [drinkUpdates, setDrinkUpdates] = useState<DrinkPriceUpdate[]>([]);
-  const [foodUpdates, setFoodUpdates] = useState<FoodPriceUpdate[]>([]);
-  const menuTabOpen = tab === "menu";
-  useEffect(() => {
-    if (!menuTabOpen) return;
-    let cancelled = false;
-    void loadDrinkPriceUpdates().then((updates) => {
-      if (!cancelled && updates.length > 0) setDrinkUpdates(updates);
-    });
-    void loadFoodPriceUpdates().then((updates) => {
-      if (!cancelled && updates.length > 0) setFoodUpdates(updates);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [menuTabOpen]);
+  // THE BROWSER READS THE ANSWER, NEVER THE DATASET. This tab used to fetch the
+  // two national packs in full: measured cold on the audit's phone rig, opening
+  // Drinks on `/map?sel=` spent 1862 KB of drink rows and 1519 KB of food rows
+  // to draw a handful about one pub. A venue with no sourced row, and a venue
+  // whose detail has not landed yet, both render the seed/app-dataset menu, the
+  // same fail-soft the fetch had.
+  // Memoised on the venue, because the reader answers a fresh pair each call and
+  // the menus below are keyed on its identity.
+  const { drink: drinkUpdates, food: foodUpdates } = useMemo(
+    () => venuePriceUpdatesOf(venue),
+    [venue],
+  );
 
   // The Menu tab's full drink list (beer from venue.prices + seeded non-beer
   // drinks), plus public Pint Drops already loaded by the Venue sheet.
