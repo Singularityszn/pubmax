@@ -52,8 +52,8 @@ profile rather than loopback. Measured figure first, ceiling second:
 | `/messages` | 6 / 150 | 838 / 970 | 38 / 44 | 576 / 2500 |
 | `/activity` | 7 / 150 | 847 / 980 | 39 / 45 | 176 / 2500 |
 | `/u/you` | 7 / 150 | 1120 / 1290 | 57 / 66 | 668 / 2500 |
-| `/onboarding` | 6 / 150 | 831 / 960 | 35 / 41 | 640 / 2500 |
-| `/choose-city` | 7 / 150 | 822 / 950 | 33 / 38 | 204 / 2500 |
+| `/onboarding` **redirects to `/`** | - / 150 | 0 / 0 | 1 / 1 | 0 / 0 |
+| `/choose-city` **redirects to `/places`** | - / 150 | 0 / 0 | 1 / 1 | 0 / 0 |
 | `/moment` | 10 / 150 | 852 / 980 | 37 / 43 | 232 / 2500 |
 | `/rounds` | 7 / 150 | 833 / 960 | 38 / 44 | 184 / 2500 |
 | `/crawls` | 9 / 150 | 885 / 1020 | 39 / 45 | 220 / 2500 |
@@ -66,6 +66,14 @@ profile rather than loopback. Measured figure first, ceiling second:
 | `/privacy` | 7 / 150 | 788 / 910 | 32 / 37 | 212 / 2500 |
 | `/terms` | 6 / 150 | 788 / 910 | 32 / 37 | 184 / 2500 |
 | `/places` | 6 / 150 | 861 / 1000 | 40 / 46 | 188 / 2500 |
+
+Two rows are budgeted as redirects rather than pages, and their server-render cell
+carries no measured figure. `measurePerfRedirect` TIMES the 3xx and reports that as
+`serverRenderMs`, so a zero there would be a measurement nobody took: the 2026-09-04
+seed sweep measured the document each route used to serve, and neither has answered
+one since. The other three cells hold by construction rather than by sampling, because
+the lane returns one request, no script and no paint. See "A route that redirects is
+measured as a redirect".
 
 The margin is not one number, because the four metrics do not behave alike.
 

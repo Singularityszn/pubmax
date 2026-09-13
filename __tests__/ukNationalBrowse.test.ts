@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  UK_CHOOSE_CITY_SEARCH_HREF,
+  UK_TOWN_SEARCH_HREF,
   UK_NATIONAL_BROWSE_COPY,
   UK_NATIONAL_ENTRY_LABEL,
   UK_NATIONAL_MAP_HREF,
@@ -80,7 +80,11 @@ describe("uk national browse", () => {
     expect(isUkNationalBrowse("?uk=1&sel=x")).toBe(true);
     expect(isUkNationalBrowse("place=Leeds")).toBe(false);
     expect(UK_NATIONAL_MAP_HREF).toBe("/map?uk=1");
-    expect(UK_CHOOSE_CITY_SEARCH_HREF).toBe("/choose-city?focus=search");
+    // CityChooser now mounts only on the landing's #cities section, and this
+    // link points there. /places reads the same UK place index through its own
+    // fallback, so the anchor is a routing choice rather than the only surface
+    // that can answer a town.
+    expect(UK_TOWN_SEARCH_HREF).toBe("/#cities");
   });
 
   it("keeps national entry copy free of banned voice tells", () => {
