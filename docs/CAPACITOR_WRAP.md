@@ -238,6 +238,19 @@ user/plan identity**. Consequences, enforced in code:
      path is ready, but it is not release proof until the Team ID or Android
      signing fingerprint is published and a physical-device sign-in returns to
      the signed-in WebView on each platform.
+   - **Universal links and App Links need a signed build to test.** A
+     team-less simulator build writes an empty entitlements file, so
+     `https://pubmaxxing.com/map?sel=<id>` opens Safari there however correct
+     the manifests are.
+   - **The `pubmaxx://` scheme is the fallback, not the path.** Both shells
+     register it: `CFBundleURLTypes` in `ios/App/App/Info.plist` and one plain
+     intent filter in `android/app/src/main/AndroidManifest.xml`.
+     `lib/nativeDeepLinks.ts` (`NATIVE_URL_SCHEME`) maps
+     `pubmaxx://map?sel=<id>` onto the same families as the verified links.
+     It never carries `/auth/callback`, because any app can register a custom
+     scheme. On a rig:
+     `xcrun simctl openurl <udid> 'pubmaxx://map?sel=<id>'` and
+     `adb shell am start -a android.intent.action.VIEW -d 'pubmaxx://tonight' com.pubmaxx.app`.
 6. **Supabase migration** - apply
    `supabase/migrations/20260717120000_0039_push_tokens.sql` to production
    (`supabase db push` per the usual ledger flow); until then the API route

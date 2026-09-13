@@ -59,6 +59,21 @@ const ALLOWED_EXACT_PATHS = ["/auth/callback", "/map", "/tonight"] as const;
 export const NATIVE_DEEP_LINK_PATH_PREFIXES: readonly string[] = ALLOWED_PATH_PREFIXES;
 export const NATIVE_DEEP_LINK_EXACT_PATHS: readonly string[] = ALLOWED_EXACT_PATHS;
 
+/**
+ * The custom scheme both shells register: `CFBundleURLTypes` in
+ * ios/App/App/Info.plist and one plain intent filter in the Android manifest.
+ * Universal links and App Links stay the intended path, but they only verify
+ * on a signed build with the real Team ID or signing fingerprint; the scheme
+ * opens on any build, so it is the fallback a rig can open today.
+ *
+ * It opens the same families as the verified links, written
+ * `pubmaxx://map?sel=<id>` or `pubmaxx:///map?sel=<id>`. It NEVER carries the
+ * sign-in return: any app on a phone can register a custom scheme, so an OAuth
+ * code sent over one could be read by an app that is not this one.
+ */
+export const NATIVE_URL_SCHEME = "pubmaxx";
+const SCHEME_REFUSED_PATHS: readonly string[] = ["/auth/callback"];
+
 function isAllowedPath(pathname: string): boolean {
   return (
     ALLOWED_EXACT_PATHS.some((path) => pathname === path) ||
@@ -66,10 +81,22 @@ function isAllowedPath(pathname: string): boolean {
   );
 }
 
+// `pubmaxx://map?sel=x` parses with the family as its host and an empty path;
+// `pubmaxx:///map?sel=x` carries it in the path. Both name one in-app path.
+function schemeLinkPath(url: URL): string | null {
+  if (url.username || url.password || url.port) return null;
+  const pathname = url.hostname ? `/${url.hostname}${url.pathname}` : url.pathname;
+  if (!pathname.startsWith("/")) return null;
+  if (SCHEME_REFUSED_PATHS.includes(pathname)) return null;
+  if (!isAllowedPath(pathname)) return null;
+  return `${pathname}${url.search}${url.hash}`;
+}
+
 /** Convert a native-open URL to an internal Next path, or reject it. */
 export function nativeDeepLinkPath(rawUrl: string): string | null {
   try {
     const url = new URL(rawUrl);
+    if (url.protocol === `${NATIVE_URL_SCHEME}:`) return schemeLinkPath(url);
     if (url.origin !== APP_ORIGIN) return null;
     if (!isAllowedPath(url.pathname)) return null;
     return `${url.pathname}${url.search}${url.hash}`;
