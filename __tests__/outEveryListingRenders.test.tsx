@@ -9,7 +9,7 @@
 //
 // The law this fences: a listing we hold is a listing we show. The pub is a
 // footnote on the row, never a filter in front of it, and the page's primary
-// is the first listing rather than the way off the page.
+// is a product action (the map), never a listing.
 
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";

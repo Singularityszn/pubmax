@@ -371,7 +371,7 @@ test.describe("out supply honesty @390", () => {
     await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
     await expect(page.getByText("No listings for this day yet.")).toBeVisible();
     await expect(page.getByTestId("out-venue-match-notice")).toHaveCount(0);
-    // With no listing to lead with, the map takes the primary back.
+    // With no listings, the map is still the primary.
     await expect(page.locator("[data-primary-action] a")).toHaveText("Open the map");
   });
 });
