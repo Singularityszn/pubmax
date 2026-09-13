@@ -5,8 +5,9 @@ import { hypedPubsForPage } from "@/lib/hypedPubs";
 import { loadHypedPubs } from "@/lib/hypedPubs.server";
 import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
 import { buildQuietPint, isQuietPintWindow } from "@/lib/quietPint";
-import { tonightCheapPints } from "@/lib/tonightCheapPints";
+import { tonightCheapPintChain, tonightCheapPints } from "@/lib/tonightCheapPints";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
+import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
 import TonightClient from "./TonightClient";
 
 // First-class "Tonight" screen. The client owns the PRIMARY What's-On spine
@@ -57,6 +58,16 @@ export default async function TonightPage() {
     // the route's byte ceiling is untouched.
     loadHypedPubs(),
   ]);
+  // One row per chain in the cheapest list. The first-party Wetherspoon
+  // directory join names a Wetherspoon the price listing never labelled.
+  const wetherspoonVenueIds = await matchedWetherspoonsVenueIds(
+    pricedVenues.map((venue) => ({
+      id: venue.id,
+      name: venue.name,
+      lat: venue.latitude,
+      lng: venue.longitude,
+    })),
+  );
   const priceById = new Map<string, number>();
   for (const venue of pricedVenues) {
     if (typeof venue.cheapestPrice === "number") priceById.set(venue.id, venue.cheapestPrice);
@@ -92,7 +103,15 @@ export default async function TonightPage() {
       hypedPubs={hypedPubsForPage(hyped.rows)}
       // What a quiet night answers with: real pubs at a listed price, composed
       // from the dataset this page already read for the quiet-pint module.
-      cheapPints={tonightCheapPints(pricedVenues)}
+      cheapPints={tonightCheapPints(
+        pricedVenues.map((venue) => ({
+          id: venue.id,
+          name: venue.name,
+          primaryBorough: venue.primaryBorough,
+          cheapestPrice: venue.cheapestPrice,
+          chain: tonightCheapPintChain(venue, wetherspoonVenueIds),
+        })),
+      )}
     />
   );
 }

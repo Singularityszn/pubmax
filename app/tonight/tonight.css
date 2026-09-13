@@ -108,35 +108,27 @@
 
 .tonightLocation {
   display: grid;
-  gap: 8px;
   margin-top: 14px;
   margin-bottom: 8px;
-  padding: 12px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--control-radius);
   background: var(--panel-raised);
 }
 
-/* Collapsed row: a single quiet control until tapped. */
+/* Collapsed row: one ghost control from the button system
+   (components/ui/button.tsx) until tapped. It painted at radius 0 with its own
+   type (site audit D7). It is a row control, so the label starts at the left
+   edge and the chevron takes the far end. The panel carries no padding of its
+   own, so the icon and the copy under it both start at the control's side
+   padding. */
 .tonightLocationToggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   width: 100%;
-  min-height: 44px;
-  padding: 4px 2px;
-  border: 0;
-  background: transparent;
   color: var(--ink);
-  font: inherit;
-  font-size: 0.82rem;
-  font-weight: 700;
-  text-align: left;
-  cursor: pointer;
 }
 
 .tonightLocationToggleLabel {
   flex: 1 1 auto;
+  text-align: left;
 }
 
 .tonightLocationChevron {
@@ -149,15 +141,10 @@
   transform: rotate(180deg);
 }
 
-.tonightLocationToggle:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-  border-radius: 8px;
-}
-
 .tonightLocationBody {
   display: grid;
   gap: 8px;
+  padding: 4px var(--control-pad-x) 14px;
 }
 
 .tonightLocationCopy,
@@ -798,6 +785,7 @@
    multi-host: Tonight page + desktop rails). */
 
 .tonightDesktopGrid,
+.tonightWeather,
 .tonightAfterPrimary,
 .tonightContext {
   display: contents;
@@ -816,19 +804,38 @@
   visibility: hidden;
 }
 
-/* Wide Tonight uses the same reading canvas as Plan: primary choices stay in
-   one generous column while weather, deals, music, and area news form one
-   contextual rail. The context wrapper contributes no box below this
-   breakpoint, which preserves the shipped phone order and spacing. */
-@media (min-width: 1024px) {
+/* The rail summary stands in for the full Deals and Music lanes, so it only
+   shows where the rail does. Below the rail the full lanes follow the list. */
+@media (max-width: 1099px) {
+  .tonightContext > .tonightOnTonightSummary {
+    display: none;
+  }
+}
+
+/* WIDE TONIGHT IS A COLUMN AND A RAIL (site audit D8, 13 Sep 2026). The rail
+   held one 81px weather card beside 3,800px of column. It now holds what a
+   reader turns to after the lede: the rail summary, the cheapest listed
+   pints, the chain blocks, the vibe chips, the soft plans and the area news.
+
+   THE TWO COLUMNS SHARE NO ROW HEIGHT. Every column item takes its own row,
+   and the rail is ONE element spanning every row down to a flexible last row.
+   A grid item that spans a flexible track is left out of auto-row sizing, so a
+   tall rail grows only that last row and can never push the lede down, and a
+   long column never opens a gap in the rail.
+
+   Below 1100px every wrapper contributes no box, so a phone and a tablet read
+   one column in DOM order: head, weather, lede, credits, rail blocks, the rest,
+   and the way-onward row. */
+@media (min-width: 1100px) {
   .tonightPage {
     max-width: var(--content-max-wide, 1240px);
   }
 
   .tonightDesktopGrid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
-    column-gap: 32px;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
+    grid-template-rows: repeat(6, auto) 1fr;
+    column-gap: 40px;
     align-items: start;
   }
 
@@ -837,17 +844,29 @@
     grid-row: 1;
   }
 
-  .tonightDesktopGrid > .tonightPrimary {
+  .tonightDesktopGrid > .tonightWeather {
     display: block;
     grid-column: 1;
     grid-row: 2;
     min-width: 0;
   }
 
+  .tonightDesktopGrid > .tonightPrimary {
+    grid-column: 1;
+    grid-row: 3;
+    min-width: 0;
+  }
+
+  .tonightDesktopGrid > .tonightHeadCredits {
+    grid-column: 1;
+    grid-row: 4;
+    min-width: 0;
+  }
+
   .tonightDesktopGrid > .tonightAfterPrimary {
     display: block;
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 5;
     min-width: 0;
   }
 
@@ -856,20 +875,31 @@
      with the paint order. */
   .tonightDesktopGrid > .screenActions {
     grid-column: 1;
-    grid-row: 4;
+    grid-row: 6;
   }
 
   .tonightDesktopGrid > .tonightContext {
     grid-column: 2;
-    grid-row: 1 / span 3;
+    grid-row: 1 / -1;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 28px;
     min-width: 0;
+    /* Level with the head's kicker, under the Now segment. */
+    padding-top: var(--space-3);
   }
 
-  .tonightContext > .tonightConditions {
-    margin: 0;
+  /* The rail's gap is its only rhythm, so a block keeps none of the column
+     margins it wears on a phone. */
+  .tonightContext > *,
+  .tonightContext > .tonightChains > :last-child {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .tonightContext > .tonightOnTonightSummary {
+    padding-top: 0;
+    border-top: 0;
   }
 
   .tonightSecondaryLanes--mobile {
