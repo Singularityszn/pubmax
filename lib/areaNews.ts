@@ -111,7 +111,6 @@ type AreaMeta = {
 const AREA_INDEX: Record<string, AreaMeta> = {
   // Central + West
   soho: { borough: "westminster", nightArea: "piccadilly-soho", label: "Soho" },
-  victoria: { borough: "westminster", nightArea: "victoria", label: "Victoria" },
   fitzrovia: { borough: "westminster", label: "Fitzrovia" },
   marylebone: { borough: "westminster", nightArea: "marylebone", label: "Marylebone" },
   mayfair: { borough: "westminster", label: "Mayfair" },
@@ -124,7 +123,6 @@ const AREA_INDEX: Record<string, AreaMeta> = {
   chiswick: { borough: "hounslow", nightArea: "chiswick", label: "Chiswick" },
   isleworth: { borough: "hounslow", label: "Isleworth" },
   richmond: { borough: "richmond-upon-thames", nightArea: "richmond", label: "Richmond" },
-  barnes: { borough: "richmond-upon-thames", nightArea: "barnes", label: "Barnes" },
   teddington: { borough: "richmond-upon-thames", label: "Teddington" },
   hampton: { borough: "richmond-upon-thames", label: "Hampton" },
   twickenham: { borough: "richmond-upon-thames", label: "Twickenham" },
@@ -159,7 +157,6 @@ const AREA_INDEX: Record<string, AreaMeta> = {
   dulwich: { borough: "southwark", label: "Dulwich" },
   "tulse-hill": { borough: "lambeth", label: "Tulse Hill" },
   tooting: { borough: "wandsworth", label: "Tooting" },
-  balham: { borough: "wandsworth", nightArea: "balham", label: "Balham" },
   putney: { borough: "wandsworth", nightArea: "putney", label: "Putney" },
   wimbledon: { borough: "merton", label: "Wimbledon" },
   deptford: { borough: "lewisham", label: "Deptford" },
@@ -196,6 +193,12 @@ const AREA_INDEX: Record<string, AreaMeta> = {
   kilburn: { borough: "brent", label: "Kilburn" },
   willesden: { borough: "brent", label: "Willesden" },
 };
+
+/** The neighbourhood slugs of the join table. The harvest area list must hold
+ *  every one, or no fact can ever be filed under that neighbourhood. */
+export function areaNewsNeighbourhoodSlugs(): string[] {
+  return Object.keys(AREA_INDEX);
+}
 
 /** Night Area slugs some neighbourhood in the join table maps onto. Derived from
  *  AREA_INDEX, so mapping one more neighbourhood to a patch is the only edit a

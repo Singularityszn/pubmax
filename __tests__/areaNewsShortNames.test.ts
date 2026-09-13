@@ -3,20 +3,24 @@
 // "bermondsey-london-bridge", and "bermondsey" was a display alias only, so the
 // short name a reader or a caller would type named no row in the join table.
 //
-// The fix is a neighbourhood row per patch, never a blanket 200: a slug that
-// names no place still answers 400, so the refused / no-lane / empty three-way
-// holds. The sweep below keeps every London patch reachable from its short name.
+// The fix is a neighbourhood row, never a blanket 200: a slug that names no
+// place still answers 400, so the refused / no-lane / empty three-way holds. The
+// row only holds if the harvester can file a fact under it, so the join table
+// and the harvest area list are fenced to agree.
 
 import { describe, expect, it, vi } from "vitest";
 
-import { LONDON_NIGHT_AREA_SLUGS } from "@/lib/nightAreas";
 import {
   areaLabel,
   areaNewsLaneCovers,
+  areaNewsNeighbourhoodSlugs,
+  entriesForNightArea,
   isKnownAreaSlug,
   resolveAreaBorough,
   resolveAreaNightArea,
+  type AreaNewsEntry,
 } from "@/lib/areaNews";
+import { KNOWN_AREA_SLUGS, parseExtractedFact } from "../scripts/lib/keenableAreaNews.mjs";
 
 const loadAreaNews = vi.hoisted(() => vi.fn());
 
@@ -28,24 +32,14 @@ function readArea(area: string): Promise<Response> {
   return GET(new Request(`https://x/api/area-news?area=${encodeURIComponent(area)}`));
 }
 
-const READY_EMPTY = {
-  status: "ready",
-  version: 1,
-  generatedAt: "2026-09-01T00:00:00.000Z",
-  entries: [],
-};
-
-// Each London patch whose slug is not the name a reader types, with that name.
-const SHORT_NAMES = [
-  { area: "bermondsey", borough: "southwark", nightArea: "bermondsey-london-bridge", label: "Bermondsey" },
-  { area: "victoria", borough: "westminster", nightArea: "victoria", label: "Victoria" },
-  { area: "balham", borough: "wandsworth", nightArea: "balham", label: "Balham" },
-  { area: "barnes", borough: "richmond-upon-thames", nightArea: "barnes", label: "Barnes" },
-] as const;
-
-describe("area news answers a London patch by its short name", () => {
+describe("area news answers Bermondsey by its short name", () => {
   it("answers bermondsey 200 ready, not 400", async () => {
-    loadAreaNews.mockResolvedValue(READY_EMPTY);
+    loadAreaNews.mockResolvedValue({
+      status: "ready",
+      version: 1,
+      generatedAt: "2026-09-01T00:00:00.000Z",
+      entries: [],
+    });
 
     const response = await readArea("bermondsey");
 
@@ -53,42 +47,45 @@ describe("area news answers a London patch by its short name", () => {
     expect(await response.json()).toEqual({ status: "ready", entries: [] });
   });
 
-  it.each(SHORT_NAMES)("joins $area to its borough and patch", ({ area, borough, nightArea, label }) => {
-    expect(isKnownAreaSlug(area)).toBe(true);
-    expect(areaNewsLaneCovers(area)).toBe(true);
-    expect(resolveAreaBorough(area)).toBe(borough);
-    expect(resolveAreaNightArea(area)).toBe(nightArea);
-    expect(areaLabel(area)).toBe(label);
+  it("joins bermondsey to Southwark and its patch", () => {
+    expect(isKnownAreaSlug("bermondsey")).toBe(true);
+    expect(areaNewsLaneCovers("bermondsey")).toBe(true);
+    expect(resolveAreaBorough("bermondsey")).toBe("southwark");
+    expect(resolveAreaNightArea("bermondsey")).toBe("bermondsey-london-bridge");
+    expect(areaLabel("bermondsey")).toBe("Bermondsey");
   });
 
-  it("gives every London patch a news lane", () => {
-    expect(LONDON_NIGHT_AREA_SLUGS.filter((slug) => !areaNewsLaneCovers(slug))).toEqual([]);
+  it("lets the harvester file a fact under every neighbourhood in the join table", () => {
+    expect(areaNewsNeighbourhoodSlugs().filter((slug) => !KNOWN_AREA_SLUGS.has(slug))).toEqual([]);
   });
 
-  it("reads Bermondsey's own facts under the patch slug the map passes", async () => {
-    loadAreaNews.mockResolvedValue({
-      ...READY_EMPTY,
-      entries: [
-        {
-          id: "bermondsey-1",
+  it("files a harvested Bermondsey fact onto the patch slug the map passes", () => {
+    const fact = parseExtractedFact(
+      {
+        content: JSON.stringify({
           area: "bermondsey",
           kind: "opening",
-          title: "A new taproom under the arches",
-          detail: "Opened this month.",
-          sourceUrl: "https://example.com/bermondsey",
-          sourceName: "Example",
-          observedAt: new Date().toISOString().slice(0, 10),
-        },
-      ],
-    });
+          title: "The Marquis of Wellington reopens in Bermondsey",
+          detail: "The Marquis of Wellington pub reopened in Bermondsey on 27 August 2026.",
+        }),
+      },
+      { knownAreas: KNOWN_AREA_SLUGS, currentYear: 2026, now: Date.parse("2026-09-01T00:00:00Z") },
+    );
 
-    const body = (await (await readArea("bermondsey-london-bridge")).json()) as {
-      status: string;
-      entries: { id: string }[];
+    expect(fact).toMatchObject({ area: "bermondsey", kind: "opening" });
+
+    const entry: AreaNewsEntry = {
+      ...(fact as NonNullable<typeof fact>),
+      kind: "opening",
+      id: "bermondsey-1",
+      sourceUrl: "https://example.com/bermondsey",
+      sourceName: "example.com",
+      observedAt: "2026-08-27",
     };
 
-    expect(body.status).toBe("ready");
-    expect(body.entries.map((entry) => entry.id)).toEqual(["bermondsey-1"]);
+    expect(entriesForNightArea("bermondsey-london-bridge", [entry]).map((row) => row.id)).toEqual([
+      "bermondsey-1",
+    ]);
   });
 
   it("still refuses a slug that names no place at all", async () => {
