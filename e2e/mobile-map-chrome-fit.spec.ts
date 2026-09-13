@@ -1328,22 +1328,27 @@ for (const viewport of VIEWPORTS) {
   });
 }
 
-// Social is a primary phone destination in the live launch. The count-driven
-// row must close over the WHOLE primary set at every supported phone width.
+// The phone dock leads with the loop, not Social (13 Sep 2026 audit, lane 2).
+// Tonight is the dock's first door and Social is never a dock tab: it answers a
+// stranger with "Sign in to use Social.", so its doors are the desktop More
+// menu and the signed-in You hub. The count-driven row must close over the
+// WHOLE primary set at every supported phone width.
 //
 // The total is read from the nav model rather than typed, because it is not
 // what this test is about: it grew from five to six when Places landed, and a
 // number written here fails the day the row changes for a reason this file has
-// no opinion on. What it holds is that the row is the primary set entire, and
-// that every column still clears the tap floor.
+// no opinion on. What it holds is that the row is the primary set entire, that
+// Social is not in it, and that every column still clears the tap floor.
 for (const viewport of VIEWPORTS) {
-  test(`${viewport.width}px live Social stays in primary phone chrome`, async ({
+  test(`${viewport.width}px phone chrome leads with Tonight, never Social`, async ({
     page,
   }) => {
     await openPhoneMap(page, viewport);
 
     const primary = page.getByRole("navigation", { name: "Primary" });
-    await expect(primary.locator('a[href="/social"]')).toHaveCount(1);
+    await expect(primary.locator("a").first()).toHaveAttribute("href", "/tonight");
+    await expect(primary.getByRole("link", { name: "Tonight", exact: true })).toHaveCount(1);
+    await expect(primary.locator('a[href="/social"]')).toHaveCount(0);
     await expect(primary.locator("a")).toHaveCount(PRIMARY_NAV_ITEMS.length);
     for (const tab of await primary.locator("a").all()) {
       const box = await tab.boundingBox();
