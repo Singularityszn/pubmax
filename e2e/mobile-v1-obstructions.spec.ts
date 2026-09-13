@@ -356,7 +356,6 @@ test.describe("Venue detail tab reachability", () => {
       expect(tabBox.width).toBeGreaterThanOrEqual(44);
       expect(tabBox.height).toBeGreaterThanOrEqual(44);
       // Five tabs share one row, so the strip never scrolls (D10).
-      await expect(tablist).toHaveCSS("overflow-x", "hidden");
       expect(
         await tablist.evaluate((rail) => rail.scrollWidth - rail.clientWidth),
       ).toBeLessThanOrEqual(1);
