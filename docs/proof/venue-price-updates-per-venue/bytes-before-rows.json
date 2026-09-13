@@ -1,0 +1,39 @@
+[
+  {
+    "route": "/map",
+    "drinksOpened": false,
+    "decodedKb": 7168,
+    "requests": 198,
+    "watched": {
+      "/data/price_updates/latest.json": 554,
+      "/vendor/maplibre/maplibre-gl-worker.mjs": 19181,
+      "/vendor/maplibre/maplibre-gl-shared.mjs": 492183
+    }
+  },
+  {
+    "route": "/map?sel=venue-16pnwmm",
+    "drinksOpened": false,
+    "decodedKb": 7451,
+    "requests": 185,
+    "watched": {
+      "/data/price_updates/latest.json": 554,
+      "/api/venue/venue-16pnwmm": 16175,
+      "/vendor/maplibre/maplibre-gl-worker.mjs": 19181,
+      "/vendor/maplibre/maplibre-gl-shared.mjs": 492183
+    }
+  },
+  {
+    "route": "/map?sel=venue-16pnwmm + Drinks tab",
+    "drinksOpened": true,
+    "decodedKb": 11067,
+    "requests": 202,
+    "watched": {
+      "/data/price_updates/latest.json": 554,
+      "/api/venue/venue-16pnwmm": 16175,
+      "/vendor/maplibre/maplibre-gl-worker.mjs": 19181,
+      "/vendor/maplibre/maplibre-gl-shared.mjs": 492183,
+      "/data/food_price_updates/latest.json": 1555119,
+      "/data/drink_price_updates/latest.json": 1906883
+    }
+  }
+]

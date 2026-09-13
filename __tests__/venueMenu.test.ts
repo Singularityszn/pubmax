@@ -13,7 +13,7 @@ import rawDrinkPriceUpdates from "../public/data/drink_price_updates/latest.json
 import rawFoodPriceUpdates from "../public/data/food_price_updates/latest.json";
 
 // The overlays are no longer statically bundled with the menu seams (they are
-// fetched at runtime by lib/priceUpdatesLoader.ts); tests parse the same files
+// scoped to one pub by lib/priceUpdates.server.ts and GET /api/venue/[id]); tests parse the same files
 // directly and pass them in, keeping the behavioural assertions identical.
 function fileGeneratedAt(raw: unknown): number {
   const stamp = Date.parse(

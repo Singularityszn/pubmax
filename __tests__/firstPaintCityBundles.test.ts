@@ -71,28 +71,6 @@ describe("the Wetherspoon directory is the Open now filter's own read", () => {
   });
 });
 
-describe("the price-update overlays are the Drinks tab's own read", () => {
-  const source = read("components/map/inspector/VenueMenuTab.tsx");
-  const effect = effectContaining(source, "loadDrinkPriceUpdates()");
-
-  it("waits for the tab that draws them", () => {
-    expect(source).toContain('const menuTabOpen = tab === "menu";');
-    expect(effect).toContain("if (!menuTabOpen) return;");
-    expect(effect).toMatch(/\}, \[menuTabOpen\]\)$/);
-  });
-
-  it("still loads both overlays once the tab is open", () => {
-    expect(effect).toContain("loadDrinkPriceUpdates()");
-    expect(effect).toContain("loadFoodPriceUpdates()");
-  });
-
-  it("draws the panel hidden rather than unmounted, which is why the gate is needed", () => {
-    // Every tab is mounted on every sheet open and hides itself; that is what
-    // made a mount-time effect a read for a tab nobody had opened.
-    expect(source).toContain('hidden={tab !== "menu"}');
-  });
-});
-
 describe("the plan venue index is the composer's own read", () => {
   const source = read("components/plan/PlanComposer.tsx");
   const effect = effectContaining(
