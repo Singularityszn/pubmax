@@ -5,10 +5,11 @@ import { notFound } from "next/navigation";
 import PriceBadge from "@/components/PriceBadge";
 import PubmaxxNightSeal from "@/components/brand/PubmaxxNightSeal";
 import SiteNav from "@/components/nav/SiteNav";
+import PlanReadUnavailable from "@/components/plan/PlanReadUnavailable";
 import RecapShareButton from "@/components/plan/RecapShareButton";
 import RecapViewAnalytics from "@/components/plan/RecapViewAnalytics";
 import type { RecapVisibility } from "@/lib/analyticsEvents";
-import { getPublishedRecapSource } from "@/lib/nightMemoryStore";
+import { readPublishedRecapSource } from "@/lib/nightMemoryStore";
 import { PUBLIC_RECAP_PHOTO_TTL_SECONDS, signedNightMomentPhotoUrl } from "@/lib/nightMomentMedia";
 import { pintDropsStore } from "@/lib/pintDropsStore";
 import type { PintDrop } from "@/lib/pintDropShared";
@@ -25,8 +26,11 @@ type Props = { params: Promise<{ storyId: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { storyId } = await params;
   if (!UUID.test(storyId)) return { title: "Recap · PUBMAXXING", robots: { index: false } };
-  const src = await getPublishedRecapSource(storyId);
-  if (!src) return { title: "Recap · PUBMAXXING", robots: { index: false } };
+  // A read we could not run claims nothing in the unfurl either way: the same
+  // bare title an absent Story gets, because the answer is unknown, not "no".
+  const read = await readPublishedRecapSource(storyId);
+  if (read.status !== "found") return { title: "Recap · PUBMAXXING", robots: { index: false } };
+  const src = read.source;
   const indexable = src.story.visibility === "public";
   return {
     title: `${src.story.title} · A night out · PUBMAXXING`,
@@ -72,8 +76,16 @@ export default async function PublicRecapPage({ params }: Props) {
   if (!UUID.test(storyId)) notFound();
 
   // The ONE privacy choke point: published, non-private, published-moment-gated.
-  const src = await getPublishedRecapSource(storyId);
-  if (!src) notFound();
+  // Three answers, and the order is the rule: a read we could not run is
+  // answered BEFORE notFound(), or the 404 swallows it and a crew standing on a
+  // published Story during an outage is told the Story does not exist
+  // (astra-review P1-1). The retry address is the reader's own.
+  const read = await readPublishedRecapSource(storyId);
+  if (read.status === "unavailable") {
+    return <PlanReadUnavailable href={`/recap/${storyId}`} title="We could not load this recap" />;
+  }
+  if (read.status === "absent") notFound();
+  const src = read.source;
 
   // Venue names for every venue referenced by a published moment.
   const venueIds = [...new Set(src.moments.map((m) => m.venueId).filter((v): v is string => Boolean(v)))];

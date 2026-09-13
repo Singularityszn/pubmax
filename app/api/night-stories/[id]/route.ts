@@ -3,16 +3,18 @@ import { clientIp, hashIp } from "@/lib/supabase";
 import { isLimited } from "@/lib/pintDrops";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
-import { getNightStory, safeNightStory, updateNightStoryDraftResult } from "@/lib/nightMemoryStore";
+import { readNightStory, safeNightStory, updateNightStoryDraftResult } from "@/lib/nightMemoryStore";
 
 type Context = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
-  const story = await getNightStory(id, await callerUserId(request));
-  return story
-    ? jsonNoStore({ story })
-    : publicApiError("Night Story not found.", "NOT_FOUND", 404);
+  const read = await readNightStory(id, await callerUserId(request));
+  if (read.status === "unavailable") {
+    return publicApiError("The Story store is temporarily unavailable.", "STORY_STORE_UNAVAILABLE", 503, { retryable: true });
+  }
+  if (read.status === "absent") return publicApiError("Night Story not found.", "NOT_FOUND", 404);
+  return jsonNoStore({ story: read.story });
 }
 
 export async function PATCH(request: Request, context: Context): Promise<Response> {

@@ -12,9 +12,10 @@ import {
   recapOgCacheHeaders,
   selectRecapCardData,
   type RecapCardData,
+  type RecapOgCacheProfile,
 } from "@/lib/recapCard";
 import { recapCardStats } from "@/lib/recapCardStats.server";
-import { getNightStory } from "@/lib/nightMemoryStore";
+import { readNightStory } from "@/lib/nightMemoryStore";
 
 // The shared-recap OG image — the WhatsApp/iMessage preview that makes people
 // tap. Co-located with the public recap page (app/recap/[storyId], owned by
@@ -29,6 +30,10 @@ import { getNightStory } from "@/lib/nightMemoryStore";
 // The RICH/FALLBACK decision is the privacy gate in `selectRecapCardData`; this
 // route only fetches the public-safe inputs and paints. No photos (privacy + og
 // render cost) and no crew handles unless the approval flow cleared them.
+//
+// A read the store could not run also paints the FALLBACK card, but under the
+// `unavailable` cache profile: the not-shared card is pinned for a day, and an
+// outage must not be pinned as a fact about the Story.
 
 export const runtime = "nodejs";
 export const alt = "A night on PUBMAXX";
@@ -37,20 +42,27 @@ export const contentType = "image/png";
 
 type Params = { params: Promise<{ storyId: string }> };
 
-async function loadCardData(storyId: string): Promise<RecapCardData> {
+type CardResponse = { data: RecapCardData; cacheProfile: RecapOgCacheProfile };
+
+const UNAVAILABLE: CardResponse = { data: { variant: "fallback" }, cacheProfile: "unavailable" };
+
+async function loadCardData(storyId: string): Promise<CardResponse> {
   try {
-    // actorId = null → the public accessor only returns a story once it is
-    // approved-shared (published + not private); private/draft/missing → null.
-    const story = await getNightStory(storyId, null);
+    // The public accessor only answers a story once it is approved-shared
+    // (published + not private); private/draft/missing → absent.
+    const read = await readNightStory(storyId, null);
+    if (read.status === "unavailable") return UNAVAILABLE;
+    const story = read.status === "found" ? read.story : null;
     const stats = story ? await recapCardStats(storyId).catch(() => null) : null;
-    return selectRecapCardData({
+    const data = selectRecapCardData({
       story,
       stats,
       nightDate: stats?.nightDateIso ?? null,
     });
+    return { data, cacheProfile: data.variant };
   } catch {
     // Never leak, never 500 a crawler.
-    return { variant: "fallback" };
+    return UNAVAILABLE;
   }
 }
 
@@ -230,11 +242,11 @@ function RichCard({ data }: { data: Extract<RecapCardData, { variant: "rich" }> 
 
 export default async function Image({ params }: Params) {
   const { storyId } = await params;
-  const data = await loadCardData(storyId);
+  const { data, cacheProfile } = await loadCardData(storyId);
   const body = data.variant === "rich" ? <RichCard data={data} /> : <FallbackCard />;
   return new ImageResponse(body, {
     ...size,
     fonts: loadOgFonts(),
-    headers: recapOgCacheHeaders(data.variant),
+    headers: recapOgCacheHeaders(cacheProfile),
   });
 }
