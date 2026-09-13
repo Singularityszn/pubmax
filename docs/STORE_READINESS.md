@@ -579,7 +579,7 @@ Evidence from the runs that landed these scripts is in
 
 ```sh
 npm ci
-npm run android:build   # cap sync android, then assembleDebug
+npm run android:build   # cap sync android, assembleDebug, then testDebugUnitTest
 npm run android:run     # boot a headless emulator, install, launch, screenshot
 ```
 

@@ -104,7 +104,8 @@ const config: CapacitorConfig = {
     // mark. Auto-hide stays ON because it is the ceiling (12s, the same figure
     // as NATIVE_SPLASH_CEILING_MS in lib/nativeSplash.ts, which the CLI cannot
     // import); lib/nativeSplash.ts hides it sooner, on first paint, and the
-    // bundled offline page hides it for itself.
+    // bundled offline page releases it at once (docs/CAPACITOR_WRAP.md, "Cold
+    // start").
     SplashScreen: {
       launchAutoHide: true,
       launchShowDuration: 12_000,
