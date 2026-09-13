@@ -129,7 +129,12 @@ const ROUTES = [
   },
 ] as const;
 
+// A cold production server paints /historic's 342 cited pubs slowly, and axe
+// then walks every node of that page. The default 30 s ceiling timed out the
+// /historic contrast test on a cold 7-worker run that passes warm in 13 s, and
+// the cold hit-box tests took 22 s, so both describes get room.
 test.describe("phone tap targets @390", () => {
+  test.describe.configure({ timeout: 90_000 });
   for (const route of ROUTES) {
     test(`${route.path}: every anchor and button in main is at least 44 px each way`, async ({
       page,
@@ -151,6 +156,7 @@ test.describe("phone tap targets @390", () => {
 });
 
 test.describe("coral words in light @390", () => {
+  test.describe.configure({ timeout: 90_000 });
   for (const route of ROUTES.filter((candidate) => candidate.path !== "/moment")) {
     test(`${route.path} has no text below AA contrast`, async ({ page }, testInfo) => {
       await prepare(page);
