@@ -1076,6 +1076,11 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 /* The getting-home fold on the Overview (it was the seventh tab, D10). The fold
    itself wears the same plain disclosure as "Details and practical info"; the
    river tint stays on the transport cards inside it. */
+.venueOverviewMore + .venueGettingHome {
+  /* One list of folds: the second shares the first's bottom hairline. */
+  margin-top: -13px;
+}
+
 .venueGettingHomeBody > section {
   --line: color-mix(in srgb, var(--river) 36%, var(--line-soft));
   --panel-raised: color-mix(in srgb, var(--river) 7%, var(--paper));
