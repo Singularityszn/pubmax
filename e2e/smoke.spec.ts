@@ -365,7 +365,7 @@ test("mobile venue sheet reaches Train, holds no price action in the strip, and 
   await expect(stickyActions).toBeVisible();
 
   // The Overview's getting-home fold is the single Train entry point (the
-  // sticky strip holds actions, not navigation — owner-reported duplicate
+  // sticky strip holds actions, not navigation - owner-reported duplicate
   // removed). Back to a content tab after, so the sheet is full again.
   await page.getByRole("tab", { name: "Overview", exact: true }).click();
   const gettingHome = page.locator("#venueSection-getting-home");
