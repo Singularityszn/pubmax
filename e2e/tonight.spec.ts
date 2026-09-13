@@ -794,21 +794,32 @@ test("phone Tonight reads the Deals and Music lanes before the soft plans and th
   await expect(lanes.locator("#deals-tonight-title")).toBeVisible();
   await expect(lanes.locator("#music-tonight-title")).toBeVisible();
 
-  const vibes = await page.locator(".tonightVibes").boundingBox();
-  const lanesBox = await lanes.boundingBox();
-  expect(vibes && lanesBox).toBeTruthy();
-  if (!vibes || !lanesBox) return;
-  expect(lanesBox.y).toBeGreaterThanOrEqual(vibes.y + vibes.height - 1);
-
-  const softPlans = page.getByTestId("tonight-soft-plans");
-  if ((await softPlans.count()) > 0) {
-    const softBox = await softPlans.boundingBox();
-    expect(softBox).toBeTruthy();
-    if (softBox) expect(lanesBox.y + lanesBox.height).toBeLessThanOrEqual(softBox.y + 1);
-  }
-  const areaNews = await page.locator(".tonightRail").boundingBox();
-  if (areaNews && areaNews.height > 0) {
-    expect(lanesBox.y + lanesBox.height).toBeLessThanOrEqual(areaNews.y + 1);
+  // One read, so every box shares a scroll offset. The area news wrapper is
+  // read from the DOM because it has no height when no area is remembered, and
+  // it still holds its place in the column.
+  const boxes = await page.evaluate(() => {
+    const rect = (selector: string) => {
+      const el = document.querySelector(selector);
+      if (!el) return null;
+      const { top, bottom, height } = el.getBoundingClientRect();
+      return { top, bottom, height };
+    };
+    return {
+      vibes: rect(".tonightVibes"),
+      lanes: rect(".tonightSecondaryLanes--mobile"),
+      softPlans: rect('[data-testid="tonight-soft-plans"]'),
+      areaNews: rect(".tonightRail"),
+    };
+  });
+  expect(boxes.vibes).not.toBeNull();
+  expect(boxes.lanes).not.toBeNull();
+  expect(boxes.areaNews).not.toBeNull();
+  if (!boxes.vibes || !boxes.lanes || !boxes.areaNews) return;
+  expect(boxes.lanes.height).toBeGreaterThan(0);
+  expect(boxes.lanes.top).toBeGreaterThanOrEqual(boxes.vibes.bottom - 1);
+  expect(boxes.lanes.bottom).toBeLessThanOrEqual(boxes.areaNews.top + 1);
+  if (boxes.softPlans) {
+    expect(boxes.lanes.bottom).toBeLessThanOrEqual(boxes.softPlans.top + 1);
   }
 
   await page.setViewportSize({ width: 1440, height: 900 });
