@@ -150,6 +150,16 @@ describe("no surface puts the raw coral back on a light word", () => {
     ],
     ["components/map/venueOccupancy.css", ".venueOccupancySignIn a {"],
     ["components/plan/nightCrawl.css", ".nightCrawl__enterKicker {"],
+    // The 13 Sep site audit (D13) measured ten coral words on /tonight in
+    // light at 2.9:1: every source credit and every "Open on map". The same
+    // sweep of the lane's own sheets found the Out pub-pair label and three
+    // coral words on /historic.
+    ["app/tonight/tonightLede.css", ".tonightHypedSource {"],
+    ["app/tonight/tonightLede.css", ".tonightChainRowMap {"],
+    ["app/out/out.css", ".outListingPubPairLabel {"],
+    ["app/historic/historic.css", ".historicPagination a {"],
+    ["app/historic/historic.css", ".historicEra {"],
+    ["app/historic/historic.css", ".historicBoroughLink {"],
   ];
 
   for (const [file, selector] of HOLD_TO_INK) {
