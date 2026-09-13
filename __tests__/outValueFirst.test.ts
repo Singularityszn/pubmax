@@ -17,7 +17,8 @@
 // not merely above the listings, it was INSTEAD of them, because the surface
 // rendered only rows it had matched to a pub. The fences below now hold the
 // law that replaced it - every sourced listing is a row, the pub answer is a
-// footnote on that row, and the page's primary is the first listing.
+// footnote on that row, and the page's primary is a product action, never a
+// listing.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -104,17 +105,6 @@ describe("no count stands in place of the listings it counts", () => {
     expect(status).not.toBeNull();
     expect(footnote).not.toBeNull();
     expect(Number(footnote?.[1])).toBeLessThan(Number(status?.[1]));
-  });
-
-  it("leads with the first listing and keeps the map as the second door", () => {
-    const primaryAt = outClient.indexOf("primary={");
-    const secondaryAt = outClient.indexOf("secondary={");
-    const primary = outClient.slice(primaryAt, secondaryAt);
-    expect(primary).toContain("primaryListing");
-    expect(primary.indexOf("primaryListing")).toBeLessThan(
-      primary.indexOf("OUT_MAP_WAY"),
-    );
-    expect(outClient.slice(secondaryAt)).toContain("OUT_MAP_WAY");
   });
 });
 

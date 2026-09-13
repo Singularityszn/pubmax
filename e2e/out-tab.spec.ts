@@ -227,7 +227,7 @@ test.describe("out supply honesty @390", () => {
     };
   }
 
-  test("prints every row, leads with the first, and credits the provider", async ({
+  test("prints every row, keeps the map as the primary, and credits the provider", async ({
     page,
   }) => {
     await page.route(isOutListingsRequest, (route) =>
@@ -246,14 +246,10 @@ test.describe("out supply honesty @390", () => {
       await expect(page.getByRole("heading", { name: `Show ${index}` })).toBeVisible();
     }
     await expect(page.locator(".outListingPubPair--absent")).toHaveCount(4);
-    // The primary is the first listing's own route, and the map is the second
-    // door rather than the only one.
+    // The primary is a product action. A listing title never wears the fill.
     const primary = page.locator("[data-primary-action] a");
-    await expect(primary).toHaveText("Show 1");
-    await expect(primary).toHaveAttribute("href", "https://www.ticketmaster.co.uk/event/1");
-    await expect(
-      page.getByRole("link", { name: "Open the map", exact: true }).first(),
-    ).toBeVisible();
+    await expect(primary).toHaveText("Open the map");
+    await expect(primary).toHaveAttribute("href", "/map");
     const credit = page.getByTestId("out-listing-credit");
     await expect(credit.getByRole("link", { name: "Ticketmaster", exact: true })).toHaveAttribute(
       "href",
@@ -269,6 +265,68 @@ test.describe("out supply honesty @390", () => {
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
     expect(overflow).toBeLessThanOrEqual(0);
+  });
+
+  // The live shape on 13 Sep 2026 (site audit D4): 25 listings, every one
+  // Ticketmaster, the match ran and placed none of them at a pub we list. The
+  // page led with the first title ("Burlesque") as its filled primary.
+  test("leads a night with nothing at our pubs with the honest line, then the rest", async ({
+    page,
+  }) => {
+    const events = Array.from({ length: 25 }, (_, index) => ({
+      ...PLAYHOUSE_EVENT,
+      id: `events-tm-live-${index}`,
+      sourceId: `live-${index}`,
+      title: index === 0 ? "Burlesque" : `Live listing ${index + 1}`,
+      placeName: `Arena ${index + 1}`,
+    }));
+    await page.route(isOutListingsRequest, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...unmatchedPayload("ready"),
+          events,
+          providers: [
+            { name: "ticketmaster", configured: true, rows: 25, status: "ready" },
+            { name: "skiddle", configured: false, rows: 0, status: "not-configured" },
+          ],
+          unmatchedCount: 25,
+        }),
+      }),
+    );
+
+    await page.goto("/out");
+    await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.getByTestId("out-listing-row")).toHaveCount(25);
+
+    const primary = page.locator("[data-primary-action] a");
+    await expect(primary).toHaveCount(1);
+    await expect(primary).toHaveText("Open the map");
+    await expect(page.locator("[data-primary-action]")).not.toContainText("Burlesque");
+
+    const lead = page.getByTestId("out-honest-empty");
+    await expect(lead).toContainText("None of tonight’s 25 listings are at a pub on our map.");
+    await expect(lead.getByRole("link", { name: "Tonight’s pubs", exact: true })).toHaveAttribute(
+      "href",
+      "/tonight",
+    );
+
+    // Heading order: the section, then the honest line, then the block of
+    // listings under its own heading.
+    const headings = await page
+      .locator("#main :is(h1, h2, h3)")
+      .evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim() ?? ""));
+    const sectionAt = headings.indexOf("What's on tonight");
+    const blockAt = headings.indexOf("Not on our map yet");
+    expect(headings[0]).toBe("What’s on, sourced.");
+    expect(sectionAt).toBeGreaterThan(0);
+    expect(blockAt).toBeGreaterThan(sectionAt);
+    const leadBox = await lead.boundingBox();
+    const blockBox = await page.locator("#out-unmatched-heading").boundingBox();
+    const firstRowBox = await page.getByTestId("out-listing-row").first().boundingBox();
+    expect(leadBox!.y).toBeLessThan(blockBox!.y);
+    expect(blockBox!.y).toBeLessThan(firstRowBox!.y);
   });
 
   test("says the check could not run rather than calling the places unlisted", async ({ page }) => {
@@ -313,7 +371,7 @@ test.describe("out supply honesty @390", () => {
     await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
     await expect(page.getByText("No listings for this day yet.")).toBeVisible();
     await expect(page.getByTestId("out-venue-match-notice")).toHaveCount(0);
-    // With no listing to lead with, the map takes the primary back.
+    // With no listings, the map is still the primary.
     await expect(page.locator("[data-primary-action] a")).toHaveText("Open the map");
   });
 });
@@ -483,6 +541,51 @@ test("starts each desktop listing group at the top of its grid row", async ({ pa
   expect(maryleboneTop).not.toBeNull();
   expect(sohoTop).not.toBeNull();
   expect(Math.abs(maryleboneTop!.y - sohoTop!.y)).toBeLessThan(24);
+});
+
+// A narrower centred surface set the honest line, the block heading and every
+// row 28px in from "What's on tonight" at 1440 (13 Sep 2026).
+test("sets the desktop listing surface on the section title's own edge", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.route(isOutListingsRequest, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "ready",
+        listingsStatus: "ready",
+        events: Array.from({ length: 25 }, (_, index) => ({
+          ...PLAYHOUSE_EVENT,
+          id: `events-tm-edge-${index}`,
+          sourceId: `edge-${index}`,
+          title: `Edge listing ${index + 1}`,
+          placeName: `Arena ${index + 1}`,
+        })),
+        openPlans: [],
+        attribution: [],
+        observedAt: {},
+        providers: [{ name: "ticketmaster", configured: true, rows: 25, status: "ready" }],
+        unmatchedCount: 25,
+        venueMatch: "ready",
+      }),
+    }),
+  );
+
+  await page.goto("/out");
+  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.getByTestId("out-listing-row")).toHaveCount(25);
+
+  const sectionBox = await page.locator("#out-listings-heading").boundingBox();
+  const leadBox = await page.getByTestId("out-honest-empty").boundingBox();
+  const blockBox = await page.locator("#out-unmatched-heading").boundingBox();
+  const firstRowBox = await page.getByTestId("out-listing-row").first().boundingBox();
+  expect(sectionBox).not.toBeNull();
+  expect(leadBox).not.toBeNull();
+  expect(blockBox).not.toBeNull();
+  expect(firstRowBox).not.toBeNull();
+  for (const box of [leadBox!, blockBox!, firstRowBox!]) {
+    expect(Math.abs(box.x - sectionBox!.x)).toBeLessThanOrEqual(1);
+  }
 });
 
 test.describe("out tab screenshots @390", () => {

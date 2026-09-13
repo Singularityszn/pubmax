@@ -1,4 +1,4 @@
-// Where one /out listing goes, and what the page's own primary is.
+// Where one /out listing goes, and what the page leads with.
 //
 // A listing's route is the source's OWN event page when it published one - the
 // credit and the link are one claim (lib/out/attribution.ts), and a publisher
@@ -6,14 +6,18 @@
 // event page falls back to the pub it was matched to; a row with neither is a
 // real row that simply does not open, and it says so by not being a link.
 //
-// The page's primary is the FIRST listing's route. /out led with "Open the map"
-// on every night, listed or quiet, which asked a reader who came to see what is
-// on to leave the list to find out. The map keeps its way onward as the quiet
-// second door.
+// A listing is NEVER the page's primary. The primary is a product action (the
+// map), handed to the Screen by the page itself. /out once painted the first
+// listing's title as its filled button, and on 13 Sep 2026 that was a
+// Ticketmaster theatre show ("Burlesque") on a night where the match had placed
+// none of 25 listings at a pub we list. A listing opens from its own card.
 
 import { firstHttp } from "@/lib/httpUrl";
 import { outRowSourceCredit } from "@/lib/out/attribution";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
+import type { OutVenueMatchStatus } from "@/lib/out/venueMatch";
+import { OUT_LISTING_PUB_ABSENT_LINE } from "@/lib/outDesktopGrouping";
+import { outWindowNoun, type OutDayWindow } from "@/lib/outListings";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 export type OutListingRoute = {
@@ -35,23 +39,65 @@ export function outListingRoute(row: WhatsOnRow): OutListingRoute | null {
   return null;
 }
 
-export type OutPrimaryWay = OutListingRoute & {
-  /** The listing's own title, which is what the button says. */
-  label: string;
-  /** The publisher behind it, so the tap is credited the way the row is. */
-  sourceLabel: string;
+/** The heading over listings at no pub of ours: the row's own words, as a heading. */
+export const OUT_NOT_ON_MAP_HEADING = OUT_LISTING_PUB_ABSENT_LINE.replace(/\.$/, "");
+
+/** The way from a night with nothing at our pubs to the pubs people talk about. */
+export const OUT_TONIGHT_PUBS_WAY = { href: "/tonight", label: "Tonight’s pubs" } as const;
+
+export type OutListingLead = {
+  /**
+   * True only when the venue match RAN. A split claims the second block is at
+   * no pub of ours, and a lookup nobody performed cannot make that claim.
+   */
+  split: boolean;
+  /** Listings at a pub we list, in served order. They lead. */
+  matched: WhatsOnRow[];
+  /** Every other listing, in served order. Shown under its heading, never hidden. */
+  unmatched: WhatsOnRow[];
+  /** The line that leads when the match ran and placed none of them. */
+  honestEmpty: {
+    line: string;
+    way: typeof OUT_TONIGHT_PUBS_WAY | null;
+  } | null;
 };
 
-/**
- * The page's primary: the first listing that opens anywhere, named by its own
- * title. A list whose rows all open nothing has no listing to lead with, so the
- * caller keeps the map as its primary and this answers null.
- */
-export function outPrimaryListingWay(rows: readonly WhatsOnRow[]): OutPrimaryWay | null {
-  for (const row of rows) {
-    const route = outListingRoute(row);
-    const label = row.title.trim();
-    if (route && label) return { ...route, label, sourceLabel: row.source?.label ?? "" };
+function honestEmptyLine(window: OutDayWindow, count: number): string {
+  const possessive = `${outWindowNoun(window)}’s`;
+  if (count === 1) {
+    const sentence = `${possessive} one listing is not at a pub on our map.`;
+    return sentence.charAt(0).toUpperCase() + sentence.slice(1);
   }
-  return null;
+  return `None of ${possessive} ${count} listings are at a pub on our map.`;
+}
+
+/**
+ * What /out leads with once it holds listings.
+ *
+ * When the match ran, a listing at a pub of ours leads and the rest follow under
+ * OUT_NOT_ON_MAP_HEADING. When it ran and placed none, the honest line leads, so
+ * a reader meets what we checked before a block of ticket listings. When it did
+ * not run, nothing is split and nothing is claimed: outVenueMatchNotice says so.
+ */
+export function outListingLead(
+  rows: readonly WhatsOnRow[],
+  venueMatch: OutVenueMatchStatus | undefined,
+  window: OutDayWindow,
+): OutListingLead {
+  if (venueMatch !== "ready") {
+    return { split: false, matched: [], unmatched: [...rows], honestEmpty: null };
+  }
+  const matched: WhatsOnRow[] = [];
+  const unmatched: WhatsOnRow[] = [];
+  for (const row of rows) {
+    (canonicalOutVenueId(row.venueId) ? matched : unmatched).push(row);
+  }
+  const honestEmpty =
+    matched.length === 0 && unmatched.length > 0
+      ? {
+          line: honestEmptyLine(window, unmatched.length),
+          way: window === "tonight" ? OUT_TONIGHT_PUBS_WAY : null,
+        }
+      : null;
+  return { split: true, matched, unmatched, honestEmpty };
 }
