@@ -792,6 +792,15 @@ This is the gate that decides whether the app reads as a wrapped website.
 - **Universal links.** Message yourself `https://pubmaxxing.com/tonight` and
   `https://pubmaxxing.com/map?sel=<a venue id>`. Tap each from Messages.
 
+**Launch coral, on the same iPhone.** Delete the app, install it, and launch it
+once. Close it, then launch it again: this second launch draws from the
+snapshot iOS cached after the first. On both launches, compare the coral mark
+with the splash that follows it. They must be one colour. The simulator shows
+the cached snapshot more saturated than the brand coral, although the asset and
+the stored snapshot are both brand-exact (`docs/CAPACITOR_WRAP.md`, "Cold
+start"). If the iPhone shows the same shift, write it down beside this step;
+do not retouch the launch image to compensate.
+
 *Done when:* all three work on the device, not the simulator. Section 8 of this
 document and `docs/IOS_APP_PRD.md` section 4 step 9 both hold the app to this
 before submission.

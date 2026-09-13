@@ -54,10 +54,25 @@ Three facts to keep:
   site, and the shell loads the site. A binary with the plugin against a site
   without `lib/nativeSplash.ts` holds the mark for the full 12 s on every
   launch.
-- **The launch screen and the splash draw the coral differently.** The
-  `UILaunchScreen` mark measures `(255, 73, 88)` and the in-app mark
-  `(255, 91, 95)`, the brand coral. The launch PNGs carry no colour profile.
-  The cross-fade at about 1 s hides most of it, but it is not yet one colour.
+- **The simulator shows iOS's cached launch snapshot in a shifted coral.**
+  The assets are brand-exact: `LaunchMark` decodes to `(255, 90, 95)`, which
+  is `#ff5a5f`, and so does the snapshot iOS caches in the app container
+  (`Library/SplashBoard/Snapshots/*.ktx`). Only a launch the simulator draws
+  from that snapshot shifts. Measured on 13 September 2026 on
+  `pubmaxx-390x844`:
+
+  | Capture | Snapshot launch | Live splash |
+  | --- | --- | --- |
+  | `simctl io screenshot` | `(255, 73, 88)` | `(255, 91, 95)` |
+  | macOS window capture (display colour) | `(235, 88, 94)` | `(236, 103, 101)` |
+
+  Brand coral on that display is about `(234, 103, 100)`, so the live splash
+  is right. Untagged, sRGB-tagged and Display P3 assets all gave the same
+  snapshot shift. With the snapshot deleted, the launch screen draws brand
+  coral. The assets therefore stay brand-exact: a pre-compensated image would
+  be wrong on every launch that has no snapshot yet, and a simulator cannot
+  say what an iPhone shows. `docs/STORE_READINESS.md` carries the real-iPhone
+  check.
 
 ### The first-document wait
 
