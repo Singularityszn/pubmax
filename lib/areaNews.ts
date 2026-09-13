@@ -111,6 +111,7 @@ type AreaMeta = {
 const AREA_INDEX: Record<string, AreaMeta> = {
   // Central + West
   soho: { borough: "westminster", nightArea: "piccadilly-soho", label: "Soho" },
+  victoria: { borough: "westminster", nightArea: "victoria", label: "Victoria" },
   fitzrovia: { borough: "westminster", label: "Fitzrovia" },
   marylebone: { borough: "westminster", nightArea: "marylebone", label: "Marylebone" },
   mayfair: { borough: "westminster", label: "Mayfair" },
@@ -123,6 +124,7 @@ const AREA_INDEX: Record<string, AreaMeta> = {
   chiswick: { borough: "hounslow", nightArea: "chiswick", label: "Chiswick" },
   isleworth: { borough: "hounslow", label: "Isleworth" },
   richmond: { borough: "richmond-upon-thames", nightArea: "richmond", label: "Richmond" },
+  barnes: { borough: "richmond-upon-thames", nightArea: "barnes", label: "Barnes" },
   teddington: { borough: "richmond-upon-thames", label: "Teddington" },
   hampton: { borough: "richmond-upon-thames", label: "Hampton" },
   twickenham: { borough: "richmond-upon-thames", label: "Twickenham" },
@@ -152,10 +154,12 @@ const AREA_INDEX: Record<string, AreaMeta> = {
   brixton: { borough: "lambeth", nightArea: "brixton", label: "Brixton" },
   streatham: { borough: "lambeth", label: "Streatham" },
   peckham: { borough: "southwark", nightArea: "peckham", label: "Peckham" },
+  bermondsey: { borough: "southwark", nightArea: "bermondsey-london-bridge", label: "Bermondsey" },
   camberwell: { borough: "southwark", label: "Camberwell" },
   dulwich: { borough: "southwark", label: "Dulwich" },
   "tulse-hill": { borough: "lambeth", label: "Tulse Hill" },
   tooting: { borough: "wandsworth", label: "Tooting" },
+  balham: { borough: "wandsworth", nightArea: "balham", label: "Balham" },
   putney: { borough: "wandsworth", nightArea: "putney", label: "Putney" },
   wimbledon: { borough: "merton", label: "Wimbledon" },
   deptford: { borough: "lewisham", label: "Deptford" },
