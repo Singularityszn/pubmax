@@ -13,8 +13,8 @@ import type { VenueKind } from "@/lib/venues";
 // getting there. Every section is still one tap from the sheet.
 export type TabKey = "overview" | "photos" | "pints" | "menu" | "story";
 
-/** A section a caller may ask the sheet to open on: a tab, or a section inside one. */
-export type VenueTabRequest = TabKey | "ask" | "getting-home";
+/** A section a caller may ask the sheet to open on: a tab, or the getting-home fold. */
+export type VenueTabRequest = TabKey | "getting-home";
 
 export const BASE_TABS: { key: TabKey; label: string; shortLabel: string }[] = [
   { key: "overview", label: "Overview", shortLabel: "Overview" },
@@ -33,7 +33,6 @@ const TAB_KEYS = new Set<string>(BASE_TABS.map((tab) => tab.key));
 
 /** The tab that carries a requested section. Unknown or empty lands on Overview. */
 export function resolveVenueTab(request: string): TabKey {
-  if (request === "ask") return "story";
   if (request === "getting-home") return "overview";
   return TAB_KEYS.has(request) ? (request as TabKey) : DEFAULT_TAB;
 }

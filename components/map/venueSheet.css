@@ -164,7 +164,7 @@
   }
 }
 
-/* Horizontally-scrollable tab strip with comfortable touch targets. */
+/* The five-tab strip with comfortable touch targets. */
 .venueTabs {
   display: flex;
   gap: 6px;
@@ -174,7 +174,7 @@
   overflow-y: hidden;
   touch-action: pan-x pan-y pinch-zoom;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none; /* Firefox — the strip scrolls, no visible bar */
+  scrollbar-width: none; /* Firefox: no visible bar if the strip ever scrolls */
   border-bottom: 1px solid var(--line);
 }
 
@@ -752,10 +752,10 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   }
 }
 
-/* The strip is one group with one hairline, and it SCROLLS, so its overflowing
-   edge fades rather than clipping a label mid-word ("Last train" cut to
-   "Train" with a hard edge — design judgement 2026-08-01, finding 2.16). The
-   fade is a mask, so it works over any sheet material. */
+/* The strip is one group with one hairline holding the five tabs. If it ever
+   overflows, its edge fades rather than clipping a label mid-word with a hard
+   edge (design judgement 2026-08-01, finding 2.16). The fade is a mask, so it
+   works over any sheet material. */
 .venueTabs {
   gap: 4px;
   margin: 12px 0 10px;
@@ -1280,10 +1280,9 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   }
 
   .venueInspector .venueTab {
-    /* Seven tabs share the docked panel's one row: at 16px a side the
-       seventh ("Last train") wrapped alone onto a second row inside the
-       bordered strip on a 1440 desktop (measured 6 Sep 2026: 591px asked of
-       a 603px strip). 12px a side leaves the row 56px to spare. */
+    /* Five tabs share the docked panel's one row. 12px a side was set when
+       seven tabs asked 591px of a 603px strip at 16px a side on a 1440
+       desktop (measured 6 Sep 2026); five tabs leave the row more to spare. */
     padding: 9px 12px;
     font-size: 0.9rem;
   }

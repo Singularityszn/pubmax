@@ -90,7 +90,7 @@ type VenueInspectorProps = {
   /** Trusted-handoff §4.8 "Make it Stop 1": accept this Venue into a Plan. */
   onAcceptStop1?: () => void;
   acceptanceError?: string | null;
-  /** A tab, or a section inside one ("ask" on Lore, "getting-home" on Overview). */
+  /** A tab, or the "getting-home" fold on Overview. */
   initialTab?: VenueTabRequest;
   pintDrops: PintDropsState;
   /**
@@ -530,13 +530,7 @@ export default function VenueInspector({
         revealRecord={revealRecord}
         revealRecordLate={revealRecordLate}
         // Ask — the grounded "Ask the PUBMAXXER" landlord guide, a section of Lore.
-        ask={
-          <VenueAskSection
-            key={`${venue.id}:${initialTab}`}
-            venue={venue}
-            openRequest={initialTab === "ask"}
-          />
-        }
+        ask={<VenueAskSection venue={venue} />}
       />
 
       {/* Venue command bar. On phones it moves into the shared sheet footer;

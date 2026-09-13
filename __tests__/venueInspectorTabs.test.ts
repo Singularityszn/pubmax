@@ -37,9 +37,8 @@ describe("venueInspectorTabs", () => {
     const keys = tabsForVenue("pub").map((tab) => tab.key);
     expect(keys).not.toContain("ask");
     expect(keys).not.toContain("getting-home");
-    // A held trail entry or an old caller may still name a retired tab; it
-    // lands on the tab that now carries that section.
-    expect(resolveVenueTab("ask")).toBe("story");
+    // The route-end door asks for the getting-home fold by name; it lands on
+    // the tab that carries it.
     expect(resolveVenueTab("getting-home")).toBe("overview");
     expect(resolveVenueTab("menu")).toBe("menu");
     expect(resolveVenueTab("")).toBe(DEFAULT_TAB);
