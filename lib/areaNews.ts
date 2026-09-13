@@ -152,6 +152,7 @@ const AREA_INDEX: Record<string, AreaMeta> = {
   brixton: { borough: "lambeth", nightArea: "brixton", label: "Brixton" },
   streatham: { borough: "lambeth", label: "Streatham" },
   peckham: { borough: "southwark", nightArea: "peckham", label: "Peckham" },
+  bermondsey: { borough: "southwark", nightArea: "bermondsey-london-bridge", label: "Bermondsey" },
   camberwell: { borough: "southwark", label: "Camberwell" },
   dulwich: { borough: "southwark", label: "Dulwich" },
   "tulse-hill": { borough: "lambeth", label: "Tulse Hill" },
@@ -193,9 +194,16 @@ const AREA_INDEX: Record<string, AreaMeta> = {
   willesden: { borough: "brent", label: "Willesden" },
 };
 
+/** The neighbourhood slugs of the join table. The harvest area list must hold
+ *  every one, or no fact can ever be filed under that neighbourhood. */
+export function areaNewsNeighbourhoodSlugs(): string[] {
+  return Object.keys(AREA_INDEX);
+}
+
 /** Night Area slugs some neighbourhood in the join table maps onto. Derived from
- *  AREA_INDEX, so mapping one more neighbourhood to a patch is the only edit a
- *  new lane needs. */
+ *  AREA_INDEX, so a new lane needs one more neighbourhood mapped to a patch here,
+ *  plus that neighbourhood in the harvest area list (see
+ *  areaNewsNeighbourhoodSlugs). */
 const MAPPED_NIGHT_AREAS: ReadonlySet<string> = new Set(
   Object.values(AREA_INDEX).flatMap((meta) => (meta.nightArea ? [meta.nightArea] : [])),
 );
