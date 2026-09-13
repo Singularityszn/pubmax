@@ -4630,7 +4630,7 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
   }
 
   /* AT A LARGE OS TEXT SIZE THE CARD GROWS INSTEAD OF CLIPPING. The 56px
-     ceiling above holds because the copy fits it at every phone width at an
+     row above holds because the copy fits it at every phone width at an
      ordinary size; at the 2.0x the native shells apply (lib/nativeTextScale.ts,
      which publishes the bucket on <html>) the sentence, the Privacy link and
      the second word of "No thanks" all fell below the ceiling, measured on
