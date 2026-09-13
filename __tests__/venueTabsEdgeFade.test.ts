@@ -88,7 +88,7 @@ describe("B1 - the venue tab strip fades only what is really hidden", () => {
     // e2e/mobile-venue-sheet-tabs.spec.ts reads the rendered boxes.
     const phoneBlocks = [...sheetCss.matchAll(/@media \(max-width: 640px\)\s*{([\s\S]*?)\n}/g)].map((m) => m[1]!);
     const shares = phoneBlocks.some((block) =>
-      /\.venueTab\s*{[^}]*flex:\s*1 1 0/.test(block),
+      /\.venueTab\s*{[^}]*flex:\s*1 1 auto/.test(block),
     );
     expect(shares).toBe(true);
     for (const block of phoneBlocks) {

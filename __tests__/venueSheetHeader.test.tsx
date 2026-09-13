@@ -94,8 +94,10 @@ describe("the tab strip is one row of five", () => {
     for (const body of strips) expect(body).not.toMatch(/flex-wrap:\s*wrap/);
   });
 
-  it("shares the row equally so no tab hangs past the edge", () => {
-    expect(phoneRules(".venueTab").some((body) => /flex:\s*1 1 0/.test(body))).toBe(true);
+  it("shares the row's spare space so no tab hangs past the edge or cuts its label", () => {
+    // A zero basis made every cell equal and cut "Overview" to a pill
+    // narrower than its own label, 4.8px off centre at 390.
+    expect(phoneRules(".venueTab").some((body) => /flex:\s*1 1 auto/.test(body))).toBe(true);
   });
 });
 
@@ -104,5 +106,17 @@ describe("a pub with no photo gets a row, not a box", () => {
     const rule = sheetCss.match(/\.venueBaselinePhoto\.venueImage--empty\s*{([^}]*)}/)?.[1] ?? "";
     expect(rule).toMatch(/aspect-ratio:\s*auto/);
     expect(rule).toMatch(/height:\s*56px/);
+  });
+
+  it("keeps the desktop photo height off the empty row", () => {
+    const imageCss = readFileSync(
+      path.join(__dirname, "..", "components/media/venueImage.css"),
+      "utf8",
+    );
+    const desktop = imageCss.slice(imageCss.indexOf("@media (min-width: 1024px)"));
+    for (const [, selector, body] of desktop.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+      if (!/height:\s*220px/.test(body)) continue;
+      expect(selector).toContain(":not(.venueImage--empty)");
+    }
   });
 });
