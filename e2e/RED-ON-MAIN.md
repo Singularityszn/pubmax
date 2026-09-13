@@ -21,6 +21,15 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - `:89` looked for an `Out` heading. `/out` opens on the Screen primitive with the h1 `What’s on, sourced.` (#1402).
   - `:99` looked for a `Cancel` link. Moment's secondary action is `Back` (#1402).
   - `:111` said gated Social stays out of the tab row (#1170). #1247 revived Social as one of six tabs, and `__tests__/mobileTabBar.test.ts` keeps it visible as a preview when gated.
+- [x] R2 `mobile-map-shell-matrix.spec.ts` and `view-mode.spec.ts` (11 fixed): the specs lied about the shipped map shell.
+  - `mobile-map-shell-matrix.spec.ts` "coordinated map shell" (8 tests) expected 4 tabs. The bar has six: Now, Map, Places, Out, Social, You (`components/nav/navigationModel.ts`).
+  - The same tests then met four more stale steps, one after the other:
+    - The map utility corner holds 2 buttons, TfL and the Near me FAB (`MapEdgeControls`), not 1.
+    - The Near me sheet close is `Close Near me`, not `Close Cheapest listed near you`.
+    - The shared sheet is as tall as its tab body, so the theme-toggle box check now reads the Layers tab after `sheet-entering` ends. Before, it compared the Key tab with the Layers tab.
+    - The venue list opened from Map controls closes with `Close and return to the London map`, not `Close venue list`.
+  - `mobile-map-shell-matrix.spec.ts` "London basemap hierarchy" (2 tests) wrote the camera only to `pubmaxx.mobile-map-session.v1`. The map resume cache `map-resume:v1:london` (`lib/mapResume.ts`) wins on reopen, so the map opened at zoom 12. The spec now writes the camera to both stores, as the map does.
+  - `view-mode.spec.ts:7` expected no Social tab and no current tab on `/feed`. `/feed` redirects to `/social`, a Social alias, so Social is the one current tab.
 
 ## Needs captain
 
