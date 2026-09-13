@@ -868,7 +868,10 @@ export default function TonightClient({
           lede, in one element AFTER it in the DOM: a phone reads these blocks
           under the lede in this order, and from 1100px the same element is the
           column beside it. `.tonightPrimary` above holds the lede and nothing
-          else, so no chain row can stand inside it. */}
+          else, so no chain row can stand inside it. The full Deals and Music
+          lanes sit here too, after the vibe chips and before the soft plans and
+          the area news, so a phone keeps them next to the list they extend. From
+          1100px they hide and the rail summary stands in for them. */}
       <aside className="tonightContext" aria-label="Tonight at a glance">
         {ready ? (
           <TonightOnTonightSummary
@@ -946,6 +949,8 @@ export default function TonightClient({
         </VibeChips>
       ) : null}
 
+      {mobileLanes}
+
       {softPlansWindow ? (
         <TonightSoftPlansModule hasQuietPint={Boolean(quietPint)} />
       ) : null}
@@ -957,8 +962,6 @@ export default function TonightClient({
           <AreaNewsRail area={areaNewsSlug(tonightNear)} />
         </div>
       </aside>
-
-      {mobileLanes}
 
       <div className="tonightAfterPrimary">
       <EditorialRail />

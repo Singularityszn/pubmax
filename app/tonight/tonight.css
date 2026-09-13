@@ -804,7 +804,6 @@
    rail holds the soft plans and the area news, which do not wait on that
    read, so it waits with the rest. */
 .tonightPage[data-listings-status="idle"] .tonightContext,
-.tonightPage[data-listings-status="idle"] .tonightSecondaryLanes--mobile,
 .tonightPage[data-listings-status="idle"] .tonightAfterPrimary {
   visibility: hidden;
 }

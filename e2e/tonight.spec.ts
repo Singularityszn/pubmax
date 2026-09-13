@@ -742,6 +742,80 @@ test("phone Tonight keeps the lede, the cheap pints and the vibe chips in one co
   expect(Math.abs(vibes.x - lede.x)).toBeLessThan(1);
 });
 
+function independentDeal(now = Date.now()) {
+  return {
+    id: "deal-independent-happy-hour",
+    venueId: "venue-primary",
+    placeName: "The Test Arms",
+    kind: "deal",
+    startsAt: new Date(now + 60 * 60_000).toISOString(),
+    title: "Happy hour",
+    source: { label: "Pub listing", url: "https://example.com/happy-hour" },
+    observedAt: new Date(now - 60_000).toISOString(),
+    confidence: "listed",
+  };
+}
+
+function independentGig(now = Date.now()) {
+  return {
+    id: "music-independent-gig",
+    venueId: "venue-primary",
+    placeName: "The Test Arms",
+    kind: "music",
+    startsAt: new Date(now + 3 * 60 * 60_000).toISOString(),
+    title: "Live band",
+    source: { label: "Pub listing", url: "https://example.com/gig" },
+    observedAt: new Date(now - 60_000).toISOString(),
+    confidence: "listed",
+  };
+}
+
+async function openBusyNight(page: Page) {
+  const now = Date.now();
+  await mockTonightSpine(page, [independentQuiz(now), independentDeal(now), independentGig(now)]);
+  await mockReadyEmptyOut(page);
+  await page.goto("/tonight");
+  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.getByTestId("tonight-screen")).toHaveAttribute(
+    "data-listings-status",
+    "ready",
+  );
+}
+
+// D8 is a desktop change. A phone still reads the full Deals and Music lanes
+// right after the vibe chips, before the soft plans and the area news.
+test("phone Tonight reads the Deals and Music lanes before the soft plans and the area news", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openBusyNight(page);
+
+  const lanes = page.locator(".tonightSecondaryLanes--mobile");
+  await expect(lanes.locator("#deals-tonight-title")).toBeVisible();
+  await expect(lanes.locator("#music-tonight-title")).toBeVisible();
+
+  const vibes = await page.locator(".tonightVibes").boundingBox();
+  const lanesBox = await lanes.boundingBox();
+  expect(vibes && lanesBox).toBeTruthy();
+  if (!vibes || !lanesBox) return;
+  expect(lanesBox.y).toBeGreaterThanOrEqual(vibes.y + vibes.height - 1);
+
+  const softPlans = page.getByTestId("tonight-soft-plans");
+  if ((await softPlans.count()) > 0) {
+    const softBox = await softPlans.boundingBox();
+    expect(softBox).toBeTruthy();
+    if (softBox) expect(lanesBox.y + lanesBox.height).toBeLessThanOrEqual(softBox.y + 1);
+  }
+  const areaNews = await page.locator(".tonightRail").boundingBox();
+  if (areaNews && areaNews.height > 0) {
+    expect(lanesBox.y + lanesBox.height).toBeLessThanOrEqual(areaNews.y + 1);
+  }
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator(".tonightOnTonightSummary")).toBeVisible();
+  await expect(lanes).toBeHidden();
+});
+
 // Site audit D17: the Spoons import put four Wetherspoon pubs at £1.99 on top
 // of the list. One row per chain, and the chain is named on its row.
 test("the cheapest listed pints carry one row per chain and name it", async ({ page }) => {
