@@ -1500,22 +1500,27 @@ input[type="range"] {
   min-height: 44px;
   padding: 6px 14px;
   border: 1px solid transparent;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent-strong);
-  font-size: 0.84rem;
-  font-weight: 900;
-  letter-spacing: 0.01em;
+  /* The map's one painted primary is the Button primitive's primary in every
+     figure but its lift: the flat accent, the control radius, the control type
+     size and weight. It was a 999px pill with a gradient at 900 beside the
+     toolbar's 14px controls at 700 (site audit 13 Sep 2026, D7). The shadow
+     stays, because this control floats over the map. */
+  border-radius: var(--control-radius, 14px);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
+  letter-spacing: -0.01em;
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  /* Louder than Drinks — primary Plan an outing CTA in map chrome.
-     D3: layered micro-shadow stack (Linear's crafted-button depth). */
   box-shadow: var(--shadow-btn);
   box-sizing: border-box;
 }
 
 .planBtn:hover {
+  background: var(--color-accent-strong);
+  color: var(--color-on-accent-strong);
   box-shadow: var(--shadow-btn-hover);
 }
 

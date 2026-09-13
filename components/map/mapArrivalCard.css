@@ -68,36 +68,13 @@
   gap: 8px;
 }
 
+/* The pair is the Button primitive's primary and secondary
+   (components/ui/button.css), so this sheet only lays them out. They wore
+   --radius-sm at weight 600 beside every other control's 14px at 700 (site
+   audit 13 Sep 2026, D7), and before that an --ink primary, the only black
+   one on the site (report.md B1). */
 .mapArrivalCardActions button {
-  min-height: 44px;
   flex: 1 1 0;
-  border-radius: var(--radius-sm);
-  font-size: 0.88rem;
-  font-weight: 600;
-}
-
-/* One painted primary, in the product's coral. It was --ink, the only black
-   primary on the site and on the map's first screen (report.md B1, secondary
-   finding). One button family. */
-.mapArrivalCardPrimary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border: 1px solid transparent;
-  background: var(--color-accent);
-  color: var(--color-on-accent);
-}
-
-.mapArrivalCardPrimary:hover {
-  background: var(--color-accent-strong);
-  color: var(--color-on-accent-strong);
-}
-
-.mapArrivalCardSecondary {
-  border: 1px solid var(--hairline, var(--line));
-  background: transparent;
-  color: var(--ink);
 }
 
 /* The close sits in the strip's own top-right padding lane, so it never takes
@@ -155,7 +132,6 @@
 
   .mapArrivalCardActions button {
     flex: 0 0 auto;
-    padding: 0 14px;
   }
 }
 

@@ -195,8 +195,8 @@
   border-radius: var(--control-radius, 14px);
   background: transparent;
   color: var(--ink-soft);
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   box-shadow: none;
   cursor: pointer;
   touch-action: manipulation;
@@ -662,7 +662,6 @@ html[data-theme="dark"] .drinkShapeChipLabel {
     min-height: 44px;
     height: 44px;
     padding: 0 10px;
-    font-size: 0.75rem;
     line-height: 1;
     box-sizing: border-box;
   }

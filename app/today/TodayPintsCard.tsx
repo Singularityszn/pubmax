@@ -21,6 +21,8 @@ import { formatPintDatasetSnapshot } from "@/lib/dataFreshness";
 import { readRememberedArea } from "@/lib/nightPatches";
 import { AREA_NEARBY_ROW_TAG } from "@/lib/venueTruth";
 
+import { TODAY_TEXT_BUTTON_CLASS } from "./todayTextButton";
+
 import {
   resolveTodayPintsPatchId,
   todayPintsHeading,
@@ -127,7 +129,7 @@ export default function TodayPintsCard({ index }: Props) {
           different geography, so a reader met the same claim twice and only
           one copy said which day it was collected. */}
       <p className="todayCardFootRow">
-        <Link href="/map" className="todayTextButton">
+        <Link href="/map" className={TODAY_TEXT_BUTTON_CLASS}>
           Change area
           <ArrowRight size={14} aria-hidden="true" />
         </Link>
