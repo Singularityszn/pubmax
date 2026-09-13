@@ -4540,6 +4540,8 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   font-weight: var(--control-font-weight, 700);
   line-height: 1;
   white-space: nowrap;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .analyticsConsentPromptActions button:hover,
