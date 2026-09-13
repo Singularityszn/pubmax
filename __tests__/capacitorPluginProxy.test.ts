@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeSystemBrowser, openOAuthInSystemBrowser } from "@/lib/nativeOAuth";
 import { recordKeptAction, resetStoreReviewPrompt } from "@/lib/nativeReviewPrompt";
 import { shareViaNativeSheet } from "@/lib/nativeShare";
+import { releaseNativeSplashOnFirstPaint } from "@/lib/nativeSplash";
 
 // A CAPACITOR PLUGIN IS A PROXY THAT ANSWERS "then" WITH A NATIVE CALL.
 //
@@ -43,6 +44,10 @@ vi.mock("@capacitor/share", () => ({ Share: capacitorProxy("Share", { share }) }
 vi.mock("@capacitor/browser", () => ({ Browser: capacitorProxy("Browser", { open, close }) }));
 vi.mock("@capacitor-community/in-app-review", () => ({
   InAppReview: capacitorProxy("InAppReview", { requestReview }),
+}));
+const hide = vi.fn(async () => {});
+vi.mock("@capacitor/splash-screen", () => ({
+  SplashScreen: capacitorProxy("SplashScreen", { hide }),
 }));
 
 const memoryStorage = new Map<string, string>();
@@ -92,6 +97,11 @@ describe("every default plugin loader survives the real plugin's shape", () => {
     await expect(recordKeptAction("price-logged", native)).resolves.toBe("requested");
     expect(requestReview).toHaveBeenCalledOnce();
   });
+
+  it("hides the launch splash on first paint", async () => {
+    releaseNativeSplashOnFirstPaint({ isNative: () => true, afterPaint: (paint) => paint() });
+    await vi.waitFor(() => expect(hide).toHaveBeenCalledOnce());
+  });
 });
 
 describe("no native seam returns a plugin proxy from an async loader", () => {
@@ -105,6 +115,7 @@ describe("no native seam returns a plugin proxy from an async loader", () => {
     "PushNotifications",
     "App",
     "SystemBars",
+    "SplashScreen",
   ];
 
   it("hands back a plain object that closes over the plugin instead", () => {

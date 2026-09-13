@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  NOT THE LAUNCH SCREEN. iOS launches on the UILaunchScreen dictionary in
+  Info.plist, because this runtime drew a launch STORYBOARD as a plain black
+  frame whatever it held (docs/proof/mobile-app-design/ios-sim-iphone17pro/launch/),
+  and Info.plist names no UILaunchStoryboardName, so the OS never reads this file.
+
+  @capacitor/splash-screen reads it. Its iOS half has no image-only path: it
+  instantiates the storyboard named by UILaunchStoryboardName, else one called
+  LaunchScreen, and the app aborted at launch with none in the bundle. The plugin
+  shows it as an ordinary in-app view, which draws, and it holds the launch mark
+  until the page has painted (lib/nativeSplash.ts).
+
+  It is drawn exactly as the UILaunchScreen dictionary draws: the LaunchBackground
+  field with the LaunchMark image centred at its own size, so the handoff from
+  the launch screen to the splash does not move a pixel.
+-->
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="23504" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="SPc-vc-Ctl">
+    <device id="retina6_12" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="23506"/>
+        <capability name="Named colors" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <scene sceneID="SPc-sc-Scn">
+            <objects>
+                <viewController id="SPc-vc-Ctl" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="SPc-vw-Fld">
+                        <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <imageView userInteractionEnabled="NO" contentMode="center" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="LaunchMark" translatesAutoresizingMaskIntoConstraints="NO" id="SPc-im-Mrk">
+                                <rect key="frame" x="46.5" y="276" width="300" height="300"/>
+                            </imageView>
+                        </subviews>
+                        <color key="backgroundColor" name="LaunchBackground"/>
+                        <constraints>
+                            <constraint firstItem="SPc-im-Mrk" firstAttribute="centerX" secondItem="SPc-vw-Fld" secondAttribute="centerX" id="SPc-cx-Mrk"/>
+                            <constraint firstItem="SPc-im-Mrk" firstAttribute="centerY" secondItem="SPc-vw-Fld" secondAttribute="centerY" id="SPc-cy-Mrk"/>
+                        </constraints>
+                    </view>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="SPc-fr-Rsp" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+        </scene>
+    </scenes>
+    <resources>
+        <image name="LaunchMark" width="300" height="300"/>
+        <namedColor name="LaunchBackground">
+            <color red="0.023529411764705882" green="0.023529411764705882" blue="0.027450980392156862" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+    </resources>
+</document>

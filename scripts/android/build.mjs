@@ -1,5 +1,5 @@
-// `npm run android:build` - sync the Capacitor project and assemble the debug
-// APK, from a checkout that has already run `npm ci`.
+// `npm run android:build` - sync the Capacitor project, assemble the debug
+// APK and run the JVM unit tests, from a checkout that has already run `npm ci`.
 //
 // It deliberately does NOT run `npm ci` itself: this script runs FROM npm, so
 // reinstalling would delete node_modules out from under the process executing
@@ -50,6 +50,10 @@ function main() {
     // wrong step.
     throw new Error(`[pubmaxx] Gradle succeeded but ${apkPath} is not there.`);
   }
+  run(path.join(androidDir, "gradlew"), ["testDebugUnitTest", "--no-daemon"], {
+    cwd: androidDir,
+    env: toolchain.env,
+  });
   console.log(`\n[pubmaxx] Debug APK: ${path.relative(repoRoot, apkPath)}`);
 }
 

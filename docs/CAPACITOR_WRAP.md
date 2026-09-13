@@ -15,6 +15,89 @@ load cannot reach production, Capacitor serves the bundled
 stale prices or times, and offers a retry. The site's service worker remains the
 later-session fallback after at least one healthy remote load.
 
+## Cold start
+
+The shell opens on the launch mark and keeps it until the page has painted or
+the 12 s ceiling, whichever comes first. Before 13 September 2026 it did not. A clean install against production on the
+`pubmaxx-390x844` simulator showed the bare ink field for 20 seconds: the first
+document committed 21.5 s after launch, and nothing native held the mark over
+the wait.
+
+What holds the mark now:
+
+1. iOS draws the `UILaunchScreen` dictionary in `ios/App/App/Info.plist`.
+2. `@capacitor/splash-screen` takes over with the same field and mark
+   (`plugins.SplashScreen` in `capacitor.config.ts`). Auto-hide stays on at a
+   12 s ceiling, so a dead network still reaches `offline.html`.
+3. `lib/nativeSplash.ts` hides the splash sooner. After the shell chrome
+   mounts, it waits for a painted frame and hides the splash once per
+   document.
+4. When the first load fails, the offline page releases the splash at once.
+   On iOS, `native/web-stub/offline.html` calls the plugin itself. Android
+   serves that error page without the Capacitor bridge (`window.Capacitor` is
+   `undefined` there), so `MainActivity` hides the splash when the error URL
+   has loaded.
+
+Measured on the local build rig (`PUBMAX_NATIVE_SERVER_URL=http://localhost:3811`)
+on 13 September 2026: launch screen to 1.0 s, splash mark to 3.4 s, the page
+painted at 3.4 s and the splash gone by 3.65 s. No frame showed the bare field.
+
+Three facts to keep:
+
+- **The plugin's iOS half loads a storyboard.** It instantiates the storyboard
+  that `UILaunchStoryboardName` names, else one called `LaunchScreen`, and the
+  app aborts at launch when none is in the bundle. So
+  `ios/App/App/Base.lproj/LaunchScreen.storyboard` ships as an in-app view only.
+  Do not name it in `Info.plist`: the iOS 26 runtime draws a launch storyboard
+  as a black frame, which is why the launch screen is the dictionary.
+- **Ship the web before the binary.** The release on first paint lives in the
+  site, and the shell loads the site. A binary with the plugin against a site
+  without `lib/nativeSplash.ts` holds the mark for the full 12 s on every
+  launch.
+- **The simulator shows iOS's cached launch snapshot in a shifted coral.**
+  The assets are brand-exact: `LaunchMark` decodes to `(255, 90, 95)`, which
+  is `#ff5a5f`, and so does the snapshot iOS caches in the app container
+  (`Library/SplashBoard/Snapshots/*.ktx`). Only a launch the simulator draws
+  from that snapshot shifts. Measured on 13 September 2026 on
+  `pubmaxx-390x844`:
+
+  | Capture | Snapshot launch | Live splash |
+  | --- | --- | --- |
+  | `simctl io screenshot` | `(255, 73, 88)` | `(255, 91, 95)` |
+  | macOS window capture (display colour) | `(235, 88, 94)` | `(236, 103, 101)` |
+
+  Brand coral on that display is about `(234, 103, 100)`, so the live splash
+  is right. Untagged, sRGB-tagged and Display P3 assets all gave the same
+  snapshot shift. With the snapshot deleted, the launch screen draws brand
+  coral. The assets therefore stay brand-exact: a pre-compensated image would
+  be wrong on every launch that has no snapshot yet, and a simulator cannot
+  say what an iPhone shows. `docs/STORE_READINESS.md` carries the real-iPhone
+  check.
+
+### The first-document wait
+
+The 20 s wait was the network, not the app. From this Mac on the same morning,
+`curl` to `https://pubmaxxing.com` stalled for 7 to 20 s on some requests and
+answered in 0.1 s on others. The stalls hit a `curl/8` user agent as often as
+an iPhone one, and they hit `/offline.html` served as an edge `HIT` too. So the
+evidence does not point at a bot challenge for an unknown user agent.
+
+The shell appends `PUBMAXXING-App` to its user agent (`appendUserAgent` in
+`capacitor.config.ts`), so an edge rule can match the app without matching
+every iPhone. Changing Vercel settings is the captain's decision; this
+repository changes none.
+
+### Judging a shell build
+
+Before you judge what a simulator or an emulator shows, read the origin the
+installed binary loads: `App.app/capacitor.config.json` on iOS, and the
+`capacitor.config.json` under `android/app/src/main/assets/` on Android. The
+13 September audit saw `/tonight` drawn with its actions before its listings.
+The binary under audit was a 5 September build that loaded a preview deployment
+from before that layout change, and a clean build of main drew the web's
+layout. `e2e/native-shell-tonight-parity.spec.ts` holds the shell's `/tonight`
+to a plain fetch of the same URL.
+
 ## What's in the repo
 
 | Piece | File(s) |
@@ -28,6 +111,7 @@ later-session fallback after at least one healthy remote load.
 | iOS capabilities (push, associated domains) | `ios/App/App/App.entitlements`, referenced by both build configurations |
 | iOS privacy manifest | `ios/App/App/PrivacyInfo.xcprivacy` (mirrors STORE_READINESS section 5) |
 | Foreground location declarations | `ios/App/App/Info.plist`, `android/app/src/main/AndroidManifest.xml` |
+| Launch splash release | `lib/nativeSplash.ts`, mounted by `components/native/NativeShellChrome.tsx`; `MainActivity` for the Android offline page (see "Cold start") |
 | Native system-bar seam | `lib/nativeSystemBars.ts`, mounted by `components/native/NativeSystemBars.tsx` |
 | Universal/app-link route seam | `lib/nativeDeepLinks.ts`, mounted by `components/native/NativeDeepLinks.tsx` |
 | Push registration seam | `lib/nativePush.ts` → `POST /api/push-tokens` |
@@ -59,7 +143,7 @@ npx cap open ios            # open ios/App in Xcode (requires full Xcode, not ju
 npm run ios:build           # cap sync ios, then build the App scheme, unsigned
 npm run ios:run             # the same build, then boot a simulator and launch it
 
-npm run android:build       # cap sync android, then assembleDebug
+npm run android:build       # cap sync android, assembleDebug, then testDebugUnitTest
 npm run android:run         # the same APK, on a headless emulator, with a screenshot
 ```
 

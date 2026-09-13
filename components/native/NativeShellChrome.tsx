@@ -19,6 +19,7 @@
 import { useEffect } from "react";
 
 import { isNativeApp, nativePlatform } from "@/lib/nativePlatform";
+import { releaseNativeSplashOnFirstPaint } from "@/lib/nativeSplash";
 import { followNativeTextScale } from "@/lib/nativeTextScale";
 import { installNativeWebShareBridge } from "@/lib/nativeWebShareBridge";
 import "./nativeShell.css";
@@ -34,6 +35,8 @@ export default function NativeShellChrome(): null {
     // iOS and Android has somewhere to hang without a second attribute. The
     // stylesheet only matches on presence today.
     root.setAttribute(NATIVE_SHELL_ATTRIBUTE, nativePlatform() ?? "native");
+    // The launch mark stands until the page has painted (lib/nativeSplash.ts).
+    const cancelSplashRelease = releaseNativeSplashOnFirstPaint();
     // The Android WebView has no Web Share API; the shell supplies one over
     // the OS picker so every `navigator.share` caller reaches it unchanged.
     const releaseShare = installNativeWebShareBridge();
@@ -43,6 +46,7 @@ export default function NativeShellChrome(): null {
     return () => {
       releaseTextScale();
       releaseShare();
+      cancelSplashRelease();
       root.removeAttribute(NATIVE_SHELL_ATTRIBUTE);
     };
   }, []);
