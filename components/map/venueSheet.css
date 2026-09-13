@@ -415,7 +415,7 @@
 
 /* The portal sheet's own header (.mobileSharedSheetHeader > h2) already shows
    the venue name as the centred sheet title, so the in-panel area and kind
-   kicker and the duplicate <h3> name are redundant there — the name rendered
+   kicker and the duplicate <h3> name are redundant there - the name rendered
    twice, once in the sheet header and once in the panel. Trim both on the
    portal path ONLY: the desktop legacy drawer has no titled head, so its
    unscoped .inspectorTitle + <h3> stay the single source of the name. Scoped to

@@ -536,7 +536,7 @@ export default function VenueInspector({
         cityCuratedCrawls={cityCuratedCrawls}
         revealRecord={revealRecord}
         revealRecordLate={revealRecordLate}
-        // Ask — the grounded "Ask the PUBMAXXER" landlord guide, a section of Lore.
+        // Ask - the grounded "Ask the PUBMAXXER" landlord guide, a section of Lore.
         ask={<VenueAskSection venue={venue} />}
       />
 
