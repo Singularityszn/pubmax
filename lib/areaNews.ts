@@ -201,8 +201,9 @@ export function areaNewsNeighbourhoodSlugs(): string[] {
 }
 
 /** Night Area slugs some neighbourhood in the join table maps onto. Derived from
- *  AREA_INDEX, so mapping one more neighbourhood to a patch is the only edit a
- *  new lane needs. */
+ *  AREA_INDEX, so a new lane needs one more neighbourhood mapped to a patch here,
+ *  plus that neighbourhood in the harvest area list (see
+ *  areaNewsNeighbourhoodSlugs). */
 const MAPPED_NIGHT_AREAS: ReadonlySet<string> = new Set(
   Object.values(AREA_INDEX).flatMap((meta) => (meta.nightArea ? [meta.nightArea] : [])),
 );
