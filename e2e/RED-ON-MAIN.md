@@ -66,6 +66,10 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - `tonight-trusted-ui.spec.ts:191` held the first listing row above the tab bar (#1575). Since #1627 the hyped pubs lead the lede region, so the first row is at y=1731. The spec now holds the lede's first entry above the tab bar and the list inside the lede. The pin sentence in `app/AGENTS.md` says so.
   - `tonight-trusted-ui.spec.ts:224` wanted no "Checked 24 Jul" on the page (the mocked `servedAt`). The hyped pubs pack has its own real credit dated 24 Jul (Simmons), so the spec now counts only a stamp outside `.tonightHyped`.
   - Proof on the rebuilt rig: the 5 spec files gave 24 passed on a 2x repeat.
+- [x] R9 `launch-phone-controls.spec.ts:116` (6 fixed): the spec lied about the shipped product. Two causes.
+  - `/about`, `/discover`, `/pubs`, `/login` and `/messages` reported `skipLink 1x1` under the 44px floor. Since #1594 the skip link hides with the visually-hidden idiom (a 1px box with `clip-path: inset(50%)`, `components/a11y/skipLink.css`), so no thumb can reach it until it is focused. The sweep now counts that idiom as invisible. `e2e/mobile-plan-flow.spec.ts` still holds the focused skip link's geometry.
+  - `/social` waited for `.findLot__ghost`. That link ("Sign in to follow") renders only beside a handle search match, and a signed-out page with no query has none. The invite door a signed-out reader meets is `.findLot__follow` ("Sign in to invite", `components/social/FindYourLot.tsx`), so the spec now waits for and measures that door.
+  - Proof on the rig: the spec and `mobile-plan-flow.spec.ts` gave 14 passed on a 2x repeat.
 
 ## Needs captain
 

@@ -33,7 +33,7 @@ const REQUIRED_TARGETS: Partial<Record<LaunchRoute, readonly string[]>> = {
   "/about": [".aboutLogoLinks .aboutLink"],
   "/discover": [".discoverBrandChip", "a.leaderboardPub"],
   "/pubs": [".pubsJumpChip"],
-  "/social": [".findLot__ghost"],
+  "/social": [".findLot__follow"],
   "/login": [".authSignIn.authMagicLinkButton"],
 };
 
@@ -143,6 +143,10 @@ test.describe("phone controls on the launch surfaces", () => {
             const doc = document.documentElement;
             const overflowPx = Math.max(0, Math.round(doc.scrollWidth - doc.clientWidth));
 
+            // The visually-hidden idiom (a 1px box clipped to nothing) is out of
+            // a thumb's reach wherever it lays out. The skip link hides this way
+            // until focused (#1594), and e2e/mobile-plan-flow.spec.ts holds its
+            // focused geometry.
             const isInvisible = (element: Element): boolean => {
               const style = getComputedStyle(element);
               return (
@@ -150,7 +154,8 @@ test.describe("phone controls on the launch surfaces", () => {
                 style.visibility === "hidden" ||
                 style.visibility === "collapse" ||
                 style.contentVisibility === "hidden" ||
-                Number(style.opacity) === 0
+                Number(style.opacity) === 0 ||
+                style.clipPath === "inset(50%)"
               );
             };
 
