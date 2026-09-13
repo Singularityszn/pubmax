@@ -71,6 +71,8 @@
   min-height: 44px;
   padding: 0;
   border: 0;
+  /* A control's corner, so its focus ring is the family's shape (it was r0). */
+  border-radius: var(--control-radius, 14px);
   background: none;
   color: var(--ink);
   text-align: left;

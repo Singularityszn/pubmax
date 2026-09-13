@@ -215,33 +215,26 @@
   }
 }
 
-.todayButton:focus-visible,
-.todayTextButton:focus-visible {
+.todayButton:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
   border-radius: var(--control-radius, 14px);
 }
 
+/* The quiet text action is the Button primitive's ghost
+   (components/ui/button.css), so this sheet only places it. It painted a look
+   of its own at r0 and 0.78rem, and in the get-there column it stretched to
+   the card's width with its label at the left edge (site audit 13 Sep 2026,
+   D7). It hugs its label, and one that starts a line pulls its padding back so
+   the label keeps the card's text edge. quietPintCard.css holds the same rule
+   for /tonight, which loads that sheet without this one. */
 .todayTextButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 44px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ink-soft);
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-decoration: none;
-  cursor: pointer;
+  align-self: flex-start;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .todayTextButton:hover {
-    color: var(--brass);
-  }
+.todayTextButton:first-child,
+.todayGetThere > .todayTextButton {
+  margin-inline-start: calc(-1 * var(--control-pad-x, 16px));
 }
 
 .todaySrOnly {
