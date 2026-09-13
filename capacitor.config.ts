@@ -91,7 +91,26 @@ const config: CapacitorConfig = {
     // rather than a config value, so it is its own change.
     backgroundColor: BRAND_COLORS.inkDeep,
   },
+  // THE EDGE CAN TELL THE APP FROM A STRANGER. The WKWebView's own user agent
+  // is a plain iPhone WebKit string, so no firewall or bot rule can exempt the
+  // shell without exempting every iPhone. This token is the stable key a rule
+  // matches on (docs/CAPACITOR_WRAP.md, "Cold start").
+  appendUserAgent: "PUBMAXXING-App",
   plugins: {
+    // THE LAUNCH MARK STAYS UP UNTIL THE PAGE HAS PAINTED. Measured on the
+    // pubmaxx-390x844 simulator on 13 September 2026, a clean install against
+    // production: the first document committed 21.5s after launch and every
+    // frame before it was the bare ink field, because nothing native held the
+    // mark. Auto-hide stays ON because it is the ceiling (12s, the same figure
+    // as NATIVE_SPLASH_CEILING_MS in lib/nativeSplash.ts, which the CLI cannot
+    // import); lib/nativeSplash.ts hides it sooner, on first paint, and the
+    // bundled offline page hides it for itself.
+    SplashScreen: {
+      launchAutoHide: true,
+      launchShowDuration: 12_000,
+      backgroundColor: BRAND_COLORS.inkDeep,
+      showSpinner: false,
+    },
     // Capacitor 8 bundles SystemBars in core. CSS inset injection covers older
     // Android WebViews; the runtime seam mirrors the site's light/dark choice.
     SystemBars: {

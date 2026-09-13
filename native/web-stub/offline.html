@@ -160,6 +160,14 @@
       <button type="button" id="retry">Try again</button>
     </main>
     <script>
+      // The launch splash stands until a page paints (lib/nativeSplash.ts), and
+      // this page has no app bundle to do that, so it releases the splash
+      // itself rather than leaving it over the page until the 12s ceiling.
+      try {
+        var splash = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SplashScreen;
+        if (splash) Promise.resolve(splash.hide()).catch(function () {});
+      } catch (error) {}
+
       // The shell serves this file from the bundle, so reloading it would only
       // ever redraw this page. Going to the origin is the retry: the entry
       // decision (lib/entryDecision.ts) then lands the person on /tonight, and

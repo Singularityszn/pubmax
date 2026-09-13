@@ -125,6 +125,21 @@ describe("the splash is configured and wired on both shells", () => {
     expect(splash?.backgroundColor).toBe(BRAND_COLORS.inkDeep);
   });
 
+  it("gives the iOS plugin the storyboard it loads, without making it the launch screen", () => {
+    // The plugin's iOS half instantiates UILaunchStoryboardName, else a
+    // storyboard called LaunchScreen, and the first build with it aborted at
+    // launch: "Could not find a storyboard named 'LaunchScreen'". The OS launch
+    // screen stays the UILaunchScreen dictionary (__tests__/nativeSplashArt.test.ts).
+    const storyboard = rootFile("ios/App/App/Base.lproj/LaunchScreen.storyboard");
+    expect(storyboard).not.toContain('launchScreen="YES"');
+    expect(storyboard).toContain('image="LaunchMark"');
+    expect(storyboard).toContain('<color key="backgroundColor" name="LaunchBackground"/>');
+    expect(rootFile("ios/App/App/Info.plist")).not.toContain("UILaunchStoryboardName");
+    expect(rootFile("ios/App/App.xcodeproj/project.pbxproj")).toContain(
+      "/* LaunchScreen.storyboard in Resources */,",
+    );
+  });
+
   it("carries the plugin as a dependency, so npx cap sync wires both shells", () => {
     const pkg = JSON.parse(rootFile("package.json")) as { dependencies: Record<string, string> };
     expect(pkg.dependencies["@capacitor/splash-screen"]).toBeDefined();

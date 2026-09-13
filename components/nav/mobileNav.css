@@ -151,10 +151,18 @@ body:has(.mobileMapUtilityCorner) {
   min-height: 100dvh;
   min-height: 100svh;
   box-sizing: border-box;
-  padding: max(24px, env(safe-area-inset-top)) 20px
+  /* The same top padding as the loaded page (app/tonight/tonight.css). The nav
+     bar adds the top safe-area inset itself (components/nav/siteNav.css), so
+     adding it here too drew the nav 38px lower than the page it stood in for. */
+  padding: 16px 20px
     calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 24px);
   background: var(--paper);
   color: var(--ink);
+}
+@media (max-width: 640px) {
+  .routeLoadingShell {
+    padding-top: 10px;
+  }
 }
 .routeLoadingShellInner {
   width: min(100%, 28rem);
