@@ -106,15 +106,14 @@ describe("no count stands in place of the listings it counts", () => {
     expect(Number(footnote?.[1])).toBeLessThan(Number(status?.[1]));
   });
 
-  it("leads with the first listing and keeps the map as the second door", () => {
+  it("hands the head a product action as its primary, never a listing", () => {
     const primaryAt = outClient.indexOf("primary={");
     const secondaryAt = outClient.indexOf("secondary={");
     const primary = outClient.slice(primaryAt, secondaryAt);
-    expect(primary).toContain("primaryListing");
-    expect(primary.indexOf("primaryListing")).toBeLessThan(
-      primary.indexOf("OUT_MAP_WAY"),
-    );
-    expect(outClient.slice(secondaryAt)).toContain("OUT_MAP_WAY");
+    expect(primary).toContain("OUT_MAP_WAY");
+    expect(primary).not.toMatch(/primaryListing|row\.title|\.label\}<\/span>/);
+    expect(outClient).not.toContain("outPrimaryListingWay");
+    expect(outCss).not.toContain(".outPrimaryListing");
   });
 });
 
