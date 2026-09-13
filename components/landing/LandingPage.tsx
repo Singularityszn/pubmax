@@ -25,12 +25,7 @@ import {
   readPreferredCity,
   subscribePreferredCity,
 } from "@/lib/cityPreference";
-import {
-  PRIMARY_NAV_ITEMS,
-  nowTabHref,
-  serverNowTabHref,
-  subscribeNowTabHref,
-} from "@/components/nav/navigationModel";
+import { PRIMARY_NAV_ITEMS } from "@/components/nav/navigationModel";
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { CONTACT_MAILTO } from "@/lib/siteContact";
 import { trackEvent } from "@/lib/analytics";
@@ -93,14 +88,6 @@ export default function LandingPage({
     : {};
 
   const socialLabel = socialSurfaceName(socialFriendsLaunchEnabled);
-  // Same constant server snapshot, then the London clock, as the app bars: this
-  // document is prerendered and CDN-held, so it must not hydrate against a
-  // Tonight href the browser has since moved past (navigationModel).
-  const nowHref = useSyncExternalStore(
-    subscribeNowTabHref,
-    nowTabHref,
-    serverNowTabHref,
-  );
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -125,11 +112,7 @@ export default function LandingPage({
                 {item.label}
               </Link>
             ) : (
-              <Link
-                key={item.key}
-                prefetch={false}
-                href={item.key === "now" ? nowHref : item.href}
-              >
+              <Link key={item.key} prefetch={false} href={item.href}>
                 {item.label}
               </Link>
             ),

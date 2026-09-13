@@ -313,7 +313,7 @@ test("the first-run dock leads with the loop and no tab asks a stranger to sign 
   }
 });
 
-test("mobile keeps Tonight as a root tab over live today and tonight", async ({
+test("mobile keeps Tonight as a root tab that opens /tonight", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -322,11 +322,6 @@ test("mobile keeps Tonight as a root tab over live today and tonight", async ({
   const primaryNav = page.getByRole("navigation", { name: "Primary" });
   await expect(primaryNav.getByRole("link", { name: "Tonight", exact: true })).toBeVisible();
   await primaryNav.getByRole("link", { name: "Tonight", exact: true }).click();
-  await expect(page).toHaveURL(/\/(today|tonight)$/);
-  await page
-    .getByRole("navigation", { name: "Now" })
-    .getByRole("link", { name: "Tonight", exact: true })
-    .click();
   await expect(page).toHaveURL(/\/tonight$/);
   await expect(page.getByTestId("tonight-screen")).toBeVisible();
 });

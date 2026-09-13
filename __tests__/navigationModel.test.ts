@@ -28,7 +28,7 @@ describe("PUBMAXX primary navigation", () => {
 
   it("sends every destination to its own shell", () => {
     expect(PRIMARY_NAV_ITEMS.map(({ href }) => href)).toEqual([
-      "/today",
+      "/tonight",
       "/map",
       "/places",
       "/out",

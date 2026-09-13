@@ -9,9 +9,6 @@ import { warmNavRoute } from "@/lib/mapWarmup";
 import {
   PRIMARY_NAV_ITEMS,
   navPathMatches,
-  nowTabHref,
-  serverNowTabHref,
-  subscribeNowTabHref,
   type PrimaryNavKey,
 } from "@/components/nav/navigationModel";
 import { requestMobileSheetDismiss } from "@/lib/mobileShell";
@@ -57,11 +54,10 @@ type Tab = {
 
 const warmedTabs = new Set<string>();
 
-// Map follows preferred city after mount, with /map as the server fallback. The
-// Tonight tab follows the London wall clock. Exported for the tab contract test.
+// Map follows preferred city after mount, with /map as the server fallback.
+// Exported for the tab contract test.
 export function buildTabs(
   youHref = "/u/you",
-  nowHref: "/today" | "/tonight" = "/today",
   mapHref = "/map",
 ): Tab[] {
   const icons = {
@@ -77,13 +73,11 @@ export function buildTabs(
       ...item,
       ariaLabel: item.label,
       href:
-        item.key === "now"
-          ? nowHref
-          : item.key === "map"
-            ? mapHref
-            : item.key === "you"
-              ? youHref
-              : item.href,
+        item.key === "map"
+          ? mapHref
+          : item.key === "you"
+            ? youHref
+            : item.href,
       Icon: icons[item.key],
     }));
 }
@@ -111,15 +105,6 @@ export default function MobileTabBar() {
 
 function MobileTabBarContent({ pathname }: { pathname: string }) {
   const router = useRouter();
-  // The Tonight tab flips between /today and /tonight at 17:00 London. The
-  // SERVER snapshot is a constant, not a clock read: a prerendered document held
-  // by the CDN would otherwise hydrate against an href the browser had already
-  // moved past. See navigationModel.
-  const nowHref = useSyncExternalStore(
-    subscribeNowTabHref,
-    nowTabHref,
-    serverNowTabHref,
-  );
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
     readPreferredCity,
@@ -148,8 +133,8 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     serverStrictModalFocusTrap,
   );
   const tabs = useMemo(
-    () => buildTabs(youHref, nowHref, mapHref),
-    [youHref, nowHref, mapHref],
+    () => buildTabs(youHref, mapHref),
+    [youHref, mapHref],
   );
   // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
   // route none of the tabs own) hides it via CSS rather than pinning it to a

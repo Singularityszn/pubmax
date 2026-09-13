@@ -49,7 +49,7 @@ describe("mobile tab bar contract", () => {
   });
 
   it("routes every tab to its owned destination", () => {
-    const tabs = buildTabs("/u/you", "/tonight");
+    const tabs = buildTabs();
     const byLabel = Object.fromEntries(tabs.map((tab) => [tab.label, tab]));
     expect(byLabel.Tonight.href).toBe("/tonight");
     expect(byLabel.Tonight.match).toEqual(["/today", "/tonight"]);
@@ -61,7 +61,7 @@ describe("mobile tab bar contract", () => {
   });
 
   it("accepts the preferred-city Map destination, and Places keeps its own", () => {
-    const tabs = buildTabs("/u/you", "/today", "/map/glasgow");
+    const tabs = buildTabs("/u/you", "/map/glasgow");
     expect(tabs.find((tab) => tab.label === "Map")?.href).toBe("/map/glasgow");
     // Places is where the city is CHOSEN, so it never follows the chosen one.
     expect(tabs.find((tab) => tab.label === "Places")?.href).toBe("/places");

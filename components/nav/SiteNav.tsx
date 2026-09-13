@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CirclePlus } from "lucide-react";
-import { useSyncExternalStore } from "react";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import MessagesLink from "@/components/nav/MessagesLink";
@@ -16,9 +15,6 @@ import {
   PRIMARY_NAV_ITEMS,
   momentHref,
   navPathMatches,
-  nowTabHref,
-  serverNowTabHref,
-  subscribeNowTabHref,
 } from "@/components/nav/navigationModel";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
 
@@ -104,16 +100,8 @@ export default function SiteNav({
   // Imperative handle onto the global ⌘K palette (feature N1) — the button below
   // opens it for pointer users who won't reach for the shortcut.
   const { open: openCommandPalette } = useCommandPalette();
-  // Constant server snapshot, then the clock after mount — a prerendered,
-  // CDN-held document must not hydrate against a Now href that has since moved.
-  const nowHref = useSyncExternalStore(
-    subscribeNowTabHref,
-    nowTabHref,
-    serverNowTabHref,
-  );
   const socialSurfaceLabel = useSocialSurfaceName();
-  const links = LINKS
-    .map((link) => (link.key === "now" ? { ...link, href: nowHref } : link));
+  const links = LINKS;
 
   // The map is full-bleed with an overflow-hidden shell, so the bar floats
   // (fixed) over it. Every other page keeps the bar in normal flow.

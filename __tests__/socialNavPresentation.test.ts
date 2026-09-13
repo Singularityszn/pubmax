@@ -76,7 +76,6 @@ describe("the phone dock", () => {
     const host = serverRender(MobileTabBar, enabled);
     expect(host.querySelector('a[href^="/social"]')).toBeNull();
     expect(host.textContent).not.toContain("Social");
-    expect(host.querySelector(".mobileTabPreviewDot")).toBeNull();
   });
 });
 

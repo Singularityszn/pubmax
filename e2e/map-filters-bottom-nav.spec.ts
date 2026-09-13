@@ -25,7 +25,7 @@ test.describe("map filters sheet and bottom navigation", () => {
     await expect(tonight).toBeVisible();
     await tonight.click({ force: false });
 
-    await expect(page).toHaveURL(/\/(today|tonight)$/);
+    await expect(page).toHaveURL(/\/tonight$/);
     await expect(sheet).toHaveCount(0);
   });
 
