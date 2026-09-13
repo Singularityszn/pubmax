@@ -1,0 +1,660 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - main [ref=e3]:
+    - navigation "Site navigation" [ref=e4]:
+      - link "Open PUBMAXX landing page" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "PUBMAXX" [ref=e6]:
+          - generic [ref=e8]:
+            - generic [ref=e9]: PUBMAX
+            - generic [ref=e10]: X
+      - list [ref=e11]:
+        - listitem [ref=e12]:
+          - link "Now" [ref=e13] [cursor=pointer]:
+            - /url: /tonight
+        - listitem [ref=e14]:
+          - link "Map" [ref=e15] [cursor=pointer]:
+            - /url: /map
+        - listitem [ref=e16]:
+          - link "Places" [ref=e17] [cursor=pointer]:
+            - /url: /places
+        - listitem [ref=e18]:
+          - link "Out" [ref=e19] [cursor=pointer]:
+            - /url: /out
+        - listitem [ref=e20]:
+          - link "Social" [ref=e21] [cursor=pointer]:
+            - /url: /social
+        - listitem [ref=e22]:
+          - link "You" [ref=e23] [cursor=pointer]:
+            - /url: /u/you
+      - generic [ref=e24]:
+        - button "More pages" [ref=e26] [cursor=pointer]:
+          - generic [ref=e27]: More
+        - link "Share a Moment" [ref=e30] [cursor=pointer]:
+          - /url: /moment?returnTo=%2Fhistoric
+        - button "Open command palette" [ref=e33] [cursor=pointer]:
+          - generic [ref=e34]: ⌘K
+        - link "Activity" [ref=e35] [cursor=pointer]:
+          - /url: /activity
+        - link "Messages" [ref=e39] [cursor=pointer]:
+          - /url: /messages
+        - button "Switch to dark theme" [ref=e42] [cursor=pointer]
+        - button "Sign in" [ref=e800] [cursor=pointer]
+    - region [ref=e45]:
+      - generic [ref=e46]:
+        - paragraph [ref=e47]: Historic pubs
+        - heading "London’s Historic Pubs" [level=1] [ref=e48]
+        - paragraph [ref=e49]: 342 notable pubs, cited from Wikipedia and Wikidata. Never invented.
+        - generic [ref=e50]:
+          - link "Open the map" [ref=e52] [cursor=pointer]:
+            - /url: /map
+          - link "Start a crawl" [ref=e54] [cursor=pointer]:
+            - /url: /crawls
+      - region "Filter and sort historic pubs" [ref=e55]:
+        - generic [ref=e56]:
+          - generic [ref=e57]: Borough
+          - combobox "Borough" [ref=e59] [cursor=pointer]:
+            - option "All boroughs" [selected]
+            - option "Barking and Dagenham"
+            - option "Barnet"
+            - option "Bexley"
+            - option "Brent"
+            - option "Bromley"
+            - option "Camden"
+            - option "City of London"
+            - option "Croydon"
+            - option "Ealing"
+            - option "Enfield"
+            - option "Greenwich"
+            - option "Hackney"
+            - option "Hammersmith and Fulham"
+            - option "Haringey"
+            - option "Harrow"
+            - option "Hillingdon"
+            - option "Hounslow"
+            - option "Islington"
+            - option "Kensington and Chelsea"
+            - option "Lambeth"
+            - option "Lewisham"
+            - option "Merton"
+            - option "Newham"
+            - option "Richmond upon Thames"
+            - option "Southwark"
+            - option "Tower Hamlets"
+            - option "Waltham Forest"
+            - option "Wandsworth"
+            - option "Westminster"
+        - generic [ref=e60]:
+          - generic [ref=e61]: Sort
+          - combobox "Sort" [ref=e63] [cursor=pointer]:
+            - option "Oldest first" [selected]
+            - option "A–Z"
+            - option "By borough"
+        - group "Narrow the list" [ref=e64]:
+          - button "Listed only" [ref=e65] [cursor=pointer]
+          - button "Has a date" [ref=e66] [cursor=pointer]
+      - status [ref=e67]: Showing 1-24 of 342 pubs
+      - list [ref=e68]:
+        - listitem [ref=e69]:
+          - generic [ref=e70]:
+            - generic [ref=e71]: Founded 1520
+            - generic [ref=e72]: Grade II*
+          - heading "Prospect of Whitby" [level=2] [ref=e73]
+          - paragraph [ref=e74]: Tower Hamlets
+          - group [ref=e76]:
+            - generic "The Prospect of Whitby is a Grade II* listed pub on Wapping Wall in the East End, reputed to be one of the oldest riverside taverns in London, dating from around 1520. Show more" [ref=e77] [cursor=pointer]:
+              - generic [ref=e78]: The Prospect of Whitby is a Grade II* listed pub on Wapping Wall in the East End, reputed to be one of the oldest riverside taverns in London, dating from around 1520.
+              - generic [ref=e79]: Show more
+          - generic [ref=e80]:
+            - generic [ref=e81]: 3 on record
+            - link "Wikipedia" [ref=e82] [cursor=pointer]:
+              - /url: https://en.wikipedia.org/wiki/Prospect_of_Whitby
+          - generic [ref=e87]:
+            - link "Read the story" [ref=e88] [cursor=pointer]:
+              - /url: /historic/prospect-of-whitby
+            - link "See on map" [ref=e92] [cursor=pointer]:
+              - /url: /map?sel=venue-16pnwmm
+        - listitem [ref=e96]:
+          - generic [ref=e97]:
+            - generic [ref=e98]: Founded 1583
+            - generic [ref=e99]: Grade II
+          - heading "The Grapes" [level=2] [ref=e100]
+          - paragraph [ref=e101]: Tower Hamlets
+          - group [ref=e103]:
+            - generic "The Grapes is a Grade II listed public house at 76 Narrow Street, Limehouse, on the north bank of the Thames; a pub has stood on the site since 1583. Show more" [ref=e104] [cursor=pointer]:
+              - generic [ref=e105]: The Grapes is a Grade II listed public house at 76 Narrow Street, Limehouse, on the north bank of the Thames; a pub has stood on the site since 1583.
+              - generic [ref=e106]: Show more
+          - generic [ref=e107]:
+            - generic [ref=e108]: 3 on record
+            - link "Wikipedia" [ref=e109] [cursor=pointer]:
+              - /url: https://en.wikipedia.org/wiki/The_Grapes,_Limehouse
+          - generic [ref=e114]:
+            - link "Read the story" [ref=e115] [cursor=pointer]:
+              - /url: /historic/the-grapes
+            - link "See on map" [ref=e119] [cursor=pointer]:
+              - /url: /map?sel=venue-ekvkuv
+        - listitem [ref=e123]:
+          - generic [ref=e124]:
+            - generic [ref=e125]: Built 17th century
+            - generic [ref=e126]: Grade II*
+          - heading "The Hoop and Grapes" [level=2] [ref=e127]
+          - paragraph [ref=e128]: City of London
+          - group [ref=e130]:
+            - generic "The Hoop and Grapes at 47 Aldgate High Street is a Grade II* listed pub, probably built in the late 17th century; it is one of the very few timber-framed buildings in the City of London to survive from that period, standing just beyond where the Great Fire of London was halted in 1666. Show more" [ref=e131] [cursor=pointer]:
+              - generic [ref=e132]: The Hoop and Grapes at 47 Aldgate High Street is a Grade II* listed pub, probably built in the late 17th century; it is one of the very few timber-framed buildings in the City of London to survive from that period, standing just beyond where the Great Fire of London was halted in 1666.
+              - generic [ref=e133]: Show more
+          - generic [ref=e134]:
+            - generic [ref=e135]: 2 on record
+            - link "Wikipedia" [ref=e136] [cursor=pointer]:
+              - /url: https://en.wikipedia.org/wiki/Hoop_and_Grapes,_Aldgate_High_Street
+          - generic [ref=e141]:
+            - link "Read the story" [ref=e142] [cursor=pointer]:
+              - /url: /historic/the-hoop-and-grapes
+            - link "See on map" [ref=e146] [cursor=pointer]:
+              - /url: /map?sel=venue-178c07p
+        - listitem [ref=e150]:
+          - generic [ref=e151]:
+            - generic [ref=e152]: Built 17th century
+            - generic [ref=e153]: Grade II
+          - heading "The Seven Stars" [level=2] [ref=e154]
+          - paragraph [ref=e155]: Camden
+          - group [ref=e157]:
+            - generic "The Seven Stars is a Grade II listed pub at 53 Carey Street behind the Royal Courts of Justice; with 17th-century origins (its frontage bears the date 1602), it is one of the few City-fringe pubs to have survived the Great Fire of London. Show more" [ref=e158] [cursor=pointer]:
+              - generic [ref=e159]: The Seven Stars is a Grade II listed pub at 53 Carey Street behind the Royal Courts of Justice; with 17th-century origins (its frontage bears the date 1602), it is one of the few City-fringe pubs to have survived the Great Fire of London.
+              - generic [ref=e160]: Show more
+          - generic [ref=e161]:
+            - generic [ref=e162]: 2 on record
+            - link "Wikipedia" [ref=e163] [cursor=pointer]:
+              - /url: https://en.wikipedia.org/wiki/Seven_Stars,_Holborn
+          - generic [ref=e168]:
+            - link "Read the story" [ref=e169] [cursor=pointer]:
+              - /url: /historic/the-seven-stars
+            - link "See on map" [ref=e173] [cursor=pointer]:
+              - /url: /map?sel=venue-11n82fd
+        - listitem [ref=e177]:
+          - generic [ref=e178]:
+            - generic [ref=e179]: Built 1667
+            - generic [ref=e180]: Grade II
+          - heading "The Tipperary" [level=2] [ref=e181]
+          - paragraph [ref=e182]: City of London
+          - group [ref=e184]:
+            - generic "The Tipperary is a Grade II listed pub at 66 Fleet Street; the building was built in about 1667, and the wood-panelled pub is widely reputed to be one of London's oldest Irish pubs. Show more" [ref=e185] [cursor=pointer]:
+              - generic [ref=e186]: The Tipperary is a Grade II listed pub at 66 Fleet Street; the building was built in about 1667, and the wood-panelled pub is widely reputed to be one of London's oldest Irish pubs.
+              - generic [ref=e187]: Show more
+          - generic [ref=e188]:
+            - generic [ref=e189]: 2 on record
+            - link "Wikipedia" [ref=e190] [cursor=pointer]:
+              - /url: https://en.wikipedia.org/wiki/The_Tipperary
+          - generic [ref=e195]:
+            - link "Read the story" [ref=e196] [cursor=pointer]:
+              - /url: /historic/the-tipperary
+            - link "See on map" [ref=e200] [cursor=pointer]:
+              - /url: /map?sel=venue-1r447i7
+        - listitem [ref=e204]:
+          - generic [ref=e205]: Built 18th century
+          - heading "The Dickens Inn" [level=2] [ref=e207]
+          - paragraph [ref=e208]: Tower Hamlets
+          - group [ref=e210]:
+            - generic "The Dickens Inn at St Katharine Docks occupies an 18th-century timber-framed former warehouse; when the docks were redeveloped in the 1970s the structure was moved bodily to its present site and reopened as a three-storey balconied inn. Show more" [ref=e211] [cursor=pointer]:
+              - generic [ref=e212]: The Dickens Inn at St Katharine Docks occupies an 18th-century timber-framed former warehouse; when the docks were redeveloped in the 1970s the structure was moved bodily to its present site and reopened as a three-storey balconied inn.
+              - generic [ref=e213]: Show more
+          - generic [ref=e214]:
+            - generic [ref=e215]: 1 on record
+            - link "dickensinn.co.uk" [ref=e216] [cursor=pointer]:
+              - /url: https://www.dickensinn.co.uk/history
+          - generic [ref=e221]:
+            - link "Read the story" [ref=e222] [cursor=pointer]:
+              - /url: /historic/the-dickens-inn
+            - link "See on map" [ref=e226] [cursor=pointer]:
+              - /url: /map?sel=venue-xvusrx
+        - listitem [ref=e230]:
+          - generic [ref=e231]:
+            - generic [ref=e232]: Founded 18th century
+            - generic [ref=e233]: Grade II
+          - heading "The Nellie Dean" [level=2] [ref=e234]
+          - paragraph [ref=e235]: Westminster
+          - group [ref=e237]:
+            - generic "The Nellie Dean of Soho is a Grade II listed pub at 89 Dean Street, Soho; the present building dates from 1900 and there has been a pub on the site since the 18th century. Show more" [ref=e238] [cursor=pointer]:
+              - generic [ref=e239]: The Nellie Dean of Soho is a Grade II listed pub at 89 Dean Street, Soho; the present building dates from 1900 and there has been a pub on the site since the 18th century.
+              - generic [ref=e240]: Show more
+          - generic [ref=e241]:
+            - generic [ref=e242]: 1 on record
+            - link "CAMRA" [ref=e243] [cursor=pointer]:
+              - /url: https://camra.org.uk/pubs/nellie-dean-of-soho-london-128680
+          - generic [ref=e248]:
+            - link "Read the story" [ref=e249] [cursor=pointer]:
+              - /url: /historic/the-nellie-dean
+            - link "See on map" [ref=e253] [cursor=pointer]:
+              - /url: /map?sel=venue-1ufn31x
+        - listitem [ref=e257]:
+          - generic [ref=e258]:
+            - generic [ref=e259]: Built 18th century
+            - generic [ref=e260]: Grade II
+          - heading "The Perseverance" [level=2] [ref=e261]
+          - paragraph [ref=e262]: Camden
+          - group [ref=e264]:
+            - generic "The Perseverance at 63 Lamb's Conduit Street, Bloomsbury, is a Grade II listed building of early-18th-century origin, refronted in the early 19th century; it traded for years as The Sun before taking its current name. Show more" [ref=e265] [cursor=pointer]:
+              - generic [ref=e266]: The Perseverance at 63 Lamb's Conduit Street, Bloomsbury, is a Grade II listed building of early-18th-century origin, refronted in the early 19th century; it traded for years as The Sun before taking its current name.
+              - generic [ref=e267]: Show more
+          - generic [ref=e268]:
+            - generic [ref=e269]: 2 on record
+            - link "Wikipedia" [ref=e270] [cursor=pointer]:
+              - /url: https://en.wikipedia.org/wiki/The_Perseverance
+          - generic [ref=e275]:
+            - link "Read the story" [ref=e276] [cursor=pointer]:
+              - /url: /historic/the-perseverance
+            - link "See on map" [ref=e280] [cursor=pointer]:
+              - /url: /map?sel=venue-erabed
+        - listitem [ref=e284]:
+          - generic [ref=e285]: Built 18th century
+          - heading "Upper Flask" [level=2] [ref=e287]
+          - paragraph [ref=e288]: Camden
+          - group [ref=e290]:
+            - generic "18th-century tavern in Hampstead Show more" [ref=e291] [cursor=pointer]:
+              - generic [ref=e292]: 18th-century tavern in Hampstead
+              - generic [ref=e293]: Show more
+          - generic [ref=e294]:
+            - generic [ref=e295]: 1 on record
+            - link "Wikipedia" [ref=e296] [cursor=pointer]:
+              - /url: https://en.wikipedia.org/wiki/Upper_Flask
+          - generic [ref=e301]:
+            - link "Read the story" [ref=e302] [cursor=pointer]:
+              - /url: /historic/upper-flask
+            - link "See on map" [ref=e306] [cursor=pointer]:
+              - /url: /map?sel=venue-1d7771f
+        - listitem [ref=e310]:
+          - generic [ref=e311]: Founded 1736
+          - heading "The Crown & Two Chairmen" [level=2] [ref=e313]
+          - paragraph [ref=e314]: Westminster
+          - group [ref=e316]:
+            - generic "The Crown & Two Chairmen at 31-32 Dean Street, Soho, has had a pub on the site since 1736; the present building was rebuilt in 1929 and the name is said to recall two sedan-chair men who drank here while Queen Anne sat for a portrait opposite. Show more" [ref=e317] [cursor=pointer]:
+              - generic [ref=e318]: The Crown & Two Chairmen at 31-32 Dean Street, Soho, has had a pub on the site since 1736; the present building was rebuilt in 1929 and the name is said to recall two sedan-chair men who drank here while Queen Anne sat for a portrait opposite.
+              - generic [ref=e319]: Show more
+          - generic [ref=e320]:
+            - generic [ref=e321]: 1 on record
+            - link "CAMRA" [ref=e322] [cursor=pointer]:
+              - /url: https://camra.org.uk/pubs/crown-two-chairmen-london-128930
+          - generic [ref=e327]:
+            - link "Read the story" [ref=e328] [cursor=pointer]:
+              - /url: /historic/the-crown-two-chairmen
+            - link "See on map" [ref=e332] [cursor=pointer]:
+              - /url: /map?sel=venue-1t8siin
+        - listitem [ref=e336]:
+          - generic [ref=e337]: Built 19th century
+          - heading "The Pride of Spitalfields" [level=2] [ref=e339]
+          - paragraph [ref=e340]: Tower Hamlets
+          - group [ref=e342]:
+            - generic "The Pride of Spitalfields at 3 Heneage Street, just off Brick Lane in the East End, is a mid-19th-century pub formerly known as the Romford Arms; it sits in the old Huguenot heartland of Spitalfields and was named CAMRA's East London Pub of the Year in 2013. Show more" [ref=e343] [cursor=pointer]:
+              - generic [ref=e344]: The Pride of Spitalfields at 3 Heneage Street, just off Brick Lane in the East End, is a mid-19th-century pub formerly known as the Romford Arms; it sits in the old Huguenot heartland of Spitalfields and was named CAMRA's East London Pub of the Year in 2013.
+              - generic [ref=e345]: Show more
+          - generic [ref=e346]:
+            - generic [ref=e347]: 2 on record
+            - link "Wikipedia" [ref=e348] [cursor=pointer]:
+              - /url: https://en.wikipedia.org/wiki/The_Pride_of_Spitalfields
+          - generic [ref=e353]:
+            - link "Read the story" [ref=e354] [cursor=pointer]:
+              - /url: /historic/the-pride-of-spitalfields
+            - link "See on map" [ref=e358] [cursor=pointer]:
+              - /url: /map?sel=venue-lorfew
+        - listitem [ref=e362]:
+          - generic [ref=e363]:
+            - generic [ref=e364]: Built 19th century
+            - generic [ref=e365]: Grade II
+          - heading "The Star Tavern" [level=2] [ref=e366]
+          - paragraph [ref=e367]: Westminster
+          - group [ref=e369]:
+            - generic "The Star Tavern is a Grade II listed pub at 6 Belgrave Mews West, Belgravia, of early-to-mid-19th-century origin; in the 1950s and 1960s it drew both high society and the London underworld, and it is reputed to be where the 1963 Great Train Robbery was planned. Show more" [ref=e370] [cursor=pointer]:
+              - generic [ref=e371]: The Star Tavern is a Grade II listed pub at 6 Belgrave Mews West, Belgravia, of early-to-mid-19th-century origin; in the 1950s and 1960s it drew both high society and the London underworld, and it is reputed to be where the 1963 Great Train Robbery was planned.
+              - generic [ref=e372]: Show more
+          - generic [ref=e373]:
+            - generic [ref=e374]: 2 on record
+            - link "Wikipedia" [ref=e375] [cursor=pointer]:
+              - /url: https://en.wikipedia.org/wiki/Star_Tavern,_Belgravia
+          - generic [ref=e380]:
+            - link "Read the story" [ref=e381] [cursor=pointer]:
+              - /url: /historic/the-star-tavern
+            - link "See on map" [ref=e385] [cursor=pointer]:
+              - /url: /map?sel=venue-17hygdx
+        - listitem [ref=e389]:
+          - generic [ref=e390]: Built 1846
+          - heading "The Bulls Head" [level=2] [ref=e392]
+          - paragraph [ref=e393]: Richmond upon Thames
+          - group [ref=e395]:
+            - generic "The Bull's Head at 373 Lonsdale Road, Barnes, is a riverside Young's pub whose present building dates from 1846; it opened as a jazz venue in 1959 and, hosting leading British and international musicians, became known as the 'suburban Ronnie Scott's'. Show more" [ref=e396] [cursor=pointer]:
+              - generic [ref=e397]: The Bull's Head at 373 Lonsdale Road, Barnes, is a riverside Young's pub whose present building dates from 1846; it opened as a jazz venue in 1959 and, hosting leading British and international musicians, became known as the 'suburban Ronnie Scott's'.
+              - generic [ref=e398]: Show more
+          - generic [ref=e399]:
+            - generic [ref=e400]: 1 on record
+            - link "Wikipedia" [ref=e401] [cursor=pointer]:
+              - /url: https://en.wikipedia.org/wiki/The_Bull's_Head,_Barnes
+          - generic [ref=e406]:
+            - link "Read the story" [ref=e407] [cursor=pointer]:
+              - /url: /historic/the-bulls-head
+            - link "See on map" [ref=e411] [cursor=pointer]:
+              - /url: /map?sel=venue-16twk4e
+        - listitem [ref=e415]:
+          - generic [ref=e416]: Founded 1846
+          - heading "The Queens Arms" [level=2] [ref=e418]
+          - paragraph [ref=e419]: Westminster
+          - group [ref=e421]:
+            - generic "Victorian Pimlico pub from 1846. Show more" [ref=e422] [cursor=pointer]:
+              - generic [ref=e423]: Victorian Pimlico pub from 1846.
+              - generic [ref=e424]: Show more
+          - generic [ref=e425]: 1 on record
+          - generic [ref=e427]:
+            - link "Read the story" [ref=e428] [cursor=pointer]:
+              - /url: /historic/the-queens-arms
+            - link "See on map" [ref=e432] [cursor=pointer]:
+              - /url: /map?sel=venue-19211ib
+        - listitem [ref=e436]:
+          - generic [ref=e437]: Founded 1849
+          - heading "The Rutland Arms" [level=2] [ref=e439]
+          - paragraph [ref=e440]: Hammersmith and Fulham
+          - group [ref=e442]:
+            - generic "Pub in London, opened 1849 Show more" [ref=e443] [cursor=pointer]:
+              - generic [ref=e444]: Pub in London, opened 1849
+              - generic [ref=e445]: Show more
+          - generic [ref=e446]:
+            - generic [ref=e447]: 1 on record
+            - link "Wikipedia" [ref=e448] [cursor=pointer]:
+              - /url: https://en.wikipedia.org/wiki/Rutland_Arms,_Hammersmith
+          - generic [ref=e453]:
+            - link "Read the story" [ref=e454] [cursor=pointer]:
+              - /url: /historic/the-rutland-arms
+            - link "See on map" [ref=e458] [cursor=pointer]:
+              - /url: /map?sel=venue-17donco
+        - listitem [ref=e462]:
+          - generic [ref=e463]:
+            - generic [ref=e464]: Built 1850
+            - generic [ref=e465]: Grade II
+          - heading "The Rugby Tavern" [level=2] [ref=e466]
+          - paragraph [ref=e467]: Camden
+          - group [ref=e469]:
+            - generic "The Rugby Tavern on the corner of Great James Street and Rugby Street, Bloomsbury, is a Grade II listed pub dating from about 1850, built on land that forms part of the Rugby (School) Estate. Show more" [ref=e470] [cursor=pointer]:
+              - generic [ref=e471]: The Rugby Tavern on the corner of Great James Street and Rugby Street, Bloomsbury, is a Grade II listed pub dating from about 1850, built on land that forms part of the Rugby (School) Estate.
+              - generic [ref=e472]: Show more
+          - generic [ref=e473]:
+            - generic [ref=e474]: 1 on record
+            - link "WhatPub" [ref=e475] [cursor=pointer]:
+              - /url: https://whatpub.com/pubs/NLD/6307/rugby-tavern-london
+          - generic [ref=e480]:
+            - link "Read the story" [ref=e481] [cursor=pointer]:
+              - /url: /historic/the-rugby-tavern
+            - link "See on map" [ref=e485] [cursor=pointer]:
+              - /url: /map?sel=venue-1kbl05l
+        - listitem [ref=e489]:
+          - generic [ref=e490]:
+            - generic [ref=e491]: Built 1855
+            - generic [ref=e492]: Grade II
+          - heading "Museum Tavern" [level=2] [ref=e493]
+          - paragraph [ref=e494]: Camden
+          - group [ref=e496]:
+            - generic "The Museum Tavern is a Grade II listed pub at 49 Great Russell Street, opposite the British Museum; the present building was rebuilt around 1855-64 by William Finch Hill, and Karl Marx is traditionally said to have drunk here while working in the nearby Reading Room. Show more" [ref=e497] [cursor=pointer]:
+              - generic [ref=e498]: The Museum Tavern is a Grade II listed pub at 49 Great Russell Street, opposite the British Museum; the present building was rebuilt around 1855-64 by William Finch Hill, and Karl Marx is traditionally said to have drunk here while working in the nearby Reading Room.
+              - generic [ref=e499]: Show more
+          - generic [ref=e500]:
+            - generic [ref=e501]: 2 on record
+            - link "Wikipedia" [ref=e502] [cursor=pointer]:
+              - /url: https://en.wikipedia.org/wiki/Museum_Tavern
+          - generic [ref=e507]:
+            - link "Read the story" [ref=e508] [cursor=pointer]:
+              - /url: /historic/museum-tavern
+            - link "See on map" [ref=e512] [cursor=pointer]:
+              - /url: /map?sel=venue-fr71bp
+        - listitem [ref=e516]:
+          - generic [ref=e517]:
+            - generic [ref=e518]: Built 1875
+            - generic [ref=e519]: Grade II*
+          - heading "The Blackfriar" [level=2] [ref=e520]
+          - paragraph [ref=e521]: City of London
+          - group [ref=e523]:
+            - generic "The Black Friar is a Grade II* listed pub at 174 Queen Victoria Street, Blackfriars, built about 1875 on the site of a medieval Dominican (Black Friars) friary and remodelled around 1905 by the architect Herbert Fuller-Clark; it is famous for its Arts and Crafts and Art Nouveau interior of marble, mosaic and bronze reliefs of jovial friars. Show more" [ref=e524] [cursor=pointer]:
+              - generic [ref=e525]: The Black Friar is a Grade II* listed pub at 174 Queen Victoria Street, Blackfriars, built about 1875 on the site of a medieval Dominican (Black Friars) friary and remodelled around 1905 by the architect Herbert Fuller-Clark; it is famous for its Arts and Crafts and Art Nouveau interior of marble, mosaic and bronze reliefs of jovial friars.
+              - generic [ref=e526]: Show more
+          - generic [ref=e527]:
+            - generic [ref=e528]: 2 on record
+            - link "Wikipedia" [ref=e529] [cursor=pointer]:
+              - /url: https://en.wikipedia.org/wiki/The_Black_Friar,_Blackfriars
+          - generic [ref=e534]:
+            - link "Read the story" [ref=e535] [cursor=pointer]:
+              - /url: /historic/the-blackfriar
+            - link "See on map" [ref=e539] [cursor=pointer]:
+              - /url: /map?sel=venue-eltcmh
+        - listitem [ref=e543]:
+          - generic [ref=e544]:
+            - generic [ref=e545]: Built 1886
+            - generic [ref=e546]: Grade II
+          - heading "The Old Bank of England" [level=2] [ref=e547]
+          - paragraph [ref=e548]: Westminster
+          - group [ref=e550]:
+            - generic "The Old Bank of England is a Grade II listed pub at 194 Fleet Street, built in 1886 by Sir Arthur Blomfield; it housed the Law Courts branch of the Bank of England from 1888 to 1975 before becoming a pub in 1994. Show more" [ref=e551] [cursor=pointer]:
+              - generic [ref=e552]: The Old Bank of England is a Grade II listed pub at 194 Fleet Street, built in 1886 by Sir Arthur Blomfield; it housed the Law Courts branch of the Bank of England from 1888 to 1975 before becoming a pub in 1994.
+              - generic [ref=e553]: Show more
+          - generic [ref=e554]:
+            - generic [ref=e555]: 2 on record
+            - link "Wikipedia" [ref=e556] [cursor=pointer]:
+              - /url: https://en.wikipedia.org/wiki/The_Old_Bank_of_England
+          - generic [ref=e561]:
+            - link "Read the story" [ref=e562] [cursor=pointer]:
+              - /url: /historic/the-old-bank-of-england
+            - link "See on map" [ref=e566] [cursor=pointer]:
+              - /url: /map?sel=venue-lrlyh8
+        - listitem [ref=e570]:
+          - generic [ref=e571]:
+            - generic [ref=e572]: Built 1888
+            - generic [ref=e573]: Grade II
+          - heading "The Audley" [level=2] [ref=e574]
+          - paragraph [ref=e575]: Westminster
+          - group [ref=e577]:
+            - generic "The Audley at 41-43 Mount Street, Mayfair, is a Grade II listed pub built about 1888 to designs by the architect Thomas Verity; a grand late-Victorian building of red brick and pink terracotta, it was rebuilt on the Grosvenor (Duke of Westminster) estate and retains fine mahogany panelling and a carved bar-back. Show more" [ref=e578] [cursor=pointer]:
+              - generic [ref=e579]: The Audley at 41-43 Mount Street, Mayfair, is a Grade II listed pub built about 1888 to designs by the architect Thomas Verity; a grand late-Victorian building of red brick and pink terracotta, it was rebuilt on the Grosvenor (Duke of Westminster) estate and retains fine mahogany panelling and a carved bar-back.
+              - generic [ref=e580]: Show more
+          - generic [ref=e581]:
+            - generic [ref=e582]: 1 on record
+            - link "CAMRA" [ref=e583] [cursor=pointer]:
+              - /url: https://camra.org.uk/pubs/audley-london-128809
+          - generic [ref=e588]:
+            - link "Read the story" [ref=e589] [cursor=pointer]:
+              - /url: /historic/the-audley
+            - link "See on map" [ref=e593] [cursor=pointer]:
+              - /url: /map?sel=venue-10yaryo
+        - listitem [ref=e597]:
+          - generic [ref=e598]:
+            - generic [ref=e599]: Built 1897
+            - generic [ref=e600]: Grade II
+          - heading "The Dog & Duck" [level=2] [ref=e601]
+          - paragraph [ref=e602]: Westminster
+          - group [ref=e604]:
+            - generic "The Dog and Duck at 18 Bateman Street, Soho, is a Grade II listed pub; the current building dates from 1897 and its upstairs dining room is named after the writer George Orwell, who was a regular. Show more" [ref=e605] [cursor=pointer]:
+              - generic [ref=e606]: The Dog and Duck at 18 Bateman Street, Soho, is a Grade II listed pub; the current building dates from 1897 and its upstairs dining room is named after the writer George Orwell, who was a regular.
+              - generic [ref=e607]: Show more
+          - generic [ref=e608]:
+            - generic [ref=e609]: 2 on record
+            - link "Wikipedia" [ref=e610] [cursor=pointer]:
+              - /url: https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho
+          - generic [ref=e615]:
+            - link "Read the story" [ref=e616] [cursor=pointer]:
+              - /url: /historic/the-dog-duck
+            - link "See on map" [ref=e620] [cursor=pointer]:
+              - /url: /map?sel=venue-xiesdn
+        - listitem [ref=e624]:
+          - generic [ref=e625]:
+            - generic [ref=e626]: Built 1899
+            - generic [ref=e627]: Grade II
+          - heading "Salisbury" [level=2] [ref=e628]
+          - paragraph [ref=e629]: Westminster
+          - group [ref=e631]:
+            - generic "The Salisbury at 90 St Martin's Lane, Covent Garden, is a Grade II listed pub built about 1899; its lavish late-Victorian interior of etched and polished glass, mahogany and Art Nouveau candelabra is listed on CAMRA's National Inventory as a historic pub interior of national importance. Show more" [ref=e632] [cursor=pointer]:
+              - generic [ref=e633]: The Salisbury at 90 St Martin's Lane, Covent Garden, is a Grade II listed pub built about 1899; its lavish late-Victorian interior of etched and polished glass, mahogany and Art Nouveau candelabra is listed on CAMRA's National Inventory as a historic pub interior of national importance.
+              - generic [ref=e634]: Show more
+          - generic [ref=e635]:
+            - generic [ref=e636]: 2 on record
+            - link "Wikipedia" [ref=e637] [cursor=pointer]:
+              - /url: https://en.wikipedia.org/wiki/The_Salisbury,_Covent_Garden
+          - generic [ref=e642]:
+            - link "Read the story" [ref=e643] [cursor=pointer]:
+              - /url: /historic/salisbury
+            - link "See on map" [ref=e647] [cursor=pointer]:
+              - /url: /map?sel=venue-r5pfh
+        - listitem [ref=e651]:
+          - generic [ref=e652]: Built 1901
+          - heading "Ye Olde Watling" [level=2] [ref=e654]
+          - paragraph [ref=e655]: City of London
+          - group [ref=e657]:
+            - generic "Ye Olde Watling stands at 29 Watling Street, on the line of the old Roman road of the same name, close to St Paul's Cathedral; the timber-framed pub is traditionally said to have been rebuilt for Sir Christopher Wren's workmen after the Great Fire of London, and its present old-world interior largely dates from a sympathetic refit of about 1901. Show more" [ref=e658] [cursor=pointer]:
+              - generic [ref=e659]: Ye Olde Watling stands at 29 Watling Street, on the line of the old Roman road of the same name, close to St Paul's Cathedral; the timber-framed pub is traditionally said to have been rebuilt for Sir Christopher Wren's workmen after the Great Fire of London, and its present old-world interior largely dates from a sympathetic refit of about 1901.
+              - generic [ref=e660]: Show more
+          - generic [ref=e661]:
+            - generic [ref=e662]: 1 on record
+            - link "CAMRA" [ref=e663] [cursor=pointer]:
+              - /url: https://camra.org.uk/pubs/olde-watling-london-156664
+          - generic [ref=e668]:
+            - link "Read the story" [ref=e669] [cursor=pointer]:
+              - /url: /historic/ye-olde-watling
+            - link "See on map" [ref=e673] [cursor=pointer]:
+              - /url: /map?sel=venue-18x41hr
+        - listitem [ref=e677]:
+          - generic [ref=e678]:
+            - generic [ref=e679]: Built 1903
+            - generic [ref=e680]: Grade II
+          - heading "The Coal Hole" [level=2] [ref=e681]
+          - paragraph [ref=e682]: Westminster
+          - group [ref=e684]:
+            - generic "The Coal Hole is a Grade II listed pub at 91 Strand, part of the Savoy Court development, built in 1903-04 to the design of architect T. E. Collcutt. Show more" [ref=e685] [cursor=pointer]:
+              - generic [ref=e686]: The Coal Hole is a Grade II listed pub at 91 Strand, part of the Savoy Court development, built in 1903-04 to the design of architect T. E. Collcutt.
+              - generic [ref=e687]: Show more
+          - generic [ref=e688]:
+            - generic [ref=e689]: 2 on record
+            - link "Wikipedia" [ref=e690] [cursor=pointer]:
+              - /url: https://en.wikipedia.org/wiki/Coal_Hole,_Strand
+          - generic [ref=e695]:
+            - link "Read the story" [ref=e696] [cursor=pointer]:
+              - /url: /historic/the-coal-hole
+            - link "See on map" [ref=e700] [cursor=pointer]:
+              - /url: /map?sel=venue-dbukrn
+      - navigation "Historic pub pages" [ref=e704]:
+        - generic [ref=e705]: Page 1 of 15
+        - link "Next" [ref=e706] [cursor=pointer]:
+          - /url: /historic?page=2
+  - region [ref=e707]:
+    - heading "Oldest pubs by borough" [level=2] [ref=e708]
+    - paragraph [ref=e709]: Cited historic pubs, grouped by area. Every date comes from the pub’s sourced heritage record. Jump to a borough for the full, cited list.
+    - list [ref=e710]:
+      - listitem [ref=e711]:
+        - link "Oldest pubs in Westminster" [ref=e712] [cursor=pointer]:
+          - /url: /borough/westminster#boroughHeritageHeading
+        - paragraph [ref=e713]: 73 cited pubs · oldest is The Nellie Dean (18th century)
+      - listitem [ref=e714]:
+        - link "Oldest pubs in Camden" [ref=e715] [cursor=pointer]:
+          - /url: /borough/camden#boroughHeritageHeading
+        - paragraph [ref=e716]: 46 cited pubs · oldest is The Seven Stars (17th century)
+      - listitem [ref=e717]:
+        - link "Oldest pubs in City of London" [ref=e718] [cursor=pointer]:
+          - /url: /borough/city-of-london#boroughHeritageHeading
+        - paragraph [ref=e719]: 27 cited pubs · oldest is The Hoop and Grapes (17th century)
+      - listitem [ref=e720]:
+        - link "Oldest pubs in Tower Hamlets" [ref=e721] [cursor=pointer]:
+          - /url: /borough/tower-hamlets#boroughHeritageHeading
+        - paragraph [ref=e722]: 24 cited pubs · oldest is Prospect of Whitby (1520)
+      - listitem [ref=e723]:
+        - link "Oldest pubs in Hammersmith and Fulham" [ref=e724] [cursor=pointer]:
+          - /url: /borough/hammersmith-and-fulham#boroughHeritageHeading
+        - paragraph [ref=e725]: 20 cited pubs · oldest is The Rutland Arms (1849)
+      - listitem [ref=e726]:
+        - link "Oldest pubs in Kensington and Chelsea" [ref=e727] [cursor=pointer]:
+          - /url: /borough/kensington-and-chelsea#boroughHeritageHeading
+        - paragraph [ref=e728]: 18 cited pubs
+      - listitem [ref=e729]:
+        - link "Oldest pubs in Islington" [ref=e730] [cursor=pointer]:
+          - /url: /borough/islington#boroughHeritageHeading
+        - paragraph [ref=e731]: 13 cited pubs
+      - listitem [ref=e732]:
+        - link "Oldest pubs in Southwark" [ref=e733] [cursor=pointer]:
+          - /url: /borough/southwark#boroughHeritageHeading
+        - paragraph [ref=e734]: 13 cited pubs
+      - listitem [ref=e735]:
+        - link "Oldest pubs in Richmond upon Thames" [ref=e736] [cursor=pointer]:
+          - /url: /borough/richmond-upon-thames#boroughHeritageHeading
+        - paragraph [ref=e737]: 11 cited pubs · oldest is The Bulls Head (1846)
+      - listitem [ref=e738]:
+        - link "Oldest pubs in Wandsworth" [ref=e739] [cursor=pointer]:
+          - /url: /borough/wandsworth#boroughHeritageHeading
+        - paragraph [ref=e740]: 9 cited pubs
+      - listitem [ref=e741]:
+        - link "Oldest pubs in Ealing" [ref=e742] [cursor=pointer]:
+          - /url: /borough/ealing#boroughHeritageHeading
+        - paragraph [ref=e743]: 8 cited pubs
+      - listitem [ref=e744]:
+        - link "Oldest pubs in Lewisham" [ref=e745] [cursor=pointer]:
+          - /url: /borough/lewisham#boroughHeritageHeading
+        - paragraph [ref=e746]: 8 cited pubs
+      - listitem [ref=e747]:
+        - link "Oldest pubs in Enfield" [ref=e748] [cursor=pointer]:
+          - /url: /borough/enfield#boroughHeritageHeading
+        - paragraph [ref=e749]: 7 cited pubs
+      - listitem [ref=e750]:
+        - link "Oldest pubs in Hillingdon" [ref=e751] [cursor=pointer]:
+          - /url: /borough/hillingdon#boroughHeritageHeading
+        - paragraph [ref=e752]: 6 cited pubs
+      - listitem [ref=e753]:
+        - link "Oldest pubs in Hounslow" [ref=e754] [cursor=pointer]:
+          - /url: /borough/hounslow#boroughHeritageHeading
+        - paragraph [ref=e755]: 6 cited pubs · oldest is The Old Pack Horse (1910)
+      - listitem [ref=e756]:
+        - link "Oldest pubs in Lambeth" [ref=e757] [cursor=pointer]:
+          - /url: /borough/lambeth#boroughHeritageHeading
+        - paragraph [ref=e758]: 6 cited pubs
+      - listitem [ref=e759]:
+        - link "Oldest pubs in Newham" [ref=e760] [cursor=pointer]:
+          - /url: /borough/newham#boroughHeritageHeading
+        - paragraph [ref=e761]: 6 cited pubs
+      - listitem [ref=e762]:
+        - link "Oldest pubs in Barnet" [ref=e763] [cursor=pointer]:
+          - /url: /borough/barnet#boroughHeritageHeading
+        - paragraph [ref=e764]: 5 cited pubs
+      - listitem [ref=e765]:
+        - link "Oldest pubs in Greenwich" [ref=e766] [cursor=pointer]:
+          - /url: /borough/greenwich#boroughHeritageHeading
+        - paragraph [ref=e767]: 5 cited pubs
+      - listitem [ref=e768]:
+        - link "Oldest pubs in Hackney" [ref=e769] [cursor=pointer]:
+          - /url: /borough/hackney#boroughHeritageHeading
+        - paragraph [ref=e770]: 5 cited pubs
+      - listitem [ref=e771]:
+        - link "Oldest pubs in Haringey" [ref=e772] [cursor=pointer]:
+          - /url: /borough/haringey#boroughHeritageHeading
+        - paragraph [ref=e773]: 5 cited pubs
+      - listitem [ref=e774]:
+        - link "Oldest pubs in Bexley" [ref=e775] [cursor=pointer]:
+          - /url: /borough/bexley#boroughHeritageHeading
+        - paragraph [ref=e776]: 4 cited pubs
+      - listitem [ref=e777]:
+        - link "Oldest pubs in Barking and Dagenham" [ref=e778] [cursor=pointer]:
+          - /url: /borough/barking-and-dagenham#boroughHeritageHeading
+        - paragraph [ref=e779]: 3 cited pubs
+      - listitem [ref=e780]:
+        - link "Oldest pubs in Brent" [ref=e781] [cursor=pointer]:
+          - /url: /borough/brent#boroughHeritageHeading
+        - paragraph [ref=e782]: 3 cited pubs
+      - listitem [ref=e783]:
+        - link "Oldest pubs in Bromley" [ref=e784] [cursor=pointer]:
+          - /url: /borough/bromley#boroughHeritageHeading
+        - paragraph [ref=e785]: 3 cited pubs
+      - listitem [ref=e786]:
+        - link "Oldest pubs in Harrow" [ref=e787] [cursor=pointer]:
+          - /url: /borough/harrow#boroughHeritageHeading
+        - paragraph [ref=e788]: 3 cited pubs
+      - listitem [ref=e789]:
+        - link "Oldest pubs in Merton" [ref=e790] [cursor=pointer]:
+          - /url: /borough/merton#boroughHeritageHeading
+        - paragraph [ref=e791]: 2 cited pubs
+      - listitem [ref=e792]:
+        - link "Oldest pubs in Croydon" [ref=e793] [cursor=pointer]:
+          - /url: /borough/croydon#boroughHeritageHeading
+        - paragraph [ref=e794]: 1 cited pub
+      - listitem [ref=e795]:
+        - link "Oldest pubs in Waltham Forest" [ref=e796] [cursor=pointer]:
+          - /url: /borough/waltham-forest#boroughHeritageHeading
+        - paragraph [ref=e797]: 1 cited pub
+  - alert [ref=e805]
