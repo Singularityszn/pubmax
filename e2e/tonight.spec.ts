@@ -681,3 +681,102 @@ test("a night of only excluded rows reads as the honest quiet night", async ({ p
   );
   await expect(page.getByTestId("tonight-list")).toHaveCount(0);
 });
+
+// Site audit D8, 13 Sep 2026: desktop /tonight was one 784px column beside a
+// 360px rail holding one 81px weather card and then 3,800px of nothing. From
+// 1100px the rail carries the quiet-night blocks a reader turns to after the
+// lede, and a phone keeps the one column in DOM order.
+async function openQuietNight(page: Page) {
+  await mockTonightSpine(page, []);
+  await mockReadyEmptyOut(page);
+  await page.goto("/tonight");
+  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.getByTestId("tonight-screen")).toHaveAttribute(
+    "data-listings-status",
+    "empty",
+  );
+}
+
+test("desktop Tonight seats the quiet-night blocks in the rail beside the lede", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openQuietNight(page);
+
+  const rail = page.locator("aside.tonightContext");
+  await expect(rail.getByTestId("tonight-cheap-pints")).toBeVisible();
+  await expect(rail.locator(".tonightVibes")).toBeVisible();
+  // The soft plans ride a quiet hour of the London clock, so they are only
+  // on some runs; when they are, they are in the rail.
+  if ((await page.getByTestId("tonight-soft-plans").count()) > 0) {
+    await expect(rail.getByTestId("tonight-soft-plans")).toBeVisible();
+  }
+
+  const head = await page.locator(".screenHead").boundingBox();
+  const lede = await page.getByTestId("tonight-lede").boundingBox();
+  const railBox = await rail.boundingBox();
+  expect(head && lede && railBox).toBeTruthy();
+  if (!head || !lede || !railBox) return;
+  // Beside the lede, not under it, and level with the head.
+  expect(railBox.x).toBeGreaterThanOrEqual(lede.x + lede.width);
+  expect(railBox.y).toBeLessThan(head.y + head.height);
+  // The rail never pushes the lede down: the two columns share no row height.
+  // Only the weather line may stand between the head and the lede.
+  expect(lede.y - (head.y + head.height)).toBeLessThan(160);
+});
+
+test("phone Tonight keeps the lede, the cheap pints and the vibe chips in one column", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openQuietNight(page);
+
+  const lede = await page.getByTestId("tonight-lede").boundingBox();
+  const cheap = await page.getByTestId("tonight-cheap-pints").boundingBox();
+  const vibes = await page.locator(".tonightVibes").boundingBox();
+  expect(lede && cheap && vibes).toBeTruthy();
+  if (!lede || !cheap || !vibes) return;
+  expect(cheap.y).toBeGreaterThan(lede.y + lede.height - 1);
+  expect(vibes.y).toBeGreaterThan(cheap.y + cheap.height - 1);
+  expect(Math.abs(cheap.x - lede.x)).toBeLessThan(1);
+  expect(Math.abs(vibes.x - lede.x)).toBeLessThan(1);
+});
+
+// Site audit D17: the Spoons import put four Wetherspoon pubs at £1.99 on top
+// of the list. One row per chain, and the chain is named on its row.
+test("the cheapest listed pints carry one row per chain and name it", async ({ page }) => {
+  await openQuietNight(page);
+
+  const rows = page.getByTestId("tonight-cheap-pints").locator("li");
+  await expect(rows).toHaveCount(4);
+  const chains = await rows
+    .locator("[data-chain]")
+    .evaluateAll((els) => els.map((el) => el.getAttribute("data-chain")));
+  expect(chains.length).toBeGreaterThan(0);
+  expect(new Set(chains).size).toBe(chains.length);
+  await expect(
+    rows.locator('[data-chain="wetherspoon"]'),
+  ).toHaveText("Wetherspoon");
+});
+
+// The walk-times toggle painted at radius 0 (site audit D7, carried by this
+// lane). It is a row control, so it takes the one button system's geometry.
+test("the walk-times toggle wears the button system", async ({ page }) => {
+  await openQuietNight(page);
+
+  const toggle = page.locator(".tonightLocationToggle");
+  await expect(toggle).toBeVisible();
+  await expect(toggle).toHaveClass(/\buiButton\b/);
+  const geometry = await toggle.evaluate((el) => {
+    const style = getComputedStyle(el);
+    const root = getComputedStyle(document.documentElement);
+    return {
+      radius: style.borderTopLeftRadius,
+      controlRadius: root.getPropertyValue("--control-radius").trim(),
+      height: el.getBoundingClientRect().height,
+    };
+  });
+  expect(geometry.radius).not.toBe("0px");
+  expect(geometry.radius).toBe(geometry.controlRadius);
+  expect(geometry.height).toBeGreaterThanOrEqual(44);
+});
