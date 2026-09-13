@@ -8,6 +8,7 @@ Site audit 13 Sep 2026, lane 7 (D8, D17).
 - Dark scheme, device scale 2, consent denied, tour done.
 - The same quiet night on both builds: `/api/whats-on` answers no rows and `/api/out` answers ready with no events. The keyless build cannot reach the live What's-On read.
 - `measure-before.json` and `measure-after.json` hold the boxes read from the DOM at each width.
+- The after shots and boxes predate the review change that split the rail into `aside.tonightContext` and `aside.tonightContextLater`, so the 1440 rail box below is the single rail. `e2e/tonight.spec.ts` fences the current layout.
 
 ## What the boxes say
 
