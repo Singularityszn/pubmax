@@ -315,6 +315,42 @@ for (const width of [320, 360, 390] as const) {
   });
 }
 
+test("larger text grows the consent row without spilling it, and the page reserves the grown row @320x844", async ({ page }) => {
+  test.setTimeout(90_000);
+  await prepareStranger(page, { width: 320, height: 844 });
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await firstRouteRecorded(page);
+  await page.goto("/tonight", { waitUntil: "domcontentloaded" });
+
+  const prompt = page.getByLabel("Anonymous analytics choice");
+  await expect(prompt).toBeVisible({ timeout: 30_000 });
+  await page.addStyleTag({ content: "html { font-size: 24px !important; }" });
+  await expect
+    .poll(() => prompt.evaluate((el) => el.getBoundingClientRect().height))
+    .toBeGreaterThan(CONSENT_ROW_HEIGHT + 8);
+
+  const grown = await prompt.evaluate((el) => {
+    const card = el.getBoundingClientRect();
+    return {
+      height: card.height,
+      scrollHeight: el.scrollHeight,
+      controlsInside: Array.from(el.querySelectorAll("button")).every((button) => {
+        const box = button.getBoundingClientRect();
+        return box.top >= card.top - 0.5 && box.bottom <= card.bottom + 0.5;
+      }),
+    };
+  });
+  expect(grown.scrollHeight).toBeLessThanOrEqual(Math.ceil(grown.height));
+  expect(grown.controlsInside).toBe(true);
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        Number.parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue("--analytics-consent-mobile-clearance"),
+        )))
+    .toBeGreaterThanOrEqual(Math.floor(grown.height));
+});
+
 test("the dock paints the home-indicator strip under it and keeps its tap row @390x844", async ({ page }) => {
   test.setTimeout(90_000);
   await prepareStranger(page);

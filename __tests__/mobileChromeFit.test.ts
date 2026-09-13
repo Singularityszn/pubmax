@@ -76,9 +76,6 @@ describe("mobile chrome fit at 390px", () => {
     expect(globalCss).not.toMatch(
       /body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt\s*{[^}]*(?:display:\s*none|opacity:\s*0)/,
     );
-    expect(mobileMapCss).toMatch(
-      /body:has\(\.analyticsConsentPrompt\) \.appShell \.mapStage \.maplibregl-ctrl-bottom-right\s*{[^}]*bottom:\s*calc\(var\(--mobile-map-dock-clearance\) \+ 206px\)/,
-    );
   });
 
   it("fits the one top bar inside the narrowest phone at the tap floor", () => {

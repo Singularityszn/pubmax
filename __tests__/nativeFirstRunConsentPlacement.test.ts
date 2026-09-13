@@ -302,7 +302,7 @@ describe("native first-run consent placement", () => {
       globalCss,
       ".analyticsConsentPrompt",
       CARD_MEDIA,
-    ).get("max-height")!;
+    ).get("min-height")!;
 
     for (const viewport of NATIVE_VIEWPORTS) {
       const surface: Band = { top: 0, bottom: resolvePx(surfaceHeight!, viewport, variables) };

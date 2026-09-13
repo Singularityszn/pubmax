@@ -4597,28 +4597,25 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
   /* FLUSH TO THE TAB BAR, with no gap and no inset: the card is the bar's own
      top edge rather than a panel hovering 8px above it. The bottom safe-area
      inset belongs to the tab bar underneath, so the card's own padding is the
-     plain 5px and 6px of the row. The ceiling IS the row: the sentence is kept
-     short enough to wrap beside both choices inside it at 320px. */
+     plain 5px and 6px of the row. The sentence is kept short enough to wrap
+     beside both choices inside 56px at 320px. Nothing caps the height: larger
+     text grows the card rather than spilling it onto the dock, and
+     AnalyticsConsentPrompt publishes the painted row as the lane. */
   .analyticsConsentPrompt {
     bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom));
     grid-template-columns: minmax(0, 1fr) auto;
     justify-content: stretch;
     gap: 8px;
-    max-height: var(--analytics-consent-mobile-clearance, 56px);
+    min-height: 56px;
     padding: 5px max(10px, env(safe-area-inset-right)) 6px max(10px, env(safe-area-inset-left));
   }
 
   /* WITH NO TAB BAR THE CARD IS THE FOOT OF THE SCREEN. It still reaches the
      edge, because a docked strip that stops short of it is the floating panel
      again; the home-indicator inset is cleared by the card's OWN padding
-     instead, so the two buttons never sit under the system gesture area. The
-     ceiling grows by that same padding, so the row is never cut short and no
-     control hangs below the card into the gesture strip. */
+     instead, so the two buttons never sit under the system gesture area. */
   body:not(:has(.mobileTabBar, .mobileTabBarClearance)) .analyticsConsentPrompt {
     bottom: 0;
-    max-height: calc(
-      var(--analytics-consent-mobile-clearance, 56px) - 6px + max(6px, env(safe-area-inset-bottom))
-    );
     padding-bottom: max(6px, env(safe-area-inset-bottom));
   }
 
@@ -4629,9 +4626,6 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
      lane the card then sits in. */
   body:has(.firstRunOnboarding) .analyticsConsentPrompt {
     bottom: 0;
-    max-height: calc(
-      var(--analytics-consent-mobile-clearance, 56px) - 6px + max(6px, env(safe-area-inset-bottom))
-    );
     padding-bottom: max(6px, env(safe-area-inset-bottom));
   }
 
@@ -4643,11 +4637,11 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
      both rigs (docs/proof/mobile-app-design, either rig's textscale folder;
      a glob here would end this comment). The card is
      bottom-anchored above the tab bar, so it grows upward, and the two
-     buttons share one row under the sentence. These rules come after the two
-     berths above, so no ceiling there wins over this one. The lane the page
-     reserves grows with the card, and the first-run lane reads the same
-     token: a 1px hairline, 5px, four 29px lines of the sentence at 320px, 8px,
-     the 44px choices and 6px make 180px. */
+     buttons share one row under the sentence. The lane the page reserves
+     grows with the card, and the first-run lane reads the same token. Until
+     the painted row is published it is 184px: a 1px hairline, 5px, four 29px
+     lines of the sentence at 320px, 8px, the 44px choices and 6px make 180px,
+     and 4px of margin. */
   html[data-text-scale="large"] {
     --analytics-consent-mobile-clearance: 184px;
   }
@@ -4671,8 +4665,8 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
      that are the only way out of a fixed overlay; a clamp on the paragraph cuts
      the banner's only route to the privacy notice, which is the last thing on
      it; and a clamp on the sentence alone silently drops the "never sold"
-     half of the disclosure on a 320px phone. The card holds its 56px ceiling
-     by the COPY being short enough to wrap inside it beside both choices at
+     half of the disclosure on a 320px phone. The card holds its 56px row by
+     the COPY being short enough to wrap inside it beside both choices at
      every phone width, with the Privacy link riding the last line. */
 
   .analyticsConsentPromptActions {

@@ -124,9 +124,13 @@
   }
 
   body:has(.analyticsConsentPrompt) .appShell .mapStage .maplibregl-ctrl-bottom-right {
-    /* Keep the expandable OSM credit above the honest first-visit disclosure.
+    /* The expandable OSM credit keeps its own berth over the disclosure docked
+       on the tab bar, and steps up only when larger text grows the card past it.
        e2e/ui-consistency-layout.spec.ts owns the rendered collision proof. */
-    bottom: calc(var(--mobile-map-dock-clearance) + 206px);
+    bottom: max(
+      calc(var(--mobile-map-dock-clearance) + 68px),
+      calc(var(--mobile-map-dock-clearance) + var(--analytics-consent-mobile-clearance, 56px))
+    );
   }
 
   /* The first-visit ask is a STRIP under this bar now, not a panel at the foot
@@ -473,9 +477,10 @@
     pointer-events: auto;
     cursor: pointer;
   }
-  /* The first-visit analytics disclosure owns the same bottom lane, so the
-     map-edge column steps above it rather than putting a 52px FAB on top of a
-     consent choice. Same offset the OSM credit already uses. */
+  /* The first-visit analytics disclosure docks under the map-edge column, so
+     the column keeps one gap above the card's published lane
+     (components/nav/mobileNav.css) rather than putting a 52px FAB on top of a
+     consent choice. */
   body:has(.analyticsConsentPrompt) .mobileMapUtilityCorner {
     bottom: var(--map-corner-bottom-consent);
   }
