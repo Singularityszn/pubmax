@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { LANDING_QUIET_DOORS } from "@/lib/landingHero";
+import { isQuietPintWindow } from "@/lib/quietPint";
 
 import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
 
@@ -31,17 +32,20 @@ for (const viewport of DEVICES) {
       await setTheme(page, theme);
       await page.goto("/");
 
-      // ONE painted primary plus the quiet row, which is the table in
+      // ONE painted primary plus the quiet row. The row is the receipt door,
+      // which components/landing/LandingHero.tsx always renders first (the
+      // anchor pub's "Still £6.50?" or the fallback), then the table in
       // lib/landingHero.ts rather than a number typed here: the row carried two
-      // doors from #1488 while this spec still counted for one (#1503).
+      // doors from #1488 while this spec still counted for one (#1503), and it
+      // counted the table alone after the receipt door left the table (#1628).
       const heroActions = page.locator(".lpHero .screenActions a");
-      await expect(heroActions).toHaveCount(1 + LANDING_QUIET_DOORS.length);
+      await expect(heroActions).toHaveCount(2 + LANDING_QUIET_DOORS.length);
       await expect(page.getByRole("link", { name: LANDING_PRIMARY_NAME }).first()).toBeVisible();
       const quietDoors = page.locator(".lpHero .screenSecondary > a");
-      await expect(quietDoors).toHaveCount(LANDING_QUIET_DOORS.length);
+      await expect(quietDoors).toHaveCount(1 + LANDING_QUIET_DOORS.length);
       for (const [index, door] of LANDING_QUIET_DOORS.entries()) {
-        await expect(quietDoors.nth(index)).toHaveAttribute("href", door.href);
-        await expect(quietDoors.nth(index)).toHaveText(door.label);
+        await expect(quietDoors.nth(index + 1)).toHaveAttribute("href", door.href);
+        await expect(quietDoors.nth(index + 1)).toHaveText(door.label);
       }
 
       const actionGeometry = await heroActions.evaluateAll((elements) =>
@@ -107,9 +111,44 @@ const COMPOSE_LANE_SURFACES = [
 
 for (const surface of COMPOSE_LANE_SURFACES) {
   test(`390px: ${surface.route} keeps its right cell clear of the compose action`, async ({ page }) => {
+    // Tonight's soft-plans rows render only inside the quiet-pint window, which
+    // app/tonight/page.tsx reads off the SERVER's London clock, so no browser
+    // clock or mock can bring them into a run outside it. Outside the window
+    // there is no row in the lane to measure: skip and say so, never pass on
+    // an empty list (__tests__/tonightSoftPlans.test.ts pins the window).
+    test.skip(
+      surface.route === "/tonight" && !isQuietPintWindow(),
+      "Tonight's soft-plans rows render only in the quiet-pint window (server London clock).",
+    );
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await setTheme(page, "light");
+    if (surface.route === "/tonight") {
+      // A keyless build cannot reach the live What's-On read, so Tonight lands
+      // in its error state and paints no soft-plans rows at all. The quiet
+      // night e2e/tonight.spec.ts answers is the night these rows belong to.
+      await page.route("**/api/out?**", (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ status: "ready", events: [], openPlans: [], attribution: [], observedAt: {}, providers: [] }),
+        }),
+      );
+      await page.route("**/api/whats-on?**", (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            servedAt: new Date().toISOString(),
+            sourceObservedAt: null,
+            sourceFreshnessKind: "unknown",
+            localityBasis: "london-default",
+            asOf: null,
+            rows: [],
+          }),
+        }),
+      );
+    }
     await page.goto(surface.route);
 
     const fab = page.locator(".createFab");
@@ -382,8 +421,9 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
   await setTheme(page, "light");
   await page.goto("/map");
   const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
+  // "Show all" left the map edge for the Layers popover (7 Sep 2026, B9), so
+  // the zoom pair is the readiness signal here and nothing else is waited on.
   await expect(zoomIn).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator(".mapFitLondonBtn")).toBeVisible();
   const findings = await page.evaluate(() => {
     const owns = (selector: string) => {
       const element = document.querySelector(selector);
