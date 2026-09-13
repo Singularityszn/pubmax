@@ -2,6 +2,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { installNativeShell } from "./helpers/nativeShell";
+
 const VIEWPORT = { width: 390, height: 844 };
 
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
@@ -26,18 +28,6 @@ async function saveShot(page: Page, name: string): Promise<void> {
     `docs/screenshots/onboarding/${name}.png`,
     await page.screenshot({ fullPage: false }),
   );
-}
-
-async function installNativeShell(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    Object.defineProperty(window, "Capacitor", {
-      configurable: true,
-      value: {
-        isNativePlatform: () => true,
-        getPlatform: () => "ios",
-      },
-    });
-  });
 }
 
 async function installSuccessfulPlanRoute(page: Page): Promise<void> {

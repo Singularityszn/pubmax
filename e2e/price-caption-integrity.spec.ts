@@ -4,6 +4,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { storyBandsForCity } from "@/lib/cityStoryBands";
 import { listEnabledCities } from "@/lib/cities";
 
+import { installNativeShell } from "./helpers/nativeShell";
+
 const VIEWPORTS = [
   { width: 360, height: 800 },
   { width: 390, height: 844 },
@@ -500,15 +502,7 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
   }) => {
     await page.setViewportSize(viewport);
     await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.addInitScript(() => {
-      Object.defineProperty(window, "Capacitor", {
-        configurable: true,
-        value: {
-          isNativePlatform: () => true,
-          getPlatform: () => "ios",
-        },
-      });
-    });
+    await installNativeShell(page);
 
     const response = await page.goto("/");
     expect(response?.status()).toBe(200);

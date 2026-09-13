@@ -10,6 +10,9 @@ test("mobile first-run tour leaves the map centre visible", async ({ page }) => 
     window.localStorage.removeItem("pubmax-tour-v2-done");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // DeferredShellExtras holds the tour for 30 s on the web unless this
+    // release key says now (components/DeferredShellExtras.tsx).
+    window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
   });
 
   const response = await page.goto("/map");

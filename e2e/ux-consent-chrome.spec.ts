@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
+import { installNativeShell } from "./helpers/nativeShell";
 
 const CONSENT_KEY = "pubmaxx:analytics-consent:v1";
 const VIEWPORT = { width: 390, height: 844 };
@@ -62,11 +63,8 @@ async function prepareFirstRunOnboarding(
 ) {
   await page.setViewportSize(viewport);
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
+  await installNativeShell(page);
   await page.addInitScript(() => {
-    Object.defineProperty(window, "Capacitor", {
-      configurable: true,
-      value: { isNativePlatform: () => true, getPlatform: () => "ios" },
-    });
     window.sessionStorage.setItem(
       "pubmax:nativeFirstRun:handoff:v1",
       String(Date.now()),
@@ -121,6 +119,13 @@ async function prepareUndecidedConsent(
 test("mobile consent never covers the tab bar, before or after dismiss", async ({ page }) => {
   test.setTimeout(60_000);
   await prepareUndecidedConsent(page);
+  // A COLD map gives its lower edge to the First visit card once the pins
+  // reveal, and the card takes consent down behind it
+  // (lib/mapFirstVisitArrival.ts). This test is about consent over the tab
+  // bar, so the map has already had its first visit.
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+  });
   await page.goto("/map/london", { waitUntil: "domcontentloaded" });
 
   const prompt = page.getByLabel("Anonymous analytics choice");
