@@ -10,7 +10,10 @@ import {
   type ArchivedPintIndexSnapshot,
 } from "@/lib/pintIndexArchive";
 export { PINT_INDEX_SNAPSHOT_PATH } from "@/lib/pintIndexSnapshotFile.mjs";
-export { loadPublicPintIndexSnapshot } from "@/lib/publicPintIndexSnapshot.server";
+export {
+  loadPublicPintIndexSnapshot,
+  loadPublicPintIndexSnapshotOrThrow,
+} from "@/lib/publicPintIndexSnapshot.server";
 
 /** One JSON file per frozen month, named `YYYY-MM.json`. */
 export const PINT_INDEX_ARCHIVE_DIR = "public/data/pint_index";

@@ -670,22 +670,48 @@ export async function listNightStoryInbox(actorId: string): Promise<NightStorySt
   }
 }
 
-async function getContributors(storyId: string): Promise<StoryContributor[]> {
-  if (!isSupabaseConfigured()) return contributors.get(storyId) ?? [];
+type RowsReadResult<T> = { status: "found"; rows: T[] } | { status: "unavailable" };
+
+/**
+ * The contributor rows, two ways. A read we could not RUN is not an empty
+ * crew: the publish gate redacts by who has withdrawn, so an error read as
+ * "nobody" would emit a departed person's content. `getContributors` below is
+ * the fail-soft reading for callers that only ever narrow on the list.
+ */
+async function readContributors(storyId: string): Promise<RowsReadResult<StoryContributor>> {
+  if (!isSupabaseConfigured()) return { status: "found", rows: contributors.get(storyId) ?? [] };
   const { data, error } = await requireSupabaseAdmin()
     .from("night_story_contributors")
     .select("*")
     .eq("story_id", storyId);
-  return error ? [] : (data ?? []).map((row) => contributorFromRow(row as Record<string, unknown>));
+  if (error) return { status: "unavailable" };
+  return {
+    status: "found",
+    rows: (data ?? []).map((row) => contributorFromRow(row as Record<string, unknown>)),
+  };
 }
 
-async function getConsents(storyId: string): Promise<MomentConsent[]> {
-  if (!isSupabaseConfigured()) return consents.get(storyId) ?? [];
+async function getContributors(storyId: string): Promise<StoryContributor[]> {
+  const read = await readContributors(storyId);
+  return read.status === "found" ? read.rows : [];
+}
+
+async function readConsents(storyId: string): Promise<RowsReadResult<MomentConsent>> {
+  if (!isSupabaseConfigured()) return { status: "found", rows: consents.get(storyId) ?? [] };
   const { data, error } = await requireSupabaseAdmin()
     .from("night_moment_consents")
     .select("*")
     .eq("story_id", storyId);
-  return error ? [] : (data ?? []).map((row) => consentFromRow(row as Record<string, unknown>));
+  if (error) return { status: "unavailable" };
+  return {
+    status: "found",
+    rows: (data ?? []).map((row) => consentFromRow(row as Record<string, unknown>)),
+  };
+}
+
+async function getConsents(storyId: string): Promise<MomentConsent[]> {
+  const read = await readConsents(storyId);
+  return read.status === "found" ? read.rows : [];
 }
 
 /**
@@ -696,13 +722,21 @@ async function getConsents(storyId: string): Promise<MomentConsent[]> {
  *     existing per-owner consents API writes status "withdrawn").
  *   • ACCOUNT DELETED — the profile-delete hook marked their contributor rows
  *     "withdrawn" across every Story (markContributorsDepartedByProfileId).
- * Each departed id is resolved to its handle + display name (fail-soft: a lookup
- * miss still redacts the owned Moments, it just cannot scrub free-text mentions).
+ * Each departed id is resolved to its handle + display name. A profile row that
+ * is genuinely MISSING stays fail-soft: that id keeps a null handle, so its
+ * owned Moments are still dropped and only free-text mentions go unscrubbed. A
+ * profile read we could not RUN is a different fact, so it is `unavailable` and
+ * fails closed - scoped to a Story that actually has a departed contributor,
+ * because a Story with nobody to protect returns before any profile is read.
  */
+type DepartedReadResult =
+  | { status: "found"; departed: DepartedContributor[] }
+  | { status: "unavailable" };
+
 async function resolveDepartedContributors(
   contributorsList: StoryContributor[],
   consentsList: MomentConsent[],
-): Promise<DepartedContributor[]> {
+): Promise<DepartedReadResult> {
   const departedIds = new Set<string>();
   for (const contributor of contributorsList) {
     if (contributor.status === "withdrawn") departedIds.add(contributor.profileId);
@@ -710,14 +744,19 @@ async function resolveDepartedContributors(
   for (const consent of consentsList) {
     if (consent.status === "withdrawn") departedIds.add(consent.ownerId);
   }
-  if (departedIds.size === 0) return [];
+  if (departedIds.size === 0) return { status: "found", departed: [] };
   const store = profileStore();
-  return Promise.all(
-    [...departedIds].sort().map(async (profileId) => {
-      const profile = await store.getByUserId(profileId).catch(() => null);
-      return { profileId, handle: profile?.handle ?? null, displayName: profile?.displayName ?? null };
-    }),
-  );
+  try {
+    const departed = await Promise.all(
+      [...departedIds].sort().map(async (profileId) => {
+        const profile = await store.getByUserId(profileId);
+        return { profileId, handle: profile?.handle ?? null, displayName: profile?.displayName ?? null };
+      }),
+    );
+    return { status: "found", departed };
+  } catch {
+    return { status: "unavailable" };
+  }
 }
 
 /**
@@ -756,85 +795,164 @@ export async function markContributorsDepartedByProfileId(profileId: string): Pr
   return (data ?? []).length;
 }
 
-async function getStoryRaw(storyId: string): Promise<NightStory | null> {
-  if (!isSupabaseConfigured()) return stories.get(storyId) ?? null;
+type StoryReadResult =
+  | { status: "found"; story: NightStory }
+  | { status: "absent" }
+  | { status: "unavailable" };
+
+/**
+ * The Story row, three ways. A read we could not RUN is a fact about us and
+ * never a fact about the Story, so it is its own answer here; `getStoryRaw`
+ * below is the two-way reading for callers that already treat both absences
+ * alike.
+ */
+async function readStoryRaw(storyId: string): Promise<StoryReadResult> {
+  if (!isSupabaseConfigured()) {
+    const story = stories.get(storyId);
+    return story ? { status: "found", story } : { status: "absent" };
+  }
   const admin = requireSupabaseAdmin();
-  const [{ data, error }, { data: links }] = await Promise.all([
+  const [{ data, error }, { data: links, error: linksError }] = await Promise.all([
     admin.from("night_stories").select("*").eq("id", storyId).maybeSingle(),
     admin.from("night_story_moments").select("moment_id").eq("story_id", storyId),
   ]);
-  if (error || !data) return null;
-  return storyFromRow(
-    data as Record<string, unknown>,
-    (links ?? []).map((row) => String(row.moment_id)),
-  );
+  if (error || linksError) return { status: "unavailable" };
+  if (!data) return { status: "absent" };
+  return {
+    status: "found",
+    story: storyFromRow(
+      data as Record<string, unknown>,
+      (links ?? []).map((row) => String(row.moment_id)),
+    ),
+  };
+}
+
+async function getStoryRaw(storyId: string): Promise<NightStory | null> {
+  const read = await readStoryRaw(storyId);
+  return read.status === "found" ? read.story : null;
+}
+
+export type NightStoryReadResult =
+  | { status: "found"; story: NightStory | PublicNightStory }
+  | { status: "absent" }
+  | { status: "unavailable" };
+
+async function readPublicProjection(
+  story: NightStory,
+  contributorsList: StoryContributor[],
+): Promise<NightStoryReadResult> {
+  const consentsRead = await readConsents(story.id);
+  if (consentsRead.status !== "found") return { status: "unavailable" };
+  const departedRead = await resolveDepartedContributors(contributorsList, consentsRead.rows);
+  if (departedRead.status !== "found") return { status: "unavailable" };
+  return {
+    status: "found",
+    story: redactPublicStoryFields(safeNightStory(story), departedRead.departed),
+  };
+}
+
+/**
+ * A Story as one caller may see it, three ways. A member gets the unredacted
+ * Story (their own workspace projection); anyone else gets the public
+ * projection, redacted at the same choke so the OG card and any public API
+ * read never carries a departed person's identity (5.5). A read we could not
+ * run is `unavailable`, never `absent`, so no surface turns an outage into a
+ * 404 or a day-long not-shared card. `getNightStory` is the two-way reading.
+ *
+ * A null actor is the public branch: it takes the public projection below, and
+ * that is what a surface with no reader passes. DO NOT READ THE RETURN TYPE AS
+ * THE GUARANTEE. `NightStory | PublicNightStory` cannot keep a full Story off a
+ * public surface; the `safeNightStory` projection inside `readPublicProjection`
+ * is what does, by building a fresh literal of exactly the public fields.
+ */
+export async function readNightStory(storyId: string, actorId: string | null): Promise<NightStoryReadResult> {
+  const storyRead = await readStoryRaw(storyId);
+  if (storyRead.status !== "found") return storyRead;
+  const { story } = storyRead;
+  const shared = story.status === "published" && story.visibility !== "private";
+  if (!actorId && !shared) return { status: "absent" };
+  const contributorsRead = await readContributors(storyId);
+  if (contributorsRead.status !== "found") return { status: "unavailable" };
+  const membership = actorId
+    ? contributorsRead.rows.some((item) => item.profileId === actorId && item.status === "accepted")
+    : false;
+  if (membership) return { status: "found", story };
+  if (!shared) return { status: "absent" };
+  return readPublicProjection(story, contributorsRead.rows);
 }
 
 export async function getNightStory(
   storyId: string,
   actorId: string | null,
 ): Promise<NightStory | PublicNightStory | null> {
-  const story = await getStoryRaw(storyId);
-  if (!story) return null;
-  if (story.status === "published" && story.visibility !== "private") {
-    const contributorsList = await getContributors(storyId);
-    const membership = actorId
-      ? contributorsList.some((item) => item.profileId === actorId && item.status === "accepted")
-      : false;
-    // A member gets the unredacted Story (their own workspace projection); the
-    // public projection is redacted at the same choke so the OG card + any
-    // public API read never carries a departed person's identity (5.5).
-    if (membership) return story;
-    const publicStory: PublicNightStory = {
-      id: story.id,
-      title: story.title,
-      summary: story.summary,
-      status: story.status,
-      visibility: story.visibility,
-      legacyCrawlStoryId: story.legacyCrawlStoryId,
-      publishedMomentIds: story.publishedMomentIds,
-      publishedAt: story.publishedAt,
-      createdAt: story.createdAt,
-      updatedAt: story.updatedAt,
-    };
-    const departed = await resolveDepartedContributors(contributorsList, await getConsents(storyId));
-    return redactPublicStoryFields(publicStory, departed);
-  }
-  if (!actorId) return null;
-  const membership = (await getContributors(storyId)).some(
-    (item) => item.profileId === actorId && item.status === "accepted",
-  );
-  return membership ? story : null;
+  const read = await readNightStory(storyId, actorId);
+  return read.status === "found" ? read.story : null;
 }
 
+export type PublishedRecapSource = { story: PublicNightStory; moments: NightMoment[] };
+
 /**
- * Read-only public recap source. Returns the story plus ONLY the moments that
- * cleared the full consent gate — the story is published and non-private, and
- * each moment is in `publishedMomentIds` (which the publish flow only ever fills
- * from owner-approved consents, and a later withdrawal empties). No auth account
- * or memory identifiers are exposed; nothing pending, withdrawn, or unlisted-off
- * leaks. Anything short of the gate returns null.
+ * What a public recap read really answered (astra-review P1-1).
+ *
+ * `getPublishedRecapSource` collapsed three outcomes into `null`, and the page
+ * above it turned a null into `notFound()`, so a PostgREST error from
+ * `night_stories` or `night_moments` told a crew standing on a published Story
+ * that it does not exist. A read we could not RUN is a fact about us, never a
+ * fact about the Story, so it is its own answer and the surface words it as
+ * one. The twin is `PlanReadResult` in `lib/planStore.ts`.
+ *
+ * The public recap page at app/recap/[storyId]/page.tsx:83 now reads the
+ * three-way `readPublishedRecapSource` and answers unavailable before it ever
+ * reaches `notFound()`. The two-way wrapper is retained and still collapses
+ * three outcomes into null, but its only production caller is
+ * lib/recapCardStats.server.ts:163, which draws nothing either way.
  */
-export async function getPublishedRecapSource(
-  storyId: string,
-): Promise<{ story: PublicNightStory; moments: NightMoment[] } | null> {
-  const story = await getStoryRaw(storyId);
-  if (!story || story.status !== "published" || story.visibility === "private") return null;
+export type PublishedRecapReadResult =
+  | { status: "found"; source: PublishedRecapSource }
+  | { status: "absent" }
+  | { status: "unavailable" };
+
+/**
+ * Read-only public recap source, three ways. `found` carries the story plus
+ * ONLY the moments that cleared the full consent gate: the story is published
+ * and non-private, and each moment is in `publishedMomentIds` (which the
+ * publish flow only ever fills from owner-approved consents, and a later
+ * withdrawal empties). No auth account or memory identifiers are exposed;
+ * nothing pending, withdrawn, or unlisted-off leaks. Anything short of the gate
+ * is `absent`; a read the store could not run is `unavailable`, and nothing is
+ * read past the gate, so a refusal costs no Moment query.
+ */
+export async function readPublishedRecapSource(storyId: string): Promise<PublishedRecapReadResult> {
+  const storyRead = await readStoryRaw(storyId);
+  if (storyRead.status !== "found") return storyRead;
+  const { story } = storyRead;
+  if (story.status !== "published" || story.visibility === "private") return { status: "absent" };
 
   // The one-choke redaction (Wayfinder 5.5): a departing person's content and
   // identity are erased here, at the single public-emission gate, so every
   // downstream surface (recap page, recap OG, feed) inherits the erase with no
   // second gate. Redaction is emission-time — the private source Moments below
   // are never mutated; only this projected copy is.
-  const [contributorsList, consentsList] = await Promise.all([
-    getContributors(storyId),
-    getConsents(storyId),
+  // The departed set is read three ways too: a contributors, consents or
+  // profile read that failed is not "nobody has withdrawn", so it is
+  // unavailable, and it is answered before a single Moment is read.
+  const [contributorsRead, consentsRead] = await Promise.all([
+    readContributors(storyId),
+    readConsents(storyId),
   ]);
-  const departed = await resolveDepartedContributors(contributorsList, consentsList);
+  if (contributorsRead.status !== "found" || consentsRead.status !== "found") {
+    return { status: "unavailable" };
+  }
+  const departedRead = await resolveDepartedContributors(contributorsRead.rows, consentsRead.rows);
+  if (departedRead.status !== "found") return { status: "unavailable" };
+  const { departed } = departedRead;
 
   const allow = new Set(story.publishedMomentIds);
   if (allow.size === 0) {
-    return redactStoryView({ story: safeNightStory(story), moments: [], departed });
+    return {
+      status: "found",
+      source: redactStoryView({ story: safeNightStory(story), moments: [], departed }),
+    };
   }
   let storyMoments: NightMoment[];
   if (!isSupabaseConfigured()) {
@@ -845,7 +963,9 @@ export async function getPublishedRecapSource(
       .select("*")
       .eq("memory_id", story.memoryId)
       .order("occurred_at", { ascending: true });
-    if (error) return null;
+    // A Moment read that failed is not a Story with no Moments, and it is not
+    // a Story that has gone. It is unavailable, and the page says so.
+    if (error) return { status: "unavailable" };
     storyMoments = (data ?? []).map((row) => momentFromRow(row as Record<string, unknown>));
   }
   // Two emission belts, composed in order — never one overwriting the other.
@@ -864,11 +984,24 @@ export async function getPublishedRecapSource(
     departed,
   });
   return {
-    story: redacted.story,
-    moments: redacted.moments.map((moment) =>
-      hasConfirmedAltText(moment) ? moment : { ...moment, altText: null },
-    ),
+    status: "found",
+    source: {
+      story: redacted.story,
+      moments: redacted.moments.map((moment) =>
+        hasConfirmedAltText(moment) ? moment : { ...moment, altText: null },
+      ),
+    },
   };
+}
+
+/**
+ * Found or not, for callers that already treat both absences alike (the recap
+ * card and its stats, which draw nothing either way). A surface that WORDS an
+ * absence to a reader asks `readPublishedRecapSource` instead.
+ */
+export async function getPublishedRecapSource(storyId: string): Promise<PublishedRecapSource | null> {
+  const read = await readPublishedRecapSource(storyId);
+  return read.status === "found" ? read.source : null;
 }
 
 export type NightStoryWorkspace = {

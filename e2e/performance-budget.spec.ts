@@ -6,13 +6,15 @@ import { expect, test } from "@playwright/test";
 import { PERF_AB_BREACH_FILE, abHandoverForBreaches } from "../lib/performanceAbEvidence";
 import {
   PERFORMANCE_BUDGETS,
-  findBudgetBreaches,
+  bankableRatchetCandidates,
   findMethodWarnings,
   findRatchetCandidates,
   formatBreachTable,
   formatMeasurementTable,
   formatRatchetTable,
   formatSampleTable,
+  formatUnmeasuredTable,
+  judgeBudgets,
   plannedNavigations,
   type RouteMeasurement,
   type SampleRow,
@@ -134,11 +136,36 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
     );
   }
 
+  // A VERDICT IS UNANIMOUS OR IT IS NOT A VERDICT.
+  //
+  // The method warning above says a route could not measure itself, and until
+  // now it changed nothing: the median was judged anyway, so a loaded runner
+  // read as a breach on a diff that had not touched the route. Job
+  // 103319591915 and its re-run on the IDENTICAL commit 3ebac98ac shared three
+  // of their eleven breached routes. `judgeBudgets` is the one owner of the
+  // rule (lib/performanceBudgets.ts), and it is pure, so it is unit-tested with
+  // no browser. A clock is reported unmeasured only when all three hold: at
+  // least one sample met the ceiling and at least one went past it, the samples
+  // disagree past the tracked width, and the median sits over the ceiling by no
+  // more than half the spread. It is judged on its median otherwise, and only a
+  // clock is ever excused (CLOCK_METRICS). The module carries the reasoning.
+  const { breaches, unmeasured } = judgeBudgets(
+    budgets.routes,
+    measured,
+    samplesByPath,
+    budgets.method,
+  );
+
   // Slack does not stay slack (#1296): a ceiling set generously is a ceiling a
   // route quietly grows back into. A sweep that beats one by a clear margin
   // names the candidate here so the margin gets banked as a lower number rather
-  // than spent. It is a WARNING - it edits nothing and fails nothing.
-  const ratchet = findRatchetCandidates(budgets.routes, measured);
+  // than spent. It is a WARNING - it edits nothing and fails nothing. An
+  // undecided ceiling is left out of it: a run may not refuse to trust a median
+  // and offer its slack in the same log.
+  const ratchet = bankableRatchetCandidates(
+    findRatchetCandidates(budgets.routes, measured),
+    unmeasured,
+  );
   if (ratchet.length > 0) {
     console.log(
       `\n[perf-budget][ratchet] ceilings with slack to bank ` +
@@ -146,8 +173,6 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
         `${formatRatchetTable(ratchet)}\n`,
     );
   }
-
-  const breaches = findBudgetBreaches(budgets.routes, measured);
 
   // THE BREACH LIST IS HANDED ON, AND IT IS STILL THE GATE.
   //
@@ -159,17 +184,36 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
   // (scripts/perf-ab.mjs, e2e/performance-budget-ab.spec.ts).
   //
   // Nothing is written on a green sweep, so the A/B finds no work, never
-  // builds the second tree and costs nothing.
+  // builds the second tree and costs nothing. The list handed on is the one
+  // `judgeBudgets` decided: an undecided ceiling is not a breach, fails
+  // nothing, and so asks the A/B nothing either.
   const handover = abHandoverForBreaches(breaches, process.env.GITHUB_SHA ?? "");
   if (handover) {
     mkdirSync(dirname(PERF_AB_BREACH_FILE), { recursive: true });
     writeFileSync(PERF_AB_BREACH_FILE, `${JSON.stringify(handover, null, 2)}\n`);
   }
 
+  // An undecided ceiling is not a pass, so it is said out loud whether the
+  // sweep goes red or green, and it is said again in the failure message below.
+  const unmeasuredReport =
+    unmeasured.length === 0
+      ? ""
+      : `\n[perf-budget][unmeasured] ${unmeasured.length} ceiling(s) this run could NOT decide. ` +
+        `One sample met the ceiling and another went past it, they disagreed past the tracked ` +
+        `${budgets.method.sampleSpreadWarnPct}% width, and the median sat over the ceiling by no ` +
+        `more than half the spread, so which side it fell was whichever way the runner leaned. A ` +
+        `median further over than that is a breach, however wide the run. These are left off the ` +
+        `breach list rather than failed, and off the ratchet table, and a row whose median landed ` +
+        `UNDER its ceiling is named here too, because the same evidence may not read as a clean ` +
+        `pass one way and as undecided the other. Only a clock is ever undecided: a count that ` +
+        `disagrees is a route doing different work. None of them is green:\n` +
+        `${formatUnmeasuredTable(unmeasured)}\n`;
+  if (unmeasuredReport) console.log(unmeasuredReport);
+
   expect(
     breaches,
     breaches.length === 0
       ? "no breach"
-      : `Over the performance budget. Fix the route or take the ceiling up deliberately (docs/PERFORMANCE_BUDGETS.md).\n\n${formatBreachTable(breaches)}\n`,
+      : `Over the performance budget. Fix the route or take the ceiling up deliberately (docs/PERFORMANCE_BUDGETS.md).\n\n${formatBreachTable(breaches)}\n${unmeasuredReport}`,
   ).toEqual([]);
 });

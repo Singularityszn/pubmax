@@ -36,6 +36,22 @@
   letter-spacing: 0.01em;
 }
 
+/* The page-level masthead the not-found and read-unavailable surfaces print.
+   It had no rule at all, so its two labels ran together as one line under the
+   nav. It takes the eyebrow's weight and tracking and the muted ink, so the
+   two page-level labels read as one family, and it keeps the page's own
+   gutter, so it starts where the copy below it starts at every width. */
+.planPage__masthead {
+  margin: clamp(18px, 3vw, 34px) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  color: var(--muted);
+  font-size: var(--text-2xs);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
 .planPage h1,
 .planPage h2 {
   font-family: var(--display, var(--serif));

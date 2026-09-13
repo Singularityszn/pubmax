@@ -13,8 +13,9 @@ import {
  * THAT SET THE CEILING?
  *
  * This module is the arithmetic half of the answer. It decides nothing about
- * pass or fail: `findBudgetBreaches` still judges the medians it is handed, the
- * breach list still fails the build, and no ceiling anywhere is read here. What
+ * pass or fail: `judgeBudgets` still decides the breach list from the medians
+ * and samples it is handed, that list still fails the build, and no ceiling
+ * anywhere is read here. What
  * it adds is the second reading an author needs the moment a route goes red.
  *
  * WHY IT EXISTS. On 11 September 2026 four Performance budget runs produced

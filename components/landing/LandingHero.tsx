@@ -113,6 +113,8 @@ type Answer = {
   priceGbp: number;
   /** "a pint of Pravha" for the anchor; the slim index names no pint. */
   pintName: string | null;
+  /** The pint's own drink page, when one publishes (lib/landingPubCard.ts). */
+  drinkHref: string | null;
   scope: LandingAnswerScope;
   walkMinutes?: number;
   evidence: Evidence;
@@ -138,6 +140,7 @@ function anchorAnswer(
     area: card.area,
     priceGbp: card.priceGbp,
     pintName: card.pintName,
+    drinkHref: card.drinkHref,
     scope: "anchor",
     evidence: { publisher: card.publisher, standing: card.standing },
     collectedOn: card.collectedOn,
@@ -160,6 +163,7 @@ function nearAnswer(
     area: first.borough,
     priceGbp: first.cheapestPrice,
     pintName: null,
+    drinkHref: null,
     scope,
     walkMinutes: first.walkMinutes,
     evidence: "loading",
@@ -441,7 +445,13 @@ function AnswerCard({
         <PriceBadge variant="current" band={priceBand(answer.priceGbp, priceBandAreaForVenue(answer.id))}>
           {formatPrice(answer.priceGbp)}
         </PriceBadge>
-        <span className="lpPubPint">{answer.pintName ?? "cheapest pint"}</span>
+        {answer.drinkHref ? (
+          <Link prefetch={false} href={answer.drinkHref} className="lpPubPint">
+            {answer.pintName}
+          </Link>
+        ) : (
+          <span className="lpPubPint">{answer.pintName ?? "cheapest pint"}</span>
+        )}
       </p>
       <p className="lpPubSource">
         {publisher ? (
