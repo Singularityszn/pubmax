@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement, type ReactNode } from "react";
+import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -50,7 +50,7 @@ async function openMoreOn(pathname: string): Promise<HTMLAnchorElement[]> {
   root = createRoot(container);
   route.pathname = pathname;
   await act(async () => {
-    root.render(createElement(SiteNavMore, { items: siteNavMoreItems("Social") }));
+    root.render(<SiteNavMore items={siteNavMoreItems("Social")} />);
   });
   const trigger = container.querySelector<HTMLButtonElement>(".siteNavMoreBtn");
   if (!trigger) throw new Error("More trigger not rendered");

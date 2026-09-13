@@ -44,6 +44,20 @@ export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
   { key: "you", href: "/u/you", label: "You", match: ["/u"] },
 ] as const;
 
+/**
+ * The routes Social owns: its canonical shell plus the retired aliases that
+ * still render or 308 there. Social is not a primary destination, so this set
+ * lights the desktop More entry rather than a tab.
+ */
+export const SOCIAL_NAV_MATCH: readonly string[] = [
+  "/social",
+  "/discover",
+  "/drinks",
+  "/feed",
+  "/stories",
+  "/crawls",
+];
+
 export const MOMENT_NAV_ACTION = {
   key: "moment",
   href: "/moment",

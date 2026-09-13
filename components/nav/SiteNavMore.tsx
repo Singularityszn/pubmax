@@ -26,12 +26,21 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-export const SITE_NAV_MORE_LINKS = [
+import { SOCIAL_NAV_MATCH, navPathMatches } from "@/components/nav/navigationModel";
+
+export const SITE_NAV_MORE_LINKS: readonly SiteNavMoreLinkItem[] = [
   { href: "/near", label: "Near", description: "Find priced pubs close to you" },
   { href: "/historic", label: "Historic", description: "Read the stories behind old pubs" },
   { href: "/pal", label: "Pal", description: "Ask for a pub that fits tonight" },
-  { href: "/social", label: "Social", description: "Pub-night posts and crews" },
-] as const;
+  {
+    href: "/social",
+    label: "Social",
+    description: "Pub-night posts and crews",
+    // Social owns its aliases too, so a reader on /feed or /crawls/soho is
+    // told where they are, as the dock tabs tell them.
+    match: SOCIAL_NAV_MATCH,
+  },
+];
 
 /**
  * The More links with Social named for the launch state ("Social preview" while
@@ -48,6 +57,8 @@ type SiteNavMoreLinkItem = {
   href: string;
   label: string;
   description: string;
+  /** Path prefixes that mark this item current (defaults to href). */
+  match?: readonly string[];
   id?: never;
   onSelect?: never;
 };
@@ -70,10 +81,6 @@ type SiteNavMoreProps = {
   ariaLabel?: string;
   className?: string;
 };
-
-function pathMatches(pathname: string, href: string): boolean {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
 
 type MenuCoords = { top: number; right: number; maxHeight: number };
 
@@ -241,7 +248,7 @@ export default function SiteNavMore({
                 </>
               );
               if (item.href) {
-                const active = pathMatches(pathname, item.href);
+                const active = navPathMatches(pathname, item.match ?? [item.href]);
                 return (
                 <Link
                   key={item.href}
