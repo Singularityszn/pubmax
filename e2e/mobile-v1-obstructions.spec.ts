@@ -17,29 +17,30 @@ async function openVenueTabs(page: Page) {
   await expect(tablist).toBeVisible({ timeout: 45_000 });
   return {
     tablist,
-    lastTrain: tablist.getByRole("tab", {
-      name: "Last train",
+    // The last of the five tabs (site audit 13 Sep 2026, D10).
+    lastTab: tablist.getByRole("tab", {
+      name: "Lore",
       exact: true,
     }),
   };
 }
 
 async function expectTabFullyInsideRail(page: Page) {
-  const { tablist, lastTrain } = await openVenueTabs(page);
-  await expect(lastTrain).toBeVisible();
+  const { tablist, lastTab } = await openVenueTabs(page);
+  await expect(lastTab).toBeVisible();
 
   const [railBox, tabBox] = await Promise.all([
     tablist.boundingBox(),
-    lastTrain.boundingBox(),
+    lastTab.boundingBox(),
   ]);
   expect(railBox).not.toBeNull();
   expect(tabBox).not.toBeNull();
   expect(tabBox!.x).toBeGreaterThanOrEqual(railBox!.x - 0.5);
   expect(
     tabBox!.x + tabBox!.width,
-    "Last train is not clipped by the tab rail",
+    "Lore is not clipped by the tab rail",
   ).toBeLessThanOrEqual(railBox!.x + railBox!.width + 0.5);
-  return { tablist, lastTrain, railBox: railBox!, tabBox: tabBox! };
+  return { tablist, lastTab, railBox: railBox!, tabBox: tabBox! };
 }
 
 test.describe("Today mobile block geometry", () => {
@@ -348,36 +349,17 @@ test.describe("iOS install instructions", () => {
 });
 
 test.describe("Venue detail tab reachability", () => {
-  test("320px exposes real trailing overflow, then removes fade at the reachable end", async ({
-    page,
-  }) => {
-    await page.setViewportSize(PHONE_VIEWPORTS[0]);
-    const { tablist, lastTrain } = await openVenueTabs(page);
-    await expect(tablist).toHaveAttribute("data-trailing-fade", "on");
-    expect(
-      await tablist.evaluate((rail) => rail.scrollWidth - rail.clientWidth),
-    ).toBeGreaterThan(28);
-
-    await lastTrain.evaluate((tab) => tab.scrollIntoView({ block: "nearest", inline: "end" }));
-    await expect(tablist).toHaveAttribute("data-trailing-fade", "off");
-    const [railBox, tabBox] = await Promise.all([
-      tablist.boundingBox(),
-      lastTrain.boundingBox(),
-    ]);
-    expect(railBox).not.toBeNull();
-    expect(tabBox).not.toBeNull();
-    expect(tabBox!.x + tabBox!.width).toBeLessThanOrEqual(railBox!.x + railBox!.width + 0.5);
-    expect(tabBox!.width).toBeGreaterThanOrEqual(44);
-    expect(tabBox!.height).toBeGreaterThanOrEqual(44);
-  });
-
-  for (const viewport of PHONE_VIEWPORTS.slice(1)) {
-    test(`${viewport.width}px shows Last train in full on first open`, async ({ page }) => {
+  for (const viewport of PHONE_VIEWPORTS) {
+    test(`${viewport.width}px shows the last tab in full on first open, with no overflow`, async ({ page }) => {
       await page.setViewportSize(viewport);
       const { tablist, tabBox } = await expectTabFullyInsideRail(page);
       expect(tabBox.width).toBeGreaterThanOrEqual(44);
       expect(tabBox.height).toBeGreaterThanOrEqual(44);
-      await expect(tablist).toHaveCSS("overflow-x", "auto");
+      // Five tabs share one row, so the strip never scrolls (D10).
+      await expect(tablist).toHaveCSS("overflow-x", "hidden");
+      expect(
+        await tablist.evaluate((rail) => rail.scrollWidth - rail.clientWidth),
+      ).toBeLessThanOrEqual(1);
       await expect(tablist).toHaveAttribute("data-trailing-fade", "off");
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),

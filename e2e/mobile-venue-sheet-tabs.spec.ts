@@ -39,8 +39,6 @@ const TABS: ReadonlyArray<{ label: string; panelId: string }> = [
   { label: "Drinks", panelId: "venuePanel-menu" },
   { label: "Stories", panelId: "venuePanel-pints" },
   { label: "Lore", panelId: "venuePanel-story" },
-  { label: "Ask", panelId: "venuePanel-ask" },
-  { label: "Last train", panelId: "venuePanel-getting-home" },
 ];
 
 test.setTimeout(60_000);
@@ -101,36 +99,6 @@ async function openTouchSession(page: Page) {
     maxTouchPoints: 1,
   });
   return session;
-}
-
-async function swipeLeftWithTouch(page: Page, target: Locator): Promise<void> {
-  const box = await target.boundingBox();
-  expect(box, "touch target should have a box").not.toBeNull();
-
-  const session = await openTouchSession(page);
-
-  const y = Math.round(box!.y + box!.height / 2);
-  const startX = Math.round(box!.x + box!.width - 24);
-  const endX = Math.round(box!.x + 24);
-  try {
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchStart",
-      touchPoints: [{ x: startX, y }],
-    });
-    for (let step = 1; step <= 5; step += 1) {
-      const x = Math.round(startX + ((endX - startX) * step) / 5);
-      await session.send("Input.dispatchTouchEvent", {
-        type: "touchMove",
-        touchPoints: [{ x, y }],
-      });
-    }
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchEnd",
-      touchPoints: [],
-    });
-  } finally {
-    await session.detach();
-  }
 }
 
 async function tapWithTouch(page: Page, target: Locator): Promise<void> {
@@ -382,36 +350,108 @@ for (const width of [320, 390] as const) {
   });
 }
 
-test("a real 390px touch swipe reaches the final Venue tab", async ({ page }) => {
+/**
+ * ONE ROW, EVERY TAB ONE TAP AWAY (site audit 13 Sep 2026, D10). Seven tabs
+ * wrapped into two rows on a 390px phone (rows at y=556 and y=602, a 98px
+ * strip); before that a sideways strip hid the last tabs past the edge. Five
+ * tabs share one row: the same top, every tab inside the rail, every label
+ * centred in its own tab and uncut, no scroll, no fade. Measured with the DOM,
+ * because an off-centre label is a defect and eyes round it away.
+ */
+for (const width of [320, 390, 430] as const) {
+  test(`every venue tab sits in one row inside the sheet @${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
+    expect(response?.status()).toBe(200);
+
+    const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    await expect(portal).toBeVisible();
+    const tablist = portal.getByRole("tablist", { name: "Venue detail sections" });
+    await expect(tablist).toBeVisible();
+    await expect(tablist.getByRole("tab")).toHaveCount(TABS.length);
+
+    const geometry = await tablist.evaluate((rail) => {
+      const railBox = rail.getBoundingClientRect();
+      const tabs = Array.from(rail.querySelectorAll<HTMLElement>('[role="tab"]')).map((tab) => {
+        const box = tab.getBoundingClientRect();
+        const label = Array.from(tab.children).find(
+          (child) => getComputedStyle(child).display !== "none",
+        ) as HTMLElement | undefined;
+        const range = document.createRange();
+        if (label) range.selectNodeContents(label);
+        const text = range.getBoundingClientRect();
+        return {
+          name: tab.getAttribute("aria-label") ?? "",
+          top: box.top,
+          left: box.left,
+          right: box.right,
+          width: box.width,
+          height: box.height,
+          textLeft: text.left,
+          textRight: text.right,
+          labelScrollWidth: label?.scrollWidth ?? 0,
+          labelClientWidth: label?.clientWidth ?? 0,
+        };
+      });
+      return {
+        rail: { left: railBox.left, right: railBox.right, height: railBox.height },
+        scrollWidth: rail.scrollWidth,
+        clientWidth: rail.clientWidth,
+        tabs,
+      };
+    });
+
+    const firstTop = geometry.tabs[0].top;
+    for (const tab of geometry.tabs) {
+      expect(Math.abs(tab.top - firstTop), `${tab.name} shares the first row`).toBeLessThanOrEqual(0.5);
+      expect(tab.left, `${tab.name} starts inside the rail`).toBeGreaterThanOrEqual(geometry.rail.left - 0.5);
+      expect(tab.right, `${tab.name} ends inside the rail`).toBeLessThanOrEqual(geometry.rail.right + 0.5);
+      expect(tab.height, `${tab.name} height`).toBeGreaterThanOrEqual(44);
+      expect(tab.width, `${tab.name} width`).toBeGreaterThanOrEqual(44);
+      expect(tab.textLeft, `${tab.name} label is not cut on the left`).toBeGreaterThanOrEqual(tab.left);
+      expect(tab.textRight, `${tab.name} label is not cut on the right`).toBeLessThanOrEqual(tab.right);
+      const labelCentre = (tab.textLeft + tab.textRight) / 2;
+      const tabCentre = (tab.left + tab.right) / 2;
+      expect(Math.abs(labelCentre - tabCentre), `${tab.name} label is centred`).toBeLessThanOrEqual(1);
+    }
+    // One row: the rail is one tab tall plus its own padding, never two.
+    expect(geometry.rail.height).toBeLessThan(geometry.tabs[0].height * 2);
+    expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
+    await expect(tablist).toHaveAttribute("data-trailing-fade", "off");
+
+    const lastTab = tablist.getByRole("tab", { name: TABS[TABS.length - 1].label, exact: true });
+    await tapWithTouch(page, lastTab);
+    await expect(lastTab).toHaveAttribute("aria-selected", "true");
+    await expect(portal.locator(`#${TABS[TABS.length - 1].panelId}`)).toBeVisible();
+    await expectNoPageHorizontalOverflow(page);
+  });
+}
+
+/**
+ * The two retired tabs are sections now, and each is still one tap from the
+ * sheet: the getting-home fold on the Overview, and Ask inside Lore.
+ */
+test("the getting-home fold and Ask are one tap from their tabs", async ({ page }) => {
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
   expect(response?.status()).toBe(200);
 
   const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
   await expect(portal).toBeVisible();
-  const sheet = portal.locator(".mobileSharedSheet");
-  await expect(sheet).toHaveClass(/sheet-half/);
-  const tablist = portal.getByRole("tablist", { name: "Venue detail sections" });
-  const finalTab = tablist.getByRole("tab", { name: "Last train", exact: true });
+  const overview = portal.locator("#venuePanel-overview");
+  await expect(overview).toBeVisible();
 
-  await expect(tablist).toHaveAttribute("data-trailing-fade", "on");
-  const before = await tablist.evaluate((element) => element.scrollLeft);
-  const finalRightBefore = await finalTab.evaluate(
-    (element) => element.getBoundingClientRect().right,
-  );
-  expect(finalRightBefore).toBeGreaterThan(VIEWPORT.width);
+  const fold = overview.locator("#venueSection-getting-home");
+  const summary = fold.locator("summary");
+  await expect(summary).toHaveText("Last train");
+  await expect(fold).not.toHaveAttribute("open", "");
+  await summary.scrollIntoViewIfNeeded();
+  await expectTapTarget(summary, "Last train fold");
+  await summary.click();
+  await expect(fold).toHaveAttribute("open", "");
+  await expect(fold.getByLabel("Last Pint")).toBeVisible();
 
-  await swipeLeftWithTouch(page, tablist);
-
-  await expect
-    .poll(() => tablist.evaluate((element) => element.scrollLeft))
-    .toBeGreaterThan(before);
-  await expect(tablist).toHaveAttribute("data-trailing-fade", "off");
-  await expect(sheet).toHaveClass(/sheet-half/);
-  await expectInViewport(finalTab, "Last train tab after touch swipe", page);
-  await expectTapTarget(finalTab, "Last train tab after touch swipe");
-
-  await tapWithTouch(page, finalTab);
-  await expect(finalTab).toHaveAttribute("aria-selected", "true");
-  await expect(portal.locator("#venuePanel-getting-home")).toBeVisible();
-  await expectNoPageHorizontalOverflow(page);
+  await portal.getByRole("tab", { name: "Lore", exact: true }).click();
+  const ask = portal.locator("#venuePanel-story #venueSection-ask");
+  await expect(ask).toBeVisible();
+  await expect(ask.getByRole("button", { name: /Tell me about this/ })).toBeVisible();
 });
