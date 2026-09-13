@@ -764,7 +764,7 @@ export type RouteCeilings = Partial<Record<BudgetMetric, number>>;
  * taken within a hair of a ceiling is decided by jitter rather than by the
  * code. Both are reasons to spend more samples, and both are asked here rather
  * than in the browser helper, so the rule is unit-tested without a browser and
- * the two perf specs cannot drift apart on it.
+ * no perf spec can drift apart from another on it.
  *
  * Nothing in this file decides pass or fail from these predicates. They only
  * ever ADD samples; findBudgetBreaches still judges the median it is handed.

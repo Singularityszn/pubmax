@@ -119,6 +119,9 @@ const NOT_REPO_PATHS = new Set([
   "experimental.staleTimes",
   // Next router method named in the /onboarding entry, not a repository path.
   "router.replace",
+  // Playwright page methods named in the A/B entry, not repository paths.
+  "page.goto",
+  "page.setDefaultNavigationTimeout",
   // URL in trailing-slash law, not a repository path.
   "/api/thing/",
   // Harvest working directory is gitignored by design.
