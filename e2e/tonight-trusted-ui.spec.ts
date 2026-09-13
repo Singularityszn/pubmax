@@ -202,11 +202,19 @@ test.describe("Tonight trusted UI", () => {
     });
     expect(order).toBeTruthy(); // list FOLLOWS deals → list above
 
-    const firstRow = await page.locator(".tonightRow").first().boundingBox();
+    // The lede region is the answer (#1627): the pubs people are talking about
+    // lead it and the listings follow them. What must clear the tab bar is the
+    // answer's first entry, and the listings stay inside that region.
+    const lede = page.getByTestId("tonight-lede");
+    await expect(lede.getByTestId("tonight-list")).toBeVisible();
+    const firstAnswer = await lede
+      .locator('[data-testid="tonight-hyped-row"], [data-testid="tonight-row"]')
+      .first()
+      .boundingBox();
     const mobileTabBar = await page.locator(".mobileTabBar").boundingBox();
-    expect(firstRow).not.toBeNull();
+    expect(firstAnswer).not.toBeNull();
     expect(mobileTabBar).not.toBeNull();
-    expect(firstRow!.y).toBeLessThan(mobileTabBar!.y);
+    expect(firstAnswer!.y).toBeLessThan(mobileTabBar!.y);
     await shoot(page, "acceptance");
   });
 
@@ -229,7 +237,14 @@ test.describe("Tonight trusted UI", () => {
     // on the line's own data attribute, not on that sentence.
     await expect(page.locator('[data-tonight-provenance="whats-on"]')).toHaveAttribute("data-tonight-dated", "no");
     await expect(page.locator('[data-tonight-provenance="undated-whats-on"]')).toBeVisible();
-    await expect(page.getByText(/Checked 24 Jul/i)).toHaveCount(0);
+    // 24 Jul is the mocked servedAt. The hyped pubs pack carries its own real
+    // credit dates (one of them is 24 Jul), so only a stamp outside that
+    // section is the request time leaking.
+    const checkedServedDay = page.getByText(/Checked 24 Jul/i);
+    const hypedCredits = page.locator(".tonightHyped").getByText(/Checked 24 Jul/i);
+    await expect
+      .poll(async () => (await checkedServedDay.count()) - (await hypedCredits.count()))
+      .toBe(0);
   });
 });
 

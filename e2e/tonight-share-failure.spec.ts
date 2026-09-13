@@ -31,23 +31,35 @@ test(`${viewport.label} Tonight share failure keeps status below its action`, as
   const response = await page.goto("/tonight", { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(200);
 
-  const share = page.locator(".tonightShare");
+  // Share sits under the listings it is about (#1575), in the credits block
+  // that follows the lede region, not in the head.
+  const credits = page.locator(".tonightHeadCredits");
+  const share = credits.locator(".tonightShare");
   await expect(share).toBeVisible();
-  await share.click();
-
-  const status = page.locator('.tonightEyebrowRow [role="status"]');
-  await expect(status).toHaveText("Could not share tonight. Try again.");
+  const status = credits.locator('.tonightShareControl [role="status"]');
+  // A server-painted button is tappable before hydration: retry the tap.
+  await expect(async () => {
+    await share.click();
+    await expect(status).toHaveText("Could not share tonight. Try again.", { timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
   await expect(status).toHaveAttribute("aria-live", "polite");
   await expect(status).toHaveAttribute("aria-atomic", "true");
   await expect(page.locator('.tonightShareAction [role="status"]')).toHaveCount(0);
+  expect(
+    await page.evaluate(() => {
+      const lede = document.querySelector('[data-testid="tonight-lede"]');
+      const block = document.querySelector(".tonightHeadCredits");
+      return Boolean(
+        lede && block && lede.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    }),
+    "Share should follow the lede region",
+  ).toBe(true);
 
   const actionBox = await share.boundingBox();
   const statusBox = await status.boundingBox();
-  const eyebrowBox = await page.locator(".tonightEyebrow").boundingBox();
   expect(actionBox).not.toBeNull();
   expect(statusBox).not.toBeNull();
-  expect(eyebrowBox).not.toBeNull();
-  expect(Math.abs(eyebrowBox!.y - actionBox!.y)).toBeLessThanOrEqual(1);
   expect(statusBox!.y, "share failure status should start below its action").toBeGreaterThanOrEqual(
     actionBox!.y + actionBox!.height,
   );

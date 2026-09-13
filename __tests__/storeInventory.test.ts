@@ -181,7 +181,7 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     class: "policy-heavy",
     selector: "selectStore",
     inlineBranches: 1,
-    reason: "Deployed production with no Supabase answers an unavailable store instead of memory.",
+    reason: "A process that requires a durable store and has no Supabase answers an unavailable store instead of throwing.",
   },
   "lib/whatsOnStore.ts": {
     class: "not-dual-backend",

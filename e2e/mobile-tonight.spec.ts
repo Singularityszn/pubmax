@@ -41,7 +41,11 @@ test("mobile Tonight screen keeps share, filters, and rows tappable", async ({ p
 
   const screen = page.getByTestId("tonight-screen");
   await expect(screen).toBeVisible();
-  await expect(page.getByRole("heading", { name: /what.?s on near you/i })).toBeVisible();
+  // lib/tonight.ts tonightHeading: a reader with no shared or remembered area
+  // gets the London heading, and "near you" only once an area is known.
+  await expect(
+    page.getByRole("heading", { level: 1, name: /what.?s on (?:near you|across London) tonight/i }),
+  ).toBeVisible();
   await expectTappable(page.locator(".tonightShare"), "Tonight share");
 
   await expect(page.locator(".tonightStatus, .tonightList")).toHaveCount(1, {
