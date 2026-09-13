@@ -446,6 +446,112 @@ no after-arm run of any route breached. They do not establish a false-red RATE t
 any precision, and a second red on a later sweep would not be a surprise. The
 honest claim is the mechanism and the direction, not a probability.
 
+### A ceiling a wide run cannot decide
+
+The three tables above said a route could not measure itself, and until 11
+September 2026 saying so changed nothing: the median was judged anyway. So a
+loaded runner read as a breach on a pull request whose diff had not touched the
+route. Job 103319591915 and its re-run on the IDENTICAL commit `3ebac98ac`,
+same label, same tree, printed eight and six breached routes and shared three of
+them, while the method block reported `/tonight` LCP spreading 133 per cent and
+`/activity` server render 400 per cent against a tracked width of 12.
+
+`judgeBudgets` in `lib/performanceBudgets.ts` is the one owner of the rule, and
+it is pure, so it is unit-tested with no browser. A verdict is unanimous or it
+is not a verdict. A clock is UNMEASURED when all three of these hold, and is
+judged on its median otherwise:
+
+a. its samples STRADDLE the ceiling: at least one met it, and at least one went
+   past it;
+b. they disagree past `sampleSpreadWarnPct`;
+c. the excess fits inside the spread that is supposed to explain it:
+   `median - budget <= (max - min) / 2`.
+
+**The known limit.** A route whose excess over its ceiling is smaller than its
+own jitter cannot be decided by a single sweep, so it is reported unmeasured
+every time rather than failed, and a row that keeps appearing there is the
+signal to spend real evidence on that route. Every unmeasured row prints its
+median, its ceiling and its excess over that ceiling beside the range its
+samples ran over, so the same row returning is visible sweep after sweep.
+
+An unmeasured row is reported in its own table, and left off the breach list and
+off the ratchet table. Read the three the other way: samples of which not one met
+the ceiling are a breach, because no median that evidence allows is under;
+samples of which not one went past it are a pass for the same reason; samples
+that agree with each other are judged on their median however close to the line
+it sits; and a median further over the line than half the spread is a breach,
+because noise that size did not put it there. A route running 1200 ms on six of
+seven samples with one warm 290 ms sample straddles a 300 ms ceiling and is far
+wider than the tracked width, but its median is 900 ms over against a half-spread
+of 455, so it stays red. Condition (c) compares two figures the run already
+measured and adds no tracked number.
+
+ONLY A CLOCK IS EVER UNDECIDED. `CLOCK_METRICS` names the two: `serverRenderMs`
+and `lcpMs` read the machine the sweep ran on, and a loaded box moves them with
+no line of the route changing. `requests` and `jsDecodedKB` count work the page
+CHOSE to do, so samples that disagree there measured a route loading different
+things on different navigations, which is the finding rather than the noise.
+They are judged on their median always: an extra chunk on some loads reads as
+requests 44, 60 and 62 against a ceiling of 46, and that stays red. The second
+run of `3ebac98ac` measured `/pubs` JS decoded 929 to 1185 and `/plan` 782 to
+1106, so those rows may go red on the next sweep. That is conditional loading on
+two routes, and it gets the same answer as `/crawls`: named for the captain,
+never rescued by a wider width or a bigger number.
+
+Both edges are asked in condition (a), because a run has to STRADDLE its ceiling
+to leave it undecided. Server render sits at 3 to 19 ms against a 150 ms ceiling
+on every route here, so one millisecond of scheduler jitter reads as a wide
+spread on a row nothing could put in doubt; naming those would bury the
+straddling rows the table exists for.
+
+The anchor is the ceiling itself rather than a band around it. An earlier cut
+let the fastest sample sit `resampleWithinCeilingPct` over the line, which
+excluded samples of 320, 800 and 1200 against a 300 ms ceiling: a median two
+thirds over budget, laundered by a fastest sample 10 ms inside the band. A run
+in which no sample ever met the ceiling is a breach whatever its spread.
+`medianSitsOnTheLine` still owns that band, because how many samples to BUY is a
+different question from what the samples already bought may say. The metric's
+`sampleSpreadFloors` entry is deliberately not asked either: it exists so the
+method warning does not fire on every route on every run, and a spread wide
+enough to straddle the ceiling already carries that relevance.
+
+THE REPORT READS BOTH WAYS. `judgeBudgets` asks every route and every clock, not
+only the rows already over their ceilings, so a straddling run is named in the
+unmeasured table whichever side of its line the median fell on. The same
+evidence may not read as a clean pass in one run and as undecided in the next.
+No verdict moves with it: a median under its ceiling still passes, and the gate
+still fails on the breach list alone.
+
+AN UNDECIDED CEILING IS NOT BANKABLE EITHER. The ratchet table names ceilings
+with slack worth taking down, and a run may not refuse a median and bank it in
+the same log: lowering a ceiling off samples the run itself would not trust
+makes the fast ones the next sweep's red. `bankableRatchetCandidates` drops
+every undecided row, so `findRatchetCandidates` stays blind to the verdict and
+pure, and the two are put together in exactly one place.
+
+Replaying every breached row those two runs printed, eleven of fourteen stop
+being breaches. The three that remain are the point of the rule rather than a
+gap in it. `/today`'s first run spread 103 per cent and its FASTEST of seven
+samples was 352 ms against a 300 ms ceiling. `/crawls` in the second run ran 308
+to 408 against the same ceiling and never once met it, on a route that already
+carries a `noisy` record and had spent the extra samples. `/historic` agreed
+with itself to 9 per cent on 408 ms against 400, which is a route sitting on its
+line rather than a runner having a bad morning. The answer to all three is the
+route or a deliberate decision, never a wider width.
+
+Nothing is loosened anywhere else. No ceiling moved, `sampleSpreadWarnPct` did
+not widen, the sweep still declares `retries: 0`, and the resample budget is
+spent exactly as before - this decides only what the evidence it bought is
+allowed to say.
+
+**Why exclude rather than resample until the spread closes.** Extra samples can
+only move a median, so a loop that stops when the spread closes stops exactly
+when the noise stopped SHOWING: it launders the measurement rather than taking
+it, which is the objection upheld on 7 September against the one-sided rescue
+band. It is also a retry with extra steps, and this sweep declares zero retries
+for that reason. And the sweep's timeout is derived from `plannedNavigations`, a
+worst case that no until-condition has.
+
 ### A route that redirects is measured as a redirect
 
 `page.goto` follows a 3xx, so the moment a budgeted route starts redirecting its row
@@ -537,7 +643,7 @@ it waits for was already in the cache. Two rules follow:
 
 ### What a run prints
 
-Three tables, in this order:
+Five tables, in this order:
 
 - `[perf-budget]` - every route and metric against its ceiling.
 - `[perf-budget][samples]` - every individual sample beside its median and the
@@ -547,6 +653,15 @@ Three tables, in this order:
 - `[perf-budget][method]` - facts about the MEASUREMENT rather than about the
   code: a route whose samples sat further apart than `sampleSpreadWarnPct`, and
   any sample that fell back to the harness clock. Reported, never failed on.
+- `[perf-budget][ratchet]` - printed only when there is slack worth banking: a
+  ceiling a route beat by a clear margin, which an undecided ceiling is never
+  offered as. "Banking the slack" above owns it.
+- `[perf-budget][unmeasured]` - printed only when there is one: a ceiling this
+  run could not decide, with the median it would have judged, that ceiling, the
+  median's excess over it in the metric's own units, the range the samples ran
+  over and how far apart they sat. It is left off the breach list and off the
+  ratchet table, it is reported whichever side of the ceiling the median fell
+  on, and it is NOT green. See below.
 
 ### What the page clock actually fixed, and what it did not
 
