@@ -1,7 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { LANDING_QUIET_DOORS } from "@/lib/landingHero";
-import { isQuietPintWindow } from "@/lib/quietPint";
 
 import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
 
@@ -105,50 +104,15 @@ for (const viewport of DEVICES) {
 // the rendered proof that nothing in the lane is painted over.
 const COMPOSE_LANE_SURFACES = [
   { route: "/", row: ".lpRailLink" },
-  { route: "/tonight", row: ".tonightSoftPlansLink" },
+  // Tonight's soft-plans rows are time-gated; e2e/tonight.spec.ts owns that surface on the quiet night.
   { route: "/today", row: ".todayCardFootRow" },
 ] as const;
 
 for (const surface of COMPOSE_LANE_SURFACES) {
   test(`390px: ${surface.route} keeps its right cell clear of the compose action`, async ({ page }) => {
-    // Tonight's soft-plans rows render only inside the quiet-pint window, which
-    // app/tonight/page.tsx reads off the SERVER's London clock, so no browser
-    // clock or mock can bring them into a run outside it. Outside the window
-    // there is no row in the lane to measure: skip and say so, never pass on
-    // an empty list (__tests__/tonightSoftPlans.test.ts pins the window).
-    test.skip(
-      surface.route === "/tonight" && !isQuietPintWindow(),
-      "Tonight's soft-plans rows render only in the quiet-pint window (server London clock).",
-    );
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await setTheme(page, "light");
-    if (surface.route === "/tonight") {
-      // A keyless build cannot reach the live What's-On read, so Tonight lands
-      // in its error state and paints no soft-plans rows at all. The quiet
-      // night e2e/tonight.spec.ts answers is the night these rows belong to.
-      await page.route("**/api/out?**", (route) =>
-        route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({ status: "ready", events: [], openPlans: [], attribution: [], observedAt: {}, providers: [] }),
-        }),
-      );
-      await page.route("**/api/whats-on?**", (route) =>
-        route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            servedAt: new Date().toISOString(),
-            sourceObservedAt: null,
-            sourceFreshnessKind: "unknown",
-            localityBasis: "london-default",
-            asOf: null,
-            rows: [],
-          }),
-        }),
-      );
-    }
     await page.goto(surface.route);
 
     const fab = page.locator(".createFab");
