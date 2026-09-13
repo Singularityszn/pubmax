@@ -171,6 +171,6 @@ describe("landing and mobile Map navigation", () => {
 
     const chooser = linksContaining("Pick your city");
     expect(chooser).toHaveLength(1);
-    expect(chooser[0].getAttribute("href")).toBe("/choose-city");
+    expect(chooser[0].getAttribute("href")).toBe("/places");
   });
 });

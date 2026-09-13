@@ -112,7 +112,7 @@ export default function TonightListingsNotice({
       {empty ? (
         <p className="tonightStatus" role="status">
           {emptyLead}{" "}
-          <Link href="/map" className="tonightStatusLink">
+          <Link prefetch={false} href="/map" className="tonightStatusLink">
             The map still knows where the cheap pints are
           </Link>
           .

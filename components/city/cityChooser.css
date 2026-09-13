@@ -21,19 +21,6 @@
   font-optical-sizing: auto;
 }
 
-/* ── Body variant: the chooser under a route's own launch Screen ────────
-   (/choose-city). It keeps the section's light-ground styling and gives up
-   the section's padding and ground: the route around it owns both, and the
-   list lines up with the head above it. */
-.cityChooser--body {
-  padding-block: 0 var(--space-6);
-  background: none;
-}
-
-.cityChooser--body .cityChooserInner {
-  max-width: none;
-}
-
 .cityChooser--section {
   padding-block: clamp(56px, 9vw, 112px);
   background:

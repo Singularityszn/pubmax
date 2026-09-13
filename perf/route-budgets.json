@@ -285,12 +285,13 @@
     },
     {
       "path": "/choose-city",
-      "readySelector": ".cityChooserList",
-      "why": "The city question, on the path to every non-London night. Its gate is the chooser's own LIST rather than its <main>: #1402 moved every launch route onto the Screen primitive and this route lost its own class in the swap, so main.screen would prove a Screen mounted rather than that the chooser did.",
+      "readySelector": "main",
+      "why": "The city picker's retired address. It answers a 308 to /places and ships no document, so this row is budgeted for the redirect: the picker it lands on carries its own ceiling under \"/places\".",
       "serverRenderMs": 150,
-      "jsDecodedKB": 950,
-      "requests": 38,
-      "lcpMs": 300
+      "jsDecodedKB": 0,
+      "requests": 1,
+      "lcpMs": 0,
+      "redirectsTo": "/places"
     },
     {
       "path": "/moment",

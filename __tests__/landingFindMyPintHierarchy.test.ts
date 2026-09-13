@@ -177,7 +177,7 @@ describe("landing hierarchy: the price receipt door", () => {
     ].filter((match) => match[2].includes("Open the map"));
     expect(openMapLinks.length).toBeGreaterThan(0);
     expect(openMapLinks.every((match) => match[1] === "/map")).toBe(true);
-    expect(rendered).toMatch(/href="\/choose-city"[^>]*>Pick your city<\/a>/);
+    expect(rendered).toMatch(/href="\/places"[^>]*>Pick your city<\/a>/);
   });
 
   it("CSS: the hero fills the viewport and the desktop only widens the phone order", () => {

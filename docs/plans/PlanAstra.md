@@ -65,6 +65,7 @@ Historical file references can name planned files or older source locations.
 | Identity and age | [CONTEXT.md](../../CONTEXT.md), [contributionIdentity.server.ts](../../lib/contributionIdentity.server.ts), [socialLaunch.ts](../../lib/socialLaunch.ts). | Preserve each route's existing authority and adult rules. A plan document cannot waive them. |
 | Measurement | #1576 explicitly adopts weekly groups that complete and repeat. The draft defines the 28-day window. [METRICS.md](../analytics/METRICS.md) documents the available proxy. | The group outcome is accepted. Its aggregate implementation and evidence remain missing; the weekly device proxy does not replace it. See 8.9. |
 | London first | [#1576](https://github.com/Singularityszn/pubmax/issues/1576) excludes new-city implementation. | Existing four-city supply belongs to #1522. Its reference below does not widen this plan. |
+| D9 city picker | `/places` is the one picker. It carries the canonical and the single sitemap row, and `/choose-city` has no page: it answers a 308 at the edge ([cityPickerRoute.ts](../../lib/cityPickerRoute.ts), [proxy.ts](../../proxy.ts)). Rule and pins in [app/AGENTS.md](../../app/AGENTS.md). | The redirect policy is decided and shipped. Every surface links the picker at one address. |
 
 The bill requirement does not prove production receipt persistence.
 The parent verified migration [0153](../../supabase/migrations/20260907120000_0153_pint_drop_receipt_photo.sql) through read-only production inspection.
@@ -86,7 +87,6 @@ Recommendations from the original draft remain proposals.
 | D5 | Choose push, email or shares for return visits; approve cadence, timezone and opt-in timing. | Original proposal: Friday 17:00 digest, email fallback, plus a weekly price recheck. Resolve their combined frequency before scheduling. |
 | D6 | Set the acceptable firewall posture and shared-Wi-Fi rate limits. | Proposed document-only challenges need dashboard inspection. Numeric account/IP limits are not accepted by this draft. |
 | D8 | Keep Rounds separate, fold it into a Planned Night spend diary, or retire its surface. | Original preference: fold it. Never introduce debt settlement or remove stored history implicitly. |
-| D9 | Select the canonical city picker and redirect policy. | Original preference: `/places`, with `/choose-city` redirecting there. No redirect approval is inferred. |
 | D10 | Keep the Pint Index hold or approve a separately labelled listed-price edition; decide its navigation placement. | Preserve the existing corroboration threshold unless explicitly changed. The draft recommends holding and hiding empty promotion. |
 | P1 | Define the native contact-matching privacy contract before accepting that feature. | Hashing contact data alone is not permission. Decide consent, matching visibility, retention and deletion. |
 | P2 | Define the unspecified `/r/<code>` face proposal, or remove it from scope. | Name the destination, consent and public fields. No acceptance behaviour can be inferred from a title alone. |
