@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -8,12 +10,49 @@ import { BRAND_COLORS } from "@/lib/brandMark.mjs";
 import {
   NATIVE_DEEP_LINK_EXACT_PATHS,
   NATIVE_DEEP_LINK_PATH_PREFIXES,
+  NATIVE_URL_SCHEME,
 } from "@/lib/nativeDeepLinks";
 
 const rootFile = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
-const ANDROID_RES = join(process.cwd(), "android/app/src/main/res");
+const xmlDocument = (path: string) =>
+  new DOMParser().parseFromString(rootFile(path), "application/xml");
 
+type PlistValue = string | number | boolean | PlistValue[] | { [key: string]: PlistValue };
+
+/** One XML plist element as the value it declares. */
+function plistValue(element: Element): PlistValue {
+  const children = [...element.children];
+  switch (element.tagName) {
+    case "dict":
+      return Object.fromEntries(
+        children.flatMap((child, index) =>
+          child.tagName === "key" && children[index + 1]
+            ? [[child.textContent ?? "", plistValue(children[index + 1] as Element)]]
+            : [],
+        ),
+      );
+    case "array":
+      return children.map(plistValue);
+    case "integer":
+    case "real":
+      return Number(element.textContent);
+    case "true":
+      return true;
+    case "false":
+      return false;
+    default:
+      return element.textContent ?? "";
+  }
+}
+
+function plistRoot(path: string): Record<string, PlistValue> {
+  const dict = xmlDocument(path).querySelector("plist > dict");
+  if (!dict) throw new Error(`${path} has no root dict`);
+  return plistValue(dict) as Record<string, PlistValue>;
+}
+
+const ANDROID_RES = join(process.cwd(), "android/app/src/main/res");
 
 /** Every XML resource under android/app/src/main/res, path relative to it. */
 function androidResourceXml(dir = ANDROID_RES, prefix = ""): string[] {
@@ -296,6 +335,49 @@ describe("Capacitor wrapped-build contract", () => {
       expect(filter).toContain('android:host="pubmaxxing.com"');
     }
     expect(manifest).toContain('android:launchMode="singleTask"');
+  });
+
+  it("registers the pubmaxx:// scheme in both shells, as a fallback beside the verified links", () => {
+    // D20, 13 Sep 2026 audit: `xcrun simctl openurl <udid> pubmaxx://...`
+    // failed with LSApplicationWorkspaceErrorDomain error 115, because neither
+    // shell registered the scheme. Universal links and App Links stay the
+    // intended path and need a signed build to test; the scheme is what a rig
+    // can open today. The families it opens are lib/nativeDeepLinks.ts's own.
+    const info = plistRoot("ios/App/App/Info.plist");
+    expect(info.CFBundleURLTypes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          CFBundleURLName: "com.pubmaxx.app",
+          CFBundleURLSchemes: expect.arrayContaining([NATIVE_URL_SCHEME]),
+        }),
+      ]),
+    );
+
+    const manifest = xmlDocument("android/app/src/main/AndroidManifest.xml");
+    const mainActivity = [...manifest.getElementsByTagName("activity")].find(
+      (activity) => activity.getAttribute("android:name") === ".MainActivity",
+    );
+    expect(mainActivity, "AndroidManifest.xml has no .MainActivity").toBeDefined();
+    const schemeFilters = [...(mainActivity?.getElementsByTagName("intent-filter") ?? [])].filter(
+      (filter) =>
+        [...filter.getElementsByTagName("data")].some(
+          (data) => data.getAttribute("android:scheme") === NATIVE_URL_SCHEME,
+        ),
+    );
+    expect(schemeFilters).toHaveLength(1);
+    const [filter] = schemeFilters;
+    const names = (tag: string) =>
+      [...(filter?.getElementsByTagName(tag) ?? [])].map((node) => node.getAttribute("android:name"));
+    expect(names("action")).toContain("android.intent.action.VIEW");
+    expect(names("category")).toEqual(
+      expect.arrayContaining(["android.intent.category.DEFAULT", "android.intent.category.BROWSABLE"]),
+    );
+    // A plain filter, never an autoVerify one: verification belongs to the
+    // https families, and their count is held by the test above.
+    expect(filter?.getAttribute("android:autoVerify")).toBeNull();
+    for (const data of filter?.getElementsByTagName("data") ?? []) {
+      expect(data.hasAttribute("android:host")).toBe(false);
+    }
   });
 
   it("requires the architecture the platform actually has", () => {

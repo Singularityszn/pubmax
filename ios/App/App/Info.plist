@@ -20,6 +20,22 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<!-- The pubmaxx:// scheme, the FALLBACK beside universal links. Those are
+	     declared in App.entitlements and only verify on a signed build; this
+	     opens on any build, so `xcrun simctl openurl` can reach the app. The
+	     families it opens, and the sign-in return it refuses, are
+	     lib/nativeDeepLinks.ts's own (NATIVE_URL_SCHEME). -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.pubmaxx.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>pubmaxx</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<!-- Export compliance. The app ships no encryption of its own: every
