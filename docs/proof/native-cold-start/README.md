@@ -33,4 +33,8 @@ Files: `skeleton-before-<width>.png`, `skeleton-after-<width>.png`, `loaded-afte
 
 ## Offline first launch
 
-With the origin unreachable, iOS released the splash from `offline.html` between 3 s and 6 s. Android held it to the 12 s ceiling. Capacitor serves the Android error page without its bridge: `window.Capacitor` is `undefined` there, so the page cannot reach the plugin.
+With the origin unreachable, iOS released the splash from `offline.html` between 3 s and 6 s.
+
+Before the follow-up fix, Android held the splash to the 12 s ceiling. Capacitor serves the Android error page without its bridge: `window.Capacitor` is `undefined` there, so the page cannot reach the plugin. `MainActivity` now hides the splash through the bridge when the loaded page is the error URL.
+
+That Android fix was verified by code review and a successful `npm run android:build`, not on the emulator: `memory_pressure` reported 39 percent free, under the 45 percent rule for starting it. The review covered Capacitor 8's `Bridge.getErrorUrl`, `addWebViewListener`, `callPluginMethod`, `PluginCall` and `SplashScreenPlugin.hide`. `__tests__/nativeSplash.test.ts` holds the source to the contract.

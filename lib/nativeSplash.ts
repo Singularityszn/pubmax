@@ -9,8 +9,9 @@
 //
 // @capacitor/splash-screen holds the mark instead. capacitor.config.ts keeps
 // its auto-hide ON at NATIVE_SPLASH_CEILING_MS, which is the ceiling: a phone
-// with no route to the origin still reaches the bundled offline page, and that
-// page releases the splash itself. This seam is the SOONER release. Once the
+// with no route to the origin still reaches the bundled offline page, which
+// releases the splash at once (the page itself on iOS, MainActivity on Android,
+// where that page gets no bridge). This seam is the SOONER release. Once the
 // shell chrome has mounted it waits for a frame the page has painted in,
 // announces `pubmax:first-paint` and hides the splash, once per document.
 //
