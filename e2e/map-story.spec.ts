@@ -110,8 +110,8 @@ test.describe("map / story bands (#15)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Venue sheet tabs (components/map/VenueInspector.tsx). Seven tabs (Overview,
-// Photos, Drinks, Stories, Lore, Ask, Last train) behind
+// Venue sheet tabs (components/map/VenueInspector.tsx). Five tabs (Overview,
+// Photos, Drinks, Stories, Lore) behind
 // role="tablist"/role="tab", with
 // roving-tabindex arrow-key navigation per the APG tabs pattern. Deep-link
 // straight to a known seed venue (mirrors smoke.spec's sel= precedent) so this
@@ -167,7 +167,7 @@ test.describe("map / venue sheet tabs", () => {
     await expect(page.getByRole("form", { name: "Pint Drop composer" })).toBeVisible();
   });
 
-  test("all seven tabs render; each switches its panel; Stories shows the price block", async ({
+  test("all five tabs render; each switches its panel; Stories shows the price block", async ({
     page,
   }) => {
     const errors = watchPageErrors(page);
@@ -184,8 +184,6 @@ test.describe("map / venue sheet tabs", () => {
       "Drinks",
       "Stories",
       "Lore",
-      "Ask",
-      "Last train",
     ];
     const tabs = tablist.getByRole("tab");
     await expect(tabs).toHaveCount(expectedTabs.length);
@@ -210,8 +208,6 @@ test.describe("map / venue sheet tabs", () => {
       ["Photos", "venuePanel-photos"],
       ["Drinks", "venuePanel-menu"],
       ["Lore", "venuePanel-story"],
-      ["Ask", "venuePanel-ask"],
-      ["Last train", "venuePanel-getting-home"],
     ] as const) {
       const tab = tablist.getByRole("tab", { name: label, exact: true });
       await expect(tab).toBeVisible();
@@ -245,11 +241,11 @@ test.describe("map / venue sheet tabs", () => {
     await expect(overviewTab).toBeFocused();
 
     // Wrap-around: ArrowLeft from the first tab (Overview) wraps to the last
-    // (Last train).
+    // (Lore).
     await overviewTab.click();
     await page.keyboard.press("ArrowLeft");
-    const gettingHomeTab = tablist.getByRole("tab", { name: "Last train", exact: true });
-    await expect(gettingHomeTab).toHaveAttribute("aria-selected", "true");
+    const loreTab = tablist.getByRole("tab", { name: "Lore", exact: true });
+    await expect(loreTab).toHaveAttribute("aria-selected", "true");
   });
 
   test("the community-price freshness note renders when a contributor price exists, and Overview stays well-formed when absent", async ({

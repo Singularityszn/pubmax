@@ -215,11 +215,11 @@ describe("SafeNightStrip Getting Home mount", () => {
 });
 
 describe("VenueGettingHomeTab Safe Night", () => {
-  it("mounts the strip on the Getting Home tab without a plan id", () => {
+  it("mounts the strip in the open getting-home fold without a plan id", () => {
     const html = renderToStaticMarkup(
       createElement(VenueGettingHomeTab, {
         venue: venue("pub"),
-        tab: "getting-home",
+        openRequest: true,
         cityId: "london",
         onDecision: () => {},
       }),
@@ -231,11 +231,10 @@ describe("VenueGettingHomeTab Safe Night", () => {
     expect(html).toContain("Plan a journey on TfL");
   });
 
-  it("does not mount the strip while another tab is selected", () => {
+  it("does not mount the strip while the fold is closed", () => {
     const html = renderToStaticMarkup(
       createElement(VenueGettingHomeTab, {
         venue: venue("pub"),
-        tab: "overview",
         cityId: "london",
         onDecision: () => {},
       }),
@@ -252,7 +251,7 @@ describe("VenueGettingHomeTab Safe Night", () => {
     const html = renderToStaticMarkup(
       createElement(VenueGettingHomeTab, {
         venue: venue("pub"),
-        tab: "getting-home",
+        openRequest: true,
         cityId: "london",
         onDecision: () => {},
       }),

@@ -75,8 +75,8 @@ export default function VenueStickyBar({
         <Share2 size={15} aria-hidden="true" />
         Share
       </button>
-      {/* No Train button here: the tab row's "Train" (getting-home) tab is the
-          single entry point — the strip holds actions, not navigation. */}
+      {/* No Train button here: the getting-home fold on the Overview is the
+          single entry point, and the strip holds actions, not navigation. */}
       {currentShareFeedback ? (
         <span
           role={currentShareFeedback.tone === "error" ? "alert" : "status"}

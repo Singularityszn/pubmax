@@ -79,18 +79,4 @@ describe("B1 - the venue tab strip fades only what is really hidden", () => {
     expect(widths.length).toBeGreaterThan(0);
     for (const width of widths) expect(width).toBe(TRAILING_EDGE_FADE_PX);
   });
-
-  it("wraps the strip on a phone, so every tab is on screen and nothing hides past the edge", () => {
-    // verify-preview-4, section 6 (5 Sep 2026): at 390 the seventh tab sat at
-    // x 368 to 412, past the viewport, and 320 hid three. The ≤640 block wraps
-    // the strip; e2e/venue-tabs-fit.spec.ts reads the rendered boxes.
-    const phoneBlocks = [...sheetCss.matchAll(/@media \(max-width: 640px\)\s*{([\s\S]*?)\n}/g)].map((m) => m[1]!);
-    const wraps = phoneBlocks.some((block) =>
-      /\.venueTabs\s*{[^}]*flex-wrap:\s*wrap/.test(block),
-    );
-    expect(wraps).toBe(true);
-    for (const block of phoneBlocks) {
-      expect(block).not.toMatch(/\.venueTabs\s*{[^}]*flex-wrap:\s*nowrap/);
-    }
-  });
 });

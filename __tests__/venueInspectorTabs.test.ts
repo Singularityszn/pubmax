@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { CITIES } from "@/lib/cities";
 import {
   BASE_TABS,
   DEFAULT_TAB,
-  tabsForCity,
+  gettingHomeLabel,
+  resolveVenueTab,
   tabsForVenue,
 } from "@/lib/venueInspectorTabs";
 
@@ -17,49 +17,57 @@ describe("venueInspectorTabs", () => {
       "Drinks",
       "Stories",
       "Lore",
-      "Ask",
     ]);
   });
 
-  it("appends a getting-home tab after the base tabs for London", () => {
-    const tabs = tabsForCity("london");
-    expect(tabs.slice(0, BASE_TABS.length).map((t) => t.key)).toEqual(
-      BASE_TABS.map((t) => t.key),
+  /**
+   * Captain, 5 Sep 2026: "The alignment, buttons and ui is fucking ugly." The
+   * site audit of 13 Sep (D10) measured seven tabs wrapping into two rows on a
+   * 390px phone (rows at y=556 and y=602, a 98px tablist). A scrolling strip
+   * hid the last tabs past the edge, which is worse. Five tabs share one row,
+   * so every section is one tap away and none is hidden.
+   */
+  it("never asks a phone row to hold more than five tabs, for any kind", () => {
+    expect(tabsForVenue("pub").length).toBeLessThanOrEqual(5);
+    expect(tabsForVenue(undefined).length).toBeLessThanOrEqual(5);
+    expect(tabsForVenue("bar").length).toBeLessThanOrEqual(5);
+  });
+
+  it("folds Ask into Lore and the getting-home card into Overview", () => {
+    const keys = tabsForVenue("pub").map((tab) => tab.key);
+    expect(keys).not.toContain("ask");
+    expect(keys).not.toContain("getting-home");
+    // The route-end door asks for the getting-home fold by name; it lands on
+    // the tab that carries it.
+    expect(resolveVenueTab("getting-home", "pub")).toBe("overview");
+    expect(resolveVenueTab("menu", "pub")).toBe("menu");
+    expect(resolveVenueTab("", "pub")).toBe(DEFAULT_TAB);
+    expect(resolveVenueTab("nonsense", "pub")).toBe(DEFAULT_TAB);
+  });
+
+  it("opens Stories only on a venue that has a Stories tab", () => {
+    expect(resolveVenueTab("pints", "pub")).toBe("pints");
+    expect(resolveVenueTab("pints", "bar")).toBe(DEFAULT_TAB);
+    expect(resolveVenueTab("getting-home", "bar")).toBe("overview");
+  });
+
+  it("names the getting-home section by the city's own last-ride mode", () => {
+    // London's card is branded "Last Pint", so the section names the transport
+    // mode instead, and does not collide with Pint Drops.
+    expect(gettingHomeLabel("london")).toBe("Last train");
+    expect(gettingHomeLabel("manchester")).toBe("Last Tram");
+  });
+
+  it("never renders two tabs with the same short label", () => {
+    const shortLabels = BASE_TABS.map((t) => t.shortLabel);
+    expect(new Set(shortLabels).size, `duplicate shortLabel: ${shortLabels.join(", ")}`).toBe(
+      shortLabels.length,
     );
-    const last = tabs[tabs.length - 1];
-    expect(last.key).toBe("getting-home");
-    expect(last.label).toBe("Last train");
-    expect(last.shortLabel).toBe("Train");
-  });
-
-  it("uses a city-specific last-ride label for the getting-home tab", () => {
-    const london = tabsForCity("london");
-    const manchester = tabsForCity("manchester");
-    const londonRide = london[london.length - 1];
-    const manchesterRide = manchester[manchester.length - 1];
-    // Both cities expose a getting-home tab; the label is provider-driven per
-    // city, with London's branded "Last Pint" card surfaced as an actionable
-    // "Last train" tab so it does not collide with Pint Drops/Pints.
-    expect(londonRide.key).toBe("getting-home");
-    expect(manchesterRide.key).toBe("getting-home");
-    expect(londonRide).toMatchObject({ label: "Last train", shortLabel: "Train" });
-    expect(manchesterRide).toMatchObject({ label: "Last Tram", shortLabel: "Tram" });
-  });
-
-  it("never renders two tabs with the same short label, for any city", () => {
-    for (const cityId of Object.keys(CITIES) as (keyof typeof CITIES)[]) {
-      const tabs = tabsForCity(cityId);
-      const shortLabels = tabs.map((t) => t.shortLabel);
-      const unique = new Set(shortLabels);
-      expect(unique.size, `duplicate shortLabel for city "${cityId}": ${shortLabels.join(", ")}`).toBe(
-        shortLabels.length,
-      );
-    }
   });
 
   it("removes Pint Drop stories from non-pub venue tabs", () => {
-    expect(tabsForVenue("london", "bar").map((tab) => tab.key)).not.toContain("pints");
-    expect(tabsForVenue("london", "food").map((tab) => tab.key)).not.toContain("pints");
-    expect(tabsForVenue("london", undefined).map((tab) => tab.key)).toContain("pints");
+    expect(tabsForVenue("bar").map((tab) => tab.key)).not.toContain("pints");
+    expect(tabsForVenue("food").map((tab) => tab.key)).not.toContain("pints");
+    expect(tabsForVenue(undefined).map((tab) => tab.key)).toContain("pints");
   });
 });

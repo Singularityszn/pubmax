@@ -164,7 +164,7 @@
   }
 }
 
-/* Horizontally-scrollable tab strip with comfortable touch targets. */
+/* The five-tab strip with comfortable touch targets. */
 .venueTabs {
   display: flex;
   gap: 6px;
@@ -174,7 +174,7 @@
   overflow-y: hidden;
   touch-action: pan-x pan-y pinch-zoom;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none; /* Firefox — the strip scrolls, no visible bar */
+  scrollbar-width: none; /* Firefox: no visible bar if the strip ever scrolls */
   border-bottom: 1px solid var(--line);
 }
 
@@ -264,7 +264,15 @@
    placeholder they painted a gradient band that read as an image that had
    failed to load; the placeholder keeps the flat surface venueImage.css
    gives it. */
+/* A pub with no photo gets a ROW, not a picture-sized box. The 16:9 frame drew
+   a 220px "No photo yet" panel on a 390px phone, the largest thing on the sheet
+   of a pub with nothing to show (site audit 13 Sep 2026, D10). */
 .venueBaselinePhoto.venueImage--empty {
+  aspect-ratio: auto;
+  height: 56px;
+  min-height: 0;
+  padding: 0 1rem;
+  border-radius: var(--radius);
   background: var(--panel, var(--paper));
   box-shadow: none;
 }
@@ -406,8 +414,8 @@
 }
 
 /* The portal sheet's own header (.mobileSharedSheetHeader > h2) already shows
-   the venue name as the centred sheet title, so the in-panel "Venue Detail"
-   eyebrow and the duplicate <h3> name are redundant there — the name rendered
+   the venue name as the centred sheet title, so the in-panel area and kind
+   kicker and the duplicate <h3> name are redundant there - the name rendered
    twice, once in the sheet header and once in the panel. Trim both on the
    portal path ONLY: the desktop legacy drawer has no titled head, so its
    unscoped .inspectorTitle + <h3> stay the single source of the name. Scoped to
@@ -651,24 +659,27 @@
    user's font size instead of clipping. */
 @media (max-width: 640px) {
   .venueTabs {
-    /* EVERY SECTION IS ON SCREEN. The strip used to scroll sideways under a
-       fade, and on a 390px phone the seventh tab (Train) sat at x 368 to 412,
-       past the viewport edge, while a 320px phone hid Lore, Ask and Train
-       (measured 5 Sep 2026: scrollWidth 379 against a clientWidth of 318 and
-       248). A hidden tab is a section a reader cannot find. Seven word-tabs
-       cannot share one 248px row, so the strip WRAPS: two rows of the same
-       pills, no overflow, no fade, and large text wraps to a third rather than
-       clipping. The trailing-edge fade and its hook stay for the widths that
-       still scroll. */
-    flex-wrap: wrap;
+    /* EVERY SECTION IS ON SCREEN, IN ONE ROW. The strip used to scroll
+       sideways under a fade, which hid the last tabs past the edge (5 Sep
+       2026), and then wrapped seven tabs into two rows of a 98px strip on a
+       390px phone (site audit 13 Sep 2026, D10). At default text size five
+       tabs share one row: each cell keeps its own label's width and takes an
+       equal share of the space left, so no label is wider than its pill.
+       Equal zero-basis cells cut "Overview" to a 61px pill with a label 4.8px
+       off its centre. Large text WRAPS the strip to a second row, so a label
+       is never clipped, never overlaps its neighbour and never scrolls past
+       the edge. */
     max-height: none;
-    overflow-x: visible;
-    overflow-y: visible;
+    flex-wrap: wrap;
+    overflow: visible;
   }
 
   .venueTab {
+    flex: 1 1 auto;
     min-height: 2.75rem;
     height: auto;
+    justify-content: center;
+    text-align: center;
   }
 }
 
@@ -741,10 +752,10 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   }
 }
 
-/* The strip is one group with one hairline, and it SCROLLS, so its overflowing
-   edge fades rather than clipping a label mid-word ("Last train" cut to
-   "Train" with a hard edge — design judgement 2026-08-01, finding 2.16). The
-   fade is a mask, so it works over any sheet material. */
+/* The strip is one group with one hairline holding the five tabs. If it ever
+   overflows, its edge fades rather than clipping a label mid-word with a hard
+   edge (design judgement 2026-08-01, finding 2.16). The fade is a mask, so it
+   works over any sheet material. */
 .venueTabs {
   gap: 4px;
   margin: 12px 0 10px;
@@ -1066,18 +1077,15 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   font-variant-numeric: tabular-nums;
 }
 
-#venuePanel-getting-home {
-  border-color: color-mix(in srgb, var(--river) 30%, var(--line));
-  background:
-    radial-gradient(
-      280px 150px at 100% 0%,
-      color-mix(in srgb, var(--river) 9%, transparent),
-      transparent 70%
-    ),
-    var(--panel-raised);
+/* The getting-home fold on the Overview (it was the seventh tab, D10). The fold
+   itself wears the same plain disclosure as "Details and practical info"; the
+   river tint stays on the transport cards inside it. */
+.venueOverviewMore + .venueGettingHome {
+  /* One list of folds: the second shares the first's bottom hairline. */
+  margin-top: -13px;
 }
 
-#venuePanel-getting-home > section {
+.venueGettingHomeBody > section {
   --line: color-mix(in srgb, var(--river) 36%, var(--line-soft));
   --panel-raised: color-mix(in srgb, var(--river) 7%, var(--paper));
 
@@ -1133,10 +1141,9 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   }
 }
 
-/* Keep every section discoverable at the common 400px and 430px phone widths.
-   The roomier tab spacing above leaves only a sliver of Train visible at 400px,
-   which reads as clipped copy instead of another control. Horizontal scrolling
-   stays available for narrower or large-text layouts. */
+/* Tighter tab spacing keeps all five tabs in one row at the common 400px and
+   430px phone widths. Large text wraps the strip instead (the ≤640 block
+   above). */
 @media (max-width: 430px) {
   .venueTabs {
     gap: 2px;
@@ -1146,6 +1153,22 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     padding-inline: 7px;
     font-size: 0.76rem;
     letter-spacing: -0.015em;
+  }
+}
+
+/* A 320px phone gives the strip 248px, and five labels at 7px a side with 2px
+   gaps asked 281px, so "Overview" ran 6px past its own pill. At 3px a side and
+   no gap the row asks 242.4px, because the 44px floor lifts Drinks and Lore.
+   A 3px strip inset left 242px and wrapped Lore to a second row; a 2px inset
+   leaves 244px, so the five tabs keep one row. */
+@media (max-width: 360px) {
+  .venueTabs {
+    gap: 0;
+    padding: 2px;
+  }
+
+  .venueTab {
+    padding-inline: 3px;
   }
 }
 
@@ -1260,10 +1283,9 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   }
 
   .venueInspector .venueTab {
-    /* Seven tabs share the docked panel's one row: at 16px a side the
-       seventh ("Last train") wrapped alone onto a second row inside the
-       bordered strip on a 1440 desktop (measured 6 Sep 2026: 591px asked of
-       a 603px strip). 12px a side leaves the row 56px to spare. */
+    /* Five tabs share the docked panel's one row. 12px a side was set when
+       seven tabs asked 591px of a 603px strip at 16px a side on a 1440
+       desktop (measured 6 Sep 2026); five tabs leave the row more to spare. */
     padding: 9px 12px;
     font-size: 0.9rem;
   }

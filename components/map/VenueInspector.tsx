@@ -13,7 +13,13 @@ import { landmarks as londonLandmarks, type Landmark } from "@/lib/landmarks";
 import { STORY_BANDS, type StoryBand } from "@/lib/storyBands";
 import { type CuratedCrawl } from "@/lib/curatedCrawls";
 import { type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
-import { DEFAULT_TAB, tabsForVenue, type TabKey } from "@/lib/venueInspectorTabs";
+import {
+  DEFAULT_TAB,
+  resolveVenueTab,
+  tabsForVenue,
+  type TabKey,
+  type VenueTabRequest,
+} from "@/lib/venueInspectorTabs";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import { confirmPintPriceSeed } from "@/lib/pintDropSecondDrinker";
 import type { JourneyPoint } from "@/lib/venueJourney";
@@ -44,8 +50,8 @@ import VenuePhotosTab from "./inspector/VenuePhotosTab";
 import VenuePintsTab from "./inspector/VenuePintsTab";
 import VenueMenuTab from "./inspector/VenueMenuTab";
 import VenueStoryTab from "./inspector/VenueStoryTab";
-import VenueAskTab from "./inspector/VenueAskTab";
-import VenueGettingHomeTab from "./inspector/VenueGettingHomeTab";
+import VenueAskSection from "./inspector/VenueAskTab";
+import VenueGettingHomeSection from "./inspector/VenueGettingHomeTab";
 import VenueStickyBar from "./inspector/VenueStickyBar";
 
 import "./venueSheet.css";
@@ -84,7 +90,13 @@ type VenueInspectorProps = {
   /** Trusted-handoff §4.8 "Make it Stop 1": accept this Venue into a Plan. */
   onAcceptStop1?: () => void;
   acceptanceError?: string | null;
-  initialTab?: TabKey;
+  /** A tab, or the "getting-home" fold on Overview. */
+  initialTab?: VenueTabRequest;
+  /**
+   * Counts getting-home requests. A new count lands the sheet on Overview with
+   * the fold open, even when the same pub is already open on another tab.
+   */
+  gettingHomeRequestId?: number;
   pintDrops: PintDropsState;
   /**
    * Community price layer - backs the fast "What's it tonight?" submission on
@@ -161,6 +173,7 @@ export default function VenueInspector({
   onAcceptStop1,
   acceptanceError = null,
   initialTab = DEFAULT_TAB,
+  gettingHomeRequestId = 0,
   pintDrops,
   communityPrices,
   onGrabDragStart,
@@ -266,8 +279,8 @@ export default function VenueInspector({
   }>({ venueId: null, count: 0 });
   const drops = useMemo(() => dropsByVenueId.get(venue.id) ?? [], [dropsByVenueId, venue.id]);
   const pubVenue = isPubVenue(venue);
-  const TABS = useMemo(() => tabsForVenue(cityId, venue.kind), [cityId, venue.kind]);
-  const safeInitialTab = pubVenue || initialTab !== "pints" ? initialTab : DEFAULT_TAB;
+  const TABS = useMemo(() => tabsForVenue(venue.kind), [venue.kind]);
+  const safeInitialTab = resolveVenueTab(initialTab, venue.kind);
 
   // E3′ — the header photo prefers a chain (scraped) photo but falls back to
   // the most recent community Pint Drop photo for this venue so a pub with no
@@ -287,6 +300,7 @@ export default function VenueInspector({
     venue.id,
     TABS,
     onTabSelect,
+    gettingHomeRequestId,
   );
   const { currentShareFeedback, shareVenue } = useVenueShare(venue, {
     priceGbp: shareLoggedPintGbp,
@@ -396,8 +410,8 @@ export default function VenueInspector({
   // The venue's live Last Pint decision, lifted up from LastTrainCard so the
   // Pints tab can stamp each drop with an honest transport-context badge (IDEAS
   // A5). HONESTY CONSTRAINT: this stays null until the user opens the
-  // Getting-home tab and LastTrainCard publishes the prefetched answer. So if
-  // they never open that tab, no badges render.
+  // getting-home fold on the Overview and LastTrainCard publishes the
+  // prefetched answer. So if they never open that fold, no badges render.
   // That's correct: a badge without a live decision behind it would be a guess.
   // LastTrainCard still owns the visible result; it only publishes that result
   // via the onDecision callback below. Reset on venue change (same adjust-state-during-
@@ -476,6 +490,16 @@ export default function VenueInspector({
         priceRevealMotionClass={priceRevealMotionClass}
         revealRecord={revealRecord}
         revealRecordLate={revealRecordLate}
+        gettingHome={
+          <VenueGettingHomeSection
+            key={`${venue.id}:${initialTab}:${gettingHomeRequestId}`}
+            venue={venue}
+            cityId={cityId}
+            openRequest={initialTab === "getting-home"}
+            onSelectVenue={onSelectVenue}
+            onDecision={setLastTrainDecision}
+          />
+        }
       />
 
       {/* Photos — the pub's community wall. */}
@@ -511,19 +535,8 @@ export default function VenueInspector({
         cityCuratedCrawls={cityCuratedCrawls}
         revealRecord={revealRecord}
         revealRecordLate={revealRecordLate}
-      />
-
-      {/* Ask — the grounded "Ask the PUBMAXXER" landlord guide. */}
-      <VenueAskTab venue={venue} tab={tab} />
-
-      {/* Getting home — the nearest station + last trains tonight (TfL), so you
-          know when to head off for the last drink. */}
-      <VenueGettingHomeTab
-        venue={venue}
-        tab={tab}
-        cityId={cityId}
-        onSelectVenue={onSelectVenue}
-        onDecision={setLastTrainDecision}
+        // Ask - the grounded "Ask the PUBMAXXER" landlord guide, a section of Lore.
+        ask={<VenueAskSection venue={venue} />}
       />
 
       {/* Venue command bar. On phones it moves into the shared sheet footer;
