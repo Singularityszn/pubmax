@@ -12,6 +12,10 @@ import { listBoroughs } from "@/lib/boroughs";
 import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
 import { loadPintIndexArchive } from "@/lib/pintIndexSnapshot.server";
+import {
+  DRINK_BRAND_LANDING_CATALOG,
+  buildDrinkBrandLanding,
+} from "@/lib/drinkBrandLanding";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
 import { PERFORMANCE_BUDGETS } from "@/lib/performanceBudgets";
@@ -182,6 +186,52 @@ describe("sitemap()", () => {
     expect(expected.boroughs).toBeGreaterThan(0);
     expect(expected.historic).toBeGreaterThan(0);
     expect(expected.venues).toBeGreaterThan(0);
+  });
+
+  it("advertises only the catalogue brands that clear their own floor", async () => {
+    // The catalogue decides what MAY publish; PRICED_LANDING_PUBLICATION_FLOORS
+    // decides what does. Both halves matter, so walk every catalogue brand and
+    // check the sitemap against the loader's own verdict for it.
+    const venues = groupVenuePrices(
+      JSON.parse(
+        await fs.readFile(
+          path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json"),
+          "utf8",
+        ),
+      ) as VenuePrice[],
+    );
+    let below = 0;
+
+    for (const brand of DRINK_BRAND_LANDING_CATALOG) {
+      const url = `${SITE}/drink/${encodeURIComponent(brand.id)}`;
+      if (buildDrinkBrandLanding(brand.id, venues)) {
+        expect(urls, `${brand.id} publishes but is unadvertised`).toContain(url);
+        continue;
+      }
+      below += 1;
+      expect(urls, `${brand.id} is below the floor but advertised`).not.toContain(url);
+      // A brand with no London page has no area children either, so its crumb
+      // can never point at a 404 under dynamicParams = false.
+      expect(
+        urls.filter((candidate) => candidate.endsWith(`/drink/${brand.id}`)),
+      ).toEqual([]);
+    }
+
+    // A catalogue that published everything would make the two halves above
+    // indistinguishable.
+    expect(below).toBeGreaterThan(0);
+  });
+
+  it("gives every advertised brand-by-area page an advertised parent brand page", () => {
+    const areaUrls = urls.filter((url) => /\/area\/[^/]+\/drink\/[^/]+$/.test(url));
+    expect(areaUrls.length).toBeGreaterThan(0);
+
+    for (const url of areaUrls) {
+      const brandSlug = url.slice(url.lastIndexOf("/") + 1);
+      expect(urls, `${url} crumbs onto an unpublished /drink/${brandSlug}`).toContain(
+        `${SITE}/drink/${brandSlug}`,
+      );
+    }
   });
 
   it("advertises no /area/{slug} page, because that family is held", () => {

@@ -104,6 +104,7 @@ of the window and names the file and fields to move forward.
 | Question | Owner |
 | --- | --- |
 | Shared floors, order, publisher, count label, JSON-LD | `__tests__/drinkBrandLanding.test.ts`, `__tests__/drinkBrandAreaLanding.test.ts` |
+| The landing card's link, and the map arrival a published page opens | `__tests__/landingDrinkPageCoverage.test.ts` |
 | Route, metadata, 404, destinations, OG card | `__tests__/drinkBrandLandingPage.test.ts`, `__tests__/drinkBrandAreaLandingPage.test.ts` |
 | Exactly the governed URL set, and no `/area/{slug}` | `__tests__/sitemap.test.ts` |
 | Dataset reaches every reader function | `__tests__/venueIndexTracing.test.ts` |

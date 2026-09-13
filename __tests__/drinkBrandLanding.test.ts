@@ -6,6 +6,7 @@ import { describe, expect, expectTypeOf, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import {
+  DRINK_BRAND_LANDING_CATALOG,
   DRINK_BRAND_LANDING_PUBLICATION_FLOOR,
   type DrinkBrandLanding,
   buildDrinkBrandLanding,
@@ -27,7 +28,6 @@ import {
   resetMapEagerVenueIndexForTests,
 } from "@/lib/mapEagerVenueIndex.server";
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
-import { DRINK_BRANDS } from "@/lib/drinkBrands";
 import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 
@@ -289,7 +289,7 @@ describe("governed drink brand landings", () => {
 
     expect(landings.length).toBeGreaterThan(0);
 
-    const catalogueOrder = DRINK_BRANDS.beer.map((brand) => brand.id);
+    const catalogueOrder = DRINK_BRAND_LANDING_CATALOG.map((brand) => brand.id);
     expect(landings.map((landing) => landing.slug)).toEqual(
       catalogueOrder.filter((id) =>
         landings.some((landing) => landing.slug === id),
@@ -304,7 +304,7 @@ describe("governed drink brand landings", () => {
 
     // A brand the loader withheld is one the dataset cannot carry, never one
     // the catalogue forgot.
-    for (const brand of DRINK_BRANDS.beer) {
+    for (const brand of DRINK_BRAND_LANDING_CATALOG) {
       if (landings.some((landing) => landing.slug === brand.id)) continue;
       expect(buildDrinkBrandLanding(brand.id, venues)).toBeNull();
     }

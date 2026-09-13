@@ -52,9 +52,11 @@ import {
 } from "@/lib/drinkBrandLanding.server";
 import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
 import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
-import { DRINK_BRANDS } from "@/lib/drinkBrands";
 import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
-import type { DrinkBrandLanding } from "@/lib/drinkBrandLanding";
+import {
+  DRINK_BRAND_LANDING_CATALOG,
+  type DrinkBrandLanding,
+} from "@/lib/drinkBrandLanding";
 import * as drinkBrandLandingPageModule from "@/app/drink/[slug]/page";
 
 describe("governed drink brand landing page", () => {
@@ -68,7 +70,7 @@ describe("governed drink brand landing page", () => {
     expect(params).toEqual(published.map((slug) => ({ slug })));
     expect(published.length).toBeGreaterThan(0);
     expect(published).toEqual(
-      DRINK_BRANDS.beer
+      DRINK_BRAND_LANDING_CATALOG
         .map((brand) => brand.id)
         .filter((id) => published.includes(id)),
     );

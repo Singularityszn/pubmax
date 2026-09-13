@@ -4,6 +4,7 @@
 // without inventing a full menu DB. Identity is the `id`; matching uses the
 // normalised label + optional aliases against venue search text / hints.
 
+import { BEERS } from "@/lib/beers";
 import {
   DRINK_CATEGORIES,
   type DrinkCategory,
@@ -147,7 +148,15 @@ export function brandsForCategory(cat: DrinkCategory): DrinkBrand[] {
   return DRINK_BRANDS[cat] ?? [];
 }
 
-/** Look up a brand by id across every category. */
+/**
+ * Look up a brand by id across every category, then across the canonical
+ * draught pints in lib/beers.ts the lens catalogue above does not name.
+ *
+ * The lens catalogue wins first, so its aliases and its category keep deciding
+ * every id it already owns. A beer it lacks still resolves, because the
+ * favourite-pint picker and the drink-brand landings both name the whole of
+ * BEERS: without this, `/map?brand=pravha` selected nothing and said nothing.
+ */
 export function findBrand(
   id: string,
 ): { category: DrinkCategory; brand: DrinkBrand } | null {
@@ -158,7 +167,8 @@ export function findBrand(
       if (brand.id === needle) return { category, brand };
     }
   }
-  return null;
+  const beer = BEERS.find((candidate) => candidate.id === needle);
+  return beer ? { category: "beer", brand: beer } : null;
 }
 
 /** Lowercase + collapse punctuation so URL/query brand ids stay stable. */

@@ -59,6 +59,7 @@ const card: LandingPubCardData = {
   area: "City of London",
   priceGbp: 6.5,
   pintName: "a pint of Pravha",
+  drinkHref: "/drink/pravha",
   publisher: { label: "Pint Prices", url: "https://www.pint-prices.com/pub/x" },
   collectedOn: "2026-07-03",
   standing: "listed",

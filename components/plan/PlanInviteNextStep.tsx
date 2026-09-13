@@ -37,6 +37,7 @@ import {
   restorePlanCapability,
 } from "@/lib/planSessionCapability";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
+import { siteOrigin } from "@/lib/siteUrl";
 
 type PlanInviteNextStepProps = {
   planId: string;
@@ -45,10 +46,15 @@ type PlanInviteNextStepProps = {
   initialVibeSlug: string | null;
 };
 
+// A crew-join link leaves the site, so it carries a host: the canonical one
+// in production (lib/siteUrl.ts), the current origin anywhere else. The anchor
+// and the click path share this, because the anchor alone used to carry the
+// bare path (Astra plan lane 1.7).
 function toAbsoluteUrl(url: string): string {
   if (typeof window === "undefined") return url;
   try {
-    return new URL(url, window.location.origin).toString();
+    const origin = siteOrigin(window.location.href) ?? window.location.origin;
+    return new URL(url, origin).toString();
   } catch {
     return url;
   }
@@ -168,7 +174,7 @@ export default function PlanInviteNextStep({
       {inviteToken ? (
         <a
           className="planInviteNext__whatsapp"
-          href={whatsappShareHref(text, relativeUrl)}
+          href={whatsappShareHref(text, toAbsoluteUrl(relativeUrl))}
           onClick={(event) => {
             event.preventDefault();
             openWhatsApp();

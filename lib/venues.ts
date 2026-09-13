@@ -1091,7 +1091,11 @@ function venueDrinkHaystack(venue: Venue): string {
   // Intentionally omit venue.name AND filterHints.searchText — the slim index
   // still puts pub_name into searchText for general map query, which would
   // false-positive drink brand matching (e.g. "Gordon" in "The Gordon Arms").
+  // filterHints.drinkText IS included: the slim builder fills it from pint
+  // names alone, and it is the only drink evidence a slim pin carries, because
+  // a pin has no price rows until detail hydrates.
   const parts = [
+    venue.filterHints?.drinkText ?? "",
     venue.cheapestPint,
     venue.description,
     ...venue.prices.map((price) => price.pint_name),
