@@ -662,15 +662,17 @@
     /* EVERY SECTION IS ON SCREEN, IN ONE ROW. The strip used to scroll
        sideways under a fade, which hid the last tabs past the edge (5 Sep
        2026), and then wrapped seven tabs into two rows of a 98px strip on a
-       390px phone (site audit 13 Sep 2026, D10). Five tabs now share the row in
-       equal cells, so nothing hangs past the edge and nothing needs a second
-       row. The row never scrolls. */
+       390px phone (site audit 13 Sep 2026, D10). Five tabs now share the row:
+       each cell keeps its own label's width and takes an equal share of the
+       space left, so no label is wider than its pill and nothing needs a
+       second row. Equal zero-basis cells cut "Overview" to a 61px pill with a
+       label 4.8px off its centre. The row never scrolls. */
     max-height: none;
     overflow: hidden;
   }
 
   .venueTab {
-    flex: 1 1 0;
+    flex: 1 1 auto;
     min-width: 0;
     min-height: 2.75rem;
     height: auto;
