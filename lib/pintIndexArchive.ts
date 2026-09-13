@@ -21,11 +21,13 @@
 // to July in the published window and in the hash, wherever the build runs.
 
 import {
+  buildLeagueTable,
   validatePintIndexSnapshot,
   type PintIndexObservation,
   type PintIndexSnapshot,
 } from "@/lib/pintIndex";
 import { canonicalObservationsPayload as canonicalPayload } from "@/lib/pintIndexCanonical.mjs";
+import { SEED_BOROUGH_MONTHLY_TARGET } from "@/lib/boroughCoverageStatus";
 
 /** `YYYY-MM`, the id of a monthly edition and the last segment of its URL. */
 export const PINT_INDEX_MONTH_PATTERN = /^\d{4}-(?:0[1-9]|1[0-2])$/;
@@ -140,6 +142,26 @@ export function pintIndexMonthOf(iso: string): string | null {
   const parsed = Date.parse(iso);
   if (!Number.isFinite(parsed)) return null;
   return new Date(parsed).toISOString().slice(0, 7);
+}
+
+/**
+ * Admit a validated snapshot when one borough meets the floor within any single UTC month.
+ * Group before counting unique pubs so later observations cannot erase an earlier qualifying month.
+ * This controls hub indexing and its sitemap row, not the displayed league or dated editions.
+ */
+export function pintIndexMeetsAdmissionFloor(snapshot: PintIndexSnapshot): boolean {
+  const months = new Map<string, PintIndexObservation[]>();
+  for (const observation of snapshot.observations) {
+    const month = pintIndexMonthOf(observation.observedAt);
+    if (month === null) continue;
+    const observations = months.get(month) ?? [];
+    observations.push(observation);
+    months.set(month, observations);
+  }
+  return [...months.values()].some((observations) =>
+    buildLeagueTable({ ...snapshot, observations })
+      .some((row) => row.pubCount >= SEED_BOROUGH_MONTHLY_TARGET),
+  );
 }
 
 /**

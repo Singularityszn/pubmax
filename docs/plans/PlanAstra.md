@@ -65,6 +65,7 @@ Historical file references can name planned files or older source locations.
 | Identity and age | [CONTEXT.md](../../CONTEXT.md), [contributionIdentity.server.ts](../../lib/contributionIdentity.server.ts), [socialLaunch.ts](../../lib/socialLaunch.ts). | Preserve each route's existing authority and adult rules. A plan document cannot waive them. |
 | Measurement | #1576 explicitly adopts weekly groups that complete and repeat. The draft defines the 28-day window. [METRICS.md](../analytics/METRICS.md) documents the available proxy. | The group outcome is accepted. Its aggregate implementation and evidence remain missing; the weekly device proxy does not replace it. See 8.9. |
 | London first | [#1576](https://github.com/Singularityszn/pubmax/issues/1576) excludes new-city implementation. | Existing four-city supply belongs to #1522. Its reference below does not widen this plan. |
+| D10 Pint Index | The captain kept the hold on 10 September 2026. `pintIndexMeetsAdmissionFloor` in [pintIndexArchive.ts](../../lib/pintIndexArchive.ts) is the rule, and [lib/AGENTS.md](../../lib/AGENTS.md) records it. | Main's bounded interpretation admits any single UTC month represented in the validated snapshot. One borough must reach the monthly target through unique pubs. Counts never pool across months; no freshness condition applies. The hold covers the sitemap row and the hub's `robots` index directive alone; the route, its links and the dated editions stay. |
 | D9 city picker | `/places` is the one picker. It carries the canonical and the single sitemap row, and `/choose-city` has no page: it answers a 308 at the edge ([cityPickerRoute.ts](../../lib/cityPickerRoute.ts), [proxy.ts](../../proxy.ts)). Rule and pins in [app/AGENTS.md](../../app/AGENTS.md). | The redirect policy is decided and shipped. Every surface links the picker at one address. |
 
 The bill requirement does not prove production receipt persistence.
@@ -87,7 +88,6 @@ Recommendations from the original draft remain proposals.
 | D5 | Choose push, email or shares for return visits; approve cadence, timezone and opt-in timing. | Original proposal: Friday 17:00 digest, email fallback, plus a weekly price recheck. Resolve their combined frequency before scheduling. |
 | D6 | Set the acceptable firewall posture and shared-Wi-Fi rate limits. | Proposed document-only challenges need dashboard inspection. Numeric account/IP limits are not accepted by this draft. |
 | D8 | Keep Rounds separate, fold it into a Planned Night spend diary, or retire its surface. | Original preference: fold it. Never introduce debt settlement or remove stored history implicitly. |
-| D10 | Keep the Pint Index hold or approve a separately labelled listed-price edition; decide its navigation placement. | Preserve the existing corroboration threshold unless explicitly changed. The draft recommends holding and hiding empty promotion. |
 | P1 | Define the native contact-matching privacy contract before accepting that feature. | Hashing contact data alone is not permission. Decide consent, matching visibility, retention and deletion. |
 | P2 | Define the unspecified `/r/<code>` face proposal, or remove it from scope. | Name the destination, consent and public fields. No acceptance behaviour can be inferred from a title alone. |
 | P3 | Set any Product Hunt or press campaign scope, launch date, approved copy and destination. | This remains outside the tree; a plan is not permission to publish or contact anyone. |
@@ -422,7 +422,7 @@ All unshipped scope remains proposed and subject to section 1. Existing routes r
 
 | Feature | Spec | Acceptance | Effort | Risk | Depends on |
 |---|---|---|---|---|---|
-| Publish only with figures (D10) | the Index leaves the landing and About until a month has 20 confirmed pints per borough | Until D10 changes policy, publication requires the existing corroboration threshold. No empty or listed-price month is called confirmed. | S | none | D10 |
+| Advertise only with figures (D10, settled) | `pintIndexMeetsAdmissionFloor` in [pintIndexArchive.ts](../../lib/pintIndexArchive.ts) owns the rule and the figure behind it | Delivered. The sitemap row and the hub's `robots` index directive stand down below the floor. No empty or listed-price month is called confirmed. | S | none | none |
 | Drink pages for every landing brand | `/drink/pravha` and every brand the answer card can name | no 404 from the landing | S | none | none |
 | Price history on every sheet | the then-line exists on 50 pubs; grow the curated file | Every added then-line cites a curated dated source. Missing history remains absent rather than interpolated. | M | curation | none |
 | Estimates for four cities | supply, not a switch (AGENTS.md) | Track supply and coverage under #1522. Estimates stay labelled and never gain confirmation from being seeded. | L | evidence | harvest |

@@ -138,6 +138,22 @@ vi.mock("@/lib/aboutStats", () => ({
 }));
 vi.mock("@/lib/publicPintIndexSnapshot.server", () => ({
   loadPublicPintIndexSnapshot: async () => null,
+  loadPublicPintIndexSnapshotOrThrow: async () => ({
+    schemaVersion: 1,
+    snapshotId: "empty-launch-fixture",
+    status: "empty",
+    generatedAt: "2026-09-12T00:00:00.000Z",
+    observationWindow: null,
+    classification: {
+      version: "london-borough-point-v1",
+      method: "point_in_polygon",
+      sourceArtifact: "data/london_boroughs_simplified.json",
+      licence: "Open Government Licence v3.0",
+    },
+    sources: [],
+    observations: [],
+    excluded: [],
+  }),
 }));
 vi.mock("@/lib/planStore", () => ({
   // `read` is the three-way reading the page asks: a store we could not reach
