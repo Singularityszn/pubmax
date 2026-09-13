@@ -187,14 +187,15 @@
    already carries a credit link and a map link, and three highlighted boxes
    inside one card is noise. */
 @media (hover: hover) and (pointer: fine) {
-  a.outCard:hover :is(h2, h4) {
+  a.outCard:hover :is(h2, h4, h5) {
     text-decoration: underline;
     text-underline-offset: 3px;
   }
 }
 
 .outCard h2,
-.outCard h4 {
+.outCard h4,
+.outCard h5 {
   margin: 0;
   font-family: var(--font-display);
   font-size: 1.05rem;

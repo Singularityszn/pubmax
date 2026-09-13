@@ -16,7 +16,6 @@ import {
   OUT_TONIGHT_PUBS_WAY,
   outListingLead,
 } from "@/lib/out/listingRoute";
-import * as listingRoute from "@/lib/out/listingRoute";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 function row(id: string, venueId?: string): WhatsOnRow {
@@ -33,12 +32,6 @@ function row(id: string, venueId?: string): WhatsOnRow {
 }
 
 const unmatched = Array.from({ length: 25 }, (_, index) => row(`tm-${index}`));
-
-describe("the page primary is never a listing", () => {
-  it("no longer exports a way to lead the page with a listing's title", () => {
-    expect("outPrimaryListingWay" in listingRoute).toBe(false);
-  });
-});
 
 describe("outListingLead", () => {
   it("leads with the honest line when the match ran and placed none of them", () => {

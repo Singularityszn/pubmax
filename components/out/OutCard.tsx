@@ -50,7 +50,7 @@ export function formatWhen(row: WhatsOnRow): string {
   return row.timeEvidence ?? "";
 }
 
-type OutCardTitleLevel = 2 | 4;
+type OutCardTitleLevel = 2 | 4 | 5;
 
 type OutCardBodyProps = {
   row: WhatsOnRow;
@@ -61,7 +61,7 @@ type OutCardBodyProps = {
 export function OutCardBody({ row, onOpen, titleLevel = 2 }: OutCardBodyProps) {
   const from = ticketFromLine(row);
   const when = row.startsAt || row.startsDate ? formatWhen(row) : "";
-  const TitleTag = titleLevel === 4 ? "h4" : "h2";
+  const TitleTag = titleLevel === 5 ? "h5" : titleLevel === 4 ? "h4" : "h2";
   const route = outListingRoute(row);
   const placeName = row.placeName.trim();
   const content = (

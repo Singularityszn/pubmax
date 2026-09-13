@@ -16,6 +16,7 @@ import { firstHttp } from "@/lib/httpUrl";
 import { outRowSourceCredit } from "@/lib/out/attribution";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
 import type { OutVenueMatchStatus } from "@/lib/out/venueMatch";
+import { OUT_LISTING_PUB_ABSENT_LINE } from "@/lib/outDesktopGrouping";
 import { outWindowNoun, type OutDayWindow } from "@/lib/outListings";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
@@ -39,7 +40,7 @@ export function outListingRoute(row: WhatsOnRow): OutListingRoute | null {
 }
 
 /** The heading over listings at no pub of ours: the row's own words, as a heading. */
-export const OUT_NOT_ON_MAP_HEADING = "Not on our map yet";
+export const OUT_NOT_ON_MAP_HEADING = OUT_LISTING_PUB_ABSENT_LINE.replace(/\.$/, "");
 
 /** The way from a night with nothing at our pubs to the pubs people talk about. */
 export const OUT_TONIGHT_PUBS_WAY = { href: "/tonight", label: "Tonight’s pubs" } as const;

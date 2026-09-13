@@ -107,6 +107,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
   ) {
     const groups = groupOutListings(rows);
     const showGroupTitles = groups.length > 1;
+    const rowTitleLevel = showGroupTitles && GroupTitle === "h4" ? 5 : 4;
     return groups.map((group) => (
       <section
         key={`${idPrefix}${group.key}`}
@@ -124,7 +125,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
           {group.rows.map((row) => (
             <li key={row.id} className="outListingRow" data-testid="out-listing-row">
               <div className="outListingGig">
-                <OutCardBody row={row} onOpen={() => onOpen(row)} titleLevel={4} />
+                <OutCardBody row={row} onOpen={() => onOpen(row)} titleLevel={rowTitleLevel} />
               </div>
               <OutListingPubPair row={row} />
             </li>

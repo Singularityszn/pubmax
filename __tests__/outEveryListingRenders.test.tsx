@@ -85,7 +85,7 @@ function body(rows: WhatsOnRow[]): OutResponse {
 let container: HTMLDivElement;
 let root: Root | null = null;
 
-async function renderOut(rows: WhatsOnRow[]) {
+async function renderOut(rows: WhatsOnRow[], day: "tonight" | "tomorrow" | "weekend" = "tonight") {
   vi.stubGlobal(
     "fetch",
     vi.fn(async () =>
@@ -99,7 +99,7 @@ async function renderOut(rows: WhatsOnRow[]) {
   document.body.append(container);
   root = createRoot(container);
   await act(async () => {
-    root?.render(createElement(OutClient, { day: "tonight" }));
+    root?.render(createElement(OutClient, { day }));
   });
   await act(async () => {});
 }
@@ -232,6 +232,27 @@ describe("a night of unmatched listings renders rows, not an empty state", () =>
     expect(
       [...container.querySelectorAll(".outGroupTitle")].map((node) => node.textContent),
     ).toEqual(["Tonight", "Tomorrow"]);
+  });
+
+  it("nests each listing under its night inside the not-on-our-map block", async () => {
+    await renderOut(
+      [
+        unmatchedRow(0),
+        { ...unmatchedRow(1), startsAt: new Date(NOW + 24 * 60 * 60 * 1000).toISOString() },
+      ],
+      "weekend",
+    );
+
+    const block = container.querySelector(".outUnmatchedBlock");
+    expect(block?.querySelector("#out-unmatched-heading")?.tagName).toBe("H3");
+    const groupTitles = [...(block?.querySelectorAll(".outGroupTitle") ?? [])];
+    expect(groupTitles).toHaveLength(2);
+    expect(groupTitles.every((node) => node.tagName === "H4")).toBe(true);
+    const rowTitles = [
+      ...(block?.querySelectorAll('[data-testid="out-listing-row"] :is(h2, h3, h4, h5, h6)') ??
+        []),
+    ];
+    expect(rowTitles.map((node) => node.tagName)).toEqual(["H5", "H5"]);
   });
 
   it("credits the publishers under the list, never above it", async () => {

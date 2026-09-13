@@ -543,6 +543,51 @@ test("starts each desktop listing group at the top of its grid row", async ({ pa
   expect(Math.abs(maryleboneTop!.y - sohoTop!.y)).toBeLessThan(24);
 });
 
+// A narrower centred surface set the honest line, the block heading and every
+// row 28px in from "What's on tonight" at 1440 (13 Sep 2026).
+test("sets the desktop listing surface on the section title's own edge", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.route(isOutListingsRequest, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "ready",
+        listingsStatus: "ready",
+        events: Array.from({ length: 25 }, (_, index) => ({
+          ...PLAYHOUSE_EVENT,
+          id: `events-tm-edge-${index}`,
+          sourceId: `edge-${index}`,
+          title: `Edge listing ${index + 1}`,
+          placeName: `Arena ${index + 1}`,
+        })),
+        openPlans: [],
+        attribution: [],
+        observedAt: {},
+        providers: [{ name: "ticketmaster", configured: true, rows: 25, status: "ready" }],
+        unmatchedCount: 25,
+        venueMatch: "ready",
+      }),
+    }),
+  );
+
+  await page.goto("/out");
+  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.getByTestId("out-listing-row")).toHaveCount(25);
+
+  const sectionBox = await page.locator("#out-listings-heading").boundingBox();
+  const leadBox = await page.getByTestId("out-honest-empty").boundingBox();
+  const blockBox = await page.locator("#out-unmatched-heading").boundingBox();
+  const firstRowBox = await page.getByTestId("out-listing-row").first().boundingBox();
+  expect(sectionBox).not.toBeNull();
+  expect(leadBox).not.toBeNull();
+  expect(blockBox).not.toBeNull();
+  expect(firstRowBox).not.toBeNull();
+  for (const box of [leadBox!, blockBox!, firstRowBox!]) {
+    expect(Math.abs(box.x - sectionBox!.x)).toBeLessThanOrEqual(1);
+  }
+});
+
 test.describe("out tab screenshots @390", () => {
   test.use({ viewport: { width: 390, height: 844 } });
   test.setTimeout(60_000);
