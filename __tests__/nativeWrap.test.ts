@@ -8,6 +8,7 @@ import { BRAND_COLORS } from "@/lib/brandMark.mjs";
 import {
   NATIVE_DEEP_LINK_EXACT_PATHS,
   NATIVE_DEEP_LINK_PATH_PREFIXES,
+  NATIVE_URL_SCHEME,
 } from "@/lib/nativeDeepLinks";
 
 const rootFile = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
@@ -296,6 +297,36 @@ describe("Capacitor wrapped-build contract", () => {
       expect(filter).toContain('android:host="pubmaxxing.com"');
     }
     expect(manifest).toContain('android:launchMode="singleTask"');
+  });
+
+  it("registers the pubmaxx:// scheme in both shells, as a fallback beside the verified links", () => {
+    // D20, 13 Sep 2026 audit: `xcrun simctl openurl <udid> pubmaxx://...`
+    // failed with LSApplicationWorkspaceErrorDomain error 115, because neither
+    // shell registered the scheme. Universal links and App Links stay the
+    // intended path and need a signed build to test; the scheme is what a rig
+    // can open today. The families it opens are lib/nativeDeepLinks.ts's own.
+    expect(NATIVE_URL_SCHEME).toBe("pubmaxx");
+
+    const info = rootFile("ios/App/App/Info.plist");
+    const urlTypes = info.match(/<key>CFBundleURLTypes<\/key>\s*<array>([\s\S]*?)<\/array>\s*<\/dict>\s*<\/array>/)?.[1] ?? "";
+    expect(urlTypes, "Info.plist carries no CFBundleURLTypes").not.toBe("");
+    expect(urlTypes).toContain("<key>CFBundleURLName</key>");
+    expect(urlTypes).toContain("<string>com.pubmaxx.app</string>");
+    expect(urlTypes).toContain("<key>CFBundleURLSchemes</key>");
+    expect(info).toContain(`<string>${NATIVE_URL_SCHEME}</string>`);
+
+    const manifest = rootFile("android/app/src/main/AndroidManifest.xml");
+    // A plain <intent-filter>, never an autoVerify one: verification belongs to
+    // the https families, and their count is held by the test above.
+    const schemeFilters = [...manifest.matchAll(/<intent-filter>([\s\S]*?)<\/intent-filter>/g)]
+      .map((match) => match[1] ?? "")
+      .filter((filter) => filter.includes(`android:scheme="${NATIVE_URL_SCHEME}"`));
+    expect(schemeFilters).toHaveLength(1);
+    const [filter] = schemeFilters;
+    expect(filter).toContain('android:name="android.intent.action.VIEW"');
+    expect(filter).toContain('android:name="android.intent.category.DEFAULT"');
+    expect(filter).toContain('android:name="android.intent.category.BROWSABLE"');
+    expect(filter).not.toContain("android:host");
   });
 
   it("requires the architecture the platform actually has", () => {
