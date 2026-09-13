@@ -1,6 +1,7 @@
 // Native universal/app-link routing seam. Platform manifests decide which
-// HTTPS links may open the binary; this module applies the second fence by
-// accepting only the production origin and explicitly supported route families.
+// links may open the binary; this module applies the second fence by accepting
+// only the production origin or the `pubmaxx://` fallback scheme, and only
+// explicitly supported route families.
 
 import { isNativeApp } from "@/lib/nativePlatform";
 import { navigateNativeBrowser } from "@/lib/nativeNavigation";
