@@ -478,7 +478,7 @@
     cursor: pointer;
   }
   /* The first-visit analytics disclosure docks under the map-edge column, so
-     the column keeps one gap above the card's published lane
+     the column keeps one gap above the card's lane
      (components/nav/mobileNav.css) rather than putting a 52px FAB on top of a
      consent choice. */
   body:has(.analyticsConsentPrompt) .mobileMapUtilityCorner {

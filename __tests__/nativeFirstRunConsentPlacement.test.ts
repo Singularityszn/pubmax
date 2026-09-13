@@ -178,11 +178,12 @@ function resolvePx(
     return evaluateSum(args[0]!, viewport, variables, seen);
   }
 
-  const lengthMatch = /^(-?[\d.]+)(px|dvh|vh)?$/.exec(input);
+  const lengthMatch = /^(-?[\d.]+)(px|rem|dvh|vh)?$/.exec(input);
   if (lengthMatch) {
     const amount = Number(lengthMatch[1]);
     const unit = lengthMatch[2] ?? "px";
     if (unit === "px") return amount;
+    if (unit === "rem") return amount * 16;
     return (amount / 100) * viewport.height;
   }
 
@@ -266,7 +267,7 @@ describe("native first-run consent placement", () => {
   it("publishes the consent lane once so the surface does not restate it", () => {
     const roots = rootVariables();
     expect(roots.get("--analytics-consent-clearance")).toBe("72px");
-    expect(roots.get("--analytics-consent-mobile-clearance")).toBe("56px");
+    expect(roots.get("--analytics-consent-mobile-clearance")).toBe("3.5rem");
 
     // The first-run surface must READ those, never carry its own copy.
     const lane = rootVariables(PHONE_MEDIA).get("--first-run-consent-lane") ?? "";
@@ -298,17 +299,15 @@ describe("native first-run consent placement", () => {
     expect(surfaceHeight, "the surface takes an explicit height").toBeDefined();
 
     const cardBerth = declarationsFor(globalCss, CARD_RULE, CARD_MEDIA).get("bottom")!;
-    const cardMaxHeight = declarationsFor(
-      globalCss,
-      ".analyticsConsentPrompt",
-      CARD_MEDIA,
-    ).get("min-height")!;
+    // The card grows with its text, so its height is bounded by the lane the
+    // surface reserves for it, never by the row's 56px floor.
+    const cardLane = "var(--first-run-consent-lane)";
 
     for (const viewport of NATIVE_VIEWPORTS) {
       const surface: Band = { top: 0, bottom: resolvePx(surfaceHeight!, viewport, variables) };
       const berth = resolvePx(cardBerth, viewport, variables);
       const card: Band = {
-        top: viewport.height - berth - resolvePx(cardMaxHeight, viewport, variables),
+        top: viewport.height - berth - resolvePx(cardLane, viewport, variables),
         bottom: viewport.height - berth,
       };
 

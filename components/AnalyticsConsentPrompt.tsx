@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BRAND_NAME } from "@/lib/brandNaming";
-import { type Ref, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   analyticsConsentDecision,
@@ -26,13 +26,7 @@ import {
 
 type AnalyticsConsentPromptContentProps = {
   onDecision: (granted: boolean) => void;
-  ref?: Ref<HTMLElement>;
 };
-
-/** The phone lane the page, the first-run surface and the map controls read. */
-const CONSENT_LANE_PROPERTY = "--analytics-consent-mobile-clearance";
-/** The row's own bottom padding, without any home-indicator inset. */
-const ROW_FOOT_PX = 6;
 
 // ONE ROW. The sentence sits beside both choices in a 56px strip, so it is kept
 // short enough to wrap inside that row on a 320px phone
@@ -41,11 +35,9 @@ const ROW_FOOT_PX = 6;
 // sold and carries no ads; the rest is one tap away on /privacy.
 export function AnalyticsConsentPromptContent({
   onDecision,
-  ref,
 }: AnalyticsConsentPromptContentProps) {
   return (
     <aside
-      ref={ref}
       className="analyticsConsentPrompt"
       aria-label="Anonymous analytics choice"
     >
@@ -115,33 +107,6 @@ export default function AnalyticsConsentPrompt() {
     };
   }, [pageOwnsConsent]);
 
-  // THE LANE IS THE ROW AS IT PAINTS. At an ordinary text size that is 56px,
-  // but larger text grows the row, and a fixed lane would leave the page foot
-  // and the map controls under it. The inset padding is left out, because the
-  // rules that read the lane add the inset themselves.
-  const rowRef = useRef<HTMLElement>(null);
-  const showing = !pageOwnsConsent && decision === null;
-  useLayoutEffect(() => {
-    const row = rowRef.current;
-    if (!showing || !row) return;
-    const root = document.documentElement;
-    const publish = () => {
-      const top = row.getBoundingClientRect().top;
-      const foot = Math.max(
-        top,
-        ...Array.from(row.children, (child) => child.getBoundingClientRect().bottom),
-      );
-      root.style.setProperty(CONSENT_LANE_PROPERTY, `${Math.ceil(foot - top + ROW_FOOT_PX)}px`);
-    };
-    publish();
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(publish);
-    observer?.observe(row);
-    return () => {
-      observer?.disconnect();
-      root.style.removeProperty(CONSENT_LANE_PROPERTY);
-    };
-  }, [showing]);
-
   if (pageOwnsConsent) return null;
   if (decision !== null) return null;
 
@@ -150,5 +115,5 @@ export default function AnalyticsConsentPrompt() {
     setDecision(granted ? "granted" : "denied");
   }
 
-  return <AnalyticsConsentPromptContent ref={rowRef} onDecision={decide} />;
+  return <AnalyticsConsentPromptContent onDecision={decide} />;
 }

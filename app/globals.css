@@ -4455,7 +4455,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
    surface the body's foot padding cannot lift out of the card's way. */
 :root {
   --analytics-consent-clearance: 72px;
-  --analytics-consent-mobile-clearance: 56px;
+  --analytics-consent-mobile-clearance: 3.5rem;
 }
 
 /* DOCKED, NEVER FLOATING. The card used to be an inset, blurred, shadowed
@@ -4599,8 +4599,8 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
      inset belongs to the tab bar underneath, so the card's own padding is the
      plain 5px and 6px of the row. The sentence is kept short enough to wrap
      beside both choices inside 56px at 320px. Nothing caps the height: larger
-     text grows the card rather than spilling it onto the dock, and
-     AnalyticsConsentPrompt publishes the painted row as the lane. */
+     text grows the card rather than spilling it onto the dock, and the lane
+     is sized in rem so browser text zoom grows it with the row. */
   .analyticsConsentPrompt {
     bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom));
     grid-template-columns: minmax(0, 1fr) auto;
@@ -4638,12 +4638,12 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
      a glob here would end this comment). The card is
      bottom-anchored above the tab bar, so it grows upward, and the two
      buttons share one row under the sentence. The lane the page reserves
-     grows with the card, and the first-run lane reads the same token. Until
-     the painted row is published it is 184px: a 1px hairline, 5px, four 29px
-     lines of the sentence at 320px, 8px, the 44px choices and 6px make 180px,
-     and 4px of margin. */
+     grows with the card, and the first-run lane reads the same token. It is
+     11.5rem, 184px at the 16px root: a 1px hairline, 5px, four 29px lines of
+     the sentence at 320px, 8px, the 44px choices and 6px make 180px, and 4px
+     of margin make 184px. */
   html[data-text-scale="large"] {
-    --analytics-consent-mobile-clearance: 184px;
+    --analytics-consent-mobile-clearance: 11.5rem;
   }
 
   html[data-text-scale="large"] .analyticsConsentPrompt {

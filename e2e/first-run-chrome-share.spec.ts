@@ -315,7 +315,7 @@ for (const width of [320, 360, 390] as const) {
   });
 }
 
-test("larger text grows the consent row without spilling it, and the page reserves the grown row @320x844", async ({ page }) => {
+test("larger text grows the consent row without spilling it @320x844", async ({ page }) => {
   test.setTimeout(90_000);
   await prepareStranger(page, { width: 320, height: 844 });
   await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -342,13 +342,33 @@ test("larger text grows the consent row without spilling it, and the page reserv
   });
   expect(grown.scrollHeight).toBeLessThanOrEqual(Math.ceil(grown.height));
   expect(grown.controlsInside).toBe(true);
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        Number.parseFloat(
-          getComputedStyle(document.documentElement).getPropertyValue("--analytics-consent-mobile-clearance"),
-        )))
-    .toBeGreaterThanOrEqual(Math.floor(grown.height));
+});
+
+test("the page foot clears the tab bar and the painted consent card at default and large text @320x844", async ({ page }) => {
+  test.setTimeout(90_000);
+  await prepareStranger(page, { width: 320, height: 844 });
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await firstRouteRecorded(page);
+  await page.goto("/tonight", { waitUntil: "domcontentloaded" });
+
+  const prompt = page.getByLabel("Anonymous analytics choice");
+  await expect(prompt).toBeVisible({ timeout: 30_000 });
+
+  const foot = () =>
+    prompt.evaluate((el) => ({
+      padding: Number.parseFloat(getComputedStyle(document.body).paddingBottom),
+      dock: window.innerHeight - el.getBoundingClientRect().bottom,
+      card: el.getBoundingClientRect().height,
+    }));
+
+  const ordinary = await foot();
+  expect(ordinary.card).toBeLessThanOrEqual(CONSENT_ROW_HEIGHT + 0.5);
+  expect(ordinary.padding).toBeGreaterThanOrEqual(ordinary.dock + ordinary.card - 0.5);
+
+  await page.evaluate(() => document.documentElement.setAttribute("data-text-scale", "large"));
+  await expect.poll(async () => (await foot()).card).toBeGreaterThan(CONSENT_ROW_HEIGHT);
+  const large = await foot();
+  expect(large.padding).toBeGreaterThanOrEqual(large.dock + large.card - 0.5);
 });
 
 test("the dock paints the home-indicator strip under it and keeps its tap row @390x844", async ({ page }) => {

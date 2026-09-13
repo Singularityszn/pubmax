@@ -57,8 +57,8 @@
      what sits in this band is the Near me FAB parked at the column's own bottom
      (justify-content: space-between). The consent variant keeps the column one
      gap above the analytics card docked on the tab bar: its own berth while the
-     card is the 56px row, higher only when larger text grows the card's
-     published lane. The create action does not stack above that card at all,
+     card is the 56px row, higher only when larger text grows the card's rem
+     lane. The create action does not stack above that card at all,
      it stands down (createFab.css). */
   --map-corner-locate-size: 52px;
   --map-corner-bottom: calc(var(--float-stack-base) + 72px);
