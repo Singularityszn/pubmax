@@ -1,13 +1,15 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   bindDeviceAccountOwner,
   clearDeviceAccountArtifacts,
   deviceAccountOwner,
   DEVICE_ACCOUNT_OWNER_KEY,
+  DEVICE_IDENTITY_CHANGED_EVENT,
   DEVICE_IDENTITY_LOCAL_KEYS,
   DEVICE_IDENTITY_SESSION_KEYS,
   releaseDeviceAccountOwner,
+  subscribeDeviceIdentity,
 } from "@/lib/deviceAccountIdentity";
 import { NIGHT_PROFILE_DEVICE_KEY } from "@/lib/nightProfileDeviceProvenance";
 
@@ -153,5 +155,52 @@ describe("device account identity", () => {
     expect(() => releaseDeviceAccountOwner(blocked)).not.toThrow();
     expect(deviceAccountOwner(blocked)).toBeNull();
     expect(bindDeviceAccountOwner("", fakeStorage())).toBe(false);
+  });
+});
+
+describe("subscribeDeviceIdentity", () => {
+  function storageEvent(key: string | null): Event {
+    return Object.assign(new Event("storage"), { key });
+  }
+
+  let target: EventTarget;
+  beforeEach(() => {
+    target = new EventTarget();
+    vi.stubGlobal("window", target);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("ignores another tab's writes outside the identity set", () => {
+    // A second /social tab writes the auth token, the auth lock and the device
+    // session list. None of them is an identity change, and re-reading on them
+    // closed the first tab's open composer.
+    const onChange = vi.fn();
+    const unsubscribe = subscribeDeviceIdentity(onChange);
+    for (const key of [
+      "sb-pubmaxx-e2e-auth-token",
+      "lswt-0.1",
+      "pubmax_device_sessions_v1",
+      "pubmax-tour-v1-done",
+    ]) {
+      target.dispatchEvent(storageEvent(key));
+    }
+    expect(onChange).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  it("re-reads on another tab's identity write, owner stamp or clear", () => {
+    const onChange = vi.fn();
+    const unsubscribe = subscribeDeviceIdentity(onChange);
+    target.dispatchEvent(storageEvent("pubmax_handle"));
+    target.dispatchEvent(storageEvent(DEVICE_ACCOUNT_OWNER_KEY));
+    target.dispatchEvent(storageEvent(null));
+    target.dispatchEvent(new Event(DEVICE_IDENTITY_CHANGED_EVENT));
+    expect(onChange).toHaveBeenCalledTimes(4);
+    unsubscribe();
+    target.dispatchEvent(storageEvent("pubmax_handle"));
+    target.dispatchEvent(new Event(DEVICE_IDENTITY_CHANGED_EVENT));
+    expect(onChange).toHaveBeenCalledTimes(4);
   });
 });

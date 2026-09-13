@@ -12,7 +12,7 @@ const DESKTOP_CASES = [
 ] as const;
 
 const SIGNED_OUT_FITTED_SELECTOR =
-  ".messagesInboxPane .emptyStateTitle, .messagesInboxPane .emptyStateLine, .messagesInboxPane .emptyStateAction a";
+  ".messagesInboxPane .emptyStateTitle, .messagesInboxPane .emptyStateLine";
 
 async function expectDesktopSplit(page: Page): Promise<void> {
   const split = page.locator(".messagesSplit");
@@ -55,13 +55,13 @@ async function expectSignedOutCardFitsInbox(page: Page): Promise<void> {
   const fitted = page.locator(SIGNED_OUT_FITTED_SELECTOR);
 
   await expect(heading).toBeVisible();
-  // Title, one line, one quiet door to /login: the email-link flow lives on
-  // that page, so the inbox never carries a second painted form.
-  await expect(fitted).toHaveCount(3);
-  await expect(page.locator(".messagesInboxPane .emptyStateAction a")).toHaveAttribute(
-    "href",
-    "/login?mode=signin&from=%2Fmessages",
-  );
+  // Title and one line. The head's primary is the one door to /login (the
+  // email-link flow lives on that page), so the card carries no second copy.
+  await expect(fitted).toHaveCount(2);
+  await expect(page.locator(".messagesInboxPane .emptyState a")).toHaveCount(0);
+  await expect(
+    page.locator(".messagesInboxPane").getByRole("link", { name: "Sign in", exact: true }),
+  ).toHaveAttribute("href", "/login?mode=signin&from=%2Fmessages");
   const geometry = await page.evaluate((fittedSelector) => {
     const inboxNode = document.querySelector<HTMLElement>(".messagesInboxPane");
     const cardNode = document.querySelector<HTMLElement>(".messagesInboxPane .emptyState");
