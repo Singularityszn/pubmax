@@ -280,8 +280,7 @@ export default function VenueInspector({
   const drops = useMemo(() => dropsByVenueId.get(venue.id) ?? [], [dropsByVenueId, venue.id]);
   const pubVenue = isPubVenue(venue);
   const TABS = useMemo(() => tabsForVenue(venue.kind), [venue.kind]);
-  const requestedTab = resolveVenueTab(initialTab);
-  const safeInitialTab = pubVenue || requestedTab !== "pints" ? requestedTab : DEFAULT_TAB;
+  const safeInitialTab = resolveVenueTab(initialTab, venue.kind);
 
   // E3′ — the header photo prefers a chain (scraped) photo but falls back to
   // the most recent community Pint Drop photo for this venue so a pub with no

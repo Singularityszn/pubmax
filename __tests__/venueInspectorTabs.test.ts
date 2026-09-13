@@ -39,10 +39,16 @@ describe("venueInspectorTabs", () => {
     expect(keys).not.toContain("getting-home");
     // The route-end door asks for the getting-home fold by name; it lands on
     // the tab that carries it.
-    expect(resolveVenueTab("getting-home")).toBe("overview");
-    expect(resolveVenueTab("menu")).toBe("menu");
-    expect(resolveVenueTab("")).toBe(DEFAULT_TAB);
-    expect(resolveVenueTab("nonsense")).toBe(DEFAULT_TAB);
+    expect(resolveVenueTab("getting-home", "pub")).toBe("overview");
+    expect(resolveVenueTab("menu", "pub")).toBe("menu");
+    expect(resolveVenueTab("", "pub")).toBe(DEFAULT_TAB);
+    expect(resolveVenueTab("nonsense", "pub")).toBe(DEFAULT_TAB);
+  });
+
+  it("opens Stories only on a venue that has a Stories tab", () => {
+    expect(resolveVenueTab("pints", "pub")).toBe("pints");
+    expect(resolveVenueTab("pints", "bar")).toBe(DEFAULT_TAB);
+    expect(resolveVenueTab("getting-home", "bar")).toBe("overview");
   });
 
   it("names the getting-home section by the city's own last-ride mode", () => {

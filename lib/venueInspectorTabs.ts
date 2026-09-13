@@ -31,9 +31,13 @@ export const DEFAULT_TAB: TabKey = "overview";
 
 const TAB_KEYS = new Set<string>(BASE_TABS.map((tab) => tab.key));
 
-/** The tab that carries a requested section. Unknown or empty lands on Overview. */
-export function resolveVenueTab(request: string): TabKey {
+/**
+ * The tab that carries a requested section for this kind of venue. Unknown or
+ * empty lands on Overview, and so does Stories on a venue that has no Stories tab.
+ */
+export function resolveVenueTab(request: string, kind: VenueKind | undefined): TabKey {
   if (request === "getting-home") return "overview";
+  if (request === "pints" && !isPubVenueKind(kind)) return DEFAULT_TAB;
   return TAB_KEYS.has(request) ? (request as TabKey) : DEFAULT_TAB;
 }
 
