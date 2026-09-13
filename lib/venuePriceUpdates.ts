@@ -3,7 +3,7 @@
 // The two packs (public/data/{drink,food}_price_updates/latest.json, 1862 KB
 // and 1519 KB) are national. The Drinks tab draws a handful of rows about the
 // pub whose sheet is open, so GET /api/venue/[id] scopes them server-side and
-// carries them on the venue the sheet already fetches — the same seam
+// carries them on the venue the sheet already fetches, the same seam
 // `bundlePrices` uses (lib/venuePriceLane.ts).
 //
 // AN UNREAD PACK IS NOT AN EMPTY ONE. The field is `null` when the server could

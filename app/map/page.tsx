@@ -1,12 +1,6 @@
 import PintIndexMapArrival from "@/components/pintindex/PintIndexMapArrival";
 import PubMaxingShell from "@/components/PubMaxingShell";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
-import {
-  MAPLIBRE_WORKER_META,
-  MAPLIBRE_WORKER_SHARED_META,
-  MAPLIBRE_WORKER_SHARED_URL,
-  MAPLIBRE_WORKER_URL,
-} from "@/lib/maplibreWorkerAssets";
 
 // /map stays London for back-compat bookmarks. Other cities live at /map/[city].
 //
@@ -40,11 +34,6 @@ const mapWarmVersion = process.env.NEXT_PUBLIC_SW_VERSION?.trim() || "local";
 export default function MapPage() {
   return (
     <>
-      {/* The MapLibre worker pair, NAMED and never fetched: React hoists these
-          into the head, a meta costs no request, and perf/AGENTS.md forbids a
-          warm before pubmax:first-pins (lib/maplibreWorkerAssets.ts). */}
-      <meta name={MAPLIBRE_WORKER_META} content={MAPLIBRE_WORKER_URL} />
-      <meta name={MAPLIBRE_WORKER_SHARED_META} content={MAPLIBRE_WORKER_SHARED_URL} />
       {/* defer, not a sync script. On a cold first visit - the one the
           budget sweep measures - this file registers a listener for
           pubmax:first-pins and does nothing else, yet as a blocking script it

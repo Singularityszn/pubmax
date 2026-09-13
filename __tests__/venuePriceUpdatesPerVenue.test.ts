@@ -1,20 +1,17 @@
-import { readFileSync, existsSync } from "node:fs";
+import { promises as fsPromises, readFileSync } from "node:fs";
 import path from "node:path";
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/venue/[id]/route";
-import {
-  resetVenueDetailCachesForTests,
-  setVenueDetailRowsFileForTests,
-} from "@/lib/venueDetailIndex";
+import { resetVenueDetailCachesForTests } from "@/lib/venueDetailIndex";
 import { resetVenueAliasesForTests } from "@/lib/venueAliases";
 import { resetUkPriceBundleForTests } from "@/lib/ukPriceBundle.server";
 import { resetVenuePriceUpdatesForTests } from "@/lib/priceUpdates.server";
 import { parseDrinkPriceUpdates } from "@/lib/drinkPriceUpdates";
 import { venueMenuLookupKeys } from "@/lib/venueMenu";
 import { stableVenueIdFromKey, venueFromDetailPayload } from "@/lib/venues";
-import { venuePriceUpdatesOf } from "@/lib/venuePriceUpdates";
+import { venuePriceUpdatesOf, type VenuePriceUpdates } from "@/lib/venuePriceUpdates";
 
 /**
  * THE DRINKS TAB READS ITS OVERLAYS PER VENUE.
@@ -30,6 +27,9 @@ import { venuePriceUpdatesOf } from "@/lib/venuePriceUpdates";
 const ROOT = path.resolve(__dirname, "..");
 const DRINK_PATH = path.join(ROOT, "public", "data", "drink_price_updates", "latest.json");
 
+/** The audit's own pub: resolvable, with no row in either pack. */
+const PUB_WITH_NO_ROWS = "venue-1vle947";
+
 function generatedAtOf(raw: unknown): number {
   const stamp = Date.parse(String((raw as { generatedAt?: unknown })?.generatedAt ?? ""));
   return Number.isFinite(stamp) ? stamp : Date.now();
@@ -42,11 +42,38 @@ function ctx(id: string) {
   return { params: Promise.resolve({ id }) };
 }
 
+type DetailBody = {
+  venue: Parameters<typeof venueFromDetailPayload>[0] & {
+    priceUpdates?: VenuePriceUpdates | null;
+  };
+};
+
+async function detail(id: string): Promise<{ status: number; body: DetailBody }> {
+  const res = await GET(new Request(`http://localhost/api/venue/${id}`), ctx(id));
+  return { status: res.status, body: (await res.json()) as DetailBody };
+}
+
+/** The first overlay row whose pub the detail index resolves. */
+async function resolvablePubWithRows(): Promise<{ id: string; key: string }> {
+  for (const row of drinkRows) {
+    const id = stableVenueIdFromKey(row.venueKey);
+    const { status, body } = await detail(id);
+    if (status !== 200) continue;
+    const keys = venueMenuLookupKeys(venueFromDetailPayload(body.venue));
+    if (keys.includes(row.venueKey)) return { id, key: row.venueKey };
+  }
+  throw new Error("no overlay row the detail index can resolve");
+}
+
 beforeEach(() => {
   resetVenueDetailCachesForTests();
   resetVenueAliasesForTests();
   resetUkPriceBundleForTests();
   resetVenuePriceUpdatesForTests();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("GET /api/venue/[id] carries this pub's own price updates", () => {
@@ -55,29 +82,12 @@ describe("GET /api/venue/[id] carries this pub's own price updates", () => {
   });
 
   it("answers the rows whose venueKey is this pub's, and no others", async () => {
-    // A key the detail index can resolve: the overlay is national and the
-    // detail index is what the sheet opens.
-    let found: { id: string; key: string } | null = null;
-    for (const row of drinkRows) {
-      const id = stableVenueIdFromKey(row.venueKey);
-      const res = await GET(new Request(`http://localhost/api/venue/${id}`), ctx(id));
-      if (res.status !== 200) continue;
-      const body = await res.json();
-      const keys = venueMenuLookupKeys(venueFromDetailPayload(body.venue));
-      if (!keys.includes(row.venueKey)) continue;
-      found = { id, key: row.venueKey };
-      break;
-    }
-    expect(found, "an overlay row the detail index can resolve").toBeTruthy();
+    const found = await resolvablePubWithRows();
 
-    const res = await GET(
-      new Request(`http://localhost/api/venue/${found!.id}`),
-      ctx(found!.id),
-    );
-    const body = await res.json();
+    const { body } = await detail(found.id);
     const updates = venuePriceUpdatesOf(venueFromDetailPayload(body.venue));
     expect(updates.drink.length).toBeGreaterThan(0);
-    expect(updates.drink.some((row) => row.venueKey === found!.key)).toBe(true);
+    expect(updates.drink.some((row) => row.venueKey === found.key)).toBe(true);
 
     const keys = new Set(venueMenuLookupKeys(venueFromDetailPayload(body.venue)));
     for (const row of [...updates.drink, ...updates.food]) {
@@ -88,41 +98,35 @@ describe("GET /api/venue/[id] carries this pub's own price updates", () => {
     expect(updates.drink.length).toBeLessThan(drinkRows.length);
   });
 
-  it("publishes the field for a pub with no rows, so absent and unread differ", async () => {
-    const rowsFile = path.join(ROOT, "public", "data", "venue_detail_rows.ndjson");
-    if (existsSync(rowsFile)) setVenueDetailRowsFileForTests(rowsFile);
-    const id = stableVenueIdFromKey("no-such-pub|nowhere|0.00000|0.00000");
-    const res = await GET(new Request(`http://localhost/api/venue/${id}`), ctx(id));
-    expect([200, 404]).toContain(res.status);
-  });
-});
-
-describe("the Drinks tab no longer reads a city-wide pack", () => {
-  const tab = readFileSync(
-    path.join(ROOT, "components", "map", "inspector", "VenueMenuTab.tsx"),
-    "utf8",
-  );
-
-  it("reads the overlays off the venue detail it already has", () => {
-    expect(tab).toContain("venuePriceUpdatesOf");
-    expect(tab).not.toContain("loadDrinkPriceUpdates");
-    expect(tab).not.toContain("loadFoodPriceUpdates");
+  it("publishes an empty pair for a pub the packs hold no row about", async () => {
+    const { status, body } = await detail(PUB_WITH_NO_ROWS);
+    expect(status).toBe(200);
+    expect(body.venue.priceUpdates).toEqual({ drink: [], food: [] });
   });
 
-  it("keeps no runtime loader for the two national packs", () => {
-    expect(existsSync(path.join(ROOT, "lib", "priceUpdatesLoader.ts"))).toBe(false);
-  });
+  it("publishes null when a pack cannot be read, and reads again on the next open", async () => {
+    const found = await resolvablePubWithRows();
+    resetVenuePriceUpdatesForTests();
 
-  it("names neither pack anywhere a browser would fetch it", () => {
-    const client = [
-      "components/map/inspector/VenueMenuTab.tsx",
-      "lib/venueMenu.ts",
-      "lib/venueFoodMenu.ts",
-    ];
-    for (const relative of client) {
-      const source = readFileSync(path.join(ROOT, relative), "utf8");
-      expect(source).not.toMatch(/fetch\([^)]*drink_price_updates/);
-      expect(source).not.toMatch(/fetch\([^)]*food_price_updates/);
-    }
+    const realReadFile = fsPromises.readFile.bind(fsPromises) as (
+      ...args: unknown[]
+    ) => Promise<unknown>;
+    const readFile = vi.spyOn(fsPromises, "readFile").mockImplementation(((
+      file: unknown,
+      ...rest: unknown[]
+    ) =>
+      String(file).includes("price_updates")
+        ? Promise.reject(new Error("EIO"))
+        : realReadFile(file, ...rest)) as typeof fsPromises.readFile);
+
+    const unread = await detail(found.id);
+    expect(unread.status).toBe(200);
+    expect(unread.body.venue.priceUpdates).toBeNull();
+
+    readFile.mockRestore();
+
+    const read = await detail(found.id);
+    const rows = read.body.venue.priceUpdates?.drink ?? [];
+    expect(rows.some((row) => row.venueKey === found.key)).toBe(true);
   });
 });

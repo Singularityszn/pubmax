@@ -67,8 +67,7 @@ export async function GET(
   // for those few. The keys a row may target are the venue's own
   // (lib/venueMenu.ts), and a pack the server could not read publishes null
   // rather than an empty answer.
-  const priceUpdatesRead = await venuePriceUpdatesFor(venueMenuLookupKeys(venue));
-  const priceUpdates = priceUpdatesRead.updates;
+  const priceUpdates = await venuePriceUpdatesFor(venueMenuLookupKeys(venue));
 
   // THE CONTACT CONTRACT IS THE ONLY CONTACT ON THE WIRE. The source rows hold
   // four free-text columns nobody validated, and one of them shipped

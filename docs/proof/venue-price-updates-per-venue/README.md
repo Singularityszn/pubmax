@@ -1,4 +1,4 @@
-# The Drinks tab reads one pub's price updates, and the map names its worker
+# The Drinks tab reads one pub's price updates
 
 Lane 1.13 of the PlanAstra review (decision D7, amendment 4). Two items, and
 nothing that `docs/proof/map-bytes-first-pin/` already records as shipped:
@@ -7,9 +7,8 @@ nothing that `docs/proof/map-bytes-first-pin/` already records as shipped:
    drink rows and 1519 KB of food rows, to draw a handful about one pub.
    `GET /api/venue/[id]` now scopes both packs to that pub's own lookup keys
    and carries them beside `bundlePrices`. The browser loader is deleted.
-2. The map documents name the MapLibre worker and its shared module in two
-   `<meta>` tags and fetch neither, because `perf/AGENTS.md` forbids a warm
-   before `pubmax:first-pins`.
+2. Naming the MapLibre worker and its shared module in the map documents was
+   measured and dropped. See "The worker pair" below.
 
 ## The rig
 
@@ -67,12 +66,13 @@ as free.
 
 ## The worker pair
 
-Both arms request `/vendor/maplibre/maplibre-gl-worker.mjs` (19 KB) and
+Item 2 dissolved on measurement, so it is not shipped. Both arms request
+`/vendor/maplibre/maplibre-gl-worker.mjs` (19 KB) and
 `/vendor/maplibre/maplibre-gl-shared.mjs` (481 KB) exactly once on `/map`, at
-the same point. The after documents state both URLs in
-`<meta name="pubmax:maplibre-worker">` and
-`<meta name="pubmax:maplibre-worker-shared">`, which cost no request. `/map`
-decodes 7168 KB on both arms, so the naming bought no byte and no fetch.
+the same point, and `/map` decodes 7168 KB on both arms. Naming the pair in two
+`<meta>` tags bought no byte and no fetch. The browser has no primitive that
+names a module without fetching it: `modulepreload` and `preload` both fetch,
+and `perf/AGENTS.md` forbids a fetch before `pubmax:first-pins`.
 
 ## What the drinker sees
 

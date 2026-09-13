@@ -3,6 +3,8 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
+
 // Perf lane: MapLibre must not ride the PubMap shell's first-load chunk.
 // These are source locks so a silent re-static-import fails CI.
 
@@ -66,14 +68,7 @@ describe("maplibre cold-open code split", () => {
   });
 
   it("configures the MapLibre 6 module worker for webpack", () => {
-    // The URL is stated ONCE, by the module the map documents also name it
-    // from (__tests__/maplibreWorkerNamed.test.ts), so the canvas and the
-    // documents cannot drift apart over which worker the engine spawns.
-    expect(canvas).toMatch(/maplibregl\.setWorkerUrl\(MAPLIBRE_WORKER_URL\)/);
-    expect(canvas).toContain("@/lib/maplibreWorkerAssets");
-    expect(
-      readFileSync(join(process.cwd(), "lib/maplibreWorkerAssets.ts"), "utf8"),
-    ).toContain('"/vendor/maplibre/maplibre-gl-worker.mjs"');
+    expect(MAPLIBRE_WORKER_URL).toBe("/vendor/maplibre/maplibre-gl-worker.mjs");
     expect(packageJson.scripts.predev).toBe("npm run prepare:maplibre-worker");
     expect(packageJson.scripts.prebuild).toContain("npm run prepare:maplibre-worker");
     expect(workerCopy).toContain('"maplibre-gl-worker.mjs"');

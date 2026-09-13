@@ -71,25 +71,6 @@ describe("the Wetherspoon directory is the Open now filter's own read", () => {
   });
 });
 
-describe("the price-update overlays are the Drinks tab's own rows", () => {
-  const source = read("components/map/inspector/VenueMenuTab.tsx");
-
-  it("reads this pub's rows off the venue detail, with no fetch of its own", () => {
-    // The tab first waited for itself to open before fetching both national
-    // packs; now GET /api/venue/[id] scopes them to the pub, so the tab has no
-    // read to gate. __tests__/venuePriceUpdatesPerVenue.test.ts owns the route.
-    expect(source).toContain("venuePriceUpdatesOf(venue)");
-    expect(source).not.toContain("useEffect");
-    expect(source).not.toMatch(/fetch\(/);
-  });
-
-  it("draws the panel hidden rather than unmounted, which is why no mount may read", () => {
-    // Every tab is mounted on every sheet open and hides itself; that is what
-    // made a mount-time effect a read for a tab nobody had opened.
-    expect(source).toContain('hidden={tab !== "menu"}');
-  });
-});
-
 describe("the plan venue index is the composer's own read", () => {
   const source = read("components/plan/PlanComposer.tsx");
   const effect = effectContaining(

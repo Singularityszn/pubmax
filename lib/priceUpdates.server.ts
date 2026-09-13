@@ -21,15 +21,11 @@ import type { VenuePriceUpdates } from "@/lib/venuePriceUpdates";
 // re-parsing it per request is the mistake those modules already exist to stop.
 //
 // A READ THAT FAILED IS NEVER CACHED and is never an empty pack either: the
-// answer is three-way (`ready`, `empty`, `unavailable`) so a sheet that cannot
-// tell "this pub has no sourced price" from "we could not look" never words one
-// as the other. One bad render would otherwise leave an empty overlay in place
-// for the life of the process.
+// answer is null, so a sheet that cannot tell "this pub has no sourced price"
+// from "we could not look" never words one as the other. One bad render would
+// otherwise leave an empty overlay in place for the life of the process.
 
-export type PriceUpdatesReadStatus = "ready" | "empty" | "unavailable";
-
-type PriceUpdatesRead = {
-  status: PriceUpdatesReadStatus;
+type PriceUpdatesIndex = {
   drinkByKey: Map<string, DrinkPriceUpdate[]>;
   foodByKey: Map<string, FoodPriceUpdate[]>;
 };
@@ -49,14 +45,8 @@ const FOOD_PATH = path.join(
   "latest.json",
 );
 
-const UNAVAILABLE: PriceUpdatesRead = {
-  status: "unavailable",
-  drinkByKey: new Map(),
-  foodByKey: new Map(),
-};
-
-let cached: PriceUpdatesRead | null = null;
-let pending: Promise<PriceUpdatesRead> | null = null;
+let cached: PriceUpdatesIndex | null = null;
+let pending: Promise<PriceUpdatesIndex | null> | null = null;
 
 function generatedAtOf(raw: unknown): number {
   const stamp = Date.parse(String((raw as { generatedAt?: unknown })?.generatedAt ?? ""));
@@ -77,31 +67,28 @@ async function readJson(file: string): Promise<unknown> {
   return JSON.parse(raw) as unknown;
 }
 
-async function load(): Promise<PriceUpdatesRead> {
+async function load(): Promise<PriceUpdatesIndex | null> {
   try {
     const [drinkRaw, foodRaw] = await Promise.all([
       readJson(DRINK_PATH),
       readJson(FOOD_PATH),
     ]);
-    const drink = parseDrinkPriceUpdates(drinkRaw, generatedAtOf(drinkRaw));
-    const food = parseFoodPriceUpdates(foodRaw, generatedAtOf(foodRaw));
-    const read: PriceUpdatesRead = {
-      status: drink.length > 0 || food.length > 0 ? "ready" : "empty",
-      drinkByKey: indexByKey(drink),
-      foodByKey: indexByKey(food),
+    const index: PriceUpdatesIndex = {
+      drinkByKey: indexByKey(parseDrinkPriceUpdates(drinkRaw, generatedAtOf(drinkRaw))),
+      foodByKey: indexByKey(parseFoodPriceUpdates(foodRaw, generatedAtOf(foodRaw))),
     };
-    cached = read;
-    return read;
+    cached = index;
+    return index;
   } catch {
     // Deliberately NOT cached: a read we could not run says nothing about the
     // packs, and freezing it would turn one bad moment into a permanent one.
-    return UNAVAILABLE;
+    return null;
   } finally {
     pending = null;
   }
 }
 
-async function readPriceUpdates(): Promise<PriceUpdatesRead> {
+async function readPriceUpdates(): Promise<PriceUpdatesIndex | null> {
   if (cached) return cached;
   pending ??= load();
   return pending;
@@ -111,22 +98,21 @@ async function readPriceUpdates(): Promise<PriceUpdatesRead> {
  * Every overlay row either pack holds about one venue, scoped by the keys that
  * venue answers to (lib/venueMenu.ts `venueMenuLookupKeys`).
  *
- * `updates` is null when the read failed, so the caller publishes an absence it
- * can tell from an empty answer.
+ * Null when the read failed, so the caller publishes an absence it can tell
+ * from an empty answer.
  */
-export async function venuePriceUpdatesFor(keys: readonly string[]): Promise<{
-  status: PriceUpdatesReadStatus;
-  updates: VenuePriceUpdates | null;
-}> {
-  const read = await readPriceUpdates();
-  if (read.status === "unavailable") return { status: read.status, updates: null };
+export async function venuePriceUpdatesFor(
+  keys: readonly string[],
+): Promise<VenuePriceUpdates | null> {
+  const index = await readPriceUpdates();
+  if (!index) return null;
   const drink: DrinkPriceUpdate[] = [];
   const food: FoodPriceUpdate[] = [];
   for (const key of keys) {
-    drink.push(...(read.drinkByKey.get(key) ?? []));
-    food.push(...(read.foodByKey.get(key) ?? []));
+    drink.push(...(index.drinkByKey.get(key) ?? []));
+    food.push(...(index.foodByKey.get(key) ?? []));
   }
-  return { status: read.status, updates: { drink, food } };
+  return { drink, food };
 }
 
 export function resetVenuePriceUpdatesForTests(): void {
