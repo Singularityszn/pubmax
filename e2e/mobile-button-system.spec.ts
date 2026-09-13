@@ -445,6 +445,8 @@ const FAMILY_SURFACES = [
     firstVisitMap: true,
   },
   { route: "/map", width: 390, selector: ".mapArrivalCardActions button", firstVisitMap: true },
+  // The narrowest phone: the pair wrapped to two and three lines in halves.
+  { route: "/map", width: 320, selector: ".mapArrivalCardActions button", firstVisitMap: true },
 ] as const;
 
 for (const surface of FAMILY_SURFACES) {
