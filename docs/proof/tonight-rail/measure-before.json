@@ -1,0 +1,221 @@
+{
+  "390": {
+    "status": "empty",
+    "head": {
+      "x": 22,
+      "y": 142,
+      "w": 346,
+      "h": 127
+    },
+    "weather": null,
+    "primary": {
+      "x": 22,
+      "y": 269,
+      "w": 346,
+      "h": 2128
+    },
+    "lede": {
+      "x": 22,
+      "y": 269,
+      "w": 346,
+      "h": 1503
+    },
+    "rail": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    },
+    "cheapPints": {
+      "x": 22,
+      "y": 1817,
+      "w": 346,
+      "h": 274
+    },
+    "vibes": {
+      "x": 22,
+      "y": 2227,
+      "w": 346,
+      "h": 170
+    },
+    "softPlans": {
+      "x": 22,
+      "y": 2425,
+      "w": 346,
+      "h": 630
+    },
+    "after": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    },
+    "actions": {
+      "x": 22,
+      "y": 4627,
+      "w": 346,
+      "h": 108
+    },
+    "cheapRows": [
+      "The Fox on the Hill Southwark £1.99",
+      "The George Croydon £1.99",
+      "The Kentish Drovers Southwark £1.99",
+      "The Moon Under Water Enfield £1.99"
+    ],
+    "primaryHasChain": true,
+    "toggle": {
+      "radius": "0px",
+      "height": 44,
+      "fontSize": "13.12px",
+      "weight": "700"
+    },
+    "docHeight": 4955,
+    "overflowX": false
+  },
+  "768": {
+    "status": "empty",
+    "head": {
+      "x": 56,
+      "y": 166,
+      "w": 640,
+      "h": 103
+    },
+    "weather": null,
+    "primary": {
+      "x": 56,
+      "y": 269,
+      "w": 656,
+      "h": 1823
+    },
+    "lede": {
+      "x": 56,
+      "y": 269,
+      "w": 656,
+      "h": 1250
+    },
+    "rail": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    },
+    "cheapPints": {
+      "x": 56,
+      "y": 1564,
+      "w": 656,
+      "h": 274
+    },
+    "vibes": {
+      "x": 56,
+      "y": 1974,
+      "w": 656,
+      "h": 118
+    },
+    "softPlans": {
+      "x": 56,
+      "y": 2120,
+      "w": 656,
+      "h": 614
+    },
+    "after": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    },
+    "actions": {
+      "x": 56,
+      "y": 4033,
+      "w": 656,
+      "h": 52
+    },
+    "cheapRows": [
+      "The Fox on the Hill Southwark £1.99",
+      "The George Croydon £1.99",
+      "The Kentish Drovers Southwark £1.99",
+      "The Moon Under Water Enfield £1.99"
+    ],
+    "primaryHasChain": true,
+    "toggle": {
+      "radius": "0px",
+      "height": 44,
+      "fontSize": "13.12px",
+      "weight": "700"
+    },
+    "docHeight": 4173,
+    "overflowX": false
+  },
+  "1440": {
+    "status": "empty",
+    "head": {
+      "x": 132,
+      "y": 168,
+      "w": 640,
+      "h": 158
+    },
+    "weather": null,
+    "primary": {
+      "x": 132,
+      "y": 326,
+      "w": 784,
+      "h": 1750
+    },
+    "lede": {
+      "x": 132,
+      "y": 326,
+      "w": 784,
+      "h": 1229
+    },
+    "rail": {
+      "x": 948,
+      "y": 168,
+      "w": 360,
+      "h": 0
+    },
+    "cheapPints": {
+      "x": 132,
+      "y": 1600,
+      "w": 784,
+      "h": 274
+    },
+    "vibes": {
+      "x": 132,
+      "y": 2010,
+      "w": 784,
+      "h": 66
+    },
+    "softPlans": {
+      "x": 132,
+      "y": 2104,
+      "w": 784,
+      "h": 614
+    },
+    "after": {
+      "x": 132,
+      "y": 2076,
+      "w": 784,
+      "h": 1925
+    },
+    "actions": {
+      "x": 132,
+      "y": 4025,
+      "w": 784,
+      "h": 52
+    },
+    "cheapRows": [
+      "The Fox on the Hill Southwark £1.99",
+      "The George Croydon £1.99",
+      "The Kentish Drovers Southwark £1.99",
+      "The Moon Under Water Enfield £1.99"
+    ],
+    "primaryHasChain": true,
+    "toggle": {
+      "radius": "0px",
+      "height": 44,
+      "fontSize": "13.12px",
+      "weight": "700"
+    },
+    "docHeight": 4165,
+    "overflowX": false
+  }
+}
