@@ -1,0 +1,308 @@
+{
+  "390": {
+    "status": "empty",
+    "head": {
+      "x": 22,
+      "y": 142,
+      "w": 346,
+      "h": 127
+    },
+    "weather": {
+      "x": 22,
+      "y": 269,
+      "w": 346,
+      "h": 65
+    },
+    "primary": {
+      "x": 22,
+      "y": 352,
+      "w": 346,
+      "h": 1503
+    },
+    "lede": {
+      "x": 22,
+      "y": 352,
+      "w": 346,
+      "h": 1503
+    },
+    "rail": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    },
+    "contextLater": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    },
+    "editorial": {
+      "x": 22,
+      "y": 2460,
+      "w": 346,
+      "h": 0
+    },
+    "mobileLanes": {
+      "x": 22,
+      "y": 2460,
+      "w": 346,
+      "h": 0
+    },
+    "railNews": {
+      "x": 22,
+      "y": 3118,
+      "w": 346,
+      "h": 0
+    },
+    "cheapPints": {
+      "x": 22,
+      "y": 1967,
+      "w": 346,
+      "h": 274
+    },
+    "vibes": {
+      "x": 22,
+      "y": 2290,
+      "w": 346,
+      "h": 170
+    },
+    "softPlans": {
+      "x": 22,
+      "y": 2488,
+      "w": 346,
+      "h": 630
+    },
+    "after": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    },
+    "actions": {
+      "x": 22,
+      "y": 4666,
+      "w": 346,
+      "h": 108
+    },
+    "cheapRows": [
+      "The Fox on the Hill Southwark · Wetherspoon £1.99",
+      "The Millers Well Newham £2.39",
+      "The Coronet Islington £2.66",
+      "Nags Head, Peckham Southwark £2.90"
+    ],
+    "primaryHasChain": false,
+    "toggle": {
+      "radius": "14px",
+      "height": 44,
+      "fontSize": "13.76px",
+      "weight": "700"
+    },
+    "docHeight": 4994,
+    "overflowX": false
+  },
+  "768": {
+    "status": "empty",
+    "head": {
+      "x": 56,
+      "y": 166,
+      "w": 640,
+      "h": 103
+    },
+    "weather": {
+      "x": 56,
+      "y": 269,
+      "w": 656,
+      "h": 44
+    },
+    "primary": {
+      "x": 56,
+      "y": 332,
+      "w": 656,
+      "h": 1250
+    },
+    "lede": {
+      "x": 56,
+      "y": 332,
+      "w": 656,
+      "h": 1250
+    },
+    "rail": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    },
+    "contextLater": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    },
+    "editorial": {
+      "x": 56,
+      "y": 2135,
+      "w": 656,
+      "h": 0
+    },
+    "mobileLanes": {
+      "x": 56,
+      "y": 2135,
+      "w": 656,
+      "h": 0
+    },
+    "railNews": {
+      "x": 56,
+      "y": 2777,
+      "w": 656,
+      "h": 0
+    },
+    "cheapPints": {
+      "x": 56,
+      "y": 1694,
+      "w": 656,
+      "h": 274
+    },
+    "vibes": {
+      "x": 56,
+      "y": 2017,
+      "w": 656,
+      "h": 118
+    },
+    "softPlans": {
+      "x": 56,
+      "y": 2163,
+      "w": 656,
+      "h": 614
+    },
+    "after": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    },
+    "actions": {
+      "x": 56,
+      "y": 4051,
+      "w": 656,
+      "h": 52
+    },
+    "cheapRows": [
+      "The Fox on the Hill Southwark · Wetherspoon £1.99",
+      "The Millers Well Newham £2.39",
+      "The Coronet Islington £2.66",
+      "Nags Head, Peckham Southwark £2.90"
+    ],
+    "primaryHasChain": false,
+    "toggle": {
+      "radius": "14px",
+      "height": 44,
+      "fontSize": "13.76px",
+      "weight": "700"
+    },
+    "docHeight": 4191,
+    "overflowX": false
+  },
+  "1440": {
+    "status": "empty",
+    "head": {
+      "x": 132,
+      "y": 168,
+      "w": 640,
+      "h": 158
+    },
+    "weather": {
+      "x": 132,
+      "y": 326,
+      "w": 776,
+      "h": 44
+    },
+    "primary": {
+      "x": 132,
+      "y": 388,
+      "w": 776,
+      "h": 1249
+    },
+    "lede": {
+      "x": 132,
+      "y": 388,
+      "w": 776,
+      "h": 1229
+    },
+    "rail": {
+      "x": 948,
+      "y": 168,
+      "w": 360,
+      "h": 554
+    },
+    "contextLater": {
+      "x": 948,
+      "y": 1724,
+      "w": 360,
+      "h": 642
+    },
+    "editorial": {
+      "x": 132,
+      "y": 1724,
+      "w": 776,
+      "h": 0
+    },
+    "mobileLanes": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    },
+    "railNews": {
+      "x": 948,
+      "y": 2366,
+      "w": 360,
+      "h": 0
+    },
+    "cheapPints": {
+      "x": 948,
+      "y": 205,
+      "w": 360,
+      "h": 274
+    },
+    "vibes": {
+      "x": 948,
+      "y": 552,
+      "w": 360,
+      "h": 170
+    },
+    "softPlans": {
+      "x": 948,
+      "y": 1724,
+      "w": 360,
+      "h": 614
+    },
+    "after": {
+      "x": 132,
+      "y": 1724,
+      "w": 776,
+      "h": 1259
+    },
+    "actions": {
+      "x": 132,
+      "y": 3007,
+      "w": 776,
+      "h": 52
+    },
+    "cheapRows": [
+      "The Fox on the Hill Southwark · Wetherspoon £1.99",
+      "The Millers Well Newham £2.39",
+      "The Coronet Islington £2.66",
+      "Nags Head, Peckham Southwark £2.90"
+    ],
+    "primaryHasChain": false,
+    "toggle": {
+      "radius": "14px",
+      "height": 44,
+      "fontSize": "13.76px",
+      "weight": "700"
+    },
+    "docHeight": 3147,
+    "overflowX": false
+  }
+}
