@@ -1,6 +1,38 @@
+import { resolveClientIp } from "@/lib/clientIpTrust";
+import { ingestRateLimited } from "@/lib/ingestRateLimit";
+import { hashIp } from "@/lib/rateLimitHash";
+
 const POSTHOG_EU_INGEST_ORIGIN = "https://eu.i.posthog.com";
 const POSTHOG_EU_ASSET_ORIGIN = "https://eu-assets.i.posthog.com";
 const MAX_REQUEST_BYTES = 1024 * 1024;
+// Per-instance in-memory budget, keyed on the hashed address. This proxy was
+// unauthenticated and unlimited: a capture request through here lands in the
+// billed EU project, and nothing but the origin pin stood between a scripted
+// loop and 1 MB a request. An asset
+// GET whose path starts `static` or `array` goes to the eu-assets CDN instead
+// and bills no event, and it still spends the same budget, because the budget
+// is spent before the path is resolved: a flood must be walled before it is
+// read, not sorted first. The browser config this proxy serves
+// (`lib/posthogClient.ts`) turns off autocapture, pageview, pageleave, heatmaps
+// and dead clicks, and disables session replay, but it leaves
+// `capture_exceptions` and `capture_performance` on, so a device also sends
+// `$exception` on an uncaught error and `$web_vitals` on a page load without
+// the product asking. Batching is off, so every one of those is its own
+// request against this budget, and a component throwing in a render loop is
+// exactly the flood the budget is here to wall. 240 leaves a table of phones
+// sharing one carrier address room for their captures and their cold-load
+// asset fetches, and walls a loop. The budget lives in
+// the leaf `lib/ingestRateLimit.ts`, which imports nothing, compares before it records
+// so a refused address cannot grow its own window, and drops a key once every
+// hit in it has expired so a flood of distinct addresses leaves no entry
+// behind. The durable limiter (`isLimited`) is NOT used on purpose: this route
+// must make no Supabase call at request time, and the durable limiter's
+// degraded mode tightens to 3 a minute during a Supabase outage, which would
+// wall the error telemetry that reports that outage. Not paid spend, so a
+// per-instance budget that resets on a cold start is enough.
+// `__tests__/posthogProxyRoute.test.ts` names the same number.
+const RATE_LIMIT = 240;
+const RATE_WINDOW_MS = 60_000;
 const SAFE_REQUEST_CONTENT_TYPES = new Set([
   "application/json",
   "application/octet-stream",
@@ -92,18 +124,34 @@ async function boundedBody(request: Request): Promise<ArrayBuffer | null> {
   return body.buffer;
 }
 
+function refusal(status: number): Response {
+  return new Response(null, {
+    status,
+    headers: {
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+    },
+  });
+}
+
 async function forward(request: Request, context: Context): Promise<Response> {
+  const address = resolveClientIp((name) => request.headers.get(name));
+  const limiterKey = `ingest:${hashIp(address)}`;
+  if (ingestRateLimited(limiterKey, Date.now(), RATE_LIMIT, RATE_WINDOW_MS)) {
+    return refusal(429);
+  }
+
   const { path } = await context.params;
   const url = upstreamUrl(request, path);
-  if (!url) return new Response(null, { status: 404 });
+  if (!url) return refusal(404);
 
   const headers = upstreamRequestHeaders(request);
-  if (!headers) return new Response(null, { status: 415 });
+  if (!headers) return refusal(415);
 
   let body: ArrayBuffer | undefined;
   if (request.method === "POST") {
     const bounded = await boundedBody(request);
-    if (!bounded) return new Response(null, { status: 413 });
+    if (!bounded) return refusal(413);
     body = bounded;
   }
 
@@ -122,13 +170,7 @@ async function forward(request: Request, context: Context): Promise<Response> {
       headers: downstreamResponseHeaders(upstream),
     });
   } catch {
-    return new Response(null, {
-      status: 502,
-      headers: {
-        "cache-control": "no-store",
-        "x-content-type-options": "nosniff",
-      },
-    });
+    return refusal(502);
   }
 }
 

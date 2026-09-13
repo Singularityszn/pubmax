@@ -423,7 +423,7 @@ iOS and Android submission through the owner-only steps in `docs/STORE_READINESS
 - `INSTALLED_SKILLS.md` (300 KB) and the vendored `skills/` tree in the product repo (held call `vendored-skills-in-repo`).
 - 279 venue-pack files on main carry `revision: local` (harmless in production, restore on a future commit).
 - Pint Index: empty since 16 July; hold or seed (D10).
-- `/drink/pravha` 404; two city pickers; test handles on the founders wall; `/rounds` stub; `/we-are-out` dark.
+- `/drink/pravha` 404; test handles on the founders wall; `/rounds` stub; `/we-are-out` dark. The two city pickers are now one: `/places` is the picker, and `/choose-city` 308s to it (`app/AGENTS.md`).
 
 ### 10.9 Measurement
 

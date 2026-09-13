@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   refresh:
-    runs-on: avrea-ubuntu-latest-2-vcpu
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v4

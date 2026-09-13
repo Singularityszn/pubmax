@@ -264,7 +264,8 @@ The backend is deliberately small and seam-first: **one write path** for Pint Dr
 | `app/api/pint-drops/route.ts` | The **single** Pint Drop write/read/moderation path: multipart+JSON, validation, rate-limit gate, moderator auth, production-503 gate |
 | `lib/pintDrops.ts` | Storage-agnostic core: `validatePintDrop`, `isLimited`, `REPORT_HIDE_THRESHOLD`, the process-memory store |
 | `lib/pintDropsStore.ts` | The `PintDropStore` interface + two implementations; photo upload, DTOs, deterministic keys + orphan cleanup, the atomic `report_pint_drop` RPC |
-| `lib/supabase.ts` | `getSupabaseAdmin` (service-role, server-only), config checks, `hashIp` (salted), `checkRateLimitDurable` (fail-open) |
+| `lib/supabase.ts` | `getSupabaseAdmin` (service-role, server-only), config checks, `checkRateLimitDurable` (fail-open), and a re-export of `hashIp` |
+| `lib/rateLimitHash.ts` | The one definition of `hashIp` (salted), a pure leaf so a route needing only a limiter key traces no Supabase client |
 | `lib/heritage.ts` / `app/api/heritage/route.ts` | The Landlord: fact retrieval, provenance labelling, honest fallback, LLM bounds + phantom-fact rejection |
 | `supabase/migrations/0001–0004` | Schema + RLS (deny-all writes, public-read), `check_rate_limit` + `report_pint_drop` RPCs |
 | `app/admin/page.tsx` | The moderation console |

@@ -7,6 +7,13 @@ vi.mock("next/link", () => ({
     createElement("a", { href, ...props }, children),
 }));
 
+// SocialPageClient's view switcher renders IntentLink, which calls useRouter
+// to warm the destination on intent. renderToStaticMarkup has no app router,
+// so the hook needs a stand-in here the way the other client-render suites do.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ prefetch: () => Promise.resolve() }),
+}));
+
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ identityResolved: true, user: null }),
 }));

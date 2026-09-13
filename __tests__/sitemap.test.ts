@@ -160,6 +160,14 @@ describe("sitemap()", () => {
     }
   });
 
+  it("publishes the city picker once, at /places, and never at /choose-city", () => {
+    // ONE picker, and the page the sitemap names is the page the canonical
+    // names (app/places/page.tsx). /choose-city 308s here, so a row for it
+    // would advertise a redirect and split the city list over two addresses.
+    expect(urls.filter((url) => url === `${SITE}/places`).length).toBe(1);
+    expect(urls).not.toContain(`${SITE}/choose-city`);
+  });
+
   it("omits /social while the friends launch flag is off", () => {
     expect(urls).not.toContain(`${SITE}/social`);
   });

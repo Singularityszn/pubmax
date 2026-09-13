@@ -2,13 +2,27 @@
 
 import Link from "next/link";
 import { ArrowLeft, MapPin, Search } from "lucide-react";
-import { useCallback, useId, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
+import PlaceIndexCredit from "@/components/city/PlaceIndexCredit";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
 import type { CityId } from "@/lib/cities";
+import {
+  cityChooserResultBadge,
+  cityChooserResultContext,
+  PLACE_INDEX_PENDING_LINE,
+  type CityChooserSearchResult,
+} from "@/lib/cityChooserSearch";
 import {
   mapHrefForCity,
   readPreferredCity,
@@ -29,6 +43,7 @@ import {
   PLACES_SEARCH_LABEL,
   PLACES_SEARCH_PLACEHOLDER,
   PLACES_SET_CITY_LABEL,
+  PLACES_SHOW_ALL_LABEL,
   PLACES_TITLE,
   filterPlacesCityRows,
   placesAreasEmptyLine,
@@ -41,7 +56,12 @@ import {
   placesPricesLine,
   placesPricesPill,
   placesSearchEmptyLine,
+  placesShouldSearchTowns,
+  placesTownLookupPending,
+  placesTownResults,
+  placesTownSearchUnavailableLine,
 } from "@/lib/places";
+import { useUkPlaceIndex } from "@/lib/useUkPlaceIndex";
 
 import "./places.css";
 
@@ -86,6 +106,30 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
   const [query, setQuery] = useState("");
   const rows = useMemo(() => placesCityRows(), []);
   const shown = useMemo(() => filterPlacesCityRows(rows, query), [rows, query]);
+  // A query no city row answers is not automatically a query with no answer:
+  // the retired /choose-city address read the UK place index and offered the
+  // base map where that town is, and that capability rides on here.
+  const searchTowns = placesShouldSearchTowns(shown.length, query);
+  const {
+    status: indexStatus,
+    places: indexPlaces,
+    load: loadPlaceIndex,
+  } = useUkPlaceIndex();
+
+  const townLookupPending = placesTownLookupPending(searchTowns, indexStatus);
+
+  useEffect(() => {
+    if (searchTowns) void loadPlaceIndex();
+  }, [searchTowns, query, loadPlaceIndex]);
+
+  const towns = useMemo(
+    () =>
+      searchTowns && indexStatus === "ready"
+        ? placesTownResults(query, indexPlaces)
+        : ([] as CityChooserSearchResult[]),
+    [searchTowns, indexStatus, indexPlaces, query],
+  );
+  const showTowns = shown.length === 0 && towns.length > 0;
 
   return (
     <Screen
@@ -123,13 +167,73 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
         </div>
       </div>
 
-      {shown.length === 0 ? (
-        <EmptyState title={placesSearchEmptyLine(query)}>
-          <button type="button" onClick={() => setQuery("")}>
-            Show every city
-          </button>
-        </EmptyState>
-      ) : (
+      {/* The town answer and the empty state swap under one another a keystroke
+          at a time, so the region that holds them is always mounted and polite:
+          a live region that arrives WITH its content is announced by only some
+          screen readers. The city list stays outside it, because re-reading
+          every city on each character is noise rather than an answer. */}
+      <div className="placesResults" aria-live="polite">
+        {showTowns ? (
+          <ul className="placesTownList" aria-label="Places">
+            {towns.map((town) => (
+              <li
+                key={`${town.kind}-${town.name}-${town.href}`}
+                className="placesCityItem"
+              >
+                <Link
+                  prefetch={false}
+                  href={town.href}
+                  className="placesCityLink"
+                >
+                  <span className="placesCityMark" aria-hidden="true">
+                    <MapPin size={18} strokeWidth={1.65} />
+                  </span>
+                  <span className="placesCityCopy">
+                    <span className="placesCityNameRow">
+                      <span className="placesCityName">{town.name}</span>
+                      {cityChooserResultContext(town) ? (
+                        <span className="placesCityContext">
+                          {cityChooserResultContext(town)}
+                        </span>
+                      ) : null}
+                      <span className="placesPill">
+                        {cityChooserResultBadge(town.kind)}
+                      </span>
+                    </span>
+                    <span className="placesCityTagline">{town.description}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : shown.length === 0 ? (
+          <EmptyState
+            title={
+              townLookupPending
+                ? PLACE_INDEX_PENDING_LINE
+                : searchTowns && indexStatus === "error"
+                  ? placesTownSearchUnavailableLine()
+                  : placesSearchEmptyLine(query)
+            }
+          >
+            <button type="button" onClick={() => setQuery("")}>
+              {PLACES_SHOW_ALL_LABEL}
+            </button>
+          </EmptyState>
+        ) : null}
+      </div>
+
+      {/* These rows are OpenStreetMap's place names, and this surface draws no
+          map canvas to carry the credit MapLibre would. It sits outside the
+          live region: it is provenance for the list, not a result to announce.
+          It takes the create action's own lane, because a licence line is the
+          one line that may never be painted under a floating button
+          (components/nav/createFab.css). */}
+      {showTowns ? (
+        <PlaceIndexCredit className="placesTownSource createFabLane" />
+      ) : null}
+
+      {shown.length > 0 ? (
         <ul className="placesCityList" aria-label="Cities">
           {shown.map((row) => (
             <li key={row.cityId} className="placesCityItem">
@@ -157,7 +261,7 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
     </Screen>
   );
 }
@@ -170,7 +274,8 @@ function CityPanel({
   preferredCity: CityId | null;
 }) {
   const row = useMemo(
-    () => placesCityRows().find((candidate) => candidate.cityId === cityId) ?? null,
+    () =>
+      placesCityRows().find((candidate) => candidate.cityId === cityId) ?? null,
     [cityId],
   );
   const areas = useMemo(() => placesAreasForCity(cityId), [cityId]);
@@ -207,7 +312,11 @@ function CityPanel({
               {actions.primary.label}
             </Link>
           ) : (
-            <button type="button" onClick={setCity} data-testid="places-set-city">
+            <button
+              type="button"
+              onClick={setCity}
+              data-testid="places-set-city"
+            >
               {PLACES_SET_CITY_LABEL}
             </button>
           )
@@ -220,15 +329,22 @@ function CityPanel({
       >
         {isYours ? (
           <p className="placesConfirm" role="status">
-            <span className="placesConfirmLabel">{PLACES_CURRENT_CITY_LABEL}</span>{" "}
+            <span className="placesConfirmLabel">
+              {PLACES_CURRENT_CITY_LABEL}
+            </span>{" "}
             {placesCurrentCityLine(cityId)}
           </p>
         ) : null}
 
-        <section className="placesSection" aria-labelledby="places-prices-title">
+        <section
+          className="placesSection"
+          aria-labelledby="places-prices-title"
+        >
           <Kicker tone="muted">Prices</Kicker>
           <h2 id="places-prices-title" className="placesSectionTitle">
-            {row.pricesListed ? "Listed pint prices" : "No pint prices here yet"}
+            {row.pricesListed
+              ? "Listed pint prices"
+              : "No pint prices here yet"}
           </h2>
           <p className="placesSectionLine">{placesPricesLine(cityId)}</p>
         </section>

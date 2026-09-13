@@ -177,6 +177,7 @@ export function CategoryShowcase({
               </button>
             ) : explore && hrefFor ? (
               <Link
+                prefetch={false}
                 className="catShowcase__link pressable"
                 href={hrefFor(category)}
                 aria-label={`Explore ${label}`}

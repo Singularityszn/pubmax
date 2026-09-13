@@ -108,7 +108,7 @@ export type PubSuggestion = {
 
 /**
  * A UK place from the national gazetteer (public/data/uk_base/places.json).
- * Uses the same arrival hrefs as /choose-city so an uncovered pick lands the
+ * Uses the same arrival hrefs as CityChooser so an uncovered pick lands the
  * UkPlaceArrivalBanner, and a place inside a curated pack opens that city map.
  */
 export type PlaceSuggestion = {
@@ -406,7 +406,7 @@ function buildPubSuggestion(
  *
  * When `places` is supplied and the query is two or more characters, UK places
  * from the national gazetteer join as a third group (same routing as
- * /choose-city). On a limited-coverage arrival, pass `includeLocalResults:
+ * CityChooser). On a limited-coverage arrival, pass `includeLocalResults:
  * false` so emptied venues/localities do not leave an empty panel — places fill
  * the gap.
  *
