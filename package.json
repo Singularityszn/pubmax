@@ -108,6 +108,7 @@
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/push-notifications": "^8.1.2",
     "@capacitor/share": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/text-zoom": "^8.0.1",
     "@clerk/nextjs": "^7.9.1",
     "@elevenlabs/react": "^1.15.0",
