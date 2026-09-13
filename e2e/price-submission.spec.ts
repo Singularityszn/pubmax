@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { attachBill } from "./helpers/priceBill";
+import { attachBill, readPriceSubmission } from "./helpers/priceBill";
 
 // Community price submission E2E: the word-of-mouth moment end to end on a
 // phone - tap a pub, pick a drink, type tonight's price, and watch the venue
@@ -200,7 +200,7 @@ async function installContributorBoundary(
     expect(route.request().headers().authorization).toBe(
       "Bearer pubmaxx-e2e-access-token",
     );
-    const body = route.request().postDataJSON() as {
+    const body = readPriceSubmission(route.request()) as {
       venueId: string;
       drinkCategory: string;
       priceGbp: number;

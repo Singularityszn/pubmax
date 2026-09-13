@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { installAuthDoubles } from "./helpers/authDoubles";
-import { attachBill } from "./helpers/priceBill";
+import { attachBill, readPriceSubmission } from "./helpers/priceBill";
 
 /**
  * THE ONE-TAP PRICE DOOR ASKS THE MEASURE (review finding F-2, battle test D04).
@@ -44,7 +44,7 @@ async function serveNoDrops(page: Page): Promise<void> {
 async function captureSubmission(page: Page, sent: Submitted[]): Promise<void> {
   await page.route("**/api/price-submit", async (route) => {
     if (route.request().method() !== "POST") return route.fallback();
-    const body = route.request().postDataJSON() as Submitted;
+    const body = readPriceSubmission(route.request()) as Submitted;
     sent.push(body);
     await route.fulfill({
       status: 201,

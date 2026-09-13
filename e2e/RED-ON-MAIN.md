@@ -51,6 +51,13 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
 - [ ] R6 native first run (12 tests), parked under "Needs captain": `ux-consent-chrome.spec.ts:390` (6), `mobile-first-run-onboarding.spec.ts:110` (2), `:148`, `:231`, `price-caption-integrity.spec.ts:498` (2). `mobile-first-run-onboarding.spec.ts:210` fails the same way on this branch.
   - Spec half, fixed: the specs stubbed `window.Capacitor` with a bare `isNativePlatform`. Since #1599 a native page imports `@capacitor/core` (`lib/nativeSystemBars.ts`), and core writes its own `isNativePlatform` onto that object from the real bridge. A browser has no bridge, so the stub turned to web a moment after hydration. `e2e/helpers/nativeShell.ts` now also sets `window.CapacitorCustomPlatform`, core's seam for a platform with no bridge. All three specs use it.
   - Product half, not fixed: see "Needs captain".
+- [x] R7 the bill on every priced write (14 fixed): the specs lied about the shipped price doors. `price-evidence-missions.spec.ts` (8, including the two G3 `/near` tests), `price-submission.spec.ts:314` and `:577`, `one-tap-measure.spec.ts:89` and `:149`, `claim-no-birth-date.spec.ts:269`, `second-drinker-confirm.spec.ts:159` (listed as G3, but it fails in the same way on every run).
+  - Since #1630 a priced write carries the bill, so `lib/communityContributionClient.ts` posts a multipart form. The route doubles read the body with `postDataJSON()`, which throws on a form, so the write never answered. `readPriceSubmission` in `e2e/helpers/priceBill.ts` now reads the form or the JSON (a venue signal carries no photo), and gives `priceGbp` back as a number.
+  - The two `/near` mission tests attached the bill before the mission's own `Log it` opened the composer. The bill's picker lives in that composer, so the bill now goes on after it opens.
+  - The missions double answered a beer write with no `pintTrust`. Since #1551 (D07) a beer receipt reads the pint lane's trust as the route read it, and with no read the receipt says `Logged.`. The double now answers `pintTrust: "logged-once"`, as the route does for one report.
+  - `price-evidence-missions.spec.ts:358` asked for the only radiogroup in the composer. The beer lane also asks the measure in its own radiogroup (#1570), so the spec names the drink group.
+  - `second-drinker-confirm.spec.ts:159` attached the bill with the one-tap helper. `Still £4.50?` opens the Pint Drop composer, so it now uses `attachSpillBill`.
+  - Proof: the five spec files gave 40 passed on a 2x repeat, and the other bill specs (`price-bill-required`, `spill-composer-keyless`, `price-two-drinkers-receipt-proof`, `contribution-age-door`, `second-drinker-confirm`) gave 26 passed on a 2x repeat.
 
 ## Needs captain
 
@@ -63,7 +70,7 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
 
 ## Verify reds
 
-- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }`. `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
+- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
 
 ## Appendix: main stable-failure set by root cause (origin/main aa6470eec, 197 tests)
 
