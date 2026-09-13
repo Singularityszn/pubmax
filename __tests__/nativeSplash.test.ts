@@ -150,6 +150,20 @@ describe("the splash is configured and wired on both shells", () => {
     expect(chrome).toContain("releaseNativeSplashOnFirstPaint");
   });
 
+  it("releases the splash natively when Android shows the offline page", () => {
+    // Android serves offline.html (Capacitor's errorPath) from https://localhost
+    // with no bridge: window.Capacitor is undefined there, measured over the
+    // WebView DevTools socket on 13 September 2026. The page cannot hide the
+    // splash, so it held to the 12s ceiling. The shell releases it once that
+    // page has loaded. Java does not run under vitest, so this holds the
+    // source to the contract.
+    const activity = rootFile("android/app/src/main/java/com/pubmaxx/app/MainActivity.java");
+    expect(activity).toContain("addWebViewListener");
+    expect(activity).toContain("onPageLoaded");
+    expect(activity).toContain("getErrorUrl()");
+    expect(activity).toMatch(/callPluginMethod\(\s*"SplashScreen",\s*"hide"/);
+  });
+
   it("releases the splash on the bundled offline page too", () => {
     // The offline page is served from the binary with no app bundle, so the
     // splash would otherwise stand over it until the ceiling.
