@@ -133,9 +133,12 @@
   text-align: center;
 }
 
+/* 44 px each way: "Next" alone is 32 px wide. The words hug the edge they
+   sit on, so the extra width is hit area, not a shifted label. */
 .historicPagination a {
   display: inline-flex;
   align-items: center;
+  min-width: 44px;
   min-height: 44px;
   color: var(--color-accent-ink);
   font-weight: 700;
@@ -143,6 +146,7 @@
 
 .historicPagination > :last-child {
   justify-self: end;
+  justify-content: flex-end;
 }
 
 /* Card grid */
