@@ -125,6 +125,11 @@
   text-decoration: none;
 }
 
+/* Two 44 px boxes in a row already carry the space between their words. */
+.tonightHypedCredit + .tonightHypedMap {
+  margin-top: 0;
+}
+
 /* Chain blocks
    ------------------------------------------------------------------ */
 
