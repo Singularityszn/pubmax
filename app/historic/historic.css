@@ -223,6 +223,10 @@
   color: var(--river);
 }
 
+html:not([data-theme="dark"]) .historicGrade {
+  color: #2459c4;
+}
+
 .historicCardName {
   margin: 0;
   font-size: 1.05rem;
