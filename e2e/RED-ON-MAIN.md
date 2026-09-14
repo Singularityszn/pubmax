@@ -153,6 +153,11 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - The spec now expects `PlanBuild a night out`. The short viewport fit, focus, `End`, `Escape` and `ArrowUp` checks are unchanged.
   - No product bug: a three-stop promise is false for a one-pub Plan.
   - Proof on the rig: red before the change (`Build a night out` received), then green on a 3x repeat at 1 worker.
+- [x] R24 `mobile-permalink.spec.ts:63` (1 fixed). The spec lied about the shipped product.
+  - The spec wanted the unknown Pint Drop empty state to offer `Go to the feed` with href `/feed`. Since #765 (6 Aug, the unified social shell) `NotOnTheWall` in `app/p/[id]/page.tsx` ships `Browse pubs & pints` with href `/social?tab=discover`, and `/feed` only redirects to `/social`. The spec dates from 13 Jul.
+  - The spec now expects `Browse pubs & pints` and `/social?tab=discover`, the same link `social-loop.spec.ts` already checks. The 200 status, heading, 44px tap target, overflow and page error checks are unchanged.
+  - No product bug: the link lands on Discover directly, with no redirect hop.
+  - Proof on the rig: red before the change (the link was not found), then 6 passed for the spec file on a 3x repeat at 1 worker.
 
 ## Reproduced on this branch, not yet grouped
 
@@ -166,9 +171,8 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 - `map-search-no-results.spec.ts:160` (mobile dark normal): the search field did not show in 20 s. The other 7 cases passed in the same run.
 - `map-tile-retry.spec.ts:43` and `:95`: a transient outage logs `tile failure burst, reloading style`, and a lasting outage shows no `.mapSoftRetry` or `.mapFallback` in 60 s. `playwright.config.ts` lists this spec in `chromium-gl`'s `testMatch` but not in `chromium`'s `testIgnore`, so `--project=chromium` also runs it without the GL launch flags. `map-console-health`, `map-arrival-turn`, `map-arrival-card-pins`, `map-desktop-arrival-chrome` and `map-webgl-recovery` have the same gap. Check each red under `--project=chromium-gl` before calling it a product red.
 - `mobile-discover-coverage.spec.ts:11`: no `Areas near you, with the gate visible` heading.
-- `mobile-permalink.spec.ts:63`: no `Go to the feed` link. `/feed` redirects to `/social` (see R2).
 - `mobile-round-lifecycle.spec.ts:9`: no `2 out · still going` status.
-- `mobile-rounds-index.spec.ts:30`: no `Join with a link` heading.
+- `mobile-rounds-index.spec.ts:30`: no `Join with a link` heading. Reproduced at R24: since #1365/#1402 `app/rounds/page.tsx` paints it through `EmptyState`, whose title is a paragraph (`components/ui/empty-state.tsx`), and the `Screen` primary link reads `Start a round`, not `Start a round on the map`. Check the later `/map` steps against the #1631 top bar (R19) as well.
 - `near-desk-mode.spec.ts:59`: React error #418 (a hydration text mismatch).
 - `near-venue-acceptance.spec.ts:27`: a control is 44px where the spec wants 48px.
 - `quality-floor.spec.ts:155`: no `Non-alcoholic` checkbox in the planner's `.controlRail`.
@@ -185,7 +189,7 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 
 ## Verify reds
 
-- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
+- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23, 348 MB by R24). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
 
 ## Appendix: main stable-failure set by root cause (origin/main aa6470eec, 197 tests)
 
