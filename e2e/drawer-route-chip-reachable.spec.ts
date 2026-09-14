@@ -13,6 +13,24 @@ const FINAL_STOP = "venue-1vle947";
 const FOCUSABLE =
   'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible';
 
+// The venue detail keeps adding controls after the drawer opens, so a
+// `.last()` read taken once can name a control that is no longer the trap's
+// edge by keydown. Focus the edge the trap itself computes, visible
+// focusables by `offsetParent`, and retry the Tab until it reaches the chip.
+async function tabFromDrawerEdgeToChip(page: Page, drawer: Locator, chip: Locator) {
+  const chipFirst = chip.locator(FOCUSABLE).first();
+  await expect(async () => {
+    await drawer.evaluate((node, selector) => {
+      const controls = Array.from(node.querySelectorAll<HTMLElement>(selector)).filter(
+        (control) => control.offsetParent !== null,
+      );
+      controls[controls.length - 1]?.focus();
+    }, 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+    await page.keyboard.press("Tab");
+    await expect(chipFirst).toBeFocused({ timeout: 1_000 });
+  }).toPass({ timeout: 30_000 });
+}
+
 async function openFirstStopDrawer(page: Page, width: number) {
   const { drawer, chip: mounted } = await openFirstStopDrawerWithChipMounted(page, width);
   await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(FIRST_STOP);
@@ -79,9 +97,7 @@ test.describe("desktop drawer leaves the route chip reachable", () => {
     // Forward from the drawer's last control the trap hands focus to the
     // chip's first control, then back into the drawer after its last one.
     const chipControls = chip.locator(FOCUSABLE);
-    await drawer.locator(FOCUSABLE).last().focus();
-    await page.keyboard.press("Tab");
-    await expect(chipControls.first()).toBeFocused();
+    await tabFromDrawerEdgeToChip(page, drawer, chip);
 
     const door = chip.getByRole("button", { name: "Check last train at final stop" });
     await page.keyboard.press("Tab");
@@ -103,9 +119,7 @@ test.describe("desktop drawer leaves the route chip reachable", () => {
     test.setTimeout(180_000);
     const { drawer, chip } = await openFirstStopDrawer(page, 1440);
 
-    await drawer.locator(FOCUSABLE).last().focus();
-    await page.keyboard.press("Tab");
-    await expect(chip.locator(FOCUSABLE).first()).toBeFocused();
+    await tabFromDrawerEdgeToChip(page, drawer, chip);
     const hide = chip.getByRole("button", { name: "Hide mapped crawl" });
     await page.keyboard.press("Tab");
     await page.keyboard.press("Tab");
