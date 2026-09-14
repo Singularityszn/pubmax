@@ -7,9 +7,11 @@
 // the bounce as the worst LCP on the site: 4676 ms on Slow 4G, and the thing
 // being measured was the homepage hero.
 //
-// This is the fence in both directions. A plain document request never gets a
-// document. A client navigation, which is how the shell really arrives, is
-// untouched.
+// This is the fence in both directions. A document request answers only to a
+// navigation this origin started: Sec-Fetch-Site same-origin, or a same-host
+// Referer when that header is absent. The shell's fresh install arrives that
+// way. A typed, same-site or cross-site document request keeps the 307, and a
+// client navigation is untouched.
 
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
