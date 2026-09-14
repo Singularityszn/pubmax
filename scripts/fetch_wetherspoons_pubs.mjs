@@ -1,112 +1,202 @@
 #!/usr/bin/env node
 /**
- * Refresh the J D Wetherspoon first-party pub directory via Firecrawl.
+ * Refresh the J D Wetherspoon first-party pub directory.
  *
- * Why Firecrawl: direct curl to /wp-json/wp/v2/pubs is Cloudflare-cached
- * (always returns the same ~10 pubs). Firecrawl scrapes return real pages.
+ *   npm run fetch:wetherspoons-pubs
+ *
+ * THE SOURCE TABLE DECIDES, NOT THIS SCRIPT. The endpoint and the crawl delay
+ * come from the `wetherspoon-pub-directory` entry in lib/harvest/sourcePolicy.ts,
+ * robots.txt is asked again live before the first read, and a redirect that
+ * lands outside the allow-list is refused. This file names no URL of its own.
+ *
+ * NO KEY. The WP REST endpoint used to answer a plain read with a
+ * Cloudflare-cached page of about 10 pubs, so this refresh went through
+ * Firecrawl. On 2026-09-14 it answered 827 pubs over 9 pages, so the read is
+ * direct. A read that disagrees with the endpoint's own `x-wp-total`, or that is
+ * far smaller than the committed directory, is refused rather than published.
  *
  * Output:
- *   public/data/wetherspoons/pubs.json (single committed source — the app
+ *   public/data/wetherspoons/pubs.json (single committed source; the app
  *     fetches this path at runtime) + pubs.geojson (kept in both locations)
- *   data/wetherspoons/ (facilities/region/pub_status taxonomies, raw dump)
+ *   data/wetherspoons/ (facilities/region/pub_status taxonomies)
  *
- * Requires FIRECRAWL_API_KEY in the environment (see .env / .env.example).
- * Does NOT invent food/drink prices — the website does not publish them.
+ * Does NOT invent food/drink prices: the website does not publish them.
  */
 
-import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
+import { createRobotsChecker } from "../lib/harvest/robots.ts";
+import {
+  harvestRedirectLanding,
+  harvestSource,
+  isHarvestSourceAllowed,
+} from "../lib/harvest/sourcePolicy.ts";
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "data", "wetherspoons");
 const PUBLIC_OUT = join(ROOT, "public", "data", "wetherspoons");
-const FC_DIR = join(ROOT, ".firecrawl", "wetherspoons", "wp-pubs-refresh");
+const PUBLIC_PUBS = join(PUBLIC_OUT, "pubs.json");
 
-const BASE = "https://www.jdwetherspoon.com/wp-json/wp/v2";
+export const WETHERSPOON_DIRECTORY_SOURCE_ID = "wetherspoon-pub-directory";
 
-function requireFirecrawl() {
-  if (!process.env.FIRECRAWL_API_KEY) {
-    console.error("FIRECRAWL_API_KEY is not set. Add it to .env and: set -a; source .env; set +a");
-    process.exit(1);
-  }
+const PER_PAGE = 100;
+/** A run may never become a crawl: 20 pages of 100 is more than twice the estate. */
+const MAX_PAGES = 20;
+const PAGE_TIMEOUT_MS = 30_000;
+const USER_AGENT = "PUBMAXXHarvest/1.0 (+https://pubmaxxing.com; hello@pubmaxxing.com)";
+/**
+ * The smallest read, as a share of the committed directory, that may replace
+ * it. The estate moves by a handful of pubs a quarter; a read that loses a
+ * tenth of it is a broken read, not a closure wave.
+ */
+const MIN_SHARE_OF_COMMITTED = 0.9;
+
+/**
+ * Coordinates the directory states wrongly, corrected here so a refresh cannot
+ * quietly undo them. Each is keyed by the pub's WP id and names the evidence.
+ */
+const COORDINATE_CORRECTIONS = [
+  {
+    wpId: 23414,
+    name: "The William Chambers",
+    postcode: "EH1 1HU",
+    correct: (pub) => ({ ...pub, longitude: -Math.abs(pub.longitude) }),
+    note: "1 corrected coordinate: The William Chambers (Edinburgh, EH1 1HU) longitude sign-flip +3.19099 → -3.19099 (lat + postcode confirm Edinburgh).",
+  },
+];
+
+function directorySource() {
+  const source = harvestSource(WETHERSPOON_DIRECTORY_SOURCE_ID);
+  if (!source) throw new Error(`No ${WETHERSPOON_DIRECTORY_SOURCE_ID} entry in lib/harvest/sourcePolicy.ts`);
+  return source;
 }
 
-function firecrawlScrape(url, outPath) {
-  mkdirSync(dirname(outPath), { recursive: true });
-  execFileSync(
-    "firecrawl",
-    ["scrape", url, "--format", "markdown", "-o", outPath],
-    { stdio: "inherit", env: process.env },
-  );
+/** One page of one collection on the directory's API, derived from the register entry. */
+export function wetherspoonDirectoryEndpoint(collection, page) {
+  const base = directorySource().url.replace(/\/pubs$/, "");
+  return `${base}/${collection}?per_page=${PER_PAGE}&page=${page}`;
 }
 
-function parseMarkdownJson(path) {
-  const raw = JSON.parse(readFileSync(path, "utf8"));
-  const md = raw.markdown || raw.data?.markdown || "";
-  const fenced = md.match(/```json\s*(\[[\s\S]*\])\s*```/);
-  const bare = md.match(/(\[\s*\{[\s\S]*\}\s*\])/);
-  const match = fenced || bare;
-  if (!match) throw new Error(`No JSON array in ${path}`);
-  return JSON.parse(match[1]);
+const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
+
+const NAMED_ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+
+/** WP REST renders a title as HTML (`The Swan &amp; Angel`); the directory stores text. */
+function decodeHtmlEntities(value) {
+  return value.replace(/&(#\d+|#x[0-9a-f]+|[a-z]+);/gi, (entity, body) => {
+    if (body[0] === "#") {
+      const code = body[1] === "x" || body[1] === "X"
+        ? Number.parseInt(body.slice(2), 16)
+        : Number.parseInt(body.slice(1), 10);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : entity;
+    }
+    return NAMED_ENTITIES[body.toLowerCase()] ?? entity;
+  });
 }
 
-function scrapePaged(endpoint, outPrefix, maxPages = 20) {
-  const items = [];
-  for (let page = 1; page <= maxPages; page += 1) {
-    const url = `${BASE}/${endpoint}?per_page=100&page=${page}`;
-    const outPath = join(FC_DIR, `${outPrefix}-page-${page}.json`);
-    console.log(`Firecrawl scrape ${url}`);
-    firecrawlScrape(url, outPath);
-    const batch = parseMarkdownJson(outPath);
-    if (!Array.isArray(batch) || batch.length === 0) break;
-    items.push(...batch);
-    console.log(`  page ${page}: ${batch.length} (running ${items.length})`);
-    if (batch.length < 100) break;
-  }
-  // Dedupe by id
+function text(value) {
+  if (value && typeof value === "object") return decodeHtmlEntities(String(value.rendered || "")).trim();
+  return decodeHtmlEntities(String(value || "")).trim();
+}
+
+function textOrNull(value) {
+  return text(value) || null;
+}
+
+function toFloat(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function byTermId(ids) {
+  return [...(ids || [])].sort((a, b) => a - b);
+}
+
+function createReader(source) {
+  const robots = createRobotsChecker();
+  const delayMs = (source.crawlDelaySeconds ?? 1) * 1000;
+  let requests = 0;
+
+  return async function read(url) {
+    if (requests === 0) {
+      const decision = await robots(url);
+      if (!decision.allowed) {
+        throw new Error(`robots.txt refuses ${url}: ${decision.evidence}`);
+      }
+    } else {
+      await sleep(delayMs);
+    }
+    requests += 1;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, {
+        headers: { accept: "application/json", "user-agent": USER_AGENT },
+        signal: controller.signal,
+        redirect: "follow",
+      });
+      const landing = harvestRedirectLanding(url, response.url);
+      if (landing.outcome === "refused") throw new Error(`${url} redirected outside the allow-list to ${landing.url}`);
+      if (!response.ok) throw new Error(`${url} answered HTTP ${response.status}`);
+      return {
+        items: await response.json(),
+        total: Number(response.headers.get("x-wp-total")),
+        totalPages: Number(response.headers.get("x-wp-totalpages")),
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+}
+
+async function readCollection(read, collection) {
   const byId = new Map();
-  for (const item of items) byId.set(item.id, item);
+  let total = Number.NaN;
+  for (let page = 1; page <= MAX_PAGES; page += 1) {
+    const url = wetherspoonDirectoryEndpoint(collection, page);
+    const answer = await read(url);
+    if (!Array.isArray(answer.items)) throw new Error(`${url} did not answer a JSON array`);
+    for (const item of answer.items) byId.set(item.id, item);
+    total = answer.total;
+    console.log(`  ${collection} page ${page}/${answer.totalPages}: ${answer.items.length} (running ${byId.size})`);
+    if (!Number.isFinite(answer.totalPages) || page >= answer.totalPages) break;
+  }
+  // The endpoint states its own size. A read that disagrees with it is the
+  // cached-page failure this script used to route around, and it is refused.
+  if (Number.isFinite(total) && byId.size !== total) {
+    throw new Error(`${collection}: read ${byId.size} items but the endpoint states x-wp-total ${total}`);
+  }
   return [...byId.values()];
 }
 
-function htmlTitle(t) {
-  if (t && typeof t === "object") return String(t.rendered || "").trim();
-  return String(t || "").trim();
-}
-
-function toFloat(v) {
-  if (v === null || v === undefined || v === "") return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
-function normalize(pubs, facById, regionById, statusById) {
+function normalize(pubs, source, facById, regionById, statusById) {
+  const corrections = new Map(COORDINATE_CORRECTIONS.map((row) => [row.wpId, row]));
   return pubs
     .map((p) => {
       const acf = p.acf || {};
-      return {
+      const pub = {
         wpId: p.id,
         jdwPubId: String(acf.jdw_pub_id || "") || null,
         slug: p.slug,
-        name: htmlTitle(p.title),
+        name: text(p.title),
         pageUrl: p.link,
-        menuUrl: p.slug
-          ? `https://www.jdwetherspoon.com/pub-menus/${p.slug}/`
-          : null,
-        phone: String(acf.phone_number || "").trim() || null,
-        fullAddress: acf.full_address || null,
-        addressLine1: acf.address_line_1 || null,
-        addressLine2: acf.address_line_2 || null,
-        townCity: acf.towncity || null,
-        county: acf.county || null,
-        postcode: acf.postcode || null,
-        country: acf.country || null,
+        menuUrl: p.slug ? `https://www.jdwetherspoon.com/pub-menus/${p.slug}/` : null,
+        phone: textOrNull(acf.phone_number),
+        fullAddress: textOrNull(acf.full_address),
+        addressLine1: textOrNull(acf.address_line_1),
+        addressLine2: textOrNull(acf.address_line_2),
+        townCity: textOrNull(acf.towncity),
+        county: textOrNull(acf.county),
+        postcode: textOrNull(acf.postcode),
+        country: textOrNull(acf.country),
         latitude: toFloat(acf.latitude),
         longitude: toFloat(acf.longitude),
-        bookATableLink: String(acf.book_a_table_link || "").trim() || null,
+        bookATableLink: textOrNull(acf.book_a_table_link),
         regularOpeningTimes: acf.regular_opening_times || [],
         holidayOpeningTimes: acf.holiday_opening_times ?? null,
         childrensOpeningHour: acf.childrens_opening_hour || null,
@@ -114,119 +204,127 @@ function normalize(pubs, facById, regionById, statusById) {
         openingTimeNotes: acf.opening_time_notes || null,
         pubStatusNotes: acf.pub_status_notes || null,
         pubWithHotel: Boolean(acf.pub_with_hotel),
-        pubHotelLink: String(acf.pub_hotel_link || "").trim() || null,
-        facilities: (p.facilities || []).map((id) => facById.get(id) || `facility:${id}`),
-        regions: (p.region || []).map((id) => regionById.get(id) || `region:${id}`),
-        statuses: (p["pub-status"] || []).map(
-          (id) => statusById.get(id) || `status:${id}`,
-        ),
+        pubHotelLink: textOrNull(acf.pub_hotel_link),
+        // The API returns a pub's terms in no fixed order: two reads a month
+        // apart gave 352 pubs the same facilities in a new order. Taxonomy id
+        // order is one the next refresh keeps.
+        facilities: byTermId(p.facilities).map((id) => facById.get(id) || `facility:${id}`),
+        regions: byTermId(p.region).map((id) => regionById.get(id) || `region:${id}`),
+        statuses: byTermId(p["pub-status"]).map((id) => statusById.get(id) || `status:${id}`),
         modified: p.modified,
         menuPricesAvailableOnWeb: false,
         source: {
-          label: "J D Wetherspoon official site (WP REST via Firecrawl)",
+          label: source.label,
           url: p.link || "https://www.jdwetherspoon.com/",
           licence: "first-party public website / REST API",
         },
       };
+      const correction = corrections.get(pub.wpId);
+      if (!correction) return pub;
+      if (pub.name !== correction.name || pub.postcode !== correction.postcode) {
+        throw new Error(`Coordinate correction for wpId ${pub.wpId} no longer names ${correction.name}, ${correction.postcode}`);
+      }
+      return correction.correct(pub);
     })
-    .sort((a, b) =>
-      `${a.country}|${a.townCity}|${a.name}`.localeCompare(
-        `${b.country}|${b.townCity}|${b.name}`,
-      ),
+    // One stable order, with the WP id as the last word, so a refresh diff
+    // shows only what changed.
+    .sort(
+      (a, b) =>
+        `${a.country}|${a.townCity}|${a.name}`.localeCompare(`${b.country}|${b.townCity}|${b.name}`) ||
+        a.wpId - b.wpId,
     );
 }
 
-function main() {
-  requireFirecrawl();
-  mkdirSync(OUT, { recursive: true });
-  mkdirSync(PUBLIC_OUT, { recursive: true });
-  mkdirSync(FC_DIR, { recursive: true });
+function committedCount() {
+  if (!existsSync(PUBLIC_PUBS)) return 0;
+  try {
+    return Number(JSON.parse(readFileSync(PUBLIC_PUBS, "utf8")).count) || 0;
+  } catch {
+    return 0;
+  }
+}
 
-  const pubs = scrapePaged("pubs", "pubs", 12);
-  const facilities = scrapePaged("facilities", "facilities", 5);
-  const regions = scrapePaged("region", "region", 5);
-  const statuses = scrapePaged("pub-status", "pub-status", 2);
+function taxonomy(items) {
+  return new Map(items.map((item) => [item.id, text(item.name) || item.slug]));
+}
 
-  const facById = new Map(facilities.map((f) => [f.id, f.name || f.slug]));
-  const regionById = new Map(regions.map((r) => [r.id, r.name || r.slug]));
-  const statusById = new Map(statuses.map((s) => [s.id, s.name || s.slug]));
+async function main() {
+  const source = directorySource();
+  if (!isHarvestSourceAllowed(source)) {
+    throw new Error(`${source.id} is refused in lib/harvest/sourcePolicy.ts: ${source.access.evidence}`);
+  }
+  const read = createReader(source);
 
-  const slim = normalize(pubs, facById, regionById, statusById);
+  console.log(`Reading ${source.label} (${source.url}), ${source.crawlDelaySeconds ?? 1}s between requests`);
+  const pubs = await readCollection(read, "pubs");
+  const facilities = await readCollection(read, "facilities");
+  const regions = await readCollection(read, "region");
+  const statuses = await readCollection(read, "pub-status");
+
+  const floor = Math.floor(committedCount() * MIN_SHARE_OF_COMMITTED);
+  if (pubs.length < floor) {
+    throw new Error(`Read ${pubs.length} pubs, under ${floor} (${MIN_SHARE_OF_COMMITTED} of the committed directory); refusing to publish`);
+  }
+
+  const facById = taxonomy(facilities);
+  const regionById = taxonomy(regions);
+  const statusById = taxonomy(statuses);
+  const slim = normalize(pubs, source, facById, regionById, statusById);
+
   const observedAt = new Date().toISOString();
   // Provenance invariant: every pub carries {source, observedAt}. This is
-  // scraped/observed directory data — never presented as community data.
-  for (const p of slim) p.observedAt = observedAt;
+  // scraped/observed directory data, never presented as community data.
+  for (const pub of slim) pub.observedAt = observedAt;
+  const provenance = { source: source.url, observedAt, kind: "scraped-directory" };
+
   const payload = {
     generatedAt: observedAt,
-    source: `${BASE}/pubs`,
-    discoveredVia: "Firecrawl map + WP REST scrape (Cloudflare bypass)",
-    provenance: {
-      source: `${BASE}/pubs`,
-      observedAt,
-      kind: "scraped-directory",
-    },
+    source: source.url,
+    discoveredVia: `First-party WP REST read under lib/harvest/sourcePolicy.ts \`${source.id}\``,
     count: slim.length,
     notes: [
-      "Full Wetherspoon pub directory from first-party WP REST API.",
+      "Full UK+Spain Wetherspoon pub directory from first-party WP REST API.",
+      "Fields: name, address, lat/lng, phone, opening hours, facilities, booking links, hotel flags.",
+      "Lists the pubs the chain runs today: a pub the chain has sold leaves the directory.",
       "Per-pub food/drink ITEM PRICES are NOT on the website (see data/wetherspoons/README.md).",
-      "Each pub carries {source:{label,url,licence}, observedAt} — scraped/observed provenance, never presented as community data.",
+      "menuPricesAvailableOnWeb is always false until a first-party priced feed appears.",
+      ...COORDINATE_CORRECTIONS.map((row) => row.note),
+      "Each pub carries {source:{label,url,licence}, observedAt}: scraped/observed provenance, never presented as community data.",
     ],
     pubs: slim,
+    provenance,
   };
 
-  // pubs.json has a single committed home: public/data/wetherspoons/ (the
-  // path the app fetches at runtime). data/wetherspoons/ keeps the other
-  // build-only artifacts below, but no longer carries a duplicate copy.
-  writeFileSync(join(PUBLIC_OUT, "pubs.json"), JSON.stringify(payload, null, 2));
-  writeFileSync(
-    join(OUT, "facilities.json"),
-    JSON.stringify(
-      [...facById.entries()].map(([id, name]) => ({ id, name })),
-      null,
-      2,
-    ),
-  );
-  writeFileSync(
-    join(OUT, "region.json"),
-    JSON.stringify(
-      [...regionById.entries()].map(([id, name]) => ({ id, name })),
-      null,
-      2,
-    ),
-  );
-  writeFileSync(
-    join(OUT, "pub_status.json"),
-    JSON.stringify(
-      [...statusById.entries()].map(([id, name]) => ({ id, name })),
-      null,
-      2,
-    ),
-  );
+  mkdirSync(OUT, { recursive: true });
+  mkdirSync(PUBLIC_OUT, { recursive: true });
+  writeFileSync(PUBLIC_PUBS, `${JSON.stringify(payload, null, 2)}\n`);
+  const idNames = (byId) =>
+    `${JSON.stringify([...byId.entries()].sort(([a], [b]) => a - b).map(([id, name]) => ({ id, name })), null, 2)}\n`;
+  writeFileSync(join(OUT, "facilities.json"), idNames(facById));
+  writeFileSync(join(OUT, "region.json"), idNames(regionById));
+  writeFileSync(join(OUT, "pub_status.json"), idNames(statusById));
 
   const geo = {
     type: "FeatureCollection",
-    provenance: { source: `${BASE}/pubs`, observedAt, kind: "scraped-directory" },
+    provenance,
     features: slim
-      .filter((p) => p.latitude != null && p.longitude != null)
-      .map((p) => ({
+      .filter((pub) => pub.latitude != null && pub.longitude != null)
+      .map((pub) => ({
         type: "Feature",
-        geometry: {
-          type: "Point",
-          coordinates: [p.longitude, p.latitude],
-        },
+        geometry: { type: "Point", coordinates: [pub.longitude, pub.latitude] },
         properties: {
-          name: p.name,
-          slug: p.slug,
-          jdwPubId: p.jdwPubId,
-          townCity: p.townCity,
-          postcode: p.postcode,
-          country: p.country,
-          pageUrl: p.pageUrl,
-          menuUrl: p.menuUrl,
-          facilities: p.facilities,
-          regions: p.regions,
-          source: p.source.label,
-          observedAt: p.observedAt,
+          name: pub.name,
+          slug: pub.slug,
+          jdwPubId: pub.jdwPubId,
+          townCity: pub.townCity,
+          postcode: pub.postcode,
+          country: pub.country,
+          pageUrl: pub.pageUrl,
+          menuUrl: pub.menuUrl,
+          facilities: pub.facilities,
+          regions: pub.regions,
+          source: pub.source.label,
+          observedAt: pub.observedAt,
         },
       })),
   };
@@ -234,9 +332,11 @@ function main() {
   writeFileSync(join(PUBLIC_OUT, "pubs.geojson"), JSON.stringify(geo));
 
   console.log(`Wrote ${slim.length} pubs → public/data/wetherspoons/ (+ taxonomies in data/wetherspoons/)`);
-  if (existsSync(join(OUT, "pubs_raw.json"))) {
-    console.log("(Leaving existing pubs_raw.json untouched — refresh does not rewrite the 12MB dump.)");
-  }
 }
 
-main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
+  });
+}

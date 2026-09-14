@@ -46,7 +46,11 @@ export type HarvestSourceKind =
   // A chain's own published menu prices. Its own kind rather than a flavour of
   // `chain-deals`, because a DEAL is an offer with a day on it and a PRICE is
   // what a pint costs tonight, and only the second may reach a price surface.
-  | "chain-menu-prices";
+  | "chain-menu-prices"
+  // A chain's own list of the pubs it runs today. It names pubs, places and
+  // opening hours and never a price, which is why it is not a flavour of
+  // `chain-menu-prices`.
+  | "pub-directory";
 
 export type HarvestSourceAccess =
   | { allowed: true; evidence: string; checkedOn: string }
@@ -109,6 +113,9 @@ const PRICE_CHECKED_ON = "2026-09-03";
 const RENDER_CHECKED_ON = "2026-09-04";
 // The events aggregators, re-read against the live robots.txt on this day.
 const EVENTS_CHECKED_ON = "2026-09-07";
+// The Wetherspoon pub directory, re-read against the live robots.txt and read in
+// full on this day.
+const DIRECTORY_CHECKED_ON = "2026-09-14";
 
 export const HARVEST_SOURCES: readonly HarvestSource[] = [
   // --- chain deals: first-party operator offers pages ----------------------
@@ -254,6 +261,24 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     },
     notes:
       "The one chain in the tree that DOES publish per-drink prices on the web, and the one we may not read. That asymmetry is the whole argument for asking Mitchells & Butlers for permission or a feed: it is the single largest lever on price coverage. Until then no Nicholson's page is read and no Nicholson's row may seed an estimate basis.",
+  },
+
+  // --- pub directories: which pubs a chain runs today -----------------------
+  {
+    id: "wetherspoon-pub-directory",
+    label: "J D Wetherspoon - pub directory",
+    url: "https://www.jdwetherspoon.com/wp-json/wp/v2/pubs",
+    kind: "pub-directory",
+    firstParty: true,
+    access: {
+      allowed: true,
+      evidence:
+        "robots.txt re-read 2026-09-14: HTTP 200, `User-agent: *` with an empty `Disallow:` (allow all) plus `Crawl-delay: 10`, and /wp-json/ is not disallowed. The same day the endpoint answered a direct read with `x-wp-total: 827` over 9 pages of 100 and `cf-cache-status: EXPIRED`, so the Cloudflare-cached answer of about 10 pubs that once made the refresh go through Firecrawl no longer stands, and the read needs no key.",
+      checkedOn: DIRECTORY_CHECKED_ON,
+    },
+    crawlDelaySeconds: 10,
+    notes:
+      "Read by scripts/fetch_wetherspoons_pubs.mjs, which takes this entry's URL and delay and also reads the facilities, region and pub-status taxonomies beside it on the same API. The directory lists the pubs the chain runs TODAY: a pub the chain has sold leaves it, while its pub-histories page stays on the site. The Millers Well (E6 2JX) and The Coronet (N7 6PA), both sold in 2023, are listed in pub-histories-sitemap.xml and absent here. It publishes no price; see `wetherspoon-menu-prices`.",
   },
 
   // --- events: the one permitted listings reader, then the refused ---------

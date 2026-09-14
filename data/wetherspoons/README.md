@@ -1,6 +1,6 @@
 # J D Wetherspoon pub directory (first-party)
 
-Scraped via **Firecrawl** from the official WP REST API:
+Read directly from the official WP REST API:
 
 `https://www.jdwetherspoon.com/wp-json/wp/v2/pubs`
 
@@ -11,7 +11,7 @@ Scraped via **Firecrawl** from the official WP REST API:
 | `pubs.geojson` | Same pins as a FeatureCollection for map overlays |
 | `facilities.json` / `region.json` / `pub_status.json` | Taxonomy lookups |
 
-`pubs.json` (normalised directory, 824 pubs: name, address, lat/lng, phone,
+`pubs.json` (normalised directory, 827 pubs: name, address, lat/lng, phone,
 hours, facilities, booking/hotel links) has a single committed home:
 `public/data/wetherspoons/pubs.json` — that's the path the app fetches at
 runtime, so there is no duplicate copy here. `pubs.geojson` is still published
@@ -31,7 +31,7 @@ both files carry a top-level `provenance` block (`kind: "scraped-directory"`).
 
 ## Data integrity
 
-- **824 pubs**; all coordinates are finite and in `[lng, lat]` order.
+- **827 pubs**; all coordinates are finite and in `[lng, lat]` order.
 - Coverage: UK (England/Scotland/Wales/NI/Isle of Man) + Republic of Ireland,
   plus **2 legitimate Spanish airport bars** (Alicante, Barcelona-El Prat).
 - **1 corrected coordinate**: *The William Chambers* (Edinburgh, `EH1 1HU`)
@@ -52,9 +52,20 @@ Per-pub **food/drink item prices are not published on the website**.
 
 ## Refresh
 
-Requires `FIRECRAWL_API_KEY` in `.env` (gitignored). Direct curl to the WP API is Cloudflare-cached; Firecrawl scrapes bypass that.
+Keyless. The endpoint and the crawl delay come from the
+`wetherspoon-pub-directory` entry in `lib/harvest/sourcePolicy.ts`, and the
+script asks `robots.txt` again before its first read.
 
 ```bash
-set -a; source .env; set +a
-node scripts/fetch_wetherspoons_pubs.mjs
+npm run fetch:wetherspoons-pubs
 ```
+
+The script refuses to publish a read that disagrees with the endpoint's own
+`x-wp-total`, or that holds under 90 per cent of the committed directory.
+
+## A pub the chain has sold
+
+The directory lists the pubs the chain runs today. A sold pub leaves it, while
+its `pub-histories` page stays on the site. The Millers Well (E6 2JX) and The
+Coronet (N7 6PA) were sold in 2023 and are absent on purpose; never add a pub
+here by hand. `__tests__/wetherspoonsDirectoryLondonJoin.test.ts` holds that.

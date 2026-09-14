@@ -1,5 +1,5 @@
 /**
- * Loader for the Firecrawl-sourced J D Wetherspoon pub directory.
+ * Loader for the J D Wetherspoon first-party pub directory.
  * Data: public/data/wetherspoons/pubs.json (see data/wetherspoons/README.md).
  *
  * Honest: this directory has venue identity + hours/facilities, NOT per-item

@@ -149,14 +149,14 @@
     },
     {
       "id": "wetherspoons_directory",
-      "label": "Wetherspoons venue-presence directory (OSM)",
+      "label": "Wetherspoons first-party pub directory",
       "class": "episodic",
       "artifact": "public/data/wetherspoons/pubs.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "episodic — OSM / directory harvest",
+      "cadence": "episodic — first-party WP REST directory read",
       "stalenessBudgetHours": 4320,
-      "refreshWorkflow": "manual (npm run fetch:city-pubs / scripts/fetch_wetherspoons_pubs.mjs)",
-      "gate": "FIRECRAWL_API_KEY for the directory refresh path; OSM Overpass is keyless"
+      "refreshWorkflow": "manual (npm run fetch:wetherspoons-pubs)",
+      "gate": "none (keyless); lib/harvest/sourcePolicy.ts entry wetherspoon-pub-directory"
     },
     {
       "id": "tfl_last_train",
