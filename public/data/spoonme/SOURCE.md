@@ -14,7 +14,9 @@ The report states no licence and no terms. It is one person's public analysis,
 so we treat it the way we treat any source we did not measure: we credit the
 author and the publisher, we link the original on every surface that prints a
 figure from it, we never present a figure as our own, and we keep it out of
-every lane where a price of ours carries authority.
+every lane where a price of ours carries authority. One exception is membership
+only: the dated import decides which pins `/tonight` counts as Wetherspoon pubs
+for its one-row chain cap and label, and never decides a price.
 
 Neither PUBMAXXING nor SpoonMe is connected to J D Wetherspoon plc.
 

@@ -5,7 +5,12 @@ import { hypedPubsForPage } from "@/lib/hypedPubs";
 import { loadHypedPubs } from "@/lib/hypedPubs.server";
 import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
 import { buildQuietPint, isQuietPintWindow } from "@/lib/quietPint";
-import { tonightCheapPintChain, tonightCheapPints } from "@/lib/tonightCheapPints";
+import { readSpoonsValue } from "@/lib/spoonsValue.server";
+import {
+  tonightCheapPintChain,
+  tonightCheapPints,
+  tonightWetherspoonVenueIds,
+} from "@/lib/tonightCheapPints";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
 import TonightClient from "./TonightClient";
@@ -49,24 +54,32 @@ export default async function TonightPage() {
   // Same fail-soft compose as /today: heritage-cited candidates joined to
   // verified pint prices. buildQuietPint returns null outside a quiet window
   // or when cited candidates are too few; the card then renders nothing.
-  const [pricedVenues, historicPubs, mapSelectableVenueIds, hyped] = await Promise.all([
-    getPricedVenues(),
-    loadHistoricPubs(),
-    loadMapSelectableVenueIds(),
-    // The pubs people are talking about. Read here rather than in the browser:
-    // this document is prerendered, so the rows cost the reader no request and
-    // the route's byte ceiling is untouched.
-    loadHypedPubs(),
-  ]);
+  const [pricedVenues, historicPubs, mapSelectableVenueIds, hyped, spoonsValue] =
+    await Promise.all([
+      getPricedVenues(),
+      loadHistoricPubs(),
+      loadMapSelectableVenueIds(),
+      // The pubs people are talking about. Read here rather than in the browser:
+      // this document is prerendered, so the rows cost the reader no request and
+      // the route's byte ceiling is untouched.
+      loadHypedPubs(),
+      // Read on the server for the chain cap alone; no row of it reaches the
+      // document.
+      readSpoonsValue(),
+    ]);
   // One row per chain in the cheapest list. The first-party Wetherspoon
-  // directory join names a Wetherspoon the price listing never labelled.
-  const wetherspoonVenueIds = await matchedWetherspoonsVenueIds(
-    pricedVenues.map((venue) => ({
-      id: venue.id,
-      name: venue.name,
-      lat: venue.latitude,
-      lng: venue.longitude,
-    })),
+  // directory join and the SpoonMe pack name a Wetherspoon the price listing
+  // never labelled, and a pub the directory dropped still counts.
+  const wetherspoonVenueIds = tonightWetherspoonVenueIds(
+    await matchedWetherspoonsVenueIds(
+      pricedVenues.map((venue) => ({
+        id: venue.id,
+        name: venue.name,
+        lat: venue.latitude,
+        lng: venue.longitude,
+      })),
+    ),
+    new Set(spoonsValue.byVenueId.keys()),
   );
   const priceById = new Map<string, number>();
   for (const venue of pricedVenues) {
