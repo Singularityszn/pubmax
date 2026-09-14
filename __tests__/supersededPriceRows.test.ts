@@ -22,6 +22,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { computeAboutStats } from "@/lib/aboutStats";
+import type { PriceSuperseded } from "@/lib/priceRowEligibility.mjs";
 import { tonightCheapPintChain, tonightCheapPints } from "@/lib/tonightCheapPints";
 import { loadGroupedVenues } from "@/lib/venueDataset";
 import { getPricedVenues, resetVenuePriceIndexForTests } from "@/lib/venuePriceIndex";
@@ -88,7 +89,7 @@ function row(over: Partial<MarkedRow>): MarkedRow {
   } as MarkedRow;
 }
 
-const OPERATOR_LEFT = {
+const OPERATOR_LEFT: PriceSuperseded = {
   reason: "operator_change",
   operator: "J D Wetherspoon",
   left_on: "2023-12-10",

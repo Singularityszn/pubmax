@@ -33,6 +33,7 @@ import {
 } from "./lib/slimShards.mjs";
 import { loadStationZones, nearestStationZone } from "./lib/stationZones.mjs";
 import { isCurrentNightOutPlace } from "../lib/nightOutPlaceContract.mjs";
+import { isLivePriceRow } from "../lib/priceRowEligibility.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -565,8 +566,11 @@ function buildCurationHints(prices) {
   };
 }
 
-function buildFilterHints(prices, venueId, scrapedIds) {
-  const first = prices[0];
+function buildFilterHints(rows, venueId, scrapedIds) {
+  // Mirrors groupVenuePrices: a superseded row gives the pub its identity and
+  // its story, and nothing it served or charged (lib/priceRowEligibility.mjs).
+  const first = rows[0];
+  const prices = rows.filter(isLivePriceRow);
   const searchParts = new Set(
     [
       first.pub_name,
@@ -582,7 +586,7 @@ function buildFilterHints(prices, venueId, scrapedIds) {
       )
       .filter(Boolean),
   );
-  const curation = buildCurationHints(prices);
+  const curation = buildCurationHints(rows);
   const drinkHints = buildDrinkHints(prices);
   const cuisineTags = buildCuisineHints(venueId, prices);
   const scraped =
@@ -725,8 +729,9 @@ async function main() {
   };
   const zoneCounts = {};
   let zoneUnknown = 0;
-  for (const [key, prices] of grouped) {
-    const first = prices[0];
+  for (const [key, groupRows] of grouped) {
+    const first = groupRows[0];
+    const prices = groupRows.filter(isLivePriceRow);
     const duplicateFamousVenue = famousRows.some(
       (row) =>
         normaliseVenueKeyPart(row.name) ===
@@ -760,10 +765,12 @@ async function main() {
       // Nearest-station fare zone (1–6, occasionally 7–9 at the London edge).
       // null when no station is comparable — kept honest, never bucketed.
       ...(zone !== null ? { zone } : {}),
-      filterHints: buildFilterHints(prices, id, scrapedIds),
+      filterHints: buildFilterHints(groupRows, id, scrapedIds),
     });
 
-    appendDetailArtifact(id, { id, rows: prices }, prices.length);
+    // The detail artifact keeps every row: the server groups it through
+    // groupVenuePrices, which reads the pub's identity off a superseded row.
+    appendDetailArtifact(id, { id, rows: groupRows }, groupRows.length);
   }
 
   for (const row of famousRows) {
