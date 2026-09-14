@@ -982,8 +982,10 @@ export default function PubMapCanvas({
   // "no pubs visible" fallback).
   const bandMemberIdsRef = useRef<string[]>([]);
   const venuesRef = useRef(venues);
+  const filteredVenueCountRef = useRef(venues.length);
   useEffect(() => {
     venuesRef.current = venues;
+    filteredVenueCountRef.current = venues.length;
   }, [venues]);
   const selectedIdRef = useRef(selectedVenueId);
   // M7 pin entrance — armed once per mount at the first ACTUAL pin reveal
@@ -1870,6 +1872,7 @@ export default function PubMapCanvas({
             : venueDataReadyRef.current
               ? "ready"
               : "pending",
+          filteredVenueCount: filteredVenueCountRef.current,
           pinsPaintable: hasPinsPaintable(),
         });
         if (timeoutNotice) {

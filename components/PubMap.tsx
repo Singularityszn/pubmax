@@ -5348,6 +5348,25 @@ export default function PubMap({
     !mapCanvasErrored &&
     !mapCanvasFrameReleased(mapCanvasAvailabilityState) &&
     mapLoadingHeld(mapLoadingStage);
+  const visibleMapPinCount =
+    visibleVenueState?.cityId === cityId
+      ? visibleVenueState.curatedVenueIds.length + visibleVenueState.ukBasePubIds.length
+      : null;
+  const mapSearchEmptyVisible =
+    trimmedMapQuery.length > 0 &&
+    loaded &&
+    loadedCityId === cityId &&
+    filteredPubVenueCount > 0 &&
+    mapBounds !== null &&
+    !mapLoadingActive &&
+    !mapCanvasUnavailable &&
+    mapOverlay !== "search" &&
+    !showMapArrivalCard &&
+    !mapSoftRetryActive &&
+    !detailOpen &&
+    !planningOpen &&
+    !storyOpen &&
+    visibleMapPinCount === 0;
 
   const mobileShellReady = !mapLoadingActive;
   // Desktop reader controls. Both live inside Layers rather than on the map
@@ -5927,6 +5946,27 @@ export default function PubMap({
     );
   }
 
+  function renderMapSearchEmptyState() {
+    return mapSearchEmptyVisible ? (
+      <aside
+        className="mapSearchEmpty"
+        role="status"
+        data-testid="map-filter-empty"
+      >
+        <span className="mapSearchEmptyMessage">
+          No pubs match &apos;{trimmedMapQuery}&apos; here
+        </span>
+        <button
+          type="button"
+          className="mapSearchEmptyAction"
+          onClick={clearMapQuery}
+        >
+          Clear search
+        </button>
+      </aside>
+    ) : null;
+  }
+
   /* The map itself. Full-bleed base layer; every panel slides in over it.
 
      When the canvas cannot be shown at all - its module never loaded, or it
@@ -6424,6 +6464,7 @@ export default function PubMap({
             fallback card is never hidden behind it. */}
         {renderMapLoadingChrome()}
         {renderMapCanvas()}
+        {renderMapSearchEmptyState()}
         {renderDesktopToolbar()}
         {renderDesktopMapOverlays()}
 
