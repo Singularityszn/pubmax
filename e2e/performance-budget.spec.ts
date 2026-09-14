@@ -1,5 +1,9 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
+
 import { expect, test } from "@playwright/test";
 
+import { PERF_AB_BREACH_FILE, abHandoverForBreaches } from "../lib/performanceAbEvidence";
 import {
   PERFORMANCE_BUDGETS,
   bankableRatchetCandidates,
@@ -168,6 +172,25 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
         `(docs/PERFORMANCE_BUDGETS.md: down is free, up is a decision):\n` +
         `${formatRatchetTable(ratchet)}\n`,
     );
+  }
+
+  // THE BREACH LIST IS HANDED ON, AND IT IS STILL THE GATE.
+  //
+  // A breach fails this test exactly as it did before. What the file adds is
+  // the second question an author asks the moment a route goes red: did this
+  // branch make it slower, or is this box slower than the one that set the
+  // ceiling? The job's next step re-measures ONLY these routes against the
+  // merge-base build, on this same box, and prints the answer
+  // (scripts/perf-ab.mjs, e2e/performance-budget-ab.spec.ts).
+  //
+  // Nothing is written on a green sweep, so the A/B finds no work, never
+  // builds the second tree and costs nothing. The list handed on is the one
+  // `judgeBudgets` decided: an undecided ceiling is not a breach, fails
+  // nothing, and so asks the A/B nothing either.
+  const handover = abHandoverForBreaches(breaches, process.env.GITHUB_SHA ?? "");
+  if (handover) {
+    mkdirSync(dirname(PERF_AB_BREACH_FILE), { recursive: true });
+    writeFileSync(PERF_AB_BREACH_FILE, `${JSON.stringify(handover, null, 2)}\n`);
   }
 
   // An undecided ceiling is not a pass, so it is said out loud whether the
