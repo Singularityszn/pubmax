@@ -92,6 +92,11 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - `:188` (desktop) did not answer for the keyless Supabase host, so the realtime socket logged `ERR_NAME_NOT_RESOLVED`. It now uses the same stub as the phone tests. The error log now names the resource URL.
   - Proof on the rebuilt rig: the spec file gave 10 passed on a 2x repeat. Two earlier runs, started straight after other runs on the same IP, got `429` console errors in the last three tests. They did not come back after a pause, and a 16-load probe got no `429`.
   - Regression on the rig: `mobile-venue-sticky-actions`, `mobile-venue-sheet-tabs`, `mobile-map-shell-matrix`, `map-filters-bottom-nav` and `mobile-bottom-nav` pass (`mobile-bottom-nav.spec.ts:46` failed once in the 2-worker batch, then passed 3 of 3 alone). `mobile-map-list-obstruction.spec.ts:128` (2, G3) fails on its own stale step: it waits for `Close venue list`, and that list now closes with `Close and return to the London map` (see R2).
+- [x] R13 `mobile-invite-map-prompt.spec.ts` (4 fixed): `:70`, `:211`, `:225`, `:250`. The spec lied about the shipped data pack.
+  - Each test failed in 0 s with `TypeError: (intermediate value).slice is not a function`. The spec read `/data/venues_slim.json` as a bare array of venues. The pack is an object, `{ revision, rows }`, so `createInvite` now reads `rows`, as `plan-invite`, `plan-privacy-member` and `mobile-plan-recap` already do. No other spec reads the pack as a bare array.
+  - `plan-invite.spec.ts:189` (G1, the same invite handoff) passes on this branch with no change.
+  - Each test creates a Plan through `POST /api/plans`, which allows 8 per 60 s per IP (`app/api/plans/route.ts`, `lib/pintDrops.ts`). A 2x repeat in one window got `ok: false` from that create in 5 tests. Pace reruns of this file 65 s apart.
+  - Proof on the rig: the spec file gave 4 passed on each of two runs 65 s apart.
 
 ## Needs captain
 

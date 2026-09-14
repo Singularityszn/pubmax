@@ -36,7 +36,7 @@ async function createInvite(
   request: APIRequestContext,
   stopCount = 3,
 ): Promise<{ token: string; venues: Venue[] }> {
-  const venues = ((await (await request.get("/data/venues_slim.json")).json()) as Venue[]).slice(0, stopCount);
+  const venues = ((await (await request.get("/data/venues_slim.json")).json()) as { rows: Venue[] }).rows.slice(0, stopCount);
   expect(venues).toHaveLength(stopCount);
 
   const created = await request.post("/api/plans", {
