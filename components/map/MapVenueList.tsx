@@ -79,8 +79,11 @@ export default function MapVenueList({
   // and it does not join the surface trail. Escape leaves it too, because
   // opening the list moves focus INTO the list and a keyboard reader had no way
   // out but to tab to the close glyph.
+  // A venue opened from the list keeps the list open under the desktop drawer,
+  // and the drawer's trap makes it inert there: the drawer owns that Escape.
+  const listRef = useRef<HTMLElement>(null);
   const closeList = useCallback(() => onOpenChange(false), [onOpenChange]);
-  useDismissOnEscape(open, closeList);
+  useDismissOnEscape(open, closeList, listRef);
 
   useEffect(() => {
     if (!open) {
@@ -110,7 +113,7 @@ export default function MapVenueList({
     && (ukBaseStatus === "loading" || !loaded);
 
   return (
-    <section className="mapVenueList mapVenueList--open" aria-label={`${cityName} venue list`}>
+    <section ref={listRef} className="mapVenueList mapVenueList--open" aria-label={`${cityName} venue list`}>
         <div className="mapVenueListPanel" id={panelId} role="group" aria-label={`${cityName} venues on the map`}>
           <header className="mapVenueListHead">
             <div className="mapVenueListHeadMeta">

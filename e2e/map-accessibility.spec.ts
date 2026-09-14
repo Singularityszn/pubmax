@@ -226,7 +226,11 @@ test.describe("map keyboard and screen-reader venue path", () => {
       .not.toEqual(beforeMoveIds);
 
     const beforeFilter = await rows.count();
-    const bars = page.getByRole("button", { name: "Bars", exact: true });
+    // The venue-type chips live in the toolbar's Filters panel (#1631).
+    await page.getByRole("button", { name: /^Filters:/ }).click();
+    const bars = page
+      .getByRole("dialog", { name: "Filters" })
+      .getByRole("button", { name: "Bars", exact: true });
     await expect(bars).toHaveAttribute("aria-pressed", "true");
     await bars.click();
     await expect(bars).toHaveAttribute("aria-pressed", "false");
@@ -318,12 +322,18 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect(drawer).toHaveAttribute("aria-modal", "true");
     await expect(closeButton).toBeFocused();
 
-    const lastFocusable = drawer.locator(
+    // The drawer opened from List view, so its head leads with Back to that
+    // list before Close (components/ui/surface-nav.tsx). Focus lands on Close,
+    // and the trap wraps to the head's first control, which is Back.
+    const focusables = drawer.locator(
       'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible',
-    ).last();
+    );
+    const firstFocusable = focusables.first();
+    const lastFocusable = focusables.last();
+    await expect(firstFocusable).toHaveAccessibleName("Back to List view");
     await lastFocusable.focus();
     await page.keyboard.press("Tab");
-    await expect(closeButton).toBeFocused();
+    await expect(firstFocusable).toBeFocused();
 
     await page.keyboard.press("Shift+Tab");
     await expect(lastFocusable).toBeFocused();
