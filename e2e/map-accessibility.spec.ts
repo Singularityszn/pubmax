@@ -318,12 +318,17 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect(drawer).toHaveAttribute("aria-modal", "true");
     await expect(closeButton).toBeFocused();
 
-    const lastFocusable = drawer.locator(
+    // Opened from List view, the drawer has a parent in the surface trail, so
+    // its head leads with Back and Close is the second control. The trap
+    // wraps to the FIRST control, whichever that is.
+    const focusables = drawer.locator(
       'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible',
-    ).last();
+    );
+    const firstFocusable = focusables.first();
+    const lastFocusable = focusables.last();
     await lastFocusable.focus();
     await page.keyboard.press("Tab");
-    await expect(closeButton).toBeFocused();
+    await expect(firstFocusable).toBeFocused();
 
     await page.keyboard.press("Shift+Tab");
     await expect(lastFocusable).toBeFocused();
