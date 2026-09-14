@@ -2,6 +2,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { NATIVE_PUSH_PROMPT_COPY } from "@/lib/nativePushPrompt";
+
 import { installNativeShell } from "./helpers/nativeShell";
 
 const VIEWPORT = { width: 390, height: 844 };
@@ -28,6 +30,16 @@ async function saveShot(page: Page, name: string): Promise<void> {
     `docs/screenshots/onboarding/${name}.png`,
     await page.screenshot({ fullPage: false }),
   );
+}
+
+// A native boot on a deep link stamps the session entry mark once it hydrates
+// (components/native/EntryBootStamp.tsx). A spec that clears sessionStorage
+// before that stamp lands races it: a late stamp makes the next boot at "/" an
+// in-session arrival, which rightly stays on the landing page.
+async function waitForDeepLinkBootStamp(page: Page): Promise<void> {
+  await expect.poll(() => page.evaluate(
+    () => window.sessionStorage.getItem("pubmax:entryDecision:consumed:v1"),
+  )).toBe("1");
 }
 
 async function installSuccessfulPlanRoute(page: Page): Promise<void> {
@@ -114,7 +126,7 @@ for (const theme of ["light", "dark"] as const) {
     await expect(page.getByText("Victoria", { exact: true })).toBeVisible();
     await expect(page.getByText("Piccadilly & Soho", { exact: true })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeHidden();
-    await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toHaveCount(0);
     await expectTouchTarget(page.getByRole("button", { name: "Use London" }));
     await expectTouchTarget(page.getByRole("button", { name: "Skip" }));
     await expectNoHorizontalOverflow(page);
@@ -144,6 +156,7 @@ test("native first run hands one useful Plan to the contextual push ask", async 
   // addInitScript runs for every document, so cleanup there would erase the
   // first-run marker on the second boot.
   await page.goto("/about");
+  await waitForDeepLinkBootStamp(page);
   await page.evaluate(() => {
     window.localStorage.removeItem("pubmax:nativeFirstRun:routed:v1");
     window.localStorage.removeItem("pubmax:preferredCity:v1");
@@ -158,7 +171,7 @@ test("native first run hands one useful Plan to the contextual push ask", async 
 
   await page.goto("/");
   await expect(page).toHaveURL(/\/onboarding$/);
-  await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Use London" }).click();
   await page.getByRole("button", { name: /Pigeon/ }).click();
@@ -167,16 +180,16 @@ test("native first run hands one useful Plan to the contextual push ask", async 
 
   await expect(page).toHaveURL(/\/map\?plan=1$/);
   await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Make a plan" }).click();
-  await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toBeVisible();
-  await expect(page.getByText("Get pinged when your crew votes or the get-in closes.")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toBeVisible();
+  await expect(page.getByText(NATIVE_PUSH_PROMPT_COPY.body)).toBeVisible();
 
   // The next native root boot is still the owner-locked /tonight cold start.
   await page.goto("/");
   await expect(page).toHaveURL(/\/tonight$/);
-  await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toHaveCount(0);
 });
 
 test("direct web onboarding redirects home without mutating onboarding state", async ({ page }) => {
@@ -200,6 +213,7 @@ test("direct web onboarding redirects home without mutating onboarding state", a
 test("returning native direct onboarding redirects to Tonight without mutation", async ({ page }) => {
   await installNativeShell(page);
   await page.goto("/about");
+  await waitForDeepLinkBootStamp(page);
   await page.evaluate(() => {
     window.localStorage.setItem("pubmax:nativeFirstRun:routed:v1", "1");
     window.localStorage.setItem("pubmax:preferredCity:v1", "london");
@@ -235,9 +249,9 @@ test("Skip releases onboarding budget for the next Plan but never prompts on reb
   await page.goto("/map?plan=1");
   await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Make a plan" }).click();
-  await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toBeVisible();
 
   await page.goto("/");
   await expect(page).toHaveURL(/\/tonight$/);
-  await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toHaveCount(0);
 });
