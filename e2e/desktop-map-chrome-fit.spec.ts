@@ -78,8 +78,11 @@ async function indexedToolbarPubOption(
     .getByRole("combobox", { name: "Search pubs" });
   await search.fill(query);
   await search.focus();
+  // Exact, because a role name matches by substring: "Venues across city
+  // maps" leads the list, and its first "Soho" row is a Birmingham tavern
+  // that opens another city's map.
   const option = page
-    .getByRole("group", { name: "Venues" })
+    .getByRole("group", { name: "Venues", exact: true })
     .getByRole("option")
     .nth(index);
   await expect(option).toBeVisible({ timeout: 20_000 });
@@ -256,7 +259,9 @@ for (const width of DESKTOP_WIDTHS) {
 
     const rail = page.locator(".mapDrawer.left.open");
     const searchCell = toolbar.locator(".mapToolbarSearch");
-    const clearSearch = toolbar.getByRole("button", { name: "Clear search" });
+    // The field's own clear control. The toolbar's no-match status carries a
+    // second "Clear search" while the venue shards for the query stream in.
+    const clearSearch = searchCell.getByRole("button", { name: "Clear search" });
     await expect(rail).toBeVisible({ timeout: 20_000 });
     await expect(clearSearch).toBeVisible();
     await expect
@@ -496,6 +501,10 @@ test("1440px loaded route opens its first venue without a deferred planner hando
       "denied",
     );
     window.sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
+    // On a clean first map the First visit card owns the ask and the curated
+    // story overlay stands down for it (lib/mapFirstVisitArrival.ts). This spec
+    // loads a crawl from the story overlay, so the card is answered.
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
   });
   await stubCityStatus(page);
   await page.route("**/api/whats-on**", (route) =>
@@ -596,7 +605,7 @@ test("1440px reduced motion swaps desktop drawer ownership immediately", async (
 });
 
 for (const width of FIRST_RUN_BANNER_WIDTHS) {
-  test(`${width}px first-run location prompt owns centre while status yields to its left`, async ({
+  test(`${width}px first-run location prompt owns centre while status ${width < 1024 ? "sits under it" : "yields to its left"}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: DESKTOP.height });
@@ -646,6 +655,20 @@ for (const width of FIRST_RUN_BANNER_WIDTHS) {
       Math.abs(locationCentre - width / 2),
       "location prompt owns map centre",
     ).toBeLessThanOrEqual(1);
+    if (width < 1024) {
+      // The left lane exists from 1024px up. Below that a 160px column broke
+      // the headline mid-word, so the status keeps its default berth: centred
+      // on the map, under the prompt (#1508, mapBannerStaging.css).
+      expect(
+        Math.abs(statusBox.x + statusBox.width / 2 - width / 2),
+        "status stays centred below the left lane's width",
+      ).toBeLessThanOrEqual(1);
+      expect(
+        statusBox.y,
+        "status sits under the location prompt",
+      ).toBeGreaterThanOrEqual(locationBox.y + locationBox.height);
+      return;
+    }
     expect(statusBox.x, "status uses left map gutter").toBeCloseTo(
       EDGE_GUTTER,
       0,
