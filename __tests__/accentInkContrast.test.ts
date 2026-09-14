@@ -150,6 +150,10 @@ describe("no surface puts the raw coral back on a light word", () => {
     ],
     ["components/map/venueOccupancy.css", ".venueOccupancySignIn a {"],
     ["components/plan/nightCrawl.css", ".nightCrawl__enterKicker {"],
+    // The /tonight lede's credit link and Open on map link (#1627), which axe
+    // found at 390 and 1440 in light.
+    ["app/tonight/tonightLede.css", ".tonightHypedSource {"],
+    ["app/tonight/tonightLede.css", ".tonightHypedMap,"],
   ];
 
   for (const [file, selector] of HOLD_TO_INK) {
