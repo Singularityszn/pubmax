@@ -223,6 +223,25 @@ export function parseSpoonsValuePack(value: unknown): SpoonsValuePack | null {
   };
 }
 
+/**
+ * The map pins this pack names as Wetherspoon pubs.
+ *
+ * SpoonMe read every row off the chain's own menu, so a joined row is a
+ * first-party-derived claim that the chain runs that pub today. Tonight's
+ * one-row-per-chain cap reads it beside the directory join
+ * (`tonightWetherspoonVenueIds`), because the chain's directory can drop a pub
+ * it still trades. A row no pin was joined to names no pin.
+ */
+export function spoonsValueVenueIds(
+  rows: readonly { venueId: string | null }[],
+): ReadonlySet<string> {
+  const ids = new Set<string>();
+  for (const row of rows) {
+    if (row.venueId) ids.add(row.venueId);
+  }
+  return ids;
+}
+
 /** Read the slim map lane, or an empty list. Rows are `[id, mu, pence, rank]`. */
 export function parseSpoonsValueMapLane(value: unknown): SpoonsValueMapPub[] {
   if (!isRecord(value) || !Array.isArray(value.pubs)) return [];
