@@ -63,11 +63,70 @@ describe("a web document request never reaches /onboarding", () => {
     expect(response.headers.get("location")).toBeNull();
   });
 
+  it("still turns away a typed or bookmarked visit that names its origin", () => {
+    // `Sec-Fetch-Site: none` is the browser saying the reader started this
+    // navigation themselves. That is the B6 visit, whatever Referer says.
+    const response = ask(ONBOARDING_PATH, {
+      "sec-fetch-site": "none",
+      referer: "https://pubmaxxing.com/",
+    });
+
+    expect(response.status).toBe(307);
+  });
+
   it("matches the route and nothing that merely starts like it", () => {
     for (const path of ["/", "/tonight", "/onboarding-notes"]) {
       const response = ask(path);
       expect(response.status, path).toBe(200);
       expect(response.headers.get("location"), path).toBeNull();
+    }
+  });
+});
+
+// The shell's first launch does NOT arrive by a client navigation any more.
+// public/theme-init.js decides the entry before first paint and calls
+// `window.location.replace("/onboarding")` from "/", which is a DOCUMENT
+// request. Turning that away sent every fresh install to the landing page and
+// stamped the first-run mark on the way, so onboarding never ran at all.
+//
+// A navigation the page itself started on this origin is the shell's, never
+// the B6 visit. The browser says so in `Sec-Fetch-Site`. WKWebView sends that
+// header only from iOS 16.4 and the app targets 15.0, so when it is ABSENT a
+// Referer on this same origin says the same thing.
+describe("a document navigation this origin started still reaches /onboarding", () => {
+  it("lets the browser's same-origin navigation through", () => {
+    const response = ask(ONBOARDING_PATH, { "sec-fetch-site": "same-origin" });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("lets an older WebView through on a same-origin Referer", () => {
+    const response = ask(ONBOARDING_PATH, { referer: "https://pubmaxxing.com/" });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("reads the browser's word before the Referer when both are sent", () => {
+    for (const site of ["cross-site", "same-site"]) {
+      const response = ask(ONBOARDING_PATH, {
+        "sec-fetch-site": site,
+        referer: "https://pubmaxxing.com/",
+      });
+      expect(response.status, site).toBe(307);
+    }
+  });
+
+  it("turns away a Referer from anywhere else, a lookalike host included", () => {
+    for (const referer of [
+      "https://example.com/",
+      "https://pubmaxxing.com.example.com/",
+      "https://www.pubmaxxing.com/",
+      "not a url",
+    ]) {
+      const response = ask(ONBOARDING_PATH, { referer });
+      expect(response.status, referer).toBe(307);
     }
   });
 });
