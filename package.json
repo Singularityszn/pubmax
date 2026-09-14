@@ -50,6 +50,7 @@
     "build:london-desks": "node scripts/build_london_desk_index.mjs",
     "build:price-estimates": "node scripts/build_price_estimate_baselines.mjs",
     "harvest:chain-prices": "tsx scripts/harvest_chain_menu_prices.mjs",
+    "fetch:wetherspoons-pubs": "tsx scripts/fetch_wetherspoons_pubs.mjs",
     "fetch:london-pubs": "node scripts/fetch_city_osm_pubs.mjs --london",
     "merge:london-osm": "node scripts/merge_outer_london_osm.mjs",
     "build:city-slim": "node scripts/build_city_slim_index.mjs",

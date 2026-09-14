@@ -66,6 +66,19 @@ describe("Wetherspoons directory dataset", () => {
     expect(dir.pubs.some((pub) => pub.name === "The Swan & Angel")).toBe(true);
   });
 
+  it("lists each pub's facilities in taxonomy id order, not the API's order of the day", () => {
+    const dir = load<WetherspoonsDirectory>(DIRECTORY_PATHS[0]);
+    const idByName = new Map(
+      load<Array<{ id: number; name: string }>>("data/wetherspoons/facilities.json").map(
+        (facility) => [facility.name, facility.id],
+      ),
+    );
+    for (const pub of dir.pubs as WetherspoonsPub[]) {
+      const ids = pub.facilities.map((name) => idByName.get(name) ?? Number.POSITIVE_INFINITY);
+      expect(ids).toEqual([...ids].sort((a, b) => a - b));
+    }
+  });
+
   it("keeps one stable order so a refresh diff shows only what changed", () => {
     const dir = load<WetherspoonsDirectory>(DIRECTORY_PATHS[0]);
     const pubs = dir.pubs as WetherspoonsPub[];
