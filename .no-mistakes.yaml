@@ -10,4 +10,6 @@ commands:
   prepare: "npm ci --prefer-offline"
   # The pre-push merge bar, which runs the unit suite through `npm run coverage`.
   # The Playwright suite stays in .github/workflows/e2e.yml.
-  test: "npm run verify"
+  # The Push step commits what a step leaves behind. In a git checkout the slim
+  # shard builders stamp HEAD over the committed "local" marker, so pin it.
+  test: "DEPLOYMENT_VERSION=local npm run verify"
