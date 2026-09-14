@@ -16,7 +16,7 @@ describe("browser CI policy", () => {
     expect(workflow).toContain("--project=chromium");
   });
 
-  it("keeps the exhaustive browser matrix on nightly and manual runs", () => {
+  it("runs the exhaustive browser matrix on pull requests, nightly and manual runs, never on main pushes", () => {
     const workflow = readFileSync(workflowPath, "utf8");
 
     expect(workflow).toMatch(/schedule:/);
@@ -33,8 +33,11 @@ describe("browser CI policy", () => {
 
     const fullSuite = workflow.slice(workflow.indexOf("  full-suite:"));
     expect(fullSuite).toContain(
-      "if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'",
+      "if: github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'",
     );
+    // A main push keeps the law pins only: one full run costs about 150 of the
+    // free tier's 3,000 monthly minutes, and the PR already ran it.
+    expect(fullSuite).not.toContain("'push'");
 
     const lawPins = workflow.slice(
       workflow.indexOf("  law-pins:"),
