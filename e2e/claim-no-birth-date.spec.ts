@@ -2,7 +2,7 @@ import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { attachBill } from "./helpers/priceBill";
+import { attachBill, readPriceSubmission } from "./helpers/priceBill";
 
 /**
  * ONE RULE (captain, 5 Sep 2026), the whole way through on a phone. A new
@@ -150,7 +150,7 @@ async function installUndatedBoundary(page: Page): Promise<Boundary> {
       });
       return;
     }
-    const body = route.request().postDataJSON() as Record<string, unknown>;
+    const body = readPriceSubmission(route.request()) as Record<string, unknown>;
     boundary.prices.push(body);
     if (!tapped) {
       // The gate asks for the age answer alone, and never for a birth date.

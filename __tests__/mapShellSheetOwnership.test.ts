@@ -156,3 +156,46 @@ describe("the phone sheet lane belongs to the phone", () => {
     expect(props.onBack).toHaveBeenCalledTimes(1);
   });
 });
+
+// A top-bar control that closes its own open overlay is a deliberate exit, and
+// every deliberate exit leaves the surface trail by Back or Home. Setting the
+// overlay to "none" left the closed surface on the trail: the next sheet
+// offered "Back to Search" for a search the reader had closed, and the
+// browser's first Back changed nothing on screen.
+function tapControl(name: string) {
+  const control = document.body.querySelector<HTMLButtonElement>(
+    `button[aria-label="${name}"]`,
+  );
+  expect(control, name).not.toBeNull();
+  act(() => control!.click());
+}
+
+describe("an open overlay's own control closes it down the trail", () => {
+  it("steps back from an open search rather than setting none", () => {
+    const props = mount({ overlay: "search" });
+    tapControl("Search the map");
+    expect(props.onBack).toHaveBeenCalledTimes(1);
+    expect(props.onOverlayChange).not.toHaveBeenCalled();
+  });
+
+  it("steps back from an open sheet rather than setting none", () => {
+    const props = mount({ overlay: "layers" });
+    tapControl("More map controls");
+    expect(props.onBack).toHaveBeenCalledTimes(1);
+    expect(props.onOverlayChange).not.toHaveBeenCalled();
+  });
+
+  it("steps back from search on a limited-coverage map too", () => {
+    const props = mount({ limitedCoverage: true, overlay: "search" });
+    tapControl("Search the map");
+    expect(props.onBack).toHaveBeenCalledTimes(1);
+    expect(props.onOverlayChange).not.toHaveBeenCalled();
+  });
+
+  it("still opens a closed overlay through onOverlayChange", () => {
+    const props = mount({ overlay: "none" });
+    tapControl("Search the map");
+    expect(props.onOverlayChange).toHaveBeenCalledWith("search");
+    expect(props.onBack).not.toHaveBeenCalled();
+  });
+});

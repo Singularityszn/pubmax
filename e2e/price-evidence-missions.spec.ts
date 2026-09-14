@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { attachBill } from "./helpers/priceBill";
+import { attachBill, readPriceSubmission } from "./helpers/priceBill";
 
 /**
  * Price evidence missions on the map sheet and /near.
@@ -137,7 +137,7 @@ async function installContributorBoundary(
       });
       return;
     }
-    const body = route.request().postDataJSON() as {
+    const body = readPriceSubmission(route.request()) as {
       venueId: string;
       drinkCategory: string;
       priceGbp: number;
@@ -157,6 +157,9 @@ async function installContributorBoundary(
       body: JSON.stringify({
         price,
         attribution: { status: "credited", handle: "night_owl" },
+        // A beer receipt reads the pint lane's trust as the route read it
+        // (lib/priceEvidenceMissions.ts, D07). One report is logged once.
+        ...(body.drinkCategory === "beer" ? { pintTrust: "logged-once" } : {}),
       }),
     });
   });
@@ -201,7 +204,8 @@ test("signed-in /near shows one mission, submits, and prints the write-back rece
   await expect(page.locator(".pemSlot")).toHaveCount(1);
   await expect(page.locator(".nmnList")).toBeVisible();
 
-  await attachBill(slot);
+  // The mission's own "Log it" opens the composer. The bill's picker lives in
+  // that composer, so the bill goes on after it opens.
   await slot.getByRole("button", { name: "Log it" }).click();
   const priceField = slot.getByRole("textbox");
   await expect(priceField).toHaveValue("");
@@ -224,7 +228,6 @@ test("a failed mission write stays on /near", async ({ page }) => {
   await page.goto("/near?patch=soho", { waitUntil: "domcontentloaded" });
   const slot = page.locator(".pemSlot");
   await expect(slot).toBeVisible();
-  await attachBill(slot);
   await slot.getByRole("button", { name: "Log it" }).click();
   await slot.getByRole("textbox").fill("4.20");
   await attachBill(slot);
@@ -376,7 +379,10 @@ test("map sheet keeps one-tap prices when the mission is missing", async ({
   }
   await expect(submit).toBeVisible();
   await expect(submit.locator(".vpsubQuick")).toBeVisible();
-  await expect(submit.getByRole("radiogroup")).toBeVisible();
+  // The beer lane also asks the measure in its own radiogroup (MeasureChips).
+  await expect(
+    submit.getByRole("radiogroup", { name: /What are you drinking at/ }),
+  ).toBeVisible();
 });
 
 test("the map sheet locks the mission's own drink, not the lane's", async ({ page }) => {

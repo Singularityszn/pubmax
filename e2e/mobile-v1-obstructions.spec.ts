@@ -62,8 +62,17 @@ test.describe("Today mobile block geometry", () => {
         const entry = document.querySelector<HTMLElement>(".todayNearEntry")!;
         const tabBar = document.querySelector<HTMLElement>(".mobileTabBar")!;
         const rootStyle = getComputedStyle(document.documentElement);
+        // The body's one reserve is the create action's published top edge
+        // (components/nav/mobileNav.css): the tab bar, the home indicator and
+        // the lane the floating create action owns above the bar.
+        const lane = document.createElement("div");
+        lane.style.paddingBottom = "var(--float-stack-top-create)";
+        document.body.append(lane);
+        const createLaneTop = Number.parseFloat(getComputedStyle(lane).paddingBottom);
+        lane.remove();
         return {
           bodyPaddingBottom: Number.parseFloat(getComputedStyle(document.body).paddingBottom),
+          createLaneTop,
           mainPaddingBottom: Number.parseFloat(getComputedStyle(main).paddingBottom),
           nearEntryMargin: Number.parseFloat(getComputedStyle(entry).marginBlockStart),
           tabBarHeight: Number.parseFloat(rootStyle.getPropertyValue("--tabbar-h")),
@@ -72,7 +81,9 @@ test.describe("Today mobile block geometry", () => {
         };
       });
 
-      expect(geometry.bodyPaddingBottom).toBeCloseTo(geometry.tabBarHeight, 0);
+      await expect(page.locator(".createFabRoot")).toHaveCount(1);
+      expect(geometry.bodyPaddingBottom).toBeGreaterThan(geometry.tabBarHeight);
+      expect(geometry.bodyPaddingBottom).toBeCloseTo(geometry.createLaneTop, 0);
       expect(
         geometry.mainPaddingBottom,
         "Today must not reserve the fixed tab bar a second time",
@@ -123,7 +134,8 @@ test.describe("Android install prompt", () => {
   async function openInstallCard(page: Page, legacyMode: boolean = false) {
     await page.addInitScript(({ legacy }) => {
       localStorage.setItem("pubmax-tour-v1-done", "1");
-      localStorage.setItem("pubmax:analytics-consent:v1", "denied");
+      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
       localStorage.setItem("pubmax-legacy", legacy ? "1" : "0");
       if (legacy) {
         const applyLegacy = () => document.documentElement?.setAttribute("data-legacy", "1");
@@ -256,7 +268,10 @@ test.describe("Android install prompt", () => {
     await expect(card).toHaveAttribute("role", "region");
     await expect(card).toHaveAttribute("aria-labelledby", "a2hsTitle");
     await expect(page.locator(".a2hsScrim")).toHaveCount(0);
-    await expect(page.locator('[role="dialog"][aria-modal="true"]')).toHaveCount(0);
+    // The venue sheet opened by ?sel sits at its half detent, which is modal by
+    // design (lib/mobileSheetA11y.ts), so only the install surface is counted.
+    await expect(card).not.toHaveAttribute("aria-modal", /.*/);
+    await expect(page.locator('.a2hsSheet[role="dialog"]')).toHaveCount(0);
     await expect(map).toBeVisible();
 
     const cardBox = await card.boundingBox();
@@ -322,7 +337,8 @@ test.describe("iOS install instructions", () => {
   test("retains the full modal Safari instruction sheet", async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem("pubmax-tour-v1-done", "1");
-      localStorage.setItem("pubmax:analytics-consent:v1", "denied");
+      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
       localStorage.setItem(
         "pubmax:a2hs:v1",
         JSON.stringify({

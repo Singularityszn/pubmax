@@ -4,6 +4,7 @@ import {
   __resetWhatsOnListingStore,
   memoryWhatsOnListingStore,
   supabaseWhatsOnListingStore,
+  whatsOnListingStore,
 } from "@/lib/whatsOnListingStore";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
@@ -14,10 +15,13 @@ const db = vi.hoisted(() => ({
   generations: [] as Array<{ kind: string; generated_at: string }>,
   failWrite: false,
   schemaMiss: false,
+  configured: true,
+  requiresStore: false,
 }));
 
 vi.mock("@/lib/supabase", () => ({
-  isSupabaseConfigured: () => true,
+  isSupabaseConfigured: () => db.configured,
+  requiresSupabaseStore: () => db.requiresStore,
   requireSupabaseAdmin: () => ({
     rpc(_name: string, args: { p_kind: string; p_rows: Row[]; p_generated_at: string }) {
       if (db.schemaMiss) {
@@ -86,12 +90,47 @@ beforeEach(() => {
   db.generations = [];
   db.failWrite = false;
   db.schemaMiss = false;
+  db.configured = true;
+  db.requiresStore = false;
   __resetWhatsOnListingStore();
 });
 
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.clearAllMocks();
+});
+
+describe("whatsOnListingStore selection", () => {
+  it("answers an unavailable store where a durable store is required and absent", async () => {
+    db.configured = false;
+    db.requiresStore = true;
+    const store = whatsOnListingStore();
+    expect(store).not.toBe(memoryWhatsOnListingStore);
+    expect(store).not.toBe(supabaseWhatsOnListingStore);
+    await expect(store.readAll()).resolves.toEqual({ rows: [], generatedAt: null, failed: true });
+  });
+
+  // Playwright's keyless production server runs NODE_ENV=production with
+  // PUBMAX_E2E_KEYLESS=1, so requiresSupabaseStore() is false there. The store
+  // used to ask isDeployedProduction() instead, and every keyless read failed.
+  it("reads memory on a keyless production server, as selectStore does", async () => {
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv("NODE_ENV", "production");
+    db.configured = false;
+    db.requiresStore = false;
+    await memoryWhatsOnListingStore.replaceKind("event", [eventRow("keyless")], GENERATED);
+    const store = whatsOnListingStore();
+    expect(store).toBe(memoryWhatsOnListingStore);
+    const snap = await store.readAll();
+    expect(snap.failed).toBeUndefined();
+    expect(snap.rows.map((row) => row.id)).toEqual(["keyless"]);
+  });
+
+  it("reads Supabase when it is configured", () => {
+    db.configured = true;
+    db.requiresStore = true;
+    expect(whatsOnListingStore()).toBe(supabaseWhatsOnListingStore);
+  });
 });
 
 describe("memoryWhatsOnListingStore", () => {

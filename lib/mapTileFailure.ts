@@ -372,6 +372,51 @@ export function classifyTileFailure(input: TileFailureInput): TileFailureDecisio
   return reloadStyleOrSurface();
 }
 
+/**
+ * Whether a render or idle frame counts as a real basemap recovery, which
+ * clears the burst stamps, ends the initial-basemap wait and hands the silent
+ * budget back. MapLibre marks an errored tile as settled, so "tiles loaded" is
+ * also true over a dead tile host, and while the first basemap is pending or
+ * the camera is in flight no failed tile is recorded to hold it back. Without
+ * a tile that really loaded in this style generation, a frame would wipe the
+ * evidence of the outage and the map would never escalate or tell the reader.
+ */
+export function basemapRecoveryConfirmed({
+  tilesLoaded,
+  recheckPending,
+  unrecoveredFailures,
+  basemapTileLoaded,
+}: {
+  tilesLoaded: boolean;
+  recheckPending: boolean;
+  unrecoveredFailures: boolean;
+  basemapTileLoaded: boolean;
+}): boolean {
+  return (
+    tilesLoaded && !recheckPending && !unrecoveredFailures && basemapTileLoaded
+  );
+}
+
+/**
+ * A tile error that lands while the camera is in flight is ignored, and the
+ * classifier waits for the next error after the flight to act on the stamps.
+ * MapLibre never re-asks for a tile it failed, so when EVERY error lands inside
+ * the flight (a dead tile host under the 1 s arrival turn) no later error comes,
+ * and the map sits in no lane at all: no silent reload, no style reload, no
+ * banner. So an ignored in-flight sample asks for one re-read at camera rest.
+ */
+export function tileFailureAwaitsCameraRest({
+  decision,
+  cameraInFlight,
+  documentVisible,
+}: {
+  decision: TileFailureDecision;
+  cameraInFlight: boolean;
+  documentVisible: boolean;
+}): boolean {
+  return decision === "ignore" && cameraInFlight && documentVisible;
+}
+
 export type TileFailureSpendState = {
   /** Silent source reloads already spent since the last real basemap paint. */
   silentSpent: number;

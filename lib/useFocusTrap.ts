@@ -56,7 +56,13 @@ function claimStrictModalFocusTrap(): () => void {
   };
 }
 
-/** Body-level siblings that may stay interactive only beside a map surface. */
+/**
+ * Body-level siblings that may stay interactive only beside a map surface.
+ * The Android install card is a non-modal card drawn above the map sheets
+ * (a2hsInstallPrompt.css). The trap scans the body once, so a card that mounted
+ * before a sheet opened at half was made inert: the reader saw Install and Not
+ * now and neither answered a tap.
+ */
 export function shouldInertOutsideSibling(
   node: HTMLElement,
   outsidePolicy: FocusTrapOutsidePolicy,
@@ -64,7 +70,8 @@ export function shouldInertOutsideSibling(
   if (outsidePolicy === "strict-modal") return true;
   return !(
     node.classList.contains("mobileTabBar") ||
-    node.classList.contains("accountOnboardingBackdrop")
+    node.classList.contains("accountOnboardingBackdrop") ||
+    node.classList.contains("a2hsSheet--android")
   );
 }
 

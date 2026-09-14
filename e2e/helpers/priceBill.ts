@@ -1,6 +1,6 @@
 import { join } from "node:path";
 
-import type { Locator, Page } from "@playwright/test";
+import type { Locator, Page, Request } from "@playwright/test";
 
 // THE BILL EVERY LOGGED PRICE CARRIES (captain 7 Sept 2026).
 //
@@ -27,6 +27,47 @@ export const BILL_FIXTURE = join(process.cwd(), "e2e/fixtures/bill.jpg");
  */
 export async function attachBill(scope: Page | Locator): Promise<void> {
   await scope.locator("input.vpsubPhotoInput").first().setInputFiles(BILL_FIXTURE);
+}
+
+/** The fields a `/api/price-submit` write carried, as a route double reads them. */
+export type PriceSubmission = {
+  venueId?: string;
+  drinkCategory?: string;
+  priceGbp?: number;
+  measure?: string;
+  measureLabel?: string;
+  kind?: string;
+  signalKey?: string;
+  signalValue?: string;
+  /** True when the bill rode in the form. */
+  hasReceipt: boolean;
+};
+
+/**
+ * Read a `/api/price-submit` POST the way the route reads it.
+ *
+ * A write that carries the bill is a multipart form
+ * (`lib/communityContributionClient.ts`), so `postDataJSON()` throws on every
+ * priced write. A venue signal carries no photo and still goes as JSON. The
+ * form sends `priceGbp` as text, so it comes back a number here, as in JSON.
+ */
+export function readPriceSubmission(request: Request): PriceSubmission {
+  const contentType = request.headers()["content-type"] ?? "";
+  if (!contentType.startsWith("multipart/form-data")) {
+    const body = (request.postDataJSON() ?? {}) as Omit<PriceSubmission, "hasReceipt">;
+    return { ...body, hasReceipt: false };
+  }
+  const raw = request.postDataBuffer()?.toString("latin1") ?? "";
+  const fields: Record<string, string> = {};
+  // A file part names a filename before its blank line, so only text fields match.
+  for (const match of raw.matchAll(/name="([^"]+)"\r\n\r\n([^\r]*)\r\n/g)) {
+    fields[match[1]] = match[2];
+  }
+  return {
+    ...fields,
+    priceGbp: fields.priceGbp === undefined ? undefined : Number(fields.priceGbp),
+    hasReceipt: raw.includes('name="receipt_photo"'),
+  };
 }
 
 /** Attach the bill to the full Pint Drop composer (the Spill sheet). */

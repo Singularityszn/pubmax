@@ -694,11 +694,13 @@ test("a night of only excluded rows reads as the honest quiet night", async ({ p
     "empty",
   );
   await expect(page.getByText(/having a quiet one tonight/i)).toBeVisible();
-  // Scoped to the first-screen spine on purpose. The secondary Deals lane
-  // below it still carries the JDW row, and taking it off the page would drop
-  // a real deal; what the contract forbids is leading with one.
-  await expect(page.locator(".tonightPrimary")).not.toContainText("Curry Club");
-  await expect(page.locator(".tonightPrimary")).not.toContainText(
+  // Scoped to the lede region on purpose (#1627, app/AGENTS.md). The
+  // Wetherspoon block below it still carries the JDW row under the chain's own
+  // name, and taking it off the page would drop a real deal; what the contract
+  // forbids is leading with one.
+  const lede = page.getByTestId("tonight-lede");
+  await expect(lede).not.toContainText("Curry Club");
+  await expect(lede).not.toContainText(
     "A Night at the Playhouse",
   );
   await expect(page.getByTestId("tonight-list")).toHaveCount(0);

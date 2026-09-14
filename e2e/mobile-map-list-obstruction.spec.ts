@@ -137,7 +137,12 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await expect(
       page.getByRole("button", { name: "Describe the outing" }),
     ).toHaveCount(0);
-    await page.getByRole("button", { name: "Close venue list" }).click();
+    // Opened from Map controls, the list offers Back, so its close names the map
+    // it returns to (components/map/MapVenueList.tsx).
+    await page
+      .getByRole("button", { name: "Close and return to the London map" })
+      .click();
+    await expect(page.locator(".mapVenueListPanel")).toHaveCount(0);
     const plannerAction = page.getByRole("button", {
       name: "Describe the outing",
     });

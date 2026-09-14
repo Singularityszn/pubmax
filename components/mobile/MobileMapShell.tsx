@@ -313,8 +313,9 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   // (the Near me chip wears it), so it may appear only when a granted location
   // sits inside the named area. Otherwise the chip wears the map itself.
   if (limitedCoverage) {
+    // As `set` below: closing an open overlay steps back down the trail.
     const setLimitedOverlay = (next: MapOverlay) =>
-      onOverlayChange(overlay === next ? "none" : next);
+      overlay === next ? onBack() : onOverlayChange(next);
 
     return (
       <div
@@ -352,7 +353,12 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
     );
   }
 
-  const set = (next: MapOverlay) => onOverlayChange(overlay === next ? "none" : next);
+  // Tapping an open overlay's own control closes it the way Escape does: one
+  // step back down the surface trail, because every deliberate exit calls
+  // back() or home() (components/map/pubmap/useMapSurfaceNavigation.ts).
+  // Setting "none" alone left the closed surface on the trail, so the next
+  // sheet offered "Back to Search" and the browser's first Back did nothing.
+  const set = (next: MapOverlay) => (overlay === next ? onBack() : onOverlayChange(next));
   const nearMe = buildNearMeChip(nearMeStatus, nearbyCount);
   const filtersChip = buildFiltersChip({
     drinkFiltersActive,

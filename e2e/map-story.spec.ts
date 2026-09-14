@@ -137,7 +137,13 @@ test.describe("map / venue sheet tabs", () => {
     const menu = page.locator("#venuePanel-menu");
     await menu.getByRole("button", { name: /^Drinks/ }).click();
 
-    const asahi = menu.locator(".drinkRow").filter({ hasText: /Asahi/i });
+    // Since #1339 public Pint Drops join the menu as their own rows, so the
+    // keyless store's demo Asahi drops at The Dove sit beside the publisher's
+    // row. The row under test is the one Pint Prices publishes.
+    const asahi = menu
+      .locator(".drinkRow")
+      .filter({ hasText: /Asahi/i })
+      .filter({ has: page.getByRole("link", { name: "Pint Prices", exact: true }) });
     await expect(asahi).toContainText("£7.25");
     await expect(
       asahi.getByRole("link", { name: "Pint Prices", exact: true }),

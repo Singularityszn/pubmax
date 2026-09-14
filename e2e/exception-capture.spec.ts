@@ -13,6 +13,13 @@ async function consentedPage(page: Page): Promise<IngestEvent[]> {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // THE CARD WAITS FOR THE PRODUCT TO ANSWER (lib/consentAnswerMoment.ts).
+    // This spec needs consent, not the wait, so it seeds the answer that ends
+    // it. The wait itself is e2e/consent-after-first-answer.spec.ts.
+    window.sessionStorage.setItem(
+      "pubmax:consent-answer-moment:v1",
+      "venue-sheet",
+    );
   });
   page.on("request", (request) => {
     if (new URL(request.url()).pathname.startsWith("/ingest/")

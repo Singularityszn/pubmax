@@ -66,14 +66,20 @@ export const DEVICE_HANDLE_KEY = "pubmax_handle";
  * event, which a same-tab write never fires. Without the notice the tab bar
  * kept the handle it read at mount, which is how a stale answer survived a
  * whole session and only a full page load ever corrected it.
+ *
+ * Only a CHANGE announces itself, as a `storage` event does. The canonical read
+ * runs again on every auth event, and another tab signing in to the same
+ * account is one; a notice for the same handle made every reader re-ask who
+ * this is, and /social closed an open composer while it waited.
  */
 export function syncDeviceHandle(
-  storage: Pick<Storage, "setItem"> | null | undefined,
+  storage: Pick<Storage, "getItem" | "setItem"> | null | undefined,
   handle: string,
 ): void {
   const normalised = normalizeHandle(handle);
   if (!storage || !normalised) return;
   try {
+    if (storage.getItem(DEVICE_HANDLE_KEY) === normalised) return;
     storage.setItem(DEVICE_HANDLE_KEY, normalised);
   } catch {
     // Account ownership is durable even when browser storage is blocked.

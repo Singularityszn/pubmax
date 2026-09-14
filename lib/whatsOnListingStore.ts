@@ -20,8 +20,11 @@ import {
   onMissingDurableWrite,
   selectStore,
 } from "@/lib/storeBackend";
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
-import { isDeployedProduction } from "@/lib/deploymentEnv";
+import {
+  isSupabaseConfigured,
+  requireSupabaseAdmin,
+  requiresSupabaseStore,
+} from "@/lib/supabase";
 import {
   isWhatsOnKind,
   parseWhatsOnRows,
@@ -204,8 +207,13 @@ const unavailableProductionWhatsOnListingStore: WhatsOnListingStore = {
   },
 };
 
+// The unavailable store answers where selectStore would throw, and ONLY there:
+// requiresSupabaseStore() is the one policy, so Playwright's keyless production
+// server (PUBMAX_E2E_KEYLESS=1) reads memory plus the bundled files like every
+// other store. Asking isDeployedProduction() directly skipped that escape, and
+// every keyless /tonight read answered "Could not check listings."
 export function whatsOnListingStore(): WhatsOnListingStore {
-  if (isDeployedProduction() && !isSupabaseConfigured()) {
+  if (requiresSupabaseStore() && !isSupabaseConfigured()) {
     return unavailableProductionWhatsOnListingStore;
   }
   return selectStore(memoryWhatsOnListingStore, supabaseWhatsOnListingStore);

@@ -20,6 +20,7 @@ type PaintState = {
   backgroundColour: string;
   backgroundImage: string;
   ancestorBackgrounds: string[];
+  pageFloor: string;
 };
 
 function parseColour(value: string): Rgba {
@@ -75,25 +76,22 @@ function contrastRatio(foreground: Rgba, background: Rgba): number {
   );
 }
 
-function gradientColours(backgroundImage: string): Rgba[] {
-  return (
-    backgroundImage.match(
-      /(?:rgb|color\(srgb)[^(]*(?:\([^)]*\)|\([^)]*\))/g,
-    ) ?? []
-  ).map(parseColour);
-}
-
 function withAlpha(colour: Rgba, alpha: number): Rgba {
   return [colour[0], colour[1], colour[2], alpha];
 }
 
-function resolveBackdrop(ancestorBackgrounds: string[]): Rgba {
-  return ancestorBackgrounds
+// The ancestor colours are composited over the page floor, not over white. A
+// dark sheet is translucent (`--sheet-material` is 82% `--panel-overlay`) and
+// its tab rail is transparent (#700), so a white floor showed 18% white through
+// a sheet that paints over the dark page: the rail read as rgb(80, 80, 85)
+// where the screen paints rgb(39, 38, 42).
+function resolveBackdrop(state: PaintState): Rgba {
+  return state.ancestorBackgrounds
     .map(parseColour)
     .reverse()
     .reduce<Rgba>(
       (background, foreground) => composite(foreground, background),
-      [255, 255, 255, 1],
+      composite(parseColour(state.pageFloor), [255, 255, 255, 1]),
     );
 }
 
@@ -121,24 +119,21 @@ async function readPaintState(
       backgroundColour: style.backgroundColor,
       backgroundImage: style.backgroundImage,
       ancestorBackgrounds,
+      // The body paints the page as a gradient over a transparent colour, so
+      // its first stop is the floor every surface sits on.
+      pageFloor:
+        getComputedStyle(document.body).backgroundImage.match(
+          /(?:rgba?|color\(srgb)\([^)]*\)/,
+        )?.[0] ?? "rgb(255, 255, 255)",
     };
   }, { foregroundColour: colour, surfacePseudo });
 }
 
-function renderedContrastRatios(
-  state: PaintState,
-  background: "solid" | "gradient" = "solid",
-): number[] {
+function renderedContrastRatios(state: PaintState): number[] {
   const foreground = parseColour(state.colour);
-  const backdrop = resolveBackdrop(state.ancestorBackgrounds);
+  const backdrop = resolveBackdrop(state);
   const surfaceColour = parseColour(state.backgroundColour);
-  const surfaceBase = composite(surfaceColour, backdrop);
-  const paintedBackgrounds =
-    background === "gradient"
-      ? gradientColours(state.backgroundImage).map((stop) =>
-          composite(stop, surfaceBase),
-        )
-      : [surfaceBase];
+  const paintedBackgrounds = [composite(surfaceColour, backdrop)];
 
   return paintedBackgrounds.map((paintedBackground) => {
     const localForeground = composite(foreground, paintedBackground);
@@ -157,7 +152,6 @@ function renderedContrastRatios(
 async function expectRenderedTextContrast(
   colourLocator: Locator,
   options: {
-    background?: "solid" | "gradient";
     minimum?: number;
     pseudo?: "::placeholder";
     surfaceLocator?: Locator;
@@ -171,7 +165,7 @@ async function expectRenderedTextContrast(
     options.pseudo,
     options.surfacePseudo,
   );
-  const ratios = renderedContrastRatios(state, options.background);
+  const ratios = renderedContrastRatios(state);
   expect(ratios.length).toBeGreaterThan(0);
   const minimumRatio = Math.min(...ratios);
   expect(
@@ -300,10 +294,13 @@ for (const viewport of VIEWPORTS) {
       sheet.locator(".mobileVenuePeekSummary .priceBadge"),
     );
 
+    // Selection is the fill (#700, components/map/venueSheet.css): the active
+    // tab is flat `--panel-raised` with ink text and a 2px coral underline. The
+    // coral gradient it replaced is gone, so its contrast is read off the fill.
     const activeTab = sheet.locator(".venueTab.active");
-    measurements.sheetActiveTab = await expectRenderedTextContrast(activeTab, {
-      background: "gradient",
-    });
+    await expect(activeTab).toBeVisible();
+    expect((await readPaintState(activeTab)).backgroundImage).toBe("none");
+    measurements.sheetActiveTab = await expectRenderedTextContrast(activeTab);
     // The sheet's one painted primary is the Overview's price door
     // (lib/pintTrust.ts, `overviewPriceDoor`), flat like every other primary.
     // It arrives with the venue's price read rather than with the sheet, and
@@ -325,7 +322,7 @@ for (const viewport of VIEWPORTS) {
     const tabRailPaint = await readPaintState(sheet.locator(".venueTabs"));
     const tabRailBackground = composite(
       parseColour(tabRailPaint.backgroundColour),
-      resolveBackdrop(tabRailPaint.ancestorBackgrounds),
+      resolveBackdrop(tabRailPaint),
     );
     measurements.sheetFocusOutline = contrastRatio(
       parseColour(focusState.outlineColour),

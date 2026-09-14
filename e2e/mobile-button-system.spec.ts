@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { LANDING_QUIET_DOORS } from "@/lib/landingHero";
+import { LANDING_FALLBACK_RECEIPT_LABEL, LANDING_QUIET_DOORS } from "@/lib/landingHero";
 
 import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
 
@@ -42,6 +42,11 @@ for (const viewport of DEVICES) {
       await expect(page.getByRole("link", { name: LANDING_PRIMARY_NAME }).first()).toBeVisible();
       const quietDoors = page.locator(".lpHero .screenSecondary > a");
       await expect(quietDoors).toHaveCount(1 + LANDING_QUIET_DOORS.length);
+      // The receipt door names the anchor pub's figure, or is the plain price
+      // door when no card backs one (components/landing/LandingHero.tsx).
+      await expect(quietDoors.first()).toHaveText(
+        new RegExp(`^(Still £\\d+\\.\\d{2}\\?|${LANDING_FALLBACK_RECEIPT_LABEL})$`),
+      );
       for (const [index, door] of LANDING_QUIET_DOORS.entries()) {
         await expect(quietDoors.nth(index + 1)).toHaveAttribute("href", door.href);
         await expect(quietDoors.nth(index + 1)).toHaveText(door.label);
@@ -388,6 +393,18 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
   // "Show all" left the map edge for the Layers popover (7 Sep 2026, B9), so
   // the zoom pair is the readiness signal here and nothing else is waited on.
   await expect(zoomIn).toBeVisible({ timeout: 30_000 });
+  // Since #1631 Show all lives in the Layers popover, not beside the zoom
+  // pair. It is found where a reader opens it, and the popover is shut again
+  // before the zoom pair's centre points are read. The tap is retried until
+  // the control says it is open, because a tap before hydration is dropped.
+  const layers = page.locator(".mapLayersFab");
+  await expect(async () => {
+    if ((await layers.getAttribute("aria-expanded")) !== "true") await layers.click();
+    await expect(layers).toHaveAttribute("aria-expanded", "true", { timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+  await expect(page.locator(".mapLayersPanel .mapFitLondonBtn")).toBeVisible();
+  await page.locator(".mapLayersClose").click();
+  await expect(page.locator(".mapLayersPanel")).toHaveCount(0);
   const findings = await page.evaluate(() => {
     const owns = (selector: string) => {
       const element = document.querySelector(selector);

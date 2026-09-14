@@ -156,14 +156,39 @@ export function emitDeviceIdentityChanged(): void {
   }
 }
 
-/** Subscribe to same-tab writes plus the cross-tab `storage` event. */
+const DEVICE_IDENTITY_STORAGE_KEYS: ReadonlySet<string> = new Set([
+  DEVICE_ACCOUNT_OWNER_KEY,
+  ...DEVICE_IDENTITY_LOCAL_KEYS,
+  ...DEVICE_IDENTITY_SESSION_KEYS,
+]);
+
+/**
+ * True when a cross-tab `storage` event touched the identity set: one of its
+ * keys, the owner stamp, or a whole-storage `clear()` (a null key). An event
+ * that names no key at all is read as a clear, because it cannot prove it left
+ * the set alone.
+ *
+ * Any other tab writes storage all the time - the auth client's lock and token
+ * refresh, the device session list, a composer draft. Those are not an identity
+ * change, and treating them as one made every reader re-ask who this is: /social
+ * dropped its access answer and closed an open composer the moment a second tab
+ * opened.
+ */
+export function isDeviceIdentityStorageEvent(event: { key?: string | null }): boolean {
+  return typeof event.key !== "string" || DEVICE_IDENTITY_STORAGE_KEYS.has(event.key);
+}
+
+/** Subscribe to same-tab writes plus cross-tab `storage` events on the identity set. */
 export function subscribeDeviceIdentity(onChange: () => void): () => void {
   if (typeof window === "undefined") return () => {};
   const handler = () => onChange();
+  const storageHandler = (event: StorageEvent) => {
+    if (isDeviceIdentityStorageEvent(event)) onChange();
+  };
   window.addEventListener(DEVICE_IDENTITY_CHANGED_EVENT, handler);
-  window.addEventListener("storage", handler);
+  window.addEventListener("storage", storageHandler);
   return () => {
     window.removeEventListener(DEVICE_IDENTITY_CHANGED_EVENT, handler);
-    window.removeEventListener("storage", handler);
+    window.removeEventListener("storage", storageHandler);
   };
 }

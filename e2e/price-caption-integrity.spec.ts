@@ -4,6 +4,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { storyBandsForCity } from "@/lib/cityStoryBands";
 import { listEnabledCities } from "@/lib/cities";
 
+import { installNativeShell } from "./helpers/nativeShell";
+
 const VIEWPORTS = [
   { width: 360, height: 800 },
   { width: 390, height: 844 },
@@ -23,6 +25,8 @@ const FIRST_RUN_COMPANION_NOTES = [
 ] as const;
 const THE_GRAPES_HOOK =
   "The Grapes is a Grade II listed public house at 76 Narrow Street, Limehouse, on the north bank of the Thames; a pub has stood on the site since 1583.";
+// The date chip names what the year dates, never a bare year (lib/heritageDate.mjs).
+const THE_GRAPES_DATE_LABEL = "Founded 1583";
 
 const LONGEST_STORY_BAND = listEnabledCities()
   .flatMap((city) => storyBandsForCity(city.id))
@@ -357,7 +361,7 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     await expect(hook).toContainText("since 1583");
     const provenance = card.locator(".historicProvenance");
     await expect(provenance).toBeVisible();
-    await expect(card.locator(".historicEra")).toHaveText("1583");
+    await expect(card.locator(".historicEra")).toHaveText(THE_GRAPES_DATE_LABEL);
     await expect(card.locator(".historicCite")).toBeVisible();
     const [hookBox, provenanceBox] = await Promise.all([
       disclosure.boundingBox(),
@@ -386,7 +390,9 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     await expect(boroughHook).toContainText("since 1583");
     const boroughLink = boroughCard.locator(".boroughHeritageMapLink");
     await expect(boroughLink).toBeVisible();
-    await expect(boroughCard.locator(".boroughHeritageEra")).toHaveText("1583");
+    await expect(boroughCard.locator(".boroughHeritageEra")).toHaveText(
+      THE_GRAPES_DATE_LABEL,
+    );
     const [boroughHookBox, boroughLinkBox] = await Promise.all([
       boroughDisclosure.boundingBox(),
       boroughLink.boundingBox(),
@@ -451,6 +457,29 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
 
     const attribution = page.locator(".maplibregl-ctrl-attrib");
     await expect(attribution).toBeVisible();
+    const centreHit = (control: Locator) =>
+      control.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          rect.left + rect.width / 2,
+          rect.top + rect.height / 2,
+        );
+        return {
+          own: Boolean(hit && element.contains(hit)),
+          nearMe: Boolean(hit?.closest(".mobileMapLocateFab")),
+          hit: hit ? `${hit.tagName.toLowerCase()}.${hit.getAttribute("class") ?? ""}` : "none",
+        };
+      });
+    const attributionToggle = attribution.locator(".maplibregl-ctrl-attrib-button");
+    await expect(attributionToggle).toBeVisible();
+    expect(await centreHit(attributionToggle), "Toggle attribution takes its own tap").toMatchObject({
+      own: true,
+      nearMe: false,
+    });
+    expect(
+      await centreHit(chip.getByRole("button", { name: "Dismiss Place story intro" })),
+      "Dismiss Place story intro takes its own tap",
+    ).toMatchObject({ own: true, nearMe: false });
     const attributionInner = attribution.locator(".maplibregl-ctrl-attrib-inner");
     if (!(await attributionInner.isVisible())) {
       await attribution.locator(".maplibregl-ctrl-attrib-button").click();
@@ -488,7 +517,10 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     await expect(listShortcut).toBeVisible();
     await listShortcut.click();
     await expect(page.locator(".mapVenueListPanel")).toBeVisible();
-    await expect(chip).toHaveCount(0);
+    // The list owns the lane while it is open, and the story notice returns
+    // when it closes, so the chip is hidden rather than unmounted
+    // (components/map/mapVenueList.css).
+    await expect(chip).toBeHidden();
 
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
@@ -500,15 +532,7 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
   }) => {
     await page.setViewportSize(viewport);
     await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.addInitScript(() => {
-      Object.defineProperty(window, "Capacitor", {
-        configurable: true,
-        value: {
-          isNativePlatform: () => true,
-          getPlatform: () => "ios",
-        },
-      });
-    });
+    await installNativeShell(page);
 
     const response = await page.goto("/");
     expect(response?.status()).toBe(200);

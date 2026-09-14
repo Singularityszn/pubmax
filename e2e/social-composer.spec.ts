@@ -139,7 +139,7 @@ test("verified composer preserves failed photo draft, records consent choices, a
     { proposalId: "tag-1", action: "withdraw" },
   ]);
 
-  await page.getByRole("button", { name: "New post" }).click();
+  await page.getByRole("button", { name: "Post", exact: true }).click();
   let dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toBeFocused();
   await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Photo draft survives reload");
@@ -155,33 +155,33 @@ test("verified composer preserves failed photo draft, records consent choices, a
   await dialog.getByLabel("Add photo", { exact: true }).setInputFiles({ name: "proof.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
   await expect(dialog.getByRole("img", { name: "Selected photo preview" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Remove selected photo" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Post", exact: true })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Post", exact: true })).toBeDisabled();
   await dialog.getByLabel("Photo description").fill("Friends outside The Proof Arms");
   await dialog.getByLabel("Photo tags", { exact: true }).fill("bob");
-  await page.getByRole("button", { name: "Post", exact: true }).click();
+  await dialog.getByRole("button", { name: "Post", exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText("Moderation unavailable");
   await expect(dialog.getByRole("alert")).toBeFocused();
   expect((await dialog.getByRole("alert").boundingBox())?.y).toBeLessThan(220);
   await page.waitForTimeout(400);
   await page.reload();
-  await page.getByRole("button", { name: "New post" }).click();
+  await page.getByRole("button", { name: "Post", exact: true }).click();
   dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Photo draft survives reload");
   await expect(dialog.getByLabel("Photo description")).toBeVisible();
   await expect(dialog.getByLabel("Photo description")).toHaveValue("Friends outside The Proof Arms");
   await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Photo draft changed after failure");
-  await page.getByRole("button", { name: "Post", exact: true }).click();
+  await dialog.getByRole("button", { name: "Post", exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText("Your draft is still here");
   await expect(dialog.getByRole("button", { name: "Load latest" })).toHaveCount(0);
   await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Photo draft changed after failure");
   await expect(dialog.getByLabel("Photo description")).toHaveValue("Friends outside The Proof Arms");
-  await page.getByRole("button", { name: "Post", exact: true }).click();
+  await dialog.getByRole("button", { name: "Post", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(createKeys).toHaveLength(3);
   expect(createKeys[0]).toBe(createKeys[1]);
   expect(createKeys[2]).not.toBe(createKeys[1]);
 
-  await page.getByRole("button", { name: "New post" }).click();
+  await page.getByRole("button", { name: "Post", exact: true }).click();
   dialog = page.getByRole("dialog");
   await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Text-only post");
   await dialog.getByRole("button", { name: "Post", exact: true }).click();
@@ -234,13 +234,13 @@ test("account-bound drafts isolate text and photo while two tabs warn", async ({
   await context.route("**/api/social/outbox", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ posts: [] }) }));
   await context.route("**/api/social/tags**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ proposals: [] }) }));
   await context.route("**/api/social/posts?**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ posts: [], nextCursor: null }) }));
-  await page.goto("/social"); await page.getByRole("button", { name: "New post" }).click();
+  await page.goto("/social"); await page.getByRole("button", { name: "Post", exact: true }).click();
   let dialog = page.getByRole("dialog");
   await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Alice private draft");
   await dialog.getByLabel("Add photo", { exact: true }).setInputFiles({ name: "alice.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
   await dialog.getByLabel("Photo description").fill("Alice photo");
   await page.waitForTimeout(400);
-  const second = await context.newPage(); await second.goto("/social"); await second.getByRole("button", { name: "New post" }).click();
+  const second = await context.newPage(); await second.goto("/social"); await second.getByRole("button", { name: "Post", exact: true }).click();
   await expect(second.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Alice private draft");
   await expect(second.getByLabel("Photo description")).toHaveValue("Alice photo");
   await expect(page.getByText("This draft is open in another tab.")).toBeVisible();
@@ -249,10 +249,10 @@ test("account-bound drafts isolate text and photo while two tabs warn", async ({
   await expect(second.getByLabel("Photo description")).toHaveCount(0);
   await second.getByRole("button", { name: "Clear draft" }).click();
   await expect(second.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("");
-  await second.reload(); await second.getByRole("button", { name: "New post" }).click();
+  await second.reload(); await second.getByRole("button", { name: "Post", exact: true }).click();
   await expect(second.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("");
   await expect(second.getByLabel("Photo description")).toHaveCount(0);
-  scope = "b".repeat(43); await second.reload(); await second.getByRole("button", { name: "New post" }).click();
+  scope = "b".repeat(43); await second.reload(); await second.getByRole("button", { name: "Post", exact: true }).click();
   dialog = second.getByRole("dialog");
   await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("");
   await expect(dialog.getByLabel("Photo description")).toHaveCount(0);
@@ -291,7 +291,7 @@ test("private visibility and comment policy survive create, owner outbox, and ed
   });
 
   await page.goto("/social");
-  await page.getByRole("button", { name: "New post" }).click();
+  await page.getByRole("button", { name: "Post", exact: true }).click();
   let dialog = page.getByRole("dialog");
   await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Private plan");
   await dialog.getByLabel("Visibility").selectOption("private");
@@ -311,7 +311,7 @@ test("private visibility and comment policy survive create, owner outbox, and ed
   await dialog.getByRole("button", { name: "Save" }).click();
   expect(editPayloads[0]).toMatchObject({ visibility: "private", commentPolicy: "locked" });
 
-  await page.getByRole("button", { name: "New post" }).click();
+  await page.getByRole("button", { name: "Post", exact: true }).click();
   dialog = page.getByRole("dialog");
   await expect(dialog.getByLabel("Visibility").locator("option")).toHaveText(["Private", "Friends", "Public"]);
   await expect(dialog.getByLabel("Comments").locator("option")).toHaveText(["Open", "Friends", "Locked"]);
@@ -528,7 +528,7 @@ for (const viewport of [{ width: 320, height: 720 }, { width: 390, height: 844 }
       await page.route("**/api/social/tags**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ proposals: [] }) }));
       await page.route("**/api/social/posts?**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ posts: [basePost], nextCursor: null }) }));
       await page.goto("/social");
-      const trigger = page.getByRole("button", { name: "New post" });
+      const trigger = page.getByRole("button", { name: "Post", exact: true });
       await trigger.click();
       const dialog = page.getByRole("dialog");
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);

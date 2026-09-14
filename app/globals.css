@@ -5448,6 +5448,9 @@ button:disabled {
   }
 
   .bandOnboardingChip {
+    /* Stops short of the map-edge column: Near me and the create action park
+       in this band, and they painted over the chip's Dismiss button. */
+    right: var(--mobile-map-corner-lane);
     display: grid;
     grid-template-columns: minmax(0, 1fr) 44px;
     align-items: stretch;

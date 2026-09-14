@@ -159,7 +159,10 @@ async function captureUpload(page: Page, slot: "avatar" | "cover"): Promise<Uplo
   });
 
   const png = await widePng();
-  await page.route(`**/api/${slot}/${PROFILE_ID}/${GENERATION}`, async (route) => {
+  // The trailing `**` is load-bearing: a production build tags the image src
+  // with the deployment id (`?dpl=...`), and a glob that ends at the path lets
+  // that request through to the real server, which answers 404.
+  await page.route(`**/api/${slot}/${PROFILE_ID}/${GENERATION}**`, async (route) => {
     await route.fulfill({
       status: 200,
       headers: { "content-type": "image/png" },
@@ -421,7 +424,7 @@ test.describe("profile photo picker and crop", () => {
       await route.continue();
     });
 
-    await page.route(`**/api/cover/${PROFILE_ID}/${GENERATION}`, async (route) => {
+    await page.route(`**/api/cover/${PROFILE_ID}/${GENERATION}**`, async (route) => {
       await route.fulfill({
         status: 200,
         headers: { "content-type": "image/png" },
@@ -468,7 +471,9 @@ test.describe("profile photo picker and crop", () => {
     await pick(page, "avatar", "IMG_2206.png");
     await page.getByRole("button", { name: "Use photo" }).click();
     await expect(page.getByRole("heading", { name: "Editing your profile" })).toBeVisible();
-    expect(record.calls).toBe(2);
+    // The heading never left, so it says nothing about the second POST. Wait
+    // for the route to count it instead of reading the count on the tap.
+    await expect.poll(() => record.calls).toBe(2);
   });
 
   test("a photo this browser cannot open says where to go instead", async ({ page }) => {

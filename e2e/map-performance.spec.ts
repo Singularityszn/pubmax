@@ -40,7 +40,7 @@ test("/map initial load uses slim pins without full or detail datasets", async (
   expect(requested(requests, "/api/citymcp/journey")).toBe(false);
 });
 
-test("landing night choice reaches a usable filtered mobile map", async ({ page }) => {
+test("a filtered beer map link reaches a usable mobile map", async ({ page }) => {
   test.setTimeout(45_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
@@ -49,8 +49,10 @@ test("landing night choice reaches a usable filtered mobile map", async ({ page 
   });
   const requests = watchRequests(page);
 
-  await page.goto("/#signals");
-  await page.getByRole("link", { name: /Beer at .*open on the map/ }).click();
+  // #912 (8 Aug) removed the landing's Night Signals section and its
+  // "Beer at … open on the map" door. The map URL that door wrote is still a
+  // shared link, so the filtered arrival starts there.
+  await page.goto("/map?drink=beer&style=cheapest");
 
   await expect(page).toHaveURL(/\/map\?drink=beer&style=cheapest$/);
   await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
@@ -61,8 +63,22 @@ test("landing night choice reaches a usable filtered mobile map", async ({ page 
     )
     .toBeGreaterThan(0);
   await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 20_000 });
-  await page.getByRole("button", { name: "Drinks" }).click();
-  await expect(page.getByLabel("Drink category")).toHaveValue("beer");
+  // Since #1631 the old Drinks button and its category select are gone. The
+  // phone top bar marks the drink filter on Filters, and the drink lane chip
+  // names the beer lane as Pints.
+  const chrome = page.locator(".mobileMapChrome");
+  await expect(chrome.getByRole("button", { name: "Filters: drinks active" })).toBeVisible();
+  await expect(
+    chrome.getByRole("button", { name: /^Drink shown on the map: Pints\./ }),
+  ).toBeVisible();
+  await chrome.getByRole("button", { name: "Filters: drinks active" }).click();
+  const filters = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+  const beer = filters
+    .getByRole("group", { name: "Filter by drink shape" })
+    .getByRole("button", { name: "Beer (selected)" });
+  await expect(beer).toHaveAttribute("aria-pressed", "true");
+  await filters.getByRole("button", { name: "Close Prices and places" }).click();
+  await expect(filters).toHaveCount(0);
 
   await page.waitForTimeout(1_500);
   expect(requested(requests, "/api/citymcp/journey")).toBe(false);

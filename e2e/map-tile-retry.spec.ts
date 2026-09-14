@@ -29,6 +29,13 @@ function collectPubmapWarnings(page: Page): string[] {
   return seen;
 }
 
+// The production build registers public/sw.js, and its tile cache answers
+// basemap requests from inside the worker, where page.route() never sees them.
+// Without this block the worker's own fetches reach the real tile host and fail,
+// so the fixture's outage never ends. chromium-gl blocks workers for the same
+// reason, and the default chromium project runs this spec too.
+test.use({ serviceWorkers: "block" });
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");

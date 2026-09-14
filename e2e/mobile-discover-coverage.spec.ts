@@ -21,8 +21,8 @@ test("mobile Discover shows Night Area evidence states without promising routes"
 
   const coverage = page.locator(".nightAreaCoverage");
   await expect(coverage).toBeVisible();
-  await expect(coverage.getByRole("heading", { name: "Areas near you, with the gate visible" })).toBeVisible();
-  await expect(coverage).toContainText("Only an area with a complete, live gate can produce a Crawl Route");
+  await expect(coverage.getByRole("heading", { name: "Where you can plan a crawl tonight" })).toBeVisible();
+  await expect(coverage).toContainText("We only call an area crawl-ready when its prices are fresh and checked.");
   await expect(coverage.getByRole("link", { name: "Open planner", exact: true })).toHaveAttribute("href", "/plan");
   await expectNoHorizontalOverflow(page);
 

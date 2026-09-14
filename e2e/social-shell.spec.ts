@@ -3,6 +3,10 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Page, type Route } from "@playwright/test";
 
+const SOCIAL_TITLE = "Crews and people who are already here.";
+const SOCIAL_PREVIEW_BOUNDARY =
+  "Social is invite-only for now. It opens more widely soon.";
+
 const post = (id: string, body: string, createdAt: string) => ({
   id,
   kind: "standard",
@@ -149,12 +153,13 @@ test("preview shows one safe boundary and never requests or leaks protected post
 
   const response = await page.goto("/social");
   expect(response?.status()).toBe(200);
+  // Social is live by default (lib/socialLaunch.ts), so the surface is named
+  // "Social" and the Screen head (#1402) carries the page's one h1. The
+  // invite-only boundary is an EmptyState line, not a heading.
   await expect(
-    page.getByRole("heading", { name: "Social preview", exact: true }),
+    page.getByRole("heading", { level: 1, name: SOCIAL_TITLE, exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Social preview is invite-only for now. It opens more widely soon." }),
-  ).toBeVisible();
+  await expect(page.getByText(SOCIAL_PREVIEW_BOUNDARY, { exact: true })).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Posts", exact: true }),
   ).toHaveAttribute("aria-current", "page");
@@ -475,12 +480,15 @@ test("feed retry repeats only the failed chronological read", async ({
   });
 
   await page.goto("/social");
+  // The Outbox in the rail has its own Retry, so the feed's is found inside
+  // the posts region. EmptyState prints its title as a line, not a heading.
+  const feed = page.getByRole("region", { name: "Social posts" });
   await expect(
-    page.getByRole("heading", {
-      name: "Social preview posts are unavailable right now.",
-    }),
+    feed
+      .getByRole("alert")
+      .getByText("Social posts are unavailable right now.", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Retry" }).click();
+  await feed.getByRole("button", { name: "Retry" }).click();
   await expect(page.getByText("Back in order")).toBeVisible();
   expect(feedReads).toBe(2);
   expect(accessReads).toBe(1);
@@ -556,9 +564,7 @@ test("invalid Social URL state resolves to the safe canonical route", async ({
   await page.goto("/social?cursor=viewer-secret&feed=nearby&area=unknown");
   await expect(page).toHaveURL(/\/social$/);
   expect(page.url()).not.toContain("cursor");
-  await expect(
-    page.getByRole("heading", { name: "Social preview is invite-only for now. It opens more widely soon." }),
-  ).toBeVisible();
+  await expect(page.getByText(SOCIAL_PREVIEW_BOUNDARY, { exact: true })).toBeVisible();
 });
 
 test("Social shell fits target viewports in light and dark themes", async ({

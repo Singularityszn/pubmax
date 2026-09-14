@@ -50,9 +50,17 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(nav).toBeVisible();
     await expect(nav).toHaveCSS("opacity", "1");
 
-    await page.getByRole("button", { name: "More map controls" }).click();
-    await page.getByRole("button", { name: "Plan an outing" }).click();
-    await expect(page.locator(".appShell")).toHaveClass(/planning-open/);
+    // On a phone the planner opens from the map's own Describe the outing
+    // action; More map controls holds layers only. The button is server-painted,
+    // so retry the tap until the sheet answers (e2e/AGENTS.md).
+    const describe = page.getByRole("button", { name: "Describe the outing" });
+    const shell = page.locator(".appShell");
+    await expect(async () => {
+      if (!/planning-open/.test((await shell.getAttribute("class")) ?? "")) {
+        await describe.click();
+      }
+      await expect(shell).toHaveClass(/planning-open/, { timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
     await expect(page.locator(".mapDrawer.left")).toHaveClass(/open/);
     await expect(nav).toHaveCSS("opacity", "0");
     await expect(nav).toHaveCSS("pointer-events", "none");
@@ -69,7 +77,7 @@ test.describe("mobile bottom-tab navigation", () => {
 
     await expect(page).toHaveURL(/\/map$/);
     await page.getByRole("button", { name: "Search the map" }).click();
-    await expect(page.getByRole("searchbox", { name: "Search pubs" })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible();
   });
 
   test("Tonight tab routes to /tonight", async ({ page }) => {
@@ -88,7 +96,7 @@ test.describe("mobile bottom-tab navigation", () => {
 
     await expect(page).toHaveURL(/\/out$/);
     await expect(page.getByTestId("out-screen")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "What’s on, sourced." })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "What’s on, sourced." })).toBeVisible();
   });
 
   test("create action opens Moment with the live return path", async ({ page }) => {

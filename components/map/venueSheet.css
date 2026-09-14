@@ -760,6 +760,10 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   gap: 4px;
   margin: 12px 0 10px;
   padding: 4px;
+  /* Matches the padding, so a tab scrolled into view (a keyboard move, a
+     selection) lands at the real end of the strip and the fade drops. Without
+     it the last tab stopped 4px short under a fade it no longer earned. */
+  scroll-padding-inline: 4px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-lg);
   background: transparent;

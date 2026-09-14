@@ -171,6 +171,13 @@ test("rechecks consent when another prompt releases the budget", async ({ page }
 test("desktop map shows the one-line row", async ({ page }) => {
   test.setTimeout(60_000);
   await prepareFirstVisit(page);
+  // A COLD map gives its lower edge to the First visit card alone, and consent
+  // yields to it (lib/mapFirstVisitArrival.ts, e2e/mobile-map-first-visit.spec.ts).
+  // This test is about the card beside the planning control, so the map has
+  // already had its first visit.
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+  });
   // The desktop map's own location suggestion holds interruptive prompts until
   // it is answered (lib/mapLocationPrompt.ts), so it is answered here.
   await page.addInitScript(() => {

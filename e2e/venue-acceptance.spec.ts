@@ -73,10 +73,14 @@ test("Venue actions fit 320px and 390px", async ({ page }) => {
       .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
       .getByRole("toolbar", { name: "Venue actions" });
     await expect(toolbar).toBeVisible({ timeout: 30_000 });
+    // Since #1517 the bar carries no price action: a suggest-mode pub sheet
+    // holds the Stop 1 ghost and Share (components/map/inspector/VenueStickyBar.tsx).
+    await expect(toolbar.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` })).toBeVisible();
+    await expect(toolbar.getByRole("button", { name: `Share ${VENUE_NAME}` })).toBeVisible();
     const heights = await toolbar.getByRole("button").evaluateAll((buttons) =>
       buttons.map((button) => button.getBoundingClientRect().height),
     );
-    expect(heights.length).toBeGreaterThanOrEqual(3);
+    expect(heights).toHaveLength(2);
     expect(heights.every((height) => height >= 44)).toBe(true);
     const overflow = await page.evaluate(() =>
       document.documentElement.scrollWidth - document.documentElement.clientWidth,

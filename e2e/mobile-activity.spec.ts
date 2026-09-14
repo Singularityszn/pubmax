@@ -2,6 +2,43 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const MOBILE = { width: 390, height: 844 };
 
+// Activity is account-bound (#1348): a device handle alone reads as signed
+// out. Seed the same provider-shaped session the Social specs use, and let
+// the canonical identity read name the handle.
+const E2E_AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
+const E2E_AUTH_USER_ID = "00000000-0000-4000-8000-000000000011";
+const HANDLE = "mobileqa";
+
+async function seedSignedInHandle(page: Page): Promise<void> {
+  await page.addInitScript(({ authStorageKey, userId }) => {
+    window.localStorage.setItem(
+      authStorageKey,
+      JSON.stringify({
+        access_token: `pubmaxx-e2e-access-token-${userId}`,
+        refresh_token: "pubmaxx-e2e-refresh-token",
+        expires_at: Math.floor(Date.now() / 1000) + 86_400,
+        expires_in: 86_400,
+        token_type: "bearer",
+        user: {
+          id: userId,
+          aud: "authenticated",
+          role: "authenticated",
+          email: "mobile-activity@example.test",
+          app_metadata: {},
+          user_metadata: {},
+          created_at: "2026-07-29T00:00:00.000Z",
+        },
+      }),
+    );
+  }, { authStorageKey: E2E_AUTH_STORAGE_KEY, userId: E2E_AUTH_USER_ID });
+  await page.route("**/api/identity/handle/current", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ handle: HANDLE }),
+    });
+  });
+}
+
 function pageErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -28,6 +65,7 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
 test.describe("mobile Activity", () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize(MOBILE);
+    await seedSignedInHandle(page);
     await page.addInitScript(() => {
       window.localStorage.setItem("pubmax-tour-v1-done", "1");
       window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -59,8 +97,9 @@ test.describe("mobile Activity", () => {
     expect(response?.status()).toBe(200);
 
     await expect(page.getByRole("heading", { name: "Activity", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Nothing's landed yet.", exact: true })).toBeVisible();
-    await expectTappable(page.getByRole("link", { name: "Browse the feed" }), "Browse the feed CTA");
+    // EmptyState (#1365) prints its title as a line under the Screen's one h1.
+    await expect(page.getByText("Nothing's landed yet.", { exact: true })).toBeVisible();
+    await expectTappable(page.getByRole("link", { name: "Open Social" }), "Open Social CTA");
 
     const siteNav = page.getByRole("navigation", { name: "Site navigation" });
     await expectTappable(siteNav.getByLabel("Open PUBMAXX landing page"), "mobile site wordmark");
@@ -82,8 +121,10 @@ test.describe("mobile Activity", () => {
   test("empty state feeds the growth loop without clipping", async ({ page }) => {
     await page.goto("/activity");
 
-    await page.getByRole("link", { name: "Browse the feed" }).click();
-    await expect(page).toHaveURL(/\/feed$/);
+    // Since the unified Social shell (#765) the empty state's one way onward
+    // is Social itself; /feed is a retired alias of it.
+    await page.getByRole("link", { name: "Open Social" }).click();
+    await expect(page).toHaveURL(/\/social$/);
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });

@@ -36,6 +36,19 @@ async function expectTouchTargets(locator: Locator): Promise<void> {
   }
 }
 
+// A shared sheet sizes to its body up to the detent cap, so it grows while the
+// body mounts. Read its box only once two reads in a row agree.
+async function settledBox(locator: Locator) {
+  let previous = "";
+  await expect.poll(async () => {
+    const box = JSON.stringify(await locator.boundingBox());
+    const settled = box === previous;
+    previous = box;
+    return settled;
+  }).toBe(true);
+  return locator.boundingBox();
+}
+
 async function saveShot(page: Page, name: string): Promise<void> {
   if (!process.env.PUBMAX_RESET_SHOTS) return;
   const png = await page.screenshot({ fullPage: false });
@@ -105,7 +118,7 @@ for (const viewport of VIEWPORTS) {
         return JSON.stringify(raw?.viewport ?? null);
       })).not.toBe(viewportBeforeNearby);
       await waitForMapPaint(page);
-      const nearMeClose = page.getByRole("button", { name: "Close Cheapest listed near you" });
+      const nearMeClose = page.getByRole("button", { name: "Close Near me" });
       if (await nearMeClose.isVisible().catch(() => false)) {
         await nearMeClose.click();
         await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(0);
@@ -120,8 +133,11 @@ for (const viewport of VIEWPORTS) {
 
       const utilityCorner = page.locator(".mobileMapUtilityCorner");
       await expect(utilityCorner).toBeVisible();
-      await expect(utilityCorner.getByRole("button")).toHaveCount(1);
+      // The map edge holds TfL at the top and the Near me FAB at the thumb
+      // (components/mobile/MobileMapShell.tsx MapEdgeControls).
+      await expect(utilityCorner.getByRole("button")).toHaveCount(2);
       await expect(utilityCorner.getByRole("button", { name: /TfL live/ })).toBeVisible();
+      await expect(utilityCorner.locator(".mobileMapLocateFab")).toHaveAttribute("aria-pressed", "true");
       await expect(utilityCorner.getByRole("button", { name: "List view of venues on the map" })).toHaveCount(0);
 
       for (const selector of [
@@ -144,14 +160,18 @@ for (const viewport of VIEWPORTS) {
       await expect(
         page.getByRole("tablist", { name: "Map control sections" }),
       ).toBeVisible();
-      const sheetBefore = await page.locator(".mobileSharedSheet").boundingBox();
-      expect(sheetBefore?.x).toBe(0);
-      expect(sheetBefore?.width).toBe(viewport.width);
 
+      // The sheet is as tall as its tab's body, so the theme toggle is judged
+      // on the Layers tab it lives in, after the entrance has finished.
       const layerTabs = page.getByRole("tablist", { name: "Map control sections" });
       const layersTab = layerTabs.getByRole("tab", { name: "Layers" });
       await layersTab.click();
       const toggle = page.getByRole("button", { name: `Switch to ${theme === "light" ? "dark" : "light"} theme` });
+      await expect(toggle).toBeVisible();
+      await expect(page.locator(".mobileSharedSheet")).not.toHaveClass(/sheet-entering/);
+      const sheetBefore = await settledBox(page.locator(".mobileSharedSheet"));
+      expect(sheetBefore?.x).toBe(0);
+      expect(sheetBefore?.width).toBe(viewport.width);
       await toggle.click();
       const nextTheme = theme === "light" ? "dark" : "light";
       await expect(page.locator("html")).toHaveAttribute("data-theme", nextTheme);
@@ -177,7 +197,9 @@ for (const viewport of VIEWPORTS) {
       await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(0);
       await expect(page.locator(".mapVenueListPanel")).toBeVisible();
       await expect(page.getByRole("heading", { name: "Venues on the map" })).toBeVisible();
-      await page.getByRole("button", { name: "Close venue list" }).click();
+      // Opened from Map controls, the list offers Back, so its close names the map
+      // it returns to (components/map/MapVenueList.tsx).
+      await page.getByRole("button", { name: "Close and return to the London map" }).click();
       await expect(page.locator(".mapVenueListPanel")).toHaveCount(0);
 
       await page.getByRole("button", { name: "More map controls" }).click();
@@ -285,10 +307,19 @@ for (const theme of THEMES) {
         const key = "pubmaxx.mobile-map-session.v1";
         const raw = JSON.parse(window.localStorage.getItem(key) ?? "null") as Record<string, unknown> | null;
         if (!raw) throw new Error("mobile map session missing");
-        raw.viewport = { center: [-0.102, 51.513], zoom: nextZoom, pitch: nextPitch, bearing: 0 };
+        const viewport = { center: [-0.102, 51.513], zoom: nextZoom, pitch: nextPitch, bearing: 0 };
+        raw.viewport = viewport;
         raw.selectedVenueId = null;
         raw.openSheet = null;
         window.localStorage.setItem(key, JSON.stringify(raw));
+        // The map writes the same camera to its resume cache (lib/mapResume.ts),
+        // and that cache wins on reopen, so both stores carry the camera.
+        const resumeKey = "map-resume:v1:london";
+        const resume = JSON.parse(window.localStorage.getItem(resumeKey) ?? "null") as Record<string, unknown> | null;
+        if (resume) {
+          resume.viewport = viewport;
+          window.localStorage.setItem(resumeKey, JSON.stringify(resume));
+        }
       }, { nextZoom: zoom, nextPitch: pitch });
       await page.reload();
       await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });

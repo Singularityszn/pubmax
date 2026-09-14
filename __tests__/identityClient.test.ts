@@ -1,11 +1,46 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { DEVICE_IDENTITY_CHANGED_EVENT } from "@/lib/deviceAccountIdentity";
 import {
   emitIdentityHandleChanged,
   handleClaimRouteAfterSignIn,
   identityHandleForOwner,
   resolveCanonicalIdentity,
+  syncDeviceHandle,
 } from "@/lib/identityClient";
+
+describe("device handle sync", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("announces a changed handle and stays quiet when the same handle lands again", () => {
+    // Another tab signing in to the same account re-runs the canonical read. A
+    // notice for the handle already here made /social re-ask for access and
+    // close the composer that was open.
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        values.set(key, value);
+      },
+    };
+    const dispatchEvent = vi.fn();
+    vi.stubGlobal("window", { dispatchEvent });
+
+    syncDeviceHandle(storage, "@Alice");
+    expect(values.get("pubmax_handle")).toBe("alice");
+    expect(dispatchEvent).toHaveBeenCalledTimes(1);
+    expect(dispatchEvent.mock.calls[0]?.[0]).toMatchObject({ type: DEVICE_IDENTITY_CHANGED_EVENT });
+
+    syncDeviceHandle(storage, "alice");
+    expect(dispatchEvent).toHaveBeenCalledTimes(1);
+
+    syncDeviceHandle(storage, "bob");
+    expect(values.get("pubmax_handle")).toBe("bob");
+    expect(dispatchEvent).toHaveBeenCalledTimes(2);
+  });
+});
 
 describe("identity handle events", () => {
   afterEach(() => {

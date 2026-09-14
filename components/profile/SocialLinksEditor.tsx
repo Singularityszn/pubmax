@@ -13,19 +13,15 @@ import {
   type PublicSocialConnection,
   type SocialProvider,
 } from "@/lib/socialConnections";
-import { type SocialProviderCapabilities } from "@/lib/socialProviderCapabilities";
+import {
+  readProviderCapabilities,
+  type SocialProviderCapabilities,
+} from "@/lib/socialProviderCapabilities";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 type LoadState = "loading" | "ready" | "unavailable";
 
-const NO_SOCIAL_PROVIDERS = Object.fromEntries(
-  SOCIAL_PROVIDERS.map((provider) => [provider, {
-    manual_link: false,
-    oauth_identity: false,
-    read_selected_content: false,
-    publish: false,
-  }]),
-) as Record<SocialProvider, SocialProviderCapabilities>;
+const NO_SOCIAL_PROVIDERS = readProviderCapabilities(null);
 
 /**
  * OAuth buttons for certified providers. Environment keys cannot make an
@@ -91,7 +87,7 @@ export default function SocialLinksEditor(): React.JSX.Element | null {
       } | null;
       if (controller.signal.aborted) return;
       setConnections(body?.connections ?? []);
-      setProviders(body?.providers ?? NO_SOCIAL_PROVIDERS);
+      setProviders(readProviderCapabilities(body?.providers));
       setState("ready");
     }
     void load();
