@@ -239,19 +239,21 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - A selected chip is named `Zone 5 (selected)`, so the chip locator matches both names.
   - No product bug: the chip and the price row paint the same fill in both states.
   - Proof on the rig: red before the change (the regex, then the border read), then `map-story.spec.ts` and `drink-chip-controls.spec.ts` gave 69 passed on a 3x repeat at 2 workers.
+- [x] R41 surfaces that launch rebuilds removed or renamed (4 fixed): `founding-members.spec.ts:176`, `wanted-wave-a.spec.ts:42`, `map-performance.spec.ts:43`, `a11y-keyboard-loop.spec.ts:314` (`/`). The specs lied about the shipped product. Four causes, one per spec.
+  - `founding-members.spec.ts:176` wanted no `Founding member` text for an ordinary account. Since #1302 (1 Sep) You and Social carry `FoundersWallLink` ("Founding members", to `/founders`) for every reader. It reads nothing about the viewer, which `lib/foundingMembers.ts` asks for, so it is not a founding surface. The spec now counts founding text outside that link, checks that no `.accountHubFounding` card shows, and checks that each wall link is the plain label to `/founders` with no count. The Discord checks are unchanged.
+  - `wanted-wave-a.spec.ts:42` waited for a `What's the plan` heading on `/plan`. Since #1402 the Screen primitive owns the one h1, `Describe the outing. We’ll put it in order.` (`components/plan/PlanDescribeFirst.tsx`). The Wanted lane and `/api/wanted` checks are unchanged.
+  - `map-performance.spec.ts:43` tapped the landing's `Beer at … open on the map` link under `#signals`. #912 (8 Aug) removed the Night Signals section, and no shipped door writes `drink=beer&style=cheapest` now. The spec opens that map URL directly. It then opened a `Drinks` button and read a `Drink category` select, which #1631 removed. The spec now checks `Filters: drinks active`, the drink lane chip `Pints` (`DEFAULT_DRINK_LANE_LABEL`, `lib/drinkLanes.ts`), and `Beer (selected)` in the Filters sheet. The first-pins, loading and no-journey checks are unchanged.
+  - `a11y-keyboard-loop.spec.ts:314` found 7 SVG `g` elements "parked" on `/`. #1628 (7 Sep) draws London as a `role="img"` SVG, and each pin group sits at `transform="translate(x y)"` in the drawing's own units. That is placement, not a parked transition. The probe now skips an SVG element that carries a `transform` attribute. CSS transforms, the opacity check and `/tonight` and `/plan` are unchanged.
+  - No product bug: each spec now reads the shipped surface, and every behaviour check it held still runs.
+  - Proof on the rig: red before the change, then `founding-members` and `wanted-wave-a` gave 21 passed, `map-performance` gave 9 passed, and the reduced-motion tests gave 9 passed, each on a 3x repeat at 2 workers. `map-near-me.spec.ts:115` passed on this branch with no change.
 
 ## Reproduced on this branch, not yet grouped
 
 A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix specs that no group has touched. Each line is the first failing assertion.
 
-- `a11y-keyboard-loop.spec.ts:314`: reduced motion finds 7 `g` elements "parked" off their place on `/`.
-- `founding-members.spec.ts:176`: an ordinary account sees 1 `Founding member` text.
 - `map-console-health.spec.ts:78`: the compass (see R19).
-- `map-near-me.spec.ts:115`: a box read is `null` at 800px.
-- `map-performance.spec.ts:43`: no `Beer at ... open on the map` link on the landing page.
 - A second triage at `290fef1fc` (14 Sep 2026, rebuilt rig, 2 workers) found these still red:
-  - `wanted-wave-a.spec.ts:42`: no `What's the plan` heading on `/plan` in 20 s.
-  - `landmark-story-sheet.spec.ts:277`: red, first assertion not yet read.
+  - `landmark-story-sheet.spec.ts:277`: still red at `9d4df67c4`. It times out at 45 s on a predicate after `venuePortal` shows (line 273).
 - `map-tile-retry.spec.ts:43` and `:95`: a transient outage logs `tile failure burst, reloading style`, and a lasting outage shows no `.mapSoftRetry` or `.mapFallback` in 60 s. `playwright.config.ts` lists this spec in `chromium-gl`'s `testMatch` but not in `chromium`'s `testIgnore`, so `--project=chromium` also runs it without the GL launch flags. `map-console-health`, `map-arrival-turn`, `map-arrival-card-pins`, `map-desktop-arrival-chrome` and `map-webgl-recovery` have the same gap. Check each red under `--project=chromium-gl` before calling it a product red.
 
 ## Needs captain

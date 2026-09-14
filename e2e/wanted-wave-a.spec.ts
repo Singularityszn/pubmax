@@ -50,7 +50,11 @@ test.describe("Wanted Wave A phone chrome", () => {
       }
     });
     await page.goto("/plan", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: /What.?s the plan/i })).toBeVisible({
+    // Since #1402 the Screen primitive owns the planner's one heading
+    // (components/plan/PlanDescribeFirst.tsx).
+    await expect(
+      page.getByRole("heading", { name: /Describe the outing\. We.ll put it in order\./ }),
+    ).toBeVisible({
       timeout: 20_000,
     });
     await expect(page.getByLabel("Your Wanted list")).toHaveCount(0);

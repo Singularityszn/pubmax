@@ -108,6 +108,22 @@ function discordLink(page: Page) {
   return page.locator(`a[href*="${DISCORD_HOST}"]`);
 }
 
+// Any founding text that is not the public wall link. Since #1302 You and
+// Social carry `FoundersWallLink` ("Founding members", to /founders) for every
+// reader, and it reads nothing about the viewer (lib/foundingMembers.ts), so it
+// is not a founding surface. The mark, the card and the door still are.
+function foundingSurfaceText(page: Page) {
+  return page.getByText(/Founding member/i).and(page.locator(":not(a.foundersWallLink)"));
+}
+
+async function expectOnlyThePlainWallLink(page: Page): Promise<void> {
+  const wallLinks = page.locator("a.foundersWallLink");
+  for (let index = 0; index < (await wallLinks.count()); index += 1) {
+    await expect(wallLinks.nth(index)).toHaveText("Founding members");
+    await expect(wallLinks.nth(index)).toHaveAttribute("href", "/founders");
+  }
+}
+
 test.use({ storageState: { cookies: [], origins: [] } });
 
 test.describe("a founding member", () => {
@@ -182,14 +198,17 @@ test.describe("an ordinary account", () => {
     });
     // No door, and nothing telling them what they missed.
     await expect(discordLink(page)).toHaveCount(0);
-    await expect(page.getByText(/Founding member/i)).toHaveCount(0);
+    await expect(foundingSurfaceText(page)).toHaveCount(0);
+    await expectOnlyThePlainWallLink(page);
     await page.screenshot({ path: `${SHOTS}/phone-4-ordinary-arrival.png` });
 
     await page.goto("/u/you");
     await page.waitForLoadState("domcontentloaded");
     await page.waitForTimeout(2_500);
     await expect(discordLink(page)).toHaveCount(0);
-    await expect(page.getByText(/Founding member/i)).toHaveCount(0);
+    await expect(page.locator(".accountHubFounding")).toHaveCount(0);
+    await expect(foundingSurfaceText(page)).toHaveCount(0);
+    await expectOnlyThePlainWallLink(page);
     await expect(page.getByText(/Discord/i)).toHaveCount(0);
     await page.screenshot({ path: `${SHOTS}/phone-5-ordinary-you.png`, fullPage: true });
   });

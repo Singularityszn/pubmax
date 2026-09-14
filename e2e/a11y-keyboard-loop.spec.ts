@@ -347,6 +347,10 @@ test.describe("reduced motion: no meaning is carried by movement alone", () => {
         const offenders: string[] = [];
         for (const el of Array.from(document.body.querySelectorAll<HTMLElement>("*"))) {
           if (el.closest("[aria-hidden='true']")) continue;
+          // An SVG `transform` attribute places a shape in the drawing's own
+          // units, and it never moves. The landing's London drawing (#1628)
+          // seats each pin that way, so it is placement, not a parked transition.
+          if ((el as Element) instanceof SVGElement && el.hasAttribute("transform")) continue;
           const style = getComputedStyle(el);
           if (!style.transform || style.transform === "none") continue;
           const parts = style.transform
