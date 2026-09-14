@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 import {
   INITIAL_TILE_FAILURE_SPEND,
@@ -8,6 +11,7 @@ import {
   TILE_SILENT_RETRY_MAX,
   TILE_SILENT_RETRY_MAX_DELAY_MS,
   areBasemapTilesLoaded,
+  basemapRecoveryConfirmed,
   basemapSourceReloadPlan,
   classifyTileFailure,
   clearSilentTileRetries,
@@ -23,6 +27,7 @@ import {
   silentTileRetriesLeft,
   silentTileRetryDelayMs,
   spendTileFailureDecision,
+  tileFailureAwaitsCameraRest,
   tileFailureRecheckDelay,
   type TileFailureInput,
 } from "@/lib/mapTileFailure";
@@ -556,6 +561,104 @@ describe("the silent basemap-source retry lane", () => {
     expect(silentTileRetryDelayMs(0)).toBe(TILE_SILENT_RETRY_BASE_DELAY_MS);
     expect(silentTileRetryDelayMs(1)).toBe(TILE_SILENT_RETRY_BASE_DELAY_MS * 2);
     expect(silentTileRetryDelayMs(20)).toBe(TILE_SILENT_RETRY_MAX_DELAY_MS);
+  });
+});
+
+// A dead tile host can spend every error inside the 1 s arrival turn. MapLibre
+// never re-asks for those tiles, so no error follows the turn, and without a
+// re-read at rest the map took no lane and told the reader nothing
+// (e2e/map-tile-retry.spec.ts "tiles never come back").
+describe("a tile burst that lands inside a camera flight", () => {
+  const coldBurst = Array.from({ length: TILE_FAILURE_BURST }, (_, i) => NOW - i * 10);
+
+  it("asks for one re-read at rest only for an ignored in-flight sample on a visible tab", () => {
+    expect(
+      tileFailureAwaitsCameraRest({
+        decision: "ignore",
+        cameraInFlight: true,
+        documentVisible: true,
+      }),
+    ).toBe(true);
+    expect(
+      tileFailureAwaitsCameraRest({
+        decision: "ignore",
+        cameraInFlight: false,
+        documentVisible: true,
+      }),
+    ).toBe(false);
+    expect(
+      tileFailureAwaitsCameraRest({
+        decision: "ignore",
+        cameraInFlight: true,
+        documentVisible: false,
+      }),
+    ).toBe(false);
+    expect(
+      tileFailureAwaitsCameraRest({
+        decision: "retry-source",
+        cameraInFlight: true,
+        documentVisible: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("enters the silent lane at rest from the stamps the flight ignored", () => {
+    const sample = {
+      ...bursting,
+      errorTimestamps: coldBurst,
+      initialBasemapPending: true,
+      silentRetriesLeft: TILE_SILENT_RETRY_MAX,
+    };
+    expect(classifyTileFailure({ ...sample, cameraInFlight: true })).toBe("ignore");
+    expect(classifyTileFailure({ ...sample, now: NOW + 1_000 })).toBe("retry-source");
+  });
+
+  it("keeps the stamps when a frame over errored tiles only looks settled", () => {
+    const settledOverErrors = {
+      tilesLoaded: true,
+      recheckPending: false,
+      unrecoveredFailures: false,
+      basemapTileLoaded: false,
+    };
+    expect(basemapRecoveryConfirmed(settledOverErrors)).toBe(false);
+    expect(
+      basemapRecoveryConfirmed({ ...settledOverErrors, basemapTileLoaded: true }),
+    ).toBe(true);
+    expect(
+      basemapRecoveryConfirmed({
+        ...settledOverErrors,
+        basemapTileLoaded: true,
+        unrecoveredFailures: true,
+      }),
+    ).toBe(false);
+    expect(
+      basemapRecoveryConfirmed({
+        ...settledOverErrors,
+        basemapTileLoaded: true,
+        recheckPending: true,
+      }),
+    ).toBe(false);
+    expect(
+      basemapRecoveryConfirmed({
+        ...settledOverErrors,
+        basemapTileLoaded: true,
+        tilesLoaded: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("is armed by the canvas on moveend and re-reads the same stamps", () => {
+    const canvas = readFileSync(
+      path.join(process.cwd(), "components/PubMapCanvas.tsx"),
+      "utf8",
+    );
+    const branch = canvas.slice(
+      canvas.indexOf("tileFailureAwaitsCameraRest({"),
+      canvas.indexOf("const delay = initialBasemapPending"),
+    );
+    expect(branch).toContain('map.once("moveend"');
+    expect(branch).toContain("generation !== tileFailureGeneration");
+    expect(branch).toContain("evaluateTileFailure(");
   });
 });
 

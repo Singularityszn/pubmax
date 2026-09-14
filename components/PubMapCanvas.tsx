@@ -165,6 +165,7 @@ import {
   areBasemapTilesLoaded as readBasemapTilesLoaded,
   basemapFailureSurface,
   basemapSourceReloadPlan,
+  basemapRecoveryConfirmed,
   classifyTileFailure,
   clearSilentTileRetries,
   createBasemapTileFailureTracker,
@@ -178,6 +179,7 @@ import {
   silentTileRetriesLeft,
   silentTileRetryDelayMs,
   spendTileFailureDecision,
+  tileFailureAwaitsCameraRest,
   tileFailureRecheckDelay,
 } from "@/lib/mapTileFailure";
 import {
@@ -1603,6 +1605,7 @@ export default function PubMapCanvas({
     let tileSpend = INITIAL_TILE_FAILURE_SPEND;
     let tileFailureGeneration = 0;
     let tileFailureRecheckTimer: ReturnType<typeof setTimeout> | undefined;
+    let tileFailureRestRecheckArmed = false;
     let silentTileRetryTimer: ReturnType<typeof setTimeout> | undefined;
     const failedBasemapTiles = createBasemapTileFailureTracker();
     const clearTileFailureRecheck = () => {
@@ -1750,9 +1753,16 @@ export default function PubMapCanvas({
     };
     const markBasemapRecovered = () => {
       markPinsRecovered();
-      if (!areBasemapTilesLoaded()) return;
-      if (tileFailureRecheckTimer !== undefined) return;
-      if (failedBasemapTiles.hasFailures()) return;
+      if (
+        !basemapRecoveryConfirmed({
+          tilesLoaded: areBasemapTilesLoaded(),
+          recheckPending: tileFailureRecheckTimer !== undefined,
+          unrecoveredFailures: failedBasemapTiles.hasFailures(),
+          basemapTileLoaded: basemapTileReadyForPaint,
+        })
+      ) {
+        return;
+      }
       initialBasemapPending = false;
       tileFailureStamps = [];
       clearSilentTileRetryTimer();
@@ -2510,6 +2520,36 @@ export default function PubMapCanvas({
         initialBasemapPending,
       });
       if (decision === "ignore") {
+        // Every error of a dead tile host can land inside the arrival turn, and
+        // no error follows it, so the stamps are read once more at rest.
+        if (
+          !tileFailureRestRecheckArmed &&
+          tileFailureAwaitsCameraRest({
+            decision,
+            cameraInFlight: map.isMoving(),
+            documentVisible: document.visibilityState !== "hidden",
+          })
+        ) {
+          tileFailureRestRecheckArmed = true;
+          const generation = tileFailureGeneration;
+          map.once("moveend", () => {
+            tileFailureRestRecheckArmed = false;
+            if (
+              generation !== tileFailureGeneration ||
+              tileSpend.surfaced ||
+              mapRef.current !== map ||
+              tileFailureStamps.length === 0
+            ) {
+              return;
+            }
+            evaluateTileFailure(
+              performance.now(),
+              false,
+              message,
+              document.visibilityState !== "hidden" && !map.isMoving(),
+            );
+          });
+        }
         const delay = initialBasemapPending
           ? null
           : tileFailureRecheckDelay(tileFailureStamps, now);
