@@ -463,9 +463,6 @@ export const LANDING_CTA_TARGETS = [
   "tonight",
   "receipt",
   "today",
-  // The Pro waitlist opens a mail app; nothing is stored, so this event is the
-  // only record that anybody asked (components/landing/LandingFaq.tsx).
-  "pro-waitlist",
 ] as const;
 export type LandingCtaTarget = (typeof LANDING_CTA_TARGETS)[number];
 
