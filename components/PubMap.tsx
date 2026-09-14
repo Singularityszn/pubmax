@@ -6334,7 +6334,9 @@ export default function PubMap({
             (sheetDragY !== null ? " sheet-dragging" : "")
           }
           aria-hidden={!detailOpen}
-          aria-modal={detailOpen ? true : undefined}
+          // Not modal while the mapped-route chip is live beside it: that chip
+          // is an exempt surface of the drawer's focus trap.
+          aria-modal={detailOpen && !routeMappedActive ? true : undefined}
           role={detailOpen ? "dialog" : undefined}
           aria-label={detailOpen ? selectedVenueLabels.detailLabel : undefined}
         >
