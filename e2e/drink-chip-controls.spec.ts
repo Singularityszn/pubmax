@@ -196,32 +196,52 @@ test("390px fare-zone rows agree through selection and reset", async ({ page }) 
   expect(await pressedLabels(zoneGroup)).toEqual(["All"]);
   expect(await pressedLabels(zonePriceGroup)).toEqual([]);
 
-  await zoneGroup.getByRole("button", { name: "Zone 5", exact: true }).click();
+  const zoneFivePrice = zonePriceGroup.locator('button[title^="Zone 5:"]');
+  // A selected chip is named "Zone 5 (selected)", so one locator has to
+  // match the chip in both states.
+  const zoneFiveChip = zoneGroup.getByRole("button", {
+    name: /^Zone 5(?: \(selected\))?$/,
+  });
+  // The two lists agree in paint as well as in state. Since #700 the map
+  // picker's zones are one segmented control and the price rows are borderless,
+  // so neither paints a selection border: selection is the fill
+  // (components/map/zonePicker.css, components/zones/zonePintIndex.css). A
+  // border read on a 0px edge only returns currentColor, so the check compares
+  // the fill, once selected and once at rest, after the fill transition ends.
+  const backgroundOf = (control: Locator) =>
+    control.evaluate((button) => getComputedStyle(button).backgroundColor);
+  const zoneFiveFillsAgree = () =>
+    expect
+      .poll(async () => {
+        const [price, chip] = await Promise.all([
+          backgroundOf(zoneFivePrice),
+          backgroundOf(zoneFiveChip),
+        ]);
+        return price === chip ? "same fill" : `price ${price}, chip ${chip}`;
+      })
+      .toBe("same fill");
+
+  await zoneFiveChip.click();
   expect(await pressedLabels(zoneGroup)).toEqual(["Zone 5"]);
   const pressedPriceLabels = await pressedLabels(zonePriceGroup);
   expect(pressedPriceLabels).toHaveLength(1);
-  // The zone, not the price. This pinned /^Zone 5£\d/ and read
-  // "Zone 50/10log more" on a build where zone 5 has fewer than ten priced
-  // pubs, which is an honest scarcity answer rather than a broken row. What the
-  // test is for is that the two lists agree on WHICH zone is selected.
-  // `\b` cannot help here: the row reads "Zone 5" then "0/10", so the character
-  // after the 5 is a digit and there is no word boundary to find.
-  expect(pressedPriceLabels[0]).toMatch(/^Zone 5(?![0-9])/);
+  // The zone, not the price. A thin zone's row reads "Zone 5" then "2/10" then
+  // "log more", so the text runs "Zone 52/10log more" and no pattern on the
+  // whole label can tell zone 5 from zone 52. What the test is for is that the
+  // two lists agree on WHICH zone is selected, so it reads the cell's own zone
+  // name (components/zones/ZonePintIndexStrip.tsx).
+  await expect(
+    zonePriceGroup.locator('button[aria-pressed="true"] .zonePintCellZone'),
+  ).toHaveText("Zone 5");
+  await zoneFiveFillsAgree();
+  const selectedFill = await backgroundOf(zoneFiveChip);
 
   await zoneGroup.getByRole("button", { name: "All", exact: true }).click();
   expect(await pressedLabels(zoneGroup)).toEqual(["All"]);
   expect(await pressedLabels(zonePriceGroup)).toEqual([]);
 
-  const zoneFivePrice = zonePriceGroup.locator('button[title^="Zone 5:"]');
-  const zoneFiveChip = zoneGroup.getByRole("button", {
-    name: "Zone 5",
-    exact: true,
-  });
-  expect(
-    await zoneFivePrice.evaluate((button) => getComputedStyle(button).borderColor),
-  ).toBe(
-    await zoneFiveChip.evaluate((button) => getComputedStyle(button).borderColor),
-  );
+  await expect.poll(() => backgroundOf(zoneFiveChip)).not.toBe(selectedFill);
+  await zoneFiveFillsAgree();
 });
 
 test("390px zone figures state their calculation and assignment basis", async ({

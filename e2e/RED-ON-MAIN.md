@@ -224,6 +224,21 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - The helper now retries the tap inside `toPass` until the search field is visible, and it taps only when the field is not yet visible, because the toggle closes an open search. The desktop path and every check after the field opens are unchanged. `:62` (mobile miss) uses the same helper.
   - No product bug: the toggle opens the search field once React has attached.
   - Proof on the rig: red before the change (1 of 10 failed, the field not found), then the spec file gave 30 passed on a 3x repeat at 2 workers.
+- [x] R38 `a11y-core-journeys.spec.ts:115` "discover: tonight" at 390 and 1440 light (2 fixed). A product bug the spec caught. The spec is unchanged.
+  - #1627 painted each hyped row's credit link (`.tonightHypedSource`) and its `Open on map` link (`.tonightHypedMap`, `.tonightChainRowMap`) with raw `var(--brass)` at small text. In light, that is 2.5 to 1 up to 2.9 to 1, so axe found `serious:color-contrast` on 9 nodes. Dark passed. This breaks the "coral is a fill and coral is a word" rule in `components/AGENTS.md`.
+  - Fixed: the three selectors use `var(--color-accent-ink)` (`app/tonight/tonightLede.css`). Dark keeps the same coral through `app/theme.css`. Pin: `HOLD_TO_INK` in `__tests__/accentInkContrast.test.ts`, red on the old CSS.
+  - Proof on the rebuilt rig (build at `c1da6b1fa`): the test gave 2 passed on a 2x repeat at 2 workers.
+- [x] R39 `map-story.spec.ts:120` (1 fixed). The spec lied about the shipped product.
+  - The spec found The Dove's Asahi row with `.drinkRow` and `hasText: /Asahi/i`. Since #1339 (3 Sep, "show public Pint Drops in venue menus", `lib/pintDropDrinks.ts`) each public Pint Drop joins the Drinks menu as its own row. The keyless store seeds two demo Asahi drops at The Dove (£7.00 and £7.20, badged `Demo`), so the locator matched 3 rows and hit strict mode.
+  - The spec now takes the Asahi row that carries the `Pint Prices` link. The £7.25, publisher href and footnote checks are unchanged.
+  - No product bug: each demo row carries its `Demo` badge, and the publisher row keeps its source link.
+  - Proof on the rig: red before the change (strict mode, 3 rows), then green in the R40 run below.
+- [x] R40 `drink-chip-controls.spec.ts:188` (1 fixed). The spec lied about the shipped product, in three steps.
+  - The spec matched the pressed price row's text with `/^Zone 5(?![0-9])/`. A thin zone's row reads `Zone 5`, `2/10`, `log more`, so the text is `Zone 52/10log more`, and the lookahead rejects it. The pattern passed only while zone 5 had 10 or more priced pubs. The spec now reads the cell's own `.zonePintCellZone` text.
+  - The spec then compared the resting border colour of the Zone 5 price row and the Zone 5 chip (#683). Since #700 (3 Aug) the map picker's zones are one segmented control with hairlines, the price rows are borderless, and selection is the fill (`components/map/zonePicker.css`, `components/zones/zonePintIndex.css`). A 0px edge reports `currentColor`, so the read compared ink colours (`rgb(63, 63, 70)` against the chip's hairline set). The spec now checks that the two controls paint the same fill when Zone 5 is selected and again at rest, and that the fill changes on reset.
+  - A selected chip is named `Zone 5 (selected)`, so the chip locator matches both names.
+  - No product bug: the chip and the price row paint the same fill in both states.
+  - Proof on the rig: red before the change (the regex, then the border read), then `map-story.spec.ts` and `drink-chip-controls.spec.ts` gave 69 passed on a 3x repeat at 2 workers.
 
 ## Reproduced on this branch, not yet grouped
 
@@ -236,8 +251,7 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 - `map-performance.spec.ts:43`: no `Beer at ... open on the map` link on the landing page.
 - A second triage at `290fef1fc` (14 Sep 2026, rebuilt rig, 2 workers) found these still red:
   - `wanted-wave-a.spec.ts:42`: no `What's the plan` heading on `/plan` in 20 s.
-  - `a11y-core-journeys.spec.ts:115`: the axe gate fails on `/tonight` at 390 and 1440 light. Reproduced at `82c86f7b3`: `serious:color-contrast` on each hyped row's `.tonightHypedSource` link and its pub link (`a[href="/map?sel=venue-s2ppfm"]`, 9 nodes). The dark theme passes. `.tonightHypedSource` (#1627, `app/tonight/tonightLede.css`) paints `var(--brass)` at 0.76rem inside `.tonightHypedCredit`, so the lead is the light `--brass` on the page floor at small text. This is a product red: fix the token use in the product and keep the spec.
-  - `map-story.spec.ts:120`, `drink-chip-controls.spec.ts:188`, `landmark-story-sheet.spec.ts:277`: red, first assertion not yet read.
+  - `landmark-story-sheet.spec.ts:277`: red, first assertion not yet read.
 - `map-tile-retry.spec.ts:43` and `:95`: a transient outage logs `tile failure burst, reloading style`, and a lasting outage shows no `.mapSoftRetry` or `.mapFallback` in 60 s. `playwright.config.ts` lists this spec in `chromium-gl`'s `testMatch` but not in `chromium`'s `testIgnore`, so `--project=chromium` also runs it without the GL launch flags. `map-console-health`, `map-arrival-turn`, `map-arrival-card-pins`, `map-desktop-arrival-chrome` and `map-webgl-recovery` have the same gap. Check each red under `--project=chromium-gl` before calling it a product red.
 
 ## Needs captain
