@@ -218,6 +218,12 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - The focus outline check then read 2.58, where 3 or more is wanted. #700 also made the tab rail `transparent`, so the rail's backdrop is the dark sheet, which is 82% `--panel-overlay` (`--sheet-material`, `app/theme.css`). `resolveBackdrop` composited that sheet over white, so 18% white showed through and the rail read as about rgb(80, 80, 85). A screenshot probe on the rig paints the rail at rgb(39, 38, 42) and the tab fill at rgb(32, 32, 36), and coral `#ff5a5f` on either is about 4.9 to 1. `resolveBackdrop` now composites over the page floor, the first stop of the body's painted gradient (rgb(10, 10, 11) in dark). The 3 to 1 floor is unchanged.
   - No product bug: the focused tab's coral outline is 2px, drawn inside the tab, and clears 3 to 1 against both colours next to it.
   - Proof on the rig: red before the change (0 gradient stops, then 2.58), then the spec file gave 12 passed on a 3x repeat at 2 workers. No product code changed.
+- [x] R37 `map-search-no-results.spec.ts:160` mobile dark normal and mobile dark reduced (2 fixed). The spec raced hydration.
+  - `openMapSearch` read `getByRole("button", { name: "Search the map" }).count()` and tapped once. The phone top bar paints that toggle from server HTML, so the tap could land before React attached and open nothing, or the count could read 0 before the bar painted and skip the tap. The field then never showed in 20 s. The error snapshot shows the toggle on screen and not expanded. This is the "lone click" case in `e2e/AGENTS.md`.
+  - On this branch a different phone case failed each run (mobile light reduced on the first run), which fits a race and not one theme.
+  - The helper now retries the tap inside `toPass` until the search field is visible, and it taps only when the field is not yet visible, because the toggle closes an open search. The desktop path and every check after the field opens are unchanged. `:62` (mobile miss) uses the same helper.
+  - No product bug: the toggle opens the search field once React has attached.
+  - Proof on the rig: red before the change (1 of 10 failed, the field not found), then the spec file gave 30 passed on a 3x repeat at 2 workers.
 
 ## Reproduced on this branch, not yet grouped
 
@@ -230,9 +236,8 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 - `map-performance.spec.ts:43`: no `Beer at ... open on the map` link on the landing page.
 - A second triage at `290fef1fc` (14 Sep 2026, rebuilt rig, 2 workers) found these still red:
   - `wanted-wave-a.spec.ts:42`: no `What's the plan` heading on `/plan` in 20 s.
-  - `a11y-core-journeys.spec.ts:115`: the axe gate fails on `/tonight` at 390 and 1440 light.
+  - `a11y-core-journeys.spec.ts:115`: the axe gate fails on `/tonight` at 390 and 1440 light. Reproduced at `82c86f7b3`: `serious:color-contrast` on each hyped row's `.tonightHypedSource` link and its pub link (`a[href="/map?sel=venue-s2ppfm"]`, 9 nodes). The dark theme passes. `.tonightHypedSource` (#1627, `app/tonight/tonightLede.css`) paints `var(--brass)` at 0.76rem inside `.tonightHypedCredit`, so the lead is the light `--brass` on the page floor at small text. This is a product red: fix the token use in the product and keep the spec.
   - `map-story.spec.ts:120`, `drink-chip-controls.spec.ts:188`, `landmark-story-sheet.spec.ts:277`: red, first assertion not yet read.
-- `map-search-no-results.spec.ts:160` (mobile dark normal): the search field did not show in 20 s. The other 7 cases passed in the same run.
 - `map-tile-retry.spec.ts:43` and `:95`: a transient outage logs `tile failure burst, reloading style`, and a lasting outage shows no `.mapSoftRetry` or `.mapFallback` in 60 s. `playwright.config.ts` lists this spec in `chromium-gl`'s `testMatch` but not in `chromium`'s `testIgnore`, so `--project=chromium` also runs it without the GL launch flags. `map-console-health`, `map-arrival-turn`, `map-arrival-card-pins`, `map-desktop-arrival-chrome` and `map-webgl-recovery` have the same gap. Check each red under `--project=chromium-gl` before calling it a product red.
 
 ## Needs captain

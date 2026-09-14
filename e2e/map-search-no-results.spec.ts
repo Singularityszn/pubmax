@@ -46,13 +46,18 @@ async function openMapSearch(page: Page, width: number) {
     timeout: 45_000,
   });
   await page.locator(".mapLoading").waitFor({ state: "hidden", timeout: 45_000 }).catch(() => {});
-  if (width < 768) {
-    const open = page.getByRole("button", { name: "Search the map" });
-    if (await open.count()) await open.click();
-  }
   const search = page
     .locator('#mapSearchInput, #mobileMapSearchInput, input[type="search"][aria-label="Search pubs"]')
     .first();
+  if (width < 768) {
+    // The phone top bar paints its search toggle from server HTML, so a lone
+    // tap can land before React attaches and open nothing (e2e/AGENTS.md).
+    const open = page.getByRole("button", { name: "Search the map" });
+    await expect(async () => {
+      if (!(await search.isVisible())) await open.click();
+      await expect(search).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+  }
   await expect(search).toBeVisible({ timeout: 20_000 });
   await search.click();
   return search;
