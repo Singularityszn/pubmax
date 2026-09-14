@@ -1,0 +1,114 @@
+import { expect, test, type Locator, type Page } from "@playwright/test";
+
+// The mapped-route chip belongs to the map, not to the venue drawer. While the
+// desktop drawer is open its focus trap used to make the whole map stage
+// inert, so "Check last train at final stop" took no click and no Enter, and
+// the chip sat 24px under the drawer's left edge at 1440. The chip is an
+// exempt surface of that trap now: a pointer and a keyboard both reach it, and
+// it sits in the map lane the drawer leaves.
+
+const FIRST_STOP = "venue-yl1a48";
+const FINAL_STOP = "venue-1vle947";
+
+const FOCUSABLE =
+  'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible';
+
+async function openFirstStopDrawer(page: Page, width: number) {
+  await page.setViewportSize({ width, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+
+  const response = await page.goto(
+    `/map?mode=build&pubs=${FIRST_STOP}%2C${FINAL_STOP}&sel=${FIRST_STOP}`,
+  );
+  expect(response?.status()).toBe(200);
+
+  const drawer = page.locator(".mapDrawer.right.open");
+  await expect(drawer).toBeVisible({ timeout: 60_000 });
+  await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(FIRST_STOP);
+
+  const chip = page.locator(".mappedRouteChip").filter({ visible: true });
+  await expect(chip).toBeVisible({ timeout: 60_000 });
+  return { drawer, chip };
+}
+
+async function expectFinalStopLastTrain(page: Page, drawer: Locator) {
+  await expect.poll(() => new URL(page.url()).searchParams.get("sel"), {
+    timeout: 30_000,
+  }).toBe(FINAL_STOP);
+  await expect(drawer).toBeVisible();
+  const fold = drawer.locator("#venueSection-getting-home");
+  await expect(fold).toHaveAttribute("open", "", { timeout: 30_000 });
+  await expect(fold.getByLabel("Last Pint")).toBeVisible();
+}
+
+test.describe("desktop drawer leaves the route chip reachable", () => {
+  test("a click on Check last train opens the final stop's last-train card", async ({
+    page,
+  }) => {
+    test.slow();
+    const { drawer, chip } = await openFirstStopDrawer(page, 1440);
+
+    const door = chip.getByRole("button", { name: "Check last train at final stop" });
+    expect(await door.evaluate((node) => node.closest("[inert]") === null)).toBe(true);
+    await door.click({ timeout: 10_000 });
+
+    await expectFinalStopLastTrain(page, drawer);
+  });
+
+  test("Tab leaves the drawer for the chip, and Enter opens the last-train card", async ({
+    page,
+  }) => {
+    test.slow();
+    const { drawer, chip } = await openFirstStopDrawer(page, 1440);
+
+    const closeButton = drawer.getByRole("button", { name: /Close/ });
+    await expect(closeButton).toBeFocused();
+
+    // Forward from the drawer's last control the trap hands focus to the
+    // chip's first control, then back into the drawer after its last one.
+    const chipControls = chip.locator(FOCUSABLE);
+    await drawer.locator(FOCUSABLE).last().focus();
+    await page.keyboard.press("Tab");
+    await expect(chipControls.first()).toBeFocused();
+
+    const door = chip.getByRole("button", { name: "Check last train at final stop" });
+    await page.keyboard.press("Tab");
+    await expect(door).toBeFocused();
+
+    await chipControls.last().focus();
+    await page.keyboard.press("Tab");
+    await expect(closeButton).toBeFocused();
+
+    await page.keyboard.press("Shift+Tab");
+    await expect(chipControls.last()).toBeFocused();
+
+    await door.focus();
+    await page.keyboard.press("Enter");
+    await expectFinalStopLastTrain(page, drawer);
+  });
+
+  for (const width of [1440, 1280]) {
+    test(`at ${width} the chip sits clear of the open drawer`, async ({ page }) => {
+      test.slow();
+      const { drawer, chip } = await openFirstStopDrawer(page, width);
+
+      const drawerBox = await drawer.boundingBox();
+      const chipBox = await chip.boundingBox();
+      expect(drawerBox).not.toBeNull();
+      expect(chipBox).not.toBeNull();
+      expect(chipBox!.x + chipBox!.width).toBeLessThanOrEqual(drawerBox!.x);
+      expect(chipBox!.x).toBeGreaterThanOrEqual(0);
+
+      const heights = await chip
+        .locator("button")
+        .evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().height));
+      expect(heights.length).toBe(3);
+      for (const height of heights) expect(height).toBeGreaterThanOrEqual(44);
+    });
+  }
+});
