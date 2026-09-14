@@ -213,6 +213,11 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - `:178` now waits for at least one held profile read. `:252` waits for the first (failed) avatar request and the fallback, then repeats the `online` event inside `toPass` until the image `src` returns, as e2e/AGENTS.md retries a dropped tap. The `naturalWidth > 0` check and the "at least 2 avatar requests" check are unchanged.
   - No product bug for these specs: a reconnect retries the image after a failure. Lead, not a red: the context field is documented as an "opaque account boundary", but it also advances on auth-state changes, so every surface keyed on it reads again once on first load. A fix belongs in `components/auth/AuthProvider.tsx` and changes the auth seam, so it is not in this group.
   - Proof on the rig: `:247` failed 2 of 3 before the change. After it, `:178` and `:252` each gave 5 passed on a 5x repeat at 1 worker, and the full file gave 6 passed at 2 workers.
+- [x] R36 `dark-primary-surfaces.spec.ts:229` (now `:223`) at 390 and 430 (2 fixed). The spec lied about the shipped product, in two steps. Both come from #700 (3 Aug, "Selection is the fill", `components/map/venueSheet.css`).
+  - The spec (#684, 30 Jul) measured the active venue tab as a gradient. #700 replaced the coral gradient with a flat `--panel-raised` fill, ink text and a 2px coral underline. The gradient read found 0 colour stops, so the check failed on `expected 0 to be greater than 0`. The spec now checks that the active tab has no `background-image` and measures its text over the flat fill. The gradient path had no other caller, so it is gone.
+  - The focus outline check then read 2.58, where 3 or more is wanted. #700 also made the tab rail `transparent`, so the rail's backdrop is the dark sheet, which is 82% `--panel-overlay` (`--sheet-material`, `app/theme.css`). `resolveBackdrop` composited that sheet over white, so 18% white showed through and the rail read as about rgb(80, 80, 85). A screenshot probe on the rig paints the rail at rgb(39, 38, 42) and the tab fill at rgb(32, 32, 36), and coral `#ff5a5f` on either is about 4.9 to 1. `resolveBackdrop` now composites over the page floor, the first stop of the body's painted gradient (rgb(10, 10, 11) in dark). The 3 to 1 floor is unchanged.
+  - No product bug: the focused tab's coral outline is 2px, drawn inside the tab, and clears 3 to 1 against both colours next to it.
+  - Proof on the rig: red before the change (0 gradient stops, then 2.58), then the spec file gave 12 passed on a 3x repeat at 2 workers. No product code changed.
 
 ## Reproduced on this branch, not yet grouped
 
@@ -226,7 +231,7 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 - A second triage at `290fef1fc` (14 Sep 2026, rebuilt rig, 2 workers) found these still red:
   - `wanted-wave-a.spec.ts:42`: no `What's the plan` heading on `/plan` in 20 s.
   - `a11y-core-journeys.spec.ts:115`: the axe gate fails on `/tonight` at 390 and 1440 light.
-  - `map-story.spec.ts:120`, `drink-chip-controls.spec.ts:188`, `dark-primary-surfaces.spec.ts:229` (2), `landmark-story-sheet.spec.ts:277`: red, first assertion not yet read.
+  - `map-story.spec.ts:120`, `drink-chip-controls.spec.ts:188`, `landmark-story-sheet.spec.ts:277`: red, first assertion not yet read.
 - `map-search-no-results.spec.ts:160` (mobile dark normal): the search field did not show in 20 s. The other 7 cases passed in the same run.
 - `map-tile-retry.spec.ts:43` and `:95`: a transient outage logs `tile failure burst, reloading style`, and a lasting outage shows no `.mapSoftRetry` or `.mapFallback` in 60 s. `playwright.config.ts` lists this spec in `chromium-gl`'s `testMatch` but not in `chromium`'s `testIgnore`, so `--project=chromium` also runs it without the GL launch flags. `map-console-health`, `map-arrival-turn`, `map-arrival-card-pins`, `map-desktop-arrival-chrome` and `map-webgl-recovery` have the same gap. Check each red under `--project=chromium-gl` before calling it a product red.
 
