@@ -148,6 +148,11 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - The spec now seeds `pubmax:consent-answer-moment:v1` as `venue-sheet`, as `analytics-consent.spec.ts` does. The wait itself stays owned by `e2e/consent-after-first-answer.spec.ts`. Every check on the `$exception` event is unchanged.
   - No product bug: once consent is given, the crash reaches the capture endpoint as `TypeError` / `Redacted (/)`, with no user text.
   - Proof on the rig: red before the change (the card was not found), then 3 passed on a 3x repeat at 2 workers. The other specs that read the card, `night-mode-chrome.spec.ts` and `messages-thread.spec.ts`, gave 13 passed.
+- [x] R23 `site-nav-more.spec.ts:3` (1 fixed). The spec lied about the shipped product.
+  - The spec wanted the More menu's Plan item to read `Build a three-stop outing`. Since #1512 (5 Sep, "a Plan may be one pub") `SITE_NAV_MORE_LINKS` in `components/nav/SiteNavMore.tsx` reads `Build a night out`, and `__tests__/siteNav.test.ts` pins that copy.
+  - The spec now expects `PlanBuild a night out`. The short viewport fit, focus, `End`, `Escape` and `ArrowUp` checks are unchanged.
+  - No product bug: a three-stop promise is false for a one-pub Plan.
+  - Proof on the rig: red before the change (`Build a night out` received), then green on a 3x repeat at 1 worker.
 
 ## Reproduced on this branch, not yet grouped
 
@@ -167,7 +172,6 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 - `near-desk-mode.spec.ts:59`: React error #418 (a hydration text mismatch).
 - `near-venue-acceptance.spec.ts:27`: a control is 44px where the spec wants 48px.
 - `quality-floor.spec.ts:155`: no `Non-alcoholic` checkbox in the planner's `.controlRail`.
-- `site-nav-more.spec.ts:3`: the More menu reads `Build a night out`, where the spec wants `Build a three-stop outing`.
 - `venue-acceptance.spec.ts:68`: 2 venue actions, where the spec wants 3 or more.
 
 ## Needs captain
@@ -181,7 +185,7 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 
 ## Verify reds
 
-- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
+- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
 
 ## Appendix: main stable-failure set by root cause (origin/main aa6470eec, 197 tests)
 
