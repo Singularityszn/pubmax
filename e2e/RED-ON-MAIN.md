@@ -133,6 +133,11 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - Product bug: a top bar control that closed its own open overlay (`Search the map`, `Filters`, `More map controls`, the drink and Tonight chips) set the overlay to `none` and left that surface on the map trail. The trail hook asks every deliberate exit to call `back()` or `home()` (`components/map/pubmap/useMapSurfaceNavigation.ts`). So after the reader closed search, the Filters sheet offered `Back to Search`, and the first browser Back changed nothing on screen. The new `:30` close step caught it. Fixed: the toggle steps back down the trail, as Escape does (`components/mobile/MobileMapShell.tsx`, the full and the limited-coverage bar). Pin: `__tests__/mapShellSheetOwnership.test.ts` "an open overlay's own control closes it down the trail", red on the old toggle.
   - Proof on the rebuilt rig: both spec files gave 6 passed on a 2x repeat. `surface-back-and-home`, `map-surface-history`, `mobile-map-chrome-fit`, `mobile-map-shell-matrix`, `mobile-bottom-nav`, `map-search-typing` and `mobile-map-list-obstruction` gave 67 passed.
   - Found on the way, not fixed: `map-console-health.spec.ts:78` waits for `.mapCompassBtn` on a desktop map at rest and on a 390px map. Since #1631 the one compass is in the desktop Layers popover only. The phone Layers tab (`MapLayersControl embedded` in `components/PubMap.tsx`) gets no camera actions, so a phone reader can turn or tilt the map and has no control to reset it. Before #1631 the phone had a 44px compass on the map edge.
+- [x] R20 `w3-getting-there.spec.ts` (2 fixed): `:16` (now `:30`) and `:105` (now `:119`). The spec lied about the shipped product.
+  - The spec (16 Jul) read the `Getting there` region straight from the venue sheet's Overview. #684 (30 Jul) folded that region into the Overview's `Details and practical info` disclosure (`details.venueOverviewMore`, `components/map/inspector/VenueOverviewTab.tsx`), which is closed on arrival. `mobile-venue-sheet-tabs.spec.ts` already checks that it starts closed. So `Share location for travel times` was in the DOM but hidden, and both tests waited out their budget.
+  - The spec now opens the disclosure first (a retried tap on its summary, the e2e/AGENTS.md idiom) and reads the region inside it. Every privacy, routes, Forget and Retry check is unchanged.
+  - No product bug: the error snapshot shows the sheet on Prospect of Whitby with the disclosure closed, and the region answers once the disclosure opens.
+  - Proof on the rig: the spec file gave 4 passed on a 2x repeat at 2 workers.
 
 ## Reproduced on this branch, not yet grouped
 
@@ -156,7 +161,6 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 - `quality-floor.spec.ts:155`: no `Non-alcoholic` checkbox in the planner's `.controlRail`.
 - `site-nav-more.spec.ts:3`: the More menu reads `Build a night out`, where the spec wants `Build a three-stop outing`.
 - `venue-acceptance.spec.ts:68`: 2 venue actions, where the spec wants 3 or more.
-- `w3-getting-there.spec.ts:16` and `:105`: no `Share location for travel times` button in the venue sheet.
 
 ## Needs captain
 
