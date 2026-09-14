@@ -103,6 +103,12 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - `:195` looked for a `Bars` chip on the toolbar. Since #1631 the venue-type chips live in the `Filters` panel, so the spec opens Filters and finds the chip inside it.
   - `:240` (the disjoint pan), still red under load: it passed in each single run of the file, before and after the fix, and failed 2 of 2 in a 2x repeat at 2 workers. After three `Minus` presses below the layer floor, 1644 base-pub rows remained where the spec wants 0. The test does not use Escape, so the fix did not cause it. Next step: check whether the zoom keys reach the canvas, and whether the base stream clears below the floor on a loaded runner.
   - Proof on the rebuilt rig: the spec file gave 8 passed. A 2x repeat with `map-surface-history` and `surface-back-and-home` gave 44 passed and 2 failed, and both failures are `:240`.
+- [x] R15 `price-caption-integrity.spec.ts` (4 fixed): `:336` (now `:338`) at 390 and 430, `:404` (now `:410`) at 390 and 430. One product bug and two stale spec steps.
+  - `:338` wanted the date chip on The Grapes to read `1583`. Since #1506 a date chip names what the year dates, never a bare year (`lib/heritageDate.mjs`), and the record carries `dateLabel: "Founded 1583"`. The spec now expects that label on `/historic` and on `/borough/tower-hamlets`.
+  - Product bug (`:410`): on every phone map the Near me FAB covered the compact OpenStreetMap credit. Both parked on the right edge of the band above the plan action (`--map-corner-bottom` and the credit's `+ 68px`), so the licence credit took no tap. With a Place story chip the chip covered the credit too, and Near me and the create action covered the chip's `Dismiss Place story intro` button. Fixed: the credit takes the left edge of the same band, and steps down into the plan action's berth while a story chip stands the plan action down (`components/mobile/mobileMapShell.css`). The phone story chip stops short of `--mobile-map-corner-lane` (`app/globals.css`), as that lane's rule asks of any full-width overlay. Pin: `__tests__/mobileChromeFit.test.ts`, red on the old CSS. A hit probe at 320, 390 and 430 now finds `Toggle attribution` and `Dismiss Place story intro` at their own centres.
+  - `:410` then wanted the chip unmounted once List view opens. The list hides it with `display: none` so the story notice returns when the list closes (`components/map/mapVenueList.css`, #684). The spec now checks that the chip is hidden.
+  - Proof on the rebuilt rig: the spec file gave 66 passed on a 2x repeat. The only failures are `:507` (R6, parked). `drink-chip-controls`, `mobile-map-chrome-fit` and `map-story` gave 46 passed. The 2 failures are the known separate reds `drink-chip-controls.spec.ts:188` and `map-story.spec.ts:120`.
+  - Lead, not fixed: `.mappedRouteChip` and `.activeRoundChip` share the story chip's full-width phone berth and do not stop short of the corner lane either.
 
 ## Needs captain
 
@@ -115,7 +121,7 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
 
 ## Verify reds
 
-- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
+- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
 
 ## Appendix: main stable-failure set by root cause (origin/main aa6470eec, 197 tests)
 
