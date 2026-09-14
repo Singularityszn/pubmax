@@ -143,13 +143,17 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - The spec now works out the band from the figure's own pounds and its pub (`priceBand`, `priceBandAreaForVenue` on the row link's `sel`), checks that the figure carries that band class and no other, and checks that its colour is that band's ink, read off a probe (the `e2e/price-colour-law.spec.ts` idiom). The eyebrow, `/tonight` music kind and `/pint-index` kicker checks are unchanged.
   - No product bug: the colour is the documented law (`docs/DESIGN_SYSTEM.md`, `CONTEXT.md` "Price band").
   - Proof on the rig: the spec file gave 12 passed on a 2x repeat at 2 workers.
+- [x] R22 `exception-capture.spec.ts:68` (1 fixed, now `:75`). The spec lied about the shipped product. It is the R5 cause.
+  - The spec opened `/` and waited 10 s for the `Anonymous analytics choice` card, so that it could tap `Allow` before it threw a crash. Since #1604 the card waits until the product has answered (`lib/consentAnswerMoment.ts`), and a cold `/` has not answered. So the card never painted.
+  - The spec now seeds `pubmax:consent-answer-moment:v1` as `venue-sheet`, as `analytics-consent.spec.ts` does. The wait itself stays owned by `e2e/consent-after-first-answer.spec.ts`. Every check on the `$exception` event is unchanged.
+  - No product bug: once consent is given, the crash reaches the capture endpoint as `TypeError` / `Redacted (/)`, with no user text.
+  - Proof on the rig: red before the change (the card was not found), then 3 passed on a 3x repeat at 2 workers. The other specs that read the card, `night-mode-chrome.spec.ts` and `messages-thread.spec.ts`, gave 13 passed.
 
 ## Reproduced on this branch, not yet grouped
 
 A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix specs that no group has touched. Each line is the first failing assertion.
 
 - `a11y-keyboard-loop.spec.ts:314`: reduced motion finds 7 `g` elements "parked" off their place on `/`.
-- `exception-capture.spec.ts:68`: waits 10 s for `Anonymous analytics choice`. The consent card waits for the answer moment since #1604 (see R5).
 - `founding-members.spec.ts:176`: an ordinary account sees 1 `Founding member` text.
 - `map-console-health.spec.ts:78`: the compass (see R19).
 - `map-near-me.spec.ts:115`: a box read is `null` at 800px.
