@@ -325,6 +325,29 @@ export function useFocusTrap(
     // second stop from the drawer maps the route and mounts the chip. A node
     // can also mount beside the chip in a sibling the walk went down. Both are
     // re-derived from the SAME scanned siblings, once per frame at most.
+    let exemptFocus: Element | null = null;
+    const onFocusIn = (event: FocusEvent) => {
+      const target = event.target;
+      exemptFocus =
+        target instanceof Element && exempt.some((surface) => surface.contains(target))
+          ? target
+          : null;
+    };
+    const reclaimLostExemptFocus = () => {
+      const lost = exemptFocus;
+      if (!lost || exempt.some((surface) => surface.contains(lost))) return;
+      exemptFocus = null;
+      const active = document.activeElement;
+      if (
+        active &&
+        active !== document.body &&
+        (container.contains(active) || exempt.some((surface) => surface.contains(active)))
+      ) {
+        return;
+      }
+      (visibleFocusables(container)[0] ?? container).focus({ preventScroll: true });
+    };
+
     let frame: number | null = null;
     const observer =
       outsidePolicy === "map-surface" && typeof MutationObserver !== "undefined"
@@ -334,6 +357,7 @@ export function useFocusTrap(
               frame = null;
               exempt = trapExemptSurfaces(container, outsidePolicy);
               trapOwner.reconcile(inertTargets(siblings, exempt));
+              reclaimLostExemptFocus();
             });
           })
         : null;
@@ -363,8 +387,10 @@ export function useFocusTrap(
     // On the document, because Tab from an exempt surface starts outside the
     // container. `nextTrapFocus` ignores focus that is in neither region.
     document.addEventListener("keydown", onTab);
+    document.addEventListener("focusin", onFocusIn);
     return () => {
       document.removeEventListener("keydown", onTab);
+      document.removeEventListener("focusin", onFocusIn);
       observer?.disconnect();
       if (frame !== null) window.cancelAnimationFrame(frame);
       trapOwner.release();

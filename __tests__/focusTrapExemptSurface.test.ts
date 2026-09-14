@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { act, createElement, type RefObject } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -6,6 +8,7 @@ import {
   inertTargets,
   nextTrapFocus,
   trapExemptSurfaces,
+  useFocusTrap,
 } from "@/lib/useFocusTrap";
 
 // drawer-trap-route-chip. The desktop venue drawer traps focus and inerts what
@@ -126,5 +129,55 @@ describe("nextTrapFocus", () => {
     expect(
       nextTrapFocus({ container, exempt, active: byId("plan"), shift: true }),
     ).toBeNull();
+  });
+});
+
+describe("useFocusTrap with an exempt surface", () => {
+  let root: Root | null = null;
+  const offsetParent = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetParent");
+
+  afterEach(async () => {
+    if (root) await act(async () => root!.unmount());
+    root = null;
+    if (offsetParent) Object.defineProperty(HTMLElement.prototype, "offsetParent", offsetParent);
+  });
+
+  function Trap({ containerRef }: { containerRef: RefObject<HTMLElement | null> }) {
+    useFocusTrap(true, containerRef, "map-surface");
+    return null;
+  }
+
+  const nextFrame = () =>
+    new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+
+  it("returns focus to the container when the focused surface leaves", async () => {
+    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
+      .IS_REACT_ACT_ENVIRONMENT = true;
+    Object.defineProperty(HTMLElement.prototype, "offsetParent", {
+      configurable: true,
+      get() {
+        return (this as HTMLElement).parentElement;
+      },
+    });
+    const { byId } = buildShell();
+    const host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    await act(async () => {
+      root!.render(createElement(Trap, { containerRef: { current: byId("drawer") } }));
+    });
+
+    byId("hide").focus();
+    expect(document.activeElement).toBe(byId("hide"));
+    const close = byId("close");
+
+    await act(async () => {
+      byId("chip").remove();
+      await Promise.resolve();
+      await nextFrame();
+      await nextFrame();
+    });
+
+    expect(document.activeElement).toBe(close);
   });
 });

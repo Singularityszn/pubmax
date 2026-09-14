@@ -99,6 +99,25 @@ test.describe("desktop drawer leaves the route chip reachable", () => {
     await expectFinalStopLastTrain(page, drawer);
   });
 
+  test("Enter on the chip's Hide returns focus to the drawer", async ({ page }) => {
+    test.setTimeout(180_000);
+    const { drawer, chip } = await openFirstStopDrawer(page, 1440);
+
+    await drawer.locator(FOCUSABLE).last().focus();
+    await page.keyboard.press("Tab");
+    await expect(chip.locator(FOCUSABLE).first()).toBeFocused();
+    const hide = chip.getByRole("button", { name: "Hide mapped crawl" });
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await expect(hide).toBeFocused();
+
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".mappedRouteChip")).toHaveCount(0);
+    await expect
+      .poll(() => drawer.evaluate((node) => node.contains(document.activeElement)))
+      .toBe(true);
+  });
+
   test("at 768 the drawer is a full-width sheet, so the chip leaves the layout", async ({
     page,
   }) => {
