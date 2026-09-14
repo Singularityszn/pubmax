@@ -1,0 +1,13 @@
+# no-mistakes repository config. Reference:
+# https://kunchenguid.github.io/no-mistakes/reference/repo-config/
+#
+# commands.* are read ONLY from the origin/main copy of this file, so a branch
+# that changes them is still tested by the copy on main.
+# Fence: __tests__/noMistakesTestCommand.test.ts
+
+commands:
+  # A run worktree holds tracked files only, so node_modules must be installed.
+  prepare: "npm ci --prefer-offline"
+  # The pre-push merge bar, which runs the unit suite through `npm run coverage`.
+  # The Playwright suite stays in .github/workflows/e2e.yml.
+  test: "npm run verify"
