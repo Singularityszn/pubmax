@@ -34,10 +34,12 @@ test("mobile Rounds index explains link-based joining and routes to the map", as
   const response = await page.goto("/rounds");
   expect(response?.status()).toBe(200);
 
-  await expect(page.getByRole("heading", { name: "Join with a link" })).toBeVisible();
+  // EmptyState (components/ui/empty-state.tsx) titles with a paragraph, not a
+  // heading: the Screen owns the page's one heading.
+  await expect(page.locator(".emptyStateTitle", { hasText: "Join with a link" })).toBeVisible();
   await expect(page.getByText(/A round opens from the link/i)).toBeVisible();
 
-  const startOnMap = page.getByRole("link", { name: "Start a round on the map" });
+  const startOnMap = page.getByRole("link", { name: "Start a round", exact: true });
   await expect(startOnMap).toHaveAttribute("href", "/map");
   await expectTapTarget(startOnMap, "start round map link");
   await expectNoHorizontalOverflow(page);
@@ -49,6 +51,8 @@ test("mobile Rounds index explains link-based joining and routes to the map", as
   await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible();
 
   await page.getByRole("button", { name: "Search the map" }).click();
-  await expect(page.getByRole("searchbox", { name: "Search pubs" })).toBeVisible();
+  // The map search field suggests pubs, so it is a combobox, not a bare
+  // searchbox (components/map/MapSearchSuggest.tsx).
+  await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
