@@ -3179,7 +3179,6 @@ export default function PubMap({
       setSheetSnap,
       setSheetDragY,
       selectedVenueId,
-      venueById,
       setVenueRevealSettleSequence,
     ],
   );
