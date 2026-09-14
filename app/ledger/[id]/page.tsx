@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 
-import { getVenueCuration } from "@/lib/curation";
 import { getListedBuilding, type ListedBuilding } from "@/lib/heritageListings";
 import {
   buildFamilyTableEntries,
@@ -260,7 +259,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
   // duplicate id.
   const canonicalId = venue.id;
 
-  const curation = getVenueCuration(venue.prices);
+  const curation = venue.curation;
   // Official listed-building record (Historic England NHLE), keyed by canonical
   // venue id, feeds the BarOrPub JSON-LD description below. null for the many
   // pubs that are not listed.
