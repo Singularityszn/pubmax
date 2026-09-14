@@ -57,7 +57,7 @@ test.describe("mobile bottom-tab navigation", () => {
     const shell = page.locator(".appShell");
     await expect(async () => {
       if (!/planning-open/.test((await shell.getAttribute("class")) ?? "")) {
-        await describe.click({ timeout: 2_000 });
+        await describe.click();
       }
       await expect(shell).toHaveClass(/planning-open/, { timeout: 1_000 });
     }).toPass({ timeout: 20_000 });
