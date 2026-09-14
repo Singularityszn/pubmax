@@ -14,7 +14,7 @@
 // median-plus-margin rule because they need no invented margin: "average" is
 // honestly the middle third of what we hold, and the thresholds are two prices
 // somebody actually pays. London today: cheap up to £5.20, average up to £6.15,
-// expensive above (949 priced pubs), so a £6.50 pint reads expensive.
+// expensive above (950 priced pubs), so a £6.50 pint reads expensive.
 //
 // THE AREA IS THE CITY, NOT THE BOROUGH. A per-borough rule was measured and
 // rejected: City of London's and Westminster's upper terciles both sit at

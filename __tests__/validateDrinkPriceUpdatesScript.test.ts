@@ -151,6 +151,10 @@ function buildBaseScratch(): string {
     join(scratchLib, "cityVenuePacks.mjs"),
   );
   cpSync(join(ROOT, "lib", "cityBounds.mjs"), join(scratchLib, "cityBounds.mjs"));
+  cpSync(
+    join(ROOT, "lib", "priceRowEligibility.mjs"),
+    join(scratchLib, "priceRowEligibility.mjs"),
+  );
   cpSync(join(ROOT, "lib", "editorialRss.mjs"), join(scratchLib, "editorialRss.mjs"));
   // The priced-index exclusion guard (#1463) is its own leaf module plus one
   // hand-curated data file, which the script imports/reads rather than
@@ -692,6 +696,37 @@ describe("validate-data.mjs slim venue index validation", () => {
 
     expect(code).toBe(1);
     expect(stdout).toContain("differs from monolith");
+  });
+});
+
+describe("validate-data.mjs superseded price markers", () => {
+  it.each([
+    ["an empty object", {}, "price_superseded.reason must be one of operator_change"],
+    ["an empty string", "", "price_superseded must be an object"],
+    [
+      "missing the day a source states",
+      {
+        reason: "operator_change",
+        operator: "J D Wetherspoon",
+        left_on: null,
+        evidence: "The chain's directory no longer names the pub.",
+        evidence_urls: ["https://example.com/directory"],
+        recorded_on: "2026-09-14",
+      },
+      "price_superseded.left_on must be the YYYY-MM-DD day a source states the operator left",
+    ],
+  ])("FAILS the pint dataset on a marker that is %s", (_label, marker, message) => {
+    const scriptsDir = setupScratch({});
+    const datasetPath = join(scriptsDir, "..", "public", "data", "pint_prices_app_dataset.json");
+    const rows = JSON.parse(readFileSync(datasetPath, "utf8")) as Array<Record<string, unknown>>;
+    rows[0] = { ...rows[0], price_superseded: marker };
+    writeScratchFile(datasetPath, JSON.stringify(rows), "utf8");
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("FAIL public/data/pint_prices_app_dataset.json");
+    expect(stdout).toContain(`row 0 (${String(rows[0].pub_name)}): ${message}`);
   });
 });
 

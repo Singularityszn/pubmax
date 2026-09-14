@@ -1,18 +1,17 @@
 // A price recorded under an operator that has since left the pub is not
 // evidence of today's price.
 //
-// The bundled dataset still held pre-sale J D Wetherspoon prices at three pubs
-// the chain no longer runs: The Kentish Drovers (SE15 5RS, 18 rows, Bud Light
-// and Greene King Abbot Ale at GBP 1.99), The Millers Well (E6 2JX, Carlsberg at
-// GBP 2.39) and The Coronet (N7 6PA, Carlsberg at GBP 2.66). Once the chain's
-// own directory stopped naming them, `tonightCheapPintChain` answered null and a
-// stale GBP 1.99 chain pint topped Tonight's "Cheapest listed pints" as an
-// uncapped independent.
+// The bundled dataset still held J D Wetherspoon prices at two pubs the chain
+// left in 2023: The Millers Well (E6 2JX, Carlsberg at GBP 2.39) and The Coronet
+// (N7 6PA, Carlsberg at GBP 2.66).
 //
 // The rows stay in the dataset as dated history, each marked `price_superseded`
-// with its reason, the day the operator left (null where nobody has proven one)
-// and the evidence. No reader may treat a marked row as a price: not Tonight,
-// not the map pin or the venue sheet, not the Pint Index and not /about.
+// with the day a source states the operator left and the evidence. No reader
+// may treat a marked row as a price: not Tonight, not the map pin or the venue
+// sheet, not the Pint Index and not /about.
+//
+// The Kentish Drovers dropped out of the chain's directory but still trades as
+// a Wetherspoon, so a directory gap is not proof and its prices stay live.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -33,27 +32,24 @@ const ROOT = process.cwd();
 
 const RETIRED_PUBS = [
   {
-    name: "The Kentish Drovers",
-    venueId: "venue-1fabngq",
-    reason: "chain_withdrew",
-    leftOn: null,
-    appPriceIds: Array.from({ length: 18 }, (_, index) => `app_price_00${2686 + index}`),
-  },
-  {
     name: "The Millers Well",
     venueId: "venue-10paqy",
-    reason: "operator_change",
     leftOn: "2023-10-29",
     appPriceIds: ["app_price_002734"],
   },
   {
     name: "The Coronet",
     venueId: "venue-60y3sa",
-    reason: "operator_change",
     leftOn: "2023-12-10",
     appPriceIds: ["app_price_001274"],
   },
 ] as const;
+
+const KENTISH_DROVERS = {
+  name: "The Kentish Drovers",
+  venueId: "venue-1fabngq",
+  appPriceIds: Array.from({ length: 18 }, (_, index) => `app_price_00${2686 + index}`),
+} as const;
 
 const RETIRED_VENUE_IDS = new Set<string>(RETIRED_PUBS.map((pub) => pub.venueId));
 
@@ -103,14 +99,14 @@ describe("the dataset keeps a retired price as dated history", () => {
   const byId = new Map(rows.map((entry) => [entry.app_price_id, entry]));
 
   for (const pub of RETIRED_PUBS) {
-    it(`keeps every ${pub.name} price row and marks it ${pub.reason}`, () => {
+    it(`keeps every ${pub.name} price row and marks it operator_change`, () => {
       for (const id of pub.appPriceIds) {
         const entry = byId.get(id);
         expect(entry?.pub_name).toBe(pub.name);
         // History is kept, never deleted or blanked.
         expect(typeof entry?.price_gbp).toBe("number");
         expect(entry?.price_superseded).toMatchObject({
-          reason: pub.reason,
+          reason: "operator_change",
           operator: "J D Wetherspoon",
           left_on: pub.leftOn,
           recorded_on: "2026-09-14",
@@ -122,6 +118,15 @@ describe("the dataset keeps a retired price as dated history", () => {
       }
     });
   }
+
+  it(`leaves every ${KENTISH_DROVERS.name} price row unmarked`, () => {
+    for (const id of KENTISH_DROVERS.appPriceIds) {
+      const entry = byId.get(id);
+      expect(entry?.pub_name).toBe(KENTISH_DROVERS.name);
+      expect(typeof entry?.price_gbp).toBe("number");
+      expect(entry).not.toHaveProperty("price_superseded");
+    }
+  });
 });
 
 describe("no reader treats a superseded row as a price", () => {
@@ -193,7 +198,7 @@ describe("no reader treats a superseded row as a price", () => {
   });
 });
 
-describe("the three retired pubs, read through every live surface", () => {
+describe("the two retired pubs, read through every live surface", () => {
   beforeEach(() => {
     resetVenuePriceIndexForTests();
   });
@@ -237,5 +242,20 @@ describe("the three retired pubs, read through every live surface", () => {
       expect(pin).toBeDefined();
       expect(pin?.cheapestPrice).toBeNull();
     }
+  });
+
+  it(`still prices ${KENTISH_DROVERS.name} on the venue sheet, the Pint Index and its map pin`, async () => {
+    const [priced, grouped] = await Promise.all([getPricedVenues(), loadGroupedVenues()]);
+    for (const venues of [priced, grouped]) {
+      const venue = venues.find((candidate) => candidate.id === KENTISH_DROVERS.venueId);
+      expect(venue?.name).toBe(KENTISH_DROVERS.name);
+      expect(typeof venue?.cheapestPrice).toBe("number");
+      expect(venue?.prices.length).toBeGreaterThan(0);
+    }
+    const slim = JSON.parse(
+      readFileSync(join(ROOT, "public", "data", "venues_slim.json"), "utf8"),
+    ) as { rows: Array<{ id: string; cheapestPrice: number | null }> };
+    const pin = slim.rows.find((candidate) => candidate.id === KENTISH_DROVERS.venueId);
+    expect(typeof pin?.cheapestPrice).toBe("number");
   });
 });
