@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { priceBand, priceBandAreaForVenue } from "../lib/priceBand";
+
 async function setTheme(page: Page, theme: "light" | "dark"): Promise<void> {
   await page.addInitScript((nextTheme) => {
     window.localStorage.setItem("pubmax-theme", nextTheme);
@@ -101,20 +103,33 @@ test.describe("desktop taste wave 1", () => {
       await page.goto("/today");
 
       await expectSentenceCase(page.locator(".todayCardEyebrow").first());
-      // Standing lives on the TrustPill. The figure itself is --ink so an
-      // estimate cannot speak with authority through a price hue (#1044, #1366).
-      const semanticColours = await page.locator(".todayPintPrice").first().evaluate((price) => {
+      // A price wears its band and no other colour (#1499, lib/priceBand.ts):
+      // the figure's band is worked out here from its own pounds and its pub,
+      // and the ink it paints must be that band's token, read off a probe.
+      const price = page.locator(".todayPintPrice").first();
+      await expect(price).toBeVisible();
+      const figure = await price.evaluate((element) => ({
+        text: element.textContent ?? "",
+        href: element.closest("a")?.getAttribute("href") ?? "",
+      }));
+      const pounds = Number(/£(\d+(?:\.\d+)?)/.exec(figure.text)?.[1]);
+      const venueId = new URL(figure.href, "http://localhost").searchParams.get("sel");
+      const band = priceBand(pounds, priceBandAreaForVenue(venueId));
+      expect(band, `no band for ${JSON.stringify(figure)}`).not.toBeNull();
+      for (const other of ["cheap", "average", "expensive"] as const) {
+        const bandClass = new RegExp(`\\bpriceBand-${other}\\b`);
+        if (other === band) await expect(price).toHaveClass(bandClass);
+        else await expect(price).not.toHaveClass(bandClass);
+      }
+      const bandInk = await page.evaluate((className) => {
         const probe = document.createElement("span");
-        probe.style.color = "var(--ink)";
+        probe.className = className;
         document.body.append(probe);
-        const result = {
-          price: getComputedStyle(price).color,
-          expected: getComputedStyle(probe).color,
-        };
+        const colour = getComputedStyle(probe).color;
         probe.remove();
-        return result;
-      });
-      expect(semanticColours.price).toBe(semanticColours.expected);
+        return colour;
+      }, `priceBand-${band}`);
+      await expect(price).toHaveCSS("color", bandInk);
 
       await page.goto("/tonight");
       const musicKind = page.locator('.tonightRowKind[data-kind="music"]').first();

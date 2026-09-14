@@ -138,20 +138,24 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - The spec now opens the disclosure first (a retried tap on its summary, the e2e/AGENTS.md idiom) and reads the region inside it. Every privacy, routes, Forget and Retry check is unchanged.
   - No product bug: the error snapshot shows the sheet on Prospect of Whitby with the disclosure closed, and the region answers once the disclosure opens.
   - Proof on the rig: the spec file gave 4 passed on a 2x repeat at 2 workers.
+- [x] R21 `design-taste-wave-1.spec.ts:97` (2 fixed): light and dark (now `:99`). The spec lied about the shipped product.
+  - The spec (#1399, 4 Sep) held the first `/today` pint figure (`.todayPintPrice`) to `--ink`. The next day the captain's price colour law (#1499, 5 Sep) made every price wear its band and no other colour, and it names `/today`: `TodayPintsCard` passes `priceBand(...)` to `PriceBadge`, and `__tests__/priceBandSurfaces.test.ts` pins that. So the figure painted the cheap band's ink (`color(srgb 0.09 0.43 0.30)` light), and the colour check failed before the eyebrow checks ran.
+  - The spec now works out the band from the figure's own pounds and its pub (`priceBand`, `priceBandAreaForVenue` on the row link's `sel`), checks that the figure carries that band class and no other, and checks that its colour is that band's ink, read off a probe (the `e2e/price-colour-law.spec.ts` idiom). The eyebrow, `/tonight` music kind and `/pint-index` kicker checks are unchanged.
+  - No product bug: the colour is the documented law (`docs/DESIGN_SYSTEM.md`, `CONTEXT.md` "Price band").
+  - Proof on the rig: the spec file gave 12 passed on a 2x repeat at 2 workers.
 
 ## Reproduced on this branch, not yet grouped
 
 A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix specs that no group has touched. Each line is the first failing assertion.
 
 - `a11y-keyboard-loop.spec.ts:314`: reduced motion finds 7 `g` elements "parked" off their place on `/`.
-- `design-taste-wave-1.spec.ts:97` (light, dark): an eyebrow is accent-coloured (`color(srgb ...)`), where the spec wants the ink colour.
 - `exception-capture.spec.ts:68`: waits 10 s for `Anonymous analytics choice`. The consent card waits for the answer moment since #1604 (see R5).
 - `founding-members.spec.ts:176`: an ordinary account sees 1 `Founding member` text.
 - `map-console-health.spec.ts:78`: the compass (see R19).
 - `map-near-me.spec.ts:115`: a box read is `null` at 800px.
 - `map-performance.spec.ts:43`: no `Beer at ... open on the map` link on the landing page.
 - `map-search-no-results.spec.ts:160` (mobile dark normal): the search field did not show in 20 s. The other 7 cases passed in the same run.
-- `map-tile-retry.spec.ts:43` and `:95`: a transient outage logs `tile failure burst, reloading style`, and a lasting outage shows no `.mapSoftRetry` or `.mapFallback` in 60 s.
+- `map-tile-retry.spec.ts:43` and `:95`: a transient outage logs `tile failure burst, reloading style`, and a lasting outage shows no `.mapSoftRetry` or `.mapFallback` in 60 s. `playwright.config.ts` lists this spec in `chromium-gl`'s `testMatch` but not in `chromium`'s `testIgnore`, so `--project=chromium` also runs it without the GL launch flags. `map-console-health`, `map-arrival-turn`, `map-arrival-card-pins`, `map-desktop-arrival-chrome` and `map-webgl-recovery` have the same gap. Check each red under `--project=chromium-gl` before calling it a product red.
 - `mobile-discover-coverage.spec.ts:11`: no `Areas near you, with the gate visible` heading.
 - `mobile-permalink.spec.ts:63`: no `Go to the feed` link. `/feed` redirects to `/social` (see R2).
 - `mobile-round-lifecycle.spec.ts:9`: no `2 out · still going` status.
