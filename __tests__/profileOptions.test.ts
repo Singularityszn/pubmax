@@ -38,6 +38,8 @@ describe("desktop profile options", () => {
     expect(profileClient).toContain(
       'replaceState(null, "", "#analytics-settings")',
     );
+    // The hub is a dynamic import, so the scroll waits for the block to mount.
+    expect(profileClient).toContain("revealWhenMounted(() =>");
     expect(profileClient).toContain("signOut");
     expect(profileClient).not.toMatch(
       /label:\s*"Help"|href:\s*"\/(?:help|settings)"/,

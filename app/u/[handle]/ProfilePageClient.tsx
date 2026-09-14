@@ -47,6 +47,7 @@ import type { FollowCounts } from "@/lib/followStore";
 import { buildPassport } from "@/lib/passport";
 import { buildProfileBadgeEventOptions } from "@/lib/profileBadgeEventGate";
 import { discardBody } from "@/lib/responseBody";
+import { revealWhenMounted } from "@/lib/revealWhenMounted";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 import {
@@ -1045,10 +1046,15 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       label: "Analytics choices",
       description: "Review optional usage analytics",
       onSelect: () => {
-        const target = document.getElementById("analytics-settings");
-        if (!target) return;
+        // The block is inside the account hub, a dynamic import (#1421), so a
+        // tap can land before it exists. The tap still moves the hash, and the
+        // scroll waits for the block rather than doing nothing.
         window.history.replaceState(null, "", "#analytics-settings");
-        target.scrollIntoView({ block: "start" });
+        revealWhenMounted(() => {
+          const target = document.getElementById("analytics-settings");
+          target?.scrollIntoView({ block: "start" });
+          return Boolean(target);
+        });
       },
     },
     {
