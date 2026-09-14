@@ -82,11 +82,20 @@
   margin: 0 0 10px;
 }
 
+/* The credit is a link a thumb has to land, so its box is 44 px tall while the
+   words stay the credit's small size (13 Sep audit D12: it measured 15 px). The
+   row above lends it no margin: the box's own space above the words is the gap.
+   A coral WORD takes the accent's ink, which clears AA in light (D13). */
+.tonightHypedCredit {
+  margin-top: 0;
+}
+
 .tonightHypedSource {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--brass);
+  min-height: 44px;
+  color: var(--color-accent-ink);
   text-decoration: none;
   font-weight: 600;
 }
@@ -112,8 +121,13 @@
   margin-top: 4px;
   font-size: 0.82rem;
   font-weight: 600;
-  color: var(--brass);
+  color: var(--color-accent-ink);
   text-decoration: none;
+}
+
+/* Two 44 px boxes in a row already carry the space between their words. */
+.tonightHypedCredit + .tonightHypedMap {
+  margin-top: 0;
 }
 
 /* Chain blocks
