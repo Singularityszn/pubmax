@@ -58,19 +58,6 @@ describe("analytics consent clearance", () => {
     );
   });
 
-  // NO BAND ON THE MAP (site audit 13 Sep 2026). A square, fully opaque card
-  // over the WebGL map made the compositor skip the canvas under the card's
-  // rect mirrored in y, so a band of bare map background stood behind the chip
-  // row. Rendered proof: e2e/map-consent-canvas-band.spec.ts.
-  it("keeps the card from occluding a map canvas", () => {
-    const rule = globalCss.match(
-      /body:has\(\.maplibregl-canvas\) \.analyticsConsentPrompt\s*{([^}]*)}/,
-    )?.[1] ?? "";
-    const opacity = Number.parseFloat(rule.match(/opacity:\s*([\d.]+)/)?.[1] ?? "1");
-    expect(opacity).toBeLessThan(1);
-    expect(opacity).toBeGreaterThanOrEqual(0.99);
-  });
-
   it("keeps the full disclosure visible on the map", () => {
     const mapParagraph = globalCss.match(
       /body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt p\s*{([^}]*)}/,
