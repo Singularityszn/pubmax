@@ -119,19 +119,30 @@ for (const width of [390, 430] as const) {
       expect(strip, "the chip row has a box").not.toBeNull();
       expect(strip!.width, "the chip row has an empty stretch to sample").toBeGreaterThanOrEqual(40);
 
-      const withCard = await stripPixels(page, strip!);
-      // Hidden, not removed: every `body:has(.analyticsConsentPrompt)` rule still
-      // holds, so the layout and the camera are the ones the reader has.
-      const hide = await page.addStyleTag({
-        content: ".analyticsConsentPrompt { visibility: hidden !important; }",
-      });
-      const withoutCard = await stripPixels(page, strip!);
-      await hide.evaluate((el) => el.remove());
+      // The map can still be settling after the loader clears, a tile or a pin
+      // arriving between two frames, most of all under parallel workers. A
+      // second frame with the card painted has to match the first before the
+      // hidden frame is trusted, so only the hole can read as a difference.
+      await expect(async () => {
+        const withCard = await stripPixels(page, strip!);
+        // Hidden, not removed: every `body:has(.analyticsConsentPrompt)` rule still
+        // holds, so the layout and the camera are the ones the reader has.
+        const hide = await page.addStyleTag({
+          content: ".analyticsConsentPrompt { visibility: hidden !important; }",
+        });
+        const withoutCard = await stripPixels(page, strip!);
+        await hide.evaluate((el) => el.remove());
+        const withCardAgain = await stripPixels(page, strip!);
 
-      expect(
-        meanChannelDifference(withCard, withoutCard),
-        "the map behind the chip row changes while the consent card is painted",
-      ).toBeLessThanOrEqual(MAX_MEAN_CHANNEL_DIFFERENCE);
+        expect(
+          meanChannelDifference(withCard, withCardAgain),
+          "the map behind the chip row is still settling",
+        ).toBeLessThanOrEqual(MAX_MEAN_CHANNEL_DIFFERENCE);
+        expect(
+          meanChannelDifference(withCard, withoutCard),
+          "the map behind the chip row changes while the consent card is painted",
+        ).toBeLessThanOrEqual(MAX_MEAN_CHANNEL_DIFFERENCE);
+      }).toPass({ timeout: 60_000 });
     });
   }
 }
