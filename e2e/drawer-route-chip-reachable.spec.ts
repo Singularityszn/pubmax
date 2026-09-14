@@ -110,6 +110,7 @@ test.describe("desktop drawer leaves the route chip reachable", () => {
     expect(drawerBox!.x).toBe(0);
     expect(drawerBox!.width).toBe(768);
     await expect(chip.filter({ visible: true })).toHaveCount(0);
+    await expect(drawer).toHaveAttribute("aria-modal", "true");
   });
 
   for (const width of [1440, 1280, 900]) {
@@ -123,6 +124,7 @@ test.describe("desktop drawer leaves the route chip reachable", () => {
       expect(chipBox).not.toBeNull();
       expect(chipBox!.x + chipBox!.width).toBeLessThanOrEqual(drawerBox!.x);
       expect(chipBox!.x).toBeGreaterThanOrEqual(0);
+      await expect.poll(() => drawer.getAttribute("aria-modal")).toBeNull();
 
       const heights = await chip
         .locator("button")
