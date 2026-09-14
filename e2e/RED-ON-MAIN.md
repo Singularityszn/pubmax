@@ -207,6 +207,12 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - The spec now reads `Add a photo` at 390px. The heading, Pint Drop link, above-the-tab-bar, draft and refresh checks are unchanged.
   - No product bug: a label that says "take" is false for a library photo.
   - Proof on the rig: red before the change (`Take a photo` not found), then 3 passed on a 3x repeat at 2 workers.
+- [x] R35 `profile-avatar.spec.ts` `:178` and `:247` (now `:252`) (2 fixed). The specs raced the shipped product.
+  - Both specs waited for `expect.poll(() => profileRequests).toBe(1)`. The page reads `/api/profiles/<handle>` twice on load. The profile effect in `app/u/[handle]/ProfilePageClient.tsx` is keyed on `accountRevision`. `AuthProvider` publishes `readProviderIdentityRevision` under that name, and that revision also moves on `setProviderAuthState`. A keyless provider moves it once when it settles, so the effect aborts the first read and starts a second one about 30 ms later. The poll saw 1 only when it ran inside that gap.
+  - `:247` had a second race. It dispatched `online` once, straight after the profile count. When that event came before the 503 made `HandleAvatar` mark the image failed, no retry listener was attached yet, and the initials stayed. A trace showed the page reading the profile twice and the avatar once, with no `online` retry.
+  - `:178` now waits for at least one held profile read. `:252` waits for the first (failed) avatar request and the fallback, then repeats the `online` event inside `toPass` until the image `src` returns, as e2e/AGENTS.md retries a dropped tap. The `naturalWidth > 0` check and the "at least 2 avatar requests" check are unchanged.
+  - No product bug for these specs: a reconnect retries the image after a failure. Lead, not a red: the context field is documented as an "opaque account boundary", but it also advances on auth-state changes, so every surface keyed on it reads again once on first load. A fix belongs in `components/auth/AuthProvider.tsx` and changes the auth seam, so it is not in this group.
+  - Proof on the rig: `:247` failed 2 of 3 before the change. After it, `:178` and `:252` each gave 5 passed on a 5x repeat at 1 worker, and the full file gave 6 passed at 2 workers.
 
 ## Reproduced on this branch, not yet grouped
 
@@ -218,7 +224,6 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 - `map-near-me.spec.ts:115`: a box read is `null` at 800px.
 - `map-performance.spec.ts:43`: no `Beer at ... open on the map` link on the landing page.
 - A second triage at `290fef1fc` (14 Sep 2026, rebuilt rig, 2 workers) found these still red:
-  - `profile-avatar.spec.ts:247`: flaky. It failed once at the `src` check, once at `naturalWidth > 0`, and passed once. After R33, a 3x repeat at 1 worker failed it 3 of 3. A single run straight after that repeat failed `:140` (`429` where the spec wants `404`, the per-IP limit the repeat spent), and `:178` and `:247` (a count of 2 where the spec wants 1). Wait 65 s after any other profile run before you read this file, and read `:178` with `:247`: they fail on the same count.
   - `wanted-wave-a.spec.ts:42`: no `What's the plan` heading on `/plan` in 20 s.
   - `a11y-core-journeys.spec.ts:115`: the axe gate fails on `/tonight` at 390 and 1440 light.
   - `map-story.spec.ts:120`, `drink-chip-controls.spec.ts:188`, `dark-primary-surfaces.spec.ts:229` (2), `landmark-story-sheet.spec.ts:277`: red, first assertion not yet read.
@@ -236,7 +241,7 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 
 ## Verify reds
 
-- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23, 348 MB by R24, 355 MB by R25, 366 MB by R26, 369 MB by R27, 371 MB by R28, 375 MB by R29 and R30, 427 MB by R32, R33 and R34). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. By R30 the same test also names `artifacts` (5.7 MB, all of it the git-ignored `artifacts/gnhf-rig`), because the rig directory crossed the 5 MB line. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
+- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23, 348 MB by R24, 355 MB by R25, 366 MB by R26, 369 MB by R27, 371 MB by R28, 375 MB by R29 and R30, 427 MB by R32, R33 and R34, 440 MB by R35). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. By R30 the same test also names `artifacts` (5.7 MB, all of it the git-ignored `artifacts/gnhf-rig`), because the rig directory crossed the 5 MB line. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
 
 ## Appendix: main stable-failure set by root cause (origin/main aa6470eec, 197 tests)
 
