@@ -599,6 +599,20 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   .firstRunActions {
     margin-top: 20px;
   }
+
+  /* THE PAL STEP KEEPS ITS ONE ACTION ON SCREEN.
+     Seven Pals stand the grid taller than a phone: at 390x844 "Plan my night"
+     sat half under the fold with nothing saying the page scrolled. The action
+     row sticks to the foot, as the short-phone rule below does for the London
+     step, and the grid scrolls up behind it. */
+  .firstRunOnboarding[data-stage="companion"] .firstRunActions {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin-inline: -4px;
+    padding: 10px 4px max(12px, env(safe-area-inset-bottom, 0px));
+    background: var(--paper);
+  }
 }
 
 /* THE SHORT PHONE.
