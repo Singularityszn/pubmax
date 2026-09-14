@@ -184,6 +184,11 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - The spec now reads `--control-height` off its probe, holds that token to the 44px floor, and holds the button to at least that height. The colour check is unchanged: the tint tokens alias `--state-active-surface` and `--state-active-border` (`app/globals.css`), so the probe still matches. The name fit, overflow, receipt, browse, accept and storage checks are unchanged.
   - No product bug: 44px is the tap floor, and the button family is one geometry by design.
   - Proof on the rebuilt rig: red before the change (44 received, 48 or more wanted), then 9 passed for the spec file on a 3x repeat at 1 worker.
+- [x] R30 `mobile-discover-coverage.spec.ts:11` (1 fixed). The spec lied about the shipped product.
+  - The spec (#376) wanted the h2 `Areas near you, with the gate visible` and the line `Only an area with a complete, live gate can produce a Crawl Route`. Since #511 (22 Jul, "Kill AI-sounding copy", `docs/VOICE.md` rule 2) `components/night/NightAreaCoverage.tsx` ships the h2 `Where you can plan a crawl tonight` and the intro `We only call an area crawl-ready when its prices are fresh and checked. The rest are yours to browse.` No product file still holds the old strings.
+  - The spec now pins the shipped heading and the first sentence of the intro. The `Open planner` link, the 44px planner action, the `details` open, the five coverage states, the map link and the overflow checks are unchanged.
+  - No product bug: the intro keeps the same promise, that only a fresh, checked area can become a crawl.
+  - Proof on the rig: red before the change (heading not found), then 3 passed on a 3x repeat at 1 worker.
 
 ## Reproduced on this branch, not yet grouped
 
@@ -196,7 +201,6 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 - `map-performance.spec.ts:43`: no `Beer at ... open on the map` link on the landing page.
 - `map-search-no-results.spec.ts:160` (mobile dark normal): the search field did not show in 20 s. The other 7 cases passed in the same run.
 - `map-tile-retry.spec.ts:43` and `:95`: a transient outage logs `tile failure burst, reloading style`, and a lasting outage shows no `.mapSoftRetry` or `.mapFallback` in 60 s. `playwright.config.ts` lists this spec in `chromium-gl`'s `testMatch` but not in `chromium`'s `testIgnore`, so `--project=chromium` also runs it without the GL launch flags. `map-console-health`, `map-arrival-turn`, `map-arrival-card-pins`, `map-desktop-arrival-chrome` and `map-webgl-recovery` have the same gap. Check each red under `--project=chromium-gl` before calling it a product red.
-- `mobile-discover-coverage.spec.ts:11`: no `Areas near you, with the gate visible` heading.
 - `near-desk-mode.spec.ts:59`: React error #418 (a hydration text mismatch).
 
 ## Needs captain
@@ -210,7 +214,7 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 
 ## Verify reds
 
-- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23, 348 MB by R24, 355 MB by R25, 366 MB by R26, 369 MB by R27, 371 MB by R28, 375 MB by R29). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
+- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23, 348 MB by R24, 355 MB by R25, 366 MB by R26, 369 MB by R27, 371 MB by R28, 375 MB by R29 and R30). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. By R30 the same test also names `artifacts` (5.7 MB, all of it the git-ignored `artifacts/gnhf-rig`), because the rig directory crossed the 5 MB line. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
 
 ## Appendix: main stable-failure set by root cause (origin/main aa6470eec, 197 tests)
 
