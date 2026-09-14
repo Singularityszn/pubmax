@@ -197,6 +197,16 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - `Edit profile` sent the whole profile page to the `Spilled.` error boundary: `TypeError: Cannot read properties of undefined (reading 'manual_link')`. `SocialLinksEditor` stored the `providers` object from `/api/social-connections` as the full provider record, then read `providers[option].manual_link` for all ten `SOCIAL_PROVIDERS`. The spec answers three providers in an older shape, so `youtube` was undefined. An answer from a server that knows fewer providers (a deploy skew) does the same. Fixed: `readProviderCapabilities` (`lib/socialProviderCapabilities.ts`) gives every known provider a row, and only a literal `true` grants a capability. The editor reads the answer through it. Pin: `__tests__/socialProviderCapabilities.test.ts`.
   - `Analytics choices` then did nothing. #689 added the item when the account hub was a static import. #1421 made `PubmaxxAccountHub` a `dynamic` import with `ssr: false`, so a tap before that chunk lands finds no `#analytics-settings`, and the old `onSelect` returned without a word. Fixed: the tap moves the hash at once, and `revealWhenMounted` (`lib/revealWhenMounted.ts`) scrolls to the block when it mounts, with a 10 s wait. Pins: `__tests__/revealWhenMounted.test.ts`, `__tests__/profileOptions.test.ts`.
   - Proof on the rebuilt rig: red before each change (the error boundary, then the unchanged URL), then 3 passed on a 3x repeat at 1 worker. `profile-avatar.spec.ts` and `profile-photo-crop.spec.ts` gave 11 passed. Their 2 failures were red before this change (see below).
+- [x] R33 `profile-photo-crop.spec.ts:448` (1 fixed, now `:451`). The spec lied about the shipped product, in two steps.
+  - The spec answered the fresh image with `page.route("**/api/avatar/<id>/<generation>")`. Since #1035 (12 Aug) `next.config.mjs` sets `deploymentId`, and a production build tags the image `src` with it (`?dpl=local` on the rig). A glob that ends at the path does not match that URL, so the request reached the keyless server, which answered 404. `HandleAvatar` then fell back to initials, and `header.profileHeader img.profileAvatar` was never found. The spec's own `src` regex already allowed the query. Both image routes (`captureUpload` and the cover remove test) now end in `**`, as `profile-avatar.spec.ts` does.
+  - The next step then failed: the spec read `record.calls` right after the second `Use photo` tap. The heading it waited on never left the screen, so that wait proved nothing about the POST. The spec now polls the route's count for 2.
+  - No product bug: the second photo goes up from the open editor, and the card's face paints the fresh image.
+  - Proof on the rig: red before the change (the header image not found), then the spec file gave 24 passed on a 3x repeat at 2 workers.
+- [x] R34 `mobile-moment-flow.spec.ts:12` (1 fixed). The spec lied about the shipped product.
+  - The spec wanted the capture label `Take a photo`. Since #1547 ("the picker is a picker") the Moment picker's label is `Add a photo` on a phone and `Upload a photo` on a desktop (`pickerPrimary`, `components/moment/MomentCapture.tsx`), because the input opens the photo library as well as the camera.
+  - The spec now reads `Add a photo` at 390px. The heading, Pint Drop link, above-the-tab-bar, draft and refresh checks are unchanged.
+  - No product bug: a label that says "take" is false for a library photo.
+  - Proof on the rig: red before the change (`Take a photo` not found), then 3 passed on a 3x repeat at 2 workers.
 
 ## Reproduced on this branch, not yet grouped
 
@@ -208,9 +218,7 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 - `map-near-me.spec.ts:115`: a box read is `null` at 800px.
 - `map-performance.spec.ts:43`: no `Beer at ... open on the map` link on the landing page.
 - A second triage at `290fef1fc` (14 Sep 2026, rebuilt rig, 2 workers) found these still red:
-  - `mobile-moment-flow.spec.ts:12`: no `Take a photo` text. Since #1547 the Moment picker reads `Add a photo` on a phone and `Upload a photo` on a desktop (`components/moment/MomentCapture.tsx`).
-  - `profile-photo-crop.spec.ts:448`: no `header.profileHeader img.profileAvatar`. The image `src` carries `?dpl=local`, and the spec's route glob `**/api/avatar/<id>/<generation>` has no query tail. So the real server answers 404, and `HandleAvatar` falls back to initials. The spec's own `src` regex at `:458` already allows the query.
-  - `profile-avatar.spec.ts:247`: flaky. It failed once at the `src` check, once at `naturalWidth > 0`, and passed once.
+  - `profile-avatar.spec.ts:247`: flaky. It failed once at the `src` check, once at `naturalWidth > 0`, and passed once. After R33, a 3x repeat at 1 worker failed it 3 of 3. A single run straight after that repeat failed `:140` (`429` where the spec wants `404`, the per-IP limit the repeat spent), and `:178` and `:247` (a count of 2 where the spec wants 1). Wait 65 s after any other profile run before you read this file, and read `:178` with `:247`: they fail on the same count.
   - `wanted-wave-a.spec.ts:42`: no `What's the plan` heading on `/plan` in 20 s.
   - `a11y-core-journeys.spec.ts:115`: the axe gate fails on `/tonight` at 390 and 1440 light.
   - `map-story.spec.ts:120`, `drink-chip-controls.spec.ts:188`, `dark-primary-surfaces.spec.ts:229` (2), `landmark-story-sheet.spec.ts:277`: red, first assertion not yet read.
@@ -228,7 +236,7 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 
 ## Verify reds
 
-- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23, 348 MB by R24, 355 MB by R25, 366 MB by R26, 369 MB by R27, 371 MB by R28, 375 MB by R29 and R30, 427 MB by R32). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. By R30 the same test also names `artifacts` (5.7 MB, all of it the git-ignored `artifacts/gnhf-rig`), because the rig directory crossed the 5 MB line. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
+- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23, 348 MB by R24, 355 MB by R25, 366 MB by R26, 369 MB by R27, 371 MB by R28, 375 MB by R29 and R30, 427 MB by R32, R33 and R34). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. By R30 the same test also names `artifacts` (5.7 MB, all of it the git-ignored `artifacts/gnhf-rig`), because the rig directory crossed the 5 MB line. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
 
 ## Appendix: main stable-failure set by root cause (origin/main aa6470eec, 197 tests)
 
