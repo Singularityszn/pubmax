@@ -35,9 +35,13 @@ export type LondonMapPin = {
   x: number;
   y: number;
   anchor: "start" | "end";
+  /** How far along the line from the pin the writing starts. */
+  dx: number;
+  /** How far up (negative) or down the two lines of writing move. */
+  dy: number;
 };
 
-/** The named pins: sourced, dated, oldest first, one per borough. */
+/** The named pins: sourced, dated, oldest first, apart, and written clear of every named pin. */
 export const LONDON_MAP_PINS: readonly LondonMapPin[] = [
   {
     "slug": "prospect-of-whitby",
@@ -45,7 +49,9 @@ export const LONDON_MAP_PINS: readonly LondonMapPin[] = [
     "label": "Founded 1520",
     "x": 854,
     "y": 390,
-    "anchor": "start"
+    "anchor": "start",
+    "dx": 18,
+    "dy": 0
   },
   {
     "slug": "the-seven-stars",
@@ -53,7 +59,9 @@ export const LONDON_MAP_PINS: readonly LondonMapPin[] = [
     "label": "Built 17th century",
     "x": 659,
     "y": 350,
-    "anchor": "end"
+    "anchor": "end",
+    "dx": 18,
+    "dy": 0
   },
   {
     "slug": "upper-flask",
@@ -61,7 +69,9 @@ export const LONDON_MAP_PINS: readonly LondonMapPin[] = [
     "label": "Built 18th century",
     "x": 456,
     "y": 122,
-    "anchor": "start"
+    "anchor": "end",
+    "dx": 18,
+    "dy": 0
   },
   {
     "slug": "the-star-tavern",
@@ -69,7 +79,9 @@ export const LONDON_MAP_PINS: readonly LondonMapPin[] = [
     "label": "Built 19th century",
     "x": 527,
     "y": 434,
-    "anchor": "end"
+    "anchor": "end",
+    "dx": 18,
+    "dy": 0
   },
   {
     "slug": "the-bulls-head",
@@ -77,6 +89,8 @@ export const LONDON_MAP_PINS: readonly LondonMapPin[] = [
     "label": "Built 1846",
     "x": 230,
     "y": 557,
-    "anchor": "start"
+    "anchor": "start",
+    "dx": 18,
+    "dy": 0
   }
 ];

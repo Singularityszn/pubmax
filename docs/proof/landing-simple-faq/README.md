@@ -1,5 +1,12 @@
 # The simple front door
 
+> **Superseded in part, 14 Sep 2026.** The Pro line and the one-field waitlist
+> are removed from the landing FAQ (site audit D6: first revenue comes from
+> venues, never drinkers). The hero map's named-pin rule also changed (site
+> audit D21): every label is written clear of every named pin, with a
+> land-coloured halo over the pub dots. The rows, the "five named pins" wording
+> and the shots below stay unchanged as dated history.
+
 Branch `fm/landing-simple-faq`. The captain's ask, 7 September 2026: a landing a
 stranger understands at a glance, with the map of places to visit and the
 historic pubs at the top, an FAQ that explains how the app works, one answer for

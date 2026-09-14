@@ -16,9 +16,10 @@
 //     decoration shaped like data.
 //
 // (2) THE NAMED PINS ARE PICKED BY A RULE, NOT BY HAND. A pin is a sourced
-//     historic pub with a year we can print, oldest first, one per borough, six
-//     of them. Re-run the script after the heritage data changes and the pins
-//     follow the data rather than somebody's taste.
+//     historic pub with a year we can print, oldest first, apart from every
+//     other named pin, and written clear of every named pin's mark and writing;
+//     at most six of them. Re-run the script after the heritage data changes and
+//     the pins follow the data rather than somebody's taste.
 //
 // (3) IT SHIPS AS GEOMETRY, NOT AS AN IMAGE FILE. The output is a TypeScript
 //     module of path data that components/landing/LondonMapSnapshot.tsx paints
@@ -49,8 +50,8 @@ const HEIGHT = Math.round(
   (WIDTH * (FRAME.north - FRAME.south)) / ((FRAME.east - FRAME.west) * LON_SCALE),
 );
 /**
- * The CAP on named pins. The separation rule below decides how many of them
- * the data can actually seat, and today that is five: past this the labels
+ * The CAP on named pins. The separation rule and the clear-writing rule below
+ * decide how many of them the data can actually seat: past this the labels
  * start to touch on a 390px phone.
  */
 const PIN_COUNT = 6;
@@ -68,6 +69,31 @@ const LABEL_LINE_UNITS = 80;
 const SIMPLIFY_UNITS = 6;
 /** The radius a pub dot is drawn at, in user units. */
 const DOT_RADIUS = 4.5;
+/** A named pin's own mark: the circle's radius plus half its stroke. */
+const PIN_MARK_RADIUS = 9.5;
+/**
+ * Where a pin's writing may sit, tried in this order: beside the pin, then
+ * just above it, then just below. `dx` is how far along the line the writing
+ * starts from the pin and `dy` how far the two lines move up or down;
+ * LondonMapSnapshot.tsx reads both from the generated pin.
+ */
+const PLACEMENTS = [
+  { dx: 18, dy: 0 },
+  { dx: 4, dy: -44 },
+  { dx: 4, dy: 40 },
+];
+/**
+ * The box each line of a pin's writing takes, from the pin's centre before
+ * `dy`. Top and bottom are the fonts' own ascent and descent at .lpMapPinName
+ * (27px Space Grotesk Bold, baseline -2) and .lpMapPinLabel (22px JetBrains
+ * Mono, baseline 24). The width per character is wider than either font runs:
+ * Chromium measured 0.50 to 0.52 em for the names and 0.60 em for the dates on
+ * 14 Sep 2026, so writing this script seats is clear in the browser too.
+ */
+const NAME_BOX = { size: 27, em: 0.56, top: -30, bottom: 7 };
+const DATE_BOX = { size: 22, em: 0.62, top: 1, bottom: 31 };
+/** Clear space kept between writing and the drawing's edge, in user units. */
+const FRAME_INSET = 8;
 
 function projectX(lng) {
   return ((lng - FRAME.west) / (FRAME.east - FRAME.west)) * WIDTH;
@@ -147,6 +173,83 @@ function sortYear(pub) {
   return null;
 }
 
+/** The two boxes a pin's name and date take when set with `anchor`, `dx` and `dy`. */
+function writingBoxes(pin, { anchor, dx, dy }) {
+  const side = anchor === "end" ? -1 : 1;
+  const from = pin.x + side * dx;
+  return [
+    [pin.name, NAME_BOX],
+    [pin.label, DATE_BOX],
+  ].map(([text, font]) => {
+    const to = from + side * text.length * font.size * font.em;
+    return {
+      left: Math.min(from, to),
+      right: Math.max(from, to),
+      top: pin.y + dy + font.top,
+      bottom: pin.y + dy + font.bottom,
+    };
+  });
+}
+
+function overlaps(a, b) {
+  return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
+
+function markBox({ x, y, r }) {
+  return { left: x - r, right: x + r, top: y - r, bottom: y + r };
+}
+
+/**
+ * Where a pin's writing goes, or null when it cannot be written anywhere clean.
+ * Two labels laid over each other, or a label laid over a named pin, read as
+ * one tangle (site audit 13 Sep 2026, D21), so a pin whose name and date cannot
+ * stand clear of every named pin's mark, inside the frame and off every other
+ * pin's writing is not named at all, and the next oldest pub is asked instead.
+ * A plain pub dot MAY sit under the writing: .lpMapPinName and .lpMapPinLabel
+ * paint a halo in the land's own --panel-raised that keeps the letters legible
+ * over it, and keeping clear of every dot would leave the City with no name at
+ * all.
+ */
+function seat(pin, held) {
+  // A label runs AWAY from the pin it shares a line of text with, and out
+  // towards the nearer edge when it shares one with nobody. Pins are seated
+  // oldest first, so a lone pin that ran in towards the centre laid its writing
+  // across the City before any City pub was asked, and the face-away rule then
+  // turned every one of them down. Only a pin on roughly the same line can
+  // collide, so only those are asked.
+  const sameLine = held.filter((other) => Math.abs(other.y - pin.y) <= LABEL_LINE_UNITS);
+  const nearest = [...sameLine].sort((a, b) => Math.abs(a.x - pin.x) - Math.abs(b.x - pin.x))[0];
+  const preferred = nearest ? (nearest.x <= pin.x ? "start" : "end") : pin.x > WIDTH / 2 ? "start" : "end";
+  const anchors = preferred === "start" ? ["start", "end"] : ["end", "start"];
+  const ownMark = markBox({ ...pin, r: PIN_MARK_RADIUS });
+  if (held.some((other) => writingBoxes(other, other).some((theirs) => overlaps(ownMark, theirs)))) {
+    return null;
+  }
+  const pinMarks = [...held, pin].map((other) => markBox({ ...other, r: PIN_MARK_RADIUS }));
+  const options = PLACEMENTS.flatMap((placement) =>
+    anchors.map((anchor) => ({ anchor, ...placement })),
+  );
+  return (
+    options.find((option) => {
+      const facesAway = sameLine.every((other) =>
+        other.x <= pin.x
+          ? other.anchor === "end" && option.anchor === "start"
+          : other.anchor === "start" && option.anchor === "end",
+      );
+      if (!facesAway) return false;
+      return writingBoxes(pin, option).every(
+        (box) =>
+          box.left >= FRAME_INSET &&
+          box.right <= WIDTH - FRAME_INSET &&
+          box.top >= FRAME_INSET &&
+          box.bottom <= HEIGHT - FRAME_INSET &&
+          !pinMarks.some((mark) => overlaps(box, mark)) &&
+          !held.some((other) => writingBoxes(other, other).some((theirs) => overlaps(box, theirs))),
+      );
+    }) ?? null
+  );
+}
+
 function namedPins(pubs) {
   const dated = pubs
     .filter(
@@ -160,44 +263,23 @@ function namedPins(pubs) {
     .sort((a, b) => sortYear(a) - sortYear(b));
   const picked = [];
   for (const pub of dated) {
-    const x = projectX(pub.lng);
-    const y = projectY(pub.lat);
+    const pin = {
+      slug: pub.slug,
+      name: pub.name,
+      label: pub.dateLabel,
+      x: Math.round(projectX(pub.lng)),
+      y: Math.round(projectY(pub.lat)),
+    };
     const crowded = picked.some(
-      (held) =>
-        Math.hypot(x - projectX(held.lng), y - projectY(held.lat)) < PIN_SEPARATION_UNITS,
+      (held) => Math.hypot(pin.x - held.x, pin.y - held.y) < PIN_SEPARATION_UNITS,
     );
     if (crowded) continue;
-    picked.push(pub);
+    const placement = seat(pin, picked);
+    if (!placement) continue;
+    picked.push({ ...pin, ...placement });
     if (picked.length === PIN_COUNT) break;
   }
-  const placed = picked.map((pub) => ({
-    slug: pub.slug,
-    name: pub.name,
-    label: pub.dateLabel,
-    x: Math.round(projectX(pub.lng)),
-    y: Math.round(projectY(pub.lat)),
-  }));
-  return placed.map((pin) => {
-    // A label runs AWAY from the pin it shares a line of text with, and away
-    // from the nearer edge when it shares one with nobody. Anchoring on the
-    // frame's centre alone pointed two labels straight at each other across the
-    // City; only a pin on roughly the same line can collide, so only those are
-    // asked.
-    const sameLine = placed.filter(
-      (other) => other !== pin && Math.abs(other.y - pin.y) <= LABEL_LINE_UNITS,
-    );
-    const nearest = sameLine.sort(
-      (a, b) => Math.abs(a.x - pin.x) - Math.abs(b.x - pin.x),
-    )[0];
-    const anchor = nearest
-      ? nearest.x <= pin.x
-        ? "start"
-        : "end"
-      : pin.x > WIDTH / 2
-        ? "end"
-        : "start";
-    return { ...pin, anchor };
-  });
+  return picked;
 }
 
 const boroughs = JSON.parse(readFileSync(BOROUGHS, "utf8"));
@@ -253,9 +335,13 @@ export type LondonMapPin = {
   x: number;
   y: number;
   anchor: "start" | "end";
+  /** How far along the line from the pin the writing starts. */
+  dx: number;
+  /** How far up (negative) or down the two lines of writing move. */
+  dy: number;
 };
 
-/** The named pins: sourced, dated, oldest first, one per borough. */
+/** The named pins: sourced, dated, oldest first, apart, and written clear of every named pin. */
 export const LONDON_MAP_PINS: readonly LondonMapPin[] = ${JSON.stringify(pins, null, 2)};
 `;
 

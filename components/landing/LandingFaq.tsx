@@ -1,10 +1,3 @@
-"use client";
-
-import { useState, type FormEvent } from "react";
-
-import { CONTACT_EMAIL } from "@/lib/siteContact";
-import { trackEvent } from "@/lib/analytics";
-
 // Six questions and one paragraph each, in the words a person would use at the
 // bar (docs/VOICE.md).
 //
@@ -16,13 +9,9 @@ import { trackEvent } from "@/lib/analytics";
 // __tests__/landingFaq.test.ts holds the count at six and the copy to the
 // voice rules.
 //
-// THE PRO LINE STORES NOTHING. A drinker pays for nothing today (AGENTS.md,
-// "first revenue comes from venues"), so the waitlist is a single field that
-// opens the reader's own mail app addressed to the support inbox. There is no
-// endpoint, no table and no payment path behind it.
-
-/** The one price a Pro subscription is expected to carry, when there is one. */
-export const PRO_PRICE_LINE = "Pro is coming, at about £9.99 a month.";
+// NOTHING HERE IS FOR SALE. First revenue comes from venues, never drinkers
+// (AGENTS.md anti-goals), so the front door names no price a drinker would pay
+// and collects no address for one.
 
 type Question = { id: string; question: string; answer: string };
 
@@ -66,19 +55,6 @@ export const LANDING_FAQ: readonly Question[] = [
 ];
 
 export default function LandingFaq() {
-  const [email, setEmail] = useState("");
-
-  function joinWaitlist(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const address = email.trim();
-    if (!address) return;
-    trackEvent("landing_cta_clicked", { target: "pro-waitlist" });
-    // No endpoint and no table: the reader's own mail app carries the address.
-    const subject = encodeURIComponent("Pro waitlist");
-    const body = encodeURIComponent(`Put ${address} on the Pro waitlist.`);
-    window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
-  }
-
   return (
     <section className="lpFaq" id="faq" aria-labelledby="lp-faq-title">
       <h2 className="lpFaqTitle" id="lp-faq-title">
@@ -92,31 +68,6 @@ export default function LandingFaq() {
           </div>
         ))}
       </dl>
-
-      <div className="lpPro">
-        <p className="lpProLine">
-          {PRO_PRICE_LINE} Everything on this page stays free, and a drinker pays
-          for nothing today.
-        </p>
-        <form className="lpProForm" onSubmit={joinWaitlist}>
-          <label className="lpProLabel" htmlFor="lp-pro-email">
-            Email
-          </label>
-          <input
-            id="lp-pro-email"
-            className="lpProInput"
-            type="email"
-            name="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-          <button className="lpProSubmit" type="submit">
-            Tell me when Pro lands
-          </button>
-        </form>
-      </div>
     </section>
   );
 }

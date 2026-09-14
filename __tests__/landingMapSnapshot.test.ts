@@ -63,8 +63,9 @@ describe("the landing's drawing of London", () => {
   });
 
   it("names only pubs the heritage dataset holds, with the dataset's own words", () => {
-    // The script caps the pins at six; the separation rule decides how many the
-    // data can seat without labels touching, and today that is five.
+    // The script caps the pins at six; the separation rule and clear writing
+    // decide how many the data can seat without labels touching, and today that
+    // is five.
     expect(LONDON_MAP_PINS.length).toBeGreaterThanOrEqual(4);
     expect(LONDON_MAP_PINS.length).toBeLessThanOrEqual(6);
     for (const pin of LONDON_MAP_PINS) {
@@ -97,6 +98,52 @@ describe("the landing's drawing of London", () => {
     for (const [index, pin] of LONDON_MAP_PINS.entries()) {
       for (const other of LONDON_MAP_PINS.slice(index + 1)) {
         expect(Math.hypot(pin.x - other.x, pin.y - other.y)).toBeGreaterThanOrEqual(150);
+      }
+    }
+  });
+
+  it("seats every pin's writing clear of every named pin and every other pin's writing", () => {
+    // A label laid over another label or over a named pin reads as one tangle
+    // (site audit 13 Sep 2026, D21). A plain pub dot may sit under the writing,
+    // because .lpMapPinName and .lpMapPinLabel paint a halo that keeps the
+    // letters legible over it. The boxes are the fonts' own ascent and descent
+    // at the drawing's sizes (LondonMapSnapshot.tsx and .lpMapPinName /
+    // .lpMapPinLabel), with widths a little wider than Space Grotesk Bold and
+    // JetBrains Mono really run, so a pass here is a pass in the browser;
+    // e2e/landing-map-labels.spec.ts measures the painted boxes at 390, 768 and
+    // 1440.
+    const marks = LONDON_MAP_PINS.map((pin) => ({ x: pin.x, y: pin.y, r: 9.5 }));
+    type Box = { left: number; right: number; top: number; bottom: number };
+    const writing = (pin: (typeof LONDON_MAP_PINS)[number]): Box[] => {
+      const side = pin.anchor === "end" ? -1 : 1;
+      const box = (width: number, top: number, bottom: number) => {
+        const from = pin.x + side * pin.dx;
+        const to = from + side * width;
+        return {
+          left: Math.min(from, to),
+          right: Math.max(from, to),
+          top: pin.y + pin.dy + top,
+          bottom: pin.y + pin.dy + bottom,
+        };
+      };
+      return [box(pin.name.length * 27 * 0.55, -30, 7), box(pin.label.length * 22 * 0.61, 1, 31)];
+    };
+    const overlaps = (a: Box, b: Box) =>
+      a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    for (const pin of LONDON_MAP_PINS) {
+      for (const text of writing(pin)) {
+        const covered = marks.filter((mark) =>
+          overlaps(text, { left: mark.x - mark.r, right: mark.x + mark.r, top: mark.y - mark.r, bottom: mark.y + mark.r }),
+        );
+        expect(covered, `${pin.name}'s writing covers ${covered.length} named pins`).toHaveLength(0);
+      }
+      for (const other of LONDON_MAP_PINS) {
+        if (other === pin) continue;
+        for (const text of writing(pin)) {
+          for (const theirs of writing(other)) {
+            expect(overlaps(text, theirs), `${pin.name} runs into ${other.name}`).toBe(false);
+          }
+        }
       }
     }
   });
