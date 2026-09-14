@@ -4576,6 +4576,21 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
   pointer-events: none;
 }
 
+/* NO BAND ON THE MAP. Site audit 13 Sep 2026: while the card was up, the phone
+   map showed a band of bare map background behind the chip row, and no element
+   painted it. The card is a square, opaque, full-width layer, so the compositor
+   skips the canvas under it, and for a WebGL canvas it took the card's rect
+   mirrored in y: the card at y 724 to 780 cut the map out from y 64 to 120.
+   A layer that is not fully opaque is never an occluder, so the canvas draws
+   whole. 0.999 changes no visible pixel of the card. Raising the card moved
+   the band by the same distance, and a transparent card background removed
+   it. The rule lives on the card, a 56px layer, and never on the map wrap,
+   because a map that is not fully opaque is a full-screen render pass.
+   Fence: e2e/map-consent-canvas-band.spec.ts. */
+body:has(.maplibregl-canvas) .analyticsConsentPrompt {
+  opacity: 0.999;
+}
+
 /* Desktop: reserve foot clearance while the fixed consent bar is mounted so
    list cards and page footers are not half-covered. */
 @media (min-width: 641px) {
