@@ -42,6 +42,17 @@ describe("QA high findings — mobile sheet and consent layering", () => {
     );
   });
 
+  it("lets the sheet portal reach the bottom edge when the tab bar hides under it", () => {
+    for (const shell of ["detail-open", "planning-open"]) {
+      expect(mobileNavCss).toContain(`body:has(.appShell.${shell}) .mobileTabBar`);
+      expect(mobileMapShellCss).toMatch(
+        new RegExp(
+          `body:has\\(\\.appShell\\.${shell}\\) \\.mobileSheetPortal[^{]*{[^}]*bottom:\\s*0;`,
+        ),
+      );
+    }
+  });
+
   it("hides the analytics consent card while any map sheet is open", () => {
     const rule = globalCss.match(
       /body:has\(\.mobileSheetPortal\) \.analyticsConsentPrompt,\s*body:has\(\.chooseAreaDesktopScrim\) \.analyticsConsentPrompt\s*{([^}]*)}/,

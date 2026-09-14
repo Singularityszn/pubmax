@@ -646,6 +646,13 @@
     bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
     z-index: var(--z-overlay-top);
   }
+  /* A venue or the planner hides the tab bar (mobileNav.css), so there is no
+     bar to stop above. Held at the bar's berth, the sheet floated 64px up over
+     a strip of live map. */
+  body:has(.appShell.detail-open) .mobileSheetPortal,
+  body:has(.appShell.planning-open) .mobileSheetPortal {
+    bottom: 0;
+  }
   .mobileSheetScrim { position: absolute; inset: 0; width: 100%; border: 0; background: color-mix(in srgb, var(--ink-deep) 32%, transparent); }
 
   /* ── Bottom-sheet box model (systemic rebuild) ──────────────────────────────

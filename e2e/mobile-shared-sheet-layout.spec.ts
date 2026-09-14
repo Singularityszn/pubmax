@@ -24,9 +24,10 @@ const ARNOS_ARMS_ID = stableVenueIdFromKey(
   ].join("|"),
 );
 
-async function prepareMobilePage(page: Page, theme: "light" | "dark" = "light"): Promise<void> {
-  await page.setViewportSize(MOBILE_VIEWPORT);
-  await page.emulateMedia({ reducedMotion: "reduce" });
+// The keyless build points Supabase at a host that does not resolve, so a
+// page that opens the realtime socket logs a DNS error unless the spec
+// answers for it.
+async function stubKeylessSupabase(page: Page): Promise<void> {
   await page.route("**/_vercel/insights/script.js", (route) =>
     route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
   );
@@ -42,6 +43,12 @@ async function prepareMobilePage(page: Page, theme: "light" | "dark" = "light"):
     "wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket**",
     () => {},
   );
+}
+
+async function prepareMobilePage(page: Page, theme: "light" | "dark" = "light"): Promise<void> {
+  await page.setViewportSize(MOBILE_VIEWPORT);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await stubKeylessSupabase(page);
   await page.addInitScript((initialTheme) => {
     window.localStorage.setItem("pubmax-theme", initialTheme);
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -54,40 +61,72 @@ function watchBrowserErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
   page.on("console", (message) => {
-    if (message.type() === "error") errors.push(`console: ${message.text()}`);
+    if (message.type() !== "error") return;
+    const { url } = message.location();
+    errors.push(`console: ${message.text()}${url ? ` (${url})` : ""}`);
   });
   return errors;
 }
 
+// The phone sheet is absolute inside the fixed .mobileSheetPortal (#952,
+// QA H02). The portal stops above a shown tab bar, so the sheet never takes a
+// tab tap. A venue or the planner hides the bar, and then the portal and the
+// sheet reach the bottom edge, with no strip of map under the sheet.
 async function expectSheetInsideViewport(
   page: Page,
   sheet: Locator,
   footer?: Locator,
 ): Promise<void> {
   await expect(sheet).toBeVisible();
-  const geometry = await sheet.evaluate((element) => {
-    const rect = element.getBoundingClientRect();
-    const style = getComputedStyle(element);
-    return {
-      top: rect.top,
-      right: rect.right,
-      bottom: rect.bottom,
-      left: rect.left,
-      height: rect.height,
-      position: style.position,
-      transform: style.transform,
-    };
-  });
   const viewport = page.viewportSize();
   expect(viewport).not.toBeNull();
-  expect(geometry.position).toBe("fixed");
-  expect(["none", "matrix(1, 0, 0, 1, 0, 0)"]).toContain(geometry.transform);
-  expect(geometry.left).toBeGreaterThanOrEqual(0);
-  expect(geometry.top).toBeGreaterThanOrEqual(0);
-  expect(geometry.right).toBeLessThanOrEqual(viewport!.width + 1);
-  expect(geometry.bottom).toBeLessThanOrEqual(viewport!.height + 1);
-  expect(geometry.bottom).toBeGreaterThanOrEqual(viewport!.height - 1);
-  expect(geometry.height).toBeLessThanOrEqual(viewport!.height);
+  await expect(async () => {
+    const geometry = await sheet.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      const portal = element.closest(".mobileSheetPortal");
+      const tabBar = document.querySelector(".mobileTabBar");
+      const tabBarStyle = tabBar ? getComputedStyle(tabBar) : null;
+      const tabBarRect = tabBar?.getBoundingClientRect() ?? null;
+      let tabBarState: "shown" | "hidden" | "moving" = "hidden";
+      if (tabBar && tabBarStyle && tabBarRect && tabBarStyle.display !== "none") {
+        if (tabBarStyle.opacity === "1" && tabBarStyle.transform === "none") tabBarState = "shown";
+        else if (tabBarStyle.opacity !== "0" || tabBarRect.top < window.innerHeight) tabBarState = "moving";
+      }
+      return {
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        left: rect.left,
+        height: rect.height,
+        position: style.position,
+        transform: style.transform,
+        portalPosition: portal ? getComputedStyle(portal).position : null,
+        portalBottom: portal?.getBoundingClientRect().bottom ?? null,
+        tabBar: tabBarState,
+        tabBarTop: tabBarRect?.top ?? null,
+        tabBarReserve: Number.parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue("--tabbar-h"),
+        ),
+      };
+    });
+    expect(geometry.tabBar).not.toBe("moving");
+    expect(geometry.portalPosition).toBe("fixed");
+    expect(geometry.position).toBe("absolute");
+    expect(["none", "matrix(1, 0, 0, 1, 0, 0)"]).toContain(geometry.transform);
+    expect(geometry.left).toBeGreaterThanOrEqual(0);
+    expect(geometry.top).toBeGreaterThanOrEqual(0);
+    expect(geometry.right).toBeLessThanOrEqual(viewport!.width + 1);
+    expect(geometry.height).toBeLessThanOrEqual(viewport!.height);
+    expect(Math.abs(geometry.bottom - geometry.portalBottom!)).toBeLessThanOrEqual(1);
+    if (geometry.tabBar === "shown") {
+      expect(Math.abs(geometry.bottom - (viewport!.height - geometry.tabBarReserve))).toBeLessThanOrEqual(1);
+      expect(geometry.bottom).toBeLessThanOrEqual(geometry.tabBarTop! + 1);
+    } else {
+      expect(geometry.bottom).toBeLessThanOrEqual(viewport!.height + 1);
+      expect(geometry.bottom).toBeGreaterThanOrEqual(viewport!.height - 1);
+    }
+  }).toPass({ timeout: 5_000 });
 
   if (!footer) return;
   await expect(footer).toBeVisible();
@@ -117,13 +156,13 @@ test("mobile venue footer stays pinned and actionable at every sheet detent", as
   const footer = portal.locator(".mobileSharedSheetFooter");
   const body = portal.locator(".mobileSharedSheetBody");
   // The footer carries no price action (the Overview's one price door owns
-  // that); Share is the command every pub sheet keeps, so it is the one held
-  // in view at every detent.
-  const addPrice = portal.getByRole("button", { name: "Share Arnos Arms" });
+  // that, #1517); Share is the command every pub sheet keeps, so it is the one
+  // held in view at every detent, and its tap answers in the footer itself.
+  const share = portal.getByRole("button", { name: "Share Arnos Arms" });
 
   await expect(sheet).toHaveClass(/sheet-half/);
   await expectSheetInsideViewport(page, sheet, footer);
-  await expect(addPrice).toBeInViewport();
+  await expect(share).toBeInViewport();
 
   const footerBeforeScroll = await footer.boundingBox();
   await body.evaluate((element) => {
@@ -136,7 +175,7 @@ test("mobile venue footer stays pinned and actionable at every sheet detent", as
   await sheet.getByRole("button", { name: "Expand sheet" }).click();
   await expect(sheet).toHaveClass(/sheet-full/);
   await expectSheetInsideViewport(page, sheet, footer);
-  await expect(addPrice).toBeInViewport();
+  await expect(share).toBeInViewport();
 
   await sheet.getByRole("button", { name: "Collapse sheet" }).click();
   await expect(sheet).toHaveClass(/sheet-half/);
@@ -153,9 +192,9 @@ test("mobile venue footer stays pinned and actionable at every sheet detent", as
 
   await expect(sheet).toHaveClass(/sheet-peek/);
   await expectSheetInsideViewport(page, sheet, footer);
-  await expect(addPrice).toBeInViewport();
-  await addPrice.click();
-  await expect(page.locator(".venuePriceSubmit")).toBeVisible();
+  await expect(share).toBeInViewport();
+  await share.click();
+  await expect(footer.locator(".venueSheetShareFeedback")).toBeVisible();
 
   expect(browserErrors).toEqual([]);
 });
@@ -188,9 +227,7 @@ test("mobile planner and contextual portal sheets retain the canonical bottom an
 test("desktop keeps the legacy inline venue drawer without the mobile portal layout", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.route("**/_vercel/insights/script.js", (route) =>
-    route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
-  );
+  await stubKeylessSupabase(page);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
