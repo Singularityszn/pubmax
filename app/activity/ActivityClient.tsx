@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import EmptyState from "@/components/ui/empty-state";
+import { Chip } from "@/components/ui/chip";
 import Screen from "@/components/ui/screen";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
@@ -277,24 +278,20 @@ export default function ActivityClient(): React.JSX.Element {
                 so the phone layout stays the single list it always was. */}
             <aside className="activityRail" aria-label="Filter activity">
               <div className="activityFilters" role="group" aria-label="Filter by kind">
-                <button
-                  type="button"
-                  className="activityFilter"
+                <Chip
                   aria-pressed={kindFilter === "all"}
                   onClick={() => setKindFilter("all")}
                 >
                   All
-                </button>
+                </Chip>
                 {KIND_FILTERS.filter((f) => (kindCounts[f.kind] ?? 0) > 0).map((f) => (
-                  <button
+                  <Chip
                     key={f.kind}
-                    type="button"
-                    className="activityFilter"
                     aria-pressed={kindFilter === f.kind}
                     onClick={() => setKindFilter(f.kind)}
                   >
                     {f.label} ({kindCounts[f.kind]})
-                  </button>
+                  </Chip>
                 ))}
               </div>
               <dl className="activitySummary">

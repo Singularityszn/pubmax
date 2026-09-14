@@ -68,36 +68,34 @@
   gap: 8px;
 }
 
+/* The pair is the Button primitive's primary and secondary
+   (components/ui/button.css), so this sheet only lays them out. They wore
+   --radius-sm at weight 600 beside every other control's 14px at 700 (site
+   audit 13 Sep 2026, D7), and before that an --ink primary, the only black
+   one on the site (report.md B1). */
+/* Each label on ONE line. At the family's 16px padding the pair needs 307px
+   side by side ("Use my location" 163, "Choose an area" 136, and the gap),
+   and in two equal halves both wrapped to two or three lines at 390px. So the
+   row reaches into the close button's lane (the close sits in the strip's top
+   corner, above this row), each button takes its label's width, and under
+   360px the locate glyph and 4px a side give way. */
+.mapArrivalCardActions {
+  margin-inline-end: -32px;
+}
+
 .mapArrivalCardActions button {
-  min-height: 44px;
-  flex: 1 1 0;
-  border-radius: var(--radius-sm);
-  font-size: 0.88rem;
-  font-weight: 600;
+  flex: 1 1 auto;
+  white-space: nowrap;
 }
 
-/* One painted primary, in the product's coral. It was --ink, the only black
-   primary on the site and on the map's first screen (report.md B1, secondary
-   finding). One button family. */
-.mapArrivalCardPrimary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border: 1px solid transparent;
-  background: var(--color-accent);
-  color: var(--color-on-accent);
-}
+@media (max-width: 359px) {
+  .mapArrivalCardActions button {
+    padding-inline: var(--space-3, 12px);
+  }
 
-.mapArrivalCardPrimary:hover {
-  background: var(--color-accent-strong);
-  color: var(--color-on-accent-strong);
-}
-
-.mapArrivalCardSecondary {
-  border: 1px solid var(--hairline, var(--line));
-  background: transparent;
-  color: var(--ink);
+  .mapArrivalCardActions button svg {
+    display: none;
+  }
 }
 
 /* The close sits in the strip's own top-right padding lane, so it never takes
@@ -151,11 +149,11 @@
   .mapArrivalCardActions {
     grid-column: 2;
     flex: 0 0 auto;
+    margin-inline-end: 0;
   }
 
   .mapArrivalCardActions button {
     flex: 0 0 auto;
-    padding: 0 14px;
   }
 }
 

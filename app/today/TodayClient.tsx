@@ -76,6 +76,7 @@ import TodayGetThereStrip from "./TodayGetThereStrip";
 import TodayPintsCard from "./TodayPintsCard";
 import TodayQuietPintCard from "./TodayQuietPintCard";
 import TodayTubeCard from "./TodayTubeCard";
+import { TODAY_TEXT_BUTTON_CLASS } from "./todayTextButton";
 import type { TodayPintsIndex } from "./todayPints";
 import type { QuietPintModule } from "@/lib/quietPint";
 import "./today.css";
@@ -376,7 +377,7 @@ function FactCard({ fact }: { fact: PubOfTheDayCard | null }) {
             </span>
             {fact.sourceRef ? (
               <a
-                className="todayTextButton"
+                className={TODAY_TEXT_BUTTON_CLASS}
                 href={fact.sourceRef}
                 target="_blank"
                 rel="noreferrer noopener"

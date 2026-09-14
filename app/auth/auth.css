@@ -414,9 +414,13 @@
   background: var(--panel-raised);
   color: var(--ink);
   font: inherit;
-  font-size: 0.86rem;
-  font-weight: 600;
+  /* The control row's type. On a phone this trigger is a Link, and a link
+     keeps the browser's underline unless the rule says otherwise: the landing
+     bar painted "Sign in" underlined at 600 (site audit 13 Sep 2026, D7). */
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   line-height: 1;
+  text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
   transition:

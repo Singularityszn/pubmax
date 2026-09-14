@@ -31,17 +31,20 @@ for (const viewport of DEVICES) {
       await setTheme(page, theme);
       await page.goto("/");
 
-      // ONE painted primary plus the quiet row, which is the table in
+      // ONE painted primary plus the quiet row. The row is the receipt door,
+      // which components/landing/LandingHero.tsx always renders first (the
+      // anchor pub's "Still £6.50?" or the fallback), then the table in
       // lib/landingHero.ts rather than a number typed here: the row carried two
-      // doors from #1488 while this spec still counted for one (#1503).
+      // doors from #1488 while this spec still counted for one (#1503), and it
+      // counted the table alone after the receipt door left the table (#1628).
       const heroActions = page.locator(".lpHero .screenActions a");
-      await expect(heroActions).toHaveCount(1 + LANDING_QUIET_DOORS.length);
+      await expect(heroActions).toHaveCount(2 + LANDING_QUIET_DOORS.length);
       await expect(page.getByRole("link", { name: LANDING_PRIMARY_NAME }).first()).toBeVisible();
       const quietDoors = page.locator(".lpHero .screenSecondary > a");
-      await expect(quietDoors).toHaveCount(LANDING_QUIET_DOORS.length);
+      await expect(quietDoors).toHaveCount(1 + LANDING_QUIET_DOORS.length);
       for (const [index, door] of LANDING_QUIET_DOORS.entries()) {
-        await expect(quietDoors.nth(index)).toHaveAttribute("href", door.href);
-        await expect(quietDoors.nth(index)).toHaveText(door.label);
+        await expect(quietDoors.nth(index + 1)).toHaveAttribute("href", door.href);
+        await expect(quietDoors.nth(index + 1)).toHaveText(door.label);
       }
 
       const actionGeometry = await heroActions.evaluateAll((elements) =>
@@ -101,7 +104,7 @@ for (const viewport of DEVICES) {
 // the rendered proof that nothing in the lane is painted over.
 const COMPOSE_LANE_SURFACES = [
   { route: "/", row: ".lpRailLink" },
-  { route: "/tonight", row: ".tonightSoftPlansLink" },
+  // Tonight's soft-plans rows are time-gated; e2e/tonight.spec.ts owns that surface on the quiet night.
   { route: "/today", row: ".todayCardFootRow" },
 ] as const;
 
@@ -382,8 +385,9 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
   await setTheme(page, "light");
   await page.goto("/map");
   const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
+  // "Show all" left the map edge for the Layers popover (7 Sep 2026, B9), so
+  // the zoom pair is the readiness signal here and nothing else is waited on.
   await expect(zoomIn).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator(".mapFitLondonBtn")).toBeVisible();
   const findings = await page.evaluate(() => {
     const owns = (selector: string) => {
       const element = document.querySelector(selector);
@@ -424,3 +428,213 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
     expect(findings.banner.headlineLines).toBeLessThanOrEqual(2);
   }
 });
+
+// ── The 13 September sweep (site audit D7, D14, D15, D16). Each figure below
+// is the defect's own measurement on production that day.
+
+// (7) The controls that still painted a look of their own: "Pick an area
+// instead" at r0 and stretched to 577px with its label 218px left of centre,
+// the map's first-visit pair at r6 and 600, the toolbar's Filters and Drink
+// at 11.52px, Plan an outing at 900, and the phone "Sign in" pill underlined
+// at 600. A control in the family takes the token radius, the token type size
+// and weight, the thumb floor, no underline, and a label at its own centre.
+const FAMILY_SURFACES = [
+  { route: "/today", width: 1440, selector: ".todayTextButton", firstVisitMap: false },
+  { route: "/today", width: 390, selector: ".todayTextButton", firstVisitMap: false },
+  { route: "/", width: 390, selector: ".authCompactTrigger", firstVisitMap: false },
+  {
+    route: "/map",
+    width: 1440,
+    selector: ".mapArrivalCardActions button, .mapVenueKindFilterBtn, .mapToolbarDrinkLaneBtn, .planBtn",
+    firstVisitMap: true,
+  },
+  { route: "/map", width: 390, selector: ".mapArrivalCardActions button", firstVisitMap: true },
+  // The narrowest phone: the pair wrapped to two and three lines in halves.
+  { route: "/map", width: 320, selector: ".mapArrivalCardActions button", firstVisitMap: true },
+] as const;
+
+for (const surface of FAMILY_SURFACES) {
+  test(`${surface.width}px: ${surface.route} ${surface.selector.split(",")[0]} is one of the button family`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: surface.width, height: surface.width > 640 ? 900 : 844 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await setTheme(page, "light");
+    if (surface.firstVisitMap) {
+      await page.addInitScript(() => {
+        window.localStorage.removeItem("pubmax:map-first-visit-arrival:v1");
+      });
+    }
+    await page.goto(surface.route);
+    const controls = page.locator(surface.selector);
+    // The map's controls arrive with the map chunk (see the drawer case above).
+    await expect(controls.first()).toBeVisible({ timeout: 90_000 });
+
+    const findings = await controls.evaluateAll((elements) => {
+      const probe = document.createElement("span");
+      probe.style.cssText =
+        "position:absolute;visibility:hidden;font-size:var(--control-font-size);font-weight:var(--control-font-weight);border-radius:var(--control-radius)";
+      document.body.append(probe);
+      const token = getComputedStyle(probe);
+      const expected = {
+        radius: token.borderTopLeftRadius,
+        size: token.fontSize,
+        weight: token.fontWeight,
+      };
+      probe.remove();
+      return elements
+        .filter((element) => {
+          const box = element.getBoundingClientRect();
+          const styles = getComputedStyle(element);
+          return box.width > 0 && box.height > 0 && styles.visibility !== "hidden";
+        })
+        .map((element) => {
+          const styles = getComputedStyle(element);
+          const box = element.getBoundingClientRect();
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          const content = range.getBoundingClientRect();
+          return {
+            name: `${element.className} "${element.textContent?.trim().slice(0, 24) ?? ""}"`,
+            radius: styles.borderTopLeftRadius,
+            size: styles.fontSize,
+            weight: styles.fontWeight,
+            decoration: styles.textDecorationLine,
+            height: box.height,
+            labelOffset: Math.abs(content.left + content.width / 2 - (box.left + box.width / 2)),
+            expected,
+          };
+        });
+    });
+
+    expect(findings.length).toBeGreaterThan(0);
+    for (const control of findings) {
+      expect(control.radius, `${control.name} radius`).toBe(control.expected.radius);
+      expect(control.size, `${control.name} type size`).toBe(control.expected.size);
+      expect(control.weight, `${control.name} weight`).toBe(control.expected.weight);
+      expect(control.decoration, `${control.name} underline`).toBe("none");
+      expect(control.height, `${control.name} height`).toBeGreaterThanOrEqual(44);
+      expect(control.labelOffset, `${control.name} label centre`).toBeLessThanOrEqual(1);
+    }
+  });
+}
+
+// The toolbar's Plan control is desktop chrome: a phone plans from its own
+// stack pill, so no phone width may paint a toolbar Plan outside the family
+// measurement above, which runs at 1440.
+for (const width of [320, 390] as const) {
+  test(`${width}px: /map paints no toolbar Plan control`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width, height: 844 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await setTheme(page, "light");
+    await page.goto("/map");
+    await expect(page.locator(".mobilePlanActivation")).toBeVisible({ timeout: 90_000 });
+    await expect(page.locator(".mapToolbar .planBtn")).toHaveCount(0);
+  });
+}
+
+// "Pick an area instead" follows the manual prompt in the get-there column, so
+// as a ghost it may not step its label 16px in from the prompt's text edge.
+for (const width of [390, 1440] as const) {
+  test(`${width}px: /today keeps the area action's label on the prompt's edge`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width > 640 ? 900 : 844 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await setTheme(page, "light");
+    await page.goto("/today");
+    const action = page.locator(".todayGetThere > .todayTextButton");
+    await expect(action).toBeVisible();
+    const delta = await page.evaluate(() => {
+      const contentLeft = (element: Element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        return range.getBoundingClientRect().left;
+      };
+      const prompt = document.querySelector(".todayGetThere > .todayManualPrompt")!;
+      const button = document.querySelector(".todayGetThere > .todayTextButton")!;
+      return contentLeft(button) - contentLeft(prompt);
+    });
+    expect(Math.abs(delta)).toBeLessThanOrEqual(1);
+  });
+}
+
+// (8) /activity at 1440: the sign-in form sat 112px in from the heading it
+// answers (heading x 180, form x 292), because the form's own column centres
+// itself inside the empty state.
+test("1440px: /activity starts its sign-in form on the heading's edge", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await setTheme(page, "light");
+  await page.goto("/activity");
+  const form = page.locator(".emptyState .authMagicLink");
+  await expect(form).toBeVisible();
+  const delta = await page.evaluate(() => {
+    const title = document.querySelector(".emptyState .emptyStateTitle")!.getBoundingClientRect();
+    const field = document.querySelector(".emptyState .authMagicLink")!.getBoundingClientRect();
+    return field.left - title.left;
+  });
+  expect(Math.abs(delta)).toBeLessThanOrEqual(1);
+});
+
+// (9) /moment on a phone: the heading sat at x 12 where every other route
+// starts at the page gutter (22px at 390).
+for (const width of [320, 390] as const) {
+  test(`${width}px: /moment takes the shared page gutter`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await setTheme(page, "light");
+    await page.goto("/moment");
+    const heading = page.locator(".momentPage h1");
+    await expect(heading).toBeVisible();
+    const geometry = await page.evaluate(() => {
+      const probe = document.createElement("div");
+      probe.style.cssText = "position:absolute;visibility:hidden;width:var(--page-gutter)";
+      document.body.append(probe);
+      const gutter = probe.getBoundingClientRect().width;
+      probe.remove();
+      const h1 = document.querySelector(".momentPage h1")!.getBoundingClientRect();
+      return { gutter, left: h1.left, right: window.innerWidth - h1.right };
+    });
+    expect(Math.abs(geometry.left - geometry.gutter)).toBeLessThanOrEqual(1);
+    expect(geometry.right).toBeGreaterThanOrEqual(geometry.gutter - 1);
+  });
+}
+
+// (10) The compose action's lane, for the cells a scroll carries under it:
+// the "Your PUBMAXX" heading on /u/you (its box ran to x 351 under a control at
+// x 322) and the "Cheapest pint" column on a borough table (head text 272 to
+// 357). The cell is scrolled to the control's own band, and its content box
+// must end before the control starts.
+const COMPOSE_LANE_CELLS = [
+  { route: "/u/you", cells: ".accountHub > .profileSectionKicker, .accountHub > h2" },
+  { route: "/borough/southwark", cells: ".boroughPriceHead, .boroughPriceCell" },
+] as const;
+
+for (const surface of COMPOSE_LANE_CELLS) {
+  for (const width of [320, 390] as const) {
+    test(`${width}px: ${surface.route} keeps ${surface.cells.split(",")[0]} out of the compose lane`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await setTheme(page, "light");
+      await page.goto(surface.route);
+      await expect(page.locator(".createFab")).toBeVisible();
+      await expect(page.locator(surface.cells).first()).toBeVisible();
+      const overlaps = await page.evaluate(async (selector) => {
+        const fab = document.querySelector(".createFab")!.getBoundingClientRect();
+        const first = document.querySelector(selector)!;
+        window.scrollBy(0, first.getBoundingClientRect().top - fab.top);
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const control = document.querySelector(".createFab")!.getBoundingClientRect();
+        return Array.from(document.querySelectorAll(selector)).flatMap((cell) => {
+          const box = cell.getBoundingClientRect();
+          if (box.bottom <= control.top || box.top >= control.bottom) return [];
+          const styles = getComputedStyle(cell);
+          const contentRight = box.right - parseFloat(styles.paddingRight) - parseFloat(styles.borderRightWidth);
+          return contentRight > control.left
+            ? [`${cell.textContent?.trim().slice(0, 20)} ends at ${Math.round(contentRight)}, control at ${Math.round(control.left)}`]
+            : [];
+        });
+      }, surface.cells);
+      expect(overlaps).toEqual([]);
+    });
+  }
+}

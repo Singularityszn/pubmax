@@ -16,6 +16,8 @@ import { ArrowRight, ExternalLink, Wine } from "lucide-react";
 import { ProseDisclosure } from "@/components/Disclosure";
 import type { QuietPintModule } from "@/lib/quietPint";
 
+import { TODAY_TEXT_BUTTON_CLASS } from "./todayTextButton";
+
 import "./quietPintCard.css";
 
 type Props = { module: QuietPintModule | null };
@@ -86,7 +88,7 @@ export default function TodayQuietPintCard({ module }: Props) {
         <span className="todayProvenance">
           Quiet reads the usual pattern for the hour, not the door.
         </span>
-        <Link href="/historic" className="todayTextButton">
+        <Link href="/historic" className={TODAY_TEXT_BUTTON_CLASS}>
           More historic pubs
           <ArrowRight size={14} aria-hidden="true" />
         </Link>

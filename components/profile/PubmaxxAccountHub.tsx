@@ -771,8 +771,8 @@ export default function PubmaxxAccountHub() {
   // this DEVICE holds, plus the settings a signed-out reader may still change.
   if (viewerSession.signedOut) return (
     <section className="accountHub">
-      <p className="profileSectionKicker">Your PUBMAXX</p>
-      <h2>On this device</h2>
+      <p className="profileSectionKicker createFabLane">Your PUBMAXX</p>
+      <h2 className="createFabLane">On this device</h2>
       <div className="accountHubSignIn">
         <p>An account claims a handle, connects profiles, and keeps private Night Memories. What is saved on this device is only brought to an account after you review it.</p>
       </div>
@@ -802,7 +802,7 @@ export default function PubmaxxAccountHub() {
 
   return (
     <section className="accountHub" aria-labelledby="account-hub-title">
-      <p className="profileSectionKicker">Your PUBMAXX</p><h2 id="account-hub-title">Identity, connections and memories.</h2>
+      <p className="profileSectionKicker createFabLane">Your PUBMAXX</p><h2 id="account-hub-title" className="createFabLane">Identity, connections and memories.</h2>
       {socialFriendsLaunchEnabled ? <ReferralFollowBack /> : null}
       {/* The account hub is where a freshly onboarded drinker lands, and the
           packs gate themselves on following fewer than three accounts, so this
