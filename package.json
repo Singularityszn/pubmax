@@ -157,7 +157,8 @@
     "tailwindcss": "^4.3.2",
     "tsx": "^4.23.13",
     "typescript": "^5.7.2",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.0",
+    "yaml": "^2.9.1"
   },
   "overrides": {
     "browserslist": "^4.28.7",
