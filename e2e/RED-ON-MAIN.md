@@ -246,14 +246,18 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - `a11y-keyboard-loop.spec.ts:314` found 7 SVG `g` elements "parked" on `/`. #1628 (7 Sep) draws London as a `role="img"` SVG, and each pin group sits at `transform="translate(x y)"` in the drawing's own units. That is placement, not a parked transition. The probe now skips an SVG element that carries a `transform` attribute. CSS transforms, the opacity check and `/tonight` and `/plan` are unchanged.
   - No product bug: each spec now reads the shipped surface, and every behaviour check it held still runs.
   - Proof on the rig: red before the change, then `founding-members` and `wanted-wave-a` gave 21 passed, `map-performance` gave 9 passed, and the reduced-motion tests gave 9 passed, each on a 3x repeat at 2 workers. `map-near-me.spec.ts:115` passed on this branch with no change.
+- [x] R42 `landmark-story-sheet.spec.ts` (2 fixed): `:277` (now `:288`, G1) and `:323` (now `:335`, G3). The spec lied about the shipped product. Two causes.
+  - `:288` read the pub's name off a settled list, then tapped the row with that name. The settle is two equal reads 400 ms apart, and the opening venue shards hold the list still for about 1 s: `Lamb and Flag|White Swan|Mercers Arms`. Then the nearer pubs land and the list re-ranks to `The White Lion|The Old Bell|Nell Gwynne Tavern`. The spec kept the stale name, and `click()` with no budget waited for a row that was gone until `toPass` ended at 45 s. A run log showed `settled Lamb and Flag|… opened The White Lion`, and a probe of the same journey opened the pub, went Back to the story and opened it again.
+  - `openStoryPub` now reads the first row's name on each attempt, taps that name with a 4 s budget, and gives the name back. The venue sheet title must equal that name on both opens. The `Back to Covent Garden` trail, the `sel` and `landmark` URL checks, the browser Back and the page error checks are unchanged.
+  - `:335` read `.mapCameraControls` beside the story drawer. Since #1631 the map edge keeps only a route's `Recenter` (`canRecenter`, `components/PubMapCanvas.tsx`), and Show all and the compass live in the Layers popover. So the locator waited out the 90 s test budget. The spec now checks that the Layers entry and the open popover's Show all and compass sit right of the drawer and own their centres. The retried tap opens Layers, as `e2e/AGENTS.md` asks.
+  - No product bug: the story's Back trail works, and no desktop map control sits under the drawer.
+  - Proof on the rig (build at `6ff315178`): red before each change (`:288` 2 of 2, `:335` 4 of 4), then the spec file gave 18 passed on a 3x repeat at 2 workers. eslint is clean.
 
 ## Reproduced on this branch, not yet grouped
 
 A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix specs that no group has touched. Each line is the first failing assertion.
 
 - `map-console-health.spec.ts:78`: the compass (see R19).
-- A second triage at `290fef1fc` (14 Sep 2026, rebuilt rig, 2 workers) found these still red:
-  - `landmark-story-sheet.spec.ts:277`: still red at `9d4df67c4`. It times out at 45 s on a predicate after `venuePortal` shows (line 273).
 - `map-tile-retry.spec.ts:43` and `:95`: a transient outage logs `tile failure burst, reloading style`, and a lasting outage shows no `.mapSoftRetry` or `.mapFallback` in 60 s. `playwright.config.ts` lists this spec in `chromium-gl`'s `testMatch` but not in `chromium`'s `testIgnore`, so `--project=chromium` also runs it without the GL launch flags. `map-console-health`, `map-arrival-turn`, `map-arrival-card-pins`, `map-desktop-arrival-chrome` and `map-webgl-recovery` have the same gap. Check each red under `--project=chromium-gl` before calling it a product red.
 
 ## Needs captain
@@ -267,7 +271,7 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 
 ## Verify reds
 
-- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23, 348 MB by R24, 355 MB by R25, 366 MB by R26, 369 MB by R27, 371 MB by R28, 375 MB by R29 and R30, 427 MB by R32, R33 and R34, 440 MB by R35). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. By R30 the same test also names `artifacts` (5.7 MB, all of it the git-ignored `artifacts/gnhf-rig`), because the rig directory crossed the 5 MB line. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
+- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23, 348 MB by R24, 355 MB by R25, 366 MB by R26, 369 MB by R27, 371 MB by R28, 375 MB by R29 and R30, 427 MB by R32, R33 and R34, 440 MB by R35, 509 MB by R42). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. By R30 the same test also names `artifacts` (5.7 MB, all of it the git-ignored `artifacts/gnhf-rig`), because the rig directory crossed the 5 MB line. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
 
 ## Appendix: main stable-failure set by root cause (origin/main aa6470eec, 197 tests)
 
