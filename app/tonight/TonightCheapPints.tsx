@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { formatPintDatasetSnapshot } from "@/lib/dataFreshness";
 import {
   TONIGHT_CHEAP_PINTS_TITLE,
+  tonightCheapPintChainLabel,
   type TonightCheapPint,
 } from "@/lib/tonightCheapPints";
 import { formatPrice } from "@/lib/venues";
@@ -40,7 +41,17 @@ export default function TonightCheapPints({
             >
               <span className="tonightCheapPintsBody">
                 <span className="tonightCheapPintsName">{row.name}</span>
-                <span className="tonightCheapPintsArea">{row.borough}</span>
+                <span className="tonightCheapPintsArea">
+                  {row.borough}
+                  {/* The chain is named on its one row, so a Wetherspoon price
+                      never reads as a free house's. */}
+                  {row.chain ? (
+                    <>
+                      {" · "}
+                      <span data-chain={row.chain}>{tonightCheapPintChainLabel(row.chain)}</span>
+                    </>
+                  ) : null}
+                </span>
               </span>
               <span className="tonightCheapPintsPrice">{formatPrice(row.priceGbp)}</span>
               <ArrowRight size={15} aria-hidden="true" className="tonightCheapPintsArrow" />

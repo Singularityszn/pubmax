@@ -27,6 +27,7 @@ import {
 
 import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
+import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
 import { useWhatsOnTonight, type TonightFreshnessKind } from "@/components/map/useWhatsOnTonight";
 import { useOutListings } from "@/components/out/useOutListings";
@@ -559,22 +560,12 @@ export default function TonightClient({
         }
         actionsAfterContent
       >
-      <aside className="tonightContext" aria-label="Tonight at a glance">
+      {/* The weather line is one sentence about the night, so it reads before
+          the lede at every width: it is the only thing between the head and
+          the pubs. */}
+      <div className="tonightWeather">
         <TonightConditionsStrip origin={origin} />
-        {ready ? (
-          <TonightOnTonightSummary
-            facets={displayedFacets}
-            rows={summaryRows}
-            totalCount={grouped.length}
-          />
-        ) : null}
-        {/* Area news needs a coarse area: the shared location's nearest Night
-            Area (never stored), else the heart of the viewer's remembered patch.
-            This is the area they told us, so there is no new location ask. */}
-        <div className="tonightRail">
-          <AreaNewsRail area={areaNewsSlug(tonightNear)} />
-        </div>
-      </aside>
+      </div>
 
       <div className="tonightPrimary" data-status={listingsStatus}>
       {/* THE LEDE REGION. What a reader meets first is the pubs people are
@@ -858,15 +849,7 @@ export default function TonightClient({
       ) : null}
 
       </div>
-
-      {/* Real pubs before a mood ask. A night with nothing listed still has
-          pubs in it, and a listed price is the one thing this product can put
-          in front of somebody standing on a pavement. */}
-      <TonightCheapPints rows={cheapPints} show={thinNight} />
-
-      {/* The chains keep their supply and lose the front row: each block
-          carries the chain's own name and the day its page was read. */}
-      <TonightChainDeals rows={listingRows} selectableVenueIds={selectableVenueIds} />
+      </div>
 
       {/* The freshness stamp and the share control sit UNDER the listings they
           are about. A stamp is a footnote on the data, and nobody shares a list
@@ -880,6 +863,32 @@ export default function TonightClient({
         ) : null}
         <TonightShareButton />
       </div>
+
+      {/* THE RAIL (site audit D8) is ONE element AFTER the lede in the DOM. A
+          phone reads its blocks under the lede in the order it always had: vibe
+          chips, the full Deals and Music lanes, the editorial rail, the soft
+          plans and the area news. From 1100px the same element is the column
+          beside the lede, in the same order and with no gap. `.tonightPrimary`
+          above holds the lede and nothing else, so no chain row can stand
+          inside it. From 1100px the full lanes hide and the rail summary stands
+          in for them. */}
+      <aside className="tonightContext" aria-label="Tonight at a glance">
+        {ready ? (
+          <TonightOnTonightSummary
+            facets={displayedFacets}
+            rows={summaryRows}
+            totalCount={grouped.length}
+          />
+        ) : null}
+
+      {/* Real pubs before a mood ask. A night with nothing listed still has
+          pubs in it, and a listed price is the one thing this product can put
+          in front of somebody standing on a pavement. */}
+      <TonightCheapPints rows={cheapPints} show={thinNight} />
+
+      {/* The chains keep their supply and lose the front row: each block
+          carries the chain's own name and the day its page was read. */}
+      <TonightChainDeals rows={listingRows} selectableVenueIds={selectableVenueIds} />
 
       {/* Vibe chips follow the list. Nine chips wrapped to four rows above it,
           and five of them lead off the page, so they were nine ways not to read
@@ -940,15 +949,25 @@ export default function TonightClient({
         </VibeChips>
       ) : null}
 
-      </div>
-
       {mobileLanes}
 
+        <div className="tonightEditorial">
+          <EditorialRail />
+        </div>
+
+        {softPlansWindow ? (
+          <TonightSoftPlansModule hasQuietPint={Boolean(quietPint)} />
+        ) : null}
+
+        {/* Area news needs a coarse area: the shared location's nearest Night
+            Area (never stored), else the heart of the viewer's remembered patch.
+            This is the area they told us, so there is no new location ask. */}
+        <div className="tonightRail">
+          <AreaNewsRail area={areaNewsSlug(tonightNear)} />
+        </div>
+      </aside>
+
       <div className="tonightAfterPrimary">
-      <EditorialRail />
-      {softPlansWindow ? (
-        <TonightSoftPlansModule hasQuietPint={Boolean(quietPint)} />
-      ) : null}
 
       {/* Heritage quiet-pint module: same TodayQuietPintCard as /today. Lives
           after the listing spine so main-list-first stays intact, and only when
@@ -992,9 +1011,10 @@ export default function TonightClient({
           className="tonightLocation"
           aria-label="Location for walk times and last train"
         >
-          <button
+          <Button
             type="button"
-            className="tonightLocationToggle pressable"
+            variant="ghost"
+            className="tonightLocationToggle uiButton--start"
             aria-expanded={locationExpanded}
             onClick={() => setLocationOpen((open) => !open)}
           >
@@ -1008,7 +1028,7 @@ export default function TonightClient({
               className="tonightLocationChevron"
               data-open={locationExpanded}
             />
-          </button>
+          </Button>
           {locationExpanded ? (
             <div className="tonightLocationBody">
               {/* The disclosure is lib/locationDisclosure's, not this file's:

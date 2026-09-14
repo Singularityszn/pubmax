@@ -1,16 +1,16 @@
-/* Compact /tonight rail summary. Desktop-only: phones keep the optional mobile
-   secondary lanes or rely on the main list alone. */
+/* Compact /tonight rail summary. It stands in for the full Deals and Music
+   lanes, so it shows only where the rail does: from 1100px, the one breakpoint
+   where the phone lanes hide. Below it phones read the full lanes. */
 
 .tonightOnTonightSummary {
   display: none;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1100px) {
   .tonightOnTonightSummary {
     display: block;
     margin: 0;
-    padding: 16px 0 0;
-    border-top: 1px solid var(--line-soft);
+    padding: 0;
   }
 
   .tonightOnTonightSummaryHead {

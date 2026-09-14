@@ -703,3 +703,249 @@ test("a night of only excluded rows reads as the honest quiet night", async ({ p
   );
   await expect(page.getByTestId("tonight-list")).toHaveCount(0);
 });
+
+// Site audit D8, 13 Sep 2026: desktop /tonight was one 784px column beside a
+// 360px rail holding one 81px weather card and then 3,800px of nothing. From
+// 1100px the rail carries the quiet-night blocks a reader turns to after the
+// lede, and a phone keeps the one column in DOM order.
+async function openQuietNight(page: Page) {
+  await mockTonightSpine(page, []);
+  await mockReadyEmptyOut(page);
+  await page.goto("/tonight");
+  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.getByTestId("tonight-screen")).toHaveAttribute(
+    "data-listings-status",
+    "empty",
+  );
+}
+
+test("desktop Tonight seats the quiet-night blocks in the rail beside the lede", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openQuietNight(page);
+
+  const rail = page.locator("aside.tonightContext");
+  await expect(rail.getByTestId("tonight-cheap-pints")).toBeVisible();
+  await expect(rail.locator(".tonightVibes")).toBeVisible();
+  await expect(rail.locator(".tonightEditorial")).toHaveCount(1);
+  // The soft plans ride a quiet hour of the London clock, so they are only
+  // on some runs; when they are, they are in the rail.
+  if ((await page.getByTestId("tonight-soft-plans").count()) > 0) {
+    await expect(rail.getByTestId("tonight-soft-plans")).toBeVisible();
+  }
+
+  // Read from the DOM. In the rail the editorial wrapper contributes no box,
+  // so the editorial rail is read through its own first child, which is
+  // absent in a week with no editorial items. The soft plans are absent
+  // outside a quiet hour.
+  const boxes = await page.evaluate(() => {
+    const rect = (el: Element | null) => {
+      if (!el) return null;
+      const { left, right, top, bottom, height } = el.getBoundingClientRect();
+      return { left, right, top, bottom, height };
+    };
+    return {
+      head: rect(document.querySelector(".screenHead")),
+      lede: rect(document.querySelector('[data-testid="tonight-lede"]')),
+      rail: rect(document.querySelector("aside.tonightContext")),
+      vibes: rect(document.querySelector(".tonightVibes")),
+      editorial: rect(document.querySelector(".tonightEditorial > *")),
+      softPlans: rect(document.querySelector('[data-testid="tonight-soft-plans"]')),
+    };
+  });
+  const { head, lede, rail: railBox, vibes, editorial, softPlans } = boxes;
+  expect(head && lede && railBox && vibes).toBeTruthy();
+  if (!head || !lede || !railBox || !vibes) return;
+  // Beside the lede, not under it, and level with the head.
+  expect(railBox.left).toBeGreaterThanOrEqual(lede.right);
+  expect(railBox.top).toBeLessThan(head.bottom);
+  // THE RAIL HAS NO GAP. A rail split around the column opened about 1,000px
+  // of empty rail beside the lede, the defect D8 was filed for, and an empty
+  // editorial wrapper once doubled the rail's 28px rhythm. Each block follows
+  // the one before it at that rhythm.
+  const afterVibes = editorial && editorial.height > 0 ? editorial : null;
+  if (afterVibes) {
+    expect(afterVibes.left).toBeGreaterThanOrEqual(lede.right);
+    expect(afterVibes.top - vibes.bottom).toBeLessThan(40);
+  }
+  if (softPlans) {
+    expect(softPlans.top - (afterVibes ?? vibes).bottom).toBeLessThan(40);
+  }
+  // The rail never pushes the lede down. Only the weather line may stand
+  // between the head and the lede.
+  expect(lede.top - head.bottom).toBeLessThan(160);
+});
+
+test("phone Tonight keeps the lede, the cheap pints and the vibe chips in one column", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openQuietNight(page);
+
+  const lede = await page.getByTestId("tonight-lede").boundingBox();
+  const cheap = await page.getByTestId("tonight-cheap-pints").boundingBox();
+  const vibes = await page.locator(".tonightVibes").boundingBox();
+  expect(lede && cheap && vibes).toBeTruthy();
+  if (!lede || !cheap || !vibes) return;
+  expect(cheap.y).toBeGreaterThan(lede.y + lede.height - 1);
+  expect(vibes.y).toBeGreaterThan(cheap.y + cheap.height - 1);
+  expect(Math.abs(cheap.x - lede.x)).toBeLessThan(1);
+  expect(Math.abs(vibes.x - lede.x)).toBeLessThan(1);
+});
+
+function independentDeal(now = Date.now()) {
+  return {
+    id: "deal-independent-happy-hour",
+    venueId: "venue-primary",
+    placeName: "The Test Arms",
+    kind: "deal",
+    startsAt: new Date(now + 60 * 60_000).toISOString(),
+    title: "Happy hour",
+    source: { label: "Pub listing", url: "https://example.com/happy-hour" },
+    observedAt: new Date(now - 60_000).toISOString(),
+    confidence: "listed",
+  };
+}
+
+function independentGig(now = Date.now()) {
+  return {
+    id: "music-independent-gig",
+    venueId: "venue-primary",
+    placeName: "The Test Arms",
+    kind: "music",
+    startsAt: new Date(now + 3 * 60 * 60_000).toISOString(),
+    title: "Live band",
+    source: { label: "Pub listing", url: "https://example.com/gig" },
+    observedAt: new Date(now - 60_000).toISOString(),
+    confidence: "listed",
+  };
+}
+
+async function openBusyNight(page: Page) {
+  const now = Date.now();
+  await mockTonightSpine(page, [independentQuiz(now), independentDeal(now), independentGig(now)]);
+  await mockReadyEmptyOut(page);
+  await page.goto("/tonight");
+  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.getByTestId("tonight-screen")).toHaveAttribute(
+    "data-listings-status",
+    "ready",
+  );
+}
+
+// One read, so every box shares a scroll offset. The editorial and area news
+// wrappers are read from the DOM because either can have no height (no
+// editorial items, no remembered area) and still hold its place in the column.
+async function phoneColumnBoxes(page: Page) {
+  return page.evaluate(() => {
+    const rect = (selector: string) => {
+      const el = document.querySelector(selector);
+      if (!el) return null;
+      const { top, bottom, height } = el.getBoundingClientRect();
+      return { top, bottom, height };
+    };
+    return {
+      vibes: rect(".tonightVibes"),
+      lanes: rect(".tonightSecondaryLanes--mobile"),
+      editorial: rect(".tonightEditorial"),
+      softPlans: rect('[data-testid="tonight-soft-plans"]'),
+      areaNews: rect(".tonightRail"),
+    };
+  });
+}
+
+// D8 is a desktop change. A phone still reads the full Deals and Music lanes
+// right after the vibe chips, then the editorial rail, the soft plans and the
+// area news.
+test("phone Tonight reads the Deals and Music lanes before the editorial rail, the soft plans and the area news", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openBusyNight(page);
+
+  const lanes = page.locator(".tonightSecondaryLanes--mobile");
+  await expect(lanes.locator("#deals-tonight-title")).toBeVisible();
+  await expect(lanes.locator("#music-tonight-title")).toBeVisible();
+
+  const boxes = await phoneColumnBoxes(page);
+  expect(boxes.vibes).not.toBeNull();
+  expect(boxes.lanes).not.toBeNull();
+  expect(boxes.editorial).not.toBeNull();
+  expect(boxes.areaNews).not.toBeNull();
+  if (!boxes.vibes || !boxes.lanes || !boxes.editorial || !boxes.areaNews) return;
+  expect(boxes.lanes.height).toBeGreaterThan(0);
+  expect(boxes.lanes.top).toBeGreaterThanOrEqual(boxes.vibes.bottom - 1);
+  expect(boxes.lanes.bottom).toBeLessThanOrEqual(boxes.editorial.top + 1);
+  expect(boxes.editorial.top).toBeLessThanOrEqual(boxes.areaNews.top + 1);
+  if (boxes.softPlans) {
+    expect(boxes.editorial.bottom).toBeLessThanOrEqual(boxes.softPlans.top + 1);
+    expect(boxes.softPlans.bottom).toBeLessThanOrEqual(boxes.areaNews.top + 1);
+  }
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator(".tonightOnTonightSummary")).toBeVisible();
+  await expect(lanes).toBeHidden();
+});
+
+// The quiet-hour order on a phone. The soft plans window reads the London hour
+// on the SERVER, in a prerendered page, so no browser clock can open it: the
+// soft plans checks run only on a run that lands in a quiet hour, and the
+// editorial-before-area-news order is checked on every run.
+test("phone Tonight in a quiet hour reads the vibe chips, the editorial rail, the soft plans and the area news in order", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openQuietNight(page);
+
+  const boxes = await phoneColumnBoxes(page);
+  expect(boxes.vibes).not.toBeNull();
+  expect(boxes.editorial).not.toBeNull();
+  expect(boxes.areaNews).not.toBeNull();
+  if (!boxes.vibes || !boxes.editorial || !boxes.areaNews) return;
+  expect(boxes.editorial.top).toBeGreaterThanOrEqual(boxes.vibes.bottom - 1);
+  expect(boxes.editorial.bottom).toBeLessThanOrEqual(boxes.areaNews.top + 1);
+  if (boxes.softPlans) {
+    expect(boxes.softPlans.top).toBeGreaterThanOrEqual(boxes.editorial.bottom - 1);
+    expect(boxes.softPlans.bottom).toBeLessThanOrEqual(boxes.areaNews.top + 1);
+  }
+});
+
+// Site audit D17: the Spoons import put four Wetherspoon pubs at £1.99 on top
+// of the list. One row per chain, and the chain is named on its row.
+test("the cheapest listed pints carry one row per chain and name it", async ({ page }) => {
+  await openQuietNight(page);
+
+  const rows = page.getByTestId("tonight-cheap-pints").locator("li");
+  await expect(rows).toHaveCount(4);
+  const chains = await rows
+    .locator("[data-chain]")
+    .evaluateAll((els) => els.map((el) => el.getAttribute("data-chain")));
+  expect(chains.length).toBeGreaterThan(0);
+  expect(new Set(chains).size).toBe(chains.length);
+  await expect(
+    rows.locator('[data-chain="wetherspoon"]'),
+  ).toHaveText("Wetherspoon");
+});
+
+// The walk-times toggle painted at radius 0 (site audit D7, carried by this
+// lane). It is a row control, so it takes the one button system's geometry.
+test("the walk-times toggle wears the button system", async ({ page }) => {
+  await openQuietNight(page);
+
+  const toggle = page.locator(".tonightLocationToggle");
+  await expect(toggle).toBeVisible();
+  await expect(toggle).toHaveClass(/\buiButton\b/);
+  const geometry = await toggle.evaluate((el) => {
+    const style = getComputedStyle(el);
+    const root = getComputedStyle(document.documentElement);
+    return {
+      radius: style.borderTopLeftRadius,
+      controlRadius: root.getPropertyValue("--control-radius").trim(),
+      height: el.getBoundingClientRect().height,
+    };
+  });
+  expect(geometry.radius).not.toBe("0px");
+  expect(geometry.radius).toBe(geometry.controlRadius);
+  expect(geometry.height).toBeGreaterThanOrEqual(44);
+});
