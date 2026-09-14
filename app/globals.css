@@ -1504,10 +1504,12 @@ input[type="range"] {
      figure but its lift: the flat accent, the control radius, the control type
      size and weight. It was a 999px pill with a gradient at 900 beside the
      toolbar's 14px controls at 700 (site audit 13 Sep 2026, D7). The shadow
-     stays, because this control floats over the map. */
+     stays, because this control floats over the map. Its ink is the locked
+     coral pair's strong ink in both themes: dark retunes --color-on-accent to
+     --ink-deep, which e2e/map-accessibility.spec.ts refuses on this CTA. */
   border-radius: var(--control-radius, 14px);
   background: var(--color-accent);
-  color: var(--color-on-accent);
+  color: var(--color-on-accent-strong);
   font-size: var(--control-font-size, 0.86rem);
   font-weight: var(--control-font-weight, 700);
   letter-spacing: -0.01em;
