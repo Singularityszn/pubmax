@@ -6,6 +6,10 @@ import {
   planOpeningSchedulesForVenues,
   planPriceEvidenceForVenues,
 } from "@/lib/planRouteEvidence.server";
+import {
+  loadWetherspoonsDirectoryPubs,
+  matchWetherspoonsDirectoryPub,
+} from "@/lib/wetherspoonsMatch.server";
 
 const ICE_WHARF = {
   id: "venue-17u2i1w",
@@ -40,11 +44,15 @@ describe("canonical Plan evidence adapters", () => {
   });
 
   it("uses the matched opening row's observation and keeps it a weekly schedule", async () => {
+    // The stamp is DERIVED from the directory row the venue joins, so a
+    // directory refresh moves this expectation with it instead of breaking it.
+    const directoryRow = matchWetherspoonsDirectoryPub(ICE_WHARF, await loadWetherspoonsDirectoryPubs());
+    expect(directoryRow).not.toBeNull();
     const schedules = await planOpeningSchedulesForVenues([ICE_WHARF]);
     expect(schedules.get(ICE_WHARF.id)).toMatchObject({
       venueListedOpen: true,
       ranges: expect.arrayContaining([expect.objectContaining({ weekday: expect.any(String) })]),
-      source: { observedAt: "2026-07-11T11:51:37.000Z" },
+      source: { observedAt: new Date(directoryRow!.observedAt).toISOString() },
     });
   });
 
