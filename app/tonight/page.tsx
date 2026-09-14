@@ -5,7 +5,6 @@ import { hypedPubsForPage } from "@/lib/hypedPubs";
 import { loadHypedPubs } from "@/lib/hypedPubs.server";
 import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
 import { buildQuietPint, isQuietPintWindow } from "@/lib/quietPint";
-import { spoonsValueVenueIds } from "@/lib/spoonsValue";
 import { readSpoonsValue } from "@/lib/spoonsValue.server";
 import {
   tonightCheapPintChain,
@@ -80,7 +79,7 @@ export default async function TonightPage() {
         lng: venue.longitude,
       })),
     ),
-    spoonsValueVenueIds(spoonsValue.pack?.rows ?? []),
+    new Set(spoonsValue.byVenueId.keys()),
   );
   const priceById = new Map<string, number>();
   for (const venue of pricedVenues) {
