@@ -35,7 +35,7 @@
 // next refresh in case Greene King's own site starts publishing deal days.
 //
 // GREATER LONDON SCOPE: Wetherspoons' pub list (public/data/wetherspoons/
-// pubs.json) is nationwide (824 pubs); this file's own name says "london", so
+// pubs.json) is nationwide; this file's own name says "london", so
 // venues are filtered to Greater London via the SAME postcode tables
 // quizParsers.mjs already curated for the quiz vertical (isGreaterLondonPostcode).
 //

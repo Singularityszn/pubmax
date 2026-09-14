@@ -1,6 +1,6 @@
 # J D Wetherspoon pub directory (first-party)
 
-Scraped via **Firecrawl** from the official WP REST API:
+Read directly from the official WP REST API:
 
 `https://www.jdwetherspoon.com/wp-json/wp/v2/pubs`
 
