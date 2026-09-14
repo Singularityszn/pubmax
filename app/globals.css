@@ -4576,6 +4576,18 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
   pointer-events: none;
 }
 
+/* CANVAS HOLE, NOT A TYPO. This fully opaque card made the compositor cull the
+   WebGL map canvas under its rect mirrored in y: a band of bare map background
+   behind the chip row (y 64 to 120), measured at 390 and 430 at dpr 2 in light
+   and dark, and 390 at dpr 3 (site audit 13 Sep 2026). A layer below full opacity is never
+   an occluder, and 0.999 changes no visible pixel. isolation: isolate,
+   transform: translateZ(0), will-change: transform or opacity and
+   backface-visibility: hidden each left the hole; opacity alone cleared it.
+   Fence: e2e/map-consent-canvas-band.spec.ts. */
+body:has(.maplibregl-canvas) .analyticsConsentPrompt {
+  opacity: 0.999;
+}
+
 /* Desktop: reserve foot clearance while the fixed consent bar is mounted so
    list cards and page footers are not half-covered. */
 @media (min-width: 641px) {
