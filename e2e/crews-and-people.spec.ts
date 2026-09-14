@@ -6,12 +6,14 @@ import { expect, test } from "@playwright/test";
 // search and invite-link actions remain available in the control rail.
 
 const PHONE = { width: 390, height: 844 };
+const SOCIAL_TITLE = "Crews and people who are already here.";
 
 test.describe("Signed-out Social", () => {
   test("offers no crew surface anywhere on the page", async ({ page }) => {
     await page.goto("/social");
+    // The Screen head (#1402): kicker "Social", one h1 that says what is here.
     await expect(
-      page.getByRole("heading", { name: "Social", exact: true }),
+      page.getByRole("heading", { level: 1, name: SOCIAL_TITLE, exact: true }),
     ).toBeVisible();
 
     await expect(page.getByRole("heading", { name: "Your crews" })).toHaveCount(0);
@@ -33,25 +35,6 @@ test.describe("Signed-out Social", () => {
     await expect(page.locator(".peopleDir")).toHaveCount(0);
   });
 
-  test("structured invite failures render fallback copy", async ({ page }) => {
-    await page.route("**/api/referrals/invite-link", async (route) => {
-      await route.fulfill({
-        status: 502,
-        contentType: "application/json",
-        body: JSON.stringify({ error: { code: "X" } }),
-      });
-    });
-    await page.goto("/social");
-
-    const inviteButton = page.getByRole("button", { name: "Get invite link" }).first();
-    await expect(inviteButton).toBeVisible();
-    await inviteButton.click();
-
-    const notice = page.locator(".findLot__error").filter({ hasText: "Could not mint an invite link." }).first();
-    await expect(notice).toBeVisible();
-    await expect(page.getByText("[object Object]", { exact: true })).toHaveCount(0);
-  });
-
   test("signed-out Social does not request or render a directory empty state", async ({
     page,
   }) => {
@@ -62,8 +45,9 @@ test.describe("Signed-out Social", () => {
       }
     });
     await page.goto("/social");
+    // The Screen head (#1402): kicker "Social", one h1 that says what is here.
     await expect(
-      page.getByRole("heading", { name: "Social", exact: true }),
+      page.getByRole("heading", { level: 1, name: SOCIAL_TITLE, exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Find your lot" }).first(),
@@ -96,6 +80,60 @@ test.describe("Signed-out Social", () => {
     // Either "not open to you" or the load failure. Never a member view.
     await expect(page.getByRole("heading", { name: "Who is in" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Leave this crew/ })).toHaveCount(0);
+  });
+});
+
+test.describe("Invite link", () => {
+  // Minting is account-bound (#1348): a signed-out reader meets "Sign in to
+  // invite", and only a signed-in viewer with a handle gets the mint button.
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        "sb-pubmaxx-e2e-auth-token",
+        JSON.stringify({
+          access_token: "pubmaxx-e2e-access-token-00000000-0000-4000-8000-000000000012",
+          refresh_token: "pubmaxx-e2e-refresh-token",
+          expires_at: Math.floor(Date.now() / 1000) + 86_400,
+          expires_in: 86_400,
+          token_type: "bearer",
+          user: {
+            id: "00000000-0000-4000-8000-000000000012",
+            aud: "authenticated",
+            role: "authenticated",
+            email: "crews-invite@example.test",
+            app_metadata: {},
+            user_metadata: {},
+            created_at: "2026-07-29T00:00:00.000Z",
+          },
+        }),
+      );
+    });
+    await page.route("**/api/identity/handle/current", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ handle: "crew_host" }),
+      });
+    });
+  });
+
+  test("structured invite failures render fallback copy", async ({ page }) => {
+    await page.route("**/api/referrals/invite-link", async (route) => {
+      await route.fulfill({
+        status: 502,
+        contentType: "application/json",
+        body: JSON.stringify({ error: { code: "X" } }),
+      });
+    });
+    await page.goto("/social");
+
+    const inviteButton = page.getByRole("button", { name: "Get invite link" }).first();
+    await expect(inviteButton).toBeVisible();
+    const notice = page.locator(".findLot__error").filter({ hasText: "Could not mint an invite link." }).first();
+    await expect(async () => {
+      await inviteButton.click();
+      await expect(notice).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    await expect(page.getByText("[object Object]", { exact: true })).toHaveCount(0);
   });
 });
 
