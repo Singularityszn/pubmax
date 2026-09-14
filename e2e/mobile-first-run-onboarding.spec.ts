@@ -42,6 +42,29 @@ async function waitForDeepLinkBootStamp(page: Page): Promise<void> {
   )).toBe("1");
 }
 
+// The push ask never paints on a phone-width map, and comes back on the next
+// route (lib/promptBudget.ts, routeOwnsScreenFoot, #1656). The qualifying action
+// is held in this live document, so the next route is reached in the app, never
+// by a fresh boot.
+async function expectPushAskOnNextRoute(page: Page): Promise<void> {
+  const ask = page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title });
+  await expect(ask).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeHidden();
+  await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Tonight" }).click();
+  await expect(page).toHaveURL(/\/tonight$/);
+  await expect(ask).toBeVisible();
+  await expect(page.getByText(NATIVE_PUSH_PROMPT_COPY.body)).toBeVisible();
+}
+
+// Relaunching the app opens a fresh WebView session. A plain goto in the same
+// tab keeps sessionStorage, and a root arrival with the session entry mark set
+// is an in-app home tap that rightly stays on the landing page.
+async function relaunchNativeShell(page: Page): Promise<void> {
+  await page.evaluate(() => window.sessionStorage.clear());
+  await page.goto("/");
+}
+
 async function installSuccessfulPlanRoute(page: Page): Promise<void> {
   await page.route("**/api/plans/generate", async (route) => {
     if (route.request().method() === "GET") {
@@ -183,11 +206,13 @@ test("native first run hands one useful Plan to the contextual push ask", async 
   await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Make a plan" }).click();
-  await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toBeVisible();
-  await expect(page.getByText(NATIVE_PUSH_PROMPT_COPY.body)).toBeVisible();
+  await expect.poll(() => page.evaluate(
+    () => window.localStorage.getItem("pubmax:nativePush:actionSeq:v1"),
+  )).toBe("1");
+  await expectPushAskOnNextRoute(page);
 
   // The next native root boot is still the owner-locked /tonight cold start.
-  await page.goto("/");
+  await relaunchNativeShell(page);
   await expect(page).toHaveURL(/\/tonight$/);
   await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toHaveCount(0);
 });
@@ -249,9 +274,9 @@ test("Skip releases onboarding budget for the next Plan but never prompts on reb
   await page.goto("/map?plan=1");
   await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Make a plan" }).click();
-  await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toBeVisible();
+  await expectPushAskOnNextRoute(page);
 
-  await page.goto("/");
+  await relaunchNativeShell(page);
   await expect(page).toHaveURL(/\/tonight$/);
   await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toHaveCount(0);
 });
