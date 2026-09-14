@@ -7,7 +7,7 @@ import {
 } from "./londonMapGeometry";
 
 // The picture at the top of the front door: London, the historic pubs on it,
-// and six of them named.
+// and a few of them named.
 //
 // It is INLINE geometry rather than an image file or the live MapLibre canvas.
 // Inline costs no request, so the largest thing on the landing paints with the
@@ -38,18 +38,19 @@ export default function LondonMapSnapshot({ className }: { className?: string })
         {LONDON_MAP_PINS.map((pin) => (
           <g key={pin.slug} transform={`translate(${pin.x} ${pin.y})`}>
             <circle className="lpMapPinDot" r="8" />
+            {/* The generator sets the writing where it covers no pub mark. */}
             <text
               className="lpMapPinName"
-              x={pin.anchor === "end" ? -18 : 18}
-              y={-2}
+              x={pin.anchor === "end" ? -pin.dx : pin.dx}
+              y={pin.dy - 2}
               textAnchor={pin.anchor}
             >
               {pin.name}
             </text>
             <text
               className="lpMapPinLabel"
-              x={pin.anchor === "end" ? -18 : 18}
-              y={24}
+              x={pin.anchor === "end" ? -pin.dx : pin.dx}
+              y={pin.dy + 24}
               textAnchor={pin.anchor}
             >
               {pin.label}

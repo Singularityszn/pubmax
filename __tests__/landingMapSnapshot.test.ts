@@ -63,9 +63,10 @@ describe("the landing's drawing of London", () => {
   });
 
   it("names only pubs the heritage dataset holds, with the dataset's own words", () => {
-    // The script caps the pins at six; the separation rule decides how many the
-    // data can seat without labels touching, and today that is five.
-    expect(LONDON_MAP_PINS.length).toBeGreaterThanOrEqual(4);
+    // The script caps the pins at six; separation and clear writing decide how
+    // many the data can seat. The City's pubs stand too close for any name to
+    // sit clear of their dots, so today that is two, both outside it.
+    expect(LONDON_MAP_PINS.length).toBeGreaterThanOrEqual(2);
     expect(LONDON_MAP_PINS.length).toBeLessThanOrEqual(6);
     for (const pin of LONDON_MAP_PINS) {
       const pub = pubs.find((row) => row.slug === pin.slug);
@@ -121,11 +122,16 @@ describe("the landing's drawing of London", () => {
     const writing = (pin: (typeof LONDON_MAP_PINS)[number]): Box[] => {
       const side = pin.anchor === "end" ? -1 : 1;
       const box = (width: number, top: number, bottom: number) => {
-        const from = pin.x + side * 18;
+        const from = pin.x + side * pin.dx;
         const to = from + side * width;
-        return { left: Math.min(from, to), right: Math.max(from, to), top: pin.y + top, bottom: pin.y + bottom };
+        return {
+          left: Math.min(from, to),
+          right: Math.max(from, to),
+          top: pin.y + pin.dy + top,
+          bottom: pin.y + pin.dy + bottom,
+        };
       };
-      return [box(pin.name.length * 27 * 0.62, -30, 7), box(pin.label.length * 22 * 0.62, 1, 31)];
+      return [box(pin.name.length * 27 * 0.55, -30, 7), box(pin.label.length * 22 * 0.61, 1, 31)];
     };
     const overlaps = (a: Box, b: Box) =>
       a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;

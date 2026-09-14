@@ -75,7 +75,8 @@ for (const viewport of WIDTHS) {
       return { texts, marks: [...pins, ...dots] };
     });
 
-    expect(measured.texts.length).toBeGreaterThanOrEqual(8);
+    // At least two named pins, a name and a date each, or there is nothing to measure.
+    expect(measured.texts.length).toBeGreaterThanOrEqual(4);
     expect(measured.marks.filter((mark) => mark.kind === "dot").length).toBeGreaterThan(100);
 
     const overlaps = (a: Box, b: Box) =>
