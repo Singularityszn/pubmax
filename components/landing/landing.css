@@ -622,7 +622,7 @@ a.lpPubPint:hover { color: var(--ink); }
   fill: var(--ink);
   font: 700 27px/1 var(--font-display);
   paint-order: stroke;
-  stroke: var(--panel);
+  stroke: var(--panel-raised);
   stroke-width: 6;
   stroke-linejoin: round;
 }
@@ -631,7 +631,7 @@ a.lpPubPint:hover { color: var(--ink); }
   fill: var(--muted);
   font: 550 22px/1 var(--font-data);
   paint-order: stroke;
-  stroke: var(--panel);
+  stroke: var(--panel-raised);
   stroke-width: 6;
   stroke-linejoin: round;
 }

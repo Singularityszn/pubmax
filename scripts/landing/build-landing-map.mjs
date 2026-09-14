@@ -219,6 +219,10 @@ function seat(pin, held) {
   const nearest = [...sameLine].sort((a, b) => Math.abs(a.x - pin.x) - Math.abs(b.x - pin.x))[0];
   const preferred = nearest ? (nearest.x <= pin.x ? "start" : "end") : pin.x > WIDTH / 2 ? "start" : "end";
   const anchors = preferred === "start" ? ["start", "end"] : ["end", "start"];
+  const ownMark = markBox({ ...pin, r: PIN_MARK_RADIUS });
+  if (held.some((other) => writingBoxes(other, other).some((theirs) => overlaps(ownMark, theirs)))) {
+    return null;
+  }
   const pinMarks = [...held, pin].map((other) => markBox({ ...other, r: PIN_MARK_RADIUS }));
   const options = PLACEMENTS.flatMap((placement) =>
     anchors.map((anchor) => ({ anchor, ...placement })),
