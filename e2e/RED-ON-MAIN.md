@@ -115,6 +115,11 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - Minting an invite link is account-bound (#1348). A signed-out reader meets the `Sign in to invite` link (see R9), so `crews-and-people.spec.ts:36` found no `Get invite link` button. The test moved to its own `Invite link` describe with a seeded session and a handle, and retries the tap for hydration. The fallback copy and the `[object Object]` check are unchanged.
   - `/activity` is account-bound too (#1348). The spec seeded only the device handle `pubmax_handle`, so the page said `This corner is yours. Claim it.`. The spec now seeds the provider-shaped session and the canonical handle, as the Social specs do. The empty state's title is a line, and its one way onward is `Open Social` to `/social` (#765), not `Browse the feed` to `/feed`.
   - Proof on the rig: the three spec files gave 48 passed on a 2x repeat. The only failures were `crews-and-people.spec.ts:63` (`/api/profiles/directory` answered `429`). That route shares the per-IP `isLimited` budget of 8 per 60 s (`app/api/profiles/directory/route.ts`), and every verified or preview Social page in the repeat read the directory. Pace reruns 65 s apart.
+- [x] R17 `mobile-map-first-visit.spec.ts:10` (3 fixed): 320, 390 and 430. The spec lied about the shipped product.
+  - The spec wanted the cold phone map locked behind the First visit card: the chip row, the utility corner and the plan action hidden, and `inert` on `.mobileMapChrome` and `.mapCanvasWrap`. #1631 deleted the `inert` lock and moved the ask to a top strip under the phone's one bar (`components/AGENTS.md`, "THE ARRIVAL ASK IS A STRIP"). The chrome stays live beside the strip, and the ambient banners wait for the answer (`components/map/mapBannerStaging.css`).
+  - The spec (now `:45`) checks the shipped rules: the strip sits under the chip row and above half the screen height, every ambient banner is hidden, the chrome and the canvas are not inert, and a hit probe finds each top bar, chip row, utility corner, plan action and strip button at its own centre. The camera controls stay hidden, and Close still releases the strip.
+  - No product bug: a hit probe at 320, 390 and 430 found every control under the strip tappable, and the screenshots show no overlap.
+  - Proof on the rig: the spec file gave 6 passed on a 2x repeat at 2 workers.
 
 ## Needs captain
 
@@ -127,7 +132,7 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
 
 ## Verify reds
 
-- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
+- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
 
 ## Appendix: main stable-failure set by root cause (origin/main aa6470eec, 197 tests)
 
