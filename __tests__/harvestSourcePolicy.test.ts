@@ -19,6 +19,10 @@ import {
   COMMON_SITEMAP_URL,
   COMMON_SOURCE,
 } from "../scripts/whatson/commonRefresh.mjs";
+import {
+  WETHERSPOON_DIRECTORY_SOURCE_ID,
+  wetherspoonDirectoryEndpoint,
+} from "../scripts/fetch_wetherspoons_pubs.mjs";
 
 describe("every source is a decision with evidence", () => {
   it("gives every source a unique id and an http(s) provenance url", () => {
@@ -64,6 +68,25 @@ describe("every source is a decision with evidence", () => {
     expect(common?.label).toBe(COMMON_SOURCE.label);
     expect((common?.crawlDelaySeconds ?? 0) * 1000).toBeLessThanOrEqual(COMMON_FETCH_GAP_MS);
     expect(isHarvestableOperatorUrl(COMMON_SITEMAP_URL)).toBe(true);
+  });
+
+  it("binds the Wetherspoon directory refresh to its own register entry", () => {
+    // The directory refresh reads the chain's own pub directory. The register
+    // is the permission, so the script takes its endpoint and its delay from
+    // this entry and names no URL of its own.
+    const directory = harvestSource(WETHERSPOON_DIRECTORY_SOURCE_ID);
+    expect(directory?.kind).toBe("pub-directory");
+    expect(directory?.firstParty).toBe(true);
+    expect(directory?.access.allowed).toBe(true);
+    expect(directory?.url).toBe("https://www.jdwetherspoon.com/wp-json/wp/v2/pubs");
+    expect(directory?.crawlDelaySeconds).toBe(10);
+    expect(isHarvestableOperatorUrl(directory?.url)).toBe(true);
+    expect(wetherspoonDirectoryEndpoint("pubs", 2)).toBe(
+      "https://www.jdwetherspoon.com/wp-json/wp/v2/pubs?per_page=100&page=2",
+    );
+    expect(wetherspoonDirectoryEndpoint("pub-status", 1)).toBe(
+      "https://www.jdwetherspoon.com/wp-json/wp/v2/pub-status?per_page=100&page=1",
+    );
   });
 
   it("keeps Skiddle refused on its own commercial terms, not on robots", () => {

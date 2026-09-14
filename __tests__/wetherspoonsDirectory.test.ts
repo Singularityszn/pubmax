@@ -39,10 +39,44 @@ describe("Wetherspoons directory dataset", () => {
     expect(ga).toBe(gb);
   });
 
-  it("holds 824 pubs matching the declared count", () => {
+  it("holds the 827 pubs the chain's own directory listed on 2026-09-14", () => {
     const dir = load<WetherspoonsDirectory>(DIRECTORY_PATHS[0]);
-    expect(dir.pubs).toHaveLength(824);
+    expect(dir.pubs).toHaveLength(827);
     expect(dir.count).toBe(dir.pubs.length);
+  });
+
+  it("follows the chain's directory: new openings in, sold pubs out", () => {
+    const dir = load<WetherspoonsDirectory>(DIRECTORY_PATHS[0]);
+    const names = new Set(dir.pubs.map((pub) => `${pub.name}|${pub.postcode}`));
+    expect(names.has("The Fletton Brick|MK42 7FY")).toBe(true);
+    expect(names.has("Home Farm|HU13 0JA")).toBe(true);
+    expect(names.has("Piccadilly Hall|W1D 7EJ")).toBe(true);
+    expect(names.has("The Kentish Drovers|SE15 5RS")).toBe(false);
+    expect(names.has("The Ernehale|NG5 6JN")).toBe(false);
+  });
+
+  it("reads names as text, never as HTML entities", () => {
+    // The WP REST API sends a title as rendered HTML (`The Swan &amp; Angel`).
+    // The match rule compares names, so an undecoded entity quietly stops a
+    // pub joining its own price row.
+    const dir = load<WetherspoonsDirectory>(DIRECTORY_PATHS[0]);
+    for (const pub of dir.pubs) {
+      expect(pub.name).not.toMatch(/&(#\d+|#x[0-9a-f]+|[a-z]+);/i);
+    }
+    expect(dir.pubs.some((pub) => pub.name === "The Swan & Angel")).toBe(true);
+  });
+
+  it("keeps one stable order so a refresh diff shows only what changed", () => {
+    const dir = load<WetherspoonsDirectory>(DIRECTORY_PATHS[0]);
+    const pubs = dir.pubs as WetherspoonsPub[];
+    for (let index = 1; index < pubs.length; index += 1) {
+      const left = pubs[index - 1];
+      const right = pubs[index];
+      const byKey = `${left.country}|${left.townCity}|${left.name}`.localeCompare(
+        `${right.country}|${right.townCity}|${right.name}`,
+      );
+      expect(byKey < 0 || (byKey === 0 && left.wpId < right.wpId)).toBe(true);
+    }
   });
 
   it("stamps every pub with honest {source, observedAt} provenance", () => {
@@ -71,7 +105,7 @@ describe("Wetherspoons directory dataset", () => {
     }>(GEOJSON_PATHS[0]);
 
     expect(geo.type).toBe("FeatureCollection");
-    expect(geo.features).toHaveLength(824);
+    expect(geo.features).toHaveLength(827);
 
     let outsideUk = 0;
     for (const feature of geo.features) {
