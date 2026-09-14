@@ -4302,6 +4302,7 @@ export default function PubMap({
     (option: MapSearchAreaOption) => {
       const journey = planAreaSelect(option);
       searchQueryCameraOwnedRef.current = trimmedMapQuery;
+      setFilters((current) => ({ ...current, query: "" }));
       setSearchAreaNewsArea(option.areaNewsArea || null);
       // 1. Fly the camera to the chosen place.
       moveMapCameraTo({
@@ -4374,7 +4375,9 @@ export default function PubMap({
         moveMapCameraTo({ center: place.center, zoom: place.flyZoom });
         clearLogIntent();
         setMapOverlay("none");
-        changeMapSearchQuery("");
+        searchQueryCameraOwnedRef.current = null;
+        setSearchAreaNewsArea(null);
+        setFilters((current) => ({ ...current, query: "" }));
         return;
       }
       // Uncovered / other-city arrivals must full-load so PubMap remounts with
@@ -4382,7 +4385,7 @@ export default function PubMap({
       // leave the old arrival banner and emptied venues.
       window.location.assign(place.href);
     },
-    [changeMapSearchQuery, cityId, clearLogIntent, moveMapCameraTo, trimmedMapQuery],
+    [cityId, clearLogIntent, moveMapCameraTo, trimmedMapQuery],
   );
   const selectCityFromSearch = useCallback(
     (targetCityId: CityId) => {
