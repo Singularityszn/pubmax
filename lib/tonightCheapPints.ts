@@ -89,11 +89,30 @@ function decoded(value: string): string {
 }
 
 /**
+ * The venue ids Tonight treats as Wetherspoon pubs: the union of two
+ * first-party-derived sources.
+ *
+ * The directory join alone is not enough. The chain's own directory can drop a
+ * pub it still trades: the 14 Sep 2026 refresh lost The Kentish Drovers
+ * (SE15 5RS), whose GBP 1.99 rows then read as an uncapped free house. The
+ * SpoonMe pack read that pub's menu off the chain's own site
+ * (`spoonsValueVenueIds`), so a pub in either source is a Wetherspoon for the
+ * cap and the label. A pub in neither is not.
+ */
+export function tonightWetherspoonVenueIds(
+  directoryMatchedVenueIds: ReadonlySet<string>,
+  spoonMeVenueIds: ReadonlySet<string>,
+): ReadonlySet<string> {
+  return new Set([...directoryMatchedVenueIds, ...spoonMeVenueIds]);
+}
+
+/**
  * Which chain runs a pub, read off what a SOURCE says about it, never off a
- * name that sounds like one. Three sources answer, strongest first: the join to
- * the first-party Wetherspoon directory (the chain's own list of its pubs, by
- * name and 250 m), the pub's own website host, and the price listing naming the
- * operator after the pub. A pub none of them ties to a chain answers null.
+ * name that sounds like one. Three sources answer, strongest first: the
+ * first-party Wetherspoon membership (`tonightWetherspoonVenueIds`: the
+ * directory join by name and 250 m, and the SpoonMe pack), the pub's own
+ * website host, and the price listing naming the operator after the pub. A pub
+ * none of them ties to a chain answers null.
  */
 export function tonightCheapPintChain(
   venue: TonightCheapPintSource,
