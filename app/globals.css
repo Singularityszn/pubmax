@@ -2578,7 +2578,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   border: 1px solid color-mix(in srgb, var(--brass, #c4a35a) 55%, transparent);
   border-radius: var(--radius-sm, 8px);
   background: color-mix(in srgb, var(--ink-deep, #090806) 92%, transparent);
-  color: var(--paper, #faf8f5);
+  color: var(--ink);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
   transform: translateX(-50%);
   backdrop-filter: blur(8px);
