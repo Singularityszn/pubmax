@@ -16,9 +16,10 @@
 //     decoration shaped like data.
 //
 // (2) THE NAMED PINS ARE PICKED BY A RULE, NOT BY HAND. A pin is a sourced
-//     historic pub with a year we can print, oldest first, one per borough, six
-//     of them. Re-run the script after the heritage data changes and the pins
-//     follow the data rather than somebody's taste.
+//     historic pub with a year we can print, oldest first, apart from every
+//     other named pin, and written clear of every named pin's mark and writing;
+//     at most six of them. Re-run the script after the heritage data changes and
+//     the pins follow the data rather than somebody's taste.
 //
 // (3) IT SHIPS AS GEOMETRY, NOT AS AN IMAGE FILE. The output is a TypeScript
 //     module of path data that components/landing/LondonMapSnapshot.tsx paints
@@ -205,8 +206,9 @@ function markBox({ x, y, r }) {
  * stand clear of every named pin's mark, inside the frame and off every other
  * pin's writing is not named at all, and the next oldest pub is asked instead.
  * A plain pub dot MAY sit under the writing: .lpMapPinName and .lpMapPinLabel
- * paint a panel-coloured halo that keeps the letters legible over it, and
- * keeping clear of every dot would leave the City with no name at all.
+ * paint a halo in the land's own --panel-raised that keeps the letters legible
+ * over it, and keeping clear of every dot would leave the City with no name at
+ * all.
  */
 function seat(pin, held) {
   // A label runs AWAY from the pin it shares a line of text with, and out
