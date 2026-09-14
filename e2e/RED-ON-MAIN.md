@@ -164,6 +164,11 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - The spec now reads `.emptyStateTitle` with `Join with a link`, the exact link `Start a round`, and the `Search pubs` combobox. The 200 status, body line, href, 44px tap target, overflow, top bar, Near me, `Describe the outing` and `Search the map` checks are unchanged.
   - No product bug: the Screen owns the page's one heading, and the link lands on `/map`.
   - Proof on the rig: red before the change (the heading was not found), then 3 passed on a 3x repeat at 1 worker.
+- [x] R26 `mobile-round-lifecycle.spec.ts:9` (1 fixed). The spec lied about the shipped product.
+  - The spec seeded the shared `pubmax_handle` for the mate and for the host. Since #673 (29 Jul) the Round page reads its own anonymous identity, `pubmax_round_anonymous_identity_v1` = `{ owner: "anonymous", handle }` (`readRoundAnonymousHandle` in `lib/roundRequest.ts`). So the join field was empty, the Join tap showed `Pick a handle to join.`, and `2 out · still going` never came. The host page could not see `Call the Round (close it)` either, because `isCreator` needs that handle.
+  - Both init scripts now seed the new key in the shape `writeRoundAnonymousHandle` writes. The Join tap, copy code, add a pub, spend, overflow and the two-tap close are unchanged.
+  - No product bug: `components/round/RoundStarter.tsx` writes the key for the device that starts a Round, and the join form writes it for a mate.
+  - Proof on the rig: red before the change (`2 out · still going` not found), then 3 passed on a 3x repeat at 1 worker.
 
 ## Reproduced on this branch, not yet grouped
 
@@ -177,7 +182,6 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 - `map-search-no-results.spec.ts:160` (mobile dark normal): the search field did not show in 20 s. The other 7 cases passed in the same run.
 - `map-tile-retry.spec.ts:43` and `:95`: a transient outage logs `tile failure burst, reloading style`, and a lasting outage shows no `.mapSoftRetry` or `.mapFallback` in 60 s. `playwright.config.ts` lists this spec in `chromium-gl`'s `testMatch` but not in `chromium`'s `testIgnore`, so `--project=chromium` also runs it without the GL launch flags. `map-console-health`, `map-arrival-turn`, `map-arrival-card-pins`, `map-desktop-arrival-chrome` and `map-webgl-recovery` have the same gap. Check each red under `--project=chromium-gl` before calling it a product red.
 - `mobile-discover-coverage.spec.ts:11`: no `Areas near you, with the gate visible` heading.
-- `mobile-round-lifecycle.spec.ts:9`: no `2 out · still going` status.
 - `near-desk-mode.spec.ts:59`: React error #418 (a hydration text mismatch).
 - `near-venue-acceptance.spec.ts:27`: a control is 44px where the spec wants 48px.
 - `quality-floor.spec.ts:155`: no `Non-alcoholic` checkbox in the planner's `.controlRail`.
@@ -194,7 +198,7 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 
 ## Verify reds
 
-- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23, 348 MB by R24, 355 MB by R25). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
+- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23, 348 MB by R24, 355 MB by R25, 366 MB by R26). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
 
 ## Appendix: main stable-failure set by root cause (origin/main aa6470eec, 197 tests)
 

@@ -29,7 +29,12 @@ test("mobile Round lifecycle: join, copy code, add a pub, and host closes", asyn
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-    window.localStorage.setItem("pubmax_handle", initialMate);
+    // The Round page reads its own anonymous identity (lib/roundRequest.ts),
+    // never the shared `pubmax_handle`, since #673.
+    window.localStorage.setItem(
+      "pubmax_round_anonymous_identity_v1",
+      JSON.stringify({ owner: "anonymous", handle: initialMate }),
+    );
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: {
@@ -110,7 +115,11 @@ test("mobile Round lifecycle: join, copy code, add a pub, and host closes", asyn
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-    window.localStorage.setItem("pubmax_handle", hostHandle);
+    // RoundStarter writes this key for the device that starts the Round.
+    window.localStorage.setItem(
+      "pubmax_round_anonymous_identity_v1",
+      JSON.stringify({ owner: "anonymous", handle: hostHandle }),
+    );
   }, host);
 
   await hostPage.goto(`/rounds/${code}`);
