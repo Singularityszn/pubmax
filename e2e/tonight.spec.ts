@@ -928,6 +928,24 @@ test("the cheapest listed pints carry one row per chain and name it", async ({ p
   await expect(
     rows.locator('[data-chain="wetherspoon"]'),
   ).toHaveText("Wetherspoon");
+
+  // A pub the SpoonMe ranking holds is a Wetherspoon even when the chain's
+  // directory dropped it (The Kentish Drovers, SE15 5RS), so its row carries
+  // the label rather than reading as a free house past the cap.
+  const lane = (await (await page.request.get("/data/spoonme/map.json")).json()) as {
+    pubs: [string, number, number, number][];
+  };
+  const spoonMeIds = new Set(lane.pubs.map(([venueId]) => venueId));
+  expect(spoonMeIds.size).toBeGreaterThan(0);
+  const shown = await rows.evaluateAll((items) =>
+    items.map((item) => ({
+      venueId: new URL(item.querySelector("a")!.href).searchParams.get("sel"),
+      chain: item.querySelector("[data-chain]")?.getAttribute("data-chain") ?? null,
+    })),
+  );
+  for (const row of shown) {
+    if (row.venueId && spoonMeIds.has(row.venueId)) expect(row.chain).toBe("wetherspoon");
+  }
 });
 
 // The walk-times toggle painted at radius 0 (site audit D7, carried by this
