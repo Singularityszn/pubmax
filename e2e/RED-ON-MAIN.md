@@ -169,6 +169,11 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - Both init scripts now seed the new key in the shape `writeRoundAnonymousHandle` writes. The Join tap, copy code, add a pub, spend, overflow and the two-tap close are unchanged.
   - No product bug: `components/round/RoundStarter.tsx` writes the key for the device that starts a Round, and the join form writes it for a mate.
   - Proof on the rig: red before the change (`2 out · still going` not found), then 3 passed on a 3x repeat at 1 worker.
+- [x] R27 `quality-floor.spec.ts:155` (1 fixed). The spec lied about the shipped product.
+  - The spec (6 Jul, moved to a 390px phone in #121) opened the phone planner sheet and wanted the `Non-alcoholic` checkbox in its `.controlRail`. Since #700 (3 Aug, "One planner per surface") `components/PubMap.tsx` mounts `ControlRail` only when `!mobileViewport`. The rail is the desktop planner, and the phone planner sheet carries the `Describe the outing` form instead.
+  - The spec now runs at 1280x900, opens the desktop planner with `Plan an outing` (the idiom of `social-loop.spec.ts`), and finds the checkbox in `.controlRail`. The count, visible, unchecked, check and uncheck assertions are unchanged.
+  - No product bug: `ControlRail` still ships the `Non-alcoholic` checkbox, and `requireNonAlcoholic` still filters the map. The phone planner's `Alcohol-free` chip is a route need, not this map filter.
+  - Proof on the rig: red before the change (0 checkboxes in the planner sheet), then 30 passed for the spec file on a 3x repeat at 1 worker.
 
 ## Reproduced on this branch, not yet grouped
 
@@ -184,7 +189,6 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 - `mobile-discover-coverage.spec.ts:11`: no `Areas near you, with the gate visible` heading.
 - `near-desk-mode.spec.ts:59`: React error #418 (a hydration text mismatch).
 - `near-venue-acceptance.spec.ts:27`: a control is 44px where the spec wants 48px.
-- `quality-floor.spec.ts:155`: no `Non-alcoholic` checkbox in the planner's `.controlRail`.
 - `venue-acceptance.spec.ts:68`: 2 venue actions, where the spec wants 3 or more.
 
 ## Needs captain
@@ -198,7 +202,7 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 
 ## Verify reds
 
-- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23, 348 MB by R24, 355 MB by R25, 366 MB by R26). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
+- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23, 348 MB by R24, 355 MB by R25, 366 MB by R26, 369 MB by R27). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
 
 ## Appendix: main stable-failure set by root cause (origin/main aa6470eec, 197 tests)
 
