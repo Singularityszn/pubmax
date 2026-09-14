@@ -3,11 +3,11 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { LANDING_FAQ, PRO_PRICE_LINE } from "@/components/landing/LandingFaq";
+import { LANDING_FAQ } from "@/components/landing/LandingFaq";
 
 // The captain asked for an FAQ "where people understand how the app works and
 // everything" (7 Sep 2026). Six questions, one paragraph each, in the house
-// voice, and a Pro line that stores nothing.
+// voice, and nothing a drinker is asked to buy.
 
 const source = readFileSync(join(process.cwd(), "components/landing/LandingFaq.tsx"), "utf8");
 
@@ -81,13 +81,16 @@ describe("the landing FAQ", () => {
     }
   });
 
-  it("prices Pro without building one: a mail door, no endpoint and no table", () => {
-    expect(PRO_PRICE_LINE).toContain("£9.99");
-    expect(source).toContain("mailto:");
-    // A drinker pays for nothing today (AGENTS.md), so there is no write path
-    // behind this field: no fetch, no API route, no store.
-    expect(source).not.toMatch(/fetch\(/);
-    expect(source).not.toMatch(/\/api\//);
-    expect(source).not.toMatch(/localStorage|sessionStorage/);
+  it("sells a drinker nothing: no price, no Pro and no waitlist", () => {
+    // First revenue comes from venues, never drinkers (AGENTS.md anti-goals).
+    // The front door once priced a drinker "Pro" at £9.99 a month with an email
+    // field; a price a drinker is asked to pay does not appear here again.
+    expect(source).not.toMatch(/£\s?\d/);
+    expect(source).not.toMatch(/\bPro\b/);
+    expect(source).not.toMatch(/waitlist|subscri|a month/i);
+    expect(source).not.toMatch(/<form|<input|mailto:/);
+    for (const entry of LANDING_FAQ) {
+      expect(`${entry.question} ${entry.answer}`).not.toMatch(/£\s?\d/);
+    }
   });
 });
