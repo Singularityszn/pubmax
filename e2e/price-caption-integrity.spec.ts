@@ -457,6 +457,29 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
 
     const attribution = page.locator(".maplibregl-ctrl-attrib");
     await expect(attribution).toBeVisible();
+    const centreHit = (control: Locator) =>
+      control.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          rect.left + rect.width / 2,
+          rect.top + rect.height / 2,
+        );
+        return {
+          own: Boolean(hit && element.contains(hit)),
+          nearMe: Boolean(hit?.closest(".mobileMapLocateFab")),
+          hit: hit ? `${hit.tagName.toLowerCase()}.${hit.getAttribute("class") ?? ""}` : "none",
+        };
+      });
+    const attributionToggle = attribution.locator(".maplibregl-ctrl-attrib-button");
+    await expect(attributionToggle).toBeVisible();
+    expect(await centreHit(attributionToggle), "Toggle attribution takes its own tap").toMatchObject({
+      own: true,
+      nearMe: false,
+    });
+    expect(
+      await centreHit(chip.getByRole("button", { name: "Dismiss Place story intro" })),
+      "Dismiss Place story intro takes its own tap",
+    ).toMatchObject({ own: true, nearMe: false });
     const attributionInner = attribution.locator(".maplibregl-ctrl-attrib-inner");
     if (!(await attributionInner.isVisible())) {
       await attribution.locator(".maplibregl-ctrl-attrib-button").click();
