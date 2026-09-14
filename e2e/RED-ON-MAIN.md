@@ -124,6 +124,39 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - The spec opens the venue list from Map controls, then waited 120 s for `Close venue list`. A list opened from Map controls has a Back action, so its close names the map it returns to: `Close and return to the London map` (`homeActionLabel`, `components/map/MapVenueList.tsx`). `Close venue list` shows only when the list has no Back. `mobile-map-shell-matrix.spec.ts` already uses the new name (R2).
   - The spec now taps that close, checks that the list is gone, and keeps its checks that `Describe the outing` comes back and opens the planner sheet.
   - Proof on the rig: the spec file gave 8 passed on a 2x repeat at 2 workers.
+- [x] R19 the phone map top bar after #1631 (2 fixed): `mobile-map-controls.spec.ts:30`, `mobile-map-search.spec.ts:14`. One product bug and five stale spec steps.
+  - `:30` read the place name from `.mobileMapCity`. The top bar prints it in the city switcher `Map area: London. Change city`, as `.citySwitcherLabelFull`.
+  - Both specs looked for a `searchbox`. The map search field suggests pubs, so it is a `combobox` named `Search pubs` (see R1).
+  - `:30` opened a `Drinks` button, chose a category in a select and waited for a `Gin brand` picker. #1631 put the drink filters in the top bar's `Filters` sheet as drink shape chips, and moved the brand slot into the drink lane's panel. The spec now taps `Wine`, then `Gin`. It checks that Gin replaces Wine, that the URL carries `drink=gin`, and that the drink lane chip names Gin. The Map controls sheet opens on its Key tab, so the spec opens the Layers tab. The closes are `Close Prices and places` and `Close Map controls`.
+  - The tap-target check read one box. The Layers panel scales in as it opens, and a chip read during that entry measured 43px against its 44px rest size. The check now reads the box after it stops moving, as `mobile-map-shell-matrix.spec.ts` does.
+  - `mobile-map-search.spec.ts:14` searched for `Arnos Arms` with `?food=1` still set. The slim pack records no food at Arnos Arms, so `requireFood` hides it and the map shows 0 venues. The spec now searches for `German Gymnasium`, which serves food. No other row's search text carries that name.
+  - Product bug: a top bar control that closed its own open overlay (`Search the map`, `Filters`, `More map controls`, the drink and Tonight chips) set the overlay to `none` and left that surface on the map trail. The trail hook asks every deliberate exit to call `back()` or `home()` (`components/map/pubmap/useMapSurfaceNavigation.ts`). So after the reader closed search, the Filters sheet offered `Back to Search`, and the first browser Back changed nothing on screen. The new `:30` close step caught it. Fixed: the toggle steps back down the trail, as Escape does (`components/mobile/MobileMapShell.tsx`, the full and the limited-coverage bar). Pin: `__tests__/mapShellSheetOwnership.test.ts` "an open overlay's own control closes it down the trail", red on the old toggle.
+  - Proof on the rebuilt rig: both spec files gave 6 passed on a 2x repeat. `surface-back-and-home`, `map-surface-history`, `mobile-map-chrome-fit`, `mobile-map-shell-matrix`, `mobile-bottom-nav`, `map-search-typing` and `mobile-map-list-obstruction` gave 67 passed.
+  - Found on the way, not fixed: `map-console-health.spec.ts:78` waits for `.mapCompassBtn` on a desktop map at rest and on a 390px map. Since #1631 the one compass is in the desktop Layers popover only. The phone Layers tab (`MapLayersControl embedded` in `components/PubMap.tsx`) gets no camera actions, so a phone reader can turn or tilt the map and has no control to reset it. Before #1631 the phone had a 44px compass on the map edge.
+
+## Reproduced on this branch, not yet grouped
+
+A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix specs that no group has touched. Each line is the first failing assertion.
+
+- `a11y-keyboard-loop.spec.ts:314`: reduced motion finds 7 `g` elements "parked" off their place on `/`.
+- `design-taste-wave-1.spec.ts:97` (light, dark): an eyebrow is accent-coloured (`color(srgb ...)`), where the spec wants the ink colour.
+- `exception-capture.spec.ts:68`: waits 10 s for `Anonymous analytics choice`. The consent card waits for the answer moment since #1604 (see R5).
+- `founding-members.spec.ts:176`: an ordinary account sees 1 `Founding member` text.
+- `map-console-health.spec.ts:78`: the compass (see R19).
+- `map-near-me.spec.ts:115`: a box read is `null` at 800px.
+- `map-performance.spec.ts:43`: no `Beer at ... open on the map` link on the landing page.
+- `map-search-no-results.spec.ts:160` (mobile dark normal): the search field did not show in 20 s. The other 7 cases passed in the same run.
+- `map-tile-retry.spec.ts:43` and `:95`: a transient outage logs `tile failure burst, reloading style`, and a lasting outage shows no `.mapSoftRetry` or `.mapFallback` in 60 s.
+- `mobile-discover-coverage.spec.ts:11`: no `Areas near you, with the gate visible` heading.
+- `mobile-permalink.spec.ts:63`: no `Go to the feed` link. `/feed` redirects to `/social` (see R2).
+- `mobile-round-lifecycle.spec.ts:9`: no `2 out · still going` status.
+- `mobile-rounds-index.spec.ts:30`: no `Join with a link` heading.
+- `near-desk-mode.spec.ts:59`: React error #418 (a hydration text mismatch).
+- `near-venue-acceptance.spec.ts:27`: a control is 44px where the spec wants 48px.
+- `quality-floor.spec.ts:155`: no `Non-alcoholic` checkbox in the planner's `.controlRail`.
+- `site-nav-more.spec.ts:3`: the More menu reads `Build a night out`, where the spec wants `Build a three-stop outing`.
+- `venue-acceptance.spec.ts:68`: 2 venue actions, where the spec wants 3 or more.
+- `w3-getting-there.spec.ts:16` and `:105`: no `Share location for travel times` button in the venue sheet.
 
 ## Needs captain
 

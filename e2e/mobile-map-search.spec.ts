@@ -32,7 +32,9 @@ test("mobile top-bar search filters the map and clears only the query", async ({
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 
   await page.getByRole("button", { name: "Search the map" }).click();
-  const search = page.getByRole("searchbox", { name: "Search pubs" });
+  // The field suggests pubs as it is typed in, so it is a combobox, not a
+  // bare searchbox (components/map/MapSearchSuggest.tsx).
+  const search = page.getByRole("combobox", { name: "Search pubs" });
   await expect(search).toBeVisible({ timeout: 20_000 });
   await search.fill("Definitely no such London pub 987654");
 
@@ -61,7 +63,10 @@ test("mobile top-bar search filters the map and clears only the query", async ({
     })
     .toEqual({ food: "1", query: null });
 
-  await search.fill("Arnos Arms");
-  await expect(page).toHaveURL(/q=Arnos\+Arms/);
+  // The query clears and the food filter stays, so the pub has to serve food:
+  // German Gymnasium does in the slim pack, and no other row's search text
+  // carries its name.
+  await search.fill("German Gymnasium");
+  await expect(page).toHaveURL(/q=German\+Gymnasium/);
   await expect(page.locator(".mapCanvasWrap")).not.toHaveAttribute("data-venue-count", "0");
 });
