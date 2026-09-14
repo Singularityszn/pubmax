@@ -174,6 +174,11 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - The spec now runs at 1280x900, opens the desktop planner with `Plan an outing` (the idiom of `social-loop.spec.ts`), and finds the checkbox in `.controlRail`. The count, visible, unchecked, check and uncheck assertions are unchanged.
   - No product bug: `ControlRail` still ships the `Non-alcoholic` checkbox, and `requireNonAlcoholic` still filters the map. The phone planner's `Alcohol-free` chip is a route need, not this map filter.
   - Proof on the rig: red before the change (0 checkboxes in the planner sheet), then 30 passed for the spec file on a 3x repeat at 1 worker.
+- [x] R28 `venue-acceptance.spec.ts:68` (1 fixed). The spec lied about the shipped product.
+  - The spec (#1057) wanted 3 or more buttons in the phone `Venue actions` toolbar, when the bar held `Make it Stop 1`, `Add price` and `Share`. Since #1517 (5 Sep, "one price door per trust state") the bar carries no price action: the Overview's price door is the one painted price action (`overviewPriceDoor`, `lib/pintTrust.ts`). A suggest-mode pub sheet holds `Make Arnos Arms Stop 1` and `Share Arnos Arms`, and `Crawl` shows only in build mode (`components/map/inspector/VenueStickyBar.tsx`).
+  - The spec now names both shipped buttons and expects exactly 2. The 44px height and overflow checks at 320px and 390px are unchanged.
+  - No product bug: both buttons are 44px or taller, and the page has no horizontal overflow.
+  - Proof on the rig: red before the change (2 buttons received), then 12 passed for the spec file on a 3x repeat at 2 workers.
 
 ## Reproduced on this branch, not yet grouped
 
@@ -189,7 +194,6 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 - `mobile-discover-coverage.spec.ts:11`: no `Areas near you, with the gate visible` heading.
 - `near-desk-mode.spec.ts:59`: React error #418 (a hydration text mismatch).
 - `near-venue-acceptance.spec.ts:27`: a control is 44px where the spec wants 48px.
-- `venue-acceptance.spec.ts:68`: 2 venue actions, where the spec wants 3 or more.
 
 ## Needs captain
 
@@ -202,7 +206,7 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 
 ## Verify reds
 
-- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23, 348 MB by R24, 355 MB by R25, 366 MB by R26, 369 MB by R27). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
+- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23, 348 MB by R24, 355 MB by R25, 366 MB by R26, 369 MB by R27, 371 MB by R28). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
 
 ## Appendix: main stable-failure set by root cause (origin/main aa6470eec, 197 tests)
 
