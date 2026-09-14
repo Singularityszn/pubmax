@@ -1,0 +1,58 @@
+Lane 6 e2e classification, 2026-09-13T20:10Z
+Head build (branch at 0bdf44a04) vs main build (8a942142c), same env, same 14 spec files.
+Red on head:       51. Red on main:      115. Red on head but not on main:        0.
+
+== Red on head (all also red on main unless listed below)
+e2e/dark-primary-surfaces.spec.ts | dark production landing, map, and venue sheet meet state contracts at 390px
+e2e/dark-primary-surfaces.spec.ts | dark production landing, map, and venue sheet meet state contracts at 430px
+e2e/desktop-map-chrome-fit.spec.ts | 1023px first-run location prompt owns centre while status yields to its left
+e2e/desktop-map-chrome-fit.spec.ts | 1280px open planner keeps toolbar search and Clear search beyond the rail edge
+e2e/desktop-map-chrome-fit.spec.ts | 1440px planner hands ownership to venue and Back restores composed state
+e2e/desktop-map-chrome-fit.spec.ts | 1600px open planner keeps toolbar search and Clear search beyond the rail edge
+e2e/desktop-map-chrome-fit.spec.ts | 641px first-run location prompt owns centre while status yields to its left
+e2e/desktop-map-chrome-fit.spec.ts | 800px first-run location prompt owns centre while status yields to its left
+e2e/founding-members.spec.ts | an ordinary account › is shown no founding surface anywhere
+e2e/map-accessibility.spec.ts | map keyboard and screen-reader venue path › drops old base-pub rows during a disjoint pan before the next shard fetch
+e2e/map-accessibility.spec.ts | map keyboard and screen-reader venue path › keeps a rapid reselection open after close history settles
+e2e/map-accessibility.spec.ts | map keyboard and screen-reader venue path › keeps desktop drawer focus inside and restores chosen venue on Escape
+e2e/map-accessibility.spec.ts | map keyboard and screen-reader venue path › returns Escape focus to a keyboard-selected search result
+e2e/map-accessibility.spec.ts | map keyboard and screen-reader venue path › updates open venue list after map movement and a venue-kind filter
+e2e/map-near-me.spec.ts | keeps Near me actionable at 1600px with consent decided and tour unseen when Tonight is degraded
+e2e/map-near-me.spec.ts | keeps the expanded city-status feed inside an 800px viewport
+e2e/mobile-activity.spec.ts | mobile Activity › empty state feeds the growth loop without clipping
+e2e/mobile-activity.spec.ts | mobile Activity › keeps the empty retention state and nav utilities thumb-safe
+e2e/mobile-activity.spec.ts | mobile Activity › populated notifications expose thumb-safe actor and subject links
+e2e/mobile-bottom-nav.spec.ts | mobile bottom-tab navigation › create action opens Moment with the live return path
+e2e/mobile-bottom-nav.spec.ts | mobile bottom-tab navigation › gated Social stays out of the primary tab row
+e2e/mobile-bottom-nav.spec.ts | mobile bottom-tab navigation › hides while the planner bottom sheet owns the bottom edge
+e2e/mobile-bottom-nav.spec.ts | mobile bottom-tab navigation › Map tab routes to /map and exposes the map search control
+e2e/mobile-bottom-nav.spec.ts | mobile bottom-tab navigation › Out tab routes to /out
+e2e/mobile-map-controls.spec.ts | mobile map controls: top bar, drink filters, and coordinated layers are tappable
+e2e/mobile-map-first-visit.spec.ts | 320px cold map keeps First visit as the only lower surface
+e2e/mobile-map-first-visit.spec.ts | 390px cold map keeps First visit as the only lower surface
+e2e/mobile-map-first-visit.spec.ts | 430px cold map keeps First visit as the only lower surface
+e2e/mobile-map-shell-matrix.spec.ts | coordinated map shell 320x568 dark
+e2e/mobile-map-shell-matrix.spec.ts | coordinated map shell 320x568 light
+e2e/mobile-map-shell-matrix.spec.ts | coordinated map shell 375x812 dark
+e2e/mobile-map-shell-matrix.spec.ts | coordinated map shell 375x812 light
+e2e/mobile-map-shell-matrix.spec.ts | coordinated map shell 390x844 dark
+e2e/mobile-map-shell-matrix.spec.ts | coordinated map shell 390x844 light
+e2e/mobile-map-shell-matrix.spec.ts | coordinated map shell 430x932 dark
+e2e/mobile-map-shell-matrix.spec.ts | coordinated map shell 430x932 light
+e2e/mobile-map-shell-matrix.spec.ts | London basemap hierarchy at z10 z12 z14 z16 dark
+e2e/mobile-map-shell-matrix.spec.ts | London basemap hierarchy at z10 z12 z14 z16 light
+e2e/price-caption-integrity.spec.ts | first-run qualifiers render on the real page at 390px
+e2e/price-caption-integrity.spec.ts | first-run qualifiers render on the real page at 430px
+e2e/price-caption-integrity.spec.ts | historic disclosures retain the full 1583 text at 390px
+e2e/price-caption-integrity.spec.ts | historic disclosures retain the full 1583 text at 430px
+e2e/price-caption-integrity.spec.ts | mobile map renders story qualifier and attribution at 390px
+e2e/price-caption-integrity.spec.ts | mobile map renders story qualifier and attribution at 430px
+e2e/quality-floor.spec.ts | quality floor: the non-alcoholic filter checkbox flips its checked state
+e2e/social-shell.spec.ts | feed retry repeats only the failed chronological read
+e2e/social-shell.spec.ts | invalid Social URL state resolves to the safe canonical route
+e2e/social-shell.spec.ts | preview shows one safe boundary and never requests or leaks protected posts
+e2e/social-shell.spec.ts | verified Activity rail shows reauthorised generic notifications only
+e2e/ui-consistency-layout.spec.ts | capture UI consistency evidence
+e2e/ui-consistency-layout.spec.ts | profile Options expose working existing actions
+
+== Red on head only

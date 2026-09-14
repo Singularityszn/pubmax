@@ -19,8 +19,10 @@
   border-radius: 999px;
   background: var(--panel-raised);
   color: var(--ink-soft);
-  font-size: 0.72rem;
-  font-weight: 800;
+  /* The toolbar row's type: it read 11.52px at 800 beside Filters, Drink and
+     Plan an outing at 13.76px (site audit 13 Sep 2026, D7). */
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   cursor: pointer;
   touch-action: manipulation;
   box-sizing: border-box;

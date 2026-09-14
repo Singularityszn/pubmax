@@ -7,6 +7,7 @@ import {
   dismissMapFirstVisitArrival,
   setMapFirstVisitArrivalCardVisible,
 } from "@/lib/mapFirstVisitArrival";
+import { buttonVariants } from "@/components/ui/button";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 import "./mapArrivalCard.css";
@@ -79,7 +80,7 @@ export default function MapArrivalCard({
       <div className="mapArrivalCardActions">
         <button
           type="button"
-          className="mapArrivalCardPrimary"
+          className={buttonVariants({ variant: "primary" })}
           data-primary-action=""
           onClick={() => {
             dismissMapFirstVisitArrival();
@@ -90,7 +91,7 @@ export default function MapArrivalCard({
         </button>
         <button
           type="button"
-          className="mapArrivalCardSecondary"
+          className={buttonVariants({ variant: "secondary" })}
           onClick={() => {
             dismissMapFirstVisitArrival();
             onChooseArea();

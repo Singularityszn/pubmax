@@ -336,7 +336,7 @@ export default async function BoroughPage({ params }: PageProps) {
                   <th scope="col" className="boroughNameHead">
                     Pub
                   </th>
-                  <th scope="col" className="boroughPriceHead">
+                  <th scope="col" className="boroughPriceHead createFabLane">
                     Cheapest pint
                   </th>
                 </tr>
@@ -358,7 +358,7 @@ export default async function BoroughPage({ params }: PageProps) {
                         Price history →
                       </Link>
                     </td>
-                    <td className="boroughPriceCell">
+                    <td className="boroughPriceCell createFabLane">
                       <BoroughPubPrice pub={pub} />
                     </td>
                   </tr>

@@ -47,6 +47,8 @@ import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import { summariseGetHome, type GetHomeSummary } from "@/lib/tonightGetHome";
 import type { LastTrainResult } from "@/lib/tfl";
 
+import { TODAY_TEXT_BUTTON_CLASS } from "./todayTextButton";
+
 const SURFACE = "today-last-train" as const;
 
 /** Where the coordinate we ask with came from. It changes the wording, only. */
@@ -172,7 +174,7 @@ export default function TodayGetThereStrip() {
           <DisruptionLine lat={origin.lat} lng={origin.lng} />
           <div className="todayCardFootRow">
             <span className="todayProvenance">via TfL</span>
-            <button type="button" className="todayTextButton" onClick={clearOrigin}>
+            <button type="button" className={TODAY_TEXT_BUTTON_CLASS} onClick={clearOrigin}>
               <X size={14} aria-hidden="true" />
               {removeLabel}
             </button>
@@ -187,7 +189,7 @@ export default function TodayGetThereStrip() {
           </p>
           <DisruptionLine lat={origin.lat} lng={origin.lng} />
           <div className="todayCardFootRow">
-            <button type="button" className="todayTextButton" onClick={clearOrigin}>
+            <button type="button" className={TODAY_TEXT_BUTTON_CLASS} onClick={clearOrigin}>
               <X size={14} aria-hidden="true" />
               {removeLabel}
             </button>
@@ -253,7 +255,7 @@ export default function TodayGetThereStrip() {
           ) : (
             <button
               type="button"
-              className="todayTextButton"
+              className={TODAY_TEXT_BUTTON_CLASS}
               onClick={() => setAreaPickerAsked(true)}
             >
               <MapPin size={14} aria-hidden="true" />

@@ -153,8 +153,8 @@ Tactile and decisive — Plan actions read louder than chrome.
 
 ### Buttons
 
-- **Shape:** Pill (`--radius-pill` / 999px) for Plan; default radius 8px for standard controls.
-- **Primary (`.planBtn`):** Coral gradient `var(--brass)` → `var(--brass-bright)` in both themes, with fixed dark label ink for AA contrast.
+- **Shape and type:** Every text button, Plan included, reads the `--control-*` row. See `docs/DESIGN_SYSTEM.md` "Text buttons".
+- **Primary (`.planBtn`):** The Button primitive's flat primary (`--color-accent`, hover `--color-accent-strong`, dark label ink) in both themes. It keeps `--shadow-btn` because it floats over the map.
 - **Hover / Focus:** Accent border or glow ring; focus-visible outline 2px accent.
 - **Active Plan:** Ink-deep treatment for “planning” state (existing `.planBtn.active`).
 

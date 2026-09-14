@@ -612,6 +612,30 @@
     padding: 11px 10px;
   }
 
+  /* The price column takes the compose action's lane (createFab.css), and the
+     table has to give that width back or it outgrows its box and scrolls the
+     column under the control anyway: at 320px it needed 342px of a 276px box
+     and the price ended 53px past the control's left edge (site audit 13 Sep
+     2026). The head may wrap, the rank column drops to its number, and a long
+     pub name wraps. */
+  .boroughTable thead th.boroughPriceHead {
+    white-space: normal;
+  }
+
+  .boroughTable th.boroughRankHead,
+  .boroughTable th.boroughRank {
+    width: auto;
+    padding-inline: 5px;
+  }
+
+  .boroughTable .boroughPub {
+    overflow-wrap: anywhere;
+  }
+
+  .boroughTable .boroughLedgerLink {
+    white-space: normal;
+  }
+
   .boroughGrid {
     grid-template-columns: 1fr;
   }

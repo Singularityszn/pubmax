@@ -90,13 +90,6 @@ describe("the first-visit card is a strip at the top on a phone", () => {
     );
   });
 
-  it("paints its one primary in the product's coral, like every other screen", () => {
-    const primary = cardCss.match(/\.mapArrivalCardPrimary\s*\{[^}]*\}/)?.[0] ?? "";
-    expect(primary).toContain("var(--color-accent)");
-    expect(primary).toContain("var(--color-on-accent)");
-    expect(primary).not.toContain("var(--ink)");
-  });
-
   it("drops the eyebrow, and keeps the sentence the App Store copy is paired to", () => {
     // "FIRST VISIT" is decoration: the card's own accessible name already says
     // it. The location sentence STAYS. docs/proof/mobile-app-design/
