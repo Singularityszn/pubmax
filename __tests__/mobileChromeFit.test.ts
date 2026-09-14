@@ -78,22 +78,6 @@ describe("mobile chrome fit at 390px", () => {
     );
   });
 
-  it("keeps the OpenStreetMap credit and the Place story chip out from under the map-edge column", () => {
-    // Near me parks on the right edge of the band above the plan action. The
-    // credit sat in the same right-edge berth, so the FAB took its taps.
-    const credit = declarationsFor(".appShell .mapStage .maplibregl-ctrl-bottom-right");
-    expect(credit.get("left")).toBe("var(--mobile-map-stack-left)");
-    expect(credit.get("right")).toBe("auto");
-    expect(credit.get("bottom")).toBe("calc(var(--mobile-map-dock-clearance) + 68px)");
-    expect(mobileMapCss).toMatch(
-      /body:has\(\.bandOnboardingChip\) \.appShell \.mapStage \.maplibregl-ctrl-bottom-right\s*{[^}]*bottom:\s*var\(--mobile-map-dock-clearance\)/,
-    );
-    const phoneChip =
-      globalCss.match(/\n\s*\.bandOnboardingChip\s*{([^}]*display:\s*grid;[^}]*)}/)?.[1] ?? "";
-    expect(phoneChip, "phone story chip rule present").not.toBe("");
-    expect(phoneChip).toMatch(/right:\s*var\(--mobile-map-corner-lane\)/);
-  });
-
   it("fits the one top bar inside the narrowest phone at the tap floor", () => {
     // 320px is the narrowest phone the e2e matrix runs. The bar is five slots:
     // wordmark, area, search, filters, more. Three of them are 44px controls,

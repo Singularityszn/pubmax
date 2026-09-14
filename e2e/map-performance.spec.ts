@@ -40,7 +40,7 @@ test("/map initial load uses slim pins without full or detail datasets", async (
   expect(requested(requests, "/api/citymcp/journey")).toBe(false);
 });
 
-test("landing night choice reaches a usable filtered mobile map", async ({ page }) => {
+test("a filtered beer map link reaches a usable mobile map", async ({ page }) => {
   test.setTimeout(45_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
