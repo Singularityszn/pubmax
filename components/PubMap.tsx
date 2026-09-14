@@ -755,6 +755,20 @@ function desktopRailViewportSnapshot(): boolean {
   return typeof window !== "undefined" && window.matchMedia(DESKTOP_RAIL_MEDIA_QUERY).matches;
 }
 
+// From 769px the venue drawer is a side panel and the map chips take the lane
+// beside it; from 641px to 768px it is a full-width sheet and the chips leave
+// the layout (components/map/mapBannerStaging.css).
+const DRAWER_SIDE_LANE_MEDIA_QUERY = "(min-width: 769px)";
+
+function subscribeDrawerSideLaneViewport(onChange: () => void): () => void {
+  const query = window.matchMedia(DRAWER_SIDE_LANE_MEDIA_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+function drawerSideLaneViewportSnapshot(): boolean {
+  return typeof window !== "undefined" && window.matchMedia(DRAWER_SIDE_LANE_MEDIA_QUERY).matches;
+}
+
 // mergeVenueDrops (lib/venues.ts) folds drops into DERIVED SUMMARY SIGNALS only:
 // a bare price is never a story, and demo seeds never move prices or hasStory.
 
@@ -1042,6 +1056,11 @@ export default function PubMap({
   const railViewport = useSyncExternalStore(
     subscribeDesktopRailViewport,
     desktopRailViewportSnapshot,
+    () => false,
+  );
+  const drawerSideLaneViewport = useSyncExternalStore(
+    subscribeDrawerSideLaneViewport,
+    drawerSideLaneViewportSnapshot,
     () => false,
   );
   const isLondon = arrival.isLondon;
@@ -3179,7 +3198,6 @@ export default function PubMap({
       setSheetSnap,
       setSheetDragY,
       selectedVenueId,
-      venueById,
       setVenueRevealSettleSequence,
     ],
   );
@@ -6334,7 +6352,11 @@ export default function PubMap({
             (sheetDragY !== null ? " sheet-dragging" : "")
           }
           aria-hidden={!detailOpen}
-          aria-modal={detailOpen ? true : undefined}
+          // Not modal while the mapped-route chip is live beside it: that chip
+          // is an exempt surface of the drawer's focus trap.
+          aria-modal={
+            detailOpen && !(routeMappedActive && drawerSideLaneViewport) ? true : undefined
+          }
           role={detailOpen ? "dialog" : undefined}
           aria-label={detailOpen ? selectedVenueLabels.detailLabel : undefined}
         >

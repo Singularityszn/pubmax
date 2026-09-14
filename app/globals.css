@@ -1589,6 +1589,15 @@ input[type="range"] {
   will-change: transform;
 }
 
+/* From 769px to 1023px the venue drawer is this base 376px side panel. The
+   map chips beside it read the width from here; from 1024px venueSheet.css
+   widens the drawer and publishes its own value. */
+@media (min-width: 769px) and (max-width: 1023px) {
+  .appShell {
+    --desktop-venue-drawer-width: 376px;
+  }
+}
+
 /* Desktop map chrome needs one measured source for the planner lane. The
    drawer's rendered width is 376px at this breakpoint; toolbar and banners
    consume this variable so their free-lane geometry cannot drift from it. */

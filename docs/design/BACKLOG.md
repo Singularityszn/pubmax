@@ -11,10 +11,16 @@ and the one thing that makes it hard.
 
 ## Open debt
 
-Nothing open today. The three rows this file opened with shipped together in
-the design-review follow-ups lane; the measurement is
+The three rows this file opened with shipped together in the design-review
+follow-ups lane; the measurement is
 [`docs/proof/design-review-followups/`](../proof/design-review-followups/), and
-each row is in Closed below.
+each row is in Closed below. The rows here were measured on 14 September 2026
+at 1440 and 1280 with a venue drawer open over a mapped two-stop route.
+
+| Defect | Where | What makes it hard |
+|---|---|---|
+| The route chip stacks 10px above the bottom-left status banner, and with the drawer open the two pills overlap sideways with ragged left edges. | `.mappedRouteChip` (`bottom: 82px`, `app/globals.css`) beside `.cityStatusStack` moved to the bottom-left lane by `components/map/mapBannerStaging.css`. | The status stack has no fixed height and opens into a panel, so a fixed lift is a guess; the bottom chips and the banner need one shared flow. |
+| At 1280 the search placeholder is cut mid-word, and the zoom buttons do not show beside `Recenter`. | The desktop map toolbar and camera controls. | Both sit in the 641 to 1280 chrome budget other lanes have already cut. |
 
 ## Decisions raised and still open
 

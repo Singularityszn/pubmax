@@ -178,6 +178,83 @@ export class FocusTrapOwner {
   }
 }
 
+/**
+ * A map control that stays live beside a map-surface trap. The desktop venue
+ * drawer traps focus, but the mapped-route chip belongs to the map, and a
+ * reader must still reach "Check last train at final stop" while a pub is open
+ * (drawer-trap-route-chip). A strict modal exempts nothing.
+ */
+export const FOCUS_TRAP_EXEMPT_ATTRIBUTE = "data-focus-trap-exempt";
+
+export function trapExemptSurfaces(
+  container: HTMLElement,
+  outsidePolicy: FocusTrapOutsidePolicy,
+): HTMLElement[] {
+  if (outsidePolicy === "strict-modal") return [];
+  return Array.from(
+    container.ownerDocument.querySelectorAll<HTMLElement>(`[${FOCUS_TRAP_EXEMPT_ATTRIBUTE}]`),
+  ).filter((node) => !container.contains(node));
+}
+
+/**
+ * The nodes to inert. An outside sibling that holds no exempt surface is inert
+ * whole, as before. A sibling that holds one is not: the walk goes down its
+ * path and inerts every child beside it, so the exempt surface and its
+ * ancestors stay interactive and nothing else on that path does. Inert is
+ * inherited, so an exempt node inside an inert ancestor could never be live.
+ */
+export function inertTargets(
+  siblings: Iterable<HTMLElement>,
+  exempt: readonly HTMLElement[],
+): Set<HTMLElement> {
+  const targets = new Set<HTMLElement>();
+  const visit = (node: HTMLElement) => {
+    if (exempt.includes(node)) return;
+    if (!exempt.some((surface) => node.contains(surface))) {
+      targets.add(node);
+      return;
+    }
+    for (const child of Array.from(node.children)) {
+      if (child instanceof HTMLElement) visit(child);
+    }
+  };
+  for (const sibling of siblings) visit(sibling);
+  return targets;
+}
+
+/**
+ * Where Tab goes at a region's edge. The trapped container is one region and
+ * the exempt surfaces are a second, so Tab from the drawer's last control
+ * reaches the chip and Tab from the chip's last control returns to the drawer.
+ * Null means the move stays inside one region and the browser makes it.
+ */
+export function nextTrapFocus(input: {
+  container: readonly HTMLElement[];
+  exempt: readonly HTMLElement[];
+  active: Element | null;
+  shift: boolean;
+}): HTMLElement | null {
+  if (!input.container.length) return null;
+  const regions = input.exempt.length
+    ? [input.container, input.exempt]
+    : [input.container];
+  const index = regions.findIndex((region) =>
+    region.some((node) => node === input.active),
+  );
+  if (index < 0) return null;
+  const region = regions[index];
+  const edge = input.shift ? region[0] : region[region.length - 1];
+  if (input.active !== edge) return null;
+  const next = regions[(index + (input.shift ? regions.length - 1 : 1)) % regions.length];
+  return input.shift ? next[next.length - 1] : next[0];
+}
+
+function visibleFocusables(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (node) => node.offsetParent !== null,
+  );
+}
+
 function outsideSiblings(
   container: HTMLElement,
   outsidePolicy: FocusTrapOutsidePolicy,
@@ -238,32 +315,84 @@ export function useFocusTrap(
           : null,
     );
     // Main's one-time scan does not contain later body siblings such as Command Palette.
-    trapOwner.reconcile(outsideSiblings(container, outsidePolicy));
+    const siblings = outsideSiblings(container, outsidePolicy);
+    let exempt = trapExemptSurfaces(container, outsidePolicy);
+    trapOwner.reconcile(inertTargets(siblings, exempt));
     const releaseStrictModal =
       outsidePolicy === "strict-modal" ? claimStrictModalFocusTrap() : null;
 
+    // An exempt surface can mount or leave while the trap holds: adding a
+    // second stop from the drawer maps the route and mounts the chip. A node
+    // can also mount beside the chip in a sibling the walk went down. Both are
+    // re-derived from the SAME scanned siblings, once per frame at most.
+    let exemptFocus: Element | null = null;
+    const onFocusIn = (event: FocusEvent) => {
+      const target = event.target;
+      exemptFocus =
+        target instanceof Element && exempt.some((surface) => surface.contains(target))
+          ? target
+          : null;
+    };
+    const reclaimLostExemptFocus = () => {
+      const lost = exemptFocus;
+      if (!lost || exempt.some((surface) => surface.contains(lost))) return;
+      exemptFocus = null;
+      const active = document.activeElement;
+      if (
+        active &&
+        active !== document.body &&
+        (container.contains(active) || exempt.some((surface) => surface.contains(active)))
+      ) {
+        return;
+      }
+      (visibleFocusables(container)[0] ?? container).focus({ preventScroll: true });
+    };
+
+    let frame: number | null = null;
+    const observer =
+      outsidePolicy === "map-surface" && typeof MutationObserver !== "undefined"
+        ? new MutationObserver(() => {
+            if (frame !== null) return;
+            frame = window.requestAnimationFrame(() => {
+              frame = null;
+              exempt = trapExemptSurfaces(container, outsidePolicy);
+              trapOwner.reconcile(inertTargets(siblings, exempt));
+              reclaimLostExemptFocus();
+            });
+          })
+        : null;
+    for (const sibling of siblings) {
+      observer?.observe(sibling, { childList: true, subtree: true });
+    }
+
     const onTab = (event: KeyboardEvent) => {
-      if (event.key !== "Tab") return;
-      const focusable = [
-        ...container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-      ].filter((node) => node.offsetParent !== null);
+      if (event.key !== "Tab" || event.defaultPrevented) return;
+      const focusable = visibleFocusables(container);
       if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
       if (document.activeElement === container) {
         event.preventDefault();
-        (event.shiftKey ? last : first).focus();
-      } else if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
+        (event.shiftKey ? focusable[focusable.length - 1] : focusable[0]).focus();
+        return;
       }
+      const next = nextTrapFocus({
+        container: focusable,
+        exempt: exempt.flatMap(visibleFocusables),
+        active: document.activeElement,
+        shift: event.shiftKey,
+      });
+      if (!next) return;
+      event.preventDefault();
+      next.focus();
     };
-    container.addEventListener("keydown", onTab);
+    // On the document, because Tab from an exempt surface starts outside the
+    // container. `nextTrapFocus` ignores focus that is in neither region.
+    document.addEventListener("keydown", onTab);
+    document.addEventListener("focusin", onFocusIn);
     return () => {
-      container.removeEventListener("keydown", onTab);
+      document.removeEventListener("keydown", onTab);
+      document.removeEventListener("focusin", onFocusIn);
+      observer?.disconnect();
+      if (frame !== null) window.cancelAnimationFrame(frame);
       trapOwner.release();
       releaseStrictModal?.();
     };

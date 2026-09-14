@@ -4,10 +4,9 @@ import { expect, test, type Page } from "@playwright/test";
 // fold on the Overview. It must land there with the fold open, and a second
 // press after the reader closes the sheet must land there again.
 //
-// The door is pressed with the venue drawer CLOSED, because that is the only
-// way a reader can reach it on desktop: while the drawer is open its modal
-// focus trap makes the whole map inert, route chip included, on main as on
-// this branch. That is filed as drawer-trap-route-chip.
+// The door is pressed with the venue drawer CLOSED here. The same door with
+// the drawer OPEN is e2e/drawer-route-chip-reachable.spec.ts: the route chip
+// is an exempt surface of the drawer's focus trap (lib/useFocusTrap.ts).
 
 const FIRST_STOP = "venue-yl1a48";
 const FINAL_STOP = "venue-1vle947";
