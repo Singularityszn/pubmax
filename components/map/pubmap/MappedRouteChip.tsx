@@ -19,7 +19,14 @@ export function MappedRouteChip({
   onHide: () => void;
 }) {
   return (
-    <div className="mappedRouteChip" role="status" aria-live="polite">
+    // An exempt surface of the desktop venue drawer's focus trap
+    // (lib/useFocusTrap.ts): the chip stays pressable while a pub is open.
+    <div
+      className="mappedRouteChip"
+      role="status"
+      aria-live="polite"
+      data-focus-trap-exempt=""
+    >
       <RouteIcon size={16} aria-hidden="true" />
       <div>
         <strong>{stopCount} stops mapped</strong>
