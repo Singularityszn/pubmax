@@ -266,7 +266,7 @@ describe("mapPriceLegend", () => {
       },
     ]);
     expect(legend.hint).toContain("sourced menu prices stay on venue cards");
-    expect(legend.hint).not.toContain("£5.15");
+    expect(legend.hint).not.toContain(priceBandLegendLabel("cheap", { city: "london" }));
     expect(legend.hint).not.toContain("trusted food prices");
     expect(legend.clusterNote).toBe(
       "Food clusters stay grey because food prices do not colour this map. The number is every venue in the cluster.",

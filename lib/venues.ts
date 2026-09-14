@@ -31,6 +31,7 @@ import {
   type PintDropConfirmation,
 } from "@/lib/pintDropConfirmationRecord";
 import { hasNonAlcoholic } from "@/lib/nonAlcoholicDrinks";
+import { isLivePriceRow, type PriceSuperseded } from "@/lib/priceRowEligibility.mjs";
 import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
 import {
   matchesAccessibilityFilters,
@@ -104,6 +105,12 @@ export type VenuePrice = {
   has_individual_pub_page_row: boolean;
   is_clean_canonical_app_row: boolean;
   data_quality_notes: string;
+  /**
+   * Present when the operator that published this price has left the pub. The
+   * row is dated history and no reader may read it as a price
+   * (lib/priceRowEligibility.mjs).
+   */
+  price_superseded?: PriceSuperseded | null;
 };
 
 /**
@@ -579,13 +586,17 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
     grouped.set(key, [...(grouped.get(key) ?? []), row]);
   }
 
-  return Array.from(grouped.entries()).map(([key, prices]) => {
-    const sortedPrices = [...prices].sort((a, b) => {
+  return Array.from(grouped.entries()).map(([key, groupRows]) => {
+    const sortedRows = [...groupRows].sort((a, b) => {
       const left = a.price_gbp ?? Number.POSITIVE_INFINITY;
       const right = b.price_gbp ?? Number.POSITIVE_INFINITY;
       return left - right;
     });
-    const first = sortedPrices[0];
+    // A superseded row is dated history: it keeps the pub, its id and its story,
+    // and gives nothing the pub served or charged (lib/priceRowEligibility.mjs).
+    const prices = groupRows.filter(isLivePriceRow);
+    const sortedPrices = sortedRows.filter(isLivePriceRow);
+    const first = sortedPrices[0] ?? sortedRows[0];
     const numericPrices = sortedPrices
       .map((price) => price.price_gbp)
       .filter((price): price is number => typeof price === "number");
@@ -596,7 +607,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       splitList(price.data_quality_notes).forEach((note) => dataQualityNotes.add(note));
     }
 
-    const curation = getVenueCuration(sortedPrices);
+    const curation = getVenueCuration(sortedRows);
     // Attach documented accessibility facts for the curated seed only; every
     // other venue gets undefined (honestly unknown). Keyed by pub name +
     // borough so a common name doesn't cross-contaminate the wrong pub.
@@ -612,7 +623,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       visibleBoroughs: splitList(first.boroughs_visible),
       prices: sortedPrices,
       cheapestPrice: numericPrices.length ? Math.min(...numericPrices) : null,
-      cheapestPint: first.pint_name,
+      cheapestPint: sortedPrices[0]?.pint_name ?? "",
       averagePrice: numericPrices.length
         ? numericPrices.reduce((sum, price) => sum + price, 0) / numericPrices.length
         : null,

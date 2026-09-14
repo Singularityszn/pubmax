@@ -79,7 +79,7 @@ test("landing: the £6.50 answer is red, the rail's cheapest is green, the trust
 
   // The rail is the anchor's borough cheapest first, so its first row is green.
   const first = page.locator(".lpRailRow").first().locator(".priceBadge");
-  expect(poundsOf(await first.innerText())).toBeLessThanOrEqual(5.15);
+  expect(priceBand(poundsOf(await first.innerText()), { city: "london" })).toBe("cheap");
   await expectBand(page, first, "cheap");
 });
 
@@ -139,10 +139,10 @@ test.describe("venue sheet on /map?sel=venue-1vle947", () => {
   });
 });
 
-// Soho's five cheapest listed pints within a walk all sit in London's middle
-// third today (£5.20 to £5.95), so the rail shows no green and no red: the
-// thresholds are the city's (docs/PRICE_BANDS.md), and a Soho £5.20 is not a
-// cheap London pint. Every figure is held to the band its own price earns.
+// Soho's five cheapest listed pints within a walk sit near London's cheap line
+// (£5.20 to £5.95 today). The thresholds are the city's (docs/PRICE_BANDS.md)
+// and are derived, never typed, so every figure is held to the band its own
+// price earns.
 test("near: every Soho figure wears the band its price earns, cheapest first", async ({ page }) => {
   const response = await page.goto("/near?patch=soho", { waitUntil: "commit" });
   expect(response?.status()).toBe(200);

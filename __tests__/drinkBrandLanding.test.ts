@@ -314,7 +314,11 @@ describe("governed drink brand landings", () => {
     const venues = await loadPintPriceLandingVenues();
 
     expect(venues.length).toBeGreaterThan(0);
-    expect(venues.every((item) => item.prices.length > 0)).toBe(true);
+    // A pub whose every row is superseded (lib/priceRowEligibility.mjs) keeps
+    // its place and carries no price rows, so it can never price a landing.
+    const unpriced = venues.filter((item) => item.prices.length === 0);
+    expect(unpriced.every((item) => item.cheapestPrice === null)).toBe(true);
+    expect(unpriced.length).toBeLessThan(venues.length);
   });
 });
 

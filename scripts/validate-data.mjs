@@ -47,6 +47,7 @@ import {
   nightOutPlaceRowValidationErrors,
 } from "../lib/nightOutPlaceContract.mjs";
 import { CITY_VENUE_PACKS } from "../lib/cityVenuePacks.mjs";
+import { isLivePriceRow, priceSupersededErrors } from "../lib/priceRowEligibility.mjs";
 import { CITY_BOUNDS } from "../lib/cityBounds.mjs";
 import { EDITORIAL_FEEDS, EDITORIAL_ITEM_KEYS } from "../lib/editorialRss.mjs";
 import {
@@ -1090,6 +1091,9 @@ function validatePintPrices() {
     if (typeof row.pub_name !== "string" || row.pub_name.length === 0) {
       errs.add(`${where}: missing/empty pub_name`);
     }
+    for (const error of priceSupersededErrors(row)) {
+      errs.add(`${where} (${row.pub_name}): ${error}`);
+    }
     const price = row.price_gbp;
     if (price !== null && !isFiniteNumber(price)) {
       errs.add(
@@ -1282,7 +1286,9 @@ function validateSlimVenues() {
   for (const [key, prices] of grouped) {
     const first = prices[0];
     if (isReplacedByFamousVenue(first, famousRows)) continue;
+    // A superseded row is dated history, never a pin price (lib/priceRowEligibility.mjs).
     const numericPrices = prices
+      .filter(isLivePriceRow)
       .map((p) => p.price_gbp)
       .filter((p) => typeof p === "number" && Number.isFinite(p));
     expected.set(stableVenueIdFromKey(key), {

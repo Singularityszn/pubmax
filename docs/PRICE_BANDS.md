@@ -25,13 +25,13 @@ each band holds the same number of pubs.
 
 ## London today
 
-Cut from 952 priced pubs in `public/data/venues_slim.json` by
+Cut from 950 priced pubs in `public/data/venues_slim.json` by
 `npm run build:price-bands`, written to `public/data/price_bands/thresholds.json`.
 
 | Band | Colour | London |
 | --- | --- | --- |
-| cheap | green | £5.15 or less |
-| average | yellow | over £5.15, up to £6.15 |
+| cheap | green | £5.20 or less |
+| average | yellow | over £5.20, up to £6.15 |
 | expensive | red | over £6.15 |
 
 So a £6.50 pint reads expensive, which is the figure the captain saw painted

@@ -15,6 +15,7 @@ import "server-only";
 import { listEnabledCities } from "@/lib/cities";
 import { loadHistoricPubs } from "@/lib/historic";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
+import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 
 export type AboutStats = {
@@ -49,9 +50,11 @@ export function computeAboutStats(
 ): AboutStats {
   const safeRows = Array.isArray(rows) ? rows : [];
 
-  // A price observation is any row with a usable positive numeric price.
+  // A price observation is any live row with a usable positive numeric price.
+  // A superseded row is dated history, never an observation of today.
   const pricedRows = safeRows.filter(
     (row) =>
+      isLivePriceRow(row) &&
       typeof row.price_gbp === "number" &&
       Number.isFinite(row.price_gbp) &&
       row.price_gbp > 0,

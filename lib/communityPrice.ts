@@ -453,7 +453,7 @@ export function freshestPintPrice(
 /**
  * The pin/pin-band bucket a pint price falls into: 0 = cheap, 1 = average,
  * 2 = expensive, 3 = unknown (no price). The thresholds are lib/priceBand.ts's
- * city terciles (London: cheap up to £5.15, average up to £6.15), no longer a
+ * city terciles (London: cheap up to £5.20, average up to £6.15), no longer a
  * typed £5.50 and £7. Kept under this name here because the OG city-map card's
  * server-only band counter (lib/ogCityPriceBands.server.ts) and the pin share
  * it; components/map/canvas/geojson.ts re-exports it for the pin drawing code
