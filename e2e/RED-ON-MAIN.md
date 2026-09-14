@@ -271,6 +271,29 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 - `map-webgl-recovery.spec.ts:18` (appendix G3): after the synthetic `webglcontextlost`, the canvas or the whole `.maplibreMap` is gone. The run then fails at `:65` (canvas not found), `:66` (`.mapFallback` count) or `:74` (a 60 s timeout on `data-webgl-recovery`). With a trace on, the run passes in 2 s. A/B on the rig at 1 worker, 3x repeat: the HEAD product at `b32ce73f8` failed 3 of 3, and the build with R43's fix failed 2 of 3. So it is not R43's cause. The real tile host answers 200 from this machine. Next step: trace the `reinit` path (`contextHealthAction`, `setInitAttempt`) and what mounts `.mapFallback`.
 - `playwright.config.ts` lists `map-console-health`, `map-arrival-turn`, `map-arrival-card-pins`, `map-desktop-arrival-chrome` and `map-webgl-recovery` in `chromium-gl`'s `testMatch` but not in `chromium`'s `testIgnore`, so `--project=chromium` also runs them with no GL launch flags and with service workers allowed (see R43). Check a red there for a `page.route()` that the service worker skips before calling it a product red.
 
+## Final run on the merge head
+
+The loop ended at 40 iterations. The branch then merged `origin/main` at `d57629cc8` (13 commits, #1655 to #1664) as `643732e7d`. The run below is on that head: a keyless production build, the `chromium` project.
+
+- Full suite at 4 workers (14 Sep 2026, load 55 to 78 from other lanes): 1004 passed, 65 failed, 20 skipped, 29.8 min. No skip is new on this branch; the one skip the base-to-head diff adds is `e2e/performance-budget-ab.spec.ts:196`, from main's #1648.
+- Every red rerun once at 1 worker, plan-generating files one file per run with a 65 s gap: 71 tests, 41 passed, 30 failed. The 35 that turned green are timeouts under load and `/api/plans/generate` 429s on one shared IP.
+
+### Still red after the rerun (30)
+
+R6, parked under "Needs captain" (13): `mobile-first-run-onboarding.spec.ts:100` light and dark, `:138`, `:200`, `:221`; `price-caption-integrity.spec.ts:507` at 390 and 430; `ux-consent-chrome.spec.ts:399` at all six sizes. `:200` (returning native onboarding redirects to Tonight) is the same `/onboarding` document-request bounce.
+
+Also red in the main red set at `aa6470eec` (10): `desktop-map-chrome-fit.spec.ts:316` (G1), `map-accessibility.spec.ts:240` (G1, R14 open), `map-near-me.spec.ts:19` (G3) and `:115` (G1), `mobile-map-controls.spec.ts:41` (G1), `mobile-the-local.spec.ts:4` (G2: the planner section is named by its "Describe the outing" heading and the input carries the same label, identical at base, main and head, so `getByLabel` finds two), `moment-photo-editor.spec.ts:38` (G5), `ui-consistency-layout.spec.ts:961` (G1), `web-push-prompt.spec.ts:131` (G1), `plan-single-stop.spec.ts:34` 2-stop (G4).
+
+GL gap (1): `map-console-health.spec.ts:78`. `playwright.config.ts` lists it in `chromium-gl`'s `testMatch` but not in `chromium`'s `testIgnore`, so `--project=chromium` runs it without the GL launch flags. `map-tile-retry`, `map-arrival-turn`, `map-arrival-card-pins`, `map-desktop-arrival-chrome` and `map-webgl-recovery` have the same gap and passed here.
+
+Not in the main red set (6):
+- `desktop-route-composition.spec.ts:10`: `getByTestId('tonight-screen')` resolves to two elements. Only main's #1661 (desktop rail) touched `app/tonight/TonightClient.tsx` and `page.tsx` since base; this branch did not.
+- `mobile-heritage-ask.spec.ts:61`: the test timeout (120 s) runs out scrolling the Ask section's visible Send button into view. Only main's #1659 (Ask moved into Lore) touched this spec and that section since base.
+- `mobile-map-tile-paint.spec.ts:77`: tiles painted in 23300 ms against the spec's own 20000 ms regression ceiling on a throttled cold map, under load 55 to 78.
+- `mobile-plan-opening-layout.spec.ts:17`: the `.planPage__intro h1` font size and line height read as NaN. `.planPage__intro`, the plan page and the typography tokens are unchanged since base on both sides. Cause not found.
+- `night-mode-chrome.spec.ts:71`: the plan status "3 stops we can stand behind, shaped by the outing you set below." never paints. The copy is unchanged at base, main and head (`components/plan/PlanComposer.tsx:1805`), so no plan answer arrived; it ran among other plan-generating specs on one IP.
+- `plan-crawl-stops.spec.ts:30` 5-stop at 1440: no `POST /api/plans/generate` response in 180 s, after three other generations in the same file.
+
 ## Needs captain
 
 - **The native first run never reaches `/onboarding`** (R6, 12 tests). This is a product bug on main since 7 Sep 2026.
