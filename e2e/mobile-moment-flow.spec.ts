@@ -15,7 +15,16 @@ test.describe("mobile Moment journey", () => {
     await expect(page).toHaveURL(/\/moment$/);
     await expect(page.getByRole("heading", { name: "Keep this one." })).toBeVisible();
     await expect(page.getByRole("link", { name: /Log a Pint Drop/ })).toHaveAttribute("href", "/map?log=1");
-    const captureLabel = page.getByText("Take a photo", { exact: true });
+    // Since #1547 the picker opens the photo library as well as the camera, so
+    // a phone names it "Add a photo", never "Take a photo". Find the control by
+    // role and accessible name, then measure the visible name in the label that
+    // wraps it. The picker card itself runs on under the tab bar and scrolls.
+    const capture = page.getByRole("button", { name: /^Add a photo\b/ });
+    await expect(capture).toHaveAttribute("type", "file");
+    const captureLabel = page
+      .locator("label")
+      .filter({ has: capture })
+      .getByText("Add a photo", { exact: true });
     const bottomNav = page.getByRole("navigation", { name: "Primary" });
     const [captureBox, navBox] = await Promise.all([captureLabel.boundingBox(), bottomNav.boundingBox()]);
     expect(captureBox).not.toBeNull();
