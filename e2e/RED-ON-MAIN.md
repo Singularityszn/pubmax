@@ -20,9 +20,9 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - `:65` looked for a `searchbox`. The map search field is a `combobox` named `Search pubs`.
   - `:89` looked for an `Out` heading. `/out` opens on the Screen primitive with the h1 `What’s on, sourced.` (#1402).
   - `:99` looked for a `Cancel` link. Moment's secondary action is `Back` (#1402).
-  - `:111` said gated Social stays out of the tab row (#1170). #1247 revived Social as one of six tabs, and `__tests__/mobileTabBar.test.ts` keeps it visible as a preview when gated.
+  - `:111` said gated Social stays out of the tab row (#1170). #1247 revived Social as one of six tabs, so the loop matched the spec to that bar. Main's #1655 then took Social out of the primary tab row (`components/nav/navigationModel.ts`, `__tests__/mobileTabBar.test.ts`). The merge keeps main's test, which expects no `/social` link, and main's Tonight tab test.
 - [x] R2 `mobile-map-shell-matrix.spec.ts` and `view-mode.spec.ts` (11 fixed): the specs lied about the shipped map shell.
-  - `mobile-map-shell-matrix.spec.ts` "coordinated map shell" (8 tests) expected 4 tabs. The bar has six: Now, Map, Places, Out, Social, You (`components/nav/navigationModel.ts`).
+  - `mobile-map-shell-matrix.spec.ts` "coordinated map shell" (8 tests) expected 4 tabs. The bar has six. After the #1655 merge they are Tonight, Map, Places, Out, Plan, You (`components/nav/navigationModel.ts`).
   - The same tests then met four more stale steps, one after the other:
     - The map utility corner holds 2 buttons, TfL and the Near me FAB (`MapEdgeControls`), not 1.
     - The Near me sheet close is `Close Near me`, not `Close Cheapest listed near you`.
