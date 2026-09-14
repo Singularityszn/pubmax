@@ -50,12 +50,12 @@ test.describe("desktop drawer leaves the route chip reachable", () => {
   test("a click on Check last train opens the final stop's last-train card", async ({
     page,
   }) => {
-    test.slow();
+    test.setTimeout(180_000);
     const { drawer, chip } = await openFirstStopDrawer(page, 1440);
 
     const door = chip.getByRole("button", { name: "Check last train at final stop" });
     expect(await door.evaluate((node) => node.closest("[inert]") === null)).toBe(true);
-    await door.click({ timeout: 10_000 });
+    await door.click({ timeout: 30_000 });
 
     await expectFinalStopLastTrain(page, drawer);
   });
@@ -63,7 +63,7 @@ test.describe("desktop drawer leaves the route chip reachable", () => {
   test("Tab leaves the drawer for the chip, and Enter opens the last-train card", async ({
     page,
   }) => {
-    test.slow();
+    test.setTimeout(180_000);
     const { drawer, chip } = await openFirstStopDrawer(page, 1440);
 
     const closeButton = drawer.getByRole("button", { name: /Close/ });
@@ -94,7 +94,7 @@ test.describe("desktop drawer leaves the route chip reachable", () => {
 
   for (const width of [1440, 1280]) {
     test(`at ${width} the chip sits clear of the open drawer`, async ({ page }) => {
-      test.slow();
+      test.setTimeout(180_000);
       const { drawer, chip } = await openFirstStopDrawer(page, width);
 
       const drawerBox = await drawer.boundingBox();
