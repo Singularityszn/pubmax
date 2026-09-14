@@ -21,7 +21,6 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { spoonsValueVenueIds } from "@/lib/spoonsValue";
 import { readSpoonsValue } from "@/lib/spoonsValue.server";
 import {
   tonightCheapPintChain,
@@ -56,7 +55,7 @@ async function tonightInputs() {
     })),
   );
   const packRows = spoonsValue.pack?.rows ?? [];
-  const spoonMeIds = spoonsValueVenueIds(packRows);
+  const spoonMeIds: ReadonlySet<string> = new Set(spoonsValue.byVenueId.keys());
 
   // The pub is found through the PACK by name and postcode, because the priced
   // index's own address for it carries no postcode.
@@ -137,17 +136,5 @@ describe("Tonight's Wetherspoon lane reads the directory join and the SpoonMe pa
     for (const id of wetherspoonIds) {
       expect(directoryIds.has(id) || spoonMeIds.has(id)).toBe(true);
     }
-  });
-});
-
-describe("the SpoonMe membership read", () => {
-  it("names each joined pin once and skips a row no pin was joined to", () => {
-    const ids = spoonsValueVenueIds([
-      { venueId: "venue-a" },
-      { venueId: null },
-      { venueId: "venue-a" },
-      { venueId: "venue-b" },
-    ]);
-    expect([...ids].sort()).toEqual(["venue-a", "venue-b"]);
   });
 });

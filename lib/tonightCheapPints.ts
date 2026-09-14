@@ -96,7 +96,7 @@ function decoded(value: string): string {
  * pub it still trades: the 14 Sep 2026 refresh lost The Kentish Drovers
  * (SE15 5RS), whose GBP 1.99 rows then read as an uncapped free house. The
  * SpoonMe pack read that pub's menu off the chain's own site
- * (`spoonsValueVenueIds`), so a pub in either source is a Wetherspoon for the
+ * (`readSpoonsValue().byVenueId`), so a pub in either source is a Wetherspoon for the
  * cap and the label. A pub in neither is not.
  */
 export function tonightWetherspoonVenueIds(
