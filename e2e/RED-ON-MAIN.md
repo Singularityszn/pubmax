@@ -189,6 +189,10 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - The spec now pins the shipped heading and the first sentence of the intro. The `Open planner` link, the 44px planner action, the `details` open, the five coverage states, the map link and the overflow checks are unchanged.
   - No product bug: the intro keeps the same promise, that only a fresh, checked area can become a crawl.
   - Proof on the rig: red before the change (heading not found), then 3 passed on a 3x repeat at 1 worker.
+- [x] R31 `near-desk-mode.spec.ts:59` (1 fixed). A product bug the spec caught.
+  - #1553 (5 Sep) made `/near` `force-static`, so the build writes one no-query document, which shows the Pint surface. `NearPageBody` in `components/nearme/NearPageClient.tsx` (#1063) still read `?mode=desk` before hydration and rendered Desk. React found Desk text where the document held Pint text and threw `Minified React error #418` (args `text`). `/near?src=poster` threw the same error (args `HTML`), because `PosterLandingNote` got `src` before hydration and added a line the document did not hold.
+  - The fix: one `hydrated` flag (a `useSyncExternalStore` whose server snapshot is false) gates every value the body renders from the query. The new pure `resolveNearPageMode` answers Pint until hydration ends, then lets the query lead the remembered mode. `PosterLandingNote` gets `src` only after hydration. The spec is unchanged. `__tests__/nearPageClient.test.ts` pins the resolver.
+  - Proof on the rebuilt rig: red before the change (1 `#418` page error), then 9 passed for the spec file on a 3x repeat at 1 worker. A probe of `/near?mode=desk&patch=soho`, `/near?src=poster`, `/near?src=poster&mode=desk&patch=soho`, `/near?patch=soho` and `/near` saw no page error.
 
 ## Reproduced on this branch, not yet grouped
 
@@ -201,7 +205,6 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 - `map-performance.spec.ts:43`: no `Beer at ... open on the map` link on the landing page.
 - `map-search-no-results.spec.ts:160` (mobile dark normal): the search field did not show in 20 s. The other 7 cases passed in the same run.
 - `map-tile-retry.spec.ts:43` and `:95`: a transient outage logs `tile failure burst, reloading style`, and a lasting outage shows no `.mapSoftRetry` or `.mapFallback` in 60 s. `playwright.config.ts` lists this spec in `chromium-gl`'s `testMatch` but not in `chromium`'s `testIgnore`, so `--project=chromium` also runs it without the GL launch flags. `map-console-health`, `map-arrival-turn`, `map-arrival-card-pins`, `map-desktop-arrival-chrome` and `map-webgl-recovery` have the same gap. Check each red under `--project=chromium-gl` before calling it a product red.
-- `near-desk-mode.spec.ts:59`: React error #418 (a hydration text mismatch).
 
 ## Needs captain
 
