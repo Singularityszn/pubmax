@@ -99,16 +99,6 @@
     max-width: calc(100% - var(--desktop-venue-drawer-width) - 32px);
   }
 
-  /* The bottom chips stay pressable beside the drawer (the route chip is an
-     exempt surface of its focus trap), so they take the same lane. Centred on
-     the whole stage, the route chip's right end sat 24px under the drawer at
-     1440. Their 44px buttons keep their size; only the centre moves. */
-  .appShell.detail-open .mappedRouteChip,
-  .appShell.detail-open .activeRoundChip {
-    left: calc((100% - var(--desktop-venue-drawer-width)) / 2);
-    max-width: calc(100% - var(--desktop-venue-drawer-width) - 32px);
-  }
-
   /* The planner owns the mirrored left edge. Keep both ambient banners inside
      the remaining map lane using the same centre and width as the toolbar. */
   .appShell.planning-open .cityStatusStack,
@@ -142,5 +132,29 @@
     left: calc(var(--desktop-planner-rail-width) + 16px);
     width: min(460px, calc(100% - var(--desktop-planner-rail-width) - 32px));
     transform: none;
+  }
+}
+
+/* 4. The bottom chips beside an open venue drawer. Only the route chip is an
+   exempt surface of the drawer's focus trap, so only it stays pressable. The
+   Active Round chip moves with it to stay aligned above it, and it stays
+   inert while the drawer is open. From 769px the drawer is a side panel, and
+   centred on the whole stage the route chip's right end ran under it: 24px at
+   1440, 95px at 900. The 44px buttons keep their size; only the centre moves. */
+@media (min-width: 769px) {
+  .appShell.detail-open .mappedRouteChip,
+  .appShell.detail-open .activeRoundChip {
+    left: calc((100% - var(--desktop-venue-drawer-width)) / 2);
+    max-width: calc(100% - var(--desktop-venue-drawer-width) - 32px);
+  }
+}
+
+/* From 641px to 768px the drawer is a bottom sheet as wide as the stage, so it
+   leaves no lane. The chips leave the layout while it is open, which also
+   takes the route chip's buttons out of the trap's Tab order. */
+@media (min-width: 641px) and (max-width: 768px) {
+  .appShell.detail-open .mappedRouteChip,
+  .appShell.detail-open .activeRoundChip {
+    display: none;
   }
 }

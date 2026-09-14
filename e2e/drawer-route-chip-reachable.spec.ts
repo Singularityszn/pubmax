@@ -14,6 +14,15 @@ const FOCUSABLE =
   'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible';
 
 async function openFirstStopDrawer(page: Page, width: number) {
+  const { drawer, chip: mounted } = await openFirstStopDrawerWithChipMounted(page, width);
+  await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(FIRST_STOP);
+
+  const chip = mounted.filter({ visible: true });
+  await expect(chip).toBeVisible({ timeout: 60_000 });
+  return { drawer, chip };
+}
+
+async function openFirstStopDrawerWithChipMounted(page: Page, width: number) {
   await page.setViewportSize({ width, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
@@ -29,10 +38,8 @@ async function openFirstStopDrawer(page: Page, width: number) {
 
   const drawer = page.locator(".mapDrawer.right.open");
   await expect(drawer).toBeVisible({ timeout: 60_000 });
-  await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(FIRST_STOP);
-
-  const chip = page.locator(".mappedRouteChip").filter({ visible: true });
-  await expect(chip).toBeVisible({ timeout: 60_000 });
+  const chip = page.locator(".mappedRouteChip");
+  await expect(chip.first()).toBeAttached({ timeout: 60_000 });
   return { drawer, chip };
 }
 
@@ -92,7 +99,20 @@ test.describe("desktop drawer leaves the route chip reachable", () => {
     await expectFinalStopLastTrain(page, drawer);
   });
 
-  for (const width of [1440, 1280]) {
+  test("at 768 the drawer is a full-width sheet, so the chip leaves the layout", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    const { drawer, chip } = await openFirstStopDrawerWithChipMounted(page, 768);
+
+    const drawerBox = await drawer.boundingBox();
+    expect(drawerBox).not.toBeNull();
+    expect(drawerBox!.x).toBe(0);
+    expect(drawerBox!.width).toBe(768);
+    await expect(chip.filter({ visible: true })).toHaveCount(0);
+  });
+
+  for (const width of [1440, 1280, 900]) {
     test(`at ${width} the chip sits clear of the open drawer`, async ({ page }) => {
       test.setTimeout(180_000);
       const { drawer, chip } = await openFirstStopDrawer(page, width);
