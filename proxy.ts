@@ -104,6 +104,31 @@ function wantsDocument(request: NextRequest): boolean {
   return (request.headers.get("accept") ?? "").includes("text/html");
 }
 
+/**
+ * Whether a page on this same origin started this navigation.
+ *
+ * `Sec-Fetch-Site` is the browser's own word and a page cannot forge it, so
+ * when it is sent it decides alone. WKWebView sends it only from iOS 16.4 and
+ * the app targets 15.0, so when it is ABSENT a Referer on this same host
+ * answers instead. The site sends `strict-origin-when-cross-origin`
+ * (next.config.mjs), which keeps the Referer on a same-origin navigation.
+ */
+function startedOnThisOrigin(request: NextRequest): boolean {
+  const fetchSite = request.headers.get("sec-fetch-site");
+  if (fetchSite !== null) return fetchSite === "same-origin";
+  const referer = request.headers.get("referer");
+  if (!referer) return false;
+  try {
+    const refererUrl = new URL(referer);
+    return (
+      normalizeHostname(refererUrl.host) === requestHostname(request) &&
+      refererUrl.protocol === request.nextUrl.protocol
+    );
+  } catch {
+    return false;
+  }
+}
+
 function servesApiCaller(pathname: string): boolean {
   return pathname === "/api" || pathname.startsWith("/api/");
 }
@@ -261,23 +286,37 @@ export function securityProxy(request: NextRequest) {
   // being measured was the homepage arriving after the bounce (Astra's live
   // walk, 7 Sep 2026, finding B6).
   //
-  // The shell reaches this route by `router.replace` from "/"
-  // (components/native/AppEntryRoute.tsx), which is a client navigation. So
-  // only a request that ASKS FOR A DOCUMENT is turned away, and the native
-  // first run is byte for byte what it was.
+  // The shell reaches this route two ways, and neither is turned away:
   //
-  // The reading is `Accept`, not Next's own RSC header, which this version
-  // strips before middleware anyway (measured), and not the `_rsc` query,
-  // which it also strips. Measured on a production build: a browser document
-  // navigation sends `text/html,...`, and every RSC navigation and prefetch
-  // sends `*/*`. Reading Accept also FAILS SAFE. An RSC fetch cannot start
-  // claiming to want HTML, so a future Next release cannot turn this rule on
-  // the shell's own arrival; a header-name change could.
+  //   1. A fresh install decides its entry before first paint in
+  //      public/theme-init.js and calls `window.location.replace` from "/".
+  //      That is a DOCUMENT request, but this origin's own page started it.
+  //      Turning it away sent every fresh install to the landing page with the
+  //      first-run mark already stamped, so onboarding never ran (14 Sep 2026).
+  //   2. AppEntryRoute's `router.replace` from "/", for the one case the early
+  //      script leaves to React. That is a client navigation and asks for no
+  //      document at all.
+  //
+  // So only a document request that a page on this origin did NOT start is
+  // turned away: a typed address, a bookmark, a link from another site. See
+  // `startedOnThisOrigin` for how that is read on an older WebView.
+  //
+  // The document reading is `Accept`, not Next's own RSC header, which this
+  // version strips before middleware anyway (measured), and not the `_rsc`
+  // query, which it also strips. Measured on a production build: a browser
+  // document navigation sends `text/html,...`, and every RSC navigation and
+  // prefetch sends `*/*`. Reading Accept also FAILS SAFE. An RSC fetch cannot
+  // start claiming to want HTML, so a future Next release cannot turn this
+  // rule on the shell's client arrival; a header-name change could.
   //
   // 307, and never 308: a browser caches a permanent redirect, the shell is a
   // remote-URL wrap of this same origin, and one cached 308 would take the
   // first run away from every later install on that device.
-  if (pathname === ONBOARDING_PATH && wantsDocument(request)) {
+  if (
+    pathname === ONBOARDING_PATH &&
+    wantsDocument(request) &&
+    !startedOnThisOrigin(request)
+  ) {
     const target = new URL(request.url);
     target.pathname = "/";
     target.search = "";

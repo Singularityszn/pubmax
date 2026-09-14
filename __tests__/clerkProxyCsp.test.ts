@@ -266,9 +266,10 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
   const NONCED = [
     "/login",
     "/signin",
-    // /onboarding is deliberately absent: it answers no document at all now.
-    // A plain request for it is turned away at the edge, so there is no policy
-    // to hold. __tests__/onboardingWebDocument.test.ts is its fence.
+    // /onboarding answers a document only to a navigation this origin
+    // started (the fresh install's own entry), and that document keeps the
+    // nonce. __tests__/onboardingWebDocument.test.ts fences who is let in.
+    "/onboarding",
     "/social",
     "/u/you",
     "/messages",
