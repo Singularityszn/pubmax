@@ -179,6 +179,11 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - The spec now names both shipped buttons and expects exactly 2. The 44px height and overflow checks at 320px and 390px are unchanged.
   - No product bug: both buttons are 44px or taller, and the page has no horizontal overflow.
   - Proof on the rig: red before the change (2 buttons received), then 12 passed for the spec file on a 3x repeat at 2 workers.
+- [x] R29 `near-venue-acceptance.spec.ts:27` (1 fixed). The spec lied about the shipped product.
+  - The spec (#1057) wanted `Keep for tonight` (`.nmnAccept`) at least 48px tall. Since #1508 (5 Sep, "one text-button family, read from the control tokens") `components/nearme/nearMeNow.css` paints it from the `--control-*` row: `min-height: var(--control-height)` (44px), and `--control-tint-surface` and `--control-tint-border` for the background and border (`docs/DESIGN_SYSTEM.md`, "Text buttons").
+  - The spec now reads `--control-height` off its probe, holds that token to the 44px floor, and holds the button to at least that height. The colour check is unchanged: the tint tokens alias `--state-active-surface` and `--state-active-border` (`app/globals.css`), so the probe still matches. The name fit, overflow, receipt, browse, accept and storage checks are unchanged.
+  - No product bug: 44px is the tap floor, and the button family is one geometry by design.
+  - Proof on the rebuilt rig: red before the change (44 received, 48 or more wanted), then 9 passed for the spec file on a 3x repeat at 1 worker.
 
 ## Reproduced on this branch, not yet grouped
 
@@ -193,7 +198,6 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 - `map-tile-retry.spec.ts:43` and `:95`: a transient outage logs `tile failure burst, reloading style`, and a lasting outage shows no `.mapSoftRetry` or `.mapFallback` in 60 s. `playwright.config.ts` lists this spec in `chromium-gl`'s `testMatch` but not in `chromium`'s `testIgnore`, so `--project=chromium` also runs it without the GL launch flags. `map-console-health`, `map-arrival-turn`, `map-arrival-card-pins`, `map-desktop-arrival-chrome` and `map-webgl-recovery` have the same gap. Check each red under `--project=chromium-gl` before calling it a product red.
 - `mobile-discover-coverage.spec.ts:11`: no `Areas near you, with the gate visible` heading.
 - `near-desk-mode.spec.ts:59`: React error #418 (a hydration text mismatch).
-- `near-venue-acceptance.spec.ts:27`: a control is 44px where the spec wants 48px.
 
 ## Needs captain
 
@@ -206,7 +210,7 @@ A triage run at `6cce61609` (14 Sep 2026, keyless rig, 2 workers) of appendix sp
 
 ## Verify reds
 
-- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23, 348 MB by R24, 355 MB by R25, 366 MB by R26, 369 MB by R27, 371 MB by R28). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
+- `__tests__/vercelIgnoreCoverage.test.ts` > "no top-level directory over 5 MB is both unlisted and not a deploy input" fails with `{ '.gnhf': '12 MB' }` (149 MB by R7, 259 MB by R15, 288 MB by R17, 344 MB by R23, 348 MB by R24, 355 MB by R25, 366 MB by R26, 369 MB by R27, 371 MB by R28, 375 MB by R29). `.gnhf/` is the gnhf orchestrator's run directory for this repair, not product source. The fix is a `.gnhf` line in `.vercelignore` (or in `.gitignore`), which is outside this run's allowed paths. It is red only in a tree where the orchestrator runs.
 
 ## Appendix: main stable-failure set by root cause (origin/main aa6470eec, 197 tests)
 
