@@ -120,6 +120,10 @@ The appendix groups G1 and G2 are coarse. The groups below are by spec file or b
   - The spec (now `:45`) checks the shipped rules: the strip sits under the chip row and above half the screen height, every ambient banner is hidden, the chrome and the canvas are not inert, and a hit probe finds each top bar, chip row, utility corner, plan action and strip button at its own centre. The camera controls stay hidden, and Close still releases the strip.
   - No product bug: a hit probe at 320, 390 and 430 found every control under the strip tappable, and the screenshots show no overlap.
   - Proof on the rig: the spec file gave 6 passed on a 2x repeat at 2 workers.
+- [x] R18 `mobile-map-list-obstruction.spec.ts:128` (2 fixed): 390 and 430. The spec lied about the shipped product.
+  - The spec opens the venue list from Map controls, then waited 120 s for `Close venue list`. A list opened from Map controls has a Back action, so its close names the map it returns to: `Close and return to the London map` (`homeActionLabel`, `components/map/MapVenueList.tsx`). `Close venue list` shows only when the list has no Back. `mobile-map-shell-matrix.spec.ts` already uses the new name (R2).
+  - The spec now taps that close, checks that the list is gone, and keeps its checks that `Describe the outing` comes back and opens the planner sheet.
+  - Proof on the rig: the spec file gave 8 passed on a 2x repeat at 2 workers.
 
 ## Needs captain
 
