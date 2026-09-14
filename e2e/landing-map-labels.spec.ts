@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-// The landing's drawing of London names a handful of historic pubs. A name laid
-// over the City's cluster of pub dots reads with pubs through it (site audit
+// The landing's drawing of London names a handful of historic pubs. A label
+// laid over another label or over a named pin reads as one tangle (site audit
 // 13 Sep 2026, D21), so what a unit test estimates, the browser measures: at a
-// phone, a tablet and a desktop, no painted name or date touches a pub mark,
-// and no pin's writing runs into another pin's. The unit fence beside it is
-// __tests__/landingMapSnapshot.test.ts.
+// phone, a tablet and a desktop, no painted name or date touches a named pin,
+// and no pin's writing runs into another pin's. A plain pub dot may sit under
+// the writing, which carries a halo to stay legible over it. The unit fence
+// beside it is __tests__/landingMapSnapshot.test.ts.
 
 const WIDTHS = [
   { width: 390, height: 844 },
@@ -16,11 +17,11 @@ const WIDTHS = [
 type Box = { left: number; right: number; top: number; bottom: number };
 type Measured = {
   texts: { pin: number; text: string; box: Box }[];
-  marks: { kind: "dot" | "pin"; box: Box }[];
+  pins: Box[];
 };
 
 for (const viewport of WIDTHS) {
-  test(`no pin label covers a pub mark at ${viewport.width}`, async ({ page }) => {
+  test(`no pin label covers a named pin or another label at ${viewport.width}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.addInitScript(() => {
       window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -50,41 +51,21 @@ for (const viewport of WIDTHS) {
           box: toBox(text.getBoundingClientRect()),
         })),
       );
-      const pins = [...svg.querySelectorAll(".lpMapPinDot")].map((circle) => ({
-        kind: "pin" as const,
-        box: toBox(circle.getBoundingClientRect()),
-      }));
-      // Every dot is one subpath of ONE path, so its box comes from the path
-      // data through the SVG's own screen transform rather than from an element.
-      const matrix = svg.getScreenCTM();
-      const d = svg.querySelector(".lpMapDots")?.getAttribute("d") ?? "";
-      const dots = [...d.matchAll(/M(-?[\d.]+) (-?[\d.]+)a([\d.]+)/g)].map(([, x, y, r]) => {
-        const radius = Number(r);
-        const centre = new DOMPoint(Number(x) + radius, Number(y)).matrixTransform(matrix ?? undefined);
-        const scaled = radius * (matrix?.a ?? 1);
-        return {
-          kind: "dot" as const,
-          box: {
-            left: centre.x - scaled,
-            right: centre.x + scaled,
-            top: centre.y - scaled,
-            bottom: centre.y + scaled,
-          },
-        };
-      });
-      return { texts, marks: [...pins, ...dots] };
+      const pins = [...svg.querySelectorAll(".lpMapPinDot")].map((circle) =>
+        toBox(circle.getBoundingClientRect()),
+      );
+      return { texts, pins };
     });
 
-    // At least two named pins, a name and a date each, or there is nothing to measure.
-    expect(measured.texts.length).toBeGreaterThanOrEqual(4);
-    expect(measured.marks.filter((mark) => mark.kind === "dot").length).toBeGreaterThan(100);
+    // At least four named pins, a name and a date each, or there is nothing to measure.
+    expect(measured.texts.length).toBeGreaterThanOrEqual(8);
 
     const overlaps = (a: Box, b: Box) =>
       a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
     const collisions: string[] = [];
     for (const text of measured.texts) {
-      const covered = measured.marks.filter((mark) => overlaps(text.box, mark.box));
-      if (covered.length > 0) collisions.push(`"${text.text}" covers ${covered.length} pub marks`);
+      const covered = measured.pins.filter((pin) => overlaps(text.box, pin));
+      if (covered.length > 0) collisions.push(`"${text.text}" covers ${covered.length} named pins`);
       for (const other of measured.texts) {
         if (other.pin <= text.pin) continue;
         if (overlaps(text.box, other.box)) collisions.push(`"${text.text}" runs into "${other.text}"`);

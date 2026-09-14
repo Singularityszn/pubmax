@@ -1,15 +1,12 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { LANDING_FAQ } from "@/components/landing/LandingFaq";
+import LandingFaq, { LANDING_FAQ } from "@/components/landing/LandingFaq";
 
 // The captain asked for an FAQ "where people understand how the app works and
 // everything" (7 Sep 2026). Six questions, one paragraph each, in the house
 // voice, and nothing a drinker is asked to buy.
-
-const source = readFileSync(join(process.cwd(), "components/landing/LandingFaq.tsx"), "utf8");
 
 /** docs/VOICE.md's own list, the ones a marketing template reaches for. */
 const BANNED = [
@@ -85,10 +82,12 @@ describe("the landing FAQ", () => {
     // First revenue comes from venues, never drinkers (AGENTS.md anti-goals).
     // The front door once priced a drinker "Pro" at £9.99 a month with an email
     // field; a price a drinker is asked to pay does not appear here again.
-    expect(source).not.toMatch(/£\s?\d/);
-    expect(source).not.toMatch(/\bPro\b/);
-    expect(source).not.toMatch(/waitlist|subscri|a month/i);
-    expect(source).not.toMatch(/<form|<input|mailto:/);
+    const html = renderToStaticMarkup(createElement(LandingFaq));
+    expect(html).toContain("Questions people ask");
+    expect(html).not.toMatch(/£\s?\d/);
+    expect(html).not.toMatch(/\bPro\b/);
+    expect(html).not.toMatch(/waitlist|subscri|a month/i);
+    expect(html).not.toMatch(/<form|<input|mailto:/);
     for (const entry of LANDING_FAQ) {
       expect(`${entry.question} ${entry.answer}`).not.toMatch(/£\s?\d/);
     }

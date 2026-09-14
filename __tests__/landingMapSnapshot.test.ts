@@ -63,10 +63,10 @@ describe("the landing's drawing of London", () => {
   });
 
   it("names only pubs the heritage dataset holds, with the dataset's own words", () => {
-    // The script caps the pins at six; separation and clear writing decide how
-    // many the data can seat. The City's pubs stand too close for any name to
-    // sit clear of their dots, so today that is two, both outside it.
-    expect(LONDON_MAP_PINS.length).toBeGreaterThanOrEqual(2);
+    // The script caps the pins at six; the separation rule and clear writing
+    // decide how many the data can seat without labels touching, and today that
+    // is five.
+    expect(LONDON_MAP_PINS.length).toBeGreaterThanOrEqual(4);
     expect(LONDON_MAP_PINS.length).toBeLessThanOrEqual(6);
     for (const pin of LONDON_MAP_PINS) {
       const pub = pubs.find((row) => row.slug === pin.slug);
@@ -102,22 +102,17 @@ describe("the landing's drawing of London", () => {
     }
   });
 
-  it("seats every pin's writing clear of every pub mark and every other pin's writing", () => {
-    // The City holds most of the dots, and a label laid over them reads with
-    // pubs through it (site audit 13 Sep 2026, D21). The boxes are the fonts'
-    // own ascent and descent at the drawing's sizes (LondonMapSnapshot.tsx and
-    // .lpMapPinName / .lpMapPinLabel), with widths a little wider than Space
-    // Grotesk Bold and JetBrains Mono really run, so a pass here is a pass in
-    // the browser; e2e/landing-map-labels.spec.ts measures the painted boxes at
-    // 390, 768 and 1440.
-    const marks = [
-      ...[...LONDON_MAP_PUB_DOTS.matchAll(/M(-?[\d.]+) (-?[\d.]+)/g)].map(([, x, y]) => ({
-        x: Number(x) + 4.5,
-        y: Number(y),
-        r: 4.5,
-      })),
-      ...LONDON_MAP_PINS.map((pin) => ({ x: pin.x, y: pin.y, r: 9.5 })),
-    ];
+  it("seats every pin's writing clear of every named pin and every other pin's writing", () => {
+    // A label laid over another label or over a named pin reads as one tangle
+    // (site audit 13 Sep 2026, D21). A plain pub dot may sit under the writing,
+    // because .lpMapPinName and .lpMapPinLabel paint a halo that keeps the
+    // letters legible over it. The boxes are the fonts' own ascent and descent
+    // at the drawing's sizes (LondonMapSnapshot.tsx and .lpMapPinName /
+    // .lpMapPinLabel), with widths a little wider than Space Grotesk Bold and
+    // JetBrains Mono really run, so a pass here is a pass in the browser;
+    // e2e/landing-map-labels.spec.ts measures the painted boxes at 390, 768 and
+    // 1440.
+    const marks = LONDON_MAP_PINS.map((pin) => ({ x: pin.x, y: pin.y, r: 9.5 }));
     type Box = { left: number; right: number; top: number; bottom: number };
     const writing = (pin: (typeof LONDON_MAP_PINS)[number]): Box[] => {
       const side = pin.anchor === "end" ? -1 : 1;
@@ -140,7 +135,7 @@ describe("the landing's drawing of London", () => {
         const covered = marks.filter((mark) =>
           overlaps(text, { left: mark.x - mark.r, right: mark.x + mark.r, top: mark.y - mark.r, bottom: mark.y + mark.r }),
         );
-        expect(covered, `${pin.name}'s writing covers ${covered.length} pub marks`).toHaveLength(0);
+        expect(covered, `${pin.name}'s writing covers ${covered.length} named pins`).toHaveLength(0);
       }
       for (const other of LONDON_MAP_PINS) {
         if (other === pin) continue;

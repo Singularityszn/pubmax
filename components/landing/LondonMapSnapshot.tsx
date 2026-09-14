@@ -38,7 +38,8 @@ export default function LondonMapSnapshot({ className }: { className?: string })
         {LONDON_MAP_PINS.map((pin) => (
           <g key={pin.slug} transform={`translate(${pin.x} ${pin.y})`}>
             <circle className="lpMapPinDot" r="8" />
-            {/* The generator sets the writing where it covers no pub mark. */}
+            {/* The generator sets the writing clear of every named pin. A plain
+                dot may sit under it; the label's halo keeps it legible. */}
             <text
               className="lpMapPinName"
               x={pin.anchor === "end" ? -pin.dx : pin.dx}
