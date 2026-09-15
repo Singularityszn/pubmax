@@ -1,12 +1,14 @@
 name: CI
 
-# Avrea runners (`avrea-ubuntu-latest-2-vcpu`), installed by the captain on
-# 6 September 2026 after GitHub-hosted allocation stopped answering on an
-# organisation billing fault: no job started between 5 September 11:08Z and
-# 6 September 16:37Z. The label is the only difference - the image is Ubuntu and
-# every job below still installs its own toolchain. Effective RLS stays in
-# rls-session.yml so this workflow stays lean and finishes under the 15-minute
-# wall budget.
+# GitHub-hosted `ubuntu-latest` runners, on the captain's 15 September 2026
+# decision to stay inside the GitHub free minutes. History: Avrea runners
+# (`avrea-ubuntu-latest-2-vcpu`) carried every job from 6 September, after
+# GitHub-hosted allocation stopped answering on an organisation billing fault
+# (no job started between 5 September 11:08Z and 6 September 16:37Z), and
+# Blacksmith labels replaced them in #1652. The label is the only difference -
+# the image is Ubuntu and every job below still installs its own toolchain.
+# Effective RLS stays in rls-session.yml so this workflow stays lean and
+# finishes under the 15-minute wall budget.
 
 on:
   pull_request:
@@ -24,7 +26,7 @@ concurrency:
 jobs:
   review-scope:
     name: Review scope
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
@@ -42,7 +44,7 @@ jobs:
 
   lint-and-types:
     name: Lint and typecheck
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -77,7 +79,7 @@ jobs:
 
   production-build:
     name: Production build
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -109,7 +111,7 @@ jobs:
 
   unit-tests:
     name: Unit tests (${{ matrix.shard }}/4)
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -187,7 +189,7 @@ jobs:
 
   coverage:
     name: Coverage
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -249,7 +251,7 @@ jobs:
 
   freshness:
     name: Freshness release gate
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -267,219 +269,3 @@ jobs:
         run: |
           npm run check:freshness -- --artifacts-only
           node scripts/check-production-store-freshness.mjs
-
-  # Speed is the product's claim, so a pull request that slows a budgeted route
-  # fails here rather than being noticed on a phone weeks later. The ceilings
-  # live in perf/route-budgets.json and docs/PERFORMANCE_BUDGETS.md owns the rule
-  # for changing one. Every route the site serves a stranger is measured - all 34
-  # of them - three runs each after a thrown-away warm-up, under a 4x CPU throttle
-  # AND the tracked Fast 4G network profile. The UX lane report is its OWN job
-  # below rather than a second sweep in this step: both build and serve the app
-  # themselves, and one wall cannot hold two full sweeps of a route set whose map
-  # load alone runs about two minutes over the throttled wire.
-  #
-  # The wall is 35 minutes because the sweep itself measured 11m45s locally over
-  # that wire, on top of a production build. It was 15 with nine routes on
-  # loopback.
-  # The measurement runs on a 4 vCPU Avrea runner rather than the 2 vCPU every
-  # other job takes. On the 2 vCPU box the sweep could not measure itself: the
-  # 6 September run reported LCP samples spread 37 to 51 per cent on /today,
-  # /discover, /drinks and /crawls, past the method's own 12 per cent width, so
-  # a route flipped between pass and fail on one commit. A ceiling is only a
-  # ceiling when the number under it is repeatable. The ceilings themselves do
-  # not move for this, and docs/PERFORMANCE_BUDGETS.md carries the rule that
-  # they come DOWN at the next sweep wherever the quieter box measures lower.
-  # The wall is 55 rather than 35 because a RED run now gathers evidence after
-  # the sweep: the merge base is built and the breached routes are measured
-  # against it on this same box. A green run is unchanged and still finishes
-  # inside the old wall, since that work only happens on `if: failure()`.
-  performance-budget:
-    name: Performance budget
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 55
-    steps:
-      # THE JOB'S OWN CLOCK, for the A/B at the bottom of this job. It sizes its
-      # measuring deadline from the wall MINUS what the sweep and the merge-base
-      # build have already spent, because a share of a wall that is gone is not
-      # a share. `date +%s%3N` is epoch milliseconds.
-      - name: Record the job start
-        run: echo "PUBMAX_PERF_AB_JOB_STARTED_MS=$(date +%s%3N)" >> "$GITHUB_ENV"
-
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          # The ratchet check compares this branch's ceilings against the base
-          # branch's, so it needs the base branch to compare against.
-          fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Cache node_modules
-        id: cache-node-modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
-
-      - name: Install dependencies
-        if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: npm ci
-
-      # A budget is a ratchet, and this is the pawl. When the gate fails, the
-      # fastest way to make the red go away is to raise the ceiling, and #1314 is
-      # the record of a gate failing on unchanged code and pushing an author
-      # toward exactly that move. A raise is not forbidden - it needs a
-      # ceilingRaises record naming the metric, the figure it came from, the
-      # measured figure and why, checked against the base branch's own ceiling so
-      # it cannot be written from memory. Removing a route is refused outright: an
-      # unmeasured route reads as a pass and never fails again.
-      #
-      # It runs BEFORE the sweep because it needs no browser and no build, so a
-      # raised ceiling is reported in seconds rather than after half an hour.
-      #
-      # It reads the base out of the checkout above rather than fetching it.
-      # Every checkout in this workflow sets `persist-credentials: false`, so a
-      # `git fetch` here carries no credential and dies with "could not read
-      # Username for 'https://github.com'". `fetch-depth: 0` has already brought
-      # every branch down as a remote-tracking ref, so the base is on disk. The
-      # ref is verified first because the ratchet reports a base it cannot read
-      # as "nothing was compared" and exits 0: a missing ref would turn the pawl
-      # off in silence, and a gate that does not run is not a gate that passed.
-      - name: Refuse a ceiling taken up without a record
-        env:
-          BUDGET_BASE_BRANCH: ${{ github.base_ref || 'main' }}
-        run: |
-          git rev-parse --verify "refs/remotes/origin/$BUDGET_BASE_BRANCH" >/dev/null
-          node scripts/check-budget-ratchet.mjs "origin/$BUDGET_BASE_BRANCH"
-
-      # Chromium only: the budget is measured in one engine on purpose, so a run
-      # is comparable to the one before it.
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-
-      # Playwright's webServer builds and starts the production build itself
-      # (playwright.config.ts owns the env the keyless routes need). Measuring a
-      # dev server would be a number about the bundler, not about what a drinker
-      # downloads.
-      - name: Measure budgeted routes
-        env:
-          NODE_OPTIONS: "--max-old-space-size=6144"
-          PUBMAX_PERF_BUDGET: "1"
-          PUBMAX_E2E_KEYLESS: "1"
-          PW_SKIP_KEYLESS_WEBSERVER: "1"
-        run: npx playwright test e2e/performance-budget.spec.ts --project=chromium --workers=1
-
-      # WAS IT THE BRANCH, OR WAS IT THE BOX?
-      #
-      # The step above is the gate and stays the gate: a route past its ceiling
-      # has already failed this job by the time this runs, and nothing here
-      # reads, moves or excuses a ceiling. What it adds is the evidence the
-      # standing law asks for before a red check is re-run - the MERGE BASE
-      # measured on THIS box, in THIS job, on the breached routes alone, with
-      # the navigations interleaved so drift during the run cancels rather than
-      # landing on one arm.
-      #
-      # It costs nothing on a green run: `if: failure()` keeps it off the happy
-      # path, and the script stops before it builds anything when the sweep left
-      # no breach list, and again when the merge base is this head. On a red run
-      # it spends a navigation budget worth eight ordinary routes, and every
-      # phase after the sweep - the merge base's install, its build and the
-      # measuring itself - is bounded by what is LEFT of this job's own
-      # `timeout-minutes` once the upload's share is kept back
-      # (lib/performanceAbEvidence.ts, abMeasuringDeadlineMs and
-      # abUploadReserveMs). `Record the job start` above is where that
-      # subtraction begins, so a sweep or a build that overran shrinks the
-      # measuring rather than walking the job into its wall and losing the
-      # upload below. Move `timeout-minutes` and PUBMAX_PERF_AB_JOB_WALL_MS
-      # moves with it, and every bound follows. It exits 0 whatever it finds,
-      # because the verdict on this branch belongs to the sweep.
-      - name: Tell a red route apart from a slow box
-        if: failure()
-        env:
-          NODE_OPTIONS: "--max-old-space-size=6144"
-          PUBMAX_E2E_KEYLESS: "1"
-          BUDGET_BASE_BRANCH: ${{ github.base_ref || 'main' }}
-          # This job's own `timeout-minutes` in milliseconds. The install, the
-          # merge-base build and the measuring are each bounded by what is LEFT
-          # of it. __tests__/ciReleaseGateWorkflow.test.ts holds the two figures
-          # together so neither can move alone.
-          PUBMAX_PERF_AB_JOB_WALL_MS: "3300000"
-        run: node scripts/perf-ab.mjs
-
-      - name: Keep the A/B evidence with the run
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: performance-budget-ab
-          path: |
-            test-results/perf-budget-ab.txt
-            test-results/perf-budget-breaches.json
-          if-no-files-found: ignore
-
-  # UX lane 13: four arrival routes (/, /near, /map/london, /out) reported with
-  # LCP and CLS beside decoded JS, attached as a markdown table for the PR body.
-  # It measures on the method e2e/helpers/perfMeasurement.ts owns, so its figures
-  # are comparable to the ceilings above. It REPORTS rather than gates: a route
-  # over its own ceiling is printed as a warning, because the ceilings are
-  # already enforced by the job above. It fails only on a route it could not
-  # measure at all, which is a broken route rather than a slow one.
-  # Same runner size as the budget job above, for the reason this job exists:
-  # it reports on the method e2e/helpers/perfMeasurement.ts owns so its figures
-  # are comparable to the ceilings, and two figures taken on two different boxes
-  # are not comparable. It printed no spread warnings of its own; it moves to
-  # keep the pair honest.
-  ux-lane-performance:
-    name: UX lane performance
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 15
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Cache node_modules
-        id: cache-node-modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
-
-      - name: Install dependencies
-        if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: npm ci
-
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Report UX lane routes
-        env:
-          NODE_OPTIONS: "--max-old-space-size=6144"
-          PUBMAX_PERF_BUDGET: "1"
-          PUBMAX_E2E_KEYLESS: "1"
-          PW_SKIP_KEYLESS_WEBSERVER: "1"
-        run: npx playwright test e2e/ux-lane-perf-verification.spec.ts --project=chromium --workers=1
-
-      # The spec writes the table into its own Playwright output directory, so
-      # this glob names that file rather than the renamed attachments copy
-      # beside it. `warn` rather than `ignore`: a missing table is a finding,
-      # and rather than `error` because a sweep that failed early never wrote
-      # one and does not need a second red mark.
-      - name: Upload UX lane table
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ux-lane-13-perf
-          path: test-results/**/ux-lane-13-perf.md
-          if-no-files-found: warn
