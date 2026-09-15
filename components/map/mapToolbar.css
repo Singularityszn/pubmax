@@ -17,14 +17,8 @@
   align-items: stretch;
   gap: 6px;
   border-radius: 16px;
-  border-color: var(--line);
-  background:
-    linear-gradient(
-      145deg,
-      color-mix(in srgb, var(--brass) 7%, var(--panel-raised)),
-      color-mix(in srgb, var(--panel-raised) 92%, transparent)
-    ),
-    color-mix(in srgb, var(--panel-raised) 90%, transparent);
+  border-color: var(--color-border);
+  background: var(--color-surface-raised);
 }
 
 .mapToolbarRow {

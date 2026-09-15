@@ -1440,8 +1440,7 @@ input[type="range"] {
   border: 1px solid color-mix(in srgb, var(--line) 72%, var(--river) 28%);
   border-radius: 999px;
   /* Wave J2 — solid raised panel + soft shadow; less frosted glass over the map. */
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--surface-tint-river) 35%, var(--panel-raised)), var(--panel-raised));
+  background: var(--color-surface-raised);
   box-shadow: var(--map-overlay-shadow);
 }
 
