@@ -25,6 +25,12 @@ describe("profile route shell", () => {
     expect(shell).toMatch(/box-sizing:\s*border-box/);
   });
 
+  it("keeps the signed-out identity card on the shared surface radius", () => {
+    const card = ruleBody(profileCss, ".profilePage .youIdentityIntro");
+    expect(card).toContain("border-radius: var(--radius-lg)");
+    expect(card).not.toContain("border-radius: 24px");
+  });
+
   it("keeps profile and profile-list routes on the shared shell", () => {
     expect(profilePage).toContain(
       '<main id="main" className="container profileMain">',

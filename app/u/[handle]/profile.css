@@ -111,7 +111,7 @@
   gap: clamp(16px, 3vw, 28px);
   padding: clamp(22px, 4vw, 34px);
   border: 1px solid var(--line);
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
   box-shadow: var(--shadow);
 }
