@@ -504,7 +504,7 @@ html[data-theme="dark"] .drinkShapeChipLabel {
     width: fit-content;
     max-width: calc(100% - var(--desktop-venue-drawer-width) - 32px);
     left: 50%;
-    transform: translateX(calc(-50% - (var(--desktop-venue-drawer-width) / 2)));
+    transform: translateX(calc(-50% - var(--desktop-venue-drawer-half-width)));
   }
 
   .appShell.detail-open .mapToolbar .mapToolbarDesktopExtras,

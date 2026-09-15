@@ -1261,6 +1261,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
      and printed a ghost row through it. One source, so the two agree. */
   .appShell {
     --desktop-venue-drawer-width: min(640px, 46vw);
+    --desktop-venue-drawer-half-width: min(320px, 23vw);
   }
 
   .mapDrawer.right.open {

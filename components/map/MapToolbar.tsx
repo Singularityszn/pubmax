@@ -293,7 +293,7 @@ export default function MapToolbar({
 
     const leftOpen = planningOpen || storyOpen;
     const drawerSelector = detailOpen
-      ? ".mapDrawer.right"
+      ? ".mapDrawer.right.open"
       : leftOpen
         ? ".mapDrawer.left.open"
         : null;
@@ -358,7 +358,7 @@ export default function MapToolbar({
       ref={toolbarRef}
       className="mapToolbar"
       style={
-        desktopLaneActive
+        desktopLaneActive && laneOffset !== 0
           ? {
               transform: `translateX(calc(-50% + ${laneOffset}px))`,
               transition: "none",

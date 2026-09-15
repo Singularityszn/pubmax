@@ -214,7 +214,10 @@ export function ChooseAreaDesktopDialog({
         onKeyDown={cycleTab}
       >
         <div className="chooseAreaDesktopHead">
-          <h2 id="choose-area-desktop-title" className="chooseAreaSectionTitle">
+          <h2
+            id="choose-area-desktop-title"
+            className="chooseAreaSectionTitle chooseAreaDesktopTitle"
+          >
             Choose an area
           </h2>
           <button

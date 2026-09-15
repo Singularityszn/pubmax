@@ -105,6 +105,18 @@ describe("responsive spring ownership", () => {
   });
 });
 
+describe("area picker surface tokens", () => {
+  it("keeps the desktop picker on the sheet radius and shadow vocabulary", () => {
+    const chooseAreaCss = read("components/map/chooseAreaSheet.css");
+    const dialog = chooseAreaCss.match(/\.chooseAreaDesktop\s*\{([^}]*)\}/)?.[1] ?? "";
+
+    expect(dialog).toMatch(/border-radius:\s*var\(--radius-lg\)/);
+    expect(dialog).toMatch(/box-shadow:\s*var\(--shadow\)/);
+    expect(dialog).not.toContain("--radius-md");
+    expect(dialog).not.toContain("--shadow-md");
+  });
+});
+
 describe("surface and type hierarchy", () => {
   it("gives the landing one primary through the Screen primitive and no second button family", () => {
     // The relaunch landing (issue #1354) paints its one primary through
