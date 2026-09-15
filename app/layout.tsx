@@ -46,7 +46,7 @@ import OptionalClerkProvider from "@/components/auth/OptionalClerkProvider";
 // results page, so advertising a sitelinks search box would be schema for
 // something we can't prove (PRD non-negotiable). logo is an absolute URL to a
 // shipped icon asset (public/icon-512.png).
-export const SITE_JSON_LD = [
+const SITE_JSON_LD = [
   {
     "@context": "https://schema.org",
     "@type": "WebSite",

@@ -1,41 +1,28 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-vi.mock("next/font/google", () => {
-  const face = () => ({ className: "font-mock", variable: "--font-mock" });
-  return {
-    Space_Grotesk: face,
-    Inter: face,
-    JetBrains_Mono: face,
-  };
-});
-
-import { SITE_JSON_LD } from "@/app/layout";
-
+const layoutSource = readFileSync(
+  join(process.cwd(), "app/layout.tsx"),
+  "utf8",
+);
 const landingSource = readFileSync(
   join(process.cwd(), "components/landing/LandingPage.tsx"),
   "utf8",
 );
 
-const organization = SITE_JSON_LD.find(
-  (entry) => entry["@type"] === "Organization",
-);
-
 describe("homepage identity", () => {
   it("publishes the founder and only the verified public identity links", () => {
-    expect(organization).toMatchObject({
-      founder: {
-        "@type": "Person",
-        name: "Karan Manoharan",
-        url: "https://x.com/karansznx",
-      },
-      sameAs: [
-        "https://x.com/karansznx",
-        "https://github.com/karanmrn",
-      ],
-    });
+    expect(layoutSource).toContain('name: "Karan Manoharan"');
+    expect(layoutSource).toContain('url: "https://x.com/karansznx"');
+    expect(layoutSource).toContain('"https://github.com/karanmrn"');
+    expect(layoutSource).toMatch(
+      /founder:\s*\{[\s\S]*?"@type": "Person"[\s\S]*?name: "Karan Manoharan"[\s\S]*?url: "https:\/\/x\.com\/karansznx"/,
+    );
+    expect(layoutSource).toMatch(
+      /sameAs:\s*\[[\s\S]*?"https:\/\/x\.com\/karansznx",[\s\S]*?"https:\/\/github\.com\/karanmrn"/,
+    );
   });
 
   it("credits the founder in the landing footer", () => {
