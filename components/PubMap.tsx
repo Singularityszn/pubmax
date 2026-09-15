@@ -4301,7 +4301,10 @@ export default function PubMap({
   const selectSearchArea = useCallback(
     (option: MapSearchAreaOption) => {
       const journey = planAreaSelect(option);
-      searchQueryCameraOwnedRef.current = trimmedMapQuery;
+      // The area owns the camera after this pick. Clear the old query token too,
+      // or a later identical query is incorrectly treated as already handled.
+      searchQueryCameraOwnedRef.current = null;
+      setFilters((current) => ({ ...current, query: "" }));
       setSearchAreaNewsArea(option.areaNewsArea || null);
       // 1. Fly the camera to the chosen place.
       moveMapCameraTo({
@@ -4374,7 +4377,9 @@ export default function PubMap({
         moveMapCameraTo({ center: place.center, zoom: place.flyZoom });
         clearLogIntent();
         setMapOverlay("none");
-        changeMapSearchQuery("");
+        searchQueryCameraOwnedRef.current = null;
+        setSearchAreaNewsArea(null);
+        setFilters((current) => ({ ...current, query: "" }));
         return;
       }
       // Uncovered / other-city arrivals must full-load so PubMap remounts with
@@ -4382,7 +4387,7 @@ export default function PubMap({
       // leave the old arrival banner and emptied venues.
       window.location.assign(place.href);
     },
-    [changeMapSearchQuery, cityId, clearLogIntent, moveMapCameraTo, trimmedMapQuery],
+    [cityId, clearLogIntent, moveMapCameraTo, trimmedMapQuery],
   );
   const selectCityFromSearch = useCallback(
     (targetCityId: CityId) => {
@@ -5345,6 +5350,29 @@ export default function PubMap({
     !mapCanvasErrored &&
     !mapCanvasFrameReleased(mapCanvasAvailabilityState) &&
     mapLoadingHeld(mapLoadingStage);
+  // The text-query lane filters curated pubs. UK base browse pubs are a
+  // separate zoom-gated layer and do not answer this query, so they may not
+  // keep an empty filtered collection from naming its honest state.
+  const visibleMapPinCount =
+    visibleVenueState?.cityId === cityId
+      ? visibleVenueState.curatedVenueIds.length
+      : null;
+  const mapSearchEmptyVisible =
+    trimmedMapQuery.length > 0 &&
+    loaded &&
+    loadedCityId === cityId &&
+    filteredPubVenueCount > 0 &&
+    mapBounds !== null &&
+    !mapLoadingActive &&
+    !mapCanvasUnavailable &&
+    mapOverlay !== "search" &&
+    !showMapArrivalCard &&
+    !mapSoftRetryActive &&
+    !detailOpen &&
+    !planningOpen &&
+    !storyOpen &&
+    !mapListOpen &&
+    visibleMapPinCount === 0;
 
   const mobileShellReady = !mapLoadingActive;
   // Desktop reader controls. Both live inside Layers rather than on the map
@@ -5924,6 +5952,27 @@ export default function PubMap({
     );
   }
 
+  function renderMapSearchEmptyState() {
+    return mapSearchEmptyVisible ? (
+      <aside
+        className="mapSearchEmpty"
+        role="status"
+        data-testid="map-filter-empty"
+      >
+        <span className="mapSearchEmptyMessage">
+          No pubs match &apos;{trimmedMapQuery}&apos; here
+        </span>
+        <button
+          type="button"
+          className="mapSearchEmptyAction"
+          onClick={clearMapQuery}
+        >
+          Clear search
+        </button>
+      </aside>
+    ) : null;
+  }
+
   /* The map itself. Full-bleed base layer; every panel slides in over it.
 
      When the canvas cannot be shown at all - its module never loaded, or it
@@ -5964,6 +6013,7 @@ export default function PubMap({
       >
       <PubMapCanvas
         venues={canvasVenues}
+        filteredVenueCount={canvasVenues.length}
         venueDataReady={loaded && loadedCityId === cityId}
         // Clean first view stays route-free. Once the user maps a crawl, the
         // line remains visible even if the mobile planner closes.
@@ -6421,6 +6471,7 @@ export default function PubMap({
             fallback card is never hidden behind it. */}
         {renderMapLoadingChrome()}
         {renderMapCanvas()}
+        {renderMapSearchEmptyState()}
         {renderDesktopToolbar()}
         {renderDesktopMapOverlays()}
 

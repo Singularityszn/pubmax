@@ -168,6 +168,21 @@ test.describe("landing hierarchy", () => {
     });
   }
 
+  test("keeps the answer card Near me control clear of the compose action", async ({ page }) => {
+    await openLanding(page, { width: 390, height: 844 });
+
+    const nearMe = page.getByRole("button", { name: "Near me", exact: true });
+    const create = page.getByTestId("create-fab");
+    await expect(nearMe).toBeVisible();
+    await expect(create).toBeVisible();
+
+    const nearBox = await nearMe.boundingBox();
+    const createBox = await create.boundingBox();
+    expect(nearBox).not.toBeNull();
+    expect(createBox).not.toBeNull();
+    expect(nearBox!.x + nearBox!.width).toBeLessThanOrEqual(createBox!.x - 4);
+  });
+
   test("reads the same order on a phone as on a desktop: kicker, heading, line, picture, primary, quiet row, pub, rail", async ({ page }) => {
     await openLanding(page, { width: 390, height: 844 });
     const tops = await page.evaluate(() =>

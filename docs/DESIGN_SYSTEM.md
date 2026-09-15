@@ -59,6 +59,7 @@ refuses, and add your assertion there rather than minting a second gate.
 | A chip reads that same row, and a number square is ONE family across the planner and /pubs | Launch tokens > Text buttons; `components/ui/chip.css` | `__tests__/chipPrimitive.test.tsx`, `e2e/design-review-followups.spec.ts` |
 | One painted primary per screen, a quiet row of at most two ways onward, and a form screen paints no head primary | `docs/design/LAUNCH_SCREENS.md` | `__tests__/coreUiAudit.test.ts`, `__tests__/launchPrimitives.test.tsx` |
 | The accent as a WORD takes `--brass-ink`; opacity is never a muted token | Colour, below | `__tests__/accentInkContrast.test.ts` |
+| The map retry notice uses semantic ink for readable text in both themes | `.mapSoftRetry` in `app/globals.css` | `__tests__/mapSoftRetryContrast.test.ts` |
 | A price wears its band and no other colour | `docs/PRICE_BANDS.md` | `__tests__/priceBand.test.ts`, `__tests__/priceBandSurfaces.test.ts` |
 | The template-pattern ban list | `docs/VOICE.md` > Template patterns | `__tests__/templatePatterns.test.ts` |
 | Copy voice: no em dash, British spelling, no hedge line | `docs/VOICE.md` | `__tests__/emDashLaw.test.ts`, `__tests__/frictionVoice.test.ts` |

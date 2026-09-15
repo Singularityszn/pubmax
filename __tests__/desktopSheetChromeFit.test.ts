@@ -24,6 +24,7 @@ const searchCss = read("components/map/mapSearchSuggest.css");
 describe("desktop venue sheet chrome fit", () => {
   it("publishes the drawer width the toolbar has to stay clear of", () => {
     expect(sheetCss).toMatch(/--desktop-venue-drawer-width:\s*min\(640px,\s*46vw\)/);
+    expect(sheetCss).toMatch(/--desktop-venue-drawer-half-width:\s*min\(320px,\s*23vw\)/);
     expect(sheetCss).toMatch(
       /\.mapDrawer\.right\.open\s*{[^}]*width:\s*var\(--desktop-venue-drawer-width\)/,
     );
@@ -39,9 +40,13 @@ describe("desktop venue sheet chrome fit", () => {
       /max-width:\s*calc\(100% - var\(--desktop-venue-drawer-width\) - 32px\)/,
     );
     expect(rule).toMatch(/left:\s*50%/);
-    expect(toolbarSource).toMatch(
-      /desktopLaneActive\s*\?\s*{\s*transform:\s*`translateX\(calc\(-50% \+ \$\{laneOffset}px\)\)`/,
+    expect(rule).toMatch(
+      /transform:\s*translateX\(calc\(-50% - var\(--desktop-venue-drawer-half-width\)\)\)/,
     );
+    expect(toolbarSource).toMatch(
+      /desktopLaneActive\s*&&\s*laneOffset\s*!==\s*0\s*\?\s*{\s*transform:\s*`translateX\(calc\(-50% \+ \$\{laneOffset}px\)\)`/,
+    );
+    expect(toolbarSource).toContain('".mapDrawer.right.open"');
   });
 
   it("drops the accessory controls that no longer fit in that lane", () => {

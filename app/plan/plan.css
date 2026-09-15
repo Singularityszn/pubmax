@@ -1,6 +1,6 @@
 .planPage {
-  --plan-accent: #e75f50;
-  --plan-accent-strong: #b93e32;
+  --plan-accent: var(--accent-action);
+  --plan-accent-strong: var(--color-accent-ink);
   /* Get-in verdict ramp — the app's semantic positive/caution/negative roles
      (globals.css), which already flip per-theme; no one-off hexes. */
   --fit-likely: var(--color-positive);
@@ -154,7 +154,7 @@
 .planSummary__editStops li > span:nth-child(2) { min-width: 0; display: grid; gap: 2px; }
 .planSummary__editStops strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .planSummary__editStops small { color: var(--muted); font-size: 0.7rem; }
-.planSummary__editMarker { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--plan-accent); color: #fff; font-size: 0.75rem; font-weight: 850; }
+.planSummary__editMarker { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--plan-accent); color: var(--color-on-accent); font-size: 0.75rem; font-weight: 850; }
 .planSummary__editorActions { display: flex; flex-wrap: wrap; gap: 8px; }
 /* Primary action fill — mobile CTA recipe: --accent-action (#ff5a5f / --brass).
    Not --plan-accent (dark remaps that to night-amber for rails/chips only). */
@@ -205,7 +205,7 @@
 .matchGroupPrefs__chips,
 .matchGroupPrefs__actions { display: flex; flex-wrap: wrap; gap: 7px; }
 .planCollab .matchGroupPrefs__chip { min-height: 36px; padding: 7px 10px; border-color: var(--line); background: var(--panel-raised); color: var(--ink-soft); font-size: 0.72rem; }
-.planCollab .matchGroupPrefs__chip[aria-pressed="true"] { border-color: var(--plan-accent); background: var(--plan-accent); color: #fff; box-shadow: 0 0 0 3px color-mix(in srgb, var(--plan-accent) 22%, transparent); }
+.planCollab .matchGroupPrefs__chip[aria-pressed="true"] { border-color: var(--plan-accent); background: var(--plan-accent); color: var(--color-on-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--plan-accent) 22%, transparent); }
 .matchGroupPrefs__summary,
 .matchGroupPrefs__mustHaves { padding: 10px; border-radius: 12px; background: var(--panel-raised); color: var(--ink-soft); font-size: 0.74rem; line-height: 1.45; }
 .matchGroupPrefs__mustHaves { border: 1px solid color-mix(in srgb, var(--plan-accent) 35%, var(--line)); }
@@ -266,7 +266,7 @@
   place-items: center;
   border-radius: 50%;
   background: var(--plan-accent);
-  color: #fff;
+  color: var(--color-on-accent);
   font-size: 1rem;
   font-weight: 850;
   box-shadow: 0 0 0 7px var(--panel-raised);
@@ -425,7 +425,7 @@
 .planCrew__join button,
 .planComposer__submit { min-height: 48px; border: 0; border-radius: 11px; padding: 0 20px; font: inherit; font-weight: 800; cursor: pointer; }
 /* Join stays secondary (plan-accent → amber in dark). Lock it in = mobile primary. */
-.planCrew__join button { background: var(--plan-accent); color: #fff; }
+.planCrew__join button { background: var(--plan-accent); color: var(--color-on-accent); }
 .planComposer__submit { background: var(--accent-action); color: var(--color-on-accent); }
 .planComposer__submit:hover:not(:disabled) { background: var(--accent-action-strong); }
 .planCrew__join button:disabled { opacity: 0.58; cursor: wait; }
@@ -926,7 +926,7 @@
 .planComposer__routeStale > div { display: grid; gap: 2px; min-width: 0; }
 .planComposer__routeStale strong { font-size: 0.84rem; }
 .planComposer__routeStale span { color: var(--ink-soft); font-size: 0.78rem; line-height: 1.35; }
-.planComposer__regenerate { flex: 0 0 auto; min-height: 44px; border: 0; border-radius: var(--control-radius, 14px); padding: 8px 14px; background: var(--plan-accent); color: #fff; font: inherit; font-size: 0.78rem; font-weight: 800; cursor: pointer; }
+.planComposer__regenerate { flex: 0 0 auto; min-height: 44px; border: 0; border-radius: var(--control-radius, 14px); padding: 8px 14px; background: var(--plan-accent); color: var(--color-on-accent); font: inherit; font-size: 0.78rem; font-weight: 800; cursor: pointer; }
 .planComposer__regenerate:disabled { opacity: 0.58; cursor: wait; }
 .planComposer__context { margin: 18px 0 0; padding: 0; border: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .planComposer__context legend { width: 100%; margin-bottom: 2px; }
@@ -1011,8 +1011,8 @@
 .planComposer__error { grid-column: 1 / -1; margin: 0; color: #a52c24; font-weight: 700; }
 
 html[data-theme="dark"] .planPage {
-  --plan-accent: var(--night-amber, #f0a01a);
-  --plan-accent-strong: #ffc45e;
+  --plan-accent: var(--night-amber);
+  --plan-accent-strong: color-mix(in srgb, var(--night-amber) 78%, var(--ink));
   /* Verdict ramp inherits the dark values of the semantic roles via theme.css. */
   --fit-book: var(--plan-accent-strong);
   --fit-ink: color-mix(in srgb, var(--fit-accent) 85%, var(--ink));

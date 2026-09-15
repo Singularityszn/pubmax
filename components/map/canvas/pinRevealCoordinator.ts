@@ -103,12 +103,15 @@ export function revealTimeoutNotice(
   signals: {
     basemapPainted: boolean;
     venueData: VenueDataOutcome;
+    filteredVenueCount: number;
     pinsPaintable: boolean;
   },
 ): RevealTimeoutNotice | null {
   if (reason !== "timeout" || currentOwner === "errors") return null;
   if (!signals.basemapPainted) return BASEMAP_RETRY_NOTICE;
   if (signals.venueData !== "ready") return VENUE_DATA_RETRY_NOTICE;
+  // An empty filtered collection is a valid answer, not a paint failure.
+  if (signals.filteredVenueCount === 0) return null;
   if (!signals.pinsPaintable) return PIN_PAINT_RETRY_NOTICE;
   return null;
 }

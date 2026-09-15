@@ -64,6 +64,15 @@ const SITE_JSON_LD = [
     name: "PUBMAXXING",
     url: "https://pubmaxxing.com",
     logo: "https://pubmaxxing.com/icon-512.png",
+    founder: {
+      "@type": "Person",
+      name: "Karan Manoharan",
+      url: "https://x.com/karansznx",
+    },
+    sameAs: [
+      "https://x.com/karansznx",
+      "https://github.com/karanmrn",
+    ],
   },
 ];
 

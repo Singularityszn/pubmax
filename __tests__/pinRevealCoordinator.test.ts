@@ -76,6 +76,7 @@ function harness({
       const notice = revealTimeoutNotice(reason, noticeOwner, {
         basemapPainted,
         venueData: pinsPaintable ? "ready" : "pending",
+        filteredVenueCount: 1,
         pinsPaintable,
       });
       if (notice?.kind === "tiles") noticeOwner = "timeout";
@@ -120,21 +121,25 @@ describe("pin reveal coordinator", () => {
     const nothingReady = {
       basemapPainted: false,
       venueData: "pending" as const,
+      filteredVenueCount: 1,
       pinsPaintable: false,
     };
     const basemapOnly = {
       basemapPainted: true,
       venueData: "pending" as const,
+      filteredVenueCount: 1,
       pinsPaintable: false,
     };
     const venuesButNoSource = {
       basemapPainted: true,
       venueData: "ready" as const,
+      filteredVenueCount: 1,
       pinsPaintable: false,
     };
     const allReady = {
       basemapPainted: true,
       venueData: "ready" as const,
+      filteredVenueCount: 1,
       pinsPaintable: true,
     };
 
@@ -162,6 +167,25 @@ describe("pin reveal coordinator", () => {
     expect(revealTimeoutNotice("timeout", "errors", basemapOnly)).toBeNull();
   });
 
+  it("does not blame paint for an empty filtered venue collection", () => {
+    expect(
+      revealTimeoutNotice("timeout", "none", {
+        basemapPainted: true,
+        venueData: "ready",
+        filteredVenueCount: 0,
+        pinsPaintable: false,
+      }),
+    ).toBeNull();
+    expect(
+      revealTimeoutNotice("timeout", "none", {
+        basemapPainted: true,
+        venueData: "ready",
+        filteredVenueCount: 1,
+        pinsPaintable: false,
+      }),
+    ).toEqual(PIN_PAINT_RETRY_NOTICE);
+  });
+
   it("reads a REFUSED venue index as missing, never as ready", () => {
     // The read settles either way, so a two-state flag answers true for a list
     // that arrived AND for one that never will. A refusal names the pub list.
@@ -169,6 +193,7 @@ describe("pin reveal coordinator", () => {
       revealTimeoutNotice("timeout", "none", {
         basemapPainted: true,
         venueData: "failed",
+        filteredVenueCount: 1,
         pinsPaintable: true,
       }),
     ).toEqual(VENUE_DATA_RETRY_NOTICE);
@@ -176,6 +201,7 @@ describe("pin reveal coordinator", () => {
       revealTimeoutNotice("timeout", "none", {
         basemapPainted: true,
         venueData: "failed",
+        filteredVenueCount: 1,
         pinsPaintable: false,
       }),
     ).toEqual(VENUE_DATA_RETRY_NOTICE);
@@ -184,6 +210,7 @@ describe("pin reveal coordinator", () => {
       revealTimeoutNotice("timeout", "none", {
         basemapPainted: false,
         venueData: "failed",
+        filteredVenueCount: 1,
         pinsPaintable: true,
       }),
     ).toEqual(BASEMAP_RETRY_NOTICE);

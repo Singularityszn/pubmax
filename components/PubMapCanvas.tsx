@@ -209,6 +209,8 @@ maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
 
 type PubMapCanvasProps = {
   venues: Venue[];
+  /** Count before the selected-venue force-include, for honest reveal notices. */
+  filteredVenueCount?: number;
   /** Parent's slim venue read has settled for the active city. */
   venueDataReady: boolean;
   route: Venue[];
@@ -508,6 +510,7 @@ function probeWebGl2(): { hasContext: boolean; status: string } {
 
 export default function PubMapCanvas({
   venues,
+  filteredVenueCount = venues.length,
   venueDataReady,
   route,
   selectedVenueId,
@@ -982,9 +985,11 @@ export default function PubMapCanvas({
   // "no pubs visible" fallback).
   const bandMemberIdsRef = useRef<string[]>([]);
   const venuesRef = useRef(venues);
+  const filteredVenueCountRef = useRef(venues.length);
   useEffect(() => {
     venuesRef.current = venues;
-  }, [venues]);
+    filteredVenueCountRef.current = filteredVenueCount;
+  }, [filteredVenueCount, venues]);
   const selectedIdRef = useRef(selectedVenueId);
   // M7 pin entrance — armed once per mount at the first ACTUAL pin reveal
   // (settleSceneReady when the D2 tile-paint gate never armed, else that
@@ -1870,6 +1875,7 @@ export default function PubMapCanvas({
             : venueDataReadyRef.current
               ? "ready"
               : "pending",
+          filteredVenueCount: filteredVenueCountRef.current,
           pinsPaintable: hasPinsPaintable(),
         });
         if (timeoutNotice) {
