@@ -74,7 +74,7 @@ html[data-splash="on"] .pubmaxSplashMark {
   }
 }
 
-/* Defence in depth: splash-init.js already skips setting data-splash under
+/* Defence in depth: theme-init.js already skips setting data-splash under
    reduced motion, so this never fires in practice - kept in sync with the
    same house pattern as the retired hero cinema gate. */
 @media (prefers-reduced-motion: reduce) {

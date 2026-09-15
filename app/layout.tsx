@@ -300,8 +300,9 @@ export default async function RootLayout({
         />
         <link rel="dns-prefetch" href="https://tiles.openfreemap.org" />
         {/* The pre-paint decisions, in one render-blocking file: the native
-            shell's entry route first, then the theme, so neither the shell nor
-            the page ever paints something it is about to replace. One file
+            shell's entry route first, then the theme and landing splash, so
+            neither the shell nor the page paints something it is about to
+            replace. One file
             because one request - a second pre-paint script cost every web
             route a fetch for a decision only the shell uses. Served
             as a static file (public/theme-init.js) rather than inline so it is
@@ -312,16 +313,7 @@ export default async function RootLayout({
             lint (which exists to prevent render-blocking body scripts) is opted
             out for this one intentional case. */}
         {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        <script src="/theme-init.js" />
-        {/* Aperture splash pre-paint eligibility (feat(landing): hero scroll
-            cinema with aperture splash, PIECE 3). Same reason and same
-            pattern as theme-init.js above: served as a static file
-            (public/splash-init.js) so it is covered by CSP `script-src
-            'self'` with no per-build hash, and loaded render-blocking (no
-            async/defer) so the eligibility decision lands before the browser
-            paints the overlay markup rendered by <SplashAperture /> below. */}
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        <script src="/splash-init.js" />
+        <script src="/theme-init.js?v=splash-1" />
         {/* IDEAS B5 — Speculation Rules: declaratively prerender the LIKELY next
             page while the user browses the explore-London loop, so tapping
             through borough/Social surfaces is instant. Conservative by design:
