@@ -1012,7 +1012,7 @@
 
 html[data-theme="dark"] .planPage {
   --plan-accent: var(--night-amber);
-  --plan-accent-strong: var(--accent-price-ink);
+  --plan-accent-strong: color-mix(in srgb, var(--night-amber) 78%, var(--ink));
   /* Verdict ramp inherits the dark values of the semantic roles via theme.css. */
   --fit-book: var(--plan-accent-strong);
   --fit-ink: color-mix(in srgb, var(--fit-accent) 85%, var(--ink));

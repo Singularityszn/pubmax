@@ -13,6 +13,7 @@ describe("map search empty state", () => {
     expect(pubMap).toContain('className="mapSearchEmptyAction"');
     expect(pubMap).toContain("onClick={clearMapQuery}");
     expect(pubMap).toContain("filteredPubVenueCount > 0");
+    expect(pubMap).toContain("!mapListOpen");
     expect(pubMap).toContain("visibleMapPinCount === 0");
   });
 
@@ -26,5 +27,6 @@ describe("map search empty state", () => {
     expect(emptyBlock).toContain("var(--state-active-border)");
     expect(emptyBlock).toContain("min-height: var(--control-height)");
     expect(emptyBlock).toContain("var(--color-accent)");
+    expect(emptyBlock).toContain("var(--z-map-ask");
   });
 });

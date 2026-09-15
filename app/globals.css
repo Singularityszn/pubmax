@@ -2622,7 +2622,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   position: absolute;
   top: 50%;
   left: 50%;
-  z-index: var(--z-map-camera);
+  z-index: var(--z-map-ask, 514);
   display: flex;
   max-width: min(360px, calc(100% - 24px));
   align-items: center;

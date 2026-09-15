@@ -31,6 +31,16 @@ function contrastRatio(foreground: string, background: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+function blendOver(foreground: string, underlying: string, alpha: number): string {
+  const fg = channels(foreground);
+  const bg = channels(underlying);
+  return `#${fg.map((value, index) =>
+    Math.round(value * alpha + bg[index] * (1 - alpha))
+      .toString(16)
+      .padStart(2, "0")
+  ).join("")}`;
+}
+
 function tokenValue(css: string, token: string): string {
   const match = css.match(
     new RegExp(`^\\s*${token}\\s*:\\s*(#[0-9a-f]{3,8})\\s*;`, "im"),
@@ -40,7 +50,7 @@ function tokenValue(css: string, token: string): string {
 }
 
 function ruleBody(css: string, selector: string): string {
-  const escapedSelector = selector.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&");
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const match = css.match(new RegExp(`${escapedSelector}\\s*\\{([\\s\\S]*?)\\}`));
   expect(match, `${selector} rule exists`).not.toBeNull();
   return (match as RegExpMatchArray)[1];
@@ -59,14 +69,24 @@ describe("map retry notice contrast", () => {
     const darkInk = tokenValue(theme, "--ink");
     const darkSurface = tokenValue(theme, "--ink-deep");
     const brass = tokenValue(theme, "--brass");
+    const darkToastOverLightMap = blendOver(darkSurface, "#ffffff", 0.92);
+    const lightInk = tokenValue(globals, "--ink");
+    const lightPaper = tokenValue(globals, "--paper");
+    const lightToastOverDarkMap = blendOver(lightPaper, "#000000", 0.94);
 
+    // The toast is translucent over a live map, so prove the worst simple
+    // compositing edges rather than comparing against the solid token alone.
     expect(
-      contrastRatio(darkInk, darkSurface),
+      contrastRatio(darkInk, darkToastOverLightMap),
       `${darkInk} on ${darkSurface} is the resting dark-theme ratio`,
     ).toBeGreaterThanOrEqual(AA_SMALL_TEXT);
     expect(
       contrastRatio(darkSurface, brass),
       `${darkSurface} on ${brass} is the Retry hover ratio`,
+    ).toBeGreaterThanOrEqual(AA_SMALL_TEXT);
+    expect(
+      contrastRatio(lightInk, lightToastOverDarkMap),
+      `${lightInk} on ${lightToastOverDarkMap} is the worst light-theme composite`,
     ).toBeGreaterThanOrEqual(AA_SMALL_TEXT);
   });
 

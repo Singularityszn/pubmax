@@ -10,8 +10,9 @@ describe("plan surface token palette", () => {
     expect(css).toContain("--plan-accent: var(--accent-action);");
     expect(css).toContain("--plan-accent-strong: var(--color-accent-ink);");
     expect(css).toContain("--plan-accent: var(--night-amber);");
-    expect(css).toContain("--plan-accent-strong: var(--accent-price-ink);");
+    expect(css).toContain("--plan-accent-strong: color-mix(in srgb, var(--night-amber) 78%, var(--ink));");
     expect(css).not.toContain("--plan-accent: #");
     expect(css).not.toContain("--plan-accent-strong: #");
+    expect(css).not.toContain("--plan-accent-strong: var(--accent-price-ink);");
   });
 });

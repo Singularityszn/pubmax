@@ -4301,7 +4301,9 @@ export default function PubMap({
   const selectSearchArea = useCallback(
     (option: MapSearchAreaOption) => {
       const journey = planAreaSelect(option);
-      searchQueryCameraOwnedRef.current = trimmedMapQuery;
+      // The area owns the camera after this pick. Clear the old query token too,
+      // or a later identical query is incorrectly treated as already handled.
+      searchQueryCameraOwnedRef.current = null;
       setFilters((current) => ({ ...current, query: "" }));
       setSearchAreaNewsArea(option.areaNewsArea || null);
       // 1. Fly the camera to the chosen place.
@@ -5348,9 +5350,12 @@ export default function PubMap({
     !mapCanvasErrored &&
     !mapCanvasFrameReleased(mapCanvasAvailabilityState) &&
     mapLoadingHeld(mapLoadingStage);
+  // The text-query lane filters curated pubs. UK base browse pubs are a
+  // separate zoom-gated layer and do not answer this query, so they may not
+  // keep an empty filtered collection from naming its honest state.
   const visibleMapPinCount =
     visibleVenueState?.cityId === cityId
-      ? visibleVenueState.curatedVenueIds.length + visibleVenueState.ukBasePubIds.length
+      ? visibleVenueState.curatedVenueIds.length
       : null;
   const mapSearchEmptyVisible =
     trimmedMapQuery.length > 0 &&
@@ -5366,6 +5371,7 @@ export default function PubMap({
     !detailOpen &&
     !planningOpen &&
     !storyOpen &&
+    !mapListOpen &&
     visibleMapPinCount === 0;
 
   const mobileShellReady = !mapLoadingActive;
@@ -6007,6 +6013,7 @@ export default function PubMap({
       >
       <PubMapCanvas
         venues={canvasVenues}
+        filteredVenueCount={kindVisibleMapVenues.length}
         venueDataReady={loaded && loadedCityId === cityId}
         // Clean first view stays route-free. Once the user maps a crawl, the
         // line remains visible even if the mobile planner closes.
