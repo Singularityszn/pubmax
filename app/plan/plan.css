@@ -1,6 +1,6 @@
 .planPage {
-  --plan-accent: #e75f50;
-  --plan-accent-strong: #b93e32;
+  --plan-accent: var(--accent-action);
+  --plan-accent-strong: var(--color-accent-ink);
   /* Get-in verdict ramp — the app's semantic positive/caution/negative roles
      (globals.css), which already flip per-theme; no one-off hexes. */
   --fit-likely: var(--color-positive);
@@ -1011,8 +1011,8 @@
 .planComposer__error { grid-column: 1 / -1; margin: 0; color: #a52c24; font-weight: 700; }
 
 html[data-theme="dark"] .planPage {
-  --plan-accent: var(--night-amber, #f0a01a);
-  --plan-accent-strong: #ffc45e;
+  --plan-accent: var(--night-amber);
+  --plan-accent-strong: var(--accent-price-ink);
   /* Verdict ramp inherits the dark values of the semantic roles via theme.css. */
   --fit-book: var(--plan-accent-strong);
   --fit-ink: color-mix(in srgb, var(--fit-accent) 85%, var(--ink));
