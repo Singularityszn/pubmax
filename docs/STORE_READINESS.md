@@ -646,16 +646,16 @@ Everything above is done or ready to paste. The steps below need a real account,
 The site's one public contact address is `CONTACT_EMAIL` in
 `lib/siteContact.mjs`, which `lib/siteContact.ts` re-exports for the app and the
 crawler scripts read for their user-agent headers. The address is
-`support@pubmaxxing.com`. **The mailbox does not exist yet.** The captain owns
-this step: create it as a real inbox, or as a forwarder to an address he reads
-every day.
+`karan@pubmaxxing.com` (the captain's word, 15 September 2026; it replaced
+`support@pubmaxxing.com`). The captain owns this step: confirm it is a real
+inbox, or a forwarder to an address he reads every day.
 
 Do it before either submission. Both stores require a working public support
 contact for an app that declares user content, and `/privacy`, `/terms`,
 `/about` and `/account/delete` print this address to strangers today. A privacy
 notice that names an inbox nobody reads is worse than no address at all.
 
-*Done when:* a message sent to `support@pubmaxxing.com` from an outside address
+*Done when:* a message sent to `karan@pubmaxxing.com` from an outside address
 arrives, and a reply sent from it is delivered.
 
 ### Apple App Store
