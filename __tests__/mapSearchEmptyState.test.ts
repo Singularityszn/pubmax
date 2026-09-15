@@ -7,6 +7,11 @@ const pubMap = readFileSync(join(process.cwd(), "components/PubMap.tsx"), "utf8"
 const styles = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
 
 describe("map search empty state", () => {
+  it("counts the forced selected venue when deciding whether pin paint needs a retry", () => {
+    expect(pubMap).toContain("withForcedVenue(kindVisibleMapVenues, venueById, selectedVenueId)");
+    expect(pubMap).toMatch(/<PubMapCanvas\s+venues=\{canvasVenues\}\s+filteredVenueCount=\{canvasVenues.length\}/);
+  });
+
   it("names the query and offers a query-only recovery action", () => {
     expect(pubMap).toContain('data-testid="map-filter-empty"');
     expect(pubMap).toContain("No pubs match &apos;{trimmedMapQuery}&apos; here");

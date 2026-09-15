@@ -6,6 +6,17 @@ import { describe, expect, it } from "vitest";
 const css = readFileSync(join(process.cwd(), "app/plan/plan.css"), "utf8");
 
 describe("plan surface token palette", () => {
+  it("pairs every solid planner accent fill with its semantic label ink", () => {
+    const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .filter(([, , body]) => /background:\s*var\(--plan-accent\)\s*;/.test(body)
+        && /(?:^|;)\s*color:/.test(body));
+
+    expect(rules.length).toBeGreaterThanOrEqual(7);
+    for (const [, selector, body] of rules) {
+      expect(body, selector.trim()).toMatch(/(?:^|;)\s*color:\s*var\(--color-on-accent\)\s*;/);
+    }
+  });
+
   it("derives the planner accent from semantic theme roles", () => {
     expect(css).toContain("--plan-accent: var(--accent-action);");
     expect(css).toContain("--plan-accent-strong: var(--color-accent-ink);");
