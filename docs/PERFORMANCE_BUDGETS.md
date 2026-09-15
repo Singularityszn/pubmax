@@ -284,9 +284,11 @@ the run.
 
 ### The runner the sweep is taken on, and why it is not the one every other job takes
 
-The budget job and the UX lane report run on `avrea-ubuntu-latest-4-vcpu`; every
-other job in `.github/workflows/ci.yml` runs on the 2 vCPU label. On the 2 vCPU
-box the sweep could not measure itself. Its own method check reported LCP
+From 6 to 15 September 2026 the budget job and the UX lane report ran on a
+4 vCPU runner (`avrea-ubuntu-latest-4-vcpu`, then `blacksmith-4vcpu-ubuntu-2404`)
+while every other job in `.github/workflows/ci.yml` ran on a 2 vCPU label. Since
+15 September every job runs on GitHub-hosted `ubuntu-latest`, a 2 vCPU box on a
+private repository. On the 2 vCPU box the sweep could not measure itself. Its own method check reported LCP
 samples spread 37 to 51 per cent on `/today`, `/discover`, `/drinks` and
 `/crawls`, and a server-render spread of 320 per cent on `/feed`, all past the
 12 per cent width this method tracks. Inside one run of one commit `/crawls`
