@@ -443,6 +443,15 @@ a.lpPubPint:hover { color: var(--ink); }
       calc(var(--create-fab-lane) - var(--page-gutter))
     );
   }
+
+  /* The answer card has its own right-aligned Near me control. Keep it out of
+     the same published compose lane the rail rows already reserve. */
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .lpAnswerHead {
+    padding-right: max(
+      var(--space-4),
+      calc(var(--create-fab-lane) - var(--page-gutter))
+    );
+  }
 }
 
 @media (max-width: 700px) {
