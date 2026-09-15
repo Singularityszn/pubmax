@@ -1,12 +1,14 @@
 name: CI
 
-# Avrea runners (`avrea-ubuntu-latest-2-vcpu`), installed by the captain on
-# 6 September 2026 after GitHub-hosted allocation stopped answering on an
-# organisation billing fault: no job started between 5 September 11:08Z and
-# 6 September 16:37Z. The label is the only difference - the image is Ubuntu and
-# every job below still installs its own toolchain. Effective RLS stays in
-# rls-session.yml so this workflow stays lean and finishes under the 15-minute
-# wall budget.
+# GitHub-hosted `ubuntu-latest` runners, on the captain's 15 September 2026
+# decision to stay inside the GitHub free minutes. History: Avrea runners
+# (`avrea-ubuntu-latest-2-vcpu`) carried every job from 6 September, after
+# GitHub-hosted allocation stopped answering on an organisation billing fault
+# (no job started between 5 September 11:08Z and 6 September 16:37Z), and
+# Blacksmith labels replaced them in #1652. The label is the only difference -
+# the image is Ubuntu and every job below still installs its own toolchain.
+# Effective RLS stays in rls-session.yml so this workflow stays lean and
+# finishes under the 15-minute wall budget.
 
 on:
   pull_request:
@@ -24,7 +26,7 @@ concurrency:
 jobs:
   review-scope:
     name: Review scope
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
@@ -42,7 +44,7 @@ jobs:
 
   lint-and-types:
     name: Lint and typecheck
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -77,7 +79,7 @@ jobs:
 
   production-build:
     name: Production build
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -109,7 +111,7 @@ jobs:
 
   unit-tests:
     name: Unit tests (${{ matrix.shard }}/4)
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -187,7 +189,7 @@ jobs:
 
   coverage:
     name: Coverage
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -249,7 +251,7 @@ jobs:
 
   freshness:
     name: Freshness release gate
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -281,8 +283,11 @@ jobs:
   # The wall is 35 minutes because the sweep itself measured 11m45s locally over
   # that wire, on top of a production build. It was 15 with nine routes on
   # loopback.
-  # The measurement runs on a 4 vCPU Avrea runner rather than the 2 vCPU every
-  # other job takes. On the 2 vCPU box the sweep could not measure itself: the
+  # From 6 to 15 September 2026 the measurement ran on a 4 vCPU runner (Avrea,
+  # then Blacksmith) rather than the 2 vCPU every other job took. GitHub-hosted
+  # `ubuntu-latest` on a private repository is a 2 vCPU box, and on a 2 vCPU box
+  # the sweep could not measure itself, so the spread recorded here applies
+  # again until the sweep leaves the pull-request path: the
   # 6 September run reported LCP samples spread 37 to 51 per cent on /today,
   # /discover, /drinks and /crawls, past the method's own 12 per cent width, so
   # a route flipped between pass and fail on one commit. A ceiling is only a
@@ -295,7 +300,7 @@ jobs:
   # inside the old wall, since that work only happens on `if: failure()`.
   performance-budget:
     name: Performance budget
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
       # THE JOB'S OWN CLOCK, for the A/B at the bottom of this job. It sizes its
@@ -435,7 +440,7 @@ jobs:
   # keep the pair honest.
   ux-lane-performance:
     name: UX lane performance
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
