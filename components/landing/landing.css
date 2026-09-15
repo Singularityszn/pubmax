@@ -405,6 +405,7 @@ a.lpPubPint:hover { color: var(--ink); }
 .lpFooterSmallPrint { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; }
 .lpFooterSmallPrint a { min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); font: 650 12px/1 var(--font-data); letter-spacing: .04em; text-decoration: none; }
 .lpFooterSmallPrint a:hover { color: var(--ink); }
+.lpFooterCredit { margin: 0; color: var(--ink-soft); font: 650 12px/1.4 var(--font-data); letter-spacing: .02em; }
 .lpFooterLegal { margin: 0; color: var(--muted); font: 550 12px/1.4 var(--font-data); }
 /* The drinkaware link takes the footer's own ink, never the browser's blue. */
 .lpFooterLegal a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 2px; vertical-align: middle; }

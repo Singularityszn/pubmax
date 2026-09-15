@@ -210,6 +210,7 @@ export default function LandingPage({
             <Link prefetch={false} href="/terms">Terms of use</Link>
             <a href={CONTACT_MAILTO}>Contact</a>
           </nav>
+          <p className="lpFooterCredit">© 2026 PUBMAXX / Karan Manoharan</p>
           <p className="lpFooterLegal">
             PUBMAXX is for over-18s. Know your limits, and know the facts at{" "}
             <a href="https://www.drinkaware.co.uk" rel="noreferrer">

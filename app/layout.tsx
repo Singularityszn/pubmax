@@ -46,7 +46,7 @@ import OptionalClerkProvider from "@/components/auth/OptionalClerkProvider";
 // results page, so advertising a sitelinks search box would be schema for
 // something we can't prove (PRD non-negotiable). logo is an absolute URL to a
 // shipped icon asset (public/icon-512.png).
-const SITE_JSON_LD = [
+export const SITE_JSON_LD = [
   {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -64,6 +64,15 @@ const SITE_JSON_LD = [
     name: "PUBMAXXING",
     url: "https://pubmaxxing.com",
     logo: "https://pubmaxxing.com/icon-512.png",
+    founder: {
+      "@type": "Person",
+      name: "Karan Manoharan",
+      url: "https://x.com/karansznx",
+    },
+    sameAs: [
+      "https://x.com/karansznx",
+      "https://github.com/karanmrn",
+    ],
   },
 ];
 
