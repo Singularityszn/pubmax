@@ -7,7 +7,7 @@ name: RLS session tests
 
 on:
   push:
-    branches: [main, "fm/**"]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
