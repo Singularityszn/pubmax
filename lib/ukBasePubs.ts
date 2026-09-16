@@ -555,7 +555,7 @@ export function ukBasePubsToGeoJSON(
           address: pub.address,
           curatedVenueId: pub.curatedVenueId,
           provisional: Boolean(provisionalVenueIds?.has(pub.id)),
-          // Additive, like the Spoons pair below: a pub feature carries no
+          // Additive, like the Spoons units label below: a pub feature carries no
           // `kind` at all, so the pin layers and every existing reader are
           // untouched by bars joining the source.
           ...(pub.kind === "bar" ? { kind: "bar" } : {}),

@@ -208,9 +208,6 @@ describe("UK base layer (unpriced, visually subordinate, never clustered)", () =
     // a units band must never select a coloured pint sprite.
     const icon = layout("uk-base-point")["icon-image"];
     expect(icon).toBe("base:pub");
-    expect(JSON.stringify(icon)).not.toContain("spoonsBucket");
-    expect(JSON.stringify(icon)).not.toContain("drink:pint");
-    expect(JSON.stringify(icon)).not.toContain("price");
   });
 });
 

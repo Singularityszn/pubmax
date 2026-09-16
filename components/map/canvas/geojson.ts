@@ -203,7 +203,9 @@ function pinBucketAndTag(args: {
     // reads it: the map key, the cluster donut's own counts and the rendered
     // state behind both. A units band arriving there is the product saying
     // "£5.15 or less" over a pub whose pint price this lane holds nothing
-    // about. lib/ukBasePubs.ts stamps `spoonsBucket` for the same reason.
+    // about. `spoonsBucket` rides THIS curated source alone: lib/ukBasePubs.ts
+    // stamps the units label and no band, because a base pub keeps the
+    // no-price silhouette.
     return {
       bucket: venue.priceBand ?? priceBucket(price),
       spoonsBucket: pin.bucket,
