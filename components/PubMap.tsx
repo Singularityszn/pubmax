@@ -568,6 +568,7 @@ import { homeActionLabel, type SurfaceEntry } from "@/lib/surfaceStack";
 import {
   filtersForCuratedCrawl,
   buildMapSeed,
+  builtStopsAskedAfter,
   builtStopsNeedingHydration,
   detailStatusFor,
   mapSelectionNotice,
@@ -2709,11 +2710,9 @@ export default function PubMap({
   // missing records through the same detail seam a selected venue uses, then
   // merge them into `venueById` so RoutePanel can render the real route instead
   // of an empty planner while the map ring remains lazy.
-  // A stop id is asked for once per mounted map, whatever the answer: a plan
-  // link that names a duplicate id has its stop rewritten to the id the map
-  // paints, and a stop the request could not answer for waits for the reader to
-  // open it (the selected-venue path) or for the next cold arrival. Releasing a
-  // failed id here would re-ask the whole plan on every shard commit.
+  // A stop id is asked for once per mounted map, whatever the answer, and the
+  // plan itself is left exactly as the link wrote it: this lane warms stop
+  // detail and never edits, dedupes or reorders the reader's stops.
   const builtRouteHydrationAskedRef = useRef(new Set<string>());
   useEffect(() => {
     const requestedIds = builtStopsNeedingHydration({
@@ -2727,33 +2726,21 @@ export default function PubMap({
     void Promise.all(
       requestedIds.map(async (id) => ({ id, result: await warmVenueDetail(id) })),
     ).then((results) => {
-      const hydrated: Venue[] = [];
-      const canonicalByRequestedId = new Map<string, string>();
-      for (const { id, result } of results) {
-        if (result.status !== "found") continue;
-        hydrated.push(result.venue);
-        if (result.venue.id !== id) canonicalByRequestedId.set(id, result.venue.id);
-      }
+      builtRouteHydrationAskedRef.current = builtStopsAskedAfter(
+        builtRouteHydrationAskedRef.current,
+        results.map(({ id, result }) => ({ id, status: result.status })),
+      );
+      const hydrated = results
+        .map(({ result }) => (result.status === "found" ? result.venue : null))
+        .filter((venue): venue is Venue => venue !== null);
       if (hydrated.length === 0) return;
       setDetailById((current) => {
         const next = new Map(current);
         for (const venue of hydrated) next.set(venue.id, venue);
         return next;
       });
-      if (canonicalByRequestedId.size === 0) return;
-      setBuiltIds((current) => {
-        const next: string[] = [];
-        let changed = false;
-        for (const id of current) {
-          const canonicalId = canonicalByRequestedId.get(id) ?? id;
-          if (canonicalId !== id) changed = true;
-          if (next.includes(canonicalId)) changed = true;
-          else next.push(canonicalId);
-        }
-        return changed ? next : current;
-      });
     });
-  }, [builtIds, cityId, loaded, loadedCityId, setBuiltIds, venueById]);
+  }, [builtIds, cityId, loaded, loadedCityId, venueById]);
   // Zone pint index (nearest-station fare zone medians) for the zone picker.
   // Computed off the full venue set so the strip's numbers don't shift as the
   // user filters — it's a stable "here's the lay of the land" reference.
