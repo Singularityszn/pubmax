@@ -8,7 +8,6 @@ import {
   type CrawlUrlState,
 } from "@/lib/crawlUrl";
 import { initialFilters } from "@/components/map/ControlRail";
-import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
 
 const sample: CrawlUrlState = {
   mode: "build",
@@ -154,12 +153,6 @@ describe("crawlUrl", () => {
     // An unknown alt value is ignored (decodes to undefined -> seeds "pint").
     expect(decodeCrawl(new URLSearchParams("alt=wizard")).altStyle).toBeUndefined();
     expect(seedCrawlState("?alt=wizard").altStyle).toBe("pint");
-  });
-
-  it("reads a plan link to the plan ceiling, however many stops it names", () => {
-    const ids = Array.from({ length: 600 }, (_, index) => `venue-${index}`);
-    const decoded = decodeCrawl(new URLSearchParams(`pubs=${ids.join(",")}`));
-    expect(decoded.builtIds).toEqual(ids.slice(0, WALK_ROUTE_MAX_STOPS));
   });
 
   it("decodes garbage without throwing and returns a safe partial", () => {

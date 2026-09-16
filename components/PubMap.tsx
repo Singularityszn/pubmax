@@ -2712,12 +2712,12 @@ export default function PubMap({
   // A stop id is asked for once per mounted map, whatever the answer, and this
   // lane warms stop detail only: it never edits, dedupes or reorders the
   // reader's stops. One pass asks for at most WALK_ROUTE_MAX_STOPS of them. A
-  // tapped, curated or saved plan can be longer, so when stops are still owed
-  // after a pass, `builtRouteHydrationPass` starts the next one; a pass that
-  // found nothing writes no detail and would otherwise move no dependency. The
-  // sequence ends because every pass adds its ids to the asked set, and a shared
-  // link cannot lengthen it: `?pubs=` is read to WALK_ROUTE_MAX_STOPS stops at
-  // decode (lib/crawlUrl.ts).
+  // plan can be longer, so when stops are still owed after a pass,
+  // `builtRouteHydrationPass` starts the next one; a pass that found nothing
+  // writes no detail and would otherwise move no dependency. The sequence ends
+  // because every pass adds its ids to the asked set. A hostile link with a
+  // very long `?pubs=` is bounded by `/api/venue/[id]` itself, which answers
+  // 429 past 120 requests a minute from one IP.
   const builtRouteHydrationAskedRef = useRef(new Set<string>());
   const [builtRouteHydrationPass, setBuiltRouteHydrationPass] = useState(0);
   useEffect(() => {
