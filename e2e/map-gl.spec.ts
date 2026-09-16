@@ -449,10 +449,10 @@ test("/map keeps the honest retry visible while basemap tiles keep failing", asy
 });
 
 // MapLibre 6.9 emits `dataabort` when it culls an in-flight tile and mirrors
-// that cancellation as `sourcedataabort`; those events are not failure proof.
-// This keeps one real production-vector assertion on the error path instead:
-// after the style and an in-view tile paint, a refused .pbf must still surface
-// the reader's Retry control without replacing the live canvas.
+// that cancellation as `sourcedataabort`. PubMapCanvas only promotes a
+// post-paint, settled burst whose source remains unloaded; ordinary camera culls
+// stay out of the failure tracker. This spec keeps the production vector source
+// honest: every .pbf is aborted after paint and Retry must surface.
 test("/map surfaces Retry for a post-paint production vector-tile abort", async ({
   page,
 }) => {
@@ -460,33 +460,15 @@ test("/map surfaces Retry for a post-paint production vector-tile abort", async 
   await page.setViewportSize({ width: 390, height: 844 });
   let abortVectorTiles = false;
   let abortedRequests = 0;
-  let failedVectorTiles = 0;
   let landedVectorTiles = 0;
-  await page.route(
-    /tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/,
-    async (route) => {
-      if (!abortVectorTiles) {
-        await route.continue();
-        return;
-      }
-      // MapLibre 6.9 treats a browser-level abort as tile cancellation: it can
-      // be reported as dataabort/requestfailed without reaching the map error
-      // lane. Keep that real abort in the production-vector proof, then drive
-      // the user-visible retry with a real HTTP source failure on the same
-      // vector style rather than asserting a cancellation as a failure.
-      if (abortedRequests === 0) {
-        abortedRequests += 1;
-        await route.abort("failed");
-        return;
-      }
-      failedVectorTiles += 1;
-      await route.fulfill({
-        status: 503,
-        contentType: "application/x-protobuf",
-        body: "temporary vector tile outage",
-      });
-    },
-  );
+  await page.route(/\.pbf(?:\?|$)/, async (route) => {
+    if (!abortVectorTiles) {
+      await route.continue();
+      return;
+    }
+    abortedRequests += 1;
+    await route.abort("failed");
+  });
   page.on("response", (response) => {
     if (
       response.ok() &&
@@ -507,7 +489,6 @@ test("/map surfaces Retry for a post-paint production vector-tile abort", async 
   abortVectorTiles = true;
   await zoomThroughHiddenMobileControl(page, 10);
   await expect.poll(() => abortedRequests, { timeout: 30_000 }).toBeGreaterThan(0);
-  await expect.poll(() => failedVectorTiles, { timeout: 30_000 }).toBeGreaterThan(0);
   const notice = page.locator(".mapSoftRetry");
   await expect(notice).toContainText("Map background couldn't load", {
     timeout: 45_000,

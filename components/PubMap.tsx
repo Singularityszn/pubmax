@@ -1739,9 +1739,13 @@ export default function PubMap({
   // rows while the spatial loader quite correctly stays viewport-scoped.
   const seededRouteIds = seed.builtIds;
   useEffect(() => {
-    if (seededRouteIds.length < 2) return;
+    const knownIds = new Set(baseVenues.map((venue) => venue.id));
+    const missingRouteIds = seededRouteIds.filter(
+      (id) => !knownIds.has(id) && !isUkBaseId(id),
+    );
+    if (missingRouteIds.length === 0) return;
     let cancelled = false;
-    void Promise.all(seededRouteIds.map((id) => warmVenueDetail(id))).then(
+    void Promise.all(missingRouteIds.map((id) => warmVenueDetail(id))).then(
       (results) => {
         if (cancelled) return;
         const found = results.flatMap((result) =>
@@ -1763,7 +1767,7 @@ export default function PubMap({
     return () => {
       cancelled = true;
     };
-  }, [seededRouteIds]);
+  }, [baseVenues, seededRouteIds]);
 
   // Community Pint Drops: fetch/submit/report state lives in the hook.
   // City-scoped so Manchester demo seeds colour Manchester pins without

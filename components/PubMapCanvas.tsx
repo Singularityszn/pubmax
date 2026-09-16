@@ -1624,6 +1624,15 @@ export default function PubMapCanvas({
     let tileFailureRestRecheckArmed = false;
     let silentTileRetryTimer: ReturnType<typeof setTimeout> | undefined;
     const failedBasemapTiles = createBasemapTileFailureTracker();
+    const pendingVectorAborts = new Map<
+      string,
+      { sourceId: string; tileKey: string }
+    >();
+    let vectorAbortRestTimer: ReturnType<typeof setTimeout> | undefined;
+    const clearVectorAbortRestTimer = () => {
+      if (vectorAbortRestTimer !== undefined) clearTimeout(vectorAbortRestTimer);
+      vectorAbortRestTimer = undefined;
+    };
     const clearTileFailureRecheck = () => {
       if (tileFailureRecheckTimer !== undefined) {
         clearTimeout(tileFailureRecheckTimer);
@@ -1639,10 +1648,12 @@ export default function PubMapCanvas({
     const beginTileFailureGeneration = () => {
       tileFailureGeneration += 1;
       clearTileFailureRecheck();
+      clearVectorAbortRestTimer();
       clearSilentTileRetryTimer();
       tileSpend = releaseQueuedSilentTileRetry(tileSpend);
       tileFailureStamps = [];
       failedBasemapTiles.reset();
+      pendingVectorAborts.clear();
       basemapTileReadyForPaint = false;
     };
     // The silent lane: re-ask every tiled basemap SOURCE for its own tiles.
@@ -2358,7 +2369,7 @@ export default function PubMapCanvas({
       clearTimeout(hangFailTimer);
       queueMicrotask(() => {
         if (
-          basemapFailureSurface({ styleLoaded, styleEverLoaded }) === "toast"
+          basemapFailureSurface(styleEverLoaded) === "toast"
         ) {
           tileNoticeOwner = "errors";
           setSoftRetry(BASEMAP_RETRY_NOTICE);
@@ -2675,10 +2686,11 @@ export default function PubMapCanvas({
         sourceType: mapError.source?.type,
         tilePresent: mapError.tile !== undefined,
       });
-      // A style-level failure before the first successful load still gets the
-      // bounded retry lane when it is a critical basemap/source error (notably
-      // TileJSON metadata). Unrelated early errors keep the existing fallback.
-      if (!styleLoaded && !critical) {
+      // A source-level metadata failure before the first style load gets the
+      // bounded retry lane so TileJSON has a readable outcome. Style-resource
+      // failures (the style URL, sprite or glyphs) still take the CARTO
+      // fallback, because there is no usable primary style to preserve.
+      if (!styleLoaded && (!critical || isStyleResourceFailure(message))) {
         swapToBasemapFallback();
         return;
       }
@@ -2706,6 +2718,73 @@ export default function PubMapCanvas({
         documentVisible && !cameraInFlight,
       );
     });
+
+    // MapLibre 6.9 reports a network-level vector request that is culled during
+    // camera work as `dataabort`, not `error`. Keep this lane deliberately
+    // separate from failedBasemapTiles: a cull is not recovery evidence and may
+    // never wedge basemapRecoveryConfirmed. We wait until the camera is settled,
+    // dedupe one tile, and only count the burst when the source is still not
+    // loaded after a short settle window. Healthy pans therefore stay silent,
+    // while a post-paint vector outage reaches the same bounded failure lane as
+    // an ordinary network error.
+    const flushPendingVectorAborts = () => {
+      clearVectorAbortRestTimer();
+      if (pendingVectorAborts.size === 0) return;
+      vectorAbortRestTimer = setTimeout(() => {
+        vectorAbortRestTimer = undefined;
+        if (map.isMoving()) return;
+        if (
+          mapRef.current !== map ||
+          tileSpend.surfaced ||
+          !styleLoaded ||
+          !basemapTileReadyForPaint ||
+          areBasemapTilesLoaded()
+        ) {
+          pendingVectorAborts.clear();
+          return;
+        }
+        const count = pendingVectorAborts.size;
+        pendingVectorAborts.clear();
+        if (count === 0) return;
+        const now = performance.now();
+        tileFailureStamps = pruneTileFailures(tileFailureStamps, now);
+        for (let index = 0; index < count; index += 1) {
+          tileFailureStamps.push(now);
+        }
+        evaluateTileFailure(
+          now,
+          false,
+          "Basemap vector tile request aborted",
+          document.visibilityState !== "hidden",
+        );
+      }, 300);
+    };
+    const onBasemapTileAbort = (event: unknown) => {
+      if (tileSpend.surfaced || mapRef.current !== map) return;
+      const dataEvent = event as {
+        sourceId?: unknown;
+        source?: { type?: unknown };
+        tile?: { tileID?: { key?: unknown } };
+      };
+      if (
+        dataEvent.source?.type !== "vector" ||
+        typeof dataEvent.sourceId !== "string" ||
+        typeof dataEvent.tile?.tileID?.key !== "string" ||
+        appDataPackSourceId(dataEvent.sourceId)
+      ) {
+        return;
+      }
+      pendingVectorAborts.set(
+        `${dataEvent.sourceId}:${dataEvent.tile.tileID.key}`,
+        {
+          sourceId: dataEvent.sourceId,
+          tileKey: dataEvent.tile.tileID.key,
+        },
+      );
+      flushPendingVectorAborts();
+    };
+    map.on("dataabort", onBasemapTileAbort);
+    map.on("moveend", flushPendingVectorAborts);
 
     // --- Post-init context loss (iOS Safari P0).
     // iOS kills WebGL on app-switch / restores bfcache pages with a dead canvas.

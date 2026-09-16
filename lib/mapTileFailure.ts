@@ -531,14 +531,8 @@ export function markTileFailureSurfaced(
  * while both style URLs refuse. Toast is only honest when a style actually
  * loaded and later lost tiles. Otherwise the tiles card.
  */
-export function basemapFailureSurface(input: {
-  /** Whether the currently requested style has completed loading. */
-  styleLoaded: boolean;
-  /** Whether any style completed loading during this map mount. */
-  styleEverLoaded: boolean;
-}): "toast" | "card" {
+export function basemapFailureSurface(styleEverLoaded: boolean): "toast" | "card" {
   // A failed replacement must not tear down a map that already drew. The
-  // current style is false while that replacement is in flight; the historical
-  // fact is the honest surface decision.
-  return input.styleEverLoaded ? "toast" : "card";
+  // historical fact is the honest surface decision.
+  return styleEverLoaded ? "toast" : "card";
 }
