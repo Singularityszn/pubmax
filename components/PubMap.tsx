@@ -568,6 +568,7 @@ import { homeActionLabel, type SurfaceEntry } from "@/lib/surfaceStack";
 import {
   filtersForCuratedCrawl,
   buildMapSeed,
+  builtStopsAskedAfter,
   builtStopsNeedingHydration,
   detailStatusFor,
   mapSelectionNotice,
@@ -2735,6 +2736,10 @@ export default function PubMap({
     void Promise.all(
       requestedIds.map(async (id) => ({ id, result: await warmVenueDetail(id) })),
     ).then((results) => {
+      builtRouteHydrationAskedRef.current = builtStopsAskedAfter(
+        builtRouteHydrationAskedRef.current,
+        results.map(({ id, result }) => ({ id, status: result.status })),
+      );
       const hydrated = results
         .map(({ result }) => (result.status === "found" ? result.venue : null))
         .filter((venue): venue is Venue => venue !== null);

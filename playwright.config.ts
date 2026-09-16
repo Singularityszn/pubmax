@@ -89,7 +89,8 @@ export default defineConfig({
   // server died mid-suite and every later context reported connection refused
   // (267 of them). At two workers it stays up. CI shards run a server each, so
   // the cap is the local rig's alone.
-  workers: process.env.CI ? undefined : 2,
+  // PW_WORKERS permits an explicit local rig limit; two is the measured default.
+  workers: process.env.CI ? undefined : Number(process.env.PW_WORKERS ?? 2),
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: "list",

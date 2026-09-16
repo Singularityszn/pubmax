@@ -142,7 +142,7 @@ import {
   whenBottomSheetSettles,
 } from "@/components/map/canvas/useMapCamera";
 import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
-import { mobileSelectCameraOffset } from "@/lib/sheetSnap";
+import { deepLinkSelectionCamera, mobileSelectCameraOffset } from "@/lib/sheetSnap";
 import { nearMeMapVenues } from "@/lib/nearMeMapFrame";
 import {
   isUkBaseId,
@@ -1765,7 +1765,8 @@ export default function PubMapCanvas({
       if (
         !basemapRecoveryConfirmed({
           tilesLoaded: areBasemapTilesLoaded(),
-          recheckPending: tileFailureRecheckTimer !== undefined,
+          recheckPending:
+            tileFailureRecheckTimer !== undefined || tileFailureRestRecheckArmed,
           unrecoveredFailures: failedBasemapTiles.hasFailures(),
           basemapTileLoaded: basemapTileReadyForPaint,
         })
@@ -3639,11 +3640,11 @@ export default function PubMapCanvas({
   // reader's own gesture and a move a reader asked for, and lib/mapGestureGuard
   // keeps the second class off the glass while the first is in hand.
 
-  // Whether the link this map opened on named a venue. The bearing lane's own
-  // ref answers a wider question (a `?landmark=` arrival owns the camera too),
-  // and a landmark arrival must not make the reader's first ordinary tap wait
-  // for a sheet.
-  const arrivalNamedVenueRef = useRef(Boolean(selectedVenueId));
+  // The venue the link named on ARRIVAL, as `deepLinkSelectionCamera` last read
+  // it. The bearing lane's own ref answers a wider question (a `?landmark=`
+  // arrival owns the camera too), and a landmark arrival must not make the
+  // reader's first ordinary tap wait for a sheet.
+  const arrivalSelectedVenueIdRef = useRef(selectedVenueId);
   const deepLinkSelectCameraSpentRef = useRef(false);
   useEffect(() => {
     if (!selectedVenueId) return;
@@ -3696,10 +3697,14 @@ export default function PubMapCanvas({
       });
     };
 
-    const coldDeepLinkArrival =
-      arrivalNamedVenueRef.current && !deepLinkSelectCameraSpentRef.current;
+    const arrival = deepLinkSelectionCamera({
+      arrivalVenueId: arrivalSelectedVenueIdRef.current,
+      selectedVenueId,
+      cameraSpent: deepLinkSelectCameraSpentRef.current,
+    });
+    arrivalSelectedVenueIdRef.current = arrival.arrivalVenueId;
 
-    if (!isPhone || !coldDeepLinkArrival) {
+    if (!isPhone || !arrival.measureSheet) {
       moveToSelectedVenue(
         isPhone
           ? measureBottomSheetTop(map.getContainer().getBoundingClientRect().top)

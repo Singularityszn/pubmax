@@ -73,6 +73,9 @@ const NOT_REPO_PATHS = new Set([
   "lib/**/*.server.ts",
   // Member name, not a repository path.
   "AuthProvider.updateSession",
+  // Span attribute keys named in the model-call tracing entry, not repository paths.
+  "metadata.route",
+  "gen_ai.agent.name",
   // Database column glob, not a repository path.
   "profiles.cover_*",
   // A DTO field named in the messaging entry, not a repository path.

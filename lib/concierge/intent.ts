@@ -3,6 +3,7 @@ import {
   type ConciergeIntent,
   type ConciergeMood,
 } from "@/lib/concierge/rank";
+import { traceArizeModelCall } from "@/lib/observability/arize";
 
 export type ParsedConciergeIntent = {
   intent: ConciergeIntent;
@@ -116,32 +117,58 @@ async function modelIntent(text: string, options: ParseOptions): Promise<Concier
   if (!apiKey) return null;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10_000);
-  try {
-    const response = await (options.fetcher ?? fetch)("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: options.model ?? process.env.OPENROUTER_MODEL ?? "anthropic/claude-sonnet-4-5",
-        temperature: 0,
-        max_tokens: 180,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: text.slice(0, 500) },
-        ],
-      }),
-      signal: controller.signal,
-    });
-    if (!response.ok) return null;
-    const payload = await response.json();
-    const content = payload?.choices?.[0]?.message?.content;
-    if (typeof content !== "string") return null;
-    return validateModelIntent(JSON.parse(content), text);
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+  const model = options.model ?? process.env.OPENROUTER_MODEL ?? "anthropic/claude-sonnet-4-5";
+  const userContent = text.slice(0, 500);
+  // One Arize AX span around the model call (lib/observability/arize.ts):
+  // model, tokens, latency, route; prompt masked for emails and handles.
+  return traceArizeModelCall({
+    route: "concierge/intent",
+    model,
+    provider: "openrouter",
+    prompt: userContent,
+    invocationParameters: { temperature: 0, max_tokens: 180 },
+    call: async (span) => {
+      try {
+        const response = await (options.fetcher ?? fetch)("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            temperature: 0,
+            max_tokens: 180,
+            response_format: { type: "json_object" },
+            messages: [
+              { role: "system", content: SYSTEM_PROMPT },
+              { role: "user", content: userContent },
+            ],
+          }),
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          span?.setError(new Error(`OpenRouter responded ${response.status}.`));
+          return null;
+        }
+        const payload = await response.json();
+        span?.setUsage({
+          promptTokens: payload?.usage?.prompt_tokens,
+          completionTokens: payload?.usage?.completion_tokens,
+          totalTokens: payload?.usage?.total_tokens,
+        });
+        const content = payload?.choices?.[0]?.message?.content;
+        if (typeof content !== "string") {
+          span?.setError(new Error("OpenRouter returned no content."));
+          return null;
+        }
+        span?.setOutput(content);
+        return validateModelIntent(JSON.parse(content), text);
+      } catch (error) {
+        span?.setError(error);
+        return null;
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+  });
 }
 
 /** Parse intent with a bounded LLM assist and a deterministic, keyless fallback. */

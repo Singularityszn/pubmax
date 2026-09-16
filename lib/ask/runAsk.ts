@@ -156,6 +156,8 @@ export type RunAskInput = {
   /** When true, never call OpenRouter (tests / production without durable limiter). */
   skipModel?: boolean;
   fetchImpl?: typeof fetch;
+  /** Static route tag for the trace (e.g. "api/ask"). */
+  traceRoute?: string;
 };
 
 /**
@@ -183,6 +185,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
       query,
       turns,
       ctx,
+      ...(input.traceRoute ? { traceRoute: input.traceRoute } : {}),
       ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
     });
     if (modelOutcome && modelOutcome.toolResults.length > 0) {

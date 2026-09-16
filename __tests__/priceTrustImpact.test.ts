@@ -79,6 +79,10 @@ async function logPrice(
 }
 
 beforeEach(() => {
+  // readPriceTrustImpact checks the 30-day price-authority window against the
+  // real clock, so a fixed NOW in the past ages every fixture out once real
+  // time passes it. Freeze the clock at NOW to keep the fixtures fresh.
+  vi.useFakeTimers({ now: NOW });
   __resetCommunityPrices();
   __resetMemoryPriceTrustEvents();
   __resetMemoryProfiles();
@@ -87,6 +91,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 

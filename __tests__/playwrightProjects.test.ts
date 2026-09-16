@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const FIREFOX_PROJECT = "firefox-desktop-map-chrome-fit";
 const FIREFOX_OPT_IN = "PW_FIREFOX_DESKTOP_MAP_CHROME_FIT";
-
 type LoadedProject = {
   name?: string;
   testMatch?: unknown;

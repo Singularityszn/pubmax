@@ -143,8 +143,14 @@ export async function handleProfileImageServe(
 
   if (!isSupabaseConfigured()) return notFound(slot, "storage_unconfigured", params);
 
-  const id = decodeURIComponent(params.profileId).trim();
-  const gen = decodeURIComponent(params.generation).trim();
+  let id: string;
+  let gen: string;
+  try {
+    id = decodeURIComponent(params.profileId).trim();
+    gen = decodeURIComponent(params.generation).trim();
+  } catch {
+    return notFound(slot, "malformed_request", params);
+  }
   if (!UUID.test(id) || !UUID.test(gen)) {
     return notFound(slot, "malformed_request", params);
   }

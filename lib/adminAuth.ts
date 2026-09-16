@@ -42,7 +42,11 @@ function readAdminSessionCookie(headerList: ModeratorHeaders): string | undefine
   for (const part of raw.split(";")) {
     const trimmed = part.trim();
     if (trimmed.startsWith(`${ADMIN_SESSION_COOKIE}=`)) {
-      return decodeURIComponent(trimmed.slice(ADMIN_SESSION_COOKIE.length + 1));
+      try {
+        return decodeURIComponent(trimmed.slice(ADMIN_SESSION_COOKIE.length + 1));
+      } catch {
+        return undefined;
+      }
     }
   }
   return undefined;

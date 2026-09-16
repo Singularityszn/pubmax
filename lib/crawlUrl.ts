@@ -40,12 +40,6 @@ export const altStyleStopNoun: Record<AltCrawlStyle, string> = {
   mocktail: "mocktail stop",
 };
 
-// Styles that make sense to pair with the non-alcoholic filter — mocktail
-// crawls are alcohol-free by nature, so the UI can offer to compose the two.
-export function altStyleSuggestsNonAlcoholic(style: AltCrawlStyle): boolean {
-  return style === "mocktail";
-}
-
 // Shareable-crawl URL: capture just enough of PubMap's state that a link
 // reproduces the crawl. Kept short + human-ish, e.g.
 //   ?mode=build&style=heritage&max=7&stops=6&win=20&pubs=id1,id2&sel=id

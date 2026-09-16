@@ -159,6 +159,23 @@ describe("ukBasePubsToGeoJSON", () => {
     expect(feature.geometry).toEqual({ type: "Point", coordinates: [-0.18, 51.42] });
   });
 
+  it("gives an unpriced base pub outside the ranking nothing a pin could paint with", () => {
+    // The lens is ON and holds nothing about this pub. Nothing is stamped, so
+    // `UK_BASE_ICON_IMAGE_EXPR`'s `["has", "spoonsBucket"]` test is false and
+    // the pin keeps the no-price glyph, exactly as it does with the lens off.
+    const [feature] = ukBasePubsToGeoJSON(pubs, null, {
+      byVenueId: new Map([
+        ["venue-uk-somewhere-else", { milliunits: 20_000, pence: 995 }],
+      ]),
+      modalMilliunits: 12_785,
+    }).features;
+
+    expect(feature.properties).not.toHaveProperty("spoonsBucket");
+    expect(feature.properties).not.toHaveProperty("spoonsLabel");
+    expect(feature.properties).not.toHaveProperty("bucket");
+    expect(feature.properties).not.toHaveProperty("priceLabel");
+  });
+
   it("binds a provisional mark by stable salted base id without adding price authority", () => {
     const features = ukBasePubsToGeoJSON(
       pubs,
