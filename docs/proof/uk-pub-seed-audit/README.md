@@ -4,7 +4,7 @@
 
 ## Result
 
-The UK pub seed is complete at the requested 38,215 normalized pubs and is already present in the UK base map on `main`. A current count-only Overpass check returned 38,526 UK `amenity=pub` node/way elements, 311 above the seed (0.81%), so the snapshot is current enough under the 2% decision threshold and is not re-fetched in this PR. The raw Overpass files contain 38,511 element occurrences, which reconciles to the normalized count after 11 shared-grid-edge duplicates and 285 valid raw elements without an OSM name are accounted for. The published base manifest contains all 38,215 pub ids, plus 7,190 separately harvested bar rows. Coverage is complete on main. Main still has the Spoons Value no-price pin gap; this branch already carries the focused correction, so the remaining phase-1 obligations are the audit artifact and final PR gate.
+The UK pub seed is complete at the requested 38,215 normalized pubs and is already present in the UK base map on `main`. A current count-only Overpass check returned 38,526 UK `amenity=pub` node/way elements, 311 above the seed (0.81%). Those 311 UK pubs exist upstream and are not on the map. This audit states that gap and does not close it: no owner in this tree holds a freshness budget for the UK OSM seed, so whether 311 pubs earn a re-fetch is a captain decision and not one an audit may make for itself. The seed is not re-fetched in this PR. The raw Overpass files contain 38,511 element occurrences, which reconciles to the normalized count after 11 shared-grid-edge duplicates and 285 valid raw elements without an OSM name are accounted for. The published base manifest contains all 38,215 pub ids, plus 7,190 separately harvested bar rows. Coverage is complete on main. Main still has the Spoons Value no-price pin gap; this branch already carries the focused correction, so the remaining phase-1 obligations are the audit artifact and final PR gate.
 
 ## 1. Seed count and raw chunk count
 
@@ -36,7 +36,7 @@ area(id:3600062149)->.uk;
 out count;
 ```
 
-Overpass returned `nodes=16,594`, `ways=21,932`, `total=38,526`. The seed is **0.81% below** that current count, under the 2% threshold; refresh is a follow-up only if a later audit crosses that threshold.
+Overpass returned `nodes=16,594`, `ways=21,932`, `total=38,526`. The seed is **0.81% below** that current count, a measured gap of **311 UK pubs**. This audit sets no refresh rule, and no rule for this seed exists elsewhere in the tree: the captain decides whether that gap earns a re-fetch.
 
 ## 2. Geographic coverage and gaps
 
