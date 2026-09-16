@@ -529,6 +529,7 @@ export async function reconcilePriceTrustForObservation(
 
 export async function readPriceTrustImpact(
   userId: string,
+  now: number = Date.now(),
 ): Promise<PriceTrustImpact> {
   try {
     const key = userId.trim();
@@ -566,7 +567,7 @@ export async function readPriceTrustImpact(
     }
     let pricesTrustedNow = 0;
     for (const pair of pairs.keys()) {
-      if (categoryIsTrusted(byPair.get(pair) ?? [])) pricesTrustedNow += 1;
+      if (categoryIsTrusted(byPair.get(pair) ?? [], now)) pricesTrustedNow += 1;
     }
 
     return {

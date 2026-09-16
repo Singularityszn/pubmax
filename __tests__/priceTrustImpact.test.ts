@@ -38,6 +38,9 @@ import {
   syncTrustAfterPriceWrite,
 } from "@/lib/priceTrustImpact.server";
 
+// Every sync takes this synthetic clock, and every read must take it too:
+// pricesTrustedNow decays after the 30-day price-authority window, so a read
+// left on the wall clock goes red once the anchor ages past the window.
 const NOW = Date.parse("2026-08-16T18:00:00.000Z");
 const VENUE = "venue-one";
 const USER_A = "00000000-0000-4000-8000-0000000000aa";
@@ -112,10 +115,10 @@ describe("syncTrustAfterPriceWrite", () => {
     await drainPendingPriceTrustReconciliations(20, NOW);
 
     expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_A, NOW)).toMatchObject({
       lifetimeTrustUnlocks: 1,
     });
-    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_B, NOW)).toMatchObject({
       lifetimeTrustUnlocks: 1,
     });
   });
@@ -135,7 +138,7 @@ describe("syncTrustAfterPriceWrite", () => {
       status: "unavailable",
     });
     expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_A, NOW - 2_000)).toMatchObject({
       lifetimeTrustUnlocks: 0,
     });
     ensureCredits.mockRestore();
@@ -144,10 +147,10 @@ describe("syncTrustAfterPriceWrite", () => {
     await drainPendingPriceTrustReconciliations(20, NOW);
 
     expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_A, NOW)).toMatchObject({
       lifetimeTrustUnlocks: 1,
     });
-    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_B, NOW)).toMatchObject({
       lifetimeTrustUnlocks: 1,
     });
   });
@@ -159,7 +162,7 @@ describe("syncTrustAfterPriceWrite", () => {
 
     await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
     await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 3_000);
-    expect(await readPriceTrustImpact(USER_A)).toEqual({
+    expect(await readPriceTrustImpact(USER_A, NOW - 3_000)).toEqual({
       status: "ready",
       observationsLogged: 1,
       pricesTrustedNow: 0,
@@ -169,8 +172,8 @@ describe("syncTrustAfterPriceWrite", () => {
     await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
     await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 2_000);
 
-    const a = await readPriceTrustImpact(USER_A);
-    const b = await readPriceTrustImpact(USER_B);
+    const a = await readPriceTrustImpact(USER_A, NOW - 2_000);
+    const b = await readPriceTrustImpact(USER_B, NOW - 2_000);
     expect(a).toEqual({
       status: "ready",
       observationsLogged: 1,
@@ -186,13 +189,13 @@ describe("syncTrustAfterPriceWrite", () => {
 
     await logPrice("cara_pint", profileC, 4.3, NOW - 100);
     await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 100);
-    expect(await readPriceTrustImpact(USER_C)).toEqual({
+    expect(await readPriceTrustImpact(USER_C, NOW - 100)).toEqual({
       status: "ready",
       observationsLogged: 1,
       pricesTrustedNow: 0,
       lifetimeTrustUnlocks: 0,
     });
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_A, NOW - 100)).toMatchObject({
       lifetimeTrustUnlocks: 1,
     });
     expect((await priceTrustEventStore().liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
@@ -205,7 +208,7 @@ describe("syncTrustAfterPriceWrite", () => {
     await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
     await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 2_000);
     await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 1_000);
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_A, NOW - 1_000)).toMatchObject({
       lifetimeTrustUnlocks: 1,
     });
     expect((await priceTrustEventStore().liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
@@ -243,10 +246,10 @@ describe("syncTrustAfterPriceWrite", () => {
       `restored:${original.evidenceFingerprint}:${reversal.event?.id}`,
     );
     expect((await store.listPendingReconciliations(20)).tasks).toEqual([]);
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_A, NOW)).toMatchObject({
       lifetimeTrustUnlocks: 1,
     });
-    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_B, NOW)).toMatchObject({
       lifetimeTrustUnlocks: 1,
     });
   });
@@ -300,7 +303,7 @@ describe("syncTrustAfterPriceHidden", () => {
     expect(await syncTrustAfterPriceHidden(hiddenId, NOW)).toEqual({
       status: "synced",
     });
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_A, NOW)).toMatchObject({
       pricesTrustedNow: 0,
       lifetimeTrustUnlocks: 0,
     });
@@ -308,11 +311,11 @@ describe("syncTrustAfterPriceHidden", () => {
     expect(await moderateCommunityPrice(hiddenId, false)).toBe(true);
     await syncTrustAfterPriceRestored(hiddenId, NOW + 1);
 
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_A, NOW + 1)).toMatchObject({
       pricesTrustedNow: 1,
       lifetimeTrustUnlocks: 1,
     });
-    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_B, NOW + 1)).toMatchObject({
       pricesTrustedNow: 1,
       lifetimeTrustUnlocks: 1,
     });
@@ -320,7 +323,7 @@ describe("syncTrustAfterPriceHidden", () => {
       syncTrustAfterPriceRestored(hiddenId, NOW + 1),
       syncTrustAfterPriceRestored(hiddenId, NOW + 1),
     ]);
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_A, NOW + 1)).toMatchObject({
       pricesTrustedNow: 1,
       lifetimeTrustUnlocks: 1,
     });
@@ -329,11 +332,11 @@ describe("syncTrustAfterPriceHidden", () => {
     await syncTrustAfterPriceHidden(hiddenId, NOW + 2);
     expect(await moderateCommunityPrice(hiddenId, false)).toBe(true);
     await syncTrustAfterPriceRestored(hiddenId, NOW + 3);
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_A, NOW + 3)).toMatchObject({
       pricesTrustedNow: 1,
       lifetimeTrustUnlocks: 1,
     });
-    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_B, NOW + 3)).toMatchObject({
       pricesTrustedNow: 1,
       lifetimeTrustUnlocks: 1,
     });
@@ -352,7 +355,7 @@ describe("syncTrustAfterPriceHidden", () => {
     await lateHide;
     await syncTrustAfterPriceRestored(hiddenId, NOW + 1);
 
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_A, NOW + 1)).toMatchObject({
       pricesTrustedNow: 1,
       lifetimeTrustUnlocks: 1,
     });
@@ -383,7 +386,7 @@ describe("syncTrustAfterPriceHidden", () => {
 
     expect((await findCommunityPriceObservation(hiddenId)).observation?.hidden).toBe(true);
     expect((await priceTrustEventStore().liveEventsFor(VENUE, "beer")).events).toEqual([]);
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_A, NOW + 1)).toMatchObject({
       pricesTrustedNow: 0,
       lifetimeTrustUnlocks: 0,
     });
@@ -406,19 +409,19 @@ describe("syncTrustAfterPriceHidden", () => {
     expect(await moderateCommunityPrice(hiddenId, true, "menu mismatch")).toBe(true);
     await syncTrustAfterPriceHidden(hiddenId, NOW);
 
-    expect(await readPriceTrustImpact(USER_A)).toEqual({
+    expect(await readPriceTrustImpact(USER_A, NOW)).toEqual({
       status: "ready",
       observationsLogged: 0,
       pricesTrustedNow: 0,
       lifetimeTrustUnlocks: 0,
     });
-    expect(await readPriceTrustImpact(USER_B)).toEqual({
+    expect(await readPriceTrustImpact(USER_B, NOW)).toEqual({
       status: "ready",
       observationsLogged: 1,
       pricesTrustedNow: 1,
       lifetimeTrustUnlocks: 1,
     });
-    expect(await readPriceTrustImpact(USER_C)).toEqual({
+    expect(await readPriceTrustImpact(USER_C, NOW)).toEqual({
       status: "ready",
       observationsLogged: 1,
       pricesTrustedNow: 1,
@@ -483,20 +486,20 @@ describe("syncTrustAfterPriceHidden", () => {
       status: "unavailable",
     });
     expect((await store.liveEventsFor(VENUE, "beer")).events).toEqual([]);
-    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_B, NOW)).toMatchObject({
       lifetimeTrustUnlocks: 0,
     });
 
     expect(await syncTrustAfterPriceHidden(hiddenId, NOW + 1)).toEqual({
       status: "synced",
     });
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_A, NOW + 1)).toMatchObject({
       lifetimeTrustUnlocks: 0,
     });
-    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_B, NOW + 1)).toMatchObject({
       lifetimeTrustUnlocks: 1,
     });
-    expect(await readPriceTrustImpact(USER_C)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_C, NOW + 1)).toMatchObject({
       lifetimeTrustUnlocks: 1,
     });
   });
@@ -526,8 +529,8 @@ describe("reconcilePriceTrustForObservation", () => {
 
     expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
     expect((await store.listPendingReconciliations(20)).tasks).toEqual([]);
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({ lifetimeTrustUnlocks: 1 });
-    expect(await readPriceTrustImpact(USER_B)).toMatchObject({ lifetimeTrustUnlocks: 1 });
+    expect(await readPriceTrustImpact(USER_A, NOW)).toMatchObject({ lifetimeTrustUnlocks: 1 });
+    expect(await readPriceTrustImpact(USER_B, NOW)).toMatchObject({ lifetimeTrustUnlocks: 1 });
   });
 
   it("repairs missing credits on an existing visible event and acknowledges its pair task", async () => {
@@ -545,7 +548,7 @@ describe("reconcilePriceTrustForObservation", () => {
     });
     expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
     expect((await store.listPendingReconciliations(20)).tasks).toHaveLength(1);
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({ lifetimeTrustUnlocks: 0 });
+    expect(await readPriceTrustImpact(USER_A, NOW - 2_000)).toMatchObject({ lifetimeTrustUnlocks: 0 });
     ensureCredits.mockRestore();
 
     expect(await reconcilePriceTrustForObservation(observationId, NOW)).toEqual({
@@ -554,8 +557,8 @@ describe("reconcilePriceTrustForObservation", () => {
 
     expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
     expect((await store.listPendingReconciliations(20)).tasks).toEqual([]);
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({ lifetimeTrustUnlocks: 1 });
-    expect(await readPriceTrustImpact(USER_B)).toMatchObject({ lifetimeTrustUnlocks: 1 });
+    expect(await readPriceTrustImpact(USER_A, NOW)).toMatchObject({ lifetimeTrustUnlocks: 1 });
+    expect(await readPriceTrustImpact(USER_B, NOW)).toMatchObject({ lifetimeTrustUnlocks: 1 });
   });
 
   it("converges to hidden when moderation lands during visible reconciliation", async () => {
@@ -581,8 +584,8 @@ describe("reconcilePriceTrustForObservation", () => {
 
     expect((await findCommunityPriceObservation(observationId)).observation?.hidden).toBe(true);
     expect((await store.liveEventsFor(VENUE, "beer")).events).toEqual([]);
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({ lifetimeTrustUnlocks: 0 });
-    expect(await readPriceTrustImpact(USER_B)).toMatchObject({ lifetimeTrustUnlocks: 0 });
+    expect(await readPriceTrustImpact(USER_A, NOW)).toMatchObject({ lifetimeTrustUnlocks: 0 });
+    expect(await readPriceTrustImpact(USER_B, NOW)).toMatchObject({ lifetimeTrustUnlocks: 0 });
   });
 
   it("converges to visible when restoration lands during hidden reconciliation", async () => {
@@ -610,8 +613,8 @@ describe("reconcilePriceTrustForObservation", () => {
 
     expect((await findCommunityPriceObservation(observationId)).observation?.hidden).toBe(false);
     expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({ lifetimeTrustUnlocks: 1 });
-    expect(await readPriceTrustImpact(USER_B)).toMatchObject({ lifetimeTrustUnlocks: 1 });
+    expect(await readPriceTrustImpact(USER_A, NOW)).toMatchObject({ lifetimeTrustUnlocks: 1 });
+    expect(await readPriceTrustImpact(USER_B, NOW)).toMatchObject({ lifetimeTrustUnlocks: 1 });
   });
 
   it("acknowledges a pending pair task after hidden reconciliation reverses its trust", async () => {
@@ -637,8 +640,8 @@ describe("reconcilePriceTrustForObservation", () => {
 
     expect((await store.liveEventsFor(VENUE, "beer")).events).toEqual([]);
     expect((await store.listPendingReconciliations(20)).tasks).toEqual([]);
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({ lifetimeTrustUnlocks: 0 });
-    expect(await readPriceTrustImpact(USER_B)).toMatchObject({ lifetimeTrustUnlocks: 0 });
+    expect(await readPriceTrustImpact(USER_A, NOW)).toMatchObject({ lifetimeTrustUnlocks: 0 });
+    expect(await readPriceTrustImpact(USER_B, NOW)).toMatchObject({ lifetimeTrustUnlocks: 0 });
   });
 
   it("detects a hidden-visible-hidden ABA revision before reporting synced", async () => {
@@ -678,11 +681,11 @@ describe("reconcilePriceTrustForObservation", () => {
     const final = (await findCommunityPriceObservation(observationId)).observation;
     expect(final?.hidden).toBe(true);
     expect((await store.liveEventsCovering(observationId)).events).toEqual([]);
-    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_A, NOW)).toMatchObject({
       pricesTrustedNow: 0,
       lifetimeTrustUnlocks: 0,
     });
-    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+    expect(await readPriceTrustImpact(USER_B, NOW)).toMatchObject({
       pricesTrustedNow: 0,
       lifetimeTrustUnlocks: 0,
     });
@@ -801,6 +804,6 @@ describe("readPriceTrustImpact", () => {
       events: [],
       degraded: true,
     });
-    expect(await readPriceTrustImpact(USER_A)).toEqual({ status: "degraded" });
+    expect(await readPriceTrustImpact(USER_A, NOW)).toEqual({ status: "degraded" });
   });
 });
