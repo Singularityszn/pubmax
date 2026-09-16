@@ -3639,6 +3639,10 @@ export default function PubMapCanvas({
   // reader's own gesture and a move a reader asked for, and lib/mapGestureGuard
   // keeps the second class off the glass while the first is in hand.
 
+  // The venue the link named on ARRIVAL. The bearing lane's own ref answers a
+  // wider question (a `?landmark=` arrival owns the camera too), and a landmark
+  // arrival must not make the reader's first ordinary tap wait for a sheet.
+  const arrivalSelectedVenueIdRef = useRef(selectedVenueId);
   const deepLinkSelectCameraSpentRef = useRef(false);
   useEffect(() => {
     if (!selectedVenueId) return;
@@ -3668,6 +3672,7 @@ export default function PubMapCanvas({
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
 
     const moveToSelectedVenue = (sheetTopPx: number | null) => {
+      deepLinkSelectCameraSpentRef.current = true;
       const currentContainer = map.getContainer().getBoundingClientRect();
       const bandHeight =
         currentContainer.height > 0 ? currentContainer.height : window.innerHeight;
@@ -3691,8 +3696,9 @@ export default function PubMapCanvas({
     };
 
     const coldDeepLinkArrival =
-      arrivalDeepLinkRef.current && !deepLinkSelectCameraSpentRef.current;
-    deepLinkSelectCameraSpentRef.current = true;
+      !deepLinkSelectCameraSpentRef.current &&
+      Boolean(arrivalSelectedVenueIdRef.current) &&
+      selectedVenueId === arrivalSelectedVenueIdRef.current;
 
     if (!isPhone || !coldDeepLinkArrival) {
       moveToSelectedVenue(

@@ -2709,9 +2709,11 @@ export default function PubMap({
   // missing records through the same detail seam a selected venue uses, then
   // merge them into `venueById` so RoutePanel can render the real route instead
   // of an empty planner while the map ring remains lazy.
-  // A stop id is asked for once: a plan link that names a duplicate id resolves
-  // to the canonical venue, so the stop is rewritten to the id the map paints.
-  // Only a transient failure is released for a later attempt.
+  // A stop id is asked for once per mounted map, whatever the answer: a plan
+  // link that names a duplicate id has its stop rewritten to the id the map
+  // paints, and a stop the request could not answer for waits for the reader to
+  // open it (the selected-venue path) or for the next cold arrival. Releasing a
+  // failed id here would re-ask the whole plan on every shard commit.
   const builtRouteHydrationAskedRef = useRef(new Set<string>());
   useEffect(() => {
     const requestedIds = builtStopsNeedingHydration({
@@ -2728,12 +2730,9 @@ export default function PubMap({
       const hydrated: Venue[] = [];
       const canonicalByRequestedId = new Map<string, string>();
       for (const { id, result } of results) {
-        if (result.status === "found") {
-          hydrated.push(result.venue);
-          if (result.venue.id !== id) canonicalByRequestedId.set(id, result.venue.id);
-        } else if (result.status === "failed") {
-          builtRouteHydrationAskedRef.current.delete(id);
-        }
+        if (result.status !== "found") continue;
+        hydrated.push(result.venue);
+        if (result.venue.id !== id) canonicalByRequestedId.set(id, result.venue.id);
       }
       if (hydrated.length === 0) return;
       setDetailById((current) => {
