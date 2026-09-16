@@ -14,14 +14,10 @@ const DEDICATED_CHROMIUM_PROJECTS = [
   "chromium-real-auth",
   "chromium-authenticated",
 ];
-const ALWAYS_REGISTERED_DEDICATED = [
-  "chromium-cwv",
-  "chromium-gl",
-  "chromium-sw-gl",
-  "chromium-no-gl",
-  "chromium-keyless",
-  "chromium-real-auth",
-];
+// Every dedicated project but the one that needs a seeded login to register.
+const ALWAYS_REGISTERED_DEDICATED = DEDICATED_CHROMIUM_PROJECTS.filter(
+  (name) => name !== "chromium-authenticated",
+);
 
 type LoadedProject = {
   name?: string;

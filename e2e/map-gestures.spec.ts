@@ -398,6 +398,11 @@ test.describe("the compass, where the map has one", () => {
     let compass = await openLayersCompass();
     await expect(compass).toHaveAttribute("aria-label", /^Reset the map view of /);
 
+    // The popover covers the map's lower right, and a finger that lands on it
+    // is not a gesture MapLibre ever sees. Close it, turn the map, reopen it.
+    await page.keyboard.press("Escape");
+    await expect(layersPanel).toBeHidden();
+
     const cdp = await page.context().newCDPSession(page);
     const centre = await canvasCentre(page);
     await twoFingerRotate(page, cdp, centre);

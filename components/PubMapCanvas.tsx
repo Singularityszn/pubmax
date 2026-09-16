@@ -136,7 +136,11 @@ import {
 } from "@/components/map/canvas/interactions";
 import { installMapCameraProbe } from "@/components/map/canvas/cameraProbe";
 import { installPaintedPinProbe } from "@/components/map/canvas/paintedPinProbe";
-import { useMapCamera, whenBottomSheetSettles } from "@/components/map/canvas/useMapCamera";
+import {
+  measureBottomSheetTop,
+  useMapCamera,
+  whenBottomSheetSettles,
+} from "@/components/map/canvas/useMapCamera";
 import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
 import { mobileSelectCameraOffset } from "@/lib/sheetSnap";
 import { nearMeMapVenues } from "@/lib/nearMeMapFrame";
@@ -3635,6 +3639,7 @@ export default function PubMapCanvas({
   // reader's own gesture and a move a reader asked for, and lib/mapGestureGuard
   // keeps the second class off the glass while the first is in hand.
 
+  const deepLinkSelectCameraSpentRef = useRef(false);
   useEffect(() => {
     if (!selectedVenueId) return;
     // Any venue selection — map pin, route stop, or the sidebar list — retires
@@ -3685,8 +3690,16 @@ export default function PubMapCanvas({
       });
     };
 
-    if (!isPhone) {
-      moveToSelectedVenue(null);
+    const coldDeepLinkArrival =
+      arrivalDeepLinkRef.current && !deepLinkSelectCameraSpentRef.current;
+    deepLinkSelectCameraSpentRef.current = true;
+
+    if (!isPhone || !coldDeepLinkArrival) {
+      moveToSelectedVenue(
+        isPhone
+          ? measureBottomSheetTop(map.getContainer().getBoundingClientRect().top)
+          : null,
+      );
       return;
     }
 
@@ -3694,7 +3707,8 @@ export default function PubMapCanvas({
     // portal has mounted. Measuring then returns no sheet and the fallback
     // offset is applied to a camera whose projected centre is still moving,
     // parking the named pin above the visible map. Wait for the actual sheet
-    // edge to settle, then make the one selection move; no correction move.
+    // edge to settle, then make the one selection move; no correction move. A
+    // tap the reader makes later has a painted map already, so it moves at once.
     return whenBottomSheetSettles(
       map.getContainer().getBoundingClientRect().top,
       moveToSelectedVenue,
