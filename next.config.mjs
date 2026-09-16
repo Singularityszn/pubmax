@@ -413,7 +413,7 @@ const nextConfig = {
       cacheRule("/:icon(favicon.*)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/brand/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule(
-        "/:boot(theme-init\\.js|splash-init\\.js|map-first-paint-init\\.js)",
+        "/:boot(theme-init\\.js|map-first-paint-init\\.js)",
         UNHASHED_PUBLIC_ASSET_CACHE_CONTROL,
       ),
       cacheRule("/manifest.webmanifest", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),

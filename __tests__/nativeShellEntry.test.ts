@@ -188,11 +188,11 @@ describe("the native shell's pre-render entry decision", () => {
     // render-blocking in that same head. NO CEILING MOVED.
     const layout = rootFile("app/layout.tsx");
     expect(layout).not.toContain("native-entry-init");
-    expect(layout).toContain('<script src="/theme-init.js" />');
+    expect(layout).toContain('<script src="/theme-init.js?v=splash-1" />');
     // No async/defer on the file that now carries it: the whole point is to
     // navigate before the landing document is rendered.
-    expect(layout).not.toContain('<script async src="/theme-init.js"');
-    expect(layout).not.toContain('<script defer src="/theme-init.js"');
+    expect(layout).not.toContain('<script async src="/theme-init.js');
+    expect(layout).not.toContain('<script defer src="/theme-init.js');
     // The file it used to be is gone, not merely unreferenced.
     expect(existsSync(join(process.cwd(), "public/native-entry-init.js"))).toBe(false);
   });

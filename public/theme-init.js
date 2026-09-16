@@ -1,8 +1,8 @@
 // The decisions that have to land BEFORE FIRST PAINT, in the order they matter:
-// the native shell's entry route, then the theme and the two view flags that
-// ride with it. Served as a static file (covered by CSP `script-src 'self'`)
-// instead of an inline <script>, so it needs no per-build hash, and loaded
-// render-blocking from the layout's head on every route.
+// the native shell's entry route, then the theme and view flags, then the
+// landing-only aperture splash. Served as a static file (covered by CSP
+// `script-src 'self'`) instead of an inline <script>, so it needs no per-build
+// hash, and loads render-blocking from the layout's head on every route.
 //
 // Everything here is a no-flash guarantee of some kind: the page never shows
 // the wrong theme, and the shell never shows a route it is about to leave. One
@@ -144,5 +144,20 @@
     if (mode === "ledger") {
       document.documentElement.dataset.legacy = "1";
     }
+  } catch {}
+})();
+
+// Aperture splash eligibility. This used to live in splash-init.js, a second
+// render-blocking request on every route for a decision only the landing uses.
+// It shares this pre-paint file so the overlay still never flashes and other
+// routes pay no extra request.
+(function () {
+  try {
+    if (window.location.pathname !== "/") return;
+    if (window.navigator.webdriver) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (window.sessionStorage.getItem("pubmax-splash-seen")) return;
+    window.sessionStorage.setItem("pubmax-splash-seen", "1");
+    document.documentElement.dataset.splash = "on";
   } catch {}
 })();

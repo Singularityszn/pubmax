@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -31,5 +31,16 @@ describe("the performance budget sweep is measured once", () => {
   it("still runs under a config that retries the ordinary browser suite", () => {
     const config = readFileSync(path.join(ROOT, "playwright.config.ts"), "utf8");
     expect(config).toContain("retries: process.env.CI ? 1 : 0");
+  });
+
+  it("keeps route-specific pre-paint work inside the shared head request", () => {
+    const layout = readFileSync(path.join(ROOT, "app", "layout.tsx"), "utf8");
+    const sharedInit = readFileSync(path.join(ROOT, "public", "theme-init.js"), "utf8");
+
+    expect(layout).toContain('<script src="/theme-init.js?v=splash-1" />');
+    expect(layout).not.toContain("/splash-init.js");
+    expect(sharedInit).toContain('window.location.pathname !== "/"');
+    expect(sharedInit).toContain('dataset.splash = "on"');
+    expect(existsSync(path.join(ROOT, "public", "splash-init.js"))).toBe(false);
   });
 });
