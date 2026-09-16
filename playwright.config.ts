@@ -85,10 +85,11 @@ if (
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
-  // The production-style server and its in-memory per-IP lanes are shared by all
-  // browser contexts. Four local workers exhaust those lanes and turn later plan
-  // journeys into 429s, so two is the safe number.
-  workers: 2,
+  // One local run shares one production-style server and its in-memory per-IP
+  // lanes across every browser context, and four workers exhaust those lanes
+  // and turn later plan journeys into 429s. CI shards have a server and an IP
+  // each, so the cap protects the single local rig only.
+  workers: process.env.CI ? undefined : 2,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: "list",

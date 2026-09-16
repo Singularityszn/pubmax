@@ -18,6 +18,7 @@ import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
 import type { CategoryPriceIndexStatus, MapExperienceLens } from "@/lib/mapExperienceLens";
 import type { MapOverlay, MapSheetKind, MapViewportSnapshot } from "@/lib/mobileShell";
 import { seedCrawlState } from "@/lib/crawlUrl";
+import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
 import {
   priceStandingFigure,
@@ -112,6 +113,32 @@ export function buildMapSeed(search: string, _cityId: CityId = DEFAULT_CITY_ID):
     activeCrawl: null,
     routeMapped: seeded.builtIds.length >= 2,
   };
+}
+
+/**
+ * The built stops a shared plan still owes a detail request.
+ *
+ * Nothing is owed until the slim pack has settled: before that every id misses
+ * `venueById`, so an unready map would request the whole plan over the same
+ * origin that is fetching the pack and the first tiles, and the pack would then
+ * answer for the same pubs a second later. An id already asked for is never
+ * asked again, and the plan's own ceiling bounds one arrival's requests.
+ */
+export function builtStopsNeedingHydration({
+  venueDataReady,
+  builtIds,
+  venueById,
+  askedIds,
+}: {
+  venueDataReady: boolean;
+  builtIds: readonly string[];
+  venueById: ReadonlyMap<string, Venue>;
+  askedIds: ReadonlySet<string>;
+}): string[] {
+  if (!venueDataReady) return [];
+  return builtIds
+    .slice(0, WALK_ROUTE_MAX_STOPS)
+    .filter((id) => Boolean(id) && !venueById.has(id) && !askedIds.has(id));
 }
 
 export type VenueDetailStatus = "idle" | "loading" | "ready" | "missing" | "unavailable";

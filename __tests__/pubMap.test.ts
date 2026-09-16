@@ -1,10 +1,13 @@
 import { describe, it, expect } from "vitest";
 
+import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
+
 import {
   hasCrawlArrivalParams,
   crawlStopsFromPubIds,
   filtersForCuratedCrawl,
   buildMapSeed,
+  builtStopsNeedingHydration,
   detailStatusFor,
   mapSelectionNotice,
   mapSelectionNoticeFromSearch,
@@ -146,6 +149,56 @@ describe("buildMapSeedWithCuratedCrawl", () => {
     expect(seed.activeCrawl?.id).toBe("victorian-soho");
     expect(seed.crawlId).toBe("victorian-soho");
     expect(seed.routeMapped).toBe(true);
+  });
+});
+
+describe("builtStopsNeedingHydration", () => {
+  const onTheMap = new Map<string, Venue>([["v1", makeVenue()]]);
+  const none = new Set<string>();
+
+  it("asks for nothing while the slim pack is still loading", () => {
+    expect(
+      builtStopsNeedingHydration({
+        venueDataReady: false,
+        builtIds: ["v1", "v2", "v3"],
+        venueById: new Map<string, Venue>(),
+        askedIds: none,
+      }),
+    ).toEqual([]);
+  });
+
+  it("asks only for the stops the settled pack does not carry", () => {
+    expect(
+      builtStopsNeedingHydration({
+        venueDataReady: true,
+        builtIds: ["v1", "v2"],
+        venueById: onTheMap,
+        askedIds: none,
+      }),
+    ).toEqual(["v2"]);
+  });
+
+  it("never asks twice for the same stop", () => {
+    expect(
+      builtStopsNeedingHydration({
+        venueDataReady: true,
+        builtIds: ["v2", "v3"],
+        venueById: onTheMap,
+        askedIds: new Set(["v2"]),
+      }),
+    ).toEqual(["v3"]);
+  });
+
+  it("bounds one arrival at the plan's own stop ceiling", () => {
+    const ids = Array.from({ length: 40 }, (_, index) => `v${index + 100}`);
+    expect(
+      builtStopsNeedingHydration({
+        venueDataReady: true,
+        builtIds: ids,
+        venueById: new Map<string, Venue>(),
+        askedIds: none,
+      }),
+    ).toEqual(ids.slice(0, WALK_ROUTE_MAX_STOPS));
   });
 });
 
