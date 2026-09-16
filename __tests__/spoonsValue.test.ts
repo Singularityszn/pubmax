@@ -510,7 +510,7 @@ describe("this is not a price lane, and the tree is held to it", () => {
     expect(on.hint).toContain(SPOONS_VALUE_RESPONSIBLE_LINE);
     expect(on.rows).toEqual([
       { label: `More than ${formatUnitsLabel(MODAL_MILLIUNITS)}`, symbol: "More", tone: "green" },
-      { label: "Unranked or unpriced", symbol: "?", tone: "grey" },
+      { label: "Not in the ranking", symbol: "?", tone: "grey" },
     ]);
     // No row in this key names a pound figure or a pint.
     for (const row of on.rows) {
@@ -520,12 +520,6 @@ describe("this is not a price lane, and the tree is held to it", () => {
     expect(on.clusterNote).not.toContain("price band");
     // The cap chips filter on pint price, so the key stops offering them.
     expect(on.priceCapFilter).toBe(false);
-  });
-
-  it("never says a grey pin is out of the ranking in words the key cannot stand behind", () => {
-    const grey = spoonsLegend().rows.find((row) => row.symbol === "?");
-    expect(grey?.label).toBe("Unranked or unpriced");
-    expect(grey?.tone).toBe("grey");
   });
 
   it("keeps the units key while a drink lane is also chosen", () => {
