@@ -121,10 +121,17 @@ test("a deep-linked pin lands in the map strip above the phone sheet", async ({
   await expect(sheet).toBeVisible({ timeout: ARRIVAL_TIMEOUT_MS });
 
   // The selection move has to have landed before the pin is projected, or this
-  // reads a frame of the arrival rather than where the reader is left.
+  // reads the idle opening frame before the camera intent has started. `moving`
+  // alone is not enough: the intent coordinator schedules its move on a frame.
   await expect
-    .poll(async () => (await readCamera(page)).moving, { timeout: ARRIVAL_TIMEOUT_MS })
-    .toBe(false);
+    .poll(async () => {
+      const camera = await readCamera(page);
+      return !camera.moving &&
+        camera.zoom >= 13.5 &&
+        Math.abs(camera.center[0] - ARNOS_ARMS.lng) < 0.02 &&
+        Math.abs(camera.center[1] - ARNOS_ARMS.lat) < 0.02;
+    }, { timeout: ARRIVAL_TIMEOUT_MS })
+    .toBe(true);
 
   // The sheet SLIDES in from below the fold on a transform (its box is already
   // at its resting height, which is what keeps the arrival off the CLS score),

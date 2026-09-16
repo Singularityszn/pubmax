@@ -69,6 +69,15 @@ const REAL_AUTH_CONFIGURED = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 );
+// The production-style server and its in-memory per-IP lanes are shared by all
+// browser contexts. Four local workers exhaust those lanes and turn later plan
+// journeys into 429s; keep the safe default at two while allowing a deliberate
+// lab override. A CLI --workers value still wins over this config value.
+const requestedWorkers = Number(process.env.PW_WORKERS);
+const E2E_WORKERS =
+  Number.isFinite(requestedWorkers) && requestedWorkers > 0
+    ? Math.max(1, Math.floor(requestedWorkers))
+    : 2;
 
 if (
   E2E_LOGIN &&
@@ -85,6 +94,7 @@ if (
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
+  workers: E2E_WORKERS,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: "list",
@@ -139,6 +149,15 @@ export default defineConfig({
         "**/map-gl.spec.ts",
         "**/map-gestures.spec.ts",
         "**/map-deep-link-pin.spec.ts",
+        // Every WebGL journey belongs to chromium-gl. Keeping these out of the
+        // plain Chromium project avoids running the same spec without SwiftShader
+        // (and without its blocked service worker) before the GL project runs it.
+        "**/map-console-health.spec.ts",
+        "**/map-arrival-turn.spec.ts",
+        "**/map-arrival-card-pins.spec.ts",
+        "**/map-desktop-arrival-chrome.spec.ts",
+        "**/map-tile-retry.spec.ts",
+        "**/map-webgl-recovery.spec.ts",
         "**/map-fallback.spec.ts",
         "**/map-service-worker.spec.ts",
         "**/map-uk-base-layer.spec.ts",
