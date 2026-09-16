@@ -122,8 +122,8 @@ export function buildMapSeed(search: string, _cityId: CityId = DEFAULT_CITY_ID):
  * `venueById`, so an unready map would request the whole plan over the same
  * origin that is fetching the pack and the first tiles, and the pack would then
  * answer for the same pubs a second later. An id already asked for is never
- * asked again, and the plan's own ceiling bounds ONE pass, so a plan longer
- * than the ceiling reaches its tail on a later pass instead of losing it.
+ * asked again. One pass asks for at most WALK_ROUTE_MAX_STOPS stops, taken from
+ * the stops still owed, so the caller's next pass reaches a longer plan's tail.
  */
 export function builtStopsNeedingHydration({
   venueDataReady,

@@ -204,6 +204,18 @@ describe("builtStopsNeedingHydration", () => {
     ).toEqual([]);
   });
 
+  it("reaches the stops past the ceiling when the first pass found nothing", () => {
+    const ids = Array.from({ length: 14 }, (_, index) => `v${index + 100}`);
+    expect(
+      builtStopsNeedingHydration({
+        venueDataReady: true,
+        builtIds: ids,
+        venueById: new Map<string, Venue>(),
+        askedIds: new Set(ids.slice(0, WALK_ROUTE_MAX_STOPS)),
+      }),
+    ).toEqual(ids.slice(WALK_ROUTE_MAX_STOPS));
+  });
+
   it("bounds one pass at the plan's own stop ceiling", () => {
     const ids = Array.from({ length: 40 }, (_, index) => `v${index + 100}`);
     expect(
