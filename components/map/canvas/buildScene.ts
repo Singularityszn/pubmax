@@ -89,21 +89,11 @@ export const UK_BASE_ICON_SIZE_EXPR: maplibregl.ExpressionSpecification = [
 export const UK_BASE_ICON_OPACITY = 0.85;
 
 /**
- * The base pin's glyph: its own unpriced silhouette, or the curated pint sprite
- * for the value band the Spoons lens stamped. `spoonsBucket` is absent on every
- * pub the lens holds nothing about and on every pub while the lens is off, so
- * the fallback is the whole of today's behaviour.
+ * The base pin's glyph is always its unpriced silhouette. The Spoons lens can
+ * add a credited units label, but a value band is not a pint price and must not
+ * borrow the coloured pint sprite family.
  */
-const UK_BASE_ICON_IMAGE_EXPR: maplibregl.ExpressionSpecification = [
-  "case",
-  ["has", "spoonsBucket"],
-  [
-    "concat",
-    "drink:pint-",
-    ["to-string", ["get", "spoonsBucket"]],
-  ],
-  iconId("base", UK_BASE_ICON_KEY),
-];
+const UK_BASE_ICON_IMAGE_EXPR = iconId("base", UK_BASE_ICON_KEY);
 
 /** The base pin's units tag, blank on every pub outside the ranking. */
 const UK_BASE_SPOONS_LABEL_EXPR: maplibregl.ExpressionSpecification = [
@@ -877,13 +867,11 @@ export function buildUkBase(ctx: SceneCtx) {
     source: "uk-base",
     minzoom: UK_BASE_MIN_ZOOM,
     layout: {
-      // A base pub draws the layer's own unpriced glyph, EXCEPT while the
-      // Spoons value lens has stamped a band on it. Then it borrows the
-      // curated pint sprite for that band, so the lens paints in the one pin
-      // family this map already has rather than a second one, and a reader
-      // sees the same three hues they read a price in. The expression is
-      // data-driven, so this layer is still added once and a pub the lens
-      // holds nothing about is untouched.
+      // Every base pub is unpriced, including when the Spoons value lens is
+      // active. Keep the base layer's own no-price glyph: a units band is not a
+      // pint price and may never borrow the coloured pint sprite family. The
+      // lens's credited units label is additive and leaves the pin silhouette
+      // unchanged.
       "icon-image": UK_BASE_ICON_IMAGE_EXPR,
       "icon-size": UK_BASE_ICON_SIZE_EXPR,
       "icon-allow-overlap": false,

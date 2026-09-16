@@ -536,15 +536,17 @@ export function ukBasePubsToGeoJSON(
   // A non-null lane means the Spoons value lens owns the map. Most Wetherspoon
   // pubs in the country are base pins rather than curated venues (676 of the
   // 788 the ranking joins), so the lens would be nearly empty without this.
-  // The two stamped properties are ADDITIVE and absent on every other pub, so
-  // a pin outside the ranking is untouched and nothing here can reach a price
-  // surface: `spoonsBucket` is a value band, never a price bucket.
+  // The credited units label is ADDITIVE and absent on every other pub. The
+  // base pin itself remains the no-price silhouette; a value band must never
+  // reach the coloured pint sprite family or any price surface.
   spoonsValue: SpoonsValuePinLane | null = null,
 ): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: pubs.map((pub) => {
-      const spoons = spoonsValue ? spoonsValuePinFor(spoonsValue, pub.id) : null;
+      const spoonsLabel = spoonsValue
+        ? spoonsValuePinFor(spoonsValue, pub.id).label
+        : null;
       return {
         type: "Feature" as const,
         properties: {
@@ -557,9 +559,10 @@ export function ukBasePubsToGeoJSON(
           // `kind` at all, so the pin layers and every existing reader are
           // untouched by bars joining the source.
           ...(pub.kind === "bar" ? { kind: "bar" } : {}),
-          ...(spoons && spoons.label
-            ? { spoonsBucket: spoons.bucket, spoonsLabel: spoons.label }
-            : {}),
+          // The units label is safe to show beside the neutral base pin. Do
+          // not carry the value bucket into this source: no-price base pubs
+          // must have no route to a coloured pint sprite.
+          ...(spoonsLabel ? { spoonsLabel } : {}),
         },
         geometry: { type: "Point" as const, coordinates: [pub.lng, pub.lat] },
       };
