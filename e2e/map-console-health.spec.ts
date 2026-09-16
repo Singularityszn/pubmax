@@ -141,7 +141,7 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
     await expect(layersPanel.locator(".mapCompassBtn")).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
   const compass = layersPanel.locator(".mapCompassBtn");
-  await expect(compass).toHaveCount(1);
+  await expect(page.locator(".mapCompassBtn")).toHaveCount(1);
   await expect(page.locator(".maplibregl-ctrl-compass")).toHaveCount(0);
   const compassNeedle = compass.locator("svg");
   const bearingBeforeIdle = await compassNeedle.evaluate(
