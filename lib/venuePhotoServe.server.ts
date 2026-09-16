@@ -63,8 +63,14 @@ export async function handleVenuePhotoServe(
 
   if (!isSupabaseConfigured()) return notFound();
 
-  const venueId = decodeURIComponent(params.venueId).trim();
-  const photoId = decodeURIComponent(params.photoId).trim();
+  let venueId: string;
+  let photoId: string;
+  try {
+    venueId = decodeURIComponent(params.venueId).trim();
+    photoId = decodeURIComponent(params.photoId).trim();
+  } catch {
+    return notFound();
+  }
   if (!isVenuePhotoVenueId(venueId) || !UUID.test(photoId)) return notFound();
 
   const photo = await deps.getPhoto(photoId);

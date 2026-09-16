@@ -16,7 +16,12 @@ export async function venuePermalinkRedirect(
   context: RouteContext,
 ): Promise<Response> {
   const { slug: raw } = await context.params;
-  const slug = decodeURIComponent(raw ?? "").trim();
+  let slug: string;
+  try {
+    slug = decodeURIComponent(raw ?? "").trim();
+  } catch {
+    notFound();
+  }
   if (!slug) notFound();
 
   const venueId = await resolveVenuePermalinkSlug(slug);
