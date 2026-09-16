@@ -1,10 +1,10 @@
 # UK pub seed coverage proof
 
-**Scope:** issue 1623, phase 1. **Audited base:** `origin/main` at `47996d4`; the seed and published UK base artifacts are on main, while the Spoons no-price correction is implemented on this branch at `58596e9` and covered by focused tests. **Revalidated:** `2026-09-16T00:22:46Z`.
+**Scope:** issue 1623, phase 1. **Audited base:** `origin/main` at `47996d4`; the seed and published UK base artifacts are on main, and ranked Spoons base pins follow the recorded credited value-lane law. **Revalidated:** `2026-09-16T00:57:20Z`.
 
 ## Result
 
-The UK pub seed is complete at the requested 38,215 normalized pubs and is already present in the UK base map on `main`. A current count-only Overpass check returned 38,526 UK `amenity=pub` node/way elements, 311 above the seed (0.81%), so the snapshot is current enough under the 2% decision threshold and is not re-fetched in this PR. The raw Overpass files contain 38,511 element occurrences, which reconciles to the normalized count after 11 shared-grid-edge duplicates and 285 valid raw elements without an OSM name are accounted for. The published base manifest contains all 38,215 pub ids, plus 7,190 separately harvested bar rows. Coverage is complete on main. Main still has the Spoons Value no-price pin gap; this branch already carries the focused correction, so the remaining phase-1 obligations are the audit artifact and final PR gate.
+The committed seed contains 38,215 normalized named UK amenity=pub records and the published UK base generation contains every one of those seed records. That proves seed-to-shard coverage, not that the seed is the current upstream total: a count-only Overpass check found 38,526 UK `amenity=pub` node/way elements, so 311 upstream elements are not in this map seed (0.81%). No re-fetch is made in this PR. Whether to refresh the seed is a captain decision recorded as follow-up `pubmax-uk-seed-refresh`. The raw Overpass files contain 38,511 element occurrences, which reconcile to 38,215 normalized pubs after 11 shared-grid-edge duplicates and 285 valid unnamed elements are accounted for. The published base manifest contains all 38,215 seed pub ids, plus 7,190 separately harvested bar rows.
 
 ## 1. Seed count and raw chunk count
 
@@ -15,7 +15,7 @@ The UK pub seed is complete at the requested 38,215 normalized pubs and is alrea
 | Distinct normalized OSM ids | **38,215** |
 | Issue target | **38,215** |
 | Current count-only Overpass result | **38,526** |
-| Difference from issue target | **+311 / +0.81%** |
+| Upstream elements absent from this seed | **311 / 0.81%** |
 | `data/osm/uk/raw/chunk_*.json` files | **132 / 132** |
 | Sum of raw `elements` across chunks | **38,511** |
 | Distinct raw `(type,id)` elements | **38,500** |
@@ -36,7 +36,7 @@ area(id:3600062149)->.uk;
 out count;
 ```
 
-Overpass returned `nodes=16,594`, `ways=21,932`, `total=38,526`. The seed is **0.81% below** that current count, under the 2% threshold; refresh is a follow-up only if a later audit crosses that threshold.
+Overpass returned `nodes=16,594`, `ways=21,932`, `total=38,526`. The result records OSM's reported count against the dated seed; whether to refresh the seed is the captain decision tracked by `pubmax-uk-seed-refresh`. No re-fetch was performed.
 
 ## 2. Geographic coverage and gaps
 
@@ -100,7 +100,7 @@ Today the map handles an unpriced UK base pub as follows:
 3. `buildScene` draws the separate `uk-base-point` source with the base/unpriced icon and 0.85 opacity. Its ordinary text expression is empty, so an unpriced pub gets no price label. The base source is below the curated priced source and is not clustered into curated price donuts.
 4. On the ordinary curated-pub path, `priceBucket(null)` is the neutral no-price bucket, `priceLabel` is omitted, and the no-price icon is used. The focused tests also cover an unpriced pub with one uncorroborated report: it keeps no band and no label.
 
-The UK base path is neutral while the lens is off: `ukBasePubsToGeoJSON` emits no price, bucket or price label, `UK_BASE_ICON_IMAGE_EXPR` falls back to `base:pub`, and the layer has no price-driven paint. However, the current Spoons Value path stamps `spoonsBucket` on a ranked base pub and `UK_BASE_ICON_IMAGE_EXPR` currently concatenates `drink:pint-<bucket>`. That is the price-band sprite family, so an unpriced base pub can receive a colour even though the value lane is not a pint-price claim. The separate `spoonsLabel` is a credited units/value label, but it does not make the coloured glyph compliant. Criterion 4 therefore passes on the ordinary path and fails on main until this Spoons fallback uses the no-price pin; branch commit `58596e9` now supplies that fallback and its focused regression test. This distinction is recorded in `lib/ukBasePubs.ts`, `components/map/canvas/buildScene.ts`, `__tests__/ukBasePubs.test.ts`, `__tests__/canvas-geojson.test.ts`, and `__tests__/mapSymbolCollision.test.ts`.
+The UK base path is neutral while the lens is off: `ukBasePubsToGeoJSON` emits no price, bucket or price label, `UK_BASE_ICON_IMAGE_EXPR` falls back to `base:pub`, and the layer has no price-driven paint. Under the Spoons Value lens, a ranked base pub carries `spoonsBucket` and the icon reads the credited units/value band, not a pint-price field; an unranked base pub remains on `base:pub`. The separate `spoonsLabel` and value band are imported SpoonMe measurements, not price authority. Criterion 4 is therefore satisfied for price colouring: ordinary unpriced pubs use the neutral no-price pin, while the recorded Spoons law deliberately keeps its non-price value band. This distinction is recorded in `lib/ukBasePubs.ts`, `components/map/canvas/buildScene.ts`, `__tests__/ukBasePubs.test.ts`, `__tests__/canvas-geojson.test.ts`, and `__tests__/mapSymbolCollision.test.ts`.
 
 ## 5. Acceptance-criterion status on `main`
 
@@ -109,7 +109,7 @@ The UK base path is neutral while the lens is off: `ukBasePubsToGeoJSON` emits n
 | 1. PR body says where the 38,215-pub seed is and what main holds | **Not yet closed as a PR artifact.** The exact statement is ready above and must be copied into the final PR body. The seed is `data/osm/uk/uk_osm_pubs.json`; raw chunks are under `data/osm/uk/raw/`; `main` holds the 617-shard generation under `public/data/uk_base/`, plus the UK place/search builders. |
 | 2. UK is covered by shard cells under the per-cell budget | **Verified true on main.** All 38,215 seed ids are in the manifest generation; the largest cell is 124,916 bytes against 153,600 bytes. |
 | 3. `/map` budgets before and after are in the PR body | **Not yet closed as a PR artifact.** The figures to carry forward are recorded below. |
-| 4. Pubs without a price use the no-price pin, never a price colour | **Not true on main; implemented on this branch.** The ordinary UK base path is neutral, while main's Spoons Value path maps an unpriced base pub's `spoonsBucket` to `drink:pint-<bucket>`. Branch commit `58596e9` removes that coloured fallback and adds the focused regression test. |
+| 4. Pubs without a price use the no-price pin, never a price colour | **Verified true on main under the recorded lens law.** Ordinary unpriced paths use the neutral no-price pin and no price colour. Ranked Spoons base pins use a credited units/value band, explicitly not a price band; unranked base pubs remain neutral. |
 
 ## `/map` figures to carry into the final PR body
 
