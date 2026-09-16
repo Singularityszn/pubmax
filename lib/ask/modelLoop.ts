@@ -9,6 +9,7 @@ import {
   type AskToolResult,
 } from "@/lib/ask/tools";
 import { isAskToolName, type AskTurn } from "@/lib/ask/types";
+import { traceArizeModelLoop, type ArizeModelLoopSpans } from "@/lib/observability/arize";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MAX_ROUNDS = 3;
@@ -53,8 +54,70 @@ function parseArgs(raw: string): Record<string, unknown> {
 }
 
 /**
+ * Runs one loop round's tool calls (capped at three by the caller) and appends
+ * each result to the running messages, so the loop body stays readable.
+ * A tool failure rethrows: the tool span records it and the loop ends.
+ */
+async function runAskLoopTools(
+  calls: NonNullable<ChatMessage["tool_calls"]>,
+  handlers: {
+    toolCall: ArizeModelLoopSpans["toolCall"];
+    ctx: AskToolContext;
+    messages: ChatMessage[];
+    toolResults: AskToolResult[];
+  },
+): Promise<void> {
+  for (const call of calls) {
+    const name = call.function?.name ?? "";
+    if (!isAskToolName(name)) {
+      handlers.messages.push({
+        role: "tool",
+        tool_call_id: call.id,
+        content: JSON.stringify({ error: "Tool not allowlisted." }),
+      });
+      continue;
+    }
+    const args = parseArgs(call.function.arguments);
+    const toolSpan = handlers.toolCall({ name, input: args });
+    let result: AskToolResult;
+    try {
+      result = await runAskTool(name, args, {
+        ...handlers.ctx,
+        skipModel: true,
+      });
+    } catch (error) {
+      toolSpan?.setError(error);
+      toolSpan?.end();
+      throw error;
+    }
+    toolSpan?.setOutput(
+      JSON.stringify({
+        ok: result.ok,
+        answerHint: result.answerHint,
+      }),
+    );
+    toolSpan?.end();
+    handlers.toolResults.push(result);
+    handlers.messages.push({
+      role: "tool",
+      tool_call_id: call.id,
+      content: JSON.stringify({
+        ok: result.ok,
+        answerHint: result.answerHint,
+        cardCount: result.cards.length,
+        proposalCount: result.proposals.length,
+        degraded: result.degraded === true,
+        data: result.data,
+      }).slice(0, 6000),
+    });
+  }
+}
+
+/**
  * Run a bounded OpenRouter tool loop. Returns null when no API key or the
- * request fails before any useful tool result.
+ * request fails before any useful tool result. Traced as one AGENT span with
+ * the model rounds and tool executions as children (see
+ * lib/observability/arize.ts); inert without the Arize keys.
  */
 export async function runAskModelLoop(input: {
   query: string;
@@ -63,6 +126,8 @@ export async function runAskModelLoop(input: {
   apiKey?: string;
   model?: string;
   fetchImpl?: typeof fetch;
+  /** Static route tag for the trace (e.g. "api/ask"). */
+  traceRoute?: string;
 }): Promise<ModelAskOutcome | null> {
   const apiKey = input.apiKey ?? process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
@@ -79,88 +144,118 @@ export async function runAskModelLoop(input: {
   }
   messages.push({ role: "user", content: input.query.slice(0, 500) });
 
-  const toolResults: AskToolResult[] = [];
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  return traceArizeModelLoop({
+    route: input.traceRoute ?? "ask/model-loop",
+    model,
+    provider: "openrouter",
+    prompt: input.query,
+    invocationParameters: { temperature: 0, max_tokens: MAX_TOKENS },
+    run: async ({ modelRound, toolCall, setError }) => {
+      const toolResults: AskToolResult[] = [];
+      let tracedMessageCount = 0;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-  try {
-    for (let round = 0; round < MAX_ROUNDS; round += 1) {
-      const response = await fetchImpl(OPENROUTER_URL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          temperature: 0,
-          max_tokens: MAX_TOKENS,
-          tools: askToolDefinitions(),
-          tool_choice: round === 0 ? "auto" : "auto",
-          messages,
-        }),
-        signal: controller.signal,
-      });
-      if (!response.ok) {
-        return toolResults.length ? { toolResults } : null;
-      }
-      const body = (await response.json()) as {
-        choices?: Array<{
-          message?: ChatMessage;
-          finish_reason?: string;
-        }>;
-      };
-      const message = body.choices?.[0]?.message;
-      if (!message) {
-        return toolResults.length ? { toolResults } : null;
-      }
-
-      const toolCalls = message.tool_calls ?? [];
-      if (toolCalls.length === 0) {
-        return { toolResults };
-      }
-
-      messages.push({
-        role: "assistant",
-        content: message.content ?? null,
-        tool_calls: toolCalls,
-      });
-
-      for (const call of toolCalls.slice(0, 3)) {
-        const name = call.function?.name ?? "";
-        if (!isAskToolName(name)) {
-          messages.push({
-            role: "tool",
-            tool_call_id: call.id,
-            content: JSON.stringify({ error: "Tool not allowlisted." }),
+      try {
+        for (let round = 0; round < MAX_ROUNDS; round += 1) {
+          const roundSpan = modelRound({
+            prompt: JSON.stringify(messages.slice(tracedMessageCount)),
           });
-          continue;
-        }
-        const args = parseArgs(call.function.arguments);
-        const result = await runAskTool(name, args, {
-          ...input.ctx,
-          skipModel: true,
-        });
-        toolResults.push(result);
-        messages.push({
-          role: "tool",
-          tool_call_id: call.id,
-          content: JSON.stringify({
-            ok: result.ok,
-            answerHint: result.answerHint,
-            cardCount: result.cards.length,
-            proposalCount: result.proposals.length,
-            degraded: result.degraded === true,
-            data: result.data,
-          }).slice(0, 6000),
-        });
-      }
-    }
+          tracedMessageCount = messages.length;
+          let message: ChatMessage | undefined;
+          try {
+            const response = await fetchImpl(OPENROUTER_URL, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model,
+                temperature: 0,
+                max_tokens: MAX_TOKENS,
+                tools: askToolDefinitions(),
+                tool_choice: round === 0 ? "auto" : "auto",
+                messages,
+              }),
+              signal: controller.signal,
+            });
+            if (!response.ok) {
+              const error = new Error(`OpenRouter responded ${response.status}.`);
+              roundSpan?.setError(error);
+              roundSpan?.end();
+              setError(error);
+              return toolResults.length ? { toolResults } : null;
+            }
+            const body = (await response.json()) as {
+              choices?: Array<{
+                message?: ChatMessage;
+                finish_reason?: string;
+              }>;
+              usage?: {
+                prompt_tokens?: number;
+                completion_tokens?: number;
+                total_tokens?: number;
+              };
+            };
+            message = body.choices?.[0]?.message;
+            roundSpan?.setUsage({
+              promptTokens: body.usage?.prompt_tokens,
+              completionTokens: body.usage?.completion_tokens,
+              totalTokens: body.usage?.total_tokens,
+            });
+            if (!message) {
+              const error = new Error("OpenRouter returned no message.");
+              roundSpan?.setError(error);
+              roundSpan?.end();
+              setError(error);
+              return toolResults.length ? { toolResults } : null;
+            }
 
-    return { toolResults };
-  } catch {
-    return toolResults.length ? { toolResults } : null;
-  } finally {
-    clearTimeout(timer);
-  }
+            roundSpan?.setOutput(
+              JSON.stringify({
+                content: message.content ?? null,
+                toolCalls: (message.tool_calls ?? []).map(
+                  (call) => call.function?.name ?? "",
+                ),
+              }),
+            );
+          } catch (error) {
+            roundSpan?.setError(error);
+            roundSpan?.end();
+            throw error;
+          }
+          roundSpan?.end();
+
+          const toolCalls = message.tool_calls ?? [];
+          if (toolCalls.length === 0) {
+            return { toolResults };
+          }
+
+          messages.push({
+            role: "assistant",
+            content: message.content ?? null,
+            tool_calls: toolCalls,
+          });
+
+          await runAskLoopTools(
+            toolCalls.slice(0, 3),
+            {
+              toolCall,
+              ctx: input.ctx,
+              messages,
+              toolResults,
+            },
+          );
+        }
+
+        return { toolResults };
+      } catch (error) {
+        setError(error);
+        return toolResults.length ? { toolResults } : null;
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+  });
 }

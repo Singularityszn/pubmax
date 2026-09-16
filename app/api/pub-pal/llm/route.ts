@@ -72,6 +72,7 @@ export async function POST(request: Request): Promise<Response> {
     cityId: record.cityId,
     turns: extractAskTurns(record.messages),
     skipModel: !llmAssistAllowed,
+    traceRoute: "api/pub-pal/llm",
   });
 
   const answer = fenced

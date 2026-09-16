@@ -265,6 +265,11 @@ class ExaGatewayProvider implements SearchProvider {
       maxRetries: 0,
       model: SEARCH_GATEWAY_MODEL,
       prompt: request.query,
+      // Arize AX tracing (lib/observability/arize.ts): the AI SDK v7
+      // telemetry bridge traces this call once the tracing registration ran
+      // (both Arize keys present); the functionId rides the span as its
+      // grouping tag.
+      telemetry: { functionId: "search-gateway" },
       toolChoice: { type: "tool", toolName: "exa_search" },
       tools: {
         exa_search: this.dependencies.gateway.tools.exaSearch(toolOptions),

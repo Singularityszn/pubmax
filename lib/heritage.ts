@@ -19,6 +19,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { traceArizeModelCall } from "@/lib/observability/arize";
 import { discardBody } from "@/lib/responseBody";
 import { normaliseVenueName } from "@/lib/curation";
 import { heritageFactFromOverlay } from "@/lib/harvestFold";
@@ -273,41 +274,66 @@ async function answerWithModel(
 ): Promise<string | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
-  try {
-    const contextBlock = facts.length
-      ? facts.map((f, i) => `- [F${i + 1}] (${f.source}) ${f.fact}`).join("\n")
-      : "(no facts on record)";
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: process.env.OPENROUTER_MODEL ?? "anthropic/claude-sonnet-4-5",
-        temperature: 0,
-        max_tokens: LLM_MAX_TOKENS,
-        messages: [
-          { role: "system", content: systemPrompt(venueNoun) },
-          { role: "user", content: `CONTEXT:\n${contextBlock}\n\nQUESTION: ${question}` },
-        ],
-      }),
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      discardBody(res);
-      return null;
-    }
-    const data = await res.json();
-    const text = data?.choices?.[0]?.message?.content;
-    if (typeof text !== "string" || !text.trim()) return null;
-    return sanitiseModelAnswer(text.trim(), facts.length);
-  } catch {
-    // Timeout/abort/network — never surface; the honest fallback takes over.
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+  const model = process.env.OPENROUTER_MODEL ?? "anthropic/claude-sonnet-4-5";
+  const contextBlock = facts.length
+    ? facts.map((f, i) => `- [F${i + 1}] (${f.source}) ${f.fact}`).join("\n")
+    : "(no facts on record)";
+  const userContent = `CONTEXT:\n${contextBlock}\n\nQUESTION: ${question}`;
+  // One Arize AX span around the model call (lib/observability/arize.ts):
+  // model, tokens, latency, route. Prompt text is masked for emails and
+  // handles before it leaves the process. Inert without the Arize keys.
+  return traceArizeModelCall({
+    route: "api/heritage",
+    model,
+    provider: "openrouter",
+    prompt: userContent,
+    invocationParameters: { temperature: 0, max_tokens: LLM_MAX_TOKENS },
+    call: async (span) => {
+      try {
+        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            temperature: 0,
+            max_tokens: LLM_MAX_TOKENS,
+            messages: [
+              { role: "system", content: systemPrompt(venueNoun) },
+              { role: "user", content: userContent },
+            ],
+          }),
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          span?.setError(new Error(`OpenRouter responded ${res.status}.`));
+          discardBody(res);
+          return null;
+        }
+        const data = await res.json();
+        span?.setUsage({
+          promptTokens: data?.usage?.prompt_tokens,
+          completionTokens: data?.usage?.completion_tokens,
+          totalTokens: data?.usage?.total_tokens,
+        });
+        const text = data?.choices?.[0]?.message?.content;
+        if (typeof text !== "string" || !text.trim()) {
+          span?.setOutput("");
+          return null;
+        }
+        span?.setOutput(text);
+        return sanitiseModelAnswer(text.trim(), facts.length);
+      } catch (error) {
+        // Timeout/abort/network — never surface; the honest fallback takes over.
+        span?.setError(error);
+        return null;
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+  });
 }
 
 // P2 — 5-minute in-memory cache for LLM answers. Keyed by canonical venue
