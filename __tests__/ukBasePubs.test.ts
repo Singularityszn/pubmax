@@ -159,6 +159,21 @@ describe("ukBasePubsToGeoJSON", () => {
     expect(feature.geometry).toEqual({ type: "Point", coordinates: [-0.18, 51.42] });
   });
 
+  it("keeps a Spoons-ranked base pub on the no-price pin", () => {
+    const lane = {
+      byVenueId: new Map([["venue-uk-n1", { milliunits: 20_000, pence: 995 }]]),
+      modalMilliunits: 12_785,
+    };
+    const [feature] = ukBasePubsToGeoJSON(pubs, null, lane).features;
+
+    // The lens may add its credited units figure, but the base source carries
+    // no value bucket that could select the coloured pint sprite family.
+    expect(feature.properties).toMatchObject({ spoonsLabel: "20.0 units" });
+    expect(feature.properties).not.toHaveProperty("spoonsBucket");
+    expect(feature.properties).not.toHaveProperty("bucket");
+    expect(feature.properties).not.toHaveProperty("priceLabel");
+  });
+
   it("binds a provisional mark by stable salted base id without adding price authority", () => {
     const features = ukBasePubsToGeoJSON(
       pubs,
