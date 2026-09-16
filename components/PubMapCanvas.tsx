@@ -189,6 +189,7 @@ import {
   silentTileRetriesLeft,
   silentTileRetryDelayMs,
   spendTileFailureDecision,
+  TILE_FAILURE_BURST,
   tileFailureAwaitsCameraRest,
   tileFailureRecheckDelay,
 } from "@/lib/mapTileFailure";
@@ -2523,6 +2524,7 @@ export default function PubMapCanvas({
       critical: boolean,
       message: string,
       mayRecheck: boolean,
+      skipSilentRetry = false,
     ) => {
       const decision = classifyTileFailure({
         now,
@@ -2536,7 +2538,7 @@ export default function PubMapCanvas({
         recoveryBudgetLeft: PAINT_WATCHDOG_MAX_RETRIES - recoverySpent,
         // The silent lane spends NONE of the shared recovery budget: it
         // rebuilds nothing, so it cannot compound with the paint watchdog.
-        silentRetriesLeft: silentTileRetriesLeft(tileSpend),
+        silentRetriesLeft: skipSilentRetry ? 0 : silentTileRetriesLeft(tileSpend),
         unrecoveredTileFailures: failedBasemapTiles.count(),
         styleResourceFailure: isStyleResourceFailure(message),
         initialBasemapPending,
@@ -2675,11 +2677,7 @@ export default function PubMapCanvas({
         sourceType: mapError.source?.type,
         tilePresent: mapError.tile !== undefined,
       });
-      // A source-level metadata failure before the first style load gets the
-      // bounded retry lane so TileJSON has a readable outcome. Style-resource
-      // failures (the style URL, sprite or glyphs) still take the CARTO
-      // fallback, because there is no usable primary style to preserve.
-      if (!styleLoaded && (!critical || isStyleResourceFailure(message))) {
+      if (!styleLoaded) {
         swapToBasemapFallback();
         return;
       }
@@ -2693,7 +2691,6 @@ export default function PubMapCanvas({
         mapError.source?.type === "vector" && mapError.tile !== undefined;
       if (
         documentVisible &&
-        !initialBasemapPending &&
         (!cameraInFlight || vectorTileNetworkFailure)
       ) {
         failedBasemapTiles.recordFailure({
@@ -2702,11 +2699,15 @@ export default function PubMapCanvas({
           tileKey: mapError.tile?.tileID?.key,
         });
       }
+      const vectorFailureBurst =
+        vectorTileNetworkFailure &&
+        failedBasemapTiles.count() >= TILE_FAILURE_BURST;
       evaluateTileFailure(
         now,
-        critical,
+        critical || vectorFailureBurst,
         message,
         documentVisible && !cameraInFlight,
+        vectorTileNetworkFailure,
       );
     });
 

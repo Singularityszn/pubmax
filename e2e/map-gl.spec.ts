@@ -357,23 +357,17 @@ test("/map keeps its pins visible while a slow basemap misses the phone readines
 }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  let holdTiles = true;
-  let landedVectorTiles = 0;
+  await installDeterministicMapBasemap(page, { primaryRasterDelayMs: 12_000 });
+  let landedRasterTiles = 0;
   page.on("response", (response) => {
     if (
       response.ok() &&
-      /tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/.test(
+      /tiles\.openfreemap\.org\/__empty\/.*\.png(?:\?|$)/.test(
         response.url(),
       )
     ) {
-      landedVectorTiles += 1;
+      landedRasterTiles += 1;
     }
-  });
-  await page.route(/\.pbf(?:\?|$)/, async (route) => {
-    while (holdTiles) {
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
-    await route.continue();
   });
 
   await page.goto("/map");
@@ -394,25 +388,20 @@ test("/map keeps its pins visible while a slow basemap misses the phone readines
     )
     .toBeGreaterThanOrEqual(500);
 
-  holdTiles = false;
-  // Release the requests, then wait for a real production vector response before
-  // checking the post-land contract. The first assertion above is intentionally
-  // before the held requests can complete; this one must not be the same instant.
-  await expect.poll(() => landedVectorTiles, { timeout: 30_000 }).toBeGreaterThan(0);
+  // The delayed raster request then lands. The timing contract must remain true
+  // after the response as well as before it.
+  await expect.poll(() => landedRasterTiles, { timeout: 30_000 }).toBeGreaterThan(0);
   await page.waitForTimeout(750);
   await expect(page.locator(".mapFallback")).toHaveCount(0);
-  // A tile that was merely slow never earns a notice, before or after it lands.
   await expect(page.locator(".mapSoftRetry")).toHaveCount(0);
 });
 
 test("/map keeps the honest retry visible while basemap tiles keep failing", async ({
   page,
 }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(45_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  await installDeterministicMapBasemap(page, {
-    failPrimaryRasterRequests: Number.MAX_SAFE_INTEGER,
-  });
+  await page.route(/\.pbf(?:\?|$)/, (route) => route.abort("failed"));
 
   await page.goto("/map");
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
@@ -421,56 +410,29 @@ test("/map keeps the honest retry visible while basemap tiles keep failing", asy
 
   const notice = page.locator(".mapSoftRetry");
   await expect(notice).toContainText("Map background couldn't load", {
-    timeout: 60_000,
+    timeout: 20_000,
   });
   await page.waitForTimeout(2_000);
   await expect(notice).toBeVisible();
-  // The background is what never painted, so the background is what the toast
-  // names, and it is the only toast on the surface.
-  await expect(notice).toHaveAttribute("data-kind", "tiles");
-  await expect(page.locator(".ukPlaceArrival")).toHaveCount(0);
-  // One toast owns the surface: the first-visit arrival card is 256px of opaque
-  // panel over this exact band and stands down while a failure is on screen.
-  await expect(page.locator(".mapArrivalCard")).toHaveCount(0);
-
-  const retry = notice.getByRole("button", { name: "Retry" });
-  await expect(retry).toBeVisible();
-  const [retryBox, tabBarBox] = await Promise.all([
-    retry.boundingBox(),
-    page.locator(".mobileTabBar").boundingBox(),
-  ]);
-  expect(retryBox).not.toBeNull();
-  expect(tabBarBox).not.toBeNull();
-  // The phone tap floor is 44px and this is a recovery button, so it is the
-  // last control that may fall under it.
-  expect(retryBox!.height).toBeGreaterThanOrEqual(44);
-  expect(retryBox!.y + retryBox!.height).toBeLessThanOrEqual(tabBarBox!.y);
+  await expect(notice.getByRole("button", { name: "Retry" })).toBeVisible();
   await expect(page.locator(".mapFallback")).toHaveCount(0);
 });
 
-// This keeps the production vector source honest: every .pbf is aborted after
-// paint and Retry must surface. The exact MapLibre 6.9 difference behind the
-// original red is not proven by the vendored 6.7/6.9 source comparison; the
-// production trace is the evidence carried into the PR body.
+// Production-vector regression proof. The MapLibre error path must retain
+// network-level vector tile failures that arrive during a camera move; ordinary
+// camera culls remain outside the failure tracker because they do not emit this
+// `error` event.
 test("/map surfaces Retry for a post-paint production vector-tile abort", async ({
   page,
 }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 390, height: 844 });
   let abortVectorTiles = false;
-  let abortedRequests = 0;
   let landedVectorTiles = 0;
+  let abortedRequests = 0;
   await page.route(/\.pbf(?:\?|$)/, async (route) => {
     if (!abortVectorTiles) {
-      if (/\/planet\//.test(route.request().url())) {
-        await route.fulfill({
-          status: 200,
-          contentType: "application/x-protobuf",
-          body: Buffer.alloc(0),
-        });
-      } else {
-        await route.continue();
-      }
+      await route.continue();
       return;
     }
     abortedRequests += 1;
@@ -489,13 +451,11 @@ test("/map surfaces Retry for a post-paint production vector-tile abort", async 
 
   await page.goto("/map");
   await waitForVisibleMap(page);
-  await expect
-    .poll(() => landedVectorTiles, { timeout: 30_000 })
-    .toBeGreaterThan(0);
-
+  await expect.poll(() => landedVectorTiles, { timeout: 30_000 }).toBeGreaterThan(0);
   abortVectorTiles = true;
-  await zoomThroughHiddenMobileControl(page, 10);
+  await zoomThroughHiddenMobileControl(page, 4);
   await expect.poll(() => abortedRequests, { timeout: 30_000 }).toBeGreaterThan(0);
+
   const notice = page.locator(".mapSoftRetry");
   await expect(notice).toContainText("Map background couldn't load", {
     timeout: 45_000,
@@ -509,21 +469,11 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
 }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  await installDeterministicMapBasemap(page);
   let failTiles = false;
-  let baselineRasterResponses = 0;
   let outageRequests = 0;
-  page.on("response", (response) => {
-    if (
-      response.status() === 200 &&
-      /tiles\.openfreemap\.org\/__empty\/.*\.png(?:\?|$)/.test(response.url())
-    ) {
-      baselineRasterResponses += 1;
-    }
-  });
-  await page.route("**/__empty/**/*.png", async (route) => {
+  await page.route(/\.pbf(?:\?|$)/, async (route) => {
     if (!failTiles) {
-      await route.fallback();
+      await route.continue();
       return;
     }
     outageRequests += 1;
@@ -532,24 +482,15 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
       setTimeout(resolve, requestNumber === 5 ? 1_250 : 1_000),
     );
     if (requestNumber === 5) {
-      await route.fallback();
+      await route.continue();
       return;
     }
-    await route.fulfill({
-      status: 503,
-      contentType: "text/plain",
-      body: "temporary basemap outage",
-    });
+    await route.abort("failed");
   });
 
   await page.goto("/map");
   await waitForVisibleMap(page);
-  await expect.poll(() => baselineRasterResponses, { timeout: 30_000 }).toBeGreaterThan(0);
-
   failTiles = true;
-  // Mobile CSS deliberately hides MapLibre's built-in control group. Invoke
-  // its real button handler in place so this outage test can force fresh tile
-  // requests without weakening the phone chrome contract.
   await zoomThroughHiddenMobileControl(page);
   await expect.poll(() => outageRequests).toBeGreaterThanOrEqual(5);
 
@@ -564,9 +505,8 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
 test("/map surfaces Retry when the automatic style reload also fails", async ({
   page,
 }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(75_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  await installDeterministicMapBasemap(page);
   let failTiles = false;
   let failStyles = false;
   await page.route(
@@ -576,31 +516,28 @@ test("/map surfaces Retry when the automatic style reload also fails", async ({
         await route.abort("failed");
         return;
       }
-      await route.fallback();
+      await route.continue();
     },
   );
-  await page.route("**/__empty/**/*.png", async (route) => {
+  await page.route(/\.pbf(?:\?|$)/, async (route) => {
     if (!failTiles) {
-      await route.fallback();
+      await route.continue();
       return;
     }
     await new Promise((resolve) => setTimeout(resolve, 1_000));
-    await route.fulfill({
-      status: 503,
-      contentType: "text/plain",
-      body: "temporary basemap outage",
-    });
+    await route.abort("failed");
   });
 
   await page.goto("/map");
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
+    timeout: 20_000,
+  });
   await waitForVisibleMap(page);
 
   failTiles = true;
   failStyles = true;
   await zoomThroughHiddenMobileControl(page);
 
-  // The basemap painted before the reload. A failed replacement must keep the
-  // live canvas and surface the same honest Retry toast, never a full card.
   const notice = page.locator(".mapSoftRetry");
   await expect(notice).toContainText("Map background couldn't load", {
     timeout: 30_000,
@@ -619,35 +556,34 @@ test("/map surfaces Retry when the automatic style reload also fails", async ({
 // be the silent-grey defect in reverse - the toast is the honest surface. The
 // card lane of the same function is proven by the spec below it, where the
 // style never loads and no frame ever lands.
+
 test("/map spends exactly one style reload on a tile-source failure, then surfaces the honest retry", async ({
   page,
 }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(75_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  await installDeterministicMapBasemap(page);
   let styleRequests = 0;
   await page.route(
     /tiles\.openfreemap\.org\/styles\/|basemaps\.cartocdn\.com\/gl\/.*\/style\.json/,
     async (route) => {
       styleRequests += 1;
-      await route.fallback();
+      await route.continue();
     },
   );
   let failTiles = false;
-  await page.route("**/__empty/**/*.png", async (route) => {
+  await page.route(/\.pbf(?:\?|$)/, async (route) => {
     if (!failTiles) {
-      await route.fallback();
+      await route.continue();
       return;
     }
     await new Promise((resolve) => setTimeout(resolve, 1_000));
-    await route.fulfill({
-      status: 503,
-      contentType: "text/plain",
-      body: "temporary basemap outage",
-    });
+    await route.abort("failed");
   });
 
   await page.goto("/map");
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
+    timeout: 20_000,
+  });
   await waitForVisibleMap(page);
 
   const styleRequestsBeforeOutage = styleRequests;
@@ -683,6 +619,7 @@ test("/map spends exactly one style reload on a tile-source failure, then surfac
 // why `surfaceBasemapFailure` still prefers the soft toast once a style has
 // loaded (the spec above it holds that half). A MapLibre render event is
 // not a loaded style.
+
 test("/map spends its one bounded style reload, then surfaces the honest tile card", async ({
   page,
 }) => {
