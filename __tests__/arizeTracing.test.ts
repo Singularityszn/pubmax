@@ -1,10 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 
+const { OpenAIInstrumentation } = vi.hoisted(() => ({
+  OpenAIInstrumentation: vi.fn(function OpenAIInstrumentation() {}),
+}));
+
 // The registration seam is mocked so the INERT half of the contract can be
 // asserted without any provider ever starting in this process: no
 // registerOTel, no registerTelemetry, no exporter.
 vi.mock("@vercel/otel", () => ({ registerOTel: vi.fn() }));
 vi.mock("ai", () => ({ registerTelemetry: vi.fn() }));
+vi.mock("@arizeai/openinference-instrumentation-openai", () => ({
+  OpenAIInstrumentation,
+}));
 
 import {
   arizeProjectName,
@@ -42,6 +49,23 @@ describe("Arize tracing activation", () => {
         ARIZE_SPACE_KEY: "space",
       }),
     ).toBe(true);
+  });
+
+  it("registers the OpenAI SDK instrumentation when both keys are present", async () => {
+    await registerArizeTracing({
+      env: {
+        ...cleanEnv(),
+        ARIZE_API_KEY: "key",
+        ARIZE_SPACE_KEY: "space",
+      },
+    });
+
+    expect(registerOTel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        instrumentations: [expect.anything()],
+      }),
+    );
+    expect(OpenAIInstrumentation).toHaveBeenCalledTimes(1);
   });
 
   it("routes to the captain's project name by default", () => {
