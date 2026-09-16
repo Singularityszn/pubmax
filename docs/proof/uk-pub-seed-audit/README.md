@@ -4,7 +4,7 @@
 
 ## Result
 
-The UK pub seed is complete at the requested 38,215 normalized pubs and is already present in the UK base map on `main`. A current count-only Overpass check returned 38,526 UK `amenity=pub` node/way elements, 311 above the seed (0.81%). About 311 upstream UK pubs are therefore not on the map. Whether to refresh the seed is a captain decision raised outside this repository's tracker; no GitHub issue is filed for it yet. The seed is not re-fetched in this PR. The raw Overpass files contain 38,511 element occurrences, which reconciles to the normalized count after 11 shared-grid-edge duplicates and 285 valid raw elements without an OSM name are accounted for. The published base manifest contains all 38,215 pub ids, plus 7,190 separately harvested bar rows. Coverage is complete on main. No UK base pub carries a price on main or here, so criterion 4 holds on both, and the remaining phase-1 obligations are the audit artifact and the final PR gate.
+The UK pub seed is complete at the requested 38,215 normalized pubs and is already present in the UK base map on `main`. A current count-only Overpass check returned 38,526 UK `amenity=pub` node/way elements against the 38,500 distinct elements this seed fetched, so **26** pubs are upstream and not fetched. Separately, 285 of the fetched elements carry no OSM name and are excluded by the current product rule, which is a captain decision held outside this repository; they are not an upstream gap. Both counts are like for like only against the raw element total, because the Overpass query carries no name filter while the 38,215 seed is named-only. Whether to refresh the seed is a captain decision raised outside this repository's tracker; no GitHub issue is filed for it yet. The seed is not re-fetched in this PR. The raw Overpass files contain 38,511 element occurrences, which reconciles to the normalized count after 11 shared-grid-edge duplicates and 285 valid raw elements without an OSM name are accounted for. The published base manifest contains all 38,215 pub ids, plus 7,190 separately harvested bar rows. Coverage is complete on main. No UK base pub carries a price on main or here, so criterion 4 holds on both, and the remaining phase-1 obligations are the audit artifact and the final PR gate.
 
 ## 1. Seed count and raw chunk count
 
@@ -15,7 +15,7 @@ The UK pub seed is complete at the requested 38,215 normalized pubs and is alrea
 | Distinct normalized OSM ids | **38,215** |
 | Issue target | **38,215** |
 | Current count-only Overpass result | **38,526** |
-| Difference from issue target | **+311 / +0.81%** |
+| Upstream elements not fetched (38,526 - 38,500) | **+26 / +0.07%** |
 | `data/osm/uk/raw/chunk_*.json` files | **132 / 132** |
 | Sum of raw `elements` across chunks | **38,511** |
 | Distinct raw `(type,id)` elements | **38,500** |
@@ -36,7 +36,7 @@ area(id:3600062149)->.uk;
 out count;
 ```
 
-Overpass returned `nodes=16,594`, `ways=21,932`, `total=38,526`. The seed is **0.81% below** that current count, a measured gap of **311 UK pubs**. This audit sets no refresh threshold, and none exists elsewhere in the tree. Whether to refresh the seed is a captain decision raised outside this repository's tracker; no GitHub issue is filed for it yet.
+Overpass returned `nodes=16,594`, `ways=21,932`, `total=38,526`. That count carries no name filter, so it compares against the **38,500** distinct elements fetched above rather than the named-only 38,215: the upstream gap is **26 elements (0.07%)**. The 285 unnamed fetched elements are held out by the product rule in section 4 and are already on this side of the fence, so they are not part of that gap. This audit sets no refresh threshold, and none exists elsewhere in the tree. Whether to refresh the seed is a captain decision raised outside this repository's tracker; no GitHub issue is filed for it yet.
 
 ## 2. Geographic coverage and gaps
 
@@ -108,7 +108,7 @@ The Spoons Value lens is the one place a base pin takes a colour, and that colou
 
 | Criterion | Phase-1 finding |
 | --- | --- |
-| 1. PR body says where the 38,215-pub seed is and what main holds | **Not yet closed as a PR artifact.** The exact statement is ready above and must be copied into the final PR body. The seed is `data/osm/uk/uk_osm_pubs.json`; raw chunks are under `data/osm/uk/raw/`; `main` holds the 617-shard generation under `public/data/uk_base/`, plus the UK place/search builders. |
+| 1. PR body says where the 38,215-pub seed is and what main holds | **Not yet closed as a PR artifact.** The exact statement is ready above and must be copied into the final PR body, including the like-for-like gap: 38,526 upstream elements against 38,500 fetched, so 26 pubs are upstream and not fetched, with 285 unnamed fetched elements excluded by product rule rather than missing. The seed is `data/osm/uk/uk_osm_pubs.json`; raw chunks are under `data/osm/uk/raw/`; `main` holds the 617-shard generation under `public/data/uk_base/`, plus the UK place/search builders. |
 | 2. UK is covered by shard cells under the per-cell budget | **Verified true on main.** All 38,215 seed ids are in the manifest generation; the largest cell is 124,916 bytes against 153,600 bytes. |
 | 3. `/map` budgets before and after are in the PR body | **Not yet closed as a PR artifact.** The figures to carry forward are recorded below. |
 | 4. Pubs without a price use the no-price pin, never a price colour | **True on main and here.** No UK base pub carries a price, a price bucket or a price label on either, so no price colour can reach one. The Spoons Value lens paints a base pin from `spoonsBucket`, a credited units band that is not a price and reaches no price surface; a pub outside the ranking keeps `base:pub`. Captain 15 Sep 2026 confirmed the lens keeps its band colour and withdrew the branch's earlier constant-glyph change. |
