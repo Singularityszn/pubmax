@@ -194,14 +194,21 @@ export function registerArizeTracing(
     // Heavy OTel and SDK pieces load only when tracing is on, so a keyless
     // dev server, test worker or CI build pays for two env reads and nothing
     // else. The edge runtime never reaches this import at all.
-    const [vercelOtel, { OTLPTraceExporter }, openInference, aiSdk, aiOtel] =
-      await Promise.all([
-        import("@vercel/otel"),
-        import("@opentelemetry/exporter-trace-otlp-proto"),
-        import("@arizeai/openinference-vercel"),
-        import("ai"),
-        import("@ai-sdk/otel"),
-      ]);
+    const [
+      vercelOtel,
+      { OTLPTraceExporter },
+      openInference,
+      aiSdk,
+      aiOtel,
+      { OpenAIInstrumentation },
+    ] = await Promise.all([
+      import("@vercel/otel"),
+      import("@opentelemetry/exporter-trace-otlp-proto"),
+      import("@arizeai/openinference-vercel"),
+      import("ai"),
+      import("@ai-sdk/otel"),
+      import("@arizeai/openinference-instrumentation-openai"),
+    ]);
     const exporter = new MaskingSpanExporter(
       options.exporter ??
         new OTLPTraceExporter({
@@ -218,8 +225,10 @@ export function registerArizeTracing(
       // (service.name alone is not routed), so the project rides the resource.
       attributes: { [SEMRESATTRS_PROJECT_NAME]: arizeProjectName(env) },
       // No HTTP/fetch instrumentation: only AI and manual spans are wanted,
-      // and the OpenInference filter below would drop the rest anyway.
-      instrumentations: [],
+      // and the OpenInference filter below would drop the rest anyway. The
+      // OpenAI SDK instrumentation is registered here so it joins the same
+      // provider and exporter without loading on the keyless path.
+      instrumentations: [new OpenAIInstrumentation()],
       spanProcessors: [
         // Batched: one OTLP request per flush, not one per span. On Vercel,
         // @vercel/otel flushes when the request's root span ends.
