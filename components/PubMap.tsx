@@ -2708,52 +2708,52 @@ export default function PubMap({
   // missing records through the same detail seam a selected venue uses, then
   // merge them into `venueById` so RoutePanel can render the real route instead
   // of an empty planner while the map ring remains lazy.
-  const builtRouteHydrationInFlightRef = useRef(new Set<string>());
+  // A stop id is asked for once: a plan link that names a duplicate id resolves
+  // to the canonical venue, so the stop is rewritten to the id the map paints.
+  // Only a transient failure is released for a later attempt.
+  const builtRouteHydrationAskedRef = useRef(new Set<string>());
   useEffect(() => {
     const requestedIds = builtIds.filter(
       (id) =>
         Boolean(id) &&
         !venueById.has(id) &&
-        !detailStatusById.has(id) &&
-        !builtRouteHydrationInFlightRef.current.has(id),
+        !builtRouteHydrationAskedRef.current.has(id),
     );
     if (requestedIds.length === 0) return;
-    requestedIds.forEach((id) => builtRouteHydrationInFlightRef.current.add(id));
-    let cancelled = false;
+    requestedIds.forEach((id) => builtRouteHydrationAskedRef.current.add(id));
     void Promise.all(
       requestedIds.map(async (id) => ({ id, result: await warmVenueDetail(id) })),
-    )
-      .then((results) => {
-        if (cancelled) return;
-        setDetailById((current) => {
-          let next = current;
-          for (const { result } of results) {
-            if (result.status !== "found") continue;
-            if (next === current) next = new Map(current);
-            next.set(result.venue.id, result.venue);
-          }
-          return next;
-        });
-        setDetailStatusById((current) => {
-          const next = new Map(current);
-          for (const { id, result } of results) {
-            if (result.status === "found") {
-              next.delete(id);
-              next.delete(result.venue.id);
-            } else {
-              next.set(id, result.status === "missing" ? "missing" : "unavailable");
-            }
-          }
-          return next;
-        });
-      })
-      .finally(() => {
-        requestedIds.forEach((id) => builtRouteHydrationInFlightRef.current.delete(id));
+    ).then((results) => {
+      const hydrated: Venue[] = [];
+      const canonicalByRequestedId = new Map<string, string>();
+      for (const { id, result } of results) {
+        if (result.status === "found") {
+          hydrated.push(result.venue);
+          if (result.venue.id !== id) canonicalByRequestedId.set(id, result.venue.id);
+        } else if (result.status === "failed") {
+          builtRouteHydrationAskedRef.current.delete(id);
+        }
+      }
+      if (hydrated.length === 0) return;
+      setDetailById((current) => {
+        const next = new Map(current);
+        for (const venue of hydrated) next.set(venue.id, venue);
+        return next;
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [builtIds, detailStatusById, venueById]);
+      if (canonicalByRequestedId.size === 0) return;
+      setBuiltIds((current) => {
+        const next: string[] = [];
+        let changed = false;
+        for (const id of current) {
+          const canonicalId = canonicalByRequestedId.get(id) ?? id;
+          if (canonicalId !== id) changed = true;
+          if (next.includes(canonicalId)) changed = true;
+          else next.push(canonicalId);
+        }
+        return changed ? next : current;
+      });
+    });
+  }, [builtIds, setBuiltIds, venueById]);
   // Zone pint index (nearest-station fare zone medians) for the zone picker.
   // Computed off the full venue set so the strip's numbers don't shift as the
   // user filters — it's a stable "here's the lay of the land" reference.
