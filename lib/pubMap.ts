@@ -116,6 +116,12 @@ export function buildMapSeed(search: string, _cityId: CityId = DEFAULT_CITY_ID):
 }
 
 /**
+ * The most detail requests the built-stop hydration lane makes for one mounted
+ * map: four passes of WALK_ROUTE_MAX_STOPS.
+ */
+export const BUILT_STOP_HYDRATION_MAX_REQUESTS = 4 * WALK_ROUTE_MAX_STOPS;
+
+/**
  * The built stops a shared plan still owes a detail request.
  *
  * Nothing is owed until the slim pack has settled: before that every id misses
@@ -124,6 +130,9 @@ export function buildMapSeed(search: string, _cityId: CityId = DEFAULT_CITY_ID):
  * answer for the same pubs a second later. An id already asked for is never
  * asked again. One pass asks for at most WALK_ROUTE_MAX_STOPS stops, taken from
  * the stops still owed, so the caller's next pass reaches a longer plan's tail.
+ * Once the asked set holds BUILT_STOP_HYDRATION_MAX_REQUESTS ids, nothing more
+ * is owed: a stop past that ceiling stays without detail until the reader
+ * opens it.
  */
 export function builtStopsNeedingHydration({
   venueDataReady,
@@ -136,10 +145,14 @@ export function builtStopsNeedingHydration({
   venueById: ReadonlyMap<string, Venue>;
   askedIds: ReadonlySet<string>;
 }): string[] {
-  if (!venueDataReady) return [];
+  const budget = Math.min(
+    WALK_ROUTE_MAX_STOPS,
+    BUILT_STOP_HYDRATION_MAX_REQUESTS - askedIds.size,
+  );
+  if (!venueDataReady || budget <= 0) return [];
   return builtIds
     .filter((id) => Boolean(id) && !venueById.has(id) && !askedIds.has(id))
-    .slice(0, WALK_ROUTE_MAX_STOPS);
+    .slice(0, budget);
 }
 
 export type VenueDetailStatus = "idle" | "loading" | "ready" | "missing" | "unavailable";

@@ -8,6 +8,7 @@ import {
   filtersForCuratedCrawl,
   buildMapSeed,
   builtStopsNeedingHydration,
+  BUILT_STOP_HYDRATION_MAX_REQUESTS,
   detailStatusFor,
   mapSelectionNotice,
   mapSelectionNoticeFromSearch,
@@ -228,6 +229,22 @@ describe("builtStopsNeedingHydration", () => {
     ).toEqual(ids.slice(0, WALK_ROUTE_MAX_STOPS));
   });
 
+  it("asks exactly 48 stops of a 300-stop plan across every pass", () => {
+    const ids = Array.from({ length: 300 }, (_, index) => `v${index + 100}`);
+    const asked = new Set<string>();
+    for (;;) {
+      const pass = builtStopsNeedingHydration({
+        venueDataReady: true,
+        builtIds: ids,
+        venueById: new Map<string, Venue>(),
+        askedIds: asked,
+      });
+      if (pass.length === 0) break;
+      pass.forEach((id) => asked.add(id));
+    }
+    expect(BUILT_STOP_HYDRATION_MAX_REQUESTS).toBe(48);
+    expect([...asked]).toEqual(ids.slice(0, 48));
+  });
 });
 
 describe("detailStatusFor", () => {

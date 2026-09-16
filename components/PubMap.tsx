@@ -2715,9 +2715,12 @@ export default function PubMap({
   // plan can be longer, so when stops are still owed after a pass,
   // `builtRouteHydrationPass` starts the next one; a pass that found nothing
   // writes no detail and would otherwise move no dependency. The sequence ends
-  // because every pass adds its ids to the asked set. A hostile link with a
-  // very long `?pubs=` is bounded by `/api/venue/[id]` itself, which answers
-  // 429 past 120 requests a minute from one IP.
+  // because every pass adds its ids to the asked set. `/api/venue/[id]` answers
+  // 429 past 120 requests a minute from one IP and past 1200 a minute from all
+  // readers together, so the lane asks at most BUILT_STOP_HYDRATION_MAX_REQUESTS
+  // (4 passes of 12, 48 requests) per mounted map. A stop past that ceiling
+  // stays without detail until the reader opens it, as any unhydrated pin does.
+  // The plan itself stays whole.
   const builtRouteHydrationAskedRef = useRef(new Set<string>());
   const [builtRouteHydrationPass, setBuiltRouteHydrationPass] = useState(0);
   useEffect(() => {
