@@ -189,6 +189,22 @@ describe("builtStopsNeedingHydration", () => {
     ).toEqual(["v3"]);
   });
 
+  it("does not re-ask a stop whose request failed when the venue set is rebuilt", () => {
+    const asked = new Set(["v2"]);
+    const rebuilt = new Map<string, Venue>([
+      ["v1", makeVenue()],
+      ["v9", makeVenue({ id: "v9" })],
+    ]);
+    expect(
+      builtStopsNeedingHydration({
+        venueDataReady: true,
+        builtIds: ["v1", "v2"],
+        venueById: rebuilt,
+        askedIds: asked,
+      }),
+    ).toEqual([]);
+  });
+
   it("bounds one arrival at the plan's own stop ceiling", () => {
     const ids = Array.from({ length: 40 }, (_, index) => `v${index + 100}`);
     expect(
