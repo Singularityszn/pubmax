@@ -78,7 +78,7 @@ const SPOONS_CLUSTER_NOTE =
   "A split cluster ring shows the mix of value bands inside it. A solid cluster uses the most common band. Grey means no pub in it is in the ranking. The number is every venue in the cluster.";
 
 const SPOONS_EMPTY_CLUSTER_NOTE =
-  "Clusters stay grey because no pub in view is in the ranking. The number is every venue in the cluster.";
+  "Clusters stay grey because no pub in one is in the ranking. The number is every venue in the cluster.";
 
 const FOOD_CLUSTER_NOTE =
   "Food clusters stay grey because food prices do not colour this map. The number is every venue in the cluster.";
@@ -401,9 +401,11 @@ function defaultClusterNote(
 
 /**
  * The rows the Spoons value lens earns: its own three bands, each carrying the
- * number it was cut at, plus one row for the pubs the ranking says nothing
- * about. Only the bands the map is actually drawing are printed, the way every
- * other kind here reads its rows off the rendered state.
+ * number it was cut at, plus one row for every grey pin. That row covers a pub
+ * the ranking says nothing about AND a ranked UK base pub, which keeps the
+ * no-price silhouette, so it names both rather than claiming either. Only the
+ * bands the map is actually drawing are printed, the way every other kind here
+ * reads its rows off the rendered state.
  */
 function spoonsRenderedRows(
   bands: readonly MapRenderedPriceBand[],

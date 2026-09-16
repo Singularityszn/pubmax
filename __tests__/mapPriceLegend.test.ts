@@ -443,7 +443,7 @@ describe("map key inventory", () => {
       { label: "More than 12.8 units", symbol: "More", tone: "green" },
       { label: "12.8 units", symbol: "Usual", tone: "amber" },
       { label: "Less than 12.8 units", symbol: "Less", tone: "red" },
-      { label: "Not in the ranking", symbol: "?", tone: "grey" },
+      { label: "Unranked or unpriced", symbol: "?", tone: "grey" },
     ]);
     expect(legend.hint).toContain("not a pint price");
     expect(legend.hint).toContain(SPOONS_VALUE_RESPONSIBLE_LINE);
@@ -467,10 +467,10 @@ describe("map key inventory", () => {
       },
     });
     expect(legend.rows).toEqual([
-      { label: "Not in the ranking", symbol: "?", tone: "grey" },
+      { label: "Unranked or unpriced", symbol: "?", tone: "grey" },
     ]);
     expect(legend.clusterNote).toBe(
-      "Clusters stay grey because no pub in view is in the ranking. The number is every venue in the cluster.",
+      "Clusters stay grey because no pub in one is in the ranking. The number is every venue in the cluster.",
     );
   });
 });
