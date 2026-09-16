@@ -52,12 +52,14 @@ describe("CORS policy guardrail", () => {
 
   it("build/deploy config never declares Access-Control-Allow-Credentials", () => {
     for (const cfg of ["next.config.mjs", "vercel.json"]) {
+      let src: string;
       try {
-        const src = readFileSync(join(repoRoot, cfg), "utf8");
-        expect(SET_ACAC.test(src), `${cfg} must not declare Allow-Credentials`).toBe(false);
-      } catch {
-        // config file absent — nothing to assert
+        src = readFileSync(join(repoRoot, cfg), "utf8");
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+        throw error;
       }
+      expect(SET_ACAC.test(src), `${cfg} must not declare Allow-Credentials`).toBe(false);
     }
   });
 });
