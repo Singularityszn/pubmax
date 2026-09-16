@@ -1,4 +1,4 @@
-# UK pub seed coverage audit
+# UK pub seed coverage proof
 
 **Scope:** issue 1623, phase 1. **Audited commit:** `6bcd70cb1256278a07b154ad415a0eb3ef95363e` on `fm/uk-pubs-seed-audit`; the source seed, published UK base artifacts and relevant map code have the same object ids on local `main`.
 
