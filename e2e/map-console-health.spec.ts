@@ -172,6 +172,8 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
   // reintroduce MapLibre's flattened native compass as a second answer.
   await expect(page.locator(".maplibregl-ctrl-compass")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "More map controls" })).toBeVisible();
+  await expect(page.locator(".maplibregl-ctrl-zoom-in")).toBeHidden();
+  await expect(page.locator(".maplibregl-ctrl-zoom-out")).toBeHidden();
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible();
 
   // Two full round-trips. Each remount reconstructs the map and re-runs the
