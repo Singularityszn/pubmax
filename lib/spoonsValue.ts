@@ -376,11 +376,8 @@ export function spoonsValueMapKeyRow(
   }
 }
 
-/**
- * The map key's row for a grey pin: a pub this ranking says nothing about, and
- * so one this lens shows no figure for either.
- */
-export const SPOONS_VALUE_UNRANKED_KEY_LABEL = "Unranked or unpriced";
+/** The map key's row for a pub the ranking says nothing about. */
+export const SPOONS_VALUE_UNRANKED_KEY_LABEL = "Not in the ranking";
 
 // ---------------------------------------------------------------------------
 // Words and figures

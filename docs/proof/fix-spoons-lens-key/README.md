@@ -67,11 +67,9 @@ clusterNote: A split cluster ring shows the mix of value bands inside it. ...
 At 390 (`before/map-key-390.png`, `after/map-key-390.png`) the same key is read
 through More → Key, and the rows change the same way.
 
-Two strings have been reworded since these shots (15 Sep 2026). The grey row
-reads "Unranked or unpriced" rather than "Not in the ranking", and the
-empty-cluster note names a cluster rather than the view, because a pub outside a
-cluster is not what makes a cluster grey. The shots above stay as the record of
-the key this fix shipped.
+One string has been reworded since these shots (15 Sep 2026). The empty-cluster
+note names a cluster rather than the view, because a pub outside a cluster is not
+what makes a cluster grey. Every row above still reads as shown.
 
 ## A credit URL is an https URL
 

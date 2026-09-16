@@ -4,7 +4,7 @@
 
 ## Result
 
-The UK pub seed is complete at the requested 38,215 normalized pubs and is already present in the UK base map on `main`. A current count-only Overpass check returned 38,526 UK `amenity=pub` node/way elements, 311 above the seed (0.81%). About 311 upstream UK pubs are therefore not on the map. Whether to refresh the seed is a captain decision, filed as follow-up `pubmax-uk-seed-refresh`. The seed is not re-fetched in this PR. The raw Overpass files contain 38,511 element occurrences, which reconciles to the normalized count after 11 shared-grid-edge duplicates and 285 valid raw elements without an OSM name are accounted for. The published base manifest contains all 38,215 pub ids, plus 7,190 separately harvested bar rows. Coverage is complete on main. No UK base pub carries a price on main or here, so criterion 4 holds on both, and the remaining phase-1 obligations are the audit artifact and the final PR gate.
+The UK pub seed is complete at the requested 38,215 normalized pubs and is already present in the UK base map on `main`. A current count-only Overpass check returned 38,526 UK `amenity=pub` node/way elements, 311 above the seed (0.81%). About 311 upstream UK pubs are therefore not on the map. Whether to refresh the seed is a captain decision raised outside this repository's tracker; no GitHub issue is filed for it yet. The seed is not re-fetched in this PR. The raw Overpass files contain 38,511 element occurrences, which reconciles to the normalized count after 11 shared-grid-edge duplicates and 285 valid raw elements without an OSM name are accounted for. The published base manifest contains all 38,215 pub ids, plus 7,190 separately harvested bar rows. Coverage is complete on main. No UK base pub carries a price on main or here, so criterion 4 holds on both, and the remaining phase-1 obligations are the audit artifact and the final PR gate.
 
 ## 1. Seed count and raw chunk count
 
@@ -36,7 +36,7 @@ area(id:3600062149)->.uk;
 out count;
 ```
 
-Overpass returned `nodes=16,594`, `ways=21,932`, `total=38,526`. The seed is **0.81% below** that current count, a measured gap of **311 UK pubs**. This audit sets no refresh threshold, and none exists elsewhere in the tree. The refresh decision is the captain's, filed as follow-up `pubmax-uk-seed-refresh`.
+Overpass returned `nodes=16,594`, `ways=21,932`, `total=38,526`. The seed is **0.81% below** that current count, a measured gap of **311 UK pubs**. This audit sets no refresh threshold, and none exists elsewhere in the tree. Whether to refresh the seed is a captain decision raised outside this repository's tracker; no GitHub issue is filed for it yet.
 
 ## 2. Geographic coverage and gaps
 
