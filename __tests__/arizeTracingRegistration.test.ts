@@ -336,9 +336,13 @@ describe("Arize tracing registers with keys present", () => {
     expect(round).toBeDefined();
     expect(tool).toBeDefined();
     expect(round!.status.code).toBe(STATUS_OK);
-    expect(round!.endTime[0] * 1e9 + round!.endTime[1]).toBeLessThanOrEqual(
-      tool!.startTime[0] * 1e9 + tool!.startTime[1],
-    );
+    // The SDK stamps a span start with Date.now() (whole milliseconds, floored)
+    // and its end with start plus a sub-millisecond performance duration, so a
+    // tool span that starts in the same millisecond the round ends can read up
+    // to 1 ms earlier than the round's end. Compare with that 1 ms of slack.
+    const roundEndMs = round!.endTime[0] * 1e3 + round!.endTime[1] / 1e6;
+    const toolStartMs = tool!.startTime[0] * 1e3 + tool!.startTime[1] / 1e6;
+    expect(roundEndMs).toBeLessThan(toolStartMs + 1);
     expect(tool!.status.code).toBe(STATUS_ERROR);
     expect(tool!.events.some((event) => event.name === "exception")).toBe(true);
     const agent = routeSpans.find(
