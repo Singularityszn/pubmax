@@ -2711,8 +2711,11 @@ export default function PubMap({
   // of an empty planner while the map ring remains lazy.
   // A stop id is asked for once per mounted map, whatever the answer, and the
   // plan itself is left exactly as the link wrote it: this lane warms stop
-  // detail and never edits, dedupes or reorders the reader's stops.
+  // detail and never edits, dedupes or reorders the reader's stops. A plan
+  // longer than one pass hands on to the next through `hydrationPass`, because
+  // a pass that found nothing writes no detail and so moves no other dependency.
   const builtRouteHydrationAskedRef = useRef(new Set<string>());
+  const [builtRouteHydrationPass, setBuiltRouteHydrationPass] = useState(0);
   useEffect(() => {
     const requestedIds = builtStopsNeedingHydration({
       venueDataReady: loaded && loadedCityId === cityId,
@@ -2728,14 +2731,29 @@ export default function PubMap({
       const hydrated = results
         .map(({ result }) => (result.status === "found" ? result.venue : null))
         .filter((venue): venue is Venue => venue !== null);
-      if (hydrated.length === 0) return;
-      setDetailById((current) => {
-        const next = new Map(current);
-        for (const venue of hydrated) next.set(venue.id, venue);
-        return next;
+      if (hydrated.length > 0) {
+        setDetailById((current) => {
+          const next = new Map(current);
+          for (const venue of hydrated) next.set(venue.id, venue);
+          return next;
+        });
+      }
+      const stillOwed = builtStopsNeedingHydration({
+        venueDataReady: true,
+        builtIds,
+        venueById,
+        askedIds: builtRouteHydrationAskedRef.current,
       });
+      if (stillOwed.length > 0) setBuiltRouteHydrationPass((pass) => pass + 1);
     });
-  }, [builtIds, cityId, loaded, loadedCityId, venueById]);
+  }, [
+    builtIds,
+    builtRouteHydrationPass,
+    cityId,
+    loaded,
+    loadedCityId,
+    venueById,
+  ]);
   // Zone pint index (nearest-station fare zone medians) for the zone picker.
   // Computed off the full venue set so the strip's numbers don't shift as the
   // user filters — it's a stable "here's the lay of the land" reference.

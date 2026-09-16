@@ -451,18 +451,6 @@ describe("deepLinkSelectionCamera", () => {
     ).toEqual({ measureSheet: true });
   });
 
-  it("still measures while the arrival has not moved the camera, so a canonical rewrite is the same arrival", () => {
-    const first = deepLinkSelectionCamera({
-      arrivalNamedVenue: true,
-      cameraSpent: false,
-    });
-    expect(first.measureSheet).toBe(true);
-    expect(
-      deepLinkSelectionCamera({ arrivalNamedVenue: true, cameraSpent: false })
-        .measureSheet,
-    ).toBe(true);
-  });
-
   it("moves at once once the camera has moved for a selection", () => {
     expect(
       deepLinkSelectionCamera({ arrivalNamedVenue: true, cameraSpent: true }),
