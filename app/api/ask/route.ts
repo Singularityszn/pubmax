@@ -63,6 +63,7 @@ export async function POST(request: Request): Promise<Response> {
       cityId: record.cityId,
       turns: record.turns,
       skipModel: !llmAssistAllowed,
+      traceRoute: "api/ask",
     });
     return jsonNoStore(answer);
   } catch (error) {
