@@ -119,6 +119,8 @@ test("/map re-fetches failed vector tile identities without rebuilding the style
   const failed = new Set<string>();
   const recovered = new Set<string>();
   let outage = false;
+  let targetPath = "";
+  let targetZoom = 0;
   let styleRequests = 0;
   await page.route(
     /tiles\.openfreemap\.org\/styles\/|basemaps\.cartocdn\.com\/gl\/.*\/style\.json/,
@@ -143,12 +145,12 @@ test("/map re-fetches failed vector tile identities without rebuilding the style
   );
   await page.route("**/planet/__retry/**/*.pbf*", async (route) => {
     const key = new URL(route.request().url()).pathname;
-    if (outage && !failed.has(key)) {
-      // Deliver the failure after the single camera turn, so tile eviction
-      // during animation cannot stand in for a completed failed request.
+    if (outage && key === targetPath && !failed.has(key)) {
+      // Only the centre tile at the final zoom fails. Intermediate zoom and
+      // fallback-parent requests may be culled and are not outage evidence.
       await expect.poll(() => page.evaluate(() => (
-        window as Window & { __pubmaxMapCamera?: { read: () => { moving: boolean } } }
-      ).__pubmaxMapCamera?.read().moving)).toBe(false);
+        window as Window & { __pubmaxMapCamera?: { read: () => { moving: boolean; zoom: number } } }
+      ).__pubmaxMapCamera?.read())).toMatchObject({ moving: false, zoom: targetZoom });
       failed.add(key);
       await route.fulfill({ status: 503, body: "temporary vector outage" });
       return;
@@ -162,9 +164,22 @@ test("/map re-fetches failed vector tile identities without rebuilding the style
   });
   await page.goto("/map");
   await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 30_000 });
-  await expect.poll(() => page.evaluate(() => (
-    window as Window & { __pubmaxMapCamera?: { read: () => { moving: boolean } } }
-  ).__pubmaxMapCamera?.read().moving)).toBe(false);
+  // Phone pin readiness and a transient moveend do not mean the opening
+  // flight finished. Wait for London's final close view before zooming.
+  await expect.poll(() => page.evaluate(() => {
+    const camera = (window as Window & { __pubmaxMapCamera?: { read: () => { moving: boolean; zoom: number } } }).__pubmaxMapCamera?.read();
+    return !!camera && !camera.moving && camera.zoom >= 11;
+  })).toBe(true);
+  const camera = await page.evaluate(() => (
+    window as Window & { __pubmaxMapCamera: { read: () => { zoom: number; center: [number, number] } } }
+  ).__pubmaxMapCamera.read());
+  targetZoom = camera.zoom + 1;
+  const z = Math.floor(targetZoom);
+  const scale = 2 ** z;
+  const x = Math.floor((camera.center[0] + 180) / 360 * scale);
+  const latitude = camera.center[1] * Math.PI / 180;
+  const y = Math.floor((1 - Math.asinh(Math.tan(latitude)) / Math.PI) / 2 * scale);
+  targetPath = `/planet/__retry/${z}/${x}/${y}.pbf`;
   const initialStyleRequests = styleRequests;
   outage = true;
   // One move requests fresh tiles. No later camera movement can rescue an
