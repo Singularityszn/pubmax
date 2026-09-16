@@ -15,18 +15,14 @@
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonCached } from "@/lib/apiResponses";
-import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { NIGHT_CALM_VERSION } from "@/lib/nightCalm";
 import { isNightCalmLimited } from "@/lib/nightCalmRateLimit";
 import { loadNightCalmForArea } from "@/lib/nightCalmSource";
+import { isNightAreaSlug } from "@/lib/nightPlanning";
 import { withRouteTiming } from "@/lib/routeObservability";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
-
-function isNightAreaSlug(value: string | null): value is NightAreaSlug {
-  return value !== null && (NIGHT_AREA_SLUGS as readonly string[]).includes(value);
-}
 
 export const GET = withRouteTiming("night-calm", getHandler);
 

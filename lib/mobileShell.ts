@@ -4,7 +4,8 @@ import { parsePoiHidden, type PoiHidden } from "@/lib/poiToggleGroups";
 import { parseDrinkCategoryParam } from "@/lib/drinkBrands";
 import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import type { SheetSnap } from "@/lib/sheetSnap";
-import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
+import type { NightAreaSlug } from "@/lib/nightAreas";
+import { isNightAreaSlug } from "@/lib/nightPlanning";
 
 export type MapOverlay =
   | "none"
@@ -139,10 +140,6 @@ const FILTER_BOOLEAN_KEYS = [
 
 function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
-}
-
-function isNightAreaSlug(value: unknown): value is NightAreaSlug {
-  return typeof value === "string" && (NIGHT_AREA_SLUGS as readonly string[]).includes(value);
 }
 
 export function validateMapViewport(value: unknown): MapViewportSnapshot | null {
