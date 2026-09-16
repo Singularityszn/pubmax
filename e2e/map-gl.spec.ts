@@ -448,11 +448,10 @@ test("/map keeps the honest retry visible while basemap tiles keep failing", asy
   await expect(page.locator(".mapFallback")).toHaveCount(0);
 });
 
-// MapLibre 6.9 emits `dataabort` when it culls an in-flight tile and mirrors
-// that cancellation as `sourcedataabort`. PubMapCanvas only promotes a
-// post-paint, settled burst whose source remains unloaded; ordinary camera culls
-// stay out of the failure tracker. This spec keeps the production vector source
-// honest: every .pbf is aborted after paint and Retry must surface.
+// This keeps the production vector source honest: every .pbf is aborted after
+// paint and Retry must surface. The exact MapLibre 6.9 difference behind the
+// original red is not proven by the vendored 6.7/6.9 source comparison; the
+// production trace is the evidence carried into the PR body.
 test("/map surfaces Retry for a post-paint production vector-tile abort", async ({
   page,
 }) => {
@@ -463,7 +462,15 @@ test("/map surfaces Retry for a post-paint production vector-tile abort", async 
   let landedVectorTiles = 0;
   await page.route(/\.pbf(?:\?|$)/, async (route) => {
     if (!abortVectorTiles) {
-      await route.continue();
+      if (/\/planet\//.test(route.request().url())) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/x-protobuf",
+          body: Buffer.alloc(0),
+        });
+      } else {
+        await route.continue();
+      }
       return;
     }
     abortedRequests += 1;

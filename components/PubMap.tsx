@@ -4353,12 +4353,21 @@ export default function PubMap({
       setMapCameraTouched(true);
       cancelOpeningLocation();
       setOpeningLocationFocus(null);
-      setAreaFocus((prev) => ({
-        center: camera.center,
-        zoom: camera.zoom,
-        source: "area",
-        token: (prev?.token ?? 0) + 1,
-      }));
+      setAreaFocus((prev) => {
+        if (
+          prev?.center[0] === camera.center[0] &&
+          prev.center[1] === camera.center[1] &&
+          prev.zoom === camera.zoom
+        ) {
+          return prev;
+        }
+        return {
+          center: camera.center,
+          zoom: camera.zoom,
+          source: "area",
+          token: (prev?.token ?? 0) + 1,
+        };
+      });
     },
     [cancelOpeningLocation],
   );
@@ -6168,7 +6177,7 @@ export default function PubMap({
         onListOpenChange={setMapListOpen}
         listCount={mapVenueListModel.total + ukBasePubListModel.total}
         onSoftRetryChange={setMapSoftRetryActive}
-        focusPoint={openingLocationFocus ?? areaFocus}
+        focusPoint={areaFocus ?? openingLocationFocus}
         onViewportChange={setMapViewport}
         onReaderTouchedMap={dismissMapFirstVisitArrivalOnMapUse}
         onUserCameraMove={dismissAmbientBanners}
