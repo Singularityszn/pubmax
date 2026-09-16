@@ -425,6 +425,7 @@ import {
 } from "@/lib/logIntentReveal";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
+import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
 import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   isCurrentMapResumeRefresh,
@@ -2711,11 +2712,9 @@ export default function PubMap({
   // of an empty planner while the map ring remains lazy.
   // A stop id is asked for once per mounted map, whatever the answer, and the
   // plan itself is left exactly as the link wrote it: this lane warms stop
-  // detail and never edits, dedupes or reorders the reader's stops. A plan
-  // longer than one pass hands on to the next through `hydrationPass`, because
-  // a pass that found nothing writes no detail and so moves no other dependency.
+  // detail and never edits, dedupes or reorders the reader's stops. A plan is
+  // at most WALK_ROUTE_MAX_STOPS stops, so one pass covers every stop it owes.
   const builtRouteHydrationAskedRef = useRef(new Set<string>());
-  const [builtRouteHydrationPass, setBuiltRouteHydrationPass] = useState(0);
   useEffect(() => {
     const requestedIds = builtStopsNeedingHydration({
       venueDataReady: loaded && loadedCityId === cityId,
@@ -2731,29 +2730,14 @@ export default function PubMap({
       const hydrated = results
         .map(({ result }) => (result.status === "found" ? result.venue : null))
         .filter((venue): venue is Venue => venue !== null);
-      if (hydrated.length > 0) {
-        setDetailById((current) => {
-          const next = new Map(current);
-          for (const venue of hydrated) next.set(venue.id, venue);
-          return next;
-        });
-      }
-      const stillOwed = builtStopsNeedingHydration({
-        venueDataReady: true,
-        builtIds,
-        venueById,
-        askedIds: builtRouteHydrationAskedRef.current,
+      if (hydrated.length === 0) return;
+      setDetailById((current) => {
+        const next = new Map(current);
+        for (const venue of hydrated) next.set(venue.id, venue);
+        return next;
       });
-      if (stillOwed.length > 0) setBuiltRouteHydrationPass((pass) => pass + 1);
     });
-  }, [
-    builtIds,
-    builtRouteHydrationPass,
-    cityId,
-    loaded,
-    loadedCityId,
-    venueById,
-  ]);
+  }, [builtIds, cityId, loaded, loadedCityId, venueById]);
   // Zone pint index (nearest-station fare zone medians) for the zone picker.
   // Computed off the full venue set so the strip's numbers don't shift as the
   // user filters — it's a stable "here's the lay of the land" reference.
@@ -4019,6 +4003,7 @@ export default function PubMap({
       if (current.includes(id)) return current.filter((existing) => existing !== id);
       const venue = venueById.get(id);
       if (venue && !isPubVenue(venue)) return current;
+      if (current.length >= WALK_ROUTE_MAX_STOPS) return current;
       return [...current, id];
     });
     // A picked pub is a stop in the crawl the reader is BUILDING. The mode

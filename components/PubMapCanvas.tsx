@@ -142,7 +142,7 @@ import {
   whenBottomSheetSettles,
 } from "@/components/map/canvas/useMapCamera";
 import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
-import { deepLinkSelectionCamera, mobileSelectCameraOffset } from "@/lib/sheetSnap";
+import { mobileSelectCameraOffset } from "@/lib/sheetSnap";
 import { nearMeMapVenues } from "@/lib/nearMeMapFrame";
 import {
   isUkBaseId,
@@ -3696,12 +3696,10 @@ export default function PubMapCanvas({
       });
     };
 
-    const arrival = deepLinkSelectionCamera({
-      arrivalNamedVenue: arrivalNamedVenueRef.current,
-      cameraSpent: deepLinkSelectCameraSpentRef.current,
-    });
+    const coldDeepLinkArrival =
+      arrivalNamedVenueRef.current && !deepLinkSelectCameraSpentRef.current;
 
-    if (!isPhone || !arrival.measureSheet) {
+    if (!isPhone || !coldDeepLinkArrival) {
       moveToSelectedVenue(
         isPhone
           ? measureBottomSheetTop(map.getContainer().getBoundingClientRect().top)
