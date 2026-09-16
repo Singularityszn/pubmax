@@ -425,6 +425,7 @@ import {
 } from "@/lib/logIntentReveal";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
+import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
 import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   isCurrentMapResumeRefresh,
@@ -2713,12 +2714,14 @@ export default function PubMap({
   // Only a transient failure is released for a later attempt.
   const builtRouteHydrationAskedRef = useRef(new Set<string>());
   useEffect(() => {
-    const requestedIds = builtIds.filter(
-      (id) =>
-        Boolean(id) &&
-        !venueById.has(id) &&
-        !builtRouteHydrationAskedRef.current.has(id),
-    );
+    const requestedIds = builtIds
+      .slice(0, WALK_ROUTE_MAX_STOPS)
+      .filter(
+        (id) =>
+          Boolean(id) &&
+          !venueById.has(id) &&
+          !builtRouteHydrationAskedRef.current.has(id),
+      );
     if (requestedIds.length === 0) return;
     requestedIds.forEach((id) => builtRouteHydrationAskedRef.current.add(id));
     void Promise.all(
