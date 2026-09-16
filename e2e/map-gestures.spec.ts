@@ -385,7 +385,7 @@ test("one compass, and it gives back the view the city opens on", async ({ page 
       await expect(layersPanel.locator(".mapCompassBtn")).toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: 20_000 });
     const compass = layersPanel.locator(".mapCompassBtn");
-    await expect(compass).toHaveCount(1);
+    await expect(page.locator(".mapCompassBtn")).toHaveCount(1);
     return compass;
   };
   let compass = await openLayersCompass();

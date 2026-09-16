@@ -146,6 +146,7 @@ export default defineConfig({
         // Keyless-shape composer submit: runs only against the keyless build,
         // where the typed demo handle exists (chromium-keyless below).
         "**/spill-composer-keyless.spec.ts",
+        "**/ui-ux-battle-test-keyless.spec.ts",
         "**/map-gl.spec.ts",
         "**/map-gestures.spec.ts",
         "**/map-deep-link-pin.spec.ts",
