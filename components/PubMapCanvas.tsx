@@ -1765,7 +1765,8 @@ export default function PubMapCanvas({
       if (
         !basemapRecoveryConfirmed({
           tilesLoaded: areBasemapTilesLoaded(),
-          recheckPending: tileFailureRecheckTimer !== undefined,
+          recheckPending:
+            tileFailureRecheckTimer !== undefined || tileFailureRestRecheckArmed,
           unrecoveredFailures: failedBasemapTiles.hasFailures(),
           basemapTileLoaded: basemapTileReadyForPaint,
         })
