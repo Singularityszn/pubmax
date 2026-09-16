@@ -54,15 +54,9 @@ function parseArgs(raw: string): Record<string, unknown> {
 }
 
 /**
- * Run a bounded OpenRouter tool loop. Returns null when no API key or the
- * request fails before any useful tool result. Traced as one AGENT span with
- * the model rounds and tool executions as children (see
- * lib/observability/arize.ts); inert without the Arize keys.
- */
-/**
  * Runs one loop round's tool calls (capped at three by the caller) and appends
  * each result to the running messages, so the loop body stays readable.
- * A tool failure rethrows: the round span records it and the round ends.
+ * A tool failure rethrows: the tool span records it and the loop ends.
  */
 async function runAskLoopTools(
   calls: NonNullable<ChatMessage["tool_calls"]>,
@@ -119,6 +113,12 @@ async function runAskLoopTools(
   }
 }
 
+/**
+ * Run a bounded OpenRouter tool loop. Returns null when no API key or the
+ * request fails before any useful tool result. Traced as one AGENT span with
+ * the model rounds and tool executions as children (see
+ * lib/observability/arize.ts); inert without the Arize keys.
+ */
 export async function runAskModelLoop(input: {
   query: string;
   turns?: AskTurn[];
@@ -160,6 +160,7 @@ export async function runAskModelLoop(input: {
           const roundSpan = modelRound({
             prompt: JSON.stringify(messages),
           });
+          let message: ChatMessage | undefined;
           try {
             const response = await fetchImpl(OPENROUTER_URL, {
               method: "POST",
@@ -195,7 +196,7 @@ export async function runAskModelLoop(input: {
                 total_tokens?: number;
               };
             };
-            const message = body.choices?.[0]?.message;
+            message = body.choices?.[0]?.message;
             roundSpan?.setUsage({
               promptTokens: body.usage?.prompt_tokens,
               completionTokens: body.usage?.completion_tokens,
@@ -207,38 +208,41 @@ export async function runAskModelLoop(input: {
               return toolResults.length ? { toolResults } : null;
             }
 
-            const toolCalls = message.tool_calls ?? [];
             roundSpan?.setOutput(
               JSON.stringify({
                 content: message.content ?? null,
-                toolCalls: toolCalls.map((call) => call.function?.name ?? ""),
+                toolCalls: (message.tool_calls ?? []).map(
+                  (call) => call.function?.name ?? "",
+                ),
               }),
-            );
-            roundSpan?.end();
-            if (toolCalls.length === 0) {
-              return { toolResults };
-            }
-
-            messages.push({
-              role: "assistant",
-              content: message.content ?? null,
-              tool_calls: toolCalls,
-            });
-
-            await runAskLoopTools(
-              toolCalls.slice(0, 3),
-              {
-                toolCall,
-                ctx: input.ctx,
-                messages,
-                toolResults,
-              },
             );
           } catch (error) {
             roundSpan?.setError(error);
             roundSpan?.end();
             throw error;
           }
+          roundSpan?.end();
+
+          const toolCalls = message.tool_calls ?? [];
+          if (toolCalls.length === 0) {
+            return { toolResults };
+          }
+
+          messages.push({
+            role: "assistant",
+            content: message.content ?? null,
+            tool_calls: toolCalls,
+          });
+
+          await runAskLoopTools(
+            toolCalls.slice(0, 3),
+            {
+              toolCall,
+              ctx: input.ctx,
+              messages,
+              toolResults,
+            },
+          );
         }
 
         return { toolResults };

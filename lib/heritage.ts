@@ -325,8 +325,9 @@ async function answerWithModel(
         }
         span?.setOutput(text);
         return sanitiseModelAnswer(text.trim(), facts.length);
-      } catch {
+      } catch (error) {
         // Timeout/abort/network — never surface; the honest fallback takes over.
+        span?.setError(error);
         return null;
       } finally {
         clearTimeout(timer);

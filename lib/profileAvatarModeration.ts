@@ -81,7 +81,7 @@ export class OpenAIProfileAvatarModerationAdapter implements ProfileAvatarModera
 
   async moderate(imageUrl: string): Promise<{ decision: "approved" | "needs_review" }> {
     if (typeof imageUrl !== "string" || !imageUrl.trim()) {
-      throw new ProfileAvatarModerationError("OpenRouter moderation returned no decision.", false);
+      throw new ProfileAvatarModerationError("OpenAI moderation returned no decision.", false);
     }
     // Arize AX span (lib/observability/arize.ts). Records NO input on
     // purpose: the request carries a short-lived signed image URL, and no

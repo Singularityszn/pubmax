@@ -221,7 +221,9 @@ export function registerArizeTracing(
       // and the OpenInference filter below would drop the rest anyway.
       instrumentations: [],
       spanProcessors: [
-        new openInference.OpenInferenceSimpleSpanProcessor({
+        // Batched: one OTLP request per flush, not one per span. On Vercel,
+        // @vercel/otel flushes when the request's root span ends.
+        new openInference.OpenInferenceBatchSpanProcessor({
           exporter,
           // Keep only OpenInference spans (AI SDK spans and this module's)
           // and drop the framework HTTP noise others would emit.
@@ -246,6 +248,21 @@ export function registerArizeTracing(
   });
   if (!options.exporter) registration = run;
   return run;
+}
+
+/**
+ * Export every buffered span now. Vercel flushes per request on its own; the
+ * smoke script and the registration tests call this before they read results.
+ */
+export async function flushArizeTracing(): Promise<void> {
+  const provider = trace.getTracerProvider() as {
+    getDelegate?: () => unknown;
+    forceFlush?: () => Promise<void>;
+  };
+  const delegate = (provider.getDelegate?.() ?? provider) as {
+    forceFlush?: () => Promise<void>;
+  };
+  await delegate.forceFlush?.();
 }
 
 /** A span handle the call sites fill in: tokens, output, failures. */

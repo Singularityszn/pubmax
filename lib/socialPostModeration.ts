@@ -33,14 +33,13 @@ export class OpenAISocialPostModerationAdapter implements SocialPostModerationAd
   async moderate(input: { postId: string; text: string; imageUrl?: string }): Promise<{
     decision: "approved" | "needs_review";
   }> {
-    // Arize AX span (lib/observability/arize.ts): model, latency, route and
-    // the post text masked for emails and handles. The image URL and the
-    // post id are never written to the span.
+    // Arize AX span (lib/observability/arize.ts). Records NO input on
+    // purpose: the request carries held post text and a signed image URL,
+    // and neither may ride the trace.
     return traceArizeModelCall({
       route: "moderation/social-post",
       model: "omni-moderation-latest",
       provider: "openai",
-      prompt: input.text,
       call: async (span) => {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), this.timeoutMs);

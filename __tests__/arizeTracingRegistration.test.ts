@@ -8,15 +8,25 @@ vi.mock("ai", async (importOriginal) => {
   return { ...actual, registerTelemetry: vi.fn() };
 });
 
+// The ask tool runner is mocked so a test can make one tool throw mid-loop.
+vi.mock("@/lib/ask/tools", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/ask/tools")>();
+  return { ...actual, runAskTool: vi.fn(actual.runAskTool) };
+});
+
 import { trace } from "@opentelemetry/api";
 import type { ReadableSpan, SpanExporter } from "@opentelemetry/sdk-trace-base";
 import { registerTelemetry } from "ai";
 
+import { runAskModelLoop } from "@/lib/ask/modelLoop";
+import { runAskTool } from "@/lib/ask/tools";
 import {
+  flushArizeTracing,
   registerArizeTracing,
   traceArizeModelCall,
   traceArizeModelLoop,
 } from "@/lib/observability/arize";
+import { OpenAISocialPostModerationAdapter } from "@/lib/socialPostModeration";
 
 class CapturingExporter implements SpanExporter {
   readonly spans: ReadableSpan[] = [];
@@ -79,6 +89,7 @@ describe("Arize tracing registers with keys present", () => {
     });
 
     expect(result).toBe("narrated");
+    await flushArizeTracing();
     const span = exporter.spans.find(
       (s) => s.attributes["metadata.route"] === "api/heritage",
     );
@@ -123,6 +134,7 @@ describe("Arize tracing registers with keys present", () => {
       }),
     ).rejects.toThrow("provider 503");
 
+    await flushArizeTracing();
     const span = exporter.spans.find(
       (s) => s.name === "chat omni-moderation-latest moderation/avatar",
     );
@@ -150,6 +162,7 @@ describe("Arize tracing registers with keys present", () => {
     });
 
     expect(result).toBe("done");
+    await flushArizeTracing();
     const agent = exporter.spans.find((s) => s.name === "agent api/ask");
     const llm = exporter.spans.find(
       (s) => s.name === "chat anthropic/claude-sonnet-4-5 api/ask",
@@ -185,6 +198,7 @@ describe("Arize tracing registers with keys present", () => {
     });
     span.end();
 
+    await flushArizeTracing();
     const masked = exporter.spans.find((s) => s.name === "some-framework");
     expect(masked).toBeDefined();
     expect(String(masked?.attributes["input.value"])).not.toContain(
@@ -201,6 +215,91 @@ describe("Arize tracing registers with keys present", () => {
     const plain = trace.getTracer("http").startSpan("POST /api/anything");
     plain.end();
 
+    await flushArizeTracing();
     expect(exporter.spans.length).toBe(before);
+  });
+
+  it("records no input on a social-post moderation span", async () => {
+    const adapter = new OpenAISocialPostModerationAdapter({
+      apiKey: "test-openai-key",
+      fetcher: async () =>
+        new Response(JSON.stringify({ results: [{ flagged: false }] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+    });
+
+    await expect(
+      adapter.moderate({
+        postId: "post-1",
+        text: "held post text from Sam at 07700 900123",
+        imageUrl: "https://example.supabase.co/signed/photo.jpg?token=abc",
+      }),
+    ).resolves.toEqual({ decision: "approved" });
+
+    await flushArizeTracing();
+    const span = exporter.spans.find(
+      (s) => s.attributes["metadata.route"] === "moderation/social-post",
+    );
+    expect(span).toBeDefined();
+    expect(span!.attributes["input.value"]).toBeUndefined();
+    expect(JSON.stringify(span!.attributes)).not.toContain("07700 900123");
+    expect(JSON.stringify(span!.attributes)).not.toContain("signed/photo.jpg");
+    expect(span!.status.code).toBe(STATUS_OK);
+  });
+
+  it("ends an ask round OK and marks only the tool span when a tool throws", async () => {
+    vi.mocked(runAskTool).mockRejectedValueOnce(new Error("tool exploded"));
+    const fetchImpl = (async () =>
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                role: "assistant",
+                content: null,
+                tool_calls: [
+                  {
+                    id: "call-1",
+                    type: "function",
+                    function: { name: "search_venues", arguments: "{}" },
+                  },
+                ],
+              },
+            },
+          ],
+          usage: { prompt_tokens: 3, completion_tokens: 4, total_tokens: 7 },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      )) as typeof fetch;
+
+    const outcome = await runAskModelLoop({
+      query: "cheap pints in Soho",
+      ctx: { cityId: "london", query: "cheap pints in Soho" },
+      apiKey: "test-openrouter-key",
+      model: "test/tool-failure-model",
+      fetchImpl,
+      traceRoute: "test/ask-tool-failure",
+    });
+
+    expect(outcome).toBeNull();
+    await flushArizeTracing();
+    const routeSpans = exporter.spans.filter(
+      (s) => s.attributes["metadata.route"] === "test/ask-tool-failure",
+    );
+    const round = routeSpans.find(
+      (s) => s.attributes["openinference.span.kind"] === "LLM",
+    );
+    const tool = routeSpans.find(
+      (s) => s.attributes["openinference.span.kind"] === "TOOL",
+    );
+    expect(round).toBeDefined();
+    expect(tool).toBeDefined();
+    expect(round!.status.code).toBe(STATUS_OK);
+    expect(round!.endTime[0] * 1e9 + round!.endTime[1]).toBeLessThanOrEqual(
+      tool!.startTime[0] * 1e9 + tool!.startTime[1],
+    );
+    expect(tool!.status.code).toBe(STATUS_ERROR);
+    expect(tool!.events.some((event) => event.name === "exception")).toBe(true);
   });
 });

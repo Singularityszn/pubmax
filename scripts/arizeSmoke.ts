@@ -15,6 +15,7 @@ import {
   ARIZE_TRACES_ENDPOINT,
   arizeProjectName,
   arizeTracingEnabled,
+  flushArizeTracing,
   registerArizeTracing,
   traceArizeModelCall,
   traceArizeModelLoop,
@@ -48,18 +49,6 @@ class ResultRecordingExporter implements SpanExporter {
     await this.delegate.forceFlush?.();
   }
 }
-
-const waitFor = async (
-  codes: number[],
-  wanted: number,
-  ceilingMs = 30_000,
-): Promise<void> => {
-  const started = Date.now();
-  while (codes.length < wanted) {
-    if (Date.now() - started > ceilingMs) return;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-};
 
 async function main(): Promise<void> {
   if (!arizeTracingEnabled()) {
@@ -114,8 +103,8 @@ async function main(): Promise<void> {
     },
   });
 
-  // Four spans leave (model call, agent, round, tool), one OTLP batch each.
-  await waitFor(codes, 4);
+  // Four spans leave (model call, agent, round, tool) in one flushed batch.
+  await flushArizeTracing();
 
   let failures = 0;
   for (const code of codes) {
@@ -123,7 +112,7 @@ async function main(): Promise<void> {
     if (code !== 0) failures += 1;
   }
   if (codes.length === 0) {
-    console.log("arize:smoke: no OTLP batch reported within the wait window.");
+    console.log("arize:smoke: no OTLP batch reported after the flush.");
     process.exit(1);
   }
   if (failures > 0) {

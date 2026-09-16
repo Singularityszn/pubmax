@@ -75,7 +75,7 @@ With real keys in `.env.local`, send a handful of test spans:
 npm run arize:smoke
 ```
 
-The script prints the exporter result code for each send (200 is success) and
+The script prints the exporter result code for each send (0 is success) and
 never prints the keys. Spans appear in the Pubmaxx project in Arize AX.
 
 ## Tests
