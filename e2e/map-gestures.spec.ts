@@ -26,6 +26,10 @@ import { getCity } from "@/lib/cities";
 // suite runs a production build.
 
 const VIEWPORT = { width: 390, height: 844 };
+// The camera actions live in the Layers popover, and that popover is a
+// non-phone control (`hideLayersControl={mobileViewport}`, components/
+// PubMap.tsx). A touch tablet is where two fingers and the compass both exist.
+const TABLET_VIEWPORT = { width: 820, height: 1180 };
 
 /** How far the fingers travel round the circle before they are lifted. */
 const ROTATE_ARC_DEGREES = 320;
@@ -369,37 +373,62 @@ test("two fingers tilt the map, and the pins stay on the ground", async ({ page 
   expect(Math.abs(same.y - projectedAfter.y)).toBeLessThan(0.5);
 });
 
-test("one compass, and it gives back the view the city opens on", async ({ page }) => {
-  test.setTimeout(240_000);
-  await openMap(page);
-  const opening = await readCamera(page);
-  // MapLibre's own compass is off at the source: two controls answering the
-  // same question differently is worse than either.
-  await expect(page.locator(".maplibregl-ctrl-compass")).toHaveCount(0);
-  const compass = page.locator(".mapCompassBtn");
-  await expect(compass).toHaveCount(1);
-  await expect(compass).toHaveAttribute("aria-label", /^Reset the map view of /);
+// A phone has no compass at all: the popover that owns it is hidden under the
+// 640px query, which e2e/RED-ON-MAIN.md R19 records as an open lead. This block
+// runs where the control ships, so the proof is of the shipped control.
+test.describe("the compass, where the map has one", () => {
+  test.use({ hasTouch: true, viewport: TABLET_VIEWPORT });
 
-  const cdp = await page.context().newCDPSession(page);
-  const centre = await canvasCentre(page);
-  await twoFingerRotate(page, cdp, centre);
-  await expect.poll(
-    async () => Math.abs((await readCamera(page)).bearing - opening.bearing),
-    { timeout: 10_000 },
-  ).toBeGreaterThan(MIN_BEARING_CHANGE);
+  test("one compass, and it gives back the view the city opens on", async ({ page }) => {
+    test.setTimeout(240_000);
+    await openMap(page);
+    const opening = await readCamera(page);
+    // MapLibre's own compass is off at the source: two controls answering the
+    // same question differently is worse than either. The app's one compass is
+    // owned by the Layers popover, not the retired map edge.
+    await expect(page.locator(".maplibregl-ctrl-compass")).toHaveCount(0);
+    const layersFab = page.locator(".mapLayersControl > .mapLayersFab");
+    const layersPanel = page.locator(".mapLayersControl > .mapLayersPanel");
+    const openLayersCompass = async () => {
+      await expect(async () => {
+        if (!(await layersPanel.isVisible())) await layersFab.click();
+        await expect(layersPanel.locator(".mapCompassBtn")).toBeVisible({ timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+      const compass = layersPanel.locator(".mapCompassBtn");
+      await expect(page.locator(".mapCompassBtn")).toHaveCount(1);
+      return compass;
+    };
+    let compass = await openLayersCompass();
+    await expect(compass).toHaveAttribute("aria-label", /^Reset the map view of /);
 
-  // The control is still there on a turned map. The old one was not, which is
-  // the exact moment somebody wants it.
-  await expect(compass).toBeVisible();
-  await compass.click();
+    // The popover covers the map's lower right, and a finger that lands on it
+    // is not a gesture MapLibre ever sees. Close it, turn the map, reopen it.
+    await page.keyboard.press("Escape");
+    await expect(layersPanel).toBeHidden();
 
-  // It hands back the attitude the CITY is designed to open on - both axes -
-  // rather than flat north, which is a view this map never has.
-  await expect.poll(
-    async () => Math.abs((await readCamera(page)).bearing - LONDON_ATTITUDE.bearing),
-    { timeout: 10_000 },
-  ).toBeLessThan(0.5);
-  const reset = await readCamera(page);
-  expect(Math.abs(reset.pitch - LONDON_ATTITUDE.pitch)).toBeLessThan(0.5);
-  expect(LONDON_ATTITUDE.pitch).toBeGreaterThan(0);
+    const cdp = await page.context().newCDPSession(page);
+    const centre = await canvasCentre(page);
+    await twoFingerRotate(page, cdp, centre);
+    await expect.poll(
+      async () => Math.abs((await readCamera(page)).bearing - opening.bearing),
+      { timeout: 10_000 },
+    ).toBeGreaterThan(MIN_BEARING_CHANGE);
+
+    // The control is still there on a turned map. The old one was not, which is
+    // the exact moment somebody wants it. A gesture starts outside the popover,
+    // so reopen its owner if the outside-pointer handler closed it.
+    compass = await openLayersCompass();
+    await expect(compass).toBeVisible();
+    await compass.click();
+
+    // It hands back the attitude the CITY is designed to open on - both axes -
+    // rather than flat north, which is a view this map never has.
+    await expect.poll(
+      async () => Math.abs((await readCamera(page)).bearing - LONDON_ATTITUDE.bearing),
+      { timeout: 10_000 },
+    ).toBeLessThan(0.5);
+    const reset = await readCamera(page);
+    expect(Math.abs(reset.pitch - LONDON_ATTITUDE.pitch)).toBeLessThan(0.5);
+    expect(LONDON_ATTITUDE.pitch).toBeGreaterThan(0);
+  });
 });

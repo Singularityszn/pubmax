@@ -568,6 +568,8 @@ import { homeActionLabel, type SurfaceEntry } from "@/lib/surfaceStack";
 import {
   filtersForCuratedCrawl,
   buildMapSeed,
+  builtStopsAskedAfter,
+  builtStopsNeedingHydration,
   detailStatusFor,
   mapSelectionNotice,
   mapSelectionNoticeFromSearch,
@@ -2702,6 +2704,43 @@ export default function PubMap({
     [pubVenues, savedIds],
   );
   const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
+  // A shared planner link can name stops outside the opening viewport. The slim
+  // shard loader quite correctly reads only the map the reader is looking at,
+  // but the planner still owes the URL's ordered stops immediately. Warm those
+  // missing records through the same detail seam a selected venue uses, then
+  // merge them into `venueById` so RoutePanel can render the real route instead
+  // of an empty planner while the map ring remains lazy.
+  // A stop id is asked for once per mounted map, whatever the answer, and the
+  // plan itself is left exactly as the link wrote it: this lane warms stop
+  // detail and never edits, dedupes or reorders the reader's stops.
+  const builtRouteHydrationAskedRef = useRef(new Set<string>());
+  useEffect(() => {
+    const requestedIds = builtStopsNeedingHydration({
+      venueDataReady: loaded && loadedCityId === cityId,
+      builtIds,
+      venueById,
+      askedIds: builtRouteHydrationAskedRef.current,
+    });
+    if (requestedIds.length === 0) return;
+    requestedIds.forEach((id) => builtRouteHydrationAskedRef.current.add(id));
+    void Promise.all(
+      requestedIds.map(async (id) => ({ id, result: await warmVenueDetail(id) })),
+    ).then((results) => {
+      builtRouteHydrationAskedRef.current = builtStopsAskedAfter(
+        builtRouteHydrationAskedRef.current,
+        results.map(({ id, result }) => ({ id, status: result.status })),
+      );
+      const hydrated = results
+        .map(({ result }) => (result.status === "found" ? result.venue : null))
+        .filter((venue): venue is Venue => venue !== null);
+      if (hydrated.length === 0) return;
+      setDetailById((current) => {
+        const next = new Map(current);
+        for (const venue of hydrated) next.set(venue.id, venue);
+        return next;
+      });
+    });
+  }, [builtIds, cityId, loaded, loadedCityId, venueById]);
   // Zone pint index (nearest-station fare zone medians) for the zone picker.
   // Computed off the full venue set so the strip's numbers don't shift as the
   // user filters — it's a stable "here's the lay of the land" reference.

@@ -85,6 +85,11 @@ if (
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
+  // Observed on the local rig: at four workers the single production-style
+  // server died mid-suite and every later context reported connection refused
+  // (267 of them). At two workers it stays up. CI shards run a server each, so
+  // the cap is the local rig's alone.
+  workers: process.env.CI ? undefined : 2,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: "list",
@@ -136,9 +141,19 @@ export default defineConfig({
         // Keyless-shape composer submit: runs only against the keyless build,
         // where the typed demo handle exists (chromium-keyless below).
         "**/spill-composer-keyless.spec.ts",
+        "**/ui-ux-battle-test-keyless.spec.ts",
         "**/map-gl.spec.ts",
         "**/map-gestures.spec.ts",
         "**/map-deep-link-pin.spec.ts",
+        // Every WebGL journey belongs to chromium-gl. Keeping these out of the
+        // plain Chromium project avoids running the same spec without SwiftShader
+        // (and without its blocked service worker) before the GL project runs it.
+        "**/map-console-health.spec.ts",
+        "**/map-arrival-turn.spec.ts",
+        "**/map-arrival-card-pins.spec.ts",
+        "**/map-desktop-arrival-chrome.spec.ts",
+        "**/map-tile-retry.spec.ts",
+        "**/map-webgl-recovery.spec.ts",
         "**/map-fallback.spec.ts",
         "**/map-service-worker.spec.ts",
         "**/map-uk-base-layer.spec.ts",

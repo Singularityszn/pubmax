@@ -136,9 +136,13 @@ import {
 } from "@/components/map/canvas/interactions";
 import { installMapCameraProbe } from "@/components/map/canvas/cameraProbe";
 import { installPaintedPinProbe } from "@/components/map/canvas/paintedPinProbe";
-import { measureBottomSheetTop, useMapCamera } from "@/components/map/canvas/useMapCamera";
+import {
+  measureBottomSheetTop,
+  useMapCamera,
+  whenBottomSheetSettles,
+} from "@/components/map/canvas/useMapCamera";
 import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
-import { mobileSelectCameraOffset } from "@/lib/sheetSnap";
+import { deepLinkSelectionCamera, mobileSelectCameraOffset } from "@/lib/sheetSnap";
 import { nearMeMapVenues } from "@/lib/nearMeMapFrame";
 import {
   isUkBaseId,
@@ -3635,6 +3639,12 @@ export default function PubMapCanvas({
   // reader's own gesture and a move a reader asked for, and lib/mapGestureGuard
   // keeps the second class off the glass while the first is in hand.
 
+  // The venue the link named on ARRIVAL, as `deepLinkSelectionCamera` last read
+  // it. The bearing lane's own ref answers a wider question (a `?landmark=`
+  // arrival owns the camera too), and a landmark arrival must not make the
+  // reader's first ordinary tap wait for a sheet.
+  const arrivalSelectedVenueIdRef = useRef(selectedVenueId);
+  const deepLinkSelectCameraSpentRef = useRef(false);
   useEffect(() => {
     if (!selectedVenueId) return;
     // Any venue selection — map pin, route stop, or the sidebar list — retires
@@ -3660,33 +3670,59 @@ export default function PubMapCanvas({
             return base ? ([base.lng, base.lat] as [number, number]) : null;
           })();
     if (!center) return;
-    // Mobile: offset the camera so the pin sits in the visible band above the
-    // sheet (not under it); soften pitch so 3D buildings don't bury it. The
-    // offset is in MAP-CONTAINER pixels, so it is measured off the container
-    // rather than the window, and it takes the sheet's own settled top edge
-    // when there is one - the venue sheet is content-height, so its snap
-    // fraction is a cap rather than the height it rests at. A cold `?sel=`
-    // deep link paints the map before the sheet has an edge to read, and the
-    // fraction fallback covers that.
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    const containerBox = map.getContainer().getBoundingClientRect();
-    const bandHeight =
-      containerBox.height > 0 ? containerBox.height : window.innerHeight;
-    const offset = isPhone
-      ? mobileSelectCameraOffset(
-          bandHeight,
-          "half",
-          measureBottomSheetTop(containerBox.top),
-        )
-      : undefined;
-    cinematic({
-      center,
-      zoom: Math.max(map.getZoom(), 14),
-      pitch: isPhone ? PUB_SELECT_PITCH_MOBILE : PUB_SELECT_PITCH,
-      duration: PUB_SELECT_DURATION_MS,
-      easing: easeOutCubic,
-      ...(offset ? { offset } : {}),
+
+    const moveToSelectedVenue = (sheetTopPx: number | null) => {
+      deepLinkSelectCameraSpentRef.current = true;
+      const currentContainer = map.getContainer().getBoundingClientRect();
+      const bandHeight =
+        currentContainer.height > 0 ? currentContainer.height : window.innerHeight;
+      // Mobile: offset the camera so the pin sits in the visible band above the
+      // sheet (not under it); soften pitch so 3D buildings don't bury it. The
+      // offset is in MAP-CONTAINER pixels, so it is measured off the container
+      // rather than the window, and it takes the sheet's own settled top edge
+      // when there is one - the venue sheet is content-height, so its snap
+      // fraction is a cap rather than the height it rests at.
+      const offset = isPhone
+        ? mobileSelectCameraOffset(bandHeight, "half", sheetTopPx)
+        : undefined;
+      cinematic({
+        center,
+        zoom: Math.max(map.getZoom(), 14),
+        pitch: isPhone ? PUB_SELECT_PITCH_MOBILE : PUB_SELECT_PITCH,
+        duration: PUB_SELECT_DURATION_MS,
+        easing: easeOutCubic,
+        ...(offset ? { offset } : {}),
+      });
+    };
+
+    const arrival = deepLinkSelectionCamera({
+      arrivalVenueId: arrivalSelectedVenueIdRef.current,
+      selectedVenueId,
+      cameraSpent: deepLinkSelectCameraSpentRef.current,
     });
+    arrivalSelectedVenueIdRef.current = arrival.arrivalVenueId;
+
+    if (!isPhone || !arrival.measureSheet) {
+      moveToSelectedVenue(
+        isPhone
+          ? measureBottomSheetTop(map.getContainer().getBoundingClientRect().top)
+          : null,
+      );
+      return;
+    }
+
+    // A cold `?sel=` arrival can paint the canvas before the dynamic sheet
+    // portal has mounted. Measuring then returns no sheet and the fallback
+    // offset is applied to a camera whose projected centre is still moving,
+    // parking the named pin above the visible map. Wait for the actual sheet
+    // edge to settle, then make the one selection move; no correction move. A
+    // tap the reader makes later has a painted map already, so it moves at once.
+    return whenBottomSheetSettles(
+      map.getContainer().getBoundingClientRect().top,
+      moveToSelectedVenue,
+      { waitForSheet: true },
+    );
   }, [selectedVenueId, selectedPresent, mapReady, cinematic, selectLandmark]);
 
   // --- Story bands (issue #15) -------------------------------------------

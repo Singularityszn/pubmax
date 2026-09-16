@@ -122,10 +122,22 @@ export function measureBottomSheetTop(containerTop: number): number | null {
  * watching. Watching the edge needs no knowledge of the sheet's own spring,
  * which is why it is done this way.
  */
-function whenBottomSheetSettles(
+export type BottomSheetSettleOptions = {
+  /** Keep watching briefly when the sheet portal has not mounted yet. */
+  waitForSheet?: boolean;
+};
+
+export function whenBottomSheetSettles(
   containerTop: number,
   done: (coverTop: number | null) => void,
-): void {
+  { waitForSheet = false }: BottomSheetSettleOptions = {},
+): () => void {
+  let cancelled = false;
+  const finish = (coverTop: number | null) => {
+    if (cancelled) return;
+    cancelled = true;
+    done(coverTop);
+  };
   const measure = (): number | null => {
     const top = measureBottomSheetTop(containerTop);
     if (top === null) return null;
@@ -133,22 +145,30 @@ function whenBottomSheetSettles(
     return top;
   };
   if (typeof requestAnimationFrame === "undefined" || typeof document === "undefined") {
-    done(measure());
-    return;
+    finish(measure());
+    return () => {
+      cancelled = true;
+    };
   }
-  const containerHeight = document.documentElement.clientHeight;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
   const grown = (top: number | null): boolean =>
-    top !== null && containerHeight - top >= SHEET_UNGROWN_COVER_PX;
+    top !== null && viewportHeight - (containerTop + top) >= SHEET_UNGROWN_COVER_PX;
   // No sheet at all (desktop, or a near-me answer with no sheet host): there is
-  // nothing to wait for, so do not spend the timeout finding that out.
-  if (!document.querySelector(BOTTOM_SHEET_SELECTOR)) {
+  // nothing to wait for, so do not spend the timeout finding that out. A venue
+  // selection opts into waiting because its portal can mount one commit after
+  // the canvas effect that requested the camera.
+  if (!document.querySelector(BOTTOM_SHEET_SELECTOR) && !waitForSheet) {
+    cancelled = true;
     done(null);
-    return;
+    return () => {
+      cancelled = true;
+    };
   }
   const startedAt = performance.now();
   let previous = measure();
   let stableFrames = 0;
   const step = () => {
+    if (cancelled) return;
     const current = measure();
     stableFrames = current === previous ? stableFrames + 1 : 0;
     previous = current;
@@ -156,12 +176,15 @@ function whenBottomSheetSettles(
     if (settled || performance.now() - startedAt > SHEET_SETTLE_TIMEOUT_MS) {
       // A sheet that never grew is treated as no cover rather than as a band
       // pinned to the bottom of the screen.
-      done(grown(current) ? current : null);
+      finish(grown(current) ? current : null);
       return;
     }
     requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
+  return () => {
+    cancelled = true;
+  };
 }
 
 type CameraRefs = {

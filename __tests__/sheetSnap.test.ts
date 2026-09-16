@@ -10,6 +10,7 @@ import {
   SHEET_SNAP_FRACTIONS,
   SHEET_SNAP_ORDER,
   SHEET_SNAP_TRANSLATE_FRACTIONS,
+  deepLinkSelectionCamera,
   mobileSelectCameraOffset,
   SHEET_ENTRANCE_MS,
 } from "@/lib/sheetSnap";
@@ -439,5 +440,57 @@ describe("resolveSheetHeightSnap — projected momentum", () => {
       caps,
     });
     expect(result).toEqual({ snap: "half", dismissed: false });
+  });
+});
+
+
+describe("deepLinkSelectionCamera", () => {
+  it("measures the sheet for the venue a link named", () => {
+    expect(
+      deepLinkSelectionCamera({
+        arrivalVenueId: "venue-alias",
+        selectedVenueId: "venue-alias",
+        cameraSpent: false,
+      }),
+    ).toEqual({ measureSheet: true, arrivalVenueId: "venue-alias" });
+  });
+
+  it("still measures after the arrival id is rewritten to its canonical form", () => {
+    const rewritten = deepLinkSelectionCamera({
+      arrivalVenueId: "venue-alias",
+      selectedVenueId: "venue-canonical",
+      cameraSpent: false,
+    });
+    expect(rewritten).toEqual({
+      measureSheet: true,
+      arrivalVenueId: "venue-canonical",
+    });
+    expect(
+      deepLinkSelectionCamera({
+        arrivalVenueId: rewritten.arrivalVenueId,
+        selectedVenueId: "venue-canonical",
+        cameraSpent: false,
+      }).measureSheet,
+    ).toBe(true);
+  });
+
+  it("moves at once once the camera has moved for a selection", () => {
+    expect(
+      deepLinkSelectionCamera({
+        arrivalVenueId: "venue-canonical",
+        selectedVenueId: "venue-other",
+        cameraSpent: true,
+      }),
+    ).toEqual({ measureSheet: false, arrivalVenueId: "venue-canonical" });
+  });
+
+  it("moves at once for an arrival that named no venue", () => {
+    expect(
+      deepLinkSelectionCamera({
+        arrivalVenueId: "",
+        selectedVenueId: "venue-tapped",
+        cameraSpent: false,
+      }),
+    ).toEqual({ measureSheet: false, arrivalVenueId: "" });
   });
 });
