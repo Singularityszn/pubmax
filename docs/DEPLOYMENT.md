@@ -51,6 +51,7 @@ Set these in the Vercel project (Settings → Environment Variables).
 | `AI_GATEWAY_API_KEY` | Optional **server-only** explicit Vercel AI Gateway credential for Exa search in `/api/cron/enrich-city-pubs`. Vercel request-context OIDC is also accepted automatically. No separate Exa key is used by this path. |
 | `SEARCH_GATEWAY_MAX_CALLS` | Hard per-run Gateway call cap for city enrichment. See `docs/CRON_PLANE_RUNBOOK.md` for the billing and spend-log contract. |
 | `TAVILY_API_KEY` | **Server-only** key for `npm run enrich:city`, the explicit Tavily cron selection, and the Exa cron fallback. See `docs/CRON_PLANE_RUNBOOK.md` for missing-provider behaviour. |
+| `ARIZE_API_KEY` / `ARIZE_SPACE_KEY` | Optional **server-only** Arize AX tracing of server model calls. Tracing is off unless both are set. See `docs/observability/arize.md` for setup and what is sent. |
 | `TFL_APP_KEY` | Optional TfL app key for every TfL read (`/api/last-train`, `/api/nearby-bus-departures`, via `lib/tflClient.server.ts`). The keyless TfL API is used by default; the key is only appended when present (higher rate limits). |
 | `ACTOR_HASH_SALT` / `PLAN_MEMBER_TOKEN_SALT` | Extra identity-hash salts. Both fall back safely (`ACTOR_HASH_SALT` → `RATE_LIMIT_SALT`; `PLAN_MEMBER_TOKEN_SALT` → `ACTOR_HASH_SALT`). Set distinct secrets in production. |
 
