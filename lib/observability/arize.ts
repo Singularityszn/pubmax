@@ -55,7 +55,7 @@ export const ARIZE_TRACES_ENDPOINT = "https://otlp.arize.com/v1/traces";
 const ARIZE_SERVICE_NAME = "pubmaxxing";
 /** The AX project the captain chose: "Project name : Pubmaxx". */
 const DEFAULT_ARIZE_PROJECT_NAME = "Pubmaxx";
-/** OTel span attributes are capped by the SDK; keep the masked values under it. */
+/** Cap on the prompt and completion values the helpers write; the OTel SDK sets no default limit. */
 const MAX_IO_VALUE_LENGTH = 2048;
 const TRACER_NAME = "pubmaxx.arize";
 
@@ -407,6 +407,8 @@ export type ArizeModelLoopSpans = {
   }): ArizeModelSpan | undefined;
   /** One tool execution between rounds. */
   toolCall(tool: { name: string; input?: unknown }): ArizeModelSpan | undefined;
+  /** Mark the loop failed when `run` recovers from a failure without throwing. */
+  setError(error: unknown): void;
 };
 
 /**
@@ -427,6 +429,7 @@ export async function traceArizeModelLoop<T>(input: {
     return input.run({
       modelRound: () => undefined,
       toolCall: () => undefined,
+      setError: () => undefined,
     });
   }
   const agent = startArizeSpan({
@@ -469,6 +472,7 @@ export async function traceArizeModelLoop<T>(input: {
                 ? { prompt: JSON.stringify(tool.input) }
                 : {}),
             }),
+          setError: (error) => agent.setError(error),
         }),
     );
     agent.end();

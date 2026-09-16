@@ -150,16 +150,18 @@ export async function runAskModelLoop(input: {
     provider: "openrouter",
     prompt: input.query,
     invocationParameters: { temperature: 0, max_tokens: MAX_TOKENS },
-    run: async ({ modelRound, toolCall }) => {
+    run: async ({ modelRound, toolCall, setError }) => {
       const toolResults: AskToolResult[] = [];
+      let tracedMessageCount = 0;
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
       try {
         for (let round = 0; round < MAX_ROUNDS; round += 1) {
           const roundSpan = modelRound({
-            prompt: JSON.stringify(messages),
+            prompt: JSON.stringify(messages.slice(tracedMessageCount)),
           });
+          tracedMessageCount = messages.length;
           let message: ChatMessage | undefined;
           try {
             const response = await fetchImpl(OPENROUTER_URL, {
@@ -179,10 +181,10 @@ export async function runAskModelLoop(input: {
               signal: controller.signal,
             });
             if (!response.ok) {
-              roundSpan?.setError(
-                new Error(`OpenRouter responded ${response.status}.`),
-              );
+              const error = new Error(`OpenRouter responded ${response.status}.`);
+              roundSpan?.setError(error);
               roundSpan?.end();
+              setError(error);
               return toolResults.length ? { toolResults } : null;
             }
             const body = (await response.json()) as {
@@ -203,8 +205,10 @@ export async function runAskModelLoop(input: {
               totalTokens: body.usage?.total_tokens,
             });
             if (!message) {
-              roundSpan?.setError(new Error("OpenRouter returned no message."));
+              const error = new Error("OpenRouter returned no message.");
+              roundSpan?.setError(error);
               roundSpan?.end();
+              setError(error);
               return toolResults.length ? { toolResults } : null;
             }
 
@@ -246,7 +250,8 @@ export async function runAskModelLoop(input: {
         }
 
         return { toolResults };
-      } catch {
+      } catch (error) {
+        setError(error);
         return toolResults.length ? { toolResults } : null;
       } finally {
         clearTimeout(timer);

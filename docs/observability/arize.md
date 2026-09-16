@@ -41,14 +41,14 @@ environment reads and nothing else.
 
 | Route tag (`metadata.route`) | Call site | Span shape |
 | --- | --- | --- |
-| `ask/model-loop` (default), `api/ask`, `api/pub-pal/llm` | `lib/ask/modelLoop.ts` OpenRouter tool loop | one AGENT span, one LLM span per round, one TOOL span per tool call |
+| `ask/model-loop` (default), `api/ask`, `api/pub-pal/llm` | `lib/ask/modelLoop.ts` OpenRouter tool loop | one AGENT span, one LLM span per round (input: the messages added since the previous round), one TOOL span per tool call |
 | `api/heritage` | `lib/heritage.ts` narrations | one LLM span |
 | `concierge/intent` | `lib/concierge/intent.ts` intent parsing | one LLM span |
 | `search-gateway` | `lib/searchProvider.server.ts` AI SDK `generateText` via the gateway | AI SDK spans (`gen_ai.agent.name = search-gateway`) |
 | `moderation/avatar` | `lib/profileAvatarModeration.ts` both adapters | one LLM span per moderation call |
 | `moderation/social-post` | `lib/socialPostModeration.ts` | one LLM span |
 
-Every span carries `llm.model_name`, the route tag under `metadata.route`, the
+Every span the helpers write carries `llm.model_name`, the route tag under `metadata.route`, the
 provider under `metadata.provider`, token counts
 (`llm.token_count.prompt` / `completion` / `total`) when the provider reports
 them, and latency as the span duration. `metadata` never carries a request
@@ -60,7 +60,8 @@ the call site.
 - **Prompts and completions are masked before export.** Emails become
   `[email]` and handles become `@[handle]`, first when the helper writes the
   attribute and again in `MaskingSpanExporter`, so AI SDK spans this module
-  never sees are covered too. Values are capped at 2048 characters.
+  never sees are covered too. The helpers cap the values they write at 2048
+  characters. AI SDK span values are masked but not capped.
 - **Moderation calls record no input.** The avatar and social-post moderation
   requests carry short-lived signed image URLs; the spans carry only the
   model, route and decision.

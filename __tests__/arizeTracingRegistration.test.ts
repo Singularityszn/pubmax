@@ -341,5 +341,83 @@ describe("Arize tracing registers with keys present", () => {
     );
     expect(tool!.status.code).toBe(STATUS_ERROR);
     expect(tool!.events.some((event) => event.name === "exception")).toBe(true);
+    const agent = routeSpans.find(
+      (s) => s.attributes["openinference.span.kind"] === "AGENT",
+    );
+    expect(agent!.status.code).toBe(STATUS_ERROR);
+  });
+
+  it("records only new messages per ask round and marks the agent failed on a provider error", async () => {
+    vi.mocked(runAskTool).mockResolvedValueOnce({
+      ok: true,
+      tool: "search_venues",
+      data: { venues: ["The Toolshed Arms"] },
+      provenance: [],
+      cards: [],
+      proposals: [],
+      answerHint: "one venue",
+    });
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls += 1;
+      if (calls > 1) return new Response("upstream down", { status: 500 });
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                role: "assistant",
+                content: null,
+                tool_calls: [
+                  {
+                    id: "call-1",
+                    type: "function",
+                    function: { name: "search_venues", arguments: "{}" },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }) as typeof fetch;
+
+    const outcome = await runAskModelLoop({
+      query: "cheap pints in Soho",
+      turns: [
+        { role: "user", content: "x".repeat(800) },
+        { role: "assistant", content: "y".repeat(800) },
+      ],
+      ctx: { cityId: "london", query: "cheap pints in Soho" },
+      apiKey: "test-openrouter-key",
+      model: "test/round-delta-model",
+      fetchImpl,
+      traceRoute: "test/ask-round-delta",
+    });
+
+    expect(outcome?.toolResults).toHaveLength(1);
+    await flushArizeTracing();
+    const routeSpans = exporter.spans.filter(
+      (s) => s.attributes["metadata.route"] === "test/ask-round-delta",
+    );
+    const rounds = routeSpans
+      .filter((s) => s.attributes["openinference.span.kind"] === "LLM")
+      .sort(
+        (a, b) =>
+          a.startTime[0] * 1e9 + a.startTime[1] - (b.startTime[0] * 1e9 + b.startTime[1]),
+      );
+    expect(rounds).toHaveLength(2);
+    const secondInput = JSON.parse(String(rounds[1]!.attributes["input.value"])) as Array<{
+      role: string;
+      content: string | null;
+    }>;
+    expect(secondInput.map((message) => message.role)).toEqual(["assistant", "tool"]);
+    expect(secondInput[1]!.content).toContain("The Toolshed Arms");
+    expect(rounds[1]!.status.code).toBe(STATUS_ERROR);
+    const agent = routeSpans.find(
+      (s) => s.attributes["openinference.span.kind"] === "AGENT",
+    );
+    expect(agent!.status.code).toBe(STATUS_ERROR);
   });
 });
