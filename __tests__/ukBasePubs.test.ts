@@ -159,17 +159,19 @@ describe("ukBasePubsToGeoJSON", () => {
     expect(feature.geometry).toEqual({ type: "Point", coordinates: [-0.18, 51.42] });
   });
 
-  it("keeps a Spoons-ranked base pub on the no-price pin", () => {
-    const lane = {
-      byVenueId: new Map([["venue-uk-n1", { milliunits: 20_000, pence: 995 }]]),
+  it("gives an unpriced base pub outside the ranking nothing a pin could paint with", () => {
+    // The lens is ON and holds nothing about this pub. Nothing is stamped, so
+    // `UK_BASE_ICON_IMAGE_EXPR`'s `["has", "spoonsBucket"]` test is false and
+    // the pin keeps the no-price glyph, exactly as it does with the lens off.
+    const [feature] = ukBasePubsToGeoJSON(pubs, null, {
+      byVenueId: new Map([
+        ["venue-uk-somewhere-else", { milliunits: 20_000, pence: 995 }],
+      ]),
       modalMilliunits: 12_785,
-    };
-    const [feature] = ukBasePubsToGeoJSON(pubs, null, lane).features;
+    }).features;
 
-    // The lens may add its credited units figure, but the base source carries
-    // no value bucket that could select the coloured pint sprite family.
-    expect(feature.properties).toMatchObject({ spoonsLabel: "20.0 units" });
     expect(feature.properties).not.toHaveProperty("spoonsBucket");
+    expect(feature.properties).not.toHaveProperty("spoonsLabel");
     expect(feature.properties).not.toHaveProperty("bucket");
     expect(feature.properties).not.toHaveProperty("priceLabel");
   });

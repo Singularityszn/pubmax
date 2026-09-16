@@ -470,7 +470,7 @@ describe("map key inventory", () => {
       { label: "Unranked or unpriced", symbol: "?", tone: "grey" },
     ]);
     expect(legend.clusterNote).toBe(
-      "Clusters stay grey because no pub in one is in the ranking. The number is every venue in the cluster.",
+      "Clusters stay grey because no pub in a cluster is in the ranking. The number is every venue in the cluster.",
     );
   });
 });

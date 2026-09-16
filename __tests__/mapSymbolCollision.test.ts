@@ -203,11 +203,17 @@ describe("UK base layer (unpriced, visually subordinate, never clustered)", () =
   it("carries no price-driven paint at all", () => {
     const paint = (layers.get("uk-base-point")?.paint ?? {}) as Record<string, unknown>;
     expect(JSON.stringify(paint)).not.toContain("bucket");
-    // The glyph stays the neutral no-price silhouette even when the Spoons
-    // value lane is active. Its credited units label is a separate text field;
-    // a units band must never select a coloured pint sprite.
-    const icon = layout("uk-base-point")["icon-image"];
-    expect(icon).toBe("base:pub");
+    // The glyph is the layer's own unpriced silhouette unless the Spoons value
+    // lens has stamped a band on this pub. That band is a UNITS-per-tenner
+    // reading (lib/spoonsValue.ts), never a price bucket: the expression reads
+    // `spoonsBucket` and no price field at all, and its fallback is the plain
+    // base glyph, which is every pub on this layer while the lens is off.
+    const icon = layout("uk-base-point")["icon-image"] as unknown[];
+    expect(icon[0]).toBe("case");
+    expect(icon[1]).toEqual(["has", "spoonsBucket"]);
+    expect(icon[3]).toBe("base:pub");
+    expect(JSON.stringify(icon)).not.toContain('"bucket"');
+    expect(JSON.stringify(icon)).not.toContain("price");
   });
 });
 

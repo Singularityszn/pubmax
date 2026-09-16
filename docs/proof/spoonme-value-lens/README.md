@@ -130,15 +130,6 @@ local proof rig would not hold the lens on, the camera at street zoom and the
 panel closed in one frame long enough to shoot, and a screenshot that does not
 actually show the lens on is worse than none. What the pins do is held instead
 by `__tests__/mapSymbolCollision.test.ts`, which asserts the shipped MapLibre
-expressions directly: the base pin's `icon-image` is the constant `base:pub`
-under the lens as well as off it, and its `text-field` is empty for every pub
-outside the ranking.
-
-The base pin took the curated pint sprite for its band when this proof was
-first written. Captain 15 Sep 2026 (issue 1623, criterion 4) reversed that,
-because a base pub carries no price and a coloured pint sprite over one tells a
-reader it does. A ranked base pin now wears the no-price silhouette and the
-credited units tag alone, and the band hue rides the curated pins. The key's
-grey row was broadened to "Unranked or unpriced" in the same decision, because a
-neutral pin is now either kind of pub. See rule (4) in `lib/AGENTS.md` and
-`docs/proof/uk-pub-seed-audit/`.
+expressions directly: the base pin's `icon-image` falls back to `base:pub` and
+reads `spoonsBucket` rather than any price field, and its `text-field` is empty
+for every pub outside the ranking.
