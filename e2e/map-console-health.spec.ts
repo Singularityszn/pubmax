@@ -167,10 +167,10 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
     await page.waitForTimeout(2_000);
   }
   await page.setViewportSize({ width: 390, height: 844 });
-  // A phone has NO compass: More map controls owns layers and carries no camera
-  // action, so the desktop popover above is the one compass owner (the open lead
-  // in e2e/RED-ON-MAIN.md R19). What a phone must not do is answer the same
-  // question with MapLibre's own flattened compass, or its native zoom pair.
+  // A phone has no compass. The Layers popover that owns the compass is hidden
+  // at phone width, and More map controls carries no camera action.
+  // e2e/RED-ON-MAIN.md R19 keeps that gap open. A phone must still not show
+  // MapLibre's own flattened compass or its native zoom pair.
   await expect(page.locator(".maplibregl-ctrl-compass")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "More map controls" })).toBeVisible();
   await expect(page.locator(".maplibregl-ctrl-zoom-in")).toBeHidden();
