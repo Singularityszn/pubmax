@@ -447,11 +447,21 @@ describe("spendTileFailureDecision", () => {
 
 describe("basemapFailureSurface", () => {
   it("shows the tiles card when no style ever loaded", () => {
-    expect(basemapFailureSurface(false)).toBe("card");
+    expect(
+      basemapFailureSurface({ styleLoaded: false, styleEverLoaded: false }),
+    ).toBe("card");
   });
 
-  it("shows the toast only after a style actually loaded", () => {
-    expect(basemapFailureSurface(true)).toBe("toast");
+  it("keeps the toast when a previously loaded style is being replaced", () => {
+    expect(
+      basemapFailureSurface({ styleLoaded: false, styleEverLoaded: true }),
+    ).toBe("toast");
+  });
+
+  it("shows the toast when the current style is loaded", () => {
+    expect(
+      basemapFailureSurface({ styleLoaded: true, styleEverLoaded: true }),
+    ).toBe("toast");
   });
 });
 

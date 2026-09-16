@@ -1733,6 +1733,38 @@ export default function PubMap({
     [slimPins, detailById],
   );
 
+  // A shared crawl may name cell-pack venues that are outside the opening
+  // viewport. Resolve those stops through the existing detail lane so the
+  // route is real on first paint instead of silently dropping unavailable
+  // rows while the spatial loader quite correctly stays viewport-scoped.
+  const seededRouteIds = seed.builtIds;
+  useEffect(() => {
+    if (seededRouteIds.length < 2) return;
+    let cancelled = false;
+    void Promise.all(seededRouteIds.map((id) => warmVenueDetail(id))).then(
+      (results) => {
+        if (cancelled) return;
+        const found = results.flatMap((result) =>
+          result.status === "found" ? [result.venue] : [],
+        );
+        if (found.length === 0) return;
+        setDetailById((current) => {
+          const next = new Map(current);
+          let changed = false;
+          for (const venue of found) {
+            if (next.get(venue.id) === venue) continue;
+            next.set(venue.id, venue);
+            changed = true;
+          }
+          return changed ? next : current;
+        });
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [seededRouteIds]);
+
   // Community Pint Drops: fetch/submit/report state lives in the hook.
   // City-scoped so Manchester demo seeds colour Manchester pins without
   // leaking into the London feed/landing.

@@ -72,3 +72,80 @@ only for a `"timeout"` reveal. A merely slow basemap therefore owes no toast. Th
 assertions that were NOT affected by that change are re-homed onto the phone test
 where a basemap really does fail: `data-kind="tiles"`, the 44px tap floor, the
 tab-bar clearance and the arrival-card suppression.
+
+
+## Round 2 findings
+
+The five current review findings are copied verbatim from the round-2 review gate.
+
+### 1. invite-fit-guard-defeated-by-venue-swap
+
+- id: invite-fit-guard-defeated-by-venue-swap
+- severity: error
+- file: e2e/map-gl.spec.ts
+- line: 175
+- action: ask-user
+- review_scope: source
+- description:
+```text
+The "three-stop invite handoff fits the mobile map canvas" test swapped its three venue ids without explanation. The old trio (venue-xjf3n0 Arnos Arms 51.6162/-0.1321, venue-lrz4u2 51.6125/-0.1781, venue-1f5ygjb 51.6153/-0.1764) spans about 3.2 km; the new trio (venue-1ufn31x The Nellie Dean 51.5149/-0.1335, venue-1t8siin 51.5139/-0.1325, venue-xiesdn 51.5140/-0.1320) spans about 150 m, all three in Soho. The test exists to prove a three-stop route fits a 390x300 canvas without MapLibre logging "Map cannot fit within canvas" (line 163, asserted at line 187). A 150 m bbox fits trivially at any zoom, so the assertion can no longer fail and the guard is off. The old ids resolve only from cell packs (public/data/venues_slim.cell.*) while the new ones are in public/data/venues_slim.core.json, which suggests the real breakage was venue resolution on first paint, not camera fit - swapping the input hides whichever of the two regressed. Neither the commit message nor notes.md mentions this change. Remedy needs the author's call: pick three core-pack venues with a comparable multi-kilometre spread, or state why the spread no longer matters.
+```
+
+### 2. style-reload-surface-contract-inverted
+
+- id: style-reload-surface-contract-inverted
+- severity: warning
+- file: e2e/map-gl.spec.ts
+- line: 532
+- action: ask-user
+- review_scope: source
+- description:
+```text
+"/map surfaces Retry when the automatic style reload also fails" was renamed to "surfaces the tile card" and its asserted surface inverted: it previously required the .mapSoftRetry toast plus .mapFallback count 0, and now requires the full-screen .mapFallback card plus .mapSoftRetry count 0. In this test the basemap really did paint first - installDeterministicMapBasemap serves 200 PNG tiles until failTiles flips at line 523, so onBasemapTileLoaded has set basemapTileReadyForPaint. The card appears only because armStyleLoadProtection (components/PubMapCanvas.tsx:2368) resets styleLoaded to false for the reload, and basemapFailureSurface (lib/mapTileFailure.ts:534) reads that current flag rather than "a style ever loaded". That contradicts the contract written in this same file at lines 545-549 and 610-613 ("replacing a working map with the full card would be the silent-grey defect in reverse", "never an unmounted canvas on a map that IS drawing"). Either the product now accepts tearing down a drawing map on a failed style reload, in which case those two comment blocks are stale, or basemapFailureSurface should be fed "a style has loaded at some point" and the old assertion restored. This inversion is not attributed to e8bc70d3a and is not covered in notes.md.
+```
+
+### 3. slow-basemap-post-land-assertion-vacuous
+
+- id: slow-basemap-post-land-assertion-vacuous
+- severity: warning
+- file: e2e/map-gl.spec.ts
+- line: 388
+- action: auto-fix
+- review_scope: source
+- description:
+```text
+The fix round added "A tile that was merely slow never earns a notice, before or after it lands" plus `await expect(page.locator(".mapSoftRetry")).toHaveCount(0);` at line 389, immediately after `holdTiles = false` at line 386. The route handler polls every 250 ms before calling route.continue, and the tile then still has to be fetched and decoded, so the assertion resolves on its first poll while every tile is still in flight. It therefore asserts the same instant as the identical check at line 374 and proves nothing about the "after it lands" half of its own comment - it would pass unchanged if a notice appeared the moment tiles landed. Wait for the tiles to actually land first (poll until the basemap has painted, or await a settle window) before asserting count 0.
+```
+
+### 4. vector-tile-failure-path-no-longer-exercised
+
+- id: vector-tile-failure-path-no-longer-exercised
+- severity: warning
+- file: e2e/map-gl.spec.ts
+- line: 397
+- action: ask-user
+- review_scope: source
+- description:
+```text
+Five tile-failure tests were converted from `page.route(/\.pbf/, route.abort("failed"))` on the real vector basemap to installDeterministicMapBasemap plus 503 fulfils on a synthetic raster source (lines 397, 440, 497, 555, and the synthetic vector TileJSON style at 666-697). Production runs a vector style (components/map/canvas/tokens.ts:19-26, tiles.openfreemap.org/styles/dark and positron), and the fixture's emptyStyle is raster-only, so after this change no e2e drives a failing vector basemap tile. The conversion is also not shown to be necessary: in maplibre-gl 6.9.0 a refused tile fetch is still turned into an AJAXError with status 0 (node_modules/maplibre-gl/src/util/ajax.ts:183) and re-thrown by vector_tile_source (line 253 only swallows genuine AbortErrors), so the map "error" event the app listens on at components/PubMapCanvas.tsx:2640 should still fire for an aborted .pbf. That leaves the stated root cause - why the two vector tile-retry tests started failing under 6.9 - unidentified, with the failure mode replaced rather than diagnosed. Confirm the raster fixture is the intended permanent coverage, or keep one vector-tile failure spec so the production source type stays proven.
+```
+
+### 5. commit-subject-no-longer-describes-change
+
+- id: commit-subject-no-longer-describes-change
+- severity: info
+- file: components/PubMapCanvas.tsx
+- line: 1764
+- action: ask-user
+- review_scope: source
+- description:
+```text
+The author commit is titled "fix(map): recover aborted basemap tiles on MapLibre 6.9", but the fix round removed the whole dataabort lane. The only source change left is widening recheckPending with tileFailureRestRecheckArmed, which keeps tileFailureStamps alive for the camera-rest recheck and has nothing to do with aborted tiles. As it stands the merged history will describe work that is not in the tree.
+```
+
+
+## Implementation and PR description
+
+MapLibre GL JS 6.9 emits `dataabort` when its tile manager culls an unfinished tile and re-emits that event as `sourcedataabort`; neither event proves a failed fetch. The app therefore removes the abort lane and keeps the existing error-driven retry path, while the production-vector e2e proof aborts an in-view `.pbf` after paint. The original failure was the test treating camera-cull cancellation as a basemap failure signal.
+
+The map now remembers that a style loaded during the mount, so a failed automatic style replacement keeps a drawing canvas on the `.mapSoftRetry` surface instead of replacing it with the full-screen card. Critical initial TileJSON/source errors now use the bounded retry lane before the fallback decision, so the reader is told about a metadata failure rather than left with a blank field. A seeded crawl warms its cell-pack stops through the existing venue-detail lane when those stops are outside the opening viewport.

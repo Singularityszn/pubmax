@@ -2181,6 +2181,7 @@ export default function PubMapCanvas({
     // CARTO's keyless styles; if that also fails, surface the same graceful
     // notice as a WebGL failure rather than a blank map.
     let styleLoaded = false;
+    let styleEverLoaded = false;
     let usingFallback = false;
     let sceneSettled = false;
     let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
@@ -2356,7 +2357,9 @@ export default function PubMapCanvas({
       sceneSettled = true;
       clearTimeout(hangFailTimer);
       queueMicrotask(() => {
-        if (basemapFailureSurface(styleLoaded) === "toast") {
+        if (
+          basemapFailureSurface({ styleLoaded, styleEverLoaded }) === "toast"
+        ) {
           tileNoticeOwner = "errors";
           setSoftRetry(BASEMAP_RETRY_NOTICE);
           return;
@@ -2444,6 +2447,7 @@ export default function PubMapCanvas({
       cancelDeferredWork();
       styleStructureReadyRef.current = true;
       styleLoaded = true;
+      styleEverLoaded = true;
       clearStyleLoadProtection();
       if (!protectedStyleInFlight) return;
       protectedStyleInFlight = false;
@@ -2649,11 +2653,6 @@ export default function PubMapCanvas({
       );
     };
     map.on("error", (event) => {
-      if (!styleLoaded) {
-        swapToBasemapFallback();
-        return;
-      }
-      if (tileSpend.surfaced || mapRef.current !== map) return;
       const mapError = event as {
         error?: { message?: unknown };
         sourceId?: unknown;
@@ -2670,17 +2669,25 @@ export default function PubMapCanvas({
         recoverDataPack(dataPackSourceId, message);
         return;
       }
-      const now = performance.now();
-      tileFailureStamps = pruneTileFailures(tileFailureStamps, now);
-      tileFailureStamps.push(now);
-      const documentVisible = document.visibilityState !== "hidden";
-      const cameraInFlight = map.isMoving();
       const critical = isCriticalBasemapFailure({
         message,
         initialBasemapPending,
         sourceType: mapError.source?.type,
         tilePresent: mapError.tile !== undefined,
       });
+      // A style-level failure before the first successful load still gets the
+      // bounded retry lane when it is a critical basemap/source error (notably
+      // TileJSON metadata). Unrelated early errors keep the existing fallback.
+      if (!styleLoaded && !critical) {
+        swapToBasemapFallback();
+        return;
+      }
+      if (tileSpend.surfaced || mapRef.current !== map) return;
+      const now = performance.now();
+      tileFailureStamps = pruneTileFailures(tileFailureStamps, now);
+      tileFailureStamps.push(now);
+      const documentVisible = document.visibilityState !== "hidden";
+      const cameraInFlight = map.isMoving();
       if (
         documentVisible &&
         !cameraInFlight &&
