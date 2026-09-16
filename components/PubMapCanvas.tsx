@@ -1625,7 +1625,6 @@ export default function PubMapCanvas({
     let tileFailureRestRecheckArmed = false;
     let silentTileRetryTimer: ReturnType<typeof setTimeout> | undefined;
     let silentRetryAwaitingPaint = false;
-    let silentRetrySerial = 0;
     let silentSourceRetries = 0;
     const failedBasemapTiles = createBasemapTileFailureTracker();
     const failedVectorTiles = new Map<string, Map<string, { x: number; y: number; z: number }>>();
@@ -1661,10 +1660,7 @@ export default function PubMapCanvas({
     const reloadBasemapSources = () => {
       const sources = map.getStyle()?.sources;
       if (!sources) return;
-      const retrySerial = ++silentRetrySerial;
       silentSourceRetries += 1;
-      const retryUrl = (url: string) =>
-        `${url}${url.includes("?") ? "&" : "?"}pubmax_retry=${retrySerial}`;
       // A silent retry is a FRESH attempt, so the stamps and the failed-tile
       // set it was decided from - both about the attempt that just failed -
       // go with it. The generation is NOT bumped: no style is being rebuilt.
@@ -1696,9 +1692,9 @@ export default function PubMapCanvas({
             map.refreshTiles(sourceId, [...failedTiles.values()]);
             failedVectorTiles.delete(sourceId);
           } else if (plan.kind === "tiles") {
-            source?.setTiles?.(plan.tiles.map(retryUrl));
+            source?.setTiles?.(plan.tiles);
           } else {
-            source?.setUrl?.(retryUrl(plan.url));
+            source?.setUrl?.(plan.url);
           }
         } catch {
           // A source mid-swap is a no-op here, not a failure worth surfacing.
