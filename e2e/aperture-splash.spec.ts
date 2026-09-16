@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
 // feat(landing): hero scroll cinema with aperture splash - PIECE 3.
-// public/splash-init.js skips real automated browsers by default
-// (navigator.webdriver), which every other spec in this suite relies on
+// The splash block in public/theme-init.js skips real automated browsers by
+// default (navigator.webdriver), which every other spec in this suite relies on
 // implicitly (they never see the splash). This is the one dedicated spec
 // that opts back in, via page.addInitScript overriding navigator.webdriver,
 // so the aperture animation itself gets real-browser proof: it appears,
@@ -48,7 +48,7 @@ test.describe("aperture splash - eligible session (navigator.webdriver overridde
     const response = await page.goto("/");
     expect(response?.status()).toBe(200);
 
-    // Set pre-paint by public/splash-init.js - must already be present by
+    // Set pre-paint by public/theme-init.js - must already be present by
     // the time Playwright can observe it, with no flash of an unstyled mark.
     const splashOn = await page.evaluate(() => document.documentElement.dataset.splash);
     expect(splashOn).toBe("on");

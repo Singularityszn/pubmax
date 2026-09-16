@@ -4,7 +4,7 @@ import "./splashAperture.css";
  * Aperture splash (PIECE 3 of feat(landing): hero scroll cinema with
  * aperture splash). Always renders, first child of <body> (app/layout.tsx),
  * so there is zero layout shift either way. Whether it ANIMATES is gated
- * entirely by html[data-splash="on"], set pre-paint by public/splash-init.js
+ * entirely by html[data-splash="on"], set pre-paint by public/theme-init.js
  * - this component carries no logic of its own and reads no eligibility
  * signal itself. Ineligible loads keep #pubmax-splash's CSS default
  * (display: none), so the whole thing costs nothing there.

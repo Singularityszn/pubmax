@@ -91,7 +91,6 @@ const EDITED_IN_PLACE_ASSETS = filesOutsideData.filter(
     /^\/(?:icon-|apple-touch-icon|favicon)/.test(file) ||
     [
       "/theme-init.js",
-      "/splash-init.js",
       "/map-first-paint-init.js",
       "/manifest.webmanifest",
     ].includes(file),
