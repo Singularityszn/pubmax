@@ -84,6 +84,35 @@ for (const viewport of [
   });
 }
 
+test("/map retries a transient production vector-source outage silently", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const warnings = collectPubmapWarnings(page);
+  let failedVectorRequests = 0;
+  await page.route(/tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/, async (route) => {
+    if (failedVectorRequests < 6) {
+      failedVectorRequests += 1;
+      await route.abort("failed");
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto("/map");
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect.poll(() => failedVectorRequests, { timeout: 30_000 }).toBeGreaterThanOrEqual(6);
+  await page.waitForTimeout(16_000);
+  expect(
+    warnings.filter((line) => STYLE_RELOAD_WARNING.test(line)),
+    `no style reload for a transient vector outage: ${warnings.join(" | ")}`,
+  ).toEqual([]);
+  await expect(page.locator("body")).not.toContainText(BASEMAP_BANNER);
+});
+
 test("/map still says so when both style URLs refuse", async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 1440, height: 900 });

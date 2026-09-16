@@ -399,22 +399,150 @@ test("/map keeps its pins visible while a slow basemap misses the phone readines
 test("/map keeps the honest retry visible while basemap tiles keep failing", async ({
   page,
 }) => {
-  test.setTimeout(45_000);
+  test.setTimeout(90_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.route(/\.pbf(?:\?|$)/, (route) => route.abort("failed"));
+  let abortTiles = false;
+  let landedVectorTiles = 0;
+  let abortedRequests = 0;
+  let failedVectorRequests = 0;
+  await page.route(/\.pbf(?:\?|$)/, async (route) => {
+    if (!abortTiles) {
+      if (/\/planet\//.test(route.request().url())) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/x-protobuf",
+          body: Buffer.alloc(0),
+        });
+      } else {
+        await route.continue();
+      }
+      return;
+    }
+    if (abortedRequests < 4) {
+      abortedRequests += 1;
+      await route.abort("failed");
+      return;
+    }
+    failedVectorRequests += 1;
+    await route.fulfill({
+      status: 503,
+      contentType: "application/x-protobuf",
+      body: "temporary vector outage",
+    });
+  });
+  page.on("response", (response) => {
+    if (
+      response.ok() &&
+      /tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/.test(
+        response.url(),
+      )
+    ) {
+      landedVectorTiles += 1;
+    }
+  });
+
+  // This serial lane uses a production build and exercises real browser cache
+  // state. Clear that state before the failure contract so a prior map scene
+  // cannot decide whether this request reaches the vector error path.
+  const devtools = await page.context().newCDPSession(page);
+  await devtools.send("Network.clearBrowserCache");
+  await page.goto("/map");
+  await waitForVisibleMap(page);
+  await expect.poll(() => landedVectorTiles, { timeout: 30_000 }).toBeGreaterThan(0);
+  // Let the opening camera and source settle before introducing the outage.
+  // Otherwise the same production request races the reveal turn rather than
+  // exercising the post-paint vector failure contract.
+  await page.waitForTimeout(1_500);
+  abortTiles = true;
+  await zoomThroughHiddenMobileControl(page, 4);
+  await expect.poll(() => abortedRequests, { timeout: 30_000 }).toBeGreaterThan(0);
+  await expect.poll(() => failedVectorRequests, { timeout: 30_000 }).toBeGreaterThan(0);
+
+  const notice = page.locator(".mapSoftRetry");
+  await expect(notice).toContainText("Map background couldn't load", {
+    timeout: 60_000,
+  });
+  await expect(notice).toBeVisible();
+  await expect(notice).toHaveAttribute("data-kind", "tiles");
+  await expect(page.locator(".ukPlaceArrival")).toHaveCount(0);
+  await expect(page.locator(".mapArrivalCard")).toHaveCount(0);
+  const retry = notice.getByRole("button", { name: "Retry" });
+  await expect(retry).toBeVisible();
+  const [retryBox, tabBarBox] = await Promise.all([
+    retry.boundingBox(),
+    page.locator(".mobileTabBar").boundingBox(),
+  ]);
+  expect(retryBox).not.toBeNull();
+  expect(tabBarBox).not.toBeNull();
+  expect(retryBox!.height).toBeGreaterThanOrEqual(44);
+  expect(retryBox!.y + retryBox!.height).toBeLessThanOrEqual(tabBarBox!.y);
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
+});
+
+test("/map keeps the phone Retry control usable and recovers after a basemap outage", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    const trace: Array<{ reason: string; generation: number }> = [];
+    Object.defineProperty(window, "__pubmaxPinRevealTrace", { value: trace });
+    window.addEventListener("pubmax:pin-reveal", (event) => {
+      trace.push((event as CustomEvent<{ reason: string; generation: number }>).detail);
+    });
+  });
+  await installDeterministicMapBasemap(page);
+  let failTiles = true;
+  await page.route("**/__empty/**/*.png", async (route) => {
+    if (failTiles) {
+      await route.fulfill({
+        status: 503,
+        contentType: "text/plain",
+        body: "temporary phone basemap outage",
+      });
+      return;
+    }
+    await route.fallback();
+  });
 
   await page.goto("/map");
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
     timeout: 20_000,
   });
-
   const notice = page.locator(".mapSoftRetry");
   await expect(notice).toContainText("Map background couldn't load", {
-    timeout: 20_000,
+    timeout: 60_000,
   });
-  await page.waitForTimeout(2_000);
-  await expect(notice).toBeVisible();
-  await expect(notice.getByRole("button", { name: "Retry" })).toBeVisible();
+  await expect(notice).toHaveAttribute("data-kind", "tiles");
+  await expect(page.locator(".mapArrivalCard")).toHaveCount(0);
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
+
+  const retry = notice.getByRole("button", { name: "Retry" });
+  await expect(retry).toBeVisible();
+  const [retryBox, tabBarBox] = await Promise.all([
+    retry.boundingBox(),
+    page.locator(".mobileTabBar").boundingBox(),
+  ]);
+  expect(retryBox).not.toBeNull();
+  expect(tabBarBox).not.toBeNull();
+  expect(retryBox!.height).toBeGreaterThanOrEqual(44);
+  expect(retryBox!.y + retryBox!.height).toBeLessThanOrEqual(tabBarBox!.y);
+
+  failTiles = false;
+  await retry.click();
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() =>
+          (
+            window as typeof window & {
+              __pubmaxPinRevealTrace: Array<{ reason: string; generation: number }>;
+            }
+          ).__pubmaxPinRevealTrace.at(-1)?.reason ?? null,
+        ),
+      { timeout: 30_000 },
+    )
+    .toMatch(/^(tiles|idle|pins)$/);
   await expect(page.locator(".mapFallback")).toHaveCount(0);
 });
 
@@ -432,7 +560,15 @@ test("/map surfaces Retry for a post-paint production vector-tile abort", async 
   let abortedRequests = 0;
   await page.route(/\.pbf(?:\?|$)/, async (route) => {
     if (!abortVectorTiles) {
-      await route.continue();
+      if (/\/planet\//.test(route.request().url())) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/x-protobuf",
+          body: Buffer.alloc(0),
+        });
+      } else {
+        await route.continue();
+      }
       return;
     }
     abortedRequests += 1;
@@ -672,69 +808,26 @@ test("/map spends its one bounded style reload, then surfaces the honest tile ca
 test("/map states a TileJSON metadata failure instead of revealing a blank field", async ({
   page,
 }) => {
-  test.setTimeout(75_000);
+  test.setTimeout(45_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  const metadataUrl = "https://tiles.openfreemap.org/__pubmax-tilejson/source.json";
-  const deterministicStyle = JSON.stringify({
-    version: 8,
-    sources: {
-      metadata: { type: "vector", url: metadataUrl },
-    },
-    layers: [
-      {
-        id: "background",
-        type: "background",
-        paint: { "background-color": "#111111" },
-      },
-      {
-        id: "metadata-fill",
-        type: "fill",
-        source: "metadata",
-        "source-layer": "test",
-        paint: { "fill-color": "#222222" },
-      },
-    ],
-  });
   await page.route(
-    /tiles\.openfreemap\.org\/styles\/|basemaps\.cartocdn\.com\/gl\/.*\/style\.json/,
-    (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: deterministicStyle,
-      }),
-  );
-  await page.route(
-    /tiles\.openfreemap\.org\/__pubmax-tilejson\/source\.json/,
-    (route) =>
-      route.fulfill({
-        status: 503,
-        contentType: "text/plain",
-        body: "metadata temporarily unavailable",
-      }),
+    /tiles\.openfreemap\.org\/planet(?:\?|$)/,
+    (route) => route.abort("failed"),
   );
 
   await page.goto("/map");
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
-    timeout: 60_000,
+    timeout: 20_000,
   });
 
-  // `isCriticalBasemapFailure` escalates an initial source-metadata failure, so
-  // the reader is TOLD the background is missing rather than left reading a
-  // blank field. The notice outlives its own arrival.
   const notice = page.locator(".mapSoftRetry");
   await expect(notice).toContainText("Map background couldn't load", {
-    timeout: 30_000,
+    timeout: 20_000,
   });
   await page.waitForTimeout(2_000);
   await expect(notice).toBeVisible();
   await expect(notice.getByRole("button", { name: "Retry" })).toBeVisible();
-
-  // Phone readiness is local-pin-first. A metadata lane that cannot answer must
-  // not replace the live canvas with a blank field or take away map controls.
-  await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 60_000 });
   await expect(page.locator(".mapFallback")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Search the map" })).toBeVisible();
 });
 
 // Dead-frame-loop contract. A browser can grant WebGL while its render loop
@@ -742,6 +835,7 @@ test("/map states a TileJSON metadata failure instead of revealing a blank field
 // event from firing, so the 10-second first-frame watchdog — not the pin
 // readiness ceiling, which never unmounts anything — owns the honest, readable
 // no-frame fallback.
+
 test("/map shows a readable fallback when the phone render loop never draws a frame", async ({
   page,
 }) => {

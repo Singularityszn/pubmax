@@ -185,11 +185,11 @@ import {
   markTileFailureSurfaced,
   markTileRetrySpent,
   pruneTileFailures,
+  TILE_SILENT_RETRY_MAX,
   releaseQueuedSilentTileRetry,
   silentTileRetriesLeft,
   silentTileRetryDelayMs,
   spendTileFailureDecision,
-  TILE_FAILURE_BURST,
   tileFailureAwaitsCameraRest,
   tileFailureRecheckDelay,
 } from "@/lib/mapTileFailure";
@@ -1624,6 +1624,9 @@ export default function PubMapCanvas({
     let tileFailureRecheckTimer: ReturnType<typeof setTimeout> | undefined;
     let tileFailureRestRecheckArmed = false;
     let silentTileRetryTimer: ReturnType<typeof setTimeout> | undefined;
+    let silentRetryAwaitingPaint = false;
+    let silentRetrySerial = 0;
+    let silentSourceRetries = 0;
     const failedBasemapTiles = createBasemapTileFailureTracker();
     const clearTileFailureRecheck = () => {
       if (tileFailureRecheckTimer !== undefined) {
@@ -1641,6 +1644,7 @@ export default function PubMapCanvas({
       tileFailureGeneration += 1;
       clearTileFailureRecheck();
       clearSilentTileRetryTimer();
+      silentRetryAwaitingPaint = false;
       tileSpend = releaseQueuedSilentTileRetry(tileSpend);
       tileFailureStamps = [];
       failedBasemapTiles.reset();
@@ -1655,12 +1659,21 @@ export default function PubMapCanvas({
     const reloadBasemapSources = () => {
       const sources = map.getStyle()?.sources;
       if (!sources) return;
+      const retrySerial = ++silentRetrySerial;
+      silentSourceRetries += 1;
+      const retryUrl = (url: string) =>
+        `${url}${url.includes("?") ? "&" : "?"}pubmax_retry=${retrySerial}`;
       // A silent retry is a FRESH attempt, so the stamps and the failed-tile
       // set it was decided from - both about the attempt that just failed -
       // go with it. The generation is NOT bumped: no style is being rebuilt.
       clearTileFailureRecheck();
       tileFailureStamps = [];
       failedBasemapTiles.reset();
+      // A source retry starts a fresh tile-paint attempt. Do not let a render
+      // frame from the previous generation hand the silent budget back before
+      // the newly requested vector/raster tiles answer.
+      basemapTileReadyForPaint = false;
+      silentRetryAwaitingPaint = true;
       for (const [sourceId, spec] of Object.entries(sources)) {
         if (appDataPackSourceId(sourceId)) continue;
         const plan = basemapSourceReloadPlan(spec);
@@ -1672,8 +1685,11 @@ export default function PubMapCanvas({
             }
           | undefined;
         try {
-          if (plan.kind === "tiles") source?.setTiles?.(plan.tiles);
-          else source?.setUrl?.(plan.url);
+          if (plan.kind === "tiles") {
+            source?.setTiles?.(plan.tiles.map(retryUrl));
+          } else {
+            source?.setUrl?.(retryUrl(plan.url));
+          }
         } catch {
           // A source mid-swap is a no-op here, not a failure worth surfacing.
         }
@@ -1770,6 +1786,7 @@ export default function PubMapCanvas({
     };
     const markBasemapRecovered = () => {
       markPinsRecovered();
+      if (silentRetryAwaitingPaint) return;
       if (
         !basemapRecoveryConfirmed({
           tilesLoaded: areBasemapTilesLoaded(),
@@ -1783,6 +1800,7 @@ export default function PubMapCanvas({
       }
       initialBasemapPending = false;
       tileFailureStamps = [];
+      silentSourceRetries = 0;
       clearSilentTileRetryTimer();
       tileSpend = clearSilentTileRetries({ ...tileSpend, surfaced: false });
       // MapLibre treats errored tiles as settled, so `areTilesLoaded()` cannot
@@ -1816,13 +1834,21 @@ export default function PubMapCanvas({
       }
       initialBasemapPending = false;
       basemapTileReadyForPaint = true;
+      silentRetryAwaitingPaint = false;
       const recoveredFailures = failedBasemapTiles.recordSuccess({
         sourceId: dataEvent.sourceId,
         sourceType: dataEvent.source?.type,
         tileKey: dataEvent.tile.tileID?.key,
       });
       if (failedBasemapTiles.hasFailures()) return;
-      if (!recoveredFailures && tileFailureRecheckTimer !== undefined) return;
+      if (
+        !recoveredFailures &&
+        (tileFailureRecheckTimer !== undefined ||
+          tileSpend.silentQueued ||
+          tileSpend.silentSpent > 0)
+      ) {
+        return;
+      }
       clearTileFailureRecheck();
       tileFailureStamps = [];
       markBasemapRecovered();
@@ -2524,7 +2550,6 @@ export default function PubMapCanvas({
       critical: boolean,
       message: string,
       mayRecheck: boolean,
-      skipSilentRetry = false,
     ) => {
       const decision = classifyTileFailure({
         now,
@@ -2538,7 +2563,7 @@ export default function PubMapCanvas({
         recoveryBudgetLeft: PAINT_WATCHDOG_MAX_RETRIES - recoverySpent,
         // The silent lane spends NONE of the shared recovery budget: it
         // rebuilds nothing, so it cannot compound with the paint watchdog.
-        silentRetriesLeft: skipSilentRetry ? 0 : silentTileRetriesLeft(tileSpend),
+        silentRetriesLeft: silentTileRetriesLeft(tileSpend),
         unrecoveredTileFailures: failedBasemapTiles.count(),
         styleResourceFailure: isStyleResourceFailure(message),
         initialBasemapPending,
@@ -2608,6 +2633,7 @@ export default function PubMapCanvas({
       tileSpend = spent.state;
       if (spent.effect === "reload-source") {
         const generation = tileFailureGeneration;
+        silentRetryAwaitingPaint = true;
         clearSilentTileRetryTimer();
         silentTileRetryTimer = setTimeout(() => {
           silentTileRetryTimer = undefined;
@@ -2677,7 +2703,11 @@ export default function PubMapCanvas({
         sourceType: mapError.source?.type,
         tilePresent: mapError.tile !== undefined,
       });
-      if (!styleLoaded) {
+      const vectorRetriesExhausted =
+        mapError.source?.type === "vector" &&
+        mapError.tile !== undefined &&
+        (silentSourceRetries >= TILE_SILENT_RETRY_MAX || tileSpend.retrySpent);
+      if (!styleLoaded && !styleEverLoaded) {
         swapToBasemapFallback();
         return;
       }
@@ -2689,6 +2719,13 @@ export default function PubMapCanvas({
       const cameraInFlight = map.isMoving();
       const vectorTileNetworkFailure =
         mapError.source?.type === "vector" && mapError.tile !== undefined;
+      if (vectorRetriesExhausted && tileSpend.silentSpent < TILE_SILENT_RETRY_MAX) {
+        tileSpend = {
+          ...tileSpend,
+          silentQueued: false,
+          silentSpent: TILE_SILENT_RETRY_MAX,
+        };
+      }
       if (
         documentVisible &&
         (!cameraInFlight || vectorTileNetworkFailure)
@@ -2699,15 +2736,11 @@ export default function PubMapCanvas({
           tileKey: mapError.tile?.tileID?.key,
         });
       }
-      const vectorFailureBurst =
-        vectorTileNetworkFailure &&
-        failedBasemapTiles.count() >= TILE_FAILURE_BURST;
       evaluateTileFailure(
         now,
-        critical || vectorFailureBurst,
+        critical || vectorRetriesExhausted,
         message,
         documentVisible && !cameraInFlight,
-        vectorTileNetworkFailure,
       );
     });
 
