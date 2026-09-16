@@ -169,15 +169,14 @@ export function whenBottomSheetSettles(
   let stableFrames = 0;
   const step = () => {
     if (cancelled) return;
-    const sheetPresent = Boolean(document.querySelector(BOTTOM_SHEET_SELECTOR));
     const current = measure();
     stableFrames = current === previous ? stableFrames + 1 : 0;
     previous = current;
-    const settled = sheetPresent && grown(current) && stableFrames >= SHEET_SETTLE_STABLE_FRAMES;
+    const settled = grown(current) && stableFrames >= SHEET_SETTLE_STABLE_FRAMES;
     if (settled || performance.now() - startedAt > SHEET_SETTLE_TIMEOUT_MS) {
       // A sheet that never grew is treated as no cover rather than as a band
       // pinned to the bottom of the screen.
-      finish(sheetPresent && grown(current) ? current : null);
+      finish(grown(current) ? current : null);
       return;
     }
     requestAnimationFrame(step);
