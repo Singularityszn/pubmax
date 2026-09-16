@@ -122,7 +122,8 @@ export function buildMapSeed(search: string, _cityId: CityId = DEFAULT_CITY_ID):
  * `venueById`, so an unready map would request the whole plan over the same
  * origin that is fetching the pack and the first tiles, and the pack would then
  * answer for the same pubs a second later. An id already asked for is never
- * asked again, and the plan's own ceiling bounds one arrival's requests.
+ * asked again, and the plan's own ceiling bounds ONE pass, so a plan longer
+ * than the ceiling reaches its tail on a later pass instead of losing it.
  */
 export function builtStopsNeedingHydration({
   venueDataReady,
@@ -137,30 +138,8 @@ export function builtStopsNeedingHydration({
 }): string[] {
   if (!venueDataReady) return [];
   return builtIds
-    .slice(0, WALK_ROUTE_MAX_STOPS)
-    .filter((id) => Boolean(id) && !venueById.has(id) && !askedIds.has(id));
-}
-
-export type BuiltStopHydrationResult = {
-  id: string;
-  status: "found" | "missing" | "failed";
-};
-
-/**
- * The stops a mounted map counts as asked once an answer lands.
- *
- * Every requested id stays asked, whatever the answer. A stop the request could
- * not answer for waits for the reader to open it (the selected-venue path) or
- * for the next cold arrival: releasing it here would re-ask the whole plan on
- * the next shard commit, because the venue set is rebuilt on every one.
- */
-export function builtStopsAskedAfter(
-  askedIds: ReadonlySet<string>,
-  results: readonly BuiltStopHydrationResult[],
-): Set<string> {
-  const next = new Set(askedIds);
-  for (const { id } of results) next.add(id);
-  return next;
+    .filter((id) => Boolean(id) && !venueById.has(id) && !askedIds.has(id))
+    .slice(0, WALK_ROUTE_MAX_STOPS);
 }
 
 export type VenueDetailStatus = "idle" | "loading" | "ready" | "missing" | "unavailable";

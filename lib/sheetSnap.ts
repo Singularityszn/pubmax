@@ -77,10 +77,8 @@ export function mobileSelectCameraOffset(
  *   → full 0.08, half 0.45, peek 0.86
  */
 export type DeepLinkSelectionCameraInput = {
-  /** The venue the link named, as the camera last understood it. */
-  arrivalVenueId: string;
-  /** The venue selected right now. */
-  selectedVenueId: string;
+  /** Whether the link this map opened on named a venue. */
+  arrivalNamedVenue: boolean;
   /** Whether this map has already moved for a selection. */
   cameraSpent: boolean;
 };
@@ -88,32 +86,25 @@ export type DeepLinkSelectionCameraInput = {
 export type DeepLinkSelectionCameraDecision = {
   /** Wait for the sheet's own edge before moving, rather than measuring now. */
   measureSheet: boolean;
-  /** The arrival venue id to carry forward. */
-  arrivalVenueId: string;
 };
 
 /**
- * Whether a selection is still the cold deep-link arrival, and which id that
- * arrival now names.
+ * Whether a selection is still the cold deep-link arrival.
  *
  * A link that named a venue owes one measured move: the canvas can paint before
  * the sheet portal mounts, so measuring at once takes the fraction fallback and
- * parks the named pin outside the visible band. That stays true when the id is
- * rewritten to its canonical form mid-arrival, which is why the arrival id
- * follows the selection until the camera has actually moved for one.
+ * parks the named pin outside the visible band. The arrival is over once the
+ * camera has moved for a selection, which is what makes a rewrite of the
+ * arrival id to its canonical form still that one arrival.
  *
  * A link that named no venue (a bare `?landmark=` arrival) is not this case:
  * its first ordinary tap lands on a painted map and must move at once.
  */
 export function deepLinkSelectionCamera({
-  arrivalVenueId,
-  selectedVenueId,
+  arrivalNamedVenue,
   cameraSpent,
 }: DeepLinkSelectionCameraInput): DeepLinkSelectionCameraDecision {
-  if (cameraSpent || !arrivalVenueId || !selectedVenueId) {
-    return { measureSheet: false, arrivalVenueId };
-  }
-  return { measureSheet: true, arrivalVenueId: selectedVenueId };
+  return { measureSheet: arrivalNamedVenue && !cameraSpent };
 }
 
 export const SHEET_SNAP_TRANSLATE_FRACTIONS = {
