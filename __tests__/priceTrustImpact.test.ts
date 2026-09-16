@@ -79,6 +79,10 @@ async function logPrice(
 }
 
 beforeEach(() => {
+  // Trust reads judge freshness against the wall clock, so pin it to the
+  // fixture day: a real clock past the max age would read every price stale.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(NOW);
   __resetCommunityPrices();
   __resetMemoryPriceTrustEvents();
   __resetMemoryProfiles();
@@ -87,6 +91,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 

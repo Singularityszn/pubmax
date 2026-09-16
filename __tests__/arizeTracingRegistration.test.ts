@@ -14,7 +14,7 @@ vi.mock("@/lib/ask/tools", async (importOriginal) => {
   return { ...actual, runAskTool: vi.fn(actual.runAskTool) };
 });
 
-import { trace } from "@opentelemetry/api";
+import { context, trace } from "@opentelemetry/api";
 import type { ReadableSpan, SpanExporter } from "@opentelemetry/sdk-trace-base";
 import { registerTelemetry } from "ai";
 
@@ -179,8 +179,48 @@ describe("Arize tracing registers with keys present", () => {
     expect(llm?.parentSpanContext?.spanId).toBe(agent?.spanContext().spanId);
     expect(tool?.parentSpanContext?.spanId).toBe(agent?.spanContext().spanId);
     expect(tool?.attributes["tool.name"]).toBe("propose_map_action");
+    expect(llm?.attributes["metadata.provider"]).toBe("openrouter");
+    expect(tool?.attributes["metadata.provider"]).toBe("openrouter");
     expect(String(agent?.attributes["input.value"])).toContain("@[handle]");
     expect(String(agent?.attributes["input.value"])).not.toContain("@karan");
+  });
+
+  it("roots a request's top span when the active parent is a dropped framework span", async () => {
+    // Inside a server request the active span is the Next.js HTTP span, which
+    // the OpenInference filter never exports: a span parented to it would
+    // reach AX with no trace root.
+    const http = trace.getTracer("next.js").startSpan("POST /api/heritage");
+    await context.with(trace.setSpan(context.active(), http), () =>
+      Promise.all([
+        traceArizeModelCall({
+          route: "api/root-heritage",
+          model: "anthropic/claude-sonnet-4-5",
+          call: async () => "answer",
+        }),
+        traceArizeModelLoop({
+          route: "api/root-ask",
+          model: "anthropic/claude-sonnet-4-5",
+          run: async ({ modelRound }) => {
+            modelRound({})?.end();
+            return "done";
+          },
+        }),
+      ]),
+    );
+    http.end();
+
+    await flushArizeTracing();
+    const call = exporter.spans.find((s) => s.name.endsWith(" api/root-heritage"));
+    const agent = exporter.spans.find((s) => s.name === "agent api/root-ask");
+    const round = exporter.spans.find(
+      (s) => s.name === "chat anthropic/claude-sonnet-4-5 api/root-ask",
+    );
+    expect(call).toBeDefined();
+    expect(agent).toBeDefined();
+    expect(call?.parentSpanContext).toBeUndefined();
+    expect(agent?.parentSpanContext).toBeUndefined();
+    expect(round?.parentSpanContext?.spanId).toBe(agent?.spanContext().spanId);
+    expect(exporter.spans.some((s) => s.name === "POST /api/heritage")).toBe(false);
   });
 
   it("masks emails and handles in spans this module never built itself", async () => {

@@ -332,6 +332,12 @@ class ArizeSpanHandle implements ArizeModelSpan {
   }
 }
 
+// Spans this module started. A span only nests under one of these: any other
+// active span (the Next.js request span) is dropped by the OpenInference
+// filter, and `reparentOrphanedSpans` only re-roots AI SDK spans, so a manual
+// span parented to it would reach AX with no trace root.
+const ownSpans = new WeakSet<Span>();
+
 function startArizeSpan(spec: ArizeSpanSpec): ArizeSpanHandle | undefined {
   if (!arizeTracingEnabled()) return undefined;
   const attributes: Record<string, string | number> = {
@@ -350,7 +356,12 @@ function startArizeSpan(spec: ArizeSpanSpec): ArizeSpanHandle | undefined {
       : {}),
     ...(spec.toolName ? { [TOOL_NAME]: spec.toolName } : {}),
   };
-  const span = trace.getTracer(TRACER_NAME).startSpan(spec.name, { attributes });
+  const active = trace.getActiveSpan();
+  const span = trace.getTracer(TRACER_NAME).startSpan(spec.name, {
+    attributes,
+    root: !active || !ownSpans.has(active),
+  });
+  ownSpans.add(span);
   return new ArizeSpanHandle(span);
 }
 
@@ -440,6 +451,7 @@ export async function traceArizeModelLoop<T>(input: {
               name: `chat ${input.model} ${input.route}`,
               route: input.route,
               model: input.model,
+              ...(input.provider ? { provider: input.provider } : {}),
               ...(round.prompt !== undefined ? { prompt: round.prompt } : {}),
               ...(round.invocationParameters
                 ? { invocationParameters: round.invocationParameters }
@@ -451,6 +463,7 @@ export async function traceArizeModelLoop<T>(input: {
               name: `tool ${tool.name} ${input.route}`,
               route: input.route,
               model: input.model,
+              ...(input.provider ? { provider: input.provider } : {}),
               toolName: tool.name,
               ...(tool.input !== undefined
                 ? { prompt: JSON.stringify(tool.input) }
