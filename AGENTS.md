@@ -65,6 +65,12 @@ tree is named here, and this file stays under 12 KB.
 
 - **Honest path anti-goals (London night OS first).** Do not ship a Twitter-for-pubs growth engine; do not market multi-city splash without London density; do not add Stripe Checkout or payments theatre before venue trust density; do not build AI that fabricates prices, hours or pub lore (heritage and plan generate fail closed to grounded or scarcity answers); do not claim "we beat Stripe" in marketing or investor copy. THREE STANDING COMMITMENTS ride with these. (1) A REFERRAL IS A MARK OF HONOUR, NEVER A FEATURE: a milestone confers recognition and nothing in the product may branch on it (`lib/referrals.ts`, fence `__tests__/referralMarkLaw.test.ts`). The old capability-grant model is deleted, not switched off, in TypeScript and in SQL. (2) THE ANNUAL YEAR IN PINTS WRAP IS FREE FOREVER: it is a person's own year read back to them, so it may never sit behind a price, a tier, a referral count or an account upgrade. (3) FIRST REVENUE COMES FROM VENUES, NEVER DRINKERS: a drinker pays for nothing, and no drinker-facing paywall, membership or metered read may be built before the venue rail earns. Platform prep is ADR-only: `docs/adr/0011-venue-operator-rail.md`, `docs/adr/0012-entitlement-ledger-contract.md`. Ops checklist: `docs/growth/HORIZON0_OPS_CHECKLIST.md`. Extend `docs/plans/PLG_STRATEGY.md` waves rather than inventing a parallel roadmap.
 
+## Agent workflow
+
+Every task moves through four beats: isolate, build, prove and ship. The beats, the multi-agent rules,
+the task completion list and the skill sources are in `docs/agents/build-methodology.md`. Test
+infrastructure is in [`e2e/AGENTS.md`](e2e/AGENTS.md) and [`__tests__/AGENTS.md`](__tests__/AGENTS.md).
+
 ## Agent skills
 
 ### Issue tracker
