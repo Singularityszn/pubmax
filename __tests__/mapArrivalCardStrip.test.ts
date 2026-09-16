@@ -100,6 +100,12 @@ describe("the first-visit card is a strip at the top on a phone", () => {
     expect(cardSource).toContain("Location is used only while the map is open");
   });
 
+  it("keeps the close control at the phone tap floor", () => {
+    const close = cardCss.match(/\.mapArrivalCardClose\s*\{[^}]*\}/)?.[0] ?? "";
+    expect(close).toMatch(/width:\s*44px/);
+    expect(close).toMatch(/height:\s*44px/);
+  });
+
   it("is capped short enough that the pin field is never under it", () => {
     const card = cardCss.match(/\.mapArrivalCard\s*\{[^}]*\}/)?.[0] ?? "";
     expect(card).toContain("--map-arrival-strip-max-h");

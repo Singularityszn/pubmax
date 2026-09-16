@@ -1440,8 +1440,7 @@ input[type="range"] {
   border: 1px solid color-mix(in srgb, var(--line) 72%, var(--river) 28%);
   border-radius: 999px;
   /* Wave J2 — solid raised panel + soft shadow; less frosted glass over the map. */
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--surface-tint-river) 35%, var(--panel-raised)), var(--panel-raised));
+  background: var(--color-surface-raised);
   box-shadow: var(--map-overlay-shadow);
 }
 
@@ -2578,7 +2577,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   border: 1px solid color-mix(in srgb, var(--brass, #c4a35a) 55%, transparent);
   border-radius: var(--radius-sm, 8px);
   background: color-mix(in srgb, var(--ink-deep, #090806) 92%, transparent);
-  color: var(--paper, #faf8f5);
+  color: var(--ink);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
   transform: translateX(-50%);
   backdrop-filter: blur(8px);
@@ -2616,6 +2615,68 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 .mapSoftRetryBtn:focus-visible {
   outline: 2px solid var(--brass, #c4a35a);
   outline-offset: 2px;
+}
+
+/* Search-empty state - the map is live, but the current query has no mark in view. */
+.mapSearchEmpty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: var(--z-map-ask, 514);
+  display: flex;
+  max-width: min(360px, calc(100% - 24px));
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 10px 14px;
+  border: 1px solid var(--state-active-border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--panel-raised) 96%, transparent);
+  color: var(--color-text);
+  box-shadow: var(--map-overlay-shadow-tight);
+  transform: translate(-50%, -50%);
+}
+
+.mapSearchEmptyMessage {
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: var(--text-sm);
+  font-weight: 650;
+  line-height: var(--leading-snug);
+}
+
+.mapSearchEmptyAction {
+  min-height: var(--control-height);
+  flex: 0 0 auto;
+  padding: 7px 13px;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.mapSearchEmptyAction:hover {
+  background: var(--color-accent-strong);
+  border-color: var(--color-accent-strong);
+}
+
+.mapSearchEmptyAction:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
+}
+
+@media (max-width: 420px) {
+  .mapSearchEmpty {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .mapSearchEmptyAction {
+    margin-left: auto;
+  }
 }
 
 /* WebGL-failure fallback — a calm notice where the canvas would be. */

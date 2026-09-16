@@ -20,10 +20,18 @@
 
 .chooseAreaSectionTitle {
   margin: 0;
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
+  color: var(--color-text-soft, var(--ink-soft));
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: var(--leading-snug);
+}
+
+.chooseAreaDesktopTitle {
+  color: var(--color-text, var(--ink));
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
 }
 
 .chooseAreaList {
@@ -82,9 +90,9 @@
   overflow: auto;
   padding: 16px;
   border: 1px solid var(--hairline, var(--line));
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow);
   transform: translate(-50%, -50%);
 }
 

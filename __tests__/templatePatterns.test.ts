@@ -269,6 +269,8 @@ const EMOJI_BULLET = /^\s*\p{Extended_Pictographic}/u;
  * followed by words is still an offence.
  */
 const RATING_GLYPH = /^[\s★☆]+$/u;
+// A dated copyright notice is legal copy, not a decorative bullet.
+const COPYRIGHT_NOTICE = /^\s*\u00a9\s+\d{4}\b/u;
 const GAMIFIED = /\bLevel\s+\d|^\s*Level\s*$|\bmastery points?\b|\bXP\b|\blevel up\b/i;
 const NUMBERED_INDEX = /\b0\$?\{\s*(?:index|idx|i)\s*\+\s*1\s*\}/;
 
@@ -285,7 +287,7 @@ export function sourceFindings(rel: string, raw: string): Finding[] {
     const lower = c.text.toLowerCase();
     const hedge = HEDGE_PHRASES.find((phrase) => new RegExp(`\\b${phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(lower));
     if (hedge) out.push({ file: rel, pattern: "hedge-copy", detail: `${c.line}: "${hedge}"` });
-    if (EMOJI_BULLET.test(c.text) && !RATING_GLYPH.test(c.text)) {
+    if (EMOJI_BULLET.test(c.text) && !RATING_GLYPH.test(c.text) && !COPYRIGHT_NOTICE.test(c.text)) {
       out.push({ file: rel, pattern: "emoji-bullet", detail: `${c.line}: ${c.text.trim().slice(0, 30)}` });
     }
     if (GAMIFIED.test(c.text)) out.push({ file: rel, pattern: "gamified-level", detail: `${c.line}: ${c.text.trim().slice(0, 30)}` });
@@ -350,6 +352,12 @@ describe("template-pattern ban (docs/VOICE.md)", () => {
     const rel = "components/probe.tsx";
     const raw = `// whether you're reading this: a comment\nexport const X = () => <p className="levelCard">Fine</p>;\n`;
     expect(sourceFindings(rel, raw)).toEqual([]);
+  });
+
+  it("accepts dated copyright notices without exempting decorative copyright bullets", () => {
+    const rel = "components/probe.tsx";
+    expect(sourceFindings(rel, 'export const X = () => <p>\u00a9 2026 PUBMAXX / Karan Manoharan</p>;')).toEqual([]);
+    expect(sourceFindings(rel, 'export const X = () => <p>\u00a9 Cheap pints</p>;').map((finding) => finding.pattern)).toEqual(["emoji-bullet"]);
   });
 
   it("catches each pattern in a synthetic component", () => {

@@ -10,7 +10,7 @@ CI refuses a change that goes past it.
 - The measuring: [`e2e/performance-budget.spec.ts`](../e2e/performance-budget.spec.ts)
 - The method every perf spec shares: [`e2e/helpers/perfMeasurement.ts`](../e2e/helpers/perfMeasurement.ts)
 - The UX lane report: [`e2e/ux-lane-perf-verification.spec.ts`](../e2e/ux-lane-perf-verification.spec.ts). Four arrival routes (`/`, `/near`, `/map/london`, `/out`) with LCP and CLS beside decoded JS, written as a markdown table for the PR body. It REPORTS: a route over a ceiling here is a warning, and the only failure is a route it could not measure at all
-- The gate: the `performance-budget` job in `.github/workflows/ci.yml`; the UX lane report is its own `ux-lane-performance` job, because one 15-minute wall cannot hold two full sweeps
+- The gate: the `performance-budget` job in `.github/workflows/performance.yml`, which runs nightly on main and on demand since 15 September 2026 (it ran on every pull request in `ci.yml` before that); the UX lane report is its own `ux-lane-performance` job in the same workflow, because one 15-minute wall cannot hold two full sweeps
 - The evidence behind a RED run: [`scripts/perf-ab.mjs`](../scripts/perf-ab.mjs), an `if: failure()` step in that same job. It rebuilds the merge base, re-measures the breached routes against it on the same box with the navigations interleaved, and prints whether the branch or the box is slower. It gates nothing and moves no ceiling; the rule is [`perf/AGENTS.md`](../perf/AGENTS.md)
 - The API gate: the `api-latency-budget` job in `.github/workflows/api-performance.yml` probes a successful main deployment
 
@@ -284,9 +284,11 @@ the run.
 
 ### The runner the sweep is taken on, and why it is not the one every other job takes
 
-The budget job and the UX lane report run on `avrea-ubuntu-latest-4-vcpu`; every
-other job in `.github/workflows/ci.yml` runs on the 2 vCPU label. On the 2 vCPU
-box the sweep could not measure itself. Its own method check reported LCP
+From 6 to 15 September 2026 the budget job and the UX lane report ran on a
+4 vCPU runner (`avrea-ubuntu-latest-4-vcpu`, then `blacksmith-4vcpu-ubuntu-2404`)
+while every other job in `.github/workflows/ci.yml` ran on a 2 vCPU label. Since
+15 September every job runs on GitHub-hosted `ubuntu-latest`, a 2 vCPU box on a
+private repository. On the 2 vCPU box the sweep could not measure itself. Its own method check reported LCP
 samples spread 37 to 51 per cent on `/today`, `/discover`, `/drinks` and
 `/crawls`, and a server-render spread of 320 per cent on `/feed`, all past the
 12 per cent width this method tracks. Inside one run of one commit `/crawls`

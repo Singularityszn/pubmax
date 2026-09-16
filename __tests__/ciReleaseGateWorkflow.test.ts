@@ -82,7 +82,11 @@ function parseJobWalls(yaml: string): Record<string, number> {
 
 describe("clean-main CI release gate", () => {
   const workflow = readFileSync(join(process.cwd(), ".github/workflows/ci.yml"), "utf8");
-  const steps = parseSteps(workflow);
+  const performanceWorkflow = readFileSync(
+    join(process.cwd(), ".github/workflows/performance.yml"),
+    "utf8",
+  );
+  const steps = [...parseSteps(workflow), ...parseSteps(performanceWorkflow)];
 
   it("runs a dedicated production build", () => {
     expect(workflow).toContain("name: Production build");
@@ -124,7 +128,7 @@ describe("clean-main CI release gate", () => {
     // runs. Three numbers that must move together are held together here rather
     // than by a comment asking the next person to remember: the job's timeout,
     // the figure handed to the script, and the module's own mirror.
-    const wallMinutes = parseJobWalls(workflow)["performance-budget"];
+    const wallMinutes = parseJobWalls(performanceWorkflow)["performance-budget"];
     expect(wallMinutes).toBe(PERF_AB_JOB_WALL_MS / 60_000);
 
     const abStep = steps.find((step) => step.name === "Tell a red route apart from a slow box");
