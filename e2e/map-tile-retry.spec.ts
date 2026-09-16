@@ -113,6 +113,70 @@ test("/map retries a transient production vector-source outage silently", async 
   await expect(page.locator("body")).not.toContainText(BASEMAP_BANNER);
 });
 
+test("/map re-fetches failed vector tile identities without rebuilding the style", async ({ page }) => {
+  test.setTimeout(60_000);
+  const warnings = collectPubmapWarnings(page);
+  const failed = new Set<string>();
+  const recovered = new Set<string>();
+  let outage = false;
+  let styleRequests = 0;
+  await page.route(
+    /tiles\.openfreemap\.org\/styles\/|basemaps\.cartocdn\.com\/gl\/.*\/style\.json/,
+    async (route) => {
+      styleRequests += 1;
+      await route.fulfill({
+        json: {
+          version: 8,
+          sources: {
+            basemap: {
+              type: "vector",
+              tiles: ["https://tiles.openfreemap.org/planet/__retry/{z}/{x}/{y}.pbf"],
+            },
+          },
+          layers: [
+            { id: "background", type: "background", paint: { "background-color": "#111111" } },
+            { id: "water", type: "fill", source: "basemap", "source-layer": "water" },
+          ],
+        },
+      });
+    },
+  );
+  await page.route("**/planet/__retry/**/*.pbf*", async (route) => {
+    const key = new URL(route.request().url()).pathname;
+    if (outage && !failed.has(key)) {
+      // Deliver the failure after the single camera turn, so tile eviction
+      // during animation cannot stand in for a completed failed request.
+      await expect.poll(() => page.evaluate(() => (
+        window as Window & { __pubmaxMapCamera?: { read: () => { moving: boolean } } }
+      ).__pubmaxMapCamera?.read().moving)).toBe(false);
+      failed.add(key);
+      await route.fulfill({ status: 503, body: "temporary vector outage" });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/x-protobuf",
+      body: Buffer.alloc(0),
+    });
+    if (failed.has(key)) recovered.add(key);
+  });
+  await page.goto("/map");
+  await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 30_000 });
+  await expect.poll(() => page.evaluate(() => (
+    window as Window & { __pubmaxMapCamera?: { read: () => { moving: boolean } } }
+  ).__pubmaxMapCamera?.read().moving)).toBe(false);
+  const initialStyleRequests = styleRequests;
+  outage = true;
+  // One move requests fresh tiles. No later camera movement can rescue an
+  // errored tile: recovery must actually re-fetch those same identities.
+  await page.locator(".maplibregl-ctrl-zoom-in").evaluate((button: HTMLButtonElement) => button.click());
+  await expect.poll(() => failed.size).toBeGreaterThan(0);
+  await expect.poll(() => [...failed].filter((key) => !recovered.has(key)), { timeout: 15_000 }).toEqual([]);
+  expect(styleRequests).toBe(initialStyleRequests);
+  expect(warnings.filter((line) => STYLE_RELOAD_WARNING.test(line))).toEqual([]);
+  await expect(page.locator("body")).not.toContainText(BASEMAP_BANNER);
+});
+
 test("/map still says so when both style URLs refuse", async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 1440, height: 900 });

@@ -1628,6 +1628,7 @@ export default function PubMapCanvas({
     let silentRetrySerial = 0;
     let silentSourceRetries = 0;
     const failedBasemapTiles = createBasemapTileFailureTracker();
+    const failedVectorTiles = new Map<string, Map<string, { x: number; y: number; z: number }>>();
     const clearTileFailureRecheck = () => {
       if (tileFailureRecheckTimer !== undefined) {
         clearTimeout(tileFailureRecheckTimer);
@@ -1648,6 +1649,7 @@ export default function PubMapCanvas({
       tileSpend = releaseQueuedSilentTileRetry(tileSpend);
       tileFailureStamps = [];
       failedBasemapTiles.reset();
+      failedVectorTiles.clear();
       basemapTileReadyForPaint = false;
     };
     // The silent lane: re-ask every tiled basemap SOURCE for its own tiles.
@@ -1685,7 +1687,15 @@ export default function PubMapCanvas({
             }
           | undefined;
         try {
-          if (plan.kind === "tiles") {
+          const failedTiles = failedVectorTiles.get(sourceId);
+          if (spec.type === "vector" && failedTiles?.size) {
+            // MapLibre 6.9 source-wide reload marks errored vector tiles
+            // loading, then waits on their already-finished worker request.
+            // The public targeted refresh expires them and sends a fresh
+            // loadTile request instead. Keep the source, layers and pins.
+            map.refreshTiles(sourceId, [...failedTiles.values()]);
+            failedVectorTiles.delete(sourceId);
+          } else if (plan.kind === "tiles") {
             source?.setTiles?.(plan.tiles.map(retryUrl));
           } else {
             source?.setUrl?.(retryUrl(plan.url));
@@ -2685,7 +2695,7 @@ export default function PubMapCanvas({
         error?: { message?: unknown };
         sourceId?: unknown;
         source?: { type?: unknown };
-        tile?: { tileID?: { key?: unknown } };
+        tile?: { tileID?: { key?: unknown; canonical?: { x: number; y: number; z: number } } };
       };
       const message = String(mapError.error?.message ?? "");
       // An app data pack answers to its own lane and leaves the tile-failure
@@ -2730,6 +2740,12 @@ export default function PubMapCanvas({
         documentVisible &&
         (!cameraInFlight || vectorTileNetworkFailure)
       ) {
+        const canonical = mapError.tile?.tileID?.canonical;
+        if (vectorTileNetworkFailure && typeof mapError.sourceId === "string" && canonical) {
+          const tiles = failedVectorTiles.get(mapError.sourceId) ?? new Map();
+          tiles.set(`${canonical.z}/${canonical.x}/${canonical.y}`, canonical);
+          failedVectorTiles.set(mapError.sourceId, tiles);
+        }
         failedBasemapTiles.recordFailure({
           sourceId: mapError.sourceId,
           sourceType: mapError.source?.type,

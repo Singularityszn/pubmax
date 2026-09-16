@@ -156,96 +156,6 @@ test("/map phone handoff contains real price clusters before loading retires", a
   ).toBeGreaterThanOrEqual(500);
 });
 
-test("/map keeps the honest retry visible while basemap tiles keep failing", async ({
-  browser,
-}) => {
-  const context = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    serviceWorkers: "block",
-    storageState: { cookies: [], origins: [] },
-  });
-  const page = await context.newPage();
-  await page.addInitScript(() => {
-    window.localStorage.setItem("pubmax-tour-v1-done", "1");
-    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
-    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-  });
-  test.setTimeout(90_000);
-  let abortTiles = false;
-  let landedVectorTiles = 0;
-  let abortedRequests = 0;
-  let failedVectorRequests = 0;
-  await page.route(/\.pbf(?:\?|$)/, async (route) => {
-    if (!abortTiles) {
-      if (/\/planet\//.test(route.request().url())) {
-        await route.fulfill({
-          status: 200,
-          contentType: "application/x-protobuf",
-          body: Buffer.alloc(0),
-        });
-      } else {
-        await route.continue();
-      }
-      return;
-    }
-    if (abortedRequests < 4) {
-      abortedRequests += 1;
-      await route.abort("failed");
-      return;
-    }
-    failedVectorRequests += 1;
-    await route.fulfill({
-      status: 503,
-      contentType: "application/x-protobuf",
-      body: "temporary vector outage",
-    });
-  });
-  page.on("response", (response) => {
-    if (
-      response.ok() &&
-      /tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/.test(
-        response.url(),
-      )
-    ) {
-      landedVectorTiles += 1;
-    }
-  });
-
-  await page.goto("/map?pubmaxx_test=honest-retry");
-  await waitForVisibleMap(page);
-  await expect.poll(() => landedVectorTiles, { timeout: 30_000 }).toBeGreaterThan(0);
-  // Let the opening camera and source settle before introducing the outage.
-  // Otherwise the same production request races the reveal turn rather than
-  // exercising the post-paint vector failure contract.
-  await page.waitForTimeout(1_500);
-  abortTiles = true;
-  await zoomThroughHiddenMobileControl(page, 4);
-  await expect.poll(() => abortedRequests, { timeout: 30_000 }).toBeGreaterThan(0);
-  await expect.poll(() => failedVectorRequests, { timeout: 30_000 }).toBeGreaterThan(0);
-
-  const notice = page.locator(".mapSoftRetry");
-  await expect(notice).toContainText("Map background couldn't load", {
-    timeout: 60_000,
-  });
-  await expect(notice).toBeVisible();
-  await expect(notice).toHaveAttribute("data-kind", "tiles");
-  await expect(page.locator(".ukPlaceArrival")).toHaveCount(0);
-  await expect(page.locator(".mapArrivalCard")).toHaveCount(0);
-  const retry = notice.getByRole("button", { name: "Retry" });
-  await expect(retry).toBeVisible();
-  const [retryBox, tabBarBox] = await Promise.all([
-    retry.boundingBox(),
-    page.locator(".mobileTabBar").boundingBox(),
-  ]);
-  expect(retryBox).not.toBeNull();
-  expect(tabBarBox).not.toBeNull();
-  expect(retryBox!.height).toBeGreaterThanOrEqual(44);
-  expect(retryBox!.y + retryBox!.height).toBeLessThanOrEqual(tabBarBox!.y);
-  await expect(page.locator(".mapFallback")).toHaveCount(0);
-  await context.close();
-});
-
 test("three-stop invite handoff fits the mobile map canvas", async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 300 });
@@ -481,12 +391,87 @@ test("/map keeps its pins visible while a slow basemap misses the phone readines
   // The delayed raster request then lands. The timing contract must remain true
   // after the response as well as before it.
   await expect.poll(() => landedRasterTiles, { timeout: 30_000 }).toBeGreaterThan(0);
-  // Let every delayed response settle before this serial file creates the next
-  // map context; one landed tile is not the end of the timing scenario.
-  await page.waitForTimeout(12_000);
   await page.waitForTimeout(750);
   await expect(page.locator(".mapFallback")).toHaveCount(0);
   await expect(page.locator(".mapSoftRetry")).toHaveCount(0);
+});
+
+test("/map keeps the honest retry visible while basemap tiles keep failing", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  test.setTimeout(90_000);
+  let abortTiles = false;
+  let landedVectorTiles = 0;
+  let abortedRequests = 0;
+  let failedVectorRequests = 0;
+  await page.route(/\.pbf(?:\?|$)/, async (route) => {
+    if (!abortTiles) {
+      if (/\/planet\//.test(route.request().url())) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/x-protobuf",
+          body: Buffer.alloc(0),
+        });
+      } else {
+        await route.continue();
+      }
+      return;
+    }
+    if (abortedRequests < 4) {
+      abortedRequests += 1;
+      await route.abort("failed");
+      return;
+    }
+    failedVectorRequests += 1;
+    await route.fulfill({
+      status: 503,
+      contentType: "application/x-protobuf",
+      body: "temporary vector outage",
+    });
+  });
+  page.on("response", (response) => {
+    if (
+      response.ok() &&
+      /tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/.test(
+        response.url(),
+      )
+    ) {
+      landedVectorTiles += 1;
+    }
+  });
+
+  await page.goto("/map");
+  await waitForVisibleMap(page);
+  await expect.poll(() => landedVectorTiles, { timeout: 30_000 }).toBeGreaterThan(0);
+  // Let the opening camera and source settle before introducing the outage.
+  // Otherwise the same production request races the reveal turn rather than
+  // exercising the post-paint vector failure contract.
+  await page.waitForTimeout(1_500);
+  abortTiles = true;
+  await zoomThroughHiddenMobileControl(page, 4);
+  await expect.poll(() => abortedRequests, { timeout: 30_000 }).toBeGreaterThan(0);
+  await expect.poll(() => failedVectorRequests, { timeout: 30_000 }).toBeGreaterThan(0);
+
+  const notice = page.locator(".mapSoftRetry");
+  await expect(notice).toContainText("Map background couldn't load", {
+    timeout: 60_000,
+  });
+  await expect(notice).toBeVisible();
+  await expect(notice).toHaveAttribute("data-kind", "tiles");
+  await expect(page.locator(".ukPlaceArrival")).toHaveCount(0);
+  await expect(page.locator(".mapArrivalCard")).toHaveCount(0);
+  const retry = notice.getByRole("button", { name: "Retry" });
+  await expect(retry).toBeVisible();
+  const [retryBox, tabBarBox] = await Promise.all([
+    retry.boundingBox(),
+    page.locator(".mobileTabBar").boundingBox(),
+  ]);
+  expect(retryBox).not.toBeNull();
+  expect(tabBarBox).not.toBeNull();
+  expect(retryBox!.height).toBeGreaterThanOrEqual(44);
+  expect(retryBox!.y + retryBox!.height).toBeLessThanOrEqual(tabBarBox!.y);
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
 });
 
 test("/map keeps the phone Retry control usable and recovers after a basemap outage", async ({
@@ -617,6 +602,7 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
   await page.setViewportSize({ width: 390, height: 844 });
   let failTiles = false;
   let outageRequests = 0;
+  let successfulOutageTiles = 0;
   await page.route(/\.pbf(?:\?|$)/, async (route) => {
     if (!failTiles) {
       await route.continue();
@@ -627,6 +613,15 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
     await new Promise((resolve) =>
       setTimeout(resolve, requestNumber === 5 ? 1_250 : 1_000),
     );
+    if (requestNumber === 5) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/x-protobuf",
+        body: Buffer.alloc(0),
+      });
+      successfulOutageTiles += 1;
+      return;
+    }
     if (requestNumber <= 4) {
       await route.abort("failed");
       return;
@@ -643,6 +638,8 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
   failTiles = true;
   await zoomThroughHiddenMobileControl(page);
   await expect.poll(() => outageRequests).toBeGreaterThanOrEqual(5);
+
+  await expect.poll(() => successfulOutageTiles).toBe(1);
 
   const notice = page.locator(".mapSoftRetry");
   await expect(notice).toContainText("Map background couldn't load", {
