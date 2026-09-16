@@ -374,10 +374,21 @@ test("one compass, and it gives back the view the city opens on", async ({ page 
   await openMap(page);
   const opening = await readCamera(page);
   // MapLibre's own compass is off at the source: two controls answering the
-  // same question differently is worse than either.
+  // same question differently is worse than either. The app's one compass is
+  // owned by the Layers popover, not the retired map edge.
   await expect(page.locator(".maplibregl-ctrl-compass")).toHaveCount(0);
-  const compass = page.locator(".mapCompassBtn");
-  await expect(compass).toHaveCount(1);
+  const layersFab = page.locator(".mapLayersControl > .mapLayersFab");
+  const layersPanel = page.locator(".mapLayersControl > .mapLayersPanel");
+  const openLayersCompass = async () => {
+    await expect(async () => {
+      if (!(await layersPanel.isVisible())) await layersFab.click();
+      await expect(layersPanel.locator(".mapCompassBtn")).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    const compass = layersPanel.locator(".mapCompassBtn");
+    await expect(compass).toHaveCount(1);
+    return compass;
+  };
+  let compass = await openLayersCompass();
   await expect(compass).toHaveAttribute("aria-label", /^Reset the map view of /);
 
   const cdp = await page.context().newCDPSession(page);
@@ -389,7 +400,9 @@ test("one compass, and it gives back the view the city opens on", async ({ page 
   ).toBeGreaterThan(MIN_BEARING_CHANGE);
 
   // The control is still there on a turned map. The old one was not, which is
-  // the exact moment somebody wants it.
+  // the exact moment somebody wants it. A gesture starts outside the popover,
+  // so reopen its owner if the outside-pointer handler closed it.
+  compass = await openLayersCompass();
   await expect(compass).toBeVisible();
   await compass.click();
 

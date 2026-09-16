@@ -131,7 +131,16 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
 
   // One compass, and it is the app's own: MapLibre's reset flattened the pitch
   // to nothing, which is not a view this map ever opens on (lib/mapCompass.ts).
-  const compass = page.locator(".mapCompassBtn");
+  // Since the 7 Sep chrome cut, the camera actions live in the Layers popover;
+  // opening that owner is part of the journey rather than looking for a retired
+  // map-edge control.
+  const layersFab = page.locator(".mapLayersControl > .mapLayersFab");
+  const layersPanel = page.locator(".mapLayersControl > .mapLayersPanel");
+  await expect(async () => {
+    if (!(await layersPanel.isVisible())) await layersFab.click();
+    await expect(layersPanel.locator(".mapCompassBtn")).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+  const compass = layersPanel.locator(".mapCompassBtn");
   await expect(compass).toHaveCount(1);
   await expect(page.locator(".maplibregl-ctrl-compass")).toHaveCount(0);
   const compassNeedle = compass.locator("svg");
@@ -158,9 +167,12 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
     await page.waitForTimeout(2_000);
   }
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(compass).toBeVisible();
-  await expect(page.locator(".maplibregl-ctrl-zoom-in")).toBeHidden();
-  await expect(page.locator(".maplibregl-ctrl-zoom-out")).toBeHidden();
+  // Phone More controls intentionally own layers without camera actions. The
+  // desktop popover above remains the one compass owner; the phone must not
+  // reintroduce MapLibre's flattened native compass as a second answer.
+  await expect(page.locator(".maplibregl-ctrl-compass")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "More map controls" })).toBeVisible();
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible();
 
   // Two full round-trips. Each remount reconstructs the map and re-runs the
   // style-load → buildScene path; the unmount aborts tiles and tears down
