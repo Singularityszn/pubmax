@@ -84,8 +84,14 @@ export async function handleMessagePhotoServe(
     return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
-  const conversationId = decodeURIComponent(params.id).trim();
-  const messageId = decodeURIComponent(params.messageId).trim();
+  let conversationId: string;
+  let messageId: string;
+  try {
+    conversationId = decodeURIComponent(params.id).trim();
+    messageId = decodeURIComponent(params.messageId).trim();
+  } catch {
+    return notFound();
+  }
   if (!conversationId || !messageId) return notFound();
 
   const objectKey = await deps.photoObjectKey(conversationId, messageId, handle);
