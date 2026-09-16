@@ -447,50 +447,31 @@ describe("resolveSheetHeightSnap — projected momentum", () => {
 describe("deepLinkSelectionCamera", () => {
   it("measures the sheet for the venue a link named", () => {
     expect(
-      deepLinkSelectionCamera({
-        arrivalVenueId: "venue-alias",
-        selectedVenueId: "venue-alias",
-        cameraSpent: false,
-      }),
-    ).toEqual({ measureSheet: true, arrivalVenueId: "venue-alias" });
+      deepLinkSelectionCamera({ arrivalNamedVenue: true, cameraSpent: false }),
+    ).toEqual({ measureSheet: true });
   });
 
-  it("still measures after the arrival id is rewritten to its canonical form", () => {
-    const rewritten = deepLinkSelectionCamera({
-      arrivalVenueId: "venue-alias",
-      selectedVenueId: "venue-canonical",
+  it("still measures while the arrival has not moved the camera, so a canonical rewrite is the same arrival", () => {
+    const first = deepLinkSelectionCamera({
+      arrivalNamedVenue: true,
       cameraSpent: false,
     });
-    expect(rewritten).toEqual({
-      measureSheet: true,
-      arrivalVenueId: "venue-canonical",
-    });
+    expect(first.measureSheet).toBe(true);
     expect(
-      deepLinkSelectionCamera({
-        arrivalVenueId: rewritten.arrivalVenueId,
-        selectedVenueId: "venue-canonical",
-        cameraSpent: false,
-      }).measureSheet,
+      deepLinkSelectionCamera({ arrivalNamedVenue: true, cameraSpent: false })
+        .measureSheet,
     ).toBe(true);
   });
 
   it("moves at once once the camera has moved for a selection", () => {
     expect(
-      deepLinkSelectionCamera({
-        arrivalVenueId: "venue-canonical",
-        selectedVenueId: "venue-other",
-        cameraSpent: true,
-      }),
-    ).toEqual({ measureSheet: false, arrivalVenueId: "venue-canonical" });
+      deepLinkSelectionCamera({ arrivalNamedVenue: true, cameraSpent: true }),
+    ).toEqual({ measureSheet: false });
   });
 
   it("moves at once for an arrival that named no venue", () => {
     expect(
-      deepLinkSelectionCamera({
-        arrivalVenueId: "",
-        selectedVenueId: "venue-tapped",
-        cameraSpent: false,
-      }),
-    ).toEqual({ measureSheet: false, arrivalVenueId: "" });
+      deepLinkSelectionCamera({ arrivalNamedVenue: false, cameraSpent: false }),
+    ).toEqual({ measureSheet: false });
   });
 });
