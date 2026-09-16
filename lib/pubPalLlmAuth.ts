@@ -33,17 +33,6 @@ export function readPubPalLlmSharedSecret(): string | null {
   return secret && secret.length > 0 ? secret : null;
 }
 
-/** Returns 503 when the Custom LLM bridge is not configured on this deployment. */
-export function assertPubPalLlmConfigured(): Response | null {
-  if (readPubPalLlmSharedSecret()) return null;
-  return publicApiError(
-    "Pub Pal Custom LLM is not configured yet.",
-    "UNAVAILABLE",
-    503,
-    { retryable: true },
-  );
-}
-
 /**
  * Gate the Custom LLM route. Returns `null` when authorised, or a ready Response
  * when the caller should be turned away.
