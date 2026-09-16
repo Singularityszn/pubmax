@@ -114,17 +114,74 @@ export function EditorialRailView({
   );
 }
 
+type EditorialLoadTiming = {
+  pageLoaded: () => boolean;
+  afterPageLoad: (callback: () => void) => () => void;
+  nextFrame: (callback: () => void) => () => void;
+  nextTask: (callback: () => void) => () => void;
+};
+
+const browserEditorialLoadTiming: EditorialLoadTiming = {
+  pageLoaded: () => document.readyState === "complete",
+  afterPageLoad: (callback) => {
+    window.addEventListener("load", callback, { once: true });
+    return () => window.removeEventListener("load", callback);
+  },
+  nextFrame: (callback) => {
+    const id = window.requestAnimationFrame(callback);
+    return () => window.cancelAnimationFrame(id);
+  },
+  nextTask: (callback) => {
+    const id = window.setTimeout(callback, 0);
+    return () => window.clearTimeout(id);
+  },
+};
+
+/** Keep this secondary rail out of the route's load and first-answer waterfall. */
+export function scheduleEditorialLoad(
+  start: () => void,
+  timing: EditorialLoadTiming = browserEditorialLoadTiming,
+): () => void {
+  let cancelled = false;
+  let cancelFrame: () => void = () => undefined;
+  let cancelTask: () => void = () => undefined;
+  const queueAfterPaint = () => {
+    if (cancelled) return;
+    cancelFrame = timing.nextFrame(() => {
+      if (cancelled) return;
+      cancelTask = timing.nextTask(() => {
+        if (!cancelled) start();
+      });
+    });
+  };
+  const cancelPageLoad = timing.pageLoaded()
+    ? (queueAfterPaint(), () => undefined)
+    : timing.afterPageLoad(queueAfterPaint);
+
+  return () => {
+    cancelled = true;
+    cancelPageLoad();
+    cancelFrame();
+    cancelTask();
+  };
+}
+
 export default function EditorialRail() {
   const [snapshot, setSnapshot] = useState<EditorialSnapshot | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    void loadEditorialSnapshot().then((result) => {
-      if (!cancelled) setSnapshot(result);
-    });
+    const load = () => {
+      void loadEditorialSnapshot().then((result) => {
+        if (!cancelled) setSnapshot(result);
+      });
+    };
+    const cancelLoad = loadAttempt === 0 ? scheduleEditorialLoad(load) : () => undefined;
+    if (loadAttempt > 0) load();
     return () => {
       cancelled = true;
+      cancelLoad();
     };
   }, [loadAttempt]);
 
