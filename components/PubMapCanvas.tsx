@@ -639,6 +639,7 @@ export default function PubMapCanvas({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const userCameraInteractionRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
+  const [mapInstanceReady, setMapInstanceReady] = useState(false);
   const [mapBearing, setMapBearing] = useState(() => mapView.bearing ?? 0);
   const [mapPitch, setMapPitch] = useState(() => mapView.pitch ?? 0);
   // Who owns the camera right now. lib/mapGestureGuard.ts holds the rule; this
@@ -1130,7 +1131,7 @@ export default function PubMapCanvas({
   );
   useEffect(() => {
     const map = mapRef.current;
-    if (!mapReady || !map || arrivalBearingSpentRef.current) return;
+    if (!map || arrivalBearingSpentRef.current) return;
     let cancelled = false;
     let stillFrames = 0;
     let waited = 0;
@@ -1164,7 +1165,7 @@ export default function PubMapCanvas({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [mapReady, easeArrivalBearing]);
+  }, [mapInstanceReady, easeArrivalBearing]);
 
   // The parent owns the selection and renders the story (the phone's shared
   // sheet, the desktop's left drawer); the canvas only reports a pin tap here
@@ -1458,6 +1459,7 @@ export default function PubMapCanvas({
       "top-right",
     );
     mapRef.current = map;
+    setMapInstanceReady(true);
     let styleGeneration = 0;
     const cancelDeferredWork = () => {
       if (deferredSceneIdleId !== null && typeof cancelIdleCallback === "function") {

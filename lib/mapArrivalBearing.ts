@@ -58,10 +58,10 @@ export const MAP_ARRIVAL_BEARING_EPSILON = 0.5;
 // that window is how a spec starts reading the map before it has turned.
 
 /** How often the canvas asks whether the camera has stopped. */
-export const ARRIVAL_BEARING_POLL_MS = 200;
+export const ARRIVAL_BEARING_POLL_MS = 100;
 
 /** How many consecutive still polls count as a camera nobody is writing. */
-export const ARRIVAL_BEARING_STILL_POLLS = 4;
+export const ARRIVAL_BEARING_STILL_POLLS = 1;
 
 /** Past this the turn happens whether the camera has settled or not. */
 export const ARRIVAL_BEARING_WAIT_CEILING_MS = 6_000;
