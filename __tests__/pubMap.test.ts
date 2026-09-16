@@ -216,6 +216,18 @@ describe("builtStopsNeedingHydration", () => {
     ).toEqual(ids.slice(0, WALK_ROUTE_MAX_STOPS));
   });
 
+  it("reaches the stops past the ceiling when the first pass found nothing", () => {
+    const ids = Array.from({ length: 14 }, (_, index) => `v${index + 100}`);
+    expect(
+      builtStopsNeedingHydration({
+        venueDataReady: true,
+        builtIds: ids,
+        venueById: new Map<string, Venue>(),
+        askedIds: new Set(ids.slice(0, WALK_ROUTE_MAX_STOPS)),
+      }),
+    ).toEqual(ids.slice(WALK_ROUTE_MAX_STOPS));
+  });
+
   it("reaches the stops past the ceiling once the earlier ones are loaded", () => {
     const ids = Array.from({ length: 14 }, (_, index) => `v${index + 100}`);
     const loaded = new Map<string, Venue>(

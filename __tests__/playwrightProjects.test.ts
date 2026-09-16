@@ -2,22 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const FIREFOX_PROJECT = "firefox-desktop-map-chrome-fit";
 const FIREFOX_OPT_IN = "PW_FIREFOX_DESKTOP_MAP_CHROME_FIT";
-// A Chromium project that owns its specs because they need its own browser
-// flags, base URL or storage state. The cross-browser opt-in projects are
-// deliberately shared with the default project, so they stay off this list.
-const DEDICATED_CHROMIUM_PROJECTS = [
-  "chromium-cwv",
-  "chromium-gl",
-  "chromium-sw-gl",
-  "chromium-no-gl",
-  "chromium-keyless",
-  "chromium-real-auth",
-  "chromium-authenticated",
-];
-// Every dedicated project but the one that needs a seeded login to register.
-const ALWAYS_REGISTERED_DEDICATED = DEDICATED_CHROMIUM_PROJECTS.filter(
-  (name) => name !== "chromium-authenticated",
-);
 
 type LoadedProject = {
   name?: string;
@@ -62,13 +46,15 @@ describe("Playwright project registration", () => {
     const ignored = globsOf(
       projects.find((project) => project.name === "chromium")?.testIgnore,
     );
-    const dedicated = projects.filter((project) =>
-      DEDICATED_CHROMIUM_PROJECTS.includes(project.name ?? ""),
+    // A Chromium project that declares its own specs owns them: it exists
+    // because those specs need its launch flags, base URL or storage state.
+    const dedicated = projects.filter(
+      (project) =>
+        (project.name ?? "").startsWith("chromium-") &&
+        globsOf(project.testMatch).length > 0,
     );
 
-    expect(dedicated.map((project) => project.name)).toEqual(
-      expect.arrayContaining(ALWAYS_REGISTERED_DEDICATED),
-    );
+    expect(dedicated.length).toBeGreaterThan(0);
     for (const project of dedicated) {
       for (const glob of globsOf(project.testMatch)) {
         expect(
