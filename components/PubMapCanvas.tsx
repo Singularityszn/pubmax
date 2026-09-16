@@ -1613,6 +1613,10 @@ export default function PubMapCanvas({
     let tileFailureRestRecheckArmed = false;
     let silentTileRetryTimer: ReturnType<typeof setTimeout> | undefined;
     const failedBasemapTiles = createBasemapTileFailureTracker();
+    // MapLibre 6.9 may finish a worker tile through `dataabort` without an
+    // accompanying map error. Keep that evidence separate so the ordinary
+    // error tracker and its classifier inputs do not double-count one tile.
+    const abortedBasemapTiles = createBasemapTileFailureTracker();
     const clearTileFailureRecheck = () => {
       if (tileFailureRecheckTimer !== undefined) {
         clearTimeout(tileFailureRecheckTimer);
@@ -1632,6 +1636,7 @@ export default function PubMapCanvas({
       tileSpend = releaseQueuedSilentTileRetry(tileSpend);
       tileFailureStamps = [];
       failedBasemapTiles.reset();
+      abortedBasemapTiles.reset();
       basemapTileReadyForPaint = false;
     };
     // The silent lane: re-ask every tiled basemap SOURCE for its own tiles.
@@ -1649,6 +1654,7 @@ export default function PubMapCanvas({
       clearTileFailureRecheck();
       tileFailureStamps = [];
       failedBasemapTiles.reset();
+      abortedBasemapTiles.reset();
       for (const [sourceId, spec] of Object.entries(sources)) {
         if (appDataPackSourceId(sourceId)) continue;
         const plan = basemapSourceReloadPlan(spec);
@@ -1761,8 +1767,10 @@ export default function PubMapCanvas({
       if (
         !basemapRecoveryConfirmed({
           tilesLoaded: areBasemapTilesLoaded(),
-          recheckPending: tileFailureRecheckTimer !== undefined,
-          unrecoveredFailures: failedBasemapTiles.hasFailures(),
+          recheckPending:
+            tileFailureRecheckTimer !== undefined || tileFailureRestRecheckArmed,
+          unrecoveredFailures:
+            failedBasemapTiles.hasFailures() || abortedBasemapTiles.hasFailures(),
           basemapTileLoaded: basemapTileReadyForPaint,
         })
       ) {
@@ -1803,13 +1811,15 @@ export default function PubMapCanvas({
       }
       initialBasemapPending = false;
       basemapTileReadyForPaint = true;
-      const recoveredFailures = failedBasemapTiles.recordSuccess({
+      const tileReference = {
         sourceId: dataEvent.sourceId,
         sourceType: dataEvent.source?.type,
         tileKey: dataEvent.tile.tileID?.key,
-      });
-      if (failedBasemapTiles.hasFailures()) return;
-      if (!recoveredFailures && tileFailureRecheckTimer !== undefined) return;
+      };
+      const recoveredFailures = failedBasemapTiles.recordSuccess(tileReference);
+      const recoveredAborts = abortedBasemapTiles.recordSuccess(tileReference);
+      if (failedBasemapTiles.hasFailures() || abortedBasemapTiles.hasFailures()) return;
+      if (!recoveredFailures && !recoveredAborts && tileFailureRecheckTimer !== undefined) return;
       clearTileFailureRecheck();
       tileFailureStamps = [];
       markBasemapRecovered();
@@ -2687,6 +2697,50 @@ export default function PubMapCanvas({
         documentVisible && !cameraInFlight,
       );
     });
+
+    // MapLibre 6.9 can surface a worker vector-tile request that was aborted
+    // after a camera move as `dataabort`/`sourcedataabort` without also emitting
+    // map `error`. Once the camera is still, retain those visible vector aborts
+    // as the same bounded burst signal. Do not mark a tile recovered here:
+    // either abort event says the request ended, not that the tile ever painted,
+    // and the normal `sourcedata` loaded path remains the only recovery proof.
+    const onBasemapTileAbort = (event: unknown) => {
+      if (tileSpend.surfaced || mapRef.current !== map || !styleLoaded) return;
+      const dataEvent = event as {
+        sourceId?: unknown;
+        source?: { type?: unknown };
+        tile?: { tileID?: { key?: unknown } };
+      };
+      if (
+        dataEvent.source?.type !== "vector" ||
+        typeof dataEvent.sourceId !== "string" ||
+        typeof dataEvent.tile?.tileID?.key !== "string" ||
+        appDataPackSourceId(dataEvent.sourceId)
+      ) {
+        return;
+      }
+      const documentVisible = document.visibilityState !== "hidden";
+      if (!documentVisible) return;
+      const cameraInFlight = map.isMoving();
+      const now = performance.now();
+      tileFailureStamps = pruneTileFailures(tileFailureStamps, now);
+      tileFailureStamps.push(now);
+      if (!cameraInFlight) {
+        abortedBasemapTiles.recordFailure({
+          sourceId: dataEvent.sourceId,
+          sourceType: dataEvent.source?.type,
+          tileKey: dataEvent.tile.tileID?.key,
+        });
+      }
+      evaluateTileFailure(
+        now,
+        false,
+        "Basemap vector tile request aborted",
+        documentVisible && !cameraInFlight,
+      );
+    };
+    map.on("dataabort", onBasemapTileAbort);
+    map.on("sourcedataabort", onBasemapTileAbort);
 
     // --- Post-init context loss (iOS Safari P0).
     // iOS kills WebGL on app-switch / restores bfcache pages with a dead canvas.
