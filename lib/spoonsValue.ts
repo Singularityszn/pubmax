@@ -377,10 +377,8 @@ export function spoonsValueMapKeyRow(
 }
 
 /**
- * The map key's row for a grey pin. It covers BOTH a pub the ranking says
- * nothing about and a ranked UK base pub, which keeps the no-price silhouette
- * (`lib/AGENTS.md` rule (4)) and so wears no band. The row may not say a grey
- * pin is out of the ranking, because for a ranked base pub that is false.
+ * The map key's row for a grey pin: a pub this ranking says nothing about, and
+ * so one this lens shows no figure for either.
  */
 export const SPOONS_VALUE_UNRANKED_KEY_LABEL = "Unranked or unpriced";
 

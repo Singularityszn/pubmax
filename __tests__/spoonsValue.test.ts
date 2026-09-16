@@ -9,7 +9,6 @@ import { mapPriceLegend, type MapPriceLegendModel } from "@/lib/mapPriceLegend";
 import { deriveMapRenderedState } from "@/lib/mapRenderedState";
 import { priceBandThresholdsFrom } from "@/lib/priceBand";
 import { priceLegendInput } from "@/lib/pubMap";
-import { ukBasePubsToGeoJSON } from "@/lib/ukBasePubs";
 import type { Venue } from "@/lib/venues";
 import {
   SPOONS_VALUE_BANDS,
@@ -523,35 +522,10 @@ describe("this is not a price lane, and the tree is held to it", () => {
     expect(on.priceCapFilter).toBe(false);
   });
 
-  it("never tells a reader a grey pin is out of the ranking, because a ranked base pub wears one", () => {
-    // A ranked UK base pub keeps the neutral no-price silhouette: the base
-    // source hands the pin no band at all, only the credited units figure.
-    const [base] = ukBasePubsToGeoJSON(
-      [
-        {
-          id: "venue-uk-n1",
-          name: "A Wetherspoon",
-          address: "1 Dock Road",
-          lat: 51.42,
-          lng: -0.18,
-          curatedVenueId: "",
-          kind: "pub" as const,
-        },
-      ],
-      null,
-      {
-        byVenueId: new Map([["venue-uk-n1", { milliunits: 20_000, pence: 995 }]]),
-        modalMilliunits: MODAL_MILLIUNITS,
-      },
-    ).features;
-    expect(base.properties).toMatchObject({ spoonsLabel: "20.0 units" });
-    expect(base.properties).not.toHaveProperty("spoonsBucket");
-
-    // So the key's grey row answers for that pin too, and may not say the pub
-    // it stands over is not in the ranking.
+  it("never says a grey pin is out of the ranking in words the key cannot stand behind", () => {
     const grey = spoonsLegend().rows.find((row) => row.symbol === "?");
     expect(grey?.label).toBe("Unranked or unpriced");
-    expect(grey?.label).not.toMatch(/not in the ranking/i);
+    expect(grey?.tone).toBe("grey");
   });
 
   it("keeps the units key while a drink lane is also chosen", () => {

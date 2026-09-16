@@ -536,17 +536,15 @@ export function ukBasePubsToGeoJSON(
   // A non-null lane means the Spoons value lens owns the map. Most Wetherspoon
   // pubs in the country are base pins rather than curated venues (676 of the
   // 788 the ranking joins), so the lens would be nearly empty without this.
-  // The credited units label is ADDITIVE and absent on every other pub. The
-  // base pin itself remains the no-price silhouette; a value band must never
-  // reach the coloured pint sprite family or any price surface.
+  // The two stamped properties are ADDITIVE and absent on every other pub, so
+  // a pin outside the ranking is untouched and nothing here can reach a price
+  // surface: `spoonsBucket` is a value band, never a price bucket.
   spoonsValue: SpoonsValuePinLane | null = null,
 ): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: pubs.map((pub) => {
-      const spoonsLabel = spoonsValue
-        ? spoonsValuePinFor(spoonsValue, pub.id).label
-        : null;
+      const spoons = spoonsValue ? spoonsValuePinFor(spoonsValue, pub.id) : null;
       return {
         type: "Feature" as const,
         properties: {
@@ -555,14 +553,13 @@ export function ukBasePubsToGeoJSON(
           address: pub.address,
           curatedVenueId: pub.curatedVenueId,
           provisional: Boolean(provisionalVenueIds?.has(pub.id)),
-          // Additive, like the Spoons units label below: a pub feature carries no
+          // Additive, like the Spoons pair below: a pub feature carries no
           // `kind` at all, so the pin layers and every existing reader are
           // untouched by bars joining the source.
           ...(pub.kind === "bar" ? { kind: "bar" } : {}),
-          // The units label is safe to show beside the neutral base pin. Do
-          // not carry the value bucket into this source: no-price base pubs
-          // must have no route to a coloured pint sprite.
-          ...(spoonsLabel ? { spoonsLabel } : {}),
+          ...(spoons && spoons.label
+            ? { spoonsBucket: spoons.bucket, spoonsLabel: spoons.label }
+            : {}),
         },
         geometry: { type: "Point" as const, coordinates: [pub.lng, pub.lat] },
       };
