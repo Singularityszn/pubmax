@@ -69,15 +69,6 @@ const REAL_AUTH_CONFIGURED = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 );
-// The production-style server and its in-memory per-IP lanes are shared by all
-// browser contexts. Four local workers exhaust those lanes and turn later plan
-// journeys into 429s; keep the safe default at two while allowing a deliberate
-// lab override. A CLI --workers value still wins over this config value.
-const requestedWorkers = Number(process.env.PW_WORKERS);
-const E2E_WORKERS =
-  Number.isFinite(requestedWorkers) && requestedWorkers > 0
-    ? Math.max(1, Math.floor(requestedWorkers))
-    : 2;
 
 if (
   E2E_LOGIN &&
@@ -94,7 +85,10 @@ if (
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
-  workers: E2E_WORKERS,
+  // The production-style server and its in-memory per-IP lanes are shared by all
+  // browser contexts. Four local workers exhaust those lanes and turn later plan
+  // journeys into 429s, so two is the safe number.
+  workers: 2,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: "list",
