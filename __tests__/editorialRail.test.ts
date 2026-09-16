@@ -2,9 +2,9 @@ import { createElement } from "react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { EditorialRailView } from "@/components/out/EditorialRail";
+import { EditorialRailView, scheduleEditorialLoad } from "@/components/out/EditorialRail";
 import {
   EDITORIAL_DEGRADED_EMPTY_LINE,
   EDITORIAL_DEGRADED_LINE,
@@ -141,6 +141,63 @@ describe("editorial rail", () => {
     expect(OUT_CLIENT).toMatch(/EditorialRail/);
     expect(TONIGHT).toMatch(/EditorialRail/);
     expect(MAP).not.toMatch(/EditorialRail|editorial/);
+  });
+
+  it("waits for page load, a painted frame, and a task before fetching the secondary rail", () => {
+    let pageLoad: (() => void) | undefined;
+    let frame: (() => void) | undefined;
+    let task: (() => void) | undefined;
+    const start = vi.fn();
+    const cancelPageLoad = vi.fn();
+    const cancelFrame = vi.fn();
+    const cancelTask = vi.fn();
+    const cancel = scheduleEditorialLoad(start, {
+      pageLoaded: () => false,
+      afterPageLoad: (callback) => {
+        pageLoad = callback;
+        return cancelPageLoad;
+      },
+      nextFrame: (callback) => {
+        frame = callback;
+        return cancelFrame;
+      },
+      nextTask: (callback) => {
+        task = callback;
+        return cancelTask;
+      },
+    });
+
+    expect(start).not.toHaveBeenCalled();
+    pageLoad?.();
+    frame?.();
+    expect(start).not.toHaveBeenCalled();
+    task?.();
+    expect(start).toHaveBeenCalledOnce();
+
+    cancel();
+    expect(cancelPageLoad).toHaveBeenCalledOnce();
+    expect(cancelFrame).toHaveBeenCalledOnce();
+    expect(cancelTask).toHaveBeenCalledOnce();
+  });
+
+  it("cancels the queued fetch before a delayed page load", () => {
+    let pageLoad: (() => void) | undefined;
+    const start = vi.fn();
+    const nextFrame = vi.fn(() => () => undefined);
+    const cancel = scheduleEditorialLoad(start, {
+      pageLoaded: () => false,
+      afterPageLoad: (callback) => {
+        pageLoad = callback;
+        return () => undefined;
+      },
+      nextFrame,
+      nextTask: () => () => undefined,
+    });
+
+    cancel();
+    pageLoad?.();
+    expect(nextFrame).not.toHaveBeenCalled();
+    expect(start).not.toHaveBeenCalled();
   });
 
   it("is reduced-motion safe", () => {
