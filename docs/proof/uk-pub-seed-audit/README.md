@@ -1,10 +1,10 @@
 # UK pub seed coverage proof
 
-**Scope:** issue 1623, phase 1. **Audited commit:** `6bcd70cb1256278a07b154ad415a0eb3ef95363e` on `fm/uk-pubs-seed-audit`; the source seed, published UK base artifacts and relevant map code have the same object ids on local `main`.
+**Scope:** issue 1623, phase 1. **Audited base:** `origin/main` at `47996d4`; the seed and published UK base artifacts are on main, while the Spoons no-price correction is implemented on this branch at `58596e9` and covered by focused tests. **Revalidated:** `2026-09-16T00:22:46Z`.
 
 ## Result
 
-The UK pub seed is complete at the requested 38,215 normalized pubs and is already present in the UK base map on `main`. A current count-only Overpass check returned 38,427 UK `amenity=pub` node/way elements, 212 above the seed (0.55%), so the snapshot is current enough under the 2% decision threshold and is not re-fetched in this PR. The raw Overpass files contain 38,511 element occurrences, which reconciles to the normalized count after 11 shared-grid-edge duplicates and 285 valid raw elements without an OSM name are accounted for. The published base manifest contains all 38,215 pub ids, plus 7,190 separately harvested bar rows. Coverage is complete, but the Spoons Value lens still needs one map-pin fix for unpriced base pubs.
+The UK pub seed is complete at the requested 38,215 normalized pubs and is already present in the UK base map on `main`. A current count-only Overpass check returned 38,526 UK `amenity=pub` node/way elements, 311 above the seed (0.81%), so the snapshot is current enough under the 2% decision threshold and is not re-fetched in this PR. The raw Overpass files contain 38,511 element occurrences, which reconciles to the normalized count after 11 shared-grid-edge duplicates and 285 valid raw elements without an OSM name are accounted for. The published base manifest contains all 38,215 pub ids, plus 7,190 separately harvested bar rows. Coverage is complete on main. Main still has the Spoons Value no-price pin gap; this branch already carries the focused correction, so the remaining phase-1 obligations are the audit artifact and final PR gate.
 
 ## 1. Seed count and raw chunk count
 
@@ -14,8 +14,8 @@ The UK pub seed is complete at the requested 38,215 normalized pubs and is alrea
 | `data/osm/uk/uk_osm_pubs.json` `pubs` list | **38,215** |
 | Distinct normalized OSM ids | **38,215** |
 | Issue target | **38,215** |
-| Current count-only Overpass result | **38,427** |
-| Difference from issue target | **+212 / +0.55%** |
+| Current count-only Overpass result | **38,526** |
+| Difference from issue target | **+311 / +0.81%** |
 | `data/osm/uk/raw/chunk_*.json` files | **132 / 132** |
 | Sum of raw `elements` across chunks | **38,511** |
 | Distinct raw `(type,id)` elements | **38,500** |
@@ -24,7 +24,7 @@ The UK pub seed is complete at the requested 38,215 normalized pubs and is alrea
 
 The raw total is therefore `38,500 - 285 = 38,215` normalized pubs, while the file-occurrence total is `38,500 + 11 = 38,511`. `data/osm/uk/chunks.json` reports the same 132 chunks, 66 chunks with data, `missingChunks: []`, and `elements: 38511`. The fetch query is `amenity=pub` nodes and ways clipped to UK relation 62149, using the bbox `[49.8, -8.7, 61.0, 1.9]`.
 
-The current upstream check was one count-only request at `2026-09-15T23:45:26Z` using the same relation and bbox:
+The current upstream check was one count-only GET at `2026-09-16T00:22:46Z` to `https://overpass.private.coffee/api/interpreter`, using the same relation and bbox:
 
 ```overpass
 [out:json][timeout:90];
@@ -36,7 +36,7 @@ area(id:3600062149)->.uk;
 out count;
 ```
 
-Overpass returned `nodes=16,436`, `ways=21,991`, `total=38,427`. The seed is **0.55% below** that current count, under the 2% threshold; refresh is a follow-up only if a later audit crosses that threshold.
+Overpass returned `nodes=16,594`, `ways=21,932`, `total=38,526`. The seed is **0.81% below** that current count, under the 2% threshold; refresh is a follow-up only if a later audit crosses that threshold.
 
 ## 2. Geographic coverage and gaps
 
@@ -100,7 +100,7 @@ Today the map handles an unpriced UK base pub as follows:
 3. `buildScene` draws the separate `uk-base-point` source with the base/unpriced icon and 0.85 opacity. Its ordinary text expression is empty, so an unpriced pub gets no price label. The base source is below the curated priced source and is not clustered into curated price donuts.
 4. On the ordinary curated-pub path, `priceBucket(null)` is the neutral no-price bucket, `priceLabel` is omitted, and the no-price icon is used. The focused tests also cover an unpriced pub with one uncorroborated report: it keeps no band and no label.
 
-The UK base path is neutral while the lens is off: `ukBasePubsToGeoJSON` emits no price, bucket or price label, `UK_BASE_ICON_IMAGE_EXPR` falls back to `base:pub`, and the layer has no price-driven paint. However, the current Spoons Value path stamps `spoonsBucket` on a ranked base pub and `UK_BASE_ICON_IMAGE_EXPR` currently concatenates `drink:pint-<bucket>`. That is the price-band sprite family, so an unpriced base pub can receive a colour even though the value lane is not a pint-price claim. The separate `spoonsLabel` is a credited units/value label, but it does not make the coloured glyph compliant. Criterion 4 therefore passes on the ordinary path and fails globally until this Spoons fallback uses the no-price pin. This distinction is recorded in `lib/ukBasePubs.ts`, `components/map/canvas/buildScene.ts`, `__tests__/ukBasePubs.test.ts`, `__tests__/canvas-geojson.test.ts`, and `__tests__/mapSymbolCollision.test.ts`.
+The UK base path is neutral while the lens is off: `ukBasePubsToGeoJSON` emits no price, bucket or price label, `UK_BASE_ICON_IMAGE_EXPR` falls back to `base:pub`, and the layer has no price-driven paint. However, the current Spoons Value path stamps `spoonsBucket` on a ranked base pub and `UK_BASE_ICON_IMAGE_EXPR` currently concatenates `drink:pint-<bucket>`. That is the price-band sprite family, so an unpriced base pub can receive a colour even though the value lane is not a pint-price claim. The separate `spoonsLabel` is a credited units/value label, but it does not make the coloured glyph compliant. Criterion 4 therefore passes on the ordinary path and fails on main until this Spoons fallback uses the no-price pin; branch commit `58596e9` now supplies that fallback and its focused regression test. This distinction is recorded in `lib/ukBasePubs.ts`, `components/map/canvas/buildScene.ts`, `__tests__/ukBasePubs.test.ts`, `__tests__/canvas-geojson.test.ts`, and `__tests__/mapSymbolCollision.test.ts`.
 
 ## 5. Acceptance-criterion status on `main`
 
@@ -109,7 +109,7 @@ The UK base path is neutral while the lens is off: `ukBasePubsToGeoJSON` emits n
 | 1. PR body says where the 38,215-pub seed is and what main holds | **Not yet closed as a PR artifact.** The exact statement is ready above and must be copied into the final PR body. The seed is `data/osm/uk/uk_osm_pubs.json`; raw chunks are under `data/osm/uk/raw/`; `main` holds the 617-shard generation under `public/data/uk_base/`, plus the UK place/search builders. |
 | 2. UK is covered by shard cells under the per-cell budget | **Verified true on main.** All 38,215 seed ids are in the manifest generation; the largest cell is 124,916 bytes against 153,600 bytes. |
 | 3. `/map` budgets before and after are in the PR body | **Not yet closed as a PR artifact.** The figures to carry forward are recorded below. |
-| 4. Pubs without a price use the no-price pin, never a price colour | **Not yet true globally.** The ordinary UK base path is neutral, but Spoons Value currently maps an unpriced base pub's `spoonsBucket` to `drink:pint-<bucket>`, a price-band sprite family. The lens must use the no-price pin for those base pubs and gain a focused regression test. |
+| 4. Pubs without a price use the no-price pin, never a price colour | **Not true on main; implemented on this branch.** The ordinary UK base path is neutral, while main's Spoons Value path maps an unpriced base pub's `spoonsBucket` to `drink:pint-<bucket>`. Branch commit `58596e9` removes that coloured fallback and adds the focused regression test. |
 
 ## `/map` figures to carry into the final PR body
 
