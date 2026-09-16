@@ -10,7 +10,6 @@ import {
   SHEET_SNAP_FRACTIONS,
   SHEET_SNAP_ORDER,
   SHEET_SNAP_TRANSLATE_FRACTIONS,
-  deepLinkSelectionCamera,
   mobileSelectCameraOffset,
   SHEET_ENTRANCE_MS,
 } from "@/lib/sheetSnap";
@@ -440,26 +439,5 @@ describe("resolveSheetHeightSnap — projected momentum", () => {
       caps,
     });
     expect(result).toEqual({ snap: "half", dismissed: false });
-  });
-});
-
-
-describe("deepLinkSelectionCamera", () => {
-  it("measures the sheet for the venue a link named", () => {
-    expect(
-      deepLinkSelectionCamera({ arrivalNamedVenue: true, cameraSpent: false }),
-    ).toEqual({ measureSheet: true });
-  });
-
-  it("moves at once once the camera has moved for a selection", () => {
-    expect(
-      deepLinkSelectionCamera({ arrivalNamedVenue: true, cameraSpent: true }),
-    ).toEqual({ measureSheet: false });
-  });
-
-  it("moves at once for an arrival that named no venue", () => {
-    expect(
-      deepLinkSelectionCamera({ arrivalNamedVenue: false, cameraSpent: false }),
-    ).toEqual({ measureSheet: false });
   });
 });

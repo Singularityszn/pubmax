@@ -39,22 +39,37 @@ describe("Playwright project registration", () => {
   });
 
   it("never lets a dedicated project's spec run in the default Chromium project", async () => {
-    vi.stubEnv("PUBMAX_E2E_LOGIN", "");
+    // The config demands a whole Supabase environment before it will register
+    // the signed-in project. These stand-ins are never dialled: the config is
+    // read as a value here, not run.
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://pubmaxx-fence.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_pubmaxx_fence");
-    const projects = await loadProjects();
-    const ignored = globsOf(
-      projects.find((project) => project.name === "chromium")?.testIgnore,
-    );
+    vi.stubEnv("SUPABASE_URL", "https://pubmaxx-fence.supabase.co");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "sb_secret_pubmaxx_fence");
     // A Chromium project that declares its own specs owns them: it exists
     // because those specs need its launch flags, base URL or storage state.
-    const dedicated = projects.filter(
-      (project) =>
-        (project.name ?? "").startsWith("chromium-") &&
-        globsOf(project.testMatch).length > 0,
-    );
+    // Some register only behind an environment flag, so both environments are
+    // read and the union is fenced.
+    const ignored: string[] = [];
+    const dedicated: LoadedProject[] = [];
+    for (const login of ["", "1"]) {
+      vi.stubEnv("PUBMAX_E2E_LOGIN", login);
+      const projects = await loadProjects();
+      ignored.push(
+        ...globsOf(projects.find((project) => project.name === "chromium")?.testIgnore),
+      );
+      dedicated.push(
+        ...projects.filter(
+          (project) =>
+            (project.name ?? "").startsWith("chromium-") &&
+            globsOf(project.testMatch).length > 0,
+        ),
+      );
+    }
 
-    expect(dedicated.length).toBeGreaterThan(0);
+    expect(dedicated.map((project) => project.name)).toContain(
+      "chromium-authenticated",
+    );
     for (const project of dedicated) {
       for (const glob of globsOf(project.testMatch)) {
         expect(

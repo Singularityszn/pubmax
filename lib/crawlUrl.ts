@@ -14,6 +14,7 @@ import { isMapLensDrinkCategory } from "@/lib/drinks";
 import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import { parseZoneParam } from "@/lib/zones";
 import { clamp } from "@/lib/mathClamp";
+import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
 
 // Alt crawl styles (issue #31): a light "what kind of night" label that rides
 // alongside the scoring crawlStyle without touching it. It only shapes copy —
@@ -270,7 +271,14 @@ export function decodeCrawl(
 
   const pubs = params.get("pubs");
   if (pubs) {
-    const ids = pubs.split(",").map((id) => id.trim()).filter(Boolean);
+    // A plan is at most WALK_ROUTE_MAX_STOPS stops, which is what the route
+    // draws and what the planner owes detail for. A longer list is a link
+    // nobody built in the product, so it is read to the ceiling.
+    const ids = pubs
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean)
+      .slice(0, WALK_ROUTE_MAX_STOPS);
     if (ids.length) out.builtIds = ids;
   }
 
