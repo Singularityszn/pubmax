@@ -345,10 +345,13 @@ test("/map reveals pins only for the final rapid theme style generation", async 
   ).toEqual([]);
 });
 
-// e8bc70d3a intentionally made phone readiness local-pin-first. A slow remote
-// basemap must not hold the useful map behind the loading shell or invent a
-// failure notice before a tile
-// request has actually failed.
+// e8bc70d3a set `requiresBasemapPaint: !phoneFirstImpression`, so a phone
+// reveals on its local pins ("pins") rather than on the readiness ceiling
+// ("timeout"). `revealTimeoutNotice` only names the basemap for a "timeout"
+// reveal, so a slow remote basemap owes NO toast here: it must neither hold the
+// useful map behind the loading shell nor invent a failure before a tile
+// request has actually failed. The toast contract for a basemap that really
+// fails is asserted by the honest-retry test below.
 test("/map keeps its pins visible while a slow basemap misses the phone readiness ceiling", async ({
   page,
 }) => {
@@ -382,6 +385,8 @@ test("/map keeps its pins visible while a slow basemap misses the phone readines
 
   holdTiles = false;
   await expect(page.locator(".mapFallback")).toHaveCount(0);
+  // A tile that was merely slow never earns a notice, before or after it lands.
+  await expect(page.locator(".mapSoftRetry")).toHaveCount(0);
 });
 
 test("/map keeps the honest retry visible while basemap tiles keep failing", async ({
@@ -404,7 +409,26 @@ test("/map keeps the honest retry visible while basemap tiles keep failing", asy
   });
   await page.waitForTimeout(2_000);
   await expect(notice).toBeVisible();
-  await expect(notice.getByRole("button", { name: "Retry" })).toBeVisible();
+  // The background is what never painted, so the background is what the toast
+  // names, and it is the only toast on the surface.
+  await expect(notice).toHaveAttribute("data-kind", "tiles");
+  await expect(page.locator(".ukPlaceArrival")).toHaveCount(0);
+  // One toast owns the surface: the first-visit arrival card is 256px of opaque
+  // panel over this exact band and stands down while a failure is on screen.
+  await expect(page.locator(".mapArrivalCard")).toHaveCount(0);
+
+  const retry = notice.getByRole("button", { name: "Retry" });
+  await expect(retry).toBeVisible();
+  const [retryBox, tabBarBox] = await Promise.all([
+    retry.boundingBox(),
+    page.locator(".mobileTabBar").boundingBox(),
+  ]);
+  expect(retryBox).not.toBeNull();
+  expect(tabBarBox).not.toBeNull();
+  // The phone tap floor is 44px and this is a recovery button, so it is the
+  // last control that may fall under it.
+  expect(retryBox!.height).toBeGreaterThanOrEqual(44);
+  expect(retryBox!.y + retryBox!.height).toBeLessThanOrEqual(tabBarBox!.y);
   await expect(page.locator(".mapFallback")).toHaveCount(0);
 });
 
@@ -636,7 +660,7 @@ test("/map spends its one bounded style reload, then surfaces the honest tile ca
   await expect(page.locator(".mapSoftRetry")).toHaveCount(0);
 });
 
-test("/map keeps a usable surface when TileJSON metadata fails", async ({
+test("/map states a TileJSON metadata failure instead of revealing a blank field", async ({
   page,
 }) => {
   test.setTimeout(75_000);
@@ -686,12 +710,22 @@ test("/map keeps a usable surface when TileJSON metadata fails", async ({
     timeout: 60_000,
   });
 
+  // `isCriticalBasemapFailure` escalates an initial source-metadata failure, so
+  // the reader is TOLD the background is missing rather than left reading a
+  // blank field. The notice outlives its own arrival.
+  const notice = page.locator(".mapSoftRetry");
+  await expect(notice).toContainText("Map background couldn't load", {
+    timeout: 30_000,
+  });
+  await page.waitForTimeout(2_000);
+  await expect(notice).toBeVisible();
+  await expect(notice.getByRole("button", { name: "Retry" })).toBeVisible();
+
   // Phone readiness is local-pin-first. A metadata lane that cannot answer must
   // not replace the live canvas with a blank field or take away map controls.
   await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 60_000 });
   await expect(page.locator(".mapFallback")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Search the map" })).toBeVisible();
-
 });
 
 // Dead-frame-loop contract. A browser can grant WebGL while its render loop
@@ -937,11 +971,9 @@ test("desktop area search resolves a gazetteer locality and fits the map", async
   await search.press("Enter");
   await expect(listbox).toHaveCount(0);
 
-  await expect
-    .poll(async () => page.evaluate(() => (
-      window as Window & { __cameraIntents?: Array<{ kind: string; sequence: number }> }
-    ).__cameraIntents?.filter((intent) => intent.kind === "area").length ?? 0))
-    .toBeGreaterThan(0);
+  await expect.poll(async () => page.evaluate(() => (
+    window as Window & { __cameraIntents?: Array<{ kind: string; sequence: number }> }
+  ).__cameraIntents?.filter((intent) => intent.kind === "area").length ?? 0)).toBe(1);
 
   await expect.poll(async () => page.evaluate(() => {
     const raw = window.localStorage.getItem("pubmaxx.mobile-map-session.v1");
