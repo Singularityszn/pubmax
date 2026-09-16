@@ -15,10 +15,11 @@ tree. A beat never overrides a law in the root [AGENTS.md](../../AGENTS.md).
    BEFORE state while the issue reproduces, before the fix, when it is cheapest, and the AFTER state once
    it works. Evidence lanes: `npm run verify`, `npm run e2e:cli` for shots and snapshots, `docs/proof/`.
 4. **Ship with `/before-and-after`, then `/greploop` or `/greploop-apps`.** Validate with no-mistakes
-   once on the final head. That run comes before any push and before the PR. Open the PR with
+   on the final head. That run comes before any push and before the PR. Open the PR with
    before/after proof in the body, a screenshot or video for a visible surface, measured numbers or
    output pairs otherwise. Then run `/greploop` on the opened PR, or `/greploop-apps` past Greptile's
-   file-count limit, until Greptile reports 5/5 with zero unresolved comments.
+   file-count limit, until Greptile reports 5/5 with zero unresolved comments. Every greploop fix cycle
+   commits and then pushes through the gate, so the PR head is always a gate-validated head.
 
 ## Writing for humans
 
@@ -54,11 +55,13 @@ prose you did not touch.
 4. Commit with a clear message, rebase onto the latest `origin/main`, and rerun the checks.
 5. Run the no-mistakes validation on the final head. The validation owns the push. In this fleet, the
    pipeline push step is the only push. For work outside the fleet, start the gate with
-   `git push no-mistakes <branch>`. Never push to `origin` before the gate passes.
+   `git push no-mistakes <branch>`. Never push to `origin` directly.
 6. Open the PR. The body explains what changed, how it was tested, the before/after proof, and the risks
    and follow-up work.
 7. Run `/greploop` or `/greploop-apps` until Greptile reports 5/5 with zero unresolved comments, then
-   present the PR URL.
+   present the PR URL. In this repo, each fix cycle commits and then pushes with
+   `git push no-mistakes <branch>` or a fresh `no-mistakes axi run`, never a plain `git push`. That
+   command replaces the default push step of the greploop skill.
 
 A merge happens only on the captain's word. Keep the worktree until the PR is merged or closed.
 
