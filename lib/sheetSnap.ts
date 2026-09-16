@@ -76,6 +76,46 @@ export function mobileSelectCameraOffset(
  *   translateFraction = 1 - revealedFraction
  *   → full 0.08, half 0.45, peek 0.86
  */
+export type DeepLinkSelectionCameraInput = {
+  /** The venue the link named, as the camera last understood it. */
+  arrivalVenueId: string;
+  /** The venue selected right now. */
+  selectedVenueId: string;
+  /** Whether this map has already moved for a selection. */
+  cameraSpent: boolean;
+};
+
+export type DeepLinkSelectionCameraDecision = {
+  /** Wait for the sheet's own edge before moving, rather than measuring now. */
+  measureSheet: boolean;
+  /** The arrival venue id to carry forward. */
+  arrivalVenueId: string;
+};
+
+/**
+ * Whether a selection is still the cold deep-link arrival, and which id that
+ * arrival now names.
+ *
+ * A link that named a venue owes one measured move: the canvas can paint before
+ * the sheet portal mounts, so measuring at once takes the fraction fallback and
+ * parks the named pin outside the visible band. That stays true when the id is
+ * rewritten to its canonical form mid-arrival, which is why the arrival id
+ * follows the selection until the camera has actually moved for one.
+ *
+ * A link that named no venue (a bare `?landmark=` arrival) is not this case:
+ * its first ordinary tap lands on a painted map and must move at once.
+ */
+export function deepLinkSelectionCamera({
+  arrivalVenueId,
+  selectedVenueId,
+  cameraSpent,
+}: DeepLinkSelectionCameraInput): DeepLinkSelectionCameraDecision {
+  if (cameraSpent || !arrivalVenueId || !selectedVenueId) {
+    return { measureSheet: false, arrivalVenueId };
+  }
+  return { measureSheet: true, arrivalVenueId: selectedVenueId };
+}
+
 export const SHEET_SNAP_TRANSLATE_FRACTIONS = {
   peek: 1 - SHEET_SNAP_FRACTIONS.peek,
   half: 1 - SHEET_SNAP_FRACTIONS.half,

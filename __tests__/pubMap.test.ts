@@ -7,6 +7,7 @@ import {
   crawlStopsFromPubIds,
   filtersForCuratedCrawl,
   buildMapSeed,
+  builtStopsAskedAfter,
   builtStopsNeedingHydration,
   detailStatusFor,
   mapSelectionNotice,
@@ -190,7 +191,11 @@ describe("builtStopsNeedingHydration", () => {
   });
 
   it("does not re-ask a stop whose request failed when the venue set is rebuilt", () => {
-    const asked = new Set(["v2"]);
+    const asked = builtStopsAskedAfter(new Set(["v1", "v2"]), [
+      { id: "v1", status: "found" },
+      { id: "v2", status: "failed" },
+    ]);
+    expect(asked.has("v2")).toBe(true);
     const rebuilt = new Map<string, Venue>([
       ["v1", makeVenue()],
       ["v9", makeVenue({ id: "v9" })],
@@ -203,6 +208,12 @@ describe("builtStopsNeedingHydration", () => {
         askedIds: asked,
       }),
     ).toEqual([]);
+  });
+
+  it("keeps a stop asked whose request went missing", () => {
+    expect(
+      builtStopsAskedAfter(new Set<string>(), [{ id: "v3", status: "missing" }]),
+    ).toEqual(new Set(["v3"]));
   });
 
   it("bounds one arrival at the plan's own stop ceiling", () => {

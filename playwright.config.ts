@@ -85,10 +85,10 @@ if (
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
-  // One local run shares one production-style server and its in-memory per-IP
-  // lanes across every browser context, and four workers exhaust those lanes
-  // and turn later plan journeys into 429s. CI shards have a server and an IP
-  // each, so the cap protects the single local rig only.
+  // Observed on the local rig: at four workers the single production-style
+  // server died mid-suite and every later context reported connection refused
+  // (267 of them). At two workers it stays up. CI shards run a server each, so
+  // the cap is the local rig's alone.
   workers: process.env.CI ? undefined : 2,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

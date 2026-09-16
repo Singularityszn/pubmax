@@ -141,6 +141,28 @@ export function builtStopsNeedingHydration({
     .filter((id) => Boolean(id) && !venueById.has(id) && !askedIds.has(id));
 }
 
+export type BuiltStopHydrationResult = {
+  id: string;
+  status: "found" | "missing" | "failed";
+};
+
+/**
+ * The stops a mounted map counts as asked once an answer lands.
+ *
+ * Every requested id stays asked, whatever the answer. A stop the request could
+ * not answer for waits for the reader to open it (the selected-venue path) or
+ * for the next cold arrival: releasing it here would re-ask the whole plan on
+ * the next shard commit, because the venue set is rebuilt on every one.
+ */
+export function builtStopsAskedAfter(
+  askedIds: ReadonlySet<string>,
+  results: readonly BuiltStopHydrationResult[],
+): Set<string> {
+  const next = new Set(askedIds);
+  for (const { id } of results) next.add(id);
+  return next;
+}
+
 export type VenueDetailStatus = "idle" | "loading" | "ready" | "missing" | "unavailable";
 
 export function detailStatusFor(
